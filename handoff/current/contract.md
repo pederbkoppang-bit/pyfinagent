@@ -1,59 +1,54 @@
-# Contract — phase-47.6: Dynamic strategy rotation (per-strategy DSR selector + anti-churn)
+# Contract — phase-47.7: Learn-loop correctness fix (read real paper_trades P&L field)
 
-**Cycle:** 7 of the production-ready+money push (priority 5, the NORTH STAR). FREE of LLM spend.
-**Step:** 47.6 | **Phase:** phase-47 | **Status:** in-progress | **Harness:** required | **Tier:** complex.
+**Cycle:** 8 of the production-ready+money push (priority 6 / DoD-6). FREE of LLM spend.
+**Step:** 47.7 | **Phase:** phase-47 | **Status:** in-progress | **Harness:** required | **Tier:** moderate-complex.
 
 ## Research-gate summary (PASSED)
-Researcher `acb97aa2cc1ee7618`, tier=complex, `gate_passed: true`. 6 sources in full, 19 URLs, recency
-scan, 11 internal files. Brief: `research_brief_phase_47_6_strategy_rotation.md`.
+Researcher `adf9093569a532de8`, tier=moderate-complex, `gate_passed: true`. 6 sources in full, 17 URLs,
+recency scan, 8 internal files (+ live BQ schema). Brief: `research_brief_phase_47_7_learn_loop.md`.
 
-KEY FINDING: the rotation machinery largely EXISTS (quant_optimizer rotates `strategy` as a search
-param; `analytics.compute_deflated_sharpe`; `gate.PromotionGate` DSR>=0.95/PBO<=0.20;
-`friday_promotion.py` weekly DSR-desc ranking + `promoted_strategies` BQ write; `autonomous_loop.py:46
-load_promoted_params` consumes it). The MISSING piece is the incumbent-vs-challengers SELECTION with
-anti-churn hysteresis. Today the live strategy is STATIC (triple_barrier, Sharpe 1.17).
+Both `financial_reports.outcome_tracking` AND `financial_reports.agent_memories` are EMPTY ever (0 rows,
+us-central1). TWO root causes:
+- RC#1 (flag OFF): `settings.py:32 paper_learn_loop_enabled` defaults False; `autonomous_loop.py:1970-71
+  if not learn_loop_enabled: continue`. The flag's own description says "operator flips to true" -- it is
+  OPERATOR-GATED by design. NOT flipped here.
+- RC#3 (FIELD BUG): `autonomous_loop.py:1981` read `trade.get("return_pct")`, but paper_trades rows carry
+  `realized_pnl_pct` (paper_trader.execute_sell, :350-369; get_paper_trades SELECT * no remap). So the
+  fallback wrote 0.0 return for EVERY sell-close. The existing test masked it by hand-setting return_pct
+  in its mock (test line 39). Also a stale comment claimed save_outcome is an UPSERT (it APPENDS).
 
 ## Hypothesis
-A pure `select_best_strategy()` that reuses PromotionGate (gate), mirrors friday_promotion's
-DSR-desc/PBO-asc ranking, and adds an anti-churn min-improvement (Delta-DSR) vs the incumbent gives the
-system the north-star "shift to highest earner" behavior WITHOUT whipsaw, and feeds the live loop via
-the existing promoted_strategies path. Unit-testable with synthetic DSR dicts (no live backtest needed
-for the committed deliverable).
+Reading `realized_pnl_pct` (with `return_pct` fallback) makes the learn-loop record the TRUE realized
+return instead of 0.0, so when the operator enables the (operator-gated) flag, outcome_tracking/agent_
+memories carry real P&L. De-masking the test mock (use realized_pnl_pct) turns the fallback-path test
+into a genuine regression guard. The flag stays operator-gated; no LLM spend incurred this cycle.
 
-DESIGN REFINEMENT (vs the brief's placeholder): gate-passers have DSR in [0.95, 1.0], so the max
-possible Delta-DSR is 0.05 -- a 0.05 min_improvement would make switching impossible. Default set to
-**0.01** (one DSR-point), band-appropriate + parameterized.
-
-## Immutable success criteria (verbatim from masterplan.json phase-47.6)
-1. NEW backend/autoresearch/strategy_selector.py::select_best_strategy is a PURE function that
-   gate-filters per-strategy candidates by DSR>=0.95 & PBO<=0.20 (REUSING PromotionGate, no
-   metric-formula duplication), ranks passers DSR-desc/PBO-asc, and switches from the incumbent ONLY
-   when the top challenger's DSR exceeds the incumbent's by >= min_improvement (anti-churn hysteresis);
-   favors incumbent on tie; handles first-selection (no incumbent) and no-passer (retain incumbent)
-2. NEW tests/autoresearch/test_strategy_selector.py has >=6 behavioral cases (top-DSR pick, DSR-gate
-   veto, PBO veto, anti-churn below-min-improvement retains incumbent, incumbent-tie, first-selection)
-   and all pass
-3. reuses existing PromotionGate (DSR/PBO not re-implemented); ast.parse clean; pytest green
+## Immutable success criteria (verbatim from masterplan.json phase-47.7)
+1. autonomous_loop.py sell-close fallback reads the REAL paper_trades P&L field (realized_pnl_pct, with return_pct as fallback), NOT the non-existent return_pct -- so a sell-close writes the true return to outcome_tracking instead of 0.0
+2. the regression test mock (test_phase_35_1_learn_loop_writer.py) uses realized_pnl_pct (the real field) so it now GUARDS the bug (the fallback-path test fails on the pre-fix code, passes post-fix); all tests in the file pass
+3. the operator-gated paper_learn_loop_enabled flag is NOT flipped (stays default False per its design; test_field_default_off still passes); the misleading save_outcome 'UPSERT' comment corrected to append-only
+4. ast.parse clean; pytest green
 
 ## Plan steps
-1. NEW `backend/autoresearch/strategy_selector.py::select_best_strategy(per_strategy, incumbent, *,
-   gate, min_improvement=0.01, num_trials=5)` -- pure; reuses PromotionGate; DSR-desc/PBO-asc ranking;
-   anti-churn hysteresis; first-selection + no-passer + incumbent-tie handling.
-2. NEW `tests/autoresearch/test_strategy_selector.py` -- 8 behavioral cases.
-3. Verify: ast.parse + `pytest tests/autoresearch/test_strategy_selector.py`. Fresh Q/A.
+1. `autonomous_loop.py:1981` -- read realized_pnl_pct (fallback return_pct, then 0.0). DONE.
+2. `autonomous_loop.py:1976-78` -- correct the UPSERT->append comment. DONE.
+3. `test_phase_35_1_learn_loop_writer.py:39` -- mock uses realized_pnl_pct (real field) so the fallback
+   test guards the bug. DONE.
+4. Verify: ast + `pytest test_phase_35_1_learn_loop_writer.py` (all pass post-fix; fallback test fails
+   pre-fix). Mutation proof inline. Fresh Q/A.
 
 ## Blast radius
-ADDITIVE: one new pure module + its test. No change to the live loop, gate, or promotion path this
-cycle (the selector is callable but not yet wired into a cron). No LLM spend, no trade execution.
+Learn-loop outcome-write path (autonomous_loop fallback) + its test. No flag flip (operator-gated, no
+LLM spend). No trade-execution change. Additive correctness fix.
 
-## Deferred (documented, NOT this step)
-- Live per-strategy DSR population via 5 quant-only walk-forward backtests (the selector's real inputs).
-- Weekly cron scheduling of the selection sweep + writing the choice to promoted_strategies.
-- Real-capital activation (stays paper-only).
-- effective-N clustering of the correlated strategies (v1 uses plain num_trials -> over-deflates = safe).
+## Deferred (documented)
+- LIVE outcome_tracking row from a real sell-close: needs the operator to flip paper_learn_loop_enabled
+  ("operator flips to true") + a sell-close cycle. The reflection fan-out (agent_memories) uses an
+  Anthropic LLM (claude-sonnet-4-6) = metered spend = operator-gated.
+- save_outcome composite-dedup (currently append-only). The DoD-6 probe references a `cycle_id` column
+  that neither outcome_tracking nor agent_memories has -- DoD-6 criterion/probe needs reconciliation.
 
 ## References
-- `research_brief_phase_47_6_strategy_rotation.md` (gate); `roadmap_master.md` workstream 6
-- `backend/autoresearch/gate.py::PromotionGate`; `backend/autoresearch/friday_promotion.py` (ranking pattern)
-- `backend/backtest/analytics.py:239` compute_deflated_sharpe; `backend/services/autonomous_loop.py:46` load_promoted_params
-- Bailey & Lopez de Prado 2014 (DSR best-of-N); jump-model 2024 (switch-penalty turnover reduction)
+- `research_brief_phase_47_7_learn_loop.md` (gate); `backend/services/autonomous_loop.py:1880-2046`
+- `backend/services/paper_trader.py:350-369` (realized_pnl_pct source); `backend/db/bigquery_client.py:375-392` (save_outcome)
+- `backend/config/settings.py:32` (operator-gated flag); `backend/services/outcome_tracker.py`

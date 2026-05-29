@@ -13348,6 +13348,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "47.7",
+          "name": "Learn-loop correctness fix -- read real paper_trades P&L field (realized_pnl_pct) in the sell-close outcome writer",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "47.2",
+          "audit_basis": "research_brief_phase_47_7_learn_loop.md: outcome_tracking + agent_memories are EMPTY ever (both us-central1, 0 rows). ROOT CAUSES: (1) paper_learn_loop_enabled default OFF (autonomous_loop.py:1970-71) -- OPERATOR-GATED by design (settings.py:32 'operator flips to true'), NOT flipped here; (2) FIELD BUG autonomous_loop.py:1981 reads trade.get('return_pct') but paper_trades rows carry realized_pnl_pct (paper_trader.py:350-369), so the fallback writes 0.0 return for every sell-close; the existing test masked it by hand-setting return_pct in the mock. This step fixes the correctness bug + de-masks the test so the learn-loop records the TRUE return when the operator enables it.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read())\" && python -m pytest backend/tests/test_phase_35_1_learn_loop_writer.py -q",
+            "success_criteria": [
+              "autonomous_loop.py sell-close fallback reads the REAL paper_trades P&L field (realized_pnl_pct, with return_pct as fallback), NOT the non-existent return_pct -- so a sell-close writes the true return to outcome_tracking instead of 0.0",
+              "the regression test mock (test_phase_35_1_learn_loop_writer.py) uses realized_pnl_pct (the real field) so it now GUARDS the bug (the fallback-path test fails on the pre-fix code, passes post-fix); all tests in the file pass",
+              "the operator-gated paper_learn_loop_enabled flag is NOT flipped (stays default False per its design; test_field_default_off still passes); the misleading save_outcome 'UPSERT' comment corrected to append-only",
+              "ast.parse clean; pytest green"
+            ],
+            "live_check": "n/a -- deterministic unit test. LIVE outcome_tracking row from a real sell-close DEFERRED to when the operator enables paper_learn_loop_enabled (its description says 'operator flips to true') + a sell-close cycle runs."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

@@ -1,52 +1,51 @@
-# Experiment Results — phase-47.6: Dynamic strategy rotation (per-strategy DSR selector + anti-churn)
+# Experiment Results — phase-47.7: Learn-loop correctness fix (read real paper_trades P&L field)
 
-**Cycle:** 7 (priority 5, the NORTH STAR). FREE of LLM spend. **Result:** ready for Q/A.
+**Cycle:** 8 (priority 6 / DoD-6). FREE of LLM spend. **Result:** ready for Q/A.
 
-## What was built (ADDITIVE: 1 pure module + 1 test)
-1. NEW `backend/autoresearch/strategy_selector.py::select_best_strategy(per_strategy, incumbent, *,
-   gate=PromotionGate(), min_improvement=0.01, num_trials=5)` -- the SELECTION layer for the north-star
-   "shift capital to whichever strategy makes the most money":
-   - Gate-filters candidates by DSR>=0.95 & PBO<=0.20 by **reusing `gate.PromotionGate`** (no metric
-     re-implementation -- 5 PromotionGate refs, 0 DSR/PBO formula reimpl, grep-confirmed).
-   - Ranks passers DSR-desc / PBO-asc (mirrors friday_promotion).
-   - **Anti-churn hysteresis**: switches off the incumbent ONLY when the top challenger's DSR exceeds
-     it by >= min_improvement; otherwise retains the incumbent (avoids whipsaw between near-tied
-     strategies -- jump-model 2024: switch-penalty cut turnover 141%->44% net-positive).
-   - Edge handling: first-selection (no incumbent), no-passer (retain incumbent, never go to cash),
-     incumbent-is-top (retain). Pure; fail-open; ASCII-only.
-2. NEW `tests/autoresearch/test_strategy_selector.py` -- 8 behavioral cases (synthetic DSR dicts, no
-   live backtest): first-selection picks top DSR; DSR-gate veto; PBO veto; anti-churn below-threshold
-   retains incumbent; switch on sufficient improvement; incumbent-is-top; no-passer retains incumbent;
-   weak-incumbent-replaced-by-large-margin.
+## What was changed (3 edits: 1 code fix + 1 comment + 1 test de-mask)
+Root cause (research-validated): the learn-loop sell-close fallback read `trade.get("return_pct")`, but
+paper_trades rows carry **`realized_pnl_pct`** (paper_trader.execute_sell). So every sell-close recorded
+**0.0 return** -- the learn-loop's core signal (true realized P&L) was always zero. The existing test
+masked it by hand-setting `return_pct` in its mock.
 
-## Design refinement vs the research brief (disclosed)
-The brief's placeholder `min_improvement=0.05` is unreachable: gate-passers have DSR in [0.95, 1.0], so
-the max Delta-DSR between two passers is 0.05. Set the default to **0.01** (one DSR-point) -- band-
-appropriate, and parameterized so the operator can tune. Documented in the module docstring.
+1. `backend/services/autonomous_loop.py:1981` -- now reads `realized_pnl_pct` first, falls back to
+   `return_pct`, then 0.0 (`_rp = trade.get("realized_pnl_pct"); if _rp is None: _rp =
+   trade.get("return_pct"); pnl_pct = float(_rp or 0.0)`).
+2. `autonomous_loop.py:1976-78` -- corrected the stale "bq.save_outcome is an UPSERT" comment to
+   "APPENDS (not an upsert); re-running could duplicate the (ticker, analysis_date) row; dedup is a follow-up".
+3. `backend/tests/test_phase_35_1_learn_loop_writer.py:39` -- mock now uses `realized_pnl_pct` (the REAL
+   field), so the fallback-path test is a genuine regression guard against the field bug.
+
+**NOT changed:** the operator-gated `paper_learn_loop_enabled` flag (settings.py:32, default False -- its
+own description says "operator flips to true"). Enabling it incurs per-sell-close Anthropic reflection
+spend (claude-sonnet-4-6) = operator-gated. Left for the operator.
 
 ## Verbatim verification output
 ```
-$ python -c "import ast; ast.parse(open('backend/autoresearch/strategy_selector.py').read())"  -> ast OK
-$ python -m pytest tests/autoresearch/test_strategy_selector.py -q                              -> 8 passed in 0.01s
-$ grep -c PromotionGate strategy_selector.py        -> 5 (reused)
-$ grep -c <dsr/pbo formula reimpl patterns>         -> 0 (no metric duplication)
+$ python -c "import ast; ast.parse('backend/services/autonomous_loop.py')"  -> ast OK
+$ python -m pytest backend/tests/test_phase_35_1_learn_loop_writer.py -q     -> 5 passed in 2.18s
+
+Mutation proof (de-masked mock trade = {realized_pnl_pct: 17.89, no return_pct}):
+  PRE-FIX  read return_pct        -> 0.0    (test asserts 17.89 -> FAILS)
+  POST-FIX read realized_pnl_pct  -> 17.89  (test asserts 17.89 -> PASSES)
+  mutation guard CONFIRMED.
+
+$ grep "paper_learn_loop_enabled: bool = Field(False" settings.py  -> present (flag still operator-gated, NOT flipped)
 ```
 
-## Success-criteria mapping (masterplan phase-47.6)
-1. pure select_best_strategy: gate-filter via PromotionGate, DSR-desc/PBO-asc rank, anti-churn switch,
-   incumbent-tie + first-selection + no-passer handling -- **MET**.
-2. test_strategy_selector.py >=6 behavioral cases all pass -- **MET** (8 passed).
-3. reuses PromotionGate (no DSR/PBO reimpl); ast clean; pytest green -- **MET** (5 refs, 0 reimpl).
+## Success-criteria mapping (masterplan phase-47.7)
+1. fallback reads real field realized_pnl_pct (fallback return_pct) not the non-existent return_pct -- **MET**.
+2. test mock uses realized_pnl_pct -> guards the bug (fails pre-fix on the fallback path, passes post-fix); all pass -- **MET** (5 passed; mutation proof shows pre-fix 0.0 vs post-fix 17.89).
+3. operator-gated flag NOT flipped (test_field_default_off passes); UPSERT comment corrected -- **MET** (flag still Field(False)).
+4. ast clean; pytest green -- **MET**.
 
-## Scope honesty / deferred (documented)
-This ships the SELECTION logic (the missing north-star piece) -- pure + unit-tested. EXPLICITLY
-DEFERRED (NOT claimed): live per-strategy DSR population via 5 quant-only walk-forward backtests (the
-selector's real inputs); the weekly cron that drives the sweep + writes the choice to
-promoted_strategies; real-capital activation (stays paper-only); effective-N clustering of the
-correlated strategies (v1 plain num_trials over-deflates = safe direction). The selector is callable +
-integration-ready (the loop already reads promoted_strategies via load_promoted_params), but this cycle
-does NOT wire the cron or run the backtests.
+## Scope honesty / deferred
+Fixes the learn-loop CORRECTNESS (it will now record true P&L when enabled). Does NOT flip the
+operator-gated flag (no LLM spend incurred) and does NOT claim a LIVE outcome_tracking row -- the live
+evidence needs the operator to enable the flag + a sell-close cycle (and the reflection fan-out is
+Anthropic-metered = operator-gated). save_outcome append-only dedup + the DoD-6 probe's non-existent
+cycle_id column are flagged follow-ups, not fixed here.
 
 ## Files
-backend/autoresearch/strategy_selector.py (new), tests/autoresearch/test_strategy_selector.py (new),
-.claude/masterplan.json (phase-47.6), handoff/current/{contract.md, research_brief_phase_47_6_strategy_rotation.md}.
+backend/services/autonomous_loop.py, backend/tests/test_phase_35_1_learn_loop_writer.py,
+.claude/masterplan.json (phase-47.7), handoff/current/{contract.md, research_brief_phase_47_7_learn_loop.md}.

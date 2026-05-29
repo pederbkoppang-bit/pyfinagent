@@ -25592,3 +25592,30 @@ claim); goalpost all-additive + verbatim; harness compliance 5/5. Zero violation
 **Deferred (documented):** live per-strategy DSR via 5 quant-only backtests; the weekly cron sweep +
 writing the choice to promoted_strategies; real-capital activation; effective-N clustering. The selector
 is integration-ready (loop reads promoted_strategies) but the cron/backtests are a follow-on.
+
+## Cycle 8 (production-ready+money push) -- 2026-05-29 -- phase=47.7 result=PASS
+
+**Step:** 47.7 -- Learn-loop correctness fix (read real paper_trades P&L field). Priority 6 / DoD-6. FREE.
+
+**Researcher:** `adf9093569a532de8`, tier=moderate-complex, `gate_passed: true`. 6 sources in full, 17
+URLs, recency scan, 8 internal files + live BQ schema. Found both outcome_tracking + agent_memories EMPTY
+ever; TWO root causes: (1) paper_learn_loop_enabled OFF (operator-gated by design -- NOT flipped); (2)
+FIELD BUG: autonomous_loop.py:1981 read trade.get('return_pct') but paper_trades carry realized_pnl_pct
+-> 0.0 return recorded for every sell-close; the existing test masked it (hand-set return_pct in mock).
+
+**Implementation:** autonomous_loop.py sell-close fallback now reads realized_pnl_pct (fallback
+return_pct, then 0.0); de-masked the test mock to use realized_pnl_pct (genuine regression guard);
+corrected the stale 'save_outcome is an UPSERT' comment to append-only. Operator-gated flag NOT flipped
+(no Anthropic reflection spend incurred).
+
+**Verification:** ast OK; pytest 5 passed. Mutation proof: de-masked mock -> PRE-FIX reads return_pct=0.0
+(test asserts 17.89 -> FAILS), POST-FIX reads realized_pnl_pct=17.89 (PASSES). Flag still Field(False).
+
+**Q/A:** fresh `ad7be49f5996cae9f` = **PASS** (`ok:true`). Independently confirmed paper_trader.py:364
+writes realized_pnl_pct (right field); ran an END-TO-END mutation test through real _learn_from_closed_trades
+(pre-fix 0.0 fails / post-fix 17.89 passes -- genuine guard, not tautology); settings.py untouched (flag
+respected, no LLM spend); scope honestly deferred; goalpost all-additive + verbatim; harness 5/5. Zero violations.
+
+**Deferred (documented):** LIVE outcome_tracking row needs the operator to flip paper_learn_loop_enabled
+("operator flips to true") + a sell-close cycle (reflection fan-out = Anthropic-metered = operator-gated);
+save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither table has (reconcile).

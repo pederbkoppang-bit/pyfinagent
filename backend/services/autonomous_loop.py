@@ -1973,12 +1973,22 @@ async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, sett
             if outcome is None:
                 # Fallback: build a minimal outcome dict from trade fields so
                 # outcome_tracking gets a row even when yfinance flake or
-                # missing analysis_date kills the primary path. Idempotent
-                # via the (ticker, analysis_date) composite -- bq.save_outcome
-                # is an UPSERT in the existing implementation.
+                # missing analysis_date kills the primary path.
+                # NOTE (phase-47.7): bq.save_outcome APPENDS -- it is NOT an upsert
+                # (corrected from a prior comment); re-running a sell-close could
+                # duplicate the (ticker, analysis_date) row. Acceptable for v1
+                # (sell-closes are one-shot per cycle); composite dedup is a follow-up.
                 try:
                     sell_price = float(trade.get("price") or 0.0)
-                    pnl_pct = float(trade.get("return_pct") or 0.0)
+                    # phase-47.7: paper_trades rows carry `realized_pnl_pct` (written by
+                    # paper_trader.execute_sell), NOT `return_pct`. Reading the
+                    # non-existent return_pct silently recorded 0.0 return for EVERY
+                    # sell-close -- the learn-loop's core value (true realized P&L) was
+                    # always zero. Prefer the real field; keep return_pct as a fallback.
+                    _rp = trade.get("realized_pnl_pct")
+                    if _rp is None:
+                        _rp = trade.get("return_pct")
+                    pnl_pct = float(_rp or 0.0)
                     holding_days = int(trade.get("holding_days") or 0)
                     bq.save_outcome(
                         ticker=ticker,

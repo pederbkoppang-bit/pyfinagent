@@ -36,7 +36,12 @@ def mock_bq():
             "action": "SELL",
             "reason": "stop_loss_trigger",
             "price": 378.32,
-            "return_pct": 17.89,
+            # phase-47.7: REAL paper_trades P&L field is realized_pnl_pct (NOT
+            # return_pct). Using the real field here makes the fallback-path test a
+            # genuine guard against the field bug -- it fails on code that reads
+            # the non-existent return_pct (-> 0.0) and passes once the loop reads
+            # realized_pnl_pct.
+            "realized_pnl_pct": 17.89,
             "holding_days": 25,
             "analysis_id": "2026-04-27T00:00:00",
             "created_at": "2026-05-22T18:35:45+00:00",
