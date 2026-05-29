@@ -3,7 +3,7 @@ risk_overrides -- Runtime operator control of the paper-trading deployment /
 concentration caps, WITHOUT a backend restart (phase-49.1, P7 "risk limits").
 
 The four deployment knobs below are read AT-DECIDE-TIME in
-`portfolio_manager.build_trade_decisions` via `get_effective(key, settings.X)`.
+`portfolio_manager.decide_trades` via `get_effective(key, settings.X)`.
 An override set here is therefore picked up by the NEXT daily cycle with no
 restart -- the loop runs in the backend's own APScheduler process, the same
 process as the API (see research_brief phase-49.1, Q1).
