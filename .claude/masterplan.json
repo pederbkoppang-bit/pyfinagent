@@ -13516,6 +13516,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "49.1",
+          "name": "Runtime risk-limit control endpoint -- file-backed risk_overrides store (mirrors kill_switch.py) + get_effective() reader seam in portfolio_manager + confirmation-gated/bounded/audited GET/PUT/DELETE /api/paper-trading/risk-limits (P7 'risk limits' deliverable; the deployment-decision bridge so the operator can tune deployment/concentration live without a restart)",
+          "status": "in_progress",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "48.4",
+          "audit_basis": "research_brief phase-49.1 (researcher gate PASSED: 6 sources read in full + recency scan + 6 internal files). Decisive internal trace: the daily loop runs in the BACKEND process's own APScheduler (main.py:256 -> paper_trading.py:1220 cron paper_trading_daily -> run_daily_cycle), NOT slack_bot -> same process as the API. get_settings() is @lru_cache frozen-at-first-call -> use a separate override store not settings mutation. kill_switch.py is the proven file-backed-JSONL template (singleton + append-only audit + replay-on-init + threading.Lock + confirmation gate). The four deployment caps are read AT-DECIDE-TIME in portfolio_manager.py (lines 74/213/215/242) -> an override injected there is picked up the next cycle, no restart. External grounding: SEC Rule 15c3-5 + Fed FEDS-2025-034 (runtime limit changes must be audited + authorized), Knight Capital $440M (never let this surface disable the kill-switch breach checks; unique explicit keys), OneUptime/Unleash (validate-before-accept, reversible, four-eyes for critical). P7 explicitly lists 'risk limits' as an operator-control deliverable. Money context: this is the SAFE bridge that lets the operator execute 'deploy idle cash' (the empirically market-limited concentration call) without a settings-edit+restart -- see [[project_live_money_state]]. $0 LLM; backend restart required once to load the new router.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/risk_overrides.py').read())\" && python -c \"from backend.services import risk_overrides as r; r.clear_all(); assert r.get_effective('paper_max_per_sector',2)==2; r.set_override('paper_max_per_sector',4,reason='test'); assert r.get_effective('paper_max_per_sector',2)==4; r.clear_override('paper_max_per_sector'); assert r.get_effective('paper_max_per_sector',2)==2; print('risk_overrides roundtrip OK')\" && test -f handoff/current/live_check_49.1.md",
+            "success_criteria": [
+              "backend/services/risk_overrides.py exists, parses, and mirrors the kill_switch.py file-backed pattern: a module singleton + append-only JSONL audit at handoff/risk_overrides_audit.jsonl + replay-on-init (restart-survivable) + threading.Lock",
+              "get_effective(key, default) returns the active override when one is set and the passed settings default when not; set_override is BOUNDED (rejects out-of-range values with a clear error) and audited; clear_override/clear_all revert to settings defaults",
+              "portfolio_manager.py reads the four deployment caps (paper_max_per_sector, paper_max_per_sector_nav_pct, paper_min_cash_reserve_pct, paper_max_positions) via risk_overrides.get_effective(...) at the existing at-decide-time read points (lines ~74/213/215/242) so an override is picked up the NEXT cycle with no restart; the existing kill-switch loss-limit breach checks are NOT mutable through this surface (Knight Capital safety)",
+              "GET/PUT/DELETE /api/paper-trading/risk-limits exist: GET returns effective values + which keys are overridden; PUT is bounded + confirmation-gated + writes an audit row + invalidates the paper api_cache; DELETE reverts a key to its settings default; a LIVE curl round-trip (PUT->GET->DELETE) is captured verbatim in live_check_49.1.md showing the override set, read back, and reverted",
+              "every override mutation appends an audit row (key, old_value, new_value, reason, timestamp) to handoff/risk_overrides_audit.jsonl"
+            ],
+            "live_check": "REQUIRED -- live curl PUT/GET/DELETE round-trip against the running backend (port 8000) captured verbatim in live_check_49.1.md, proving an override is set (bounded + confirmation-gated), read back via GET, and reverted via DELETE; plus the resulting handoff/risk_overrides_audit.jsonl rows."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

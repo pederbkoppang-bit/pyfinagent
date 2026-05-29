@@ -1,37 +1,45 @@
-# Contract — phase-48.4: Live rotation bake-off SMOKE (first real validation)
+# Contract -- phase-49.1: Runtime risk-limit control endpoint
 
-**Cycle:** 15 (Priority 5 — operator said "you decide"; chosen: the safe "verify live" step). **LLM spend:** $0 (quant-only backtests; real BQ + real compute, no LLM). **Run mode:** the live smoke is BACKGROUNDED (~6-12 min, 4 real backtests).
+**Step id:** 49.1 | **Priority:** P2 (P7 operator control surface -- "risk limits" deliverable) | **depends_on:** 48.4
+**Date:** 2026-05-29 | **harness_required:** true | **$0 LLM** (pure backend; backend restart once to load the new router)
 
-## Research-gate summary
-`researcher` `a97220b09474e710d` (gate **PASSED**): 5 sources read in full + recency scan + 11 internal files. Brief: `handoff/current/research_brief_phase_48_4_live_smoke.md`.
-
-Decisive findings:
-- **Viable window (the trap):** the engine's default 12mo-train/3mo-test needs ≥15 months → a 6-month window yields ZERO walk-forward windows + a degenerate DSR (var fallback 0.5). **Use 2022-01-01..2024-06-30 → 6 windows, T~367 ≫ the 32 floor.** BQ confirmed: `financial_reports.historical_prices` spans 2017-01-03..2026-05-28; the window has 511,960 rows / 502 tickers; the ~756-day training lookback is not starved.
-- **Minimal scale:** 2 seeds (tb_baseline + qm_trend_tilt) × num_param_variants=2 = 4 real backtests; N=2 is the floor for a real per-strategy PBO (N<2 → degenerate 0.0 false-passes the gate). T~367 ≫ 32 guaranteed.
-- **Runtime ~6-12 min** (cold first ~5-10 min + warm <30s each) → BACKGROUND. Macro preload is INSIDE run_backtest (no ~40min hang). `load_promoted_params` is a read.
-- **Ctor:** `BigQueryClient(settings)` (takes settings, not no-args).
-- **Q/A PASS bar:** dsr/pbo finite in [0,1] (pbo NOT a degenerate 0.0), sharpe finite, n_windows≥2, a verdict with selected_id/reason, ONE `rotation_log.jsonl` row at `allocation_pct=0.0` matching the verdict, zero deploy side-effects. **`no_candidate_passed_gate` is a VALID outcome** — the smoke proves the PLUMBING runs on real backtests, not that a seed won.
+## Research-gate summary (PASSED)
+`handoff/current/research_brief.md` (researcher gate: **6 sources read in full, recency scan done, 30+ URLs, 6 internal files, gate_passed=true**). Decisive findings:
+- **Process topology (Q1):** the daily loop runs in the **backend's own** APScheduler (`main.py:256` lifespan -> `init_scheduler` -> `paper_trading.py:1220` cron `paper_trading_daily` -> `_scheduled_run()` -> `run_daily_cycle`). The slack_bot scheduler only does digests/watchdog/red-team. So the loop + the API share the `com.pyfinagent.backend` process -> an override store is reachable by both. File-backed still preferred (survives restart; avoids the phase-38.13.1 lru_cache cross-worker desync).
+- **Settings caching (Q2):** `get_settings()` is `@lru_cache` frozen at first call -> do NOT mutate the settings object; use a separate override store.
+- **Override template (Q3):** `backend/services/kill_switch.py` is the proven pattern -- module singleton (`_state`) + append-only JSONL (`handoff/kill_switch_audit.jsonl`) + `_load_from_audit()` replay-on-init + `threading.Lock` + confirmation-gated handlers.
+- **Integration seam (Q4):** the caps are read AT-DECIDE-TIME in `portfolio_manager.py` via `getattr(settings, "X")` at lines **74** (`paper_min_cash_reserve_pct`), **213** (`paper_max_per_sector`), **215/503** (`paper_max_per_sector_nav_pct`), **242** (`paper_max_positions`). `decide_trades` runs fresh each cycle -> an override injected here is picked up next cycle, no restart.
+- **External (Q5 + best practices):** SEC Rule 15c3-5 + Fed FEDS-2025-034 (runtime limit changes are legitimate but MUST be audited + authorized + bounded); Knight Capital $440M (never let this surface disable the kill-switch breach checks; unique explicit keys; clear "cleared = default" semantics); OneUptime/Unleash (validate-before-accept, atomic, reversible, four-eyes for critical).
 
 ## Hypothesis
-Running `run_rotation_bakeoff` on a real ≥15-month window with 2 seeds × 2 variants will exercise the entire 48.1-48.3 chain (full-kwarg engine → 4 real walk-forward backtests → nav→daily-returns → `generate_report` DSR + per-strategy (T×K) `compute_pbo` → producer → selector → persisted verdict) end-to-end on ACTUAL data for the first time, producing finite, sane DSR/PBO/Sharpe + a real verdict — proving the machinery works live (everything prior was $0-mock-tested), at $0 LLM, audit-only (no deploy).
+A file-backed `risk_overrides` store (mirroring `kill_switch.py`) + a `get_effective(key, default)` reader seam at the `portfolio_manager.py` at-decide-time read points + confirmation-gated/bounded/audited `GET/PUT/DELETE /api/paper-trading/risk-limits` will let the operator tune the four deployment caps **live, without a backend restart**, picked up by the next cycle, fully audited and reversible -- delivering the P7 "risk limits" control and the safe bridge for the (operator-only) "deploy idle cash" decision, with **zero change to trading logic** and the kill-switch breach checks left immutable.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json phase-48.4)
-1. run_rotation_bakeoff executes on the real engine over a >=15-month window (2022-01-01..2024-06-30, >=2 walk-forward windows) with 2 seeds (tb_baseline + qm_trend_tilt) x num_param_variants=2, AUDIT-ONLY (allocation_pct=0, no deploy), $0 LLM
-2. the run produces, for at least the seeds that complete, FINITE per-strategy metrics: dsr in [0,1], pbo in [0,1] that is NOT a degenerate 0.0 (i.e. the (T,N) matrix was real: T>=32 from nav_history + N>=2 variants), sharpe finite, n_windows>=2 (so DSR's per-window variance is real, not the 0.5 fallback)
-3. the selector returns a verdict dict (selected_id + reason + ranked + num_trials); `no_candidate_passed_gate` / first_selection / a switch are ALL valid plumbing-proven outcomes; exactly ONE rotation_log.jsonl row is persisted at allocation_pct=0.0 matching the verdict
-4. zero deploy side-effects (NO promoted_strategies MERGE, NO settings.paper_* mutation, NO live order); the captured real {dsr,pbo,sharpe} per seed + the verdict + the persisted row are recorded verbatim in experiment_results.md + live_check_48.4.md
+## Success criteria (IMMUTABLE -- copied verbatim from .claude/masterplan.json step 49.1)
+1. backend/services/risk_overrides.py exists, parses, and mirrors the kill_switch.py file-backed pattern: a module singleton + append-only JSONL audit at handoff/risk_overrides_audit.jsonl + replay-on-init (restart-survivable) + threading.Lock
+2. get_effective(key, default) returns the active override when one is set and the passed settings default when not; set_override is BOUNDED (rejects out-of-range values with a clear error) and audited; clear_override/clear_all revert to settings defaults
+3. portfolio_manager.py reads the four deployment caps (paper_max_per_sector, paper_max_per_sector_nav_pct, paper_min_cash_reserve_pct, paper_max_positions) via risk_overrides.get_effective(...) at the existing at-decide-time read points (lines ~74/213/215/242) so an override is picked up the NEXT cycle with no restart; the existing kill-switch loss-limit breach checks are NOT mutable through this surface (Knight Capital safety)
+4. GET/PUT/DELETE /api/paper-trading/risk-limits exist: GET returns effective values + which keys are overridden; PUT is bounded + confirmation-gated + writes an audit row + invalidates the paper api_cache; DELETE reverts a key to its settings default; a LIVE curl round-trip (PUT->GET->DELETE) is captured verbatim in live_check_49.1.md showing the override set, read back, and reverted
+5. every override mutation appends an audit row (key, old_value, new_value, reason, timestamp) to handoff/risk_overrides_audit.jsonl
+
+**live_check:** REQUIRED -- live curl PUT/GET/DELETE round-trip against the running backend (port 8000) in live_check_49.1.md + the audit JSONL rows.
 
 ## Plan steps
-1. Write `scripts/rotation/run_smoke_bakeoff.py` (or an inline script) that imports `get_settings`, `BigQueryClient(settings)`, `backend.backtest.cache.clear_cache`, and `run_rotation_bakeoff`, and invokes it with the smoke params (2 seeds, num_param_variants=2, 2022-01-01..2024-06-30, persist=True, log to a captured path), printing the verdict + per-seed metrics as JSON.
-2. Run it BACKGROUNDED (real compute ~6-12 min); capture stdout + the persisted rotation_log row.
-3. Write experiment_results.md + live_check_48.4.md with the verbatim real verdict/metrics/row.
-4. Spawn a fresh Q/A against the captured output + the rotation_log row (the PASS bar above).
-5. On PASS: append harness_log.md, flip masterplan 48.4 → done.
+1. **`backend/services/risk_overrides.py`** (mirror kill_switch.py): `BOUNDS` dict (per-key min/max), module singleton + `threading.Lock`, append-only JSONL at `handoff/risk_overrides_audit.jsonl`, `_load_from_audit()` replay-on-init, `get_effective(key, default)`, `set_override(key, value, reason=...)` (validates against BOUNDS, rejects out-of-range, appends audit row), `clear_override(key)`, `clear_all()`, `snapshot()`. Only the four deployment caps are allowed keys; kill-switch loss limits are NOT (guarded by the allowed-key set).
+2. **`portfolio_manager.py` reader seam**: replace the four `getattr(settings, "X")` / `settings.X` reads (lines ~74/213/215/242) with `risk_overrides.get_effective("X", <existing default expression>)`. Behaviour identical when no override set (returns the settings value).
+3. **`backend/api/paper_trading.py` endpoints**: `GET /risk-limits` (effective values + overridden-keys list + bounds), `PUT /risk-limits` (Pydantic body {key, value, confirmation, reason}; bounded; confirmation-gated like KillSwitchActionRequest; audit; `get_api_cache().invalidate("paper:*")`), `DELETE /risk-limits/{key}` (revert). Consistent with existing /pause /resume handlers.
+4. **Verify**: syntax (ast.parse all 3); unit round-trip (the masterplan command's python -c); start/restart backend; **live curl PUT->GET->DELETE**; capture verbatim into `live_check_49.1.md`; confirm `risk_overrides_audit.jsonl` rows.
+5. **EVALUATE**: spawn a FRESH qa (no self-eval). Then append harness_log.md (LAST), then flip masterplan 49.1 -> done.
 
-## Out-of-scope (DEFERRED)
-- The FULL 4-seed × 8-variant bake-off (longer run); the deployment params→settings.paper_* bridge (the keystone — touches live trading, operator-gated activation); the weekly cron; re-enabling the reverted trailing/vol-target readers; effective-N / CPCV.
+## Anti-overfit / safety notes
+- This does NOT change trading logic or the alpha; it makes existing caps operator-tunable. Default behaviour (no override) is byte-identical to today.
+- Bounds prevent fat-finger (e.g., paper_max_per_sector in [0,20] matching settings Field ge/le; nav_pct in [0,100]; min_cash_reserve in [0,50]; max_positions in [1,50]).
+- Kill-switch loss-limit breach checks remain un-mutable through this surface (explicit allowed-key allowlist).
 
 ## References
-- `handoff/current/research_brief_phase_48_4_live_smoke.md`
-- `backend/autoresearch/rotation_runner.py` (48.3), `strategy_backtest_adapter.py` (48.2), producer/registry/selector (48.1/47.6)
-- `backend/backtest/backtest_engine.py` + `analytics.py`; `backend/db/bigquery_client.py:22` (ctor); `financial_reports.historical_prices` (BQ data)
+- handoff/current/research_brief.md (the gate-passing brief)
+- backend/services/kill_switch.py (persistence template)
+- backend/services/portfolio_manager.py:74,213,215,242,503 (integration seam)
+- backend/api/paper_trading.py:510-558 (control-endpoint pattern)
+- backend/config/settings.py:176,180,188,255 (the knobs + existing Field bounds)
+- backend/main.py:256-265 (in-process scheduler)
+- SEC Rule 15c3-5 / WilmerHale FAQ; Fed FEDS-2025-034; Knight Capital (Dolfing); OneUptime hot-reload; Unleash flag best-practices
