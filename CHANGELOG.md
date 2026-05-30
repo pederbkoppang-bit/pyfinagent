@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-30 | `113fec3e` | docs(handoff): session-final summary -- 7 cycles shipped, phase-50 4/6 + 50.5 planned |
 | 2026-05-30 | `4290c82d` | phase-50.5: PLAN (GENERATE pending) -- data-quality gate + multi-market backtest |
 | 2026-05-30 | `6865115b` | phase-50.4: Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars... |
 | 2026-05-30 | `6334a491` | phase-50.4: GENERATE -- market-calendar gating (latent bug fixed) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `16f3ee03` | phase-49.3: GENERATE -- cron-control UI (Actions column on /cron) |
 | 2026-05-29 | `d025240f` | phase-49.3: PLAN -- cron-control UI contract + research gate |
 | 2026-05-29 | `f708efa8` | docs(handoff): cycle_block_summary -- 49.1 + 49.2 shipped, P7 control surface complete |
-| 2026-05-29 | `deb9bd92` | phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2... |
 
 ---
 
