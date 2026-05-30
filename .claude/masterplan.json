@@ -13636,13 +13636,13 @@
         {
           "id": "50.3",
           "name": "Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{ticker} -> yfinance suffix (KR:005930 -> 005930.KS); route autonomous_loop's universe through a `paper_markets` setting (default [\"US\"], byte-identical when unchanged) + wire candidate_selector.get_universe_tickers(market) for non-US. FREE.",
-          "status": "pending",
+          "status": "in_progress",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.2",
           "audit_basis": "Multi-market brief Part C 50.3 + A1/A2. The live loop currently bypasses markets.py via the US-only screener. A `paper_markets` setting (default ['US']) makes US-only behaviour byte-identical while enabling EU/KR. candidate_selector already accepts a market arg (returns [] for non-US today). This step ALSO broadens sector coverage geographically (operator's sector question).",
           "verification": {
-            "command": "RESEARCH-FIRST then define at GENERATE",
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_50_3_universe.py -q 2>&1 | tail -3 && python -c \"from backend.config.settings import get_settings; assert get_settings().paper_markets==['US'], get_settings().paper_markets; print('paper_markets default US OK')\" && test -f handoff/current/live_check_50.3.md",
             "success_criteria": [
               "a suffix mapper converts {market}:{ticker} to the yfinance symbol (US->bare, EU/DE->.DE, KR->.KS/.KQ); round-trips for sample tickers",
               "candidate_selector.get_universe_tickers(market='EU') returns a real DAX-40 (or Xetra) universe; market='KR' returns KOSPI-200 (or a documented subset)",
