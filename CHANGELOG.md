@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-30 | `7faddf47` | phase-50.3: PLAN -- international universe + suffix mapper + routing |
 | 2026-05-30 | `edecc9c0` | phase-50.2: Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-posi... |
 | 2026-05-30 | `c452de61` | phase-50.2: GENERATE -- multi-currency accounting (byte-identical, live-verified) |
 | 2026-05-30 | `ffdb8816` | phase-50.2: PLAN -- multi-currency accounting contract + research gate |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `fa8badc7` | docs: fix risk_overrides docstring (decide_trades, not build_trade_decisions) |
 | 2026-05-29 | `3faddd0d` | phase-49.1: GENERATE -- runtime risk-limit control endpoint (live-verified) |
 | 2026-05-29 | `f81faeac` | phase-49.1: PLAN -- runtime risk-limit control endpoint contract + research gate |
-| 2026-05-29 | `3d18027a` | docs(handoff): 2026-05-29 verification -- priorities 1-4 verified DONE |
 
 ---
 
+### v6.28.32 — phase-50.3: PLAN -- international universe + suffix mapper + routing (2026-05-30)
+
+- **phase-50.3: PLAN -- international universe + suffix mapper + routing**
 ### v6.28.31 — phase-50.2: Multi-currency portfolio accounting -- paper_trader.py re... (2026-05-30)
 
 - **phase-50.2: Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-posi...**
