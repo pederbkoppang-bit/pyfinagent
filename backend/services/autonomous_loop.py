@@ -333,11 +333,37 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 base = list(universe) if universe is not None else get_sp500_tickers()
                 intl = [t for m in _intl_markets for t in INTL_UNIVERSE.get(m, [])]
                 universe = base + intl
+                # phase-50.4: ENTRY calendar gate -- drop a ticker whose market
+                # is CLOSED today (market-local date), so we don't screen/buy a
+                # closed exchange on stale data. US tickers are NEVER gated (the
+                # live loop has never gated US -> keeps it byte-identical). Exits
+                # are NOT gated here (a stop-loss must always be able to fire).
+                from backend.backtest.markets import is_trading_day, market_for_symbol, get_market_config
+                from datetime import datetime as _dt, timezone as _tz
+                from zoneinfo import ZoneInfo as _ZI
+
+                def _open_today(sym: str) -> bool:
+                    mk = market_for_symbol(sym)
+                    if mk == "US":
+                        return True  # ungated -> byte-identical with today's US-only behaviour
+                    try:
+                        market_tz = get_market_config(mk).get("timezone", "UTC")
+                        local_date = _dt.now(_tz.utc).astimezone(_ZI(market_tz)).date()
+                        return is_trading_day(local_date, mk)
+                    except Exception as _e:
+                        logger.warning("phase-50.4: calendar gate error for %s (%s); keeping", sym, _e)
+                        return True  # fail-open: never drop on a calendar error
+
+                _before = len(universe)
+                universe = [t for t in universe if _open_today(t)]
+                _dropped = _before - len(universe)
                 summary["universe_source"] = "+".join(_paper_markets)
                 summary["universe_size"] = len(universe)
+                if _dropped:
+                    logger.info("phase-50.4: calendar gate dropped %d closed-market tickers", _dropped)
                 logger.info(
-                    "phase-50.3: multi-market universe %s -> %d tickers (+%d intl)",
-                    _paper_markets, len(universe), len(intl),
+                    "phase-50.3: multi-market universe %s -> %d tickers (+%d intl, %d calendar-gated)",
+                    _paper_markets, len(universe), len(intl), _dropped,
                 )
 
             screen_data = screen_universe(

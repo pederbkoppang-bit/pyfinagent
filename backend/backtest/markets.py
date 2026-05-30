@@ -135,18 +135,24 @@ def get_trading_calendar(market: str = DEFAULT_MARKET):
 
 
 def is_trading_day(date, market: str = DEFAULT_MARKET) -> bool:
-    """Check if date is a trading day in the specified market."""
+    """Check if `date` is a trading session for the market's exchange.
+
+    phase-50.4: rewritten to exchange_calendars 4.x `cal.is_session()`. The
+    previous body used `date in cal.days`, but `.days` was removed in
+    exchange_calendars 4.0 -> the bare except swallowed the AttributeError and
+    this ALWAYS returned True (a latent no-op gate; it had zero live callers).
+    `is_session` requires a tz-NAIVE session label (midnight); it rejects
+    tz-aware Timestamps. Fail-open (return True) when the calendar lib is
+    unavailable -- never block a trade because exchange_calendars is missing."""
     cal = get_trading_calendar(market)
     if cal is None:
-        return True  # Safe default if calendar unavailable
-
-    from datetime import datetime
-
-    if isinstance(date, str):
-        date = datetime.fromisoformat(date).date()
-
+        return True  # fail-open: calendar unavailable
     try:
-        return date in cal.days
+        import pandas as pd
+        ts = pd.Timestamp(date)
+        if ts.tzinfo is not None:
+            ts = ts.tz_localize(None)  # is_session rejects tz-aware labels
+        return bool(cal.is_session(ts.normalize()))
     except Exception as e:
-        logger.warning(f"Calendar check failed: {e}, assuming trading day")
+        logger.warning("Calendar check failed for %s/%s: %s; assuming trading day", market, date, e)
         return True

@@ -1,31 +1,26 @@
-# Experiment results -- phase-50.3: International universe + suffix mapper + routing
+# Experiment results -- phase-50.4: Market-calendar gating
 
-**Date:** 2026-05-30 | **Result: built + live-verified (byte-identical for paper_markets=['US'])** | $0 LLM | no pip | Operator: BOTH EU + Korea, free yfinance.
+**Date:** 2026-05-30 | **Result: built + verified (byte-identical for paper_markets=['US'])** | $0 LLM | no pip (exchange_calendars already installed).
 
 ## What was built
-EU (DAX-40) + KR (KOSPI-200 seed) wired into the live loop's universe capability, gated by a `paper_markets` setting that defaults to `["US"]` (byte-identical). International is BUILT but OFF until a deliberate flip after the 50.5 data-quality gate.
+The live loop now gates ENTRY (screening/buying) per market on whether that market is a trading day today (market-local date), so it won't trade a closed EU/KR exchange on stale data. US is never gated (byte-identical). A latent always-True bug in `is_trading_day` was fixed.
 
 ## Files changed/added
-1. **backend/backtest/universe_lists.py** (NEW) -- curated static DAX40 (.DE + AIR.PA) + KOSPI200 (.KS, ~40-name seed) yfinance symbols. Static in-repo (can't collapse to [] on a scrape failure).
-2. **backend/backtest/markets.py** -- `YF_SUFFIX` + `to_yfinance_symbol(namespaced)` + `market_for_symbol(symbol)` (derives market from the suffix: .DE/.PA->EU, .KS/.KQ->KR, bare->US).
-3. **backend/backtest/candidate_selector.py:127** -- non-US `get_universe_tickers` stub now returns `INTL_UNIVERSE[market]` (was []).
-4. **backend/config/settings.py** -- `paper_markets: list[str] = Field(default_factory=lambda: ["US"])`.
-5. **backend/services/portfolio_manager.py** -- `TradeOrder.market` field; set via `markets.market_for_symbol(cand["ticker"])` on both BUY-order constructions (main + swap).
-6. **backend/services/autonomous_loop.py** -- universe extension (append INTL_UNIVERSE per non-US paper_market; no-op for ['US']) + `market=order.market` on the execute_buy call.
-7. **backend/tests/test_phase_50_3_universe.py** (NEW) -- 6 offline tests.
+1. **backend/backtest/markets.py:137** -- rewrote `is_trading_day(date, market)`: `cal.is_session(pd.Timestamp(date).normalize())` (was the broken `date in cal.days` -> AttributeError swallowed -> always True). Fail-open True if calendar unavailable.
+2. **backend/services/autonomous_loop.py** (inside the 50.3 `if _intl_markets:` block) -- after building the multi-market universe, drop tickers whose market is closed today (market-LOCAL date via ZoneInfo); US tickers never gated; fail-open on calendar error; log the drop count.
+3. **backend/tests/test_phase_50_4_calendar.py** (NEW) -- 7 tests (US weekday/weekend, EU Labour Day closed / US open, KR Seollal + Chuseok closed / US open, normal weekday all-open, unknown-market fail-open, regression guard that it's not always-True, market derivation).
 
-## Verification (live)
-- `pytest backend/tests/test_phase_50_3_universe.py` -> **6 passed**. All changed modules import clean.
-- `paper_markets` default == `['US']`.
-- **LIVE universe routing**: ['US'] -> universe=None -> 503 S&P tickers (BYTE-IDENTICAL, zero intl added); ['US','EU'] -> 543 (+40 EU, .DE present / .KS absent); ['US','EU','KR'] -> 583 (.DE 39 + .PA 1 = 40 EU, .KS 40 KR). build_universe(['US']) is None == True.
+## Verification
+- `pytest backend/tests/test_phase_50_4_calendar.py` -> **7 passed**. autonomous_loop imports clean.
+- Live across markets (verified vs published Xetra/KRX 2026 calendars): EU 2026-05-01 (Labour Day) closed while US open; KR 2026-02-17 (Seollal) + 2026-09-25 (Chuseok) closed while US open; normal weekday all open; unknown market fail-open True.
+- masterplan command: `is_trading_day('2026-01-01','EU') is False` + `('2026-06-15','US') is True` -> "calendar gate OK".
 
-## Success criteria mapping (all 4 met) -- see live_check_50.3.md
-1. suffix mapper round-trips -- YES. 2. get_universe_tickers EU/KR non-empty + suffixed -- YES. 3. paper_markets drives universe, ['US'] byte-identical, ['US','EU'] adds .DE -- YES. 4. live universe listing -- YES.
+## Success criteria mapping (all 3 met) -- see live_check_50.4.md
+1. gates per market, holiday skips that market independently -- YES. 2. dep verify-installed, US path unbroken -- YES (no new dep). 3. live evidence of one market closed / another open -- YES.
 
 ## Scope / honesty notes
-- **Byte-identical live**: paper_markets default ['US'] -> universe=None -> today's get_sp500_tickers path; every BUY TradeOrder.market = market_for_symbol(bare ticker) = "US" -> 50.2 FX x1.0. The live +20% engine is unchanged.
-- Suffixed-symbol-as-ticker (vs deriving suffix from market) avoids the AIR.PA / .KQ traps; KR leading zeros preserved.
-- **International is OFF by default** -- go-live (flip paper_markets to include EU/KR) is DEFERRED to AFTER the 50.5 data-quality gate per the operator's "free yfinance + quality gate" choice. 50.3 ships the capability only.
-- KOSPI200 is a documented ~40-name large-cap seed (criterion allows a documented subset); expandable.
-- Backtest PIT path (candidate_selector as_of) still raises NotImplementedError for non-US -- out of scope (50.5 handles intl backtest).
+- **Byte-identical:** the gate is inside `if _intl_markets:` -> default ['US'] never runs it; US tickers are never gated even in a multi-market universe (the live loop never gated US before -- gating it would CHANGE behaviour). `is_trading_day` IS correct for US (a caller can gate US), but the live loop deliberately doesn't (preserves the +20% engine).
+- **Exits never gated** -- only the ENTRY universe is filtered; execute_sell / stop-loss paths untouched (a breached stop must always fire).
+- Fixed a latent always-True bug (cal.days removed in exchange_calendars 4.0; was dead code with zero live callers).
+- exchange_calendars==4.13.2 already installed + imported; recommend an explicit requirements pin (>=4.13,<5) as an owner-flagged follow-up (not a blocker; fail-open).
 - $0 LLM; no pip; no spend; no DROP/DELETE.
