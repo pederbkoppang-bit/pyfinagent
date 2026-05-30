@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-30 | `4194088a` | phase-50.4: PLAN -- market-calendar gating contract + research gate |
 | 2026-05-30 | `ccf8a889` | phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{t... |
 | 2026-05-30 | `8e8897ed` | phase-50.3: GENERATE -- international universe + suffix mapper + routing |
 | 2026-05-30 | `7faddf47` | phase-50.3: PLAN -- international universe + suffix mapper + routing |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `e2ee9acd` | phase-49.2: GENERATE -- operator cron-control endpoints (live-verified) |
 | 2026-05-29 | `55024d0a` | phase-49.2: PLAN -- operator cron-control endpoints contract + research gate |
 | 2026-05-29 | `0d2a768d` | phase-49.1: Runtime risk-limit control endpoint -- file-backed risk_overrides store (mirrors kill... |
-| 2026-05-29 | `fa8badc7` | docs: fix risk_overrides docstring (decide_trades, not build_trade_decisions) |
 
 ---
 
+### v6.28.35 — phase-50.4: PLAN -- market-calendar gating contract + research gate (2026-05-30)
+
+- **phase-50.4: PLAN -- market-calendar gating contract + research gate**
 ### v6.28.34 — phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 /... (2026-05-30)
 
 - **phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{t...**
