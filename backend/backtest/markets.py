@@ -78,6 +78,38 @@ def get_market_config(market: str = DEFAULT_MARKET) -> dict:
     return MARKET_CONFIG.get(market, MARKET_CONFIG[DEFAULT_MARKET])
 
 
+# phase-50.3: yfinance ticker suffix per market (US is bare).
+YF_SUFFIX = {"US": "", "NO": ".OL", "CA": ".TO", "EU": ".DE", "KR": ".KS"}
+
+
+def to_yfinance_symbol(namespaced: str) -> str:
+    """phase-50.3: {market}:{ticker} -> yfinance symbol. US:AAPL->AAPL,
+    EU:SAP->SAP.DE, KR:005930->005930.KS. A bare or already-suffixed symbol is
+    returned unchanged (the curated universe lists already store suffixed forms)."""
+    market, t = parse_namespaced_ticker(namespaced)
+    suffix = YF_SUFFIX.get(market, "")
+    if not suffix or t.endswith(suffix):
+        return t
+    return f"{t}{suffix}"
+
+
+def market_for_symbol(symbol: str) -> str:
+    """phase-50.3: derive the market code from a yfinance symbol's suffix
+    (the suffix IS the source of truth -- AIR.PA is EU despite market='EU' not
+    yielding .PA). Bare ticker -> US. .KS/.KQ -> KR; .DE/.PA/.AS/.F -> EU;
+    .OL -> NO; .TO -> CA."""
+    s = (symbol or "").upper()
+    if s.endswith((".KS", ".KQ")):
+        return "KR"
+    if s.endswith((".DE", ".PA", ".AS", ".F")):
+        return "EU"
+    if s.endswith(".OL"):
+        return "NO"
+    if s.endswith(".TO"):
+        return "CA"
+    return DEFAULT_MARKET
+
+
 def get_trading_calendar(market: str = DEFAULT_MARKET):
     """
     Get exchange trading calendar for market.

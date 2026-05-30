@@ -321,6 +321,25 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             else:
                 universe = None
 
+            # phase-50.3: extend the universe with international markets when
+            # settings.paper_markets includes non-US codes. Default ['US'] ->
+            # _intl is empty -> universe unchanged -> BYTE-IDENTICAL to today.
+            # Symbols are stored yfinance-suffixed (SAP.DE, 005930.KS); market
+            # is derived from the suffix at buy-time (markets.market_for_symbol).
+            _paper_markets = getattr(settings, "paper_markets", None) or ["US"]
+            _intl_markets = [m for m in _paper_markets if m != "US"]
+            if _intl_markets:
+                from backend.backtest.universe_lists import INTL_UNIVERSE
+                base = list(universe) if universe is not None else get_sp500_tickers()
+                intl = [t for m in _intl_markets for t in INTL_UNIVERSE.get(m, [])]
+                universe = base + intl
+                summary["universe_source"] = "+".join(_paper_markets)
+                summary["universe_size"] = len(universe)
+                logger.info(
+                    "phase-50.3: multi-market universe %s -> %d tickers (+%d intl)",
+                    _paper_markets, len(universe), len(intl),
+                )
+
             screen_data = screen_universe(
                 tickers=universe,
                 period="6mo",
@@ -1005,6 +1024,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     risk_judge_position_pct=order.risk_judge_position_pct,
                     signals=order.signals,
                     sector=order.sector or None,  # phase-23.2.6-fix
+                    market=getattr(order, "market", "US"),  # phase-50.3: US for bare tickers (byte-identical)
                     # phase-30.6: analysis-time reference for the
                     # price-tolerance gate inside execute_buy.
                     price_at_analysis=order.price_at_analysis,

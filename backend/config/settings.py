@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     # --- Multi-Market (Phase 2.9) ---
     default_market: str = Field("US", description="Default market code (US, NO, CA, DE, KR)")
     base_currency: str = Field("USD", description="Base currency for portfolio returns")
+    # phase-50.3: markets the LIVE paper loop screens/trades. Default ['US'] is
+    # byte-identical to today. Add 'EU'/'KR' to go live international -- only
+    # AFTER the 50.5 data-quality gate (never trade unguarded intl data).
+    paper_markets: list[str] = Field(
+        default_factory=lambda: ["US"],
+        description="phase-50.3: live-loop markets (subset of US/EU/KR). Default ['US'] = byte-identical.",
+    )
 
     # --- Cloud Function Agent URLs ---
     ingestion_agent_url: str = Field(..., description="Ingestion agent Cloud Function URL")

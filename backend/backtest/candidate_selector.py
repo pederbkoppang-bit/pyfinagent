@@ -125,9 +125,15 @@ class CandidateSelector:
                 "delistings-feed ingestion (phase-4.8.x)."
             )
         if market != "US":
+            # phase-50.3: curated STATIC international universes (EU=DAX-40,
+            # KR=KOSPI-200 seed) as yfinance-suffixed symbols. Static in-repo
+            # so a Yahoo/Wikipedia HTML change can't silently collapse to [].
+            from backend.backtest.universe_lists import INTL_UNIVERSE
+            tickers = INTL_UNIVERSE.get(market.upper())
+            if tickers:
+                return list(tickers)
             logger.warning(
-                "Market '%s' not yet supported -- returning empty universe. "
-                "Only 'US' is implemented (Phase 2.9 abstraction).", market
+                "Market '%s' has no curated universe -- returning empty.", market
             )
             return []
         

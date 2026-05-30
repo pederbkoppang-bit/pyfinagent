@@ -10,6 +10,7 @@ from typing import Optional
 
 from backend.config.settings import Settings
 from backend.services import risk_overrides
+from backend.backtest import markets  # phase-50.3: derive market from ticker suffix
 from backend.services.signal_attribution import extract_signals_from_analysis, extract_all_signals
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class TradeOrder:
     price: Optional[float] = None
     signals: list[dict] = field(default_factory=list)  # 4.5.5 agent attribution
     sector: str = ""  # phase-23.2.6-fix: persisted to paper_positions.sector at execute_buy
+    market: str = "US"  # phase-50.3: derived from the ticker suffix (markets.market_for_symbol); "US" = byte-identical
     # phase-30.6: analysis-time price reference for the price-tolerance gate.
     # Distinct from `price` which historically held the same value but will be
     # overwritten with the LIVE fetch in autonomous_loop Step 7 -- separating
@@ -347,6 +349,7 @@ def decide_trades(
             price_at_analysis=cand.get("price"),
             signals=cand.get("signals", []),
             sector=cand.get("sector", ""),  # phase-23.2.6-fix
+            market=markets.market_for_symbol(cand["ticker"]),  # phase-50.3: US for bare tickers (byte-identical)
             # phase-40.8.1 (P3): forward FF3 loadings to execute_buy
             # so the in-memory pos_row carries them.
             factor_loadings=cand.get("factor_loadings"),
@@ -560,6 +563,7 @@ def _compute_swap_candidates(
             price_at_analysis=cand.get("price"),
             signals=cand.get("signals", []),
             sector=cand.get("sector", ""),
+            market=markets.market_for_symbol(cand["ticker"]),  # phase-50.3
             factor_loadings=cand.get("factor_loadings"),
         ))
         swapped_tickers.add(weakest["ticker"])
