@@ -13657,13 +13657,13 @@
         {
           "id": "50.4",
           "name": "Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars; gate trades on is_trading_day(market) per exchange (XETR / XKRX / XNYS) with each market's hours + holidays + timezone. FREE (pip-verify; owner-approval if a new dep ships to requirements).",
-          "status": "pending",
+          "status": "in_progress",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.3",
           "audit_basis": "Multi-market brief Part C 50.4 + A5. markets.py already has a calendar helper; this wires it into the live loop so .DE trades skip German holidays + respect Xetra hours. pandas_market_calendars v5.4.0 (2026-05-27, MIT) covers XKRX/XETR/XLON/XPAR/XNYS.",
           "verification": {
-            "command": "RESEARCH-FIRST then define at GENERATE",
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_50_4_calendar.py -q 2>&1 | tail -3 && python -c \"from backend.backtest import markets as m; assert m.is_trading_day('2026-01-01','EU') is False; assert m.is_trading_day('2026-06-15','US') is True; print('calendar gate OK')\" && test -f handoff/current/live_check_50.4.md",
             "success_criteria": [
               "the loop/backtest gates each market's trades on is_trading_day(market, date); a US market holiday skips US, a German holiday skips EU/.DE independently",
               "the calendar dep is verify-installed (import works) without breaking the existing US path; if it ships to requirements it carries owner sign-off",
