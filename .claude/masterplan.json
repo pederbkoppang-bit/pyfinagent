@@ -13677,13 +13677,13 @@
         {
           "id": "50.5",
           "name": "Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in the backtest, + a DATA-QUALITY gate that drops identical-OHLC bars (the yfinance-international 11%-deviation / identical-OHLC risk). FREE.",
-          "status": "pending",
+          "status": "in_progress",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.2",
           "audit_basis": "Multi-market brief Part C 50.5 + the biggest-risk finding. International yfinance data has up to 11% deviation vs XETRA + 10-24 days/yr of all-identical OHLC that silently break momentum/RSI/vol -> a data-quality gate is mandatory before trusting any international backtest. Per-market benchmark replaces the SPY hard-code. Factor-transfer caveat: re-optimize params per market.",
           "verification": {
-            "command": "RESEARCH-FIRST then define at GENERATE",
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/tools/price_quality.py').read())\" && python -m pytest backend/tests/test_phase_50_5_dataquality.py -q 2>&1 | tail -3 && test -f handoff/current/live_check_50.5.md",
             "success_criteria": [
               "the backtest engine accepts a market, uses its benchmark (^GDAXI for EU, ^KS11 for KR, SPY/^GSPC for US) and FX-converts NAV/returns to base currency",
               "a data-quality gate detects + drops (or flags) identical-OHLC bars and gross-deviation outliers in international price series, logging how many bars were dropped (no silent truncation)",

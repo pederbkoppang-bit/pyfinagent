@@ -1,46 +1,55 @@
-# Contract -- phase-50.4: Market-calendar gating
+# Contract -- phase-50.5: Multi-market backtest + DATA-QUALITY gate
 
-**Step id:** 50.4 | **Priority:** P3 (phase-50) | **depends_on:** 50.3
-**Date:** 2026-05-30 | **harness_required:** true | **$0 LLM** | no pip (exchange_calendars 4.13.2 already installed + imported in markets.py:12).
+**Step id:** 50.5 | **Priority:** P3 (phase-50; the LAST go-live prerequisite) | **depends_on:** 50.4
+**Date:** 2026-05-30 | **harness_required:** true | **$0 LLM** | no pip
+**STATUS: PLAN complete, GENERATE pending** -- deliberately handed off mid-cycle after 7 cycles this session (marathon-risk discipline; this step inserts into the live US screener/ingestion paths, a regression surface best done with fresh context). The next session GENERATEs from this contract.
 
 ## Research-gate summary (PASSED)
-`handoff/current/research_brief.md` (gate: **6 sources read in full, recency scan, 17 URLs, 7 internal files, gate_passed=true**). Decisive:
-- **LATENT BUG:** `markets.is_trading_day(date, market)` (markets.py:137-152) is silently broken -- `date in cal.days` (`.days` was removed in exchange_calendars 4.0); the bare except swallows the AttributeError + returns True ALWAYS. Zero live callers today -> 50.4 is the first consumer + MUST rewrite to `cal.is_session(pd.Timestamp(naive))`.
-- **No in-cycle market-open gate exists today:** run_daily_cycle (autonomous_loop.py:124) runs unconditionally; the only calendar awareness is the cron `day_of_week="mon-fri"` (paper_trading.py:1307). The loop trades on US weekday holidays. So **US MUST stay UNGATED** (gating US would change behaviour). Gate plug-in: filter the universe inside the existing `if _intl_markets:` block (autonomous_loop.py ~:330, added in 50.3) -> US-only never touches calendar code -> byte-identical.
-- **Model: entry-gated, exit-ALWAYS-open, per-market.** Filter ENTRY universe to markets open today; NEVER gate exits (gating a stop-loss strands a breached position -> unbounded loss). No whole-cycle skip.
-- **Date convention: market-LOCAL date** -- `datetime.now(timezone.utc).astimezone(ZoneInfo(market_tz)).date()`, passed tz-naive (is_session rejects tz-aware). A UTC/US-date approach misses Korean lunar holidays by the ET->KST skew.
-- **API:** `cal.is_session(label) -> bool` (4.x); no `.days`. exchange_calendars==4.13.2 installed + already imported (markets.py:12) -> NO new dep (recommend pinning >=4.13,<5; fail-open try/except, not a blocker).
-- **Cross-validated:** library 2026 sessions match published Xetra + KRX calendars incl. lunar Seollal/Chuseok. KR has 15 weekday closures vs US 10 (4 overlap) -> ~11 days/yr the loop would otherwise trade a closed KR market on stale data.
+`handoff/current/research_brief.md` (gate: **7 sources read in full, recency scan, 20 URLs, 12 internal files, gate_passed=true**). Decisive:
+- **NO shared price-cleaning point -- the gate guards THREE doors** via one new `backend/tools/price_quality.py` validator:
+  - **L1 (operator's PRIORITY -- the live SIGNAL path):** `backend/tools/screener.py:110` (yf.download) -> `:131` `close = ticker_data["Close"]` feeds momentum/RSI/vol. Insert the gate in the per-ticker loop after `ticker_data = data[ticker]` (~:124-130), before `:131`. This is where a bad .DE/.KS bar becomes a signal.
+  - **L2 (live FILL/MARK):** `backend/services/paper_trader.py:1200` `_get_live_price` -- a bad bar -> return None (callers already fall back to last-known).
+  - **B (backtest source + live daily-refresh):** `backend/backtest/data_ingestion.py:132` (`ingest_prices`), ALSO called by `backend/slack_bot/jobs/daily_price_refresh.py:82`.
+  - (`backend/services/live_prices.py` is dashboard-only -> NOT a cleaning point.)
+- **Detection rules** (`price_quality.validate_ohlcv(df, market)`): R1 OHLC consistency (high>=max(o,c,l), low<=min(o,c,h), all>0); R2 identical-OHLC bar (o==h==l==c) AND/OR volume==0 -> DROP (zero-vol corroborates -- Tobi Lux: bad DAX bars had no volume); R3 |1-day return| z-score>3 (rolling) -> FLAG, >50% single-day round-trip -> DROP; R4 stale run-length (>=4 identical closes) -> FLAG. CRITICAL nuance (arXiv 2403.19735): never over-drop REAL volatility -- DROP only the unambiguous (identical-OHLC+zero-vol, impossible OHLC), FLAG the merely-large. Log dropped/flagged counts (NO silent truncation).
+- **BYTE-IDENTITY:** `validate_ohlcv` opens with `if market == "US": return df unchanged` (fast-path no-op) -> the live US screener/ingestion are untouched; real US bars also pass every rule. US benchmark stays `"SPY"` (not ^GSPC). US backtest numbers unchanged.
+- **Backtest gaps:** `backtest_engine.py:281` calls `get_universe_tickers()` WITHOUT `self.market` (market-blind despite storing self.market:206); `:299` hard-codes `+["SPY"]`; `analytics.py:461` hard-codes SPY; MARKET_CONFIG (markets.py:21-52) has NO `benchmark` field -> add (US="SPY", EU="^GDAXI", KR="^KS11"); `backtest_trader.mark_to_market:188` currency-blind.
+- **Scope triage (minimal safe go-live, satisfies all 4 criteria):** price_quality.py + L1/L2/B gates + backtest market-param + per-market benchmark + FX endpoint-return conversion (reuse 50.1 fx_rates, mirror 50.2 _fx_local_to_usd) + an EU `.DE` backtest for the live_check. **DEFERRED (documented, NOT blocking):** PIT-correct intl membership (the candidate_selector as_of NotImplementedError -- a market-agnostic survivorship guard, US has the same), per-bar FX inside _compute_nav, simultaneous mixed-currency multi-market backtest, live per-market benchmark.
 
 ## Hypothesis
-Rewriting `is_trading_day` to `cal.is_session` (fixing the latent always-True bug) + filtering the multi-market entry universe by each ticker's market-local trading day (US ungated, exits never gated), all inside the `if _intl_markets:` block, gates international entries on market-open while keeping US-only byte-identical.
+A `price_quality.validate_ohlcv(df, market)` validator (US fast-path no-op; intl detection rules) wired at the 3 doors (screener signal, _get_live_price fill, data_ingestion source) + a `benchmark` field in MARKET_CONFIG + the backtest accepting `market` (benchmark + FX-endpoint conversion) -- makes free-yfinance international data SAFE to trade live (the operator's "quality gate" precondition) while keeping the US path byte-identical.
 
-## Success criteria (IMMUTABLE -- verbatim from masterplan step 50.4)
-1. the loop/backtest gates each market's trades on is_trading_day(market, date); a US market holiday skips US, a German holiday skips EU/.DE independently
-2. the calendar dep is verify-installed (import works) without breaking the existing US path; if it ships to requirements it carries owner sign-off
-3. live/fixture evidence: a known German holiday (or weekend) where EU is correctly marked closed while US logic is unaffected
+## Success criteria (IMMUTABLE -- verbatim from masterplan step 50.5)
+1. the backtest engine accepts a market, uses its benchmark (^GDAXI for EU, ^KS11 for KR, SPY/^GSPC for US) and FX-converts NAV/returns to base currency
+2. a data-quality gate detects + drops (or flags) identical-OHLC bars and gross-deviation outliers in international price series, logging how many bars were dropped (no silent truncation)
+3. an EU (.DE) backtest runs end-to-end with the correct benchmark + FX-converted returns + the data-quality gate active; US backtests unchanged
+4. live evidence: an EU backtest summary (benchmark, FX-converted return, n bars dropped by the quality gate)
 
-**Verification command:** pytest backend/tests/test_phase_50_4_calendar.py + is_trading_day('2026-01-01','EU') is False + ('2026-06-15','US') is True + test -f live_check_50.4.md.
-**live_check:** REQUIRED -- a date where one market is open and another closed.
+**Verification command:** ast.parse(price_quality.py) + pytest backend/tests/test_phase_50_5_dataquality.py + test -f live_check_50.5.md.
+**live_check:** REQUIRED -- an EU-ticker backtest run with benchmark + FX-converted NAV + data-quality-gate drop count.
 
-NOTE on criterion #1 wording ("a US market holiday skips US"): the research found the live loop has NO US calendar gate today (it trades US weekday holidays on stale data), and adding one would CHANGE US behaviour (break byte-identity). So the SHIPPED behaviour is: `is_trading_day` is correct + AVAILABLE for all markets (US included -- a caller CAN gate US), but the LIVE loop applies the gate ONLY to non-US markets (US stays ungated = byte-identical). The criterion's "skips US" capability is satisfied by the function (is_trading_day('<us holiday>','US')==False); wiring US gating into the live loop is deliberately NOT done (it would regress the +20% engine). This is disclosed, not a skip.
+## Plan steps (for the next session's GENERATE)
+1. **backend/tools/price_quality.py** (NEW) -- `validate_ohlcv(df, market="US") -> (clean_df, report)`; `if market=="US": return df, {dropped:0,flagged:0}` (fast-path). Else apply R1-R4; return cleaned df + a report dict (dropped/flagged counts + reasons). Pure + unit-testable (no network).
+2. **Wire the 3 doors:** screener.py (~:124-130, before close extraction, market via markets.market_for_symbol(ticker)); paper_trader._get_live_price:1200 (validate the 1-row bar -> None if bad); data_ingestion.py:132 (validate per-ticker before the rows.append loop).
+3. **markets.py MARKET_CONFIG:21-52** -- add `benchmark`: US="SPY", EU="^GDAXI", KR="^KS11" (NO=^OSEAX, CA=^GSPTSE).
+4. **backtest_engine.py:281** pass `self.market` to get_universe_tickers; **:299** use `MARKET_CONFIG[self.market]["benchmark"]` instead of "SPY"; **analytics.py:461** benchmark param; backtest endpoint-return + benchmark FX-converted to USD via fx_rates (single-market book).
+5. **backend/tests/test_phase_50_5_dataquality.py** (NEW) -- validate_ohlcv: US fast-path no-op (returns input unchanged, dropped=0); an identical-OHLC+zero-vol bar DROPPED; an impossible OHLC (high<low) DROPPED; a 60% spike DROPPED; a large-but-real move FLAGGED not dropped; a clean intl series passes; report counts correct.
+6. **Verify:** pytest; an EU `.DE` backtest end-to-end (benchmark ^GDAXI, FX-converted return, gate drop count); confirm a US backtest is unchanged (byte-identical). Capture into live_check_50.5.md.
+7. **EVALUATE:** fresh qa. Then harness_log.md (LAST), then flip masterplan 50.5 -> done.
 
-## Plan steps
-1. **markets.py:137-152** -- rewrite `is_trading_day(date, market)`: `cal.is_session(pd.Timestamp(date).tz_localize(None if tz-aware).normalize())`; fail-open True if cal None / error. Keep the (date, market) signature.
-2. **autonomous_loop.py** (inside the 50.3 `if _intl_markets:` block, after `universe = base + intl`) -- filter: drop a ticker whose `market_for_symbol(ticker)` market is NOT a trading day today (market-local date); US tickers always kept (ungated); log the drop count. Exits (execute_sell path) untouched.
-3. **backend/tests/test_phase_50_4_calendar.py** (NEW) -- is_trading_day: US weekday=True, weekend=False, EU New Year 2026-01-01=False, a KR lunar holiday (Seollal 2026-02-17)=False, a normal EU/KR weekday=True; the gate filter keeps US + drops a closed EU/KR ticker (use a known-closed date via monkeypatch or a date assertion); US-only path unaffected.
-4. **Verify:** pytest; the masterplan command; a live is_trading_day check across US/EU/KR on a date where they differ (e.g. a German/Korean holiday that's a US trading day, or vice versa). Capture into live_check_50.4.md.
-5. **EVALUATE:** fresh qa. Then harness_log.md (LAST), then flip masterplan 50.4 -> done.
+## After 50.5: the GO-LIVE flip (operator-authorized)
+Once 50.5 lands (quality gate live), the international go-live = flip `settings.paper_markets` (or its .env override) to `["US","EU","KR"]`. The operator AUTHORIZED Both EU+KR + free-yfinance+quality-gate. The flip makes the live loop screen/trade EU/KR (quality-gated). Recommend: the orchestrator presents the flip as the final go-live action (it changes live trading) -- the operator already chose it, so it's executing their decision, but report it explicitly. Then 50.6 (UI).
 
 ## Safety / scope notes
-- **Byte-identical:** the gate lives inside `if _intl_markets:` -> paper_markets=['US'] (default) never runs it -> the +20% engine is unchanged. US tickers in a multi-market universe are also never gated (matches today).
-- **Exits never gated** -- a stop-loss/sell always fires (paper fills at last close on a closed market; log the stale fill). Only ENTRIES are calendar-gated.
-- Fixes a latent always-True bug in is_trading_day (was dead code; now correct).
-- No pip/spend/DROP-DELETE. exchange_calendars already a transitive dep; recommend an explicit pin (flag, not blocker).
+- **Byte-identity:** validate_ohlcv US fast-path no-op + US benchmark "SPY" + US backtest unchanged. The gate touches the live US screener/ingestion code paths, so the US fast-path correctness is the regression surface -- the test MUST prove US passes through unchanged.
+- DROP only unambiguous bad bars (identical-OHLC+zero-vol, impossible OHLC, >50% round-trip); FLAG (don't drop) merely-large moves (never destroy real volatility).
+- No silent truncation: log dropped/flagged counts.
+- DEFERRED: PIT intl membership, per-bar FX, mixed-currency backtest, live per-market benchmark (documented, not blocking).
+- $0 LLM; no pip; no spend; no DROP/DELETE.
 
 ## References
-- handoff/current/research_brief.md (50.4 gate)
-- backend/backtest/markets.py:12 (xcals import), :113-134 (get_trading_calendar), :137-152 (is_trading_day -- rewrite)
-- backend/services/autonomous_loop.py:~330 (the 50.3 _intl_markets block -- add the gate), :124 (run_daily_cycle), :343 (universe)
-- backend/api/paper_trading.py:1307 (cron day_of_week)
-- exchange_calendars 4.x is_session; Xetra + KRX 2026 holiday calendars
+- handoff/current/research_brief.md (50.5 gate)
+- backend/tools/screener.py:110-131 (L1), backend/services/paper_trader.py:1200 (L2), backend/backtest/data_ingestion.py:132 (B), backend/slack_bot/jobs/daily_price_refresh.py:82
+- backend/backtest/markets.py:21-52 (benchmark field), backtest_engine.py:281,299, analytics.py:461, backtest_trader.py:188
+- backend/backtest/candidate_selector.py:127 (INTL_UNIVERSE["EU"]), backend/services/fx_rates.py (50.1)
+- Tobi Lux DAX yfinance study; axionquant (z=3); arXiv 2403.19735 (anomaly thresholds); DataIntellect (stale data)
