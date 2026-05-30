@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-30 | `8e8897ed` | phase-50.3: GENERATE -- international universe + suffix mapper + routing |
 | 2026-05-30 | `7faddf47` | phase-50.3: PLAN -- international universe + suffix mapper + routing |
 | 2026-05-30 | `edecc9c0` | phase-50.2: Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-posi... |
 | 2026-05-30 | `c452de61` | phase-50.2: GENERATE -- multi-currency accounting (byte-identical, live-verified) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `0d2a768d` | phase-49.1: Runtime risk-limit control endpoint -- file-backed risk_overrides store (mirrors kill... |
 | 2026-05-29 | `fa8badc7` | docs: fix risk_overrides docstring (decide_trades, not build_trade_decisions) |
 | 2026-05-29 | `3faddd0d` | phase-49.1: GENERATE -- runtime risk-limit control endpoint (live-verified) |
-| 2026-05-29 | `f81faeac` | phase-49.1: PLAN -- runtime risk-limit control endpoint contract + research gate |
 
 ---
 
+### v6.28.33 — phase-50.3: GENERATE -- international universe + suffix mapper + routing (2026-05-30)
+
+- **phase-50.3: GENERATE -- international universe + suffix mapper + routing**
 ### v6.28.32 — phase-50.3: PLAN -- international universe + suffix mapper + routing (2026-05-30)
 
 - **phase-50.3: PLAN -- international universe + suffix mapper + routing**
