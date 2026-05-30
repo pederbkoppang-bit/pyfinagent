@@ -13636,7 +13636,7 @@
         {
           "id": "50.3",
           "name": "Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{ticker} -> yfinance suffix (KR:005930 -> 005930.KS); route autonomous_loop's universe through a `paper_markets` setting (default [\"US\"], byte-identical when unchanged) + wire candidate_selector.get_universe_tickers(market) for non-US. FREE.",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.2",

@@ -26038,3 +26038,17 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Scope honesty:** minimal-change model (USD cost_basis, no migration/new column, attribution as a tested pure helper not wired to the live all-zero endpoint, trade-record display fields stay local) all disclosed + non-blocking. FX-None fail-soft: BUY skip / mark keep-last-known / SELL last-resort-1.0+WARN. The non-USD path is DORMANT until 50.3 wires a non-US market into the live loop (operator's EU-vs-KR + free-vs-paid decision).
 
 ---
+
+## Cycle 21 (multi-market expansion) -- 2026-05-30 -- phase=50.3 result=PASS
+
+**Step:** International universe + suffix mapper + live-loop routing (phase-50 step 3 of 6). EU (DAX-40) + KR (KOSPI-200 seed) wired into the live universe capability, gated by paper_markets (default ['US'] = byte-identical). Operator chose BOTH EU + Korea, free yfinance. $0 LLM, no pip.
+
+**Research:** `researcher` `a4e00fd3d4c3f0124` gate PASSED (8 sources read in full + recency scan + 19 URLs + 9 internal files). Brief: research_brief.md. DECISIVE: 50.2 already added execute_buy(market) + market persistence -> the ONLY gaps were the universe plug-in + TradeOrder.market threading. STORE the suffixed symbol AS the ticker (SAP.DE, 005930.KS) + derive market from suffix -> avoids AIR.PA (Paris DAX member, NOT .DE) + KOSDAQ .KQ traps. Curated STATIC lists (can't collapse to []). paper_markets default_factory (mutable-default footgun). No ticker-shape validators block numeric KR codes. yfinance KR viable for KOSPI large-caps; risks (20-min delay immaterial; 429 fan-out; <=11% deviation -> 50.5 gate).
+
+**Generate:** universe_lists.py (NEW: DAX40 .DE+AIR.PA, KOSPI200 .KS seed). markets.py: YF_SUFFIX + to_yfinance_symbol + market_for_symbol (suffix->market). candidate_selector non-US stub -> INTL_UNIVERSE. settings.paper_markets default ['US']. portfolio_manager TradeOrder.market + set via market_for_symbol on both BUY orders. autonomous_loop universe extension (no-op for ['US']) + market=order.market on execute_buy. test_phase_50_3_universe.py (6 tests). LIVE-verified byte-identical: ['US']->universe=None->503 sp500 (today's path); ['US','EU']->543 (+40 EU, .DE only); ['US','EU','KR']->583 (.DE 39 + .PA 1 + .KS 40). build_universe(['US']) is None.
+
+**Q/A:** fresh `a7d3e29a7ddc2f369` = **PASS** (`ok:true`, zero violated_criteria). Byte-identity confirmed THREE ways: line-trace (paper_markets==['US'] -> _intl_markets empty -> block no-op -> universe None -> get_sp500_tickers), mutation probe (a buggy always-extend would be caught), + live universe listing (503/543/583). Every BUY threads market=market_for_symbol(bare)='US' -> 50.2 FX x1.0. Mapper traps handled+tested (AIR.PA->EU, .KQ->KR, KR 6-digit STRING no int()). Hot-path consumers (_get_live_price, yf.download, sector backfill) receive suffixed symbols verbatim -- no validator intercepts. No risk-guard bypass; backend-only. 6/6 tests; 5/5 harness compliance. International-off-by-default is BY DESIGN (go-live gated to post-50.5), disclosed, within the 4 criteria.
+
+**Scope honesty:** paper_markets default ['US'] -> live engine byte-identical (international BUILT but OFF). Go-live flip to ['US','EU','KR'] DEFERRED to after the 50.5 data-quality gate (operator's "free yfinance + quality gate" choice). KOSPI200 is a documented ~40-name large-cap seed. Backtest PIT non-US path still NotImplementedError (50.5 scope).
+
+---
