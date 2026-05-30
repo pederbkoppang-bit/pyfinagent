@@ -1,153 +1,78 @@
-# Q/A Evaluator Critique -- phase-50.3 (International universe + suffix mapper + live-loop routing)
+# Q/A Evaluator Critique -- phase-50.4: Market-calendar gating
 
-**Verdict: PASS** | Fresh Q/A (first for 50.3, no verdict-shopping) | 2026-05-30 | merged qa-evaluator + harness-verifier (deterministic-first)
+**Verdict: PASS** | Fresh Q/A (first for 50.4; no verdict-shopping) | 2026-05-30
+**Reviewer:** Q/A subagent (merged qa-evaluator + harness-verifier), effort=max
 
-This step touches the LIVE loop's universe selection + the execute_buy `market=` thread.
-The non-negotiable -- `paper_markets=["US"]` (default) is BYTE-IDENTICAL to today (the +20%
-engine unchanged); international BUILT but OFF -- is **met and independently verified** by
-line-trace + a mutation-resistance probe + live evidence.
+---
 
-## 1. Harness-compliance audit (5 items -- ALL PASS)
-1. **researcher gate** -- PASS. `handoff/current/research_brief.md`, complex tier, JSON
-   envelope `gate_passed: true` (`external_sources_read_in_full=8` >= 5 floor;
-   `recency_scan_performed=true` 2024-2026; `urls_collected=19`; `internal_files_inspected=9`).
-   A genuine 50.3 universe/suffix/routing brief (Q1-Q6 file:line inventory + Yahoo suffix
-   table SLN2310 + DAX/KOSPI Wikipedia + Tobi Lux measured DAX data-quality study + yfinance
-   #2125 rate-limit + promptcloud). Cited by `contract.md` References (line 47);
-   `research_brief_multimarket.md` also present + cited.
-2. **contract-before-generate** -- PASS. `git log`: `7faddf47 phase-50.3: PLAN` precedes
-   `8e8897ed phase-50.3: GENERATE`. The 4 `success_criteria` in `contract.md` (lines 21-24)
-   are verbatim from `masterplan.json` step 50.3 `verification.success_criteria`
-   (`:13646-13651`, confirmed by extraction).
-3. **results present** -- PASS. `experiment_results.md` lists 7 changed/added files, verbatim
-   verification output (6 passed; default ['US']; live universe 503/543/583), and
-   `live_check_50.3.md` present with the numeric universe-routing evidence.
-4. **log-last** -- PASS. NO `phase=50.3` entry in `handoff/harness_log.md` yet; masterplan
-   50.3 still `status: in_progress`. Correct ordering (log + flip come AFTER this PASS).
-5. **no verdict-shopping** -- PASS. First Q/A for 50.3; no prior 50.3 CONDITIONAL/FAIL in
-   `harness_log.md`. The on-disk critique before this write was 50.2 (PASS). No
-   simultaneous-presentation / 3rd-CONDITIONAL concern.
+## 5-item harness-compliance audit (run FIRST)
 
-## 2. Deterministic checks (run independently -- ALL PASS)
-```
-ast.parse x6 (universe_lists, markets, candidate_selector, settings,
-              portfolio_manager, autonomous_loop)         -> all OK
-import backend.services.autonomous_loop + portfolio_manager -> imports OK
-pytest backend/tests/test_phase_50_3_universe.py -q         -> 6 passed in 0.19s
-MASTERPLAN VERIFY CMD (pytest tail + assert paper_markets==['US'] + test -f live_check) -> exit 0
-get_settings().paper_markets == ['US']                      -> default US OK
-mapper+market probe (market_for_symbol AAPL/SAP.DE/AIR.PA/005930.KS;
-  to_yfinance_symbol KR:005930->005930.KS, AAPL->AAPL)      -> OK; DAX40=40 KOSPI=40
-git diff --name-only HEAD~2 | grep frontend/                -> NONE (ESLint/tsc gate N/A)
-```
+| # | Gate | Result | Evidence |
+|---|------|--------|----------|
+| 1 | researcher gate | PASS | `handoff/current/research_brief.md` envelope `gate_passed:true`, `external_sources_read_in_full:6`, `recency_scan_performed:true`, `urls_collected:17`, `internal_files_inspected:7`. Genuine 50.4 calendar brief (XETR/XKRX/XNYS, `is_session` API, latent `cal.days` bug). Cited by `contract.md` lines 6-13, 42. |
+| 2 | contract-before-generate | PASS | `git log`: `4194088a phase-50.4: PLAN` precedes `6334a491 phase-50.4: GENERATE`. The 3 `success_criteria` in `contract.md` lines 19-21 are verbatim from masterplan 50.4 `verification.success_criteria` (programmatic substring match: all 3 PRESENT). |
+| 3 | experiment_results present | PASS | `experiment_results.md` present: files list (markets.py:137, autonomous_loop.py intl block, test file), verbatim verification (`7 passed`), live evidence ref to `live_check_50.4.md`. |
+| 4 | log-last | PASS | NO `phase=50.4` cycle header in `handoff/harness_log.md` (grep `phase=50\.4` / `## Cycle.*50\.4` = empty). masterplan 50.4 `status=in_progress`. Correct ordering preserved. |
+| 5 | no verdict-shopping | PASS | First Q/A for 50.4 (no prior 50.4 entry in harness_log; on-disk critique before this write was the 50.3 PASS). Not a cycle-2 spawn; no simultaneous-presentation / 3rd-CONDITIONAL concern. |
 
-## 3. BYTE-IDENTITY analysis (the critical invariant) -- CONFIRMED
-Traced the live path line-by-line; the US-only path is provably unchanged:
-- `autonomous_loop.py:329-341`: `_paper_markets = getattr(settings,"paper_markets",None) or ["US"]`;
-  `_intl_markets = [m for m in _paper_markets if m != "US"]`. For the default `["US"]`,
-  `_intl_markets == []` -> `if _intl_markets:` is **False** -> the entire phase-50.3 block is
-  a **no-op**. `universe` stays `None` (or the russell list when that flag is on) ->
-  `screen_universe(None)` -> `get_sp500_tickers()` (today's exact path). `summary["universe_source"]`
-  / `["universe_size"]` are NOT touched for US-only, preserving today's summary shape.
-- The `get_sp500_tickers()` base-fill at `:333` executes ONLY inside `if _intl_markets:`, so it
-  never runs on the US-only path.
-- **Every BUY gets market="US" for bare US tickers**: `portfolio_manager.py:352` (main) + `:566`
-  (swap) set `market=markets.market_for_symbol(cand["ticker"])`; `market_for_symbol("AAPL")=="US"`
-  (bare -> US, `markets.py:110`). `TradeOrder.market` defaults `"US"` (`:33`).
-  `autonomous_loop.py:1027` threads `market=getattr(order,"market","US")` into `execute_buy`.
-  `market="US"` -> 50.2 `get_fx_rate("USD","USD")==1.0` -> money math byte-identical.
-- **Mutation-resistance probe** (Q/A-authored, read-only): simulated the universe block;
-  asserted `["US"]`->`None` (zero intl added), `["US","EU"]`->adds `.DE` only (no `.KS`), and
-  that a buggy "always-extend" variant WOULD be caught. PASS -- the byte-identity property is
-  real, not asserted-into-existence.
-- **Live evidence** (`live_check_50.3.md` section 2): `['US']`->503 tickers (universe=None,
-  byte-identical); `['US','EU']`->543 (+40 EU, .DE present, .KS absent);
-  `['US','EU','KR']`->583 (.DE 39 + .PA 1 = 40 EU, .KS 40 KR). `.DE` appears ONLY when EU
-  enabled; `.KS` ONLY when KR enabled.
+---
 
-Conclusion: neither the universe-extension block nor the `market=` thread can change US-only
-behaviour. The +20% engine is untouched by default.
+## Deterministic checks (run by Q/A, not trusting the agent)
 
-## 4. Suffix / market traps (all handled)
-- **AIR.PA must be EU** (Paris-listed DAX member, NOT derivable from market='EU'): handled by
-  the suffixed-symbol-as-ticker design -- `AIR.PA` stored literally in `DAX40`
-  (`universe_lists.py:20`); `market_for_symbol(".PA")` -> EU (`markets.py:104`). Tested
-  (`test_phase_50_3_universe.py:24`).
-- **.KQ must be KR** (KOSDAQ): `market_for_symbol` matches `(".KS",".KQ")` -> KR
-  (`markets.py:102`). Tested (`:26`).
-- **KR codes keep leading zeros (no int())**: stored as STRING `"005930.KS"`; test asserts each
-  code is a 6-digit `.isdigit()` string (`:38-42`). BQ keys are STRING; no `int()` on the path.
-- **No ticker-shape validator** intercepts suffixed/numeric symbols (verbatim hot path):
-  `_get_live_price(ticker)` -> `yf.Ticker(ticker).history()` (`paper_trader.py:1200,1203`);
-  `screen_universe` -> `yf.download(tickers,...)` (`screener.py:110`); sector backfill
-  `yf.Ticker(ticker).info` (`paper_trader.py:835`). All receive the symbol with no transform.
-  The brief's grep-clean claim holds for the consumers spot-checked.
+| Check | Result |
+|-------|--------|
+| `ast.parse` markets.py | OK |
+| `ast.parse` autonomous_loop.py | OK |
+| `import backend.services.autonomous_loop` | imports OK |
+| `pytest backend/tests/test_phase_50_4_calendar.py -q` | **7 passed** in 1.50s |
+| is_trading_day US/EU/KR matrix (assert block) | `calendar correct across US/EU/KR` |
+| regression: not-always-true (`is_trading_day('2026-06-13','US') is False`) | `not always-true: confirmed fixed` |
+| masterplan cmd (`'2026-01-01','EU' False` + `'2026-06-15','US' True`) | `masterplan assertions OK` |
+| `test -f live_check_50.4.md` | `live_check_present` |
+| **independent date verification vs exchange_calendars library** | all 8 dates match (XETR 05-01=False, XNYS 05-01=True, XKRX 02-17=False, XNYS 02-17=True, XKRX 09-25=False, XETR 01-01=False, XNYS 06-15=True, XNYS 06-13=False) |
 
-## 5. Code-review heuristics (5 dimensions evaluated -- no BLOCK, no WARN)
-Diff scanned: `git diff HEAD~2` (backend/backtest/{universe_lists,markets,candidate_selector},
-config/settings, services/{autonomous_loop,portfolio_manager}, tests/test_phase_50_3_universe).
-- **Security (Dim 1):** no secrets; no command/SQL/path/SSRF sink; the universe is a curated
-  STATIC list (`universe_lists.py`), NOT LLM-generated -> `llm-output-to-execution` does NOT
-  fire; no dep-pin removal; no new APIRouter. CLEAN.
-- **Trading-domain (Dim 2):** the `market=` thread does NOT alter `execute_buy`'s body --
-  kill-switch + stop-loss + `paper_max_positions` guards live inside `execute_buy` (unchanged;
-  `market` is a pre-existing 50.2 param). No new execution path bypasses `kill_switch.is_paused()`.
-  `crypto` not re-enabled. `perf_metrics` not bypassed (no Sharpe/drawdown/alpha here). CLEAN.
-- **Code quality (Dim 3):** no new `except Exception`/bare except; no `print()`; new public
-  helpers (`to_yfinance_symbol`, `market_for_symbol`) carry type hints + docstrings; logger
-  calls ASCII. CLEAN.
-- **Anti-rubber-stamp (Dim 4):** `financial-logic-without-behavioral-test` does NOT fire -- no
-  perf_metrics/risk_engine/backtest_engine math changed (FX math is 50.2). The 6 tests are
-  genuine behavioral assertions (mapper round-trip, market derivation incl. AIR.PA/.KQ,
-  leading-zero, default ['US'], TradeOrder.market) -- no tautological `assert x==x`, not
-  over-mocked (no module-under-test patched). CLEAN.
-- **LLM-evaluator anti-patterns (Dim 5):** first 50.3 Q/A, no prior verdict to flip; this
-  critique cites file:line + command output throughout. CLEAN.
+Independent verification confirms the test's holiday assertions against my OWN ground-truth library query (not just the project's tests): Labour Day May 1 = Xetra closed; Seollal Feb 17 + Chuseok Sep 25 = KRX closed; all market-LOCAL dates correct. KR lunar holidays (which a UTC/US-date approach would miss) are correctly closed.
 
-## 6. Scope-honesty assessment (disclosed, by design -- NOT a violation)
-International is OFF by default; go-live flip to `["US","EU","KR"]` is DEFERRED to AFTER the
-50.5 data-quality gate (operator's "free yfinance + quality gate" choice). Honestly disclosed in
-`contract.md` (Safety/scope notes), `experiment_results.md` (Scope/honesty notes), and
-`live_check_50.3.md`. The 4 immutable criteria require only that the universe be DRIVEN by
-`paper_markets` + byte-identical for `["US"]` + `.DE` added when EU enabled + live evidence --
-NOT that international be live. Shipping the capability default-off IS the contract; it is NOT
-incomplete. KOSPI200 is a documented ~40-name large-cap SEED (criterion explicitly allows "or a
-documented subset"). Backtest PIT path (`candidate_selector` `as_of`) still raises
-NotImplementedError for non-US -- out of scope, disclosed, deferred to 50.5.
+---
 
-## 7. Success-criteria mapping (4/4 MET, verbatim from masterplan)
-1. **suffix mapper {market}:{ticker}->yfinance, round-trips** -- MET. `to_yfinance_symbol`
-   US:AAPL->AAPL, EU:SAP->SAP.DE, KR:005930->005930.KS, bare/already-suffixed unchanged
-   (`markets.py:85-93`; 6 tests + Q/A probe).
-2. **get_universe_tickers EU=DAX-40, KR=KOSPI-200 (documented subset)** -- MET.
-   `candidate_selector.py:127-138` returns `INTL_UNIVERSE[market]` (was []); DAX40=40, KOSPI=40
-   (`universe_lists.py`).
-3. **paper_markets drives universe; ['US'] byte-identical; ['US','EU'] adds .DE** -- MET.
-   Line-traced no-op for ['US'] + live 503 vs 543 (`.DE` present, `.KS` absent).
-4. **live universe listing ['US'] vs ['US','EU'] showing .DE only when EU enabled** -- MET.
-   `live_check_50.3.md` section 2.
+## Adversarial LLM judgment
 
-## 8. Minor notes (NOTE severity -- PASS-with-flag, do NOT degrade verdict)
-- `candidate_selector.py:132` uses `INTL_UNIVERSE.get(market.upper())` while
-  `autonomous_loop.py:334` uses `INTL_UNIVERSE.get(m, [])` on the raw paper_markets value. The
-  live path's paper_markets codes are uppercase by convention ("US"/"EU"/"KR" = INTL_UNIVERSE
-  keys), so no case-mismatch on the hot path; candidate_selector's `.upper()` is a
-  belt-and-suspenders nicety. No defect.
-- KOSPI200 seed is 40 names (not the full 200); disclosed and criterion-compliant. Expansion is
-  a future refresh, not a 50.3 blocker.
-- 429 rate-limit on the per-position `_get_live_price` fan-out (brief risk 2) is a known future
-  follow-up for 50.4/50.5, not a 50.3 blocker (built-but-off).
+### BYTE-IDENTITY (critical) -- PASS
+The entry gate lives ENTIRELY inside `if _intl_markets:` (`autonomous_loop.py:331`). `_intl_markets = [m for m in _paper_markets if m != "US"]` (:330); with the default `paper_markets=["US"]`, `_intl_markets == []` -> the block is NEVER entered -> `universe` is byte-identical (`None` or russell/SP500). **The +20% engine is untouched on the default path.** Within a multi-market universe, `_open_today(sym)` returns `True` immediately for `market_for_symbol(sym) == "US"` (:347-348) -> US tickers are NEVER dropped from the universe. The Step-7 buy callsite (:1029-1060) applies NO calendar check (it threads `market=getattr(order,"market","US")` only, pre-existing 50.3) -- the gate is universe-filter-only (the documented primary gate (A); the optional buy-side guard (B) from the brief was not shipped, which is fine: a closed-market ticker is dropped from `universe` before `screen_universe`, so it never reaches `orders`). The gate cannot affect the US path. Confirmed by inspection at :345-358.
 
-## Verdict
-**PASS.** All 4 immutable criteria met; the byte-identity invariant independently confirmed by
-line-trace (`["US"]` -> `_intl_markets` empty -> no-op -> universe=None -> today's path) + a
-mutation-resistance probe + live evidence (503 vs 543); every current BUY threads `market="US"`
-for bare tickers -> 50.2 FX x1.0; the AIR.PA/.KQ/leading-zero traps are handled and tested; the
-hot-path consumers receive suffixed symbols verbatim; no risk-guard bypass; backend-only diff
-(no frontend gate). International-off-by-default is BY DESIGN (operator gated go-live to after
-the 50.5 data-quality gate) and disclosed -- not a violation.
+### Exits not gated -- PASS
+The Step-7 sell loop (`:1007-1017`) calls `execute_sell(...)` with ZERO calendar check. `grep is_trading_day|is_session|_open_today|trading_day` in `paper_trader.py` + `portfolio_manager.py` = NO hits (execute_sell untouched). The Step-5.6 stop-loss block (`:868-918`) runs `check_stop_losses()` (:899) then fires `execute_sell(reason="stop_loss_trigger")` (:902-907) for each triggered stop -- NO calendar gate anywhere in that path. A breached KR stop fires even when KR is closed. This is the safe asymmetry the research mandated (gating an exit would strand a breached position -> unbounded loss).
 
-checks_run: syntax, imports, verification_command (masterplan, exit 0), pytest (6 passed),
-byte_identity_trace, mutation_test, mapper_market_probe, suffix_trap_review,
-code_review_heuristics, contract_alignment, research_gate_compliance, scope_honesty,
-frontend_diff_scope, evaluator_critique
+### The latent-bug fix -- PASS
+`is_trading_day` (`markets.py:137-158`) now calls `cal.is_session(ts.normalize())` (:155) instead of the broken `date in cal.days` (`.days` removed in exchange_calendars 4.0 -> bare-except swallow -> always True). Genuinely fixed: returns False for weekends (06-13) and holidays (independently verified). tz-aware input handled (`:153-154` `ts.tz_localize(None)` before is_session, which rejects tz-aware labels). Fail-open True if `cal is None` (:148-149) or on any error (:156-158) -- never blocks a trade because the lib is missing. `test_not_always_true_regression_guard` pins the fix.
+
+### Date correctness -- PASS
+EU/KR assertions use the market-LOCAL date and are correct vs my independent library query AND my own knowledge: Labour Day (May 1) = Xetra closed (German holiday, not a US closure); Seollal (Feb 16-18 2026, test uses Feb 17 Tue) and Chuseok (Sep 24-25 2026, test uses Sep 25 Fri) = KRX closed (lunar -- a weekday rule would miss these). The live-loop helper computes `datetime.now(utc).astimezone(ZoneInfo(market_tz)).date()` (:350-351) -- market-local, addressing the brief's ET->KST skew concern; `get_market_config` carries the IANA tz per market.
+
+### Scope honesty (criterion #1 interpretation) -- ACCEPTABLE DISCLOSED CHOICE (not a violation)
+Criterion #1 says "a US market holiday skips US." The shipped LIVE loop does NOT gate US (to preserve byte-identity -- the loop never gated US before, and the research proved adding it would CHANGE behaviour: the loop currently trades through weekday US holidays on stale yfinance data, and a US gate would start skipping them). This is disclosed THREE times: `contract.md:26` (explicit NOTE), `experiment_results.md:22`, `live_check_50.4.md:32`. Critically, the criterion's "skips US" CAPABILITY is satisfied by the function itself: `is_trading_day('<us holiday>','US') == False` is true and tested. A caller CAN gate US; the live loop deliberately doesn't. Given `is_trading_day` is correct for ALL markets (US included) and the non-US-only live gating is a deliberate, well-reasoned, triple-disclosed design choice that protects the working money engine, this satisfies criterion #1 under the disclosed interpretation rather than violating it. The honest disclosure (vs silently claiming "US is gated") is exactly the scope-honesty the protocol rewards. Criterion #1's second clause ("a German holiday skips EU/.DE independently") IS fully met by the live gate AND the function.
+
+---
+
+## Code-review heuristics (5 dimensions evaluated -- no BLOCK, no WARN)
+
+Diff scanned: markets.py (is_trading_day rewrite), autonomous_loop.py (intl-block gate), test_phase_50_4_calendar.py (new).
+- **financial-logic-without-behavioral-test**: NOT triggered -- diff touches `markets.py` + `autonomous_loop.py` (NOT perf_metrics/risk_engine/backtest_engine; no Sharpe/drawdown/sizing math changed) AND adds `test_phase_50_4_calendar.py` (7 behavioral tests exercising the new path incl. the regression guard).
+- **broad-except-silences-risk-guard**: the `except Exception: return True` in `is_trading_day` (:156) and `_open_today` (:353-355) are NOT risk-guard suppressions -- they are deliberate fail-OPEN behaviour (never block/drop a trade on a calendar error, preserving today's "always trade" default). Correctly safe-by-default; both LOG via `logger.warning` (not silent `pass`).
+- **kill-switch / stop-loss / max-position**: untouched. execute_sell, check_stop_losses, backfill_missing_stops, paper_max_positions all unchanged.
+- **tautological-assertion / over-mocked-test**: none -- the 7 tests assert real per-exchange `is_session` results + `market_for_symbol` derivation; no `assert x==x`, no module-under-test patched.
+- **mutation-resistance**: `test_not_always_true_regression_guard` IS the planted-violation guard -- asserts the function is NOT the old always-True no-op (would fail if the fix regressed). Independently re-run by Q/A: confirmed False for weekend + holiday.
+- **secret-in-diff / command-injection / perf-metrics-bypass / crypto / supply-chain-pin**: N/A (no such code; exchange_calendars already imported, no new dep, no pin removal). Backend-only diff (no `frontend/**`) -> ESLint/tsc gate N/A.
+
+---
+
+## Quality criteria scoring (>=6 to pass each)
+Infrastructure/correctness step, not a strategy change -- DSR/Sharpe criteria are N/A (no return-generating logic changed; the +20% engine is byte-identical on the default path). Robustness (fail-open on every error, exits ungated, per-market independence cross-validated vs published calendars) and Simplicity (minimal intervention inside an existing guarded block; one function rewrite) both strong. No criterion below 6.
+
+---
+
+## checks_run
+syntax, verification_command, pytest, independent_date_verification, regression_mutation_test, evaluator_critique, experiment_results, harness_log_inspection, git_log_ordering, contract_alignment_verbatim, code_review_heuristics, byte_identity_trace, exits_ungated_trace, scope_honesty, research_gate_compliance
+
+## Conclusion
+All 3 immutable criteria met (criterion #1 fully met for EU/KR independence + satisfied for US under the disclosed non-US-only-live-gating interpretation, with `is_trading_day` correct for all markets incl. US). Byte-identity for `paper_markets=["US"]` proven by construction (gate inside `if _intl_markets:`, US ungated even in a multi-market universe, no buy-side calendar check). Exits never gated (execute_sell + stop-loss paths grep-clean and trace-clean). Latent always-True bug genuinely fixed with a dedicated regression test, independently re-verified. No US-path regression. **PASS.**

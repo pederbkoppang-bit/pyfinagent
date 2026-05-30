@@ -26052,3 +26052,17 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Scope honesty:** paper_markets default ['US'] -> live engine byte-identical (international BUILT but OFF). Go-live flip to ['US','EU','KR'] DEFERRED to after the 50.5 data-quality gate (operator's "free yfinance + quality gate" choice). KOSPI200 is a documented ~40-name large-cap seed. Backtest PIT non-US path still NotImplementedError (50.5 scope).
 
 ---
+
+## Cycle 22 (multi-market expansion) -- 2026-05-30 -- phase=50.4 result=PASS
+
+**Step:** Market-calendar gating (phase-50 step 4 of 6). Gate ENTRY per market on is_trading_day (XETR/XKRX/XNYS); exits never gated; US ungated (byte-identical). $0 LLM, no pip.
+
+**Research:** `researcher` `a55db4e55e6ffdb48` gate PASSED (6 sources read in full + recency scan + 17 URLs + 7 internal files). Brief: research_brief.md. DECISIVE: caught a LATENT BUG -- markets.is_trading_day used `date in cal.days` but `.days` was removed in exchange_calendars 4.0 -> bare except swallowed the AttributeError -> ALWAYS True (no-op gate, zero live callers). Model: entry-gated, exits-ALWAYS-open (gating a stop-loss strands a breached position), per-market, market-LOCAL date (UTC/US-date misses Korean lunar holidays). cal.is_session is the 4.x API (rejects tz-aware). exchange_calendars 4.13.2 already installed+imported -> no new dep. KR 15 weekday closures vs US 10 -> ~11 days/yr the loop would trade a closed KR market on stale data.
+
+**Generate:** markets.is_trading_day rewritten to cal.is_session(pd.Timestamp(date).normalize()) (fail-open True if cal unavailable). autonomous_loop: ENTRY calendar gate inside the 50.3 `if _intl_markets:` block -- drop tickers whose market is closed today (market-local date via ZoneInfo); US NEVER gated (matches today); fail-open on error; log drop count. test_phase_50_4_calendar.py (7 tests, dates verified vs Xetra/KRX 2026). Verified: US 2026-06-15=True/06-13(Sat)=False; EU 2026-05-01(Labour Day)=False while US=True; KR 2026-02-17(Seollal)+09-25(Chuseok)=False while US=True; unknown market fail-open True.
+
+**Q/A:** fresh `a8f52179fda0ba8de` = **PASS** (`ok:true`, zero violated_criteria). Byte-identity PROVEN by construction: gate inside `if _intl_markets:` (autonomous_loop.py:331) -> paper_markets=['US'] never enters; US tickers ungated even multi-market (_open_today True for US); no buy-side calendar check. EXITS never gated (execute_sell + check_stop_losses grep+trace-clean). Latent always-True bug genuinely fixed -> cal.is_session, independently re-verified vs the exchange_calendars library across US/EU/KR incl. KR lunar holidays (all 8 test dates match). No new dep. 7/7 tests; 5/5 harness compliance. The non-US-only LIVE gating (US ungated to protect the +20% engine, which never gated US) is a triple-disclosed design choice satisfying criterion #1 (is_trading_day IS correct for US; the live loop deliberately doesn't gate US).
+
+**Scope honesty:** byte-identical (gate inside if _intl_markets; US ungated). Exits never gated. Fixed a latent dead-code bug. exchange_calendars already a transitive dep -> recommend an explicit requirements pin (>=4.13,<5) as an owner-flagged follow-up (not a blocker; fail-open).
+
+---

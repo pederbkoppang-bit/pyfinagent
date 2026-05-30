@@ -13657,7 +13657,7 @@
         {
           "id": "50.4",
           "name": "Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars; gate trades on is_trading_day(market) per exchange (XETR / XKRX / XNYS) with each market's hours + holidays + timezone. FREE (pip-verify; owner-approval if a new dep ships to requirements).",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.3",
