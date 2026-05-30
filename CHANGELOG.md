@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-05-30 | `6865115b` | phase-50.4: Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars... |
 | 2026-05-30 | `6334a491` | phase-50.4: GENERATE -- market-calendar gating (latent bug fixed) |
 | 2026-05-30 | `4194088a` | phase-50.4: PLAN -- market-calendar gating contract + research gate |
 | 2026-05-30 | `ccf8a889` | phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{t... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `f708efa8` | docs(handoff): cycle_block_summary -- 49.1 + 49.2 shipped, P7 control surface complete |
 | 2026-05-29 | `deb9bd92` | phase-49.2: Operator cron-control endpoints -- POST /api/jobs/{id}/pause|resume|trigger for the 2... |
 | 2026-05-29 | `e2ee9acd` | phase-49.2: GENERATE -- operator cron-control endpoints (live-verified) |
-| 2026-05-29 | `55024d0a` | phase-49.2: PLAN -- operator cron-control endpoints contract + research gate |
 
 ---
 
+### v6.28.37 — phase-50.4: Market-calendar gating -- verify-install exchange_calenda... (2026-05-30)
+
+- **phase-50.4: Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars...**
 ### v6.28.36 — phase-50.4: GENERATE -- market-calendar gating (latent bug fixed) (2026-05-30)
 
 - **phase-50.4: GENERATE -- market-calendar gating (latent bug fixed)**
