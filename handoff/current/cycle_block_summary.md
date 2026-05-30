@@ -1,4 +1,27 @@
-# Cycle block summary -- 2026-05-29 (verification + triage + 2 P7 cycles)
+# Cycle block summary -- 2026-05-29/30 (verification + triage + 7 shipped cycles + multi-market)
+
+## SESSION FINAL STATE (2026-05-30) -- 7 harness cycles shipped + pushed; phase-50 4/6 + 50.5 planned
+**Shipped this session (all PASS, fresh-Q/A, pushed to origin/main):**
+- **49.1** runtime risk-limit control (GET/PUT/DELETE /api/paper-trading/risk-limits; the deploy-idle-cash bridge)
+- **49.2** operator cron control (POST /api/jobs/{id}/pause|resume|trigger)
+- **49.3** cron-control UI (Actions column on /cron; build-verified, operator visual live_check pending)
+- **50.1** FX data layer (fx_rates.py + historical_fx_rates BQ table; EUR/USD + KRW/USD direction-locked)
+- **50.2** multi-currency accounting (paper_trader FX-converts to USD; live byte-identity PROVEN, NAV $24,023.58 unchanged)
+- **50.3** international universe + suffix mapper + routing (paper_markets default ['US'] = byte-identical; EU/KR built but OFF)
+- **50.4** market-calendar gating (is_trading_day latent-bug fixed; entry-gated, exits-open, US ungated)
+
+**Multi-market (operator-requested 2026-05-29; decision: BOTH EU + Korea, free yfinance + quality gate):** phase-50 is **4/6 done**. The currency foundation + universe + calendar are all live-byte-identical-safe; **international is BUILT but OFF** (paper_markets=['US'] default). See [[project_multimarket_expansion]].
+
+**REMAINING (handed off mid-50.5 for marathon-risk discipline):**
+- **50.5 (PLAN complete, GENERATE pending)** -- the data-quality gate (price_quality.py at 3 doors: screener L1 / _get_live_price L2 / data_ingestion B) + multi-market backtest (benchmark + FX). The contract (handoff/current/contract.md) is finished + ready to GENERATE. This is the LAST go-live prerequisite (the operator's "quality gate" precondition). It inserts into the live US screener/ingestion -> US fast-path correctness is the regression surface -> best done with fresh context (why it was handed off rather than rushed at cycle 8).
+- **GO-LIVE flip** (after 50.5): set paper_markets=['US','EU','KR'] -> international actually trades (quality-gated). Operator AUTHORIZED it; it changes live trading -> report explicitly when flipping.
+- **50.6** multi-market UI (NextAuth-walled visual verify).
+
+**Operator action available now:** 49.3 has an OPERATOR-TO-CONFIRM visual check (load /cron, verify the Actions column + pause/resume). All else is autonomously verified + pushed.
+
+---
+
+## Earlier this session (2026-05-29 P7 cycles)
 
 ## POST-SUMMARY UPDATE (2 clean harness cycles shipped + pushed to origin/main)
 - **phase-49.1** (commit 0d2a768d) -- runtime risk-limit control: `GET/PUT/DELETE /api/paper-trading/risk-limits`, file-backed `risk_overrides.py` (mirrors kill_switch.py), confirmation-gated + bounded + audited + restart-survivable. The SAFE bridge for the operator deploy-idle-cash decision. Fresh-Q/A PASS, live-verified.
