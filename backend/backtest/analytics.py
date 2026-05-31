@@ -448,18 +448,30 @@ def compute_baseline_strategies(
     test_start: str,
     test_end: str,
     candidate_tickers: list[str],
+    benchmark: str = "SPY",
+    base_currency: str = "USD",
+    local_currency: str = "USD",
 ) -> dict:
     """
     Compute 3 baseline strategies over the same test period:
-    1. Buy-and-hold SPY
+    1. Buy-and-hold the market benchmark (US=SPY, EU=^GDAXI, KR=^KS11)
     2. Equal-weight top candidates
     3. Momentum-only (top quartile by trailing 6M return)
     Returns total return % and annualized Sharpe for each.
+
+    phase-50.5: `benchmark` selects the per-market index; when
+    `local_currency != base_currency` the headline RETURNS are FX-converted
+    to the base currency via the endpoint method (fx at test_start/test_end).
+    US (local==base==USD) is BYTE-IDENTICAL: benchmark defaults to "SPY",
+    the FX ratio is exactly 1.0 and the conversion is skipped (no float drift).
+    Sharpe stays in local currency (per-bar FX is a documented deferral).
+    The result key remains `spy_return_pct` for frontend back-compat; for a
+    non-US book it carries the (FX-converted) market-benchmark return.
     """
     import pandas as pd
 
-    # 1. SPY baseline
-    spy_prices = prices_cache_fn("SPY", test_start, test_end)
+    # 1. Benchmark baseline (SPY for US; ^GDAXI/^KS11 for intl)
+    spy_prices = prices_cache_fn(benchmark, test_start, test_end)
     spy_return = 0.0
     spy_sharpe = 0.0
     if not spy_prices.empty and len(spy_prices) > 1:
@@ -523,13 +535,41 @@ def compute_baseline_strategies(
                 momentum_return = float((np.prod(1 + portfolio_daily) - 1) * 100)
                 momentum_sharpe = compute_sharpe(portfolio_daily)
 
+    # phase-50.5: FX-convert headline returns local -> base currency (endpoint
+    # method: fx at test_start/test_end). US (local==base) -> fx_ratio == 1.0 ->
+    # values pass through UNCHANGED (byte-identical; no float drift).
+    fx_ratio = 1.0
+    if local_currency.upper() != base_currency.upper():
+        try:
+            from backend.services.fx_rates import get_fx_rate
+            _fs = get_fx_rate(local_currency, base_currency, test_start)
+            _fe = get_fx_rate(local_currency, base_currency, test_end)
+            if _fs and _fe and _fs != 0:
+                fx_ratio = _fe / _fs
+            else:
+                logger.warning(
+                    "compute_baseline_strategies: FX rate unavailable %s->%s; "
+                    "reporting local-currency returns",
+                    local_currency, base_currency,
+                )
+        except Exception as e:
+            logger.warning("compute_baseline_strategies: FX conversion failed (%s); local-currency returns", e)
+
+    def _to_base(r_pct: float) -> float:
+        if fx_ratio == 1.0:
+            return r_pct  # US / same-currency: exact passthrough (no float drift)
+        return ((1.0 + r_pct / 100.0) * fx_ratio - 1.0) * 100.0
+
     return {
-        "spy_return_pct": spy_return,
+        "spy_return_pct": _to_base(spy_return),
         "spy_sharpe": spy_sharpe,
-        "equal_weight_return_pct": eq_weight_return,
+        "equal_weight_return_pct": _to_base(eq_weight_return),
         "eq_weight_sharpe": eq_weight_sharpe,
-        "momentum_return_pct": momentum_return,
+        "momentum_return_pct": _to_base(momentum_return),
         "momentum_sharpe": momentum_sharpe,
+        "benchmark": benchmark,
+        "fx_ratio": fx_ratio,
+        "base_currency": base_currency.upper(),
     }
 
 

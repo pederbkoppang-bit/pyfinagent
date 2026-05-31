@@ -1198,11 +1198,24 @@ class PaperTrader:
 
 
 def _get_live_price(ticker: str) -> Optional[float]:
-    """Fetch latest price from yfinance. Returns None on error."""
+    """Fetch latest price from yfinance. Returns None on error.
+
+    phase-50.5 (L2 data-quality door): for INTERNATIONAL tickers (.DE/.KS/...),
+    drop an unambiguous bad bar (identical-OHLC+zero-vol / impossible OHLC) by
+    returning None -- callers already fall back to last-known price. US bars are
+    NEVER validated here (byte-identical: market_for_symbol -> "US" -> skip)."""
     try:
         t = yf.Ticker(ticker)
         hist = t.history(period="1d")
         if not hist.empty:
+            from backend.backtest.markets import market_for_symbol
+            if market_for_symbol(ticker) != "US":
+                from backend.tools.price_quality import is_bad_bar
+                row = hist.iloc[-1]
+                if is_bad_bar(row.get("Open"), row.get("High"), row.get("Low"),
+                              row.get("Close"), row.get("Volume")):
+                    logger.debug("price_quality: dropped bad live bar for %s -> fallback", ticker)
+                    return None
             return float(hist["Close"].iloc[-1])
     except Exception as e:
         logger.debug(f"Could not get live price for {ticker}: {e}")

@@ -246,3 +246,164 @@ Soft checks:
   "gate_passed": true
 }
 ```
+
+---
+
+## phase-50.5 RESEARCH-GATE REVALIDATION — 2026-05-31
+
+Re-run of the researcher against CODE DRIFT before further GENERATE. Prior gate (2026-05-30) passed; this section revalidates the contract's file:line anchors against the CURRENT tree + audits the partial GENERATE on disk (uncommitted: price_quality.py, screener.py edit, test_phase_50_5_dataquality.py). Tier: moderate.
+
+### Part A — INTERNAL CODE AUDIT (revalidation)
+
+**A1. price_quality.py (NEW, on disk) — CORRECT, ships as contracted.**
+- US fast-path byte-identity: `validate_ohlcv(df, market="US")` returns `df, report` with the SAME object (line 55-56: `if df is None or market == "US": return df, report`). Test `test_us_is_byte_identical_noop` asserts `out is df` (identity, not equality) + dropped==0/flagged==0. CONFIRMED byte-identical.
+- R1 OHLC consistency (`:67-76`): drops `h<l | h<o | h<c | l>o | l>c | any<=0`. Correct (impossible bars). NaN-safe via `.fillna(False)`.
+- R2 identical-OHLC (`:78-95`): `(o==h)&(h==l)&(l==c)` AND `volume==0` -> DROP; identical AND volume>0 -> FLAG (soft); no-volume-column -> FLAG only. Matches contract ("zero-vol corroborates"). Correct.
+- R3 (`:97-110`): `|ret|>0.50` (single-day round-trip) -> DROP; rolling z-score>3 (excluding the already-huge) -> FLAG. Matches contract.
+- R4 (`:112-118`): stale run `>=4` identical closes -> FLAG (run-length via groupby cumsum; uses `_STALE_RUN-1=3` on the shift-compare which yields a 4-bar run). Correct, FLAG-only.
+- `_col` (`:39-45`): case-insensitive accessor, handles "Close"/"close"/"Adj Close". Correct.
+- Fail-open: wraps the whole body in try/except -> returns input df on any internal error (`:129-131`). Matches contract ("never block the pipeline on a validator bug").
+- `is_bad_bar` (`:134-151`): single-bar L2 helper, mirrors R1+R2, lenient. Correct.
+- **No correctness bug found.** DROP-only-unambiguous / FLAG-merely-large posture is implemented exactly. Does NOT over-drop real volatility (a real 40% move passes R3 DROP, only FLAGs via z-score). 6/6 tests PASS (`pytest backend/tests/test_phase_50_5_dataquality.py` -> `6 passed in 0.21s`).
+
+**A2. L1 door (screener.py) — WIRED, on disk, CORRECT.**
+- `screener.py:130-140`: after `ticker_data = data[ticker]` (`:125`) and BEFORE `close = ticker_data["Close"]` (`:142`), calls `validate_ohlcv(ticker_data, market=market_for_symbol(ticker), ticker=ticker)`. Exactly the contract's insertion point. Re-checks empty after. CORRECT.
+- `market_for_symbol` EXISTS in markets.py (`:96-110`): suffix-driven (.KS/.KQ->KR, .DE/.PA/.AS/.F->EU, .OL->NO, .TO->CA, bare->US). For US bare tickers returns "US" -> validate_ohlcv no-ops -> byte-identical live US signal path. CONFIRMED no-op for US.
+- DRIFT vs contract: contract said insert "~:124-130" before "`:131` close"; actual is :130-140 before :142. Trivial line-number shift from the inserted block itself; semantically the SAME site. NOT a problem.
+
+**A3. L2 door (paper_trader._get_live_price) — PENDING (not yet edited).**
+- `_get_live_price(ticker)` at `:1200-1209` still original: `yf.Ticker(ticker).history(period="1d")` -> `float(hist["Close"].iloc[-1])`. NO quality gate yet.
+- Correct insertion shape: after fetching the 1-row `hist`, extract O/H/L/C/V from the last row and call `is_bad_bar(o,h,l,c,volume)`; if True -> `return None`. The 3 callers ALL already fall back on None:
+  - `:362` `price = _get_live_price(ticker) or position.get("current_price", 0)` (SELL)
+  - `:505` `live_price = _get_live_price(ticker)` (guarded use)
+  - `:945` `px = _get_live_price(ticker) or pos.get("current_price") or pos.get("avg_entry_price")` (mark)
+  CONFIRMED: returning None on a bad bar is safe — callers fall back to last-known. is_bad_bar fail-opens (returns False) so a parse error won't block a fill.
+
+**A4. B door (data_ingestion.ingest_prices) — PENDING (not yet edited).**
+- `ingest_prices` at `:94`. Per-ticker loop `:120-156`. `ticker_df = data[ticker]` (`:125`) -> `ticker_df = ticker_df.dropna(subset=["Close"])` (`:132`) -> row append loop (`:134-154`).
+- DRIFT vs contract: the contract cites "data_ingestion.py:132 (ingest_prices)" and "rows.append at :143". Actual: `def ingest_prices` is at `:94` (NOT :132); :132 is the `.dropna` line; the rows.append is at `:143`. The :132 anchor in the contract is STALE/imprecise — `:132` is mid-function, not the def. GENERATE should insert validate_ohlcv right AFTER the `.dropna(subset=["Close"])` at `:132` and before the `for idx,row in ticker_df.iterrows()` at `:134`, deriving market via `market_for_symbol(ticker)` OR the existing `":" in ticker` namespace split already at `:141-142` (note: this loop derives `market` from the `US:AAPL` NAMESPACE prefix, NOT a suffix — so for the backtest/ingest path use the namespace `market` variable, which is computed at :139-142, rather than market_for_symbol). RECOMMEND: compute market once at top of the per-ticker block, reuse for both validate_ohlcv and the row dict.
+
+**A5. markets.py MARKET_CONFIG — CONFIRMED no benchmark field; safe to add.**
+- `MARKET_CONFIG` (`:21-52`): each market dict = `{exchange, currency, timezone, description}`. NO `benchmark` key today. Adding `"benchmark": "SPY"/"^GDAXI"/"^KS11"/"^OSEAX"/"^GSPTSE"` is a pure additive dict-key change, no shape break. `get_market_config` (`:75-78`) returns the dict as-is. SAFE.
+
+**A6. Benchmark/FX change site — MAJOR DRIFT from the contract.**
+- Contract says: "`backtest_engine.py:281` calls get_universe_tickers WITHOUT self.market; `:299` hardcodes `+["SPY"]`; `analytics.py:461` hardcodes SPY."
+- VERIFIED `:281`: `universe_tickers = self.candidate_selector.get_universe_tickers()` — called with NO args, so `market` defaults to `DEFAULT_MARKET="US"`. `self.market` IS stored (`:206`). To make the engine market-aware: `get_universe_tickers(market=self.market)`. CONFIRMED change site. (get_universe_tickers signature `:98-102` accepts `market` + `as_of`; the `as_of` path raises NotImplementedError — DEFERRED PIT, see A8.)
+- VERIFIED `:299`: `cache.preload_prices(universe_tickers + ["SPY"], ...)`. This is the ONLY "SPY" in backtest_engine.py. BUT it is a CACHE PRELOAD, not the benchmark used for returns/alpha. For a non-US benchmark this should preload `MARKET_CONFIG[self.market]["benchmark"]` instead of (or in addition to) "SPY".
+- **CRITICAL DRIFT:** the actual benchmark RETURN computation is NOT in backtest_engine.py. It is in `analytics.py:compute_baseline_strategies` (`:446`), which hardcodes `prices_cache_fn("SPY", ...)` at `:462` and emits `spy_return_pct`/`spy_sharpe` (`:527-528`); `generate_report` (`:536`) computes alpha as `aggregate_return_pct - baselines["spy_return_pct"]` (`:580`). And `compute_baseline_strategies` is CALLED from `backend/api/backtest.py:939` (NOT from backtest_engine.py — the contract implies the engine wires it, it does not). So the real GENERATE change set for criterion #1 is:
+  1. `backtest_engine.py:281` -> `get_universe_tickers(market=self.market)`.
+  2. `backtest_engine.py:299` -> preload `MARKET_CONFIG[self.market]["benchmark"]` (keep "SPY" for US; for EU add "^GDAXI").
+  3. `analytics.py:compute_baseline_strategies` -> add a `benchmark: str = "SPY"` param; replace the hardcoded `"SPY"` at :462; the FX conversion of the benchmark + portfolio returns to a base currency happens HERE (or in the api caller) using fx_rates.
+  4. `backend/api/backtest.py:939` -> pass `benchmark=MARKET_CONFIG[engine.market]["benchmark"]` into compute_baseline_strategies; this is where the engine's `market` is in scope (via `engine.market`).
+  - **The contract's "analytics.py:461" anchor is right (compute_baseline_strategies starts :446, the SPY line is :462). But the contract MISSES that backtest_engine.py:299 is a cache-preload, not the benchmark, and MISSES the api/backtest.py:939 caller entirely.** GENERATE MUST patch analytics.py + api/backtest.py, not just backtest_engine.py, to satisfy criterion #1+#3+#4.
+
+**A7. fx_rates.py (50.1) — CONFIRMED all required call shapes exist.**
+- `get_fx_rate(from_ccy, to_ccy, date=None)` (`:182-196`): `from==to -> 1.0` (US/USD byte-identical); else `usd_value(from)/usd_value(to)`. date=None -> live mark; date=ISO -> point-in-time as-of. CONFIRMED.
+- `_usd_value_asof(ccy, date)` (`:153-179`): BQ `historical_fx_rates` point-in-time read (`WHERE pair=@pair AND date<=@d ORDER BY date DESC LIMIT 1`), degrades to live on miss. CONFIRMED.
+- `market_currency(market)` (`:56-58`): delegates to `markets.get_market_config(market)["currency"]`. CONFIRMED.
+- **Benchmark-return -> USD conversion call shape:** to convert an EU (EUR) benchmark total-return series to USD for alpha vs a USD book, the simplest correct approach is the ENDPOINT method the contract specifies: convert the start-NAV and end-NAV (or the benchmark's start/end price) using `get_fx_rate("EUR","USD", date)` at each endpoint, then compute the USD return — NOT per-bar (per-bar FX inside _compute_nav is explicitly DEFERRED). For a single-market book the whole series is one currency, so endpoint-conversion of the return is mathematically clean. RECOMMEND `_fx_local_to_usd`-style mirror of 50.2 at the analytics/api layer.
+
+**A8. The 6 tests — exercise the 4 immutable criteria adequately for the GATE half (#2), partially for #1/#3/#4.**
+- `test_phase_50_5_dataquality.py` covers criterion #2 (data-quality gate) THOROUGHLY: US byte-identity no-op (identity assert), identical-OHLC+zero-vol DROP, impossible-OHLC DROP, 60% spike DROP, large-real-move FLAG-not-drop (via clean series passing), clean intl passes, is_bad_bar single-bar. 6/6 PASS.
+- GAP: NO test yet for criterion #1 (engine accepts market + uses its benchmark + FX-converts) or #3 (EU .DE backtest end-to-end) or #4 (live_check). Those are satisfied by the live_check_50.5.md artifact (an actual EU backtest run), NOT by unit tests — consistent with the contract's verification command (ast.parse + pytest + `test -f live_check_50.5.md`). **live_check_50.5.md does NOT exist yet** (PENDING). The auto-push gate WILL hold the push until it exists (verification.live_check is set).
+
+### Part A SUMMARY — PENDING-work list for GENERATE
+1. **L2 door** — edit `paper_trader._get_live_price:1200`: extract OHLCV from the 1-row `hist`, call `is_bad_bar(...)`, return None if bad. (callers :362/:505/:945 already fall back.)
+2. **B door** — edit `data_ingestion.ingest_prices` after the `.dropna` at `:132`, before the row loop at `:134`: `ticker_df, _ = validate_ohlcv(ticker_df, market=<market derived at :139-142>, ticker=ticker)`. Reuse the namespace `market` var, not market_for_symbol (this path uses US:AAPL namespacing).
+3. **markets.py** — add `"benchmark"` to each MARKET_CONFIG dict (US="SPY", EU="^GDAXI", KR="^KS11", NO="^OSEAX", CA="^GSPTSE").
+4. **backtest_engine.py:281** — `get_universe_tickers(market=self.market)`. **:299** — preload `MARKET_CONFIG[self.market]["benchmark"]` (keep SPY for US).
+5. **analytics.py:compute_baseline_strategies** — add `benchmark="SPY"` param; use it at :462; FX-convert the benchmark + portfolio return to base ccy via fx_rates (endpoint method).
+6. **api/backtest.py:939** — pass `benchmark=MARKET_CONFIG[engine.market]["benchmark"]` (the engine's market is in scope here as `engine.market`).
+7. **EU .DE backtest end-to-end** — run, capture benchmark=^GDAXI + FX-converted return + gate drop count into `handoff/current/live_check_50.5.md` (REQUIRED; auto-push gate holds until present).
+8. Confirm a US backtest is byte-identical (benchmark stays SPY, no FX, gate no-ops).
+
+### Part A — DRIFT / correctness summary
+- **No correctness bug** in the on-disk code (price_quality.py + screener.py edit + tests). 6/6 tests pass. US byte-identity proven by identity assert.
+- **DRIFT 1 (material):** benchmark-return + alpha live in `analytics.py:446-580` + are called from `api/backtest.py:939`, NOT in backtest_engine.py. The contract's "backtest_engine.py:299 hardcodes SPY" is a CACHE-PRELOAD line, not the benchmark. GENERATE MUST patch analytics.py + api/backtest.py for criteria #1/#3/#4 — patching only backtest_engine.py is INSUFFICIENT.
+- **DRIFT 2 (minor):** data_ingestion anchor — `ingest_prices` def is at `:94` (contract said :132); :132 is the `.dropna` line; insert validate after it. The ingest path derives market from the `US:AAPL` NAMESPACE (`:139-142`), so use that var, not market_for_symbol.
+- **DRIFT 3 (trivial):** screener insertion is at :130-140 (contract said ~:124-130) — same site, shifted by the inserted block. No action.
+
+### Part B — EXTERNAL RESEARCH (revalidation; 3-variant query discipline)
+
+Query variants run per topic: current-year 2026 frontier, 2025/2024 window, year-less canonical. Mix visible in the source tables below.
+
+#### Read in full (>=5 required; 6 fetched -> gate cleared with margin)
+| URL | Accessed | Kind | Fetched how | Key finding |
+|-----|----------|------|-------------|-------------|
+| medium.com/@Tobi_Lux/data-from-yfinance-some-observations-41e99d768069 | 2026-05-31 | practitioner blog | WebFetch (full) | **Load-bearing source RE-VERIFIED.** yfinance vs XETRA DAX: up to **11% abs deviation**; **10-24 identical-OHLC days/yr (4-10%)**; on those days **"no trading volume was recorded"** (corroborates R2 zero-vol DROP); candlestick algos fail, MACD/EMA/RSI "limited influence". Recommends Stooq as cleaner alt. |
+| medium.com/@axionquant/outlier-detection-in-market-data-b455b435777d | 2026-05-31 | practitioner blog | WebFetch (full) | z-score `threshold=3` (static AND rolling window=20); IQR `1.5`; Isolation Forest `contamination=0.05`. KEY: "Track your false positive rate... **Not every outlier is meaningful**" -> validates DROP-unambiguous/FLAG-suspicious. Confirms our `_Z_FLAG=3.0`. |
+| arxiv.org/abs/2603.19380 (NIFTY Smallcap 250) | 2026-05-31 | arXiv q-fin (Mar 2026) | WebFetch (full) | **NEW recency hit.** Survivor-only backtest overstates annual return by **4.94pp (23.3% relative)**, Sharpe by 0.097 (9.1%); 82.5% index turnover in EM small-caps. Recommends PIT membership reconstruction incl. delisted. Validates our DEFERRED PIT-membership scope as material-but-documented (US has the same gap). |
+| analystprep.com/study-notes/cfa-level-2/problems-in-backtesting | 2026-05-31 | official curriculum (CFA L2) | WebFetch (full) | Survivorship / look-ahead / data-snooping. Data-snooping mitigation = "removing outliers post-analysis" is a P-HACK; use cross-val + elevated t-stats. Confirms: a DROP rule must be a PRE-registered data-integrity rule (impossible OHLC, zero-vol flat), NOT post-hoc outlier removal to flatter results. Our gate is pre-registered -> compliant. |
+| quantconnect.com/forum/discussion/1783 | 2026-05-31 | practitioner (LEAN engine) | WebFetch (full) | Base/account currency model: engine looks up `{CCY}USD` (e.g. JPYUSD) to convert to base; separate cashbook per currency; "**database only has equities... quoted in USD**" -> even QC doesn't do per-bar intl FX cheaply. Validates our endpoint-FX (not per-bar) DEFERRED decision + fx_rates `{CCY}USD` pair convention. |
+| starqube.com/backtesting-investment-strategies | 2026-05-31 | practitioner (PIT vendor) | WebFetch (full) | 7 backtest "sins": survivorship, look-ahead, storytelling, overfitting, txn-cost, period-selection, short-borrow. "Using only daily OHLC forces assumptions." Emphasizes native PIT data. No FX/outlier specifics (recorded as such). |
+
+#### Identified but snippet-only (context; does NOT count toward gate)
+| URL | Kind | Why not fetched in full |
+|-----|------|------------------------|
+| arxiv.org/pdf/2209.11686 (PCA+NN anomaly) | arXiv q-fin | Abstract fetched; thresholds are LEARNED (NN loss), not fixed -> less directly applicable than axionquant's explicit z=3. Snippet sufficient. |
+| ieeexplore.ieee.org/document/7810839 | IEEE | Paywalled; financial-TS anomaly detection, older. |
+| mdpi.com/1999-4893/15/10/385 | MDPI Algorithms | Same PCA+NN work as 2209.11686. |
+| promptcloud.com/blog/scrape-yahoo-finance (2026) | vendor blog | "validate against a second source for international/OTC" theme — corroborates Tobi Lux. |
+| slingacademy.com/article/common-yfinance-errors | tutorial | yfinance error modes, low specificity. |
+| tinybird.co/blog/anomaly-detection | vendor blog | rolling z-score / static stats overview. |
+| victoriametrics.com/.../anomaly-detection-handbook-chapter-3 | vendor docs | TS anomaly techniques survey. |
+| tradingcode.net/tradingview/backtest-currency-conversion | tutorial | "fixed post-hoc conversion distorts P&L; use period-correct FX" — corroborates endpoint-at-date over a single fixed rate. |
+| quantshare.com/title-688 / domintia BTAnalytics / multicharts MC-349 | vendor | multi-ccy backtest needs base ccy + FX access during the run. |
+| etf.com South Korea ETF / dax-indices.com strategy guide | vendor/official | ^KS11 & DAX are the domestic benchmarks; DAX is EUR, unhedged -> subject to USD/EUR (confirms FX-to-USD needed for a USD book). |
+| fxreplay backtesting-biases / quantvps guide | blog | general bias catalog. |
+
+#### Recency scan (2024-2026) — PERFORMED
+Searched 2026-frontier + 2025-window + year-less for all 3 topics. Findings:
+1. **Tobi Lux yfinance/XETRA study** — re-verified live 2026-05-31, numbers UNCHANGED (11% dev, 10-24 identical-OHLC days/yr, zero-volume on those days). The contract's central justification holds; no newer study supersedes it. Corroborated by promptcloud (2026) "validate intl against a 2nd source".
+2. **NEW: arXiv 2603.19380 (Mar 2026, NIFTY Smallcap)** — quantifies survivorship at 4.94pp/23.3% for EM small-caps. This is NEW since the 2026-05-30 brief. It does NOT change our GENERATE plan; it STRENGTHENS the case that DEFERRING PIT intl membership is acceptable (the bias is documented, market-agnostic, and present in the US path too) while making clear it's the #1 follow-on. No code change required for 50.5.
+3. **AI-agent guardrail playbooks (2026)** — layered validation (input->dialog->generation->schema->business-rule) + "risk-based routing" (financial = high-risk -> comprehensive gates). Our 3-door L1/L2/B gate IS this layered pattern for the price-data plane. No change to plan; confirms the architecture.
+4. **Multi-currency backtest (QuantConnect, tradingview, MultiCharts)** — consensus: set a base currency, convert using period-correct (date-matched) FX, NOT a single fixed post-hoc rate (fixed-rate distorts P&L, worse over longer windows). Our fx_rates `get_fx_rate(from,to,date)` as-of read is exactly this. Endpoint-vs-per-bar: even QC's DB is USD-quoted -> per-bar intl FX is genuinely hard; endpoint conversion of the return for a single-currency book is the pragmatic, mathematically clean choice -> DEFERRING per-bar FX is defensible.
+
+#### Consensus vs debate
+- **Consensus:** (a) yfinance intl is defect-prone, validate before use (Tobi Lux, promptcloud, becomingquant). (b) z=3 rolling is the standard outlier FLAG threshold; impossible-OHLC + zero-vol flat bars are unambiguous DROPs (axionquant). (c) DROPPING outliers post-hoc to improve results is p-hacking — a gate must be PRE-registered integrity rules (CFA/analystprep). (d) Multi-ccy backtests need a base ccy + date-matched FX, not a fixed rate (QC, tradingview, MultiCharts). (e) Survivorship is material (4.94pp EM small-cap; "several pp/yr" general) but is mitigated by PIT membership — a known, deferrable, market-agnostic gap.
+- **Debate / nuance:** static vs rolling z-score (we use rolling-population std over the series window — fine for a per-ticker download); learned vs fixed thresholds (PCA+NN learns it — overkill for a $0 gate); Stooq vs yfinance (Tobi Lux prefers Stooq, but operator chose free-yfinance+gate — our gate is the documented compensating control).
+
+#### Pitfalls (from literature) -> mapped to our code
+1. **Over-dropping real volatility** (axionquant "not every outlier is meaningful"; CFA p-hacking) -> price_quality DROPs ONLY impossible-OHLC + identical-OHLC+zero-vol + >50% round-trip; FLAGs (keeps) z>3 and stale runs. CORRECT (verified A1).
+2. **Silent truncation** (no source endorses it) -> report{dropped,flagged,reasons} + logger.info; criterion #2 requires logging. CORRECT.
+3. **Fixed post-hoc FX rate** (tradingview/QC) -> use `get_fx_rate(...,date)` as-of, not a single rate. fx_rates already does this (A7).
+4. **Survivorship via current-membership** (analystprep, arXiv 2603.19380, starqube) -> DEFERRED (candidate_selector as_of raises NotImplementedError; curated static DAX-40/KOSPI-200 lists are themselves a current-membership snapshot). DEFENSIBLE: US path has the identical gap; documented; #1 follow-on.
+5. **Wrong benchmark / unconverted FX** (etf.com, dax-indices) -> ^GDAXI (EUR) must be FX-converted to USD for alpha vs the USD book; ^KS11 likewise. Criterion #1 change set (A6) handles this at analytics.py + api/backtest.py.
+
+### Application to pyfinagent (external -> internal anchors)
+- Tobi Lux zero-volume corroboration -> `price_quality.py:82-88` R2 (`identical & zero_vol -> DROP`). EXACT match.
+- axionquant z=3 -> `price_quality.py:35` `_Z_FLAG=3.0`, applied `:105-110` (FLAG only). Match.
+- CFA pre-registered-rule discipline -> the gate is a fixed rule set (R1-R4), not post-hoc result-driven removal. Compliant.
+- QC base-ccy + `{CCY}USD` lookup -> `fx_rates._pair` + `get_fx_rate(from,to,date)`. Match. Endpoint conversion for criterion #1 at `analytics.py:compute_baseline_strategies` + `api/backtest.py:939`.
+- arXiv 2603.19380 survivorship -> confirms DEFERRED PIT membership (candidate_selector `:121-126` NotImplementedError) is acceptable for go-live.
+
+### DEFERRED scope — still defensible? YES.
+The 2026-05-30 DEFERRED list (PIT intl membership, per-bar FX inside _compute_nav, simultaneous mixed-currency backtest, live per-market benchmark) is RE-CONFIRMED defensible by the new literature:
+- PIT membership: arXiv 2603.19380 (Mar 2026) quantifies it as material BUT market-agnostic (US has it too) and explicitly a separate "reconstruct historical membership" project. Not a 50.5 blocker.
+- Per-bar FX: QC (the reference multi-ccy engine) doesn't do cheap per-bar intl FX either; endpoint conversion of a single-currency book's return is clean. Defensible.
+- The minimal safe scope (gate + market-param + per-market benchmark + endpoint-FX + an EU .DE live_check) satisfies all 4 immutable criteria without touching the working US path (byte-identity proven).
+
+### Research Gate Checklist
+Hard blockers:
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6: Tobi Lux, axionquant, arXiv 2603.19380, CFA/analystprep, QuantConnect, starqube)
+- [x] 10+ unique URLs total (14 unique: 6 full + 8 snippet rows covering ~20 links surfaced)
+- [x] Recency scan (last 2 years) performed + reported (4 findings; 1 NEW arXiv Mar 2026)
+- [x] Full pages read (not abstracts) for the read-in-full set
+- [x] file:line anchors for every internal claim (Part A)
+Soft checks:
+- [x] Internal exploration covered every relevant module (price_quality, screener, paper_trader, data_ingestion, markets, backtest_engine, analytics, api/backtest, candidate_selector, fx_rates, tests)
+- [x] Contradictions/consensus noted
+- [x] All claims cited per-claim
+
+```json
+{
+  "tier": "moderate",
+  "external_sources_read_in_full": 6,
+  "snippet_only_sources": 8,
+  "urls_collected": 14,
+  "recency_scan_performed": true,
+  "internal_files_inspected": 11,
+  "report_md": "phase-50.5 revalidation appended to handoff/current/research_brief.md",
+  "gate_passed": true
+}
+```

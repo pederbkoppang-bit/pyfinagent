@@ -887,6 +887,7 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
         from backend.backtest.backtest_engine import BacktestEngine
         from backend.backtest.analytics import generate_report, compute_baseline_strategies
         from backend.backtest import cache as bt_cache
+        from backend.backtest.markets import get_market_config
 
         def progress_cb(data: dict):
             _backtest_state["progress"] = data
@@ -936,8 +937,14 @@ async def _run_backtest_async(run_id: str, req: BacktestRunRequest):
                 candidate_tickers = list({
                     p.get("ticker", "") for w in result.windows for p in w.predictions if p.get("ticker")
                 })
+                # phase-50.5: per-market benchmark + FX-convert returns to USD.
+                # US engine (default) -> SPY + USD -> byte-identical.
+                _mcfg = get_market_config(getattr(engine, "market", "US"))
                 baselines = compute_baseline_strategies(
                     bt_cache.cached_prices, test_start, test_end, candidate_tickers,
+                    benchmark=_mcfg.get("benchmark", "SPY"),
+                    base_currency="USD",
+                    local_currency=_mcfg.get("currency", "USD"),
                 )
             except Exception as e:
                 logger.warning(f"Baseline computation failed: {e}")

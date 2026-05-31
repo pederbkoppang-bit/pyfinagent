@@ -127,6 +127,18 @@ def screen_universe(
             if ticker_data is None or ticker_data.empty:
                 continue
 
+            # phase-50.5: data-quality gate -- no-op for US (byte-identical);
+            # drops unambiguous bad intl (.DE/.KS) bars before they feed
+            # momentum/RSI/vol signals (the yfinance 11%-deviation /
+            # identical-OHLC risk).
+            from backend.tools.price_quality import validate_ohlcv
+            from backend.backtest.markets import market_for_symbol
+            ticker_data, _dq = validate_ohlcv(
+                ticker_data, market=market_for_symbol(ticker), ticker=ticker
+            )
+            if ticker_data is None or ticker_data.empty:
+                continue
+
             close = ticker_data["Close"].dropna()
             volume = ticker_data["Volume"].dropna()
 

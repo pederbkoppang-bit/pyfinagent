@@ -278,7 +278,9 @@ class BacktestEngine:
                 Used by QuantStrategyOptimizer to keep warm cache across iterations.
         """
         if universe_tickers is None:
-            universe_tickers = self.candidate_selector.get_universe_tickers()
+            # phase-50.5: market-aware universe (US -> S&P 500; EU/KR -> curated
+            # INTL_UNIVERSE). Was market-blind despite storing self.market.
+            universe_tickers = self.candidate_selector.get_universe_tickers(market=self.market)
 
         # Auto-ingest check: if historical_prices is empty, trigger ingestion
         self._auto_ingest_if_needed(universe_tickers)
@@ -296,7 +298,12 @@ class BacktestEngine:
         self._report_progress("preloading", f"Loading data for {len(universe_tickers)} tickers")
         global_start = (self.scheduler.start_date - timedelta(days=756)).isoformat()
         global_end = (self.scheduler.end_date + timedelta(days=int(self.holding_days * 1.5))).isoformat()
-        cache.preload_prices(universe_tickers + ["SPY"], global_start, global_end)
+        # phase-50.5: preload the market's benchmark (US -> SPY byte-identical;
+        # EU -> ^GDAXI, KR -> ^KS11) so analytics.compute_baseline_strategies
+        # can read it from cache.
+        from backend.backtest.markets import get_market_config
+        _benchmark = get_market_config(self.market).get("benchmark", "SPY")
+        cache.preload_prices(universe_tickers + [_benchmark], global_start, global_end)
         cache.preload_fundamentals(universe_tickers)
         cache.preload_macro()
 

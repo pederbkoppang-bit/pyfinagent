@@ -13677,7 +13677,7 @@
         {
           "id": "50.5",
           "name": "Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in the backtest, + a DATA-QUALITY gate that drops identical-OHLC bars (the yfinance-international 11%-deviation / identical-OHLC risk). FREE.",
-          "status": "in_progress",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.2",

@@ -17,37 +17,47 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MARKET = "US"
 
-# Market configuration: exchange calendar, currency, timezone
+# Market configuration: exchange calendar, currency, timezone, benchmark.
+# phase-50.5: `benchmark` is the per-market index ticker used by the backtest
+# baseline/alpha computation (analytics.compute_baseline_strategies). US stays
+# "SPY" so the US backtest is byte-identical; intl benchmarks are FX-converted
+# to the base currency. yfinance index symbols: ^GDAXI (DAX), ^KS11 (KOSPI),
+# ^OSEAX (Oslo All-Share), ^GSPTSE (S&P/TSX Composite).
 MARKET_CONFIG = {
     "US": {
         "exchange": "XNYS",
         "currency": "USD",
         "timezone": "America/New_York",
         "description": "NYSE/NASDAQ (United States)",
+        "benchmark": "SPY",
     },
     "NO": {
         "exchange": "XOSL",
         "currency": "NOK",
         "timezone": "Europe/Oslo",
         "description": "Oslo Børs (Norway)",
+        "benchmark": "^OSEAX",
     },
     "CA": {
         "exchange": "XTSE",
         "currency": "CAD",
         "timezone": "America/Toronto",
         "description": "Toronto Stock Exchange (Canada)",
+        "benchmark": "^GSPTSE",
     },
     "EU": {
         "exchange": "XETR",  # XETRA (Germany) as primary
         "currency": "EUR",
         "timezone": "Europe/Berlin",
         "description": "XETRA/Euronext (European equities)",
+        "benchmark": "^GDAXI",
     },
     "KR": {
         "exchange": "XKRX",
         "currency": "KRW",
         "timezone": "Asia/Seoul",
         "description": "KRX - KOSPI/KOSDAQ (South Korea)",
+        "benchmark": "^KS11",
     },
 }
 

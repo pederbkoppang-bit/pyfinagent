@@ -131,6 +131,12 @@ class DataIngestionService:
 
                     ticker_df = ticker_df.dropna(subset=["Close"])  # type: ignore[arg-type]
 
+                    # phase-50.5 (B data-quality door): drop unambiguous bad intl
+                    # bars before BQ ingestion. US -> no-op (byte-identical).
+                    _mkt = ticker.split(":", 1)[0].upper() if ":" in ticker else "US"
+                    from backend.tools.price_quality import validate_ohlcv
+                    ticker_df, _dq = validate_ohlcv(ticker_df, market=_mkt, ticker=ticker)
+
                     for idx, row in ticker_df.iterrows():
                         date_str = pd.Timestamp(idx).strftime("%Y-%m-%d")  # type: ignore[arg-type]
                         if (ticker, date_str) in existing:
