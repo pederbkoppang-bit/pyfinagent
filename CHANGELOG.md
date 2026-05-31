@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `6f86c5ed` | phase-51.1: SecretStr unwrap -- resurrect 4 dead LLM alpha overlays. news_screen/macro_regime/pea... |
 | 2026-05-31 | `3377d826` | phase-50.5: Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in t... |
 | 2026-05-30 | `113fec3e` | docs(handoff): session-final summary -- 7 cycles shipped, phase-50 4/6 + 50.5 planned |
 | 2026-05-30 | `4290c82d` | phase-50.5: PLAN (GENERATE pending) -- data-quality gate + multi-market backtest |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-29 | `852e5241` | phase-49.3: Cron-control UI -- add an Actions column to the existing /cron dashboard page with pa... |
 | 2026-05-29 | `3cebd1e5` | phase-50: PLAN -- international multi-market expansion (operator-requested; PLANNED, not implemented |
 | 2026-05-29 | `16f3ee03` | phase-49.3: GENERATE -- cron-control UI (Actions column on /cron) |
-| 2026-05-29 | `d025240f` | phase-49.3: PLAN -- cron-control UI contract + research gate |
 
 ---
 
+### v6.28.40 — phase-51.1: SecretStr unwrap -- resurrect 4 dead LLM alpha overlays.... (2026-06-01)
+
+- **phase-51.1: SecretStr unwrap -- resurrect 4 dead LLM alpha overlays. news_screen/macro_regime/pea...**
 ### v6.28.39 — phase-50.5: Backtest multi-market -- per-market benchmark (^GDAXI / ^... (2026-05-31)
 
 - **phase-50.5: Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in t...**
