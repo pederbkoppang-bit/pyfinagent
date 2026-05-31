@@ -255,7 +255,10 @@ async def fetch_news_signals(
     logger.info("News screen: %d raw -> %d deduped headlines", len(raw), len(deduped))
 
     settings = get_settings()
-    anthropic_key = getattr(settings, "anthropic_api_key", "") or ""
+    # phase-51.1: unwrap SecretStr (a non-empty SecretStr is truthy -> `or ""`
+    # returned the wrapper -> SDK "Header value must be str or bytes"). Never str().
+    from backend.agents.llm_client import unwrap_secret
+    anthropic_key = unwrap_secret(getattr(settings, "anthropic_api_key", ""))
     if not anthropic_key:
         logger.warning("News screen: ANTHROPIC_API_KEY missing, skipping LLM extract")
         return {}

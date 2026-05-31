@@ -424,7 +424,9 @@ async def compute_macro_regime(use_cache: bool = True) -> MacroRegimeOutput:
     if len(available) < 3:
         return _fallback_regime(indicators, f"only {len(available)} regime series available")
 
-    anthropic_key = getattr(settings, "anthropic_api_key", "") or ""
+    # phase-51.1: unwrap SecretStr (truthy wrapper bypassed `or ""` -> SDK header error).
+    from backend.agents.llm_client import unwrap_secret
+    anthropic_key = unwrap_secret(getattr(settings, "anthropic_api_key", ""))
     if not anthropic_key:
         return _fallback_regime(indicators, "ANTHROPIC_API_KEY not configured")
 

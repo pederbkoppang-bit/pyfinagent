@@ -1,74 +1,99 @@
-# Q/A Evaluator Critique -- phase-50.5: Multi-market backtest + DATA-QUALITY gate
+# phase-51.1 EVALUATE -- 2026-06-01
 
-**Verdict: PASS** | Fresh Q/A (first for 50.5; no verdict-shopping) | 2026-05-31
-**Reviewer:** Q/A subagent (merged qa-evaluator + harness-verifier), effort=max
-*(This file previously held the phase-50.4 PASS critique; superseded per protocol --
-the 50.4 critique is archived under `handoff/archive/phase-50.4/` on step close.)*
+**Step:** 51.1 -- SecretStr unwrap, resurrect 4 dead LLM alpha overlays
+**Evaluator:** Q/A (Layer-3, merged qa-evaluator + harness-verifier), single fresh instance
+**Verdict: PASS**
+**ok:** true | **certified_fallback:** false
+
+This OVERWRITES the stale phase-50.5 critique (archived under
+`handoff/archive/phase-50.5/`). A prior 51.1 Q/A instance truncated before
+writing; this is the FIRST real 51.1 verdict on UNCHANGED, complete evidence
+(not a re-spawn to overturn anything). 0 prior 51.1 verdicts, 0 prior 51.1
+CONDITIONALs in `handoff/harness_log.md`.
 
 ---
 
-## phase-50.5 EVALUATE -- 2026-05-31
+## 1. Harness-compliance audit (5-item, FIRST)
 
-### 5-item harness-compliance audit (run FIRST)
+| Item | State | Evidence |
+|------|-------|----------|
+| researcher BEFORE contract | PASS | `research_brief.md` header `# research_brief -- phase-51.1`; JSON envelope `gate_passed:true`, tier moderate, 5 external sources read in full, 12 URLs, recency scan performed, 8 internal files. Regression commit `d3f34caf` (2026-05-13) pinned with git-blame evidence. |
+| contract before GENERATE | PASS | `contract.md` is the 51.1 contract; its 4 success_criteria are VERBATIM-identical to masterplan `51.1.verification.success_criteria` (`.claude/masterplan.json:13737-13742`). Diffed word-for-word -- exact match, none amended. |
+| experiment_results + live_check present/complete | PASS | `experiment_results.md` lists file changes + verbatim command output + artifact shape. `live_check_51.1.md` present (`test -f` exit 0) with the $0 proof + criterion-by-criterion table. |
+| log-last | PASS | `handoff/harness_log.md` has ZERO 51.1 entries; masterplan 51.1 `status=pending`. Main logs + flips AFTER this PASS, in the correct order. |
+| no verdict-shopping | PASS | No prior 51.1 verdict exists (earlier instance never wrote one). This is the first verdict, not a second opinion on a CONDITIONAL. 0 prior consecutive CONDITIONALs -> 3rd-CONDITIONAL auto-FAIL rule N/A. |
 
-| # | Gate | Result | Evidence |
-|---|------|--------|----------|
-| 1 | researcher gate BEFORE contract | PASS | `research_brief.md:252` has `## phase-50.5 RESEARCH-GATE REVALIDATION -- 2026-05-31`; envelope at :401-407 `gate_passed:true`, `external_sources_read_in_full:6`, `recency_scan_performed:true`. (An earlier 50.5 envelope at :241-246 shows 7 sources -- both >=5 floor.) Tobi Lux DAX study RE-VERIFIED live (:333: 11% deviation, 10-24 identical-OHLC days/yr, zero-volume corroborates R2); axionquant z=3 (:334) confirms `_Z_FLAG=3.0`; NEW recency hit arXiv 2603.19380 (:335) quantifies the DEFERRED PIT-membership gap. Contract cites this brief (`contract.md:8,51`). |
-| 2 | contract-before-generate | PASS | `git log`: `4290c82d phase-50.5: PLAN (GENERATE pending)` precedes this GENERATE. The 4 `success_criteria` in `contract.md:23-26` are verbatim from masterplan 50.5 `verification.success_criteria` (byte-checked: all 4 PRESENT). |
-| 3 | experiment_results present + complete | PASS | `experiment_results.md` present: file table (9 files), verbatim syntax+pytest (9 passed) + regression (94 passed), live_check ref, artifact shapes, disclosed deferrals. |
-| 4 | log-last discipline | PASS | NO `phase=50.5` / `## Cycle.*50.5` header in `handoff/harness_log.md` (grep empty). masterplan 50.5 `status=in_progress`, `retry_count=0`. Main correctly has NOT logged/flipped before this verdict. |
-| 5 | no verdict-shopping | PASS | First Q/A for 50.5 (no prior 50.5 entry in harness_log; on-disk critique before this write was the 50.4 PASS). Not a cycle-2 spawn. **Prior consecutive CONDITIONALs for 50.5 = 0** (3rd-CONDITIONAL auto-FAIL rule N/A). |
+## 2. Deterministic checks (reproduced)
 
-### Deterministic checks (run by Q/A, not trusting the agent)
+```
+$ python -m pytest backend/tests/test_phase_51_1_secretstr.py -q
+.......                                                                  [100%]
+7 passed in 0.16s
 
-| Check | Result |
-|-------|--------|
-| `ast.parse` price_quality.py | OK |
-| `ast.parse` all 8 modified source files | OK (markets/backtest_engine/analytics/api.backtest/paper_trader/data_ingestion/price_quality/screener) |
-| **IMMUTABLE command** (ast + pytest + test -f) | **exit=0**: 9 passed in 1.33s + `live_check_50.5.md` PRESENT |
-| regression suite (50.3 + 32.1 + dod4 + 50.5) | **94 passed** in 1.63s |
-| US byte-identity test uses EXACT `==` (not approx) | `:103 fx_ratio == 1.0`; `:109 spy_return_pct == raw` (exact float, not pytest.approx) |
-| **INDEPENDENT live_check re-run** (Q/A ran `scripts/phase50/live_check_50_5.py` itself) | Reproduced the SHAPE: benchmark=^GDAXI; EU fx_ratio=0.99946 (!=1.0); US fx_ratio==1.0 EXACT; 15 real .DE bars dropped + 6 flagged (all R2 identical-OHLC+zero-vol); injected R1/R2/R3 all fire. Numbers match Main's (fx differs 0.99946 vs 0.99958 -- live-rate drift, expected). NOT fabricated. |
-| `market_for_symbol` independent check | AAPL/MSFT/SPY->US; SAP.DE/BMW.DE->EU; 005930.KS->KR (correct) |
+$ python -c "import ast; ast.parse(open('backend/agents/llm_client.py').read())"
+llm_client.py SYNTAX OK
 
-### LLM judgment (adversarial)
+$ test -f handoff/current/live_check_51.1.md
+live_check present
+```
 
-**US byte-identity (THE regression surface) -- PASS, proven 4 ways.**
-The gate inserts into the live US screener + ingestion + fill paths, so US must be untouched.
-1. `validate_ohlcv(df, market="US")` returns the **same object** at `price_quality.py:55` (`if df is None or market == "US": return df, report`) -- screener L1 (`screener.py`) + ingestion B (`data_ingestion.py:136-138`, `_mkt=="US"`->no-op).
-2. `_get_live_price` L2 (`paper_trader.py:1208-1216`): `if market_for_symbol(ticker) != "US"` -- US tickers skip validation entirely; returns `float(hist["Close"].iloc[-1])` exactly as before. Diff touches ONLY `_get_live_price` (grep confirmed: NO kill_switch/stop_loss/execute_buy/execute_sell/backfill/paper_max_positions mutation).
-3. `compute_baseline_strategies` US path: `local_currency=="USD"==base_currency` -> `fx_ratio` stays `1.0` (the `if local!=base` branch at `analytics.py:542` is not entered) -> `_to_base` short-circuits `if fx_ratio == 1.0: return r_pct` (`:559-560`) -- NO `(1+r)*1-1` float round-trip. Unit-tested with EXACT `==` (`:109`).
-4. `cache.preload_prices(universe + [_benchmark])` with US benchmark `"SPY"` (`backtest_engine.py:305`) == the old hard-coded `+["SPY"]`. `get_universe_tickers(market="US")` == default (US is DEFAULT_MARKET). US benchmark stays `"SPY"` (not `^GSPC`) -> US numbers unchanged.
-**No US-path behavior change.**
+Independent QA proof (I constructed the boundary myself, did NOT trust Main):
+```
+ClaudeClient(SecretStr('sk-ant-z'))._api_key -> 'sk-ant-z', isinstance str, no get_secret_value, != '**********'
+ClaudeClient(api_key='plain')._api_key       -> 'plain'  (no double-unwrap)
+make_client('claude-haiku-4-5', None, settings-with-SecretStr)._api_key -> str
+=> INDEPENDENT QA PROOF OK
+```
 
-**Drift honesty -- PASS.** The contract (`contract.md:16`) originally fingered `backtest_engine.py:299` as the benchmark site; the researcher caught that `:299` is only a cache-preload line and the real benchmark/alpha computation lives in `analytics.compute_baseline_strategies` + `api/backtest.py`. Main patched the RIGHT sites: `analytics.py:446-573` (benchmark param + FX) and `api/backtest.py:937-947` (threads `benchmark`+`local_currency` from `get_market_config(engine.market)`). The drift is disclosed in `experiment_results.md:10-12`. Honest correction, not a hidden miss.
+Regression sweep:
+```
+$ pytest test_anthropic_fallback.py test_claude_code_client.py test_phase_31_1_fixes.py -q
+22 passed
+```
+(Main also ran test_phase_37_3_budget_tokens -> 32 passed, 1 xfailed; xfail is pre-existing, not introduced here.)
 
-**Criterion #3 "EU backtest runs end-to-end" -- MET (substantiated, not hand-waved).** Main did NOT run a full `BacktestEngine(market="EU").run_backtest()` (needs BQ .DE ingestion). Instead it exercises EVERY NEW code path on REAL data: market-aware universe (`get_universe_tickers(market="EU")` -> 40 .DE/.PA tickers), per-market benchmark selection (^GDAXI), the gate on real .DE bars (15 dropped), and the FX-converted baseline (EUR->USD). I read `scripts/phase50/live_check_50_5.py` end-to-end (152 lines) -- it is genuine: live `yf.Ticker().history()` fetches, real `compute_baseline_strategies` calls, real `validate_ohlcv`, hard asserts (`:122 benchmark=="^GDAXI"`, `:146 us fx_ratio==1.0`). The ONLY un-exercised piece is the BQ-ingestion orchestration glue -- pre-existing shared machinery, NOT 50.5 code, and `live_check_50.5.md:85-91` discloses this precisely ("the full walk-forward reuses these exact wired functions; additionally requires BQ ingestion of .DE history"). Because no NEW or CHANGED logic is left unexercised, this is a **PASS, not a CONDITIONAL** -- the gap is infrastructure, not a code-coverage hole. (Same scope-honesty standard applied to 50.4.)
+## 3. The 4 IMMUTABLE success criteria
 
-**Anti-rubber-stamp / no over-drop of real volatility -- PASS.** I ran an independent adversarial test: a real +8% earnings move WITH volume is PRESERVED (dropped=0, z-flagged only); a +60% glitch DROPS (R3 fires). The DROP-unambiguous / FLAG-suspicious asymmetry (`price_quality.py:78-118`) holds exactly. "No silent truncation" confirmed: counts logged (`:123-127`) AND returned in the report dict. The CFA-L2 source (`research_brief.md:336`) correctly frames this as PRE-registered data-integrity rules, not post-hoc p-hacking.
+**Criterion 1 -- the 4 overlays pass a plain str (not SecretStr): PASS.**
+All 4 sites now read `anthropic_key = unwrap_secret(getattr(settings,"anthropic_api_key",""))`:
+`news_screen.py:261`, `macro_regime.py:429`, `pead_signal.py:250`, `meta_scorer.py:168`
+(grep-verified; the old `... or ""` truthiness footgun is gone at all four). `test_overlay_services_pass_str_to_claudeclient` (test:64-78) mirrors the exact idiom on a `SecretStr("sk-ant-live")` setting and asserts the resolved key is `str`, equals the real value, and `!= '**********'`. The SDK header can no longer receive a SecretStr.
 
-**`^GDAXI` not over-dropped -- PASS.** `market_for_symbol("^GDAXI")=="US"` but this is irrelevant: `analytics.py` NEVER imports/calls `validate_ohlcv` (grep clean) -- the benchmark series is read RAW via `prices_cache_fn`. No hidden gate interaction.
+**Criterion 2 -- ClaudeClient.__init__ self-unwraps; no-op for plain str: PASS.**
+`llm_client.py:1243` `self._api_key = unwrap_secret(api_key)`. `test_claude_client_self_unwraps_secretstr` (test:43-48) proves SecretStr->str; `test_claude_client_plain_str_no_double_unwrap` (test:51-54) proves a plain str passes through unchanged. Mechanism is double-unwrap-safe by construction: `unwrap_secret` (`:32-45`) only calls `.get_secret_value()` when `hasattr(v,"get_secret_value")` -- a plain str lacks that attr, so it returns unchanged; and `get_secret_value()` returns a str which also lacks the attr, so it cannot be unwrapped twice.
 
-**Scope honesty (DEFERRED items) -- PASS, genuinely non-blocking.** PIT intl membership (US has the SAME gap; arXiv 2603.19380 = separate reconstruct-membership project), per-bar FX inside `_compute_nav` (even QuantConnect doesn't do cheap per-bar intl FX -- `research_brief.md:337`), simultaneous mixed-currency multi-market backtest, live per-market benchmark. None of these is required by the 4 criteria: criterion #1 says "FX-converts NAV/returns" -- the RETURNS are FX-converted (endpoint method); Sharpe-stays-local is a disclosed deferral, not a criterion miss (criterion #1 does not mandate Sharpe currency). No deferral hides a criterion gap.
+**Criterion 3 -- $0 unit test proves the boundary str; US pure-quant path unchanged: PASS.**
+7 `$0`, no-network tests (ctors defer SDK instantiation to `_get_client`, so construction is free). US byte-identity: `make_client` (`:1913`) still unwraps BEFORE constructing ClaudeClient -- so every existing make_client caller (the live US pure-quant Claude path, when used) is unchanged; my independent proof confirmed `make_client(...,settings-with-SecretStr)._api_key` is a str. Scope diff (`git diff --name-only`) touches ONLY `llm_client.py` + the 4 overlay services + the new test -- NO `paper_trader`, `kill_switch`, `risk_engine`, `screener`, `decide_trades`, `perf_metrics`, or `backtest_engine`. The overlays are additive Signal-Stack flags; the live US screener (momentum/RSI/vol, $0 LLM) imports none of them.
 
-### Code-review heuristics (5 dimensions evaluated -- no BLOCK, no WARN)
+**Criterion 4 -- live_check records the $0 proof; live cycle only if LLM-spend approved: PASS ($0 leg).**
+`live_check_51.1.md` records the full $0 proof (the truthiness bug, the `str()` mask footgun avoided, the stored `_api_key` type assertion, make_client unchanged, sibling self-unwrap, no-double-unwrap) plus a criterion-by-criterion table. The live paid-cycle confirmation is correctly FLAGGED operator-LLM-spend-gated and NOT run -- consistent with CLAUDE.md ("LLM API costs require Peder's explicit approval") and the contract's `$0 LLM` GENERATE constraint. The $0 type-assertion is sufficient gate evidence for criteria 1-3 (see Adversarial 4 below).
 
-Diff scanned: markets.py, backtest_engine.py, analytics.py, api/backtest.py, paper_trader.py (`_get_live_price` only), data_ingestion.py, screener.py, price_quality.py (NEW), test file (NEW), live_check script (NEW).
-- **financial-logic-without-behavioral-test** [BLOCK]: NOT triggered. analytics.py (FX+benchmark) gets 3 NEW behavioral tests (`test_baseline_us_byte_identical_passthrough` exact-`==`, `test_baseline_eu_fx_converted` 20%local->32%USD, `test_market_config_has_benchmarks`). backtest_engine.py change is wiring only (market param + benchmark preload; NO Sharpe/drawdown/sizing math) -- covered by the end-to-end live_check.
-- **perf-metrics-bypass** [WARN]: NOT triggered. `compute_baseline_strategies` reuses the PRE-EXISTING `compute_sharpe` (analytics.py is the canonical metrics module); the FX patch wraps only `*_return_pct` via `_to_base`, never re-implements Sharpe. No inline Sharpe/drawdown/alpha.
-- **kill-switch / stop-loss / max-position / backfill** [BLOCK class]: untouched (paper_trader diff is `_get_live_price`-only; grep clean for all risk-guard symbols).
-- **broad-except-silences-risk-guard** [BLOCK]: NOT triggered. The `except Exception` in `validate_ohlcv:129` and `is_bad_bar:150` are deliberate fail-OPEN (return df unchanged / return False = don't drop) and LOG via `logger.warning` -- they NEVER suppress a risk guard; they prevent a validator bug from blocking the pipeline. Correct safe-by-default.
-- **tautological-assertion / over-mocked-test** [BLOCK]: none. Tests assert real `validate_ohlcv` drop/flag behavior, real `compute_baseline_strategies` outputs, exact float equality. `test_baseline_eu_fx_converted` monkeypatches ONLY the FX-rate lookup (`get_fx_rate`), not the module under test -- legitimate isolation.
-- **secret-in-diff / command-injection / crypto-re-enable / supply-chain-pin-removal** [BLOCK/WARN]: N/A (grep clean; no secrets, no subprocess/eval/exec, no crypto, no pin removal, no pip).
-- **Frontend gate** (ESLint/tsc): N/A -- diff touches NO `frontend/**`.
+## 4. Adversarial LLM judgment
 
-### Quality criteria scoring (>=6 to pass each)
-Infrastructure/data-integrity step. DSR/Sharpe-stability criteria N/A (no return-generating strategy changed; US engine byte-identical). Statistical Validity: the gate is a PRE-registered data-integrity rule (not post-hoc p-hack -- CFA-L2 compliant). Robustness: fail-open on every validator error; DROP-unambiguous/FLAG-suspicious asymmetry verified on real + adversarial data; US byte-identity proven 4 ways. Simplicity: one new pure validator + minimal wiring at 3 doors + 2 backtest sites (12-line screener, 15-line paper_trader diffs). Reality Gap: gate addresses a REAL live defect (2.5% bad .DE bars right now). No criterion below 6.
+- **str() footgun (pydantic #4217) -- AVOIDED.** `unwrap_secret` (`:45`) uses `v.get_secret_value() if hasattr(v,"get_secret_value") else str(v)`. The `str(v)` branch is reached ONLY for non-SecretStr values (where `str()` is safe). A SecretStr always takes the `get_secret_value()` branch, so it NEVER renders as `'**********'`. `test_unwrap_secret_on_secretstr_uses_real_value_not_mask` (test:25-27) explicitly asserts `!= _MASK`. My independent proof re-confirmed `_api_key != '**********'`. The masking footgun cannot silently inject a 401.
 
-### checks_run
-syntax, verification_command, pytest, regression_suite_94, independent_live_check_rerun, market_for_symbol_independent, byte_identity_trace_4way, no_over_drop_adversarial_test, gdaxi_not_overdropped, code_review_heuristics, financial_logic_behavioral_test, perf_metrics_bypass_scan, broad_except_scan, secret_command_injection_scan, drift_honesty, criterion3_end_to_end_judgment, scope_honesty_deferrals, research_gate_revalidation, contract_alignment_verbatim, harness_log_inspection, git_log_ordering, evaluator_critique, experiment_results
+- **Double-unwrap / US regression -- PROVEN NONE.** Self-unwrap is guarded by `hasattr`; a plain str passes through (test:51-54 + my proof). The old local `_unwrap` closure in `make_client` was REMOVED (git diff shows the `-def _unwrap` block deleted) and replaced by the module-level helper -- no divergent duplicate. The 2 already-guarded sites (`call_transcript_gpr.py:90-93`, `analyst_narrative_scorer.py:107-113`) were NOT touched (`git diff --stat` empty for both files) and still hold their own `hasattr...get_secret_value` unwrap -- their residual `... or ""` is benign because the per-site unwrap runs on the very next lines. No site double-unwraps.
 
-### Conclusion
-All 4 immutable criteria GENUINELY met. (1) benchmark per-market + FX-converted returns -- wired + tested + live-verified. (2) data-quality gate DROPs unambiguous / FLAGs suspicious, counts logged+returned, no silent truncation, no over-drop of real volatility (independently adversarially tested). (3) EU path exercised end-to-end on real .DE data through every NEW code path; US byte-identical (proven 4 ways, exact-`==` tested); the un-run full-engine BQ orchestration is pre-existing shared infrastructure, not a 50.5 code-coverage gap, and is triple-disclosed. (4) live evidence reproduced by Q/A's OWN run (^GDAXI, +7.97% USD, 15 bars dropped) -- not fabricated. US byte-identity HOLDS. No BLOCK/WARN heuristic. **PASS.**
+- **Over-claim on the live cycle -- NOT over-claimed.** Main did NOT run a paid cycle and says so plainly (experiment_results "Operator decision flagged"; live_check "NOT run here"). A type assertion (`isinstance(_api_key, str)` + value equality + `!= mask`) CANNOT be hidden by masking (logs mask the wrapper AND the plaintext identically -- only the type distinguishes them), so the $0 proof substantiates criteria 1-3 rigorously. This is the correct, honest $0-first discipline, not hand-waving.
 
-Next (Main, in order): append `handoff/harness_log.md` (LAST), then flip masterplan 50.5 -> done. Then the operator-authorized go-live flip (`settings.paper_markets -> ["US","EU","KR"]`) should be REPORTED explicitly as the final go-live action, not silently executed.
+- **Scope honesty / US engine untouched -- CONFIRMED.** Diff is minimal and surgical (3 ctor self-unwraps in llm_client + 4 one-line edge unwraps + 1 new test file). No risk guard, kill-switch, position-sizing, or perf-metrics path altered. No secret literal in the diff (test uses a fake `sk-ant-test`/`sk-ant-live`). The defense-in-depth extension to OpenAIClient (`:1107`) and BatchClient (`:1804`) is a no-op for the str those receive (test:57-61), a cheap consistent hardening, not a behavior change.
+
+## 5. Code-review heuristics (5 dimensions evaluated)
+
+No BLOCK/WARN/NOTE fired. secret-in-diff: clean (fake test key only). No execution-path / kill-switch / stop-loss / perf-metrics / risk-guard code touched (Dimension 2 N/A by scope). No financial-math file in diff -> financial-logic-without-behavioral-test N/A. Tests are behavioral, not tautological (assert real unwrap values + type + `!= mask`, no `assert x==x`, no over-mocking of the module under test). No sycophancy/verdict-shopping (first verdict, evidence unchanged).
+
+## Verdict
+
+**PASS.** The root cause is genuinely fixed at the ClaudeClient boundary (covers all 4 overlays + the latent SkillFileIdCache/sibling paths), the `str()` mask-injection footgun is explicitly avoided via `get_secret_value()`, there is no double-unwrap and no US pure-quant regression (proven by test + my independent construction), and the $0 type-assertion proof substantiates criteria 1-3 (a type assertion cannot be hidden by masking). The live paid-cycle leg of criterion 4 is correctly operator-gated and out of scope for the $0 GENERATE. All 5 harness-compliance items pass; log-last order is intact.
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 4 immutable criteria met. (1) 4 overlays use unwrap_secret(getattr(...)) -- news_screen.py:261, macro_regime.py:429, pead_signal.py:250, meta_scorer.py:168, the `or \"\"` footgun gone. (2) ClaudeClient.__init__ self-unwraps via unwrap_secret (llm_client.py:1243), no-op for str, no double-unwrap. (3) 7/7 $0 tests + independent QA proof confirm SecretStr->str at the boundary; scope diff touches only llm_client+4 overlays+test, US pure-quant path untouched. (4) live_check_51.1.md records the $0 proof, live cycle correctly operator-gated. str() mask footgun avoided (get_secret_value, test asserts != mask). old _unwrap removed, 2 guarded sites untouched. Deterministic: pytest 7 passed, ast.parse OK, regression 22 passed, INDEPENDENT QA PROOF OK.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": ["harness_compliance_audit", "syntax", "verification_command", "independent_qa_proof", "regression_sweep", "code_review_heuristics", "research_brief", "contract_verbatim_match", "experiment_results", "live_check", "scope_diff"]
+}
+```

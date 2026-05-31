@@ -1,81 +1,75 @@
-# experiment_results -- phase-50.5: Multi-market backtest + DATA-QUALITY gate
+# experiment_results -- phase-51.1: SecretStr unwrap (resurrect 4 dead alpha overlays)
 
-**Step:** 50.5 | **Date:** 2026-05-31 | **$0 LLM** | no pip | GENERATE complete
+**Step:** 51.1 | **Date:** 2026-06-01 | **$0 LLM** (live cycle operator-gated, not run) | no pip | GENERATE complete
 
 ## What was built / changed
 
-Completes the GENERATE that was deliberately handed off mid-cycle. The on-disk
-partial (price_quality.py + screener L1 + 6 tests) was audited clean by the
-researcher (6/6 passing, US byte-identical); this cycle wired the remaining
-doors + the market-aware backtest, fixing the **material drift** the researcher
-caught (the benchmark/alpha computation lives in `analytics.py` +
-`api/backtest.py`, NOT `backtest_engine.py:299` which is only a cache-preload line).
+Fixes the regression (`d3f34caf`, 2026-05-13) where `anthropic_api_key` was migrated
+`str -> SecretStr` without updating 4 services that construct `ClaudeClient` directly with
+the raw key. A non-empty SecretStr is TRUTHY, so `getattr(...) or ""` returned the wrapper,
+which the Anthropic SDK put into the `X-Api-Key` header -> `Header value must be str or
+bytes, not SecretStr` -> each overlay silently fell back. Fixed at the boundary + edges.
 
-| File | Change | Status |
-|------|--------|--------|
-| `backend/tools/price_quality.py` | `validate_ohlcv` (R1-R4) + `is_bad_bar`; US fast-path no-op | pre-existing (audited clean) |
-| `backend/tools/screener.py` | L1 door: `validate_ohlcv` before close extraction | pre-existing (audited clean) |
-| `backend/backtest/markets.py` | **NEW** `benchmark` field on every MARKET_CONFIG (US=SPY, EU=^GDAXI, KR=^KS11, NO=^OSEAX, CA=^GSPTSE) | this cycle |
-| `backend/backtest/backtest_engine.py` | `:283` pass `market=self.market` to `get_universe_tickers`; `:299` preload `get_market_config(self.market)["benchmark"]` instead of hardcoded SPY | this cycle |
-| `backend/backtest/analytics.py` | `compute_baseline_strategies(..., benchmark="SPY", base_currency="USD", local_currency="USD")`: uses the market benchmark + FX-converts headline returns endpoint-style; US (local==base) -> fx_ratio EXACTLY 1.0 (passthrough, no drift) | this cycle |
-| `backend/api/backtest.py` | pass `benchmark`+`local_currency` from `get_market_config(engine.market)` into the baseline call (US engine -> SPY/USD -> byte-identical) | this cycle |
-| `backend/services/paper_trader.py` | L2 door: `_get_live_price` drops bad bars (`is_bad_bar`) for INTL tickers only; US untouched (`market_for_symbol -> US -> skip`) | this cycle |
-| `backend/backtest/data_ingestion.py` | B door: `validate_ohlcv` per-ticker before BQ ingest; US (`_mkt=="US"`) -> no-op | this cycle |
-| `backend/tests/test_phase_50_5_dataquality.py` | +3 tests: MARKET_CONFIG benchmarks; US baseline byte-identity (exact float); EU FX conversion (monkeypatched fx) | this cycle |
-| `scripts/phase50/live_check_50_5.py` | **NEW** tiered live_check on real yfinance data | this cycle |
+| File | Change |
+|------|--------|
+| `backend/agents/llm_client.py` | **NEW module-level `unwrap_secret(v) -> str`** (promoted from make_client's local `_unwrap`; uses `.get_secret_value()`, never `str()`). `ClaudeClient.__init__` self-unwraps (root-cause fix). `OpenAIClient` + `BatchClient` ctors self-unwrap (defense-in-depth). `make_client` now calls the module helper. |
+| `backend/services/news_screen.py:258` | `unwrap_secret(getattr(settings,"anthropic_api_key",""))` (was `... or ""`) |
+| `backend/services/macro_regime.py:427` | same edge unwrap |
+| `backend/services/pead_signal.py:248` | same edge unwrap |
+| `backend/services/meta_scorer.py:166` | same edge unwrap |
+| `backend/tests/test_phase_51_1_secretstr.py` | **NEW** 7 tests ($0, no network) |
 
-## Byte-identity guarantee (US path unchanged -- the regression surface)
-- `validate_ohlcv(df, market="US")` returns the **same object** (screener L1 + ingestion B).
-- `_get_live_price`: `market_for_symbol("AAPL") == "US"` -> validation skipped -> returns price exactly as before (L2).
-- `get_universe_tickers(market="US")` == `get_universe_tickers()` (default is "US") -- proven equal at runtime.
-- `compute_baseline_strategies` default benchmark="SPY", local==base=="USD" -> `fx_ratio == 1.0` -> `_to_base` returns the input float UNCHANGED (no `(1+r)*1-1` drift) -- unit-tested with exact `==`.
-- `cache.preload_prices(universe + [benchmark])` with US benchmark "SPY" == the old `+ ["SPY"]`.
+**NOT touched** (already correctly guarded -- mirror pattern): `call_transcript_gpr.py:91-95`,
+`analyst_narrative_scorer.py:111-115`.
+
+## Why both fixes
+- `ClaudeClient.__init__` self-unwrap = the **root cause** (covers any direct-construction caller, incl. the latent `SkillFileIdCache` path). No-op for the plain str `make_client` passes -> no double-unwrap, no US-path regression.
+- Edge unwrap at the 4 sites = belt-and-suspenders + repairs the `if not anthropic_key:` guard (which previously tested a truthy wrapper).
+
+## US byte-identity (the working pure-quant engine is untouched)
+The 4 overlays are additive Signal-Stack flags; the live US screener (momentum/RSI/vol, $0 LLM) uses none of them. `make_client` ALREADY unwrapped the key before constructing ClaudeClient (proof step 4), so every existing make_client caller is unchanged. ClaudeClient self-unwrap is a verified no-op for a plain str (test_claude_client_plain_str_no_double_unwrap + proof step 6).
 
 ## Verification command output (verbatim)
 
-### 1. Syntax (all modified files)
+### Syntax (all modified files)
 ```
-OK  backend/backtest/markets.py
-OK  backend/backtest/backtest_engine.py
-OK  backend/backtest/analytics.py
-OK  backend/api/backtest.py
-OK  backend/services/paper_trader.py
-OK  backend/backtest/data_ingestion.py
-OK  backend/tools/price_quality.py
-OK  backend/tools/screener.py
+OK  backend/agents/llm_client.py
+OK  backend/services/news_screen.py
+OK  backend/services/macro_regime.py
+OK  backend/services/pead_signal.py
+OK  backend/services/meta_scorer.py
+OK  backend/tests/test_phase_51_1_secretstr.py
 ```
 
-### 2. pytest (phase-50.5 suite -- 9 tests)
+### pytest (phase-51.1 -- 7 tests)
 ```
-$ python -m pytest backend/tests/test_phase_50_5_dataquality.py -q
-.........                                                                [100%]
-9 passed in 1.33s
-```
-New tests: `test_market_config_has_benchmarks`, `test_baseline_us_byte_identical_passthrough`
-(asserts exact float equality to the raw pre-50.5 formula), `test_baseline_eu_fx_converted`
-(20% local + fx 1.0->1.10 => 32.0% USD).
-
-### 3. Regression (related existing tests + 50.5)
-```
-$ python -m pytest test_phase_50_3_universe.py test_phase_32_1_breakeven_ratchet.py \
-      test_dod4_tier1_coverage_investment.py test_phase_50_5_dataquality.py -q
-94 passed in 1.65s
+$ python -m pytest backend/tests/test_phase_51_1_secretstr.py -q
+.......                                                                  [100%]
+7 passed in 0.23s
 ```
 
-### 4. live_check (real yfinance) -- see `handoff/current/live_check_50.5.md`
-`test -f handoff/current/live_check_50.5.md` -> exists. Headline:
-- Gate dropped **15 real bad bars + 6 flagged** across 5 live DAX tickers (all `R2 identical-OHLC+zero-vol`).
-- EU baseline: benchmark=^GDAXI, ^GDAXI return +8.027% EUR -> +7.982% USD (fx_ratio 0.99958).
-- US baseline: benchmark=SPY, fx_ratio == **1.0** (byte-identical).
+### Regression (existing llm_client tests)
+```
+$ python -m pytest test_anthropic_fallback.py test_claude_code_client.py \
+      test_phase_31_1_fixes.py test_phase_37_3_budget_tokens.py test_phase_51_1_secretstr.py -q
+32 passed, 1 xfailed in 2.43s
+```
+
+### make_client SecretStr path (regression smoke)
+```
+make_client ->  ClaudeClient | key is str: True | value ok: True
+overlay services import OK; make_client SecretStr path OK
+```
+
+### $0 boundary proof -> handoff/current/live_check_51.1.md (full verbatim there)
+Key lines: `str(SecretStr('sk-ant-x')) = '**********'` (the footgun we avoid) vs `unwrap_secret(..) = 'sk-ant-x'`; ClaudeClient stored `_api_key` `isinstance(str): True`, `has get_secret_value? False`, `is mask? False`.
 
 ## Artifact shape
-- `validate_ohlcv(df, market, ticker) -> (clean_df, {dropped:int, flagged:int, reasons:[str]})`
-- `is_bad_bar(o,h,l,c,volume) -> bool`
-- `compute_baseline_strategies(...) -> {spy_return_pct, spy_sharpe, equal_weight_return_pct, eq_weight_sharpe, momentum_return_pct, momentum_sharpe, benchmark, fx_ratio, base_currency}`
-- `get_market_config(market) -> {exchange, currency, timezone, description, benchmark}`
+- `unwrap_secret(v) -> str` (module-level, importable: `from backend.agents.llm_client import unwrap_secret`)
+- `ClaudeClient(model_name, api_key, ...)._api_key` is always a plain `str` (SecretStr unwrapped, str passthrough)
 
-## Deferred (documented, NOT blocking -- re-confirmed by researcher 2026-05-31)
-PIT-correct intl membership (`candidate_selector.as_of` NotImplementedError -- market-agnostic; US has the same gap; arXiv 2603.19380 quantifies survivorship at 4.94pp for EM small-caps but it's a separate reconstruct-membership project), per-bar FX inside `_compute_nav`, simultaneous mixed-currency multi-market backtest, live per-market benchmark. Sharpe stays local-currency (per-bar FX deferred).
+## Operator decision flagged (not actioned here)
+A LIVE cycle proof (non-empty news/meta/macro signals in backend.log) invokes Claude Haiku (~$0.10/day) -> needs Peder's LLM-spend approval per CLAUDE.md. The $0 type-assertion proof is the gate evidence; the live confirmation is optional + operator-gated.
 
-## After 50.5: the go-live flip (operator-authorized, to be REPORTED not silently executed)
-Flip `settings.paper_markets` -> `["US","EU","KR"]`. The operator authorized EU+KR + free-yfinance+quality-gate. This is the final go-live action; report it explicitly.
+## Next (per operator's 2026-05-31 sequencing)
+After 51.1 lands: the EU+KR go-live flip (paper_markets -> ['US','EU','KR'] + backend restart), then 51.2 (sector diversification), 51.3 (digest guard), 51.4 (cron repairs).

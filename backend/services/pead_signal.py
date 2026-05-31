@@ -245,7 +245,9 @@ async def compute_pead_signal_for_ticker(
 ) -> PeadSignalOutput:
     """Compute PEAD signal for a single ticker. Returns a PeadSignalOutput; never raises."""
     settings = get_settings()
-    anthropic_key = getattr(settings, "anthropic_api_key", "") or ""
+    # phase-51.1: unwrap SecretStr (truthy wrapper bypassed `or ""` -> SDK header error).
+    from backend.agents.llm_client import unwrap_secret
+    anthropic_key = unwrap_secret(getattr(settings, "anthropic_api_key", ""))
 
     async with httpx.AsyncClient(headers=SEC_HEADERS) as http:
         cik = await _resolve_cik(http, ticker)

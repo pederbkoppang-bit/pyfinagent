@@ -13717,6 +13717,97 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-51",
+      "name": "Operator-reported integrity + dormant-alpha fixes (post-50.5 diagnostic, workflow w1g3l301s, 2026-05-31). FOUR confirmed defects, money-per-effort order: 51.1 resurrect 4 SecretStr-dead alpha overlays -> 51.2 sector diversification (Tech-concentration is out-competed not excluded) -> 51.3 weekend/holiday Slack digest guard -> 51.4 cron repairs (autoresearch + weekly_data_integrity). Operator chose 'fix dead signals first, then flip' 2026-05-31 -> 51.1 precedes the EU+KR go-live flip; 50.6 UI follows. Each step via the FULL harness (researcher -> contract -> generate -> fresh qa -> log -> flip).",
+      "status": "in-progress",
+      "audit_basis": "Diagnostic workflow w1g3l301s (4 parallel evidence-cited investigators) confirmed all four issues the operator raised from the cockpit screenshots. Full findings in handoff/audit + the Cycle-23 harness_log note. 51.1/51.2 are north-star alpha (4 dead overlays + an undiversified book); 51.3/51.4 are integrity/hygiene. The working US pure-quant engine (+20% NAV) is unaffected by all four (the overlays are additive; the digest + crons are isolated plumbing) -- so none may regress it.",
+      "steps": [
+        {
+          "id": "51.1",
+          "name": "SecretStr unwrap -- resurrect 4 dead LLM alpha overlays. news_screen/macro_regime/pead_signal/meta_scorer construct ClaudeClient with the raw pydantic SecretStr (bypassing make_client._unwrap) -> 'Header value must be str or bytes, not SecretStr' every cycle since ~2026-04-24 -> each silently falls back to empty/identity. Unwrap at the construction sites + ClaudeClient.__init__ defense-in-depth. $0 fix; live cycle verify may need operator LLM-spend approval.",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "50.5",
+          "audit_basis": "Diagnostic ROOT CAUSE 1 (workflow w1g3l301s finding 3): SecretStr never unwrapped at 4 direct ClaudeClient sites; the only unwrap lives in make_client._unwrap which they bypass. Suspected regression after 2026-04-24 (macro_regime.json cache last success). Resurrects worldwide-news + sector-calendar/macro + PEAD + meta-scorer alpha -- exactly the signals that surface international + non-tech catalysts (ties to 51.2 + the EU/KR go-live).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_51_1_secretstr.py -q 2>&1 | tail -3 && python -c \"import ast; ast.parse(open('backend/agents/llm_client.py').read())\" && test -f handoff/current/live_check_51.1.md",
+            "success_criteria": [
+              "the 4 overlay services (news_screen, macro_regime, pead_signal, meta_scorer) pass a plain str (NOT a pydantic SecretStr) as the Anthropic api_key, so the SDK no longer raises 'Header value must be str or bytes, not SecretStr'",
+              "ClaudeClient.__init__ self-unwraps a SecretStr api_key (defense-in-depth; a no-op for the plain str make_client already passes, so no existing caller double-unwraps or breaks)",
+              "a $0 unit test proves a SecretStr key reaching the ClaudeClient boundary is stored/used as a str (and the working US pure-quant path, which uses none of these overlays, is unchanged)",
+              "live_check_51.1.md records the $0 proof; plus, IF operator approves LLM spend, a live cycle log showing 'News screen produced N>0 ticker signals' or 'meta_scorer scored' replacing the SecretStr warning"
+            ],
+            "live_check": "REQUIRED -- a $0 unit/integration proof the SDK boundary receives a str (no SecretStr header error); a live cycle-log signal if LLM-spend is approved."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "51.2",
+          "name": "Sector diversification -- the live screener ranks the full S&P 500 by PURE price-momentum; sector enrichment happens AFTER ranking (so the sector-neutral path is a silent no-op) and sector_neutral_momentum_enabled/multidim_momentum default OFF -> the book is Tech/semi-concentrated (OUT-COMPETED, not excluded). Pass sector_lookup at rank time + enable within-sector percentile ranking. BACKTEST ON-vs-OFF before any live flip; do not regress the +20% engine.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "50.5",
+          "audit_basis": "Diagnostic finding 4 (workflow w1g3l301s): non-tech is out-competed by momentum ranking; sector_lookup not passed into the first-pass screen (autonomous_loop.py:369) so the within-sector path no-ops; sector knobs default OFF; the per-sector count cap (=2) only blocks NEW tech, never rebalances, and non-tech never reaches the cap. Resurrected news overlays (51.1) ADD non-tech candidates; this step makes the ranking itself spread across sectors. Sector-neutralization can lower raw momentum capture -> backtest-gate before live.",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "candidates carry a sector label AT rank time (sector_lookup passed into the first-pass screen before rank_candidates), so the within-sector/sector-neutral ranking path is no longer a silent no-op",
+              "a backtest compares diversified/sector-neutral ranking ON vs OFF on the US universe and reports the Sharpe / return / sector-spread tradeoff (evidence-based, not assumed)",
+              "the change is config-gated and does NOT regress the working US momentum core (default behavior preserved unless the diversification flag is explicitly enabled)",
+              "live_check records the backtest ON-vs-OFF comparison + the resulting candidate sector distribution"
+            ],
+            "live_check": "REQUIRED -- backtest ON-vs-OFF comparison + sector-distribution evidence before any live enablement."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "51.3",
+          "name": "Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week with no day_of_week or data-freshness gate, re-sending stale Friday data on weekends/holidays (observed: digests sent Sat 5/30 + Sun 5/31 with 5/29 content). Gate both on the existing is_trading_day(date,'US') helper (US-only, fail-open). Digest-path only; trading loop untouched.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "50.4",
+          "audit_basis": "Diagnostic finding 1 (workflow w1g3l301s): scheduler.py:199-220 registers both digests as plain daily crons with no guard; bodies have no freshness check; get_recent_reports/get_paper_portfolio return latest-row (no date==today). The is_trading_day helper (markets.py:137, fixed in 50.4) exists but the digest path never calls it.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_51_3_digest_guard.py -q 2>&1 | tail -3 && test -f handoff/current/live_check_51.3.md",
+            "success_criteria": [
+              "_send_morning_digest and _send_evening_digest early-return (no chat_postMessage) when today (ET) is not a US trading day, using the existing is_trading_day helper",
+              "a regression test proves both digests SKIP when is_trading_day is monkeypatched False and still SEND when True",
+              "no change to the autonomous trading loop or any paper-trading route (digest-path only); fail-open if exchange_calendars is unavailable"
+            ],
+            "live_check": "REQUIRED -- unit proof both digests skip on a non-trading day (monkeypatched is_trading_day) and send on a trading day."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "51.4",
+          "name": "Cron repairs -- (a) autoresearch launchd job fails every night (ModuleNotFoundError: langchain_huggingface, added phase-39.1 run_memo.py:155 but never installed; has NEVER produced a successful memo); decide owner-gated pip vs provider-swap vs disable. (b) weekly_data_integrity is functionally inert: BigQueryClient() called with no args (TypeError fail-open -> empty {} snapshot) + client.query(sql) is a nonexistent method. Fix BigQueryClient(get_settings()) + a real BQ query path. Isolated maintenance plumbing; trading path untouched.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "49.3",
+          "audit_basis": "Diagnostic finding 2 (workflow w1g3l301s): autoresearch ModuleNotFoundError every 02:00 since 2026-05-26 (handoff/autoresearch/*ERROR*); weekly_data_integrity fires Mondays but BigQueryClient() missing required settings arg -> __TABLES__ fetch fail-open -> row_count_snapshot.json is literally {}; client.query() does not exist (only query_latest_signal_state). 'never_run' on the dashboard is partly an in-memory-registry restart artifact.",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "weekly_data_integrity constructs BigQueryClient(get_settings()) and executes a real __TABLES__ row-count query returning a populated dict (not {}), so the data-integrity drift check can actually compute and alert",
+              "the autoresearch nightly job either succeeds (produces a non-ERROR memo) OR is explicitly disabled / owner-gated with a recorded decision -- it must STOP silently failing every night",
+              "no change to the working trading path (both jobs are isolated maintenance plumbing)",
+              "live_check records the weekly_data_integrity real-count proof + the autoresearch decision/outcome"
+            ],
+            "live_check": "REQUIRED -- weekly_data_integrity returns real row-counts; autoresearch decision (fixed/disabled) recorded with evidence."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }

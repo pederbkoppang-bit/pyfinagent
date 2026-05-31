@@ -28,6 +28,23 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def unwrap_secret(v) -> str:
+    """phase-51.1: pydantic SecretStr -> raw str at the SDK boundary.
+
+    The Anthropic/OpenAI/genai SDKs pass api_key straight into HTTP headers;
+    a SecretStr there raises "Header value must be str or bytes, not SecretStr".
+    A non-empty SecretStr is ALSO truthy, so `getattr(settings,'k','') or ''`
+    does NOT unwrap it (it returns the wrapper). MUST use `.get_secret_value()`
+    -- NEVER `str(secret)`, which pydantic renders as '**********' WITHOUT
+    erroring (silent mask injection -> 401; pydantic #4217). The `str(v)` branch
+    below is only reached for non-SecretStr values (where it is safe).
+    """
+    if v is None or v == "":
+        return ""
+    return v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
+
+
 # phase-25.B9: substantive "house instructions" block prepended to every
 # ClaudeClient system prompt so the block exceeds the per-model cache
 # write threshold (Opus 4.7 = 4096, Sonnet 4.6 = 2048, Haiku 4.5 = 4096
@@ -1087,7 +1104,7 @@ class OpenAIClient(LLMClient):
 
     def __init__(self, model_name: str, api_key: str, base_url: str | None = None):
         self.model_name = model_name
-        self._api_key = api_key
+        self._api_key = unwrap_secret(api_key)  # phase-51.1 defense-in-depth (no-op for str)
         self._base_url = base_url
 
     def _get_client(self):
@@ -1219,7 +1236,11 @@ class ClaudeClient(LLMClient):
 
     def __init__(self, model_name: str, api_key: str, enable_prompt_caching: bool = True):
         self.model_name = model_name
-        self._api_key = api_key
+        # phase-51.1: self-unwrap a pydantic SecretStr (root-cause fix for the
+        # 4 overlay services that construct ClaudeClient directly with the raw
+        # SecretStr -> SDK "Header value must be str or bytes" -> silent fallback).
+        # No-op for the plain str make_client already passes (no double-unwrap).
+        self._api_key = unwrap_secret(api_key)
         self.enable_prompt_caching = enable_prompt_caching
         # Phase 2.12: Track cache hit/miss statistics
         self._cache_hits = 0
@@ -1780,7 +1801,7 @@ class BatchClient:
 
     def __init__(self, model_name: str, api_key: str):
         self.model_name = model_name
-        self._api_key = api_key
+        self._api_key = unwrap_secret(api_key)  # phase-51.1 defense-in-depth (no-op for str)
 
     def _get_client(self):
         if _anthropic_sdk is None:
@@ -1887,18 +1908,12 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
     Raises:
         ValueError: If a non-Gemini model is selected but no compatible key is set
     """
-    # Pydantic SecretStr → raw str. Anthropic/OpenAI/genai SDKs all pass the
-    # key straight into HTTP headers; SecretStr there raises
-    # "Header value must be str or bytes". Unwrap once at the boundary.
-    def _unwrap(v):
-        if v is None or v == "":
-            return ""
-        return v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
-
-    anthropic_key = _unwrap(getattr(settings, "anthropic_api_key", ""))
-    openai_key = _unwrap(getattr(settings, "openai_api_key", ""))
-    gemini_key = _unwrap(getattr(settings, "gemini_api_key", ""))
-    github_token = _unwrap(getattr(settings, "github_token", ""))
+    # phase-51.1: unwrap SecretStr at the boundary via the module-level helper
+    # (was a local `_unwrap`; promoted so the overlay services share one idiom).
+    anthropic_key = unwrap_secret(getattr(settings, "anthropic_api_key", ""))
+    openai_key = unwrap_secret(getattr(settings, "openai_api_key", ""))
+    gemini_key = unwrap_secret(getattr(settings, "gemini_api_key", ""))
+    github_token = unwrap_secret(getattr(settings, "github_token", ""))
 
     # 1. Direct Gemini API (Google AI Studio) — gemini-* + GEMINI_API_KEY.
     # Bypasses Vertex AI / ADC. Per Google docs: genai.Client(api_key=...).

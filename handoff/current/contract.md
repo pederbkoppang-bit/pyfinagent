@@ -1,55 +1,46 @@
-# Contract -- phase-50.5: Multi-market backtest + DATA-QUALITY gate
+# Contract -- phase-51.1: SecretStr unwrap (resurrect 4 dead alpha overlays)
 
-**Step id:** 50.5 | **Priority:** P3 (phase-50; the LAST go-live prerequisite) | **depends_on:** 50.4
-**Date:** 2026-05-30 | **harness_required:** true | **$0 LLM** | no pip
-**STATUS: PLAN complete, GENERATE pending** -- deliberately handed off mid-cycle after 7 cycles this session (marathon-risk discipline; this step inserts into the live US screener/ingestion paths, a regression surface best done with fresh context). The next session GENERATEs from this contract.
+**Step id:** 51.1 | **Priority:** P1 (money -- resurrects 4 alpha sources) | **depends_on:** 50.5
+**Date:** 2026-06-01 | **harness_required:** true | **$0 LLM** (live cycle verify is operator-gated) | no pip
 
 ## Research-gate summary (PASSED)
-`handoff/current/research_brief.md` (gate: **7 sources read in full, recency scan, 20 URLs, 12 internal files, gate_passed=true**). Decisive:
-- **NO shared price-cleaning point -- the gate guards THREE doors** via one new `backend/tools/price_quality.py` validator:
-  - **L1 (operator's PRIORITY -- the live SIGNAL path):** `backend/tools/screener.py:110` (yf.download) -> `:131` `close = ticker_data["Close"]` feeds momentum/RSI/vol. Insert the gate in the per-ticker loop after `ticker_data = data[ticker]` (~:124-130), before `:131`. This is where a bad .DE/.KS bar becomes a signal.
-  - **L2 (live FILL/MARK):** `backend/services/paper_trader.py:1200` `_get_live_price` -- a bad bar -> return None (callers already fall back to last-known).
-  - **B (backtest source + live daily-refresh):** `backend/backtest/data_ingestion.py:132` (`ingest_prices`), ALSO called by `backend/slack_bot/jobs/daily_price_refresh.py:82`.
-  - (`backend/services/live_prices.py` is dashboard-only -> NOT a cleaning point.)
-- **Detection rules** (`price_quality.validate_ohlcv(df, market)`): R1 OHLC consistency (high>=max(o,c,l), low<=min(o,c,h), all>0); R2 identical-OHLC bar (o==h==l==c) AND/OR volume==0 -> DROP (zero-vol corroborates -- Tobi Lux: bad DAX bars had no volume); R3 |1-day return| z-score>3 (rolling) -> FLAG, >50% single-day round-trip -> DROP; R4 stale run-length (>=4 identical closes) -> FLAG. CRITICAL nuance (arXiv 2403.19735): never over-drop REAL volatility -- DROP only the unambiguous (identical-OHLC+zero-vol, impossible OHLC), FLAG the merely-large. Log dropped/flagged counts (NO silent truncation).
-- **BYTE-IDENTITY:** `validate_ohlcv` opens with `if market == "US": return df unchanged` (fast-path no-op) -> the live US screener/ingestion are untouched; real US bars also pass every rule. US benchmark stays `"SPY"` (not ^GSPC). US backtest numbers unchanged.
-- **Backtest gaps:** `backtest_engine.py:281` calls `get_universe_tickers()` WITHOUT `self.market` (market-blind despite storing self.market:206); `:299` hard-codes `+["SPY"]`; `analytics.py:461` hard-codes SPY; MARKET_CONFIG (markets.py:21-52) has NO `benchmark` field -> add (US="SPY", EU="^GDAXI", KR="^KS11"); `backtest_trader.mark_to_market:188` currency-blind.
-- **Scope triage (minimal safe go-live, satisfies all 4 criteria):** price_quality.py + L1/L2/B gates + backtest market-param + per-market benchmark + FX endpoint-return conversion (reuse 50.1 fx_rates, mirror 50.2 _fx_local_to_usd) + an EU `.DE` backtest for the live_check. **DEFERRED (documented, NOT blocking):** PIT-correct intl membership (the candidate_selector as_of NotImplementedError -- a market-agnostic survivorship guard, US has the same), per-bar FX inside _compute_nav, simultaneous mixed-currency multi-market backtest, live per-market benchmark.
+`handoff/current/research_brief.md` (researcher `a25bfaa8d602dd4ed`: gate_passed=true, tier moderate, 5 external sources read in full, 12 URLs, recency scan, 8 internal files). Decisive findings:
+- **Hypothesis CONFIRMED.** A non-empty pydantic `SecretStr` is **truthy**, so `getattr(settings,"anthropic_api_key","") or ""` returns the WRAPPER, not the plaintext. `ClaudeClient.__init__` stores it verbatim (`llm_client.py:1222`); `_get_client` (`:1238`) passes it to `Anthropic(api_key=...)`, which injects it into the `X-Api-Key` header with NO coercion -> httpx raises `Header value must be str or bytes, not <class 'pydantic.types.SecretStr'>`. Each service swallows it and returns a fallback (empty signals / 0.85 macro haircut / identity meta-score).
+- **4 buggy sites (verified line numbers):** news_screen.py:258 (ctor :264), macro_regime.py:427 (:432), pead_signal.py:248 (:278), meta_scorer.py:166 (:184). All: `anthropic_key = getattr(settings,"anthropic_api_key","") or ""` then `ClaudeClient(api_key=anthropic_key)`.
+- **Regression PINNED:** commit `d3f34caf` "phase-25.B10: SecretStr migration" (2026-05-13) flipped `anthropic_api_key: str -> SecretStr` (settings.py:104) without updating these phase-23.1.x sites. **Dead since 2026-05-13** (macro_regime.json computed_at 2026-04-24 is the last-good cache, not the break date).
+- **Already-guarded (do NOT touch):** call_transcript_gpr.py:91-95 + analyst_narrative_scorer.py:111-115 unwrap per-site (added phase-28.11/13 -- later authors hit the bug). `make_client._unwrap` (llm_client.py:1893-1896) is why the US pure-quant pipeline is UNAFFECTED (it unwraps before constructing ClaudeClient).
+- **Sibling raw-store sites (defense-in-depth):** OpenAIClient (:1088/1090), BatchClient (:1781/1783/1790), SkillFileIdCache path (prompts.py:113 -> _get_client). Not live bugs today but same pattern -> include in the self-unwrap hardening.
+- **CRITICAL pitfall (pydantic #4217):** `str(SecretStr("abc"))` returns `'**********'` WITHOUT erroring -> a `str()`-based fix would silently inject the mask as the API key (new 401). The fix MUST use `.get_secret_value()`, never `str()`.
 
 ## Hypothesis
-A `price_quality.validate_ohlcv(df, market)` validator (US fast-path no-op; intl detection rules) wired at the 3 doors (screener signal, _get_live_price fill, data_ingestion source) + a `benchmark` field in MARKET_CONFIG + the backtest accepting `market` (benchmark + FX-endpoint conversion) -- makes free-yfinance international data SAFE to trade live (the operator's "quality gate" precondition) while keeping the US path byte-identical.
+Promoting `make_client`'s local `_unwrap` to a module-level `unwrap_secret(v) -> str` and (a) self-unwrapping in `ClaudeClient.__init__` (the root-cause fix; no-op for the plain str make_client passes -> no double-unwrap, no regression to the working US path) + (b) using `unwrap_secret` at the 4 overlay sites (replacing the `or ""` truthiness footgun) makes the 4 LLM alpha overlays send a plain-str api_key -> the SDK header error is gone -> the overlays produce real signals again. The US pure-quant engine (which uses none of these overlays) is unchanged.
 
-## Success criteria (IMMUTABLE -- verbatim from masterplan step 50.5)
-1. the backtest engine accepts a market, uses its benchmark (^GDAXI for EU, ^KS11 for KR, SPY/^GSPC for US) and FX-converts NAV/returns to base currency
-2. a data-quality gate detects + drops (or flags) identical-OHLC bars and gross-deviation outliers in international price series, logging how many bars were dropped (no silent truncation)
-3. an EU (.DE) backtest runs end-to-end with the correct benchmark + FX-converted returns + the data-quality gate active; US backtests unchanged
-4. live evidence: an EU backtest summary (benchmark, FX-converted return, n bars dropped by the quality gate)
+## Success criteria (IMMUTABLE -- verbatim from masterplan step 51.1)
+1. the 4 overlay services (news_screen, macro_regime, pead_signal, meta_scorer) pass a plain str (NOT a pydantic SecretStr) as the Anthropic api_key, so the SDK no longer raises 'Header value must be str or bytes, not SecretStr'
+2. ClaudeClient.__init__ self-unwraps a SecretStr api_key (defense-in-depth; a no-op for the plain str make_client already passes, so no existing caller double-unwraps or breaks)
+3. a $0 unit test proves a SecretStr key reaching the ClaudeClient boundary is stored/used as a str (and the working US pure-quant path, which uses none of these overlays, is unchanged)
+4. live_check_51.1.md records the $0 proof; plus, IF operator approves LLM spend, a live cycle log showing 'News screen produced N>0 ticker signals' or 'meta_scorer scored' replacing the SecretStr warning
 
-**Verification command:** ast.parse(price_quality.py) + pytest backend/tests/test_phase_50_5_dataquality.py + test -f live_check_50.5.md.
-**live_check:** REQUIRED -- an EU-ticker backtest run with benchmark + FX-converted NAV + data-quality-gate drop count.
+**Verification command:** `pytest backend/tests/test_phase_51_1_secretstr.py` + `ast.parse(llm_client.py)` + `test -f live_check_51.1.md`.
+**live_check:** REQUIRED -- the $0 unit/integration proof (SDK boundary receives a str); a live cycle-log signal only if LLM-spend approved.
 
-## Plan steps (for the next session's GENERATE)
-1. **backend/tools/price_quality.py** (NEW) -- `validate_ohlcv(df, market="US") -> (clean_df, report)`; `if market=="US": return df, {dropped:0,flagged:0}` (fast-path). Else apply R1-R4; return cleaned df + a report dict (dropped/flagged counts + reasons). Pure + unit-testable (no network).
-2. **Wire the 3 doors:** screener.py (~:124-130, before close extraction, market via markets.market_for_symbol(ticker)); paper_trader._get_live_price:1200 (validate the 1-row bar -> None if bad); data_ingestion.py:132 (validate per-ticker before the rows.append loop).
-3. **markets.py MARKET_CONFIG:21-52** -- add `benchmark`: US="SPY", EU="^GDAXI", KR="^KS11" (NO=^OSEAX, CA=^GSPTSE).
-4. **backtest_engine.py:281** pass `self.market` to get_universe_tickers; **:299** use `MARKET_CONFIG[self.market]["benchmark"]` instead of "SPY"; **analytics.py:461** benchmark param; backtest endpoint-return + benchmark FX-converted to USD via fx_rates (single-market book).
-5. **backend/tests/test_phase_50_5_dataquality.py** (NEW) -- validate_ohlcv: US fast-path no-op (returns input unchanged, dropped=0); an identical-OHLC+zero-vol bar DROPPED; an impossible OHLC (high<low) DROPPED; a 60% spike DROPPED; a large-but-real move FLAGGED not dropped; a clean intl series passes; report counts correct.
-6. **Verify:** pytest; an EU `.DE` backtest end-to-end (benchmark ^GDAXI, FX-converted return, gate drop count); confirm a US backtest is unchanged (byte-identical). Capture into live_check_50.5.md.
-7. **EVALUATE:** fresh qa. Then harness_log.md (LAST), then flip masterplan 50.5 -> done.
-
-## After 50.5: the GO-LIVE flip (operator-authorized)
-Once 50.5 lands (quality gate live), the international go-live = flip `settings.paper_markets` (or its .env override) to `["US","EU","KR"]`. The operator AUTHORIZED Both EU+KR + free-yfinance+quality-gate. The flip makes the live loop screen/trade EU/KR (quality-gated). Recommend: the orchestrator presents the flip as the final go-live action (it changes live trading) -- the operator already chose it, so it's executing their decision, but report it explicitly. Then 50.6 (UI).
+## Plan steps (GENERATE)
+1. **llm_client.py:** promote `_unwrap` to a module-level `unwrap_secret(v) -> str` (use `.get_secret_value()` when present; else `str(v)` ONLY for non-SecretStr; empty for None). Keep make_client using it.
+2. **llm_client.py ClaudeClient.__init__ (:1222):** `self._api_key = unwrap_secret(api_key)` (root-cause self-unwrap). Apply the same to OpenAIClient + BatchClient ctors (defense-in-depth; no-op for the str they already get).
+3. **The 4 overlay sites:** replace `anthropic_key = getattr(settings,"anthropic_api_key","") or ""` with `unwrap_secret(getattr(settings,"anthropic_api_key",""))` at news_screen.py:258, macro_regime.py:427, pead_signal.py:248, meta_scorer.py:166. (Belt-and-suspenders with step 2; also fixes the `if not key` guard to test the real string.)
+4. **backend/tests/test_phase_51_1_secretstr.py (NEW):** ClaudeClient(api_key=SecretStr("sk-ant-test")) -> `_api_key == "sk-ant-test"` AND `isinstance(str)` AND `not hasattr(get_secret_value)`; plain-str case -> no double-unwrap (still "sk-ant-test"); `unwrap_secret(SecretStr(...))`/`(str)`/`(None)` unit cases; assert `str()` is NOT used (mask-injection guard) by checking a SecretStr does not become '**********'.
+5. **Verify:** pytest (new + a regression sweep of the overlay-adjacent tests); ast.parse(llm_client.py). Capture a $0 proof into live_check_51.1.md (construct the boundary with a SecretStr, show the stored key is a real str). FLAG: a live cycle proof needs Peder's LLM-spend approval -- do NOT run a paid cycle in GENERATE.
+6. **EVALUATE:** fresh qa. Then harness_log.md (LAST), then flip masterplan 51.1 -> done.
 
 ## Safety / scope notes
-- **Byte-identity:** validate_ohlcv US fast-path no-op + US benchmark "SPY" + US backtest unchanged. The gate touches the live US screener/ingestion code paths, so the US fast-path correctness is the regression surface -- the test MUST prove US passes through unchanged.
-- DROP only unambiguous bad bars (identical-OHLC+zero-vol, impossible OHLC, >50% round-trip); FLAG (don't drop) merely-large moves (never destroy real volatility).
-- No silent truncation: log dropped/flagged counts.
-- DEFERRED: PIT intl membership, per-bar FX, mixed-currency backtest, live per-market benchmark (documented, not blocking).
-- $0 LLM; no pip; no spend; no DROP/DELETE.
+- **US pure-quant path byte-identical:** the overlays are additive (default-OFF ship; the live US screener uses none of them). `make_client` already unwraps, so its callers are unchanged; ClaudeClient self-unwrap is a no-op for a plain str (proven by the no-double-unwrap test).
+- **Never `str()` a SecretStr** (mask-injection footgun) -- use `.get_secret_value()`.
+- $0 LLM in GENERATE; no pip; no spend; no DROP/DELETE. Live cycle verification is operator-LLM-spend-gated (flagged, not run here).
+- After 51.1: the operator-sequenced EU+KR go-live flip, then 51.2 (sector diversification), 51.3, 51.4.
 
 ## References
-- handoff/current/research_brief.md (50.5 gate)
-- backend/tools/screener.py:110-131 (L1), backend/services/paper_trader.py:1200 (L2), backend/backtest/data_ingestion.py:132 (B), backend/slack_bot/jobs/daily_price_refresh.py:82
-- backend/backtest/markets.py:21-52 (benchmark field), backtest_engine.py:281,299, analytics.py:461, backtest_trader.py:188
-- backend/backtest/candidate_selector.py:127 (INTL_UNIVERSE["EU"]), backend/services/fx_rates.py (50.1)
-- Tobi Lux DAX yfinance study; axionquant (z=3); arXiv 2403.19735 (anomaly thresholds); DataIntellect (stale data)
+- handoff/current/research_brief.md (51.1 gate); regression commit d3f34caf (settings.py:104)
+- backend/agents/llm_client.py:1222,1238,1893-1896 (_unwrap/ClaudeClient), :1088-1090 (OpenAIClient), :1781-1790 (BatchClient)
+- backend/services/news_screen.py:258,264; macro_regime.py:427,432; pead_signal.py:248,278; meta_scorer.py:166,184
+- backend/services/call_transcript_gpr.py:91-95 + analyst_narrative_scorer.py:111-115 (the correct guarded pattern to mirror)
+- pydantic #4217 (str() mask footgun); anthropic-sdk _client.py (X-Api-Key no coercion)

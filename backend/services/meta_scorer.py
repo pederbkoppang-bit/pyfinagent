@@ -163,7 +163,9 @@ async def meta_score_candidates(
     tail = candidates[_MAX_BATCH:]
 
     settings = get_settings()
-    anthropic_key = getattr(settings, "anthropic_api_key", "") or ""
+    # phase-51.1: unwrap SecretStr (truthy wrapper bypassed `or ""` -> SDK header error).
+    from backend.agents.llm_client import unwrap_secret
+    anthropic_key = unwrap_secret(getattr(settings, "anthropic_api_key", ""))
     if not anthropic_key:
         logger.warning("meta_scorer: no ANTHROPIC_API_KEY -- using fallback")
         out = []
