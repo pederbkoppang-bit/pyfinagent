@@ -1,68 +1,62 @@
-# experiment_results -- phase-51.2: sector diversification (measure-first, NEGATIVE result)
+# experiment_results -- phase-51.3: weekend/holiday Slack digest guard
 
-**Step:** 51.2 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **no live flag flip** | GENERATE complete
+**Step:** 51.3 | **Date:** 2026-06-01 | **$0 LLM** | no pip | slack-bot only | GENERATE complete
 
-## Outcome in one line
-Wired the sector-neutral lever so it is functional at rank time (was a silent no-op), then
-MEASURED it on our own universe: **HARD sector-neutral HURTS long-only Sharpe (-0.166)** -> the
-flag stays default-OFF. A rigorous negative result; "measure before fixing" prevented a regression.
-
-## What was built / changed
+## What was changed
+The morning/evening Slack digests fired 7 days/week (plain daily crons, no guard) and re-sent
+the prior trading day's data on weekends/holidays (operator-reported: sent Sat 5/16, Sun 5/17,
+Sat 5/23, Sun 5/24). Added an early-return guard on the existing XNYS trading-day calendar.
 
 | File | Change |
 |------|--------|
-| `backend/tools/screener.py` | **NEW `build_sector_map(tickers)`** -> {ticker: GICS sector} from the Wikipedia S&P 500 table (same source + UA as get_sp500_tickers; intl -> "" global-pool fallback). |
-| `backend/services/autonomous_loop.py:369` | gated wiring: build + pass `sector_lookup` into `screen_universe` ONLY when `sector_neutral_momentum_enabled` or `multidim_momentum_enabled` is True. Flag OFF (default) -> `sector_lookup=None` -> BYTE-IDENTICAL to the prior call. Fixes the no-op (enrichment used to run AFTER ranking at :659). |
-| `scripts/ablation/sector_neutral_replay.py` | **NEW** screener-level replay: production `rank_candidates` over 48 monthly rebalances (2022-2025), 503 tickers, comparing baseline / sector_neutral / vol_scaled top-N baskets by forward Sharpe + sector spread + turnover. $0. |
-| `backend/tests/test_phase_51_2_sector_div.py` | **NEW** 4 tests: OFF byte-identity w/ vs w/o sector field; OFF basket tech-concentrated; ON spreads across sectors (no-op fixed); ON without sectors == OFF (documents the prior bug). |
+| `backend/slack_bot/scheduler.py` | **NEW `_is_us_trading_day_now()`** (`is_trading_day(datetime.now(ZoneInfo("America/New_York")).date(), "US")`, fail-open). Guard added to `_send_morning_digest` (after `settings=get_settings()`, before `try`) + `_send_evening_digest` (same) -> early-return + log when ET today is not a US trading session. +26 lines. |
+| `backend/tests/test_phase_51_3_digest_guard.py` | **NEW** 5 tests (helper delegation; SKIP morning+evening with a probe proving the body never runs; PROCEED morning+evening). |
 
-## The measurement (criterion #2) -- evidence-based, not assumed
-```
-config            ann_Sharpe   avg_fwd_mo%  avg_sectors  avg_turnover
-baseline               1.388         4.054         4.73         0.555
-sector_neutral         1.223         2.666        10.00         0.638
-vol_scaled             1.403         2.045         4.73         0.555
-sector_neutral vs baseline: dSharpe=-0.166, dSectors=+5.27  -> KEEP? False
-vol_scaled vs baseline: dSharpe=+0.015
-```
-HARD sector-neutral doubles breadth (4.73->10.0 GICS) but costs -0.166 Sharpe + ~1.4%/mo return + more turnover -- the Harvey et al. long-only caveat confirmed on OUR universe. Decision: do NOT enable; flag stays OFF.
-
-## Research basis (gate PASSED -- two briefs, both preserved)
-- `research_rotation_element2_verdict.md` (rotation gate, 8 sources): REDIRECT away from winner-take-all rotation (architecturally disconnected from live money; alt strategies lose money) -> breadth inside the working engine.
-- `research_51_2_sector_div.md` (51.2 gate, 9 sources): the minimal wiring (sector_lookup at rank time); the CRITICAL long-only caveat (Harvey et al. -- the replay confirmed it); sector_neutral > multidim for breadth; the replay design.
+## Why an in-body guard (not `day_of_week='mon-fri'`)
+APScheduler has NO holiday support (issue #520) -> a `mon-fri` cron would still fire July 4th /
+Christmas. The in-body `is_trading_day` guard covers weekends AND market holidays in one check
+(via exchange_calendars XNYS). Half-days send (is_session True -> fresh data exists).
 
 ## Verification command output (verbatim)
 
-### Syntax (all modified files)
+### Syntax
 ```
-OK  backend/tools/screener.py
-OK  backend/services/autonomous_loop.py
-OK  scripts/ablation/sector_neutral_replay.py
-OK  backend/tests/test_phase_51_2_sector_div.py
+OK scheduler.py
+OK test
 ```
 
-### pytest (phase-51.2 -- 4 tests)
+### pytest (phase-51.3 -- 5 tests)
 ```
-$ python -m pytest backend/tests/test_phase_51_2_sector_div.py -q
-....                                                                     [100%]
-4 passed in 0.22s
-```
-
-### build_sector_map smoke (real Wikipedia)
-```
-AAPL= Information Technology | XOM= Energy | JPM= Financials | UNH= Health Care | SAP.DE(intl->global pool)= ''
+$ python -m pytest backend/tests/test_phase_51_3_digest_guard.py -q
+.....                                                                    [100%]
+5 passed in 0.33s
 ```
 
-### Replay -> handoff/current/live_check_51.2.md (full verbatim there)
+### Scope (slack-bot only)
+```
+$ git diff --stat backend/
+ backend/slack_bot/scheduler.py | 26 ++++++++++++++++++++++++++
+```
+(the new test file is untracked; no trading-loop / paper-trading / risk-guard change.)
 
-## US byte-identity (the working engine untouched)
-Flag default-OFF -> `_sector_lookup=None` -> `screen_universe(... sector_lookup=None ...)` == the prior call (no map build on the live path). `rank_candidates(sector_neutral=False)` ignores the sector field -- `test_flag_off_is_byte_identical_with_or_without_sector` asserts identical ranked order. No change to decide_trades / risk guards / sizing.
+### Real XNYS-calendar smoke -> handoff/current/live_check_51.3.md
+helper today (Sun ~20:14 ET) = False (CORRECT -- uses ET date, not UTC); Sat/Sun/Mon + Jul-4 holiday all correctly classified.
+
+## Byte-identity / safety
+- Slack-bot only; the trading loop + paper-trading routes are untouched (diff confirmed).
+- Fail-open: `is_trading_day` returns True when exchange_calendars is unavailable -> digest sends as before (a calendar-lib error never silently suppresses a digest).
+- ET-date correctness: the guard uses the cron tz (America/New_York), so it gates on the actual NYC trading date.
 
 ## Artifact shape
-- `build_sector_map(tickers) -> {ticker: str}` (GICS sector; "" for non-S&P-500)
-- replay verdict: per-config {ann_Sharpe, avg_fwd_mo%, avg_sectors, avg_turnover} + KEEP-boolean
+- `_is_us_trading_day_now() -> bool`
+- both digests: early `return` (no `chat_postMessage`, no HTTP fetch) on a non-trading day.
 
-## Scope honesty / next
-- NEGATIVE result reported honestly: criterion #2 is satisfied by the MEASUREMENT + tradeoff, NOT by sector-neutral winning. The lever is wired (criterion #1) but OFF (criterion #3).
-- A SOFT sector tilt/cap (vs hard replacement) is the only sector-div variant worth a future look; the wiring makes it measurable. vol-scaling (+0.015) deprioritized.
-- The live near-term money lever is the now-LIVE multi-market universe (EU/KR add non-tech sectors WITHOUT neutralizing) + 51.1's resurrected overlays -- MEASURE Monday's first multi-market cycle (14:00 UTC).
+## Operator note (live activation)
+scheduler.py is loaded at slack-bot startup (app.py:56), NOT hot-reloaded, and the slack-bot has
+NO launchd label. The live skip activates only after the operator restarts the slack-bot:
+`pkill -f "backend.slack_bot.app"` then `python -m backend.slack_bot.app`. The unit + calendar
+proof is the $0 gate evidence; the live restart is flagged for the operator.
+
+## Next
+51.4 (cron repairs: autoresearch + weekly_data_integrity) finishes the operator's 4 reported
+issues. Then calendar_events / 50.6 / MEASURE Monday's first multi-market cycle.

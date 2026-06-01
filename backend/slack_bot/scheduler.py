@@ -314,9 +314,29 @@ def start_scheduler(app: AsyncApp):
         logger.warning("phase-47.1 price catch-up scheduling fail-open: %r", exc)
 
 
+def _is_us_trading_day_now() -> bool:
+    """phase-51.3: True iff TODAY (ET -- the digest cron tz) is a US trading
+    session. Gates the morning/evening digests so they skip weekends AND market
+    holidays -- they fired 7 days/week and re-sent the prior trading day's data on
+    Sat/Sun (operator-reported). Fail-open: is_trading_day returns True if
+    exchange_calendars is unavailable, so a calendar-lib error never suppresses a
+    digest. APScheduler has no holiday support, so this in-body guard (not
+    day_of_week='mon-fri') is required to cover holidays too."""
+    from backend.backtest.markets import is_trading_day
+    et_today = datetime.now(ZoneInfo("America/New_York")).date()
+    return is_trading_day(et_today, "US")
+
+
 async def _send_morning_digest(app: AsyncApp):
     """Fetch portfolio performance and post morning digest."""
     settings = get_settings()
+
+    # phase-51.3: skip on non-trading days (weekend/holiday) -- no fresh data, so
+    # the digest would re-send the prior trading day's rows. Slack-bot only.
+    if not _is_us_trading_day_now():
+        logger.info("morning_digest skipped: %s ET is not a US trading day",
+                    datetime.now(ZoneInfo("America/New_York")).date())
+        return
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -343,6 +363,12 @@ async def _send_morning_digest(app: AsyncApp):
 async def _send_evening_digest(app: AsyncApp):
     """Fetch end-of-day portfolio summary and post evening digest."""
     settings = get_settings()
+
+    # phase-51.3: skip on non-trading days (weekend/holiday). Slack-bot only.
+    if not _is_us_trading_day_now():
+        logger.info("evening_digest skipped: %s ET is not a US trading day",
+                    datetime.now(ZoneInfo("America/New_York")).date())
+        return
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:

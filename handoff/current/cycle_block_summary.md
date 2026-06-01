@@ -1,52 +1,43 @@
 # Cycle Block Summary -- 2026-06-01 (SOFT STOP)
 
-**Session outcome:** Multi-market trading is **LIVE** (HARD-STOP element 1 satisfied). The full
-north-star HARD STOP is **not** reached because element 2 -- *strategy rotation promoting the
-highest earner from a cited research basis* -- remains an unbuilt, research-heavy blocker that
-is also a strategic decision for the operator. SOFT STOP per the goal's stop conditions.
+**Session outcome:** A large research-driven session. Multi-market trading is **LIVE**, 4 dead
+alpha overlays are **resurrected**, sector diversification was **measured and rejected on
+evidence**, and the strategy-rotation question was **resolved (redirect)**. The full north-star
+HARD STOP is not yet reached -- its remaining elements are now blocked on a time-gate (Monday's
+first multi-market cycle) and an operator decision (redefine element 2). SOFT STOP.
 
-## What shipped this session (all via the full harness loop, pushed to main)
+## Shipped this session (all via the full harness loop, pushed to main)
 
-| Work | Commit | Result |
+| Step | Commit | Result |
 |------|--------|--------|
-| **phase-50.5** -- multi-market backtest + DATA-QUALITY gate | `3377d826` | Last go-live prerequisite. Gate PROVEN live: caught **15 real bad DAX bars** (identical-OHLC+zero-vol) on live yfinance. US byte-identical. Fresh Q/A PASS. |
-| **4-bug diagnostic** (operator cockpit screenshots) | workflow `w1g3l301s` | All 4 root-caused with file:line evidence (weekend digest, broken crons, SecretStr-dead overlays, tech-only book). Queued as phase-51. |
-| **phase-51.1** -- SecretStr unwrap | `6f86c5ed` | 4 dead LLM alpha overlays resurrected (news/macro/PEAD/meta). Regression pinned to `d3f34caf` (2026-05-13). $0 proof. Fresh Q/A PASS. |
-| **GO-LIVE FLIP** (operator-authorized + sequenced) | (.env, local) | `PAPER_MARKETS=["US","EU","KR"]` -> backend restarted -> `get_settings().paper_markets == ['US','EU','KR']`, health 200. First multi-market cycle = **Mon 2026-06-01 14:00 UTC**. |
+| **50.5** multi-market backtest + DATA-QUALITY gate | `3377d826` | Gate PROVEN live (caught 15 real bad DAX bars). Last go-live prerequisite. |
+| **diagnostic** (4 cockpit issues) | wf `w1g3l301s` | All root-caused w/ file:line. |
+| **51.1** SecretStr unwrap | `6f86c5ed` | 4 dead LLM alpha overlays resurrected (news/macro/PEAD/meta). Regression pinned `d3f34caf`. |
+| **GO-LIVE FLIP** | (.env, local) | `PAPER_MARKETS=['US','EU','KR']` + backend restart; verified `paper_markets==['US','EU','KR']`, health 200. |
+| **rotation research** (element 2) | brief preserved | VERDICT: REDIRECT -- rotation is architecturally disconnected from live money + alt strategies LOSE money (-6.13/-1.21/-0.59). |
+| **51.2** sector diversification | `0ef5e7d0` | MEASURED: sector-neutral HURTS long-only Sharpe (-0.166) -> flag stays OFF. Negative result; "measure before fixing" prevented a regression. |
 
 ## HARD-STOP scorecard
 
-| Element | Status | Evidence |
-|---------|--------|----------|
-| 1. multi-market live (EU+KR on quality-gated data) | **DONE** | flip executed + verified; 50.1-50.5 + 51.1 all done; data-quality gate live-proven |
-| 2. strategy rotation promoting the highest earner from a cited research basis | **NOT MET** | rotation machinery (48.1-48.4) is live-validated but does NOT drive live selection |
+| Element | Status |
+|---------|--------|
+| 1. multi-market live (EU+KR on quality-gated data) | **flip DONE + verified**; first live cycle = Mon 2026-06-01 14:00 UTC (auto cron; cannot trigger sooner without operator-gated LLM spend) |
+| 2. strategy rotation promoting the highest earner (cited basis) | **REDIRECTED by evidence** -- rotation is the wrong lever (disconnected + money-losing); needs operator to redefine the metric |
+| 3. paper_trades growing with positive alpha | **pending Monday's first multi-market cycle** + measurement |
 
-## The rotation blocker (element 2) -- root cause + why it's a strategic decision, not just a code fix
+## What this session learned (cited, durable)
+- **Rotation is a dead-end** (RC-B architectural disconnect + losing strategies). Don't invest cycles until/unless (a) labeling fixed, (b) reseed orthogonal, (c) a live screener->strategy bridge built. See `project_strategy_rotation_unbuilt` memory + `research_rotation_element2_verdict.md`.
+- **Sector diversification doesn't help a long-only momentum book** (Harvey et al., confirmed: -0.166 Sharpe). The tech concentration is the rational momentum outcome. A SOFT tilt is the only variant worth a future look. See `research_51_2_sector_div.md` + `live_check_51.2.md`.
+- **The real near-term money levers are already shipped + LIVE:** the multi-market universe (EU/KR add non-tech sectors WITHOUT neutralizing) + the resurrected overlays. Their value is an EMPIRICAL question answered by Monday's cycle.
 
-Pinned in `project_strategy_rotation_unbuilt.md`:
-- The per-strategy rotation machinery (seed registry, real-engine adapter, live runner, bake-off) was built + live-validated in 48.1-48.4.
-- **But the alt strategies (quality_momentum, mean_reversion, factor_model) TRAIN fine yet their labels go ~all-neutral -> 0 trades.** Only `triple_barrier` + `meta_label` actually trade, and they are correlated.
-- So the rotation layer has effectively **nothing to rotate between** -- one strategy family does all the trading. A DSR-based "promote the highest earner" selector has no diverse, trading candidate set to choose from.
-- A prior measured assessment therefore rated rotation **"low money value"** and STOPPED it.
+## Remaining work (queued, none blocking element 1; lower money-per-effort)
+- **51.3** weekend Slack digest guard (isolated, trivial; operator-flagged).
+- **51.4** cron repairs (autoresearch + weekly_data_integrity; isolated).
+- **`calendar_events` BQ table** -- re-enables sector-calendars EARNINGS leg + PEAD data (51.1 fixed only their LLM path; news/macro/meta fully alive).
+- **50.6** multi-market UI.
 
-To satisfy element 2 honestly requires a **research-backed fix to the alt-strategy labeling/signal generation** (so they actually produce trades), THEN a DSR selector to promote the best -- grounded in 2025-2026 literature (per the goal). Multi-cycle effort, AND it reopens the earlier "low money value" finding, so it needs an explicit operator call on priority.
+## Crisp ask (operator)
+1. **Redefine HARD-STOP element 2.** Per evidence, "winner-take-all rotation" is the wrong target. Recommend: *"research-backed breadth/ensemble that demonstrably lifts risk-adjusted return."* (Sector-neutral was measured and rejected; a SOFT tilt or a parallel ensemble sleeve are the open candidates.)
+2. **Next priority?** My recommendation: let Monday's first multi-market cycle run, MEASURE paper_* (did EU/KR trade? sector spread? gate drops? overlays firing?), then decide. Meanwhile I can ship the safe isolated fixes (51.3, 51.4, calendar_events) or the 50.6 UI -- say which.
 
-## Remaining tactical work (queued, none blocking element 1)
-
-- **51.2 sector diversification** (P1 money) -- the live screener ranks by pure momentum; sector enrichment happens after ranking so the sector-neutral path no-ops. Now that EU/KR are live (structurally non-tech) + the news overlay is resurrected (surfaces non-tech), this is the highest-leverage *near-term* money lever. **Touches the live screener ranking -> needs a backtest ON-vs-OFF first** (regression risk to the +20% engine).
-- **51.3 weekend Slack digest guard** (P2) -- isolated, trivial, safe.
-- **51.4 cron repairs** (P2) -- autoresearch (langchain_huggingface never installed; owner-gated pip decision) + weekly_data_integrity (BigQueryClient() missing arg + nonexistent query()).
-- **`calendar_events` BQ table** -- sector-calendars EARNINGS leg + PEAD still 404 on a missing table (51.1 fixed only the SecretStr LLM path). News/macro/meta are fully alive; sector-calendar/PEAD *data* is not.
-- **50.6 multi-market UI**.
-
-## Crisp ask (operator decision -- a strategic fork)
-
-The goal says "MEASURE paper_* P&L before fixing anything." The key measurement -- the **first multi-market cycle (Mon 14:00 UTC)** -- has not run yet. Given that, which next?
-
-1. **(Recommended) Measure-first + safe tactical wins.** Let Monday's multi-market cycle run, MEASURE the paper_* result (did EU/KR trade? sector spread? quality-gate drops?), and meanwhile ship the isolated/safe fixes (51.3 digest, 51.4 crons, calendar_events). Hold all live-engine-ranking changes until we have multi-market data. Lowest regression risk to the working +20% engine.
-2. **Sector diversification now (51.2).** Go straight at the tech-concentration money lever -- backtest sector-neutral ON-vs-OFF on the US universe, then enable if it wins. Higher money impact, but it changes the live ranking (the regression surface).
-3. **Tackle the rotation blocker (HARD-STOP element 2).** Begin the research-heavy effort to fix alt-strategy labeling so rotation has real candidates, then a DSR selector. Biggest scope; reopens the prior "low money value" finding -- needs your confirmation it's worth it vs (1)/(2).
-
-**My recommendation: option 1.** Multi-market just went live; measuring the first real cycle before any further live-engine change is the disciplined money move and directly follows the "measure before fixing" rule. I can ship 51.3/51.4/calendar_events safely in parallel while we wait for Monday's data.
-
-**Reversibility note:** roll back go-live anytime -- remove the `PAPER_MARKETS` line from `backend/.env` + `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`.
+**Reversibility:** roll back go-live anytime -- remove the `PAPER_MARKETS` line from `backend/.env` + `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`.

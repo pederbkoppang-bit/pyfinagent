@@ -13769,7 +13769,7 @@
         {
           "id": "51.3",
           "name": "Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week with no day_of_week or data-freshness gate, re-sending stale Friday data on weekends/holidays (observed: digests sent Sat 5/30 + Sun 5/31 with 5/29 content). Gate both on the existing is_trading_day(date,'US') helper (US-only, fail-open). Digest-path only; trading loop untouched.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "50.4",
