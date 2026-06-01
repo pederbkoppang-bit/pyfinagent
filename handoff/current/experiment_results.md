@@ -1,50 +1,52 @@
-# experiment_results -- phase-51.4: cron repairs (autoresearch graceful-skip + weekly_data_integrity BQ wiring)
+# experiment_results -- phase-52.1: 52-week-high momentum tilt (price-only alpha signal)
 
-**Step:** 51.4 | **Date:** 2026-06-01 | **$0 LLM** | no pip | isolated maintenance jobs | GENERATE complete
+**Step:** 52.1 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **NO live engine change** | GENERATE complete
 
-## What was changed (operator-reported issue 2 -- the last of the 4)
+## Outcome in one line
+Measured the 52-week-high multiplicative tilt (George-Hwang 2004, price-only) ON-vs-OFF on our
+S&P-500 universe via the $0 replay: a **SMALL but real POSITIVE edge at k=0.5 (~+0.05 Sharpe,
+turnover-neutral)**. Recommend ESCALATING k=0.5 to a live operator gate. The first measured alpha
+WIN of the element-2-redirect arc (after rotation + sector-neutral were both measured-and-rejected).
+
+## What was changed (replay-only; NO live-engine file touched)
 
 | File | Change |
 |------|--------|
-| `backend/slack_bot/jobs/weekly_data_integrity.py:84-90` | **Bug B:** `BigQueryClient()` -> `BigQueryClient(get_settings())` (was missing the required settings arg -> TypeError fail-open -> `{}`); `client.query(sql)` -> `client.client.query(sql).result(timeout=30)` (no generic `.query()` exists). Now returns a populated `{table_id: row_count}` dict from a FREE `__TABLES__` read. |
-| `scripts/autoresearch/run_memo.py` | **Bug A:** NEW `_embedding_preflight()` helper + a call in `main()` (after the env setdefault loop, before the run): if the configured EMBEDDING backend module is absent (`importlib.util.find_spec`), print an actionable "pip install ..." message + `return 0` (clean skip). Stops the nightly ModuleNotFoundError -> exit-1 + ERROR-file spam WITHOUT a pip or removing the feature. |
-| `backend/tests/test_phase_51_4_crons.py` | **NEW** 4 tests: preflight skips (backend absent) / proceeds (present) / proceeds (unknown provider); weekly_data_integrity returns a populated dict + constructs the client WITH settings. |
+| `scripts/ablation/sector_neutral_replay.py` | `build_screen_row` adds `pct_to_52w_high` (= `last / 252d-rolling-max`, George-Hwang price-only). `win_lo` 200->260 (>=252d for the high). NEW `hi52_tilt_basket(ranked_all, k, top_n)` helper -- re-ranks the PRODUCTION-composite-scored rows by a CENTERED multiplicative tilt `composite * (1 + k*(pct_to_52w - mean))`. Two configs measured: `hi52_k0.5`, `hi52_k1.0`. Results table + a 52.1 verdict (keep if dSharpe>=+0.05 AND dTurnover<=+10%). |
+| `backend/tests/test_phase_52_1_alpha_signal.py` | **NEW** 5 tests: tilt breaks ties toward higher-52wh; centered (no change when all-equal-pct); gentle k can't overturn a big composite gap; handles missing pct; `pct_to_52w_high` feature math. |
 
-## Research basis (gate PASSED, LIVE-verified)
-`research_brief.md` (researcher `aaf3be5a051c5de01`, 6 sources, gate_passed). Both bugs revalidated; both fixes proven $0/pip-free/feature-preserving. `__TABLES__` is a FREE metadata read (probe: bytes_billed=0). autoresearch is NOT critical-path; `run_memo.py` (literature memo) != `backend/autoresearch/` (rotation package). NO zero-dep embedding swap exists (no OPENAI_API_KEY, no Ollama) -> graceful-skip is the correct resolution.
+## The measurement (criterion #1/#2)
+```
+config            ann_Sharpe   avg_fwd_mo%  avg_turnover
+baseline               1.388         4.054         0.555
+hi52_k0.5              1.439         4.103         0.551   -> dSharpe +0.051, dTurnover -0.004  KEEP
+hi52_k1.0              1.436         4.075         0.564   -> dSharpe +0.047, dTurnover +0.009  (borderline)
+(sector_neutral 1.220 / vol_scaled 1.403 carried from 51.2 for context)
+```
+- **k=0.5 PASSES** the gate (+0.051 Sharpe, turnover-neutral); k=1.0 is borderline (+0.047) -> use the gentle k=0.5; the k-monotonicity (k=0.5 > k=1.0) argues against over-tilting/over-tuning.
+- **Honestly small + noisy:** a preview run showed +0.057/+0.054; this run +0.051/+0.047 (live-yfinance drift). True edge ~+0.05 ann Sharpe -- modest, exactly the Barroso-Wang large-cap-mute prediction (52wh helps but is muted on large caps). NOT a game-changer; reported without overselling.
+
+## Research basis (gate PASSED)
+`research_brief.md` (researcher `a99666872066bb1fe`, 7 sources, gate_passed). 52wh chosen as the MEASURE-FIRST pick (already-implemented formula + one-line replay change); residual momentum (Blitz-Huij-Martens) is the higher-evidenced runner-up (bigger build) if 52wh measured flat. Echo/skip-month CONTRAINDICATED ("Echo disappears" 2023). Over-tuning guarded (k a priori, not swept).
 
 ## Verification command output (verbatim)
-
-### Syntax
 ```
-OK  scripts/autoresearch/run_memo.py
-OK  backend/slack_bot/jobs/weekly_data_integrity.py
-OK  backend/tests/test_phase_51_4_crons.py
+SYNTAX OK
+$ python -m pytest backend/tests/test_phase_52_1_alpha_signal.py -q
+.....                                                                    [100%]
+5 passed in 0.23s
 ```
+Full replay -> handoff/current/live_check_52.1.md.
 
-### pytest (phase-51.4 -- 4 tests)
-```
-$ python -m pytest backend/tests/test_phase_51_4_crons.py -q
-....                                                                     [100%]
-4 passed in 0.73s
-```
-
-### LIVE $0 proofs -> handoff/current/live_check_51.4.md
-- Bug B: `_default_fetch_counts()` -> populated dict, **9 tables** (alt_congress_trades=7262, llm_call_log=370, ...). Was `{}`.
-- Bug A: `run_memo.py --topic-index 0` -> **exit=0** + skip message + **NO new ERROR file** (32 -> 32). $0.
-
-## Byte-identity / safety
-- Isolated maintenance jobs; the trading loop + paper-trading routes are untouched (diff = the 2 jobs + the new test).
-- Bug B keeps its fail-open try/except (a BQ error -> {} as before).
-- Bug A: NO pip (owner-gated); the feature is preserved (config kept) and self-enables on the pip install. autoresearch != rotation package -> rotation untouched.
+## Scope / safety (criterion #3)
+- **NO live engine change.** Diff = the replay script + the new test ONLY. screener.py / autonomous_loop / decide_trades / risk guards UNTOUCHED. The tilt is replay-side post-processing of the production composite.
+- If escalated: the live wiring (a `strategy="momentum_52wh"` overlay, default-OFF) is a SEPARATE operator-gated step.
 
 ## Artifact shape
-- `_embedding_preflight() -> str | None` (skip message or None)
-- `_default_fetch_counts() -> {table_id: int}` (populated)
+- `hi52_tilt_basket(ranked_all, k, top_n, mean_pct=None) -> [ticker]`
+- `build_screen_row(...)["pct_to_52w_high"]` (price-only, (0,1])
 
-## Operator note + decision recorded
-- **autoresearch decision (criterion #2): graceful-skip** (recorded). Enable path = owner-approved `pip install langchain-huggingface sentence-transformers`; the preflight self-enables once present.
-- Live activation: weekly_data_integrity fix -> next Mon 05:00 UTC after a slack-bot restart; autoresearch skip -> next 02:00 fire. The direct-call proofs above are the $0 gate evidence.
-
-## Session milestone
-51.4 closes the LAST of the operator's 4 reported issues (weekend digest 51.3, dead signals 51.1, tech concentration 51.2-measured, broken crons 51.4). Remaining roadmap: calendar_events table, 50.6 UI, and MEASURE Monday's first multi-market cycle.
+## Recommendation / next
+- **ESCALATE k=0.5 to a live operator gate** (a small, turnover-neutral, research-backed momentum overlay; honest ~+0.05 Sharpe edge -- operator weighs it vs wiring complexity).
+- RUNNER-UP: residual momentum (52.2) for a larger edge.
+- MEASURE Monday's first multi-market cycle before stacking live changes.

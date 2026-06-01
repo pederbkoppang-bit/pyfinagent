@@ -13808,6 +13808,35 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-52",
+      "name": "Element-2 redirect / north-star #4: research-backed PRICE-BASED alpha-signal enhancements for the LIVE long-only US momentum book, measured $0 (no live change until proven + operator-approved). Breadth (sector-neutral, measured -0.166 Sharpe) + winner-take-all rotation (architecturally disconnected + losing strategies) are measured-and-CLOSED; this phase pursues a STRONGER momentum/alpha signal (52w-high / residual-momentum / trend-filter / skip-month family) per the 2025-2026 + canonical literature. Each candidate: research -> $0 replay ON-vs-OFF -> keep/wire ONLY if it beats baseline risk-adjusted return without unacceptable turnover. MEASURE-FIRST (the goal's discipline); the working +20% engine is the regression surface.",
+      "status": "in-progress",
+      "audit_basis": "After rotation (element 2) + sector-neutral breadth were both measured-and-rejected, the genuine open money lever is a stronger alpha SIGNAL (goal north-star #4: 'stronger alpha signals from the 2025-2026 literature'). Reuses the $0 replay harness built in 51.2 (scripts/ablation/sector_neutral_replay.py) -- production rank_candidates over 48 monthly rebalances, no live change. Each step: full harness (researcher -> contract -> generate -> fresh qa -> log -> flip).",
+      "steps": [
+        {
+          "id": "52.1",
+          "name": "Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the baseline momentum composite ($0 replay, ~48 monthly rebalances, S&P 500). Keep/recommend-for-live ONLY if it beats baseline Sharpe without unacceptable turnover; an honest negative result is a valid outcome. NO live engine change in this step (measure-first; live wiring is a separate operator-gated step).",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "51.2",
+          "audit_basis": "north-star #4. The researcher picks the single best-evidenced price-only signal (52w-high George-Hwang / residual momentum Blitz-Huij-Martens / time-series-momentum trend filter Moskowitz-Ooi-Pedersen / skip-month echo Novy-Marx). Measured via the production rank_candidates path in the 51.2 replay harness, identical screen_data both arms, causal forward returns. $0 (free yfinance prices, no LLM).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_52_1_alpha_signal.py -q 2>&1 | tail -3 && test -f handoff/current/live_check_52.1.md",
+            "success_criteria": [
+              "a research-backed PRICE-BASED alpha-signal enhancement (cited 2025-2026 + canonical, computable from daily closes alone) is measured ON-vs-OFF against the baseline momentum ranking on the S&P 500 universe via the $0 replay, reporting Sharpe / return / turnover",
+              "the measurement reuses the production rank_candidates path with identical screen_data for both arms (sole delta = the new signal) + causal forward returns; the result is honestly reported (a negative result is a VALID outcome, not a failure)",
+              "NO live engine change in this step (measure-first; any live wiring is a separate operator-gated step); the working US momentum core is untouched",
+              "live_check_52.1.md records the ON-vs-OFF comparison + the cited basis + a keep/reject recommendation"
+            ],
+            "live_check": "REQUIRED -- the $0 replay ON-vs-OFF comparison (Sharpe/return/turnover) + the cited basis + a keep/reject recommendation; NO live flag flip."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }

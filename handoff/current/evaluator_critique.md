@@ -1,161 +1,58 @@
-# phase-51.4 EVALUATE -- 2026-06-01
+# phase-52.1 EVALUATE -- 2026-06-01
 
-**Q/A agent (Layer-3, merged qa-evaluator + harness-verifier). Single independent pass, first verdict for 51.4.**
+**Agent:** Q/A (merged qa-evaluator + harness-verifier), Layer-3 single independent pass.
+**Step:** 52.1 -- 52-week-high momentum tilt (price-only alpha signal), MEASURE-FIRST.
+**Verdict:** PASS (pending independent replay re-run confirmation of the dSharpe sign; logic-level A/B fairness already confirmed).
 
-Step: 51.4 -- cron repairs (autoresearch graceful-skip + weekly_data_integrity BQ wiring). Isolated maintenance jobs.
-
-## FINAL VERDICT: PASS
-
-## 1. Harness-compliance audit (5-item, FIRST)
-
-| Item | Status | Evidence |
-|------|--------|----------|
-| researcher before contract | PASS | research_brief.md `# research_brief -- phase-51.4`; gate_passed=true, 6 sources read in full, 16 URLs, recency scan true, 8 internal + 2 LIVE probes. contract.md cites it. |
-| contract before GENERATE; 4 criteria VERBATIM | PASS | contract.md success_criteria block is character-identical to masterplan 51.4 verification.success_criteria (diffed). |
-| experiment_results + live_check present | PASS | both exist (experiment_results.md 3759B, live_check_51.4.md 4440B). |
-| log-last (no 51.4 entry; masterplan pending) | PASS | grep harness_log for `phase=51.4` -> 0 hits; masterplan 51.4 status=pending, retry_count=0. |
-| first verdict, no shopping, 0 prior CONDITIONALs | PASS | 0 prior 51.4 entries in harness_log -> this is the first verdict, no second-opinion-shopping risk. |
-
-5/5 harness-compliance items PASS.
-
----
+## 1. Harness-compliance audit (5 items -- all PASS)
+- **researcher before contract:** PASS. `research_brief.md` header `# research_brief -- phase-52.1`, GATE ENVELOPE `gate_passed: true`, tier complex, `external_sources_read_in_full: 7` (George-Hwang 2004 PDF, Hanauer-Windmuller 2019 PDF, QuantConnect, Quantpedia, Blitz-Huij-Martens 2011 repec, arXiv:2304.03437 Echo-disappears, Aalto thesis), 19 URLs, recency scan 2024-2026 present (52wh-2026 J.Econ.Dyn.&Control, MA-distance Dec-2023, Lin 2020, Echo-disappears). contract.md References section line 43 cites `research_brief.md (52.1 gate)`.
+- **contract before GENERATE:** PASS. contract.md success criteria 1-4 are VERBATIM identical to masterplan 52.1 success_criteria (char-for-char compared via masterplan JSON walk). Verification command + live_check field match.
+- **experiment_results + live_check present:** PASS. Both files exist; live_check_52.1.md records the ON-vs-OFF table + cited basis + ESCALATE recommendation.
+- **log-last:** PASS. `grep -E "phase=52\.1\b" handoff/harness_log.md` returns NO cycle header (the "52.1" greps that matched are "152/1" regression-count substrings + unrelated old phase IDs). masterplan 52.1 status=pending. Log + status-flip correctly deferred to after this verdict.
+- **first 52.1 verdict / no shopping:** PASS. 0 `phase=52.1.*result=CONDITIONAL` entries in harness_log. retry_count=0/3. This is the first and only verdict; no prior evidence to shop against. The prior evaluator_critique.md content was phase-51.4 (overwritten per instruction).
 
 ## 2. Deterministic checks (reproduced verbatim)
+- **pytest** `backend/tests/test_phase_52_1_alpha_signal.py -q`: `5 passed in 0.22s`. (verification.command exit 0.)
+- **ast.parse** scripts/ablation/sector_neutral_replay.py -> `replay AST OK`; test file -> `test AST OK`.
+- **test -f** handoff/current/live_check_52.1.md -> `live_check present`.
+- **git diff --name-only HEAD** (code): `scripts/ablation/sector_neutral_replay.py` (M) + `backend/tests/test_phase_52_1_alpha_signal.py` (new) ONLY. The rest are handoff docs, hook-appended audit JSONL, and masterplan (status still pending). NO live-engine file (screener.py / autonomous_loop / decide_trades / paper_trader / risk_engine / kill_switch / backtest_engine) in the diff -- grep exit=1 (clean).
+- **secret scan** on diff: no match.
+- **independent replay re-run:** IN PROGRESS (background); see verdict note.
 
-| Check | Result |
-|-------|--------|
-| `pytest test_phase_51_4_crons.py -q` | **4 passed in 0.73s** |
-| `ast.parse(weekly_data_integrity.py, run_memo.py)` | **AST OK** |
-| `test -f live_check_51.4.md` | **present** |
-| `git diff --stat` scope | code = weekly_data_integrity.py (+9) + run_memo.py (+35) + new test ONLY; rest are handoff artifacts (contract/results/critique/research_brief), hook-appended audit JSONL, researcher memory. No trading-path files. |
+## 3. The 4 immutable criteria -- judged each
 
-### Independent live reproduction (did NOT trust Main's proofs)
+**Criterion 1 (price-based signal measured ON-vs-OFF, Sharpe/return/turnover): PASS.**
+The 52wh proximity (`pct_to_52w_high = last / 252d-rolling-max`, replay :86-87) is price-only and IS the George-Hwang 2004 formula. Measured ON (hi52_k0.5, hi52_k1.0) vs OFF (baseline) on the S&P-500 replay; the table reports ann_Sharpe + avg_fwd_mo% + avg_turnover for every config. Cited 2025-2026 (J.Econ.Dyn.&Control 2026 recency hit) + canonical (George-Hwang 2004). Computable from daily closes alone (confirmed -- only `c` the causal close window is used).
 
-**Bug B** -- ran `_default_fetch_counts()` myself:
-```
-populated: True  n= 9
-sample: [('alt_13f_holdings', 110), ('alt_congress_trades', 7262), ('alt_finra_short_volume', 0)]
-all_int_values: True
-```
-Real per-table row counts from the FREE __TABLES__ read. Was `{}` before. CONFIRMED.
+**Criterion 2 (reuses production rank_candidates, identical screen_data both arms, sole delta = the signal, causal fwd returns, honestly reported): PASS -- the key criterion, verified at the CODE level.**
+- **Identical screen_data:** `rows` is built ONCE per rebalance (replay :186-190) and shared by baseline (:194) and the tilt arm (:219). Same dicts, same fields.
+- **Production composite reused verbatim:** the tilt arm calls `rank_candidates(rows, top_n=len(rows), strategy="momentum")` (:219) -- the SAME production function as baseline, passing NONE of the overlay signals, so every `if <signal>:` block in screener.py:322-407 is a no-op and the composite is exactly `mom_1m*0.40 + mom_3m*0.35 + mom_6m*0.25` with the RSI/vol multipliers (screener.py:295-309). `top_n=len(rows)` returns ALL scored rows (screener.py:474-475 `scored.sort; return scored[:top_n]`), and EVERY row carries `composite_score` (screener.py:409 `{**stock, "composite_score": round(score,3)}`). So the tilt reads a real production composite, not 0.0.
+- **Sole delta = the tilt:** `hi52_tilt_basket` (:123-138) only post-processes the production-scored rows: `composite_score * (1 + k*(pct_to_52w - mean_pct))`, re-sort, top_n. Replay-side; no live-engine change.
+- **Causal forward returns:** the basket is chosen at `t_idx` from `closes[...].iloc[win_lo:t_idx+1]` (inclusive, causal, :188); `basket_fwd_return` measures `s.iloc[t_idx+horizon] / s.iloc[t_idx] - 1` (t+21 vs t, :110). No look-ahead -- the tilt cannot peek at forward data (it reads only `pct_to_52w_high`, a backward feature).
+- **Honestly reported:** see Dimension-4 below; the small/noisy edge is disclosed, both k reported.
 
-**Bug A** -- ran `ANTHROPIC_API_KEY=qa-dummy python scripts/autoresearch/run_memo.py --topic-index 0` myself:
-```
-exit=0
-autoresearch skipped: embedding provider 'huggingface' needs 'langchain_huggingface', which is not installed. Enable with: pip install langchain-huggingface sentence-transformers
-ERROR files: before=32 after=32  DELTA=0
-```
-Clean exit-0 skip, actionable message on stderr, ZERO new ERROR file. CONFIRMED.
+**Criterion 3 (NO live engine change; US momentum core untouched): PASS.**
+Diff = replay script + new test ONLY. No screener.py / autonomous_loop / decide_trades / risk-guard / kill-switch / paper_trader change. No flag flip (`multidim_momentum_enabled` / `momentum_52wh` appear ONLY in markdown prose describing the FUTURE operator-gated step, never in .py). The working US momentum core is literally untouched.
 
-## 3. The 4 IMMUTABLE criteria
-
-| # | Criterion | Verdict | Evidence (file:line) |
-|---|-----------|---------|----------------------|
-| 1 | weekly_data_integrity constructs `BigQueryClient(get_settings())` + real __TABLES__ row-count query -> populated dict (not {}) | **PASS** | `weekly_data_integrity.py:89` `BigQueryClient(get_settings())`, `:91` `client.client.query(sql).result(timeout=30)`, `:92` dict comprehension. My live run -> n=9 real counts. |
-| 2 | autoresearch succeeds OR explicitly disabled/owner-gated w/ recorded decision -- must STOP silently failing | **PASS** | `run_memo.py:194-197` preflight -> exit 0 clean skip; my live run -> ERROR-delta 0. Decision recorded in `live_check_51.4.md:37-42` (graceful-skip, NOT pip, NOT feature-removal; operator enable path recorded). Stops the exit-1 + ERROR-file spam = legitimate satisfaction of "STOP silently failing". |
-| 3 | no change to the working trading path | **PASS** | diff name-only grep for `paper_trad\|risk_engine\|kill_switch\|backtest\|autonomous_harness\|backend/autoresearch/\|rotation` -> NONE. `run_memo.py` (literature memo) is a DIFFERENT system from the `backend/autoresearch/` rotation package -- confirmed (rotation pkg not in diff). |
-| 4 | live_check records the real-count proof + autoresearch decision/outcome | **PASS** | `live_check_51.4.md` records both: Bug B 9-table dict (:7-15) + Bug A exit-0/ERROR-delta-0 (:17-26) + explicit recorded decision (:37-42). |
-
-4/4 IMMUTABLE criteria PASS.
+**Criterion 4 (live_check records ON-vs-OFF + cited basis + keep/reject rec): PASS.**
+live_check_52.1.md has the verbatim 5-config table, a per-criterion table, cited basis (George-Hwang + Barroso-Wang large-cap mute), and the recommendation: ESCALATE k=0.5 to a live operator gate.
 
 ## 4. Adversarial judgment
 
-**Bug B (`weekly_data_integrity.py:78-95`).**
-- `BigQueryClient(get_settings())` -- settings PASSED (was `BigQueryClient()` no-args -> TypeError). `:88-89`. PASS.
-- `client.client.query(sql).result(timeout=30)` -- reaches the REAL `google.cloud.bigquery.Client` via `.client`, NOT the nonexistent generic `.query()`. `:91`. PASS.
-- Fail-open try/except RETAINED (`:93-95` `except Exception -> logger.warning + return {}`). A BQ error -> {} as before, no crash. PASS.
-- Populated dict is REAL: my independent run returned n=9 with real ints (`alt_congress_trades: 7262`). PASS.
+- **Honesty / no overselling (the key risk for a POSITIVE result): PASS.** Main reports the edge as SMALL and noisy: experiment_results :27 "Honestly small + noisy: a preview run showed +0.057/+0.054; this run +0.051/+0.047 (live-yfinance drift). True edge ~+0.05 ann Sharpe -- modest ... NOT a game-changer; reported without overselling." live_check :38-42 names the Barroso-Wang large-cap-mute, k=1.0 borderline (+0.047 just under bar), and lists survivorship + McLean-Pontiff factor-decay + long-only-no-short caveats (:57-63). The framing is honest, not oversold. A +0.05 Sharpe lift is correctly characterized as near-threshold and modest.
+- **Recommendation correctly operator-gated: PASS.** The rec is ESCALATE k=0.5 to a SEPARATE operator-gated live step (a `momentum_52wh` overlay, default-OFF), NOT a silent live-wire. Criterion #3 honored.
+- **Over-tuning: PASS.** k in {0.5, 1.0} ONLY -- committed a priori in contract :12/:39 and brief, NOT a sweep. The verdict block (:258-266) reports BOTH k (no cherry-pick). k-monotonicity (k=0.5 > k=1.0) is reported as evidence AGAINST over-tilting -- a sound anti-overfit argument, not a cherry-pick.
+- **Fair A/B / no look-ahead: PASS** -- see criterion 2 (identical rows, production composite reused, causal fwd returns, tilt reads only a backward feature).
+- **Tests real (non-tautological): PASS.** The 5 tests pin the tilt MECHANISM with constructed inputs + asserted orderings: tie-break toward 52wh (`["NEAR","FAR"]`), centering (all-equal-pct -> composite order preserved), gentle-k-can't-overturn-a-big-gap (`["STRONG"]`), missing-pct no-crash, and the feature math (linspace->1.0, peaked-to-80% -> ~0.80). No `assert x==x`, no mock-and-assert-called, no over-mock. They WOULD fail if the tilt were additive instead of centered, or if the direction were inverted.
 
-**Bug A (`run_memo.py:131-159` preflight + `:194-197` call site).**
-- Uses `importlib.util.find_spec(module)` (`:140`), NOT an import that would itself crash -- find_spec returns None for absent modules instead of raising. PASS.
-- Returns BEFORE GPTResearcher is built: preflight call at `:194-197` precedes `asyncio.run(_main_async(args))` at `:199`. So `$0`, no LLM call. My live run with a dummy key confirmed exit 0 with no spend. PASS.
-- `main()` returns 0 on skip (`:197 return 0`), propagated via `raise SystemExit(main())` at `:202-203`. Clean exit. PASS.
-- Does NOT pip-install (owner-gated) and does NOT remove the feature: the EMBEDDING config stays in `env_defaults`; preflight self-enables on install (unknown/installed provider -> `return None` -> proceed). Covered by `test_preflight_proceeds_when_backend_present` + `test_preflight_proceeds_for_unknown_provider`. PASS.
-- "Graceful-skip with a recorded decision" legitimately satisfies criterion #2: it STOPS the exit-1 + nightly ERROR-file spam (32 ERROR files, 0 successful memos historically) AND the decision is recorded in live_check_51.4.md:37-42. The criterion's own text allows "explicitly disabled / owner-gated with a recorded decision". PASS.
+## 5. Code-review heuristics (5 dimensions) -- NO findings
+- Dim 1 (security): no secret in diff; no LLM->execution path; no subprocess/eval; replay reads yfinance + Wikipedia only. CLEAN.
+- Dim 2 (trading-domain): NO live execution path touched -- kill-switch / stop-loss / perf-metrics / max-position all untouched (this is a measure-only replay). `ann_sharpe` is a replay-local Sharpe for the ABLATION harness, not a live perf-metric write (perf-metrics-bypass N/A -- the replay is not the live metrics path and 51.2 established this harness). CLEAN.
+- Dim 3 (code quality): the `except Exception: continue` at replay :159 is in the yfinance MultiIndex-flattening download loop (pre-existing from 51.2, not in a risk path) -- acceptable for a research script. CLEAN.
+- Dim 4 (anti-rubber-stamp): financial logic (the tilt) HAS behavioral tests (5, pinning the mechanism). NOT a rubber-stamp. CLEAN.
+- Dim 5 (LLM-evaluator anti-patterns): first verdict, evidence cited at file:line throughout, no rebuttal context to be swayed by. CLEAN.
 
-**Scope (criterion #3).** Code diff = the 2 jobs + new test ONLY. No trading-loop / paper-trading / risk-guard / rotation-package (`backend/autoresearch/`) change (grep -> NONE). `run_memo.py` (literature memo) confirmed distinct from the `backend/autoresearch/` rotation package. PASS.
+## Verdict
+**PASS.** The measurement is sound (fair A/B confirmed at the code level: identical screen_data both arms, the production `rank_candidates` momentum composite reused verbatim with overlays as no-ops, causal t+21 forward returns, a centered/turnover-neutral tilt that reads only a backward feature). The result is HONESTLY reported (a small ~+0.05 Sharpe edge, explicitly flagged as near-threshold + noisy + large-cap-muted + survivorship/decay-caveated, not oversold). There is NO live engine change (diff = replay + test only; no flag flip). The recommendation correctly ESCALATES only k=0.5 to a SEPARATE operator-gated live step. k tested a priori {0.5,1.0}, both reported (no sweep, no cherry-pick). 5 non-tautological mechanism tests. All 5 harness-compliance items and all 3 deterministic checks pass.
 
-**ASCII-only (Windows cp1252).** Non-ASCII scan of both changed files -> ASCII scan done, 0 hits. The skip message and logger calls use plain ASCII (`->`, `--`). PASS.
-
-**Test quality (anti-rubber-stamp).**
-- NOT tautological: `test_weekly_data_integrity_returns_populated_dict` asserts exact value `{"signals":100,"prices":50}` (exercises the dict-comprehension + `int()` cast) AND `_FakeBQ.last_args` non-empty (guards the original no-args B1 bug). `:75-76`.
-- NOT over-mocked: `_FakeBQ` fakes only the external BQ boundary (correct); the function-under-test logic runs for real. No `assert mock.called` tautology.
-- Preflight tests cover skip (find_spec->None), proceed-when-present (find_spec->truthy), and proceed-for-unknown-provider. `:24-41`.
-- NOTE (non-degrading): the unit tests cover `_embedding_preflight()` in isolation but do not assert `main()` returns 0 on skip -- my INDEPENDENT live run closed that gap empirically (exit 0 + ERROR-delta 0). Combined deterministic+live evidence satisfies the criterion.
-
-## 5. Code-review heuristics (5 dimensions)
-
-- secret-in-diff: none. command-injection/eval/pickle/yaml.load: none added. print(): none added in non-script code (the skip uses `print(..., file=sys.stderr)` inside a `scripts/` entrypoint -- negation-list exempt).
-- broad-except: all instances are pre-existing fail-open handlers in MAINTENANCE jobs (data-integrity + literature-memo), NOT risk-guard/kill-switch/stop-loss paths. `broad-except-silences-risk-guard` [BLOCK] does NOT apply (negation list: non-risk maintenance plumbing). The Bug-B fail-open is intentional + correct.
-- Trading-domain invariants: kill_switch / paper_trader / perf_metrics / risk_engine all 0 files in diff. No invariant touched.
-- financial-logic-without-behavioral-test: N/A (no perf/risk/backtest math changed); new behavior IS test-covered (4 tests).
-- Worst severity hit: NOTE (non-degrading). No BLOCK, no WARN.
-
-## Conclusion
-
-PASS. Both bugs fixed exactly per the research-pinned diagnosis, independently live-reproduced (Bug B -> real 9-table dict; Bug A -> clean exit-0 skip, ERROR-delta 0, $0). All 4 immutable criteria met. Scope isolated to the 2 maintenance jobs + new test; trading path untouched. 4/4 unit tests pass. ASCII-clean. Fail-open retained. Decision for criterion #2 recorded in live_check. 5/5 harness-compliance items PASS; first verdict, 0 prior CONDITIONALs. No code-review BLOCK/WARN.
-
-checks_run: syntax, verification_command, code_review_heuristics, live_check_reproduction, evaluator_critique, mutation_resistance (independent live re-run of both proofs)
-
-## FINAL VERDICT: PASS
-
-All 3 immutable criteria met. Guard is real, placed before any post, ET-date-correct, fail-open, slack-bot-only. Tests are genuinely behavioral (probe proves the body never runs on skip). No risk/execution path touched.
-
----
-
-## 1. Harness-compliance audit (5 items) -- ALL PASS
-
-| Item | Status | Evidence |
-|------|--------|----------|
-| researcher before contract | PASS | `research_brief.md` header `# research_brief -- phase-51.3`; gate envelope `gate_passed: true`, 6 sources read-in-full, recency scan performed, 16 URLs, 6 internal files. contract.md cites it (lines 7, 40-44). |
-| contract before GENERATE; 3 criteria VERBATIM | PASS | Programmatically confirmed: contract.md criteria 1-3 == masterplan 51.3 `success_criteria` 1-3 byte-for-byte (`crit{1,2,3} VERBATIM MATCH: True`). |
-| experiment_results + live_check present | PASS | both exist; live_check_51.3.md has unit proof + real-XNYS smoke; `test -f` returns present. |
-| log-last | PASS | No `phase=51.3 result=` entry in harness_log.md (last header = Cycle 25 phase=51.2 result=PASS). The "51.3" grep hits are forward-references from cycles 22/25 ("then 51.3 (digest guard)"), not result lines. masterplan 51.3 status=`pending`, retry_count=0. |
-| first verdict, no shopping, 0 prior CONDITIONAL | PASS | Zero prior 51.3 result entries -> this is the first verdict, 0 CONDITIONALs. No second-opinion-shopping (fresh step, evidence is new). |
-
-## 2. Deterministic checks (reproduced verbatim)
-
-| Check | Result |
-|-------|--------|
-| `pytest test_phase_51_3_digest_guard.py -q` | `5 passed in 0.30s` |
-| `ast.parse(scheduler.py)` | `AST OK scheduler.py` |
-| `test -f live_check_51.3.md` | present |
-| `git diff --stat backend/` | `backend/slack_bot/scheduler.py \| 26 ++` ONLY; test file untracked (`??`). No other backend file modified. |
-| Independent real-calendar | Sat 2026-05-30: False; Mon 2026-06-01: True; Jul-4 2025: False -- matches expected exactly. |
-| ASCII-only (scheduler 317-372 + test) | non-ASCII: NONE in both. |
-| Repo-wide risk-file modified? | NONE (no autonomous_loop / paper_trad / kill_switch / risk_engine / backtest_engine / perf_metrics in `git status`). |
-
-## 3. The 3 IMMUTABLE criteria -- judged
-
-**Criterion 1 (early-return, no chat_postMessage, ET-date, is_trading_day): PASS.**
-Guard sits at scheduler.py:336-339 (morning) and :368-371 (evening), placed AFTER `settings = get_settings()` and BEFORE the `try:` at :341/:373. The first network I/O (`httpx.AsyncClient.get`) is at :342/:374 and `chat_postMessage` at :351 -- both strictly AFTER the guard. So a skip posts nothing AND fetches nothing. Helper `_is_us_trading_day_now()` (:317-327) computes `datetime.now(ZoneInfo("America/New_York")).date()` -> ET date, aligning with the cron tz (America/New_York, confirmed in research_brief A1 :204/:216), then calls `is_trading_day(et_today, "US")`. Lazy import of is_trading_day inside the helper (avoids a backtest import at slack-process module load).
-
-**Criterion 2 (regression test: SKIP when False, SEND when True): PASS.**
-`test_digest_skips_on_non_trading_day` (parametrized morning+evening): monkeypatches `_is_us_trading_day_now -> False`, installs a probe `httpx.AsyncClient` that sets `flag["reached"]=True` and raises on `__init__`. Asserts `flag["reached"] is False` (the httpx body -- the FIRST statement inside the `try` -- was never instantiated) AND `posted == []`. This is a REAL behavioral proof that the early-return fired, not a tautology. `test_digest_proceeds_on_trading_day`: monkeypatches `-> True`, asserts `reached is True` (execution entered the try body). The probe raising `_Reached` (caught by the digest's own try/except, with `_route_exception_to_p1` stubbed) is a clean short-circuit that isolates "did we reach the body" from any downstream network behavior. `test_is_us_trading_day_now_delegates_to_is_trading_day` independently proves the helper returns whatever is_trading_day returns (both branches).
-
-**Criterion 3 (no trading-loop/paper-route change; fail-open if xcals unavailable): PASS.**
-Diff = scheduler.py (+26) + new test ONLY. No autonomous_loop / paper_trading / risk-guard touched (git status + diff grep both clean). Fail-open VERIFIED at source: `markets.py:158-159` returns True when `cal is None` (exchange_calendars unavailable), and `:166-168` returns True on any exception -- so a calendar-lib error sends the digest as before, never a silent suppression. The helper itself does not wrap is_trading_day in an extra try/except, but it does not need to: fail-open is already guaranteed inside is_trading_day, and the helper adds no new failure mode (datetime.now + ZoneInfo("America/New_York") are infallible; ZoneInfo is already imported and used elsewhere in the file). NOTE: the research brief S3 proposed an extra helper-level try/except returning True; the shipped helper omits it. This is acceptable -- fail-open is satisfied one layer down and the omitted wrapper would only catch an import error of is_trading_day, which would be a hard environment breakage (not a calendar-data error) and is the same risk every other lazy import in the file carries. Does NOT violate criterion #3.
-
-## 4. Adversarial judgment
-
-- **Guard before any post?** YES. Verified by line order: guard :336-339 < `try:` :341 < httpx.get :342 < chat_postMessage :351. A skip is a true no-op (no HTTP, no Slack).
-- **ET date, not UTC?** YES. `datetime.now(ZoneInfo("America/New_York")).date()`. The live_check "helper today = False" is CORRECT ET logic, not a bug: the smoke ran ~00:14 UTC 2026-06-01 = ~20:14 EDT 2026-05-31 (Sunday evening NY). ET-date -> 2026-05-31 (Sun) -> not a trading day -> False. UTC would have wrongly said Monday. At the real 08:00 ET Monday fire, ET date = 2026-06-01 -> True -> digest sends. (One cosmetic note: the live_check_51.3.md "Real XNYS-calendar smoke" block header says "helper today (Mon 2026-06-01): False" while its own explanatory paragraph correctly says Sunday-evening-ET -- the label is mislabeled but the explanation and the value are right. Cosmetic, NOTE-severity, does not affect any criterion.)
-- **Tests real or tautological?** REAL. The SKIP test asserts the probe's `reached=False` (body never instantiated) -- not merely "no post". The PROCEED test asserts `reached=True`, so it would FAIL if the guard wrongly skipped a trading day. Not over-mocked: only `_is_us_trading_day_now`, `httpx.AsyncClient`, and `_route_exception_to_p1` are patched; the digest function under test runs its real body up to the probe.
-- **Fail-open?** YES (markets.py:158-159, 166-168 -- both return True). A calendar error sends the digest as before; no silent suppression.
-- **Scope slack-bot only?** YES. scheduler.py + new test, nothing else (git status/diff clean).
-- **ASCII-only logger messages?** YES. `logger.info("morning_digest skipped: %s ET is not a US trading day", ...)` / evening analogue -- pure ASCII; non-ASCII scan = NONE.
-- **Half-days?** Correctly SEND (is_session True for early-close), per research brief empirical probe -- guard does not over-suppress. Desired behavior.
-
-## Code-review heuristics (5 dimensions evaluated)
-
-No BLOCK or WARN findings. Notes only:
-- **financial-logic-without-behavioral-test [BLOCK class]:** N/A -- this diff does NOT touch perf_metrics / risk_engine / backtest_engine / backtest_trader. It is a notification-path guard. AND a behavioral test was shipped regardless.
-- **broad-except / paper-trader-broad-except:** N/A -- no new broad-except introduced; the helper has none, and the digest try/except blocks are pre-existing (unchanged).
-- **kill-switch-reachability / stop-loss / max-position / execution-path:** N/A -- no execution path touched.
-- **unicode-in-logger [NOTE]:** clean (ASCII verified).
-- **tautological-assertion / over-mocked-test [BLOCK class]:** NOT triggered -- assertions are behavioral (`reached`/`posted` state), module-under-test is not wholly mocked.
-- **Cosmetic NOTE:** live_check_51.3.md smoke-block label "(Mon 2026-06-01)" is mislabeled (was Sunday ET); the value and explanation are correct. Documentation-only; no verdict effect.
-
-checks_run: syntax, verification_command, code_review_heuristics, evaluator_critique (existing), live_check, mutation/behavioral_test, scope_diff, ascii_lint, independent_calendar_reproduction
-
----
+[Independent replay re-run launched to reproduce the dSharpe sign/magnitude; result appended below. The PASS does not hinge on an exact number -- live yfinance drifts run-to-run, which Main disclosed -- it hinges on the A/B method being fair + causal + the production composite reused, all confirmed by code inspection.]

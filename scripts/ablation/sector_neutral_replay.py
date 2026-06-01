@@ -82,6 +82,9 @@ def build_screen_row(ticker, sector, win: pd.Series):
     daily = c.pct_change().dropna()
     vol_ann = float(daily.iloc[-63:].std() * np.sqrt(252)) if len(daily) >= 63 else 0.3
     sma50 = c.iloc[-50:].mean()
+    # phase-52.1: 52-week-high proximity (George-Hwang 2004) -- price-only, in (0,1].
+    high_52w = float(c.rolling(252, min_periods=20).max().iloc[-1])
+    pct_to_52w = float(last / high_52w) if high_52w > 0 else None
     return {
         "ticker": ticker,
         "sector": sector,
@@ -91,6 +94,7 @@ def build_screen_row(ticker, sector, win: pd.Series):
         "rsi_14": rsi_14(c),
         "volatility_ann": vol_ann,
         "sma_50_distance_pct": float(last / sma50 - 1) if sma50 > 0 else 0.0,
+        "pct_to_52w_high": pct_to_52w,
     }
 
 
@@ -114,6 +118,24 @@ def ann_sharpe(monthly: list[float]) -> float:
     if len(a) < 3 or a.std() == 0:
         return 0.0
     return float(a.mean() / a.std() * np.sqrt(12))
+
+
+def hi52_tilt_basket(ranked_all, k, top_n, mean_pct=None):
+    """phase-52.1: re-rank rows (already scored by the PRODUCTION rank_candidates
+    composite) by a CENTERED 52-week-high multiplicative tilt -- tilt UP names nearer
+    their 52w high, DOWN names far below it, centered on the universe mean so the
+    average tilt ~= 1.0 (turnover-neutral on average). Reuses the production composite
+    verbatim (this is replay-side post-processing -> zero live-engine change).
+    Returns the top_n tickers."""
+    pcts = [r.get("pct_to_52w_high") for r in ranked_all if r.get("pct_to_52w_high") is not None]
+    mp = mean_pct if mean_pct is not None else (float(np.mean(pcts)) if pcts else 1.0)
+    scored = []
+    for r in ranked_all:
+        p = r.get("pct_to_52w_high")
+        tilt = (1 + k * (p - mp)) if p is not None else 1.0
+        scored.append((r["ticker"], (r.get("composite_score") or 0.0) * tilt))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [t for t, _ in scored[:top_n]]
 
 
 def main():
@@ -149,16 +171,18 @@ def main():
     log(f"[3/4] replaying {len(rebal)} monthly rebalances, top_n={TOP_N} ...")
 
     configs = {"baseline": False, "sector_neutral": True}
-    monthly = {k: [] for k in configs}
-    monthly["vol_scaled"] = []      # baseline basket, vol-targeted return
-    spread = {k: [] for k in configs}
-    prev_basket = {k: set() for k in configs}
-    turnover = {k: [] for k in configs}
+    # phase-52.1: 52-week-high multiplicative tilt configs (k = tilt strength).
+    tilt_configs = {"hi52_k0.5": 0.5, "hi52_k1.0": 1.0}
+    _all = list(configs) + ["vol_scaled"] + list(tilt_configs)
+    monthly = {k: [] for k in _all}
+    spread = {k: [] for k in _all}
+    prev_basket = {k: set() for k in _all}
+    turnover = {k: [] for k in _all}
 
     pos = {d: i for i, d in enumerate(closes.index)}
     for d in rebal:
         t_idx = pos[d]
-        win_lo = max(0, t_idx - 200)
+        win_lo = max(0, t_idx - 260)   # phase-52.1: >=252 days for the 52-week high
         rows = []
         for tk in closes.columns:
             row = build_screen_row(tk, sec_map.get(tk, ""), closes[tk].iloc[win_lo:t_idx + 1])
@@ -190,11 +214,25 @@ def main():
                 else:
                     monthly["vol_scaled"].append(fwd)
 
+        # phase-52.1: 52-week-high multiplicative tilt -- post-process the PRODUCTION
+        # composite (centered so avg tilt ~= 1.0; tilt UP names nearer their 52w high).
+        ranked_all = rank_candidates(rows, top_n=len(rows), strategy="momentum")
+        for tname, k in tilt_configs.items():
+            basket = hi52_tilt_basket(ranked_all, k, TOP_N)
+            fwd = basket_fwd_return(basket, closes, t_idx)
+            monthly[tname].append(fwd)
+            spread[tname].append(len({sec_map.get(t, "") for t in basket}))
+            bs = set(basket)
+            if prev_basket[tname]:
+                turnover[tname].append(1 - len(bs & prev_basket[tname]) / max(len(bs), 1))
+            prev_basket[tname] = bs
+
     log("[4/4] results\n")
     print(f"{'config':<16}{'ann_Sharpe':>12}{'avg_fwd_mo%':>14}{'avg_sectors':>13}{'avg_turnover':>14}")
     print("-" * 69)
     base_sharpe = ann_sharpe(monthly["baseline"])
-    for name in ["baseline", "sector_neutral", "vol_scaled"]:
+    base_to = float(np.mean(turnover["baseline"])) if turnover["baseline"] else 0.0
+    for name in ["baseline", "sector_neutral", "vol_scaled", "hi52_k0.5", "hi52_k1.0"]:
         ms = [m for m in monthly[name] if m is not None]
         sh = ann_sharpe(monthly[name])
         avg_ret = float(np.mean(ms) * 100) if ms else 0.0
@@ -206,13 +244,26 @@ def main():
     sn_spread = float(np.mean(spread["sector_neutral"])) if spread["sector_neutral"] else 0
     base_spread = float(np.mean(spread["baseline"])) if spread["baseline"] else 0
     vs_sharpe = ann_sharpe(monthly["vol_scaled"])
-    print("\n--- VERDICT (masterplan 51.2 gate) ---")
+    print("\n--- VERDICT (51.2 sector-neutral gate) ---")
     print(f"sector_neutral vs baseline: dSharpe={sn_sharpe - base_sharpe:+.3f}, "
           f"dSectors={sn_spread - base_spread:+.2f}")
     keep_sn = (sn_spread - base_spread >= 2.0) and (sn_sharpe - base_sharpe >= -0.05)
     print(f"KEEP sector_neutral? {keep_sn}  (gate: breadth +>=2 sectors AND dSharpe >= -0.05)")
     print(f"vol_scaled vs baseline: dSharpe={vs_sharpe - base_sharpe:+.3f} "
           f"({'BETTER' if vs_sharpe > base_sharpe else 'worse'})")
+
+    # phase-52.1: 52-week-high tilt verdict (keep if dSharpe >= +0.05 AND dTurnover <= +10%)
+    print("\n--- VERDICT (52.1 52-week-high tilt) ---")
+    keep_any = False
+    for tname in ["hi52_k0.5", "hi52_k1.0"]:
+        t_sharpe = ann_sharpe(monthly[tname])
+        t_to = float(np.mean(turnover[tname])) if turnover[tname] else 0.0
+        d_sharpe = t_sharpe - base_sharpe
+        d_to = t_to - base_to
+        keep = (d_sharpe >= 0.05) and (d_to <= 0.10)
+        keep_any = keep_any or keep
+        print(f"{tname} vs baseline: dSharpe={d_sharpe:+.3f}, dTurnover={d_to:+.3f} -> KEEP? {keep}")
+    print(f"52wh-tilt recommendation: {'ESCALATE to a live operator gate' if keep_any else 'REJECT (large-cap mute, per Barroso-Wang) -> pivot to residual momentum (52.2)'}")
     print(f"\nN rebalances scored: {len([m for m in monthly['baseline'] if m is not None])}")
 
 
