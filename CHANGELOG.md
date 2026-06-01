@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `0aa5c851` | phase-52.4: Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Martens 2011) -- the higher-evi... |
 | 2026-06-01 | `c8b659dc` | phase-52.3: DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05 Sharpe improvement (1-of-5 c... |
 | 2026-06-01 | `6d1292f4` | phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in... |
 | 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-30 | `edecc9c0` | phase-50.2: Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-posi... |
 | 2026-05-30 | `c452de61` | phase-50.2: GENERATE -- multi-currency accounting (byte-identical, live-verified) |
 | 2026-05-30 | `ffdb8816` | phase-50.2: PLAN -- multi-currency accounting contract + research gate |
-| 2026-05-30 | `5291f772` | phase-50.1: FX data layer -- backend/services/fx_rates.py + historical_fx_rates BQ table sourced ... |
 
 ---
 
+### v6.28.47 — phase-52.4: Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Mar... (2026-06-01)
+
+- **phase-52.4: Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Martens 2011) -- the higher-evi...**
 ### v6.28.46 — phase-52.3: DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05... (2026-06-01)
 
 - **phase-52.3: DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05 Sharpe improvement (1-of-5 c...**
