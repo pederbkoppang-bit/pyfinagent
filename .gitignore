@@ -60,6 +60,12 @@ backend/.env.bak*
 # Playwright Chrome binary (installed by `playwright install`)
 frontend/chrome/
 
+# goal-browser-mcp: Playwright MCP persistent profile (cookies/login state for the
+# browser-driving MCP; never commit -- may hold a logged-in session)
+.playwright-mcp-profile/
+# goal-browser-mcp: Playwright MCP run output (console logs + page DOM snapshots)
+.playwright-mcp/
+
 # phase-4.16.2: runtime logs (moved to handoff/logs/) are not committed
 handoff/logs/
 handoff/*.log

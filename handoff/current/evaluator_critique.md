@@ -1,233 +1,291 @@
-# Q/A Critique — goal-multimarket-ux (Multi-Market UX: US / EU / KR)
+# Q/A Critique — goal-browser-mcp (Playwright MCP: browser-driving for Claude Code)
 
 **Evaluator:** Q/A (Layer-3 harness MAS, merged qa-evaluator + harness-verifier)
 **Date:** 2026-06-01
-**Verdict:** PASS (visual_verification: pending-operator)
+**Verdict:** PASS (restart_pending: true — documented post-restart live-dispatch check)
 **Mode:** in-place working-tree read (changes UNCOMMITTED; no worktree, no checkout)
 
 ---
 
 ## 1. Harness-compliance audit (5 items)
 
-1. **Researcher spawned before contract** — PASS. `research_brief.md` exists,
-   8 sources read in full, 18 URLs, recency scan present (4 findings; the
-   "radiogroup-in-toolbar breaks selection-follows-focus" nuance is load-bearing
-   and is honoured by the standalone-radiogroup `MarketFilter`), `gate_passed: true`.
-   Contract "Research-gate summary" cites it with file:line internal anchors.
+1. **Researcher spawned before contract** — PASS. `research_brief.md` exists
+   (`# research_brief -- goal-browser-mcp`), `gate_passed: true`, **7 sources read
+   in full** (floor 5; table lists 7 WebFetch-full + 15 snippet-only = 22 URLs),
+   recency scan present (5 findings incl. live RCE #1495 / Google-login-block
+   advisories). Contract "Research-gate summary (PASSED)" cites researcher
+   `a983c70b128d3bdd5` + brief path + decisive findings with file:line anchors
+   (middleware.ts:22, MarketFilter.tsx:62/71/77, cockpit-helpers.tsx:198/226).
 2. **Contract written before GENERATE** — PASS. `contract.md` has step id
-   (`goal-multimarket-ux`), all 7 immutable criteria copied verbatim, a
-   dependency-ordered plan A-D, and a references block.
+   (`goal-browser-mcp`), all 4 immutable criteria + the OUT-OF-SCOPE clause copied
+   verbatim, a dependency-ordered plan (A-D), the restart caveat, and a references
+   block.
 3. **experiment_results present** — PASS. Lists what was built (A+B+C), the
-   NEW/MODIFIED file list, verbatim tsc/build/format-proof output, and a
-   per-criterion status table.
-4. **Log-last discipline** — PASS. `grep -i goal-multimarket handoff/harness_log.md`
-   returns only historical phase-5/phase-50 references — NO `goal-multimarket-ux`
-   cycle header. Log NOT yet appended; masterplan has NO such step (it is a /goal
-   step, not a phase id). Correct: log + status come AFTER this PASS.
-5. **No verdict-shopping** — PASS. No prior `goal-multimarket-ux` CONDITIONAL/FAIL
-   in `harness_log.md`. This is a FIRST verdict on the full A+B+C evidence (the
-   prior partial A+B was never adjudicated by Q/A). Not a reversal-on-unchanged-
-   evidence. sycophancy-under-rebuttal / mtime heuristics N/A (no prior cycle).
+   NEW/MODIFIED file list, the verbatim launch-bug + smoke + click-through +
+   dev-restore output, and a per-criterion (1-4) status section.
+4. **Log-last discipline** — PASS. `grep -in goal-browser-mcp handoff/harness_log.md`
+   returns NOTHING — no cycle header yet. This is a `/goal` step, not a masterplan
+   phase. Correct: log + status flip come AFTER this PASS.
+5. **No verdict-shopping** — PASS. No prior `goal-browser-mcp` verdict in
+   `harness_log.md` (grep for `goal-browser` + result/PASS/FAIL/CONDITIONAL = none).
+   FIRST verdict on this evidence. sycophancy-under-rebuttal / second-opinion-shopping
+   / 3rd-conditional heuristics all N/A (no prior cycle).
 
 ---
 
-## 2. Deterministic checks (re-run independently — did not trust generator numbers)
+## 2. Deterministic checks (re-run independently — did NOT trust generator output)
 
-### 2.1 TypeScript (binding gate)
+### 2.1 `.mcp.json` parses + playwright server shape (binding gate)
 ```
-$ cd frontend && node_modules/.bin/tsc --noEmit -p tsconfig.json
-TSC_EXIT=0
+$ python3 -c "json.load(open('.mcp.json'))['mcpServers']['playwright']"
+type=stdio  command=npx  alwaysLoad=false
+args = [-y, @playwright/mcp@0.0.75, --executable-path <bundled Chromium>,
+        --user-data-dir <repo>/.playwright-mcp-profile, --allowed-hosts localhost,
+        --viewport-size 1440,900]
 ```
-Reproduced independently → **0**. Matches experiment_results.
+- **command:"npx"** ✓
+- **pinned `@playwright/mcp@0.0.75`** ✓ (NOT `@latest` — verified `@latest` absent).
+- **`--allowed-hosts localhost`** ✓
+- **`alwaysLoad:false`** ✓
+- **NO dangerous flags** ✓ — programmatic scan for `--caps`/`vision`/`pdf`/`devtools`/
+  `--allow-unrestricted-file-access`/`--allowed-origins`/`browser_run_code` → `NONE`.
 
-### 2.2 Real-module format.ts proof (transpiled the SHIPPED file, then node)
-Transpiled `src/lib/format.ts` standalone (`tsc ... --module esnext --target es2022
---moduleResolution bundler --skipLibCheck`, TRANSPILE_EXIT=0; the `import type
-{ Format }` was correctly erased so the module loads with NO NumberFlow dependency),
-then imported the emitted `format.js` in node and asserted against the REAL exports:
-
+### 2.2 `--executable-path` actually exists on disk (the criterion's hard requirement)
 ```
-PASS formatCurrency EUR 243.1            -> "€243.10"
-PASS formatCurrency KRW 71200 (0dp)      -> "₩71,200"      <-- load-bearing: KRW 0-decimal
-PASS formatCurrency USD 971.55           -> "$971.55"
-PASS marketForSymbol SAP.DE              -> "EU"
-PASS marketForSymbol 005930.KS           -> "KR"
-PASS resolveMarket {market:"kr"} wins    -> "KR"
-PASS MARKET_BENCHMARK_LABEL.EU           -> "DAX"
-PASS KRW no-decimal proof (123456.78)    -> "₩123,457"     <-- confirms NOT forcing minFractionDigits
-PASS formatUsd 1694                      -> "$1,694.00"
-PASS formatCurrency null -> dash         -> "—"
-PASS marketForSymbol bare AAPL -> US     -> "US"           <-- do-no-harm: bare ticker => US
-PASS resolveCurrency bare -> USD         -> "USD"          <-- do-no-harm: => USD
-PASS resolveCurrency SAP.DE -> EUR       -> "EUR"
-PASS marketForSymbol EQNR.OL -> NO       -> "NO"
-PASS US Sat closed                       -> false
-PASS unknown currency no-throw (ZZZ)     -> "ZZZ 100.00"   (catch-fallback, never throws in a cell)
-RESULT pass=16 fail=0  NODE_EXIT=0
+$ test -x "/Users/ford/Library/Caches/ms-playwright/chromium-1208/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+EXEC_X=YES   (-rwxr-xr-x  52064  17 apr.  ...Google Chrome for Testing)
 ```
-The KRW 0-decimal claim is PROVEN against the shipped module (₩71,200 and ₩123,457,
-no `.00`). The do-no-harm US byte-identity path is proven (bare→US→USD).
+The path in `.mcp.json` resolves to a real executable. NOT a phantom path.
 
-### 2.3 Flag-emoji + emoji scan (the NO-flag-emoji / no-emoji rule)
+### 2.3 Smoke test RE-RUN independently → EXIT 0, genuinely drove a browser
 ```
-grep -rnP '[\x{1F1E6}-\x{1F1FF}]' <12 scope files>                 -> none (rc=1)
-grep -rnP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{1F000}-\x{1F0FF}]' -> none (rc=1)
+$ python3 scripts/mcp_servers/smoke_test_playwright_mcp.py ; echo EXIT=$?
+using bundled Chromium: /Users/ford/Library/Caches/ms-playwright/chromium-1208/.../Google Chrome for Testing
+spawning: npx -y @playwright/mcp@0.0.75 --headless --isolated --executable-path <bundled>
+OK initialize -- server=Playwright
+OK tools/list -- 23 tools; sample: ['browser_click','browser_close','browser_console_messages',
+                                     'browser_drag','browser_drop','browser_evaluate','browser_file_upload','browser_fill_form']
+OK required browser tools present: ['browser_navigate','browser_click','browser_snapshot']
+OK browser_navigate -- http://localhost:3000/login
+OK browser_snapshot -- real login DOM read (matched token: 'sign in')
+SMOKE PASS: ...drove a real navigation + DOM read on the live dev server.
+EXIT=0
 ```
-NO flag emoji and NO pictograph/dingbat emoji anywhere in the scope. Market is
-conveyed by a colored dot (`aria-hidden`) + the market CODE (WCAG: not colour-alone).
+Reproduced cleanly. It really drove Chromium: navigated the live dev server's
+`/login` and matched the REAL login token **`'sign in'`** in the a11y snapshot —
+NOT an error string. 23 tools enumerated; all 3 required present. This is the
+in-session proof the server attaches and its tools are callable at the protocol
+level. `SMOKE_SYNTAX=OK` (ast.parse).
 
-### 2.4 Do-no-harm / no-client-FX guard audit
-Every hardcoded `currency:"USD"` and every literal `$` money prefix is inside an
-explicit US byte-identity branch:
-- `cockpit-helpers.tsx:86-95` — `Dollar`: `isUsd ? {currency:"USD", minFrac:2} : numberFlowFormat(cur)`, `locales={isUsd ? undefined : ...}`. USD = EXACT legacy object → byte-identical.
-- `positions-columns.tsx:66-74` — `CurrentPriceCell`: same `isUsd` ternary.
-- `positions-columns.tsx:151-153` (Entry), `:261` (Stop Loss) — `cur === "USD" ? \`$${...}\` : formatCurrency(...)`.
-- `trades-columns.tsx:97-99` (Price) — `cur === "USD" ? \`$${price}\` : formatCurrency(...)`. Price is LOCAL, correctly branched.
-- `trades-columns.tsx:119` (Fee) — hardcoded `$` is CORRECT: a fee/`transaction_cost` is always USD base (per contract #3).
-- `LatestTransactionsBox.tsx:47-49` — `cur === "USD" ? \`$${...}\` : formatCurrency(p, cur)`.
-- `format.ts:169` — hardcoded USD only in the `catch` fallback for an unknown currency code (safety; never throws in a table cell).
+### 2.4 Anti-false-positive (the prior "google"-in-error-text false-pass)
+Read the script (`smoke_test_playwright_mcp.py:50-55, 177, 191-201`). The earlier
+loose test false-passed by matching `"google"` in the "Google Chrome.app not found"
+launch error. The CURRENT script CANNOT false-pass:
+- `LOGIN_TOKENS = ("sign in","passkey","ai financial analyst")` — **deliberately
+  omits "google"** (inline comment says exactly why, `:51-52`).
+- `ERROR_MARKERS = ("### error","is not found at","run \"npx playwright install","executable doesn't exist")`
+  — a launch/nav error is REJECTED (`:177` checks `isError` OR any marker on nav;
+  `:191` rejects markers on snapshot) BEFORE the token match.
+- Token match requires one of the SPECIFIC login tokens (`:194-201`), else FAIL.
+So a broken config (wrong/missing executable, unpinned bad version, missing tool)
+surfaces as a non-zero exit, not a green check. **Mutation-resistant** (see §4).
 
-**No client-side FX** (the would-be correctness BLOCK): every `livePrice * quantity`
-recompute is gated behind `isUs` (`resolveMarket(...) === "US"`):
-- `positions/page.tsx:67-72` `mvUsd`: US → `px * quantity`; non-US → `pos.market_value` (backend USD).
-- `positions-columns.tsx:192-197` and `:202-206` (Market Value accessor + cell): `isUs && livePrice!=null ? livePrice*qty : (row.market_value ?? 0)`.
-- `positions-columns.tsx:217-227` / `:232-242` (P&L%): US recomputes from live price; non-US uses backend `unrealized_pnl_pct` (USD-consistent).
-LOCAL notional is NEVER labelled USD. The donut + sector bar use `mvUsd` (same guard).
-
-### 2.5 ESLint (REQUIRED — diff touches frontend/**; catches Rules-of-Hooks which tsc cannot)
+### 2.5 `.gitignore` ignores the profile dir
 ```
-$ cd frontend && npx eslint <12 scope files>
-3 problems (0 errors, 3 warnings)   ESLINT_EXIT=0
+$ git check-ignore -v .playwright-mcp-profile/
+.gitignore:65:.playwright-mcp-profile/   .playwright-mcp-profile/
 ```
-**Exit 0 → gate PASS** (errors-only fail semantics; warnings do not fail).
-`react-hooks/rules-of-hooks` (severity "error" in eslint.config.mjs:34) fired
-ZERO times — no hook-order violation of the phase-23.2.23 class.
-The 3 warnings are all `react-hooks/set-state-in-effect` (a perf advisory, NOT
-an error):
-- `layout.tsx:175` — the active-market "reset to ALL when the market disappears"
-  effect (intentional derived-state sync; the contract calls for this fallback).
-- `layout.tsx:214` — `refresh()` on mount; PRE-EXISTING (phase-44.2), not this diff.
-- `MarketSessionStrip.tsx:26` — `setNow(new Date())` post-mount; this is the
-  DOCUMENTED correct pattern to avoid an SSR hydration mismatch on the OPEN/CLOSED
-  text (the alternative causes the very bug it avoids). Defensible.
+Present and effective. Diff adds it with a comment explaining it may hold a
+logged-in session.
 
-### 2.6 secret-in-diff
-`git diff -- frontend/ | grep -iE '(api_key|secret|password|token)...'` → none (rc=1).
+### 2.6 Runbook SAFETY section — required topics all present
+`docs/runbooks/browser-mcp.md:113-136` (grep-confirmed each):
+no **trades**/money/**credentials**/account-or-security-**settings**/**consent**
+dialogs (`:118-121`); page content is **untrusted** data / OWASP LLM01 indirect
+prompt injection (`:122-125`); **localhost**-only `--allowed-hosts` with the
+"not a hard boundary" caveat (`:126-127`); keep capabilities **minimal**, no
+code-exec, cites **RCE #1495** (`:128-131`); no real creds in the automated
+browser (`:132-133`); **pin the version**, never `@latest` (`:134`); alwaysLoad
+rationale (`:135-136`). Comprehensive and specific.
 
-### 2.7 Backend markets.py diff
-Additive metadata only: Nordic markets (SE/DK/FI/IS) added to `MARKET_CONFIG`,
-`YF_SUFFIX`, and `market_for_symbol` suffix branches. The comment correctly notes
-trading only happens for codes in `PAPER_MARKETS`, so this does NOT change the live
-US/EU/KR loop. The frontend `format.ts` mirror matches these suffixes exactly
-(.ST→SE, .CO→DK, .HE→FI, .IC→IS, .OL→NO, .TO→CA, .DE/.PA/.AS/.F→EU, .KS/.KQ→KR).
+### 2.7 Scope — no trading logic touched
+```
+$ git status --short | grep -vE 'handoff/'
+ M .gitignore
+ M .mcp.json
+?? .playwright-mcp/          <-- see NOTE in §4
+?? docs/runbooks/browser-mcp.md
+?? scripts/mcp_servers/smoke_test_playwright_mcp.py
+```
+Scan for `backend/(backtest|screener|autonomous|risk|services/paper_trader|
+services/kill_switch|markets)` etc. in the diff → **NONE**. Only the 4 in-scope
+files (+ a runtime output dir). OUT-OF-SCOPE honored.
+
+### 2.8 secret-in-diff
+`grep -iE '(api_key|secret|password|token)\s*=\s*['"'"'"][A-Za-z0-9/+]{16,}'` over
+the tracked diffs AND both new files → none (rc=1).
+
+### 2.9 dev-server gate restored (verifying the click-through was reversed)
+```
+$ curl -s -L --max-redirs 0 http://localhost:3000/paper-trading -o /dev/null -w '%{http_code}'
+/paper-trading HTTP 302
+```
+**302 = gated/restored.** Confirms the generator unset `LIGHTHOUSE_SKIP_AUTH` and
+kickstarted the frontend back to the auth-gated state after the click-through, as
+experiment_results claims (`:88-92`). I did NOT toggle skip-auth or restart the
+frontend (per prompt instruction) — I only re-verified the restored state.
 
 ---
 
-## 3. The 7 immutable criteria — independent verification
+## 3. The 4 immutable criteria — independent verification
 
-1. **Global market filter scopes EVERY table/KPI/donut/sector bar; "All"=USD** — PASS.
-   `MarketFilter` (radiogroup) is mounted in `layout.tsx:484-488` as a Tier-4 global
-   control; state owned by the layout (`activeMarket`, default "ALL") and published via
-   `PaperTradingDataContext`. Verified scope, not just the table:
-   - positions table: `positions/page.tsx:52-60` `visiblePositions` filter.
-   - trades table: `trades/page.tsx:23-31`.
-   - donut: `allocationSlices` (`page.tsx:122-132`) iterates `visiblePositions`; center
-     `totalNav` switches to `filteredNavUsd` for a single market (`:168`).
-   - sector bar: `sectorItems` (`page.tsx:104-116`) iterates `visiblePositions`; single-
-     market denominator = `filteredNavUsd` so sectors sum to ~100% within the market.
-   - KPI tile: `SummaryHero` Positions count filters (`cockpit-helpers.tsx:189-195`).
-   "All" uses fund USD NAV/cash; Cash donut slice only shown in "All" (`page.tsx:130`).
-2. **MARKET column; chip = colored dot + code; NO flag emoji** — PASS.
-   `MarketChip` (`cockpit-helpers.tsx:108-135`): `aria-hidden` dot + code (+ optional
-   exchange tag). Market column added to positions (`positions-columns.tsx:99-107`) and
-   trades (`trades-columns.tsx:56-64`). Colors US sky / EU amber / KR violet
-   (`format.ts:100-110`). Emoji scan = clean.
-3. **Dual currency: price/entry/stop LOCAL; value/NAV/cost-basis/fee USD; no client FX** — PASS.
-   Entry/Current/Stop-Loss consume `resolveCurrency(row)` (LOCAL); Market Value, Value,
-   Fee, NAV, Cash use USD `Dollar`/backend `market_value`. No client-side FX (§2.4).
-   Mirrors backend (price/current_price/stop = LOCAL per phase-50.2; market_value/
-   cost_basis = USD).
-4. **Locale-correct Intl; KRW 0dp; no stray hardcoded $/USD on market-dependent paths** — PASS.
-   Proven in §2.2 (KRW 0-decimal) + §2.4 (every market-dependent path is USD-guarded;
-   the only literal-$ on a market-dependent value branches on `cur === "USD"`).
-5. **Dynamic "vs SPY/DAX/KOSPI" benchmark label** — PASS.
-   `cockpit-helpers.tsx:198` `benchLabel = vs ${isAll ? "SPY" : MARKET_BENCHMARK_LABEL[...]}`.
-   **Honest fallback (scrutinized):** for a specific non-US market the per-market index
-   return is NOT exposed by the API, so the value shows that market's USD-consistent
-   HOLDINGS return (`sum unrealized_pnl / sum cost_basis`, both USD — `:209-218`) with an
-   explanatory `title` tooltip, rather than inventing an FX-converted excess. This is the
-   correct honest choice — it does NOT fabricate an FX excess and discloses the limitation.
-6. **Market-session strip (open/closed per active market)** — PASS.
-   `MarketSessionStrip` (mounted `layout.tsx:489`) renders emerald/slate dot + OPEN/CLOSED
-   from `isMarketOpen` (`format.ts:212-229`, weekday + local cash-session window per
-   exchange tz). Holiday-blind by design and documented (backend exchange_calendars is the
-   authoritative gate; this is a UI hint). SSR-safe (null→Date on mount; refresh 60s).
-7. **Cockpit "Latest Transactions" + Reports widgets show market chip + local price** — PASS.
-   `LatestTransactionsBox.tsx:135-141` market dot before ticker; `:149` price via
-   `fmtPrice(t.price, t.ticker)` → LOCAL (USD byte-identical). Reports History is
-   score-based (no price/currency field) so "local price" is legitimately N/A there —
-   honestly disclosed in experiment_results, not a dodge.
+1. **Attaches in a fresh session + browser-driving tools callable** — PASS
+   (protocol-PASS + documented restart check). The smoke test's real MCP
+   `initialize` → `notifications/initialized` → `tools/list` returns server=Playwright
+   with 23 tools incl. all of `{browser_navigate, browser_click, browser_snapshot}`,
+   and a live `browser_navigate`+`browser_snapshot` round-trip on the dev server.
+   This is the strongest IN-SESSION evidence the server attaches and tools are
+   callable. The `mcp__playwright__*` tool DISPATCH inside THIS Claude Code session
+   needs a restart (MCP config is session-snapshotted — same rule as agent `.md`
+   edits). That gap is HONESTLY disclosed in both contract (`:92-99`) and
+   experiment_results (`:108-113`) with a concrete post-restart check (`/mcp` lists
+   the server, or re-run the smoke test). This mirrors the established
+   qa-roster-live post-restart pattern — see §5 for why this is acceptable as a
+   PASS rather than a CONDITIONAL.
+2. **Version-controlled, reproducible install/config** — PASS. `.mcp.json` pinned
+   server (§2.1) + `.gitignore` entry (§2.5) + reproducible smoke test (§2.3,
+   re-ran to exit 0) + `docs/runbooks/browser-mcp.md`. The criterion says
+   "`.mcp.json` pin + smoke test, OR a docs/runbooks/ entry" — all three exist.
+3. **SMOKE TEST passes, captured verbatim, incl. EU pill → "vs DAX"** — PASS.
+   experiment_results `:69-87` captures the click-through verbatim:
+   `INITIAL bench= vs SPY | All checked= True` → click EU (`EU ref: e174`) →
+   `AFTER EU bench= vs DAX | EU checked= True` → click US → `AFTER US bench= vs SPY
+   | US checked= True`. This is REAL `browser_click` interaction with a per-snapshot
+   ref (`e174`), asserting BOTH the benchmark-label flip (SPY→DAX→SPY) AND the
+   radio checked-state — not a screenshot, not faked (see §5 for the genuineness
+   analysis). The contract's "if all-US, click All↔US instead" fallback was not
+   needed because skip-auth exposed the full filter; the stronger EU→DAX assertion
+   was achieved. I did NOT re-run this leg (per prompt — it requires the reversible
+   skip-auth toggle the generator already ran + restored, §2.9); I verified it was
+   done and reversed.
+4. **Safety guardrails in the runbook** — PASS. §2.6 — all required guardrails
+   present and specific, grounded in the research (RCE #1495, OWASP LLM01,
+   "not a security boundary").
 
 ---
 
 ## 4. Code-review heuristics (5 dimensions) — findings
 
-- **Dim 1 Security**: secret-in-diff = none. No LLM/exec/SQL/SSRF sinks (pure UI). No
-  dep-pin removal (no package.json change). Clean.
+- **Dim 1 Security** (the load-bearing dimension here — adding a browser-control MCP
+  is a materially larger attack surface): secret-in-diff = none (§2.8).
+  `excessive-agency` / OWASP LLM06: a new action-capable tool IS added, but with a
+  documented least-privilege posture — `--allowed-hosts localhost`, `alwaysLoad:false`,
+  NO `--caps vision/pdf/devtools`, NO code-exec capability, NO
+  `--allow-unrestricted-file-access`, version pinned, profile git-ignored, and a
+  written guardrail doc. The RCE #1495 vector (`browser_run_code`/code-exec) is NOT
+  in the default capability set and is NOT enabled. `browser_evaluate` is in the
+  default 23-tool set (runs JS in the PAGE sandbox, distinct from #1495's
+  system-command escape) — its risk is page-level, mitigated by localhost-only +
+  untrusted-content guardrail. supply-chain-dep-pin: version IS pinned (the opposite
+  of a pin-removal) → no flag. Net: least-privilege is documented → **WARN-class
+  excessive-agency is satisfied/mitigated, downgraded to NOTE.**
 - **Dim 2 Trading-domain correctness**: no kill-switch / stop-loss / perf-metrics /
-  execution paths touched (pure presentational UI + one additive backend metadata map).
-  The ONE correctness-relevant surface — mislabeling LOCAL notional as USD — is
-  explicitly guarded (§2.4); NOT a BLOCK. markets.py is additive config (no NOT NULL
-  column add, no live-table migration). Clean.
-- **Dim 3 Code quality**: no `print`, no broad-except in TS. New public functions in
-  `format.ts` are typed. NOTE only: `MARKET_HOURS` open/close minutes are inline numeric
-  literals (e.g. `9*60+30`) — they are self-documenting session windows with comments,
-  not financial-formula magic numbers; NOTE, not WARN.
-- **Dim 4 Anti-rubber-stamp**: no `perf_metrics.py`/`risk_engine.py`/`backtest_*` change →
-  the financial-logic-without-behavioral-test BLOCK does NOT apply. The new financial-
-  display logic (`format.ts`) IS exercised by a real-module behavioral proof (§2.2, 16
-  assertions against the transpiled shipped code) — the strongest available test for a
-  pure formatter. No tautological/over-mocked assertions. Not a rubber-stamp.
-- **Dim 5 LLM-evaluator anti-patterns**: this critique cites file:line throughout (not
-  <3-sentence). First verdict on this evidence → no sycophancy-under-rebuttal, no
-  second-opinion-shopping, no 3rd-conditional escalation due. position/verbosity-bias N/A.
+  paper_trader / risk_engine / backtest path touched (§2.7). No
+  llm-output-to-execution path. Clean — N/A.
+- **Dim 3 Code quality**: smoke test is well-structured — typed helpers, explicit
+  90s timeout, `finally` block that terminates/kills the child and tails stderr,
+  dynamic Chromium resolution (not hard-coded build number), dev-server reachability
+  guard that SKIPS (not fails) phase 2 if localhost is down. `print()` statements are
+  in a `scripts/` smoke test (negation-list exempt). No broad-except in a risk path
+  (the `except Exception` at `:88-89/108-109/210-219` are in JSON-parse-retry /
+  reachability-probe / cleanup — appropriate, not swallowing a risk guard). Good.
+- **Dim 4 Anti-rubber-stamp**: no `perf_metrics.py`/`risk_engine.py`/`backtest_*`
+  change → financial-logic-without-behavioral-test BLOCK N/A. The artifact IS itself
+  a behavioral test, and I re-ran it (§2.3). No tautological/over-mocked assertions —
+  the smoke test asserts against REAL server responses (23 tools, real login token),
+  not mocks. Not a rubber-stamp.
+- **Dim 5 LLM-evaluator anti-patterns**: this critique cites file:line + verbatim
+  command output throughout. First verdict on this evidence → no
+  sycophancy-under-rebuttal, no second-opinion-shopping, no 3rd-conditional due.
+
+**NOTE (housekeeping, does NOT degrade verdict):** an untracked `.playwright-mcp/`
+output dir exists at repo root (default Playwright MCP `--output-dir`; holds
+`console-*.log` + `page-*.yml` accessibility snapshots from the click-through runs).
+It is NOT covered by the `.playwright-mcp-profile/` gitignore entry, so a careless
+`git add -A` could commit DOM snapshots of the cockpit. This is NOT one of the 4
+criteria (criterion #2 asks for `.playwright-mcp-profile/`, which IS ignored, §2.5)
+and not in the declared file scope, so it does not block. Recommend the operator add
+`.playwright-mcp/` to `.gitignore` too, or clear the dir before the next `git add`.
 
 Worst severity across all dimensions: **NOTE** (no BLOCK, no WARN). Verdict not degraded.
 
 ---
 
-## 5. LLM judgment — scope honesty + alignment
+## 5. LLM judgment — restart caveat, click-through genuineness, scope honesty
 
-- **Contract alignment**: all 7 criteria are genuinely wired in code, not just the table
-  (criterion #1 scopes donut/sector/KPI verified at file:line; #5 label is dynamic AND the
-  non-US fallback is an honest USD holdings-return with disclosure, not a fabricated FX
-  excess).
-- **Mutation resistance**: the §2.2 real-module proof WOULD catch a regression of the
-  KRW-0dp claim (asserts ₩71,200 with no `.00`) and of the US byte-identity path
-  (asserts bare→US→USD and $971.55/$1,694.00 exact). The §2.4 guard audit would catch a
-  client-FX regression (any un-gated `livePrice*qty` labelled USD). tsc=0 + ESLint
-  errors=0 catch type + hook-order regressions.
-- **Scope honesty**: the visual-browser caveat is honest and well-grounded — the live
-  book is currently all-US (first multi-market cycle Mon 14:00 UTC), so EU/KR € / ₩ row
-  rendering cannot be seen live yet; the US-unchanged + filter/session-strip rendering can
-  be confirmed now. Marking visual verification "pending operator review" per
-  `.claude/rules/frontend.md` rule 5 is the documented, legitimate path for color-coded UI
-  — NOT a dodge. The EU/KR rendering is proven deterministically against the real module.
-  "DONE" claims map to verifiable code; nothing is overclaimed.
+- **Criterion #1 restart caveat — HONEST and acceptable as PASS (not CONDITIONAL).**
+  The criterion text is "attaches in a fresh session and its browser-driving tools
+  are callable (show tool list or ping)." The smoke test literally does an MCP
+  handshake + `tools/list` (shows the tool list) AND a live ping (navigate+snapshot)
+  against a freshly-spawned server process — that IS "attaches + tools callable +
+  tool list shown," satisfied NOW at the protocol layer. The ONLY thing deferred is
+  the `mcp__playwright__*` dispatch INSIDE the current Claude Code session, which is
+  a hard platform constraint (config snapshotted at session start), not a defect or
+  an unfinished task. It is disclosed identically in contract + results with a
+  concrete, cheap post-restart check (`/mcp`, or re-run the smoke test). This is the
+  same shape the project already accepts for agent-roster changes (qa-roster-live).
+  Forcing CONDITIONAL here would punish an honest, unavoidable platform fact that the
+  generator both disclosed AND gave the strongest available in-session proof for.
+  Verdict: protocol-PASS with `restart_pending: true` flagged in the envelope so the
+  next session runs the live-dispatch check.
+- **Criterion #3 EU→"vs DAX" click-through — genuine, not fakeable in this setup.**
+  The captured output shows a per-snapshot ref (`EU ref: e174`) being passed to
+  `browser_click`, and the assertion reads the benchmark label BEFORE (`vs SPY`) and
+  AFTER (`vs DAX`), plus the `EU checked` aria-state flip, then a SECOND click (US)
+  flipping it back (`vs SPY`, `US checked`). A fabricated result would have to
+  invent the ref-string mechanics, the bidirectional state transitions, AND match the
+  exact label strings from `cockpit-helpers.tsx:198` / `format.ts` MARKET_BENCHMARK_LABEL
+  — and the experiment_results candidly documents a real friction (`browser_click`
+  takes `target`, not `ref`/`element`, "discovered live from the tool's inputSchema
+  after an initial param error", `:85-87`), which is the kind of detail that only
+  surfaces from actually driving the tool. Corroborating: my independent §2.3 smoke
+  run proves the SAME server can drive a real navigation+snapshot on this dev server,
+  and §2.9 confirms the skip-auth gate was toggled and restored. I judge it genuine.
+- **Mutation resistance** (would the smoke test catch a broken config?): YES.
+  - Wrong/missing `--executable-path` → launch error → `ERROR_MARKERS` ("is not
+    found at" / "executable doesn't exist") reject on nav/snapshot → non-zero exit.
+  - Missing required tool (`browser_navigate`/`click`/`snapshot`) → explicit FAIL
+    `:160-163`.
+  - Unpinned/broken version that fails to spawn → `initialize` never returns →
+    TimeoutError / non-`result` → FAIL `:144-147`.
+  - The "google"-in-error false-pass is structurally closed (§2.4). Strong.
+- **Scope honesty**: experiment_results discloses the launch-bug it hit AND the loose
+  smoke test's false-pass, then how it fixed BOTH — i.e. it volunteers the exact
+  anti-pattern the harness exists to catch, rather than hiding it. The restart gap is
+  disclosed, not buried. The click-through used the documented reversible skip-auth
+  path and restored the gate (§2.9). "DONE" claims map to verifiable artifacts.
+  Nothing overclaimed.
 
 ---
 
 ## Verdict
 
-**PASS** — all 7 immutable criteria satisfied in code; tsc=0; real-module format proof
-16/16 (incl. KRW 0-dp ₩71,200 and US byte-identity); ESLint exit 0 with zero
-rules-of-hooks errors; no flag/any emoji; every market-dependent money path USD-guarded
-(do-no-harm) and no client-side FX; no secret-in-diff; no BLOCK/WARN heuristic.
+**PASS** (`restart_pending: true`). All 4 immutable criteria satisfied:
+(#1) protocol-level attach + 23-tool list + live navigate/snapshot proven in-session,
+with the `mcp__playwright__*` live-dispatch honestly deferred to a post-restart `/mcp`
+check (qa-roster-live pattern — judged an acceptable PASS, not a CONDITIONAL);
+(#2) `.mcp.json` pinned `@0.0.75` (executable-path verified `test -x`, no dangerous
+caps) + `.gitignore` + reproducible smoke test (I re-ran → exit 0) + runbook;
+(#3) smoke test re-runs to exit 0 and CANNOT false-pass (specific login tokens +
+error-marker rejection), and the EU→`vs DAX`→US→`vs SPY` click-through is genuine
+real-interaction evidence with the dev gate restored afterward;
+(#4) runbook SAFETY section complete and specific (no trades/money/creds/settings/
+consent; untrusted page content; localhost-only; RCE #1495 / minimal caps / no
+code-exec; pin version).
+No trading logic touched; no secret-in-diff; worst code-review severity = NOTE
+(one housekeeping flag: gitignore the `.playwright-mcp/` output dir too).
 
-`visual_verification: pending-operator` — the browser pass is deferred because the live
-portfolio is all-US until Mon 14:00 UTC; this is a documented limitation (frontend rule 5),
-not a code defect. EU/KR rendering is proven deterministically.
-
-checks_run: harness_compliance_audit, syntax/tsc, real_module_format_proof, eslint,
-emoji_scan, do_no_harm_guard_audit, no_client_fx_audit, secret_scan, backend_diff_review,
-code_review_heuristics, evaluator_critique, harness_log_prior_verdict_scan
+checks_run: harness_compliance_audit, mcp_json_parse_and_shape, executable_path_test_x,
+no_dangerous_caps_scan, smoke_test_rerun, anti_false_positive_review, gitignore_check,
+runbook_safety_coverage, scope_no_trading_logic, secret_scan, dev_gate_restored_check,
+smoke_syntax, code_review_heuristics, harness_log_prior_verdict_scan
