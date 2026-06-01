@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `6d1292f4` | phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in... |
 | 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
 | 2026-06-01 | `bcb4c0ce` | phase-51.4: Cron repairs -- (a) autoresearch launchd job fails every night (ModuleNotFoundError: ... |
 | 2026-06-01 | `7513ff9f` | phase-51.3: Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week wi... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-30 | `ffdb8816` | phase-50.2: PLAN -- multi-currency accounting contract + research gate |
 | 2026-05-30 | `5291f772` | phase-50.1: FX data layer -- backend/services/fx_rates.py + historical_fx_rates BQ table sourced ... |
 | 2026-05-30 | `d31069a0` | phase-50.1: GENERATE -- FX data layer (live-verified) |
-| 2026-05-30 | `238bc024` | phase-50.1: PLAN -- FX data layer contract + research gate |
 
 ---
 
+### v6.28.45 — phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5,... (2026-06-01)
+
+- **phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in...**
 ### v6.28.44 — phase-52.1: Measure the top research-recommended PRICE-BASED alpha-si... (2026-06-01)
 
 - **phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base...**
