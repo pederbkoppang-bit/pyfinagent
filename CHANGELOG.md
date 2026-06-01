@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `8d5fa076` | feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line |
 | 2026-06-01 | `a7750d44` | fix(cron): phase-54.1 cross-layer cron audit + paper_markets parse fix (operator-away) |
 | 2026-06-01 | `ae13ddcf` | Merge remote-tracking branch 'origin/main' |
 | 2026-06-01 | `a560b639` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-31 | `3377d826` | phase-50.5: Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in t... |
 | 2026-05-30 | `113fec3e` | docs(handoff): session-final summary -- 7 cycles shipped, phase-50 4/6 + 50.5 planned |
 | 2026-05-30 | `4290c82d` | phase-50.5: PLAN (GENERATE pending) -- data-quality gate + multi-market backtest |
-| 2026-05-30 | `6865115b` | phase-50.4: Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars... |
 
 ---
 
+### v6.33.0 — feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/... (2026-06-01)
+
+- **feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line**
 ### v6.32.2 — fix(cron): phase-54.1 cross-layer cron audit + paper_markets parse fi... (2026-06-01)
 
 - **fix(cron): phase-54.1 cross-layer cron audit + paper_markets parse fix (operator-away)**
