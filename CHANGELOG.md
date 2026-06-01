@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
 | 2026-06-01 | `ac93f67f` | feat(paper-trading): multi-market UX -- currency-aware cockpit + market filter (US/EU/KR + Nordic-re |
 | 2026-06-01 | `f828a2dc` | docs(handoff): session conclusion -- element-3 MEASURED (live engine +14.28% alpha, Sharpe 5.39); al |
 | 2026-06-01 | `0aa5c851` | phase-52.4: Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Martens 2011) -- the higher-evi... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-30 | `ccf8a889` | phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{t... |
 | 2026-05-30 | `8e8897ed` | phase-50.3: GENERATE -- international universe + suffix mapper + routing |
 | 2026-05-30 | `7faddf47` | phase-50.3: PLAN -- international universe + suffix mapper + routing |
-| 2026-05-30 | `edecc9c0` | phase-50.2: Multi-currency portfolio accounting -- paper_trader.py reads base_currency + per-posi... |
 
 ---
 
