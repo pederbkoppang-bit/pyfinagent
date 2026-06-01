@@ -81,9 +81,14 @@ def _default_fetch_counts() -> dict[str, int]:
         from backend.db.bigquery_client import BigQueryClient
         project = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
         dataset = os.getenv("PYFINAGENT_DATASET", "pyfinagent_data")
-        client = BigQueryClient()
+        # phase-51.4: BigQueryClient requires settings (was called with no args ->
+        # TypeError fail-open -> empty {}); and there is no generic .query() (only
+        # query_latest_signal_state) -> use the underlying google client. The
+        # __TABLES__ scan is a FREE metadata read (bytes_billed=0).
+        from backend.config.settings import get_settings
+        client = BigQueryClient(get_settings())
         sql = f"SELECT table_id, row_count FROM `{project}.{dataset}.__TABLES__`"
-        rows = client.query(sql)
+        rows = client.client.query(sql).result(timeout=30)
         return {r["table_id"]: int(r["row_count"]) for r in rows}
     except Exception as exc:
         logger.warning("data_integrity: __TABLES__ fetch fail-open: %r", exc)

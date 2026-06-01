@@ -1,8 +1,101 @@
-# phase-51.3 EVALUATE -- 2026-06-01
+# phase-51.4 EVALUATE -- 2026-06-01
 
-**Q/A agent (Layer-3, merged qa-evaluator + harness-verifier). Single pass, first verdict for 51.3.**
+**Q/A agent (Layer-3, merged qa-evaluator + harness-verifier). Single independent pass, first verdict for 51.4.**
 
-Step: 51.3 -- weekend/holiday Slack digest trading-day guard. Slack-bot only.
+Step: 51.4 -- cron repairs (autoresearch graceful-skip + weekly_data_integrity BQ wiring). Isolated maintenance jobs.
+
+## FINAL VERDICT: PASS
+
+## 1. Harness-compliance audit (5-item, FIRST)
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| researcher before contract | PASS | research_brief.md `# research_brief -- phase-51.4`; gate_passed=true, 6 sources read in full, 16 URLs, recency scan true, 8 internal + 2 LIVE probes. contract.md cites it. |
+| contract before GENERATE; 4 criteria VERBATIM | PASS | contract.md success_criteria block is character-identical to masterplan 51.4 verification.success_criteria (diffed). |
+| experiment_results + live_check present | PASS | both exist (experiment_results.md 3759B, live_check_51.4.md 4440B). |
+| log-last (no 51.4 entry; masterplan pending) | PASS | grep harness_log for `phase=51.4` -> 0 hits; masterplan 51.4 status=pending, retry_count=0. |
+| first verdict, no shopping, 0 prior CONDITIONALs | PASS | 0 prior 51.4 entries in harness_log -> this is the first verdict, no second-opinion-shopping risk. |
+
+5/5 harness-compliance items PASS.
+
+---
+
+## 2. Deterministic checks (reproduced verbatim)
+
+| Check | Result |
+|-------|--------|
+| `pytest test_phase_51_4_crons.py -q` | **4 passed in 0.73s** |
+| `ast.parse(weekly_data_integrity.py, run_memo.py)` | **AST OK** |
+| `test -f live_check_51.4.md` | **present** |
+| `git diff --stat` scope | code = weekly_data_integrity.py (+9) + run_memo.py (+35) + new test ONLY; rest are handoff artifacts (contract/results/critique/research_brief), hook-appended audit JSONL, researcher memory. No trading-path files. |
+
+### Independent live reproduction (did NOT trust Main's proofs)
+
+**Bug B** -- ran `_default_fetch_counts()` myself:
+```
+populated: True  n= 9
+sample: [('alt_13f_holdings', 110), ('alt_congress_trades', 7262), ('alt_finra_short_volume', 0)]
+all_int_values: True
+```
+Real per-table row counts from the FREE __TABLES__ read. Was `{}` before. CONFIRMED.
+
+**Bug A** -- ran `ANTHROPIC_API_KEY=qa-dummy python scripts/autoresearch/run_memo.py --topic-index 0` myself:
+```
+exit=0
+autoresearch skipped: embedding provider 'huggingface' needs 'langchain_huggingface', which is not installed. Enable with: pip install langchain-huggingface sentence-transformers
+ERROR files: before=32 after=32  DELTA=0
+```
+Clean exit-0 skip, actionable message on stderr, ZERO new ERROR file. CONFIRMED.
+
+## 3. The 4 IMMUTABLE criteria
+
+| # | Criterion | Verdict | Evidence (file:line) |
+|---|-----------|---------|----------------------|
+| 1 | weekly_data_integrity constructs `BigQueryClient(get_settings())` + real __TABLES__ row-count query -> populated dict (not {}) | **PASS** | `weekly_data_integrity.py:89` `BigQueryClient(get_settings())`, `:91` `client.client.query(sql).result(timeout=30)`, `:92` dict comprehension. My live run -> n=9 real counts. |
+| 2 | autoresearch succeeds OR explicitly disabled/owner-gated w/ recorded decision -- must STOP silently failing | **PASS** | `run_memo.py:194-197` preflight -> exit 0 clean skip; my live run -> ERROR-delta 0. Decision recorded in `live_check_51.4.md:37-42` (graceful-skip, NOT pip, NOT feature-removal; operator enable path recorded). Stops the exit-1 + ERROR-file spam = legitimate satisfaction of "STOP silently failing". |
+| 3 | no change to the working trading path | **PASS** | diff name-only grep for `paper_trad\|risk_engine\|kill_switch\|backtest\|autonomous_harness\|backend/autoresearch/\|rotation` -> NONE. `run_memo.py` (literature memo) is a DIFFERENT system from the `backend/autoresearch/` rotation package -- confirmed (rotation pkg not in diff). |
+| 4 | live_check records the real-count proof + autoresearch decision/outcome | **PASS** | `live_check_51.4.md` records both: Bug B 9-table dict (:7-15) + Bug A exit-0/ERROR-delta-0 (:17-26) + explicit recorded decision (:37-42). |
+
+4/4 IMMUTABLE criteria PASS.
+
+## 4. Adversarial judgment
+
+**Bug B (`weekly_data_integrity.py:78-95`).**
+- `BigQueryClient(get_settings())` -- settings PASSED (was `BigQueryClient()` no-args -> TypeError). `:88-89`. PASS.
+- `client.client.query(sql).result(timeout=30)` -- reaches the REAL `google.cloud.bigquery.Client` via `.client`, NOT the nonexistent generic `.query()`. `:91`. PASS.
+- Fail-open try/except RETAINED (`:93-95` `except Exception -> logger.warning + return {}`). A BQ error -> {} as before, no crash. PASS.
+- Populated dict is REAL: my independent run returned n=9 with real ints (`alt_congress_trades: 7262`). PASS.
+
+**Bug A (`run_memo.py:131-159` preflight + `:194-197` call site).**
+- Uses `importlib.util.find_spec(module)` (`:140`), NOT an import that would itself crash -- find_spec returns None for absent modules instead of raising. PASS.
+- Returns BEFORE GPTResearcher is built: preflight call at `:194-197` precedes `asyncio.run(_main_async(args))` at `:199`. So `$0`, no LLM call. My live run with a dummy key confirmed exit 0 with no spend. PASS.
+- `main()` returns 0 on skip (`:197 return 0`), propagated via `raise SystemExit(main())` at `:202-203`. Clean exit. PASS.
+- Does NOT pip-install (owner-gated) and does NOT remove the feature: the EMBEDDING config stays in `env_defaults`; preflight self-enables on install (unknown/installed provider -> `return None` -> proceed). Covered by `test_preflight_proceeds_when_backend_present` + `test_preflight_proceeds_for_unknown_provider`. PASS.
+- "Graceful-skip with a recorded decision" legitimately satisfies criterion #2: it STOPS the exit-1 + nightly ERROR-file spam (32 ERROR files, 0 successful memos historically) AND the decision is recorded in live_check_51.4.md:37-42. The criterion's own text allows "explicitly disabled / owner-gated with a recorded decision". PASS.
+
+**Scope (criterion #3).** Code diff = the 2 jobs + new test ONLY. No trading-loop / paper-trading / risk-guard / rotation-package (`backend/autoresearch/`) change (grep -> NONE). `run_memo.py` (literature memo) confirmed distinct from the `backend/autoresearch/` rotation package. PASS.
+
+**ASCII-only (Windows cp1252).** Non-ASCII scan of both changed files -> ASCII scan done, 0 hits. The skip message and logger calls use plain ASCII (`->`, `--`). PASS.
+
+**Test quality (anti-rubber-stamp).**
+- NOT tautological: `test_weekly_data_integrity_returns_populated_dict` asserts exact value `{"signals":100,"prices":50}` (exercises the dict-comprehension + `int()` cast) AND `_FakeBQ.last_args` non-empty (guards the original no-args B1 bug). `:75-76`.
+- NOT over-mocked: `_FakeBQ` fakes only the external BQ boundary (correct); the function-under-test logic runs for real. No `assert mock.called` tautology.
+- Preflight tests cover skip (find_spec->None), proceed-when-present (find_spec->truthy), and proceed-for-unknown-provider. `:24-41`.
+- NOTE (non-degrading): the unit tests cover `_embedding_preflight()` in isolation but do not assert `main()` returns 0 on skip -- my INDEPENDENT live run closed that gap empirically (exit 0 + ERROR-delta 0). Combined deterministic+live evidence satisfies the criterion.
+
+## 5. Code-review heuristics (5 dimensions)
+
+- secret-in-diff: none. command-injection/eval/pickle/yaml.load: none added. print(): none added in non-script code (the skip uses `print(..., file=sys.stderr)` inside a `scripts/` entrypoint -- negation-list exempt).
+- broad-except: all instances are pre-existing fail-open handlers in MAINTENANCE jobs (data-integrity + literature-memo), NOT risk-guard/kill-switch/stop-loss paths. `broad-except-silences-risk-guard` [BLOCK] does NOT apply (negation list: non-risk maintenance plumbing). The Bug-B fail-open is intentional + correct.
+- Trading-domain invariants: kill_switch / paper_trader / perf_metrics / risk_engine all 0 files in diff. No invariant touched.
+- financial-logic-without-behavioral-test: N/A (no perf/risk/backtest math changed); new behavior IS test-covered (4 tests).
+- Worst severity hit: NOTE (non-degrading). No BLOCK, no WARN.
+
+## Conclusion
+
+PASS. Both bugs fixed exactly per the research-pinned diagnosis, independently live-reproduced (Bug B -> real 9-table dict; Bug A -> clean exit-0 skip, ERROR-delta 0, $0). All 4 immutable criteria met. Scope isolated to the 2 maintenance jobs + new test; trading path untouched. 4/4 unit tests pass. ASCII-clean. Fail-open retained. Decision for criterion #2 recorded in live_check. 5/5 harness-compliance items PASS; first verdict, 0 prior CONDITIONALs. No code-review BLOCK/WARN.
+
+checks_run: syntax, verification_command, code_review_heuristics, live_check_reproduction, evaluator_critique, mutation_resistance (independent live re-run of both proofs)
 
 ## FINAL VERDICT: PASS
 

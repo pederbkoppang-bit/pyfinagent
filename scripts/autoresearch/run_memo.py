@@ -128,6 +128,32 @@ async def _main_async(args: argparse.Namespace) -> int:
     return 0
 
 
+def _embedding_preflight() -> str | None:
+    """phase-51.4: return a skip-message if the configured EMBEDDING provider's
+    backing module is NOT importable, else None. gpt-researcher builds
+    Memory(embedding) UNCONDITIONALLY at GPTResearcher init, so a missing backend
+    crashes every run (ModuleNotFoundError -> exit 1 + an ERROR file). Read EMBEDDING
+    AFTER the os.environ.setdefault loop so it matches what the library reads."""
+    import importlib.util
+    provider = os.environ.get("EMBEDDING", "").split(":", 1)[0].strip().lower()
+    module = {
+        "huggingface": "langchain_huggingface",
+        "openai": "langchain_openai",
+        "ollama": "langchain_ollama",
+    }.get(provider)
+    if not module or importlib.util.find_spec(module) is not None:
+        return None  # no known backend to check, or it IS installed -> proceed
+    pip_hint = {
+        "huggingface": "langchain-huggingface sentence-transformers",
+        "openai": "langchain-openai",
+        "ollama": "langchain-ollama",
+    }.get(provider, module)
+    return (
+        f"autoresearch skipped: embedding provider '{provider}' needs '{module}', "
+        f"which is not installed. Enable with: pip install {pip_hint}"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Nightly autoresearch memo runner")
     parser.add_argument("--topic", help="Override topic (freeform question)")
@@ -160,6 +186,15 @@ def main() -> int:
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("ANTHROPIC_API_KEY not set in environment")
+
+    # phase-51.4: graceful preflight (see _embedding_preflight) -- skip cleanly
+    # (exit 0, no ERROR file, $0) if the configured EMBEDDING backend is absent,
+    # instead of crashing every night. NO pip here (owner-gated); self-enables once
+    # the dep is installed.
+    _skip_msg = _embedding_preflight()
+    if _skip_msg is not None:
+        print(_skip_msg, file=sys.stderr)
+        return 0
 
     return asyncio.run(_main_async(args))
 

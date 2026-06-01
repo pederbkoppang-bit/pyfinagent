@@ -13789,13 +13789,13 @@
         {
           "id": "51.4",
           "name": "Cron repairs -- (a) autoresearch launchd job fails every night (ModuleNotFoundError: langchain_huggingface, added phase-39.1 run_memo.py:155 but never installed; has NEVER produced a successful memo); decide owner-gated pip vs provider-swap vs disable. (b) weekly_data_integrity is functionally inert: BigQueryClient() called with no args (TypeError fail-open -> empty {} snapshot) + client.query(sql) is a nonexistent method. Fix BigQueryClient(get_settings()) + a real BQ query path. Isolated maintenance plumbing; trading path untouched.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "49.3",
           "audit_basis": "Diagnostic finding 2 (workflow w1g3l301s): autoresearch ModuleNotFoundError every 02:00 since 2026-05-26 (handoff/autoresearch/*ERROR*); weekly_data_integrity fires Mondays but BigQueryClient() missing required settings arg -> __TABLES__ fetch fail-open -> row_count_snapshot.json is literally {}; client.query() does not exist (only query_latest_signal_state). 'never_run' on the dashboard is partly an in-memory-registry restart artifact.",
           "verification": {
-            "command": "RESEARCH-FIRST then define at GENERATE",
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_51_4_crons.py -q 2>&1 | tail -3 && python -c \"import ast; ast.parse(open('backend/slack_bot/jobs/weekly_data_integrity.py').read()); ast.parse(open('scripts/autoresearch/run_memo.py').read())\" && test -f handoff/current/live_check_51.4.md",
             "success_criteria": [
               "weekly_data_integrity constructs BigQueryClient(get_settings()) and executes a real __TABLES__ row-count query returning a populated dict (not {}), so the data-integrity drift check can actually compute and alert",
               "the autoresearch nightly job either succeeds (produces a non-ERROR memo) OR is explicitly disabled / owner-gated with a recorded decision -- it must STOP silently failing every night",
