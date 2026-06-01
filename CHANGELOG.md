@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
 | 2026-06-01 | `0d4ddcbe` | docs(audit): phase-43.0 Production-Ready DoD audit -- NOT_PRODUCTION_READY (8/14 backend, 0/12 UX) |
 | 2026-06-01 | `4fec7c70` | feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco |
 | 2026-06-01 | `8d5fa076` | feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `7513ff9f` | phase-51.3: Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week wi... |
 | 2026-06-01 | `0ef5e7d0` | phase-51.2: Sector diversification -- the live screener ranks the full S&P 500 by PURE price-mome... |
 | 2026-06-01 | `6f86c5ed` | phase-51.1: SecretStr unwrap -- resurrect 4 dead LLM alpha overlays. news_screen/macro_regime/pea... |
-| 2026-05-31 | `3377d826` | phase-50.5: Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in t... |
 
 ---
 
+### v6.35.0 — feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTE... (2026-06-01)
+
+- **feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative)**
 ### v6.34.0 — feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + pape... (2026-06-01)
 
 - **feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco**
