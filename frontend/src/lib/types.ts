@@ -621,6 +621,13 @@ export interface PaperPortfolio {
    * compat during rolling deploy.
    */
   sharpe_ratio?: number | null;
+  /**
+   * goal-multimarket-ux: market code + base currency for the portfolio.
+   * Optional/backward-compatible: absent => US/USD (byte-identical legacy path).
+   * NAV/cash/total_nav are always USD base regardless of `base_currency`.
+   */
+  market?: string | null;
+  base_currency?: string | null;
 }
 
 export interface PaperPosition {
@@ -638,6 +645,15 @@ export interface PaperPosition {
   recommendation: string | null;
   risk_judge_position_pct: number | null;
   stop_loss_price: number | null;
+  /**
+   * goal-multimarket-ux: market code (US/EU/KR/...) and base currency, shipped by
+   * the backend (`paper_positions` columns, phase-50.2). Optional/backward-compatible:
+   * absent => derive market from the ticker suffix; currency defaults to USD.
+   * NOTE: `avg_entry_price` / `current_price` / `stop_loss_price` are LOCAL currency;
+   * `cost_basis` / `market_value` are USD.
+   */
+  market?: string | null;
+  base_currency?: string | null;
 }
 
 export interface PaperTrade {
@@ -652,6 +668,13 @@ export interface PaperTrade {
   analysis_id: string | null;
   risk_judge_decision: string | null;
   created_at: string;
+  /**
+   * goal-multimarket-ux: `paper_trades` has no market column, so these are usually
+   * absent and the frontend derives market from the ticker suffix. NOTE: `price` is
+   * LOCAL currency; `total_value` / `transaction_cost` are USD.
+   */
+  market?: string | null;
+  currency?: string | null;
 }
 
 export interface PaperSnapshot {

@@ -18,6 +18,17 @@ import type {
 // (Cycle 77 bugfix: lib's React wrapper renders <number-flow-react>,
 // NOT <number-flow> -- cycle 76 had the wrong element name in the CSS.)
 import { useTrend } from "@/lib/use-trend";
+// goal-multimarket-ux: currency/market metadata (pure module). Dollar is
+// parameterized by currency; MarketChip renders the per-row market.
+import {
+  MARKET_BENCHMARK_LABEL,
+  MARKET_DOT_CLASS,
+  MARKET_EXCHANGE,
+  MARKET_EXCHANGE_SHORT,
+  numberFlowFormat,
+  numberFlowLocale,
+  resolveMarket,
+} from "@/lib/format";
 // phase-75 (2026-05-26): Google-Finance digit-flip animation via
 // @number-flow/react@0.6.0 (researcher ad12953b2b579e884). Cycle-74's
 // background-tint flash was the Bloomberg pattern; the operator wanted
@@ -52,24 +63,74 @@ export function PnlBadge({ value }: { value: number | null | undefined }) {
   );
 }
 
-export function Dollar({ value }: { value: number | null | undefined }) {
+// goal-multimarket-ux: `currency` defaults to USD. When USD, the format object is
+// the EXACT legacy one (minimumFractionDigits:2, default locales) so every existing
+// USD call site is byte-identical. Non-USD uses locale-correct Intl (KRW => 0 dp).
+// Use this for LOCAL per-share values (pass the row's currency); leave the default
+// for USD VALUE/NAV columns.
+export function Dollar({
+  value,
+  currency = "USD",
+}: {
+  value: number | null | undefined;
+  currency?: string;
+}) {
   const trend = useTrend(value);
   if (value == null) return <span className="text-slate-500">—</span>;
+  const cur = (currency || "USD").toUpperCase();
+  const isUsd = cur === "USD";
   return (
     <NumberFlow
       value={value}
-      format={{
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }}
+      format={
+        isUsd
+          ? {
+              style: "currency",
+              currency: "USD",
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }
+          : numberFlowFormat(cur)
+      }
+      locales={isUsd ? undefined : numberFlowLocale(cur)}
       transformTiming={{ duration: 900 }}
       willChange
       aria-live="off"
       data-pyfa-trend={trend}
       className="text-slate-100"
     />
+  );
+}
+
+// goal-multimarket-ux: per-row market indicator. Colored dot (static JIT-safe class)
+// + market code. NO flag emoji; the code conveys the market so color is not the only
+// signal (WCAG). Shared by the positions + trades tables.
+export function MarketChip({
+  market,
+  ticker,
+  showExchange = false,
+}: {
+  market?: string | null;
+  ticker?: string | null;
+  // When true, append the compact exchange tag (e.g. "EU · XETRA"). The full
+  // exchange name is always available via the title tooltip.
+  showExchange?: boolean;
+}) {
+  const m = resolveMarket({ market, ticker });
+  const dot = MARKET_DOT_CLASS[m] ?? "bg-slate-400";
+  const exchange = MARKET_EXCHANGE[m] ?? "";
+  const exShort = MARKET_EXCHANGE_SHORT[m] ?? "";
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 font-mono text-xs text-slate-300"
+      title={exchange || undefined}
+    >
+      <span className={clsx("h-1.5 w-1.5 rounded-full", dot)} aria-hidden="true" />
+      <span>{m}</span>
+      {showExchange && exShort && (
+        <span className="text-[10px] font-normal text-slate-500">· {exShort}</span>
+      )}
+    </span>
   );
 }
 
@@ -109,25 +170,67 @@ export function SummaryHero({
   perf,
   liveNav,
   liveTotalPnlPct,
+  positions = [],
+  activeMarket = "ALL",
 }: {
   status: PaperTradingStatus | null;
   perf: PaperPerformance | null;
   liveNav: number | null;
   liveTotalPnlPct: number | null;
+  // goal-multimarket-ux: market filter context. `positions` is the full set; the
+  // hero filters locally for the Positions count + per-market return.
+  positions?: PaperPosition[];
+  activeMarket?: string;
 }) {
   const navDisplay = liveNav ?? status?.portfolio.nav ?? null;
   const pnlDisplay = liveTotalPnlPct ?? status?.portfolio.pnl_pct ?? null;
   const bench = status?.portfolio.benchmark_return_pct ?? 0;
-  const vsBench = (pnlDisplay ?? 0) - bench;
+
+  const isAll = !activeMarket || activeMarket === "ALL";
+  const filtered = isAll
+    ? positions
+    : positions.filter(
+        (p) => resolveMarket({ market: p.market, ticker: p.ticker }) === activeMarket,
+      );
+  const positionCount = isAll ? (status?.position_count ?? 0) : filtered.length;
+
+  // #5: dynamic benchmark label (All/US -> SPY, EU -> DAX, KR -> KOSPI).
+  const benchLabel = `vs ${isAll ? "SPY" : (MARKET_BENCHMARK_LABEL[activeMarket] ?? "SPY")}`;
+
+  // Benchmark VALUE. ALL/US: fund P&L minus the (vs-SPY) benchmark return. A specific
+  // non-US market: the per-market index return is NOT exposed by the API, so we show
+  // that market's holdings return (USD-consistent: sum unrealized_pnl / sum cost_basis,
+  // both USD) rather than invent an FX-converted excess. Tooltip makes that explicit.
+  let vsValue: number | null;
+  let vsTitle: string | undefined;
+  if (isAll || activeMarket === "US") {
+    vsValue = (pnlDisplay ?? 0) - bench;
+  } else {
+    let pnl = 0;
+    let cost = 0;
+    for (const p of filtered) {
+      pnl += p.unrealized_pnl ?? 0;
+      cost += p.cost_basis ?? 0;
+    }
+    vsValue = cost > 0 ? (pnl / cost) * 100 : null;
+    vsTitle = `${activeMarket} holdings return (USD). Per-market ${
+      MARKET_BENCHMARK_LABEL[activeMarket] ?? "benchmark"
+    } excess is not yet exposed by the API.`;
+  }
+
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <MetricCard label="NAV"><Dollar value={navDisplay} /></MetricCard>
       <MetricCard label="Cash"><Dollar value={status?.portfolio.cash} /></MetricCard>
       <MetricCard label="Total P&L"><PnlBadge value={pnlDisplay} /></MetricCard>
-      <MetricCard label="vs SPY"><PnlBadge value={vsBench} /></MetricCard>
+      <MetricCard label={benchLabel}>
+        <span title={vsTitle}>
+          <PnlBadge value={vsValue} />
+        </span>
+      </MetricCard>
       <MetricCard label="Sharpe"><SharpeValue value={perf?.sharpe_ratio} /></MetricCard>
       <MetricCard label="Positions">
-        <span className="text-slate-100">{status?.position_count ?? 0}</span>
+        <span className="text-slate-100">{positionCount}</span>
       </MetricCard>
     </div>
   );

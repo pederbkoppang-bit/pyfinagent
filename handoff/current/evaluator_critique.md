@@ -1,100 +1,233 @@
-# phase-52.4 EVALUATE -- 2026-06-01
+# Q/A Critique — goal-multimarket-ux (Multi-Market UX: US / EU / KR)
 
-**Q/A verdict: PASS** (merged Layer-3 qa: deterministic-first + LLM judgment + code-review heuristics).
-A rigorous, faithfully-implemented, fairly-compared, honestly-derived REJECT of residual
-momentum IS a PASS of the step. The signal is a faithful Blitz/Gutierrez-Prinsky single-factor
-12-1 residual momentum; the series are aligned; there is no look-ahead; the comparison is fair;
-the REJECT is decisive (resid_mom is measurably WORSE, not under-powered); NO live change.
+**Evaluator:** Q/A (Layer-3 harness MAS, merged qa-evaluator + harness-verifier)
+**Date:** 2026-06-01
+**Verdict:** PASS (visual_verification: pending-operator)
+**Mode:** in-place working-tree read (changes UNCOMMITTED; no worktree, no checkout)
 
-## 1. Harness-compliance audit (5-item, FIRST)
+---
 
-| Item | Status | Evidence |
-|------|--------|----------|
-| researcher BEFORE contract | PASS | `research_brief.md` header `# research_brief -- phase-52.4`; `STATUS: COMPLETE -- gate_passed: true` (line 22); 6 sources read in full incl. Blitz-Huij-Martens 2011 founding (RePEc #6 abstract verbatim) + Hanauer-Windmuller eq-9 via pdfplumber (65pp/121,537 chars, #3) + Chaves single-factor footnote #7. Recency scan present (lines 122-133). contract.md "Research-gate summary (PASSED)" cites researcher `afaa06ced01cfac95` + the 6 sources. |
-| contract BEFORE generate; criteria verbatim | PASS | contract.md "Success criteria (IMMUTABLE -- verbatim from masterplan step 52.4)" lines 16-19 match masterplan 52.4 success_criteria 1-4 word-for-word (verified via json walk). |
-| experiment_results + live_check present | PASS | both exist; `test -f live_check_52.4.md` -> "live_check present". |
-| log-last | PASS | NO `phase=52.4` / `phase-52.4` entry in `handoff/harness_log.md`; masterplan 52.4 status still `pending`. Correct order (log + flip come AFTER this verdict). |
-| first verdict; no prior CONDITIONALs | PASS | no 52.4 in harness_log -> 0 prior CONDITIONALs; this is the first 52.4 verdict. retry_count=0, max_retries=3 -> certified_fallback=false. |
+## 1. Harness-compliance audit (5 items)
 
-## 2. Deterministic checks (reproduced)
+1. **Researcher spawned before contract** — PASS. `research_brief.md` exists,
+   8 sources read in full, 18 URLs, recency scan present (4 findings; the
+   "radiogroup-in-toolbar breaks selection-follows-focus" nuance is load-bearing
+   and is honoured by the standalone-radiogroup `MarketFilter`), `gate_passed: true`.
+   Contract "Research-gate summary" cites it with file:line internal anchors.
+2. **Contract written before GENERATE** — PASS. `contract.md` has step id
+   (`goal-multimarket-ux`), all 7 immutable criteria copied verbatim, a
+   dependency-ordered plan A-D, and a references block.
+3. **experiment_results present** — PASS. Lists what was built (A+B+C), the
+   NEW/MODIFIED file list, verbatim tsc/build/format-proof output, and a
+   per-criterion status table.
+4. **Log-last discipline** — PASS. `grep -i goal-multimarket handoff/harness_log.md`
+   returns only historical phase-5/phase-50 references — NO `goal-multimarket-ux`
+   cycle header. Log NOT yet appended; masterplan has NO such step (it is a /goal
+   step, not a phase id). Correct: log + status come AFTER this PASS.
+5. **No verdict-shopping** — PASS. No prior `goal-multimarket-ux` CONDITIONAL/FAIL
+   in `harness_log.md`. This is a FIRST verdict on the full A+B+C evidence (the
+   prior partial A+B was never adjudicated by Q/A). Not a reversal-on-unchanged-
+   evidence. sycophancy-under-rebuttal / mtime heuristics N/A (no prior cycle).
 
-- **pytest** `backend/tests/test_phase_52_4_residual_momentum.py -q` -> `5 passed in 1.42s` (exit 0). Matches live_check/experiment_results.
-- **`test -f handoff/current/live_check_52.4.md`** -> present.
-- **Gate reproduced from PINNED JSON** (independent re-run of `sharpe_diff_test` on `_residmom_paired_returns.json`, seed=42, n_boot=5000, ppy=12, ci=0.90):
-  `delta=-0.249  p=0.7724  ci=[-0.883, 0.330]  sr_resid=1.082  sr_base=1.332  n=58`
-  JSON-stored: `delta=-0.249 p=0.7724 ci=[-0.883,0.330] verdict=REJECT n_rebalances=59`.
-  -> EXACT match to the live_check verbatim block (Sharpe 1.082 vs 1.332, delta -0.249, p 0.7724, CI [-0.883,+0.330], REJECT). Deterministic + reproducible.
-- **git diff scope:** new replay + new test + pinned JSON + handoff docs + masterplan (52.4 step, still pending). `git diff --stat backend/tools/screener.py` = EMPTY (no screener change in the working tree). No autonomous_loop/flag change.
+---
 
-(Did NOT re-run the slow live-yfinance replay -- it drifts day-to-day; the pinned JSON + logic
-audit is the deterministic path the contract pre-registered for reproducibility.)
+## 2. Deterministic checks (re-run independently — did not trust generator numbers)
 
-## 3. The 4 IMMUTABLE criteria
+### 2.1 TypeScript (binding gate)
+```
+$ cd frontend && node_modules/.bin/tsc --noEmit -p tsconfig.json
+TSC_EXIT=0
+```
+Reproduced independently → **0**. Matches experiment_results.
 
-| # | Criterion (verbatim) | Verdict | Evidence |
-|---|----------------------|---------|----------|
-| 1 | resid momentum (Blitz-Huij-Martens, price-only, regress on market, rank by trailing residual mom) measured ON-vs-OFF vs baseline momentum on S&P 500 via $0 replay, reporting Sharpe/return/turnover | **PASS** | replay table: baseline Sharpe 1.332 / 3.651%mo / 0.564 turnover; resid_mom 1.082 / 1.970% / 0.679. 58 paired rebalances, 2019-start data, W=504d single-factor OLS. Sharpe + return + turnover all reported. |
-| 2 | improvement subjected to SAME Ledoit-Wolf SR-difference gate as 52.3 (paired stationary-bootstrap, a-priori R1 p<0.05 AND R2 delta>=+0.05 & CI_low>0); honest 'not robust' REJECT is valid | **PASS** | `sharpe_diff_test` reused verbatim from analytics.py (52.3): joint-resampled stationary bootstrap, seeded, one-sided H0 SR_a<=SR_b. R1 False (p=0.77), R2 False (delta -0.249, CI straddles 0) -> REJECT, honestly reported. |
-| 3 | NO live engine change; US momentum core untouched | **PASS** | diff = new replay + new test + pinned JSON + docs. screener.py NOT modified (diff --stat empty); no autonomous_loop / momentum_52wh flag flip. Offline $0. |
-| 4 | live_check records ON-vs-OFF + SR-difference stats + cited basis + promote/reject rec | **PASS** | live_check_52.4.md: verbatim table + LW gate stats + Blitz/Chaves cited basis + "Do NOT promote residual momentum (it's worse)" recommendation. |
+### 2.2 Real-module format.ts proof (transpiled the SHIPPED file, then node)
+Transpiled `src/lib/format.ts` standalone (`tsc ... --module esnext --target es2022
+--moduleResolution bundler --skipLibCheck`, TRANSPILE_EXIT=0; the `import type
+{ Format }` was correctly erased so the module loads with NO NumberFlow dependency),
+then imported the emitted `format.js` in node and asserted against the REAL exports:
 
-## 4. Adversarial judgment -- is the REJECT rigorous, or a buggy/under-powered false-fail?
+```
+PASS formatCurrency EUR 243.1            -> "€243.10"
+PASS formatCurrency KRW 71200 (0dp)      -> "₩71,200"      <-- load-bearing: KRW 0-decimal
+PASS formatCurrency USD 971.55           -> "$971.55"
+PASS marketForSymbol SAP.DE              -> "EU"
+PASS marketForSymbol 005930.KS           -> "KR"
+PASS resolveMarket {market:"kr"} wins    -> "KR"
+PASS MARKET_BENCHMARK_LABEL.EU           -> "DAX"
+PASS KRW no-decimal proof (123456.78)    -> "₩123,457"     <-- confirms NOT forcing minFractionDigits
+PASS formatUsd 1694                      -> "$1,694.00"
+PASS formatCurrency null -> dash         -> "—"
+PASS marketForSymbol bare AAPL -> US     -> "US"           <-- do-no-harm: bare ticker => US
+PASS resolveCurrency bare -> USD         -> "USD"          <-- do-no-harm: => USD
+PASS resolveCurrency SAP.DE -> EUR       -> "EUR"
+PASS marketForSymbol EQNR.OL -> NO       -> "NO"
+PASS US Sat closed                       -> false
+PASS unknown currency no-throw (ZZZ)     -> "ZZZ 100.00"   (catch-fallback, never throws in a cell)
+RESULT pass=16 fail=0  NODE_EXIT=0
+```
+The KRW 0-decimal claim is PROVEN against the shipped module (₩71,200 and ₩123,457,
+no `.00`). The do-no-harm US byte-identity path is proven (bare→US→USD).
 
-**4a. Is `resid_mom_signal` a FAITHFUL residual momentum (Blitz/Gutierrez-Prinsky)? -- YES.**
-- Single-factor OLS (residual_momentum_replay.py:49-55): `var_m=mean((m-m̄)^2)`; `beta=mean((s-s̄)(m-m̄))/var_m` = cov/var; `alpha=s̄-beta*m̄`; `eps=s-alpha-beta*m`. Textbook OLS, correct.
-- 12-1 formation (line 56): `form_eps = eps[-(form+skip):-skip]` with form=252, skip=21 -> residuals from t-273d to t-21d, SKIPPING the recent ~21d. This is the canonical 12-1 skip (Gutierrez-Prinsky/Blitz formation t-12..t-2 months).
-- iMOM (line 60): `form_eps.sum() / form_eps.std(ddof=0)` -> Hanauer-Windmuller eq-9 (sum of formation residuals / std of same). Std-normalized. Correct.
-- Direction pinned by tests (5/5 pass): +formation idio -> iMOM>0; -formation -> <0; recent-only spike -> NOT positive (skip + OLS-alpha absorption); too-short -> None; deterministic.
-- NO spurious-underperformance bug: sign correct (rank desc by iMOM = high residual momentum first), slice correct (formation excludes skip), no future data in formation.
+### 2.3 Flag-emoji + emoji scan (the NO-flag-emoji / no-emoji rule)
+```
+grep -rnP '[\x{1F1E6}-\x{1F1FF}]' <12 scope files>                 -> none (rc=1)
+grep -rnP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{1F000}-\x{1F0FF}]' -> none (rc=1)
+```
+NO flag emoji and NO pictograph/dingbat emoji anywhere in the scope. Market is
+conveyed by a colored dot (`aria-hidden`) + the market CODE (WCAG: not colour-alone).
 
-**4b. Are stock + market series ALIGNED? -- YES (the key false-REJECT trap, avoided).**
-residual_momentum_replay.py:113 `df = pd.concat([s_w, m_w], axis=1).dropna()` then `df.iloc[:,0].to_numpy()` / `df.iloc[:,1].to_numpy()` (line 116). The stock return and equal-weight market return are joined on the date index and dropna'd TOGETHER, so the OLS regresses matched (s_i, m_i) pairs -- NOT misaligned series. The min-length guard `len(df) < int(W*0.8)` (line 114) ensures enough overlap. This is exactly the bug the prompt flagged; it is not present.
+### 2.4 Do-no-harm / no-client-FX guard audit
+Every hardcoded `currency:"USD"` and every literal `$` money prefix is inside an
+explicit US byte-identity branch:
+- `cockpit-helpers.tsx:86-95` — `Dollar`: `isUsd ? {currency:"USD", minFrac:2} : numberFlowFormat(cur)`, `locales={isUsd ? undefined : ...}`. USD = EXACT legacy object → byte-identical.
+- `positions-columns.tsx:66-74` — `CurrentPriceCell`: same `isUsd` ternary.
+- `positions-columns.tsx:151-153` (Entry), `:261` (Stop Loss) — `cur === "USD" ? \`$${...}\` : formatCurrency(...)`.
+- `trades-columns.tsx:97-99` (Price) — `cur === "USD" ? \`$${price}\` : formatCurrency(...)`. Price is LOCAL, correctly branched.
+- `trades-columns.tsx:119` (Fee) — hardcoded `$` is CORRECT: a fee/`transaction_cost` is always USD base (per contract #3).
+- `LatestTransactionsBox.tsx:47-49` — `cur === "USD" ? \`$${...}\` : formatCurrency(p, cur)`.
+- `format.ts:169` — hardcoded USD only in the `catch` fallback for an unknown currency code (safety; never throws in a table cell).
 
-**4c. Is the comparison FAIR? -- YES.**
-- Same universe (`closes.columns`), same rebalance dates (`rebal`), same loop for both configs.
-- Both scored by the SAME `basket_fwd_return(basket, closes, t)` (line 124, shared `for name, basket` loop): equal-weight, horizon=21, strictly forward (`s.iloc[t+horizon]`, t+21 > t -> no look-ahead, no overlap with the [t-W,t] signal window).
-- baseline = production `rank_candidates(rows, strategy="momentum")` -- the genuine composite (mom_1m*0.40 + mom_3m*0.35 + mom_6m*0.25, RSI/vol penalties; screener.py:295-308). resid_mom = rank by iMOM. Same pipeline, different signal. Same sample.
-- Min-50-name guards applied symmetrically (baseline line 104, resid_mom line 119).
-- NOTE (not a flaw): baseline uses a 260d feature window, resid_mom uses W=504d. This is INTRINSIC -- the baseline composite needs only ~126d, residual momentum structurally needs 504d beta + 252d formation. Each signal on its natural causal lookback, both scored identically forward. Pre-registered in the contract. Not rigging.
+**No client-side FX** (the would-be correctness BLOCK): every `livePrice * quantity`
+recompute is gated behind `isUs` (`resolveMarket(...) === "US"`):
+- `positions/page.tsx:67-72` `mvUsd`: US → `px * quantity`; non-US → `pos.market_value` (backend USD).
+- `positions-columns.tsx:192-197` and `:202-206` (Market Value accessor + cell): `isUs && livePrice!=null ? livePrice*qty : (row.market_value ?? 0)`.
+- `positions-columns.tsx:217-227` / `:232-242` (P&L%): US recomputes from live price; non-US uses backend `unrealized_pnl_pct` (USD-consistent).
+LOCAL notional is NEVER labelled USD. The donut + sector bar use `mvUsd` (same guard).
 
-**4d. Is the REJECT honest, not under-powered? -- YES, decisively.**
-- n=58 paired rebalances > 52.3's 47 -> MORE power, not less. Not under-powered.
-- delta=-0.249: resid_mom Sharpe 1.082 < baseline 1.332. resid_mom is measurably WORSE, not merely "couldn't prove better."
-- p_one_sided=0.7724 (H0 SR_resid<=SR_base nowhere near rejected -- correct, since resid_mom IS worse). CI [-0.883,+0.330] straddles 0. R1 False, R2 False -> REJECT.
-- a-priori gate reused verbatim from 52.3 (same `sharpe_diff_test`, same R1/R2 rule, seed=42). Not rigged: I reproduced delta/p/CI independently from the pinned JSON; they match the live_check exactly. The economic story (modern-regime decay + long-only no-short-leg + large-cap low-idiosyncratic + single-factor partly recapturing already-rejected factor momentum + higher turnover) is consistent with the WORSE result and with the researcher's pre-registered adversarial prior.
+### 2.5 ESLint (REQUIRED — diff touches frontend/**; catches Rules-of-Hooks which tsc cannot)
+```
+$ cd frontend && npx eslint <12 scope files>
+3 problems (0 errors, 3 warnings)   ESLINT_EXIT=0
+```
+**Exit 0 → gate PASS** (errors-only fail semantics; warnings do not fail).
+`react-hooks/rules-of-hooks` (severity "error" in eslint.config.mjs:34) fired
+ZERO times — no hook-order violation of the phase-23.2.23 class.
+The 3 warnings are all `react-hooks/set-state-in-effect` (a perf advisory, NOT
+an error):
+- `layout.tsx:175` — the active-market "reset to ALL when the market disappears"
+  effect (intentional derived-state sync; the contract calls for this fallback).
+- `layout.tsx:214` — `refresh()` on mount; PRE-EXISTING (phase-44.2), not this diff.
+- `MarketSessionStrip.tsx:26` — `setNow(new Date())` post-mount; this is the
+  DOCUMENTED correct pattern to avoid an SSR hydration mismatch on the OPEN/CLOSED
+  text (the alternative causes the very bug it avoids). Defensible.
 
-**4e. Scope (criterion #3) -- diff = replay + test + pinned JSON ONLY? -- YES.**
-`git diff --stat` = masterplan (52.4 step, pending), audit logs, contract, cycle_block_summary, experiment_results, research_brief. Untracked: residual_momentum_replay.py, test_phase_52_4_residual_momentum.py, _residmom_paired_returns.json, live_check_52.4.md, researcher memory. `git diff --stat backend/tools/screener.py` = EMPTY. NO screener.py / autonomous_loop / live-flag change.
+### 2.6 secret-in-diff
+`git diff -- frontend/ | grep -iE '(api_key|secret|password|token)...'` → none (rc=1).
 
-## 5. Code-review heuristics (5 dimensions; offline ablation diff)
-- Security: no secret-in-diff; no prompt-injection / command-injection (yf.download with literal args; no subprocess/eval/exec); $0 (no LLM call in the replay or test). No findings.
-- Trading-domain: NO execution-path change -> kill-switch / stop-loss / perf-metrics / max-position invariants UNTOUCHED (this is offline measurement, not the live engine). No findings.
-- Code quality: replay is a `scripts/` ablation -> `print()`/`log()` are allowed (negation list). `except Exception: continue` at residual_momentum_replay.py:79 is in the per-ticker download-extraction loop (NOT a risk-guard / execution path) -> NOTE-level at most, acceptable for a download-resilience loop in an ablation script. No type-hint requirement on a script. No findings rise above NOTE.
-- Anti-rubber-stamp: financial-logic change (resid_mom_signal) HAS a behavioral test (5 tests pinning direction + 12-1 skip + determinism). No tautological assertions (tests check `>0`, `<0`, `<=0`, `<`, `is None`, equality of two real calls -- all behavioral). Not over-mocked (no mocks; synthetic data). PASS.
-- LLM-evaluator anti-patterns: first verdict (no prior to flip); evidence cited file:line throughout; not 3rd-CONDITIONAL. No findings.
+### 2.7 Backend markets.py diff
+Additive metadata only: Nordic markets (SE/DK/FI/IS) added to `MARKET_CONFIG`,
+`YF_SUFFIX`, and `market_for_symbol` suffix branches. The comment correctly notes
+trading only happens for codes in `PAPER_MARKETS`, so this does NOT change the live
+US/EU/KR loop. The frontend `format.ts` mirror matches these suffixes exactly
+(.ST→SE, .CO→DK, .HE→FI, .IC→IS, .OL→NO, .TO→CA, .DE/.PA/.AS/.F→EU, .KS/.KQ→KR).
+
+---
+
+## 3. The 7 immutable criteria — independent verification
+
+1. **Global market filter scopes EVERY table/KPI/donut/sector bar; "All"=USD** — PASS.
+   `MarketFilter` (radiogroup) is mounted in `layout.tsx:484-488` as a Tier-4 global
+   control; state owned by the layout (`activeMarket`, default "ALL") and published via
+   `PaperTradingDataContext`. Verified scope, not just the table:
+   - positions table: `positions/page.tsx:52-60` `visiblePositions` filter.
+   - trades table: `trades/page.tsx:23-31`.
+   - donut: `allocationSlices` (`page.tsx:122-132`) iterates `visiblePositions`; center
+     `totalNav` switches to `filteredNavUsd` for a single market (`:168`).
+   - sector bar: `sectorItems` (`page.tsx:104-116`) iterates `visiblePositions`; single-
+     market denominator = `filteredNavUsd` so sectors sum to ~100% within the market.
+   - KPI tile: `SummaryHero` Positions count filters (`cockpit-helpers.tsx:189-195`).
+   "All" uses fund USD NAV/cash; Cash donut slice only shown in "All" (`page.tsx:130`).
+2. **MARKET column; chip = colored dot + code; NO flag emoji** — PASS.
+   `MarketChip` (`cockpit-helpers.tsx:108-135`): `aria-hidden` dot + code (+ optional
+   exchange tag). Market column added to positions (`positions-columns.tsx:99-107`) and
+   trades (`trades-columns.tsx:56-64`). Colors US sky / EU amber / KR violet
+   (`format.ts:100-110`). Emoji scan = clean.
+3. **Dual currency: price/entry/stop LOCAL; value/NAV/cost-basis/fee USD; no client FX** — PASS.
+   Entry/Current/Stop-Loss consume `resolveCurrency(row)` (LOCAL); Market Value, Value,
+   Fee, NAV, Cash use USD `Dollar`/backend `market_value`. No client-side FX (§2.4).
+   Mirrors backend (price/current_price/stop = LOCAL per phase-50.2; market_value/
+   cost_basis = USD).
+4. **Locale-correct Intl; KRW 0dp; no stray hardcoded $/USD on market-dependent paths** — PASS.
+   Proven in §2.2 (KRW 0-decimal) + §2.4 (every market-dependent path is USD-guarded;
+   the only literal-$ on a market-dependent value branches on `cur === "USD"`).
+5. **Dynamic "vs SPY/DAX/KOSPI" benchmark label** — PASS.
+   `cockpit-helpers.tsx:198` `benchLabel = vs ${isAll ? "SPY" : MARKET_BENCHMARK_LABEL[...]}`.
+   **Honest fallback (scrutinized):** for a specific non-US market the per-market index
+   return is NOT exposed by the API, so the value shows that market's USD-consistent
+   HOLDINGS return (`sum unrealized_pnl / sum cost_basis`, both USD — `:209-218`) with an
+   explanatory `title` tooltip, rather than inventing an FX-converted excess. This is the
+   correct honest choice — it does NOT fabricate an FX excess and discloses the limitation.
+6. **Market-session strip (open/closed per active market)** — PASS.
+   `MarketSessionStrip` (mounted `layout.tsx:489`) renders emerald/slate dot + OPEN/CLOSED
+   from `isMarketOpen` (`format.ts:212-229`, weekday + local cash-session window per
+   exchange tz). Holiday-blind by design and documented (backend exchange_calendars is the
+   authoritative gate; this is a UI hint). SSR-safe (null→Date on mount; refresh 60s).
+7. **Cockpit "Latest Transactions" + Reports widgets show market chip + local price** — PASS.
+   `LatestTransactionsBox.tsx:135-141` market dot before ticker; `:149` price via
+   `fmtPrice(t.price, t.ticker)` → LOCAL (USD byte-identical). Reports History is
+   score-based (no price/currency field) so "local price" is legitimately N/A there —
+   honestly disclosed in experiment_results, not a dodge.
+
+---
+
+## 4. Code-review heuristics (5 dimensions) — findings
+
+- **Dim 1 Security**: secret-in-diff = none. No LLM/exec/SQL/SSRF sinks (pure UI). No
+  dep-pin removal (no package.json change). Clean.
+- **Dim 2 Trading-domain correctness**: no kill-switch / stop-loss / perf-metrics /
+  execution paths touched (pure presentational UI + one additive backend metadata map).
+  The ONE correctness-relevant surface — mislabeling LOCAL notional as USD — is
+  explicitly guarded (§2.4); NOT a BLOCK. markets.py is additive config (no NOT NULL
+  column add, no live-table migration). Clean.
+- **Dim 3 Code quality**: no `print`, no broad-except in TS. New public functions in
+  `format.ts` are typed. NOTE only: `MARKET_HOURS` open/close minutes are inline numeric
+  literals (e.g. `9*60+30`) — they are self-documenting session windows with comments,
+  not financial-formula magic numbers; NOTE, not WARN.
+- **Dim 4 Anti-rubber-stamp**: no `perf_metrics.py`/`risk_engine.py`/`backtest_*` change →
+  the financial-logic-without-behavioral-test BLOCK does NOT apply. The new financial-
+  display logic (`format.ts`) IS exercised by a real-module behavioral proof (§2.2, 16
+  assertions against the transpiled shipped code) — the strongest available test for a
+  pure formatter. No tautological/over-mocked assertions. Not a rubber-stamp.
+- **Dim 5 LLM-evaluator anti-patterns**: this critique cites file:line throughout (not
+  <3-sentence). First verdict on this evidence → no sycophancy-under-rebuttal, no
+  second-opinion-shopping, no 3rd-conditional escalation due. position/verbosity-bias N/A.
+
+Worst severity across all dimensions: **NOTE** (no BLOCK, no WARN). Verdict not degraded.
+
+---
+
+## 5. LLM judgment — scope honesty + alignment
+
+- **Contract alignment**: all 7 criteria are genuinely wired in code, not just the table
+  (criterion #1 scopes donut/sector/KPI verified at file:line; #5 label is dynamic AND the
+  non-US fallback is an honest USD holdings-return with disclosure, not a fabricated FX
+  excess).
+- **Mutation resistance**: the §2.2 real-module proof WOULD catch a regression of the
+  KRW-0dp claim (asserts ₩71,200 with no `.00`) and of the US byte-identity path
+  (asserts bare→US→USD and $971.55/$1,694.00 exact). The §2.4 guard audit would catch a
+  client-FX regression (any un-gated `livePrice*qty` labelled USD). tsc=0 + ESLint
+  errors=0 catch type + hook-order regressions.
+- **Scope honesty**: the visual-browser caveat is honest and well-grounded — the live
+  book is currently all-US (first multi-market cycle Mon 14:00 UTC), so EU/KR € / ₩ row
+  rendering cannot be seen live yet; the US-unchanged + filter/session-strip rendering can
+  be confirmed now. Marking visual verification "pending operator review" per
+  `.claude/rules/frontend.md` rule 5 is the documented, legitimate path for color-coded UI
+  — NOT a dodge. The EU/KR rendering is proven deterministically against the real module.
+  "DONE" claims map to verifiable code; nothing is overclaimed.
+
+---
 
 ## Verdict
 
-**PASS.** A rigorous REJECT. resid_mom_signal is a faithful single-factor Blitz/Gutierrez-Prinsky
-12-1 residual momentum (correct OLS cov/var beta, alpha, residuals; 12-1 formation slice skipping
-the recent month; std-normalized iMOM); the stock+market returns are aligned via concat+dropna (the
-false-REJECT trap is avoided); there is no look-ahead (causal [t-W,t] signal, strictly-forward [t,t+21]
-scoring); the comparison is fair (same universe/dates/forward-scoring; production baseline vs iMOM
-ranking; symmetric guards); and the REJECT is honest and DECISIVE (n=58 > 52.3's 47 -> not under-powered;
-delta=-0.249 resid_mom WORSE; p=0.77; CI [-0.883,+0.330] straddles 0; R1+R2 both False). The a-priori
-Ledoit-Wolf gate is the 52.3 `sharpe_diff_test` reused verbatim, seeded/deterministic, and reproduced
-independently from the pinned JSON. NO live engine change (diff = new replay + new test + pinned JSON
-+ docs; screener.py/autonomous_loop/flag UNTOUCHED). All 4 immutable criteria met. The cited
-price-based alpha-signal search is honestly exhausted; the +20% momentum engine stands.
+**PASS** — all 7 immutable criteria satisfied in code; tsc=0; real-module format proof
+16/16 (incl. KRW 0-dp ₩71,200 and US byte-identity); ESLint exit 0 with zero
+rules-of-hooks errors; no flag/any emoji; every market-dependent money path USD-guarded
+(do-no-harm) and no client-side FX; no secret-in-diff; no BLOCK/WARN heuristic.
 
-```json
-{
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "Rigorous REJECT of residual momentum = PASS of the step. resid_mom_signal is a faithful single-factor Blitz/Gutierrez-Prinsky 12-1 residual momentum (correct cov/var OLS beta+alpha+residuals at residual_momentum_replay.py:49-55, 12-1 formation slice eps[-(form+skip):-skip] at :56, std-normalized iMOM at :60; direction+skip pinned by 5/5 passing tests). Stock+market series ALIGNED via pd.concat(...).dropna() at :113 (the false-REJECT trap avoided). NO look-ahead: causal [t-W,t] signal, strictly-forward [t,t+21] basket_fwd_return scoring. Comparison FAIR: same universe/rebalance-dates/forward-scoring, production rank_candidates(strategy='momentum') baseline vs iMOM ranking, symmetric min-50 guards. REJECT is HONEST+DECISIVE: n=58 (>52.3's 47, not under-powered), delta=-0.249 (resid_mom WORSE: Sharpe 1.082 vs 1.332), p_one_sided=0.7724, 90% CI [-0.883,+0.330] straddles 0 -> R1 False AND R2 False -> REJECT. Gate = 52.3 sharpe_diff_test reused verbatim (seeded, joint-resampled stationary bootstrap), reproduced independently from pinned JSON (delta/p/CI EXACT match to live_check). All 4 immutable criteria met. NO live change (diff=new replay+new test+pinned JSON+docs; screener.py diff --stat EMPTY; no autonomous_loop/flag flip). Harness 5-item audit clean (researcher gate_passed=true 6 sources before contract; criteria verbatim; results+live_check present; log-last respected; first verdict 0 prior CONDITIONALs).",
-  "violated_criteria": [],
-  "violation_details": [],
-  "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "syntax", "pytest_verification_command", "gate_reproduction_from_pinned_json", "git_diff_scope", "signal_faithfulness_audit", "series_alignment_check", "look_ahead_check", "fair_comparison_check", "power_and_honesty_check", "code_review_heuristics"]
-}
-```
+`visual_verification: pending-operator` — the browser pass is deferred because the live
+portfolio is all-US until Mon 14:00 UTC; this is a documented limitation (frontend rule 5),
+not a code defect. EU/KR rendering is proven deterministically.
+
+checks_run: harness_compliance_audit, syntax/tsc, real_module_format_proof, eslint,
+emoji_scan, do_no_harm_guard_audit, no_client_fx_audit, secret_scan, backend_diff_review,
+code_review_heuristics, evaluator_critique, harness_log_prior_verdict_scan

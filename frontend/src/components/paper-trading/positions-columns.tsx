@@ -13,7 +13,17 @@ import type { PaperPosition } from "@/lib/types";
 import { LiveBadge } from "@/components/LiveBadge";
 import type { LivePriceEntry, TickerMeta } from "@/lib/paper-trading-context";
 import { bandFromAgeSec } from "@/lib/paper-trading-utils";
-import { Dollar, PnlBadge } from "./cockpit-helpers";
+import { Dollar, MarketChip, PnlBadge } from "./cockpit-helpers";
+// goal-multimarket-ux: per-share ENTRY/CURRENT/STOP are LOCAL currency; MARKET-VALUE
+// and P&L% stay USD/backend (no client-side FX). resolveMarket==='US' is both the
+// do-no-harm guard (byte-identical) AND the no-FX guard (don't mix local*qty with USD).
+import {
+  formatCurrency,
+  numberFlowFormat,
+  numberFlowLocale,
+  resolveCurrency,
+  resolveMarket,
+} from "@/lib/format";
 // phase-76 (2026-05-26): trend tracker for the data-pyfa-trend host
 // attribute. globals.css targets number-flow-react[data-pyfa-trend="up"]
 // ::part(digit) for color tint on changing digits. (Cycle 77 bugfix:
@@ -30,12 +40,16 @@ function CurrentPriceCell({
   shown,
   band,
   ageSec,
+  currency = "USD",
 }: {
   shown: number | null | undefined;
   band: ReturnType<typeof bandFromAgeSec>;
   ageSec: number | null;
+  currency?: string;
 }) {
   const trend = useTrend(shown);
+  const cur = (currency || "USD").toUpperCase();
+  const isUsd = cur === "USD";
   return (
     <span
       aria-live="off"
@@ -47,12 +61,17 @@ function CurrentPriceCell({
       ) : (
         <NumberFlow
           value={shown}
-          format={{
-            style: "currency",
-            currency: "USD",
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          }}
+          format={
+            isUsd
+              ? {
+                  style: "currency",
+                  currency: "USD",
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }
+              : numberFlowFormat(cur)
+          }
+          locales={isUsd ? undefined : numberFlowLocale(cur)}
           transformTiming={{ duration: 900 }}
           willChange
           data-pyfa-trend={trend}
@@ -74,6 +93,15 @@ export function positionsColumns(
       header: "Ticker",
       cell: ({ row }) => (
         <span className="font-mono font-semibold text-slate-100">{row.original.ticker}</span>
+      ),
+      meta: { align: "left" },
+    },
+    {
+      id: "market",
+      accessorFn: (row) => resolveMarket({ market: row.market, ticker: row.ticker }),
+      header: "Market",
+      cell: ({ row }) => (
+        <MarketChip market={row.original.market} ticker={row.original.ticker} showExchange />
       ),
       meta: { align: "left" },
     },
@@ -112,9 +140,20 @@ export function positionsColumns(
       id: "entry",
       accessorKey: "avg_entry_price",
       header: "Entry",
-      cell: ({ row }) => (
-        <span className="text-slate-100">${row.original.avg_entry_price.toFixed(2)}</span>
-      ),
+      cell: ({ row }) => {
+        const cur = resolveCurrency({
+          baseCurrency: row.original.base_currency,
+          market: row.original.market,
+          ticker: row.original.ticker,
+        });
+        return (
+          <span className="text-slate-100">
+            {cur === "USD"
+              ? `$${row.original.avg_entry_price.toFixed(2)}`
+              : formatCurrency(row.original.avg_entry_price, cur)}
+          </span>
+        );
+      },
       meta: { align: "right", className: "tabular-nums" },
     },
     {
@@ -126,40 +165,63 @@ export function positionsColumns(
         const live = livePrices[pos.ticker];
         const shown = live?.price ?? pos.current_price;
         const band = bandFromAgeSec(live?.age_sec ?? null);
+        // Live price + stored current_price are LOCAL currency (phase-50.2).
+        const cur = resolveCurrency({
+          baseCurrency: pos.base_currency,
+          market: pos.market,
+          ticker: pos.ticker,
+        });
         return (
-          <CurrentPriceCell shown={shown} band={band} ageSec={live?.age_sec ?? null} />
+          <CurrentPriceCell
+            shown={shown}
+            band={band}
+            ageSec={live?.age_sec ?? null}
+            currency={cur}
+          />
         );
       },
       meta: { align: "right", className: "tabular-nums" },
     },
     {
       id: "market_value",
+      // Market value is USD. The live recompute `livePrice * quantity` is LOCAL
+      // notional, so it is ONLY valid for US (local==USD). For non-US fall back to
+      // the backend's USD `market_value` -- never multiply local price by qty and
+      // label it USD (no client-side FX; do-no-harm for US stays exact).
       accessorFn: (row) => {
+        const isUs = resolveMarket({ market: row.market, ticker: row.ticker }) === "US";
         const live = livePrices[row.ticker];
         const livePrice = live?.price;
-        return livePrice != null ? livePrice * row.quantity : (row.market_value ?? 0);
+        return isUs && livePrice != null
+          ? livePrice * row.quantity
+          : (row.market_value ?? 0);
       },
       header: "Market Value",
       cell: ({ row }) => {
         const pos = row.original;
+        const isUs = resolveMarket({ market: pos.market, ticker: pos.ticker }) === "US";
         const live = livePrices[pos.ticker];
         const livePrice = live?.price ?? null;
         const liveMarketValue =
-          livePrice != null ? livePrice * pos.quantity : pos.market_value;
+          isUs && livePrice != null ? livePrice * pos.quantity : pos.market_value;
         return <Dollar value={liveMarketValue} />;
       },
       meta: { align: "right", className: "tabular-nums" },
     },
     {
       id: "pnl",
+      // P&L% mixes a price (local) against cost_basis (USD); the live recompute is
+      // only currency-consistent for US. Non-US uses the backend's USD-consistent
+      // unrealized_pnl_pct (no client-side FX).
       accessorFn: (row) => {
+        const isUs = resolveMarket({ market: row.market, ticker: row.ticker }) === "US";
         const live = livePrices[row.ticker];
         const livePrice = live?.price ?? null;
         const liveCostBasis =
           row.cost_basis != null && row.cost_basis > 0
             ? row.cost_basis
             : row.avg_entry_price * row.quantity;
-        if (livePrice != null && liveCostBasis > 0) {
+        if (isUs && livePrice != null && liveCostBasis > 0) {
           return ((livePrice * row.quantity - liveCostBasis) / liveCostBasis) * 100;
         }
         return row.unrealized_pnl_pct ?? 0;
@@ -167,6 +229,7 @@ export function positionsColumns(
       header: "P&L",
       cell: ({ row }) => {
         const pos = row.original;
+        const isUs = resolveMarket({ market: pos.market, ticker: pos.ticker }) === "US";
         const live = livePrices[pos.ticker];
         const livePrice = live?.price ?? null;
         const liveCostBasis =
@@ -174,7 +237,7 @@ export function positionsColumns(
             ? pos.cost_basis
             : pos.avg_entry_price * pos.quantity;
         const livePnlPct =
-          livePrice != null && liveCostBasis > 0
+          isUs && livePrice != null && liveCostBasis > 0
             ? ((livePrice * pos.quantity - liveCostBasis) / liveCostBasis) * 100
             : pos.unrealized_pnl_pct;
         return <PnlBadge value={livePnlPct} />;
@@ -185,13 +248,20 @@ export function positionsColumns(
       id: "stop_loss",
       accessorKey: "stop_loss_price",
       header: "Stop Loss",
-      cell: ({ row }) => (
-        <span className="text-slate-300">
-          {row.original.stop_loss_price != null
-            ? `$${row.original.stop_loss_price.toFixed(2)}`
-            : "—"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const sl = row.original.stop_loss_price;
+        if (sl == null) return <span className="text-slate-300">—</span>;
+        const cur = resolveCurrency({
+          baseCurrency: row.original.base_currency,
+          market: row.original.market,
+          ticker: row.original.ticker,
+        });
+        return (
+          <span className="text-slate-300">
+            {cur === "USD" ? `$${sl.toFixed(2)}` : formatCurrency(sl, cur)}
+          </span>
+        );
+      },
       meta: { align: "right", className: "tabular-nums" },
     },
     {

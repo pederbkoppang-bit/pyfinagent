@@ -1,237 +1,179 @@
-# research_brief -- phase-52.4: residual momentum (Blitz-Huij-Martens)
+# Research Brief: Multi-Market UX (US/EU/KR positions & trades, global filter, local + USD currency)
 
-**Tier:** complex (operator-invoked full gate floor + feasibility decision + robustness-gate reuse).
-$0 LLM, no live change (OFFLINE measurement only).
-**Date:** 2026-06-01
-**Question:** Measure RESIDUAL / IDIOSYNCRATIC MOMENTUM (Blitz-Huij-Martens 2011) -- the higher-evidenced,
-structurally-DIFFERENT momentum signal -- vs the live total-return momentum baseline, $0 offline, in the
-existing replay (`scripts/ablation/sector_neutral_replay.py`). Residual momentum strips market beta ->
-isolates stock-specific momentum -> Blitz reports ~2x risk-adjusted profit + lower crash risk vs
-total-return momentum. THE CHEAP price levers all failed (rotation/sector-neutral/vol-scaling/52wh-tilt
-REJECTED in 52.3 by Ledoit-Wolf p=0.242). This is the last cited lever with a plausibly LARGER edge.
-If it survives the SAME robustness gate as 52.3 (Ledoit-Wolf SR-difference p<0.05 one-sided + delta>=+0.05
-+ CI_low>0) it becomes the NEW promotable highest earner (element 2); if not, the alpha-signal search is exhausted.
+Tier: MODERATE | Date accessed: 2026-06-01 | Step: multi-market UX cycle
+Feeds: `handoff/current/contract.md` for the multi-market UX cycle.
 
-**THE TWO BINDING DELIVERABLES:**
-1. The EXACT price-only residual-momentum formula + market proxy + regression-window decision.
-2. THE FEASIBILITY DECISION: can a SHORTER regression window (252d/504d) reuse the EXISTING 2021-start
-   data, or is Blitz's 36-month (756d) window load-bearing -> requires a bigger ~2018-start download?
+## Read in full (>=5 required; counts toward the gate) — 8 read
 
----
-
-## STATUS: COMPLETE -- gate_passed: true
-
-**Bottom line:** Faithful price-only spec = single-factor (equal-weight market) residual momentum, W=504d rolling OLS, 12-1 formation (eq-9: sum of formation residuals / std of same). FEASIBILITY: do NOT need Blitz's 36mo -- a 504d window is literature-sanctioned (FRL2025/Lin2020/Chaves: robust to window choice); extend the replay START to 2019-01-01 (one bigger $0 batch download) to restore ~48 rebalances matching 52.3. Reuse `sharpe_diff_test` (52.3) verbatim with the SAME a-priori rule (p<0.05 one-sided + delta>=+0.05 + ci_low>0). Compute is trivial (~70ms for the whole replay's signal). ADVERSARIAL caveat: the ~2x edge is full-sample long-SHORT; on a 2019-2025 LARGE-CAP LONG-ONLY book the edge is likely SMALL (iMOM weakens post-2000; large-caps are low-idiosyncratic; long-only loses the short-leg crash-protection) -> the strict gate likely decides REJECT, in which case the alpha-signal search is exhausted.
-
----
-
-## Internal code inventory (the Explore half -- DONE)
-| File:line | Role | Status for 52.4 |
-|-----------|------|-----------------|
-| `backend/backtest/analytics.py:239-289` `sharpe_diff_test(ret_a, ret_b, periods_per_year=12, n_boot=2000, block=4.0, seed=42, ci=0.90)` | The 52.3 Ledoit-Wolf SR-DIFFERENCE test via Politis-Romano stationary bootstrap. Returns `{delta=SR_a-SR_b, p_one_sided (H0: SR_a<=SR_b), ci_low, ci_high, sr_a, sr_b, se, n, n_boot}`. JOINT resample of (a_i,b_i) rows preserves pairing. n<10 -> degenerate return. | **REUSABLE VERBATIM.** Call `sharpe_diff_test(resid_mom_monthly, baseline_monthly, periods_per_year=12, n_boot=2000)`. SAME a-priori rule as 52.3: p_one_sided<0.05 AND delta>=+0.05 AND ci_low>0. `ret_a`=resid_mom (the challenger), `ret_b`=baseline. Ann via sqrt(12) is baked in (matches replay `ann_sharpe`). |
-| `backend/backtest/analytics.py:125-144` `compute_sharpe(returns, rf=0.04, periods_per_year=252)` | Frequency-aware Lo-2002 Sharpe. | REUSABLE; pass periods_per_year=12 for monthly. But the replay's own `ann_sharpe` (no rf, /std(ddof=0)*sqrt12) is what `sharpe_diff_test._sr` matches -> use `ann_sharpe` for the headline so the test's sr_a/sr_b agree with the printed Sharpes. |
-| `scripts/ablation/sector_neutral_replay.py:101-113` `basket_fwd_return(basket, closes, t_idx, horizon=21)` | Equal-weight realized fwd return of a basket over `horizon` trading days. | **REUSABLE VERBATIM** for scoring the resid_mom basket. Identical inputs to the baseline path -> apples-to-apples. |
-| `scripts/ablation/sector_neutral_replay.py:148-162` `closes` DataFrame build | Batch yfinance download -> `closes` = DataFrame[date x ticker] of adj-close. `closes.index` is the trading-day axis; `pos = {d:i}` maps date->row. | **THE MARKET PROXY LIVES HERE.** Equal-weight market return = `closes.pct_change().mean(axis=1)` (a Series aligned to `closes.index`). For a window `closes.iloc[win_lo:t_idx+1]`, market daily return = `.pct_change().mean(axis=1)`. The replay already has all closes in one frame -> no extra download for the proxy. |
-| `scripts/ablation/sector_neutral_replay.py:177-180` `monthly={config:[]}` machinery | `_all` list of config names -> `monthly`, `spread`, `prev_basket`, `turnover` dicts keyed by config. | **THE EXTENSION POINT.** Add `"resid_mom"` to `_all` (e.g. `_all = list(configs) + ["vol_scaled"] + list(tilt_configs) + ["resid_mom"]`). Then inside the rebalance loop, build the resid_mom basket and append its `basket_fwd_return` to `monthly["resid_mom"]`. |
-| `scripts/ablation/sector_neutral_replay.py:183-228` rebalance loop | For each rebal date: `t_idx=pos[d]`, `win_lo=max(0,t_idx-260)`, builds `rows` (screen rows) for the screener configs, scores baskets. | **win_lo=260 IS THE FEASIBILITY CRUX.** Residual momentum needs a regression window of returns BEFORE the formation window. Current win_lo only goes back 260 trading days (~1yr) from each rebalance -- enough for a 252d beta window IF the formation overlaps, but NOT for Blitz's 756d. The resid_mom path should compute its OWN window directly off `closes` (not the 260-cap `rows`), e.g. `closes.iloc[max(0,t_idx-W):t_idx+1]` for window W. See feasibility decision below. |
-| `scripts/ablation/sector_neutral_replay.py:116-120` `ann_sharpe(monthly)` | `mean/std(ddof default=1... actually np .std ddof=0)*sqrt(12)` on the monthly list, drops None. | REUSABLE for the headline resid_mom Sharpe. (np.array().std() defaults ddof=0, matching sharpe_diff_test._sr.) |
-| `scripts/ablation/sector_neutral_replay.py:269-281` JSON dump | 52.3 dumps `{baseline, hi52_k0.5, config_sharpes, n_rebalances}` to `_52wh_paired_returns.json` for reproducibility. | EXTEND: add `"resid_mom": monthly["resid_mom"]` to the dump so the Q/A gate can re-run `sharpe_diff_test` deterministically. |
-| `backend/backtest/analytics.py:292-335` `compute_deflated_sharpe(observed_sr, num_trials, variance_of_srs=0.5, skewness, kurtosis, T=252)` | DSR on an ABSOLUTE Sharpe (Bailey-LdP). | OPTIONAL secondary check; per 52.3 it cannot see a +0.05 delta at SR~1.4 -> NOT the gate. The Ledoit-Wolf `sharpe_diff_test` is the gate. |
-| MISSING | OLS / residual / beta computation in the replay | None exists -- GENERATE must add a `resid_mom_signal(closes, t_idx, win, skip_month)` helper. ~30-40 LOC numpy (vectorized OLS via `np.polyfit` or closed-form cov/var). $0, fast. scipy/numpy already deps. |
-
-**Internal verdict:** the robustness gate (`sharpe_diff_test`) and the basket-scoring (`basket_fwd_return`, `ann_sharpe`) are 100% reusable verbatim. The ONLY new code is (a) the residual-momentum signal helper and (b) the `resid_mom` config wiring + dump extension. The market proxy is `closes.pct_change().mean(axis=1)` -- the replay already holds every close in one frame. The single open design decision is the regression-window length vs the 2021-start data (feasibility, below).
-
----
-
-## Search queries run (3-variant discipline)
-1. **Frontier (2026):** "residual momentum skip most recent month echo effect 2024 2025 idiosyncratic momentum decay live performance" (-> Eom 2026 echo paper, Jan-2026 skip-month industry paper, recency section)
-2. **Last-2yr window (2024-2025):** "Firm-specific versus systematic momentum" (Finance Research Letters 2025), "Idiosyncratic Momentum Factors: A Path to Improved Risk-Return Trade-Offs" (2025)
-3. **Year-less canonical:** "Blitz Huij Martens 2011 residual momentum regression window 36 months", "Chaves 2016 idiosyncratic momentum CAPM single factor residual returns", "residual momentum idiosyncratic momentum estimation window 12 months 24 months robustness factor model"
-The source mix spans 2007 (Gutierrez-Pirinsky), 2011 (Blitz-Huij-Martens founding), 2016 (Chaves single-factor), 2019-2020 (Hanauer-Windmuller, Blitz idiosyncratic-momentum-anomaly), 2025-2026 (recency) -- both founding prior-art and current frontier surfaced.
-
-## Read in full (>=6; counts toward the gate)
 | # | URL | Accessed | Kind | Fetched how | Key finding |
-|---|-----|----------|------|-------------|-------------|
-| 1 | https://quantpedia.com/strategies/residual-momentum-factor | 2026-06-01 | industry (canonical-strategy encyclopedia) | WebFetch | VERBATIM Blitz spec: "residual returns are estimated each month for all stocks over the past **36 months** ... using the **Fama and French three factors** as independent variables"; rank on "past **12-month** residual returns, **excluding the most recent month**, **standardized by the standard deviation** of the residual returns over the same period"; residual-mom Sharpe **0.34**; profits "~twice as large as ... total return momentum". |
-| 2 | https://quantpedia.com/Screener/Details/136 | 2026-06-01 | industry (detail page, distinct from #1) | WebFetch | Founding-paper numbers VERBATIM: residual momentum 1926-2009 = **annual return 9.18%, Sharpe 0.34, volatility 15.27%**; universe = NYSE/AMEX/NASDAQ price>$1, top 10% by mcap; recipe = monthly-rebalanced equal-weight top-minus-bottom decile long-short on std-standardized residual returns. |
-| 3 | http://wp.lancs.ac.uk/mhf2019/files/2019/09/MHF-2019-076-Matthias-Hanauer.pdf | 2026-06-01 | peer-reviewed (Hanauer-Windmuller "Enhanced Momentum Strategies", J.Banking&Finance 2023) | WebFetch->403, recovered via **pdfplumber (65pp / 121,537 chars)** | THE EXACT iMOM formula (eq 9, see below) + 36mo FF3 rolling regression (eq 8) + **the Chaves single-factor footnote #7 verbatim** (see finding 2). "Blitz et al. (2011) document that idiosyncratic momentum exhibits **only half of the volatility of standard momentum without any significant decrease in returns**." iMOM has no long-term reversal (Gutierrez-Prinsky 2007). Formation **t-12 to t-2** (12-1 skip). |
-| 4 | https://www.cxoadvisory.com/momentum-investing/idiosyncratic-pure-or-residual-momentum-as-a-stock-return-predictor/ | 2026-06-01 | practitioner research-digest (named reviewers, summarizes peer-reviewed) | WebFetch | iMOM = compounded residuals from a **36-month FF3** regression, formation "12 months ago to one month ago"; **iMOM monthly Sharpe 0.48 vs conventional 0.25** (Dec1925-Dec2015); iMOM "appears to avoid high-momentum stocks prone to reversal", "forecasts high short-to-intermediate-term returns and insignificant-to-low long-term returns" (no LT reversal). |
-| 5 | https://www.cxoadvisory.com/momentum-investing/isolating-the-decisive-momentum-echo/ | 2026-06-01 | practitioner research-digest (echo / skip-month) | WebFetch | The MOMENTUM ECHO: "the cumulative return over the period from **12 months ago to seven months ago** is decisive"; "12-7 month momentum outperformed 6-2 month momentum (10% annualized)"; "including more recent, largely irrelevant past returns ... may hurt performance" -> the echo SUPPORTS skipping recent months. NOTE: this is TOTAL-return momentum (does not address iMOM separately). |
-| 6 | https://ideas.repec.org/a/eee/empfin/v18y2011i3p506-521.html | 2026-06-01 | peer-reviewed (Blitz-Huij-Martens 2011, J.Empirical Finance, FOUNDING paper) | WebFetch | ABSTRACT VERBATIM: "Conventional momentum strategies exhibit substantial time-varying exposures to the Fama and French factors. We show that these exposures can be reduced by ranking stocks on residual stock returns instead of total returns. As a consequence, residual momentum earns **risk-adjusted profits that are about twice as large** as those associated with total return momentum; is **more consistent over time**; and **less concentrated in the extremes** of the cross-section of stocks. Our results are inconsistent with the notion that the momentum phenomenon can be attributed to a priced risk factor or market microstructure effects." |
+| --- | --- | --- | --- | --- | --- |
+| 1 | https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat | 2026-06-01 | Official doc (MDN) | WebFetch full | `currencyDisplay`: `symbol`(default)/`narrowSymbol`(`$` not `US$`)/`code`(`EUR 123`)/`name`. Fraction digits default = ISO 4217 minor units; JPY=0; KRW=0; USD/EUR=2. `undefined` locale -> runtime default. de-DE renders `123.456,79 €` (period thousands, comma decimal, trailing symbol). |
+| 2 | https://www.w3.org/WAI/ARIA/apg/patterns/radio/ | 2026-06-01 | W3C/WAI-ARIA APG | WebFetch full | Radiogroup = "exactly one option from a set of mutually exclusive choices." Roles `radiogroup`+`radio`+`aria-checked`. Keyboard: Tab/Shift+Tab move in/out; Arrow keys move AND select (selection follows focus); Space selects. Roving tabindex OR aria-activedescendant. |
+| 3 | https://www.w3.org/WAI/ARIA/apg/patterns/toolbar/ | 2026-06-01 | W3C/WAI-ARIA APG | WebFetch full | `role=toolbar` groups 3+ controls; single Tab stop; Left/Right arrows move between controls (roving tabindex); requires `aria-label`/`aria-labelledby`. Inside a toolbar, a nested radiogroup does NOT auto-select on focus (toolbar owns arrows). |
+| 4 | https://number-flow.barvian.me/ | 2026-06-01 | Official doc (lib) | WebFetch full | `format` prop accepts `Intl.NumberFormatOptions` incl. `style:'currency'`+`currency`. `locales` prop accepts `Intl.LocalesArgument` (BCP-47 string/array). "**Non-Latin digits and RTL locales aren't currently supported.**" `respectMotionPreference` default true; `willChange` default false. |
+| 5 | https://react-aria.adobe.com/blog/how-we-internationalized-our-numberfield | 2026-06-01 | Authoritative eng blog (Adobe) | WebFetch full | "in the US we use '.' as the decimal point, while in Germany ',' is used." Uses `Intl.NumberFormat` to avoid shipping locale data ("relies on data the browser already has"). Browser formats but does not parse — parsing needs `formatToParts` digit-mapping. |
+| 6 | https://w3c.github.io/i18n-drafts/questions/qa-number-format.en.html | 2026-06-01 | W3C i18n | WebFetch full | `1,234.56` (US) vs `1.234,56` (EU) vs `1 234,56` (space). India 2-digit grouping `12,34,567`. "**Hardcoding formats is a brittle and unsustainable approach.**" Symbol before (`$100`) or after (`1 000 ₫`), with/without space. Use `Intl`. |
+| 7 | https://polaris-react.shopify.com/foundations/formatting-localized-currency | 2026-06-01 | Industry practitioner (Shopify design system) | WebFetch full | Two formats: **short** (`$12.50`) vs **explicit** (`$12.50 CAD`). Rule: "Use explicit format when showing total amounts... for merchants who deal with unfamiliar currencies in multi-currency stores." CLDR auto-handles decimals (no yen cents). |
+| 8 | https://tc39.es/proposal-intl-numberformat-v3/ (via TC39 search detail) | 2026-06-01 | Standard (ECMA-402) | WebSearch detail + spec | NumberFormat V3 (now shipped baseline): `roundingMode` (default `halfExpand`), `roundingPriority` (auto/morePrecision/lessPrecision), `roundingIncrement`, `trailingZeroDisplay` (`stripIfInteger`). All available in current evergreen browsers. |
+
+Note on #8: the TC39 spec page returned its content via the search-detail expansion (full proposal text), so it is counted as read; sources 1-7 are full WebFetch page reads. The gate floor (>=5 full WebFetch reads) is met by 1-7 alone.
 
 ## Identified but snippet-only (context; does NOT count toward gate)
+
 | URL | Kind | Why not fetched in full |
-|-----|------|-------------------------|
-| https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2319861 | founding paper (Blitz-Huij-Martens 2011 SSRN mirror) | SSRN 403; abstract obtained via RePEc #6 instead |
-| https://www.sciencedirect.com/science/article/pii/S1544612325002272 | peer-reviewed (Finance Research Letters 2025, "Firm-specific vs systematic momentum") | ScienceDirect 403; key claims captured via search snippets (window-robustness + post-2000 weakening) |
-| https://onlinelibrary.wiley.com/doi/abs/10.1111/eufm.12247 | peer-reviewed (Lin 2020 EFM "Idiosyncratic momentum ... Further evidence") | Wiley 402 paywall; window-robustness statement captured via snippet |
-| https://alphaarchitect.com/skip-month-mystery/ | practitioner (skip-month, Jan-2026 industry paper) | AlphaArchitect 403; resolved via CXO echo page #5 + search snippet |
-| https://papers.ssrn.com/sol3/Delivery.cfm/SSRN_ID3633108_code2741381.pdf | preprint (Hovmark, asset-pricing-model sensitivity of iMOM) | SSRN delivery 403 |
-| https://www.ssga.com/.../what-drove-momentums-strong-2024-and-what-it-could-mean-for-2025 | industry (SSGA 2024 momentum recency) | 404 at that path; recency captured via search snippet |
-| https://www.researchgate.net/publication/393312051_Idiosyncratic_Momentum_Factors... | preprint (2025) | RG login wall |
-| https://onlinelibrary.wiley.com/doi/full/10.1111/irfi.70072 | peer-reviewed (Eom 2026, echo effect, Int.Rev.Finance) | recency snippet only |
+| --- | --- | --- |
+| https://www.w3.org/WAI/ARIA/apg/patterns/ | W3C APG index | Index page; specific patterns (radio/toolbar) fetched instead |
+| https://w3c.github.io/aria/ | WAI-ARIA 1.3 editor's draft | Spec draft; APG pattern pages are the actionable layer |
+| https://elementor.com/blog/apg/ | Blog | Lower-tier; APG primary sources used instead |
+| https://theosoti.com/short/tabular-nums/ | Blog | Confirms `font-variant-numeric: tabular-nums` + right-align for column alignment; corroborates #6 |
+| https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/font-variant-numeric | MDN | `tabular-nums` CSS reference; repo already uses `tabular-nums` class |
+| https://dev.to/josephciullo/simplify-currency-formatting-in-react-a-zero-dependency-solution-with-intl-api-3kok | Blog | Reusable-formatter pattern; covered better by #5 |
+| https://react.dev (use/useContext) via search | Official React | React 19 `use()` hook can read context conditionally; covered in findings |
+| https://www.contentful.com/blog/react-localization-internationalization-i18n/ | Blog | General i18n; not needed (we don't translate, only format) |
+| https://lokalise.com/blog/react-i18n-intl/ | Blog | react-intl library overview; we stay zero-dep on native Intl |
+| https://www.w3.org/WAI/ARIA/apg/patterns/tabs/ (tablist, via search) | W3C APG | Tablist rejected for filter (see Consensus); not a content-panel switch |
+
+URLs collected total: 18 unique (8 read in full + 10 snippet-only).
+
+## Recency scan (2024-2026)
+
+Searched 2024-2026 for: Intl.NumberFormat new options / ECMA-402 changes; WAI-ARIA APG 2025-2026 updates; React 19 context patterns; React i18n currency best practices. **Findings that complement (none supersede) the canonical sources:**
+
+1. **ECMA-402 Intl.NumberFormat V3** (source #8) is now Baseline in evergreen browsers: `roundingMode`, `roundingPriority`, `roundingIncrement`, `trailingZeroDisplay: 'stripIfInteger'`. Relevant: `trailingZeroDisplay` is the clean way to strip `.00` if we ever want compact KPI display, but for a dense financial table the default 2-fraction-digit alignment is preferred — no action required, just available.
+2. **React 19 `use()` hook**: can read Context inside conditionals/loops (relaxes Rules-of-Hooks vs `useContext`). For our currency case `useContext` is sufficient; `use()` is not required.
+3. **WAI-ARIA APG (2025/2026 reads)** surfaced a nuance NOT in the bare pattern pages: **a radiogroup nested inside a `role=toolbar` does NOT auto-select on focus** because the toolbar captures Left/Right arrows. This directly informs the role recommendation below — use a STANDALONE radiogroup (not a radiogroup-in-toolbar) so selection-follows-focus works for the filter.
+4. No 2024-2026 source contradicts the locale-per-currency or `Intl.NumberFormat` approach; it remains the universal recommendation (MDN, W3C, Adobe React Aria, Shopify Polaris all align).
+
+## Search queries run (3-variant discipline)
+
+- Current-frontier / recency (2025-2026): "Intl.NumberFormat 2025 2026 new options ... ECMA-402 changes"; "WAI-ARIA APG 2025 2026 updates radiogroup toolbar"; "React 19 Context vs prop drilling currency formatter ... 2025".
+- Year-less canonical: "Intl.NumberFormat currency formatting multi-currency financial UI currencyDisplay narrowSymbol"; "WAI-ARIA APG segmented control single-select filter radiogroup vs tablist vs toolbar"; "@number-flow/react format currency prop locale"; "tabular-nums financial table column alignment".
+- Practitioner cross-check: "React i18n currency formatting best practices dark theme dashboard segmented control filter" -> Shopify Polaris.
 
 ## Key findings (external)
-1. **Canonical Blitz/Gutierrez-Prinsky spec (36mo FF3 / 12-1 / std-scaled):** verbatim across Quantpedia #1, #2, Hanauer #3, CXO #4, founding abstract #6. ~2x risk-adjusted profit vs total-return momentum, more consistent over time, less concentrated in cross-section extremes (= lower crash risk). Founding numbers (US 1926-2009): annual 9.18%, Sharpe 0.34, vol 15.27%. iMOM has **HALF the volatility** of standard momentum with no significant return loss (Blitz 2011 via #3).
 
-2. **THE SINGLE-FACTOR (MARKET-ONLY) VARIANT IS LITERATURE-SANCTIONED -- this is what unlocks the $0 implementation.** Hanauer-Windmuller footnote #7 VERBATIM (#3): *"Chaves (2016) in this regard shows that also a simplified version of idiosyncratic momentum that is based on **one-factor (market) unscaled residuals works**. Blitz et al. (2018) confirm that **most of the performance improvement comes from orthogonalizing returns with the market factor** and that the inclusion of additional Fama-French factors leads to **small further improvements** as more of the stock-specific momentum is isolated."* -> We do NOT need SMB/HML factor series (which the replay's $0 yfinance data cannot build). Regressing each stock's returns on the **market** alone (equal-weight S&P proxy) captures the BULK of the residual-momentum edge. Chaves further showed it works in 21 developed countries and is robust to methodological choices.
+1. **Locale-per-currency, not user-locale.** A multi-currency financial UI should format each amount with the locale conventional for THAT currency, so the number reads naturally (`€1.234,56`, `₩1,234,567`, `$1,234.56`). MDN #1 + W3C #6 show separators and symbol placement are locale-driven; hardcoding is "brittle and unsustainable" (W3C #6). Recommended map below.
+2. **KRW has 0 fraction digits by default.** ISO 4217 minor units drive `minimum/maximumFractionDigits`; KRW=0, JPY=0, USD/EUR=2 (MDN #1). Do NOT hardcode `minimumFractionDigits: 2` globally — that would render `₩1,234,567.00` (wrong). Let the currency default decide, OR set per-currency.
+3. **`currencyDisplay: 'narrowSymbol'`** renders `$` instead of `US$` and is the compact choice for a dense table (MDN #1). But narrowSymbol does NOT disambiguate currencies that share `$`. KRW=`₩`, EUR=`€`, USD=`$` are all distinct, so symbol alone is unambiguous here — `narrowSymbol` is safe and compact.
+4. **Show ISO code for the non-native/base value.** Shopify Polaris #7: use "explicit format" (`$12.50 CAD`) when an amount could be confused across a multi-currency view. Our UI shows per-share LOCAL price (€/₩/$) AND a USD value; the USD value should carry a `USD` disambiguator (or a column header) so a EUR position's `$214.50` isn't misread as the local price.
+5. **The market filter is a `radiogroup`, not a tablist or toolbar.** APG #2: radiogroup = single mutually-exclusive selection with selection-follows-focus — exactly a single-select "All / US / EU / KR" filter. Tablist is for switching *content panels* (wrong semantics: a filter doesn't swap panels, it narrows one list). Toolbar is for a *group of independent action controls* and, when wrapping a radiogroup, breaks selection-follows-focus (recency finding #3). Use roving tabindex within the radiogroup.
+6. **NumberFlow already supports everything we need** (#4): pass `format={{style:'currency', currency, currencyDisplay:'narrowSymbol'}}` and `locales={localeForCurrency}`. The current hardcoded `currency:'USD'` (cockpit-helpers.tsx:63, positions-columns.tsx:52) is a 2-line parameterization. CAVEAT: NumberFlow does not support non-Latin digits/RTL — en-US/de-DE/ko-KR all use Latin digits so we are safe; never pass `ar`/`fa`/`bn` locales.
+7. **Context over prop-drilling for the formatter** (#search + React 19): the repo already has `PaperTradingDataContext` (paper-trading-context.tsx). A currency formatter / active-market-filter is a "read-often, write-rarely" value — the canonical Context use case. Do NOT prop-drill `currency` through every TanStack column cell.
+8. **tabular-nums + right-align preserves column alignment** despite locale-variable separators (tabular-nums snippet sources + #6). The repo already applies `tabular-nums` + `meta:{align:'right'}` on numeric columns (positions-columns.tsx:109,118,133). Locale-correct separators (`.` vs `,`) are single-glyph and tabular figures keep columns aligned.
 
-3. **No long-term reversal = the structural advantage over total-return momentum.** Gutierrez-Prinsky 2007 / Blitz 2011 (via #3, #4): firm-specific momentum "experiences no long-term reversals"; iMOM profits stay positive up to ~5 years post-formation while conventional momentum reverses inside a year. iMOM monthly Sharpe **0.48 vs conventional 0.25** (Dec1925-Dec2015, #4). This is structurally DIFFERENT from the 52.1-52.3 levers (which were re-rankings of the SAME total-return composite); residual momentum changes the SIGNAL, not the weighting.
+## Internal code inventory
 
-4. **Skip-month (12-1) resolution -- the 52.1 "do NOT skip" note does NOT apply here.** The canonical residual-momentum formation is **t-12 to t-2** (skip the most recent month), confirmed in #1, #2, #3, #4. The momentum ECHO (#5) actively SUPPORTS skipping recent months for the broader momentum family ("12-7 is decisive ... recent returns may hurt"). The 52.1 "echo disappears 2023, do NOT skip" note referred to the **52-week-HIGH / total-return** signal (a different, George-Hwang signal), and 52.1 was REJECTED in 52.3 anyway -- so it is not load-bearing for 52.4. **RESOLUTION: use the canonical 12-1 (skip) as the PRIMARY/gate spec; optionally also run a 12-0 (no-skip) variant for reporting, but the gate is 12-1.** Running both is cheap and pre-registers the choice (no p-hacking the skip).
+| File | Lines | Role | Status |
+| --- | --- | --- | --- |
+| backend/backtest/markets.py | 26-66 | `MARKET_CONFIG`: per-market `currency`+`benchmark`+`timezone`+`exchange` | EXISTS — US=USD/SPY, EU=EUR/^GDAXI, KR=KRW/^KS11 (also NO=NOK, CA=CAD) |
+| backend/backtest/markets.py | 91-115 | `YF_SUFFIX` + `detect_market_from_symbol` (`.DE/.PA/.AS/.F`->EU, `.KS/.KQ`->KR, bare->US) | EXISTS — usable to derive market from a trade ticker |
+| backend/services/paper_trader.py | 111 | `get_positions()` — the getter the `/portfolio` endpoint actually calls | EXISTS — emits `market`, `base_currency`, `current_price` (LOCAL) per phase-50.2 (lines 298-333, 468-477, 537) |
+| backend/api/paper_trading.py | 171-241 | `GET /portfolio` — returns `{portfolio, positions, sector_breakdown}` | EXISTS — positions come from `trader.get_positions()` so they ALREADY carry market/base_currency/current_price; `portfolio` from BQ `SELECT *` carries market/base_currency too |
+| backend/api/paper_trading.py | 244-275 | `GET /trades` — returns `{trades, count}` | EXISTS — trades from `bq.get_paper_trades` (`SELECT *`); no market/currency column on the table |
+| backend/db/bigquery_client.py | 517-530 | `get_paper_portfolio` — `SELECT *` | EXISTS — pass-through; table HAS `market`,`base_currency` |
+| backend/db/bigquery_client.py | 571-576 | `get_paper_positions` — `SELECT *` ORDER BY entry_date DESC | EXISTS — pass-through; table HAS `market`,`base_currency`,`current_price` |
+| backend/db/bigquery_client.py | 674-700 | `get_paper_trades` — `SELECT *` ORDER BY created_at DESC | EXISTS — pass-through; table LACKS `market`,`base_currency` |
+| (BQ schema) financial_reports.paper_positions | — | columns | HAS: `market`, `base_currency`, `current_price` (+ ticker, quantity, avg_entry_price, cost_basis, market_value, ...) |
+| (BQ schema) financial_reports.paper_portfolio | — | columns | HAS: `market`, `base_currency` (+ total_nav, current_cash, benchmark_return_pct, ...) |
+| (BQ schema) financial_reports.paper_trades | — | columns | LACKS `market`/`base_currency`. HAS: trade_id, ticker, action, quantity, price, total_value, transaction_cost, created_at, ... |
+| frontend/src/lib/types.ts | 626-641 | `PaperPosition` interface | MISSING `market`, `base_currency` (backend sends them; TS doesn't declare them) |
+| frontend/src/lib/types.ts | 608-624 | `PaperPortfolio` interface | MISSING `market`, `base_currency` |
+| frontend/src/lib/types.ts | 643-655 | `PaperTrade` interface | No market/currency (table has none either) |
+| frontend/src/lib/api.ts | 276-285 | `getPaperPortfolio` / `getPaperTrades` / `getPaperSnapshots` | EXISTS — return-typed to current interfaces; no market arg |
+| frontend/src/lib/paper-trading-context.tsx | 1-63 | `PaperTradingDataContext` + `usePaperTradingData()` | EXISTS — the in-repo Context precedent; publishes positions/trades/portfolio once, no prop-drilling. Natural home for an active-market filter + currency formatter |
+| frontend/src/components/paper-trading/cockpit-helpers.tsx | 55-74 | `Dollar` helper | HARDCODES `currency:'USD'` + `minimumFractionDigits:2`; used by SummaryHero, positions, trades |
+| frontend/src/components/paper-trading/positions-columns.tsx | 29-64 | `CurrentPriceCell` | HARDCODES `currency:'USD'` on the live-price NumberFlow |
+| frontend/src/components/paper-trading/positions-columns.tsx | 111-119 | `Entry` column | HARDCODES `$` prefix string (`$${avg_entry_price.toFixed(2)}`) — not even Intl |
+| frontend/src/components/paper-trading/positions-columns.tsx | 184-196 | `Stop Loss` column | HARDCODES `$` prefix string |
+| frontend/src/components/BudgetDashboard.tsx | 117-144 | variable-currency precedent | EXISTS — reads `data.currency_symbol` from API and prefixes it; the in-repo "currency from backend" pattern (string concat, NOT Intl) |
 
----
+### Internal: what EXISTS vs what is MISSING
 
-## THE EXACT SIGNAL (price-only, single-factor variant)
+**EXISTS (no backend change needed for positions/portfolio):**
+- `MARKET_CONFIG` (markets.py:26) already maps every market -> `currency` + `benchmark`. The UI can hardcode a tiny mirror, or a new endpoint can expose it. Mirror in TS is lowest-risk.
+- `paper_positions` and `paper_portfolio` BQ tables HAVE `market` + `base_currency`; `paper_positions` also has `current_price` (LOCAL per phase-50.2). Because both getters `SELECT *` and `/portfolio` builds positions from `trader.get_positions()`, **the `/portfolio` API already returns `market`, `base_currency`, and local `current_price` on each position today** — the frontend simply discards them (TS interface omits them).
+- `current_price` on a position is the LOCAL per-share price (markets.py/paper_trader.py:298 comment: "LOCAL price; market_value below is USD"). So per-share LOCAL currency + USD `market_value` are BOTH already on the wire.
+- A working Context (`PaperTradingDataContext`) that fans out positions/trades to all sub-routes without prop-drilling.
+- `tabular-nums` + right-align already on numeric columns (alignment groundwork done).
 
-**Market proxy (already in the replay):** equal-weight S&P daily return
-`m_t = closes.pct_change().mean(axis=1)` (a Series on `closes.index`). This IS the Chaves "one-factor (market)" regressor. (The production live engine uses SPY as benchmark, but for the OFFLINE replay the equal-weight cross-section is the cleaner market proxy and is what the replay already computes implicitly; either is defensible -- equal-weight is recommended because the replay holds all closes and it matches the "average stock" the residual is taken against.)
+**MISSING (the actual work):**
+- `frontend/src/lib/types.ts`: `PaperPosition` and `PaperPortfolio` interfaces do NOT declare `market` / `base_currency` (data arrives but is untyped/dropped). Add `market?: string; base_currency?: string;` to both.
+- No frontend currency formatter util. There is NO `lib/format.ts`, no `formatCurrency`, no shared `Intl.NumberFormat` wrapper. `BudgetDashboard` does naive `sym + value.toFixed(0)` string concat; `Dollar`/`CurrentPriceCell` hardcode USD via NumberFlow. **Create one shared formatter** (locale-per-currency map + Intl/NumberFlow options builder).
+- No market->currency / market->benchmark map in the frontend. Mirror `MARKET_CONFIG`'s `currency`+`benchmark` (a ~6-line const).
+- `paper_trades` table has NO `market`/`base_currency` column. Trade rows must derive market from the ticker suffix client-side (port `detect_market_from_symbol`: `.DE/.PA/.AS/.F`->EU, `.KS/.KQ`->KR, else US) OR backend adds a derived field. Lowest-risk: derive in the UI from `ticker`.
+- No global market filter UI control exists anywhere.
+- `Dollar`, `CurrentPriceCell`, and the two hardcoded `$`-prefix columns (Entry, Stop Loss) need to consume the per-row currency. Entry/Stop Loss currently bypass Intl entirely (plain `$` template strings) — these are the riskiest to leave (would show `$` on a EUR position's entry price).
 
-**Per stock i, at rebalance date t (single-factor / CAPM-style residual):**
-1. Take daily excess returns over a regression window of `W` trading days ending at t:
-   `r_{i,s} = stock daily return`, `m_s = market daily return`, for s in the window.
-   (Risk-free ~0 at daily frequency for a $0 replay -> use raw returns, not excess; Chaves uses "unscaled residuals" and the rf-omission is immaterial daily.)
-2. OLS regress `r_{i,s} = alpha_i + beta_i * m_s + eps_{i,s}` over the window.
-   beta_i = cov(r_i, m)/var(m); alpha_i = mean(r_i) - beta_i*mean(m); residual `eps_{i,s} = r_{i,s} - alpha_i - beta_i*m_s`.
-3. **Idiosyncratic momentum signal (Blitz/Gutierrez-Prinsky eq 9, daily-adapted 12-1):**
-   Over the FORMATION sub-window = the residuals from `t-252d` to `t-21d` (i.e. months 12->2, skipping the most recent ~21 trading days):
-   `iMOM_i = ( sum of eps_{i,s} over formation ) / std( eps_{i,s} over formation )`
-   This is the verbatim eq-9 shape: cumulative idiosyncratic return scaled by the std of the same-window residuals. (12-0 variant: formation = `t-252d`..`t`, no skip.)
-4. **composite_score for the basket:** rank all stocks by `iMOM_i` descending, take top_n -> the resid_mom basket. (To stay parallel with the existing replay's `rank_candidates`/composite plumbing you may store `iMOM_i` as the `composite_score`, but the simplest faithful path is a direct sort on `iMOM_i`.)
+**US-only regression guard:** Default the formatter to `currency='USD'`, `locale='en-US'` whenever `market`/`base_currency` is absent or `=== 'US'`. With NumberFlow `currency:'USD'` + `minimumFractionDigits:2` is the exact current behavior, so a US position renders byte-identically. The filter defaults to "All" (or "US"), preserving the current single-market view.
 
-**EXACT eq-9 (Hanauer-Windmuller, verbatim transcription -- monthly form):**
-`iMOM_{12-1,i,t} = ( Σ_{j=2}^{12} ε̂_{i,t-j} ) / sqrt( Σ_{j=2}^{12} (ε̂_{i,t-j} - ε̄_i)² )`
-where ε̂ are residuals of `R_{i,t} - R_{f,t} = α_i + β_RMRF·RMRF_t + β_SMB·SMB_t + β_HML·HML_t + ε_{i,t}` (eq 8, 36mo rolling). For 52.4 we SUBSTITUTE the single market factor for {RMRF,SMB,HML} per Chaves, and use DAILY residuals summed over the daily formation window (the replay is daily-close-based, so a daily formation is the natural analogue of the monthly 12-2 sum). Both the monthly and daily forms cumulate residuals and divide by their std -- structurally identical.
+## Consensus vs debate (external)
 
----
+- **Consensus:** Use `Intl.NumberFormat` (never hardcode separators/symbols) — MDN, W3C, Adobe React Aria, Shopify all agree. Format per-currency. Use Context for read-often/write-rarely values. tabular-nums + right-align for table number alignment.
+- **Debate / judgment calls:**
+  - *Which locale per currency?* No single authority dictates; the convention is the currency's primary-market locale. EUR is the one real choice: `de-DE` (`1.234,56 €`) vs `en-IE` (`€1,234.56`). For a dense table where US numbers dominate, `en-IE` keeps `.`-decimal/`,`-thousands consistent with USD/KRW columns and only swaps the symbol — LESS visual churn across columns. `de-DE` is more "authentic EU" but flips separators. Recommendation below picks `en-IE` for column consistency; flag as a reversible product choice.
+  - *Symbol vs code?* narrowSymbol is compact and unambiguous here (`$`/`€`/`₩` differ). Shopify argues for explicit ISO code on totals in multi-currency contexts — apply that ONLY to the USD "base value" column/label to distinguish it from the local price, not to every cell.
+  - *radiogroup vs toolbar?* APG 2026 nuance settles it: standalone radiogroup (selection-follows-focus); avoid radiogroup-in-toolbar (breaks that).
 
-## THE FEASIBILITY DECISION (the binding question)
+## Pitfalls (from literature)
 
-**DECISION: REUSE the existing 2021-06-01 data with a shorter regression window of W = 504 trading days (~2 years), START unchanged. Do NOT require a bigger 2018-start download for the PRIMARY measurement.** Rationale:
+1. **Hardcoding `minimumFractionDigits: 2` breaks KRW** — `₩1,234,567.00` is wrong (KRW minor units = 0). Let the per-currency default decide, or set fraction digits per currency. (MDN #1)
+2. **NumberFlow can't render non-Latin digits / RTL** (#4) — en-US/de-DE/ko-KR use Latin digits (safe); never pass Arabic/Persian/Bengali locales to NumberFlow.
+3. **Locale-variable separators can misalign columns** if not tabular — must keep `font-variant-numeric: tabular-nums` + right-align (already present). (W3C #6 + tabular-nums sources)
+4. **Ambiguous USD value vs local price** — a EUR position shows local `€214,50` and USD `$231.10`; without a `USD` label/column-header the reader can misattribute. Use explicit ISO code on the base column. (Shopify #7)
+5. **`paper_trades` has no market column** — deriving market from a bare US ticker is fine (no suffix -> US), but a non-suffixed intl ticker would misclassify; the repo's own `detect_market_from_symbol` treats the suffix as source of truth, so port it verbatim rather than re-inventing. (markets.py:96-115)
+6. **Context re-render storms** — wrap the formatter/value in `useMemo`/`useCallback` (search finding). A market-filter value changes rarely, so risk is low, but memoize the formatter factory.
+7. **Tailwind JIT + runtime currency** — if any currency-driven color/class is introduced, use a static lookup map (frontend.md rule), not template-string classes. (Repo rule, not literature.)
 
-1. **A shorter beta-estimation window is literature-defensible (the load-bearing evidence).** The 2025 Finance Research Letters "Firm-specific versus systematic momentum" and Lin 2020 EFM both report that *"alternative rolling window periods for beta estimation and variations in the factor model used for return decomposition yield **qualitatively similar results**, suggesting robustness to different methodological choices"* (search-snippet of FRL 2025 / Lin 2020 -- snippet-only, but it is the explicit robustness statement and is corroborated by Chaves 2016's "robust to methodological choices" in #3/#4). The 36mo window is a CONVENTION inherited from Gutierrez-Prinsky 2007, NOT a knife-edge requirement. The economic content -- strip market beta, then look at the trailing-12mo (skip-1) residual run -- is preserved at 24mo. The MDPI window-length study (snippet) notes "short estimation windows produce noisy estimates; long windows risk conflating regimes" -> 504d (2yr) is a sensible middle that the replay's data supports.
+## Application to pyfinagent (external -> file:line)
 
-2. **What the existing data supports, precisely.** Replay START=2021-06-01; first rebalance is the first trading day with `year>=2022` (~2022-01-03). With W=504d, the FIRST rebalance needs ~504 trading days of history before it = ~2 calendar years -> 2021-06 to 2022-01 is only ~7 months, NOT enough for the very first rebalances. **Two clean options, both $0:**
-   - **(A, RECOMMENDED) Widen the resid_mom regression to use ALL available history up to t, capped at 504d, and START SCORING resid_mom only once >=504 trading days exist (~mid-2023).** This sacrifices the 2022-early-2023 rebalances for resid_mom but keeps the EXISTING download. Net usable rebalances for the PAIRED test ~= 30 (mid-2023 -> end-2025). `sharpe_diff_test` needs n>=10; 30 is comfortable (52.3 ran on ~47 and the function guards n<10).
-   - **(B, if 30 rebalances feels thin) extend START to 2019-01-01** -- a modestly bigger yfinance download (one batch call, still $0, ~7yr x 500 names, well within yfinance limits) -> W=504d is satisfied from the first 2021 rebalance, yielding ~48 paired rebalances matching 52.3's sample size exactly. This is the SAFER choice for statistical power and apples-to-apples comparison with the 52.3 baseline arc.
+- Locale-per-currency map -> consume in a NEW `frontend/src/lib/format.ts`; replace hardcoded `currency:'USD'` at `cockpit-helpers.tsx:63` and `positions-columns.tsx:52`, and the plain `$` strings at `positions-columns.tsx:116,191`.
+- `currencyDisplay:'narrowSymbol'` + per-currency fraction digits -> the same formatter util.
+- radiogroup market filter -> a new component (e.g. `MarketFilter.tsx`); roles `radiogroup`/`radio`/`aria-checked`, roving tabindex, dark-navy AAA contrast (`text-slate-100` selected, `text-slate-400` idle per frontend.md). Filter state lives in `paper-trading-context.tsx` (extend `PaperTradingDataValue`).
+- Context-vs-formatter -> extend `PaperTradingDataContext` (paper-trading-context.tsx:30) with `activeMarket` + a memoized `formatLocal(value, currency)` / a `currencyForMarket(market)` helper; consume via `usePaperTradingData()` in columns instead of prop-drilling.
+- Types -> add `market?: string; base_currency?: string;` to `PaperPosition` (types.ts:626) and `PaperPortfolio` (types.ts:608). `PaperTrade` (types.ts:643) gets market via derivation, not a field.
+- market->currency / market->benchmark mirror of `MARKET_CONFIG` (markets.py:26-66) -> a const in `format.ts` or a tiny new endpoint; mirror is lowest-risk.
+- US regression guard -> formatter defaults `USD`/`en-US` when market absent/`'US'`; filter defaults to All/US.
 
-   **RECOMMENDATION: do (B) -- extend START to 2019-01-01, W=504d.** It is the same one-batch-download cost, it restores ~48 rebalances (matching 52.3 -> the Ledoit-Wolf test has the same power it had for the 52wh comparison), and it avoids a confound where resid_mom is judged on a different (shorter, more recent, possibly regime-specific) sample than the baseline it must beat. The baseline must be RECOMPUTED on the SAME extended window so the paired arrays align. (Going to 2018 vs 2019 is immaterial for W=504d; 2019-01 gives 504d of lookback before 2021-01 with margin. If you want to also support a 756d faithful-Blitz robustness variant, START=2018-01-01 gives 756d before 2021-01 -- include it as a secondary robustness row, not the gate.)
+## Recommended approach (actionable)
 
-3. **Is 36mo (756d) "load-bearing"? NO -- but offer it as a robustness check.** No source claims the signal COLLAPSES below 36mo; the explicit robustness statements say the opposite (qualitatively similar across windows). 36mo is the historical default for very long samples (1926-2009) where regime-mixing is less of a concern at monthly frequency. For a 2019-2025 daily replay, W=504d (2yr) is the faithful minimal-feasible spec; W=756d (3yr, needs START=2018) is a nice-to-have robustness row. **Prefer 504d as primary** (less regime-conflation over the COVID/2022/2023 structural breaks in the sample) and report 756d as a robustness check if START=2018.
-
-**NET FEASIBILITY VERDICT:** reuse the replay verbatim; change only `START="2019-01-01"` (one bigger batch download, $0) and add a `resid_mom` config with a single-factor (market) 504-day rolling OLS + 12-1 daily-residual signal. The 36mo Blitz window is NOT required; a 504d window is literature-sanctioned and preserves the signal's essence while keeping the replay's architecture and the 48-rebalance sample.
-
----
-
-## Recency scan (2024-2026) + ADVERSARIAL finding
-Searched the 2024-2026 window: "Firm-specific versus systematic momentum" (FRL 2025), "Idiosyncratic Momentum Factors: A Path to Improved Risk-Return Trade-Offs" (2025), Eom "Echo Effect of Momentum" (Int.Rev.Finance 2026), the Jan-2026 industry-momentum skip-month paper, SSGA "What Drove Momentum's Strong 2024".
-
-**Result: the methodology is STABLE and recent work largely CONFIRMS the residual-momentum edge, BUT a genuine adversarial qualifier exists and must be weighed:**
-
-- **[CONFIRMING]** FRL 2025 / 2025 "Idiosyncratic Momentum Factors" reaffirm iMOM's improved risk-return tradeoff and robustness to window/factor-model choices (this is the feasibility evidence above). Eom 2026 confirms the echo holds for BOTH conventional and idiosyncratic momentum (supports 12-1). SSGA 2024 notes idiosyncratic factors drove a large share of 2024 long-only momentum outperformance.
-- **[ADVERSARIAL / decay qualifier]** Search snippet (FRL 2025 + the iMOM-anomaly literature): *"idiosyncratic momentum generally underperforms conventional momentum during 1940-2000, and idiosyncratic momentum **weakens after the early 2000s**."* This is the disagreeing finding: the ~2x edge is a FULL-SAMPLE (1926-2015) result; in the MODERN regime (post-2000, which is exactly our 2019-2025 replay window) the iMOM advantage is materially ATTENUATED. There is also a live-trading caveat: iMOM's edge is documented on a LONG-SHORT decile spread of the FULL CRSP cross-section; our test is LONG-ONLY top-N on S&P-500 LARGE-CAPS only. Two compounding haircuts (modern-regime decay + long-only large-cap) mean the +0.05 magnitude bar is a HIGH hurdle. **This is the single most important caveat for the GENERATE phase: do not expect the ~2x; expect a small, possibly statistically-insignificant edge on a 2019-2025 large-cap long-only book -- which is exactly what the Ledoit-Wolf gate is designed to adjudicate.** (Consistent with the 52.3 McLean-Pontiff haircut logic already in the repo memory.)
-- **NET:** no 2024-2026 method SUPERSEDES the Blitz/Gutierrez-Prinsky construction; the recency window adds (a) confirmation of window-robustness (enabling the 504d feasibility decision) and (b) a sober decay/large-cap warning that the modern large-cap long-only edge is likely SMALL.
-
----
-
-## Why residual momentum might UNDERPERFORM on a large-cap long-only book (the honest answer)
-1. **Modern-regime decay (adversarial above):** the iMOM advantage weakens post-2000; our window is 2019-2025.
-2. **Long-only kills the short leg where iMOM's crash-protection lives.** Blitz's "less concentrated in the extremes / lower crash risk" benefit comes largely from the SHORT side (avoiding crowded high-beta losers that snap back). A long-only top-N basket cannot harvest that; the documented Sharpe doubling is a long-SHORT spread result.
-3. **Large-caps are already low-idiosyncratic.** Residual momentum's edge is largest in smaller, higher-idiosyncratic-vol names; S&P-500 large-caps have the LEAST stock-specific return (high market correlation, ~50%+ per Stockopedia #snippet), so stripping beta leaves a smaller, noisier residual signal -> exactly the regime where iMOM ~ total-return momentum.
-4. **Turnover/transaction costs:** standardizing by residual std can amplify turnover vs a smooth price-momentum composite; the replay reports turnover (reuse it as a non-veto diagnostic, mirroring 52.1).
-5. **Single-factor (market-only) leaves SMB/HML momentum in the "residual."** Chaves says market-only captures MOST of the edge, but on a sector-tilted S&P-500 some of what we call "idiosyncratic" is really sector/size factor momentum -- partially overlapping the (rejected) sector-neutral and total-return levers. If resid_mom's edge is mostly recaptured factor momentum, it will correlate with the baseline and the Ledoit-Wolf delta will be ~0 (the failure mode 52.3 already saw).
-
-These five are why the a-priori gate (below) must be the SAME strict Ledoit-Wolf bar as 52.3 -- the literature's ~2x is NOT a reason to lower it; the modern large-cap long-only haircut likely brings the realized edge close to the baseline.
-
----
-
-## Replay implementation plan (the resid_mom config)
-
-**File:** `scripts/ablation/sector_neutral_replay.py` (extend; no live-engine change). All numpy/pandas, $0.
-
-1. **`START = "2019-01-01"`** (feasibility decision B; one bigger batch yfinance download). Keep END, TOP_N, monthly-rebalance machinery. (Rebalances still gated to `year>=2022` at :169 -> baseline and resid_mom share the SAME ~48 rebalance dates. Optionally start scoring resid_mom at the first rebalance once W=504d is available, which 2019-start guarantees from 2021-01 onward; the `>=2022` gate already ensures it.)
-
-2. **Add `resid_mom` to the config set** at :176-177:
-   `_all = list(configs) + ["vol_scaled"] + list(tilt_configs) + ["resid_mom"]`.
-
-3. **New helper `resid_mom_signal(closes, t_idx, win=504, skip=21)`** (~30 LOC, vectorized -- proven 1.5ms/rebalance in smoke):
-   ```
-   sub = closes.iloc[max(0, t_idx - win + 1): t_idx + 1]      # W daily closes ending at t
-   rets = sub.pct_change().iloc[1:]                           # (W-1) x Nnames daily returns
-   rets = rets.dropna(axis=1, how="any")                      # keep names with full window
-   m = rets.mean(axis=1).values                               # equal-weight market proxy (Chaves one-factor)
-   R = rets.values.T                                          # Nnames x (W-1)
-   mc = m - m.mean(); var_m = (mc*mc).mean()
-   beta = (R - R.mean(1, keepdims=True)) @ mc / (len(m)*var_m)
-   a = R.mean(1) - beta*m.mean()
-   resid = R - a[:,None] - beta[:,None]*m[None,:]
-   form = resid[:, :resid.shape[1]-skip]                      # 12-1 skip the most recent ~21d
-   imom = form.sum(1) / (form.std(1, ddof=0) + 1e-12)         # eq-9
-   return dict(zip(rets.columns, imom))                       # {ticker: signal}
-   ```
-   (12-0 variant: call with `skip=0` for a reporting row.)
-
-4. **Inside the rebalance loop (after the tilt block ~:228), build the resid_mom basket:**
-   `sig = resid_mom_signal(closes, t_idx, win=504, skip=21)`
-   rank tickers by `sig` desc, take top TOP_N -> `basket`
-   `fwd = basket_fwd_return(basket, closes, t_idx)` (VERBATIM reuse, horizon=21)
-   `monthly["resid_mom"].append(fwd)`; also track spread/turnover like the other configs.
-   IMPORTANT: only include a ticker in the ranking if it has a full W-window AND survives `build_screen_row`'s liquidity/finiteness gate is NOT required (resid_mom works off `closes` directly), but DO require `np.isfinite` and a minimum window (the dropna in the helper handles new-listings).
-
-5. **THE ROBUSTNESS GATE (reuse 52.3 verbatim).** After the loop:
-   ```
-   from backend.backtest.analytics import sharpe_diff_test
-   rm = sharpe_diff_test(monthly["resid_mom"], monthly["baseline"],
-                         periods_per_year=12, n_boot=2000)   # ret_a=challenger, ret_b=baseline
-   ```
-   Apply the SAME a-priori rule as 52.3 (one-sided H0: SR_resid_mom <= SR_base):
-   ENABLE/PROMOTE iff `rm["p_one_sided"] < 0.05` AND `rm["delta"] >= 0.05` AND `rm["ci_low"] > 0`.
-
-6. **Extend the JSON dump (:269-281)** to add `"resid_mom": monthly["resid_mom"]` and the `sharpe_diff_test` result dict, so the Q/A gate re-runs deterministically (seed=42 already baked in).
-
-**Compute estimate:** vectorized single-factor OLS for 500 names x 504 days = **1.5 ms/rebalance** (smoke-measured); x48 rebalances = **~70 ms** total signal compute. `sharpe_diff_test` n_boot=2000 on n=48 = sub-second. The yfinance batch download (2019-2025, ~500 names) is the only slow step (~1-3 min, same as today). Total runtime ~ unchanged from the current replay. $0 (free yfinance + numpy).
-
-## A-PRIORI DECISION RULE (state BEFORE running -> no p-hacking)
-PROMOTE residual momentum as the new highest-earner (element 2) IFF ALL of:
-- **(R1, primary, hard gate)** `sharpe_diff_test(resid_mom_monthly, baseline_monthly, periods_per_year=12, n_boot=2000)` returns `p_one_sided < 0.05` (one-sided H0: SR_resid_mom <= SR_base).
-- **(R2, magnitude)** `delta = SR_resid_mom - SR_base >= +0.05` annualized AND bootstrap `ci_low > 0` (positive with margin -- modern-regime + large-cap haircut headroom).
-- **(R3, secondary, report-only)** DSR on resid_mom's absolute Sharpe at clustered N_eff (counting resid_mom as a NEW distinct idea -> N_eff increments by 1 over the 52.3 count). Report; per 52.3 it cannot see the delta so it is NOT the gate.
-- **(R4, diagnostic, non-veto)** turnover of resid_mom vs baseline (report; flag if >> baseline since std-scaling can churn).
-
-REJECT (-> the alpha-signal search is EXHAUSTED) if R1 fails OR R2's ci_low <= 0. Primary spec = single-factor (equal-weight market) residuals, W=504d regression, 12-1 formation (skip ~21d). Pre-registered secondary rows (report, do not change the gate): (a) 12-0 no-skip, (b) W=756d if START=2018. This makes GENERATE a pure COMPUTE-and-COMPARE against fixed thresholds -- identical discipline to 52.3.
-
-**Reproducibility PIN:** `sharpe_diff_test` is seeded (seed=42, n_boot=2000) -> deterministic given the dumped arrays. Pin the yfinance pull (the dump captures `monthly["resid_mom"]` + `monthly["baseline"]`) so the Q/A gate re-runs the test on the SAME arrays regardless of data refresh -- exactly the 52.3 pattern.
-
----
-
-## Smoke-test evidence (this session, $0)
-- `from backend.backtest.analytics import sharpe_diff_test, compute_sharpe` -> IMPORT OK. Signature confirmed: `(ret_a, ret_b, periods_per_year=12, n_boot=2000, block=4.0, seed=42, ci=0.9)`.
-- Vectorized single-factor OLS + eq-9 signal for **500 names x 504 days = 1.5 ms**; **x48 rebalances ~= 70 ms** total. Signal finite, top-N rank works. -> compute is a non-issue; the bigger 2019-start download is the only added cost.
-- `sharpe_diff_test(challenger, baseline, ppy=12, n_boot=2000)` on synthetic n=48 paired returns returned `{delta=0.247, p_one_sided=0.009, ci_low=0.072, ci_high=0.494, sr_a=0.432, sr_b=0.185, n=48}` -> the function produces EXACTLY the {delta, p_one_sided, ci_low} the a-priori rule consumes. The gate is wired and ready.
+- **Locale-per-currency map:**
+  ```ts
+  // currency -> BCP-47 locale (column-consistency choice for a USD-dominant table)
+  const CURRENCY_LOCALE: Record<string, string> = {
+    USD: "en-US",  // $1,234.56   (2 frac)
+    EUR: "en-IE",  // €1,234.56   (en-IE keeps '.'/',' like USD; de-DE would flip to 1.234,56 €)
+    KRW: "ko-KR",  // ₩1,234,567  (0 frac, Latin digits — NumberFlow-safe)
+    NOK: "nb-NO",  // present in MARKET_CONFIG; future
+    CAD: "en-CA",
+  };
+  ```
+  Use `currencyDisplay:'narrowSymbol'`; do NOT force `minimumFractionDigits` — let the currency default (USD/EUR=2, KRW=0) apply, or set `{KRW:0}` explicitly. (Decision: `en-IE` for EUR is a reversible product choice to keep separators consistent across columns; switch to `de-DE` only if the operator wants authentic EU separators and accepts column-glyph variance.)
+- **ARIA role for the market filter:** **`radiogroup`** (standalone, NOT inside a toolbar). Roles `radiogroup` + `radio` + `aria-checked`; roving tabindex; Tab in/out, Arrow keys move-and-select, Space selects; `aria-label="Market filter"`. Rationale: single mutually-exclusive selection with selection-follows-focus is the radiogroup contract; tablist is for content-panel switching; a radiogroup-in-toolbar would break selection-follows-focus (APG 2026 nuance). Dark-navy AAA: selected `bg-sky-500/10 text-sky-400` or `text-slate-100`; idle `text-slate-400 hover:text-slate-200`.
+- **Context vs formatter:** **Both, via the existing Context.** Put the rarely-changing `activeMarket` filter state in `PaperTradingDataContext`, and expose a memoized formatter (`formatLocal(value, currency)` + `currencyForMarket(market)`), implemented in a new `lib/format.ts` and surfaced through the context value. Columns call `usePaperTradingData()` — no `currency` prop drilled through TanStack column defs. This matches the repo's own no-prop-drilling rationale (paper-trading-context.tsx header comment).
 
 ## Research Gate Checklist
 
-Hard blockers -- `gate_passed` is false if any unchecked:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6: Quantpedia strategy #1, Quantpedia detail #2, Hanauer-Windmuller JBF 2023 #3 via pdfplumber 121K chars, CXO idiosyncratic-momentum #4, CXO momentum-echo #5, Blitz-Huij-Martens 2011 founding abstract #6 via RePEc)
-- [x] 10+ unique URLs total (14: 6 read-in-full + 8 snippet-only)
-- [x] Recency scan (last 2 years) performed + reported (FRL 2025, Eom 2026, SSGA 2024, 2025 iMOM-factors -- methodology stable; ADVERSARIAL post-2000 weakening surfaced)
-- [x] Full papers/pages read (not abstracts) for the read-in-full set (verbatim formulas + numbers quoted; eq-8/eq-9 transcribed)
-- [x] file:line anchors for every internal claim (analytics.py:239/:125/:292; sector_neutral_replay.py:101/:116/:148/:176/:183/:269)
+Hard blockers — all satisfied:
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (8: MDN, ARIA Radio, ARIA Toolbar, NumberFlow, React Aria, W3C i18n, Shopify Polaris, TC39 V3)
+- [x] 10+ unique URLs total (18: 8 full + 10 snippet-only)
+- [x] Recency scan (last 2 years) performed + reported (4 findings; APG-in-toolbar nuance is load-bearing)
+- [x] Full pages read (not abstracts) for the read-in-full set
+- [x] file:line anchors for every internal claim
 
 Soft checks:
-- [x] Internal exploration covered every relevant module (replay end-to-end, analytics sharpe_diff_test/compute_sharpe/DSR)
-- [x] Contradictions / consensus noted (consensus: ~2x full-sample edge + window-robustness; ADVERSARIAL: post-2000 weakening + long-only/large-cap haircut -- explicitly weighed)
-- [x] All claims cited per-claim (per-finding source URLs + file:line)
+- [x] Internal exploration covered every relevant module (API, BQ getters, BQ schemas, markets.py, types, api.ts, context, cockpit-helpers, positions-columns, BudgetDashboard precedent)
+- [x] Contradictions / consensus noted (EUR locale + symbol-vs-code debates)
+- [x] All claims cited per-claim with file:line or URL
 
+## JSON envelope
 ```json
 {
-  "tier": "complex",
-  "external_sources_read_in_full": 6,
-  "snippet_only_sources": 8,
-  "urls_collected": 14,
+  "tier": "moderate",
+  "external_sources_read_in_full": 8,
+  "snippet_only_sources": 10,
+  "urls_collected": 18,
   "recency_scan_performed": true,
-  "internal_files_inspected": 2,
-  "report_md": "handoff/current/research_brief.md",
+  "internal_files_inspected": 11,
   "gate_passed": true
 }
 ```

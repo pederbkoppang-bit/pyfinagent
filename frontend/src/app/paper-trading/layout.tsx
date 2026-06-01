@@ -25,6 +25,8 @@ import { OpsStatusBar } from "@/components/OpsStatusBar";
 import { AgentRationaleDrawer } from "@/components/AgentRationaleDrawer";
 import { PageSkeleton } from "@/components/Skeleton";
 import { SummaryHero } from "@/components/paper-trading/cockpit-helpers";
+import { MarketFilter } from "@/components/paper-trading/MarketFilter";
+import { MarketSessionStrip } from "@/components/paper-trading/MarketSessionStrip";
 import {
   getPaperTradingStatus,
   getPaperPortfolio,
@@ -53,6 +55,7 @@ import {
   type Icon,
 } from "@/lib/icons";
 import { useTickerMeta } from "@/lib/useTickerMeta";
+import { MARKET_ORDER, resolveMarket } from "@/lib/format";
 // phase-72: single root-level live-portfolio SSOT (see layout.tsx
 // LivePortfolioProvider mount). Replaces local useLivePrices + useLiveNav.
 import { useLivePortfolio } from "@/lib/live-portfolio-context";
@@ -130,6 +133,8 @@ export default function PaperTradingLayout({
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [rationaleTradeId, setRationaleTradeId] = useState<string | null>(null);
+  // goal-multimarket-ux: global market filter. "ALL" = combined USD-base view.
+  const [activeMarket, setActiveMarket] = useState("ALL");
 
   // phase-72: consume live values from the root LivePortfolioProvider
   // instead of mounting another useLivePrices + useLiveNav pair here.
@@ -152,6 +157,24 @@ export default function PaperTradingLayout({
     allTickersForMeta,
     allTickersForMeta.length > 0,
   );
+
+  // goal-multimarket-ux: markets available to the filter = the core configured set
+  // (US/EU/KR) plus any market actually held/traded (e.g. Nordics once present),
+  // in canonical display order.
+  const availableMarkets = useMemo(() => {
+    const present = new Set<string>(["US", "EU", "KR"]);
+    positions.forEach((p) => present.add(resolveMarket({ market: p.market, ticker: p.ticker })));
+    trades.forEach((t) => present.add(resolveMarket({ market: t.market, ticker: t.ticker })));
+    return MARKET_ORDER.filter((m) => present.has(m));
+  }, [positions, trades]);
+
+  // If the active market disappears from the available set (e.g. a position closed),
+  // fall back to "ALL" so the view never strands on an empty filter.
+  useEffect(() => {
+    if (activeMarket !== "ALL" && !availableMarkets.includes(activeMarket)) {
+      setActiveMarket("ALL");
+    }
+  }, [availableMarkets, activeMarket]);
 
   const runNowIntervalRef = useRef<number | null>(null);
   const runNowTimeoutRef = useRef<number | null>(null);
@@ -297,6 +320,8 @@ export default function PaperTradingLayout({
     error,
     refresh,
     openRationale: setRationaleTradeId,
+    activeMarket,
+    setActiveMarket,
   };
 
   return (
@@ -451,12 +476,32 @@ export default function PaperTradingLayout({
           ) : (
             <PaperTradingDataContext.Provider value={ctxValue}>
               <OpsStatusBar nextRunAt={status?.next_run} />
+              {/* goal-multimarket-ux: global market filter (Tier-4 global control)
+                  + market-session strip. The filter scopes the positions/trades
+                  tables, allocation donut, sector bar, and the Positions tile +
+                  benchmark label below. */}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <MarketFilter
+                  value={activeMarket}
+                  onChange={setActiveMarket}
+                  markets={availableMarkets}
+                />
+                <MarketSessionStrip markets={availableMarkets} />
+              </div>
               <SummaryHero
                 status={status}
                 perf={perf}
                 liveNav={liveNav}
                 liveTotalPnlPct={liveTotalPnlPct}
+                positions={positions}
+                activeMarket={activeMarket}
               />
+              {activeMarket !== "ALL" && (
+                <p className="mb-4 -mt-2 text-xs text-slate-500">
+                  Filtered to {activeMarket}. NAV / Cash / Sharpe are fund-level USD;
+                  the table, allocation, and sector breakdown below show {activeMarket} only.
+                </p>
+              )}
               {children}
             </PaperTradingDataContext.Provider>
           )}

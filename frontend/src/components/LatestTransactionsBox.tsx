@@ -22,6 +22,9 @@ import Link from "next/link";
 import type { PaperTrade } from "@/lib/types";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import { NavPaperTrading } from "@/lib/icons";
+// goal-multimarket-ux: market dot + local-currency price. Trades carry no market
+// column, so market is derived from the ticker suffix.
+import { MARKET_DOT_CLASS, formatCurrency, resolveCurrency, resolveMarket } from "@/lib/format";
 
 type Props = {
   trades: PaperTrade[];
@@ -37,9 +40,13 @@ function sideColor(action: string): string {
     : "bg-rose-500/15 text-rose-400";
 }
 
-function fmtPrice(p: number | null | undefined): string {
+function fmtPrice(p: number | null | undefined, ticker?: string): string {
   if (p == null || !Number.isFinite(p)) return "—";
-  return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const cur = resolveCurrency({ ticker });
+  // USD path preserved byte-identical (browser-locale grouping); non-USD uses Intl.
+  return cur === "USD"
+    ? `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : formatCurrency(p, cur);
 }
 
 function fmtQty(q: number | null | undefined): string {
@@ -124,14 +131,22 @@ export function LatestTransactionsBox({ trades, loaded, loadError }: Props) {
                 }}
                 className="cursor-pointer transition-colors hover:bg-navy-700/40 focus:bg-navy-700/40 focus:outline-none focus:ring-1 focus:ring-sky-500/40"
               >
-                <td className="px-3 py-3 font-mono text-sm font-bold text-slate-100">{t.ticker}</td>
+                <td className="px-3 py-3 font-mono text-sm font-bold text-slate-100">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${MARKET_DOT_CLASS[resolveMarket({ ticker: t.ticker })] ?? "bg-slate-400"}`}
+                      aria-hidden="true"
+                    />
+                    {t.ticker}
+                  </span>
+                </td>
                 <td className="px-3 py-3">
                   <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${sideColor(t.action)}`}>
                     {t.action}
                   </span>
                 </td>
                 <td className="px-3 py-3 text-right font-mono text-sm text-slate-300">{fmtQty(t.quantity)}</td>
-                <td className="px-3 py-3 text-right font-mono text-sm text-slate-300">{fmtPrice(t.price)}</td>
+                <td className="px-3 py-3 text-right font-mono text-sm text-slate-300">{fmtPrice(t.price, t.ticker)}</td>
                 <td className="px-3 py-3 text-right text-xs text-slate-500" suppressHydrationWarning>
                   {formatRelativeTime(t.created_at)}
                 </td>

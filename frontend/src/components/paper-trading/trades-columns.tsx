@@ -6,7 +6,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { clsx } from "clsx";
 import type { PaperTrade } from "@/lib/types";
 import type { TickerMeta } from "@/lib/paper-trading-context";
-import { Dollar } from "./cockpit-helpers";
+import { Dollar, MarketChip } from "./cockpit-helpers";
+// goal-multimarket-ux: trades carry no market column, so market is derived from the
+// ticker suffix. `price` is LOCAL currency; `total_value`/`transaction_cost` are USD.
+import { formatCurrency, resolveCurrency, resolveMarket } from "@/lib/format";
 
 export function tradesColumns(
   tickerMeta: Record<string, TickerMeta>,
@@ -51,6 +54,15 @@ export function tradesColumns(
       meta: { align: "left" },
     },
     {
+      id: "market",
+      accessorFn: (row) => resolveMarket({ market: row.market, ticker: row.ticker }),
+      header: "Market",
+      cell: ({ row }) => (
+        <MarketChip market={row.original.market} ticker={row.original.ticker} showExchange />
+      ),
+      meta: { align: "left" },
+    },
+    {
       id: "company",
       accessorFn: (row) => tickerMeta[row.ticker]?.company_name ?? "",
       header: "Company",
@@ -74,9 +86,20 @@ export function tradesColumns(
       id: "price",
       accessorKey: "price",
       header: "Price",
-      cell: ({ row }) => (
-        <span className="text-slate-100">${row.original.price.toFixed(2)}</span>
-      ),
+      cell: ({ row }) => {
+        const cur = resolveCurrency({
+          currency: row.original.currency,
+          market: row.original.market,
+          ticker: row.original.ticker,
+        });
+        return (
+          <span className="text-slate-100">
+            {cur === "USD"
+              ? `$${row.original.price.toFixed(2)}`
+              : formatCurrency(row.original.price, cur)}
+          </span>
+        );
+      },
       meta: { align: "right", className: "tabular-nums" },
     },
     {

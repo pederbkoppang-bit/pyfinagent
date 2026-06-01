@@ -43,6 +43,10 @@ export interface PaperTradingDataValue {
   refresh: () => Promise<void>;
   // Drawer open is owned at the layout level so any sub-route can trigger.
   openRationale: (tradeId: string | null) => void;
+  // goal-multimarket-ux: global market filter. "ALL" = combined USD-base view.
+  // Sub-routes filter `positions`/`trades` by this; the layout owns the state.
+  activeMarket: string;
+  setActiveMarket: (market: string) => void;
 }
 
 export const PaperTradingDataContext =

@@ -16,6 +16,7 @@ import { positionsColumns } from "@/components/paper-trading/positions-columns";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
 import { useLivePortfolio } from "@/lib/live-portfolio-context";
 import { latestTradeIdForTicker } from "@/lib/paper-trading-utils";
+import { resolveMarket } from "@/lib/format";
 import type { PaperPosition } from "@/lib/types";
 
 // Hard-coded default cap; the operator-tunable setting is
@@ -35,6 +36,7 @@ export default function PositionsPage() {
     tickerMeta,
     livePrices,
     openRationale,
+    activeMarket,
   } = usePaperTradingData();
   // phase-72: pull live NAV + freshness from the root LivePortfolioProvider
   // so the donut center label matches every other NAV display.
@@ -43,6 +45,38 @@ export default function PositionsPage() {
   const columns = useMemo(
     () => positionsColumns(tickerMeta, livePrices),
     [tickerMeta, livePrices],
+  );
+
+  // goal-multimarket-ux: scope the table + donut + sector bar to the active market.
+  const isAllMarkets = !activeMarket || activeMarket === "ALL";
+  const visiblePositions = useMemo(
+    () =>
+      isAllMarkets
+        ? positions
+        : positions.filter(
+            (p) => resolveMarket({ market: p.market, ticker: p.ticker }) === activeMarket,
+          ),
+    [positions, activeMarket, isAllMarkets],
+  );
+
+  // Per-position USD market value. US keeps the exact legacy live formula
+  // (livePrice ?? current_price ?? entry) x qty; non-US uses the backend USD
+  // `market_value` (no client-side FX -- livePrice x qty would be LOCAL notional).
+  const mvUsd = useCallback(
+    (pos: PaperPosition): number => {
+      const isUs = resolveMarket({ market: pos.market, ticker: pos.ticker }) === "US";
+      if (isUs) {
+        const px = livePrices[pos.ticker]?.price ?? pos.current_price ?? pos.avg_entry_price;
+        return px * pos.quantity;
+      }
+      return pos.market_value ?? 0;
+    },
+    [livePrices],
+  );
+
+  const filteredNavUsd = useMemo(
+    () => visiblePositions.reduce((sum, p) => sum + mvUsd(p), 0),
+    [visiblePositions, mvUsd],
   );
 
   // phase-44.2 cycle-68: custom global filter that matches ticker OR
@@ -63,39 +97,39 @@ export default function PositionsPage() {
     [tickerMeta],
   );
 
-  // Sector concentration items: aggregate live market value by sector,
-  // normalized to NAV. Uses live prices when available, falls back to
-  // stored cost basis so a fresh portfolio still renders.
+  // Sector concentration items: aggregate USD market value by sector, normalized to
+  // NAV. Scoped to the active market; denominator is the fund NAV for "All" or the
+  // filtered market's USD holdings when a single market is selected (so its sectors
+  // sum to ~100% within the market rather than reading as a tiny slice of the fund).
   const sectorItems = useMemo(() => {
-    const navDenom = portfolio?.total_nav ?? 10000;
+    const navDenom = isAllMarkets
+      ? (portfolio?.total_nav ?? 10000)
+      : (filteredNavUsd || 1);
     const acc = new Map<string, number>();
-    for (const pos of positions) {
+    for (const pos of visiblePositions) {
       const sector = tickerMeta[pos.ticker]?.sector || "Unknown";
-      const livePrice = livePrices[pos.ticker]?.price ?? pos.current_price ?? pos.avg_entry_price;
-      const mv = livePrice * pos.quantity;
-      acc.set(sector, (acc.get(sector) ?? 0) + mv);
+      acc.set(sector, (acc.get(sector) ?? 0) + mvUsd(pos));
     }
     return Array.from(acc.entries())
       .map(([name, mv]) => ({ name, value: navDenom > 0 ? (mv / navDenom) * 100 : 0 }))
       .filter((s) => s.value > 0);
-  }, [positions, tickerMeta, livePrices, portfolio]);
+  }, [visiblePositions, tickerMeta, mvUsd, isAllMarkets, portfolio, filteredNavUsd]);
 
-  // phase-44.2 cycle-68: portfolio allocation slices for the donut.
-  // Each held sector contributes its summed market value; cash is
-  // surfaced as its own slice. Total = sum of all = NAV when consistent.
+  // phase-44.2 cycle-68: portfolio allocation slices for the donut. Each held sector
+  // contributes its summed USD market value. Cash is a fund-level slice, so it is only
+  // shown for the combined "All" view (a single-market view shows that market's sector
+  // mix without the fund's cash).
   const allocationSlices = useMemo(() => {
     const acc = new Map<string, number>();
-    for (const pos of positions) {
+    for (const pos of visiblePositions) {
       const sector = tickerMeta[pos.ticker]?.sector || "Unknown";
-      const livePrice = livePrices[pos.ticker]?.price ?? pos.current_price ?? pos.avg_entry_price;
-      const mv = livePrice * pos.quantity;
-      acc.set(sector, (acc.get(sector) ?? 0) + mv);
+      acc.set(sector, (acc.get(sector) ?? 0) + mvUsd(pos));
     }
     const slices = Array.from(acc.entries()).map(([name, value]) => ({ name, value }));
     const cash = portfolio?.current_cash ?? 0;
-    if (cash > 0) slices.push({ name: "Cash", value: cash });
+    if (isAllMarkets && cash > 0) slices.push({ name: "Cash", value: cash });
     return slices;
-  }, [positions, tickerMeta, livePrices, portfolio]);
+  }, [visiblePositions, tickerMeta, mvUsd, isAllMarkets, portfolio]);
 
   return (
     <div
@@ -129,16 +163,17 @@ export default function PositionsPage() {
           // phase-72: prefer live NAV (root SSOT) for the center label so the
           // donut matches the Home + Paper Trading NAV tiles. Falls back to
           // the persisted snapshot if the live derivation isn't ready
-          // (initial paint, no live ticks).
-          totalNav={lp.liveNav ?? portfolio?.total_nav ?? null}
+          // (initial paint, no live ticks). goal-multimarket-ux: when a single
+          // market is selected, the center shows that market's USD holdings.
+          totalNav={isAllMarkets ? (lp.liveNav ?? portfolio?.total_nav ?? null) : filteredNavUsd}
           liveBand={lp.freshnessBand}
           liveAgeSec={lp.freshnessAgeSec}
-          title="Allocation"
+          title={isAllMarkets ? "Allocation" : `Allocation — ${activeMarket}`}
         />
       </div>
       <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg p-4">
         <DataTable
-          data={positions}
+          data={visiblePositions}
           columns={columns}
           globalFilterPlaceholder="Filter ticker, company, or sector..."
           globalFilterFn={positionsFilterFn}

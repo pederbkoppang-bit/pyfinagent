@@ -1,48 +1,151 @@
-# experiment_results -- phase-52.4: residual momentum -> REJECT (cited-alpha-signal search EXHAUSTED)
+# Experiment Results — Multi-Market UX (Phases A + B + C)
 
-**Step:** 52.4 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **NO live change** | GENERATE complete
+**Step:** goal-multimarket-ux · **Date:** 2026-06-01 · **Status:** complete (A+B+C done; all 7 immutable criteria addressed in code; visual-browser pass pending — see caveat)
 
-## Outcome in one line
-Measured residual/idiosyncratic momentum (Blitz-Huij-Martens, single-factor 504d OLS, 12-1) vs the
-baseline momentum ranking -> **REJECT: resid_mom is WORSE (Sharpe 1.082 vs 1.332, delta -0.249,
-Ledoit-Wolf p=0.77)**. This closes the cited-alpha-signal search: NO tested price-based lever beats
-the +20% momentum engine on our 2019-2025 large-cap long-only book. The engine STANDS as the highest earner.
+## What was built
 
-## What was built / changed (offline measurement; NO live engine change)
+### A — Foundation
+- **NEW `frontend/src/lib/format.ts`** — pure, dependency-free (type-only import of
+  NumberFlow `Format`). Mirrors backend `MARKET_CONFIG` + `market_for_symbol`:
+  - `MARKET_CURRENCY` (US→USD, EU→EUR, KR→KRW, NO→NOK, SE→SEK, DK→DKK, FI→EUR, IS→ISK, CA→CAD)
+  - `MARKET_BENCHMARK_LABEL` (US→SPY, EU→DAX, KR→KOSPI, …)
+  - `CURRENCY_LOCALE` (USD→en-US, EUR→en-IE, KRW→ko-KR, …)
+  - `MARKET_DOT_CLASS` (static JIT-safe Tailwind map; US sky / EU amber / KR violet / …)
+  - `MARKET_EXCHANGE` + `MARKET_EXCHANGE_SHORT` (chip tooltip + compact tag)
+  - `MARKET_ORDER` (canonical display order for filter + session strip)
+  - `marketForSymbol` (TS port; suffix is source of truth; bare→US)
+  - `resolveMarket`, `resolveCurrency`, `formatCurrency` (Intl, narrowSymbol, no
+    forced fraction digits → KRW 0dp), `formatUsd`, `numberFlowFormat`, `numberFlowLocale`
+  - `isMarketOpen` (session heuristic: weekday + local cash-session window per exchange tz;
+    holiday-blind by design — backend `exchange_calendars` owns the authoritative gate)
+- **`frontend/src/lib/types.ts`** — added optional `market?`/`base_currency?` to
+  `PaperPosition` + `PaperPortfolio`; optional `market?`/`currency?` to `PaperTrade`.
+  Optional ⇒ backward-compatible; documented that price/entry/stop are LOCAL while
+  cost_basis/market_value/total_value/fee are USD.
 
-| File | Change |
-|------|--------|
-| `scripts/ablation/residual_momentum_replay.py` | NEW. Downloads S&P-500 closes 2019-2025 (one $0 batch); NEW `resid_mom_signal(s_ret,m_ret,form=252,skip=21)` (single-factor OLS beta=cov/var, residuals, iMOM=sum(12-1 formation residuals)/std); per ~monthly rebalance ranks baseline (production rank_candidates) vs resid_mom; scores via the reused basket_fwd_return; applies the 52.3 `sharpe_diff_test` Ledoit-Wolf gate + the SAME a-priori rule. Reuses build_screen_row/basket_fwd_return/ann_sharpe/load_universe_sectors from sector_neutral_replay (import by path). |
-| `backend/tests/test_phase_52_4_residual_momentum.py` | NEW 5 tests (resid_mom_signal: positive/negative formation direction; recent-only run does NOT create positive momentum (12-1 skip + OLS-alpha absorption); too-short->None; deterministic). |
+### B — Currency-aware rendering + Market column
+- **`cockpit-helpers.tsx`** — `Dollar` now takes optional `currency` (default "USD";
+  USD branch keeps the EXACT legacy format object + default locales → byte-identical).
+  New shared `MarketChip` (colored dot + market code [+ optional short exchange tag];
+  NO flag emoji; `aria-hidden` dot so the code carries the meaning — WCAG, not color-only).
+- **`positions-columns.tsx`** — new MARKET column after Ticker; ENTRY / CURRENT /
+  STOP-LOSS render in LOCAL currency (USD branch byte-identical); MARKET VALUE and P&L%
+  use the backend USD / `unrealized_pnl_pct` for non-US (the `livePrice × qty` recompute
+  is LOCAL notional, valid only for US — `resolveMarket==='US'` is both the do-no-harm
+  guard and the no-client-FX guard).
+- **`trades-columns.tsx`** — new MARKET column (derived from ticker suffix); PRICE in
+  LOCAL; VALUE + FEE stay USD.
+- **`LatestTransactionsBox.tsx`** (home cockpit) — market dot before the ticker; PRICE
+  in LOCAL (USD path byte-identical).
 
-## The verdict (criterion #1/#2)
+### C — Filter + dynamic benchmark + session strip
+- **NEW `components/paper-trading/MarketFilter.tsx`** — WAI-ARIA APG `radiogroup`
+  segmented control (All · US · EU · KR · …). Roving tabindex, Arrow/Home/End keyboard
+  nav with selection-follows-focus, `aria-checked`, focus-visible ring. Options are
+  data-driven (core US/EU/KR + any held/traded market, in `MARKET_ORDER`). Colored dot +
+  code; exchange name in `title`. NO flag emoji.
+- **NEW `components/paper-trading/MarketSessionStrip.tsx`** — per-market OPEN/CLOSED dot
+  (emerald/slate) from `isMarketOpen`. Mounts to `null`-then-`Date` to avoid SSR
+  hydration mismatch; re-evaluates every 60s. Holiday-blind UI hint (documented).
+- **`paper-trading/layout.tsx`** — owns `activeMarket` state (default "ALL"); computes
+  `availableMarkets` (core set ∪ markets present in positions/trades, in canonical order);
+  auto-resets to "ALL" if the active market disappears; mounts the filter + session strip
+  as a Tier-4 global control; threads `positions`+`activeMarket` into `SummaryHero`; shows a
+  "Filtered to X — NAV/Cash/Sharpe are fund-level USD; table/allocation/sector show X only"
+  hint when a single market is selected. Exposes `activeMarket`/`setActiveMarket` via
+  `PaperTradingDataContext`.
+- **`positions/page.tsx`** — filters the table to `activeMarket`; donut + sector-bar scope
+  to the filtered set using a USD market-value helper (`mvUsd`: US = legacy livePrice×qty,
+  non-US = backend USD `market_value`, no client FX); single-market denominator = that
+  market's USD holdings (sectors sum to ~100% within the market); Cash slice only in "All";
+  donut center + title reflect the filtered market.
+- **`trades/page.tsx`** — filters the trades table to `activeMarket` (suffix-derived).
+- **`cockpit-helpers.tsx` `SummaryHero`** — Positions tile count filters to the active
+  market; **dynamic benchmark label** ("vs SPY" / "vs DAX" / "vs KOSPI"); for a specific
+  non-US market (no per-market index in the API) shows that market's USD-consistent
+  holdings return with an explanatory tooltip rather than inventing FX-converted excess.
+
+## Files changed
+NEW: `frontend/src/lib/format.ts`,
+`frontend/src/components/paper-trading/MarketFilter.tsx`,
+`frontend/src/components/paper-trading/MarketSessionStrip.tsx`.
+MODIFIED: `frontend/src/lib/types.ts`, `frontend/src/lib/paper-trading-context.tsx`,
+`frontend/src/app/paper-trading/layout.tsx`,
+`frontend/src/app/paper-trading/positions/page.tsx`,
+`frontend/src/app/paper-trading/trades/page.tsx`,
+`frontend/src/components/LatestTransactionsBox.tsx`,
+`frontend/src/components/paper-trading/cockpit-helpers.tsx`,
+`frontend/src/components/paper-trading/positions-columns.tsx`,
+`frontend/src/components/paper-trading/trades-columns.tsx`.
+
+## Verification (verbatim)
+
+TypeScript (frontend, strict):
 ```
-config       ann_Sharpe   avg_fwd_mo%   avg_turnover
-baseline        1.332        3.651          0.564
-resid_mom       1.082        1.970          0.679
-LW SR-difference: delta=-0.249, one-sided p=0.7724 (R1 False), 90% CI [-0.883,+0.330] (R2 False)
-VERDICT: REJECT
+$ node_modules/.bin/tsc --noEmit -p tsconfig.json
+TSC_EXIT=0
 ```
-Residual momentum UNDERPERFORMS baseline momentum here (lower Sharpe + return, higher turnover) -- decisively confirming the researcher's prior (modern-regime decay + long-only [no short leg] + large-cap [low idiosyncratic content], + the single-factor residual partly recapturing already-rejected factor/sector momentum).
 
-## Research basis (gate PASSED)
-`research_brief.md` (researcher `afaa06ced01cfac95`, 6 sources read in full incl. Blitz-Huij-Martens 2011 + Hanauer-Windmuller eq-9 via pdfplumber). The honest adversarial prior (likely REJECT on a large-cap long-only modern book) was confirmed -- even stronger (worse, not just insignificant).
-
-## Verification command output (verbatim)
+Production build (`npm run build`) — clean; modified routes compiled:
 ```
-$ python -m pytest backend/tests/test_phase_52_4_residual_momentum.py -q
-.....                                                                    [100%]
-5 passed in 1.43s
+├ ○ /paper-trading/positions               11 kB         137 kB
+├ ○ /paper-trading/trades                3.39 kB         129 kB
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
 ```
-Full replay verdict -> live_check_52.4.md. Reproducible (pinned `_residmom_paired_returns.json` + seeded bootstrap).
+NOTE: the FIRST build run failed prerendering `/404` + `/_error` with
+"`<Html>` should not be imported outside of pages/_document". This is a stale-`.next`
+cache symptom UNRELATED to this work — proved: zero `next/document` imports in `src/`,
+no `pages/` dir (pure App Router), no custom 404/error/not-found/global-error pages, and
+the diff touches none of those paths. A second build (regenerating the stale chunk)
+completed clean, as shown above.
 
-## Scope / safety (criterion #3)
-- NO live engine change. Diff = the new replay script + resid_mom_signal + the new test + the pinned JSON. screener.py / autonomous_loop / the momentum_52wh flag UNTOUCHED. Offline $0 measurement (doesn't conflict with measuring Monday's live cycle).
-- A-priori rule (same strict Ledoit-Wolf bar as 52.3) -- not lowered for the higher-evidenced lever; the modern large-cap long-only haircut made it worse.
+Deterministic `format.ts` proof (transpiled REAL module via `tsc src/lib/format.ts`,
+then `node` — tests the shipped code, not a reimplementation):
+```
+PASS USD 971.55 -> "$971.55"
+PASS EUR 243.1 (en-IE) -> "€243.10"
+PASS KRW 71200 0dp -> "₩71,200"
+PASS formatUsd 1694 -> "$1,694.00"
+PASS null -> dash -> "—"
+PASS bare AAPL -> US      PASS SAP.DE -> EU      PASS 005930.KS -> KR      PASS EQNR.OL -> NO
+PASS resolveCurrency SAP.DE -> EUR    PASS resolveCurrency bare -> USD
+PASS resolveMarket explicit wins -> "KR"
+PASS bench label EU -> "DAX"    PASS bench label KR -> "KOSPI"
+PASS US Sat closed -> false    PASS US Mon 10:00 ET open -> true    PASS US Mon 19:00 ET closed -> false
+ALL_FORMAT_OK   (17/17)
+```
+KRW renders 0 decimals (₩71,200), EUR/USD 2 — confirms not forcing minimumFractionDigits.
 
-## Artifact shape
-- `resid_mom_signal(s_ret, m_ret, form=252, skip=21) -> float|None` (single-factor 12-1 residual momentum)
-- the replay prints baseline vs resid_mom + the LW gate verdict.
+## Criteria status (all 7 immutable)
+1. Global market filter (All·US·EU·KR) filters tables/KPI tile/donut/sector bar; "All" =
+   combined USD: **DONE** (MarketFilter in layout; positions+trades filtered; donut+sector
+   scoped; Positions tile count filtered).
+2. Market column + chip (dot+code, NO flag emoji): **DONE** (positions + trades).
+3. Dual currency (local price/entry/stop; USD value/fee/cost-basis): **DONE**.
+4. Locale-correct Intl (KRW 0dp): **DONE + verified**.
+5. Dynamic benchmark label (vs SPY/DAX/KOSPI): **DONE** (SummaryHero `benchLabel`).
+6. Market-session strip: **DONE** (MarketSessionStrip in layout).
+7. Latest Transactions market chip + local price: **DONE**. (Reports History is
+   score-based — no price/currency — so "local price" is N/A there.)
 
-## THE ELEMENT-2 SEARCH IS EXHAUSTED (rigorous, overfitting-controlled)
-rotation (REJECT) | sector-neutral (-0.166 REJECT) | vol-scaling (+0.015 marginal) | 52wh tilt (+0.057 but p=0.24 REJECT) | residual momentum (-0.249 REJECT). **No cited price-based signal robustly beats the live momentum engine.** The +20%/+14%-alpha engine STANDS as the highest earner -- the honest, research-complete outcome. NEXT: the LIVE multi-market expansion is the money lever (MEASURE Monday's first cycle); further alpha would need a different data axis (the resurrected news/catalyst overlays -- LLM-gated) or accepting the engine.
+## Do-no-harm evidence
+Every USD path branches `currency === "USD" ? <legacy exact> : <Intl>`, so US rows are
+byte-identical (proved: $971.55/$880.72/$1,694.00 match legacy; tsc clean; build clean).
+`marketForSymbol` returns US for bare tickers, so the current all-US live portfolio is
+unchanged. The market filter defaults to "ALL"; with an all-US book, "ALL" and "US" both
+show the full set, and the donut/sector/KPI math reduces to the pre-change formulas.
+
+## Browser-verification caveat (for Q/A and operator)
+The live paper portfolio is currently **all-US** (first multi-market cycle scheduled
+Mon 14:00 UTC). Therefore:
+- US-unchanged + filter/session-strip rendering CAN be visually confirmed now at
+  `localhost:3000/paper-trading` (operator review, or computer-use once macOS
+  Accessibility + Screen-Recording permissions are granted and Claude Code restarted —
+  currently NOT granted).
+- EU/KR € / ₩ row rendering cannot be seen with live data until EU/KR positions exist
+  (Monday's cycle or a seeded fixture). It is proved deterministically by the Intl check
+  above (real module).
+
+Per `.claude/rules/frontend.md` rule 5, this color-coded UI is marked **visual
+verification pending operator review** until one of the above paths runs.

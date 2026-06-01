@@ -10,12 +10,25 @@ import type { FilterFn } from "@tanstack/react-table";
 import { DataTable } from "@/components/DataTable";
 import { tradesColumns } from "@/components/paper-trading/trades-columns";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
+import { resolveMarket } from "@/lib/format";
 import type { PaperTrade } from "@/lib/types";
 
 export default function TradesPage() {
-  const { trades, tickerMeta, openRationale } = usePaperTradingData();
+  const { trades, tickerMeta, openRationale, activeMarket } = usePaperTradingData();
 
   const columns = useMemo(() => tradesColumns(tickerMeta), [tickerMeta]);
+
+  // goal-multimarket-ux: scope the trades table to the active market (derived from
+  // the ticker suffix -- paper_trades carries no market column).
+  const visibleTrades = useMemo(
+    () =>
+      !activeMarket || activeMarket === "ALL"
+        ? trades
+        : trades.filter(
+            (t) => resolveMarket({ market: t.market, ticker: t.ticker }) === activeMarket,
+          ),
+    [trades, activeMarket],
+  );
 
   // phase-44.2 cycle-69: same multi-field filter pattern as the positions
   // table -- match ticker OR company_name (from tickerMeta) OR sector
@@ -52,7 +65,7 @@ export default function TradesPage() {
     >
       <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg p-4">
         <DataTable
-          data={trades}
+          data={visibleTrades}
           columns={columns}
           globalFilterPlaceholder="Filter ticker, company, sector, action, or reason..."
           globalFilterFn={tradesFilterFn}

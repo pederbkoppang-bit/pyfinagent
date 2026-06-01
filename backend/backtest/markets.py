@@ -59,6 +59,37 @@ MARKET_CONFIG = {
         "description": "KRX - KOSPI/KOSDAQ (South Korea)",
         "benchmark": "^KS11",
     },
+    # goal-multimarket-ux: Nordic markets (additive metadata; trading only happens
+    # for codes listed in PAPER_MARKETS, so adding these does NOT change the live
+    # US/EU/KR loop). Currencies: SE=SEK, DK=DKK, FI=EUR (euro-zone), IS=ISK.
+    "SE": {
+        "exchange": "XSTO",
+        "currency": "SEK",
+        "timezone": "Europe/Stockholm",
+        "description": "Nasdaq Stockholm (Sweden)",
+        "benchmark": "^OMX",
+    },
+    "DK": {
+        "exchange": "XCSE",
+        "currency": "DKK",
+        "timezone": "Europe/Copenhagen",
+        "description": "Nasdaq Copenhagen (Denmark)",
+        "benchmark": "^OMXC25",
+    },
+    "FI": {
+        "exchange": "XHEL",
+        "currency": "EUR",
+        "timezone": "Europe/Helsinki",
+        "description": "Nasdaq Helsinki (Finland)",
+        "benchmark": "^OMXH25",
+    },
+    "IS": {
+        "exchange": "XICE",
+        "currency": "ISK",
+        "timezone": "Atlantic/Reykjavik",
+        "description": "Nasdaq Iceland",
+        "benchmark": "^OMXIPI",
+    },
 }
 
 
@@ -89,7 +120,12 @@ def get_market_config(market: str = DEFAULT_MARKET) -> dict:
 
 
 # phase-50.3: yfinance ticker suffix per market (US is bare).
-YF_SUFFIX = {"US": "", "NO": ".OL", "CA": ".TO", "EU": ".DE", "KR": ".KS"}
+# goal-multimarket-ux: Nordic suffixes added (Stockholm .ST, Copenhagen .CO,
+# Helsinki .HE, Iceland .IC).
+YF_SUFFIX = {
+    "US": "", "NO": ".OL", "CA": ".TO", "EU": ".DE", "KR": ".KS",
+    "SE": ".ST", "DK": ".CO", "FI": ".HE", "IS": ".IC",
+}
 
 
 def to_yfinance_symbol(namespaced: str) -> str:
@@ -115,6 +151,15 @@ def market_for_symbol(symbol: str) -> str:
         return "EU"
     if s.endswith(".OL"):
         return "NO"
+    # goal-multimarket-ux: Nordic suffixes (Stockholm/Copenhagen/Helsinki/Iceland).
+    if s.endswith(".ST"):
+        return "SE"
+    if s.endswith(".CO"):
+        return "DK"
+    if s.endswith(".HE"):
+        return "FI"
+    if s.endswith(".IC"):
+        return "IS"
     if s.endswith(".TO"):
         return "CA"
     return DEFAULT_MARKET

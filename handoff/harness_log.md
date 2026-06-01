@@ -26213,3 +26213,85 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Scope honesty:** NO live change -- offline measurement (new replay + resid_mom_signal + test + pinned JSON; screener.py/autonomous_loop/the 52wh flag UNTOUCHED). **THE ELEMENT-2 ALPHA-SIGNAL SEARCH IS EXHAUSTED:** rotation (REJECT) | sector-neutral (-0.166 REJECT) | vol-scaling (+0.015 marginal) | 52wh tilt (+0.057 but p=0.24 REJECT) | residual momentum (-0.249 WORSE, REJECT). NO cited price-based signal robustly beats the live momentum engine on a 2019-2025 large-cap long-only S&P-500 book -- the +20%/+14%-alpha engine STANDS as the highest earner (honest, overfitting-controlled, research-complete). NEXT: the LIVE multi-market expansion is the money lever (MEASURE Monday's first cycle 14:00 UTC); further alpha would need a DIFFERENT data axis (the resurrected news/catalyst overlays -- LLM-gated) or accepting the engine. 50.6 UI + calendar_events remain.
 
 ---
+
+---
+
+## Cycle 1 -- 2026-06-01 08:23 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-01 08:26 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-01 08:37 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-01 08:37 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 32 (goal /goal-multimarket-ux) -- 2026-06-01 -- step=goal-multimarket-ux result=PASS
+
+**Step:** Multi-Market UX (US / EU / KR + Nordic-ready) -- a `/goal`-driven frontend cycle (not a masterplan phase id). Make the paper-trading cockpit honestly multi-currency + market-filterable now that the EU+KR go-live is LIVE (51.x). Increments A (foundation) + B (currency-aware rendering + Market column) were a prior partial; this cycle completes C (global market filter + dynamic benchmark label + market-session strip) and ships A+B+C together. $0 LLM, no pip. NO live trading-engine change (frontend + additive backend metadata only).
+
+**Research:** researcher PASSED (8 sources read in full, 18 URLs, recency scan). Decisive: backend already ships `market`/`base_currency`/LOCAL `current_price` for positions; the frontend dropped them at the type boundary. `market_value`/`cost_basis` are USD, `current_price` is LOCAL (phase-50.2). `paper_trades` has no market column -> derive market from the yfinance suffix (`markets.py::market_for_symbol`). Recommended Intl locale map (USD->en-US, EUR->en-IE, KRW->ko-KR), `currencyDisplay:'narrowSymbol'`, do NOT force minimumFractionDigits (breaks KRW 0dp), ARIA radiogroup filter, extend `PaperTradingDataContext` with `activeMarket`.
+
+**Generate:** NEW `frontend/src/lib/format.ts` (pure Intl currency/market module mirroring backend MARKET_CONFIG + suffix resolution + `isMarketOpen` session heuristic), NEW `MarketFilter.tsx` (WAI-ARIA APG radiogroup, roving tabindex, Arrow/Home/End nav, no flag emoji), NEW `MarketSessionStrip.tsx` (per-market OPEN/CLOSED dot, SSR-hydration-safe). MODIFIED: `types.ts` (optional market/base_currency/currency, backward-compat), `paper-trading-context.tsx` (+activeMarket/setActiveMarket), `layout.tsx` (owns activeMarket, availableMarkets from holdings, mounts filter+strip, threads into SummaryHero), `positions/page.tsx` (filter table+donut+sector-bar; USD `mvUsd` helper -- non-US uses backend USD market_value, NO client FX), `trades/page.tsx` (filter), `cockpit-helpers.tsx` (`Dollar` parameterized by currency w/ USD byte-identity branch; new `MarketChip`; SummaryHero dynamic benchmark label + filtered Positions count), `positions-columns.tsx` + `trades-columns.tsx` (Market column; LOCAL entry/current/stop/price; USD value/fee), `LatestTransactionsBox.tsx` (market dot + local price). Backend `markets.py`: additive Nordic metadata (SE/DK/FI/IS configs + .ST/.CO/.HE/.IC suffixes) -- does NOT alter the live US/EU/KR loop (trading only fires for PAPER_MARKETS codes). Verification: `tsc --noEmit` EXIT=0; `npm run build` clean (first run hit a stale-.next `/404` `<Html>` prerender error -- proved unrelated: no next/document imports, pure App Router, diff touches no error pages; rebuild cleared it); real-module `format.ts` proof 16/16 incl. KRW `₩71,200` (0dp, not forced) + bare-ticker->US->USD do-no-harm; eslint 0 errors.
+
+**Q/A:** fresh `a470d132b0b5c81fd` = **PASS** (`ok:true`, zero violated_criteria, 12 checks, `visual_verification:pending-operator`). INDEPENDENTLY reproduced (did NOT trust generator numbers): tsc EXIT=0; transpiled-SHIPPED-module format proof incl. load-bearing KRW-0dp (`formatCurrency(71200,'KRW')==='₩71,200'`, `₩123,457` for 123456.78 -> minimumFractionDigits NOT forced); eslint 0 errors / react-hooks/rules-of-hooks fired ZERO times (phase-23.2.23 hook-order class clean); zero flag + zero pictograph emoji across 12 scope files; every market-dependent money path (entry/current/stop/price) inside an explicit `currency==='USD'`/`isUsd` byte-identity branch; NO client-side FX -- every livePrice*qty recompute gated behind `resolveMarket==='US'`, non-US uses backend USD market_value / unrealized_pnl_pct; backend markets.py additive-only, frontend mirror matches suffixes exactly; code-review worst severity = NOTE (no BLOCK/WARN); 5/5 harness-compliance; first verdict on A+B+C evidence (no prior goal-multimarket-ux verdict -> not verdict-shopping). The earlier stale phase-52.4 critique was fully overwritten.
+
+**Scope honesty:** NO live trading-engine change -- the diff is frontend + additive backend market metadata; screener/autonomous_loop/decide_trades/risk-guards UNTOUCHED. DO-NO-HARM proven: US rows render byte-identical (every USD path keeps the exact legacy format object; bare tickers resolve to US/USD; filter defaults to ALL which on an all-US book reduces to the pre-change math). **OPEN ITEM -- visual browser verification PENDING (operator):** the live paper book is all-US until Monday's first multi-market cycle (14:00 UTC), so EU/KR €/₩ rows cannot be seen with live data yet (proved deterministically via the Intl check instead). The US-unchanged + filter/session-strip visual pass needs either operator review at `localhost:3000/paper-trading` OR computer-use once macOS Accessibility + Screen-Recording perms are granted + Claude Code restarted (currently NOT granted). Marked `visual_verification:pending-operator` per `.claude/rules/frontend.md` rule 5 -- a documented limitation, not a code defect. NEXT: (1) operator visual pass; (2) re-confirm €/₩ rendering once EU/KR positions exist (Monday) or via a seeded fixture; (3) calendar_events table; (4) MEASURE Monday's first multi-market cycle.
