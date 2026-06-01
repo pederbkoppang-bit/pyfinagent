@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `17adbf28` | feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar |
 | 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
 | 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
 | 2026-06-01 | `ac93f67f` | feat(paper-trading): multi-market UX -- currency-aware cockpit + market filter (US/EU/KR + Nordic-re |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-30 | `6334a491` | phase-50.4: GENERATE -- market-calendar gating (latent bug fixed) |
 | 2026-05-30 | `4194088a` | phase-50.4: PLAN -- market-calendar gating contract + research gate |
 | 2026-05-30 | `ccf8a889` | phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{t... |
-| 2026-05-30 | `8e8897ed` | phase-50.3: GENERATE -- international universe + suffix mapper + routing |
 
 ---
 
+### v6.31.0 — feat(paper-trading): fold market filter into the operator status bar... (2026-06-01)
+
+- **feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar**
 ### v6.30.0 — feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) (2026-06-01)
 
 - **feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp)**
