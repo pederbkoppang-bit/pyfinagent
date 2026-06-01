@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `a560b639` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
 | 2026-06-01 | `17adbf28` | feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar |
 | 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
 | 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-30 | `6865115b` | phase-50.4: Market-calendar gating -- verify-install exchange_calendars / pandas_market_calendars... |
 | 2026-05-30 | `6334a491` | phase-50.4: GENERATE -- market-calendar gating (latent bug fixed) |
 | 2026-05-30 | `4194088a` | phase-50.4: PLAN -- market-calendar gating contract + research gate |
-| 2026-05-30 | `ccf8a889` | phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{t... |
 
 ---
 
+### v6.32.0 — feat(masterplan): add phase-53 best-in-class elevation + remote-worki... (2026-06-01)
+
+- **feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal**
 ### v6.31.0 — feat(paper-trading): fold market filter into the operator status bar... (2026-06-01)
 
 - **feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar**
