@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { BentoCard } from "@/components/BentoCard";
+import { BacktestScopeStrip } from "@/components/BacktestScopeStrip";
 import { PageSkeleton } from "@/components/Skeleton";
 import {
   runBacktest,
@@ -638,6 +639,8 @@ export default function BacktestPage() {
               <p className="text-sm text-slate-500">
                 ML-driven backtesting with Triple Barrier labels &amp; Deflated Sharpe Ratio guard
               </p>
+              {/* phase-50.6: US-only / USD / SPY scope + market-hours badge. */}
+              <BacktestScopeStrip />
             </div>
             <div className="flex items-center gap-2">
               <button

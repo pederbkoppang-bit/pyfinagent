@@ -564,6 +564,7 @@ export interface FullSettings {
   paper_starting_capital?: number;  // read-only after init; mutated only via deposit
   paper_max_positions?: number;
   paper_max_per_sector?: number;  // phase-23.1.13
+  paper_markets?: string[];  // phase-50.6: live-loop markets (subset of US/EU/KR)
   paper_max_daily_cost_usd?: number;
   paper_default_stop_loss_pct?: number;
   paper_screen_top_n?: number;

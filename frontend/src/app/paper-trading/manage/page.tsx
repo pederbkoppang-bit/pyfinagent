@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import {
   PaperSettingNum,
+  PaperMarketsField,
   ReadOnlyField,
 } from "@/components/paper-trading/cockpit-helpers";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
@@ -231,6 +232,8 @@ export default function ManagePage() {
                 </p>
               </label>
             </div>
+            {/* phase-50.6: live-loop markets multi-select (writes paper_markets). */}
+            <PaperMarketsField settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} />
             <PaperSettingNum label="Max simultaneous positions" field="paper_max_positions" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={1} />
             <PaperSettingNum label="Max positions per sector" field="paper_max_per_sector" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={20} step={1} hint="Default 2 = at least 5 distinct sectors for a 10-position portfolio. 0 disables (legacy)." />
             <PaperSettingNum label="Daily LLM cost cap (USD)" field="paper_max_daily_cost_usd" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0.1} max={50} step={0.1} />

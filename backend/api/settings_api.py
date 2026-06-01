@@ -100,6 +100,7 @@ class FullSettings(BaseModel):
     paper_starting_capital: float = 10000.0  # informational read-only
     paper_max_positions: int = 10
     paper_max_per_sector: int = 2  # phase-23.1.13
+    paper_markets: list[str] = ["US"]  # phase-50.6: live-loop markets (subset of US/EU/KR)
     paper_max_daily_cost_usd: float = 2.0
     paper_default_stop_loss_pct: float = 8.0
     paper_screen_top_n: int = 10
@@ -153,6 +154,7 @@ class SettingsUpdate(BaseModel):
     # phase-23.1.9 — Paper trading settings (paper_starting_capital is NOT writable post-init)
     paper_max_positions: Optional[int] = Field(None, ge=1, le=50)
     paper_max_per_sector: Optional[int] = Field(None, ge=0, le=20)  # phase-23.1.13
+    paper_markets: Optional[list[str]] = None  # phase-50.6: subset of US/EU/KR
     paper_max_daily_cost_usd: Optional[float] = Field(None, ge=0.10, le=50.0)
     paper_default_stop_loss_pct: Optional[float] = Field(None, ge=1.0, le=50.0)
     paper_screen_top_n: Optional[int] = Field(None, ge=1, le=100)
@@ -283,6 +285,7 @@ _FIELD_TO_ENV = {
     # phase-23.1.9 — Paper trading settings
     "paper_max_positions": "PAPER_MAX_POSITIONS",
     "paper_max_per_sector": "PAPER_MAX_PER_SECTOR",  # phase-23.1.13
+    "paper_markets": "PAPER_MARKETS",  # phase-50.6 (serialized as CSV; settings.py validator parses)
     "paper_max_daily_cost_usd": "PAPER_MAX_DAILY_COST_USD",
     "paper_default_stop_loss_pct": "PAPER_DEFAULT_STOP_LOSS_PCT",
     "paper_screen_top_n": "PAPER_SCREEN_TOP_N",
@@ -350,6 +353,7 @@ def _settings_to_full(s: Settings) -> FullSettings:
         paper_starting_capital=float(getattr(s, "paper_starting_capital", 10000.0)),
         paper_max_positions=int(getattr(s, "paper_max_positions", 10)),
         paper_max_per_sector=int(getattr(s, "paper_max_per_sector", 2)),  # phase-23.1.13
+        paper_markets=list(getattr(s, "paper_markets", ["US"]) or ["US"]),  # phase-50.6
         paper_max_daily_cost_usd=float(getattr(s, "paper_max_daily_cost_usd", 2.0)),
         paper_default_stop_loss_pct=float(getattr(s, "paper_default_stop_loss_pct", 8.0)),
         paper_screen_top_n=int(getattr(s, "paper_screen_top_n", 10)),
@@ -418,7 +422,14 @@ async def update_settings(body: SettingsUpdate):
     for field_name, value in updates.items():
         env_key = _FIELD_TO_ENV.get(field_name)
         if env_key:
-            env_value = str(value).lower() if isinstance(value, bool) else str(value)
+            if isinstance(value, bool):
+                env_value = str(value).lower()
+            elif isinstance(value, list):
+                # phase-50.6: serialize list settings (e.g. paper_markets) as CSV;
+                # the settings.py field_validator parses CSV/JSON/bracket forms.
+                env_value = ",".join(str(x) for x in value)
+            else:
+                env_value = str(value)
             _update_env_var(env_key, env_value)
 
     # Clear cache so next request picks up new values

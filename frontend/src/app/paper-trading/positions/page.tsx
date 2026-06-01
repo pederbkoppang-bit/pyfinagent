@@ -11,6 +11,7 @@ import type { FilterFn } from "@tanstack/react-table";
 import { DataTable } from "@/components/DataTable";
 import { SectorBarList } from "@/components/SectorBarList";
 import { PortfolioAllocationDonut } from "@/components/PortfolioAllocationDonut";
+import { MultiCurrencyNavBreakdown } from "@/components/MultiCurrencyNavBreakdown";
 import { RiskMonitorCard } from "@/components/paper-trading/cockpit-helpers";
 import { positionsColumns } from "@/components/paper-trading/positions-columns";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
@@ -171,6 +172,15 @@ export default function PositionsPage() {
           title={isAllMarkets ? "Allocation" : `Allocation — ${activeMarket}`}
         />
       </div>
+      {/* phase-50.6: multi-currency NAV breakdown -- fund NAV (USD base) split by
+          the local currency of each held market. Client-side from /portfolio;
+          scoped to the active market filter. Cash (USD base) only on the All view. */}
+      <MultiCurrencyNavBreakdown
+        positions={visiblePositions}
+        totalNav={isAllMarkets ? (lp.liveNav ?? portfolio?.total_nav ?? null) : filteredNavUsd}
+        cashUsd={isAllMarkets ? (portfolio?.current_cash ?? null) : null}
+        title={isAllMarkets ? "Currency exposure" : `Currency exposure — ${activeMarket}`}
+      />
       <div className="rounded-xl border border-navy-700 bg-navy-800/70 backdrop-blur-lg p-4">
         <DataTable
           data={visiblePositions}

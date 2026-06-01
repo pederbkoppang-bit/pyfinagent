@@ -13698,7 +13698,7 @@
         {
           "id": "50.6",
           "name": "Multi-market UI -- market filter + currency badges + multi-currency NAV breakdown + market-hours indicator on the paper-trading + backtest pages; a paper_markets toggle in settings. Build + API-wiring autonomous; visual render = operator live_check (NextAuth wall).",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "50.3",

@@ -485,3 +485,69 @@ export function PaperSettingNum({
     </div>
   );
 }
+
+// phase-50.6: live-loop markets multi-select (US/EU/KR). Native fieldset/legend +
+// checkboxes (W3C APG; native over bespoke ARIA). Mirrors PaperSettingNum's
+// settings/dirty/setDirty contract; writes paper_markets (list -> CSV via
+// settings_api). At least one market is required (the last checked box is
+// disabled) so the loop never resolves to an empty universe.
+const _MARKET_OPTS = ["US", "EU", "KR"];
+
+export function PaperMarketsField({
+  settings,
+  dirty,
+  setDirty,
+}: {
+  settings: import("@/lib/types").FullSettings;
+  dirty: Partial<import("@/lib/types").FullSettings>;
+  setDirty: React.Dispatch<React.SetStateAction<Partial<import("@/lib/types").FullSettings>>>;
+}) {
+  const stored = settings.paper_markets ?? ["US"];
+  const cur = dirty.paper_markets ?? stored;
+  const sameSet = (a: string[], b: string[]) =>
+    a.length === b.length && [...a].sort().join() === [...b].sort().join();
+  const toggle = (m: string, checked: boolean) => {
+    const next = _MARKET_OPTS.filter((x) => (x === m ? checked : cur.includes(x)));
+    const safe = next.length ? next : ["US"]; // never empty -> backend default
+    setDirty((d) => {
+      const merged = { ...d };
+      if (sameSet(safe, stored)) delete merged.paper_markets;
+      else merged.paper_markets = safe;
+      return merged;
+    });
+  };
+  return (
+    <fieldset className="md:col-span-2 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
+      <legend className="px-1 text-xs uppercase tracking-wider text-slate-500">Live-loop markets</legend>
+      <div className="flex flex-wrap gap-4">
+        {_MARKET_OPTS.map((m) => {
+          const checked = cur.includes(m);
+          const only = checked && cur.length === 1;
+          return (
+            <label
+              key={m}
+              className="flex cursor-pointer items-center gap-2 text-sm text-slate-200"
+              title={MARKET_EXCHANGE[m] ?? m}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={only}
+                onChange={(e) => toggle(m, e.target.checked)}
+                className="h-4 w-4 cursor-pointer rounded border-navy-600 bg-navy-900 text-sky-500 focus:ring-2 focus:ring-sky-500/50 disabled:opacity-50"
+              />
+              <span className="font-mono">{m}</span>
+            </label>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-xs text-slate-600">
+        Markets the live paper loop screens/trades (subset of US/EU/KR). Default US only;
+        at least one required. International markets trade only after the data-quality gate.
+      </p>
+      {dirty.paper_markets !== undefined && (
+        <p className="mt-1 text-[10px] uppercase tracking-wider text-amber-400">unsaved</p>
+      )}
+    </fieldset>
+  );
+}

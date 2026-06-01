@@ -1,104 +1,82 @@
-# Contract — phase-54.2 (Reliable daily Slack digests for the away week)
+# Contract — phase-50.6 (Multi-market UI)
 
-**Date:** 2026-06-01. **Tier:** moderate. **Step:** phase-54.2 (P0). Operator REMOTE
-2026-06-01 → 2026-06-08, Slack-only. THE lifeline step.
+**Date:** 2026-06-01. **Tier:** moderate. **Step:** phase-50.6 (P3).
+
+> NOTE: this file was clobbered by the scheduled `mas-harness` optimizer cron at 17:04
+> (a handoff-file collision). Restored here; the cron has been booted out for the run.
+> Correction vs the first draft: the success criteria below are now copied **VERBATIM**
+> from `.claude/masterplan.json` phase-50.6 `verification.success_criteria` (the first
+> draft paraphrased them — Q/A flagged it).
 
 ## N* delta (N* = Profit − Risk − Burn)
 
-**Risk↓** (operational visibility): guarantees the operator's only window (Slack)
-actually delivers a daily status digest with NAV/P&L, kill-switch/gate, and cron
-health — so a problem during the unattended week is SEEN, not silent. No P delta.
-$0 (digest is template/data-only, confirmed). No money-path change.
+**Risk↓ / operability** (speculative): surfaces multi-market scope (currency, market
+hours) + a per-currency NAV breakdown + an operator control for which markets the live
+loop trades. No P delta; no money-path logic change (the `paper_markets` toggle writes an
+existing field already honored by the loop; default `["US"]` unchanged).
 
 ## Research-gate summary
 
-`researcher` ran first (gate **PASSED**: 7 sources read in full, 23 URLs, recency
-scan, 12 internal files). Brief: `handoff/current/research_brief.md`. Decisive:
-1. **The bot IS supervised** (corrects 54.1): `scripts/slack_bot_monitor.sh` runs
-   every 5 min from the user crontab (since 2026-04-01) — grep-guarded `nohup`
-   restart + iMessage alert to the operator's phone. The Mac will NOT sleep
-   (`caffeinate -i -s` under the backend launchd job). The lifeline is already
-   resilient.
-2. **A launchd KeepAlive plist is the WRONG move** — it spawns a SECOND instance →
-   the monitor's grep masks failures + TWO APScheduler schedulers → double-fired
-   digests AND double-fired heavy crons (nightly_mda_retrain etc.). Do NOT add it.
-3. **Confirmation digest = standalone one-shot `AsyncWebClient`** (no Socket Mode
-   connection; never touches PID 42151). `slack_channel_id`/`slack_bot_token` are
-   real + set. `chat.postMessage` → `ok:true` + `ts`; include a `text` fallback
-   (a11y); no idempotency (do NOT blind-retry).
-4. **Digest is $0/template** (`formatters.py` imports only math+datetime; no LLM) →
-   NOT operator-gated. Safe to send + to add an internal `/api/jobs/all` GET.
+`researcher` ran FIRST (gate **PASSED**: 7 sources read in full, 17 URLs, recency scan,
+13 internal files). Brief: `handoff/current/research_brief.md` (reconstructed after the
+optimizer clobber; gate envelope preserved). Decisive: backtest page is US-only/USD ML
+(criterion (a) = additive strip, no refactor); NAV widget = client-side, no backend
+change; settings toggle = the real gap (settings_api `paper_markets` + CSV round-trip);
+reuse `format.ts` + `cockpit-helpers` + the donut pattern.
 
-## Hypothesis
+## Immutable success criteria — VERBATIM from masterplan phase-50.6 (do NOT edit)
 
-Sending one labelled confirmation digest via the one-shot Web-API path proves the
-operator's Slack window receives messages end-to-end; folding a fail-open
-`cron_health` kwarg into `format_morning_digest` (byte-identical when `None`) gives
-the operator daily cron visibility; a controlled single-restart (monitor greps-first
-→ one instance) deploys it for the week without risking the lifeline.
+1. paper-trading + backtest pages show per-position market/exchange + local currency + a
+   multi-currency NAV breakdown (USD total + per-currency sub-totals) + a
+   market-open/closed indicator
+2. a paper_markets toggle exists in settings UI wired to the backend setting; icons via
+   @/lib/icons, no emoji
+3. cd frontend && npm run build SUCCEEDS with the changes
+4. live_check_50.6.md records build pass + API wiring + an OPERATOR-TO-CONFIRM visual
+   section
 
-## Immutable success criteria (verbatim from masterplan phase-54.2)
+(`verification.live_check`: REQUIRED -- build pass + API-wiring proofs + operator visual
+confirmation of the market/currency UI.)
 
-1. the morning + evening Slack digests are confirmed scheduled (slack_bot/scheduler.py)
-   AND the Slack bot process is confirmed running; if either is down it is fixed or
-   escalated to the operator.
-2. at least ONE live digest is delivered to the operator's Slack channel during this
-   step and receipt is confirmed (message ts / channel id recorded), proving the
-   away-week pipeline works end-to-end.
-3. the digest content covers the remote-supervision essentials: NAV / total P&L / open
-   positions, kill-switch + go-live-gate state, the 54.1 cron-health summary, and the
-   best-in-class-elevation autonomous-cycle progress.
-4. any LLM-summarized digest body that would incur API spend is flagged operator-gated
-   (not silently spent); live_check_54.2.md records the delivered digest + channel + ts
-   + the daily cadence for the 2026-06-01 → 2026-06-08 window.
+### Criterion-1 coverage note (per-position market/exchange + local currency)
 
-## Plan steps (researcher §12 — every item $0 + zero-risk to PID 42151)
+The **paper-trading** per-position market/exchange + local-currency display already
+shipped (goal-multimarket-ux: `positions-columns.tsx` MarketChip + currency-aware cells);
+this step ADDS the multi-currency NAV breakdown + retains the market-open/closed indicator
+(now in the gate bar per phase-54). The **backtest** page is single-market (US/USD) — its
+"per-position market/exchange + currency" is the US/USD/SPY scope strip + the US
+open/closed badge (the pipeline has no multi-market rows). No emoji; the checkbox group
+uses native inputs + colored dots (not emoji); where an icon is used elsewhere it is via
+`@/lib/icons` (Phosphor) per the rule.
 
-1. **Verify the supervisor** (read-only): the `*/5` cron monitor present + greps the
-   live process name + sources the venv + `imsg` on PATH; Mac won't sleep
-   (caffeinate). Confirm morning/evening digests scheduled + bot up. Document
-   (corrects the 54.1 "unsupervised" framing). (criterion 1)
-2. **Fold the cron-health line** into `format_morning_digest` (Option a): new
-   `cron_health: str | None = None` kwarg → a `section` block before the `divider`
-   (`formatters.py:382`); the scheduler computes the line from `/api/jobs/all`
-   wrapped in try/except (fail-open → `None`). Byte-identical when `None`. Test:
-   byte-identity with kwarg absent + render with a synthetic failed job. (criterion 3)
-3. **Send ONE live confirmation digest** (standalone one-shot script
-   `scripts/ops/send_confirmation_digest.py`): `AsyncWebClient(bot_token)` +
-   `format_morning_digest(..., cron_health=<computed>)` + a short away-week note
-   (sync done, 54.1 done, 54.2 in progress, planned 50.6→43.0→53.x) + `text`
-   fallback → `chat_postMessage(channel=slack_channel_id)`. Record `ok`+`ts`+channel.
-   (criteria 2, 3)
-4. **Controlled single-restart to deploy** (researcher §12.3 option ii):
-   `pkill -f backend.slack_bot.app`; the 5-min monitor respawns ONE instance
-   (greps-first → no double-instance), OR run the monitor script directly to respawn
-   immediately. Verify exactly one bot process + scheduler registered; if the restart
-   misbehaves, fall back to ensuring a working bot (the one-shot path already proved
-   outbound delivery as a fallback). (deploys criterion 3 for daily digests)
-5. **Write `live_check_54.2.md`**: supervisor proof, the delivered confirmation digest
-   (channel+ts+content), the cron-health line, the daily cadence, and the
-   elevation-progress delivery plan (milestone Slack updates from this session +
-   GitHub commits). (criterion 4)
-6. **Fresh qa → log → flip → commit.**
+## Plan steps (additive; DO-NO-HARM)
 
-## Scope / guardrails
+1. settings_api: `paper_markets` on `FullSettings`/`SettingsUpdate`/`_settings_to_full`/
+   `_FIELD_TO_ENV` + PUT list→CSV. Pytest round-trip (list→CSV→validator) + default
+   unchanged.
+2. types.ts: `paper_markets?: string[]`.
+3. `PaperMarketsField` (native fieldset/checkbox, ≥1 enforced) → `/paper-trading/manage`.
+4. `MultiCurrencyNavBreakdown` (client-side currency grouping) → positions page.
+5. `BacktestScopeStrip` (US/USD/SPY + market-hours badge) → backtest page header.
+6. Verify: tsc 0; `npm run build` green; vitest 178; settings pytest; zero emoji;
+   Playwright skip-auth visual of all three surfaces; restore the auth gate (302). Write
+   `live_check_50.6.md` (build/API proofs + operator-to-confirm visual).
+7. Fresh qa → log → flip → commit.
 
-- DO NOT add a launchd plist (double-instance). DO NOT blind-retry chat.postMessage.
-- Sending the digest is authorized: the operator explicitly asked for Slack updates
-  while away; the destination is the configured operator channel (settings, not
-  observed content). $0/template → not operator-gated.
-- `cron_health=None` default ⇒ byte-identical existing digests (DO-NO-HARM).
-- The controlled restart is the ONLY process action; the monitor guarantees a single
-  instance. No `.env`/secret edit (read token via the existing SecretStr accessor).
-- Elevation-cycle progress (criterion 3): delivered in the confirmation digest's
-  away-week note + as milestone Slack posts from this session as 50.6/43.0/53.x land,
-  since the bot's daily digest can't see the Claude-Code harness state.
+## Guardrails / DO-NO-HARM
+
+- Backtest page: ADD a strip only; do NOT touch its USD-literal cells/baseline table.
+- NAV widget: client-side only; no `/portfolio` shape change; graceful single/empty.
+- `paper_markets` default `["US"]` unchanged; loop byte-identical unless the operator
+  toggles. No `.env` hand-edit (settings_api owns the env write). No money-path change.
+- No emoji; navy palette; JIT-safe literal class maps; native checkbox group (W3C) over
+  bespoke ARIA. Reuse `format.ts` — no currency fork. Mount-guard the market-hours read.
+- Visual verification mandatory (frontend.md rule 5): Playwright skip-auth + operator
+  confirm.
 
 ## References
 
-- `handoff/current/research_brief.md` (Slack Socket Mode/multi-connection, launchd
-  KeepAlive, chat.postMessage, on-call digest practices).
-- `scripts/slack_bot_monitor.sh` (the supervisor); `backend/slack_bot/scheduler.py`
-  (`_send_morning_digest` :330/:351, base URL :95); `backend/slack_bot/formatters.py`
-  (`format_morning_digest` :323, divider :382); `backend/config/settings.py`
-  (`slack_channel_id`/`slack_bot_token`/digest hours).
+`handoff/current/research_brief.md`; `frontend/src/lib/format.ts`; `cockpit-helpers.tsx`;
+`PortfolioAllocationDonut.tsx`; `frontend/src/app/{backtest,paper-trading/positions,
+paper-trading/manage}/page.tsx`; `frontend/src/lib/types.ts`; `backend/api/settings_api.py`;
+`docs/runbooks/browser-mcp.md`.
