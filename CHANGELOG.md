@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `7513ff9f` | phase-51.3: Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week wi... |
 | 2026-06-01 | `0ef5e7d0` | phase-51.2: Sector diversification -- the live screener ranks the full S&P 500 by PURE price-mome... |
 | 2026-06-01 | `6f86c5ed` | phase-51.1: SecretStr unwrap -- resurrect 4 dead LLM alpha overlays. news_screen/macro_regime/pea... |
 | 2026-05-31 | `3377d826` | phase-50.5: Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in t... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-30 | `238bc024` | phase-50.1: PLAN -- FX data layer contract + research gate |
 | 2026-05-29 | `1d260973` | chore: remove stray frontend/handoff/ (researcher cwd artifact; handoff lives at repo root) |
 | 2026-05-29 | `852e5241` | phase-49.3: Cron-control UI -- add an Actions column to the existing /cron dashboard page with pa... |
-| 2026-05-29 | `3cebd1e5` | phase-50: PLAN -- international multi-market expansion (operator-requested; PLANNED, not implemented |
 
 ---
 
+### v6.28.42 — phase-51.3: Slack digest trading-day guard -- morning_digest + evenin... (2026-06-01)
+
+- **phase-51.3: Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week wi...**
 ### v6.28.41 — phase-51.2: Sector diversification -- the live screener ranks the ful... (2026-06-01)
 
 - **phase-51.2: Sector diversification -- the live screener ranks the full S&P 500 by PURE price-mome...**
