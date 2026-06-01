@@ -91,6 +91,14 @@ class Settings(BaseSettings):
             return [tok.strip().strip('"').strip("'") for tok in s.strip("[]").split(",") if tok.strip()]
         return v
 
+    # phase-53.1: transaction-cost-aware no-trade / rebalance buffer band (quant
+    # elevation lever). Default OFF -> byte-identical (full reconstitution). The
+    # band helper lives in backend/backtest/rebalance_band.py; phase-53.1 is
+    # measure-first (NO live decide_trades wiring / NO live flag flip here -- the
+    # live enable is a SEPARATE operator-gated step after the $0 replay verdict).
+    rebalance_band_enabled: bool = Field(False, description="phase-53.1: enable the no-trade rebalance band on the monthly reconstitution. Default OFF = byte-identical full reconstitution. Live wiring deferred (measure-first).")
+    rebalance_band_pct: float = Field(0.2, ge=0.0, le=1.0, description="phase-53.1: hysteresis band width; a held name is retained while its rank < top_n*(1+band_pct). Only consulted when rebalance_band_enabled.")
+
     # --- Cloud Function Agent URLs ---
     ingestion_agent_url: str = Field(..., description="Ingestion agent Cloud Function URL")
     quant_agent_url: str = Field(..., description="Quant agent Cloud Function URL")

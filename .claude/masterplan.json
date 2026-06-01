@@ -13914,7 +13914,7 @@
         {
           "id": "53.1",
           "name": "Algorithm / quant elevation -- the cited cheap-price alpha-signal search is EXHAUSTED (phase-52), so this pass elevates PORTFOLIO CONSTRUCTION + EXECUTION-COST + OVERFITTING-CONTROL rather than raw signal: a research-gated candidate (e.g. transaction-cost-aware sizing, regime-conditioning overlay, ensemble combination, or a PBO/DSR overfitting-control tightening) measured ON-vs-OFF via the $0 replay/backtest harness and subjected to the SAME Ledoit-Wolf SR-difference robustness gate as 52.3/52.4. Measure-first; NO live flag flip in this step.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "43.0",

@@ -1,44 +1,36 @@
-# Evaluator Critique — phase-43.0 (Production-Ready DoD audit)
+# Evaluator Critique — phase-53.1 (Algorithm/quant elevation: no-trade rebalance band)
 
 **Q/A agent (merged qa-evaluator + harness-verifier). FRESH single spawn.**
-Main produced the audit; I did NOT self-evaluate. Deterministic-first,
-adversarial, anti-watermelon AND anti-false-fail. **Date:** 2026-06-01.
-**Mode:** in-place working-tree read. **Verdict: CONDITIONAL. ok: false.**
+Main produced this; I did NOT self-evaluate. Deterministic-first, adversarial,
+anti-rubber-stamp AND anti-false-fail. **Date:** 2026-06-01. **Mode:** in-place
+working-tree read. **Verdict: PASS. ok: true.**
 
-> This OVERWRITES a STALE phase-50.6 critique that was left in this rolling
-> file. The verdict below is for **phase-43.0** only.
+> This OVERWRITES the STALE phase-43.0 critique left in this rolling file. The
+> verdict below is for **phase-53.1** only.
 
-## CRITICAL FRAMING (why CONDITIONAL is the correct, honest outcome)
+## CRITICAL FRAMING (why a REJECT outcome is a PASS for this step)
 
-phase-43.0 is an AUDIT step that CANNOT fully close autonomously. Two of its
-four immutable success criteria are structurally out of autonomous reach:
-
-- #1 `all_14_DoD_criteria_PASS` — NOT met (8/14 backend, 0/12 UX). 5 criteria
-  are LIVE-BLOCKED (need operator LLM spend for live cycles), 1 OPERATOR-GATED
-  (owner-gated cron fix), UX 0/12 needs the unbuilt phase-44.x + Playwright
-  behind NextAuth.
-- #4 `operator_approval_recorded_for_PRODUCTION_READY_declaration` — needs the
-  REMOTE operator to type the approval string.
-
-The DELIVERABLE of this step is the HONEST audit itself. My job is to confirm
-the audit is honest + complete + accurate (criteria #2 verbatim-evidence + #3
-no-silent-drops met, and the NOT_PRODUCTION_READY verdict ACCURATE) — NOT to
-demand an impossible PASS, and NOT to FAIL it for the operator-gated criteria
-being legitimately open with a documented plan (Google SRE PRR: deficits are
-negotiated with an agreed plan-of-execution before sign-off — research_brief
-source #2). The verdict is **CONDITIONAL**: the audit is sound, but the STEP
-cannot be marked `done` (operator-gated). **phase-43.0 must stay `pending`.**
+phase-53.1 criterion 3 explicitly states **"a 'not robust' REJECT is a VALID,
+honestly-reported outcome."** The step is a MEASURE-FIRST quant-elevation
+experiment: it PASSES iff (a) the research gate cleared and the lever is
+literature-justified, (b) the lever was measured ON-vs-OFF on the production
+universe reporting Sharpe/return/turnover/maxDD, (c) any improvement was put
+through the SAME 52.3/52.4 SR-difference gate with an a-priori rule fixed BEFORE
+the run, and (d) the change is config-gated default-OFF with NO live flip and a
+live_check recording the keep/reject call. The lever LOSING the gate is NOT a
+failure. My job is to confirm the REJECT is HONEST (not a dodge), the gate was
+reused verbatim, the a-priori rule was pre-registered (no p-hacking), and
+DO-NO-HARM holds. I do NOT demand the lever win. All four are satisfied.
 
 ---
 
 ## 0. 3rd-CONDITIONAL auto-FAIL rule — NOT triggered (verified)
 
-`grep -nE "^##.*phase=43\.0" handoff/harness_log.md` returns Cycles 12-20
-(2026-05-28) — ALL `result=PASS` (audit) plus a `DELIVERED` soft-stop. There
-are ZERO prior CONDITIONAL verdicts for step-id 43.0. The counter resets on
-PASS. There is NO `phase=43.0` entry dated 2026-06-01 yet (this cycle's log is
-not yet appended — log-last intact). Therefore a CONDITIONAL here is the FIRST
-CONDITIONAL for this step-id and the auto-FAIL rule does not apply.
+`grep -nE "^##.*phase=53\.1" handoff/harness_log.md` returns EXIT 1 (zero hits).
+There is NO `phase=53.1` cycle header in the log at all — this is the FIRST Q/A
+for step-id 53.1. Zero prior CONDITIONALs. The auto-FAIL rule (3+ consecutive
+CONDITIONALs) does not apply. (The only `53.1` string in the log is a forward
+pointer in Cycle 38's phase-43.0 NEXT note.)
 
 ---
 
@@ -46,151 +38,205 @@ CONDITIONAL for this step-id and the auto-FAIL rule does not apply.
 
 | # | Check | Result |
 |---|-------|--------|
-| 1 | researcher FIRST + gate passed | **PASS** — `research_brief.md` is the 43.0 brief; envelope `{"tier":"moderate","external_sources_read_in_full":5,"snippet_only_sources":9,"urls_collected":14,"recency_scan_performed":true,"internal_files_inspected":12,"gate_passed":true}`. 5 sources read in full (TrueFoundry/ML-Test-Score, Google SRE PRR, Cultivated/watermelon, DX checklist, Bailey-LdP DSR PDF). Recency scan present (3 fronts; trading-parity NautilusTrader/QuantConnect is a new complementary finding). The brief IS the substance of the audit (per-criterion enumeration). |
-| 2 | `contract.md` BEFORE generate, N* delta + 4 criteria VERBATIM | **PASS** — N* delta present (`contract.md:5-9`: Risk↓ governance/honesty, no P/B, $0). The 4 criteria (`all_14_DoD_criteria_PASS`, `audit_file_carries_verbatim_evidence_per_criterion`, `qa_confirms_no_silent_drops`, `operator_approval_recorded_for_PRODUCTION_READY_declaration`) are copied verbatim at `:41-44`. Honest framing block (`:29-51`) correctly states #1+#4 are NOT autonomously achievable. |
-| 3 | `experiment_results.md` + audit deliverable present | **PASS** — `experiment_results.md` has files-changed table, verbatim verification block (`:25-35`), and a VERBATIM acceptance-criteria-mapping table (`:39-44`) marking #1 NOT MET / #2 PASS / #3 pending-Q/A / #4 NOT MET. The deliverable `production_ready_audit_2026-06-01.md` exists (5919 bytes, mtime 17:43). |
-| 4 | log-last / flip-last | **PASS** — no `phase=43.0` 2026-06-01 header in `harness_log.md` (only the 05-28 historical cycles); masterplan `id:43.0 status=pending retry=0 max=3`. 43.0.1/43.0.2 are `done` (the DoD-4 coverage-lift sub-steps — correct, distinct). The contract's plan step 4 explicitly says "result=CONDITIONAL ... Do NOT flip 43.0 to done." |
-| 5 | First Q/A spawn (this cycle) | **PASS** — this is the first 2026-06-01 Q/A for 43.0; the 05-28 PASSes were a separate audit session on prior evidence. Not verdict-shopping: the evidence is freshly re-measured (738 collected, 16/711, OWASP 10/10) — a new audit, not a re-judgement of unchanged evidence. |
+| 1 | researcher FIRST + gate passed | **PASS** — `research_brief.md` IS the 53.1 brief (complex tier). Envelope `{"tier":"complex","external_sources_read_in_full":7,"snippet_only_sources":11,"urls_collected":21,"recency_scan_performed":true,"internal_files_inspected":9,"gate_passed":true}`. 7 sources read in full (Ledoit-Wolf digest, Kitces tolerance-band, arXiv:2412.11575, arXiv:2411.07949, NBER Garleanu-Pedersen w15205, AQR TSMOM, DeMiguel-Garlappi-Uppal RFS-2009 `[ADVERSARIAL]`) — exceeds the ≥5 floor. Recency scan present (5 findings, 2024-2026). Lever is justified from the literature with a 5-candidate survey + 4 explicit rejections (vol-targeting already-rejected in 52.x, min-variance contraindicated by the DeMiguel 1/N adversarial finding, PBO/DSR not a construction lever, TSMOM a multi-asset-futures result) — NOT assumed. |
+| 2 | `contract.md` BEFORE generate, N* delta + 4 criteria VERBATIM + **a-priori rule + dual legs PRE-REGISTERED** | **PASS** — N* delta present (`contract.md:6-11`). The 4 criteria are copied VERBATIM (`:39-51`) and match the masterplan byte-for-byte (I diffed them — see §1a). **Anti-p-hack confirmed:** the a-priori rule `p<0.05 AND delta>=+0.05 AND CI_low>0` is fixed in the contract at `:46-47` (criterion 3) AND restated at `:60-63` as plan-step 2, AND the dual legs (GROSS do-no-harm `ci_low>-0.05` + NET promote) are pre-registered at `:61-63` BEFORE any run. The guardrails (`:80`) explicitly say "the a-priori rule + dual legs are fixed BEFORE the run." This is the SAME gate 52.3/52.4 used. |
+| 3 | `experiment_results.md` + `live_check_53.1.md` present w/ verbatim output | **PASS** — `experiment_results.md` has a files-changed table, a VERBATIM verification block (`:32-44`: 8 passed + the replay table + both SR-diff legs), and a verbatim criteria-mapping table (`:48-53`). `live_check_53.1.md` (52 lines) records the ON-vs-OFF table (Sharpe/return/turnover/maxDD gross+net), both pre-registered SR-diff legs with delta/p/CI, the cited basis, and the REJECT recommendation. |
+| 4 | log-last / flip-last | **PASS** — `grep phase=53.1 harness_log.md` = EXIT 1 (no entry yet); masterplan `id:53.1 status=pending retry=0 max=3`. Both intact: the log + flip have NOT preceded this Q/A. |
+| 5 | First Q/A spawn | **PASS** — no prior 53.1 critique or log entry exists (the file held the stale 43.0 critique). Not verdict-shopping. |
+
+### 1a. Criteria-verbatim diff (contract vs masterplan)
+
+I dumped the masterplan's 4 `success_criteria` and compared to `contract.md:41-51`.
+They are identical (research-gate-passed+justified / measured-ON-vs-OFF-with-4-metrics
+/ SAME-SR-diff-gate-with-a-priori-rule-REJECT-is-valid / config-gated-no-regression-no-flip-live_check).
+The masterplan `live_check` field is `REQUIRED` and the command is `RESEARCH-FIRST
+then define at GENERATE` — both honored. No criteria erosion.
 
 ---
 
-## 2. Anti-watermelon + anti-false-fail verification (the core of this gate) — all confirmed
+## 2. Deterministic re-verification (ran every command myself) — all reproduce EXACTLY
 
-### 2a. Claimed PASSes are GENUINELY met (ran the deterministic commands myself)
+### 2a. Tests, syntax, defaults
 
-| DoD | Claim | My independent re-run | Verdict |
-|-----|-------|----------------------|---------|
-| DoD-12 | ascii_logger_check exit 0 | `python scripts/qa/ascii_logger_check.py` → `OK: 576 files, 1830 logger calls, 0 violations`; **EXIT=0** | **PASS confirmed** |
-| DoD-14 | OWASP 10/10 tagged | `grep -oE "LLM(0[1-9]|10)" SKILL.md \| sort -u` → LLM01..LLM10, **count=10** | **PASS confirmed** |
-| DoD-10 | prod default = gemini-2.5-pro | `model_tiers.py:69 "gemini_deep_think":"gemini-2.5-pro"`; `settings.py:31 deep_think_model=Field("gemini-2.5-pro"...)` (brief said `:66`/`:30`; actual `:69`/`:31` — value correct, off-by-a-few line cite is immaterial) | **PASS confirmed** |
-| DoD-3 | hysteresis shipped | `grep -c check_auto_resume\|AUTO_RESUME kill_switch.py` = 7 hits | **PASS confirmed** |
-| DoD-8 | scale-out wired | `grep -c check_scale_out_fires\|paper_scale_out_enabled paper_trader.py` = 3 hits | **PASS confirmed** |
-| DoD-13 | restart-survivable | `cycle_lock.py` exists; `clean_stale_lock` in `main.py` (3 hits) | **PASS confirmed** |
-| DoD-4 | Tier-1 STRICT ≥75% | `pytest -k "settings or config"` green (30 passed) corroborates no settings/config regression; coverage numbers not re-run (expensive) but 43.0.1/43.0.2 are `done` and the figures are internally consistent | **PASS accepted** |
-| DoD-11 | 0 silent drops | independently re-run below (2c) | **PASS confirmed** |
+| Check | My independent run | Result |
+|-------|--------------------|--------|
+| unit tests | `pytest backend/tests/test_phase_53_1_rebalance_band.py -q` → **8 passed in 0.01s** | **PASS** |
+| syntax | `ast.parse` on `rebalance_band.py` + `no_trade_band_replay.py` + `settings.py` → **AST OK all 3** | **PASS** |
+| default OFF | `grep rebalance_band settings.py` → `rebalance_band_enabled: bool = Field(False, ...)` (`:99`) + `rebalance_band_pct: float = Field(0.2, ge=0.0, le=1.0, ...)` (`:100`) | **PASS** |
+| OFF byte-identity (code) | `rebalance_band.py:41-43`: `base = list(ranked_tickers[:top_n]); if not enabled or band_pct <= 0 or not prev_holdings: return base` — OFF returns `ranked[:top_n]` exactly | **PASS** |
 
-### 2b. The 16 env-coupled failures are SURFACED, not hidden — and I reproduced them
+### 2b. THE DECISIVE GATE RE-RUN (seeded, no network) — reproduces byte-identically
 
-I ran the FULL backend suite myself (not collect-only):
-`python -m pytest backend/tests/ -q` → **`16 failed, 711 passed, 2 skipped, 8 xfailed, 1 xpassed in 106.81s`**.
-This reproduces the audit's headline EXACTLY (16/711). The failure set matches
-the audit's characterization line-by-line:
-- **7×** `test_phase_23_2_16_shortlist_doc_presence` (moved/archived fixture-doc) — audit said "a moved fixture-doc ×7" ✓
-- **4×** `test_phase_23_2_11_bq_table_freshness` (live-BQ freshness probes) ✓
-- `test_phase_23_2_12_layer1_pipeline_active` + `test_phase_23_2_10_watchdog_no_fire_7d` (live BQ + running backend; backend was SIGTERM `-15` during the audit) ✓
-- `test_agent_map_live_model`, `test_rainbow_canary`, `test_phase_23_2_14_no_reentrant_locks` (wiring/env-sensitive) — all three named verbatim in the audit ✓
+I re-ran the SR-diff gate on the dumped arrays myself
+(`handoff/current/_53_1_band_paired_returns.json`, 48 paired obs per arm):
 
-The run emitted live `NotFound` warnings for `pyfinagent_data.api_call_log`
-(missing table) — direct evidence the failures are environment/BQ-coupling,
-NOT logic regressions. **The audit's env-coupled characterization is accurate.**
+```
+GROSS 0.011 0.414 -0.071
+NET   0.015 0.376 -0.066
+promote? False
+```
 
-Crucially, the audit does the OPPOSITE of a watermelon:
-- `production_ready_audit_2026-06-01.md:59` literally says **"Do NOT claim a
-  fully-green suite from the 738 collect-only count."**
-- It surfaces "16 failed / 711 passed" in two places (`:20` delta table + `:57`
-  honesty finding). A grep for any *false* "all 738 pass / green suite" claim
-  returned NONE. Anti-watermelon: PASS.
+This matches the live_check (`:22-27`) and experiment_results (`:41-42`) EXACTLY:
+GROSS dSharpe=+0.011/p=0.414/CI_low=-0.071; NET dSharpe=+0.015/p=0.376/CI_low=-0.066.
+Seeded (seed=42, n_boot=5000) → it MUST reproduce, and it does. The dump's own
+`verdict`/`promote`/`do_no_harm_ok` fields are `"REJECT ... honest negative
+result"` / `False` / `False` — internally consistent.
 
-### 2c. DoD-11 (0 silent drops) — independently re-verified
+### 2c. Turnover claim independently recomputed
 
-`comm -23 <(roadmap OPEN-ids) <(masterplan OPEN-ids)` → exactly **OPEN-19,
-OPEN-21, OPEN-27** are in the roadmap but not the masterplan (matching the
-audit). Disposition: OPEN-19→phase-42.0, OPEN-21→phase-42.3 (roadmap rows),
-OPEN-27→doc-only + two NAMED auto-memories. I confirmed BOTH named files EXIST:
-`/Users/ford/.claude/projects/.../memory/feedback_auto_commit_hook_stalls.md`
-and `.../feedback_researcher_write_first.md`. The audit's note that
-`grep OPEN-27 MEMORY.md`=0 is expected (disposition is by topic-file existence,
-not OPEN-id string) is correct. **33/33 accounted, 0 silent drops — confirmed.**
+The dump stores per-month turnover arrays. I computed the means myself:
+- mean turnover baseline = **0.555** (live_check says 0.555 ✓)
+- mean turnover band = **0.489** (live_check says 0.489 ✓)
+- reduction = **11.9%** (live_check says "~12%" ✓ — honest, not rounded-up)
 
-### 2d. LIVE-BLOCKED / OPERATOR-GATED classifications are HONEST (spot-checked)
-
-- **DoD-1 (OPERATOR-GATED):** `launchctl list | grep pyfinagent` →
-  `com.pyfinagent.ablation` exit=**1**, `com.pyfinagent.autoresearch` exit=**1**,
-  `com.pyfinagent.backend` = **-15** (SIGTERM). Two failing crons genuinely
-  need owner action (huggingface install + ablation triage). NOT a PASS being
-  dodged. ✓
-- **DoD-9 (LIVE-BLOCKED):** Python tally of `cycle_history.jsonl` terminal rows
-  → most-recent consecutive `completed` streak = **4** (a `timeout 2f2f3b64`
-  breaks the run before the 4). Genuinely **< 5**. Needs live cycles. ✓
-
-### 2e. No forged/sought operator approval
-
-`grep -niE "PRODUCTION_READY: APPROVED"` in the audit + cycle_block_summary
-returns ONLY the *instruction to the operator* ("Type ... once green"), never a
-recorded approval. Criterion #4 is honestly marked NOT MET. The verdict is
-explicitly NOT_PRODUCTION_READY. Main did NOT seek or forge approval. ✓
-
-### 2f. Verdict accuracy
-
-NOT_PRODUCTION_READY with backend 8/14 (DoD-3,4,8,10,11,12,13,14) and UX 0/12 is
-ACCURATE against my independent checks. The 8 PASSes are all genuinely met; the
-6 open backend criteria are legitimately LIVE-BLOCKED (5) / OPERATOR-GATED (1)
-with named closure paths (phase-35.x / 39.1 / 44.x), which Google SRE PRR
-sanctions as a negotiated-deficit-with-plan, not a cop-out.
+(2 of 47 months the band churned marginally MORE than full reconstitution — a
+benign artifact of the slot-fill step when a previously-dropped name re-enters
+top_n; it does not undermine the net 11.9% mean reduction or the REJECT.)
 
 ---
 
-## 3. Code-review heuristic sweep (SKILL: code-review-trading-domain) — N/A (no code diff)
+## 3. Honesty / anti-dodge / anti-p-hack judgment — the core of this gate
 
-phase-43.0 is a read-only AUDIT: the only changed files are handoff docs
-(`production_ready_audit_*.md`, `cycle_block_summary.md`, cycle artifacts). No
-`paper_trader`/`kill_switch`/`risk_engine`/`perf_metrics`/`backtest_engine`/
-`.env`/secret/`orchestrator` edit. All Dimension-1/2/3/4 BLOCK+WARN heuristics
-are N/A (no executable logic changed). Dimension-5 (LLM-evaluator anti-patterns):
-not sycophancy/verdict-shopping (§0, §1.5 — fresh evidence, first CONDITIONAL);
-this critique cites file:line + verbatim command output throughout (no
-`missing-chain-of-thought`). Worst severity: **NOTE**. No secret-in-diff
-(grepped the docs — only operator-instruction strings, no credential literals).
+### 3a. The REJECT is HONEST (point estimates reported, gate correctly fails)
+
+The band's directional wins ARE reported, not buried: turnover ↓ 11.9%, gross
+Sharpe +0.011, net Sharpe +0.015, maxDD unchanged (live_check `:14-16`,
+experiment_results `:57`). AND the gate correctly FAILS on the pre-registered
+rule: net delta 0.015 < the 0.05 threshold, p=0.376 (>>0.05), CI90=[-0.066,+0.092]
+straddles 0. The recommendation is a plain **REJECT** (live_check `:29`,
+experiment_results `:3-5`/`:43`) — NOT a spun PASS, NOT a quiet promote. The
+disposition is exactly right: ship as a config-gated default-OFF tested helper,
+do NOT promote to live. This is the honest negative outcome criterion 3
+explicitly sanctions.
+
+### 3b. NO p-hacking (a-priori rule pre-registered; gate reused verbatim)
+
+- The a-priori rule + dual gross/net legs were fixed in `contract.md` BEFORE the
+  run (`:46-47`, `:60-63`, `:80`) — confirmed in §1 check 2. The verdict was NOT
+  reverse-engineered to fit the data.
+- The gate is the SAME `analytics.sharpe_diff_test` (Ledoit-Wolf 2008 SR-diff via
+  Politis-Romano stationary bootstrap) that 52.3/52.4 used, with the SAME
+  n_boot=5000 + seed=42. `no_trade_band_replay.py:21` imports it
+  (`from backend.backtest.analytics import sharpe_diff_test`) and calls it at
+  `:133-134`; `grep -c "def sharpe_diff_test|bootstrap|np.random"` on the replay
+  = **0** — zero local reimplementation, zero weakening. The stat was reused
+  verbatim, not forked.
+- The net-of-cost axis is NOT cherry-picked to manufacture a PASS — BOTH legs are
+  reported and BOTH fail, and the dominant decision axis (net) was justified in
+  the research brief a-priori (`research_brief.md:197-209`).
+
+### 3c. Tests exercise real behavior (anti-tautology, anti-over-mock)
+
+The 8 tests assert concrete outcomes against the pure function — NOT tautologies
+(`assert x==x`/`is not None`) and NOT over-mocking (no `@patch` of the module
+under test):
+- OFF / band_pct=0 / cold-start → `== RANKED[:TOP_N]` (byte-identity, 3 tests).
+- held name at rank 11 inside the 12.0 exit band → RETAINED; the displaced top_n
+  name NOT force-added (`test_held_name_inside_exit_band_is_retained`).
+- held name at rank 13 beyond the band → DROPPED, slot filled from top_n
+  (`test_held_name_beyond_exit_band_is_dropped`).
+- band churn ≤ full-reconstitution churn (`test_band_reduces_churn...`).
+- never exceeds top_n, no dups; maxDD math pinned (+10%/-20%/+5% → -0.20).
+
+These pin the DO-NO-HARM contract (OFF = byte-identical) and the hysteresis logic
+honestly.
+
+---
+
+## 4. DO-NO-HARM — confirmed
+
+- **Default OFF byte-identical:** `rebalance_band_enabled=Field(False)`; the helper
+  short-circuits to `ranked[:top_n]` when disabled (code §2a) and 3 tests pin it.
+- **NOT wired into live `decide_trades`:** `grep -rn "apply_no_trade_band|rebalance_band_enabled|rebalance_band_pct" backend/services backend/agents backend/markets`
+  → **EXIT 1 (zero hits)**. The only references in the repo are
+  `settings.py`, `test_phase_53_1_rebalance_band.py`, `rebalance_band.py` (the
+  helper), and `no_trade_band_replay.py` (the $0 replay). No money-path wiring.
+- **No money-path regression:** `git diff --stat` shows only `settings.py` (+8)
+  and handoff docs/audit-logs changed among TRACKED files; `rebalance_band.py`,
+  `no_trade_band_replay.py`, the test, the live_check, and the paired-JSON are
+  untracked-NEW. ZERO edits to `paper_trader.py` / `kill_switch.py` /
+  `risk_engine.py` / `perf_metrics.py` / `backtest_engine.py` / `.env`. The +20%
+  US momentum core is byte-identical.
+- **$0 / measure-first:** no LLM call, no BQ write, no live cycle, no live flag
+  flip. settings.py change is a dormant default-OFF gate.
+
+---
+
+## 5. Code-review heuristic sweep (SKILL: code-review-trading-domain) — worst severity NOTE
+
+Diff does NOT touch `frontend/**` (no ESLint/tsc leg required). New Python is a
+pure-function helper + a $0 offline replay script + a unit test.
+
+- **Dimension 1 (security):** no secret-in-diff (grepped — no credential literals);
+  no `subprocess`/`eval`/`exec`/`os.system`; no LLM-output→sink; no dep-pin removal
+  (settings/helper add no deps). N/A or clean.
+- **Dimension 2 (trading-domain):** no kill-switch path change; no stop-loss path;
+  **perf-metrics-bypass [BLOCK] NOT triggered** — Sharpe is computed via the reused
+  `analytics.sharpe_diff_test` / `compute_sharpe` machinery (the replay is an
+  offline ablation, the canonical analytics module, not an inline re-impl); no
+  `paper_trader`/`execute_buy`/`execute_sell` edit; no crypto re-enable. Clean.
+- **Dimension 3 (code quality):** the helper has full type hints + docstrings;
+  `print()` lives only in the replay SCRIPT (negation-listed — scripts are exempt);
+  no broad-except in the helper. Clean.
+- **Dimension 4 (anti-rubber-stamp):** `financial-logic-without-behavioral-test
+  [BLOCK]` NOT triggered — the band logic + maxDD ship WITH 8 behavioral tests
+  exercising real retain/drop/churn/byte-identity outcomes. No tautological
+  asserts, no over-mock, no rename-as-refactor. The cost constant (round-trip
+  0.002) is cited to `backtest_engine.py:668` convention (no formula-drift). Clean.
+- **Dimension 5 (LLM-evaluator anti-patterns):** this is the FIRST 53.1 Q/A on
+  fresh evidence — not sycophancy-under-rebuttal, not second-opinion-shopping
+  (no prior verdict to flip; mtime of `experiment_results.md` is this cycle's).
+  This critique cites file:line + verbatim command output throughout (no
+  missing-chain-of-thought). Worst severity: **NOTE**. No BLOCK, no WARN.
 
 ---
 
 ## Verdict
 
-**CONDITIONAL. ok: false.** The audit is HONEST, COMPLETE, and ACCURATE — but
-the STEP cannot be marked `done` because two immutable criteria (#1
-all-14-PASS, #4 operator-approval) are structurally operator-gated. This is the
-correct outcome for an audit step, not a defect.
+**PASS. ok: true.** All four immutable criteria are met, and the REJECT is the
+HONEST, criterion-3-sanctioned outcome — not a dodge.
 
-Criteria #2 (verbatim per-criterion evidence) and #3 (no silent drops) are MET
-and I independently confirmed them. Every claimed PASS I spot-checked is
-genuinely met (DoD-12 exit 0; DoD-14 OWASP 10/10; DoD-10 gemini-2.5-pro on both
-defaults; DoD-3/8/13 grep-confirmed; DoD-11 33/33 OPEN-ids mapped + both named
-auto-memories exist). I reproduced the 16/711 full-suite result myself and
-confirmed all 16 are environment-coupled (7× moved fixture-doc, 4× live-BQ
-freshness, 2× live-BQ+backend, 3× wiring/canary) with live `api_call_log`
-NotFound warnings as direct evidence — NOT logic regressions. The audit
-explicitly refuses to claim a green suite (`:59`) and surfaces the 16 failures
-in two places — the antithesis of a watermelon. LIVE-BLOCKED/OPERATOR-GATED are
-honest: DoD-1 cron exit=1 (×2), DoD-9 streak=4 (<5) both verified. No operator
-approval was forged or sought. The NOT_PRODUCTION_READY verdict (8/14 backend,
-0/12 UX) is accurate. 3rd-CONDITIONAL auto-FAIL does NOT apply (zero prior 43.0
-CONDITIONALs; the 05-28 cycles were PASS). **phase-43.0 MUST stay `pending`;**
-log the cycle as `result=CONDITIONAL` and carry the operator asks to
-`cycle_block_summary.md`. Do NOT flip to done.
+- **Criterion 1 (research-gate + lever justified):** PASS — `gate_passed:true`,
+  7 sources read in full, recency scan (5 findings), 5-lever survey with 4
+  literature-grounded rejections; the band is justified from Garleanu-Pedersen +
+  arXiv:2412.11575 + Kitces, not assumed.
+- **Criterion 2 (measured ON-vs-OFF, 4 metrics):** PASS — 48 S&P-500 monthly
+  rebalances 2022-2025; Sharpe/return/turnover/maxDD reported gross AND net; I
+  independently recomputed the turnover means (0.555→0.489, 11.9%) and they match.
+- **Criterion 3 (SAME SR-diff gate, a-priori rule, REJECT valid):** PASS —
+  `analytics.sharpe_diff_test` reused VERBATIM (imported, 0 reimplementation),
+  dual legs + a-priori rule pre-registered in the contract BEFORE the run, gate
+  correctly REJECTs (net delta 0.015<0.05, p=0.376, CI straddles 0). I re-ran the
+  seeded gate on the dumped arrays and it reproduces byte-identically
+  (GROSS +0.011/0.414/-0.071, NET +0.015/0.376/-0.066, promote?False). Honest
+  negative = a valid pass per the criterion's own text.
+- **Criterion 4 (config-gated, no regression, no live flip, live_check):** PASS —
+  `rebalance_band_enabled=False` default; OFF byte-identity pinned by 3 tests +
+  the code short-circuit; ZERO live wiring (grep EXIT 1 in services/agents/markets);
+  no money-path file touched; `live_check_53.1.md` records the full comparison +
+  both SR-diff legs + cited basis + REJECT recommendation; NO live flag flip.
+
+Harness 5/5 (researcher-first gate_passed:true; contract precedes generate with
+N* delta + 4 criteria VERBATIM + a-priori rule & dual legs PRE-REGISTERED;
+experiment_results + live_check present with verbatim output; harness_log has NO
+53.1 entry + masterplan 53.1 pending retry=0 — log-last/flip-last intact; first
+Q/A spawn). Anti-p-hack confirmed (rule fixed before run; gate reused verbatim).
+DO-NO-HARM confirmed (default OFF byte-identical, no live wiring, no money-path
+regression, $0). 3rd-CONDITIONAL auto-FAIL N/A (zero prior 53.1 verdicts). Code
+review worst severity NOTE.
+
+**Next:** append `harness_log.md` Cycle N `phase=53.1 result=PASS`, THEN flip
+masterplan 53.1 to `done`, THEN auto-commit. The lever is REJECTED for live
+promotion (correctly) and ships as a dormant default-OFF tested helper.
 
 ```json
 {
-  "ok": false,
-  "verdict": "CONDITIONAL",
-  "reason": "phase-43.0 is an AUDIT step; the audit deliverable is HONEST + COMPLETE + ACCURATE, but the STEP cannot be marked done because 2 of 4 immutable criteria are structurally operator-gated -- #1 all_14_DoD_criteria_PASS is NOT met (8/14 backend: DoD-3,4,8,10,11,12,13,14 PASS; 5 LIVE-BLOCKED DoD-2/5/6/7/9; 1 OPERATOR-GATED DoD-1; UX 0/12) and #4 operator_approval needs the REMOTE operator. Criteria #2 (verbatim per-criterion evidence) + #3 (no silent drops) ARE met and independently confirmed. Harness 5/5: researcher first w/ gate_passed:true (5 sources read in full, recency scan, 14 URLs); contract precedes generate w/ N* delta + 4 criteria VERBATIM + honest framing that #1/#4 are not autonomously achievable; experiment_results has verbatim verification block + verbatim criteria-mapping; harness_log has NO 2026-06-01 phase=43.0 entry (only 05-28 historical PASS cycles) + masterplan 43.0 status=pending retry=0 max=3 (log-last/flip-last intact); first 2026-06-01 Q/A (fresh re-measured evidence, not verdict-shopping). ANTI-WATERMELON CONFIRMED: I re-ran the FULL backend suite myself -> 16 failed/711 passed in 106.81s, reproducing the audit headline EXACTLY; the 16 break down precisely as claimed (7x test_phase_23_2_16 moved fixture-doc, 4x test_phase_23_2_11 live-BQ freshness, test_phase_23_2_12+test_phase_23_2_10 live-BQ+backend, test_agent_map_live_model+test_rainbow_canary+test_phase_23_2_14 wiring/canary) with live NotFound warnings for pyfinagent_data.api_call_log as direct env-coupling evidence -- NOT logic regressions; the audit at :59 literally says 'Do NOT claim a fully-green suite' and surfaces 16 failed/711 passed at :20 + :57 (a grep for any FALSE green-suite claim found none). CLAIMED PASSES GENUINELY MET (ran the commands): DoD-12 ascii_logger_check EXIT=0 (576 files/1830 calls/0 viol); DoD-14 OWASP grep = LLM01..LLM10 count 10; DoD-10 model_tiers.py:69 + settings.py:31 both gemini-2.5-pro; DoD-3 check_auto_resume/AUTO_RESUME 7 hits; DoD-8 check_scale_out_fires/paper_scale_out_enabled 3 hits; DoD-13 cycle_lock.py exists + clean_stale_lock in main.py; DoD-11 comm -23 shows exactly OPEN-19/21/27 deferred (roadmap rows + BOTH named auto-memories feedback_auto_commit_hook_stalls.md + feedback_researcher_write_first.md EXIST) = 33/33 mapped, 0 silent drops; pytest -k 'settings or config' = 30 passed (no regression). LIVE-BLOCKED/OPERATOR-GATED HONEST: launchctl shows com.pyfinagent.ablation exit=1 + com.pyfinagent.autoresearch exit=1 + backend SIGTERM -15 (DoD-1 genuinely owner-gated); cycle_history.jsonl consecutive completed streak=4 <5 (DoD-9 genuinely needs live cycles). NO FORGED APPROVAL: the only 'PRODUCTION_READY: APPROVED' strings are operator-instructions ('Type ... once green'), never a recorded approval; #4 honestly marked NOT MET; verdict explicitly NOT_PRODUCTION_READY. 3rd-CONDITIONAL auto-FAIL N/A (zero prior 43.0 CONDITIONALs; 05-28 cycles 12-20 were all PASS; counter reset). No code diff -> code-review heuristics N/A (only handoff docs changed; no money-path/risk/secret edit). VERDICT CONDITIONAL because the audit is sound (criteria #2+#3 met, NOT_PRODUCTION_READY accurate) but the step is operator-gated on #1+#4 -- phase-43.0 MUST stay pending; log result=CONDITIONAL; do NOT flip to done; do NOT seek/forge operator approval.",
-  "violated_criteria": ["all_14_DoD_criteria_PASS", "operator_approval_recorded_for_PRODUCTION_READY_declaration"],
-  "violation_details": [
-    {
-      "violation_type": "Threshold_Not_Met",
-      "action": "audit DoD tally (independently re-verified: ascii exit0, OWASP 10/10, launchctl exit=1 x2, cycle streak=4, full-suite 16/711)",
-      "state": "backend 8/14 PASS (5 LIVE-BLOCKED need operator LLM spend, 1 OPERATOR-GATED owner cron fix), UX 0/12 (phase-44.x unbuilt + Playwright behind NextAuth)",
-      "constraint": "all_14_DoD_criteria_PASS -- legitimately open with documented closure plans (Google SRE PRR negotiated-deficit); audit deliverable is honest, but step cannot be marked done",
-      "severity": "operator-gated"
-    },
-    {
-      "violation_type": "Invalid_Precondition",
-      "action": "criterion #4 operator approval",
-      "state": "operator is REMOTE this week; only operator-instruction strings present, no recorded approval; Main did NOT forge/seek it (correct)",
-      "constraint": "operator_approval_recorded_for_PRODUCTION_READY_declaration -- requires the remote operator to type the approval; not autonomously satisfiable",
-      "severity": "operator-gated"
-    }
-  ],
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "phase-53.1 is a MEASURE-FIRST quant-elevation experiment whose criterion 3 explicitly states a 'not robust' REJECT is a VALID outcome; all 4 immutable criteria are met and the REJECT is HONEST, not a dodge. Harness 5/5: (1) researcher FIRST, gate_passed:true (7 sources read in full vs >=5 floor, recency scan with 5 findings, 21 URLs, 9 internal files; 5-lever survey with 4 literature-grounded rejections -- vol-targeting already-rejected in 52.x, min-variance contraindicated by DeMiguel-Garlappi-Uppal 1/N adversarial finding, PBO/DSR not a construction lever, TSMOM a multi-asset-futures result); (2) contract precedes generate with N* delta + 4 criteria copied VERBATIM (diffed vs masterplan, identical) + the a-priori rule p<0.05 AND delta>=0.05 AND CI_low>0 AND the dual gross/net legs PRE-REGISTERED at contract.md:46-47,60-63,80 BEFORE the run (anti-p-hack); (3) experiment_results + live_check_53.1.md present with verbatim output (8 passed + the ON-vs-OFF table + both SR-diff legs + REJECT rec); (4) harness_log has NO phase=53.1 entry (grep EXIT 1) + masterplan 53.1 status=pending retry=0 max=3 (log-last/flip-last intact); (5) first Q/A spawn. DETERMINISTIC RE-VERIFICATION (ran every command myself, all reproduce EXACTLY): pytest test_phase_53_1_rebalance_band.py = 8 passed in 0.01s; ast.parse OK on all 3 files; THE DECISIVE seeded gate re-run on the dumped paired arrays (handoff/current/_53_1_band_paired_returns.json, 48 obs/arm) reproduces byte-identically -> GROSS dSharpe=+0.011 p=0.414 CI_low=-0.071, NET dSharpe=+0.015 p=0.376 CI_low=-0.066, promote?=False (matches live_check + experiment_results exactly); I independently recomputed the turnover means from the per-month arrays = baseline 0.555, band 0.489, reduction 11.9% (matches live_check's 0.555->0.489 ~12% claim -- honest). HONESTY/ANTI-DODGE: the band's directional wins (turnover -11.9%, gross Sharpe +0.011, net +0.015, maxDD unchanged) ARE reported AND the gate correctly FAILS (net delta 0.015 < 0.05 threshold, p=0.376>>0.05, CI90=[-0.066,+0.092] straddles 0); recommendation is a plain REJECT (live_check:29, experiment_results:3-5/43), NOT a spun PASS, NOT a quiet promote -- the honest negative criterion 3 sanctions. ANTI-P-HACK: a-priori rule + dual legs fixed in contract BEFORE run; sharpe_diff_test reused VERBATIM (no_trade_band_replay.py:21 imports it from backend.backtest.analytics, called :133-134; grep -c 'def sharpe_diff_test|bootstrap|np.random' on the replay = 0 -- zero reimplementation/weakening; SAME n_boot=5000 + seed=42 as 52.3/52.4). DO-NO-HARM: rebalance_band_enabled=Field(False) default OFF; helper short-circuits to ranked[:top_n] when disabled (rebalance_band.py:41-43) pinned by 3 tests; grep 'apply_no_trade_band|rebalance_band_enabled|rebalance_band_pct' in backend/services backend/agents backend/markets = EXIT 1 (ZERO live wiring -- refs only in settings/tests/replay/helper); git diff --stat = only settings.py (+8) + handoff docs among tracked, new helper/replay/test/live_check/JSON untracked, ZERO edits to paper_trader/kill_switch/risk_engine/perf_metrics/backtest_engine/.env -- the +20% US momentum core byte-identical; $0 (no LLM/BQ/live cycle/flag flip). Tests exercise real behavior (concrete retain/drop/churn/byte-identity/maxDD asserts; no tautology, no over-mock). 3rd-CONDITIONAL auto-FAIL N/A (zero prior 53.1 verdicts; first spawn). Code-review heuristics: no frontend diff (no ESLint/tsc leg); pure-function helper + offline $0 replay + unit test; perf-metrics-bypass NOT triggered (Sharpe via reused analytics module); financial-logic-without-behavioral-test NOT triggered (8 behavioral tests); not sycophancy/verdict-shopping (first spawn, fresh evidence, cites file:line + verbatim output throughout); worst severity NOTE. The lever LOSING the gate is the correct, honest outcome -- PASS.",
+  "violated_criteria": [],
+  "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "research_brief_43_0_gate_envelope", "contract_criteria_verbatim", "experiment_results_completeness", "log_last_no_2026_06_01_43_0_entry", "masterplan_status_pending", "third_conditional_rule_check", "ascii_logger_check_exit0", "owasp_llm_10_of_10_grep", "dod10_gemini_2_5_pro_defaults", "dod3_hysteresis_grep", "dod8_scaleout_grep", "dod13_cycle_lock", "dod11_open_id_silent_drop_comm", "open27_named_automemories_exist", "full_suite_16_711_reproduced", "env_coupled_failure_characterization", "audit_refuses_green_suite_claim", "launchctl_dod1_exit1", "cycle_streak_dod9_eq4", "no_forged_operator_approval", "settings_config_regression_30", "code_review_heuristics"]
+  "checks_run": ["harness_compliance_audit_5of5", "research_brief_53_1_gate_envelope_7_sources", "contract_criteria_verbatim_diff_vs_masterplan", "apriori_rule_dual_legs_preregistered_in_contract", "experiment_results_completeness", "live_check_53_1_present_verbatim", "log_last_no_53_1_entry", "masterplan_status_pending_retry0", "first_qa_spawn", "third_conditional_rule_check", "pytest_8_passed", "ast_parse_3_files", "settings_default_off_grep", "off_byte_identity_code_inspection", "DECISIVE_seeded_srdiff_rerun_on_dumped_arrays", "turnover_means_recomputed_0555_to_0489", "verdict_promote_fields_in_dump_consistent", "sharpe_diff_test_reused_verbatim_zero_reimpl", "no_live_wiring_grep_services_agents_markets", "git_diff_stat_no_money_path_regression", "tests_exercise_real_behavior_anti_tautology", "code_review_heuristics"]
 }
 ```
