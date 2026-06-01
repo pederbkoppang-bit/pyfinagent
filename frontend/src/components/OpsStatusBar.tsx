@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { IconCheckCircle, IconInfo, IconWarning } from "@/lib/icons";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
@@ -11,6 +11,8 @@ import {
   getPaperKillSwitchState,
   postPaperKillSwitchAction,
 } from "@/lib/api";
+import { MarketFilter } from "@/components/paper-trading/MarketFilter";
+import { isMarketOpen } from "@/lib/format";
 import type { GoLiveGate } from "@/components/GoLiveGateWidget";
 
 /**
@@ -49,9 +51,21 @@ type CycleRow = {
 
 interface Props {
   nextRunAt?: string | null;
+  // goal-market-filter-in-gate-bar: optional market-filter segment. Present
+  // ONLY on the paper-trading cockpit (layout.tsx). All three must be supplied
+  // together for the Market segment to render; the homepage (page.tsx) passes
+  // none, so its bar is unchanged.
+  markets?: string[];
+  activeMarket?: string;
+  onMarketChange?: (market: string) => void;
 }
 
-export function OpsStatusBar({ nextRunAt }: Props) {
+export function OpsStatusBar({
+  nextRunAt,
+  markets,
+  activeMarket,
+  onMarketChange,
+}: Props) {
   const [gate, setGate] = useState<GoLiveGate | null>(null);
   const [kill, setKill] = useState<KillSwitchState | null>(null);
   const [fresh, setFresh] = useState<Freshness | null>(null);
@@ -117,6 +131,21 @@ export function OpsStatusBar({ nextRunAt }: Props) {
       aria-label="Paper-trading operator status"
       className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-navy-700 bg-navy-800/60 px-4 py-3"
     >
+      {/* goal-market-filter-in-gate-bar: market filter folded into the bar as
+          the left-most ("scope before status") segment. Conditional on all
+          three props so the homepage instance renders the original 5 segments.
+          Keep this a plain <section> (NOT role="toolbar") -- a toolbar would
+          hijack the radiogroup's arrow keys (W3C APG). */}
+      {markets && activeMarket && onMarketChange && (
+        <>
+          <MarketSegment
+            markets={markets}
+            activeMarket={activeMarket}
+            onMarketChange={onMarketChange}
+          />
+          <Divider />
+        </>
+      )}
       <GateSegment gate={gate} />
       <Divider />
       <KillSegment
@@ -145,6 +174,46 @@ function SegmentLabel({ children }: { children: React.ReactNode }) {
     <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
       {children}
     </span>
+  );
+}
+
+// goal-market-filter-in-gate-bar: the market-filter segment. Owns a mount-
+// guarded clock so each pill's open/closed dot doesn't trigger a hydration
+// mismatch -- `now` is null on the server / first client paint (pills show the
+// neutral per-market dot), then set on mount and refreshed each minute so the
+// emerald/slate session colour stays current. Mirrors MarketSessionStrip's
+// retired two-pass pattern; the session signal now lives on the pills.
+function MarketSegment({
+  markets,
+  activeMarket,
+  onMarketChange,
+}: {
+  markets: string[];
+  activeMarket: string;
+  onMarketChange: (market: string) => void;
+}) {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const sessionOpen = useMemo(() => {
+    if (now == null) return undefined;
+    const map: Record<string, boolean> = {};
+    for (const m of markets) map[m] = isMarketOpen(m, now);
+    return map;
+  }, [markets, now]);
+  return (
+    <div className="flex items-center gap-2">
+      <SegmentLabel>Market</SegmentLabel>
+      <MarketFilter
+        value={activeMarket}
+        onChange={onMarketChange}
+        markets={markets}
+        sessionOpen={sessionOpen}
+      />
+    </div>
   );
 }
 

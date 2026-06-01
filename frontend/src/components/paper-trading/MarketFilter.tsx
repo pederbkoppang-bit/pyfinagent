@@ -20,12 +20,21 @@ export function MarketFilter({
   value,
   onChange,
   markets,
+  sessionOpen,
   className,
 }: {
   value: string;
   onChange: (market: string) => void;
   // Market codes present (canonical order), excluding "ALL".
   markets: string[];
+  // goal-market-filter-in-gate-bar: optional per-market open/closed map. When
+  // present, each non-"All" pill's dot reflects session state (emerald=open,
+  // slate=closed) instead of the per-market identity colour, folding the
+  // retired MarketSessionStrip signal into the pills. Pass `undefined` (the
+  // pre-mount state) to keep the neutral per-market dot and avoid a hydration
+  // mismatch. When absent entirely (e.g. a future caller), the per-market
+  // MARKET_DOT_CLASS dot is used as before.
+  sessionOpen?: Record<string, boolean>;
   className?: string;
 }) {
   const options = useMemo(
@@ -66,7 +75,23 @@ export function MarketFilter({
       {options.map((opt, i) => {
         const checked = opt === value;
         const isAll = opt === "ALL";
-        const dot = isAll ? null : (MARKET_DOT_CLASS[opt] ?? "bg-slate-400");
+        // Dot colour: when a session map is supplied, emerald=open / slate=closed
+        // (the folded MarketSessionStrip signal); otherwise the per-market
+        // identity colour. `sessionOpen === undefined` (pre-mount) falls through
+        // to the per-market colour so the first client render matches the server.
+        const open = sessionOpen ? sessionOpen[opt] : undefined;
+        const dot = isAll
+          ? null
+          : open === undefined
+            ? (MARKET_DOT_CLASS[opt] ?? "bg-slate-400")
+            : open
+              ? "bg-emerald-400"
+              : "bg-slate-600";
+        const exchange = isAll ? "All markets" : (MARKET_EXCHANGE[opt] ?? opt);
+        const title =
+          isAll || open === undefined
+            ? exchange
+            : `${exchange} — ${open ? "OPEN" : "CLOSED"}`;
         return (
           <button
             key={opt}
@@ -77,7 +102,7 @@ export function MarketFilter({
             role="radio"
             aria-checked={checked}
             tabIndex={i === activeIdx ? 0 : -1}
-            title={isAll ? "All markets" : (MARKET_EXCHANGE[opt] ?? opt)}
+            title={title}
             onClick={() => onChange(opt)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={clsx(

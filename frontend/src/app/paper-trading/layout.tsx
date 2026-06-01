@@ -25,8 +25,6 @@ import { OpsStatusBar } from "@/components/OpsStatusBar";
 import { AgentRationaleDrawer } from "@/components/AgentRationaleDrawer";
 import { PageSkeleton } from "@/components/Skeleton";
 import { SummaryHero } from "@/components/paper-trading/cockpit-helpers";
-import { MarketFilter } from "@/components/paper-trading/MarketFilter";
-import { MarketSessionStrip } from "@/components/paper-trading/MarketSessionStrip";
 import {
   getPaperTradingStatus,
   getPaperPortfolio,
@@ -475,19 +473,18 @@ export default function PaperTradingLayout({
             </div>
           ) : (
             <PaperTradingDataContext.Provider value={ctxValue}>
-              <OpsStatusBar nextRunAt={status?.next_run} />
-              {/* goal-multimarket-ux: global market filter (Tier-4 global control)
-                  + market-session strip. The filter scopes the positions/trades
-                  tables, allocation donut, sector bar, and the Positions tile +
-                  benchmark label below. */}
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <MarketFilter
-                  value={activeMarket}
-                  onChange={setActiveMarket}
-                  markets={availableMarkets}
-                />
-                <MarketSessionStrip markets={availableMarkets} />
-              </div>
+              {/* goal-market-filter-in-gate-bar: the global market filter is now
+                  folded INTO the operator status bar as its left-most segment
+                  (each pill's dot doubles as the market's open/closed indicator),
+                  removing the former standalone filter + session-strip row. The
+                  filter still scopes the positions/trades tables, allocation donut,
+                  sector bar, and the Positions tile + benchmark label below. */}
+              <OpsStatusBar
+                nextRunAt={status?.next_run}
+                markets={availableMarkets}
+                activeMarket={activeMarket}
+                onMarketChange={setActiveMarket}
+              />
               <SummaryHero
                 status={status}
                 perf={perf}

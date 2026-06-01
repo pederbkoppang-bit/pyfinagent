@@ -65,6 +65,8 @@ frontend/chrome/
 .playwright-mcp-profile/
 # goal-browser-mcp: Playwright MCP run output (console logs + page DOM snapshots)
 .playwright-mcp/
+# goal-browser-mcp: loose verification screenshots saved to repo root by the MCP
+cockpit-*.png
 
 # phase-4.16.2: runtime logs (moved to handoff/logs/) are not committed
 handoff/logs/
