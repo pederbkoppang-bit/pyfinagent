@@ -236,6 +236,59 @@ def compute_pbo(pnl_matrix, S: int = 16) -> float:
         return float((logits_arr < 0).mean())
 
 
+def sharpe_diff_test(
+    ret_a,
+    ret_b,
+    periods_per_year: int = 12,
+    n_boot: int = 2000,
+    block: float = 4.0,
+    seed: int = 42,
+    ci: float = 0.90,
+) -> dict:
+    """phase-52.3: Ledoit-Wolf (2008) Sharpe-ratio DIFFERENCE test via a STATIONARY
+    (Politis-Romano 1994) bootstrap. `ret_a`/`ret_b` are PAIRED per-period returns (same
+    periods). Tests H0: SR(a) <= SR(b) one-sided (is a genuinely better than b?), robust to
+    fat tails + autocorrelation by resampling the JOINT (a_i, b_i) rows (geometric blocks,
+    expected length `block`) -- a naive paired t-test understates the SE here. Deterministic
+    (seeded). Returns delta=SR_a-SR_b (annualized, mean/std*sqrt(ppy), matching the replay's
+    ann_sharpe), the percentile one-sided bootstrap p, the central `ci` CI for delta, and the
+    bootstrap SE. NOTE: percentile one-sided bootstrap (the robust core); studentization is a
+    small-sample refinement not implemented -- reported se lets a reader studentize."""
+    a = np.asarray(list(ret_a), dtype=float)
+    b = np.asarray(list(ret_b), dtype=float)
+    n = min(len(a), len(b))
+    a, b = a[:n], b[:n]
+    mask = np.isfinite(a) & np.isfinite(b)
+    a, b = a[mask], b[mask]
+    n = int(len(a))
+    if n < 10:
+        return {"delta": 0.0, "p_one_sided": 1.0, "ci_low": 0.0, "ci_high": 0.0,
+                "sr_a": 0.0, "sr_b": 0.0, "se": 0.0, "n": n, "n_boot": n_boot}
+
+    def _sr(x: np.ndarray) -> float:
+        s = x.std(ddof=0)
+        return float(x.mean() / s * np.sqrt(periods_per_year)) if s > 0 else 0.0
+
+    sr_a, sr_b = _sr(a), _sr(b)
+    delta = sr_a - sr_b
+    rng = np.random.default_rng(seed)
+    p_restart = 1.0 / float(block)          # geometric block -> expected length `block`
+    deltas = np.empty(n_boot, dtype=float)
+    for m in range(n_boot):
+        idx = np.empty(n, dtype=int)
+        cur = int(rng.integers(0, n))
+        for i in range(n):
+            idx[i] = cur
+            cur = int(rng.integers(0, n)) if rng.random() < p_restart else (cur + 1) % n
+        deltas[m] = _sr(a[idx]) - _sr(b[idx])   # JOINT resample preserves pairing
+    # one-sided p for H0: SR_a <= SR_b  (how often the resampled edge fails to be positive)
+    p_one_sided = float((np.sum(deltas <= 0.0) + 1) / (n_boot + 1))
+    lo = float(np.quantile(deltas, (1 - ci) / 2))
+    hi = float(np.quantile(deltas, 1 - (1 - ci) / 2))
+    return {"delta": delta, "p_one_sided": p_one_sided, "ci_low": lo, "ci_high": hi,
+            "sr_a": sr_a, "sr_b": sr_b, "se": float(deltas.std(ddof=0)), "n": n, "n_boot": n_boot}
+
+
 def compute_deflated_sharpe(
     observed_sr: float,
     num_trials: int,

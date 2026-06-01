@@ -26181,3 +26181,19 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 - Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
 **Decision:** CONDITIONAL -- kept with warning
 **Total cycle time:** 0s
+
+---
+
+## Cycle 30 (element-2 redirect / north-star #4) -- 2026-06-01 -- phase=52.3 result=PASS
+
+**Step:** DSR/SR-difference robustness gate for the 52.1 52wh edge -- the rigorous test of whether the +0.05 Sharpe improvement is REAL before promoting it live (element 2). $0 statistical analysis of the existing replay data; NO live change. VERDICT: **REJECT** (the edge is within noise -> keep the 52wh tilt OFF). (NB: the run_harness.py optimizer "Cycle 1" entries above are a separate scheduled job, not Layer-3 steps.)
+
+**Research:** `researcher af86058ca2cd0d154` gate PASSED (tier complex; 5 sources read IN FULL, 4 binary PDFs via pdfplumber per research-gate.md). DECISIVE methodological correction: DSR (Bailey-LdP) is the WRONG primary test -- it deflates an ABSOLUTE max-of-N Sharpe; the +0.05 is a DIFFERENCE (baseline 1.39 vs tilt 1.44). Proven in-session: compute_deflated_sharpe returns ~1.0 for BOTH. The canonical test for an SR DIFFERENCE is paired Ledoit-Wolf (2008) + stationary bootstrap (Politis-Romano 1994). A-priori rule fixed BEFORE computing.
+
+**Generate:** analytics.py NEW `sharpe_diff_test(ret_a,ret_b,...)` -- Ledoit-Wolf SR-difference via a stationary bootstrap of the JOINT paired rows (one-sided p + CI + se; seeded/deterministic). sector_neutral_replay.py dumps the paired monthly arrays -> handoff/current/_52wh_paired_returns.json (reproducibility PIN). dsr_52wh_verdict.py applies the a-priori rule (R1 p<0.05 AND R2 delta>=+0.05 & CI_low>0). test_phase_52_3_dsr.py (5 tests). RESULT (47 paired rebalances, 5000 boot): SR_tilt=1.445 SR_base=1.388 delta=+0.057; PRIMARY LW one-sided p=**0.242** (R1 FALSE); 90% CI [-0.073,+0.188] straddles 0, se=0.080>delta (R2 FALSE); SECONDARY DSR=1.000 (weak, report-only). **VERDICT: REJECT.** 5/5 tests.
+
+**Q/A:** fresh `ab58d09fd0cbba7d5` = **PASS** (`ok:true`, zero violated_criteria; full critique + JSON via WRITE-FIRST). REVERSED anti-rigging review (is the REJECT rigorous, not rigged?): EMPIRICALLY proved sharpe_diff_test resamples JOINTLY (impl se=0.19 vs a pairing-destroying-independent se=0.71 on a paired control -> does NOT inflate SE to manufacture a fail); one-sided p direction correct (worse->1.0, better->0.0002); REJECT STABLE across the LW block grid {1,2,4,6,8,10} (p 0.18-0.24, ci_low always<0 -> not a knife-edge artifact); a-priori rule genuinely pre-fixed in the contract + applied verbatim (dsr_52wh_verdict.py:41-43); DSR=1.000 honestly framed as weak secondary, NOT used to override; deterministic reproduction exact; NO live change (screener.py content-diff empty, momentum_52wh_tilt flag still False); 5/5 harness compliance.
+
+**Scope honesty:** NO live change -- analysis only (analytics.py +1 function + replay dump + verdict script + test + pinned JSON; the 52wh flag stays OFF/dormant). **This CLOSES the element-2 alpha-signal question:** across ALL tested cheap price-based levers -- rotation (disconnected+losing, REJECT), sector-neutral (-0.166, REJECT), vol-scaling (+0.015 marginal), 52wh (+0.057 but p=0.24, NOT robust -> REJECT) -- NO statistically-robust enhancement found on our universe. The +20% momentum engine STANDS; the overfitting-controlled, honest outcome (it prevented shipping noise as alpha). NEXT: 52.4 residual momentum (bigger-edge, bigger-build) IF a larger edge is wanted; else accept the engine + let the LIVE multi-market expansion be the money lever. MEASURE Monday's first multi-market cycle (14:00 UTC) -- the real money test.
+
+---

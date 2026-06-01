@@ -1,6 +1,7 @@
 # Researcher Agent Memory Index
 
 - [PSR/DSR formulas researched](project_psr_dsr_formulas.md) — Bailey & Lopez de Prado PSR/DSR exact formulas, kurtosis convention, Python pseudocode, anti-patterns for paper_metrics_v2.py
+- [Sharpe-DIFFERENCE test methodology (phase-52.3)](project_sharpe_difference_test_methodology.md) — for a Sharpe IMPROVEMENT (delta) the rigorous test is paired Ledoit-Wolf 2008 + stationary bootstrap, NOT DSR (DSR cant see +0.05 when base also ~1.4); N_eff via clustering; PBO use S=6 at small T; compute_deflated_sharpe/compute_pbo reusable; LW not in repo (add ~50 LOC); McLean-Pontiff haircut
 - [Anthropic agent patterns — retry loops and research-on-demand](project_anthropic_agent_patterns.md) — Exact mechanics for evaluator→generator retry loop and lead-spawns-researcher pattern, mapped to run_harness.py variable names
 - [Alpaca paper execution — phase-3.7.5 research](project_alpaca_paper_execution.md) — SDK choice, ops-toggle flag shape, shadow-mode drift threshold, paper gotchas (fractional/settlement/coverage), rollback pattern
 - [phase-4.7.4 vitest + leaderboard conventions](project_474_vitest_leaderboard.md) — vitest Next.js 15 setup, --filter positional-arg fix, DSR/PBO colour thresholds, fake-timers polling pattern

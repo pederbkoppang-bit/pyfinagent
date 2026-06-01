@@ -1,45 +1,50 @@
-# experiment_results -- phase-52.2: wire the 52wh tilt LIVE (config-gated, default OFF)
+# experiment_results -- phase-52.3: DSR/SR-difference robustness gate -> REJECT the 52wh edge
 
-**Step:** 52.2 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **flag DEFAULT OFF -> byte-identical; NO enable** | GENERATE complete
+**Step:** 52.3 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **NO live change** | GENERATE complete
 
-## What was changed (the 52.1-measured edge -> production-ready, gated, reversible)
+## Outcome in one line
+Rigorously tested the 52.1 +0.05 Sharpe improvement (paired Ledoit-Wolf SR-difference, stationary
+bootstrap) -> **REJECT (one-sided p=0.242, 90% CI [-0.073,+0.188] straddles 0)**: the edge is NOT
+statistically distinguishable from noise. The 52wh tilt stays OFF (52.2 wiring dormant). The PBO/DSR
+overfitting control worked -- it prevented enabling a noise-edge on the live +20% engine.
+
+## What was built / changed (analysis only; NO live engine change)
 
 | File | Change |
 |------|--------|
-| `backend/tools/screener.py` | NEW `_apply_52wh_tilt(scored, k)` helper (centered multiplicative 52wh tilt on composite_score, mean over non-None pct_to_52w_high, missing->1.0, writes composite_score_raw) -- mirrors the 52.1 `hi52_tilt_basket` EXACTLY. Added kwargs `momentum_52wh_tilt=False, momentum_52wh_tilt_k=0.5` to `rank_candidates`; gated post-pass `if momentum_52wh_tilt and scored: _apply_52wh_tilt(...)` inserted after the sector_neutral block, before the final sort (:473). |
-| `backend/config/settings.py` | NEW `momentum_52wh_tilt_enabled: bool = Field(False)` + `momentum_52wh_tilt_k: float = Field(0.5)` (beside the multidim flags). |
-| `backend/services/autonomous_loop.py:655` | the (only) live `rank_candidates` caller now passes `momentum_52wh_tilt`/`_k` from settings (default OFF). |
-| `backend/tests/test_phase_52_2_live_tilt.py` | NEW 5 tests: OFF byte-identity (+ no composite_score_raw witness); ON tilts toward 52wh; LIVE basket == 52.1 hi52_tilt_basket; missing-pct no-op. |
-| `backend/tests/test_phase_50_3_universe.py:46` | FIXED a go-live regression: assert the CODE DEFAULT (`Settings.model_fields['paper_markets'].default_factory()==['US']`) instead of `get_settings()` (which the go-live `.env` override correctly made ['US','EU','KR']). |
+| `backend/backtest/analytics.py` | NEW `sharpe_diff_test(ret_a, ret_b, ppy=12, n_boot, block, seed, ci)` -- Ledoit-Wolf (2008) SR-difference via a stationary (Politis-Romano 1994) bootstrap of the JOINT paired rows; one-sided p + central CI + se; deterministic. (The repo had no SR-difference test; grep=0.) |
+| `scripts/ablation/sector_neutral_replay.py` | dumps the paired monthly arrays (baseline, hi52_k0.5) + the 5 config Sharpes -> `handoff/current/_52wh_paired_returns.json` (the reproducibility PIN). |
+| `scripts/ablation/dsr_52wh_verdict.py` | NEW -- loads the pinned JSON, runs the PRIMARY LW test + SECONDARY DSR, applies the a-priori rule -> ENABLE/REJECT. |
+| `backend/tests/test_phase_52_3_dsr.py` | NEW 5 tests (sharpe_diff_test: identical->not-sig; clearly-better->p<0.05+CI_low>0; worse->not-sig; deterministic; None/short-safe). |
 
-## pct_to_52w_high needed no threading
-Already computed in `screen_universe`'s per-ticker loop (screener.py:210-214) + set on every row (:228) for all screened names -> flows to rank_candidates at rank time. Confirmed by the researcher.
+## The verdict (criterion #1/#2)
+```
+SR_tilt=1.445  SR_base=1.388  delta=+0.057  (n=47, n_boot=5000)
+PRIMARY Ledoit-Wolf one-sided p = 0.2420  -> R1 (p<0.05): False
+        bootstrap 90% CI for delta = [-0.073, +0.188]  (se=0.080)  -> R2 (delta>=+0.05 AND CI_low>0): False
+SECONDARY DSR(abs SR=1.45, 5 trials) = 1.000  (weak discriminator -- report only)
+VERDICT: REJECT (a-priori rule: ENABLE iff R1 AND R2; both fail)
+```
+The bootstrap SE (0.080) > the delta (0.057); the CI straddles zero -> the +0.057 is within selection-bias/small-sample noise (consistent with the +0.047..+0.057 run-to-run drift -- the edge IS the noise). DSR is weak here exactly as the researcher proved (it can't tell 1.45 from 1.39).
+
+## Research basis (gate PASSED)
+`research_brief.md` (researcher `af86058ca2cd0d154`, 5 sources read in full via pdfplumber). Decisive: DSR is the WRONG primary test for a DIFFERENCE (proven: compute_deflated_sharpe ~1.0 for both); the canonical test is paired Ledoit-Wolf 2008 SR-difference + stationary bootstrap (Politis-Romano). A-priori rule fixed before computing.
 
 ## Verification command output (verbatim)
 ```
-=== syntax === OK screener.py / settings.py / autonomous_loop.py / test
-$ python -m pytest backend/tests/test_phase_52_2_live_tilt.py -q
+$ python -m pytest backend/tests/test_phase_52_3_dsr.py -q
 .....                                                                    [100%]
-5 passed in 0.30s
-regression sweep (52.2 + 52.1 + 51.2 + 50.3-universe): 20 passed
+5 passed in 1.89s
 ```
-Live proof (-> live_check_52.2.md): settings default OFF; OFF order == explicit-False (byte-identical); OFF writes no composite_score_raw; ON (k=0.5) tilts toward 52wh (order changes).
+Verdict reproduced -> live_check_52.3.md (deterministic via the pinned JSON + seeded bootstrap).
 
-## Byte-identity / safety (criterion #2/#3)
-- Flag DEFAULT OFF -> the gated post-pass is skipped -> rank_candidates is BYTE-IDENTICAL -> the live +20% engine is UNCHANGED after this step.
-- The OFF path writes no `composite_score_raw` (the witness that the pass never ran).
-- The LIVE tilt logic == the 52.1-measured `hi52_tilt_basket` (test-proven) -> an enable would deliver the measured +0.05.
-
-## The go-live regression fix (transparent, not rigging)
-`test_paper_markets_default_is_us_only` asserted the EFFECTIVE `get_settings().paper_markets`, which the operator-authorized go-live `.env` override (PAPER_MARKETS=['US','EU','KR']) correctly changed. Fixed it to assert the CODE DEFAULT (still ['US']) -- the faithful byte-identity invariant (default US-only; multi-market is an explicit opt-in). The invariant holds; this corrects a test that conflated default with effective.
+## Scope / safety (criterion #3)
+- NO live engine change. Diff = analytics.py (+1 function) + the replay dump + the verdict script + the test + the pinned JSON. screener.py / autonomous_loop / the momentum_52wh_tilt_enabled flag are UNTOUCHED (flag still OFF; the tilt stays dormant).
+- A-priori rule fixed in the contract before running -> no p-hacking; all stats reported regardless of verdict.
 
 ## Artifact shape
-- `_apply_52wh_tilt(scored, k) -> None` (in-place centered tilt)
-- `rank_candidates(..., momentum_52wh_tilt=False, momentum_52wh_tilt_k=0.5)`
-- settings: `momentum_52wh_tilt_enabled` (False), `momentum_52wh_tilt_k` (0.5)
+- `sharpe_diff_test(...) -> {delta, p_one_sided, ci_low, ci_high, sr_a, sr_b, se, n, n_boot}`
+- verdict script -> ENABLE/REJECT against the a-priori rule.
 
-## DEFERRED enable (NOT done; operator-gated, post-Monday)
-Enable = `MOMENTUM_52WH_TILT_ENABLED=true` in backend/.env + backend restart. Caveats: DSR-deflate the +0.05 (1-of-5 configs); confirm OOS post-Monday; k=0.5 (milder/plateau). Reversible.
-
-## Session position
-phase-52 (element-2 redirect / north-star #4): 52.1 measured the edge, 52.2 productionized it (gated). The measured momentum edge is now a one-flag-reversible live lever, ready to enable after Monday's multi-market baseline. Remaining: enable decision (operator), 52.3 residual momentum (bigger edge, optional), calendar_events, 50.6 UI, MEASURE Monday.
+## What this CLOSES + next
+Across ALL tested element-2 levers (rotation REJECT, sector-neutral -0.166 REJECT, vol-scaling +0.015 marginal, 52wh +0.057 but p=0.24 NOT robust): **no statistically-robust price-based alpha enhancement found on our universe.** The +20% momentum engine STANDS -- the overfitting-controlled, honest outcome. NEXT: 52.4 residual momentum (bigger-edge, bigger-build, the only remaining cited lever) IF a larger edge is wanted; otherwise accept the engine + let the LIVE multi-market expansion be the money lever. MEASURE Monday's first multi-market cycle (the real test).

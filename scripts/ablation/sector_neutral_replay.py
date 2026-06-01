@@ -266,6 +266,20 @@ def main():
     print(f"52wh-tilt recommendation: {'ESCALATE to a live operator gate' if keep_any else 'REJECT (large-cap mute, per Barroso-Wang) -> pivot to residual momentum (52.2)'}")
     print(f"\nN rebalances scored: {len([m for m in monthly['baseline'] if m is not None])}")
 
+    # phase-52.3: dump the paired monthly arrays + the 5 config Sharpes -> the reproducibility
+    # PIN for the Ledoit-Wolf SR-difference test (so the 52.3 verdict is deterministic vs live drift).
+    import json
+    dump = {
+        "baseline": monthly["baseline"],
+        "hi52_k0.5": monthly["hi52_k0.5"],
+        "config_sharpes": {c: ann_sharpe(monthly[c]) for c in ["baseline", "sector_neutral", "vol_scaled", "hi52_k0.5", "hi52_k1.0"]},
+        "n_rebalances": len([m for m in monthly["baseline"] if m is not None]),
+    }
+    out = "handoff/current/_52wh_paired_returns.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(dump, f, indent=2)
+    print(f"phase-52.3: paired returns dumped -> {out}")
+
 
 if __name__ == "__main__":
     main()

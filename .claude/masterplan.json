@@ -13856,6 +13856,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "52.3",
+          "name": "DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05 Sharpe improvement (1-of-5 configs, ~47 rebalances) -- the rigorous GATE for whether to ENABLE it live (element 2: 'promote the highest earner from a cited research basis' requires the edge to SURVIVE overfitting controls). $0 statistical analysis of the EXISTING replay data; NO live change. A-priori decision rule; an honest 'not robust -> do NOT enable' is a VALID outcome.",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "52.2",
+          "audit_basis": "The goal names 'overfitting controls (PBO/DSR)' explicitly. The 52.1 +0.05 is small (~+0.05%/mo), 1-of-5 configs, 47 obs -> likely within selection-bias noise. Before promoting it live (52.2 wired it dormant), test it with the canonical SR-difference / paired test (Ledoit-Wolf 2008 / stationary bootstrap) + a DSR/N-trials haircut (Bailey-LdP; codebase compute_deflated_sharpe analytics.py + compute_pbo). Reuses 52.1's replay data (emit the paired monthly arrays). $0.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_52_3_dsr.py -q 2>&1 | tail -3 && test -f handoff/current/live_check_52.3.md",
+            "success_criteria": [
+              "the +0.05 52wh-tilt Sharpe IMPROVEMENT over baseline is tested rigorously (a canonical SR-difference / paired test on the per-rebalance return differences + a multiple-testing/DSR haircut for the configs tried), reusing the codebase's compute_deflated_sharpe where applicable, on the existing replay data",
+              "an A-PRIORI decision rule (set BEFORE computing) determines ENABLE vs REJECT; the result is honestly reported (a 'not statistically robust -> do NOT enable' outcome is VALID and expected if the edge is within noise)",
+              "NO live engine change; the 52wh flag stays OFF unless/until the rule says ENABLE (and even then enabling is a separate operator-gated action)",
+              "live_check_52.3.md records the test statistics (p-value / DSR / PBO) + the a-priori rule + the ENABLE/REJECT verdict"
+            ],
+            "live_check": "REQUIRED -- the SR-difference/paired test stats + DSR/N-trials haircut + the a-priori rule + the ENABLE/REJECT verdict; NO flag flip."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
