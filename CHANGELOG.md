@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `28c790f` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
 | 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
 | 2026-06-01 | `ac93f67f` | feat(paper-trading): multi-market UX -- currency-aware cockpit + market filter (US/EU/KR + Nordic-re |
 | 2026-06-01 | `f828a2dc` | docs(handoff): session conclusion -- element-3 MEASURED (live engine +14.28% alpha, Sharpe 5.39); al |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-05-30 | `4194088a` | phase-50.4: PLAN -- market-calendar gating contract + research gate |
 | 2026-05-30 | `ccf8a889` | phase-50.3: Universe + suffix mapper + live-loop routing -- DAX-40 / KOSPI-200 lists; {market}:{t... |
 | 2026-05-30 | `8e8897ed` | phase-50.3: GENERATE -- international universe + suffix mapper + routing |
-| 2026-05-30 | `7faddf47` | phase-50.3: PLAN -- international universe + suffix mapper + routing |
 
 ---
 
+### v6.30.0 — feat(masterplan): add phase-53 best-in-class elevation + remote-worki... (2026-06-01)
+
+- **feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal**
 ### v6.29.0 — feat(paper-trading): multi-market UX -- currency-aware cockpit + mark... (2026-06-01)
 
 - **feat(paper-trading): multi-market UX -- currency-aware cockpit + market filter (US/EU/KR + Nordic-re**
