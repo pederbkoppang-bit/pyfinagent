@@ -14021,7 +14021,7 @@
     {
       "id": "phase-54",
       "name": "Operator-away monitoring (remote 1-week window 2026-06-01 -> 2026-06-08): audit ALL cron jobs are scheduled + firing + last-run-healthy, AND guarantee the operator receives daily Slack status updates while away. Slack is the operator's ONLY window during the window, so this is operationally foundational for the concurrent best-in-class-elevation autonomous run -- if crons stall or the digest does not deliver, the operator is blind and the away-week work is unobservable.",
-      "status": "pending",
+      "status": "done",
       "audit_basis": "Operator going remote for 1 week (set 2026-06-01), watching ONLY the Slack channel. Two cron layers exist: launchd jobs (~/Library/LaunchAgents/com.pyfinagent.* -- backend, frontend, backend-watchdog, claude-code-proxy, mas-harness, autoresearch, ablation) and in-process APScheduler in the Slack bot (backend/slack_bot/scheduler.py: morning_digest, evening_digest, watchdog + backend/slack_bot/jobs/*: daily_price_refresh, hourly_signal_warmup, nightly_mda_retrain, nightly_outcome_rebuild, weekly_data_integrity, weekly_fred_refresh, cost_budget_watcher). At authoring time (launchctl list, 2026-06-01) com.pyfinagent.autoresearch and com.pyfinagent.ablation showed last-exit-status=1 and com.pyfinagent.mas-harness was not running -- exactly the silent failures this phase must catch. The Slack digest pipeline already exists (format_morning_digest / format_evening_digest); this phase verifies it actually DELIVERS to the operator channel for the unattended window.",
       "steps": [
         {
@@ -14048,7 +14048,7 @@
         {
           "id": "54.2",
           "name": "Guarantee the operator receives daily Slack status updates for the away window: verify the morning + evening digests (backend/slack_bot/scheduler.py, format_morning_digest / format_evening_digest) are scheduled, the Slack bot process is up, and a digest ACTUALLY DELIVERS to the operator's channel (send one live confirmation digest in this step and record receipt). The digest must summarize what the operator needs while remote: NAV / total P&L / open positions, kill-switch + go-live-gate state, the 54.1 cron-health summary, and the best-in-class-elevation autonomous-cycle progress. If the bot is down or the channel is mis-wired, fix-or-escalate. Write handoff/current/live_check_54.2.md.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "54.1",

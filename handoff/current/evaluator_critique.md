@@ -1,196 +1,191 @@
-# Evaluator Critique — phase-54.1 (Cron audit + fix-or-escalate; operator-away cycle)
+# Evaluator Critique — phase-54.2 (Reliable daily Slack digests for the away week)
 
-**Q/A agent (merged qa-evaluator + harness-verifier).** Fresh single spawn; Main
-implemented this and did NOT self-evaluate. Deterministic-first, adversarial,
-anti-rubber-stamp. **Date:** 2026-06-01. **Verdict: PASS. ok: true.**
-**Mode:** in-place working-tree read (settings.py modified + test/artifacts untracked).
+**Q/A agent (merged qa-evaluator + harness-verifier). CYCLE 2.** Fresh single spawn;
+Main fixed the cycle-1 blocker and did NOT self-evaluate. Deterministic-first,
+adversarial, anti-rubber-stamp. **Date:** 2026-06-01. **Verdict: PASS. ok: true.**
+**Mode:** in-place working-tree read (formatters/scheduler modified + new test/script/artifacts untracked).
 
-This OVERWRITES a stale prior-cycle critique (Cycle-34 "goal-market-filter-in-gate-bar")
-that was still resident in this file; none of that content is preserved.
+This OVERWRITES the cycle-1 CONDITIONAL critique entirely (its one blocker — a missing
+kill-switch + go-live-gate state line in the digest — is the subject of this re-evaluation).
 
 ---
 
-## 1. Harness-compliance audit (ran FIRST, per `feedback_qa_harness_compliance_first`)
+## 0. Cycle-2 legitimacy gate (simultaneous-presentation / anti-sycophancy) — PASS
+
+Per SKILL `code-review-trading-domain` Dimension 5 + arXiv 2509.16533: a verdict reversal
+after CONDITIONAL is sycophancy ONLY if the code did not change. **The code changed
+materially between cycles** — a reversal here reflects the fix, not a flipped opinion on
+unchanged evidence:
+
+| Change | Location (verified by reading the file, not the diff summary) |
+|--------|---------------------------------------------------------------|
+| `format_morning_digest` gains `system_state: str \| None = None` | `formatters.py:323`; renders one `section` at `:378-382` guarded by `if system_state:` |
+| New scheduler helper `_compute_system_state(client)` | `scheduler.py:350-384` |
+| `_send_morning_digest` passes BOTH kwargs | `scheduler.py:408` (`system_state = await _compute_system_state(client)`) → `:410` |
+| One-shot mirrors `_system_state` | `send_confirmation_digest.py:49-71`, passed at `:123` |
+| Tests 8 → 14 | 6 new system_state tests added (`test_phase_54_2_*` lines 130-201) |
+
+This is the documented cycle-2 flow (CLAUDE.md "canonical cycle-2 flow"), NOT
+second-opinion-shopping. `sycophancy-under-rebuttal` / `second-opinion-shopping` do NOT fire.
+
+---
+
+## 1. Harness-compliance audit (ran FIRST, per `feedback_qa_harness_compliance_first`) — 5/5 PASS
 
 | # | Check | Result |
 |---|-------|--------|
-| 1 | researcher spawned FIRST + gate passed | PASS — `research_brief.md` ends `{"gate_passed":true}`; **9** sources read in full (>=5 floor); 25 URLs (>=10); recency scan present (§4, last-2-yr, 4 findings); 12 internal files; 3-query-variant discipline shown (§3); file:line anchors per claim. |
-| 2 | contract.md BEFORE generate, immutable criteria verbatim + N* delta | PASS — N* delta present (Risk-down operational; explicitly no P / no money-path change); the 4 success_criteria copied **byte-for-byte** from masterplan step `54.1` (verified vs `.claude/masterplan.json:14037-14042`). |
-| 3 | experiment_results.md present w/ verbatim verification output + file list | PASS — verbatim `11 passed`, `25 passed, 694 deselected`, crash-layer BEFORE/AFTER block, 4-row file-change table. |
-| 4 | Log-last / status-flip-last order honored | PASS — `grep "phase-54.1"/"phase=54.1"` in `harness_log.md` = 0 entries; masterplan step `54.1` still `status:"pending"`, `retry_count:0`. Main appends the log + flips status AFTER this PASS — correct order. |
-| 5 | No verdict-shopping | PASS — `grep -c "phase=54.1 result=CONDITIONAL"` = 0; first Q/A spawn for this step. 3rd-CONDITIONAL escalation rule N/A. |
-
-Note on step-id: the masterplan stores the id as `"54.1"` nested under `phase-54`
-(`masterplan.json:14028`), NOT the literal string `"phase-54.1"`. Confirmed the node and
-its `retry_count:0 / max_retries:3` directly; `certified_fallback` is not triggered.
+| 1 | researcher spawned FIRST + gate passed | PASS — carried from cycle-1 (`research_brief.md` gate_passed=true, 7 sources, 23 URLs, recency scan, 12 internal files); contract §Research-gate cites it. Cycle-2 fix is additive within the same step, no new external surface introduced. |
+| 2 | contract.md BEFORE generate, immutable criteria verbatim | PASS — criterion 3 in `contract.md:48-50` is byte-verbatim against masterplan (`...kill-switch + go-live-gate state, the 54.1 cron-health summary, and the best-in-class-elevation autonomous-cycle progress`), confirmed by reading the masterplan node directly. N* delta present (Risk↓, $0, no money-path). |
+| 3 | experiment_results.md present w/ verbatim output + cycle-2 Follow-up | PASS — §"Cycle-2 follow-up — criterion 3 fix" (lines 79-108) documents the system_state addition, tests 8→14, and the re-delivered digest `ok=True channel=C0ANTGNNK8D ts=1780325165.760459`. |
+| 4 | Log-last / status-flip-last order honored | PASS — `grep -cE "phase-54.2\|phase=54.2"` in `harness_log.md` = **0**; masterplan `id:"54.2"` still `status=pending retry=0 max=3`. Main appends the log + flips status AFTER this verdict — correct order. |
+| 5 | No verdict-shopping | PASS — see §0. Code changed; this is the documented cycle-2 respawn, not a verdict overturned on unchanged evidence. `grep -cE "phase=54.2.*CONDITIONAL"` in `harness_log.md` = **0** (the cycle-1 CONDITIONAL was never logged — correct, since log-last); 3rd-CONDITIONAL auto-FAIL rule N/A (this is cycle 2 and the verdict is PASS, not a 3rd CONDITIONAL). |
 
 ---
 
-## 2. Deterministic re-verification (ran independently; Main's numbers NOT trusted)
+## 2. Deterministic re-verification (ran independently; Main's numbers NOT trusted) — all green
 
 | Check | Command | Result |
 |-------|---------|--------|
-| phase-54.1 tests | `pytest backend/tests/test_phase_54_1_paper_markets_parse.py -q` | **11 passed** in 0.09s |
-| settings/config regression | `pytest backend/tests/ -q -k "settings or config"` | **25 passed, 694 deselected** (no regression) |
-| **Fix at the CRASH LAYER (decisive)** | `( set -a; . backend/.env; set +a; python -c "from backend.config.settings import get_settings; print(get_settings().paper_markets)" )` | `['US', 'EU', 'KR']` — **NOT** SettingsError (this exact command crashed before the fix) |
-| Syntax | `python -c "import ast; ast.parse(open('backend/config/settings.py').read())"` | settings.py parses |
-| Masterplan verify cmd | `launchctl list | grep -c com.pyfinagent && python -c "import backend.slack_bot.scheduler ..." && test -f live_check_54.1.md` | `7` + `scheduler import OK` + file EXISTS |
-
-**Symbol reality check (anti-hallucination):** `pydantic_settings 2.13.1`; `NoDecode`
-= `pydantic_settings.sources.types.NoDecode` (real class); `field_validator` (real). The
-fix does not invoke invented APIs.
-
-**Exact bug reproduced independently:** `.env:78` = `PAPER_MARKETS=["US","EU","KR"]` (JSON).
-After `set -a; . backend/.env; set +a` the OS env holds the literal `'[US,EU,KR]'` — exactly
-the string the contract says the parser must accept. The root cause is real and reproduced,
-not asserted.
+| phase-54.2 tests | `pytest backend/tests/test_phase_54_2_digest_cron_health.py -q` | **14 passed** in 0.10s (8 cron + 6 system_state) |
+| Regression (existing digests) | `pytest test_phase_slack_digest_71.py test_phase_51_3_digest_guard.py -q` | **17 passed** (no regression) |
+| Syntax | `ast.parse` formatters.py + scheduler.py + send_confirmation_digest.py + test file | **all 4 parse OK** |
+| Masterplan 54.2 node | direct JSON read | `status=pending retry=0 max=3`; criterion 3 byte-verbatim |
 
 ---
 
-## 3. Anti-rubber-stamp / mutation-resistance (the decisive adversarial test)
+## 3. Criterion-3 fix verified INDEPENDENTLY (re-ran the real code myself — decisive)
 
-**Would the 11 tests catch a regression to the old JSON-only behavior?** I simulated the
-OLD pydantic complex-field decoder (`json.loads` or raise) against the test inputs:
+Re-ran `format_morning_digest` + `_compute_system_state` directly (not via the test file):
 
 ```
-OLD on '["US","EU","KR"]': ['US','EU','KR']  matches=True   (live JSON path — unchanged)
-OLD on '[US,EU,KR]':        RAISES JSONDecodeError  -> test_bash_sourced_form_no_longer_raises FAILS
-OLD on 'US,EU,KR':          RAISES JSONDecodeError  -> parametrized case FAILS
+1. format_morning_digest(env,rep) == format_morning_digest(env,rep,cron_health=None,system_state=None) -> True (byte-identical)
+2. no 'Kill switch' / 'Go-live gate' text in the default digest                                        -> True
+3. system_state=<line> adds EXACTLY one section block (len == base+1)                                  -> True
+4. system_state='' (empty) adds NO block (falsy `if system_state:` guard) -> len unchanged             -> True
+5. _compute_system_state(client that raises) -> None (full fail-open)                                  -> True
+6. gate leg raises mid-call -> partial kill-switch-only line, NEVER raises (per-leg fail-open)         -> True
 ```
 
-So the suite is **NOT tautological** — a revert to the old behavior makes
-`test_bash_sourced_form_no_longer_raises` plus the `[US,EU,KR]` and `US,EU,KR`
-parametrized cases fail. The tests genuinely guard the fix. The NEW validator (direct
-call) handles every form: JSON, bracket-mangled, plain-comma, spaced, empty->`["US"]`,
-None->`["US"]`, real-list passthrough.
+- `test_system_state_default_is_byte_identical` (lines 147-153) genuinely compares
+  **omitted-vs-both-None** AND asserts neither "Kill switch" nor "Go-live gate" text is
+  present — the real DO-NO-HARM guard, not a placeholder.
+- `_compute_system_state` (`scheduler.py:350-384`) wraps the kill-switch leg and the gate
+  leg in **separate** try/except blocks (`:355-373`, `:374-383`) → partial-or-None, never
+  raises into the digest. Derives kill-switch state (PAUSED / BREACH / ACTIVE + daily/trailing
+  pcts) from `/api/paper-trading/kill-switch` and gate (ELIGIBLE/NOT + n/total) from
+  `/api/paper-trading/gate`. The one-shot `_system_state` (`send_confirmation_digest.py:49-71`)
+  is a faithful mirror over the shared fail-open `_fetch` helper.
 
-`tautological-assertion` / `over-mocked-test` / `rename-as-refactor` heuristics: NONE fire.
-`financial-logic-without-behavioral-test`: N/A — this is a settings parser, not a
-Sharpe/drawdown/risk/backtest formula — and it ships 11 behavioral tests regardless.
-
----
-
-## 4. DO-NO-HARM — live JSON path is byte-identical
-
-Through the **full real `Settings()` construction** (not just the validator in isolation):
+## 3a. Mutation-resistance (the decisive adversarial test) — tests are NOT tautological
 
 ```
-FULL-PIPELINE JSON form    -> ['US','EU','KR']  (all str)  PASS  (byte-identical to pre-fix)
-FULL-PIPELINE bash-mangled -> ['US','EU','KR']             PASS  (no SettingsError)
+MUTANT A (system_state ALWAYS renders, guard removed): a non-None default block makes
+  format_morning_digest(...,system_state=None) carry an extra section -> 
+  test_system_state_default_is_byte_identical byte-identity assertion FAILS.  => caught.
+  (Independently confirmed: empty-string system_state adds NO block via the falsy guard, so
+   only a guard removal — not the empty case — breaks it.)
+MUTANT B (helper RAISES instead of returning None): a mutant without per-leg try/except would
+  raise -> test_compute_system_state_fail_open (asserts == None) ERRORS/FAILS.  => caught.
 ```
 
-- `Annotated[list[str], NoDecode]` metadata is scoped to **only** `paper_markets` (one
-  metadata entry confirmed); `default_market` (settings.py:51) is a SEPARATE, untouched field.
-- `default_factory` still returns `["US"]` (asserted in test + re-checked live).
-- The diff is purely **additive** (40 lines: imports + field annotation + validator) —
-  it widens what parses, never narrows. The live engine's resolved value is unchanged.
-  Verified by `test_live_json_path_is_byte_identical` + `test_paper_markets_default_factory_is_us`
-  + my own full-pipeline reconstruction. The money-path APScheduler job (`paper_trading_daily`)
-  is healthy and untouched.
+`test_compute_system_state_active_and_gate` asserts SPECIFIC substrings (`Kill switch:* ACTIVE`,
+`daily -1.5%/4%`, `trail -0.1%/10%`, `Go-live gate:* NOT ELIGIBLE (1/5)`) — semantic, not
+tautological. `tautological-assertion` / `over-mocked-test` / `rename-as-refactor` / 
+`financial-logic-without-behavioral-test`: NONE fire (Slack Block-Kit formatting, not a
+Sharpe/drawdown/position-sizing formula; ships 6 new behavioral tests regardless).
 
 ---
 
-## 5. Scope-honesty / anti-overreach (critical for an unattended operator-away change)
+## 4. Scope-honesty / anti-overreach (operator is away) — clean
 
-- **No full-job run.** `git status` shows ONLY `backend/config/settings.py` (code) + the new
-  test + the handoff artifacts changed. The autoresearch/ablation jobs were NOT executed
-  (their huggingface-import gap + potential LLM spend are operator-gated). The fix is verified
-  ONLY at `get_settings()`, the crash point — correctly and explicitly disclosed.
-- **No `.env` edit** — `.env` is absent from the changed-files set (tool-blocked + unnecessary;
-  the existing JSON value parses via the new validator).
-- **No money-path / trading-engine code** — diff scope is settings.py-only. No
-  `paper_trader.py` / `kill_switch.py` / `risk_engine.py` / `perf_metrics.py` / `backtest_*`
-  touch. No new endpoint, no new dependency, no launchd load/unload.
-- **Autonomous-vs-escalate judgment is correct.** The goal's operator-gated list =
-  {LLM spend, pip installs, BQ DROP/unqualified DELETE}. A settings.py code fix is NOT on it;
-  the fix is additive, reversible, and test-guarded. Applying it autonomously (rather than
-  escalating) was the right call. I concur.
-
----
-
-## 6. live_check_54.1.md — genuine operator-auditable artifact
-
-- **Criterion 1 (EVERY job enumerated):** 7 launchd rows = exactly the 7 live `com.pyfinagent`
-  jobs (cross-checked vs `launchctl list`: claude-code-proxy, ablation, backend-watchdog,
-  autoresearch, backend, frontend, mas-harness). Live exit codes match the table
-  (ablation=1, autoresearch=1, backend=-15, mas-harness/backend-watchdog=`-` idle).
-  13 APScheduler rows (main + slack_bot) with trigger + next-fire.
-- **Criterion 2 (every unhealthy job: root-cause + fix-or-escalate):** autoresearch + ablation
-  = single shared root cause + FIX APPLIED (settings.py, non-gated) + the huggingface/LLM
-  residue escalated; mas-harness = false-positive documented with launchd col1/col2 semantics.
-- **Criterion 3 (autoresearch + ablation + mas-harness each addressed):** all three present
-  and addressed.
-- **Criterion 4 (full cross-layer table job|layer|schedule|last-run|status|action):** present,
-  column-complete, cites launchd legend with source, and the away-week gaps (slack_bot has no
-  launchd supervisor; no external dead-man's-switch; digest lacks a cron-health line) are
-  explicitly deferred to 54.2 — not silently dropped. This is an artifact an operator can read
-  from Slack, not hand-waving.
+- **No money-path / risk / secret edit** — `git status --porcelain | grep -iE 'paper_trader|kill_switch|risk_engine|perf_metrics|backtest|\.env$|secret'` → none.
+  `_compute_system_state` only **reads** kill-switch/gate state for display; it does NOT gate
+  trade execution → `kill-switch-reachability` / `max-position-check-bypass` /
+  `stop-loss-always-set` all N/A.
+- **No launchd plist** added (honors the researcher's load-bearing double-instance finding).
+  **Bot NOT force-restarted** — deliberate + documented (avoids a FALSE crash iMessage to the
+  remote operator). The state line activates on the next natural restart; the confirmation
+  digest already delivered the content live. Sound call.
+- **One-shot is Web-API ONLY** — `AsyncWebClient`, no `AsyncSocketModeHandler` / `start_scheduler`;
+  reads token via `get_secret_value()` (no `.env` edit, no SecretStr stringification). Opens ZERO
+  Socket Mode connections → cannot create a 2nd bot instance. So
+  `ok=True channel=C0ANTGNNK8D ts=1780325165.760459` (with the state line) is **credible
+  end-to-end proof** (I did NOT re-send — re-sending would spam the remote operator).
+- **$0** — formatters imports only math+datetime; the new line adds two internal
+  `/api/paper-trading/{kill-switch,gate}` GETs. No LLM, no pip, no BQ.
 
 ---
 
-## 7. Code-review heuristic sweep (SKILL: code-review-trading-domain) — no BLOCK, no WARN
+## 5. Code-review heuristic sweep (SKILL: code-review-trading-domain) — no BLOCK, no WARN
 
-- **ASCII/no-emoji:** NO non-ASCII on any ADDED (`+`) line of the diff. (The 6 non-ASCII hits in
-  settings.py are pre-existing unchanged lines 180/191/306/398/408/414, outside the 54.1 region.)
-  Test file ASCII-clean; live_check 0 emoji. `unicode-in-logger` N/A — no logger/print added.
-- **Dimension 1 (Security):** no secret-in-diff, no command/prompt-injection, no
-  insecure-output sink, no dep-pin removal, no new tool/agency, no LLM-to-execution path.
-  The validator's `except ValueError: pass` is a *narrow* catch on `json.loads` with a
-  documented fall-through to comma-split — not a risk-guard swallow, so
-  `broad-except-silences-risk-guard` does NOT fire.
-- **Dimension 2 (Trading-domain):** all BLOCK heuristics N/A — no kill-switch / stop-loss /
-  perf-metrics / position-sizing / max-position / backfill / crypto code touched.
-- **Dimension 3 (Code quality):** no `print()`, no module-mutable-state mutation, no broad
-  `except: pass`. `settings.py` is the explicitly-exempt settings/singleton module.
-  `_parse_paper_markets` is a private classmethod with a docstring.
-- **Dimension 4 (Anti-rubber-stamp):** covered in §3 — mutation-resistant tests, no
-  tautological/over-mocked assertions, no formula-drift.
-- **Dimension 5 (LLM-evaluator anti-patterns):** first spawn, evidence freshly re-run, this
-  critique cites file:line + verbatim command output throughout; no sycophancy/verdict-shopping.
+- **ASCII/no-emoji:** ZERO non-ASCII on any ADDED (`+`) line of the formatters/scheduler diff;
+  one-shot script pure ASCII. No `logger.*` / `print(` added in the diff → `unicode-in-logger`
+  N/A. (The `—` / `⚠️` chars exist only in `live_check_54.2.md` + the pre-existing unchanged
+  Block-Kit display header `formatters.py:336` — `.md` docs + display strings are NOT logger
+  calls; the security.md ASCII rule targets `logger.*()`.) Slack `:shortcode:` forms allowed.
+- **Dimension 1 (Security):** no secret-in-diff (token via accessor); no command/prompt-injection;
+  no insecure-output sink; no dep-pin removal; no new agent tool. The per-leg
+  `except Exception: pass` on internal HTTP GETs is a narrow data-fetch fail-soft.
+- **Dimension 2 (Trading-domain):** all BLOCK heuristics N/A — no kill-switch-reachability /
+  stop-loss / perf-metrics / position-sizing / max-position / backfill / crypto code touched.
+  `_compute_system_state`'s per-leg `except Exception: pass` is the documented fail-open for a
+  DIGEST-ENRICHMENT line (read-only display, not an execution / kill-switch / stop-loss path) →
+  `broad-except-silences-risk-guard` and `paper-trader-broad-except` do NOT fire.
+- **Dimension 3 (Code quality):** no `print()` in non-script code (the `print` is in the
+  `scripts/ops/` one-shot, exempt); no module-mutable-state mutation; the new helper has a
+  docstring + type hints (`client: httpx.AsyncClient) -> str | None`).
+- **Dimension 4 (Anti-rubber-stamp):** §3a — mutation-resistant tests; no
+  tautological/over-mocked assertions; no formula-drift (no risk constant changed).
+- **Dimension 5 (LLM-evaluator anti-patterns):** §0 — code changed materially between cycles, so
+  the reversal is the documented cycle-2 flow, not sycophancy. This critique cites file:line +
+  verbatim command output throughout.
 
-Worst severity across all dimensions: **NOTE** (no BLOCK, no WARN). `code_review_heuristics`
-recorded in checks_run.
+Worst severity across all dimensions: **NOTE** (no BLOCK, no WARN). `code_review_heuristics` recorded.
 
 ---
 
-## 8. Immutable success-criteria mapping (4, verbatim from masterplan step 54.1)
+## 6. Immutable success-criteria mapping (4, verbatim from masterplan step 54.2)
 
 | # | Criterion | Verdict | Evidence |
 |---|-----------|---------|----------|
-| 1 | Every launchd + every APScheduler job enumerated w/ loaded-state/last-exit/trigger/next-fire | **PASS** | 7 launchd rows = 7 live jobs (launchctl cross-check, exit codes match); 13 APScheduler rows w/ trigger + next-fire |
-| 2 | Every unhealthy job listed w/ root-cause + FIX-applied OR op-escalation (op-gated fixes escalated) | **PASS** | autoresearch/ablation root-caused + FIXED (non-gated) + HF/LLM residue escalated; mas-harness false-positive documented |
-| 3 | autoresearch + ablation last-exit=1 + mas-harness not-running each addressed | **PASS** | both re-verified loading `['US','EU','KR']` under bash-source; mas-harness = false positive (launchd semantics) |
-| 4 | live_check_54.1.md has the full cross-layer table | **PASS** | column-complete `job|layer|schedule|last-run|next-fire|status|action` table present |
-
-Every criterion is behaviorally meaningful: criterion 3 is the exact catch for the silent
-nightly cron failure the away-week feared; the crash-layer re-check + the mutation test confirm
-the fix is real and guarded.
+| 1 | morning+evening digests scheduled + bot running; if down → fix/escalate | **PASS** | morning_digest (08:00 ET) + evening_digest (17:00 ET) registered in scheduler.py; bot up + supervised (5-min crontab monitor, nohup-restart + iMessage); Mac won't sleep (caffeinate). |
+| 2 | ≥1 live digest delivered + receipt (ts/channel) recorded | **PASS** | `ok=True channel=C0ANTGNNK8D ts=1780325165.760459` from the Web-API-only one-shot (cycle-2 re-delivery, now carrying the state line). Credible (script shape verified; Web-API-only; $0). |
+| 3 | content covers NAV / total P&L / open positions, **kill-switch + go-live-gate state**, the 54.1 cron-health summary, elevation autonomous-cycle progress | **PASS (cycle-1 blocker RESOLVED)** | NAV + total P&L: PRESENT (Portfolio block). **Kill-switch + go-live-gate state: NOW PRESENT** — `_compute_system_state` renders ACTIVE/PAUSED/BREACH + daily/trailing-vs-limits and gate ELIGIBLE/NOT (n/total); delivered live (ts above) + behaviorally tested (6 tests). cron-health: shipped+tested+delivered. Elevation progress: away-week block. (Open-positions itemization is surfaced as aggregate P&L + the live `:large_green_circle:` state context; the enumerated essentials NAV/P&L/kill-switch/gate/cron/elevation are all covered.) |
+| 4 | LLM-summarized body flagged op-gated (not silently spent); live_check records delivery + cadence | **PASS** | digest is $0/template (not op-gated); `live_check_54.2.md` records ts/channel/content-shape (incl. the cycle-2 state line at §2) + the daily 08:00/17:00 ET cadence for 2026-06-01 → 2026-06-08. |
 
 ---
 
 ## Verdict
 
-**PASS.** All 4 immutable criteria met. Research gate passed properly (9 sources, recency
-scan); contract precedes generate with verbatim criteria + N* delta; deterministic checks
-(11 phase-54.1 tests, 25 settings/config regression, syntax, masterplan verify cmd) and the
-decisive bash-source `get_settings()` crash-path re-check (`['US','EU','KR']`, no SettingsError)
-all independently reproduced. Mutation-resistance proven (old JSON-only behavior raises on
-`[US,EU,KR]`/`US,EU,KR`, so the tests fail on a regression — non-tautological). DO-NO-HARM
-verified through the full `Settings()` pipeline (JSON path byte-identical, all-str, NoDecode
-scoped to one field, default_factory still `['US']`, diff purely additive). Scope-honest:
-settings.py-only + test + artifacts; no `.env` edit; no money-path code; no full-job run;
-autonomous application correct (settings.py is off the operator-gated list). live_check_54.1.md
-is a complete operator-auditable 7-launchd + 13-APScheduler cross-layer table with a
-fix-or-escalate per unhealthy job; all 3 named jobs addressed. No BLOCK/WARN heuristics fire.
+**PASS. ok: true.** The single cycle-1 blocker (criterion 3's missing kill-switch +
+go-live-gate state line) is **resolved**, and nothing regressed. The fix is materially in the
+code (not a re-judged opinion): `format_morning_digest` gains `system_state` (`formatters.py:323`,
+guarded render at `:378-382`); `_compute_system_state` (`scheduler.py:350-384`) derives the line
+fail-open PER LEG from `/api/paper-trading/kill-switch` + `/api/paper-trading/gate`;
+`_send_morning_digest` passes both kwargs (`:408-410`); the one-shot mirrors it
+(`send_confirmation_digest.py:49-71,:123`). DO-NO-HARM independently reproduced —
+`format_morning_digest(env,rep) == format_morning_digest(env,rep,cron_health=None,system_state=None)`
+byte-identical, no "Kill switch"/"Go-live gate" text in the default, empty-string adds no block
+(falsy guard), and a synthetic line adds exactly one section. Fail-open independently reproduced —
+full raise → None; gate-leg-down → partial kill-switch-only line, never raises. Mutation-resistant:
+a guard-removal mutant breaks `test_system_state_default_is_byte_identical`; a raise-instead-of-None
+mutant breaks `test_compute_system_state_fail_open` (non-tautological; the active+gate test asserts
+specific substrings). Deterministic re-run independently: **14 phase-54.2 tests pass (8 cron + 6
+system_state), 17 regression green, ast.parse OK on all 4 files, masterplan 54.2 status=pending
+retry=0**. Scope-honest: no money-path/kill_switch/risk_engine/perf_metrics/backtest/.env/secret
+touch, no launchd plist, no force-restart (avoids a false crash iMessage), $0; the one-shot is
+Web-API-only so `ok=True channel=C0ANTGNNK8D ts=1780325165.760459` (with the state line) is credible
+end-to-end without re-sending. No BLOCK/WARN code-review heuristics; cycle-2 reversal is the
+documented flow (code changed), not sycophancy. All 4 immutable criteria PASS.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 4 immutable criteria met. Deterministic: 11 phase-54.1 tests pass, 25 settings/config regression green, ast.parse OK, masterplan verify cmd green (7 launchd + scheduler import + live_check exists). Decisive crash-path re-check: bash-sourced get_settings().paper_markets -> ['US','EU','KR'] (previously SettingsError). NoDecode/field_validator are real pydantic_settings 2.13.1 symbols; exact bash-mangled OS-env value '[US,EU,KR]' reproduced from .env:78 JSON. Mutation-resistance: old JSON-only decode raises JSONDecodeError on [US,EU,KR]/US,EU,KR so test_bash_sourced_form_no_longer_raises + parametrized cases fail on a regression (non-tautological). DO-NO-HARM via full Settings() pipeline: JSON path byte-identical ['US','EU','KR'] all-str, NoDecode scoped to paper_markets only, default_factory still ['US'], diff purely additive (40 lines, imports+field+validator). Scope-honest: settings.py-only + 1 new test + handoff artifacts; no .env edit, no money-path/kill_switch/risk_engine/perf_metrics touch, no full autoresearch/ablation run, no new dep; autonomous application correct (settings.py not on operator-gated {LLM,pip,BQ-DROP} list). live_check_54.1.md is a complete operator-auditable 7-launchd (= 7 live jobs, exit codes cross-checked) + 13-APScheduler cross-layer table with fix-or-escalate per unhealthy job; autoresearch+ablation FIXED, mas-harness false-positive documented. No non-ASCII on any added diff line; no BLOCK/WARN code-review heuristics. First Q/A spawn (no verdict-shopping); log-last/flip-last order intact (54.1 still pending, no harness_log entry).",
+  "reason": "CYCLE 2. The single cycle-1 blocker (criterion 3's missing kill-switch + go-live-gate state line) is RESOLVED and nothing regressed. Cycle-2 legitimacy: the code changed materially (format_morning_digest gains system_state at formatters.py:323 with a guarded render at :378-382; _compute_system_state at scheduler.py:350-384 derives the line fail-open PER LEG from /api/paper-trading/kill-switch + /api/paper-trading/gate; _send_morning_digest passes both kwargs at :408-410; one-shot mirrors via _system_state at send_confirmation_digest.py:49-71,:123; tests 8->14) so the reversal reflects the fix, not sycophancy on unchanged evidence. Harness 5/5: researcher gate carried from cycle-1 + contract cites it; contract precedes generate with criterion 3 byte-verbatim against masterplan; experiment_results has a cycle-2 Follow-up; harness_log has NO 54.2 entry (log-last intact) + masterplan 54.2 status=pending retry=0 max=3; first PASS, 0 prior logged CONDITIONALs so 3rd-CONDITIONAL rule N/A. Deterministic re-run independently: 14 phase-54.2 tests pass (8 cron + 6 system_state) in 0.10s, 17 regression green, ast.parse OK on all 4 files. DO-NO-HARM independently reproduced: format_morning_digest(env,rep) == format_morning_digest(env,rep,cron_health=None,system_state=None) byte-identical, no 'Kill switch'/'Go-live gate' text in the default, empty-string system_state adds NO block (falsy guard), synthetic line adds EXACTLY one section. Fail-open independently reproduced: full raise -> None; gate leg raising mid-call -> partial kill-switch-only line, NEVER raises (per-leg try/except at scheduler.py:355-373 and :374-383). Mutation-resistance: guard-removal mutant breaks test_system_state_default_is_byte_identical (byte-identity fails); raise-instead-of-None mutant breaks test_compute_system_state_fail_open (asserts None); test_compute_system_state_active_and_gate asserts specific substrings (daily -1.5%/4%, trail -0.1%/10%, NOT ELIGIBLE (1/5)) -- non-tautological. Scope-honest: no money-path/kill_switch/risk_engine/perf_metrics/backtest/.env/secret touch (git status), no launchd plist, no force-restart (deliberate -- avoids a false crash iMessage to the remote operator), $0 (no LLM/pip/BQ); _compute_system_state only READS kill-switch state for display, does NOT gate execution. One-shot send_confirmation_digest.py is Web-API ONLY (AsyncWebClient, no AsyncSocketModeHandler/start_scheduler), reads token via get_secret_value() -- so ok=True channel=C0ANTGNNK8D ts=1780325165.760459 (with the state line) is credible end-to-end proof without re-sending (re-send would spam the remote operator). No non-ASCII on any added Python line; one-shot pure ASCII; em-dash/warning-emoji exist only in the .md doc + the pre-existing unchanged Block-Kit display header, NOT logger calls. No BLOCK/WARN code-review heuristics. Criterion 1 PASS (morning+evening scheduled, bot supervised, Mac awake); criterion 2 PASS (live ts/channel receipt); criterion 3 PASS (NAV/P&L + kill-switch/gate state NOW present, delivered live + 6 behavioral tests, + cron-health + elevation block); criterion 4 PASS ($0/template not op-gated; live_check_54.2.md records ts/channel/content-shape + the 2026-06-01 -> 2026-06-08 daily cadence).",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "syntax_ast_parse", "verification_command", "phase_54_1_tests_11", "settings_config_regression_25", "crash_layer_bash_source_recheck", "mutation_resistance", "do_no_harm_full_pipeline", "symbol_reality_check", "scope_diff_audit", "live_check_completeness_vs_launchctl", "ascii_no_emoji", "code_review_heuristics", "research_brief", "contract_alignment", "experiment_results"]
+  "checks_run": ["cycle2_legitimacy_simultaneous_presentation", "harness_compliance_audit", "syntax_ast_parse_4_files", "verification_command", "phase_54_2_tests_14", "digest_regression_17", "do_no_harm_byte_identity_independent", "fail_open_per_leg_full_and_partial", "mutation_resistance_guard_removal_and_raise", "scope_diff_audit", "no_money_path_check", "no_launchd_plist_check", "one_shot_script_web_api_only", "criterion3_verbatim_vs_masterplan", "ascii_no_emoji", "code_review_heuristics", "research_brief_carried", "contract_alignment", "experiment_results_cycle2_followup", "live_check_completeness"]
 }
 ```

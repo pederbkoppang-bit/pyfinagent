@@ -1,108 +1,104 @@
-# Contract — phase-54.1 (Cron audit + fix-or-escalate) — operator-away cycle
+# Contract — phase-54.2 (Reliable daily Slack digests for the away week)
 
-**Date:** 2026-06-01. **Tier:** moderate. **Step:** phase-54.1 (P0). Operator REMOTE
-2026-06-01 → 2026-06-08, Slack-only.
+**Date:** 2026-06-01. **Tier:** moderate. **Step:** phase-54.2 (P0). Operator REMOTE
+2026-06-01 → 2026-06-08, Slack-only. THE lifeline step.
 
 ## N* delta (N* = Profit − Risk − Burn)
 
-**Risk↓** (operational): a silent cron failure during the unattended week is unobserved
-risk. This step makes the cron surface auditable + removes the recurring failure that
-would otherwise (a) re-fire nightly and (b) spam the operator's Slack P1 channel all
-week (the watchdog routes cron failures to P1). No P delta. No money-path change
-(DO-NO-HARM: the live paper_trading APScheduler job is healthy + untouched).
+**Risk↓** (operational visibility): guarantees the operator's only window (Slack)
+actually delivers a daily status digest with NAV/P&L, kill-switch/gate, and cron
+health — so a problem during the unattended week is SEEN, not silent. No P delta.
+$0 (digest is template/data-only, confirmed). No money-path change.
 
 ## Research-gate summary
 
-`researcher` ran first (gate **PASSED**: 9 sources read in full, 25 URLs, recency scan,
-12 internal files). Brief: `handoff/current/research_brief.md`; audit table:
-`handoff/current/live_check_54.1.md`. Decisive findings:
-1. **autoresearch + ablation (both launchctl last-exit=1) share ONE root cause.** Their
-   launchd wrappers `set -a; . backend/.env; set +a` (bash-source the env). The
-   2026-06-01 multi-market go-live set `PAPER_MARKETS=["US","EU","KR"]` (JSON) in
-   `.env`. `paper_markets: list[str]` (`settings.py:55`) is a pydantic-settings *complex*
-   field → the env source JSON-decodes it. Bash strips the quotes on `source` →
-   `[US,EU,KR]` → `JSONDecodeError` → `SettingsError` at `get_settings()`. The LIVE
-   backend is fine (uvicorn reads `.env` via native dotenv, not shell). Re-fails nightly
-   02:00/03:00 unless fixed.
-2. **mas-harness "not running" = FALSE POSITIVE** (idle `StartInterval 1800` job, exit
-   0; PID `-` = loaded-and-idle per launchd semantics). No defect.
-3. **Digest is TEMPLATE/DATA-ONLY ($0 LLM, NOT operator-gated)** — decisive for 54.2.
-4. **Biggest away-week risk: the slack_bot (PID 42151, PPID 1) has NO launchd
-   supervisor** — single point of failure for the Slack lifeline. → addressed in 54.2.
+`researcher` ran first (gate **PASSED**: 7 sources read in full, 23 URLs, recency
+scan, 12 internal files). Brief: `handoff/current/research_brief.md`. Decisive:
+1. **The bot IS supervised** (corrects 54.1): `scripts/slack_bot_monitor.sh` runs
+   every 5 min from the user crontab (since 2026-04-01) — grep-guarded `nohup`
+   restart + iMessage alert to the operator's phone. The Mac will NOT sleep
+   (`caffeinate -i -s` under the backend launchd job). The lifeline is already
+   resilient.
+2. **A launchd KeepAlive plist is the WRONG move** — it spawns a SECOND instance →
+   the monitor's grep masks failures + TWO APScheduler schedulers → double-fired
+   digests AND double-fired heavy crons (nightly_mda_retrain etc.). Do NOT add it.
+3. **Confirmation digest = standalone one-shot `AsyncWebClient`** (no Socket Mode
+   connection; never touches PID 42151). `slack_channel_id`/`slack_bot_token` are
+   real + set. `chat.postMessage` → `ok:true` + `ts`; include a `text` fallback
+   (a11y); no idempotency (do NOT blind-retry).
+4. **Digest is $0/template** (`formatters.py` imports only math+datetime; no LLM) →
+   NOT operator-gated. Safe to send + to add an internal `/api/jobs/all` GET.
 
 ## Hypothesis
 
-A pydantic-settings parser that accepts comma / bracket-mangled / JSON forms for
-`paper_markets` will make `get_settings()` succeed on ALL load paths (native dotenv,
-OS-env, bash-sourced), fixing autoresearch + ablation at the settings-load layer with
-ZERO change to the live engine's resolved value (`["US"]` default; `["US","EU","KR"]`
-when set) — DO-NO-HARM verified by test on every input form.
+Sending one labelled confirmation digest via the one-shot Web-API path proves the
+operator's Slack window receives messages end-to-end; folding a fail-open
+`cron_health` kwarg into `format_morning_digest` (byte-identical when `None`) gives
+the operator daily cron visibility; a controlled single-restart (monitor greps-first
+→ one instance) deploys it for the week without risking the lifeline.
 
-## Scope decision (autonomous vs escalate)
+## Immutable success criteria (verbatim from masterplan phase-54.2)
 
-The goal's operator-gated list = {LLM API spend, pip installs, BQ DROP/unqualified
-DELETE}. A `settings.py` code fix is NOT on that list → autonomously in-scope under
-"full approval to proceed" + "close what is autonomously closable". The researcher
-escalated conservatively (touches shared settings); I proceed because the fix is purely
-ADDITIVE (widens what parses, never narrows), needs no `.env` edit (the existing `.env`
-value parses via the new validator), and is gated behind a regression test proving the
-live JSON path is byte-identical. **NOT auto-run:** the full autoresearch/ablation jobs
-(autoresearch may incur LLM spend / has a known huggingface gap) — I verify the fix ONLY
-at the `get_settings()` layer (the crash point), never by running the full job.
+1. the morning + evening Slack digests are confirmed scheduled (slack_bot/scheduler.py)
+   AND the Slack bot process is confirmed running; if either is down it is fixed or
+   escalated to the operator.
+2. at least ONE live digest is delivered to the operator's Slack channel during this
+   step and receipt is confirmed (message ts / channel id recorded), proving the
+   away-week pipeline works end-to-end.
+3. the digest content covers the remote-supervision essentials: NAV / total P&L / open
+   positions, kill-switch + go-live-gate state, the 54.1 cron-health summary, and the
+   best-in-class-elevation autonomous-cycle progress.
+4. any LLM-summarized digest body that would incur API spend is flagged operator-gated
+   (not silently spent); live_check_54.2.md records the delivered digest + channel + ts
+   + the daily cadence for the 2026-06-01 → 2026-06-08 window.
 
-## Immutable success criteria (verbatim from masterplan phase-54.1)
+## Plan steps (researcher §12 — every item $0 + zero-risk to PID 42151)
 
-1. EVERY launchd job in ~/Library/LaunchAgents/com.pyfinagent.* is enumerated with its
-   loaded state + last exit status; EVERY in-process APScheduler job
-   (slack_bot/scheduler.py morning_digest/evening_digest/watchdog + slack_bot/jobs/*) is
-   enumerated with its trigger + next-fire time.
-2. every UNHEALTHY job (not loaded, last-exit nonzero, missed/never-fired, or no sane
-   next-fire) is explicitly listed with the root-cause + a FIX-applied OR an
-   operator-escalation note (LLM-spend / pip / BQ-DROP / launchctl load-unload fixes are
-   operator-gated and ESCALATED, not forced).
-3. the autoresearch + ablation last-exit=1 failures and the mas-harness not-running
-   state observed 2026-06-01 are each addressed (fixed or escalated with a crisp
-   operator ask).
-4. live_check_54.1.md contains the full cross-layer cron-health table (job | layer |
-   schedule | last-run | status | action) — the artifact the operator can audit from
-   Slack.
+1. **Verify the supervisor** (read-only): the `*/5` cron monitor present + greps the
+   live process name + sources the venv + `imsg` on PATH; Mac won't sleep
+   (caffeinate). Confirm morning/evening digests scheduled + bot up. Document
+   (corrects the 54.1 "unsupervised" framing). (criterion 1)
+2. **Fold the cron-health line** into `format_morning_digest` (Option a): new
+   `cron_health: str | None = None` kwarg → a `section` block before the `divider`
+   (`formatters.py:382`); the scheduler computes the line from `/api/jobs/all`
+   wrapped in try/except (fail-open → `None`). Byte-identical when `None`. Test:
+   byte-identity with kwarg absent + render with a synthetic failed job. (criterion 3)
+3. **Send ONE live confirmation digest** (standalone one-shot script
+   `scripts/ops/send_confirmation_digest.py`): `AsyncWebClient(bot_token)` +
+   `format_morning_digest(..., cron_health=<computed>)` + a short away-week note
+   (sync done, 54.1 done, 54.2 in progress, planned 50.6→43.0→53.x) + `text`
+   fallback → `chat_postMessage(channel=slack_channel_id)`. Record `ok`+`ts`+channel.
+   (criteria 2, 3)
+4. **Controlled single-restart to deploy** (researcher §12.3 option ii):
+   `pkill -f backend.slack_bot.app`; the 5-min monitor respawns ONE instance
+   (greps-first → no double-instance), OR run the monitor script directly to respawn
+   immediately. Verify exactly one bot process + scheduler registered; if the restart
+   misbehaves, fall back to ensuring a working bot (the one-shot path already proved
+   outbound delivery as a fallback). (deploys criterion 3 for daily digests)
+5. **Write `live_check_54.2.md`**: supervisor proof, the delivered confirmation digest
+   (channel+ts+content), the cron-health line, the daily cadence, and the
+   elevation-progress delivery plan (milestone Slack updates from this session +
+   GitHub commits). (criterion 4)
+6. **Fresh qa → log → flip → commit.**
 
-## Plan steps
+## Scope / guardrails
 
-1. **Reproduce** the exact bash-mangled value: `set -a; . backend/.env; set +a;
-   python -c "import os; print(repr(os.environ.get('PAPER_MARKETS')))"` → confirm the
-   precise string my parser must accept (expected `[US,EU,KR]`).
-2. **Implement** the parser in `backend/config/settings.py`: accept (a) JSON list
-   `["US","EU","KR"]`, (b) bracket-mangled `[US,EU,KR]`, (c) plain comma `US,EU,KR`,
-   (d) pass-through real lists; empty/unset → default `["US"]`. Use the canonical
-   pydantic-settings approach (`Annotated[list[str], NoDecode]` + `field_validator(mode=
-   "before")` if pydantic-settings ≥2.2 supports NoDecode; else a source-level fallback).
-   Keep `default_factory ["US"]` + the description.
-3. **Test** (`backend/tests/test_phase_54_1_paper_markets_parse.py`): all 4 input forms
-   parse to the right list; unset → `["US"]`; the live JSON form is byte-identical to
-   today (DO-NO-HARM). Run the existing settings tests too.
-4. **Verify the fix at the crash layer** (no full job run): `set -a; . backend/.env;
-   set +a; python -c "from backend.config.settings import get_settings;
-   print(get_settings().paper_markets)"` → succeeds, prints `['US','EU','KR']` (today it
-   raises SettingsError).
-5. **Finalize** `live_check_54.1.md`: flip autoresearch + ablation action from
-   "ESCALATE" to "FIX APPLIED (settings.py NoDecode validator) + verified at settings-load
-   layer; full-job re-verify deferred to next nightly fire / operator (autoresearch LLM +
-   huggingface gap not auto-run)". Keep mas-harness false-positive note.
-6. **Fresh qa** → log → flip.
-
-## Guardrails
-
-- DO-NO-HARM: prove the live engine's `paper_markets` value is unchanged (JSON path
-  byte-identical). No `.env` edit (tool-blocked + unnecessary). No running the full
-  autoresearch/ablation jobs (LLM/huggingface risk). No new dependency.
-- ASCII loggers; no emoji. Single source of truth (the one `paper_markets` field).
+- DO NOT add a launchd plist (double-instance). DO NOT blind-retry chat.postMessage.
+- Sending the digest is authorized: the operator explicitly asked for Slack updates
+  while away; the destination is the configured operator channel (settings, not
+  observed content). $0/template → not operator-gated.
+- `cron_health=None` default ⇒ byte-identical existing digests (DO-NO-HARM).
+- The controlled restart is the ONLY process action; the monitor guarantees a single
+  instance. No `.env`/secret edit (read token via the existing SecretStr accessor).
+- Elevation-cycle progress (criterion 3): delivered in the confirmation digest's
+  away-week note + as milestone Slack posts from this session as 50.6/43.0/53.x land,
+  since the bot's daily digest can't see the Claude-Code harness state.
 
 ## References
 
-- `handoff/current/research_brief.md` (launchd docs, APScheduler, Slack API, Healthchecks.io,
-  launchd.info, incident.io).
-- `handoff/current/live_check_54.1.md` (the audit table).
-- `backend/config/settings.py:55` (`paper_markets`); the autoresearch/ablation launchd
-  wrappers + `~/Library/LaunchAgents/com.pyfinagent.{autoresearch,ablation}.plist`.
-- pydantic-settings docs (NoDecode / parsing env complex types).
+- `handoff/current/research_brief.md` (Slack Socket Mode/multi-connection, launchd
+  KeepAlive, chat.postMessage, on-call digest practices).
+- `scripts/slack_bot_monitor.sh` (the supervisor); `backend/slack_bot/scheduler.py`
+  (`_send_morning_digest` :330/:351, base URL :95); `backend/slack_bot/formatters.py`
+  (`format_morning_digest` :323, divider :382); `backend/config/settings.py`
+  (`slack_channel_id`/`slack_bot_token`/digest hours).

@@ -327,6 +327,63 @@ def _is_us_trading_day_now() -> bool:
     return is_trading_day(et_today, "US")
 
 
+async def _compute_cron_health(client: httpx.AsyncClient) -> str | None:
+    """phase-54.2: derive a one-line cron-health summary from /api/jobs/all for the
+    morning digest (operator-remote week). Fail-open: returns None on ANY error so a
+    jobs-endpoint hiccup never blocks the operator's daily lifeline digest."""
+    try:
+        res = await client.get(f"{_LOCAL_BACKEND_URL}/api/jobs/all")
+        if res.status_code != 200:
+            return None
+        jobs = res.json().get("jobs", [])
+        if not jobs:
+            return None
+        bad = [j.get("id", "?") for j in jobs if j.get("status") == "failed"]
+        n_green = sum(1 for j in jobs if j.get("status") in ("ok", "scheduled", "running"))
+        if bad:
+            return f":warning: *Crons:* {n_green}/{len(jobs)} healthy -- FAILED: {', '.join(bad)}"
+        return f":white_check_mark: *Crons:* {n_green}/{len(jobs)} healthy"
+    except Exception:
+        return None
+
+
+async def _compute_system_state(client: httpx.AsyncClient) -> str | None:
+    """phase-54.2 cycle-2: kill-switch + go-live-gate state for the morning digest --
+    the most decision-relevant away-week signal ("is the system halted?"). Fail-open:
+    returns None (or a partial line) on ANY error so it never blocks the lifeline."""
+    lines: list[str] = []
+    try:
+        ks = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/kill-switch")
+        if ks.status_code == 200:
+            k = ks.json()
+            br = k.get("breach", {}) or {}
+            if k.get("paused"):
+                reason = k.get("pause_reason")
+                lines.append(":octagonal_sign: *Kill switch:* PAUSED"
+                             + (f" -- {reason}" if reason else ""))
+            elif br.get("any_breached"):
+                lines.append(":red_circle: *Kill switch:* BREACH")
+            else:
+                lines.append(":large_green_circle: *Kill switch:* ACTIVE")
+            d, t = br.get("daily_loss_pct"), br.get("trailing_dd_pct")
+            dl, tl = br.get("daily_loss_limit_pct"), br.get("trailing_dd_limit_pct")
+            if d is not None and t is not None and dl is not None and tl is not None:
+                lines[-1] += f" (daily {d:+.1f}%/{dl:.0f}% | trail {t:+.1f}%/{tl:.0f}%)"
+    except Exception:
+        pass
+    try:
+        g = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/gate")
+        if g.status_code == 200:
+            gd = g.json()
+            b = gd.get("booleans", {}) or {}
+            npass = sum(1 for v in b.values() if v)
+            elig = "ELIGIBLE" if gd.get("promote_eligible") else "NOT ELIGIBLE"
+            lines.append(f"*Go-live gate:* {elig} ({npass}/{len(b)})")
+    except Exception:
+        pass
+    return "\n".join(lines) if lines else None
+
+
 async def _send_morning_digest(app: AsyncApp):
     """Fetch portfolio performance and post morning digest."""
     settings = get_settings()
@@ -346,7 +403,11 @@ async def _send_morning_digest(app: AsyncApp):
             reports_res = await client.get(f"{_LOCAL_BACKEND_URL}/api/reports/?limit=5")
             reports_data = reports_res.json() if reports_res.status_code == 200 else []
 
-        blocks = format_morning_digest(portfolio_data, reports_data)
+            # phase-54.2: cron-health + system-state lines for the remote week (fail-open).
+            cron_health = await _compute_cron_health(client)
+            system_state = await _compute_system_state(client)
+
+        blocks = format_morning_digest(portfolio_data, reports_data, cron_health=cron_health, system_state=system_state)
 
         await app.client.chat_postMessage(
             channel=settings.slack_channel_id,

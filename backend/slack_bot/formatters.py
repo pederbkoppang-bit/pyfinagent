@@ -320,8 +320,16 @@ def _portfolio_snapshot_date(p: dict) -> str | None:
     return raw[:10]
 
 
-def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[dict]:
-    """Format the daily morning digest."""
+def format_morning_digest(portfolio_data: dict, recent_reports: list, cron_health: str | None = None, system_state: str | None = None) -> list[dict]:
+    """Format the daily morning digest.
+
+    phase-54.2: optional `cron_health` + `system_state` lines for the operator's
+    remote week. The scheduler computes both from backend endpoints (fail-open) and
+    passes them in; the formatter stays a pure template builder ($0, no I/O).
+    `system_state` carries the kill-switch + go-live-gate state (the most
+    decision-relevant away-week signal -- "is the system halted?"). When both are
+    None (default) the digest is byte-identical to before -- purely additive.
+    """
     blocks = [
         {
             "type": "header",
@@ -364,6 +372,15 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[di
             "text": {"type": "mrkdwn", "text": f"*Portfolio:* {emoji} {sign}${total_pnl:,.2f} ({sign}{total_return:.1f}%){as_of}"},
         })
 
+    # phase-54.2 cycle-2: kill-switch + go-live-gate state (criterion 3 -- the most
+    # decision-relevant away-week signal). Provided by the scheduler (fail-open);
+    # byte-identical when None.
+    if system_state:
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": system_state},
+        })
+
     # Recent analyses
     if recent_reports:
         lines = []
@@ -377,6 +394,13 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list) -> list[di
         blocks.append({
             "type": "section",
             "text": {"type": "mrkdwn", "text": f"*Recent Analyses:*\n" + "\n".join(lines)},
+        })
+
+    # phase-54.2: cron-health line (above the footer divider). Only when provided.
+    if cron_health:
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": cron_health},
         })
 
     blocks.append({"type": "divider"})
