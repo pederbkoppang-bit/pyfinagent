@@ -61,6 +61,33 @@ def get_sp500_tickers(as_of: datetime | None = None) -> list[str]:
         return _FALLBACK_TICKERS
 
 
+def build_sector_map(tickers: Optional[list[str]] = None) -> dict[str, str]:
+    """phase-51.2: {ticker: GICS sector} from the Wikipedia S&P 500 table (same
+    source + User-Agent as get_sp500_tickers). Gives candidates a sector AT rank
+    time so the sector-neutral lever is functional (it was a silent no-op because
+    enrichment ran AFTER ranking). Tickers absent from the S&P 500 table (e.g.
+    intl .DE/.KS) map to "" -> the global-pool fallback in rank_candidates. Cheap
+    (one HTTP request); only called when a sector-aware flag is enabled (default
+    OFF). NOTE: a 2026-06-01 replay found HARD sector-neutral HURTS long-only
+    Sharpe (-0.166); the flag stays OFF -- this wiring keeps the lever
+    live-measurable for a future SOFT-tilt variant."""
+    try:
+        import io
+        import urllib.request
+        req = urllib.request.Request(SP500_URL, headers={"User-Agent": "Mozilla/5.0 pyfinagent/1.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8")
+        df = pd.read_html(io.StringIO(html), header=0)[0]
+        full = {str(r["Symbol"]).strip().replace(".", "-"): str(r["GICS Sector"]).strip()
+                for _, r in df.iterrows()}
+    except Exception as e:
+        logger.warning(f"build_sector_map: Wikipedia fetch failed: {e}")
+        full = {}
+    if tickers is None:
+        return full
+    return {t: full.get(t, "") for t in tickers}
+
+
 def screen_universe(
     tickers: Optional[list[str]] = None,
     min_avg_volume: int = 100_000,

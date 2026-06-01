@@ -13748,13 +13748,13 @@
         {
           "id": "51.2",
           "name": "Sector diversification -- the live screener ranks the full S&P 500 by PURE price-momentum; sector enrichment happens AFTER ranking (so the sector-neutral path is a silent no-op) and sector_neutral_momentum_enabled/multidim_momentum default OFF -> the book is Tech/semi-concentrated (OUT-COMPETED, not excluded). Pass sector_lookup at rank time + enable within-sector percentile ranking. BACKTEST ON-vs-OFF before any live flip; do not regress the +20% engine.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "50.5",
           "audit_basis": "Diagnostic finding 4 (workflow w1g3l301s): non-tech is out-competed by momentum ranking; sector_lookup not passed into the first-pass screen (autonomous_loop.py:369) so the within-sector path no-ops; sector knobs default OFF; the per-sector count cap (=2) only blocks NEW tech, never rebalances, and non-tech never reaches the cap. Resurrected news overlays (51.1) ADD non-tech candidates; this step makes the ranking itself spread across sectors. Sector-neutralization can lower raw momentum capture -> backtest-gate before live.",
           "verification": {
-            "command": "RESEARCH-FIRST then define at GENERATE",
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_51_2_sector_div.py -q 2>&1 | tail -3 && python -c \"import ast; ast.parse(open('backend/tools/screener.py').read()); ast.parse(open('backend/services/autonomous_loop.py').read())\" && test -f handoff/current/live_check_51.2.md",
             "success_criteria": [
               "candidates carry a sector label AT rank time (sector_lookup passed into the first-pass screen before rank_candidates), so the within-sector/sector-neutral ranking path is no longer a silent no-op",
               "a backtest compares diversified/sector-neutral ranking ON vs OFF on the US universe and reports the Sharpe / return / sector-spread tradeoff (evidence-based, not assumed)",

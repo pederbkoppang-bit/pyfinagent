@@ -1,75 +1,68 @@
-# experiment_results -- phase-51.1: SecretStr unwrap (resurrect 4 dead alpha overlays)
+# experiment_results -- phase-51.2: sector diversification (measure-first, NEGATIVE result)
 
-**Step:** 51.1 | **Date:** 2026-06-01 | **$0 LLM** (live cycle operator-gated, not run) | no pip | GENERATE complete
+**Step:** 51.2 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **no live flag flip** | GENERATE complete
+
+## Outcome in one line
+Wired the sector-neutral lever so it is functional at rank time (was a silent no-op), then
+MEASURED it on our own universe: **HARD sector-neutral HURTS long-only Sharpe (-0.166)** -> the
+flag stays default-OFF. A rigorous negative result; "measure before fixing" prevented a regression.
 
 ## What was built / changed
 
-Fixes the regression (`d3f34caf`, 2026-05-13) where `anthropic_api_key` was migrated
-`str -> SecretStr` without updating 4 services that construct `ClaudeClient` directly with
-the raw key. A non-empty SecretStr is TRUTHY, so `getattr(...) or ""` returned the wrapper,
-which the Anthropic SDK put into the `X-Api-Key` header -> `Header value must be str or
-bytes, not SecretStr` -> each overlay silently fell back. Fixed at the boundary + edges.
-
 | File | Change |
 |------|--------|
-| `backend/agents/llm_client.py` | **NEW module-level `unwrap_secret(v) -> str`** (promoted from make_client's local `_unwrap`; uses `.get_secret_value()`, never `str()`). `ClaudeClient.__init__` self-unwraps (root-cause fix). `OpenAIClient` + `BatchClient` ctors self-unwrap (defense-in-depth). `make_client` now calls the module helper. |
-| `backend/services/news_screen.py:258` | `unwrap_secret(getattr(settings,"anthropic_api_key",""))` (was `... or ""`) |
-| `backend/services/macro_regime.py:427` | same edge unwrap |
-| `backend/services/pead_signal.py:248` | same edge unwrap |
-| `backend/services/meta_scorer.py:166` | same edge unwrap |
-| `backend/tests/test_phase_51_1_secretstr.py` | **NEW** 7 tests ($0, no network) |
+| `backend/tools/screener.py` | **NEW `build_sector_map(tickers)`** -> {ticker: GICS sector} from the Wikipedia S&P 500 table (same source + UA as get_sp500_tickers; intl -> "" global-pool fallback). |
+| `backend/services/autonomous_loop.py:369` | gated wiring: build + pass `sector_lookup` into `screen_universe` ONLY when `sector_neutral_momentum_enabled` or `multidim_momentum_enabled` is True. Flag OFF (default) -> `sector_lookup=None` -> BYTE-IDENTICAL to the prior call. Fixes the no-op (enrichment used to run AFTER ranking at :659). |
+| `scripts/ablation/sector_neutral_replay.py` | **NEW** screener-level replay: production `rank_candidates` over 48 monthly rebalances (2022-2025), 503 tickers, comparing baseline / sector_neutral / vol_scaled top-N baskets by forward Sharpe + sector spread + turnover. $0. |
+| `backend/tests/test_phase_51_2_sector_div.py` | **NEW** 4 tests: OFF byte-identity w/ vs w/o sector field; OFF basket tech-concentrated; ON spreads across sectors (no-op fixed); ON without sectors == OFF (documents the prior bug). |
 
-**NOT touched** (already correctly guarded -- mirror pattern): `call_transcript_gpr.py:91-95`,
-`analyst_narrative_scorer.py:111-115`.
+## The measurement (criterion #2) -- evidence-based, not assumed
+```
+config            ann_Sharpe   avg_fwd_mo%  avg_sectors  avg_turnover
+baseline               1.388         4.054         4.73         0.555
+sector_neutral         1.223         2.666        10.00         0.638
+vol_scaled             1.403         2.045         4.73         0.555
+sector_neutral vs baseline: dSharpe=-0.166, dSectors=+5.27  -> KEEP? False
+vol_scaled vs baseline: dSharpe=+0.015
+```
+HARD sector-neutral doubles breadth (4.73->10.0 GICS) but costs -0.166 Sharpe + ~1.4%/mo return + more turnover -- the Harvey et al. long-only caveat confirmed on OUR universe. Decision: do NOT enable; flag stays OFF.
 
-## Why both fixes
-- `ClaudeClient.__init__` self-unwrap = the **root cause** (covers any direct-construction caller, incl. the latent `SkillFileIdCache` path). No-op for the plain str `make_client` passes -> no double-unwrap, no US-path regression.
-- Edge unwrap at the 4 sites = belt-and-suspenders + repairs the `if not anthropic_key:` guard (which previously tested a truthy wrapper).
-
-## US byte-identity (the working pure-quant engine is untouched)
-The 4 overlays are additive Signal-Stack flags; the live US screener (momentum/RSI/vol, $0 LLM) uses none of them. `make_client` ALREADY unwrapped the key before constructing ClaudeClient (proof step 4), so every existing make_client caller is unchanged. ClaudeClient self-unwrap is a verified no-op for a plain str (test_claude_client_plain_str_no_double_unwrap + proof step 6).
+## Research basis (gate PASSED -- two briefs, both preserved)
+- `research_rotation_element2_verdict.md` (rotation gate, 8 sources): REDIRECT away from winner-take-all rotation (architecturally disconnected from live money; alt strategies lose money) -> breadth inside the working engine.
+- `research_51_2_sector_div.md` (51.2 gate, 9 sources): the minimal wiring (sector_lookup at rank time); the CRITICAL long-only caveat (Harvey et al. -- the replay confirmed it); sector_neutral > multidim for breadth; the replay design.
 
 ## Verification command output (verbatim)
 
 ### Syntax (all modified files)
 ```
-OK  backend/agents/llm_client.py
-OK  backend/services/news_screen.py
-OK  backend/services/macro_regime.py
-OK  backend/services/pead_signal.py
-OK  backend/services/meta_scorer.py
-OK  backend/tests/test_phase_51_1_secretstr.py
+OK  backend/tools/screener.py
+OK  backend/services/autonomous_loop.py
+OK  scripts/ablation/sector_neutral_replay.py
+OK  backend/tests/test_phase_51_2_sector_div.py
 ```
 
-### pytest (phase-51.1 -- 7 tests)
+### pytest (phase-51.2 -- 4 tests)
 ```
-$ python -m pytest backend/tests/test_phase_51_1_secretstr.py -q
-.......                                                                  [100%]
-7 passed in 0.23s
-```
-
-### Regression (existing llm_client tests)
-```
-$ python -m pytest test_anthropic_fallback.py test_claude_code_client.py \
-      test_phase_31_1_fixes.py test_phase_37_3_budget_tokens.py test_phase_51_1_secretstr.py -q
-32 passed, 1 xfailed in 2.43s
+$ python -m pytest backend/tests/test_phase_51_2_sector_div.py -q
+....                                                                     [100%]
+4 passed in 0.22s
 ```
 
-### make_client SecretStr path (regression smoke)
+### build_sector_map smoke (real Wikipedia)
 ```
-make_client ->  ClaudeClient | key is str: True | value ok: True
-overlay services import OK; make_client SecretStr path OK
+AAPL= Information Technology | XOM= Energy | JPM= Financials | UNH= Health Care | SAP.DE(intl->global pool)= ''
 ```
 
-### $0 boundary proof -> handoff/current/live_check_51.1.md (full verbatim there)
-Key lines: `str(SecretStr('sk-ant-x')) = '**********'` (the footgun we avoid) vs `unwrap_secret(..) = 'sk-ant-x'`; ClaudeClient stored `_api_key` `isinstance(str): True`, `has get_secret_value? False`, `is mask? False`.
+### Replay -> handoff/current/live_check_51.2.md (full verbatim there)
+
+## US byte-identity (the working engine untouched)
+Flag default-OFF -> `_sector_lookup=None` -> `screen_universe(... sector_lookup=None ...)` == the prior call (no map build on the live path). `rank_candidates(sector_neutral=False)` ignores the sector field -- `test_flag_off_is_byte_identical_with_or_without_sector` asserts identical ranked order. No change to decide_trades / risk guards / sizing.
 
 ## Artifact shape
-- `unwrap_secret(v) -> str` (module-level, importable: `from backend.agents.llm_client import unwrap_secret`)
-- `ClaudeClient(model_name, api_key, ...)._api_key` is always a plain `str` (SecretStr unwrapped, str passthrough)
+- `build_sector_map(tickers) -> {ticker: str}` (GICS sector; "" for non-S&P-500)
+- replay verdict: per-config {ann_Sharpe, avg_fwd_mo%, avg_sectors, avg_turnover} + KEEP-boolean
 
-## Operator decision flagged (not actioned here)
-A LIVE cycle proof (non-empty news/meta/macro signals in backend.log) invokes Claude Haiku (~$0.10/day) -> needs Peder's LLM-spend approval per CLAUDE.md. The $0 type-assertion proof is the gate evidence; the live confirmation is optional + operator-gated.
-
-## Next (per operator's 2026-05-31 sequencing)
-After 51.1 lands: the EU+KR go-live flip (paper_markets -> ['US','EU','KR'] + backend restart), then 51.2 (sector diversification), 51.3 (digest guard), 51.4 (cron repairs).
+## Scope honesty / next
+- NEGATIVE result reported honestly: criterion #2 is satisfied by the MEASUREMENT + tradeoff, NOT by sector-neutral winning. The lever is wired (criterion #1) but OFF (criterion #3).
+- A SOFT sector tilt/cap (vs hard replacement) is the only sector-div variant worth a future look; the wiring makes it measurable. vol-scaling (+0.015) deprioritized.
+- The live near-term money lever is the now-LIVE multi-market universe (EU/KR add non-tech sectors WITHOUT neutralizing) + 51.1's resurrected overlays -- MEASURE Monday's first multi-market cycle (14:00 UTC).

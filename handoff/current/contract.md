@@ -1,46 +1,45 @@
-# Contract -- phase-51.1: SecretStr unwrap (resurrect 4 dead alpha overlays)
+# Contract -- phase-51.2: sector diversification (research-recommended money lever) + candidate-lever measurement
 
-**Step id:** 51.1 | **Priority:** P1 (money -- resurrects 4 alpha sources) | **depends_on:** 50.5
-**Date:** 2026-06-01 | **harness_required:** true | **$0 LLM** (live cycle verify is operator-gated) | no pip
+**Step id:** 51.2 | **Priority:** P1 (money) | **depends_on:** 50.5
+**Date:** 2026-06-01 | **harness_required:** true | **$0 LLM** | no pip | **measure-first, no live flag flip**
 
-## Research-gate summary (PASSED)
-`handoff/current/research_brief.md` (researcher `a25bfaa8d602dd4ed`: gate_passed=true, tier moderate, 5 external sources read in full, 12 URLs, recency scan, 8 internal files). Decisive findings:
-- **Hypothesis CONFIRMED.** A non-empty pydantic `SecretStr` is **truthy**, so `getattr(settings,"anthropic_api_key","") or ""` returns the WRAPPER, not the plaintext. `ClaudeClient.__init__` stores it verbatim (`llm_client.py:1222`); `_get_client` (`:1238`) passes it to `Anthropic(api_key=...)`, which injects it into the `X-Api-Key` header with NO coercion -> httpx raises `Header value must be str or bytes, not <class 'pydantic.types.SecretStr'>`. Each service swallows it and returns a fallback (empty signals / 0.85 macro haircut / identity meta-score).
-- **4 buggy sites (verified line numbers):** news_screen.py:258 (ctor :264), macro_regime.py:427 (:432), pead_signal.py:248 (:278), meta_scorer.py:166 (:184). All: `anthropic_key = getattr(settings,"anthropic_api_key","") or ""` then `ClaudeClient(api_key=anthropic_key)`.
-- **Regression PINNED:** commit `d3f34caf` "phase-25.B10: SecretStr migration" (2026-05-13) flipped `anthropic_api_key: str -> SecretStr` (settings.py:104) without updating these phase-23.1.x sites. **Dead since 2026-05-13** (macro_regime.json computed_at 2026-04-24 is the last-good cache, not the break date).
-- **Already-guarded (do NOT touch):** call_transcript_gpr.py:91-95 + analyst_narrative_scorer.py:111-115 unwrap per-site (added phase-28.11/13 -- later authors hit the bug). `make_client._unwrap` (llm_client.py:1893-1896) is why the US pure-quant pipeline is UNAFFECTED (it unwraps before constructing ClaudeClient).
-- **Sibling raw-store sites (defense-in-depth):** OpenAIClient (:1088/1090), BatchClient (:1781/1783/1790), SkillFileIdCache path (prompts.py:113 -> _get_client). Not live bugs today but same pattern -> include in the self-unwrap hardening.
-- **CRITICAL pitfall (pydantic #4217):** `str(SecretStr("abc"))` returns `'**********'` WITHOUT erroring -> a `str()`-based fix would silently inject the mask as the API key (new 401). The fix MUST use `.get_secret_value()`, never `str()`.
+## Research-gate summary (PASSED -- TWO briefs)
+- `handoff/current/research_rotation_element2_verdict.md` (rotation gate: 8 sources, gate_passed). VERDICT: REDIRECT away from winner-take-all rotation (architecturally disconnected from live money via RC-B; alt strategies LOSE money -6.13/-1.21/-0.59). The cited-evidence money path is breadth INSIDE the working momentum engine.
+- `handoff/current/research_51_2_sector_div.md` (51.2 gate: 9 sources, gate_passed). DECISIVE:
+  - **The fix is MINIMAL + the lever already exists.** `autonomous_loop.py:629` already passes `sector_neutral=settings.sector_neutral_momentum_enabled` into `rank_candidates`; the scoring (`screener.py:415-445`) is correct + gated (default OFF). The ONLY defect: `screen_universe(...)` at `autonomous_loop.py:369-374` is called WITHOUT `sector_lookup=`, so at rank time every candidate has `sector=None` -> all fall into the `_UNKNOWN_` global pool (`screener.py:425`) -> single percentile pool -> monotone transform -> **byte-identical to OFF (the no-op)**.
+  - **CRITICAL CAVEAT (the single most important finding):** for a LONG-ONLY book (which pyfinagent is), Harvey et al. (Duke) find keeping across-sector exposure beats full sector-neutralization in **78% of trials**. So HARD within-sector-percentile replacement (`screener.py:438-440` overwrites the composite entirely) may HURT Sharpe. -> measure the SIGN on our own universe BEFORE any live enable; prefer a SOFT tilt if pursued.
+  - **Higher-EV adjacent lever:** vol-scaling the momentum book (CFA/Barroso-Santa-Clara: ~doubles Sharpe, halves drawdown) -- larger + better-evidenced than sector-neutral. Measure it alongside.
+  - **The ML backtest engine CANNOT measure this** (it ranks via `candidate_selector._rank_candidates`, a DIFFERENT formula, no sector field). Need a NEW screener-level replay reusing the PRODUCTION `rank_candidates` formula over historical dates.
 
 ## Hypothesis
-Promoting `make_client`'s local `_unwrap` to a module-level `unwrap_secret(v) -> str` and (a) self-unwrapping in `ClaudeClient.__init__` (the root-cause fix; no-op for the plain str make_client passes -> no double-unwrap, no regression to the working US path) + (b) using `unwrap_secret` at the 4 overlay sites (replacing the `or ""` truthiness footgun) makes the 4 LLM alpha overlays send a plain-str api_key -> the SDK header error is gone -> the overlays produce real signals again. The US pure-quant engine (which uses none of these overlays) is unchanged.
+Wiring `sector_lookup` into the first-pass screen makes the (already-built) sector-neutral lever functional at rank time; a $0 screener-level replay over historical dates -- comparing BASELINE vs SECTOR-NEUTRAL vs VOL-SCALED top-N baskets on our own S&P 500 universe -- measures the SIGN (Sharpe / sector-spread / turnover tradeoff) so we enable a diversification lever ONLY if the evidence (not folklore) supports it. With the flag default-OFF, the wiring is byte-identical live (the sector field is metadata not used in the OFF ranking path).
 
-## Success criteria (IMMUTABLE -- verbatim from masterplan step 51.1)
-1. the 4 overlay services (news_screen, macro_regime, pead_signal, meta_scorer) pass a plain str (NOT a pydantic SecretStr) as the Anthropic api_key, so the SDK no longer raises 'Header value must be str or bytes, not SecretStr'
-2. ClaudeClient.__init__ self-unwraps a SecretStr api_key (defense-in-depth; a no-op for the plain str make_client already passes, so no existing caller double-unwraps or breaks)
-3. a $0 unit test proves a SecretStr key reaching the ClaudeClient boundary is stored/used as a str (and the working US pure-quant path, which uses none of these overlays, is unchanged)
-4. live_check_51.1.md records the $0 proof; plus, IF operator approves LLM spend, a live cycle log showing 'News screen produced N>0 ticker signals' or 'meta_scorer scored' replacing the SecretStr warning
+## Success criteria (IMMUTABLE -- verbatim from masterplan step 51.2)
+1. candidates carry a sector label AT rank time (sector_lookup passed into the first-pass screen before rank_candidates), so the within-sector/sector-neutral ranking path is no longer a silent no-op
+2. a backtest compares diversified/sector-neutral ranking ON vs OFF on the US universe and reports the Sharpe / return / sector-spread tradeoff (evidence-based, not assumed)
+3. the change is config-gated and does NOT regress the working US momentum core (default behavior preserved unless the diversification flag is explicitly enabled)
+4. live_check records the backtest ON-vs-OFF comparison + the resulting candidate sector distribution
 
-**Verification command:** `pytest backend/tests/test_phase_51_1_secretstr.py` + `ast.parse(llm_client.py)` + `test -f live_check_51.1.md`.
-**live_check:** REQUIRED -- the $0 unit/integration proof (SDK boundary receives a str); a live cycle-log signal only if LLM-spend approved.
+**Verification command:** `pytest backend/tests/test_phase_51_2_sector_div.py` + `ast.parse(screener.py, autonomous_loop.py)` + `test -f live_check_51.2.md`.
+**live_check:** REQUIRED -- the $0 replay ON-vs-OFF comparison (Sharpe/sector-spread/turnover) + the sector distribution; NO live flag flip (the flip is a later, evidence-gated, operator-confirmed step).
 
 ## Plan steps (GENERATE)
-1. **llm_client.py:** promote `_unwrap` to a module-level `unwrap_secret(v) -> str` (use `.get_secret_value()` when present; else `str(v)` ONLY for non-SecretStr; empty for None). Keep make_client using it.
-2. **llm_client.py ClaudeClient.__init__ (:1222):** `self._api_key = unwrap_secret(api_key)` (root-cause self-unwrap). Apply the same to OpenAIClient + BatchClient ctors (defense-in-depth; no-op for the str they already get).
-3. **The 4 overlay sites:** replace `anthropic_key = getattr(settings,"anthropic_api_key","") or ""` with `unwrap_secret(getattr(settings,"anthropic_api_key",""))` at news_screen.py:258, macro_regime.py:427, pead_signal.py:248, meta_scorer.py:166. (Belt-and-suspenders with step 2; also fixes the `if not key` guard to test the real string.)
-4. **backend/tests/test_phase_51_1_secretstr.py (NEW):** ClaudeClient(api_key=SecretStr("sk-ant-test")) -> `_api_key == "sk-ant-test"` AND `isinstance(str)` AND `not hasattr(get_secret_value)`; plain-str case -> no double-unwrap (still "sk-ant-test"); `unwrap_secret(SecretStr(...))`/`(str)`/`(None)` unit cases; assert `str()` is NOT used (mask-injection guard) by checking a SecretStr does not become '**********'.
-5. **Verify:** pytest (new + a regression sweep of the overlay-adjacent tests); ast.parse(llm_client.py). Capture a $0 proof into live_check_51.1.md (construct the boundary with a SecretStr, show the stored key is a real str). FLAG: a live cycle proof needs Peder's LLM-spend approval -- do NOT run a paid cycle in GENERATE.
-6. **EVALUATE:** fresh qa. Then harness_log.md (LAST), then flip masterplan 51.1 -> done.
+1. **Wiring (criterion #1):** build a `{ticker: sector}` map for the full screened universe and pass it as `sector_lookup=` into `screen_universe` at `autonomous_loop.py:369`. Source from a CHEAP static GICS map (avoid per-ticker yfinance latency on ~400-500 tickers per live cycle) -- prefer BQ `analysis_results.sector` / a static S&P 500 GICS dict; yfinance only as cold-cache fallback. Confirm: with `sector_neutral_momentum_enabled=False` (default), the ranked output is BYTE-IDENTICAL to today (the sector field is not used in the OFF path).
+2. **Measurement (criterion #2) -- the core:** `scripts/ablation/sector_neutral_replay.py` (NEW). Reuse the PRODUCTION `rank_candidates` formula. For N historical monthly dates (S&P 500, BQ historical_prices for speed, $0): build `screen_data` rows (momentum_1m/3m/6m + RSI + vol + sector) as-of each date, then rank under 3 configs -- BASELINE (raw momentum), SECTOR_NEUTRAL (within-sector percentile), VOL_SCALED (vol-targeted basket) -- and score each top-N basket's realized forward-1mo return -> Sharpe, plus sector spread (# distinct GICS) + turnover. Emit a TSV/verdict (mirror the ablation runner shape). Gate framing: "keep sector-neutral" iff breadth rises (+>=2 sectors) AND Sharpe delta >= -0.05.
+3. **Honest reporting:** if the replay shows sector-neutral HURTS (the long-only caveat), report it, keep the flag OFF (criterion #3), and recommend vol-scaling as the next lever -- criterion #2 is satisfied by the MEASUREMENT + tradeoff report, NOT by sector-neutral winning.
+4. **Tests:** `backend/tests/test_phase_51_2_sector_div.py` -- assert (a) with sector_lookup + flag OFF the ranked order is byte-identical to no-sector-lookup (byte-identity), (b) with flag ON + a constructed multi-sector screen_data the top-N spreads across >1 sector (the no-op is fixed), (c) the replay scorer's basket-Sharpe/turnover math on a tiny fixture.
+5. **Verify:** pytest; run the replay (capture Sharpe/sector-spread/turnover per config) into `live_check_51.2.md`; confirm US live ranking byte-identical with flag OFF.
+6. **EVALUATE:** fresh qa. Then harness_log.md (LAST), then flip masterplan 51.2 -> done.
 
 ## Safety / scope notes
-- **US pure-quant path byte-identical:** the overlays are additive (default-OFF ship; the live US screener uses none of them). `make_client` already unwraps, so its callers are unchanged; ClaudeClient self-unwrap is a no-op for a plain str (proven by the no-double-unwrap test).
-- **Never `str()` a SecretStr** (mask-injection footgun) -- use `.get_secret_value()`.
-- $0 LLM in GENERATE; no pip; no spend; no DROP/DELETE. Live cycle verification is operator-LLM-spend-gated (flagged, not run here).
-- After 51.1: the operator-sequenced EU+KR go-live flip, then 51.2 (sector diversification), 51.3, 51.4.
+- **No live flag flip in this step.** The flag stays default-OFF; enabling it live is a later, evidence-gated, operator-confirmed action. This step makes the lever FUNCTIONAL + MEASURES it. Honors "measure before fixing."
+- **Byte-identity:** with `sector_neutral_momentum_enabled=False`, passing `sector_lookup` adds a metadata field unused by the OFF ranking path -> identical live behavior (test-proven). The only live-path cost is the sector-map build -> use a cheap static map, not per-ticker yfinance.
+- **If sector-neutral measures NEGATIVE on our long-only universe (Harvey 78% case):** do NOT enable; report + pivot to vol-scaling (a separate future step). Prefer a SOFT tilt over hard replacement if sector-div is pursued live.
+- $0 LLM; no pip; no spend; no DROP/DELETE; no live trading change.
 
 ## References
-- handoff/current/research_brief.md (51.1 gate); regression commit d3f34caf (settings.py:104)
-- backend/agents/llm_client.py:1222,1238,1893-1896 (_unwrap/ClaudeClient), :1088-1090 (OpenAIClient), :1781-1790 (BatchClient)
-- backend/services/news_screen.py:258,264; macro_regime.py:427,432; pead_signal.py:248,278; meta_scorer.py:166,184
-- backend/services/call_transcript_gpr.py:91-95 + analyst_narrative_scorer.py:111-115 (the correct guarded pattern to mirror)
-- pydantic #4217 (str() mask footgun); anthropic-sdk _client.py (X-Api-Key no coercion)
+- handoff/current/research_51_2_sector_div.md + research_rotation_element2_verdict.md
+- backend/services/autonomous_loop.py:369 (wiring site), :629 (rank_candidates call), :659-676 (today's post-rank enrichment)
+- backend/tools/screener.py:69 (screen_universe sector_lookup arg), :206-213 (attaches sector), :268-282 (momentum), :415-445 (sector_neutral percentile)
+- backend/api/paper_trading.py:1058 (_fetch_ticker_meta sector source); scripts/ablation/run_ablation.py (TSV/verdict shape to mirror)
+- Harvey et al. "Is Sector Neutrality a Mistake?" (long-only 78%); Moskowitz-Grinblatt industry momentum; CFA Institute Dec 2025 + Barroso-Santa-Clara (vol-scaling)

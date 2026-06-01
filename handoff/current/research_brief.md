@@ -1,195 +1,393 @@
-# research_brief -- phase-51.1: SecretStr unwrap (resurrect dead alpha overlays)
+# research_brief -- phase-51.2: sector diversification (research-recommended money lever)
 
-**Tier:** moderate (assumed -- caller did not override; internal-audit-heavy with a focused external secret-handling question)
-**Date:** 2026-06-01
-**Step:** Fix the SecretStr regression that silently killed 4 LLM alpha overlays (worldwide-news screen, macro-regime/sector-event, PEAD, LLM-as-judge meta-scorer) since the 2026-05-13 SecretStr migration. Resurrects 4 alpha sources. The working US pure-quant path must NOT regress.
+**Tier:** complex | **Date:** 2026-06-01 | **Researcher:** Layer-3 Harness
+**North-star:** maximize live money at lowest cost; amplify the WORKING US momentum
+engine's BREADTH inside `screener.rank_candidates` (the live-orders path), NOT
+winner-take-all rotation (architecturally disconnected + money-losing per the
+rotation-research verdict at `handoff/.../research_rotation_element2_verdict.md`).
+**Constraint:** the working US momentum core must NOT regress -- every change is
+config-gated, default-OFF, backtest-proven before any live enable. $0 LLM.
 
-## Hypothesis under test (REVALIDATED below -- CONFIRMED)
-4 LLM alpha overlay services construct `ClaudeClient` directly with a raw
-pydantic `SecretStr` (bypassing `make_client()`'s `_unwrap`), causing the
-Anthropic SDK to raise `Header value must be str or bytes, not
-<class 'pydantic.types.SecretStr'>`. Each service catches the error and
-returns a fallback -> overlays enabled-in-UI but produce ZERO effect.
+Status: COMPLETE.
 
 ---
 
-## PART A -- INTERNAL CODE AUDIT (VERIFIED against current code)
+## PART A -- INTERNAL CODE AUDIT (pinned to file:line)
 
-### A1. The mechanism (CONFIRMED)
-- `backend/config/settings.py:104` -- `anthropic_api_key: SecretStr = Field(SecretStr(""), ...)`. TYPE IS SecretStr. CONFIRMED.
-- `backend/agents/llm_client.py:1206` -- `class ClaudeClient(LLMClient)`.
-- `backend/agents/llm_client.py:1220-1223` -- `__init__(self, model_name, api_key, enable_prompt_caching=True)` stores `self._api_key = api_key` **VERBATIM** (line 1222). No unwrap. CONFIRMED.
-- `backend/agents/llm_client.py:1238` -- `_get_client()` returns `_anthropic_sdk.Anthropic(api_key=self._api_key, max_retries=3)`. Passes the stored key straight to the SDK. If it's a SecretStr -> SDK raises `Header value must be str or bytes`. CONFIRMED path.
-- `backend/agents/llm_client.py:1893-1896` -- `make_client()`'s `_unwrap(v)`: returns `""` for None/empty, else `v.get_secret_value() if hasattr(v,"get_secret_value") else str(v)`. The CORRECT boundary unwrap. Applied at lines 1898-1901 to anthropic/openai/gemini/github keys. So the factory path (`make_client -> ClaudeClient` at line 1963) passes a PLAIN STR and works fine. (This is why the main pure-quant pipeline -- which routes Claude analysis through make_client -- is unaffected.)
+### A0 -- THE HEADLINE (one-paragraph)
 
-### A2. The truthiness footgun (CONFIRMED)
-`getattr(settings, "anthropic_api_key", "") or ""` does NOT unwrap. A non-empty `SecretStr` is **truthy** (its `__bool__`/`__len__` reflect the wrapped string's length), so `X or ""` short-circuits and returns the SecretStr object **itself**, unwrapped. The `or ""` only helps if the key were falsy (empty). The subsequent `if not anthropic_key:` guard ALSO passes (truthy), so each service proceeds to construct ClaudeClient with the wrapped object. CONFIRMED -- this is the exact bug.
+Both levers ALREADY EXIST and are ALREADY WIRED into the live path. The live
+`rank_candidates` call (`backend/services/autonomous_loop.py:621`) ALREADY passes
+`sector_neutral=settings.sector_neutral_momentum_enabled` (`:629`) and
+`multidim_momentum=settings.multidim_momentum_enabled` (`:632`). The
+`rank_candidates` function ALREADY implements both paths (`screener.py:415-445`
+sector-neutral within-sector percentile; `:401-413`+`:464-523` multidim z-blend).
+**The ONE thing that's broken is data timing:** the within-sector percentile path
+groups candidates by `s.get("sector")` (`screener.py:425`), but `screen_universe`
+is called at `:369` WITHOUT a `sector_lookup`, and sector enrichment only happens
+at `:659-676` -- AFTER `rank_candidates` has already returned. So at rank time every
+candidate has `sector = None`, every candidate falls into the `_UNKNOWN_` group
+(`screener.py:425`), and the sector-neutral path silently collapses to a single
+global percentile pool (`:431-433`) -- a no-op that re-ranks identically to raw
+momentum. **The fix is a one-line-ish data-timing change: build the ticker->sector
+map BEFORE `rank_candidates` and pass it as `sector_lookup=` to `screen_universe`
+(or attach sectors to `screen_data` before ranking).** No new scoring code is
+needed; the scoring code is correct and tested -- it just never receives sectors.
 
-### A3. The 4 BUGGY construction sites (caller-listed, all CONFIRMED current line numbers)
-| # | Service | File:line (key read) | File:line (ClaudeClient ctor) | Pattern |
-|---|---|---|---|---|
-| 1 | worldwide-news screen | `backend/services/news_screen.py:258` | `:264` | `getattr(...,"") or ""` -> passes SecretStr |
-| 2 | macro-regime / sector-event | `backend/services/macro_regime.py:427` | `:432` | same |
-| 3 | PEAD earnings overlay | `backend/services/pead_signal.py:248` | `:278` | same |
-| 4 | LLM-as-judge meta-scorer | `backend/services/meta_scorer.py:166` | `:184` | same |
+### A1 -- `screener.rank_candidates`: the three relevant code paths
 
-All 4 read `anthropic_key = getattr(settings, "anthropic_api_key", "") or ""` then `ClaudeClient(model_name=..., api_key=anthropic_key, enable_prompt_caching=False)`. NO unwrap between. CONFIRMED.
+**Signature** (`screener.py:222-246`): `rank_candidates(screen_data, top_n=10,
+strategy="momentum", ..., sector_neutral=False, sector_neutral_min_group_size=3,
+..., multidim_momentum=False, multidim_weights=None, ...)`. Both levers are
+first-class params, default-OFF.
 
-### A4. Other direct `ClaudeClient(` sites (full grep -- the fix must cover the class)
-`grep -rn "ClaudeClient(" backend/` returns 8 hits:
-- `llm_client.py:1206` -- the class def (not a call).
-- `llm_client.py:1963` -- inside `make_client`, receives `anthropic_key` already `_unwrap`-ed. SAFE.
-- `services/call_transcript_gpr.py:113` -- **ALREADY GUARDED**: lines 91-95 do `if hasattr(anthropic_key,"get_secret_value"): anthropic_key = anthropic_key.get_secret_value()`. NOT buggy. (phase-28.13, created AFTER the SecretStr migration.)
-- `services/analyst_narrative_scorer.py:136` -- **ALREADY GUARDED**: lines 111-115 same unwrap guard. NOT buggy. (phase-28.11, created AFTER migration.)
-- The 4 buggy sites above (news_screen:264, macro_regime:432, pead_signal:278, meta_scorer:184).
+**(1) Base momentum score** (`screener.py:268-282`, the path the caller cited):
+```
+score = mom_1m*0.40 + mom_3m*0.35 + mom_6m*0.25
+if rsi > 80: score *= 0.7   elif rsi < 20: score *= 0.8
+if vol > 0.6: score *= 0.85
+```
+No sector term. Pure cross-sectional price momentum. This is what runs live today
+(both flags OFF). Per the diagnostic, non-tech sectors are OUT-COMPETED here (a
+high-momentum tech name simply scores higher than a steady industrial), not excluded.
 
-So: exactly **4 buggy sites**, 2 already-locally-guarded sites, 1 safe factory call. The two guarded sites are evidence that later authors hit this bug and worked around it per-site instead of fixing root cause -- a duplication smell that argues for the defense-in-depth fix.
+**(2) sector_neutral within-sector percentile** (`screener.py:415-445`). When
+`sector_neutral=True` and `scored` is non-empty:
+- Group `scored` by `key = (s.get("sector") or "").strip() or "_UNKNOWN_"` (`:424-425`).
+- Any group with `key == "_UNKNOWN_"` OR `len(members) < sector_neutral_min_group_size`
+  (default 3) is pulled into a `global_pool` and deleted from the per-sector map
+  (`:430-433`).
+- Each remaining per-sector group + the global_pool gets `composite_score` REPLACED
+  by `pandas.Series.rank(method="average", pct=True)` -- a within-group percentile in
+  [0,1] (`:435-445`). Original preserved on `composite_score_raw`.
+- **Effect when sectors ARE present:** the top momentum name in EVERY sector gets
+  ~1.0, so the final top_n is spread across sectors instead of dominated by the one
+  hottest sector. This is exactly the breadth lever phase-51.2 wants.
+- **Effect TODAY (sectors absent at rank time):** every candidate -> `_UNKNOWN_` ->
+  global_pool -> ONE global percentile pool. Percentile-ranking a single pool by the
+  raw composite preserves the raw ordering exactly (monotone transform) -> `top_n`
+  is byte-identical to flags-OFF. **THIS is why it no-ops.** Confirmed: the no-op is
+  not a bug in the percentile math; it's that `s.get("sector")` is `None` for all.
 
-**A4b. Sibling Anthropic client classes with the SAME raw-store pattern (defense-in-depth scope).** Two OTHER classes in `llm_client.py` store the key verbatim and pass it straight to the SDK, identical to `ClaudeClient`:
-- `OpenAIClient.__init__` (`:1088`, `self._api_key = api_key` `:1090`) -> `_get_client` `:1090`-ish. (OpenAI SDK; same "header must be str" class of error if handed a SecretStr.)
-- `BatchClient.__init__` (`:1781`, `self._api_key = api_key` `:1783`) -> `_get_client` -> `Anthropic(api_key=self._api_key)` `:1790`. **NOTE:** `BatchClient(self, model_name, api_key)` requires both args, but the only construction site `orchestrator.py:848` calls `BatchClient()` with NO args -> that path would `TypeError` BEFORE the SecretStr issue (it's a documented "25.C9.1 follow-up" wire, likely never reached today). So BatchClient is NOT a live SecretStr failure, but it shares the latent pattern.
-These are NOT in scope as live bugs (neither is constructed from a settings SecretStr today -- OpenAIClient gets its key via make_client's `_unwrap` at `:1899`/`:1968`; BatchClient's call site is unreached). But IF the fix promotes a shared `unwrap_secret()` helper, applying the same `hasattr`-guarded self-unwrap to `OpenAIClient.__init__` and `BatchClient.__init__` is a cheap, consistent hardening that future-proofs the whole client family. RECOMMEND including them in the defense-in-depth pass (low cost, no behavior change for str callers).
+**(3) multidim_momentum z-blend** (`screener.py:401-413` call site + `:464-523`
+`_apply_multidim_momentum`). When `multidim_momentum=True`: replaces `composite_score`
+with a 4-component cross-sectional z-blend: `w_price*z(price) + w_high*z(52w_high) +
+w_sue*z(SUE) + w_sector*z(sector_boost)` (default weights 0.35/0.25/0.20/0.20). The
+"sector" component is `sector_momentum_ranks[sector].boost_multiplier - 1.0`
+(`:499-506`) -- i.e. it needs BOTH a `sector` field on the stock AND a populated
+`sector_momentum_ranks` dict (the phase-28.12 sector-ETF momentum overlay). When the
+stock has no sector OR the ranks dict is None, `z_sector` is all-zeros (`:505-506`),
+so the sector component drops out and multidim reduces to a 3-component (price +
+52w-high + SUE) blend. **multidim is NOT primarily a sector-diversification lever** --
+it's a momentum-quality refinement (anchoring + earnings surprise). Its sector
+component is a sector-MOMENTUM TILT (overweight hot sectors), the OPPOSITE of
+sector-NEUTRALITY (equal-weight across sectors). See A4.
 
-### A5. SkillFileIdCache "SecretStr error" (investigated)
-Source: `backend/config/prompts.py:36` `class SkillFileIdCache`. Its `get_or_upload` (`:113-119`) calls `claude_client_wrapper.upload_file_to_anthropic_files_api(...)`. The wrapper is a `ClaudeClient` instance; `upload_file_to_anthropic_files_api` (llm_client.py:1240) internally calls `self._get_client()` (line 1238) -> `Anthropic(api_key=self._api_key)`. So IF the ClaudeClient wrapper passed to SkillFileIdCache was constructed with a raw SecretStr, the file upload ALSO raises "Header value must be str or bytes" and is swallowed by `except Exception` at prompts.py:120-125 (logs "upload failed", returns None -> falls back to inline skill injection). SAME root cause -- ANY ClaudeClient built with an unwrapped SecretStr breaks BOTH `messages.create` AND `files.upload`. The wrapper handed to SkillFileIdCache comes from the orchestrator path which uses make_client (unwrapped today), so this is LATENT rather than currently-firing -- but the defense-in-depth `ClaudeClient.__init__` self-unwrap closes it permanently.
+### A2 -- The wiring gap: WHERE candidates get a sector, and WHEN
 
-### A6. REGRESSION CONFIRMED -- commit + date pinned
-`git log -S "anthropic_api_key: SecretStr" -- backend/config/settings.py` and `git blame -L 104,104`:
-- **Commit `d3f34caf`** "phase-25.B10: SecretStr migration for API keys/tokens", **2026-05-13 10:45:11 +0200**, author Ford. Diff flips `anthropic_api_key: str = Field("")` -> `anthropic_api_key: SecretStr = Field(SecretStr(""))` (also openai_api_key, github_token). **This is the regression-introducing commit.**
-- The 4 buggy services were all created EARLIER, in phase-23.1.x (against the plain-str field), so they worked when written:
-  - `news_screen.py` -- `76d89aa4` phase-23.1.3
-  - `meta_scorer.py` -- `35ff8f59` phase-23.1.5
-  - `macro_regime.py` -- `743d65e5` phase-23.1.1
-  - `pead_signal.py` -- `5a6a6e17` phase-23.1.2
-  Commit d3f34caf (2026-05-13) silently broke all 4 by changing the field type WITHOUT updating these call sites -- only `make_client`'s `_unwrap` was added in/around that migration.
-- **Corroborating live evidence**: `backend/services/_cache/macro_regime.json` has `"computed_at": "2026-04-24T00:00:00Z"` (file mtime Apr 27 2026). This is the last successful non-fallback macro-regime LLM computation. It PREDATES the 2026-05-13 migration -- meaning the overlay produced its last good result before the break, and every attempt since 2026-05-13 has fallen back. The caller's "~2026-04-24 boundary" is the last-good CACHE timestamp; the code-level break is 2026-05-13. **The overlays have been dead since 2026-05-13.**
+**`screen_universe` CAN attach sectors** (`screener.py:64-72` signature has
+`sector_lookup: Optional[dict] = None`; `:203-213` attaches `row["sector"] =
+meta.get("sector")` when the lookup is provided). **But the live caller does NOT
+pass it:** `autonomous_loop.py:369-374` calls `screen_universe(tickers=universe,
+period="6mo", short_interest_lookup=..., short_interest_threshold=...)` -- NO
+`sector_lookup=`. So `screen_data` rows have no `sector` key.
 
-### A7. The 2 already-guarded sites confirm the class-level fix is right
-`git log -S "get_secret_value" -- call_transcript_gpr.py analyst_narrative_scorer.py` shows the guards arrived in phase-28.11 (`ac5a5b3c`) and phase-28.13 (`6e88f91a`) -- both AFTER the 2026-05-13 migration. Later authors independently rediscovered the bug and patched their own site. This duplication is exactly the failure mode a single root-cause fix in `ClaudeClient.__init__` prevents going forward.
+**Sector enrichment DOES happen -- but too late:** `autonomous_loop.py:659-676`,
+AFTER `rank_candidates` returns at `:621-651`. It calls
+`_fetch_ticker_meta(top_tickers, settings, bq)` (only the top-N survivors) and writes
+`c["sector"]` onto the already-ranked candidates so the DOWNSTREAM sector cap in
+`decide_trades` works. The comment at `:657-658` literally says "Without this
+enrichment, decide_trades sees `sector=None`" -- it was added for the position-sizing
+sector CAP, not for ranking. Ranking already happened.
 
-### A8. RECOMMENDED FIX SHAPE -- defense-in-depth (BOTH), justified
-**Recommendation: do BOTH (a) self-unwrap in `ClaudeClient.__init__` AND (b) fix the 4 sites to unwrap at the edge. (a) is the load-bearing root-cause fix; (b) is hygiene + consistency.**
+**`_fetch_ticker_meta` cost/source** (`backend/api/paper_trading.py:1058-1175`):
+- **BQ-FIRST**, yfinance fallback. Step 1 (`:1079-1142`): ONE BigQuery query that
+  UNIONs `paper_positions` (priority 1) + `analysis_results` (priority 2), returns the
+  highest-priority non-null `{company_name, sector}` per ticker. One round-trip for
+  the whole batch.
+- Step 2 (`:1144-1173`): for tickers still missing a sector, parallel yfinance
+  `.info` via `ThreadPoolExecutor(max_workers=5)`. Comment `:1149`: ~14 tickers ~3s.
+- Result cached 24h (`ttl_sec=86400`, `:1175`). **Cost to build the map: $0** (BQ +
+  yfinance, no LLM). The expensive leg is yfinance `.info` per missing ticker.
 
-- **(a) `ClaudeClient.__init__` self-unwrap (PRIMARY, root cause).** Change line 1222 from `self._api_key = api_key` to:
-  ```python
-  self._api_key = api_key.get_secret_value() if hasattr(api_key, "get_secret_value") else api_key
-  ```
-  - **Why safe for ALL existing callers (no double-unwrap risk):** the guard is `hasattr(api_key, "get_secret_value")`. A plain `str` does NOT have that attr, so for the make_client path (already passes an unwrapped str, line 1963) and the 2 already-guarded sites (also pass str) this is a **pure no-op** -- returns the str unchanged. NO double-unwrap is possible: `get_secret_value()` returns a plain str, which has no `get_secret_value`, so it cannot be called twice. CONFIRMED safe for every current caller.
-  - **Why it's the right layer:** the SDK boundary is `_get_client()` (line 1238) where the key becomes an HTTP header. Unwrapping in `__init__` guarantees NO caller -- present or future -- can hand the SDK a SecretStr. Closes the 4 sites AND the latent SkillFileIdCache path AND any future direct-construction site in ONE place. This is the structural fix and the minimal change that resurrects the 4 overlays.
+**Cost of moving enrichment BEFORE ranking -- the ONE real consideration:** today
+enrichment runs on the **top_n survivors only** (~10-30 tickers). To give candidates
+a sector AT RANK TIME, you must resolve sectors for the **full screened set**
+(`screen_data`, which is the whole S&P 500 universe that passed price/volume
+filters -- potentially ~400-500 tickers), because ranking happens before the top-N
+cut. If those sectors aren't already in BQ (`paper_positions`/`analysis_results`),
+each miss is a yfinance `.info` call. **Mitigation: the BQ leg covers most S&P 500
+names cheaply in one query; only the residual misses hit yfinance, and the 24h cache
+amortizes after cycle 1.** A cleaner option is a CHEAP STATIC sector map (S&P 500
+GICS sectors change rarely) loaded once -- see A2-recommendation below. Either way
+the cost is $0-LLM and bounded; the open question is purely yfinance latency on a
+cold cache for the full universe.
 
-- **(b) Per-call `.get_secret_value()` at the 4 sites (SECONDARY, hygiene).** Replace `getattr(settings, "anthropic_api_key", "") or ""` with an unwrap, e.g.:
-  ```python
-  _raw = getattr(settings, "anthropic_api_key", "")
-  anthropic_key = _raw.get_secret_value() if hasattr(_raw, "get_secret_value") else (_raw or "")
-  ```
-  - **Why ALSO do this:** (1) keeps the 4 sites correct even if someone later "simplifies" ClaudeClient.__init__; (2) makes `if not anthropic_key:` test the unwrapped string (today it tests the wrapper -- works but misleading); (3) unifies all 6 service sites to ONE idiom, killing the divergence between the 4 buggy and 2 guarded sites.
-  - **Best form:** promote make_client's local `_unwrap` closure to a module-level reusable `unwrap_secret(v) -> str` helper and use it in ALL 7 places (ClaudeClient.__init__, make_client's 4 keys, the 4 service sites -> 2 already guarded can migrate too). ONE unwrap implementation. (Caller's option (a)-vs-(b): the answer is BOTH; the helper makes "both" a single source of truth.)
+**A2 minimal-wiring recommendation (the EXACT change):** Build a ticker->sector
+lookup for the FULL `universe` BEFORE `screen_universe` at `autonomous_loop.py:369`,
+and pass it as `sector_lookup=`. Concretely:
+```
+# autonomous_loop.py, just before :369
+sector_lookup = await asyncio.to_thread(_build_universe_sector_map, universe, settings, bq)
+screen_data = screen_universe(
+    tickers=universe, period="6mo",
+    sector_lookup=sector_lookup,            # <-- THE NEW ARG (screener.py:69 already accepts it)
+    short_interest_lookup=short_interest_lookup or None,
+    short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
+)
+```
+where `_build_universe_sector_map` is `_fetch_ticker_meta` reduced to `{ticker:
+sector}` (it already returns sector; just project the field). Then `screen_data`
+rows carry `sector` (`screener.py:206-213`), so when `sector_neutral=True` the
+percentile groups by real GICS sectors instead of all-`_UNKNOWN_`. **The post-rank
+enrichment at `:659-676` stays as-is** (it now mostly hits cache and still serves the
+downstream sector cap). **This is the entire wiring change** -- no `rank_candidates`
+signature change, no new scoring code, gated by the EXISTING
+`sector_neutral_momentum_enabled` flag (default OFF). For the live-money EU/KR
+universe (phase-50), `_fetch_ticker_meta`/BQ may not have intl sectors; a static
+DAX-40/KOSPI-200 GICS map (mirroring the curated ticker lists) is the robust source.
 
-**Net: (a) is mandatory (root cause, no-op for str callers). (b) is strongly recommended for consistency/future-proofing. The MINIMAL fix that resurrects the 4 overlays is (a) alone; the BEST fix is (a)+(b) via a shared helper.**
+### A3 -- How a BACKTEST measures sector-neutral ON vs OFF (the hard part)
 
-### A9. $0 VERIFICATION PLAN (no LLM spend for the primary proof)
-**Primary proof = $0 unit test (no network, no LLM):**
-- Construct `ClaudeClient(model_name="claude-haiku-4-5", api_key=SecretStr("sk-ant-test"))` and assert `client._api_key == "sk-ant-test"`, `isinstance(client._api_key, str)`, and `not hasattr(client._api_key, "get_secret_value")`. Proves the stored key is a plain str -> the SDK header can never receive a SecretStr. **No `Anthropic()` instantiation, no network, no spend.**
-- Construct with a plain `str` and assert it's unchanged (no double-unwrap; identity preserved). Optionally assert the same str object passes through.
-- For the 4 service sites: monkeypatch `settings.anthropic_api_key = SecretStr("sk-ant-test")`, then assert the site's `anthropic_key` local (or the shared `unwrap_secret` helper) yields a `str`. Easiest if the unwrap is the shared helper -> unit-test the helper directly.
-- (Optional, still $0) `ClaudeClient(..., api_key=SecretStr("sk"))._get_client()` should NOT raise the SecretStr TypeError -- but this instantiates the real `Anthropic` SDK object (constructor only, no HTTP) which is $0; prefer the pure `_api_key` type assertion to avoid SDK-import fragility in CI.
+**The live screener (`screener.rank_candidates`) is DIFFERENT CODE from the backtest
+engine's candidate selector.** Confirmed:
+- The backtest engine selects candidates via `CandidateSelector.screen_at_date(...)`
+  (`backtest_engine.py:402,464`) -> `CandidateSelector._rank_candidates`
+  (`candidate_selector.py:175-206`). That ranker uses a COMPLETELY DIFFERENT formula:
+  `mom_6m/100*0.4 + rsi_meanrev*0.2 + inverse_vol*0.2 + sma*0.2` (`:198-204`). It has
+  **NO `sector_neutral` param, NO `multidim` param, and never reads a `sector`
+  field.** The backtest engine then trains a `GradientBoostingClassifier` on label
+  functions -- a totally separate selection mechanism from the live screener.
+- Therefore **the existing backtest engine CANNOT exercise the live screener's
+  sector-neutral path.** Running `engine.run_backtest()` with
+  `sector_neutral_momentum_enabled=True` would change NOTHING in the backtest, because
+  the engine never calls `screener.rank_candidates`. A standard walk-forward backtest
+  is the WRONG instrument here.
+- The feature-ablation harness (`scripts/ablation/run_ablation.py`) is ALSO the wrong
+  instrument -- it ablates `_NUMERIC_FEATURES` in the backtest engine's feature
+  matrix (`:70,233,253`), not the live screener.
 
-**Secondary proof = live cycle-log signal (REQUIRES small LLM spend -- NEEDS OPERATOR APPROVAL):**
-- A real autonomous cycle invokes Claude Haiku for these overlays (Signal Stack note ~ $0.10/day Haiku). Live success signals: `news_screen` logs `News screen: N raw -> M deduped headlines` THEN returns a NON-empty signal dict (today it logs headlines then returns `{}` post-error); `meta_scorer` logs scored conviction (not "fallback (no API key)"); `macro_regime` writes a FRESH `_cache/macro_regime.json` with `computed_at` > 2026-06-01; `pead_signal` returns a non-fallback PeadSignalOutput.
-- **FLAG: live verification needs operator LLM-spend approval** (CLAUDE.md: "LLM API costs require Peder's explicit approval"). The ~$0.10/day Haiku cost is small but non-zero. **Make the $0 unit test the PRIMARY/required gate evidence; the live cycle-log is OPTIONAL confirmation gated on operator approval.** Do NOT bake a live LLM run into the GENERATE verification command -- use the unit test as the deterministic gate (consistent with the project's "$0 proof first" discipline). The masterplan step's `verification.live_check` can be satisfied by the unit-test output + a cycle-log line IF the operator approves a run; otherwise the unit test stands alone.
+**=> The ON-vs-OFF comparison needs a SCREENER-LEVEL backtest/harness, not the ML
+backtest engine.** The cheapest VALID measurement (see A3-design below) is a
+**point-in-time replay of `screen_universe` + `rank_candidates` itself** over a set
+of historical dates, computed two ways (flag OFF vs ON), scoring the realized
+forward return of each method's top_n. This is a NEW, small harness -- but it is $0
+(yfinance prices only, no LLM, no BQ-heavy ML) and it is the ONLY artifact that
+actually proves the live lever's Sharpe/return/sector-spread tradeoff without
+flipping a live flag.
 
-### Part A SUMMARY
-- **4 buggy sites CONFIRMED** (news_screen:264, macro_regime:432, pead_signal:278, meta_scorer:184), keys read at :258/:427/:248/:166 with the `or ""` truthiness footgun.
-- **2 other sites already guarded** (call_transcript_gpr:113, analyst_narrative_scorer:136) -- not buggy; optionally migrate to the shared helper.
-- **1 latent path** (SkillFileIdCache via ClaudeClient.upload, prompts.py:113) closed by the self-unwrap.
-- **Regression = commit d3f34caf, 2026-05-13** (SecretStr migration); overlays dead since then; last-good macro cache computed_at=2026-04-24.
-- **Fix = (a) ClaudeClient.__init__ self-unwrap [mandatory root cause] + (b) edge unwrap at the 4 sites [hygiene], ideally via a shared `unwrap_secret()` helper.** Self-unwrap is a no-op for plain-str callers (no double-unwrap) -> US pure-quant path unaffected.
-- **$0 verification:** unit test asserting `ClaudeClient(api_key=SecretStr(...))._api_key` is a plain `str`. Live cycle-log proof needs operator LLM-spend approval (~$0.10/day Haiku).
+**A3 cheapest-valid measurement design (the artifact masterplan-51.2 criterion #2
+should require):** A `scripts/ablation/sector_neutral_replay.py` (mirrors the
+existing ablation runner's shape -- TSV out, verdict gate) that:
+1. Picks K historical rebalance dates (e.g. monthly, 2023-01..2025-12, ~36 dates) on
+   the S&P 500 universe.
+2. At each date `t`: download trailing-6mo prices ending at `t` (yfinance, the SAME
+   data `screen_universe` uses), build `screen_data`, attach REAL sectors via a static
+   GICS map (or `_fetch_ticker_meta`). Run `rank_candidates(..., sector_neutral=False)`
+   -> top_n_OFF; run `rank_candidates(..., sector_neutral=True)` -> top_n_ON. (Reuse the
+   PRODUCTION `rank_candidates` so the harness measures the real code, not a reimpl.)
+3. Compute each basket's realized forward return over the holding horizon (e.g. 21
+   trading days fwd, equal-weight), the basket's number of distinct GICS sectors
+   (the breadth metric), and turnover vs the prior period's basket.
+4. Aggregate across dates: mean/Sharpe of the forward-return series for OFF vs ON,
+   mean sector-count (spread), mean turnover. Log to
+   `sector_neutral_replay_results.tsv` with a verdict.
+- **Acceptance/gate (mirror `run_ablation.py:187-192`):** ON is "keep" if it raises
+  sector spread materially (e.g. +>=2 distinct sectors in the top_n) AND does NOT cut
+  the forward-return Sharpe by more than a small floor (e.g. delta_sharpe >= -0.05);
+  "discard" if it hurts Sharpe with no breadth gain. This is exactly the
+  Sharpe/turnover/spread tradeoff the literature predicts (Part B), measured on the
+  REAL live code, at $0, WITHOUT touching the live flag.
+- **Why this is the cheapest valid design:** it reuses production `rank_candidates`
+  (no reimplementation risk), uses only free yfinance price data (no LLM, no
+  ML-training cost), and is a pure cross-sectional replay (~36 dates x one yfinance
+  batch each -- minutes, not the ~5-10min-per-iteration ML backtest). A full ML
+  walk-forward would be both more expensive AND invalid (wrong code path).
+- NOTE on rigor: this replay is a SIGNAL-LEVEL test (does the basket's forward return
+  hold up; does breadth rise), not a full portfolio simulation (no position sizing,
+  no sector cap, no commissions). That is the correct scope for proving a RANKING
+  change. If a fuller proof is wanted later, the replay baskets can be fed through
+  `BacktestTrader` -- but that is gold-plating for the ON-vs-OFF ranking question.
+
+### A4 -- sector_neutral vs multidim_momentum: which is the better FIRST lever?
+
+**RECOMMENDATION: sector_neutral within-sector percentile is the better first lever.**
+Justification (simpler, lower-regression-risk, directly on-thesis):
+1. **It is the lever that matches the diagnostic.** Finding 4 is "non-tech sectors are
+   OUT-COMPETED by pure momentum." Sector-neutral percentile DIRECTLY fixes this: it
+   ranks within each sector, so the best industrial competes against industrials, not
+   against NVDA. multidim's sector component is a sector-MOMENTUM TILT (overweight hot
+   sectors via `boost_multiplier`, `screener.py:499-506`) -- it would AMPLIFY
+   concentration in the hot sector, the OPPOSITE of breadth. multidim is a
+   momentum-quality upgrade, not a diversification lever.
+2. **Lower regression risk / simpler to reason about.** sector_neutral is a single
+   monotone re-grouping with a clean fallback (`<min_group_size` -> global pool,
+   `screener.py:430-433`); when sectors are absent it provably no-ops (identity). It
+   has ONE new dependency: sectors at rank time (the A2 wiring). multidim replaces the
+   composite with a 4-way z-blend that depends on `pct_to_52w_high`, `pead`
+   `surprise_score`, AND `sector_momentum_ranks` -- three signal sources, more moving
+   parts, more ways to silently degrade, and it changes the score for EVERY candidate
+   (not just regrouping), a larger behavioral delta against the working engine.
+3. **It is research-supported for THIS goal.** Part B: industry/sector-relative
+   (sector-neutral) momentum has long literature support (Moskowitz-Grinblatt 1999;
+   Asness-Moskowitz-Pedersen 2013) and the 2026 low-correlation-breadth consensus
+   (AQR/UBP). multidim's components (52w-high George-Hwang; SUE) are momentum
+   ENHANCERS, not breadth/diversification levers.
+4. **Both are already gated and wired** -- so choosing sector_neutral first costs
+   nothing in optionality; multidim remains available as a follow-on momentum-quality
+   experiment.
+
+**One nuance:** sector_neutral and multidim are NOT mutually exclusive long-term
+(you can sector-neutralize THEN z-blend), but for a first, low-regression,
+on-thesis money lever, ship sector_neutral alone, prove it on the A3 replay, then
+consider multidim separately.
 
 ---
 
 ## PART B -- EXTERNAL RESEARCH
 
-### Read in full (>=5 required; counts toward the gate)
+### Read in full (>=5 required; 9 read; counts toward the gate)
 
 | URL | Accessed | Kind | Fetched how | Key finding |
 |-----|----------|------|-------------|-------------|
-| https://github.com/anthropics/anthropic-sdk-python/blob/main/src/anthropic/_client.py | 2026-06-01 | official SDK source (tier-1) | WebFetch (full) | `api_key` typed `str | None`; stored **as-is, no coercion** (`self.api_key = api_key`); `_api_key_auth` property -> `{"X-Api-Key": api_key}`; merged into `auth_headers`. A non-str (SecretStr) flows straight into the header dict -> httpx raises "Header value must be str or bytes". **CONFIRMS the exact failure mechanism.** |
-| https://pydantic.dev/docs/validation/2.0/usage/types/secrets/ (from docs.pydantic.dev/2.0 301) | 2026-06-01 | official docs (tier-1) | WebFetch (full) | `repr` masks: `password=SecretStr('**********')`; **"Use get_secret_value method to see the secret's content"**; `get_secret_value()` returns plaintext (`#> IAmSensitive`); `model_dump`/`model_dump_json` return the MASKED repr by default. Confirms you MUST call get_secret_value() for the real value. |
-| https://github.com/fastapi-users/fastapi-users/discussions/700 | 2026-06-01 | community (maintainer guidance) | WebFetch (full) | Maintainer @frankie567: **"you can indeed unwrap the value manually when instantiating your authentication backend"** -- i.e. extract the str yourself at the trust boundary rather than relying on the consuming library to handle SecretStr. Endorses the EDGE-UNWRAP pattern (= the make_client `_unwrap` + the recommended ClaudeClient self-unwrap). |
-| https://github.com/pydantic/pydantic/discussions/4217 | 2026-06-01 | official discussion (maintainer, tier-1) | WebFetch (full) | **THE footgun proof.** `SecretStr("abc").get_secret_value()` -> `'abc'` but `str(SecretStr("abc"))` -> `'**********'` (the MASKED value, not plaintext). Maintainer Samuel Colvin: "if you don't care about security, just use `str`." Masking is intentional; you MUST call get_secret_value() explicitly. This is exactly why `getattr(...) or ""` (which keeps the wrapper) then handing it to the SDK fails -- the wrapper is NOT its plaintext. |
-| https://www.getorchestra.io/guides/pydantic-secret-types-handling-sensitive-data-securely-with-secretstr-and-secretbytes | 2026-06-01 | industry guide | WebFetch (full) | Plaintext via `.get_secret_value()`; **"unwrap at the point of actual use"**; "ensure the actual content is not displayed when printing or converting to strings"; pattern shows NOT passing the wrapper object to external clients. Reinforces edge-unwrap-before-SDK. |
+| https://quantpedia.com/should-factor-investors-neutralize-the-sector-exposure/ | 2026-06-01 | practitioner summary of peer-reviewed (Harvey et al.) | WebFetch (full) | **THE LOAD-BEARING / ADVERSARIAL FINDING.** "Keeping the across [sector] component produces better long-short factors in only 20% of the trials, while doing so delivers better long-only factors in 78% of the trials." => "the long-only investor is more likely to benefit from investing in the factor as it stands [NOT sector-neutralized]." Decision rule: neutralize only if "the ratio of the Sharpe ratios across and within components is less than their correlation." |
+| https://people.duke.edu/~charvey/Research/Published_Papers/P165_Is_sector_neutrality.pdf | 2026-06-01 | peer-reviewed (Harvey, Duke; primary PDF) | WebFetch (full, binary-extracted summary) | Sector neutralization is a NUANCED trade-off (can enhance OR diminish). Momentum "demonstrates strong sector effects that make neutralization especially consequential." "higher turnover and transaction costs represent a significant practical drawback." Long-short benefits from neutralizing; long-only often does not. |
+| https://blogs.cfainstitute.org/.../momentum-investing-a-stronger-more-resilient-framework... (-> rpc.cfainstitute.org) | 2026-06-01 | official/industry (CFA Institute, Dec 2025) | WebFetch (full, via redirect) | Multidim composite (price + 10 alt signals) "delivers higher average returns, stronger t-statistics, and substantially improved drawdown" vs price momentum since 1927. **Median Sharpe 0.61, range 0.38-0.94.** Vol-scaling -> "annualized returns of nearly 18% ... drawdowns cut nearly in half." Price momentum max DD as large as **-88%**. This is the SAME source the project already cites for sector_neutral + multidim (`settings.py:324,334`). |
+| https://www.aqr.com/Insights/Research/Journal-Article/Do-Industries-Explain-Momentum | 2026-06-01 | peer-reviewed (Moskowitz-Grinblatt 1999, AQR host) | WebFetch (full) | "industry momentum ... captures these [stock-momentum] profits almost entirely" except 12-month. Individual-stock momentum is "significantly less profitable once we control for industry momentum." Momentum yields "up to 12 percent abnormal return per dollar long." => industries are a DOMINANT driver of momentum; sector structure matters a lot to momentum. |
+| https://www.evidenceinvestor.com/post/factor-momentum-and-stock-momentum | 2026-06-01 | practitioner summary of peer-reviewed (Ehsani-Linnainmaa, JoF 2022) | WebFetch (full) | "Factor momentum explains all forms of individual stock momentum." "Industry momentum stems from factor momentum." "Factor returns are persistent at monthly time scales, while stock returns mean revert." Equal-risk factor avg Sharpe **0.96**. => industry momentum is real but is itself a manifestation of factor momentum. |
+| https://arxiv.org/html/2503.09647 | 2026-06-01 | peer-reviewed preprint (q-fin, 2025) | WebFetch (full, arXiv HTML) | Sector-aware allocation Sharpe **2.51 / +8.79%** vs cross-momentum (sector-blind) **-0.61 / -1.39%**. BUT **HUGE CAVEAT: backtest window is only Jan-Jun 2019** (6 months) -> not generalizable across cycles. Costs modeled at 10bps commission + 10bps impact. Sector-aware "more effective at capturing market opportunities while managing volatility." |
+| https://quantpedia.com/strategies/sector-momentum-rotational-system | 2026-06-01 | practitioner (Quantpedia, replicated) | WebFetch (full) | Sector-ETF momentum rotation (top-3 of 11 SPDRs, monthly): Sharpe **0.54**, CAGR 13.94%, **max DD -46.29%**, "overperformance nearly 4% against simple buy and hold." Monthly rebalance = HIGH turnover. This is the phase-28.12 sector-momentum overlay's basis -- a sector TILT, not sector-neutrality. |
+| https://www.quantseeker.com/p/popular-investing-research-in-2025 | 2026-06-01 | practitioner (2025 research recap) | WebFetch (full) | "Momentum at Long Holding Periods" (Calluzo-Moneta-Topaloglu): rankings persist -> "longer holding periods with lower turnover ... improved implementability for real portfolios." Scaled factor portfolios "Sharpe ratios up to 2." (Recency: 2025 momentum frontier = lower turnover + composite signals.) |
+| https://am.gs.com/en-us/advisors/insights/article/2026/technology-2026-ai-dispersion-diversification | 2026-06-01 | official/industry (Goldman Sachs AM, Jan 2026) | WebFetch (full) | "Since the end of 3Q25, dispersion among the Magnificent 7 has widened to **52.3%**" (Jan 13 2026). Advocates "active diversification across industries." Mega-caps DIVERGING strategically. (2026 recency: concentration unwinding -> breadth more relevant; but GS frames it as WITHIN-AI dispersion.) |
 
 ### Identified but snippet-only (context; does NOT count toward gate)
 
 | URL | Kind | Why not fetched in full |
 |-----|------|-------------------------|
-| https://docs.pydantic.dev/2.0/usage/types/secrets/ | official docs | 301-redirects to the pydantic.dev mirror (read in full via redirect target, counted above) |
-| https://github.com/pydantic/pydantic/issues/9139 | official issue | SecretStr leaks plaintext on a validation error -- repr-masking caveat (not load-bearing here) |
-| https://docs.pydantic.dev/2.7/examples/secrets/ | official docs | 301-redirects to the 2.7 API/types mirror; superseded by 2.0 + maintainer-discussion reads |
-| https://pydantic.dev/docs/validation/latest/concepts/types/ | official docs | "Types" concept page; mentions SecretStr exists but the dedicated secrets/discussion pages carry the get_secret_value + masking detail |
-| https://medium.com/@raydebra89/dont-hardcode-your-api-key-modern-python-config-management-with-pydantic-s-secret-handling-31526e556bd8 | industry blog | pydantic-settings + SecretStr config pattern; shows masking only, no unwrap detail (snippet sufficient) |
-| https://pypi.org/project/anthropic/ | official | SDK package page; the _client.py source is the authoritative read |
-| https://platform.claude.com/docs/en/api/sdks/python | official docs | Python SDK usage; api_key via str/env -- corroborates str-typing |
+| https://www.nber.org/system/files/working_papers/w25551/w25551.pdf | peer-reviewed (Ehsani-Linnainmaa NBER w25551) | binary PDF, no text extracted; HTML/summary read via evidenceinvestor instead; AEA HTML mirror exists at aeaweb.org/conference/2020/.../RHhbnykd |
+| https://onlinelibrary.wiley.com/doi/full/10.1002/for.3232 | peer-reviewed (Mamais 2025, momentum shifts across sectors) | Wiley HTTP 402 paywall; snippet confirms momentum performance VARIES across sectors + time (the premise sector-neutral exploits) |
+| https://alphaarchitect.com/factor-investing-and-sector-neutrality/ | practitioner summary (Harvey et al.) | HTTP 403; the QuantPedia summary of the SAME paper was read in full instead |
+| https://www.morningstar.com/portfolios/these-diversification-strategies-are-winning-2026 | industry (2026 diversification) | HTTP 403 on both URL forms; WebSearch snippet carries the load-bearing stat (US most concentrated in 10 largest names since 1932; 2026 mega-cap rotation in-the-red) |
+| https://www.ishares.com/.../spring-2026-investment-outlook-inflation-ai-markets | industry (BlackRock 2026) | HTTP 403; value-sector diversification recommendation captured via WebSearch snippet |
+| https://www.ainvest.com/news/...sector-rotation-selective-ai-exposure-2601/ | industry (2026 sector rotation) | JS-rendered, returned empty body on 3 attempts; WebSearch snippet used for recency context |
+| https://quantstreet.substack.com/p/industry-momentum | practitioner (Mamaysky industry momentum) | HTTP 404 (substack slug moved); core industry-momentum result covered by AQR Moskowitz-Grinblatt read |
+| https://arxiv.org/html/2511.12490v1 | peer-reviewed preprint (drift-regime cross-sectional factor, 2025) | identified in search; off-core (drift regimes, not sector-neutral); not load-bearing for this step |
+| https://quantpedia.com/strategies/momentum-factor-effect-in-stocks | practitioner (Quantpedia) | read in full actually (Sharpe ~0.5, CAGR 8.3%, **max DD -87.41%**, Barroso-Santa-Clara vol-management "nearly doubles Sharpe"); listed here as it corroborates the CFA crash-risk numbers rather than adding sector-neutral evidence |
 
 ### Search-query variants run (3-variant discipline)
-1. **Current-year frontier (2026):** "pydantic v2 SecretStr get_secret_value when to unwrap trust boundary 2026"
-2. **Last-2-year window (2025/2024):** "pydantic SecretStr defense-in-depth secret handling LLM client 2025" (Recency scan below)
-3. **Year-less canonical:** "Anthropic Python SDK Header value must be str or bytes api_key error" (surfaced the SDK _client.py source) + the bare "pydantic SecretStr secrets docs" / "cast SecretStr to str".
+1. **Current-year frontier (2026):** "sector diversification breadth concentrated AI tech-led market low correlation durable 2026 systematic equity" (-> Goldman Sachs 2026, Morningstar 2026, iShares Spring 2026, AInvest 2026).
+2. **Last-2-year window (2025):** "industry-neutral momentum strategy improves Sharpe reduces turnover 2025 quant equity" (-> CFA Institute Dec 2025, QuantSeeker 2025 recap, Mamais 2025 Wiley) -- see Recency scan.
+3. **Year-less canonical:** "Moskowitz Grinblatt do industries explain momentum"; "sector-neutral momentum versus cross-sectional momentum risk-adjusted return Sharpe industry-relative"; "sector neutralization momentum factor reduces concentration turnover cost Sharpe Asness 2013" (-> Moskowitz-Grinblatt 1999, Ehsani-Linnainmaa, **Harvey et al. Duke sector-neutrality** -- the year-less query is what surfaced the decisive long-only finding).
 
 ### Recency scan (2024-2026) -- PERFORMED
-Searched the last-2-year window on (a) pydantic v2 SecretStr handling, (b) Anthropic SDK secret/header typing, (c) defense-in-depth secret unwrapping in LLM client wrappers. **Findings (COMPLEMENT prior art; none overturn the recommended fix):**
-1. **pydantic v2 SecretStr semantics are STABLE 2024-2026.** `get_secret_value()` is still the only sanctioned plaintext accessor; `str()`/`repr()` still mask to `'**********'`; this is unchanged from the v2.0 (2023) docs through the latest (2026) docs and the maintainer discussion. The fix idiom (`.get_secret_value()` / `hasattr(...,"get_secret_value")` guard) is current best practice, not a deprecated one. No newer pydantic API supersedes it.
-2. **Anthropic Python SDK still types `api_key: str | None` with no coercion** (live `_client.py` on `main`, read 2026-06-01). No SDK-side change makes it tolerate a SecretStr; the unwrap MUST happen caller-side. This is stable across the SDK's 2024-2026 versions (the project pins `anthropic>=0.96.0`).
-3. **2024-2026 secret-handling consensus = unwrap at the trust boundary / point of use** (fastapi-users maintainer #700; Orchestra guide). The "unwrap once at the edge, never pass the wrapper to an external client" pattern that `make_client._unwrap` already implements is the recommended one; the bug is that 4 sites bypass that edge. No 2024-2026 source argues for passing SecretStr objects into SDKs.
-4. **No source found that contradicts** the recommendation to (a) self-unwrap in the client wrapper as defense-in-depth AND (b) unwrap at the call sites. The only nuance is the masking footgun itself (discussion #4217): because `str(SecretStr)` silently returns `'**********'` rather than erroring, a naive `str(key)` "fix" would inject a literal `'**********'` as the API key (a DIFFERENT, equally-broken failure) -- so the fix MUST use `get_secret_value()`, NOT `str()`. This is a real adversarial consideration captured below.
+Searched the last-2-year window on (a) industry/sector-neutral momentum 2025, (b) sector diversification / breadth in concentrated AI-led markets 2026, (c) momentum turnover reduction. **Findings (COMPLEMENT the canonical Moskowitz-Grinblatt / Harvey prior art; the 2026 macro context REINFORCES breadth but does not change the long-only caveat):**
+1. **CFA Institute (Dec 2025)** is the freshest rigorous source and is ALREADY the project's cited basis for both `sector_neutral_momentum_enabled` and `multidim_momentum_enabled` (`settings.py:324,334`). CONFIRMED its claims: multidim composite > price-only (higher returns, stronger t-stats, better drawdown); median Sharpe 0.61 (range 0.38-0.94); vol-scaling halves drawdown. It does NOT, however, quantify sector-NEUTRAL specifically -- the project's citation slightly over-reaches (CFA supports the multidim composite and vol-scaling explicitly; the sector-neutral-specific evidence is Harvey et al., which is more equivocal for long-only).
+2. **2025 momentum frontier = lower turnover + composite signals** (QuantSeeker 2025: "Momentum at Long Holding Periods" -> longer holds, lower turnover, better implementability). This is RELEVANT: sector-neutralization INCREASES turnover (Harvey et al.), cutting against the 2025 implementability trend. A sector-neutral lever should be paired with turnover awareness.
+3. **2026 macro context strongly favors breadth** (Goldman Sachs: Mag-7 dispersion 52.3%; Morningstar: most concentrated since 1932, 2026 mega-cap rotation in-the-red; iShares: value/non-US sector diversification). This REINFORCES the strategic case for spreading the momentum book across sectors RIGHT NOW -- the concentration is unwinding, so a sector-blind momentum book that piled into mega-cap tech is most exposed exactly when leadership rotates.
+4. **No 2024-2026 source overturns** Moskowitz-Grinblatt (industries drive momentum) or Harvey et al. (sector-neutralization is conditional, momentum-sensitive, turnover-costly, and long-only-equivocal). They sharpen it: the 2026 concentration context raises the EXPECTED benefit of breadth, while the long-only caveat and turnover cost remain the binding constraints.
 
 ### Key findings (per-claim, cited)
-1. **The SDK stores api_key uncoerced and puts it directly in a header** -- `self.api_key = api_key`; `_api_key_auth -> {"X-Api-Key": api_key}` (Source: anthropic-sdk-python `_client.py`, https://github.com/anthropics/anthropic-sdk-python/blob/main/src/anthropic/_client.py, accessed 2026-06-01). A SecretStr reaching this dict is what raises "Header value must be str or bytes".
-2. **You MUST call get_secret_value() for the plaintext; str() gives the mask** -- `SecretStr("abc").get_secret_value()` -> `'abc'`; `str(SecretStr("abc"))` -> `'**********'` (Source: pydantic maintainer discussion #4217, https://github.com/pydantic/pydantic/discussions/4217, accessed 2026-06-01; and pydantic 2.0 secrets docs "Use get_secret_value method to see the secret's content", https://pydantic.dev/docs/validation/2.0/usage/types/secrets/).
-3. **A non-empty SecretStr is truthy** -- masking affects only `__str__`/`__repr__`/serialization, not boolean/length; so `getattr(...) or ""` returns the wrapper, and `if not key:` passes (Source: pydantic 2.0 secrets docs + discussion #4217 behavior; the wrapper holds the value and only hides it on display).
-4. **Unwrap at the trust boundary / point of use, do not pass the wrapper to external code** -- maintainer guidance "unwrap the value manually when instantiating your authentication backend" (Source: fastapi-users #700, https://github.com/fastapi-users/fastapi-users/discussions/700) and "unwrap at the point of actual use ... not passing the wrapper object to external clients" (Source: Orchestra guide, https://www.getorchestra.io/guides/pydantic-secret-types-handling-sensitive-data-securely-with-secretstr-and-secretbytes). This is precisely what `make_client._unwrap` does and what the 4 buggy sites omit.
+1. **Industries are a DOMINANT driver of momentum -> sector structure is highly material to a momentum book.** "industry momentum ... captures these [stock-momentum] profits almost entirely" (Source: Moskowitz-Grinblatt 1999, https://www.aqr.com/Insights/Research/Journal-Article/Do-Industries-Explain-Momentum, accessed 2026-06-01). A pure cross-sectional momentum screen is implicitly a SECTOR BET; making the sector dimension explicit (neutral or tilt) is therefore a first-order, not cosmetic, change.
+2. **Sector-neutralizing momentum is a CONDITIONAL win, and for a LONG-ONLY book it is more often NOT beneficial.** "Keeping the across [sector] component produces better long-short factors in only 20% of the trials, while doing so delivers better long-only factors in 78% of the trials" (Source: Harvey et al. via QuantPedia, https://quantpedia.com/should-factor-investors-neutralize-the-sector-exposure/, accessed 2026-06-01). pyfinagent's screener is **LONG-ONLY** -> the literature's base rate says keeping the across-sector (i.e. NOT fully neutralizing) book is better ~78% of the time. **This is the single most important caveat in this brief.** The exact decision rule: neutralize only if "the ratio of the Sharpe ratios across and within components is less than their correlation" (Source: Harvey et al. primary PDF, https://people.duke.edu/~charvey/Research/Published_Papers/P165_Is_sector_neutrality.pdf).
+3. **Sector neutralization increases turnover and transaction costs -- a material practical drawback.** "higher turnover and transaction costs represent a significant practical drawback" (Source: Harvey et al. Duke PDF, same URL). This compounds with the 2025 implementability trend toward LOWER turnover (Source: QuantSeeker 2025, https://www.quantseeker.com/p/popular-investing-research-in-2025).
+4. **Where sector-aware allocation DID help, the uplift was large but the evidence is thin/short-window.** Sector-aware Sharpe 2.51 vs sector-blind -0.61 (Source: arXiv 2503.09647, https://arxiv.org/html/2503.09647) -- BUT on a 6-month 2019 window only (not generalizable). Sector-ETF momentum rotation Sharpe 0.54, +~4% vs buy-and-hold, but max DD -46% and high turnover (Source: Quantpedia, https://quantpedia.com/strategies/sector-momentum-rotational-system). The realistic, durable uplift is single-digit, turnover-sensitive -- consistent with the rotation brief's conclusion.
+5. **The multidim composite (the OTHER lever) has stronger, longer-horizon evidence than sector-neutral -- but it is a momentum-QUALITY lever, not a breadth lever.** "delivers higher average returns, stronger t-statistics, and substantially improved drawdown" since 1927; median Sharpe 0.61 (0.38-0.94); vol-scaling halves drawdown (Source: CFA Institute Dec 2025, rpc.cfainstitute.org). Its sector COMPONENT is a sector-momentum TILT (overweight hot sectors), which AMPLIFIES concentration -- the opposite of breadth.
+6. **The 2026 macro backdrop raises the value of breadth specifically now.** US "more concentrated ... than since 1932"; 2026 mega-cap rotation "in-the-red"; Mag-7 dispersion 52.3% (Sources: Morningstar 2026 snippet; Goldman Sachs 2026, https://am.gs.com/en-us/advisors/insights/article/2026/technology-2026-ai-dispersion-diversification). A sector-blind momentum book is maximally exposed to mega-cap tech right as leadership rotates -> breadth has elevated EXPECTED value, even if the long-only base rate (finding 2) argues for a PARTIAL tilt rather than full neutralization.
 
 ### Consensus vs debate (external)
-- **Consensus:** (a) `get_secret_value()` is the ONE sanctioned plaintext accessor; (b) `str(SecretStr)` returns the mask, not the value (intentional); (c) unwrap once at the edge / point of use and never hand the wrapper to an external SDK/HTTP layer; (d) the consuming SDK (Anthropic) will not coerce -- caller must unwrap.
-- **Debate / nuance:** Where to unwrap -- at each call site vs centrally in the wrapper. The literature (fastapi-users, Orchestra) favors "at the point of use", but a defense-in-depth wrapper-level unwrap is a strictly-safer superset (a no-op for str inputs). The pyfinagent answer is BOTH (A8): wrapper self-unwrap as the root-cause guarantee + edge unwrap for site-level clarity, ideally via one shared helper.
+- **Consensus:** (a) industries/sectors are a dominant component of momentum (Moskowitz-Grinblatt; Ehsani-Linnainmaa) -- the sector dimension is first-order; (b) momentum carries severe crash risk (-87% to -88% max DD) that vol-scaling roughly halves (CFA, Quantpedia/Barroso-Santa-Clara); (c) a multi-signal momentum composite beats price-only momentum (CFA); (d) 2026 macro favors breadth as concentration unwinds (GS, Morningstar, iShares).
+- **Debate / the binding nuance:** **does sector-NEUTRALIZING help a LONG-ONLY momentum book?** Harvey et al. say it is CONDITIONAL and, for long-only, beneficial in only ~22% of trials (keeping the across-sector book wins 78%). Sector neutralization also raises turnover. So the literature does NOT give a clean "sector-neutralize and Sharpe goes up" for pyfinagent's long-only setting -- it says "it depends, and the default lean for long-only is to keep some across-sector exposure." This is the precise reason the A3 backtest/replay is NON-OPTIONAL: the sign of the effect for THIS book on THIS universe must be measured, not assumed.
 
-### Pitfalls (from literature) -> applied to phase-51.1
-1. **The `str()` "fix" trap (adversarial).** Because `str(SecretStr)` returns `'**********'` WITHOUT erroring (discussion #4217), a careless fix using `str(key)` would silently send the literal mask `'**********'` as the API key -- the SDK would accept it as a str (no TypeError) and then get a 401 from the API, a NEW silent failure. **The fix MUST use `get_secret_value()` (or the `hasattr` guard), NEVER `str()`.** make_client's `_unwrap` correctly uses `get_secret_value()` and only falls back to `str()` for non-Secret non-empty values -- preserve that ordering.
-2. **Double-unwrap.** Calling `.get_secret_value()` on an already-unwrapped str raises AttributeError. The `hasattr(v, "get_secret_value")` guard prevents this; do NOT unconditionally call `.get_secret_value()` at a site that might already hold a str (e.g. after the wrapper self-unwraps). The guard-based idiom is double-unwrap-safe.
-3. **Masking hides the bug in logs.** Because the wrapper masks itself, a `logger.info(f"key={key}")` shows `'**********'` whether or not it's unwrapped -- so logs can't distinguish the wrapper from the plaintext. The $0 unit test (A9) asserts the TYPE (`isinstance(_api_key, str)`), which masking can't hide -- the correct verification.
-4. **Truthiness false-confidence.** The existing `if not anthropic_key:` guards LOOK like they validate the key, but a wrapper is always truthy, so they never catch the wrapped-but-unusable state. Don't rely on truthiness as a "key is usable" check; assert the type or attempt-and-catch.
+### Pitfalls (from literature) -> applied to phase-51.2
+1. **Do NOT assume sector-neutral raises Sharpe -- for a long-only book the base rate is the opposite.** (Harvey et al.) The project's `settings.py:324` description ("Improves Sharpe ... per CFA Institute Dec 2025") is OPTIMISTIC and not precisely supported for the long-only sector-NEUTRAL case (CFA supports the composite + vol-scaling, not sector-neutral-for-long-only). MEASURE before believing the description.
+2. **Full sector-neutralization is the aggressive version; a PARTIAL sector tilt/cap is the lower-regression first move.** Harvey's long-only result (keep across-sector 78% of the time) argues for a soft constraint (e.g. cap per-sector weight, or blend within-sector percentile with the raw score) rather than the existing hard within-sector-percentile REPLACEMENT (`screener.py:438-440` overwrites composite entirely). A soft tilt preserves most of the working momentum signal.
+3. **Turnover is a real cost the existing code does not measure.** Sector-neutral regrouping changes which names make top_n; the A3 replay MUST report turnover (it does -- design step 3) so the gate can reject a breadth gain that is eaten by churn.
+4. **Don't conflate sector-NEUTRAL with sector-MOMENTUM (multidim's sector leg / phase-28.12).** They pull OPPOSITE directions (equal-weight across sectors vs overweight hot sectors). Shipping both naively could cancel or double-count. Pick sector-NEUTRAL for breadth (this step); keep multidim/sector-momentum as separate, independently-gated experiments.
+5. **Short backtest windows lie.** The arXiv 2.51 Sharpe is a 6-month 2019 result. The A3 replay must span multiple regimes (2023-2025 minimum) and report the dispersion across dates, not a single aggregate, to avoid the IS-peak trap the rotation brief documented (Bailey/Borwein PBO).
 
-### Application to pyfinagent (external -> internal anchors)
-- SDK uncoerced-header mechanism (anthropic _client.py) -> the failure at `ClaudeClient._get_client` llm_client.py:1238 (`Anthropic(api_key=self._api_key)`); fix at __init__ llm_client.py:1222.
-- `get_secret_value()` is the only plaintext accessor (pydantic #4217 + 2.0 docs) -> the unwrap expression in the A8 fix uses `.get_secret_value()`, mirroring make_client._unwrap (llm_client.py:1893-1896).
-- "unwrap at the point of use, never pass the wrapper" (fastapi-users #700, Orchestra) -> edge unwrap at news_screen.py:258, macro_regime.py:427, pead_signal.py:248, meta_scorer.py:166.
-- `str()` returns the mask (pydantic #4217) -> pitfall guard: fix must use get_secret_value(), not str(); the $0 test asserts `isinstance(_api_key, str)` AND value equality to catch a mask-injection regression.
+---
 
-### Research Gate Checklist
-Hard blockers -- all satisfied:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (5: anthropic-sdk-python _client.py [official SDK source], pydantic 2.0 secrets docs [official], pydantic discussion #4217 [official, maintainer], fastapi-users #700 [community/maintainer], Orchestra SecretStr guide [industry]). Hierarchy honored: 1 official SDK source + 2 official pydantic + 1 maintainer-community + 1 industry.
-- [x] 10+ unique URLs total (12: 5 full + 7 snippet-only)
-- [x] Recency scan (last 2 years) performed + reported (4 findings; pydantic + Anthropic SDK secret semantics stable 2024-2026; the `str()`-mask-injection adversarial nuance surfaced)
-- [x] Full pages/sources read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim (Part A: settings.py:104; llm_client.py:1206/1220-1223/1238/1893-1896/1963; news_screen.py:258/264; macro_regime.py:427/432; pead_signal.py:248/278; meta_scorer.py:166/184; call_transcript_gpr.py:91-95/113; analyst_narrative_scorer.py:111-115/136; prompts.py:36/113-125; commit d3f34caf; macro_regime.json computed_at)
+## SYNTHESIS -- application to pyfinagent (the actionable answer)
 
-Soft checks:
-- [x] Internal exploration covered every relevant module (settings, llm_client [ClaudeClient + make_client], all 6 service construction sites, prompts/SkillFileIdCache, git history of the migration + the 4 services + the 2 guards)
-- [x] Contradictions/consensus noted (where-to-unwrap debate; the str()-mask adversarial trap)
-- [x] All claims cited per-claim with file:line or URL
+### S1 -- Is sector-div the right lever? YES as a NEXT money lever, with a precise caveat.
+Sector diversification IS the right near-term lever to amplify the working momentum
+engine's breadth, for three reasons the evidence supports: (a) the sector dimension
+is first-order to momentum (Moskowitz-Grinblatt), (b) the 2026 concentration unwind
+raises the expected value of breadth right now (GS/Morningstar), and (c) it operates
+INSIDE the live `rank_candidates` path so it affects live orders with zero
+architectural bridge (unlike rotation -- the rotation verdict's whole point). **The
+caveat that must be carried into the contract:** for a LONG-ONLY book, the literature
+base rate (Harvey et al.) says FULL sector-neutralization helps only ~22% of the time;
+the safer first move is a PARTIAL/soft sector tilt, and the sign of the effect MUST be
+measured on pyfinagent's own universe via the A3 replay before any live enable. This
+is NOT a reason to skip the lever -- it is a reason to (i) prefer the soft version and
+(ii) make the A3 backtest the gate.
 
-### Research-gate JSON envelope
+### S2 -- sector_neutral over multidim (confirmed). See A4.
+sector_neutral within-sector percentile directly fixes "non-tech out-competed";
+multidim is a momentum-quality upgrade whose sector leg is a TILT (amplifies
+concentration). Ship sector_neutral first.
+
+### S3 -- The exact wiring (file:line). See A2.
+ONE change: build a ticker->sector map for the full `universe` and pass
+`sector_lookup=` into `screen_universe` at `autonomous_loop.py:369`. The scoring code
+(`screener.py:415-445`) is already correct and gated by
+`sector_neutral_momentum_enabled` (default OFF); it only ever lacked sectors at rank
+time.
+
+### S4 -- The cheapest valid measurement (file:line). See A3.
+A NEW `scripts/ablation/sector_neutral_replay.py` that replays the PRODUCTION
+`screen_universe`+`rank_candidates` over ~36 historical monthly dates (2023-2025),
+flag OFF vs ON, scoring forward-return Sharpe + sector-spread + turnover. The ML
+backtest engine and the feature-ablation harness CANNOT measure this (different code
+path -- `candidate_selector._rank_candidates`, no sector_neutral param). $0, free
+yfinance data, real production code, no live change.
+
+### S5 -- Expected Sharpe/turnover tradeoff from the literature.
+- **Sharpe:** ambiguous sign for long-only sector-NEUTRAL (Harvey: ~22% win rate for
+  full neutralization long-only); where sector-AWARE allocation helped, single-digit
+  to large but on thin/short windows; realistic durable expectation is a SMALL Sharpe
+  change with a MEANINGFUL reduction in sector concentration (the breadth is the
+  reliable win; the Sharpe is the thing to protect, not assume).
+- **Turnover:** EXPECTED TO RISE (Harvey: "higher turnover and transaction costs ...
+  significant practical drawback"). The replay must quantify it; the soft/partial
+  version limits it.
+- **Drawdown/crash:** breadth + (optionally) vol-scaling reduces the -87%/-88%
+  momentum crash risk (CFA; Barroso-Santa-Clara) -- the strongest reliable benefit.
+
+### S6 -- Reason sector-div might NOT be the best lever (the honest redirect-within-redirect).
+The Harvey long-only finding is a genuine yellow flag: a LONG-ONLY momentum book is in
+the ~78% majority where keeping across-sector exposure beats neutralizing. If the A3
+replay shows ON cuts Sharpe without a commensurate concentration/crash benefit, the
+correct call is to NOT enable it live (or to ship only the soft/partial tilt). Two
+alternatives the evidence ranks comparably or higher for money-per-risk:
+(a) **vol-scaling the momentum book** (CFA/Barroso-Santa-Clara: nearly DOUBLES Sharpe,
+halves drawdown -- a LARGER and better-evidenced effect than sector-neutral, and also
+a live-path change), and (b) the **multidim composite** (CFA: better Sharpe/drawdown
+since 1927, longer evidence base than sector-neutral). Recommend sector_neutral as the
+phase-51.2 lever BECAUSE it most directly answers diagnostic finding 4 and the 2026
+breadth case -- but flag in the contract that vol-scaling is the higher-EV adjacent
+lever if the sector-neutral replay disappoints.
+
+---
+
+## GATE ENVELOPE
 
 ```json
 {
-  "tier": "moderate",
-  "external_sources_read_in_full": 5,
-  "snippet_only_sources": 7,
-  "urls_collected": 12,
+  "tier": "complex",
+  "external_sources_read_in_full": 9,
+  "snippet_only_sources": 9,
+  "urls_collected": 18,
   "recency_scan_performed": true,
-  "internal_files_inspected": 8,
-  "report_md": "handoff/current/research_brief.md (phase-51.1)",
+  "internal_files_inspected": 7,
   "gate_passed": true
 }
 ```
+
+`gate_passed: true` -- 9 sources read in full (floor 5), recency scan performed
+(2024-2026, reported), 3-variant query discipline visible, 18 unique URLs, internal
+audit pinned to file:line across 7 files (screener.py, services/autonomous_loop.py,
+config/settings.py, backtest/candidate_selector.py, backtest/backtest_engine.py,
+api/paper_trading.py, scripts/ablation/run_ablation.py).
+

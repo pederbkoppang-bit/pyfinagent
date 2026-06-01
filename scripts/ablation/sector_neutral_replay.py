@@ -1,0 +1,220 @@
+"""phase-51.2: screener-level replay -- sector-neutral (and vol-scaled) ON vs OFF.
+
+WHY a new harness: the ML backtest engine ranks via candidate_selector (a DIFFERENT
+formula, no sector field), so it cannot measure the LIVE screener's sector-neutral
+lever. This replays the PRODUCTION `screener.rank_candidates` over historical monthly
+dates on the S&P 500, isolating the sector-neutral delta (both configs share identical
+screen_data -> the only difference is the within-sector percentile regroup).
+
+$0: free yfinance prices (one batch download) + Wikipedia GICS sectors (one read_html).
+No LLM, no BQ writes, no live change. Measures the SIGN of the tradeoff on OUR universe
+before any live enable (the Harvey et al. long-only caveat: neutralizing may HURT).
+
+Output: per-config annualized Sharpe of the monthly equal-weight top-N basket, average
+sector spread (# distinct GICS), average turnover. Verdict per masterplan 51.2.
+"""
+from __future__ import annotations
+
+import sys
+import numpy as np
+import pandas as pd
+import yfinance as yf
+
+from backend.tools.screener import rank_candidates
+
+TOP_N = 10
+START = "2021-06-01"   # leaves 6mo lookback before the first 2022 rebalance
+END = "2025-12-31"
+TARGET_ANN_VOL = 0.15  # vol-scaling target (Barroso-Santa-Clara)
+VOL_CAP = 2.0          # max leverage
+
+
+def log(m):
+    print(m, flush=True)
+
+
+# ---------------------------------------------------------------------------
+def load_universe_sectors():
+    """S&P 500 tickers + GICS sector from the Wikipedia table (same source +
+    User-Agent as the production `get_sp500_tickers`; the default urllib UA gets
+    a 403). Returns {yf_symbol: sector}."""
+    import io
+    import urllib.request
+    from backend.tools.screener import SP500_URL
+    req = urllib.request.Request(SP500_URL, headers={"User-Agent": "Mozilla/5.0 pyfinagent/1.0"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        html = resp.read().decode("utf-8")
+    df = pd.read_html(io.StringIO(html), header=0)[0]
+    out = {}
+    for _, r in df.iterrows():
+        sym = str(r["Symbol"]).strip().replace(".", "-")  # BRK.B -> BRK-B for yfinance
+        out[sym] = str(r["GICS Sector"]).strip()
+    return out
+
+
+def rsi_14(close: pd.Series) -> float:
+    d = close.diff().dropna()
+    if len(d) < 15:
+        return 50.0
+    up = d.clip(lower=0).rolling(14).mean().iloc[-1]
+    dn = (-d.clip(upper=0)).rolling(14).mean().iloc[-1]
+    if dn == 0:
+        return 100.0
+    rs = up / dn
+    return float(100 - 100 / (1 + rs))
+
+
+def build_screen_row(ticker, sector, win: pd.Series):
+    """win = close prices up to AND INCLUDING the rebalance date (causal)."""
+    if win is None or len(win) < 130:
+        return None
+    c = win.dropna()
+    if len(c) < 130:
+        return None
+    last = c.iloc[-1]
+    if not np.isfinite(last) or last <= 0:
+        return None
+    def mom(n):
+        if len(c) <= n:
+            return None
+        base = c.iloc[-1 - n]
+        return float(last / base - 1) if base > 0 else None
+    daily = c.pct_change().dropna()
+    vol_ann = float(daily.iloc[-63:].std() * np.sqrt(252)) if len(daily) >= 63 else 0.3
+    sma50 = c.iloc[-50:].mean()
+    return {
+        "ticker": ticker,
+        "sector": sector,
+        "momentum_1m": mom(21),
+        "momentum_3m": mom(63),
+        "momentum_6m": mom(126),
+        "rsi_14": rsi_14(c),
+        "volatility_ann": vol_ann,
+        "sma_50_distance_pct": float(last / sma50 - 1) if sma50 > 0 else 0.0,
+    }
+
+
+def basket_fwd_return(basket, closes: pd.DataFrame, t_idx: int, horizon: int = 21):
+    """Equal-weight realized forward return of the basket over `horizon` trading days."""
+    rets = []
+    for tk in basket:
+        if tk not in closes.columns:
+            continue
+        s = closes[tk]
+        if t_idx + horizon >= len(s):
+            continue
+        p0, p1 = s.iloc[t_idx], s.iloc[t_idx + horizon]
+        if np.isfinite(p0) and np.isfinite(p1) and p0 > 0:
+            rets.append(p1 / p0 - 1)
+    return float(np.mean(rets)) if rets else None
+
+
+def ann_sharpe(monthly: list[float]) -> float:
+    a = np.array([m for m in monthly if m is not None])
+    if len(a) < 3 or a.std() == 0:
+        return 0.0
+    return float(a.mean() / a.std() * np.sqrt(12))
+
+
+def main():
+    log("[1/4] loading S&P 500 tickers + GICS sectors from Wikipedia ...")
+    sec_map = load_universe_sectors()
+    tickers = list(sec_map.keys())
+    log(f"      {len(tickers)} tickers; sectors: {len(set(sec_map.values()))} distinct")
+
+    log(f"[2/4] batch-downloading prices {START}..{END} (one yfinance call) ...")
+    raw = yf.download(tickers, start=START, end=END, auto_adjust=True,
+                      group_by="ticker", threads=True, progress=False)
+    # flatten to a close-only frame {ticker: close series}
+    closes = {}
+    for tk in tickers:
+        try:
+            if isinstance(raw.columns, pd.MultiIndex):
+                if tk in raw.columns.get_level_values(0):
+                    closes[tk] = raw[tk]["Close"]
+            else:
+                closes[tk] = raw["Close"]
+        except Exception:
+            continue
+    closes = pd.DataFrame(closes).dropna(how="all")
+    log(f"      usable price series: {closes.shape[1]} tickers x {closes.shape[0]} days")
+
+    # monthly rebalance dates = first trading day of each month in 2022-2025
+    idx = closes.index
+    rebal = []
+    for ym, grp in closes.groupby([idx.year, idx.month]):
+        d = grp.index[0]
+        if d.year >= 2022:
+            rebal.append(d)
+    log(f"[3/4] replaying {len(rebal)} monthly rebalances, top_n={TOP_N} ...")
+
+    configs = {"baseline": False, "sector_neutral": True}
+    monthly = {k: [] for k in configs}
+    monthly["vol_scaled"] = []      # baseline basket, vol-targeted return
+    spread = {k: [] for k in configs}
+    prev_basket = {k: set() for k in configs}
+    turnover = {k: [] for k in configs}
+
+    pos = {d: i for i, d in enumerate(closes.index)}
+    for d in rebal:
+        t_idx = pos[d]
+        win_lo = max(0, t_idx - 200)
+        rows = []
+        for tk in closes.columns:
+            row = build_screen_row(tk, sec_map.get(tk, ""), closes[tk].iloc[win_lo:t_idx + 1])
+            if row:
+                rows.append(row)
+        if len(rows) < 50:
+            continue
+        for name, sn in configs.items():
+            ranked = rank_candidates(rows, top_n=TOP_N, strategy="momentum", sector_neutral=sn)
+            basket = [r["ticker"] for r in ranked]
+            fwd = basket_fwd_return(basket, closes, t_idx)
+            monthly[name].append(fwd)
+            spread[name].append(len({sec_map.get(t, "") for t in basket}))
+            bs = set(basket)
+            if prev_basket[name]:
+                turnover[name].append(1 - len(bs & prev_basket[name]) / max(len(bs), 1))
+            prev_basket[name] = bs
+            if name == "baseline" and fwd is not None:
+                # vol-target the baseline basket return by trailing realized vol
+                daily_basket = []
+                for tk in basket:
+                    s = closes[tk].iloc[max(0, t_idx - 63):t_idx + 1].pct_change().dropna()
+                    if len(s) >= 20:
+                        daily_basket.append(s)
+                if daily_basket:
+                    rv = float(pd.concat(daily_basket, axis=1).mean(axis=1).std() * np.sqrt(252))
+                    lev = min(VOL_CAP, TARGET_ANN_VOL / rv) if rv > 0 else 1.0
+                    monthly["vol_scaled"].append(fwd * lev)
+                else:
+                    monthly["vol_scaled"].append(fwd)
+
+    log("[4/4] results\n")
+    print(f"{'config':<16}{'ann_Sharpe':>12}{'avg_fwd_mo%':>14}{'avg_sectors':>13}{'avg_turnover':>14}")
+    print("-" * 69)
+    base_sharpe = ann_sharpe(monthly["baseline"])
+    for name in ["baseline", "sector_neutral", "vol_scaled"]:
+        ms = [m for m in monthly[name] if m is not None]
+        sh = ann_sharpe(monthly[name])
+        avg_ret = float(np.mean(ms) * 100) if ms else 0.0
+        avg_sec = float(np.mean(spread[name])) if name in spread and spread[name] else (float(np.mean(spread["baseline"])) if name == "vol_scaled" else 0.0)
+        avg_to = float(np.mean(turnover[name])) if name in turnover and turnover[name] else (float(np.mean(turnover["baseline"])) if name == "vol_scaled" else 0.0)
+        print(f"{name:<16}{sh:>12.3f}{avg_ret:>14.3f}{avg_sec:>13.2f}{avg_to:>14.3f}")
+
+    sn_sharpe = ann_sharpe(monthly["sector_neutral"])
+    sn_spread = float(np.mean(spread["sector_neutral"])) if spread["sector_neutral"] else 0
+    base_spread = float(np.mean(spread["baseline"])) if spread["baseline"] else 0
+    vs_sharpe = ann_sharpe(monthly["vol_scaled"])
+    print("\n--- VERDICT (masterplan 51.2 gate) ---")
+    print(f"sector_neutral vs baseline: dSharpe={sn_sharpe - base_sharpe:+.3f}, "
+          f"dSectors={sn_spread - base_spread:+.2f}")
+    keep_sn = (sn_spread - base_spread >= 2.0) and (sn_sharpe - base_sharpe >= -0.05)
+    print(f"KEEP sector_neutral? {keep_sn}  (gate: breadth +>=2 sectors AND dSharpe >= -0.05)")
+    print(f"vol_scaled vs baseline: dSharpe={vs_sharpe - base_sharpe:+.3f} "
+          f"({'BETTER' if vs_sharpe > base_sharpe else 'worse'})")
+    print(f"\nN rebalances scored: {len([m for m in monthly['baseline'] if m is not None])}")
+
+
+if __name__ == "__main__":
+    main()

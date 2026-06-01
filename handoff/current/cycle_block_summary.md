@@ -1,74 +1,52 @@
-# Cycle block summary -- 2026-05-29/30 (verification + triage + 7 shipped cycles + multi-market)
+# Cycle Block Summary -- 2026-06-01 (SOFT STOP)
 
-## SESSION FINAL STATE (2026-05-30) -- 7 harness cycles shipped + pushed; phase-50 4/6 + 50.5 planned
-**Shipped this session (all PASS, fresh-Q/A, pushed to origin/main):**
-- **49.1** runtime risk-limit control (GET/PUT/DELETE /api/paper-trading/risk-limits; the deploy-idle-cash bridge)
-- **49.2** operator cron control (POST /api/jobs/{id}/pause|resume|trigger)
-- **49.3** cron-control UI (Actions column on /cron; build-verified, operator visual live_check pending)
-- **50.1** FX data layer (fx_rates.py + historical_fx_rates BQ table; EUR/USD + KRW/USD direction-locked)
-- **50.2** multi-currency accounting (paper_trader FX-converts to USD; live byte-identity PROVEN, NAV $24,023.58 unchanged)
-- **50.3** international universe + suffix mapper + routing (paper_markets default ['US'] = byte-identical; EU/KR built but OFF)
-- **50.4** market-calendar gating (is_trading_day latent-bug fixed; entry-gated, exits-open, US ungated)
+**Session outcome:** Multi-market trading is **LIVE** (HARD-STOP element 1 satisfied). The full
+north-star HARD STOP is **not** reached because element 2 -- *strategy rotation promoting the
+highest earner from a cited research basis* -- remains an unbuilt, research-heavy blocker that
+is also a strategic decision for the operator. SOFT STOP per the goal's stop conditions.
 
-**Multi-market (operator-requested 2026-05-29; decision: BOTH EU + Korea, free yfinance + quality gate):** phase-50 is **4/6 done**. The currency foundation + universe + calendar are all live-byte-identical-safe; **international is BUILT but OFF** (paper_markets=['US'] default). See [[project_multimarket_expansion]].
+## What shipped this session (all via the full harness loop, pushed to main)
 
-**REMAINING (handed off mid-50.5 for marathon-risk discipline):**
-- **50.5 (PLAN complete, GENERATE pending)** -- the data-quality gate (price_quality.py at 3 doors: screener L1 / _get_live_price L2 / data_ingestion B) + multi-market backtest (benchmark + FX). The contract (handoff/current/contract.md) is finished + ready to GENERATE. This is the LAST go-live prerequisite (the operator's "quality gate" precondition). It inserts into the live US screener/ingestion -> US fast-path correctness is the regression surface -> best done with fresh context (why it was handed off rather than rushed at cycle 8).
-- **GO-LIVE flip** (after 50.5): set paper_markets=['US','EU','KR'] -> international actually trades (quality-gated). Operator AUTHORIZED it; it changes live trading -> report explicitly when flipping.
-- **50.6** multi-market UI (NextAuth-walled visual verify).
+| Work | Commit | Result |
+|------|--------|--------|
+| **phase-50.5** -- multi-market backtest + DATA-QUALITY gate | `3377d826` | Last go-live prerequisite. Gate PROVEN live: caught **15 real bad DAX bars** (identical-OHLC+zero-vol) on live yfinance. US byte-identical. Fresh Q/A PASS. |
+| **4-bug diagnostic** (operator cockpit screenshots) | workflow `w1g3l301s` | All 4 root-caused with file:line evidence (weekend digest, broken crons, SecretStr-dead overlays, tech-only book). Queued as phase-51. |
+| **phase-51.1** -- SecretStr unwrap | `6f86c5ed` | 4 dead LLM alpha overlays resurrected (news/macro/PEAD/meta). Regression pinned to `d3f34caf` (2026-05-13). $0 proof. Fresh Q/A PASS. |
+| **GO-LIVE FLIP** (operator-authorized + sequenced) | (.env, local) | `PAPER_MARKETS=["US","EU","KR"]` -> backend restarted -> `get_settings().paper_markets == ['US','EU','KR']`, health 200. First multi-market cycle = **Mon 2026-06-01 14:00 UTC**. |
 
-**Operator action available now:** 49.3 has an OPERATOR-TO-CONFIRM visual check (load /cron, verify the Actions column + pause/resume). All else is autonomously verified + pushed.
+## HARD-STOP scorecard
 
----
+| Element | Status | Evidence |
+|---------|--------|----------|
+| 1. multi-market live (EU+KR on quality-gated data) | **DONE** | flip executed + verified; 50.1-50.5 + 51.1 all done; data-quality gate live-proven |
+| 2. strategy rotation promoting the highest earner from a cited research basis | **NOT MET** | rotation machinery (48.1-48.4) is live-validated but does NOT drive live selection |
 
-## Earlier this session (2026-05-29 P7 cycles)
+## The rotation blocker (element 2) -- root cause + why it's a strategic decision, not just a code fix
 
-## POST-SUMMARY UPDATE (2 clean harness cycles shipped + pushed to origin/main)
-- **phase-49.1** (commit 0d2a768d) -- runtime risk-limit control: `GET/PUT/DELETE /api/paper-trading/risk-limits`, file-backed `risk_overrides.py` (mirrors kill_switch.py), confirmation-gated + bounded + audited + restart-survivable. The SAFE bridge for the operator deploy-idle-cash decision. Fresh-Q/A PASS, live-verified.
-- **phase-49.2** (commit deb9bd92) -- operator cron control: `POST /api/jobs/{id}/pause|resume|trigger` for the 2 backend-owned in-process APScheduler jobs; trigger reuses /run-now's triple-guard; cross-process jobs 404; audited. Fresh-Q/A PASS, live-verified. paper_trading_daily left RESUMED (money loop intact).
-- **P7 backend control surface now substantially COMPLETE**: kill/pause/flatten/gate (pre-existing) + risk-limits (49.1) + cron enable/trigger (49.2). Remaining P7 = the "strategy" control (LOW value -- live loop is momentum/Gemini-driven, not STRATEGY_REGISTRY-driven) + UI consistency (BLOCKED: authenticated-page visual verification behind the NextAuth wall, per frontend.md rule 5 + feedback_harness_rigor).
-- **Production health verified good**: kill-switch sod_date=2026-05-29 (daily-loss anchor rolling correctly, P8 hygiene OK), not paused, loop scheduled (next 2026-06-01T14:00), trading, +20% NAV.
-- **Honest limit reached:** the high-value, fully-autonomously-verifiable work is DONE. Remaining priorities are operator-gated (P6 learn-loop flip, P8 langchain pip), UI-verification-blocked (P7 UI), or low-value (P5 rotation, strategy-select). Per the North-Star (Profit - Risk - Compute), manufacturing low-value churn adds regression Risk without Profit -- so the next real progress needs an operator decision (below).
+Pinned in `project_strategy_rotation_unbuilt.md`:
+- The per-strategy rotation machinery (seed registry, real-engine adapter, live runner, bake-off) was built + live-validated in 48.1-48.4.
+- **But the alt strategies (quality_momentum, mean_reversion, factor_model) TRAIN fine yet their labels go ~all-neutral -> 0 trades.** Only `triple_barrier` + `meta_label` actually trade, and they are correlated.
+- So the rotation layer has effectively **nothing to rotate between** -- one strategy family does all the trading. A DSR-based "promote the highest earner" selector has no diverse, trading candidate set to choose from.
+- A prior measured assessment therefore rated rotation **"low money value"** and STOPPED it.
 
-## TL;DR
-The money goal is **MET**. The live paper engine works and makes money. Priorities 1-4
-are **verified DONE** (the Stop hook is replaying the stale 2026-05-28 diagnosis). What
-remains is operator-gated, time-gated, low-money-value, or UX-behind-auth. There is **no
-clean autonomous money lever left** -- the one real lever (deploy the idle 66% cash) is an
-irreducible risk-appetite call that is the operator's to make.
+To satisfy element 2 honestly requires a **research-backed fix to the alt-strategy labeling/signal generation** (so they actually produce trades), THEN a DSR selector to promote the best -- grounded in 2025-2026 literature (per the goal). Multi-cycle effort, AND it reopens the earlier "low money value" finding, so it needs an explicit operator call on priority.
 
-## Verified state (measured live this session, BQ + curl 2026-05-29)
+## Remaining tactical work (queued, none blocking element 1)
 
-| Pri | Item | Status | Evidence |
-|-----|------|--------|----------|
-| 1 | historical_prices freshness | **DONE** | `financial_reports.historical_prices` max date 2026-05-28, **507 tickers, 503/day last 6 trading days, 1.8M rows**. The alleged wrong-dest table `pyfinagent_data.price_snapshots` does **not exist** (404). Fixed in prior 47.x. |
-| 2 | First autonomous trade / trading | **DONE** | NAV **$24,024 from $20,000 = +20.1%** since 2026-03-20 vs benchmark +5.84% (**~+14 pts alpha**). 23 trades (15 BUY/8 SELL), traded today. |
-| 3 | cost_tracker Opus-4.8 pricing | **DONE** | `backend/agents/cost_tracker.py:26` `"claude-opus-4-8": (5.00, 25.00)` (phase-47.3). Main effort=xhigh per CLAUDE.md. |
-| 4 | Sharpe/maxDD mismark | **DONE** | `/api/paper-trading/portfolio` reports `sharpe_ratio: 5.39` (positive, correct), not the -5.72 mismark. |
-| 5 | Dynamic strategy rotation | machinery built (48.1-48.4), **does NOT drive live selection** | Live loop is momentum+Gemini+risk-judge; backtest STRATEGY_REGISTRY is separate. Only triple_barrier/meta_label trade (correlated). Low live-money value -> stopped. See [[project_strategy_rotation_unbuilt]]. |
-| 6 | Learn-loop + 5 clean cron cycles | **operator/time-gated** | `paper_learn_loop_enabled` default False = operator's flip. 5-cycle streak is time-based. |
-| 7 | Operator control surface | **backend ~80% built; gaps + UI remain** | Exist: /start /stop /pause /resume /flatten-all /kill-switch(GET) /gate /run-now /freshness + 16 reads. Gaps: cron enable/trigger (cross-process to slack-bot scheduler), runtime risk-limit adjust, strategy select; + "one consistent layout across all pages" UX (real-browser verify blocked by NextAuth wall). |
+- **51.2 sector diversification** (P1 money) -- the live screener ranks by pure momentum; sector enrichment happens after ranking so the sector-neutral path no-ops. Now that EU/KR are live (structurally non-tech) + the news overlay is resurrected (surfaces non-tech), this is the highest-leverage *near-term* money lever. **Touches the live screener ranking -> needs a backtest ON-vs-OFF first** (regression risk to the +20% engine).
+- **51.3 weekend Slack digest guard** (P2) -- isolated, trivial, safe.
+- **51.4 cron repairs** (P2) -- autoresearch (langchain_huggingface never installed; owner-gated pip decision) + weekly_data_integrity (BigQueryClient() missing arg + nonexistent query()).
+- **`calendar_events` BQ table** -- sector-calendars EARNINGS leg + PEAD still 404 on a missing table (51.1 fixed only the SecretStr LLM path). News/macro/meta are fully alive; sector-calendar/PEAD *data* is not.
+- **50.6 multi-market UI**.
 
-## System health (it's well-managed, not lucky)
-- **Trailing stops ratcheted + protecting every winner**: DELL stop +77.7% above entry, MU +71.3%, SNDK +53.3%, INTC +41.5% (1.4-8.7% cushion). A semi reversal stops out IN PROFIT.
-- **Two sector caps active** (count=2, NAV-%=30); holding-period + stop-loss exits functioning.
-- **66% cash is rational, not a leak**: the 7 grandfathered Tech winners exceed both caps -> loop blocked from more Tech; fresh full-S&P-500 screening finds no momentum elsewhere -> holds dry powder rather than chase an extended sector. Confirmed NOT a stale-data artifact (prices verified fresh).
+## Crisp ask (operator decision -- a strategic fork)
 
-## The one real money lever = an operator decision (irreducible)
-To deploy the idle 66% cash, the only options are:
-1. **Keep as-is** -- +14% alpha on deployed capital, dry powder held. Conservative, working. (recommended default)
-2. **Broaden the edge** -- improve selection so the loop finds momentum in MORE sectors -> deploy diversified. Genuine alpha research (substantial, uncertain). The only path that raises deployment AND respects risk discipline.
-3. **Concentrate harder in semis** -- loosen caps, ride the winner. Higher return if rally continues, larger drawdown if it reverses (stop-protected). Pure risk-appetite call.
+The goal says "MEASURE paper_* P&L before fixing anything." The key measurement -- the **first multi-market cycle (Mon 14:00 UTC)** -- has not run yet. Given that, which next?
 
-I will NOT do (3) speculatively on a working +14%-alpha engine (no forward evidence it's +EV; the realized semi rally is survivorship bias). (2) is the real growth path if the operator wants it.
+1. **(Recommended) Measure-first + safe tactical wins.** Let Monday's multi-market cycle run, MEASURE the paper_* result (did EU/KR trade? sector spread? quality-gate drops?), and meanwhile ship the isolated/safe fixes (51.3 digest, 51.4 crons, calendar_events). Hold all live-engine-ranking changes until we have multi-market data. Lowest regression risk to the working +20% engine.
+2. **Sector diversification now (51.2).** Go straight at the tech-concentration money lever -- backtest sector-neutral ON-vs-OFF on the US universe, then enable if it wins. Higher money impact, but it changes the live ranking (the regression surface).
+3. **Tackle the rotation blocker (HARD-STOP element 2).** Begin the research-heavy effort to fix alt-strategy labeling so rotation has real candidates, then a DSR selector. Biggest scope; reopens the prior "low money value" finding -- needs your confirmation it's worth it vs (1)/(2).
 
-## Crisp operator asks
-1. **Money lever**: pick (1) keep / (2) broaden-edge / (3) concentrate. Default = (1).
-2. **Learn-loop**: flip `paper_learn_loop_enabled=true` to enable outcome-tracking + lesson writes (Priority 6 evidence)? BQ tables already exist.
-3. **P7 direction**: which control gaps to build (cron control / runtime risk-limit / strategy select) and how much UI-consistency work?
+**My recommendation: option 1.** Multi-market just went live; measuring the first real cycle before any further live-engine change is the disciplined money move and directly follows the "measure before fixing" rule. I can ship 51.3/51.4/calendar_events safely in parallel while we wait for Monday's data.
 
-## What I can ship next WITHOUT operator input (offered)
-- Complete P7 backend control gaps (cron enable/trigger via cross-process flag, runtime risk-limit adjust endpoint, strategy-select endpoint) -- low-risk, curl-verifiable, doesn't touch trading logic.
-- Pursue (2) broaden-the-edge as real alpha research (the genuine money path).
-
-HARD STOP remains structurally unreachable in-session (needs operator flips + the time-based cron streak + NextAuth-walled UX verification). This is a SOFT STOP per protocol: high-value autonomous work done; remainder needs operator decisions or time.
+**Reversibility note:** roll back go-live anytime -- remove the `PAPER_MARKETS` line from `backend/.env` + `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`.

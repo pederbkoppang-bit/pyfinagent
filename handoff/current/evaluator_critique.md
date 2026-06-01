@@ -1,15 +1,22 @@
-# phase-51.1 EVALUATE -- 2026-06-01
+# phase-51.2 EVALUATE -- 2026-06-01
 
-**Step:** 51.1 -- SecretStr unwrap, resurrect 4 dead LLM alpha overlays
+**Step:** 51.2 -- sector diversification (measure-first; NEGATIVE result -> flag stays OFF)
 **Evaluator:** Q/A (Layer-3, merged qa-evaluator + harness-verifier), single fresh instance
 **Verdict: PASS**
 **ok:** true | **certified_fallback:** false
 
-This OVERWRITES the stale phase-50.5 critique (archived under
-`handoff/archive/phase-50.5/`). A prior 51.1 Q/A instance truncated before
-writing; this is the FIRST real 51.1 verdict on UNCHANGED, complete evidence
-(not a re-spawn to overturn anything). 0 prior 51.1 verdicts, 0 prior 51.1
-CONDITIONALs in `handoff/harness_log.md`.
+This OVERWRITES the stale phase-51.1 critique (now superseded; the 51.1 PASS is
+recorded in the harness log). A prior 51.2 Q/A instance truncated before writing
+its verdict; this is the FIRST real 51.2 verdict on UNCHANGED, complete evidence
+(NOT a re-spawn to overturn anything). 0 prior 51.2 verdicts, 0 prior 51.2
+CONDITIONALs in `handoff/harness_log.md` -> 3rd-CONDITIONAL auto-FAIL rule N/A.
+
+KEY FRAMING (the crux of this step): criterion #2 requires a COMPARISON + a
+tradeoff REPORT, NOT that sector-neutral WINS. A rigorous, honestly-reported
+NEGATIVE result (HARD sector-neutral hurts long-only Sharpe -0.166 -> flag stays
+OFF) SATISFIES criterion #2 -- PROVIDED (a) the wiring (criterion #1) is genuinely
+built and not a measurement dodge, and (b) the A/B is methodologically sound. Both
+verified below from source. This is a textbook "measure before fixing" outcome.
 
 ---
 
@@ -17,83 +24,157 @@ CONDITIONALs in `handoff/harness_log.md`.
 
 | Item | State | Evidence |
 |------|-------|----------|
-| researcher BEFORE contract | PASS | `research_brief.md` header `# research_brief -- phase-51.1`; JSON envelope `gate_passed:true`, tier moderate, 5 external sources read in full, 12 URLs, recency scan performed, 8 internal files. Regression commit `d3f34caf` (2026-05-13) pinned with git-blame evidence. |
-| contract before GENERATE | PASS | `contract.md` is the 51.1 contract; its 4 success_criteria are VERBATIM-identical to masterplan `51.1.verification.success_criteria` (`.claude/masterplan.json:13737-13742`). Diffed word-for-word -- exact match, none amended. |
-| experiment_results + live_check present/complete | PASS | `experiment_results.md` lists file changes + verbatim command output + artifact shape. `live_check_51.1.md` present (`test -f` exit 0) with the $0 proof + criterion-by-criterion table. |
-| log-last | PASS | `handoff/harness_log.md` has ZERO 51.1 entries; masterplan 51.1 `status=pending`. Main logs + flips AFTER this PASS, in the correct order. |
-| no verdict-shopping | PASS | No prior 51.1 verdict exists (earlier instance never wrote one). This is the first verdict, not a second opinion on a CONDITIONAL. 0 prior consecutive CONDITIONALs -> 3rd-CONDITIONAL auto-FAIL rule N/A. |
+| researcher BEFORE contract (TWO briefs) | PASS | `research_rotation_element2_verdict.md` (`gate_passed:true`, 8 sources -> REDIRECT away from winner-take-all rotation toward breadth-inside-the-engine) + `research_51_2_sector_div.md` (`gate_passed:true`, 9 sources read in full, floor 5, recency scan performed). Both cited in `contract.md` lines 7-12. The 51.2 brief is decisive: it located the exact no-op (`autonomous_loop.py:369` called `screen_universe` without `sector_lookup`) AND surfaced the Harvey et al. long-only caveat that the replay then confirmed. |
+| contract BEFORE generate; 4 criteria VERBATIM | PASS | `contract.md` lines 18-21 are word-for-word identical to masterplan `phases[74].steps[1].verification.success_criteria` (4 criteria; diffed programmatically -- exact match, none amended). |
+| experiment_results + live_check present/complete | PASS | `experiment_results.md` lists the file changes + verbatim verification output + artifact shape. `live_check_51.2.md` present (`test -f` exit 0) with the full verbatim replay table + a criterion-by-criterion table + sector distribution (baseline 4.73 vs sector-neutral 10.0 distinct GICS). |
+| log-last | PASS | `handoff/harness_log.md` has ZERO 51.2 entries; masterplan 51.2 `status=pending`. Main logs + flips AFTER this PASS, in the correct order. |
+| no verdict-shopping | PASS | No prior 51.2 verdict exists (earlier instance never wrote one -- evidence is UNCHANGED and complete, not a different opinion on a CONDITIONAL). First verdict. 0 prior consecutive CONDITIONALs. |
 
-## 2. Deterministic checks (reproduced)
+## 2. Deterministic checks (reproduced verbatim)
 
 ```
-$ python -m pytest backend/tests/test_phase_51_1_secretstr.py -q
-.......                                                                  [100%]
-7 passed in 0.16s
+$ python -m pytest backend/tests/test_phase_51_2_sector_div.py -q
+....                                                                     [100%]
+4 passed in 0.22s
 
-$ python -c "import ast; ast.parse(open('backend/agents/llm_client.py').read())"
-llm_client.py SYNTAX OK
+$ python -c "import ast; ast.parse(screener.py); ast.parse(autonomous_loop.py)"
+AST OK
 
-$ test -f handoff/current/live_check_51.1.md
+$ test -f handoff/current/live_check_51.2.md
 live_check present
 ```
 
-Independent QA proof (I constructed the boundary myself, did NOT trust Main):
+Independent byte-identity check (criterion #3 -- I constructed this myself, did
+NOT trust Main's test): ranked a 6-row single-sector screen with vs without the
+`sector` field, `sector_neutral=False`:
 ```
-ClaudeClient(SecretStr('sk-ant-z'))._api_key -> 'sk-ant-z', isinstance str, no get_secret_value, != '**********'
-ClaudeClient(api_key='plain')._api_key       -> 'plain'  (no double-unwrap)
-make_client('claude-haiku-4-5', None, settings-with-SecretStr)._api_key -> str
-=> INDEPENDENT QA PROOF OK
+OFF byte-identical: True
 ```
-
-Regression sweep:
-```
-$ pytest test_anthropic_fallback.py test_claude_code_client.py test_phase_31_1_fixes.py -q
-22 passed
-```
-(Main also ran test_phase_37_3_budget_tokens -> 32 passed, 1 xfailed; xfail is pre-existing, not introduced here.)
+=> the OFF (default-live) ranking is unaffected by the presence of the sector
+field. The working US momentum core is untouched when the flag is OFF.
 
 ## 3. The 4 IMMUTABLE success criteria
 
-**Criterion 1 -- the 4 overlays pass a plain str (not SecretStr): PASS.**
-All 4 sites now read `anthropic_key = unwrap_secret(getattr(settings,"anthropic_api_key",""))`:
-`news_screen.py:261`, `macro_regime.py:429`, `pead_signal.py:250`, `meta_scorer.py:168`
-(grep-verified; the old `... or ""` truthiness footgun is gone at all four). `test_overlay_services_pass_str_to_claudeclient` (test:64-78) mirrors the exact idiom on a `SecretStr("sk-ant-live")` setting and asserts the resolved key is `str`, equals the real value, and `!= '**********'`. The SDK header can no longer receive a SecretStr.
+**Criterion 1 -- candidates carry a sector AT rank time; no-op fixed: PASS.**
+The no-op was GENUINE: `rank_candidates` regroups on `(s.get("sector") or "").strip()
+or "_UNKNOWN_"` (`screener.py:452`); with no `sector_lookup`, every candidate hit
+`_UNKNOWN_`, fell into one `global_pool` (`:458-459`), got a monotone percentile
+transform -> identical sort to OFF. The fix:
+- NEW `build_sector_map(tickers)` (`screener.py:64-88`) -> `{ticker: GICS sector}`
+  from the Wikipedia S&P 500 table; intl/.DE/.KS -> `""` (global-pool fallback).
+- `screen_universe` now attaches `row["sector"]` at screen time (`screener.py:233-239`,
+  handling both dict and str lookup forms -- `build_sector_map` returns str values,
+  caught at `:238-239`) BEFORE `rank_candidates` runs.
+- `test_flag_on_spreads_across_sectors` proves the ON basket now spreads across >=2
+  sectors and surfaces the best Health name via within-sector percentile;
+  `test_flag_on_requires_sectors_to_work` documents the prior bug. The lever is
+  genuinely functional, not a stub. NOT a dodge.
 
-**Criterion 2 -- ClaudeClient.__init__ self-unwraps; no-op for plain str: PASS.**
-`llm_client.py:1243` `self._api_key = unwrap_secret(api_key)`. `test_claude_client_self_unwraps_secretstr` (test:43-48) proves SecretStr->str; `test_claude_client_plain_str_no_double_unwrap` (test:51-54) proves a plain str passes through unchanged. Mechanism is double-unwrap-safe by construction: `unwrap_secret` (`:32-45`) only calls `.get_secret_value()` when `hasattr(v,"get_secret_value")` -- a plain str lacks that attr, so it returns unchanged; and `get_secret_value()` returns a str which also lacks the attr, so it cannot be unwrapped twice.
+**Criterion 2 -- backtest compares ON vs OFF + reports the tradeoff: PASS.**
+`scripts/ablation/sector_neutral_replay.py` is a SOUND A/B:
+- Calls the PRODUCTION `rank_candidates` (imported `:23`). Both configs share the
+  IDENTICAL `rows` (`screen_data`); the ONLY delta is `sector_neutral=sn` (`:170`).
+- Forward returns are CAUSAL: `build_screen_row` uses prices up to AND INCLUDING
+  the rebalance date (`:67-68, :164` -> `iloc[win_lo:t_idx+1]`); `basket_fwd_return`
+  realizes at `t_idx + horizon` (t+21, `:104-106`). No lookahead.
+- 48 monthly rebalances 2022-2025, 503 S&P 500 tickers, top_n=10, equal-weight.
+- Result (verbatim, reproduced in `live_check_51.2.md`):
+  ```
+  baseline        ann_Sharpe 1.388  fwd 4.054%  sectors 4.73  turnover 0.555
+  sector_neutral  ann_Sharpe 1.223  fwd 2.666%  sectors 10.0  turnover 0.638
+  vol_scaled      ann_Sharpe 1.403  fwd 2.045%  sectors 4.73  turnover 0.555
+  sector_neutral vs baseline: dSharpe=-0.166, dSectors=+5.27 -> KEEP? False
+  ```
+  HARD sector-neutral doubles breadth (+5.27 GICS) but COSTS -0.166 Sharpe + ~1.4%/mo
+  return + more turnover. The tradeoff is REPORTED, evidence-based, not assumed. The
+  Harvey et al. long-only caveat (~22% of long-only trials favor neutralizing) is now
+  confirmed on pyfinagent's OWN universe. **A sound NEGATIVE result satisfies #2.**
 
-**Criterion 3 -- $0 unit test proves the boundary str; US pure-quant path unchanged: PASS.**
-7 `$0`, no-network tests (ctors defer SDK instantiation to `_get_client`, so construction is free). US byte-identity: `make_client` (`:1913`) still unwraps BEFORE constructing ClaudeClient -- so every existing make_client caller (the live US pure-quant Claude path, when used) is unchanged; my independent proof confirmed `make_client(...,settings-with-SecretStr)._api_key` is a str. Scope diff (`git diff --name-only`) touches ONLY `llm_client.py` + the 4 overlay services + the new test -- NO `paper_trader`, `kill_switch`, `risk_engine`, `screener`, `decide_trades`, `perf_metrics`, or `backtest_engine`. The overlays are additive Signal-Stack flags; the live US screener (momentum/RSI/vol, $0 LLM) imports none of them.
+**Criterion 3 -- config-gated; does NOT regress the US momentum core: PASS.**
+The wiring at `autonomous_loop.py:377-388` sets `_sector_lookup = None` and ONLY builds
+the map when `sector_neutral_momentum_enabled` OR `multidim_momentum_enabled` is True.
+Flag OFF (default) -> `sector_lookup=None` -> `screen_universe` is called EXACTLY as
+before AND there is no Wikipedia fetch on the live path (zero added live latency). Both
+the project's `test_flag_off_is_byte_identical_with_or_without_sector` AND my independent
+6-row check confirm the OFF ranking is byte-identical. No `paper_trader` / `kill_switch`
+/ `risk_engine` / `decide_trades` / `perf_metrics` / `backtest_engine` touched (diff =
+`screener.py` + `autonomous_loop.py` + new test + new ablation script). NO live flag flip.
 
-**Criterion 4 -- live_check records the $0 proof; live cycle only if LLM-spend approved: PASS ($0 leg).**
-`live_check_51.1.md` records the full $0 proof (the truthiness bug, the `str()` mask footgun avoided, the stored `_api_key` type assertion, make_client unchanged, sibling self-unwrap, no-double-unwrap) plus a criterion-by-criterion table. The live paid-cycle confirmation is correctly FLAGGED operator-LLM-spend-gated and NOT run -- consistent with CLAUDE.md ("LLM API costs require Peder's explicit approval") and the contract's `$0 LLM` GENERATE constraint. The $0 type-assertion is sufficient gate evidence for criteria 1-3 (see Adversarial 4 below).
+**Criterion 4 -- live_check records the ON-vs-OFF comparison + sector distribution: PASS.**
+`live_check_51.2.md` records the full verbatim replay table (the ON-vs-OFF Sharpe/return/
+turnover comparison), the resulting sector distribution (baseline 4.73 vs sector-neutral
+10.0 distinct GICS), a criterion-by-criterion table, and the OFF-stays decision. No live
+flag flip (correctly deferred to a future evidence-gated operator-confirmed step).
 
 ## 4. Adversarial LLM judgment
 
-- **str() footgun (pydantic #4217) -- AVOIDED.** `unwrap_secret` (`:45`) uses `v.get_secret_value() if hasattr(v,"get_secret_value") else str(v)`. The `str(v)` branch is reached ONLY for non-SecretStr values (where `str()` is safe). A SecretStr always takes the `get_secret_value()` branch, so it NEVER renders as `'**********'`. `test_unwrap_secret_on_secretstr_uses_real_value_not_mask` (test:25-27) explicitly asserts `!= _MASK`. My independent proof re-confirmed `_api_key != '**********'`. The masking footgun cannot silently inject a 401.
-
-- **Double-unwrap / US regression -- PROVEN NONE.** Self-unwrap is guarded by `hasattr`; a plain str passes through (test:51-54 + my proof). The old local `_unwrap` closure in `make_client` was REMOVED (git diff shows the `-def _unwrap` block deleted) and replaced by the module-level helper -- no divergent duplicate. The 2 already-guarded sites (`call_transcript_gpr.py:90-93`, `analyst_narrative_scorer.py:107-113`) were NOT touched (`git diff --stat` empty for both files) and still hold their own `hasattr...get_secret_value` unwrap -- their residual `... or ""` is benign because the per-site unwrap runs on the very next lines. No site double-unwraps.
-
-- **Over-claim on the live cycle -- NOT over-claimed.** Main did NOT run a paid cycle and says so plainly (experiment_results "Operator decision flagged"; live_check "NOT run here"). A type assertion (`isinstance(_api_key, str)` + value equality + `!= mask`) CANNOT be hidden by masking (logs mask the wrapper AND the plaintext identically -- only the type distinguishes them), so the $0 proof substantiates criteria 1-3 rigorously. This is the correct, honest $0-first discipline, not hand-waving.
-
-- **Scope honesty / US engine untouched -- CONFIRMED.** Diff is minimal and surgical (3 ctor self-unwraps in llm_client + 4 one-line edge unwraps + 1 new test file). No risk guard, kill-switch, position-sizing, or perf-metrics path altered. No secret literal in the diff (test uses a fake `sk-ant-test`/`sk-ant-live`). The defense-in-depth extension to OpenAIClient (`:1107`) and BatchClient (`:1804`) is a no-op for the str those receive (test:57-61), a cheap consistent hardening, not a behavior change.
+- **Is the wiring a dodge to dress up a no-result? NO.** I traced the full chain from
+  source: `build_sector_map` -> `screen_universe` attaches `row["sector"]` (`:233-239`)
+  -> `rank_candidates` within-sector regroup (`:448-472`). The ON path genuinely groups
+  within-sector now; the no-op is fixed (proven by `test_flag_on_spreads_across_sectors`).
+  The measurement is real, not a placeholder.
+- **Is the A/B confounded? NO.** Identical `screen_data` for both arms; sole delta is
+  `sector_neutral=`. Causal forward returns (t+21/t). Real production ranker.
+- **Survivorship caveat -- disclosed and non-fatal.** The replay uses today's S&P 500
+  membership (survivorship bias). BUT the bias hits BOTH arms equally, and criterion #2
+  is about the sector-neutral-vs-baseline DELTA, not the absolute Sharpe. The -0.166
+  delta is robust to a bias that affects both arms identically. Contract line ack'd the
+  ML engine can't measure this and a new replay was justified. Honest scope.
+- **Over-claim check -- NONE.** experiment_results + live_check both lead with the
+  NEGATIVE result and say the flag stays OFF. No "sector-neutral wins" spin. The
+  vol_scaled +0.015 is correctly called "not compelling," not oversold. Honest reporting.
+- **Scope honesty -- CONFIRMED.** Diff is minimal and surgical. No risk-guard, sizing,
+  kill-switch, or perf-metrics path altered. No live trading change.
 
 ## 5. Code-review heuristics (5 dimensions evaluated)
 
-No BLOCK/WARN/NOTE fired. secret-in-diff: clean (fake test key only). No execution-path / kill-switch / stop-loss / perf-metrics / risk-guard code touched (Dimension 2 N/A by scope). No financial-math file in diff -> financial-logic-without-behavioral-test N/A. Tests are behavioral, not tautological (assert real unwrap values + type + `!= mask`, no `assert x==x`, no over-mocking of the module under test). No sycophancy/verdict-shopping (first verdict, evidence unchanged).
+No BLOCK/WARN fired.
+- **Dimension 1 (security):** secret-in-diff clean (URLs + UA strings only, no
+  credentials). No command/SQL/path injection sinks. `build_sector_map` fetches a
+  fixed Wikipedia URL (`SP500_URL`), not an LLM-generated URL -> no SSRF.
+- **Dimension 2 (trading-domain):** N/A by scope -- no execution-path file touched.
+  kill-switch / stop-loss / max-position / paper-trader-broad-except all N/A.
+  perf-metrics-bypass: the replay computes a RESEARCH-only basket Sharpe in a $0
+  ablation script (`scripts/ablation/`, mirroring `run_ablation.py`), NOT in the live
+  `services/perf_metrics.py` P&L path -> the single-metric-source rule (which governs
+  live Sharpe/drawdown/alpha) is not violated; NOTE-level at most.
+- **Dimension 3 (code quality):** `autonomous_loop.py:382` `except Exception as e:`
+  LOGS (`logger.warning`) and degrades to the global pool -- it is in the sector-map
+  BUILD path, NOT a risk/execution path, so broad-except-silences-risk-guard does NOT
+  apply; the catch is intentional graceful degradation. Logger strings are ASCII
+  (`->`, `--`). NOTE at most, not a degrade.
+- **Dimension 4 (anti-rubber-stamp):** financial-logic-without-behavioral-test does NOT
+  fire -- the ranking change ships WITH a new behavioral test file exercising both OFF
+  byte-identity and ON spread. No tautological assertions; no over-mocking (tests assert
+  real ranked orders on the production function).
+- **Dimension 5 (LLM-evaluator anti-patterns):** first verdict, evidence unchanged ->
+  no sycophancy / no second-opinion-shopping / no criteria-erosion. Every criterion
+  above is backed by a file:line citation or reproduced command output.
 
 ## Verdict
 
-**PASS.** The root cause is genuinely fixed at the ClaudeClient boundary (covers all 4 overlays + the latent SkillFileIdCache/sibling paths), the `str()` mask-injection footgun is explicitly avoided via `get_secret_value()`, there is no double-unwrap and no US pure-quant regression (proven by test + my independent construction), and the $0 type-assertion proof substantiates criteria 1-3 (a type assertion cannot be hidden by masking). The live paid-cycle leg of criterion 4 is correctly operator-gated and out of scope for the $0 GENERATE. All 5 harness-compliance items pass; log-last order is intact.
+**PASS.** This is the correct, rigorous outcome of a measure-first step. The wiring
+(criterion #1) is GENUINELY built -- `build_sector_map` + the gated `sector_lookup=`
+attach at screen time fixes a real silent no-op (proven by the ON test, traced from
+source). The measurement (criterion #2) is a SOUND A/B on the production ranker with
+causal forward returns over 48 rebalances; it honestly reports that HARD sector-neutral
+HURTS long-only Sharpe (-0.166), confirming the Harvey et al. caveat on our own universe
+-- and a sound negative result SATISFIES criterion #2 (the criterion asks for a comparison
++ tradeoff report, not a win). The change is config-gated and byte-identical when OFF
+(criterion #3, proven by both the project test and my independent construction); the
+working US momentum core is untouched and there is NO live flag flip. live_check records
+the comparison + sector distribution (criterion #4). All 5 harness-compliance items pass;
+log-last order intact; no code-review heuristic fired. "Measure before fixing" prevented
+a Sharpe-reducing regression -- exactly the discipline this step exists to enforce.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 4 immutable criteria met. (1) 4 overlays use unwrap_secret(getattr(...)) -- news_screen.py:261, macro_regime.py:429, pead_signal.py:250, meta_scorer.py:168, the `or \"\"` footgun gone. (2) ClaudeClient.__init__ self-unwraps via unwrap_secret (llm_client.py:1243), no-op for str, no double-unwrap. (3) 7/7 $0 tests + independent QA proof confirm SecretStr->str at the boundary; scope diff touches only llm_client+4 overlays+test, US pure-quant path untouched. (4) live_check_51.1.md records the $0 proof, live cycle correctly operator-gated. str() mask footgun avoided (get_secret_value, test asserts != mask). old _unwrap removed, 2 guarded sites untouched. Deterministic: pytest 7 passed, ast.parse OK, regression 22 passed, INDEPENDENT QA PROOF OK.",
+  "reason": "All 4 immutable criteria met. (1) Wiring is genuinely built, not a dodge: build_sector_map (screener.py:64) + screen_universe attaches row['sector'] at screen time (screener.py:233-239) BEFORE rank_candidates -> the silent no-op (every candidate _UNKNOWN_ -> one global pool -> monotone -> OFF-identical) is fixed; test_flag_on_spreads_across_sectors proves the ON basket spreads >=2 sectors. (2) Sound A/B: scripts/ablation/sector_neutral_replay.py calls the production rank_candidates with IDENTICAL screen_data for both arms (sole delta sector_neutral=), causal fwd returns t+21/t, 48 rebalances x 503 tickers -> HARD sector-neutral HURTS Sharpe (1.388->1.223, -0.166) while doubling breadth (4.73->10.0 GICS); negative-but-rigorous result SATISFIES the comparison+tradeoff criterion. (3) Config-gated: flag OFF (default) -> _sector_lookup=None -> screen_universe byte-identical + no Wikipedia fetch on live path; project test + my independent 6-row check both confirm OFF ranking unchanged; no paper_trader/kill_switch/risk_engine/perf_metrics/decide_trades/backtest_engine touched; no live flag flip. (4) live_check_51.2.md records the ON-vs-OFF table + sector distribution (4.73 vs 10.0 GICS). Deterministic: pytest 4 passed, AST OK, live_check present, INDEPENDENT byte-identity True. Survivorship caveat disclosed and non-fatal (hits both arms equally; the delta is what matters). Two research briefs gate_passed; contract criteria VERBATIM; log-last intact; first 51.2 verdict (0 prior CONDITIONALs); no code-review heuristic fired.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "syntax", "verification_command", "independent_qa_proof", "regression_sweep", "code_review_heuristics", "research_brief", "contract_verbatim_match", "experiment_results", "live_check", "scope_diff"]
+  "checks_run": ["harness_compliance_audit", "syntax", "verification_command", "independent_byte_identity_proof", "contract_verbatim_match", "wiring_source_trace", "replay_ab_soundness_review", "experiment_results", "live_check", "scope_diff", "code_review_heuristics"]
 }
 ```

@@ -366,9 +366,26 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     _paper_markets, len(universe), len(intl), _dropped,
                 )
 
+            # phase-51.2: give candidates a sector AT rank time so the (already-wired)
+            # sector-neutral lever is functional -- enrichment used to run AFTER ranking
+            # (autonomous_loop ~:659), making the within-sector path a silent no-op.
+            # GATED on the flag so the OFF-default live path is BYTE-IDENTICAL (no map
+            # build, sector_lookup=None -> identical to the prior call). Measured
+            # 2026-06-01 (scripts/ablation/sector_neutral_replay.py): HARD sector-neutral
+            # HURTS long-only Sharpe (-0.166), so the flag stays OFF; this keeps the lever
+            # live-measurable for a future SOFT-tilt variant.
+            _sector_lookup = None
+            if getattr(settings, "sector_neutral_momentum_enabled", False) or getattr(settings, "multidim_momentum_enabled", False):
+                try:
+                    from backend.tools.screener import build_sector_map
+                    _sector_lookup = build_sector_map(universe)
+                except Exception as e:
+                    logger.warning("phase-51.2: sector map build failed (%s); sector-aware path falls back to global pool", e)
+
             screen_data = screen_universe(
                 tickers=universe,
                 period="6mo",
+                sector_lookup=_sector_lookup,
                 short_interest_lookup=short_interest_lookup or None,
                 short_interest_threshold=getattr(settings, "short_interest_threshold", 0.10),
             )
