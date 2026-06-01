@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-01 | `4fec7c70` | feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco |
 | 2026-06-01 | `8d5fa076` | feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line |
 | 2026-06-01 | `a7750d44` | fix(cron): phase-54.1 cross-layer cron audit + paper_markets parse fix (operator-away) |
 | 2026-06-01 | `ae13ddcf` | Merge remote-tracking branch 'origin/main' |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `6f86c5ed` | phase-51.1: SecretStr unwrap -- resurrect 4 dead LLM alpha overlays. news_screen/macro_regime/pea... |
 | 2026-05-31 | `3377d826` | phase-50.5: Backtest multi-market -- per-market benchmark (^GDAXI / ^KS11), FX-converted NAV in t... |
 | 2026-05-30 | `113fec3e` | docs(handoff): session-final summary -- 7 cycles shipped, phase-50 4/6 + 50.5 planned |
-| 2026-05-30 | `4290c82d` | phase-50.5: PLAN (GENERATE pending) -- data-quality gate + multi-market backtest |
 
 ---
 
+### v6.34.0 — feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + pape... (2026-06-01)
+
+- **feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco**
 ### v6.33.0 — feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/... (2026-06-01)
 
 - **feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line**
