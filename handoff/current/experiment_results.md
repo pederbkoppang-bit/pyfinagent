@@ -1,52 +1,45 @@
-# experiment_results -- phase-52.1: 52-week-high momentum tilt (price-only alpha signal)
+# experiment_results -- phase-52.2: wire the 52wh tilt LIVE (config-gated, default OFF)
 
-**Step:** 52.1 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **NO live engine change** | GENERATE complete
+**Step:** 52.2 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **flag DEFAULT OFF -> byte-identical; NO enable** | GENERATE complete
 
-## Outcome in one line
-Measured the 52-week-high multiplicative tilt (George-Hwang 2004, price-only) ON-vs-OFF on our
-S&P-500 universe via the $0 replay: a **SMALL but real POSITIVE edge at k=0.5 (~+0.05 Sharpe,
-turnover-neutral)**. Recommend ESCALATING k=0.5 to a live operator gate. The first measured alpha
-WIN of the element-2-redirect arc (after rotation + sector-neutral were both measured-and-rejected).
-
-## What was changed (replay-only; NO live-engine file touched)
+## What was changed (the 52.1-measured edge -> production-ready, gated, reversible)
 
 | File | Change |
 |------|--------|
-| `scripts/ablation/sector_neutral_replay.py` | `build_screen_row` adds `pct_to_52w_high` (= `last / 252d-rolling-max`, George-Hwang price-only). `win_lo` 200->260 (>=252d for the high). NEW `hi52_tilt_basket(ranked_all, k, top_n)` helper -- re-ranks the PRODUCTION-composite-scored rows by a CENTERED multiplicative tilt `composite * (1 + k*(pct_to_52w - mean))`. Two configs measured: `hi52_k0.5`, `hi52_k1.0`. Results table + a 52.1 verdict (keep if dSharpe>=+0.05 AND dTurnover<=+10%). |
-| `backend/tests/test_phase_52_1_alpha_signal.py` | **NEW** 5 tests: tilt breaks ties toward higher-52wh; centered (no change when all-equal-pct); gentle k can't overturn a big composite gap; handles missing pct; `pct_to_52w_high` feature math. |
+| `backend/tools/screener.py` | NEW `_apply_52wh_tilt(scored, k)` helper (centered multiplicative 52wh tilt on composite_score, mean over non-None pct_to_52w_high, missing->1.0, writes composite_score_raw) -- mirrors the 52.1 `hi52_tilt_basket` EXACTLY. Added kwargs `momentum_52wh_tilt=False, momentum_52wh_tilt_k=0.5` to `rank_candidates`; gated post-pass `if momentum_52wh_tilt and scored: _apply_52wh_tilt(...)` inserted after the sector_neutral block, before the final sort (:473). |
+| `backend/config/settings.py` | NEW `momentum_52wh_tilt_enabled: bool = Field(False)` + `momentum_52wh_tilt_k: float = Field(0.5)` (beside the multidim flags). |
+| `backend/services/autonomous_loop.py:655` | the (only) live `rank_candidates` caller now passes `momentum_52wh_tilt`/`_k` from settings (default OFF). |
+| `backend/tests/test_phase_52_2_live_tilt.py` | NEW 5 tests: OFF byte-identity (+ no composite_score_raw witness); ON tilts toward 52wh; LIVE basket == 52.1 hi52_tilt_basket; missing-pct no-op. |
+| `backend/tests/test_phase_50_3_universe.py:46` | FIXED a go-live regression: assert the CODE DEFAULT (`Settings.model_fields['paper_markets'].default_factory()==['US']`) instead of `get_settings()` (which the go-live `.env` override correctly made ['US','EU','KR']). |
 
-## The measurement (criterion #1/#2)
-```
-config            ann_Sharpe   avg_fwd_mo%  avg_turnover
-baseline               1.388         4.054         0.555
-hi52_k0.5              1.439         4.103         0.551   -> dSharpe +0.051, dTurnover -0.004  KEEP
-hi52_k1.0              1.436         4.075         0.564   -> dSharpe +0.047, dTurnover +0.009  (borderline)
-(sector_neutral 1.220 / vol_scaled 1.403 carried from 51.2 for context)
-```
-- **k=0.5 PASSES** the gate (+0.051 Sharpe, turnover-neutral); k=1.0 is borderline (+0.047) -> use the gentle k=0.5; the k-monotonicity (k=0.5 > k=1.0) argues against over-tilting/over-tuning.
-- **Honestly small + noisy:** a preview run showed +0.057/+0.054; this run +0.051/+0.047 (live-yfinance drift). True edge ~+0.05 ann Sharpe -- modest, exactly the Barroso-Wang large-cap-mute prediction (52wh helps but is muted on large caps). NOT a game-changer; reported without overselling.
-
-## Research basis (gate PASSED)
-`research_brief.md` (researcher `a99666872066bb1fe`, 7 sources, gate_passed). 52wh chosen as the MEASURE-FIRST pick (already-implemented formula + one-line replay change); residual momentum (Blitz-Huij-Martens) is the higher-evidenced runner-up (bigger build) if 52wh measured flat. Echo/skip-month CONTRAINDICATED ("Echo disappears" 2023). Over-tuning guarded (k a priori, not swept).
+## pct_to_52w_high needed no threading
+Already computed in `screen_universe`'s per-ticker loop (screener.py:210-214) + set on every row (:228) for all screened names -> flows to rank_candidates at rank time. Confirmed by the researcher.
 
 ## Verification command output (verbatim)
 ```
-SYNTAX OK
-$ python -m pytest backend/tests/test_phase_52_1_alpha_signal.py -q
+=== syntax === OK screener.py / settings.py / autonomous_loop.py / test
+$ python -m pytest backend/tests/test_phase_52_2_live_tilt.py -q
 .....                                                                    [100%]
-5 passed in 0.23s
+5 passed in 0.30s
+regression sweep (52.2 + 52.1 + 51.2 + 50.3-universe): 20 passed
 ```
-Full replay -> handoff/current/live_check_52.1.md.
+Live proof (-> live_check_52.2.md): settings default OFF; OFF order == explicit-False (byte-identical); OFF writes no composite_score_raw; ON (k=0.5) tilts toward 52wh (order changes).
 
-## Scope / safety (criterion #3)
-- **NO live engine change.** Diff = the replay script + the new test ONLY. screener.py / autonomous_loop / decide_trades / risk guards UNTOUCHED. The tilt is replay-side post-processing of the production composite.
-- If escalated: the live wiring (a `strategy="momentum_52wh"` overlay, default-OFF) is a SEPARATE operator-gated step.
+## Byte-identity / safety (criterion #2/#3)
+- Flag DEFAULT OFF -> the gated post-pass is skipped -> rank_candidates is BYTE-IDENTICAL -> the live +20% engine is UNCHANGED after this step.
+- The OFF path writes no `composite_score_raw` (the witness that the pass never ran).
+- The LIVE tilt logic == the 52.1-measured `hi52_tilt_basket` (test-proven) -> an enable would deliver the measured +0.05.
+
+## The go-live regression fix (transparent, not rigging)
+`test_paper_markets_default_is_us_only` asserted the EFFECTIVE `get_settings().paper_markets`, which the operator-authorized go-live `.env` override (PAPER_MARKETS=['US','EU','KR']) correctly changed. Fixed it to assert the CODE DEFAULT (still ['US']) -- the faithful byte-identity invariant (default US-only; multi-market is an explicit opt-in). The invariant holds; this corrects a test that conflated default with effective.
 
 ## Artifact shape
-- `hi52_tilt_basket(ranked_all, k, top_n, mean_pct=None) -> [ticker]`
-- `build_screen_row(...)["pct_to_52w_high"]` (price-only, (0,1])
+- `_apply_52wh_tilt(scored, k) -> None` (in-place centered tilt)
+- `rank_candidates(..., momentum_52wh_tilt=False, momentum_52wh_tilt_k=0.5)`
+- settings: `momentum_52wh_tilt_enabled` (False), `momentum_52wh_tilt_k` (0.5)
 
-## Recommendation / next
-- **ESCALATE k=0.5 to a live operator gate** (a small, turnover-neutral, research-backed momentum overlay; honest ~+0.05 Sharpe edge -- operator weighs it vs wiring complexity).
-- RUNNER-UP: residual momentum (52.2) for a larger edge.
-- MEASURE Monday's first multi-market cycle before stacking live changes.
+## DEFERRED enable (NOT done; operator-gated, post-Monday)
+Enable = `MOMENTUM_52WH_TILT_ENABLED=true` in backend/.env + backend restart. Caveats: DSR-deflate the +0.05 (1-of-5 configs); confirm OOS post-Monday; k=0.5 (milder/plateau). Reversible.
+
+## Session position
+phase-52 (element-2 redirect / north-star #4): 52.1 measured the edge, 52.2 productionized it (gated). The measured momentum edge is now a one-flag-reversible live lever, ready to enable after Monday's multi-market baseline. Remaining: enable decision (operator), 52.3 residual momentum (bigger edge, optional), calendar_events, 50.6 UI, MEASURE Monday.

@@ -44,7 +44,12 @@ def test_kr_codes_keep_leading_zeros():
 
 # ── criterion #3: paper_markets default byte-identical ──────────────
 def test_paper_markets_default_is_us_only():
-    assert get_settings().paper_markets == ["US"]
+    # phase-52.2: assert the CODE DEFAULT, not get_settings() -- the operator's 2026-06-01
+    # go-live flip set PAPER_MARKETS=['US','EU','KR'] in backend/.env (a deliberate deployment
+    # opt-in). The byte-identity invariant is that the code DEFAULT is US-only, so multi-market
+    # requires an explicit opt-in; get_settings() correctly reflects the live .env override.
+    from backend.config.settings import Settings
+    assert Settings.model_fields["paper_markets"].default_factory() == ["US"]
 
 
 def test_trade_order_market_defaults_us():

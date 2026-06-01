@@ -653,6 +653,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     "sue":      getattr(settings, "multidim_momentum_weight_sue", 0.20),
                     "sector":   getattr(settings, "multidim_momentum_weight_sector", 0.20),
                 },
+                # phase-52.2: 52wh tilt (default OFF -> byte-identical; enable is operator-gated)
+                momentum_52wh_tilt=getattr(settings, "momentum_52wh_tilt_enabled", False),
+                momentum_52wh_tilt_k=getattr(settings, "momentum_52wh_tilt_k", 0.5),
                 options_surge_signals=options_surge_signals or None,
                 insider_signals=insider_signals or None,
                 narrative_signals=narrative_signals or None,

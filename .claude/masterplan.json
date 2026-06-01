@@ -13835,6 +13835,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "52.2",
+          "name": "Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) into the LIVE screener.rank_candidates as a CONFIG-GATED overlay (momentum_52wh_tilt_enabled, default OFF -> byte-identical). The ENABLE (flag flip) is DEFERRED to a separate post-Monday-baseline operator action -- this step changes NO live behavior (flag default OFF), it only makes the measured edge production-ready + tested + reversible.",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "52.1",
+          "audit_basis": "52.1 measured the 52wh tilt at +0.05 ann Sharpe (turnover-neutral, k=0.5) on the S&P-500 replay. This step productionizes it as a config-gated overlay so it can be enabled with a single reversible flag AFTER Monday's multi-market baseline is measured -- honoring the operator's #1 constraint (don't regress the working +20% engine; measure before fixing). Mirrors the existing sector_neutral/multidim gated-kwarg pattern (default OFF). Enable is NOT in this step.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_52_2_live_tilt.py -q 2>&1 | tail -3 && python -c \"import ast; ast.parse(open('backend/tools/screener.py').read()); ast.parse(open('backend/services/autonomous_loop.py').read())\" && test -f handoff/current/live_check_52.2.md",
+            "success_criteria": [
+              "screener.rank_candidates gains a config-gated 52wh-tilt post-pass (centered multiplicative tilt, k from settings) that reproduces the 52.1 replay's ranking logic; the live momentum composite is otherwise unchanged",
+              "with the flag OFF (default), rank_candidates is BYTE-IDENTICAL to today (the tilt post-pass is skipped) -- proven by a test asserting identical ranked order with the flag off; the working US engine is NOT regressed",
+              "the flag is plumbed from settings (momentum_52wh_tilt_enabled default False) through autonomous_loop's rank_candidates call; NO flag flip in this step (enable is a separate operator-gated action)",
+              "live_check_52.2.md records the byte-identity proof (flag OFF) + the tilt-active behavior (flag ON) + the deferred-enable plan"
+            ],
+            "live_check": "REQUIRED -- byte-identity proof (flag OFF) + tilt-active proof (flag ON) + the deferred-enable plan; NO flag flip."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

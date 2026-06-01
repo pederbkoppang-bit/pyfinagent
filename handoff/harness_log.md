@@ -26150,3 +26150,34 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Scope honesty:** NO live engine change -- the tilt is replay-side post-processing; screener.py/autonomous_loop/decide_trades/risk-guards UNTOUCHED. The edge is SMALL (~+0.05 Sharpe at k=0.5) + noisy run-to-run + on the threshold (k=1.0 borderline) -- reported honestly, not oversold (Barroso-Wang large-cap mute confirmed: real but modest). NEXT (operator-gated): wire the k=0.5 52wh tilt live as a `strategy="momentum_52wh"` overlay (default-OFF, operator-approved) -- a separate step; OR escalate to residual momentum (52.2) for a larger edge. STILL pending: MEASURE Monday's first multi-market cycle (14:00 UTC) before stacking live changes; calendar_events; 50.6 UI.
 
 ---
+
+## Cycle 29 (element-2 redirect / north-star #4) -- 2026-06-01 -- phase=52.2 result=PASS
+
+**Step:** Wire the 52.1-measured 52wh momentum tilt into the LIVE screener.rank_candidates as a CONFIG-GATED overlay, DEFAULT OFF (byte-identical). The enable (flag flip) is DEFERRED to a separate post-Monday-baseline operator action. Productionizes the +0.05-Sharpe edge as a one-flag-reversible lever WITHOUT changing live behavior. $0 LLM, no pip, NO flag flip.
+
+**Research:** `researcher a4a60b262ce3351b7` gate PASSED (tier moderate; 6 sources read in full, 15 URLs, recency scan, 4 internal files). Decisive (all file:line confirmed): insertion at screener.py:473 (after sector_neutral, before the sort); flag/kwarg pattern mirrors multidim_momentum (default False -> byte-identical); pct_to_52w_high already on every screen_universe row (:228, no threading); the single live caller is autonomous_loop.py:638. Reassuring for a long-only book: crowded MOMENTUM has LOWER crash risk (0.38x), unlike reversal factors (arXiv 2512.11913). Enable-decision risk (alpha decay; +0.05 is 1-of-5 -> DSR-deflate) belongs to the DEFERRED enable, not this step.
+
+**Generate:** screener.py NEW `_apply_52wh_tilt(scored,k)` (centered multiplicative tilt, mirrors the 52.1 hi52_tilt_basket EXACTLY; writes composite_score_raw as the OFF-witness) + kwargs `momentum_52wh_tilt=False, momentum_52wh_tilt_k=0.5` + gated post-pass before the sort. settings.py `momentum_52wh_tilt_enabled`(False) + `_k`(0.5). autonomous_loop.py:656-658 plumbs the flag (default OFF). test_phase_52_2_live_tilt.py (5 tests: OFF byte-identity + no-raw-witness; ON tilts toward 52wh; LIVE basket == 52.1 hi52_tilt_basket; missing-pct no-op). ALSO fixed a go-live regression: test_phase_50_3_universe.py::test_paper_markets_default_is_us_only now asserts the CODE DEFAULT (Settings.model_fields default_factory ['US']) instead of get_settings() (which the go-live .env override correctly made ['US','EU','KR']). 5/5 + 15-test regression green.
+
+**Q/A:** fresh `a1be4d1aae7e2f069` = **PASS** (`ok:true`, zero violated_criteria; full critique + JSON via WRITE-FIRST). INDEPENDENTLY reproduced byte-identity TWO ways (OFF==explicit-False order + no composite_score_raw witness); confirmed ON == the 52.1 hi52_tilt_basket (test loads the replay by path); single live call-site, flag OFF at runtime (NO flip); scope isolated (screener+settings+autonomous_loop 1-call-site+2 tests; no decide_trades/risk_engine/kill_switch/paper_trader); 15/15 regression green; no code-review BLOCK/WARN. **TEST-FIX JUDGED LEGITIMATE (not rigging):** code default still ['US'], get_settings() returns the real ['US','EU','KR'] go-live override -> the edit tightens the assertion to the correct surface (code default = what the test name claims), it doesn't mask a regression. A prior 52.2 qa instance truncated at PENDING (its two flags -- contract-verbatim + a feared 2nd call-site -- were false alarms, both pre-resolved); fresh respawn (no prior verdict, evidence unchanged).
+
+**Scope honesty:** flag DEFAULT OFF -> the live +20% engine is BYTE-IDENTICAL after this step (the tilt is dormant until an explicit enable). The LIVE tilt logic is proven == the 52.1-measured logic (an enable delivers the measured +0.05, correct sign). **ENABLE = DEFERRED, operator-gated:** set MOMENTUM_52WH_TILT_ENABLED=true in .env + restart, AFTER Monday's multi-market baseline + DSR-deflation of the +0.05 (1-of-5 configs). Reversible. NEXT: the enable decision (operator, post-Monday); 52.3 residual momentum (bigger edge, optional); calendar_events; 50.6 UI; MEASURE Monday's first multi-market cycle.
+
+---
+
+---
+
+## Cycle 1 -- 2026-06-01 05:05 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: [WARN] divergence=6.04% alert=True (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s

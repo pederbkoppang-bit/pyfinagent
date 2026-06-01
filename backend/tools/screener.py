@@ -260,6 +260,8 @@ def rank_candidates(
     sector_momentum_ranks=None,
     multidim_momentum: bool = False,
     multidim_weights: Optional[dict[str, float]] = None,
+    momentum_52wh_tilt: bool = False,
+    momentum_52wh_tilt_k: float = 0.5,
     pead_signals_lookup=None,
     options_surge_signals=None,
     insider_signals=None,
@@ -471,6 +473,13 @@ def rank_candidates(
         if global_pool:
             _apply_pct_rank(global_pool)
 
+    # phase-52.2: 52-week-high momentum tilt (config-gated, DEFAULT OFF -> byte-identical).
+    # A centered multiplicative tilt on composite_score (k=0.5 measured +0.05 ann Sharpe,
+    # turnover-neutral, in phase-52.1). Faithful to scripts/ablation/sector_neutral_replay.py
+    # ::hi52_tilt_basket so the LIVE ranking == the 52.1-measured ranking. Skipped when OFF.
+    if momentum_52wh_tilt and scored:
+        _apply_52wh_tilt(scored, momentum_52wh_tilt_k)
+
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
     return scored[:top_n]
 
@@ -486,6 +495,25 @@ def _zscore(values: list[float]) -> list[float]:
     if std < 1e-9:
         return [0.0] * len(cleaned)
     return [(v - mean) / std for v in cleaned]
+
+
+def _apply_52wh_tilt(scored: list[dict], k: float) -> None:
+    """phase-52.2: in-place CENTERED multiplicative 52-week-high tilt on composite_score.
+    Mirrors scripts/ablation/sector_neutral_replay.py::hi52_tilt_basket EXACTLY so the LIVE
+    ranking == the 52.1-measured ranking. Tilts UP names nearer their 52w high, DOWN names
+    far below it, centered on the universe mean so the average tilt ~= 1.0 (turnover-neutral
+    on average). `pct_to_52w_high` is set on every screen_universe row (screener.py:228); a
+    missing/None pct -> tilt 1.0 (no-op for that name). Preserves the pre-tilt score on
+    composite_score_raw (which also witnesses that this pass ran)."""
+    pcts = [s.get("pct_to_52w_high") for s in scored if s.get("pct_to_52w_high") is not None]
+    if not pcts:
+        return
+    mean_pct = sum(pcts) / len(pcts)
+    for s in scored:
+        p = s.get("pct_to_52w_high")
+        tilt = (1 + k * (p - mean_pct)) if p is not None else 1.0
+        s["composite_score_raw"] = s.get("composite_score")
+        s["composite_score"] = (s.get("composite_score") or 0.0) * tilt
 
 
 def _apply_multidim_momentum(
