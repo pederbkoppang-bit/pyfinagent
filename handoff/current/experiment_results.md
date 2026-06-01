@@ -147,5 +147,33 @@ Mon 14:00 UTC). Therefore:
   (Monday's cycle or a seeded fixture). It is proved deterministically by the Intl check
   above (real module).
 
-Per `.claude/rules/frontend.md` rule 5, this color-coded UI is marked **visual
+Per `.claude/rules/frontend.md` rule 5, this color-coded UI was marked **visual
 verification pending operator review** until one of the above paths runs.
+
+## Visual verification — DONE (2026-06-01, computer-use screenshot, all-US live book)
+Confirmed live at `localhost:3000/paper-trading` (after a `launchctl kickstart` of
+`com.pyfinagent.frontend` — the earlier `npm run build` had clobbered the dev `.next`,
+causing a transient 500; kickstart regenerated the dev build and the route returned 200):
+- **Market filter** renders `All · US · EU · KR` (All selected) with the correct dot
+  colors — US sky, EU amber, KR violet. (#1, #2)
+- **Market-session strip** shows `US CLOSED · EU OPEN · KR CLOSED`, and the states are
+  ACCURATE for the capture time (~13:49 CEST Mon): XETRA open, NYSE + KRX closed. (#6)
+- **Dynamic benchmark label** shows `VS SPY` for the All/US view. (#5)
+- **Market column** on the positions table shows the `● US · NYSE` chip (sky dot + code
+  + short exchange) on every row — NO flag emoji. (#2)
+- **All KPIs + values in USD** (NAV 24,098.52 USD, Cash 15,983.75 USD) — do-no-harm holds.
+- Allocation donut, sector concentration, Risk Monitor all render cleanly; no layout break.
+
+DO-NO-HARM confirmed: US rows render as before. Note the live/animated USD cells
+(CURRENT, MARKET VALUE) show e.g. `880,03 USD` (comma decimal, "USD" suffix) rather than
+`$880.03` — this is PRE-EXISTING legacy behavior, NOT introduced here: the `Dollar` /
+`CurrentPriceCell` USD branch uses NumberFlow with no explicit locale, so it renders in
+the browser locale (this machine is Norwegian `nb-NO` → comma + "USD"). This cycle kept
+that USD branch byte-identical (`locales={undefined}`); the entry/stop `$X.XX` cells were
+always hardcoded. (Optional future polish, out of THIS contract's scope: pin the USD
+NumberFlow path to `en-US` for a consistent `$` — but that intentionally breaks the
+do-no-harm byte-identity, so it's a deliberate product decision, not a bug fix.)
+
+STILL PENDING (cannot be done now): EU/KR € / ₩ row rendering — the live book is all-US
+until Monday's first multi-market cycle (14:00 UTC). Proven deterministically via the Intl
+check above; re-confirm visually once non-US positions exist or via a seeded fixture.
