@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [DoD / PRODUCTION_READY gate (phase-43.0)](project_dod_production_ready_gate.md) — 26-criterion gate (14 backend §6 master_roadmap + 12 UX frontend_ux_master_design); CANT auto-close (operator-typed approval + 5 live-blocked); deterministic-vs-live-blocked split + exact evidence cmds; 2026-06-01: 8/14 PASS (DoD-14 newly closed), 16 env-coupled test failures = watermelon risk (don't claim green suite)
 - [PSR/DSR formulas researched](project_psr_dsr_formulas.md) — Bailey & Lopez de Prado PSR/DSR exact formulas, kurtosis convention, Python pseudocode, anti-patterns for paper_metrics_v2.py
 - [Sharpe-DIFFERENCE test methodology (phase-52.3)](project_sharpe_difference_test_methodology.md) — for a Sharpe IMPROVEMENT (delta) the rigorous test is paired Ledoit-Wolf 2008 + stationary bootstrap, NOT DSR (DSR cant see +0.05 when base also ~1.4); N_eff via clustering; PBO use S=6 at small T; compute_deflated_sharpe/compute_pbo reusable; LW not in repo (add ~50 LOC); McLean-Pontiff haircut
 - [Anthropic agent patterns — retry loops and research-on-demand](project_anthropic_agent_patterns.md) — Exact mechanics for evaluator→generator retry loop and lead-spawns-researcher pattern, mapped to run_harness.py variable names

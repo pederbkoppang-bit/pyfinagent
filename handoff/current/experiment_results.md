@@ -1,72 +1,54 @@
-# Experiment Results — phase-50.6 (Multi-market UI)
+# Experiment Results — phase-43.0 (Production-Ready DoD audit)
 
-**Date:** 2026-06-01. **Status:** complete (3 UI deliverables + settings-API field;
-build/types/tests green; Playwright skip-auth visual verified all three surfaces; gate
-restored).
+**Date:** 2026-06-01. **Status:** audit COMPLETE + honest. Verdict =
+**NOT_PRODUCTION_READY** (backend 8/14, UX 0/12). The step stays **pending** (criteria #1
+all-14-PASS + #4 operator-approval cannot be met autonomously). $0 / read-only.
 
-## What was built (additive; DO-NO-HARM)
+## What was done
 
-- **(a) Backtest scope strip** — `BacktestScopeStrip` (US/USD/SPY chips + mount-guarded
-  `isMarketOpen("US")` badge), mounted under the backtest page title. No change to the
-  US-only pipeline's cells/tables.
-- **(b) Multi-currency NAV-breakdown widget** — `MultiCurrencyNavBreakdown`, client-side
-  groups `positions[].market_value` (USD) by `MARKET_CURRENCY[resolveMarket(...)]` (+ cash
-  on the All view) → per-currency USD + %NAV bar. Mounted on the positions page below the
-  3-card row, scoped to the active market filter.
-- **(c) `paper_markets` settings toggle** — `PaperMarketsField` (native fieldset/legend +
-  US/EU/KR checkboxes; ≥1 enforced), wired into `/paper-trading/manage` Trading settings;
-  persists via `settings_api` (list→CSV→validator round-trip).
+Refreshed the 26-criterion DoD audit (14 backend + 12 UX) with verbatim per-criterion
+definitions + CURRENT-state classification (PASS / LIVE-BLOCKED / OPERATOR-GATED) + the
+exact evidence command per criterion. Ran the cheap deterministic checks ($0, read-only).
+Deliverable: `handoff/current/production_ready_audit_2026-06-01.md`. Operator asks seeded
+in `handoff/current/cycle_block_summary.md`.
 
 ## Files changed
 
 | File | Change |
 |------|--------|
-| `backend/api/settings_api.py` | +`paper_markets` on `FullSettings`/`SettingsUpdate`/`_settings_to_full`/`_FIELD_TO_ENV`; PUT loop serializes lists as CSV. |
-| `backend/tests/test_phase_50_6_settings_paper_markets.py` | NEW — 5 tests (exposure, accept, read, CSV round-trip, single). |
-| `frontend/src/lib/types.ts` | +`paper_markets?: string[]` on `FullSettings`. |
-| `frontend/src/components/MultiCurrencyNavBreakdown.tsx` | NEW widget (client-side currency grouping; JIT-safe dot map). |
-| `frontend/src/components/BacktestScopeStrip.tsx` | NEW US/USD/SPY + market-hours strip (mount-guarded). |
-| `frontend/src/components/paper-trading/cockpit-helpers.tsx` | +`PaperMarketsField` (native checkbox group; never-empty guard). |
-| `frontend/src/app/paper-trading/manage/page.tsx` | import + render `PaperMarketsField`. |
-| `frontend/src/app/paper-trading/positions/page.tsx` | import + mount `MultiCurrencyNavBreakdown`. |
-| `frontend/src/app/backtest/page.tsx` | import + render `BacktestScopeStrip`. |
+| `handoff/current/production_ready_audit_2026-06-01.md` | NEW — the audit deliverable (the masterplan `live_check`). |
+| `handoff/current/cycle_block_summary.md` | NEW — operator asks (43.0 + run-wide). |
+| `handoff/current/{research_brief,contract,experiment_results}.md` | Cycle artifacts (brief restored after the optimizer-cron clobber; cron booted out). |
 
-## Verification output (verbatim)
+## Verification output (verbatim, ran this cycle)
 
 ```
-npx tsc --noEmit                                  -> EXIT_TSC=0
-npx eslint <7 changed files>                      -> EXIT_ESLINT=0 (5 warnings/0 errors; mount-guards)
-npm run build (next build)                        -> GREEN, 24/24 routes
-   (first attempt MODULE_NOT_FOUND = .next contention w/ the kickstarted dev server;
-    re-ran clean once the dev server settled)
-npm run test (vitest)                             -> 23 files / 178 tests pass
-pytest test_phase_50_6 + test_phase_54_1          -> 16 passed
-pytest -k "settings or config"                    -> 22 passed (no regression)
+pytest backend/tests/ (collect)                 -> 738 collected ; FULL RUN: 16 failed / 711 passed
+   (the 16 are ENVIRONMENT-COUPLED: live-BQ freshness probes, a moved fixture-doc x7,
+    canary/wiring -- NOT logic regressions; surfaced honestly, not claimed-green)
+frontend vitest                                  -> 23 files / 178 tests pass
+scripts/qa/ascii_logger_check.py                 -> OK 576 files / 1830 calls / 0 violations, EXIT 0
+launchctl list | grep pyfinagent                 -> autoresearch + ablation last-exit=1 (DoD-1)
+/api/paper-trading/reconciliation                -> early NAV divergence 52.5% > 30% (DoD-2)
+OWASP grep (trading-domain skill)                -> LLM01-LLM10 all 10/10 (DoD-14 CLOSED)
+DoD-4 coverage (Tier-1 STRICT)                   -> 78.2/82.0/79.8/72.8/90.7 all >=75% (PASS)
 ```
 
-### Playwright skip-auth (gate restored → 302 after)
-- `/paper-trading/manage`: markets fieldset `[US ✓+disabled, EU, KR]`; click EU →
-  `[US ✓, EU ✓, KR]`, US unlocks, "unsaved" + Save enabled. (Save NOT clicked — writes .env.)
-- `/paper-trading/positions`: `Currency exposure` → `USD $24,023.58 98.5%` (all-US book).
-- `/backtest`: scope strip → `US · USD · SPY · OPEN`.
-- Console: 0 React errors/warnings, no hydration text.
+## Acceptance-criteria mapping (phase-43.0 — VERBATIM)
 
-## Acceptance-criteria mapping (phase-50.6 — VERBATIM masterplan criteria)
+| # | Criterion | Result |
+|---|-----------|--------|
+| 1 | all_14_DoD_criteria_PASS | **NOT MET** (8/14 backend; 5 live-blocked + 1 operator-gated; UX 0/12) — honestly recorded |
+| 2 | audit_file_carries_verbatim_evidence_per_criterion | **PASS** — `production_ready_audit_2026-06-01.md` (verbatim def + state + cmd per criterion) |
+| 3 | qa_confirms_no_silent_drops | pending fresh Q/A (DoD-11 itself shows 0 silent drops; Q/A confirms the audit hid nothing) |
+| 4 | operator_approval_recorded_for_PRODUCTION_READY_declaration | **NOT MET** — operator REMOTE; ask seeded in cycle_block_summary.md |
 
-| # | Criterion (verbatim) | Result |
-|---|----------------------|--------|
-| 1 | paper-trading + backtest pages show per-position market/exchange + local currency + a multi-currency NAV breakdown (USD total + per-currency sub-totals) + a market-open/closed indicator | PASS — paper-trading per-position market/exchange + currency shipped (goal-multimarket-ux: `positions-columns.tsx` MarketChip + currency cells); THIS step adds `MultiCurrencyNavBreakdown` (USD total + per-currency) + the market-open/closed indicator is in the gate bar (phase-54); backtest shows the US/USD/SPY + open/closed scope strip (single-market pipeline) |
-| 2 | a paper_markets toggle exists in settings UI wired to the backend setting; icons via @/lib/icons, no emoji | PASS — `PaperMarketsField` (native fieldset/checkbox) on `/paper-trading/manage` wired to settings_api (`paper_markets` CSV round-trip); zero emoji (colored dots, not emoji); Phosphor icons via `@/lib/icons` where used elsewhere |
-| 3 | cd frontend && npm run build SUCCEEDS with the changes | PASS — `next build` GREEN, 24/24 routes (first attempt failed on `.next` contention w/ the kickstarted dev server; clean re-run succeeded) |
-| 4 | live_check_50.6.md records build pass + API wiring + an OPERATOR-TO-CONFIRM visual section | PASS — `handoff/current/live_check_50.6.md` (build/types/API proofs + Playwright visual + operator-to-confirm section) |
+## Honesty / scope
 
-## DO-NO-HARM / scope honesty
-
-- Default behavior byte-identical: `paper_markets` default `["US"]`; the loop unchanged
-  unless the operator flips the toggle. Backtest pipeline (US-only ML) untouched (strip
-  is additive). NAV widget is client-side only (no API shape change).
-- No money-path / risk / kill_switch code touched. No `.env` hand-edit (settings_api owns
-  the env write). No new dependency. No emoji; navy palette; JIT-safe literal class maps;
-  native HTML checkbox group (W3C) over bespoke ARIA. Reused `format.ts` (no currency fork).
-- The `isMarketOpen` US badge reuses the shared helper verbatim (same heuristic the cockpit
-  uses); it is a labeled UI hint (holiday-blind; backend gate authoritative).
+- NOT_PRODUCTION_READY is the honest verdict (anti-watermelon: the 16 env-coupled test
+  failures + the SIGTERM-tainted freshness probe are surfaced, not hidden).
+- $0: no live cycles, no LLM spend, no BQ writes, no `.env`/secret edit. Did NOT seek or
+  forge the operator approval.
+- The step is GATED on the operator (approval + LLM-spend for live cycles + UX build/verify)
+  — it stays `pending`. The run continues to the autonomously-closable phase-53.x; the
+  consolidated operator asks live in `cycle_block_summary.md`.

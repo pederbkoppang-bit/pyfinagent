@@ -1,82 +1,77 @@
-# Contract — phase-50.6 (Multi-market UI)
+# Contract — phase-43.0 (Production-Ready DoD audit)
 
-**Date:** 2026-06-01. **Tier:** moderate. **Step:** phase-50.6 (P3).
-
-> NOTE: this file was clobbered by the scheduled `mas-harness` optimizer cron at 17:04
-> (a handoff-file collision). Restored here; the cron has been booted out for the run.
-> Correction vs the first draft: the success criteria below are now copied **VERBATIM**
-> from `.claude/masterplan.json` phase-50.6 `verification.success_criteria` (the first
-> draft paraphrased them — Q/A flagged it).
+**Date:** 2026-06-01. **Tier:** moderate. **Step:** phase-43.0 (P1).
 
 ## N* delta (N* = Profit − Risk − Burn)
 
-**Risk↓ / operability** (speculative): surfaces multi-market scope (currency, market
-hours) + a per-currency NAV breakdown + an operator control for which markets the live
-loop trades. No P delta; no money-path logic change (the `paper_markets` toggle writes an
-existing field already honored by the loop; default `["US"]` unchanged).
+**Risk↓** (governance/honesty): a refreshed, evidence-backed go/no-go audit prevents a
+premature PRODUCTION_READY declaration (a watermelon). No P/B delta. $0 (read-only checks).
 
 ## Research-gate summary
 
-`researcher` ran FIRST (gate **PASSED**: 7 sources read in full, 17 URLs, recency scan,
-13 internal files). Brief: `handoff/current/research_brief.md` (reconstructed after the
-optimizer clobber; gate envelope preserved). Decisive: backtest page is US-only/USD ML
-(criterion (a) = additive strip, no refactor); NAV widget = client-side, no backend
-change; settings toggle = the real gap (settings_api `paper_markets` + CSV round-trip);
-reuse `format.ts` + `cockpit-helpers` + the donut pattern.
+`researcher` ran FIRST (gate **PASSED**: 5 external sources read in full, 14 URLs,
+recency scan, 12 internal files). Brief: `handoff/current/research_brief.md`. The DoD gate
+is **26 criteria** (14 backend = `master_roadmap_to_production.md §6`; 12 UX =
+`frontend_ux_master_design.md §6`). External grounding: production-readiness is a
+scored/tri-state gate where "done" = executed-and-evidenced (Google ML Test Score); open
+criteria are legitimate with an agreed remediation plan (Google SRE PRR); honest red beats
+padded green (watermelon literature).
 
-## Immutable success criteria — VERBATIM from masterplan phase-50.6 (do NOT edit)
+**Current tally (deterministic checks ran 2026-06-01):** Backend **8/14 PASS**
+(DoD-3,4,8,10,11,12,13,14 — DoD-14 newly closes, OWASP 10/10). 5 LIVE-BLOCKED
+(DoD-2,5,6,7,9 — need live cycles = operator LLM spend). 1 OPERATOR-GATED (DoD-1 —
+autoresearch/ablation cron exit=1, owner-gated phase-39.1). UX **0/12** (need phase-44.x
+build + Playwright/Lighthouse behind the NextAuth wall = operator-gated). Watermelon
+finding: full backend run = 16 failed / 711 passed, all ENVIRONMENT-COUPLED (live-BQ
+freshness probes, a moved fixture-doc ×7, canary/wiring) — NOT logic regressions; must be
+surfaced honestly.
 
-1. paper-trading + backtest pages show per-position market/exchange + local currency + a
-   multi-currency NAV breakdown (USD total + per-currency sub-totals) + a
-   market-open/closed indicator
-2. a paper_markets toggle exists in settings UI wired to the backend setting; icons via
-   @/lib/icons, no emoji
-3. cd frontend && npm run build SUCCEEDS with the changes
-4. live_check_50.6.md records build pass + API wiring + an OPERATOR-TO-CONFIRM visual
-   section
+## Honest framing (this step CANNOT fully close autonomously — by design)
 
-(`verification.live_check`: REQUIRED -- build pass + API-wiring proofs + operator visual
-confirmation of the market/currency UI.)
+Immutable criterion #1 (`all_14_DoD_criteria_PASS`) is NOT met (8/14) and #4
+(`operator_approval_recorded`) needs the REMOTE operator to type "PRODUCTION_READY:
+APPROVED". Per Message-B step 2 ("run the DoD audit; close what's autonomously closable;
+honestly mark the live-blocked criteria"), the deliverable is the honest refreshed audit
+`production_ready_audit_2026-06-01.md`. The step stays **pending** (verdict =
+NOT_PRODUCTION_READY); the operator asks go to `cycle_block_summary.md`. Then the run
+continues to the autonomously-closable phase-53.x.
 
-### Criterion-1 coverage note (per-position market/exchange + local currency)
+## Immutable success criteria — VERBATIM from masterplan phase-43.0 (do NOT edit)
 
-The **paper-trading** per-position market/exchange + local-currency display already
-shipped (goal-multimarket-ux: `positions-columns.tsx` MarketChip + currency-aware cells);
-this step ADDS the multi-currency NAV breakdown + retains the market-open/closed indicator
-(now in the gate bar per phase-54). The **backtest** page is single-market (US/USD) — its
-"per-position market/exchange + currency" is the US/USD/SPY scope strip + the US
-open/closed badge (the pipeline has no multi-market rows). No emoji; the checkbox group
-uses native inputs + colored dots (not emoji); where an icon is used elsewhere it is via
-`@/lib/icons` (Phosphor) per the rule.
+1. all_14_DoD_criteria_PASS
+2. audit_file_carries_verbatim_evidence_per_criterion
+3. qa_confirms_no_silent_drops
+4. operator_approval_recorded_for_PRODUCTION_READY_declaration
 
-## Plan steps (additive; DO-NO-HARM)
+(`verification.live_check`: production_ready_audit_<date>.md is the deliverable; live
+verification = read it.)
 
-1. settings_api: `paper_markets` on `FullSettings`/`SettingsUpdate`/`_settings_to_full`/
-   `_FIELD_TO_ENV` + PUT list→CSV. Pytest round-trip (list→CSV→validator) + default
-   unchanged.
-2. types.ts: `paper_markets?: string[]`.
-3. `PaperMarketsField` (native fieldset/checkbox, ≥1 enforced) → `/paper-trading/manage`.
-4. `MultiCurrencyNavBreakdown` (client-side currency grouping) → positions page.
-5. `BacktestScopeStrip` (US/USD/SPY + market-hours badge) → backtest page header.
-6. Verify: tsc 0; `npm run build` green; vitest 178; settings pytest; zero emoji;
-   Playwright skip-auth visual of all three surfaces; restore the auth gate (302). Write
-   `live_check_50.6.md` (build/API proofs + operator-to-confirm visual).
-7. Fresh qa → log → flip → commit.
+**Achievable this cycle:** #2 (verbatim per-criterion evidence) + #3 (Q/A confirms no
+silent drops). **NOT achievable autonomously:** #1 (8/14, 5 live-blocked + 1 operator-gated
++ UX 0/12) + #4 (operator away). The audit honestly records all of this.
 
-## Guardrails / DO-NO-HARM
+## Plan steps
 
-- Backtest page: ADD a strip only; do NOT touch its USD-literal cells/baseline table.
-- NAV widget: client-side only; no `/portfolio` shape change; graceful single/empty.
-- `paper_markets` default `["US"]` unchanged; loop byte-identical unless the operator
-  toggles. No `.env` hand-edit (settings_api owns the env write). No money-path change.
-- No emoji; navy palette; JIT-safe literal class maps; native checkbox group (W3C) over
-  bespoke ARIA. Reuse `format.ts` — no currency fork. Mount-guard the market-hours read.
-- Visual verification mandatory (frontend.md rule 5): Playwright skip-auth + operator
-  confirm.
+1. Write `handoff/current/production_ready_audit_2026-06-01.md`: per-criterion (all 26)
+   verbatim definition + current state (PASS / LIVE-BLOCKED / OPERATOR-GATED) + the exact
+   evidence/command. Surface the 16 env-coupled test failures honestly (quarantine note,
+   not a claimed-green suite). Headline verdict: NOT_PRODUCTION_READY (8/14 backend,
+   0/12 UX). Re-probe DoD-5 freshness on a stable backend (the prior read was SIGTERM-tainted).
+2. Append the operator ask to `cycle_block_summary.md` (approve after live cycles; the 5
+   live-blocked + UX-DoD need operator LLM spend + visual confirmation behind NextAuth).
+3. Fresh qa: confirm criteria 2+3 (verbatim evidence + no silent drops) + that the
+   NOT_PRODUCTION_READY verdict is honest (not a watermelon and not a false-fail).
+4. Append `harness_log.md` (result=CONDITIONAL — audit complete + honest; step gated on
+   operator approval + live cycles). Do NOT flip 43.0 to done.
+
+## Guardrails
+
+- $0 / read-only (no live cycles, no LLM spend, no BQ writes). Honest classification — no
+  watermelon (do not claim all-green from the collect-only count; document the 16 env-coupled
+  failures). Do NOT seek/forge the operator approval. No emoji; ASCII.
 
 ## References
 
-`handoff/current/research_brief.md`; `frontend/src/lib/format.ts`; `cockpit-helpers.tsx`;
-`PortfolioAllocationDonut.tsx`; `frontend/src/app/{backtest,paper-trading/positions,
-paper-trading/manage}/page.tsx`; `frontend/src/lib/types.ts`; `backend/api/settings_api.py`;
-`docs/runbooks/browser-mcp.md`.
+`handoff/current/research_brief.md`; `master_roadmap_to_production.md §6` (backend DoD);
+`frontend_ux_master_design.md §6` (UX DoD); `production_ready_audit_2026-05-28.md` (prior);
+Google ML Test Score / SRE PRR / watermelon-reporting / Bailey-LdP DSR.

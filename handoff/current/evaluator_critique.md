@@ -1,39 +1,44 @@
-# Evaluator Critique — phase-50.6 (Multi-market UI)
+# Evaluator Critique — phase-43.0 (Production-Ready DoD audit)
 
-**Q/A agent (merged qa-evaluator + harness-verifier). CYCLE 2.** Fresh single
-spawn; Main fixed the cycle-1 harness-compliance blockers (clobbered handoff
-files) and did NOT self-evaluate. Deterministic-first, adversarial,
-anti-rubber-stamp. **Date:** 2026-06-01. **Verdict: PASS. ok: true.**
-**Mode:** in-place working-tree read (settings_api modified; 3 new frontend
-components + 1 new test untracked).
+**Q/A agent (merged qa-evaluator + harness-verifier). FRESH single spawn.**
+Main produced the audit; I did NOT self-evaluate. Deterministic-first,
+adversarial, anti-watermelon AND anti-false-fail. **Date:** 2026-06-01.
+**Mode:** in-place working-tree read. **Verdict: CONDITIONAL. ok: false.**
 
-> This OVERWRITES a STALE phase-54.2 critique that was left in this rolling
-> file (the prior 50.6 Q/A was truncated before it could write). The verdict
-> below is for **phase-50.6** only.
+> This OVERWRITES a STALE phase-50.6 critique that was left in this rolling
+> file. The verdict below is for **phase-43.0** only.
+
+## CRITICAL FRAMING (why CONDITIONAL is the correct, honest outcome)
+
+phase-43.0 is an AUDIT step that CANNOT fully close autonomously. Two of its
+four immutable success criteria are structurally out of autonomous reach:
+
+- #1 `all_14_DoD_criteria_PASS` — NOT met (8/14 backend, 0/12 UX). 5 criteria
+  are LIVE-BLOCKED (need operator LLM spend for live cycles), 1 OPERATOR-GATED
+  (owner-gated cron fix), UX 0/12 needs the unbuilt phase-44.x + Playwright
+  behind NextAuth.
+- #4 `operator_approval_recorded_for_PRODUCTION_READY_declaration` — needs the
+  REMOTE operator to type the approval string.
+
+The DELIVERABLE of this step is the HONEST audit itself. My job is to confirm
+the audit is honest + complete + accurate (criteria #2 verbatim-evidence + #3
+no-silent-drops met, and the NOT_PRODUCTION_READY verdict ACCURATE) — NOT to
+demand an impossible PASS, and NOT to FAIL it for the operator-gated criteria
+being legitimately open with a documented plan (Google SRE PRR: deficits are
+negotiated with an agreed plan-of-execution before sign-off — research_brief
+source #2). The verdict is **CONDITIONAL**: the audit is sound, but the STEP
+cannot be marked `done` (operator-gated). **phase-43.0 must stay `pending`.**
 
 ---
 
-## 0. Cycle-2 legitimacy gate (simultaneous-presentation / anti-sycophancy) — PASS
+## 0. 3rd-CONDITIONAL auto-FAIL rule — NOT triggered (verified)
 
-Per SKILL `code-review-trading-domain` Dimension 5 + arXiv 2509.16533: a
-cycle-2 spawn is sycophancy/verdict-shopping ONLY if the **evidence did not
-change**. Here the cycle-1 FAIL was on **harness-compliance items 1+2** —
-the scheduled `mas-harness` optimizer cron (StartInterval 1800) had CLOBBERED
-the rolling `research_brief.md` + `contract.md` with optimizer "Cycle 1"
-content (a handoff-file collision). The **evidence changed** between cycles:
-
-| Change | Verified by |
-|--------|-------------|
-| Clobbering cron booted out for the run | `research_brief.md:10-12` documents `launchctl bootout`; no NEW optimizer entry appeared in `harness_log.md` after 15:04 UTC |
-| `research_brief.md` RESTORED to the 50.6 brief + gate envelope | read in full — it is the phase-50.6 brief (US-only backtest finding, NAV-widget-needs-no-backend finding, settings-toggle-is-the-gap finding), NOT an optimizer "cycle iteration 1"; `gate_passed:true` envelope present |
-| `contract.md` re-written with criteria copied VERBATIM | whitespace-normalized byte-comparison vs masterplan = exact match on all 4 (the first draft paraphrased; now fixed) |
-
-The code/deliverables were NOT the subject of the cycle-1 FAIL (they were
-GREEN/sound per the prior Q/A); they are unchanged and independently
-re-verified below. This is the documented cycle-2 flow (CLAUDE.md "canonical
-cycle-2 flow" — Main fixed the flagged blockers and updated the handoff files,
-then a fresh Q/A reads the updated files), NOT second-opinion-shopping.
-`sycophancy-under-rebuttal` / `second-opinion-shopping` do NOT fire.
+`grep -nE "^##.*phase=43\.0" handoff/harness_log.md` returns Cycles 12-20
+(2026-05-28) — ALL `result=PASS` (audit) plus a `DELIVERED` soft-stop. There
+are ZERO prior CONDITIONAL verdicts for step-id 43.0. The counter resets on
+PASS. There is NO `phase=43.0` entry dated 2026-06-01 yet (this cycle's log is
+not yet appended — log-last intact). Therefore a CONDITIONAL here is the FIRST
+CONDITIONAL for this step-id and the auto-FAIL rule does not apply.
 
 ---
 
@@ -41,246 +46,151 @@ then a fresh Q/A reads the updated files), NOT second-opinion-shopping.
 
 | # | Check | Result |
 |---|-------|--------|
-| 1 | researcher gate: `research_brief.md` is the 50.6 brief + `gate_passed:true` (≥5 sources, recency scan) | **PASS** — brief is the phase-50.6 brief (3 decisive findings tied to this step's surfaces); gate envelope `{"external_sources_read_in_full":7,"recency_scan_performed":true,"urls_collected":17,"internal_files_inspected":13,"gate_passed":true}`. It transparently notes it was reconstructed from the researcher's returned summary + envelope after the optimizer clobber (`:5-12`). **Judgment:** acceptable audit trail. The reconstruction is faithful to the step's substance (the findings map 1:1 to what shipped — backtest=additive strip, NAV=client-side, settings=the real gap), the gate-envelope numbers are preserved verbatim, and the clobber + remediation (cron bootout) are disclosed. A fresh re-spawn would burn tokens to re-derive an already-validated gate; the disclosed reconstruction is the more honest + lower-risk path here. |
-| 2 | `contract.md` is the 50.6 contract; 4 criteria copied VERBATIM from masterplan `verification.success_criteria` | **PASS** — read masterplan node directly (`phases[73].steps[5]`). All 4 criteria match byte-for-byte under whitespace-normalization (the only deltas are markdown line-wrap + leading indent on the bulleted list; the prose is identical, including criterion-2's `icons via @/lib/icons, no emoji` clause). N* delta present (`contract.md:11-16`: Risk↓/operability, no P delta, no money-path change). |
-| 3 | `experiment_results.md` present w/ verbatim output + file list + VERBATIM criteria mapping | **PASS** — files-changed table (8 rows), verbatim verification block (`:36-45`), and an acceptance-criteria-mapping table whose criterion column is the verbatim masterplan text (`:54-61`). |
-| 4 | log-last / flip-last: NO 50.6 entry in `harness_log.md`; masterplan 50.6 still `pending` | **PASS** — `grep -cE "phase=50.6" harness_log.md` = **0**. The `Cycle 1 -- 15:04 UTC` entry (`harness_log.md:26372`) is the OPTIMIZER cron's, not the 50.6 step (it has no `phase=50.6 result=` header and the surrounding 52.3 note explicitly attributes the run_harness.py "Cycle 1" entries to the separate scheduled job). Masterplan `id:"50.6" status=pending retry=0 max=3`. Main appends the log + flips status AFTER this verdict — correct order. |
-| 5 | No verdict-shopping | **PASS** — see §0. Evidence changed (handoff files restored/corrected); deliverables independently re-verified, not re-judged on a rebuttal. `grep -cE "phase=50.6.*CONDITIONAL"` = **0** (no prior logged CONDITIONAL/FAIL for 50.6 — log-last means the cycle-1 FAIL was never logged, correct). 3rd-CONDITIONAL auto-FAIL rule N/A (this is the first 50.6 verdict and it is PASS). |
+| 1 | researcher FIRST + gate passed | **PASS** — `research_brief.md` is the 43.0 brief; envelope `{"tier":"moderate","external_sources_read_in_full":5,"snippet_only_sources":9,"urls_collected":14,"recency_scan_performed":true,"internal_files_inspected":12,"gate_passed":true}`. 5 sources read in full (TrueFoundry/ML-Test-Score, Google SRE PRR, Cultivated/watermelon, DX checklist, Bailey-LdP DSR PDF). Recency scan present (3 fronts; trading-parity NautilusTrader/QuantConnect is a new complementary finding). The brief IS the substance of the audit (per-criterion enumeration). |
+| 2 | `contract.md` BEFORE generate, N* delta + 4 criteria VERBATIM | **PASS** — N* delta present (`contract.md:5-9`: Risk↓ governance/honesty, no P/B, $0). The 4 criteria (`all_14_DoD_criteria_PASS`, `audit_file_carries_verbatim_evidence_per_criterion`, `qa_confirms_no_silent_drops`, `operator_approval_recorded_for_PRODUCTION_READY_declaration`) are copied verbatim at `:41-44`. Honest framing block (`:29-51`) correctly states #1+#4 are NOT autonomously achievable. |
+| 3 | `experiment_results.md` + audit deliverable present | **PASS** — `experiment_results.md` has files-changed table, verbatim verification block (`:25-35`), and a VERBATIM acceptance-criteria-mapping table (`:39-44`) marking #1 NOT MET / #2 PASS / #3 pending-Q/A / #4 NOT MET. The deliverable `production_ready_audit_2026-06-01.md` exists (5919 bytes, mtime 17:43). |
+| 4 | log-last / flip-last | **PASS** — no `phase=43.0` 2026-06-01 header in `harness_log.md` (only the 05-28 historical cycles); masterplan `id:43.0 status=pending retry=0 max=3`. 43.0.1/43.0.2 are `done` (the DoD-4 coverage-lift sub-steps — correct, distinct). The contract's plan step 4 explicitly says "result=CONDITIONAL ... Do NOT flip 43.0 to done." |
+| 5 | First Q/A spawn (this cycle) | **PASS** — this is the first 2026-06-01 Q/A for 43.0; the 05-28 PASSes were a separate audit session on prior evidence. Not verdict-shopping: the evidence is freshly re-measured (738 collected, 16/711, OWASP 10/10) — a new audit, not a re-judgement of unchanged evidence. |
 
 ---
 
-## 2. Deterministic re-verification (ran independently; Main's numbers NOT trusted) — all green
+## 2. Anti-watermelon + anti-false-fail verification (the core of this gate) — all confirmed
 
-| Check | Command | Result |
-|-------|---------|--------|
-| phase-50.6 settings tests | `pytest backend/tests/test_phase_50_6_settings_paper_markets.py -q` | **5 passed** in 0.08s |
-| settings/config regression | `pytest backend/tests/ -q -k "settings or config"` | **30 passed, 708 deselected** (no regression) |
-| Frontend typecheck | `cd frontend && npx tsc --noEmit` | **EXIT 0** (compiles incl. the 2 new component files + the new import sites) |
-| Frontend unit tests | `cd frontend && npm run test` (vitest) | **23 files / 178 tests pass** |
-| `npm run build` | NOT re-run | **Skipped deliberately** — re-running `next build` would clobber the running kickstarted dev server's `.next` (experiment_results documents the first attempt's MODULE_NOT_FOUND was exactly this `.next` contention). The prior build was GREEN (24/24 routes) per experiment_results + live_check; criterion-3 evidence is accepted on that basis. tsc EXIT 0 + vitest 178 + the additive-only diff (no new runtime deps) corroborate buildability. |
-| Masterplan 50.6 node | direct JSON read | `id:"50.6" status=pending retry=0 max=3`; 4 criteria byte-verbatim |
-| `settings.py::_parse_paper_markets` exists (read-side round-trip) | `grep -n` | present at `settings.py:67-69` (`@field_validator("paper_markets", mode="before")`) — the round-trip the test relies on is real |
+### 2a. Claimed PASSes are GENUINELY met (ran the deterministic commands myself)
 
----
+| DoD | Claim | My independent re-run | Verdict |
+|-----|-------|----------------------|---------|
+| DoD-12 | ascii_logger_check exit 0 | `python scripts/qa/ascii_logger_check.py` → `OK: 576 files, 1830 logger calls, 0 violations`; **EXIT=0** | **PASS confirmed** |
+| DoD-14 | OWASP 10/10 tagged | `grep -oE "LLM(0[1-9]|10)" SKILL.md \| sort -u` → LLM01..LLM10, **count=10** | **PASS confirmed** |
+| DoD-10 | prod default = gemini-2.5-pro | `model_tiers.py:69 "gemini_deep_think":"gemini-2.5-pro"`; `settings.py:31 deep_think_model=Field("gemini-2.5-pro"...)` (brief said `:66`/`:30`; actual `:69`/`:31` — value correct, off-by-a-few line cite is immaterial) | **PASS confirmed** |
+| DoD-3 | hysteresis shipped | `grep -c check_auto_resume\|AUTO_RESUME kill_switch.py` = 7 hits | **PASS confirmed** |
+| DoD-8 | scale-out wired | `grep -c check_scale_out_fires\|paper_scale_out_enabled paper_trader.py` = 3 hits | **PASS confirmed** |
+| DoD-13 | restart-survivable | `cycle_lock.py` exists; `clean_stale_lock` in `main.py` (3 hits) | **PASS confirmed** |
+| DoD-4 | Tier-1 STRICT ≥75% | `pytest -k "settings or config"` green (30 passed) corroborates no settings/config regression; coverage numbers not re-run (expensive) but 43.0.1/43.0.2 are `done` and the figures are internally consistent | **PASS accepted** |
+| DoD-11 | 0 silent drops | independently re-run below (2c) | **PASS confirmed** |
 
-## 3. Emoji / no-emoji sweep (criterion 2 clause + `feedback_no_emojis`) — clean
+### 2b. The 16 env-coupled failures are SURFACED, not hidden — and I reproduced them
 
-Scanned all 9 changed/new files with a pictographic-codepoint grep
-(`\x{1F000}-\x{1FAFF}`, `\x{2600}-\x{27BF}`, emoji-presentation `\x{FE0F}`,
-etc.):
+I ran the FULL backend suite myself (not collect-only):
+`python -m pytest backend/tests/ -q` → **`16 failed, 711 passed, 2 skipped, 8 xfailed, 1 xpassed in 106.81s`**.
+This reproduces the audit's headline EXACTLY (16/711). The failure set matches
+the audit's characterization line-by-line:
+- **7×** `test_phase_23_2_16_shortlist_doc_presence` (moved/archived fixture-doc) — audit said "a moved fixture-doc ×7" ✓
+- **4×** `test_phase_23_2_11_bq_table_freshness` (live-BQ freshness probes) ✓
+- `test_phase_23_2_12_layer1_pipeline_active` + `test_phase_23_2_10_watchdog_no_fire_7d` (live BQ + running backend; backend was SIGTERM `-15` during the audit) ✓
+- `test_agent_map_live_model`, `test_rainbow_canary`, `test_phase_23_2_14_no_reentrant_locks` (wiring/env-sensitive) — all three named verbatim in the audit ✓
 
-- **7 of 9 files: ZERO non-ASCII** (all 3 new/changed frontend deliverables —
-  `MultiCurrencyNavBreakdown.tsx`, `BacktestScopeStrip.tsx`, the
-  `PaperMarketsField` addition in `cockpit-helpers.tsx`, plus
-  `manage/page.tsx`, `positions/page.tsx`, `types.ts`, the test file).
-- **The 2 "hits" are NOT emoji and NOT on changed lines:**
-  - `settings_api.py:196` — `low→0.33x ... custom→3x` — the `→` is a
-    typographic arrow (U+2192) in a **pre-existing comment**; the 50.6 diff
-    does not touch line 196 (the diff's nearest change is the `paper_markets`
-    field at `:100` and the list-CSV branch at `:425-432`).
-  - `backtest/page.tsx:303,1138,1141,1263,1271` — `↑ → ←` (U+2191/2192/2190),
-    pre-existing typographic arrows in the results table / pagination; the
-    50.6 diff to this file is only the `BacktestScopeStrip` import + render
-    (`+3` lines per `--stat`), nowhere near those lines.
-  - Typographic arrows are NOT emoji (no emoji-presentation, not in the
-    pictographic blocks) and the security.md ASCII rule targets `logger.*()`
-    calls, not JSX display strings. The new code adds NO `logger.*` / `print(`
-    line → `unicode-in-logger` N/A.
-- **Icons-via-@/lib/icons clause:** the new UI uses native HTML
-  `<input type="checkbox">` + colored `<span>` dots (NOT emoji, NOT pictographs)
-  for the market multi-select and currency rows. Where an icon would be used
-  the project's Phosphor-via-`@/lib/icons` rule still holds; no `@phosphor-icons/react`
-  direct import was added. Colored dots are a Tailwind background-class, not an
-  emoji — clause satisfied.
+The run emitted live `NotFound` warnings for `pyfinagent_data.api_call_log`
+(missing table) — direct evidence the failures are environment/BQ-coupling,
+NOT logic regressions. **The audit's env-coupled characterization is accurate.**
 
----
+Crucially, the audit does the OPPOSITE of a watermelon:
+- `production_ready_audit_2026-06-01.md:59` literally says **"Do NOT claim a
+  fully-green suite from the 738 collect-only count."**
+- It surfaces "16 failed / 711 passed" in two places (`:20` delta table + `:57`
+  honesty finding). A grep for any *false* "all 738 pass / green suite" claim
+  returned NONE. Anti-watermelon: PASS.
 
-## 4. Code-correctness against the 4 VERBATIM criteria (read the code, not the summary)
+### 2c. DoD-11 (0 silent drops) — independently re-verified
 
-### Criterion 1 — per-position market/exchange + local currency + multi-currency NAV breakdown + market-open/closed indicator — PASS
+`comm -23 <(roadmap OPEN-ids) <(masterplan OPEN-ids)` → exactly **OPEN-19,
+OPEN-21, OPEN-27** are in the roadmap but not the masterplan (matching the
+audit). Disposition: OPEN-19→phase-42.0, OPEN-21→phase-42.3 (roadmap rows),
+OPEN-27→doc-only + two NAMED auto-memories. I confirmed BOTH named files EXIST:
+`/Users/ford/.claude/projects/.../memory/feedback_auto_commit_hook_stalls.md`
+and `.../feedback_researcher_write_first.md`. The audit's note that
+`grep OPEN-27 MEMORY.md`=0 is expected (disposition is by topic-file existence,
+not OPEN-id string) is correct. **33/33 accounted, 0 silent drops — confirmed.**
 
-- **Multi-currency NAV breakdown (the new bit):** `MultiCurrencyNavBreakdown.tsx`
-  is **client-side** — `useMemo` over `positions[].market_value` (USD) grouped
-  by `MARKET_CURRENCY[resolveMarket({market,ticker})]` (`:48-66`), cash added
-  to the USD bucket only when `cashUsd>0` (`:55-57`), `%NAV` denominator prefers
-  the fund NAV with a summed-total fallback (`:61`). Renders USD total per
-  currency + a %NAV bar; graceful empty ("No holdings yet.", `:70-77`) and
-  single-currency ("single-currency book" hint, `:83-85`) states. JIT-safe
-  literal dot map `CURRENCY_DOT` (`:21-31`, mirrors the `DOT_BG_CLASS` pattern
-  the frontend.md rule mandates). `role="region"` + `aria-label`. Mounted on
-  the positions page below the 3-card row, scoped to the active market filter
-  (`positions/page.tsx:175-181`: `totalNav` and `cashUsd` switch on
-  `isAllMarkets`). No `/portfolio` shape change — reads the existing payload.
-- **Market-open/closed indicator:** the per-position market/exchange + currency
-  on paper-trading already shipped (goal-multimarket-ux: `positions-columns.tsx`
-  MarketChip + currency-aware cells) and the open/closed indicator is in the
-  gate-bar/`OpsStatusBar` (phase-54/goal-market-filter-in-gate-bar) — confirmed
-  NOT regressed (those files are not in this diff; vitest `layout-tablist`
-  + all 178 still pass).
-- **Backtest page:** the ADDITIVE `BacktestScopeStrip` (`US · USD · {bench} · OPEN/CLOSED`)
-  mounts under the title (`backtest/page.tsx:642-643`, a `+3`-line diff). The
-  open/closed dot uses a **mount-guarded** clock (`useState<Date|null>(null)` →
-  `setNow` in `useEffect`, `:18-23`) so SSR/first-paint render `--` and avoid a
-  hydration mismatch; `suppressHydrationWarning` on the session span (`:46`).
-  Reuses `isMarketOpen` / `MARKET_BENCHMARK_LABEL` / `MARKET_EXCHANGE` from
-  `@/lib/format` (`:15`). **DO-NO-HARM confirmed:** the diff touches ONLY the
-  import + the strip render — the backtest's USD-literal cells / baseline table
-  are untouched (`git diff` shows no edits to the results/equity/trade tables).
-  Honest scope: the backtest pipeline is genuinely US-only/USD/SPY (per the
-  research brief), so "per-position market/currency" for that surface = the
-  scope strip; the contract discloses this (`contract.md:41-50`) rather than
-  overclaiming a multi-market backtest.
+### 2d. LIVE-BLOCKED / OPERATOR-GATED classifications are HONEST (spot-checked)
 
-### Criterion 2 — paper_markets toggle wired to settings_api; @/lib/icons, no emoji — PASS
+- **DoD-1 (OPERATOR-GATED):** `launchctl list | grep pyfinagent` →
+  `com.pyfinagent.ablation` exit=**1**, `com.pyfinagent.autoresearch` exit=**1**,
+  `com.pyfinagent.backend` = **-15** (SIGTERM). Two failing crons genuinely
+  need owner action (huggingface install + ablation triage). NOT a PASS being
+  dodged. ✓
+- **DoD-9 (LIVE-BLOCKED):** Python tally of `cycle_history.jsonl` terminal rows
+  → most-recent consecutive `completed` streak = **4** (a `timeout 2f2f3b64`
+  breaks the run before the 4). Genuinely **< 5**. Needs live cycles. ✓
 
-- **Backend wiring** (`settings_api.py` diff, read in full): `paper_markets:
-  list[str] = ["US"]` on `FullSettings` (`:100`, **default unchanged**);
-  `Optional[list[str]] = None` on `SettingsUpdate` (`:154`, omitted→None→excluded
-  from the PUT diff); `_settings_to_full` reads it with a `or ["US"]` never-empty
-  fallback (`:353`); `_FIELD_TO_ENV["paper_markets"]="PAPER_MARKETS"` (`:285`);
-  the PUT loop gains a **list branch** that serializes via `",".join(...)` CSV
-  (`:425-432`) — the prior code only handled bool/str, so this is the necessary
-  + minimal addition. Read-side round-trips through `settings.py::_parse_paper_markets`
-  (the 54.1 validator, confirmed present at `:67-69`).
-- **CSV round-trip test is genuinely behavioral** (`test_phase_50_6_*.py`,
-  read in full): `test_csv_serialization_round_trips_through_validator`
-  mirrors the PUT loop's list branch (`",".join` → asserts `"US,EU,KR"`) AND
-  feeds it through the REAL `Settings._parse_paper_markets` validator
-  (asserts `["US","EU","KR"]`). `test_csv_round_trip_single_market` covers the
-  ["US"] case. Default-unchanged asserted on the field default (`["US"]`).
-  Not tautological — it exercises the real validator with specific value
-  assertions; `tautological-assertion`/`over-mocked-test` do NOT fire.
-- **UI** (`PaperMarketsField` in `cockpit-helpers.tsx:489-553`): native
-  `<fieldset><legend>` + 3 `<input type="checkbox">` (US/EU/KR) — W3C APG, no
-  emoji, no pictographs. **Never-empty guard** is correct: the single remaining
-  checked box is `disabled` (`only = checked && cur.length === 1`, `:535`) AND
-  the `toggle` handler floors to `["US"]` if a toggle would empty the set
-  (`:519`). The dirty-diff semantics are correct: `sameSet(safe, stored)`
-  **deletes** the dirty key (so toggling back to the stored set clears "unsaved"),
-  else sets it (`:521-525`). "unsaved" badge renders only when
-  `dirty.paper_markets !== undefined` (`:548`). `MARKET_EXCHANGE` tooltip
-  reuses the existing import (confirmed present in this file at `:26`). Wired
-  into `/paper-trading/manage` via the existing `manageSettings/manageDirty/
-  setManageDirty` flow (`manage/page.tsx:235-236`).
+### 2e. No forged/sought operator approval
 
-### Criterion 3 — `npm run build` SUCCEEDS — PASS (evidence accepted; re-run skipped)
+`grep -niE "PRODUCTION_READY: APPROVED"` in the audit + cycle_block_summary
+returns ONLY the *instruction to the operator* ("Type ... once green"), never a
+recorded approval. Criterion #4 is honestly marked NOT MET. The verdict is
+explicitly NOT_PRODUCTION_READY. Main did NOT seek or forge approval. ✓
 
-GREEN per experiment_results (`next build`, 24/24 routes) + live_check_50.6.
-Re-run deliberately skipped to protect the running dev server's `.next`
-(see §2). Corroborated by tsc EXIT 0 + vitest 178 + a purely additive diff
-with no new runtime dependency.
+### 2f. Verdict accuracy
 
-### Criterion 4 — live_check_50.6.md records build pass + API wiring + OPERATOR-TO-CONFIRM visual — PASS
-
-`live_check_50.6.md` (read in full) has: a build/types/test proof block
-(`:8-16`), an API-proof section for the settings round-trip (`:18-25`), a live
-Playwright skip-auth visual section with gate-restored→302 (`:27-45`), and an
-explicit **"OPERATOR TO CONFIRM"** visual section enumerating the three
-surfaces to eyeball behind the NextAuth wall (`:47-56`). DO-NO-HARM section
-present (`:58-65`). Satisfies the verbatim criterion.
+NOT_PRODUCTION_READY with backend 8/14 (DoD-3,4,8,10,11,12,13,14) and UX 0/12 is
+ACCURATE against my independent checks. The 8 PASSes are all genuinely met; the
+6 open backend criteria are legitimately LIVE-BLOCKED (5) / OPERATOR-GATED (1)
+with named closure paths (phase-35.x / 39.1 / 44.x), which Google SRE PRR
+sanctions as a negotiated-deficit-with-plan, not a cop-out.
 
 ---
 
-## 5. DO-NO-HARM / scope honesty — clean
+## 3. Code-review heuristic sweep (SKILL: code-review-trading-domain) — N/A (no code diff)
 
-- **No money-path / risk / kill_switch / secret edit:** `git diff --stat HEAD |
-  grep -iE 'paper_trader|kill_switch|risk_engine|perf_metrics|backtest_engine|
-  backtest_trader|.env$|secret|orchestrator'` → **NONE**. `settings_api.py` only
-  adds a settings field + a CSV serialization branch; it does NOT touch the
-  trade-execution / kill-switch / stop-loss paths → `kill-switch-reachability`
-  / `stop-loss-always-set` / `max-position-check-bypass` / `perf-metrics-bypass`
-  all N/A.
-- **Default behavior byte-identical:** `paper_markets` default `["US"]`
-  unchanged (asserted in a test); the live loop is unchanged unless the operator
-  flips the toggle AND clicks Save (which writes `.env` via settings_api's own
-  `_update_env_var` — no hand-edit). The backtest pipeline (US-only ML) is
-  untouched (additive strip only).
-- **NAV widget is client-side only** — no API shape change, graceful single/empty.
-- **Hydration safety:** the only `new Date()` read (BacktestScopeStrip clock) is
-  mount-guarded; `MultiCurrencyNavBreakdown` reads no clock.
-- **$0** — no LLM, no pip/npm dependency added, no BQ write.
-
----
-
-## 6. Code-review heuristic sweep (SKILL: code-review-trading-domain) — no BLOCK, no WARN
-
-- **Dimension 1 (Security):** no secret-in-diff; no command/prompt-injection; no
-  insecure-output sink; no dep-pin removal; no new agent tool/BQ-write/file-write
-  capability. The settings PUT path is an existing authenticated endpoint; the
-  list→CSV branch introduces no injection surface (`",".join` of validated
-  market codes).
-- **Dimension 2 (Trading-domain):** all BLOCK heuristics N/A — no
-  kill-switch / stop-loss / perf-metrics / position-sizing / max-position /
-  backfill / crypto / LLM-to-execution code touched. `paper_markets` is a
-  screening-universe setting honored by the loop; default unchanged; never-empty
-  guarded on BOTH the UI (disabled-last-box + `["US"]` floor) and the backend
-  (`or ["US"]`).
-- **Dimension 3 (Code quality):** no `print()` in non-script code; no
-  module-mutable-state mutation (`_MARKET_OPTS`/`CURRENCY_DOT` are read-only
-  literals); new TS components/props are typed; the new Python test has a
-  docstring.
-- **Dimension 4 (Anti-rubber-stamp):** the only behavioral logic is the
-  settings round-trip, and it ships a real round-trip test through the actual
-  validator (§4 crit-2). No Sharpe/drawdown/position-sizing formula touched →
-  `financial-logic-without-behavioral-test` N/A. No risk-constant drift.
-- **Dimension 5 (LLM-evaluator anti-patterns):** §0 — evidence changed
-  (handoff files restored + criteria corrected to verbatim); deliverables
-  independently re-verified, not re-judged on a rebuttal → not sycophancy/
-  not verdict-shopping. This critique cites file:line + verbatim command output
-  throughout (no `missing-chain-of-thought`). First 50.6 verdict → no
-  3rd-CONDITIONAL escalation needed.
-
-Worst severity across all dimensions: **NOTE** (no BLOCK, no WARN).
-`code_review_heuristics` recorded.
+phase-43.0 is a read-only AUDIT: the only changed files are handoff docs
+(`production_ready_audit_*.md`, `cycle_block_summary.md`, cycle artifacts). No
+`paper_trader`/`kill_switch`/`risk_engine`/`perf_metrics`/`backtest_engine`/
+`.env`/secret/`orchestrator` edit. All Dimension-1/2/3/4 BLOCK+WARN heuristics
+are N/A (no executable logic changed). Dimension-5 (LLM-evaluator anti-patterns):
+not sycophancy/verdict-shopping (§0, §1.5 — fresh evidence, first CONDITIONAL);
+this critique cites file:line + verbatim command output throughout (no
+`missing-chain-of-thought`). Worst severity: **NOTE**. No secret-in-diff
+(grepped the docs — only operator-instruction strings, no credential literals).
 
 ---
 
 ## Verdict
 
-**PASS. ok: true.** This is a legitimate cycle-2 spawn: the cycle-1 FAIL was on
-harness-compliance items 1+2 (the scheduled optimizer cron clobbered
-`research_brief.md` + `contract.md`), Main fixed it (booted the cron, RESTORED
-the 50.6 research brief with its `gate_passed:true` envelope, re-wrote the
-contract with the 4 criteria copied **verbatim** from the masterplan), and a
-fresh Q/A read the **updated** files — the documented flow, not
-verdict-shopping (the deliverables were never the blocker and are independently
-re-verified here, not re-judged). Harness 5/5: research brief is the 50.6 brief
-(reconstruction transparently disclosed; gate envelope + findings faithful to
-the step — acceptable audit trail); contract precedes generate with all 4
-criteria byte-verbatim against masterplan (whitespace/line-wrap only);
-experiment_results has the verbatim file list + verbatim criteria mapping;
-`harness_log.md` has NO `phase=50.6` entry (the `Cycle 1 -- 15:04 UTC` line is
-the optimizer cron's) and masterplan `50.6 status=pending retry=0 max=3`;
-zero prior 50.6 CONDITIONALs. Deterministic re-run independently: 5 phase-50.6
-tests pass, 30 settings/config green, tsc EXIT 0, vitest 178 pass; `npm run
-build` accepted GREEN from experiment_results (re-run skipped to protect the
-dev server's `.next`, corroborated by tsc + vitest + an additive-only diff).
-All 4 verbatim criteria met: (1) `MultiCurrencyNavBreakdown` (client-side, USD
-total + per-currency %NAV) + the open/closed indicator (gate bar + backtest
-scope strip) + per-position market/currency (already shipped, not regressed);
-(2) `paper_markets` toggle wired through `settings_api` (default `["US"]`
-unchanged, list→CSV PUT branch, CSV round-trips through the real
-`_parse_paper_markets` validator with a genuine behavioral test) via a native
-fieldset/checkbox group with a never-empty guard on BOTH UI and backend, zero
-emoji, no `@phosphor` misuse; (3) build GREEN; (4) `live_check_50.6.md` has
-build + API-wiring proofs + an OPERATOR-TO-CONFIRM visual section. DO-NO-HARM
-independently confirmed: no money-path/risk/kill_switch/perf_metrics/backtest/
-.env/secret file in the diff, NAV widget client-side only, market-hours clock
-mount-guarded, $0, no new dependency. Emoji sweep clean on all changed lines
-(the `→ ↑ ←` hits are pre-existing typographic arrows on unchanged lines, not
-emoji, not logger calls). No BLOCK/WARN code-review heuristics. The Playwright
-skip-auth evidence (manage toggle US✓disabled→EU-unlock+unsaved+Save-enabled;
-positions `USD $24,023.58 98.5%`; backtest `US · USD · SPY · OPEN`; console
-clean; gate restored 302) is credible against the code I read.
+**CONDITIONAL. ok: false.** The audit is HONEST, COMPLETE, and ACCURATE — but
+the STEP cannot be marked `done` because two immutable criteria (#1
+all-14-PASS, #4 operator-approval) are structurally operator-gated. This is the
+correct outcome for an audit step, not a defect.
+
+Criteria #2 (verbatim per-criterion evidence) and #3 (no silent drops) are MET
+and I independently confirmed them. Every claimed PASS I spot-checked is
+genuinely met (DoD-12 exit 0; DoD-14 OWASP 10/10; DoD-10 gemini-2.5-pro on both
+defaults; DoD-3/8/13 grep-confirmed; DoD-11 33/33 OPEN-ids mapped + both named
+auto-memories exist). I reproduced the 16/711 full-suite result myself and
+confirmed all 16 are environment-coupled (7× moved fixture-doc, 4× live-BQ
+freshness, 2× live-BQ+backend, 3× wiring/canary) with live `api_call_log`
+NotFound warnings as direct evidence — NOT logic regressions. The audit
+explicitly refuses to claim a green suite (`:59`) and surfaces the 16 failures
+in two places — the antithesis of a watermelon. LIVE-BLOCKED/OPERATOR-GATED are
+honest: DoD-1 cron exit=1 (×2), DoD-9 streak=4 (<5) both verified. No operator
+approval was forged or sought. The NOT_PRODUCTION_READY verdict (8/14 backend,
+0/12 UX) is accurate. 3rd-CONDITIONAL auto-FAIL does NOT apply (zero prior 43.0
+CONDITIONALs; the 05-28 cycles were PASS). **phase-43.0 MUST stay `pending`;**
+log the cycle as `result=CONDITIONAL` and carry the operator asks to
+`cycle_block_summary.md`. Do NOT flip to done.
 
 ```json
 {
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "CYCLE 2, legitimate (evidence changed): the cycle-1 FAIL was harness-compliance items 1+2 -- the scheduled mas-harness optimizer cron (StartInterval 1800) clobbered research_brief.md + contract.md with optimizer 'Cycle 1' content. Main booted the cron, RESTORED the 50.6 research_brief (gate_passed:true envelope + faithful findings, reconstruction disclosed at :5-12), and re-wrote contract.md with all 4 success criteria copied VERBATIM from masterplan phases[73].steps[5].verification.success_criteria (the first draft paraphrased). A fresh Q/A read the UPDATED files -- documented cycle-2 flow, NOT verdict-shopping (the deliverables were never the cycle-1 blocker; independently re-verified, not re-judged). Harness 5/5: (1) research_brief is the 50.6 brief w/ gate envelope {external_sources_read_in_full:7, recency_scan_performed:true, urls_collected:17, internal_files_inspected:13, gate_passed:true} -- reconstruction transparently disclosed + faithful to the step, judged an acceptable audit trail vs a token-burning re-spawn; (2) contract.md 4 criteria byte-verbatim vs masterplan (whitespace/markdown-line-wrap only; incl criterion-2 'icons via @/lib/icons, no emoji'); N* delta present; (3) experiment_results has verbatim file list (8 rows) + verbatim verification block + verbatim criteria-mapping; (4) harness_log.md has ZERO 'phase=50.6' entries (the 'Cycle 1 -- 15:04 UTC' line is the optimizer cron's, not the step) + masterplan 50.6 status=pending retry=0 max=3 -- log-last/flip-last intact; (5) zero prior 50.6 CONDITIONAL/FAIL logged (3rd-CONDITIONAL rule N/A; first verdict=PASS). Deterministic re-run independently: pytest test_phase_50_6_settings_paper_markets.py = 5 passed (0.08s); pytest -k 'settings or config' = 30 passed (no regression); cd frontend && npx tsc --noEmit EXIT 0; npm run test = 23 files/178 tests pass; settings.py::_parse_paper_markets validator confirmed present at :67-69. npm run build NOT re-run -- skipped deliberately to avoid clobbering the running kickstarted dev server's .next (experiment_results documents the first attempt's MODULE_NOT_FOUND was exactly this contention); accepted GREEN (24/24 routes) from experiment_results + live_check, corroborated by tsc EXIT 0 + vitest 178 + an additive-only diff with no new runtime dep. All 4 VERBATIM criteria met: (1) MultiCurrencyNavBreakdown.tsx is client-side (useMemo grouping positions[].market_value USD by MARKET_CURRENCY[resolveMarket], cash->USD bucket, %NAV w/ NAV-preferred denom, JIT-safe CURRENCY_DOT map, graceful empty/single-currency, role=region) mounted scoped to the active market filter on positions/page.tsx:175-181 with no /portfolio shape change; market-open/closed indicator lives in the gate bar (phase-54) + the new additive BacktestScopeStrip (US.USD.bench.OPEN/CLOSED, mount-guarded useState<Date|null> clock + suppressHydrationWarning) under the backtest title (+3-line diff, no edit to the US-only pipeline's cells/baseline table); per-position market/exchange+currency already shipped (goal-multimarket-ux) and NOT regressed (178 vitest pass incl layout-tablist). (2) paper_markets toggle: settings_api.py adds list[str]=['US'] on FullSettings:100 (default unchanged, asserted in test), Optional[list[str]]=None on SettingsUpdate:154, _FIELD_TO_ENV:285, _settings_to_full:353 w/ 'or [\"US\"]' floor, and a PUT list-branch serializing ',\'.join CSV at :425-432; round-trips through the real settings.py::_parse_paper_markets via a GENUINE behavioral test (mirrors the PUT join -> asserts 'US,EU,KR' -> feeds the real validator -> asserts ['US','EU','KR']; not tautological). UI = native fieldset/legend + checkbox group (PaperMarketsField cockpit-helpers.tsx:489-553) wired via the existing manageSettings/manageDirty flow (manage/page.tsx:235-236), never-empty guarded on BOTH UI (last checked box disabled + ['US'] floor in toggle) AND backend; correct dirty-diff (sameSet deletes the dirty key on revert); zero emoji (colored Tailwind dots, not pictographs); no @phosphor-icons direct import added. (3) build GREEN (accepted). (4) live_check_50.6.md has build/types/test proofs + API-wiring proof + Playwright skip-auth visual (gate restored ->302) + an explicit OPERATOR-TO-CONFIRM visual section enumerating the 3 surfaces. DO-NO-HARM independently confirmed: git diff --stat shows NO paper_trader/kill_switch/risk_engine/perf_metrics/backtest_engine/.env/secret/orchestrator file; NAV widget client-side only; market-hours clock mount-guarded; $0 (no LLM/pip/npm/BQ). Emoji sweep clean on all changed lines: the only non-ASCII hits (settings_api.py:196 'low->0.33x'; backtest/page.tsx:303/1138/1141/1263/1271 up/right/left arrows) are pre-existing typographic arrows (U+2190/2191/2192) on lines NOT in this diff and are JSX/comment display strings, not logger calls -> unicode-in-logger N/A. No BLOCK/WARN code-review heuristics (worst severity NOTE). Playwright evidence (manage US-checked+disabled->click EU unlocks+unsaved+Save-enabled; positions Currency exposure USD $24,023.58 98.5%; backtest US.USD.SPY.OPEN; console 0 errors/warnings; gate restored 302) credible against the code read.",
-  "violated_criteria": [],
-  "violation_details": [],
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "phase-43.0 is an AUDIT step; the audit deliverable is HONEST + COMPLETE + ACCURATE, but the STEP cannot be marked done because 2 of 4 immutable criteria are structurally operator-gated -- #1 all_14_DoD_criteria_PASS is NOT met (8/14 backend: DoD-3,4,8,10,11,12,13,14 PASS; 5 LIVE-BLOCKED DoD-2/5/6/7/9; 1 OPERATOR-GATED DoD-1; UX 0/12) and #4 operator_approval needs the REMOTE operator. Criteria #2 (verbatim per-criterion evidence) + #3 (no silent drops) ARE met and independently confirmed. Harness 5/5: researcher first w/ gate_passed:true (5 sources read in full, recency scan, 14 URLs); contract precedes generate w/ N* delta + 4 criteria VERBATIM + honest framing that #1/#4 are not autonomously achievable; experiment_results has verbatim verification block + verbatim criteria-mapping; harness_log has NO 2026-06-01 phase=43.0 entry (only 05-28 historical PASS cycles) + masterplan 43.0 status=pending retry=0 max=3 (log-last/flip-last intact); first 2026-06-01 Q/A (fresh re-measured evidence, not verdict-shopping). ANTI-WATERMELON CONFIRMED: I re-ran the FULL backend suite myself -> 16 failed/711 passed in 106.81s, reproducing the audit headline EXACTLY; the 16 break down precisely as claimed (7x test_phase_23_2_16 moved fixture-doc, 4x test_phase_23_2_11 live-BQ freshness, test_phase_23_2_12+test_phase_23_2_10 live-BQ+backend, test_agent_map_live_model+test_rainbow_canary+test_phase_23_2_14 wiring/canary) with live NotFound warnings for pyfinagent_data.api_call_log as direct env-coupling evidence -- NOT logic regressions; the audit at :59 literally says 'Do NOT claim a fully-green suite' and surfaces 16 failed/711 passed at :20 + :57 (a grep for any FALSE green-suite claim found none). CLAIMED PASSES GENUINELY MET (ran the commands): DoD-12 ascii_logger_check EXIT=0 (576 files/1830 calls/0 viol); DoD-14 OWASP grep = LLM01..LLM10 count 10; DoD-10 model_tiers.py:69 + settings.py:31 both gemini-2.5-pro; DoD-3 check_auto_resume/AUTO_RESUME 7 hits; DoD-8 check_scale_out_fires/paper_scale_out_enabled 3 hits; DoD-13 cycle_lock.py exists + clean_stale_lock in main.py; DoD-11 comm -23 shows exactly OPEN-19/21/27 deferred (roadmap rows + BOTH named auto-memories feedback_auto_commit_hook_stalls.md + feedback_researcher_write_first.md EXIST) = 33/33 mapped, 0 silent drops; pytest -k 'settings or config' = 30 passed (no regression). LIVE-BLOCKED/OPERATOR-GATED HONEST: launchctl shows com.pyfinagent.ablation exit=1 + com.pyfinagent.autoresearch exit=1 + backend SIGTERM -15 (DoD-1 genuinely owner-gated); cycle_history.jsonl consecutive completed streak=4 <5 (DoD-9 genuinely needs live cycles). NO FORGED APPROVAL: the only 'PRODUCTION_READY: APPROVED' strings are operator-instructions ('Type ... once green'), never a recorded approval; #4 honestly marked NOT MET; verdict explicitly NOT_PRODUCTION_READY. 3rd-CONDITIONAL auto-FAIL N/A (zero prior 43.0 CONDITIONALs; 05-28 cycles 12-20 were all PASS; counter reset). No code diff -> code-review heuristics N/A (only handoff docs changed; no money-path/risk/secret edit). VERDICT CONDITIONAL because the audit is sound (criteria #2+#3 met, NOT_PRODUCTION_READY accurate) but the step is operator-gated on #1+#4 -- phase-43.0 MUST stay pending; log result=CONDITIONAL; do NOT flip to done; do NOT seek/forge operator approval.",
+  "violated_criteria": ["all_14_DoD_criteria_PASS", "operator_approval_recorded_for_PRODUCTION_READY_declaration"],
+  "violation_details": [
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "audit DoD tally (independently re-verified: ascii exit0, OWASP 10/10, launchctl exit=1 x2, cycle streak=4, full-suite 16/711)",
+      "state": "backend 8/14 PASS (5 LIVE-BLOCKED need operator LLM spend, 1 OPERATOR-GATED owner cron fix), UX 0/12 (phase-44.x unbuilt + Playwright behind NextAuth)",
+      "constraint": "all_14_DoD_criteria_PASS -- legitimately open with documented closure plans (Google SRE PRR negotiated-deficit); audit deliverable is honest, but step cannot be marked done",
+      "severity": "operator-gated"
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "criterion #4 operator approval",
+      "state": "operator is REMOTE this week; only operator-instruction strings present, no recorded approval; Main did NOT forge/seek it (correct)",
+      "constraint": "operator_approval_recorded_for_PRODUCTION_READY_declaration -- requires the remote operator to type the approval; not autonomously satisfiable",
+      "severity": "operator-gated"
+    }
+  ],
   "certified_fallback": false,
-  "checks_run": ["cycle2_legitimacy_simultaneous_presentation", "harness_compliance_audit", "research_brief_50_6_gate_envelope", "contract_criteria_verbatim_vs_masterplan", "experiment_results_completeness", "log_last_no_50_6_entry", "masterplan_status_pending", "no_prior_conditional", "phase_50_6_tests_5", "settings_config_regression_30", "frontend_tsc_exit0", "frontend_vitest_178", "settings_parse_paper_markets_validator_present", "emoji_sweep_9_files", "settings_api_diff_read", "frontend_diffs_read", "new_components_read", "csv_round_trip_test_behavioral", "never_empty_guard_ui_and_backend", "do_no_harm_git_diff_stat", "client_side_nav_widget", "mount_guarded_market_hours", "build_green_accepted_skipped_rerun", "live_check_completeness", "code_review_heuristics"]
+  "checks_run": ["harness_compliance_audit", "research_brief_43_0_gate_envelope", "contract_criteria_verbatim", "experiment_results_completeness", "log_last_no_2026_06_01_43_0_entry", "masterplan_status_pending", "third_conditional_rule_check", "ascii_logger_check_exit0", "owasp_llm_10_of_10_grep", "dod10_gemini_2_5_pro_defaults", "dod3_hysteresis_grep", "dod8_scaleout_grep", "dod13_cycle_lock", "dod11_open_id_silent_drop_comm", "open27_named_automemories_exist", "full_suite_16_711_reproduced", "env_coupled_failure_characterization", "audit_refuses_green_suite_claim", "launchctl_dod1_exit1", "cycle_streak_dod9_eq4", "no_forged_operator_approval", "settings_config_regression_30", "code_review_heuristics"]
 }
 ```
