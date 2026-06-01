@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-27T19:36:00+02:00",
+  "updated_at": "2026-06-01",
   "phases": [
     {
       "id": "phase-0",
@@ -13895,6 +13895,56 @@
               "live_check_52.4.md records the ON-vs-OFF comparison + the SR-difference test stats + the cited basis + a keep/reject (promote/don't) recommendation"
             ],
             "live_check": "REQUIRED -- the $0 replay ON-vs-OFF (Sharpe/return/turnover) + the Ledoit-Wolf SR-difference stats + the a-priori-rule verdict + a promote/reject recommendation; NO live flag flip."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-54",
+      "name": "Operator-away monitoring (remote 1-week window 2026-06-01 -> 2026-06-08): audit ALL cron jobs are scheduled + firing + last-run-healthy, AND guarantee the operator receives daily Slack status updates while away. Slack is the operator's ONLY window during the window, so this is operationally foundational for the concurrent best-in-class-elevation autonomous run -- if crons stall or the digest does not deliver, the operator is blind and the away-week work is unobservable.",
+      "status": "pending",
+      "audit_basis": "Operator going remote for 1 week (set 2026-06-01), watching ONLY the Slack channel. Two cron layers exist: launchd jobs (~/Library/LaunchAgents/com.pyfinagent.* -- backend, frontend, backend-watchdog, claude-code-proxy, mas-harness, autoresearch, ablation) and in-process APScheduler in the Slack bot (backend/slack_bot/scheduler.py: morning_digest, evening_digest, watchdog + backend/slack_bot/jobs/*: daily_price_refresh, hourly_signal_warmup, nightly_mda_retrain, nightly_outcome_rebuild, weekly_data_integrity, weekly_fred_refresh, cost_budget_watcher). At authoring time (launchctl list, 2026-06-01) com.pyfinagent.autoresearch and com.pyfinagent.ablation showed last-exit-status=1 and com.pyfinagent.mas-harness was not running -- exactly the silent failures this phase must catch. The Slack digest pipeline already exists (format_morning_digest / format_evening_digest); this phase verifies it actually DELIVERS to the operator channel for the unattended window.",
+      "steps": [
+        {
+          "id": "54.1",
+          "name": "Audit ALL cron jobs end-to-end: enumerate every launchd job (~/Library/LaunchAgents/com.pyfinagent.*) AND every in-process APScheduler job (backend/slack_bot/scheduler.py + backend/slack_bot/jobs/*), and for each confirm it is (a) registered/loaded, (b) scheduled with a sane next-fire, and (c) last-run-healthy. Surface every stalled/failed job (autoresearch + ablation showed last-exit=1; mas-harness not running at authoring) and FIX-or-ESCALATE each -- a fix needing LLM spend / pip / BQ-DROP / launchctl load-unload is operator-gated, so ESCALATE it in the report, do not force. Write handoff/current/live_check_54.1.md = the full cross-layer cron-health table.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "",
+          "audit_basis": "launchctl list showed com.pyfinagent.autoresearch + com.pyfinagent.ablation at last-exit-status=1 and com.pyfinagent.mas-harness not running on 2026-06-01. The /cron page + slack_bot watchdog exist, but a single consolidated cross-layer audit (launchd + APScheduler in one table) had not been run before the operator's away-week. Free: read-only introspection (launchctl list/print, APScheduler get_jobs, log tails) -- $0, no LLM.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && launchctl list | grep -c com.pyfinagent && python -c \"import backend.slack_bot.scheduler as s; print('scheduler import OK')\" && test -f handoff/current/live_check_54.1.md",
+            "success_criteria": [
+              "EVERY launchd job in ~/Library/LaunchAgents/com.pyfinagent.* is enumerated with its loaded state + last exit status; EVERY in-process APScheduler job (slack_bot/scheduler.py morning_digest/evening_digest/watchdog + slack_bot/jobs/*) is enumerated with its trigger + next-fire time",
+              "every UNHEALTHY job (not loaded, last-exit nonzero, missed/never-fired, or no sane next-fire) is explicitly listed with the root-cause + a FIX-applied OR an operator-escalation note (LLM-spend / pip / BQ-DROP / launchctl load-unload fixes are operator-gated and ESCALATED, not forced)",
+              "the autoresearch + ablation last-exit=1 failures and the mas-harness not-running state observed 2026-06-01 are each addressed (fixed or escalated with a crisp operator ask)",
+              "live_check_54.1.md contains the full cross-layer cron-health table (job | layer | schedule | last-run | status | action) -- the artifact the operator can audit from Slack"
+            ],
+            "live_check": "REQUIRED -- handoff/current/live_check_54.1.md: the full launchd + APScheduler cron-health table with last-run/next-fire/status per job and a fix-or-escalate action per unhealthy job; no forced operator-gated fixes."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "54.2",
+          "name": "Guarantee the operator receives daily Slack status updates for the away window: verify the morning + evening digests (backend/slack_bot/scheduler.py, format_morning_digest / format_evening_digest) are scheduled, the Slack bot process is up, and a digest ACTUALLY DELIVERS to the operator's channel (send one live confirmation digest in this step and record receipt). The digest must summarize what the operator needs while remote: NAV / total P&L / open positions, kill-switch + go-live-gate state, the 54.1 cron-health summary, and the best-in-class-elevation autonomous-cycle progress. If the bot is down or the channel is mis-wired, fix-or-escalate. Write handoff/current/live_check_54.2.md.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "54.1",
+          "audit_basis": "The operator is away 1 week watching ONLY Slack. The digest mechanism exists (morning_digest/evening_digest cron jobs in slack_bot/scheduler.py) but had not been verified to DELIVER end-to-end to the operator channel for an unattended window. Sending a Slack status digest is $0 (Slack API, no LLM) UNLESS the digest body is LLM-summarized -- if so that LLM spend is operator-gated. Content must cover NAV/P&L, kill-switch/gate, 54.1 cron-health, and elevation-cycle progress so the operator can supervise remotely.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -c \"from backend.slack_bot.scheduler import _send_morning_digest, _send_evening_digest; from backend.slack_bot.formatters import format_morning_digest, format_evening_digest; print('digest fns OK')\" && test -f handoff/current/live_check_54.2.md",
+            "success_criteria": [
+              "the morning + evening Slack digests are confirmed scheduled (slack_bot/scheduler.py) AND the Slack bot process is confirmed running; if either is down it is fixed or escalated to the operator",
+              "at least ONE live digest is delivered to the operator's Slack channel during this step and receipt is confirmed (message ts / channel id recorded), proving the away-week pipeline works end-to-end",
+              "the digest content covers the remote-supervision essentials: NAV / total P&L / open positions, kill-switch + go-live-gate state, the 54.1 cron-health summary, and the best-in-class-elevation autonomous-cycle progress",
+              "any LLM-summarized digest body that would incur API spend is flagged operator-gated (not silently spent); live_check_54.2.md records the delivered digest + channel + ts + the daily cadence for the 2026-06-01 -> 2026-06-08 window"
+            ],
+            "live_check": "REQUIRED -- handoff/current/live_check_54.2.md: proof a status digest delivered to the operator Slack channel (channel + message ts), the digest content shape, and the confirmed daily cadence for the away window; operator confirms receipt in Slack."
           },
           "retry_count": 0,
           "max_retries": 3
