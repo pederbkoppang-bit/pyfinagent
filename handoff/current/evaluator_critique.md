@@ -1,12 +1,12 @@
-# Q/A Critique — `goal-market-filter-in-gate-bar` (Cycle 34)
+# Evaluator Critique — phase-54.1 (Cron audit + fix-or-escalate; operator-away cycle)
 
-**Evaluator:** Q/A (merged qa-evaluator + harness-verifier), FRESH single spawn.
-**Date:** 2026-06-01. **Verdict: PASS.** **ok: true.**
-**Mode:** in-place working-tree read (changes UNCOMMITTED; no worktree).
+**Q/A agent (merged qa-evaluator + harness-verifier).** Fresh single spawn; Main
+implemented this and did NOT self-evaluate. Deterministic-first, adversarial,
+anti-rubber-stamp. **Date:** 2026-06-01. **Verdict: PASS. ok: true.**
+**Mode:** in-place working-tree read (settings.py modified + test/artifacts untracked).
 
-This is the FIRST Q/A spawn for this step (no prior CONDITIONAL; no
-verdict-shopping). Deterministic checks ran FIRST, then static code
-verification of the live claims, then LLM judgment.
+This OVERWRITES a stale prior-cycle critique (Cycle-34 "goal-market-filter-in-gate-bar")
+that was still resident in this file; none of that content is preserved.
 
 ---
 
@@ -14,140 +14,183 @@ verification of the live claims, then LLM judgment.
 
 | # | Check | Result |
 |---|-------|--------|
-| 1 | `researcher` spawned first + gate passed | PASS — `research_brief.md` exists, ends `gate_passed:true`; 6 sources read in full (floor 5), 20 URLs (floor 10), recency scan present (last-2-yr, 5 findings), 7 internal files audited, 3-query-variant evidence shown. |
-| 2 | `contract.md` written BEFORE generate w/ N* delta + verbatim criteria | PASS — N* delta present (Burn↓, no P/R delta, articulable ⇒ not DEFERRED); all 6 immutable criteria copied verbatim from the goal prompt (contract lines 50-64). |
-| 3 | `experiment_results.md` present w/ verbatim output + file list | PASS — 5-file change table + verbatim tsc/eslint/build/test output + Playwright transcript. |
-| 4 | Log-last / status-flip order still pending | PASS — `harness_log.md` last entry is Cycle 33 (goal-browser-mcp); NO Cycle-34 entry for this step. Masterplan NOT flipped (goal-slug, not a masterplan phase id). Work uncommitted (`git log` head = `659a3b35`), consistent with pre-PASS state. |
-| 5 | No verdict-shopping | PASS — first spawn; unchanged-evidence reversal N/A. |
+| 1 | researcher spawned FIRST + gate passed | PASS — `research_brief.md` ends `{"gate_passed":true}`; **9** sources read in full (>=5 floor); 25 URLs (>=10); recency scan present (§4, last-2-yr, 4 findings); 12 internal files; 3-query-variant discipline shown (§3); file:line anchors per claim. |
+| 2 | contract.md BEFORE generate, immutable criteria verbatim + N* delta | PASS — N* delta present (Risk-down operational; explicitly no P / no money-path change); the 4 success_criteria copied **byte-for-byte** from masterplan step `54.1` (verified vs `.claude/masterplan.json:14037-14042`). |
+| 3 | experiment_results.md present w/ verbatim verification output + file list | PASS — verbatim `11 passed`, `25 passed, 694 deselected`, crash-layer BEFORE/AFTER block, 4-row file-change table. |
+| 4 | Log-last / status-flip-last order honored | PASS — `grep "phase-54.1"/"phase=54.1"` in `harness_log.md` = 0 entries; masterplan step `54.1` still `status:"pending"`, `retry_count:0`. Main appends the log + flips status AFTER this PASS — correct order. |
+| 5 | No verdict-shopping | PASS — `grep -c "phase=54.1 result=CONDITIONAL"` = 0; first Q/A spawn for this step. 3rd-CONDITIONAL escalation rule N/A. |
 
-All five pass. Proceeding to deterministic re-verification.
+Note on step-id: the masterplan stores the id as `"54.1"` nested under `phase-54`
+(`masterplan.json:14028`), NOT the literal string `"phase-54.1"`. Confirmed the node and
+its `retry_count:0 / max_retries:3` directly; `certified_fallback` is not triggered.
 
 ---
 
-## 2. Deterministic re-verification (run independently; Main's numbers NOT trusted)
+## 2. Deterministic re-verification (ran independently; Main's numbers NOT trusted)
 
 | Check | Command | Result |
 |-------|---------|--------|
-| TypeScript | `npx tsc --noEmit` | **EXIT=0** (no type errors) — matches Main. |
-| ESLint (3 files) | `npx eslint OpsStatusBar.tsx MarketFilter.tsx layout.tsx` | **EXIT=0**, `✖ 4 problems (0 errors, 4 warnings)` — matches Main. All 4 are `react-hooks/set-state-in-effect` (a perf advisory, NOT `rules-of-hooks`). 3 pre-existing (`layout.tsx:173`, `layout.tsx:212`, `OpsStatusBar.tsx:96`); the only NEW one is `OpsStatusBar.tsx:197` `setNow(new Date())` — the mount-guard, identical to the deleted `MarketSessionStrip` two-pass pattern. Net-zero new warning class. **Confirmed the sole new warning is the mount-guard `setNow`.** |
-| Hook-order guard (phase-23.2.24 class) | `react-hooks/rules-of-hooks` errors | **ZERO.** `MarketSegment` runs `useState`→`useEffect`→`useMemo`→`return` with NO early return preceding the hooks; the conditional lives in the PARENT (`OpsStatusBar.tsx:139`) gating whether the child mounts (legal). The phase-23.2.24 `useMemo-after-early-return` bug is NOT present. |
-| Vitest | `npm run test` | **23 files / 178 tests passed**, incl `layout-tablist.test.tsx` (at `src/components/paper-trading/layout-tablist.test.tsx`) — matches Main. |
-| Emoji grep (3 files) | non-ASCII pictographic/arrow sweep | **None.** Clean. |
-| `MarketSessionStrip` deleted | `test -f` + `git status` | **DELETED** (`git rm`, status `D`). |
-| No remaining importer | `grep -rn MarketSessionStrip src/` | Only **3 comment** references (`OpsStatusBar.tsx:184`, `MarketFilter.tsx:33,79`). No live import. Matches "only comments". |
-| Homepage untouched | `git diff src/app/page.tsx` | **Not in diff.** `page.tsx` unchanged. |
+| phase-54.1 tests | `pytest backend/tests/test_phase_54_1_paper_markets_parse.py -q` | **11 passed** in 0.09s |
+| settings/config regression | `pytest backend/tests/ -q -k "settings or config"` | **25 passed, 694 deselected** (no regression) |
+| **Fix at the CRASH LAYER (decisive)** | `( set -a; . backend/.env; set +a; python -c "from backend.config.settings import get_settings; print(get_settings().paper_markets)" )` | `['US', 'EU', 'KR']` — **NOT** SettingsError (this exact command crashed before the fix) |
+| Syntax | `python -c "import ast; ast.parse(open('backend/config/settings.py').read())"` | settings.py parses |
+| Masterplan verify cmd | `launchctl list | grep -c com.pyfinagent && python -c "import backend.slack_bot.scheduler ..." && test -f live_check_54.1.md` | `7` + `scheduler import OK` + file EXISTS |
 
-`npm run build` was deliberately **SKIPPED** to avoid clobbering the
-running launchd dev server's shared `.next` (per the prompt's explicit
-allowance). Regression confidence rests on tsc EXIT=0 + 178 tests + eslint
-0-errors — sufficient for a presentational change. **Noting the skip
-explicitly.** Main's reported build-green claim is plausible and consistent
-with tsc passing, but I did not independently re-run it.
+**Symbol reality check (anti-hallucination):** `pydantic_settings 2.13.1`; `NoDecode`
+= `pydantic_settings.sources.types.NoDecode` (real class); `field_validator` (real). The
+fix does not invoke invented APIs.
 
----
-
-## 3. Static verification of the live (Playwright) claims — code read directly
-
-### `OpsStatusBar.tsx`
-- **(a)** Lines 130-133: `<section aria-label="Paper-trading operator status" className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 ...">`. Still `<section>`, **NOT** `role="toolbar"` (grep: zero `role="toolbar"` codebase-wide; only the do-not-add comment at `:137`). **a11y hard rule honored.** ✓
-- **(b)** Lines 139-148: `<MarketSegment>` rendered INSIDE the `<section>`, conditional on `markets && activeMarket && onMarketChange`. ✓
-- **(c)** Left-most child (before `GateSegment` at `:149`). ✓ — matches Playwright `segmentOrder:["Market","Gate","Kill","Cycle","Last","Next"]`.
-- **(d)** Lines 195-200: mount-guarded `useState<Date | null>(null)` + `useEffect(() => setNow(new Date()), [])`. Hydration-safe two-pass. ✓
-- `useMemo` (`:201-206`) returns `undefined` when `now == null` → feeds the pre-mount fallback. ✓
-
-### `MarketFilter.tsx`
-- `role="radiogroup"` + `aria-label="Filter by market"` (`:71-72`) intact. ✓
-- Roving-tabindex (`focusAndSelect` `:47-51`) + Arrow/Home/End nav (`:53-67`) unchanged. ✓
-- **Hydration-safe `sessionOpen` fallback** (`:82-89`): `open = sessionOpen ? sessionOpen[opt] : undefined`; when `undefined` (pre-mount) → `MARKET_DOT_CLASS[opt] ?? "bg-slate-400"` (per-market identity dot, JIT-safe literal map); when known → `bg-emerald-400` (open) / `bg-slate-600` (closed). First client render matches server. ✓ (R2 mitigated.)
-- `title` (`:90-94`): exchange name pre-mount; `exchange — OPEN/CLOSED` once known — matches the transcript's `"XETRA — OPEN"` / `"NYSE/Nasdaq — CLOSED"`. ✓
-
-### `layout.tsx` (468-512)
-- Old standalone row gone; cockpit `<OpsStatusBar>` now passes `markets={availableMarkets} activeMarket={activeMarket} onMarketChange={setActiveMarket}` (`:482-487`). Filtered note kept (`:496-501`). `MarketFilter`/`MarketSessionStrip` imports dropped. ✓ (criterion 1)
-
-### `page.tsx` (line 360)
-- Homepage `<OpsStatusBar nextRunAt={ptStatus?.next_run ?? null} />` — **only `nextRunAt`, no market props.** Conditional gate at `OpsStatusBar.tsx:139` → renders nothing extra. ✓ (criterion 4) — matches `hasMarketSegment:false, segmentOrder:["Gate","Kill","Cycle","Last","Next"]`.
-
-### Benchmark-flip claim (criterion 3)
-- `cockpit-helpers.tsx:198`: `` `vs ${isAll ? "SPY" : (MARKET_BENCHMARK_LABEL[activeMarket] ?? "SPY")}` ``; `MARKET_BENCHMARK_LABEL` (`format.ts:38`) maps EU→DAX. Corroborates `hasVsDAX:true, hasVsSPY:false`. ✓
-- `isMarketOpen` retains a live consumer (`OpsStatusBar.tsx`) — no dead export. ✓ (R5 mitigated.)
-
-**Judgment:** No code contradicts any Playwright claim. The transcript
-(`insideBar:true`, `oldStandaloneRowStillPresent:false`, EU→`vs DAX`,
-homepage `hasMarketSegment:false`, console clean / no hydration text, gate
-restored 302) is fully consistent with the code I read. The session
-open/closed dot colors depend on the wall-clock at run time, but the
-color-mapping logic is correct and the reported values (EU open, US+KR
-closed on a 2026-06-01 Monday) are plausible for a European-morning run.
+**Exact bug reproduced independently:** `.env:78` = `PAPER_MARKETS=["US","EU","KR"]` (JSON).
+After `set -a; . backend/.env; set +a` the OS env holds the literal `'[US,EU,KR]'` — exactly
+the string the contract says the parser must accept. The root cause is real and reproduced,
+not asserted.
 
 ---
 
-## 4. Code-review heuristic sweep (SKILL: code-review-trading-domain)
+## 3. Anti-rubber-stamp / mutation-resistance (the decisive adversarial test)
 
-Pure-presentational frontend diff. No `paper_trader.py` / `kill_switch.py`
-/ `risk_engine.py` / `perf_metrics.py` / `backtest_engine.py` touched; no
-LLM-to-execution path; no new endpoint; no secret literal; no
-`subprocess`/`eval`/`exec`; no dependency-pin change; no non-ASCII logger.
+**Would the 11 tests catch a regression to the old JSON-only behavior?** I simulated the
+OLD pydantic complex-field decoder (`json.loads` or raise) against the test inputs:
 
-- **Dimension 1 (Security):** clean — no new attack surface (no LLM I/O, no endpoint, no secret).
-- **Dimension 2 (Trading-domain):** all BLOCK heuristics N/A (no execution-path code).
-- **Dimension 3 (Code quality):** no `broad-except`, no `print()`, no global-mutable-state. New `MarketSegment` / `sessionOpen` prop fully type-annotated.
-- **Dimension 4 (Anti-rubber-stamp):** `financial-logic-without-behavioral-test` does NOT fire — no financial-math file touched. The brief + experiment_results honestly document that NO unit test covers these UI components and that the Playwright click-through is the acceptance evidence (frontend.md rule 5). Honest scope, not a hidden gap. No tautological/over-mocked assertions added.
-- **Dimension 5 (LLM-evaluator anti-patterns):** N/A (first spawn, evidence current; this critique cites file:line + verbatim output throughout).
+```
+OLD on '["US","EU","KR"]': ['US','EU','KR']  matches=True   (live JSON path — unchanged)
+OLD on '[US,EU,KR]':        RAISES JSONDecodeError  -> test_bash_sourced_form_no_longer_raises FAILS
+OLD on 'US,EU,KR':          RAISES JSONDecodeError  -> parametrized case FAILS
+```
 
-Worst severity across all dimensions: **NOTE** (no BLOCK, no WARN).
-`code_review_heuristics` recorded in checks_run.
+So the suite is **NOT tautological** — a revert to the old behavior makes
+`test_bash_sourced_form_no_longer_raises` plus the `[US,EU,KR]` and `US,EU,KR`
+parametrized cases fail. The tests genuinely guard the fix. The NEW validator (direct
+call) handles every form: JSON, bracket-mangled, plain-comma, spaced, empty->`["US"]`,
+None->`["US"]`, real-list passthrough.
+
+`tautological-assertion` / `over-mocked-test` / `rename-as-refactor` heuristics: NONE fire.
+`financial-logic-without-behavioral-test`: N/A — this is a settings parser, not a
+Sharpe/drawdown/risk/backtest formula — and it ships 11 behavioral tests regardless.
 
 ---
 
-## 5. Acceptance criteria (6 immutable, verbatim from contract)
+## 4. DO-NO-HARM — live JSON path is byte-identical
+
+Through the **full real `Settings()` construction** (not just the validator in isolation):
+
+```
+FULL-PIPELINE JSON form    -> ['US','EU','KR']  (all str)  PASS  (byte-identical to pre-fix)
+FULL-PIPELINE bash-mangled -> ['US','EU','KR']             PASS  (no SettingsError)
+```
+
+- `Annotated[list[str], NoDecode]` metadata is scoped to **only** `paper_markets` (one
+  metadata entry confirmed); `default_market` (settings.py:51) is a SEPARATE, untouched field.
+- `default_factory` still returns `["US"]` (asserted in test + re-checked live).
+- The diff is purely **additive** (40 lines: imports + field annotation + validator) —
+  it widens what parses, never narrows. The live engine's resolved value is unchanged.
+  Verified by `test_live_json_path_is_byte_identical` + `test_paper_markets_default_factory_is_us`
+  + my own full-pipeline reconstruction. The money-path APScheduler job (`paper_trading_daily`)
+  is healthy and untouched.
+
+---
+
+## 5. Scope-honesty / anti-overreach (critical for an unattended operator-away change)
+
+- **No full-job run.** `git status` shows ONLY `backend/config/settings.py` (code) + the new
+  test + the handoff artifacts changed. The autoresearch/ablation jobs were NOT executed
+  (their huggingface-import gap + potential LLM spend are operator-gated). The fix is verified
+  ONLY at `get_settings()`, the crash point — correctly and explicitly disclosed.
+- **No `.env` edit** — `.env` is absent from the changed-files set (tool-blocked + unnecessary;
+  the existing JSON value parses via the new validator).
+- **No money-path / trading-engine code** — diff scope is settings.py-only. No
+  `paper_trader.py` / `kill_switch.py` / `risk_engine.py` / `perf_metrics.py` / `backtest_*`
+  touch. No new endpoint, no new dependency, no launchd load/unload.
+- **Autonomous-vs-escalate judgment is correct.** The goal's operator-gated list =
+  {LLM spend, pip installs, BQ DROP/unqualified DELETE}. A settings.py code fix is NOT on it;
+  the fix is additive, reversible, and test-guarded. Applying it autonomously (rather than
+  escalating) was the right call. I concur.
+
+---
+
+## 6. live_check_54.1.md — genuine operator-auditable artifact
+
+- **Criterion 1 (EVERY job enumerated):** 7 launchd rows = exactly the 7 live `com.pyfinagent`
+  jobs (cross-checked vs `launchctl list`: claude-code-proxy, ablation, backend-watchdog,
+  autoresearch, backend, frontend, mas-harness). Live exit codes match the table
+  (ablation=1, autoresearch=1, backend=-15, mas-harness/backend-watchdog=`-` idle).
+  13 APScheduler rows (main + slack_bot) with trigger + next-fire.
+- **Criterion 2 (every unhealthy job: root-cause + fix-or-escalate):** autoresearch + ablation
+  = single shared root cause + FIX APPLIED (settings.py, non-gated) + the huggingface/LLM
+  residue escalated; mas-harness = false-positive documented with launchd col1/col2 semantics.
+- **Criterion 3 (autoresearch + ablation + mas-harness each addressed):** all three present
+  and addressed.
+- **Criterion 4 (full cross-layer table job|layer|schedule|last-run|status|action):** present,
+  column-complete, cites launchd legend with source, and the away-week gaps (slack_bot has no
+  launchd supervisor; no external dead-man's-switch; digest lacks a cron-health line) are
+  explicitly deferred to 54.2 — not silently dropped. This is an artifact an operator can read
+  from Slack, not hand-waving.
+
+---
+
+## 7. Code-review heuristic sweep (SKILL: code-review-trading-domain) — no BLOCK, no WARN
+
+- **ASCII/no-emoji:** NO non-ASCII on any ADDED (`+`) line of the diff. (The 6 non-ASCII hits in
+  settings.py are pre-existing unchanged lines 180/191/306/398/408/414, outside the 54.1 region.)
+  Test file ASCII-clean; live_check 0 emoji. `unicode-in-logger` N/A — no logger/print added.
+- **Dimension 1 (Security):** no secret-in-diff, no command/prompt-injection, no
+  insecure-output sink, no dep-pin removal, no new tool/agency, no LLM-to-execution path.
+  The validator's `except ValueError: pass` is a *narrow* catch on `json.loads` with a
+  documented fall-through to comma-split — not a risk-guard swallow, so
+  `broad-except-silences-risk-guard` does NOT fire.
+- **Dimension 2 (Trading-domain):** all BLOCK heuristics N/A — no kill-switch / stop-loss /
+  perf-metrics / position-sizing / max-position / backfill / crypto code touched.
+- **Dimension 3 (Code quality):** no `print()`, no module-mutable-state mutation, no broad
+  `except: pass`. `settings.py` is the explicitly-exempt settings/singleton module.
+  `_parse_paper_markets` is a private classmethod with a docstring.
+- **Dimension 4 (Anti-rubber-stamp):** covered in §3 — mutation-resistant tests, no
+  tautological/over-mocked assertions, no formula-drift.
+- **Dimension 5 (LLM-evaluator anti-patterns):** first spawn, evidence freshly re-run, this
+  critique cites file:line + verbatim command output throughout; no sycophancy/verdict-shopping.
+
+Worst severity across all dimensions: **NOTE** (no BLOCK, no WARN). `code_review_heuristics`
+recorded in checks_run.
+
+---
+
+## 8. Immutable success-criteria mapping (4, verbatim from masterplan step 54.1)
 
 | # | Criterion | Verdict | Evidence |
 |---|-----------|---------|----------|
-| 1 | Radiogroup INSIDE `OpsStatusBar` `<section>`; standalone row `layout.tsx:483-490` gone | **PASS** | `OpsStatusBar.tsx:139-148` (inside `<section>`); `layout.tsx` row deleted + imports dropped; Playwright `insideBar:true`, `oldStandaloneRowStillPresent:false`. |
-| 2 | One fewer row (density win) | **PASS** | Standalone filter+strip row removed; bar absorbs both signals. (Visual-only; corroborated by row deletion + transcript.) |
-| 3 | Live Playwright: EU→VS DAX + scope; All restores; gate restored 302 | **PASS** | `hasVsDAX:true/hasVsSPY:false` ↔ `cockpit-helpers.tsx:198`; filtered note present; gate `GATE RESTORED ... (302)`, `LIGHTHOUSE_SKIP_AUTH (unset)`. |
-| 4 | Homepage status bar structurally identical (no Market segment) | **PASS** | `page.tsx:360` passes only `nextRunAt`; gate at `OpsStatusBar.tsx:139` → no segment; Playwright `hasMarketSegment:false`. |
-| 5 | Open/closed session visible; no hydration warning | **PASS** | emerald/slate pill dots + title (`MarketFilter.tsx:82-94`); mount-guard (`OpsStatusBar.tsx:195-200`); console clean (no hydration text). |
-| 6 | `npm run build` green; tests pass (incl layout-tablist); zero emoji; no new console errors | **PASS*** | 178 tests pass (re-run); zero emoji (re-run); 0 console errors. *Build not independently re-run (skipped to protect dev server); tsc EXIT=0 + 0 eslint-errors stand in. |
+| 1 | Every launchd + every APScheduler job enumerated w/ loaded-state/last-exit/trigger/next-fire | **PASS** | 7 launchd rows = 7 live jobs (launchctl cross-check, exit codes match); 13 APScheduler rows w/ trigger + next-fire |
+| 2 | Every unhealthy job listed w/ root-cause + FIX-applied OR op-escalation (op-gated fixes escalated) | **PASS** | autoresearch/ablation root-caused + FIXED (non-gated) + HF/LLM residue escalated; mas-harness false-positive documented |
+| 3 | autoresearch + ablation last-exit=1 + mas-harness not-running each addressed | **PASS** | both re-verified loading `['US','EU','KR']` under bash-source; mas-harness = false positive (launchd semantics) |
+| 4 | live_check_54.1.md has the full cross-layer table | **PASS** | column-complete `job|layer|schedule|last-run|next-fire|status|action` table present |
 
-Every criterion is behaviorally meaningful (would catch a regression):
-criterion 4 + the homepage Playwright probe is the exact catch for the R1
-highest risk (homepage regression); criterion 5 + console probe catches a
-mount-guard removal; ESLint `rules-of-hooks` (0 errors) guards the
-phase-23.2.24 hook-order class. Not tautological; not a rubber-stamp.
-
----
-
-## 6. Minor flags (NOTE-level; do not degrade verdict)
-
-- **Undisclosed file in diff:** `.gitignore` gained `cockpit-*.png` (ignores
-  loose Playwright screenshots at repo root, mirroring the existing
-  `goal-browser-mcp` block). Benign housekeeping, but NOT listed in the
-  experiment_results "Files changed" table (which lists 5 files). Minor
-  scope-disclosure nit — recommend the next file-list be complete.
-  `tsconfig.tsbuildinfo` is an auto-regenerated tsc artifact, not a source change.
+Every criterion is behaviorally meaningful: criterion 3 is the exact catch for the silent
+nightly cron failure the away-week feared; the crash-layer re-check + the mutation test confirm
+the fix is real and guarded.
 
 ---
 
 ## Verdict
 
-**PASS.** All 6 immutable criteria met. Research gate passed properly;
-contract precedes generate with verbatim criteria; deterministic checks
-(tsc 0, eslint 0-errors, 178 tests, emoji-clean, MarketSessionStrip
-deleted with no live importer, homepage untouched) independently
-reproduced; static code-read confirms the `<section>`-not-`toolbar` a11y
-hard rule, the conditional homepage gate, the hydration mount-guard, and
-the pre-mount dot fallback; the Playwright transcript is consistent with
-the code. The one undisclosed `.gitignore` edit is benign and NOTE-level.
+**PASS.** All 4 immutable criteria met. Research gate passed properly (9 sources, recency
+scan); contract precedes generate with verbatim criteria + N* delta; deterministic checks
+(11 phase-54.1 tests, 25 settings/config regression, syntax, masterplan verify cmd) and the
+decisive bash-source `get_settings()` crash-path re-check (`['US','EU','KR']`, no SettingsError)
+all independently reproduced. Mutation-resistance proven (old JSON-only behavior raises on
+`[US,EU,KR]`/`US,EU,KR`, so the tests fail on a regression — non-tautological). DO-NO-HARM
+verified through the full `Settings()` pipeline (JSON path byte-identical, all-str, NoDecode
+scoped to one field, default_factory still `['US']`, diff purely additive). Scope-honest:
+settings.py-only + test + artifacts; no `.env` edit; no money-path code; no full-job run;
+autonomous application correct (settings.py is off the operator-gated list). live_check_54.1.md
+is a complete operator-auditable 7-launchd + 13-APScheduler cross-layer table with a
+fix-or-escalate per unhealthy job; all 3 named jobs addressed. No BLOCK/WARN heuristics fire.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 6 immutable criteria met. Deterministic re-run: tsc EXIT=0, eslint EXIT=0 (4 warnings/0 errors; only-new warning is OpsStatusBar.tsx:197 mount-guard setNow matching the deleted MarketSessionStrip pattern; zero rules-of-hooks errors), 178/178 tests incl layout-tablist, zero emoji, MarketSessionStrip git-rm'd with no live importer, page.tsx unchanged. Static code-read confirms a11y hard rule (<section> not role=toolbar), conditional homepage gate (markets&&activeMarket&&onMarketChange), hydration mount-guard + pre-mount per-market dot fallback. Playwright transcript (insideBar:true, oldStandaloneRow:false, EU vs DAX, homepage hasMarketSegment:false, console clean, gate 302) is consistent with the code. npm run build deliberately skipped to protect the running dev server's .next; tsc+tests+eslint stand in. One undisclosed benign .gitignore edit (cockpit-*.png) is NOTE-level only.",
+  "reason": "All 4 immutable criteria met. Deterministic: 11 phase-54.1 tests pass, 25 settings/config regression green, ast.parse OK, masterplan verify cmd green (7 launchd + scheduler import + live_check exists). Decisive crash-path re-check: bash-sourced get_settings().paper_markets -> ['US','EU','KR'] (previously SettingsError). NoDecode/field_validator are real pydantic_settings 2.13.1 symbols; exact bash-mangled OS-env value '[US,EU,KR]' reproduced from .env:78 JSON. Mutation-resistance: old JSON-only decode raises JSONDecodeError on [US,EU,KR]/US,EU,KR so test_bash_sourced_form_no_longer_raises + parametrized cases fail on a regression (non-tautological). DO-NO-HARM via full Settings() pipeline: JSON path byte-identical ['US','EU','KR'] all-str, NoDecode scoped to paper_markets only, default_factory still ['US'], diff purely additive (40 lines, imports+field+validator). Scope-honest: settings.py-only + 1 new test + handoff artifacts; no .env edit, no money-path/kill_switch/risk_engine/perf_metrics touch, no full autoresearch/ablation run, no new dep; autonomous application correct (settings.py not on operator-gated {LLM,pip,BQ-DROP} list). live_check_54.1.md is a complete operator-auditable 7-launchd (= 7 live jobs, exit codes cross-checked) + 13-APScheduler cross-layer table with fix-or-escalate per unhealthy job; autoresearch+ablation FIXED, mas-harness false-positive documented. No non-ASCII on any added diff line; no BLOCK/WARN code-review heuristics. First Q/A spawn (no verdict-shopping); log-last/flip-last order intact (54.1 still pending, no harness_log entry).",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "syntax_tsc", "eslint", "rules_of_hooks_hook_order", "vitest_178", "emoji_grep", "marketsessionstrip_deletion", "homepage_unchanged", "static_code_read", "playwright_transcript_consistency", "code_review_heuristics", "research_brief", "contract_alignment", "experiment_results"]
+  "checks_run": ["harness_compliance_audit", "syntax_ast_parse", "verification_command", "phase_54_1_tests_11", "settings_config_regression_25", "crash_layer_bash_source_recheck", "mutation_resistance", "do_no_harm_full_pipeline", "symbol_reality_check", "scope_diff_audit", "live_check_completeness_vs_launchctl", "ascii_no_emoji", "code_review_heuristics", "research_brief", "contract_alignment", "experiment_results"]
 }
 ```

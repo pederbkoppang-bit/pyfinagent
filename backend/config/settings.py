@@ -3,9 +3,10 @@ Application settings loaded from environment variables.
 Uses pydantic-settings for validation and .env file support.
 """
 from pathlib import Path
+from typing import Annotated
 
-from pydantic_settings import BaseSettings
-from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, NoDecode
+from pydantic import Field, SecretStr, field_validator
 from functools import lru_cache
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -52,10 +53,43 @@ class Settings(BaseSettings):
     # phase-50.3: markets the LIVE paper loop screens/trades. Default ['US'] is
     # byte-identical to today. Add 'EU'/'KR' to go live international -- only
     # AFTER the 50.5 data-quality gate (never trade unguarded intl data).
-    paper_markets: list[str] = Field(
+    # phase-54.1: Annotated[..., NoDecode] disables pydantic-settings' built-in
+    # JSON decode of this complex field so the validator below handles EVERY load
+    # path. The cron wrappers `set -a; . backend/.env` bash-source the .env, which
+    # strips the JSON quotes (["US","EU","KR"] -> [US,EU,KR]); the default decoder
+    # raised SettingsError on that, crashing autoresearch + ablation nightly. The
+    # validator accepts JSON, bracket-mangled, and plain-comma forms identically.
+    paper_markets: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["US"],
         description="phase-50.3: live-loop markets (subset of US/EU/KR). Default ['US'] = byte-identical.",
     )
+
+    @field_validator("paper_markets", mode="before")
+    @classmethod
+    def _parse_paper_markets(cls, v):
+        """phase-54.1: accept JSON (["US","EU","KR"]), bracket-mangled ([US,EU,KR]
+        from a bash-sourced .env), plain comma (US,EU,KR), or a real list -- so
+        get_settings() succeeds on the native-dotenv, OS-env, AND shell-sourced
+        paths identically. Purely additive: the live JSON path yields the same list
+        it always did. Empty/None -> the ['US'] default."""
+        if v is None:
+            return ["US"]
+        if isinstance(v, (list, tuple)):
+            return [str(x).strip() for x in v if str(x).strip()]
+        if isinstance(v, str):
+            s = v.strip()
+            if not s:
+                return ["US"]
+            if s.startswith("["):
+                try:
+                    import json
+                    parsed = json.loads(s)
+                    if isinstance(parsed, list):
+                        return [str(x).strip() for x in parsed if str(x).strip()]
+                except ValueError:
+                    pass  # bash-mangled [US,EU,KR] -> fall through to comma split
+            return [tok.strip().strip('"').strip("'") for tok in s.strip("[]").split(",") if tok.strip()]
+        return v
 
     # --- Cloud Function Agent URLs ---
     ingestion_agent_url: str = Field(..., description="Ingestion agent Cloud Function URL")

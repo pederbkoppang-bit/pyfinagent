@@ -1,121 +1,108 @@
-# Contract — `goal-market-filter-in-gate-bar` (Cycle 34)
+# Contract — phase-54.1 (Cron audit + fix-or-escalate) — operator-away cycle
 
-**Date:** 2026-06-01. **Tier:** simple. **Type:** goal-slug (UI control relocation),
-same shape as `goal-multimarket-ux` / `goal-browser-mcp`.
+**Date:** 2026-06-01. **Tier:** moderate. **Step:** phase-54.1 (P0). Operator REMOTE
+2026-06-01 → 2026-06-08, Slack-only.
 
 ## N* delta (N* = Profit − Risk − Burn)
 
-**Burn↓ (speculative, real):** removes one full horizontal row of chrome above the
-fold on the paper-trading cockpit, tightening toward the §4.5 "ONE dense bar, not
-stacked rows" doctrine. No P delta. No R delta (no trading-path code touched; pure
-presentational move of an existing, already-functional control). Articulable ⇒ not
-DEFERRED.
+**Risk↓** (operational): a silent cron failure during the unattended week is unobserved
+risk. This step makes the cron surface auditable + removes the recurring failure that
+would otherwise (a) re-fire nightly and (b) spam the operator's Slack P1 channel all
+week (the watchdog routes cron failures to P1). No P delta. No money-path change
+(DO-NO-HARM: the live paper_trading APScheduler job is healthy + untouched).
 
 ## Research-gate summary
 
-`researcher` ran first (gate **PASSED**: 6 sources read in full, 20 URLs, recency scan
-done, 7 internal files audited). Brief: `handoff/current/research_brief.md`. Three
-decisive findings:
-1. **§4.5 endorses this.** The repo's own `frontend-layout.md` §4.5 literally says
-   "fold its signal into the bar itself" and ships a `Next run` segment — folding a
-   *global* view-scope control + a status dot into `OpsStatusBar` is in-doctrine, not a
-   violation. Peer precedent: GitHub "unified filter bar" (Apr-2026), Grafana 12
-   conditional-render clutter reduction (May-2025).
-2. **a11y is safe ONLY because `OpsStatusBar` is `<section>`, not `role="toolbar"`.**
-   W3C APG (toolbar pattern) warns: do not nest a control needing arrow keys (a
-   radiogroup) inside a `role="toolbar"` — the toolbar steals Left/Right. The bar is a
-   plain `<section aria-label="Paper-trading operator status">` (grep: zero
-   `role="toolbar"` in the codebase), so `MarketFilter`'s native roving-tabindex +
-   four-arrow + selection-follows-focus model (`MarketFilter.tsx:44-58`) moves in
-   verbatim. **HARD RULE: do not promote the bar to `role="toolbar"`.**
-3. **The open/closed dot folds in with zero hydration risk** if the existing
-   mount-guarded `useState<Date|null>` (`MarketSessionStrip.tsx:24-29`) is lifted into
-   the new segment — React's documented two-pass pattern, unchanged in React 19.
-
-Confirmed (file:line): `OpsStatusBar` renders at exactly `page.tsx:360` (homepage, only
-`nextRunAt`) + `layout.tsx:478` (cockpit). `MarketFilter` only at `layout.tsx:484`,
-`MarketSessionStrip` only at `layout.tsx:489`. **No test references any of the three
-components** (`layout-tablist.test.tsx` is a misnamed DataTable smoke test). Bonus:
-`MARKET_BENCHMARK_LABEL` (`format.ts:38`) is the `vs SPY/DAX/KOSPI` label criterion 3
-asserts.
+`researcher` ran first (gate **PASSED**: 9 sources read in full, 25 URLs, recency scan,
+12 internal files). Brief: `handoff/current/research_brief.md`; audit table:
+`handoff/current/live_check_54.1.md`. Decisive findings:
+1. **autoresearch + ablation (both launchctl last-exit=1) share ONE root cause.** Their
+   launchd wrappers `set -a; . backend/.env; set +a` (bash-source the env). The
+   2026-06-01 multi-market go-live set `PAPER_MARKETS=["US","EU","KR"]` (JSON) in
+   `.env`. `paper_markets: list[str]` (`settings.py:55`) is a pydantic-settings *complex*
+   field → the env source JSON-decodes it. Bash strips the quotes on `source` →
+   `[US,EU,KR]` → `JSONDecodeError` → `SettingsError` at `get_settings()`. The LIVE
+   backend is fine (uvicorn reads `.env` via native dotenv, not shell). Re-fails nightly
+   02:00/03:00 unless fixed.
+2. **mas-harness "not running" = FALSE POSITIVE** (idle `StartInterval 1800` job, exit
+   0; PID `-` = loaded-and-idle per launchd semantics). No defect.
+3. **Digest is TEMPLATE/DATA-ONLY ($0 LLM, NOT operator-gated)** — decisive for 54.2.
+4. **Biggest away-week risk: the slack_bot (PID 42151, PPID 1) has NO launchd
+   supervisor** — single point of failure for the Slack lifeline. → addressed in 54.2.
 
 ## Hypothesis
 
-Adding an optional, prop-gated **Market** segment to `OpsStatusBar` and deleting the
-standalone filter row in `layout.tsx` will (a) place the `All·US·EU·KR` radiogroup
-inside the status bar, (b) remove one row of vertical chrome, (c) preserve the filter's
-full function + a11y, and (d) leave the homepage status bar byte-identical — with no
-hydration warning and a green build.
+A pydantic-settings parser that accepts comma / bracket-mangled / JSON forms for
+`paper_markets` will make `get_settings()` succeed on ALL load paths (native dotenv,
+OS-env, bash-sourced), fixing autoresearch + ablation at the settings-load layer with
+ZERO change to the live engine's resolved value (`["US"]` default; `["US","EU","KR"]`
+when set) — DO-NO-HARM verified by test on every input form.
 
-## Immutable success criteria (verbatim from the goal prompt — do NOT edit)
+## Scope decision (autonomous vs escalate)
 
-1. The All·US·EU·KR radiogroup renders INSIDE the OpsStatusBar
-   `<section aria-label="Paper-trading operator status">` (DOM containment, not pixels);
-   the standalone row at `layout.tsx:483-490` no longer exists.
-2. One fewer row: gate-bar-bottom→NAV-tile-top distance strictly less than today.
-3. Live Playwright (skip-auth Path A): EU still flips VS SPY→VS DAX, scopes
-   table/allocation/sector; All restores combined view. Reset to All + RESTORE auth gate
-   (`launchctl unsetenv LIGHTHOUSE_SKIP_AUTH` + kickstart; verify 302) per
-   `docs/runbooks/browser-mcp.md`.
-4. Homepage status bar (`page.tsx`) structurally identical to before (no Market segment,
-   no market props).
-5. Open/closed session state still visible in the cockpit; no hydration warning.
-6. `cd frontend && npm run build` green; existing tests pass (incl
-   `layout-tablist.test.tsx`); zero emoji; zero new cockpit console errors.
+The goal's operator-gated list = {LLM API spend, pip installs, BQ DROP/unqualified
+DELETE}. A `settings.py` code fix is NOT on that list → autonomously in-scope under
+"full approval to proceed" + "close what is autonomously closable". The researcher
+escalated conservatively (touches shared settings); I proceed because the fix is purely
+ADDITIVE (widens what parses, never narrows), needs no `.env` edit (the existing `.env`
+value parses via the new validator), and is gated behind a regression test proving the
+live JSON path is byte-identical. **NOT auto-run:** the full autoresearch/ablation jobs
+(autoresearch may incur LLM spend / has a known huggingface gap) — I verify the fix ONLY
+at the `get_settings()` layer (the crash point), never by running the full job.
+
+## Immutable success criteria (verbatim from masterplan phase-54.1)
+
+1. EVERY launchd job in ~/Library/LaunchAgents/com.pyfinagent.* is enumerated with its
+   loaded state + last exit status; EVERY in-process APScheduler job
+   (slack_bot/scheduler.py morning_digest/evening_digest/watchdog + slack_bot/jobs/*) is
+   enumerated with its trigger + next-fire time.
+2. every UNHEALTHY job (not loaded, last-exit nonzero, missed/never-fired, or no sane
+   next-fire) is explicitly listed with the root-cause + a FIX-applied OR an
+   operator-escalation note (LLM-spend / pip / BQ-DROP / launchctl load-unload fixes are
+   operator-gated and ESCALATED, not forced).
+3. the autoresearch + ablation last-exit=1 failures and the mas-harness not-running
+   state observed 2026-06-01 are each addressed (fixed or escalated with a crisp
+   operator ask).
+4. live_check_54.1.md contains the full cross-layer cron-health table (job | layer |
+   schedule | last-run | status | action) — the artifact the operator can audit from
+   Slack.
 
 ## Plan steps
 
-1. **`MarketFilter.tsx`** — add an optional `sessionOpen?: Record<string, boolean>`
-   prop. When provided, color each non-`All` pill's dot emerald (open) / slate (closed)
-   via a literal ternary; when absent, keep today's `MARKET_DOT_CLASS` per-market dot
-   (so the homepage / any other future caller is unaffected). Keep the exchange-name
-   `title` (`:80`), the radiogroup role, and the roving-tabindex/arrow code (`:44-58`)
-   exactly as-is.
-2. **`OpsStatusBar.tsx`** — add optional props `markets?: string[]`,
-   `activeMarket?: string`, `onMarketChange?: (m: string) => void`. Add a
-   `MarketSegment` helper that owns the mount-guarded `useState<Date|null>` (lifted from
-   `MarketSessionStrip.tsx:24-29`), computes `sessionOpen` via `isMarketOpen`, and
-   renders `SegmentLabel "Market"` + `<MarketFilter ... sessionOpen={...} />`. Render it
-   as the **left-most** child of the `<section>` + a `<Divider/>` before `GateSegment`,
-   gated on `markets && activeMarket && onMarketChange` all present. **Keep the
-   `<section>` role — do NOT add `role="toolbar"`.**
-3. **`layout.tsx`** — delete the standalone row (`483-490`); pass
-   `markets={availableMarkets} activeMarket={activeMarket} onMarketChange={setActiveMarket}`
-   into the cockpit `<OpsStatusBar>` (`:478`). Drop the now-unused `MarketFilter` /
-   `MarketSessionStrip` imports if no longer referenced. Keep the filtered note
-   (`499-504`).
-4. **`page.tsx`** — UNCHANGED (homepage `OpsStatusBar` keeps only `nextRunAt`).
-5. **`MarketSessionStrip.tsx`** — retire (delete) once its signal is folded into the
-   pills and it has no remaining importer; verify `isMarketOpen` still has a live
-   consumer (the new `MarketSegment`).
-6. **Verify:** `npm run build`; run frontend test suite; emoji grep; Playwright
-   skip-auth Path A click-through (EU→`vs DAX`, reset to All, homepage bar unchanged,
-   console clean) → **restore auth gate (verify 302)**.
+1. **Reproduce** the exact bash-mangled value: `set -a; . backend/.env; set +a;
+   python -c "import os; print(repr(os.environ.get('PAPER_MARKETS')))"` → confirm the
+   precise string my parser must accept (expected `[US,EU,KR]`).
+2. **Implement** the parser in `backend/config/settings.py`: accept (a) JSON list
+   `["US","EU","KR"]`, (b) bracket-mangled `[US,EU,KR]`, (c) plain comma `US,EU,KR`,
+   (d) pass-through real lists; empty/unset → default `["US"]`. Use the canonical
+   pydantic-settings approach (`Annotated[list[str], NoDecode]` + `field_validator(mode=
+   "before")` if pydantic-settings ≥2.2 supports NoDecode; else a source-level fallback).
+   Keep `default_factory ["US"]` + the description.
+3. **Test** (`backend/tests/test_phase_54_1_paper_markets_parse.py`): all 4 input forms
+   parse to the right list; unset → `["US"]`; the live JSON form is byte-identical to
+   today (DO-NO-HARM). Run the existing settings tests too.
+4. **Verify the fix at the crash layer** (no full job run): `set -a; . backend/.env;
+   set +a; python -c "from backend.config.settings import get_settings;
+   print(get_settings().paper_markets)"` → succeeds, prints `['US','EU','KR']` (today it
+   raises SettingsError).
+5. **Finalize** `live_check_54.1.md`: flip autoresearch + ablation action from
+   "ESCALATE" to "FIX APPLIED (settings.py NoDecode validator) + verified at settings-load
+   layer; full-job re-verify deferred to next nightly fire / operator (autoresearch LLM +
+   huggingface gap not auto-run)". Keep mas-harness false-positive note.
+6. **Fresh qa** → log → flip.
 
-## Guardrails (from research + frontend.md/§4.5)
+## Guardrails
 
-- No emoji (Phosphor icons / colored dots + text only). Navy/slate palette, never zinc.
-- JIT-safe classes: `MARKET_DOT_CLASS` (`format.ts:100`) + literal emerald/slate
-  ternary; never `bg-${...}`.
-- Dense-bar §4.5: bar stays ONE `flex flex-wrap items-center gap-x-6 gap-y-3` row that
-  wraps gracefully; Market segment must not force a permanent 2nd line ≥1280px beyond
-  today's existing `Next` wrap.
-- Mount-guarded time read (no hydration warning). Keep radiogroup a11y intact.
-
-## Risks (carried from brief)
-
-R1 homepage regression (mitigate: gate on all 3 props) · R2 hydration warning (mitigate:
-mount guard) · R3 a11y break if `role="toolbar"` added (mitigate: keep `<section>`) ·
-R4 wrap/density (mitigate: existing flex-wrap; visual check at 1440px) · R5 dead
-`isMarketOpen` export (mitigate: new segment is the consumer) · R6 visual-only
-correctness ⇒ Playwright click-through is the real acceptance evidence.
+- DO-NO-HARM: prove the live engine's `paper_markets` value is unchanged (JSON path
+  byte-identical). No `.env` edit (tool-blocked + unnecessary). No running the full
+  autoresearch/ablation jobs (LLM/huggingface risk). No new dependency.
+- ASCII loggers; no emoji. Single source of truth (the one `paper_markets` field).
 
 ## References
 
-- `handoff/current/research_brief.md` (6 sources in full; W3C APG radio + toolbar;
-  react.dev hydrateRoot; GitHub unified filter bar; Grafana 12; Tailwind JIT).
-- `handoff/current/goal_market_filter_in_gate_bar.md` (goal prompt).
-- `.claude/rules/frontend-layout.md` §4.5 + §3; `.claude/rules/frontend.md` rules 1/3/5.
-- `docs/runbooks/browser-mcp.md` (skip-auth Path A + mandatory restore).
-- Code: `OpsStatusBar.tsx`, `MarketFilter.tsx`, `MarketSessionStrip.tsx`,
-  `layout.tsx:478/483-490/499-504`, `page.tsx:360`, `format.ts:38/51/77/100/128/212`.
+- `handoff/current/research_brief.md` (launchd docs, APScheduler, Slack API, Healthchecks.io,
+  launchd.info, incident.io).
+- `handoff/current/live_check_54.1.md` (the audit table).
+- `backend/config/settings.py:55` (`paper_markets`); the autoresearch/ablation launchd
+  wrappers + `~/Library/LaunchAgents/com.pyfinagent.{autoresearch,ablation}.plist`.
+- pydantic-settings docs (NoDecode / parsing env complex types).

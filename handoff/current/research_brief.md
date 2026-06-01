@@ -1,356 +1,397 @@
-# Research Brief — `goal-market-filter-in-gate-bar`
+# Research Brief — phase-54.1: Cross-layer cron-health audit for the unattended away-week
 
-**Tier:** simple. **Date:** 2026-06-01.
-**Objective:** Fold the paper-trading market filter (`All·US·EU·KR`
-radiogroup, `MarketFilter.tsx`) INTO the operator status bar
-(`OpsStatusBar.tsx`) as a conditional segment; retire the standalone filter
-row at `layout.tsx:483-490`; fold the `MarketSessionStrip` open/closed
-signal into the pills. `OpsStatusBar` is SHARED with the homepage
-(`page.tsx:360`) — the new segment MUST be conditional or the homepage
-breaks (auto-FAIL per acceptance criterion 4).
-
-**Bottom line:** the change is low-risk and well-supported. Three findings
-decide the design: (1) the repo's own §4.5 doctrine endorses *folding a
-signal into the bar* ("fold its signal into the bar itself"), so a
-*controls-in-status-bar* tension is resolvable, not blocking; (2) because
-`OpsStatusBar` is a `<section>` and NOT `role="toolbar"`, the moved
-radiogroup keeps its native four-direction arrow-key model with zero
-conflict (promoting to `role="toolbar"` would BREAK it — do not); (3) the
-existing mount-guarded `useState<Date|null>` is exactly React's documented
-two-pass pattern and stays correct in React 19, so the session dot folds in
-safely. `gate_passed: true`.
+**Tier:** moderate
+**Step:** phase-54.1 (audit ALL cron jobs end-to-end; operator REMOTE 2026-06-01 → 2026-06-08, Slack-only)
+**Author:** researcher subagent
+**Date:** 2026-06-01
 
 ---
 
-## Source table
+## 0. Bottom line
 
-### Read in full (>=5 required; counts toward the gate)
+The two failed launchd crons (`autoresearch` exit 1, `ablation` exit 1) have a
+**single shared root cause**: the launchd wrappers `set -a; . backend/.env` —
+**shell-sourcing** a `.env` whose `PAPER_MARKETS` value was changed to the
+JSON form `["US","EU","KR"]` on the 2026-06-01 multi-market go-live. Bash mangles
+the unquoted bracket/quote value on `source`, so the env var that reaches the
+process is non-JSON; pydantic-settings' `EnvSettingsSource` then `json.loads()`-es
+it and raises `SettingsError: error parsing value for field "paper_markets"`
+(`Expecting value: line 1 column 2 (char 1)`). The live backend is unaffected
+because uvicorn lets pydantic read `.env` *natively* (the dotenv source, which
+accepts comma form) — only **shell-sourced** crons break. **Fix is non-LLM,
+non-destructive** (escape/quote the value in the cron path) but touches a
+shared secrets file, so it is ESCALATED with a precise, low-risk patch, not forced.
+
+`mas-harness` is **NOT a failure** — it is a `StartInterval 1800` job showing PID
+`-` (idle between fires) with last-exit 0. Per launchd semantics a `-` PID + exit
+0 means "loaded, finished cleanly, waiting for the next 30-min tick." Healthy.
+
+The **APScheduler layer is fully healthy** — `/api/jobs/all` shows all 4 core +
+7 phase-9 jobs ran today with `status=ok` and sane next-fires; `morning_digest`
+delivered to Slack today 12:00 UTC. The digests are **template/data-only (no LLM,
+$0)** — decisive for 54.2: the daily operator digest is NOT operator-gated and can
+run freely all week.
+
+The **single biggest away-week risk is the slack_bot process itself**: it runs
+`python -m backend.slack_bot.app` with **no launchd plist** (PPID 1, orphaned),
+so unlike backend/frontend/proxy it has **no auto-restart**. If it dies or the Mac
+sleeps and the bot doesn't survive, every digest, the watchdog, and all 11
+APScheduler jobs silently stop, and the operator goes blind. This is the
+load-bearing finding for 54.2 (give the slack_bot a `KeepAlive` launchd plist +
+an external dead-man's-switch heartbeat). `gate_passed: true`.
+
+---
+
+## 1. External sources — READ IN FULL (research-gate floor ≥5; 9 read)
+
 | # | URL | Accessed | Kind | Fetched how | Key finding |
 |---|-----|----------|------|-------------|-------------|
-| 1 | https://www.w3.org/WAI/ARIA/apg/patterns/radio/examples/radio/ | 2026-06-01 | standard (W3C APG) | WebFetch (full) | Standalone radiogroup: container `role="radiogroup"` (not focusable), options `role="radio"`+`aria-checked`, roving tabindex (one `0`, rest `-1`), Arrow keys (all 4 dirs) move+check with **selection-follows-focus**, Home/End, Space. Exactly what `MarketFilter.tsx` implements. |
-| 2 | https://www.w3.org/WAI/ARIA/apg/patterns/toolbar/ | 2026-06-01 | standard (W3C APG) | WebFetch (full) | `role="toolbar"` is OPTIONAL (use only for grouping 3+ controls to reduce tab stops). **Explicit warning:** "Avoid including controls whose operation requires the pair of arrow keys used for toolbar navigation." A radiogroup needs arrows -> nesting in a `toolbar` conflicts. Generic container w/o `toolbar` role -> each widget keeps native keyboard model. |
-| 3 | https://react.dev/reference/react-dom/client/hydrateRoot | 2026-06-01 | official doc (React) | WebFetch (full) | For inherently client-only values (`new Date()`), two valid patterns: (a) `suppressHydrationWarning` (one level deep, escape hatch), (b) **two-pass render via `useState`+`useEffect`** (initial render matches server, updates post-hydration). Holds for React 19. |
-| 4 | https://github.blog/changelog/2026-04-16-rule-insights-dashboard-and-unified-filter-bar/ | 2026-06-01 | vendor changelog (GitHub) | WebFetch (full) | Apr-2026 peer precedent: GitHub replaced per-page custom dropdowns with ONE "unified filter bar component" across alert pages. Stated rationale = **consistency** ("consistent filtering experience across all of these pages"). Consolidating filter controls into a shared bar is shipping practice. |
-| 5 | https://grafana.com/blog/2025/05/07/dynamic-dashboards-grafana-12/ | 2026-06-01 | vendor blog (Grafana) | WebFetch (full) | Grafana 12 reduces clutter via **conditional rendering** ("panels or entire rows shown/hidden based on variable selections... reduces clutter") + context-aware side pane. Directly supports the conditional-segment design + the row-removal density win. |
-| 6 | https://tailkits.com/blog/tailwind-dynamic-classes/ | 2026-06-01 | practitioner blog | WebFetch (full) | Tailwind JIT static-scans for literal class strings; `bg-${color}-500` is NOT generated. Fix = **static literal lookup `Record`** (preferred) or safelist. Current for v3/v4 (updated Feb-2025). Confirms `MARKET_DOT_CLASS` (`format.ts:100`) is the correct, JIT-safe pattern to reuse. |
+| 1 | https://healthchecks.io/docs/monitoring_cron_jobs/ | 2026-06-01 | official doc (vendor) | WebFetch (full) | Canonical dead-man's-switch: job pings on completion; "when Healthchecks.io does not receive the HTTP request at the expected time, it notifies you." Catches machine-down, **daemon not running / invalid config**, non-zero exit, ran-too-long. Grace time = expected duration + buffer. |
+| 2 | https://www.launchd.info/ | 2026-06-01 | authoritative ref (de-facto launchd manual) | WebFetch (full) | `launchctl list`: col1 PID — "`-` … means that while the job is loaded it is currently not running"; col2 — "0 … finished successfully, a positive number … reported an error, a negative number … terminated … received a signal." "Only when RunAtLoad or KeepAlive have been specified … launchd will start the job unconditionally." StartInterval/StartCalendarInterval coalesce on wake from sleep. |
+| 3 | https://apscheduler.readthedocs.io/en/3.x/userguide.html | 2026-06-01 | official doc | WebFetch (full) | `misfire_grace_time` = seconds-late a job may still fire; `coalesce` default **False** (collapse missed runs to one, no misfire events); `max_instances` default **1** (next run is a misfire if prior still running). **MemoryJobStore: "Jobs exist only during the application's runtime. They are lost upon process restart."** `get_jobs()` returns Job instances. |
+| 4 | https://docs.slack.dev/apis/web-api/rate-limits/ | 2026-06-01 | official doc | WebFetch (full) | "apps may post **no more than one message per second per channel**"; short bursts allowed. HTTP 429 returns `Retry-After` (seconds) — wait then retry. `chat.postMessage` is "Special Tier". No 2026 change affects `chat.postMessage` (the May-2025 / Mar-2026 tightening targets `conversations.history`). |
+| 5 | https://docs.slack.dev/reference/methods/chat.postMessage/ | 2026-06-01 | official doc | WebFetch (full) | Needs `chat:write`. Success → `"ok": true` + `ts`. Errors: `channel_not_found`, `not_in_channel`, `missing_scope`, `token_revoked`. **When using blocks, include the top-level `text` fallback** — "used as a fallback string to display in notifications" + read by screen readers. Implement exponential backoff on `rate_limited`. |
+| 6 | https://medium.com/@kinjaldand/your-cron-job-didnt-crash-it-vanished-...-08b4d46d912c | 2026-06-01 | practitioner blog | WebFetch (full) | "The absence of an error is not the same as the presence of success." A vanished job logs nothing, dashboard stays green. Invert monitoring: push heartbeat **only on success** (`work && curl ping`), external watcher alerts on absence. GitLab backup incident: 4/5 silent failures for months. |
+| 7 | https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html | 2026-06-01 | official doc (Apple) | WebFetch (full) | **The 10-second throttle rule (verbatim):** "If your daemon shuts down too quickly after being launched, launchd may think it has crashed. Daemons that continue this behavior may be **suspended and not launched again** … do not shut down for at least 10 seconds after launch." StartCalendarInterval missing keys = wildcard (cron-like). KeepAlive subkeys point to launchd.plist(5). |
+| 8 | https://incident.io/blog/on-call-best-practices-guide-2026 | 2026-06-01 | authoritative blog (vendor SRE) | WebFetch (full) | A handoff/status must carry **active incidents (status+next steps+severity), silenced alerts + upcoming risky changes, specific runbook/dashboard URLs** — "Handoffs fail when they rely on memory." Classify every alert **actionable / informational / noise**; Google SRE benchmark **2-3 actionable/shift**; group cascading alerts into ONE thread. |
+| 9 | https://www.watchflow.io/blog/why-cron-jobs-fail-silently/ | 2026-06-01 | practitioner blog | WebFetch (full) | "Silent Failures: nothing crashes, nobody gets paged, and you only notice when data is missing." **"Logs are an internal signal. They often fail together with the system that's supposed to produce them"** — so logs ≠ monitoring. Daily job: interval 24h + **grace 30-60 min**. Send start/success/fail pings; payload catches "ran, but wrong." |
 
-(6 read in full; floor is 5.)
+## 2. External sources — snippet-only (context; does NOT count toward gate)
 
-### Identified but snippet-only (context; does NOT count toward gate)
 | URL | Kind | Why not fetched in full |
-|-----|------|--------------------------|
-| https://www.w3.org/WAI/ARIA/apg/practices/keyboard-interface/ | standard | Roving-tabindex practice; covered by sources 1+2 |
-| https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Roles/toolbar_role | doc (MDN) | Toolbar role corroboration; source 2 authoritative |
-| https://www.w3.org/WAI/ARIA/apg/patterns/toolbar/examples/toolbar/ | standard example | Concrete toolbar w/ nested alignment radiogroup using Up/Down (proves the arrow conflict); snippet sufficient |
-| https://www.pencilandpaper.io/articles/ux-pattern-analysis-data-dashboards | practitioner | "Top-rail consolidates nav+filters+KPIs into a horizontal header"; snippet |
-| https://www.aufaitux.com/blog/dashboard-filter-design-guide/ | practitioner | "Consolidate filters into one single, consistent panel"; snippet |
-| https://blog.logrocket.com/ux-design/dashboard-ui-best-practices-examples/ | practitioner | Linear/Stripe minimal-chrome density study; snippet |
-| https://www.gitnexa.com/blogs/saas-dashboard-ux-patterns | practitioner | 2026 SaaS dashboard patterns; snippet |
-| https://grafana.com/blog/2025/05/07/dynamic-dashboards-grafana-12/ (already full) | — | (listed in read-in-full) |
-| https://github.com/tailwindlabs/tailwindcss/discussions/14050 | issue | Tailwind safelist for dynamic classes; corroborates source 6 |
-| https://blogs.perficient.com/2025/08/19/understanding-tailwind-css-safelist-keep-your-dynamic-classes-safe/ | blog | Safelist alternative (Aug-2025); snippet |
-| https://opensource.adobe.com/spectrum-web-components/tools/roving-tab-index/ | doc | Roving-tabindex impl reference; snippet |
-| https://www.uxpin.com/studio/blog/keyboard-navigation-patterns-complex-widgets/ | blog | Keyboard-nav patterns for composite widgets; snippet |
-| https://www.datacamp.com/tutorial/dashboard-design-tutorial | tutorial | Operational dashboards = big status indicators + low latency; snippet |
-| https://medium.com/@achronus/solving-a-niche-frontend-problem-dynamic-tailwind-css-classes-in-react-da5f513ecf6a | blog | Lookup-map pattern in React; corroborates source 6 |
+|-----|------|-------------------------|
+| https://healthchecks.io/docs/ | doc | Index; specifics covered by source 1 |
+| https://github.com/Kriss-V/deadmancheck | repo | "alerts when jobs run but do nothing" — corroborates source 6/9 "ran but wrong"; snippet sufficient |
+| https://oneuptime.com/blog/post/2026-03-02-how-to-monitor-cron-job-execution-and-alerting-on-ubuntu/view | blog (2026) | Ubuntu-cron specific; pattern identical to source 1 |
+| https://www.manpagez.com/man/5/launchd.plist/ | man page | launchd.plist(5); KeepAlive subkeys; corroborates sources 2/7 |
+| https://keith.github.io/xcode-man-pages/launchd.plist.5.html | man page | launchd.plist(5) mirror; snippet |
+| https://github.com/tjluoma/launchd-keepalive | repo | KeepAlive plist examples incl SuccessfulExit; corroborates source 7 |
+| https://developer.apple.com/.../CreatingLaunchdJobs (KeepAlive subkeys) | doc | Subkeys explicitly deferred to launchd.plist(5) by source 7 |
+| https://apscheduler.readthedocs.io/en/3.x/modules/job.html | doc | `Job.next_run_time` attribute confirmation; snippet |
+| https://github.com/agronholm/apscheduler/issues/296 | issue | max_instances → EVENT_JOB_MISSED interaction; corroborates source 3 |
+| https://docs.slack.dev/apis/web-api/rate-limits (Special Tier detail) | doc | Already read in full (source 4) |
+| https://medium.com/slack-developer-blog/handling-rate-limits-with-slacks-apis-f6f8a63bdbdc | blog | Retry-After handling worked example; corroborates source 4 |
+| https://code.dblock.org/2026/03/12/ai-slop-a-slack-api-rate-limiting-disaster.html | blog (2026) | Cautionary: naive retry storms; reinforces backoff in source 5 |
+| https://sre.google/workbook/on-call/ | book (Google) | The 2-3 actionable/shift benchmark origin cited by source 8 |
+| https://rootly.com/sre/devops-on-call-tools-that-cut-alert-fatigue-in-2025 | blog (2025) | Alert-fatigue tooling; corroborates source 8 |
+| https://devops.com/the-end-of-alert-fatigue-...-2026/ | article (2026) | 500-1200 alerts/day stat; reinforces signal-vs-noise |
+| https://uptimelabs.io/learn/reduce-on-call-burnout/ | blog | Structural noise reduction; snippet |
+| https://www.watchflow.io/blog/why-cron-jobs-fail-silently/ (already full) | — | (listed in read-in-full) |
 
-**Unique URLs collected: 20** (6 read-in-full + 14 snippet-only). Floor is 10.
+**Unique URLs collected: 25** (9 read-in-full + 16 snippet-only). Floor is 10.
 
----
+## 3. Search-query variants run (3 per topic)
 
-## Recency scan (last 2 years, 2024-2026)
-**Performed.** Findings in the 2024-2026 window:
-1. **GitHub "unified filter bar" (Apr 16 2026)** — a fresh, dated peer
-   precedent for consolidating view-filter controls into ONE shared bar
-   component; rationale = consistency. COMPLEMENTS the older Few/Stripe
-   density doctrine the repo already cites. (source 4)
-2. **Grafana 12 dynamic dashboards (May 7 2025)** — conditional
-   rendering of rows/panels to "reduce clutter"; already cited in
-   `frontend-layout.md` §4.5 and re-verified current. COMPLEMENTS the
-   conditional-segment + row-removal design. (source 5)
-3. **Tailwind dynamic-class guidance (updated Feb 2 2025)** — static
-   literal lookup map remains the recommended fix for v3/v4; no
-   deprecation. CONFIRMS the existing `MARKET_DOT_CLASS` approach. (source 6)
-4. **W3C APG radio + toolbar patterns** — current living standard; the
-   arrow-key-conflict warning for controls nested in a `toolbar` is
-   unchanged. SUPERSEDES nothing; it is the canonical a11y authority and
-   directly shapes the "keep `<section>`, don't promote to `toolbar`"
-   decision. (sources 1, 2)
-5. **React hydration guidance** — `react.dev` hydrateRoot doc is
-   version-current; the two-pass `useState/useEffect` pattern is still the
-   recommended way to render client-only time values. No React-19 change
-   that affects the `MarketSessionStrip` mount-guard. (source 3)
+- **Topic 1 (heartbeat/dead-man's-switch):** current-year → "...detect cron stopped firing Healthchecks.io" (2026 OneUptime hit); last-2-year → covered by watchflow 2026 + dblock 2026; **year-less canonical** → "cron job monitoring heartbeat dead man switch" (surfaced Healthchecks.io docs, Dead Man's Snitch, the canonical Medium piece).
+- **Topic 2 (launchd):** current-year → "launchctl print ... 2026"; last-2-year → "macOS launchd agent crashed not restarted KeepAlive 2025/unattended" (Apple dev doc + tjluoma KeepAlive repo); **year-less canonical** → launchd.info + launchd.plist(5) man pages.
+- **Topic 3 (APScheduler):** **year-less canonical** → the official 3.x user guide (version-pinned, not year-locked) + job module doc + issue #296. (APScheduler is a stable lib; a year suffix adds noise — flagged per research-gate rule.)
+- **Topic 4 (Slack + SRE handoff):** current-year → "Slack chat.postMessage rate limits ... 2026" (official rate-limits + the 2026 disaster post-mortem); last-2-year → "SRE on-call handoff daily status alert fatigue 2025" (incident.io 2026 guide, Rootly 2025, Catchpoint 2025 stat); **year-less canonical** → Slack official method/rate-limit docs + Google SRE Workbook on-call chapter.
 
-No source CONTRADICTS the planned approach. The recency hits all reinforce
-it (consolidation is accepted; conditional rendering reduces clutter; the
-JIT + hydration patterns already in the repo are still correct).
+## 4. Recency scan (last 2 years, 2024–2026) — PERFORMED
 
-## 3-query-variant evidence
-- **Current-year (2026):** "operator status bar control consolidation 2026
-  dashboard segment filter best practice" -> surfaced the GitHub Apr-2026
-  unified-filter-bar changelog (source 4) + 2026 SaaS dashboard guides.
-- **Last-2-year (2024-2025):** "Next.js 15 React 19 hydration mismatch
-  new Date() useEffect mount guard" + Grafana-12 (May-2025) + Tailwind
-  (Feb-2025 update). Covers the hydration + JIT + conditional-render leg.
-- **Year-less canonical:** "WAI-ARIA APG radiogroup roving tabindex inside
-  toolbar" + "dense status bar toolbar consolidating view controls
-  Linear Stripe" -> surfaced the W3C APG radio/toolbar living standards
-  (sources 1, 2) and the canonical Few/Stripe/Linear density literature
-  (Pencil&Paper, LogRocket, AufaitUX snippets).
+Findings in the 2024-2026 window:
+1. **Slack rate-limit tightening (eff. 2025-05-29 / 2026-03-03)** — applies to
+   `conversations.history` / `conversations.replies` for **newly-created
+   non-Marketplace apps**, NOT `chat.postMessage`. So pyfinagent's digest/alert
+   posting is **unaffected**; the 1-msg/sec/channel limit is unchanged. (source 4)
+2. **incident.io On-Call Best Practices 2026** (source 8) and **Catchpoint SRE
+   Report 2025** (snippet): ~70% of SREs report on-call burnout; 500-1200
+   alerts/day typical. Reinforces the away-week design imperative: the digest
+   must be **signal, not noise** — the watchdog already does state-transition
+   gating (alert only on change), which matches the 2026 guidance exactly.
+3. **watchflow "Why Cron Jobs Fail Silently" (2026)** + **OneUptime (Mar 2026)**
+   (sources 9 / snippet): both re-confirm the dead-man's-switch is still the
+   2026 state of the art for catching vanished schedulers, and add the
+   "logs fail with the system" insight — directly relevant because pyfinagent's
+   only away-week visibility today is Slack + on-disk logs.
+4. **Apple "Creating Launch Daemons and Agents"** (source 7): still the official
+   reference; the 10-second-throttle caveat is unchanged and is a real risk for
+   any KeepAlive plist added in 54.2 (a fast-crashing slack_bot would get
+   suspended by launchd).
 
----
+No source CONTRADICTS the recommended design. The dead-man's-switch /
+state-transition-alert / KeepAlive-with-throttle-guard patterns are all current.
 
-## Key findings (external)
+## 5. Key external findings
 
-1. **Folding a signal into the operator bar is explicitly endorsed by the
-   project's own §4.5 doctrine** — and consolidation is mainstream 2026
-   practice. The goal flags a "tension" with §4.5 ("the dense bar is for
-   status, not controls"). The tension is OVER-STATED: §4.5's *forbidden*
-   list targets rendering status as separate *cards/bento*, and its
-   prescriptions literally say "fold its signal into the bar itself" and
-   put a `Next run` segment with `ml-auto`. The market filter is a global
-   view-scope control; the open/closed dot is a status signal. Both fit
-   the dense-bar mandate; GitHub's unified filter bar (source 4) and
-   Grafana 12 (source 5) show consolidation is the shipping norm. The
-   contract should cite §4.5's "fold its signal into the bar" sentence to
-   justify, and explicitly note this is a *global* control (not a
-   per-panel one) so it stays consistent with "globally relevant content
-   above the tab bar" (§3).
+1. **A "vanished" job is the hardest failure and needs an EXTERNAL, push-based
+   dead-man's-switch — internal logs/dashboards cannot catch it** (sources 1, 6,
+   9). "The absence of an error is not the same as the presence of success"
+   (source 6); "Logs … often fail together with the system that's supposed to
+   produce them" (source 9). The job pings on success (`work && curl …`); an
+   independent watcher alerts when the ping is absent within `interval + grace`.
+   This catches the exact failure pyfinagent fears: the slack_bot dying and
+   taking the whole APScheduler layer (incl. the operator's only window) with it.
 
-2. **a11y is SAFE because `OpsStatusBar` is `<section>`, not
-   `role="toolbar"` — and it must STAY that way.** (sources 1, 2)
-   - APG Toolbar pattern: "Avoid including controls whose operation
-     requires the pair of arrow keys used for toolbar navigation." A
-     radiogroup needs Left/Right (and Up/Down) — nesting it inside a
-     `role="toolbar"` would force the toolbar to steal Left/Right and the
-     radiogroup to fall back to Up/Down only, changing its keyboard model.
-   - Because the bar is a generic `<section aria-label="...">`, NOT a
-     toolbar, the nested `radiogroup` keeps its full native model
-     (all four arrows + Home/End + selection-follows-focus, per source 1).
-   - **Design rule for the contract:** keep `OpsStatusBar` as `<section>`.
-     Do NOT add `role="toolbar"`. The radiogroup's existing keyboard code
-     in `MarketFilter.tsx:44-58` moves in verbatim and remains spec-correct.
-   - Focus order is DOM order: placing the Market segment first means
-     Tab order = Market radios -> Gate info -> Kill buttons -> ... which is
-     a sane "scope before status" reading order. Acceptable per APG (no
-     toolbar-level focus management needed since it's not a toolbar).
+2. **launchd status semantics let you distinguish all three pyfinagent states
+   deterministically** (source 2): `launchctl list` col1 `-` = loaded-but-not-
+   running (idle interval job, e.g. mas-harness), a number = running; col2 `0` =
+   clean, **positive = job reported an error (ablation/autoresearch=1)**, negative
+   = killed by signal (backend=-15 = a prior SIGTERM, now re-running under
+   KeepAlive). So "ran-and-failed" vs "idle" vs "killed" are all readable from
+   two columns — the basis for the repeatable audit method (§9).
 
-3. **The open/closed dot folds in with zero hydration risk if the existing
-   two-pass pattern is preserved.** (source 3) React's documented fix for
-   `new Date()`-dependent UI is exactly `MarketSessionStrip.tsx:24-29`'s
-   `useState<Date|null>(null)` + `useEffect(setNow(new Date()))`. Whether
-   the open/closed computation lives in a retired strip or inside
-   `MarketFilter`/a new `MarketSegment`, the SAME mount guard must wrap it:
-   render the "unknown" dot color on the server/first paint, then color
-   emerald/slate after mount. Folding into a child component does NOT
-   change this — it just moves where the `useState<Date|null>` lives.
-   - Recommended: compute the session map inside the segment and pass it
-     down, OR add an optional `sessionOpen?: Record<string,boolean>` prop
-     to `MarketFilter`. EITHER way the time read must be mount-guarded.
-   - `LastSegment` already uses `suppressHydrationWarning`
-     (`OpsStatusBar.tsx:341`) for `formatRelativeTime` — that escape hatch
-     is the alternative, but for a boolean open/closed the two-pass guard
-     is cleaner and matches the existing strip.
+3. **macOS launchd will COALESCE missed calendar/interval fires on wake, and a
+   too-fast-crashing KeepAlive job gets SUSPENDED** (sources 2, 7). For the
+   away week on a Mac that may sleep: StartCalendarInterval jobs (autoresearch
+   02:00, ablation 03:00) fire once on wake rather than skipping — good. But any
+   KeepAlive plist added for the slack_bot in 54.2 MUST honor Apple's rule: "do
+   not shut down for at least 10 seconds after launch," else launchd throttles
+   it. Mitigation: `ThrottleInterval` (backend uses 5) + ensure the bot doesn't
+   exit-on-import-error within 10s.
 
-4. **Dot colors must stay in a static literal map (JIT).** (source 6)
-   `MARKET_DOT_CLASS` (`format.ts:100`) is the correct, JIT-safe pattern
-   for the per-market pill dot. For the open/closed state, the existing
-   strip uses LITERAL ternary classes (`bg-emerald-400` / `bg-slate-600`,
-   `MarketSessionStrip.tsx:46`) — also JIT-safe. Reuse literals; never
-   build `bg-${...}` strings. (No new safelist entry needed.)
+4. **APScheduler's MemoryJobStore loses ALL jobs on process restart** (source 3).
+   pyfinagent's scheduler uses the default in-memory store (confirmed in code),
+   so a slack_bot restart re-seeds from `start_scheduler()` — fine for the cron
+   schedule, BUT any one-shot/catch-up state is lost. The code already mitigates
+   the one job where this matters (daily_price_refresh catch-up-on-start,
+   scheduler.py:297-314). `coalesce=True` + `misfire_grace_time` (set on the
+   phase-9 jobs) prevent a restart from stale-firing a missed tick.
+
+5. **Slack `chat.postMessage` is rate-safe for a daily digest and a state-gated
+   watchdog, but blocks-messages MUST set the `text` fallback** (sources 4, 5).
+   1 msg/sec/channel is far above pyfinagent's volume (2 digests + transition-only
+   alerts). On 429, honor `Retry-After` with backoff. The digests already pass a
+   `text=` fallback (scheduler.py:354/399) — compliant. Risk is only a retry
+   storm if an alert loop misfires; the AlertDeduper + state-transition gating
+   already prevent that.
+
+6. **An away-week status digest should be signal-dense and actionable** (sources
+   8): active state (NAV/P&L, open positions), anything silenced/abnormal, and
+   concrete links — and should suppress steady-state noise (Google: 2-3
+   actionable/shift). pyfinagent's watchdog already posts only on transitions;
+   the daily digest is the "all-clear heartbeat." The away-week design should add
+   a **cron-health line to the digest** (or a once-daily cron-health ping) so
+   "all jobs green" is itself the dead-man's-switch the operator sees in Slack.
 
 ---
 
-## Internal code inventory
-| File | Lines | Role | Status |
-|------|-------|------|--------|
-| `frontend/src/components/OpsStatusBar.tsx` | 1-374 | Dense status `<section>`; segments Gate/Kill/Cycle/Last/Next; `Divider`+`SegmentLabel` helpers | In scope — add conditional Market segment |
-| `frontend/src/components/paper-trading/MarketFilter.tsx` | 1-99 | WAI-ARIA radiogroup of pills; roving tabindex + arrows | In scope — moves into bar; optional session-dot prop |
-| `frontend/src/components/paper-trading/MarketSessionStrip.tsx` | 1-56 | Open/closed indicator; mount-guarded `useState<Date|null>` | In scope — retire (fold into pills) or re-home inside bar |
-| `frontend/src/app/paper-trading/layout.tsx` | 137,164-177,323-324,478-505 | Owns `activeMarket`/`availableMarkets`; renders bar + filter row + hero | In scope — delete row 483-490; pass market props into bar at 478 |
-| `frontend/src/app/page.tsx` | 8,360 | Homepage; renders `OpsStatusBar nextRunAt=...` ONLY | MUST stay byte-identical (no market props) |
-| `frontend/src/lib/format.ts` | 100,77,51,128,212 | `MARKET_DOT_CLASS`,`MARKET_ORDER`,`MARKET_EXCHANGE`,`resolveMarket`,`isMarketOpen` | Read-only — reuse exports |
+## 6. Internal cron inventory (launchd + APScheduler) — file:line anchored
 
-### Verification of goal-prompt claims (file:line) — all CONFIRMED
-- **`OpsStatusBar` is `<section aria-label="Paper-trading operator
-  status">`** — confirmed `OpsStatusBar.tsx:116-119`. Container classes:
-  `mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border
-  border-navy-700 bg-navy-800/60 px-4 py-3` (so the wrap behaviour the
-  goal relies on already exists). **NOT `role="toolbar"`** (grep: zero
-  `role="toolbar"` in the codebase) — this is the load-bearing a11y fact.
-- **Segments Gate | Kill | Cycle | Last | Next** — confirmed
-  `OpsStatusBar.tsx:120-132` (`GateSegment`,`KillSegment`,`CycleSegment`,
-  `LastSegment`,`NextSegment`, each separated by `<Divider/>`).
-- **`SegmentLabel` / `Divider` helpers** — confirmed
-  `OpsStatusBar.tsx:139-141` (`Divider`, `hidden ... sm:block`),
-  `:143-149` (`SegmentLabel`, `text-[10px] uppercase tracking-wider
-  text-slate-500`). Reuse both for the Market segment.
-- **`LastSegment`'s `ml-auto`** — confirmed `OpsStatusBar.tsx:339`
-  (`<div className="ml-auto flex items-center gap-2">`). NOTE: this is on
-  *Last*, not *Next* as a casual read of §4.5 might suggest. Implication:
-  inserting a Market segment as the LEFT-MOST child does not disturb the
-  `ml-auto` right-push (Last+Next still right-align). Safe.
-- **`layout.tsx:478`** `<OpsStatusBar nextRunAt={status?.next_run} />` —
-  confirmed (no market props today).
-- **`layout.tsx:483-490`** the standalone filter row
-  `<div className="mb-4 flex flex-wrap items-center justify-between gap-3">`
-  wrapping `<MarketFilter .../>` (`:484-488`) + `<MarketSessionStrip
-  markets={availableMarkets} />` (`:489`) — confirmed verbatim. This is the
-  row to delete.
-- **`layout.tsx:499-504`** the `activeMarket !== "ALL"` filtered note —
-  confirmed; it explains hero/table scope, stays put.
-- **Market state** — `activeMarket`/`setActiveMarket`
-  (`layout.tsx:137`), `availableMarkets` (`layout.tsx:164-169`, built from
-  `["US","EU","KR"]` + held markets, filtered through `MARKET_ORDER`),
-  auto-fallback-to-ALL effect (`layout.tsx:173-177`). Shared via
-  `PaperTradingDataContext` (used at `:477` `ctxValue`). Confirmed.
-- **`page.tsx:360`** homepage `<OpsStatusBar nextRunAt={ptStatus?.next_run
-  ?? null} />` — confirmed it passes ONLY `nextRunAt`. So a Market segment
-  gated on `markets && activeMarket && onMarketChange` ALL being present
-  renders NOTHING extra on the homepage. The conditional-prop design
-  satisfies acceptance criterion 4 cleanly.
+### 6a. launchd jobs (`~/Library/LaunchAgents/com.pyfinagent.*`, non-.bak)
 
-### Consumers of OpsStatusBar / MarketFilter / MarketSessionStrip
-- **`OpsStatusBar`** — TWO render sites: `page.tsx:360` (homepage, only
-  `nextRunAt`) and `layout.tsx:478` (cockpit). Confirms the shared-component
-  constraint. (Also referenced in non-render comments: `Button.tsx:3`,
-  `paper-trading-utils.ts:30`, `design-tokens.ts:38` — comments only, no
-  behavioural coupling.)
-- **`MarketFilter`** — ONE render site: `layout.tsx:484`. Safe to change
-  its props (add optional `sessionOpen`/dot map) — no other caller.
-- **`MarketSessionStrip`** — ONE render site: `layout.tsx:489`. Safe to
-  retire entirely; nothing else imports it.
-- **`isMarketOpen`** — ONE consumer: `MarketSessionStrip.tsx:37`. If the
-  strip is retired, the new consumer (MarketFilter or MarketSegment) keeps
-  `isMarketOpen` live; if no consumer remains it becomes dead code (flag,
-  but it's a tiny pure export and likely still used by the folded logic).
+| Plist | Program | Schedule keys | live `launchctl list` | StdErr log | Status |
+|-------|---------|---------------|------------------------|------------|--------|
+| `com.pyfinagent.mas-harness` | `scripts/mas_harness/run_cycle.sh` | StartInterval 1800; RunAtLoad false | PID `-` / exit 0 | `handoff/mas-harness.launchd.log` (empty) | **HEALTHY (idle between 30-min fires)** |
+| `com.pyfinagent.autoresearch` | `scripts/autoresearch/run_nightly.sh` → `run_memo.py` | StartCalendarInterval 02:00; RunAtLoad false | not running / **exit 1** | `handoff/autoresearch.log` | **FAILED (paper_markets parse)** |
+| `com.pyfinagent.ablation` | inline bash → `scripts/ablation/run_ablation.py --next-untested` | StartCalendarInterval 03:00; RunAtLoad false | not running / **exit 1** | `handoff/ablation.log` | **FAILED (paper_markets parse)** |
+| `com.pyfinagent.backend-watchdog` | `scripts/launchd/backend_watchdog.sh` | StartInterval 60; RunAtLoad true; ProcessType Background | PID `-` / exit 0 | `handoff/logs/backend-watchdog.log` | HEALTHY (idle between 60s fires) |
+| `com.pyfinagent.backend` | `caffeinate -i -s … uvicorn backend.main:app :8000` | KeepAlive true; RunAtLoad true; ThrottleInterval 5 | PID 36338 / exit **-15** | `backend.log` | RUNNING (was SIGTERM'd earlier; KeepAlive restarted it) |
+| `com.pyfinagent.frontend` | `next dev --port 3000` | KeepAlive true; RunAtLoad true; ThrottleInterval 5 | PID 11636 / exit 0 | `frontend.log` | RUNNING |
+| `com.pyfinagent.claude-code-proxy` | `node ~/.openclaw/claude-code-proxy.js` | KeepAlive{SuccessfulExit false}; RunAtLoad true | PID 1269 / exit 0 | `~/.openclaw/logs/claude-code-proxy.{log,err}` | RUNNING |
 
-### format.ts exports (signatures)
-- `isMarketOpen(market: string, now: Date = new Date()): boolean`
-  (`format.ts:212`) — weekday + local-tz cash-session window; holiday-blind
-  (UI hint only; backend gate is authoritative). Unknown market -> false.
-- `MARKET_DOT_CLASS: Record<string,string>` (`format.ts:100`) — per-market
-  Tailwind dot bg literal (US `bg-sky-400`, EU `bg-amber-400`, KR
-  `bg-violet-400`, ...). STATIC literal map (JIT-safe).
-- `MARKET_EXCHANGE: Record<string,string>` (`format.ts:51`) — friendly
-  exchange name (US "NYSE/Nasdaq", EU "XETRA", KR "KRX", ...); used as the
-  pill `title` tooltip.
-- `MARKET_ORDER: string[]` (`format.ts:77`) — canonical display order
-  `["US","EU","NO","SE","DK","FI","IS","CA","KR"]`.
-- `resolveMarket(opts:{market?,ticker?}): string` (`format.ts:128`) —
-  explicit market wins else derive from ticker suffix.
-- (bonus) `MARKET_BENCHMARK_LABEL` (`format.ts:38`) — the `vs SPY/DAX/KOSPI`
-  label the Playwright click-through asserts (acceptance criterion 3).
+Notes:
+- `.bak-harness-ABCD` / `.bak` copies exist for mas-harness/autoresearch/ablation/backend — **not loaded**, ignore (per task scope).
+- launchd col2 semantics per source 2: `1` = job reported an error; `-15` = killed by SIGTERM (signal 15); `-` PID = loaded-not-running.
 
-### Test coverage
-- **No test references `OpsStatusBar`, `MarketFilter`, `MarketSessionStrip`,
-  "Filter by market", or "operator status"** (grep over all `*.test.tsx`).
-- **`layout-tablist.test.tsx` is misnamed** — it is a `DataTable`
-  meta-support smoke test (align/className/onRowClick); it does NOT assert
-  anything about the market filter row or the status bar. My change cannot
-  break it. The file's own comment (line 7-8) says full layout/tablist a11y
-  is exercised via Playwright in a separate cycle — i.e. the visual
-  click-through IS the coverage (matches acceptance criterion 3 + frontend.md
-  rule 5).
-- 22 test files exist total; none touch the in-scope components. `npm run
-  build` + the existing suite passing (criterion 6) is therefore a
-  regression guard, not a direct assertion of the move.
+### 6b. APScheduler in-process jobs
 
----
+**Process A — "main" scheduler** (in the backend uvicorn process, PID 36338),
+registered at `backend/main.py:262` via `init_scheduler(scheduler)` +
+`_register_cron_scheduler("main", scheduler)` (`main.py:263`):
 
-## Recommended approach + risks
+| Job id | Trigger | next-fire (live) | Status (live) |
+|--------|---------|------------------|---------------|
+| `paper_trading_daily` | cron (daily trade cycle; id at `paper_trading.py:38`) | 2026-06-01T14:00-04:00 | scheduled (HEALTHY) |
+| `ticket_queue_process_batch` | interval (`main.py:309`) | 2026-06-01T15:58+02:00 | scheduled (HEALTHY) |
 
-### Recommended approach (aligns with the goal's recommended design)
-1. **Add an optional `MarketSegment` to `OpsStatusBar`**, gated on
-   `markets && activeMarket && onMarketChange` all being present. Render it
-   as the **left-most** child of the `<section>`, followed by a `<Divider/>`
-   before `GateSegment`. Reuse `SegmentLabel` ("Market") + the existing
-   `MarketFilter` radiogroup. Props:
-   `markets?: string[]; activeMarket?: string; onMarketChange?: (m)=>void;`
-   (all optional, additive — `nextRunAt` unchanged).
-2. **Keep `OpsStatusBar` as `<section>` — do NOT promote to
-   `role="toolbar"`.** This is the single most important a11y decision
-   (source 2): a toolbar would hijack the radiogroup's arrow keys. As a
-   plain section, `MarketFilter`'s native roving-tabindex + arrow model
-   (`MarketFilter.tsx:44-58`) survives verbatim.
-3. **Fold the session signal into the pills.** Color each non-`All` pill's
-   dot emerald when `isMarketOpen(market, now)` is true, slate when closed,
-   using a mount-guarded `useState<Date|null>` (lift the
-   `MarketSessionStrip.tsx:24-29` guard into `MarketFilter` or the
-   `MarketSegment`). Render the neutral `MARKET_DOT_CLASS` color until
-   mount to avoid the hydration mismatch (source 3). Keep the exchange name
-   in each pill's `title` (`MarketFilter.tsx:80`). This retires
-   `MarketSessionStrip` and removes BOTH the filter and the strip from
-   `layout.tsx:483-490` (net −1 full row = the density win, criterion 2).
-   - **Fallback** (if pills get cramped): keep a compact `MarketSessionStrip`
-     INSIDE the same bar segment. Still −1 row; criterion 1 + 5 satisfied.
-4. **In `layout.tsx`:** delete the `<div className="mb-4 ...">` row
-   (`483-490`) and pass `markets={availableMarkets}
-   activeMarket={activeMarket} onMarketChange={setActiveMarket}` into the
-   cockpit `<OpsStatusBar>` at `:478`. Leave `page.tsx:360` untouched.
-5. **Keep the filtered note** (`layout.tsx:499-504`) where it is.
-6. **Palette + JIT:** navy/slate only (`bg-navy-800/60`, `text-slate-*`),
-   never zinc (frontend.md rule 1); dot classes from the static
-   `MARKET_DOT_CLASS` / literal emerald-slate ternary, never `bg-${...}`
-   (frontend.md rule 3, source 6). No emoji anywhere (colored dots +
-   `SegmentLabel` text only) — confirmed zero emoji in the 3 files today.
+**Process B — slack_bot scheduler** (in `python -m backend.slack_bot.app`, PID
+42151), `start_scheduler()` at `scheduler.py:187`; 4 core jobs + 7 phase-9 jobs
+(`register_phase9_jobs` at `scheduler.py:784`, mapping at `:856-871`):
 
-### Risks / watch-items
-- **R1 (homepage regression — highest):** the Market segment MUST be
-  conditional. If it renders on `page.tsx` the step FAILs (criterion 4).
-  Mitigation: gate on all three market props; homepage passes none. Verify
-  by reading the rendered homepage bar (5 segments, no Market) in Q/A.
-- **R2 (hydration warning):** if the open/closed color is computed from
-  `new Date()` WITHOUT the mount guard, React 19 will warn and criterion 5
-  fails ("no hydration warning in the console"). Mitigation: reuse the
-  `useState<Date|null>(null)` two-pass guard verbatim (source 3).
-- **R3 (a11y keyboard regression):** if someone "tidies" the bar by adding
-  `role="toolbar"`, the radiogroup arrows break (source 2). Mitigation:
-  leave the `<section>` role as-is; note this explicitly in the contract.
-- **R4 (wrap / density):** the Market segment adds width; on ≥1280px it
-  must not force a *permanent* 2nd line beyond today's existing `Next`
-  wrap (goal guardrail). The existing `flex flex-wrap gap-x-6 gap-y-3`
-  handles graceful wrap; visual click-through at 1440px is the check
-  (criterion 3 + frontend.md rule 5).
-- **R5 (dead export):** if pills fully absorb sessions and
-  `MarketSessionStrip` is deleted, double-check `isMarketOpen` still has a
-  consumer (it will, inside the folded logic). Don't leave an unused import.
-- **R6 (visual-only correctness):** unit tests + grep cannot see the moved
-  control or the dot colors (frontend.md rule 5; no unit test covers these
-  components). The Playwright click-through (EU -> `vs DAX`, POSITIONS
-  change, filtered note, reset to All, restore auth gate) is MANDATORY and
-  is the real acceptance evidence (criterion 3).
+| Job id | Trigger (scheduler.py) | grace/coalesce | last_run (live) | next_run (live) | Status |
+|--------|------------------------|----------------|-----------------|-----------------|--------|
+| `morning_digest` | cron 08:00 ET (`:199`) | — | 2026-06-01T12:00 UTC | 2026-06-02T08:00 ET | **ok (delivered)** |
+| `evening_digest` | cron 17:00 ET (`:211`) | — | None (not fired today yet) | None* | registered; fires 17:00 ET |
+| `watchdog_health_check` | interval 15 min (`:223`) | — | 2026-06-01T13:50 UTC | +15 min | ok |
+| `prompt_leak_redteam` | cron 03:15 ET (`:235`) | — | 2026-06-01T07:15 UTC | 2026-06-02T03:15 ET | ok |
+| `daily_price_refresh` | cron 01:00 UTC (`:858`) | 21600s / True | 2026-06-01T01:00 UTC | 2026-06-02T01:00 UTC | ok |
+| `weekly_fred_refresh` | cron Sun 02:00 UTC (`:860`) | 7200s / True | None | None* | registered; fires Sunday |
+| `nightly_mda_retrain` | cron 03:00 UTC (`:862`) | 3600s / True | 2026-06-01T03:00 UTC | 2026-06-02T03:00 UTC | ok |
+| `hourly_signal_warmup` | cron :05 UTC (`:864`) | 600s / True | 2026-06-01T13:05 UTC | 2026-06-01T14:05 UTC | ok |
+| `nightly_outcome_rebuild` | cron 04:00 UTC (`:866`) | 3600s / True | 2026-06-01T04:00 UTC | 2026-06-02T04:00 UTC | ok |
+| `weekly_data_integrity` | cron Mon 05:00 UTC (`:868`) | 7200s / True | 2026-06-01T05:00 UTC | 2026-06-08T05:00 UTC | ok |
+| `cost_budget_watcher` | cron 06:00 UTC (`:870`) | 3600s / True | 2026-06-01T06:00 UTC | 2026-06-02T06:00 UTC | ok |
+| `daily_price_refresh_catchup` | one-shot +20s on start (`:302`) | 3600s | (per-restart) | — | catch-up only |
 
-### Mapping external findings -> internal anchors
+\* `next_run=None` for evening_digest/weekly_fred is a **registry artifact**, not a
+fault: the heartbeat registry only stores `next_run` after a job's first fire or
+the on-start seed (`_seed_next_run_registry`, `:157`), and it resets when the
+slack_bot restarts. Both jobs ARE registered in `start_scheduler`/`register_phase9_jobs`
+and will fire at their cron time. Delivery history in `handoff/logs/slack_bot.log`
+shows evening_digest firing daily through 2026-05-27.
+
+### 6c. Process / liveness snapshot (live, read-only)
+
+- **Slack bot:** RUNNING — PID 42151, `python -m backend.slack_bot.app`, **PPID 1
+  (orphaned to launchd), NO launchd plist** (`launchctl list | grep slack` → none).
+  Started manually ~Thu; stdout/stderr → `backend_slack.log` (live), NOT the stale
+  `handoff/logs/slack_bot.log` (last write 2026-05-27 20:44 — log rotated/changed on
+  the restart). `start_scheduler(app)` at `app.py:56`; `asyncio.run(main())` at `:77`.
+- **Backend :8000:** RUNNING — PID 36338 under `caffeinate`, KeepAlive (auto-restart).
+- **Frontend :3000:** RUNNING — PID 11636, KeepAlive.
+- **What drives the digests if there's no slack launchd job?** The digests +
+  watchdog + all 11 phase-9/core jobs run **inside the orphaned slack_bot process
+  (PID 42151)**. There is **no supervisor** for it — the away-week single point of
+  failure.
+
+## 7. Root-cause: unhealthy jobs
+
+### autoresearch (exit 1) + ablation (exit 1) — SAME root cause
+Both launchd wrappers do `set -a; . backend/.env; set +a` (run_nightly.sh body;
+ablation inline `&& set -a && . backend/.env && set +a`). The 2026-06-01
+multi-market go-live wrote `PAPER_MARKETS` to `.env` in JSON form. `paper_markets`
+is declared `list[str] = Field(default_factory=lambda: ["US"])` at
+`backend/config/settings.py:55`. pydantic-settings treats `list[str]` as a
+**complex field** and `json.loads()`-es it from the OS env. When bash *sources* a
+`.env` line like `PAPER_MARKETS=["US","EU","KR"]`, the unquoted brackets/quotes are
+mangled by shell word-splitting/globbing, so the env var that reaches Python is
+non-JSON → `json.decoder.JSONDecodeError: Expecting value: line 1 column 2
+(char 1)` → `pydantic_settings.exceptions.SettingsError: error parsing value for
+field "paper_markets"`. Verbatim from `handoff/autoresearch.log` (2026-06-01
+02:00, rc=1) and `handoff/ablation.log` (same trace, `run_ablation.py:305
+get_settings()`).
+
+**Proof it is the shell-source path, not the value itself:** loading `Settings()`
+directly (no shell source — the uvicorn path) succeeds RIGHT NOW:
+`paper_markets = ['US', 'EU', 'KR']`. So the `.env` value is JSON-valid; only the
+`set -a; . backend/.env` shell re-export corrupts it. Reproduced:
+`json.loads("['US','EU','KR']")` → fails at char 1 (matches the live error);
+`json.loads('["US","EU","KR"]')` → OK. The mangling turns the JSON into the
+single-quote/bare form that fails.
+
+**Fix (NON-LLM, non-destructive, ESCALATED — touches the shared .env path):**
+Do NOT re-source `.env` blindly. Lowest-risk options (operator picks one):
+- (a) In both cron wrappers, **unset PAPER_MARKETS after sourcing** (`. backend/.env;
+  unset PAPER_MARKETS`) so pydantic falls back to its native `.env` read /
+  `default_factory=["US"]`. Ablation/autoresearch don't need multi-market.
+- (b) Add a `field_validator(mode="before")` on `paper_markets` in settings.py that
+  accepts the comma form (`"US,EU,KR".split(",")`) so BOTH the dotenv and env
+  sources parse — the robust, permanent fix (also future-proofs any other
+  shell-sourcing caller). ~8 lines, no new dep, default-safe.
+- (c) Quote the value in `.env` as a single JSON token AND switch wrappers to
+  `export PAPER_MARKETS='["US","EU","KR"]'` — brittle (still shell-quoting-fragile).
+Recommend **(b)** (permanent, covers all callers) or **(a)** (zero-settings-risk).
+Escalated because it edits a shared secrets-adjacent file / shared settings model.
+
+NOTE (secondary, latent): `run_memo.py` (autoresearch) has a documented
+huggingface-import dependency issue (auto-memory `project_cron_maintenance_jobs`,
+phase-51.4). It is NOT the active blocker — the crash happens earlier, at
+`get_settings()` (`run_memo.py:152` → `model_tiers.py:131` → `settings.py:469`),
+before any HF import. After the paper_markets fix, re-verify autoresearch for the
+HF issue separately.
+
+### mas-harness (PID `-`) — NOT a failure
+`StartInterval 1800` + `RunAtLoad false`, last-exit 0. Per source 2, a `-` PID with
+exit 0 = "loaded, not currently running" — i.e. cleanly idle between 30-minute
+fires. `/api/jobs/all` reports it `ok`. No action. (If the operator wants it to run
+DURING the away week for autonomous cycles, that is a separate go/no-go, not a
+health defect.)
+
+## 8. Digest: LLM-backed or template/data-only? — DECISIVE: TEMPLATE/DATA-ONLY ($0 LLM)
+
+`backend/slack_bot/formatters.py` imports only `math` + `datetime` (`:6-7`) — no
+`llm_client`, no anthropic/openai/gemini, no `generate`/`complete`.
+`format_morning_digest(portfolio_data, recent_reports)` (`:323`) and
+`format_evening_digest(portfolio_data, trades_today)` (`:391`) are pure Block Kit
+builders that read dict fields from two backend HTTP GETs
+(`/api/paper-trading/portfolio`, `/api/reports`, `/api/paper-trading/trades`) and
+format numbers/strings. **No token spend.**
+
+**Implication for 54.2:** the daily operator digest is **NOT operator-gated** (LLM
+spend is the only gated axis per active_goal.md). It can run freely for the entire
+away week. The only spend-gated cron is the autonomous trade cycle / any
+LLM-routine — separate from the digest. The digest is the safe, free, always-on
+"all-clear heartbeat" the operator should rely on.
+
+## 9. Recommended audit method (repeatable cross-layer check)
+
+A repeatable "are all my jobs healthy?" check has three legs (all $0, read-only):
+
+1. **launchd leg** — `launchctl list | grep com.pyfinagent` → parse col1 (PID:
+   number=running, `-`=loaded/idle) + col2 (0=clean, >0=errored, <0=signal-killed)
+   per source 2. Flag any `>0` exit, and any job that SHOULD be a long-running
+   daemon (KeepAlive/RunAtLoad) showing PID `-`. For interval jobs, PID `-` is
+   normal. Optionally `launchctl print gui/$(id -u)/com.pyfinagent.<job>` for the
+   detailed JSON-like view incl. `last exit code` + `runs`.
+2. **APScheduler leg** — `GET /api/jobs/all` (already built, `cron_dashboard_api.py:410`)
+   merges the "main" + slack_bot schedulers' `get_jobs()` + the heartbeat registry.
+   For each job assert: `status != failed`, `next_run` is non-null and in the future
+   (or a known cron-day), and `last_run` is within `interval + grace` of now (the
+   dead-man's-switch test). The `never_run`/`next_run=None` rows need the
+   firing-history cross-check (slack_bot.log) to avoid false alarms (see §6b note).
+3. **Liveness leg** — confirm the three host processes are up (backend :8000 health
+   200, frontend :3000, **slack_bot PID present**) AND that the slack_bot's heartbeats
+   in `/api/jobs/all` are fresh (its jobs' `last_run` advancing) — the only way to
+   detect the orphaned-bot-died failure from inside the system.
+
+The artifact `handoff/current/live_check_54.1.md` is exactly this three-leg table
+(see that file). This method is the basis for an automated daily cron-health check
+in 54.2.
+
+## 10. Recommended away-week monitoring design (heartbeat / dead-man's-switch fit)
+
+Ranked by leverage for the 2026-06-01 → 06-08 window:
+
+1. **Supervise the slack_bot with launchd (highest priority).** Add
+   `~/Library/LaunchAgents/com.pyfinagent.slack-bot.plist` with `RunAtLoad true` +
+   `KeepAlive true` (mirroring the backend plist) so the bot auto-restarts on
+   crash/sleep-wake. HONOR Apple's 10-second rule (source 7): set `ThrottleInterval`
+   (backend uses 5) and ensure the bot doesn't exit-on-bad-config within 10s, or
+   launchd will suspend it. This closes the single point of failure that would
+   blind the operator. (Adding a launchd plist = `launchctl load` = operator-gated
+   per the masterplan; ESCALATE the plist + load command, don't force.)
+2. **External dead-man's-switch on the digest (the operator's eyes).** Per sources
+   1/6/9, an internal check can't catch the host going fully down. Have the
+   morning/evening digest (or a tiny daily cron) `curl` a free Healthchecks.io /
+   Cronitor / Dead Man's Snitch ping **on success**; configure interval 24h +
+   30-60 min grace; route the absence-alert to email/SMS (a channel independent of
+   Slack + the Mac). Then even "Mac asleep / slack_bot dead / no Slack" still
+   reaches the operator. (Pip/account = operator-gated; the curl-ping itself is
+   trivial and free — ESCALATE the choice of service.)
+3. **Fold a cron-health line into the daily digest.** Per source 8, the digest is
+   the away-week handoff: add one line summarizing `/api/jobs/all` (e.g. "Crons:
+   17/19 green; FAILED: autoresearch, ablation"). That makes "all green" the visible
+   all-clear, and surfaces any newly-failed job in the channel the operator watches —
+   without paging noise (state-gated, like the existing watchdog).
+4. **Keep the existing state-transition gating** (watchdog posts only on
+   None→False/True→False/False→True, `scheduler.py:437-462`; AlertDeduper
+   fingerprint `type:endpoint`, `:49`). This already matches the 2026 anti-fatigue
+   guidance (source 8: actionable-only, group cascades). Do not add steady-state
+   spam.
+5. **Fix the two failed crons before the operator leaves** (§7) so the away-week
+   baseline is all-green; otherwise the daily digest's cron-health line will cry
+   wolf at 02:00/03:00 every night.
+
+## 11. Application to pyfinagent (external findings → file:line anchors)
+
 | External finding | pyfinagent anchor / action |
 |---|---|
-| §4.5 "fold its signal into the bar"; GitHub unified filter bar; Grafana conditional render | Justify folding filter+session into `OpsStatusBar.tsx:116`; delete `layout.tsx:483-490` |
-| APG: radiogroup keeps native arrows only outside a `toolbar` | Keep `OpsStatusBar.tsx:116` as `<section>`; `MarketFilter.tsx:44-58` arrow code unchanged |
-| React two-pass guard for `new Date()` | Lift `MarketSessionStrip.tsx:24-29` `useState<Date\|null>` into `MarketFilter`/`MarketSegment` |
-| Tailwind JIT static literal map | Reuse `MARKET_DOT_CLASS` (`format.ts:100`) + literal emerald/slate ternary |
-| Conditional segment on shared component | Gate Market segment on 3 optional props; `page.tsx:360` passes none -> unchanged |
-| Visual verification mandatory | Playwright click-through per `docs/runbooks/browser-mcp.md` (criterion 3) |
+| Dead-man's-switch catches vanished schedulers (src 1,6,9) | slack_bot PID 42151 is orphaned (no plist) → add KeepAlive plist + external heartbeat on digest (`scheduler.py:351`/`:396` post sites) |
+| launchctl col1/col2 semantics (src 2) | audit method §9 leg 1; explains ablation/autoresearch exit 1, backend exit -15, mas-harness `-` |
+| Apple 10-sec throttle rule (src 7) | new slack-bot plist must set ThrottleInterval + not fast-crash on bad config (settings.py:55 parse must not abort <10s) |
+| MemoryJobStore loses jobs on restart (src 3) | slack_bot uses default in-memory store; `daily_price_refresh_catchup` (`scheduler.py:302`) is the only restart-survival path; coalesce+grace on phase-9 jobs (`:856-871`) prevent stale fires |
+| chat.postMessage 1/sec + text fallback (src 4,5) | digests already pass `text=` (`scheduler.py:354`,`:399`); volume is safe; keep AlertDeduper to avoid 429 storms |
+| Away-status = signal not noise, 2-3 actionable/shift (src 8) | watchdog state-gating (`:437-462`) already compliant; add cron-health line to digest (`format_*_digest`, `formatters.py:323`/`:391`); digest is $0 (template-only) |
 
 ---
 
-## Research Gate Checklist
+## 12. Research Gate Checklist
 
 Hard blockers — `gate_passed` false if any unchecked:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6 read in full)
-- [x] 10+ unique URLs total incl. snippet-only (20 collected)
-- [x] Recency scan (last 2 years) performed + reported (section above)
+- [x] ≥5 authoritative external sources READ IN FULL via WebFetch (**9** read in full; official Apple/Slack/APScheduler/Healthchecks docs lead the set)
+- [x] 10+ unique URLs total incl. snippet-only (**25** collected)
+- [x] Recency scan (last 2 years) performed + reported (§4)
 - [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim (OpsStatusBar.tsx:116/120-132/139-149/339/341,
-      MarketFilter.tsx:44-58/62/80, MarketSessionStrip.tsx:24-29/37/46, layout.tsx:137/164-177/478/483-490/499-504,
-      page.tsx:360, format.ts:38/51/77/100/128/212)
+- [x] file:line anchors for every internal claim (settings.py:55; scheduler.py:56/187/199/211/223/235/297-314/351/396/437-462/784/856-871; main.py:262-263/309; paper_trading.py:38; cron_dashboard_api.py:410/85; formatters.py:6-7/323/391; app.py:56/77; plist paths + launchctl/ps/lsof/`/api/jobs/all` live output)
 
 Soft checks:
-- [x] Internal exploration covered every relevant module (3 components + layout + page + format + tests)
-- [x] Contradictions/consensus noted (no source contradicts; §4.5 tension resolved)
-- [x] Claims cited per-claim with URL + file:line
+- [x] Internal exploration covered every relevant module (7 launchd plists, scheduler.py full, jobs/* inventory, formatters digest fns, cron_dashboard_api, settings fields, main.py lifespan, live launchctl/ps/lsof/`/api/jobs/all`)
+- [x] Contradictions / consensus noted (no external contradiction; the "mas-harness not running" alarm in the prompt is REFUTED as a false positive via launchd semantics)
+- [x] All claims cited per-claim (URL for external, file:line / command output for internal)
 
 ---
 
 ```json
-{"tier":"simple","external_sources_read_in_full":6,"snippet_only_sources":14,"urls_collected":20,"recency_scan_performed":true,"internal_files_inspected":7,"report_md":"handoff/current/research_brief.md","gate_passed":true}
+{"tier":"moderate","external_sources_read_in_full":9,"snippet_only_sources":16,"urls_collected":25,"recency_scan_performed":true,"internal_files_inspected":12,"report_md":"handoff/current/research_brief.md","gate_passed":true}
 ```

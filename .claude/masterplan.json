@@ -14027,7 +14027,7 @@
         {
           "id": "54.1",
           "name": "Audit ALL cron jobs end-to-end: enumerate every launchd job (~/Library/LaunchAgents/com.pyfinagent.*) AND every in-process APScheduler job (backend/slack_bot/scheduler.py + backend/slack_bot/jobs/*), and for each confirm it is (a) registered/loaded, (b) scheduled with a sane next-fire, and (c) last-run-healthy. Surface every stalled/failed job (autoresearch + ablation showed last-exit=1; mas-harness not running at authoring) and FIX-or-ESCALATE each -- a fix needing LLM spend / pip / BQ-DROP / launchctl load-unload is operator-gated, so ESCALATE it in the report, do not force. Write handoff/current/live_check_54.1.md = the full cross-layer cron-health table.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "",
