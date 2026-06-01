@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-05-27T19:36:00+02:00",
+  "updated_at": "2026-06-01T12:00:00+02:00",
   "phases": [
     {
       "id": "phase-0",
@@ -13895,6 +13895,123 @@
               "live_check_52.4.md records the ON-vs-OFF comparison + the SR-difference test stats + the cited basis + a keep/reject (promote/don't) recommendation"
             ],
             "live_check": "REQUIRED -- the $0 replay ON-vs-OFF (Sharpe/return/turnover) + the Ledoit-Wolf SR-difference stats + the a-priori-rule verdict + a promote/reject recommendation; NO live flag flip."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-53",
+      "name": "Best-in-class elevation + remote-working go-live -- research-gated quality passes (algorithms/quant, UX, data-stack) followed by the remote-working capstone (a SessionStart web-bootstrap hook + a CI e2e smoke that exercises the whole system end-to-end). Sequenced AFTER phase-50.6 (multi-market UI) and phase-43.0 (DoD audit) per operator goal 2026-06-01 ('full best-in-class push'). Every step via the FULL harness (researcher -> contract -> generate -> fresh qa -> log -> flip); parallelism/effort/fast-mode allowed for MECHANICAL work only, never the gates (researcher before every PLAN; one fresh Q/A after every GENERATE; no self-eval; no agent re-split).",
+      "status": "pending",
+      "depends_on": [
+        "phase-50",
+        "phase-43"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "53.1",
+          "name": "Algorithm / quant elevation -- the cited cheap-price alpha-signal search is EXHAUSTED (phase-52), so this pass elevates PORTFOLIO CONSTRUCTION + EXECUTION-COST + OVERFITTING-CONTROL rather than raw signal: a research-gated candidate (e.g. transaction-cost-aware sizing, regime-conditioning overlay, ensemble combination, or a PBO/DSR overfitting-control tightening) measured ON-vs-OFF via the $0 replay/backtest harness and subjected to the SAME Ledoit-Wolf SR-difference robustness gate as 52.3/52.4. Measure-first; NO live flag flip in this step.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "43.0",
+          "audit_basis": "Operator goal 2026-06-01 'best in class on algorithms'. phase-52 closed the cheap-price signal search (rotation/sector-neutral/vol-scaling/52wh/residual-momentum all measured + rejected on the Ledoit-Wolf SR-difference gate). The remaining evidenced levers are construction/cost/robustness, not signal. Reuses the 51.2 replay harness + the 52.3 sharpe_diff_test (Ledoit-Wolf) + the a-priori rule. Research-gated: the specific lever is chosen by the researcher from the literature, not pre-decided.",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "the research gate passed (researcher brief cited in the contract: >=5 sources read in full + recency scan) and the chosen lever is justified from the literature, not assumed",
+              "the candidate is measured ON-vs-OFF against the live baseline via the $0 replay/backtest on the production universe, reporting Sharpe / return / turnover / maxDD",
+              "any +improvement is subjected to the SAME Ledoit-Wolf SR-difference robustness gate as 52.3/52.4 (paired stationary-bootstrap; a-priori rule p<0.05 AND delta>=+0.05 & CI_low>0); a 'not robust' REJECT is a VALID, honestly-reported outcome",
+              "the change is config-gated and does NOT regress the working US momentum core (default behavior preserved/byte-identical unless the flag is explicitly enabled); NO live flag flip in this step; live_check_53.1.md records the comparison + robustness stats + a keep/reject recommendation"
+            ],
+            "live_check": "REQUIRED -- the $0 ON-vs-OFF comparison (Sharpe/return/turnover/maxDD) + the SR-difference robustness stats + the cited basis + a promote/reject recommendation; NO live flag flip."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "53.2",
+          "name": "UX elevation -- one consistent layout / design / animation across ALL pages (extends the phase-47.5 design-tokens.ts + ui/ primitives) + accessibility (WCAG AA: keyboard nav, focus states, contrast). Research-gated against financial-dashboard UX best practice. Build + types + accessibility autonomous; visual render = operator live_check (NextAuth wall).",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "53.1",
+          "audit_basis": "Operator goal 2026-06-01 'best in class on UX'. Extends phase-47.5 (design-tokens.ts + ui/Button + ui/StatusBadge) toward ONE consistent surface across every page -- the long-standing priority-7 'best-in-class operator control surface'. frontend.md conventions apply (icons via @/lib/icons, no emoji, Recharts dark theme, scrollbar-thin, error/loading/empty states). Research-gated: density/accessibility/animation choices justified from UX literature, not invented.",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "the research gate passed (UX best-practice + accessibility sources cited in the contract) and a documented all-pages audit against design-tokens.ts + the ui/ primitives identifies the unification deltas",
+              "the unification changes land with no emoji (icons via @/lib/icons), Recharts dark theme, scrollbar-thin, and error/loading/empty states preserved on every touched page",
+              "cd frontend && npm run build SUCCEEDS and npx tsc --noEmit passes; an accessibility check (keyboard nav + focus + contrast, WCAG AA target) is recorded; no behavioral/data regression",
+              "live_check_53.2.md records the build/types pass + the accessibility evidence + an OPERATOR-TO-CONFIRM visual section (authed pages behind the NextAuth wall)"
+            ],
+            "live_check": "REQUIRED -- build + types pass + accessibility evidence + operator visual confirmation of the unified layout/design/animation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "53.3",
+          "name": "Data-stack elevation -- BigQuery cost/perf + partition/cluster discipline + feature freshness/lineage on the hot query paths (signals, prices, fundamentals, macro). Research-gated against BQ best practice. Measure-first (before/after bytes-scanned + cost); the 30s fallback-query timeout rule preserved; NO DROP / unqualified DELETE without operator approval.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "53.2",
+          "audit_basis": "Operator goal 2026-06-01 'best in class on data stack'. The North-star penalizes Compute Burn; BQ scan cost is the largest controllable compute line. Audits the hot query paths for partition/cluster filters + cost, and feature freshness/lineage. Uses the BigQuery MCP (list-tables/describe-table/dry-run) for inspection; migrations stay in scripts/migrations/*.py. Research-gated: optimizations justified from BQ docs + practitioner literature.",
+          "verification": {
+            "command": "RESEARCH-FIRST then define at GENERATE",
+            "success_criteria": [
+              "the research gate passed (BQ cost/perf + lineage sources cited) and an audit of the hot query paths reports per-query bytes-scanned/cost with the partition/cluster-filter gaps identified",
+              "concrete optimizations land with BEFORE/AFTER bytes-scanned (dry-run) + cost evidence, and a freshness/lineage check on the signal/price tables is recorded",
+              "the 30s fallback-query timeout rule is preserved and query RESULTS are unchanged (correctness-preserving optimization); NO DROP or unqualified DELETE (operator-gated)",
+              "live_check_53.3.md records the before/after bytes-scanned + cost delta + the freshness/lineage evidence"
+            ],
+            "live_check": "REQUIRED -- before/after bytes-scanned + cost delta on the optimized query paths + the freshness/lineage check; no schema-destructive operation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "53.4",
+          "name": "Remote-working SessionStart hook -- author a Claude-Code-on-the-web bootstrap hook (.claude/hooks/session-start-bootstrap.sh) registered under a SessionStart event in .claude/settings.json: path-portable repo-root detection ($CLAUDE_PROJECT_DIR, NO hardcoded /Users/ford), activate .venv if present, cache.preload_macro() fail-open, and inject the current masterplan in-progress/next-pending step to stdout. Fast + fail-open (never blocks session start). Bundle the trivial .github/workflows/claude.yml model-pin fix (opus-4-7 -> opus-4-8).",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "53.3",
+          "audit_basis": "Operator goal 2026-06-01 'activate remote working'. No SessionStart hook exists today, so Claude Code on the web does not bootstrap (no venv / macro-preload / step-injection); and claude.yml is pinned to a stale opus-4-7. CLAUDE.md mandates cache.preload_macro() or backtests hang. Authored via the session-start-hook skill; MUST be fail-open per Claude Code hook discipline (never break session start).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && test -f .claude/hooks/session-start-bootstrap.sh && bash -n .claude/hooks/session-start-bootstrap.sh && python -c \"import json; s=json.load(open('.claude/settings.json')); assert 'SessionStart' in s.get('hooks',{}), 'SessionStart not registered'\" && test -f handoff/current/live_check_53.4.md",
+            "success_criteria": [
+              "a SessionStart hook exists (.claude/hooks/session-start-bootstrap.sh) and is registered under a SessionStart event in .claude/settings.json; bash -n passes (valid syntax)",
+              "the hook is path-portable (resolves repo root via $CLAUDE_PROJECT_DIR with a safe fallback; NO hardcoded /Users/ford), activates .venv when present, runs cache.preload_macro() fail-open, and prints the current masterplan in-progress/next-pending step",
+              "the hook is fail-open: any internal error exits 0 and never blocks session start (a dry-run invocation is captured); .github/workflows/claude.yml model pin updated opus-4-7 -> opus-4-8",
+              "live_check_53.4.md records a dry-run of the hook (its stdout incl. the injected step) + proof of the settings.json registration"
+            ],
+            "live_check": "REQUIRED -- a captured dry-run of the SessionStart hook (stdout incl. the injected masterplan step) + proof of registration in settings.json."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "53.5",
+          "name": "End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow_dispatch + schedule + PR-to-main) runs the credential-free e2e subset (backend pytest + ast syntax, frontend tsc + npm build, harness --dry-run --cycles 1, intel_e2e --fixtures, phase6_e2e --dry-run), AND scripts/smoketest/aggregate.sh is run GREEN locally. This is the 'smoke tests everything end to end' done-gate that CLOSES the operator goal.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "53.4",
+          "audit_basis": "Operator goal 2026-06-01 'smoke tests everything end to end'. No CI job runs aggregate.sh or the harness today. aggregate.sh runs 7 REAL checks (the phase-4.6 sub-smoketest is SKIPPED -- scripts/smoketest/phase-4.6.sh does not exist). Reuses existing scripts (scripts/smoketest/*, scripts/harness/run_harness.py, the MCP smokes); the CI lane runs ONLY the credential-free subset (live-cred + LLM-spend smokes stay operator/local).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && test -f .github/workflows/e2e-smoke.yml && source .venv/bin/activate && bash scripts/smoketest/aggregate.sh; rc=$?; python scripts/harness/run_harness.py --dry-run --cycles 1 && test -f handoff/current/live_check_53.5.md && test $rc -eq 0",
+            "success_criteria": [
+              ".github/workflows/e2e-smoke.yml exists and runs the credential-free subset (backend pytest + ast syntax; frontend npm run build + tsc --noEmit; run_harness.py --dry-run --cycles 1; intel_e2e.py --fixtures; phase6_e2e.py --dry-run) on workflow_dispatch + schedule + PR-to-main",
+              "bash scripts/smoketest/aggregate.sh runs GREEN (exit 0) locally on the portable subset; its 7 real checks pass (the non-existent phase-4.6 sub-smoketest stays SKIPPED, not failed)",
+              "python scripts/harness/run_harness.py --dry-run --cycles 1 completes and appends a cycle entry to handoff/harness_log.md; the MCP smokes pass where servers are attached (document-skip otherwise)",
+              "live_check_53.5.md records the aggregate.sh exit code + the harness dry-run tail + the CI workflow file path; this step CLOSES the operator goal"
+            ],
+            "live_check": "REQUIRED -- aggregate.sh exit-0 output + the harness dry-run cycle tail + the e2e-smoke.yml workflow; the end-to-end smoke is green."
           },
           "retry_count": 0,
           "max_retries": 3
