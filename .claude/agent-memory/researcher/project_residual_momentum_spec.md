@@ -1,0 +1,18 @@
+---
+name: residual-momentum-spec
+description: phase-52.4 residual/idiosyncratic momentum (Blitz-Huij-Martens) exact price-only spec, the 504d-window feasibility decision, replay wiring, and the adversarial large-cap-long-only caveat
+metadata:
+  type: project
+---
+
+phase-52.4: residual/idiosyncratic momentum (Blitz-Huij-Martens 2011) -- the last cited price lever after rotation/sector-neutral/vol-scaling/52wh all failed (52wh REJECTED in 52.3, Ledoit-Wolf p=0.242). Measured $0 OFFLINE in `scripts/ablation/sector_neutral_replay.py`; if it survives the SAME 52.3 gate it becomes the new promotable highest-earner, else the alpha-signal search is EXHAUSTED.
+
+**EXACT price-only spec (single-factor / Chaves 2016 variant):** market proxy = equal-weight S&P daily return `closes.pct_change().mean(axis=1)` (the replay already holds all closes in one frame). Per stock per rebalance: OLS `r_i ~ alpha + beta*m` over a rolling window -> residuals eps -> **iMOM = (sum of formation residuals)/(std of same residuals)** = Blitz/Gutierrez-Prinsky eq-9 verbatim. Formation = 12-1 (skip most recent ~21 trading days; canonical, and the momentum ECHO supports skipping). Rank by iMOM, top-N. Canonical Blitz is 36mo-FF3/12-1/std-scaled (Sharpe 0.34, vol 15.27%, US 1926-2009); Chaves footnote (Hanauer-Windmuller eq-8, read in full via pdfplumber): one-factor MARKET residuals capture MOST of the edge, extra FF factors add little -> no SMB/HML series needed (which $0 yfinance can't build anyway).
+
+**THE FEASIBILITY DECISION (the binding Q):** Blitz's 36mo (756d) window is NOT load-bearing. FRL 2025 / Lin 2020 / Chaves: results "qualitatively similar" across rolling-window lengths -> a SHORTER window is defensible. DECISION: W=504d (2yr) rolling OLS as PRIMARY; extend replay `START="2019-01-01"` (one bigger $0 batch download) so W=504d is satisfied from the first 2021 rebalance -> ~48 rebalances matching 52.3's sample (NOT the existing 2021-start, which only gives ~30 usable resid_mom rebalances). 756d (START=2018) = optional robustness row, not the gate. Recompute baseline on the SAME extended window so paired arrays align.
+
+**Reuse (confirmed, file:line):** `backend/backtest/analytics.py:239` `sharpe_diff_test(ret_a, ret_b, periods_per_year=12, n_boot=2000, block=4.0, seed=42, ci=0.90)` -> `{delta, p_one_sided, ci_low, ci_high, sr_a, sr_b, se, n}` -- the 52.3 Ledoit-Wolf SR-DIFFERENCE test, reuse VERBATIM (ret_a=resid_mom challenger, ret_b=baseline). `basket_fwd_return` (replay :101) + `ann_sharpe` (:116) reuse verbatim. ONLY new code = ~30-LOC vectorized single-factor OLS helper + `resid_mom` config wiring (:176) + dump extension (:269). Compute: 500x504 OLS = 1.5ms/rebalance, ~70ms for all 48 (smoke-proven) -- trivial; the bigger download is the only added cost.
+
+**Why: A-PRIORI gate (same as 52.3, pre-registered):** PROMOTE iff p_one_sided<0.05 (one-sided H0 SR_rm<=SR_base) AND delta>=+0.05 AND ci_low>0. ADVERSARIAL caveat (the reason it likely REJECTS): the ~2x edge is FULL-SAMPLE LONG-SHORT; iMOM weakens post-2000 (our window is 2019-2025), large-caps are low-idiosyncratic (S&P-500 ~50%+ market-correlated -> small residual), and long-only loses the short-leg crash-protection where iMOM's benefit lives. Single-factor on a sector-tilted universe may also just recapture sector/size factor momentum -> correlate with baseline -> delta~0 (the 52.3 failure mode).
+
+**How to apply:** if 52.4 GENERATE runs, this is the exact spec + the pre-registered gate. If it REJECTS, the cheap-price-lever alpha search is done -- pivot away from re-ranking the same momentum cross-section. See [[project_sharpe_difference_test_methodology]] (the 52.3 test) and [[project_52wh_tilt_live_wiring]] (the rejected prior lever).

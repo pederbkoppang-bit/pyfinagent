@@ -1,50 +1,48 @@
-# experiment_results -- phase-52.3: DSR/SR-difference robustness gate -> REJECT the 52wh edge
+# experiment_results -- phase-52.4: residual momentum -> REJECT (cited-alpha-signal search EXHAUSTED)
 
-**Step:** 52.3 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **NO live change** | GENERATE complete
+**Step:** 52.4 | **Date:** 2026-06-01 | **$0 LLM** | no pip | **NO live change** | GENERATE complete
 
 ## Outcome in one line
-Rigorously tested the 52.1 +0.05 Sharpe improvement (paired Ledoit-Wolf SR-difference, stationary
-bootstrap) -> **REJECT (one-sided p=0.242, 90% CI [-0.073,+0.188] straddles 0)**: the edge is NOT
-statistically distinguishable from noise. The 52wh tilt stays OFF (52.2 wiring dormant). The PBO/DSR
-overfitting control worked -- it prevented enabling a noise-edge on the live +20% engine.
+Measured residual/idiosyncratic momentum (Blitz-Huij-Martens, single-factor 504d OLS, 12-1) vs the
+baseline momentum ranking -> **REJECT: resid_mom is WORSE (Sharpe 1.082 vs 1.332, delta -0.249,
+Ledoit-Wolf p=0.77)**. This closes the cited-alpha-signal search: NO tested price-based lever beats
+the +20% momentum engine on our 2019-2025 large-cap long-only book. The engine STANDS as the highest earner.
 
-## What was built / changed (analysis only; NO live engine change)
+## What was built / changed (offline measurement; NO live engine change)
 
 | File | Change |
 |------|--------|
-| `backend/backtest/analytics.py` | NEW `sharpe_diff_test(ret_a, ret_b, ppy=12, n_boot, block, seed, ci)` -- Ledoit-Wolf (2008) SR-difference via a stationary (Politis-Romano 1994) bootstrap of the JOINT paired rows; one-sided p + central CI + se; deterministic. (The repo had no SR-difference test; grep=0.) |
-| `scripts/ablation/sector_neutral_replay.py` | dumps the paired monthly arrays (baseline, hi52_k0.5) + the 5 config Sharpes -> `handoff/current/_52wh_paired_returns.json` (the reproducibility PIN). |
-| `scripts/ablation/dsr_52wh_verdict.py` | NEW -- loads the pinned JSON, runs the PRIMARY LW test + SECONDARY DSR, applies the a-priori rule -> ENABLE/REJECT. |
-| `backend/tests/test_phase_52_3_dsr.py` | NEW 5 tests (sharpe_diff_test: identical->not-sig; clearly-better->p<0.05+CI_low>0; worse->not-sig; deterministic; None/short-safe). |
+| `scripts/ablation/residual_momentum_replay.py` | NEW. Downloads S&P-500 closes 2019-2025 (one $0 batch); NEW `resid_mom_signal(s_ret,m_ret,form=252,skip=21)` (single-factor OLS beta=cov/var, residuals, iMOM=sum(12-1 formation residuals)/std); per ~monthly rebalance ranks baseline (production rank_candidates) vs resid_mom; scores via the reused basket_fwd_return; applies the 52.3 `sharpe_diff_test` Ledoit-Wolf gate + the SAME a-priori rule. Reuses build_screen_row/basket_fwd_return/ann_sharpe/load_universe_sectors from sector_neutral_replay (import by path). |
+| `backend/tests/test_phase_52_4_residual_momentum.py` | NEW 5 tests (resid_mom_signal: positive/negative formation direction; recent-only run does NOT create positive momentum (12-1 skip + OLS-alpha absorption); too-short->None; deterministic). |
 
 ## The verdict (criterion #1/#2)
 ```
-SR_tilt=1.445  SR_base=1.388  delta=+0.057  (n=47, n_boot=5000)
-PRIMARY Ledoit-Wolf one-sided p = 0.2420  -> R1 (p<0.05): False
-        bootstrap 90% CI for delta = [-0.073, +0.188]  (se=0.080)  -> R2 (delta>=+0.05 AND CI_low>0): False
-SECONDARY DSR(abs SR=1.45, 5 trials) = 1.000  (weak discriminator -- report only)
-VERDICT: REJECT (a-priori rule: ENABLE iff R1 AND R2; both fail)
+config       ann_Sharpe   avg_fwd_mo%   avg_turnover
+baseline        1.332        3.651          0.564
+resid_mom       1.082        1.970          0.679
+LW SR-difference: delta=-0.249, one-sided p=0.7724 (R1 False), 90% CI [-0.883,+0.330] (R2 False)
+VERDICT: REJECT
 ```
-The bootstrap SE (0.080) > the delta (0.057); the CI straddles zero -> the +0.057 is within selection-bias/small-sample noise (consistent with the +0.047..+0.057 run-to-run drift -- the edge IS the noise). DSR is weak here exactly as the researcher proved (it can't tell 1.45 from 1.39).
+Residual momentum UNDERPERFORMS baseline momentum here (lower Sharpe + return, higher turnover) -- decisively confirming the researcher's prior (modern-regime decay + long-only [no short leg] + large-cap [low idiosyncratic content], + the single-factor residual partly recapturing already-rejected factor/sector momentum).
 
 ## Research basis (gate PASSED)
-`research_brief.md` (researcher `af86058ca2cd0d154`, 5 sources read in full via pdfplumber). Decisive: DSR is the WRONG primary test for a DIFFERENCE (proven: compute_deflated_sharpe ~1.0 for both); the canonical test is paired Ledoit-Wolf 2008 SR-difference + stationary bootstrap (Politis-Romano). A-priori rule fixed before computing.
+`research_brief.md` (researcher `afaa06ced01cfac95`, 6 sources read in full incl. Blitz-Huij-Martens 2011 + Hanauer-Windmuller eq-9 via pdfplumber). The honest adversarial prior (likely REJECT on a large-cap long-only modern book) was confirmed -- even stronger (worse, not just insignificant).
 
 ## Verification command output (verbatim)
 ```
-$ python -m pytest backend/tests/test_phase_52_3_dsr.py -q
+$ python -m pytest backend/tests/test_phase_52_4_residual_momentum.py -q
 .....                                                                    [100%]
-5 passed in 1.89s
+5 passed in 1.43s
 ```
-Verdict reproduced -> live_check_52.3.md (deterministic via the pinned JSON + seeded bootstrap).
+Full replay verdict -> live_check_52.4.md. Reproducible (pinned `_residmom_paired_returns.json` + seeded bootstrap).
 
 ## Scope / safety (criterion #3)
-- NO live engine change. Diff = analytics.py (+1 function) + the replay dump + the verdict script + the test + the pinned JSON. screener.py / autonomous_loop / the momentum_52wh_tilt_enabled flag are UNTOUCHED (flag still OFF; the tilt stays dormant).
-- A-priori rule fixed in the contract before running -> no p-hacking; all stats reported regardless of verdict.
+- NO live engine change. Diff = the new replay script + resid_mom_signal + the new test + the pinned JSON. screener.py / autonomous_loop / the momentum_52wh flag UNTOUCHED. Offline $0 measurement (doesn't conflict with measuring Monday's live cycle).
+- A-priori rule (same strict Ledoit-Wolf bar as 52.3) -- not lowered for the higher-evidenced lever; the modern large-cap long-only haircut made it worse.
 
 ## Artifact shape
-- `sharpe_diff_test(...) -> {delta, p_one_sided, ci_low, ci_high, sr_a, sr_b, se, n, n_boot}`
-- verdict script -> ENABLE/REJECT against the a-priori rule.
+- `resid_mom_signal(s_ret, m_ret, form=252, skip=21) -> float|None` (single-factor 12-1 residual momentum)
+- the replay prints baseline vs resid_mom + the LW gate verdict.
 
-## What this CLOSES + next
-Across ALL tested element-2 levers (rotation REJECT, sector-neutral -0.166 REJECT, vol-scaling +0.015 marginal, 52wh +0.057 but p=0.24 NOT robust): **no statistically-robust price-based alpha enhancement found on our universe.** The +20% momentum engine STANDS -- the overfitting-controlled, honest outcome. NEXT: 52.4 residual momentum (bigger-edge, bigger-build, the only remaining cited lever) IF a larger edge is wanted; otherwise accept the engine + let the LIVE multi-market expansion be the money lever. MEASURE Monday's first multi-market cycle (the real test).
+## THE ELEMENT-2 SEARCH IS EXHAUSTED (rigorous, overfitting-controlled)
+rotation (REJECT) | sector-neutral (-0.166 REJECT) | vol-scaling (+0.015 marginal) | 52wh tilt (+0.057 but p=0.24 REJECT) | residual momentum (-0.249 REJECT). **No cited price-based signal robustly beats the live momentum engine.** The +20%/+14%-alpha engine STANDS as the highest earner -- the honest, research-complete outcome. NEXT: the LIVE multi-market expansion is the money lever (MEASURE Monday's first cycle); further alpha would need a different data axis (the resurrected news/catalyst overlays -- LLM-gated) or accepting the engine.

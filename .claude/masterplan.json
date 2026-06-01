@@ -13877,6 +13877,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "52.4",
+          "name": "Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Martens 2011) -- the higher-evidenced, structurally-DIFFERENT momentum signal (strips market beta) -- vs the live momentum baseline, $0 offline, then subject the improvement to the SAME Ledoit-Wolf SR-difference robustness gate as 52.3. If it SURVIVES (p<0.05 + delta>=+0.05 + CI_low>0) it is the NEW promotable highest earner (element 2); if not, the cited-alpha-signal search is exhausted. NO live change in this step.",
+          "status": "done",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "52.3",
+          "audit_basis": "The cheap price levers all failed robustness (rotation/sector-neutral/vol-scaling/52wh -- 52.3 REJECT). Residual momentum is the ONE remaining cited lever with a plausibly LARGER edge: Blitz-Huij-Martens 2011 report ~2x risk-adjusted profit + lower crash risk vs total-return momentum (it isolates stock-specific momentum by regressing out the market). Reuses the 51.2 replay harness + the 52.3 sharpe_diff_test (Ledoit-Wolf) + the SAME a-priori rule. Per-name rolling OLS; $0 (free yfinance, no LLM).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests/test_phase_52_4_residual_momentum.py -q 2>&1 | tail -3 && test -f handoff/current/live_check_52.4.md",
+            "success_criteria": [
+              "residual/idiosyncratic momentum (cited: Blitz-Huij-Martens 2011, price-only -- regress stock returns on the market, rank by trailing residual momentum) is measured ON-vs-OFF against the baseline momentum ranking on the S&P 500 universe via the $0 replay, reporting Sharpe / return / turnover",
+              "the +improvement (if any) is subjected to the SAME Ledoit-Wolf SR-difference robustness gate as 52.3 (paired stationary-bootstrap, the a-priori rule R1 p<0.05 AND R2 delta>=+0.05 & CI_low>0); the result is honestly reported (a 'not robust' REJECT is a VALID outcome)",
+              "NO live engine change in this step (measure-first; any live wiring/enable is a separate operator-gated step); the working US momentum core is untouched",
+              "live_check_52.4.md records the ON-vs-OFF comparison + the SR-difference test stats + the cited basis + a keep/reject (promote/don't) recommendation"
+            ],
+            "live_check": "REQUIRED -- the $0 replay ON-vs-OFF (Sharpe/return/turnover) + the Ledoit-Wolf SR-difference stats + the a-priori-rule verdict + a promote/reject recommendation; NO live flag flip."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

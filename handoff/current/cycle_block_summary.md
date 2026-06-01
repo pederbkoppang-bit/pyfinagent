@@ -1,47 +1,49 @@
 # Cycle Block Summary -- 2026-06-01 (SOFT STOP)
 
-**Session outcome:** SEVEN harness steps + go-live + 7 research gates. Multi-market trading is
-**LIVE**; all **4 operator-reported issues resolved**; the strategy-rotation question is **resolved
-(redirect)**; and the redirected element-2 search produced a **measured alpha edge (52wh tilt,
-+0.05 Sharpe) now WIRED live as a config-gated, default-OFF, one-flag-reversible lever**. The full
-north-star HARD STOP is not yet reached -- the remaining gates are a time-gate (Monday's first
-multi-market cycle) + a deferred-by-design enable decision (DSR-deflate the +0.05, then flip the
-flag post-Monday). SOFT STOP.
+**Session outcome:** EIGHT harness steps + go-live + 8 research gates. Multi-market trading is
+**LIVE**; all **4 operator-reported issues resolved**; the strategy-direction question is **fully +
+rigorously resolved**: across every tested lever (rotation, sector-neutral breadth, vol-scaling,
+52-week-high tilt) **NO statistically-robust price-based alpha enhancement beats the momentum engine
+on our universe** -- the +20% engine STANDS, and the PBO/DSR overfitting discipline prevented
+shipping noise as alpha. The full north-star HARD STOP is not reached: element 3 (positive-alpha
+paper_trades) is gated on Monday's first multi-market cycle; element 2's "highest earner" is the
+existing engine (no superior cited signal survived deflation). SOFT STOP.
 
 ## Shipped this session (full harness loop; pushed to main)
 | Step | Commit | Result |
 |------|--------|--------|
-| 50.5 multi-market backtest + DATA-QUALITY gate | 3377d826 | gate proven (15 real bad DAX bars); last go-live prereq |
+| 50.5 multi-market backtest + DATA-QUALITY gate | 3377d826 | gate proven (15 real bad DAX bars) |
 | GO-LIVE FLIP | .env | PAPER_MARKETS=['US','EU','KR'] + restart; live. First cycle Mon 14:00 UTC |
 | 51.1 SecretStr unwrap | 6f86c5ed | 4 dead alpha overlays resurrected [issue 3] |
 | 51.2 sector diversification | 0ef5e7d0 | MEASURED: hurts long-only Sharpe (-0.166) -> OFF [issue 4] |
 | 51.3 weekend digest guard | 7513ff9f | digests skip weekends/holidays [issue 1] |
 | 51.4 cron repairs | bcb4c0ce | weekly_data_integrity real counts; autoresearch graceful-skip [issue 2] |
-| 52.1 52wh tilt MEASURE | 2a536fc6 | +0.05 Sharpe at k=0.5 (turnover-neutral) -- first measured alpha win |
-| 52.2 52wh tilt WIRE (gated, OFF) | 6d1292f4 | production-ready, byte-identical, one-flag-reversible; enable deferred |
-
-**All 4 operator issues RESOLVED. Strategy direction RESOLVED. One measured alpha edge wired (dormant).**
+| 52.1 52wh tilt MEASURE | 2a536fc6 | +0.057 Sharpe point estimate (turnover-neutral) |
+| 52.2 52wh tilt WIRE (gated, OFF) | 6d1292f4 | production-ready, byte-identical, reversible; dormant |
+| 52.3 52wh tilt DSR/SR-diff GATE | c8b659dc | REJECT -- Ledoit-Wolf p=0.242, CI [-0.073,+0.188] straddles 0 -> NOT robust -> stays OFF |
 
 ## HARD-STOP scorecard
 | Element | Status |
 |---------|--------|
 | 1. multi-market live | DONE + verified; first live cycle Mon 14:00 UTC |
-| 2. promote the highest earner from a cited basis | REDIRECTED + PROGRESSED -- the 52wh tilt (cited, measured +0.05) is WIRED live, dormant; enabling it (the "promote") is deferred pending DSR-deflation + Monday OOS. (rotation + sector-neutral measured-and-rejected.) |
+| 2. promote the highest earner from a cited basis | RESOLVED-as-"no superior signal": rotation/sector-neutral/vol-scaling/52wh all measured-and-REJECTED (52wh failed DSR/SR-difference). The momentum engine IS the highest earner among tested cited candidates. (Open bigger bet: 52.4 residual momentum.) |
 | 3. paper_trades growing with positive alpha | pending Monday's first multi-market cycle |
 
-## The ONE concrete pending money action: enable the 52wh tilt (DEFERRED, gated)
-The lever is wired + tested + dormant (default OFF -> byte-identical). To enable it live (a SEPARATE, deliberate step, recommended AFTER Monday's multi-market baseline):
-1. **DSR-deflate the +0.05 first** -- it's 1-of-5 configs over 47 rebalances; a +0.05 absolute Sharpe lift is unlikely to clear DSR>=0.95, so it may NOT be statistically robust enough to trust live. If it doesn't deflate-significant, keep the flag OFF (the wiring stays dormant).
-2. If DSR-significant + Monday's baseline is clean: `MOMENTUM_52WH_TILT_ENABLED=true` in backend/.env + restart. Reversible.
+## The rigorous element-2 finding (what 8 steps established)
+No cheap price-based lever robustly beats the live momentum engine on our S&P-500 universe:
+- **rotation** -- architecturally disconnected from live money + the alt strategies LOSE money. REJECT.
+- **sector-neutral breadth** -- -0.166 Sharpe (Harvey long-only caveat confirmed). REJECT.
+- **vol-scaling** -- +0.015, marginal.
+- **52-week-high tilt** -- +0.057 point estimate, BUT Ledoit-Wolf SR-difference p=0.242 + 90% CI straddles 0 -> within selection-bias/small-sample noise. REJECT (kept dormant, wired but OFF).
+This is the honest, overfitting-controlled outcome -- the engine is genuinely hard to beat cheaply.
 
 ## Remaining work (gated / optional)
-- **Enable decision** (above) -- post-Monday, DSR-gated, operator-confirmable.
-- **52.3 residual momentum** (Blitz-Huij-Martens; higher-evidenced, BIGGER build: 3.5yr download + OLS harness) -- only if a bigger edge is wanted.
-- **calendar_events** (sector-calendar/PEAD data) + **50.6 multi-market UI** (needs operator visual verification).
-- **MEASURE Monday's first multi-market cycle** -- the real money test.
+- **52.4 residual momentum** (Blitz-Huij-Martens; the higher-evidenced, structurally-different signal -- strips market beta; the LAST cited lever with a plausibly-LARGER edge). BIG build (~7.5yr download + per-name rolling OLS). Recommend AFTER Monday's measurement (it might redirect priorities).
+- **calendar_events** (sector-calendar/PEAD data) + **50.6 multi-market UI** (operator visual verification).
+- **MEASURE Monday's first multi-market cycle** -- the real money test (the LIVE expansion is the actual shipped money lever).
 
 ## Crisp ask (operator)
-1. **Redefine HARD-STOP element 2** -> recommend "a research-backed signal that demonstrably lifts risk-adjusted return AND survives DSR-deflation" (the 52wh tilt is a candidate, pending deflation).
-2. **Next priority?** My rec: MEASURE Monday's cycle, DSR-deflate the 52wh edge, then decide {enable 52wh / 52.3 residual momentum / calendar_events / 50.6}.
+1. **Redefine HARD-STOP element 2** -> recommend "the live engine + any cited signal that SURVIVES DSR/SR-difference deflation" (currently: the momentum engine; no tested enhancement qualified).
+2. **Next priority?** My rec: MEASURE Monday's multi-market cycle FIRST (per "measure before fixing"), then decide {52.4 residual momentum (big build) / accept the engine + ride multi-market / calendar_events / 50.6}. Mining more offline alpha before measuring the live expansion would be fixing-before-measuring.
 
-**Reversibility:** go-live -> remove PAPER_MARKETS from backend/.env + kickstart backend. 52wh tilt -> stays OFF unless MOMENTUM_52WH_TILT_ENABLED is set true.
+**Reversibility:** go-live -> remove PAPER_MARKETS from backend/.env + kickstart. 52wh tilt -> stays OFF unless MOMENTUM_52WH_TILT_ENABLED=true (and 52.3 says DON'T).
