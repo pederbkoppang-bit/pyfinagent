@@ -7,7 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
-| 2026-06-01 | `cf1f5d9f` | chore(masterplan): add phase-54 operator-away monitoring (cron audit + Slack digest) |
+| 2026-06-01 | `a560b639` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
 | 2026-06-01 | `17adbf28` | feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar |
 | 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
 | 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
@@ -30,6 +30,9 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
+### v6.32.0 — feat(masterplan): add phase-53 best-in-class elevation + remote-worki... (2026-06-01)
+
+- **feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal**
 ### v6.31.0 — feat(paper-trading): fold market filter into the operator status bar... (2026-06-01)
 
 - **feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar**
