@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `09dc9dd` | docs(goal): align goal-post-away-review with main -- 53.5 shipped, 53.4 deferred |
 | 2026-06-10 | `728e1d6` | Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post-away-review branch |
 | 2026-06-10 | `55f81af` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
 | 2026-06-10 | `3c00f80` | chore: commit hook-generated audit appends |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `a560b639` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
 | 2026-06-01 | `17adbf28` | feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar |
 | 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
-| 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
 
 ---
 
