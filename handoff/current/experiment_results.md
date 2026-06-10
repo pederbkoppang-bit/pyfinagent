@@ -1,59 +1,61 @@
-# Experiment Results — phase-53.2 (UX elevation + WCAG AA)
+# Experiment Results — phase-53.3 (Data-stack elevation)
 
-**Date:** 2026-06-10. **Status:** complete. Bounded adoption pass (P2+P3+P4+P6); build +
-tsc green; a11y recorded (axe 0 violations + live keyboard-focus proof); broader rollout
-documented as follow-ups. Additive; DO-NO-HARM (behavior + states preserved). $0.
+**Date:** 2026-06-10. **Status:** complete. Column-pruned the two hot
+`historical_fundamentals` `SELECT *` reads → **−21.2% bytes** (dry-run measured,
+results byte-identical); freshness/lineage recorded; partition/cluster + Sortino-lineage
+documented as operator-gated. 30s timeout preserved; no schema mutation. $0.
 
 ## What was done
 
-The consistent surface (design-tokens.ts, ui/ primitives, states/ library) already
-existed but was un-adopted, so 53.2 is a bounded adoption pass:
-- **P2** app-wide WCAG-2.2-AA visible-focus baseline (globals.css, unlayered `:where()`).
-- **P3** axe script now tests `wcag22a,wcag22aa`.
-- **P4** zinc→navy/slate palette unification across 4 components (53 swaps, 0 remaining).
-- **P6** `scroll-padding-top` (SC 2.4.11).
+- **Opt-1/Opt-2:** `backend/backtest/cache.py:153` (`preload_fundamentals`) + `:351`
+  (`cached_fundamentals` fallback): `SELECT *` → explicit 12 consumed columns. Drops 4
+  never-read columns (0 call-sites, re-grep-proven). −21.2% bytes (655,079 → 515,937).
+- **Freshness/lineage check** recorded (signal/price tables green; macro red + the
+  `sortino.py` dataset-mismatch lineage discrepancy documented).
+- **Did NOT** add date filters (proven cargo-cult on the non-partitioned tables), repoint
+  Sortino (result change), or mutate schema (operator-gated).
 
 ## Files changed
 
 | File | Change |
 |------|--------|
-| `frontend/src/app/globals.css` | +unlayered `:where(...):focus-visible` AA focus baseline (P2) + `html scroll-padding-top` (P6). |
-| `frontend/package.json` | axe `--tags` += `wcag22a,wcag22aa` (P3). |
-| `frontend/src/components/AnalysisProgress.tsx` / `CommandPalette.tsx` / `DataTable.tsx` / `LiveBadge.tsx` | zinc→navy/slate (P4; 23/18/7/5 swaps). |
+| `backend/backtest/cache.py` | 2× `SELECT *` → 12-column projection on `historical_fundamentals` (preload + fallback); 30s timeout + WHERE/ORDER/LIMIT unchanged. |
+| `handoff/current/live_check_53.3.md` | Audit + before/after bytes + freshness/lineage + operator-gated recs. |
 
 ## Verification output (verbatim)
 
 ```
-npx tsc --noEmit                 -> EXIT 0
-npx eslint <4 components>        -> 0 errors (3 pre-existing warnings)
-npm run build                    -> GREEN (24/24 routes)
-npm run axe (/login, +wcag22aa)  -> axe-core 4.11.3, 0 violations found
-grep zinc- in the 4 files        -> 0 ; DOM on /paper-trading/positions -> anyZincClassInDom:false
-Playwright keyboard focus (/agents): "Analyze" (no-ring, boxShadow none) -> outlineColor rgb(56,189,248) solid;
-   ringed controls keep their ring (outline suppressed -> no double-indicator)
+ast.parse cache.py -> parses
+$0 dry-run (historical_fundamentals):
+  OLD SELECT *       : 655,079 bytes
+  NEW 12-col project : 515,937 bytes
+  DELTA              : -139,142 bytes (-21.2%)
+DO-NO-HARM grep (backend/backtest/historical_data.py + data_server):
+  dropped filing_date/ingested_at/market/currency -> 0 call-sites each
+  consumed total_revenue(3) net_income(2) total_debt(2) total_equity(2) total_assets(2)
+    operating_cash_flow(1) shares_outstanding(1) sector(2) industry(2) dividends_per_share(1)
+  backend-wide sweep: the 4 dropped cols are only read from OTHER data sources (13F filingDate,
+    PEAD dates, position market, market-config currency) -- never from historical_fundamentals rows
+pytest -k "cache or fundamental" -> 4 passed
+freshness: overall red; prices/fundamentals/signals_log/paper_* GREEN; historical_macro RED
 ```
 
-## Acceptance-criteria mapping (phase-53.2 — VERBATIM)
+## Acceptance-criteria mapping (phase-53.3 — VERBATIM)
 
 | # | Criterion | Result |
 |---|-----------|--------|
-| 1 | research gate passed (UX + a11y sources cited) + documented all-pages audit vs design-tokens.ts + ui/ identifies the unification deltas | PASS — researcher gate (7 sources, recency scan); P1-P10 + OP1/OP2 worklist in research_brief.md |
-| 2 | unification changes land; no emoji (icons via @/lib/icons), Recharts dark, scrollbar-thin, error/loading/empty states preserved on every touched page | PASS — P2/P3/P4/P6 landed; zero emoji (preserved); Recharts dark + scrollbar-thin untouched; P4 is className-only (states preserved) |
-| 3 | npm run build SUCCEEDS + npx tsc --noEmit passes; an a11y check (keyboard/focus/contrast WCAG AA) recorded; no behavioral/data regression | PASS — build green, tsc 0; axe 0 violations + live keyboard-focus proof; no behavioral change (CSS/palette/test-config only) |
-| 4 | live_check_53.2.md records build/types + a11y evidence + OPERATOR-TO-CONFIRM visual (authed pages) | PASS — live_check_53.2.md written |
+| 1 | research gate passed (BQ cost/perf + lineage sources) + hot-path audit w/ per-query bytes + partition/cluster-filter gaps | PASS — researcher gate (6 sources); audit: 3 hot tables NOT partitioned/clustered (proven), `SELECT *` gaps at cache.py:153/351 |
+| 2 | optimizations land w/ BEFORE/AFTER bytes (dry-run) + cost + freshness/lineage check recorded | PASS — −21.2% (655,079→515,937 dry-run); freshness bands recorded; Sortino lineage discrepancy documented |
+| 3 | 30s timeout preserved + RESULTS unchanged (correctness-preserving); NO DROP/unqualified DELETE | PASS — projection-only; timeout/WHERE/ORDER/LIMIT untouched; 0 dropped-col call-sites; 4 tests pass; no DROP/DELETE/schema mutation |
+| 4 | live_check_53.3.md records before/after bytes + cost delta + freshness/lineage | PASS — live_check_53.3.md |
 
 ## DO-NO-HARM / scope honesty
 
-- Bounded ADOPTION, not redesign. P2 is additive zero-specificity CSS that NEVER fights
-  component rings (verified: ringed buttons keep their ring; only bare elements get the
-  outline). P4 is className-only (no markup/state/behavior removed). P3 is a test-config
-  string. No money-path / data code touched (`git diff` = globals.css + package.json + 4
-  component palette files).
-- Honest a11y scope: axe on /login = 0 violations but covers only the pre-auth page;
-  authed-route Lighthouse/axe + manual keyboard/SR are operator-only (NextAuth wall) —
-  flagged in live_check OP1/OP2. The broad ErrorState/ui-Button/token-migration rollout is
-  documented as follow-ups (phase-44.x), not silently skipped.
-- The transient skip-auth console errors (`:8000/portfolio` 404 + `useLiveNav` TypeError)
-  were restart artifacts (backend re-checked healthy 200/200), NOT a 53.2 regression; the
-  useLiveNav undefined-guard is a pre-existing follow-up.
-- No emoji; navy/slate palette; JIT-safe; icons via `@/lib/icons`.
+- **Honest −21.2% (not the researcher's −41%):** the −41% used a 10-col set that would
+  drop 2 CONSUMED columns (a result change). The results-preserving projection is all 12
+  consumed columns → −21.2%. I kept correctness over a bigger headline number.
+- Projection-only: byte-identical results (dropped cols unused; consumers use `.get`).
+  30s fallback timeout untouched. No date-filter cargo-cult (tables aren't partitioned).
+- NO schema mutation / DROP / DELETE; NO Sortino repoint (result change); NO `.env` edit.
+  $0 (dry-run estimation only; no LLM, no bytes billed). The big partition/cluster win +
+  the Sortino-lineage fix + the macro refresh are documented operator-gated follow-ups.

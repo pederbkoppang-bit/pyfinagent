@@ -1,82 +1,81 @@
-# Contract — phase-53.2 (UX elevation + WCAG AA)
+# Contract — phase-53.3 (Data-stack elevation: BQ cost/perf + freshness/lineage)
 
-**Date:** 2026-06-10. **Tier:** complex. **Step:** phase-53.2 (P3). Frontend
-consistency + accessibility; additive, DO-NO-HARM (preserve behavior + all states).
+**Date:** 2026-06-10. **Tier:** complex. **Step:** phase-53.3 (P3). Measure-first
+($0 dry-run); correctness-preserving; NO DROP/DELETE/schema mutation (operator-gated).
 
 ## N* delta (N* = Profit − Risk − Burn)
 
-**Risk↓ (operability/accessibility):** a consistent, keyboard-accessible surface reduces
-operator error + meets WCAG 2.2 AA on the controls. No P/B delta. No data/behavioral change.
+**Burn↓ (measured):** column-pruning the two hot `historical_fundamentals` `SELECT *`
+queries cuts bytes-scanned **−41%** (655,079 → 385,021, dry-run measured) → lower BQ
+cost on every preload/fallback. No P/R delta; results byte-identical.
 
 ## Research-gate summary
 
-`researcher` ran FIRST (gate **PASSED**: 7 sources read in full, 18 URLs, recency scan,
-14 internal files). Brief: `handoff/current/research_brief.md`. **Headline:** the phase-47.5
-+ 44.1 consistent surface (`design-tokens.ts`, `ui/` primitives, `states/` library) is BUILT
-but UN-ADOPTED — so 53.2 is a bounded ADOPTION problem, not a redesign. **Disproven false
-work** (so GENERATE manufactures none): zero true emoji (non-ASCII = typographic arrows),
-skip-link + `lang="en"` present, page-shell + scrollbar-thin already consistent,
-prefers-reduced-motion honored, contrast certified ≥4.6:1 on the token tiers (only
-slate-400/500 on risk-numbers is at-risk). **Spec corrections:** SC 2.4.13 Focus Appearance
-is AAA (AA focus = 2.4.7 "any visible indicator" + 2.4.11 not-obscured); the `axe` script
-under-tests (missing `wcag22aa` tags). `tokens.focusRing` (design-tokens.ts:40) is the
-AA-sufficient idiom.
+`researcher` ran FIRST (gate **PASSED**: 6 sources read in full, 18 URLs, recency scan,
+10 internal files). Brief: `handoff/current/research_brief.md`. **HEADLINE (measure-first,
+$0 dry-runs):** the 3 hot historical tables (`financial_reports.historical_{prices,
+fundamentals,macro}`, us-central1) are **NOT partitioned/clustered** — proven: `preload_prices`
+scans the SAME 112,351,601 bytes with vs without its `date` filter. So adding date/partition
+WHERE filters CANNOT prune this cycle (cargo-cult); the 90-99% lever is partitioning =
+table recreation = **OPERATOR-GATED**. The autonomously-landable, results-preserving win is
+**column pruning** (Google best-practices-performance-compute: "query only the columns you
+need"). The freshness pattern (`cycle_health.compute_freshness`, MAX-ts-vs-now) already
+matches dbt/Monte Carlo canon.
 
-## All-pages unification audit (the documented delta worklist — criterion 1)
+## Immutable success criteria — VERBATIM from masterplan phase-53.3 (do NOT edit)
 
-The researcher's prioritized worklist (P1-P10 + OP1/OP2) is in `research_brief.md`. Landed
-this cycle (bounded, low-risk, strongly-verifiable): **P3** (axe AA tags), **P2** (focus
-baseline), **P4** (zinc→navy/slate in 4 components), **P6** (scroll-padding). Documented
-follow-ups (map to pending 44.x): P1 `states/ErrorState` adoption (~36 banners; LOW-MED
-risk + weakly verifiable autonomously since error states are hard to trigger visually),
-P5 `ui/Button` adoption, P7 `LoadingState` sweep, P8 DataTable on /backtest+/cron, P9 the
-~1246-site slate-token migration. Operator-only: OP1 Lighthouse on authed routes, OP2
-keyboard/screen-reader pass (the ~60% automation can't see).
-
-## Immutable success criteria — VERBATIM from masterplan phase-53.2 (do NOT edit)
-
-1. the research gate passed (UX best-practice + accessibility sources cited in the contract)
-   and a documented all-pages audit against design-tokens.ts + the ui/ primitives identifies
-   the unification deltas
-2. the unification changes land with no emoji (icons via @/lib/icons), Recharts dark theme,
-   scrollbar-thin, and error/loading/empty states preserved on every touched page
-3. cd frontend && npm run build SUCCEEDS and npx tsc --noEmit passes; an accessibility check
-   (keyboard nav + focus + contrast, WCAG AA target) is recorded; no behavioral/data regression
-4. live_check_53.2.md records the build/types pass + the accessibility evidence + an
-   OPERATOR-TO-CONFIRM visual section (authed pages behind the NextAuth wall)
+1. the research gate passed (BQ cost/perf + lineage sources cited) and an audit of the hot
+   query paths reports per-query bytes-scanned/cost with the partition/cluster-filter gaps
+   identified
+2. concrete optimizations land with BEFORE/AFTER bytes-scanned (dry-run) + cost evidence,
+   and a freshness/lineage check on the signal/price tables is recorded
+3. the 30s fallback-query timeout rule is preserved and query RESULTS are unchanged
+   (correctness-preserving optimization); NO DROP or unqualified DELETE (operator-gated)
+4. live_check_53.3.md records the before/after bytes-scanned + cost delta + the
+   freshness/lineage evidence
 
 ## Plan steps
 
-1. **P3** — `frontend/package.json:14` axe script: add `wcag22a,wcag22aa` to `--tags`.
-2. **P2 + P6** — `frontend/src/app/globals.css` `@layer base`: a ZERO-SPECIFICITY global
-   focus baseline `:where(a,button,[role=button],[role=tab],input,select,textarea,summary):focus-visible`
-   → `outline: 2px solid sky-400; outline-offset: 2px` (zero specificity ⇒ never fights the
-   component `tokens.focusRing`; gives every interactive element an AA-visible indicator) +
-   `html { scroll-padding-top: ... }` (SC 2.4.11). No `!important`.
-3. **P4** — swap stray `zinc-*` → navy/slate tokens in `AnalysisProgress.tsx`,
-   `CommandPalette.tsx`, `DataTable.tsx`, `LiveBadge.tsx` (mapping: bg/border zinc→navy,
-   text zinc→slate). Visual-only; preserve all structure/behavior/states.
-4. **Verify** — `npm run build` green; `npx tsc --noEmit` 0; `grep zinc- src/` → 0 in the 4
-   files; Playwright skip-auth: Tab through a page → visible focus ring (P2), pages render
-   unchanged (P4); `npm run axe` on /login now runs the wcag22aa rules; restore the auth
-   gate (302). Write `live_check_53.2.md`.
-5. **Fresh qa → log → flip → commit.**
+1. **Opt-1** — `backend/backtest/cache.py:153` `preload_fundamentals`: replace `SELECT *`
+   with the 12 CONSUMED columns (`ticker, report_date, total_revenue, net_income,
+   total_debt, total_equity, total_assets, operating_cash_flow, shares_outstanding,
+   sector, industry, dividends_per_share`). Drop the 4 never-`.get()`-ed columns
+   (`filing_date, ingested_at, market, currency`). −41% bytes (measured).
+2. **Opt-2** — `cache.py:342` `cached_fundamentals` fallback: same `SELECT *` → same 12
+   columns. Keep the `WHERE ticker=@ticker AND report_date<=@cutoff ORDER BY report_date
+   DESC LIMIT 5` + the 30s timeout EXACTLY.
+3. **Prove DO-NO-HARM:** re-grep `historical_data.py` + `data_server.py` to confirm the 4
+   dropped columns have ZERO `.get()` call sites + consumers use `.get(key, default)`;
+   assert the new projection ⊇ the consumed set.
+4. **Measure before/after** via $0 dry-run (`QueryJobConfig(dry_run=True, use_query_cache=
+   False)` → `total_bytes_processed`): old vs new SQL for both queries; record the bytes
+   delta.
+5. **Freshness/lineage check (record, don't auto-fix):** `GET /api/paper-trading/freshness`
+   per-source bands; DOCUMENT the lineage discrepancy (`sortino.py:108` reads
+   `pyfinagent_data.historical_macro` while the writer + other readers use
+   `financial_reports`) as an operator follow-up (repointing would change Sortino's MAR
+   input = a result change — NOT this cycle).
+6. **Operator-gated recommendations (documented, NOT landed):** partition
+   `historical_{prices,fundamentals,macro}` by date + cluster by ticker (the 90-99% lever)
+   via a `scripts/migrations/*.py` (re-runnable, idempotent) — needs operator approval
+   (schema mutation / table recreation).
+7. **Verify:** `ast.parse` cache.py; `python -m pytest -k "cache or fundamental"`; the
+   before/after dry-run; write `live_check_53.3.md`. **Fresh qa → log → flip → commit.**
 
 ## Guardrails / DO-NO-HARM
 
-- ADOPTION not redesign. Preserve behavior + error/loading/empty states on every touched
-  page (P4 is visual-only; P2 is additive zero-specificity CSS; P3 is a test-config string).
-- No emoji (already true — preserve); icons via `@/lib/icons`; navy/slate palette (never
-  zinc); scrollbar-thin + Recharts dark (already consistent — preserve). JIT-safe literals.
-- The global focus baseline uses `:where()` (specificity 0) so it NEVER double-rings or
-  overrides component focus styles. No `!important`.
-- Bounded: do NOT attempt the full slate-token migration (P9) or the 36-banner ErrorState
-  migration (P1) this cycle — documented follow-ups. Visual confirmation of authed pages is
-  the operator section in live_check (NextAuth wall).
+- Correctness-preserving ONLY: projection change (column list), no WHERE/ORDER BY/LIMIT/
+  timeout change → byte-identical RESULTS (the dropped columns are unused; consumers use
+  `.get`). The 30s fallback timeout is untouched.
+- NO DROP / NO unqualified DELETE / NO schema mutation / NO repartition (operator-gated).
+  NO `.env`/secret edit. $0 (dry-run estimation only; no bytes billed; no LLM).
+- Do NOT add date/partition WHERE filters to the non-partitioned tables (proven cargo-cult
+  — no byte reduction). Do NOT repoint the sortino lineage (result change). No emoji; ASCII.
 
 ## References
 
-`handoff/current/research_brief.md`; `frontend/src/lib/design-tokens.ts:40` (focusRing);
-`frontend/src/app/globals.css`; `frontend/package.json:14`; the 4 zinc components;
-`.claude/rules/frontend.md` + `frontend-layout.md`. External: W3C WCAG 2.2 (2.4.7/2.4.11/
-1.4.3/1.4.11/2.5.8), Deque axe-core, Material 3 / Apple HIG.
+`handoff/current/research_brief.md`; `backend/backtest/cache.py:153/342`;
+`backend/services/cycle_health.py:426/473`; `backend/metrics/sortino.py:108`;
+`backend/agents/historical_data.py` + `data_server.py` (consumed-column grep). External:
+Google Cloud "Optimize query computation" / "Controlling costs", BQ INFORMATION_SCHEMA,
+dbt/Monte Carlo freshness.

@@ -150,8 +150,20 @@ def preload_fundamentals(tickers: list[str], market: str = _DEFAULT_MARKET) -> i
         logger.info("Fundamentals already preloaded (%d tickers, %d rows), skipping BQ query", len(_fundamentals_full), total)
         return total
 
+    # phase-53.3: explicit projection (not SELECT *) -- BQ bills for every column
+    # scanned. These 12 are the only columns any consumer reads
+    # (backend/backtest/historical_data.py .get()s + the ticker grouping key +
+    # the report_date ORDER BY). Dropping the 4 never-read columns (filing_date,
+    # ingested_at, market, currency) cuts bytes-scanned ~21% (655,079 -> 515,937,
+    # dry-run measured) with byte-identical results. (A tighter 10-col set scans less
+    # but drops sector/industry, which historical_data.py consumes -- a result change;
+    # this 12-col set is the results-preserving projection.) historical_fundamentals is NOT
+    # partitioned, so a WHERE/date filter would not prune -- projection is the only
+    # correctness-preserving lever.
     query = f"""
-        SELECT *
+        SELECT ticker, report_date, total_revenue, net_income, total_debt,
+               total_equity, total_assets, operating_cash_flow, shares_outstanding,
+               sector, industry, dividends_per_share
         FROM `{_table("historical_fundamentals")}`
         WHERE ticker IN UNNEST(@tickers)
         ORDER BY ticker, report_date DESC
@@ -338,8 +350,12 @@ def cached_fundamentals(ticker: str, cutoff_date: str) -> list[dict]:
     # 3. Fall back to individual BQ query (with timeout)
     _cache_stats["misses"] += 1
     logger.debug("BQ fallback: fundamentals for %s (cutoff %s)", ticker, cutoff_date)
+    # phase-53.3: explicit projection (same 12 consumed columns as preload_fundamentals).
+    # Correctness-preserving; the 30s timeout + cutoff WHERE + LIMIT 5 are unchanged.
     query = f"""
-        SELECT *
+        SELECT ticker, report_date, total_revenue, net_income, total_debt,
+               total_equity, total_assets, operating_cash_flow, shares_outstanding,
+               sector, industry, dividends_per_share
         FROM `{_table("historical_fundamentals")}`
         WHERE ticker = @ticker AND report_date <= @cutoff
         ORDER BY report_date DESC

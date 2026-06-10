@@ -13956,7 +13956,7 @@
         {
           "id": "53.3",
           "name": "Data-stack elevation -- BigQuery cost/perf + partition/cluster discipline + feature freshness/lineage on the hot query paths (signals, prices, fundamentals, macro). Research-gated against BQ best practice. Measure-first (before/after bytes-scanned + cost); the 30s fallback-query timeout rule preserved; NO DROP / unqualified DELETE without operator approval.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "53.2",
