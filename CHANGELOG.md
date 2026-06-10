@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
 | 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
 | 2026-06-01 | `0d4ddcbe` | docs(audit): phase-43.0 Production-Ready DoD audit -- NOT_PRODUCTION_READY (8/14 backend, 0/12 UX) |
 | 2026-06-01 | `4fec7c70` | feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `bcb4c0ce` | phase-51.4: Cron repairs -- (a) autoresearch launchd job fails every night (ModuleNotFoundError: ... |
 | 2026-06-01 | `7513ff9f` | phase-51.3: Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week wi... |
 | 2026-06-01 | `0ef5e7d0` | phase-51.2: Sector diversification -- the live screener ranks the full S&P 500 by PURE price-mome... |
-| 2026-06-01 | `6f86c5ed` | phase-51.1: SecretStr unwrap -- resurrect 4 dead LLM alpha overlays. news_screen/macro_regime/pea... |
 
 ---
 
+### v6.36.0 — feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA... (2026-06-10)
+
+- **feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi**
 ### v6.35.0 — feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTE... (2026-06-01)
 
 - **feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative)**
