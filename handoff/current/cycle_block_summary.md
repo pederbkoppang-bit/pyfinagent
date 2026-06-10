@@ -1,20 +1,30 @@
-# Cycle Block Summary — operator-away run (2026-06-01 →)
+# Cycle Block Summary — best-in-class elevation run (HARD STOP 2026-06-10)
 
-Operator REMOTE 1 week, Slack-only. This file consolidates the OPERATOR-GATED items the
-autonomous run could not close (LLM spend / pip / BQ-DROP / operator approval / NextAuth
-visual confirms). Updated as the run proceeds; finalized at SOFT/HARD STOP. (Supersedes
-the prior 2026-06-01 SOFT-STOP summary — that run's record is in git history.)
+Goal "Best-in-class elevation + remote-working go-live" (set 2026-06-01). The autonomous
+scope is **COMPLETE** — all goal steps shipped to `main` except phase-53.4 (remote-working
+hook), which the operator DROPPED on 2026-06-10 ("home again", remote-working not needed).
+This file consolidates the OPERATOR-GATED items that remain (LLM spend / pip / BQ-DROP /
+operator approval / NextAuth visual confirms). **HARD STOP** reached.
 
-## Run status (live)
+## Run status — FINAL
 
 | Step | State |
 |------|-------|
 | sync main | DONE |
-| phase-54.1 cron audit + paper_markets fix | DONE (PASS) |
-| phase-54.2 Slack away-week lifeline | DONE (PASS) — 2 live digests delivered |
-| phase-50.6 multi-market UI | DONE (PASS) |
-| phase-43.0 DoD audit | **AUDIT DELIVERED; step BLOCKED (operator-gated)** — see below |
-| phase-53.1/.2/.3/.4/.5 | in progress (autonomously closable) |
+| phase-54.1 cron audit + paper_markets fix | DONE (PASS) `a7750d44` |
+| phase-54.2 Slack away-week lifeline | DONE (PASS) `8d5fa076` — 2 live digests delivered |
+| phase-50.6 multi-market UI | DONE (PASS) `4fec7c70` |
+| phase-43.0 DoD audit | **AUDIT DELIVERED** `0d4ddcbe`; step stays pending (operator-gated) — see below |
+| phase-53.1 quant elevation | DONE (PASS) `675e69df` — lever measured + honestly REJECTED |
+| phase-53.2 UX elevation (WCAG-AA) | DONE (PASS) `11dcfdeb` |
+| phase-53.3 data-stack elevation | DONE (PASS) `e8502522` — BQ column-prune −21.2% |
+| phase-53.4 remote-working hook | **DROPPED by operator 2026-06-10** (home; not needed) |
+| phase-53.5 E2E smoke capstone | DONE (PASS) — CI workflow + portable smoke green; CLOSES the goal |
+
+Every step ran the full Harness MAS loop (researcher gate → contract → GENERATE → fresh Q/A
+→ harness_log → masterplan flip), committed per step. Two Q/As returned CONDITIONAL and were
+handled via the documented cycle-2 fix-then-fresh-Q/A flow (50.6 optimizer-clobber, 53.2
+focus-baseline); one quant lever (53.1) was honestly REJECTED on the robustness gate.
 
 ## phase-43.0 — NOT_PRODUCTION_READY (operator action required)
 

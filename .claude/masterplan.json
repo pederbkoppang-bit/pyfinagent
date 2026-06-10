@@ -13998,7 +13998,7 @@
         {
           "id": "53.5",
           "name": "End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow_dispatch + schedule + PR-to-main) runs the credential-free e2e subset (backend pytest + ast syntax, frontend tsc + npm build, harness --dry-run --cycles 1, intel_e2e --fixtures, phase6_e2e --dry-run), AND scripts/smoketest/aggregate.sh is run GREEN locally. This is the 'smoke tests everything end to end' done-gate that CLOSES the operator goal.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "53.4",

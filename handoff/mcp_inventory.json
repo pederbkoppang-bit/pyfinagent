@@ -1,27 +1,11 @@
 {
   "schema_version": 1,
   "counts": {
-    "external_registered": 2,
-    "in_process_authoritative": 3,
-    "in_process_legacy_stub": 3
+    "external_registered": 8,
+    "in_process_authoritative": 4,
+    "in_process_legacy_stub": 0
   },
   "servers": [
-    {
-      "name": "slack",
-      "source_type": "external_registered",
-      "source_path": ".mcp.json",
-      "transport": "stdio",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@anthropic-ai/mcp-server-slack"
-      ],
-      "env_var_keys": [
-        "SLACK_APP_TOKEN",
-        "SLACK_BOT_TOKEN"
-      ],
-      "stub": false
-    },
     {
       "name": "alpaca",
       "source_type": "external_registered",
@@ -29,12 +13,115 @@
       "transport": "stdio",
       "command": "uvx",
       "args": [
+        "--from",
+        "alpaca-mcp-server==2.0.1",
         "alpaca-mcp-server"
       ],
-      "env_var_keys": [
-        "ALPACA_API_KEY_ID",
-        "ALPACA_API_SECRET_KEY"
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "bigquery",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "mcp-server-bigquery==0.3.2",
+        "mcp-server-bigquery",
+        "--project",
+        "sunny-might-477607-p8",
+        "--location",
+        "US"
       ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "paper-search-mcp",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--with",
+        "paper-search-mcp==0.1.3",
+        "python",
+        "-m",
+        "paper_search_mcp.server"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "pyfinagent-backtest",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/backtest_server.py"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "pyfinagent-data",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/data_server.py"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "pyfinagent-risk",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/risk_server.py"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "pyfinagent-signals",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python",
+      "args": [
+        "/Users/ford/.openclaw/workspace/pyfinagent/backend/agents/mcp_servers/signals_server.py"
+      ],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
+      "name": "playwright",
+      "source_type": "external_registered",
+      "source_path": ".mcp.json",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.75",
+        "--executable-path",
+        "/Users/ford/Library/Caches/ms-playwright/chromium-1208/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        "--user-data-dir",
+        "/Users/ford/.openclaw/workspace/pyfinagent/.playwright-mcp-profile",
+        "--allowed-hosts",
+        "localhost",
+        "--viewport-size",
+        "1440,900"
+      ],
+      "env_var_keys": [],
       "stub": false
     },
     {
@@ -79,11 +166,29 @@
       "stub": false
     },
     {
+      "name": "risk_server",
+      "source_type": "in_process_authoritative",
+      "source_path": "backend/agents/mcp_servers/risk_server.py",
+      "has_factory": true,
+      "tool_count": 6,
+      "resource_count": 0,
+      "tools_sample": [
+        "ping",
+        "kill_switch",
+        "portfolio_cvar",
+        "factor_exposure",
+        "pbo_check"
+      ],
+      "resources_sample": [],
+      "env_var_keys": [],
+      "stub": false
+    },
+    {
       "name": "signals_server",
       "source_type": "in_process_authoritative",
       "source_path": "backend/agents/mcp_servers/signals_server.py",
       "has_factory": true,
-      "tool_count": 5,
+      "tool_count": 6,
       "resource_count": 3,
       "tools_sample": [
         "generate_signal",
@@ -99,42 +204,6 @@
       ],
       "env_var_keys": [],
       "stub": false
-    },
-    {
-      "name": "backtest_server",
-      "source_type": "in_process_legacy_stub",
-      "source_path": "backend/mcp/backtest_server.py",
-      "has_factory": false,
-      "tool_count": 0,
-      "resource_count": 0,
-      "tools_sample": [],
-      "resources_sample": [],
-      "env_var_keys": [],
-      "stub": true
-    },
-    {
-      "name": "data_server",
-      "source_type": "in_process_legacy_stub",
-      "source_path": "backend/mcp/data_server.py",
-      "has_factory": false,
-      "tool_count": 0,
-      "resource_count": 0,
-      "tools_sample": [],
-      "resources_sample": [],
-      "env_var_keys": [],
-      "stub": true
-    },
-    {
-      "name": "signals_server",
-      "source_type": "in_process_legacy_stub",
-      "source_path": "backend/mcp/signals_server.py",
-      "has_factory": false,
-      "tool_count": 0,
-      "resource_count": 0,
-      "tools_sample": [],
-      "resources_sample": [],
-      "env_var_keys": [],
-      "stub": true
     }
   ]
 }

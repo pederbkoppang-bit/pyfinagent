@@ -26445,3 +26445,308 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Q/A:** fresh `ae57a5aebeb975dac` = **PASS** (ok:true, zero violated_criteria). 5/5 harness (4 criteria verbatim). INDEPENDENTLY: reproduced the dry-run 655,079->515,937 -21.2% byte-identical; VERIFIED the over-prune catch by dry-running the 10-col version (333,030 bytes/-49.2% but drops sector+industry which historical_data.py:257-258 consumes = result change -> Main's 12-col choice CORRECT); confirmed superset (all 12 consumed cols projected) + 4 dropped cols 0 fundamentals call-sites; git diff projection-only with 30s timeout + WHERE/ORDER/LIMIT byte-identical; schema-mutation grep none; sortino unchanged; no money-path; 4 tests pass. ANTI-WATERMELON: partition/cluster lever + Sortino-fix + macro-refresh documented operator-gated; the -21.2%-vs--41% honesty explicit. One NOTE (stale -41% inline comment) -> FIXED post-verdict (comment now -21.2%; comment-only).
 
 **Scope honesty:** correctness over a vanity number (-21.2% results-preserving, not -41% over-prune). The big partition/cluster win (90-99%) + the Sortino macro-lineage fix + the historical_macro refresh are documented operator-gated follow-ups (added to cycle_block_summary). +20% momentum core untouched. NEXT: phase-53.5 (E2E smoke capstone -- per operator 2026-06-10 phase-53.4 remote-working hook is DROPPED, operator home).
+
+---
+
+## Cycle 1 -- 2026-06-10 13:09 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:26 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:30 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:30 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:31 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:33 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:33 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:33 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:33 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:34 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-10 13:42 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 106 -- 2026-06-10 13:50 UTC -- phase=4.6 result=PASS
+
+**Decision:** PASS -- aggregate smoketest finalize -- all prior steps green
+
+---
+
+## Cycle 1 -- 2026-06-10 13:51 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=3.61% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 42 -- 2026-06-10 -- phase=53.5 result=PASS (E2E smoke capstone -- CLOSES the goal)
+
+**Step:** phase-53.5 -- End-to-end smoke capstone: a credential-free CI workflow + the local smoke green. P2. $0. (phase-53.4 remote-working hook DROPPED by the operator 2026-06-10 -- home; this is a general CI/regression capstone.)
+
+**Research:** researcher `a80b95565062938a4` gate PASSED (tier moderate; 7 sources read in full, 19 URLs, recency scan, 13 internal files). md5-PROVEN: run_harness.py --dry-run --cycles 1 CLOBBERS contract.md + research_brief.md, leaves experiment_results.md, APPENDS harness_log.md, exits 0. aggregate.sh has 4 defects (deferred mishandled, #2 AttributeError crash + live/drift audit, #5 build-vs-dev-server contention, #7 "critical"-prose false-positive). e2e-smoke.yml outline mirrors env-syntax-lint.yml. (Brief was clobber-restored from the researcher summary after a recursive run_harness call during the first aggregate run.)
+
+**Generate:** NEW .github/workflows/e2e-smoke.yml (workflow_dispatch + schedule cron '17 6 * * *' + pull_request:[main]; permissions: contents: read; credential-free subset cheapest-first: ast/compileall -> pytest --ignore 6 live/state files -> npm ci + tsc --noEmit + build -> run_harness --dry-run -> intel_e2e --fixtures -> phase6_e2e --dry-run; soft-launch continue-on-error mirroring env-syntax-lint). aggregate.sh: +SMOKE_PORTABLE gate (additive; default byte-identical) + 4 cross-mode correctness fixes (#1 accept 'deferred'; #2 isinstance crash-guard + skip-in-portable since it's a live/drift audit; #7 incident-marker grep not "critical"-prose). Verify: SMOKE_PORTABLE=1 bash aggregate.sh -> EXIT 0 (=== AGGREGATE SMOKETEST PASS ===; 6 real PASS [#1,#3,#4,#5,#7,#8] + 2 SKIP [#2 audit, #6 phase-4.6]; dev server quiesced for #5's clean build). run_harness.py --dry-run --cycles 1 -> EXIT 0, "Appended cycle 1 to harness_log.md", "Final best: Sharpe=1.1705 DSR=0.9526" (backup+restore around the clobber). live_check_53.5.md written.
+
+**Q/A:** fresh `acb555134820e1191` = **PASS** (ok:true, zero violated_criteria). 5/5 harness (4 criteria diffed MATCH vs masterplan; deviation flagged in-contract). INDEPENDENTLY: e2e-smoke.yml valid (the PyYAML KeyError 'on' is the YAML-1.1 bareword-true quirk, NOT a workflow defect; GitHub parses it correctly); 3 triggers + least-privilege + 6 steps confirmed. Re-ran run_harness --dry-run -> EXIT 0 + appended; backup/restored -> 53.5 handoff survived. CRITERION-2 ADJUDICATION (decisive): EMPIRICALLY ran 120 of the safe done-phase commands -> 13 real failures (11%: transient-artifact json.loads, env-missing, secrets-rotation, timeouts) + 62/488 carry live markers -> #2 is PROVABLY non-portable; skipping it in SMOKE_PORTABLE while preserving the full audit (unset) + running the subset directly in CI satisfies the criterion's INTENT -> 6-real-PASS + 2-documented-SKIP is the anti-watermelon ideal, NOT a shortfall -> PASS. DO-NO-HARM: SMOKE_PORTABLE additive (default byte-identical); the 3 cross-mode fixes are genuine defect fixes (measured 93 benign "critical" prose vs 4 real markers); git diff only aggregate.sh + new e2e-smoke.yml (no money-path). 3 disclosed NOTEs (a stale moved-module example -> CORRECTED post-verdict; clobber-restore audit-trail; soft-launch CI). Worst severity NOTE.
+
+**Scope honesty:** the GOAL-CLOSING step. Honest criterion-2 deviation (6 real + 2 skip, triply disclosed + Q/A-empirically-justified). The CI lane is soft-launch + verified by local command execution (first real Actions run on the next PR -- cannot trigger Actions from here). GOAL COMPLETE: 50.6 + 43.0(audit delivered, operator-gated) + 53.1/53.2/53.3 + 53.5 done; 53.4 operator-dropped. Operator-gated follow-ups in cycle_block_summary.md. HARD STOP.

@@ -1,6 +1,6 @@
 {
   "step": "3.7.8",
-  "ran_at": "2026-04-17T21:03:49.361666+00:00",
+  "ran_at": "2026-06-10T13:56:07.524163+00:00",
   "days": 5,
   "symbols": 20,
   "orders_per_day": 10,
@@ -8,7 +8,7 @@
   "exceptions": 0,
   "adv_threshold": 0.05,
   "fill_price_drift_pct": 0.003,
-  "fill_latency_drift_ms": 0.002,
+  "fill_latency_drift_ms": 0.074,
   "large_orders": 500,
   "partial_fill_checks_passed": 500,
   "shadow_week_complete": true,
@@ -24,12 +24,12 @@
       {
         "qty": 461456.976,
         "fill_price": 494.0,
-        "ts": "2026-04-17T21:03:49.352637+00:00"
+        "ts": "2026-06-10T13:49:31.266492+00:00"
       },
       {
         "qty": 307637.984,
         "fill_price": 494.0,
-        "ts": "2026-04-17T21:03:49.353141+00:00"
+        "ts": "2026-06-10T13:49:31.266613+00:00"
       }
     ],
     "parent_fill_price": 494.0
