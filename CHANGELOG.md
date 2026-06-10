@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `7972d88` | docs(goal): set goal-post-away-review -- phased review->fix->go-live + 4000-char kickoff |
 | 2026-06-10 | `e850252` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
 | 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
 | 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `6d1292f4` | phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in... |
 | 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
 | 2026-06-01 | `bcb4c0ce` | phase-51.4: Cron repairs -- (a) autoresearch launchd job fails every night (ModuleNotFoundError: ... |
-| 2026-06-01 | `7513ff9f` | phase-51.3: Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week wi... |
 
 ---
 
