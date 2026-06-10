@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `3abbfd90` | Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3' |
 | 2026-06-10 | `433fe1d5` | chore: commit hook-generated audit appends pre-merge |
 | 2026-06-10 | `946183b` | chore: commit hook-generated changelog/audit appends |
 | 2026-06-10 | `09275a4` | docs(goal): harden goal-post-away-review criteria per dual review (researcher max + QA) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `e8502522` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
 | 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
 | 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
-| 2026-06-01 | `0d4ddcbe` | docs(audit): phase-43.0 Production-Ready DoD audit -- NOT_PRODUCTION_READY (8/14 backend, 0/12 UX) |
 
 ---
 
+### v6.36.5 — Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3' (2026-06-10)
+
+- **Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3'**
 ### v6.36.4 — fix(handoff): restore audit-stream lines dropped by dedupe in merge r... (2026-06-10)
 
 - **fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution**
