@@ -13977,7 +13977,7 @@
         {
           "id": "53.4",
           "name": "Remote-working SessionStart hook -- author a Claude-Code-on-the-web bootstrap hook (.claude/hooks/session-start-bootstrap.sh) registered under a SessionStart event in .claude/settings.json: path-portable repo-root detection ($CLAUDE_PROJECT_DIR, NO hardcoded /Users/ford), activate .venv if present, cache.preload_macro() fail-open, and inject the current masterplan in-progress/next-pending step to stdout. Fast + fail-open (never blocks session start). Bundle the trivial .github/workflows/claude.yml model-pin fix (opus-4-7 -> opus-4-8).",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "53.3",

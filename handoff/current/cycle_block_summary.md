@@ -18,8 +18,15 @@ operator approval / NextAuth visual confirms). **HARD STOP** reached.
 | phase-53.1 quant elevation | DONE (PASS) `675e69df` — lever measured + honestly REJECTED |
 | phase-53.2 UX elevation (WCAG-AA) | DONE (PASS) `11dcfdeb` |
 | phase-53.3 data-stack elevation | DONE (PASS) `e8502522` — BQ column-prune −21.2% |
-| phase-53.4 remote-working hook | **DROPPED by operator 2026-06-10** (home; not needed) |
+| phase-53.4 remote-working hook | **DEFERRED by operator 2026-06-10** (home; not needed) — masterplan `status: deferred` |
 | phase-53.5 E2E smoke capstone | DONE (PASS) — CI workflow + portable smoke green; CLOSES the goal |
+
+**Parent-node states (intentional):** `phase-53` and `phase-43.0` parents remain `pending`.
+Both are pure grouping/gate nodes whose full closure is operator-gated, NOT something Main
+self-certifies: `phase-43.0` carries the PRODUCTION_READY operator-approval criterion (unmet),
+and `phase-53` `depends_on phase-43`. Every *actionable* child is resolved (done, or 53.4
+deferred). This mirrors the project's existing pattern — a parent stays `pending` while its
+closure needs the operator, rather than being flipped `done` without a Q/A pass.
 
 Every step ran the full Harness MAS loop (researcher gate → contract → GENERATE → fresh Q/A
 → harness_log → masterplan flip), committed per step. Two Q/As returned CONDITIONAL and were
@@ -51,4 +58,31 @@ To reach PRODUCTION_READY, the operator must (on return):
 - **phase-50.6 visual confirm** (NextAuth wall): `/paper-trading/manage` Live-loop markets
   toggle; `/paper-trading/positions` Currency-exposure card; `/backtest` US/USD/SPY strip.
 - **Test hygiene:** 16 environment-coupled backend test failures (live-BQ probes + a moved
-  fixture-doc ×7) should be quarantined/marked (a follow-up task; not logic regressions).
+  fixture-doc ×7) should be quarantined/marked (a follow-up task; not logic regressions). A
+  durable `requires_live` pytest marker would replace the 6-file `--ignore` list the
+  credential-free subset uses.
+- **phase-53.3 BQ data-stack (the big win is operator-gated):** (1) partition the 3 hot
+  `historical_{prices,fundamentals,macro}` tables by date + cluster by ticker — the 90-99%
+  bytes-scanned lever — via a re-runnable idempotent `scripts/migrations/*.py` (table
+  recreation = schema mutation = approval). (2) Fix the Sortino macro lineage: `sortino.py:108`
+  reads `pyfinagent_data.historical_macro` while the writer/freshness use
+  `financial_reports.historical_macro` (repoint changes the MAR input = a result change). (3)
+  Refresh `historical_macro` (the one RED freshness band). The landed `−21.2%` fundamentals
+  column-prune is live + correctness-preserving.
+- **phase-53.5 CI (soft-launch):** `.github/workflows/e2e-smoke.yml` runs with
+  `continue-on-error: true` (it reports but does not block PRs). Its commands are verified
+  green LOCALLY, but the first real GitHub-Actions run is on the next PR/dispatch (I cannot
+  trigger Actions). Flip `continue-on-error` → false once it is green across a few real runs.
+- **phase-53.1 quant lever:** the no-trade rebalance band is a dormant default-OFF helper
+  (`rebalance_band_enabled=False`); it was measured + REJECTED on the robustness gate
+  (turnover −12% but Sharpe Δ within noise). Revisit on longer history if desired; do not
+  enable as-is.
+
+## Goal closure
+
+The "Best-in-class elevation" autonomous scope is COMPLETE (50.6 + 43.0-audit + 53.1/53.2/
+53.3 + 53.5; 53.4 operator-dropped). The remaining path to **PRODUCTION_READY** is entirely
+operator-gated: approve LLM spend for ~1-2 weeks of live cycles (closes the 5 live-blocked
+DoD criteria), do the DoD-1 pip/cron fixes, build + visually verify the 12 UX DoD criteria,
+then type "PRODUCTION_READY: APPROVED". The +20% US momentum core was untouched throughout
+(every alpha/construction change config-gated default-OFF + measured).
