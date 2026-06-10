@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `952fe08d` | docs(handoff): SOFT STOP -- refresh cycle_block_summary with operator ask list; goal ledger updated  |
 | 2026-06-10 | `236b1f86` | fix(ops): phase-56.2 ops fixes -- rail-health probe (F-4), degraded-scoring guard (F-5), conviction- |
 | 2026-06-10 | `17e53d00` | fix(fx): phase-56.1 FX/value/fee data-correctness -- USD trade rows (F-2, 3-line fix + regression te |
 | 2026-06-10 | `2983694f` | phase-55.3: synthesis + operator checkpoint -- PASS (19 ranked findings; FEATURE recommended; MinTRL |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `728e1d6` | Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post-away-review branch |
 | 2026-06-10 | `55f81af` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
 | 2026-06-10 | `3c00f80` | chore: commit hook-generated audit appends |
-| 2026-06-10 | `a6ab589` | chore: commit hook-generated audit appends |
 
 ---
 
