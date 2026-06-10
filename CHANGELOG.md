@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `e8502522` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
 | 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
 | 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
 | 2026-06-01 | `0d4ddcbe` | docs(audit): phase-43.0 Production-Ready DoD audit -- NOT_PRODUCTION_READY (8/14 backend, 0/12 UX) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
 | 2026-06-01 | `bcb4c0ce` | phase-51.4: Cron repairs -- (a) autoresearch launchd job fails every night (ModuleNotFoundError: ... |
 | 2026-06-01 | `7513ff9f` | phase-51.3: Slack digest trading-day guard -- morning_digest + evening_digest fire 7 days/week wi... |
-| 2026-06-01 | `0ef5e7d0` | phase-51.2: Sector diversification -- the live screener ranks the full S&P 500 by PURE price-mome... |
 
 ---
 
+### v6.36.1 — perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes... (2026-06-10)
+
+- **perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first)**
 ### v6.36.0 — feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA... (2026-06-10)
 
 - **feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi**
