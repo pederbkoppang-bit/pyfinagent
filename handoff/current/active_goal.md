@@ -53,3 +53,4 @@ Main xhigh; Researcher + Q/A max (CLAUDE.md effort policy unchanged).
 
 ## Cycle ledger (this run)
 - (appended per cycle)
+- 2026-06-10: install `5d2abb8a`; 55.1 PASS `3222133d`; 55.2 PASS `a747d86b`; 55.3 PASS `2983694f` (checkpoint posted, ts 1781111785.584429); 56.1 PASS `17e53d00`; 56.2 PASS `236b1f86`. Phase-55+56 CLOSED. SOFT STOP: phase-57 install + 58.1 hard-gated on the operator's two verbatim Slack replies (none yet). Ask list: handoff/current/cycle_block_summary.md.
