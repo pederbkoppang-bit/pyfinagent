@@ -1,237 +1,105 @@
-# Evaluator Critique — phase-53.5 (E2E smoke capstone — the GOAL-CLOSING step)
+# Evaluator Critique — Step 55.1
 
-**Q/A agent (merged qa-evaluator + harness-verifier). FRESH single spawn.**
-Main produced this; I did NOT self-evaluate. Deterministic-first, adversarial,
-anti-rubber-stamp, anti-watermelon. **Date:** 2026-06-10. **Mode:** in-place
-working-tree read. I independently re-ran the YAML-lint, the criterion-3 harness
-dry-run (exit 0), a sample of the #2 done-phase reruns to ADJUDICATE the deviation,
-the SMOKE_PORTABLE additivity proof, and the ASCII/diff-scope checks.
-**Verdict: PASS. ok: true.**
-
-> This OVERWRITES the STALE phase-53.3 critique that was left in this rolling file.
-> The verdict below is for **phase-53.5** only.
-
-## CRITICAL FRAMING — a green PORTABLE smoke with a PROVABLY-non-portable leg honestly skipped is a PASS
-
-phase-53.5 is the goal-closing capstone: a credential-free CI e2e-smoke workflow +
-a portable local aggregate.sh green. The ONLY contested point is criterion 2's
-literal "7 real checks pass" — Main delivers **6 real PASS + 2 SKIP** and discloses
-it loudly. My job is to (a) confirm harness 5/5, (b) re-verify the CI workflow shape,
-(c) **ADJUDICATE** whether skipping check #2 in portable mode satisfies the criterion's
-INTENT or is a real shortfall, and (d) confirm DO-NO-HARM (additive gate, no
-money-path/runtime change, fixes are correctness not smoke-weakening). All hold; the
-deviation is a legitimate, empirically-substantiated, honestly-disclosed engineering
-call — NOT a dodge.
+**Step:** 55.1 — Data-integrity + trading forensics: PRIMARY-data post-mortem of the away week (2026-06-01 → 2026-06-10)
+**Q/A session date:** 2026-06-10
+**Spawn:** cycle-1 (FIRST Q/A for 55.1; no prior critique, no prior harness_log cycle entry)
+**Verdict:** **PASS** (`ok: true`)
+**Worst code-review severity hit:** none (review-only step; git diff of `backend/` + `frontend/` is empty — no source code changed, so no Dimension-1..4 heuristic has a diff to fire on)
 
 ---
 
-## 0. 3rd-CONDITIONAL auto-FAIL rule — NOT triggered (verified)
+## 0. Harness-compliance audit (5 items — mandatory first)
 
-`grep -cE "phase=53\.5" handoff/harness_log.md` → **0** (no `phase=53.5` cycle header
-at all). This is the FIRST Q/A for step-id 53.5. Zero prior 53.5 CONDITIONALs. The
-auto-FAIL rule (3+ consecutive CONDITIONALs) does not apply. (The `## Cycle 1 -- 2026-06-10`
-headers at 13:33/13:34/13:42/15:51 in the log are OPTIMIZER dry-run cycle entries — the
-criterion-3 evidence — NOT the 53.5 step cycle, which is correctly still absent.)
-
----
-
-## 1. Harness-compliance audit (ran FIRST, per `feedback_qa_harness_compliance_first`) — 5/5 PASS
-
-| # | Check | Result |
-|---|-------|--------|
-| 1 | researcher FIRST + gate passed | **PASS** — `research_brief.md` IS the 53.5 brief (moderate tier; e2e-smoke + aggregate-portability audit). Envelope `{"tier":"moderate","external_sources_read_in_full":7,"snippet_only_sources":12,"urls_collected":19,"recency_scan_performed":true,"internal_files_inspected":13,"gate_passed":true}` — 7 sources read in full (exceeds the >=5 floor), 19 URLs, recency scan present (2024-2026; the 2026 GitHub Actions security roadmap is the current guidance, no contradiction of the credential-free-subset + cheapest-first design). The brief is honestly annotated as RECONSTRUCTED after a `run_harness.py` clobber (the recursive-clobber finding), reconstructed from the researcher's returned summary + gate envelope — audit-trail disclosed, not hidden. Decisive findings (clobber md5-proven; aggregate.sh 4 defects; e2e-smoke.yml outline) all carried into the plan. |
-| 2 | `contract.md` BEFORE generate, N* delta + 4 criteria VERBATIM | **PASS** — N* delta present (`contract.md:13-17`: Risk↓ standing regression net, no P/B delta, no runtime/money-path change). The 4 criteria are copied VERBATIM (`:36-46`); I diffed them char-for-char (whitespace-normalized) against masterplan `verification.success_criteria` for id=53.5 — **all 4 MATCH=True**. No criteria erosion. The honest-deviation section (`:64-74`) is in the contract itself — flagged for Q/A up-front, not buried. The contract is also clobber-restored (audit-trail note at `:7-12`); I confirmed it survived my own dry-run (head still `# Contract — phase-53.5`, the 4-criteria block + deviation section both present post-restore). |
-| 3 | `experiment_results.md` + `live_check_53.5.md` present w/ verbatim output | **PASS** — `experiment_results.md` has a files-changed table + a VERBATIM verification block (`:30-37`: `bash -n` OK, `SMOKE_PORTABLE=1 aggregate.sh -> EXIT 0`, the 6-PASS+2-SKIP enumeration, `run_harness --dry-run -> EXIT 0 "Appended cycle 1" 26702->26719`) + a criteria-mapping table that itself flags the criterion-2 deviation. `live_check_53.5.md` (79 lines) records the aggregate exit code with the full PASS/SKIP transcript, the harness dry-run tail, the e2e-smoke.yml path + shape, the clobber-handling note, and the goal-closure summary. |
-| 4 | log-last / flip-last | **PASS** — `grep -cE phase=53.5 harness_log.md` = 0 (no entry yet); masterplan `id:53.5 status=pending retry_count=0 max_retries=3`. Both intact: the 53.5 log append + the status flip have NOT preceded this Q/A. |
-| 5 | First Q/A spawn | **PASS** — no prior 53.5 critique (this file held the stale 53.3 verdict; 0 occurrences of `phase-53.5`) and no 53.5 log entry. Not verdict-shopping; this is fresh evidence on a new step-id. |
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | **Researcher gate** | PASS | `handoff/current/research_brief.md` exists for 55.1, tier=complex. JSON envelope at `:260-271`: `external_sources_read_in_full: 6` (≥5 floor), `recency_scan_performed: true`, `urls_collected: 30`, `internal_files_inspected: 9`, `gate_passed: true`. Recency scan present (§B.3, 2024-2026, reports "no new finding supersedes canonical"). Search-query 3-variant discipline visible (§B.1). 6 read-in-full sources are Tier-1/2 (CFA practitioner, quant blogs, Wikipedia-citing-primary, GIPS industry, exam-prep). Honest gaps disclosed (AQR PDF binary-skip not counted; 2 paywalled snippet-only). |
+| 2 | **Contract pre-commit + verbatim criteria** | PASS | `contract.md` mtime 1781107172 < `55.1-away-week-postmortem.md` mtime 1781108408 (contract written BEFORE GENERATE output). All FOUR success-criteria strings diffed against `.claude/masterplan.json` step 55.1 `verification.success_criteria` — **VERBATIM MATCH = True for all 4** (programmatic char-by-char compare; criteria lengths 927/792/834/437). |
+| 3 | **Results artifact** | PASS | `experiment_results.md` describes 55.1, lists both deliverables + supporting captures, includes the verbatim verification-command output (`test -f ... && echo PASS → PASS`), an Honest-limitations section (n=7 low power, sector-cap deferred to 55.2, tca_report synthetic, parity FAIL not retried-to-green). |
+| 4 | **Log-last** | PASS | `handoff/harness_log.md` has NO `## Cycle ... phase=55.1` header (grep exit=1). masterplan 55.1 `status = pending`, retry_count=0. The log append + status flip happen AFTER this verdict — correct ordering. |
+| 5 | **No verdict-shopping** | PASS | First Q/A spawn for 55.1. No prior 55.1 cycle in harness_log; the on-disk `evaluator_critique.md` (mtime 1781099723, predates GENERATE) held the closed 53.5 step's content (now overwritten). Archive critique grep hits (phase-16.20/48.2/23.5.9/44.4) are substring false-positives, not prior 55.1 critiques. |
 
 ---
 
-## 2. Deterministic re-verification (ran EVERY command myself) — all reproduce
+## 1. Deterministic checks (checks_run + outcomes)
 
-| Check | My independent run | Result |
-|-------|--------------------|--------|
-| **Criterion 1** — `python -c "import yaml; yaml.safe_load(...e2e-smoke.yml)"` | **YAML_OK** (valid). NOTE: `d['on']` raises `KeyError` because PyYAML parses the bareword `on:` as the boolean `True` per YAML 1.1 — accessing `d[True]` returns the trigger map. This is a PyYAML quirk, **NOT** a workflow defect; GitHub Actions parses `on:` correctly. | **PASS** |
-| **Criterion 1** — triggers / permissions / steps | triggers = `{workflow_dispatch, schedule (cron '17 6 * * *'), pull_request (branches:[main], paths:[backend/**,frontend/**,scripts/**,.github/workflows/e2e-smoke.yml])}` — all 3 present; `permissions: {contents: read}` (least-privilege, no secrets, no `pull_request_target`); steps = checkout, setup-python(3.14,cache pip), setup-node(20,cache npm), install deps, **AST syntax (`compileall -q backend scripts`)**, **credential-free pytest with the 6 `--ignore`s**, **frontend npm ci + tsc --noEmit + build**, **run_harness --dry-run --cycles 1**, **intel_e2e --fixtures**, **phase6_e2e --dry-run**. The full credential-free subset the criterion names is present. `continue-on-error: true` (soft-launch, mirrors env-syntax-lint.yml) + `timeout-minutes: 20`. | **PASS** |
-| **Criterion 3** — `python scripts/harness/run_harness.py --dry-run --cycles 1` | **HARNESS_EXIT=0**; tail = "DRY RUN -- skipping generator and evaluator" / "Appended cycle 1 to harness_log.md" / "HARNESS COMPLETE -- 1 cycles finished" / "Final best: Sharpe=1.1705, DSR=0.9526". `harness_log.md` grew **26723 -> 26740** (the appended optimizer cycle). I backed up {contract, research_brief, experiment_results} BEFORE and RESTORED after; post-restore heads confirmed `# Contract — phase-53.5` / `# Research Brief — phase-53.5` / `# Experiment Results — phase-53.5` — the 53.5 handoff SURVIVED. | **PASS** |
-| ASCII / no-emoji | `e2e-smoke.yml` → ASCII_CLEAN; `aggregate.sh` → ASCII_CLEAN (byte scan, 0 non-ASCII). | **PASS** |
-| `git diff --stat` (DO-NO-HARM scope) | Code/CI files changed: `.github/workflows/e2e-smoke.yml` (NEW, untracked) + `scripts/smoketest/aggregate.sh` (+65/-... ) ONLY. Plus handoff (`contract`/`experiment_results`/`research_brief`/`harness_log`/`live_check_53.5.md` NEW) + audit JSONL + `.archive-baseline.json` + `handoff/archive/phase-53.3/` (prior-step archive) + incidental `frontend/tsconfig.tsbuildinfo` (TS incremental build cache, expected from the tsc/build leg) + `handoff/mcp_inventory.json` (regenerated inventory — slack→alpaca, counts 2→8; an inventory artifact, NOT a money-path/runtime file). **ZERO money-path / runtime file** (no paper_trader / kill_switch / risk_engine / backtest_engine / perf_metrics / signals / orchestrator). | **PASS** |
+| Check | Command | Outcome |
+|-------|---------|---------|
+| `harness_compliance_audit` | (above) | 5/5 PASS |
+| `verification_command` | `test -f handoff/current/55.1-away-week-postmortem.md && test -f handoff/current/live_check_55.1.md` | **exit=0** ✓ |
+| `captures_exist` | `ls handoff/current/captures_55.1/*.png \| wc -l` | **6** PNGs (positions_cockpit_ALL, cockpit_KR_vsKOSPI, trades_KR_value_fee, manage_markets_toggle, manage_markets_toggle_scrolled, backtest_us_usd_spy_strip) ✓ |
+| `criteria_verbatim_diff` | python char-compare contract vs masterplan | 4/4 VERBATIM MATCH ✓ |
+| `no_fix_work` | `git status` / `git diff` on `backend/` + `frontend/` | **EMPTY** — no source `.py/.ts/.tsx/.json` modified outside `handoff/`. Only handoff artifacts + audit JSONL + `handoff/tca_last_week.json` (synthetic TCA tool-smoke output) changed ✓ |
+| `masterplan_status` | read `.claude/masterplan.json` | status=`pending`, retry_count=0/3 ✓ |
+| `secret_scan` | grep secret-pattern on the 4 produced .md files | **clean** (empty) ✓ |
+| **PRIMARY-DATA SPOT-REPRO (a)** `/status` | `curl -s localhost:8000/api/paper-trading/status` | nav=**23837.12**, cash=**22883.73**, starting_capital=**20000.0** — EXACT match to post-mortem §1 + live_check B1 claims ✓ |
+| **PRIMARY-DATA SPOT-REPRO (b)** BQ KR mis-booking | `SELECT ... paper_trades WHERE ticker='066570.KS'` | total_value=**364175.06**, fee=0.24, qty=1.468448, px=248000.0 — EXACT match to the claimed KRW-as-stored mis-booking (§2.1 #1, B3). Corruption-scope `7 non_usd of 52 total` — EXACT match to B4 ✓ |
+| **PRIMARY-DATA SPOT-REPRO (c)** root-cause file:line | Read `useLiveNav.ts:34-39` + `paper_trader.py:265` + `:512-520` | `useLiveNav.ts:34-38` is the no-FX `positions.reduce((sum,pos)=> sum + lp*pos.quantity, 0)` exactly as claimed; `paper_trader.py:265` `"total_value": round(quantity * exec_price, 2)` has NO `_local_to_usd` (confirmed BUY-ledger defect); `:512-520` FX-fallback freeze (`:518` `or (pos["quantity"]*live_price)` = local-as-USD branch) exists exactly as described and is correctly RULED OUT (stored positions/NAV reconcile) ✓ |
+| `code_path_cites` | grep settings/metrics/cockpit/portfolio_manager | `settings.py:453` daily_loss=4.0 / `:454` trailing_dd=10.0 ✓; `:229` max_per_sector=2 / `:237` nav_pct(30) / `:251` factor_corr ✓; `MIN_OBS_FOR_PSR=30` at `paper_metrics_v2.py:33`, guard `:123` ✓; `cockpit-helpers.tsx:207/215/216-218` VS-KOSPI branches + tooltip ✓; `portfolio_manager.py:276-286` (count cap) + `:304-310` (NAV-pct cap) enforcement ✓ |
+| `code_review_heuristics` | 5 dimensions evaluated | **no findings** — no source diff exists for Dimensions 1-4 to scan; Dimension-5 (self-eval anti-patterns) all clear (first spawn, evidence-grounded, every claim file:line/BQ-cited; no sycophancy/position/verbosity bias) |
+| `frontend_lint_typecheck` | (gate condition) | **N/A** — git diff does NOT touch `frontend/**`; the ESLint+tsc gate applies only to diffs that modify frontend source. No frontend code changed this step. |
 
----
-
-## 3. THE CRITERION-2 ADJUDICATION (decisive) — 6 real PASS + 2 SKIP SATISFIES the intent; #2 is PROVABLY non-portable
-
-The criterion says aggregate.sh "runs GREEN (exit 0) ... its **7 real checks pass** (the
-non-existent phase-4.6 sub-smoketest stays SKIPPED, not failed)." Main delivers
-**6 real PASS + 2 SKIP** (#2 done-phase-rerun AND #6 phase-4.6), exit 0, and discloses
-it as an honest deviation. I adjudicated by EMPIRICALLY TESTING whether check #2 is
-portable. It is not — and the evidence is overwhelming:
-
-**(a) Structural categorization (no side-effects).** aggregate.sh check #2 reruns the
-`verification.command` of EVERY `status=done` step. I collected them: **488 commands**.
-**62 carry non-portable markers**: live HTTP (`curl http://127.0.0.1:8765/...` at
-4.6.3/4.6.4/4.6.6, `lighthouse --url http://localhost:3000` at 4.7.2/10.5.7), MCP
-servers (mcp_ab_test / mcp_ping / mcp_health_cron at 3.5.x/3.7.x/4.6.2), live BQ, and
-**~13 `run_harness.py --dry-run` commands** (phases 2.12, 3.0, 3.3, 3.4, 4.1-4.4, 4.5.4/6/8/9,
-4.17.1, ...). The run_harness ones are the smoking gun: running #2 in full invokes
-run_harness repeatedly — which CLOBBERS the rolling handoff files — and that is EXACTLY
-the recursive clobber that corrupted contract.md + research_brief.md this session (the
-5 repeated `## Cycle 1` optimizer entries in harness_log at 13:33-13:34 are the
-fingerprint of those nested invocations).
-
-**(b) I actually RAN a SAFE subset.** Excluding run_harness/HTTP/MCP/pytest, I ran the
-first 120 of the 370 safe-to-run done-phase commands with a 12s timeout each: **13 real
-failures (11%)** — `phase-2/2.13`, `phase-4.7/4.7.1`, `phase-4.14/4.14.2` (`json.load(open(...))`
-on transient handoff artifacts that have drifted out of existence); `phase-4.6/4.6.7`
-(`SKIP_ENV_MISSING: SLACK_TEST_CHANNEL_ID`); `phase-4.8/4.8.7` (secrets-rotation FAIL,
-environmental); `phase-3.7/3.7.5`, `3.7.8`, `4.6.8`, `4.8.8` (TIMEOUTs). The 11% failure
-rate is on the SAFE subset alone — the full 488 (adding the 62 live/HTTP/MCP/run_harness
-commands) fails at a HIGHER rate. **Main's "~30 fail on a clean rerun" is a CONSERVATIVE
-estimate; the true number is larger.** Check #2 is empirically a full live/historical-drift
-AUDIT, not a portable smoke. CLAIM VERIFIED TRUE.
-
-**(c) The one stale detail in Main's example list — non-blocking.** Main's justification
-cited `paper_metrics_v2.py` and `reconciliation.py` as "since-moved/removed modules."
-I checked: both files currently EXIST (`test -f` → present), so phases 4.5.1/4.5.3 do NOT
-fail for that reason today. This is a minor inaccuracy in the ILLUSTRATIVE example list,
-NOT in the core claim — the non-portability is overwhelmingly established by the live-HTTP,
-MCP, run_harness-recursion, transient-artifact, env-missing, and timeout failures (the 11%
-measured rate). The deviation stands on far more than the two named modules. NOTE-level only.
-
-**ADJUDICATION: PASS, not a shortfall.** The criterion's INTENT is "a green portable smoke
-that catches syntax/build/type/dry-run regressions before merge." That intent is FULLY met:
-exit 0 with 6 real correctness checks (masterplan-blockers, credential-free pytest, frontend
-tsc, frontend build, no-open-incident, evaluator-critique-pass). The criterion's literal "7"
-embedded an assumption — that #2 is a portable check — which is FALSE on inspection (and was
-not knowable until this cycle's empirical audit). Skipping a provably-non-portable leg in
-PORTABLE mode, while (i) keeping the FULL audit available with `SMOKE_PORTABLE` unset and
-(ii) running the credential-free subset directly in the CI lane (which does NOT invoke
-aggregate.sh), is the CORRECT engineering response — and it was disclosed in THREE places
-(contract, experiment_results, live_check) rather than quietly forced green. This is the
-anti-watermelon ideal: the smaller-but-true green, loudly labeled, beats a false "7/7" that
-would flake on every CI run. Penalizing this honest, evidence-backed call with a CONDITIONAL
-would punish exactly the disclosure discipline the harness exists to reward.
+Note on `evaluator_critique` existing-results read: the on-disk critique was the stale 53.5 verdict; no 55.1 prior verdict to honor. The latest `experiment_results.md` is internally consistent with the post-mortem and live_check.
 
 ---
 
-## 4. SMOKE_PORTABLE gate is ADDITIVE (default unset = byte-identical) + the 4 fixes are CORRECTNESS, not smoke-weakening
+## 2. Per-criterion judgment (LLM)
 
-I read the full aggregate.sh diff and proved the gate is additive:
-- **#2 (PORTABLE skip):** `if [ "$PORTABLE" = "1" ]; then skip ...; else <full rerun>; fi`.
-  Default (unset → `PORTABLE=0`) takes the `else` branch = the original full 488-command
-  rerun. Additive.
-- **#3 (pytest ignores):** `PYTEST_IGNORE=""`; the 6 `--ignore`s are appended ONLY when
-  `PORTABLE=1`. Default = `python -m pytest backend/tests/ -q ` (empty var) = original
-  command byte-identical. Additive.
-- **#1 (deferred-accept):** `status not in ("done","deferred")` — applies in BOTH modes
-  (NOT gated on PORTABLE). A CORRECTNESS fix: `phase-5 status=deferred` (crypto removal) is
-  an intentional non-blocker; failing the gate on it was a bug.
-- **#2 (isinstance crash-guard):** `if not isinstance(s, dict): continue` + `if not
-  isinstance(v, dict): continue`, inside the python heredoc that runs in the FULL (else)
-  branch — applies in both modes. A CORRECTNESS fix: the original crashed with
-  `AttributeError: 'list' object has no attribute 'get'` on a malformed/legacy step, so
-  the leg NEVER actually completed before. (This is the "#2 done-phase-rerun also got a
-  guard" referenced in the prompt — distinct from the portable-skip.)
-- **#7 (incident-marker grep):** `tail -80 ... | grep -qiE 'HARNESS HALT|CRITICAL
-  INCIDENT|HARNESS HALTED'` — both modes. A CORRECTNESS fix: I measured **93** benign
-  "critical" substring occurrences in harness_log (e.g. "0 critical", "2 critical
-  findings", node_modules "1 critical" vuln) vs only **4** real-incident markers; the old
-  grep (`CRITICAL` substring on the last 20 of matching lines) genuinely false-positived.
-  The new grep matches the project's LITERAL halt convention and the last-80 tail has no
-  real HALT marker → #7 correctly PASSes. Not under-matching real incidents.
-- **#5 (build/.next):** addressed via quiescing the live dev server for the LOCAL run (no
-  aggregate.sh code gate on it; on a clean CI runner there is no `.next` contention). I did
-  NOT touch the dev server myself (Main quiesced + the local exit-0 is logged); the gate
-  doesn't weaken the build check — it still runs `npm run build` in both modes.
+### Criterion 1 — PRIMARY-data post-mortem; digest reconciliation; turnover/round-trips/TCA/performance/metrics-v2 — **MET**
 
-**Net:** the DEFAULT (unset) behavior differs from the pre-53.5 original ONLY by the 3
-cross-mode correctness fixes (#1, #2-guard, #7), every one of which fixes a genuine defect.
-NONE weakens the smoke. The 4th fix (#2 portable-skip) and the #3 pytest ignores are gated
-strictly behind `SMOKE_PORTABLE=1`. Matches the contract's DO-NO-HARM claim exactly.
+- **Built from PRIMARY data**: post-mortem §1-§9 every numeric claim carries a BQ query (live_check B1-B8), file:line, or verbatim endpoint excerpt. Independently reproduced: /status NAV triple + the 066570.KS row + 7/52 scope all match live.
+- **Digest reconciliation**: §1 table reconciles the four named digest points to **≤0.05pp** (criterion bound ±0.2pp): 06-01 +21.94 vs +21.9 (Δ0.04), 06-03 +23.40 vs +23.4 (Δ0.00), 06-05 +19.30 vs +19.3 (Δ0.00), 06-09 +19.19 vs +19.2 (Δ0.01). external_flow_today=0 all days (no deposit distortion). Honest secondary correction: the digest "−3.5%" 06-05 day was actually −2.82%/−$692.63, and the away week itself was net −2.26% (the +19-23% level is pre-existing April gains) — this is *additional honesty*, not a reconciliation failure.
+- **Turnover**: §6 = 81.4% weekly (one-sided notional $19,726.28 / avg NAV $24,242.69).
+- **Three named round trips**: MU 06-08→06-09 −$44.95/−6.27% (digest −6.3% ✓); 000660.KS 06-04→06-05 −$47.85/−9.92% (digest −9.9% ✓); DELL 4 trades/9d enumerated with price path. All from `paper_round_trips.realized_pnl_usd` (FX-correct at paper_trader.py:440).
+- **Gross-to-net TCA**: §6 — explicit costs $19.75 = 10.0bps of notional / 8.1bps of NAV; IS framed per Perold (brief F1) with the honest "bq_sim fills at close ⇒ market-impact slippage ≈ 0 by construction" caveat. `tca_report.py` run as tool-smoke and **explicitly labeled SYNTHETIC** (seeds deterministic fills via `_deterministic_price`, does not read paper_trades) — exactly the honest treatment the criterion demands. `paper_execution_parity.py` **FAILED honestly** (Alpaca client_order_id uniqueness) and is reported verbatim, not hidden or retried-to-green.
+- **Performance fields**: §6 verbatim `/performance` JSON — win_rate 0.64, expectancy +13.68%, median_holding_days 17. The generator *surfaced* `profit_factor=0.0229` + `avg_capture_ratio=−53.7` as an internal-inconsistency finding (B9) rather than passing it off — a genuine anti-rubber-stamp catch.
+- **VERBATIM metrics-v2**: §6 verbatim JSON — psr 0.9993, dsr 0.0, **n_obs=35**. The criterion's "insufficient_data nulls" branch presumed ~6-8 days; the generator correctly notes n_obs=35 ≥ MIN_OBS_FOR_PSR=30 (verified live: `paper_metrics_v2.py:33,123`) so REAL values were returned and the nulls branch did NOT apply — and says so explicitly (§6, live_check C). This is the honest disposition of the criterion's conditional, not an evasion. The 35-obs DSR=0.0 is cross-consistent with §7's MinTRL conclusion.
 
----
+### Criterion 2 — FX defects confirmed/refuted; 4 conversion points; corruption scope; cash-ledger recon; NAV three-way root-cause with :512-520 ruled in/out; VS-KOSPI audit — **MET**
 
-## 5. Code-review heuristic sweep (SKILL: code-review-trading-domain) — worst severity NOTE
+- **FX defects confirmed on live rows**: §2.1 confirms BUY total_value (`:265`) + SELL transaction_cost (`:387,413-414`) store LOCAL/KRW against live BQ rows (066570.KS 364,175.06 reproduced by me; Samsung fee 1,056.20 KRW).
+- **ALL FOUR conversion points enumerated** with rate-source + as-of: §2.1 table — (1) BUY trade-recording CONFIRMED mis-booking, (2) mark-to-market CLEAN in stored data, (3) cash ledger CLEAN, (4) fees CONFIRMED mis-booking SELL-only. Rate-source consistency checked (KRWUSD `historical_fx_rates` rows + `date<=d` as-of fallback for the 06-03/06-08 gaps); the malformed `date='EURUSD=X'` rows surfaced as break B12.
+- **Corruption scope classified**: §2.2 — stored-data, trade-ledger only; 7 rows wrong total_value (4 KR BUY + 3 KR SELL) + 3 rows wrong transaction_cost; 7 of 52 all-time (13.5%); date range 2026-06-01T19:33 → 2026-06-09T18:12 (reproduced: 7 non_usd / 52 total). GIPS materiality tier-3/4 assigned (brief F5).
+- **Per-snapshot-day cash-ledger reconciliation**: §3 — identity NAV(D)=cash(D)+Σmarket_value_usd AND cash(D)=cash(D−1)+ΣSELL−ΣBUY closes to **max |Δ|=$0.01** every day, USING USD-re-derived legs (not stored total_value) — independent proof the engine converted internally while persisting local in the ledger. No corruption-onset day in NAV/cash.
+- **NAV/Cash/$10K three-way discrepancy ROOT-CAUSED at file:line**: §4 → `frontend/src/lib/useLiveNav.ts:34-39` (client sums KRW live ticks as USD; display-only). I independently confirmed lines 34-38 are the no-FX reduce. **The `:512-520` FX-fallback suspect is EXPLICITLY RULED OUT** (stored positions/NAV/snapshots reconcile; inflation only in browser) — criterion's explicit ruling requirement satisfied. The $10K label traced to a hardcoded `layout.tsx:336` label vs live starting_capital=$20K (deposits). Same defect class enumerated in RiskMonitorCard / positions cell / currency-exposure / donut — all live-verified.
+- **VS-KOSPI audited per cockpit-helpers.tsx:197-218**: §5 — confirmed the non-US branch shows holdings-return not index excess; tooltip verbatim disclosed; verdict-neutral (labeling gap, not corruption). I confirmed `:207/:215/:216-218`.
 
-Diff DOES touch `frontend/**` only as the incidental `tsconfig.tsbuildinfo` build-cache
-churn (no `.ts`/`.tsx` source change), so the ESLint/tsc frontend leg is N/A as a gate
-(no React/hook source touched; the build artifact is a side-effect of the criterion-1
-tsc/build step). The substantive diff is `aggregate.sh` (bash) + `e2e-smoke.yml` (CI yaml).
+### Criterion 3 — per-day concentration (HHI); concentration-limit cite; regime-vs-skill; kill-switch derived verdict — **MET**
 
-- **Dim 1 (security):** no secret-in-diff (the yaml `permissions: contents: read` is
-  least-privilege; no `secrets.*` referenced; never `pull_request_target`). `aggregate.sh`
-  uses `subprocess.run(c, shell=True, ...)` ONLY inside the #2 done-phase rerun — but `c`
-  is the project's OWN masterplan `verification.command` (trusted, author-controlled), not
-  LLM/network input, and that whole leg is SKIPPED in portable mode; no command-injection
-  from untrusted input. No `eval`/`os.system` on external data. No dep-pin removal
-  (`setup-python@v5`/`setup-node@v4`/`checkout@v4` are pinned major tags, the house
-  convention in env-syntax-lint.yml). Clean. (insecure-output-handling / system-prompt-
-  leakage / rag-poisoning / llm04 / unbounded-llm-loop — all N/A: no LLM call, no memory
-  write, no training code, no new unbounded loop.)
-- **Dim 2 (trading-domain):** no kill-switch / stop-loss / perf-metrics / paper_trader /
-  execute_buy/sell / max-position / crypto / sod-nav change. `bq-schema-migration-safety`
-  NOT triggered (no SQL/DDL; this is CI + a bash test harness). Clean.
-- **Dim 3 (code quality):** bash + yaml; ASCII-clean; the new `skip()` helper mirrors the
-  existing `pass()`/`fail()` shape; the isinstance-guard is defensive, not broad-except.
-  No print() in non-script (aggregate.sh IS a script). Clean.
-- **Dim 4 (anti-rubber-stamp):** `financial-logic-without-behavioral-test [BLOCK]` NOT
-  triggered — aggregate.sh/e2e-smoke.yml are NOT in the perf_metrics/risk_engine/
-  backtest_engine/backtest_trader money-math set; this is a test/CI harness whose correct
-  evidence shape is "the smoke runs green + the skipped leg is proven non-portable," which
-  I independently reproduced (exit-0 dry-run + the 11%-failure #2 sample). No tautological
-  assert, no over-mock, no rename-as-refactor (the renames in #2's python heredoc —
-  `shlex` removed, comments added — preserve semantics; the rerun logic is unchanged in the
-  full branch). Clean.
-- **Dim 5 (LLM-evaluator anti-patterns):** FIRST 53.5 Q/A on fresh evidence — not
-  sycophancy-under-rebuttal, not second-opinion-shopping (no prior 53.5 verdict; this file
-  held the 53.3 verdict). This critique cites file:line + verbatim command output + my own
-  reproduced exit codes and the 11% #2-failure measurement throughout (no
-  missing-chain-of-thought). 3rd-conditional N/A (0 prior). criteria-erosion NOT triggered
-  (all 4 criteria diffed MATCH=True vs masterplan). Worst severity: **NOTE** (below).
+- **Per-day concentration**: §7 table — sector weights + portfolio HHI for all 8 days (HHI 0.166→0.631; 100% Technology every day). Backward trade-replay reconciled to snapshot positions_value ≤1.3%.
+- **Concentration-limit code path CITED (exists)**: §7 cites `portfolio_manager.py:223-310` (`paper_max_per_sector`=2 settings.py:229; `paper_max_per_sector_nav_pct`=30 settings.py:237; `paper_max_factor_corr`=0/OFF settings.py:251). I verified the enforcement at `portfolio_manager.py:276-286` + `:304-310`. The honest structural finding (B11): the 30%-NAV cap can't bind while 70-96% cash dilutes the book.
+- **Regime-vs-skill attribution**: §7 — OLS on n=7 with SPY (β +1.04) + SOXX semis-proxy (β +0.19) + KOSPI (β +0.11) + residual alpha, **with an explicit low-power caveat** (no CI excludes zero). Verdict: regime (semis selloff) + concentration tilt + churn drag; no evidence of skill alpha at this horizon. MinTRL ≈ 377 daily obs vs 7 stated (brief F2/F3).
+- **Kill-switch audit DERIVED, not presumed**: §8 — thresholds read from live config (`settings.py:453-454`, cited); identifies the consumed field (`paper_trader.py:1019` reads `total_nav`); the measurement-failure hypothesis is **REFUTED** by arithmetic (stored NAV was clean all week, so the switch saw correct data); daily P&L computed from snapshots/audit-jsonl (06-04 nav 24,541.50 → 06-05 nav 23,862.58); **verdict = CORRECTLY-DID-NOT-TRIP** with full arithmetic (worst honest day −2.82% < 4% daily; trailing 3.26% < 10%). The verdict is *derived from arithmetic*, not assumed — criterion's "presuming either verdict in advance is a FAIL" is satisfied. Bonus structural finding (B10): the daily-loss leg is ≈0 by construction under once-daily cadence (SOD anchored at evaluation instant) — a real risk-control observation deferred to 55.3.
 
-**The NOTEs (non-blocking):**
-1. Main's #2 justification example list names `paper_metrics_v2.py`/`reconciliation.py` as
-   "moved/removed" but both files currently EXIST — a stale illustrative detail; the core
-   non-portability claim is independently proven (11% safe-subset failure + run_harness
-   recursion + live HTTP/MCP). NOTE, not a defect.
-2. The contract's N* line and the research_brief are honestly annotated as clobber-restored
-   reconstructions; the audit-trail is disclosed. The restored content matches the criteria
-   verbatim and survived my own dry-run. NOTE.
-3. `e2e-smoke.yml` is soft-launch (`continue-on-error: true`) and its FIRST real
-   GitHub-Actions run is on the next PR (Main cannot trigger Actions from the local Mac);
-   the step COMMANDS are verified green locally this cycle. This is the documented
-   env-syntax-lint.yml pattern and is honestly flagged as an operator/CI follow-up (flip to
-   `false` once green on real runs). Acceptable for a soft-launch capstone. NOTE.
+### Criterion 4 — live Playwright UI evidence + three phase-50.6 confirms; NO fix work; NO LLM spend — **MET**
+
+- **Live Playwright evidence in live_check_55.1.md**: §A capture table — NAV/Cash cards (345,950.68 vs stored 23,837.12), VS-KOSPI card with tooltip, KR-filtered trades Value/Fee, Value column. 6 PNGs present on disk.
+- **Three phase-50.6 confirms folded in**: #1 manage markets toggle (`55_1_manage_markets_toggle_scrolled.png`, US-checked/EU-KR-unchecked → break B14); #2 positions currency-exposure card (in capture #1); #3 /backtest US·USD·SPY strip (`55_1_backtest_us_usd_spy_strip.png`). All three present.
+- **NO fix work**: git diff of backend/frontend EMPTY; verified no `.py/.ts/.tsx/.json` modified outside handoff/. Method disclosure honest (skip-auth :3100 instance started/stopped; operator :3000 verified still up HTTP 302).
+- **NO LLM trading-cycle spend**: $0 — BQ reads (bounded), yfinance closes, local scripts, Playwright. No `messages.create`/`generate_content` in the workflow.
 
 ---
 
-## Verdict
+## 3. Anti-rubber-stamp / mutation-resistance / scope honesty
 
-**PASS. ok: true.** All four immutable criteria are met. The capstone is a green,
-credential-free portable smoke (exit 0) + a correctly-shaped CI workflow, with the one
-non-portable leg (#2 done-phase rerun) PROVABLY excluded in portable mode and the full
-audit preserved behind `SMOKE_PORTABLE` unset. The criterion-2 "7 vs 6" deviation is a
-legitimate, empirically-substantiated (I measured an 11% failure rate on the safe subset
-alone; the run_harness-recursion clobber is the fingerprint), and triply-disclosed honest
-engineering call that SATISFIES the criterion's intent. DO-NO-HARM holds (additive gate,
-default byte-identical, 3 cross-mode fixes all correctness, no money-path/runtime change,
-ASCII).
+- **Mutation-resistance**: the evidence WOULD break if the claims were false. I independently reproduced three load-bearing primary-data claims from live systems (/status NAV triple; the 066570.KS=364,175.06 KRW mis-booking + 7/52 scope; the useLiveNav.ts:34-39 and paper_trader.py:265 root-cause file:lines). All matched to the digit. A fabricated post-mortem could not survive this.
+- **Actively sought an unmet criterion**: none found. The conditional in Criterion 1 (insufficient_data nulls) did NOT apply (n_obs=35≥30) and the generator disclosed exactly that rather than fabricating a nulls result — the honest disposition, not a miss.
+- **Scope honesty (Honest limitations real, not cosmetic)**: §10 + experiment_results §Honest-limitations disclose real gaps — `paper_execution_parity.py` FAIL reported verbatim (not hidden); tca_report synthetic-labeled; n=7 low-power regression caveated; profit_factor metric defect surfaced as a finding (B9); 2-per-sector count-cap adjudication explicitly deferred to 55.2 (needs decision-time sector labels). These are genuine limitations, honestly bounded — not overclaiming.
+- **Research-gate compliance**: contract §References cites the researcher brief + the 6 source URLs (F1-F6) + the code anchors; the brief's gate envelope is `gate_passed: true`.
 
-- **Criterion 1 (e2e-smoke.yml exists + runs the credential-free subset on dispatch+schedule+PR-to-main):** PASS — YAML valid (the `on`→`True` PyYAML quirk is not a defect); all 3 triggers present; `permissions: contents: read`; the 6 credential-free steps (compileall, pytest with 6 ignores, npm ci + tsc --noEmit + build, run_harness --dry-run, intel_e2e --fixtures, phase6_e2e --dry-run) all present; PR-paths scoped to backend/frontend/scripts/the-yaml.
-- **Criterion 2 (aggregate.sh GREEN exit 0 on the portable subset; 7 real checks pass; phase-4.6 stays SKIPPED):** PASS (with adjudicated honest deviation) — exit 0; 6 real PASS + 2 documented SKIP. #2 is empirically a live/historical-drift audit (11% failure on the safe subset alone, run_harness-recursion clobber proven), NOT a portable check; skipping it in PORTABLE mode while preserving the full audit (`SMOKE_PORTABLE` unset) and running the subset directly in CI satisfies the criterion's INTENT. The phase-4.6 sub-smoketest stays SKIPPED-not-failed as required.
-- **Criterion 3 (run_harness --dry-run --cycles 1 completes + appends a cycle; MCP smokes pass-or-document-skip):** PASS — I re-ran it: EXIT 0, "Appended cycle 1", harness_log 26723→26740; MCP document-skip (credential-free dry-run needs no servers). Files backed up + restored; the 53.5 handoff survived.
-- **Criterion 4 (live_check_53.5.md records aggregate exit + harness dry-run tail + the yaml path; CLOSES the goal):** PASS — live_check_53.5.md records the aggregate exit-0 transcript (6 PASS + 2 SKIP), the harness dry-run tail (26702→26719 in its own run), the e2e-smoke.yml path + shape, the clobber-handling, and the goal-closure summary.
+---
 
-Harness 5/5 (researcher-first gate_passed:true 7 sources + recency scan, clobber-restore audit-trail disclosed; contract precedes generate with N* delta + 4 criteria VERBATIM diffed vs masterplan MATCH=True ×4 + the honest-deviation flagged in-contract; experiment_results + live_check_53.5.md present with verbatim output; harness_log has NO phase=53.5 entry + masterplan 53.5 pending retry=0 — log-last/flip-last intact; first Q/A spawn). DO-NO-HARM confirmed (only aggregate.sh + the new e2e-smoke.yml are substantive code/CI; SMOKE_PORTABLE additive, default byte-identical; the 3 cross-mode fixes #1/#2-guard/#7 are correctness not smoke-weakening; no money-path/runtime edit; the +20% engine untouched; ASCII). Criterion-2 deviation ADJUDICATED as a legitimate honestly-disclosed call (I measured 11% #2 failure on the safe subset; the criterion's "7" wrongly assumed #2 is portable). 3rd-CONDITIONAL auto-FAIL N/A. Code-review worst severity NOTE (stale moved-module example + soft-launch CI + clobber-restore notes; all disclosed). **This step CLOSES the operator goal.**
+## 4. Verdict
+
+**PASS** (`ok: true`). All four immutable success criteria are MET, verified deterministically where reproducible (3 independent primary-data spot-reproductions matched to the digit; 7 code-path cites confirmed at file:line; verification command exit=0; 6 captures present) and by LLM judgment on contract alignment, anti-rubber-stamp, and scope honesty. The 5-item harness-compliance audit is 5/5. No fix work; $0 spend. No code-review heuristic fires (review-only; empty source diff). The work is an exemplar of honest forensics: it reconciles to ≤0.05pp, ruled the :512-520 suspect OUT (not in) on evidence, derived the kill-switch CORRECTLY-DID-NOT-TRIP verdict from arithmetic, disclosed that the metrics-v2 nulls branch did not apply, and surfaced (rather than buried) the parity FAIL and the profit_factor defect.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "phase-53.5 is the goal-CLOSING E2E smoke capstone: a credential-free CI workflow (.github/workflows/e2e-smoke.yml) + a green portable aggregate.sh. All 4 immutable criteria met. Harness 5/5: (1) researcher FIRST gate_passed:true (7 sources read in full vs >=5 floor, 19 URLs, recency scan 2024-2026 with the 2026 GitHub Actions security roadmap as current guidance; brief honestly annotated as RECONSTRUCTED after a run_harness clobber -- audit-trail disclosed); (2) contract precedes generate with N* delta (Risk-down regression net, no P/B, no runtime/money-path) + 4 criteria copied VERBATIM (I diffed whitespace-normalized vs masterplan verification.success_criteria for id=53.5 -- all 4 MATCH=True, no erosion; the honest-deviation flagged in-contract at :64-74; contract clobber-restored and survived my dry-run, head still '# Contract -- phase-53.5'); (3) experiment_results.md + live_check_53.5.md present with verbatim output (bash -n OK, SMOKE_PORTABLE=1 aggregate.sh EXIT 0 with the 6-PASS+2-SKIP enumeration, run_harness --dry-run EXIT 0 'Appended cycle 1' 26702->26719); (4) harness_log has NO phase=53.5 entry (grep -c = 0; the ## Cycle 1 optimizer entries are the criterion-3 dry-run fingerprint, NOT the step cycle) + masterplan 53.5 status=pending retry_count=0 max_retries=3 (log-last/flip-last intact); (5) first Q/A spawn (this file held the stale 53.3 verdict; 0 occurrences of phase-53.5). DETERMINISTIC (ran every command myself): CRITERION 1 -- python yaml.safe_load(e2e-smoke.yml)=YAML_OK valid (the d['on'] KeyError is the PyYAML YAML-1.1 on->True boolean quirk, NOT a workflow defect; GitHub Actions parses on: correctly), triggers={workflow_dispatch, schedule cron '17 6 * * *', pull_request branches:[main] paths:[backend/**,frontend/**,scripts/**,.github/workflows/e2e-smoke.yml]} all 3 present, permissions={contents: read} least-privilege no-secrets no-pull_request_target, steps=checkout+setup-python(3.14 cache pip)+setup-node(20 cache npm)+install-deps+AST-compileall+credential-free-pytest-with-6-ignores+frontend(npm ci+tsc --noEmit+build)+run_harness --dry-run+intel_e2e --fixtures+phase6_e2e --dry-run (the full named subset), continue-on-error:true soft-launch + timeout-minutes:20. CRITERION 3 -- python scripts/harness/run_harness.py --dry-run --cycles 1 = HARNESS_EXIT=0, tail 'DRY RUN -- skipping generator and evaluator'/'Appended cycle 1 to harness_log.md'/'HARNESS COMPLETE -- 1 cycles finished'/'Final best: Sharpe=1.1705 DSR=0.9526', harness_log 26723->26740; I backed up {contract,research_brief,experiment_results} before and RESTORED after, post-restore heads confirmed '# Contract -- phase-53.5'/'# Research Brief -- phase-53.5'/'# Experiment Results -- phase-53.5' -- the 53.5 handoff SURVIVED. ASCII -- both e2e-smoke.yml and aggregate.sh byte-scan ASCII_CLEAN (0 non-ASCII, no emoji). git diff --stat -- substantive code/CI files = .github/workflows/e2e-smoke.yml (NEW) + scripts/smoketest/aggregate.sh ONLY; rest is handoff (contract/experiment_results/research_brief/harness_log/live_check_53.5.md NEW) + audit JSONL + .archive-baseline.json + phase-53.3 archive + incidental frontend/tsconfig.tsbuildinfo (TS build cache from the tsc/build leg) + handoff/mcp_inventory.json (regenerated inventory artifact, NOT money-path); ZERO paper_trader/kill_switch/risk_engine/backtest_engine/perf_metrics/signals/orchestrator file. THE CRITERION-2 ADJUDICATION (decisive): criterion says 'its 7 real checks pass'; Main delivers 6 real PASS + 2 SKIP (#2 done-phase-rerun + #6 phase-4.6) and discloses it in 3 places. I ADJUDICATED by empirically testing #2's portability: (a) structural -- aggregate #2 reruns the verification.command of every status=done step = 488 commands, 62 carry non-portable markers (curl http://127.0.0.1:8765 at 4.6.3/4.6.4/4.6.6, lighthouse localhost:3000, MCP mcp_ab_test/mcp_ping/mcp_health_cron, live BQ, and ~13 run_harness --dry-run commands at phases 2.12/3.0/3.3/3.4/4.1-4.4/4.5.x/4.17.1 -- running #2 in full invokes run_harness repeatedly = the recursive CLOBBER that corrupted contract+brief this session, fingerprinted by the 5 repeated ## Cycle 1 optimizer entries); (b) I actually RAN the first 120 of 370 safe-to-run done-phase commands (excluding run_harness/HTTP/MCP/pytest) with a 12s timeout = 13 real failures (11%): json.load on transient handoff artifacts that drifted out of existence (2.13, 4.7.1, 4.14.2), SKIP_ENV_MISSING SLACK_TEST_CHANNEL_ID (4.6.7), secrets-rotation FAIL (4.8.7), 4 TIMEOUTs (3.7.5/3.7.8/4.6.8/4.8.8) -- on the SAFE subset alone, so the full 488 fails HIGHER; Main's '~30 fail' is CONSERVATIVE, claim VERIFIED TRUE. (c) The ONE stale detail: Main cited paper_metrics_v2.py/reconciliation.py as moved/removed but both currently EXIST (test -f present) -- a stale illustrative-example detail only, the non-portability stands on the 11% measured rate + run_harness recursion + live HTTP/MCP, NOTE-level. ADJUDICATION = PASS not shortfall: the criterion's INTENT (a green portable smoke catching syntax/build/type/dry-run regressions) is FULLY met (exit 0 with 6 real correctness checks); the literal '7' embedded a FALSE assumption that #2 is portable (unknowable until this cycle's audit); skipping a provably-non-portable leg in PORTABLE mode while keeping the full audit (SMOKE_PORTABLE unset) and running the subset directly in CI is the CORRECT response, disclosed in contract+experiment_results+live_check -- the anti-watermelon ideal (smaller-but-true green loudly labeled beats a false 7/7 that flakes every CI run). SMOKE_PORTABLE gate is ADDITIVE: #2 if-PORTABLE-skip-else-full-rerun (default unset takes else = original full leg), #3 PYTEST_IGNORE empty unless PORTABLE=1 (default pytest byte-identical), #1 deferred-accept + #2 isinstance-crash-guard + #7 incident-marker grep all apply in BOTH modes as genuine correctness fixes (#1: phase-5 deferred is an intentional non-blocker; #2-guard: original AttributeError-crashed on a malformed list step so the leg never completed; #7: I measured 93 benign 'critical' prose occurrences vs 4 real-incident markers, old grep false-positived, new grep matches the literal HARNESS HALT/CRITICAL INCIDENT convention and last-80 tail has no real marker -> PASS). CODE-REVIEW heuristics: substantive diff is bash + CI yaml (frontend touched only as tsbuildinfo build-cache, no .ts/.tsx source -> ESLint/tsc gate N/A); no security surface (permissions least-privilege, no secrets, no pull_request_target, no dep-pin removal, the shell=True in #2 runs the project's OWN trusted masterplan commands and is skipped in portable); no trading-domain/money-math surface (not in perf_metrics/risk_engine/backtest set); not sycophancy/verdict-shopping (first spawn, fresh evidence, cites file:line + verbatim + my reproduced exit codes + the 11% measurement throughout); worst severity NOTE (stale moved-module example + soft-launch CI + clobber-restore audit-trail notes, all disclosed). The capstone is green + correctly-shaped + the one non-portable leg honestly excluded -- PASS. This step CLOSES the operator goal.",
+  "reason": "All 4 immutable criteria MET. 5/5 harness-compliance (researcher gate_passed:true 6 sources + recency scan; contract pre-commit with 4/4 VERBATIM criteria match; results artifact with verbatim cmd output; log-last with status=pending; first Q/A spawn no verdict-shop). Deterministic: verification cmd exit=0; 6 PNG captures; 3 PRIMARY-data spot-reproductions matched live to the digit (/status nav=23837.12/cash=22883.73/start=20000.0; BQ 066570.KS total_value=364175.06 + 7/52 corruption scope; useLiveNav.ts:34-39 + paper_trader.py:265 + :512-520 root-cause file:lines); 7 code-path cites confirmed (settings.py:453-454, :229/:237/:251, paper_metrics_v2.py:33, cockpit-helpers.tsx:207/215/216-218, portfolio_manager.py:276-310). NO source diff -> frontend ESLint/tsc gate N/A, no code-review heuristic fires. Digest reconciled <=0.05pp; :512-520 ruled OUT on evidence; kill-switch CORRECTLY-DID-NOT-TRIP derived from arithmetic; metrics-v2 n_obs=35>=30 honestly reported (nulls branch did not apply); parity FAIL + profit_factor defect surfaced not hidden.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit_5of5", "research_brief_53_5_gate_envelope_7_sources_clobber_restore_disclosed", "contract_4criteria_verbatim_diff_vs_masterplan_match_true_x4", "contract_honest_deviation_flagged_in_contract", "experiment_results_completeness", "live_check_53_5_present_verbatim", "log_last_no_53_5_entry_grep_zero", "masterplan_status_pending_retry0", "first_qa_spawn_evaluator_critique_held_stale_533", "third_conditional_rule_check_zero_prior_new_stepid", "criterion1_yaml_safe_load_valid_on_to_True_pyyaml_quirk_not_defect", "criterion1_three_triggers_permissions_contents_read_six_credfree_steps", "criterion3_run_harness_dryrun_exit0_appended_cycle_26723_to_26740", "criterion3_backup_restore_53_5_handoff_survived", "ascii_no_emoji_yaml_and_aggregate_sh", "git_diff_stat_only_aggregate_sh_and_new_yaml_no_money_path", "CRITERION2_ADJUDICATION_488_cmds_62_nonportable_markers", "CRITERION2_ran_safe_subset_120cmds_13_real_failures_11pct", "CRITERION2_run_harness_recursion_clobber_fingerprint_repeated_cycle1", "CRITERION2_moved_module_example_stale_both_exist_NOTE_only", "CRITERION2_adjudicated_PASS_intent_met_full_audit_preserved", "SMOKE_PORTABLE_additive_default_byte_identical_else_branch", "fix1_deferred_accept_cross_mode_correctness", "fix2_isinstance_crash_guard_cross_mode_correctness", "fix7_incident_marker_grep_93_benign_vs_4_real_correctness", "code_review_heuristics"]
+  "checks_run": ["harness_compliance_audit", "verification_command", "captures_exist", "criteria_verbatim_diff", "no_fix_work", "masterplan_status", "secret_scan", "primary_data_spot_repro_status", "primary_data_spot_repro_bq_066570", "primary_data_spot_repro_rootcause_fileline", "code_path_cites", "code_review_heuristics", "frontend_lint_typecheck_NA"]
 }
 ```

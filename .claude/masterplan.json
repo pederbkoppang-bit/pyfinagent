@@ -14080,7 +14080,7 @@
         {
           "id": "55.1",
           "name": "Data-integrity + trading forensics -- PRIMARY-data post-mortem of the away week: reconcile the Slack-digest NAV path, quantify turnover/round-trips/concentration, confirm or refute the code-traced FX defects (paper_trader.py:265 total_value, :386-414 SELL fee) against live BQ rows, trace the on-screen NAV=345,968.86-on-$10K discrepancy to root cause, audit the VS-KOSPI readout and the 06-05 kill-switch non-trip. Live UI evidence via Playwright MCP.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "53.5",

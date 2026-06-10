@@ -1,88 +1,54 @@
-# Contract — phase-53.5 (E2E smoke capstone — CLOSES the goal)
+# Contract — Step 55.1
 
-**Date:** 2026-06-10. **Tier:** moderate. **Step:** phase-53.5 (P2). CI workflow +
-local smoke green. $0 (credential-free). NOTE: phase-53.4 (remote-working hook) was
-DROPPED by the operator 2026-06-10 (home) — this is a general CI/regression capstone.
-
-> NOTE (audit trail): this file was clobbered by a `run_harness.py` invocation that a
-> done-phase verification command triggered during the FIRST portable `aggregate.sh`
-> run (before the #2 leg was changed to fully skip in portable mode). Restored here;
-> the #2-full-skip fix now prevents the recursive clobber. The `mas-harness` cron stays
-> booted out.
-
-## N* delta (N* = Profit − Risk − Burn)
-
-**Risk↓:** a credential-free CI e2e-smoke (PR + nightly + dispatch) catches
-syntax/build/type/dry-run regressions before merge — a standing regression net. No P/B
-delta; no runtime/money-path change.
+**Step id:** 55.1 — Data-integrity + trading forensics — PRIMARY-data post-mortem of the away week (2026-06-01 → 2026-06-10)
+**Date:** 2026-06-10
+**Phase:** phase-55 (away-week forensic review; $0; review-only, NO fixes, NO LLM trading-cycle spend)
+**Researcher gate:** PASSED — `handoff/current/research_brief.md` (tier=complex, 6 external sources read in full, 30 URLs, recency scan done, 9 internal modules audited with file:line cites; envelope `gate_passed: true`)
 
 ## Research-gate summary
 
-`researcher` ran FIRST (gate **PASSED**: 7 sources read in full, 19 URLs, recency scan,
-13 internal files). Brief: `handoff/current/research_brief.md`. Decisive findings:
-1. **Clobber (md5-proven):** `run_harness.py --dry-run --cycles 1` CLOBBERS `contract.md`
-   + `research_brief.md`, leaves `experiment_results.md`, APPENDS `harness_log.md`, exits 0.
-   (Empirically this recursed: a done-phase verification command invoked run_harness
-   during aggregate #2, clobbering these files — fixed by skipping #2 in portable.)
-2. **aggregate.sh not portable-green as-written:** #1 mis-treats `deferred` (phase-5) as a
-   blocker; #2 (488 done-phase reruns) crashes on a malformed step + then drift-fails
-   (~30 commands: live MCP, moved/removed modules, transient artifacts); #5 build races a
-   live dev server; #7's `CRITICAL` grep false-matches the word "critical" in benign prose.
-3. **e2e-smoke.yml** mirrors `env-syntax-lint.yml`: `workflow_dispatch` + `schedule` +
-   `pull_request:[main]`; `permissions: contents: read`; credential-free subset.
+Internal audit (brief §A) confirms by code reading: BUY `total_value` stored LOCAL at `paper_trader.py:265`; SELL `total_value`+`transaction_cost` stored LOCAL at `:387,413-414`; mark-to-market converts correctly EXCEPT the FX-unavailable fallback at `:512-520` (frozen-mark / local-as-USD branch — prime NAV-inflation suspect); SELL cash credit IS converted (`:485`); kill switch consumes the same possibly-corrupted `total_nav` (`paper_trader.py:1019`, limits 4%/10% at `settings.py:453-454`); VS-KOSPI card shows holdings return not index excess (`cockpit-helpers.tsx:208-218`, tooltip already discloses); trades table renders local values with `$` (`trades-columns.tsx:106-124`). `tca_report.py` is a SYNTHETIC seeder (does not read paper_trades) — real TCA must be computed from BQ. `/api/paper-trading/reconciliation` already exists and can date corruption onset. Snapshot table resolved = `financial_reports.paper_portfolio_snapshots`. External literature (brief §B): Perold IS decomposition (fee drag + delay only in bq_sim — no market-impact claim), Bailey-LdP MinTRL/PSR/DSR (8 days << MinTRL → report N/A-by-track-record), GIPS error-correction tiers for materiality classification, reconciliation break taxonomy, alpha/beta + HHI attribution with low-power caveats.
 
-## Immutable success criteria — VERBATIM from masterplan phase-53.5 (do NOT edit)
+## Hypothesis
 
-1. .github/workflows/e2e-smoke.yml exists and runs the credential-free subset (backend
-   pytest + ast syntax; frontend npm run build + tsc --noEmit; run_harness.py --dry-run
-   --cycles 1; intel_e2e.py --fixtures; phase6_e2e.py --dry-run) on workflow_dispatch +
-   schedule + PR-to-main
-2. bash scripts/smoketest/aggregate.sh runs GREEN (exit 0) locally on the portable subset;
-   its 7 real checks pass (the non-existent phase-4.6 sub-smoketest stays SKIPPED, not failed)
-3. python scripts/harness/run_harness.py --dry-run --cycles 1 completes and appends a cycle
-   entry to handoff/harness_log.md; the MCP smokes pass where servers are attached
-   (document-skip otherwise)
-4. live_check_53.5.md records the aggregate.sh exit code + the harness dry-run tail + the
-   CI workflow file path; this step CLOSES the operator goal
+The away-week trade ledger is currency-corrupted for KR rows (local-as-USD), the on-screen NAV=345,968.86 derives from the `:512-520` FX-fallback or a related un-converted path (NOT from `:265` alone), and the 06-05 kill-switch non-trip is explainable only after recomputing daily loss on a corrected USD NAV — all decidable from primary BQ data + live UI evidence at $0.
 
-## Plan steps
+## Immutable success criteria (verbatim from .claude/masterplan.json, step 55.1)
 
-1. Add `.github/workflows/e2e-smoke.yml` (3 triggers, least-privilege, credential-free
-   subset). Mirror `env-syntax-lint.yml`.
-2. Make `aggregate.sh` portable-green via an additive `SMOKE_PORTABLE` gate + 3 correctness
-   fixes (default behavior unchanged): #1 accept `deferred`; #2 skip-in-portable (full
-   done-phase rerun is a live/drift audit) + `isinstance` crash-guard; #7 match real
-   incident markers not the word "critical"; #5 build needs `.next` free (quiesce the dev
-   server for the local run).
-3. Run `SMOKE_PORTABLE=1 bash scripts/smoketest/aggregate.sh` → exit 0.
-4. Backup {research_brief, contract, experiment_results} → run `run_harness.py --dry-run
-   --cycles 1` (exit 0, appends harness_log) → restore the clobbered files.
-5. Write `live_check_53.5.md` (aggregate exit code + harness dry-run tail + the yaml path).
-6. Fresh qa → harness_log append (the 53.5 cycle) → flip masterplan 53.5 done → commit.
-   CLOSES the goal (50.6 + 43.0-audit + 53.1/53.2/53.3 + 53.5; 53.4 operator-dropped).
+1. "the post-mortem (handoff/current/55.1-away-week-postmortem.md) is built from PRIMARY data (BQ financial_reports.paper_trades/paper_positions/paper_portfolio_snapshots + /api/paper-trading/* endpoints), reconciles the Slack-digest NAV path (+21.9% 06-01, +23.4% 06-03, +19.3% 06-05, +19.2% 06-09) to within +/-0.2pp or reports the divergence as its own finding, and quantifies: weekly turnover, per-round-trip realized P&L for MU (06-08 -> 06-09), 000660.KS (06-02 -> 06-05) and DELL (4 trades), a gross-to-net TCA decomposition (implementation shortfall, fees as % of turnover, cumulative fee drag for the week; scripts/risk/tca_report.py), win_rate/profit_factor/expectancy/median_holding_days (via /api/paper-trading/performance), and the VERBATIM /api/paper-trading/metrics-v2 output -- on ~6-8 trading days its MIN_OBS_FOR_PSR=30 guard returns insufficient_data nulls, which is a VALID, honestly-reported result, not a FAIL"
 
-## Honest deviation on criterion 2 (flagged for Q/A)
+2. "the code-traced FX defects are confirmed or refuted against live BQ rows (paper_trader.py:265 total_value; :386-414 SELL transaction_cost), ALL FOUR FX conversion points (trade recording, mark-to-market, cash ledger, fees) are enumerated with rate-source + rate-as-of-timestamp consistency checked, the corruption scope is classified (stored-data vs display-only; affected row count + date range), a per-snapshot-day cash-ledger reconciliation ties sum(cash movements) to NAV - sum(position market_value), and the NAV/Cash/'$10K fund' three-way discrepancy is traced to a root cause at file:line with the :512-520 FX-fallback suspect explicitly ruled in or out; the VS-KOSPI readout is audited against cockpit-helpers.tsx:197-218 (noting its existing tooltip already discloses the limitation)"
 
-The criterion expects "7 real checks pass." aggregate.sh has 8 checks; #6 (phase-4.6)
-SKIPs by design. The researcher + empirical evidence proved **#2 (re-run every done-phase
-verification command) is a FULL live/historical-drift audit, not a portable smoke** (~30
-of 488 commands fail on a clean rerun: live MCP servers, since-moved/removed modules,
-transient handoff artifacts). So PORTABLE mode SKIPs #2 too → **6 real checks pass + 2
-documented SKIPs** (#2, #6), exit 0. This is the honest reading: the criterion's "7"
-assumed #2 is portable; it is not. The full audit (all 8) is available with
-`SMOKE_PORTABLE` unset. The CI e2e-smoke.yml lane runs the credential-free subset directly
-(it does not invoke aggregate.sh) for the same reason.
+3. "concentration is measured per snapshot day (sector weights + portfolio HHI) and the report cites the config/code path of any existing concentration limit or states NONE EXISTS; the away-week return is attributed regime-vs-skill (decomposed into benchmark beta -- SPY plus a semis proxy such as SOX, and KOSPI for the KR book -- concentration tilt, and residual alpha); the kill-switch audit for 06-05 reads the configured thresholds from live config (file path cited), verifies WHICH P&L/NAV fields the switch consumes (if any are touched by the FX/NAV corruption, the non-trip may be a measurement failure rather than a threshold failure), computes the daily P&L from snapshots, and renders SHOULD-HAVE-TRIPPED (defect traced to file:line) or CORRECTLY-DID-NOT-TRIP (arithmetic shown) -- presuming either verdict in advance is a FAIL"
 
-## Guardrails / DO-NO-HARM
+4. "live UI evidence is captured via Playwright MCP (the /paper-trading page behind the NextAuth wall: Value column, NAV/Cash cards, VS-KOSPI card) and embedded in live_check_55.1.md, folding in the three outstanding phase-50.6 visual confirms (/paper-trading/manage markets toggle; /paper-trading/positions currency-exposure card; /backtest US/USD/SPY strip) in the same session; the step performs NO fix work and NO LLM trading-cycle spend"
 
-- Credential-free / $0. The `SMOKE_PORTABLE` gate is additive — default (unset) leaves
-  aggregate.sh's full-audit behavior byte-identical. The 3 fixes (#1 deferred, #2
-  isinstance-guard, #7 incident-marker grep) are correctness improvements that apply in
-  BOTH modes (they fix genuine defects). No money-path/runtime change. No emoji; ASCII.
+**Verification command (immutable):** `cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.1-away-week-postmortem.md && test -f handoff/current/live_check_55.1.md`
+
+## Plan (ordered per brief §C — cheapest/highest-signal first)
+
+1. Resolve the NAV contradiction: `paper_portfolio` live row (starting_capital, total_nav, current_cash) + `paper_portfolio_snapshots` 06-01..06-10 (ASC sort; DESC trap). Reconcile digest % = cumulative_pnl_pct.
+2. Run existing `/api/paper-trading/reconciliation` to corroborate + date corruption onset (backend must be up; else call `compute_reconciliation` directly).
+3. Pull away-week `paper_trades`; classify rows by market (column or ticker suffix); re-derive USD = qty·price·fx_asof; confirm/refute :265 + :413-414 against live rows; count affected rows + date range; classify stored-data vs display-only (GIPS materiality tier per brief F5).
+4. Per-snapshot-day cash-ledger reconciliation: NAV(D) == cash(D) + Σ market_value_usd; cash(D) == starting + Σ flows + Σ SELL proceeds_usd − Σ BUY cost_usd. First broken day = onset; attribute frozen-mark vs un-converted-credit.
+5. `paper_positions` mark check: market_value vs qty·current_price (local-as-USD test) per non-US position; grep logs for the `:515` FX-unavailable WARN; FX backfill coverage query on `historical_fx_rates`.
+6. Turnover + round-trips (MU, 000660.KS, DELL) + gross-to-net TCA from BQ (fee drag bps; delay cost; NO market-impact claim — bq_sim fills at close). Run `tca_report.py` only as tool-smoke, LABELED synthetic. Run `paper_execution_parity.py`, report output or failure honestly.
+7. `/api/paper-trading/performance` (win_rate/profit_factor/expectancy/median_holding_days) + VERBATIM `/api/paper-trading/metrics-v2` (insufficient_data nulls are VALID).
+8. Kill-switch audit: read `handoff/kill_switch_audit.jsonl` 06-01..06-10; thresholds from `settings.py:453-454`; recompute 06-05 daily loss on recorded AND corrected NAV; verdict SHOULD-HAVE-TRIPPED or CORRECTLY-DID-NOT-TRIP with arithmetic — no presumption.
+9. Concentration per day (position-HHI + sector-HHI); cite concentration-limit code path or state NONE EXISTS; regime-vs-skill regression (SPY + SOXX + KOSPI blend) with 8-point low-power caveat; MinTRL stated explicitly.
+10. Playwright MCP live UI: /paper-trading NAV/Cash cards, KR-filtered trades Value column, VS-KOSPI card + the three phase-50.6 visual confirms (/paper-trading/manage markets toggle; /paper-trading/positions currency-exposure card; /backtest US/USD/SPY strip). Captures → live_check_55.1.md.
+11. Write `55.1-away-week-postmortem.md` (formal reconciliation shape: break list w/ taxonomy, findings tagged for 55.3 ID assignment) + `live_check_55.1.md` (UI captures + BQ row evidence + queries).
+
+## Constraints
+
+- $0: bounded BQ reads only (date filters + LIMIT, 30s timeout); no LLM trading-cycle spend; review-only — NO fixes, no code changes outside handoff/.
+- Primary data over cached endpoints (30s api_cache) — BQ direct for numbers; endpoints to confirm UI binding only.
+- Sharpe/DSR/PSR labeled "insufficient track record" per MinTRL; no performance claims on 8 days.
+- Verdict-neutral kill-switch audit; verdict-neutral VS-KOSPI audit (tooltip already discloses).
 
 ## References
 
-`handoff/current/research_brief.md`; `scripts/smoketest/aggregate.sh`;
-`scripts/smoketest/{intel_e2e.py,phase6_e2e.py}`; `scripts/harness/run_harness.py`;
-`.github/workflows/{e2e-smoke.yml,env-syntax-lint.yml}`. External: GitHub Actions
-workflow-syntax + 2026 security roadmap + caching; Fowler test-pyramid; CI smoke practice.
+- handoff/current/research_brief.md (researcher, 2026-06-10, gate_passed: true)
+- handoff/current/goal_post_away_review.md (goal prompt; review tooling table)
+- Brief sources F1-F6: Perold IS (ryanoconnellfinance.com), PSR/MinTRL (portfoliooptimizer.io), DSR (Wikipedia/Bailey-LdP SSRN 2460551), reconciliation lifecycle (solvexia.com), GIPS error correction (performancemeasurementsolutions.com), IS worked example (analystprep.com)
+- Code anchors: paper_trader.py:265,387,413-414,485,512-520,556,1011-1058; kill_switch.py:230-264; settings.py:453-454; fx_rates.py:153-181; bigquery_client.py:512-513,1008,1037; cockpit-helpers.tsx:197-218; trades-columns.tsx:10-124; tca_report.py:49,110-124; reconciliation.py
