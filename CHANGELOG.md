@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `9bf91eb9` | docs(handoff): finalize best-in-class elevation run + defer dropped 53.4 |
 | 2026-06-10 | `6778f44b` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
 | 2026-06-10 | `e8502522` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
 | 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `c8b659dc` | phase-52.3: DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05 Sharpe improvement (1-of-5 c... |
 | 2026-06-01 | `6d1292f4` | phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in... |
 | 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
-| 2026-06-01 | `bcb4c0ce` | phase-51.4: Cron repairs -- (a) autoresearch launchd job fails every night (ModuleNotFoundError: ... |
 
 ---
 
