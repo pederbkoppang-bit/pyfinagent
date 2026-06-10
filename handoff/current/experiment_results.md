@@ -1,64 +1,59 @@
-# Experiment Results — phase-53.1 (Algorithm/quant elevation)
+# Experiment Results — phase-53.2 (UX elevation + WCAG AA)
 
-**Date:** 2026-06-01. **Status:** complete. Lever = no-trade rebalance band; measured
-ON-vs-OFF on the $0 replay; robustness gate → **REJECT** (honest negative, valid per
-criterion 3). Config-gated default-OFF (DO-NO-HARM); NO live flag flip. $0 (no LLM).
+**Date:** 2026-06-10. **Status:** complete. Bounded adoption pass (P2+P3+P4+P6); build +
+tsc green; a11y recorded (axe 0 violations + live keyboard-focus proof); broader rollout
+documented as follow-ups. Additive; DO-NO-HARM (behavior + states preserved). $0.
 
 ## What was done
 
-1. Implemented the no-trade band as a standalone gated helper
-   (`backend/backtest/rebalance_band.py::apply_no_trade_band` + `max_drawdown`) — the
-   single source of truth used by the replay (and a future live enable).
-2. Config-gated it via `rebalance_band_enabled` (default False) + `rebalance_band_pct`
-   (0.2) in `settings.py` — default OFF ⇒ byte-identical full reconstitution.
-3. Measured baseline vs band over 48 monthly S&P-500 rebalances (2022-2025) via the
-   $0 replay, reporting Sharpe/return/turnover/maxDD GROSS and NET-of-cost.
-4. Ran the 52.3 Ledoit-Wolf SR-difference gate on two pre-registered legs (gross
-   do-no-harm + net promote). Honest **REJECT**.
+The consistent surface (design-tokens.ts, ui/ primitives, states/ library) already
+existed but was un-adopted, so 53.2 is a bounded adoption pass:
+- **P2** app-wide WCAG-2.2-AA visible-focus baseline (globals.css, unlayered `:where()`).
+- **P3** axe script now tests `wcag22a,wcag22aa`.
+- **P4** zinc→navy/slate palette unification across 4 components (53 swaps, 0 remaining).
+- **P6** `scroll-padding-top` (SC 2.4.11).
 
 ## Files changed
 
 | File | Change |
 |------|--------|
-| `backend/backtest/rebalance_band.py` | NEW — `apply_no_trade_band` (gated hysteresis; OFF=full reconstitution) + `max_drawdown`. |
-| `backend/config/settings.py` | NEW gated flags `rebalance_band_enabled` (False) + `rebalance_band_pct` (0.2). Default OFF = byte-identical; not wired into live decide_trades (measure-first). |
-| `scripts/ablation/no_trade_band_replay.py` | NEW $0 replay (reuses the 51.2 loaders + `sharpe_diff_test`); dual gross/net SR-diff gate. |
-| `backend/tests/test_phase_53_1_rebalance_band.py` | NEW — 8 tests (OFF byte-identity, hysteresis retain/drop, ≤top_n, maxDD). |
-| `handoff/current/live_check_53.1.md` | The ON-vs-OFF comparison + SR-diff stats + REJECT recommendation. |
-| `handoff/current/_53_1_band_paired_returns.json` | Reproducibility dump (paired arrays + verdict). |
+| `frontend/src/app/globals.css` | +unlayered `:where(...):focus-visible` AA focus baseline (P2) + `html scroll-padding-top` (P6). |
+| `frontend/package.json` | axe `--tags` += `wcag22a,wcag22aa` (P3). |
+| `frontend/src/components/AnalysisProgress.tsx` / `CommandPalette.tsx` / `DataTable.tsx` / `LiveBadge.tsx` | zinc→navy/slate (P4; 23/18/7/5 swaps). |
 
 ## Verification output (verbatim)
 
 ```
-# unit tests
-python -m pytest backend/tests/test_phase_53_1_rebalance_band.py -q   -> 8 passed
-# settings flags default OFF
-rebalance_band_enabled: False | pct: 0.2 ; sharpe_diff_test import OK
-# $0 replay (48 rebalances, S&P-500, 2022-2025, top_n=10, band=0.2):
-arm         grossSharpe  netSharpe   avgRet%  turnover  grossMaxDD  netMaxDD
-baseline          1.388      1.351     4.054     0.555      -0.230    -0.232
-band              1.399      1.366     4.085     0.489      -0.230    -0.232
-GROSS (do-no-harm): dSharpe=+0.011 p=0.414 CI90=[-0.071,+0.087]  -> do-no-harm? False
-NET   (promote):    dSharpe=+0.015 p=0.376 CI90=[-0.066,+0.092]  -> promote?   False
-53.1 RECOMMENDATION: REJECT (not robust on the net-of-cost a-priori gate) -- honest negative
+npx tsc --noEmit                 -> EXIT 0
+npx eslint <4 components>        -> 0 errors (3 pre-existing warnings)
+npm run build                    -> GREEN (24/24 routes)
+npm run axe (/login, +wcag22aa)  -> axe-core 4.11.3, 0 violations found
+grep zinc- in the 4 files        -> 0 ; DOM on /paper-trading/positions -> anyZincClassInDom:false
+Playwright keyboard focus (/agents): "Analyze" (no-ring, boxShadow none) -> outlineColor rgb(56,189,248) solid;
+   ringed controls keep their ring (outline suppressed -> no double-indicator)
 ```
 
-## Acceptance-criteria mapping (phase-53.1 — VERBATIM)
+## Acceptance-criteria mapping (phase-53.2 — VERBATIM)
 
 | # | Criterion | Result |
 |---|-----------|--------|
-| 1 | research gate passed (≥5 sources in full + recency scan) + lever justified from literature | PASS — researcher gate (7 sources, recency scan); band justified (Garleanu-Pedersen, arXiv:2412.11575, Kitces); the 4 other levers rejected from the literature |
-| 2 | measured ON-vs-OFF via $0 replay on production universe (Sharpe/return/turnover/maxDD) | PASS — 48 S&P-500 rebalances; all four metrics reported gross+net |
-| 3 | improvement subjected to the SAME Ledoit-Wolf SR-diff gate (a-priori rule); REJECT is valid | PASS — `analytics.sharpe_diff_test` reused verbatim, dual legs, a-priori rule; honest **REJECT** |
-| 4 | config-gated, no regression (default byte-identical), NO live flip; live_check records compare+stats+rec | PASS — `rebalance_band_enabled=False` default; 8 tests pin OFF byte-identity; no live wiring; `live_check_53.1.md` written |
+| 1 | research gate passed (UX + a11y sources cited) + documented all-pages audit vs design-tokens.ts + ui/ identifies the unification deltas | PASS — researcher gate (7 sources, recency scan); P1-P10 + OP1/OP2 worklist in research_brief.md |
+| 2 | unification changes land; no emoji (icons via @/lib/icons), Recharts dark, scrollbar-thin, error/loading/empty states preserved on every touched page | PASS — P2/P3/P4/P6 landed; zero emoji (preserved); Recharts dark + scrollbar-thin untouched; P4 is className-only (states preserved) |
+| 3 | npm run build SUCCEEDS + npx tsc --noEmit passes; an a11y check (keyboard/focus/contrast WCAG AA) recorded; no behavioral/data regression | PASS — build green, tsc 0; axe 0 violations + live keyboard-focus proof; no behavioral change (CSS/palette/test-config only) |
+| 4 | live_check_53.2.md records build/types + a11y evidence + OPERATOR-TO-CONFIRM visual (authed pages) | PASS — live_check_53.2.md written |
 
 ## DO-NO-HARM / scope honesty
 
-- **REJECT is the honest verdict** — the band cut turnover ~12% + marginally lifted Sharpe,
-  but the SR-difference is statistically within noise on this 48-month sample (p>0.37,
-  delta < the 0.05 a-priori threshold). No p-hacking: the a-priori rule + dual legs were
-  fixed in `contract.md` BEFORE the run.
-- Default OFF ⇒ the +20% US momentum core is byte-identical; the helper is NOT wired into
-  the live `decide_trades` path (a live enable would be a separate operator-gated step).
-- $0: free yfinance prices, no LLM, no BQ writes, no live cycles. SR-diff gate reused
-  verbatim (same a-priori rule + n_boot=5000 + seed as 52.3/52.4). No emoji; ASCII.
+- Bounded ADOPTION, not redesign. P2 is additive zero-specificity CSS that NEVER fights
+  component rings (verified: ringed buttons keep their ring; only bare elements get the
+  outline). P4 is className-only (no markup/state/behavior removed). P3 is a test-config
+  string. No money-path / data code touched (`git diff` = globals.css + package.json + 4
+  component palette files).
+- Honest a11y scope: axe on /login = 0 violations but covers only the pre-auth page;
+  authed-route Lighthouse/axe + manual keyboard/SR are operator-only (NextAuth wall) —
+  flagged in live_check OP1/OP2. The broad ErrorState/ui-Button/token-migration rollout is
+  documented as follow-ups (phase-44.x), not silently skipped.
+- The transient skip-auth console errors (`:8000/portfolio` 404 + `useLiveNav` TypeError)
+  were restart artifacts (backend re-checked healthy 200/200), NOT a 53.2 regression; the
+  useLiveNav undefined-guard is a pre-existing follow-up.
+- No emoji; navy/slate palette; JIT-safe; icons via `@/lib/icons`.

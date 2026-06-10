@@ -125,7 +125,7 @@ export function AnalysisProgress({
   ).slice().reverse();
 
   return (
-    <div className="rounded-2xl border border-zinc-700/50 bg-zinc-800/70 backdrop-blur-lg flex flex-col h-[calc(100vh-200px)] min-h-[400px]">
+    <div className="rounded-2xl border border-navy-700/50 bg-navy-800/70 backdrop-blur-lg flex flex-col h-[calc(100vh-200px)] min-h-[400px]">
       {/* ── Header ── */}
       <div className="px-5 pt-5 pb-4 shrink-0">
         <div className="mb-3 flex items-center justify-between">
@@ -141,13 +141,13 @@ export function AnalysisProgress({
             Analyzing {status.ticker}
           </h3>
           <div className="flex items-center gap-4 text-sm">
-            <span className="text-zinc-400 flex items-center gap-1"><IconTimer size={14} /> {formatTime(elapsed)}</span>
+            <span className="text-slate-400 flex items-center gap-1"><IconTimer size={14} /> {formatTime(elapsed)}</span>
             <span className="font-mono text-sky-400">{pct}%</span>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="h-1.5 w-full rounded-full bg-zinc-700">
+        <div className="h-1.5 w-full rounded-full bg-navy-700">
           <div
             className="h-1.5 rounded-full bg-gradient-to-r from-sky-500 to-cyan-400 transition-all duration-500"
             style={{ width: `${pct}%` }}
@@ -156,16 +156,16 @@ export function AnalysisProgress({
       </div>
 
       {/* ── Split layout: steps left, running log right ── */}
-      <div className="flex flex-col md:grid md:grid-cols-[260px_1fr] border-t border-zinc-700/50 flex-1 min-h-0">
+      <div className="flex flex-col md:grid md:grid-cols-[260px_1fr] border-t border-navy-700/50 flex-1 min-h-0">
         {/* ── LEFT: No logs. Completed collapsed, active on top, pending below ── */}
-        <div className="md:border-r border-b md:border-b-0 border-zinc-700/50 overflow-y-auto scrollbar-thin">
+        <div className="md:border-r border-b md:border-b-0 border-navy-700/50 overflow-y-auto scrollbar-thin">
           <div className="py-2 px-2 space-y-0.5">
             {/* Completed steps: collapsible accordion */}
             {completedSteps.length > 0 && (
               <div className="mb-1">
                 <button
                   onClick={() => setShowCompleted((v) => !v)}
-                  className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:bg-zinc-700/40 transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-navy-700/40 transition-colors"
                 >
                   <span className="text-[10px]">
                     {showCompleted ? <IconCaretDown size={10} /> : <IconCaretRight size={10} />}
@@ -175,7 +175,7 @@ export function AnalysisProgress({
                     {completedSteps.length} completed
                   </span>
                   {totalDuration > 0 && (
-                    <span className="ml-auto font-mono text-[10px] text-zinc-500">
+                    <span className="ml-auto font-mono text-[10px] text-slate-500">
                       {totalDuration.toFixed(1)}s
                     </span>
                   )}
@@ -195,7 +195,7 @@ export function AnalysisProgress({
                           className={`flex items-center gap-2 w-full px-3 py-1 rounded-lg text-xs transition-colors ${
                             filterStep === step.key
                               ? "bg-sky-500/15 text-sky-300"
-                              : "text-zinc-400 hover:bg-zinc-700/30"
+                              : "text-slate-400 hover:bg-navy-700/30"
                           }`}
                         >
                           <IconCheck size={12} className="text-emerald-400 shrink-0" />
@@ -204,7 +204,7 @@ export function AnalysisProgress({
                           </span>
                           <span className="truncate">{step.label}</span>
                           {duration && (
-                            <span className="ml-auto rounded-full bg-zinc-700/60 px-1.5 py-0.5 text-[10px] font-mono shrink-0">
+                            <span className="ml-auto rounded-full bg-navy-700/60 px-1.5 py-0.5 text-[10px] font-mono shrink-0">
                               {duration}
                             </span>
                           )}
@@ -245,11 +245,11 @@ export function AnalysisProgress({
                 key={step.key}
                 className="flex items-center gap-2 px-3 py-1 rounded-lg text-xs opacity-35"
               >
-                <span className="text-zinc-600 shrink-0">&#x25CB;</span>
+                <span className="text-slate-400 shrink-0">&#x25CB;</span>
                 <span className="w-4 text-center shrink-0">
                   <step.icon size={14} />
                 </span>
-                <span className="text-zinc-600 truncate">{step.label}</span>
+                <span className="text-slate-400 truncate">{step.label}</span>
               </div>
             ))}
           </div>
@@ -258,8 +258,8 @@ export function AnalysisProgress({
         {/* ── RIGHT: Reverse chronological log (newest first) ── */}
         <div className="flex flex-col min-h-0 flex-1">
           {/* Panel header */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-700/40 shrink-0">
-            <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-navy-700/40 shrink-0">
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
               Live Activity
             </span>
             {filterStep && (
@@ -272,7 +272,7 @@ export function AnalysisProgress({
                 <IconX size={10} className="ml-0.5" />
               </button>
             )}
-            <span className="ml-auto text-[10px] text-zinc-600 font-mono">
+            <span className="ml-auto text-[10px] text-slate-400 font-mono">
               {displayMessages.length} events
             </span>
           </div>
@@ -306,11 +306,11 @@ export function AnalysisProgress({
                   return (
                     <div key={i} className="flex items-center gap-2 pt-2 pb-1">
                       <span className="text-xs">{stepMeta ? <stepMeta.icon size={14} /> : <IconCaretRight size={14} />}</span>
-                      <span className="text-xs font-medium text-zinc-300">
+                      <span className="text-xs font-medium text-slate-300">
                         {stepMeta?.label ?? entry.step}
                       </span>
-                      <div className="flex-1 border-t border-zinc-700/40" />
-                      <span className="text-zinc-600 font-mono text-[10px]">
+                      <div className="flex-1 border-t border-navy-700/40" />
+                      <span className="text-slate-400 font-mono text-[10px]">
                         {timeLabel(entry.timestamp)}
                       </span>
                     </div>
@@ -325,7 +325,7 @@ export function AnalysisProgress({
                       <span className="text-emerald-400/70">
                         {stepMeta?.label ?? entry.step} complete
                       </span>
-                      <span className="ml-auto text-zinc-600 font-mono text-[10px]">
+                      <span className="ml-auto text-slate-400 font-mono text-[10px]">
                         {timeLabel(entry.timestamp)}
                       </span>
                     </div>
@@ -335,10 +335,10 @@ export function AnalysisProgress({
                 // Regular log entry
                 return (
                   <div key={i} className="flex gap-2 text-xs leading-relaxed">
-                    <span className="text-zinc-600 font-mono shrink-0 text-[11px]">
+                    <span className="text-slate-400 font-mono shrink-0 text-[11px]">
                       {timeLabel(entry.timestamp)}
                     </span>
-                    <span className="text-zinc-300">{entry.message}</span>
+                    <span className="text-slate-300">{entry.message}</span>
                   </div>
                 );
               })

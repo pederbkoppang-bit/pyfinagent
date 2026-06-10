@@ -41,8 +41,8 @@ const BAND_STYLES: Record<FreshnessBand, { dot: string; chip: string; ariaLabel:
     ariaLabel: "stale (red band)",
   },
   unknown: {
-    dot: "bg-zinc-400",
-    chip: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
+    dot: "bg-slate-400",
+    chip: "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/30",
     ariaLabel: "unknown",
   },
 };

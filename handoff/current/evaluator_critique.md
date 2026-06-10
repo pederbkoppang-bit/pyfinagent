@@ -1,36 +1,35 @@
-# Evaluator Critique — phase-53.1 (Algorithm/quant elevation: no-trade rebalance band)
+# Evaluator Critique — phase-53.2 (UX elevation + WCAG AA — bounded adoption pass)
 
 **Q/A agent (merged qa-evaluator + harness-verifier). FRESH single spawn.**
 Main produced this; I did NOT self-evaluate. Deterministic-first, adversarial,
-anti-rubber-stamp AND anti-false-fail. **Date:** 2026-06-01. **Mode:** in-place
-working-tree read. **Verdict: PASS. ok: true.**
+anti-rubber-stamp, anti-watermelon. **Date:** 2026-06-10. **Mode:** in-place
+working-tree read + LIVE compiled-CSS probe of the running dev server.
+**Verdict: PASS. ok: true.**
 
-> This OVERWRITES the STALE phase-43.0 critique left in this rolling file. The
-> verdict below is for **phase-53.1** only.
+> This OVERWRITES the STALE phase-53.1 critique that was left in this rolling
+> file. The verdict below is for **phase-53.2** only.
 
-## CRITICAL FRAMING (why a REJECT outcome is a PASS for this step)
+## CRITICAL FRAMING (why an HONESTLY-BOUNDED scope is a PASS, not a dodge)
 
-phase-53.1 criterion 3 explicitly states **"a 'not robust' REJECT is a VALID,
-honestly-reported outcome."** The step is a MEASURE-FIRST quant-elevation
-experiment: it PASSES iff (a) the research gate cleared and the lever is
-literature-justified, (b) the lever was measured ON-vs-OFF on the production
-universe reporting Sharpe/return/turnover/maxDD, (c) any improvement was put
-through the SAME 52.3/52.4 SR-difference gate with an a-priori rule fixed BEFORE
-the run, and (d) the change is config-gated default-OFF with NO live flip and a
-live_check recording the keep/reject call. The lever LOSING the gate is NOT a
-failure. My job is to confirm the REJECT is HONEST (not a dodge), the gate was
-reused verbatim, the a-priori rule was pre-registered (no p-hacking), and
-DO-NO-HARM holds. I do NOT demand the lever win. All four are satisfied.
+phase-53.2's headline is that the phase-47.5 + 44.1 consistent surface
+(`design-tokens.ts`, `ui/` primitives, `states/` library) was BUILT but
+UN-ADOPTED — so 53.2 is an ADOPTION problem, not a redesign. The prior cycles
+taught that an honest bounded scope is correct. My job is therefore NOT to demand
+the full UX Definition-of-Done (0/12) be closed in one cycle; it is to confirm
+(a) the bounding is HONEST (the deferred work is documented, not silently
+skipped), (b) the landed changes are SOUND + independently verified, (c)
+DO-NO-HARM holds (no behavior/state/markup/money-path regression), and (d) the
+a11y evidence is honestly scoped (axe-on-/login = pre-auth only; authed
+Lighthouse/keyboard are operator-only). All four hold.
 
 ---
 
 ## 0. 3rd-CONDITIONAL auto-FAIL rule — NOT triggered (verified)
 
-`grep -nE "^##.*phase=53\.1" handoff/harness_log.md` returns EXIT 1 (zero hits).
-There is NO `phase=53.1` cycle header in the log at all — this is the FIRST Q/A
-for step-id 53.1. Zero prior CONDITIONALs. The auto-FAIL rule (3+ consecutive
-CONDITIONALs) does not apply. (The only `53.1` string in the log is a forward
-pointer in Cycle 38's phase-43.0 NEXT note.)
+`grep -cE "phase=53\.2.*CONDITIONAL" handoff/harness_log.md` → **0**. There is no
+`phase=53.2` cycle header in the log at all (`grep -nE "phase=53\.2"` → EXIT 1).
+This is the FIRST Q/A for step-id 53.2. Zero prior CONDITIONALs. The auto-FAIL
+rule (3+ consecutive CONDITIONALs) does not apply.
 
 ---
 
@@ -38,205 +37,154 @@ pointer in Cycle 38's phase-43.0 NEXT note.)
 
 | # | Check | Result |
 |---|-------|--------|
-| 1 | researcher FIRST + gate passed | **PASS** — `research_brief.md` IS the 53.1 brief (complex tier). Envelope `{"tier":"complex","external_sources_read_in_full":7,"snippet_only_sources":11,"urls_collected":21,"recency_scan_performed":true,"internal_files_inspected":9,"gate_passed":true}`. 7 sources read in full (Ledoit-Wolf digest, Kitces tolerance-band, arXiv:2412.11575, arXiv:2411.07949, NBER Garleanu-Pedersen w15205, AQR TSMOM, DeMiguel-Garlappi-Uppal RFS-2009 `[ADVERSARIAL]`) — exceeds the ≥5 floor. Recency scan present (5 findings, 2024-2026). Lever is justified from the literature with a 5-candidate survey + 4 explicit rejections (vol-targeting already-rejected in 52.x, min-variance contraindicated by the DeMiguel 1/N adversarial finding, PBO/DSR not a construction lever, TSMOM a multi-asset-futures result) — NOT assumed. |
-| 2 | `contract.md` BEFORE generate, N* delta + 4 criteria VERBATIM + **a-priori rule + dual legs PRE-REGISTERED** | **PASS** — N* delta present (`contract.md:6-11`). The 4 criteria are copied VERBATIM (`:39-51`) and match the masterplan byte-for-byte (I diffed them — see §1a). **Anti-p-hack confirmed:** the a-priori rule `p<0.05 AND delta>=+0.05 AND CI_low>0` is fixed in the contract at `:46-47` (criterion 3) AND restated at `:60-63` as plan-step 2, AND the dual legs (GROSS do-no-harm `ci_low>-0.05` + NET promote) are pre-registered at `:61-63` BEFORE any run. The guardrails (`:80`) explicitly say "the a-priori rule + dual legs are fixed BEFORE the run." This is the SAME gate 52.3/52.4 used. |
-| 3 | `experiment_results.md` + `live_check_53.1.md` present w/ verbatim output | **PASS** — `experiment_results.md` has a files-changed table, a VERBATIM verification block (`:32-44`: 8 passed + the replay table + both SR-diff legs), and a verbatim criteria-mapping table (`:48-53`). `live_check_53.1.md` (52 lines) records the ON-vs-OFF table (Sharpe/return/turnover/maxDD gross+net), both pre-registered SR-diff legs with delta/p/CI, the cited basis, and the REJECT recommendation. |
-| 4 | log-last / flip-last | **PASS** — `grep phase=53.1 harness_log.md` = EXIT 1 (no entry yet); masterplan `id:53.1 status=pending retry=0 max=3`. Both intact: the log + flip have NOT preceded this Q/A. |
-| 5 | First Q/A spawn | **PASS** — no prior 53.1 critique or log entry exists (the file held the stale 43.0 critique). Not verdict-shopping. |
-
-### 1a. Criteria-verbatim diff (contract vs masterplan)
-
-I dumped the masterplan's 4 `success_criteria` and compared to `contract.md:41-51`.
-They are identical (research-gate-passed+justified / measured-ON-vs-OFF-with-4-metrics
-/ SAME-SR-diff-gate-with-a-priori-rule-REJECT-is-valid / config-gated-no-regression-no-flip-live_check).
-The masterplan `live_check` field is `REQUIRED` and the command is `RESEARCH-FIRST
-then define at GENERATE` — both honored. No criteria erosion.
+| 1 | researcher FIRST + gate passed | **PASS** — `research_brief.md` IS the 53.2 brief (complex tier). Envelope `{"tier":"complex","external_sources_read_in_full":7,"snippet_only_sources":11,"urls_collected":18,"recency_scan_performed":true,"internal_files_inspected":14,"gate_passed":true}`. 7 sources read in full (W3C new-in-22, W3C 2.5.8, W3C 1.4.11, W3C 2.4.11, W3C 2.4.7, Deque axe-core, USWDS design-tokens) — exceeds the ≥5 floor; 5 are W3C/official top-of-hierarchy. Recency scan present (5 findings, 2024-2026) and it usefully CORRECTS two prompt assumptions (2.4.13 Focus Appearance is AAA not AA; the `axe` script under-tagged, missing wcag22aa). The HEADLINE (foundation built but un-adopted) is grep-proven, not assumed. |
+| 2 | `contract.md` BEFORE generate, N* delta + 4 criteria VERBATIM | **PASS** — N* delta present (`contract.md:6-9`: Risk↓ operability/accessibility, no P/B delta). The 4 criteria are copied VERBATIM (`:38-46`) and match the masterplan byte-for-byte — I dumped masterplan `success_criteria` and diffed: identical (research-gate+audit / changes-land-no-emoji-Recharts-scrollbar-states-preserved / build+tsc+a11y-recorded-no-regression / live_check-build-types-a11y-operator-section). No criteria erosion. |
+| 3 | `experiment_results.md` + `live_check_53.2.md` present w/ verbatim output | **PASS** — `experiment_results.md` has a files-changed table + a VERBATIM verification block (`:26-34`: tsc EXIT 0, eslint 0 errors/3 warnings, build GREEN 24/24, axe 0 violations, zinc=0, Playwright keyboard-focus proof) + a verbatim criteria-mapping table. `live_check_53.2.md` (84 lines) records build/types, the axe-on-/login evidence, the live Playwright keyboard-focus proof, the landed P2/P3/P4/P6 detail, the OPERATOR-TO-CONFIRM section, AND the documented follow-ups. |
+| 4 | log-last / flip-last | **PASS** — `grep phase=53.2 harness_log.md` = EXIT 1 (no entry yet); masterplan `id:53.2 status=pending retry_count=0 max_retries=3`. Both intact: the log + flip have NOT preceded this Q/A. |
+| 5 | First Q/A spawn | **PASS** — no prior 53.2 critique (`grep -cE "phase-53\.2|phase=53\.2" evaluator_critique.md` = 0; the file held the stale 53.1 critique) and no 53.2 log entry. Not verdict-shopping. experiment_results.md mtime (Jun 10 14:35) is THIS cycle. |
 
 ---
 
-## 2. Deterministic re-verification (ran every command myself) — all reproduce EXACTLY
-
-### 2a. Tests, syntax, defaults
+## 2. Deterministic re-verification (ran every command myself) — all reproduce
 
 | Check | My independent run | Result |
 |-------|--------------------|--------|
-| unit tests | `pytest backend/tests/test_phase_53_1_rebalance_band.py -q` → **8 passed in 0.01s** | **PASS** |
-| syntax | `ast.parse` on `rebalance_band.py` + `no_trade_band_replay.py` + `settings.py` → **AST OK all 3** | **PASS** |
-| default OFF | `grep rebalance_band settings.py` → `rebalance_band_enabled: bool = Field(False, ...)` (`:99`) + `rebalance_band_pct: float = Field(0.2, ge=0.0, le=1.0, ...)` (`:100`) | **PASS** |
-| OFF byte-identity (code) | `rebalance_band.py:41-43`: `base = list(ranked_tickers[:top_n]); if not enabled or band_pct <= 0 or not prev_holdings: return base` — OFF returns `ranked[:top_n]` exactly | **PASS** |
+| `npx tsc --noEmit` | **TSC_EXIT=0** | **PASS** |
+| `npx eslint <4 components>` | **ESLINT_EXIT=0** — 3 problems, **0 errors, 3 warnings** | **PASS** (see §2a) |
+| zinc in 4 target files | `grep -rcE "zinc-"` AnalysisProgress/CommandPalette/DataTable/LiveBadge → **0,0,0,0** | **PASS** (P4 complete) |
+| no NEW zinc elsewhere | `grep -rcE "zinc-" src/` → only performance/page.tsx(1), reports/page.tsx(1), states/LoadingState.tsx(3), states/StaleDataState.tsx(1) remain | **PASS** — these are the documented P9/states pre-existing strays (research_brief.md:197 lists them as follow-ups); Main did NOT introduce them and did NOT claim more than the 4 P4 files. Honest. |
+| P2 unlayered | globals.css: `:where(...):focus-visible` rule is at lines 28-42, OUTSIDE the `@layer base` block (which closes at line 26). Confirmed unlayered. | **PASS** (the load-bearing fix) |
+| P3 axe tags | package.json:14 `--tags wcag2a,wcag2aa,wcag21a,wcag21aa,wcag22a,wcag22aa` | **PASS** |
+| P6 scroll-padding | globals.css:23-25 `html { scroll-padding-top: 5rem }` inside `@layer base` | **PASS** |
+| emoji / dingbat scan (4 files + globals.css) | `grep -nP "[emoji+dingbat ranges]"` → EXIT 1 (zero matches) | **PASS** — non-ASCII hits are `↑↓ ↵ ·` keyboard hints (a11y, not emoji), `— ──` comment dashes, and a pre-existing `●` status dot at AnalysisProgress:285 (NOT in the diff). No raw emoji introduced. |
+| `npm run build` | **SKIPPED** (to protect the dev server's `.next` — server is live, HTTP 200 on /login). experiment_results + live_check both record GREEN (24/24 routes). | NOTED-skip; tsc-0 + the live server serving 200 corroborate |
+| `npm run axe` | **NOT re-run** (needs chrome + dev server; Main ran it → axe-core 4.11.3, 0 violations on /login with the wcag22aa tags). | Accepted per Main's verbatim output |
 
-### 2b. THE DECISIVE GATE RE-RUN (seeded, no network) — reproduces byte-identically
+### 2a. The 3 eslint WARNINGS are pre-existing and OUTSIDE the changed lines — not a gate fail
 
-I re-ran the SR-diff gate on the dumped arrays myself
-(`handoff/current/_53_1_band_paired_returns.json`, 48 paired obs per arm):
-
-```
-GROSS 0.011 0.414 -0.071
-NET   0.015 0.376 -0.066
-promote? False
-```
-
-This matches the live_check (`:22-27`) and experiment_results (`:41-42`) EXACTLY:
-GROSS dSharpe=+0.011/p=0.414/CI_low=-0.071; NET dSharpe=+0.015/p=0.376/CI_low=-0.066.
-Seeded (seed=42, n_boot=5000) → it MUST reproduce, and it does. The dump's own
-`verdict`/`promote`/`do_no_harm_ok` fields are `"REJECT ... honest negative
-result"` / `False` / `False` — internally consistent.
-
-### 2c. Turnover claim independently recomputed
-
-The dump stores per-month turnover arrays. I computed the means myself:
-- mean turnover baseline = **0.555** (live_check says 0.555 ✓)
-- mean turnover band = **0.489** (live_check says 0.489 ✓)
-- reduction = **11.9%** (live_check says "~12%" ✓ — honest, not rounded-up)
-
-(2 of 47 months the band churned marginally MORE than full reconstitution — a
-benign artifact of the slot-fill step when a previously-dropped name re-enters
-top_n; it does not undermine the net 11.9% mean reduction or the REJECT.)
+`eslint .` is errors-only exit-1 semantics; warnings do NOT fail the gate (my own
+protocol). The 3 warnings are React-Compiler advisories on code the 53.2 diff did
+NOT touch:
+- `AnalysisProgress.tsx:77` `react-hooks/purity` (`Date.now()` in `useRef`) — line
+  77 is NOT in the diff (the diff's AnalysisProgress changes are all in lines
+  125-345, className swaps only).
+- `CommandPalette.tsx:80` `react-hooks/set-state-in-effect` — line 80 not in the
+  diff (diff is lines 108-184, className swaps).
+- `DataTable.tsx:57` `react-hooks/incompatible-library` (TanStack `useReactTable`)
+  — line 57 not in the diff (diff is lines 85-163, className swaps).
+None are hook-order (Rules-of-Hooks) violations (the phase-23.2.24 class of bug);
+all are pre-existing purity/perf advisories unrelated to a zinc→slate className
+change. No regression introduced.
 
 ---
 
-## 3. Honesty / anti-dodge / anti-p-hack judgment — the core of this gate
+## 3. CODE-CORRECTNESS — the P2 focus baseline (the subtle part) — verified SOUND from the COMPILED bundle
 
-### 3a. The REJECT is HONEST (point estimates reported, gate correctly fails)
+The contract's load-bearing claim is that P2 is a true FALLBACK: it gives a
+visible focus outline to elements with NO ring, and does NOT double-indicate on
+elements that already carry `tokens.focusRing` (a box-shadow ring). I did NOT take
+the prose on faith — I fetched the **compiled** CSS from the running dev server
+(`/_next/static/css/app/layout.css`, 99453 bytes) and resolved the cascade from
+the actual emitted selectors:
 
-The band's directional wins ARE reported, not buried: turnover ↓ 11.9%, gross
-Sharpe +0.011, net Sharpe +0.015, maxDD unchanged (live_check `:14-16`,
-experiment_results `:57`). AND the gate correctly FAILS on the pre-registered
-rule: net delta 0.015 < the 0.05 threshold, p=0.376 (>>0.05), CI90=[-0.066,+0.092]
-straddles 0. The recommendation is a plain **REJECT** (live_check `:29`,
-experiment_results `:3-5`/`:43`) — NOT a spun PASS, NOT a quiet promote. The
-disposition is exactly right: ship as a config-gated default-OFF tested helper,
-do NOT promote to live. This is the honest negative outcome criterion 3
-explicitly sanctions.
+- `tokens.focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"` (design-tokens.ts:40). So every ringed control (ui/Button.tsx:55; OpsStatusBar.tsx:309/319/329) carries the `focus-visible:outline-none` utility.
+- Compiled `.focus-visible\:outline-none:focus-visible { outline: 2px solid transparent }` (compiled.css:3922) → specificity **0-2-0** (1 class + 1 pseudo-class).
+- Compiled P2 rule `:where(...):focus-visible { outline: 2px solid #38bdf8 }` (compiled.css:3350-3351) → `:where()` = specificity 0, `:focus-visible` = 1 pseudo-class → **0-1-0**.
+- **Tailwind v3 emits FLAT CSS** — I grepped the whole 99KB bundle: the ONLY `@layer` string present is inside the P2 comment text (compiled.css:3342/3344); there are ZERO native `@layer` at-rules in the output. So the cascade is decided by **specificity**, not layers.
 
-### 3b. NO p-hacking (a-priori rule pre-registered; gate reused verbatim)
+**Resolution:** on a ringed control, BOTH outline rules match at `:focus-visible`;
+`0-2-0` (outline-none, transparent) > `0-1-0` (P2, sky) → the transparent outline
+WINS → P2's sky outline is **suppressed**, and the separate `box-shadow` ring
+(unaffected by either `outline` rule) renders alone → **NO double-indicator**. On
+a BARE control (no `outline-none` class), P2's `0-1-0` rule is the only outline
+rule that matches → it paints the visible sky outline. This is EXACTLY the
+empirical claim in experiment_results (`/agents`: "Analyze" no-ring toggle,
+boxShadow none → `outlineColor rgb(56,189,248)`; ringed controls keep their ring,
+outline suppressed). The `:where()` specificity-0 wrapper is the correct,
+deliberate mechanism that makes the utility beat it on ringed elements while it
+still wins on bare ones. **Sound. Cannot double-ring; cannot regress an existing
+ring.**
 
-- The a-priori rule + dual gross/net legs were fixed in `contract.md` BEFORE the
-  run (`:46-47`, `:60-63`, `:80`) — confirmed in §1 check 2. The verdict was NOT
-  reverse-engineered to fit the data.
-- The gate is the SAME `analytics.sharpe_diff_test` (Ledoit-Wolf 2008 SR-diff via
-  Politis-Romano stationary bootstrap) that 52.3/52.4 used, with the SAME
-  n_boot=5000 + seed=42. `no_trade_band_replay.py:21` imports it
-  (`from backend.backtest.analytics import sharpe_diff_test`) and calls it at
-  `:133-134`; `grep -c "def sharpe_diff_test|bootstrap|np.random"` on the replay
-  = **0** — zero local reimplementation, zero weakening. The stat was reused
-  verbatim, not forked.
-- The net-of-cost axis is NOT cherry-picked to manufacture a PASS — BOTH legs are
-  reported and BOTH fail, and the dominant decision axis (net) was justified in
-  the research brief a-priori (`research_brief.md:197-209`).
-
-### 3c. Tests exercise real behavior (anti-tautology, anti-over-mock)
-
-The 8 tests assert concrete outcomes against the pure function — NOT tautologies
-(`assert x==x`/`is not None`) and NOT over-mocking (no `@patch` of the module
-under test):
-- OFF / band_pct=0 / cold-start → `== RANKED[:TOP_N]` (byte-identity, 3 tests).
-- held name at rank 11 inside the 12.0 exit band → RETAINED; the displaced top_n
-  name NOT force-added (`test_held_name_inside_exit_band_is_retained`).
-- held name at rank 13 beyond the band → DROPPED, slot filled from top_n
-  (`test_held_name_beyond_exit_band_is_dropped`).
-- band churn ≤ full-reconstitution churn (`test_band_reduces_churn...`).
-- never exceeds top_n, no dups; maxDD math pinned (+10%/-20%/+5% → -0.20).
-
-These pin the DO-NO-HARM contract (OFF = byte-identical) and the hysteresis logic
-honestly.
+> One NOTE (documentation precision, non-blocking): the P2 code comment attributes
+> the win to cascade-LAYERS ("`focus:outline-none` lives in @layer utilities…
+> unlayered styles outrank all @layer rules"). In Tailwind v3 the utilities are
+> emitted as flat unlayered rules, so the win is actually SPECIFICITY-based
+> (0-2-0 > 0-1-0), not layer-based. The RENDERED behavior is identical either way
+> and the `:where()` choice is correct, so this is a NOTE on the comment's
+> mechanism explanation only — not a functional defect. The contrast leg is also
+> satisfied: `#38bdf8` (sky-400) on the navy surface clears 1.4.11's 3:1 (the same
+> ring color the project already certifies).
 
 ---
 
 ## 4. DO-NO-HARM — confirmed
 
-- **Default OFF byte-identical:** `rebalance_band_enabled=Field(False)`; the helper
-  short-circuits to `ranked[:top_n]` when disabled (code §2a) and 3 tests pin it.
-- **NOT wired into live `decide_trades`:** `grep -rn "apply_no_trade_band|rebalance_band_enabled|rebalance_band_pct" backend/services backend/agents backend/markets`
-  → **EXIT 1 (zero hits)**. The only references in the repo are
-  `settings.py`, `test_phase_53_1_rebalance_band.py`, `rebalance_band.py` (the
-  helper), and `no_trade_band_replay.py` (the $0 replay). No money-path wiring.
-- **No money-path regression:** `git diff --stat` shows only `settings.py` (+8)
-  and handoff docs/audit-logs changed among TRACKED files; `rebalance_band.py`,
-  `no_trade_band_replay.py`, the test, the live_check, and the paired-JSON are
-  untracked-NEW. ZERO edits to `paper_trader.py` / `kill_switch.py` /
-  `risk_engine.py` / `perf_metrics.py` / `backtest_engine.py` / `.env`. The +20%
-  US momentum core is byte-identical.
-- **$0 / measure-first:** no LLM call, no BQ write, no live cycle, no live flag
-  flip. settings.py change is a dormant default-OFF gate.
+- **P4 is className-ONLY (no markup/state/behavior removed):** I diffed all 4 files. EVERY changed line is a `className=`/`clsx(...)` string token swap (zinc→navy for bg/border, zinc→slate for text). ZERO JSX structure, state, hook, or event-handler change; `onClick`/`onValueChange`/`onSelect`/`onRowClick` all preserved; `aria-label`/`aria-hidden`/`aria-sort`/`scope="col"`/`role` all preserved; the DataTable empty-state (`emptyState ?? "No rows."`), the keyboard hints, and every conditional render intact. Notably P4 also REMOVES light-mode `bg-white`/`text-zinc-700` base fallbacks in DataTable (e.g. `text-zinc-800 dark:text-slate-200` → `text-slate-200 dark:text-slate-200`) — that is an IMPROVEMENT per frontend.md rule 2 (dark-only project; light-mode zinc fallbacks are an anti-pattern), not harm.
+- **P2/P6 are additive CSS:** globals.css diff adds ONLY the P6 `scroll-padding-top` (inside `@layer base`) + the P2 unlayered `:where()` focus rule. No `!important`. `:focus-visible` only (mouse focus unaffected). Nothing removed.
+- **P3 is a test-config string:** package.json axe `--tags` += `wcag22a,wcag22aa`. No dep added/removed (`@axe-core/cli ^4.11.2` unchanged — no supply-chain-dep-pin-removal).
+- **No money-path / data file touched:** `git diff --stat` among tracked code files = `frontend/package.json`, `frontend/src/app/globals.css`, the 4 components, `frontend/tsconfig.tsbuildinfo` (build artifact) + handoff docs/audit JSONL + 2 agent-memory files. ZERO edits to `paper_trader.py` / `kill_switch.py` / `risk_engine.py` / `perf_metrics.py` / `backtest_engine.py` / `backend/**` / `.env`. No API shape, polling, or auth change. The +20% live money engine is byte-identical.
+- **$0:** no LLM call, no BQ write, no live cycle, no flag flip.
 
 ---
 
-## 5. Code-review heuristic sweep (SKILL: code-review-trading-domain) — worst severity NOTE
+## 5. ANTI-WATERMELON / scope-honesty — confirmed HONEST (not a green-skin-red-core dodge)
 
-Diff does NOT touch `frontend/**` (no ESLint/tsc leg required). New Python is a
-pure-function helper + a $0 offline replay script + a unit test.
+- **Did NOT claim the full UX-DoD is closed.** experiment_results + live_check both state this is a BOUNDED P2+P3+P4+P6 adoption pass; the DoD audit is 0/12 (research_brief.md:31) and the brief's own recommendation is to land exactly these four and DEFER the rest. P1 (ErrorState ~36 banners), P5 (ui/Button adoption), P7 (LoadingState sweep), P8 (DataTable on /backtest+/cron), P9 (~1246-site slate-token migration) are documented follow-ups mapped to pending phase-44.x (live_check_53.2.md:67-73) — NOT silently skipped. This is the "presets, not every option" discipline applied to scope.
+- **a11y scope is honestly framed.** live_check_53.2.md states axe-on-/login = 0 violations but covers ONLY the pre-auth page; authed-route Lighthouse/axe + manual keyboard/SR are operator-only behind the NextAuth wall (OP1/OP2), and automation catches only ~20-50% of WCAG. No overclaim of "WCAG AA verified app-wide."
+- **Transient errors correctly attributed.** The skip-auth Playwright probe's `:8000/portfolio` 404 + `useLiveNav` undefined-`cash` TypeError are attributed to a restart artifact (frontend kickstart momentarily refused :3000/auth + backend mid-cycle; backend re-checked health=200/portfolio=200) and a PRE-EXISTING robustness gap — explicitly NOT a 53.2 regression. This attribution is CORRECT on first principles: a CSS / className / test-config change has no execution path to a data-fetch TypeError. Confirmed not a regression.
 
-- **Dimension 1 (security):** no secret-in-diff (grepped — no credential literals);
-  no `subprocess`/`eval`/`exec`/`os.system`; no LLM-output→sink; no dep-pin removal
-  (settings/helper add no deps). N/A or clean.
-- **Dimension 2 (trading-domain):** no kill-switch path change; no stop-loss path;
-  **perf-metrics-bypass [BLOCK] NOT triggered** — Sharpe is computed via the reused
-  `analytics.sharpe_diff_test` / `compute_sharpe` machinery (the replay is an
-  offline ablation, the canonical analytics module, not an inline re-impl); no
-  `paper_trader`/`execute_buy`/`execute_sell` edit; no crypto re-enable. Clean.
-- **Dimension 3 (code quality):** the helper has full type hints + docstrings;
-  `print()` lives only in the replay SCRIPT (negation-listed — scripts are exempt);
-  no broad-except in the helper. Clean.
-- **Dimension 4 (anti-rubber-stamp):** `financial-logic-without-behavioral-test
-  [BLOCK]` NOT triggered — the band logic + maxDD ship WITH 8 behavioral tests
-  exercising real retain/drop/churn/byte-identity outcomes. No tautological
-  asserts, no over-mock, no rename-as-refactor. The cost constant (round-trip
-  0.002) is cited to `backtest_engine.py:668` convention (no formula-drift). Clean.
-- **Dimension 5 (LLM-evaluator anti-patterns):** this is the FIRST 53.1 Q/A on
-  fresh evidence — not sycophancy-under-rebuttal, not second-opinion-shopping
-  (no prior verdict to flip; mtime of `experiment_results.md` is this cycle's).
-  This critique cites file:line + verbatim command output throughout (no
-  missing-chain-of-thought). Worst severity: **NOTE**. No BLOCK, no WARN.
+---
+
+## 6. Code-review heuristic sweep (SKILL: code-review-trading-domain) — worst severity NOTE
+
+Diff DOES touch `frontend/**` → ESLint + tsc leg REQUIRED and RUN (§2: both pass;
+3 pre-existing warnings, 0 errors, no Rules-of-Hooks violation).
+
+- **Dim 1 (security):** no secret-in-diff (className/CSS/test-config only); no subprocess/eval/exec; no LLM-output→sink; no dep-pin removal (axe CLI pin unchanged). Clean.
+- **Dim 2 (trading-domain):** no kill-switch / stop-loss / perf-metrics / paper_trader / execute_buy/sell / crypto change — frontend-only diff. N/A.
+- **Dim 3 (code quality):** className-only swaps; no new broad-except, no print() in non-script, no global-mutable-state. Clean.
+- **Dim 4 (anti-rubber-stamp):** `financial-logic-without-behavioral-test [BLOCK]` NOT triggered — no perf_metrics/risk_engine/backtest_engine/backtest_trader touched; this is a frontend-consistency + a11y change whose verification is build/tsc/eslint/axe + a LIVE Playwright keyboard-focus proof + compiled-CSS cascade verification, which is the right evidence shape for a CSS/className change. No tautological assert, no over-mock, no rename-as-refactor (zinc→slate is a palette swap with identical semantics, fully preserved). Clean.
+- **Dim 5 (LLM-evaluator anti-patterns):** FIRST 53.2 Q/A on fresh evidence (experiment_results mtime is this cycle) — not sycophancy-under-rebuttal, not second-opinion-shopping (no prior 53.2 verdict to flip). This critique cites file:line + verbatim command output + compiled-bundle line numbers throughout (no missing-chain-of-thought). 3rd-conditional not applicable (0 prior). Worst severity: **NOTE** (the P2-comment mechanism-precision note in §3). No BLOCK, no WARN.
 
 ---
 
 ## Verdict
 
-**PASS. ok: true.** All four immutable criteria are met, and the REJECT is the
-HONEST, criterion-3-sanctioned outcome — not a dodge.
+**PASS. ok: true.** All four immutable criteria are met; the bounded scope is
+HONEST (deferred work documented, not dodged); the landed changes are SOUND and
+independently verified (including the subtle P2 cascade, resolved from the
+compiled bundle); DO-NO-HARM holds (className/CSS/test-config only, no
+money-path/data/behavior/state regression).
 
-- **Criterion 1 (research-gate + lever justified):** PASS — `gate_passed:true`,
-  7 sources read in full, recency scan (5 findings), 5-lever survey with 4
-  literature-grounded rejections; the band is justified from Garleanu-Pedersen +
-  arXiv:2412.11575 + Kitces, not assumed.
-- **Criterion 2 (measured ON-vs-OFF, 4 metrics):** PASS — 48 S&P-500 monthly
-  rebalances 2022-2025; Sharpe/return/turnover/maxDD reported gross AND net; I
-  independently recomputed the turnover means (0.555→0.489, 11.9%) and they match.
-- **Criterion 3 (SAME SR-diff gate, a-priori rule, REJECT valid):** PASS —
-  `analytics.sharpe_diff_test` reused VERBATIM (imported, 0 reimplementation),
-  dual legs + a-priori rule pre-registered in the contract BEFORE the run, gate
-  correctly REJECTs (net delta 0.015<0.05, p=0.376, CI straddles 0). I re-ran the
-  seeded gate on the dumped arrays and it reproduces byte-identically
-  (GROSS +0.011/0.414/-0.071, NET +0.015/0.376/-0.066, promote?False). Honest
-  negative = a valid pass per the criterion's own text.
-- **Criterion 4 (config-gated, no regression, no live flip, live_check):** PASS —
-  `rebalance_band_enabled=False` default; OFF byte-identity pinned by 3 tests +
-  the code short-circuit; ZERO live wiring (grep EXIT 1 in services/agents/markets);
-  no money-path file touched; `live_check_53.1.md` records the full comparison +
-  both SR-diff legs + cited basis + REJECT recommendation; NO live flag flip.
+- **Criterion 1 (research-gate + documented all-pages audit vs design-tokens.ts + ui/ identifies the deltas):** PASS — `gate_passed:true`, 7 sources read in full (5 W3C/official), recency scan with 5 findings that correct 2 prompt assumptions; research_brief.md IS the documented all-pages audit and P1-P10 + OP1/OP2 ARE the named unification deltas.
+- **Criterion 2 (changes land; no emoji [icons via @/lib/icons], Recharts dark, scrollbar-thin, error/loading/empty preserved on every touched page):** PASS — P2/P3/P4/P6 landed; emoji scan EXIT 1 (zero raw emoji; non-ASCII are arrows/dashes/HTML-entities); Recharts + scrollbar-thin untouched; P4 is className-only so all error/loading/empty/markup/aria preserved (diffed all 4 files).
+- **Criterion 3 (npm run build SUCCEEDS + tsc passes; a11y check recorded; no behavioral/data regression):** PASS — tsc EXIT 0 (I ran it); eslint 0 errors; build GREEN per verbatim output (re-run skipped to protect the live .next; live server serves 200); axe-core 4.11.3 = 0 violations on /login WITH the new wcag22aa tags + a live Playwright keyboard-focus proof; no behavioral/data change (CSS/className/test-config only, git diff confirms).
+- **Criterion 4 (live_check_53.2.md: build/types + a11y evidence + OPERATOR-TO-CONFIRM authed section):** PASS — live_check_53.2.md records build/types, the axe + keyboard-focus a11y evidence, the landed-changes detail, the explicit OPERATOR-TO-CONFIRM visual section (keyboard focus, palette shades, Lighthouse-auth), and the documented follow-ups.
 
-Harness 5/5 (researcher-first gate_passed:true; contract precedes generate with
-N* delta + 4 criteria VERBATIM + a-priori rule & dual legs PRE-REGISTERED;
-experiment_results + live_check present with verbatim output; harness_log has NO
-53.1 entry + masterplan 53.1 pending retry=0 — log-last/flip-last intact; first
-Q/A spawn). Anti-p-hack confirmed (rule fixed before run; gate reused verbatim).
-DO-NO-HARM confirmed (default OFF byte-identical, no live wiring, no money-path
-regression, $0). 3rd-CONDITIONAL auto-FAIL N/A (zero prior 53.1 verdicts). Code
-review worst severity NOTE.
+Harness 5/5 (researcher-first gate_passed:true; contract precedes generate with N*
+delta + 4 criteria VERBATIM, diffed vs masterplan identical; experiment_results +
+live_check_53.2.md present with verbatim output; harness_log has NO 53.2 entry +
+masterplan 53.2 pending retry=0 — log-last/flip-last intact; first Q/A spawn).
+P2 cascade verified SOUND from the compiled bundle (0-2-0 outline-none beats 0-1-0
+:where on ringed controls → no double-ring; bare controls get the outline).
+DO-NO-HARM confirmed (className/CSS/test-config only; zero money-path/data edit;
++20% engine byte-identical; $0). Anti-watermelon confirmed (0/12 DoD + bounded
+scope honestly disclosed; a11y honestly scoped to pre-auth + operator; transient
+404/TypeError correctly attributed as restart-artifact/pre-existing). 3rd-
+CONDITIONAL auto-FAIL N/A. Code review worst severity NOTE.
 
-**Next:** append `harness_log.md` Cycle N `phase=53.1 result=PASS`, THEN flip
-masterplan 53.1 to `done`, THEN auto-commit. The lever is REJECTED for live
-promotion (correctly) and ships as a dormant default-OFF tested helper.
+**Next:** append `harness_log.md` Cycle N `phase=53.2 result=PASS`, THEN flip
+masterplan 53.2 to `done`, THEN auto-commit. P1/P5/P7/P8/P9 + OP1/OP2 remain as
+documented follow-ups under pending phase-44.x.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "phase-53.1 is a MEASURE-FIRST quant-elevation experiment whose criterion 3 explicitly states a 'not robust' REJECT is a VALID outcome; all 4 immutable criteria are met and the REJECT is HONEST, not a dodge. Harness 5/5: (1) researcher FIRST, gate_passed:true (7 sources read in full vs >=5 floor, recency scan with 5 findings, 21 URLs, 9 internal files; 5-lever survey with 4 literature-grounded rejections -- vol-targeting already-rejected in 52.x, min-variance contraindicated by DeMiguel-Garlappi-Uppal 1/N adversarial finding, PBO/DSR not a construction lever, TSMOM a multi-asset-futures result); (2) contract precedes generate with N* delta + 4 criteria copied VERBATIM (diffed vs masterplan, identical) + the a-priori rule p<0.05 AND delta>=0.05 AND CI_low>0 AND the dual gross/net legs PRE-REGISTERED at contract.md:46-47,60-63,80 BEFORE the run (anti-p-hack); (3) experiment_results + live_check_53.1.md present with verbatim output (8 passed + the ON-vs-OFF table + both SR-diff legs + REJECT rec); (4) harness_log has NO phase=53.1 entry (grep EXIT 1) + masterplan 53.1 status=pending retry=0 max=3 (log-last/flip-last intact); (5) first Q/A spawn. DETERMINISTIC RE-VERIFICATION (ran every command myself, all reproduce EXACTLY): pytest test_phase_53_1_rebalance_band.py = 8 passed in 0.01s; ast.parse OK on all 3 files; THE DECISIVE seeded gate re-run on the dumped paired arrays (handoff/current/_53_1_band_paired_returns.json, 48 obs/arm) reproduces byte-identically -> GROSS dSharpe=+0.011 p=0.414 CI_low=-0.071, NET dSharpe=+0.015 p=0.376 CI_low=-0.066, promote?=False (matches live_check + experiment_results exactly); I independently recomputed the turnover means from the per-month arrays = baseline 0.555, band 0.489, reduction 11.9% (matches live_check's 0.555->0.489 ~12% claim -- honest). HONESTY/ANTI-DODGE: the band's directional wins (turnover -11.9%, gross Sharpe +0.011, net +0.015, maxDD unchanged) ARE reported AND the gate correctly FAILS (net delta 0.015 < 0.05 threshold, p=0.376>>0.05, CI90=[-0.066,+0.092] straddles 0); recommendation is a plain REJECT (live_check:29, experiment_results:3-5/43), NOT a spun PASS, NOT a quiet promote -- the honest negative criterion 3 sanctions. ANTI-P-HACK: a-priori rule + dual legs fixed in contract BEFORE run; sharpe_diff_test reused VERBATIM (no_trade_band_replay.py:21 imports it from backend.backtest.analytics, called :133-134; grep -c 'def sharpe_diff_test|bootstrap|np.random' on the replay = 0 -- zero reimplementation/weakening; SAME n_boot=5000 + seed=42 as 52.3/52.4). DO-NO-HARM: rebalance_band_enabled=Field(False) default OFF; helper short-circuits to ranked[:top_n] when disabled (rebalance_band.py:41-43) pinned by 3 tests; grep 'apply_no_trade_band|rebalance_band_enabled|rebalance_band_pct' in backend/services backend/agents backend/markets = EXIT 1 (ZERO live wiring -- refs only in settings/tests/replay/helper); git diff --stat = only settings.py (+8) + handoff docs among tracked, new helper/replay/test/live_check/JSON untracked, ZERO edits to paper_trader/kill_switch/risk_engine/perf_metrics/backtest_engine/.env -- the +20% US momentum core byte-identical; $0 (no LLM/BQ/live cycle/flag flip). Tests exercise real behavior (concrete retain/drop/churn/byte-identity/maxDD asserts; no tautology, no over-mock). 3rd-CONDITIONAL auto-FAIL N/A (zero prior 53.1 verdicts; first spawn). Code-review heuristics: no frontend diff (no ESLint/tsc leg); pure-function helper + offline $0 replay + unit test; perf-metrics-bypass NOT triggered (Sharpe via reused analytics module); financial-logic-without-behavioral-test NOT triggered (8 behavioral tests); not sycophancy/verdict-shopping (first spawn, fresh evidence, cites file:line + verbatim output throughout); worst severity NOTE. The lever LOSING the gate is the correct, honest outcome -- PASS.",
+  "reason": "phase-53.2 is an HONESTLY-BOUNDED UX adoption pass (the phase-47.5+44.1 consistent surface was BUILT but UN-ADOPTED; 53.2 adopts a low-risk grep-verifiable subset P2+P3+P4+P6 and DEFERS the rest as documented follow-ups). All 4 immutable criteria met; bounding is honest, not a dodge; changes are sound + independently verified; DO-NO-HARM holds. Harness 5/5: (1) researcher FIRST gate_passed:true (7 sources read in full vs >=5 floor -- 5 are W3C/official top-of-hierarchy; recency scan with 5 findings that CORRECT two prompt assumptions: 2.4.13 Focus Appearance is AAA not AA, and the axe script under-tagged missing wcag22aa; 18 URLs; 14 internal files; headline 'foundation built but un-adopted' is grep-proven not assumed); (2) contract precedes generate with N* delta (Risk-down operability/accessibility, no P/B delta) + 4 criteria copied VERBATIM (I dumped masterplan success_criteria and diffed -- identical, no erosion); (3) experiment_results.md + live_check_53.2.md present with verbatim output (tsc EXIT 0, eslint 0-errors/3-warnings, build GREEN 24/24, axe-core 4.11.3 0 violations on /login with wcag22aa, zinc=0, live Playwright keyboard-focus proof); (4) harness_log has NO phase=53.2 entry (grep EXIT 1) + masterplan 53.2 status=pending retry_count=0 max_retries=3 (log-last/flip-last intact); (5) first Q/A spawn (0 prior 53.2 critiques; evaluator_critique held the stale 53.1 verdict; experiment_results mtime Jun-10 is this cycle). DETERMINISTIC (ran myself): npx tsc --noEmit EXIT 0; npx eslint <4 components> EXIT 0 (3 problems = 0 errors + 3 warnings; the 3 warnings are PRE-EXISTING React-Compiler advisories -- Date.now-purity AnalysisProgress:77, set-state-in-effect CommandPalette:80, TanStack incompatible-library DataTable:57 -- all OUTSIDE the changed className lines, NONE are Rules-of-Hooks/hook-order violations; warnings don't fail the errors-only gate); grep zinc- in the 4 target files = 0/0/0/0 (P4 complete); grep zinc- in src/ shows only performance/page(1), reports/page(1), states/LoadingState(3), states/StaleDataState(1) remaining = the documented P9/states pre-existing strays, Main did NOT introduce them and did NOT claim more than the 4 P4 files (honest); P2 rule confirmed UNLAYERED in globals.css (lines 28-42, OUTSIDE @layer base which closes at line 26); P3 confirmed package.json:14 --tags includes wcag22a,wcag22aa; P6 confirmed globals.css:23-25 scroll-padding-top:5rem; emoji/dingbat scan on all 5 changed files EXIT 1 (zero raw emoji -- non-ASCII are arrow keyboard-hints, em-dashes in comments, HTML entities, and a pre-existing status-dot not in the diff). build re-run SKIPPED to protect the live dev server's .next (server serves HTTP 200 on /login); axe re-run accepted per Main's verbatim output. CODE-CORRECTNESS (the subtle P2 baseline, verified from the COMPILED bundle not the prose): fetched /_next/static/css/app/layout.css (99453 bytes) from the running server; the ONLY @layer string in the whole bundle is inside the P2 comment text -- Tailwind v3 emits FLAT unlayered CSS, so the cascade is SPECIFICITY-decided. Compiled .focus-visible\\:outline-none:focus-visible{outline:2px solid transparent} = specificity 0-2-0; compiled P2 :where(...):focus-visible{outline:2px solid #38bdf8} = 0-1-0. On a ringed control (tokens.focusRing carries focus-visible:outline-none) the 0-2-0 transparent-outline WINS over P2's 0-1-0 -> P2 outline SUPPRESSED, the separate box-shadow ring renders alone -> NO double-indicator; on a BARE control P2's 0-1-0 is the only outline rule -> visible sky outline. Exactly matches experiment_results' empirical Playwright claim (Analyze no-ring toggle gets outlineColor rgb(56,189,248); ringed controls keep their ring). SOUND -- the :where() specificity-0 wrapper is the correct deliberate mechanism, cannot double-ring or regress an existing ring. ONE NOTE (non-blocking): the P2 code comment explains the win via cascade-LAYERS but Tailwind v3 flat-emits so the real mechanism is specificity (0-2-0>0-1-0); rendered behavior identical, comment-precision only. DO-NO-HARM: diffed all 4 components -- EVERY changed line is a className/clsx token swap (zinc->navy bg/border, zinc->slate text), ZERO markup/state/hook/handler change, all onClick/onValueChange/onSelect/onRowClick + aria-label/aria-hidden/aria-sort/scope/role + empty-state preserved; P4 also REMOVES light-mode bg-white/text-zinc-700 fallbacks (an improvement per frontend.md rule 2, not harm); P2/P6 additive CSS no !important :focus-visible-only; P3 test-config string no dep add/remove; git diff --stat = only package.json + globals.css + 4 components + tsbuildinfo + handoff/audit/agent-memory -- ZERO edits to paper_trader/kill_switch/risk_engine/perf_metrics/backtest_engine/backend/.env, +20% money engine byte-identical; $0 (no LLM/BQ/live cycle/flag flip). ANTI-WATERMELON: did NOT claim full UX-DoD closed (0/12 + bounded P2+P3+P4+P6); P1/P5/P7/P8/P9 + OP1/OP2 documented as follow-ups mapped to pending phase-44.x not silently skipped; a11y honestly scoped (axe-on-/login = pre-auth only, authed Lighthouse/keyboard operator-only, automation ~20-50% of WCAG); transient :8000/portfolio 404 + useLiveNav TypeError correctly attributed as restart-artifact/pre-existing NOT a 53.2 regression (a CSS/className/test-config change has no path to a data-fetch TypeError -- correct on first principles). Code-review heuristics: frontend diff so ESLint+tsc leg REQUIRED and RUN (both pass, no Rules-of-Hooks violation); no security/trading-domain/financial-logic surface touched; not sycophancy/verdict-shopping (first spawn, fresh evidence, cites file:line + verbatim output + compiled-bundle line numbers throughout); worst severity NOTE. The bounded, honest, sound adoption pass satisfies all 4 criteria -- PASS.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit_5of5", "research_brief_53_1_gate_envelope_7_sources", "contract_criteria_verbatim_diff_vs_masterplan", "apriori_rule_dual_legs_preregistered_in_contract", "experiment_results_completeness", "live_check_53_1_present_verbatim", "log_last_no_53_1_entry", "masterplan_status_pending_retry0", "first_qa_spawn", "third_conditional_rule_check", "pytest_8_passed", "ast_parse_3_files", "settings_default_off_grep", "off_byte_identity_code_inspection", "DECISIVE_seeded_srdiff_rerun_on_dumped_arrays", "turnover_means_recomputed_0555_to_0489", "verdict_promote_fields_in_dump_consistent", "sharpe_diff_test_reused_verbatim_zero_reimpl", "no_live_wiring_grep_services_agents_markets", "git_diff_stat_no_money_path_regression", "tests_exercise_real_behavior_anti_tautology", "code_review_heuristics"]
+  "checks_run": ["harness_compliance_audit_5of5", "research_brief_53_2_gate_envelope_7_sources", "contract_criteria_verbatim_diff_vs_masterplan", "experiment_results_completeness", "live_check_53_2_present_verbatim", "log_last_no_53_2_entry", "masterplan_status_pending_retry0", "first_qa_spawn_evaluator_critique_held_stale_531", "third_conditional_rule_check_zero_prior", "tsc_noEmit_exit0", "eslint_4_components_exit0_3_preexisting_warnings_no_hook_order", "grep_zinc_zero_in_4_target_files", "grep_zinc_remaining_are_documented_p9_strays", "p2_unlayered_confirmed_globals_css", "p3_wcag22aa_tags_confirmed", "p6_scroll_padding_confirmed", "emoji_dingbat_scan_exit1_clean", "P2_cascade_resolved_from_COMPILED_bundle_0_2_0_beats_0_1_0", "diff_4_components_classname_only_states_aria_preserved", "git_diff_stat_no_money_path_or_data_edit", "anti_watermelon_scope_honesty_0of12_bounded", "transient_404_typeerror_correctly_attributed", "code_review_heuristics"]
 }
 ```

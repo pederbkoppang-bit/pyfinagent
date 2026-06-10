@@ -17,6 +17,31 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
+
+  /* phase-53.2 (P6): keep a focused element clear of any sticky header when
+     reached via in-page anchor / keyboard (WCAG 2.2 SC 2.4.11 Focus Not Obscured). */
+  html {
+    scroll-padding-top: 5rem;
+  }
+}
+
+/* phase-53.2 (P2): app-wide WCAG 2.2 AA visible-focus FALLBACK (SC 2.4.7).
+   Tailwind v3 emits FLAT CSS (the `@layer` directives are compiled away), so the
+   cascade here is decided by SPECIFICITY, not layers. `:where()` contributes 0, so
+   this rule is specificity 0-1-0 (just `:focus-visible`). A control that uses
+   `tokens.focusRing` carries `focus-visible:outline-none` -> compiled
+   `.focus-visible\:outline-none:focus-visible` is 0-2-0, which BEATS this rule on the
+   `outline` property -> this outline is suppressed and the control's separate
+   box-shadow ring renders alone (NO double-indicator). A BARE control (no ring,
+   no outline-none) has nothing to beat 0-1-0 -> it gains this visible sky outline.
+   So it is a true low-specificity fallback: it can never override or double an
+   existing ring, only fill the gap. No !important; :focus-visible only (mouse
+   focus unaffected). Verified live: bare /agents toggle -> sky outline; ringed
+   buttons keep their ring. */
+:where(a, button, [role="button"], [role="tab"], [role="radio"], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid #38bdf8; /* sky-400 -- matches tokens.focusRing */
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* ── Skeleton shimmer ── */

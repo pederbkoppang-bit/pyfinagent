@@ -85,7 +85,7 @@ export function DataTable<TData>({
           aria-label={ariaLabel}
           className="min-w-full text-sm border-collapse"
         >
-          <thead className="border-b border-zinc-200 dark:border-navy-700">
+          <thead className="border-b border-navy-700 dark:border-navy-700">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => {
@@ -106,14 +106,14 @@ export function DataTable<TData>({
                         sort === "asc" ? "ascending" : sort === "desc" ? "descending" : "none"
                       }
                       scope="col"
-                      className={`px-3 py-2 text-xs font-medium uppercase tracking-wider text-zinc-700 dark:text-slate-200 ${alignClass} ${meta?.className ?? ""} ${
-                        canSort ? "cursor-pointer select-none hover:text-zinc-900 dark:hover:text-slate-50" : ""
+                      className={`px-3 py-2 text-xs font-medium uppercase tracking-wider text-slate-300 dark:text-slate-200 ${alignClass} ${meta?.className ?? ""} ${
+                        canSort ? "cursor-pointer select-none hover:text-slate-100 dark:hover:text-slate-50" : ""
                       }`}
                     >
                       <span className="inline-flex items-center gap-1">
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {canSort && (
-                          <span aria-hidden="true" className="text-zinc-400">
+                          <span aria-hidden="true" className="text-slate-400">
                             {sort === "asc" ? (
                               <CaretUp weight="bold" size={12} />
                             ) : sort === "desc" ? (
@@ -136,7 +136,7 @@ export function DataTable<TData>({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-8 text-center text-zinc-500">
+                <td colSpan={columns.length} className="px-3 py-8 text-center text-slate-500">
                   {emptyState ?? "No rows."}
                 </td>
               </tr>
@@ -145,7 +145,7 @@ export function DataTable<TData>({
                 <tr
                   key={row.id}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                  className={`border-b border-zinc-100 dark:border-navy-700/60 ${
+                  className={`border-b border-navy-700/50 dark:border-navy-700/60 ${
                     onRowClick ? "cursor-pointer hover:bg-navy-700/40 dark:hover:bg-navy-700/40" : ""
                   }`}
                 >
@@ -160,7 +160,7 @@ export function DataTable<TData>({
                     return (
                       <td
                         key={cell.id}
-                        className={`px-3 py-2 text-zinc-800 dark:text-slate-200 ${alignClass} ${meta?.className ?? ""}`}
+                        className={`px-3 py-2 text-slate-200 dark:text-slate-200 ${alignClass} ${meta?.className ?? ""}`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>

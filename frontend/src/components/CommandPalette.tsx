@@ -108,34 +108,34 @@ export function CommandPalette() {
       <div
         className={clsx(
           "w-full max-w-xl",
-          "bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl",
+          "bg-navy-900 border border-navy-700 rounded-2xl shadow-2xl",
           "overflow-hidden",
         )}
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800">
-          <MagnifyingGlass size={16} weight="bold" className="text-zinc-400" aria-hidden="true" />
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-navy-700">
+          <MagnifyingGlass size={16} weight="bold" className="text-slate-400" aria-hidden="true" />
           <Command.Input
             placeholder="Type a command, route, or ticker..."
             className={clsx(
-              "flex-1 bg-transparent text-sm text-zinc-100 placeholder:text-zinc-500",
+              "flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-500",
               "outline-none border-0",
             )}
             value={tickerQuery}
             onValueChange={setTickerQuery}
           />
-          <kbd className="hidden sm:inline-flex text-[10px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5">
+          <kbd className="hidden sm:inline-flex text-[10px] font-mono text-slate-500 bg-navy-800 border border-navy-700 rounded px-1.5 py-0.5">
             ESC
           </kbd>
         </div>
         <Command.List className="max-h-[60vh] overflow-y-auto scrollbar-thin py-2">
-          <Command.Empty className="px-4 py-6 text-sm text-zinc-500 text-center">
+          <Command.Empty className="px-4 py-6 text-sm text-slate-500 text-center">
             No commands match. Press Enter on a ticker (e.g. NVDA) to analyze.
           </Command.Empty>
           {GROUPS.map((group) => {
             const items = ROUTES.filter((r) => r.group === group);
             if (items.length === 0) return null;
             return (
-              <Command.Group key={group} heading={group} className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider px-3 pt-3 pb-1">
+              <Command.Group key={group} heading={group} className="text-[10px] font-medium text-slate-500 uppercase tracking-wider px-3 pt-3 pb-1">
                 {items.map((entry) => {
                   const IconCmp = entry.icon;
                   return (
@@ -145,14 +145,14 @@ export function CommandPalette() {
                       onSelect={() => handleSelect(entry.href)}
                       className={clsx(
                         "flex items-center gap-2 px-3 py-2 mx-1 rounded-lg",
-                        "text-sm text-zinc-200 cursor-pointer",
+                        "text-sm text-slate-200 cursor-pointer",
                         "data-[selected=true]:bg-sky-950/50 data-[selected=true]:text-sky-100",
                         "min-h-[24px]",
                       )}
                     >
                       <IconCmp size={14} weight="bold" aria-hidden="true" />
                       <span className="flex-1">{entry.label}</span>
-                      <span className="text-[10px] font-mono text-zinc-500">{entry.href}</span>
+                      <span className="text-[10px] font-mono text-slate-500">{entry.href}</span>
                     </Command.Item>
                   );
                 })}
@@ -160,25 +160,25 @@ export function CommandPalette() {
             );
           })}
           {/[A-Za-z]/.test(tickerQuery) && tickerQuery.length <= 5 ? (
-            <Command.Group heading="Analyze" className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider px-3 pt-3 pb-1">
+            <Command.Group heading="Analyze" className="text-[10px] font-medium text-slate-500 uppercase tracking-wider px-3 pt-3 pb-1">
               <Command.Item
                 value={`analyze-${tickerQuery}`}
                 onSelect={() => handleAnalyzeTicker(tickerQuery)}
                 className={clsx(
                   "flex items-center gap-2 px-3 py-2 mx-1 rounded-lg",
-                  "text-sm text-zinc-200 cursor-pointer",
+                  "text-sm text-slate-200 cursor-pointer",
                   "data-[selected=true]:bg-sky-950/50 data-[selected=true]:text-sky-100",
                   "min-h-[24px]",
                 )}
               >
                 <NavSignals size={14} weight="bold" aria-hidden="true" />
                 <span>Analyze ticker {tickerQuery.toUpperCase()}</span>
-                <span className="ml-auto text-[10px] font-mono text-zinc-500">/signals</span>
+                <span className="ml-auto text-[10px] font-mono text-slate-500">/signals</span>
               </Command.Item>
             </Command.Group>
           ) : null}
         </Command.List>
-        <div className="px-4 py-2 text-[10px] text-zinc-500 border-t border-zinc-800 flex items-center justify-between">
+        <div className="px-4 py-2 text-[10px] text-slate-500 border-t border-navy-700 flex items-center justify-between">
           <span>Cmd-K opens this palette from anywhere</span>
           <span>
             <kbd className="font-mono">↑↓</kbd> navigate · <kbd className="font-mono">↵</kbd> select · <kbd className="font-mono">ESC</kbd> close

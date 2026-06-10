@@ -13935,7 +13935,7 @@
         {
           "id": "53.2",
           "name": "UX elevation -- one consistent layout / design / animation across ALL pages (extends the phase-47.5 design-tokens.ts + ui/ primitives) + accessibility (WCAG AA: keyboard nav, focus states, contrast). Research-gated against financial-dashboard UX best practice. Build + types + accessibility autonomous; visual render = operator live_check (NextAuth wall).",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "53.1",
