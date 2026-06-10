@@ -232,6 +232,54 @@ def claude_code_invoke(
     return envelope
 
 
+def claude_code_health_probe(binary: str = "claude", timeout_s: int = 15) -> tuple[bool, str]:
+    """phase-56.2 (55.3 finding F-4): free, token-less health probe of the
+    claude-CLI OAuth rail.
+
+    Runs `claude auth status` in the SAME scrubbed env the real rail uses
+    (no ANTHROPIC_API_KEY -- probing the OAuth/keychain path, not the direct
+    API). Consumes no tokens. Returns (ok, detail). NEVER raises -- callers
+    alert on ok=False; a probe bug must not break a trading cycle.
+
+    Rationale: the 2026-06-01..06-09 away week ran with this rail silently
+    down (expired OAuth session in unattended mode); no health check
+    distinguished "rail down" from "no work" (55.2 F-A1; OneUptime 2026
+    heartbeat pattern: probe the path you actually use).
+    """
+    try:
+        resolved_binary = _resolve_claude_binary(binary)
+        scrubbed_env = {
+            k: v for k, v in os.environ.items()
+            if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+        }
+        completed = subprocess.run(
+            [resolved_binary, "auth", "status"],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=False,
+            env=scrubbed_env,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"auth-status probe timeout after {timeout_s}s"
+    except FileNotFoundError:
+        return False, f"claude CLI not found at '{binary}'"
+    except Exception as exc:  # defensive: the probe must never raise
+        return False, f"probe error: {exc}"
+
+    if completed.returncode != 0:
+        return False, (
+            f"auth status exit={completed.returncode}: "
+            f"{(completed.stderr or completed.stdout or '')[:200]}"
+        )
+    out = (completed.stdout or "")
+    # Belt-and-braces: when the CLI emits the JSON-ish status, require the
+    # loggedIn flag; exit-0 alone is the primary signal.
+    if '"loggedIn"' in out and '"loggedIn": true' not in out and '"loggedIn":true' not in out:
+        return False, "auth status reports loggedIn != true"
+    return True, "ok"
+
+
 def extract_result_text(envelope: dict[str, Any]) -> str:
     """Pull the assistant-text result from a successful envelope.
 

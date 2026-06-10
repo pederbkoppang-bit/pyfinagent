@@ -170,15 +170,6 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
             model_name = agent_model_map.get(agent_id, "claude-opus-4-8")
 
-            # Create Anthropic client
-            # Check for API key from environment or settings
-            import os
-            api_key = settings.anthropic_api_key.get_secret_value() or os.getenv('ANTHROPIC_API_KEY')
-            if not api_key:
-                raise ValueError("ANTHROPIC_API_KEY not found in settings or environment. Please configure ANTHROPIC_API_KEY.")
-
-            client = anthropic.Anthropic(api_key=api_key)
-
             # Build system prompt based on agent type
             system_prompts = {
                 "main": "You are Ford, the primary agent for operational tasks. "
@@ -191,7 +182,44 @@ Please provide a helpful response. This will be sent back to the user via {ticke
 
             system = system_prompts.get(agent_id, "You are a helpful assistant.")
 
-            # 🔧 CRITICAL: Add 60-second timeout to prevent watchdog kills
+            # phase-56.2 (55.2 F-A1 / 55.3 finding F-4 family, criterion 2): honor
+            # the Max-subscription CLI rail. This path previously ALWAYS used the
+            # direct Anthropic SDK regardless of paper_use_claude_code_route --
+            # the operator's away-week "Approve" hit the keyless/exhausted direct
+            # rail and errored ("Missing API key for provider anthropic" family)
+            # while the rest of the system ran on the CLI rail. Mirror the
+            # _run_claude_analysis rail switch; fall through to the direct SDK
+            # only when the route flag is off.
+            if getattr(settings, "paper_use_claude_code_route", False):
+                from backend.agents.claude_code_client import (
+                    claude_code_invoke,
+                    extract_result_text,
+                )
+                start = time.time()
+                logger.info(f"HEARTBEAT: Ticket #{ticket_number} calling {agent_id} via claude-code rail...")
+                envelope = claude_code_invoke(
+                    task,
+                    system=system,
+                    timeout_s=60,
+                )
+                response_text = extract_result_text(envelope).strip() or "No response"
+                elapsed = time.time() - start
+                logger.info(
+                    "[OK] Agent %s completed for ticket #%s via claude-code rail (%.1fs): %s...",
+                    agent_id, ticket_number, elapsed, response_text[:80],
+                )
+                return response_text
+
+            # Create Anthropic client (direct-SDK rail)
+            # Check for API key from environment or settings
+            import os
+            api_key = settings.anthropic_api_key.get_secret_value() or os.getenv('ANTHROPIC_API_KEY')
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY not found in settings or environment. Please configure ANTHROPIC_API_KEY.")
+
+            client = anthropic.Anthropic(api_key=api_key)
+
+            # CRITICAL: Add 60-second timeout to prevent watchdog kills
             def call_anthropic():
                 """Synchronous Anthropic call with heartbeat logging."""
                 start = time.time()

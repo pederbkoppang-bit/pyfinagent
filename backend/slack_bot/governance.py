@@ -149,32 +149,25 @@ class HumanInTheLoopManager:
         - Post to channel (not thread)
         """
         
+        # phase-56.2 (55.3 finding F-14): removed the Approve/Deny `actions`
+        # block. The `approval_approve`/`approval_deny` action_ids had NO
+        # registered @app.action handler anywhere (a dead control -- clicking
+        # silently no-opped), and send_approval_gate itself has zero callers.
+        # A future feature wiring buttons to a privileged action MUST register
+        # handlers that `await ack()` first (Bolt 3s rule) and re-check auth;
+        # until then the gate is informational text + an explicit typed-reply
+        # instruction (fail-safe default: no action without a recorded reply).
         blocks = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"⚠️ *Approval Required*\n\nAction: {action}\n{description}"
+                    "text": (
+                        f"*Approval Required*\n\nAction: {action}\n{description}\n\n"
+                        "_Reply in this thread with APPROVE or DENY (buttons removed; "
+                        "no automated action fires without a recorded reply)._"
+                    )
                 }
-            },
-            {
-                "type": "actions",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": "Approve"},
-                        "value": "approve",
-                        "style": "primary",
-                        "action_id": "approval_approve"
-                    },
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": "Deny"},
-                        "value": "deny",
-                        "style": "danger",
-                        "action_id": "approval_deny"
-                    }
-                ]
             }
         ]
         

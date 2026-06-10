@@ -25,6 +25,7 @@ P1 follow-up. Mirrors phase-23.2.11 honest-disclosure pattern (5 PASS
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone, timedelta
 import pytest
 
@@ -134,6 +135,14 @@ def test_phase_23_2_12_layer1_pipeline_at_least_one_lite_proxy_in_last_7d():
     )
 
 
+@pytest.mark.requires_live
+@pytest.mark.skipif(
+    os.getenv("PYFINAGENT_LIVE_TESTS") != "1",
+    reason="live BQ probe: requires analysis_results rows with total_cost_usd>0.05 "
+    "(full-path cycles) in the last 7 days; the away-week ran lite-only so this "
+    "asserts live-system STATE, not code (phase-56.2 quarantine; "
+    "set PYFINAGENT_LIVE_TESTS=1 to run against prod)",
+)
 def test_phase_23_2_12_layer1_pipeline_at_least_one_full_proxy_in_last_7d():
     """Cost-proxy: full path uses total_cost_usd > 0.05. At least 1 such
     row in last 7 days = full-path firing too."""

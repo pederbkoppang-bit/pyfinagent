@@ -206,6 +206,33 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     _current_cycle_id = _cycle_id
     summary["session_budget_usd"] = _SESSION_BUDGET_USD
 
+    # phase-56.2 (55.3 finding F-4): claude-CLI rail health probe at cycle
+    # start. The 2026-06 away week ran with the OAuth rail silently down --
+    # no check distinguished "rail down" from "no work". Free (no tokens),
+    # non-blocking, own try/except: a probe bug must never break a cycle.
+    if getattr(settings, "paper_use_claude_code_route", False):
+        try:
+            from backend.agents.claude_code_client import claude_code_health_probe
+            _rail_ok, _rail_detail = await asyncio.to_thread(claude_code_health_probe)
+            summary["claude_rail_healthy"] = _rail_ok
+            if not _rail_ok:
+                logger.warning("claude-code rail health probe FAILED: %s", _rail_detail)
+                from backend.services.alerting import raise_cron_alert
+                await raise_cron_alert(
+                    source="claude_code_rail",
+                    error_type="rail_down",
+                    severity="P1",
+                    title="Claude Code CLI rail unhealthy at cycle start",
+                    details={
+                        "cycle_id": _cycle_id,
+                        "probe_detail": _rail_detail,
+                        "consequence": "lite analyzer + conviction overlay will run degraded fallbacks",
+                        "operator_action": "run `claude auth status` / re-login on the host; do NOT un-scrub ANTHROPIC_API_KEY",
+                    },
+                )
+        except Exception as _probe_exc:
+            logger.warning("claude rail probe errored (non-fatal): %s", _probe_exc)
+
     # phase-25.B3: prefer the latest BQ-promoted strategy params; falls back
     # to optimizer_best.json if BQ has nothing active or is unavailable.
     best_params = load_promoted_params(bq)
@@ -706,6 +733,33 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         len(candidates),
                         candidates[0].get("conviction_score") if candidates else None,
                     )
+                    # phase-56.2 (55.3 finding F-7): the away week ran every BUY on
+                    # the no-LLM fallback ("conviction 10.00; fallback (LLM
+                    # unavailable)") -- the momentum-damping overlay was silently
+                    # removed. Make that LOUD. Deliberately observability-only:
+                    # the fallback VALUE (composite-derived) stays byte-identical
+                    # because conviction_score drives top-K selection and changing
+                    # it is a live-behavior change (deferred to the gated phase-57
+                    # redesign per the Confidence-Gate abstention analysis).
+                    if _all_conviction_fallback(candidates):
+                        summary["meta_scorer_degraded"] = True
+                        logger.warning(
+                            "Meta-scorer ran ENTIRELY on the no-LLM fallback for %d candidates "
+                            "(conviction overlay degraded; damping leg inactive)",
+                            len(candidates),
+                        )
+                        from backend.services.alerting import raise_cron_alert
+                        await raise_cron_alert(
+                            source="meta_scorer",
+                            error_type="conviction_overlay_degraded",
+                            severity="P1",
+                            title="Conviction overlay (SignalStack) running on no-LLM fallback",
+                            details={
+                                "cycle_id": _cycle_id,
+                                "candidates": len(candidates),
+                                "consequence": "momentum damping inactive; rankings are raw composite scores",
+                            },
+                        )
                 except Exception as e:
                     logger.warning("Meta-scorer failed (non-fatal): %s", e)
             summary["screened"] = len(screen_data)
@@ -825,6 +879,38 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 return_exceptions=True,
             )
             holding_analyses = [r for r in holding_results if isinstance(r, dict)]
+
+            # phase-56.2 (55.3 finding F-5): cycle-level degraded-scoring guard.
+            # The 2026-05-27 incident wrote 11 rows of 0.0/HOLD (the rail-down
+            # fallback) and the digest published them as confident neutrals --
+            # a silent failure. Assert the cycle output BEFORE the consumption
+            # layer (Write-Audit-Publish): if ALL analyses are degraded, or
+            # >= 3 scored 0, alert P1 and stamp the cycle degraded.
+            try:
+                _fire, _n_degraded, _n_total = _degraded_scoring_check(
+                    candidate_analyses + holding_analyses
+                )
+                if _fire:
+                    summary["degraded"] = True
+                    summary["degraded_analyses"] = f"{_n_degraded}/{_n_total}"
+                    logger.warning(
+                        "Degraded-scoring guard fired: %d/%d analyses scored 0/degraded",
+                        _n_degraded, _n_total,
+                    )
+                    from backend.services.alerting import raise_cron_alert
+                    await raise_cron_alert(
+                        source="autonomous_loop",
+                        error_type="degraded_scoring",
+                        severity="P1",
+                        title=f"Cycle scoring degraded -- {_n_degraded}/{_n_total} analyses scored 0",
+                        details={
+                            "cycle_id": _cycle_id,
+                            "degraded": f"{_n_degraded}/{_n_total}",
+                            "consequence": "scores are failure artifacts, not real neutrals; digest readers must not trust this cycle's recs",
+                        },
+                    )
+            except Exception as _guard_exc:
+                logger.warning("Degraded-scoring guard errored (non-fatal): %s", _guard_exc)
 
             # phase-23.1.12: no longer mutate settings.lite_mode here — operator's
             # value is preserved across the cycle.
@@ -1481,6 +1567,72 @@ def _select_lite_analyzer(model_name):
     return _run_claude_analysis
 
 
+def _degraded_scoring_check(analyses: list[dict]) -> tuple[bool, int, int]:
+    """phase-56.2 (F-5) pure predicate: (fire, n_degraded, n_total).
+
+    An analysis is degraded when final_score/score == 0, or when
+    confidence == 0 with an UPPERCASE recommendation (the rail-down
+    fallback's tell, 55.2 F-D). Fire when ALL are degraded or >= 3 are.
+    """
+    n_total = len(analyses)
+    n_degraded = 0
+    for a in analyses:
+        try:
+            score_zero = float(a.get("final_score") or a.get("score") or 0) == 0.0
+            rec = str(a.get("recommendation") or a.get("action") or "")
+            # NB: `or`-defaulting would turn a REAL confidence of 0 into the
+            # default (the falsy-zero trap) -- check None explicitly.
+            _conf_raw = a.get("confidence")
+            conf_zero_upper = (
+                _conf_raw is not None
+                and float(_conf_raw) == 0.0
+                and rec.isupper()
+                and bool(rec)
+            )
+            if score_zero or conf_zero_upper:
+                n_degraded += 1
+        except (TypeError, ValueError):
+            n_degraded += 1
+    fire = n_total > 0 and (n_degraded == n_total or n_degraded >= 3)
+    return fire, n_degraded, n_total
+
+
+def _all_conviction_fallback(candidates: list[dict]) -> bool:
+    """phase-56.2 (F-7) pure predicate: True when EVERY candidate's
+    conviction came from the no-LLM fallback (the damping overlay is dead)."""
+    return bool(candidates) and all(
+        "fallback (LLM unavailable)" in str(c.get("conviction_reason") or "")
+        for c in candidates
+    )
+
+
+def _log_claude_code_call(
+    envelope: dict | None, *, agent: str, ticker: str, ok: bool,
+) -> None:
+    """phase-56.2 (55.3 finding F-6): meter the claude-CLI rail into
+    llm_call_log. The away week wrote ZERO rows for 6/7 cycles because this
+    rail never called log_llm_call (only the SDK clients did) -- the burn/
+    skill audit was blind. Fail-open: a metering bug must never break the
+    analyzer. cycle_id/session_cost auto-populate from module state."""
+    try:
+        from backend.services.observability.api_call_log import log_llm_call
+        usage = (envelope or {}).get("usage") or {}
+        log_llm_call(
+            provider="claude-code",
+            model=str((envelope or {}).get("model") or "claude-code-cli"),
+            agent=agent,
+            latency_ms=float((envelope or {}).get("duration_ms") or 0.0),
+            input_tok=int(usage.get("input_tokens") or 0),
+            output_tok=int(usage.get("output_tokens") or 0),
+            cache_creation_tok=int(usage.get("cache_creation_input_tokens") or 0),
+            cache_read_tok=int(usage.get("cache_read_input_tokens") or 0),
+            ok=ok,
+            ticker=ticker,
+        )
+    except Exception as exc:
+        logger.debug("claude-code llm_call_log metering failed (non-fatal): %s", exc)
+
+
 async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
     """Lightweight Claude-based analysis for paper trading decisions."""
     import anthropic
@@ -1584,12 +1736,16 @@ Respond in this exact JSON format:
                 timeout_s=120,
             )
             text = extract_result_text(envelope).strip()
+            # phase-56.2 (55.3 finding F-6): the away week wrote ZERO llm_call_log
+            # rows for 6/7 cycles because this rail never metered. Fail-open.
+            _log_claude_code_call(envelope, agent="lite_trader", ticker=ticker, ok=True)
         except ClaudeCodeError as exc:
             logger.warning(
                 "claude_code rail failed for %s: %s -- returning empty text",
                 ticker, exc,
             )
             text = ""
+            _log_claude_code_call(None, agent="lite_trader", ticker=ticker, ok=False)
     else:
         response = await asyncio.to_thread(
             client.messages.create,
@@ -1641,12 +1797,15 @@ Respond in this exact JSON format:
                     timeout_s=120,
                 )
                 risk_text = extract_result_text(risk_envelope).strip()
+                # phase-56.2 (F-6): meter the risk-judge leg of the CLI rail.
+                _log_claude_code_call(risk_envelope, agent="lite_risk_judge", ticker=ticker, ok=True)
             except ClaudeCodeError as exc:
                 logger.warning(
                     "claude_code risk-judge rail failed for %s: %s",
                     ticker, exc,
                 )
                 risk_text = ""
+                _log_claude_code_call(None, agent="lite_risk_judge", ticker=ticker, ok=False)
         else:
             risk_response = await asyncio.to_thread(
                 client.messages.create,
@@ -1795,7 +1954,10 @@ Respond ONLY with valid JSON, no prose. Schema:
     trader_response = await asyncio.to_thread(
         client.generate_content,
         trader_prompt,
-        {"max_output_tokens": 200, "temperature": 0.0, "response_mime_type": "application/json"},
+        # phase-56.2 (F-6): _role/_ticker make GeminiClient's existing
+        # log_llm_call instrumentation stamp agent+ticker (was NULL/NULL).
+        {"max_output_tokens": 200, "temperature": 0.0, "response_mime_type": "application/json",
+         "_role": "lite_trader", "_ticker": ticker},
     )
     text = safe_text(trader_response.text).strip()
     json_match = _re.search(r"\{[^}]+\}", text, _re.DOTALL)
@@ -1832,7 +1994,9 @@ Respond ONLY with valid JSON, no prose. Schema:
         risk_response = await asyncio.to_thread(
             client.generate_content,
             risk_prompt,
-            {"max_output_tokens": 300, "temperature": 0.0, "response_mime_type": "application/json"},
+            # phase-56.2 (F-6): tag the risk-judge leg for llm_call_log.
+            {"max_output_tokens": 300, "temperature": 0.0, "response_mime_type": "application/json",
+             "_role": "lite_risk_judge", "_ticker": ticker},
         )
         risk_text = safe_text(risk_response.text).strip()
         risk_json_match = _re.search(r"\{.*\}", risk_text, _re.DOTALL)

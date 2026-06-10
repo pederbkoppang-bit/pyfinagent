@@ -482,7 +482,12 @@ async def _watchdog_health_check(app: AsyncApp):
     detail = ""
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        # phase-56.2 (55.2 F-C bounded fix): 10s -> 30s. The nightly
+        # "unreachable/ReadTimeout" alerts were the 18:00Z trading cycle
+        # transiently starving the backend's event loop (it was never down;
+        # every FAIL was 1/3). 30s mirrors the digest probes' timeout so a
+        # busy-but-alive backend does not read as an outage.
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(_HEALTH_PROBE_URL)
             if resp.status_code == 200 and resp.json().get("status") == "ok":
                 is_healthy = True

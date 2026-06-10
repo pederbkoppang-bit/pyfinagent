@@ -1,51 +1,52 @@
-# Contract — Step 56.1
+# Contract — Step 56.2
 
-**Step id:** 56.1 — FX/value/fee data-correctness fix
+**Step id:** 56.2 — Ops fixes
 **Date:** 2026-06-10
-**Phase:** phase-56 (fixes; every change cites a 55.x finding ID; do-no-harm on the US momentum core)
-**Researcher gate:** PASSED — `handoff/current/research_brief.md` (tier=moderate, 6 external sources read in full, 13 URLs, recency scan; 11 internal files audited; envelope `gate_passed: true`)
+**Phase:** phase-56 (fix work, finding-ID-driven; do-no-harm)
+**Researcher gate:** PASSED — `handoff/current/research_brief.md` (tier=complex, 7 external sources read in full, 16 URLs, recency scan; 16 internal files; envelope `gate_passed: true`)
 
 ## Research-gate summary
 
-Backend (F-2): the fix is 3 lines — BUY `paper_trader.py:265` `total_value` × `_local_to_usd` (already in scope, defined :208, used :299; the BUY fee at :266 is ALREADY USD); SELL `:413-414` `total_value` + `transaction_cost` × `_l2u` (defined :370) at row-build ONLY — upstream `net_proceeds`/`sell_value` must NOT be touched (cash credit :485 and round-trip P&L :440 are already correct; converting upstream would double-convert). Consumer audit: NO reader expects LOCAL — `perf_metrics.py:406-471` turnover, Slack formatters, frontend trades cells all assume USD (the fix also corrects a ~1500x turnover-inflation bug in perf metrics). Frontend (F-1): the goal-multimarket-ux `mvUsd` pattern (`positions/page.tsx:66-76`) already remediated positions table/donut slices/exposure subtotals; the TWO surviving sites are `useLiveNav.ts:34-39` (the root — cascades to NAV card, donut center, exposure denominator, Home/sovereign tiles) and `RiskMonitorCard` `cockpit-helpers.tsx:301-302`; recommend extracting `mvUsd` to a shared helper. `types.ts:653-654` confirms `market_value` is USD. `trades-columns.tsx:10-12` comment becomes TRUE post-backend-fix (annotate the pre-fix-rows caveat pending backfill). F-12 VS-KOSPI: backend fetches no ^KS11 (grep-confirmed); true per-market excess is phase-57-adjacent → strengthen the honest disclosure. F-2 backfill: operator-gated dry-run-default migration with explicit per-trade_id USD values (derivable from 55.1 §2.1/§4) + GIPS tier-3/4 disclosure. Tests: add KRW fixtures to `backend/tests/test_phase_50_2_multicurrency.py` (matched by `-k fx`); verification command currently exits 0 (24 passed; none of the 16 env-coupled failures land in the selection); fail-pre/pass-post via magnitude guard (KRW 248,000-scale vs USD ~164) + US byte-identity do-no-harm test. External: Fowler Money pattern, MDN Intl.NumberFormat, Stripe currencies, characterization-test pattern (Feathers), CFA/GIPS error correction; recency scan 2025-2026: complementary, none contradict.
+Shared infra: `raise_cron_alert(_sync)` (`alerting.py:119/:185`) is the canonical fail-open dedup-aware Slack notifier — F-4/F-5 reuse it. F-4: free `claude auth status` probe at cycle start (`autonomous_loop.py:~744`, gated by `paper_use_claude_code_route`), P1 alert on failure; probe where the rail is used (synthetic-transaction principle). F-5 root cause: `_run_claude_analysis` parse-fail fallback (`autonomous_loop.py:1601-1607`); guard at the cycle level after the gather (`:820/:827`) — ALL-zero or N≥3-zero scores → P1 alert + `summary["degraded"]=True` (Write-Audit-Publish: assert before the digest consumes). F-7 CODE CORRECTION: `_fallback_all` emits `round(composite)` not 10.00 — the damping is silently REMOVED; conviction drives top-K (`:723`) so changing the fallback VALUE is a live-selection behavior change → 56.2 makes it LOUD (`meta_scorer_degraded` flag + alert, byte-identical ordering), value-redesign deferred to phase-57 (Confidence-Gate 2026: structural uncertainty → abstention, but not via a silent residual). F-6: `log_llm_call` (`api_call_log.py:203`, auto cycle_id, fail-open) called at the two `claude_code_invoke` callers (`:1580/:1636`); Gemini lite path just needs `_role`/`_ticker` in generation_config (`:1798/:1835`). Criterion-2 root cause PINNED: `ticket_queue_processor._invoke_agent` (`:156-180`) uses the direct Anthropic SDK and does NOT honor `paper_use_claude_code_route` — fix = route through the CLI rail when the flag is set; e2e transcript needs the operator (one-line action escalation allowed by the criterion). F-14: `send_approval_gate` has ZERO callers → remove the dead buttons. F-8: decision-affecting prompt change → ESCALATE to phase-57 (already in that spec). Watchdog: raise the probe timeout 10s→30s (`scheduler.py:485`) — smallest bounded change. F-9: operator-proposal text only (55.1 ruled CORRECTLY-DID-NOT-TRIP → no unit-test fix required). Pytest inventory (13 failures): 2 STALE assertions (UPDATE: opus 4-7→4-8; lock count 14→15 incl. `alerting.py:64`), 2 live-BQ probes (`requires_live` skipif via NEW pytest.ini + env var), 7 moved-doc (repoint to `handoff/archive/phase-23.2.16/`), 2 test-pollution (fix shared state via `reset_default_deduper()` autouse first; honest-reason quarantine as fallback) — blanket-skipping would hide real regressions (watermelon risk).
 
 ## Hypothesis
 
-Persisting USD at the trade-row build sites (3 lines) plus routing the two surviving frontend sites through stored-USD `market_value` eliminates every KR display corruption (NAV card sane, fee sane), provable by a KRW fixture test that fails pre-fix, with the US path byte-identical.
+The P0/P1 ops gaps are closable with observability-only changes (probe, guard, logging, dead-code removal) that leave trading behavior byte-identical, plus an honest root-cause-classified test quarantine that turns the full backend suite green without hiding real regressions.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json, step 56.1)
+## Immutable success criteria (verbatim from .claude/masterplan.json, step 56.2)
 
-1. "total_value and SELL transaction_cost are persisted in USD for non-USD markets (the paper_trader.py:265 and :386-414 paths), covered by a unit test with a KRW fixture that FAILS on the pre-fix code and PASSES on the fixed code (regression-proof); all four FX conversion points (trade recording, mark-to-market, cash ledger, fees) are verified consistent post-fix"
+1. "every finding ranked P0/P1 in the 55.3 table is either FIXED with a regression test or explicitly ESCALATED as operator-gated, with the finding-ID map recorded in live_check_56.2.md"
 
-2. "the NAV-discrepancy root cause identified by 55.1 (finding ID cited) is fixed or, if it is data-only (no code defect), the correction path is specified; the live /paper-trading UI shows sane Value/Fee/NAV/Cash for KR rows, evidenced by a Playwright capture in live_check_56.1.md; the trades-columns.tsx:11 comment and the VS-KOSPI handling are corrected per the 55.1 verdict (true index excess via ^KS11, or keeping/strengthening the already-disclosed tooltip limitation)"
+2. "the Slack approval path is exercised end-to-end: typing 'Approve' in the operator channel no longer yields 'Missing API key for provider anthropic' (captured transcript in the live_check), or the residual is escalated with a one-line operator action"
 
-3. "correction/backfill of historical corrupted BQ rows is executed ONLY as an operator-approved migration script under scripts/migrations/ (destructive ops are operator-gated); any executed restatement carries a persistent disclosure note (what changed, when, why) plus a materiality classification, GIPS-style; if the operator declines, the corrupted rows are flagged (not silently kept) and the audit-trail caveat is documented"
+3. "a degraded-scoring guard exists: a cycle whose analyses all score 0.0 (or whose scoring backend is unavailable) is detected and alerted to Slack instead of passing silently, covered by a unit test; the watchdog ReadTimeout fix or a bounded escalation is applied per the 55.2 root cause"
 
-4. "every change in this step cites a 55.x finding ID; fixing anything WITHOUT a finding ID is a FAIL; the finding-ID -> fix mapping is recorded in live_check_56.1.md; the US momentum core paths are untouched (do-no-harm)"
+4. "the kill-switch defect is fixed with a unit test reproducing the 06-05 scenario IFF 55.1 ruled SHOULD-HAVE-TRIPPED; any threshold change is presented as an OPERATOR DECISION, never auto-applied; the 16 env-coupled backend test failures are quarantined (skip-markers + reason strings) and backend pytest is green"
 
-**Verification command (immutable):** `cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'fx or paper_trader or krw' -q && test -f handoff/current/live_check_56.1.md`
+**Verification command (immutable):** `cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -q && test -f handoff/current/live_check_56.2.md`
 
-## Plan (finding-ID-driven; test-first for the regression proof)
+## Plan (per-finding; tests alongside each fix)
 
-1. **Tests FIRST (F-2):** add KRW fixture tests to `backend/tests/test_phase_50_2_multicurrency.py` (BUY total_value USD; SELL total_value+fee USD; US byte-identity). Run → capture the verbatim PRE-FIX FAILURE output.
-2. **Backend fix (F-2):** `paper_trader.py:265` `* _local_to_usd`; `:413-414` `* _l2u`. Row-build only. Re-run tests → PASS output.
-3. **Frontend fixes (F-1):** shared `mvUsd` helper; `useLiveNav.ts` positionsValue via stored-USD market_value scaled where live tick available (US) / stored market_value (non-US); `RiskMonitorCard` concentration via market_value. (F-12) VS-KOSPI: per-market card label changed to honest "<MKT> holdings" + tooltip kept/strengthened. (F-13) stale "$10K" subtitle → neutral text. (F-2-display) `trades-columns.tsx:10-12` comment annotated with the pre-fix-rows caveat pending backfill.
-4. **Migration (F-2 backfill):** `scripts/migrations/backfill_56_1_kr_trade_values.py` — dry-run default, `--execute` flag, per-trade_id explicit USD values, disclosure note + GIPS materiality classification written into the script header + live_check; NOT executed (operator-gated). Until approved, the corrupted rows are FLAGGED via the documented caveat (trades-columns comment + live_check audit-trail section), not silently kept.
-5. **Verify:** full verification command; `cd frontend && npm run build` (or tsc) green; restart skip-auth :3100 → Playwright capture of sane NAV/Cash/Value/Fee for KR rows; four-FX-point consistency statement (trade recording now USD; mark-to-market/cash/fee-debit unchanged-correct per 55.1).
-6. **live_check_56.1.md:** finding-ID → fix map (F-1, F-2, F-12, F-13), pre-fix FAIL + post-fix PASS test output verbatim, Playwright captures, migration dry-run output, do-no-harm evidence (US byte-identity test + untouched momentum-core paths).
-7. experiment_results.md → fresh Q/A → harness_log → flip.
+1. **Test hygiene first** (criterion 4): NEW `pytest.ini` (register `requires_live`); skipif the 2 live-BQ probes with exact-dependency reasons; UPDATE the 2 stale assertions (4-7→4-8; lock count 14→15 + roster note); repoint the 7 shortlist-doc tests to the archive path; fix the 2 pollution tests via state-reset fixtures (fallback: honest-reason quarantine). Full suite must exit 0.
+2. **F-4** (fix + regression test): `claude_code_health_probe()` in claude_code_client.py (free, no tokens); cycle-start call gated by the route flag; `raise_cron_alert` P1 on failure; own try/except (never breaks a cycle). Tests: probe False on non-zero exit; alert fired once with severity=P1; True on exit-0.
+3. **F-5 + F-7** (fix + regression tests): cycle-level degraded-scoring guard after the gather (ALL-degraded or N≥3 zeros → P1 alert + `summary["degraded"]=True`); meta_scorer sets a `fallback_all` indicator consumed as `summary["meta_scorer_degraded"]` (alerted, ordering byte-identical). Tests: all-zero fires; 3/6 fires; 2/6 doesn't; fallback ordering byte-identity (do-no-harm invariant).
+4. **F-6** (fix + test): `log_llm_call(provider="claude-code", ...)` after both `claude_code_invoke` callers (ok=False on ClaudeCodeError); `_role`/`_ticker` added to `_run_gemini_analysis` generation_config. Tests: called with right args (mocked); rail-error logs ok=False.
+5. **Criterion 2** (fix + test + escalation): `_invoke_agent` honors `paper_use_claude_code_route` (routes via `claude_code_invoke`); unit test asserts the CLI rail is used when flagged (and the direct SDK when not). E2E transcript requires the operator → escalate with the one-line action: "type Approve in #ford-approvals once to confirm" (the criterion's OR-branch).
+6. **F-14** (fix): remove the dead `approval_approve/deny` actions block from `governance.py` (zero callers; dead code).
+7. **Watchdog** (bounded): `scheduler.py:485` probe timeout 10s→30s (one line; mirrors digest timeout; per the 55.2 root cause the backend was never down).
+8. **F-9**: operator-proposal text (SOD re-anchor; thresholds UNCHANGED; dry-run-first recommendation) in live_check — NO code (55.1 verdict makes the unit-test fix not-required; any threshold change stays an operator decision).
+9. **F-8**: ESCALATED to phase-57 (decision-affecting prompt change; already in the 55.3 FEATURE spec) — noted in the map.
+10. live_check_56.2.md (finding-ID map incl. FIXED vs ESCALATED, pytest summary line, transcript/escalation, F-9 proposal) + experiment_results.md → ONE fresh Q/A → harness_log → flip.
 
 ## Constraints
 
-- Minimal diffs at the audited sites only; every changed file cites its finding ID in the live_check map.
-- Do NOT touch `net_proceeds`/`sell_value`/cash/round-trip paths (already correct — double-conversion hazard).
-- US momentum core byte-identical (multiply-by-1.0 identity + byte-identity test).
-- Backfill NOT executed; no live flag flips; no LLM trading-cycle spend.
-- Frontend conventions: navy/slate palette untouched (no visual redesign), no emojis, build must pass.
+- Every change cites a finding ID; do-no-harm: NO trading-behavior change (the conviction-fallback VALUE stays byte-identical; only observability added); no un-scrubbing ANTHROPIC_API_KEY; no live flag flips; no LLM trading-cycle spend (probe is token-free); launchctl/pip/BQ-writes stay operator-gated.
+- Quarantine honesty: classify by root cause; no blanket skips; reasons name the exact dependency.
+- ASCII-only logger messages (security.md).
 
 ## References
 
-- handoff/current/research_brief.md (researcher 56.1, gate_passed: true)
-- Findings: handoff/archive/phase-55.3/55.3-synthesis-checkpoint.md §1 (F-1, F-2, F-12, F-13); 55.1 §2.1/§4 (per-row USD re-derivations for the migration); 55.1 live_check B3 (row evidence)
-- Code anchors: paper_trader.py:208,:265,:266,:299,:370,:413-414,:440,:485; useLiveNav.ts:24-51; cockpit-helpers.tsx:196-235,:300-305; positions/page.tsx:66-76; trades-columns.tsx:10-12; types.ts:653-654; layout.tsx:336; backend/tests/test_phase_50_2_multicurrency.py
-- External: Fowler Money pattern; MDN Intl.NumberFormat; Stripe currency docs; Feathers characterization tests; CFA/GIPS error correction
+- handoff/current/research_brief.md (researcher 56.2, gate_passed: true)
+- Findings: handoff/archive/phase-55.3/55.3-synthesis-checkpoint.md §1 (F-4..F-9, F-14, F-18); 55.2 audit §1 (F-A1/F-D/F-E root causes); 55.1 §8 (kill-switch verdict)
+- Code anchors: alerting.py:64,119,185,222; claude_code_client.py:79,110-114,159-162; autonomous_loop.py:698-723,744,820,827,1573-1607,1636,1798,1835; api_call_log.py:203,237-248,276; ticket_queue_processor.py:156-180; governance.py:136-178; scheduler.py:399,435,469-522,485; kill_switch.py:212-217,244-248; paper_trader.py:1034-1035; meta_scorer.py:138-142,240,249-256
+- External: Slack Bolt ack() doc, pytest skipping doc, aipatternbook silent-failure, arXiv:2603.09947 (Confidence Gate, 2026), OneUptime heartbeat 2026, Great Expectations WAP, index.dev silent failures

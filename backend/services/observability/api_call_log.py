@@ -159,10 +159,18 @@ def buffer_size() -> int:
 
 
 def reset_buffer_for_test() -> None:
-    """Test helper: drop buffered rows + reset warn-once latch."""
-    global _WARNED_BQ_ABSENT
+    """Test helper: drop buffered rows + reset warn-once latch.
+
+    phase-56.2 (test-pollution fix): also re-arm the time-based flush window.
+    Without resetting _last_flush_ts, a full-suite run older than _FLUSH_SECONDS
+    makes the FIRST log_api_call after reset trigger an immediate flush that
+    drains the rows a test just injected (order-dependent failure in
+    test_rainbow_canary; passes alone, fails in suite).
+    """
+    global _WARNED_BQ_ABSENT, _last_flush_ts
     with _lock:
         _buffer.clear()
+        _last_flush_ts = datetime.now(timezone.utc)
     _WARNED_BQ_ABSENT = False
 
 

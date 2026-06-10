@@ -23,6 +23,7 @@ ADC credentials present (CI environment).
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 import pytest
 
@@ -81,6 +82,14 @@ def _bq_available() -> bool:
         return False
 
 
+@pytest.mark.requires_live
+@pytest.mark.skipif(
+    os.getenv("PYFINAGENT_LIVE_TESTS") != "1",
+    reason="live BQ freshness probe: asserts MAX(ts) within an SLA window on prod "
+    "tables; time-of-day flaky (paper_* tables update only when the daily cycle "
+    "runs, so the 24h SLA trips just before the next cycle). Asserts live-system "
+    "STATE, not code (phase-56.2 quarantine; set PYFINAGENT_LIVE_TESTS=1 to run)",
+)
 @pytest.mark.parametrize(
     "dataset,table,ts_col,ts_type,sla_h,location",
     PROBES,

@@ -21,14 +21,17 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
-EXPECTED_LOCK_COUNT = 14
+EXPECTED_LOCK_COUNT = 15
 # Researcher 2026-05-23 found 13 REAL threading.Lock() instantiations across
 # backend/. The 14th regex hit is at kill_switch.py:112 INSIDE a triple-quoted
 # docstring that describes the phase-23.1.22 BUG (text reads "re-entered the
 # same threading.Lock() via snapshot()"). Documentation artifact, not a real
-# lock. The regex count of 14 is still the correct guard for drift detection
-# -- any new real lock OR removal of the docstring bumps this count and
-# forces explicit re-audit.
+# lock. phase-56.2 re-audit: the 15th hit is alerting.py:64 (AlertDeduper's
+# `self._lock = threading.Lock()`, added with the cron-alert dedup layer) --
+# a REAL, single-acquire, non-re-entrant lock (acquired once in its record
+# path, never nested; reviewed against the phase-23.2.14 re-entrancy criteria).
+# The regex count remains the correct drift guard -- any new real lock OR
+# removal of the docstring bumps this count and forces explicit re-audit.
 
 
 

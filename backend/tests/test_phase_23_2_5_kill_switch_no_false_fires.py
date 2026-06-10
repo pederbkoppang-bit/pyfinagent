@@ -26,6 +26,7 @@ This test file enforces:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -236,6 +237,14 @@ def test_phase_23_2_5_evaluate_breach_zero_sod_does_not_div_zero():
         ks._state._sod_nav, ks._state._sod_date, ks._state._peak_nav = _orig
 
 
+@pytest.mark.requires_live
+@pytest.mark.skipif(
+    os.getenv("PYFINAGENT_LIVE_TESTS") != "1",
+    reason="live-system state probe: asserts 5-20 historical 'drawdown_breach' rows "
+    "in handoff/kill_switch_audit.jsonl; the live log has been rotated since the "
+    "2026-05-05 incident so the count reflects file state, not code (phase-56.2 "
+    "quarantine; set PYFINAGENT_LIVE_TESTS=1 to assert against the full log)",
+)
 def test_phase_23_2_5_audit_log_historical_false_fires_documented():
     """The 9 historical false-fires from 2026-05-05 ARE in the audit log
     (not retroactively scrubbed); they're the smoking-gun evidence. This

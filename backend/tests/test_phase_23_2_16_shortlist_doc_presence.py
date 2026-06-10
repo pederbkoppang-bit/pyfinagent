@@ -15,7 +15,9 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SHORTLIST_DOC = REPO_ROOT / "handoff" / "current" / "phase-23.2.16-shortlist.md"
+# phase-56.2: the archive-handoff hook moved the shortlist doc out of
+# handoff/current/ when its step closed; the canonical location is the archive.
+SHORTLIST_DOC = REPO_ROOT / "handoff" / "archive" / "phase-23.2.16" / "phase-23.2.16-shortlist.md"
 
 
 def test_phase_23_2_16_shortlist_doc_exists():

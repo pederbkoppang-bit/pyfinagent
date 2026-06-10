@@ -1,113 +1,118 @@
-# Evaluator Critique — Step 56.1 (FX/value/fee data-correctness fix)
+# Evaluator Critique — Step 56.2 "Ops fixes"
 
-**Verdict: PASS**
-**Q/A:** single merged agent (deterministic-first + LLM judgment). **First spawn for 56.1.**
-**Date:** 2026-06-10. **Isolation:** in-place.
+**Q/A agent (merged qa-evaluator + harness-verifier). Single fresh spawn (first for 56.2).**
+**Date:** 2026-06-10. **Verdict: PASS** (`ok: true`).
 
 ---
 
-## 0. Harness-compliance audit (5 items — all PASS)
+## 0. Harness-compliance audit (5/5 PASS — runs first, unchanged)
 
 | # | Item | Result | Evidence |
 |---|------|--------|----------|
-| 1 | Researcher gate | PASS | `handoff/current/research_brief.md` is the 56.1 brief; envelope `{"tier":"moderate","external_sources_read_in_full":6,"snippet_only_sources":7,"urls_collected":13,"recency_scan_performed":true,"internal_files_inspected":11,"gate_passed":true}`. 6 sources read in full (Fowler Money, Wikipedia/Feathers, MDN NumberFormat, MDN format, Stripe currencies, CFA/GIPS) + recency scan present (3 complementary 2025-2026 findings, none contradicting). |
-| 2 | Contract pre-commit | PASS | `contract.md` is for 56.1; its 4 immutable criteria match `.claude/masterplan.json` step 56.1 **verbatim** (programmatic json-extract compare — C1/C2/C3/C4 byte-match; verification command + live_check match). The contract documents the 3-line backend fix and the file:line plan BEFORE the diff. |
-| 3 | Results artifact | PASS | `experiment_results.md` for 56.1 with verbatim verification output (`26 passed, 723 deselected`), the 8-file table, regression-proof, live-UI evidence, and an honest-limitations section disclosing the not-yet-restated rows + not-yet-restarted backend process. |
-| 4 | Log-last | PASS | `handoff/harness_log.md` has NO `## Cycle … phase=56.1` entry (last cycle headers are 44=phase-55.2, 45=phase-55.3; the 3 incidental "56.1" string matches are line-numbers/axe-text in old cycle bodies). Masterplan 56.1 status still `pending`. |
-| 5 | No verdict-shopping | PASS | First Q/A spawn for 56.1; no prior 56.1 critique to overturn. (The overwritten on-disk file was the archived 55.3 verdict, a different step.) |
+| 1 | Researcher gate | PASS | `handoff/current/research_brief.md` is the 56.2 brief: tier=complex, envelope `gate_passed: true`, 7 external sources read in full + 16 URLs + recency scan (Confidence-Gate arXiv:2603.09947 2026, OneUptime heartbeat, Silent-Failure, Slack Bolt ack, pytest skipif, GX WAP, index.dev). 16 internal files inspected. |
+| 2 | Contract pre-commit | PASS | `contract.md` mtime 20:16:30 precedes ALL code edits (earliest `api_call_log.py` 20:23:14). Its 4 criteria match `.claude/masterplan.json` step 56.2 VERBATIM (diffed). |
+| 3 | Results artifact present | PASS | `experiment_results.md` lists 11 files + verbatim verification-command output (`749 passed, 12 skipped, 6 xfailed`). |
+| 4 | Log-last | PASS | No 56.2 Cycle entry in `harness_log.md`; masterplan 56.2 `status="pending"`. |
+| 5 | No verdict-shopping | PASS | First spawn for 56.2. No prior 56.2 verdict to overturn. |
 
 ---
 
-## 1. Deterministic checks
+## 1. Deterministic checks (cannot hallucinate)
 
-**Immutable verification command** (verbatim):
-```
-$ cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && \
-  python -m pytest backend/tests -k 'fx or paper_trader or krw' -q
-26 passed, 723 deselected, 1 warning in 2.37s
-exit=0
-$ test -f handoff/current/live_check_56.1.md  ->  livecheck-ok
-```
-Isolated KRW class run: `test_phase_50_2_multicurrency.py` → `10 passed` incl.
-`test_krw_buy_row_persists_usd_total_value`, `test_krw_sell_row_persists_usd_total_value_and_fee`,
-`test_us_buy_row_byte_identical` all PASSED.
+| Check | Result | Evidence |
+|-------|--------|----------|
+| Immutable verification command (full backend suite) | **exit 0** | `python -m pytest backend/tests -q` → `749 passed, 12 skipped, 6 xfailed, 1 warning in 71.11s`. Re-run independently; matches experiment_results counts exactly. |
+| `test -f handoff/current/live_check_56.2.md` | PASS | livecheck-ok (file present, fully populated §A-F). |
+| New test file alone | **18/18 pass** | `test_phase_56_2_ops_fixes.py` → `18 passed in 1.97s`. |
+| Syntax parse (6 changed prod files) | PASS | `ast.parse` OK on all. |
+| Import-cycle smoke | PASS | `python -c "import backend.services.autonomous_loop"` OK — lazy `from backend.services.alerting import raise_cron_alert` (inside functions) introduces no module-load cycle. |
+| Quarantine tests PASS (not skip) | PASS | lock-count `5 passed`; shortlist-doc `7 passed`; agent-map `7 passed`. Rainbow-canary + watchdog-pollution pass in full-suite order (0 failures in the 749). |
 
-**Frontend gate (diff touches `frontend/**` — REQUIRED):**
-- `cd frontend && npx eslint .` → **exit 0** (0 errors, 55 warnings; `react-hooks/rules-of-hooks` = 0 errors; all warnings pre-existing, none in the 5 changed files). Warnings do not fail the gate.
-- `cd frontend && npx tsc --noEmit` → **exit 0**, zero output lines.
+## 1b. Do-no-harm (decision math untouched — verified by empty diff)
 
-**Syntax / build:** `paper_trader.py` imports clean (pytest collected it); `npm run build` recorded green in live_check §E.
+`git diff --stat` is **EMPTY** for every decision-math file:
+- `backend/services/meta_scorer.py` — 0 diff. `_fallback_all` (`:249-256`) VALUE (`_fallback_conviction`=`round(composite)` clamped, `:138`) and ORDERING (`sorted(...reverse=True)` by conviction, `:256`) byte-identical.
+- `backend/services/portfolio_manager.py` — 0 diff.
+- `backend/services/kill_switch.py` — 0 diff (F-9 is proposal-only).
+- `backend/services/paper_trader.py` — 0 diff (kill-switch region included).
+- screener / optimizer (glob) — 0 diff.
 
-**Backfill NOT executed (live BQ query):**
-```
-1cc6ed96 005930.KS SELL total_value=1056195.94 fee=1056.2     (still corrupted KRW; migration pins expect_tv=1056195.94/expect_fee=1056.20)
-a72a164e 066570.KS BUY  total_value=364175.06  fee=0.24        (still 364175.06, NOT restated to 238.40)
-```
-Confirms C3: the migration is present but not applied to live BQ.
+The conviction-fallback detection (`_all_conviction_fallback`, `autonomous_loop.py`) is **read-only** over `conviction_reason` strings; greps the exact producer string `"fallback (LLM unavailable)"` emitted by `meta_scorer.py:254`. Sets only `summary["meta_scorer_degraded"]`; never mutates a score or order.
 
-**Do-no-harm diff scope:** `git diff --name-only HEAD` (code files) = exactly the 8 listed
-(`paper_trader.py`, `test_phase_50_2_multicurrency.py`, `format.ts`, `useLiveNav.ts`,
-`cockpit-helpers.tsx`, `trades-columns.tsx`, `layout.tsx`, `backfill_56_1_kr_trade_values.py`).
-`git diff --stat HEAD` on `portfolio_manager.py / screener.py / backtest/ / kill_switch.py /
-perf_metrics.py / risk_engine.py` = **empty** (decision/risk/backtest core untouched).
-No emojis in the 5 changed frontend files (Unicode-symbol grep clean).
+## 1c. Crash-isolation (an alerting bug can never break a trading cycle)
 
-**Captures:** `handoff/current/captures_56.1/56_1_positions_cockpit_fixed.png` (146KB) and
-`56_1_cockpit_KR_holdings_label.png` (152KB) exist.
+Each new observability hook is wrapped in its OWN `try/except Exception`:
+- **Rail probe (F-4)**: `except Exception as _probe_exc: logger.warning(... "non-fatal" ...)` — `autonomous_loop.py` cycle-start block.
+- **Degraded guard (F-5)**: `except Exception as _guard_exc: logger.warning(... "non-fatal" ...)`.
+- **Metering (F-6)**: `_log_claude_code_call` body wrapped in `try/except` (`logger.debug ... non-fatal`).
+- **Probe internals**: `claude_code_health_probe` catches `TimeoutExpired` / `FileNotFoundError` / `Exception` and returns `(False, detail)` — NEVER raises. (These broad-excepts are in an OBSERVABILITY probe, NOT a risk-guard path → not the `broad-except-silences-risk-guard` BLOCK case; they correctly fail-soft.)
 
----
+## 1d. Criterion-2 ticket-processor branch fidelity
 
-## 2. Code-review heuristics (5 dimensions — no BLOCK, no WARN)
+`ticket_queue_processor.py`: the CLI branch (`if getattr(settings, "paper_use_claude_code_route", False)`) preserves the system prompt (`system=system`) and a 60s timeout (`timeout_s=60`). The direct-SDK branch is byte-identical to pre-fix when the flag is off (the original `anthropic.Anthropic(api_key=...)` block is moved below the new branch verbatim; the only other change is removal of a `[wrench-emoji]` from a comment — improvement). On the flag the keyless direct call (root cause of "Missing API key for provider anthropic") is never reached.
 
-- **D1 Security:** no secret literal; no injection sink; no LLM-output-to-execution; no dep-pin removal. The migration builds SQL strings from **literal numeric values + hard-coded trade_id constants only** (no external/LLM input concatenated), so the SQL-injection heuristic does not fire. Clean.
-- **D2 Trading-domain:** kill-switch reachability, stop-loss-always-set, max-position guard, crypto-ban all untouched (not in the diff). `perf-metrics-bypass` does NOT fire — the fix is at the paper_trader **writer** row-build; `perf_metrics.py:407,470` is the *consumer*, unchanged (the fix actually CORRECTS a ~1500x KR turnover-inflation bug there). No `except Exception` added to an execution path. The BQ UPDATE migration is operator-gated dry-run-default and is an UPDATE (not a NOT-NULL add or column drop), so `bq-schema-migration-safety` does not fire. Clean.
-- **D3 Code quality:** `positionMarketValueUsd` is fully type-annotated; no print/unicode-in-logger; the +116-line test addition is a test file (negation-list exempt). Clean.
-- **D4 Anti-rubber-stamp:** the financial-logic change (FX in trade rows) **has** behavioral tests; assertions are real magnitude+value bounds, NOT tautological; the tests mock the BQ/Router/FX **seams** and exercise the real `execute_buy`/`execute_sell` (not over-mocked); not rename-as-refactor. Clean.
-- **D5 Evaluator anti-patterns:** first spawn; this critique cites file:line throughout; not a 3rd-CONDITIONAL. Clean.
+## 1e. generation_config whitelist (no `_role`/`_ticker` leak to Gemini)
 
-`checks_run` includes `code_review_heuristics`.
+`llm_client.py:941-957` assembles `gc_kwargs` from an explicit whitelist (`temperature, top_k, top_p, max_output_tokens` + named `response_mime_type/response_schema/thinking_config/tools`) then `GenerateContentConfig(**gc_kwargs)`. `_role`/`_ticker` are read only via `.get()` at `:1070/:1079` for `log_llm_call` and are NEVER added to `gc_kwargs` → they do not reach the Gemini API call. Confirmed by reading the assembly block.
 
----
+## 1f. F-9 is proposal-only (no code, no threshold change)
 
-## 3. LLM judgment vs the 4 immutable criteria
+`kill_switch.py` + `paper_trader.py` kill-switch region: 0 diff. The F-9 SOD-anchor proposal text is in `live_check §D`, explicitly framed as an OPERATOR DECISION ("Reply 'F-9: APPROVED' ... or leave it parked"), with the 4%/10% limits stated UNCHANGED. 55.1's audited verdict was **CORRECTLY-DID-NOT-TRIP** (postmortem line 161: worst-day -2.82% < 4%, trailing < 3.4% vs 10%) → criterion 4's IFF condition (`SHOULD-HAVE-TRIPPED`) is FALSE → no kill-switch unit-test fix required. Correctly handled.
 
-### C1 — USD persistence both paths + KRW fail-pre/pass-post + four-FX-point consistency — **PASS**
-- **BUY** `paper_trader.py:266`: `round(quantity * exec_price * _local_to_usd, 2)`. `_local_to_usd` is validated non-None at `:209` (function returns `None`→skip-buy before the row-build), so no None-multiplication is reachable. CORRECT.
-- **SELL** `paper_trader.py:416-417`: `total_value`/`transaction_cost` × `_l2u` at row-build ONLY. `_l2u` fail-soft to 1.0 at `:371-375`. Upstream `sell_value`/`tx_cost`/`net_proceeds` LEFT LOCAL — the cash credit at `:488` (`net_proceeds * _l2u`) and round-trip `realized_pnl_usd` at `:443` (`(price-entry)*qty*_l2u`) operate on the LOCAL value and are UNTOUCHED → **no double-conversion**. Exactly the contract's row-build-only design.
-- **US byte-identity:** `_local_to_usd == _l2u == 1.0` for US → `round(x*1.0,2)==round(x,2)`. Proven by `test_us_buy_row_byte_identical` (`total_value == 1000.0` exactly, `transaction_cost == 1.0`).
-- **Regression-proof:** live_check §B records the verbatim PRE-FIX failure (`2 failed, 8 passed`, `AssertionError: total_value=364175.1 looks like LOCAL currency (KRW), not USD`) → POST-FIX `10 passed`. Credible: the KR vs USD magnitude gap (~1500x) makes the `< 1000.0` guard robust to rounding. The SELL test asserts BOTH `total_value` (`<1000` and `≈238.53`) AND `transaction_cost` (`<1.0` and `≈0.24`) AND the cash-credit non-double-conversion (`captured_cash["cash"] ≈ 1000 + (sell_value_local−fee_local)*_KRW_USD`) — the exact triple-guard required.
-- **Four-FX-point statement** present in live_check §B: (1) trade recording NOW USD (this fix, tested); (2) mark-to-market unchanged-correct (positions stored USD, 55.1-measured); (3) cash ledger asserted not-double-converted by the new test; (4) fees — BUY already USD, SELL now USD.
-- **Consumer audit (anti-rubber-stamp sweep):** every reader of `paper_trades.total_value`/`transaction_cost` expects USD — `perf_metrics.py:407,470` (turnover/NAV-proxy), `slack_bot/formatters.py:213,712,735` (`${total_value:,.2f}`), `trades-columns.tsx:113,123` (`<Dollar>` / `$`-prefix). NO LOCAL-expecting reader exists, so writer-side conversion is unambiguously correct. `signals_server.py`/`orchestrator.py` `total_value` are DIFFERENT fields (portfolio equity / sector denominator). `realized_pnl_usd` round-trip field is untouched → unaffected.
+## 1g. Quarantine honesty (the watermelon check)
 
-### C2 — NAV root cause fixed (finding ID cited) + sane live UI + trades-columns/VS-KOSPI per 55.1 verdict — **PASS**
-- **Root cause F-1** fixed at `useLiveNav.ts:34-43`: the old `lp * pos.quantity` (summed live KRW/EUR ticks as USD) → `positionMarketValueUsd(pos, livePrices[pos.ticker]?.price)`. Finding ID **F-1** cited in the code comment and the live_check map.
-- **US do-no-harm preserved EXACTLY:** `positionMarketValueUsd` US branch returns `(livePrice ?? current_price ?? avg_entry_price) * quantity` — byte-identical to the old `useLiveNav` formula for a US-only book. The helper is the extracted `mvUsd` pattern (DRY, prevents NAV-card/donut drift).
-- **RiskMonitorCard** `cockpit-helpers.tsx:309-311`: was `qty * current_price / navDenom` (KRW-as-USD → "1527.8%") → `positionMarketValueUsd(p) / navDenom`. For US (no livePrice arg) this is `(current_price ?? avg_entry_price)*qty`, equivalent to prior US behavior. CORRECT.
-- **Live capture** (live_check §C): NAV card **23,856.94 USD** (was 345,950.68), Total P&L +19.28% (was +1,629.75%), Max position 3.0% (was 1,527.8%), donut $23,857, currency exposure USD 98.9%/KRW 1.0%. NAV 23,856.94 vs old 345,950.68 is the headline corruption-resolved evidence.
-- **trades-columns.tsx:11 comment:** states the post-fix invariant (USD) AND adds the explicit caveat that the 7 KR rows written 2026-06-01..06-09 hold LOCAL until the backfill is approved. Honest resolution (make data match the comment, flag the legacy rows) — superior to rewriting it to "KRW" which would be wrong post-fix.
-- **VS-KOSPI (F-12):** per the 55.1 verdict ("keeping/strengthening the already-disclosed tooltip limitation"), the non-US per-market card label is renamed `vs {LABEL}` → `{MKT} holdings` (capture `["KR HOLDINGS"]`), tooltip retained; ALL/US keep the true `vs SPY` excess. Backend fetches no ^KS11 (grep-confirmed), so true index excess is correctly deferred to phase-57. Satisfies the disjunctive criterion.
+Root-cause classification, NOT blanket skip:
+- **2 STALE assertions UPDATED**: agent-map `claude-opus-4-8` (`test_agent_map_live_model.py:58`; the `:90` `4-7` is a `_StubSettings` *input* for a locked-node test, correctly untouched); `EXPECTED_LOCK_COUNT = 15` with re-audit note citing `alerting.py:64` (AlertDeduper). Both tests PASS (`5 passed`/`7 passed`) — skipping would have hidden real drift.
+- **7 moved-doc REPOINTED** to `handoff/archive/phase-23.2.16/...` (the doc still exists; archive-handoff hook moved it). `7 passed`.
+- **5 live-probe `requires_live` skipifs** (NEW `pytest.ini` registers the marker) with per-test reasons naming the EXACT dependency (MAX(ts) SLA window; `analysis_results total_cost_usd>0.05`; 5-20 `drawdown_breach` rows; live HTTP :8000). Note: 5 live-probes (incl. a 5th live-HTTP `ticker_meta_latency`), one more than the contract's "2 live-BQ" sketch — over-disclosed, not under.
+- **1-2 pollution ROOT-CAUSE FIXED**: `reset_buffer_for_test()` now re-arms `_last_flush_ts` inside the lock (`api_call_log.py`) — the time-based flush was draining injected rows mid-test in full-suite order. Real fix, not a skip.
 
-### C3 — backfill operator-gated migration only; GIPS disclosure + materiality; declined-path flagged — **PASS**
-- `scripts/migrations/backfill_56_1_kr_trade_values.py`: **dry-run by default**, `--execute` gated (docstring: execute only after operator approval). **Idempotent:** each UPDATE pins `trade_id = '…' AND ABS(total_value - <old>) < 0.02` (and the fee for SELL rows), so a second run matches 0 rows and cannot double-convert. Explicit per-row USD literals (no live-FX dependence at migration time). GCP import deferred.
-- **NOT executed** — confirmed by the live BQ query (rows still at 364175.06 / 1056195.94).
-- **GIPS disclosure + materiality** in the script docstring: WHAT/WHEN/WHY + materiality classification (IMMATERIAL to composite returns; MATERIAL to ledger/TCA consumers → tier-3/4 correct-with-disclosure). Decline-path documented: rows stay flagged-not-fixed; caveat lives in trades-columns header comment + live_check §D; do NOT delete the script.
-- **Declined-path flagging is live NOW** (operator has not approved yet): trades-columns caveat + live_check §D flag the 7 rows — not silently kept.
+## 1h. Security + ASCII
 
-### C4 — every change cites a 55.x finding ID; mapping in live_check; US core untouched — **PASS**
-- live_check §A maps every changed file to a finding ID: F-2 (paper_trader, tests, migration, trades-columns caveat), F-1 (format.ts helper, useLiveNav, RiskMonitor), F-12 (benchLabel relabel), F-13 (layout subtitle). Each code edit carries an inline `phase-56.1 (55.1 F-x)` comment. No change lacks a finding ID.
-- **US momentum core untouched** — empty diff-stat on screener/optimizer/backtest/portfolio_manager/kill_switch/perf_metrics/risk_engine, plus the US byte-identity test (backend) and the US-branch preservation (frontend helper).
+- **secret-in-diff**: clean (only `sk-test-not-real`/`sk-unused` test fixtures — negation-listed).
+- **command-injection**: `subprocess.run([resolved_binary, "auth", "status"], ...)` — LIST arg, `shell=False`, literal `binary="claude"` default — negation-listed (safe).
+- **ASCII logger strings**: all NEW `logger.*` strings in the 6 prod files are pure ASCII (verified by `^\+`-line non-ASCII grep → none).
 
 ---
 
-## 4. Scope-honesty assessment
+## 2. Mutation-resistance (anti-rubber-stamp — the 3 planted scenarios)
 
-The experiment_results "Honest limitations" section is candid and accurate:
-(a) the 7 historical rows still display local magnitudes until the operator approves the backfill (disclosed in 3 places); (b) the live :8000 backend still runs the pre-fix code **in memory** — the F-2 row fix takes effect for trades written after the next backend restart, correctly deferred to an operator/deploy window (phase-58) rather than an unattended restart of a live trading process. Disclosed, not hidden. The frontend fixes hot-reload via `next dev` and are live.
+| Planted violation | Caught by | How |
+|---|---|---|
+| (i) Probe NOT scrubbing the API key | `test_rail_probe_scrubs_api_key_from_env` (`:57-68`) | Sets `ANTHROPIC_API_KEY`, spies `subprocess.run` env, asserts `"ANTHROPIC_API_KEY" not in captured["env"]`. Removing the scrub dict-comp → FAIL. |
+| (ii) Guard over-alerting at 2 zeros | `test_degraded_guard_quiet_at_two_zeros_of_six` (`:87-90`) | Asserts `fire is False, n_deg == 2`. Changing `>= 3` → `>= 2` → FAIL. |
+| (iii) Ticket processor uses SDK despite the flag | `test_ticket_agent_uses_cli_rail_when_route_flag_set` (`:184-198`) | Patches both rails; asserts `cli_spy.assert_called_once()` AND `sdk_spy.assert_not_called()` (paired with `out == "Approved..."`). Ignoring the flag → trips `assert_not_called`. |
+
+Bonus real bug caught WHILE writing the tests: the **falsy-zero trap** — `test_degraded_guard_counts_confidence_zero_uppercase_tell` (`:93-99`) asserts `confidence=0` still counts as degraded; the predicate explicitly checks `_conf_raw is not None` before `float()==0.0` rather than `or`-defaulting (which would mask a real 0). Tests are NOT tautological (no `assert x==x`/`is not None`-only) and NOT over-mocked (`TicketQueueProcessor.__new__` + real `_spawn_real_agent` under test; only rails patched).
+
+---
+
+## 3. Code-review heuristics (5 dimensions) — 0 BLOCK / 0 WARN
+
+- **D1 Security**: secret-in-diff clean; command-injection negation-listed; no prompt-injection/insecure-output/training-code/unbounded-loop introduced.
+- **D2 Trading-domain**: kill-switch reachable (0 diff); stop-loss/backfill/max-position/crypto untouched (0 diff); no perf-metrics bypass; no LLM-output-to-execution path added.
+- **D3 Code quality**: broad-excepts are observability fail-soft (return value, not silent risk-swallow); no print() in prod; new helpers carry type hints.
+- **D4 Anti-rubber-stamp**: financial-logic files have 0 diff → `financial-logic-without-behavioral-test` N/A; behavioral tests present for every new path.
+- **D5 LLM-evaluator**: first spawn, full file:line chain-of-thought, no criteria erosion.
+
+**NOTE (does not degrade verdict)**: `test_phase_56_2_ops_fixes.py:22,71,107,141,177` use box-drawing chars (`--` dividers) in SECTION-DIVIDER COMMENTS (not logger calls, not runtime strings). This matches an established repo convention — 7 other committed test files (`test_phase_50_2_multicurrency.py`, `test_phase_32_*`, etc.) and multiple committed `backend/services/*.py` use the same dividers. Python-3 UTF-8 source; no cp1252 crash surface (the security.md ASCII rule targets `logger.*` calls, which are clean here). Cosmetic only.
+
+---
+
+## 4. LLM judgment against the 4 immutable criteria
+
+**C1 — every P0/P1 FIXED+test or ESCALATED operator-gated, finding-ID map in live_check** → **MET.** `live_check §A` dispositions every CRITICAL+HIGH+MED-HIGH finding in the 55.3 §1 table: F-1/F-2 (fixed in 56.1), F-4/F-5/F-6/F-7/F-14/watchdog/criterion-2 (FIXED with regression tests in `test_phase_56_2_ops_fixes.py`), F-3/F-8/F-18 (ESCALATED to phase-57 — behavior-changing, already in the 55.3 §2.6 spec), F-9 (operator-proposal). The MED/LOW tier (F-10/11/13/15/16/17 "56.x", F-19 informational) is legitimately out of P0/P1 scope. Nothing changed without a finding ID.
+
+**C2 — approve path exercised e2e OR residual escalated with one-line operator action** → **MET (OR-branch, honestly).** The fix (route `_spawn_real_agent` through the CLI rail when the flag is set) is applied AND unit-tested (both flag states). A true e2e transcript needs the operator (bot-message filtering + slack-bot restart); `live_check §B` escalates with the exact one-line action: "restart the slack bot and type `Approve` in #ford-approvals — expect an agent reply via the claude-code rail instead of the missing-key error." This is the criterion's explicit OR-branch, disclosed as a limitation (experiment_results §Honest limitations), not overclaimed.
+
+**C3 — degraded-scoring guard exists + alerts Slack + unit-tested; watchdog bounded fix per 55.2** → **MET.** `_degraded_scoring_check` (cycle-level, post-gather) fires on ALL-degraded or ≥3 zeros → P1 `raise_cron_alert(source="autonomous_loop", error_type="degraded_scoring")`; unit-tested across all-zero/3-of-6/2-of-6/confidence-0-UPPERCASE/empty boundaries. Watchdog probe timeout 10s→30s (`scheduler.py`) per the 55.2 event-loop-starvation root cause (backend never down; mirrors digest 30s).
+
+**C4 — kill-switch unit-test IFF SHOULD-HAVE-TRIPPED; threshold change = OPERATOR DECISION; 16 failures quarantined (skip-markers + reasons); pytest green** → **MET.** 55.1 ruled CORRECTLY-DID-NOT-TRIP → IFF false → no unit-test required (correct). F-9 SOD re-anchor presented as an OPERATOR DECISION with thresholds UNCHANGED, never auto-applied (0 code diff). Quarantine done with skip-markers + per-dependency reason strings (and honest UPDATE/REPOINT/ROOT-CAUSE-FIX for the non-env failures — superior to blanket skip). Backend pytest exit 0.
 
 ---
 
 ## 5. Verdict
 
-**PASS.** All 4 immutable criteria met with regression-proof tests; deterministic checks green (verification cmd exit 0 / eslint 0 / tsc 0); the backend fix is the minimal row-build-only conversion with no double-conversion and byte-identical US; the frontend NAV root cause is fixed with US behavior preserved exactly; the backfill is a correctly-gated non-executed migration with GIPS disclosure; every change cites a 55.x finding ID with the US momentum core untouched. No code-review heuristic (5 dimensions) fired at BLOCK or WARN.
+**PASS** — `ok: true`. All 5 harness-compliance items pass; the immutable verification command exits 0 (`749 passed`); all 4 immutable criteria are met (C2 honestly via the criterion's OR-branch, escalation disclosed); do-no-harm is proven by empty diffs on every decision-math file; the conviction-fallback VALUE+ordering are byte-identical (unit-tested); mutation-resistance is real on all 3 planted scenarios plus the falsy-zero trap; the quarantine is root-cause-classified (no watermelon); F-9 is a code-free operator proposal with thresholds unchanged. Zero code-review heuristics fire at BLOCK or WARN; the only finding is a cosmetic NOTE (box-drawing chars in test comments, matching existing repo convention).
 
-**checks_run:** syntax, verification_command, frontend_eslint, frontend_tsc, bq_not_restated_query, do_no_harm_diff_stat, consumer_audit_total_value, mutation_resistance_test_read, migration_safety_review, captures_exist, emoji_scan, code_review_heuristics, research_gate, contract_precommit, results_artifact, log_last, no_verdict_shopping
+`violated_criteria: []`. `certified_fallback: false` (retry_count=0 < max_retries=3).

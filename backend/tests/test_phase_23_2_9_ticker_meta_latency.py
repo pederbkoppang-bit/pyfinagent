@@ -16,6 +16,7 @@ This test enforces BOTH invariants:
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -79,6 +80,14 @@ def test_phase_23_2_9_backend_log_has_prewarm_evidence():
     )
 
 
+@pytest.mark.requires_live
+@pytest.mark.skipif(
+    os.getenv("PYFINAGENT_LIVE_TESTS") != "1",
+    reason="live HTTP probe to the running backend on :8000; flaky during the "
+    "18:00Z trading-cycle window when the event loop is busy (the 55.2 F-C "
+    "starvation pattern). Asserts live-process state, not code (phase-56.2 "
+    "quarantine; set PYFINAGENT_LIVE_TESTS=1 to run)",
+)
 @pytest.mark.skipif(not _backend_is_up(), reason="backend not listening on :8000")
 def test_phase_23_2_9_ticker_meta_endpoint_reachable():
     """Live: the /api/paper-trading/ticker-meta endpoint must respond."""

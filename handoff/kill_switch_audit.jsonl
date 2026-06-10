@@ -1,0 +1,17 @@
+{"ts": "2026-06-10T17:59:47.658022+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T17:59:48.960240+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T17:59:48.965560+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T17:59:50.296045+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:20:57.872828+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:20:59.141564+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:20:59.147087+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:21:00.572501+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:33:31.613538+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:33:32.903076+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:33:32.908762+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:33:34.129153+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:37:15.252260+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:37:16.400533+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:37:16.405818+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:37:17.585014+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-10T18:39:18.804553+00:00", "event": "sod_snapshot", "nav": 23830.04, "date": "2026-06-10"}

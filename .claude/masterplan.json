@@ -14145,7 +14145,7 @@
     {
       "id": "phase-56",
       "name": "Data-correctness + ops fixes, gated on the phase-55 review (no fix without a 55.x finding ID). Restores a trustworthy P&L readout (FX/value/fee correctness for non-USD markets) and repairs the operator-facing ops defects surfaced by the away week (approve flow, watchdog, degraded-scoring guard, kill-switch verdict follow-up, test hygiene).",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-55"
       ],
@@ -14175,7 +14175,7 @@
         {
           "id": "56.2",
           "name": "Ops fixes -- repair the Slack approve flow, add a degraded-scoring guard (all-0.0 cycle alerts instead of passing silently), apply the watchdog ReadTimeout fix per the 55.2 root cause, follow up the kill-switch verdict, and quarantine the 16 env-coupled backend test failures.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "56.1",
