@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `12ff076` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `907ccf2` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `817f2f5` | fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution |
 | 2026-06-10 | `09dc9dd` | docs(goal): align goal-post-away-review with main -- 53.5 shipped, 53.4 deferred |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `8d5fa076` | feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line |
 | 2026-06-01 | `a7750d44` | fix(cron): phase-54.1 cross-layer cron audit + paper_markets parse fix (operator-away) |
 | 2026-06-01 | `ae13ddcf` | Merge remote-tracking branch 'origin/main' |
-| 2026-06-01 | `a560b639` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
 
 ---
 
