@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `9d9ba49` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `12ff076` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `907ccf2` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `817f2f5` | fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `4fec7c70` | feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco |
 | 2026-06-01 | `8d5fa076` | feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line |
 | 2026-06-01 | `a7750d44` | fix(cron): phase-54.1 cross-layer cron audit + paper_markets parse fix (operator-away) |
-| 2026-06-01 | `ae13ddcf` | Merge remote-tracking branch 'origin/main' |
 
 ---
 
