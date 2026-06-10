@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `a747d86b` | phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth rail root cause; F-D silent 0.0/ |
 | 2026-06-10 | `750cb713` | chore(handoff): backfill archive sweep of stale done-step files + restore active goal/rolling files  |
 | 2026-06-10 | `3222133d` | phase-55.1: away-week data-integrity + trading forensics -- PASS (NAV root cause useLiveNav.ts:34-39 |
 | 2026-06-10 | `5d2abb8a` | feat(masterplan): add phase-55/56/58 post-away-review goal; refresh active_goal |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `8aa3b1d` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `9bf91eb9` | docs(handoff): finalize best-in-class elevation run + defer dropped 53.4 |
 | 2026-06-10 | `6778f44b` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
-| 2026-06-10 | `7972d88` | docs(goal): set goal-post-away-review -- phased review->fix->go-live + 4000-char kickoff |
 
 ---
 
+### v6.37.2 — phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth r... (2026-06-10)
+
+- **phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth rail root cause; F-D silent 0.0/**
 ### v6.37.1 — phase-55.1: away-week data-integrity + trading forensics -- PASS (NAV... (2026-06-10)
 
 - **phase-55.1: away-week data-integrity + trading forensics -- PASS (NAV root cause useLiveNav.ts:34-39**
