@@ -27,22 +27,13 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
 | 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
 | 2026-06-01 | `ac93f67f` | feat(paper-trading): multi-market UX -- currency-aware cockpit + market filter (US/EU/KR + Nordic-re |
-<<<<<<< HEAD
-
----
-
-=======
 | 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
 
 ---
 
-### v6.36.3 — phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workf... (2026-06-10)
-
-- **phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow...**
 ### v6.36.2 — phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workf... (2026-06-10)
 
 - **phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow...**
->>>>>>> origin/main
 ### v6.36.1 — perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes... (2026-06-10)
 
 - **perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first)**
