@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `55f81af` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
 | 2026-06-10 | `3c00f80` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `a6ab589` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `8aa3b1d` | chore: commit hook-generated audit appends |
@@ -26,10 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
 | 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
 | 2026-06-01 | `ac93f67f` | feat(paper-trading): multi-market UX -- currency-aware cockpit + market filter (US/EU/KR + Nordic-re |
-| 2026-06-01 | `f828a2dc` | docs(handoff): session conclusion -- element-3 MEASURED (live engine +14.28% alpha, Sharpe 5.39); al |
-| 2026-06-01 | `0aa5c851` | phase-52.4: Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Martens 2011) -- the higher-evi... |
-| 2026-06-01 | `c8b659dc` | phase-52.3: DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05 Sharpe improvement (1-of-5 c... |
-| 2026-06-01 | `6d1292f4` | phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in... |
 <<<<<<< HEAD
 
 ---
@@ -39,6 +36,9 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
+### v6.36.3 — phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workf... (2026-06-10)
+
+- **phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow...**
 ### v6.36.2 — phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workf... (2026-06-10)
 
 - **phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow...**
