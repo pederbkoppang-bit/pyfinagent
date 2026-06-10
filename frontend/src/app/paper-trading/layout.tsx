@@ -332,8 +332,11 @@ export default function PaperTradingLayout({
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-slate-100">Paper Trading</h2>
+              {/* phase-56.1 (55.1 F-13): the "$10K" figure was the pre-deposit
+                  setting; starting capital is deposit-adjusted (currently $20K)
+                  so the subtitle stays amount-neutral. */}
               <p className="text-sm text-slate-500">
-                Autonomous AI-managed $10K virtual fund
+                Autonomous AI-managed virtual fund
               </p>
             </div>
             <div className="flex gap-2">

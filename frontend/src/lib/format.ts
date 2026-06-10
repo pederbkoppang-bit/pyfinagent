@@ -131,6 +131,31 @@ export function resolveMarket(opts: { market?: string | null; ticker?: string | 
   return marketForSymbol(opts.ticker);
 }
 
+// phase-56.1 (55.1 F-1): per-position USD market value for live overlays.
+// US keeps the exact legacy live formula (livePrice ?? current_price ?? entry) x qty;
+// non-US uses the backend's USD `market_value` -- a client-side livePrice x qty
+// would be LOCAL notional (the away-week NAV=345,968-on-$23.8K bug). Mirrors the
+// goal-multimarket-ux `mvUsd` in positions/page.tsx; extracted here so every
+// NAV/concentration consumer shares one FX-safe formula.
+export function positionMarketValueUsd(
+  pos: {
+    market?: string | null;
+    ticker?: string | null;
+    quantity: number;
+    current_price?: number | null;
+    avg_entry_price: number;
+    market_value?: number | null;
+  },
+  livePrice?: number | null,
+): number {
+  const isUs = resolveMarket({ market: pos.market, ticker: pos.ticker }) === "US";
+  if (isUs) {
+    const px = livePrice ?? pos.current_price ?? pos.avg_entry_price;
+    return px * pos.quantity;
+  }
+  return pos.market_value ?? 0;
+}
+
 // Resolve a currency code: explicit base_currency/currency wins, else the resolved
 // market's currency, else USD (keeps the US/legacy path byte-identical).
 export function resolveCurrency(opts: {

@@ -1,31 +1,43 @@
-# Experiment Results — Step 55.3 (GENERATE)
+# Experiment Results — Step 56.1 (GENERATE)
 
-**Step:** 55.3 — Synthesis + operator checkpoint. **Date:** 2026-06-10. **Mode:** review-only, $0; the Slack post is the single outward action (mandated by immutable criterion 4).
+**Step:** 56.1 — FX/value/fee data-correctness fix. **Date:** 2026-06-10. **Mode:** fix work, finding-ID-driven (F-1, F-2, F-12, F-13); backfill operator-gated; do-no-harm on the US momentum core.
 
-## What was built
+## What was built (8 files)
 
-| Artifact | Content |
-|---|---|
-| `handoff/current/55.3-synthesis-checkpoint.md` | §1 ranked findings table — 19 stable IDs (F-1..F-19) consolidating 55.1 B1-B15 + 55.2 F-A1..F-I, severity × N\*-impact, owner column, blameless "why it passed silently" framing, CODE-CONFIRMED vs DATA-INFERRED split. §2 strategic chapter (research-gate compliant, 7 sources read in full): away-week reality (−2.26% vs SPY +2.49%; churn −$132 vs ~$1 burn), MinTRL STATED (≈377 dailies at observed \|SR\|; ≈539 dailies ≈ 2.1y at backtest Sharpe 1.17; ≈11y at SR 0.5 — a 1-2wk window is a sanity gate, not a skill proof), agent-skill ROI with the adversarial KTD-Fin finding addressed head-on, dual-baseline comparison (passive B&H + US-momentum-core), conclusion FEATURES-first with explicit reasoning. §2.6 both phase-57 one-paragraph specs (LEVER = min-holding-period w/ verbatim Ledoit-Wolf gate; FEATURE = binding RiskJudge REJECT + concentration-aware sizing; score-hysteresis explicitly excluded as 53.1-family). §3 the operator decision block (burn table, DoD-2/5/6/7/9 expected value, gate 2/5→4/5 projection, reply grammar). |
-| `handoff/current/live_check_55.3.md` | Ranked-table pointer + research-gate JSON envelope (gate_passed:true, 7 full sources) + **Slack message ts `1781111785.584429`** (link + channel C0ANTGNNK8D) + gating state (57/58 HARD-BLOCKED on verbatim replies). |
-| Slack post (outward) | The operator decision block posted to #ford-approvals at ts 1781111785.584429 with the verbatim reply grammar. |
+| File | Change | Finding |
+|---|---|---|
+| `backend/services/paper_trader.py` | 3-line fix: BUY total_value × `_local_to_usd`; SELL total_value + transaction_cost × `_l2u` (row-build only; cash/round-trip paths deliberately untouched) | F-2 |
+| `backend/tests/test_phase_50_2_multicurrency.py` | 4 new row-level tests: KRW BUY row USD, KRW SELL row USD value+fee + cash-credit-no-double-convert, US byte-identity; FAIL-pre/PASS-post captured | F-2 |
+| `scripts/migrations/backfill_56_1_kr_trade_values.py` | NEW: operator-gated dry-run-default restatement of the 7 corrupted rows (pinned literals, idempotent, GIPS disclosure docstring) — NOT executed | F-2 |
+| `frontend/src/lib/format.ts` | NEW shared helper `positionMarketValueUsd` (the mvUsd pattern extracted) | F-1 |
+| `frontend/src/lib/useLiveNav.ts` | NAV root-cause fix: reduce over the FX-safe helper instead of `lp × quantity` | F-1 |
+| `frontend/src/components/paper-trading/cockpit-helpers.tsx` | RiskMonitorCard concentration via the helper; per-market benchmark card relabeled "<MKT> holdings" (tooltip retained) | F-1, F-12 |
+| `frontend/src/components/paper-trading/trades-columns.tsx` | Header comment corrected: USD post-fix + explicit caveat for the 7 pre-fix KR rows pending backfill | F-2 |
+| `frontend/src/app/paper-trading/layout.tsx` | Subtitle amount-neutral ("$10K" removed) | F-13 |
 
 ## Verification command output (verbatim)
 
 ```
-$ cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.3-synthesis-checkpoint.md && test -f handoff/current/live_check_55.3.md && echo PASS
+$ cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'fx or paper_trader or krw' -q
+26 passed, 723 deselected, 1 warning in 2.97s
+$ test -f handoff/current/live_check_56.1.md && echo PASS
 PASS
 ```
 
-## Key synthesis outcomes
+## Regression proof (criterion 1)
 
-1. **Recommendation: PHASE-57: FEATURE** (binding RiskJudge gate + concentration-aware sizing) — grounded in the finding mass (the HIGH cluster is reliability-shaped), the 53.1 adverse lever precedent, and the adversarial 2026 literature (KTD-Fin: capabilities ≠ returns; reliability > analytics).
-2. **Both candidate specs delivered** at the required rigor; the full masterplan payload is deliberately NOT pre-built for either (authored at install for the operator's pick, per the goal's phase-57 shape).
-3. **MinTRL menu stated** — the honest horizon framing for the spend decision; DSR=0.0 is the performance summary; the operator block explicitly prevents reading the live window as a skill proof.
-4. **Operator checkpoint armed**: phase-56 unblocked at the 55.3 flip; phase-57 install + phase-58 live cycles hard-gated on `LLM SPEND:` and `PHASE-57:` verbatim replies.
+Pre-fix (tests written FIRST): `2 failed, 8 passed` — `AssertionError: total_value=364175.1 looks like LOCAL currency (KRW), not USD`. Post-fix: `10 passed`. US byte-identity passed on BOTH sides (do-no-harm).
+
+## Live UI evidence (criterion 2)
+
+Playwright captures in `handoff/current/captures_56.1/`: NAV card **23,856.94 USD** (was 345,950.68), Total P&L +19.28% (was +1,629.75%), Max position 3.0% (was 1,527.8%), donut $23,857, currency exposure USD 98.9%/KRW 1.0%, "KR HOLDINGS" card label (was "VS KOSPI"). Full decomposition in live_check_56.1.md §C.
+
+## Backfill state (criterion 3)
+
+Migration present + dry-run verified; NOT executed (operator-gated). The 7 historical rows are flagged via the trades-columns caveat + live_check §D, with the GIPS materiality classification persisted in the script docstring. Operator ask recorded.
 
 ## Honest limitations
 
-- The MinTRL recompute differs from 55.1's 377-dailies figure (~450 under a stricter convention) — disclosed in the chapter, same qualitative verdict.
-- The burn table's metered figures undercount the flat-fee Claude-Code rail (F-6) — caveat carried into the Slack block itself.
-- The go-live-gate "4/5 projection" is a judgment call conditioned on a clean window + phase-56 fixes, labeled as such.
+- The 7 historical KR rows still display local magnitudes until the operator approves the backfill — by design, disclosed in three places.
+- `:3000` (operator instance) hot-reloads the frontend fixes via `next dev`; the BACKEND process on :8000 still runs the pre-fix code in memory — the F-2 row fix takes effect for trades written after the next backend restart (the restart is left to the operator/next deploy step per phase-58's "deploy fixes" criterion; no unattended restart of a live trading process without an operator window).
+- The four-FX-point consistency statement for mark-to-market/cash relies on 55.1's verification (those paths were measured correct and are untouched here); the new tests assert the cash-credit non-double-conversion directly.

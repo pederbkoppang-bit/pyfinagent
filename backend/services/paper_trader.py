@@ -262,7 +262,8 @@ class PaperTrader:
             "action": "BUY",
             "quantity": round(quantity, 6),
             "price": exec_price,
-            "total_value": round(quantity * exec_price, 2),
+            # phase-56.1 (55.1 F-2): persist USD, not local notional (x1.0 for US).
+            "total_value": round(quantity * exec_price * _local_to_usd, 2),
             "transaction_cost": round(tx_cost, 2),
             "reason": reason,
             "analysis_id": analysis_id,
@@ -410,8 +411,10 @@ class PaperTrader:
             "action": "SELL",
             "quantity": round(sell_qty, 6),
             "price": price,
-            "total_value": round(sell_value, 2),
-            "transaction_cost": round(tx_cost, 2),
+            # phase-56.1 (55.1 F-2): persist USD (x1.0 for US). Row-level only --
+            # net_proceeds/sell_value stay LOCAL for the cash credit at *_l2u below.
+            "total_value": round(sell_value * _l2u, 2),
+            "transaction_cost": round(tx_cost * _l2u, 2),
             "reason": reason,
             "analysis_id": "",
             "risk_judge_decision": "",

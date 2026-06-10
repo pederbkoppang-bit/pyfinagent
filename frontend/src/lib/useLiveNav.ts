@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { positionMarketValueUsd } from "@/lib/format";
 import type { LivePriceEntry } from "@/lib/useLivePrices";
 import type { PaperPosition, PaperTradingStatus } from "@/lib/types";
 
@@ -31,11 +32,14 @@ export function useLiveNav(
     const cash = status?.portfolio.cash ?? 0;
     const hasAnyLive = positions.some((p) => livePrices[p.ticker]?.price != null);
     if (!hasAnyLive) return status?.portfolio.nav ?? null;
-    const positionsValue = positions.reduce((sum, pos) => {
-      const lp =
-        livePrices[pos.ticker]?.price ?? pos.current_price ?? pos.avg_entry_price;
-      return sum + lp * pos.quantity;
-    }, 0);
+    // phase-56.1 (55.1 F-1): per-position USD value via the shared FX-safe
+    // helper. The old `lp * quantity` summed live KRW/EUR ticks as USD,
+    // inflating the NAV card to 345,968 on a $23.8K book during the away week.
+    const positionsValue = positions.reduce(
+      (sum, pos) =>
+        sum + positionMarketValueUsd(pos, livePrices[pos.ticker]?.price),
+      0,
+    );
     return cash + positionsValue;
   }, [positions, livePrices, status]);
 

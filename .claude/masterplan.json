@@ -14154,7 +14154,7 @@
         {
           "id": "56.1",
           "name": "FX/value/fee data-correctness fix -- persist total_value and SELL transaction_cost in USD for non-USD markets (paper_trader.py:265, :386-414), correct the trades-columns.tsx:11 comment and the VS-KOSPI handling per the 55.1 verdict, fix the NAV-discrepancy root cause identified by 55.1, and present any historical-row backfill as an operator-gated migration.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "55.3",

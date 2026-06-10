@@ -27,6 +27,7 @@ import {
   MARKET_EXCHANGE_SHORT,
   numberFlowFormat,
   numberFlowLocale,
+  positionMarketValueUsd,
   resolveMarket,
 } from "@/lib/format";
 // phase-75 (2026-05-26): Google-Finance digit-flip animation via
@@ -194,8 +195,16 @@ export function SummaryHero({
       );
   const positionCount = isAll ? (status?.position_count ?? 0) : filtered.length;
 
-  // #5: dynamic benchmark label (All/US -> SPY, EU -> DAX, KR -> KOSPI).
-  const benchLabel = `vs ${isAll ? "SPY" : (MARKET_BENCHMARK_LABEL[activeMarket] ?? "SPY")}`;
+  // phase-56.1 (55.1 F-12): the card VALUE for a non-US market is that market's
+  // holdings return, NOT an index excess (the per-market index is not fetched) --
+  // so the LABEL must say so. "vs KOSPI +0.00%" was honest-tooltip'd but
+  // misleading at a glance; per the 55.1 verdict we strengthen the disclosure:
+  // label per-market cards "<MKT> holdings" until a true ^KS11/^GDAXI excess
+  // exists (phase-57-adjacent feature). ALL/US keep the true "vs SPY" excess.
+  const benchLabel =
+    isAll || activeMarket === "US"
+      ? "vs SPY"
+      : `${activeMarket} holdings`;
 
   // Benchmark VALUE. ALL/US: fund P&L minus the (vs-SPY) benchmark return. A specific
   // non-US market: the per-market index return is NOT exposed by the API, so we show
@@ -298,8 +307,10 @@ export function RiskMonitorCard({
 }) {
   const maxDd = perf?.max_drawdown_pct ?? 0;
   const navDenom = portfolio?.total_nav ?? 10000;
+  // phase-56.1 (55.1 F-1): qty x local current_price treated KRW as USD
+  // ("Max position 1527.8%"); use the shared FX-safe USD value instead.
   const concentrations = positions.map(
-    (p) => ((p.quantity * (p.current_price ?? p.avg_entry_price)) / navDenom) * 100,
+    (p) => (positionMarketValueUsd(p) / navDenom) * 100,
   );
   const maxPos = concentrations.length > 0 ? Math.max(...concentrations) : null;
   const concentrationHigh = maxPos != null && maxPos > 20;
