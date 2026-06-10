@@ -43,8 +43,9 @@ RiskJudge REJECTs executed; kill switch correctly did not trip on 06-05; compute
 4. **Backfill decision (56.1 / finding F-2):** approve the 7-row KR trade-ledger restatement
    with `python scripts/migrations/backfill_56_1_kr_trade_values.py --execute` (dry-run
    default is safe to preview; GIPS disclosure in the script docstring). If declined, the
-   rows stay flagged in the trades-columns caveat. NOTE: if a KR trade fired in a
-   pre-restart cycle after 2026-06-10 16:00Z, tell me and I will extend the migration.
+   rows stay flagged in the trades-columns caveat. NOTE: the 2026-06-10 18:39Z
+   pre-restart cycle DID write 2 more corrupt KR rows; the migration is already
+   extended to cover all 9 (re-verify before --execute if more cycles run pre-restart).
 5. **Optional — kill-switch SOD re-anchor (F-9):** reply `F-9: APPROVED` to schedule the
    anchor fix (daily-loss leg currently structurally dead under once-daily cadence;
    thresholds unchanged; dry-run first). Proposal text: live_check_56.2.md §D.

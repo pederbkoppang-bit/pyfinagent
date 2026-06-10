@@ -13,8 +13,9 @@ WHAT / WHEN / WHY (GIPS-style disclosure, persisted here as the audit trail):
   as quantity x price x fx_asof(trade date) from `historical_fx_rates`
   (55.1 sec 2.1 / live_check_55.1 B3 -- the same derivation that closed the
   daily cash-ledger reconciliation to $0.01).
-- WHEN: corrupted rows span 2026-06-01T19:33Z .. 2026-06-09T18:12Z (the full
-  KR trading history; no EU trades exist).
+- WHEN: corrupted rows span 2026-06-01T19:33Z .. 2026-06-10T18:39Z (the full
+  KR trading history; no EU trades exist). The 06-10 pair landed because the
+  running backend predated the fix (restart pending in the operator window).
 - WHY: ledger consumers (turnover in perf_metrics, fee/TCA reports, the trades
   UI) assume USD; the mixed-currency rows inflate turnover ~1,500x for KR.
 - MATERIALITY (GIPS error-correction framing, 55.1 sec 2.2): IMMATERIAL to
@@ -56,8 +57,17 @@ ROWS = [
     ("c21925a7-8714-4a4d-99b9-2106cc554138", "000660.KS", "SELL", 0.0006410298, 677641.41,  434.39, 677.64,  0.43),
     ("1cc6ed96-c4a0-4f63-8b92-5b501202c3c8", "005930.KS", "SELL", 0.0006410298, 1056195.94, 677.05, 1056.20, 0.68),
     ("a72a164e-3a21-4b20-8c0b-7eb8eb81ecb5", "066570.KS", "BUY",  0.0006546302, 364175.06,  238.40, None,    None),
+    # 2026-06-10 18:39Z cycle: the backend process was still running the
+    # pre-56.1 code (fix shipped to main 2026-06-10 ~17:00Z; restart is an
+    # operator-window action), so two more corrupted rows landed. fx as-of
+    # 2026-06-10 = 0.0006578515 (historical_fx_rates KRWUSD).
+    ("dd23d746-32b0-4967-8e48-c4caa56141e6", "066570.KS", "SELL", 0.0006578515, 328932.35,  216.39, 328.93,  0.22),
+    ("ab054088-918f-4f46-a8a4-c30b3fb5cb31", "000660.KS", "BUY",  0.0006578515, 724479.65,  476.60, None,    None),
 ]
 # NOTE: BUY transaction_cost was ALREADY USD pre-fix (computed on amount_usd) -- untouched.
+# Row count: 7 away-week rows (2026-06-01..06-09) + 2 from the 2026-06-10 pre-restart
+# cycle = 9. Any KR trade in a FURTHER pre-restart cycle must be appended here before
+# --execute (verify with: SELECT ... WHERE created_at >= '2026-06-10' AND ENDS_WITH(ticker,'.KS')).
 
 
 def build_statements(project: str, dataset: str) -> list[str]:
