@@ -14071,7 +14071,7 @@
     {
       "id": "phase-55",
       "name": "Away-week forensic review (autonomous paper-trading run 2026-06-01 -> 2026-06-10): evidence-first post-mortem BEFORE any fix work. $0 phase family: BQ reads + local scripts + Playwright UI inspection only; NO code fixes, NO LLM trading-cycle spend. Outputs: primary-data reconciliation of the away week, confirmation/refutation of the code-traced FX defects, root cause of the NAV discrepancy, ops-incident triage, agent skill-coverage audit, ranked findings with stable IDs, a finetune-vs-features strategic recommendation with a one-paragraph spec for both phase-57 candidates, and the operator spend-decision block.",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-53"
       ],
@@ -14122,7 +14122,7 @@
         {
           "id": "55.3",
           "name": "Synthesis + operator checkpoint -- consolidate 55.1+55.2 into a ranked findings table with stable IDs and owners; write the deep-research strategic chapter (finetune vs features, baseline-compared, MinTRL stated); spec BOTH phase-57 candidates (LEVER and FEATURE, one paragraph each; the chosen variant's full payload is authored at install); post the operator decision block (LLM burn estimate + expected DoD value + reply grammar) to Slack.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "55.2",

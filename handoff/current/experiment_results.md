@@ -1,35 +1,31 @@
-# Experiment Results — Step 55.2 (GENERATE)
+# Experiment Results — Step 55.3 (GENERATE)
 
-**Step:** 55.2 — Ops incidents + agent-quality audit (away week 2026-06-01 → 2026-06-10). **Date:** 2026-06-10. **Mode:** review-only, $0, NO fixes.
+**Step:** 55.3 — Synthesis + operator checkpoint. **Date:** 2026-06-10. **Mode:** review-only, $0; the Slack post is the single outward action (mandated by immutable criterion 4).
 
 ## What was built
 
 | Artifact | Content |
 |---|---|
-| `handoff/current/55.2-ops-skill-audit.md` | Incident triage with root causes at file:line + severities + stable IDs (F-A1 approve-flow OAuth rail, F-A2 fail-closed + dead button, F-C watchdog event-loop starvation, F-D silent 0.0/10 degraded scoring, F-E llm_call_log observability gap) plus three NEW incidents surfaced live (F-F RiskJudge REJECT advisory-only — DELL bought 06-03 despite REJECT; F-G RiskJudge 10%-vs-30% prompt/config divergence + concentration-blindness; F-H lite-checkbox UI/runtime desync); per-skill firing audit with skill→evidence-source map (verdict: lite 4-agent chain ran, SignalStack on static fallback all week, rag/earnings_tone/insider/patent/news-social DID NOT FIRE); operator's-question answer (NO); N* burn-vs-P&L reconciliation (~$1 burn vs −$132 churn); 3-analysis reasoning spot-check (2 whipsaws + the REJECT case); signal-stability table (35% daily flip rate, mean |Δscore| 1.15, SNDK flip reproduced with direction corrected); look-ahead paragraph; tool reruns |
-| `handoff/current/live_check_55.2.md` | Verbatim llm_call_log fire-count tables (away window: 12 rows, ZERO for 06-02..06-09 cycles), incident evidence excerpts (watchdog log lines, 0.0-block BQ rows, REJECT trade row, dead-button grep, CLI auth state), signals-JSON spot-check excerpts, stability table pointer, burn numbers, tool-rerun outputs |
-
-## Key findings (headline)
-
-1. **F-A1 (HIGH):** the approve-flow error originates in the `claude` CLI binary — `claude_code_client.py:163-170` deliberately scrubs the API key to force `~/.claude/` OAuth; the OAuth session was the failure, the .env key was valid all along (direct-Anthropic probes succeeded minutes before the failed Approve). Fix direction is rail-health detection, NOT un-scrubbing.
-2. **F-A2:** approval path fails CLOSED on action (by accident); the Approve button is a dead control (no handler).
-3. **F-C (LOW):** watchdog/digest timeouts = event-loop starvation during the 18:00Z cycle; every FAIL "(1/3)"; backend never down.
-4. **F-D (HIGH):** the "05-28 all-0.0/10" block is dated 05-27 18:02-18:20Z (digest lag); uppercase-HOLD degraded path published via `formatters.py:37` default-0 with no failed-vs-zero guard.
-5. **F-E (HIGH):** llm_call_log is blind to the analysis rail (zero rows for 6 of 7 cycles; `log_llm_call` absent from `claude_code_client.py`/lite analyzer). Three masterplan premises corrected (cycle_id exists-but-NULL; labels aren't debate roles; strategy_decisions is rotation-only).
-6. **F-F (HIGH, new):** RiskJudge REJECT is advisory-only (`portfolio_manager.py:185,194-198`) — live-proven by the executed DELL 06-03 BUY.
-7. **Skills answer:** NO — lite chain only; enrichment skills silent on all 59 rows; conviction overlay was a hardcoded 10.00 stub all week.
-8. **Stability:** 16 action flips / 46 pairs (35%), churn by construction (momentum-following with no damping layer); SNDK chronological flip is 5.0-HOLD→7.0-BUY (digest framing reconciles).
+| `handoff/current/55.3-synthesis-checkpoint.md` | §1 ranked findings table — 19 stable IDs (F-1..F-19) consolidating 55.1 B1-B15 + 55.2 F-A1..F-I, severity × N\*-impact, owner column, blameless "why it passed silently" framing, CODE-CONFIRMED vs DATA-INFERRED split. §2 strategic chapter (research-gate compliant, 7 sources read in full): away-week reality (−2.26% vs SPY +2.49%; churn −$132 vs ~$1 burn), MinTRL STATED (≈377 dailies at observed \|SR\|; ≈539 dailies ≈ 2.1y at backtest Sharpe 1.17; ≈11y at SR 0.5 — a 1-2wk window is a sanity gate, not a skill proof), agent-skill ROI with the adversarial KTD-Fin finding addressed head-on, dual-baseline comparison (passive B&H + US-momentum-core), conclusion FEATURES-first with explicit reasoning. §2.6 both phase-57 one-paragraph specs (LEVER = min-holding-period w/ verbatim Ledoit-Wolf gate; FEATURE = binding RiskJudge REJECT + concentration-aware sizing; score-hysteresis explicitly excluded as 53.1-family). §3 the operator decision block (burn table, DoD-2/5/6/7/9 expected value, gate 2/5→4/5 projection, reply grammar). |
+| `handoff/current/live_check_55.3.md` | Ranked-table pointer + research-gate JSON envelope (gate_passed:true, 7 full sources) + **Slack message ts `1781111785.584429`** (link + channel C0ANTGNNK8D) + gating state (57/58 HARD-BLOCKED on verbatim replies). |
+| Slack post (outward) | The operator decision block posted to #ford-approvals at ts 1781111785.584429 with the verbatim reply grammar. |
 
 ## Verification command output (verbatim)
 
 ```
-$ cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.2-ops-skill-audit.md && test -f handoff/current/live_check_55.2.md && echo PASS
+$ cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.3-synthesis-checkpoint.md && test -f handoff/current/live_check_55.3.md && echo PASS
 PASS
 ```
 
+## Key synthesis outcomes
+
+1. **Recommendation: PHASE-57: FEATURE** (binding RiskJudge gate + concentration-aware sizing) — grounded in the finding mass (the HIGH cluster is reliability-shaped), the 53.1 adverse lever precedent, and the adversarial 2026 literature (KTD-Fin: capabilities ≠ returns; reliability > analytics).
+2. **Both candidate specs delivered** at the required rigor; the full masterplan payload is deliberately NOT pre-built for either (authored at install for the operator's pick, per the goal's phase-57 shape).
+3. **MinTRL menu stated** — the honest horizon framing for the spend decision; DSR=0.0 is the performance summary; the operator block explicitly prevents reading the live window as a skill proof.
+4. **Operator checkpoint armed**: phase-56 unblocked at the 55.3 flip; phase-57 install + phase-58 live cycles hard-gated on `LLM SPEND:` and `PHASE-57:` verbatim replies.
+
 ## Honest limitations
 
-- The away-week OAuth-expiry mechanism is bounded, not directly observed (auth state is only inspectable NOW, post-recovery); the bound rests on four converging live evidences (fallback strings, zero logged calls, the 06-01 error, working direct-API probes).
-- Per-sector count-cap full adjudication still open (decision-time cap state not persisted) — carried by F-G to phase-56.
-- Whether rag/earnings_tone/etc. are SUPPOSED to fire in lite mode (vs only in full mode) is a code-expectation question the goal doc asserted; the audit reports the observed silence and flags the discrepancy rather than adjudicating intent.
-- paper_execution_parity.py fails identically to 55.1 (client_order_id reuse) — reported verbatim both times.
+- The MinTRL recompute differs from 55.1's 377-dailies figure (~450 under a stricter convention) — disclosed in the chapter, same qualitative verdict.
+- The burn table's metered figures undercount the flat-fee Claude-Code rail (F-6) — caveat carried into the Slack block itself.
+- The go-live-gate "4/5 projection" is a judgment call conditioned on a clean window + phase-56 fixes, labeled as such.
