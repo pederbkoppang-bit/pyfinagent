@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `5d2abb8a` | feat(masterplan): add phase-55/56/58 post-away-review goal; refresh active_goal |
 | 2026-06-10 | `3abbfd90` | Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3' |
 | 2026-06-10 | `433fe1d5` | chore: commit hook-generated audit appends pre-merge |
 | 2026-06-10 | `946183b` | chore: commit hook-generated changelog/audit appends |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `7972d88` | docs(goal): set goal-post-away-review -- phased review->fix->go-live + 4000-char kickoff |
 | 2026-06-10 | `e8502522` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
 | 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
-| 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
 
 ---
 
+### v6.37.0 — feat(masterplan): add phase-55/56/58 post-away-review goal; refresh a... (2026-06-10)
+
+- **feat(masterplan): add phase-55/56/58 post-away-review goal; refresh active_goal**
 ### v6.36.5 — Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3' (2026-06-10)
 
 - **Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3'**
