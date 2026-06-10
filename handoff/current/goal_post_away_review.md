@@ -117,6 +117,17 @@ SECONDARY (Slack #ford-approvals digests + screenshot; reconcile in 55.1):
    GENERATE, harness_log.md append BEFORE the masterplan flip. No self-evaluation, no
    verdict-shopping.
 
+## Deliberately out of scope (parked, NOT silently dropped)
+
+Tracked in `handoff/current/cycle_block_summary.md`, untouched by this goal:
+- phase-53.3 data-stack operator-gated levers (BQ partition/cluster bytes-scanned lever,
+  the sortino.py macro-lineage dataset mismatch, historical_macro freshness) -- real,
+  evidenced follow-ups, but not part of a post-away review.
+- phase-53.5 CI soft-launch follow-up (flip `continue-on-error` to false after real
+  GitHub Actions runs).
+- The three phase-50.6 visual confirms are NOT parked -- they are folded into 55.1's
+  Playwright pass (same NextAuth session, $0).
+
 ## Execution order
 
 1. Install commit: phase-55/56/58 payload into `.claude/masterplan.json` + replace
@@ -138,7 +149,8 @@ SECONDARY (Slack #ford-approvals digests + screenshot; reconcile in 55.1):
   live window.
 - Expected value: which of DoD-2/5/6/7/9 the window closes; projected go-live-gate delta
   (baseline 1/5 on 06-01).
-- The finetune-vs-features recommendation + both candidate phase-57 payloads (summary).
+- The finetune-vs-features recommendation + the one-paragraph spec for each phase-57
+  candidate (LEVER and FEATURE).
 Operator replies with BOTH lines (verbatim grammar):
 - `LLM SPEND: APPROVED <budget>` or `LLM SPEND: DECLINED`
 - `PHASE-57: LEVER` or `PHASE-57: FEATURE`
@@ -156,7 +168,7 @@ them verbatim into each step's `contract.md`; do NOT edit them.
 [
   {
     "id": "phase-55",
-    "name": "Away-week forensic review (autonomous paper-trading run 2026-06-01 -> 2026-06-10): evidence-first post-mortem BEFORE any fix work. $0 phase family: BQ reads + local scripts + Playwright UI inspection only; NO code fixes, NO LLM trading-cycle spend. Outputs: primary-data reconciliation of the away week, confirmation/refutation of the code-traced FX defects, root cause of the NAV discrepancy, ops-incident triage, agent skill-coverage audit, ranked findings with stable IDs, a finetune-vs-features strategic recommendation with BOTH candidate phase-57 payloads, and the operator spend-decision block.",
+    "name": "Away-week forensic review (autonomous paper-trading run 2026-06-01 -> 2026-06-10): evidence-first post-mortem BEFORE any fix work. $0 phase family: BQ reads + local scripts + Playwright UI inspection only; NO code fixes, NO LLM trading-cycle spend. Outputs: primary-data reconciliation of the away week, confirmation/refutation of the code-traced FX defects, root cause of the NAV discrepancy, ops-incident triage, agent skill-coverage audit, ranked findings with stable IDs, a finetune-vs-features strategic recommendation with a one-paragraph spec for both phase-57 candidates, and the operator spend-decision block.",
     "status": "pending",
     "depends_on": ["phase-53"],
     "gate": null,
@@ -172,10 +184,10 @@ them verbatim into each step's `contract.md`; do NOT edit them.
         "verification": {
           "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.1-away-week-postmortem.md && test -f handoff/current/live_check_55.1.md",
           "success_criteria": [
-            "the post-mortem (handoff/current/55.1-away-week-postmortem.md) is built from PRIMARY data (BQ financial_reports.paper_trades/paper_positions/paper_portfolio_snapshots + /api/paper-trading/* endpoints), reconciles the Slack-digest NAV path (+21.9% 06-01, +23.4% 06-03, +19.3% 06-05, +19.2% 06-09) to within +/-0.2pp or reports the divergence as its own finding, and quantifies: weekly turnover, per-round-trip realized P&L for MU (06-08 -> 06-09), 000660.KS (06-02 -> 06-05) and DELL (4 trades), plus win_rate/profit_factor/expectancy/median_holding_days (via /api/paper-trading/performance) and PSR/DSR/bootstrap-CI (via /api/paper-trading/metrics-v2)",
-            "the code-traced FX defects are confirmed or refuted against live BQ rows (paper_trader.py:265 total_value; :386-414 SELL transaction_cost), the corruption scope is classified (stored-data vs display-only; affected row count + date range), and the NAV/Cash/'$10K fund' three-way discrepancy is traced to a root cause at file:line with the :512-520 FX-fallback suspect explicitly ruled in or out; the VS-KOSPI readout is audited against cockpit-helpers.tsx:197-218",
-            "concentration is measured per snapshot day (sector weights + portfolio HHI) and the report cites the config/code path of any existing concentration limit or states NONE EXISTS; the kill-switch audit for 06-05 reads the configured thresholds from live config (file path cited), computes the daily P&L from snapshots, and renders SHOULD-HAVE-TRIPPED (defect traced to file:line) or CORRECTLY-DID-NOT-TRIP (arithmetic shown) -- presuming either verdict in advance is a FAIL",
-            "live UI evidence is captured via Playwright MCP (the /paper-trading page behind the NextAuth wall: Value column, NAV/Cash cards, VS-KOSPI card) and embedded in live_check_55.1.md; the step performs NO fix work and NO LLM trading-cycle spend"
+            "the post-mortem (handoff/current/55.1-away-week-postmortem.md) is built from PRIMARY data (BQ financial_reports.paper_trades/paper_positions/paper_portfolio_snapshots + /api/paper-trading/* endpoints), reconciles the Slack-digest NAV path (+21.9% 06-01, +23.4% 06-03, +19.3% 06-05, +19.2% 06-09) to within +/-0.2pp or reports the divergence as its own finding, and quantifies: weekly turnover, per-round-trip realized P&L for MU (06-08 -> 06-09), 000660.KS (06-02 -> 06-05) and DELL (4 trades), a gross-to-net TCA decomposition (implementation shortfall, fees as % of turnover, cumulative fee drag for the week; scripts/risk/tca_report.py), win_rate/profit_factor/expectancy/median_holding_days (via /api/paper-trading/performance), and the VERBATIM /api/paper-trading/metrics-v2 output -- on ~6-8 trading days its MIN_OBS_FOR_PSR=30 guard returns insufficient_data nulls, which is a VALID, honestly-reported result, not a FAIL",
+            "the code-traced FX defects are confirmed or refuted against live BQ rows (paper_trader.py:265 total_value; :386-414 SELL transaction_cost), ALL FOUR FX conversion points (trade recording, mark-to-market, cash ledger, fees) are enumerated with rate-source + rate-as-of-timestamp consistency checked, the corruption scope is classified (stored-data vs display-only; affected row count + date range), a per-snapshot-day cash-ledger reconciliation ties sum(cash movements) to NAV - sum(position market_value), and the NAV/Cash/'$10K fund' three-way discrepancy is traced to a root cause at file:line with the :512-520 FX-fallback suspect explicitly ruled in or out; the VS-KOSPI readout is audited against cockpit-helpers.tsx:197-218 (noting its existing tooltip already discloses the limitation)",
+            "concentration is measured per snapshot day (sector weights + portfolio HHI) and the report cites the config/code path of any existing concentration limit or states NONE EXISTS; the away-week return is attributed regime-vs-skill (decomposed into benchmark beta -- SPY plus a semis proxy such as SOX, and KOSPI for the KR book -- concentration tilt, and residual alpha); the kill-switch audit for 06-05 reads the configured thresholds from live config (file path cited), verifies WHICH P&L/NAV fields the switch consumes (if any are touched by the FX/NAV corruption, the non-trip may be a measurement failure rather than a threshold failure), computes the daily P&L from snapshots, and renders SHOULD-HAVE-TRIPPED (defect traced to file:line) or CORRECTLY-DID-NOT-TRIP (arithmetic shown) -- presuming either verdict in advance is a FAIL",
+            "live UI evidence is captured via Playwright MCP (the /paper-trading page behind the NextAuth wall: Value column, NAV/Cash cards, VS-KOSPI card) and embedded in live_check_55.1.md, folding in the three outstanding phase-50.6 visual confirms (/paper-trading/manage markets toggle; /paper-trading/positions currency-exposure card; /backtest US/USD/SPY strip) in the same session; the step performs NO fix work and NO LLM trading-cycle spend"
           ],
           "live_check": "REQUIRED -- the data-integrity section of the post-mortem + Playwright captures of the live /paper-trading page + the BQ row evidence (queries + result excerpts). No fixes in this step."
         },
@@ -193,10 +205,10 @@ them verbatim into each step's `contract.md`; do NOT edit them.
         "verification": {
           "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.2-ops-skill-audit.md && test -f handoff/current/live_check_55.2.md",
           "success_criteria": [
-            "incident triage with root cause or honest bounding for each: (a) the Slack 'Approve' -> 'Missing API key for provider anthropic' error (2026-06-01 x2) traced to file:line; (b) the nightly watchdog ReadTimeout pattern (~20:05-20:50 CEST on 05-27/05-28/06-04) characterized from logs with its trigger identified or honestly bounded; (c) the 05-28 all-analyses-0.0/10 day explained via pyfinagent_data.llm_call_log + strategy_decisions; each incident gets a severity and a stable finding ID for phase-56, or a WONTFIX rationale",
-            "a per-skill fire-count table over 2026-06-01..2026-06-10 from llm_call_log (agent x cycle_id), explicitly covering rag, earnings_tone, insider, patent, news/social vs the lite-mode skip list (deep_dive, devil's-advocate, risk-assessment, multi-round debate), with the orchestrator.py:1491-2069 code paths cited; gaps between code expectation and observed fire counts are findings",
-            "a reasoning-quality spot-check of >=3 stored analyses from the away week (the agent rationale behind at least one whipsaw trade among MU/000660.KS/DELL included), assessing whether the cited skills' outputs actually informed the decision",
-            "signal stability is quantified across the week (count of day-over-day BUY/HOLD/SELL action flips and mean |delta-score| per ticker; the SNDK 7.0-BUY -> 5.0-HOLD flip reproduced from stored data), AND scripts/harness/paper_execution_parity.py + scripts/risk/tca_report.py outputs are included or their failure honestly reported; NO fix work, NO LLM trading-cycle spend"
+            "incident triage with root cause or honest bounding for each: (a) the Slack 'Approve' -> 'Missing API key for provider anthropic' error (2026-06-01 x2) traced to file:line, with an explicit fail-open-vs-closed security determination for the approval path; (b) the nightly watchdog ReadTimeout pattern (~20:05-20:50 CEST on 05-27/05-28/06-04) characterized from logs with its trigger identified or honestly bounded; (c) the 05-28 all-analyses-0.0/10 day explained via pyfinagent_data.llm_call_log + strategy_decisions; each incident gets a severity and a stable finding ID for phase-56, or a WONTFIX rationale",
+            "a per-skill firing audit over 2026-06-01..2026-06-10 with an explicit skill -> evidence-source map (llm_call_log has NO cycle_id column and its agent labels are caller/debate roles like 'Bull R1/2', NOT skill names -- so map the observed agent-label taxonomy, join cycles via strategy_decisions.cycle_id or ts-bucketing, and audit deterministic non-LLM skills via their stored output artifacts/signals instead), explicitly covering rag, earnings_tone, insider, patent, news/social vs the lite-mode skip list (deep_dive, devil's-advocate, risk-assessment, multi-round debate), with the orchestrator.py:1491-2069 code paths cited; gaps between code expectation and observed firing are findings; the audit also reports realized away-week LLM burn (llm_call_log cost/token columns) against realized away-week P&L -- the N* Profit-minus-Burn reconciliation",
+            "a reasoning-quality spot-check of >=3 stored analyses from the away week (the agent rationale behind at least one whipsaw trade among MU/000660.KS/DELL included), assessing (a) whether the cited skills' outputs actually informed the decision, (b) rationale robustness -- factual claims trace to point-in-time sources, flagging narrative/hallucinated support, and (c) epistemic calibration -- scores express uncertainty honestly (the 05-28 all-0.0/10 day is the canonical miscalibration case)",
+            "signal stability is quantified across the week (count of day-over-day BUY/HOLD/SELL action flips and mean |delta-score| per ticker; the SNDK 7.0-BUY -> 5.0-HOLD flip reproduced from stored data and attributed new-information vs model-noise where the logged inputs allow), a one-paragraph look-ahead/temporal-sanitation assessment states whether the lite-path signals (news/social/RAG fact ledger) are point-in-time clean, AND scripts/harness/paper_execution_parity.py + scripts/risk/tca_report.py outputs are included or their failure honestly reported; NO fix work, NO LLM trading-cycle spend"
           ],
           "live_check": "REQUIRED -- the ops+skills section of the post-mortem: llm_call_log query results (fire-count table), incident evidence excerpts, and the signal-stability table."
         },
@@ -205,7 +217,7 @@ them verbatim into each step's `contract.md`; do NOT edit them.
       },
       {
         "id": "55.3",
-        "name": "Synthesis + operator checkpoint -- consolidate 55.1+55.2 into a ranked findings table with stable IDs; write the deep-research strategic chapter (finetune vs features); emit BOTH candidate phase-57 payloads (lever-variant and feature-variant, full step schema, install-ready); post the operator decision block (LLM burn estimate + expected DoD value + reply grammar) to Slack.",
+        "name": "Synthesis + operator checkpoint -- consolidate 55.1+55.2 into a ranked findings table with stable IDs and owners; write the deep-research strategic chapter (finetune vs features, baseline-compared, MinTRL stated); spec BOTH phase-57 candidates (LEVER and FEATURE, one paragraph each; the chosen variant's full payload is authored at install); post the operator decision block (LLM burn estimate + expected DoD value + reply grammar) to Slack.",
         "status": "pending",
         "harness_required": true,
         "priority": "P0",
@@ -214,9 +226,9 @@ them verbatim into each step's `contract.md`; do NOT edit them.
         "verification": {
           "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.3-synthesis-checkpoint.md && test -f handoff/current/live_check_55.3.md",
           "success_criteria": [
-            "a ranked findings table (severity x N*-impact) consolidates 55.1 + 55.2, with each finding carrying a stable ID (F-1, F-2, ...) that phase-56 fixes must reference; the table separates CODE-CONFIRMED findings from DATA-INFERRED ones",
-            "the strategic chapter passes the research gate (>=5 sources read in full + recency scan, per .claude/rules/research-gate.md) covering LLM-trading-agent evaluation, paper-trading statistical power (8 days of dailies cannot establish significance -- state the honest minimum window), and agent-skill ROI, and concludes finetune-vs-features with explicit reasoning grounded in the findings + literature",
-            "the chapter emits TWO complete candidate phase-57 JSON payloads conforming to the masterplan step schema, install-ready: a LEVER variant (exactly ONE of score-hysteresis/persistence, minimum holding period, sector-concentration cap, turnover budget -- chosen from the evidence; measured ON-vs-OFF via the $0 replay/backtest on the production universe reporting Sharpe/return/turnover/maxDD; subject to the SAME Ledoit-Wolf SR-difference robustness gate as 52.3/53.1 (p<0.05 AND delta>=+0.05 AND CI_low>0); config-gated default-off; US momentum core byte-identical unless the flag is enabled; re-proposing the 53.1-rejected no-trade band in naive or renamed form is an automatic FAIL) and a FEATURE variant (the top capability gap from the strategic chapter, e.g. full-mode agents in the autonomous path, per-market benchmark fetches (^KS11), concentration limits as a feature -- with measurable acceptance criteria of the same rigor)",
+            "a ranked findings table (severity x N*-impact) consolidates 55.1 + 55.2, with each finding carrying a stable ID (F-1, F-2, ...) that phase-56 fixes must reference and an owner column (fix-in-56.x / operator-gated / WONTFIX), written in blameless systemic framing (why it passed silently, not who); the table separates CODE-CONFIRMED findings from DATA-INFERRED ones",
+            "the strategic chapter passes the research gate (>=5 sources read in full + recency scan, per .claude/rules/research-gate.md) covering LLM-trading-agent evaluation (incl. the 2025-2026 evidence that short-window LLM-trading wins usually vanish under longer, cost-inclusive evaluation), paper-trading statistical power (compute and STATE the MinTRL number from the observed Sharpe + skew/kurtosis -- 8 days of dailies cannot establish significance), and agent-skill ROI; it compares the system against a passive buy-and-hold baseline AND the existing US-momentum-core baseline using the 55.1 regime-vs-skill attribution, and concludes finetune-vs-features with explicit reasoning grounded in the findings + literature",
+            "the chapter concludes with a recommendation plus a tight one-paragraph spec for EACH candidate phase-57 variant: a LEVER variant (exactly ONE of score-hysteresis/persistence, minimum holding period, sector-concentration cap, turnover budget -- chosen from the evidence; measured ON-vs-OFF via the $0 replay/backtest on the production universe reporting Sharpe/return/turnover/maxDD; subject to the SAME Ledoit-Wolf SR-difference robustness gate as 52.3/53.1 (p<0.05 AND delta>=+0.05 AND CI_low>0); config-gated default-off; US momentum core byte-identical unless the flag is enabled; re-proposing the 53.1-rejected no-trade band in naive or renamed form is an automatic FAIL) and a FEATURE variant (the top capability gap from the strategic chapter, e.g. full-mode agents in the autonomous path, per-market benchmark fetches (^KS11), concentration limits as a feature -- with measurable acceptance criteria of the same rigor); the FULL masterplan payload is authored at install time for the CHOSEN variant only, per this goal's 'Phase-57 required shape' section (two complete throwaway payloads are deliberately NOT pre-built)",
             "an OPERATOR DECISION block is posted to the operator Slack channel: LLM burn estimate ($/cycle from llm_call_log cost columns, fallback token counts x current pricing, x planned cycles over a 1-2 week window), expected value (which of DoD-2/5/6/7/9 close; projected go-live-gate delta from baseline 1/5), the finetune-vs-features recommendation, and the verbatim reply grammar 'LLM SPEND: APPROVED <budget> | DECLINED' + 'PHASE-57: LEVER | FEATURE'; phase-56 may start once phase-55 is done, but phase-57 installation and any phase-58 live cycle are HARD-gated on the verbatim replies"
           ],
           "live_check": "REQUIRED -- the ranked findings table + the research-gate JSON envelope + the Slack message timestamp of the operator decision block."
@@ -244,9 +256,9 @@ them verbatim into each step's `contract.md`; do NOT edit them.
         "verification": {
           "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'fx or paper_trader or krw' -q && test -f handoff/current/live_check_56.1.md",
           "success_criteria": [
-            "total_value and SELL transaction_cost are persisted in USD for non-USD markets (the paper_trader.py:265 and :386-414 paths), covered by a unit test with a KRW fixture that FAILS on the pre-fix code and PASSES on the fixed code (regression-proof)",
-            "the NAV-discrepancy root cause identified by 55.1 (finding ID cited) is fixed or, if it is data-only (no code defect), the correction path is specified; the live /paper-trading UI shows sane Value/Fee/NAV/Cash for KR rows, evidenced by a Playwright capture in live_check_56.1.md; the trades-columns.tsx:11 comment and the VS-KOSPI handling are corrected per the 55.1 verdict (true index excess via ^KS11 or an honest relabel)",
-            "correction/backfill of historical corrupted BQ rows is executed ONLY as an operator-approved migration script under scripts/migrations/ (destructive ops are operator-gated); if the operator declines, the corrupted rows are flagged (not silently kept) and the audit-trail caveat is documented",
+            "total_value and SELL transaction_cost are persisted in USD for non-USD markets (the paper_trader.py:265 and :386-414 paths), covered by a unit test with a KRW fixture that FAILS on the pre-fix code and PASSES on the fixed code (regression-proof); all four FX conversion points (trade recording, mark-to-market, cash ledger, fees) are verified consistent post-fix",
+            "the NAV-discrepancy root cause identified by 55.1 (finding ID cited) is fixed or, if it is data-only (no code defect), the correction path is specified; the live /paper-trading UI shows sane Value/Fee/NAV/Cash for KR rows, evidenced by a Playwright capture in live_check_56.1.md; the trades-columns.tsx:11 comment and the VS-KOSPI handling are corrected per the 55.1 verdict (true index excess via ^KS11, or keeping/strengthening the already-disclosed tooltip limitation)",
+            "correction/backfill of historical corrupted BQ rows is executed ONLY as an operator-approved migration script under scripts/migrations/ (destructive ops are operator-gated); any executed restatement carries a persistent disclosure note (what changed, when, why) plus a materiality classification, GIPS-style; if the operator declines, the corrupted rows are flagged (not silently kept) and the audit-trail caveat is documented",
             "every change in this step cites a 55.x finding ID; fixing anything WITHOUT a finding ID is a FAIL; the finding-ID -> fix mapping is recorded in live_check_56.1.md; the US momentum core paths are untouched (do-no-harm)"
           ],
           "live_check": "REQUIRED -- the finding-ID -> fix map + the KRW-fixture test output + a Playwright capture of the corrected /paper-trading page."
@@ -297,7 +309,7 @@ them verbatim into each step's `contract.md`; do NOT edit them.
           "success_criteria": [
             "the operator's verbatim spend reply ('LLM SPEND: APPROVED <budget>' or 'LLM SPEND: DECLINED', with date) is recorded in live_check_58.1.md BEFORE any live LLM trading cycle runs; running a live cycle without it is an automatic FAIL",
             "if APPROVED: the phase-56 fixes are deployed and the kill switch is verified ACTIVE before the window starts; the mas-harness cron re-enable is confirmed by the operator (command echoed in the live_check); each of DoD-2/5/6/7/9 is re-scored on its own criterion with evidence from the live window, and the DoD scorecard delta from the 2026-06-01 baseline (8/14 backend, 0/12 UX) is reported",
-            "if DECLINED: DoD-2/5/6/7/9 remain honestly LIVE-BLOCKED (no synthetic substitutes); the $0-closable remainder is closed or escalated (ablation exit=1 triage, autoresearch pip-install escalation note, verification that the 56.2 test quarantine still holds)",
+            "if DECLINED: DoD-2/5/6/7/9 remain honestly LIVE-BLOCKED (no synthetic substitutes); the $0-closable remainder is closed or escalated (ablation exit=1 triage, autoresearch pip-install escalation note, verification that the 56.2 test quarantine still holds), and the report states the minimum live-window length (from the 55.3 MinTRL math) at which the live DoD criteria would become statistically meaningful, so the next spend ask is horizon-informed",
             "either branch: an updated go-live-gate eligibility readout (baseline 1/5 on 06-01) + a refreshed handoff/current/cycle_block_summary.md with a crisp operator ask list; this step CLOSES goal-post-away-review"
           ],
           "live_check": "REQUIRED -- the verbatim operator reply + the branch evidence (DoD re-scores or honest parking) + the refreshed cycle_block_summary.md."
@@ -312,8 +324,11 @@ them verbatim into each step's `contract.md`; do NOT edit them.
 
 ## Phase-57 required shape (NOT installed now -- authored by 55.3)
 
-55.3 emits two install-ready candidates; the operator picks ONE via `PHASE-57: LEVER` or
-`PHASE-57: FEATURE`. Both candidates MUST:
+55.3 emits a recommendation plus a one-paragraph spec per candidate; the operator picks ONE
+via `PHASE-57: LEVER` or `PHASE-57: FEATURE`, and the FULL payload is authored at install
+time for the chosen variant only (pre-building two complete throwaway payloads is
+deliberately avoided -- review findings, not speculation, define the step). The installed
+phase-57 MUST:
 - conform to the full masterplan step schema (id 57.1, all fields, retry_count 0,
   max_retries 3) with `"depends_on": ["phase-55"]` at phase level;
 - carry immutable criteria of the same rigor as 53.1 (measure-first, ON-vs-OFF, the
@@ -348,8 +363,8 @@ corrupted for non-USD markets; measurement integrity comes first.
 3. phase-56 -- data-correctness + ops fixes (56.1 FX/value/fee + NAV root cause,
    56.2 approve flow / degraded-scoring guard / watchdog / kill-switch follow-up /
    test quarantine). No fix without a 55.x finding ID.
-4. phase-57 -- evidence-selected improvement (installed from the 55.3 payload the
-   operator picked; not pre-installed).
+4. phase-57 -- evidence-selected improvement (operator picks a 55.3 candidate spec;
+   the full payload is authored at install; not pre-installed).
 5. phase-58 -- go-live runway resumption (spend-gated; CLOSES this goal).
 
 ## Founding principles (non-negotiable)
@@ -433,3 +448,12 @@ Main xhigh; Researcher + Q/A max (CLAUDE.md effort policy unchanged).
 - handoff/current/cycle_block_summary.md (operator-gated follow-ups folded into 56/58)
 - Slack #ford-approvals (C0ANTGNNK8D) digests 2026-05-27 .. 2026-06-10 (SECONDARY
   evidence; reconcile in 55.1)
+- Research anchors from the 2026-06-10 goal review (head start for the phase-55
+  researcher; re-verify, do not just cite): arXiv:2603.27539 (LLM financial-MAS
+  evaluation taxonomy: score stability, prompt sensitivity, hallucination, leakage,
+  cost-per-decision), arXiv:2602.14233 (explicit-bias checklist + structural-validity
+  gate), arXiv:2505.07078 + arXiv:2510.02209/StockBench (short-window LLM-trading wins
+  vanish under longer, cost-inclusive evaluation), Bailey & Lopez de Prado (Deflated
+  Sharpe Ratio + minimum track record length), GIPS error-correction guidance
+  (restatement disclosure + materiality), Anthropic harness-design articles
+  (scaffolding-pruning doctrine behind the phase-57 single-payload decision)

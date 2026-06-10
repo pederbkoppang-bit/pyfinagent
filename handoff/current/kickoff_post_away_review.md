@@ -22,8 +22,8 @@ HARD GATES (non-negotiable):
   flip. No self-evaluation, no verdict-shopping.
 - Phase-55 is review-only: $0, NO fixes, NO LLM trading-cycle spend.
 - Phase-56+ opens only after phase-55 is done; every fix must cite a 55.x finding ID.
-- Phase-57 is NOT pre-installed: 55.3 emits two install-ready payloads (LEVER vs FEATURE);
-  install only the one the operator picks by replying "PHASE-57: LEVER|FEATURE".
+- Phase-57 is NOT pre-installed: 55.3 recommends + specs both variants (LEVER vs FEATURE);
+  author and install only the one the operator picks by replying "PHASE-57: LEVER|FEATURE".
 - Phase-58 runs NO live cycle until the operator's verbatim "LLM SPEND: APPROVED <budget>"
   is on record; "LLM SPEND: DECLINED" -> the $0 branch.
 - DO-NO-HARM: the US momentum core stays byte-identical unless a flag is explicitly
