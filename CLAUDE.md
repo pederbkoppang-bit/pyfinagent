@@ -35,6 +35,11 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
 - **BQ timeout: 30s** on all fallback queries
 - **BigQuery MCP is available** — see "BigQuery Access (MCP)" section below. Use it for schema inspection, data validation, and read-only analytics before touching Python BQ clients.
 - **LLM API costs** require Peder's explicit approval
+- **UI verification via Playwright MCP (goal-post-away-review, 2026-06-10)** -- whenever
+  the operator pastes a UI screenshot, or any step makes a claim about the UI, ALWAYS
+  verify against the RUNNING app via the Playwright MCP (browser_navigate +
+  browser_snapshot / browser_take_screenshot) behind the NextAuth wall. Code reading
+  alone is not UI evidence. Every UI-touching live_check includes a Playwright capture.
 - **Always read `.claude/masterplan.json`** before starting work — it's the machine-readable task tracker
 - **Use `/masterplan`** to see current state and next actionable step
 - **Never edit verification criteria** in masterplan.json — they are immutable
