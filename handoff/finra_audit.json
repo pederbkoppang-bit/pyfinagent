@@ -1,0 +1,31 @@
+{
+  "step": "4.8.9",
+  "ran_at": "2026-06-10T13:50:20.357100+00:00",
+  "sample_size": 10,
+  "retrieved": 10,
+  "sample_retrieval_success_rate": 1.0,
+  "mismatches": [],
+  "retention": {
+    "backend": "local",
+    "bucket": null,
+    "retention_years_policy": 6,
+    "retention_years_minimum": 3,
+    "retention_seconds_policy": 189216000,
+    "citation": "SEC 17a-4 requires 6 years for trade-order records (17a-3(a)(1)); masterplan criterion 'worm_retention_3y' is this project's internal floor, satisfied by the 6y policy."
+  },
+  "retention_years_minimum": 3,
+  "retention_years_policy": 6,
+  "verdict": "PASS",
+  "sample_trade_ids": [
+    "audit-12c13a7b28fa-000",
+    "audit-ef16a199b17a-001",
+    "audit-43a21381f1de-002",
+    "audit-2fa3b6754bce-003",
+    "audit-5b55d702215c-004",
+    "audit-2bb7b53b1408-005",
+    "audit-3b1211ee9179-006",
+    "audit-1b41719dc0c6-007",
+    "audit-e450a848fe67-008",
+    "audit-3ddd036b825b-009"
+  ]
+}

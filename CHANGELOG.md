@@ -7,10 +7,13 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `3c00f80` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `a6ab589` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `8aa3b1d` | chore: commit hook-generated audit appends |
+| 2026-06-10 | `9bf91eb9` | docs(handoff): finalize best-in-class elevation run + defer dropped 53.4 |
+| 2026-06-10 | `6778f44b` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
 | 2026-06-10 | `7972d88` | docs(goal): set goal-post-away-review -- phased review->fix->go-live + 4000-char kickoff |
-| 2026-06-10 | `e850252` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
+| 2026-06-10 | `e8502522` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
 | 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
 | 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
 | 2026-06-01 | `0d4ddcbe` | docs(audit): phase-43.0 Production-Ready DoD audit -- NOT_PRODUCTION_READY (8/14 backend, 0/12 UX) |
@@ -27,9 +30,19 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `0aa5c851` | phase-52.4: Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Martens 2011) -- the higher-evi... |
 | 2026-06-01 | `c8b659dc` | phase-52.3: DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05 Sharpe improvement (1-of-5 c... |
 | 2026-06-01 | `6d1292f4` | phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in... |
+<<<<<<< HEAD
 
 ---
 
+=======
+| 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
+
+---
+
+### v6.36.2 — phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workf... (2026-06-10)
+
+- **phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow...**
+>>>>>>> origin/main
 ### v6.36.1 — perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes... (2026-06-10)
 
 - **perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first)**

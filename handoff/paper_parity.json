@@ -1,14 +1,14 @@
 {
   "step": "3.7.5",
-  "ran_at": "2026-04-17T21:03:58.315640+00:00",
+  "ran_at": "2026-06-10T13:52:07.633530+00:00",
   "days": 5,
   "orders": 100,
-  "fill_price_drift_pct": 0.003,
-  "p50_drift_pct": 0.003,
-  "p95_drift_pct": 0.003,
-  "max_drift_pct": 0.003001,
+  "fill_price_drift_pct": 3.07611,
+  "p50_drift_pct": 0.535706,
+  "p95_drift_pct": 3.07611,
+  "max_drift_pct": 4.029969,
   "alpaca_paper_orders_placed": true,
-  "reconciliation_drift_le_1pct": true,
+  "reconciliation_drift_le_1pct": false,
   "feature_flag_rollback_path": true,
   "flag_transitions": [
     {
@@ -18,7 +18,7 @@
     {
       "at": "flipped_to_alpaca_paper",
       "mode": "alpaca_paper",
-      "probe_source": "mock_alpaca"
+      "probe_source": "alpaca_paper"
     },
     {
       "at": "flipped_back_to_bq_sim",
@@ -31,42 +31,42 @@
       "day": 0,
       "symbol": "AAPL",
       "bq_fill": 169.1,
-      "alpaca_fill": 169.6073,
-      "drift_pct": 0.003,
-      "alpaca_source": "mock_alpaca"
+      "alpaca_fill": 289.06,
+      "drift_pct": 0.709403,
+      "alpaca_source": "alpaca_paper"
     },
     {
       "day": 0,
       "symbol": "MSFT",
       "bq_fill": 369.01,
-      "alpaca_fill": 367.903,
-      "drift_pct": 0.003,
-      "alpaca_source": "mock_alpaca"
+      "alpaca_fill": 403.71,
+      "drift_pct": 0.094035,
+      "alpaca_source": "alpaca_paper"
     },
     {
       "day": 0,
       "symbol": "NVDA",
       "bq_fill": 139.11,
-      "alpaca_fill": 139.5273,
-      "drift_pct": 0.003,
-      "alpaca_source": "mock_alpaca"
+      "alpaca_fill": 206.5,
+      "drift_pct": 0.484437,
+      "alpaca_source": "alpaca_paper"
     },
     {
       "day": 0,
       "symbol": "GOOGL",
       "bq_fill": 266.03,
-      "alpaca_fill": 265.2319,
-      "drift_pct": 0.003,
-      "alpaca_source": "mock_alpaca"
+      "alpaca_fill": 363.85,
+      "drift_pct": 0.367703,
+      "alpaca_source": "alpaca_paper"
     },
     {
       "day": 0,
       "symbol": "AMZN",
       "bq_fill": 167.06,
-      "alpaca_fill": 167.5612,
-      "drift_pct": 0.003,
-      "alpaca_source": "mock_alpaca"
+      "alpaca_fill": 241.4,
+      "drift_pct": 0.44499,
+      "alpaca_source": "alpaca_paper"
     }
   ],
-  "verdict": "PASS"
+  "verdict": "FAIL"
 }

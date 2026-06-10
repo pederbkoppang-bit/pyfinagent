@@ -1,7 +1,7 @@
 {
   "strategy": "baseline",
   "seed": 42,
-  "ts": "2026-04-19T06:03:24.485914+00:00",
+  "ts": "2026-06-10T13:50:25.006547+00:00",
   "dry_run": true,
   "regime_catalog_hash": "f62b2ea9f9140fd5",
   "per_regime": [
