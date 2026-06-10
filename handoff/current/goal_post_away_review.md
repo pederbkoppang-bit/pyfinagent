@@ -11,7 +11,10 @@ Operator decisions baked into this goal (AskUserQuestion + plan review, 2026-06-
 1. Direction: review -> fix -> go-live prep. The review completes BEFORE fix work starts.
 2. LLM spend for live trading cycles is decided by the operator AFTER the review reports
    (explicit checkpoint with burn estimate + expected value).
-3. Pending steps 53.4 + 53.5 are finished FIRST (53.5 formally closes the 2026-06-01 goal).
+3. (superseded by events, same day) 53.4 + 53.5 were to be finished first -- the local run
+   shipped 53.5 on main on 2026-06-10 (closing the 2026-06-01 goal's autonomous scope)
+   and the operator deferred 53.4 ("dropped it 2026-06-10, home"). Nothing to execute
+   before phase-55. Do NOT resurrect 53.4 inside this goal without an operator ask.
 4. The work is split into separate masterplan phases (review / fixes / improvement /
    go-live), not one mega-phase. Phase-57 (improvement) is NOT pre-installed -- it is
    authored BY the review (finetune-vs-features is an open question the review must answer).
@@ -59,9 +62,12 @@ PRIMARY (repo/code, verified this session):
   risk-assessment, and multi-round debate are SKIPPED. Ground truth of what actually
   fired is queryable from `pyfinagent_data.llm_call_log` (agent x ticker x cycle_id x
   cost columns).
-- Masterplan: phase-54 done; 53.1 done (no-trade rebalance band measured and REJECTED
-  via the Ledoit-Wolf SR-difference gate -- binding precedent); 53.2/53.3 done;
-  53.4 + 53.5 pending and fully defined (do NOT redefine them). Phase ids 55-58 unused.
+- Masterplan (re-verified post-merge with origin/main, 2026-06-10): phase-54 done;
+  53.1 done (no-trade rebalance band measured and REJECTED via the Ledoit-Wolf
+  SR-difference gate -- binding precedent); 53.2/53.3 done; 53.5 DONE (e2e-smoke
+  capstone shipped, closing the 2026-06-01 goal's autonomous scope); 53.4 DEFERRED
+  (operator dropped it 2026-06-10). phase-53/43.0 parents intentionally stay pending
+  (operator-gated closure). Phase ids 55-58 unused.
 - Operator follow-ups batched in `handoff/current/cycle_block_summary.md` (mas-harness
   cron re-enable, phase-43.0 operator actions, 16 env-coupled test failures).
 
@@ -98,7 +104,8 @@ SECONDARY (Slack #ford-approvals digests + screenshot; reconcile in 55.1):
 4. OPERATOR-GATED: LLM API spend (live cycles), pip installs, BQ DROP / unqualified
    DELETE / historical-row backfill, launchctl changes. Phase-58 live cycles are blocked
    until the verbatim spend reply is on record.
-5. Do NOT redefine 53.4/53.5 -- execute their existing masterplan definitions.
+5. 53.5 is done and 53.4 is deferred (2026-06-10) -- do not re-open either inside this
+   goal without an explicit operator ask.
 6. Install the payloads below byte-for-byte. If `.claude/masterplan.json` on main has
    drifted (a phase-55+ already exists, or statuses changed), STOP and ask the operator
    before renumbering.
@@ -115,13 +122,13 @@ SECONDARY (Slack #ford-approvals digests + screenshot; reconcile in 55.1):
 1. Install commit: phase-55/56/58 payload into `.claude/masterplan.json` + replace
    `handoff/current/active_goal.md` + add the CLAUDE.md bullet. Commit message:
    `feat(masterplan): add phase-55/56/58 post-away-review goal; refresh active_goal`.
-2. 53.4 -> 53.5 per their existing definitions (53.5 CLOSES the 2026-06-01 goal).
-3. 55.1 -> 55.2 -> 55.3 (review; $0; no fixes).
-4. OPERATOR CHECKPOINT (see mechanics below). Phase-56 may start once phase-55 is done,
+2. 55.1 -> 55.2 -> 55.3 (review; $0; no fixes). (53.5 already shipped on main
+   2026-06-10; 53.4 deferred -- nothing precedes phase-55.)
+3. OPERATOR CHECKPOINT (see mechanics below). Phase-56 may start once phase-55 is done,
    in parallel with the operator's deliberation.
-5. 56.1 -> 56.2 (fixes).
-6. Phase-57 install (the variant the operator picked) -> execute it.
-7. 58.1 (go-live runway; CLOSES this goal) -> refresh cycle_block_summary.md -> HARD STOP.
+4. 56.1 -> 56.2 (fixes).
+5. Phase-57 install (the variant the operator picked) -> execute it.
+6. 58.1 (go-live runway; CLOSES this goal) -> refresh cycle_block_summary.md -> HARD STOP.
 
 ## Operator checkpoint mechanics (after 55.3)
 
@@ -321,9 +328,9 @@ The install commit message records the operator's verbatim `PHASE-57:` reply.
 ```markdown
 # Active Goal -- Post-away-week review -> evidence-gated fixes -> go-live runway
 
-Set by operator 2026-06-10. Supersedes the 2026-06-01 goal the moment 53.5 closes it
-(53.4 + 53.5 are executed first, under their existing masterplan definitions).
-Full specification: handoff/current/goal_post_away_review.md (the goal prompt).
+Set by operator 2026-06-10. Supersedes the 2026-06-01 goal, whose autonomous scope
+completed on main the same day (53.5 e2e-smoke capstone shipped; 53.4 deferred by the
+operator). Full specification: handoff/current/goal_post_away_review.md (the goal prompt).
 
 ## North star
 (verbatim masterplan.json::goal) "Ship an Intelligence Engine trading system that
@@ -334,7 +341,6 @@ maximize what you cannot measure -- the away week showed the P&L readout itself 
 corrupted for non-USD markets; measurement integrity comes first.
 
 ## Scope -- in order
-0. 53.4 -> 53.5 (existing definitions; 53.5 CLOSES the 2026-06-01 goal)
 1. phase-55 -- away-week forensic review (55.1 data/trading, 55.2 ops/skills,
    55.3 synthesis + operator checkpoint). $0; NO fixes.
 2. OPERATOR CHECKPOINT -- replies: 'LLM SPEND: APPROVED <budget> | DECLINED' +
@@ -408,8 +414,6 @@ Main xhigh; Researcher + Q/A max (CLAUDE.md effort policy unchanged).
 | .claude/masterplan.json | install phase-55/56/58 payload (commit 1); phase-57 at checkpoint |
 | handoff/current/active_goal.md | replace with the refresh payload (commit 1) |
 | CLAUDE.md | add the Playwright bullet (commit 1) |
-| .claude/hooks/session-start-bootstrap.sh, .claude/settings.json, .github/workflows/claude.yml | 53.4 (existing definition) |
-| .github/workflows/e2e-smoke.yml, scripts/smoketest/aggregate.sh | 53.5 (existing definition) |
 | backend/services/paper_trader.py | 56.1 fix targets (:265, :386-414; NAV root cause per 55.1) |
 | frontend/src/components/paper-trading/trades-columns.tsx, cockpit-helpers.tsx | 56.1 display/benchmark corrections |
 | backend/slack_bot/* (approve path), watchdog module, scoring guard | 56.2 targets (exact files per 55.2 root causes) |

@@ -13,7 +13,8 @@ FIRST ACTIONS (in order):
    refresh payload, add the CLAUDE.md Playwright bullet. If masterplan.json already has a
    phase-55+ or drifted statuses, STOP and ask the operator before renumbering.
    Commit: "feat(masterplan): add phase-55/56/58 post-away-review goal; refresh active_goal"
-4. Execute in order: 53.4 -> 53.5 (closes the 2026-06-01 goal) -> 55.1 -> 55.2 -> 55.3.
+4. Execute in order: 55.1 -> 55.2 -> 55.3. (53.5 already shipped on main 2026-06-10 and
+   53.4 is deferred -- do not resurrect either without an operator ask.)
 
 HARD GATES (non-negotiable):
 - Full harness loop per step: researcher FIRST (>=5 sources read in full) -> contract.md
