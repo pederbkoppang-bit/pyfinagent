@@ -7,29 +7,35 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `433fe1d5` | chore: commit hook-generated audit appends pre-merge |
+| 2026-06-10 | `946183b` | chore: commit hook-generated changelog/audit appends |
+| 2026-06-10 | `09275a4` | docs(goal): harden goal-post-away-review criteria per dual review (researcher max + QA) |
+| 2026-06-10 | `9d9ba49` | chore: commit hook-generated audit appends |
+| 2026-06-10 | `12ff076` | chore: commit hook-generated audit appends |
+| 2026-06-10 | `907ccf2` | chore: commit hook-generated audit appends |
+| 2026-06-10 | `817f2f5` | fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution |
+| 2026-06-10 | `09dc9dd` | docs(goal): align goal-post-away-review with main -- 53.5 shipped, 53.4 deferred |
+| 2026-06-10 | `728e1d6` | Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post-away-review branch |
+| 2026-06-10 | `55f81af` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
+| 2026-06-10 | `3c00f80` | chore: commit hook-generated audit appends |
+| 2026-06-10 | `a6ab589` | chore: commit hook-generated audit appends |
+| 2026-06-10 | `8aa3b1d` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `9bf91eb9` | docs(handoff): finalize best-in-class elevation run + defer dropped 53.4 |
 | 2026-06-10 | `6778f44b` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
+| 2026-06-10 | `7972d88` | docs(goal): set goal-post-away-review -- phased review->fix->go-live + 4000-char kickoff |
 | 2026-06-10 | `e8502522` | perf(bq): phase-53.3 column-prune hot fundamentals reads -21.2% bytes (measure-first) |
 | 2026-06-10 | `11dcfdeb` | feat(ui): phase-53.2 UX elevation -- WCAG-AA focus baseline + axe AA tags + zinc->navy palette unifi |
 | 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
 | 2026-06-01 | `0d4ddcbe` | docs(audit): phase-43.0 Production-Ready DoD audit -- NOT_PRODUCTION_READY (8/14 backend, 0/12 UX) |
-| 2026-06-01 | `4fec7c70` | feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco |
-| 2026-06-01 | `8d5fa076` | feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line |
-| 2026-06-01 | `a7750d44` | fix(cron): phase-54.1 cross-layer cron audit + paper_markets parse fix (operator-away) |
-| 2026-06-01 | `ae13ddcf` | Merge remote-tracking branch 'origin/main' |
-| 2026-06-01 | `a560b639` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
-| 2026-06-01 | `17adbf28` | feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar |
-| 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
-| 2026-06-01 | `f831198e` | docs(handoff): record goal-multimarket-ux visual verification PASS (all-US live book) |
-| 2026-06-01 | `ac93f67f` | feat(paper-trading): multi-market UX -- currency-aware cockpit + market filter (US/EU/KR + Nordic-re |
-| 2026-06-01 | `f828a2dc` | docs(handoff): session conclusion -- element-3 MEASURED (live engine +14.28% alpha, Sharpe 5.39); al |
-| 2026-06-01 | `0aa5c851` | phase-52.4: Measure RESIDUAL / IDIOSYNCRATIC momentum (Blitz-Huij-Martens 2011) -- the higher-evi... |
-| 2026-06-01 | `c8b659dc` | phase-52.3: DSR-deflate / robustness-test the 52.1 52wh-tilt's +0.05 Sharpe improvement (1-of-5 c... |
-| 2026-06-01 | `6d1292f4` | phase-52.2: Wire the 52.1-MEASURED 52-week-high momentum tilt (k=0.5, centered multiplicative) in... |
-| 2026-06-01 | `2a536fc6` | phase-52.1: Measure the top research-recommended PRICE-BASED alpha-signal enhancement vs the base... |
 
 ---
 
+### v6.36.4 — fix(handoff): restore audit-stream lines dropped by dedupe in merge r... (2026-06-10)
+
+- **fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution**
+### v6.36.3 — Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post... (2026-06-10)
+
+- **Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post-away-review branch**
 ### v6.36.2 — phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workf... (2026-06-10)
 
 - **phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow...**
