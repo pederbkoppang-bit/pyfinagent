@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `817f2f5` | fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution |
 | 2026-06-10 | `09dc9dd` | docs(goal): align goal-post-away-review with main -- 53.5 shipped, 53.4 deferred |
 | 2026-06-10 | `728e1d6` | Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post-away-review branch |
 | 2026-06-10 | `55f81af` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `ae13ddcf` | Merge remote-tracking branch 'origin/main' |
 | 2026-06-01 | `a560b639` | feat(masterplan): add phase-53 best-in-class elevation + remote-working steps; refresh active_goal |
 | 2026-06-01 | `17adbf28` | feat(paper-trading): fold market filter into the operator status bar (goal-market-filter-in-gate-bar |
-| 2026-06-01 | `659a3b35` | feat(mcp): add Playwright browser-driving MCP (goal-browser-mcp) |
 
 ---
 
+### v6.36.4 — fix(handoff): restore audit-stream lines dropped by dedupe in merge r... (2026-06-10)
+
+- **fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution**
 ### v6.36.3 — Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post... (2026-06-10)
 
 - **Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post-away-review branch**
