@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `2983694f` | phase-55.3: synthesis + operator checkpoint -- PASS (19 ranked findings; FEATURE recommended; MinTRL |
 | 2026-06-10 | `a747d86b` | phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth rail root cause; F-D silent 0.0/ |
 | 2026-06-10 | `750cb713` | chore(handoff): backfill archive sweep of stale done-step files + restore active goal/rolling files  |
 | 2026-06-10 | `3222133d` | phase-55.1: away-week data-integrity + trading forensics -- PASS (NAV root cause useLiveNav.ts:34-39 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `a6ab589` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `8aa3b1d` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `9bf91eb9` | docs(handoff): finalize best-in-class elevation run + defer dropped 53.4 |
-| 2026-06-10 | `6778f44b` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
 
 ---
 
+### v6.37.3 — phase-55.3: synthesis + operator checkpoint -- PASS (19 ranked findin... (2026-06-10)
+
+- **phase-55.3: synthesis + operator checkpoint -- PASS (19 ranked findings; FEATURE recommended; MinTRL**
 ### v6.37.2 — phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth r... (2026-06-10)
 
 - **phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth rail root cause; F-D silent 0.0/**
