@@ -1,44 +1,35 @@
-# Experiment Results — Step 55.1 (GENERATE)
+# Experiment Results — Step 55.2 (GENERATE)
 
-**Step:** 55.1 — Data-integrity + trading forensics (away week 2026-06-01 → 2026-06-10). **Date:** 2026-06-10. **Mode:** review-only, $0, NO fixes.
+**Step:** 55.2 — Ops incidents + agent-quality audit (away week 2026-06-01 → 2026-06-10). **Date:** 2026-06-10. **Mode:** review-only, $0, NO fixes.
 
 ## What was built
 
-Two deliverables (no production code touched):
-
 | Artifact | Content |
 |---|---|
-| `handoff/current/55.1-away-week-postmortem.md` | Full primary-data post-mortem: NAV-path reconciliation (≤0.05pp), 4-point FX-conversion audit with live-row confirmation, corruption-scope classification (7/52 rows, stored vs display), penny-exact daily cash-ledger reconciliation, NAV-discrepancy root cause at `frontend/src/lib/useLiveNav.ts:34-39` (with `paper_trader.py:512-520` suspect RULED OUT), VS-KOSPI audit, turnover/round-trip/TCA, verbatim /performance + /metrics-v2, concentration (HHI) + regime-vs-skill attribution + MinTRL, kill-switch verdict CORRECTLY-DID-NOT-TRIP with arithmetic, 15-break reconciliation table (B1-B15) for 55.3 ID assignment |
-| `handoff/current/live_check_55.1.md` | 6 Playwright captures (incl. all three phase-50.6 visual confirms), BQ queries + row excerpts, verbatim endpoint outputs, tool-run outputs (tca_report synthetic-labeled; paper_execution_parity honest FAIL), method + constraint-compliance disclosure |
-
-Supporting evidence files: `handoff/current/captures_55.1/*.png` (6 screenshots), `/tmp/55_1/*.json` (raw query dumps, session-local).
+| `handoff/current/55.2-ops-skill-audit.md` | Incident triage with root causes at file:line + severities + stable IDs (F-A1 approve-flow OAuth rail, F-A2 fail-closed + dead button, F-C watchdog event-loop starvation, F-D silent 0.0/10 degraded scoring, F-E llm_call_log observability gap) plus three NEW incidents surfaced live (F-F RiskJudge REJECT advisory-only — DELL bought 06-03 despite REJECT; F-G RiskJudge 10%-vs-30% prompt/config divergence + concentration-blindness; F-H lite-checkbox UI/runtime desync); per-skill firing audit with skill→evidence-source map (verdict: lite 4-agent chain ran, SignalStack on static fallback all week, rag/earnings_tone/insider/patent/news-social DID NOT FIRE); operator's-question answer (NO); N* burn-vs-P&L reconciliation (~$1 burn vs −$132 churn); 3-analysis reasoning spot-check (2 whipsaws + the REJECT case); signal-stability table (35% daily flip rate, mean |Δscore| 1.15, SNDK flip reproduced with direction corrected); look-ahead paragraph; tool reruns |
+| `handoff/current/live_check_55.2.md` | Verbatim llm_call_log fire-count tables (away window: 12 rows, ZERO for 06-02..06-09 cycles), incident evidence excerpts (watchdog log lines, 0.0-block BQ rows, REJECT trade row, dead-button grep, CLI auth state), signals-JSON spot-check excerpts, stability table pointer, burn numbers, tool-rerun outputs |
 
 ## Key findings (headline)
 
-1. **Stored NAV/cash/snapshots are CLEAN** — digest path reconciles to ≤0.05pp; daily cash-ledger identity closes to $0.01. The engine converts FX correctly internally.
-2. **Trade-ledger FX defects CONFIRMED on live rows**: `paper_trades.total_value` in KRW on 7 rows (`paper_trader.py:265`), SELL `transaction_cost` in KRW on 3 rows (`:387,:413-414`). That is the complete corruption scope (13.5% of all rows, away week only).
-3. **UI NAV 345,968.86 root cause = `useLiveNav.ts:34-39`** (client sums KRW live ticks as USD; display-only). Live-reproduced at 345,950.68 with exact decomposition. Same defect class in RiskMonitorCard ("Max position 1527.8%"), positions Current cell, currency-exposure %, donut center.
-4. **Kill switch CORRECTLY-DID-NOT-TRIP on 06-05**: true day −2.82% < 4% daily limit; trailing 3.26% < 10%. The "−3.5%" digest figure was overstated. Structural note: the daily-loss leg is ≈0 by construction under once-daily cadence (SOD anchored at evaluation instant).
-5. **Away week was net negative**: −2.26% from 06-01, 81.4% weekly turnover, 10 within-week round trips netting −$132; the +19-23% level is the April momentum book converting unrealized→realized.
-6. **Concentration**: 100% Technology book all week, HHI up to 0.63; caps exist (2/sector + 30% NAV, portfolio_manager.py:223-310) but NAV%-cap is structurally diluted by 70-96% cash.
-7. **MinTRL ≈ 377 daily obs vs 7 available** — all Sharpe/PSR readouts labeled insufficient-track-record; metrics-v2 DSR=0.0 is the honest summary.
-8. New live-discovered breaks: profit_factor metric defect (B9), markets-toggle display/config mismatch (B14), historical_fx_rates malformed rows (B12), parity-probe non-idempotency (B13).
+1. **F-A1 (HIGH):** the approve-flow error originates in the `claude` CLI binary — `claude_code_client.py:163-170` deliberately scrubs the API key to force `~/.claude/` OAuth; the OAuth session was the failure, the .env key was valid all along (direct-Anthropic probes succeeded minutes before the failed Approve). Fix direction is rail-health detection, NOT un-scrubbing.
+2. **F-A2:** approval path fails CLOSED on action (by accident); the Approve button is a dead control (no handler).
+3. **F-C (LOW):** watchdog/digest timeouts = event-loop starvation during the 18:00Z cycle; every FAIL "(1/3)"; backend never down.
+4. **F-D (HIGH):** the "05-28 all-0.0/10" block is dated 05-27 18:02-18:20Z (digest lag); uppercase-HOLD degraded path published via `formatters.py:37` default-0 with no failed-vs-zero guard.
+5. **F-E (HIGH):** llm_call_log is blind to the analysis rail (zero rows for 6 of 7 cycles; `log_llm_call` absent from `claude_code_client.py`/lite analyzer). Three masterplan premises corrected (cycle_id exists-but-NULL; labels aren't debate roles; strategy_decisions is rotation-only).
+6. **F-F (HIGH, new):** RiskJudge REJECT is advisory-only (`portfolio_manager.py:185,194-198`) — live-proven by the executed DELL 06-03 BUY.
+7. **Skills answer:** NO — lite chain only; enrichment skills silent on all 59 rows; conviction overlay was a hardcoded 10.00 stub all week.
+8. **Stability:** 16 action flips / 46 pairs (35%), churn by construction (momentum-following with no damping layer); SNDK chronological flip is 5.0-HOLD→7.0-BUY (digest framing reconciles).
 
 ## Verification command output (verbatim)
 
 ```
-$ cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.1-away-week-postmortem.md && test -f handoff/current/live_check_55.1.md && echo PASS
+$ cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/current/55.2-ops-skill-audit.md && test -f handoff/current/live_check_55.2.md && echo PASS
 PASS
 ```
 
-## Artifact shape
-
-- Post-mortem: 10 sections, break list B1-B15 with taxonomy + proposed severity, every numeric claim carrying a BQ query, file:line cite, or endpoint excerpt.
-- live_check: capture table + query/excerpt evidence + verbatim tool outputs + method disclosure (skip-auth :3100 instance, operator :3000 untouched).
-
 ## Honest limitations
 
-- n=7 daily returns: attribution regression and MinTRL are reported with explicit low-power caveats; no performance claims made.
-- The 2-per-sector count-cap adjudication (why 6-7 Technology positions co-existed) requires decision-time sector labels → explicitly deferred to 55.2.
-- tca_report.py output is synthetic by design (script seeds deterministic fills; does not read paper_trades) — labeled as tool-smoke, real TCA computed from BQ.
-- paper_execution_parity.py failed on an Alpaca client_order_id uniqueness error — reported verbatim, not retried-to-green.
+- The away-week OAuth-expiry mechanism is bounded, not directly observed (auth state is only inspectable NOW, post-recovery); the bound rests on four converging live evidences (fallback strings, zero logged calls, the 06-01 error, working direct-API probes).
+- Per-sector count-cap full adjudication still open (decision-time cap state not persisted) — carried by F-G to phase-56.
+- Whether rag/earnings_tone/etc. are SUPPOSED to fire in lite mode (vs only in full mode) is a code-expectation question the goal doc asserted; the audit reports the observed silence and flags the discrepancy rather than adjudicating intent.
+- paper_execution_parity.py fails identically to 55.1 (client_order_id reuse) — reported verbatim both times.

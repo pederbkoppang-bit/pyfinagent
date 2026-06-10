@@ -14101,7 +14101,7 @@
         {
           "id": "55.2",
           "name": "Ops incidents + agent-quality audit -- root-cause the Slack approve-flow anthropic-key error, the nightly backend-watchdog ReadTimeouts, and the 05-28 all-0.0/10 scoring day; audit which agent skills actually fired in the autonomous lite path over the away week (rag, earnings_tone, insider, patent, news/social vs the lite-mode skip list); quantify signal stability (day-over-day action flips, |delta-score|).",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "55.1",
