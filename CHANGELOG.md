@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-10 | `946183b` | chore: commit hook-generated changelog/audit appends |
 | 2026-06-10 | `09275a4` | docs(goal): harden goal-post-away-review criteria per dual review (researcher max + QA) |
 | 2026-06-10 | `9d9ba49` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `12ff076` | chore: commit hook-generated audit appends |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-01 | `675e69df` | feat(quant): phase-53.1 no-trade rebalance band -- measured + REJECTED (honest negative) |
 | 2026-06-01 | `0d4ddcbe` | docs(audit): phase-43.0 Production-Ready DoD audit -- NOT_PRODUCTION_READY (8/14 backend, 0/12 UX) |
 | 2026-06-01 | `4fec7c70` | feat(ui): phase-50.6 multi-market UI -- NAV-by-currency widget + paper_markets toggle + backtest sco |
-| 2026-06-01 | `8d5fa076` | feat(slack): phase-54.2 reliable away-week digest + kill-switch/gate/cron-health line |
 
 ---
 
