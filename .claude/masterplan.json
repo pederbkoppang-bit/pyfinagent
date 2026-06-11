@@ -14260,6 +14260,80 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-59",
+      "name": "Fable 5 adoption + MCP audit (operator-directed 2026-06-11, in-session pre-approval on all 8 scoping decisions). Adopt Claude Fable 5 (claude-fable-5, $10/$50 per Mtok, Max-plan usage credits after June 22) on the QUALITY-FIRST rare-event roles across BOTH MAS layers (Layer-3 harness researcher/qa + Layer-2 mas_main/autoresearch_strategic; per-ticker roles stay Opus 4.8 for cost discipline); raise harness agent turn caps (qa 12->30, researcher 30->40 -- 5 observed mid-evaluation stalls this session); audit + fully integrate the Playwright MCP (binding qa UI-verification rule) and the Figma MCP (frontend design workflow); run the CLAUDE.md stress-test doctrine for the new model release (one representative step harness-free on Fable 5; prune proposals operator-gated).",
+      "status": "pending",
+      "depends_on": [
+        "phase-57"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "59.1",
+          "name": "Fable 5 model adoption (both layers, quality-first) -- Layer-3: researcher.md + qa.md pinned to Fable 5 with researcher-validated frontmatter syntax, effort retained, maxTurns raised (qa 12->30, researcher 30->40), restart caveat + roster-verify instruction recorded; Layer-2: model_tiers.py mas_main + autoresearch_strategic -> claude-fable-5, mas_qa + ALL per-ticker roles unchanged, MODEL_EFFORT_FALLBACK row for claude-fable-5, ticket_queue_processor agent_model_map per rare-event analysis; CLAUDE.md effort-policy section updated with the Fable 5 economics.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "57.1",
+          "audit_basis": "Operator directive 2026-06-11 + 8 in-session scoping answers (layers=both; cost=quality-first rare-event roles; process=full harness; caps=raise both). Fable 5 facts (anthropic.com/news/claude-fable-5-mythos-5, fetched 2026-06-11): claude-fable-5, $10/$50 per Mtok (2x Opus 4.8), SOTA with 'the longer and more complex the task, the larger the lead', Max plans free June 9-22 THEN usage credits (changes the phase-29.2 flat-fee rationale -- document, do not silently keep), classifier fallback to Opus 4.8 (>95% sessions unaffected; finance unaffected). Observed harness defect: qa stalled mid-evaluation 5x this session at maxTurns=12 (tool-use counts 20-26); researcher stalled 2x at 30 (counts 25-45).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q && test -f handoff/current/live_check_59.1.md",
+            "success_criteria": [
+              "Layer-3: .claude/agents/researcher.md and qa.md pin Fable 5 using the researcher-validated frontmatter syntax for this Claude Code version, retain their effort settings, and raise maxTurns to 40 (researcher) and 30 (qa); the file comments record the 2026-06-11 operator pre-approval, the June-22 Max-credit economics, and the session-restart requirement; live_check_59.1.md instructs the next session to run scripts/qa/verify_qa_roster_live.sh",
+              "Layer-2: backend/config/model_tiers.py pins mas_main and autoresearch_strategic to claude-fable-5 while mas_qa and every per-ticker/per-analysis role keeps its existing model (cost discipline: no metered per-ticker path changes model); MODEL_EFFORT_FALLBACK gains a claude-fable-5 entry with a researcher-grounded effort tier; the ticket_queue_processor agent_model_map is updated (or explicitly kept) per the researcher's rare-event cost analysis with the decision recorded; a unit test covers the new resolution paths and the unchanged per-ticker pins",
+              "CLAUDE.md's effort-policy section is updated for Fable 5 (model id, $10/$50 pricing, the June-22 Max-credit change superseding the flat-fee rationale, the classifier-fallback note) without deleting the Opus 4.8 history; the change is additive and cites the operator's 2026-06-11 approval",
+              "the verification command exits 0 and live_check_59.1.md records the pin diff map (old->new per role), the unchanged-roles list, and the restart/roster-verify instruction"
+            ],
+            "live_check": "REQUIRED -- the pin diff map + unchanged-roles list + the roster-restart instruction + test output."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "59.2",
+          "name": "MCP audit + integration (Playwright full, Figma frontend workflow) -- Playwright: pinned-version check vs latest @playwright/mcp (bump + smoke if newer), .mcp.json alwaysLoad discipline entry with rationale, BINDING qa-prompt rule (UI-touching steps FAIL without a live Playwright capture), researcher awareness, the :3100 skip-auth verification workflow documented in the rules; Figma: frontend-rules workflow section (design-to-code for new views, code-to-design review, connector-availability caveat for headless runs), researcher/qa awareness, connector capability audit for the Next.js cockpit.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "59.1",
+          "audit_basis": "Operator answers 2026-06-11: Playwright=full integration (binding qa rule); Figma=integrate for frontend work. Current state: .mcp.json pins @playwright/mcp@0.0.75 with NO alwaysLoad key (CLAUDE.md discipline section documents the other four servers only); Playwright proved load-bearing in 55.1/56.1 live-UI verification via the LIGHTHOUSE_SKIP_AUTH=1 :3100 pattern (middleware.ts:24) which is undocumented in the rules; Figma is a claude.ai session connector (mcp__claude_ai_Figma__*) absent in headless/cron runs -- the docs must carry that caveat per the Workflow-tool MCP note.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import json; cfg=json.load(open('.mcp.json')); assert 'alwaysLoad' in cfg['mcpServers']['playwright'], 'playwright alwaysLoad missing'\" && grep -q 'Playwright' .claude/agents/qa.md && grep -qi 'figma' .claude/rules/frontend.md && test -f handoff/current/live_check_59.2.md",
+            "success_criteria": [
+              "Playwright: the pinned @playwright/mcp version is checked against the latest release (bumped + smoke-tested if newer, or the current pin justified); .mcp.json gains an explicit alwaysLoad key for the playwright server with a rationale consistent with the CLAUDE.md discipline section (which is updated to list it); the smoke evidence (a live browser_navigate + snapshot against the running app) is in live_check_59.2.md",
+              "qa.md gains a BINDING rule: any step whose contract or criteria make UI claims must carry a live Playwright capture in its live_check or the verdict cannot be PASS; researcher.md gains Playwright awareness for UI-related research; the :3100 LIGHTHOUSE_SKIP_AUTH verification pattern (operator :3000 untouched, start/stop, disclosure requirements) is documented in .claude/rules/frontend.md or a dedicated rules file",
+              "Figma: .claude/rules/frontend.md gains a Figma-MCP workflow section (when to use design-to-code for new dashboard views, code-to-design for design review, and the headless-absence caveat for the claude.ai connector); researcher.md/qa.md gain one-line awareness; a capability audit of the connector against the Next.js cockpit (what it can/cannot do for this repo) is recorded in live_check_59.2.md",
+              "the verification command exits 0; all agent-file edits carry the restart caveat; no emojis introduced"
+            ],
+            "live_check": "REQUIRED -- the version-check evidence + Playwright smoke capture + the Figma capability-audit notes + config diffs."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "59.3",
+          "name": "Stress-test doctrine for the Fable 5 release -- re-run ONE representative past masterplan step WITHOUT the harness (no subagents, no handoff files) on Fable 5, compare against the harness-produced artifact on at least 3 named dimensions, and render a keep/prune/modify verdict per scaffolding assumption; prune proposals are OPERATOR-GATED recommendations, never applied in this step.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "59.2",
+          "audit_basis": "CLAUDE.md stress-test doctrine (Anthropic harness-design): 'On each new Claude model release, re-run a representative step WITHOUT the harness and compare... Stale scaffolding is dead weight -- prune it.' Fable 5 (2026-06-09 release) is such a release; the announcement claims 'works autonomously for longer than any previous Claude models' which directly challenges the maxTurns/handoff-file assumptions. Operator answer 2026-06-11: include.",
+          "verification": {
+            "command": "test -f handoff/current/59.3-stress-test-comparison.md && test -f handoff/current/live_check_59.3.md",
+            "success_criteria": [
+              "one representative, already-completed masterplan step is re-run WITHOUT the harness (single Fable 5 pass: no researcher/qa subagents, no contract/handoff scaffolding) and the output is saved verbatim; the chosen step and why it is representative are justified in the comparison doc",
+              "the comparison evaluates harness-vs-harness-free output on at least 3 named dimensions (e.g. factual accuracy/citation quality, criteria coverage, error-catching depth) with concrete examples from both artifacts, and renders a keep/prune/modify verdict for each major scaffolding component (researcher gate, contract phase, separate qa, handoff files, turn caps)",
+              "any prune/modify proposal is presented as an OPERATOR-GATED recommendation with expected savings and risks -- nothing is removed from the harness in this step; an honest 'keep everything' is a valid outcome",
+              "the comparison + verdict live in handoff/current/59.3-stress-test-comparison.md with the evidence excerpts in live_check_59.3.md"
+            ],
+            "live_check": "REQUIRED -- the harness-free output excerpt + the 3-dimension comparison table + the per-component verdicts."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
