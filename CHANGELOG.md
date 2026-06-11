@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `fa62b5fe` | phase-60.1: deep-pipeline restoration + honest-degradation alarm (AW-4) -- PASS |
 | 2026-06-11 | `7524e3cf` | feat(masterplan): install phase-60 -- 59.3 re-audit remediation, steps 60.1-60.4 ONLY, operator-appr |
 | 2026-06-11 | `ad349f57` | revert(masterplan): remove unauthorized phase-60 install (7258d241) -- written by the 59.3 stress-te |
 | 2026-06-11 | `cd29b9b5` | docs(handoff): preserve unauthorized phase-60 draft as UNAPPROVED reference input |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `236b1f86` | fix(ops): phase-56.2 ops fixes -- rail-health probe (F-4), degraded-scoring guard (F-5), conviction- |
 | 2026-06-10 | `17e53d00` | fix(fx): phase-56.1 FX/value/fee data-correctness -- USD trade rows (F-2, 3-line fix + regression te |
 | 2026-06-10 | `2983694f` | phase-55.3: synthesis + operator checkpoint -- PASS (19 ranked findings; FEATURE recommended; MinTRL |
-| 2026-06-10 | `a747d86b` | phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth rail root cause; F-D silent 0.0/ |
 
 ---
 
+### v6.46.1 — phase-60.1: deep-pipeline restoration + honest-degradation alarm (AW-... (2026-06-11)
+
+- **phase-60.1: deep-pipeline restoration + honest-degradation alarm (AW-4) -- PASS**
 ### v6.46.0 — feat(masterplan): install phase-60 -- 59.3 re-audit remediation, step... (2026-06-11)
 
 - **feat(masterplan): install phase-60 -- 59.3 re-audit remediation, steps 60.1-60.4 ONLY, operator-appr**
