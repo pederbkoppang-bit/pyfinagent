@@ -1,57 +1,57 @@
-# Active Goal -- Post-away-week review -> evidence-gated fixes -> go-live runway
+# Active Goal -- goal-phase61-churn-integrity (installed 2026-06-11)
 
-Set by operator 2026-06-10. Supersedes the 2026-06-01 goal, whose autonomous scope
-completed on main the same day (53.5 e2e-smoke capstone shipped; 53.4 deferred by the
-operator). Full specification: handoff/current/goal_post_away_review.md (the goal prompt).
+Set by operator 2026-06-11 (verbatim install decision: "Install + begin 61.1 now
+(Recommended)", AskUserQuestion, local session). Full specification:
+handoff/current/goal_phase61_churn_integrity.md (the goal prompt).
+
+Prior goal (goal-post-away-review) is NOT fully closed: phase-58.1 (go-live runway,
+$25 live window) remains pending and MUST NOT be disturbed by this goal. It closes on
+its own 1-2-week window DoD evidence.
 
 ## North star
 (verbatim masterplan.json::goal) "Ship an Intelligence Engine trading system that
 maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically
 shifting capital to the highest-earning strategy, recursively self-improving under hard
-risk caps, within a 15-slot daily Claude-routine budget." THIS GOAL'S LENS: you cannot
-maximize what you cannot measure -- the away week showed the P&L readout itself is
-corrupted for non-USD markets; measurement integrity comes first.
+risk caps, within a 15-slot daily Claude-routine budget." THIS GOAL'S LENS: the fee
+complaint was mis-attributed -- fees were $17.14/8d (0.07% NAV); the real N* drag is the
+churn's realized P&L (-$139.83 on <=2-day holds vs +$1,355.22 on long holds) plus
+poisoned decision inputs. Activate the already-built dark fixes first, then integrity,
+then measured cost-aware turnover policy.
 
 ## Scope -- in order
-1. phase-55 -- away-week forensic review (55.1 data/trading, 55.2 ops/skills,
-   55.3 synthesis + operator checkpoint). $0; NO fixes.
-2. OPERATOR CHECKPOINT -- replies: 'LLM SPEND: APPROVED <budget> | DECLINED' +
-   'PHASE-57: LEVER | FEATURE'
-3. phase-56 -- data-correctness + ops fixes (56.1 FX/value/fee + NAV root cause,
-   56.2 approve flow / degraded-scoring guard / watchdog / kill-switch follow-up /
-   test quarantine). No fix without a 55.x finding ID.
-4. phase-57 -- evidence-selected improvement (operator picks a 55.3 candidate spec;
-   the full payload is authored at install; not pre-installed).
-5. phase-58 -- go-live runway resumption (spend-gated; CLOSES this goal).
+1. 61.1 -- activate dark fixes + deploy phase-60 code (operator flag tokens 60.2/60.3/
+   57.1, .env edits, backend restart -- running process predated ALL phase-60 commits --
+   frontend kickstart, first post-flag cycle BQ evidence). P0.
+2. 61.2 -- decision-input integrity (no synthetic 0.00/HOLD persists, claude_code
+   timeout >=150s, company_name fallback, meta-scorer fallback rank-normalization +
+   alert + root-cause, dead signal_downgrade path, RiskJudge portfolio context in
+   advisory mode). P0.
+3. 61.3 -- money-display + currency correctness (latent add-on-buy USD-into-LOCAL fix,
+   market-first currency resolution, en-US USD locale policy, P&L staleness honesty,
+   per-market MTM decision). P0.
+4. 61.4 -- learnings + reports history (SAFE_CAST divergences fix, error-vs-empty API
+   distinction, STRING-vs-TIMESTAMP audit, 30D-trend backend score history, SPRINT
+   TILE: WIRE|PRUNE token). P1.
+5. 61.5 -- cost-aware turnover policy (per-market fee table default OFF, >=5-trading-day
+   churn measurement, 55.3-sanctioned min-holding lever ONLY if churn persists,
+   per-market alpha-slope estimation; hysteresis banned absent HYSTERESIS: AUTHORIZE). P1.
 
 ## Founding principles (non-negotiable)
 - Full harness loop per step: researcher FIRST (>=5 sources read in full, recency
   scan) -> contract.md (criteria verbatim) -> GENERATE -> ONE fresh qa -> harness_log.md
   append -> masterplan flip. No self-evaluation; no verdict-shopping.
-- REVIEW BEFORE FIX: phase-56+ steps cite 55.x finding IDs or they FAIL.
-- DO-NO-HARM: the US pure-quant momentum core (+20% NAV) stays byte-identical unless a
-  config flag is explicitly enabled; no live flag flips inside this goal.
-- NO NAIVE NO-TRADE BAND: 53.1's Ledoit-Wolf REJECT is binding.
-- UI claims are verified in the live UI via Playwright MCP (NextAuth wall); captures go
-  in the live_checks.
+- Do-no-harm: behavior changes config-gated default OFF with ON-vs-OFF measurement;
+  pure bug fixes exempt but regression-tested.
+- No flag flips without the operator's verbatim token. Trailing-stop + long-hold engine
+  untouchable except the add-on averaging money-safety fix.
+- Playwright MCP capture for every UI claim; BQ rows for every data claim.
 
-## Effort policy
-Main xhigh; Researcher + Q/A max (CLAUDE.md effort policy unchanged).
+## Operator tokens pending
+- 61.1: `60.2 FLAG: ON|KEEP OFF`, `60.3 FLAG: ON|KEEP OFF`, `57.1 FLAG: ON|KEEP OFF`
+  (audit recommendation: all ON)
+- 61.4: `SPRINT TILE: WIRE|PRUNE`
+- 61.5: `FEE TABLE: ON|KEEP OFF`, `TURNOVER LEVERS: APPROVE <subset>|DECLINE`,
+  optional `HYSTERESIS: AUTHORIZE`
 
-## Done-definition (HARD STOP)
-- 58.1 closed (either spend branch) + phase-57 variant installed and executed or
-  explicitly deferred by the operator + cycle_block_summary.md refreshed with a crisp
-  operator ask list. Write the summary and stop.
-
-## Constraints / gates
-- OPERATOR-GATED: LLM API spend (live cycles), pip installs, BQ DROP / unqualified
-  DELETE / historical-row backfill, launchctl changes.
-- Local runs are main-based: merge claude/sweet-feynman-zhs8p3 before starting.
-
-## Stop conditions
-- SOFT STOP: 12 cycles elapsed OR a blocker needing the operator -> summary + crisp ask.
-
-## Cycle ledger (this run)
-- (appended per cycle)
-- 2026-06-10: install `5d2abb8a`; 55.1 PASS `3222133d`; 55.2 PASS `a747d86b`; 55.3 PASS `2983694f` (checkpoint posted, ts 1781111785.584429); 56.1 PASS `17e53d00`; 56.2 PASS `236b1f86`. Phase-55+56 CLOSED. SOFT STOP: phase-57 install + 58.1 hard-gated on the operator's two verbatim Slack replies (none yet). Ask list: handoff/current/cycle_block_summary.md.
-- 2026-06-11: operator decisions recorded in-session (verbatim: LLM SPEND: APPROVED $25 / PHASE-57: FEATURE / backfill execute / F-9: APPROVED); services restarted (v6.37.6); 9-row backfill EXECUTED; phase-57 installed `af4aa8d6` + 57.1 PASS `78b264bf` (Cycle 48). Phase-58.1 window RUNNING; goal closes on window evidence.
+## Cycle ledger
+- 2026-06-11: goal installed (phase-61.0 commit); 61.1 started same session.
