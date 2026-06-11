@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `6a4fc351` | phase-60.3: non-USD decision-input integrity (AW-9) -- PASS |
 | 2026-06-11 | `7f0de140` | phase-60.2: churn-engine fix -- swap sentinel + delta scale (AW-5) -- PASS |
 | 2026-06-11 | `fa62b5fe` | phase-60.1: deep-pipeline restoration + honest-degradation alarm (AW-4) -- PASS |
 | 2026-06-11 | `7524e3cf` | feat(masterplan): install phase-60 -- 59.3 re-audit remediation, steps 60.1-60.4 ONLY, operator-appr |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `04d56c5d` | fix(migrations): extend 56.1 KR backfill to 9 rows -- the 2026-06-10 18:39Z pre-restart cycle wrote  |
 | 2026-06-10 | `952fe08d` | docs(handoff): SOFT STOP -- refresh cycle_block_summary with operator ask list; goal ledger updated  |
 | 2026-06-10 | `236b1f86` | fix(ops): phase-56.2 ops fixes -- rail-health probe (F-4), degraded-scoring guard (F-5), conviction- |
-| 2026-06-10 | `17e53d00` | fix(fx): phase-56.1 FX/value/fee data-correctness -- USD trade rows (F-2, 3-line fix + regression te |
 
 ---
 
+### v6.46.3 — phase-60.3: non-USD decision-input integrity (AW-9) -- PASS (2026-06-11)
+
+- **phase-60.3: non-USD decision-input integrity (AW-9) -- PASS**
 ### v6.46.2 — phase-60.2: churn-engine fix -- swap sentinel + delta scale (AW-5) --... (2026-06-11)
 
 - **phase-60.2: churn-engine fix -- swap sentinel + delta scale (AW-5) -- PASS**
