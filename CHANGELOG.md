@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `86caa529` | Revert "chore: auto-changelog hook entry for 7258d241" |
 | 2026-06-11 | `731297c8` | docs(59.3): post-scoring addendum -- disclosed second-pass deviation (scored version preserved at 23 |
 | 2026-06-11 | `23153016` | feat(harness): phase-59.3 stress-test doctrine run -- PASS (bare Fable 5 10/10 anchors + 2 verified  |
 | 2026-06-11 | `d97cf30b` | feat(mcp): phase-59.2 MCP audit + integration -- PASS (playwright 0.0.76 + alwaysLoad discipline; BI |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `750cb713` | chore(handoff): backfill archive sweep of stale done-step files + restore active goal/rolling files  |
 | 2026-06-10 | `3222133d` | phase-55.1: away-week data-integrity + trading forensics -- PASS (NAV root cause useLiveNav.ts:34-39 |
 | 2026-06-10 | `5d2abb8a` | feat(masterplan): add phase-55/56/58 post-away-review goal; refresh active_goal |
-| 2026-06-10 | `3abbfd90` | Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3' |
 
 ---
 
+### v6.45.1 — Revert "chore: auto-changelog hook entry for 7258d241" (2026-06-11)
+
+- **Revert "chore: auto-changelog hook entry for 7258d241"**
 ### v6.45.0 — feat(harness): phase-59.3 stress-test doctrine run -- PASS (bare Fabl... (2026-06-11)
 
 - **feat(harness): phase-59.3 stress-test doctrine run -- PASS (bare Fable 5 10/10 anchors + 2 verified**
