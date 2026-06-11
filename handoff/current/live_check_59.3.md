@@ -40,3 +40,32 @@ Researcher gate: rule output PRUNE-candidate -> **recommendation MODIFY (adaptiv
 ## F. Constraint compliance
 
 $0 (Max-session subagent; bounded BQ); repo unmodified by the bare run (single output doc); one run, no retries; leakage residuals disclosed (backend.log reachability — low-impact, no fix-era echoes); worktree torn down post-scoring.
+
+## G. POST-SCORING ADDENDUM (disclosed deviation; verdicts unaffected)
+
+The bare agent executed an unplanned SECOND pass AFTER Cycle 51 was scored, QA-PASSED
+and pushed (trigger: its pinned worktree was torn down between turns, which resumed the
+background task). It rewrote `59.3-harness-free-output.md` (now 281 lines). Provenance:
+the SCORED first version is preserved at commit `23153016`; the comparison's scores and
+verdicts were rendered against THAT version and are NOT rescored (the second pass cannot
+retroactively influence a sealed comparison; the pre-registered "one run" condition was
+honored for everything scored). The second pass also read Slack via MCP (not forbidden by
+the prompt, but beyond the original chain's evidence set) — a further reason not to rescore.
+
+New intel from the second pass (routes to the bug-candidate list, NOT the comparison):
+1. **`tickets.db`: zero channel-message ingests 2026-04-24 → 2026-06-10** (ticket #5100
+   "Approved" 04-24 → #5101 06-10). The operator's 06-01 "Approve" messages never reached
+   pyfinagent AT ALL — both bot layers failed him; only the broken OpenClaw gateway replied.
+2. **Ticket #5101 — the 55.3 operator decision block itself — died in the queue** (3 retries,
+   CLOSED "Max retries exceeded"): live confirmation of the pre-56.2 direct-SDK rail failure.
+3. The operator's "Approve" (16:51:47) replied to the 16:46 away-week digest which explicitly
+   INVITED a free-text go — a reply grammar NO code consumes (design gap).
+4. Exact watchdog windows from Slack: each incident was exactly ONE missed 15-min probe with
+   next-probe recovery (05-27 20:14→20:29; 05-28 20:05→20:20; 06-04 20:35→20:50 CEST).
+5. The slack-bot's own log was located but deliberately NOT read (blinding held); the 6-week
+   inbound-ingestion outage cause remains honestly bounded.
+
+OPERATOR IMPLICATION: the standing criterion-2 ask ("type Approve once to confirm the
+repaired flow") is now MORE important — it tests both the 56.2 rail fix AND whether the
+inbound-ingestion outage (#1) persists post-restart. If your Approve gets no bot reply,
+the inbound split is still live and becomes a new P1.
