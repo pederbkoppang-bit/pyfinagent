@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `af4aa8d6` | feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-57: FEATURE' (2026-06-11) -- bi |
 | 2026-06-11 | `e97c33fe` | feat(56.1): execute operator-approved KR backfill (9 rows restated, idempotency proven) + restatemen |
 | 2026-06-11 | `9df6271d` | feat(58.1): record verbatim operator replies (LLM SPEND: APPROVED $25 / PHASE-57: FEATURE) + pre-win |
 | 2026-06-10 | `04d56c5d` | fix(migrations): extend 56.1 KR backfill to 9 rows -- the 2026-06-10 18:39Z pre-restart cycle wrote  |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `12ff076` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `907ccf2` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `817f2f5` | fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution |
-| 2026-06-10 | `09dc9dd` | docs(goal): align goal-post-away-review with main -- 53.5 shipped, 53.4 deferred |
 
 ---
 
+### v6.40.0 — feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-... (2026-06-11)
+
+- **feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-57: FEATURE' (2026-06-11) -- bi**
 ### v6.39.0 — feat(56.1): execute operator-approved KR backfill (9 rows restated, i... (2026-06-11)
 
 - **feat(56.1): execute operator-approved KR backfill (9 rows restated, idempotency proven) + restatemen**
