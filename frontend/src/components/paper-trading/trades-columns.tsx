@@ -8,11 +8,11 @@ import type { PaperTrade } from "@/lib/types";
 import type { TickerMeta } from "@/lib/paper-trading-context";
 import { Dollar, MarketChip } from "./cockpit-helpers";
 // goal-multimarket-ux: trades carry no market column, so market is derived from the
-// ticker suffix. `price` is LOCAL currency; `total_value`/`transaction_cost` are USD
-// for rows written on/after the 2026-06-10 phase-56.1 fix (55.1 F-2). CAVEAT: the 7
-// KR rows written 2026-06-01..2026-06-09 hold LOCAL (KRW) magnitudes in those two
-// fields until the operator-gated backfill (scripts/migrations/
-// backfill_56_1_kr_trade_values.py) is approved and executed.
+// ticker suffix. `price` is LOCAL currency; `total_value`/`transaction_cost` are USD.
+// Restatement disclosure (GIPS-style, 55.1 F-2): 9 KR rows written 2026-06-01..06-10
+// by pre-56.1 code held LOCAL (KRW) magnitudes in those two fields; they were restated
+// to USD on 2026-06-11 via the operator-approved migration
+// scripts/migrations/backfill_56_1_kr_trade_values.py (what/when/why in its docstring).
 import { formatCurrency, resolveCurrency, resolveMarket } from "@/lib/format";
 
 export function tradesColumns(

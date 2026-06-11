@@ -114,7 +114,7 @@ def main() -> int:
         n = job.num_dml_affected_rows or 0
         total += n
         print(f"-- affected {n} row(s)")
-    print(f"-- DONE: {total} row-updates applied (expected 7 on first run, 0 on re-run).")
+    print(f"-- DONE: {total} row-updates applied (expected {len(ROWS)} on first run, 0 on re-run).")
     return 0
 
 

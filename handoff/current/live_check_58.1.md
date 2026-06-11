@@ -51,3 +51,8 @@ Go-live gate baseline: 1/5 (06-01) → 2/5 (06-10 reading). Delta to be reported
 | Date | Cycle | Mode | Metered $ | Cumulative vs $25 |
 |---|---|---|---|---|
 | (append per cycle from llm_call_log — now metering the CLI rail too, F-6 fixed) | | | | |
+
+## E. Operator-approved actions executed 2026-06-11 (in-session approvals, recorded verbatim)
+
+- **Backfill (56.1 F-2):** operator approved "Yes, execute now" → `python scripts/migrations/backfill_56_1_kr_trade_values.py --execute` applied **9 row-updates**; idempotency re-run applied **0** (live-proven). BQ spot-check post-restatement: all KR rows now hold USD magnitudes (487.87 / 486.08 / 490.83 / 736.25 / 434.39 / 677.05 / 238.40 / 216.39 / 476.60). Restatement disclosure updated in trades-columns.tsx header + the migration docstring (GIPS what/when/why).
+- **F-9 (kill-switch SOD re-anchor):** operator replied **"F-9: APPROVED"** → scheduled as a follow-up fix AFTER phase-57 (dry-run first cycle logging the would-be daily_loss_pct under the prior-day-close anchor; thresholds unchanged).
