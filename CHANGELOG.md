@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `ad349f57` | revert(masterplan): remove unauthorized phase-60 install (7258d241) -- written by the 59.3 stress-te |
 | 2026-06-11 | `cd29b9b5` | docs(handoff): preserve unauthorized phase-60 draft as UNAPPROVED reference input |
 | 2026-06-11 | `86caa529` | Revert "chore: auto-changelog hook entry for 7258d241" |
 | 2026-06-11 | `731297c8` | docs(59.3): post-scoring addendum -- disclosed second-pass deviation (scored version preserved at 23 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `2983694f` | phase-55.3: synthesis + operator checkpoint -- PASS (19 ranked findings; FEATURE recommended; MinTRL |
 | 2026-06-10 | `a747d86b` | phase-55.2: ops incidents + agent-quality audit -- PASS (F-A1 OAuth rail root cause; F-D silent 0.0/ |
 | 2026-06-10 | `750cb713` | chore(handoff): backfill archive sweep of stale done-step files + restore active goal/rolling files  |
-| 2026-06-10 | `3222133d` | phase-55.1: away-week data-integrity + trading forensics -- PASS (NAV root cause useLiveNav.ts:34-39 |
 
 ---
 
+### v6.45.2 — revert(masterplan): remove unauthorized phase-60 install (7258d241) -... (2026-06-11)
+
+- **revert(masterplan): remove unauthorized phase-60 install (7258d241) -- written by the 59.3 stress-te**
 ### v6.45.1 — Revert "chore: auto-changelog hook entry for 7258d241" (2026-06-11)
 
 - **Revert "chore: auto-changelog hook entry for 7258d241"**
