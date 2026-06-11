@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `d04b57e8` | feat(masterplan): install phase-59 Fable-5 adoption + MCP audit (operator-directed 2026-06-11; 8 in- |
 | 2026-06-11 | `06d4ee3e` | docs(handoff): post-checkpoint state -- phase-57 shipped, $25 window running, ask list refreshed |
 | 2026-06-11 | `78b264bf` | feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware prompt context -- PASS (F-3/F-8; |
 | 2026-06-11 | `af4aa8d6` | feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-57: FEATURE' (2026-06-11) -- bi |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `946183b` | chore: commit hook-generated changelog/audit appends |
 | 2026-06-10 | `09275a4` | docs(goal): harden goal-post-away-review criteria per dual review (researcher max + QA) |
 | 2026-06-10 | `9d9ba49` | chore: commit hook-generated audit appends |
-| 2026-06-10 | `12ff076` | chore: commit hook-generated audit appends |
 
 ---
 
+### v6.42.0 — feat(masterplan): install phase-59 Fable-5 adoption + MCP audit (oper... (2026-06-11)
+
+- **feat(masterplan): install phase-59 Fable-5 adoption + MCP audit (operator-directed 2026-06-11; 8 in-**
 ### v6.41.0 — feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware p... (2026-06-11)
 
 - **feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware prompt context -- PASS (F-3/F-8;**
