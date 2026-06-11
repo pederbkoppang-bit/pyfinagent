@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `731297c8` | docs(59.3): post-scoring addendum -- disclosed second-pass deviation (scored version preserved at 23 |
 | 2026-06-11 | `23153016` | feat(harness): phase-59.3 stress-test doctrine run -- PASS (bare Fable 5 10/10 anchors + 2 verified  |
 | 2026-06-11 | `d97cf30b` | feat(mcp): phase-59.2 MCP audit + integration -- PASS (playwright 0.0.76 + alwaysLoad discipline; BI |
 | 2026-06-11 | `96b52299` | feat(models): phase-59.1 Fable 5 adoption -- PASS (L3 researcher/qa model:fable + caps 40/30; L2 mas |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `3222133d` | phase-55.1: away-week data-integrity + trading forensics -- PASS (NAV root cause useLiveNav.ts:34-39 |
 | 2026-06-10 | `5d2abb8a` | feat(masterplan): add phase-55/56/58 post-away-review goal; refresh active_goal |
 | 2026-06-10 | `3abbfd90` | Merge remote-tracking branch 'origin/claude/sweet-feynman-zhs8p3' |
-| 2026-06-10 | `433fe1d5` | chore: commit hook-generated audit appends pre-merge |
 
 ---
 
