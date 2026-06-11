@@ -54,3 +54,4 @@ Main xhigh; Researcher + Q/A max (CLAUDE.md effort policy unchanged).
 ## Cycle ledger (this run)
 - (appended per cycle)
 - 2026-06-10: install `5d2abb8a`; 55.1 PASS `3222133d`; 55.2 PASS `a747d86b`; 55.3 PASS `2983694f` (checkpoint posted, ts 1781111785.584429); 56.1 PASS `17e53d00`; 56.2 PASS `236b1f86`. Phase-55+56 CLOSED. SOFT STOP: phase-57 install + 58.1 hard-gated on the operator's two verbatim Slack replies (none yet). Ask list: handoff/current/cycle_block_summary.md.
+- 2026-06-11: operator decisions recorded in-session (verbatim: LLM SPEND: APPROVED $25 / PHASE-57: FEATURE / backfill execute / F-9: APPROVED); services restarted (v6.37.6); 9-row backfill EXECUTED; phase-57 installed `af4aa8d6` + 57.1 PASS `78b264bf` (Cycle 48). Phase-58.1 window RUNNING; goal closes on window evidence.

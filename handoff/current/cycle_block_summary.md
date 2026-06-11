@@ -4,8 +4,7 @@ Goal "post-away-week review -> evidence-gated fixes -> go-live runway" (set 2026
 The autonomous scope is **COMPLETE through phase-56**: the full away-week forensic review
 (phase-55, $0) and all evidence-gated fixes (phase-56) shipped to main, every step
 through the full harness loop with a PASS verdict. **Phase-57 install and phase-58.1 are
-HARD-GATED on your two verbatim Slack replies** (decision block posted 2026-06-10,
-ts 1781111785.584429 in #ford-approvals — no reply yet). SOFT STOP reached.
+RESOLVED 2026-06-11**: both verbatim replies recorded (`LLM SPEND: APPROVED $25` + `PHASE-57: FEATURE`); phase-57 shipped same day; the $25 live window is RUNNING. The goal closes with 58.1 once the window produces its DoD evidence.
 
 ## Run status — this goal
 
@@ -17,8 +16,8 @@ ts 1781111785.584429 in #ford-approvals — no reply yet). SOFT STOP reached.
 | 55.3 synthesis + operator checkpoint (Slack block posted) | DONE (PASS) `2983694f` — CLOSES phase-55 |
 | 56.1 FX/value/fee data-correctness fix | DONE (PASS) `17e53d00` |
 | 56.2 ops fixes + test quarantine (suite green 749) | DONE (PASS) `236b1f86` — CLOSES phase-56 |
-| phase-57 (improvement) | **NOT INSTALLED — awaiting your `PHASE-57:` reply** |
-| 58.1 go-live runway (CLOSES the goal) | **BLOCKED — awaiting your `LLM SPEND:` reply** (either branch needs the verbatim reply recorded in live_check_58.1.md) |
+| phase-57 FEATURE (binding RiskJudge gate) | DONE (PASS) `78b264bf` — installed per your verbatim `PHASE-57: FEATURE`; default-OFF, no live flip |
+| 58.1 go-live runway (CLOSES the goal) | **WINDOW RUNNING** — `LLM SPEND: APPROVED $25` recorded (live_check_58.1.md); DoD-2/5/6/7/9 re-scores accumulate from the live window (1-2 weeks); step closes when the window produces its evidence |
 
 Headline findings (full detail: `handoff/archive/phase-55.3/55.3-synthesis-checkpoint.md`):
 stored NAV/P&L was always CLEAN (digest reconciles to ≤0.05pp; cash ledger penny-exact);
@@ -28,29 +27,22 @@ RiskJudge REJECTs executed; kill switch correctly did not trip on 06-05; compute
 
 ## OPERATOR ASK LIST (crisp; in priority order)
 
-1. **Reply to the Slack decision block** (#ford-approvals, both lines, verbatim grammar):
-   - `LLM SPEND: APPROVED <budget>` or `LLM SPEND: DECLINED`
-   - `PHASE-57: LEVER` or `PHASE-57: FEATURE` (recommendation: FEATURE — binding RiskJudge gate)
-   Until then phase-57 is not installed and phase-58 runs no live cycle.
-2. **Restart the backend + slack bot** to load the 56.1+56.2 fixes (the running processes
-   still execute pre-fix code; today's 18:00Z cycle traded on the old paper_trader, so any
-   new KR trade rows written before restart will repeat the local-currency ledger bug):
-   kill parent AND child workers, then `python -m uvicorn backend.main:app --port 8000`
-   + `python -m backend.slack_bot.app`.
-3. **Confirm the approve flow post-restart** (criterion-2 one-line action): type `Approve`
-   in #ford-approvals — expect an agent reply via the claude-code rail, not the
-   missing-key error.
-4. **Backfill decision (56.1 / finding F-2):** approve the 7-row KR trade-ledger restatement
-   with `python scripts/migrations/backfill_56_1_kr_trade_values.py --execute` (dry-run
-   default is safe to preview; GIPS disclosure in the script docstring). If declined, the
-   rows stay flagged in the trades-columns caveat. NOTE: the 2026-06-10 18:39Z
-   pre-restart cycle DID write 2 more corrupt KR rows; the migration is already
-   extended to cover all 9 (re-verify before --execute if more cycles run pre-restart).
-5. **Optional — kill-switch SOD re-anchor (F-9):** reply `F-9: APPROVED` to schedule the
-   anchor fix (daily-loss leg currently structurally dead under once-daily cadence;
-   thresholds unchanged; dry-run first). Proposal text: live_check_56.2.md §D.
-6. **Re-enable the optimizer cron when you want it back** (carried from the prior goal):
-   `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist`
+RESOLVED 2026-06-11 (this session): the two checkpoint replies (recorded verbatim),
+backend+slack-bot restart (v6.37.6 live, kill switch ACTIVE), the 9-row backfill
+EXECUTED (idempotency proven; GIPS disclosure persisted), `F-9: APPROVED` recorded.
+
+Still open:
+1. **Type `Approve` once in #ford-approvals** to live-confirm the repaired approve flow
+   (the 56.2 fix routes the ticket agent via the claude-code rail; bot restarted).
+2. **F-9 follow-up fix** (kill-switch SOD re-anchor; you approved it) — I will schedule it
+   as a 56.x-family step after the window opens cleanly; dry-run first, thresholds unchanged.
+3. **One more backend restart when convenient** — the 57.1 gate code (default-OFF, no
+   behavior change until you flip) and its cycle-summary observability load on the next
+   restart; not urgent since the flag is OFF.
+4. **Re-enable the optimizer cron when this goal closes** (it clobbers the rolling handoff
+   files the manual loop uses): `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist`
+5. **Flip `paper_risk_judge_reject_binding` only after OOS observation** of the window
+   (the 57.1 gate ships dark; flipping is your call, ideally after 58.1's evidence).
 
 ## Carried-forward operator items (from the 2026-06-01 goal, unchanged)
 
