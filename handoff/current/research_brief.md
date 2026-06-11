@@ -1,143 +1,171 @@
-# Research Brief — phase-60.1: Deep-pipeline restoration + honest-degradation alarm (AW-4, P0)
+# Research Brief — phase-60.2: Churn-engine fix (swap sentinel + re-eval/stamp mismatch + delta scale, AW-5, P0)
 
-Tier: COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS).
+Tier: COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
+Prior 60.1 brief snapshotted at handoff/archive/phase-60.1/research_brief.md.
 Disclosed overrun: audit tables push past the 1500-word ceiling; prose kept tight.
 
 ## 1. Executive summary
 
-- **Migration target:** repin to **`gemini-3.1-flash-lite`** (Google's NAMED replacement for the discontinued gemini-2.0-flash; $0.25/$1.50 per Mtok) with **`gemini-2.5-flash`** ($0.30/$2.50) as the proven-family fallback — final pick is whichever passes the immutable live-smoke on the existing `vertexai` SDK rail; if 2.5-flash is chosen, schedule re-migration before its 2026-10-16 retirement (sources: docs.cloud.google.com gemini/2-0-flash page, accessed 2026-06-11; ai.google.dev/gemini-api/docs/pricing, accessed 2026-06-11; gcpstudyhub.com 2.5-retirement brief).
-- **KR design choice:** **honest tagged-skip now, DART deferred** — the single hard abort is one CIK helper in the quant Cloud Function (`functions/quant/main.py:88`); make its SEC-companyfacts leg market-aware (skip for non-US, keep the yfinance leg + all 26 market-agnostic agents) and disclose per cycle; OpenDART (free key, ~10,000 req/day, corpCode.xml ticker mapping, English portal) is a viable FUTURE ingestion path but a new-surface build, not a P0 restoration (sources: engopendart.fss.or.kr/intro/main.do, accessed 2026-06-11; dart-fss docs; xbrl.org Feb-2025 English-platform note).
+- **Leg 1 (sentinel):** Replace conviction-0.0 with **LOCF age-capped valuation** — value an unanalyzed holding at its last persisted `final_score` from `financial_reports.analysis_results` (reader already exists: `bigquery_client.get_report(ticker)` backend/db/bigquery_client.py:303-358, `ORDER BY analysis_date DESC LIMIT 1`, SELECT * includes final_score), capped at ~7 days; **no score within cap → EXCLUDE from displacement** (never 0.0). Grounding: institutional buy alpha "declines gradually over twelve months following the original trade" (Di Mascio/Lines/Naik, *Alpha Decay*, accessed 2026-06-11) — a 1-day-old score retains ~all its information; staleness cost grows progressively, no cliff (Maven Securities, accessed 2026-06-11); don't carry indefinitely ("fixed relevance decay during structural breaks" risk, arXiv:2603.27539).
+- **Leg 2 (re-eval/stamp):** Keep the BUY-time stamp (it is semantically true — a fresh analysis did exist at buy time); fix the COMPARISON: flag ON → a swap displacement requires same-cycle scores on both sides, achieved by **targeted re-eval injection** (pre-compute sectors at count-cap with candidates queued; add their weakest holdings to `reeval_tickers` same-cycle, ~1-3 lite analyses ≈ <$0.50/cycle inside the $25 cap), with LOCF (leg 1) as the $0 fallback when injection fails/budget-capped. Grounding: evaluation standard "net-of-cost returns + identical-universe paired comparison" (arXiv:2603.27539; FINSABER arXiv:2505.07078).
+- **Leg 3 (delta scale):** Restore the DOCUMENTED formula — settings.py:293 already documents `max(abs(holding_score), 1.0)` while code uses `0.01` on a false "[0,1]" premise (portfolio_manager.py:526-531). Fix denominator clamp to 1.0, keep `paper_swap_min_delta_pct=25.0` UNCHANGED, document effective integer-scale semantics (bar = ceil(0.25*h) points). No new stickiness, no threshold re-tuning — formula correction only, per Boyd et al.: the bar is a net-gain-vs-cost comparison, not a retention band.
+- All three legs behind ONE default-OFF flag (e.g. `paper_swap_evidence_fix`); OFF = byte-identical; ON-vs-OFF measured by a NEW decision-replay event study (Section 7) because **no existing tool replays the swap path** (Section 5.5).
 
 ## 2. External findings
 
-### A. Vertex AI Gemini model lifecycle
+### A. Stale-signal / missing-score handling
+1. Alpha from institutional buys "declines gradually over twelve months following the original trade"; managers "continue to buy a stock in small increments for as long as the alpha persists" (Di Mascio, Lines & Naik, *Alpha Decay*, WP 2015/JF, https://jhfinance.web.unc.edu/wp-content/uploads/sites/12369/2016/02/Alpha-Decay.pdf, read in full via pdfplumber 2026-06-11). A day-old buy-time score is near-full-strength evidence; valuing it 0.0 contradicts the measured decay horizon by ~2 orders of magnitude.
+2. Signal staleness cost is progressive, not a cliff: delayed execution of a mean-reversion signal costs on average 5.6% (US) / 9.9% (Europe) of strategy value, growing ~36bps/yr US (Maven Securities, https://www.mavensecurities.com/alpha-decay-what-does-it-look-like-and-what-does-it-mean-for-systematic-traders/, read in full 2026-06-11). Supports age-capped carry-forward over binary "fresh-or-worst".
+3. "Layered temporal memory risks assuming fixed relevance decay during structural breaks" — carry-forward needs a cap/circuit-breaker, not indefinite LOCF (arXiv:2603.27539, read in full 2026-06-11).
+4. Smart/partial rebalancing trades only the strongest signals and skips weak/no-signal names, cutting turnover while preserving factor premia (Smart Rebalancing, FAJ 2024, tandfonline 403 — snippet-only). Missing evidence = don't trade, not "treat as worst".
 
-1. **gemini-2.0-flash is discontinued.** "As of June 1, 2026, `gemini-2.0-flash-001` and `gemini-2.0-flash-lite-001` are discontinued and are no longer available", including model serving and Provisioned Throughput; recommended replacements named by Google: "Gemini 3.1 Flash-Lite, Gemma 4", or more recent Gemini releases (docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash, read in full 2026-06-11). This matches backend.log exactly: 404s from 06-02, llm_call_log 88/day (05-27) -> 0 (06-02).
-2. **Alias semantics caused the 404.** "The auto-updated alias of a Gemini model always points to the latest stable model"; `gemini-2.0-flash` -> `gemini-2.0-flash-001` (originally scheduled retirement 2026-02-05, one year post-release; actually landed 2026-06-01) (blevinscm.github.io/genai-docs mirror of the model-versions page, read in full 2026-06-11; live 2-0-flash page above). Pinning the bare alias of a retired family = guaranteed future 404.
-3. **Currently served (June 2026) per Google's models index:** `gemini-3-1-pro`, `gemini-3-pro`, `gemini-3.5-flash`, `gemini-3-flash`, `gemini-3-1-flash-lite`, `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite` (+image/live variants) (docs.cloud.google.com/gemini-enterprise-agent-platform/models/google-models, read in full 2026-06-11). NOTE: doc slugs mix `3-1` and `3.5` styles — GENERATE must confirm the exact publisher-path ID via the smoke call, not docs alone.
-4. **2.5-family clock is ticking:** Gemini 2.5 Pro / Flash / Flash-Lite retirement updated to **2026-10-16** (earliest; >=6 months notice once Gemini 3 GA dates settle) (gcpstudyhub.com retirement brief + Google model-versions search capture). One capture lists stable `gemini-2.5-flash-lite` retiring **2026-07-22** — CONFLICTING with the Oct-16 date; treat 2.5-flash-lite as short-runway until the live page is re-checked during GENERATE.
-5. **Pricing deltas (USD per Mtok in/out, official):** 2.0-flash $0.10/$0.40 (= `cost_tracker.py:22` today); **2.5-flash-lite $0.10/$0.40 (burn-parity)**; **2.5-flash $0.30/$2.50**; **3.1-flash-lite $0.25/$1.50**; 3-flash-preview $0.50/$3.00; 3.5-flash $1.50/$9.00 (too hot for a 28-call pipeline); 2.5-pro $1.25/$10 (<=200k) (ai.google.dev/gemini-api/docs/pricing, read in full 2026-06-11).
-6. **Grounding + structured output survive.** Google Search grounding is priced/available for "Gemini 2.5 & 3 Models: 1,500 RPD (free...), then $35/1,000 grounded prompts" (Gemini 3: 5,000/mo free then $14/1k) — grounding exists on both candidate families (same pricing page). Structured output (controlled generation) is a platform capability across served Gemini models; verify on the smoke since the Layer-1 pipeline depends on JSON-schema enforcement (CLAUDE.md).
-7. **SDK risk:** the `vertexai.generative_models` SDK is deprecated; "SDK releases after June 24, 2026 won't include the deprecated modules" — migrate to google-genai eventually; Gemini 3 adds thought-signature semantics (docs.cloud.google.com genai-vertexai-sdk migration page + therouter.ai, snippets). The project's Gemini rail uses `GenerativeModel` (orchestrator) — 2.5 family is PROVEN on this stack today (deep_think `gemini-2.5-pro` runs live, settings.py:30), Gemini 3.x through the legacy SDK is UNPROVEN here -> exactly why the criterion demands a live smoke.
+### B. Turnover/cost-aware swap thresholds
+1. Canonical structure: trade fires iff estimated gain clears costs — "maximize r̂ᵀz − φtrade(z) − φhold(w+z) − γψ(w+z)" (Boyd et al., *Multi-Period Trading via Convex Optimization*, https://ar5iv.labs.arxiv.org/html/1705.00109, read in full 2026-06-11). A swap bar is a NET-IMPROVEMENT comparison; its size should reflect cost+noise, not incumbent protection.
+2. LLM agents structurally overtrade: FinMem "commission ratio is five to nine times higher than FinAgent's", "excessive turnover... persistent value destruction", negative alpha in all scenarios; B&H Sharpe 0.703 vs FinAgent 0.241 on volatility selection (arXiv:2505.07078v5, KDD 2026 / FINSABER, read in full 2026-06-11). This is the source already cited at settings.py:282-284 for conservative swap defaults — keep `max_per_cycle=2` and the 25% bar's intent.
+3. "Round-trip costs of 10 to 20 basis points can compound to 25 to 50 percentage points of annual drag for daily-trading systems"; only 2 of the surveyed systems model costs at all (arXiv:2603.27539). Our recorded fee is 0.1%/leg (settings.py:323) = 20bps round trip — the measured 81.4% weekly turnover sits exactly in this drag regime.
+4. The classical no-trade-band literature (Constantinides-style regions; e.g. tandfonline Stochastics 2011, Springer FMPM 2022 — snippet-only) is the family 53.1 REJECTED as a tuning lever here; Section 6 draws the boundary.
 
-### B. Korean filing sources (DART / OpenDART / KRX)
+### C. ON-vs-OFF replay evaluation methodology
+1. "A key weakness of Market Replay is that the simulated market does not substantially adapt to or respond to the presence of the experimental strategy" (Balch et al., JPMorgan AI Research, https://www.jpmorgan.com/content/dam/jpm/cib/complex/content/technology/ai-research-publications/pdf-12.pdf, read in full via pdfplumber 2026-06-11). For PAPER trading the price-impact leg vanishes (fills don't move markets) — the residual path dependence is PORTFOLIO-STATE and DECISION-INPUT divergence, which must be disclosed per cycle, not hidden.
+2. Five minimum evaluation standards: contamination control, point-in-time universe, rolling windows, **net-of-cost returns**, regime coverage (arXiv:2603.27539). The replay must hold the recorded candidate stream fixed for both arms (identical-universe discipline, FINSABER arXiv:2505.07078).
+3. Sharpe-DELTA claims need the paired Ledoit-Wolf + stationary-bootstrap test — already implemented at backend/backtest/analytics.py:239-249 (`sharpe_diff_test`, n_boot=2000, Politis-Romano). At T≈5-12 daily cycles it is underpowered: report turnover/round-trips/P&L descriptively as primary; do NOT claim significant Sharpe improvement off one week (phase-52.3 methodology memory; McLean-Pontiff haircut).
+4. Boyd et al. backtest reporting: portfolio value path + sensitivity ("randomly perturb the model parameters") — supports reporting the delta-threshold sensitivity (e.g. ±1 score point) rather than tuning it.
 
-1. **OpenDART open API** (FSS): free authentication key on registration; provides original filings (XML), periodic-report key data, financial statements/major accounts, equity disclosures; English developer portal exists (engopendart.fss.or.kr/intro/main.do, read in full 2026-06-11 — intro page does not publish limits; corroborated: free key, **10,000 requests/day** limit, ~83 endpoint types, per practitioner/integration docs: mcpservers.org OpenDART server; clawhub skill page).
-2. **Ticker mapping:** OpenDART keys companies by an 8-digit `corp_code`, NOT the 6-digit KRX ticker; full mapping downloadable as zipped `CORPCODE.xml` via `/api/corpCode.xml?crtfc_key=...` (~120k entries incl. stock_code field) (dart-fss.readthedocs.io corp_code module + github.com/seokhoonj/opendart, snippets). Mature Python lib exists (`dart-fss`, PyPI).
-3. **English coverage is expanding but partial:** from 2025-02-10 an English open-data platform serves 83 disclosure types; English disclosure mandatory for large KOSPI firms in phases (2024-25, then post-2026) (xbrl.org news + kedglobal.com, snippets; englishdart.fss.or.kr live portal). Filings BODY text remains largely Korean — an LLM-RAG path would ingest Korean documents.
-4. **Implication:** integration cost = new CF/ingestion surface + corp_code mapping + Korean-text RAG; clearly viable later, but the quant CF's SEC leg can be cleanly skipped for non-US NOW with yfinance fundamentals already merged in (orchestrator.py:951-953) — the 50.x multi-market work already validated yfinance for .KS.
+## 3. Recency scan (2024-2026)
 
-### C. Graceful degradation / fallback alarms
-
-1. **Canonical (SRE Workbook ch.5, read in full 2026-06-11):** multiwindow multi-burn-rate is the gold standard (page at 14.4x burn/1h+5m, 6x/6h+30m; ticket at 1x/3d; short window = 1/12 of long). Crucially for pyfinagent: the **low-traffic section** — "If a system receives 10 requests per hour, a single failed request = 10% hourly error rate... a 1,000x burn rate"; remedies: aggregate, lower-severity channels, or adjust the window (sre.google/workbook/alerting-on-slos/).
-2. **Application:** the loop runs ~1 cycle/day with 5-15 analyses -> burn-rate windows degenerate; the natural window IS the cycle. Per-cycle fallback-rate >= threshold (default 50% per step spec) as a P1 page + an ALWAYS-ON digest provenance line as the "ticket" tier mirrors the workbook's page-vs-ticket split without fatigue.
-3. **2024-26 practice:** LLM-router observability treats **fallback-activation-rate as a first-class alert (>5% of requests baseline)** and logs which model served each request, why primary failed, and cost per step (Portkey/getmaxim.ai + buildmvpfast.com, snippets 2025-26); FutureAGI 2026 field guide adds a quality-floor evaluator gating the fallback route against "silent degradation" — supports persisting per-ticker failure REASONS, not just counts (futureagi.com 2026, snippet).
-
-## 3. Recency scan (last 2 years, 2024-2026)
-
-Performed (all three topics). Findings: (a) the entire topic-A lifecycle evidence is 2025-2026 by nature (discontinuation landed 2026-06-01; Gemini 3 family rolling out since Nov 2025; SDK module removal after 2026-06-24); (b) topic B: 2024-2026 Korean English-disclosure expansion (Feb-2025 platform, 83 types; phased mandates) materially improves the future-DART case; (c) topic C: 2025-2026 LLM-gateway practice (fallback-rate alerts, per-request model provenance, quality-floor gates) complements — does not supersede — the canonical 2018 SRE workbook; the workbook's low-traffic caveat remains the binding constraint for a 1-cycle/day batch system.
+Performed. Findings: the 2024-2026 literature CONVERGES on overtrading + cost-blindness as the dominant LLM-trading failure mode — arXiv:2505.07078v5 (KDD 2026), arXiv:2603.27539 (2026 evaluation taxonomy), arXiv:2512.02227 (Dec 2025, already the basis for our sector caps), arXiv:2507.08584 (2025, "To Trade or Not to Trade" — explicit risk-estimation before trading improves decisions), arXiv:2510.07920 (2025, Profit Mirage — leakage inflates LLM backtests), Smart Rebalancing (FAJ 2024 — turnover-prioritized partial rebalancing). No 2024-2026 finding contradicts the classical net-of-cost trading principle (Boyd et al. 2017); the new work strengthens the case for evidence-gated, cost-bounded swap rules. No new finding supersedes Ledoit-Wolf 2008 for paired Sharpe deltas.
 
 ## 4. Search queries run (3-variant discipline)
 
-- A: `gemini-2.0-flash retirement Vertex AI 2026 "404 Publisher Model"` (2026) | `Vertex AI Gemini model versions deprecations retirement dates gemini-2.5-flash 2025` (last-2-yr) | `Vertex AI Gemini model lifecycle deprecation migration guide` (year-less).
-- B: `OpenDART API Korean filings fundamentals corp code API key rate limit 2026` | `DART open API dart.fss.or.kr English disclosure API 2025` | `map KRX ticker to DART corp_code OpenDART corpCode.xml` (year-less).
-- C: `silent degradation LLM pipeline fallback rate alerting observability 2026` | `LLM router fallback monitoring graceful degradation production 2025` | `Google SRE workbook alerting on SLOs burn rate alert fatigue` (year-less).
+1. Year-less canonical (topic A): "stale signal handling portfolio rebalancing alpha decay last observation carried forward quantitative trading".
+2. Year-less canonical (topic B): "transaction cost aware portfolio rebalancing no-trade region swap threshold net of cost alpha improvement".
+3. Recent-window (topics B+C, shared): "LLM trading agents overtrading turnover transaction costs 2025 2026".
+4. Year-less canonical (topic C): "counterfactual evaluation trading execution rule change replay event study path dependence backtest".
 
-## 5. Internal audit findings (file:line, HEAD = main 2026-06-11)
+Disclosed deviation: no separate "2026"-suffixed query per topic A/B was run (tool budget); the recency obligation is covered by query 3 plus organic 2024-2026 hits in queries 1/2/4 (FAJ 2024, Springer 2024, arXiv 2510/2512/2603). Hard-blocker recency scan: satisfied and reported in Section 3.
 
-1. **Retired pins (live code):** `backend/config/model_tiers.py:71` (`"gemini_enrichment": "gemini-2.0-flash"`) and `:81` (`"layer1_swappable"`) — NOTE: step-context's 63/73 drifted after 59.1 edits; `backend/agents/orchestrator.py:382` (`_GEMINI_FALLBACK = "gemini-2.0-flash"`, +comment :443); `backend/config/settings.py:35` (apply_model_to_all_agents description asserts Gemini-locked roles "still use their hardcoded gemini-2.0-flash"); `backend/agents/multi_agent_orchestrator.py:237,241,243` (MAS Gemini fallback client); `backend/autonomous_loop.py:75` (Layer-3 harness evaluator_model default); `backend/agents/evaluator_agent.py:88`; `backend/agents/harness_memory.py:48,322,503`; `backend/agents/cost_tracker.py:22` (pricing row — keep for history, add new model rows); `backend/meta_evolution/directive_review.py:159`; `backend/meta_evolution/directive_rewriter.py:202`; `backend/slack_bot/mcp_tools.py:204`; `backend/api/agent_map.py:119,131,156`. Full inventory in §6.
-2. **Silent fallback:** `backend/services/autonomous_loop.py:1529-1541` (step-context's "1411-1419" is a stale anchor). `except Exception as e: logger.warning("Full orchestrator failed for %s: %s -- falling back to lite Claude analyzer", ...)` then last-resort `_select_lite_analyzer(...)`. Funnel catches EVERYTHING: per-agent `TimeoutError` (orchestrator.py:765), `RuntimeError("orchestrator returned empty report")` (:1489 region), quant/ingestion CF `RuntimeError("ERROR:...")`, Vertex NotFound 404. **Per-ticker failure reason exists only in the log line — never captured into the analysis dict, summary, or BQ.** That is the alarm's missing input.
-3. **KR abort:** `functions/quant/main.py:88` — `raise ValueError(f"Ticker {ticker} not found in SEC CIK mapping.")` (CIK map fetch :52-78 from sec.gov company_tickers.json :39). Streamed as `ERROR:` -> `backend/agents/orchestrator.py:936-948` `run_quant_agent` raises RuntimeError; quant is a HARD step-2 dependency (`report["quant"] = await self.run_quant_agent(ticker)` ~:1536). The ingestion CF is also SEC-based but BEST-EFFORT since phase-27.6.6 (orchestrator.py:1511-1533 warn+continue). CIK truly needed by: quant CF's SEC-companyfacts leg + ingestion/RAG filing corpus. Market-agnostic: yfinance merge (orchestrator.py:951-953), market intel, all debate/synthesis/risk/macro LLM agents. Other SEC consumers (not in the abort path): `backend/tools/sec_insider.py:17-46`, `backend/alt_data/f13.py:46-50`.
-4. **56.2 guard:** `backend/services/autonomous_loop.py:898-925` (cycle-level, post-gather) + pure predicate `_degraded_scoring_check` `:1669-1696` (fire when ALL degraded or >=3 zero-scored). Alert path: `from backend.services.alerting import raise_cron_alert` — actually resolved at `backend/services/observability/alerting.py:119` — P1, `error_type="degraded_scoring"`, stamps `summary["degraded"]`. **Wire the fallback-rate alarm in the same block**: second predicate over `_path` counts + captured reasons, distinct `error_type="fallback_rate"`, same raise_cron_alert, AlertDeduper precedent at :1417-1428 (drawdown tiers).
-5. **Slack plumbing to reuse:** `backend/services/observability/alerting.py:119` `raise_cron_alert` (async) / `:185` `raise_cron_alert_sync`. Already used by the 56.2 guard and the P3 cycle summary (autonomous_loop.py:1398).
-6. **Provenance:** persisted but invisible. `_persist_analysis` `backend/services/autonomous_loop.py:2180+` "Reads `_path` ... for honest source tagging in the persisted row (lite vs full)" and writes `standard_model=full_report.get("source")`; persist gate `:875-877` (`_path in ("lite","full")`); full path stamps `"_path": "full"` + `full_report.source/rail` at :1517-1526. NOT surfaced anywhere: digest Recent Analyses renders ticker/score/recommendation only (`backend/slack_bot/formatters.py:384-397`); reports API has zero lite/_path references (`backend/api/reports.py`); frontend `frontend/src/app/reports/page.tsx`. GENERATE: confirm the exact BQ column name for the tag inside `_persist_analysis` (:2180-2240) before wiring UI.
-7. **90s timeout:** `backend/agents/orchestrator.py:679` `_generate_with_retry(..., max_retries=3, timeout: int = 90)`; enforcement `future.result(timeout=timeout)` :722; raise `:762-765`.
-8. **Vertex smoke script: none exists.** Repo-wide grep for one-shot Gemini callers under `scripts/` matches only `scripts/add_phase_27.py` (a masterplan editor). Precedent: phase-26 ad-hoc live smoke (handoff/harness_log.md:18686). GENERATE must add e.g. `scripts/debug/smoke_vertex_model.py` (shape precedent: `scripts/mcp_servers/smoke_test_bigquery_mcp.py`).
+## 5. Internal audit findings (CURRENT HEAD; audit cites were snapshot 70a8242b)
 
-## 6. Full gemini-2.0-flash occurrence inventory (live consumers; 267 raw hits incl. archives/changelogs)
+### 5.1 The sentinel (backend/services/portfolio_manager.py, 682 lines)
+- `holding_lookup` built ONLY from same-cycle `holding_analyses` at :91-95; nothing persisted is consulted. Caller: autonomous_loop.py:1155-1163 (`holding_analyses=` :1158) built at :892-896 from the re-eval gather (persisted via `_persist_analysis` :875-881 when `_path` lite/full).
+- Swap path gate :407-422 (`paper_swap_enabled` AND `sector_blocked` AND `max_per_sector>0`) → `_compute_swap_candidates` :439.
+- **THE SENTINEL :476-483**: `analysis = holding_lookup.get(pos["ticker"], {}) or {}` → `score = analysis.get("final_score")` → `if score is None: score = 0.0` ("No fresh analysis => unknown conviction. Treat as worst").
+- Weakest-holding pick: per-sector ascending sort :495-496, first non-swapped :516-521. SELL reason="swap_for_higher_conviction" :582; BUY reason="swap_buy" :591.
+- 57.1 binding-REJECT gate (F-3) :186-212 sits at the candidate-BUILD chokepoint upstream of both buy loop and `sector_blocked` (:284,:319) — REJECTs never reach the swap path when ON. A 60.2 flag inside `_compute_swap_candidates` composes cleanly (disjoint regions); test both flags ON together.
 
-| File:line | Kind | Action at GENERATE |
-|---|---|---|
-| backend/config/model_tiers.py:71,81 | role pins (enrichment, layer1_swappable) | REPIN |
-| backend/agents/orchestrator.py:382 (+443 comment) | `_GEMINI_FALLBACK` | REPIN |
-| backend/agents/multi_agent_orchestrator.py:237,241,243 | MAS fallback client | REPIN |
-| backend/autonomous_loop.py:75 | harness evaluator default | REPIN |
-| backend/agents/evaluator_agent.py:88 | EvaluatorAgent default | REPIN |
-| backend/agents/harness_memory.py:48,322,503 | ctx-window map + defaults | REPIN + add new model ctx row |
-| backend/meta_evolution/directive_review.py:159; directive_rewriter.py:202 | Layer-4 calls | REPIN |
-| backend/slack_bot/mcp_tools.py:204 | bot tool call | REPIN |
-| backend/agents/cost_tracker.py:22 | pricing (0.10,0.40) | ADD new model row (keep old for history); memory: 3+ pricing tables exist — patch ALL (settings_api display list, governance estimate) |
-| backend/api/agent_map.py:119,131,156 | live_model fallback display | REPIN |
-| backend/agents/_inventory.json (~30 `"model"` fields) | roster metadata | bulk-update |
-| backend/config/settings.py:35 | flag description text | reword |
-| frontend/src/app/settings/page.tsx:79,132,422 | model picker list/default | REPIN + label |
-| backend/.env.example:11 | `GEMINI_MODEL=gemini-2.0-flash` | REPIN |
-| backend/tests/test_agent_map_live_model.py:6,68,90,96,109; test_apply_model_to_all_agents.py:106; test_evaluator_agent.py:35,37; tests/verify_phase_25_Q.py:298; tests/api/test_paper_trading_deposit.py:85; tests/api/test_settings_api_signal_stack.py:117 | tests asserting the literal | update fixtures/asserts |
-| .claude/cron_budget.yaml:35; ARCHITECTURE.md:372; backend/agents/llm_client.py:762 | comments/docs | sweep |
+### 5.2 Delta computation + threshold
+- :525-532 `denom = max(abs(holding_score), 0.01)`; `delta_pct = ((cand_score - holding_score)/denom)*100.0`; gate `if delta_pct < min_delta: continue` :534.
+- False-premise comment :526-531: "do NOT clamp the denominator to 1.0 -- final_score lives in [0,1]". **Lite scores are 1-10 integers** (59.3 audit AW-5, BQ-confirmed).
+- `paper_swap_min_delta_pct` read :464 (fallback 25.0); settings.py:289-294 default 25.0. **INCONSISTENCY: the settings description (:293) documents `max(abs(holding_score), 1.0)`** — the code drifted from its own spec on the [0,1] premise. `paper_swap_max_per_cycle` settings.py:295-300 default 2; `paper_swap_enabled` :285-288 default True. No `.env` overrides (grep) → defaults are live.
+- Effective semantics (verified): cand 7.0 vs SENTINEL 0.0 → denom 0.01 → **delta = 70,000%** (auto-clears 25% by ~3.5 orders of magnitude). cand 7.0 vs real 5.0 → 40% fires. 1 integer point fires at holding<=4 (5v4 = 25%); 2 points fire at holding<=8 (9.0 vs 8.0 = 12.5% blocked; 10 vs 8 = 25% fires) — i.e., the bar sits INSIDE lite-score run-to-run noise. With the documented 1.0 clamp: sentinel case 700% (still auto-fires → sentinel fix is the load-bearing repair); ALL real-score cases identical (every real score >= 1.0).
 
-## 7. Risks / gotchas for GENERATE
+### 5.3 The BUY-time stamp (backend/services/paper_trader.py)
+- `"last_analysis_date": now` stamped in `execute_buy` at :304 (top-up) and :328 (new position). :476 is `execute_sell` partial-exit re-insert PRESERVING the field (not a stamp).
+- Readers: autonomous_loop.py:794 (re-eval gate) and frontend/src/lib/types.ts:645 (display). No other consumers — semantics can be fixed without ripple.
 
-1. **Alias vs pinned version:** bare `gemini-2.5-flash`-style aliases auto-track stables and die at family retirement — whatever is chosen, record the retirement date next to the pin and consider the `-001`-style pinned form per Google's lifecycle doc.
-2. **2.5-flash-lite date conflict** (2026-07-22 vs 2026-10-16): do NOT pick it without re-reading the live model-versions page; the burn-parity is tempting but a 6-week runway repeats AW-4.
-3. **Gemini 3.x on the legacy `vertexai` SDK is unproven here** (thought signatures; SDK module removal post 2026-06-24). The live smoke (immutable criterion) is the decider; budget a google-genai SDK follow-up step regardless.
-4. **Grounding/structured-output must be smoke-verified** on the chosen ID (Layer-1 depends on both; grounding priced 1,500 RPD free then $35/1k on 2.5/3 families).
-5. **deep_think `gemini-2.5-pro` (settings.py:30) also retires 2026-10-16** — same incident class; at minimum log a follow-up step.
-6. **Alarm inputs don't exist yet:** the except at autonomous_loop.py:1529 must capture `{ticker, stage, exception}` into the cycle summary before any threshold can report per-ticker reasons. Keep the alarm beside 56.2 (same block, same raise_cron_alert, distinct error_type + dedup key); per-cycle window, default 50%, P1 page + always-on digest provenance line (SRE low-traffic guidance — burn-rate windows degenerate at 1 cycle/day).
-7. **KR tagged-skip touches a Cloud Function** (functions/quant/main.py) — deploy needed (phase-27.6.4 precedent: CF redeploys are their own hazard); the backend-only alternative (pre-gate .KS tickers before run_quant_agent) avoids the CF deploy but leaves the CF lying in wait.
-8. **Test false-greens:** 6 test files assert the literal `gemini-2.0-flash` — update them with the repin or the suite fails red on a correct fix (memory: name new tests `test_phase_60_1_*`).
+### 5.4 The re-eval gate (backend/services/autonomous_loop.py)
+- :791-804: due when `days_since >= settings.paper_reeval_frequency_days`; missing/unparseable date → re-eval (safe default). `paper_reeval_frequency_days=3` at settings.py:322 (audit cite :308 drifted).
+- **`.days` truncation + cycle-time drift gotcha**: cycles ran 19:04 (06-05) then 18:11 (06-08) → 2d23h07m → `days=2` → DELL not re-evaluated at the 3-calendar-day mark; effective cadence is 3-4 days.
+- Candidate filter :776 (`new_candidates` excludes held tickers) — counterfactual-replay divergence source (Section 7).
 
-## 8. Source table
+### 5.5 Replay machinery inventory — **NO EXISTING TOOL REPLAYS THE SWAP PATH**
+- `decide_trades`/`_compute_swap_candidates` consumers (repo-wide grep): autonomous_loop.py:1155 (live), backend/tests/* (synthetic fixtures), scripts/go_live_drills/zero_orders_drill.py + scripts/smoketest_stages_5_through_13.py (synthetic drills). backend/autoresearch/strategy_backtest_adapter.py:43 docstring EXPLICITLY notes best_params "is NOT threaded into decide_trades".
+- The 52.x/53.1 "$0 replay" = monthly-rebalance universe machinery: backend/backtest/rebalance_band.py:22 `apply_no_trade_band(prev_holdings, ranked_tickers, top_n, band_pct)` (the REJECTED 53.1 lever, machinery still present) + backtest_engine/walk_forward. None invokes the swap engine.
+- Reusable for 60.2: analytics.py:239 `sharpe_diff_test` (LW 2008 + stationary bootstrap), :338 `compute_round_trips(all_trades)`, :392 `compute_trade_statistics`. The 57.1 event-study precedent (REJECT-trades reconstruction from paper_trades + analysis_results; out-channel at autonomous_loop.py:1151-1169) is the pattern to follow.
 
-### Read in full via WebFetch (counts toward gate)
-| URL | Accessed | Kind | Key finding |
-|---|---|---|---|
-| https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash | 2026-06-11 | official doc | discontinued 2026-06-01; replacement "Gemini 3.1 Flash-Lite, Gemma 4, or recent" |
-| https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/google-models | 2026-06-11 | official doc | served lineup incl. gemini-3-flash, gemini-3-1-flash-lite, gemini-2.5-flash |
-| https://blevinscm.github.io/genai-docs/deprecations/Model-versions-and-lifecycle/ | 2026-06-11 | doc mirror | alias->latest-stable semantics; 2.0-flash-001 released 2025-02-05, scheduled retirement 2026-02-05 |
-| https://ai.google.dev/gemini-api/docs/pricing | 2026-06-11 | official doc | exact $/Mtok for all candidates + grounding pricing |
-| https://engopendart.fss.or.kr/intro/main.do | 2026-06-11 | official (FSS) | OpenDART English API: key-based auth, filings/financials endpoints |
-| https://sre.google/workbook/alerting-on-slos/ | 2026-06-11 | official (Google SRE) | multiwindow multi-burn-rate numbers; low-traffic degeneration |
+### 5.6 Away-week fixture data — BQ-CONFIRMED (query run 2026-06-11 via python BQ client)
+`SELECT ticker, action, quantity, price, reason, created_at FROM financial_reports.paper_trades WHERE ticker IN ('MU','SNDK','DELL','STX') AND DATE(created_at) BETWEEN '2026-06-04' AND '2026-06-11'`:
+| Ticker | Leg | TS (UTC) | Price | Reason |
+|---|---|---|---|---|
+| DELL | SELL | 06-04 19:00:38 | 425.08 | swap_for_higher_conviction |
+| MU | SELL | 06-05 19:02:46 | 887.30 | stop_loss_trigger |
+| SNDK | SELL | 06-05 19:03:20 | 1553.615 | stop_loss_trigger |
+| DELL | BUY | 06-05 19:04:09 | 394.00 | new_buy_signal |
+| STX | BUY | 06-05 19:04:24 | 856.65 | swap_buy |
+| STX | SELL | 06-08 18:11:20 | 882.69 | swap_for_higher_conviction |
+| DELL | SELL | 06-08 18:11:34 | 400.15 | swap_for_higher_conviction |
+| SNDK | BUY | 06-08 18:11:51 | 1634.73 | swap_buy |
+| MU | BUY | 06-08 18:12:05 | 954.385 | swap_buy |
+| MU | SELL | 06-09 18:12:08 | 894.5299 | swap_for_higher_conviction |
+| SNDK | SELL | 06-09 18:12:22 | 1627.9865 | swap_for_higher_conviction |
+| DELL | BUY | 06-09 18:12:55 | 370.70 | swap_buy |
+| DELL | SELL | 06-10 18:39:40 | 378.335 | swap_for_higher_conviction |
+| SNDK | BUY | 06-10 18:40:09 | 1656.3701 | swap_buy |
 
-### Snippet-only (context; does not count)
+All 3 named round trips CONFIRMED: **MU 06-08→06-09** (1d 00:00:03; 0.750944 sh; −$44.95, −6.27%), **SNDK 06-08→06-09** (−$2.46, then re-bought 06-10 at 1656.37 = +1.74% ABOVE the 06-09 exit), **DELL 06-05→06-08** (2d23h07m < 3 days → no re-eval → sentinel; +$11.17) **and 06-09→06-10** (+$14.73). Every exit reason is literally `swap_for_higher_conviction`. Fees 0.1%/leg additional. (06-05 MU/SNDK exits were stop_loss_trigger — different mechanism, OUT of 60.2 scope.)
+
+### 5.7 Existing tests matching the -k net (immutable command collects these; must pass post-change)
+`pytest backend/tests -k 'swap or sentinel or reeval' --collect-only -q` → **9 tests**: test_portfolio_swap.py (4: fills_zero_buy_gap / disabled_reproduces_zero_buy / skips_below_threshold / respects_max_per_cycle), test_phase_57_1_reject_binding.py::test_reject_binding_swap_path_off_emits_on_blocks, test_cycle_heartbeat_alarm.py (2 — "sentinel" NAME COLLISION, heartbeat-file sentinel, unrelated), test_agent_map_live_model.py (2 — "swappable" collision, unrelated).
+
+### 5.8 56.2/57.1 fixture reuse
+- test_portfolio_swap.py helpers `_make_settings/_holding/_holding_analysis/_candidate_analysis` (:21-70) — **all fixtures use [0,1] scores (0.55-0.85), encoding the same false premise as the code**. Reuse the helpers for the 06-09 regression scenario but with REAL 1-10 integer scores (MU holding absent from holding_lookup vs DELL 7.0 candidate → flag OFF: swap fires [reproduces bug]; flag ON: no swap).
+- test_phase_57_1_reject_binding.py: both-path (flag OFF emits / flag ON blocks) regression pattern — copy this shape for the 60.2 flag. test_phase_56_2_ops_fixes.py: degraded-scoring guard fixtures (cycle-level), useful for the "all-degraded cycle" edge.
+
+## 6. Binding-ruling boundary analysis (53.1 LW-REJECT / 55.3 auto-FAIL family)
+
+**Why the three legs are CORRECTNESS repairs, not band-family levers:**
+1. The sentinel FABRICATES data: absence of a same-cycle analysis is converted into the strongest possible adverse signal (0.0 on a 1-10 scale — below the scale minimum). No literature supports missing-as-worst; the measured alpha-decay horizon (months, A1/A2) says a 1-day-old score is near-full-strength. Removing fabricated evidence is not incumbent protection — it is making the comparison use evidence at all.
+2. The stamp/re-eval fix makes the swap comparison apples-to-apples (cand_score(t) vs holding_score(t), or explicitly age-capped LOCF) — comparison-validity, not stickiness.
+3. The delta-scale fix restores the formula ALREADY DOCUMENTED at settings.py:293 (1.0 clamp) and keeps the threshold VALUE untouched at 25.0. Nothing is widened.
+**Where the forbidden family begins** (do NOT cross in GENERATE): raising min_delta above 25; adding an absolute score-point floor beyond the documented formula; any holding-AGE/tenure shield ("can't swap holdings younger than N days") — that is a no-trade band in time, i.e., 53.1's rejected family wearing a calendar. Note the emergent look-alike: under LOCF, MU (buy-time score 7.0, 1 day old) vs DELL 7.0 → delta 0% → no swap. This LOOKS like tenure protection but is evidence symmetry — the holding is valued at its freshest real score, and an honestly BETTER candidate (e.g. 9 vs 7 = 28.6%) still displaces it next cycle. State this distinction verbatim in the contract.
+**Evaluation bar unchanged:** the fix is NOT exempt from 53.1's measurement discipline — ON-vs-OFF replay + LW where T permits (Section 7). It is exempt only from the CATEGORY auto-FAIL, because it adds no retention band.
+
+## 7. Replay design for criterion 4 ($0, production universe, away-week window)
+
+**No existing tool replays the swap path (5.5) — build a minimal decision-replay event study (57.1 precedent):**
+1. **Inputs (all persisted, $0):** per cycle 2026-05-26→06-10 (swap path live since phase-cycle-1): paper_trades rows (executed orders + prices), analysis_results rows (candidate + holding analyses with final_score/recommendation/risk_assessment per cycle, incl. BUY-time candidate analyses — persisted at autonomous_loop.py:875-881), positions reconstructed by rolling the paper_trades ledger forward.
+2. **Validation arm (flag OFF):** re-run `decide_trades` on reconstructed inputs; assert emitted orders == recorded orders for each cycle (calibrates the reconstruction; pin `risk_overrides` to recorded/default values for determinism — decide_trades reads runtime overrides at :83-84,:254-261,:554-558).
+3. **Counterfactual arm (flag ON):** same inputs, fix enabled. PRIMARY metric = per-cycle one-step order diff: each of the 3 named round trips suppressed or surviving WITH the numeric reason (LOCF score used, delta computed, threshold result). Expected (hypothesis for contract, to be verified): MU 06-09 suppressed (LOCF 7.0 vs DELL 7.0 → 0% < 25%), SNDK 06-09 suppressed, DELL 06-08 suppressed (LOCF from 06-05 analysis).
+4. **Secondary (clearly labeled):** compounded counterfactual NAV: prices are exogenous in paper trading (no market impact — the Balch critique's impact leg does not apply), so the ON portfolio can be marked to market with recorded/yfinance prices. DISCLOSE divergence honestly: (a) once portfolios diverge, recorded candidate streams embed the REAL portfolio's held-ticker filter (autonomous_loop.py:776) — e.g. MU appeared as a 06-08 candidate only because the real system had stop-lossed it 06-05; flag any cycle where a counterfactual holding appears in the recorded candidate stream; (b) missing re-eval analyses for counterfactual-only holdings are valued by the SAME LOCF rule as live (consistent by construction).
+5. **Metrics:** weekly turnover %NAV, round-trip count + within-3-day round trips (`compute_round_trips` analytics.py:338), per-round-trip P&L net of 0.1%/leg, NAV delta, maxDD; Sharpe delta via `sharpe_diff_test` (analytics.py:239) computed but reported as UNDERPOWERED at T≈12 cycles — the week answers "are the named round trips suppressed", not "is Sharpe improved at p<0.05" (52.3 methodology; McLean-Pontiff). Promotion = OPERATOR decision on the descriptive evidence.
+
+## 8. Risks / gotchas for GENERATE
+1. **Flag-OFF byte-identity:** all 3 legs behind one default-OFF settings flag; existing 9 collected tests must pass unchanged (immutable -k net). Follow the 52.2 dark-launch idiom (`getattr(settings, ..., False)`).
+2. **Fixture scale trap:** test_portfolio_swap.py fixtures are [0,1]; under the 1.0-clamp the fixture TECH1 swap (0.82 vs 0.58 → clamped delta 24% < 25%) would STOP firing — do NOT apply the new formula to the OFF path; new ON-path tests use 1-10 integers.
+3. **LOCF reader cost:** `get_report` is SELECT * per ticker — bound to displacement-exposed holdings only (sectors at cap with queued candidates), not all positions; financial_reports is us-central1; 30s timeout rule.
+4. **Targeted re-eval injection** must respect `paper_max_daily_cost_usd` (the per-cycle budget checks at autonomous_loop.py:851-860) and must not double-analyze a ticker already in `reeval_tickers`.
+5. **`.days` truncation + cycle drift** makes the 3-day gate effectively 3-4 days; do not "fix" globally (cost impact) — leg 2's injection addresses the displacement case; leave cadence semantics else byte-identical.
+6. **57.1 composition:** REJECT candidates are filtered upstream (:194-212) — test 60.2 flag ON x 57.1 flag ON to prove no interaction.
+7. **Replay determinism:** decide_trades reads risk_overrides (runtime store) — pin/patch in the replay harness; sort stability matters (orders.sort :432).
+8. **Honest reporting:** DELL 06-09→06-10 round trip was PROFITABLE (+$14.73) and STX +$18.13 — the replay must report suppressed-but-profitable trades as a COST of the fix, not hide them (criterion: "suppressed or surviving with stated reasons").
+9. Do not conflate the 06-05 stop_loss_trigger exits with the swap churn — out of scope.
+10. settings description (:293) vs code (:531) divergence is itself evidence the formula drifted unreviewed — cite in the contract as the correctness basis.
+
+## 9. Source table
+
+### Read in full (6 — gate-counting)
+| URL | Accessed | Kind | Fetched how | Key finding |
+|---|---|---|---|---|
+| https://arxiv.org/html/2505.07078v5 (KDD 2026, FINSABER) | 2026-06-11 | peer-reviewed | WebFetch HTML | FinMem commission 5-9x; overtrading = "persistent value destruction"; bias-controlled paired evaluation protocol |
+| https://arxiv.org/html/2603.27539 | 2026-06-11 | preprint (2026) | WebFetch HTML | 10-20bps round trip → 25-50pp annual drag; 5 minimum evaluation standards; memory relevance-decay risk |
+| https://ar5iv.labs.arxiv.org/html/1705.00109 (Boyd et al.) | 2026-06-11 | peer-tier monograph | WebFetch ar5iv | trade iff gain > φtrade+φhold+risk; backtest reporting + parameter-perturbation sensitivity |
+| https://jhfinance.web.unc.edu/wp-content/uploads/sites/12369/2016/02/Alpha-Decay.pdf (Di Mascio/Lines/Naik) | 2026-06-11 | peer-reviewed (JF) | curl+pdfplumber (56pp) | buy alpha decays GRADUALLY over ~12 months — day-old scores near-full-strength |
+| https://www.jpmorgan.com/content/dam/jpm/cib/complex/content/technology/ai-research-publications/pdf-12.pdf (Balch et al.) | 2026-06-11 | industry research | curl+pdfplumber (10pp) | "Market Replay... does not substantially adapt to or respond to the presence of the experimental strategy" — replay-limitation framing |
+| https://www.mavensecurities.com/alpha-decay-what-does-it-look-like-and-what-does-it-mean-for-systematic-traders/ | 2026-06-11 | industry practitioner | WebFetch HTML | staleness cost progressive (5.6% US / 9.9% EU avg), no cliff → age-cap not zeroing |
+
+### Snippet-only (29 unique — context, non-gate; selected)
 | URL | Kind | Why not fetched |
 |---|---|---|
-| https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions | official | JS-rendered; 2 fetches returned nav only (mirror used instead) |
-| https://docs.cloud.google.com/vertex-ai/generative-ai/docs/release-notes | official | corroborative |
-| https://ai.google.dev/gemini-api/docs/deprecations | official | Gemini-API-side dates |
-| https://ai.google.dev/gemini-api/docs/models | official | model list corroboration |
-| https://firebase.google.com/docs/ai-logic/models | official | corroborative |
-| https://gcpstudyhub.com/blog/google-is-retiring-gemini-2-5-on-vertex-ai-what-you-need-to-know-and-do-before-october-2026 | blog | 2.5 family Oct-16-2026 retirement |
-| https://gcpstudyhub.com/blog/the-vertex-ai-generative-models-sdk-is-being-deprecated | blog | SDK deprecation |
-| https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/genai-vertexai-sdk | official | SDK migration (post-2026-06-24 module removal) |
-| https://therouter.ai/news/vertex-ai-sdk-migration-gemini-enterprise-agent-platform/ | industry | SDK deadline color |
-| https://piunikaweb.com/2026/03/11/gemini-2-5-flash-lite-preview-discontinued-ai-studio-march-31/ | community | flash-lite preview churn |
-| https://opendart.fss.or.kr/ + /guide/detail.do?apiGrpCd=DS001&apiId=2019001 | official (KR) | Korean-language API guide |
-| https://engopendart.fss.or.kr/guide/detail.do?apiGrpCd=DE002&apiId=AE00032 | official | English endpoint detail |
-| https://englishdart.fss.or.kr/ | official | English DART portal |
-| https://dart-fss.readthedocs.io/en/latest/_modules/dart_fss/api/filings/corp_code.html | lib doc | corpCode.xml mapping mechanics |
-| https://pypi.org/project/dart-fss/ | lib | mature Python client |
-| https://www.xbrl.org/news/south-korea-expands-english-disclosure-system-to-boost-foreign-investment/ | industry | Feb-2025 English platform, 83 types |
-| https://www.kedglobal.com/regulations/newsView/ked202402190001 | press | phased English mandates |
-| https://data.krx.co.kr/contents/MDC/MAIN/main/index.cmd?locale=en | official (KRX) | KRX data portal option |
-| https://mcpservers.org/servers/songhyojun0228/opendart-mcp-server | community | free key, 10k req/day corroboration |
-| https://docs.cloud.google.com/stackdriver/docs/solutions/slo-monitoring/alerting-on-budget-burn-rate | official | burn-rate alerting on GCP |
-| https://incident.io/blog/sre-alerting-best-practices | industry | alert-fatigue stats |
-| https://futureagi.com/blog/what-is-llm-fallback-strategy-2026/ | industry | quality-floor gate on fallback routes |
-| https://www.getmaxim.ai/articles/best-llm-gateway-to-design-reliable-fallback-systems-for-ai-apps/ | industry | fallback-activation-rate >5% alert baseline |
-| https://www.buildmvpfast.com/blog/llm-fallback-strategies-primary-model-secondary-model-2026 | industry | per-request model provenance logging |
+| https://www.tandfonline.com/doi/full/10.1080/0015198X.2024.2317323 (Smart Rebalancing, FAJ 2024) | peer-reviewed | HTTP 403 on fetch; used via search synopsis |
+| https://www.econ.uzh.ch/static/wp_iew/iewwp320.pdf + https://www.zora.uzh.ch/id/eprint/52220/1/iewwp320.pdf (Ledoit-Wolf 2008) | peer-reviewed | BOTH mirrors returned stub files (808/146 bytes); methodology read in full in phase-52.3 and implemented at analytics.py:239 |
+| https://arxiv.org/html/2512.02227v1 | preprint | already project-adopted (sector caps); cited internally |
+| https://arxiv.org/pdf/2507.08584 ("To Trade or Not to Trade") | preprint | recency-scan corroboration only |
+| https://arxiv.org/pdf/2510.07920 (Profit Mirage) | preprint | recency-scan corroboration only |
+| https://optimization-online.org/wp-content/uploads/2015/02/4785.pdf (multi-period alpha decay) | preprint | redundant with Boyd et al. (same framework family) |
+| https://link.springer.com/article/10.1007/s11408-022-00419-6 ; https://www.tandfonline.com/doi/full/10.1080/17442508.2011.651219 ; https://jpm.pm-research.com/content/29/4/49 ; https://arxiv.org/pdf/1203.4153 ; https://nr.no/en/publication/924706/ | peer-reviewed | no-trade-band family — context for Section 6 boundary only |
+| https://www.bu.edu/econ/files/2011/01/KothariWarner2.pdf (event studies) ; https://link.springer.com/article/10.1007/s11408-019-00325-4 ; https://www.emergentmind.com/topics/counterfactual-replay ; https://microalphas.com/signal-decay-patterns/ ; https://www.top1000funds.com/wp-content/uploads/2021/05/SSRN-id2580551.pdf ; https://tradingagents-ai.github.io/ ; https://arxiv.org/pdf/2409.08357 ; https://arxiv.org/pdf/2407.21791 ; https://arxiv.org/html/2606.08283 ; https://arxiv.org/pdf/2603.10092 ; +ResearchGate mirrors (3), MIT WP, Springer s10614-024-10555-y, sciencedirect 000169189290059M, PMC12816306 | mixed | lower marginal value vs the 6 read-in-full; budget discipline |
 
-## 9. JSON envelope
+## 10. JSON envelope
 
 ```json
 {
   "tier": "complex",
   "external_sources_read_in_full": 6,
-  "snippet_only_sources": 25,
-  "urls_collected": 31,
+  "snippet_only_sources": 29,
+  "urls_collected": 35,
   "recency_scan_performed": true,
-  "internal_files_inspected": 14,
+  "internal_files_inspected": 11,
+  "report_md": "handoff/current/research_brief.md",
   "gate_passed": true
 }
 ```
-
-Hard blockers: >=5 read in full (6) [x]; 10+ URLs (31) [x]; recency scan [x]; full pages not abstracts [x]; file:line for every internal claim [x]. Soft: all relevant modules covered (loop, orchestrator, CFs, alerting, formatters, reports API, tests, frontend) [x]; conflicts noted (2.5-flash-lite date; doc-slug vs publisher-ID) [x]; per-claim citations [x].

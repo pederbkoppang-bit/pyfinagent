@@ -797,7 +797,15 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     continue
                 try:
                     last_dt = datetime.fromisoformat(last_date.replace("Z", "+00:00"))
-                    days_since = (now - last_dt).days
+                    # phase-60.2 (AW-5): with the churn-fix flag ON, compare
+                    # hours-precise age so "3 days" means >=72h. The truncated
+                    # .days form makes the gate effectively 3-4 days when the
+                    # cycle hour drifts (DELL was sold at 2d23h07m unanalyzed
+                    # during the away week). Flag OFF: byte-identical .days.
+                    if getattr(settings, "paper_swap_churn_fix_enabled", False):
+                        days_since = (now - last_dt).total_seconds() / 86400.0
+                    else:
+                        days_since = (now - last_dt).days
                     if days_since >= settings.paper_reeval_frequency_days:
                         reeval_tickers.append(pos["ticker"])
                 except (ValueError, TypeError):

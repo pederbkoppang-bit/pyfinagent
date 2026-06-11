@@ -468,6 +468,7 @@ def _compute_swap_candidates(
 
     # Index holdings by sector with their analysis score so we can find the
     # weakest holding per sector in O(1) per candidate.
+    _churn_fix_on = bool(getattr(settings, "paper_swap_churn_fix_enabled", False))
     holdings_by_sector: dict[str, list[dict]] = {}
     for pos in current_positions:
         if pos["ticker"] in selling_tickers:
@@ -476,10 +477,33 @@ def _compute_swap_candidates(
         analysis = holding_lookup.get(pos["ticker"], {}) or {}
         score = analysis.get("final_score")
         if score is None:
-            # No fresh analysis => unknown conviction. Treat as worst (lowest
-            # priority for retention) since we have no evidence it should
-            # stay. Set to a sentinel below the typical 0.5 floor so swaps
-            # against it can fire when a credible candidate appears.
+            if _churn_fix_on:
+                # phase-60.2 (AW-5): a missing same-cycle analysis is NOT
+                # evidence of zero conviction -- the away week showed every
+                # fresh BUY (analyzed at buy time, re-eval gated 3 days)
+                # scored as sentinel 0.0 here and swapped out the next day
+                # ("swap_for_higher_conviction" against fabricated evidence:
+                # MU -6.3%, SNDK/DELL round trips, 81.4% weekly turnover,
+                # 10 round trips net -$132). EXCLUDE the holding from
+                # displacement entirely: we do not displace what we cannot
+                # value on same-cycle evidence. Day-old real scores remain
+                # valid for HOLDING (Alpha Decay: signal alpha decays over
+                # months), and the re-eval cadence re-scores the position
+                # within 3-4 days, restoring displaceability on true
+                # evidence. LOCF valuation was considered and rejected for
+                # DISPLACEMENT decisions: day-over-day score noise (mean
+                # |delta| 1.10 on the 1-10 scale, 59.3 stability table) can
+                # cross a 25% relative bar at low scores, re-admitting churn.
+                logger.info(
+                    "Swap path: %s has no same-cycle analysis -- excluded "
+                    "from displacement this cycle (churn fix ON)",
+                    pos["ticker"],
+                )
+                continue
+            # Pre-60.2 sentinel (flag OFF, byte-identical): no fresh
+            # analysis => treat as worst so swaps against it can fire.
+            # KNOWN DEFECT (AW-5): this is the away-week churn engine;
+            # enable paper_swap_churn_fix_enabled for the fix.
             score = 0.0
         holdings_by_sector.setdefault(sector, []).append(
             {
@@ -523,12 +547,18 @@ def _compute_swap_candidates(
             continue
 
         holding_score = weakest["final_score"]
-        # phase-cycle-1: delta_pct is the relative uplift in conviction. Guard
-        # against div-by-zero with a small epsilon (0.01); do NOT clamp the
-        # denominator to 1.0 -- final_score lives in [0,1] so a 1.0 clamp
-        # would over-normalize every swap into ~score-delta-as-percentage
-        # rather than relative improvement.
-        denom = max(abs(holding_score), 0.01)
+        # phase-60.2 (AW-5) CORRECTED COMMENT: final_score does NOT live in
+        # [0,1] -- the lite path emits 1-10 integers and the full path a 0-10
+        # weighted score (the away-week rows are 1-10). The old premise drove
+        # a 0.01 epsilon denominator, so a sentinel-0.0 holding compared at
+        # ~70,000% delta vs the 25% bar and ANY candidate cleared it by scale
+        # accident. settings.paper_swap_min_delta_pct's own description has
+        # always documented max(abs(holding_score), 1.0).
+        # Flag ON: the documented 1.0 clamp on the true 1-10 scale (7-vs-5 =
+        # 40%, 6-vs-5 = 20% -- true relative deltas; the 25.0 bar UNCHANGED,
+        # widening it would be the 53.1/55.3-rejected band family).
+        # Flag OFF: the historical 0.01 epsilon, byte-identical pre-60.2.
+        denom = max(abs(holding_score), 1.0 if _churn_fix_on else 0.01)
         delta_pct = ((cand_score - holding_score) / denom) * 100.0
 
         if delta_pct < min_delta:

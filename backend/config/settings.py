@@ -298,6 +298,10 @@ class Settings(BaseSettings):
         le=10,
         description="Hard cap on swap pairs per autonomous run. 0 disables. Per KDD 2026 adversarial: LLMs overtrade; keep tight until backtest evidence supports loosening.",
     )
+    paper_swap_churn_fix_enabled: bool = Field(
+        False,
+        description="phase-60.2 (AW-5): churn-engine fix flag, DEFAULT OFF (do-no-harm). When ON: (1) a holding absent from the same-cycle holding_lookup is EXCLUDED from swap displacement entirely -- the pre-fix conviction-0.0 sentinel made every fresh BUY swap-out bait the next day (MU/SNDK/DELL round trips, 81.4% weekly turnover). Exclusion chosen over LOCF valuation for displacement decisions: day-over-day score noise (mean |delta| 1.10 on the 1-10 scale, 59.3 stability table) can cross a 25% relative bar, re-admitting churn; the holding keeps its slot (alpha decays over months -- Alpha Decay, Di Mascio/Lines/Naik) and the re-eval cadence restores displaceability on true evidence within 3-4 days. (2) The swap-delta denominator uses the documented max(abs(holding_score), 1.0) clamp (paper_swap_min_delta_pct's own spec) instead of the 0.01 epsilon that turned sentinel comparisons into ~70,000% deltas. (3) The re-eval gate compares hours-precise age instead of truncated .days (behavior-identical for integer day thresholds; exact for fractional). OFF path is byte-identical to pre-60.2 behavior. Promotion to ON is an OPERATOR decision recorded in live_check_60.2.md -- never auto-applied. NOT a churn lever: this repairs fabricated-evidence comparisons; the 25.0 threshold is untouched (53.1/55.3 anti-band rulings respected).",
+    )
     # phase-38.1 (OPEN-10): kill-switch auto-resume hysteresis feature flag.
     # Default-OFF preserves the manual-resume behavior. When ON, the
     # autonomous loop's check_and_enforce_kill_switch call also invokes

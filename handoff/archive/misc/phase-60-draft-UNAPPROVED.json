@@ -1,0 +1,117 @@
+{
+  "id": "phase-60",
+  "name": "59.3 blinded re-audit remediation -- fix the away-week defects the harness-free Fable 5 audit (59.3) surfaced beyond the 55.x/56.x/57.1 chain: dead deep pipeline (AW-4), sentinel-churn swap engine (AW-5), corrupted non-USD decision inputs (AW-9), observability/ops residuals (AW-7, AW-1 residual, AW-2 residual, AW-10), and the score-hysteresis lever candidate (AW-8). Executed under the post-59.1 harness roster (Fable 5 Main + Researcher + Q/A, effort per CLAUDE.md) with the 59.2 MCP discipline: BigQuery MCP rows as data evidence in every live_check, Playwright MCP capture mandatory for any UI-touching claim. Evidence base: handoff/current/59.3-harness-free-output.md (finding IDs AW-1..AW-10; all file:line cites refer to snapshot 70a8242b). REVIEW->FIX discipline: every change cites an AW finding ID; do-no-harm: behavior changes are config-gated default-off with ON-vs-OFF measurement; no live flag flips inside this phase.",
+  "status": "pending",
+  "depends_on": [
+    "phase-59"
+  ],
+  "gate": null,
+  "steps": [
+    {
+      "id": "60.1",
+      "name": "Deep-pipeline restoration + honest-degradation alarm (AW-4) -- replace the Vertex-retired gemini-2.0-flash pins, make KR (.KS) tickers first-class or honestly-skipped in the full orchestrator, and alarm when full->lite fallback exceeds threshold instead of degrading silently. During the away week the full 28-agent pipeline completed for ZERO tickers (KR: 'not found in SEC CIK mapping'; US: 90s agent timeouts + Vertex '404 Publisher Model gemini-2.0-flash was not found'); every decision silently fell back to the 2-call lite momentum analyzer while the operator believed skills were running.",
+      "status": "pending",
+      "harness_required": true,
+      "priority": "P0",
+      "depends_on_step": "59.3",
+      "audit_basis": "59.3 report sections 3-4 (handoff/current/59.3-harness-free-output.md): failure census 05-29..06-10 (daily CIK + 90s-timeout failures, 100% lite fallback); llm_call_log gemini-2.0-flash collapse 88 (05-27) -> 0 (06-02 onward); Vertex 404 verbatim in backend.log 06-02 + 06-05; pins at backend/config/model_tiers.py:63,73, backend/agents/orchestrator.py:382, settings.py:35 (hardcoded RAG/grounding roles); silent fallback at autonomous_loop.py:1411-1419; all 64 away-week analysis_results rows lite-shaped.",
+      "verification": {
+        "command": "source .venv/bin/activate && python -m pytest backend/tests -k 'fallback_alarm or model_pin or 60_1' -q && test -f handoff/current/live_check_60.1.md",
+        "success_criteria": [
+          "the retired gemini-2.0-flash pins (model_tiers.py:63,73; orchestrator.py:382 _GEMINI_FALLBACK; the hardcoded Gemini-locked roles noted at settings.py:35) are migrated to a researcher-validated, currently-served model (availability proven by a live smoke call exiting 0, not by docs alone), and one full-orchestrator analysis completes end-to-end on the live stack for >=1 US ticker with the full-path rail/model tags persisted -- evidenced by a BigQuery MCP row from financial_reports.analysis_results showing a non-lite row with populated enrichment/synthesis fields",
+          "KR (.KS) tickers no longer abort the whole full pipeline on the SEC-CIK stage: either the CIK-dependent stages (ingestion/RAG) degrade to an explicit, tagged KR-aware skip while the remaining agents run (proven by a full-path KR row with skipped-stage tags), or the KR limitation is documented and ALERTED per cycle -- silence is a FAIL; the chosen design is researcher-grounded (>=5 sources incl. KRX/DART filing-source options) and recorded in the contract",
+          "a fallback-rate alarm exists: any cycle whose full->lite fallback ratio exceeds a configurable threshold (default 50%) fires a Slack alert naming per-ticker failure reasons, covered by a unit test reproducing the away-week 100%-fallback case; the alarm is wired alongside the 56.2 degraded-scoring guard, not a parallel bespoke path",
+          "lite-fallback provenance is operator-visible: digest 'Recent Analyses' lines and/or the reports UI distinguish lite-path from full-path scores (the away week showed identical-looking 7.0/10 rows from a 2-call momentum wrapper); if the UI is touched, a Playwright MCP capture is REQUIRED in the live_check per the 59.2 binding rule"
+        ],
+        "live_check": "REQUIRED -- BQ MCP query + result rows showing post-fix full-path analyses (US and KR or the KR alert transcript), the fallback-alarm unit-test output, the live smoke-call output for the replacement model, and a Playwright capture if any UI surface changed."
+      },
+      "retry_count": 0,
+      "max_retries": 3
+    },
+    {
+      "id": "60.2",
+      "name": "Churn-engine fix: swap sentinel + re-eval/stamp mismatch + delta scale (AW-5) -- a holding without a same-cycle analysis is scored conviction 0.0 ('treat as worst') by the swap path while execute_buy stamps last_analysis_date=now and re-eval waits 3 days, so every fresh BUY is swap-out bait the next day; this mechanism (not score flips) produced the MU -6.3% and SNDK one-day round trips and the DELL/STX churn, labeled 'swap_for_higher_conviction' against a sentinel.",
+      "status": "pending",
+      "harness_required": true,
+      "priority": "P0",
+      "depends_on_step": "60.1",
+      "audit_basis": "59.3 report sections 5-6 (handoff/current/59.3-harness-free-output.md): sentinel at portfolio_manager.py:443-449; delta vs sentinel = cand_score/0.01*100 at :497-498; scale-mismatch comment ('final_score lives in [0,1]' vs lite 1-10 integers) at :495-496; last_analysis_date stamping at paper_trader.py:303,327; 3-day re-eval gate at autonomous_loop.py:727-740 + settings.py:308; cycles 06-08/06-09/06-10 logged 'Analyzing 5 new + 0 re-evals' then swapped out day-old holdings; 81.4% weekly turnover, 10 within-week round trips net -$132 (55.1).",
+      "verification": {
+        "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'swap or sentinel or reeval or 60_2' -q && test -f handoff/current/live_check_60.2.md",
+        "success_criteria": [
+          "the conviction-0.0 sentinel is eliminated behind a config flag (default OFF, do-no-harm): with the flag ON, a holding absent from the same-cycle holding_lookup is valued at its last persisted final_score (age-capped, source: financial_reports.analysis_results) or is excluded from swap displacement entirely -- design choice researcher-grounded; a regression test reproduces the 06-09 scenario (position bought the prior cycle, no same-cycle analysis, equal-score candidate) and asserts the swap fires with the flag OFF (current behavior) and does NOT fire with the flag ON",
+          "the re-eval/stamp mismatch is closed: with the flag ON, any holding that is a candidate for swap displacement is re-analyzed in the same cycle before the swap decision, OR last_analysis_date semantics are corrected so a BUY-time stamp cannot suppress re-evaluation of swap-eligible holdings; a test asserts the away-week pattern ('N new + 0 re-evals' followed by same-cycle swap-out of a day-old holding) is impossible by construction with the flag ON",
+          "the swap delta threshold is re-derived for the actual 1-10 integer score scale (the [0,1] assumption at portfolio_manager.py:495-496 is corrected in code + comment): a 2-point integer difference (7-vs-5) no longer auto-clears the bar by scale accident; the chosen threshold semantics are documented against paper_swap_min_delta_pct and covered by tests at the boundary",
+          "ON-vs-OFF is measured on the $0 replay over the production universe (incl. the away-week window) reporting Sharpe/return/turnover/maxDD: the report must show the away-week one-day round trips (MU 06-08->06-09, SNDK 06-08->06-09, DELL 06-05->06-08->06-09) suppressed or surviving with stated reasons; promotion (flag flip) is an OPERATOR DECISION recorded in the live_check, never auto-applied; US momentum core byte-identical with the flag OFF (test)"
+        ],
+        "live_check": "REQUIRED -- regression-test output, the ON-vs-OFF replay table, BQ MCP rows reproducing the 06-08/06-09 sentinel swaps as the fixture basis, and the operator's promotion decision line (or 'pending')."
+      },
+      "retry_count": 0,
+      "max_retries": 3
+    },
+    {
+      "id": "60.3",
+      "name": "Decision-input integrity for non-USD markets (AW-9) -- the lite analyzer renders KRW prices and market caps with '$' literals into the LLM prompt (Price: $2298000.00 | Market Cap: $1630000.0B), the risk judge repeatedly and correctly flags the corruption ('physically impossible for LG Electronics... KRW/USD unit error') and nothing acts on the flag; KR quotes fetched hours after KRX close are presented as live.",
+      "status": "pending",
+      "harness_required": true,
+      "priority": "P1",
+      "depends_on_step": "60.2",
+      "audit_basis": "59.3 report section 6 spot-checks B/C/D (handoff/current/59.3-harness-free-output.md): prompt rendering at autonomous_loop.py:1553-1557 (and the _run_gemini_analysis mirror); risk-judge data-integrity flags on 06-03 (SNDK 'likely a bad bar'), 06-04 (000660.KS '$1.63-quadrillion market cap'), 06-09 (066570.KS '$44.5T... physically impossible'); stop-outs followed at -9.9% (000660.KS) and -9.7% (066570.KS); FX helpers already exist and are correct elsewhere (paper_trader mark-to-market, 55.1 section 2).",
+      "verification": {
+        "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'prompt_fx or lite_prompt or 60_3' -q && test -f handoff/current/live_check_60.3.md",
+        "success_criteria": [
+          "lite trader AND lite risk-judge prompts present non-USD prices/market caps either converted to USD via the existing FX helpers (_fx_local_to_usd path) or labeled with their true currency (KRW), for BOTH _run_claude_analysis and _run_gemini_analysis; a unit test with a KRW fixture asserts the rendered prompts contain no dollar-labeled KRW magnitude (no '$' immediately preceding a raw KRW-scale number)",
+          "data-integrity flags become actionable: a deterministic pre-check (or the risk-judge flag) for implausible inputs (e.g. market cap > a sanity ceiling, P/E exactly 0 on a mega-cap, price-currency mismatch) tags the analysis and excludes or floor-sizes the candidate IN CODE, covered by a unit test reproducing the 06-09 066570.KS case -- prose-only flagging is a FAIL",
+          "staleness honesty for KR quotes: prompts label the as-of time of .KS prices fetched after the 06:30 UTC KRX close instead of presenting them as current; covered by a test",
+          "post-fix evidence from the live stack: the next KR analysis row in financial_reports.analysis_results (BQ MCP) shows sane prompt-input provenance (converted/labeled values in full_report_json.market_data) and the rendered before/after prompts for one KR fixture are embedded in the live_check; no behavior change for US tickers (byte-identical prompt test with a US fixture)"
+        ],
+        "live_check": "REQUIRED -- before/after rendered prompts for a KRW fixture, the unit-test outputs, and a post-fix BQ MCP row for a KR ticker."
+      },
+      "retry_count": 0,
+      "max_retries": 3
+    },
+    {
+      "id": "60.4",
+      "name": "Observability + ops residuals (AW-7, AW-1 residual, AW-2 residual, AW-10, hygiene) -- make the Claude Code CLI rail visible in llm_call_log (the rail that did ALL away-week deciding logs zero rows), alarm on inbound-Slack-ingestion silence (tickets.db went dark 2026-04-24 -> 2026-06-10 unnoticed), deliver ticket-pipeline failures to the operator (ticket #5101 died silently after 3 retries), move residual sync yfinance calls off the event loop and make the watchdog alert busy-aware, decide-and-enforce the per-analysis cost budget, fix or disable the PEAD calendar_events dependency, repair or label the meta-scorer LLM leg, and redact third-party API keys from backend.log URLs.",
+      "status": "pending",
+      "harness_required": true,
+      "priority": "P1",
+      "depends_on_step": "60.3",
+      "audit_basis": "59.3 report sections 1-2,4,7 (handoff/current/59.3-harness-free-output.md): claude_code_client.py has no llm_call_log writer (zero rows 06-02..06-09 vs daily analyses); tickets.db gap #5100 (04-24) -> #5101 (06-10) with no silence alarm; #5101 CLOSED 'Max retries (3) exceeded' with no operator notification (ticket_queue_processor.py:311-326); sync yfinance in async at autonomous_loop.py:1492-1494 + :1744-1746 (watchdog ReadTimeout single-probe misses 05-27/05-28/06-04, exact Slack timestamps in the report); cost budget logged-not-enforced ('$4.3262 > $0.50', cost_tracker via orchestrator 05-27); PEAD 404 on pyfinagent_data.calendar_events daily; meta-scorer 'conviction 10.00; fallback (LLM unavailable)' on every away-week trade; plaintext FRED API key in backend.log request URLs. OpenClaw gateway anthropic auth (broken since 2026-04-09) is OUTSIDE the repo: escalate as a one-line operator action, do not fix here.",
+      "verification": {
+        "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'cc_rail_log or ingestion_silence or ticket_failure or redact or 60_4' -q && test -f handoff/current/live_check_60.4.md",
+        "success_criteria": [
+          "the Claude Code CLI rail writes llm_call_log rows (provider/model/agent-label/ticker/latency/token counts from the CLI envelope, cost tagged 0 flat-fee) so burn and firing audits see the working rail; proven by a BigQuery MCP row in pyfinagent_data.llm_call_log from a single live smoke invocation, plus a unit test on the writer",
+          "an inbound-ingestion silence alarm exists: if the operator channel produces zero ingested tickets for a configurable N days (default 7), a Slack alert fires (the 6-week 04-24->06-10 outage class becomes impossible to miss); AND a ticket closed on max-retries posts a failure notice to its channel instead of dying silently (the #5101 case); both covered by unit tests",
+          "event-loop hygiene + watchdog semantics: the sync yfinance calls in _run_claude_analysis/_run_gemini_analysis are wrapped in asyncio.to_thread (test asserts no direct .info/.history call on the loop), and the slack-bot watchdog alert distinguishes busy-vs-down by including cycle-in-progress state (from the cycle lock or /api/paper-trading/status) in the alert text",
+          "cost-budget decision recorded and enacted: the per-analysis budget either ENFORCES (abort/flag the analysis at breach) or its limit is re-specced with rationale -- an OPERATOR-GATED choice recorded verbatim in the live_check; the PEAD calendar_events dependency is fixed via an operator-gated migration under scripts/migrations/ OR the overlay is disabled with a logged rationale (silent daily 404s are a FAIL); the meta-scorer LLM leg is repaired or its fallback state is surfaced in the digest/signals instead of masquerading as conviction 10",
+          "secret hygiene: third-party API keys no longer appear in plaintext in backend.log request-URL lines (redaction at the logging layer, unit-tested with a synthetic key); the OpenClaw gateway anthropic auth repair is escalated as a one-line operator action in the live_check (out of repo scope), with the gateway error text quoted as the remediation pointer"
+        ],
+        "live_check": "REQUIRED -- BQ MCP llm_call_log row from the CC-rail smoke call, alarm/notification test transcripts, the operator's verbatim cost-budget decision, the migration-or-disable evidence for calendar_events, and the redaction test output."
+      },
+      "retry_count": 0,
+      "max_retries": 3
+    },
+    {
+      "id": "60.5",
+      "name": "Score-hysteresis/persistence LEVER for momentum-threshold flips (AW-8) -- the lite prompt's hard step-function rule (momentum_20d > 3.0 -> BUY) produced a 31% day-over-day action-flip rate (16/51 pairs, mean |dscore| 1.10) and the synchronized 06-03 dip/snap-back; build the hysteresis/persistence lever config-gated default-off, measure ON-vs-OFF, and subject it to the SAME Ledoit-Wolf robustness gate as 52.3/53.1. An honest REJECT is a PASS.",
+      "status": "pending",
+      "harness_required": true,
+      "priority": "P1",
+      "depends_on_step": "60.4",
+      "audit_basis": "59.3 report section 5 (handoff/current/59.3-harness-free-output.md): stability table (51 pairs, 16 flips, SNDK 4 flips/6 pairs, STX mean |ds| 2.25); SNDK flip reproduced from stored inputs (m20 -0.55% -> +5.49% across the +3.0 threshold; confidence moved 72->68 incoherently); rule text at autonomous_loop.py:1558-1562. BINDING PRECEDENT: 53.1's Ledoit-Wolf REJECT of the naive no-trade band -- hysteresis/persistence is one of the explicitly-allowed DIFFERENT mechanisms per goal_post_away_review.md; re-proposing the rejected band in renamed form is an automatic FAIL. Note interaction: 60.2 (sentinel fix) likely removes more churn than this lever; measure 60.5 ON-vs-OFF on top of the 60.2 flag-ON baseline to avoid double-counting.",
+      "verification": {
+        "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'hysteresis or persistence or 60_5' -q && test -f handoff/current/live_check_60.5.md",
+        "success_criteria": [
+          "exactly ONE lever is implemented: score-hysteresis and/or k-cycle persistence on action changes (researcher-grounded parameterization; e.g. an action flip requires the momentum trigger to clear by a margin or hold for k consecutive cycles), config-gated and DEFAULT-OFF; with the flag OFF the US momentum core and lite prompts are byte-identical to pre-60.5 (unit test)",
+          "ON-vs-OFF is measured via the $0 replay on the production universe (away-week window included) reporting Sharpe/return/turnover/maxDD, with the 59.3 stability table (51 pairs / 16 flips) reproduced as the fixture and the post-lever flip-rate stated; the comparison runs on top of the 60.2 flag-ON baseline with that interaction explicitly stated",
+          "the lever passes the SAME Ledoit-Wolf SR-difference robustness gate as 52.3/53.1 (p<0.05 AND delta>=+0.05 AND CI_low>0) -- OR the step renders an honest REJECT with the gate numbers shown, which is a PASS for the step; presenting a naive/renamed no-trade band is an automatic FAIL",
+          "no live flag flip occurs inside this step; the promote/park decision is an OPERATOR DECISION recorded verbatim in the live_check"
+        ],
+        "live_check": "REQUIRED -- the replay comparison table, the Ledoit-Wolf gate numbers (accept or honest REJECT), the flip-rate before/after, and the operator decision line."
+      },
+      "retry_count": 0,
+      "max_retries": 3
+    }
+  ]
+}

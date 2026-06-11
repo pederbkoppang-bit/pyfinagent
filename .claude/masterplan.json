@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-11T11:05:42.978683+00:00",
+  "updated_at": "2026-06-11T11:50:31.344171+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14368,7 +14368,7 @@
         {
           "id": "60.2",
           "name": "Churn-engine fix: swap sentinel + re-eval/stamp mismatch + delta scale (AW-5) -- a holding without a same-cycle analysis is scored conviction 0.0 ('treat as worst') by the swap path while execute_buy stamps last_analysis_date=now and re-eval waits 3 days, so every fresh BUY is swap-out bait the next day; this mechanism (not score flips) produced the MU -6.3% and SNDK one-day round trips and the DELL/STX churn, labeled 'swap_for_higher_conviction' against a sentinel.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "60.1",
