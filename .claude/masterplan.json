@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-10",
+  "updated_at": "2026-06-11",
   "phases": [
     {
       "id": "phase-0",
@@ -14189,6 +14189,40 @@
               "the kill-switch defect is fixed with a unit test reproducing the 06-05 scenario IFF 55.1 ruled SHOULD-HAVE-TRIPPED; any threshold change is presented as an OPERATOR DECISION, never auto-applied; the 16 env-coupled backend test failures are quarantined (skip-markers + reason strings) and backend pytest is green"
             ],
             "live_check": "REQUIRED -- the approve-flow transcript + the degraded-scoring guard test output + the pytest summary line showing green-with-quarantine."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-57",
+      "name": "Evidence-selected improvement (operator pick 2026-06-11: 'PHASE-57: FEATURE'): Binding RiskJudge gate + concentration-aware sizing. Converts the lite-path RiskJudge REJECT from advisory-only (55.3 finding F-3: 3 away-week REJECTs executed, all via the swap path) into a config-gated, default-OFF binding pre-execution gate at the candidate-build chokepoint, and injects the live portfolio sector breakdown + the real configured cap into the judge prompts (F-8: phantom '10%' vs configured 30%; judge reasons blind). Grounded in SEC 15c3-5 pre-execution-control doctrine, ESMA Feb 2026 hard-vs-soft limit guidance, and the 55.3 strategic chapter (reliability features beat analytical depth). Default-OFF; byte-identical flag-OFF including prompts; NO live flag flip inside phase-57.",
+      "status": "pending",
+      "depends_on": [
+        "phase-55"
+      ],
+      "gate": null,
+      "steps": [
+        {
+          "id": "57.1",
+          "name": "Binding RiskJudge gate + concentration-aware prompt context -- flag-gated REJECT drop at the portfolio_manager candidate-build loop (covers BOTH the main BUY path and the swap path that executed all 3 real-world REJECTs), budget-reallocating by construction; prompt builders behind the SAME flag replace the phantom 10% with the configured paper_max_per_sector_nav_pct and inject a per-cycle-computed sector-breakdown line into the lite RiskJudge context (Claude + Gemini twins); stored-data event study of the 3 executed REJECTs; regression + OFF-identity + prompt-content + single-compute tests.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "56.2",
+          "audit_basis": "Operator reply 2026-06-11 (verbatim): 'PHASE-57: FEATURE' -- the 55.3 recommendation. Findings: F-3 (portfolio_manager.py:185 records risk_judge_decision, :194-198 log-only; HPE 06-02, DELL 06-03, 066570.KS 06-09 BUYs executed at REJECT, net realized -$23.45); F-8 (lite RiskJudge system prompt cites phantom '10% of portfolio in one sector' vs configured paper_max_per_sector_nav_pct=30.0; rationales say 'no current portfolio sector breakdown was provided'). Researcher 2026-06-11 (gate_passed, 6 sources read in full): all 3 executed REJECTs were swap_buy -- a gate at the BUY-emit loop would have missed every real execution; the candidate-build loop (:148-198) is the common ancestor of both paths. SEC 15c3-5(c)(1)-(2)/(d) pre-execution rejection doctrine; ESMA Feb 2026 hard-limit guidance; GuardAgent (context-given guard accuracy); Ahern + arXiv:2511.15123 (n=3 event-study selection-bias caveats). 53.1-rigor precedent: config-gated default-OFF, OFF-identity unit-tested, no live flip.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests -k 'reject_binding or risk_judge_binding' -q && test -f handoff/current/live_check_57.1.md",
+            "success_criteria": [
+              "Binding-gate regression fixture (both BUY paths): a unit test instantiates decide_trades with a candidate whose risk_assessment.decision == 'REJECT' and a screen that routes it through BOTH the main BUY path AND the swap path; with paper_risk_judge_reject_binding=False (default) the REJECT candidate's BUY order IS emitted (advisory, unchanged); with the flag True the REJECT candidate's BUY order is ABSENT from decide_trades output on both paths; test passes",
+              "Default-OFF byte-identity of the US momentum core: a unit test asserts that with paper_risk_judge_reject_binding=False, decide_trades returns an order list byte-identical (same tickers, actions, amounts, order) to the pre-57.1 behavior on a candidate set containing NO REJECT verdicts; AND the rendered lite-RiskJudge system prompt + template with the flag OFF are byte-identical to the pre-57.1 _LITE_RISK_JUDGE_SYSTEM / _LITE_RISK_JUDGE_TEMPLATE constants; no live flag flip occurs in 57.1",
+              "Prompt-context correctness with the flag ON (F-8): a unit test asserts that with paper_risk_judge_reject_binding=True the RiskJudge system prompt contains the configured sector cap value and does NOT contain the phantom '10% of portfolio in one sector', AND the RiskJudge user prompt/template includes a live portfolio sector-breakdown line derived from the current positions (asserted via an injected/fake positions fixture)",
+              "Per-cycle single-compute of the sector summary (concurrency-correct): the sector-breakdown context passed to the per-ticker RiskJudge is computed ONCE per cycle (not once per ticker), verified by a test asserting the position-reading helper is invoked at most once across an N-ticker analysis fan-out (mock/spy on the positions accessor) OR by code-structural assertion that the per-ticker analyzer receives a precomputed portfolio_context argument rather than fetching positions itself",
+              "Event-study evidence artifact (stored-data, $0, honestly framed): handoff/current/live_check_57.1.md exists and contains the BQ query + result enumerating the executed-REJECT BUYs (3 rows: HPE, DELL, 066570.KS), their realized round-trip P&L (-$0.81 / +$0.54 / -$23.18; net -$23.45), AND an explicit selection-bias caveat stating that n=3 is descriptive of those specific trades, not the gate's expected value, with no annualized/Sharpe extrapolation",
+              "Verification command green: the immutable command exits 0 (all new tests pass; live_check artifact present); the flag ships default-OFF and is NOT flipped live inside phase-57"
+            ],
+            "live_check": "REQUIRED -- the event-study table (BQ query + 3 rows + net P&L + selection-bias caveat) + the test outputs (regression fixture both-paths, OFF-identity, prompt-content, single-compute) + confirmation the flag is default-OFF in settings and unflipped."
           },
           "retry_count": 0,
           "max_retries": 3
