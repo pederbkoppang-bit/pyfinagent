@@ -1,102 +1,90 @@
-# Evaluator Critique — Step 59.2 (EVALUATE)
+# Evaluator Critique — Step 59.3 (Q/A, single merged agent)
 
-**Step:** 59.2 — MCP audit + integration (Playwright full, Figma frontend workflow)
-**Date:** 2026-06-11
-**Agent:** Q/A (merged qa-evaluator + harness-verifier), FIRST spawn for 59.2
-**Verdict:** **PASS**
-**Evaluating snapshot:** OLD — this session's Q/A runs the pre-59.2 qa.md (no §1c in my loaded prompt), which is itself live confirmation that the restart caveat the step documents is real and necessary. I enforce 59.2's immutable criteria, not the new §1c gate retroactively.
+**Step:** 59.3 — Stress-test doctrine for the Fable 5 release
+**Date:** 2026-06-11. **Spawn:** FIRST Q/A spawn for 59.3 (0 prior CONDITIONALs in harness_log for this step-id).
+**Verdict: PASS**
 
----
+## Conflict-of-interest disclosure (read first)
 
-## 0. Harness-compliance audit (5 items — all PASS)
+The artifact under review recommends MODIFYING the Q/A role itself (risk-tiered
+Q/A on analysis steps). I am that Q/A. The verdict below rests on independently
+reproduced evidence, not on self-preservation; the proposal is operator-gated,
+explicitly NOT a prune, retains full hostile Q/A on code/money/config steps, and
+quotes the pre-registered "verification != generation" clause. Withholding PASS
+to protect the role would itself be the integrity violation.
 
-1. **Researcher gate** — `handoff/current/research_brief.md:1` is the 59.2 brief; envelope `gate_passed: true`, `external_sources_read_in_full: 6`, `recency_scan_performed: true`, 17 URLs. Contract references it (tier=moderate, sources named). PASS.
-2. **Contract pre-commit** — `contract.md` is for 59.2; python exact-compare against `.claude/masterplan.json` step 59.2: all 4 `success_criteria` **VERBATIM** (4/4) and the verification command verbatim (`cmd_verbatim: True`). mtime ordering: research_brief 06:29 < contract 06:31 < code edits 06:31:31–06:33:50 (.mcp.json, CLAUDE.md, qa.md, researcher.md, frontend.md) < live_check 06:35 < experiment_results 06:36. Contract precedes GENERATE. PASS.
-3. **Results present** — `experiment_results.md` with 5-file change table, verbatim verification output, smoke evidence, and an honest-limitations section. PASS.
-4. **Log-last / status** — `grep -c 'phase=59.2' handoff/harness_log.md` = 0; masterplan 59.2 `status: 'pending'`. Log + flip correctly deferred until after this verdict. PASS.
-5. **First spawn / no verdict-shopping** — no prior 59.2 critique (the overwritten file was 59.1's PASS); `handoff/archive/phase-59.1/` exists, no `phase-59.2/`. Zero prior CONDITIONALs (3rd-CONDITIONAL rule N/A). PASS.
+## 1. Harness-compliance audit (5 items, run first)
 
-`retry_count: 0` → `certified_fallback: false`.
+| Item | Result |
+|---|---|
+| Researcher gate | PASS — `research_brief.md` IS the 59.3 brief (header: "phase-59.3"); envelope `gate_passed: true`, 7 sources read in full, 45 URLs, recency scan performed; GT anchors / rubrics / per-component decision rules pre-registered BEFORE the bare run |
+| Contract pre-commit | PASS — `contract.md` is for 59.3; all 4 success criteria byte-identical to `.claude/masterplan.json:14326-14329`; immutable command quoted |
+| Results present | PASS — `experiment_results.md` for 59.3 with verbatim verification output |
+| Log-last | PASS — zero `phase=59.3` entries in `handoff/harness_log.md`; masterplan 59.3 `status: "pending"`, `retry_count: 0` (flip correctly deferred until after this verdict) |
+| No verdict-shopping | PASS — first spawn; no prior verdict exists |
 
----
+## 2. Deterministic checks (verbatim outcomes)
 
-## 1. Deterministic checks (cannot hallucinate)
+1. **Immutable verification command** `test -f handoff/current/59.3-stress-test-comparison.md && test -f handoff/current/live_check_59.3.md` → **exit=0**.
+2. **Artifact existence:** `59.3-stress-test-comparison.md`, `live_check_59.3.md`, `59.3-harness-free-output.md` all EXIST.
+3. **Bare-output integrity:** `wc -l` = **282** (matches the "282 lines saved verbatim" claim); 17 `AW-` finding mentions; **0** matches for `F-H\b|F-ID` (the "zero F-ID echoes" leakage claim independently verified); the AW-5 sentinel mechanism is present verbatim at output line 254.
+4. **Worktree teardown:** `git worktree list | grep -c wt-59-3` → **0** (only the main tree at `30bcfa47` remains).
+5. **C3 nothing-removed:** `git status --porcelain` shows ONLY handoff artifacts, audit JSONLs, `.archive-baseline.json`, and researcher agent-memory; `git diff HEAD -- .claude/agents/ CLAUDE.md docs/runbooks/per-step-protocol.md .claude/settings.json` → **0 lines**. No harness-weakening change landed in 59.3.
+6. **Syntax:** `backend/services/portfolio_manager.py` parses (ast.parse OK).
+7. **Frontend gates (1b) / live-UI gate (1c):** N/A — diff touches no `frontend/**` and the step makes no UI claims; the masterplan `live_check` required shape here is the doctrine-evidence shape, which `live_check_59.3.md` satisfies (output excerpt + telemetry + dimension table + verdicts).
 
-### Immutable verification command (run verbatim by Q/A)
-```
-$ source .venv/bin/activate && python -c "import json; cfg=json.load(open('.mcp.json')); assert 'alwaysLoad' in cfg['mcpServers']['playwright'], 'playwright alwaysLoad missing'" && grep -q 'Playwright' .claude/agents/qa.md && grep -qi 'figma' .claude/rules/frontend.md && test -f handoff/current/live_check_59.2.md; echo exit=$?
-exit=0
-```
+## 3. Independent spot-reproduction of Main's scoring claims (anti-rubber-stamp core)
 
-### Content greps (file:line evidence)
-- `.mcp.json` playwright block: `args` contains `@playwright/mcp@0.0.76` (HAS_0.0.76_in_args: True), `alwaysLoad: false`, all four flags intact (`--executable-path`, `--user-data-dir`, `--allowed-hosts localhost`, `--viewport-size 1440,900`).
-- `CLAUDE.md:69` — playwright line in the alwaysLoad discipline list (`alwaysLoad: false` + episodic-server rationale + mid-session no-respawn caveat + 0.0.76 pin date); `CLAUDE.md:71` — Figma connector note (session connector, NOT pinned, advisory-only, never verification-load-bearing).
-- `qa.md:102` — `### 1c. Live UI capture gate (BINDING -- REQUIRED if the step makes UI claims)`; `:106` — "**CANNOT receive PASS**"; CONDITIONAL + Missing_Assumption wording present (8 CONDITIONAL occurrences file-wide); `:117` — Figma awareness ("design-advisory and NEVER" satisfies the gate); `:119` — section-inline RESTART CAVEAT ("binds Q/A spawns from the session AFTER").
-- `researcher.md:97-105` — MCP awareness block: Playwright (prefer live snapshot over code inference, ToolSearch path, frontend.md workflow pointer) + Figma (advisory-only, absent headless, "never make a brief's gate depend on it"). File-level RESTART CAVEAT at `researcher.md:19-20`.
-- `frontend.md:73` — `## Live-UI verification (Playwright MCP + skip-auth :3100)` with `LIGHTHOUSE_SKIP_AUTH=1 npx next dev --port 3100` at `:82`; `frontend.md:104` — `## Figma MCP workflow — phase-59.2 (design-advisory ONLY)` with the headless-absence caveat at `:107` ("NOT in .mcp.json and is ABSENT in headless/cron sessions").
+Main scored the comparison itself (generator-scored experiment); separation of
+duties is restored by my reproducing the boldest claims against live systems:
 
-### Emoji scan
-`git diff --unified=0` added lines across all 5 changed files + full `live_check_59.2.md`, perl scan over emoji ranges (U+1F300–1FAFF, U+2600–27BF, U+2B00–2BFF, U+FE0F): **zero hits**.
+| # | Claim | My reproduction | Result |
+|---|---|---|---|
+| (a) | AW-5 sentinel exists in LIVE code (never fixed) | `grep -n "Treat as worst" backend/services/portfolio_manager.py` → **line 479, count 1** | CONFIRMED. (Doc cites `:443-449` — that is the PINNED worktree `70a8242b` the bare run read; lines shifted in live HEAD. Same sentinel.) |
+| (b) | backend.log census | `grep -c "Full orchestrator failed" backend.log` → **416** (claim: 416, exact); `grep -m1 "Publisher Model"` → verbatim 404 NOT_FOUND for `gemini-2.0-flash` on "RAG Agent: fail-open for DELL" | CONFIRMED |
+| (c) | GT10 revision: `session_cost_usd` is cumulative | Live BQ (06-01, provider=gemini, ORDER BY ts): **8 rows, ascending=True**, values 0.02→0.08. **sum = 0.40** and **max = 0.08** — independently reproduces BOTH halves: 55.2's "$0.40 metered" was a SUM over a cumulative column; true metered ≈ $0.08 | CONFIRMED |
 
-### Frontend lint + typecheck (mandated — diff touches `.claude/agents/qa.md`)
-```
-npx eslint .   -> 55 problems (0 errors, 55 warnings)  ESLINT_EXIT=0
-npx tsc --noEmit                                       TSC_EXIT=0
-```
-Warnings are pre-existing project-wide (this diff touches zero `frontend/src` files); errors-only exit semantics → gate PASS.
+3/3 reproduced exactly. The two anchor REVISIONS (GT1 gateway provenance, GT10
+cumulative cost) and the AW-4 404-census stand on primary evidence I touched myself.
 
-### Pinned-artifact launch probe (Q/A-added, closes the smoke-version residual)
-```
-$ npx -y @playwright/mcp@0.0.76 --version
-Version 0.0.76
-PROBE_EXIT=0
-```
-The pinned 0.0.76 artifact resolves from the registry, installs, and executes on this machine.
+## 4. LLM judgment vs the 4 immutable criteria
 
----
+- **C1 (representative re-run, verbatim save, justified choice): MET.** 55.2 re-run as ONE bare Fable 5 pass (no subagents, no contract; 310K tokens / 126 tool uses / 35.4 min, one run, no retries). Comparison §1 justifies the choice (pure-analysis class avoids conflicting code writes; richest 7-artifact chain; the only chain with hostile-re-derived QA → 10 GT anchors + 3 premise probes) and states the representativeness LIMIT (analysis class only). Blinding described and verified: pinned fix-free worktree `70a8242b`, handoff quarantined, do-not-read list, criteria withheld.
+- **C2 (>=3 dimensions, examples from BOTH artifacts, 5 component verdicts): MET.** SIX named dimensions (D1 accuracy 10/10, D2 premise 3/3, D3 rigor 11/11 spot-tests, D4 coverage 8.5/9 + 5 additive, D5 calibration 0 overclaims/7 honest bounds, D6 overhead). Concrete examples from the harness side ("$0.40 metered" summation, F-H checkbox-desync diagnosis, "claude CLI binary" provenance inference, 35%-on-46-pairs, 4 disclosures, 3 sessions/7 artifacts) AND the bare side (gateway.err.log:5792-5799, 416-failure census, sentinel verbatim, 31%-on-51-pairs). ALL FIVE component verdicts present in both docs: researcher gate MODIFY, contract MODIFY, separate Q/A MODIFY-at-most, handoff files KEEP, turn caps MODIFY.
+- **C3 (operator-gated, savings+risks, nothing removed): MET.** Every prune/modify is framed "operator-gated... awaiting your call"; "NOTHING from this step changes the harness today" — verified by git diff (0 lines on harness definitions). Savings+risks: researcher (~150K tokens / 10-15 min per eligible step vs losing the premise-correction backstop + cross-step memory), contract (minutes vs criteria drift on CONDITIONAL-prone steps), Q/A (skip the LLM-judgment leg on analysis steps vs analysis errors shipping uncaught — explicitly "NOT a prune"), handoff KEEP (optional 7→5 artifact slim), turn caps (caps retained as cost bounds; direction already operator-approved in 59.1). The "keep everything is valid" framing is respected in the strongest possible way: PRUNE thresholds were MET on researcher and contract, reported faithfully, and still downgraded to MODIFY with stated rationale.
+- **C4 (artifacts in the named files): MET.** Comparison + verdicts in `59.3-stress-test-comparison.md`; excerpts, telemetry, dimension table, verdicts, and the 6 bug candidates in `live_check_59.3.md` — matching the masterplan `live_check` required shape.
 
-## 2. Code-review heuristics (5 dimensions — no BLOCK/WARN)
+## 5. Anti-rubber-stamp angles (caller-specified)
 
-- **Security:** config + docs diff only; no secrets in `.mcp.json` args (local paths + public package id); no injection paths; `supply-chain-dep-pin-removal` does NOT fire — the pin was bumped (0.0.75 → 0.0.76) with the reason documented in live_check §A, not removed. `--allowed-hosts localhost` preserved (least-privilege intact). Clean.
-- **Trading-domain:** N/A — no execution path, kill_switch, stop-loss, perf_metrics, or signal code touched.
-- **Code quality:** ASCII-clean additions; no Python/TS logic changed; eslint 0 errors / tsc 0 errors.
-- **Anti-rubber-stamp:** no financial logic → behavioral-test heuristics N/A. **Stale-premise handling (demanded angle): HONEST.** The masterplan `audit_basis` assumed `alwaysLoad` was missing from the playwright entry; it already existed at `.mcp.json:91`. This is surfaced as "STALE AUDIT-BASIS FINDING" in `contract.md:10`, as an "Honest stale-premise note" in `live_check_59.2.md` §A, and in the `experiment_results.md` change table — the claimed new work is correctly scoped to the CLAUDE.md discipline-list entry (verified present at `CLAUDE.md:69`), NOT the pre-existing key. No overclaim.
-- **LLM-evaluator anti-patterns:** first spawn, no prior verdict to flip; file:line + verbatim-output citations throughout.
+- **(i) Leakage honesty: HONEST.** Comparison §2 admits live `backend.log` was reachable (omitted from the do-not-read list) and contains post-06-10 fix-era lines; the LOW-impact assessment is argued, not asserted (all citations anchor pre-06-10; 0 fix-era strings; 0 F-ID echoes — which I verified by grep, item 2.3). Repeated in experiment_results "Honest limitations". Nothing hidden.
+- **(ii) Over-claim resistance: PRESENT.** §5 names the model-vs-harness confound (two variables changed at once; "does NOT show Opus 4.8 could have done this bare, nor that Fable 5 needs no harness on CODE steps"); n=1 / analysis-class bounds stated everywhere; recommendations are MODIFY-not-PRUNE despite PRUNE thresholds being met; counter-evidence cited (arXiv:2604.07236 planning-layer +24.1pp); the researcher row concedes the bare run did ZERO external research, so the gate's literature half was never exercised and stays mandatory. A component-at-a-time confirmation run is proposed before acting. This is the opposite of "harness obsolete".
+- **(iii) Q/A conflict handled: YES.** The pre-registered rule itself caps the Q/A verdict at MODIFY ("verification != generation"); full hostile Q/A is retained on code/money/config steps; deterrence is acknowledged as unobservable in a single pass; the historical catch record is cited (53.5 deviation, 56.2 quarantine adjudication, 3-vs-1 executed REJECTs). My own conflict is disclosed at the top of this critique.
 
----
+## 6. Code-review heuristics
 
-## 3. LLM judgment vs the 4 immutable criteria
+Evaluated all 5 dimensions against the diff: the 59.3 diff is documentation/handoff-only (no code changed), so no security, trading-domain, quality, or anti-rubber-stamp heuristic fires. The 6 bug candidates the bare run surfaced (incl. two P0s: AW-5 sentinel-churn engine, AW-4 retired-`gemini-2.0-flash` 404) are correctly routed into the normal masterplan flow as findings, NOT fixed in this review-only step — consistent with the step contract.
 
-**Criterion 1 (Playwright version check + bump + alwaysLoad + smoke evidence)** — **MET (PASS-with-note).** Version checked (0.0.75/2026-05-07 vs npm latest 0.0.76/2026-06-10), delta documented (patch-level, 2 irrelevant devtools tools, ~10 bugfixes, all four pinned flags survive, zero breaking), pin bumped; `alwaysLoad: false` explicit with rationale consistent with the now-updated CLAUDE.md discipline list; live `browser_navigate` + `browser_snapshot` evidence (login-page elements, verbatim YAML excerpt) is in live_check §B — exactly the smoke-evidence shape the criterion itself defines. **The ruling on "smoke-tested if newer":** the capture ran on the session's already-connected 0.0.75 instance because editing `.mcp.json` cannot respawn a connected stdio server — an executable-this-session impossibility, not negligence. Mitigations: (i) disclosed twice in live_check (§A row + bold caveat paragraph) and in experiment_results limitations; (ii) permanently documented in `CLAUDE.md:69` + frontend.md; (iii) the delta is researcher-verified zero-breaking from release notes read in full; (iv) Q/A's own deterministic probe executed the pinned 0.0.76 artifact (`Version 0.0.76`, exit 0). Residual — the first in-session MCP connect + browser launch on 0.0.76 happens next session — is the same restart semantics this project already accepts for agent-file edits, with the caveat documented. A CONDITIONAL would demand an action impossible without restarting the operator's session; the disclosure + probe close everything executable. NOTE for next session: confirm `/mcp` shows playwright on 0.0.76.
+## 7. Notes (non-blocking)
 
-**Criterion 2 (binding qa rule + researcher awareness + :3100 workflow)** — **MET.** `qa.md:102-119` §1c: UI-claims steps CANNOT receive PASS without a live capture referenced in the live_check; snapshot vs screenshot admissibility; absence → CONDITIONAL + `Missing_Assumption`; 55.1 precedent cited; Figma excluded from satisfying the gate; restart caveat inline. `researcher.md:97-101` Playwright awareness. `frontend.md:73-103` documents the full :3100 `LIGHTHOUSE_SKIP_AUTH=1` workflow (start/stop, operator :3000 untouched, disclosure template, capture relocation).
+- N1: The comparison's `portfolio_manager.py:443-449` cite is pin-relative (worktree `70a8242b`); live HEAD has the sentinel at `:479`. Future readers should not mistake the offset for a stale claim — the sentinel persists in live code (reproduced).
+- N2: D6 telemetry (310,037 tokens / 126 tool uses / 35.4 min) is self-reported by Main from the subagent session and marked "(reported)" — not independently reproducible by Q/A. Honest framing; acceptable.
+- N3: Savings for the Q/A and turn-cap MODIFY rows are implicit (D6's 127K-token QA session; caps unchanged as bounds) rather than explicit "savings:" lines. Substance of C3 is met; flagged for completeness only.
+- N4: AW-5 and AW-4 are P0 money-path candidates (AW-5 is plausibly the away week's primary bleed mechanism — exits with no reasoning). Recommend the operator prioritize them in the next planning pass.
 
-**Criterion 3 (Figma workflow + awareness + capability audit)** — **MET.** `frontend.md:104+` Figma MCP workflow (design-to-code for NEW views with navy/slate token reconciliation, code-to-design review, headless-absence caveat at `:107`); `researcher.md:102-105` + `qa.md:117` one-line awareness each; capability audit vs the Next.js cockpit in live_check §D — connector reality (`mcp__claude_ai_Figma__*`, session-only), what it CAN do (code-to-design capture of the live cockpit = first use; `get_design_context` React+Tailwind fit), what it CANNOT (not token-compliant by default, seat/pricing caveats, free-during-beta → LLM-cost approval rule when usage-based pricing lands).
+## Verdict
 
-**Criterion 4 (verification exit 0 + restart caveats + no emojis)** — **MET.** Command exit=0 (run verbatim by Q/A, §1 above). Restart caveats: `qa.md:19` file-level + `:119` section-inline; `researcher.md:19-20` file-level RESTART CAVEAT covers the awareness-block edit (NOTE: the new researcher.md block does not repeat the caveat inline — the live_check's "inline" wording is generous for that file, but the criterion's operative requirement, that the edited agent file carries the caveat, is satisfied at file level, and experiment_results separately discloses next-session enforcement). Emoji scan: zero hits in added lines + live_check.
-
----
-
-## 4. Scope honesty (experiment_results disclosure)
-
-Limitations honestly bound the claim: (i) §1c binds from the NEXT session's Q/A spawns (this spawn confirms — §1c is absent from my loaded snapshot); (ii) 0.0.76 pinned but not the connected instance (stdio no-respawn), first connect next session; (iii) Figma is docs/workflow only — no cockpit Figma file created (deferred as a natural follow-on). No overclaim detected.
-
-**Required in the upcoming LOG step:** per CLAUDE.md separation-of-duties, the harness_log 59.2 entry must carry the Peder-review note for the `.claude/agents/` edits (qa.md §1c, researcher.md awareness), and next session should run `scripts/qa/verify_qa_roster_live.sh` + confirm playwright connects on 0.0.76.
-
----
-
-## Verdict: PASS
-
-All 4 immutable criteria met. Deterministic: immutable verification command exit=0; 4/4 criteria verbatim in contract; content greps land at file:line for every claimed edit; emoji scan clean; eslint 0 errors / tsc 0 errors; pinned 0.0.76 artifact executes (`Version 0.0.76`, exit 0). Stale audit-basis premise honestly surfaced in contract + live_check + results rather than claimed as new work. Smoke-version caveat (capture on connected 0.0.75, pin 0.0.76) disclosed twice, permanently documented, and closed to launch-level by the Q/A probe. No code-review BLOCK/WARN. First spawn, retry 0/3, no certified fallback.
+**PASS** — all 4 immutable criteria met; verification command exit=0; 3/3
+independent spot-reproductions exact; leakage and confounds honestly bounded;
+nothing removed from the harness; first-spawn, no shopping.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 4 immutable criteria met. Verification cmd verbatim exit=0; criteria 4/4 VERBATIM in contract; .mcp.json pins @playwright/mcp@0.0.76 with alwaysLoad:false + all four flags; CLAUDE.md:69/:71 discipline entry + Figma note; qa.md:102 binding 1c gate (CANNOT receive PASS, CONDITIONAL+Missing_Assumption, restart caveat :119, Figma excluded); researcher.md:97-105 awareness; frontend.md:73/:104 both sections (LIGHTHOUSE_SKIP_AUTH :82, headless caveat :107); live_check has version-delta table, live navigate+snapshot excerpt, mid-session 0.0.75-capture disclosure, Figma capability audit. Criterion-1 ruling: smoke on connected 0.0.75 + pin 0.0.76 is PASS-with-note -- stdio no-respawn is unexecutable this session, disclosed twice + permanently documented, and Q/A's own probe executed the pinned artifact (npx @playwright/mcp@0.0.76 --version -> 'Version 0.0.76', exit 0). Stale alwaysLoad audit-basis premise honestly surfaced, not claimed as new work. eslint 0 errors / tsc 0 errors (qa.md-touch mandate). Emoji scan clean. Next session: verify_qa_roster_live.sh + /mcp shows 0.0.76; harness_log entry must carry the Peder-review note for agent-file edits.",
+  "reason": "All 4 immutable criteria met. Verification cmd exit=0. 3/3 spot-reproductions exact (AW-5 sentinel live at portfolio_manager.py:479; backend.log 416 + gemini-2.0-flash 404 verbatim; BQ session_cost cumulative: 8 rows ascending 0.02->0.08, sum=0.40/max=0.08). Nothing removed from harness (git diff 0 lines on agent/CLAUDE.md defs). Honest leakage + confound disclosure; MODIFY-not-PRUNE despite thresholds met; Q/A conflict disclosed both in the doc and in this critique.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "verification_command", "criteria_verbatim_compare", "content_greps_5_files", "emoji_scan_diff_lines", "frontend_eslint", "frontend_tsc", "npx_0076_launch_probe", "mtime_ordering", "code_review_heuristics", "research_brief", "experiment_results", "live_check", "prior_critique_59.1"]
+  "checks_run": ["harness_compliance_audit", "verification_command", "artifact_existence", "bare_output_integrity_greps", "worktree_teardown", "git_diff_nothing_removed", "syntax", "spot_reproduction_3of3", "bq_cumulative_cost_query", "code_review_heuristics", "llm_judgment_4_criteria"]
 }
 ```

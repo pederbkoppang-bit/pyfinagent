@@ -1,33 +1,33 @@
-# Experiment Results — Step 59.2 (GENERATE)
+# Experiment Results — Step 59.3 (GENERATE)
 
-**Step:** 59.2 — MCP audit + integration (Playwright full, Figma frontend workflow). **Date:** 2026-06-11.
+**Step:** 59.3 — Stress-test doctrine run (bare Fable 5 vs the 55.2 harness chain). **Date:** 2026-06-11.
 
-## What was built (5 files)
+## What was built
 
-| File | Change |
+| Artifact | Content |
 |---|---|
-| `.mcp.json` | `@playwright/mcp` 0.0.75 → **0.0.76** (patch delta, zero breaking changes; all four pinned flags survive); `alwaysLoad: false` kept (already present — stale audit-basis premise honestly noted) |
-| `CLAUDE.md` | MCP discipline list gains the playwright entry (`alwaysLoad: false` + episodic-server rationale + the mid-session no-respawn caveat) and the Figma connector note (session-only, advisory, never verification-load-bearing) |
-| `.claude/agents/qa.md` | NEW §1c "Live UI capture gate" — BINDING: UI-claims steps cannot PASS without a live Playwright capture; CONDITIONAL + Missing_Assumption on absence; snapshot-vs-screenshot admissibility; 55.1 precedent cited; Figma excluded; restart caveat inline |
-| `.claude/agents/researcher.md` | MCP-awareness block (live snapshot over code inference for UI questions; Figma advisory-only/absent-headless) |
-| `.claude/rules/frontend.md` | TWO new sections: "Live-UI verification" (the full :3100 skip-auth workflow, disclosure template, kill-after-capture, version caveat) + "Figma MCP workflow" (code-to-design first, design-to-code with token reconciliation, beta-pricing/cost-approval note, availability check) |
+| `handoff/current/59.3-harness-free-output.md` | The bare run's verbatim output (282 lines; its single permitted write) — 10 findings AW-1..AW-10 |
+| `handoff/current/59.3-stress-test-comparison.md` | Selection justification, leakage disclosure, all 6 dimension scores with verified examples from both artifacts, per-component verdicts via the pre-registered rules, the model-vs-harness confound, the operator-gated follow-up proposal |
+| `handoff/current/live_check_59.3.md` | Telemetry, the 11/11 fabrication spot-test, the dimension table, verdicts, the 6 new bug candidates |
+
+Mechanics: pinned worktree `70a8242b` (blinding verified), single run (310K tokens / 126 tool uses / 35.4 min), worktree torn down.
 
 ## Verification command output (verbatim)
 
 ```
-$ python -c "...assert 'alwaysLoad' in cfg['mcpServers']['playwright']..." 
-alwaysLoad: False | version: @playwright/mcp@0.0.76
-$ grep -q 'Playwright' .claude/agents/qa.md  -> ok
-$ grep -qi 'figma' .claude/rules/frontend.md -> ok
-$ test -f handoff/current/live_check_59.2.md -> PASS
+$ test -f handoff/current/59.3-stress-test-comparison.md && test -f handoff/current/live_check_59.3.md && echo PASS
+PASS
 ```
 
-## Smoke evidence
+## Headline result
 
-Live `browser_navigate http://localhost:3000/login` + `browser_snapshot`: full login page (PyFinAgent heading, Google + Passkey sign-in buttons, restricted-access note). One transient "Internal Server Error" on the first navigate (dev-server compile-on-demand race) — re-probed via curl (200) + re-navigated successfully; operator :3000 untouched (read-only). Capture ran on the connected 0.0.75 instance; the 0.0.76 pin loads at next session reconnect (caveat disclosed + documented).
+The bare Fable 5 pass scored **10/10 on the QA-verified anchors (zero confident-wrong), 3/3 on premise probes, 11/11 on fabrication spot-tests, 8.5/9 coverage** — and went beyond the harness chain in five places, including two verified REVISIONS of the harness's own findings (the Approve error's true source is the OpenClaw gateway; 55.2's "$0.40 metered" summed a cumulative column) and a re-diagnosis of F-H (silent full→lite fallback driven by a retired Gemini model 404 + KR CIK gaps, not a checkbox desync). It also surfaced the probable primary money-bleed mechanism of the away week (the sentinel-conviction churn engine) which no harness step had found.
+
+Per the PRE-REGISTERED rules: researcher-gate and contract thresholds for PRUNE-candidate were MET; the recommendations are deliberately the prudent MODIFY readings (adaptive tiering / scope-by-step-class), the Q/A verdict is MODIFY-at-most by the rule's own "verification ≠ generation" clause, handoff files KEEP, turn caps MODIFY (already begun in 59.1). **Nothing was removed from the harness; every verdict is operator-gated**, with a cheap component-at-a-time confirmation run proposed before acting (this run measured the joint effect — attributed, not isolated; n=1, analysis-class only; the Fable-5-vs-Opus model upgrade is confounded with the harness removal by design of the doctrine).
 
 ## Honest limitations
 
-- The binding §1c gate enforces from the NEXT session's Q/A spawns (roster snapshot); this step's own qa runs the old snapshot.
-- The bumped 0.0.76 server is pinned but not yet the connected instance (stdio no-respawn) — first 0.0.76 connect happens next session; the delta is patch-level with zero flag changes, so risk is minimal.
-- Figma integration is docs/workflow only — no Figma file was created for the cockpit (the code-to-design first run is a natural follow-on when the operator wants a design review).
+- Attributed-not-isolated; n=1 task; analysis class only — code/money steps untested and Q/A's value concentrates there.
+- Leakage residuals disclosed (backend.log reachable; low-impact — no fix-era echoes; the run's biggest findings exist in no answer key).
+- The bare run did zero external research — the researcher gate's literature half was never exercised and remains mandatory where criteria demand it.
+- The 6 new bug candidates (incl. two P0s) enter the NORMAL masterplan flow as findings — not fixed here (review-only step).

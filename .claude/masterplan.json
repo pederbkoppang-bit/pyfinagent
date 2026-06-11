@@ -14264,7 +14264,7 @@
     {
       "id": "phase-59",
       "name": "Fable 5 adoption + MCP audit (operator-directed 2026-06-11, in-session pre-approval on all 8 scoping decisions). Adopt Claude Fable 5 (claude-fable-5, $10/$50 per Mtok, Max-plan usage credits after June 22) on the QUALITY-FIRST rare-event roles across BOTH MAS layers (Layer-3 harness researcher/qa + Layer-2 mas_main/autoresearch_strategic; per-ticker roles stay Opus 4.8 for cost discipline); raise harness agent turn caps (qa 12->30, researcher 30->40 -- 5 observed mid-evaluation stalls this session); audit + fully integrate the Playwright MCP (binding qa UI-verification rule) and the Figma MCP (frontend design workflow); run the CLAUDE.md stress-test doctrine for the new model release (one representative step harness-free on Fable 5; prune proposals operator-gated).",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-57"
       ],
@@ -14315,7 +14315,7 @@
         {
           "id": "59.3",
           "name": "Stress-test doctrine for the Fable 5 release -- re-run ONE representative past masterplan step WITHOUT the harness (no subagents, no handoff files) on Fable 5, compare against the harness-produced artifact on at least 3 named dimensions, and render a keep/prune/modify verdict per scaffolding assumption; prune proposals are OPERATOR-GATED recommendations, never applied in this step.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "59.2",
