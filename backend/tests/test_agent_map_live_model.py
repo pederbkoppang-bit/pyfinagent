@@ -52,10 +52,11 @@ def test_endpoint_injects_live_model_field():
     with _patched(s):
         out = get_agent_map()
     nodes = out["nodes"]
-    # mas_main role -> claude-opus-4-8 default (phase-56.2: stale-assertion update
-    # for the 2026-05-28 model bump; was claude-opus-4-7)
+    # mas_main role -> claude-fable-5 (phase-59.1: Fable 5 adoption on the
+    # rare-event orchestrator role; was claude-opus-4-8 since 2026-05-28,
+    # claude-opus-4-7 before that)
     main_node = next(n for n in nodes if n["id"] == "main")
-    assert main_node.get("live_model") == "claude-opus-4-8"
+    assert main_node.get("live_model") == "claude-fable-5"
 
 
 def test_swappable_nodes_get_default_when_override_off():

@@ -2,15 +2,24 @@
 name: qa
 description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifier — independent cross-verification via deterministic checks (syntax, file existence, test runs, live command reproduction) AND LLM judgment of success criteria. Use proactively after any GENERATE step, immediately before marking a masterplan step done. Read-only on file contents — may run Bash for verification commands (python -c, pytest, grep, jq, test -f) but NEVER Edit/Write.
 tools: Read, Bash, Glob, Grep, SendMessage
-model: opus
-maxTurns: 12
-# phase-29.2 (2026-05-18): codified Opus + max effort per operator
-# directive (overnight pre-approval). Pre-29.2 was xhigh (Anthropic-
-# recommended for Opus agentic). 2026-05-28: `model: opus` alias
-# now resolves to Opus 4.8 (was 4.7 until flagship release day).
-# Operator's rationale: Q/A is the
-# evaluator gate on financial-trading code — shallow reasoning is the
-# expensive failure mode under Max flat-fee, not max effort.
+model: fable
+maxTurns: 30
+# phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
+# requires Claude Code v2.1.170+, local 2.1.172) per operator in-session
+# pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per
+# Mtok and on Max plans draws USAGE CREDITS from 2026-06-23 (free Jun 9-22)
+# -- SUPERSEDES the phase-29.2 "Max flat-fee" rationale. New rationale:
+# Q/A is the evaluator gate on financial-trading code; it fires once per
+# masterplan step, so frequency contains cost, and shallow reasoning remains
+# the expensive failure mode. `effort: max` retained (Fable baseline is
+# `high`; max is a deliberate documented over-spec on the gate role).
+# maxTurns 12->30 (phase-59.1): the old cap caused FIVE mid-evaluation
+# stalls on 2026-06-10/11 (observed tool-use 20-26 per evaluation), each
+# needing a manual SendMessage resume before the critique was written.
+# RESTART CAVEAT: roster snapshots at session start -- takes effect next
+# session; run scripts/qa/verify_qa_roster_live.sh.
+# History: phase-29.2 (2026-05-18) codified Opus+max (pre-29.2 was xhigh);
+# 2026-05-28 alias->4.8.
 # See handoff/archive/phase-29.2/research_brief.md + CLAUDE.md effort-policy.
 effort: max
 memory: project

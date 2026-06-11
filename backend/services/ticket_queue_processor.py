@@ -161,14 +161,19 @@ Please provide a helpful response. This will be sent back to the user via {ticke
         try:
             settings = get_settings()
 
-            # Select model based on agent type (per Peder's explicit spec)
+            # Select model based on agent type (per Peder's explicit spec).
+            # phase-59.1 (2026-06-11): main + q-and-a -> Fable 5 per the
+            # operator's quality-first decision. Tickets are operator-paced
+            # Slack messages (~1-2/day): at $10/$50 per Mtok the repin costs
+            # ~$0.18/day -- negligible, recorded per the 59.1 cost analysis.
+            # research stays Sonnet 4.6 (cost-efficient summarization).
             agent_model_map = {
-                "main": "claude-opus-4-8",       # Opus 4-8 for main agent (complex reasoning)
-                "q-and-a": "claude-opus-4-8",   # Opus 4-8 for Q&A agent (accuracy required)
-                "research": "claude-sonnet-4-6" # Sonnet 4-6 for research (cost efficient)
+                "main": "claude-fable-5",        # Fable 5 (complex reasoning; rare-event)
+                "q-and-a": "claude-fable-5",     # Fable 5 (accuracy required; rare-event)
+                "research": "claude-sonnet-4-6"  # Sonnet 4-6 for research (cost efficient)
             }
 
-            model_name = agent_model_map.get(agent_id, "claude-opus-4-8")
+            model_name = agent_model_map.get(agent_id, "claude-fable-5")
 
             # Build system prompt based on agent type
             system_prompts = {

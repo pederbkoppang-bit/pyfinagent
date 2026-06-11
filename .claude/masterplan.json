@@ -14273,7 +14273,7 @@
         {
           "id": "59.1",
           "name": "Fable 5 model adoption (both layers, quality-first) -- Layer-3: researcher.md + qa.md pinned to Fable 5 with researcher-validated frontmatter syntax, effort retained, maxTurns raised (qa 12->30, researcher 30->40), restart caveat + roster-verify instruction recorded; Layer-2: model_tiers.py mas_main + autoresearch_strategic -> claude-fable-5, mas_qa + ALL per-ticker roles unchanged, MODEL_EFFORT_FALLBACK row for claude-fable-5, ticket_queue_processor agent_model_map per rare-event analysis; CLAUDE.md effort-policy section updated with the Fable 5 economics.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "57.1",

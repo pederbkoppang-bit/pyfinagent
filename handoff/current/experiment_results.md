@@ -1,37 +1,38 @@
-# Experiment Results — Step 57.1 (GENERATE)
+# Experiment Results — Step 59.1 (GENERATE)
 
-**Step:** 57.1 — Binding RiskJudge gate + concentration-aware prompt context (phase-57 FEATURE; operator pick verbatim `PHASE-57: FEATURE`). **Date:** 2026-06-11. **Mode:** config-gated default-OFF feature; NO live flag flip; do-no-harm.
+**Step:** 59.1 — Fable 5 model adoption (both layers, quality-first). **Date:** 2026-06-11. **Mode:** operator-directed (8 in-session pre-approvals); rare-event roles only; metered paths untouched.
 
-## What was built (4 files)
+## What was built (7 files)
 
-| File | Change | Finding |
-|---|---|---|
-| `backend/config/settings.py` | NEW flag `paper_risk_judge_reject_binding: bool = Field(False, ...)` (F-3/F-8-citing description; SEC 15c3-5 rationale) | F-3 |
-| `backend/services/portfolio_manager.py` | The binding gate at the candidate-build chokepoint: flag-gated `continue` on `decision == "REJECT"` BEFORE `buy_candidates.append` — the common ancestor of the main BUY loop AND the swap path (which carried all 3 real-world REJECT executions); structured warning + new backward-compatible `blocked_out` out-channel kwarg; budget reallocates by construction (dropped candidates never consume emit-loop cash) | F-3 |
-| `backend/services/autonomous_loop.py` | Prompt builders `_build_risk_judge_system/_build_risk_judge_template` (flag-OFF returns the VERBATIM constants — `is`-identity; flag-ON corrects the phantom 10% → configured 30% cap and injects the sector-context line); `_build_portfolio_sector_context` (compact sector weights, `current_price or avg_entry_price` fallback); per-cycle single compute wired at the positions read, threaded as `portfolio_context` kwarg through `_run_single_analysis` → both lite analyzers (Claude + Gemini twins, incl. the full-path lite fallback); `summary["risk_judge_blocked"]` surfacing | F-8, F-3 |
-| `backend/tests/test_phase_57_1_reject_binding.py` | NEW: 7 tests — main-path + swap-path regression fixtures (OFF emits / ON blocks), OFF order-identity, OFF prompt verbatim-constant identity, ON prompt content (cap + sector line), sector-context edges, structural single-compute assertions | C1-C4 |
+| File | Change |
+|---|---|
+| `.claude/agents/researcher.md` | `model: fable`, maxTurns 30→40; comment block rewritten (operator pre-approval, June-23 Max-credit economics superseding flat-fee, restart caveat, history preserved) |
+| `.claude/agents/qa.md` | `model: fable`, maxTurns 12→30 (five observed stalls); same annotations |
+| `backend/config/model_tiers.py` | mas_main + autoresearch_strategic → claude-fable-5 (rare-event comments); mas_qa explicitly kept (per-ticker comment); EFFORT_SUPPORTED_MODELS + claude-fable-5; MODEL_EFFORT_FALLBACK + ("claude-fable-5","xhigh") — closes the silent effort-drop trap |
+| `backend/services/ticket_queue_processor.py` | agent map: main + q-and-a → claude-fable-5 (~$0.18/day, decision recorded); research stays Sonnet 4.6 |
+| `CLAUDE.md` | Additive Fable 5 effort-policy block (id, $10/$50, June-23 credit change, classifier fallback, alias + v2.1.170 floor, metered-roles-stay-off warning); phase-29.2 history intact |
+| `backend/tests/test_phase_59_1_fable_adoption.py` | NEW: 6 tests (resolution, metered-unchanged, effort-supported, ticket map, Layer-3 frontmatter, CLAUDE.md additive) — named to enter the `-k` net per the false-green finding |
+| `backend/tests/test_agent_map_live_model.py` | mas_main assertion → claude-fable-5 (the test the repin would otherwise break) |
 
 ## Verification command output (verbatim)
 
 ```
-$ source .venv/bin/activate && python -m pytest backend/tests -k 'reject_binding or risk_judge_binding' -q
-7 passed, 767 deselected, 1 warning in 2.37s
-$ test -f handoff/current/live_check_57.1.md && echo PASS
+$ source .venv/bin/activate && python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q
+7 passed, 773 deselected, 1 warning in 2.85s
+$ test -f handoff/current/live_check_59.1.md && echo PASS
 PASS
 ```
-
-Full-suite regression: `756 passed, 12 skipped, 6 xfailed` (exit 0 — +7 from the new file, zero breakage; the flag-OFF default leaves every existing test untouched).
+Full suite: `762 passed, 12 skipped, 6 xfailed` exit 0 (run explicitly because the researcher proved the `-k` selector alone could false-green).
 
 ## Key outcomes
 
-1. **The away-week vulnerability is reproduced in a fixture and closed by the flag**: the swap-path test shows a REJECT candidate swap-buying with `risk_judge_decision == "REJECT"` on the emitted order (exactly the HPE/DELL/LG pattern) when OFF, and being blocked — with the next-ranked survivor taking the freed slot — when ON.
-2. **Event study confirmed live** (BQ, 2026-06-11): the 3 executed-REJECT trades realized −$0.81 / +$0.54 / −$23.18, net **−$23.45**, presented with the mandatory n=3 selection-bias caveat and no EV extrapolation.
-3. **Byte-identity proof is structural**: flag-OFF prompt builders return the constant OBJECTS (`is` assertions), and flag-ON == flag-OFF on REJECT-free order sets.
-4. **The judge is no longer blind when binding**: ON-mode prompts carry the real 30% cap + live sector breakdown computed once per cycle (never per-ticker — structural source-scan assertions).
-5. Effective runtime flag verified `False` post-deploy-restart context (settings loader) — **no live flip**; the operator flips after OOS observation.
+1. Fable 5 lands exactly on the four rare-event roles + the negligible-cost ticket agents; every metered per-ticker path keeps its model (unit-tested).
+2. The silent effort-drop trap is closed (EFFORT_SUPPORTED_MODELS + fallback row) — without it, fable-pinned Layer-2 roles would have lost their effort param invisibly.
+3. The Layer-3 stall defect is fixed at its lever (maxTurns 12→30 / 30→40), sized from this session's observed tool-use counts.
+4. The economics change (Max credits from June 23) is documented as SUPERSEDING the flat-fee rationale in all three places it lived (CLAUDE.md + both agent files) — additive, history preserved.
 
 ## Honest limitations
 
-- The n=3 event study is descriptive only (selection-conditioned); the gate's EV is unknowable until post-flip OOS observation — stated in the live_check and the chapter.
-- The full-pipeline (non-lite) RiskJudge path is the orchestrator's own risk debate — out of 57.1 scope (the lite path is what trades autonomously today).
-- Blocked-BUY evidence is log + cycle-summary only (no BQ table); a durable `paper_blocked_trades` table is a possible follow-on if DoD-7 wants per-block attribution.
+- The Layer-3 pins take effect NEXT session (roster snapshot); this step's own qa spawn evaluates from the OLD snapshot — protocol-identical, models differ. Roster verification is the next session's first action (`scripts/qa/verify_qa_roster_live.sh`).
+- Fable 5's real-world quality delta on these roles is unmeasured here (the 59.3 stress test provides the first observation); the adoption decision is operator-preference + announcement benchmarks.
+- Post-June-22 Max credit burn rates are not yet observable; the operator may want a usage review in late June.

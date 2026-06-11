@@ -43,11 +43,17 @@ _BUILD_TIER: dict[str, str] = {
     # agent_definitions.py:127
     "mas_communication": "claude-sonnet-4-6",
     # agent_definitions.py:177
-    # 2026-05-28: bumped 4-7 -> 4-8 on flagship Opus release day.
-    # Same $5/$25 pricing, same TPM tier, strict improvement on
-    # agentic coding + honesty per Anthropic news + benchmarks.
-    "mas_main": "claude-opus-4-8",
+    # phase-59.1 (2026-06-11): mas_main -> Fable 5 per operator quality-first
+    # pre-approval. RARE-EVENT role (operator-paced Slack/iMessage
+    # orchestrator, NOT per-ticker). $10/$50 per Mtok (2x Opus 4.8) accepted
+    # for the gate role; "the longer and more complex the task, the larger
+    # Fable 5's lead" (Anthropic 2026-06-09 announcement). History:
+    # 2026-05-28 bumped 4-7 -> 4-8 on flagship release day.
+    "mas_main": "claude-fable-5",
     # agent_definitions.py:225
+    # phase-59.1: mas_qa DELIBERATELY KEPT on Opus 4.8 -- it fires per ticker
+    # analysis (metered volume role); cost discipline per the operator's
+    # quality-first-on-RARE-EVENT-roles decision 2026-06-11.
     "mas_qa": "claude-opus-4-8",
     # agent_definitions.py:271
     "mas_research": "claude-sonnet-4-6",
@@ -57,7 +63,9 @@ _BUILD_TIER: dict[str, str] = {
     # fell through to Gemini). MF-47.
     "autoresearch_fast": "claude-haiku-4-5",
     "autoresearch_smart": "claude-sonnet-4-6",
-    "autoresearch_strategic": "claude-opus-4-8",
+    # phase-59.1 (2026-06-11): strategic memo -> Fable 5 (nightly 2am cron =
+    # rare-event; long-horizon synthesis is Fable's strongest delta).
+    "autoresearch_strategic": "claude-fable-5",
     # settings.py:28 -- TRULY Gemini-locked (Vertex AI Search / Search Grounding /
     # Vertex structured-output schemas). DO NOT swap to Claude.
     "gemini_enrichment": "gemini-2.0-flash",
@@ -181,6 +189,12 @@ def build_tier_snapshot() -> dict[str, str]:
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 
 EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
+    # phase-59.1 (2026-06-11): Fable 5 supports the full effort range
+    # (low..max per the effort doc). Without this entry,
+    # model_supports_effort() returns False and llm_client.py silently
+    # DROPS the effort param for fable-pinned roles -- the trap the 59.1
+    # researcher flagged.
+    "claude-fable-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
@@ -231,6 +245,11 @@ EFFORT_DEFAULTS: dict[str, Effort | None] = {
 }
 
 MODEL_EFFORT_FALLBACK: tuple[tuple[str, Effort | None], ...] = (
+    # phase-59.1: Fable 5's doc-recommended baseline is "high" ("often
+    # exceeds xhigh performance on prior models" at lower effort); this
+    # project runs xhigh on the rare-event roles per the operator's
+    # quality-first posture (EFFORT_DEFAULTS overrides per role anyway).
+    ("claude-fable-5",    "xhigh"),
     ("claude-opus-4-8",   "xhigh"),
     ("claude-opus-4-7",   "xhigh"),
     ("claude-opus-4-6",   "high"),

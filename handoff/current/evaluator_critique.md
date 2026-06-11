@@ -1,79 +1,125 @@
-# Evaluator Critique — Step 57.1 (Binding RiskJudge gate + concentration-aware prompt context)
+# Evaluator Critique — Step 59.1 (EVALUATE)
 
-**Verdict: PASS** (`ok: true`, zero violated_criteria). Single merged Q/A; FIRST spawn for 57.1.
-**Date:** 2026-06-11. **Phase:** phase-57 FEATURE (config-gated default-OFF; NO live flip).
-
----
-
-## 5-item harness-compliance audit (ran FIRST, all green)
-
-1. **Researcher gate — PASS.** `handoff/current/research_brief.md` is the 57.1 brief: tier=complex, envelope `gate_passed: true`, 6 sources read in full (17 CFR 240.15c3-5 primary CFR + ESMA Feb-2026 supervisory briefing + GuardAgent arXiv:2406.09187 + Ahern 2006 + arXiv:2604.01483 + arXiv:2511.15123), 16 URLs, recency scan B5 present (ESMA Feb-2026 + 2 arXiv 2025-2026). Cites F-3 (advisory-only REJECT) + F-8 (phantom 10% cap). Contract references section names the researcher output.
-2. **Contract pre-commit — PASS.** `contract.md` mtime `05:19:48` PRECEDES every code edit (settings.py 05:21:11, portfolio_manager.py 05:21:50, autonomous_loop.py 05:26:21, test 05:28:46). Programmatic verbatim compare: all **6 criteria match `.claude/masterplan.json` step 57.1 `verification.success_criteria` byte-for-byte** (whitespace-normalized equality, 6/6 True); the immutable verification command matches verbatim. Install commit verified: `git log --grep "PHASE-57: FEATURE"` hits `af4aa8d6` — subject records the operator's verbatim reply `'PHASE-57: FEATURE'`.
-3. **Results artifact — PASS.** `experiment_results.md` present with the 4-file change table, verbatim verification-command output (`7 passed, 767 deselected`), and full-suite line (`756 passed, 12 skipped, 6 xfailed`).
-4. **Log-last — PASS.** No 57.1 Cycle entry in `handoff/harness_log.md` (last entries are Cycle 47 phase-56.2); masterplan 57.1 `status: "pending"`. Correct order — log + flip happen AFTER this PASS.
-5. **No verdict-shopping — PASS.** First Q/A spawn for 57.1; no prior critique to overturn. `retry_count: 0`.
+**Step:** 59.1 — Fable 5 model adoption (both layers, quality-first)
+**Date:** 2026-06-11
+**Agent:** Q/A (merged qa-evaluator + harness-verifier), FIRST spawn for 59.1
+**Verdict:** **PASS**
+**Evaluating snapshot:** OLD (this session's qa runs the pre-59.1 Opus-4.8 roster — protocol-identical; the Fable pins it authored take effect NEXT session). Separation-of-duties satisfied by the operator's 8 in-session pre-approvals (2026-06-11).
 
 ---
 
-## Deterministic checks (cannot hallucinate)
+## 0. Harness-compliance audit (5 items — all PASS)
 
-- **syntax** — `ast.parse` OK on all 4 files (settings.py, portfolio_manager.py, autonomous_loop.py, test_phase_57_1_reject_binding.py).
-- **verification_command** (immutable) — `python -m pytest backend/tests -k 'reject_binding or risk_judge_binding' -q` → **7 passed, 767 deselected, exit 0**; `test -f handoff/current/live_check_57.1.md` → present (`livecheck-ok`). GREEN.
-- **full_suite** (criterion-6 family + do-no-harm) — `python -m pytest backend/tests -q` → **756 passed, 12 skipped, 6 xfailed, exit 0** in 69.6s. Matches the contract claim EXACTLY; zero breakage from the default-OFF flag.
-- **no_live_flip** — `get_settings.cache_clear(); get_settings().paper_risk_judge_reject_binding` → **False**. settings.py Field default `False`; .env untouched. No live flip, per criterion 2/6.
-- **bq_event_study_reproduction** (live BQ, 2026-06-11):
-  - Query 1 (`paper_trades WHERE action='BUY' AND risk_judge_decision='REJECT'`) → **exactly 3 rows**, ALL `reason=swap_buy`: HPE 2026-06-02T19:18:58, DELL 2026-06-03T19:05:19, 066570.KS 2026-06-09T18:12:39. Independently confirms the count AND the decisive topology claim (every real REJECT execution went via the swap path).
-  - Query 2 (`paper_round_trips`) → HPE **−$0.81** (−0.33%, swap_for_higher_conviction), DELL **+$0.54** (+0.22%, swap_for_higher_conviction), 066570.KS **−$23.18** (−9.68%, **stop_loss_trigger**). **Net of the 3 = −$23.45**, matching the live_check verbatim. (A 4th unrelated DELL round-trip with entry 06-09 +$14.73 exists but is NOT one of the 3 REJECT BUYs — the REJECT DELL BUY was 06-03; the live_check's ticker+entry-day join correctly excludes it.)
-- **other_buy_path_grep** (anti-rubber-stamp) — `grep action="BUY"` across `backend/**` (ex-tests): the only LIVE-path `TradeOrder(action="BUY")` emission sites are `portfolio_manager.py:372` (main BUY loop) and `portfolio_manager.py:589` (swap path) — **both downstream of the candidate-build chokepoint** where the gate sits. `backtest_trader.py:178` is the offline backtest engine (separate system, out of scope). `paper_trader.py:225` is a dedup-query filter arg, not an emission. `pm:105/118/128` are all `action="SELL"`. There is NO third live BUY path that bypasses the gate.
-- **emoji/ascii** — no emojis/arrows in added backend diff lines; all non-ASCII in the test file is box-drawing in `#` comments only (NOT in any logger or code string). New logger strings in portfolio_manager.py:199-203 and autonomous_loop.py are ASCII-only.
+1. **Researcher gate** — `handoff/current/research_brief.md` is the 59.1 brief: envelope `gate_passed: true`, `external_sources_read_in_full: 7` (5 official docs + 2 vendor/industry), `recency_scan_performed: true`, 17 URLs collected. Cited per-claim. PASS.
+2. **Contract pre-commit** — `contract.md` is for 59.1; 4 immutable criteria copied VERBATIM (diffed against `.claude/masterplan.json` step 59.1 `verification.success_criteria` — identical). mtime ordering correct: research_brief (…682) < contract (…790) < all 7 code edits (researcher.md …820, qa.md …827, model_tiers …866, ticket …880, CLAUDE.md …913, tests …960/…973) < live_check (…109) < experiment_results (…137). Contract precedes the code. PASS.
+3. **Results present** — `experiment_results.md` present with file list, verbatim verification output, and honest limitations. PASS.
+4. **Log-last / status** — `handoff/harness_log.md` has NO 59.1 cycle (last is Cycle 48 = phase-57.1). masterplan 59.1 `status: "pending"`. Correct order (log + flip come after this PASS). PASS.
+5. **First spawn / no verdict-shopping** — no `handoff/archive/phase-59.1/` dir, no prior 59.1 critique. First spawn; nothing to shop. PASS.
+
+`retry_count: 0`, `max_retries: 3` → `certified_fallback: false`.
 
 ---
 
-## Code-review heuristics (5 dimensions evaluated; zero BLOCK, zero WARN)
+## 1. Deterministic checks (cannot hallucinate)
 
-- **Dim 1 Security** — no secret-in-diff (settings flag is a `bool`, no literal); no prompt-injection-path (the injected `portfolio_context` is system-generated from BQ positions, NOT user-supplied; and it is brace-escaped before `.format`); no command-injection; no dep-pin removal. CLEAN.
-- **Dim 2 Trading-domain** — gate is REJECT-only (`_rj_decision == "REJECT"`, pm:196), so APPROVE_REDUCED/HEDGED sizing is untouched (no over-bind). kill_switch / stop-loss / max_positions / perf_metrics paths are NOT touched by this diff. No crypto re-enable. The gate ADDS a risk control (binding a previously-advisory REJECT), the regulation-aligned direction (SEC 15c3-5(c)(1) "by rejecting orders"). CLEAN.
-- **Dim 3 Code quality** — the new `try/except` at autonomous_loop.py:783-786 around `_build_portfolio_sector_context` is a NON-fatal context-build guard that logs and degrades to `""` (NOT an execution-path silent-swallow; it protects byte-identity by failing open to the OFF behavior). `_build_portfolio_sector_context`'s `try/except (TypeError, ValueError): continue` is a per-row numeric-coercion guard, not a broad risk-guard swallow. Helpers are typed. No print(). CLEAN.
-- **Dim 4 Anti-rubber-stamp** — financial-logic change (a BUY-path gate) ships WITH a behavioral test file (`test_phase_57_1_reject_binding.py`, 7 tests). No tautological assertions (the assertions check real order presence/absence, object identity, and rendered-string content). No over-mocking (decide_trades runs for real with fixtures; no `@patch` of the module under test). CLEAN.
-- **Dim 5 LLM-evaluator anti-patterns** — first spawn, no rebuttal context, no prior CONDITIONAL to escalate. This critique carries file:line citations throughout. CLEAN.
+### Immutable verification command
+```
+$ source .venv/bin/activate && python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q
+7 passed, 773 deselected, 1 warning in 2.73s
+$ (combined cmd including `test -f handoff/current/live_check_59.1.md`) -> exit=0
+```
+
+### Full suite (false-green guard — the researcher proved the `-k` net collects only `model_tiers`-substring tests and would NOT exercise the one breaking test `test_agent_map_live_model`)
+```
+$ python -m pytest backend/tests -q
+762 passed, 12 skipped, 6 xfailed, 1 warning in 72.99s
+full-suite-exit=0
+```
+Matches the researcher's predicted count exactly. The breaking test `test_agent_map_live_model.py::test_endpoint_injects_live_model_field` was correctly updated to `claude-fable-5` — out-of-net breakage caught only by the full run, exactly the false-green risk the researcher flagged.
+
+### Pin assertions (live `resolve_model` / effort path — `python -c`)
+- `resolve_model('mas_main') == 'claude-fable-5'` ✓
+- `resolve_model('autoresearch_strategic') == 'claude-fable-5'` ✓
+- `resolve_model('mas_qa') == 'claude-opus-4-8'` ✓ (UNCHANGED — criterion 2 cost discipline)
+- `resolve_model('mas_communication')`, `resolve_model('mas_research')` → `claude-sonnet-4-6` ✓
+- `model_supports_effort('claude-fable-5') is True` ✓
+- `resolve_effort_by_model('claude-fable-5') == 'xhigh'` ✓ (closes the silent effort-drop trap at `llm_client.py:1481`)
+
+### Whole-`_BUILD_TIER` fable sweep (anti-rubber-stamp angle a)
+```
+ALL fable-pinned build-tier roles: ['autoresearch_strategic', 'mas_main']
+gemini-locked roles: ['gemini_deep_think', 'gemini_enrichment', 'layer1_swappable']
+```
+**Only** the two allowed rare-event roles are on Fable. No metered/per-ticker role accidentally repinned. Gemini roles untouched.
+
+### Frontmatter (grep batch)
+- `researcher.md`: `model: fable` (L5), `maxTurns: 40` (L6), `effort: max` (L23), `verify_qa_roster_live` (L20); comment block records $10/$50, June-23 USAGE CREDITS superseding phase-29.2 flat-fee, 2026-06-11 operator pre-approval, v2.1.170 floor / 2.1.172 local, restart caveat. ✓
+- `qa.md`: `model: fable` (L5), `maxTurns: 30` (L6), `effort: max` (L24), `verify_qa_roster_live` (L20); same economics + restart annotations + maxTurns 12→30 rationale (FIVE observed mid-evaluation stalls). ✓
+
+### CLAUDE.md (additive — criterion 3)
+- Contains `claude-fable-5`, `$10/$50`, June-23 Max-credit change explicitly "SUPERSEDES the flat-fee rationale below", classifier-fallback note, EFFORT_SUPPORTED_MODELS/MODEL_EFFORT_FALLBACK requirement, `/model fable`. ✓
+- Opus 4.8 history PRESERVED intact: phase-29.2 paragraph + literal "Introducing Claude Opus 4.8" string at L57 both survive. Additive (new bullet inserted above the historical one). ✓
+
+### Ticket map (`ticket_queue_processor.py:171-173`)
+```
+"main": "claude-fable-5",        # Fable 5 (complex reasoning; rare-event)
+"q-and-a": "claude-fable-5",     # Fable 5 (accuracy required; rare-event)
+"research": "claude-sonnet-4-6"  # Sonnet 4-6 for research (cost efficient)
+```
+Decision recorded inline + in live_check (~$0.18/day cost math). ✓
+
+### Version floor
+`claude --version` = `2.1.172` ≥ 2.1.170 (researcher's documented Fable-alias floor). ✓
 
 ---
 
-## Per-criterion LLM judgment (against the 6 immutable criteria)
+## 2. Code-review heuristics (5 dimensions evaluated — no BLOCK/WARN)
 
-**C1 — Binding-gate regression fixture, both BUY paths — PASS.**
-`test_reject_binding_main_path_off_emits_on_blocks` (main path): flag-OFF emits the REJECT BUY (line 102), flag-ON it is absent + `blocked_out` records it (lines 110-114). `test_reject_binding_swap_path_off_emits_on_blocks` (swap path — the away-week vulnerability): the scenario stacks 8 Technology holdings at `max_per_sector=2` so TECH_NEW1/2 get sector-COUNT-blocked into `sector_blocked` → the swap path; flag-OFF asserts `"TECH_NEW1" in swap_buys_off` AND `rejected_order.risk_judge_decision == "REJECT"` (lines 148-152) — **this proves the swap path actually ran and emitted a `swap_buy` for the REJECT candidate**, reproducing HPE/DELL/LG exactly; flag-ON asserts `"TECH_NEW1" not in on_tickers` and `"TECH_NEW2" in on_tickers` (the next-ranked survivor takes the freed slot; lines 164-170). I verified by reading `_compute_swap_candidates` (pm:439-585) that `sector_blocked` is populated ONLY from `buy_candidates` entries (pm:319, iterating pm:290) — so a candidate `continue`d out at the gate (pm:212, BEFORE `buy_candidates.append` at pm:214) can reach NEITHER the main loop NOR the swap path. The gate site is the genuine common ancestor.
+- **Security:** no secret-in-diff (model ids are public identifiers, not credentials); no prompt-injection / command-injection / insecure-output paths; no dep-pin removal (config + test + doc changes only). Clean.
+- **Trading-domain correctness:** N/A — diff touches model-tier config, agent frontmatter, docs, tests. No execution path, kill_switch, stop-loss, perf_metrics, position-sizing, or signal-emission code changed. No LLM-output-to-execution path added.
+- **Code quality:** new test file ASCII-only; no `print()` in non-script; no broad-except. Clean.
+- **Anti-rubber-stamp on financial logic:** `financial-logic-without-behavioral-test` does NOT fire — no `perf_metrics.py`/`risk_engine.py`/`backtest_*` change. The config change IS covered by a behavioral test (`test_phase_59_1_fable_adoption.py`, 28 assertions, 6 tests over the REAL `resolve_model`/`model_supports_effort` resolution paths). No tautological assertions (grep for `assert .* is not None` / `assert x==x` / `called_once`/`MagicMock`/`@patch` returned NONE). No over-mock (imports + calls the real module, no `@patch` of the unit under test).
+- **LLM-evaluator anti-patterns:** first spawn, no prior verdict to flip; this critique carries file:line + command-output citations throughout (no missing-chain-of-thought; not sycophantic — concise but evidence-backed).
 
-**C2 — Default-OFF byte-identity (orders + prompts) + no live flip — PASS.**
-`test_off_identity_orders_no_reject_set`: flag-ON == flag-OFF order lists on a REJECT-free set (line 184). `test_off_identity_prompts_are_verbatim_constants`: `_build_risk_judge_system(s_off) is al._LITE_RISK_JUDGE_SYSTEM` and `_build_risk_judge_template(s_off, "anything") is al._LITE_RISK_JUDGE_TEMPLATE` (lines 189-190) — **object-`is`-identity**, the strongest byte-identity proof, plus a rendered-equality check (lines 195-196). I confirmed the builders short-circuit on `not getattr(settings, "paper_risk_judge_reject_binding", False)` returning the bare constant (autonomous_loop.py:1591, :1606), and the per-cycle `_rj_portfolio_ctx` compute is gated `if getattr(settings, ...)` (autonomous_loop.py:782) so it is skipped when OFF. New kwargs default to `None`/`""` (`portfolio_context: str | None = None` on `_run_single_analysis`; `= ""` on both analyzers) so existing callers are unaffected. No live flip: settings loader returns False.
-
-**C3 — Prompt-context correctness with the flag ON (F-8) — PASS.**
-`test_prompt_content_flag_on_real_cap_and_sector_line`: system prompt contains `"exceed 30% of portfolio NAV in one sector"` and NOT `"10% of portfolio in one sector"` (lines 203-204); `_build_portfolio_sector_context(fake_positions)` yields `"Technology 100.0%"` (line 211); the rendered template contains the injected `"Current portfolio context: invested-book sector weights: Technology 100.0%"` line (line 217). The cap is read from `paper_max_per_sector_nav_pct` (autonomous_loop.py:1593), the real configured value — fixing the phantom-cap defect.
-
-**C4 — Per-cycle single-compute (concurrency-correct) — PASS.**
-`test_analyzers_receive_precomputed_context_not_positions_fetch`: all three analyzers (`_run_single_analysis`, `_run_claude_analysis`, `_run_gemini_analysis`) carry a `portfolio_context` parameter AND `"get_positions" not in inspect.getsource(fn)` (lines 236-240); the single compute site `_build_portfolio_sector_context(positions)` is asserted to live in `run_daily_cycle` source (line 243). I confirmed in the diff that the compute happens ONCE at autonomous_loop.py:782 (after the positions read at :774, BEFORE the concurrent fan-out at the `_run_and_persist_one` dispatch) and is threaded as `portfolio_context=_rj_portfolio_ctx` (autonomous_loop.py:862-864) — neither analyzer calls `get_positions`. Mutation-resistant: a per-ticker `get_positions()` would trip the source-scan.
-
-**C5 — Event-study artifact, honestly framed — PASS.**
-`live_check_57.1.md` contains: the BQ query + 3-row table (HPE/DELL/066570.KS), the realized P&L (−$0.81 / +$0.54 / −$23.18; net **−$23.45**) — all **independently reproduced against live BQ above** — AND an explicit selection-bias caveat (n=3 descriptive of these specific decisions, NOT the gate's EV; conditioned on REJECT∧swap-executed∧closed-in-window; cites Ahern 2006 + arXiv:2511.15123) with **no annualized/Sharpe extrapolation**. Matches the research brief's mandatory-honesty framing.
-
-**C6 — Verification command green + flag default-OFF unflipped — PASS.**
-Immutable command exits 0 (7 passed; live_check present). Flag ships `Field(False, ...)` and is verified `False` at runtime; no flip inside phase-57.
+`code_review_heuristics` appended to `checks_run`.
 
 ---
 
-## Anti-rubber-stamp: actively sought a hole
+## 3. LLM judgment vs the 4 immutable criteria
 
-- **Does the swap-path test actually exercise `_compute_swap_candidates`?** YES — the flag-OFF assertion requires a `reason == "swap_buy"` order for TECH_NEW1 (lines 147-148). A `swap_buy` reason is emitted ONLY at pm:591 inside `_compute_swap_candidates`. If the swap path never ran, that assertion would fail. The test is not a no-op.
-- **Is there another BUY-emission path that bypasses the candidate-build loop?** NO — grep confirms only pm:372 (main) and pm:589 (swap) in the live path, both downstream of the gate; backtest_trader.py and paper_trader.py:225 are not live-cycle TradeOrder BUY emissions.
-- **Format-safety (would a `{`/`}` in a sector name break `.format`)?** Handled — `_build_risk_judge_template` escapes the injected literal via `context_line.replace("{", "{{").replace("}", "}}")` (autonomous_loop.py:1610) BEFORE the downstream `.format()`. The escape is applied AFTER the f-string substitution, so any braces in the live data are doubled correctly. The replacement TARGET string exists verbatim in `_LITE_RISK_JUDGE_TEMPLATE` (line 1567), so the `.replace` is not a silent no-op. Correct.
-- **Could the gate accidentally block APPROVE_REDUCED/HEDGED?** NO — condition is strict equality `_rj_decision == "REJECT"` (pm:196). Verified.
+**Criterion 1 (Layer-3 agent files)** — **MET.** Both files pin `model: fable` (researcher-validated alias per sub-agents + model-config docs), retain `effort: max`, raise maxTurns to 40/30; comments record the 2026-06-11 operator pre-approval, June-22/23 Max-credit economics, and session-restart requirement; live_check instructs `scripts/qa/verify_qa_roster_live.sh`.
+
+**Criterion 2 (Layer-2 + cost discipline)** — **MET.** `mas_main` + `autoresearch_strategic` → `claude-fable-5`; `mas_qa` and every per-ticker/per-analysis role unchanged (proved by the whole-tier sweep, not just spot pins); MODEL_EFFORT_FALLBACK gains `("claude-fable-5","xhigh")` (researcher-grounded: Fable doc baseline `high`, project posture xhigh, role EFFORT_DEFAULTS still override); ticket `agent_model_map` updated with the decision recorded; a real unit test covers the new resolution paths AND the unchanged per-ticker pins.
+
+**Criterion 3 (CLAUDE.md additive)** — **MET.** Effort-policy section updated for Fable 5 (id, $10/$50, June-22→23 Max-credit change superseding the flat-fee rationale, classifier-fallback note) without deleting the Opus 4.8 history; additive; cites the 2026-06-11 operator approval.
+
+**Criterion 4 (verification command + live_check)** — **MET.** Verification command exits 0; live_check records the pin diff map (old→new per role, section A table), the unchanged-roles list (section B), and the restart/roster-verify instruction (actionable: "Next session: run scripts/qa/verify_qa_roster_live.sh").
+
+### Anti-rubber-stamp interrogation (the three demanded angles)
+- **(a) Stray metered fable pin?** NO — whole-`_BUILD_TIER` sweep returns exactly `['autoresearch_strategic', 'mas_main']`. mas_qa stays opus-4-8 (the per-ticker analyst). Cost discipline provably held.
+- **(b) Frontmatter syntax claim grounded?** YES — `model: fable` + `maxTurns`/`effort` validity rest on the researcher reading-in-full `code.claude.com/docs/en/sub-agents` (frontmatter `model` enum lists `fable`; `maxTurns` documented) + `code.claude.com/docs/en/model-config` (`fable` alias, v2.1.170 floor). Local 2.1.172 clears the floor. Doc-cited, not a vibe.
+- **(c) live_check restart instruction actionable?** YES — L24 names the exact script (`scripts/qa/verify_qa_roster_live.sh`) + the retry-on-FAIL doctrine pointer; snapshot-semantics caveat explained.
 
 ---
 
-## Notes (non-blocking)
+## 4. Scope honesty (experiment_results disclosure)
 
-- Blocked-BUY observability is log + `summary["risk_judge_blocked"]` only (no BQ table) — explicitly scoped as a possible DoD-7 follow-on in experiment_results; acceptable for 57.1.
-- Full-pipeline (non-lite) RiskJudge path is out of 57.1 scope (the lite path is what trades autonomously today) — honestly disclosed.
-- Test file uses box-drawing chars in section-header comments; NOTE-level only (not a logger string), no verdict impact.
+Results disclose the real bounds: (i) Layer-3 pins take effect next session (this qa runs the old snapshot); (ii) Fable's real-world quality delta on these roles is UNMEASURED here (deferred to the 59.3 stress test) — adoption is operator-preference + announcement benchmarks, honestly stated, not overclaimed; (iii) post-June-22 Max credit burn not yet observable. No overclaim detected.
 
-**checks_run:** syntax, verification_command, full_suite, no_live_flip, bq_event_study_reproduction, other_buy_path_grep, code_review_heuristics, contract_verbatim_compare, mutation_resistance, evaluator_critique
+---
+
+## Verdict: PASS
+
+All 4 immutable criteria met. Deterministic: immutable verification command exit 0; full suite 762 passed / 12 skipped / 6 xfailed exit 0 (false-green guard cleared, breaking test updated); pin assertions + whole-tier fable sweep prove cost discipline; frontmatter/CLAUDE.md/ticket-map/live_check verified at file:line. Code-review heuristics: no BLOCK/WARN (no execution/risk-guard/financial-logic touched). No certified fallback (retry 0/3). First spawn — no verdict-shopping.
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 4 immutable criteria met. Immutable verification cmd exit=0; full suite 762 passed/12 skipped/6 xfailed exit=0 (false-green -k net guarded by full run; breaking test_agent_map_live_model updated to claude-fable-5). Whole-_BUILD_TIER sweep confirms ONLY mas_main+autoresearch_strategic on fable (mas_qa stays opus-4-8 -> cost discipline held); EFFORT_SUPPORTED_MODELS+MODEL_EFFORT_FALLBACK carry claude-fable-5 (silent effort-drop trap closed, resolve_effort_by_model=='xhigh', model_supports_effort True). Layer-3 frontmatter model:fable + maxTurns 40/30 + effort:max + verify_qa_roster_live + June-23 credit economics + restart caveat. CLAUDE.md additive (fable + $10/$50 + supersedes-flat-fee) with Opus 4.8 history intact (phase-29.2 + 'Introducing Claude Opus 4.8' preserved). Ticket map main/q-and-a->fable, research->sonnet (decision recorded). live_check has pin diff map (old->new per role) + unchanged-roles list + actionable restart instruction. New test = 28 behavioral assertions over real resolution paths, no tautological/over-mock. Code-review heuristics: no BLOCK/WARN.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": ["harness_compliance_audit", "syntax", "verification_command", "full_test_suite", "pin_resolution_assertions", "build_tier_fable_sweep", "frontmatter_grep", "claude_md_additive", "ticket_map", "claude_version_floor", "code_review_heuristics", "research_brief", "experiment_results", "live_check"]
+}
+```

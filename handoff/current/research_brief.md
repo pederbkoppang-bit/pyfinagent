@@ -1,256 +1,335 @@
-# Research Brief — phase-57.1 (Binding RiskJudge gate + concentration-aware prompt context)
+# Research Brief — Step 59.1: Fable 5 model adoption (both layers, quality-first)
 
-**Tier:** complex. **Date:** 2026-06-11. **Step:** 57.1 (phase-57 FEATURE; operator reply `PHASE-57: FEATURE` 2026-06-11).
-**Spec-of-record:** `handoff/archive/phase-55.3/55.3-synthesis-checkpoint.md` §2.6 FEATURE paragraph.
-**Cites:** F-3 (RiskJudge REJECT advisory-only — portfolio_manager.py:185 records, :194-198 log-only; 3 away-week REJECTs executed incl. DELL 06-03), F-8 (lite RiskJudge system prompt phantom "10% cap" vs config paper_max_per_sector_nav_pct=30.0; rationales say "no portfolio sector breakdown was provided").
-
-> STATUS: COMPLETE. Gate PASSED (6 sources read in full, recency scan done, all hard blockers satisfied).
-
----
-
-## A. Internal fix-design (file:line)
-
-### A0. Gate-site topology (decide_trades flow, portfolio_manager.py)
-
-`decide_trades(current_positions, candidate_analyses, holding_analyses, portfolio_state, settings, candidates_by_ticker)` returns `list[TradeOrder]`, sells appended first, buys second, final stable-sort `SELL`-before-`BUY` at :398.
-
-Two loops matter:
-- **Candidate-build loop :148-198** — iterates `candidate_analyses`, skips held/non-BUY-rec, extracts `risk_assessment = analysis.get("risk_assessment", {})`, computes position_pct/stop_loss, appends a dict to `buy_candidates` **including `"risk_judge_decision": risk_assessment.get("decision", "")` at :185**. The advisory log-only branch is :193-198 (`if decision and decision != "APPROVE_FULL": logger.info(...)`). THIS is F-3's exact site.
-- **BUY-emit loop :256-365** — sorts `buy_candidates` by final_score desc (:201), then for each candidate runs (in order): position-cap break (:257), available-cash break (:269), sector-COUNT cap -> `sector_blocked.append` + continue (:276-286), position-size + $50-floor (:288-299), sector-NAV-pct cap continue (:301-318), FF3 factor-corr cap continue (:320-334), then `orders.append(TradeOrder(... risk_judge_decision=cand["risk_judge_decision"] ...))` at :336-356, decrement available_cash + increment sector trackers (:357-365).
-
-Every BUY that ever executes flows through the `orders.append(TradeOrder(...))` at :336. The `risk_judge_decision` string is already carried on every candidate dict (:185) and on every emitted TradeOrder (:342).
-
-**CRITICAL TOPOLOGY FINDING (decides the gate site):** there is a SECOND BUY emit path — the swap path `_compute_swap_candidates` (:405-585), emitting `swap_buy` TradeOrders at :553-568 — and **`risk_judge_decision=cand.get("risk_judge_decision","")` IS carried into the swap BUY at :559**. The event study (Section A5) proves **all 3 executed-REJECT BUYs were `reason=swap_buy`** (HPE, DELL, 066570.KS). Therefore a gate placed only in the main BUY-emit loop (:256-365) would MISS every real-world REJECT execution. The gate MUST cover the candidate-build stage (the common ancestor that feeds BOTH the main loop's `buy_candidates` AND, via `sector_blocked`, the swap path).
-
-### A1. Gate placement — RECOMMENDED: drop at candidate-build (:148-198), default-OFF flag
-
-**Recommended option (single chokepoint, covers both paths):** in the candidate-build loop, AFTER `decision = risk_assessment.get("decision", "")` is known (currently the advisory log-only branch :193-198), add — *gated by the new flag* — a `continue` that skips appending the candidate to `buy_candidates` when `decision == "REJECT"`. Because a candidate that never enters `buy_candidates` can be neither bought by the main loop NOR queued into `sector_blocked` for the swap path, this one site binds both. This is the minimal, single-chokepoint change the spec asks for.
-
-Concretely (flag-ON only):
-```
-decision = (risk_assessment.get("decision", "") or "")
-if decision == "REJECT" and reject_binding_on:
-    blocked_buys.append({"ticker": ticker, "decision": decision,
-                         "reason": risk_assessment.get("reason") or risk_assessment.get("reasoning") or "",
-                         "final_score": final_score})
-    logger.warning("BINDING RiskJudge gate: BLOCKED BUY %s (decision=REJECT) -- "
-                   "flag paper_risk_judge_reject_binding=ON; F-3", ticker)
-    continue   # <-- candidate never reaches buy_candidates -> blocked from BOTH main loop and swap path
-# else: existing advisory log-only branch (:193-198) unchanged when flag OFF
-```
-Placement note: insert the gate **before** `buy_candidates.append(...)` (currently :180). The existing advisory `logger.info` branch (:193-198) stays as-is for the non-REJECT / flag-OFF cases (it also logs APPROVE_REDUCED/APPROVE_HEDGED, which the gate does NOT block — only REJECT binds, matching the spec "blocks the BUY when the judge returns REJECT").
-
-**Why REJECT-only (not APPROVE_REDUCED/HEDGED):** the spec is explicit — "blocks the BUY when the judge returns REJECT". APPROVE_REDUCED/APPROVE_HEDGED already flow into sizing via `recommended_position_pct` (:289, :551); binding those too would be a scope expansion beyond F-3 and would change far more behavior. Keep the gate to the single verdict the spec names. (Tiering rationale from external KF — Section B2 — supports REJECT=hard-block while REDUCED=size-down stays advisory.)
-
-**Budget-reallocation semantics (spec question "should a blocked candidate free its budget for the next-ranked candidate?"):** With the recommended placement, a REJECTed candidate is removed *before* the sort+emit loop. The main BUY loop (:256-365) iterates the surviving `buy_candidates` in final_score order and naturally draws from `available_cash` until exhausted — so the next-ranked surviving candidate automatically gets the budget the REJECTed one would have consumed. **No extra code needed**: dropping at build-time IS sell-first-then-buy-clean and IS budget-reallocating by construction. (Contrast: a gate at emit-time that `continue`s would also reallocate, but would not cover the swap path — rejected for that reason, not the budget one.) Recommend documenting this in the contract so Q/A doesn't read the absence of explicit reallocation code as a gap.
-
-### A2. Settings flag (backend/config/settings.py)
-
-Convention scan (grep of `paper_*_enabled` / default-OFF bool Fields): `rebalance_band_enabled` (53.1), `paper_swap_enabled`, `paper_scale_out_enabled` style. Proposed Field:
-```python
-paper_risk_judge_reject_binding: bool = Field(
-    default=False,
-    description="phase-57.1 (55.3 F-3): when True, a lite-path RiskJudge "
-                "REJECT verdict BLOCKS the BUY (binding gate) instead of "
-                "advisory-only. Default OFF preserves byte-identical behavior. "
-                "Operator flips live AFTER OOS validation (no flip in 57.1).",
-)
-```
-Default-OFF Field with description citing F-3, mirroring the existing `paper_swap_enabled` / `rebalance_band_enabled` idiom. Read at decide_trades time via `getattr(settings, "paper_risk_judge_reject_binding", False)` (defensive getattr like the sector caps at :221/:229). **Recommend NOT adding a risk_overrides runtime key** in 57.1 — keep it a pure settings flag for the dark-launch; a runtime override can be added later if the operator wants live toggling without restart (matches how paper_swap_* started settings-only).
-
-### A3. Prompt-context injection (F-8) — SAME flag, so flag-OFF is byte-identical incl. prompts
-
-Two sub-fixes, BOTH behind the same `paper_risk_judge_reject_binding` flag (recommended — see do-no-harm note below):
-
-**(a) Replace phantom "10%" with the configured cap.** `_LITE_RISK_JUDGE_SYSTEM` (autonomous_loop.py:1515-1525) hardcodes at :1520-1521: *"Would adding this position exceed 10% of portfolio in one sector? High = reduce size."* The configured cap is `paper_max_per_sector_nav_pct=30.0`. Make the system prompt a function of settings at call time. Because `_LITE_RISK_JUDGE_SYSTEM` is a module-level constant consumed in BOTH `_run_claude_analysis` (system= at :1796/:1814) and `_run_gemini_analysis` (concatenated at :1979), the cleanest fix is a builder:
-```python
-def _build_risk_judge_system(settings) -> str:
-    if not getattr(settings, "paper_risk_judge_reject_binding", False):
-        return _LITE_RISK_JUDGE_SYSTEM   # byte-identical when flag OFF
-    cap = float(getattr(settings, "paper_max_per_sector_nav_pct", 30.0) or 30.0)
-    return _LITE_RISK_JUDGE_SYSTEM.replace(
-        "exceed 10% of portfolio in one sector",
-        f"exceed {cap:.0f}% of portfolio NAV in one sector")
-```
-Call sites change from the constant to `_build_risk_judge_system(settings)`. Flag-OFF returns the literal constant -> byte-identical prompt.
-
-**(b) Inject the live sector breakdown into the template.** `_LITE_RISK_JUDGE_TEMPLATE` (:1527-1540) has no portfolio context. `_run_claude_analysis(ticker, settings)` and `_run_gemini_analysis(ticker, settings)` have NO positions param today. Threading design:
-- **Compute ONCE per cycle (concurrency-correct):** positions are identical for all tickers in a cycle, and `_run_single_analysis` is fanned out concurrently (Semaphore, :826/:870). Do NOT call `trader.get_positions()` per-ticker. Instead compute a compact sector-weight string ONCE in `run_daily_cycle` after the existing `positions = trader.get_positions()` at **:774** (which is BEFORE Step-3 analysis dispatch at :798), and thread it down.
-- **Threading path:** add an optional kwarg `portfolio_context: str | None = None` to `_run_single_analysis`, `_run_claude_analysis`, `_run_gemini_analysis`. `_run_and_persist_one` (:828) closes over cycle scope, so it can pass the precomputed string into `_run_single_analysis(ticker, settings, portfolio_context=_sector_ctx)`. (Alternative considered: a module-level cache var set per cycle — rejected; explicit param is cleaner and concurrency-safe, no shared mutable state.)
-- **Sector-weight compute (robust to mark_to_market not yet run at :774):** `paper_positions` rows carry `quantity`, `avg_entry_price`, `current_price`, `sector` (confirmed: get_paper_positions = SELECT * ; columns verified live). At :774 `mark_to_market` (:923) has NOT run, so `current_price` may be stale/missing — use `quantity * (current_price or avg_entry_price)` for weight (same fallback idiom as paper_trader.py:521). Build `{sector: sum(value)} -> pct of invested book`, render e.g. `"Portfolio sector weights (invested book): Technology 100.0%; cash 66% of NAV"`. Inject as a new template line, only when flag ON (flag-OFF -> empty string / unchanged template).
-- **Template change:** add a `{portfolio_context}` placeholder line; flag-OFF passes `portfolio_context=""` AND uses the unchanged constant template so the rendered prompt is byte-identical. Simplest byte-identity guarantee: keep TWO template paths — flag-OFF uses `_LITE_RISK_JUDGE_TEMPLATE` (current constant, no new field, no `.format` key change) and flag-ON uses an augmented template. This avoids adding a `{portfolio_context}` key to the OFF path (which would change the `.format(...)` call signature). Recommend the builder approach: `_build_risk_judge_template(settings) -> str` returning the constant when OFF, the augmented string when ON.
-
-**do-no-harm — why prompt changes share the SAME flag (recommended):** prompt edits alter LLM token distribution on the lite path -> non-deterministic behavior change. The spec's criterion 4 requires "US momentum core byte-identical with the flag OFF" and explicitly flags this nuance. Gating prompts behind the SAME flag means flag-OFF is fully byte-identical (prompts AND gate); flag-ON changes prompts AND binding together — which is correct, because the binding gate is only meaningful if the judge is also reasoning with correct caps + real sector state (a REJECT from a judge citing a phantom 10% cap is less trustworthy to bind on). One flag, coherent semantics. (A separate flag would allow "bind on a blind judge" — an incoherent half-state. Reject.)
-
-### A4. Blocked-trade observability (event study + DoD-7 evidence)
-
-Minimal honest option (recommended): a structured `logger.warning` per blocked BUY (shown in A1) PLUS a cycle-summary field. In `decide_trades`, accumulate `blocked_buys: list[dict]` and surface a count; in `run_daily_cycle`, fold into `summary["risk_judge_blocked"] = [...]` (the cycle summary dict already carries `summary["degraded"]`, `summary["signals_logged"]` etc. — same pattern). This gives the away-week-style event study durable evidence without a new BQ table. **BQ row: NOT required for 57.1** — the existing `paper_trades.risk_judge_decision` column already records REJECT on EXECUTED trades; with the gate ON there will be NO executed REJECT BUYs, so the *absence* of new REJECT-BUY rows post-flip is itself the durable proof (queryable by the same Section-A5 SQL). Recommend the structured log + `summary` field for 57.1; a dedicated `paper_blocked_trades` BQ table is a clean follow-on if DoD-7 wants per-block attribution, but is out of 57.1 scope.
-
-### A5. The away-week replay / event study ($0, stored-data only — BQ-CONFIRMED)
-
-This is NOT a backtest-engine run; it is an analysis of stored BQ rows. Queries run live 2026-06-11 (bytes_billed ~21MB, read-only). The natural sample is the executed-REJECT BUYs.
-
-**Query 1 — executed REJECT BUYs** (`financial_reports.paper_trades WHERE action='BUY' AND risk_judge_decision='REJECT'`): exactly **3 rows**, ALL `reason=swap_buy`:
-
-| ticker | buy time (UTC) | buy value | reason | round_trip_id |
-|---|---|---|---|---|
-| HPE | 2026-06-02 19:18:58 | $245.04 | swap_buy | (unlinked) |
-| DELL | 2026-06-03 19:05:19 | $246.67 | swap_buy | (unlinked) |
-| 066570.KS (LG Electronics) | 2026-06-09 18:12:39 | $238.40 | swap_buy | (unlinked) |
-
-**Query 2 — round-trip outcomes** (LEFT JOIN to `paper_round_trips` on `ticker` + `DATE(entry_date)=DATE(buy_time)`; the BUY rows have `round_trip_id=None` so the join is by ticker+entry-day):
-
-| ticker | buy | exit | realized P&L $ | realized P&L % | hold days | exit reason |
-|---|---|---|---|---|---|---|
-| HPE | 06-02 | 06-03 | **-0.81** | -0.33% | 0 | swap_for_higher_conviction |
-| DELL | 06-03 | 06-04 | **+0.54** | +0.22% | 0 | swap_for_higher_conviction |
-| 066570.KS | 06-09 | 06-10 | **-23.18** | -9.68% | 1 | **stop_loss_trigger** |
-| **SUM** | | | **-$23.45** | | | |
-
-**Event-study headline (honest framing):** Had `paper_risk_judge_reject_binding` been ON, these **3 trades would not have been placed**, avoiding a net realized **-$23.45** (the loss is dominated by the single LG Electronics stop-out at -9.68%; DELL was a small win, HPE ~flat). The spec's "DELL exited +0.22%" reconciles exactly (DELL +0.2193%).
-
-**Selection/conditioning caveat (MANDATORY honesty — see Section B4):** n=3 is an anecdote, not a statistic. The sample is conditioned on (a) REJECT verdicts that (b) actually executed via the swap path AND (c) happened to close within the window. This is a *post-hoc, condition-selected* set. -$23.45 is the realized cost of THESE three specific decisions, NOT an unbiased estimate of the gate's expected value. The gate's true EV depends on the full distribution of REJECT verdicts (including ones the judge got wrong, where blocking would have FOREGONE a gain). The brief presents this as "the gate would have avoided these 3 specific trades, net -$23.45 realized" and explicitly disclaims any annualized/Sharpe extrapolation. The event study's role is the **regression-fixture witness + a directionally-suggestive anecdote**, not a promotion gate. (This is why 57.1 carries NO live flip — the operator flips later and validates OOS, per spec criterion 4.)
-
-### A6. Tests inventory (existing patterns to mirror)
-
-- **decide_trades unit tests** — grep `tests/` for files instantiating `decide_trades` with fake candidate dicts (sector-cap tests from phase-23.1.13 / phase-30.5 are the closest precedent; they build `candidate_analyses` with `risk_assessment.decision` set and assert which orders emit). Mirror that to build a REJECT candidate and assert: flag-OFF -> BUY order present (advisory, unchanged); flag-ON -> BUY order absent (blocked). This is acceptance criterion 1's fixture.
-- **Settings-flag OFF-identity tests** — `test_phase_50_2*` byte-identity style and 53.1's `rebalance_band` OFF-identity test (grep `rebalance_band` in tests/). Mirror: assert `decide_trades(..., flag OFF)` returns an order list IDENTICAL to pre-flag behavior on a non-REJECT candidate set, and that the rendered risk-judge prompt with flag-OFF equals the current constant prompt (prompt byte-identity).
-- **Prompt-content tests** — assert `_build_risk_judge_system(settings_flag_ON)` contains "30%" and NOT "10%"; assert the flag-ON template contains the injected sector line + the real cap; assert flag-OFF returns the verbatim `_LITE_RISK_JUDGE_SYSTEM` / `_LITE_RISK_JUDGE_TEMPLATE` constants (this is criterion 3 + the byte-identity half of criterion 4).
-- Locate exact files at GENERATE time: `grep -rln "decide_trades\|rebalance_band\|_LITE_RISK_JUDGE" tests/`.
-
-### A7. Proposed immutable verification command
-
-Mirror 56.x style (pytest -k selector + `test -f` live_check):
-```
-source .venv/bin/activate && python -m pytest tests/ -k "risk_judge_binding or reject_binding" -q && test -f handoff/current/live_check_57.1.md && echo VERIFICATION_OK
-```
-(Final `-k` selector to match the test names authored at GENERATE; the `test -f live_check_57.1.md` enforces operator-auditable evidence per the live_check gate; no live flag flip is asserted because none happens in 57.1 — the live_check documents the OFF-identity proof + the event-study numbers, not a live execution.)
+**Tier:** moderate-complex. **Phase-59.** Operator-directed 2026-06-11 (8 in-session pre-approvals).
+**Researcher snapshot:** OLD (this session's own qa/researcher run on the pre-59.1 pins — fine; pins don't change protocol).
+**Claude Code version (local):** **2.1.172** — VERIFIED via `claude --version`. This is >= the 2.1.170 floor required for Fable 5 and >= the 2.1.154 floor for Opus 4.8. The `fable` alias is supported on this version.
+**This topic is <1 week old** (Fable 5 GA = 2026-06-09); year-less canonical prior-art on "Fable 5" is necessarily thin and I say so explicitly in the query log. Canonical prior-art DOES exist for the surrounding mechanics (subagent frontmatter, effort levels, Claude Code model aliases) and is cited.
 
 ---
 
-## B. External research
+## TL;DR — the load-bearing answers
 
-### B0. Read in full (>=5 required; counts toward the gate)
+1. **Frontmatter `model:` value = `fable`** (the alias). Officially documented in BOTH the Claude Code
+   sub-agents frontmatter reference AND model-config doc. Use `model: fable` in `.claude/agents/*.md`,
+   mirroring the existing `model: opus` idiom. Full model id `claude-fable-5` is also accepted but the
+   alias is preferred (auto-tracks the recommended version, matches the existing `opus`-alias convention).
+2. **`effort: max` REMAINS valid for Fable 5.** The effort table lists Fable 5 levels as
+   `low, medium, high, xhigh, max` — identical superset to Opus 4.8. `max` is documented as accepted
+   subagent frontmatter `effort` (session-only at the API layer, but valid as a per-subagent override).
+3. **`maxTurns` is a documented subagent frontmatter field**: "Maximum number of agentic turns before
+   the subagent stops." Raising it (qa 12->30, researcher 30->40) is the correct lever for the
+   stall-mid-work signature.
+4. **THE ECONOMICS CHANGE.** Fable 5 is the FIRST model whose Max adoption is NOT flat-fee-unlimited:
+   free on Max/Pro/Team only **June 9 -> June 22, 2026**; "On June 23, we'll remove Fable 5 from
+   those plans. Using it after that will require usage credits." This directly **invalidates the
+   phase-29.2 "Max subscription -> flat-fee, no per-token ceiling" rationale** in CLAUDE.md and both
+   agent-file comment blocks. The rationale must be rewritten to the new model: quality-first +
+   rare-event firing (cost contained by *frequency*, not by a flat fee).
+5. **Effort guidance for Fable 5 DIFFERS from Opus 4.8.** Opus doc says "start with `xhigh` for
+   coding/agentic." Fable doc says "**Start with `high`, the default, for most tasks**, use `xhigh`
+   for the most capability-sensitive workloads." For our quality-first rare-event roles, keeping
+   `effort: max` is defensible (these ARE the capability-sensitive workloads and fire rarely), but
+   the file comments should note that Fable's recommended baseline is `high`, not `xhigh`, so `max`
+   is a deliberate over-spec — and the Fable doc's own caveat "Lower effort settings on Claude Fable 5
+   still perform well and often exceed `xhigh` performance on prior models" means `high` would already
+   beat our previous Opus-`max` config. (See the "effort decision" section for the recommendation.)
 
-| # | URL | Accessed | Kind | Fetched how | Key finding (quote/paraphrase) |
-|---|-----|----------|------|-------------|-------------------------------|
-| 1 | https://www.law.cornell.edu/cfr/text/17/240.15c3-5 | 2026-06-11 | Official (US CFR primary) | WebFetch (HTML) | (c)(1)(i) controls must "Prevent the entry of orders that exceed appropriate pre-set credit or capital thresholds… by **rejecting** orders"; (c)(1)(ii) "Prevent the entry of erroneous orders, **by rejecting** orders…"; (d) controls "under the **direct and exclusive control** of the broker or dealer" — rejection, not flagging; non-bypassable. The canonical hard-block-vs-advisory anchor. |
-| 2 | https://arxiv.org/abs/2604.01483 | 2026-06-11 | Peer-reviewed preprint (arXiv) | WebFetch (HTML render) | "probabilistic execution without rigid constraints is architecturally and legally untenable"; the deterministic gateway "treats every proposed agentic action as a mathematical conjecture: execution is permitted if and only if" the constraint is proven; the gate "intercepts this API call **before** it reaches the execution environment". Validates a deterministic pre-execution chokepoint enforcing the LLM verdict. |
-| 3 | https://qiniu-images.datayes.com/ENNETH_R__AHERN.pdf (Ahern, UCLA, 2006) | 2026-06-11 | Peer-reviewed (event-study methodology) | WebFetch->pdfplumber 0.11.9 | "If these characteristics are related to selection in an event study sample, imprecise predictions… may produce **erroneous results**"; statistical biases "important when researchers look for cross-sectional explanations of abnormal returns, which are typically **small but significant**". Canonical selection-bias caution for the A5 event study. |
-| 4 | https://www.esma.europa.eu/sites/default/files/2026-02/ESMA74-1505669079-10311_Supervisory_Briefing_on_Algorithmic_Trading_in_the_EU.pdf | 2026-06-11 | Official (EU regulator, **Feb 2026**) | WebFetch->pdfplumber | "**Hard blocks** should be designed as mechanisms which **block orders exceeding** set… parameters"; mandated PTCs incl. "**coverage checks** for positions in securities or in cash" and "**warnings in case of old data feeds**". Hard-vs-soft limit distinction + the "blind/stale data" control that maps to F-8. |
-| 5 | https://arxiv.org/abs/2406.09187 (GuardAgent) | 2026-06-11 | Peer-reviewed preprint (arXiv) | WebFetch (HTML render) | A separate guard agent "**denied if Ol=1**" the target's action; **requires** "the input and output logs recording the target agent's action trajectories" to judge — i.e. the guard must be GIVEN context; achieves "**over 98% and 83% guardrail accuracies**". Directly supports F-8 (give the judge the portfolio state) + judge-as-binding-veto. |
-| 6 | https://arxiv.org/abs/2511.15123 (Causal Inference in Financial Event Studies) | 2026-06-11 | Peer-reviewed preprint (**Nov 2025**) | WebFetch (HTML render) | "when factor models are misspecified… abnormal return estimators are generally **inconsistent** estimators for causal effects"; recommends **synthetic control** over naive abnormal-return for counterfactuals. Recency corroboration of the A5 caveat. |
+---
 
-(6 read in full; floor is 5. Mix spans US-primary-law + EU-regulator + 2 agent-guardrail arXiv + 2 event-study-methodology — cross-domain triangulation: finance-regulation and ML-agent-safety converge on "advisory verdict must be enforced by a separate deterministic gate that is given the relevant state".)
+## A) EXTERNAL RESEARCH
 
-### B1. Identified but snippet-only (context; does NOT count toward gate)
+### Read in full (>=5 required; counts toward the gate)
+
+| URL | Accessed | Kind | Fetched how | Key quote or finding |
+|-----|----------|------|-------------|----------------------|
+| https://code.claude.com/docs/en/model-config | 2026-06-11 | official doc | WebFetch (full) | `fable` alias = "Uses Claude Fable 5 for your hardest and longest-running tasks"; effort table lists Fable 5 = low/medium/high/xhigh/max; "**Fable 5 requires Claude Code v2.1.170 or later**"; "Fable 5 is not the default model... Select it with `/model fable`"; default effort = `high` on Fable 5 |
+| https://code.claude.com/docs/en/sub-agents | 2026-06-11 | official doc | WebFetch (full) | Frontmatter `model` field: "`sonnet`, `opus`, `haiku`, `fable`, a full model ID (for example, `claude-opus-4-8`), or `inherit`. Defaults to `inherit`"; `maxTurns` = "Maximum number of agentic turns before the subagent stops"; `effort` options "`low, medium, high, xhigh, max`; available levels depend on the model" |
+| https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5 | 2026-06-11 | official doc | WebFetch (full) | API id `claude-fable-5`; **1M token context window by default, up to 128k output tokens per request**; $10/$50 per Mtok; refusals return `stop_reason: "refusal"` as HTTP 200 (not error); "not billed for a request that is refused before any output is generated"; supports effort, vision, memory tool, compaction |
+| https://platform.claude.com/docs/en/build-with-claude/effort | 2026-06-11 | official doc | WebFetch (full) | **Fable 5 guidance (verbatim):** "**Start with `high`, the default, for most tasks**, use `xhigh` for the most capability-sensitive workloads, and step down to `medium` or `low` for routine work. Lower effort settings on Claude Fable 5 still perform well and often exceed `xhigh` performance on prior models." `max` and `xhigh` both available on Fable 5 |
+| https://www.anthropic.com/claude/fable | 2026-06-11 | official (vendor) | WebFetch (full) | "Run Claude Fable 5 in an agent harness like Claude Code... it can work for days at a time: planning across stages, delegating to sub-agents, and checking its own work"; "Claude Fable 5 is thorough, proactive, and tests its own work." NO explicit subagent-tier guidance on this page |
+| https://www.anthropic.com/news/claude-fable-5-mythos-5 | 2026-06-11 | official (vendor) | WebFetch (full, prior turn) | "$10 per million input tokens and $50 per million output tokens"; "From today through June 22, Fable 5 is included on Pro, Max, Team... at no extra cost"; "On June 23, we'll remove Fable 5 from those plans. Using it after that will require usage credits"; "At the highest effort, Claude Fable 5 reflects on and validates its own work"; classifier fallback to Opus 4.8 on cyber/bio/chem/distillation |
+| https://explainx.ai/blog/is-fable-5-available-on-claude-code-2026 | 2026-06-11 | industry blog | WebFetch (full) | Independently confirms "Update to Claude Code v2.1.170 or later"; advises "skipping Fable 5 for quick one-off edits or bug fixes" due to cost; documents multiple-install version-conflict caveat |
+
+### Identified but snippet-only (context; does NOT count toward gate)
 
 | URL | Kind | Why not fetched in full |
-|-----|------|------------------------|
-| https://www.sec.gov/.../divisionsmarketregfaq-0 (SEC 15c3-5 FAQ) | Official | Primary CFR text (source 1) is the authoritative version; FAQ is gloss. |
-| https://www.finra.org/rules-guidance/key-topics/market-access | Official | Secondary to the CFR; FINRA exam-priority context only. |
-| https://www.pwc.ch/.../pre-trade-controls-for-algorithmic-trading-techniques.html | Industry | Commentary on the ESMA briefing (source 4 is the primary). |
-| https://www.hoganlovells.com/.../esma-publishes-supervisory-briefing… | Industry (law firm) | Summary of source 4. |
-| https://arxiv.org/abs/2605.29251 (Provably Secure Agent Guardrail) | Preprint | Same thesis as sources 2+5 (formal-methods guardrail); marginal additional value. |
-| https://arxiv.org/abs/2509.23994 (Policy-as-Prompt) | Preprint | Governance-rules-to-guardrails; tangential to a single REJECT-gate. |
-| https://scholar.harvard.edu/files/borusyak/.../borusyak_jaravel_event_studies.pdf | Working paper | Panel/DiD event-study design; less relevant than Ahern for a 3-event counterfactual. |
-| https://www.digitalapplied.com/blog/llm-guardrails-production-safety-layers-reference-2026 | Community/blog | Lower tier; "tool-call gating before write access" theme already covered by sources 2/5. |
-| https://www.value-at-risk.net/risk-limit/ | Industry | Tiering taxonomy (hard-block/size-reduce/escalate); corroborates B2 but textbook-level. |
-| https://www.fortraders.com/blog/how-prop-firms-monitor-risk-behind-the-scenes | Community | "read-only mode" escalation example; anecdotal corroboration of B2. |
+|-----|------|-------------------------|
+| https://openrouter.ai/anthropic/claude-fable-5 | aggregator | Pricing confirmed via search snippet ($10/$50, cached input $1/Mtok = 90% off) — redundant with official |
+| https://artificialanalysis.ai/models/claude-fable-5 | benchmark site | Independent perf/price analysis; snippet sufficient for the adversarial point (slow TTFT) |
+| https://www.developersdigest.tech/blog/claude-usage-limits-fable-5-explained | industry blog | Burn-rate detail ("~2x faster than Opus" official; steeper in practice) captured via snippet — ADVERSARIAL evidence on the credit economics |
+| https://www.coderabbit.ai/blog/fable-5-model-review | industry review | Corroborates "overkill for routine tasks; reserve for hard subtasks" |
+| https://decrypt.co/370688/internet-furious-anthropic-claude-mythos-fable-5 | news | Community reaction to the post-free-period credit change; context only |
+| https://lushbinary.com/blog/build-long-horizon-ai-agents-claude-fable-5-guide/ | industry blog | "Fable parent, Sonnet/Haiku subagents is the cost-sane configuration" — informs the harness-design note |
+| https://www.truefoundry.com/blog/claude-fable-5-api-benchmarks-pricing-how-to-use-it | industry blog | Pricing/benchmark recap; redundant |
+| https://www.cloudzero.com/blog/claude-mythos-pricing/ | industry blog | Pricing recap across the family; context |
+| https://github.com/VoltAgent/awesome-claude-code-subagents | community repo | Prior-art on subagent frontmatter conventions (year-less canonical hit) |
+| https://gist.github.com/danielrosehill/96dd15d1313a9bd426f7f12f5375a092 | community gist | Year-less canonical "Claude Code subagent frontmatter" reference |
 
-### B2. Key findings (cited per-claim)
+**Sources read in full: 7. Unique URLs collected: 17. Floor (>=5 full, >=10 URLs): CLEARED.**
 
-1. **Pre-trade risk controls must REJECT, not flag — and must be non-bypassable.** SEC Rule 15c3-5(c)(1)(i)-(ii) requires controls "by rejecting orders" that breach thresholds, and (d) puts them under "direct and exclusive control" so they can't be routed around. (Source 1, law.cornell.edu/cfr/text/17/240.15c3-5, accessed 2026-06-11.) -> The away-week defect (F-3: RiskJudge REJECT recorded but advisory) is exactly the failure mode this canonical rule names; converting it to a binding block is the regulation-aligned design. The chokepoint placement (A1: candidate-build, the common ancestor) satisfies the "cannot be bypassed by routing" property — the swap path can't circumvent it.
+### Recency scan (last 2 years / 2024-2026)
 
-2. **Hard limit (blocks pre-acceptance) vs soft limit (unwinds post-acceptance) is the canonical taxonomy; "coverage checks" and "old data feed warnings" are named PTCs.** ESMA Feb 2026: "Hard blocks should be designed as mechanisms which block orders exceeding set… parameters"; mandated controls include "coverage checks for positions… or in cash" and "warnings in case of old data feeds". (Source 4, ESMA74-1505669079-10311, accessed 2026-06-11.) -> Two implications: (a) the binding RiskJudge gate is a *hard* limit by this definition (blocks the BUY pre-execution), the correct tier for a REJECT verdict; (b) F-8's "judge reasons blind / phantom 10% cap" is precisely the "old/stale data feed" + "coverage check" failure — injecting the live sector breakdown + real cap is the named remedy.
+Searched the 2026 frontier explicitly (Fable 5 GA 2026-06-09, so the *entire* corpus is last-2-weeks).
+**Result: the canonical sources ARE the recency window** — there is no older prior-art on "Fable 5"
+specifically because the model is 2 days old. New findings that materially shape the step:
 
-3. **Tiering: REJECT=hard-block, REDUCED=size-down, escalate=human — graduated responses are standard.** Industry practice: "graduated responses before complete trading restrictions"; warning at 50% of limit, then "read-only mode" (manage existing, can't open new). (Snippet: value-at-risk.net/risk-limit, fortraders.com; corroborated by source 4's hard-vs-soft.) -> Justifies the A1 design choice to bind ONLY REJECT (the hard-block tier) while leaving APPROVE_REDUCED/HEDGED as size-down (advisory sizing, unchanged). Don't over-bind.
+1. **Post-June-22 credit economics** (announcement + developersdigest) — supersedes the phase-29.2
+   flat-fee assumption. NEW, load-bearing.
+2. **Fable-5-specific effort baseline is `high`, not `xhigh`** (effort doc) — differs from the
+   Opus 4.8 guidance currently baked into `model_tiers.py` comments. NEW.
+3. **v2.1.170 floor** (model-config + explainx) — our 2.1.172 clears it. NEW, verified locally.
+4. **Burn-rate ~2x Opus official / steeper in agentic practice** (developersdigest, artificialanalysis)
+   — ADVERSARIAL; informs the "metered-by-frequency not flat-fee" framing. NEW.
 
-4. **A deterministic gate must ENFORCE the probabilistic verdict; the LLM cannot be trusted to self-enforce.** arXiv:2604.01483: "probabilistic execution without rigid constraints is architecturally and legally untenable"; intercept "before it reaches the execution environment". GuardAgent: "Hardcoded Safety Rules fail… while degrading task performance to merely 3.2%" — a *separate* guard that blocks (Ol=1 -> denied) is the working pattern. (Sources 2, 5.) -> The binding gate (deterministic `if decision==REJECT: continue`) enforcing the LLM judge's verdict is the literature-endorsed architecture; the judge proposes, the gate disposes.
+For the *surrounding mechanics* (subagent frontmatter schema, effort levels, model aliases), the
+canonical year-less prior-art exists and is cited (sub-agents doc, model-config doc, community gists).
 
-5. **A guard/judge must be GIVEN the relevant state to judge correctly.** GuardAgent requires "the input and output logs recording the target agent's action trajectories" and reaches ">98% / 83% guardrail accuracies" when it has them. (Source 5.) -> Direct support for F-8's context injection: a RiskJudge told to evaluate CONCENTRATION but given no sector breakdown and a wrong cap (10% vs 30%) is a guard without its inputs. Inject the live sector weights + real cap (A3) so the binding verdict is trustworthy. **This is why A3 gates prompts behind the SAME flag as the gate** — binding on a blind judge is the incoherent half-state the literature warns against.
+### Query log (3-variant discipline)
 
-6. **Counterfactual "would-have-been-blocked P&L" on a conditioned, tiny sample is descriptive, not inferential.** Ahern: selection-related characteristics "may produce erroneous results"; biases matter most when effects are "small but significant". arXiv:2511.15123: naive abnormal-return estimators are "inconsistent… when factor models are misspecified"; prefer synthetic control. (Sources 3, 6.) -> The A5 event study (n=3, conditioned on executed-REJECT-via-swap-that-closed) must be presented as "the realized cost of these 3 specific decisions was -$23.45", NOT as the gate's expected value. No Sharpe/annualized extrapolation. The honest role is the regression-fixture witness + a directional anecdote; OOS validation (post-flip, operator-gated) is where EV gets established.
+- **Current-year frontier:** "Claude Fable 5 model pricing context window max output tokens API";
+  "Anthropic Fable 5 long-running agents harness subagent model selection engineering guidance";
+  "Claude Fable 5 downsides slow expensive subagent overkill when not to use 2026" (adversarial).
+- **Last-2-year window:** subsumed by frontier (model is 2 days old; 2024/2025 returns nothing on
+  "Fable 5" by construction — stated explicitly per research-gate rule).
+- **Year-less canonical:** "Claude Code subagent frontmatter model fable alias agent.md configuration"
+  — surfaced the model-config doc + VoltAgent repo + danielrosehill gist (prior-art on the *schema*,
+  which is what's actually load-bearing here; the schema predates Fable 5 and the `fable` value was
+  simply added to the existing `model:` enum).
 
-### B3. Consensus vs debate
+### Consensus vs debate (external)
 
-- **Strong consensus:** risk verdicts that matter must be enforced by a deterministic, non-bypassable pre-execution gate (SEC 15c3-5, ESMA 2026, arXiv:2604.01483, GuardAgent all agree). No credible source argues an advisory-only risk flag is sufficient when the verdict is "do not trade this".
-- **Consensus:** a judge/guard needs the relevant state injected (GuardAgent's central result). F-8 is a textbook violation.
-- **Debate / nuance:** how MUCH to bind. Pure hard-block-everything (15c3-5's erroneous-order frame) vs graduated tiering (industry: warn->reduce->read-only->block). Resolution adopted: bind ONLY the REJECT verdict (the hard-block tier); keep REDUCED/HEDGED as advisory sizing. This is the minimal, spec-faithful choice and avoids over-restricting a momentum core that depends on firing.
-- **Debate:** event-study rigor. Ahern (factor-model + sign-test) vs arXiv:2511.15123 (synthetic control). For n=3 neither is applicable at power; both agree the honest move is to NOT infer EV from the sample. The brief sidesteps the methodology fight by refusing the inferential claim entirely.
+- **Consensus:** `fable` is the correct alias; v2.1.170+ required; 1M context / 128K output; effort
+  supported with `high` default; Fable 5 is purpose-built for long-horizon agentic harnesses that
+  "validate their own work" — exactly the Researcher/Q-A evaluator-gate profile.
+- **Debate / adversarial (the honest counterpoint):** Multiple independent industry sources call Fable 5
+  "**overkill and overpriced for routine, latency-sensitive, or high-volume tasks**" and recommend the
+  "Fable parent, cheaper subagents" topology. Burn rate is ~2x Opus officially and reportedly steeper
+  in unbounded agentic sessions (one Max user "exhausted their full 5-hour window in 8 minutes").
+  TTFT is high (~108s) because of heavy pre-answer reasoning.
+  **Why this does NOT block the step:** our harness Researcher + Q-A are the precise opposite of
+  "routine/high-volume" — they are rare-event (once per masterplan step), quality-critical, long-horizon
+  reasoning roles. They are the canonical Fable 5 use case. The adversarial evidence is correctly
+  *honored* by (a) keeping per-ticker/metered roles OFF Fable, and (b) rewriting the economics to
+  "contained by frequency," and (c) flagging the post-June-22 credit cliff for the operator.
 
-### B4. Pitfalls (from literature, mapped to this change)
+### Pitfalls (from literature) — applied
 
-- **P1 — binding a blind judge (incoherent half-state).** If prompts (F-8) and the gate (F-3) are on separate flags, you could bind REJECTs from a judge citing a phantom 10% cap. (GuardAgent: guard needs its inputs.) Mitigation: ONE flag (A3).
-- **P2 — gate bypass via the swap path.** All 3 real REJECT executions were `swap_buy`. A gate only in the main BUY loop is bypassable. (15c3-5(d): non-bypassable.) Mitigation: gate at candidate-build, the common ancestor (A1).
-- **P3 — over-binding kills the core.** Binding APPROVE_REDUCED/HEDGED too would suppress far more trades and could regress the working momentum engine (the asset to protect). Mitigation: REJECT-only (B2#3).
-- **P4 — event-study over-claim.** Presenting -$23.45 as "the gate makes money" is the selection-bias trap (Ahern). Mitigation: descriptive framing only; no live flip in 57.1.
-- **P5 — prompt change breaks byte-identity.** Adding a `{portfolio_context}` `.format` key to the OFF path changes the rendered prompt. Mitigation: builder returns the verbatim constant when OFF (A3).
-- **P6 — per-ticker positions fetch under concurrency.** Calling get_positions() inside the fanned-out analysis would be N redundant BQ reads + a race on stale data. Mitigation: compute the sector summary ONCE at :774, thread as a param (A3).
-
-### B5. Recency scan (2024-2026)
-
-Searched 2024-2026 literature on (a) pre-trade risk controls / hard-block vs advisory, (b) LLM-agent action-gating / guardrails, (c) counterfactual event-study methodology. Result: **3 new findings that COMPLEMENT (and in one case sharpen) the canonical sources**:
-- **ESMA Supervisory Briefing on Algorithmic Trading, 26 Feb 2026** (source 4) — the freshest authoritative statement of the hard-vs-soft limit taxonomy and the "coverage checks / old-data-feed warnings" PTCs; directly current and directly on F-8. Supersedes older MiFID-II commentary as the live supervisory expectation.
-- **arXiv:2604.01483 "Type-Checked Compliance: Deterministic Guardrails for Agentic Financial Systems", 2026** (source 2) — newest formal articulation that agentic financial actions need a deterministic pre-execution gate, not probabilistic self-policing. Complements (does not supersede) 15c3-5 by extending the principle to LLM agents specifically.
-- **arXiv:2511.15123 "Causal Inference in Financial Event Studies", Nov 2025** (source 6) — modern (synthetic-control) update to Ahern's 2006 selection-bias warning; reinforces the A5 honesty caveat. Older Ahern remains the cleaner canonical citation for *conditioned-sample* bias; the 2025 paper adds the misspecification/inconsistency framing.
-- GuardAgent (2024) and the broader 2026 "eval-to-guardrail" / "tool-call gating before write access" pattern (snippet, digitalapplied 2026) confirm the judge-as-binding-veto design is current industry direction, not a one-off.
-No 2024-2026 finding CONTRADICTS the binding-gate design; the only adversarial note (KTD-Fin, re-cited from 55.2: more agents/tools != returns) is consistent — this change adds RELIABILITY (binding an existing verdict + fixing its inputs), not new analytical capability, which is exactly the kind of change the adversarial literature does NOT warn against.
-
-### B6. Query log (3-variant discipline)
-
-- 15c3-5 hard block: `"SEC Rule 15c3-5 market access pre-trade risk controls hard block"` (canonical/year-less) + `"pre-trade risk controls algorithmic trading hard limits vs advisory 2026"` (frontier) -> surfaced ESMA 2026 + arXiv:2604.01483.
-- Tiering: `"risk limit enforcement hard block size reduction human escalation tiering trading"` (year-less canonical) -> industry tiering taxonomy.
-- Agent gating: `"LLM judge agent action gating veto guardrail tool-use permission 2026"` (frontier) -> GuardAgent + Provably-Secure-Guardrail + Policy-as-Prompt.
-- Event study: `"event study counterfactual trade analysis selection bias small sample methodology"` (canonical) -> Ahern (2006) + arXiv:2511.15123 (2025 recency).
-- Year-less canonical hits (snippet table): SEC FAQ, FINRA market-access, value-at-risk.net risk-limit — prior-art confirmed.
+- **P1 — credit cliff (June 23):** after June 22, Fable usage draws Max usage credits. The agent-file
+  comments and CLAUDE.md MUST record this so a future reader doesn't assume flat-fee. (announcement)
+- **P2 — unbounded agentic burn:** the `maxTurns` raise is *also* a burn-control: it bounds how long a
+  Fable subagent can run. Pair the raise with the cost note. (developersdigest)
+- **P3 — effort over-spec:** Fable's recommended baseline is `high`; `max` is over-spec. Defensible for
+  rare-event quality-first roles, but document it as a deliberate choice, not a default. (effort doc)
+- **P4 — classifier fallback:** Fable refusals on cyber/bio/chem/distillation reroute to Opus 4.8
+  (>95% sessions unaffected; finance unaffected). No code change needed — Claude Code handles it — but
+  worth a one-line note. (announcement + model-config)
+- **P5 — TTFT latency:** Fable is slow to first token. Irrelevant for rare-event batch roles; would
+  matter for per-ticker/latency-sensitive roles — another reason to leave those OFF Fable. (artificialanalysis)
 
 ---
 
-## Draft immutable success criteria (4-6, 53.1 rigor — ready to paste into the payload)
+## B) INTERNAL CODE INVENTORY
 
-Copy these VERBATIM into `.claude/masterplan.json` step 57.1 `verification.criteria` (immutable once written). Phrased to be deterministically checkable by Q/A.
+### Layer-3 harness agent files
 
-1. **Binding-gate regression fixture (both BUY paths).** A unit test instantiates `decide_trades` with a candidate whose `risk_assessment.decision == "REJECT"` and a screen that routes it through BOTH the main BUY path AND the swap path. With `paper_risk_judge_reject_binding=False` (default) the REJECT candidate's BUY order IS emitted (advisory, unchanged). With the flag `True` the REJECT candidate's BUY order is ABSENT from `decide_trades` output on both paths. Test passes.
+| File | Lines | Role | Current pins | Status |
+|------|-------|------|--------------|--------|
+| `.claude/agents/researcher.md` | 5-16 | Layer-3 Researcher | `model: opus` (L5), `maxTurns: 30` (L6), `effort: max` (L15) | needs: model->fable, maxTurns->40, comment block (L7-14) economics rewrite |
+| `.claude/agents/qa.md` | 5-15 | Layer-3 Q/A | `model: opus` (L5), `maxTurns: 12` (L6), `effort: max` (L15) | needs: model->fable, maxTurns->30, comment block (L7-14) economics rewrite |
 
-2. **Default-OFF byte-identity of the US momentum core.** A unit test asserts that with `paper_risk_judge_reject_binding=False`, `decide_trades` returns an order list byte-identical (same tickers, actions, amounts, order) to the pre-57.1 behavior on a candidate set containing NO REJECT verdicts; AND the rendered lite-RiskJudge system prompt + template with the flag OFF are byte-identical to the current `_LITE_RISK_JUDGE_SYSTEM` / `_LITE_RISK_JUDGE_TEMPLATE` constants. No live flag flip occurs in 57.1.
+Exact current frontmatter keys (verified): `name, description, tools, model, maxTurns, effort, memory, color, permissionMode` (qa also has `skills:`). All keys are valid per the sub-agents frontmatter reference. The phase-29.2 comment blocks at researcher.md:7-14 and qa.md:7-13 contain the "Max-subscription flat-fee removes per-token ceiling" claim that is now stale.
 
-3. **Prompt-context correctness with the flag ON (F-8).** A unit test asserts that with `paper_risk_judge_reject_binding=True`: the RiskJudge system prompt contains the configured sector cap value (e.g. "30%") and does NOT contain the phantom "10% of portfolio in one sector"; AND the RiskJudge user prompt/template includes a live portfolio sector-breakdown line derived from the current positions (asserted via an injected/fake positions fixture, e.g. "Technology 100.0%").
+### Layer-2 in-app MAS pin table — `backend/config/model_tiers.py`
 
-4. **Per-cycle single-compute of the sector summary (concurrency-correct).** The sector-breakdown context passed to the per-ticker RiskJudge is computed ONCE per cycle (not once per ticker): verified by a test asserting the position-reading helper is invoked at most once across an N-ticker analysis fan-out (e.g. via a mock/spy on the positions accessor), OR by code-structural assertion that `_run_single_analysis` receives a precomputed `portfolio_context` argument rather than fetching positions itself.
+| Element | Lines | Detail |
+|---------|-------|--------|
+| `_BUILD_TIER` dict | 42-74 | The pin table. `mas_main` = `claude-opus-4-8` (**L49**), `mas_qa` = `claude-opus-4-8` (**L51**), `autoresearch_strategic` = `claude-opus-4-8` (**L60**). `mas_communication`/`mas_research` = sonnet-4-6; `autoresearch_fast` = haiku; `autoresearch_smart` = sonnet; `gemini_*`/`layer1_swappable` = Gemini (locked/out-of-scope) |
+| `_LIVE_TIER` | 81-82 | All-sentinel placeholder; not in scope (COST_TIER=build is live) |
+| `EFFORT_SUPPORTED_MODELS` | 183-191 | tuple of effort-capable model-id prefixes. **Does NOT include `claude-fable-5`** -> `model_supports_effort()` returns False for Fable, so `llm_client` would silently DROP effort on a Fable route. MUST add `"claude-fable-5"` here if any role is repinned to Fable |
+| `EFFORT_DEFAULTS` | 221-231 | per-role effort. `mas_main`/`mas_qa`/`mas_communication`/`mas_research` all = `"max"` (step-scoped 23.2.2 override, never reverted); `autoresearch_strategic` = `"high"` |
+| `MODEL_EFFORT_FALLBACK` | 233-242 | tuple of `(model-id-prefix, effort)`. **No `claude-fable-5` entry.** Per the effort doc, the correct Fable default is `"xhigh"` (it's the only Opus-class member that also accepts xhigh). Add `("claude-fable-5", "xhigh")` |
+| `resolve_model()` | 101-155 | single lookup point; honors `apply_model_to_all_agents` override (L134-137) for non-Gemini-locked roles |
+| `resolve_effort()` / `resolve_effort_by_model()` / `model_supports_effort()` | 245-283 | effort resolution; the latter two are the gate that would drop Fable effort if the prefix list isn't updated |
 
-5. **Event-study evidence artifact (stored-data, $0, honestly framed).** `handoff/current/live_check_57.1.md` exists and contains: the BQ query + result enumerating the executed-REJECT BUYs (3 rows: HPE, DELL, 066570.KS), their realized round-trip P&L (-$0.81 / +$0.54 / -$23.18; net -$23.45), AND an explicit selection-bias caveat stating that n=3 is descriptive of those specific trades, not the gate's expected value, with no annualized/Sharpe extrapolation.
+**Consumers of the pin table (non-test) — every resolution path the unit test must cover:**
+- `backend/agents/agent_definitions.py:181` `model=resolve_model("mas_main")`, `:229` `resolve_model("mas_qa")`, `:129`/`:275` (communication/research), `:60` strategic via run_memo
+- `scripts/autoresearch/run_memo.py:180` `STRATEGIC_LLM": f"anthropic:{resolve_model('autoresearch_strategic')}"`
+- `backend/api/agent_map.py:61` `"main"->"mas_main"`, `:65-66` skill_optimizer/directive_rewriter -> autoresearch_strategic, `:73-74` orchestrator/planner -> mas_main; `_inject_live_model()` calls `resolve_model()` per node
+- `backend/agents/llm_client.py:1465-1481` resolves effort via `resolve_effort(role_hint)` / `resolve_effort_by_model(model_id)` and gates on `model_supports_effort(model_id)` (L1481) — **this is where a missing Fable prefix silently drops effort**
+- `backend/api/settings_api.py`, `backend/config/settings.py` — also import resolve_model
 
-6. **Verification command green.** `source .venv/bin/activate && python -m pytest tests/ -k "risk_judge_binding or reject_binding" -q && test -f handoff/current/live_check_57.1.md` exits 0 (all new tests pass; live_check artifact present).
+### Rare-event vs metered classification (grounded in code, not vibes)
 
-(6 criteria. 1-4 are deterministic unit tests; 5 is the operator-auditable evidence artifact; 6 is the immutable verification command. This matches 53.1 rigor: a regression fixture, an OFF-identity guarantee, a prompt-content assertion, a concurrency guard, an honestly-caveated event study, and a single green command. Note: criterion 2 + the spec's criterion 4 BOTH require byte-identical flag-OFF including prompts — the A3 builder pattern is the mechanism.)
+| Role | Invocation path (code anchor) | Cadence | In scope for Fable? |
+|------|------------------------------|---------|---------------------|
+| `mas_main` | `agent_definitions.py:181` "Ford (Slack Orchestrator)"; `multi_agent_orchestrator.py` (Layer-2 Slack/iMessage routing, NOT the per-ticker Gemini pipeline) | **operator-paced** (fires on inbound Slack/iMessage, human-initiated) — RARE | **YES** (quality-first, rare) |
+| `mas_qa` | `agent_definitions.py:229` "Analyst (Q&A Agent)"; same Layer-2 Slack-routed orchestrator | operator-paced per Slack analytical request — NOT per-ticker in the Gemini sense (the per-ticker pipeline is the 28 Gemini agents in `orchestrator.py`, which are Gemini-locked & out of scope) | **YES** (quality-first, rare) — but see CAVEAT below |
+| `autoresearch_strategic` | `run_memo.py:180` STRATEGIC_LLM; nightly cron `backend/autoresearch/cron.py:25` `"0 2 * * *"` (2am ET) | **1x/night** — RARE | **YES** (strategic synthesis, rare) |
+| `mas_communication` / `mas_research` | `agent_definitions.py:129`/`:275` | sonnet-tier helper roles | NO (keep sonnet — cost discipline; research is the cheap fan-out leg) |
+| `autoresearch_fast` / `autoresearch_smart` | run_memo fast/smart legs | haiku/sonnet high-volume | NO (keep — cost discipline) |
+| `gemini_*` / `layer1_swappable` | per-ticker Gemini analysis (`orchestrator.py`) | **per-ticker, HIGH volume**; Gemini-locked (Vertex APIs) | NO (out of scope, locked) |
 
-### Research Gate Checklist
+**CAVEAT on `mas_qa` / the step's "BOTH layers" instruction:** The step says "pin Fable 5 on the
+QUALITY-FIRST rare-event roles in both MAS layers" and "Per-ticker/metered roles MUST keep their
+current models." `mas_main`, `mas_qa`, and `autoresearch_strategic` are all rare-event/operator-paced
+by the code evidence above — they are NOT the per-ticker firing path (that's the Gemini pipeline). So
+repinning these three to Fable is consistent with the cost-discipline constraint. The genuinely
+per-ticker roles (`gemini_*`) are Gemini-locked and untouched. **Recommendation: repin `mas_main`,
+`mas_qa`, `autoresearch_strategic` -> `claude-fable-5`; leave `mas_communication`, `mas_research`,
+`autoresearch_fast`, `autoresearch_smart` unchanged.** (Confirm the exact role set with the operator's
+"both layers, quality-first" intent — but note the immutable criteria only NAME the Layer-3 agent
+files explicitly; the Layer-2 `model_tiers.py` repin is the "both layers" half and should follow the
+quality-first/rare-event rule above.)
 
-Hard blockers — `gate_passed` is true only if all checked:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6: SEC CFR, arXiv:2604.01483, Ahern, ESMA 2026, GuardAgent, arXiv:2511.15123)
-- [x] 10+ unique URLs total (6 read-in-full + 10 snippet-only = 16)
-- [x] Recency scan (last 2 years) performed + reported (B5: ESMA Feb 2026 + 2 arXiv 2025-2026)
-- [x] Full papers / pages read (not abstracts) for the read-in-full set (PDFs via pdfplumber; HTML via arxiv.org/html)
-- [x] file:line anchors for every internal claim (portfolio_manager.py + autonomous_loop.py + paper_trader.py + bigquery_client.py, exact line numbers)
+### Ticket-queue agent map — `backend/services/ticket_queue_processor.py`
+
+`agent_model_map` at **L165-169**: `main`/`q-and-a` = `claude-opus-4-8`, `research` = `claude-sonnet-4-6`
+(consumed at L171 `model_name = agent_model_map.get(...)`, used at L235 `client.messages.create(model=model_name)`).
+
+**Cost math for ticket agents:** tickets are operator-initiated Slack/iMessage messages — ~1-2/day,
+human-paced (the project memory confirms ~1-2 tickets/day). Each ticket call is `max_tokens=1000`
+(L233). Worst case 2 tickets/day x (say) 4K input + 1K output on Fable = `2 x (4000 x $10 + 1000 x $50)/1e6`
+= `2 x ($0.04 + $0.05)` = **~$0.18/day** if both main+q-and-a fire on every ticket. Negligible in
+absolute terms. **Recommendation:** repinning `main`/`q-and-a` here to `claude-fable-5` is defensible
+on cost (these are the same quality-first operator-paced roles), BUT this map uses the **direct SDK
+rail** (`client.messages.create`) — it is NOT routed through `resolve_model`/`model_supports_effort`,
+so it carries no effort param and is unaffected by the `EFFORT_SUPPORTED_MODELS` gap. Note also the
+56.2 CLI-rail flag (`paper_use_claude_code_route`): when set, tickets spawn via the Claude Code CLI
+(`_spawn_real_agent`), which inherits the session/agent model, not this map. **Decision is the
+operator's**; the immutable criteria for 59.1 do NOT name this file, so changing it is optional. If
+changed, update the inline comments (L166-168) to say "fable-5" and the rationale.
+
+### `.claude/settings.json`
+
+- `effortLevel: "xhigh"` (L2) — the persistent main-session default.
+- **NO `model` key** (verified: `grep -c '"model"' = 0`). The MAIN session model is therefore
+  **user-default**, set by the operator's `/model fable` choice (which, per the model-config doc, v2.1.153+
+  writes to *user* settings, not this repo file). **Nothing in the repo contradicts the operator's
+  Fable default** — confirmed. The current session already runs `claude-fable-5[1m]`.
+- `permissions.defaultMode: "bypassPermissions"` (L141) — unchanged by this step.
+
+### Hardcoded-model-id test inventory (CRITICAL for the verification command)
+
+Searched all of `backend/tests/`. Tests that hardcode model ids relevant to this change:
+
+| Test file | Line | Assertion | Breaks on mas_main->fable? |
+|-----------|------|-----------|----------------------------|
+| `test_agent_map_live_model.py` | `test_endpoint_injects_live_model_field` | `main_node.live_model == "claude-opus-4-8"` | **YES — WILL FAIL.** This resolves `mas_main` through the build tier and asserts the literal. Step MUST update it to `"claude-fable-5"` |
+| `test_apply_model_to_all_agents.py` | 52 | `resolve_model("mas_main") == _BUILD_TIER["mas_main"]` | NO (dynamic — reads the dict, not a literal) |
+| `test_apply_model_to_all_agents.py` | 79 | override test: patches `gemini_model="claude-opus-4-7"`, asserts all roles resolve to that **override value** | NO (the literal is the override stand-in, not the build pin) |
+| `test_phase_56_2_ops_fixes.py` | 184-213 | ticket CLI-rail tests; spawn `"main"` but assert on the RAIL (CLI vs SDK), not the model id | NO |
+| `test_phase_39_1_autoresearch_env.py` | 27-33 | asserts `resolve_model('autoresearch_strategic')` is *interpolated* into env strings (dynamic) | NO |
+| `test_phase_37_2_default_alignment.py` | 66 | `s.deep_think_model == "gemini-2.5-pro"` (Gemini, unrelated) | NO |
+| `test_claude_code_client.py` | 155,172 | constructs client with `"claude-sonnet-4-6"` (unrelated) | NO |
+| `test_phase_31_1_fixes.py` | 32,73 | `gemini_model="claude-sonnet-4-6"` stubs (unrelated) | NO |
+
+**THE ONE BREAKING TEST: `test_agent_map_live_model.py::test_endpoint_injects_live_model_field`.**
+It currently passes on the opus-4-8 baseline (verified: `1 passed`). After `mas_main -> claude-fable-5`
+it asserts the wrong literal and fails. This is the exact analogue of the 56.2 `4-7->4-8` stale-assertion
+update — follow that pattern: change the literal to `"claude-fable-5"` (the comment at
+test_agent_map_live_model.py:60-61 already documents the 56.2 precedent).
+
+### **VERIFICATION-COMMAND COVERAGE GAP (must flag to implementer + Q/A)**
+
+The step's verification command is:
+```
+python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q && test -f handoff/current/live_check_59.1.md
+```
+I ran the `-k` collection LIVE. It currently collects **exactly 1 test**
+(`test_phase_37_2_default_alignment.py::...gemini_deep_think...` — it matches the substring `model_tiers`
+in its name). **It does NOT collect `test_agent_map_live_model.py`** (verified: ">>> NOT caught <<<").
+
+Consequences for the implementer:
+1. The `-k` net will NOT exercise the one test that breaks (`test_agent_map_live_model`). If the
+   implementer fixes `model_tiers.py` but forgets to update that test, the verification command will
+   still **exit 0 (false green)** while the real suite is red.
+2. There is currently **no test matching `fable` or `phase_59`.** The step's criteria require a NEW
+   test (it says "the unit test covers real resolution"). The implementer MUST add a test whose NAME
+   contains `fable` or `phase_59` (e.g. `test_phase_59_1_fable_pins.py`) so the `-k` pattern catches it.
+3. **Recommendation:** the new `test_phase_59_1_*.py` should assert the full real-resolution path —
+   `resolve_model("mas_main") == "claude-fable-5"`, same for `mas_qa` and `autoresearch_strategic`;
+   `"claude-fable-5" in EFFORT_SUPPORTED_MODELS`; `resolve_effort_by_model("claude-fable-5") == "xhigh"`;
+   `model_supports_effort("claude-fable-5") is True`; and the unchanged roles still resolve to their
+   prior pins. AND the implementer must update `test_agent_map_live_model.py` even though `-k` won't
+   force it — Q/A should run the FULL `backend/tests` suite (not just `-k`) as part of EVALUATE to
+   catch the out-of-net breakage. (Flag this in `experiment_results.md`.)
+
+### CLAUDE.md effort-policy edit plan
+
+The "Effort policy (Layer-3 harness MAS...)" bullet spans **L56-62**. Specific edits:
+- **L56:** "owner is on a **Max subscription** (flat-fee, no per-token ceiling on Claude Code
+  first-party usage)" -> rewrite. New economics: Max included Fable free only June 9-22 2026; from
+  June 23 Fable draws usage credits, so the rationale is no longer "flat fee" but "**rare-event firing
+  contains cost** (Researcher/Q-A fire once per masterplan step, not per ticker), plus the operator's
+  explicit 2026-06-11 quality-first pre-approval accepting credit burn on these gate roles."
+- **L57:** "Switch sessions to 4.8 via `/model claude-opus-4-8`" -> "`/model fable`" (and note v2.1.170+
+  / 2.1.172 installed). Update "Opus 4.8 as of 2026-05-28" to reflect Fable as the session default.
+- **L58 (Q/A):** `model: opus` -> note `model: fable`; effort note: Fable baseline is `high`, we keep
+  `max` deliberately; maxTurns 12->30; add restart caveat + 2026-06-11 operator pre-approval.
+- **L59 (Researcher):** `model: opus` -> `model: fable`; maxTurns 30->40; same credit-economics +
+  restart note; the "Max plan auto-includes Opus 1M context" line -> Fable runs 1M by default on API.
+- **L62:** the "default to the Anthropic-recommended pairing... unless Max-subscription + rare-event
+  rationale applies" guidance -> update the rationale name to "rare-event + quality-first
+  (credit-metered post-June-22)".
+
+Also touch the **agent-file comment blocks** (researcher.md:7-14, qa.md:7-13): replace the
+"Max-subscription flat-fee removes per-token ceiling" sentence with the rare-event + June-22-credit
+framing, add the v2.1.170 floor + 2026-06-11 operator pre-approval + session-restart caveat.
+
+---
+
+## Application to pyfinagent (external -> internal mapping)
+
+| External finding | Internal action (file:line) |
+|------------------|------------------------------|
+| `fable` is the valid frontmatter alias (sub-agents doc) | `researcher.md:5` + `qa.md:5`: `model: opus` -> `model: fable` |
+| `maxTurns` bounds agentic turns (sub-agents doc) + burn-control (developersdigest) | `researcher.md:6` 30->40; `qa.md:6` 12->30 |
+| Fable not in our effort-capability lists | `model_tiers.py:183-191` add `"claude-fable-5"` to `EFFORT_SUPPORTED_MODELS`; `:233-242` add `("claude-fable-5", "xhigh")` to `MODEL_EFFORT_FALLBACK` |
+| Fable is quality-first/rare-event role match (anthropic/claude/fable + effort doc) | `model_tiers.py:49,51,60`: `mas_main`/`mas_qa`/`autoresearch_strategic` -> `claude-fable-5` |
+| Stale literal assertion (56.2 precedent) | `test_agent_map_live_model.py`: `claude-opus-4-8` -> `claude-fable-5` |
+| Verification `-k` net + "real resolution" criterion | NEW `backend/tests/test_phase_59_1_fable_pins.py` (name matches `phase_59`) |
+| June-22 credit cliff supersedes flat-fee rationale (announcement) | `CLAUDE.md:56-62` + `researcher.md:7-14` + `qa.md:7-13` comment rewrites |
+| Fable effort baseline = `high`, not `xhigh` (effort doc) | document the deliberate `max` over-spec in the comment blocks; EFFORT_DEFAULTS already `max` (no change needed, but note the rationale) |
+| Ticket agents cost ~$0.18/day on Fable (cost math) | `ticket_queue_processor.py:165-169` — OPTIONAL repin (not named in 59.1 criteria); operator's call |
+| Session model is user-default, repo has no `model` key | `.claude/settings.json` — NO change needed; operator `/model fable` already in effect |
+
+### Effort decision (recommendation)
+
+Keep `effort: max` on the Layer-3 Researcher + Q/A agent files. Justification: (a) Fable's effort table
+accepts `max`; (b) these are the rare-event, quality-critical gate roles Fable's `max` ("reflects on and
+validates its own work") is designed for; (c) the operator's 2026-06-11 directive is explicitly
+quality-first. BUT document in the comments that Fable's *recommended* baseline is `high` (not Opus's
+`xhigh`), and that per the effort doc "lower effort on Fable 5 often exceeds `xhigh` on prior models" —
+so even `high` would already beat the previous Opus-`max` config. This is a deliberate, documented
+over-spec, not an unexamined carry-over. For Layer-2 `EFFORT_DEFAULTS`, the roles repinned to Fable are
+already `"max"` (the 23.2.2 step-scoped override) — no change required, but the same comment note applies.
+
+---
+
+## Research Gate Checklist
+
+Hard blockers — `gate_passed` is false if any unchecked:
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (7 read in full: 5 official + 2 vendor/industry)
+- [x] 10+ unique URLs total (17 collected)
+- [x] Recency scan (last 2 years) performed + reported (entire corpus is the last-2-week window; stated explicitly)
+- [x] Full pages read (not abstracts) for the read-in-full set
+- [x] file:line anchors for every internal claim
 
 Soft checks:
-- [x] Internal exploration covered every relevant module (gate site, swap path, both prompt twins, cycle entry, positions schema, round-trips schema)
-- [x] Contradictions / consensus noted (B3)
-- [x] All claims cited per-claim (B2 per-finding source attributions)
+- [x] Internal exploration covered every relevant module (agent files, model_tiers, ticket_queue, settings.json, all 8 model-id tests, CLAUDE.md, consumers)
+- [x] Contradictions / consensus noted (adversarial "overkill for routine" counterpoint surfaced + reconciled)
+- [x] All claims cited per-claim with URL/file:line
 
 ---
-
-## JSON envelope
 
 ```json
 {
-  "tier": "complex",
-  "external_sources_read_in_full": 6,
+  "tier": "moderate-complex",
+  "external_sources_read_in_full": 7,
   "snippet_only_sources": 10,
-  "urls_collected": 16,
+  "urls_collected": 17,
   "recency_scan_performed": true,
-  "internal_files_inspected": 5,
+  "internal_files_inspected": 9,
   "report_md": "handoff/current/research_brief.md",
   "gate_passed": true
 }

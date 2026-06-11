@@ -23,3 +23,15 @@
 {"ts": "2026-06-11T03:35:05.292153+00:00", "event": "resume", "trigger": "manual", "details": {}}
 {"ts": "2026-06-11T03:35:05.296872+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-06-11T03:35:06.557699+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:10:49.218384+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:10:50.579895+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:10:50.584974+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:10:51.909626+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:14:27.673205+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:14:28.927715+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:14:28.932232+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:14:30.228759+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:15:48.673341+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:15:49.926689+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:15:49.931959+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T04:15:51.148972+00:00", "event": "resume", "trigger": "manual", "details": {}}

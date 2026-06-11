@@ -2,15 +2,23 @@
 name: researcher
 description: MUST BE USED before every PLAN phase. Combined external-literature researcher + internal-codebase explorer. Use proactively at the start of any masterplan step, before writing contract.md. Searches papers + official docs + blog posts + GitHub (external) AND greps/reads the pyfinagent repo (internal) in the same session.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
-model: opus
-maxTurns: 30
-# phase-29.2 (2026-05-18): codified Opus + max effort per operator
-# directive (overnight pre-approval). 2026-05-28: `model: opus` alias
-# now resolves to Opus 4.8 (was 4.7 until flagship release day).
-# Rationale: Max-subscription flat-fee
-# removes per-token ceiling; 17-pt GPQA Diamond + 79-Elo GDPval-AA gap over
-# Sonnet 4.6 favours quality-depth on the research-synthesis role. Researcher
-# fires once per masterplan step (not per ticker), so token cost is contained.
+model: fable
+maxTurns: 40
+# phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
+# requires Claude Code v2.1.170+, local 2.1.172) per operator in-session
+# pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per
+# Mtok and on Max plans draws USAGE CREDITS from 2026-06-23 (free Jun 9-22)
+# -- this SUPERSEDES the phase-29.2 "Max flat-fee removes per-token ceiling"
+# rationale. New rationale: cost is contained by FREQUENCY (researcher fires
+# once per masterplan step, not per ticker) + the announcement's "the longer
+# and more complex the task, the larger Fable 5's lead" fits research
+# synthesis exactly. `effort: max` retained (Fable docs recommend `high` as
+# baseline; max is a deliberate documented over-spec on this gate role).
+# maxTurns 30->40 (phase-59.1): complex briefs hit the old cap mid-write
+# twice on 2026-06-10/11 and needed manual SendMessage resumes.
+# RESTART CAVEAT: the Agent-tool roster snapshots at session start -- this
+# pin takes effect next session; run scripts/qa/verify_qa_roster_live.sh.
+# History: phase-29.2 (2026-05-18) codified Opus+max; 2026-05-28 alias->4.8.
 # See handoff/archive/phase-29.2/research_brief.md + CLAUDE.md effort-policy.
 effort: max
 memory: project
