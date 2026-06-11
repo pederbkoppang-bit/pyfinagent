@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `06d4ee3e` | docs(handoff): post-checkpoint state -- phase-57 shipped, $25 window running, ask list refreshed |
 | 2026-06-11 | `78b264bf` | feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware prompt context -- PASS (F-3/F-8; |
 | 2026-06-11 | `af4aa8d6` | feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-57: FEATURE' (2026-06-11) -- bi |
 | 2026-06-11 | `e97c33fe` | feat(56.1): execute operator-approved KR backfill (9 rows restated, idempotency proven) + restatemen |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `09275a4` | docs(goal): harden goal-post-away-review criteria per dual review (researcher max + QA) |
 | 2026-06-10 | `9d9ba49` | chore: commit hook-generated audit appends |
 | 2026-06-10 | `12ff076` | chore: commit hook-generated audit appends |
-| 2026-06-10 | `907ccf2` | chore: commit hook-generated audit appends |
 
 ---
 
