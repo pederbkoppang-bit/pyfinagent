@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-11T11:50:31.344171+00:00",
+  "updated_at": "2026-06-11T13:41:34.234640+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14389,7 +14389,7 @@
         {
           "id": "60.3",
           "name": "Decision-input integrity for non-USD markets (AW-9) -- the lite analyzer renders KRW prices and market caps with '$' literals into the LLM prompt (Price: $2298000.00 | Market Cap: $1630000.0B), the risk judge repeatedly and correctly flags the corruption ('physically impossible for LG Electronics... KRW/USD unit error') and nothing acts on the flag; KR quotes fetched hours after KRX close are presented as live.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "60.2",

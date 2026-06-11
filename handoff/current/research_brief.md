@@ -1,170 +1,187 @@
-# Research Brief — phase-60.2: Churn-engine fix (swap sentinel + re-eval/stamp mismatch + delta scale, AW-5, P0)
+# Research Brief -- phase-60.3: Decision-input integrity for non-USD markets (AW-9, P1)
 
-Tier: COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
-Prior 60.1 brief snapshotted at handoff/archive/phase-60.1/research_brief.md.
-Disclosed overrun: audit tables push past the 1500-word ceiling; prose kept tight.
+Tier: MODERATE-COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
+Prior briefs archived at handoff/archive/phase-60.1/ and phase-60.2/.
+Disclosed overrun: audit tables push past the 1500-word ceiling; prose kept tight (60.2 precedent).
 
 ## 1. Executive summary
 
-- **Leg 1 (sentinel):** Replace conviction-0.0 with **LOCF age-capped valuation** — value an unanalyzed holding at its last persisted `final_score` from `financial_reports.analysis_results` (reader already exists: `bigquery_client.get_report(ticker)` backend/db/bigquery_client.py:303-358, `ORDER BY analysis_date DESC LIMIT 1`, SELECT * includes final_score), capped at ~7 days; **no score within cap → EXCLUDE from displacement** (never 0.0). Grounding: institutional buy alpha "declines gradually over twelve months following the original trade" (Di Mascio/Lines/Naik, *Alpha Decay*, accessed 2026-06-11) — a 1-day-old score retains ~all its information; staleness cost grows progressively, no cliff (Maven Securities, accessed 2026-06-11); don't carry indefinitely ("fixed relevance decay during structural breaks" risk, arXiv:2603.27539).
-- **Leg 2 (re-eval/stamp):** Keep the BUY-time stamp (it is semantically true — a fresh analysis did exist at buy time); fix the COMPARISON: flag ON → a swap displacement requires same-cycle scores on both sides, achieved by **targeted re-eval injection** (pre-compute sectors at count-cap with candidates queued; add their weakest holdings to `reeval_tickers` same-cycle, ~1-3 lite analyses ≈ <$0.50/cycle inside the $25 cap), with LOCF (leg 1) as the $0 fallback when injection fails/budget-capped. Grounding: evaluation standard "net-of-cost returns + identical-universe paired comparison" (arXiv:2603.27539; FINSABER arXiv:2505.07078).
-- **Leg 3 (delta scale):** Restore the DOCUMENTED formula — settings.py:293 already documents `max(abs(holding_score), 1.0)` while code uses `0.01` on a false "[0,1]" premise (portfolio_manager.py:526-531). Fix denominator clamp to 1.0, keep `paper_swap_min_delta_pct=25.0` UNCHANGED, document effective integer-scale semantics (bar = ceil(0.25*h) points). No new stickiness, no threshold re-tuning — formula correction only, per Boyd et al.: the bar is a net-gain-vs-cost comparison, not a retention band.
-- All three legs behind ONE default-OFF flag (e.g. `paper_swap_evidence_fix`); OFF = byte-identical; ON-vs-OFF measured by a NEW decision-replay event study (Section 7) because **no existing tool replays the swap path** (Section 5.5).
+- **Leg 1 (currency-honest prompts):** Both lite prompt sites render raw yfinance KRW values behind `$` literals -- autonomous_loop.py:1898 (Claude trader), :2137 (Gemini trader), :1627 (shared Risk-Judge template fed at :1973/:2184). Fix = convert via existing `fx_rates.get_fx_rate(ccy,"USD")` (fx_rates.py:182; 6h-cached; KRW=X inversion already handled) keyed off `markets.market_for_symbol(ticker)` (markets.py:142); on FX failure LABEL native currency, never render `$`. GIPS practice grounds both modes: convert to one base currency AND disclose the currency (gipsstandards.org Q&A 5336). CRITICAL: convert ONLY the prompt string -- `price_at_analysis` + persisted `market_data` stay native (fills/tolerance gate consume native via `_fx_local_to_usd`, paper_trader.py:32,:208).
+- **Leg 2 (actionable integrity flags):** Deterministic pre-check AFTER the info fetch (:1839-1857/:2104-2120), acting IN CODE -- literature is unanimous that the LLM's prose flag cannot be the enforcement layer (GuardAgent: "admitted ... if O_l=0 or denied if O_l=1", code-executed; arXiv:2604.01483: intercept "before it reaches the execution environment"; "probabilistic execution without rigid constraints is architecturally and legally untenable"). Checks: USD-converted market cap > ceiling (largest real cap on earth = NVDA $4.854T 2026-06-10 -> $10T ceiling catches the persisted $44.5T/LG and $1.45-quadrillion/SK-hynix corruption with 2x+ headroom over NVDA); P/E==0 on a mega-cap = missing-data artifact of `info.get("trailingPE", 0)` (:1841/:2106); price-currency mismatch (`info.currency` vs `market_for_symbol` suffix). Tag -> EXCLUDE or FLOOR-SIZE via the 57.1 `blocked_out` mirror (portfolio_manager.py:60,:204; autonomous_loop.py:1159-1177) and the sizing hook at portfolio_manager.py:655; add a machine-readable flag to the judge schema (:1630-1637) -- today prose lands only in `reasoning`->`summary` and nothing reads it (BQ rows below prove flag-then-trade).
+- **Leg 3 (staleness honesty):** KRX regular session 09:00-15:30 KST (UTC+9) = 00:00-06:30 UTC, no lunch break; observed cycle analyses run 18:03-18:06 UTC (BQ) = ~11.6h after close. Label the as-of (yfinance `regularMarketTime`/last hist bar) instead of "Price:". Calendar access exists: `markets.get_trading_calendar("KR")` (markets.py:168) -> xcals XKRX `session_close`. Recency caveat: KRX adds extended sessions from 2026-06-29 -- label as-of timestamps, don't hardcode "close=06:30 UTC" semantics.
+- **Leg 4 (do-no-harm):** US byte-identity test mirrors `test_off_identity_prompts_are_verbatim_constants` (backend/tests/test_phase_57_1_reject_binding.py:187); name new tests `test_phase_60_3_*` (the -k net misses anything else; 59.1 lesson). Default-OFF flag, verbatim-constant OFF path = the 57.1 dark-launch idiom.
 
-## 2. External findings
+## 2. External research
 
-### A. Stale-signal / missing-score handling
-1. Alpha from institutional buys "declines gradually over twelve months following the original trade"; managers "continue to buy a stock in small increments for as long as the alpha persists" (Di Mascio, Lines & Naik, *Alpha Decay*, WP 2015/JF, https://jhfinance.web.unc.edu/wp-content/uploads/sites/12369/2016/02/Alpha-Decay.pdf, read in full via pdfplumber 2026-06-11). A day-old buy-time score is near-full-strength evidence; valuing it 0.0 contradicts the measured decay horizon by ~2 orders of magnitude.
-2. Signal staleness cost is progressive, not a cliff: delayed execution of a mean-reversion signal costs on average 5.6% (US) / 9.9% (Europe) of strategy value, growing ~36bps/yr US (Maven Securities, https://www.mavensecurities.com/alpha-decay-what-does-it-look-like-and-what-does-it-mean-for-systematic-traders/, read in full 2026-06-11). Supports age-capped carry-forward over binary "fresh-or-worst".
-3. "Layered temporal memory risks assuming fixed relevance decay during structural breaks" — carry-forward needs a cap/circuit-breaker, not indefinite LOCF (arXiv:2603.27539, read in full 2026-06-11).
-4. Smart/partial rebalancing trades only the strongest signals and skips weak/no-signal names, cutting turnover while preserving factor premia (Smart Rebalancing, FAJ 2024, tandfonline 403 — snippet-only). Missing evidence = don't trade, not "treat as worst".
+### A. LLM-prompt input validation: deterministic pre-checks vs trusting the model
 
-### B. Turnover/cost-aware swap thresholds
-1. Canonical structure: trade fires iff estimated gain clears costs — "maximize r̂ᵀz − φtrade(z) − φhold(w+z) − γψ(w+z)" (Boyd et al., *Multi-Period Trading via Convex Optimization*, https://ar5iv.labs.arxiv.org/html/1705.00109, read in full 2026-06-11). A swap bar is a NET-IMPROVEMENT comparison; its size should reflect cost+noise, not incumbent protection.
-2. LLM agents structurally overtrade: FinMem "commission ratio is five to nine times higher than FinAgent's", "excessive turnover... persistent value destruction", negative alpha in all scenarios; B&H Sharpe 0.703 vs FinAgent 0.241 on volatility selection (arXiv:2505.07078v5, KDD 2026 / FINSABER, read in full 2026-06-11). This is the source already cited at settings.py:282-284 for conservative swap defaults — keep `max_per_cycle=2` and the 25% bar's intent.
-3. "Round-trip costs of 10 to 20 basis points can compound to 25 to 50 percentage points of annual drag for daily-trading systems"; only 2 of the surveyed systems model costs at all (arXiv:2603.27539). Our recorded fee is 0.1%/leg (settings.py:323) = 20bps round trip — the measured 81.4% weekly turnover sits exactly in this drag regime.
-4. The classical no-trade-band literature (Constantinides-style regions; e.g. tandfonline Stochastics 2011, Springer FMPM 2022 — snippet-only) is the family 53.1 REJECTED as a tuning lever here; Section 6 draws the boundary.
+1. **Enforcement must be code, not prose.** GuardAgent: target-agent actions are "admitted by GuardAgent if O_l=0 or denied if O_l=1" -- the denial is executed code, not a textual remark; the guard "strictly follow[s] the safety guard requests to generate guardrail code"; >98% (EICU-AC) / >83% (Mind2Web-SC) guardrail accuracy with 100% preserved task accuracy (arXiv:2406.09187, read in full via /html, accessed 2026-06-11). A model-based guard failure mode is instructive: it "considerately" granted the access it was supposed to block -- exactly the shape of a Risk Judge that flags corruption in prose while the BUY executes.
+2. **Deterministic gate ahead of the execution environment.** "Probabilistic execution without rigid constraints is architecturally and legally untenable" in financial systems; the orchestrator "intercepts this API call before it reaches the execution environment"; execution permitted iff the constraint is proven; design assumption "the LLM is compromised" (Rashie & Rashi 2026, *Type-Checked Compliance: Deterministic Guardrails for Agentic Financial Systems*, arXiv:2604.01483, read in full via /html, accessed 2026-06-11; same source family 57.1 used for the binding-REJECT gate).
+3. **Production-guide consensus (2026, snippet tier):** input validation sits BEFORE the model, output filtering after, with deterministic checks (regex/bounds/allowlists) stacked under classifier checks; deterministic rails are "microsecond speed, deterministic behavior, easy auditing" and should be versioned rules acted on in the pipeline (orq.ai 2026 guide; myengineeringpath 2026; wiz.io; rulebricks -- snippet-only, full fetch returned nav header). Maps 1:1 to 60.3: bounds-check the info dict pre-prompt, act on the result in the candidate flow.
 
-### C. ON-vs-OFF replay evaluation methodology
-1. "A key weakness of Market Replay is that the simulated market does not substantially adapt to or respond to the presence of the experimental strategy" (Balch et al., JPMorgan AI Research, https://www.jpmorgan.com/content/dam/jpm/cib/complex/content/technology/ai-research-publications/pdf-12.pdf, read in full via pdfplumber 2026-06-11). For PAPER trading the price-impact leg vanishes (fills don't move markets) — the residual path dependence is PORTFOLIO-STATE and DECISION-INPUT divergence, which must be disclosed per cycle, not hidden.
-2. Five minimum evaluation standards: contamination control, point-in-time universe, rolling windows, **net-of-cost returns**, regime coverage (arXiv:2603.27539). The replay must hold the recorded candidate stream fixed for both arms (identical-universe discipline, FINSABER arXiv:2505.07078).
-3. Sharpe-DELTA claims need the paired Ledoit-Wolf + stationary-bootstrap test — already implemented at backend/backtest/analytics.py:239-249 (`sharpe_diff_test`, n_boot=2000, Politis-Romano). At T≈5-12 daily cycles it is underpowered: report turnover/round-trips/P&L descriptively as primary; do NOT claim significant Sharpe improvement off one week (phase-52.3 methodology memory; McLean-Pontiff haircut).
-4. Boyd et al. backtest reporting: portfolio value path + sensitivity ("randomly perturb the model parameters") — supports reporting the delta-threshold sensitivity (e.g. ±1 score point) rather than tuning it.
+### B. Market-data sanity bounds
+
+1. **Market-cap ceiling.** NVIDIA is the world's largest company at "$4.854 Trillion USD" as of June 10, 2026 (companiesmarketcap.com, read in full, accessed 2026-06-11; corroborating snippets: Motley Fool/alpha-sense ~$5.0-5.4T June 2026; first-ever $5T touch Oct 2025). A **$10T USD post-conversion ceiling** is defensible: >2x today's world record, yet 4x below the corrupted LG render ($44.5T) and ~145x below the SK hynix render ($1.45 quadrillion). Apply AFTER conversion -- a KRW-native ceiling is meaningless.
+2. **P/E exactly 0 on a mega-cap = artifact.** yfinance omits `trailingPE` for many intl tickers; the code default `info.get("trailingPE", 0)` (:1841/:2106) manufactures 0.0 (a real P/E of 0 requires price 0). All four BQ KR rows persisted `pe_ratio=0.0` for LG Electronics / SK hynix -- both profitable. Even the judge read it correctly: "P/E of 0.0 is a data-quality flag (missing or negative earnings, not a cheap multiple)" (BQ 000660.KS 06-10). Pre-check rule: cap>$10B AND pe==0 -> treat as MISSING, never "cheap"; render "P/E: n/a".
+3. **yfinance currency semantics (canonical behavior).** `info.currency` = LISTING/trading currency of prices (KRW for .KS; "GBp" pence for LSE); `financialCurrency` = statements' reporting currency; they legitimately diverge (Toyota TM: currency=USD, financialCurrency=JPY) and yfinance gives no per-field currency guarantee (GitHub issue #2699, read in full, accessed 2026-06-11 -- open, no maintainer resolution). Sibling defect: #2593 shows yfinance mixing INR prices with USD book values for ratio fields (snippet). `marketCap` is price x shares = LISTING currency -> KRW for .KS. **Mismatch detector:** `market_for_symbol(ticker)` currency (markets.py MARKET_CONFIG) vs `info.get("currency")` -- disagreement = FLAG; suffix is deterministic ground truth (markets.py:142-165 docstring already declares "the suffix IS the source of truth").
+
+### C. FX presentation + KRX hours
+
+1. **Convert-to-base AND disclose -- both are required practice.** "The GIPS standards require that firms disclose the currency used to express performance"; multi-currency composites "must convert the individual portfolio values to the composite's base currency"; method is flexible but must be applied consistently (GIPS Q&A 5336, gipsstandards.org, read in full, accessed 2026-06-11). For 60.3: USD-converted figures with an explicit currency note (e.g. "Price: $166.55 (converted from KRW 230,000 @ 1381/USD)") satisfies both halves; label-native-only is the compliant degraded mode when FX is unavailable.
+2. **KRX hours.** Regular session 09:00-15:30 local (Asia/Seoul, UTC+9) -> 00:00-06:30 UTC close 06:30 UTC; existing off-hours blocks 07:30-09:00 / 15:40-18:00 (Korea Exchange, Wikipedia, read in full, accessed 2026-06-11; tradinghours.com corroborates "no lunch break" via search snippet -- direct fetch 403). A .KS quote consumed at the observed 18:03 UTC cycle is the 06:30 UTC close, ~11h33m old. **2026-06-29 change (recency):** KRX launches extended trading (pre 07:00-08:00 KST, after-market 16:00-20:00 KST; 24h target 2027) per FSC press release + BigGo (snippets) -- so the staleness label should state the quote's as-of timestamp (yfinance `regularMarketTime` epoch + `exchangeTimezoneName`) rather than a hardcoded close-time constant.
 
 ## 3. Recency scan (2024-2026)
 
-Performed. Findings: the 2024-2026 literature CONVERGES on overtrading + cost-blindness as the dominant LLM-trading failure mode — arXiv:2505.07078v5 (KDD 2026), arXiv:2603.27539 (2026 evaluation taxonomy), arXiv:2512.02227 (Dec 2025, already the basis for our sector caps), arXiv:2507.08584 (2025, "To Trade or Not to Trade" — explicit risk-estimation before trading improves decisions), arXiv:2510.07920 (2025, Profit Mirage — leakage inflates LLM backtests), Smart Rebalancing (FAJ 2024 — turnover-prioritized partial rebalancing). No 2024-2026 finding contradicts the classical net-of-cost trading principle (Boyd et al. 2017); the new work strengthens the case for evidence-gated, cost-bounded swap rules. No new finding supersedes Ledoit-Wolf 2008 for paired Sharpe deltas.
+Performed; substantive findings:
+- arXiv:2604.01483 (Apr 2026): deterministic guardrails specifically for agentic FINANCIAL systems -- on-domain, supersedes generic 2023-era guardrail blogging.
+- GuardAgent (2024, arXiv:2406.09187): code-executed guard verdicts; the enforcement pattern 57.1 adopted and 60.3 extends to data integrity.
+- 2026 production guardrail guides (orq.ai "Complete 2026 Guide", myengineeringpath "Production LLM Safety Guide (2026)"): input-validation-before-model is now standard practice (snippet tier).
+- KRX extended trading hours effective 2026-06-29 (FSC, BigGo): changes "how stale is a 18:03 UTC quote" semantics after that date; design the label around as-of timestamps, not a fixed close constant.
+- NVDA $4.854T (2026-06-10, companiesmarketcap): current ceiling anchor; first $5T touch Oct 2025.
+- yfinance #2699 (2025, open) + #2593: the currency-incoherence defect family is live and unfixed upstream -- downstream validation is the only defense.
 
-## 4. Search queries run (3-variant discipline)
+## 4. Search queries run
 
-1. Year-less canonical (topic A): "stale signal handling portfolio rebalancing alpha decay last observation carried forward quantitative trading".
-2. Year-less canonical (topic B): "transaction cost aware portfolio rebalancing no-trade region swap threshold net of cost alpha improvement".
-3. Recent-window (topics B+C, shared): "LLM trading agents overtrading turnover transaction costs 2025 2026".
-4. Year-less canonical (topic C): "counterfactual evaluation trading execution rule change replay event study path dependence backtest".
-
-Disclosed deviation: no separate "2026"-suffixed query per topic A/B was run (tool budget); the recency obligation is covered by query 3 plus organic 2024-2026 hits in queries 1/2/4 (FAJ 2024, Springer 2024, arXiv 2510/2512/2603). Hard-blocker recency scan: satisfied and reported in Section 3.
-
-## 5. Internal audit findings (CURRENT HEAD; audit cites were snapshot 70a8242b)
-
-### 5.1 The sentinel (backend/services/portfolio_manager.py, 682 lines)
-- `holding_lookup` built ONLY from same-cycle `holding_analyses` at :91-95; nothing persisted is consulted. Caller: autonomous_loop.py:1155-1163 (`holding_analyses=` :1158) built at :892-896 from the re-eval gather (persisted via `_persist_analysis` :875-881 when `_path` lite/full).
-- Swap path gate :407-422 (`paper_swap_enabled` AND `sector_blocked` AND `max_per_sector>0`) → `_compute_swap_candidates` :439.
-- **THE SENTINEL :476-483**: `analysis = holding_lookup.get(pos["ticker"], {}) or {}` → `score = analysis.get("final_score")` → `if score is None: score = 0.0` ("No fresh analysis => unknown conviction. Treat as worst").
-- Weakest-holding pick: per-sector ascending sort :495-496, first non-swapped :516-521. SELL reason="swap_for_higher_conviction" :582; BUY reason="swap_buy" :591.
-- 57.1 binding-REJECT gate (F-3) :186-212 sits at the candidate-BUILD chokepoint upstream of both buy loop and `sector_blocked` (:284,:319) — REJECTs never reach the swap path when ON. A 60.2 flag inside `_compute_swap_candidates` composes cleanly (disjoint regions); test both flags ON together.
-
-### 5.2 Delta computation + threshold
-- :525-532 `denom = max(abs(holding_score), 0.01)`; `delta_pct = ((cand_score - holding_score)/denom)*100.0`; gate `if delta_pct < min_delta: continue` :534.
-- False-premise comment :526-531: "do NOT clamp the denominator to 1.0 -- final_score lives in [0,1]". **Lite scores are 1-10 integers** (59.3 audit AW-5, BQ-confirmed).
-- `paper_swap_min_delta_pct` read :464 (fallback 25.0); settings.py:289-294 default 25.0. **INCONSISTENCY: the settings description (:293) documents `max(abs(holding_score), 1.0)`** — the code drifted from its own spec on the [0,1] premise. `paper_swap_max_per_cycle` settings.py:295-300 default 2; `paper_swap_enabled` :285-288 default True. No `.env` overrides (grep) → defaults are live.
-- Effective semantics (verified): cand 7.0 vs SENTINEL 0.0 → denom 0.01 → **delta = 70,000%** (auto-clears 25% by ~3.5 orders of magnitude). cand 7.0 vs real 5.0 → 40% fires. 1 integer point fires at holding<=4 (5v4 = 25%); 2 points fire at holding<=8 (9.0 vs 8.0 = 12.5% blocked; 10 vs 8 = 25% fires) — i.e., the bar sits INSIDE lite-score run-to-run noise. With the documented 1.0 clamp: sentinel case 700% (still auto-fires → sentinel fix is the load-bearing repair); ALL real-score cases identical (every real score >= 1.0).
-
-### 5.3 The BUY-time stamp (backend/services/paper_trader.py)
-- `"last_analysis_date": now` stamped in `execute_buy` at :304 (top-up) and :328 (new position). :476 is `execute_sell` partial-exit re-insert PRESERVING the field (not a stamp).
-- Readers: autonomous_loop.py:794 (re-eval gate) and frontend/src/lib/types.ts:645 (display). No other consumers — semantics can be fixed without ripple.
-
-### 5.4 The re-eval gate (backend/services/autonomous_loop.py)
-- :791-804: due when `days_since >= settings.paper_reeval_frequency_days`; missing/unparseable date → re-eval (safe default). `paper_reeval_frequency_days=3` at settings.py:322 (audit cite :308 drifted).
-- **`.days` truncation + cycle-time drift gotcha**: cycles ran 19:04 (06-05) then 18:11 (06-08) → 2d23h07m → `days=2` → DELL not re-evaluated at the 3-calendar-day mark; effective cadence is 3-4 days.
-- Candidate filter :776 (`new_candidates` excludes held tickers) — counterfactual-replay divergence source (Section 7).
-
-### 5.5 Replay machinery inventory — **NO EXISTING TOOL REPLAYS THE SWAP PATH**
-- `decide_trades`/`_compute_swap_candidates` consumers (repo-wide grep): autonomous_loop.py:1155 (live), backend/tests/* (synthetic fixtures), scripts/go_live_drills/zero_orders_drill.py + scripts/smoketest_stages_5_through_13.py (synthetic drills). backend/autoresearch/strategy_backtest_adapter.py:43 docstring EXPLICITLY notes best_params "is NOT threaded into decide_trades".
-- The 52.x/53.1 "$0 replay" = monthly-rebalance universe machinery: backend/backtest/rebalance_band.py:22 `apply_no_trade_band(prev_holdings, ranked_tickers, top_n, band_pct)` (the REJECTED 53.1 lever, machinery still present) + backtest_engine/walk_forward. None invokes the swap engine.
-- Reusable for 60.2: analytics.py:239 `sharpe_diff_test` (LW 2008 + stationary bootstrap), :338 `compute_round_trips(all_trades)`, :392 `compute_trade_statistics`. The 57.1 event-study precedent (REJECT-trades reconstruction from paper_trades + analysis_results; out-channel at autonomous_loop.py:1151-1169) is the pattern to follow.
-
-### 5.6 Away-week fixture data — BQ-CONFIRMED (query run 2026-06-11 via python BQ client)
-`SELECT ticker, action, quantity, price, reason, created_at FROM financial_reports.paper_trades WHERE ticker IN ('MU','SNDK','DELL','STX') AND DATE(created_at) BETWEEN '2026-06-04' AND '2026-06-11'`:
-| Ticker | Leg | TS (UTC) | Price | Reason |
-|---|---|---|---|---|
-| DELL | SELL | 06-04 19:00:38 | 425.08 | swap_for_higher_conviction |
-| MU | SELL | 06-05 19:02:46 | 887.30 | stop_loss_trigger |
-| SNDK | SELL | 06-05 19:03:20 | 1553.615 | stop_loss_trigger |
-| DELL | BUY | 06-05 19:04:09 | 394.00 | new_buy_signal |
-| STX | BUY | 06-05 19:04:24 | 856.65 | swap_buy |
-| STX | SELL | 06-08 18:11:20 | 882.69 | swap_for_higher_conviction |
-| DELL | SELL | 06-08 18:11:34 | 400.15 | swap_for_higher_conviction |
-| SNDK | BUY | 06-08 18:11:51 | 1634.73 | swap_buy |
-| MU | BUY | 06-08 18:12:05 | 954.385 | swap_buy |
-| MU | SELL | 06-09 18:12:08 | 894.5299 | swap_for_higher_conviction |
-| SNDK | SELL | 06-09 18:12:22 | 1627.9865 | swap_for_higher_conviction |
-| DELL | BUY | 06-09 18:12:55 | 370.70 | swap_buy |
-| DELL | SELL | 06-10 18:39:40 | 378.335 | swap_for_higher_conviction |
-| SNDK | BUY | 06-10 18:40:09 | 1656.3701 | swap_buy |
-
-All 3 named round trips CONFIRMED: **MU 06-08→06-09** (1d 00:00:03; 0.750944 sh; −$44.95, −6.27%), **SNDK 06-08→06-09** (−$2.46, then re-bought 06-10 at 1656.37 = +1.74% ABOVE the 06-09 exit), **DELL 06-05→06-08** (2d23h07m < 3 days → no re-eval → sentinel; +$11.17) **and 06-09→06-10** (+$14.73). Every exit reason is literally `swap_for_higher_conviction`. Fees 0.1%/leg additional. (06-05 MU/SNDK exits were stop_loss_trigger — different mechanism, OUT of 60.2 scope.)
-
-### 5.7 Existing tests matching the -k net (immutable command collects these; must pass post-change)
-`pytest backend/tests -k 'swap or sentinel or reeval' --collect-only -q` → **9 tests**: test_portfolio_swap.py (4: fills_zero_buy_gap / disabled_reproduces_zero_buy / skips_below_threshold / respects_max_per_cycle), test_phase_57_1_reject_binding.py::test_reject_binding_swap_path_off_emits_on_blocks, test_cycle_heartbeat_alarm.py (2 — "sentinel" NAME COLLISION, heartbeat-file sentinel, unrelated), test_agent_map_live_model.py (2 — "swappable" collision, unrelated).
-
-### 5.8 56.2/57.1 fixture reuse
-- test_portfolio_swap.py helpers `_make_settings/_holding/_holding_analysis/_candidate_analysis` (:21-70) — **all fixtures use [0,1] scores (0.55-0.85), encoding the same false premise as the code**. Reuse the helpers for the 06-09 regression scenario but with REAL 1-10 integer scores (MU holding absent from holding_lookup vs DELL 7.0 candidate → flag OFF: swap fires [reproduces bug]; flag ON: no swap).
-- test_phase_57_1_reject_binding.py: both-path (flag OFF emits / flag ON blocks) regression pattern — copy this shape for the 60.2 flag. test_phase_56_2_ops_fixes.py: degraded-scoring guard fixtures (cycle-level), useful for the "all-degraded cycle" edge.
-
-## 6. Binding-ruling boundary analysis (53.1 LW-REJECT / 55.3 auto-FAIL family)
-
-**Why the three legs are CORRECTNESS repairs, not band-family levers:**
-1. The sentinel FABRICATES data: absence of a same-cycle analysis is converted into the strongest possible adverse signal (0.0 on a 1-10 scale — below the scale minimum). No literature supports missing-as-worst; the measured alpha-decay horizon (months, A1/A2) says a 1-day-old score is near-full-strength. Removing fabricated evidence is not incumbent protection — it is making the comparison use evidence at all.
-2. The stamp/re-eval fix makes the swap comparison apples-to-apples (cand_score(t) vs holding_score(t), or explicitly age-capped LOCF) — comparison-validity, not stickiness.
-3. The delta-scale fix restores the formula ALREADY DOCUMENTED at settings.py:293 (1.0 clamp) and keeps the threshold VALUE untouched at 25.0. Nothing is widened.
-**Where the forbidden family begins** (do NOT cross in GENERATE): raising min_delta above 25; adding an absolute score-point floor beyond the documented formula; any holding-AGE/tenure shield ("can't swap holdings younger than N days") — that is a no-trade band in time, i.e., 53.1's rejected family wearing a calendar. Note the emergent look-alike: under LOCF, MU (buy-time score 7.0, 1 day old) vs DELL 7.0 → delta 0% → no swap. This LOOKS like tenure protection but is evidence symmetry — the holding is valued at its freshest real score, and an honestly BETTER candidate (e.g. 9 vs 7 = 28.6%) still displaces it next cycle. State this distinction verbatim in the contract.
-**Evaluation bar unchanged:** the fix is NOT exempt from 53.1's measurement discipline — ON-vs-OFF replay + LW where T permits (Section 7). It is exempt only from the CATEGORY auto-FAIL, because it adds no retention band.
-
-## 7. Replay design for criterion 4 ($0, production universe, away-week window)
-
-**No existing tool replays the swap path (5.5) — build a minimal decision-replay event study (57.1 precedent):**
-1. **Inputs (all persisted, $0):** per cycle 2026-05-26→06-10 (swap path live since phase-cycle-1): paper_trades rows (executed orders + prices), analysis_results rows (candidate + holding analyses with final_score/recommendation/risk_assessment per cycle, incl. BUY-time candidate analyses — persisted at autonomous_loop.py:875-881), positions reconstructed by rolling the paper_trades ledger forward.
-2. **Validation arm (flag OFF):** re-run `decide_trades` on reconstructed inputs; assert emitted orders == recorded orders for each cycle (calibrates the reconstruction; pin `risk_overrides` to recorded/default values for determinism — decide_trades reads runtime overrides at :83-84,:254-261,:554-558).
-3. **Counterfactual arm (flag ON):** same inputs, fix enabled. PRIMARY metric = per-cycle one-step order diff: each of the 3 named round trips suppressed or surviving WITH the numeric reason (LOCF score used, delta computed, threshold result). Expected (hypothesis for contract, to be verified): MU 06-09 suppressed (LOCF 7.0 vs DELL 7.0 → 0% < 25%), SNDK 06-09 suppressed, DELL 06-08 suppressed (LOCF from 06-05 analysis).
-4. **Secondary (clearly labeled):** compounded counterfactual NAV: prices are exogenous in paper trading (no market impact — the Balch critique's impact leg does not apply), so the ON portfolio can be marked to market with recorded/yfinance prices. DISCLOSE divergence honestly: (a) once portfolios diverge, recorded candidate streams embed the REAL portfolio's held-ticker filter (autonomous_loop.py:776) — e.g. MU appeared as a 06-08 candidate only because the real system had stop-lossed it 06-05; flag any cycle where a counterfactual holding appears in the recorded candidate stream; (b) missing re-eval analyses for counterfactual-only holdings are valued by the SAME LOCF rule as live (consistent by construction).
-5. **Metrics:** weekly turnover %NAV, round-trip count + within-3-day round trips (`compute_round_trips` analytics.py:338), per-round-trip P&L net of 0.1%/leg, NAV delta, maxDD; Sharpe delta via `sharpe_diff_test` (analytics.py:239) computed but reported as UNDERPOWERED at T≈12 cycles — the week answers "are the named round trips suppressed", not "is Sharpe improved at p<0.05" (52.3 methodology; McLean-Pontiff). Promotion = OPERATOR decision on the descriptive evidence.
-
-## 8. Risks / gotchas for GENERATE
-1. **Flag-OFF byte-identity:** all 3 legs behind one default-OFF settings flag; existing 9 collected tests must pass unchanged (immutable -k net). Follow the 52.2 dark-launch idiom (`getattr(settings, ..., False)`).
-2. **Fixture scale trap:** test_portfolio_swap.py fixtures are [0,1]; under the 1.0-clamp the fixture TECH1 swap (0.82 vs 0.58 → clamped delta 24% < 25%) would STOP firing — do NOT apply the new formula to the OFF path; new ON-path tests use 1-10 integers.
-3. **LOCF reader cost:** `get_report` is SELECT * per ticker — bound to displacement-exposed holdings only (sectors at cap with queued candidates), not all positions; financial_reports is us-central1; 30s timeout rule.
-4. **Targeted re-eval injection** must respect `paper_max_daily_cost_usd` (the per-cycle budget checks at autonomous_loop.py:851-860) and must not double-analyze a ticker already in `reeval_tickers`.
-5. **`.days` truncation + cycle drift** makes the 3-day gate effectively 3-4 days; do not "fix" globally (cost impact) — leg 2's injection addresses the displacement case; leave cadence semantics else byte-identical.
-6. **57.1 composition:** REJECT candidates are filtered upstream (:194-212) — test 60.2 flag ON x 57.1 flag ON to prove no interaction.
-7. **Replay determinism:** decide_trades reads risk_overrides (runtime store) — pin/patch in the replay harness; sort stability matters (orders.sort :432).
-8. **Honest reporting:** DELL 06-09→06-10 round trip was PROFITABLE (+$14.73) and STX +$18.13 — the replay must report suppressed-but-profitable trades as a COST of the fix, not hide them (criterion: "suppressed or surviving with stated reasons").
-9. Do not conflate the 06-05 stop_loss_trigger exits with the swap churn — out of scope.
-10. settings description (:293) vs code (:531) divergence is itself evidence the formula drifted unreviewed — cite in the contract as the correctness basis.
-
-## 9. Source table
-
-### Read in full (6 — gate-counting)
-| URL | Accessed | Kind | Fetched how | Key finding |
-|---|---|---|---|---|
-| https://arxiv.org/html/2505.07078v5 (KDD 2026, FINSABER) | 2026-06-11 | peer-reviewed | WebFetch HTML | FinMem commission 5-9x; overtrading = "persistent value destruction"; bias-controlled paired evaluation protocol |
-| https://arxiv.org/html/2603.27539 | 2026-06-11 | preprint (2026) | WebFetch HTML | 10-20bps round trip → 25-50pp annual drag; 5 minimum evaluation standards; memory relevance-decay risk |
-| https://ar5iv.labs.arxiv.org/html/1705.00109 (Boyd et al.) | 2026-06-11 | peer-tier monograph | WebFetch ar5iv | trade iff gain > φtrade+φhold+risk; backtest reporting + parameter-perturbation sensitivity |
-| https://jhfinance.web.unc.edu/wp-content/uploads/sites/12369/2016/02/Alpha-Decay.pdf (Di Mascio/Lines/Naik) | 2026-06-11 | peer-reviewed (JF) | curl+pdfplumber (56pp) | buy alpha decays GRADUALLY over ~12 months — day-old scores near-full-strength |
-| https://www.jpmorgan.com/content/dam/jpm/cib/complex/content/technology/ai-research-publications/pdf-12.pdf (Balch et al.) | 2026-06-11 | industry research | curl+pdfplumber (10pp) | "Market Replay... does not substantially adapt to or respond to the presence of the experimental strategy" — replay-limitation framing |
-| https://www.mavensecurities.com/alpha-decay-what-does-it-look-like-and-what-does-it-mean-for-systematic-traders/ | 2026-06-11 | industry practitioner | WebFetch HTML | staleness cost progressive (5.6% US / 9.9% EU avg), no cliff → age-cap not zeroing |
-
-### Snippet-only (29 unique — context, non-gate; selected)
-| URL | Kind | Why not fetched |
+| # | Query | Variant |
 |---|---|---|
-| https://www.tandfonline.com/doi/full/10.1080/0015198X.2024.2317323 (Smart Rebalancing, FAJ 2024) | peer-reviewed | HTTP 403 on fetch; used via search synopsis |
-| https://www.econ.uzh.ch/static/wp_iew/iewwp320.pdf + https://www.zora.uzh.ch/id/eprint/52220/1/iewwp320.pdf (Ledoit-Wolf 2008) | peer-reviewed | BOTH mirrors returned stub files (808/146 bytes); methodology read in full in phase-52.3 and implemented at analytics.py:239 |
-| https://arxiv.org/html/2512.02227v1 | preprint | already project-adopted (sector caps); cited internally |
-| https://arxiv.org/pdf/2507.08584 ("To Trade or Not to Trade") | preprint | recency-scan corroboration only |
-| https://arxiv.org/pdf/2510.07920 (Profit Mirage) | preprint | recency-scan corroboration only |
-| https://optimization-online.org/wp-content/uploads/2015/02/4785.pdf (multi-period alpha decay) | preprint | redundant with Boyd et al. (same framework family) |
-| https://link.springer.com/article/10.1007/s11408-022-00419-6 ; https://www.tandfonline.com/doi/full/10.1080/17442508.2011.651219 ; https://jpm.pm-research.com/content/29/4/49 ; https://arxiv.org/pdf/1203.4153 ; https://nr.no/en/publication/924706/ | peer-reviewed | no-trade-band family — context for Section 6 boundary only |
-| https://www.bu.edu/econ/files/2011/01/KothariWarner2.pdf (event studies) ; https://link.springer.com/article/10.1007/s11408-019-00325-4 ; https://www.emergentmind.com/topics/counterfactual-replay ; https://microalphas.com/signal-decay-patterns/ ; https://www.top1000funds.com/wp-content/uploads/2021/05/SSRN-id2580551.pdf ; https://tradingagents-ai.github.io/ ; https://arxiv.org/pdf/2409.08357 ; https://arxiv.org/pdf/2407.21791 ; https://arxiv.org/html/2606.08283 ; https://arxiv.org/pdf/2603.10092 ; +ResearchGate mirrors (3), MIT WP, Springer s10614-024-10555-y, sciencedirect 000169189290059M, PMC12816306 | mixed | lower marginal value vs the 6 read-in-full; budget discipline |
+| 1 | "LLM guardrails deterministic input validation production pipeline" | year-less canonical (surfaced 2026-dated guides) |
+| 2 | "largest company market cap 2026 NVIDIA trillion" | current-year |
+| 3 | "yfinance currency financialCurrency international tickers KRW GBp wrong currency issue" | year-less (surfaced 2025 issues) |
+| 4 | "KRX Korea Exchange trading hours 09:00 15:30 KST regular session close" | year-less (surfaced 2026-06-29 change) |
+| 5 | "GIPS standards presentation currency disclosure multi-currency portfolio returns" | year-less canonical |
 
-## 10. JSON envelope
+Three-variant discipline satisfied via the source-table mix (rule's second prong): current-year hits (companiesmarketcap 2026-06-10, orq.ai 2026, FSC 2026), last-2-year hits (GuardAgent 2024, yfinance #2699 2025), year-less canonical (GIPS Q&A, Wikipedia KRX, Boehmer-era none needed).
+
+## 5. Internal code audit (all anchors verified current 2026-06-11, branch main)
+
+### 5.1 Corrupted prompt sites ($-literal renders)
+
+| Site | File:line | What renders |
+|---|---|---|
+| Claude lite trader prompt | backend/services/autonomous_loop.py:1894-1914, corrupted line :1898 | `Price: ${current_price:.2f} \| Market Cap: ${market_cap/1e9:.1f}B \| P/E: {pe_ratio:.1f}` |
+| Claude BUY rule | :1903 | `market_cap > 5e9` -- USD-intended; 5e9 KRW = ~$3.6M so EVERY KR ticker trivially passes the size leg |
+| Gemini lite trader prompt | :2133-2147, corrupted line :2137 | same `$` render |
+| Gemini BUY rule | :2142 | same broken 5e9 semantics |
+| Risk-Judge shared template | `_LITE_RISK_JUDGE_TEMPLATE` :1625-1638, line :1627 | `Market Cap: ${market_cap_b:.1f}B` |
+| Risk-Judge system prompt | `_LITE_RISK_JUDGE_SYSTEM` :1613-1623, axis 3 :1619 | "market cap < $2B (micro-cap)" -- judge instructed in USD while fed KRW |
+| Judge format calls | :1968-1978 (Claude; `market_cap_b=(market_cap or 0)/1e9` :1973); :2179-2189 (Gemini; :2184) | KRW cap / 1e9 presented as $B |
+
+Value provenance (`stock.info`): `currentPrice`/`regularMarketPrice` :1839/:2104; `marketCap` :1840/:2105; `trailingPE` defaulted to 0 :1841/:2106; `sector`/`industry`/`shortName` :1842-1844/:2107-2109. Momentum :1847-1857/:2111-2120 is KRW/KRW -- currency-neutral, untouched. Persisted `full_report.market_data` keeps raw native values (Claude ~:2060-2078; Gemini :2243-2256).
+
+### 5.2 Existing FX helpers to REUSE (never reimplement)
+
+- `backend/services/fx_rates.py::get_fx_rate(from_ccy, to_ccy, date=None)` :182-196 -- live = 6h api_cache TTL (:53,:84-104), yfinance `KRW=X` inversion handled (:41), FRED `DEXKOUS` fallback (:46-51), BQ `historical_fx_rates` as-of (:153-179). Returns **None** on genuine failure -> label-native fallback required. `market_currency(market)` :56-58.
+- `backend/services/paper_trader.py:32-41` `_fx_local_to_usd(market, date=None)`; consumed at :208 (fill), :371, :515 (MTM). This is why analysis-dict prices must STAY native.
+- `backend/backtest/markets.py:142-165` `market_for_symbol` (.KS/.KQ->KR; suffix = source of truth); `MARKET_CONFIG["KR"]` :55-61 (KRW, Asia/Seoul, XKRX); already imported at the screener quality door backend/tools/screener.py:162-164.
+
+### 5.3 Lite Risk Judge prompt + output schema
+
+- Schema (template :1630-1637): `decision | recommended_position_pct | risk_level | reasoning | risk_limits`. **No machine-readable integrity field.** Prose lands in `reasoning` -> aliased `reason` (Gemini :2214-2218; Claude mirror ~:2027-2045) -> persisted ONLY as `summary` via `_persist_analysis` :2297 (`risk_assessment` is NOT inside `full_report_json` -- confirmed live in BQ). Nothing machine-reads it.
+- 57.1 flag-gated prompt builders `_build_risk_judge_system/template` :1649-1680: the verbatim-constant-when-OFF idiom to copy.
+- Consumption: `decide_trades` reads `decision` portfolio_manager.py:219, `recommended_position_pct` :655 (floor-sizing hook).
+
+### 5.4 The 06-09 066570.KS persisted row (regression fixture) -- pulled live via BQ ADC
+
+`financial_reports.analysis_results` (us-central1): `analysis_date=2026-06-09T18:03:49.454653Z, ticker=066570.KS, recommendation=BUY, final_score=7.0, price_at_analysis=248000.0, market_cap=44540606021632.0, pe_ratio=0.0`; `full_report_json.market_data={industry:"Consumer Electronics", market_cap:44540606021632, momentum_20d:60.93, momentum_60d:111.96, name:"LGELECTRONICS", pe_ratio:0, price:248000, sector:"Technology"}`; summary (judge prose) verbatim: "a $44,540.6B (~$44.5T) market cap is physically impossible for LG Electronics (a KRW/USD unit error on the newly-onboarded KR market), a data-integrity failure... reject and do not chase the trader's BUY regardless of 68 confidence." **The BUY executed anyway** (57.1 binding flag dark) -> stop-out.
+Siblings: 000660.KS 06-09 18:06 `market_cap=1572328605483008.0` ("nonsensical units error"); 06-10 18:03 ("implausible as USD (likely unconverted KRW)"); 06-08 18:05 ("~$1.3 quadrillion... impossible"). Note 44.54e12 KRW at ~1380 KRW/USD ~= $32B -- sane for LG once converted.
+Verbatim query for Main:
+```sql
+SELECT analysis_date, ticker, final_score, recommendation, summary, price_at_analysis, market_cap, pe_ratio,
+       TO_JSON_STRING(full_report_json) AS fr
+FROM `sunny-might-477607-p8.financial_reports.analysis_results`
+WHERE ticker IN ('066570.KS','000660.KS') AND DATE(analysis_date) BETWEEN '2026-06-03' AND '2026-06-10'
+ORDER BY analysis_date DESC
+```
+(python client, `location="us-central1"`, 30s timeout.)
+
+### 5.5 Where exclusion/floor-sizing can act IN CODE
+
+- **Pre-LLM (preferred for hard corruption):** inside `_run_claude_analysis`/`_run_gemini_analysis` right after the info fetch (:1839-1857 / :2104-2120) -- the only place the info dict exists. Wrapper alternative `_run_and_persist_one` :847-890 has no info dict.
+- **Post-analysis, pre-decision:** between candidate assembly :897/:904 and `decide_trades` :1163.
+- **In decide_trades (floor-sizing/exclusion):** portfolio_manager.py:53 already takes `blocked_out` :60 with append pattern :204-205; position-pct consumption :655. Mirror 57.1's out-channel wiring at autonomous_loop.py:1159-1177 -> `summary["data_integrity_blocked"]`.
+- **Deterministic-validator idiom to mirror:** `backend/tools/price_quality.py::validate_ohlcv` :48 -- two-tier FLAG/DROP rules R1-R4 (:14-21), US fast-path no-op, returns `(df, report)`; screener door screener.py:162-164. 60.3's pre-check = the info-dict analogue (e.g. `validate_info(info, market, ticker) -> (info, report)`).
+
+### 5.6 Staleness: as-of timestamps + KRX close exposure
+
+- Quote source `stock.info` :1835-1839/:2100-2104; yfinance info carries `regularMarketTime` (epoch) + `exchangeTimezoneName`; `hist.index[-1]` :1837/:2102 = last bar date fallback.
+- markets.py has NO close-time helper -- only `is_trading_day` :192-213 (xcals `is_session`, 50.4 rewrite) and `get_trading_calendar` :168-189 (xcals XKRX exposes `session_close(session)` UTC). `MARKET_CONFIG["KR"].timezone="Asia/Seoul"` :58.
+- Observed: BQ stamps 18:03-18:06 UTC vs 06:30 UTC KRX close = ~11.6h stale, presented as "Price:" with no qualifier.
+
+### 5.7 Existing test inventory
+
+- `-k 'prompt_fx or lite_prompt or 60_3'` matches NOTHING today (3/725 collected only via the broader `fx` token = fx_rates/50.x tests; 7 pre-existing env-coupled collection errors in tests/ root, none in backend/tests/). New tests MUST be `test_phase_60_3_*`.
+- Reusable byte-identity fixtures: backend/tests/test_phase_57_1_reject_binding.py -- `test_off_identity_prompts_are_verbatim_constants` :187, `test_prompt_content_flag_on_real_cap_and_sector_line` :200, off-identity orders :174.
+- Adjacent: tests/services/test_risk_judge_lite_path.py (:8,:32,:56), tests/services/test_persist_lite_analysis.py, backend/tests/test_phase_50_3_universe.py:21-26, backend/tests/test_phase_50_4_calendar.py:48-51.
+
+## 6. Risks and gotchas
+
+1. **Do NOT convert `price_at_analysis` or persisted `market_data`** -- execute_buy's tolerance gate (autonomous_loop.py:1204-1238) compares native-vs-native; fills convert at paper_trader.py:208. Convert/label ONLY the prompt string.
+2. **Momentum is currency-neutral** (:1847-1857) -- leave untouched.
+3. **`info.get("trailingPE", 0)` conflates missing with 0.0**; same for `marketCap` 0. Pre-check treats 0/absent as MISSING.
+4. **`market_cap > 5e9` BUY rule** (:1903/:2142) silently broke for KR; conversion restores intent -- but that IS a prompt-behavior change, so flag-gate it (US byte-identity preserved either way since US values are already USD; the test must prove byte-identity, not assume it).
+5. **fx_rates.get_fx_rate can return None** -> degraded mode = label-native ("KRW 248,000"), never a silent `$`.
+6. **57.1 dark-launch idiom:** default-OFF settings flag; OFF path returns verbatim constants. Note nuance: for US tickers even the ON path must be byte-identical (ccy=="USD" fast-path returns 1.0 at fx_rates.py:190-191 -- format must avoid re-rendering, e.g. only branch when `market != "US"`).
+7. **Ceiling applies post-conversion** ($10T USD; NVDA $4.854T anchor). A KRW-native ceiling is meaningless.
+8. **Judge-schema change ripple:** adding a structured flag key requires `_LITE_RISK_DEFAULT` :1640-1646 + both parse sites (~:2027, :2200-2225) updated, else fallback drift; `save_report` summary alias `reason` :2218 must survive.
+9. **yfinance `info.currency` can itself be wrong/missing** (#2699, #2593) -- the mismatch check FLAGS, it does not auto-convert using `info.currency`; conversion keys off the suffix-derived market (deterministic, no network).
+10. **KRX extended hours from 2026-06-29** -- staleness label must render the quote's as-of timestamp, not a hardcoded "close was 06:30 UTC".
+
+## 7. Source table
+
+### Read in full (counts toward gate)
+
+| # | URL | Accessed | Kind | Fetched how | Key finding |
+|---|---|---|---|---|---|
+| 1 | https://arxiv.org/html/2604.01483 (Rashie & Rashi 2026, Type-Checked Compliance) | 2026-06-11 | preprint (arXiv) | WebFetch /html full render | "probabilistic execution without rigid constraints is architecturally and legally untenable"; intercept "before it reaches the execution environment"; assume "the LLM is compromised" |
+| 2 | https://arxiv.org/html/2406.09187 (GuardAgent) | 2026-06-11 | preprint (arXiv, NeurIPS-era 2024) | WebFetch /html full render | verdict ENFORCED by code: "admitted ... if O_l=0 or denied if O_l=1"; >98%/83% accuracy; model-based guard "considerately" granted what it should block |
+| 3 | https://companiesmarketcap.com/nvidia/marketcap/ | 2026-06-11 | market-data reference | WebFetch full | NVDA "$4.854 Trillion USD" as of 2026-06-10; "world's most valuable company by market cap" -> $10T ceiling defensible |
+| 4 | https://github.com/ranaroussi/yfinance/issues/2699 | 2026-06-11 | upstream issue tracker | WebFetch full | `currency`=listing ccy of PRICES vs `financialCurrency`=statements ccy; Toyota TM USD/JPY divergence; open, unresolved |
+| 5 | https://www.gipsstandards.org/qadatabase/5336/ | 2026-06-11 | official standard (CFA Institute GIPS) | WebFetch full | "firms [must] disclose the currency used to express performance"; multi-ccy composites "must convert ... to the composite's base currency"; method consistent |
+| 6 | https://en.wikipedia.org/wiki/Korea_Exchange | 2026-06-11 | reference | WebFetch full | KRX regular session 09:00-15:30 local (UTC+9 -> 06:30 UTC close); off-hours 07:30-09:00 / 15:40-18:00 |
+
+### Identified but snippet-only (does NOT count toward gate)
+
+| URL | Kind | Why not fetched in full |
+|---|---|---|
+| https://rulebricks.com/blog/deterministic-guardrails-for-llms-building-safe-auditable-ai-systems | vendor blog | fetch returned nav header only; quotes via search snippet ("deterministic safety rails ... explainable, versioned") |
+| https://www.tradinghours.com/markets/krx | reference | HTTP 403; snippet confirms 09:00-15:30 KST no lunch break |
+| https://orq.ai/blog/llm-guardrails | vendor guide (2026) | snippet sufficient; corroborates A3 |
+| https://myengineeringpath.dev/genai-engineer/ai-guardrails/ | guide (2026) | snippet; three-layer guardrail architecture |
+| https://www.wiz.io/academy/ai-security/llm-guardrails | vendor guide | snippet; input/output/runtime checks |
+| https://guardrailsai.com/blog/guardrails-mlflow | vendor blog | snippet; deterministic validators as scorers |
+| https://github.com/ranaroussi/yfinance/issues/2593 | issue tracker | snippet; yfinance mixes INR price / USD book value (currency incoherence family) |
+| https://github.com/ranaroussi/yfinance/issues/1251 | issue tracker | snippet; info-dict reliability history |
+| https://www.fool.com/research/largest-companies-by-market-cap/ | research page | snippet; ~$5T NVDA corroboration June 2026 |
+| https://www.alpha-sense.com/largest-companies-by-market-cap/ | research page | snippet; corroboration |
+| https://finance.biggo.com/news/LgbmW5wBZk7xib5fNndL | news | snippet; KRX extended hours June 29 2026, 24h by 2027 |
+| https://www.fsc.go.kr/eng/pr010101/83967 | official regulator press release | snippet; KRX schedule change |
+| https://www.gipsstandards.org/wp-content/uploads/2021/03/2020_gips_standards_firms.pdf | official standard PDF | Q&A 5336 answered the precise question; PDF not needed |
+| https://www.market-clock.com/markets/krx/equities/ | reference | snippet; hours corroboration |
+
+(+ remaining unique search-result URLs not tabled: kalviumlabs, medium/ajayverma, qed42, polymarket, tradingkey, statista, stockanalysis, twelvedata, global.krx.co.kr, grokipedia, weex, quora, yahoo-help, stock-data-solutions, afg.asso.fr, ryanoconnellfinance, matsonmoney, nasra, globalexchanges, arxiv 2604.07264 -- collected, evaluated by title/snippet, not load-bearing.)
+
+## 8. Research Gate Checklist
+
+Hard blockers:
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6)
+- [x] 10+ unique URLs total (40 collected across 5 searches)
+- [x] Recency scan (2024-2026) performed + reported (Section 3, substantive)
+- [x] Full pages read (not abstracts) for the read-in-full set (arXiv via /html per protocol)
+- [x] file:line anchors for every internal claim (Section 5; BQ row pulled live)
+
+Soft checks:
+- [x] Internal exploration covered every relevant module (autonomous_loop, fx_rates, paper_trader, markets, portfolio_manager, screener, price_quality, tests)
+- [x] Contradictions/consensus noted (GIPS: convert vs label BOTH valid -> recommend convert+disclose; yfinance currency fields unreliable -> suffix is ground truth)
+- [x] All claims cited per-claim
 
 ```json
 {
-  "tier": "complex",
+  "tier": "moderate-complex",
   "external_sources_read_in_full": 6,
-  "snippet_only_sources": 29,
-  "urls_collected": 35,
+  "snippet_only_sources": 14,
+  "urls_collected": 40,
   "recency_scan_performed": true,
-  "internal_files_inspected": 11,
+  "internal_files_inspected": 10,
   "report_md": "handoff/current/research_brief.md",
   "gate_passed": true
 }

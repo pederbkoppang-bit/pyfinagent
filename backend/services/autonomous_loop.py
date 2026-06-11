@@ -1646,6 +1646,77 @@ _LITE_RISK_DEFAULT = {
 }
 
 
+def _integrity_market_data(
+    name, current_price, market_cap, pe_ratio, sector, industry,
+    momentum_20d, momentum_60d, norm, flags,
+) -> dict:
+    """phase-60.3 (AW-9): lite market_data + ADDITIVE provenance fields.
+
+    The provenance fields (currency/price_usd/market_cap_usd/fx_rate/as_of/
+    integrity_flags) are UNGATED observability -- they change no decision and
+    make every persisted lite row unit-auditable in BQ (criterion 4)."""
+    return {
+        "name": name,
+        "price": current_price,
+        "market_cap": market_cap,
+        "pe_ratio": pe_ratio,
+        "sector": sector,
+        "industry": industry,
+        "momentum_20d": momentum_20d,
+        "momentum_60d": momentum_60d,
+        "currency": norm.get("currency"),
+        "price_usd": norm.get("price_usd"),
+        "market_cap_usd": norm.get("market_cap_usd"),
+        "fx_rate": norm.get("fx_rate"),
+        "as_of": norm.get("as_of"),
+        "integrity_flags": [f["flag"] for f in flags],
+    }
+
+
+def _data_integrity_blocked_analysis(
+    ticker, name, sector, industry, model_name, current_price, market_cap,
+    pe_ratio, momentum_20d, momentum_60d, norm, flags,
+) -> dict:
+    """phase-60.3 (AW-9): pre-LLM in-code enforcement of blocking integrity
+    flags (GuardAgent chokepoint pattern -- arXiv:2406.09187). The away week
+    proved prose-only flagging is ignored: the judge wrote 'physically
+    impossible... KRW/USD unit error' and the BUY executed anyway
+    (066570.KS 2026-06-09, stopped out -9.7%).
+
+    Returns a lite-shaped HOLD: never enters _BUY_RECS, costs $0 LLM, and
+    counts toward the 56.2 degraded-scoring guard (deliberate -- widespread
+    integrity blocks SHOULD alarm)."""
+    reasons = "; ".join(f"{f['flag']}: {f['detail']}" for f in flags if f.get("blocking"))
+    logger.warning("Data-integrity block for %s (no LLM call): %s", ticker, reasons)
+    return {
+        "ticker": ticker,
+        "_path": "lite",
+        "recommendation": "HOLD",
+        "final_score": 0,
+        "_data_integrity_blocked": True,
+        "risk_assessment": {
+            "decision": "REJECT",
+            "reasoning": f"data-integrity block (deterministic pre-check, no LLM): {reasons}",
+            "reason": f"data-integrity block: {reasons}",
+            "recommended_position_pct": 0.0,
+            "risk_level": "EXTREME",
+            "risk_limits": dict(_LITE_RISK_DEFAULT["risk_limits"]),
+        },
+        "price_at_analysis": None,
+        "analysis_date": datetime.now(timezone.utc).isoformat(),
+        "total_cost_usd": 0.0,
+        "full_report": {
+            "source": model_name,
+            "analysis": {"action": "HOLD", "confidence": 0, "score": 0,
+                         "reason": f"data-integrity block: {reasons}"},
+            "market_data": _integrity_market_data(
+                name, current_price, market_cap, pe_ratio, sector, industry,
+                momentum_20d, momentum_60d, norm, flags,
+            ),
+        },
+    }
+
+
 def _build_risk_judge_system(settings) -> str:
     """phase-57.1 (55.3 finding F-8): the system prompt's CONCENTRATION axis
     hardcoded a phantom '10% of portfolio in one sector' while the configured
@@ -1856,6 +1927,32 @@ async def _run_claude_analysis(
     else:
         momentum_60d = 0
 
+    # phase-60.3 (AW-9): deterministic decision-input integrity. Normalize +
+    # flag ALWAYS (provenance is ungated observability); ENFORCE blocking
+    # flags pre-LLM only when paper_data_integrity_enabled (default OFF).
+    from backend.services.data_integrity import (
+        check_data_integrity, normalize_market_values, render_market_lines,
+    )
+    _di_enabled = bool(getattr(settings, "paper_data_integrity_enabled", False))
+    _di_norm = normalize_market_values(ticker, info)
+    _di_flags = check_data_integrity(ticker, info, _di_norm)
+    _model_for_block = (settings.gemini_model or "claude-sonnet-4-6").strip()
+    if _di_enabled and any(f.get("blocking") for f in _di_flags):
+        return _data_integrity_blocked_analysis(
+            ticker, name, sector, industry, _model_for_block, current_price,
+            market_cap, pe_ratio, momentum_20d, momentum_60d, _di_norm, _di_flags,
+        )
+    _di_market_lines = render_market_lines(
+        ticker, current_price, market_cap, pe_ratio, _di_norm, _di_enabled,
+    )
+    # USD-true market cap for the risk-judge template (flag ON, non-US);
+    # OFF/US byte-identical raw value.
+    _di_mcap_b = (
+        (_di_norm.get("market_cap_usd") or 0) / 1e9
+        if _di_enabled and not _di_norm.get("is_us") and _di_norm.get("market_cap_usd") is not None
+        else (market_cap or 0) / 1e9
+    )
+
     # Resolve the standard model from settings (Claude default; Gemini/others
     # selectable from the Settings UI). Field name `gemini_model` is preserved
     # for backward compat; routing layer (make_client) dispatches by prefix.
@@ -1895,7 +1992,7 @@ async def _run_claude_analysis(
 
 Stock: {ticker} ({name})
 Sector: {sector} | Industry: {industry}
-Price: ${current_price:.2f} | Market Cap: ${market_cap/1e9:.1f}B | P/E: {pe_ratio:.1f}
+{_di_market_lines}
 20-day momentum: {momentum_20d:+.1f}% | 60-day momentum: {momentum_60d:+.1f}%
 
 Decision rules (apply in order):
@@ -1970,7 +2067,7 @@ Respond in this exact JSON format:
         name=name,
         sector=sector,
         pe_ratio=pe_ratio or 0.0,
-        market_cap_b=(market_cap or 0) / 1e9,
+        market_cap_b=_di_mcap_b,  # phase-60.3: USD-true when flag ON + non-US
         momentum_20d=momentum_20d,
         momentum_60d=momentum_60d,
         trader_action=analysis["action"],
@@ -2063,16 +2160,10 @@ Respond in this exact JSON format:
         "full_report": {
             "source": model_name,
             "analysis": analysis,
-            "market_data": {
-                "name": name,
-                "price": current_price,
-                "market_cap": market_cap,
-                "pe_ratio": pe_ratio,
-                "sector": sector,
-                "industry": industry,
-                "momentum_20d": momentum_20d,
-                "momentum_60d": momentum_60d,
-            },
+            "market_data": _integrity_market_data(
+                name, current_price, market_cap, pe_ratio, sector, industry,
+                momentum_20d, momentum_60d, _di_norm, _di_flags,
+            ),
         },
     }
 
@@ -2119,6 +2210,29 @@ async def _run_gemini_analysis(
     else:
         momentum_60d = 0
 
+    # phase-60.3 (AW-9): same deterministic integrity wiring as the Claude
+    # mirror (output-shape parity preserved).
+    from backend.services.data_integrity import (
+        check_data_integrity, normalize_market_values, render_market_lines,
+    )
+    _di_enabled = bool(getattr(settings, "paper_data_integrity_enabled", False))
+    _di_norm = normalize_market_values(ticker, info)
+    _di_flags = check_data_integrity(ticker, info, _di_norm)
+    _model_for_block = (settings.gemini_model or "gemini-2.5-flash").strip()
+    if _di_enabled and any(f.get("blocking") for f in _di_flags):
+        return _data_integrity_blocked_analysis(
+            ticker, name, sector, industry, _model_for_block, current_price,
+            market_cap, pe_ratio, momentum_20d, momentum_60d, _di_norm, _di_flags,
+        )
+    _di_market_lines = render_market_lines(
+        ticker, current_price, market_cap, pe_ratio, _di_norm, _di_enabled,
+    )
+    _di_mcap_b = (
+        (_di_norm.get("market_cap_usd") or 0) / 1e9
+        if _di_enabled and not _di_norm.get("is_us") and _di_norm.get("market_cap_usd") is not None
+        else (market_cap or 0) / 1e9
+    )
+
     model_name = (settings.gemini_model or "gemini-2.5-flash").strip()
     if not model_name.startswith("gemini-"):
         raise ValueError(
@@ -2134,7 +2248,7 @@ async def _run_gemini_analysis(
 
 Stock: {ticker} ({name})
 Sector: {sector} | Industry: {industry}
-Price: ${current_price:.2f} | Market Cap: ${market_cap/1e9:.1f}B | P/E: {pe_ratio:.1f}
+{_di_market_lines}
 20-day momentum: {momentum_20d:+.1f}% | 60-day momentum: {momentum_60d:+.1f}%
 
 Decision rules (apply in order):
@@ -2181,7 +2295,7 @@ Respond ONLY with valid JSON, no prose. Schema:
             name=name,
             sector=sector,
             pe_ratio=pe_ratio or 0.0,
-            market_cap_b=(market_cap or 0) / 1e9,
+            market_cap_b=_di_mcap_b,  # phase-60.3: USD-true when flag ON + non-US
             momentum_20d=momentum_20d,
             momentum_60d=momentum_60d,
             trader_action=analysis["action"],
@@ -2243,16 +2357,10 @@ Respond ONLY with valid JSON, no prose. Schema:
         "full_report": {
             "source": model_name,
             "analysis": analysis,
-            "market_data": {
-                "name": name,
-                "price": current_price,
-                "market_cap": market_cap,
-                "pe_ratio": pe_ratio,
-                "sector": sector,
-                "industry": industry,
-                "momentum_20d": momentum_20d,
-                "momentum_60d": momentum_60d,
-            },
+            "market_data": _integrity_market_data(
+                name, current_price, market_cap, pe_ratio, sector, industry,
+                momentum_20d, momentum_60d, _di_norm, _di_flags,
+            ),
         },
     }
 

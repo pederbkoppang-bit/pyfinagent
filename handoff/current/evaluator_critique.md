@@ -1,21 +1,18 @@
-# Evaluator Critique -- Step 60.2 (Q/A, single merged agent)
+# Evaluator Critique -- Step 60.3 (Q/A, single merged agent)
 
-**Step:** 60.2 -- Churn-engine fix: swap sentinel + re-eval/stamp mismatch + delta scale (AW-5)
-**Date:** 2026-06-11. **Spawn:** FIRST Q/A spawn for 60.2 (0 prior CONDITIONALs).
-**Verdict: PASS (ok: true)** -- agent a0e7f008.
+**Step:** 60.3 -- Decision-input integrity for non-USD markets (AW-9)
+**Date:** 2026-06-11. **Spawn:** FIRST Q/A spawn for 60.3 (0 prior CONDITIONALs).
+**Verdict: PASS (ok: true)** -- agent ae8fe333.
 
-## Summary of the Q/A's findings
+- Harness compliance 5/5 (criteria programmatically verbatim; gating design pre-registered; phase-60 install legitimacy re-confirmed at 7524e3cf).
+- Deterministic: immutable command exit 0 (13 passed + live_check exists); FULL suite re-run by Q/A itself 805/12/6 exit 0 INCLUDING the disclosed flake test (flake explanation held); syntax 4/4; diff scope backend+tests+handoff only, zero frontend (59.2 N/A).
+- C1: old $-literal GONE (grep exit 1), render_market_lines in BOTH analyzers (:1995/:2251), judge market_cap_b USD-true (:2070/:2298); fx_rates.get_fx_rate judged to satisfy "via the existing FX helpers" (it IS the helper _fx_local_to_usd wraps; importing the fill-time wrapper would conflate fill math with presentation -- researcher-grounded).
+- C2: in-code pre-LLM block verified (:1940/:2223); HOLD not in _BUY_RECS -> unbuyable; real persisted 066570.KS values in the regression; poisoned-rail e2e proves a log-only mutant raises.
+- C3: as-of from regularMarketTime, tested ON/OFF/US.
+- C4: BQ row INDEPENDENTLY re-queried by Q/A -- 299000 x 0.00065378 = 195.48 exact; the earlier same-day row has NULL provenance = a real before/after pair in BQ; live run used the flag-OFF live config (ungated leg as pre-registered); US byte-identity both flag states.
+- Mutation probes: ceiling-loosening run-verified caught by the regression test; poisoned rail live; as-of removal caught; US byte-identity run-verified.
+- NOTEs (non-blocking, follow-up candidates): missing trailingPE KEY (vs present-and-0.0) skips the tag-only missing_pe flag while "P/E: 0.0" still renders; flag-ON could render "P/E: n/a" instead of 0.0; ceiling-boundary test is self-referential (the hardcoded-value regression test anchors it).
 
-- **Harness compliance 5/5**: researcher gate (complex, 6 in full, gate_passed:true); contract criteria programmatically verbatim vs masterplan; results file complete; log-last ordering intact; first spawn; phase-60 install legitimacy independently re-verified (7524e3cf operator-approved post-revert).
-- **Deterministic**: immutable command exit 0 (17 passed + live_check exists); FULL suite 792/12/6 exit 0 matching claims; syntax OK x4; diff scope exactly as declared -- kill_switch/paper_trader/perf_metrics/risk_engine untouched (empty diffs); no frontend changes (59.2 Playwright gate N/A).
-- **C1 PASS**: exclusion is the criterion's own option B; researcher-grounded from the brief's findings (exclusion listed + the noise data); LOCF->exclusion departure judged a plan-level disclosed choice, NOT a contract deviation; regression pair reproduces the 06-09 shape exactly.
-- **C2 PASS**: displacement candidates have same-cycle analyses by construction; parametrized 7/9/10 impossibility test; the hours-precise re-eval honesty note verified mathematically (floor(x)>=n iff x>=n).
-- **C3 PASS, interpretation judged FAITHFUL**: the masterplan's own audit_basis pins the accident at the 0.01-epsilon denominator; settings.py:293 always documented the 1.0 clamp -- the fix restores code to its own spec; the alternative reading (7-vs-5 never fires) would REQUIRE forbidden bar-widening. Code verified at portfolio_manager.py:561 (flag-gated), bar 25.0 untouched, boundary 20%/40% tests pass.
-- **C4 PASS**: replay read end-to-end; ARM A 12/13 with disclosed persistence-gap exception; 3 named round trips with explicit verdicts (DELL leg SURVIVES on true 75% delta); metrics both arms; degenerate sharpe_diff_test disclosed verbatim and not-a-gate; operator promotion PENDING never auto-applied; **the uncomfortable -$270.86 one-step counterfactual loss reported prominently** (honesty verified); KRW unit bug disclosure + currency-neutral method verified sound.
-- **Mutation probes (3 live)**: OFF equal-score fires (sentinel preserved); ON 9.0/10.0 do not displace (kills the equal-score-only mutant); boundary 20%/40% verified in the passing net.
-- **Binding rulings**: nothing band-shaped (bar verbatim, no tenure shield -- exclusion conditions on EVIDENCE availability not age, proven by the analyzed-holdings-remain-displaceable test).
-- **NOTEs (non-degrading)**: inline descriptive Sharpe in the replay script (inferential leg correctly via analytics.sharpe_diff_test); turnover as ledger line not table column; the LOCF->exclusion deviation disclosed.
+violated_criteria: []. certified_fallback: false.
 
-violated_criteria: []. certified_fallback: false. checks_run: 16 items (see agent output).
-
-**OPEN OPERATOR ITEM (not a step blocker):** promotion decision `60.2 FLAG: ON | KEEP OFF` pending in live_check_60.2.md §D.
+**OPEN OPERATOR ITEM (not a step blocker):** promotion decision `60.3 FLAG: ON | KEEP OFF` pending in live_check_60.3.md §E.
