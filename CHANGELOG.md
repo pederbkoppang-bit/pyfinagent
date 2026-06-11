@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `9df6271d` | feat(58.1): record verbatim operator replies (LLM SPEND: APPROVED $25 / PHASE-57: FEATURE) + pre-win |
 | 2026-06-10 | `04d56c5d` | fix(migrations): extend 56.1 KR backfill to 9 rows -- the 2026-06-10 18:39Z pre-restart cycle wrote  |
 | 2026-06-10 | `952fe08d` | docs(handoff): SOFT STOP -- refresh cycle_block_summary with operator ask list; goal ledger updated  |
 | 2026-06-10 | `236b1f86` | fix(ops): phase-56.2 ops fixes -- rail-health probe (F-4), degraded-scoring guard (F-5), conviction- |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `817f2f5` | fix(handoff): restore audit-stream lines dropped by dedupe in merge resolution |
 | 2026-06-10 | `09dc9dd` | docs(goal): align goal-post-away-review with main -- 53.5 shipped, 53.4 deferred |
 | 2026-06-10 | `728e1d6` | Merge origin/main: phase-53.5 capstone + 53.4 deferral into goal-post-away-review branch |
-| 2026-06-10 | `55f81af` | phase-53.5: End-to-end smoke capstone -- a CI workflow (.github/workflows/e2e-smoke.yml: workflow... |
 
 ---
 
+### v6.38.0 — feat(58.1): record verbatim operator replies (LLM SPEND: APPROVED $25... (2026-06-11)
+
+- **feat(58.1): record verbatim operator replies (LLM SPEND: APPROVED $25 / PHASE-57: FEATURE) + pre-win**
 ### v6.37.6 — fix(migrations): extend 56.1 KR backfill to 9 rows -- the 2026-06-10... (2026-06-10)
 
 - **fix(migrations): extend 56.1 KR backfill to 9 rows -- the 2026-06-10 18:39Z pre-restart cycle wrote**
