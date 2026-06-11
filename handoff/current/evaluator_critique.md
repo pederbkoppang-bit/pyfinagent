@@ -1,118 +1,79 @@
-# Evaluator Critique — Step 56.2 "Ops fixes"
+# Evaluator Critique — Step 57.1 (Binding RiskJudge gate + concentration-aware prompt context)
 
-**Q/A agent (merged qa-evaluator + harness-verifier). Single fresh spawn (first for 56.2).**
-**Date:** 2026-06-10. **Verdict: PASS** (`ok: true`).
-
----
-
-## 0. Harness-compliance audit (5/5 PASS — runs first, unchanged)
-
-| # | Item | Result | Evidence |
-|---|------|--------|----------|
-| 1 | Researcher gate | PASS | `handoff/current/research_brief.md` is the 56.2 brief: tier=complex, envelope `gate_passed: true`, 7 external sources read in full + 16 URLs + recency scan (Confidence-Gate arXiv:2603.09947 2026, OneUptime heartbeat, Silent-Failure, Slack Bolt ack, pytest skipif, GX WAP, index.dev). 16 internal files inspected. |
-| 2 | Contract pre-commit | PASS | `contract.md` mtime 20:16:30 precedes ALL code edits (earliest `api_call_log.py` 20:23:14). Its 4 criteria match `.claude/masterplan.json` step 56.2 VERBATIM (diffed). |
-| 3 | Results artifact present | PASS | `experiment_results.md` lists 11 files + verbatim verification-command output (`749 passed, 12 skipped, 6 xfailed`). |
-| 4 | Log-last | PASS | No 56.2 Cycle entry in `harness_log.md`; masterplan 56.2 `status="pending"`. |
-| 5 | No verdict-shopping | PASS | First spawn for 56.2. No prior 56.2 verdict to overturn. |
+**Verdict: PASS** (`ok: true`, zero violated_criteria). Single merged Q/A; FIRST spawn for 57.1.
+**Date:** 2026-06-11. **Phase:** phase-57 FEATURE (config-gated default-OFF; NO live flip).
 
 ---
 
-## 1. Deterministic checks (cannot hallucinate)
+## 5-item harness-compliance audit (ran FIRST, all green)
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| Immutable verification command (full backend suite) | **exit 0** | `python -m pytest backend/tests -q` → `749 passed, 12 skipped, 6 xfailed, 1 warning in 71.11s`. Re-run independently; matches experiment_results counts exactly. |
-| `test -f handoff/current/live_check_56.2.md` | PASS | livecheck-ok (file present, fully populated §A-F). |
-| New test file alone | **18/18 pass** | `test_phase_56_2_ops_fixes.py` → `18 passed in 1.97s`. |
-| Syntax parse (6 changed prod files) | PASS | `ast.parse` OK on all. |
-| Import-cycle smoke | PASS | `python -c "import backend.services.autonomous_loop"` OK — lazy `from backend.services.alerting import raise_cron_alert` (inside functions) introduces no module-load cycle. |
-| Quarantine tests PASS (not skip) | PASS | lock-count `5 passed`; shortlist-doc `7 passed`; agent-map `7 passed`. Rainbow-canary + watchdog-pollution pass in full-suite order (0 failures in the 749). |
-
-## 1b. Do-no-harm (decision math untouched — verified by empty diff)
-
-`git diff --stat` is **EMPTY** for every decision-math file:
-- `backend/services/meta_scorer.py` — 0 diff. `_fallback_all` (`:249-256`) VALUE (`_fallback_conviction`=`round(composite)` clamped, `:138`) and ORDERING (`sorted(...reverse=True)` by conviction, `:256`) byte-identical.
-- `backend/services/portfolio_manager.py` — 0 diff.
-- `backend/services/kill_switch.py` — 0 diff (F-9 is proposal-only).
-- `backend/services/paper_trader.py` — 0 diff (kill-switch region included).
-- screener / optimizer (glob) — 0 diff.
-
-The conviction-fallback detection (`_all_conviction_fallback`, `autonomous_loop.py`) is **read-only** over `conviction_reason` strings; greps the exact producer string `"fallback (LLM unavailable)"` emitted by `meta_scorer.py:254`. Sets only `summary["meta_scorer_degraded"]`; never mutates a score or order.
-
-## 1c. Crash-isolation (an alerting bug can never break a trading cycle)
-
-Each new observability hook is wrapped in its OWN `try/except Exception`:
-- **Rail probe (F-4)**: `except Exception as _probe_exc: logger.warning(... "non-fatal" ...)` — `autonomous_loop.py` cycle-start block.
-- **Degraded guard (F-5)**: `except Exception as _guard_exc: logger.warning(... "non-fatal" ...)`.
-- **Metering (F-6)**: `_log_claude_code_call` body wrapped in `try/except` (`logger.debug ... non-fatal`).
-- **Probe internals**: `claude_code_health_probe` catches `TimeoutExpired` / `FileNotFoundError` / `Exception` and returns `(False, detail)` — NEVER raises. (These broad-excepts are in an OBSERVABILITY probe, NOT a risk-guard path → not the `broad-except-silences-risk-guard` BLOCK case; they correctly fail-soft.)
-
-## 1d. Criterion-2 ticket-processor branch fidelity
-
-`ticket_queue_processor.py`: the CLI branch (`if getattr(settings, "paper_use_claude_code_route", False)`) preserves the system prompt (`system=system`) and a 60s timeout (`timeout_s=60`). The direct-SDK branch is byte-identical to pre-fix when the flag is off (the original `anthropic.Anthropic(api_key=...)` block is moved below the new branch verbatim; the only other change is removal of a `[wrench-emoji]` from a comment — improvement). On the flag the keyless direct call (root cause of "Missing API key for provider anthropic") is never reached.
-
-## 1e. generation_config whitelist (no `_role`/`_ticker` leak to Gemini)
-
-`llm_client.py:941-957` assembles `gc_kwargs` from an explicit whitelist (`temperature, top_k, top_p, max_output_tokens` + named `response_mime_type/response_schema/thinking_config/tools`) then `GenerateContentConfig(**gc_kwargs)`. `_role`/`_ticker` are read only via `.get()` at `:1070/:1079` for `log_llm_call` and are NEVER added to `gc_kwargs` → they do not reach the Gemini API call. Confirmed by reading the assembly block.
-
-## 1f. F-9 is proposal-only (no code, no threshold change)
-
-`kill_switch.py` + `paper_trader.py` kill-switch region: 0 diff. The F-9 SOD-anchor proposal text is in `live_check §D`, explicitly framed as an OPERATOR DECISION ("Reply 'F-9: APPROVED' ... or leave it parked"), with the 4%/10% limits stated UNCHANGED. 55.1's audited verdict was **CORRECTLY-DID-NOT-TRIP** (postmortem line 161: worst-day -2.82% < 4%, trailing < 3.4% vs 10%) → criterion 4's IFF condition (`SHOULD-HAVE-TRIPPED`) is FALSE → no kill-switch unit-test fix required. Correctly handled.
-
-## 1g. Quarantine honesty (the watermelon check)
-
-Root-cause classification, NOT blanket skip:
-- **2 STALE assertions UPDATED**: agent-map `claude-opus-4-8` (`test_agent_map_live_model.py:58`; the `:90` `4-7` is a `_StubSettings` *input* for a locked-node test, correctly untouched); `EXPECTED_LOCK_COUNT = 15` with re-audit note citing `alerting.py:64` (AlertDeduper). Both tests PASS (`5 passed`/`7 passed`) — skipping would have hidden real drift.
-- **7 moved-doc REPOINTED** to `handoff/archive/phase-23.2.16/...` (the doc still exists; archive-handoff hook moved it). `7 passed`.
-- **5 live-probe `requires_live` skipifs** (NEW `pytest.ini` registers the marker) with per-test reasons naming the EXACT dependency (MAX(ts) SLA window; `analysis_results total_cost_usd>0.05`; 5-20 `drawdown_breach` rows; live HTTP :8000). Note: 5 live-probes (incl. a 5th live-HTTP `ticker_meta_latency`), one more than the contract's "2 live-BQ" sketch — over-disclosed, not under.
-- **1-2 pollution ROOT-CAUSE FIXED**: `reset_buffer_for_test()` now re-arms `_last_flush_ts` inside the lock (`api_call_log.py`) — the time-based flush was draining injected rows mid-test in full-suite order. Real fix, not a skip.
-
-## 1h. Security + ASCII
-
-- **secret-in-diff**: clean (only `sk-test-not-real`/`sk-unused` test fixtures — negation-listed).
-- **command-injection**: `subprocess.run([resolved_binary, "auth", "status"], ...)` — LIST arg, `shell=False`, literal `binary="claude"` default — negation-listed (safe).
-- **ASCII logger strings**: all NEW `logger.*` strings in the 6 prod files are pure ASCII (verified by `^\+`-line non-ASCII grep → none).
+1. **Researcher gate — PASS.** `handoff/current/research_brief.md` is the 57.1 brief: tier=complex, envelope `gate_passed: true`, 6 sources read in full (17 CFR 240.15c3-5 primary CFR + ESMA Feb-2026 supervisory briefing + GuardAgent arXiv:2406.09187 + Ahern 2006 + arXiv:2604.01483 + arXiv:2511.15123), 16 URLs, recency scan B5 present (ESMA Feb-2026 + 2 arXiv 2025-2026). Cites F-3 (advisory-only REJECT) + F-8 (phantom 10% cap). Contract references section names the researcher output.
+2. **Contract pre-commit — PASS.** `contract.md` mtime `05:19:48` PRECEDES every code edit (settings.py 05:21:11, portfolio_manager.py 05:21:50, autonomous_loop.py 05:26:21, test 05:28:46). Programmatic verbatim compare: all **6 criteria match `.claude/masterplan.json` step 57.1 `verification.success_criteria` byte-for-byte** (whitespace-normalized equality, 6/6 True); the immutable verification command matches verbatim. Install commit verified: `git log --grep "PHASE-57: FEATURE"` hits `af4aa8d6` — subject records the operator's verbatim reply `'PHASE-57: FEATURE'`.
+3. **Results artifact — PASS.** `experiment_results.md` present with the 4-file change table, verbatim verification-command output (`7 passed, 767 deselected`), and full-suite line (`756 passed, 12 skipped, 6 xfailed`).
+4. **Log-last — PASS.** No 57.1 Cycle entry in `handoff/harness_log.md` (last entries are Cycle 47 phase-56.2); masterplan 57.1 `status: "pending"`. Correct order — log + flip happen AFTER this PASS.
+5. **No verdict-shopping — PASS.** First Q/A spawn for 57.1; no prior critique to overturn. `retry_count: 0`.
 
 ---
 
-## 2. Mutation-resistance (anti-rubber-stamp — the 3 planted scenarios)
+## Deterministic checks (cannot hallucinate)
 
-| Planted violation | Caught by | How |
-|---|---|---|
-| (i) Probe NOT scrubbing the API key | `test_rail_probe_scrubs_api_key_from_env` (`:57-68`) | Sets `ANTHROPIC_API_KEY`, spies `subprocess.run` env, asserts `"ANTHROPIC_API_KEY" not in captured["env"]`. Removing the scrub dict-comp → FAIL. |
-| (ii) Guard over-alerting at 2 zeros | `test_degraded_guard_quiet_at_two_zeros_of_six` (`:87-90`) | Asserts `fire is False, n_deg == 2`. Changing `>= 3` → `>= 2` → FAIL. |
-| (iii) Ticket processor uses SDK despite the flag | `test_ticket_agent_uses_cli_rail_when_route_flag_set` (`:184-198`) | Patches both rails; asserts `cli_spy.assert_called_once()` AND `sdk_spy.assert_not_called()` (paired with `out == "Approved..."`). Ignoring the flag → trips `assert_not_called`. |
-
-Bonus real bug caught WHILE writing the tests: the **falsy-zero trap** — `test_degraded_guard_counts_confidence_zero_uppercase_tell` (`:93-99`) asserts `confidence=0` still counts as degraded; the predicate explicitly checks `_conf_raw is not None` before `float()==0.0` rather than `or`-defaulting (which would mask a real 0). Tests are NOT tautological (no `assert x==x`/`is not None`-only) and NOT over-mocked (`TicketQueueProcessor.__new__` + real `_spawn_real_agent` under test; only rails patched).
-
----
-
-## 3. Code-review heuristics (5 dimensions) — 0 BLOCK / 0 WARN
-
-- **D1 Security**: secret-in-diff clean; command-injection negation-listed; no prompt-injection/insecure-output/training-code/unbounded-loop introduced.
-- **D2 Trading-domain**: kill-switch reachable (0 diff); stop-loss/backfill/max-position/crypto untouched (0 diff); no perf-metrics bypass; no LLM-output-to-execution path added.
-- **D3 Code quality**: broad-excepts are observability fail-soft (return value, not silent risk-swallow); no print() in prod; new helpers carry type hints.
-- **D4 Anti-rubber-stamp**: financial-logic files have 0 diff → `financial-logic-without-behavioral-test` N/A; behavioral tests present for every new path.
-- **D5 LLM-evaluator**: first spawn, full file:line chain-of-thought, no criteria erosion.
-
-**NOTE (does not degrade verdict)**: `test_phase_56_2_ops_fixes.py:22,71,107,141,177` use box-drawing chars (`--` dividers) in SECTION-DIVIDER COMMENTS (not logger calls, not runtime strings). This matches an established repo convention — 7 other committed test files (`test_phase_50_2_multicurrency.py`, `test_phase_32_*`, etc.) and multiple committed `backend/services/*.py` use the same dividers. Python-3 UTF-8 source; no cp1252 crash surface (the security.md ASCII rule targets `logger.*` calls, which are clean here). Cosmetic only.
+- **syntax** — `ast.parse` OK on all 4 files (settings.py, portfolio_manager.py, autonomous_loop.py, test_phase_57_1_reject_binding.py).
+- **verification_command** (immutable) — `python -m pytest backend/tests -k 'reject_binding or risk_judge_binding' -q` → **7 passed, 767 deselected, exit 0**; `test -f handoff/current/live_check_57.1.md` → present (`livecheck-ok`). GREEN.
+- **full_suite** (criterion-6 family + do-no-harm) — `python -m pytest backend/tests -q` → **756 passed, 12 skipped, 6 xfailed, exit 0** in 69.6s. Matches the contract claim EXACTLY; zero breakage from the default-OFF flag.
+- **no_live_flip** — `get_settings.cache_clear(); get_settings().paper_risk_judge_reject_binding` → **False**. settings.py Field default `False`; .env untouched. No live flip, per criterion 2/6.
+- **bq_event_study_reproduction** (live BQ, 2026-06-11):
+  - Query 1 (`paper_trades WHERE action='BUY' AND risk_judge_decision='REJECT'`) → **exactly 3 rows**, ALL `reason=swap_buy`: HPE 2026-06-02T19:18:58, DELL 2026-06-03T19:05:19, 066570.KS 2026-06-09T18:12:39. Independently confirms the count AND the decisive topology claim (every real REJECT execution went via the swap path).
+  - Query 2 (`paper_round_trips`) → HPE **−$0.81** (−0.33%, swap_for_higher_conviction), DELL **+$0.54** (+0.22%, swap_for_higher_conviction), 066570.KS **−$23.18** (−9.68%, **stop_loss_trigger**). **Net of the 3 = −$23.45**, matching the live_check verbatim. (A 4th unrelated DELL round-trip with entry 06-09 +$14.73 exists but is NOT one of the 3 REJECT BUYs — the REJECT DELL BUY was 06-03; the live_check's ticker+entry-day join correctly excludes it.)
+- **other_buy_path_grep** (anti-rubber-stamp) — `grep action="BUY"` across `backend/**` (ex-tests): the only LIVE-path `TradeOrder(action="BUY")` emission sites are `portfolio_manager.py:372` (main BUY loop) and `portfolio_manager.py:589` (swap path) — **both downstream of the candidate-build chokepoint** where the gate sits. `backtest_trader.py:178` is the offline backtest engine (separate system, out of scope). `paper_trader.py:225` is a dedup-query filter arg, not an emission. `pm:105/118/128` are all `action="SELL"`. There is NO third live BUY path that bypasses the gate.
+- **emoji/ascii** — no emojis/arrows in added backend diff lines; all non-ASCII in the test file is box-drawing in `#` comments only (NOT in any logger or code string). New logger strings in portfolio_manager.py:199-203 and autonomous_loop.py are ASCII-only.
 
 ---
 
-## 4. LLM judgment against the 4 immutable criteria
+## Code-review heuristics (5 dimensions evaluated; zero BLOCK, zero WARN)
 
-**C1 — every P0/P1 FIXED+test or ESCALATED operator-gated, finding-ID map in live_check** → **MET.** `live_check §A` dispositions every CRITICAL+HIGH+MED-HIGH finding in the 55.3 §1 table: F-1/F-2 (fixed in 56.1), F-4/F-5/F-6/F-7/F-14/watchdog/criterion-2 (FIXED with regression tests in `test_phase_56_2_ops_fixes.py`), F-3/F-8/F-18 (ESCALATED to phase-57 — behavior-changing, already in the 55.3 §2.6 spec), F-9 (operator-proposal). The MED/LOW tier (F-10/11/13/15/16/17 "56.x", F-19 informational) is legitimately out of P0/P1 scope. Nothing changed without a finding ID.
-
-**C2 — approve path exercised e2e OR residual escalated with one-line operator action** → **MET (OR-branch, honestly).** The fix (route `_spawn_real_agent` through the CLI rail when the flag is set) is applied AND unit-tested (both flag states). A true e2e transcript needs the operator (bot-message filtering + slack-bot restart); `live_check §B` escalates with the exact one-line action: "restart the slack bot and type `Approve` in #ford-approvals — expect an agent reply via the claude-code rail instead of the missing-key error." This is the criterion's explicit OR-branch, disclosed as a limitation (experiment_results §Honest limitations), not overclaimed.
-
-**C3 — degraded-scoring guard exists + alerts Slack + unit-tested; watchdog bounded fix per 55.2** → **MET.** `_degraded_scoring_check` (cycle-level, post-gather) fires on ALL-degraded or ≥3 zeros → P1 `raise_cron_alert(source="autonomous_loop", error_type="degraded_scoring")`; unit-tested across all-zero/3-of-6/2-of-6/confidence-0-UPPERCASE/empty boundaries. Watchdog probe timeout 10s→30s (`scheduler.py`) per the 55.2 event-loop-starvation root cause (backend never down; mirrors digest 30s).
-
-**C4 — kill-switch unit-test IFF SHOULD-HAVE-TRIPPED; threshold change = OPERATOR DECISION; 16 failures quarantined (skip-markers + reasons); pytest green** → **MET.** 55.1 ruled CORRECTLY-DID-NOT-TRIP → IFF false → no unit-test required (correct). F-9 SOD re-anchor presented as an OPERATOR DECISION with thresholds UNCHANGED, never auto-applied (0 code diff). Quarantine done with skip-markers + per-dependency reason strings (and honest UPDATE/REPOINT/ROOT-CAUSE-FIX for the non-env failures — superior to blanket skip). Backend pytest exit 0.
+- **Dim 1 Security** — no secret-in-diff (settings flag is a `bool`, no literal); no prompt-injection-path (the injected `portfolio_context` is system-generated from BQ positions, NOT user-supplied; and it is brace-escaped before `.format`); no command-injection; no dep-pin removal. CLEAN.
+- **Dim 2 Trading-domain** — gate is REJECT-only (`_rj_decision == "REJECT"`, pm:196), so APPROVE_REDUCED/HEDGED sizing is untouched (no over-bind). kill_switch / stop-loss / max_positions / perf_metrics paths are NOT touched by this diff. No crypto re-enable. The gate ADDS a risk control (binding a previously-advisory REJECT), the regulation-aligned direction (SEC 15c3-5(c)(1) "by rejecting orders"). CLEAN.
+- **Dim 3 Code quality** — the new `try/except` at autonomous_loop.py:783-786 around `_build_portfolio_sector_context` is a NON-fatal context-build guard that logs and degrades to `""` (NOT an execution-path silent-swallow; it protects byte-identity by failing open to the OFF behavior). `_build_portfolio_sector_context`'s `try/except (TypeError, ValueError): continue` is a per-row numeric-coercion guard, not a broad risk-guard swallow. Helpers are typed. No print(). CLEAN.
+- **Dim 4 Anti-rubber-stamp** — financial-logic change (a BUY-path gate) ships WITH a behavioral test file (`test_phase_57_1_reject_binding.py`, 7 tests). No tautological assertions (the assertions check real order presence/absence, object identity, and rendered-string content). No over-mocking (decide_trades runs for real with fixtures; no `@patch` of the module under test). CLEAN.
+- **Dim 5 LLM-evaluator anti-patterns** — first spawn, no rebuttal context, no prior CONDITIONAL to escalate. This critique carries file:line citations throughout. CLEAN.
 
 ---
 
-## 5. Verdict
+## Per-criterion LLM judgment (against the 6 immutable criteria)
 
-**PASS** — `ok: true`. All 5 harness-compliance items pass; the immutable verification command exits 0 (`749 passed`); all 4 immutable criteria are met (C2 honestly via the criterion's OR-branch, escalation disclosed); do-no-harm is proven by empty diffs on every decision-math file; the conviction-fallback VALUE+ordering are byte-identical (unit-tested); mutation-resistance is real on all 3 planted scenarios plus the falsy-zero trap; the quarantine is root-cause-classified (no watermelon); F-9 is a code-free operator proposal with thresholds unchanged. Zero code-review heuristics fire at BLOCK or WARN; the only finding is a cosmetic NOTE (box-drawing chars in test comments, matching existing repo convention).
+**C1 — Binding-gate regression fixture, both BUY paths — PASS.**
+`test_reject_binding_main_path_off_emits_on_blocks` (main path): flag-OFF emits the REJECT BUY (line 102), flag-ON it is absent + `blocked_out` records it (lines 110-114). `test_reject_binding_swap_path_off_emits_on_blocks` (swap path — the away-week vulnerability): the scenario stacks 8 Technology holdings at `max_per_sector=2` so TECH_NEW1/2 get sector-COUNT-blocked into `sector_blocked` → the swap path; flag-OFF asserts `"TECH_NEW1" in swap_buys_off` AND `rejected_order.risk_judge_decision == "REJECT"` (lines 148-152) — **this proves the swap path actually ran and emitted a `swap_buy` for the REJECT candidate**, reproducing HPE/DELL/LG exactly; flag-ON asserts `"TECH_NEW1" not in on_tickers` and `"TECH_NEW2" in on_tickers` (the next-ranked survivor takes the freed slot; lines 164-170). I verified by reading `_compute_swap_candidates` (pm:439-585) that `sector_blocked` is populated ONLY from `buy_candidates` entries (pm:319, iterating pm:290) — so a candidate `continue`d out at the gate (pm:212, BEFORE `buy_candidates.append` at pm:214) can reach NEITHER the main loop NOR the swap path. The gate site is the genuine common ancestor.
 
-`violated_criteria: []`. `certified_fallback: false` (retry_count=0 < max_retries=3).
+**C2 — Default-OFF byte-identity (orders + prompts) + no live flip — PASS.**
+`test_off_identity_orders_no_reject_set`: flag-ON == flag-OFF order lists on a REJECT-free set (line 184). `test_off_identity_prompts_are_verbatim_constants`: `_build_risk_judge_system(s_off) is al._LITE_RISK_JUDGE_SYSTEM` and `_build_risk_judge_template(s_off, "anything") is al._LITE_RISK_JUDGE_TEMPLATE` (lines 189-190) — **object-`is`-identity**, the strongest byte-identity proof, plus a rendered-equality check (lines 195-196). I confirmed the builders short-circuit on `not getattr(settings, "paper_risk_judge_reject_binding", False)` returning the bare constant (autonomous_loop.py:1591, :1606), and the per-cycle `_rj_portfolio_ctx` compute is gated `if getattr(settings, ...)` (autonomous_loop.py:782) so it is skipped when OFF. New kwargs default to `None`/`""` (`portfolio_context: str | None = None` on `_run_single_analysis`; `= ""` on both analyzers) so existing callers are unaffected. No live flip: settings loader returns False.
+
+**C3 — Prompt-context correctness with the flag ON (F-8) — PASS.**
+`test_prompt_content_flag_on_real_cap_and_sector_line`: system prompt contains `"exceed 30% of portfolio NAV in one sector"` and NOT `"10% of portfolio in one sector"` (lines 203-204); `_build_portfolio_sector_context(fake_positions)` yields `"Technology 100.0%"` (line 211); the rendered template contains the injected `"Current portfolio context: invested-book sector weights: Technology 100.0%"` line (line 217). The cap is read from `paper_max_per_sector_nav_pct` (autonomous_loop.py:1593), the real configured value — fixing the phantom-cap defect.
+
+**C4 — Per-cycle single-compute (concurrency-correct) — PASS.**
+`test_analyzers_receive_precomputed_context_not_positions_fetch`: all three analyzers (`_run_single_analysis`, `_run_claude_analysis`, `_run_gemini_analysis`) carry a `portfolio_context` parameter AND `"get_positions" not in inspect.getsource(fn)` (lines 236-240); the single compute site `_build_portfolio_sector_context(positions)` is asserted to live in `run_daily_cycle` source (line 243). I confirmed in the diff that the compute happens ONCE at autonomous_loop.py:782 (after the positions read at :774, BEFORE the concurrent fan-out at the `_run_and_persist_one` dispatch) and is threaded as `portfolio_context=_rj_portfolio_ctx` (autonomous_loop.py:862-864) — neither analyzer calls `get_positions`. Mutation-resistant: a per-ticker `get_positions()` would trip the source-scan.
+
+**C5 — Event-study artifact, honestly framed — PASS.**
+`live_check_57.1.md` contains: the BQ query + 3-row table (HPE/DELL/066570.KS), the realized P&L (−$0.81 / +$0.54 / −$23.18; net **−$23.45**) — all **independently reproduced against live BQ above** — AND an explicit selection-bias caveat (n=3 descriptive of these specific decisions, NOT the gate's EV; conditioned on REJECT∧swap-executed∧closed-in-window; cites Ahern 2006 + arXiv:2511.15123) with **no annualized/Sharpe extrapolation**. Matches the research brief's mandatory-honesty framing.
+
+**C6 — Verification command green + flag default-OFF unflipped — PASS.**
+Immutable command exits 0 (7 passed; live_check present). Flag ships `Field(False, ...)` and is verified `False` at runtime; no flip inside phase-57.
+
+---
+
+## Anti-rubber-stamp: actively sought a hole
+
+- **Does the swap-path test actually exercise `_compute_swap_candidates`?** YES — the flag-OFF assertion requires a `reason == "swap_buy"` order for TECH_NEW1 (lines 147-148). A `swap_buy` reason is emitted ONLY at pm:591 inside `_compute_swap_candidates`. If the swap path never ran, that assertion would fail. The test is not a no-op.
+- **Is there another BUY-emission path that bypasses the candidate-build loop?** NO — grep confirms only pm:372 (main) and pm:589 (swap) in the live path, both downstream of the gate; backtest_trader.py and paper_trader.py:225 are not live-cycle TradeOrder BUY emissions.
+- **Format-safety (would a `{`/`}` in a sector name break `.format`)?** Handled — `_build_risk_judge_template` escapes the injected literal via `context_line.replace("{", "{{").replace("}", "}}")` (autonomous_loop.py:1610) BEFORE the downstream `.format()`. The escape is applied AFTER the f-string substitution, so any braces in the live data are doubled correctly. The replacement TARGET string exists verbatim in `_LITE_RISK_JUDGE_TEMPLATE` (line 1567), so the `.replace` is not a silent no-op. Correct.
+- **Could the gate accidentally block APPROVE_REDUCED/HEDGED?** NO — condition is strict equality `_rj_decision == "REJECT"` (pm:196). Verified.
+
+---
+
+## Notes (non-blocking)
+
+- Blocked-BUY observability is log + `summary["risk_judge_blocked"]` only (no BQ table) — explicitly scoped as a possible DoD-7 follow-on in experiment_results; acceptable for 57.1.
+- Full-pipeline (non-lite) RiskJudge path is out of 57.1 scope (the lite path is what trades autonomously today) — honestly disclosed.
+- Test file uses box-drawing chars in section-header comments; NOTE-level only (not a logger string), no verdict impact.
+
+**checks_run:** syntax, verification_command, full_suite, no_live_flip, bq_event_study_reproduction, other_buy_path_grep, code_review_heuristics, contract_verbatim_compare, mutation_resistance, evaluator_critique

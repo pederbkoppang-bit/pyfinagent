@@ -776,6 +776,17 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             new_candidates = [c for c in candidates if c["ticker"] not in held_tickers]
             analyze_tickers = [c["ticker"] for c in new_candidates[:settings.paper_analyze_top_n]]
 
+            # phase-57.1 (F-8): compute the RiskJudge sector context ONCE per
+            # cycle (positions are identical for every ticker in the fan-out;
+            # a per-ticker fetch would be N redundant BQ reads + a race).
+            # Only built when the binding flag is ON -- OFF stays byte-identical.
+            _rj_portfolio_ctx = ""
+            if getattr(settings, "paper_risk_judge_reject_binding", False):
+                try:
+                    _rj_portfolio_ctx = _build_portfolio_sector_context(positions)
+                except Exception as _ctx_exc:
+                    logger.warning("RiskJudge sector context build failed (non-fatal): %s", _ctx_exc)
+
             # Determine holdings due for re-evaluation
             reeval_tickers = []
             now = datetime.now(timezone.utc)
@@ -848,7 +859,11 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         )
                         return None
                     try:
-                        analysis = await _run_single_analysis(ticker, settings)
+                        # phase-57.1 (F-8): pass the per-cycle precomputed
+                        # sector context (empty when the flag is OFF).
+                        analysis = await _run_single_analysis(
+                            ticker, settings, portfolio_context=_rj_portfolio_ctx,
+                        )
                     except Exception as exc:
                         logger.error(f"Failed to analyze {kind} {ticker}: {exc}")
                         return None
@@ -1091,6 +1106,10 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # decider so the trade record captures momentum/RSI/composite_score and
             # all signal-stack overlays in the rationale.
             candidates_by_ticker = {c["ticker"]: c for c in candidates if c.get("ticker")}
+            # phase-57.1 (F-3): blocked-BUY out-channel for the binding
+            # RiskJudge gate -- surfaced on the cycle summary for the event
+            # study / DoD-7 evidence trail.
+            _rj_blocked: list[dict] = []
             orders = decide_trades(
                 current_positions=positions,
                 candidate_analyses=candidate_analyses,
@@ -1098,7 +1117,14 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 portfolio_state=portfolio_state,
                 settings=settings,
                 candidates_by_ticker=candidates_by_ticker,
+                blocked_out=_rj_blocked,
             )
+            if _rj_blocked:
+                summary["risk_judge_blocked"] = _rj_blocked
+                logger.warning(
+                    "BINDING RiskJudge gate blocked %d BUY(s) this cycle: %s",
+                    len(_rj_blocked), [b["ticker"] for b in _rj_blocked],
+                )
 
             # ── Step 7: Execute trades ───────────────────────────────
             logger.info(f"Paper trading: Step 7 -- Executing {len(orders)} trades")
@@ -1402,7 +1428,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 logger.warning(f"drawdown_alarm dispatch failed: {_dd_err}")
 
 
-async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict]:
+async def _run_single_analysis(
+    ticker: str, settings: Settings, portfolio_context: str | None = None,
+) -> Optional[dict]:
     """Run a single analysis and extract key fields for trade decisions.
 
     phase-23.1.12: branches on `settings.lite_mode`:
@@ -1415,13 +1443,19 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
 
     Cost containment is via `paper_max_daily_cost_usd` cap in the calling
     cycle loop -- not via silent forced-lite.
+
+    phase-57.1 (F-8): `portfolio_context` is the per-cycle precomputed sector
+    summary threaded into the lite RiskJudge prompt (computed ONCE in the
+    cycle, never fetched per ticker). None/"" + flag OFF = byte-identical.
     """
     if settings.lite_mode:
         try:
             # phase-27.3 (C2): dispatch by configured standard model. Was hardcoded
             # to _run_claude_analysis which refused non-Claude models, leaving
             # gemini-* selections with no lite fallback.
-            return await _select_lite_analyzer(settings.gemini_model)(ticker, settings)
+            return await _select_lite_analyzer(settings.gemini_model)(
+                ticker, settings, portfolio_context=portfolio_context or "",
+            )
         except Exception as e:
             logger.warning("Lite analysis failed for %s (lite_mode=True): %s", ticker, e)
             return None
@@ -1500,7 +1534,9 @@ async def _run_single_analysis(ticker: str, settings: Settings) -> Optional[dict
     # Last-resort fallback: try lite path so the cycle still produces a decision.
     # phase-27.3 (C2): provider-aware via _select_lite_analyzer.
     try:
-        return await _select_lite_analyzer(settings.gemini_model)(ticker, settings)
+        return await _select_lite_analyzer(settings.gemini_model)(
+            ticker, settings, portfolio_context=portfolio_context or "",
+        )
     except Exception as e:
         logger.error("Both full and lite paths failed for %s: %s", ticker, e)
         return None
@@ -1546,6 +1582,69 @@ _LITE_RISK_DEFAULT = {
     "reasoning": "risk-judge parse failed; falling back to conservative default sizing",
     "risk_limits": {"stop_loss_pct": 10.0, "max_drawdown_pct": 15.0},
 }
+
+
+def _build_risk_judge_system(settings) -> str:
+    """phase-57.1 (55.3 finding F-8): the system prompt's CONCENTRATION axis
+    hardcoded a phantom '10% of portfolio in one sector' while the configured
+    cap is paper_max_per_sector_nav_pct (30.0 default). Behind the SAME flag
+    as the binding gate -- never bind on a blind judge (GuardAgent: a guard
+    must be given its inputs). Flag OFF returns the verbatim constant so the
+    rendered prompt is byte-identical."""
+    if not getattr(settings, "paper_risk_judge_reject_binding", False):
+        return _LITE_RISK_JUDGE_SYSTEM
+    cap = float(getattr(settings, "paper_max_per_sector_nav_pct", 30.0) or 30.0)
+    return _LITE_RISK_JUDGE_SYSTEM.replace(
+        "exceed 10% of portfolio in one sector",
+        f"exceed {cap:.0f}% of portfolio NAV in one sector",
+    )
+
+
+def _build_risk_judge_template(settings, portfolio_context: str = "") -> str:
+    """phase-57.1 (F-8): flag ON injects a live portfolio sector-breakdown
+    line so the judge stops reasoning blind ('no current portfolio sector
+    breakdown was provided' -- every away-week rationale). Flag OFF returns
+    the verbatim constant (byte-identity; no new .format key on that path)."""
+    if not getattr(settings, "paper_risk_judge_reject_binding", False):
+        return _LITE_RISK_JUDGE_TEMPLATE
+    context_line = (
+        f"Current portfolio context: {portfolio_context}\n" if portfolio_context else ""
+    )
+    return _LITE_RISK_JUDGE_TEMPLATE.replace(
+        "Trader recommendation: {trader_action} (confidence: {trader_confidence})\n\n",
+        "Trader recommendation: {trader_action} (confidence: {trader_confidence})\n"
+        + context_line.replace("{", "{{").replace("}", "}}")
+        + "\n",
+    )
+
+
+def _build_portfolio_sector_context(positions: list[dict]) -> str:
+    """phase-57.1 (F-8): compact sector-weight summary computed ONCE per cycle
+    (positions are identical for every ticker in the fan-out; per-ticker BQ
+    reads would be N redundant calls + a race). Uses the same
+    quantity*(current_price or avg_entry_price) fallback idiom as the
+    paper_trader marks (mark_to_market has not yet run at the call site)."""
+    weights: dict[str, float] = {}
+    total = 0.0
+    for pos in positions or []:
+        try:
+            qty = float(pos.get("quantity") or 0)
+            px = float(pos.get("current_price") or pos.get("avg_entry_price") or 0)
+            val = qty * px
+        except (TypeError, ValueError):
+            continue
+        if val <= 0:
+            continue
+        sector = (pos.get("sector") or "Unknown").strip() or "Unknown"
+        weights[sector] = weights.get(sector, 0.0) + val
+        total += val
+    if total <= 0:
+        return "no open positions (all cash)"
+    parts = [
+        f"{sector} {val / total * 100:.1f}%"
+        for sector, val in sorted(weights.items(), key=lambda kv: -kv[1])
+    ]
+    return "invested-book sector weights: " + "; ".join(parts)
 
 
 def _select_lite_analyzer(model_name):
@@ -1633,8 +1732,14 @@ def _log_claude_code_call(
         logger.debug("claude-code llm_call_log metering failed (non-fatal): %s", exc)
 
 
-async def _run_claude_analysis(ticker: str, settings: Settings) -> dict:
-    """Lightweight Claude-based analysis for paper trading decisions."""
+async def _run_claude_analysis(
+    ticker: str, settings: Settings, portfolio_context: str = "",
+) -> dict:
+    """Lightweight Claude-based analysis for paper trading decisions.
+
+    phase-57.1 (F-8): `portfolio_context` is the per-cycle sector summary for
+    the RiskJudge prompt; consumed only when paper_risk_judge_reject_binding
+    is ON (the prompt builders return verbatim constants when OFF)."""
     import anthropic
     import yfinance as yf
 
@@ -1770,7 +1875,11 @@ Respond in this exact JSON format:
     # along volatility/concentration/valuation axes -- it does NOT validate
     # the trader's recommendation. Cost impact: ~$0.003/ticker, already
     # accounted in the existing $0.01/ticker ceiling.
-    risk_prompt = _LITE_RISK_JUDGE_TEMPLATE.format(
+    # phase-57.1 (F-8): builders return the verbatim constants when the flag
+    # is OFF (byte-identical prompts); flag ON corrects the cap + injects the
+    # per-cycle sector context.
+    _rj_system = _build_risk_judge_system(settings)
+    risk_prompt = _build_risk_judge_template(settings, portfolio_context).format(
         ticker=ticker,
         name=name,
         sector=sector,
@@ -1793,7 +1902,7 @@ Respond in this exact JSON format:
                     claude_code_invoke,
                     risk_prompt,
                     max_tokens=300,
-                    system=_LITE_RISK_JUDGE_SYSTEM,
+                    system=_rj_system,
                     timeout_s=120,
                 )
                 risk_text = extract_result_text(risk_envelope).strip()
@@ -1811,7 +1920,7 @@ Respond in this exact JSON format:
                 client.messages.create,
                 model=model_name,
                 max_tokens=300,
-                system=_LITE_RISK_JUDGE_SYSTEM,
+                system=_rj_system,
                 messages=[{"role": "user", "content": risk_prompt}],
             )
             risk_text = risk_response.content[0].text.strip()
@@ -1882,7 +1991,9 @@ Respond in this exact JSON format:
     }
 
 
-async def _run_gemini_analysis(ticker: str, settings: Settings) -> dict:
+async def _run_gemini_analysis(
+    ticker: str, settings: Settings, portfolio_context: str = "",
+) -> dict:
     """Lightweight Gemini-based analysis for paper trading decisions.
 
     phase-27.3 (C2): mirror of `_run_claude_analysis` for non-Claude standard
@@ -1975,10 +2086,11 @@ Respond ONLY with valid JSON, no prose. Schema:
     )
 
     # Risk Judge — independent second call. Same system prompt as Claude path.
+    # phase-57.1 (F-8): builders return verbatim constants when the flag is OFF.
     risk_prompt = (
-        _LITE_RISK_JUDGE_SYSTEM
+        _build_risk_judge_system(settings)
         + "\n\n"
-        + _LITE_RISK_JUDGE_TEMPLATE.format(
+        + _build_risk_judge_template(settings, portfolio_context).format(
             ticker=ticker,
             name=name,
             sector=sector,

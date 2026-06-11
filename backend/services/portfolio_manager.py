@@ -57,6 +57,7 @@ def decide_trades(
     portfolio_state: dict,
     settings: Settings,
     candidates_by_ticker: dict[str, dict] | None = None,
+    blocked_out: list[dict] | None = None,
 ) -> list[TradeOrder]:
     """
     Decide which trades to execute.
@@ -67,6 +68,10 @@ def decide_trades(
         holding_analyses: Analysis results for current holdings (re-evaluation)
         portfolio_state: Dict with keys: nav, cash, positions_value, position_count
         settings: App settings
+        blocked_out: phase-57.1 (F-3) optional out-channel -- when the binding
+            RiskJudge gate drops a REJECT candidate, a dict per blocked BUY is
+            appended here so the cycle summary can surface it. Backward
+            compatible: callers that pass nothing lose only observability.
 
     Returns:
         List of TradeOrders (sells first, then buys)
@@ -177,6 +182,35 @@ def decide_trades(
             full_report = analysis.get("full_report") or {}
             md = full_report.get("market_data") or {}
             cand_sector = md.get("sector") or analysis.get("sector") or ""
+
+        # phase-57.1 (55.3 finding F-3): BINDING RiskJudge gate. The away week
+        # executed 3 REJECT BUYs -- all via the swap path, so the gate sits
+        # HERE at the candidate-build chokepoint (the common ancestor feeding
+        # both the main BUY-emit loop and, via sector_blocked, the swap path;
+        # SEC 15c3-5(d) non-bypassable placement). REJECT-only: REDUCED/HEDGED
+        # remain advisory sizing. Budget reallocates by construction -- a
+        # dropped candidate never enters buy_candidates, so the next-ranked
+        # survivor draws its cash in the emit loop. Flag default-OFF.
+        _rj_decision = (risk_assessment.get("decision", "") or "")
+        if (
+            _rj_decision == "REJECT"
+            and getattr(settings, "paper_risk_judge_reject_binding", False)
+        ):
+            logger.warning(
+                "BINDING RiskJudge gate: BLOCKED BUY %s (decision=REJECT, "
+                "final_score=%s) -- paper_risk_judge_reject_binding=ON (F-3)",
+                ticker, round(float(final_score or 0), 3),
+            )
+            if blocked_out is not None:
+                blocked_out.append({
+                    "ticker": ticker,
+                    "decision": _rj_decision,
+                    "reason": risk_assessment.get("reason")
+                    or risk_assessment.get("reasoning") or "",
+                    "final_score": final_score,
+                })
+            continue
+
         buy_candidates.append({
             "ticker": ticker,
             "recommendation": rec,

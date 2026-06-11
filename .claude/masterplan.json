@@ -14198,7 +14198,7 @@
     {
       "id": "phase-57",
       "name": "Evidence-selected improvement (operator pick 2026-06-11: 'PHASE-57: FEATURE'): Binding RiskJudge gate + concentration-aware sizing. Converts the lite-path RiskJudge REJECT from advisory-only (55.3 finding F-3: 3 away-week REJECTs executed, all via the swap path) into a config-gated, default-OFF binding pre-execution gate at the candidate-build chokepoint, and injects the live portfolio sector breakdown + the real configured cap into the judge prompts (F-8: phantom '10%' vs configured 30%; judge reasons blind). Grounded in SEC 15c3-5 pre-execution-control doctrine, ESMA Feb 2026 hard-vs-soft limit guidance, and the 55.3 strategic chapter (reliability features beat analytical depth). Default-OFF; byte-identical flag-OFF including prompts; NO live flag flip inside phase-57.",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-55"
       ],
@@ -14207,7 +14207,7 @@
         {
           "id": "57.1",
           "name": "Binding RiskJudge gate + concentration-aware prompt context -- flag-gated REJECT drop at the portfolio_manager candidate-build loop (covers BOTH the main BUY path and the swap path that executed all 3 real-world REJECTs), budget-reallocating by construction; prompt builders behind the SAME flag replace the phantom 10% with the configured paper_max_per_sector_nav_pct and inject a per-cycle-computed sector-breakdown line into the lite RiskJudge context (Claude + Gemini twins); stored-data event study of the 3 executed REJECTs; regression + OFF-identity + prompt-content + single-compute tests.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "56.2",

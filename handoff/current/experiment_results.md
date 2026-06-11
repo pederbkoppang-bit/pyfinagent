@@ -1,44 +1,37 @@
-# Experiment Results — Step 56.2 (GENERATE)
+# Experiment Results — Step 57.1 (GENERATE)
 
-**Step:** 56.2 — Ops fixes. **Date:** 2026-06-10. **Mode:** finding-ID-driven fix work; do-no-harm (observability/ops layer only).
+**Step:** 57.1 — Binding RiskJudge gate + concentration-aware prompt context (phase-57 FEATURE; operator pick verbatim `PHASE-57: FEATURE`). **Date:** 2026-06-11. **Mode:** config-gated default-OFF feature; NO live flag flip; do-no-harm.
 
-## What was built (11 files)
+## What was built (4 files)
 
 | File | Change | Finding |
 |---|---|---|
-| `backend/agents/claude_code_client.py` | NEW `claude_code_health_probe()` — free `claude auth status` in the scrubbed env (tests the OAuth rail, not the key); never raises | F-4 |
-| `backend/services/autonomous_loop.py` | Cycle-start rail probe + P1 alert; cycle-level degraded-scoring guard (`_degraded_scoring_check` pure predicate + alert + `summary["degraded"]`); conviction-fallback detection (`_all_conviction_fallback` + P1 alert + `summary["meta_scorer_degraded"]`, VALUE byte-identical); `_log_claude_code_call` metering on both CLI-rail legs; `_role`/`_ticker` tags on the Gemini lite path | F-4, F-5, F-7, F-6 |
-| `backend/services/ticket_queue_processor.py` | `_spawn_real_agent` honors `paper_use_claude_code_route` (CLI rail; direct SDK unchanged when off); removed a stray emoji from a comment | criterion-2 (F-4 family) |
-| `backend/slack_bot/governance.py` | Dead `approval_approve/deny` actions block removed (zero callers); typed-reply instruction instead | F-14 |
-| `backend/slack_bot/scheduler.py` | Watchdog probe timeout 10s→30s (bounded F-C fix) | F-C family |
-| `backend/services/observability/api_call_log.py` | `reset_buffer_for_test()` re-arms `_last_flush_ts` (root cause of the rainbow-canary suite-order failure) | quarantine (pollution) |
-| `backend/tests/test_phase_56_2_ops_fixes.py` | NEW: 18 tests (probe semantics, guard thresholds incl. falsy-zero regression, fallback detection + ordering byte-identity, metering, rail routing) | F-4/5/6/7, criterion-2 |
-| `pytest.ini` | NEW: registers `requires_live` marker | quarantine |
-| `backend/tests/test_agent_map_live_model.py`, `test_phase_23_2_14_no_reentrant_locks.py` | STALE assertions UPDATED (4-7→4-8; lock count 14→15 with re-audit note) | quarantine (stale) |
-| `backend/tests/test_phase_23_2_16_shortlist_doc_presence.py` | Doc path repointed to the archive | quarantine (moved doc) |
-| `backend/tests/test_phase_23_2_12_layer1_pipeline_active.py`, `test_phase_23_2_5_kill_switch_no_false_fires.py`, `test_phase_23_2_11_bq_table_freshness.py`, `test_phase_23_2_9_ticker_meta_latency.py` | `requires_live` skipifs with exact-dependency reasons | quarantine (live probes) |
-
-NO code: F-9 (operator proposal presented in live_check §D), F-8/F-3/F-18 (escalated to phase-57 per the map).
+| `backend/config/settings.py` | NEW flag `paper_risk_judge_reject_binding: bool = Field(False, ...)` (F-3/F-8-citing description; SEC 15c3-5 rationale) | F-3 |
+| `backend/services/portfolio_manager.py` | The binding gate at the candidate-build chokepoint: flag-gated `continue` on `decision == "REJECT"` BEFORE `buy_candidates.append` — the common ancestor of the main BUY loop AND the swap path (which carried all 3 real-world REJECT executions); structured warning + new backward-compatible `blocked_out` out-channel kwarg; budget reallocates by construction (dropped candidates never consume emit-loop cash) | F-3 |
+| `backend/services/autonomous_loop.py` | Prompt builders `_build_risk_judge_system/_build_risk_judge_template` (flag-OFF returns the VERBATIM constants — `is`-identity; flag-ON corrects the phantom 10% → configured 30% cap and injects the sector-context line); `_build_portfolio_sector_context` (compact sector weights, `current_price or avg_entry_price` fallback); per-cycle single compute wired at the positions read, threaded as `portfolio_context` kwarg through `_run_single_analysis` → both lite analyzers (Claude + Gemini twins, incl. the full-path lite fallback); `summary["risk_judge_blocked"]` surfacing | F-8, F-3 |
+| `backend/tests/test_phase_57_1_reject_binding.py` | NEW: 7 tests — main-path + swap-path regression fixtures (OFF emits / ON blocks), OFF order-identity, OFF prompt verbatim-constant identity, ON prompt content (cap + sector line), sector-context edges, structural single-compute assertions | C1-C4 |
 
 ## Verification command output (verbatim)
 
 ```
-$ cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -q
-749 passed, 12 skipped, 6 xfailed, 1 warning in 74.67s (0:01:14)
-$ test -f handoff/current/live_check_56.2.md && echo PASS
+$ source .venv/bin/activate && python -m pytest backend/tests -k 'reject_binding or risk_judge_binding' -q
+7 passed, 767 deselected, 1 warning in 2.37s
+$ test -f handoff/current/live_check_57.1.md && echo PASS
 PASS
 ```
 
+Full-suite regression: `756 passed, 12 skipped, 6 xfailed` (exit 0 — +7 from the new file, zero breakage; the flag-OFF default leaves every existing test untouched).
+
 ## Key outcomes
 
-1. The three silent away-week failure modes (rail down, degraded scores published, damping removed) now alert P1 to Slack at the cycle level — fail-loud per the Write-Audit-Publish / output-assertion pattern.
-2. The approve path no longer depends on the direct-API key when the system runs the Max CLI rail (root cause deeper than 55.2's bound: the route flag was never honored on this path).
-3. llm_call_log meters the CLI rail (both legs, ok=False on failure) and the Gemini lite path now stamps agent+ticker — F-E's blindness closed for future audits.
-4. Full backend pytest green with an honest, root-cause-classified quarantine (2 stale UPDATED, 7 repointed, 5 live-probes skipped-with-reasons, 1 pollution ROOT-CAUSE-FIXED).
-5. A real bug was found and fixed by the new tests themselves: the falsy-zero trap in the degraded-guard predicate (`confidence=0` was being defaulted away).
+1. **The away-week vulnerability is reproduced in a fixture and closed by the flag**: the swap-path test shows a REJECT candidate swap-buying with `risk_judge_decision == "REJECT"` on the emitted order (exactly the HPE/DELL/LG pattern) when OFF, and being blocked — with the next-ranked survivor taking the freed slot — when ON.
+2. **Event study confirmed live** (BQ, 2026-06-11): the 3 executed-REJECT trades realized −$0.81 / +$0.54 / −$23.18, net **−$23.45**, presented with the mandatory n=3 selection-bias caveat and no EV extrapolation.
+3. **Byte-identity proof is structural**: flag-OFF prompt builders return the constant OBJECTS (`is` assertions), and flag-ON == flag-OFF on REJECT-free order sets.
+4. **The judge is no longer blind when binding**: ON-mode prompts carry the real 30% cap + live sector breakdown computed once per cycle (never per-ticker — structural source-scan assertions).
+5. Effective runtime flag verified `False` post-deploy-restart context (settings loader) — **no live flip**; the operator flips after OOS observation.
 
 ## Honest limitations
 
-- The end-to-end Approve transcript needs the operator (bot-message filtering + slack-bot restart) — the criterion's one-line-operator-action branch is exercised; expected post-restart behavior documented in live_check §B.
-- The fixes take effect in the running backend/slack-bot processes at their next restart (operator window; same note as 56.1).
-- F-7's fallback VALUE deliberately unchanged (live-selection impact); the loud alert is the 56.2 deliverable, the redesign is phase-57-gated.
+- The n=3 event study is descriptive only (selection-conditioned); the gate's EV is unknowable until post-flip OOS observation — stated in the live_check and the chapter.
+- The full-pipeline (non-lite) RiskJudge path is the orchestrator's own risk debate — out of 57.1 scope (the lite path is what trades autonomously today).
+- Blocked-BUY evidence is log + cycle-summary only (no BQ table); a durable `paper_blocked_trades` table is a possible follow-on if DoD-7 wants per-block attribution.

@@ -254,6 +254,19 @@ class Settings(BaseSettings):
         le=1.0,
         description="Maximum FF3 factor cosine similarity vs portfolio avg before blocking BUY. 0.0 = disabled. Recommended live 0.85.",
     )
+    # phase-57.1 (55.3 finding F-3): binding RiskJudge gate. The away week
+    # executed 3 BUYs at risk_judge_decision='REJECT' (all via the swap path;
+    # net realized -$23.45) because the verdict was advisory-only. When True,
+    # a REJECT verdict BLOCKS the BUY at the candidate-build chokepoint
+    # (covers BOTH the main BUY path and the swap path) AND the lite RiskJudge
+    # prompts gain the configured sector cap + a live sector-breakdown line
+    # (F-8) -- one flag, coherent semantics (never bind on a blind judge).
+    # Default OFF = byte-identical behavior INCLUDING prompts. Operator flips
+    # live only after OOS validation (no flip inside phase-57).
+    paper_risk_judge_reject_binding: bool = Field(
+        False,
+        description="phase-57.1 (F-3/F-8): when True, a lite-path RiskJudge REJECT verdict BLOCKS the BUY (binding pre-execution gate per SEC 15c3-5 rejection doctrine) and the judge prompts receive the real configured sector cap + live sector breakdown. Default OFF preserves byte-identical behavior including prompts.",
+    )
     # phase-cycle-1 (2026-05-26): position-swap framework. Sell-to-buy-better
     # path so the autonomous loop doesn't idle on cash when a higher-conviction
     # candidate is sector-blocked by an existing low-conviction holding. North

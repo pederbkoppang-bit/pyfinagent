@@ -15,3 +15,11 @@
 {"ts": "2026-06-10T18:37:16.405818+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-06-10T18:37:17.585014+00:00", "event": "resume", "trigger": "manual", "details": {}}
 {"ts": "2026-06-10T18:39:18.804553+00:00", "event": "sod_snapshot", "nav": 23830.04, "date": "2026-06-10"}
+{"ts": "2026-06-11T03:30:10.759881+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T03:30:11.947754+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T03:30:11.952025+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T03:30:13.247401+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T03:35:04.070055+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T03:35:05.292153+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T03:35:05.296872+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T03:35:06.557699+00:00", "event": "resume", "trigger": "manual", "details": {}}

@@ -26853,3 +26853,14 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 - Reconciliation: divergence=3.71% alert=False (threshold=5.0%)
 **Decision:** CONDITIONAL -- kept with warning
 **Total cycle time:** 0s
+
+## Cycle 48 -- 2026-06-11 -- phase=57.1 result=PASS (binding RiskJudge gate + concentration-aware prompt context -- CLOSES phase-57)
+
+- **OPERATOR GATE:** installed per the verbatim reply 'PHASE-57: FEATURE' (2026-06-11; install commit af4aa8d6 records it). Companion reply 'LLM SPEND: APPROVED $25' recorded in live_check_58.1.md; backfill + F-9 approvals also executed/recorded this session.
+- **RESEARCH:** researcher (complex) -- 6 sources read in full (17 CFR 240.15c3-5 primary, ESMA Feb-2026 supervisory briefing, arXiv:2604.01483 deterministic guardrails, GuardAgent 2406.09187, Ahern 2006 selection bias, arXiv:2511.15123), 16 URLs, recency scan. DECISIVE: all 3 executed-REJECT BUYs were swap_buy -- gate must sit at the candidate-build chokepoint, not the BUY-emit loop. Event study BQ-confirmed: HPE -0.81 / DELL +0.54 / 066570.KS -23.18, net -23.45.
+- **PLAN:** contract.md, 6 criteria verbatim (authored into the payload from the brief, pytest path corrected pre-install).
+- **GENERATE (4 files):** settings flag paper_risk_judge_reject_binding (default OFF); the binding gate at portfolio_manager candidate-build (REJECT-only; budget reallocates by construction; blocked_out out-channel + summary['risk_judge_blocked']); prompt builders behind the SAME flag (verbatim-constant `is`-identity when OFF; configured 30% cap + per-cycle sector context when ON -- never bind on a blind judge); context computed ONCE per cycle, threaded as kwarg (both lite analyzers + the full-path fallback); 7 new tests (both-path regression fixtures, OFF order+prompt identity, ON prompt content, sector-context edges, structural single-compute).
+- **VERIFY:** selector 7 passed exit 0; FULL suite 756 passed, 12 skipped, 6 xfailed exit 0; effective flag False (no live flip).
+- **EVALUATE:** ONE fresh Q/A -- PASS, ok:true. Topology independently verified (sector_blocked populated solely from buy_candidates; grep: no third BUY-emission path); event study reproduced against live BQ to the cent; mutation-resistance confirmed on all 3 planted scenarios; format-safety escape correct; 5/5 harness compliance.
+- **Files:** backend/config/settings.py, backend/services/{portfolio_manager,autonomous_loop}.py, backend/tests/test_phase_57_1_reject_binding.py + handoff/current/{contract,experiment_results,evaluator_critique,live_check_57.1}.md.
+- **Next:** 58.1 window evidence accumulation (the $25 live window is running; DoD re-scores close the step + the goal).
