@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-11 | `96b52299` | feat(models): phase-59.1 Fable 5 adoption -- PASS (L3 researcher/qa model:fable + caps 40/30; L2 mas |
 | 2026-06-11 | `d04b57e8` | feat(masterplan): install phase-59 Fable-5 adoption + MCP audit (operator-directed 2026-06-11; 8 in- |
 | 2026-06-11 | `06d4ee3e` | docs(handoff): post-checkpoint state -- phase-57 shipped, $25 window running, ask list refreshed |
 | 2026-06-11 | `78b264bf` | feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware prompt context -- PASS (F-3/F-8; |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-10 | `433fe1d5` | chore: commit hook-generated audit appends pre-merge |
 | 2026-06-10 | `946183b` | chore: commit hook-generated changelog/audit appends |
 | 2026-06-10 | `09275a4` | docs(goal): harden goal-post-away-review criteria per dual review (researcher max + QA) |
-| 2026-06-10 | `9d9ba49` | chore: commit hook-generated audit appends |
 
 ---
 
+### v6.43.0 — feat(models): phase-59.1 Fable 5 adoption -- PASS (L3 researcher/qa m... (2026-06-11)
+
+- **feat(models): phase-59.1 Fable 5 adoption -- PASS (L3 researcher/qa model:fable + caps 40/30; L2 mas**
 ### v6.42.0 — feat(masterplan): install phase-59 Fable-5 adoption + MCP audit (oper... (2026-06-11)
 
 - **feat(masterplan): install phase-59 Fable-5 adoption + MCP audit (operator-directed 2026-06-11; 8 in-**
