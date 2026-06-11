@@ -50,6 +50,7 @@ from backend.agents.risk_debate import run_risk_debate
 from backend.agents.schemas import SynthesisReport, CriticVerdict, RiskJudgeVerdict
 from backend.agents.trace import AnalysisContext, DecisionTrace, TraceCollector, hash_input
 from backend.config import prompts
+from backend.config.model_tiers import GEMINI_WORKHORSE
 from backend.config.settings import Settings
 from backend.tools import (
     alphavantage,
@@ -319,6 +320,68 @@ def _compute_portfolio_sector_exposure(
     }
 
 
+def _resolve_step_timeout(model, timeout: int, is_grounded: bool) -> int:
+    """phase-60.1 (AW-4): per-step LLM budget, adjusted for what the call
+    actually is. Two live-observed failure legs (2026-06-11):
+
+    1. Grounded multi-tool calls on gemini-2.5-flash (the post-retirement
+       workhorse) have higher tail latency than the old gemini-2.0-flash --
+       the SAME grounded step finished in ~30s on one run and blew 3x90s on
+       the next. Grounded calls at the 90s default get 180s.
+    2. Rails declare their own latency profile via an optional
+       `recommended_step_timeout` class attribute. The Claude Code CLI
+       rail's round-trip is 60-90s (88.9s observed) with an internal 120s
+       subprocess timeout -- a 90s step budget races the rail itself and
+       produced the away week's per-step timeouts.
+
+    Callers passing an explicit non-default timeout are respected (only
+    ever raised, never lowered).
+    """
+    if is_grounded and timeout == 90:
+        timeout = 180
+    rail_min = int(getattr(model, "recommended_step_timeout", 0) or 0)
+    if rail_min > timeout:
+        timeout = rail_min
+    return timeout
+
+
+def _quant_from_yfinance(ticker: str, yf_data: dict | None) -> dict:
+    """phase-60.1 (AW-4): yfinance-only quant report for non-SEC markets.
+
+    The quant Cloud Function hard-aborts at its SEC-CIK stage for
+    yfinance-suffixed international symbols (005930.KS etc. -- "not found
+    in SEC CIK mapping"), which during the away week killed the WHOLE full
+    pipeline for every KR ticker. This builds a CF-shape-compatible quant
+    dict from `yfinance_tool.get_comprehensive_financials` alone so the
+    26+ market-agnostic agents can still run. SEC-only fields are explicit
+    Nones with a source string that says why -- never silently invented.
+    """
+    yf = yf_data or {}
+    val = yf.get("valuation") or {}
+    return {
+        "ticker": ticker.upper(),
+        "cik": None,
+        "company_name": yf.get("company_name") or ticker,
+        "sector": yf.get("sector", ""),
+        "industry": yf.get("industry", ""),
+        "part_1_financials": {
+            "source": "yfinance only -- SEC EDGAR skipped (non-US listing, phase-60.1 KR-aware skip)",
+            "latest_revenue": None,
+            "latest_net_income": None,
+        },
+        "part_5_valuation": {
+            "source": "yfinance",
+            "market_price": val.get("Current Price") or val.get("currentPrice"),
+            "market_cap": val.get("Market Cap") or val.get("marketCap"),
+            "pe_ratio": val.get("P/E Ratio") or val.get("trailingPE"),
+            "ps_ratio": None,
+            "latest_eps_diluted": None,
+            "historical_prices": None,
+        },
+        "yf_data": yf,
+    }
+
+
 def _build_fact_ledger(quant_data: dict) -> dict:
     """Build typed fact dict from Step 2 quant + yfinance data.
 
@@ -379,7 +442,10 @@ class AnalysisOrchestrator:
 
     # Default Gemini model used for Google-only features (RAG, Search Grounding)
     # when the user selects a non-Gemini provider as standard/deep-think model.
-    _GEMINI_FALLBACK = "gemini-2.0-flash"
+    # phase-60.1 (AW-4): sourced from model_tiers.GEMINI_WORKHORSE -- the old
+    # literal gemini-2.0-flash was discontinued server-side 2026-06-01 and
+    # 404'd every full-pipeline run for the away week.
+    _GEMINI_FALLBACK = GEMINI_WORKHORSE
 
     # phase-27.6.1: per-host throttle for the Ingestion Agent Cloud Function
     # (which fetches https://www.sec.gov/files/company_tickers.json). Cap at
@@ -394,6 +460,16 @@ class AnalysisOrchestrator:
     def _resolve_gemini(model_name: str) -> str:
         """Return a valid Gemini model name; falls back when non-Gemini is selected."""
         return model_name if model_name.startswith("gemini-") else AnalysisOrchestrator._GEMINI_FALLBACK
+
+    @staticmethod
+    def _is_sec_covered(ticker: str) -> bool:
+        """phase-60.1 (AW-4): True iff SEC EDGAR (CIK map + companyfacts +
+        filings) can serve this symbol. yfinance-suffixed international
+        listings (005930.KS, SAP.DE, ...) are NOT in the SEC CIK mapping;
+        calling the SEC-bound stages for them aborts the full pipeline.
+        Suffix is the source of truth per backend.backtest.markets."""
+        from backend.backtest.markets import market_for_symbol
+        return market_for_symbol(ticker) == "US"
 
     def __init__(
         self,
@@ -440,7 +516,7 @@ class AnalysisOrchestrator:
         # to the fail-open path inside GeminiClient.generate_content.
 
         # Resolve Gemini model names for Google-only features (RAG, grounding, Vertex fallback)
-        # When user selects a non-Gemini model (Claude, GPT, etc.), these stay on gemini-2.0-flash
+        # When user selects a non-Gemini model (Claude, GPT, etc.), these stay on GEMINI_WORKHORSE
         deep_model_name = settings.deep_think_model or settings.gemini_model
         _gemini_standard = self._resolve_gemini(settings.gemini_model)
         _gemini_deep = self._resolve_gemini(deep_model_name)
@@ -682,6 +758,10 @@ class AnalysisOrchestrator:
         delay = 5
         model_name = model.model_name
         ct = getattr(self, "_cost_tracker", None)
+
+        # phase-60.1 (AW-4): model/rail-appropriate step budget (see
+        # _resolve_step_timeout for the two live-observed failure legs).
+        timeout = _resolve_step_timeout(model, timeout, is_grounded)
 
         # phase-25.S.1: pluck the orchestrator-side `_ticker` from
         # generation_config so the cost-tracker entry is tagged with the
@@ -1507,6 +1587,19 @@ class AnalysisOrchestrator:
         else:
             step("market_intel", "completed", f"Got {n_articles} articles from {av_source}")
 
+        # phase-60.1 (AW-4): KR-aware (non-SEC) gate. SEC-bound stages
+        # (ingestion CF, quant CF's companyfacts leg, RAG over EDGAR filings)
+        # cannot serve non-US listings -- during the away week every .KS
+        # ticker hard-aborted at the quant CF's CIK stage ("not found in SEC
+        # CIK mapping") and the WHOLE full pipeline silently fell back to the
+        # 2-call lite analyzer. Degrade EXPLICITLY instead: skip the SEC-bound
+        # stages with a persisted `skipped_stages` tag (lands in
+        # full_report_json -> auditable in BQ) and run the 26+ market-agnostic
+        # agents on yfinance fundamentals.
+        _sec_covered = self._is_sec_covered(ticker)
+        if not _sec_covered:
+            report["skipped_stages"] = []
+
         # Step 1: Ingestion agent
         # phase-27.6.6: best-effort ingestion. Cloud Function re-fetches SEC's
         # CIK map per call and hits 429 (cycle d73f5129, cycle #10) — that's a
@@ -1516,25 +1609,43 @@ class AnalysisOrchestrator:
         # GCS-cached filings from prior cycles; only NEWLY-added filings since
         # the last successful ingestion would be missing for THIS cycle.
         step("ingestion", "started", "Checking for new filings...")
-        try:
-            await self.run_ingestion_agent(ticker)
-            step("ingestion", "completed", "Filings up to date")
-        except Exception as _ingestion_exc:
-            logger.warning(
-                "Ingestion best-effort failure for %s (continuing with cached filings): %s",
-                ticker, _ingestion_exc,
-            )
-            step(
-                "ingestion",
-                "completed",
-                f"Best-effort skip — using cached filings ({type(_ingestion_exc).__name__})",
-            )
+        if not _sec_covered:
+            report["skipped_stages"].append({
+                "stage": "ingestion_sec",
+                "reason": "non-US listing: SEC EDGAR has no filings for this symbol",
+            })
+            step("ingestion", "completed", "Skipped -- non-SEC market (no EDGAR filings)")
+        else:
+            try:
+                await self.run_ingestion_agent(ticker)
+                step("ingestion", "completed", "Filings up to date")
+            except Exception as _ingestion_exc:
+                logger.warning(
+                    "Ingestion best-effort failure for %s (continuing with cached filings): %s",
+                    ticker, _ingestion_exc,
+                )
+                step(
+                    "ingestion",
+                    "completed",
+                    f"Best-effort skip — using cached filings ({type(_ingestion_exc).__name__})",
+                )
 
         # Step 2: Quant agent
         step("quant", "started", "Fetching financial data...")
-        report["quant"] = await self.run_quant_agent(ticker)
+        if _sec_covered:
+            report["quant"] = await self.run_quant_agent(ticker)
+            step("quant", "completed", "Financial data collected")
+        else:
+            _yf_only = await asyncio.to_thread(
+                yfinance_tool.get_comprehensive_financials, ticker
+            )
+            report["quant"] = _quant_from_yfinance(ticker, _yf_only)
+            report["skipped_stages"].append({
+                "stage": "quant_cf_sec",
+                "reason": "non-US listing: not in SEC CIK mapping; fundamentals from yfinance only",
+            })
+            step("quant", "completed", "SEC quant skipped (non-US listing) -- yfinance fundamentals only")
         company_name = report["quant"].get("company_name", ticker)
-        step("quant", "completed", "Financial data collected")
 
         # Session memory: capture key quant findings
         quant = report["quant"]
@@ -1577,7 +1688,18 @@ class AnalysisOrchestrator:
 
         # Step 3: RAG agent
         step("rag", "started", "Analyzing 10-K/10-Q documents...")
-        report["rag"] = await asyncio.to_thread(self.run_rag_agent, ticker)
+        if not _sec_covered:
+            # phase-60.1 (AW-4): the RAG corpus is SEC filings; a non-US
+            # symbol has no documents there. Skip the LLM call entirely
+            # (cheaper AND honest) with the same persisted tag shape.
+            report["rag"] = {"text": "", "citations": []}
+            report["skipped_stages"].append({
+                "stage": "rag_sec_filings",
+                "reason": "non-US listing: RAG corpus is SEC 10-K/10-Q only",
+            })
+            step("rag", "completed", "Skipped -- non-SEC market (no EDGAR corpus)")
+        else:
+            report["rag"] = await asyncio.to_thread(self.run_rag_agent, ticker)
         # phase-4.14.15 (MF-32): surface RAG rows as Anthropic
         # search_result content blocks so downstream Claude synthesis
         # can emit native cited_text anchors. The Gemini-first pipeline
@@ -1589,7 +1711,8 @@ class AnalysisOrchestrator:
             report["rag"]["search_result_blocks"] = bq_rows_to_search_results(
                 _rag_rows, table_id="pyfinagent_data.filings_rag",
             )
-        step("rag", "completed", "Document analysis complete")
+        if _sec_covered:
+            step("rag", "completed", "Document analysis complete")
 
         # Step 4: Market agent
         step("market", "started", "Analyzing sentiment...")

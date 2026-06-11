@@ -103,7 +103,8 @@ def test_gemini_locked_roles_set_is_correct():
     NOT locked (operator override propagates to those Layer-1 skills)."""
     assert set(_GEMINI_LOCKED_ROLES) == {"gemini_enrichment", "gemini_deep_think"}
     # Sanity: layer1_swappable exists in _BUILD_TIER (added phase-22.1) and
-    # defaults to gemini-2.0-flash but is NOT in the locked set.
+    # defaults to the Gemini workhorse (gemini-2.5-flash since phase-60.1)
+    # but is NOT in the locked set.
     assert "layer1_swappable" in _BUILD_TIER
     assert _BUILD_TIER["layer1_swappable"].startswith("gemini-")
     assert "layer1_swappable" not in _GEMINI_LOCKED_ROLES

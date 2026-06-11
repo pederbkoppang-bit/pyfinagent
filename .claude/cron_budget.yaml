@@ -32,7 +32,7 @@ updated_at: 2026-04-25T00:00:00Z
 
 # phase-10.7.4: Cron Budget Allocator (slot governance authority).
 # total_daily_token_budget caps the sum of allocator outputs across all
-# enabled slots for a single 24h cycle. ~$0.30/day at gemini-2.0-flash.
+# enabled slots for a single 24h cycle. ~$0.30/day at the Gemini flash workhorse tier (gemini-2.5-flash since phase-60.1).
 # Allocator: proportional WFQ (stride-style) by priority weight, with
 # per-slot min/max clamps. See backend/meta_evolution/cron_allocator.py.
 total_daily_token_budget: 100000

@@ -202,6 +202,11 @@ def run_analysis_task(self, ticker: str):
             if not isinstance(neutral_analyst, dict):
                 neutral_analyst = {}
 
+            # phase-60.1 (AW-4): stamp full-path provenance so manual-path rows
+            # carry the same `_path` tag the autonomous path persists -- the
+            # digest/reports surfaces read JSON_VALUE(full_report_json,'$._path').
+            if isinstance(report, dict):
+                report.setdefault("_path", "full")
             bq.save_report(
                 ticker=ticker,
                 company_name=quant.get("company_name", "N/A"),

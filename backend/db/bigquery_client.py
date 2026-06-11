@@ -258,14 +258,18 @@ class BigQueryClient:
         # phase-25.H: dedup by ticker before LIMIT so digests don't show "5x SNDK".
         # Pattern: rank rows per ticker by analysis_date DESC, then keep rank=1 only.
         # Closes phase-24.5 audit F-3.
+        # phase-60.1 (AW-4): analysis_path surfaces the lite/full provenance
+        # tag (_persist_analysis stamps `_path` into full_report_json). NULL
+        # for rows persisted before the tag existed.
         query = f"""
             WITH ranked AS (
                 SELECT
                     ticker, company_name, analysis_date, final_score, recommendation, summary,
+                    JSON_VALUE(full_report_json, '$._path') AS analysis_path,
                     ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY analysis_date DESC) AS rk
                 FROM `{self.reports_table}`
             )
-            SELECT ticker, company_name, analysis_date, final_score, recommendation, summary
+            SELECT ticker, company_name, analysis_date, final_score, recommendation, summary, analysis_path
             FROM ranked
             WHERE rk = 1
             ORDER BY analysis_date DESC

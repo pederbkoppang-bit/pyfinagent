@@ -116,8 +116,8 @@ _NODE_ID_TO_ROLE: dict[str, str] = {
 def _inject_live_model(node: dict[str, Any]) -> dict[str, Any]:
     """Add `live_model` to the node by resolving the operator's runtime model.
 
-    Locked nodes (gemini_locked=true) always return their static gemini-2.0-flash
-    regardless of operator override. Non-LLM nodes and nodes not in the
+    Locked nodes (gemini_locked=true) always return their static Gemini
+    workhorse pin regardless of operator override (phase-60.1: gemini-2.5-flash). Non-LLM nodes and nodes not in the
     role map fall through with no live_model field added.
 
     Returns the node dict (mutated in place is also fine; we return a copy
@@ -128,7 +128,8 @@ def _inject_live_model(node: dict[str, Any]) -> dict[str, Any]:
 
     # Hard-locked nodes always show their static gemini model
     if node.get("gemini_locked"):
-        out["live_model"] = node.get("model") or "gemini-2.0-flash"
+        # phase-60.1 (AW-4): fallback repinned from the discontinued gemini-2.0-flash.
+        out["live_model"] = node.get("model") or "gemini-2.5-flash"
         return out
 
     role = _NODE_ID_TO_ROLE.get(node_id)
@@ -153,7 +154,7 @@ def get_agent_map() -> dict[str, Any]:
     phase-22.1: each node now carries a `live_model` field reflecting the
     operator's actual runtime model (respecting Settings overrides via
     resolve_model()). Locked nodes (gemini_locked=true) always show their
-    static gemini-2.0-flash. The original static `model` field is preserved
+    static Gemini workhorse pin. The original static `model` field is preserved
     for backward compat.
     """
     if not INVENTORY_PATH.exists():

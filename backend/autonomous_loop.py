@@ -72,7 +72,8 @@ class AutonomousLoopOrchestrator:
         project_id: str,
         dataset_id: str = "trading",
         planner_model: str = "claude-opus-4-8",
-        evaluator_model: str = "gemini-2.0-flash",
+        # phase-60.1 (AW-4): repinned from the discontinued gemini-2.0-flash.
+        evaluator_model: str = "gemini-2.5-flash",
     ):
         """Initialize orchestrator."""
         self.project_id = project_id

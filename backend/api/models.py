@@ -96,6 +96,10 @@ class ReportSummary(BaseModel):
     final_score: float
     recommendation: str
     summary: str
+    # phase-60.1 (AW-4): lite/full provenance ("lite" | "full" | None for
+    # rows persisted before the tag existed). The away week showed
+    # identical-looking 7.0/10 digest rows from the 2-call lite wrapper.
+    analysis_path: Optional[str] = None
 
 
 class PerformanceStats(BaseModel):

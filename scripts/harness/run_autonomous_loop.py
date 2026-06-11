@@ -71,7 +71,7 @@ async def run_autonomous_loop(
             project_id=project_id,
             dataset_id="trading",
             planner_model="claude-opus-4-8",
-            evaluator_model="gemini-2.0-flash",
+            evaluator_model="gemini-2.5-flash",  # phase-60.1: 2.0-flash discontinued
         )
         
         orchestrator.max_iterations = max_iterations

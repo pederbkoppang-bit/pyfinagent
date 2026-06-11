@@ -21,8 +21,9 @@ _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 # Valid model names — whitelist to prevent arbitrary writes to .env
 # Includes Gemini (direct), GitHub Models catalog, Anthropic direct, OpenAI direct
 _VALID_MODELS = {
-    # Gemini (Vertex AI)
-    "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro",
+    # Gemini (Vertex AI). phase-60.1: gemini-2.0-flash removed -- discontinued
+    # server-side 2026-06-01 (selecting it guarantees 404s).
+    "gemini-2.5-flash", "gemini-2.5-pro",
     # GitHub Models — OpenAI
     "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
     "gpt-5", "gpt-5-chat", "gpt-5-mini", "gpt-5-nano",
@@ -188,8 +189,9 @@ class ModelPricing(BaseModel):
 
 AVAILABLE_MODELS = [
     # Gemini (Vertex AI) — always available via Application Default Credentials
-    {"model": "gemini-2.0-flash",  "provider": "Gemini", "input_per_1m": 0.10, "output_per_1m": 0.40},
-    {"model": "gemini-2.5-flash",  "provider": "Gemini", "input_per_1m": 0.15, "output_per_1m": 0.60},
+    # phase-60.1: gemini-2.0-flash removed (discontinued 2026-06-01); 2.5-flash
+    # pricing re-verified 2026-06-11 ($0.30/$2.50).
+    {"model": "gemini-2.5-flash",  "provider": "Gemini", "input_per_1m": 0.30, "output_per_1m": 2.50},
     {"model": "gemini-2.5-pro",    "provider": "Gemini", "input_per_1m": 1.25, "output_per_1m": 10.00},
     # GitHub Models — requires GITHUB_TOKEN + Copilot Pro subscription
     # copilot_multiplier = premium quota consumed per request (0.33x light / 1x standard / 3x premium)

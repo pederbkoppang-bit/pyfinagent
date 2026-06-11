@@ -3,7 +3,7 @@
 Verifies:
 - The endpoint injects a `live_model` field per node by calling resolve_model()
 - When apply_model_to_all_agents=True, swappable nodes get the operator's gemini_model override
-- gemini_locked nodes (RAGAgent) ALWAYS show their static gemini-2.0-flash regardless
+- gemini_locked nodes (RAGAgent) ALWAYS show their static Gemini workhorse pin regardless
 - Backward-compat: existing static `model` field is preserved
 """
 from __future__ import annotations
@@ -65,7 +65,7 @@ def test_swappable_nodes_get_default_when_override_off():
     with _patched(s):
         out = get_agent_map()
     bull = next(n for n in out["nodes"] if n["id"] == "bull_agent")
-    assert bull["live_model"] == "gemini-2.0-flash"
+    assert bull["live_model"] == "gemini-2.5-flash"
 
 
 # ----------------------
@@ -87,13 +87,13 @@ def test_override_propagates_to_swappable_layer1_skills():
 
 
 def test_locked_node_bypasses_override():
-    """RAGAgent ALWAYS shows gemini-2.0-flash regardless of operator's choice."""
+    """RAGAgent ALWAYS shows its static Gemini pin regardless of operator's choice."""
     s = _StubSettings(apply_model_to_all_agents=True, gemini_model="claude-opus-4-7")
     with _patched(s):
         out = get_agent_map()
     rag = next(n for n in out["nodes"] if n["id"] == "rag_agent")
     assert rag.get("gemini_locked") is True
-    assert rag["live_model"] == "gemini-2.0-flash"
+    assert rag["live_model"] == "gemini-2.5-flash"
 
 
 # ----------------------
@@ -106,7 +106,7 @@ def test_static_model_field_preserved():
     with _patched(s):
         out = get_agent_map()
     bull = next(n for n in out["nodes"] if n["id"] == "bull_agent")
-    assert bull.get("model") == "gemini-2.0-flash"  # static unchanged
+    assert bull.get("model") == "gemini-2.5-flash"  # static unchanged
     assert bull.get("live_model") == "claude-haiku-4-5"  # live reflects override
 
 

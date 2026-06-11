@@ -1,0 +1,96 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - img [ref=e6]
+        - generic [ref=e8]:
+          - heading "PyFinAgent" [level=1] [ref=e9]
+          - paragraph [ref=e10]: AI Financial Analyst
+      - navigation "Primary" [ref=e11]:
+        - generic [ref=e12]:
+          - button "Analyze" [ref=e13] [cursor=pointer]:
+            - generic [ref=e14]: Analyze
+            - img [ref=e15]
+          - generic [ref=e17]:
+            - link "Home" [ref=e18] [cursor=pointer]:
+              - /url: /
+              - img [ref=e19]
+              - text: Home
+            - link "Signals" [ref=e21] [cursor=pointer]:
+              - /url: /signals
+              - img [ref=e22]
+              - text: Signals
+        - generic [ref=e24]:
+          - button "Reports" [ref=e25] [cursor=pointer]:
+            - generic [ref=e26]: Reports
+            - img [ref=e27]
+          - generic [ref=e29]:
+            - link "Reports" [ref=e30] [cursor=pointer]:
+              - /url: /reports
+              - img [ref=e31]
+              - text: Reports
+            - link "Performance" [ref=e33] [cursor=pointer]:
+              - /url: /performance
+              - img [ref=e34]
+              - text: Performance
+        - generic [ref=e36]:
+          - button "Trading" [ref=e37] [cursor=pointer]:
+            - generic [ref=e38]: Trading
+            - img [ref=e39]
+          - generic [ref=e41]:
+            - link "Paper Trading" [ref=e42] [cursor=pointer]:
+              - /url: /paper-trading
+              - img [ref=e43]
+              - text: Paper Trading
+            - link "Learnings" [ref=e45] [cursor=pointer]:
+              - /url: /learnings
+              - img [ref=e46]
+              - text: Learnings
+            - link "Backtest" [ref=e48] [cursor=pointer]:
+              - /url: /backtest
+              - img [ref=e49]
+              - text: Backtest
+            - link "Sovereign" [ref=e51] [cursor=pointer]:
+              - /url: /sovereign
+              - img [ref=e52]
+              - text: Sovereign
+        - generic [ref=e54]:
+          - button "System" [ref=e55] [cursor=pointer]:
+            - generic [ref=e56]: System
+            - img [ref=e57]
+          - generic [ref=e59]:
+            - link "MAS Dashboard" [ref=e60] [cursor=pointer]:
+              - /url: /agents
+              - img [ref=e61]
+              - text: MAS Dashboard
+            - link "Agent Map" [ref=e63] [cursor=pointer]:
+              - /url: /agent-map
+              - img [ref=e64]
+              - text: Agent Map
+            - link "Cron / Logs" [ref=e66] [cursor=pointer]:
+              - /url: /cron
+              - img [ref=e67]
+              - text: Cron / Logs
+            - link "Data Freshness" [ref=e69] [cursor=pointer]:
+              - /url: /observability
+              - img [ref=e70]
+              - text: Data Freshness
+      - generic [ref=e72]:
+        - link "Settings" [ref=e73] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e74]
+          - text: Settings
+        - generic [ref=e76]:
+          - button "Passkey" [ref=e77] [cursor=pointer]:
+            - img [ref=e78]
+            - text: Passkey
+          - button "Logout" [ref=e80] [cursor=pointer]:
+            - img [ref=e81]
+            - text: Logout
+        - button "v5.13.0" [ref=e83] [cursor=pointer]: v5.13.0
+    - main [ref=e85]:
+      - generic [ref=e87]:
+        - heading "Settings" [level=2] [ref=e88]
+        - paragraph [ref=e89]: Configure models, scoring weights, cost controls, and performance

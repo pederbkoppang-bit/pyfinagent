@@ -51,6 +51,8 @@ Go-live gate baseline: 1/5 (06-01) → 2/5 (06-10 reading). Delta to be reported
 | Date | Cycle | Mode | Metered $ | Cumulative vs $25 |
 |---|---|---|---|---|
 | (append per cycle from llm_call_log — now metering the CLI rail too, F-6 fixed) | | | | |
+| 2026-06-11 | phase-60.1 live verification (NOT an autonomous cycle): 4x MU + 1x 005930.KS manual full analyses + 5 model smoke calls | full | ~$0.5-1.0 est. (Gemini legs only: RAG/grounded/quant-exec on gemini-2.5-flash + any Vertex deep-think; Claude legs on the $0 flat-fee CC rail). DISCLOSURE: Gemini calls are under-metered in llm_call_log (only the code-exec writer exists; universal Gemini logging lands in 60.4) — estimate from run shapes, not log rows. The MU row's total_cost_usd 3.776 is the cost_tracker NOMINAL (values CC-rail tokens at API prices; actual metered ≪). | ~$1 of $25 |
+| 2026-06-11 | phase-60.1 BURN-RATE NOTE (forward) | — | the repin restores the intended full pipeline (the approval contemplated full-mode cycles $1.08-4.06/cycle) AND corrects 2.5-flash pricing 0.15/0.60 → 0.30/2.50 in cost_tracker, so future per-cycle metered numbers are both real and correctly priced. | — |
 
 ## E. Operator-approved actions executed 2026-06-11 (in-session approvals, recorded verbatim)
 

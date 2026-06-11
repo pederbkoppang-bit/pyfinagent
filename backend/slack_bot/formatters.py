@@ -388,7 +388,14 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list, cron_healt
             t = r.get("ticker", "?")
             s = r.get("final_score", 0)
             rec = r.get("recommendation", "N/A")
-            lines.append(f"• *{t}*: {s:.1f}/10 — {rec}")
+            # phase-60.1 (AW-4): lite/full provenance marker. The away week
+            # showed identical-looking 7.0/10 lines from the 2-call lite
+            # wrapper; `[lite]` makes a degraded score visibly degraded.
+            # Rows persisted before the tag existed have no analysis_path
+            # and render unchanged.
+            path = r.get("analysis_path")
+            tag = f" `[{path}]`" if path in ("lite", "full") else ""
+            lines.append(f"• *{t}*: {s:.1f}/10 — {rec}{tag}")
 
         blocks.append({"type": "divider"})
         blocks.append({

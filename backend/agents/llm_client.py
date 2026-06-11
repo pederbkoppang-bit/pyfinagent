@@ -759,7 +759,7 @@ class GeminiClient(LLMClient):
             model: A `GeminiModelBundle` wrapping a google-genai client +
                 per-model config + tools. (phase-11.3: was a
                 vertexai.generative_models.GenerativeModel.)
-            model_name: String name for cost tracking (e.g. "gemini-2.0-flash").
+            model_name: String name for cost tracking (e.g. "gemini-2.5-flash").
                 Kept for backward compatibility with legacy callsites; must
                 match `model.model_name` when the bundle is non-None.
         """
@@ -936,6 +936,21 @@ class GeminiClient(LLMClient):
                     thinking_budget=budget,
                     include_thoughts=True,
                 )
+        # phase-60.1 (AW-4): Gemini 2.5 flash-family models think BY DEFAULT
+        # (dynamic budget). The repin from the no-thinking gemini-2.0-flash to
+        # gemini-2.5-flash made grounded agent calls exceed the 90s step
+        # timeout (MU market step, 3x90s timeouts, live 2026-06-11). When the
+        # caller did NOT opt into thinking, disable it explicitly (budget=0)
+        # so the workhorse behaves like the model it replaced. 2.5 -pro
+        # models REJECT budget=0 (min 128) and keep their default; the
+        # enable_thinking opt-in path above is unaffected.
+        if (
+            typed_thinking is None
+            and isinstance(bundle.model_name, str)
+            and bundle.model_name.startswith("gemini-2.5")
+            and "-pro" not in bundle.model_name
+        ):
+            typed_thinking = _genai_types.ThinkingConfig(thinking_budget=0)
 
         # 3. Assemble the top-level config.
         gc_kwargs = {}
@@ -966,7 +981,12 @@ class GeminiClient(LLMClient):
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(_do_call)
-            response = future.result(timeout=120)
+            # phase-60.1 (AW-4): hang guard raised 120 -> 240s. Per-step
+            # budgets are enforced upstream by _generate_with_retry (90s
+            # default, 180s grounded); this inner cap only catches a truly
+            # hung HTTP call and must sit ABOVE every step budget or it
+            # silently becomes the real (wrong) timeout.
+            response = future.result(timeout=240)
 
         # 5. Extract text.
         # phase-27.2 (C1): `response.text` has THREE failure modes:

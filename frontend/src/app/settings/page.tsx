@@ -76,7 +76,7 @@ function isRiskAgent(name: string): boolean {
 // ── VS Code-style Model Picker ──────────────────────────────────────────
 
 const MODEL_DISPLAY_NAMES: Record<string, string> = {
-  "gemini-2.0-flash": "Gemini 2.0 Flash",
+  "gemini-2.0-flash": "Gemini 2.0 Flash (retired 2026-06-01)",
   "gemini-2.5-flash": "Gemini 2.5 Flash",
   "gemini-2.5-pro": "Gemini 2.5 Pro",
   // OpenAI
@@ -129,7 +129,7 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
 };
 
 const PRIMARY_MODEL_NAMES = new Set([
-  "gemini-2.0-flash",
+  // phase-60.1: gemini-2.0-flash removed -- discontinued on Vertex 2026-06-01.
   "gemini-2.5-flash",
   "gpt-4.1",
   "gpt-4o",
@@ -419,7 +419,7 @@ export default function SettingsPage() {
     const debateRounds = form.max_debate_rounds ?? 2;
     const riskRounds = form.max_risk_debate_rounds ?? 1;
     const synthIter = form.max_synthesis_iterations ?? 2;
-    const stdModel = form.gemini_model ?? "gemini-2.0-flash";
+    const stdModel = form.gemini_model ?? "gemini-2.5-flash";
     const dtModel = form.deep_think_model ?? stdModel;
 
     const stdPricing = models.find((m) => m.model === stdModel) ?? models[0];

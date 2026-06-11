@@ -85,7 +85,8 @@ class EvaluatorAgent:
     Optimized for speed (<30s) and over-fitting detection.
     """
     
-    def __init__(self, model_name: str = "gemini-2.0-flash"):
+    # phase-60.1 (AW-4): repinned from the discontinued gemini-2.0-flash.
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         """Initialize evaluator with Claude/Gemini"""
         self.model_name = model_name
         self.max_eval_time = 30  # seconds

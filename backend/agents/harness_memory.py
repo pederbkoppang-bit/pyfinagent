@@ -319,7 +319,7 @@ class ObservationMasker:
 
     def __init__(
         self,
-        model_name: str = "gemini-2.0-flash",
+        model_name: str = "gemini-2.5-flash",
         harness_memory: HarnessMemory | None = None,
         trigger_pct: float = MASKING_TRIGGER_PCT,
         keep_last_n: int = KEEP_LAST_N_TURNS,
@@ -500,7 +500,7 @@ def init_session_memory(
 
 
 def create_masker(
-    model_name: str = "gemini-2.0-flash",
+    model_name: str = "gemini-2.5-flash",
     memory: HarnessMemory | None = None,
 ) -> ObservationMasker:
     """Create an observation masker for the given model."""

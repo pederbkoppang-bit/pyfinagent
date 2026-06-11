@@ -232,15 +232,18 @@ class MultiAgentOrchestrator:
                 project=settings.gcp_project_id,
                 location=getattr(settings, "gcp_location", "us-central1"),
             )
+            # phase-60.1 (AW-4): repinned from the discontinued gemini-2.0-flash.
+            from backend.config.model_tiers import GEMINI_WORKHORSE
+
             bundle = GeminiModelBundle(
                 client=g_client,
-                model_name="gemini-2.0-flash",
+                model_name=GEMINI_WORKHORSE,
             )
             self._gemini_mas_client = GeminiClient(
                 model=bundle,
-                model_name="gemini-2.0-flash",
+                model_name=GEMINI_WORKHORSE,
             )
-            logger.info("[MAS] Gemini fallback client initialized (model=gemini-2.0-flash)")
+            logger.info("[MAS] Gemini fallback client initialized (model=%s)", GEMINI_WORKHORSE)
         return self._gemini_mas_client
 
     def _gemini_text_call(self, agent_config, task):

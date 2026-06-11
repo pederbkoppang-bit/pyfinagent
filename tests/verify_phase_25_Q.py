@@ -295,7 +295,7 @@ def main() -> int:
         ]
         # MagicMock get(...) calls.
         def _row_get(key, default=None):
-            data = {"provider": "gemini", "model": "gemini-2.0-flash", "in_tok": 1000, "out_tok": 500}
+            data = {"provider": "gemini", "model": "gemini-2.5-flash", "in_tok": 1000, "out_tok": 500}
             return data.get(key, default)
         fake_rows[0].get.side_effect = _row_get
 

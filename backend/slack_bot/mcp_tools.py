@@ -201,7 +201,7 @@ def integrate_mcp_with_gemini_call(
         gemini_client,
         messages=messages,
         user_token=user_token,
-        model="gemini-2.0-flash"
+        model="gemini-2.5-flash"  # phase-60.1: 2.0-flash discontinued 2026-06-01
     )
     ```
     """

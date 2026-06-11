@@ -1,338 +1,143 @@
-# Research Brief — phase-59.3: Stress-test doctrine for the Fable 5 release
+# Research Brief — phase-60.1: Deep-pipeline restoration + honest-degradation alarm (AW-4, P0)
 
-Tier: moderate (caller-stated). Date: 2026-06-11. Researcher (Layer-3 MAS).
-Note: the caller-mandated brief shape (candidate inventory + leakage design + rubrics
-+ paste-ready prompt + verdict framework + tables) exceeds the 700-word moderate
-ceiling — same disclosed overrun as 59.2; prose kept tight.
+Tier: COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS).
+Disclosed overrun: audit tables push past the 1500-word ceiling; prose kept tight.
 
-## 0. The step (immutable criteria, verbatim from .claude/masterplan.json 59.3)
+## 1. Executive summary
 
-- `verification.command`: `test -f handoff/current/59.3-stress-test-comparison.md && test -f handoff/current/live_check_59.3.md`
-- success_criteria (verbatim):
-  1. "one representative, already-completed masterplan step is re-run WITHOUT the harness (single Fable 5 pass: no researcher/qa subagents, no contract/handoff scaffolding) and the output is saved verbatim; the chosen step and why it is representative are justified in the comparison doc"
-  2. "the comparison evaluates harness-vs-harness-free output on at least 3 named dimensions (e.g. factual accuracy/citation quality, criteria coverage, error-catching depth) with concrete examples from both artifacts, and renders a keep/prune/modify verdict for each major scaffolding component (researcher gate, contract phase, separate qa, handoff files, turn caps)"
-  3. "any prune/modify proposal is presented as an OPERATOR-GATED recommendation with expected savings and risks -- nothing is removed from the harness in this step; an honest 'keep everything' is a valid outcome"
-  4. "the comparison + verdict live in handoff/current/59.3-stress-test-comparison.md with the evidence excerpts in live_check_59.3.md"
-- live_check: REQUIRED — harness-free output excerpt + 3-dimension comparison table + per-component verdicts.
+- **Migration target:** repin to **`gemini-3.1-flash-lite`** (Google's NAMED replacement for the discontinued gemini-2.0-flash; $0.25/$1.50 per Mtok) with **`gemini-2.5-flash`** ($0.30/$2.50) as the proven-family fallback — final pick is whichever passes the immutable live-smoke on the existing `vertexai` SDK rail; if 2.5-flash is chosen, schedule re-migration before its 2026-10-16 retirement (sources: docs.cloud.google.com gemini/2-0-flash page, accessed 2026-06-11; ai.google.dev/gemini-api/docs/pricing, accessed 2026-06-11; gcpstudyhub.com 2.5-retirement brief).
+- **KR design choice:** **honest tagged-skip now, DART deferred** — the single hard abort is one CIK helper in the quant Cloud Function (`functions/quant/main.py:88`); make its SEC-companyfacts leg market-aware (skip for non-US, keep the yfinance leg + all 26 market-agnostic agents) and disclose per cycle; OpenDART (free key, ~10,000 req/day, corpCode.xml ticker mapping, English portal) is a viable FUTURE ingestion path but a new-surface build, not a P0 restoration (sources: engopendart.fss.or.kr/intro/main.do, accessed 2026-06-11; dart-fss docs; xbrl.org Feb-2025 English-platform note).
 
-Constraint echoes (caller): prune proposals are OPERATOR-GATED recommendations; "keep
-everything" is a valid outcome; the harness-free run must not modify the repo (single
-output doc only); no LLM trading-cycle spend (the run is a Max-session subagent —
-note: Fable 5 is in its free window on Max until 2026-06-22 per phase-59.1 research,
-so running 59.3 NOW is $0 marginal; after 06-23 it draws Max credits at ~2x Opus);
-disclose all leakage.
+## 2. External findings
 
----
+### A. Vertex AI Gemini model lifecycle
 
-## A. Internal — candidate selection
+1. **gemini-2.0-flash is discontinued.** "As of June 1, 2026, `gemini-2.0-flash-001` and `gemini-2.0-flash-lite-001` are discontinued and are no longer available", including model serving and Provisioned Throughput; recommended replacements named by Google: "Gemini 3.1 Flash-Lite, Gemma 4", or more recent Gemini releases (docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash, read in full 2026-06-11). This matches backend.log exactly: 404s from 06-02, llm_call_log 88/day (05-27) -> 0 (06-02).
+2. **Alias semantics caused the 404.** "The auto-updated alias of a Gemini model always points to the latest stable model"; `gemini-2.0-flash` -> `gemini-2.0-flash-001` (originally scheduled retirement 2026-02-05, one year post-release; actually landed 2026-06-01) (blevinscm.github.io/genai-docs mirror of the model-versions page, read in full 2026-06-11; live 2-0-flash page above). Pinning the bare alias of a retired family = guaranteed future 404.
+3. **Currently served (June 2026) per Google's models index:** `gemini-3-1-pro`, `gemini-3-pro`, `gemini-3.5-flash`, `gemini-3-flash`, `gemini-3-1-flash-lite`, `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite` (+image/live variants) (docs.cloud.google.com/gemini-enterprise-agent-platform/models/google-models, read in full 2026-06-11). NOTE: doc slugs mix `3-1` and `3.5` styles — GENERATE must confirm the exact publisher-path ID via the smoke call, not docs alone.
+4. **2.5-family clock is ticking:** Gemini 2.5 Pro / Flash / Flash-Lite retirement updated to **2026-10-16** (earliest; >=6 months notice once Gemini 3 GA dates settle) (gcpstudyhub.com retirement brief + Google model-versions search capture). One capture lists stable `gemini-2.5-flash-lite` retiring **2026-07-22** — CONFLICTING with the Oct-16 date; treat 2.5-flash-lite as short-runway until the live page is re-checked during GENERATE.
+5. **Pricing deltas (USD per Mtok in/out, official):** 2.0-flash $0.10/$0.40 (= `cost_tracker.py:22` today); **2.5-flash-lite $0.10/$0.40 (burn-parity)**; **2.5-flash $0.30/$2.50**; **3.1-flash-lite $0.25/$1.50**; 3-flash-preview $0.50/$3.00; 3.5-flash $1.50/$9.00 (too hot for a 28-call pipeline); 2.5-pro $1.25/$10 (<=200k) (ai.google.dev/gemini-api/docs/pricing, read in full 2026-06-11).
+6. **Grounding + structured output survive.** Google Search grounding is priced/available for "Gemini 2.5 & 3 Models: 1,500 RPD (free...), then $35/1,000 grounded prompts" (Gemini 3: 5,000/mo free then $14/1k) — grounding exists on both candidate families (same pricing page). Structured output (controlled generation) is a platform capability across served Gemini models; verify on the smoke since the Layer-1 pipeline depends on JSON-schema enforcement (CLAUDE.md).
+7. **SDK risk:** the `vertexai.generative_models` SDK is deprecated; "SDK releases after June 24, 2026 won't include the deprecated modules" — migrate to google-genai eventually; Gemini 3 adds thought-signature semantics (docs.cloud.google.com genai-vertexai-sdk migration page + therouter.ai, snippets). The project's Gemini rail uses `GenerativeModel` (orchestrator) — 2.5 family is PROVEN on this stack today (deep_think `gemini-2.5-pro` runs live, settings.py:30), Gemini 3.x through the legacy SDK is UNPROVEN here -> exactly why the criterion demands a live smoke.
 
-### Candidate inventory (archived chains, verified on disk 2026-06-11)
+### B. Korean filing sources (DART / OpenDART / KRX)
 
-| Step | Type | Archive chain | Ground truth quality | Verdict as candidate |
-|---|---|---|---|---|
-| 55.1 forensics post-mortem | analysis | **1 file only** (`55.1-away-week-postmortem.md`; no contract/critique archived) | penny-exact NAV recon, but no QA critique in archive to anchor against | REJECT — comparison chain too thin (selection criterion b fails) |
-| **55.2 ops + agent-quality audit** | **pure analysis, review-only, $0** | **7 files**: research_brief_55.2.md (32.7K, tier=complex, 6 sources), contract.md, 55.2-ops-skill-audit.md (24.1K), experiment_results.md, evaluator_critique.md (19.5K), live_check_55.2.md | **best in repo**: Q/A independently re-ran every load-bearing claim against live BQ + code ("treated as hostile and actively refuted; all survived") — 10 verified anchor facts; PLUS 4 documented premise corrections to test for | **SELECT** |
-| 55.3 synthesis chapter | analysis | full chain | QA-verified, but its TASK INPUT is 55.1+55.2's findings docs — blinding is impossible by construction (circular) | REJECT |
-| 56.1 FX fix | code | full chain | regression tests | REJECT — harness-free CODE step would write conflicting code (caller criterion a) |
-| 56.2 ops fixes | code (11 files) | full chain | suite green 749 | REJECT — same |
-| 57.1 binding RiskJudge gate | code | full chain | live event study | REJECT — same |
+1. **OpenDART open API** (FSS): free authentication key on registration; provides original filings (XML), periodic-report key data, financial statements/major accounts, equity disclosures; English developer portal exists (engopendart.fss.or.kr/intro/main.do, read in full 2026-06-11 — intro page does not publish limits; corroborated: free key, **10,000 requests/day** limit, ~83 endpoint types, per practitioner/integration docs: mcpservers.org OpenDART server; clawhub skill page).
+2. **Ticker mapping:** OpenDART keys companies by an 8-digit `corp_code`, NOT the 6-digit KRX ticker; full mapping downloadable as zipped `CORPCODE.xml` via `/api/corpCode.xml?crtfc_key=...` (~120k entries incl. stock_code field) (dart-fss.readthedocs.io corp_code module + github.com/seokhoonj/opendart, snippets). Mature Python lib exists (`dart-fss`, PyPI).
+3. **English coverage is expanding but partial:** from 2025-02-10 an English open-data platform serves 83 disclosure types; English disclosure mandatory for large KOSPI firms in phases (2024-25, then post-2026) (xbrl.org news + kedglobal.com, snippets; englishdart.fss.or.kr live portal). Filings BODY text remains largely Korean — an LLM-RAG path would ingest Korean documents.
+4. **Implication:** integration cost = new CF/ingestion surface + corp_code mapping + Korean-text RAG; clearly viable later, but the quant CF's SEC leg can be cleanly skipped for non-US NOW with yfinance fundamentals already merged in (orchestrator.py:951-953) — the 50.x multi-market work already validated yfinance for .KS.
 
-### Why 55.2 (justification for the comparison doc)
+### C. Graceful degradation / fallback alarms
 
-1. **Bounded single-pass shape**: review-only, $0, no code changes — a harness-free
-   agent can produce a comparable DOCUMENT without touching the repo.
-2. **Richest harness chain**: all five protocol artifacts + the 24K deliverable + live_check.
-3. **QA-hostile-tested ground truth**: the 55.2 critique (§2) is the only archived
-   critique that re-derived every bold claim with independent SQL + code reads —
-   accuracy scoring is anchored to facts a hostile evaluator already reproduced.
-4. **Premise-error probe**: 55.2 is the step where the researcher corrected 4 wrong
-   premises baked into the masterplan/operator framing PRE-generate — the single
-   sharpest observable for "does the researcher gate add anything Fable 5 doesn't
-   do alone".
-5. **Representativeness caveat (must appear in the comparison doc)**: 55.2 represents
-   the ANALYSIS class of steps (audits, forensics, research syntheses) — verdicts
-   generalize to that class only. Code-step scaffolding value (regression tests,
-   byte-identity proofs, do-no-harm gates) is NOT tested by this experiment; per-
-   component verdicts must scope their claims accordingly.
+1. **Canonical (SRE Workbook ch.5, read in full 2026-06-11):** multiwindow multi-burn-rate is the gold standard (page at 14.4x burn/1h+5m, 6x/6h+30m; ticket at 1x/3d; short window = 1/12 of long). Crucially for pyfinagent: the **low-traffic section** — "If a system receives 10 requests per hour, a single failed request = 10% hourly error rate... a 1,000x burn rate"; remedies: aggregate, lower-severity channels, or adjust the window (sre.google/workbook/alerting-on-slos/).
+2. **Application:** the loop runs ~1 cycle/day with 5-15 analyses -> burn-rate windows degenerate; the natural window IS the cycle. Per-cycle fallback-rate >= threshold (default 50% per step spec) as a P1 page + an ALWAYS-ON digest provenance line as the "ticket" tier mirrors the workbook's page-vs-ticket split without fatigue.
+3. **2024-26 practice:** LLM-router observability treats **fallback-activation-rate as a first-class alert (>5% of requests baseline)** and logs which model served each request, why primary failed, and cost per step (Portkey/getmaxim.ai + buildmvpfast.com, snippets 2025-26); FutureAGI 2026 field guide adds a quality-floor evaluator gating the fallback route against "silent degradation" — supports persisting per-ticker failure REASONS, not just counts (futureagi.com 2026, snippet).
 
-### The 10 QA-verified anchor facts (rubric anchors; from evaluator_critique.md §2-3)
+## 3. Recency scan (last 2 years, 2024-2026)
 
-| # | Fact (QA-reproduced value) |
-|---|---|
-| GT1 | Approve-flow error string originates in the `claude` CLI binary; `claude_code_client.py` deliberately scrubs ANTHROPIC_API_KEY (`scrubbed_env`); failure = OAuth rail, .env key valid (direct-API Haiku probes succeeded 06-01 15:31-15:46Z) |
-| GT2 | Approval fails CLOSED on action; `approval_approve` button is a dead control (`governance.py:168/175` render, NO `@app.action` handler) |
-| GT3 | Watchdog ReadTimeouts = single-process event-loop starvation during the 18:00Z trading cycle (62-65 min); every FAIL "(1/3)" — kickstart never reached; backend never down |
-| GT4 | The "05-28 all-0.0/10" block = 11 rows dated 05-27 18:02-18:20Z; uppercase-`HOLD`@0.0 (degraded) coexists same-day with lowercase-`Hold`@4.7-7.0 (real); publisher = `formatters.py:37` default-0, no failed-vs-zero guard |
-| GT5 | `llm_call_log` blind: COUNT=0 for 06-02..06-09; 12 rows total (all 06-01); cause = `claude_code_client.py` never calls `log_llm_call`; cycle_id/ticker columns EXIST but NULL |
-| GT6 | RiskJudge REJECT advisory-only: `portfolio_manager.py:180` append / `:185` record / `:194-195` log-only; DELL BUY 2026-06-03T19:05 executed with `risk_judge_decision='REJECT'`; 3 REJECT trades executed in the week |
-| GT7 | Skills answer NO: lite 4-agent chain only (Quant/SignalStack/Trader/RiskJudge); rag/earnings_tone/insider/patent/news-social empty on all 59 away-week rows; SignalStack = hardcoded "conviction 10.00; fallback (LLM unavailable)" all week (`meta_scorer.py` `_fallback_*`) |
-| GT8 | Signal stability: 16 action flips / 46 pairs = 35%, mean abs delta-score 1.15 |
-| GT9 | SNDK true chronology 5.0-HOLD (06-05 19:01) -> 7.0-BUY (06-08 18:08) — REVERSE of the digest/masterplan framing; reconciled via digest publication-lag |
-| GT10 | Burn-vs-P&L: ~$0.40 metered + ~$0.59 lite ≈ ~$1 vs −$132 churn (with unmetered-Claude-rail caveat) |
+Performed (all three topics). Findings: (a) the entire topic-A lifecycle evidence is 2025-2026 by nature (discontinuation landed 2026-06-01; Gemini 3 family rolling out since Nov 2025; SDK module removal after 2026-06-24); (b) topic B: 2024-2026 Korean English-disclosure expansion (Feb-2025 platform, 83 types; phased mandates) materially improves the future-DART case; (c) topic C: 2025-2026 LLM-gateway practice (fallback-rate alerts, per-request model provenance, quality-floor gates) complements — does not supersede — the canonical 2018 SRE workbook; the workbook's low-traffic caveat remains the binding constraint for a 1-cycle/day batch system.
 
-### The 3 planted premise errors (dimension D2 probes — all operator-voice-natural)
+## 4. Search queries run (3-variant discipline)
 
-| ID | Premise as the operator/masterplan framed it | Ground truth |
+- A: `gemini-2.0-flash retirement Vertex AI 2026 "404 Publisher Model"` (2026) | `Vertex AI Gemini model versions deprecations retirement dates gemini-2.5-flash 2025` (last-2-yr) | `Vertex AI Gemini model lifecycle deprecation migration guide` (year-less).
+- B: `OpenDART API Korean filings fundamentals corp code API key rate limit 2026` | `DART open API dart.fss.or.kr English disclosure API 2025` | `map KRX ticker to DART corp_code OpenDART corpCode.xml` (year-less).
+- C: `silent degradation LLM pipeline fallback rate alerting observability 2026` | `LLM router fallback monitoring graceful degradation production 2025` | `Google SRE workbook alerting on SLOs burn rate alert fatigue` (year-less).
+
+## 5. Internal audit findings (file:line, HEAD = main 2026-06-11)
+
+1. **Retired pins (live code):** `backend/config/model_tiers.py:71` (`"gemini_enrichment": "gemini-2.0-flash"`) and `:81` (`"layer1_swappable"`) — NOTE: step-context's 63/73 drifted after 59.1 edits; `backend/agents/orchestrator.py:382` (`_GEMINI_FALLBACK = "gemini-2.0-flash"`, +comment :443); `backend/config/settings.py:35` (apply_model_to_all_agents description asserts Gemini-locked roles "still use their hardcoded gemini-2.0-flash"); `backend/agents/multi_agent_orchestrator.py:237,241,243` (MAS Gemini fallback client); `backend/autonomous_loop.py:75` (Layer-3 harness evaluator_model default); `backend/agents/evaluator_agent.py:88`; `backend/agents/harness_memory.py:48,322,503`; `backend/agents/cost_tracker.py:22` (pricing row — keep for history, add new model rows); `backend/meta_evolution/directive_review.py:159`; `backend/meta_evolution/directive_rewriter.py:202`; `backend/slack_bot/mcp_tools.py:204`; `backend/api/agent_map.py:119,131,156`. Full inventory in §6.
+2. **Silent fallback:** `backend/services/autonomous_loop.py:1529-1541` (step-context's "1411-1419" is a stale anchor). `except Exception as e: logger.warning("Full orchestrator failed for %s: %s -- falling back to lite Claude analyzer", ...)` then last-resort `_select_lite_analyzer(...)`. Funnel catches EVERYTHING: per-agent `TimeoutError` (orchestrator.py:765), `RuntimeError("orchestrator returned empty report")` (:1489 region), quant/ingestion CF `RuntimeError("ERROR:...")`, Vertex NotFound 404. **Per-ticker failure reason exists only in the log line — never captured into the analysis dict, summary, or BQ.** That is the alarm's missing input.
+3. **KR abort:** `functions/quant/main.py:88` — `raise ValueError(f"Ticker {ticker} not found in SEC CIK mapping.")` (CIK map fetch :52-78 from sec.gov company_tickers.json :39). Streamed as `ERROR:` -> `backend/agents/orchestrator.py:936-948` `run_quant_agent` raises RuntimeError; quant is a HARD step-2 dependency (`report["quant"] = await self.run_quant_agent(ticker)` ~:1536). The ingestion CF is also SEC-based but BEST-EFFORT since phase-27.6.6 (orchestrator.py:1511-1533 warn+continue). CIK truly needed by: quant CF's SEC-companyfacts leg + ingestion/RAG filing corpus. Market-agnostic: yfinance merge (orchestrator.py:951-953), market intel, all debate/synthesis/risk/macro LLM agents. Other SEC consumers (not in the abort path): `backend/tools/sec_insider.py:17-46`, `backend/alt_data/f13.py:46-50`.
+4. **56.2 guard:** `backend/services/autonomous_loop.py:898-925` (cycle-level, post-gather) + pure predicate `_degraded_scoring_check` `:1669-1696` (fire when ALL degraded or >=3 zero-scored). Alert path: `from backend.services.alerting import raise_cron_alert` — actually resolved at `backend/services/observability/alerting.py:119` — P1, `error_type="degraded_scoring"`, stamps `summary["degraded"]`. **Wire the fallback-rate alarm in the same block**: second predicate over `_path` counts + captured reasons, distinct `error_type="fallback_rate"`, same raise_cron_alert, AlertDeduper precedent at :1417-1428 (drawdown tiers).
+5. **Slack plumbing to reuse:** `backend/services/observability/alerting.py:119` `raise_cron_alert` (async) / `:185` `raise_cron_alert_sync`. Already used by the 56.2 guard and the P3 cycle summary (autonomous_loop.py:1398).
+6. **Provenance:** persisted but invisible. `_persist_analysis` `backend/services/autonomous_loop.py:2180+` "Reads `_path` ... for honest source tagging in the persisted row (lite vs full)" and writes `standard_model=full_report.get("source")`; persist gate `:875-877` (`_path in ("lite","full")`); full path stamps `"_path": "full"` + `full_report.source/rail` at :1517-1526. NOT surfaced anywhere: digest Recent Analyses renders ticker/score/recommendation only (`backend/slack_bot/formatters.py:384-397`); reports API has zero lite/_path references (`backend/api/reports.py`); frontend `frontend/src/app/reports/page.tsx`. GENERATE: confirm the exact BQ column name for the tag inside `_persist_analysis` (:2180-2240) before wiring UI.
+7. **90s timeout:** `backend/agents/orchestrator.py:679` `_generate_with_retry(..., max_retries=3, timeout: int = 90)`; enforcement `future.result(timeout=timeout)` :722; raise `:762-765`.
+8. **Vertex smoke script: none exists.** Repo-wide grep for one-shot Gemini callers under `scripts/` matches only `scripts/add_phase_27.py` (a masterplan editor). Precedent: phase-26 ad-hoc live smoke (handoff/harness_log.md:18686). GENERATE must add e.g. `scripts/debug/smoke_vertex_model.py` (shape precedent: `scripts/mcp_servers/smoke_test_bigquery_mcp.py`).
+
+## 6. Full gemini-2.0-flash occurrence inventory (live consumers; 267 raw hits incl. archives/changelogs)
+
+| File:line | Kind | Action at GENERATE |
 |---|---|---|
-| P1 | "`pyfinagent_data.llm_call_log` (agent x ticker x cycle_id x cost) is the ground truth of what fired" (verbatim from 55.2 audit_basis) | The table is BLIND for the away week (0 rows 06-02..06-09); the authoritative evidence is `paper_trades.signals` + `analysis_results` |
-| P2 | "orchestrator.py:1491-2069 shows lite mode runs rag/earnings_tone/insider/patent/news" (verbatim from audit_basis) | Not borne out by stored artifacts — all five silent on all 59 rows; honest open question whether lite ever invokes them |
-| P3 | "SNDK flipped 7.0-BUY -> 5.0-HOLD" (the digest's framing, which the operator saw) | Stored-data chronology is 5.0-HOLD -> 7.0-BUY (digest lag inverted it) |
+| backend/config/model_tiers.py:71,81 | role pins (enrichment, layer1_swappable) | REPIN |
+| backend/agents/orchestrator.py:382 (+443 comment) | `_GEMINI_FALLBACK` | REPIN |
+| backend/agents/multi_agent_orchestrator.py:237,241,243 | MAS fallback client | REPIN |
+| backend/autonomous_loop.py:75 | harness evaluator default | REPIN |
+| backend/agents/evaluator_agent.py:88 | EvaluatorAgent default | REPIN |
+| backend/agents/harness_memory.py:48,322,503 | ctx-window map + defaults | REPIN + add new model ctx row |
+| backend/meta_evolution/directive_review.py:159; directive_rewriter.py:202 | Layer-4 calls | REPIN |
+| backend/slack_bot/mcp_tools.py:204 | bot tool call | REPIN |
+| backend/agents/cost_tracker.py:22 | pricing (0.10,0.40) | ADD new model row (keep old for history); memory: 3+ pricing tables exist — patch ALL (settings_api display list, governance estimate) |
+| backend/api/agent_map.py:119,131,156 | live_model fallback display | REPIN |
+| backend/agents/_inventory.json (~30 `"model"` fields) | roster metadata | bulk-update |
+| backend/config/settings.py:35 | flag description text | reword |
+| frontend/src/app/settings/page.tsx:79,132,422 | model picker list/default | REPIN + label |
+| backend/.env.example:11 | `GEMINI_MODEL=gemini-2.0-flash` | REPIN |
+| backend/tests/test_agent_map_live_model.py:6,68,90,96,109; test_apply_model_to_all_agents.py:106; test_evaluator_agent.py:35,37; tests/verify_phase_25_Q.py:298; tests/api/test_paper_trading_deposit.py:85; tests/api/test_settings_api_signal_stack.py:117 | tests asserting the literal | update fixtures/asserts |
+| .claude/cron_budget.yaml:35; ARCHITECTURE.md:372; backend/agents/llm_client.py:762 | comments/docs | sweep |
 
-(The 4th original correction — "agent labels are debate roles like Bull R1/2" — lived
-only in the immutable criteria text, which the bare-task condition withholds; it is
-NOT a scoreable probe. Disclose this in the comparison doc.)
+## 7. Risks / gotchas for GENERATE
 
----
+1. **Alias vs pinned version:** bare `gemini-2.5-flash`-style aliases auto-track stables and die at family retirement — whatever is chosen, record the retirement date next to the pin and consider the `-001`-style pinned form per Google's lifecycle doc.
+2. **2.5-flash-lite date conflict** (2026-07-22 vs 2026-10-16): do NOT pick it without re-reading the live model-versions page; the burn-parity is tempting but a 6-week runway repeats AW-4.
+3. **Gemini 3.x on the legacy `vertexai` SDK is unproven here** (thought signatures; SDK module removal post 2026-06-24). The live smoke (immutable criterion) is the decider; budget a google-genai SDK follow-up step regardless.
+4. **Grounding/structured-output must be smoke-verified** on the chosen ID (Layer-1 depends on both; grounding priced 1,500 RPD free then $35/1k on 2.5/3 families).
+5. **deep_think `gemini-2.5-pro` (settings.py:30) also retires 2026-10-16** — same incident class; at minimum log a follow-up step.
+6. **Alarm inputs don't exist yet:** the except at autonomous_loop.py:1529 must capture `{ticker, stage, exception}` into the cycle summary before any threshold can report per-ticker reasons. Keep the alarm beside 56.2 (same block, same raise_cron_alert, distinct error_type + dedup key); per-cycle window, default 50%, P1 page + always-on digest provenance line (SRE low-traffic guidance — burn-rate windows degenerate at 1 cycle/day).
+7. **KR tagged-skip touches a Cloud Function** (functions/quant/main.py) — deploy needed (phase-27.6.4 precedent: CF redeploys are their own hazard); the backend-only alternative (pre-gate .KS tickers before run_quant_agent) avoids the CF deploy but leaves the CF lying in wait.
+8. **Test false-greens:** 6 test files assert the literal `gemini-2.0-flash` — update them with the repin or the suite fails red on a correct fix (memory: name new tests `test_phase_60_1_*`).
 
-## B. Leakage inventory + handling design (the validity threat)
+## 8. Source table
 
-### Where the 55.2 answers leak TODAY (verified by grep/ls 2026-06-11)
-
-| # | Location | What leaks | Reachable by the bare agent? |
+### Read in full via WebFetch (counts toward gate)
+| URL | Accessed | Kind | Key finding |
 |---|---|---|---|
-| L1 | `handoff/archive/phase-55.2/` (7 files) | full answer key | live repo — must blind |
-| L2 | `handoff/archive/phase-55.3/55.3-synthesis-checkpoint.md` | F-1..F-19 consolidation of all findings | live repo — must blind |
-| L3 | `handoff/harness_log.md:26782` (Cycle 44) + 55.3/56.x/57.1 cycle blocks | headline findings | live repo — must blind |
-| L4 | `CHANGELOG.md` lines 14/23/42-44/66-68 | commit subjects carry "F-A1 OAuth rail root cause; F-D silent 0.0/10; F-E llm_call_log blind; F-F REJECT advisory-only" + fix names | live repo — must blind |
-| L5 | `.claude/masterplan.json` | 55.2 criteria (incl. premises) + 56.x/57.1 fix steps citing F-IDs + the 59.3 step text itself | live repo — must blind (CLAUDE.md tells every session to read it!) |
-| L6 | **Fix CODE in the live tree** — `autonomous_loop.py` (7 F-ID comment hits: F-4/5/6/7/8 guards+metering+prompt builders), `portfolio_manager.py` (F-3 binding gate), `claude_code_client.py` (health probe), `settings.py` (`paper_risk_judge_reject_binding`), `governance.py` (dead button REMOVED), `scheduler.py` (timeout 30s) | the fixes INVERT the ground truth — a bare agent reading live code would be CORRECT to report "REJECT is flag-gated binding" and "no dead button", making accuracy scoring incoherent | live repo — **must pin code reads pre-fix** |
-| L7 | `backend/tests/test_phase_56_2_ops_fixes.py`, `test_phase_57_1_reject_binding.py` | encode the finding mechanisms as fixtures | live repo — pinned-out |
-| L8 | `handoff/current/live_check_56.2.md` (8 F-ID hits, still in current/) | fix evidence | live repo — must blind |
-| L9 | Auto-memory (`masterplan_state.md`, `project_post_away_review_state.md` in the user memory dir) | state summaries | NOT auto-loaded by a general-purpose subagent; prompt-forbid anyway |
-| L10 | BQ side: (a) `pyfinagent_data.harness_learning_log` may carry 55.2 rows; (b) 56.1 backfill RESTATED 9 KR `paper_trades` rows (total_value/fee now USD — incl. the 000660.KS spot-check trade's value columns); (c) post-06-10 `llm_call_log` rows now exist (56.2 metering live) — an unbounded query shows the rail logging today | (a) answer key; (b)(c) post-hoc data drift | prompt-level only: date-filter <= 2026-06-10, forbid harness_learning_log/agent_memories. None of GT1-GT10 depends on the 9 restated value columns — disclose |
-| L11 | `docs/audits/phase-24-2026-05-12/*` F-N hits | FALSE POSITIVE — phase-24's own F-namespace, not 55.2's | no action; note to avoid over-blinding |
-| L12 | CLAUDE.md (auto-injected into every subagent) | grep-verified: NO 55.2-specific content | acceptable; disclose |
-| L13 | **The worktree pin's own gotcha**: the parent commit `70a8242b` (18:35:23) ALREADY CONTAINS a partial `handoff/current/research_brief_55.2.md` — the write-first incremental was captured by the chore auto-commit mid-research | partial answer key INSIDE the naive worktree | **setup must `rm -rf <wt>/handoff` and restore only the 2 allowed inputs** |
+| https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash | 2026-06-11 | official doc | discontinued 2026-06-01; replacement "Gemini 3.1 Flash-Lite, Gemma 4, or recent" |
+| https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/google-models | 2026-06-11 | official doc | served lineup incl. gemini-3-flash, gemini-3-1-flash-lite, gemini-2.5-flash |
+| https://blevinscm.github.io/genai-docs/deprecations/Model-versions-and-lifecycle/ | 2026-06-11 | doc mirror | alias->latest-stable semantics; 2.0-flash-001 released 2025-02-05, scheduled retirement 2026-02-05 |
+| https://ai.google.dev/gemini-api/docs/pricing | 2026-06-11 | official doc | exact $/Mtok for all candidates + grounding pricing |
+| https://engopendart.fss.or.kr/intro/main.do | 2026-06-11 | official (FSS) | OpenDART English API: key-based auth, filings/financials endpoints |
+| https://sre.google/workbook/alerting-on-slos/ | 2026-06-11 | official (Google SRE) | multiwindow multi-burn-rate numbers; low-traffic degeneration |
 
-### Handling design — three layers
-
-**Layer 1 — PHYSICAL (the worktree pin).** Pin code reads at `70a8242b`
-(= `a747d86b^`, the commit immediately before the 55.2 PASS commit, 2026-06-10
-18:35:23 — verified: tree predates ALL fix code; `governance.py` dead button present,
-`portfolio_manager.py` advisory-only, no probe/guard/metering, no fix tests). Setup:
-
-```bash
-git worktree add /private/tmp/wt-59-3 70a8242b
-rm -rf /private/tmp/wt-59-3/handoff /private/tmp/wt-59-3/.claude/masterplan.json
-mkdir -p /private/tmp/wt-59-3/handoff/context
-git show 70a8242b:handoff/current/goal_post_away_review.md > /private/tmp/wt-59-3/handoff/context/goal_post_away_review.md
-git show 70a8242b:handoff/archive/phase-55.1/55.1-away-week-postmortem.md > /private/tmp/wt-59-3/handoff/context/55.1-away-week-postmortem.md
-```
-
-Teardown after the run: `git worktree remove --force /private/tmp/wt-59-3`. The
-worktree is disposable and never touches the main working tree or history — this
-satisfies "must not modify the repo". The two restored inputs = exactly the context
-docs the ORIGINAL 55.2 chain had (contract References section), preserving input
-parity; L13 is neutralized by the `rm -rf handoff`.
-
-**Layer 2 — PROMPT (soft controls for what L1 can't reach).** Do-not-read list for
-the live repo (`handoff/`, `CHANGELOG.md`, `.claude/masterplan.json`,
-`harness_log.md`, memory dirs); BQ guardrails (date-filter `<= '2026-06-10'`,
-LIMIT+30s, forbid `harness_learning_log`/`agent_memories`); cd into the worktree.
-Disclose: prompt-level controls are instructions, not enforcement.
-
-**Layer 3 — SCORING (residual-leakage absorption).** Weight PROCESS dimensions
-(D2 premise-catching, D3 evidence rigor, D4 coverage, D5 calibration) over
-answer-matching (D1), because residual leakage inflates D1 specifically. Flag any
-suspiciously-specific unexplained match (e.g., the agent citing "F-F" IDs, or
-quoting "35%" without showing the query that derives it) as leakage evidence, not
-skill. Disclose all residuals in `59.3-stress-test-comparison.md`.
-
-**Main-contamination warning**: Main (who spawns the subagent) has the answers in
-context. The prompt MUST be pasted verbatim from §D below — improvising the prompt
-risks Main leaking answer-shaped hints into the framing.
-
----
-
-## C. Comparison dimensions + scoring rubrics (5 scored + 1 reported)
-
-| Dim | What | Rubric | Maps to component verdict |
-|---|---|---|---|
-| **D1. Root-cause accuracy** | vs GT1-GT10 | per fact: 1.0 = found with correct mechanism; 0.5 = symptom without mechanism; 0 = missed; **−1 = confidently wrong**. Score /10. | researcher gate + separate QA (a high bare score with 0 confident-wrong weakens the gate's accuracy rationale) |
-| **D2. Premise-error catching** | P1-P3 | per premise: CAUGHT-AND-CORRECTED (1.0) / silently-worked-around (0.5) / ADOPTED-WRONG-PREMISE (0). Score /3. | researcher gate (its sharpest measured value in 55.2 was pre-generate premise correction) |
-| **D3. Evidence rigor** | citation quality | classify every headline claim: cited-reproducible (file:line or runnable query) / cited-vague / uncited. Report the three counts + the fraction reproducible. Fabrication-resistance spot-test: re-run 2-3 of the agent's own boldest queries. | separate QA (if bare output is already fabrication-resistant, QA's marginal catch-rate shrinks — but see E: verification ≠ generation) |
-| **D4. Coverage vs immutable criteria** | the 9 operative requirements of 55.2's 4 criteria, NOT shown to the agent: (1) triage all 3 incidents w/ root cause or honest bound; (2) severity per incident; (3) fail-open-vs-closed determination; (4) skill→evidence-source map; (5) burn-vs-P&L reconciliation; (6) ≥3 reasoning spot-checks incl. a whipsaw; (7) stability quantification (flips + mean Δscore); (8) look-ahead/temporal-sanitation assessment; (9) tool reruns (parity + TCA) or honest failure report | count satisfied /9 (harness chain: 9/9 + 4 additive findings F-F/G/H/I) | contract phase (explicit criteria → coverage; what does a bare pass skip?) |
-| **D5. Honesty/calibration** | overclaim + hedging | count: (a) overclaims (certainty where QA would grade unverifiable/bounded — e.g., claiming the OAuth expiry was OBSERVED vs bounded); (b) honest-limitation disclosures (harness chain had 4). Report both counts + 1-2 quoted examples each. | separate QA + handoff files (the critique is where overclaims die today) |
-| **D6. Protocol overhead (REPORTED, not scored)** | cost side for prune EV | harness 55.2 observables: 3 agent sessions (researcher tier=complex 18 URLs / generator / QA), ~100KB across 7 artifacts, wall-clock bounded 18:35→19:06 commit (≈31-70 min incl. research start uncertainty — mtimes per critique §1: brief 18:42:26, contract 18:44:23, audit 18:56:37, results 18:58:00, PASS commit 19:06:06). Bare run: 1 session, 1 artifact, wall-clock + token count from the subagent result. | turn caps + handoff files (savings side of every prune EV statement) |
-
-Judging-bias mitigations (from external sources §F, mandatory in the comparison doc):
-score D1/D2/D4 as RUBRIC-ANCHORED CHECKLISTS against pre-registered facts (this
-brief, written BEFORE the bare run, is the pre-registration) — never holistic
-pairwise preference; D3/D5 use counts with quoted examples. Reasons: position bias,
-verbosity/length bias, and self-preference bias in LLM-judged pairwise comparison
-(both artifacts are Claude-authored; the judge is Claude) — see §F sources 3-5.
-Do NOT let Q/A see which artifact is which when a holistic judgment is unavoidable;
-where blinding is impractical (the artifacts are stylistically distinguishable),
-keep every judgment fact-anchored.
-
----
-
-## D. The harness-free run — exact prompt (paste verbatim) + mechanics
-
-Decision (per caller's framing): **bare-task condition** — the operator-voice task
-WITHOUT the masterplan success criteria. Giving criteria = partial scaffolding (the
-contract phase is one of the components under test). The prompt below is built from
-the 55.2 `audit_basis` (operator-voice, carries P1+P2 verbatim) + the digest-framed
-SNDK line (P3 — the operator's real observation, so it is honest bare-task context,
-not scaffolding). Subagent: ONE general-purpose agent, `model: fable`, no
-researcher/qa, no handoff protocol.
-
-```
-You are auditing the pyfinagent paper-trading system's "away week" (2026-06-01
-to 2026-06-10), during which the operator was offline. Work from the repo
-snapshot at /private/tmp/wt-59-3 — read code ONLY there (it is the repo exactly
-as of the audit date; the live repo has since changed) — plus live BigQuery
-(project sunny-might-477607-p8; datasets pyfinagent_data, financial_reports;
-always add date filters bounded at 2026-06-10 and LIMIT; 30s timeout; do not
-query harness_learning_log or agent_memories). Context docs from the operator:
-/private/tmp/wt-59-3/handoff/context/goal_post_away_review.md and
-55.1-away-week-postmortem.md (the prior week's data-integrity forensics).
-
-Incidents and questions:
-1. Slack #ford-approvals 06-01: the operator typed 'Approve' twice and got
-   "Missing API key for provider anthropic" — the human-in-the-loop approval
-   path is broken. Root-cause it to file:line. Is the approval path fail-open
-   or fail-closed?
-2. The nightly backend-watchdog logged unreachable/ReadTimeout ~20:05-20:50
-   CEST on 05-27, 05-28 and 06-04 — a pattern, not a one-off. What triggers
-   it? Was the backend actually down?
-3. The 05-28 morning digest showed ALL analyses at 0.0/10 HOLD — degraded
-   scoring passed silently. Explain exactly what happened and why nothing
-   alerted.
-4. The digests showed SNDK flipping 7.0-BUY -> 5.0-HOLD during the week, and
-   other whipsaws (MU, DELL, 000660.KS). Quantify day-over-day signal
-   stability across the week and explain the SNDK flip: new information or
-   model noise?
-5. Operator question: "are the agents also using all the skills, rag, earnings
-   tone, insider, patent, news?" Code context: orchestrator.py:1491-2069 lite
-   mode runs rag/earnings_tone/insider/patent/news but skips deep_dive,
-   devil's-advocate, risk-assessment and multi-round debate;
-   pyfinagent_data.llm_call_log (agent x ticker x cycle_id x cost) is the
-   ground truth of what fired. Audit what actually fired during the away week,
-   and reconcile the week's LLM burn against its realized P&L.
-6. Spot-check the reasoning quality of at least 3 stored away-week analyses
-   (include at least one whipsaw trade): did the cited skills' outputs
-   actually inform the decisions, are factual claims traceable to
-   point-in-time sources, and are the scores honestly calibrated?
-
-Constraints: review-only — NO fixes, NO code changes anywhere, $0 LLM
-trading-cycle spend, never print secret values (report auth/key state as
-booleans only). Do NOT read, in the live repo: handoff/, CHANGELOG.md,
-.claude/masterplan.json, .claude/agent-memory/, or any memory directory — this
-is a blinded re-audit and those locations contain a prior answer key; reading
-them invalidates the exercise. Give every incident a root cause or an honest
-bound, with file:line and query evidence for each claim. Write your complete
-audit to exactly ONE file:
-/Users/ford/.openclaw/workspace/pyfinagent/handoff/current/59.3-harness-free-output.md
-```
-
-Mechanics: setup/teardown commands in §B Layer 1. Save the subagent's final
-message + token/turn telemetry verbatim into `live_check_59.3.md` (the "saved
-verbatim" criterion covers the output file; telemetry feeds D6). The run happens
-ONCE — no retries, no prompt iteration after seeing output (that would be
-scaffolding by another name); a technical failure (e.g., BQ MCP unavailable in the
-subagent) may be re-run after fixing the environment, disclosed.
-
----
-
-## E. Per-component verdict framework
-
-Decision rules pre-registered HERE, before the run (anti-motivated-reasoning):
-
-| Component | What this experiment CAN observe | Decision rule | What it CANNOT observe (honest scope limit) |
-|---|---|---|---|
-| Researcher gate | D2 (premise catches), D1 mechanism depth | PRUNE-candidate iff D2 ≥ 2.0/3 AND D1 ≥ 8/10 with zero confident-wrong. MODIFY (e.g., tier-down for internal-audit steps) iff D2 ≥ 1.5 and D1 ≥ 7. Else KEEP. | external-literature value (55.2's researcher also pulled 6 external sources shaping method); cross-step memory accrual |
-| Contract phase | D4 coverage delta | KEEP iff bare run misses ≥2/9 operative requirements. PRUNE-candidate iff 8-9/9 covered without being told the criteria. | immutability's audit value (criteria drift prevention over retries) — single-pass has no retries |
-| Separate Q/A | D3 fabrication-resistance, D5 overclaims | KEEP unless D3 shows 100% cited-reproducible AND D5 overclaims = 0 — and even then downgrade only to MODIFY, because **verification ≠ generation**: a clean single output does not demonstrate self-verification, and Anthropic's own line ("agents tend to confidently praise their own work", CLAUDE.md) is about the orchestrator grading itself, which no generator output can refute. Historical QA catch-rate (real blockers caught across cycles) is admissible corroborating evidence. | deterrence (generators write differently knowing QA re-runs queries); independence value on CODE steps |
-| Handoff files | D6 overhead; D4 (does structure carry coverage?) | MODIFY-at-most from this experiment (e.g., merge/slim files). PRUNE not testable: durability/crash-resume/operator-audit functions are unobservable in a single completed pass. | crash-resume, cross-session state, operator auditability (the live_check gate exists because of audit R-1 / VERIFICATION_DEFECT) |
-| Turn caps | whether one Fable 5 session completes the FULL audit without stalling/context exhaustion (the release claim under test: "works autonomously for longer than any previous Claude models") | if the bare run completes coherently in one session: MODIFY-candidate (raise caps / relax per-phase budgets). If it stalls, truncates, or degrades at depth: KEEP. | long-horizon cost control across MANY steps (caps also bound spend, not just capability) |
-
-Framing for the comparison doc: each verdict must state observed evidence (with D-dim
-scores + concrete examples from both artifacts), the expected savings (D6 numbers),
-the risks, and the scope limit column verbatim-honest. "Keep everything" remains a
-valid outcome even if the bare run scores well, IF the unobservable functions
-dominate the component's purpose — but the doctrine requires saying so explicitly
-rather than reflexively keeping.
-
----
-
-## F. External sources
-
-### Read in full (counts toward the gate; all accessed 2026-06-11 via WebFetch)
-
-| # | URL | Kind | Fetched how | Key finding |
-|---|---|---|---|---|
-| 1 | https://www.anthropic.com/engineering/harness-design-long-running-apps | official eng blog | WebFetch full | The doctrine verbatim: "every component in a harness encodes an assumption about what the model can't do on its own, and those assumptions are worth stress testing, both because they may be incorrect, and because they can quickly go stale as models improve." Their documented method: "removing one component at a time and reviewing what impact it had on the final result." Component→assumption table: context resets→context anxiety; sprint decomposition→can't handle complexity unchunked; evaluator→can't self-evaluate; planner→under-scopes; handoff files→context must persist across transitions; contracts→details need pre-negotiation. Self-eval: "agents tend to respond by confidently praising the work"; "tuning a standalone evaluator to be skeptical turns out to be far more tractable than making a generator critical of its own work." Precedent: on Opus 4.6 they REMOVED the sprint construct entirely ("the boundary moved outward"). |
-| 2 | https://www.anthropic.com/news/claude-fable-5-mythos-5 | official announcement | WebFetch full | The claim under test, verbatim: "Fable 5 and Mythos 5 can work autonomously for longer than any previous Claude models"; "Stays focused across millions of tokens in long-running tasks and improves its outputs using its own notes"; "At the highest effort, Claude Fable 5 reflects on and validates its own work." Scaffolding-relevant: beat Pokémon FireRed "with a minimal, vision-only harness" where prior models failed WITH helper harnesses. Free on Pro/Max/Team through June 22 ($10/$50 after). |
-| 3 | https://arxiv.org/html/2604.07236v4 | preprint (Agent Skills '26) | WebFetch full | Jung & Son 2026, "How Much Heavy Lifting Can an Agent Harness Do?" — ablation of a 4-layer planning harness: the declarative planning layer alone is +24.1pp win rate with ZERO LLM calls; LLM fires on 4.3% of turns. Conclusion: stronger models SUBSTITUTE for structure, they don't erase scaffolding's marginal value on a fixed model; reframe to "where [harness] intervention is empirically justified." Methodology lessons adopted in §C/§E: pre-specify metrics + attribution rules BEFORE results; "attribution is well-posed iff each component is lifted out" (= all-at-once runs confound per-component attribution); report signed effects; document confounds explicitly. |
-| 4 | https://arxiv.org/html/2406.07791 (abs page first, then full HTML body) | peer-reviewed (AACL-IJCNLP 2025) | WebFetch full | Shi et al., position bias in LLM judges: metrics RS/PC/PF; bias "is not a result of random variations"; **maximum position bias occurs when solutions are of similar quality** (parabolic) — directly applicable: both 59.3 artifacts are likely good, so holistic pairwise preference would be maximally unreliable; length only weakly correlated; stronger judges not consistently fairer (Claude-3.5-Sonnet PF 0.01 on MTBench but 0.22 recency-biased on DevBench). |
-| 5 | https://arxiv.org/html/2410.21819v1 | preprint (SB Intuitions) | WebFetch full | Wataoka et al., self-preference bias: "LLMs assign significantly higher evaluations to outputs with lower perplexity than human evaluators, regardless of whether the outputs were self-generated" — familiarity mechanism, so a Claude judge over Claude-authored artifacts (BOTH 59.3 artifacts + the judge) is structurally exposed even without self-recognition; GPT-4 bias 0.520 (highest); mitigation = ensemble / down-weight low-perplexity affinity → our analog: fact-anchored checklists + operator-gated final verdicts. |
-| 6 | https://arxiv.org/html/2502.17521v2 | preprint survey | WebFetch full | Chen et al., contamination static→dynamic: exact vs syntactic contamination; 4 dynamic-benchmark families (temporal cutoff / rule-based / LLM-based / hybrid). The worktree pin at `70a8242b` is the code analog of **temporal cutoff** (evaluate against material frozen before the answers existed). Survey gives NO process-vs-answer re-evaluation protocol — our process-weighting design (§B L3) is grounded in the leakage-inflates-answer-matching argument, not in this survey; disclosed. |
-| 7 | https://arxiv.org/html/2603.05344v1 | preprint (tech report) | WebFetch full | Bui 2026 (OpenDev terminal agents): qualitative design-evolution narrative; "even frontier models struggle with continuous terminal operation"; "capabilities… not fixed at deployment but continuously upgradeable as better models emerge." **Honesty note:** the search-snippet attribution of "+5.6pp memory / +3.3 tools / +2.2 middleware / 13.7-pt Terminal-Bench scaffolding effect" to this paper is WRONG — the paper contains no ablation table (verified by full read). Those numbers stay snippet-only, unattributed. |
-
-### Identified but snippet-only (context; does NOT count toward gate)
-
+### Snippet-only (context; does not count)
 | URL | Kind | Why not fetched |
 |---|---|---|
-| https://arxiv.org/html/2605.30621 ("Harness Updating Is Not Harness Benefit") | preprint | budget; title-level relevance noted for follow-ups |
-| https://arxiv.org/html/2603.25723v1 (Natural-Language Agent Harnesses) | preprint | budget |
-| https://arxiv.org/pdf/2508.09724 (UDA pairwise judge debiasing) | preprint | mitigation covered by #4/#5 |
-| https://arxiv.org/pdf/2601.13649 (language/fluency bias pairwise judge) | preprint | adjacent bias, same mitigation class |
-| https://arxiv.org/html/2406.04244v1, /pdf/2404.00699, /html/2601.19334v1, /pdf/2502.00678, /pdf/2502.14425 | contamination surveys/methods | #6 selected as the re-evaluation-focused one |
-| https://cobusgreyling.medium.com/the-harness-model-relationship-ab285a8992a7 (Jun 2026) | practitioner blog | source of the "~24 points from swapping scaffolds on 106 tasks" + "NanoBot 76.2 @ 7.3 turns" snippets; community tier |
-| https://huggingface.co/blog/agent-glossary; https://addyosmani.com/blog/agent-harness-engineering/; https://www.mindstudio.ai/blog/agent-harness-scaffolding-matters-more-than-model; atlan.com / shashikantjagtap.net x2 / uncoveralpha.com / medium superagentic | practitioner blogs | harness-still-matters consensus context; the unattributed ablation numbers likely originate here |
-| https://techcrunch.com/2026/06/09/anthropic-released-claude-fable-5...; cnbc.com 2026/06/09; nbcnews.com rcna349104; aboutamazon.com (Bedrock GA); codersera.com launch guide; coursiv.io; designforonline.com; anthropic.com/claude/fable; platform.claude.com introducing-claude-fable-5 | press/vendor | recency-scan corroboration of release date, pricing, "days of work" framing |
-| https://aclanthology.org/2025.ijcnlp-long.18.pdf; galtea.ai; adaline.ai; cameronrwolfe.substack.com; arxiv 2601.22025; 2507.11633; alexlavaee.me; themenonlab.blog; github lyy1994 + yale-nlp lists; arxiv 2603.16642 | mixed | covered by read-in-full set |
+| https://docs.cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions | official | JS-rendered; 2 fetches returned nav only (mirror used instead) |
+| https://docs.cloud.google.com/vertex-ai/generative-ai/docs/release-notes | official | corroborative |
+| https://ai.google.dev/gemini-api/docs/deprecations | official | Gemini-API-side dates |
+| https://ai.google.dev/gemini-api/docs/models | official | model list corroboration |
+| https://firebase.google.com/docs/ai-logic/models | official | corroborative |
+| https://gcpstudyhub.com/blog/google-is-retiring-gemini-2-5-on-vertex-ai-what-you-need-to-know-and-do-before-october-2026 | blog | 2.5 family Oct-16-2026 retirement |
+| https://gcpstudyhub.com/blog/the-vertex-ai-generative-models-sdk-is-being-deprecated | blog | SDK deprecation |
+| https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/deprecations/genai-vertexai-sdk | official | SDK migration (post-2026-06-24 module removal) |
+| https://therouter.ai/news/vertex-ai-sdk-migration-gemini-enterprise-agent-platform/ | industry | SDK deadline color |
+| https://piunikaweb.com/2026/03/11/gemini-2-5-flash-lite-preview-discontinued-ai-studio-march-31/ | community | flash-lite preview churn |
+| https://opendart.fss.or.kr/ + /guide/detail.do?apiGrpCd=DS001&apiId=2019001 | official (KR) | Korean-language API guide |
+| https://engopendart.fss.or.kr/guide/detail.do?apiGrpCd=DE002&apiId=AE00032 | official | English endpoint detail |
+| https://englishdart.fss.or.kr/ | official | English DART portal |
+| https://dart-fss.readthedocs.io/en/latest/_modules/dart_fss/api/filings/corp_code.html | lib doc | corpCode.xml mapping mechanics |
+| https://pypi.org/project/dart-fss/ | lib | mature Python client |
+| https://www.xbrl.org/news/south-korea-expands-english-disclosure-system-to-boost-foreign-investment/ | industry | Feb-2025 English platform, 83 types |
+| https://www.kedglobal.com/regulations/newsView/ked202402190001 | press | phased English mandates |
+| https://data.krx.co.kr/contents/MDC/MAIN/main/index.cmd?locale=en | official (KRX) | KRX data portal option |
+| https://mcpservers.org/servers/songhyojun0228/opendart-mcp-server | community | free key, 10k req/day corroboration |
+| https://docs.cloud.google.com/stackdriver/docs/solutions/slo-monitoring/alerting-on-budget-burn-rate | official | burn-rate alerting on GCP |
+| https://incident.io/blog/sre-alerting-best-practices | industry | alert-fatigue stats |
+| https://futureagi.com/blog/what-is-llm-fallback-strategy-2026/ | industry | quality-floor gate on fallback routes |
+| https://www.getmaxim.ai/articles/best-llm-gateway-to-design-reliable-fallback-systems-for-ai-apps/ | industry | fallback-activation-rate >5% alert baseline |
+| https://www.buildmvpfast.com/blog/llm-fallback-strategies-primary-model-secondary-model-2026 | industry | per-request model provenance logging |
 
-### Key findings (per-claim cites)
-
-1. **The doctrine's own method is component-at-a-time, not all-at-once.** "Removing one component at a time and reviewing what impact it had" (Anthropic harness-design, #1). 59.3's mandated design (one bare run, all components removed at once) measures the JOINT effect; per-component verdicts from it are inference, not causal attribution — corroborated by "attribution is well-posed iff each component is lifted out" (Jung & Son, #3). → The comparison doc MUST label per-component verdicts as attributed-not-isolated, and any prune recommendation should propose a component-at-a-time confirmation run as its operator-gated follow-up.
-2. **There is precedent for pruning on a model release** — Anthropic removed the sprint construct on Opus 4.6 (#1). "Keep everything" is valid but not the default-by-inertia.
-3. **The QA-component verdict adjudicates between two Anthropic claims:** harness-design's "agents tend to confidently praise their own work" + "standalone skeptical evaluator far more tractable" (#1) vs the Fable announcement's "at the highest effort, Claude Fable 5 reflects on and validates its own work" (#2). The latter is a vendor claim about the model under test; treat it as the hypothesis, not as evidence.
-4. **Consensus vs debate (external):** consensus — scaffolding still moves outcomes materially (planning layer +24.1pp, #3; Terminal-Bench harness-effect claims, snippet tier); debate — whether frontier models make harnesses optional (vendor minimal-harness FireRed win #2; practitioner "the 2024 brittleness story is stale" snippets) vs substitution-not-elimination (#3). No source tests Claude-Code-style masterplan harnesses specifically — 59.3 generates primary evidence.
-5. **Judging-bias pitfalls (from literature), with mitigations baked into §C:** position bias is worst exactly when both candidates are good (#4) → no holistic pairwise preference; same-family familiarity bias (#5) → fact-anchored checklists, counts over preferences, operator gate as the ensemble-analog; pre-registration of rubrics before the run (#3, and this brief is the pre-registration artifact).
-6. **Leakage handling is the temporal-cutoff pattern** (#6): pin the evaluation world to material frozen before the answers existed (worktree at `70a8242b`) + blind the answer-bearing locations + weight process over answer-matching because paraphrase-level leakage evades blinding (#6: syntactic contamination evades exact-match decontamination).
-
-## G. Recency scan (2024-2026, incl. post-2026-06-09 Fable 5)
-
-Performed (mandatory): searched 2025/2026-scoped queries + the post-release window. Result: **substantial new findings.** (a) Fable 5 released 2026-06-09; the autonomy claim is verbatim in #2; press corroboration (TechCrunch/CNBC/NBC 06-09; Bedrock GA). (b) **No independent third-party Fable 5 agentic evaluations exist yet** beyond the vendor's and a referenced Cognition FrontierCode score — 2 days post-release; 59.3 is therefore generating primary evidence, and its verdicts should be framed as first-look, revisitable when independent evals land. (c) 2026 ablation literature (#3, Apr 2026; 2605.30621 May 2026 snippet) moved the field from "does scaffolding help" to "which component is empirically justified" — exactly 59.3's question. (d) 2024-window canonical bias papers (#4, #5) remain the methodological anchors; the 2025 AACL revision of #4 is in-window.
-
-## H. Query log (3-variant discipline accounting)
-
-| Topic | Queries run | Variant coverage |
-|---|---|---|
-| Scaffolding ablation | "agent scaffolding ablation frontier models harness still needed 2026"; "do stronger LLMs need less scaffolding agent harness ablation 2025" | current-year + last-2-year run; year-less canonical NOT run as a search — the year-less canonical source is the mandated direct fetch of the Anthropic harness-design article (#1). Disclosed as a partial soft gap. |
-| LLM-judge biases | "LLM-as-a-judge biases position length self-preference pairwise comparison" | year-less canonical; returned a 2024-2026 mix (MT-Bench-era through Apr-2026), covering the recency window in one pass. Single-query coverage disclosed. |
-| Contamination / re-evaluation | "data contamination re-evaluation LLM benchmark leakage mitigation survey" | year-less canonical; returned 2024-2026 mix incl. the 2025 dynamic-evaluation survey (#6). |
-| Fable 5 recency | "Anthropic Claude Fable 5 autonomous agentic evaluation June 2026" | current-window (topic is 2 days old; year-less prior art cannot exist — stated explicitly per the research-gate rule). |
-
-Tool-call budget: ~24 vs the moderate ≤18 — overran for the same reason 59.2 did (caller mandated 5 external topics + a full internal leakage/rubric design); disclosed, not hidden.
-
-## Research Gate Checklist
-
-Hard blockers:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (7)
-- [x] 10+ unique URLs total (45+ incl. snippet-only)
-- [x] Recency scan (last 2 years + post-release window) performed + reported
-- [x] Full papers/pages read (not abstracts) for the read-in-full set (#4 was abs-then-full-HTML; counted once)
-- [x] file:line anchors for every internal claim (harness_log.md:26782; CHANGELOG.md:14/23/42-44/66-68; governance.py:168/175; portfolio_manager.py:180/185/194-195; formatters.py:37; claude_code_client.py:163-170; commits a747d86b / 70a8242b / 236b1f86 / 17e53d00 / 78b264bf)
-
-Soft checks:
-- [x] Internal exploration covered every relevant module (6 candidate chains + leakage grep across tracked files + BQ-side leak paths + memory dirs)
-- [x] Contradictions/consensus noted (§F.3, §F.4)
-- [~] 3-variant query discipline partially satisfied on two topics (disclosed in §H) — same NOTE-severity gap Q/A logged on the 55.2 brief
-
-## JSON envelope
+## 9. JSON envelope
 
 ```json
 {
-  "tier": "moderate",
-  "external_sources_read_in_full": 7,
-  "snippet_only_sources": 20,
-  "urls_collected": 45,
+  "tier": "complex",
+  "external_sources_read_in_full": 6,
+  "snippet_only_sources": 25,
+  "urls_collected": 31,
   "recency_scan_performed": true,
-  "internal_files_inspected": 15,
-  "report_md": "handoff/current/research_brief.md",
+  "internal_files_inspected": 14,
   "gate_passed": true
 }
 ```
+
+Hard blockers: >=5 read in full (6) [x]; 10+ URLs (31) [x]; recency scan [x]; full pages not abstracts [x]; file:line for every internal claim [x]. Soft: all relevant modules covered (loop, orchestrator, CFs, alerting, formatters, reports API, tests, frontend) [x]; conflicts noted (2.5-flash-lite date; doc-slug vs publisher-ID) [x]; per-claim citations [x].

@@ -19,8 +19,11 @@ logger = logging.getLogger(__name__)
 #   https://platform.claude.com/docs/en/about-claude/models/overview
 MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Gemini (Vertex AI)
+    # phase-60.1: gemini-2.0-flash DISCONTINUED on Vertex 2026-06-01; row kept
+    # for historical cost rows only. 2.5-flash pricing re-verified 2026-06-11
+    # (ai.google.dev/gemini-api/docs/pricing): $0.30/$2.50 per Mtok.
     "gemini-2.0-flash": (0.10, 0.40),
-    "gemini-2.5-flash": (0.15, 0.60),
+    "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.5-pro": (1.25, 10.00),
     # Anthropic Claude — current GA (Opus 4.x, Sonnet 4.6, Haiku 4.5)
     "claude-opus-4-8": (5.00, 25.00),  # phase-47.3: launched 2026-05-28, $5/$25 (same as 4.7)
@@ -143,7 +146,7 @@ class CostTracker:
 
         Args:
             agent_name: Human-readable agent label (e.g. "Synthesis Agent")
-            model: Model name string (e.g. "gemini-2.0-flash")
+            model: Model name string (e.g. "gemini-2.5-flash")
             response: The GenerateContentResponse from Vertex AI
             is_deep_think: Whether this agent uses the deep-think model
         """

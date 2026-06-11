@@ -322,6 +322,14 @@ def _make_claude_code_client_class():
         """
         supports_thinking = False
         supports_grounding = False
+        # phase-60.1 (AW-4): the CLI round-trip routinely takes 60-90s
+        # (observed 88.9s live 2026-06-11), so the orchestrator's default
+        # 90s per-step budget races the rail itself -- the away week's "90s
+        # agent timeouts" leg. Declare the rail's latency profile so
+        # _generate_with_retry lifts its budget ABOVE this client's own
+        # 120s subprocess timeout (the CLI timeout then fails first and is
+        # retried, instead of the step giving up mid-flight).
+        recommended_step_timeout = 150
 
         def __init__(self, model_name: str, timeout_s: int = 120):
             self.model_name = model_name

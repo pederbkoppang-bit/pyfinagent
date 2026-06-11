@@ -199,7 +199,7 @@ def _call_llm_for_rewrite(prompt: str) -> Optional[dict[str, Any]]:
             location=getattr(settings, "gcp_location", "us-central1"),
         )
         resp = g_client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",  # phase-60.1: 2.0-flash discontinued 2026-06-01
             contents=prompt,
         )
         text = getattr(resp, "text", "") or ""

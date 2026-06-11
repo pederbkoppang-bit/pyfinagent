@@ -36,6 +36,19 @@ from typing import Literal
 
 CostTier = Literal["build", "live"]
 
+# phase-60.1 (AW-4): THE Vertex Gemini workhorse pin -- single source of truth.
+# gemini-2.0-flash was DISCONTINUED server-side 2026-06-01 (Google model
+# lifecycle docs); every pinned reference silently 404'd from 06-02 and the
+# full pipeline fell back to the 2-call lite analyzer for the entire away
+# week. gemini-2.5-flash chosen by LIVE SMOKE 2026-06-11
+# (scripts/debug/smoke_vertex_model.py: text + structured-output legs PASS in
+# us-central1; gemini-3.1-flash-lite and gemini-3-flash-preview both 404 in
+# this region). $0.30/$2.50 per Mtok.
+# RETIREMENT TRIGGER: the Gemini 2.5 family retires 2026-10-16 -- re-run the
+# smoke against the then-current replacement and update THIS constant before
+# that date (also covers settings.deep_think_model=gemini-2.5-pro).
+GEMINI_WORKHORSE = "gemini-2.5-flash"
+
 # Build tier: verbatim snapshot of the mapping that existed before this
 # refactor. Lines cited for each role so a future auditor can git-blame
 # back to the source.
@@ -68,17 +81,19 @@ _BUILD_TIER: dict[str, str] = {
     "autoresearch_strategic": "claude-fable-5",
     # settings.py:28 -- TRULY Gemini-locked (Vertex AI Search / Search Grounding /
     # Vertex structured-output schemas). DO NOT swap to Claude.
-    "gemini_enrichment": "gemini-2.0-flash",
+    # phase-60.1: repinned from the discontinued gemini-2.0-flash (AW-4).
+    "gemini_enrichment": GEMINI_WORKHORSE,
     # settings.py:30 (deep_think_model). phase-37.2: aligned to production (was
     # gemini-2.5-flash; production env override has been gemini-2.5-pro since
     # phase-34.1e). Currently dead code (no callsite resolves
     # "gemini_deep_think" through resolve_model) but kept aligned so any
     # future caller doesn't silently regress.
     "gemini_deep_think": "gemini-2.5-pro",
-    # phase-22.1 -- Layer-1 swappable skills. Default to gemini-2.0-flash but
-    # CAN run on Claude when apply_model_to_all_agents=True. The role is NOT
-    # in _GEMINI_LOCKED_ROLES so the override propagates.
-    "layer1_swappable": "gemini-2.0-flash",
+    # phase-22.1 -- Layer-1 swappable skills. Default to the Gemini workhorse
+    # but CAN run on Claude when apply_model_to_all_agents=True. The role is
+    # NOT in _GEMINI_LOCKED_ROLES so the override propagates.
+    # phase-60.1: repinned from the discontinued gemini-2.0-flash (AW-4).
+    "layer1_swappable": GEMINI_WORKHORSE,
 }
 
 # Live tier: every value is the sentinel. resolve_model() raises if it

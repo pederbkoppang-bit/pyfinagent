@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-11T08:34:25.506699+00:00",
+  "updated_at": "2026-06-11T11:05:42.978683+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14347,7 +14347,7 @@
         {
           "id": "60.1",
           "name": "Deep-pipeline restoration + honest-degradation alarm (AW-4) -- replace the Vertex-retired gemini-2.0-flash pins, make KR (.KS) tickers first-class or honestly-skipped in the full orchestrator, and alarm when full->lite fallback exceeds threshold instead of degrading silently. During the away week the full 28-agent pipeline completed for ZERO tickers (KR: 'not found in SEC CIK mapping'; US: 90s agent timeouts + Vertex '404 Publisher Model gemini-2.0-flash was not found'); every decision silently fell back to the 2-call lite momentum analyzer while the operator believed skills were running.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "59.3",

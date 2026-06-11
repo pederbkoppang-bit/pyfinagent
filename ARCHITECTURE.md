@@ -369,7 +369,7 @@ Detailed reference:
 
 | Model | Agents | Purpose |
 |-------|--------|---------|
-| `gemini-2.0-flash` | 28 (Layer 1) | Analysis pipeline |
+| `gemini-2.5-flash` | 28 (Layer 1) | Analysis pipeline (phase-60.1 repin; 2.0-flash discontinued 2026-06-01) |
 | `claude-opus-4-6` | Ford, Q&A Analyst | Orchestration, quantitative reasoning |
 | `claude-sonnet-4-6` | Communication, Researcher, QG, Citation | Routing, research, quality |
 | `claude-sonnet-4-20250514` | OpenClaw main agent | Gateway sessions, heartbeats |

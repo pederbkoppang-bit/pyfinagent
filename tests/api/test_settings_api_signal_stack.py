@@ -114,7 +114,7 @@ def test_settings_update_partial_payload_only_touched_fields():
 def _make_full_settings() -> FullSettings:
     """Helper: construct FullSettings with required existing fields stubbed."""
     return FullSettings(
-        gemini_model="gemini-2.0-flash",
+        gemini_model="gemini-2.5-flash",
         deep_think_model="gemini-2.5-pro",
         max_debate_rounds=2,
         max_risk_debate_rounds=1,

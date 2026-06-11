@@ -927,6 +927,48 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             except Exception as _guard_exc:
                 logger.warning("Degraded-scoring guard errored (non-fatal): %s", _guard_exc)
 
+            # phase-60.1 (AW-4): full->lite fallback-rate alarm, wired beside
+            # the 56.2 guard (same raise_cron_alert path, distinct error_type)
+            # -- NOT a parallel bespoke path. The away week ran 9 days at 100%
+            # fallback (retired gemini-2.0-flash pin + KR SEC-CIK aborts) and
+            # nothing fired; the operator believed the full skills pipeline
+            # was deciding. Per-cycle window per SRE low-traffic guidance
+            # (burn-rate windows degenerate at ~1 cycle/day).
+            try:
+                _fb_threshold = float(getattr(settings, "fallback_alarm_threshold", 0.5))
+                _fb_fire, _n_fb, _n_fb_total, _fb_reasons = _fallback_rate_check(
+                    candidate_analyses + holding_analyses, _fb_threshold,
+                )
+                if _fb_fire:
+                    summary["fallback_rate"] = f"{_n_fb}/{_n_fb_total}"
+                    summary["fallback_reasons"] = _fb_reasons
+                    logger.warning(
+                        "Fallback-rate alarm fired: %d/%d analyses fell back full->lite (threshold %.0f%%)",
+                        _n_fb, _n_fb_total, _fb_threshold * 100,
+                    )
+                    from backend.services.alerting import raise_cron_alert
+                    await raise_cron_alert(
+                        source="autonomous_loop",
+                        error_type="fallback_rate",
+                        severity="P1",
+                        title=(
+                            f"Full-pipeline fallback rate {_n_fb}/{_n_fb_total} "
+                            f"exceeds {_fb_threshold:.0%}"
+                        ),
+                        details={
+                            "cycle_id": _cycle_id,
+                            "fallback": f"{_n_fb}/{_n_fb_total}",
+                            "per_ticker_reasons": _fb_reasons,
+                            "consequence": (
+                                "scores came from the 2-call lite momentum wrapper, "
+                                "not the full skills pipeline; treat this cycle's "
+                                "recommendations as degraded"
+                            ),
+                        },
+                    )
+            except Exception as _fb_exc:
+                logger.warning("Fallback-rate alarm errored (non-fatal): %s", _fb_exc)
+
             # phase-23.1.12: no longer mutate settings.lite_mode here — operator's
             # value is preserved across the cycle.
 
@@ -1467,6 +1509,7 @@ async def _run_single_analysis(
     # BEFORE diving into the per-agent calls.
     _route = "claude_code" if getattr(settings, "paper_use_claude_code_route", False) else "anthropic_direct"
     logger.info("Orchestrator pre-dispatch ticker=%s rail=%s lite_mode=False model=%s", ticker, _route, settings.gemini_model)
+    _fb_reason = "unknown"  # phase-60.1: overwritten by the except below
     try:
         # phase-38.13.1 (cycle 11, 2026-05-27): cure the get_settings()
         # lru_cache desync across uvicorn workers. When the operator flips
@@ -1530,13 +1573,24 @@ async def _run_single_analysis(
             "Full orchestrator failed for %s: %s -- falling back to lite Claude analyzer",
             ticker, e,
         )
+        # phase-60.1 (AW-4): capture the per-ticker failure reason. The away
+        # week's 100% fallback was invisible because the reason lived only in
+        # this log line -- the alarm predicate needs it on the analysis dict.
+        _fb_reason = f"{type(e).__name__}: {e}"
 
     # Last-resort fallback: try lite path so the cycle still produces a decision.
     # phase-27.3 (C2): provider-aware via _select_lite_analyzer.
     try:
-        return await _select_lite_analyzer(settings.gemini_model)(
+        _lite = await _select_lite_analyzer(settings.gemini_model)(
             ticker, settings, portfolio_context=portfolio_context or "",
         )
+        # phase-60.1 (AW-4): tag the INTENDED-full-but-landed-lite analyses.
+        # Deliberate lite_mode runs (the branch above) carry NO tag, so the
+        # fallback-rate alarm never fires on an operator's lite choice.
+        if isinstance(_lite, dict):
+            _lite["_fallback_reason"] = _fb_reason[:500]
+            _lite["_intended_path"] = "full"
+        return _lite
     except Exception as e:
         logger.error("Both full and lite paths failed for %s: %s", ticker, e)
         return None
@@ -1694,6 +1748,30 @@ def _degraded_scoring_check(analyses: list[dict]) -> tuple[bool, int, int]:
             n_degraded += 1
     fire = n_total > 0 and (n_degraded == n_total or n_degraded >= 3)
     return fire, n_degraded, n_total
+
+
+def _fallback_rate_check(
+    analyses: list[dict], threshold: float = 0.5,
+) -> tuple[bool, int, int, dict[str, str]]:
+    """phase-60.1 (AW-4) pure predicate: (fire, n_fallback, n_total, reasons).
+
+    Counts analyses that INTENDED the full pipeline but landed on the lite
+    fallback -- tagged `_fallback_reason` at the fallback site in
+    `_run_single_analysis`. Deliberate lite_mode analyses carry no tag and
+    can never fire this. Fires when the fallback fraction strictly EXCEEDS
+    `threshold` (default 0.5 per the 60.1 spec): 3/5 fires, 2/4 does not.
+    The away-week case (everything fell back, 100%) always fires.
+    """
+    n_total = len(analyses)
+    reasons: dict[str, str] = {}
+    for a in analyses:
+        if not isinstance(a, dict):
+            continue
+        if a.get("_fallback_reason"):
+            reasons[str(a.get("ticker") or "?")] = str(a["_fallback_reason"])[:200]
+    n_fallback = len(reasons)
+    fire = n_total > 0 and (n_fallback / n_total) > threshold
+    return fire, n_fallback, n_total, reasons
 
 
 def _all_conviction_fallback(candidates: list[dict]) -> bool:
@@ -2193,6 +2271,14 @@ async def _persist_analysis(analysis: dict, bq: BigQueryClient) -> None:
         if not ticker:
             return
         full_report = analysis.get("full_report") or {}
+        # phase-60.1 (AW-4): stamp lite/full provenance INTO the persisted
+        # JSON so BQ readers (digest, reports API) can distinguish a 2-call
+        # lite-wrapper score from a full 28-agent score. The away week wrote
+        # 64 lite rows that looked identical to full rows.
+        if isinstance(full_report, dict) and analysis.get("_path"):
+            full_report = {**full_report, "_path": analysis["_path"]}
+            if analysis.get("_fallback_reason"):
+                full_report["_fallback_reason"] = str(analysis["_fallback_reason"])[:500]
         market_data = full_report.get("market_data") or {}
         await asyncio.to_thread(
             bq.save_report,

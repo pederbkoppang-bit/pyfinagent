@@ -82,7 +82,7 @@ def test_settings_update_paper_fields_have_validators():
 def test_full_settings_paper_starting_capital_default_10000():
     # Construct with required fields; paper fields should default
     f = FullSettings(
-        gemini_model="gemini-2.0-flash",
+        gemini_model="gemini-2.5-flash",
         deep_think_model="gemini-2.5-pro",
         max_debate_rounds=2,
         max_risk_debate_rounds=1,

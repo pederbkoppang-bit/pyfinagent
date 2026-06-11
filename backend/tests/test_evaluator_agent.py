@@ -32,9 +32,9 @@ from backend.agents.evaluator_agent import (
 def test_evaluator_agent_instantiates_without_vertex():
     """EvaluatorAgent.__init__ must not raise if Vertex is unavailable."""
     with patch("backend.agents.evaluator_agent.GENAI_AVAILABLE", False):
-        e = EvaluatorAgent(model_name="gemini-2.0-flash")
+        e = EvaluatorAgent(model_name="gemini-2.5-flash")
         assert e.model is None
-        assert e.model_name == "gemini-2.0-flash"
+        assert e.model_name == "gemini-2.5-flash"
         assert e.max_eval_time == 30
 
 
