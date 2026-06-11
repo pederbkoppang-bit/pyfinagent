@@ -1,125 +1,102 @@
-# Evaluator Critique — Step 59.1 (EVALUATE)
+# Evaluator Critique — Step 59.2 (EVALUATE)
 
-**Step:** 59.1 — Fable 5 model adoption (both layers, quality-first)
+**Step:** 59.2 — MCP audit + integration (Playwright full, Figma frontend workflow)
 **Date:** 2026-06-11
-**Agent:** Q/A (merged qa-evaluator + harness-verifier), FIRST spawn for 59.1
+**Agent:** Q/A (merged qa-evaluator + harness-verifier), FIRST spawn for 59.2
 **Verdict:** **PASS**
-**Evaluating snapshot:** OLD (this session's qa runs the pre-59.1 Opus-4.8 roster — protocol-identical; the Fable pins it authored take effect NEXT session). Separation-of-duties satisfied by the operator's 8 in-session pre-approvals (2026-06-11).
+**Evaluating snapshot:** OLD — this session's Q/A runs the pre-59.2 qa.md (no §1c in my loaded prompt), which is itself live confirmation that the restart caveat the step documents is real and necessary. I enforce 59.2's immutable criteria, not the new §1c gate retroactively.
 
 ---
 
 ## 0. Harness-compliance audit (5 items — all PASS)
 
-1. **Researcher gate** — `handoff/current/research_brief.md` is the 59.1 brief: envelope `gate_passed: true`, `external_sources_read_in_full: 7` (5 official docs + 2 vendor/industry), `recency_scan_performed: true`, 17 URLs collected. Cited per-claim. PASS.
-2. **Contract pre-commit** — `contract.md` is for 59.1; 4 immutable criteria copied VERBATIM (diffed against `.claude/masterplan.json` step 59.1 `verification.success_criteria` — identical). mtime ordering correct: research_brief (…682) < contract (…790) < all 7 code edits (researcher.md …820, qa.md …827, model_tiers …866, ticket …880, CLAUDE.md …913, tests …960/…973) < live_check (…109) < experiment_results (…137). Contract precedes the code. PASS.
-3. **Results present** — `experiment_results.md` present with file list, verbatim verification output, and honest limitations. PASS.
-4. **Log-last / status** — `handoff/harness_log.md` has NO 59.1 cycle (last is Cycle 48 = phase-57.1). masterplan 59.1 `status: "pending"`. Correct order (log + flip come after this PASS). PASS.
-5. **First spawn / no verdict-shopping** — no `handoff/archive/phase-59.1/` dir, no prior 59.1 critique. First spawn; nothing to shop. PASS.
+1. **Researcher gate** — `handoff/current/research_brief.md:1` is the 59.2 brief; envelope `gate_passed: true`, `external_sources_read_in_full: 6`, `recency_scan_performed: true`, 17 URLs. Contract references it (tier=moderate, sources named). PASS.
+2. **Contract pre-commit** — `contract.md` is for 59.2; python exact-compare against `.claude/masterplan.json` step 59.2: all 4 `success_criteria` **VERBATIM** (4/4) and the verification command verbatim (`cmd_verbatim: True`). mtime ordering: research_brief 06:29 < contract 06:31 < code edits 06:31:31–06:33:50 (.mcp.json, CLAUDE.md, qa.md, researcher.md, frontend.md) < live_check 06:35 < experiment_results 06:36. Contract precedes GENERATE. PASS.
+3. **Results present** — `experiment_results.md` with 5-file change table, verbatim verification output, smoke evidence, and an honest-limitations section. PASS.
+4. **Log-last / status** — `grep -c 'phase=59.2' handoff/harness_log.md` = 0; masterplan 59.2 `status: 'pending'`. Log + flip correctly deferred until after this verdict. PASS.
+5. **First spawn / no verdict-shopping** — no prior 59.2 critique (the overwritten file was 59.1's PASS); `handoff/archive/phase-59.1/` exists, no `phase-59.2/`. Zero prior CONDITIONALs (3rd-CONDITIONAL rule N/A). PASS.
 
-`retry_count: 0`, `max_retries: 3` → `certified_fallback: false`.
+`retry_count: 0` → `certified_fallback: false`.
 
 ---
 
 ## 1. Deterministic checks (cannot hallucinate)
 
-### Immutable verification command
+### Immutable verification command (run verbatim by Q/A)
 ```
-$ source .venv/bin/activate && python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q
-7 passed, 773 deselected, 1 warning in 2.73s
-$ (combined cmd including `test -f handoff/current/live_check_59.1.md`) -> exit=0
+$ source .venv/bin/activate && python -c "import json; cfg=json.load(open('.mcp.json')); assert 'alwaysLoad' in cfg['mcpServers']['playwright'], 'playwright alwaysLoad missing'" && grep -q 'Playwright' .claude/agents/qa.md && grep -qi 'figma' .claude/rules/frontend.md && test -f handoff/current/live_check_59.2.md; echo exit=$?
+exit=0
 ```
 
-### Full suite (false-green guard — the researcher proved the `-k` net collects only `model_tiers`-substring tests and would NOT exercise the one breaking test `test_agent_map_live_model`)
-```
-$ python -m pytest backend/tests -q
-762 passed, 12 skipped, 6 xfailed, 1 warning in 72.99s
-full-suite-exit=0
-```
-Matches the researcher's predicted count exactly. The breaking test `test_agent_map_live_model.py::test_endpoint_injects_live_model_field` was correctly updated to `claude-fable-5` — out-of-net breakage caught only by the full run, exactly the false-green risk the researcher flagged.
+### Content greps (file:line evidence)
+- `.mcp.json` playwright block: `args` contains `@playwright/mcp@0.0.76` (HAS_0.0.76_in_args: True), `alwaysLoad: false`, all four flags intact (`--executable-path`, `--user-data-dir`, `--allowed-hosts localhost`, `--viewport-size 1440,900`).
+- `CLAUDE.md:69` — playwright line in the alwaysLoad discipline list (`alwaysLoad: false` + episodic-server rationale + mid-session no-respawn caveat + 0.0.76 pin date); `CLAUDE.md:71` — Figma connector note (session connector, NOT pinned, advisory-only, never verification-load-bearing).
+- `qa.md:102` — `### 1c. Live UI capture gate (BINDING -- REQUIRED if the step makes UI claims)`; `:106` — "**CANNOT receive PASS**"; CONDITIONAL + Missing_Assumption wording present (8 CONDITIONAL occurrences file-wide); `:117` — Figma awareness ("design-advisory and NEVER" satisfies the gate); `:119` — section-inline RESTART CAVEAT ("binds Q/A spawns from the session AFTER").
+- `researcher.md:97-105` — MCP awareness block: Playwright (prefer live snapshot over code inference, ToolSearch path, frontend.md workflow pointer) + Figma (advisory-only, absent headless, "never make a brief's gate depend on it"). File-level RESTART CAVEAT at `researcher.md:19-20`.
+- `frontend.md:73` — `## Live-UI verification (Playwright MCP + skip-auth :3100)` with `LIGHTHOUSE_SKIP_AUTH=1 npx next dev --port 3100` at `:82`; `frontend.md:104` — `## Figma MCP workflow — phase-59.2 (design-advisory ONLY)` with the headless-absence caveat at `:107` ("NOT in .mcp.json and is ABSENT in headless/cron sessions").
 
-### Pin assertions (live `resolve_model` / effort path — `python -c`)
-- `resolve_model('mas_main') == 'claude-fable-5'` ✓
-- `resolve_model('autoresearch_strategic') == 'claude-fable-5'` ✓
-- `resolve_model('mas_qa') == 'claude-opus-4-8'` ✓ (UNCHANGED — criterion 2 cost discipline)
-- `resolve_model('mas_communication')`, `resolve_model('mas_research')` → `claude-sonnet-4-6` ✓
-- `model_supports_effort('claude-fable-5') is True` ✓
-- `resolve_effort_by_model('claude-fable-5') == 'xhigh'` ✓ (closes the silent effort-drop trap at `llm_client.py:1481`)
+### Emoji scan
+`git diff --unified=0` added lines across all 5 changed files + full `live_check_59.2.md`, perl scan over emoji ranges (U+1F300–1FAFF, U+2600–27BF, U+2B00–2BFF, U+FE0F): **zero hits**.
 
-### Whole-`_BUILD_TIER` fable sweep (anti-rubber-stamp angle a)
+### Frontend lint + typecheck (mandated — diff touches `.claude/agents/qa.md`)
 ```
-ALL fable-pinned build-tier roles: ['autoresearch_strategic', 'mas_main']
-gemini-locked roles: ['gemini_deep_think', 'gemini_enrichment', 'layer1_swappable']
+npx eslint .   -> 55 problems (0 errors, 55 warnings)  ESLINT_EXIT=0
+npx tsc --noEmit                                       TSC_EXIT=0
 ```
-**Only** the two allowed rare-event roles are on Fable. No metered/per-ticker role accidentally repinned. Gemini roles untouched.
+Warnings are pre-existing project-wide (this diff touches zero `frontend/src` files); errors-only exit semantics → gate PASS.
 
-### Frontmatter (grep batch)
-- `researcher.md`: `model: fable` (L5), `maxTurns: 40` (L6), `effort: max` (L23), `verify_qa_roster_live` (L20); comment block records $10/$50, June-23 USAGE CREDITS superseding phase-29.2 flat-fee, 2026-06-11 operator pre-approval, v2.1.170 floor / 2.1.172 local, restart caveat. ✓
-- `qa.md`: `model: fable` (L5), `maxTurns: 30` (L6), `effort: max` (L24), `verify_qa_roster_live` (L20); same economics + restart annotations + maxTurns 12→30 rationale (FIVE observed mid-evaluation stalls). ✓
-
-### CLAUDE.md (additive — criterion 3)
-- Contains `claude-fable-5`, `$10/$50`, June-23 Max-credit change explicitly "SUPERSEDES the flat-fee rationale below", classifier-fallback note, EFFORT_SUPPORTED_MODELS/MODEL_EFFORT_FALLBACK requirement, `/model fable`. ✓
-- Opus 4.8 history PRESERVED intact: phase-29.2 paragraph + literal "Introducing Claude Opus 4.8" string at L57 both survive. Additive (new bullet inserted above the historical one). ✓
-
-### Ticket map (`ticket_queue_processor.py:171-173`)
+### Pinned-artifact launch probe (Q/A-added, closes the smoke-version residual)
 ```
-"main": "claude-fable-5",        # Fable 5 (complex reasoning; rare-event)
-"q-and-a": "claude-fable-5",     # Fable 5 (accuracy required; rare-event)
-"research": "claude-sonnet-4-6"  # Sonnet 4-6 for research (cost efficient)
+$ npx -y @playwright/mcp@0.0.76 --version
+Version 0.0.76
+PROBE_EXIT=0
 ```
-Decision recorded inline + in live_check (~$0.18/day cost math). ✓
-
-### Version floor
-`claude --version` = `2.1.172` ≥ 2.1.170 (researcher's documented Fable-alias floor). ✓
+The pinned 0.0.76 artifact resolves from the registry, installs, and executes on this machine.
 
 ---
 
-## 2. Code-review heuristics (5 dimensions evaluated — no BLOCK/WARN)
+## 2. Code-review heuristics (5 dimensions — no BLOCK/WARN)
 
-- **Security:** no secret-in-diff (model ids are public identifiers, not credentials); no prompt-injection / command-injection / insecure-output paths; no dep-pin removal (config + test + doc changes only). Clean.
-- **Trading-domain correctness:** N/A — diff touches model-tier config, agent frontmatter, docs, tests. No execution path, kill_switch, stop-loss, perf_metrics, position-sizing, or signal-emission code changed. No LLM-output-to-execution path added.
-- **Code quality:** new test file ASCII-only; no `print()` in non-script; no broad-except. Clean.
-- **Anti-rubber-stamp on financial logic:** `financial-logic-without-behavioral-test` does NOT fire — no `perf_metrics.py`/`risk_engine.py`/`backtest_*` change. The config change IS covered by a behavioral test (`test_phase_59_1_fable_adoption.py`, 28 assertions, 6 tests over the REAL `resolve_model`/`model_supports_effort` resolution paths). No tautological assertions (grep for `assert .* is not None` / `assert x==x` / `called_once`/`MagicMock`/`@patch` returned NONE). No over-mock (imports + calls the real module, no `@patch` of the unit under test).
-- **LLM-evaluator anti-patterns:** first spawn, no prior verdict to flip; this critique carries file:line + command-output citations throughout (no missing-chain-of-thought; not sycophantic — concise but evidence-backed).
-
-`code_review_heuristics` appended to `checks_run`.
+- **Security:** config + docs diff only; no secrets in `.mcp.json` args (local paths + public package id); no injection paths; `supply-chain-dep-pin-removal` does NOT fire — the pin was bumped (0.0.75 → 0.0.76) with the reason documented in live_check §A, not removed. `--allowed-hosts localhost` preserved (least-privilege intact). Clean.
+- **Trading-domain:** N/A — no execution path, kill_switch, stop-loss, perf_metrics, or signal code touched.
+- **Code quality:** ASCII-clean additions; no Python/TS logic changed; eslint 0 errors / tsc 0 errors.
+- **Anti-rubber-stamp:** no financial logic → behavioral-test heuristics N/A. **Stale-premise handling (demanded angle): HONEST.** The masterplan `audit_basis` assumed `alwaysLoad` was missing from the playwright entry; it already existed at `.mcp.json:91`. This is surfaced as "STALE AUDIT-BASIS FINDING" in `contract.md:10`, as an "Honest stale-premise note" in `live_check_59.2.md` §A, and in the `experiment_results.md` change table — the claimed new work is correctly scoped to the CLAUDE.md discipline-list entry (verified present at `CLAUDE.md:69`), NOT the pre-existing key. No overclaim.
+- **LLM-evaluator anti-patterns:** first spawn, no prior verdict to flip; file:line + verbatim-output citations throughout.
 
 ---
 
 ## 3. LLM judgment vs the 4 immutable criteria
 
-**Criterion 1 (Layer-3 agent files)** — **MET.** Both files pin `model: fable` (researcher-validated alias per sub-agents + model-config docs), retain `effort: max`, raise maxTurns to 40/30; comments record the 2026-06-11 operator pre-approval, June-22/23 Max-credit economics, and session-restart requirement; live_check instructs `scripts/qa/verify_qa_roster_live.sh`.
+**Criterion 1 (Playwright version check + bump + alwaysLoad + smoke evidence)** — **MET (PASS-with-note).** Version checked (0.0.75/2026-05-07 vs npm latest 0.0.76/2026-06-10), delta documented (patch-level, 2 irrelevant devtools tools, ~10 bugfixes, all four pinned flags survive, zero breaking), pin bumped; `alwaysLoad: false` explicit with rationale consistent with the now-updated CLAUDE.md discipline list; live `browser_navigate` + `browser_snapshot` evidence (login-page elements, verbatim YAML excerpt) is in live_check §B — exactly the smoke-evidence shape the criterion itself defines. **The ruling on "smoke-tested if newer":** the capture ran on the session's already-connected 0.0.75 instance because editing `.mcp.json` cannot respawn a connected stdio server — an executable-this-session impossibility, not negligence. Mitigations: (i) disclosed twice in live_check (§A row + bold caveat paragraph) and in experiment_results limitations; (ii) permanently documented in `CLAUDE.md:69` + frontend.md; (iii) the delta is researcher-verified zero-breaking from release notes read in full; (iv) Q/A's own deterministic probe executed the pinned 0.0.76 artifact (`Version 0.0.76`, exit 0). Residual — the first in-session MCP connect + browser launch on 0.0.76 happens next session — is the same restart semantics this project already accepts for agent-file edits, with the caveat documented. A CONDITIONAL would demand an action impossible without restarting the operator's session; the disclosure + probe close everything executable. NOTE for next session: confirm `/mcp` shows playwright on 0.0.76.
 
-**Criterion 2 (Layer-2 + cost discipline)** — **MET.** `mas_main` + `autoresearch_strategic` → `claude-fable-5`; `mas_qa` and every per-ticker/per-analysis role unchanged (proved by the whole-tier sweep, not just spot pins); MODEL_EFFORT_FALLBACK gains `("claude-fable-5","xhigh")` (researcher-grounded: Fable doc baseline `high`, project posture xhigh, role EFFORT_DEFAULTS still override); ticket `agent_model_map` updated with the decision recorded; a real unit test covers the new resolution paths AND the unchanged per-ticker pins.
+**Criterion 2 (binding qa rule + researcher awareness + :3100 workflow)** — **MET.** `qa.md:102-119` §1c: UI-claims steps CANNOT receive PASS without a live capture referenced in the live_check; snapshot vs screenshot admissibility; absence → CONDITIONAL + `Missing_Assumption`; 55.1 precedent cited; Figma excluded from satisfying the gate; restart caveat inline. `researcher.md:97-101` Playwright awareness. `frontend.md:73-103` documents the full :3100 `LIGHTHOUSE_SKIP_AUTH=1` workflow (start/stop, operator :3000 untouched, disclosure template, capture relocation).
 
-**Criterion 3 (CLAUDE.md additive)** — **MET.** Effort-policy section updated for Fable 5 (id, $10/$50, June-22→23 Max-credit change superseding the flat-fee rationale, classifier-fallback note) without deleting the Opus 4.8 history; additive; cites the 2026-06-11 operator approval.
+**Criterion 3 (Figma workflow + awareness + capability audit)** — **MET.** `frontend.md:104+` Figma MCP workflow (design-to-code for NEW views with navy/slate token reconciliation, code-to-design review, headless-absence caveat at `:107`); `researcher.md:102-105` + `qa.md:117` one-line awareness each; capability audit vs the Next.js cockpit in live_check §D — connector reality (`mcp__claude_ai_Figma__*`, session-only), what it CAN do (code-to-design capture of the live cockpit = first use; `get_design_context` React+Tailwind fit), what it CANNOT (not token-compliant by default, seat/pricing caveats, free-during-beta → LLM-cost approval rule when usage-based pricing lands).
 
-**Criterion 4 (verification command + live_check)** — **MET.** Verification command exits 0; live_check records the pin diff map (old→new per role, section A table), the unchanged-roles list (section B), and the restart/roster-verify instruction (actionable: "Next session: run scripts/qa/verify_qa_roster_live.sh").
-
-### Anti-rubber-stamp interrogation (the three demanded angles)
-- **(a) Stray metered fable pin?** NO — whole-`_BUILD_TIER` sweep returns exactly `['autoresearch_strategic', 'mas_main']`. mas_qa stays opus-4-8 (the per-ticker analyst). Cost discipline provably held.
-- **(b) Frontmatter syntax claim grounded?** YES — `model: fable` + `maxTurns`/`effort` validity rest on the researcher reading-in-full `code.claude.com/docs/en/sub-agents` (frontmatter `model` enum lists `fable`; `maxTurns` documented) + `code.claude.com/docs/en/model-config` (`fable` alias, v2.1.170 floor). Local 2.1.172 clears the floor. Doc-cited, not a vibe.
-- **(c) live_check restart instruction actionable?** YES — L24 names the exact script (`scripts/qa/verify_qa_roster_live.sh`) + the retry-on-FAIL doctrine pointer; snapshot-semantics caveat explained.
+**Criterion 4 (verification exit 0 + restart caveats + no emojis)** — **MET.** Command exit=0 (run verbatim by Q/A, §1 above). Restart caveats: `qa.md:19` file-level + `:119` section-inline; `researcher.md:19-20` file-level RESTART CAVEAT covers the awareness-block edit (NOTE: the new researcher.md block does not repeat the caveat inline — the live_check's "inline" wording is generous for that file, but the criterion's operative requirement, that the edited agent file carries the caveat, is satisfied at file level, and experiment_results separately discloses next-session enforcement). Emoji scan: zero hits in added lines + live_check.
 
 ---
 
 ## 4. Scope honesty (experiment_results disclosure)
 
-Results disclose the real bounds: (i) Layer-3 pins take effect next session (this qa runs the old snapshot); (ii) Fable's real-world quality delta on these roles is UNMEASURED here (deferred to the 59.3 stress test) — adoption is operator-preference + announcement benchmarks, honestly stated, not overclaimed; (iii) post-June-22 Max credit burn not yet observable. No overclaim detected.
+Limitations honestly bound the claim: (i) §1c binds from the NEXT session's Q/A spawns (this spawn confirms — §1c is absent from my loaded snapshot); (ii) 0.0.76 pinned but not the connected instance (stdio no-respawn), first connect next session; (iii) Figma is docs/workflow only — no cockpit Figma file created (deferred as a natural follow-on). No overclaim detected.
+
+**Required in the upcoming LOG step:** per CLAUDE.md separation-of-duties, the harness_log 59.2 entry must carry the Peder-review note for the `.claude/agents/` edits (qa.md §1c, researcher.md awareness), and next session should run `scripts/qa/verify_qa_roster_live.sh` + confirm playwright connects on 0.0.76.
 
 ---
 
 ## Verdict: PASS
 
-All 4 immutable criteria met. Deterministic: immutable verification command exit 0; full suite 762 passed / 12 skipped / 6 xfailed exit 0 (false-green guard cleared, breaking test updated); pin assertions + whole-tier fable sweep prove cost discipline; frontmatter/CLAUDE.md/ticket-map/live_check verified at file:line. Code-review heuristics: no BLOCK/WARN (no execution/risk-guard/financial-logic touched). No certified fallback (retry 0/3). First spawn — no verdict-shopping.
+All 4 immutable criteria met. Deterministic: immutable verification command exit=0; 4/4 criteria verbatim in contract; content greps land at file:line for every claimed edit; emoji scan clean; eslint 0 errors / tsc 0 errors; pinned 0.0.76 artifact executes (`Version 0.0.76`, exit 0). Stale audit-basis premise honestly surfaced in contract + live_check + results rather than claimed as new work. Smoke-version caveat (capture on connected 0.0.75, pin 0.0.76) disclosed twice, permanently documented, and closed to launch-level by the Q/A probe. No code-review BLOCK/WARN. First spawn, retry 0/3, no certified fallback.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 4 immutable criteria met. Immutable verification cmd exit=0; full suite 762 passed/12 skipped/6 xfailed exit=0 (false-green -k net guarded by full run; breaking test_agent_map_live_model updated to claude-fable-5). Whole-_BUILD_TIER sweep confirms ONLY mas_main+autoresearch_strategic on fable (mas_qa stays opus-4-8 -> cost discipline held); EFFORT_SUPPORTED_MODELS+MODEL_EFFORT_FALLBACK carry claude-fable-5 (silent effort-drop trap closed, resolve_effort_by_model=='xhigh', model_supports_effort True). Layer-3 frontmatter model:fable + maxTurns 40/30 + effort:max + verify_qa_roster_live + June-23 credit economics + restart caveat. CLAUDE.md additive (fable + $10/$50 + supersedes-flat-fee) with Opus 4.8 history intact (phase-29.2 + 'Introducing Claude Opus 4.8' preserved). Ticket map main/q-and-a->fable, research->sonnet (decision recorded). live_check has pin diff map (old->new per role) + unchanged-roles list + actionable restart instruction. New test = 28 behavioral assertions over real resolution paths, no tautological/over-mock. Code-review heuristics: no BLOCK/WARN.",
+  "reason": "All 4 immutable criteria met. Verification cmd verbatim exit=0; criteria 4/4 VERBATIM in contract; .mcp.json pins @playwright/mcp@0.0.76 with alwaysLoad:false + all four flags; CLAUDE.md:69/:71 discipline entry + Figma note; qa.md:102 binding 1c gate (CANNOT receive PASS, CONDITIONAL+Missing_Assumption, restart caveat :119, Figma excluded); researcher.md:97-105 awareness; frontend.md:73/:104 both sections (LIGHTHOUSE_SKIP_AUTH :82, headless caveat :107); live_check has version-delta table, live navigate+snapshot excerpt, mid-session 0.0.75-capture disclosure, Figma capability audit. Criterion-1 ruling: smoke on connected 0.0.75 + pin 0.0.76 is PASS-with-note -- stdio no-respawn is unexecutable this session, disclosed twice + permanently documented, and Q/A's own probe executed the pinned artifact (npx @playwright/mcp@0.0.76 --version -> 'Version 0.0.76', exit 0). Stale alwaysLoad audit-basis premise honestly surfaced, not claimed as new work. eslint 0 errors / tsc 0 errors (qa.md-touch mandate). Emoji scan clean. Next session: verify_qa_roster_live.sh + /mcp shows 0.0.76; harness_log entry must carry the Peder-review note for agent-file edits.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit", "syntax", "verification_command", "full_test_suite", "pin_resolution_assertions", "build_tier_fable_sweep", "frontmatter_grep", "claude_md_additive", "ticket_map", "claude_version_floor", "code_review_heuristics", "research_brief", "experiment_results", "live_check"]
+  "checks_run": ["harness_compliance_audit", "verification_command", "criteria_verbatim_compare", "content_greps_5_files", "emoji_scan_diff_lines", "frontend_eslint", "frontend_tsc", "npx_0076_launch_probe", "mtime_ordering", "code_review_heuristics", "research_brief", "experiment_results", "live_check", "prior_critique_59.1"]
 }
 ```

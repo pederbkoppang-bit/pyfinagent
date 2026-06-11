@@ -70,6 +70,60 @@ This project is dark-mode-only. The `tailwind.config.js` sets `darkMode: "select
 - `auth.config.ts` = Edge-compatible (used by middleware), `auth.ts` = full config (PrismaAdapter + WebAuthn)
 - Session refetched every 15 minutes via `AuthProvider.tsx`
 
+## Live-UI verification (Playwright MCP + skip-auth :3100) — phase-59.2
+
+UI claims are verified against the RUNNING app, never inferred from code
+(CLAUDE.md Critical-Rules Playwright bullet; binding Q/A gate in
+`.claude/agents/qa.md` §1c). The canonical workflow (established 55.1/56.1):
+
+1. **Never touch the operator's :3000 instance.** Start a second dev server
+   with the auth bypass (`src/middleware.ts:24`):
+   ```bash
+   cd frontend && LIGHTHOUSE_SKIP_AUTH=1 npx next dev --port 3100
+   ```
+   (If :3100 is occupied by a stale instance: `lsof -ti tcp:3100 | xargs kill -9`.)
+2. Capture with the Playwright MCP (`mcp__playwright__browser_navigate` +
+   `browser_snapshot` for structure/text claims, `browser_take_screenshot`
+   for visual/color/layout claims). Same code + same backend (:8000) + same
+   BQ data as :3000 → valid UI evidence.
+3. **Kill the :3100 server after capture** and verify :3000 still answers
+   (302 to /login is the healthy authed-instance signature).
+4. **Disclose the method in the live_check** (the 55.1 §A paragraph is the
+   canonical template): skip-auth port, operator instance untouched,
+   capture-time `@playwright/mcp` version. NOTE: editing `.mcp.json` does
+   NOT respawn a connected stdio server mid-session — reconnect via `/mcp`
+   or disclose that captures ran on the previously-connected version.
+5. Screenshots land in the repo root / `.playwright-mcp/` — move them to
+   `handoff/current/captures_<step>/` and reference them from the live_check.
+
+Config: the server is pinned in `.mcp.json` (`@playwright/mcp@0.0.76`,
+isolated `--user-data-dir` profile, `--allowed-hosts localhost`,
+1440x900 viewport, `alwaysLoad: false` — see the CLAUDE.md MCP discipline
+section).
+
+## Figma MCP workflow — phase-59.2 (design-advisory ONLY)
+
+The Figma MCP is a **claude.ai session connector** (`mcp__claude_ai_Figma__*`)
+— it is NOT in `.mcp.json` and is ABSENT in headless/cron sessions. It is
+design-advisory and never verification-load-bearing (it cannot satisfy the
+Q/A live-capture gate).
+
+- **Code-to-design (the near-term value):** push the live cockpit into Figma
+  for design review via `generate_figma_design` / `create_new_file` (no repo
+  Figma file exists today — generating one from the running app is the
+  starting point). Use the `/figma-generate-design` skill when available.
+- **Design-to-code (for NEW dashboard views):** `get_design_context` emits
+  React + Tailwind by default — a direct stack fit, BUT its output MUST be
+  reconciled to this project's token rules before commit (navy/slate palette,
+  no zinc, JIT-safe literal classes, Phosphor icons, no emojis — see
+  "Dark-mode + readability" above). Treat Figma output as a draft, not a diff.
+- **Cost note:** the remote Figma MCP is free during its beta on all seats;
+  when usage-based pricing lands, Figma calls fall under the project's
+  LLM-cost approval rule (operator sign-off).
+- Availability check before relying on it: if `mcp__claude_ai_Figma__*` tools
+  are not in the session's deferred-tool list, the connector is not attached
+  — proceed without it (it is never a gate).
+
 ## Layout Blueprint
 See `frontend-layout.md` (this directory) for the 6-tier page anatomy, metric grid patterns, tab conventions, collapsible sections, empty states, and research-backed information hierarchy principles. Applies to `frontend/src/app/**` and `frontend/src/components/**`.
 

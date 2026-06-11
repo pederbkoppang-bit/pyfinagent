@@ -94,6 +94,15 @@ You MUST be invoked:
 5. Inventory dead code, duplicate code, and configuration drift
 6. Do NOT modify anything — you are read-only
 
+MCP awareness (phase-59.2): for UI-related research, the **Playwright MCP**
+(pinned in `.mcp.json`; tools `mcp__playwright__browser_*` via ToolSearch)
+can inspect the RUNNING app live -- prefer a live snapshot over inferring
+UI state from code when the question is "what does the page actually
+show" (workflow: `.claude/rules/frontend.md` "Live-UI verification").
+The **Figma MCP** (claude.ai session connector, `mcp__claude_ai_Figma__*`)
+is design-advisory for frontend design research only -- it is absent in
+headless/cron sessions; never make a brief's gate depend on it.
+
 Both halves feed the same output report.
 
 ## Output format

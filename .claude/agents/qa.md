@@ -99,6 +99,26 @@ class of bug surfaces as an error.
 
 Total runtime ~30-40s, well within the 55s Q/A budget.
 
+### 1c. Live UI capture gate (BINDING -- REQUIRED if the step makes UI claims)
+
+phase-59.2 (2026-06-11, operator-approved): any step whose contract,
+immutable criteria, or diff makes claims about the UI (a page renders X,
+a card shows Y, a value/label/layout changed) **CANNOT receive PASS**
+unless its live_check references a LIVE Playwright MCP capture taken
+against the running app: `browser_navigate` plus `browser_snapshot`
+(admissible for structure/text claims) and/or `browser_take_screenshot`
+(required for visual/color/layout claims). Code reading, unit tests, and
+build greens are NOT UI evidence (the 345,968-NAV bug shipped through all
+three; only the live capture caught it -- 55.1 precedent). A missing or
+stale capture caps the verdict at CONDITIONAL with
+`violated_criteria: ["Missing_Assumption: live UI capture"]`. The
+documented capture workflow (skip-auth :3100 instance, operator :3000
+untouched, disclosure requirements) is in `.claude/rules/frontend.md`
+"Live-UI verification". Figma MCP output is design-advisory and NEVER
+satisfies this gate (session-only connector, absent headless).
+RESTART CAVEAT: this section binds Q/A spawns from the session AFTER the
+one that authored it (roster snapshot semantics).
+
 ### 2. Existing results check
 
 Read in order:

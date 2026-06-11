@@ -14294,7 +14294,7 @@
         {
           "id": "59.2",
           "name": "MCP audit + integration (Playwright full, Figma frontend workflow) -- Playwright: pinned-version check vs latest @playwright/mcp (bump + smoke if newer), .mcp.json alwaysLoad discipline entry with rationale, BINDING qa-prompt rule (UI-touching steps FAIL without a live Playwright capture), researcher awareness, the :3100 skip-auth verification workflow documented in the rules; Figma: frontend-rules workflow section (design-to-code for new views, code-to-design review, connector-availability caveat for headless runs), researcher/qa awareness, connector capability audit for the Next.js cockpit.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "59.1",

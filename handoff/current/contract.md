@@ -1,47 +1,45 @@
-# Contract — Step 59.1
+# Contract — Step 59.2
 
-**Step id:** 59.1 — Fable 5 model adoption (both layers, quality-first)
+**Step id:** 59.2 — MCP audit + integration (Playwright full, Figma frontend workflow)
 **Date:** 2026-06-11
-**Phase:** phase-59 (operator-directed; 8 in-session pre-approvals recorded 2026-06-11)
-**Researcher gate:** PASSED — `handoff/current/research_brief.md` (tier=moderate-complex, 7 external sources read in full, 17 URLs, recency scan; 9 internal files; envelope `gate_passed: true`)
+**Phase:** phase-59 (operator answers 2026-06-11: Playwright=full integration incl. binding qa rule; Figma=integrate for frontend work)
+**Researcher gate:** PASSED — `handoff/current/research_brief.md` (tier=moderate, 6 external sources read in full, 17 URLs, recency scan; 9 internal files; envelope `gate_passed: true`)
 
 ## Research-gate summary
 
-Validated against official docs: subagent frontmatter accepts the alias **`model: fable`** (sub-agents + model-config docs; requires Claude Code v2.1.170+, local is **2.1.172** ✓); **`effort: max` remains valid** (Fable effort table low→max; recommended baseline is `high` — keeping `max` is a documented over-spec for the gate roles); **`maxTurns`** is the documented stall lever (qa 12→30, researcher 30→40 per the 5 observed mid-evaluation stalls). Economics: Fable is Max-free only June 9-22, 2026; from June 23 it draws usage credits (~2x Opus burn) — this **invalidates the phase-29.2 "Max flat-fee" rationale** in CLAUDE.md and both agent comment blocks; reframe to rare-event frequency + operator quality-first pre-approval. Layer-2 traps found: `EFFORT_SUPPORTED_MODELS` (model_tiers.py:183-191) and `MODEL_EFFORT_FALLBACK` (:233-242) lack claude-fable-5 — without entries, `model_supports_effort()` returns False and `llm_client.py:1481` silently DROPS the effort param; add both (fallback tier xhigh). Rare-event grounding: mas_main/mas_qa are the operator-paced Slack/iMessage orchestrator+analyst (agent_definitions.py:181/229); autoresearch_strategic is a nightly cron; the 28 per-ticker pipeline agents are Gemini-locked (out of scope). Test inventory: `pytest -k 'fable or model_tiers or phase_59'` collects only 1 test today and does NOT catch `test_agent_map_live_model.py::test_endpoint_injects_live_model_field` which WILL break on the mas_main repin — the new test must be named `test_phase_59_1_*` and the breaking test must be updated in the same change; Q/A must run the FULL suite. Ticket map: repin cost ≈ $0.18/day (negligible; decision to record). Adversarial sources ("Fable overkill for high-volume roles") reconciled: metered roles stay off Fable.
+Playwright: pinned 0.0.75 (2026-05-07) vs npm latest **0.0.76** (2026-06-10) — patch-level delta (2 irrelevant video-annotation tools, `--output-max-size`, ~10 bugfixes incl. nav-waitUntil + response-closure fixes), all four pinned flags survive, **zero breaking changes → bump + smoke**. Execution pitfall: editing .mcp.json mid-session does NOT respawn the stdio server — the smoke runs on the session's already-connected server; disclose the capture-time version in the live_check. STALE AUDIT-BASIS FINDING: `.mcp.json:91` ALREADY carries `"alwaysLoad": false` on playwright (the verification command's assert passes today); the REAL gap is CLAUDE.md's discipline list (:64-68) which omits playwright — keep `false` (official doc: alwaysLoad is for every-turn tools and blocks session startup until connect, 5s cap; playwright fires ~1-3x per UI step with ~22 tool defs — mirrors pyfinagent-backtest). qa.md binding rule: new `### 1c. Live UI capture gate` after §1b (~:100), 23.2.24-precedent shape — UI-claims steps CANNOT receive PASS without a live `browser_navigate` + `browser_snapshot`/`browser_take_screenshot` referenced in the live_check (snapshot=structure/text claims, screenshot=visual claims; missing capture → CONDITIONAL at best with Missing_Assumption). frontend.md: both new sections after Auth Flow (~:71) — the :3100 `LIGHTHOUSE_SKIP_AUTH=1` workflow (middleware.ts:24 verified; 55.1 §A disclosure paragraph = canonical template) + the Figma workflow. Figma capability audit: remote server free-during-beta on all seats (usage-based pricing later → the LLM-cost approval rule applies then); `get_design_context` outputs React+Tailwind by default (direct stack fit; MUST be reconciled to the navy/slate token rules); the claude.ai connector is session-only → Figma stays ADVISORY-ONLY, never verification-load-bearing; near-term value = code-to-design (`generate_figma_design` capturing the live cockpit; no repo Figma file exists today). Smoke verified live: :3000 → 302 /login; navigate + snapshot of the login page satisfies the criterion without auth. Restart caveat: qa.md/researcher.md edits snapshot next session (same as 59.1).
 
 ## Hypothesis
 
-Pinning Fable 5 on the four rare-event roles (researcher, qa, mas_main, autoresearch_strategic — plus the negligible-cost ticket agents) captures the "longer the task, the larger the lead" quality gain where it matters, with zero change to metered per-ticker spend, provable by unit tests over the resolution paths.
+A patch bump + config-doc alignment + a precisely-worded binding capture gate turns the proven 55.x/56.x Playwright verification pattern into standing harness law, and Figma enters as an advisory design tool with honest availability caveats — all verifiable by greps + a live smoke.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json, step 59.1)
+## Immutable success criteria (verbatim from .claude/masterplan.json, step 59.2)
 
-1. "Layer-3: .claude/agents/researcher.md and qa.md pin Fable 5 using the researcher-validated frontmatter syntax for this Claude Code version, retain their effort settings, and raise maxTurns to 40 (researcher) and 30 (qa); the file comments record the 2026-06-11 operator pre-approval, the June-22 Max-credit economics, and the session-restart requirement; live_check_59.1.md instructs the next session to run scripts/qa/verify_qa_roster_live.sh"
+1. "Playwright: the pinned @playwright/mcp version is checked against the latest release (bumped + smoke-tested if newer, or the current pin justified); .mcp.json gains an explicit alwaysLoad key for the playwright server with a rationale consistent with the CLAUDE.md discipline section (which is updated to list it); the smoke evidence (a live browser_navigate + snapshot against the running app) is in live_check_59.2.md"
 
-2. "Layer-2: backend/config/model_tiers.py pins mas_main and autoresearch_strategic to claude-fable-5 while mas_qa and every per-ticker/per-analysis role keeps its existing model (cost discipline: no metered per-ticker path changes model); MODEL_EFFORT_FALLBACK gains a claude-fable-5 entry with a researcher-grounded effort tier; the ticket_queue_processor agent_model_map is updated (or explicitly kept) per the researcher's rare-event cost analysis with the decision recorded; a unit test covers the new resolution paths and the unchanged per-ticker pins"
+2. "qa.md gains a BINDING rule: any step whose contract or criteria make UI claims must carry a live Playwright capture in its live_check or the verdict cannot be PASS; researcher.md gains Playwright awareness for UI-related research; the :3100 LIGHTHOUSE_SKIP_AUTH verification pattern (operator :3000 untouched, start/stop, disclosure requirements) is documented in .claude/rules/frontend.md or a dedicated rules file"
 
-3. "CLAUDE.md's effort-policy section is updated for Fable 5 (model id, $10/$50 pricing, the June-22 Max-credit change superseding the flat-fee rationale, the classifier-fallback note) without deleting the Opus 4.8 history; the change is additive and cites the operator's 2026-06-11 approval"
+3. "Figma: .claude/rules/frontend.md gains a Figma-MCP workflow section (when to use design-to-code for new dashboard views, code-to-design for design review, and the headless-absence caveat for the claude.ai connector); researcher.md/qa.md gain one-line awareness; a capability audit of the connector against the Next.js cockpit (what it can/cannot do for this repo) is recorded in live_check_59.2.md"
 
-4. "the verification command exits 0 and live_check_59.1.md records the pin diff map (old->new per role), the unchanged-roles list, and the restart/roster-verify instruction"
+4. "the verification command exits 0; all agent-file edits carry the restart caveat; no emojis introduced"
 
-**Verification command (immutable):** `source .venv/bin/activate && python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q && test -f handoff/current/live_check_59.1.md`
-
+**Verification command (immutable):** `source .venv/bin/activate && python -c "import json; cfg=json.load(open('.mcp.json')); assert 'alwaysLoad' in cfg['mcpServers']['playwright'], 'playwright alwaysLoad missing'" && grep -q 'Playwright' .claude/agents/qa.md && grep -qi 'figma' .claude/rules/frontend.md && test -f handoff/current/live_check_59.2.md
 ## Plan
 
-1. Layer-3: researcher.md (`model: fable`, maxTurns 40) + qa.md (`model: fable`, maxTurns 30); effort keys untouched; comment blocks rewritten (operator pre-approval 2026-06-11, June-23 credit economics superseding flat-fee, restart caveat).
-2. Layer-2: model_tiers.py — mas_main :49 + autoresearch_strategic :60 → "claude-fable-5"; mas_qa :51 UNCHANGED (per-ticker); EFFORT_SUPPORTED_MODELS += "claude-fable-5"; MODEL_EFFORT_FALLBACK += ("claude-fable-5","xhigh"); comments cite the Fable effort doc (recommended high; project runs xhigh per quality-first).
-3. ticket_queue_processor.py agent_model_map: main + q-and-a → claude-fable-5 (~$0.18/day, quality-first), research stays claude-sonnet-4-6 (cost-efficient) — decision recorded in the map comment + live_check.
-4. Tests: NEW `backend/tests/test_phase_59_1_fable_adoption.py` (resolution paths: mas_main/autoresearch_strategic → fable; mas_qa + per-ticker pins unchanged; effort NOT dropped for claude-fable-5 via model_supports_effort + fallback tier; ticket map assertions); UPDATE `test_agent_map_live_model.py` (mas_main live_model → claude-fable-5).
-5. CLAUDE.md effort-policy: additive Fable 5 paragraph (id, $10/$50, June-22→23 credit change, classifier fallback, alias notes, /model guidance) — Opus 4.8 history preserved as history.
-6. FULL suite run (the -k false-green risk is known; Q/A re-runs full). live_check_59.1.md (pin diff map, unchanged-roles list, restart/roster instruction, test output). experiment_results.md → fresh Q/A → log → flip.
+1. `.mcp.json`: bump `@playwright/mcp@0.0.75` → `0.0.76`; keep `alwaysLoad: false` (already present — note the stale audit basis honestly); no flag changes (all four survive the delta).
+2. CLAUDE.md discipline section: add the playwright line (`alwaysLoad: false` + rationale) and extend the `.mcp.json` line-ref sentence; note figma is a claude.ai session connector NOT in .mcp.json.
+3. qa.md: insert `### 1c. Live UI capture gate` after §1b with the brief's binding wording (PASS impossible without a live capture on UI-claims steps; snapshot vs screenshot admissibility; CONDITIONAL + Missing_Assumption on absence) + restart-caveat note.
+4. researcher.md: Playwright + Figma awareness note in the internal-audit instructions (after ~:96).
+5. frontend.md: two new sections after Auth Flow — "Live-UI verification (Playwright MCP + skip-auth :3100)" (start/stop commands, operator :3000 untouched, disclosure template per 55.1 §A, mid-session version caveat) + "Figma MCP workflow" (design-to-code for NEW views with navy/slate reconciliation, code-to-design review, free-during-beta → cost-approval-later note, headless-absence caveat → advisory-only).
+6. Smoke: browser_navigate localhost:3000 + snapshot (login page; capture-time server version disclosed as 0.0.75-running/0.0.76-pinned if no reconnect).
+7. live_check_59.2.md (version-delta table, smoke evidence, Figma capability audit, config diffs) + experiment_results.md → fresh Q/A → log → flip.
 
 ## Constraints
 
-- No metered per-ticker path changes models (mas_qa, gemini_*, autoresearch_fast/smart, lite analyzers untouched).
-- Agent .md edits take effect NEXT session (snapshot semantics); this step's own qa spawn runs the OLD snapshot — fine (pins don't change protocol); separation-of-duties satisfied by the operator's in-session pre-approval.
-- Additive CLAUDE.md edit; no emojis; ASCII logger strings n/a (no logger changes).
+- Keep alwaysLoad false (doc-grounded); no emojis; agent-file edits carry the restart caveat; Figma never verification-load-bearing (session-only connector); the smoke must not touch the operator's :3000 state (read-only navigate).
 
 ## References
 
-- handoff/current/research_brief.md (researcher 59.1, gate_passed: true; code.claude.com sub-agents/model-config docs, platform effort doc, anthropic.com Fable-5 announcement, pricing docs, Claude Code changelog)
-- Operator pre-approvals: 8 AskUserQuestion answers 2026-06-11 (layers=both; cost=quality-first; caps=raise both; governance=pre-approve+restart-later)
-- Code anchors: .claude/agents/{researcher,qa}.md frontmatter; model_tiers.py:49,51,60,183-191,233-242; llm_client.py:1481; ticket_queue_processor.py:165-169; test_agent_map_live_model.py; CLAUDE.md:56-62
+- handoff/current/research_brief.md (researcher 59.2, gate_passed: true; github.com/microsoft/playwright-mcp releases + README, code.claude.com MCP docs, developers.figma.com MCP docs x3, help.figma.com guide)
+- Operator answers 2026-06-11 (Playwright=full, Figma=integrate)
+- Code anchors: .mcp.json:79-92; CLAUDE.md:64-68 (discipline list); qa.md ~:100 (§1b); researcher.md ~:96; frontend.md ~:71 (after Auth Flow); middleware.ts:24

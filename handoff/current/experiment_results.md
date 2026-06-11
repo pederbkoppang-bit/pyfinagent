@@ -1,38 +1,33 @@
-# Experiment Results — Step 59.1 (GENERATE)
+# Experiment Results — Step 59.2 (GENERATE)
 
-**Step:** 59.1 — Fable 5 model adoption (both layers, quality-first). **Date:** 2026-06-11. **Mode:** operator-directed (8 in-session pre-approvals); rare-event roles only; metered paths untouched.
+**Step:** 59.2 — MCP audit + integration (Playwright full, Figma frontend workflow). **Date:** 2026-06-11.
 
-## What was built (7 files)
+## What was built (5 files)
 
 | File | Change |
 |---|---|
-| `.claude/agents/researcher.md` | `model: fable`, maxTurns 30→40; comment block rewritten (operator pre-approval, June-23 Max-credit economics superseding flat-fee, restart caveat, history preserved) |
-| `.claude/agents/qa.md` | `model: fable`, maxTurns 12→30 (five observed stalls); same annotations |
-| `backend/config/model_tiers.py` | mas_main + autoresearch_strategic → claude-fable-5 (rare-event comments); mas_qa explicitly kept (per-ticker comment); EFFORT_SUPPORTED_MODELS + claude-fable-5; MODEL_EFFORT_FALLBACK + ("claude-fable-5","xhigh") — closes the silent effort-drop trap |
-| `backend/services/ticket_queue_processor.py` | agent map: main + q-and-a → claude-fable-5 (~$0.18/day, decision recorded); research stays Sonnet 4.6 |
-| `CLAUDE.md` | Additive Fable 5 effort-policy block (id, $10/$50, June-23 credit change, classifier fallback, alias + v2.1.170 floor, metered-roles-stay-off warning); phase-29.2 history intact |
-| `backend/tests/test_phase_59_1_fable_adoption.py` | NEW: 6 tests (resolution, metered-unchanged, effort-supported, ticket map, Layer-3 frontmatter, CLAUDE.md additive) — named to enter the `-k` net per the false-green finding |
-| `backend/tests/test_agent_map_live_model.py` | mas_main assertion → claude-fable-5 (the test the repin would otherwise break) |
+| `.mcp.json` | `@playwright/mcp` 0.0.75 → **0.0.76** (patch delta, zero breaking changes; all four pinned flags survive); `alwaysLoad: false` kept (already present — stale audit-basis premise honestly noted) |
+| `CLAUDE.md` | MCP discipline list gains the playwright entry (`alwaysLoad: false` + episodic-server rationale + the mid-session no-respawn caveat) and the Figma connector note (session-only, advisory, never verification-load-bearing) |
+| `.claude/agents/qa.md` | NEW §1c "Live UI capture gate" — BINDING: UI-claims steps cannot PASS without a live Playwright capture; CONDITIONAL + Missing_Assumption on absence; snapshot-vs-screenshot admissibility; 55.1 precedent cited; Figma excluded; restart caveat inline |
+| `.claude/agents/researcher.md` | MCP-awareness block (live snapshot over code inference for UI questions; Figma advisory-only/absent-headless) |
+| `.claude/rules/frontend.md` | TWO new sections: "Live-UI verification" (the full :3100 skip-auth workflow, disclosure template, kill-after-capture, version caveat) + "Figma MCP workflow" (code-to-design first, design-to-code with token reconciliation, beta-pricing/cost-approval note, availability check) |
 
 ## Verification command output (verbatim)
 
 ```
-$ source .venv/bin/activate && python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q
-7 passed, 773 deselected, 1 warning in 2.85s
-$ test -f handoff/current/live_check_59.1.md && echo PASS
-PASS
+$ python -c "...assert 'alwaysLoad' in cfg['mcpServers']['playwright']..." 
+alwaysLoad: False | version: @playwright/mcp@0.0.76
+$ grep -q 'Playwright' .claude/agents/qa.md  -> ok
+$ grep -qi 'figma' .claude/rules/frontend.md -> ok
+$ test -f handoff/current/live_check_59.2.md -> PASS
 ```
-Full suite: `762 passed, 12 skipped, 6 xfailed` exit 0 (run explicitly because the researcher proved the `-k` selector alone could false-green).
 
-## Key outcomes
+## Smoke evidence
 
-1. Fable 5 lands exactly on the four rare-event roles + the negligible-cost ticket agents; every metered per-ticker path keeps its model (unit-tested).
-2. The silent effort-drop trap is closed (EFFORT_SUPPORTED_MODELS + fallback row) — without it, fable-pinned Layer-2 roles would have lost their effort param invisibly.
-3. The Layer-3 stall defect is fixed at its lever (maxTurns 12→30 / 30→40), sized from this session's observed tool-use counts.
-4. The economics change (Max credits from June 23) is documented as SUPERSEDING the flat-fee rationale in all three places it lived (CLAUDE.md + both agent files) — additive, history preserved.
+Live `browser_navigate http://localhost:3000/login` + `browser_snapshot`: full login page (PyFinAgent heading, Google + Passkey sign-in buttons, restricted-access note). One transient "Internal Server Error" on the first navigate (dev-server compile-on-demand race) — re-probed via curl (200) + re-navigated successfully; operator :3000 untouched (read-only). Capture ran on the connected 0.0.75 instance; the 0.0.76 pin loads at next session reconnect (caveat disclosed + documented).
 
 ## Honest limitations
 
-- The Layer-3 pins take effect NEXT session (roster snapshot); this step's own qa spawn evaluates from the OLD snapshot — protocol-identical, models differ. Roster verification is the next session's first action (`scripts/qa/verify_qa_roster_live.sh`).
-- Fable 5's real-world quality delta on these roles is unmeasured here (the 59.3 stress test provides the first observation); the adoption decision is operator-preference + announcement benchmarks.
-- Post-June-22 Max credit burn rates are not yet observable; the operator may want a usage review in late June.
+- The binding §1c gate enforces from the NEXT session's Q/A spawns (roster snapshot); this step's own qa runs the old snapshot.
+- The bumped 0.0.76 server is pinned but not yet the connected instance (stdio no-respawn) — first 0.0.76 connect happens next session; the delta is patch-level with zero flag changes, so risk is minimal.
+- Figma integration is docs/workflow only — no Figma file was created for the cockpit (the code-to-design first run is a natural follow-on when the operator wants a design review).

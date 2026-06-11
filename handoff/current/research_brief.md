@@ -1,332 +1,299 @@
-# Research Brief — Step 59.1: Fable 5 model adoption (both layers, quality-first)
+# Research Brief — phase-59.2: MCP audit + integration (Playwright full, Figma frontend workflow)
 
-**Tier:** moderate-complex. **Phase-59.** Operator-directed 2026-06-11 (8 in-session pre-approvals).
-**Researcher snapshot:** OLD (this session's own qa/researcher run on the pre-59.1 pins — fine; pins don't change protocol).
-**Claude Code version (local):** **2.1.172** — VERIFIED via `claude --version`. This is >= the 2.1.170 floor required for Fable 5 and >= the 2.1.154 floor for Opus 4.8. The `fable` alias is supported on this version.
-**This topic is <1 week old** (Fable 5 GA = 2026-06-09); year-less canonical prior-art on "Fable 5" is necessarily thin and I say so explicitly in the query log. Canonical prior-art DOES exist for the surrounding mechanics (subagent frontmatter, effort levels, Claude Code model aliases) and is cited.
+Tier: moderate (caller-stated). Date: 2026-06-11. Researcher (Layer-3 MAS).
+Note: caller's mandated brief shape (drafts + tables + audit) exceeds the 700-word
+moderate ceiling; prose kept tight, sections kept as ordered. Tool-call budget
+overran (~26 vs 18) due to 11 mandatory sub-questions — disclosed, not hidden.
 
----
+## 1. Version-delta table: @playwright/mcp 0.0.75 → 0.0.76
 
-## TL;DR — the load-bearing answers
+| Item | 0.0.75 (pinned, `.mcp.json:84`) | 0.0.76 (npm `latest`) |
+|---|---|---|
+| Published | 2026-05-07T23:10Z | 2026-06-10T00:16Z (1 day old; `next`=0.0.76-alpha-2026-06-10) |
+| Our flags | all valid | `--executable-path`, `--user-data-dir`, `--allowed-hosts`, `--viewport-size` ALL still in README flag list — **no breaking flag changes** |
+| New tools | — | `browser_video_show_actions`/`browser_video_hide_actions` (devtools caps; irrelevant to us) |
+| New flags | — | `--output-max-size` (caps tool-response size; optional, useful if snapshots bloat); `--browser moz-firefox` BiDi (irrelevant) |
+| Bugfixes relevant to us | — | response closure when no open tabs; `waitUntil:'commit'` on back/forward nav; improved invalid-tool-arg reporting; regex validation; path-traversal checks in static serving; writable cache dir for user data (neutral — we pin `--user-data-dir`) |
+| Tools we use | `browser_navigate`/`snapshot`/`take_screenshot`/`evaluate`/`click` | unchanged |
 
-1. **Frontmatter `model:` value = `fable`** (the alias). Officially documented in BOTH the Claude Code
-   sub-agents frontmatter reference AND model-config doc. Use `model: fable` in `.claude/agents/*.md`,
-   mirroring the existing `model: opus` idiom. Full model id `claude-fable-5` is also accepted but the
-   alias is preferred (auto-tracks the recommended version, matches the existing `opus`-alias convention).
-2. **`effort: max` REMAINS valid for Fable 5.** The effort table lists Fable 5 levels as
-   `low, medium, high, xhigh, max` — identical superset to Opus 4.8. `max` is documented as accepted
-   subagent frontmatter `effort` (session-only at the API layer, but valid as a per-subagent override).
-3. **`maxTurns` is a documented subagent frontmatter field**: "Maximum number of agentic turns before
-   the subagent stops." Raising it (qa 12->30, researcher 30->40) is the correct lever for the
-   stall-mid-work signature.
-4. **THE ECONOMICS CHANGE.** Fable 5 is the FIRST model whose Max adoption is NOT flat-fee-unlimited:
-   free on Max/Pro/Team only **June 9 -> June 22, 2026**; "On June 23, we'll remove Fable 5 from
-   those plans. Using it after that will require usage credits." This directly **invalidates the
-   phase-29.2 "Max subscription -> flat-fee, no per-token ceiling" rationale** in CLAUDE.md and both
-   agent-file comment blocks. The rationale must be rewritten to the new model: quality-first +
-   rare-event firing (cost contained by *frequency*, not by a flat fee).
-5. **Effort guidance for Fable 5 DIFFERS from Opus 4.8.** Opus doc says "start with `xhigh` for
-   coding/agentic." Fable doc says "**Start with `high`, the default, for most tasks**, use `xhigh`
-   for the most capability-sensitive workloads." For our quality-first rare-event roles, keeping
-   `effort: max` is defensible (these ARE the capability-sensitive workloads and fire rarely), but
-   the file comments should note that Fable's recommended baseline is `high`, not `xhigh`, so `max`
-   is a deliberate over-spec — and the Fable doc's own caveat "Lower effort settings on Claude Fable 5
-   still perform well and often exceed `xhigh` performance on prior models" means `high` would already
-   beat our previous Opus-`max` config. (See the "effort decision" section for the recommendation.)
+(Sources: github.com/microsoft/playwright-mcp/releases + README, read in full 2026-06-11; npm registry `time` query.)
 
----
+**Recommendation: BUMP to 0.0.76 + smoke** (the criterion's preferred branch).
+Delta is patch-level, bugfix-heavy, zero breaking changes for our flag set.
+Risk = 1-day-old release; mitigation = the mandatory smoke; rollback = revert
+the one-line pin + reconnect. **Execution note:** stdio MCP servers spawn at
+session start — after editing `.mcp.json`, reconnect via `/mcp` (or note in
+live_check which version served the capture; `npx -y @playwright/mcp@0.0.76 --help`
+separately proves the new package resolves with our flags).
 
-## A) EXTERNAL RESEARCH
+New capabilities NOT to adopt now: `browser_run_code_unsafe` is documented
+RCE-equivalent ("executes arbitrary JavaScript in the Playwright server
+process") — do not enable. `--caps testing` (`browser_verify_text_visible`
+etc.) is genuinely useful for deterministic UI assertions — note as a future
+option, out of 59.2 scope. Network-mock caps unneeded (we verify against the
+live backend).
+
+## 2. Best-practice config vs ours
+
+README guidance: accessibility `browser_snapshot` is "better than screenshot"
+for agent ACTIONS (structured, no vision model); `browser_take_screenshot`
+is for visual evidence only ("can't perform actions based on the screenshot").
+2026 ecosystem confirms: snapshots now incremental by default (token win);
+verify-* assertion primitives exist behind `--caps testing`; vision caps only
+for canvas-rendered apps. **Evidence doctrine for us: snapshot for text/value
+claims, screenshot for color/layout claims — 55.1 used both, keep both
+admissible in the qa rule.** Our config is already best-practice-aligned:
+isolated-ish dedicated profile (`--user-data-dir` in-repo), `--allowed-hosts
+localhost` (security), fixed `--viewport-size 1440,900` (deterministic).
+Headed (default) vs `--headless`: keep headed — operator can watch (Glass
+Box), and the 55.1/56.1-proven shape shouldn't churn; README recommends
+headless only for CI/containers.
+
+## 3. alwaysLoad — recommendation: `false` (KEEP current value; fix the docs)
+
+**Stale-audit finding:** `.mcp.json:91` ALREADY has `"alwaysLoad": false` on
+playwright — the masterplan audit_basis ("NO alwaysLoad key") is stale; the
+verification command's python assert passes TODAY. The real gap is
+**CLAUDE.md:64-68**: the discipline list names only the four pyfinagent-*
+servers, and its line-ref sentence (".mcp.json:44,55,66,77") omits :91.
+
+Rationale for `false` (official doc, code.claude.com/docs/en/mcp, read in
+full): alwaysLoad is "for a small number of tools that Claude needs on every
+turn"; it "blocks startup until the server connects, capped at the standard
+5-second connect timeout"; requires v2.1.121+ (local 2.1.172, OK). Playwright
+fires ~1-3x per UI-touching step (rare-event), ships ~22 core tool defs, and
+is npx-spawned (cold-start) — alwaysLoad:true would tax every session start
+for a rarely-used server. Mirrors `pyfinagent-backtest: false`.
+
+CLAUDE.md bullet draft:
+`- playwright -- alwaysLoad: false (fires ~1-3x per UI-touching step; ~22 tool defs; npx cold-start would block session startup if true). .mcp.json:91.`
+
+## 4. qa.md BINDING rule — placement + wording
+
+Placement: new `### 1c` under "Verification order", directly after `### 1b`
+(frontend lint, the phase-23.2.24 precedent with identical "REQUIRED if diff
+touches X" shape). qa.md current state verified post-59.1 (`model: fable`,
+maxTurns 30). NOTE: the caller's "5-item harness-compliance audit" lives in
+Main's SPAWN PROMPT (feedback memory), not in qa.md — 1c is the right home
+for the deterministic leg; Main should also add one line to its spawn-prompt
+template. Draft:
+
+```
+### 1c. Live UI capture gate (BINDING -- REQUIRED if the step makes UI claims)
+
+phase-59.2: any step whose contract, success criteria, or diff makes UI
+claims (a page renders X, component/layout/color/copy changes, anything
+shipping pixels under frontend/src/) CANNOT receive PASS unless
+handoff/current/live_check_<step_id>.md references a live Playwright MCP
+capture against the RUNNING app: browser_navigate + browser_snapshot
+(structure/text claims) and/or browser_take_screenshot (visual claims).
+Code reading, eslint/tsc, unit tests, and greps are NOT UI evidence
+(CLAUDE.md goal-post-away-review rule, 2026-06-10). Deterministic check:
+grep the live_check for browser_navigate/browser_snapshot/screenshot
+evidence; if auth was bypassed, the :3100 LIGHTHOUSE_SKIP_AUTH disclosure
+(.claude/rules/frontend.md "Live UI verification") must be present.
+Missing capture => verdict CONDITIONAL at best;
+violation_type: Missing_Assumption (claimed UI state never observed).
+```
+
+## 5. frontend.md drafts (place both after "## Auth Flow", frontend.md:68-71)
+
+### 5a. Live UI verification (Playwright MCP + :3100 skip-auth)
+
+```
+## Live UI verification (Playwright MCP + :3100 skip-auth)
+
+Any step claiming UI behavior MUST verify against the RUNNING app via the
+Playwright MCP: browser_navigate + browser_snapshot (structure/text) and/or
+browser_take_screenshot (visual). Code reading is not UI evidence; qa.md
+check 1c makes this binding.
+
+NextAuth wall: NEVER touch the operator's :3000 instance. Start a second dev
+server using the middleware bypass (frontend/src/middleware.ts:24):
+
+    cd frontend && LIGHTHOUSE_SKIP_AUTH=1 npx next dev --port 3100
+
+- capture against http://localhost:3100 (same code, same live backend :8000)
+- kill the :3100 server after capture; verify :3000 still answers 302
+- the live_check MUST disclose the method (second server, env flag, kill,
+  :3000-untouched check) -- see handoff/archive/misc/live_check_55.1.md §A
+- liveness-only smokes need no bypass: :3000 serves /login unauthenticated
+```
+
+### 5b. Figma MCP workflow (frontend design work)
+
+```
+## Figma MCP workflow (frontend design work)
+
+The Figma MCP is a claude.ai session connector (tools mcp__claude_ai_Figma__*),
+NOT pinned in .mcp.json. It exists only in operator-attached interactive
+sessions and is ABSENT in headless/cron runs (run_harness.py, scheduler,
+claude -p) -- never make a step's verification depend on it.
+
+When present, use for:
+- Design-to-code (new dashboard views): get_design_context on a Figma node
+  URL ("copy link to selection") returns React + Tailwind by default --
+  matches this stack. Reconcile output against this file's token rules
+  (navy/slate palette, Phosphor icons, scrollbar-thin) before shipping.
+  get_screenshot / get_metadata / get_variable_defs for layout + tokens.
+- Code-to-design (design review): generate_figma_design captures the live
+  cockpit UI into a Figma file; create_new_file starts mockups in drafts;
+  use_figma edits files (load the /figma-use skill FIRST -- mandatory).
+- Seats/cost: remote server works on all seats and plans, free during beta
+  (will become usage-based paid); desktop server needs Dev/Full seat on a
+  paid plan + the desktop app (selection-based workflows are desktop-only).
+No Figma file is needed to start (create_new_file); design-to-code needs an
+existing node URL.
+```
+
+### 5c. researcher.md awareness (placement: after "Both halves feed the same
+output report.", researcher.md:~96)
+
+```
+UI-step tooling: for UI-related research, the project-pinned Playwright MCP
+gives live-UI ground truth (browser_navigate + browser_snapshot of the
+running app beats inferring UI state from code). The Figma MCP is a
+claude.ai session connector -- available interactively, ABSENT in
+headless/cron runs; treat designs it returns as session-only evidence.
+```
+
+qa.md one-line Figma awareness (constraints section): "Figma MCP evidence is
+session-connector-dependent (absent headless) — never require it for PASS."
+
+## 6. Figma capability audit vs the Next.js cockpit (for live_check)
+
+CAN: (a) design-to-code emitting React+Tailwind (default output — direct fit
+for Next.js 15 cockpit); (b) get_variable_defs → design tokens (maps to 47.5
+tokens lib); (c) code-to-design: generate_figma_design captures live cockpit
+pages into Figma for operator design review (remote-only, select clients —
+present in this claude.ai session per server instructions); (d) Code Connect
+mapping of cockpit components (ui/Button, StatusBadge) to a Figma library;
+(e) FigJam diagrams (generate_diagram) for architecture docs; (f) whoami
+confirms the operator's seat. CANNOT/caveats: absent in headless/cron; no
+repo Figma file exists today (code-to-design would CREATE the first design
+source of truth — that, not design-to-code, is the near-term value); generated
+Tailwind may use generic palette → must be reconciled to navy/slate rules;
+desktop-selection flows need the desktop app; beta → future usage-based
+pricing (LLM-cost-approval rule applies when it goes paid).
+
+## 7. Internal code inventory
+
+| File | Lines | Role | Status |
+|---|---|---|---|
+| `.mcp.json` | 79-92 | playwright block; pin at :84; `alwaysLoad: false` at :91 | bump :84 to 0.0.76; key already present |
+| `CLAUDE.md` | 38-42 | session-level Playwright UI rule (2026-06-10) | exists; 59.2 adds qa-side enforcement |
+| `CLAUDE.md` | 64-68 | alwaysLoad discipline list | STALE: add playwright bullet; line-ref sentence omits :91 |
+| `.claude/agents/qa.md` | 52-118 | "Verification order"; 1b at :75-100 | insert 1c after :100; fable pin from 59.1 confirmed |
+| `.claude/agents/researcher.md` | ~89-96 | internal-exploration protocol | insert UI-tooling note after :96 |
+| `.claude/rules/frontend.md` | 68-71 | Auth Flow section | insert 5a+5b after :71; rule 5 at :40 (visual verification) is the precursor |
+| `frontend/src/middleware.ts` | 24 | LIGHTHOUSE_SKIP_AUTH bypass | verified verbatim |
+| `handoff/archive/misc/live_check_55.1.md` | §A | canonical skip-auth disclosure + captures | facts extracted |
+| `handoff/archive/phase-56.1/contract.md` | 34 | second :3100 use | confirms repeatable pattern |
+
+Smoke path verified live 2026-06-11: backend `/api/health` 200 (v6.43.0,
+mcp_servers ok); frontend :3000 → 302 /login. A `browser_navigate
+http://localhost:3000` + `browser_snapshot` (login page, no auth needed)
+satisfies "live browser_navigate + snapshot against the running app".
+
+## 8. Sources
 
 ### Read in full (>=5 required; counts toward the gate)
 
-| URL | Accessed | Kind | Fetched how | Key quote or finding |
-|-----|----------|------|-------------|----------------------|
-| https://code.claude.com/docs/en/model-config | 2026-06-11 | official doc | WebFetch (full) | `fable` alias = "Uses Claude Fable 5 for your hardest and longest-running tasks"; effort table lists Fable 5 = low/medium/high/xhigh/max; "**Fable 5 requires Claude Code v2.1.170 or later**"; "Fable 5 is not the default model... Select it with `/model fable`"; default effort = `high` on Fable 5 |
-| https://code.claude.com/docs/en/sub-agents | 2026-06-11 | official doc | WebFetch (full) | Frontmatter `model` field: "`sonnet`, `opus`, `haiku`, `fable`, a full model ID (for example, `claude-opus-4-8`), or `inherit`. Defaults to `inherit`"; `maxTurns` = "Maximum number of agentic turns before the subagent stops"; `effort` options "`low, medium, high, xhigh, max`; available levels depend on the model" |
-| https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5 | 2026-06-11 | official doc | WebFetch (full) | API id `claude-fable-5`; **1M token context window by default, up to 128k output tokens per request**; $10/$50 per Mtok; refusals return `stop_reason: "refusal"` as HTTP 200 (not error); "not billed for a request that is refused before any output is generated"; supports effort, vision, memory tool, compaction |
-| https://platform.claude.com/docs/en/build-with-claude/effort | 2026-06-11 | official doc | WebFetch (full) | **Fable 5 guidance (verbatim):** "**Start with `high`, the default, for most tasks**, use `xhigh` for the most capability-sensitive workloads, and step down to `medium` or `low` for routine work. Lower effort settings on Claude Fable 5 still perform well and often exceed `xhigh` performance on prior models." `max` and `xhigh` both available on Fable 5 |
-| https://www.anthropic.com/claude/fable | 2026-06-11 | official (vendor) | WebFetch (full) | "Run Claude Fable 5 in an agent harness like Claude Code... it can work for days at a time: planning across stages, delegating to sub-agents, and checking its own work"; "Claude Fable 5 is thorough, proactive, and tests its own work." NO explicit subagent-tier guidance on this page |
-| https://www.anthropic.com/news/claude-fable-5-mythos-5 | 2026-06-11 | official (vendor) | WebFetch (full, prior turn) | "$10 per million input tokens and $50 per million output tokens"; "From today through June 22, Fable 5 is included on Pro, Max, Team... at no extra cost"; "On June 23, we'll remove Fable 5 from those plans. Using it after that will require usage credits"; "At the highest effort, Claude Fable 5 reflects on and validates its own work"; classifier fallback to Opus 4.8 on cyber/bio/chem/distillation |
-| https://explainx.ai/blog/is-fable-5-available-on-claude-code-2026 | 2026-06-11 | industry blog | WebFetch (full) | Independently confirms "Update to Claude Code v2.1.170 or later"; advises "skipping Fable 5 for quick one-off edits or bug fixes" due to cost; documents multiple-install version-conflict caveat |
+| URL | Accessed | Kind | Fetched how | Key finding |
+|---|---|---|---|---|
+| github.com/microsoft/playwright-mcp/releases | 2026-06-11 | release notes (official) | WebFetch full | 0.0.76 full delta: 2 video tools, --output-max-size, 10 bugfixes, no breaking flags |
+| github.com/microsoft/playwright-mcp (README) | 2026-06-11 | official doc | WebFetch full | flag list (ours all valid), snapshot-vs-screenshot doctrine, caps, run_code_unsafe=RCE, isolated/headless guidance |
+| code.claude.com/docs/en/mcp | 2026-06-11 | official doc | WebFetch full (49KB persisted + grepped) | alwaysLoad exact semantics: "small number of tools... every turn"; blocks startup 5s cap; v2.1.121+; tool search default-on |
+| developers.figma.com/docs/figma-mcp-server/ | 2026-06-11 | official doc | WebFetch full | remote vs desktop variants; free-during-beta → usage-based paid |
+| help.figma.com/.../32132100833559 (MCP guide) | 2026-06-11 | official doc | WebFetch full | remote = ALL seats/plans; desktop = Dev/Full seat paid plans; code-to-design "from live UI"; link-to-selection input |
+| developers.figma.com/docs/figma-mcp-server/tools-and-prompts/ | 2026-06-11 | official doc | WebFetch full | full 18-tool table; get_design_context default React+Tailwind; remote-only set; /figma-use skill mandatory for use_figma |
+
+Plus non-WebFetch primary evidence: npm registry (`npm view @playwright/mcp
+version|dist-tags|time`) — 0.0.76 latest, publish dates.
 
 ### Identified but snippet-only (context; does NOT count toward gate)
 
-| URL | Kind | Why not fetched in full |
-|-----|------|-------------------------|
-| https://openrouter.ai/anthropic/claude-fable-5 | aggregator | Pricing confirmed via search snippet ($10/$50, cached input $1/Mtok = 90% off) — redundant with official |
-| https://artificialanalysis.ai/models/claude-fable-5 | benchmark site | Independent perf/price analysis; snippet sufficient for the adversarial point (slow TTFT) |
-| https://www.developersdigest.tech/blog/claude-usage-limits-fable-5-explained | industry blog | Burn-rate detail ("~2x faster than Opus" official; steeper in practice) captured via snippet — ADVERSARIAL evidence on the credit economics |
-| https://www.coderabbit.ai/blog/fable-5-model-review | industry review | Corroborates "overkill for routine tasks; reserve for hard subtasks" |
-| https://decrypt.co/370688/internet-furious-anthropic-claude-mythos-fable-5 | news | Community reaction to the post-free-period credit change; context only |
-| https://lushbinary.com/blog/build-long-horizon-ai-agents-claude-fable-5-guide/ | industry blog | "Fable parent, Sonnet/Haiku subagents is the cost-sane configuration" — informs the harness-design note |
-| https://www.truefoundry.com/blog/claude-fable-5-api-benchmarks-pricing-how-to-use-it | industry blog | Pricing/benchmark recap; redundant |
-| https://www.cloudzero.com/blog/claude-mythos-pricing/ | industry blog | Pricing recap across the family; context |
-| https://github.com/VoltAgent/awesome-claude-code-subagents | community repo | Prior-art on subagent frontmatter conventions (year-less canonical hit) |
-| https://gist.github.com/danielrosehill/96dd15d1313a9bd426f7f12f5375a092 | community gist | Year-less canonical "Claude Code subagent frontmatter" reference |
-
-**Sources read in full: 7. Unique URLs collected: 17. Floor (>=5 full, >=10 URLs): CLEARED.**
-
-### Recency scan (last 2 years / 2024-2026)
-
-Searched the 2026 frontier explicitly (Fable 5 GA 2026-06-09, so the *entire* corpus is last-2-weeks).
-**Result: the canonical sources ARE the recency window** — there is no older prior-art on "Fable 5"
-specifically because the model is 2 days old. New findings that materially shape the step:
-
-1. **Post-June-22 credit economics** (announcement + developersdigest) — supersedes the phase-29.2
-   flat-fee assumption. NEW, load-bearing.
-2. **Fable-5-specific effort baseline is `high`, not `xhigh`** (effort doc) — differs from the
-   Opus 4.8 guidance currently baked into `model_tiers.py` comments. NEW.
-3. **v2.1.170 floor** (model-config + explainx) — our 2.1.172 clears it. NEW, verified locally.
-4. **Burn-rate ~2x Opus official / steeper in agentic practice** (developersdigest, artificialanalysis)
-   — ADVERSARIAL; informs the "metered-by-frequency not flat-fee" framing. NEW.
-
-For the *surrounding mechanics* (subagent frontmatter schema, effort levels, model aliases), the
-canonical year-less prior-art exists and is cited (sub-agents doc, model-config doc, community gists).
+| URL | Kind | Why not fetched |
+|---|---|---|
+| playwright.dev/docs/test-agents | official doc | budget; verify-* primitives covered via search synthesis |
+| playwright.dev/mcp/snapshots + /mcp/introduction | official doc | incremental-snapshot default noted from snippet |
+| playwright.dev/docs/getting-started-mcp | official doc | duplicate of README content |
+| testcollab.com/blog/playwright-mcp | blog 2026 | setup-level, below quality bar |
+| testdino.com/blog/playwright-ai-ecosystem | blog 2026 | ecosystem overview only |
+| mcp.directory/blog/playwright-browser-mcp-guide-2026 | community | low weight |
+| morphllm.com/playwright-mcp | vendor blog | token-cost claim (114K vs 27K) noted as single-source |
+| shipyard.build/blog/playwright-mcp-screenshots | blog | screenshot workflow anecdote |
+| medium.com/@adnanmasood/... field guide | blog | tertiary |
+| figma.com/blog/introducing-figma-mcp-server | vendor blog | superseded by current official docs |
+| github.com/figma/mcp-server-guide | official repo | guide duplicates help-center content |
 
 ### Query log (3-variant discipline)
 
-- **Current-year frontier:** "Claude Fable 5 model pricing context window max output tokens API";
-  "Anthropic Fable 5 long-running agents harness subagent model selection engineering guidance";
-  "Claude Fable 5 downsides slow expensive subagent overkill when not to use 2026" (adversarial).
-- **Last-2-year window:** subsumed by frontier (model is 2 days old; 2024/2025 returns nothing on
-  "Fable 5" by construction — stated explicitly per research-gate rule).
-- **Year-less canonical:** "Claude Code subagent frontmatter model fable alias agent.md configuration"
-  — surfaced the model-config doc + VoltAgent repo + danielrosehill gist (prior-art on the *schema*,
-  which is what's actually load-bearing here; the schema predates Fable 5 and the `fable` value was
-  simply added to the existing `model:` enum).
+1. "Playwright MCP agent UI verification workflow 2026" (current-year frontier)
+2. "Figma MCP server dev mode updates 2026" (current-year frontier)
+3. "Playwright MCP best practices coding agent screenshots accessibility snapshot" (year-less canonical)
+Plus direct registry/docs fetches (npm, GitHub releases, official docs).
+Explicit note: no separate 2025-window query was run — both topics are
+younger than 2 years (Playwright MCP launched 2025-03, Figma MCP 2025-06),
+so the year-less canonical query IS the full-history query, and the
+releases page read in full covers every version Feb-2026-back.
 
-### Consensus vs debate (external)
+## 9. Recency scan (2024-2026)
 
-- **Consensus:** `fable` is the correct alias; v2.1.170+ required; 1M context / 128K output; effort
-  supported with `high` default; Fable 5 is purpose-built for long-horizon agentic harnesses that
-  "validate their own work" — exactly the Researcher/Q-A evaluator-gate profile.
-- **Debate / adversarial (the honest counterpoint):** Multiple independent industry sources call Fable 5
-  "**overkill and overpriced for routine, latency-sensitive, or high-volume tasks**" and recommend the
-  "Fable parent, cheaper subagents" topology. Burn rate is ~2x Opus officially and reportedly steeper
-  in unbounded agentic sessions (one Max user "exhausted their full 5-hour window in 8 minutes").
-  TTFT is high (~108s) because of heavy pre-answer reasoning.
-  **Why this does NOT block the step:** our harness Researcher + Q-A are the precise opposite of
-  "routine/high-volume" — they are rare-event (once per masterplan step), quality-critical, long-horizon
-  reasoning roles. They are the canonical Fable 5 use case. The adversarial evidence is correctly
-  *honored* by (a) keeping per-ticker/metered roles OFF Fable, and (b) rewriting the economics to
-  "contained by frequency," and (c) flagging the post-June-22 credit cliff for the operator.
+Performed (queries 1-2 above, 2026-scoped). Findings: (a) 0.0.76 shipped
+2026-06-10 — the version delta itself is the headline recency finding;
+(b) 2026 ecosystem norm: accessibility-snapshot-first agents, incremental
+snapshots by default, assertion primitives (`browser_verify_*`) behind
+`--caps testing`, "MCP for discovery / codified .spec.ts for regression"
+split, ~4x token premium of MCP-driven vs CLI-skill flows (morphllm,
+single-source); (c) Figma 2026: remote server broadened (all seats/plans
+during beta), code-to-design from live UI, deeper codebase integrations
+announced. Nothing supersedes the chosen design; (b) mildly supports a
+future `--caps testing` adoption.
 
-### Pitfalls (from literature) — applied
+## 10. Consensus vs debate
 
-- **P1 — credit cliff (June 23):** after June 22, Fable usage draws Max usage credits. The agent-file
-  comments and CLAUDE.md MUST record this so a future reader doesn't assume flat-fee. (announcement)
-- **P2 — unbounded agentic burn:** the `maxTurns` raise is *also* a burn-control: it bounds how long a
-  Fable subagent can run. Pair the raise with the cost note. (developersdigest)
-- **P3 — effort over-spec:** Fable's recommended baseline is `high`; `max` is over-spec. Defensible for
-  rare-event quality-first roles, but document it as a deliberate choice, not a default. (effort doc)
-- **P4 — classifier fallback:** Fable refusals on cyber/bio/chem/distillation reroute to Opus 4.8
-  (>95% sessions unaffected; finance unaffected). No code change needed — Claude Code handles it — but
-  worth a one-line note. (announcement + model-config)
-- **P5 — TTFT latency:** Fable is slow to first token. Irrelevant for rare-event batch roles; would
-  matter for per-ticker/latency-sensitive roles — another reason to leave those OFF Fable. (artificialanalysis)
+Consensus: snapshot-for-structure / screenshot-for-visuals; defer rarely-used
+MCP servers (tool search); design-to-code needs a design-system source of
+truth to be useful. Debate: MCP-driven browser flows vs codified test scripts
+(token cost) — irrelevant at our ~1-3 captures/step volume; headed vs headless
+for agent use — we keep headed (operator visibility, proven shape).
 
----
+## 11. Pitfalls
 
-## B) INTERNAL CODE INVENTORY
-
-### Layer-3 harness agent files
-
-| File | Lines | Role | Current pins | Status |
-|------|-------|------|--------------|--------|
-| `.claude/agents/researcher.md` | 5-16 | Layer-3 Researcher | `model: opus` (L5), `maxTurns: 30` (L6), `effort: max` (L15) | needs: model->fable, maxTurns->40, comment block (L7-14) economics rewrite |
-| `.claude/agents/qa.md` | 5-15 | Layer-3 Q/A | `model: opus` (L5), `maxTurns: 12` (L6), `effort: max` (L15) | needs: model->fable, maxTurns->30, comment block (L7-14) economics rewrite |
-
-Exact current frontmatter keys (verified): `name, description, tools, model, maxTurns, effort, memory, color, permissionMode` (qa also has `skills:`). All keys are valid per the sub-agents frontmatter reference. The phase-29.2 comment blocks at researcher.md:7-14 and qa.md:7-13 contain the "Max-subscription flat-fee removes per-token ceiling" claim that is now stale.
-
-### Layer-2 in-app MAS pin table — `backend/config/model_tiers.py`
-
-| Element | Lines | Detail |
-|---------|-------|--------|
-| `_BUILD_TIER` dict | 42-74 | The pin table. `mas_main` = `claude-opus-4-8` (**L49**), `mas_qa` = `claude-opus-4-8` (**L51**), `autoresearch_strategic` = `claude-opus-4-8` (**L60**). `mas_communication`/`mas_research` = sonnet-4-6; `autoresearch_fast` = haiku; `autoresearch_smart` = sonnet; `gemini_*`/`layer1_swappable` = Gemini (locked/out-of-scope) |
-| `_LIVE_TIER` | 81-82 | All-sentinel placeholder; not in scope (COST_TIER=build is live) |
-| `EFFORT_SUPPORTED_MODELS` | 183-191 | tuple of effort-capable model-id prefixes. **Does NOT include `claude-fable-5`** -> `model_supports_effort()` returns False for Fable, so `llm_client` would silently DROP effort on a Fable route. MUST add `"claude-fable-5"` here if any role is repinned to Fable |
-| `EFFORT_DEFAULTS` | 221-231 | per-role effort. `mas_main`/`mas_qa`/`mas_communication`/`mas_research` all = `"max"` (step-scoped 23.2.2 override, never reverted); `autoresearch_strategic` = `"high"` |
-| `MODEL_EFFORT_FALLBACK` | 233-242 | tuple of `(model-id-prefix, effort)`. **No `claude-fable-5` entry.** Per the effort doc, the correct Fable default is `"xhigh"` (it's the only Opus-class member that also accepts xhigh). Add `("claude-fable-5", "xhigh")` |
-| `resolve_model()` | 101-155 | single lookup point; honors `apply_model_to_all_agents` override (L134-137) for non-Gemini-locked roles |
-| `resolve_effort()` / `resolve_effort_by_model()` / `model_supports_effort()` | 245-283 | effort resolution; the latter two are the gate that would drop Fable effort if the prefix list isn't updated |
-
-**Consumers of the pin table (non-test) — every resolution path the unit test must cover:**
-- `backend/agents/agent_definitions.py:181` `model=resolve_model("mas_main")`, `:229` `resolve_model("mas_qa")`, `:129`/`:275` (communication/research), `:60` strategic via run_memo
-- `scripts/autoresearch/run_memo.py:180` `STRATEGIC_LLM": f"anthropic:{resolve_model('autoresearch_strategic')}"`
-- `backend/api/agent_map.py:61` `"main"->"mas_main"`, `:65-66` skill_optimizer/directive_rewriter -> autoresearch_strategic, `:73-74` orchestrator/planner -> mas_main; `_inject_live_model()` calls `resolve_model()` per node
-- `backend/agents/llm_client.py:1465-1481` resolves effort via `resolve_effort(role_hint)` / `resolve_effort_by_model(model_id)` and gates on `model_supports_effort(model_id)` (L1481) — **this is where a missing Fable prefix silently drops effort**
-- `backend/api/settings_api.py`, `backend/config/settings.py` — also import resolve_model
-
-### Rare-event vs metered classification (grounded in code, not vibes)
-
-| Role | Invocation path (code anchor) | Cadence | In scope for Fable? |
-|------|------------------------------|---------|---------------------|
-| `mas_main` | `agent_definitions.py:181` "Ford (Slack Orchestrator)"; `multi_agent_orchestrator.py` (Layer-2 Slack/iMessage routing, NOT the per-ticker Gemini pipeline) | **operator-paced** (fires on inbound Slack/iMessage, human-initiated) — RARE | **YES** (quality-first, rare) |
-| `mas_qa` | `agent_definitions.py:229` "Analyst (Q&A Agent)"; same Layer-2 Slack-routed orchestrator | operator-paced per Slack analytical request — NOT per-ticker in the Gemini sense (the per-ticker pipeline is the 28 Gemini agents in `orchestrator.py`, which are Gemini-locked & out of scope) | **YES** (quality-first, rare) — but see CAVEAT below |
-| `autoresearch_strategic` | `run_memo.py:180` STRATEGIC_LLM; nightly cron `backend/autoresearch/cron.py:25` `"0 2 * * *"` (2am ET) | **1x/night** — RARE | **YES** (strategic synthesis, rare) |
-| `mas_communication` / `mas_research` | `agent_definitions.py:129`/`:275` | sonnet-tier helper roles | NO (keep sonnet — cost discipline; research is the cheap fan-out leg) |
-| `autoresearch_fast` / `autoresearch_smart` | run_memo fast/smart legs | haiku/sonnet high-volume | NO (keep — cost discipline) |
-| `gemini_*` / `layer1_swappable` | per-ticker Gemini analysis (`orchestrator.py`) | **per-ticker, HIGH volume**; Gemini-locked (Vertex APIs) | NO (out of scope, locked) |
-
-**CAVEAT on `mas_qa` / the step's "BOTH layers" instruction:** The step says "pin Fable 5 on the
-QUALITY-FIRST rare-event roles in both MAS layers" and "Per-ticker/metered roles MUST keep their
-current models." `mas_main`, `mas_qa`, and `autoresearch_strategic` are all rare-event/operator-paced
-by the code evidence above — they are NOT the per-ticker firing path (that's the Gemini pipeline). So
-repinning these three to Fable is consistent with the cost-discipline constraint. The genuinely
-per-ticker roles (`gemini_*`) are Gemini-locked and untouched. **Recommendation: repin `mas_main`,
-`mas_qa`, `autoresearch_strategic` -> `claude-fable-5`; leave `mas_communication`, `mas_research`,
-`autoresearch_fast`, `autoresearch_smart` unchanged.** (Confirm the exact role set with the operator's
-"both layers, quality-first" intent — but note the immutable criteria only NAME the Layer-3 agent
-files explicitly; the Layer-2 `model_tiers.py` repin is the "both layers" half and should follow the
-quality-first/rare-event rule above.)
-
-### Ticket-queue agent map — `backend/services/ticket_queue_processor.py`
-
-`agent_model_map` at **L165-169**: `main`/`q-and-a` = `claude-opus-4-8`, `research` = `claude-sonnet-4-6`
-(consumed at L171 `model_name = agent_model_map.get(...)`, used at L235 `client.messages.create(model=model_name)`).
-
-**Cost math for ticket agents:** tickets are operator-initiated Slack/iMessage messages — ~1-2/day,
-human-paced (the project memory confirms ~1-2 tickets/day). Each ticket call is `max_tokens=1000`
-(L233). Worst case 2 tickets/day x (say) 4K input + 1K output on Fable = `2 x (4000 x $10 + 1000 x $50)/1e6`
-= `2 x ($0.04 + $0.05)` = **~$0.18/day** if both main+q-and-a fire on every ticket. Negligible in
-absolute terms. **Recommendation:** repinning `main`/`q-and-a` here to `claude-fable-5` is defensible
-on cost (these are the same quality-first operator-paced roles), BUT this map uses the **direct SDK
-rail** (`client.messages.create`) — it is NOT routed through `resolve_model`/`model_supports_effort`,
-so it carries no effort param and is unaffected by the `EFFORT_SUPPORTED_MODELS` gap. Note also the
-56.2 CLI-rail flag (`paper_use_claude_code_route`): when set, tickets spawn via the Claude Code CLI
-(`_spawn_real_agent`), which inherits the session/agent model, not this map. **Decision is the
-operator's**; the immutable criteria for 59.1 do NOT name this file, so changing it is optional. If
-changed, update the inline comments (L166-168) to say "fable-5" and the rationale.
-
-### `.claude/settings.json`
-
-- `effortLevel: "xhigh"` (L2) — the persistent main-session default.
-- **NO `model` key** (verified: `grep -c '"model"' = 0`). The MAIN session model is therefore
-  **user-default**, set by the operator's `/model fable` choice (which, per the model-config doc, v2.1.153+
-  writes to *user* settings, not this repo file). **Nothing in the repo contradicts the operator's
-  Fable default** — confirmed. The current session already runs `claude-fable-5[1m]`.
-- `permissions.defaultMode: "bypassPermissions"` (L141) — unchanged by this step.
-
-### Hardcoded-model-id test inventory (CRITICAL for the verification command)
-
-Searched all of `backend/tests/`. Tests that hardcode model ids relevant to this change:
-
-| Test file | Line | Assertion | Breaks on mas_main->fable? |
-|-----------|------|-----------|----------------------------|
-| `test_agent_map_live_model.py` | `test_endpoint_injects_live_model_field` | `main_node.live_model == "claude-opus-4-8"` | **YES — WILL FAIL.** This resolves `mas_main` through the build tier and asserts the literal. Step MUST update it to `"claude-fable-5"` |
-| `test_apply_model_to_all_agents.py` | 52 | `resolve_model("mas_main") == _BUILD_TIER["mas_main"]` | NO (dynamic — reads the dict, not a literal) |
-| `test_apply_model_to_all_agents.py` | 79 | override test: patches `gemini_model="claude-opus-4-7"`, asserts all roles resolve to that **override value** | NO (the literal is the override stand-in, not the build pin) |
-| `test_phase_56_2_ops_fixes.py` | 184-213 | ticket CLI-rail tests; spawn `"main"` but assert on the RAIL (CLI vs SDK), not the model id | NO |
-| `test_phase_39_1_autoresearch_env.py` | 27-33 | asserts `resolve_model('autoresearch_strategic')` is *interpolated* into env strings (dynamic) | NO |
-| `test_phase_37_2_default_alignment.py` | 66 | `s.deep_think_model == "gemini-2.5-pro"` (Gemini, unrelated) | NO |
-| `test_claude_code_client.py` | 155,172 | constructs client with `"claude-sonnet-4-6"` (unrelated) | NO |
-| `test_phase_31_1_fixes.py` | 32,73 | `gemini_model="claude-sonnet-4-6"` stubs (unrelated) | NO |
-
-**THE ONE BREAKING TEST: `test_agent_map_live_model.py::test_endpoint_injects_live_model_field`.**
-It currently passes on the opus-4-8 baseline (verified: `1 passed`). After `mas_main -> claude-fable-5`
-it asserts the wrong literal and fails. This is the exact analogue of the 56.2 `4-7->4-8` stale-assertion
-update — follow that pattern: change the literal to `"claude-fable-5"` (the comment at
-test_agent_map_live_model.py:60-61 already documents the 56.2 precedent).
-
-### **VERIFICATION-COMMAND COVERAGE GAP (must flag to implementer + Q/A)**
-
-The step's verification command is:
-```
-python -m pytest backend/tests -k 'fable or model_tiers or phase_59' -q && test -f handoff/current/live_check_59.1.md
-```
-I ran the `-k` collection LIVE. It currently collects **exactly 1 test**
-(`test_phase_37_2_default_alignment.py::...gemini_deep_think...` — it matches the substring `model_tiers`
-in its name). **It does NOT collect `test_agent_map_live_model.py`** (verified: ">>> NOT caught <<<").
-
-Consequences for the implementer:
-1. The `-k` net will NOT exercise the one test that breaks (`test_agent_map_live_model`). If the
-   implementer fixes `model_tiers.py` but forgets to update that test, the verification command will
-   still **exit 0 (false green)** while the real suite is red.
-2. There is currently **no test matching `fable` or `phase_59`.** The step's criteria require a NEW
-   test (it says "the unit test covers real resolution"). The implementer MUST add a test whose NAME
-   contains `fable` or `phase_59` (e.g. `test_phase_59_1_fable_pins.py`) so the `-k` pattern catches it.
-3. **Recommendation:** the new `test_phase_59_1_*.py` should assert the full real-resolution path —
-   `resolve_model("mas_main") == "claude-fable-5"`, same for `mas_qa` and `autoresearch_strategic`;
-   `"claude-fable-5" in EFFORT_SUPPORTED_MODELS`; `resolve_effort_by_model("claude-fable-5") == "xhigh"`;
-   `model_supports_effort("claude-fable-5") is True`; and the unchanged roles still resolve to their
-   prior pins. AND the implementer must update `test_agent_map_live_model.py` even though `-k` won't
-   force it — Q/A should run the FULL `backend/tests` suite (not just `-k`) as part of EVALUATE to
-   catch the out-of-net breakage. (Flag this in `experiment_results.md`.)
-
-### CLAUDE.md effort-policy edit plan
-
-The "Effort policy (Layer-3 harness MAS...)" bullet spans **L56-62**. Specific edits:
-- **L56:** "owner is on a **Max subscription** (flat-fee, no per-token ceiling on Claude Code
-  first-party usage)" -> rewrite. New economics: Max included Fable free only June 9-22 2026; from
-  June 23 Fable draws usage credits, so the rationale is no longer "flat fee" but "**rare-event firing
-  contains cost** (Researcher/Q-A fire once per masterplan step, not per ticker), plus the operator's
-  explicit 2026-06-11 quality-first pre-approval accepting credit burn on these gate roles."
-- **L57:** "Switch sessions to 4.8 via `/model claude-opus-4-8`" -> "`/model fable`" (and note v2.1.170+
-  / 2.1.172 installed). Update "Opus 4.8 as of 2026-05-28" to reflect Fable as the session default.
-- **L58 (Q/A):** `model: opus` -> note `model: fable`; effort note: Fable baseline is `high`, we keep
-  `max` deliberately; maxTurns 12->30; add restart caveat + 2026-06-11 operator pre-approval.
-- **L59 (Researcher):** `model: opus` -> `model: fable`; maxTurns 30->40; same credit-economics +
-  restart note; the "Max plan auto-includes Opus 1M context" line -> Fable runs 1M by default on API.
-- **L62:** the "default to the Anthropic-recommended pairing... unless Max-subscription + rare-event
-  rationale applies" guidance -> update the rationale name to "rare-event + quality-first
-  (credit-metered post-June-22)".
-
-Also touch the **agent-file comment blocks** (researcher.md:7-14, qa.md:7-13): replace the
-"Max-subscription flat-fee removes per-token ceiling" sentence with the rare-event + June-22-credit
-framing, add the v2.1.170 floor + 2026-06-11 operator pre-approval + session-restart caveat.
-
----
-
-## Application to pyfinagent (external -> internal mapping)
-
-| External finding | Internal action (file:line) |
-|------------------|------------------------------|
-| `fable` is the valid frontmatter alias (sub-agents doc) | `researcher.md:5` + `qa.md:5`: `model: opus` -> `model: fable` |
-| `maxTurns` bounds agentic turns (sub-agents doc) + burn-control (developersdigest) | `researcher.md:6` 30->40; `qa.md:6` 12->30 |
-| Fable not in our effort-capability lists | `model_tiers.py:183-191` add `"claude-fable-5"` to `EFFORT_SUPPORTED_MODELS`; `:233-242` add `("claude-fable-5", "xhigh")` to `MODEL_EFFORT_FALLBACK` |
-| Fable is quality-first/rare-event role match (anthropic/claude/fable + effort doc) | `model_tiers.py:49,51,60`: `mas_main`/`mas_qa`/`autoresearch_strategic` -> `claude-fable-5` |
-| Stale literal assertion (56.2 precedent) | `test_agent_map_live_model.py`: `claude-opus-4-8` -> `claude-fable-5` |
-| Verification `-k` net + "real resolution" criterion | NEW `backend/tests/test_phase_59_1_fable_pins.py` (name matches `phase_59`) |
-| June-22 credit cliff supersedes flat-fee rationale (announcement) | `CLAUDE.md:56-62` + `researcher.md:7-14` + `qa.md:7-13` comment rewrites |
-| Fable effort baseline = `high`, not `xhigh` (effort doc) | document the deliberate `max` over-spec in the comment blocks; EFFORT_DEFAULTS already `max` (no change needed, but note the rationale) |
-| Ticket agents cost ~$0.18/day on Fable (cost math) | `ticket_queue_processor.py:165-169` — OPTIONAL repin (not named in 59.1 criteria); operator's call |
-| Session model is user-default, repo has no `model` key | `.claude/settings.json` — NO change needed; operator `/model fable` already in effect |
-
-### Effort decision (recommendation)
-
-Keep `effort: max` on the Layer-3 Researcher + Q/A agent files. Justification: (a) Fable's effort table
-accepts `max`; (b) these are the rare-event, quality-critical gate roles Fable's `max` ("reflects on and
-validates its own work") is designed for; (c) the operator's 2026-06-11 directive is explicitly
-quality-first. BUT document in the comments that Fable's *recommended* baseline is `high` (not Opus's
-`xhigh`), and that per the effort doc "lower effort on Fable 5 often exceeds `xhigh` on prior models" —
-so even `high` would already beat the previous Opus-`max` config. This is a deliberate, documented
-over-spec, not an unexamined carry-over. For Layer-2 `EFFORT_DEFAULTS`, the roles repinned to Fable are
-already `"max"` (the 23.2.2 step-scoped override) — no change required, but the same comment note applies.
-
----
+1. Editing `.mcp.json` mid-session does not respawn the server — disclose
+   capture-time version in live_check or `/mcp` reconnect.
+2. qa.md/researcher.md edits snapshot at session start (CLAUDE.md rule) —
+   the 1c rule is NOT live for this session's own Q/A; note in handoff +
+   harness_log (same caveat 59.1 carries; verify_qa_roster_live.sh next session).
+3. Don't enable `browser_run_code_unsafe` or broad `--caps` — RCE surface.
+4. Figma connector absence in headless runs — any criterion requiring Figma
+   evidence would be unverifiable in cron; keep Figma advisory-only.
+5. The CLAUDE.md line-ref sentence (".mcp.json:44,55,66,77") goes staler with
+   every .mcp.json edit — update it or de-brittle it while touching it.
+6. Verification cmd greps `Playwright` in qa.md and `figma` (case-insensitive)
+   in frontend.md — the drafts above satisfy both; keep capitalization.
 
 ## Research Gate Checklist
 
-Hard blockers — `gate_passed` is false if any unchecked:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (7 read in full: 5 official + 2 vendor/industry)
-- [x] 10+ unique URLs total (17 collected)
-- [x] Recency scan (last 2 years) performed + reported (entire corpus is the last-2-week window; stated explicitly)
+Hard blockers:
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6)
+- [x] 10+ unique URLs total (17)
+- [x] Recency scan performed + reported (§9)
 - [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim
+- [x] file:line anchors for every internal claim (§7)
 
 Soft checks:
-- [x] Internal exploration covered every relevant module (agent files, model_tiers, ticket_queue, settings.json, all 8 model-id tests, CLAUDE.md, consumers)
-- [x] Contradictions / consensus noted (adversarial "overkill for routine" counterpoint surfaced + reconciled)
-- [x] All claims cited per-claim with URL/file:line
-
----
+- [x] Internal exploration covered every relevant module (.mcp.json, qa.md, researcher.md, frontend.md, CLAUDE.md, middleware.ts, archives)
+- [x] Contradictions/consensus noted (§10)
+- [x] Claims cited per-claim
+- [ ] Tool-call budget: overran moderate (~26 vs 18) — disclosed §0
 
 ```json
 {
-  "tier": "moderate-complex",
-  "external_sources_read_in_full": 7,
-  "snippet_only_sources": 10,
+  "tier": "moderate",
+  "external_sources_read_in_full": 6,
+  "snippet_only_sources": 11,
   "urls_collected": 17,
   "recency_scan_performed": true,
   "internal_files_inspected": 9,
