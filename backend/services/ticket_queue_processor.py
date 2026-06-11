@@ -352,10 +352,21 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 error_message=f"Max retries ({max_retries}) exceeded"
             )
             
-            # CLOSURE PROTOCOL: Mandatory follow-up for closed tickets
-            logger.info(f"CLOSURE TRIGGER: Ticket #{ticket_number} closed after {retries} retries. Follow-up action pending.")
-            # TODO: Implement follow-up trigger (notify user, escalate, archive, etc.)
-            
+            # CLOSURE PROTOCOL: Mandatory follow-up for closed tickets.
+            # phase-60.4 (criterion 2): the #5101 case -- a max-retries close
+            # now POSTS a failure notice to the ticket's channel instead of
+            # dying silently (the operator learned of #5101 from an audit,
+            # not from the system). Fail-open: notification failure never
+            # blocks the close.
+            logger.info(f"CLOSURE TRIGGER: Ticket #{ticket_number} closed after {retries} retries. Notifying channel.")
+            try:
+                from backend.services.queue_notification import get_queue_notification_service
+                await get_queue_notification_service().send_ticket_failure_notification(
+                    ticket, f"Max retries ({max_retries}) exceeded"
+                )
+            except Exception as _notify_exc:
+                logger.error(f"Ticket-failure notice dispatch failed for #{ticket_number}: {_notify_exc}")
+
             return False
 
         try:

@@ -1,3 +1,35 @@
+# Cycle Block Summary -- phase-60 COMPLETE (2026-06-11)
+
+**Goal:** "Phase-60: 59.3 re-audit remediation (operator-approved install, minus 60.5)" -- set via /goal 2026-06-11 after your verbatim decision "Install minus 60.5 (Recommended)". **ALL FOUR STEPS PASS** (Cycles 52-55, each via the full harness: researcher -> contract -> generate -> ONE fresh Q/A -> log -> flip). Commits 7524e3cf (install), fa62b5fe (60.1), 7f0de140 (60.2), 6a4fc351 (60.3), + the 60.4 close commit; all pushed to origin/main.
+
+## What changed (the away-week defects, fixed)
+
+| Step | Defect (59.3 finding) | Fix | Live state |
+|---|---|---|---|
+| 60.1 | Full pipeline dead since 06-01 (retired gemini-2.0-flash 404s; KR CIK aborts); 100% silent lite fallback | Repin to live-smoke-proven gemini-2.5-flash (+ thinking-budget + CLI-rail timeout fixes found by the live runs); KR tagged-skip; fallback-rate alarm; lite/full provenance everywhere | **LIVE** (deployed this morning; MU + 005930.KS full-path BQ rows prove it) |
+| 60.2 | Churn engine: fresh BUYs scored sentinel 0.0 -> swap-out bait next day (MU -6.3%, 81.4% turnover) | Unanalyzed holdings excluded from swap displacement + delta-denominator fix, behind `paper_swap_churn_fix_enabled` | code on main, **flag OFF -- your call below** |
+| 60.3 | KRW rendered as '$' into LLM prompts ($1.63-quadrillion caps); judge's correct prose flag ignored; stale KR quotes as live | USD-converted/labeled prompts + as-of stamps + deterministic pre-LLM integrity gate, behind `paper_data_integrity_enabled`; provenance fields ungated (already landing in BQ) | code on main, **flag OFF -- your call below** |
+| 60.4 | CC rail invisible in llm_call_log; 6-week ticket-ingestion outage unnoticed; #5101 died silently; yfinance on the event loop; $0.50 budget noise; PEAD daily 404; conviction-10 fallback masquerade; FRED key in logs | All shipped (writer, DMS alarm, channel notice, to_thread, busy-aware watchdog, your RE-SPEC to $5.00, calendar_events table CREATED [root cause: reserved-keyword bug -- the script had never worked], digest fallback line, root-handler redaction) | code on main; **needs restarts to load** (below) |
+
+## CRISP OPERATOR ASK LIST
+
+1. **`60.2 FLAG: ON | KEEP OFF`** -- the churn-engine fix (`paper_swap_churn_fix_enabled`). Evidence: handoff/current/live_check_60.2.md SC (11/13 away-week swaps were sentinel-driven and get suppressed; honest caveat: the one-step counterfactual on THIS falling window was -$271 because random rotation out of losers got lucky; the mechanism remains fabricated-evidence trading).
+2. **`60.3 FLAG: ON | KEEP OFF`** -- KR prompt integrity (`paper_data_integrity_enabled`). Evidence: live_check_60.3.md SA (the $44,540.6B prompt -> $32.1B truthful). US prompts byte-identical either way.
+3. **Restarts to load 60.2-60.4 code** (flags stay OFF; behavior identical, observability turns on): backend `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`; slack bot (your manual process): kill + `python -m backend.slack_bot.app`.
+4. **OpenClaw gateway auth (out of repo, one line):** add an anthropic key/profile at `/Users/ford/.openclaw/agents/pyfinagent/agent/auth-profiles.json` (error since 2026-04-09: `No API key found for provider "anthropic"`), then send a test "Approve" in #ford-approvals.
+5. **Hygiene one-liner:** rotate the FRED key (plaintext in the historical backend.log, 2,101 lines) and truncate/rotate the 397MB repo-root backend.log. New lines are redacted (`api_key=***REDACTED***`) once the backend restarts.
+6. **FYI, no action:** the 58.1 $25 live window keeps accumulating DoD evidence (live_check_58.1.md); mas-harness cron re-enable stays parked at the post-away-review goal's HARD STOP; 2026-10-16 = Gemini 2.5 family retirement trigger (GEMINI_WORKHORSE + deep_think pin -- recorded at the constant).
+
+## Follow-up candidates routed to normal masterplan flow (from Q/A NOTEs + live findings)
+
+- CC-rail `_role`/`_ticker` adoption in the full orchestrator (rows label bare "cc_rail" until then).
+- Synthesis-Final invalid-JSON flake on the CC rail (both 60.1 live rows scored 0.0 from it; pre-existing class).
+- Meta-scorer LLM-leg repair (the credit-exhaustion class; its fallback is now VISIBLE in the digest).
+- calendar_events populater (the table exists and is empty -- honest, but the PEAD overlay only adds value once events flow).
+- missing-trailingPE-key tag + "P/E: n/a" rendering (60.3 NOTEs); redaction/notice wiring tests (60.4 NOTEs).
+
+---
+
 # Cycle Block Summary — goal-post-away-review (SOFT STOP 2026-06-10)
 
 Goal "post-away-week review -> evidence-gated fixes -> go-live runway" (set 2026-06-10).

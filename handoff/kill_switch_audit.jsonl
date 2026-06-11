@@ -18,3 +18,11 @@
 {"ts": "2026-06-11T13:34:32.771924+00:00", "event": "resume", "trigger": "manual", "details": {}}
 {"ts": "2026-06-11T13:34:32.776370+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-06-11T13:34:34.239611+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:09:39.678453+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:09:41.036874+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:09:41.042465+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:09:42.469182+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:20:58.792536+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:21:00.221445+00:00", "event": "resume", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:21:00.226645+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-06-11T14:21:01.602892+00:00", "event": "resume", "trigger": "manual", "details": {}}

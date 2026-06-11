@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.calendar_events` (
   event_type STRING NOT NULL,
   ticker STRING,
   scheduled_at TIMESTAMP NOT NULL,
-  window STRING,
+  `window` STRING,  -- phase-60.4: WINDOW is a GoogleSQL reserved keyword; the unquoted form made this DDL fail with a syntax error, which is WHY the table never existed and the PEAD overlay 404'd daily
   fiscal_period_end DATE,
   source STRING NOT NULL,
   confidence STRING NOT NULL,

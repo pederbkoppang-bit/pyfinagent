@@ -1398,6 +1398,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 error_count=int(summary.get("error_count", 0) or 0),
                 data_source_ages=summary.get("data_source_ages") or {},
                 bq_ingest_lag_sec=summary.get("bq_ingest_lag_sec"),
+                meta_scorer_degraded=bool(summary.get("meta_scorer_degraded")),
             )
         except Exception as _e:
             logger.warning(f"cycle_health record_cycle_end failed: {_e}")
@@ -1889,6 +1890,18 @@ def _log_claude_code_call(
         logger.debug("claude-code llm_call_log metering failed (non-fatal): %s", exc)
 
 
+def _fetch_yf_market_data(ticker: str):
+    """phase-60.4 (AW-1 residual, criterion 3): the yfinance fetch as ONE
+    sync unit for asyncio.to_thread. `stock.info` + `.history` are blocking
+    network calls; naked inside the async lite analyzers they stalled the
+    event loop (the watchdog's away-week ReadTimeouts while a cycle ran).
+    Returns (info, hist)."""
+    import yfinance as yf
+
+    stock = yf.Ticker(ticker)
+    return stock.info, stock.history(period="3mo")
+
+
 async def _run_claude_analysis(
     ticker: str, settings: Settings, portfolio_context: str = "",
 ) -> dict:
@@ -1898,14 +1911,13 @@ async def _run_claude_analysis(
     the RiskJudge prompt; consumed only when paper_risk_judge_reject_binding
     is ON (the prompt builders return verbatim constants when OFF)."""
     import anthropic
-    import yfinance as yf
 
     logger.info(f"Claude analysis: analyzing {ticker}")
 
-    # Fetch current market data via yfinance
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    hist = stock.history(period="3mo")
+    # Fetch current market data via yfinance.
+    # phase-60.4 (criterion 3): off the event loop -- names preserved so the
+    # 60.3 integrity wiring below is untouched.
+    info, hist = await asyncio.to_thread(_fetch_yf_market_data, ticker)
 
     current_price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
     market_cap = info.get("marketCap", 0)
@@ -2182,15 +2194,13 @@ async def _run_gemini_analysis(
     Two-LLM-call pattern preserved: trader prompt + independent risk-judge.
     """
     import re as _re
-    import yfinance as yf
     from backend.agents.llm_client import make_client, safe_text
 
     logger.info(f"Gemini analysis: analyzing {ticker}")
 
     # 1. Market data via yfinance (parity with Claude path).
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    hist = stock.history(period="3mo")
+    # phase-60.4 (criterion 3): off the event loop (mirror of the Claude path).
+    info, hist = await asyncio.to_thread(_fetch_yf_market_data, ticker)
 
     current_price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
     market_cap = info.get("marketCap", 0)

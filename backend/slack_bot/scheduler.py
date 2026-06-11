@@ -112,6 +112,34 @@ _watchdog_last_was_healthy: bool | None = None
 # (65h 34m gap 2026-05-17 -> 2026-05-19 with no operator alert path).
 _cycle_heartbeat_last_was_stale: bool | None = None
 
+# phase-60.4 (criterion 2): state-transition gate for the inbound-ingestion
+# silence alarm (the 6-week tickets.db outage class). None = unknown baseline.
+_ingestion_silence_last_was_stale: bool | None = None
+
+
+def _cycle_state_line() -> str:
+    """phase-60.4 (criterion 3): busy-vs-down context for watchdog alerts.
+
+    Reads the autonomous-cycle lockfile (backend/services/cycle_lock.py --
+    importable cross-process; the lock lives on disk). Pure-read, never
+    raises; the line is APPENDED to alerts, never used to suppress them.
+    """
+    try:
+        from backend.services.cycle_lock import inspect_lock
+
+        lock = inspect_lock()
+        if lock is None:
+            return "Cycle state: no cycle running (lockfile absent) -- backend looks DOWN, not busy."
+        if lock.get("is_stale"):
+            return "Cycle state: STALE lock (age > TTL or pid dead) -- backend looks DOWN, not busy."
+        started = lock.get("started_at") or lock.get("ts") or "?"
+        return (
+            f"Cycle state: cycle IN PROGRESS (started {started}, age {lock.get('age_sec', 0):.0f}s, "
+            f"pid alive) -- likely BUSY, not down; the away week's ReadTimeouts were this class."
+        )
+    except Exception as exc:
+        return f"Cycle state: unavailable ({type(exc).__name__})"
+
 
 def _aps_to_heartbeat(event) -> None:
     """phase-23.3.2: APScheduler event listener that POSTs each terminal
@@ -340,11 +368,34 @@ async def _compute_cron_health(client: httpx.AsyncClient) -> str | None:
             return None
         bad = [j.get("id", "?") for j in jobs if j.get("status") == "failed"]
         n_green = sum(1 for j in jobs if j.get("status") in ("ok", "scheduled", "running"))
-        if bad:
-            return f":warning: *Crons:* {n_green}/{len(jobs)} healthy -- FAILED: {', '.join(bad)}"
-        return f":white_check_mark: *Crons:* {n_green}/{len(jobs)} healthy"
+        line = (
+            f":warning: *Crons:* {n_green}/{len(jobs)} healthy -- FAILED: {', '.join(bad)}"
+            if bad else f":white_check_mark: *Crons:* {n_green}/{len(jobs)} healthy"
+        )
+        return line + _meta_scorer_state_line()
     except Exception:
         return None
+
+
+def _meta_scorer_state_line() -> str:
+    """phase-60.4 (criterion 4): surface the meta-scorer fallback state in
+    the morning digest. The away week ran EVERY trade on 'conviction 10.00;
+    fallback (LLM unavailable)' and the digest presented those convictions
+    as LLM judgments. Reads the latest terminal cycle row from the cycle
+    ledger (file-based, cross-process). Empty string when healthy/unknown
+    (digest byte-identical)."""
+    try:
+        from backend.services.cycle_health import get_log
+
+        rows = get_log().last_cycles(1)
+        if rows and rows[0].get("meta_scorer_degraded"):
+            return (
+                "\n:warning: *Meta-scorer:* DEGRADED last cycle -- conviction values "
+                "were no-LLM fallbacks (raw composite scores), not LLM judgments."
+            )
+    except Exception:
+        pass
+    return ""
 
 
 async def _compute_system_state(client: httpx.AsyncClient) -> str | None:
@@ -516,9 +567,16 @@ async def _watchdog_health_check(app: AsyncApp):
     else:
         if prior is None or prior is True:
             # None->False (post-restart already broken) or True->False (transition).
+            # phase-60.4 (AW-2 residual, criterion 3): distinguish busy-vs-down.
+            # The away week's single-probe ReadTimeouts (05-27/05-28/06-04) were
+            # CYCLES IN PROGRESS hogging the event loop, not a dead backend --
+            # the alert text now says which. Context is APPENDED, never used to
+            # suppress the alert (a busy backend that drops /api/health is
+            # still worth knowing about).
             post = (
                 f":rotating_light: *Watchdog Alert* -- Backend unreachable\n"
-                f"Detail: {detail} at {datetime.now().strftime('%H:%M:%S')}",
+                f"Detail: {detail} at {datetime.now().strftime('%H:%M:%S')}\n"
+                f"{_cycle_state_line()}",
                 "Watchdog Alert: backend unreachable",
             )
             logger.warning("Watchdog unhealthy transition -- %s", detail)
@@ -538,6 +596,41 @@ async def _watchdog_health_check(app: AsyncApp):
             )
         except Exception:
             logger.exception("Watchdog Slack post failed")
+
+    # phase-60.4 (criterion 2): inbound-ingestion silence alarm (dead-man's-
+    # switch pattern). tickets.db went dark 2026-04-24 -> 2026-06-10 and the
+    # operator learned of it from an audit. Same state-transition spam gate
+    # as the heartbeat below; threshold settings.ticket_ingestion_silence_days
+    # (default 7). Fully fail-open.
+    global _ingestion_silence_last_was_stale
+    try:
+        from backend.db.tickets_db import TicketsDB
+
+        _silence_days = float(getattr(settings, "ticket_ingestion_silence_days", 7) or 7)
+        _age = TicketsDB().get_last_ticket_age_days()
+        _silent_now = _age is not None and _age >= _silence_days
+        _prior_silent = _ingestion_silence_last_was_stale
+        _ingestion_silence_last_was_stale = _silent_now
+        if _silent_now and _prior_silent is not True:
+            await app.client.chat_postMessage(
+                channel=settings.slack_channel_id,
+                blocks=[{
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": (
+                        f":rotating_light: *Ingestion Silence Alarm* -- no inbound ticket "
+                        f"ingested for {_age:.1f} days (threshold {_silence_days:.0f}d).\n"
+                        f"The operator channel -> tickets.db pipeline may be dead "
+                        f"(the 2026-04-24 -> 06-10 outage class). Check the slack bot "
+                        f"listener + backend/services/ticket_ingestion.py."
+                    )},
+                }],
+                text="Ingestion Silence Alarm: inbound ticket pipeline may be dead",
+            )
+            logger.warning("ingestion_silence alarm fired -- age_days=%.1f", _age)
+        elif (not _silent_now) and _prior_silent is True:
+            logger.info("ingestion_silence recovered -- age_days=%s", _age)
+    except Exception as exc:
+        logger.warning("ingestion_silence check fail-open: %r", exc)
 
     # phase-30.1: out-of-band autonomous-cycle heartbeat check. Runs on
     # the same interval cron as the backend health probe so a missing

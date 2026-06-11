@@ -1,188 +1,135 @@
-# Research Brief -- phase-60.3: Decision-input integrity for non-USD markets (AW-9, P1)
+# Research Brief -- phase-60.4: Observability + ops residuals (AW-7, AW-1/AW-2 residuals, AW-10, hygiene)
 
-Tier: MODERATE-COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
-Prior briefs archived at handoff/archive/phase-60.1/ and phase-60.2/.
-Disclosed overrun: audit tables push past the 1500-word ceiling; prose kept tight (60.2 precedent).
+Tier: COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
+Audit basis: handoff/archive/phase-59.3/59.3-harness-free-output.md sections 1-2, 4, 7 (snapshot 70a8242b). Priors archived under handoff/archive/phase-60.{1,2,3}/.
+Disclosed overruns (60.2/60.3 precedent): 10-item internal audit pushes the brief past the 1500-word ceiling and the session past the 30-tool-call budget (~38 calls); prose kept tight, floors all met.
 
-## 1. Executive summary
+## 1. Exec summary (one sentence per criterion leg)
 
-- **Leg 1 (currency-honest prompts):** Both lite prompt sites render raw yfinance KRW values behind `$` literals -- autonomous_loop.py:1898 (Claude trader), :2137 (Gemini trader), :1627 (shared Risk-Judge template fed at :1973/:2184). Fix = convert via existing `fx_rates.get_fx_rate(ccy,"USD")` (fx_rates.py:182; 6h-cached; KRW=X inversion already handled) keyed off `markets.market_for_symbol(ticker)` (markets.py:142); on FX failure LABEL native currency, never render `$`. GIPS practice grounds both modes: convert to one base currency AND disclose the currency (gipsstandards.org Q&A 5336). CRITICAL: convert ONLY the prompt string -- `price_at_analysis` + persisted `market_data` stay native (fills/tolerance gate consume native via `_fx_local_to_usd`, paper_trader.py:32,:208).
-- **Leg 2 (actionable integrity flags):** Deterministic pre-check AFTER the info fetch (:1839-1857/:2104-2120), acting IN CODE -- literature is unanimous that the LLM's prose flag cannot be the enforcement layer (GuardAgent: "admitted ... if O_l=0 or denied if O_l=1", code-executed; arXiv:2604.01483: intercept "before it reaches the execution environment"; "probabilistic execution without rigid constraints is architecturally and legally untenable"). Checks: USD-converted market cap > ceiling (largest real cap on earth = NVDA $4.854T 2026-06-10 -> $10T ceiling catches the persisted $44.5T/LG and $1.45-quadrillion/SK-hynix corruption with 2x+ headroom over NVDA); P/E==0 on a mega-cap = missing-data artifact of `info.get("trailingPE", 0)` (:1841/:2106); price-currency mismatch (`info.currency` vs `market_for_symbol` suffix). Tag -> EXCLUDE or FLOOR-SIZE via the 57.1 `blocked_out` mirror (portfolio_manager.py:60,:204; autonomous_loop.py:1159-1177) and the sizing hook at portfolio_manager.py:655; add a machine-readable flag to the judge schema (:1630-1637) -- today prose lands only in `reasoning`->`summary` and nothing reads it (BQ rows below prove flag-then-trade).
-- **Leg 3 (staleness honesty):** KRX regular session 09:00-15:30 KST (UTC+9) = 00:00-06:30 UTC, no lunch break; observed cycle analyses run 18:03-18:06 UTC (BQ) = ~11.6h after close. Label the as-of (yfinance `regularMarketTime`/last hist bar) instead of "Price:". Calendar access exists: `markets.get_trading_calendar("KR")` (markets.py:168) -> xcals XKRX `session_close`. Recency caveat: KRX adds extended sessions from 2026-06-29 -- label as-of timestamps, don't hardcode "close=06:30 UTC" semantics.
-- **Leg 4 (do-no-harm):** US byte-identity test mirrors `test_off_identity_prompts_are_verbatim_constants` (backend/tests/test_phase_57_1_reject_binding.py:187); name new tests `test_phase_60_3_*` (the -k net misses anything else; 59.1 lesson). Default-OFF flag, verbatim-constant OFF path = the 57.1 dark-launch idiom.
+- **C1 (CC-rail metering):** The writer (`log_llm_call`, api_call_log.py:211) and the lite-path caller (`_log_claude_code_call`, autonomous_loop.py:1865) already exist from 56.2, but the orchestrator full-path rail `ClaudeCodeClient.generate_content` (claude_code_client.py:338-394) writes ZERO rows -- and the agent/ticker labels it needs are already delivered to it via the orchestrator's `generation_config` side-channel (`_role`/`_ticker`, exactly as the SDK clients consume at llm_client.py:1090/:1099 and :1766/:1775), so the fix is a mirror of the existing call with `provider="claude-code"`, latency from `envelope["duration_ms"]`, cost 0.
+- **C2 (ingestion silence + failure notice):** Tickets are created only by `backend/services/ticket_ingestion.py` (:129/:184; consumers slack_bot/commands.py:17 + services/slack_ticket_webhook.py:11) into sqlite at repo-root `tickets.db` (tickets_db.py:46-47) with an indexed `created_at` (:75,:96), so the silence check is a `SELECT MAX(created_at)` mirroring the phase-30.1 `cycle_heartbeat_alarm` state-transition pattern (scheduler.py:549-583); the max-retries close path (ticket_queue_processor.py:344-359) has a literal `TODO: Implement follow-up trigger` at :357 and posts nothing to the ticket's `channel_id` (tickets schema :68).
+- **C3 (event-loop hygiene + busy-vs-down):** Both lite analyzers are `async def` and call `stock.info`/`stock.history` directly on the loop (claude :1906-1908, gemini :2191-2193) despite an in-file to_thread idiom at :467; the watchdog (scheduler.py:469-540) already got the 30s-timeout bounded fix in 56.2 but its alert text (:519-523) cannot distinguish busy-vs-down -- the file-based cycle lock `handoff/.autonomous_loop.lock` with `inspect_lock()` (cycle_lock.py:40,:62-81) is readable from the slack-bot process on the same machine and carries pid-alive + age.
+- **C4 (cost budget / PEAD / meta-scorer):** The "$4.3262 > $0.50" pair of log lines comes from `cost_tracker.check_budget` (cost_tracker.py:275-280) called at orchestrator.py:2254-2256 against `settings.max_analysis_cost_usd` (settings.py:203, default 0.50, description says "does not abort" BY DESIGN -- enforcement is an operator-gated semantics change); PEAD's daily 404 is `pead_signal.py:337-341` querying `pyfinagent_data.calendar_events` whose creating migration ALREADY EXISTS with a --dry-run mode (scripts/migrations/add_calendar_events_schema.py:21-52, schema matches the SELECT: event_type/scheduled_at/ticker); the meta-scorer leg fails inside `ClaudeClient` (metered anthropic SDK, meta_scorer.py:185-194, model `meta_scorer_model` default claude-haiku-4-5, settings.py:363) and 56.2 already detects total degradation (`_all_conviction_fallback` autonomous_loop.py:1856 wired at :744-754 with `raise_cron_alert`) but nothing surfaces in digest/signals (`meta_scorer_degraded` has zero consumers beyond :745; formatters.py has no conviction mention).
+- **C5 (secret hygiene + gateway escalation):** backend.log (repo root, 397 MB) holds 2,101 `api_key=` lines emitted by the `httpx` library logger (`[_client]` prefix, "HTTP Request: GET https://api.stlouisfed.org/...&api_key=...") from fred_data.py:37's AsyncClient -- no `getLogger("httpx")` level/filter exists anywhere in backend, and per the Python logging docs the redaction filter MUST attach to the root HANDLERS (or the `httpx` logger itself), not the root logger, because logger-level filters do not see descendant-logger records; the OpenClaw gateway escalation quote is pinned from 59.3 (see 5.9).
 
 ## 2. External research
 
-### A. LLM-prompt input validation: deterministic pre-checks vs trusting the model
+### A. Secret redaction in logged URLs
+- **OWASP Logging Cheat Sheet** (canonical): never log "encryption keys and other primary secrets" or "access tokens"; data should be "removed, masked, sanitized, hashed or encrypted"; sanitization belongs "in the log handler" during collection. Maps directly to a handler-level filter in `setup_logging` (main.py:84).
+- **Python logging docs** (official, load-bearing): "events which have been generated by descendant loggers will not be filtered by a logger's filter setting, unless the filter has also been applied to those descendant loggers" -- filters attached to HANDLERS see all propagated records; filters "can either modify log records in-place or return a completely different record instance" (3.12+). So `root.addFilter(RedactFilter())` would MISS the httpx records that are the actual leak; attach to each root handler (or to `logging.getLogger("httpx")`).
+- **Better Stack guide** (practitioner): Python `logging.Filter` subclass mutating `record.msg` is the standard idiom; "URLs is easily overlooked, yet they can pose a risk in data leaks"; add the filter before log statements run. Regex shape from the ecosystem (loggingredactor): lookbehind `(?<=api_key=)[\w-]+` -> `REDACTED`. Generalize to `(api_key|apikey|token|key)=[^&\s]+` to cover ALPHAVANTAGE/API-Ninjas keys too (.claude/rules/security.md lists the key inventory).
+- In-repo precedent: `QuietAccessFilter` (main.py:73, attached to the ORIGINATING `uvicorn.access` logger at :110 -- that works only because it is the originating logger; the httpx case is different, see the docs caveat above).
 
-1. **Enforcement must be code, not prose.** GuardAgent: target-agent actions are "admitted by GuardAgent if O_l=0 or denied if O_l=1" -- the denial is executed code, not a textual remark; the guard "strictly follow[s] the safety guard requests to generate guardrail code"; >98% (EICU-AC) / >83% (Mind2Web-SC) guardrail accuracy with 100% preserved task accuracy (arXiv:2406.09187, read in full via /html, accessed 2026-06-11). A model-based guard failure mode is instructive: it "considerately" granted the access it was supposed to block -- exactly the shape of a Risk Judge that flags corruption in prose while the BUY executes.
-2. **Deterministic gate ahead of the execution environment.** "Probabilistic execution without rigid constraints is architecturally and legally untenable" in financial systems; the orchestrator "intercepts this API call before it reaches the execution environment"; execution permitted iff the constraint is proven; design assumption "the LLM is compromised" (Rashie & Rashi 2026, *Type-Checked Compliance: Deterministic Guardrails for Agentic Financial Systems*, arXiv:2604.01483, read in full via /html, accessed 2026-06-11; same source family 57.1 used for the binding-REJECT gate).
-3. **Production-guide consensus (2026, snippet tier):** input validation sits BEFORE the model, output filtering after, with deterministic checks (regex/bounds/allowlists) stacked under classifier checks; deterministic rails are "microsecond speed, deterministic behavior, easy auditing" and should be versioned rules acted on in the pipeline (orq.ai 2026 guide; myengineeringpath 2026; wiz.io; rulebricks -- snippet-only, full fetch returned nav header). Maps 1:1 to 60.3: bounds-check the info dict pre-prompt, act on the result in the candidate flow.
+### B. Ingestion-silence / dead-man's-switch alarms
+- **healthchecks.io docs** (official): the dead man's switch expects pings on a `period`; `grace` is "the additional time to wait before sending an alert when a check is late"; silence past period+grace -> alert. The 60.4 in-process analog: expected-ingestion period = continuous, threshold N days (default 7 per criterion), alarm on age > threshold.
+- **OTel/OneUptime 2026** (snippet): "the worst kind of outage ... is the silent one ... the absence of data does not trigger any alert"; layered defense = heartbeats + per-source freshness + external DMS. pyfinagent already has the freshness layer (`cycle_health.py` two-tier bands :39-52) and the cycle heartbeat (phase-30.1, scheduler.py:549-583 state-transition gated) -- the tickets stream is the missing source.
+- Design consequence: implement ingestion-silence as a sibling of `cycle_heartbeat_alarm` (pure verdict function returning `{stale, age_sec, should_alarm, last_ingested_at}` + a fire function), state-transition gated exactly like `_cycle_heartbeat_last_was_stale` to avoid the every-15-min spam failure mode documented at scheduler.py:88.
 
-### B. Market-data sanity bounds
-
-1. **Market-cap ceiling.** NVIDIA is the world's largest company at "$4.854 Trillion USD" as of June 10, 2026 (companiesmarketcap.com, read in full, accessed 2026-06-11; corroborating snippets: Motley Fool/alpha-sense ~$5.0-5.4T June 2026; first-ever $5T touch Oct 2025). A **$10T USD post-conversion ceiling** is defensible: >2x today's world record, yet 4x below the corrupted LG render ($44.5T) and ~145x below the SK hynix render ($1.45 quadrillion). Apply AFTER conversion -- a KRW-native ceiling is meaningless.
-2. **P/E exactly 0 on a mega-cap = artifact.** yfinance omits `trailingPE` for many intl tickers; the code default `info.get("trailingPE", 0)` (:1841/:2106) manufactures 0.0 (a real P/E of 0 requires price 0). All four BQ KR rows persisted `pe_ratio=0.0` for LG Electronics / SK hynix -- both profitable. Even the judge read it correctly: "P/E of 0.0 is a data-quality flag (missing or negative earnings, not a cheap multiple)" (BQ 000660.KS 06-10). Pre-check rule: cap>$10B AND pe==0 -> treat as MISSING, never "cheap"; render "P/E: n/a".
-3. **yfinance currency semantics (canonical behavior).** `info.currency` = LISTING/trading currency of prices (KRW for .KS; "GBp" pence for LSE); `financialCurrency` = statements' reporting currency; they legitimately diverge (Toyota TM: currency=USD, financialCurrency=JPY) and yfinance gives no per-field currency guarantee (GitHub issue #2699, read in full, accessed 2026-06-11 -- open, no maintainer resolution). Sibling defect: #2593 shows yfinance mixing INR prices with USD book values for ratio fields (snippet). `marketCap` is price x shares = LISTING currency -> KRW for .KS. **Mismatch detector:** `market_for_symbol(ticker)` currency (markets.py MARKET_CONFIG) vs `info.get("currency")` -- disagreement = FLAG; suffix is deterministic ground truth (markets.py:142-165 docstring already declares "the suffix IS the source of truth").
-
-### C. FX presentation + KRX hours
-
-1. **Convert-to-base AND disclose -- both are required practice.** "The GIPS standards require that firms disclose the currency used to express performance"; multi-currency composites "must convert the individual portfolio values to the composite's base currency"; method is flexible but must be applied consistently (GIPS Q&A 5336, gipsstandards.org, read in full, accessed 2026-06-11). For 60.3: USD-converted figures with an explicit currency note (e.g. "Price: $166.55 (converted from KRW 230,000 @ 1381/USD)") satisfies both halves; label-native-only is the compliant degraded mode when FX is unavailable.
-2. **KRX hours.** Regular session 09:00-15:30 local (Asia/Seoul, UTC+9) -> 00:00-06:30 UTC close 06:30 UTC; existing off-hours blocks 07:30-09:00 / 15:40-18:00 (Korea Exchange, Wikipedia, read in full, accessed 2026-06-11; tradinghours.com corroborates "no lunch break" via search snippet -- direct fetch 403). A .KS quote consumed at the observed 18:03 UTC cycle is the 06:30 UTC close, ~11h33m old. **2026-06-29 change (recency):** KRX launches extended trading (pre 07:00-08:00 KST, after-market 16:00-20:00 KST; 24h target 2027) per FSC press release + BigGo (snippets) -- so the staleness label should state the quote's as-of timestamp (yfinance `regularMarketTime` epoch + `exchangeTimezoneName`) rather than a hardcoded close-time constant.
+### C. LLM cost-budget enforcement (FinOps 2025-2026)
+- **LiteLLM a2a iteration budgets** (official docs, 2026): per-session `max_budget_per_session` blocks with HTTP 429 at breach ("Session budget exceeded ... Current spend: $5.0032, max_budget_per_session: $5.00"); enforcement-based, no alert-only mode; budget + iteration ceiling are independent knobs.
+- **FinOps Foundation, FinOps for AI Overview (2026-02-17)** (official): favors visibility-first (showback, anomaly alerts at 50/80/100%, throttling for non-critical loads) over automatic shutdowns, "especially during experimental (Crawl) phases"; hard caps only in specific governance contexts.
+- Synthesis for criterion 4: the literature legitimizes BOTH outcomes the criterion allows -- ENFORCE (LiteLLM-style abort at breach; pyfinagent already hard-enforces at the provider layer via `_check_cost_budget` daily $25/monthly $300, llm_client.py:396 called at :870/:1142/:1346) or RE-SPEC with rationale (FinOps alert-first; the observed breach was 8.6x over a $0.50 soft target that settings.py:203 explicitly documents as non-aborting). Either way the decision must be operator-gated and recorded verbatim in the live_check (criterion text).
 
 ## 3. Recency scan (2024-2026)
 
-Performed; substantive findings:
-- arXiv:2604.01483 (Apr 2026): deterministic guardrails specifically for agentic FINANCIAL systems -- on-domain, supersedes generic 2023-era guardrail blogging.
-- GuardAgent (2024, arXiv:2406.09187): code-executed guard verdicts; the enforcement pattern 57.1 adopted and 60.3 extends to data integrity.
-- 2026 production guardrail guides (orq.ai "Complete 2026 Guide", myengineeringpath "Production LLM Safety Guide (2026)"): input-validation-before-model is now standard practice (snippet tier).
-- KRX extended trading hours effective 2026-06-29 (FSC, BigGo): changes "how stale is a 18:03 UTC quote" semantics after that date; design the label around as-of timestamps, not a fixed close constant.
-- NVDA $4.854T (2026-06-10, companiesmarketcap): current ceiling anchor; first $5T touch Oct 2025.
-- yfinance #2699 (2025, open) + #2593: the currency-incoherence defect family is live and unfixed upstream -- downstream validation is the only defense.
+Performed. Findings: (a) agentic-loop budget enforcement matured into product semantics in 2025-2026 (LiteLLM per-session 429s; AgentBudget; "five-layer" token-budget patterns -- aisecuritygateway 2026; relayplane 2026 runaway-cost postmortems; Gartner 2026-03: only 44% of orgs have AI FinOps guardrails); these COMPLEMENT rather than supersede the canonical FrugalGPT (Chen et al. 2023) cascade idea. (b) Dead-man's-switch practice is stable; 2026 posts (OneUptime 2026-02-06, 2026-03-02) add OTel-pipeline framing but identical period+grace semantics. (c) Log-redaction guidance unchanged at core (OWASP); 2025-2026 additions are pipeline-level redaction products (Datadog Observability Pipelines, OpenTelemetry .NET redaction docs) -- not applicable to a local single-process deployment. No finding invalidates the planned approaches.
 
 ## 4. Search queries run
 
-| # | Query | Variant |
-|---|---|---|
-| 1 | "LLM guardrails deterministic input validation production pipeline" | year-less canonical (surfaced 2026-dated guides) |
-| 2 | "largest company market cap 2026 NVIDIA trillion" | current-year |
-| 3 | "yfinance currency financialCurrency international tickers KRW GBp wrong currency issue" | year-less (surfaced 2025 issues) |
-| 4 | "KRX Korea Exchange trading hours 09:00 15:30 KST regular session close" | year-less (surfaced 2026-06-29 change) |
-| 5 | "GIPS standards presentation currency disclosure multi-currency portfolio returns" | year-less canonical |
+Three-variant discipline per research-gate.md, with variants #1 (2026) and #2 (2025) compressed into single "2025 2026" window queries (disclosed):
+1. `python logging filter redact sensitive data api key URL` (year-less canonical, A)
+2. `log redaction secrets best practices 2025 2026` (window+frontier, A)
+3. `dead man's switch monitoring data pipeline absence alerting healthchecks cron` (year-less, B)
+4. `data pipeline silence heartbeat freshness alert 2025 2026` (window+frontier, B)
+5. `LLM cost budget enforcement production agents FrugalGPT` (year-less canonical, C)
+6. `FinOps LLM token cost controls budget caps 2025 2026` (window+frontier, C)
 
-Three-variant discipline satisfied via the source-table mix (rule's second prong): current-year hits (companiesmarketcap 2026-06-10, orq.ai 2026, FSC 2026), last-2-year hits (GuardAgent 2024, yfinance #2699 2025), year-less canonical (GIPS Q&A, Wikipedia KRX, Boehmer-era none needed).
+## 5. Internal audit (file:line on HEAD, snapshot 2026-06-11)
 
-## 5. Internal code audit (all anchors verified current 2026-06-11, branch main)
+**5.1 CC-rail logging.** Writer: `log_llm_call(provider, model, agent, latency_ms, ttft_ms, input_tok, output_tok, cache_creation_tok, cache_read_tok, request_id, ok, ticker, cycle_id, session_cost_usd)` (api_call_log.py:211-226); cycle_id/session_cost auto-populate from autonomous_loop module state (:245-256); buffered flush to `{project}.{bq_dataset_observability|pyfinagent_data}.llm_call_log` (:317-319); never raises. Lite path (56.2): `_log_claude_code_call` (autonomous_loop.py:1865-1889) maps envelope -> `provider="claude-code"`, model from `envelope["model"]` else "claude-code-cli", latency from `duration_ms`, 4 token fields from `usage`, fires at :2029/:2036 (lite_trader) and :2093/:2100 (lite_risk_judge). **Gap:** `ClaudeCodeClient.generate_content` (claude_code_client.py:338-394) parses the envelope (:376-381 -- tokens; `duration_ms`/`total_cost_usd` available per :108-110 docstring) but never calls `log_llm_call`; the error path (:365-374) is also unmetered (no `ok=False` row). Agent-label/ticker WITHOUT signature change: the orchestrator already injects `_role`/`_ticker` into `generation_config` -- consumed by GeminiClient at llm_client.py:1090/:1099 and ClaudeClient at :1766/:1775; `generate_content` receives that dict at :341 (`config`). make_client routes to the CC rail at llm_client.py:1958-1972 (`paper_use_claude_code_route`). Unit-test seam: `claude_code_invoke` is patchable (module-level, claude_code_client.py:79); BQ MCP proof query: `SELECT * FROM pyfinagent_data.llm_call_log WHERE provider='claude-code' ORDER BY ts DESC LIMIT 5`.
 
-### 5.1 Corrupted prompt sites ($-literal renders)
+**5.2 Tickets ingestion.** Creation: ticket_ingestion.py:129/:184 (`self.db.create_ticket`); entry points slack_bot/commands.py:17 and services/slack_ticket_webhook.py:11 (`get_ingestion_service`). Store: sqlite `~/.openclaw/workspace/pyfinagent/tickets.db` (tickets_db.py:45-50); schema has `channel_id` (:68), `created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP` (:75), index `idx_tickets_created_at` (:96). Last-ingested = `SELECT MAX(created_at) FROM tickets` (no helper exists yet; `get_ticket_stats` :330 is adjacent precedent). Max-retries close: ticket_queue_processor.py:344-359 -- `max_retries=3` (:345), closes `TicketStatus.CLOSED` with `error_message="Max retries (3) exceeded"` (:349-353), then logs "CLOSURE TRIGGER ... Follow-up action pending" with `# TODO: Implement follow-up trigger (notify user, escalate, archive, etc.)` (:355-357) -- the #5101 gap verbatim. Silence-check home: slack-bot watchdog block (scheduler.py:549-583 pattern) -- the bot process can read tickets.db directly (same machine) or import tickets_db; do NOT probe backend HTTP (couples the alarm to backend health).
 
-| Site | File:line | What renders |
-|---|---|---|
-| Claude lite trader prompt | backend/services/autonomous_loop.py:1894-1914, corrupted line :1898 | `Price: ${current_price:.2f} \| Market Cap: ${market_cap/1e9:.1f}B \| P/E: {pe_ratio:.1f}` |
-| Claude BUY rule | :1903 | `market_cap > 5e9` -- USD-intended; 5e9 KRW = ~$3.6M so EVERY KR ticker trivially passes the size leg |
-| Gemini lite trader prompt | :2133-2147, corrupted line :2137 | same `$` render |
-| Gemini BUY rule | :2142 | same broken 5e9 semantics |
-| Risk-Judge shared template | `_LITE_RISK_JUDGE_TEMPLATE` :1625-1638, line :1627 | `Market Cap: ${market_cap_b:.1f}B` |
-| Risk-Judge system prompt | `_LITE_RISK_JUDGE_SYSTEM` :1613-1623, axis 3 :1619 | "market cap < $2B (micro-cap)" -- judge instructed in USD while fed KRW |
-| Judge format calls | :1968-1978 (Claude; `market_cap_b=(market_cap or 0)/1e9` :1973); :2179-2189 (Gemini; :2184) | KRW cap / 1e9 presented as $B |
+**5.3 yfinance-in-async.** `async def _run_claude_analysis` (autonomous_loop.py:1892): `stock = yf.Ticker(ticker); info = stock.info; hist = stock.history(period="3mo")` at :1906-1908 -- direct blocking calls on the loop. `async def _run_gemini_analysis` (:2171): same at :2191-2193. The 60.3 integrity wiring consumes `info` AFTER the fetch (:1930-1948 claude / :2213-2234 gemini), so a wrap that returns the same `info`/`hist` names is byte-equivalent downstream: one helper `def _fetch_yf_market_data(ticker) -> tuple[dict, DataFrame]` executed via `await asyncio.to_thread(...)` (single hop, atomic). In-file precedent: `info = await asyncio.to_thread(lambda x=t: yf.Ticker(x).info or {})` (:467); envelope call already wrapped at :2020. Other yf sites in async funcs are already to_thread-wrapped (:467, :710, :774 etc.). Test shape: inject a fake `yf` module whose `.info`/`.history` record `threading.current_thread()` and assert it differs from the loop thread (or AST-scan the two function bodies for naked `.info`/`.history(`).
 
-Value provenance (`stock.info`): `currentPrice`/`regularMarketPrice` :1839/:2104; `marketCap` :1840/:2105; `trailingPE` defaulted to 0 :1841/:2106; `sector`/`industry`/`shortName` :1842-1844/:2107-2109. Momentum :1847-1857/:2111-2120 is KRW/KRW -- currency-neutral, untouched. Persisted `full_report.market_data` keeps raw native values (Claude ~:2060-2078; Gemini :2243-2256).
+**5.4 Watchdog.** scheduler.py:469-540: probe `_HEALTH_PROBE_URL` with 30s httpx timeout (56.2 bounded fix, :485-490); state machine `_watchdog_last_was_healthy` (:101, transitions :505-527); alert text built at :519-523 (`Detail: unreachable: ReadTimeout at HH:MM:SS`). Busy-vs-down source: `backend/services/cycle_lock.py` -- `_LOCK_PATH = handoff/.autonomous_loop.lock` (:40), TTL 90 min (:41), `inspect_lock()` (:62-81) returns `{cycle_id, pid, age_sec, pid_alive, is_stale}`; acquired at autonomous_loop.py:150/:167, released :1380-1387. Slack-bot runs on the same machine -> import and call `inspect_lock()` when the probe fails; if lock fresh + pid alive, append "cycle in progress (cycle_id=..., started Xs ago) -- backend busy, not down" to the alert text. Criterion wants the DISTINCTION in the text, not suppression.
 
-### 5.2 Existing FX helpers to REUSE (never reimplement)
+**5.5 Cost budget.** Per-analysis soft budget: `max_analysis_cost_usd: float = Field(0.50, description="Soft budget per analysis in USD. Logs warnings when exceeded; does not abort.")` (settings.py:203). Check: `cost_tracker.check_budget` (cost_tracker.py:275-280, warning "Cost budget exceeded: $%.4f > $%.2f limit") called at orchestrator.py:2254 with the second log "Analysis for %s exceeded cost budget: $%.4f > $%.2f" (:2256) -- post-analysis, log-only by documented design. Separate HARD layer already enforcing: `_check_cost_budget` (llm_client.py:396, phase-27.5.2 daily $25/monthly $300, callers :870/:1142/:1346). ENFORCE options at the soft layer: (a) mid-pipeline abort (check between orchestrator steps, persist partial with over-budget marker), (b) post-analysis flag persisted + alert, (c) re-spec the $0.50 (8.6x breach observed) with rationale. All operator-gated per the criterion.
 
-- `backend/services/fx_rates.py::get_fx_rate(from_ccy, to_ccy, date=None)` :182-196 -- live = 6h api_cache TTL (:53,:84-104), yfinance `KRW=X` inversion handled (:41), FRED `DEXKOUS` fallback (:46-51), BQ `historical_fx_rates` as-of (:153-179). Returns **None** on genuine failure -> label-native fallback required. `market_currency(market)` :56-58.
-- `backend/services/paper_trader.py:32-41` `_fx_local_to_usd(market, date=None)`; consumed at :208 (fill), :371, :515 (MTM). This is why analysis-dict prices must STAY native.
-- `backend/backtest/markets.py:142-165` `market_for_symbol` (.KS/.KQ->KR; suffix = source of truth); `MARKET_CONFIG["KR"]` :55-61 (KRW, Asia/Seoul, XKRX); already imported at the screener quality door backend/tools/screener.py:162-164.
+**5.6 PEAD calendar_events.** Query: pead_signal.py:336-343 (`SELECT ticker FROM pyfinagent_data.calendar_events WHERE event_type='earnings' AND scheduled_at >= ... INTERVAL 7 DAY`), fail-open at :345-347 (the daily WARNING). Caller: autonomous_loop.py:275-276, gated by `pead_signal_enabled` (settings.py:351, default False, ON in .env per 59.3 observation). Migration EXISTS: scripts/migrations/add_calendar_events_schema.py -- DDL `CREATE TABLE IF NOT EXISTS {project}.{dataset}.calendar_events` (:36-52: event_id, event_type, ticker, scheduled_at, window, source, confidence, blackout_start, blackout_end, fetched_at; PARTITION BY DATE(scheduled_at); cluster event_type,ticker) with `--dry-run` mode (:21-22). Schema satisfies the SELECT's columns. Writers exist: news/bq_writer.py:205 `write_calendar_events`; econ_calendar/watcher.py:32-34 documents the row shape. Fix = operator-gated run of the existing script (BQ DDL); the disable alternative = flip `pead_signal_enabled` OFF + logged rationale. Dependency note: post-migration the PEAD LLM leg still uses metered claude-haiku (settings.py:352) -- same anthropic-credit failure class as the meta-scorer (5.7).
 
-### 5.3 Lite Risk Judge prompt + output schema
+**5.7 Meta-scorer.** LLM call: meta_scorer.py:185-194 -- `ClaudeClient(model_name=getattr(settings,"meta_scorer_model","claude-haiku-4-5"))` (:186-187; settings.py:363) via `asyncio.to_thread(client.generate_content, ...)` (:193-194); on exception -> "meta_scorer LLM call failed" (:204) -> `_fallback_all` (:249-256) stamping `conviction_reason="fallback (LLM unavailable)"` (:254) with `_fallback_conviction` scores (can be 10 -- the "conviction 10.00" masquerade). ClaudeClient = metered anthropic SDK (NOT the CC rail) -> failure class is API-key/credit (the SecretStr family from 51.1; unwrap_secret already imported at meta_scorer.py:18). 56.2 detection EXISTS: `_all_conviction_fallback` (autonomous_loop.py:1856-1862) wired at :744-754 -- sets `summary["meta_scorer_degraded"]=True` + `raise_cron_alert(source="meta_scorer", error_type="conviction_overlay_degraded")`. **Gap:** `meta_scorer_degraded` has NO consumer besides :745 (repo grep), and formatters.py contains zero "conviction" mentions -- digest surfacing points are `format_morning_digest` (formatters.py:323, already takes `cron_health`/`system_state` params) and `format_evening_digest` (:422). Repair option = route meta-scorer through the CC rail (make_client + `paper_use_claude_code_route`, $0) or fix the anthropic credit -- operator decision.
 
-- Schema (template :1630-1637): `decision | recommended_position_pct | risk_level | reasoning | risk_limits`. **No machine-readable integrity field.** Prose lands in `reasoning` -> aliased `reason` (Gemini :2214-2218; Claude mirror ~:2027-2045) -> persisted ONLY as `summary` via `_persist_analysis` :2297 (`risk_assessment` is NOT inside `full_report_json` -- confirmed live in BQ). Nothing machine-reads it.
-- 57.1 flag-gated prompt builders `_build_risk_judge_system/template` :1649-1680: the verbatim-constant-when-OFF idiom to copy.
-- Consumption: `decide_trades` reads `decision` portfolio_manager.py:219, `recommended_position_pct` :655 (floor-sizing hook).
+**5.8 FRED key in logs.** Evidence: repo-root `backend.log` (397,600,188 bytes) has **2,101** `api_key=` lines of the form `[_client] HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=FEDFUNDS&api_key=<REDACTED>&file_type=json...` -- emitter is the `httpx` library logger (`httpx._client`), triggered by fred_data.py:37 (`httpx.AsyncClient`; FRED_BASE :13). fred_releases.py uses `requests` (:60, no URL logging). No `getLogger("httpx")` level/filter anywhere in backend (repo grep). Redaction point: `setup_logging()` (main.py:84) -- attach a `RedactFilter(logging.Filter)` to the root HANDLERS (NOT the root logger -- descendant-logger records bypass logger-level filters per Python docs; the in-repo `QuietAccessFilter` :73/:110 attaches to the originating logger, a different situation). Regex: `(api_key|apikey|token|key)=[^&\s]+` -> `\1=REDACTED`. Optional belt-and-braces: `logging.getLogger("httpx").setLevel(logging.WARNING)`. Note: redaction fixes FUTURE lines; the 397MB file retains 2,101 historical keys (rotation/scrub + FRED key rotation = operator note; local-only deployment lowers severity).
 
-### 5.4 The 06-09 066570.KS persisted row (regression fixture) -- pulled live via BQ ADC
+**5.9 OpenClaw gateway escalation (verbatim from 59.3 file).** Failure since 2026-04-09 19:09 (gateway.err.log:121) through 2026-06-11 05:03 (:6073+); throw site `/opt/homebrew/lib/node_modules/openclaw/dist/model-auth-CElc27BR.js:310`: `No API key found for provider "anthropic". Auth store: /Users/ford/.openclaw/agents/pyfinagent/agent/auth-profiles.json ...`; user-facing text built by `buildMissingApiKeyFailureText` (agent-runner.runtime-CH0aH7T6.js:544); two failures logged at gateway.err.log:5792-5799 on lane `session:agent:pyfinagent:slack:channel:c0antgnnk8d`. Escalation one-liner for live_check: operator repairs the OpenClaw anthropic auth profile (out of repo scope).
 
-`financial_reports.analysis_results` (us-central1): `analysis_date=2026-06-09T18:03:49.454653Z, ticker=066570.KS, recommendation=BUY, final_score=7.0, price_at_analysis=248000.0, market_cap=44540606021632.0, pe_ratio=0.0`; `full_report_json.market_data={industry:"Consumer Electronics", market_cap:44540606021632, momentum_20d:60.93, momentum_60d:111.96, name:"LGELECTRONICS", pe_ratio:0, price:248000, sector:"Technology"}`; summary (judge prose) verbatim: "a $44,540.6B (~$44.5T) market cap is physically impossible for LG Electronics (a KRW/USD unit error on the newly-onboarded KR market), a data-integrity failure... reject and do not chase the trader's BUY regardless of 68 confidence." **The BUY executed anyway** (57.1 binding flag dark) -> stop-out.
-Siblings: 000660.KS 06-09 18:06 `market_cap=1572328605483008.0` ("nonsensical units error"); 06-10 18:03 ("implausible as USD (likely unconverted KRW)"); 06-08 18:05 ("~$1.3 quadrillion... impossible"). Note 44.54e12 KRW at ~1380 KRW/USD ~= $32B -- sane for LG once converted.
-Verbatim query for Main:
-```sql
-SELECT analysis_date, ticker, final_score, recommendation, summary, price_at_analysis, market_cap, pe_ratio,
-       TO_JSON_STRING(full_report_json) AS fr
-FROM `sunny-might-477607-p8.financial_reports.analysis_results`
-WHERE ticker IN ('066570.KS','000660.KS') AND DATE(analysis_date) BETWEEN '2026-06-03' AND '2026-06-10'
-ORDER BY analysis_date DESC
-```
-(python client, `location="us-central1"`, 30s timeout.)
+**5.10 Test inventory.** `pytest -k "cc_rail_log or ingestion_silence or ticket_failure or redact or 60_4" --collect-only` -> **0 collected (823 deselected)**. New tests MUST be named `test_phase_60_4_*` and embed the -k terms (59.1 false-green lesson). Nearest precedent file: backend/tests/test_phase_56_2_ops_fixes.py (:108-138 covers `_all_conviction_fallback`).
 
-### 5.5 Where exclusion/floor-sizing can act IN CODE
+## 6. Risks & gotchas (what 56.2 built that 60.4 must EXTEND, not duplicate)
 
-- **Pre-LLM (preferred for hard corruption):** inside `_run_claude_analysis`/`_run_gemini_analysis` right after the info fetch (:1839-1857 / :2104-2120) -- the only place the info dict exists. Wrapper alternative `_run_and_persist_one` :847-890 has no info dict.
-- **Post-analysis, pre-decision:** between candidate assembly :897/:904 and `decide_trades` :1163.
-- **In decide_trades (floor-sizing/exclusion):** portfolio_manager.py:53 already takes `blocked_out` :60 with append pattern :204-205; position-pct consumption :655. Mirror 57.1's out-channel wiring at autonomous_loop.py:1159-1177 -> `summary["data_integrity_blocked"]`.
-- **Deterministic-validator idiom to mirror:** `backend/tools/price_quality.py::validate_ohlcv` :48 -- two-tier FLAG/DROP rules R1-R4 (:14-21), US fast-path no-op, returns `(df, report)`; screener door screener.py:162-164. 60.3's pre-check = the info-dict analogue (e.g. `validate_info(info, market, ticker) -> (info, report)`).
-
-### 5.6 Staleness: as-of timestamps + KRX close exposure
-
-- Quote source `stock.info` :1835-1839/:2100-2104; yfinance info carries `regularMarketTime` (epoch) + `exchangeTimezoneName`; `hist.index[-1]` :1837/:2102 = last bar date fallback.
-- markets.py has NO close-time helper -- only `is_trading_day` :192-213 (xcals `is_session`, 50.4 rewrite) and `get_trading_calendar` :168-189 (xcals XKRX exposes `session_close(session)` UTC). `MARKET_CONFIG["KR"].timezone="Asia/Seoul"` :58.
-- Observed: BQ stamps 18:03-18:06 UTC vs 06:30 UTC KRX close = ~11.6h stale, presented as "Price:" with no qualifier.
-
-### 5.7 Existing test inventory
-
-- `-k 'prompt_fx or lite_prompt or 60_3'` matches NOTHING today (3/725 collected only via the broader `fx` token = fx_rates/50.x tests; 7 pre-existing env-coupled collection errors in tests/ root, none in backend/tests/). New tests MUST be `test_phase_60_3_*`.
-- Reusable byte-identity fixtures: backend/tests/test_phase_57_1_reject_binding.py -- `test_off_identity_prompts_are_verbatim_constants` :187, `test_prompt_content_flag_on_real_cap_and_sector_line` :200, off-identity orders :174.
-- Adjacent: tests/services/test_risk_judge_lite_path.py (:8,:32,:56), tests/services/test_persist_lite_analysis.py, backend/tests/test_phase_50_3_universe.py:21-26, backend/tests/test_phase_50_4_calendar.py:48-51.
-
-## 6. Risks and gotchas
-
-1. **Do NOT convert `price_at_analysis` or persisted `market_data`** -- execute_buy's tolerance gate (autonomous_loop.py:1204-1238) compares native-vs-native; fills convert at paper_trader.py:208. Convert/label ONLY the prompt string.
-2. **Momentum is currency-neutral** (:1847-1857) -- leave untouched.
-3. **`info.get("trailingPE", 0)` conflates missing with 0.0**; same for `marketCap` 0. Pre-check treats 0/absent as MISSING.
-4. **`market_cap > 5e9` BUY rule** (:1903/:2142) silently broke for KR; conversion restores intent -- but that IS a prompt-behavior change, so flag-gate it (US byte-identity preserved either way since US values are already USD; the test must prove byte-identity, not assume it).
-5. **fx_rates.get_fx_rate can return None** -> degraded mode = label-native ("KRW 248,000"), never a silent `$`.
-6. **57.1 dark-launch idiom:** default-OFF settings flag; OFF path returns verbatim constants. Note nuance: for US tickers even the ON path must be byte-identical (ccy=="USD" fast-path returns 1.0 at fx_rates.py:190-191 -- format must avoid re-rendering, e.g. only branch when `market != "US"`).
-7. **Ceiling applies post-conversion** ($10T USD; NVDA $4.854T anchor). A KRW-native ceiling is meaningless.
-8. **Judge-schema change ripple:** adding a structured flag key requires `_LITE_RISK_DEFAULT` :1640-1646 + both parse sites (~:2027, :2200-2225) updated, else fallback drift; `save_report` summary alias `reason` :2218 must survive.
-9. **yfinance `info.currency` can itself be wrong/missing** (#2699, #2593) -- the mismatch check FLAGS, it does not auto-convert using `info.currency`; conversion keys off the suffix-derived market (deterministic, no network).
-10. **KRX extended hours from 2026-06-29** -- staleness label must render the quote's as-of timestamp, not a hardcoded "close was 06:30 UTC".
+1. **56.2 inventory already shipped:** `log_llm_call` writer + lite-path `_log_claude_code_call` + `_all_conviction_fallback` + `raise_cron_alert` wiring + watchdog 30s timeout. 60.4's C1 is ONLY the `ClaudeCodeClient.generate_content` mirror (success + `ok=False` paths); do not add a second helper -- call `log_llm_call` directly with `agent=config.get("_role")`, `ticker=config.get("_ticker")`.
+2. **Logger-vs-handler filter trap (C5):** a filter on the root LOGGER will not see httpx records; attach to root handlers (or the httpx logger). This is the single most likely silent-failure in this step -- unit-test through a real logger hierarchy (`logging.getLogger("httpx._client").info(...)` with a synthetic key, assert the handler output is redacted).
+3. **Busy-vs-down must not suppress:** criterion 3 wants the cycle-in-progress state IN the alert text, not an alert skip; `inspect_lock()` is fail-open (returns None when no lock) and 90-min TTL guards stale locks.
+4. **Silence alarm spam guard:** mirror the state-transition gating (`_cycle_heartbeat_last_was_stale` idiom) or a 7-day-stale tickets.db will page every 15 minutes (the scheduler.py:88 failure mode).
+5. **Cost-budget semantics are documented-soft:** settings.py:203 says "does not abort" -- flipping to ENFORCE is a live-behavior change; the hard daily/monthly layer (llm_client.py:396) already bounds runaway risk, which legitimizes the FinOps alert-first/re-spec outcome if the operator prefers it. Either outcome: record verbatim in live_check (criterion text).
+6. **PEAD fix has a second dependency:** creating calendar_events unblocks the BQ read, but the table starts EMPTY (writers must run: econ_calendar watcher / news bq_writer) and the PEAD scorer itself uses metered claude-haiku -- same credit class as the meta-scorer; a migration alone may convert the 404 into a silent empty-set.
+7. **Emoji constraint:** scheduler/formatters use Slack emoji codes (`:rotating_light:`) -- allowed per backend-slack-bot.md conventions; ticket_queue_processor.py:330-332 contains literal emoji in pre-existing strings -- do not expand emoji use when adding the failure notice (and source the notice's channel from the ticket row's `channel_id`, falling back to `settings.slack_channel_id`).
+8. **The lite analyzers' yf wrap must keep `info`/`hist` names** so the 60.3 integrity wiring (:1930-1948/:2213-2234) and prompt builders stay byte-identical; wrap the fetch, not the consumers.
 
 ## 7. Source table
 
 ### Read in full (counts toward gate)
+| URL | Accessed | Kind | Fetched how | Key finding |
+|---|---|---|---|---|
+| https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html | 2026-06-11 | official/canonical | WebFetch full | Never log keys/tokens; sanitize in the log handler |
+| https://docs.python.org/3/library/logging.html | 2026-06-11 | official doc | WebFetch full | Logger-level filters miss descendant-logger records; handler filters see all; filters may mutate records (3.12+ replace) |
+| https://betterstack.com/community/guides/logging/sensitive-data/ | 2026-06-11 | practitioner guide | WebFetch full | Python RedactFilter idiom; URLs are an overlooked leak channel |
+| https://healthchecks.io/docs/ | 2026-06-11 | official doc | WebFetch full | Dead man's switch period+grace semantics; alert on silence past grace |
+| https://docs.litellm.ai/docs/a2a_iteration_budgets | 2026-06-11 | official doc (2026) | WebFetch full | Per-session $ budget blocks with 429 at breach; enforcement-only, no alert-only mode |
+| https://www.finops.org/wg/finops-for-ai-overview/ | 2026-06-11 | official foundation (2026-02-17) | WebFetch full | Visibility-first: showback + 50/80/100% alerts + throttling; hard caps only in governance contexts |
 
-| # | URL | Accessed | Kind | Fetched how | Key finding |
-|---|---|---|---|---|---|
-| 1 | https://arxiv.org/html/2604.01483 (Rashie & Rashi 2026, Type-Checked Compliance) | 2026-06-11 | preprint (arXiv) | WebFetch /html full render | "probabilistic execution without rigid constraints is architecturally and legally untenable"; intercept "before it reaches the execution environment"; assume "the LLM is compromised" |
-| 2 | https://arxiv.org/html/2406.09187 (GuardAgent) | 2026-06-11 | preprint (arXiv, NeurIPS-era 2024) | WebFetch /html full render | verdict ENFORCED by code: "admitted ... if O_l=0 or denied if O_l=1"; >98%/83% accuracy; model-based guard "considerately" granted what it should block |
-| 3 | https://companiesmarketcap.com/nvidia/marketcap/ | 2026-06-11 | market-data reference | WebFetch full | NVDA "$4.854 Trillion USD" as of 2026-06-10; "world's most valuable company by market cap" -> $10T ceiling defensible |
-| 4 | https://github.com/ranaroussi/yfinance/issues/2699 | 2026-06-11 | upstream issue tracker | WebFetch full | `currency`=listing ccy of PRICES vs `financialCurrency`=statements ccy; Toyota TM USD/JPY divergence; open, unresolved |
-| 5 | https://www.gipsstandards.org/qadatabase/5336/ | 2026-06-11 | official standard (CFA Institute GIPS) | WebFetch full | "firms [must] disclose the currency used to express performance"; multi-ccy composites "must convert ... to the composite's base currency"; method consistent |
-| 6 | https://en.wikipedia.org/wiki/Korea_Exchange | 2026-06-11 | reference | WebFetch full | KRX regular session 09:00-15:30 local (UTC+9 -> 06:30 UTC close); off-hours 07:30-09:00 / 15:40-18:00 |
-
-### Identified but snippet-only (does NOT count toward gate)
-
-| URL | Kind | Why not fetched in full |
+### Identified, snippet-only (does NOT count toward gate; representative subset of ~44)
+| URL | Kind | Why not fetched |
 |---|---|---|
-| https://rulebricks.com/blog/deterministic-guardrails-for-llms-building-safe-auditable-ai-systems | vendor blog | fetch returned nav header only; quotes via search snippet ("deterministic safety rails ... explainable, versioned") |
-| https://www.tradinghours.com/markets/krx | reference | HTTP 403; snippet confirms 09:00-15:30 KST no lunch break |
-| https://orq.ai/blog/llm-guardrails | vendor guide (2026) | snippet sufficient; corroborates A3 |
-| https://myengineeringpath.dev/genai-engineer/ai-guardrails/ | guide (2026) | snippet; three-layer guardrail architecture |
-| https://www.wiz.io/academy/ai-security/llm-guardrails | vendor guide | snippet; input/output/runtime checks |
-| https://guardrailsai.com/blog/guardrails-mlflow | vendor blog | snippet; deterministic validators as scorers |
-| https://github.com/ranaroussi/yfinance/issues/2593 | issue tracker | snippet; yfinance mixes INR price / USD book value (currency incoherence family) |
-| https://github.com/ranaroussi/yfinance/issues/1251 | issue tracker | snippet; info-dict reliability history |
-| https://www.fool.com/research/largest-companies-by-market-cap/ | research page | snippet; ~$5T NVDA corroboration June 2026 |
-| https://www.alpha-sense.com/largest-companies-by-market-cap/ | research page | snippet; corroboration |
-| https://finance.biggo.com/news/LgbmW5wBZk7xib5fNndL | news | snippet; KRX extended hours June 29 2026, 24h by 2027 |
-| https://www.fsc.go.kr/eng/pr010101/83967 | official regulator press release | snippet; KRX schedule change |
-| https://www.gipsstandards.org/wp-content/uploads/2021/03/2020_gips_standards_firms.pdf | official standard PDF | Q&A 5336 answered the precise question; PDF not needed |
-| https://www.market-clock.com/markets/krx/equities/ | reference | snippet; hours corroboration |
+| https://github.com/armurox/loggingredactor + https://pypi.org/project/logredactor/ | community lib | regex pattern captured from snippet |
+| https://dev.to/camillehe1992/mask-sensitive-data-using-python-built-in-logging-module-45fa | community | duplicates Better Stack idiom |
+| https://www.skyflow.com/post/how-to-keep-sensitive-data-out-of-your-logs-nine-best-practices | vendor | secondary to OWASP |
+| https://opentelemetry.io/docs/languages/dotnet/logs/redaction/ | official (wrong stack) | .NET-specific |
+| https://www.datadoghq.com/blog/observability-pipelines-sensitive-data-redaction/ | vendor | pipeline-level, N/A locally |
+| https://oneuptime.com/blog/post/2026-02-06-heartbeat-dead-man-switch-opentelemetry-pipeline/view | practitioner 2026 | recency scan; semantics match healthchecks |
+| https://blog.ediri.io/how-to-set-up-a-dead-mans-switch-in-prometheus + https://github.com/pingcap/dead-mans-switch | practitioner/community | Prometheus-stack specific |
+| https://aisecuritygateway.ai/blog/llm-token-budget-strategies-for-agents | practitioner 2026 | five-layer model captured in snippet |
+| https://relayplane.com/blog/agent-runaway-costs-2026 | practitioner 2026 | anecdotal cost postmortems |
+| https://www.finops.org/wg/cost-estimation-of-ai-workloads/ | official | overview doc covered the question |
+| https://www.infoworld.com/article/4138748/finops-for-agents-loop-limits-tool-call-caps-and-the-new-unit-economics-of-agentic-saas.html | industry press | Gartner 44% stat captured |
+| https://www.traceloop.com/blog/from-bills-to-budgets-how-to-track-llm-token-usage-and-cost-per-user | vendor | per-user attribution out of scope |
+| FrugalGPT (Chen et al. 2023, arXiv:2305.05176) | peer-reviewed canonical | cascade concept known; cited as prior art, not load-bearing for this step |
 
-(+ remaining unique search-result URLs not tabled: kalviumlabs, medium/ajayverma, qed42, polymarket, tradingkey, statista, stockanalysis, twelvedata, global.krx.co.kr, grokipedia, weex, quora, yahoo-help, stock-data-solutions, afg.asso.fr, ryanoconnellfinance, matsonmoney, nasra, globalexchanges, arxiv 2604.07264 -- collected, evaluated by title/snippet, not load-bearing.)
-
-## 8. Research Gate Checklist
-
-Hard blockers:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6)
-- [x] 10+ unique URLs total (40 collected across 5 searches)
-- [x] Recency scan (2024-2026) performed + reported (Section 3, substantive)
-- [x] Full pages read (not abstracts) for the read-in-full set (arXiv via /html per protocol)
-- [x] file:line anchors for every internal claim (Section 5; BQ row pulled live)
-
-Soft checks:
-- [x] Internal exploration covered every relevant module (autonomous_loop, fx_rates, paper_trader, markets, portfolio_manager, screener, price_quality, tests)
-- [x] Contradictions/consensus noted (GIPS: convert vs label BOTH valid -> recommend convert+disclose; yfinance currency fields unreliable -> suffix is ground truth)
-- [x] All claims cited per-claim
+## 8. JSON envelope
 
 ```json
 {
-  "tier": "moderate-complex",
+  "tier": "complex",
   "external_sources_read_in_full": 6,
-  "snippet_only_sources": 14,
-  "urls_collected": 40,
+  "snippet_only_sources": 44,
+  "urls_collected": 50,
   "recency_scan_performed": true,
-  "internal_files_inspected": 10,
+  "internal_files_inspected": 23,
   "report_md": "handoff/current/research_brief.md",
   "gate_passed": true
 }
 ```
+
+### Research Gate Checklist
+Hard blockers:
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6)
+- [x] 10+ unique URLs total (~50 across 6 searches)
+- [x] Recency scan (2024-2026) performed + reported (section 3)
+- [x] Full pages read (not abstracts) for the read-in-full set
+- [x] file:line anchors for every internal claim (section 5)
+
+Soft checks:
+- [x] Internal exploration covered all 10 caller-specified items
+- [x] Contradictions noted (LiteLLM hard-429 vs FinOps alert-first -- both legitimate, operator-gated)
+- [x] Claims cited per-claim

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-11T13:41:34.234640+00:00",
+  "updated_at": "2026-06-11T14:28:39.031624+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14338,7 +14338,7 @@
     {
       "id": "phase-60",
       "name": "59.3 blinded re-audit remediation -- fix the away-week defects the harness-free Fable 5 audit (59.3) surfaced beyond the 55.x/56.x/57.1 chain: dead deep pipeline (AW-4), sentinel-churn swap engine (AW-5), corrupted non-USD decision inputs (AW-9), observability/ops residuals (AW-7, AW-1 residual, AW-2 residual, AW-10). Executed under the post-59.1 harness roster (Fable 5 Main + Researcher + Q/A, effort per CLAUDE.md) with the 59.2 MCP discipline: BigQuery MCP rows as data evidence in every live_check, Playwright MCP capture mandatory for any UI-touching claim. Evidence base: handoff/current/59.3-harness-free-output.md (finding IDs AW-1..AW-10; all file:line cites refer to snapshot 70a8242b). REVIEW->FIX discipline: every change cites an AW finding ID; do-no-harm: behavior changes are config-gated default-off with ON-vs-OFF measurement; no live flag flips inside this phase. INSTALL GATE: operator decision 2026-06-11 recorded verbatim -- 'Install minus 60.5 (Recommended)' (AskUserQuestion, local session); supersedes the reverted unauthorized install ad349f57/7258d241. 60.5 (AW-8 score-hysteresis) DROPPED: 55.3 ruled score-hysteresis same-family as the 53.1-rejected rank-hysteresis band = automatic FAIL (handoff/archive/phase-55.3/research_brief_55.3.md + evaluator_critique.md). A minimum-holding-period lever (the 55.3-sanctioned time-axis mechanism) may be proposed in a future phase ONLY if the post-60.2 replay still shows material churn.",
-      "status": "pending",
+      "status": "done",
       "depends_on": [
         "phase-59"
       ],
@@ -14410,7 +14410,7 @@
         {
           "id": "60.4",
           "name": "Observability + ops residuals (AW-7, AW-1 residual, AW-2 residual, AW-10, hygiene) -- make the Claude Code CLI rail visible in llm_call_log (the rail that did ALL away-week deciding logs zero rows), alarm on inbound-Slack-ingestion silence (tickets.db went dark 2026-04-24 -> 2026-06-10 unnoticed), deliver ticket-pipeline failures to the operator (ticket #5101 died silently after 3 retries), move residual sync yfinance calls off the event loop and make the watchdog alert busy-aware, decide-and-enforce the per-analysis cost budget, fix or disable the PEAD calendar_events dependency, repair or label the meta-scorer LLM leg, and redact third-party API keys from backend.log URLs.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "60.3",

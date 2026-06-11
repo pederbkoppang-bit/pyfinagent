@@ -1,18 +1,17 @@
-# Evaluator Critique -- Step 60.3 (Q/A, single merged agent)
+# Evaluator Critique -- Step 60.4 (Q/A, single merged agent)
 
-**Step:** 60.3 -- Decision-input integrity for non-USD markets (AW-9)
-**Date:** 2026-06-11. **Spawn:** FIRST Q/A spawn for 60.3 (0 prior CONDITIONALs).
-**Verdict: PASS (ok: true)** -- agent ae8fe333.
+**Step:** 60.4 -- Observability + ops residuals (AW-7, AW-1/AW-2 residuals, AW-10, hygiene)
+**Date:** 2026-06-11. **Spawn:** FIRST Q/A spawn for 60.4 (0 prior CONDITIONALs).
+**Verdict: PASS (ok: true)** -- agent a692923a.
 
-- Harness compliance 5/5 (criteria programmatically verbatim; gating design pre-registered; phase-60 install legitimacy re-confirmed at 7524e3cf).
-- Deterministic: immutable command exit 0 (13 passed + live_check exists); FULL suite re-run by Q/A itself 805/12/6 exit 0 INCLUDING the disclosed flake test (flake explanation held); syntax 4/4; diff scope backend+tests+handoff only, zero frontend (59.2 N/A).
-- C1: old $-literal GONE (grep exit 1), render_market_lines in BOTH analyzers (:1995/:2251), judge market_cap_b USD-true (:2070/:2298); fx_rates.get_fx_rate judged to satisfy "via the existing FX helpers" (it IS the helper _fx_local_to_usd wraps; importing the fill-time wrapper would conflate fill math with presentation -- researcher-grounded).
-- C2: in-code pre-LLM block verified (:1940/:2223); HOLD not in _BUY_RECS -> unbuyable; real persisted 066570.KS values in the regression; poisoned-rail e2e proves a log-only mutant raises.
-- C3: as-of from regularMarketTime, tested ON/OFF/US.
-- C4: BQ row INDEPENDENTLY re-queried by Q/A -- 299000 x 0.00065378 = 195.48 exact; the earlier same-day row has NULL provenance = a real before/after pair in BQ; live run used the flag-OFF live config (ungated leg as pre-registered); US byte-identity both flag states.
-- Mutation probes: ceiling-loosening run-verified caught by the regression test; poisoned rail live; as-of removal caught; US byte-identity run-verified.
-- NOTEs (non-blocking, follow-up candidates): missing trailingPE KEY (vs present-and-0.0) skips the tag-only missing_pe flag while "P/E: 0.0" still renders; flag-ON could render "P/E: n/a" instead of 0.0; ceiling-boundary test is self-referential (the hardcoded-value regression test anchors it).
+- Harness compliance 5/5 (criteria programmatically verbatim ALL_VERBATIM:True; contract mtime precedes results; masterplan diff = status-flip only, no criteria tampering; install legitimacy re-confirmed).
+- Deterministic: immutable command exit 0 (16 passed + live_check exists, output matched verbatim); FULL suite re-run by Q/A 821/12/6 exit 0; syntax 12/12; diff scope clean, zero frontend (59.2 N/A).
+- BQ INDEPENDENTLY re-queried (python ADC fallback per CLAUDE.md rule 6): the cc_rail smoke row (SMOKE, 3482/15, ok=true) and calendar_events table both field-exact.
+- C1-C5 all MET with file:line evidence; both operator decisions verified VERBATIM and enacted with NOTHING beyond (budget still non-aborting; PEAD flag untouched); the migration reserved-keyword root cause judged real and honestly disclosed; meta-scorer surfacing verified end-to-end (set :745 -> persisted :1401 -> ledger :319 -> digest line; healthy byte-identical).
+- Mutation probes: regex mutant RUN-detected; handler-vs-logger placement trap RUN-proven real (logger-level leaks, handler-level redacts); threshold boundary mutant RUN-proven behaviorally equivalent; C1 wiring + C3 structural mutants caught by test design.
+- Code-review heuristics: 0 BLOCK/WARN; no risk-path touches; all new broad-excepts are logging fail-open observability guards.
+- NOTEs (non-blocking follow-up candidates): (1) the orchestrator full path doesn't set _role/_ticker yet -- production full-pipeline rows label bare "cc_rail" until callers adopt the side-channel (rail-visible per the criterion's letter; the smoke proves the labeled path; no double-logging with the 56.2 lite logger); (2) main.py filter placement + processor close-site call are source-verified, not wiring-tested; (3) silence-threshold >= boundary unpinned (continuous age, negligible).
 
 violated_criteria: []. certified_fallback: false.
 
-**OPEN OPERATOR ITEM (not a step blocker):** promotion decision `60.3 FLAG: ON | KEEP OFF` pending in live_check_60.3.md §E.
+**OPEN OPERATOR ITEMS (not step blockers; consolidated in cycle_block_summary.md):** 60.2 + 60.3 flag promotions; OpenClaw gateway auth one-liner; FRED key rotation + backend.log truncation; slack-bot restart to load the new alarms.

@@ -298,6 +298,7 @@ class CycleHealthLog:
         error_count: int = 0,
         data_source_ages: Optional[dict] = None,
         bq_ingest_lag_sec: Optional[int] = None,
+        meta_scorer_degraded: bool = False,
     ) -> None:
         completed_at = _now_iso()
         dur_ms: Optional[int] = None
@@ -315,6 +316,10 @@ class CycleHealthLog:
             "error_count": int(error_count),
             "data_source_ages": data_source_ages or {},
             "bq_ingest_lag_sec": bq_ingest_lag_sec,
+            # phase-60.4 (criterion 4): persisted so the morning digest can
+            # surface "conviction values were no-LLM fallbacks" instead of
+            # letting conviction 10.00 masquerade as an LLM judgment.
+            "meta_scorer_degraded": bool(meta_scorer_degraded),
         }
         with self._lock:
             try:

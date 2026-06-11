@@ -99,6 +99,13 @@ def setup_logging():
     else:
         handler.setFormatter(CompactFormatter())
 
+    # phase-60.4 (criterion 5): secret redaction at the HANDLER level -- the
+    # away week left 2,101 plaintext api_key= lines in backend.log via the
+    # httpx library logger. Logger-level filters do NOT see descendant-logger
+    # records (Python logging docs); the handler sees everything it emits.
+    from backend.services.observability.log_redaction import SecretRedactionFilter
+    handler.addFilter(SecretRedactionFilter())
+
     root.addHandler(handler)
 
     # Prevent uvicorn from adding its own cp1252 handlers on Windows

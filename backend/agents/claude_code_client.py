@@ -29,6 +29,7 @@ import logging
 import os
 import shutil
 import subprocess
+import time
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -335,6 +336,34 @@ def _make_claude_code_client_class():
             self.model_name = model_name
             self._timeout_s = timeout_s
 
+        @staticmethod
+        def _log_cc_call(envelope, *, agent, ticker, latency_ms, model, ok):
+            """phase-60.4 (AW-7, criterion 1): llm_call_log row for the CC
+            rail. The rail that did ALL the away-week deciding logged ZERO
+            rows (claude_code_client had no writer) -- burn and firing audits
+            were blind to the working rail. Cost is the flat-fee rail:
+            session_cost_usd delta 0 (tokens still recorded for volume
+            audits). Never raises (mirrors the 56.2 lite-path helper)."""
+            try:
+                from backend.services.observability.api_call_log import log_llm_call
+
+                usage = (envelope or {}).get("usage") or {}
+                log_llm_call(
+                    provider="anthropic",
+                    model=model,
+                    agent=f"cc_rail:{agent}" if agent else "cc_rail",
+                    latency_ms=float(latency_ms),
+                    input_tok=int(usage.get("input_tokens") or 0),
+                    output_tok=int(usage.get("output_tokens") or 0),
+                    cache_creation_tok=int(usage.get("cache_creation_input_tokens") or 0),
+                    cache_read_tok=int(usage.get("cache_read_input_tokens") or 0),
+                    request_id=str((envelope or {}).get("session_id") or "") or None,
+                    ok=ok,
+                    ticker=ticker,
+                )
+            except Exception as log_exc:  # observability never breaks the rail
+                logger.debug("ClaudeCodeClient: llm_call_log write skipped (%r)", log_exc)
+
         def generate_content(
             self,
             prompt: str,
@@ -343,6 +372,10 @@ def _make_claude_code_client_class():
             config = generation_config or {}
             max_tokens = config.get("max_output_tokens")
             system = config.get("system") or config.get("system_instruction")
+            # phase-60.4: orchestrator side-channel labels (same convention
+            # the SDK clients consume) so the rail's rows carry agent + ticker.
+            _agent = config.get("_role") or config.get("_agent")
+            _ticker = config.get("_ticker")
             json_schema = None
             if config.get("response_mime_type") == "application/json":
                 # The orchestrator may pass a Pydantic model class as
@@ -354,6 +387,7 @@ def _make_claude_code_client_class():
                 if isinstance(schema, dict):
                     json_schema = schema
 
+            _t0 = time.monotonic()
             try:
                 envelope = claude_code_invoke(
                     prompt,
@@ -367,6 +401,11 @@ def _make_claude_code_client_class():
                     "ClaudeCodeClient: generate_content failed (%r); returning empty LLMResponse",
                     exc,
                 )
+                self._log_cc_call(
+                    None, agent=_agent, ticker=_ticker,
+                    latency_ms=(time.monotonic() - _t0) * 1000.0,
+                    model=self.model_name, ok=False,
+                )
                 return LLMResponse(
                     text="",
                     thoughts=f"errored: {exc}",
@@ -379,6 +418,12 @@ def _make_claude_code_client_class():
             output_tokens = int(usage.get("output_tokens") or 0)
             cache_read = int(usage.get("cache_read_input_tokens") or 0)
             cache_create = int(usage.get("cache_creation_input_tokens") or 0)
+
+            self._log_cc_call(
+                envelope, agent=_agent, ticker=_ticker,
+                latency_ms=(time.monotonic() - _t0) * 1000.0,
+                model=self.model_name, ok=True,
+            )
 
             return LLMResponse(
                 text=text,

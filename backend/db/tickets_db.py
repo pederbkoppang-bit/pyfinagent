@@ -42,6 +42,30 @@ class TicketClassification(Enum):
 class TicketsDB:
     """SQLite-based ticket system database."""
     
+    def get_last_ticket_age_days(self) -> float | None:
+        """phase-60.4 (criterion 2): age in days of the most recent ticket.
+
+        The inbound-ingestion silence alarm's data source: tickets.db went
+        dark 2026-04-24 (#5100) -> 2026-06-10 (#5101) and nothing noticed
+        for 6 weeks. None when the table is empty or unreadable (callers
+        fail open -- an unreadable DB is itself alarm-worthy but is the
+        watchdog's existing unhealthy path, not this one).
+        """
+        try:
+            with closing(sqlite3.connect(self.db_path)) as conn:
+                row = conn.execute("SELECT MAX(created_at) FROM tickets").fetchone()
+            if not row or not row[0]:
+                return None
+            from datetime import datetime, timezone
+
+            last = datetime.fromisoformat(str(row[0]).replace("Z", "+00:00"))
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            return (datetime.now(timezone.utc) - last).total_seconds() / 86400.0
+        except Exception as exc:
+            logger.warning("get_last_ticket_age_days failed: %s", exc)
+            return None
+
     def __init__(self, db_path: str = None):
         if db_path is None:
             db_path = Path.home() / ".openclaw" / "workspace" / "pyfinagent" / "tickets.db"

@@ -40,6 +40,44 @@ class QueueNotificationService:
             logger.error(f"Failed to send failover notification: {e}")
             return False
     
+    async def send_ticket_failure_notification(self, ticket: Dict[str, Any], error_message: str) -> bool:
+        """phase-60.4 (criterion 2, the #5101 case): a ticket closed on
+        max-retries posts a failure notice to ITS channel instead of dying
+        silently -- ticket #5101 was CLOSED 'Max retries (3) exceeded' on
+        2026-06-10 and the operator only learned of it from the 59.3 audit.
+
+        Routes by ticket source (slack channel/thread via _notify_slack's
+        client; imessage via the imsg CLI). Never raises.
+        """
+        ticket_number = ticket.get("ticket_number")
+        message = (
+            f"Ticket #{ticket_number} FAILED and was closed: {error_message}. "
+            f"Original request: {str(ticket.get('message_text') or '')[:120]} -- "
+            f"reply here to re-open or rephrase."
+        )
+        try:
+            source = ticket.get("source", "slack")
+            if source == "imessage":
+                import subprocess
+                subprocess.run(
+                    ["imsg", "send", "--to", "+4794810537", "--text", message],
+                    timeout=5,
+                )
+                return True
+            self._ensure_slack_client()
+            if not self.slack_client:
+                logger.warning("Ticket-failure notice: Slack client unavailable for #%s", ticket_number)
+                return False
+            kwargs = {"channel": ticket.get("channel_id", ""), "text": message}
+            if ticket.get("slack_thread_id"):
+                kwargs["thread_ts"] = ticket["slack_thread_id"]
+            self.slack_client.chat_postMessage(**kwargs)
+            logger.info("Ticket-failure notice posted for #%s", ticket_number)
+            return True
+        except Exception as e:
+            logger.error("Failed to send ticket-failure notice for #%s: %s", ticket_number, e)
+            return False
+
     async def notify_queue_position_change(self, ticket: Dict[str, Any], new_position: int) -> bool:
         """
         Notify user of queue position change.
