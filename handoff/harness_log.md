@@ -26967,3 +26967,16 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 - **FORWARD OBLIGATIONS (binding on later steps):** FO-1: 62.3's contract + Q/A MUST carry the "rules file referenced by every kickoff prompt" leg (62.3's immutable criteria don't name it). FO-2: 62.2 must make the token gate SEMANTIC (matching token line), not mtime-only. RESIDUAL: `git -C <path> push --force` evades hook+deny globs -- widen in 62.3/62.4 or accept sentinel backstop.
 - **Files:** docs/runbooks/away-ops-rules.md (NEW), .claude/hooks/pre-tool-use-danger.sh, .claude/settings.json, .claude/masterplan.json (10 deferrals), handoff/current/active_goal.md, backend/tests/test_phase_62_0_danger_hook.py (NEW) + handoff artifacts.
 - **Next:** 62.1 slack-bot launchd adoption (the #1 unattended gap), then 62.2 token handler.
+
+### Cycle 57 amendment -- 62.0 cycle-2 (post-PASS live defect, fixed, delta PASS)
+
+- The 62.0 commit was blocked by its own new guard: commit-message PROSE mentioning the
+  flag literals poisoned a whole-string match while the real push sat in another segment.
+- FIX: per-segment scoping (python re.split in-hook) for the rail-3/rail-9 guards; .env
+  tripwire deliberately stays whole-string (fail-safe). +3 regression tests -> 33/33.
+- SECOND fresh Q/A on the delta: **PASS, ok:true** -- 19 adversarial probes (pipe-hidden
+  and newline-separated true force still block; NO newline bypass; FP payload now allowed);
+  audit-jsonl corroboration of both live block events. Named residual R3 (variable
+  indirection, e.g. flag-in-shell-var) = BashFAQ/050 class, 62.4 sentinel backstop.
+- Auto-push note: hook stalled once (INVOKED, no commit), then recovered and landed
+  928ae228 itself; manual fallback remains the documented remedy.

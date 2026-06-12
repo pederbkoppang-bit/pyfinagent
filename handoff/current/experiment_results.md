@@ -43,7 +43,18 @@ real session traffic. Transcript verbatim in live_check_62.0.md SA.
   -> regex widened to `-[A-Za-z]*i`; (b) one test expected `grep 'git push --force'` to be
   allowed, but the PRE-EXISTING legacy substring guard blocks it (harmless conservative
   false positive, predates this step) -> test case removed, legacy behavior left as-is.
-- Final: 30/30.
+- 30/30, first Q/A PASS.
+- POST-PASS live defect (cycle-2): the 62.0 COMMIT ITSELF was blocked by the new
+  force-push guard -- the commit message mentioned the flag literals in prose while
+  `git push origin main` sat in a later segment of the same compound command. Whole-string
+  matching poisoned across segments. Away sessions will routinely write commits
+  describing these guards, so reword-and-move-on would have planted a recurring trap.
+  FIX: force-push + launchctl guards rewritten to per-segment scoping (python re.split on
+  ; && || |, pattern tested inside each segment only); 3 regression tests added
+  (commit-message prose + clean push allowed; force flag in the actual push segment still
+  blocked). The .env tripwire stays whole-string deliberately (fail-safe direction; Write
+  tool is the documented path for docs that must quote those shapes).
+- Final: 33/33. Delta re-evaluated by a SECOND fresh Q/A (cycle-2 flow, evidence changed).
 
 ## File list
 

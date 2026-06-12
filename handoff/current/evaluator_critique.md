@@ -198,3 +198,134 @@ preserved in harness_log.md Cycle 56 and will archive with 61.1's close.)
   "checks_run": ["harness_compliance_audit", "verification_command", "pytest_30", "mutation_probe", "allow_traffic_probe", "masterplan_diff_vs_HEAD", "rails_verbatim_compare", "settings_deny_mirrors", "live_check_audit_corroboration", "scope_honesty_git_status", "code_review_heuristics", "contract_verbatim_check"]
 }
 ```
+
+## Delta re-evaluation (cycle 2) -- per-segment guard scoping (Q/A, second fresh spawn, 2026-06-12)
+
+Verdict: **PASS** (ok: true) on the delta. Documented cycle-2 flow on CHANGED
+evidence (hook rewritten, 3 regression tests added, experiment_results +
+live_check updated) -- not verdict-shopping; prior verdict was PASS, zero
+CONDITIONALs for 62.0 in harness_log.md. Scope of this section: the per-segment
+rewrite of the force-push + launchctl guards, plus re-confirmation that the
+prior PASS's other legs are untouched.
+
+### D1. What changed (verified, not just claimed)
+
+- The committed hook (928ae228; `git diff HEAD -- .claude/hooks/pre-tool-use-danger.sh`
+  = empty) carries the per-segment guard at lines 152-172: `re.split(r";|&&|\|\||\|", cmd)`
+  with the force-flag / +refspec / launchctl patterns applied INSIDE each
+  segment. The legacy adjacency glob (line 141, phase-4.14.27) and the
+  backend/.env whole-string tripwire (lines 178-181) are byte-unchanged --
+  the fail-safe rail stays whole-string exactly as experiment_results claims.
+- Uncommitted working-tree delta = exactly the 3 claimed regression tests
+  (git diff vs HEAD: 2 new prose params in test_normal_push_allowed +
+  test_force_flag_in_push_segment_still_blocked_with_prose_elsewhere) + the
+  Iterations/SECOND-LIVE-EVENT additions to the two evidence docs. Nothing else.
+
+### D2. Deterministic checks (verbatim)
+
+- `bash -n .claude/hooks/pre-tool-use-danger.sh` -> SYNTAX_OK.
+- `python -m pytest backend/tests/test_phase_62_0_danger_hook.py -q` -> **33 passed in 1.19s** (was 30; delta = 3, matches claim).
+- Immutable verification command re-run -> exit 0, `deferred OK`.
+
+### D3. Adversarial probe matrix (19 probes, hook invoked via documented env interface, temp CLAUDE_PROJECT_DIR)
+
+Blocks hold (no regression): position-free flag exit 2; `+refspec` with remote
+exit 2; launchctl bootout on pyfinagent label exit 2 ("rail 9" stderr); chained
+`git add -A && ... --force-with-lease` exit 2; prose-elsewhere + REAL force in
+the push segment exit 2; pipe-hidden force exit 2 (caught by the legacy
+adjacency glob -- layering works); **newline-separated true force exit 2** --
+newlines are not split tokens, so the compound stays one segment and the flag
+is still seen next to the push: NO newline bypass (the caller's
+material-severity question -- answered, no fix needed).
+
+False positive fixed: the caller's exact payload (`git commit -m "mentions
+--force and launchctl bootout com.pyfinagent in prose" && git push origin
+main`) exit 0; same with space-adjacent flag prose (`"prose --force flag
+here" && git push origin main`) exit 0. The live defect class (cross-segment
+prose poisoning on `; && || |` chaining) is closed.
+
+### D4. Live-event corroboration (audit jsonl)
+
+The SECOND LIVE EVENT is real: a SOLO rail-3 block at 2026-06-12T07:46:55Z
+with the OLD combined reason text "(position-free flag or +refspec)" -- i.e.
+the cycle-1 whole-string guard -- isolated from any pytest burst, one minute
+before commit 928ae228 landed (07:47:56Z) and pushed (auto-push.log
+07:47:58Z). Post-fix suite bursts at 07:48:17Z and 07:54:38Z carry the NEW
+per-segment reason texts ("force-push flag", "+refspec force-push"). The
+Iterations log and live_check SECOND LIVE EVENT sections are accurate and
+honest, including the disclosure that the .env tripwire deliberately stays
+whole-string.
+
+### D5. Prior PASS legs untouched (re-verified, not assumed)
+
+- Rails: approved_plan 136-152 vs away-ops-rules.md 10-26 word-identical
+  after wrap+glyph normalization (171 words = 171 words).
+- Masterplan: all 10 deferral ids' `verification` blocks byte-identical vs
+  pre-step HEAD b0fe1983; pending->deferred x10; audit notes carry the
+  operator verbatim; ZERO non-62.x steps changed.
+- settings.json: the 7 new deny mirrors present (plus 2 pre-existing
+  phase-4.14.27-era force-push denies = 9 total matching entries; consistent
+  with cycle-1's "7 additions" diff finding).
+
+### D6. Judgment -- is per-segment the right trade?
+
+Yes. (a) The FP is recurring by construction: phases 62-65 are guard-work;
+away sessions will keep writing commit messages that mention these literals.
+Reword-and-move-on plants a recurring trap and trains escape-hatch
+habituation (CLAUDE_ALLOW_DANGER=1 normalizing is strictly worse than a
+narrower regex). (b) The accident class the rail defends against -- the agent
+actually typing a force push -- always puts the flag in the same segment as
+the push, and that class is provably non-regressed (probe matrix + 33 tests).
+(c) Defense-in-depth retained: legacy adjacency glob, Layer-2 deny globs,
+62.4 sentinel reconciliation. (d) The research basis (BashFAQ/050: a complete
+parser is impossible; tripwire scope) was contract-acknowledged in cycle 1;
+segment scoping aligns the FP surface with that already-accepted boundary.
+
+### D7. Residual register (all NOTE severity, none blocking)
+
+- **R1 (conservative FP, newline chaining).** Newlines are not split tokens,
+  so newline-chained compounds keep whole-string behavior: prose flag
+  (space-adjacent) + newline + clean push -> exit 2 (measured). Fail-safe
+  direction; Claude chains with `&&`, so reach is low. Quirk: quote-adjacent
+  flag prose (`"prose --force"`) escapes via the `(\s|$|=)` trailing
+  boundary -- the FP edge is narrower than the regex suggests.
+- **R2 (conservative FP, same-segment prose).** Prose containing
+  `launchctl bootout` AND a dotted `com.pyfinagent.` label inside ONE segment
+  still blocks (measured exit 2), as does prose containing the adjacent
+  literal `git push --force` (legacy glob, cycle-1 NOTE-4). The committed
+  62.0 message threaded this needle (no trailing dot). Workaround stands:
+  Write-tool-authored docs for content that must quote full shapes.
+- **R3 (the one measurable weakening).** `FLAGS=--force; git push origin
+  main "$FLAGS"` -> exit 0 (measured). Cycle-1 whole-string matching would
+  have blocked this cross-segment literal pairing; per-segment does not.
+  Assessment: deliberate-construction shape, not an accident; inside the
+  contract-acknowledged BashFAQ/050 evasion class (cycle-1 NOTE-2 already
+  conceded variable indirection); Layer-2 deny globs never covered it; 62.4
+  sentinel is the designed backstop. Named here so 62.4 inherits it.
+- **R4 (anchor-class evasions, pre-existing).** `git -C /path push --force`
+  -> exit 0 (known cycle-1 residual, already logged in Cycle 57 RESIDUAL).
+  Same anchor family, newly documented: subshell form `(git push origin main
+  --force)` -> exit 0 (the `(^|\s)git\s+push` anchor fails on `(git`); bare
+  `git push +main` (remote-less +refspec) -> exit 0 from the hook, though the
+  Layer-2 deny glob `Bash(git push* +*)` catches the bare command form.
+  Recommend widening the anchor + `-C` tolerance in the 62.3/62.4 follow-up.
+- **R5 (ops).** The delta evidence (3 tests + doc updates + this section) is
+  uncommitted working tree; harness_log Cycle 57 needs a cycle-2 amendment
+  appended AFTER this verdict and BEFORE the next commit. auto-push.log shows
+  three INVOKED-without-commit lines at 07:48Z (the known stall pattern) --
+  manual `git add -A && git commit && git push origin main` fallback applies
+  if the next hook pass stalls.
+
+### D8. JSON envelope (cycle 2)
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "Delta verified: per-segment scoping committed (928ae228) and behaviorally correct. 33/33 tests (delta = exactly the 3 claimed regression tests); all block classes hold under 19 adversarial probes incl. pipe-hidden and newline-separated true force (NO newline bypass -- newlines are not split tokens, compound stays one segment, conservative direction preserved); caller FP payload now exit 0; .env tripwire verified untouched whole-string; immutable verification cmd re-run 'deferred OK'; rails/masterplan/deny-mirror legs of the prior PASS re-verified intact; SECOND LIVE EVENT corroborated by solo 07:46:55Z audit block with old reason text one minute before the 07:47:56Z commit. One measurable weakening (var-indirection across segments, R3) is inside the contract-acknowledged BashFAQ/050 class with the 62.4 sentinel as designed backstop -- named for inheritance, not blocking.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": ["cycle2_legitimacy_audit", "syntax_bash_n", "pytest_33", "verification_command_rerun", "delta_diff_vs_HEAD", "adversarial_probes_19", "newline_bypass_check", "fp_fix_probes", "audit_jsonl_live_event_corroboration", "rails_verbatim_recompare", "masterplan_vs_b0fe1983", "settings_deny_mirrors", "env_tripwire_unchanged", "code_review_heuristics", "push_state_check"]
+}
+```

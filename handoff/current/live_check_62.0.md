@@ -22,6 +22,13 @@ literal `>> backend/.env` in its payload string -- the session's own PreToolUse 
 with the rail-1 message above. The live hook is enforcing on real session traffic, not
 just in subprocess tests.
 
+SECOND LIVE EVENT (post-PASS cycle-2): the 62.0 commit was blocked by the new force-push
+guard -- the commit MESSAGE mentioned the flag literals in prose while the real
+`git push origin main` sat in a later segment (whole-string matching poisoned across
+segments). Fixed with per-segment scoping (python re.split inside the hook); 3 regression
+tests added; suite now 33/33; delta re-evaluated by a second fresh Q/A. Both live events
+are in handoff/audit/pre_tool_use_audit.jsonl.
+
 Unit tests: backend/tests/test_phase_62_0_danger_hook.py -- 30 passed (force-push x6
 variants incl. position-free + +refspec, launchctl x4 removal verbs + kickstart/other-label
 allows, .env shapes x5 + fresh/stale cursor + Edit/Write tool coverage + other-file allows,

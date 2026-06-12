@@ -57,10 +57,20 @@ def test_force_push_variants_blocked(cmd):
     "git push origin main",
     "git push",
     "git commit -m 'feat: x' && git push origin main",
+    # Segment-scoping regressions (live-discovered false positive: the 62.0
+    # commit message mentioning the guards blocked its own commit). Prose in
+    # the commit -m segment must not poison the separate git push segment.
+    'git commit -m "guards: robust force-push (--force flags, refspec)" && git push origin main',
+    'git commit -m "block launchctl bootout on com.pyfinagent labels" && git push origin main',
 ])
 def test_normal_push_allowed(cmd):
     r = bash(cmd)
     assert r.returncode == 0, (cmd, r.stderr)
+
+
+def test_force_flag_in_push_segment_still_blocked_with_prose_elsewhere():
+    r = bash('git commit -m "harmless" && git push origin main --force')
+    assert r.returncode == 2, r.stderr
 
 
 # ── launchctl removal verbs on pyfinagent labels (rail 9) ─────────────
