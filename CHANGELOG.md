@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `1be98e83` | phase-62.7 prep: P1 paging fix in alerting.py (R-1, live-proven) + token cursor-advance rule (I-4) + |
 | 2026-06-12 | `a0733d46` | chore: 62.7 dress-rehearsal checklist assembled from the week's Q/A-queued operator actions |
 | 2026-06-12 | `680b89c8` | phase-62.4: guardrail/budget sentinel -- PASS (first spawn) |
 | 2026-06-12 | `2c65b793` | phase-62.5: healthcheck + away-watchdog -- PASS (cycle-2, P1 paging resurrected via bot-token fallba |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `99860d6e` | phase-61.1: activate dark fixes -- flags ON + backend/frontend restart; Q/A CONDITIONAL pending toni |
 | 2026-06-11 | `255d6cc9` | phase-61.0: install goal-phase61-churn-integrity (operator-approved: 'Install + begin 61.1 now (Reco |
 | 2026-06-11 | `b0fe1983` | phase-60.4: observability + ops residuals (AW-7/AW-1/AW-2/AW-10, hygiene) -- PASS, CLOSES PHASE-60 |
-| 2026-06-11 | `6a4fc351` | phase-60.3: non-USD decision-input integrity (AW-9) -- PASS |
 
 ---
 
+### v6.49.12 — phase-62.7 prep: P1 paging fix in alerting.py (R-1, live-proven) + to... (2026-06-12)
+
+- **phase-62.7 prep: P1 paging fix in alerting.py (R-1, live-proven) + token cursor-advance rule (I-4) +**
 ### v6.49.11 — phase-62.4: guardrail/budget sentinel -- PASS (first spawn) (2026-06-12)
 
 - **phase-62.4: guardrail/budget sentinel -- PASS (first spawn)**
