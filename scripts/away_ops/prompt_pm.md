@@ -29,7 +29,12 @@ hour (the 23:00 evening digest reads the files you write).
    (06-13/14/15), spawn ONE fresh qa to close 39.1 AND 62.6 together (the 62.6
    criterion-3 coupling; see live_check_62.6.md). Verbatim rows, never summaries. If a
    gated step's evidence is now COMPLETE: spawn ONE fresh qa for that step, and on PASS
-   append harness_log.md + flip it.
+   append harness_log.md + flip it. WHILE 62.1/62.2 REMAIN OPEN (2026-06-12 state):
+   62.1 needs one digest-from-the-launchd-bot evidence line (grep 'digest sent' in
+   handoff/logs/slack_bot.log + the Slack permalink via a server-side read) pasted into
+   live_check_62.1.md section C; 62.2 needs the operator's TEST TOKEN: PING round-trip
+   (check handoff/operator_tokens.jsonl -- if a line exists, paste it + the threaded ACK
+   verbatim into live_check_62.2.md). Then fresh qa per step as above.
 3. PENDING ASKS: refresh handoff/away_ops/pending_tokens.json -- every open operator
    decision with its EXACT reply string and age in days.
 4. COST: append today's session COST/LIMIT_HIT lines from session.log into
