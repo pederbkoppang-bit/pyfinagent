@@ -1,108 +1,68 @@
-# Contract -- phase-62.0: Hard-rules file + away goal install + backlog disposition + hook away-patterns
+# Contract -- phase-62.1: Slack bot under launchd + restart on current code
 
-Date: 2026-06-12. Goal: goal-away-ops (install commit 66cb8bc1, operator plan-mode approval).
+Date: 2026-06-12. Goal: goal-away-ops. Window: NOW (research GO, clean 08:10-08:55 UTC).
 
 ## Research-gate summary
 
-Brief: handoff/current/research_brief.md (tier moderate, gate_passed: true, 5 sources in
-full -- Claude Code hooks reference, git-push docs, launchctl man, Anthropic harness
-design, BashFAQ/050 -- plus issues #24327/#40580; recency scan done). Key findings:
-- EXTEND .claude/hooks/pre-tool-use-danger.sh (single PreToolUse entry, no matcher, env
-  vars CLAUDE_TOOL_NAME/CLAUDE_TOOL_INPUT with stdin-JSON fallback, exit 2 = block,
-  fail-open on internal error by design). The MCP_MIGRATE_TOKEN gate at :161-168 is the
-  in-file precedent shape for the tokens_cursor gate.
-- Force-push surface gaps: flags are position-free (`git push origin main --force`) and
-  `+refspec` forces with no flag -- current glob (:141) and settings deny both miss these.
-- launchctl removal surface = FOUR verbs: bootout, unload, remove, disable (deny on
-  com.pyfinagent.* labels/plists); kickstart stays allowed (rail 9).
-- .env detection is a TRIPWIRE on write shapes (>>/>, sed -i, tee, perl -i), not a
-  complete parser (BashFAQ/050); daily sentinel reconciliation (62.4) is the backstop.
-  GAP found by researcher: Edit/Write tool calls on backend/.env bypass a Bash-only
-  check -- must match tool_name in {Edit,Write,NotebookEdit} + file_path too.
-- Operator keystrokes (`!` commands) never traverse PreToolUse -- no operator carve-out
-  needed.
-- Block stderr must prescribe "write a token ask, move on" (issue #24327 stall guard);
-  mirror patterns into settings.json deny as layer 2 (issue #40580 subagent caveat).
-- Deferred flips are push-silent (archive/auto-commit hooks key ONLY on status=="done");
-  hazard: run flips on a clean masterplan (verified clean now). `deferred` is existing
-  status vocabulary (8 uses). All 10 target ids exist in bare form, all pending.
-- active_goal.md exists (refresh, don't create); handoff/away_ops/tokens_cursor does not
-  exist yet (absent = no token = gate closed).
+Brief: handoff/current/research_brief.md (gate_passed: true, 5 sources in full -- launchd.info,
+ss64 launchctl, Slack Socket Mode docs, APScheduler base docs, ss64 caffeinate; recency scan).
+PREMISE CORRECTIONS: (1) stale bot runs code-as-of 2026-06-11 05:03:44 (not 06-05) -- still
+predates phase-60.1/60.4 commits, restart justified. (2) Socket Mode is LOAD-BALANCED, not
+broadcast -- the dual-instance threat is the duplicated AsyncIOScheduler + queue-processor/
+SLA-monitor/reaper (app.py:60-68), not event double-delivery. (3) CRITICAL: a user crontab
+monitor (scripts/slack_bot_monitor.sh, */5, non-atomic pgrep-then-nohup) would race launchd
+into a second instance -- REMOVE THAT CRONTAB LINE FIRST (keep the */2 slack_mention_checker
+line). Plist: backend template MINUS caffeinate (backend's -s assertion is system-wide);
+ProgramArguments=[.venv/bin/python, -m, backend.slack_bot.app]; WorkingDirectory=repo
+(load-bearing for -m); backend's PATH verbatim (imsg + bare python subprocess deps);
+KeepAlive=true; RunAtLoad=true; ThrottleInterval=5; ProcessType=Interactive + LegacyTimers
+=true (current bot runs niced SN -- worse for APScheduler timers); logs to handoff/logs/
+slack_bot.log (gitignored; fresh file = unambiguous NEW-process attribution). No secrets in
+plist (settings.py:12 loads backend/.env by absolute path, CWD-independent). SIGTERM = hard
+kill, risk LOW (in-memory jobstore, idempotency-keyed jobs, price-refresh catch-up will
+fire once benignly post-bootstrap); NO signal handler in this step (scope + APScheduler
+#567). Digest hours are settings DEFAULTS 8/17 ET -- confirm live via settings load (the
+.env file itself is deny-ruled).
 
-## Hypothesis
+## Immutable success criteria (verbatim from masterplan 62.1)
 
-Encoding the away rails as (1) a binding rules document, (2) deterministic PreToolUse
-blocks with a token-cursor gate, and (3) settings-deny mirrors gives three independent
-layers that make the prior away-week failure mode (unauthorized behavior change) require
-three simultaneous failures instead of one, without blocking legitimate work.
+1. "com.pyfinagent.slack-bot launchd agent exists with KeepAlive=true, mirroring
+   com.pyfinagent.backend.plist's environment shape; the old manual PID is dead (kill -0
+   fails)"
+2. "ps lstart of the launchd-managed bot process is LATER than the newest git commit
+   touching backend/slack_bot/ (verbatim paste of both)"
+3. "a morning or evening digest observed in Slack from the NEW process (permalink or
+   screenshot path in live_check_62.1.md)"
 
-## Immutable success criteria (verbatim from .claude/masterplan.json, phase-62 step 62.0)
+verification.command (verbatim): launchctl print gui/$(id -u)/com.pyfinagent.slack-bot |
+grep -E 'state|pid' && ps -o lstart= -p $(launchctl print gui/$(id -u)/com.pyfinagent.
+slack-bot | awk '/pid =/{print $3}') && git log -1 --format=%ci -- backend/slack_bot/
 
-1. "docs/runbooks/away-ops-rules.md contains the 10 numbered rails from the approved plan
-   verbatim and is referenced by every kickoff prompt"
-2. "the 10 disposition steps are status=deferred with an audit note citing the operator's
-   verbatim 'Confirm disposition' reply; a git diff in experiment_results.md proves ONLY
-   status/audit fields changed (verification criteria byte-identical)"
-3. ".claude/hooks/pre-tool-use-danger.sh (or equivalent PreToolUse hook) blocks: git push
-   --force variants, launchctl bootout/unload of pyfinagent labels, and edits
-   adding/changing PAPER_* flag lines in backend/.env when handoff/away_ops/tokens_cursor
-   has no fresh matching token -- each pattern unit-tested by invoking the hook with a
-   synthetic payload"
-4. "handoff/current/active_goal.md points at goal_away_ops.md with the away calendar"
+Criterion-3 timing: first digest from the new process = morning digest 08:00 ET (14:00
+Oslo) today. Q/A is spawned ONCE after that evidence lands (complete-evidence single
+spawn, not an early CONDITIONAL round).
 
-verification.command (verbatim): cd /Users/ford/.openclaw/workspace/pyfinagent && test -f
-docs/runbooks/away-ops-rules.md && python3 -c "import json; mp=json.load(open('.claude/
-masterplan.json')); ids={'36.2','36.3','36.4','36.5','36.6','37.3.1','40.3.1','40.8.2',
-'40.7','40.1'}; steps={s['id']: s for p in mp['phases'] for s in p.get('steps',[])};
-bad=[i for i in ids if steps.get(i,{}).get('status')!='deferred']; assert not bad, bad;
-print('deferred OK')"
+## Plan (cutover sequence, research-prescribed)
 
-Criterion-1 forward-reference note: kickoff prompts are CREATED by 62.3; at 62.0 close the
-"referenced by every kickoff prompt" leg is satisfiable only as a 62.3 obligation. Q/A may
-mark that leg deferred-to-62.3; 62.3's contract re-verifies it. The rules file itself +
-all other legs complete here.
-
-## Plan
-
-1. Write docs/runbooks/away-ops-rules.md: the 10 rails verbatim from
-   handoff/away_ops/approved_plan_2026-06-12.md "Safety rails" section + enforcement-
-   layers note + token grammar reference.
-2. Extend pre-tool-use-danger.sh (fail-open shell discipline preserved):
-   (a) robust force-push: any `git push` segment carrying --force/--force-with-lease/-f
-   anywhere, or a `+refspec` argument; (b) launchctl {bootout,unload,remove,disable} on
-   com.pyfinagent.* labels or plist paths (kickstart untouched); (c) backend/.env write
-   tripwire for Bash shapes (>>, >, sed -i/--in-place, tee [-a], perl -i) AND for
-   Edit/Write/NotebookEdit with file_path matching backend/.env -- gated on
-   handoff/away_ops/tokens_cursor existing with mtime < 6h; block stderr prescribes
-   "record a token ask in handoff/away_ops/pending_tokens.json and move on".
-3. Mirror layer-2 deny entries in .claude/settings.json permissions.deny:
-   Bash(git push*--force*), Bash(git push*-f *), Bash(git push* +*),
-   Bash(launchctl bootout*com.pyfinagent*), Bash(launchctl unload*com.pyfinagent*),
-   Bash(launchctl remove*com.pyfinagent*), Bash(launchctl disable*com.pyfinagent*).
-4. Masterplan flips: python round-trip setting status=deferred + new deferral_audit field
-   on the 10 ids (audit_basis and verification untouched); git diff captured verbatim
-   into experiment_results.md.
-5. Refresh active_goal.md: dual in-flight goals (phase-61 chain + goal-away-ops), away
-   calendar pointer, token grammar, pending token asks.
-6. Tests: backend/tests/test_phase_62_0_danger_hook.py -- subprocess the hook with
-   synthetic env payloads: BLOCK cases (git push origin main --force; git push -f; git
-   push origin +main; launchctl bootout/unload/remove/disable gui/501/com.pyfinagent.
-   backend; echo X >> backend/.env without cursor; sed -i on backend/.env; Edit tool
-   file_path backend/.env) and ALLOW cases (git push origin main; launchctl kickstart -k
-   com.pyfinagent.backend; >> on other files; .env write WITH fresh cursor; rm -rf
-   node_modules). Assert exit codes 2/0 and stderr content for blocks.
-7. Q/A spawn -> harness_log append -> flip 62.0 (auto-commit hook pushes).
+1. Confirm digest hours via settings load (no digest in the next ~30 min).
+2. Remove the slack_bot_monitor.sh crontab line (keep slack_mention_checker); verify.
+3. Write ~/Library/LaunchAgents/com.pyfinagent.slack-bot.plist per the research spec.
+4. Import smoke test: .venv/bin/python -c "from backend.slack_bot.app import create_app"
+   (KeepAlive + boot-crash = 5s restart loop otherwise).
+5. Kill the manual bot PID; confirm pgrep empty.
+6. launchctl bootstrap gui/$(id -u) <plist>; verify exactly ONE process + startup lines in
+   handoff/logs/slack_bot.log.
+7. At/after 14:00 Oslo: confirm the morning digest arrived (operator channel) -- permalink
+   or the bot log send-line into live_check_62.1.md; expect one benign price-refresh
+   catch-up fire post-bootstrap (documented, not a defect).
+8. experiment_results.md -> fresh Q/A -> harness_log -> flip.
 
 ## Out of scope
 
-62.1-62.8 artifacts (plists, wrapper, sentinel, healthcheck, digests); any backend/.env
-edit (the hook gate is built and tested with a TEMP cursor fixture, never a real flag
-write); phase-61 step work.
+Signal handlers in app.py; token handler (62.2); digest content changes (62.8); any
+phase-9 job logic.
 
 ## References
 
-- handoff/current/research_brief.md (62.0 gate)
-- handoff/away_ops/approved_plan_2026-06-12.md (rails source of truth)
-- https://code.claude.com/docs/en/hooks ; git-scm.com/docs/git-push ; ss64.com/mac/
-  launchctl.html ; anthropic.com/engineering/harness-design-long-running-apps ;
-  mywiki.wooledge.org/BashFAQ/050 ; issues #24327, #40580
+research_brief.md (62.1); launchd.info; ss64 launchctl + caffeinate; docs.slack.dev Socket
+Mode; APScheduler base scheduler docs.
