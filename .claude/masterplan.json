@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-12T09:01:35.559241+00:00",
+  "updated_at": "2026-06-12T09:44:28.762995+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14646,7 +14646,7 @@
         {
           "id": "62.3",
           "name": "Scheduled-session plists + wrapper + kickoff prompts -- com.pyfinagent.away-session-{am,pm}.plist (07:30 / 22:00 local, tz confirmed vs the 18:00 UTC cycle), scripts/away_ops/run_away_session.sh (lockfile w/ stale reap, sentinel pre-flight -> digest-only downgrade, dirty-tree -> recovery prompt, git pull --rebase w/ offline fallback, gtimeout 4h/2h, claude -p pinned claude-opus-4-8, exit-0 discipline), prompts am/pm/recovery/digest-only.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "62.0",

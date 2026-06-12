@@ -1,75 +1,55 @@
-# Experiment Results -- Step 62.0 (GENERATE)
+# Experiment Results -- Step 62.3 (GENERATE)
 
-**Step:** 62.0 -- Hard-rules file + away goal install + backlog disposition + hook
-away-patterns. **Date:** 2026-06-12. **State:** complete pending Q/A.
+**Step:** 62.3 -- Scheduled-session plists + wrapper + kickoff prompts. **Date:**
+2026-06-12. **State:** built + behaviorally probed; cycle-2 fixes applied after Q/A
+spawn-1 CONDITIONAL.
 
-## What was built (per criterion)
+## What was built (7 files + 1 install + 2 doc fixes)
 
-1. **docs/runbooks/away-ops-rules.md** (NEW): the 10 rails verbatim from
-   handoff/away_ops/approved_plan_2026-06-12.md "Safety rails", + enforcement-layers
-   section (prompt/hook/sentinel), + token mechanics (grammar, cursor, reserved tokens
-   KILL SWITCH: RESUME / HALT-DEV / RESUME-DEV), + the rail-6 trading-behavior file list.
-   "Referenced by every kickoff prompt" leg: prompts are created by 62.3 -- forward
-   obligation noted in the contract, re-verified there.
-2. **Backlog disposition**: 10 steps (36.2-36.6, 37.3.1, 40.1, 40.3.1, 40.7, 40.8.2)
-   pending -> deferred + deferral_audit field citing the operator's verbatim reply.
-   Diff-class proof in live_check_62.0.md SB: only status/deferral_audit/updated_at (+
-   trailing-comma artifact) changed; criteria byte-identical; auto-push hook silent.
-3. **Hook away-patterns** (.claude/hooks/pre-tool-use-danger.sh, fail-open discipline
-   preserved):
-   - robust force-push: position-free --force/--force-with-lease/--force-if-includes/-f
-     on any `git push` segment, plus +refspec (research: both missed by the legacy glob);
-   - launchctl bootout/unload/remove/disable x com.pyfinagent.* (kickstart untouched);
-   - backend/.env write tripwire (>>/>, sed -i, tee [-a], perl flag-cluster -i) AND
-     Edit/Write/NotebookEdit file_path coverage (researcher-found bypass), gated on
-     handoff/away_ops/tokens_cursor mtime < 6h; block stderr prescribes the
-     pending_tokens.json ask path (issue #24327 stall guard).
-   - Layer-2: 7 deny mirrors in .claude/settings.json (issue #40580 subagent caveat).
-4. **active_goal.md** refreshed (dual goals, rails-first reading order, calendar pointer).
+1. ~/Library/LaunchAgents/com.pyfinagent.away-session-am.plist (07:30 local) and
+   ...-pm.plist (22:00 local) -- mas-harness EnvironmentVariables block verbatim,
+   RunAtLoad=false, logs to handoff/away_ops/launchd-{am,pm}.log. BOTH BOOTSTRAPPED;
+   first fires PM tonight 22:00 + AM tomorrow 07:30 (live rehearsal day, operator home).
+2. scripts/away_ops/run_away_session.sh -- noclobber-atomic lockfile + stale-PID reap
+   with ps name-check; HALT-DEV honor (AM exits / PM degrades); sentinel pre-flight
+   FAIL-CLOSED to digest-only (sentinel ships in 62.4 -- until then real sessions are
+   report-only BY DESIGN); dirty-tree -> recovery prompt; pull --rebase with
+   rebase-abort + offline fallback; gtimeout -k 60 14400/7200; claude -p
+   --dangerously-skip-permissions --model claude-opus-4-8 --max-turns 250/120
+   --output-format json via stdin; COST + LIMIT_HIT surfacing; all failures exit 0.
+3. scripts/away_ops/prompt_{am,pm,recovery,digest_only}.md -- rules file FIRST +
+   overriding (FO-1); AM carries all 10 rails inline (faithful after cycle-2 fix);
+   corrected token-application order (validate -> advance_cursor -> .env -> restart ->
+   live_check); ONE-step AM scope; PM evidence list; ~80% WIP checkpoint; rail-10
+   ambiguity discipline.
+4. brew install coreutils (gtimeout 9.11 -- research caught it MISSING).
+5. docs/runbooks/away-ops-rules.md: token-order wording fix (original would deadlock
+   against the 62.0 hook) + enforcement-layers paragraph aligned with the Q/A-ruled
+   prompt architecture.
+6. handoff/away_ops/pending_tokens.json (NEW, canonical asks file): SDK-CREDIT decision
+   (due 2026-06-15, reply strings included) + MAS-PLIST-ZOMBIE pre-departure action.
 
-## Verification output (verbatim)
+## Verification (verbatim)
 
-    $ bash -n .claude/hooks/pre-tool-use-danger.sh && echo "syntax OK"   -> syntax OK
-    $ python -m pytest backend/tests/test_phase_62_0_danger_hook.py -q   -> 30 passed in 0.89s
-    $ <masterplan deferred assert>                                       -> deferred OK
+    plutil: both plists OK | bash -n: clean | grep -c 'END session': >=1 -> PASS
+    dry-run: START/prompt/COST/END lines; concurrent kickstart -> SKIP (live_check SA)
 
-Live self-demonstration: the session's own first transcript-capture Bash call was blocked
-by the live hook (payload contained `>> backend/.env`) -- rail-1 enforcement proven on
-real session traffic. Transcript verbatim in live_check_62.0.md SA.
+Q/A spawn-1 probes (independently run): stale-lock reap, HALT-DEV AM-exit + PM-degrade,
+cost-parse malformed-JSON tolerance, sentinel-before-claude code order, token-order
+three-way agreement, env-block diff vs mas-harness -- ALL PASS. Incidental: Q/A's own
+.env stat attempt was hook-blocked (62.0 guard proven live again).
 
 ## Iterations (honest log)
 
-- Initial test run: 29/31 -- (a) perl `-pi` flag-cluster missed by a literal `-i` pattern
-  -> regex widened to `-[A-Za-z]*i`; (b) one test expected `grep 'git push --force'` to be
-  allowed, but the PRE-EXISTING legacy substring guard blocks it (harmless conservative
-  false positive, predates this step) -> test case removed, legacy behavior left as-is.
-- 30/30, first Q/A PASS.
-- POST-PASS live defect (cycle-2): the 62.0 COMMIT ITSELF was blocked by the new
-  force-push guard -- the commit message mentioned the flag literals in prose while
-  `git push origin main` sat in a later segment of the same compound command. Whole-string
-  matching poisoned across segments. Away sessions will routinely write commits
-  describing these guards, so reword-and-move-on would have planted a recurring trap.
-  FIX: force-push + launchctl guards rewritten to per-segment scoping (python re.split on
-  ; && || |, pattern tested inside each segment only); 3 regression tests added
-  (commit-message prose + clean push allowed; force flag in the actual push segment still
-  blocked). The .env tripwire stays whole-string deliberately (fail-safe direction; Write
-  tool is the documented path for docs that must quote those shapes).
-- Final: 33/33. Delta re-evaluated by a SECOND fresh Q/A (cycle-2 flow, evidence changed).
+- Spawn-1 Q/A: CONDITIONAL on (B1) missing per-step experiment_results (this file),
+  (B2) prompt_am rails 4/5 dropped clauses + 7/8 paraphrase while live_check claimed
+  "verbatim" -- rails made faithful, live_check corrected, rules.md architecture
+  paragraph aligned, (B3) pending_tokens.json absent -- created with both asks.
+- Probe residue (Q/A N5): extra dry-run lines in session.log (gitignored) + json stubs;
+  synthetic HALT-DEV tokens file created-and-REMOVED by Q/A (verified absent; the 62.2
+  live round-trip owns the first real line).
 
-## File list
+## Operator asks routed to 62.7
 
-- docs/runbooks/away-ops-rules.md (NEW)
-- .claude/hooks/pre-tool-use-danger.sh (3 new guard blocks + Edit/Write coverage)
-- .claude/settings.json (7 deny entries)
-- .claude/masterplan.json (10 deferral flips ONLY)
-- handoff/current/active_goal.md (refresh)
-- backend/tests/test_phase_62_0_danger_hook.py (NEW, 30 tests)
-- handoff/current/{contract.md, research_brief.md, live_check_62.0.md, this file}
-
-## Masterplan flip diff (key lines, verbatim)
-
-    -          "status": "pending",
-    +          "status": "deferred",
-    +          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm
-               disposition (Recommended)' (goal-away-ops backlog disposition; ...)"
-    (x10 steps; updated_at bumped; no other field classes in the diff)
+SDK-CREDIT (HARD 06-15 fuse) + MAS-PLIST-ZOMBIE -- both in pending_tokens.json with
+exact reply strings.

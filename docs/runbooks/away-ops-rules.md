@@ -27,8 +27,11 @@ for the active step and must be reported in the next digest.
 
 ## Enforcement layers
 
-- Prompt-level: every kickoff prompt (scripts/away_ops/prompt_*.md, built by 62.3) reads
-  this file FIRST and quotes the rails inline (mas-harness cycle_prompt.md precedent).
+- Prompt-level: every kickoff prompt (scripts/away_ops/prompt_*.md, built by 62.3) lists
+  this file FIRST in its reading order and declares it overriding; prompt_am.md carries
+  all 10 rails inline VERBATIM (single faithful copy limits drift surface);
+  pm/recovery/digest_only quote their operative subset and defer to this file
+  (62.3 Q/A-ruled architecture; mas-harness cycle_prompt.md precedent).
 - Hook-level: .claude/hooks/pre-tool-use-danger.sh blocks force-push variants (incl.
   position-free flags and +refspec), launchctl bootout/unload/remove/disable on
   com.pyfinagent.* labels, and backend/.env write shapes (Bash >>/>, sed -i, tee, perl -i,
@@ -42,9 +45,13 @@ for the active step and must be reported in the next digest.
 
 - Operator replies in the Slack bot channel; the bot (62.2) appends
   {ts,user,channel,raw,step,key,value} to handoff/operator_tokens.jsonl.
-- Sessions read new lines past handoff/away_ops/tokens_cursor, apply them FIRST (flag flip
-  + restart + live_check citing the jsonl line number), then advance the cursor (touch
-  updates mtime = opens the hook gate for the authorized write, 6h window).
+- Sessions process new lines past handoff/away_ops/tokens_cursor at session start, in
+  this exact order (62.3 wording fix -- the original "apply, then advance" would
+  deadlock against the 62.0 hook, whose .env gate only opens on a fresh cursor mtime):
+  (1) validate the token key against KNOWN_TOKEN_ENV_MAP (operator_tokens.py) -- unknown
+  key authorizes NO env change; (2) advance_cursor(line_no, record) -- the atomic rename
+  refreshes mtime and opens the hook's 6h .env window; (3) edit backend/.env; (4)
+  restart the affected service; (5) live_check citing the jsonl line number.
 - Open asks live in handoff/away_ops/pending_tokens.json with the EXACT reply string.
 - Reserved tokens: `KILL SWITCH: RESUME` (sole trading-resume path), `HALT-DEV` (stop all
   dev sessions; sessions check for it before any step work), `RESUME-DEV`.

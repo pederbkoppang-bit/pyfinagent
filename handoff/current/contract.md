@@ -1,81 +1,93 @@
-# Contract -- phase-62.2: Inbound operator-token handler (Socket-Mode bot)
+# Contract -- phase-62.3: Scheduled-session plists + wrapper + kickoff prompts
 
-Date: 2026-06-12. Goal: goal-away-ops. (Rolling slot reclaimed from the harness sprint
-contract; durable per-step copy of the brief: research_brief_62.2.md.)
+Date: 2026-06-12. Goal: goal-away-ops. Research: rolling brief (tier complex,
+gate_passed: true, 6 sources in full; 62.2's brief preserved separately).
 
-## Research-gate summary
+## Research-gate summary (4 contract-blocking findings + anchors)
 
-Brief: handoff/current/research_brief_62.2.md (gate_passed: true, 5 in full -- Bolt
-listener-middleware docs, Slack Events API, Socket Mode docs, OWASP logging, Slack
-security best practices; recency: Bolt 1.27.0 source verified in-venv, 2026 Slack DM
-authz-bypass CVE noted). KEY FINDINGS:
-- Bolt dispatch is FIRST-MATCH-WINS in registration order with fall-through on non-match
-  (async_app.py:565+). Register the token handler ABOVE the catch-all (commands.py:184;
-  register_commands is the first registrar per app.py:32). Implement the allowlist as a
-  listener MATCHER returning bool -- matcher-False falls through so non-operator
-  lookalikes still become tickets (never swallowed).
-- Operator identity: NEW setting slack_operator_user_id; resolved live via the session
-  Slack connector: U0A078KP4FQ (Peder, peder.bkoppang@hotmail.no -- the email-lookup API
-  was scope-blocked; connector identity + user-search cross-confirmed). Hardcoded default
-  per the _APPROVAL_CHANNEL="C0ANTGNNK8D" precedent (commands.py:25; identity constants
-  are not secrets; .env writes are gate-blocked by design). Allowlist channels: digest
-  channel (settings.slack_channel_id) + _APPROVAL_CHANNEL.
-- Append/dedupe: reuse the kill_switch.py:109-119 append shape (open "a" + single
-  json.dumps line, atomic under PIPE_BUF) + module asyncio.Lock. Bolt 1.27.0's Socket
-  Mode adapter DROPS retry headers (async_internals.py:18) -- dedupe on body event_id +
-  (channel, ts). Correct handler order: dedupe-check -> append -> threaded ACK (envelope
-  acks after dispatch; crash-mid-handler = redelivery; redelivery then hits the dedupe).
-- @app.message structurally cannot match message_changed (subtype constraints,
-  async_app.py:877-925) -- edit double-recording impossible. ^...$ without MULTILINE =
-  single-line tokens; uppercase keys = deliberate friction (lowercase falls to tickets).
-- Bare reserved words (HALT-DEV, RESUME-DEV) carry no "KEY: value" -- the registration
-  keyword needs an alternation; re-parse with re.match in-handler (context matches are
-  lossy).
-- operator_tokens.jsonl is TRACKED in git (kill_switch_audit precedent; tamper evidence;
-  17.4 lesson applied: verified no ignore rule matches -- no .log suffix).
-- FO-2 (from 62.0, binding): cursor = JSON {applied_line, token_sha256(raw), step, key,
-  value, applied_at}; SESSIONS validate the specific token via an explicit KEY->ENV_VAR
-  map before any .env touch; temp+rename advance refreshes mtime (opens the 62.0 hook 6h
-  window). Hook stays cheap/mtime-based; semantics live session-side; 62.4 sentinel
-  reconciles as backstop.
-- Tests: pure-function pattern (test_phase_slack_digest_71.py precedent); the file name
-  test_phase_62_2_operator_tokens.py satisfies the immutable -k filter.
-- Verification trap: the command tails handoff/operator_tokens.jsonl -- a real line must
-  exist at close (the live round-trip provides it).
+1. JUNE-15 AGENT SDK CREDIT CLIFF (plan-level discovery): from 2026-06-15, claude -p on
+   subscription plans draws a separate monthly Agent SDK credit (Max 5x $100/mo, 20x
+   $200/mo); on exhaustion sessions STOP unless usage credits are enabled (= metered
+   spend, conflicts with the $0 decision unless operator re-decides). OPERATOR ASK
+   (62.7 checklist + pending asks): confirm Max tier; choose STOP-ON-EXHAUSTION
+   (recommended under $0) or enable usage credits with a cap. Wrapper logs per-session
+   total_cost_usd (--output-format json) + a distinct LIMIT_HIT line so the digest
+   surfaces burn rate from day 1.
+2. gtimeout NOT installed -- GENERATE runs brew install coreutils (PATH already covers
+   /opt/homebrew/bin). Kill semantics: TERM at cap (exit 124), -k grace KILL (137);
+   never --foreground.
+3. claude 2.1.173 supports -p / --dangerously-skip-permissions / --model / --max-turns
+   (empirically verified; --max-turns hidden from --help but parses; negative control
+   confirms). Do NOT use --bare (default -p loads hooks/CLAUDE.md/MCP -- the away design
+   depends on that; 333 headless END-cycle lines + doc confirmation).
+4. mas-harness ZOMBIE-REVIVAL: its plist is bootout'd but NOT disabled and still in
+   ~/Library/LaunchAgents -- reboot+auto-login re-bootstraps a 30-min loop racing away
+   sessions. Sessions cannot self-fix (our own 62.0 hook blocks launchctl disable on
+   pyfinagent labels -- working as designed). OPERATOR pre-departure action: move/rename
+   the plist (added to the 62.7 checklist).
+Anchors: lockfile clone from run_cycle.sh:23-33 HARDENED (noclobber atomic create +
+ps name-check; check-then-create is not atomic per Bash Hackers); invocation via stdin
+prompt (run_cycle.sh:59-71); CLAUDE_BIN=/Users/ford/.local/bin/claude; EnvironmentVariables
+block cloned verbatim from the mas-harness plist (:7-15). Timezone: 07:30/22:00 CEST =
+05:30/20:00 UTC, no DST boundary in-window; cycle ends ~19:10 UTC = 21:10 CEST (50-min PM
+margin); evening digest 23:00 CEST fires 60 min into the PM session -- acceptable (digest
+reads durable state; PM front-loads pending_tokens/health writes). TOKEN-ORDER CORRECTION:
+away-ops-rules.md:45-47 says "apply, then advance cursor" -- that literal order DEADLOCKS
+against the 62.0 hook (cursor advance is what opens the .env gate). Operative order
+(module docstring, encoded in prompts): HALT-DEV check -> validate vs KNOWN_TOKEN_ENV_MAP
+-> advance_cursor -> .env write -> restart -> live_check citing the line. Rules doc gets
+a wording fix with an audit note (intent unchanged; not an immutable-criteria edit).
+FO-1 (binding, from 62.0): all four prompts list away-ops-rules.md FIRST and quote the
+10 rails inline (cycle_prompt.md structure).
 
-## Immutable success criteria (verbatim from masterplan 62.2)
+## Immutable success criteria (verbatim from masterplan 62.3)
 
-1. "a message handler registered BEFORE the catch-all @app.message at
-   backend/slack_bot/commands.py:184 parses
-   ^(?:(?P<step>[0-9][0-9.]*)\\s+)?(?P<key>[A-Z][A-Z0-9 _-]+):\\s*(?P<value>.+)$ plus
-   reserved words and appends the structured line to handoff/operator_tokens.jsonl"
-2. "only the operator's Slack user ID in the configured channel is accepted; unit tests
-   assert other users/bots/channels are ignored and malformed lines are NOT written"
-3. "live round-trip: operator sent a real test token (e.g. 'TEST TOKEN: PING') and the
-   jsonl line + the bot's threaded ACK are pasted verbatim in live_check_62.2.md"
+1. "both plists lint clean, use StartCalendarInterval (AM 07:30, PM 22:00 local; tz
+   cross-checked against date and the 18:00 UTC cycle in the contract), invoke the
+   wrapper with am|pm, and carry the same EnvironmentVariables block as
+   com.pyfinagent.mas-harness.plist"
+2. "wrapper implements ALL of: shared lockfile handoff/.away-session.lock with stale-PID
+   reap; sentinel pre-flight failure -> prompt_digest_only.md (never abort silently);
+   dirty-tree -> prompt_recovery.md branch; git pull --rebase with offline-mode fallback;
+   gtimeout 14400 (am) / 7200 (pm); claude -p --dangerously-skip-permissions --model
+   claude-opus-4-8 with --max-turns 250/120; every failure path logs to
+   handoff/away_ops/session.log and exits 0"
+3. "a manually-kickstarted dry-run session (no-op prompt) produced START/END lines in
+   session.log, and a second concurrent kickstart logged SKIP (lockfile proof)"
 
-verification.command (verbatim): cd /Users/ford/.openclaw/workspace/pyfinagent && source
-.venv/bin/activate && python -m pytest backend/tests -k 'operator_token or 62_2' -q &&
-tail -3 handoff/operator_tokens.jsonl
+verification.command (verbatim): plutil -lint ~/Library/LaunchAgents/com.pyfinagent.
+away-session-am.plist ~/Library/LaunchAgents/com.pyfinagent.away-session-pm.plist &&
+bash -n scripts/away_ops/run_away_session.sh && grep -c 'END session'
+handoff/away_ops/session.log
 
 ## Plan
 
-1. settings.py: slack_operator_user_id Field(default "U0A078KP4FQ").
-2. NEW backend/slack_bot/operator_tokens.py: TOKEN_RE + RESERVED (bare HALT-DEV /
-   RESUME-DEV + generic "KEY: value" incl. KILL SWITCH: RESUME), parse_operator_token,
-   async append_operator_token (lock + event_id/(channel,ts) dedupe + append-then-ACK),
-   FO-2 cursor read/advance helpers (sessions consume them; bot only appends).
-3. commands.py: matcher (user == operator AND channel allowlisted AND parseable) +
-   handler (dedupe -> append -> threaded ACK quoting the recorded line number),
-   registered FIRST inside register_commands (above the :184 catch-all).
-4. Tests: grammar matrix, allowlist matrix (wrong user/bot/channel/malformed never
-   written), dedupe, cursor semantics.
-5. launchctl kickstart -k the bot; verify handler registration line in slack_bot.log.
-6. LIVE ROUND-TRIP: operator sends "TEST TOKEN: PING" in the bot channel; paste the jsonl
-   line + threaded ACK verbatim into live_check_62.2.md.
-7. ONE fresh Q/A -> harness_log -> flip (auto-commit; manual fallback if stalled).
+1. brew install coreutils (gtimeout precondition).
+2. Write both plists (clone mas-harness env block; StartCalendarInterval 07:30 / 22:00;
+   StandardOut/Err -> handoff/away_ops/launchd-{am,pm}.log; RunAtLoad=false; label-only
+   bootstrap AFTER the dry-run passes -- not before).
+3. Write scripts/away_ops/run_away_session.sh: noclobber-atomic lockfile + stale reap
+   (PID + ps name-check) + trap cleanup; HALT-DEV pre-check; sentinel pre-flight (missing
+   OR failing sentinel -> digest-only prompt -- fail-closed to report-only; sentinel
+   ships in 62.4, so until then the wrapper treats missing-sentinel as digest-only
+   except in --dry-run mode); dirty-tree -> recovery prompt; git pull --rebase ||
+   offline-mode; prompt selection am/pm/recovery/digest_only; gtimeout caps; claude -p
+   invocation with --output-format json captured to per-session log (total_cost_usd +
+   LIMIT_HIT detection); WIP-checkpoint instruction lives in the prompts; every failure
+   logs + exits 0. --dry-run flag for the criterion-3 proof (echo-only claude substitute,
+   exercising lock/log paths for real).
+4. Write the four prompts under scripts/away_ops/: prompt_am.md, prompt_pm.md,
+   prompt_recovery.md, prompt_digest_only.md -- rails first (FO-1), reading list, token
+   procedure (corrected order), ONE-step AM scope, PM evidence list (61.1c4/65.4/35.3 +
+   nightly E2E once 64.x ships), ~80% budget WIP checkpoint, exit conditions.
+5. Fix away-ops-rules.md:45-47 wording (audit note in the diff).
+6. Dry-run: kickstart AM manually with AWAY_SESSION_DRY_RUN=1 -> START/END lines; second
+   concurrent kickstart -> SKIP line. (Real bootstrap of the calendar plists happens
+   here too -- they fire next at 07:30 tomorrow, BEFORE departure, giving one live
+   rehearsal day with the operator still home.)
+7. ONE fresh Q/A (must carry FO-1 explicitly) -> harness_log -> flip.
 
 ## Out of scope
 
-Session-side token APPLICATION procedure (62.3 prompts encode it); digest sections
-(62.8); any .env write.
+sentinel.sh itself (62.4); healthcheck (62.5); digest sections (62.8); enabling usage
+credits (operator decision, 62.7).

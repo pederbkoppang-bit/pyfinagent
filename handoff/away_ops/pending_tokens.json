@@ -1,0 +1,29 @@
+{
+  "updated": "2026-06-12T09:55:00Z",
+  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl.",
+  "asks": [
+    {
+      "id": "SDK-CREDIT",
+      "raised_by": "62.3",
+      "raised_at": "2026-06-12",
+      "due": "2026-06-15 (HARD: the Agent SDK credit regime starts that day, 3 days into the away window)",
+      "ask": "From 2026-06-15, headless claude -p sessions draw a separate monthly Agent SDK credit (Max 5x = $100/mo, Max 20x = $200/mo). Two Opus sessions/day for 3 weeks may exceed it. On exhaustion, scheduled sessions STOP until the credit refreshes -- unless usage credits are enabled, which is metered spend (conflicts with the $0 decision). The wrapper already logs per-session cost + LIMIT_HIT lines so the digest shows burn from day 1.",
+      "reply_options": [
+        "SDK CREDIT: STOP-ON-EXHAUSTION",
+        "SDK CREDIT: ENABLE USAGE CREDITS <monthly cap USD>"
+      ],
+      "recommended": "SDK CREDIT: STOP-ON-EXHAUSTION (consistent with the $0 decision; worst case dev pauses until the monthly refresh while trading + digests continue)"
+    },
+    {
+      "id": "MAS-PLIST-ZOMBIE",
+      "raised_by": "62.3",
+      "raised_at": "2026-06-12",
+      "due": "pre-departure (62.7 checklist item)",
+      "ask": "~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist is bootout'd but NOT disabled and still on disk -- a reboot + auto-login re-bootstraps its 30-minute loop, racing the away sessions on a different lockfile. Away sessions are hook-blocked from launchctl disable on pyfinagent labels (the 62.0 guard, working as designed), so only you can neutralize it: mv ~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist ~/Library/LaunchAgents/disabled.com.pyfinagent.mas-harness.plist.bak",
+      "reply_options": [
+        "MAS PLIST: MOVED"
+      ],
+      "recommended": "MAS PLIST: MOVED (run the mv during the 62.7 dress rehearsal)"
+    }
+  ]
+}
