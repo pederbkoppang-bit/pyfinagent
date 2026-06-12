@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `91bfa46f` | phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff prompts) -- PASS (cycle-2) |
 | 2026-06-12 | `80008b10` | chore: masterplan phase-status reconciliation -- 7 stale in-progress phases resolved (status-only) |
 | 2026-06-12 | `86749179` | phase-17.4: stale-step closure -- researcher x Alpaca MCP x dry-run -- PASS (cycle-2) |
 | 2026-06-12 | `6684c9c7` | phase-17.4: dryrun log force-added past the *.log gitignore (criterion 3) + evidence addendum |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `86caa529` | Revert "chore: auto-changelog hook entry for 7258d241" |
 | 2026-06-11 | `731297c8` | docs(59.3): post-scoring addendum -- disclosed second-pass deviation (scored version preserved at 23 |
 | 2026-06-11 | `23153016` | feat(harness): phase-59.3 stress-test doctrine run -- PASS (bare Fable 5 10/10 anchors + 2 verified  |
-| 2026-06-11 | `d97cf30b` | feat(mcp): phase-59.2 MCP audit + integration -- PASS (playwright 0.0.76 + alwaysLoad discipline; BI |
 
 ---
 
+### v6.49.5 — phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff pr... (2026-06-12)
+
+- **phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff prompts) -- PASS (cycle-2)**
 ### v6.49.4 — phase-17.4: stale-step closure -- researcher x Alpaca MCP x dry-run -... (2026-06-12)
 
 - **phase-17.4: stale-step closure -- researcher x Alpaca MCP x dry-run -- PASS (cycle-2)**
