@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-12T10:16:28.383350+00:00",
+  "updated_at": "2026-06-12T10:24:08.470668+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14686,7 +14686,7 @@
         {
           "id": "62.5",
           "name": "Daily self-check + restart authority -- scripts/away_ops/healthcheck.sh (backend/frontend/slack-bot launchctl state, /api/health, :3000 probe, kill-switch state, cycle freshness <26h, ADC token probe, disk >20GB, gh auth) + com.pyfinagent.away-watchdog.plist (30-min StartInterval); auto-restart via launchctl kickstart -k; 2 consecutive failed restarts -> P1 Slack alert.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "62.1",

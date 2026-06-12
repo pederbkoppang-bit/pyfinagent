@@ -185,3 +185,18 @@ this Q/A) would have caught it.
   "checks_run": ["harness_compliance_audit", "verification_command", "json_field_completeness", "watchdog_launchctl_print", "plist_inspection", "health_jsonl_timeline", "p1_source_crosscheck_alerting_42_78-90_108-112_149-156_185_215-216", "live_deduper_threshold_probe", "live_fallback_attr_probe", "live_webhook_config_probe", "restart_authority_grep", "scope_git_status_and_settings_diff_attribution", "code_review_heuristics", "masterplan_62.7_queue_target_check"]
 }
 ```
+
+## Delta re-evaluation (cycle 2) -- PASS, ok:true (persisted verbatim by Main; spawn 2 read-only)
+
+All 3 criteria met. Spawn-1 BLOCK resolved with TRIPLE live proof: Main's drill
+(P1-TEST delivery=true 10:16:28Z), spawn-2's OWN independent drill (P1_TEST_DELIVERY=
+true exit 0, 10:20:17Z), and a Slack server-side conversations.history read showing
+BOTH P1 AWAY-WATCHDOG messages in the operator channel. Fallback python-free
+(grep/cut/tr on .env + curl chat.postMessage + ok:true check); primary
+raise_cron_alert_sync first, its False-on-empty-webhook observed live (layering proven
+end-to-end). Drill isolation verified (all drill health lines p1_raised=false; dedupe
+replay preserved). Unchanged sections confirmed vs spawn-1 line citations + empty
+content-diff (mode bit only). WARN resolved (CYCLE-2 CORRECTION honest; WEBHOOK ask in
+pending_tokens). NOTEs: stale pre-fix phrases at live_check :72-75 superseded by the
+correction section (tidy at 62.7); token transits curl argv (same trust model as
+backend_watchdog, single-user machine). Canonical cycle-2, not verdict-shopping.
