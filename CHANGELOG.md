@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `9936e91a` | phase-62.4+62.5+62.8: sentinel + healthcheck P1 delivery fix + away digest (62.8 PASS cycle-2; 62.4/ |
 | 2026-06-12 | `b01a03bd` | phase-62.8: Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by m... |
 | 2026-06-12 | `91bfa46f` | phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff prompts) -- PASS (cycle-2) |
 | 2026-06-12 | `80008b10` | chore: masterplan phase-status reconciliation -- 7 stale in-progress phases resolved (status-only) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `ad349f57` | revert(masterplan): remove unauthorized phase-60 install (7258d241) -- written by the 59.3 stress-te |
 | 2026-06-11 | `cd29b9b5` | docs(handoff): preserve unauthorized phase-60 draft as UNAPPROVED reference input |
 | 2026-06-11 | `86caa529` | Revert "chore: auto-changelog hook entry for 7258d241" |
-| 2026-06-11 | `731297c8` | docs(59.3): post-scoring addendum -- disclosed second-pass deviation (scored version preserved at 23 |
 
 ---
 
+### v6.49.7 — phase-62.4+62.5+62.8: sentinel + healthcheck P1 delivery fix + away d... (2026-06-12)
+
+- **phase-62.4+62.5+62.8: sentinel + healthcheck P1 delivery fix + away digest (62.8 PASS cycle-2; 62.4/**
 ### v6.49.6 — phase-62.8: Away-mode digest sections -- formatters.py format_away_di... (2026-06-12)
 
 - **phase-62.8: Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by m...**
