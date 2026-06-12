@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `99860d6e` | phase-61.1: activate dark fixes -- flags ON + backend/frontend restart; Q/A CONDITIONAL pending toni |
 | 2026-06-11 | `255d6cc9` | phase-61.0: install goal-phase61-churn-integrity (operator-approved: 'Install + begin 61.1 now (Reco |
 | 2026-06-11 | `b0fe1983` | phase-60.4: observability + ops residuals (AW-7/AW-1/AW-2/AW-10, hygiene) -- PASS, CLOSES PHASE-60 |
 | 2026-06-11 | `6a4fc351` | phase-60.3: non-USD decision-input integrity (AW-9) -- PASS |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `af4aa8d6` | feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-57: FEATURE' (2026-06-11) -- bi |
 | 2026-06-11 | `e97c33fe` | feat(56.1): execute operator-approved KR backfill (9 rows restated, idempotency proven) + restatemen |
 | 2026-06-11 | `9df6271d` | feat(58.1): record verbatim operator replies (LLM SPEND: APPROVED $25 / PHASE-57: FEATURE) + pre-win |
-| 2026-06-10 | `04d56c5d` | fix(migrations): extend 56.1 KR backfill to 9 rows -- the 2026-06-10 18:39Z pre-restart cycle wrote  |
 
 ---
 
+### v6.47.1 — phase-61.1: activate dark fixes -- flags ON + backend/frontend restar... (2026-06-12)
+
+- **phase-61.1: activate dark fixes -- flags ON + backend/frontend restart; Q/A CONDITIONAL pending toni**
 ### v6.47.0 — phase-61.0: install goal-phase61-churn-integrity (operator-approved:... (2026-06-11)
 
 - **phase-61.0: install goal-phase61-churn-integrity (operator-approved: 'Install + begin 61.1 now (Reco**
