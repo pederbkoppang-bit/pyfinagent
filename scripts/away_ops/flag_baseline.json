@@ -1,0 +1,14 @@
+{
+  "_provenance": "phase-62.4 grandfather manifest (ArgoCD ignoreDifferences analogue). These behavior flags were enabled by OPERATOR KEYSTROKE on 2026-06-12 (~08:04 local) during phase-61.1, BEFORE the 62.2 token handler existed -- no operator_tokens.jsonl lines exist for them by construction. The sentinel treats baseline-listed flag=value pairs as authorized. Any OTHER true-valued PAPER_* behavior flag requires a matching token line. Operator tokens recorded verbatim in the 61.1 contract/live_check: '60.2 FLAG: ON (Recommended)' / '60.3 FLAG: ON (Recommended)' / '57.1 FLAG: ON (Recommended)'.",
+  "grandfathered": {
+    "PAPER_SWAP_CHURN_FIX_ENABLED": "true",
+    "PAPER_DATA_INTEGRITY_ENABLED": "true",
+    "PAPER_RISK_JUDGE_REJECT_BINDING": "true",
+    "PAPER_TRADING_ENABLED": "true",
+    "PAPER_USE_CLAUDE_CODE_ROUTE": "true"
+  },
+  "_grandfather_note_2": "PAPER_TRADING_ENABLED + PAPER_USE_CLAUDE_CODE_ROUTE are pre-away OPERATIONAL state observed true in backend/.env on 2026-06-12 (set by the operator long before the away window; the trading on-switch and the 60.1 deep-pipeline rail selector). Discovered by the sentinel's own first live run (false-positive class).",
+  "ops_flags_exempt": [
+    "AWAY_MODE_ENABLED"
+  ]
+}

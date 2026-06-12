@@ -11,6 +11,149 @@ def _truncate(text: str, max_len: int = 2800) -> str:
     return text[:max_len] + "..." if len(text) > max_len else text
 
 
+# ── phase-62.8 (goal-away-ops): away-mode digest sections ───────────────────
+
+def _aggregate_trades_by_market(trades: list) -> dict:
+    """Per-market trade counts + realized P&L sum from a trades list.
+
+    Trades carry NO market column (8-day-audit finding); market derives from
+    the ticker suffix via backend/backtest/markets.py::market_for_symbol.
+    Pure function (unit-tested); tolerates malformed rows.
+    """
+    from backend.backtest.markets import market_for_symbol
+
+    out: dict[str, dict] = {}
+    for t in trades or []:
+        try:
+            mkt = market_for_symbol(t.get("ticker", "")) or "US"
+        except Exception:
+            mkt = "US"
+        slot = out.setdefault(mkt, {"trades": 0, "buys": 0, "sells": 0, "realized_pnl_usd": 0.0})
+        slot["trades"] += 1
+        action = (t.get("action") or "").upper()
+        if action == "BUY":
+            slot["buys"] += 1
+        elif action == "SELL":
+            slot["sells"] += 1
+            tv = t.get("total_value")
+            rp = t.get("realized_pnl_pct")
+            try:
+                if tv is not None and rp is not None and float(rp) != 0:
+                    tv, rp = float(tv), float(rp)
+                    slot["realized_pnl_usd"] += tv - tv / (1 + rp / 100.0)
+            except (TypeError, ValueError, ZeroDivisionError):
+                pass
+    return out
+
+
+def format_away_digest_sections(away_data: dict | None) -> list[dict]:
+    """The six away-mode evening-digest sections (goal-away-ops 62.8).
+
+    Pure Block Kit builder over a pre-gathered away_data dict; every section
+    renders an EXPLICIT empty state (incident.io practice: missing data must
+    be distinguishable from a broken section). Caller gates on
+    settings.away_mode_enabled -- this function never reads settings.
+    """
+    d = away_data or {}
+    sections: list[dict] = [
+        {"type": "header",
+         "text": {"type": "plain_text", "text": "Away-mode report", "emoji": True}},
+    ]
+
+    def add(title: str, body: str):
+        sections.append({"type": "divider"})
+        sections.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": _truncate(f"*{title}*\n{body}")},
+        })
+
+    # 1. Trades by market (EU:0 flagged while the 65.4 proof is open)
+    by_mkt = d.get("trades_by_market") or {}
+    if by_mkt:
+        lines = []
+        for mkt in ("US", "KR", "EU"):
+            s = by_mkt.get(mkt)
+            if s:
+                lines.append(f"{mkt}: {s['trades']} trades ({s['buys']}B/{s['sells']}S), "
+                             f"realized {s['realized_pnl_usd']:+.2f} USD")
+            elif mkt == "EU":
+                lines.append("EU: 0 trades :red_circle: (65.4 proof pending)")
+            else:
+                lines.append(f"{mkt}: 0 trades")
+        for mkt, s in sorted(by_mkt.items()):
+            if mkt not in ("US", "KR", "EU"):
+                lines.append(f"{mkt}: {s['trades']} trades")
+        add("Trades by market (today)", "\n".join(lines))
+    else:
+        add("Trades by market (today)", "No trades today (or trades feed unavailable).")
+
+    # 2. NAV + risk + kill-switch
+    add("NAV and risk", d.get("system_state_line") or "Kill-switch/gate state unavailable.")
+
+    # 3. Shipped today
+    commits = d.get("commits_today") or []
+    steps = d.get("steps_flipped_today") or []
+    body = ""
+    if commits:
+        body += "\n".join(f"- {c}" for c in commits[:12])
+    if steps:
+        body += ("\n" if body else "") + "Steps closed: " + ", ".join(steps)
+    add("Shipped today", body or "Nothing shipped today.")
+
+    # 4. Open token asks (exact reply strings -- the operator's action surface)
+    asks = d.get("pending_asks") or []
+    if asks:
+        lines = []
+        for a in asks[:8]:
+            reply = (a.get("reply_options") or ["?"])[0]
+            due = f" (due {a['due']})" if a.get("due") else ""
+            age = f" [{a['age_days']}d old]" if a.get("age_days") is not None else ""
+            lines.append(f"- {a.get('id', '?')}{due}{age}: reply exactly `{reply}`"
+                         + (f" or `{a['reply_options'][1]}`" if len(a.get("reply_options", [])) > 1 else ""))
+        add("Open operator asks", "\n".join(lines))
+    else:
+        add("Open operator asks", "None.")
+
+    # 5. System health (62.5 health.jsonl)
+    h = d.get("health")
+    if h:
+        ok = "OK" if h.get("ok") else "DEGRADED"
+        body = (f"{ok} at {h.get('ts', '?')} -- backend={h.get('backend', '?')} "
+                f"frontend={h.get('frontend', '?')} slack_bot={h.get('slack_bot', '?')} "
+                f"last_cycle_age_h={h.get('last_cycle_age_h', '?')} "
+                f"restarts={h.get('restarts_performed', 0)}")
+        if d.get("am_session_result"):
+            body += f"\nAM session: {d['am_session_result']}"
+        add("System health", body)
+    else:
+        add("System health", "health.jsonl not yet available (62.5 pending or watchdog quiet).")
+
+    # 6. Defect-register delta (63.3)
+    reg = d.get("defect_counts")
+    if reg:
+        add("Defect register", f"open P0={reg.get('P0', 0)} P1={reg.get('P1', 0)} "
+                               f"P2={reg.get('P2', 0)} (fixed total={reg.get('fixed', 0)})")
+    else:
+        add("Defect register", "Not yet available (63.3 pending).")
+
+    return sections
+
+
+def format_away_compact_sections(away_data: dict | None) -> list[dict]:
+    """Morning-digest compact variant: open asks + system health only."""
+    full = format_away_digest_sections(away_data)
+    # full = [header, (divider, section) x6]; asks = pair index 4 -> blocks 7-8,
+    # health = pair 5 -> blocks 9-10. Select by title text instead of position
+    # to stay robust to reordering.
+    keep: list[dict] = []
+    for i, b in enumerate(full):
+        if b.get("type") == "section":
+            txt = b.get("text", {}).get("text", "")
+            if txt.startswith("*Open operator asks*") or txt.startswith("*System health*"):
+                keep.extend([{"type": "divider"}, b])
+    return keep
+
+
 def _score_emoji(score: float) -> str:
     if score >= 8:
         return ":star:"
@@ -320,7 +463,7 @@ def _portfolio_snapshot_date(p: dict) -> str | None:
     return raw[:10]
 
 
-def format_morning_digest(portfolio_data: dict, recent_reports: list, cron_health: str | None = None, system_state: str | None = None) -> list[dict]:
+def format_morning_digest(portfolio_data: dict, recent_reports: list, cron_health: str | None = None, system_state: str | None = None, away_sections: list | None = None) -> list[dict]:
     """Format the daily morning digest.
 
     phase-54.2: optional `cron_health` + `system_state` lines for the operator's
@@ -410,6 +553,10 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list, cron_healt
             "text": {"type": "mrkdwn", "text": cron_health},
         })
 
+    # phase-62.8: away-mode compact sections (54.2 idiom -- byte-identical when None).
+    if away_sections:
+        blocks.extend(away_sections)
+
     blocks.append({"type": "divider"})
     blocks.append({
         "type": "context",
@@ -419,7 +566,7 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list, cron_healt
     return blocks
 
 
-def format_evening_digest(portfolio_data: dict, trades_today: list) -> list[dict]:
+def format_evening_digest(portfolio_data: dict, trades_today: list, away_sections: list | None = None) -> list[dict]:
     """Format the daily evening digest with end-of-day summary."""
     blocks = [
         {
@@ -470,6 +617,10 @@ def format_evening_digest(portfolio_data: dict, trades_today: list) -> list[dict
             "type": "section",
             "text": {"type": "mrkdwn", "text": "*Today's Trades:* No trades executed today."},
         })
+
+    # phase-62.8: away-mode sections (54.2 idiom -- byte-identical when None).
+    if away_sections:
+        blocks.extend(away_sections)
 
     blocks.append({"type": "divider"})
     blocks.append({

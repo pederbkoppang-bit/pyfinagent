@@ -435,6 +435,107 @@ async def _compute_system_state(client: httpx.AsyncClient) -> str | None:
     return "\n".join(lines) if lines else None
 
 
+def _steps_closed_from_log(lines, today: str) -> list[str]:
+    """phase-62.8 cycle-2: steps CLOSED today = PASS cycles only. The first
+    live read-back listed a CONDITIONAL step as closed (61.1) -- result=PASS
+    is the closure marker; CONDITIONAL/FAIL cycles are in-flight, not closed."""
+    steps = []
+    for line in lines:
+        if (line.startswith("## Cycle") and today in line
+                and "phase=" in line and "result=PASS" in line):
+            steps.append(line.split("phase=", 1)[1].split()[0])
+    return steps
+
+
+async def _gather_away_data(client: httpx.AsyncClient) -> dict:
+    """phase-62.8: gather the away-mode digest inputs. Every source fail-open
+    (a missing source renders its section's explicit empty state)."""
+    import asyncio as _asyncio
+    import json as _json
+    import subprocess as _subprocess
+    from datetime import datetime as _dt, timezone as _tz
+    from pathlib import Path as _Path
+
+    from backend.slack_bot.formatters import _aggregate_trades_by_market
+
+    repo = _Path(__file__).parent.parent.parent
+    d: dict = {}
+
+    # 1. trades by market (limit bumped: the digest default of 10 undercounts)
+    try:
+        r = await client.get(f"{_LOCAL_BACKEND_URL}/api/paper-trading/trades?limit=200&since_today=true")
+        raw = r.json() if r.status_code == 200 else {}
+        trades = raw.get("trades", []) if isinstance(raw, dict) else raw
+        d["trades_by_market"] = _aggregate_trades_by_market(trades)
+    except Exception:
+        logger.exception("away digest: trades gather failed (fail-open)")
+
+    # 2. NAV/risk/kill-switch line (reuses the 54.2 helper)
+    try:
+        d["system_state_line"] = await _compute_system_state(client)
+    except Exception:
+        pass
+
+    # 3. shipped today (committer-date local tz; --since-as-filter avoids early
+    # traversal stop, git >= 2.37)
+    def _git_today() -> list[str]:
+        out = _subprocess.run(
+            ["git", "log", "--since-as-filter=midnight", "--pretty=%h %s"],
+            cwd=repo, capture_output=True, text=True, timeout=20)
+        return [l for l in out.stdout.strip().splitlines() if l][:20]
+    try:
+        d["commits_today"] = await _asyncio.to_thread(_git_today)
+    except Exception:
+        pass
+    try:
+        today = _dt.now(_tz.utc).strftime("%Y-%m-%d")
+        with open(repo / "handoff" / "harness_log.md", encoding="utf-8") as f:
+            d["steps_flipped_today"] = _steps_closed_from_log(f, today)
+    except Exception:
+        pass
+
+    # 4. pending operator asks (canonical file, 62.3)
+    try:
+        with open(repo / "handoff" / "away_ops" / "pending_tokens.json", encoding="utf-8") as f:
+            asks = _json.load(f).get("asks", [])
+        for a in asks:
+            try:
+                raised = _dt.fromisoformat(str(a.get("raised_at", ""))[:10])
+                a["age_days"] = (_dt.now() - raised).days
+            except Exception:
+                a["age_days"] = None
+        d["pending_asks"] = asks
+    except Exception:
+        pass
+
+    # 5. last health line (62.5 writer; absent until it ships)
+    try:
+        lines = (repo / "handoff" / "away_ops" / "health.jsonl").read_text(encoding="utf-8").strip().splitlines()
+        if lines:
+            d["health"] = _json.loads(lines[-1])
+    except Exception:
+        pass
+    try:
+        slog = (repo / "handoff" / "away_ops" / "session.log").read_text(encoding="utf-8").strip().splitlines()
+        ends = [l for l in slog if "END session" in l]
+        if ends:
+            d["am_session_result"] = ends[-1]
+    except Exception:
+        pass
+
+    # 6. defect-register delta (63.3 file; absent until it ships)
+    try:
+        reg = (repo / "handoff" / "away_ops" / "defect_register.md").read_text(encoding="utf-8")
+        d["defect_counts"] = {
+            "P0": reg.count("| P0 |"), "P1": reg.count("| P1 |"),
+            "P2": reg.count("| P2 |"), "fixed": reg.count("FIXED"),
+        }
+    except Exception:
+        pass
+
+    return d
+
+
 async def _send_morning_digest(app: AsyncApp):
     """Fetch portfolio performance and post morning digest."""
     settings = get_settings()
@@ -458,7 +559,16 @@ async def _send_morning_digest(app: AsyncApp):
             cron_health = await _compute_cron_health(client)
             system_state = await _compute_system_state(client)
 
-        blocks = format_morning_digest(portfolio_data, reports_data, cron_health=cron_health, system_state=system_state)
+            # phase-62.8: compact away sections (asks + health), flag-gated.
+            away_sections = None
+            if settings.away_mode_enabled:
+                try:
+                    from backend.slack_bot.formatters import format_away_compact_sections
+                    away_sections = format_away_compact_sections(await _gather_away_data(client))
+                except Exception:
+                    logger.exception("away compact sections failed (fail-open)")
+
+        blocks = format_morning_digest(portfolio_data, reports_data, cron_health=cron_health, system_state=system_state, away_sections=away_sections)
 
         await app.client.chat_postMessage(
             channel=settings.slack_channel_id,
@@ -503,7 +613,16 @@ async def _send_evening_digest(app: AsyncApp):
             _raw = trades_res.json() if trades_res.status_code == 200 else []
             trades_data = _raw.get("trades", []) if isinstance(_raw, dict) else _raw
 
-        blocks = format_evening_digest(portfolio_data, trades_data)
+            # phase-62.8: full away sections, flag-gated (OFF path byte-identical).
+            away_sections = None
+            if settings.away_mode_enabled:
+                try:
+                    from backend.slack_bot.formatters import format_away_digest_sections
+                    away_sections = format_away_digest_sections(await _gather_away_data(client))
+                except Exception:
+                    logger.exception("away digest sections failed (fail-open)")
+
+        blocks = format_evening_digest(portfolio_data, trades_data, away_sections=away_sections)
 
         await app.client.chat_postMessage(
             channel=settings.slack_channel_id,

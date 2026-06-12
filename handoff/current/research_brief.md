@@ -1,148 +1,256 @@
-# Research Brief -- phase-62.3 (goal-away-ops): away-session plists + run_away_session.sh
+# Research Brief -- phase-62.4 (goal-away-ops): guardrail/budget sentinel scripts/away_ops/sentinel.sh
 
-Tier: moderate-to-complex (caller-set). Date: 2026-06-12. Researcher: Layer-3 (merged Explore).
+Tier: moderate (caller-set). Date: 2026-06-12. Researcher: Layer-3 (merged Explore). STATUS: COMPLETE (internal pass 1 + external/synthesis pass 2 after retry; gate PASSED).
 
-Step scope: com.pyfinagent.away-session-{am,pm}.plist (07:30 / 22:00 local, StartCalendarInterval,
-mas-harness EnvironmentVariables block) + scripts/away_ops/run_away_session.sh (shared lock w/
-stale reap, sentinel pre-flight -> digest-only, dirty-tree -> recovery, pull --rebase w/ offline
-fallback, gtimeout 14400/7200, claude -p pinned opus-4-8 --max-turns 250/120, exit-0 discipline)
-+ prompts am/pm/recovery/digest-only. FO-1 (62.0) binding: prompts read away-ops-rules.md FIRST
-and quote the rails inline.
+Step scope: scripts/away_ops/sentinel.sh printing {metered_llm_usd_today, baseline_usd,
+kill_switch_paused, flags_match_tokens, ok} JSON; exit 0 healthy; metered-figure source PINNED
+in script header; tamper tests (synthetic cost row above baseline -> non-zero exit + named gate;
+behavior flag w/o matching token -> non-zero exit + named gate); verify 62.3 wrapper pre-flight
+wiring assumption (missing-or-failing sentinel -> digest-only) + document wrapper-test leg.
 
-## Read in full (6; counts toward gate)
+## Read in full (>=5 required; counts toward gate)
 
-| URL | Accessed | Kind | Fetched how | Key finding |
+| URL | Accessed | Kind | Fetched how | Key quote or finding |
 |---|---|---|---|---|
-| https://www.launchd.info/ | 2026-06-12 | authoritative doc | WebFetch full | "If the system is asleep, the job will be started the next time the computer wakes up. If multiple intervals transpire... coalesced into one event"; bootstrap gui/`id -u` is the modern load verb; EnvironmentVariables: no shell expansion |
-| https://code.claude.com/docs/en/headless | 2026-06-12 | official doc | WebFetch full | "Starting June 15, 2026, Agent SDK and `claude -p` usage on subscription plans will draw from a new monthly Agent SDK credit, separate from your interactive usage limits"; default -p "loads the same context an interactive session would" (hooks/CLAUDE.md/MCP) -- never pass --bare; stdin pipe capped 10MB (v2.1.128); background tasks reaped ~5s after final result (v2.1.163); --output-format json exposes total_cost_usd |
-| https://support.claude.com/en/articles/15036540-... | 2026-06-12 | official doc | WebFetch full | Agent SDK credit: Pro $20 / Max 5x $100 / Max 20x $200 per month; covers `claude -p`; exhausted => "Agent SDK requests stop until your credit refreshes" unless usage credits enabled (then standard API rates); interactive Claude Code unaffected |
-| https://www.gnu.org/software/coreutils/manual/html_node/timeout-invocation.html | 2026-06-12 | official doc | WebFetch full | default signal TERM; -k/--kill-after grace runs FROM the first signal; exits 124 (timeout), 137 (KILL), 125/126/127; --foreground means "any children of command will not be timed out" -- do NOT use it; default mode signals timeout's own process group |
-| https://flokoe.github.io/bash-hackers-wiki/howto/mutex/ | 2026-06-12 | authoritative community canon | WebFetch full | check-then-create is "two separate steps... not an atomic operation"; mkdir and `set -o noclobber; echo $$ > lock` are the atomic primitives; PID liveness (kill -0) stale-reap is "unreliable" (PID reuse) but the practical standard; trap-based cleanup |
-| https://keith.github.io/xcode-man-pages/launchd.plist.5.html | 2026-06-12 | official man page | WebFetch full | StartCalendarInterval = crontab-like local-time semantics, sleep->coalesced wake fire; StartInterval: "If the job is running during an interval firing, that interval firing will likewise be missed" (per-label no-overlap); ExitTimeOut = SIGTERM->SIGKILL gap; AbandonProcessGroup=false kills the job's pgid on death |
+| https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents | 2026-06-12 | official eng blog | WebFetch full | Pre-flight health check before each session: "Start the session by reading `init.sh`"; "run a basic test on the development server to catch any undocumented bugs"; detect "if the app had been left in a broken state". NO budget/circuit-breaker content (notable absence). |
+| https://www.braintrust.dev/articles/how-to-track-llm-costs-2026 | 2026-06-12 | authoritative blog | WebFetch full | Request-time tagging beats retroactive log parsing: "retry tokens may not surface in application logs"; "Rolling cached and uncached tokens into a single input-token count can overstate spending"; hard-cap "check belongs in the proxy or middleware layer, because blocking at the LLM call is too late"; soft alerts use rolling baselines, hard gates use fixed caps. |
+| https://docs.cloud.google.com/bigquery/docs/control-genai-costs | 2026-06-12 | official docs | WebFetch full | "Token usage directly correlates with your Vertex AI billing" for Gemini; "Cached tokens don't count towards the quotas"; doc is silent on grounding/per-request charges -> token x price is a floor, not the invoice. |
+| https://waxell.ai/blog/ai-agent-token-budget-enforcement | 2026-06-12 | industry blog | WebFetch full | "the enforcement layer has to be outside the agent's code. An agent that has been told 'stop after $X' in its system prompt will honor that instruction right up until it's task-motivated not to." Monitoring "is asynchronous: by the time a monitoring alert fires, the spend has already occurred." $47K/11-day runaway-loop incident (Nov 2025). "you cannot reliably cost-estimate a production agent from its per-request performance in staging". Fail-open-vs-fail-closed for the enforcement layer itself: NOT addressed. |
+| https://www.moschetti.org/rants/jqvspy.html | 2026-06-12 | practitioner blog | WebFetch full | jq -> python break-even as state/logic grows: "running it all in python is clearly more attractive"; python list-args "eliminates the headache of escaping quotes"; complex jq workflows devolve into "lots of individual jq executions... writing it back out to a tmp file". |
+| https://jqlang.org/manual/ | 2026-06-12 | official docs | WebFetch full | `--arg` "passes a value to the jq program as a predefined variable... value will be treated as a string" (injection-safe emission with `-n`); `--argjson` for typed values; `-e` exit-status mapping (0 truthy / 1 false-null / 4 no output) for shell gating. |
+| https://oneuptime.com/blog/post/2026-02-26-configuration-drift-detection-gitops/view | 2026-06-12 | industry blog | WebFetch full | Drift = live state diverging from declared source of truth; passive (alert) vs active (self-heal) modes, "Self-healing is powerful but can be disruptive"; "make all detected drift actionable -- either it is a legitimate issue that needs correction, or it is an expected behavior that should be explicitly ignored" (`ignoreDifferences` = grandfather-manifest analogue). |
+| https://ss64.com/mac/date.html | 2026-06-12 | man-page mirror (official) | WebFetch full | BSD `-v` adjusts/sets date parts ("If val is preceded with a plus or minus sign, the date is adjusted... otherwise the relevant part of the date is set"); `-j` = don't set, parse with `-f`; `-u` = UTC; **no GNU-style `-d` exists on macOS date**; `+%Y-%m-%d` formatting and `-I` are portable. |
+| https://docs.cloud.google.com/bigquery/docs/data-manipulation-language | 2026-06-12 | official docs | WebFetch full | "Rows that were recently written using the tabledata.insertall streaming method can't be modified with data manipulation language (DML)... The recent writes are those that occurred within the last 30 minutes." (Storage Write API rows ARE immediately modifiable.) Governs the tamper-test design: `api_call_log.py:141,320` uses `insert_rows_json` = insertAll path. |
 
-## Snippet-only (27 URLs; context, not gate)
+## Snippet-only (context, not gate)
 
-alvinalexander.com launchd examples; github.com/seamusdemora UsingLaunchd...; emorydunn.github.io
-StartCalendarInterval; homebrew-autoupdate#59; forums.macrumors.com launchd; institute.sfeir.com
-headless x3 (cmd-ref/faq/cheatsheet); angelo-lima.fr; agentpatterns.ai headless-claude-ci;
-backgroundclaude.com/headless; wmedia.es; hidekazu-konishi.com claude CI/CD; linuxize.com timeout;
-man7.org timeout(1); github coreutils timeout.c; putorius.net; howtogeek.com timeout;
-daemon-systems.org timeout(1); adrian.idv.hk bashlock; commandinline.com flock; baeldung.com
-single-instance; bash-hackers gabe565 mirror; tobru.ch mkdir-lock; blog.darnell.io launchctl;
-developer.apple.com archive ScheduledJobs ("if the machine is off when the job should have run,
-the job does not execute until the next designated time"); apple forums #52369; manpagez
-launchd.plist; deniapps.com wake-support. Why not full: redundant with the 6 canonical reads.
+| URL | Kind | Why not fetched in full |
+|---|---|---|
+| https://www.baeldung.com/linux/bash-variables-create-json-string | blog | **HTTP 403 on WebFetch** (attempted); replaced by jq manual (higher tier) |
+| https://www.traceloop.com/blog/from-bills-to-budgets-how-to-track-llm-token-usage-and-cost-per-user | blog | gateway/proxy attribution pattern; redundant w/ Braintrust |
+| https://langfuse.com/docs/observability/features/token-and-cost-tracking | official docs | platform-specific (Langfuse) cost ingestion; not adopting the platform |
+| https://www.cloudzero.com/blog/llm-api-pricing-comparison/ | industry | pricing tables only |
+| https://www.truefoundry.com/blog/llm-cost-attribution-team-budgets | industry | chargeback/team budgets; out of scope |
+| https://blog.alephant.io/10-real-time-ai-api-budget-guardrails-for-2026/ | industry | Alert -> Throttle -> Kill ladder; corroborates Waxell |
+| https://cordum.io/blog/ai-agent-circuit-breaker-pattern | industry | tool-failure circuit breakers (reliability, not budget) |
+| https://earezki.com/ai-news/2026-03-02-i-built-an-mcp-server-so-my-ai-agent-can-track-its-own-spending/ | blog | agent self-tracking via MCP -- the pattern Waxell argues AGAINST as sole control |
+| https://techcommunity.microsoft.com/blog/linuxandopensourceblog/applying-site-reliability-engineering-to-autonomous-ai-agents/4521357 | vendor blog | SRE-for-agents framing; threshold->terminate enforcement layer |
+| https://www.sakurasky.com/blog/missing-primitives-for-trustworthy-ai-part-6/ | blog | layered kill-switches (hard stop / soft pause / spend governors) |
+| https://www.anthropic.com/engineering/harness-design-long-running-apps | official eng blog | already canonical project reference; read in prior phases |
+| https://sqlpey.com/bash/shell-variables-in-jq-filters/ | community | --arg injection-safety; superseded by jq manual |
+| https://cameronnokes.com/blog/working-with-json-in-bash-using-jq/ | blog | single-quote-the-filter hygiene |
+| https://www.benjaminrancourt.ca/how-to-easily-create-a-json-file-in-bash/ | blog | heredoc JSON creation (the unsafe-without-escaping pattern) |
+| https://www.harness.io/harness-devops-academy/configuration-drift | vendor glossary | drift causes/consequences; generic |
+| https://octopus.com/devops/feature-flags/feature-flag-best-practices/ | vendor | flag audits, stale-flag review, single source of truth |
+| https://docs.terrateam.io/governance/drift-detection/ | official docs | scheduled drift scans for IaC |
+| https://shellmap.eversources.app/cmd/date | reference | "date -d yesterday works on Linux, errors on macOS. date -v-1d works on macOS, errors on Linux"; +%Y-%m-%d portable; 86400-second DST trap |
+| https://www.jbmurphy.com/2011/02/17/gnu-date-vs-bsd-date/ | blog | year-less canonical prior art for the -v/-d divergence |
+| https://man7.org/linux/man-pages/man1/date.1.html | official docs | GNU side of the divergence (--date strings) |
+| https://learningbox.co.jp/en/2016/06/27/... | blog | historical: BSD -d set kernel DST value (silent misbehavior class) |
 
 ## Search queries (three-variant discipline)
 
-Year-less canonical: launchd StartCalendarInterval missed/sleep/coalesced; GNU timeout SIGTERM
-kill-after 124; bash locking mkdir/noclobber/flock/PID stale. Current-year: claude code headless
--p --max-turns flags 2026. Recency-scoped: macOS launchd behavior change 2025/2026 Sequoia/Tahoe.
+5 topics x 3 variants = 15 queries, all run 2026-06-12: (T1) "LLM cost tracking attribution BigQuery token usage 2026" / "...per-token budget tracking pattern 2025" / year-less "LLM cost observability token usage logging warehouse". (T2) "autonomous AI agent budget guard circuit breaker 2026" / "AI agent spending limit kill switch guardrail pattern 2025" / year-less "Anthropic engineering agent harness budget guardrails long-running". (T3) "shell script emit JSON safely jq vs python 2026" / "generate JSON from bash script jq --arg escaping 2025" / year-less "bash output JSON best practice jq heredoc pitfalls". (T4) "configuration drift detection desired state reconciliation 2026" / "feature flag drift audit source of truth reconciliation 2025" / year-less "configuration drift detection GitOps reconciliation loop". (T5) "BSD date vs GNU date macOS shell script differences 2026" / "macOS date command -v flag vs GNU date -d midnight today 2025" / year-less "GNU date BSD date portability shell script day boundary UTC".
 
 ## Recency scan (2024-2026)
 
-THREE findings that supersede assumptions baked into the approved plan (written 2026-06-12):
-(1) **June 15, 2026 Agent SDK credit** -- `claude -p` leaves the interactive subscription pool
-3 days into the away window; Max 5x = $100/mo, Max 20x = $200/mo; exhaustion = headless requests
-STOP until refresh. The plan's "Opus 4.8 not Fable" pin addressed the June-22 Fable cliff but
-missed this. Two Opus sessions/day x 3 weeks plausibly exceeds $100-200 at API-equivalent burn.
-(2) `--bare` (new 2026): would skip hooks/CLAUDE.md/MCP -- must NOT be used; default `-p` loads
-them (the away design depends on auto-commit/live-check/danger hooks firing headless).
-(3) v2.1.163 background-task reaping + v2.1.128 10MB stdin cap -- both benign for us (prompt
-files ~4-40KB). launchd semantics: NO 2024-2026 behavior changes found (Sequoia/Tahoe) -- stable.
+Performed (every topic had a 2026-scoped and a 2025-scoped query). Findings:
+1. **2025-2026 agent-budget literature converged on "enforcement outside the agent"** (Waxell 2026, Alephant 2026, Microsoft SRE-for-agents 2026) with Alert -> Throttle -> Kill ladders; motivating incident class is the Nov-2025 $47K/11-day runaway loop. This SUPERSEDES older alert-only cost dashboards and directly validates the 62.3/62.4 split (wrapper-level pre-flight gate, not prompt-level instruction).
+2. **Anthropic "Effective harnesses for long-running agents" (late 2025)** adds the pre-flight environment-health-check pattern (init.sh + smoke test before each session) -- the architectural template the sentinel instantiates. Its budget silence means budget mechanics must come from the cost literature, not Anthropic.
+3. **Braintrust 2026 playbook**: request-creation-time attribution is now standard doctrine; retroactive log parsing under-reports (retries, cache splits) -- confirms treating llm_call_log token-math as a lower bound.
+4. **jq 1.8.x is current upstream (2025)**; macOS now ships jq in the BASE system (`/usr/bin/jq`, 1.7.1-apple -- verified live on this Mac 2026-06-12), removing the "jq not installed" portability objection for launchd contexts on THIS host.
+5. No 2024-2026 source addresses fail-open-vs-fail-closed for the budget-enforcement layer itself (checked explicitly; Waxell silent) -- that decision must be reasoned from away-ops rails, not copied from literature.
 
-## Internal code inventory (file:line)
+## Key findings
 
-| Anchor | Finding |
-|---|---|
-| scripts/mas_harness/run_cycle.sh:14-18 | CLAUDE_BIN=/Users/ford/.local/bin/claude (matches `which claude`); LOCKFILE/LOGFILE under handoff/ |
-| run_cycle.sh:23-33 | lock = PID file + `kill -0` stale reap + `trap rm EXIT`; SKIP line + exit 0 on held lock. NOTE: check-then-write race (Bash Hackers); harden with `set -o noclobber` atomic create, keep PID+reap |
-| run_cycle.sh:40-45 | dirty-tree ABORT exit 0 (away wrapper replaces with recovery-prompt branch per criteria) |
-| run_cycle.sh:46-50 | `git checkout main` + `pull --rebase`; pull fail = exit 1 (away wrapper: offline fallback + exit 0; also `git rebase --abort` on conflict before proceeding) |
-| run_cycle.sh:59-71 | `"$CLAUDE_BIN" -p --dangerously-skip-permissions --model claude-opus-4-8 < "$PROMPT"` -- prompt via STDIN (avoids argv limits); failure logs FAIL + tail -20 (but exits nonzero -- away must exit 0) |
-| run_cycle.sh:73-77 | logging idiom: `[date -Iseconds] START/END cycle` + tail -5 sentinel + `---` |
-| ~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist:7-15 | EnvironmentVariables block to clone VERBATIM: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, HOME=/Users/ford, PATH=/Users/ford/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin |
-| plist:16-17,25-34 | ExitTimeOut 1500; RunAtLoad false; logs handoff/mas-harness.launchd.log; StartInterval 1800 (away swaps for StartCalendarInterval Hour/Minute); WorkingDirectory=repo |
-| launchctl state | `launchctl print gui/501/...mas-harness` = "Could not find service"; print-disabled = "enabled" => plist is BOOTOUT'd, not disabled. RISK: file still in ~/Library/LaunchAgents => next login/reboot AUTO-RELOADS it => 30-min go-live cycles revive and race away sessions (different lockfiles). Sessions CANNOT fix it themselves -- hook :162-163 blocks `launchctl disable` on com.pyfinagent.*. Operator must neutralize pre-departure (move/rename plist) |
-| scripts/mas_harness/cycle_prompt.md:8-39,76-99 | prompt template: hard rules inline at top, failure-mode sentinel lines (NOOP/BLOCKED/FAILED), reading list, permission context ("writes to .git/.claude... hang in -p mode -- avoid"). FO-1: away prompts put docs/runbooks/away-ops-rules.md FIRST in the reading list AND quote the 10 rails inline |
-| docs/runbooks/away-ops-rules.md:30-32,43-50 | prompt-level enforcement + token mechanics. WORDING TRAP: :45-47 says "apply them FIRST... then advance the cursor" -- literal order DEADLOCKS (the .env write would hit a stale-cursor hook block) |
-| backend/slack_bot/operator_tokens.py:21-24,158-185 | OPERATIVE order (module docstring + advance_cursor): validate vs KNOWN_TOKEN_ENV_MAP -> advance_cursor(line_no, rec) (temp+rename refreshes mtime = OPENS the 6h gate) -> THEN write backend/.env -> restart -> live_check cites line. unapplied_tokens() :140-155 returns (line_no, record) past cursor.applied_line. KNOWN_TOKEN_ENV_MAP :52-55 is EMPTY today (61.5/65.2 register later); HALT-DEV/RESUME-DEV reserved bare :46 |
-| .claude/hooks/pre-tool-use-danger.sh:178-199,218-251 | .env gate = tokens_cursor mtime < 21600s, Bash + Edit/Write coverage; :152-171 force-push/launchctl guards |
-| handoff/away_ops/approved_plan_2026-06-12.md:112-132 | wrapper spec verbatim (AM-overrun=>PM SKIP; sentinel fail=>digest-only never silent; recovery = complete-or-revert ONLY the crashed session's files; --max-turns 250/120; WIP checkpoint `chore(away-wip):` at ~80% budget); :172 "07:30 start clears the observed 01:20 reset" |
-| handoff/cycle_history.jsonl (last) | cycle 78d253f5: 2026-06-11T18:00:00Z -> 19:10:40Z (70.7 min) -- confirms ~19:10 UTC typical end |
-| handoff/logs/mas-harness{,-v2}.log | 156 + 177 "END cycle" lines = 333 successful headless `claude -p` cycles; Phase 4.4.x commits authored+pushed headlessly => hooks/git work in -p (now also doc-confirmed) |
-| Live env probes | claude 2.1.173; `--max-turns` PARSES (hidden from --help; negative control `--definitely-not-a-real-flag` => "unknown option") -- criteria buildable as written. gtimeout ABSENT (no coreutils; brew present at /opt/homebrew/bin) => GENERATE must `brew install coreutils`. caffeinate -i -s wraps uvicorn (backend plist, PID 84682); pmset: "sleep prevented by caffeinate", autorestart=1. zdump Europe/Oslo: DST only Mar 29 / Oct 25 |
-| .claude/settings.json hooks | PreToolUse danger + PostToolUse changelog/masterplan-sync/archive-handoff/commit-reminder/auto-commit-and-push -- all load in default -p mode |
+1. **Enforcement placement**: budget gates must sit outside the agent's reasoning loop -- "the enforcement layer has to be outside the agent's code" (Waxell 2026); monitoring alone "is asynchronous: by the time a monitoring alert fires, the spend has already occurred". The sentinel-in-wrapper pre-flight (before `claude -p` spawns) is the proxy-layer interception point Braintrust prescribes ("blocking at the LLM call is too late").
+2. **Token-math is a floor**: Google's own doc ties tokens to Vertex billing but covers neither grounding nor per-request charges; Braintrust documents invisible retry tokens + cache-token splits. External literature independently confirms the internal 58.1 under-metering finding -> pin "lower bound" in the script header.
+3. **Hard gates use pinned constants, rolling baselines belong in alerts**: Braintrust separates fixed hard caps from rolling-baseline soft alerts; Waxell: "you cannot reliably cost-estimate a production agent from its per-request performance in staging" -> baseline_usd = pinned 58.1-ledger constant, NOT a derived 14-day mean.
+4. **Drift doctrine**: every detected divergence must be "either... a legitimate issue that needs correction, or... an expected behavior that should be explicitly ignored" (oneuptime/ArgoCD `ignoreDifferences`) -- the git-tracked `flag_baseline.json` grandfather manifest is exactly this ignore-rule pattern; sentinel stays PASSIVE (alert+gate, never auto-edits .env; self-healing "can be disruptive").
+5. **JSON emission**: build JSON with a real serializer, never bash string-concat. jq `-n --arg` is injection-safe ("value will be treated as a string"); python `json.dumps` wins once state/logic grows (moschetti break-even). Since the sentinel must call venv python anyway (BQ + .env parse), one serializer = `json.dumps`.
+6. **Date math**: BSD/GNU adjustment syntax is incompatible (`-v` vs `-d`; macOS has NO GNU `-d`), but `date -u +%Y-%m-%d` IS portable. Compute the day boundary in SQL (`CURRENT_DATE()` is UTC) or python UTC -- never bash local-time arithmetic (Oslo CEST is UTC+2: a local "today" misclassifies 2h of rows against the UTC-partitioned `DATE(ts)`).
+7. **Tamper-test constraint**: rows written via `insert_rows_json` (= `tabledata.insertAll`, `api_call_log.py:141,320`) "can't be modified with DML... within the last 30 minutes" (BQ docs) -> a synthetic row in PROD llm_call_log cannot be promptly deleted and would inflate `metered_llm_usd_today` for the rest of the UTC day. Inject the synthetic figure via env override or a test dataset, not a prod write.
 
-## Timezone math (window 2026-06-12 .. ~2026-07-06, CEST=UTC+2 fixed; EDT=UTC-4 fixed)
+## Internal code inventory
 
-- No DST boundary in window (Oslo: Oct 25; US: Nov 1). 07:30 CEST = 05:30 UTC; 22:00 CEST = 20:00 UTC.
-- AM 07:30-11:30 CEST (4h cap) -- clear of everything; >6h past the observed 01:20 limit reset.
-- 18:00 UTC autonomous cycle = 20:00 CEST, typical end 19:10 UTC (21:10 CEST) => PM at 22:00 CEST
-  starts ~50 min after; only a 2.8x-duration outlier cycle would overlap (and they are separate
-  processes; the paper loop has its own lock).
-- Evening digest 17:00 ET = 21:00 UTC = 23:00 CEST = 60 min INTO the PM session; sent by the
-  slack-bot process from durable state (commits/health.jsonl/pending_tokens.json -- 62.8 sections),
-  not from a synchronous PM handoff. Ordering ACCEPTABLE iff the PM prompt front-loads
-  pending_tokens.json refresh + health evidence in its first hour; later PM output rolls to the
-  next morning compact digest. Morning digest 08:00 ET = 14:00 CEST (after AM ends 11:30).
-- StartCalendarInterval uses local time (crontab(5) semantics); no Weekday key => fires 7d/week,
-  matching the plan's weekend calendar rows.
+### 1. Metered-cost source (THE critical question)
 
-## Failure matrix + GO/NO-GO
+**Answer: `pyfinagent_data.llm_call_log` (BQ, US) tokens x `cost_tracker.MODEL_PRICING`, with
+cc-rail exclusions, is the ONLY queryable per-call metered source -- and it is a documented
+LOWER BOUND. Pin exactly this in the sentinel header.**
 
-| Failure | Detection | Wrapper behavior | Next-session recovery |
-|---|---|---|---|
-| claude crash / nonzero exit | $? + captured tail | log FAIL + tail -20, exit 0; lock freed by trap | dirty tree likely => pre-flight branches to prompt_recovery.md (complete-or-revert ONLY crashed session's files) |
-| Limit-hit (01:20-style session cap; June-15 SDK credit exhaustion) | output matches rate_limit/credit signature; `--output-format json` total_cost_usd loggable | log LIMIT_HIT distinctly, exit 0; calendar keeps firing | AM/PM are 10.5h apart (never share a 5h window); credit exhaustion = EVERY later session no-ops => digest shows shipped-today empty; P1 ask via pending_tokens |
-| git pull fails -- offline | pull exit != 0 + no network (curl -m 5 github 4xx/timeout) | log OFFLINE, skip pull, continue (commits queue locally) | next session pushes backlog; auto-push hook already fail-opens |
-| git pull fails -- rebase conflict | .git/rebase-merge present | `git rebase --abort`, log CONFLICT, downgrade to digest-only, exit 0 | recovery prompt inspects divergence; never leaves mid-rebase tree |
-| sentinel fail OR missing (62.4 ships later) | exit != 0 / file absent | fail-closed: prompt_digest_only.md + log reason (criteria: never abort silently) | sentinel re-checked next fire; digest carries P1 |
-| lock stale (SIGKILL/power loss) | PID file + kill -0; harden: noclobber atomic create + `ps -p PID -o command=` name-check (PID-reuse guard) | reap + proceed; concurrent kickstart => SKIP line exit 0 (criterion 3) | none needed |
-| Mac asleep at fire | caffeinate -s active while backend lives; if asleep anyway, launchd fires coalesced on wake | session runs late; lock + gtimeout bound it | n/a |
-| Mac powered off at fire | Apple doc: job does NOT run retroactively after power-on | fire lost; autorestart=1 + auto-login (62.7) restore services | next scheduled fire resumes; digest gap signals it |
-| gtimeout kill at cap | exit 124 (TERM) / 137 (KILL after -k grace) | log BUDGET_KILL, exit 0; prompts checkpoint WIP at ~80% budget so the kill is clean | recovery prompt finishes/reverts WIP commit |
-| mas-harness zombie revival post-reboot | plist on disk + "enabled" => auto-bootstraps at login | out of wrapper's hands (hook blocks sessions running `launchctl disable`) | OPERATOR pre-departure: move/rename the plist (62.7 checklist) |
+| Candidate | File:line | Verdict |
+|---|---|---|
+| `llm_call_log` writer | `backend/services/observability/api_call_log.py:189-331` | Schema (migration comment :191-204 + `scripts/migrations/add_llm_call_log.py:40-51`): ts/provider/model/agent/latency/ttft/input_tok/output_tok/cache_creation_tok/cache_read_tok/request_id/ok/ticker/cycle_id/session_cost_usd. **NO cost_usd column** -- cost must be computed tokens x pricing. PARTITION BY DATE(ts), clustered (provider, model) -> day-bounded queries are partition-pruned + cheap. ts is UTC (`_now_iso()` :62-63). |
+| Pricing join precedent | `backend/api/sovereign_api.py:236-286` `_fetch_llm_cost_by_provider` | THE pattern to mirror: GROUP BY provider, model over `ts >=` window, join `MODEL_PRICING` in Python ("no native BQ pricing table -- the dict is the source of truth" :239-240). Maps gemini->vertex bucket. **Flaw for sentinel reuse: written pre-60.4, it counts `provider='anthropic' AND agent LIKE 'cc_rail%'` rows (flat-fee) as metered.** |
+| CC orchestrator rail | `backend/agents/claude_code_client.py:340-365` | phase-60.4 AW-7 writer: `provider="anthropic"`, `agent="cc_rail:<role>"`. Docstring: "Cost is the flat-fee rail: session_cost_usd delta 0 (tokens still recorded for volume audits)". **Provider alone does NOT separate metered from flat-fee.** |
+| CC lite-path rail | `backend/services/autonomous_loop.py:1866-1890` | phase-56.2 writer: `provider="claude-code"` -- second flat-fee marker, different convention than 60.4's. Metered filter must exclude BOTH: `provider != 'claude-code' AND NOT (provider='anthropic' AND agent LIKE 'cc_rail%')`. |
+| Metered writers | `llm_client.py:1086-1100` (gemini), `:1754-1776` (anthropic SDK), `:2152-2177` (advisor dual-rows), `orchestrator.py:824-827` (gemini code-exec) | gemini = Vertex metered; anthropic SDK = ANTHROPIC_API_KEY metered (the 51.1 overlay calls). |
+| cost_budget_watcher | `backend/slack_bot/jobs/cost_budget_watcher.py:82-115` | Watches **BigQuery bytes-billed** (`INFORMATION_SCHEMA.JOBS_BY_PROJECT` x $6.25/TiB), NOT LLM spend. phase-9.9.2 swapped away from the Anthropic Cost API. Not the LLM source. |
+| `_check_cost_budget` | `backend/agents/llm_client.py:396-456` | **Finding: the "$25 daily LLM-spend cap" (`cost_budget_daily_usd`, settings.py:345) is wired to `_default_fetch_spend()` = BQ bytes-billed (:427-431), not LLM tokens.** Description-vs-implementation mismatch; no existing runtime guard watches metered LLM token dollars. The 62.4 sentinel is the FIRST. |
+| `/api/reports/cost-history` | `backend/api/reports.py:87-97` -> `backend/db/bigquery_client.py:362-375` | Per-report `total_cost_usd` from the reports table = cost_tracker NOMINAL (values CC-rail tokens at API prices; live_check_58.1.md ledger: MU row 3.776 nominal vs actual metered "<<"). WRONG source for metered. |
 
-**GO**, conditional on 4 contract legs: (1) `brew install coreutils` in GENERATE (gtimeout absent
-today -- verify `which gtimeout` post-install; plist PATH already covers /opt/homebrew/bin);
-(2) June-15 Agent SDK credit: quantify plan tier + decide usage-credits enablement with operator
-pre-departure; wrapper logs per-session cost (json output) + LIMIT_HIT; (3) operator neutralizes
-the mas-harness plist file pre-departure; (4) prompts encode the FO-2 order from operator_tokens.py
-(advance_cursor BEFORE .env write), overriding away-ops-rules.md:45-47's looser wording. Plus
-FO-1: all four prompts list away-ops-rules.md FIRST + quote rails inline (cycle_prompt.md shape).
+**Live 14-day baseline query (run 2026-06-12, venv python + ADC, partition-filtered, <30s):**
+only 3 of 14 days have metered rows -- 2026-05-29 $0.0054, 2026-06-01 $0.0025, 2026-06-11
+$0.0106 (all gemini-2.5/2.0-flash; mean $0.0061/day). The 58.1 ledger estimated ~$0.5-1.0
+metered for 2026-06-11 alone => **llm_call_log UNDER-METERS Vertex spend** (live_check_58.1.md
+§D disclosure: "Gemini calls are under-metered in llm_call_log"; grounded-search legs also
+bill per-request, invisible to token math). Two consequences: (a) the sentinel header must pin
+the figure as a lower bound; (b) baseline_usd must be a PINNED CONSTANT from the 58.1 ledger
+(lite $0.05-0.17/cycle, full $1.08-4.06/cycle), NOT an auto-derived 14-day mean ($0.006 would
+false-trip the first legitimate full cycle). BQ syntax trap hit live: `ROWS` is a reserved
+keyword as a column alias (same class as the 60.4 calendar_events bug).
+
+**$25 58.1 window identification:** rail 4 exempts "$25 58.1 window + existing Gemini
+pipeline" (away-ops-rules.md:14-16). llm_call_log has NO purpose tag -- window spend is
+identifiable only by date range (window opened 2026-06-11, live_check_58.1.md §A) +
+provider='gemini'. Recommended: bake the exemption into the baseline constant (set
+baseline_usd to accommodate approved full-mode days, e.g. $5-8/day; hard-fail well below the
+$25/day settings cap) rather than attempting per-row window attribution that the schema
+cannot support.
+
+### 2. Flag-vs-token reconciliation
+
+- Registry: `KNOWN_TOKEN_ENV_MAP` (`backend/slack_bot/operator_tokens.py:52-55`) is **EMPTY
+  today** -- both entries ("FEE TABLE" -> PAPER_FEE_TABLE_ENABLED, "EU SCREENER" ->
+  PAPER_SCREENER_PER_MARKET) are comments to be registered by 61.5/65.2 when they ship.
+- Behavior flags in settings (pydantic `model_config` settings.py:545 = env_file backend/.env,
+  no prefix -> env var = UPPERCASED field name): `paper_data_integrity_enabled` (:42),
+  `paper_risk_judge_reject_binding` (:277), `paper_swap_churn_fix_enabled` (:311),
+  `momentum_52wh_tilt_enabled` (:409). All Field(False) defaults; the first three are
+  operator-ON in backend/.env per caller (keystroke-applied pre-62.2).
+- `handoff/operator_tokens.jsonl` **does not exist** (verified 2026-06-12) -- 62.2 is still
+  `pending` in masterplan and the three ON flags pre-date the token mechanism. A naive
+  "every True flag needs a token line" check would fail on day one.
+- **Grandfather mechanism (recommended):** a baseline manifest, e.g.
+  `scripts/away_ops/flag_baseline.json` = {ENV_KEY: expected_bool} captured at 62.4 build
+  time and cited by 62.4's contract/commit. Sentinel rule: for each registry flag read from
+  backend/.env, `value == baseline[key]` -> OK (grandfathered); `value != baseline[key]` ->
+  require a matching operator_tokens.jsonl line (key via KNOWN_TOKEN_ENV_MAP, value ON/OFF
+  matching) else exit non-zero with gate `flags_match_tokens`. New keys absent from baseline
+  default to False-expected. The manifest is git-tracked: tampering it is visible in diffs,
+  and the pre-tool-use hook's .env write tripwire (below) is the complementary control.
+- **.env read-access distinction (confirmed live):** my own Bash grep on `backend/.env` was
+  DENIED -- the Claude-session permission layer + `pre-tool-use-danger.sh` intercept CLAUDE
+  tool calls (write shapes blocked at :173-199 absent a fresh `tokens_cursor` mtime<6h; the
+  hook comment :174-175 explicitly names "the 62.4 sentinel reconciliation is the backstop").
+  A launchd-spawned wrapper subprocess is NOT a Claude tool call -- no hooks, no permission
+  rules; plain POSIX read access applies. Read-only .env access in the sentinel process is
+  safe and is the designed division of labor (hook = write tripwire, sentinel = read-only
+  reconciliation). Same trick lets Main build the baseline manifest via a script whose
+  command line never names .env.
+- Parsing .env in bash is fragile (quotes, comments, CRLF) -- delegate to venv python
+  (`backend.config.settings.get_settings()` itself, or a 10-line dotenv parse) for the
+  reconciliation leg.
+
+### 3. Kill-switch state read
+
+- File replay: `backend/services/kill_switch.py:36` `_AUDIT_PATH` =
+  `handoff/kill_switch_audit.jsonl`; `_load_from_audit()` (:61-106) scans all lines, last
+  `pause`/`resume` event wins (:71-81). File exists (2.9KB; tail shows resume 2026-06-11 +
+  sod_snapshot/peak_update rows). **Works with backend DOWN -- this is the reliable path.**
+- API: `GET /api/paper-trading/kill-switch` (`backend/api/paper_trading.py:480-495`) needs a
+  live backend; healthcheck (62.5) owns service-liveness, so the sentinel must NOT
+  false-fail on a dead backend -> replay the JSONL directly (paper_trading.py:777-778 itself
+  mirrors _AUDIT_PATH for local-file reads -- precedent).
+- Replay is ~10 lines of python: track last pause/resume; absent file = not paused (matches
+  `_load_from_audit` :62-63 semantics). Note: `kill_switch_paused: true` is NOT by itself
+  unhealthy for the sentinel (rail 5 keeps it paused after breaches; pause is a legitimate
+  state to REPORT, not a gate failure -- the away rails want it surfaced in the digest).
+  Sentinel prints the boolean; gate failure is reserved for budget breach + flag mismatch.
+
+### 4. Wrapper sentinel contract (run_away_session.sh:80-103) -- 62.3 wiring VERIFIED
+
+- `scripts/away_ops/run_away_session.sh:83-85`: `[ ! -x sentinel.sh ]` -> log "sentinel
+  missing -- fail-closed to digest-only" -> PROMPT_KIND=digest_only. :86-88: `bash
+  sentinel.sh >> $SLOG 2>&1` non-zero exit -> "sentinel FAILED -- downgrading to
+  digest-only". **Wiring assumption HOLDS in code.** Consequences:
+  - Invocation is `bash sentinel.sh` but the gate test is `-x` -> the file MUST be chmod +x
+    anyway or it is treated as missing.
+  - stdout/stderr append to `handoff/away_ops/session.log` -- the JSON is an audit artifact
+    in the log; the wrapper parses NOTHING, only the exit code drives the downgrade. JSON on
+    stdout single-line keeps the log greppable.
+  - **No timeout wraps the sentinel call** (gtimeout guards only the claude invocation
+    :119). A hung BQ query stalls the whole launchd session BEFORE any cap -> sentinel must
+    SELF-BOUND (internal query timeout ~20s; total <30s per immutable criteria).
+  - `AWAY_SESSION_DRY_RUN=1` **bypasses the entire pre-flight block** (:80) -- all of
+    today's 62.3 acceptance runs were dry_run=1 (session.log 2026-06-12: lock/HALT-DEV/
+    prompt-selection proven, sentinel branch NEVER executed). The 62.4 wrapper-test leg
+    cannot use the existing dry-run path as-is; and non-dry-run launches REAL `claude -p`
+    with hardcoded `CLAUDE_BIN` (:18) -- not PATH-shimmable. Recommendation: 62.4 makes the
+    minimal wrapper amendment to run the (read-only, fast) sentinel pre-flight in dry-run
+    too, so `AWAY_SESSION_DRY_RUN=1` + a forced-fail sentinel asserts the
+    `prompt=digest_only` log line without burning a session; disclose the 62.3-file edit in
+    experiment_results.md. Fallback: defer the live integration leg to 62.7's dress
+    rehearsal (operator watching) and ship 62.4 with sentinel unit tamper-tests + static
+    wiring citation only -- weaker vs the immutable criterion's "wrapper test asserts the
+    prompt path switch".
+- Exit-code semantics to implement: 0 = healthy (all gates pass; JSON ok:true); non-zero =
+  at least one NAMED gate failed (JSON ok:false + gate name on stdout before exit).
+- masterplan verification command (goal_away_ops.md:138): `source .venv/bin/activate && bash
+  scripts/away_ops/sentinel.sh; echo exit=$?` -- venv IS available to the sentinel; the
+  launchd wrapper does NOT activate venv, so the sentinel must resolve the venv python by
+  absolute path (`$REPO/.venv/bin/python`) rather than rely on PATH.
 
 ## Consensus vs debate
 
-Consensus: launchd sleep=coalesced-wake-fire / power-off=skip (launchd.info, man page, Apple
-archive); atomic lock = mkdir/noclobber, PID-reap imperfect but standard (all locking sources);
-timeout -k TERM-then-KILL with 124/137 (GNU + man7 + linuxize). Debate: flock superiority is
-Linux-centric -- macOS ships no flock(1), so the noclobber+PID hybrid is correct here. SFEIR/
-community prefer `--permission-mode dontAsk` over `--dangerously-skip-permissions` for CI;
-this repo's criteria + 333-cycle precedent pin the latter -- keep it (immutable criteria).
+- **Consensus**: enforcement outside the agent (Waxell/Alephant/Microsoft/Braintrust unanimous); request-time attribution > retroactive log parsing; serializer-emitted JSON only; Git-tracked baseline + explicit ignore rules for legitimate drift; `+%Y-%m-%d`/`-u` portable across BSD/GNU date while adjustment flags are not.
+- **Debate 1 -- jq vs python for emission**: jq camp (one-shot, pipeline-fit) vs python camp (state, debugging, no tmp-file chains). Resolved for 62.4 by context: venv python is already mandatory for the BQ + .env legs, so `json.dumps` wins; `/usr/bin/jq -n --arg` is the sanctioned fallback if a pure-bash leg ever needs it.
+- **Debate 2 -- fail-open vs fail-closed when the guard itself breaks**: literature is SILENT (explicitly checked). The 62.3 wrapper already chose fail-closed-to-digest-only for sentinel-missing/failing; consistency + the away threat model ("can't verify the budget -> don't burn it") extend that to infra failures inside the sentinel, with a DISTINCT gate name so the digest can tell outage from breach. Cost is low because digest-only is a useful degraded mode, not a halt.
+- **Debate 3 -- auto-remediation**: GitOps self-healing exists but "can be disruptive"; for operator-owned .env flags, auto-revert is out of the question (the sentinel is read-only by design; the pre-tool-use hook is the write tripwire). Passive gate is the right mode.
+
+## Pitfalls
+
+1. Bash string-concatenated/heredoc JSON breaks on quotes/newlines -> serializer only.
+2. GNU-ism `date -d` silently absent/different on macOS; historical BSD `-d` set the kernel DST value. Any shell date ARITHMETIC is a portability bug class; only formatting is portable.
+3. 86400-second day arithmetic breaks across DST (25h wall-clock days).
+4. Local-time "today" vs UTC-partitioned `DATE(ts)`: Oslo (UTC+2 summer) misbounds the window by 2h and breaks partition pruning if the predicate isn't a DATE literal/`CURRENT_DATE()`.
+5. Synthetic prod-row tamper tests: insertAll rows are DML-immutable for 30 min; the row then poisons the real metered figure for the rest of the day (self-DoS: the gate trips on every later run today).
+6. Auto-derived baselines from sparse history false-trip on the first legitimate heavy day (internal: 14-day mean $0.006 vs legitimate full cycle $1-4).
+7. Naive "every ON flag needs a token" fails day one (tokens file doesn't exist; 3 flags grandfathered; registry map empty).
+8. Unbounded BQ call in a pre-flight with no wrapper timeout stalls the whole launchd session.
+9. `jq -e`/exit-code subtleties: if jq is used for gating, 0/1/4 semantics differ from "non-zero = fail" intuition -- another reason to keep gate logic in python/bash, not jq filters.
+
+## Application to pyfinagent
+
+- **Shape**: `scripts/away_ops/sentinel.sh` = thin bash orchestrator (chmod +x; resolves `$REPO/.venv/bin/python` by absolute path per internal §4) that runs ONE embedded python program doing: (a) BQ metered query with ~20s timeout, day window = `DATE(ts) = CURRENT_DATE()` (UTC, partition-pruned, zero shell date math -- Key findings 6); (b) kill-switch JSONL replay (internal §3, last pause/resume wins, backend-down safe); (c) .env flag parse + `flag_baseline.json` grandfather reconciliation (internal §2); (d) emit single-line JSON via `json.dumps` on stdout (wrapper appends to session.log; only exit code drives the downgrade -- internal §4). Header comment pins: metered source = `pyfinagent_data.llm_call_log` tokens x `cost_tracker.MODEL_PRICING`, EXCLUDING `provider='claude-code'` AND `provider='anthropic' AND agent LIKE 'cc_rail%'` (internal §1), declared as a LOWER BOUND (under-metered Vertex + grounding surcharges).
+- **Gates** (named in JSON, all non-zero exit): `metered_budget` (metered_llm_usd_today > baseline_usd), `flags_match_tokens` (non-grandfathered ON flag without matching token line), `metered_source_unavailable` (BQ timeout/error -- infra class, distinct name; optionally exit 2 vs 1 to encode class in the log). `kill_switch_paused` is REPORTED, never a gate (internal §3; rail 5 keeps pause legitimate).
+- **baseline_usd**: pinned constant in the header (accommodate approved full-mode days, $5-8/day; well under the $25 settings cap), justified by Waxell/Braintrust hard-cap doctrine (Key findings 3) + the 58.1 ledger.
+- **Tamper tests**: (a) cost gate -- env override (e.g. `SENTINEL_TEST_METERED_USD=99`) or test-dataset pointer, asserting non-zero exit + `metered_budget` in JSON; NOT a prod insert (Key findings 7). The override only INFLATES the read for testing; it cannot mask a real breach when unset. (b) flag gate -- temp .env copy/`SENTINEL_ENV_FILE` override with a non-grandfathered flag ON and no token line -> non-zero + `flags_match_tokens`. (c) wrapper leg -- minimal 62.3 amendment to run the read-only sentinel pre-flight under `AWAY_SESSION_DRY_RUN=1`, then force-fail it and assert the `prompt=digest_only` log line (internal §4; fallback = defer live leg to 62.7 dress rehearsal, disclosed).
+
+## Risks & gotchas + GO/NO-GO
+
+**Risks & gotchas (ranked):**
+1. **Under-metering makes the budget gate soft against Vertex overruns** -- llm_call_log misses grounded-search legs and under-logs Gemini (internal §1 live query: 3-of-14 days, mean $0.006/day vs 58.1 ledger $0.5-1.0). The sentinel still catches the TARGET threat (away-session metered Anthropic/SDK spend + gross Vertex runaways) but cannot see invoice-level truth. Mitigation: header pins "lower bound"; digest discloses; billing-export reconciliation stays an operator follow-on. Externally corroborated (Braintrust invisible retries; Google doc silent on grounding).
+2. **Tamper-test self-DoS** if implemented as a real prod insert: 30-min DML immunity (insertAll path, `api_call_log.py:141,320`) + day-long inflation of the metered figure (gate then trips on every later run today). Must use env/test-dataset injection; a prod BQ write from a test also violates the CLAUDE.md BQ write-approval discipline.
+3. **False-trip on day one of legitimate full-mode** if baseline_usd is derived from the sparse 14-day history ($0.006 mean). Pin the constant; bake the $25 58.1-window exemption into the constant, not per-row attribution (schema has no purpose tag, internal §1).
+4. **Flag-gate false positives at ship time**: tokens file absent + 3 pre-62.2 operator-ON flags + EMPTY `KNOWN_TOKEN_ENV_MAP` (internal §2). Grandfather manifest is mandatory; new keys default False-expected; manifest git-tracked so tampering shows in diffs; pre-tool-use hook (:173-199) is the complementary write tripwire.
+5. **Hang risk**: no wrapper timeout around the sentinel (internal §4) -- BQ client needs an explicit ~20s timeout, total runtime <30s, else a hung query stalls the launchd session before any cap.
+6. **Day-boundary drift**: local-time or shell-arithmetic "today" misbounds by 2h (Oslo CEST) against UTC `DATE(ts)` partitions and can defeat partition pruning. UTC `CURRENT_DATE()` in SQL only; no `-v`/`-d` arithmetic.
+7. **Dry-run bypass**: 62.3's pre-flight block is skipped under `AWAY_SESSION_DRY_RUN=1`, so the wrapper-test leg needs the minimal amendment (run the read-only sentinel in dry-run too) -- an edit to a 62.3-shipped file, disclose in experiment_results.md; fallback = defer the live leg to 62.7 with the weaker static-citation evidence.
+8. **Exit-code discipline**: chmod +x required despite `bash sentinel.sh` invocation (the wrapper gates on `-x`); JSON as the last stdout line keeps session.log greppable; named gate must appear in the JSON before exit.
+9. **Kill-switch semantics**: paused != unhealthy -- gating on it would suppress sessions exactly when the operator most needs the digest (post-breach, rail 5). Report-only.
+
+**GO/NO-GO: GO.** Every immutable criterion has a verified design path: all JSON fields computable with backend down except the BQ leg (which fail-closes with a distinct infra gate name); metered source pinned and lower-bound-honest; both tamper tests implementable without prod writes; 62.3 wrapper wiring verified in code (internal §4) with a concrete dry-run-amendment plan for the wrapper-test leg. No unresolved hard blocker. Two disclosed compromises: (a) the budget gate is lower-bound-only w.r.t. Vertex invoice truth; (b) the wrapper test touches a 62.3-shipped file (or is explicitly deferred to 62.7).
+
+## Recommendations
+
+1. Bash-thin / python-thick: one venv-python child does BQ + kill-switch JSONL replay + .env reconciliation + `json.dumps` emission; bash maps named gate -> exit code (1 = breach [`metered_budget`, `flags_match_tokens`], 2 = infra [`metered_source_unavailable`]; wrapper treats any non-zero as digest-only). Absolute `$REPO/.venv/bin/python`; no PATH reliance under launchd.
+2. Pin in the header: the exact metered SQL (with BOTH flat-fee exclusions: `provider='claude-code'`, `provider='anthropic' AND agent LIKE 'cc_rail%'`), the LOWER-BOUND disclaimer, the baseline_usd constant + 58.1-ledger justification, and the UTC day-boundary definition.
+3. Ship `scripts/away_ops/flag_baseline.json` (git-tracked) grandfathering the 3 operator-ON flags; reconciliation rule per internal §2; cite the manifest in 62.4's contract.
+4. Kill-switch via direct JSONL replay (last pause/resume wins, absent-file = not paused); emit `kill_switch_paused` as data, never gate.
+5. Tamper tests via `SENTINEL_TEST_METERED_USD` + `SENTINEL_ENV_FILE` overrides (inflate-only; cannot mask a real breach when unset); never insert into prod llm_call_log.
+6. Amend `run_away_session.sh` minimally so the sentinel pre-flight also runs under dry-run; acceptance = forced-fail sentinel -> `prompt=digest_only` log line, zero sessions burned.
+7. Self-bound: ~20s BQ timeout, <30s total; on timeout emit `ok:false, failed_gate:"metered_source_unavailable"`, exit 2.
 
 ## Research Gate Checklist
 
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6)
-- [x] 10+ unique URLs total (33)
-- [x] Recency scan (2024-2026) performed + reported (3 findings; June-15 credit is P0)
-- [x] Full pages read for the read-in-full set
-- [x] file:line anchors for every internal claim
-- [x] Internal exploration covered every relevant module
-- [x] Contradictions / consensus noted (rules-file vs module ordering; flock vs noclobber)
-- [x] All claims cited per-claim
-
-## JSON envelope
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (9: Anthropic eng, Google Cloud docs x2, jq manual, ss64/date(1) mirror, Braintrust, Waxell, moschetti, oneuptime)
+- [x] 10+ unique URLs total (9 full + 21 snippet-only/attempted = 30 recorded)
+- [x] Recency scan performed + reported (2024-2026; 5 findings incl. one explicit literature gap)
+- [x] Full pages read for the read-in-full set (one 403 -- Baeldung -- recorded as attempted, replaced by the jq manual, a higher-tier source)
+- [x] file:line anchors for every internal claim (internal §1-§4 from first pass + 2 live verifications this pass: `api_call_log.py:141,320` insert path; `/usr/bin/jq` 1.7.1-apple present in macOS base)
 
 ```json
-{
-  "tier": "complex",
-  "external_sources_read_in_full": 6,
-  "snippet_only_sources": 27,
-  "urls_collected": 33,
-  "recency_scan_performed": true,
-  "internal_files_inspected": 16,
-  "report_md": "handoff/current/research_brief.md",
-  "gate_passed": true
-}
+{"tier": "moderate", "external_sources_read_in_full": 9, "snippet_only_sources": 21, "urls_collected": 30, "recency_scan_performed": true, "internal_files_inspected": 19, "gate_passed": true}
 ```

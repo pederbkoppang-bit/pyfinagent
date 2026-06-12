@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-12T09:44:28.762995+00:00",
+  "updated_at": "2026-06-12T10:16:28.383350+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14746,7 +14746,7 @@
         {
           "id": "62.8",
           "name": "Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by market (EU:0 flagged), NAV + DD vs caps + kill-switch state, shipped-today (commits + steps flipped), open token asks with exact reply strings + age, system health from health.jsonl, defect-register delta; evening digest full set, morning compact (asks + health); behind away_mode_enabled ops flag.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "62.1",

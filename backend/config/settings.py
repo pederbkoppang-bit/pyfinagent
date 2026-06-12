@@ -536,6 +536,15 @@ class Settings(BaseSettings):
             "id in commands.py). Empty string = fail-closed (no tokens accepted)."
         ),
     )
+    away_mode_enabled: bool = Field(
+        False,
+        description=(
+            "phase-62.8 (goal-away-ops): OPS toggle (Fowler classification) -- appends "
+            "the away-mode sections to the daily digests. NOT a trading-behavior flag. "
+            "Operator keystroke into backend/.env at the 62.7 dress rehearsal "
+            "(AWAY_MODE_ENABLED=true) + bot restart; remove after the away window."
+        ),
+    )
     morning_digest_hour: int = Field(8, description="Hour (0-23) for daily morning digest in local timezone")
     evening_digest_hour: int = Field(17, description="Hour (0-23) for daily evening digest in local timezone")
     watchdog_interval_minutes: int = Field(15, description="Interval (minutes) for watchdog health check")
