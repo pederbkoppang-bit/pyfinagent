@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-12T09:55:00Z",
+  "updated": "2026-06-12T10:17:13.391451+00:00",
   "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl.",
   "asks": [
     {
@@ -24,6 +24,18 @@
         "MAS PLIST: MOVED"
       ],
       "recommended": "MAS PLIST: MOVED (run the mv during the 62.7 dress rehearsal)"
+    },
+    {
+      "id": "WEBHOOK",
+      "raised_by": "62.5 (Q/A spawn-1 BLOCK find)",
+      "raised_at": "2026-06-12",
+      "due": "optional (return-day OK; away paging works via the bot-token fallback)",
+      "ask": "settings.slack_webhook_url is EMPTY, which silently disables webhook-path P1 paging incl. the legacy backend_watchdog.sh:64 alert. Away-window paging is COVERED by the new bot-token fallback (live-proven). To resurrect the webhook path too: create a Slack incoming webhook and add SLACK_WEBHOOK_URL=<url> to backend/.env (keystroke), then restart backend + bot.",
+      "reply_options": [
+        "WEBHOOK: CONFIGURED",
+        "WEBHOOK: SKIP"
+      ],
+      "recommended": "WEBHOOK: SKIP (bot-token fallback is live-proven; do on return)"
     }
   ]
 }

@@ -95,10 +95,12 @@ if [ "${AWAY_SESSION_DRY_RUN:-0}" != "1" ]; then
             PROMPT_KIND="recovery"
         fi
     fi
-    # ── Sync (offline-tolerant) ──────────────────────────────────────────
-    if ! git pull --rebase origin main >> "$SLOG" 2>&1; then
-        git rebase --abort >> "$SLOG" 2>&1
-        slog "git pull failed -- OFFLINE MODE (work local; push retried by hooks/next session)"
+    # ── Sync (offline-tolerant; skipped in preflight-test mode) ──────────
+    if [ "${AWAY_SESSION_TEST_PREFLIGHT:-0}" != "1" ]; then
+        if ! git pull --rebase origin main >> "$SLOG" 2>&1; then
+            git rebase --abort >> "$SLOG" 2>&1
+            slog "git pull failed -- OFFLINE MODE (work local; push retried by hooks/next session)"
+        fi
     fi
 fi
 
@@ -108,6 +110,15 @@ if [ ! -f "$PROMPT_FILE" ]; then
     exit 0
 fi
 slog "prompt=$PROMPT_KIND file=$(basename "$PROMPT_FILE")"
+
+# phase-62.4: preflight-test mode -- exercises the REAL pre-flight chain
+# (HALT-DEV, sentinel, dirty-tree, prompt selection) with no git/claude side
+# effects, so the sentinel->digest-only wiring is testable (criterion 3).
+if [ "${AWAY_SESSION_TEST_PREFLIGHT:-0}" = "1" ]; then
+    slog "PREFLIGHT-TEST prompt=$PROMPT_KIND -- exiting before sync/claude"
+    echo "PREFLIGHT_PROMPT=$PROMPT_KIND"
+    exit 0
+fi
 
 OUT_JSON="$OPS/session_${SESSION}_$(date -u +%Y%m%dT%H%M%SZ).json"
 
