@@ -1,36 +1,61 @@
-# Experiment Results -- Step 60.4 (GENERATE)
+# Experiment Results -- Step 61.1 (GENERATE, in progress)
 
-**Step:** 60.4 -- Observability + ops residuals (AW-7, AW-1/AW-2 residuals, AW-10, hygiene). **Date:** 2026-06-11.
+**Step:** 61.1 -- Activate the dark fixes + deploy phase-60 code. **Date:** 2026-06-12.
+**State:** Criteria 1-3 COMPLETE; criterion 4 gated on the 2026-06-12 18:00 UTC cycle;
+criterion 5 (log-last) queued for the close.
 
-## What was built (per criterion)
+## What was done (chronological)
 
-1. **CC-rail llm_call_log writer:** `ClaudeCodeClient._log_cc_call` wired into `generate_content` success AND error paths (claude_code_client.py); agent/ticker from the orchestrator's `_role`/`_ticker` generation_config side-channel; latency measured around the invoke; tokens from the CLI envelope; request_id = CLI session id; flat-fee cost untouched. Live smoke -> BQ row (live_check §A). 3 unit tests.
-2. **Ingestion silence + ticket failure:** `TicketsDB.get_last_ticket_age_days()` (fail-open) + watchdog wiring with the standard state-transition gate + `settings.ticket_ingestion_silence_days` (default 7); `QueueNotificationService.send_ticket_failure_notification` (slack channel/thread + imessage routes) called at the max-retries close, replacing the literal `TODO` (the #5101 silent death). 5 unit tests.
-3. **Event-loop + watchdog:** `_fetch_yf_market_data` via `asyncio.to_thread` in BOTH lite analyzers (names preserved -- 60.3 wiring untouched, its 13 tests still pass); unused in-function `yfinance` imports removed; `_cycle_state_line()` (cycle_lock.inspect_lock) APPENDED to watchdog unreachable-alerts (busy-vs-down; never suppresses). 3 tests incl. a structural no-naked-yfinance assert.
-4. **Operator-gated decisions (recorded verbatim in live_check §D):** cost budget RE-SPEC 0.50 -> 5.00 (settings description carries the verbatim decision + rationale); PEAD migration RUN -- which surfaced the ROOT CAUSE of the 404 class: the DDL's unquoted `window` column is a GoogleSQL reserved keyword, so the script had NEVER succeeded; fixed (backticked) and run, table BQ-confirmed. Meta-scorer fallback surfaced: `meta_scorer_degraded` persisted on cycle-ledger rows -> morning digest cron-health line appends a DEGRADED warning (healthy = byte-identical). 2 tests.
-5. **Secret hygiene:** `backend/services/observability/log_redaction.py` (`redact_secrets` + `SecretRedactionFilter`) attached to the ROOT HANDLER in setup_logging (handler-level per the Python-docs descendant-logger trap the researcher flagged); gateway escalation quoted in live_check §E. 3 tests.
+1. Phase-61 installed: payload appended to .claude/masterplan.json (5 steps, all
+   pending), goal file renamed to handoff/current/goal_phase61_churn_integrity.md,
+   active_goal.md refreshed, commit 255d6cc9 pushed. Operator install decision verbatim:
+   "Install + begin 61.1 now (Recommended)".
+2. Research gate: first researcher spawn died at the session usage limit having written
+   only the brief skeleton (handoff/current/research_brief.md, write-first held).
+   Fresh respawn completed the brief after the 01:20 reset -- gate_passed: true,
+   5 sources read in full, recency scan, GO verdict on the restart (double-cycle risk
+   zero: MemoryJobStore + forward-only CronTrigger + no run-on-startup caller;
+   watchdog/kickstart -k safe; single-process uvicorn).
+3. Contract written: handoff/current/contract.md (criteria copied verbatim from
+   masterplan; cycle-2-aware plan).
+4. Operator tokens collected (AskUserQuestion, verbatim): "60.2 FLAG: ON (Recommended)",
+   "60.3 FLAG: ON (Recommended)", "57.1 FLAG: ON (Recommended)".
+5. Frontend (criterion 3, COMPLETE): launchctl kickstart -k gui/$(id -u)/
+   com.pyfinagent.frontend; /login HTTP 200; Playwright capture clean (zero console
+   errors, ChunkLoadError gone). Evidence in live_check_61.1.md section B.
+6. Baselines captured (live_check sections C/D): flags False/False/False on fresh
+   interpreter; running uvicorn PID 77557 lstart 2026-06-11 11:43:34 vs phase-60.4
+   commit b0fe1983 at 16:30:22 +0200 -- phase-60 code confirmed NOT loaded.
 
-## Files changed
+## File list (this step so far)
 
-backend/agents/claude_code_client.py, backend/services/{queue_notification,ticket_queue_processor,cycle_health,autonomous_loop}.py, backend/services/observability/log_redaction.py (NEW), backend/db/tickets_db.py, backend/slack_bot/scheduler.py, backend/config/settings.py (2 fields + cost re-spec), backend/main.py, scripts/migrations/add_calendar_events_schema.py (reserved-keyword fix), backend/tests/test_phase_60_4_observability.py (NEW, 16 tests).
+- .claude/masterplan.json (phase-61 appended, 61.1 still pending -- no flips)
+- handoff/current/goal_phase61_churn_integrity.md (renamed from _DRAFT)
+- handoff/current/active_goal.md (refresh payload)
+- handoff/current/research_brief.md (61.1 gate)
+- handoff/current/contract.md (61.1)
+- handoff/current/live_check_61.1.md (sections A-D partially filled, E pending)
+- handoff/current/experiment_results.md (this file)
+- NO source-code changes (per contract scope: 61.1 is config/ops only)
 
-## Verification command output (verbatim)
+7. OPERATOR .env append executed 2026-06-12 ~08:04 local (grep precondition: zero hits;
+   printf appended comment + three KEY=true lines; harmless mid-paste line-wrap in the
+   comment, dotenv ignores non-KEY lines). Fresh-interpreter flags: True True True.
+8. Backend restart executed: kickstart -k -> new PID pair 84680/84682, lstart
+   2026-06-12 08:05:49 > phase-60.4 commit 16:30:22 +0200 (criterion 2 satisfied);
+   health 200; /api/paper-trading/status: scheduler_active true, next_run
+   2026-06-12T14:00:00-04:00, loop idle -- no startup re-fire, matching the research
+   prediction. Old PIDs 77557/77559 gone (no zombies). Evidence verbatim in
+   live_check_61.1.md sections C/D.
 
-```
-$ python -m pytest backend/tests -k 'cc_rail_log or ingestion_silence or ticket_failure or redact or 60_4' -q
-16 passed, 823 deselected, 1 warning in 2.24s     (exit 0)
-$ test -f handoff/current/live_check_60.4.md -> OK
-```
-FULL suite: **821 passed, 12 skipped, 6 xfailed exit 0** (805 post-60.3 + 16 new).
+## Verification command output (verbatim, post-restart)
 
-## Live verification (live_check_60.4.md)
+    PRE-RESTART FLAGS:  churn_fix False | data_integrity False | rj_binding False
+    POST-APPEND FLAGS:  churn_fix True  | data_integrity True  | rj_binding True
 
-- CC-rail smoke -> llm_call_log BQ row (agent cc_rail:cc_rail_smoke_60_4, 3482/15 tok, ok=true).
-- calendar_events table created + BQ-confirmed (creation_time 2026-06-11).
-- Operator decisions verbatim: "RE-SPEC to $5.00 (Recommended)" / "RUN the migration (Recommended)" -- both ENACTED.
-- Gateway escalation one-liner with the verbatim auth error.
-- Restart note: backend + slack bot pick up the changes at next restart (no live restart forced by this step).
+## Remaining to close the step
 
-## Artifact shape
-
-llm_call_log rows with `agent="cc_rail:<role>"`; Slack Ingestion Silence Alarm block; ticket-failure channel notice; watchdog alerts with a "Cycle state:" line; digest cron-health with an optional Meta-scorer DEGRADED line; `api_key=***REDACTED***` log lines.
+1. After the 2026-06-12 18:00 UTC cycle: pull BQ rows for criterion 4 into live_check
+   section E (zero sentinel swap-outs; zero REJECT-executed trades).
+2. Spawn fresh Q/A on the updated evidence; append harness_log.md (log-last); only then
+   flip 61.1 to done.

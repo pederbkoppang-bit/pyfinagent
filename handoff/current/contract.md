@@ -1,53 +1,105 @@
-# Contract -- 60.4 Observability + ops residuals (AW-7, AW-1/AW-2 residuals, AW-10, hygiene)
+# Contract -- phase-61.1: Activate the dark fixes + deploy phase-60 code
 
-**Step:** 60.4 (phase-60, P1, harness_required, depends_on 60.3 done). **Date:** 2026-06-11.
-**AW basis:** 59.3 report §1-2,4,7 (handoff/archive/phase-59.3/59.3-harness-free-output.md).
+Date: 2026-06-12 (session start 2026-06-11 evening). Goal: goal-phase61-churn-integrity.
+Install commit: 255d6cc9 (operator decision verbatim: "Install + begin 61.1 now (Recommended)").
 
-## Research-gate summary (researcher a67122f8, tier=complex, gate_passed:true)
+## Research-gate summary
 
-6 sources in full (OWASP logging cheat sheet, Python logging docs, Better Stack sensitive-data, healthchecks.io, LiteLLM budgets, FinOps-for-AI), 50 URLs, recency scan. Brief: handoff/current/research_brief.md.
+Brief: handoff/current/research_brief.md (198 lines; tier simple; gate_passed: true;
+5 external sources read in full incl. APScheduler 3.x user guide, launchctl man page,
+pydantic-settings docs, uvicorn server-behavior docs, Fowler feature-toggles; recency scan
+performed; 12 internal files inspected). Headline findings:
 
-- **C1 gap pinned:** `ClaudeCodeClient.generate_content` (claude_code_client.py:338-394) writes ZERO log_llm_call rows on success or error; agent/ticker labels already arrive via the `_role`/`_ticker` generation_config side-channel (SDK clients consume them at llm_client.py:1090/:1099, :1766/:1775) -- mirror 56.2's lite-path helper, no signature changes.
-- **C2:** tickets created ONLY by ticket_ingestion.py:129/:184 into repo-root tickets.db (indexed created_at); the max-retries close (ticket_queue_processor.py:344-359) has a literal `TODO: Implement follow-up trigger` at :357 and never posts to the ticket's channel_id. Silence-alarm home: the slack-bot watchdog block (scheduler.py:549-583) with its state-transition spam gate, reading tickets.db DIRECTLY (not via backend HTTP).
-- **C3:** naked `stock.info`/`stock.history` inside async at autonomous_loop.py:1906-1908 + :2191-2193 (post-60.3 lines); ONE to_thread helper preserving `info`/`hist` names keeps the 60.3 integrity wiring byte-identical. Busy-vs-down: `cycle_lock.inspect_lock()` (:62-81; lock handoff/.autonomous_loop.lock, 90-min TTL, pid-alive) is importable from the slack-bot process -- APPEND state to the alert text at scheduler.py:519-523, never suppress the alert.
-- **C4:** the "$4.3262 > $0.50" is cost_tracker.check_budget (cost_tracker.py:275-280) called at orchestrator.py:2254-2256 vs `settings.max_analysis_cost_usd` (settings.py:203) whose description says "does not abort" BY DESIGN -- ENFORCE-vs-respec is genuinely operator-gated; the $25/day hard layer (llm_client.py:396) already bounds runaway. PEAD: the migration ALREADY EXISTS (scripts/migrations/add_calendar_events_schema.py:36-52, --dry-run, schema matches pead_signal.py:337-341) -- the gated choice is RUN it vs DISABLE the overlay. Meta-scorer: the 56.2 `meta_scorer_degraded` alert exists (autonomous_loop.py:744-754) but has ZERO digest/signals consumers -- surface it.
-- **C5:** the FRED leak emitter is the **httpx library logger** (2,101 `api_key=` lines in the 397MB repo-root backend.log; URL built at fred_data.py:37). THE TRAP: a redaction filter must attach to root HANDLERS, not the root logger (descendant-logger records bypass logger-level filters -- Python docs). Gateway escalation quote pinned from 59.3.
-- External consensus: handler-level redaction (OWASP/Better Stack/Python docs); dead-man's-switch period+grace (healthchecks.io); both ENFORCE (LiteLLM 429-block) and alert-first (FinOps Foundation) are literature-backed -- the operator picks.
-- Test net collects 0 today; name tests `test_phase_60_4_*` with the -k terms embedded.
+- GO on tonight's restart: double-cycle risk is ZERO with code-level certainty --
+  (1) AsyncIOScheduler at backend/main.py:267 uses the default in-memory MemoryJobStore
+  (no cross-restart state); APScheduler 3.11.2 base.py:1066-1068 computes a fresh job's
+  next_run_time strictly forward from now; (2) misfire_grace_time=3600/coalesce=True
+  (paper_trading.py:1299-1322) is moot >5.5h past the 18:00 UTC fire; (3) exactly three
+  run_daily_cycle callers, none on startup. Next fire: 2026-06-12T14:00:00-04:00.
+- Watchdog safe: kickstart -k on the same label; launchd enforces single instance;
+  uvicorn here is single-process (no --workers/--reload in the plist) so the
+  caffeinate->uvicorn pair tears down together.
+- get_settings() lru_cache (settings.py:539-541): restart is the only deterministic flag
+  pickup; no stale module-level Settings snapshots found; Slack bot unaffected.
+- All three flag definitions confirmed (settings.py:311 / :42 / :277) with 7 reader
+  sites (portfolio_manager.py:196/:471/:561, autonomous_loop.py:805/:1948/:2228,
+  data_integrity.py:17/:114).
+- Precondition: verify backend/.env has no existing lines for the three env names before
+  appending (researcher was permission-denied on .env; Main also denied -- operator runs
+  the grep + append via `!` commands; this is consistent with the secrets deny rule).
+- Frontend label com.pyfinagent.frontend confirmed; kickstart is the documented
+  stale-chunk remedy.
 
 ## Hypothesis
 
-Making the working rail visible in llm_call_log, alarming on ingestion silence and ticket death, fixing the event-loop blockers, surfacing the meta-scorer fallback, and redacting secrets at the handler level closes the AW-7/AW-10/hygiene residuals -- with the two genuinely operator-owned decisions (cost ENFORCE-vs-respec; PEAD migrate-vs-disable) prepared as ready-to-execute options and recorded verbatim.
+The phase-60.2/60.3 fixes and the 57.1 binding gate are correct (each passed its own
+step's Q/A) but inert: flags default OFF and the running backend process (PID 77557,
+started 2026-06-11 11:43:34) predates all phase-60 commits. Appending the three env lines
+per the operator's tokens and restarting will (a) load phase-60.2/60.3/60.4 code,
+(b) activate the churn fix, data-integrity normalization, and binding REJECT gate, and
+(c) the next daily cycle (2026-06-12 18:00 UTC) will show zero sentinel-driven swap-outs
+and zero REJECT-executed buys.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 60.4)
+## Operator tokens (recorded verbatim, AskUserQuestion 2026-06-11 local session)
 
-**Command:** `cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'cc_rail_log or ingestion_silence or ticket_failure or redact or 60_4' -q && test -f handoff/current/live_check_60.4.md`
+- "60.2 FLAG: ON (Recommended)"  -> PAPER_SWAP_CHURN_FIX_ENABLED=true
+- "60.3 FLAG: ON (Recommended)"  -> PAPER_DATA_INTEGRITY_ENABLED=true
+- "57.1 FLAG: ON (Recommended)"  -> PAPER_RISK_JUDGE_REJECT_BINDING=true
 
-1. "the Claude Code CLI rail writes llm_call_log rows (provider/model/agent-label/ticker/latency/token counts from the CLI envelope, cost tagged 0 flat-fee) so burn and firing audits see the working rail; proven by a BigQuery MCP row in pyfinagent_data.llm_call_log from a single live smoke invocation, plus a unit test on the writer"
-2. "an inbound-ingestion silence alarm exists: if the operator channel produces zero ingested tickets for a configurable N days (default 7), a Slack alert fires (the 6-week 04-24->06-10 outage class becomes impossible to miss); AND a ticket closed on max-retries posts a failure notice to its channel instead of dying silently (the #5101 case); both covered by unit tests"
-3. "event-loop hygiene + watchdog semantics: the sync yfinance calls in _run_claude_analysis/_run_gemini_analysis are wrapped in asyncio.to_thread (test asserts no direct .info/.history call on the loop), and the slack-bot watchdog alert distinguishes busy-vs-down by including cycle-in-progress state (from the cycle lock or /api/paper-trading/status) in the alert text"
-4. "cost-budget decision recorded and enacted: the per-analysis budget either ENFORCES (abort/flag the analysis at breach) or its limit is re-specced with rationale -- an OPERATOR-GATED choice recorded verbatim in the live_check; the PEAD calendar_events dependency is fixed via an operator-gated migration under scripts/migrations/ OR the overlay is disabled with a logged rationale (silent daily 404s are a FAIL); the meta-scorer LLM leg is repaired or its fallback state is surfaced in the digest/signals instead of masquerading as conviction 10"
-5. "secret hygiene: third-party API keys no longer appear in plaintext in backend.log request-URL lines (redaction at the logging layer, unit-tested with a synthetic key); the OpenClaw gateway anthropic auth repair is escalated as a one-line operator action in the live_check (out of repo scope), with the gateway error text quoted as the remediation pointer"
+## Immutable success criteria (verbatim from .claude/masterplan.json, phase-61 step 61.1)
 
-**live_check:** "REQUIRED -- BQ MCP llm_call_log row from the CC-rail smoke call, alarm/notification test transcripts, the operator's verbatim cost-budget decision, the migration-or-disable evidence for calendar_events, and the redaction test output."
+1. "the operator's verbatim flag tokens (60.2 FLAG / 60.3 FLAG / 57.1 FLAG, each ON or
+   KEEP OFF) are recorded in handoff/current/live_check_61.1.md and backend/.env matches
+   them exactly; no flag changed without its token"
+2. "post-restart, the running uvicorn process start time is later than the phase-60.4
+   commit timestamp (ps -o lstart vs git log evidence pasted verbatim), proving
+   phase-60.2/60.3/60.4 code is loaded"
+3. "frontend kickstarted via launchctl; Playwright capture shows
+   http://localhost:3000/login loads without ChunkLoadError"
+4. "first post-restart daily-cycle evidence in live_check_61.1.md as verbatim BQ rows: if
+   60.2 FLAG: ON, zero swap_for_higher_conviction SELLs of holdings lacking a same-cycle
+   analysis_results row; if 57.1 FLAG: ON, zero executed trades with
+   risk_judge_decision='REJECT'"
+5. "handoff/harness_log.md cycle entry appended before the status flip"
 
-### Operator-gate handling (recorded BEFORE GENERATE)
+verification.command (verbatim): cd /Users/ford/.openclaw/workspace/pyfinagent && source
+.venv/bin/activate && python -c "from backend.config.settings import get_settings; s =
+get_settings(); print('churn_fix', s.paper_swap_churn_fix_enabled, 'data_integrity',
+s.paper_data_integrity_enabled, 'rj_binding', s.paper_risk_judge_reject_binding)" && test
+-f handoff/current/live_check_61.1.md
 
-Criterion 4 embeds TWO operator-owned choices. GENERATE builds BOTH options ready-to-execute, then asks the operator in-session (AskUserQuestion; the operator answered one this morning). If no reply lands, the verbatim-decision sub-criterion cannot be satisfied -> 60.4 stays in-progress at a SOFT STOP with the crisp ask in cycle_block_summary.md (honest blocking beats fabricated decisions).
+live_check (verbatim): live_check_61.1.md containing: verbatim operator flag tokens,
+ps -o lstart output post-restart vs commit timestamps, Playwright screenshot path for
+/login, and first post-flag cycle BQ rows from financial_reports.paper_trades
 
 ## Plan
 
-1. **C1:** `_log_cc_call` writer inside claude_code_client (or reuse backend/services/observability/api_call_log.log_llm_call) wired into ClaudeCodeClient.generate_content success+error paths: provider anthropic, model, agent=_role, ticker=_ticker (generation_config side-channel), latency_ms, input/output tokens from the envelope, session_cost untouched (flat-fee 0 delta). Unit test with a fake envelope + captured writer. Live smoke: one ClaudeCodeClient.generate_content call live -> BQ MCP row.
-2. **C2:** `check_ingestion_silence(db_path, n_days=7)` helper (reads MAX(created_at) from tickets.db) + wiring in the scheduler watchdog block with the existing state-transition gate; max-retries close posts a failure notice to the ticket's channel_id (replacing the :357 TODO) via the processor's existing Slack send path. Unit tests for both (synthetic sqlite + captured poster).
-3. **C3:** `_fetch_yf_info_hist(ticker)` sync helper called via `await asyncio.to_thread(...)` in both analyzers (names preserved -> 60.3 wiring untouched); structural test asserts no naked `.info`/`stock.history(` inside the async bodies. Watchdog: import cycle_lock.inspect_lock, append `cycle: IN PROGRESS (started <ts>)` or `cycle: not running` to the alert text; unit test on the text builder.
-4. **C4:** meta-scorer fallback surfaced: morning digest line when the latest cycle summary carried meta_scorer_degraded (data path researched: scheduler digest assembly) -- plus the two PREPARED operator options: (a) cost budget: ENFORCE (flag-gated abort at check_budget breach) vs RE-SPEC (raise max_analysis_cost_usd to the measured full-path envelope $1.08-4.06 with rationale); (b) PEAD: run add_calendar_events_schema.py (--dry-run output attached) vs disable the overlay flag with logged rationale. AskUserQuestion -> verbatim into live_check.
-5. **C5:** `SecretRedactionFilter` (regex api_key=/token=/key= query-param classes) attached to ROOT HANDLERS in main.py setup_logging (the documented trap); unit test: synthetic key through a handler -> redacted. Gateway escalation line quoted in live_check.
-6. live_check_60.4.md -> fresh Q/A -> log -> flip (or SOFT STOP if operator-gated sub-items lack replies).
+1. Operator runs (Main is .env-denied by design):
+   `! grep -nE "^(PAPER_SWAP_CHURN_FIX_ENABLED|PAPER_DATA_INTEGRITY_ENABLED|PAPER_RISK_JUDGE_REJECT_BINDING)=" backend/.env`
+   (expect zero hits), then the append of the three lines + provenance comment.
+2. Main: `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`; wait for health;
+   run the verification command (fresh interpreter settings print = True True True);
+   `ps -o pid,lstart,command` vs `git log -1 --format=%ci` for the phase-60.4 commit;
+   curl /api/paper-trading/status asserting next_run 2026-06-12T14:00:00-04:00 (proves
+   flags loaded AND no double cycle).
+3. Main: `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend`; Playwright
+   navigate /login + snapshot; assert no ChunkLoadError in console.
+4. Write live_check_61.1.md (criteria 1-3 evidence; criterion 4 marked PENDING until the
+   2026-06-12 18:00 UTC cycle) + experiment_results.md.
+5. Spawn fresh Q/A. Expected honest verdict: CONDITIONAL pending criterion-4 cycle
+   evidence -- that is the correct verdict tonight, not a failure of the step.
+6. Append harness_log.md cycle entry (log-last). NO masterplan status flip until
+   criterion 4 evidence lands after the 2026-06-12 cycle and a fresh Q/A passes the step.
 
-## Do-no-harm
+## Out of scope for this step
 
-All additive observability; the only decision-path candidates (cost enforce; PEAD disable) ship ONLY as operator options; redaction filter touches log RECORDS not behavior; watchdog alerts append context, never suppress. No live flag flips.
+Any code edit (61.2-61.5 own those); any change to paper_swap_min_delta_pct; any
+hysteresis-family work; disturbing phase-58.1.
 
 ## References
 
-Brief source table; 56.2 precedents (_log_claude_code_call, meta_scorer_degraded alert, watchdog); healthchecks.io DMS; OWASP logging; LiteLLM/FinOps budget patterns.
+- handoff/current/research_brief.md (this step's gate)
+- handoff/current/goal_phase61_churn_integrity.md (goal prompt, CRITICAL constraints)
+- handoff/archive/phase-60/ (60.2 replay + live_check promotion sections)
+- APScheduler 3.x user guide; launchctl man page; pydantic-settings docs; uvicorn
+  server-behavior docs; Fowler feature-toggles (full list in research_brief.md)

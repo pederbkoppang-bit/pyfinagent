@@ -1,135 +1,198 @@
-# Research Brief -- phase-60.4: Observability + ops residuals (AW-7, AW-1/AW-2 residuals, AW-10, hygiene)
+# Research Brief — phase-61.1: Activate dark fixes + deploy phase-60 code
 
-Tier: COMPLEX (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
-Audit basis: handoff/archive/phase-59.3/59.3-harness-free-output.md sections 1-2, 4, 7 (snapshot 70a8242b). Priors archived under handoff/archive/phase-60.{1,2,3}/.
-Disclosed overruns (60.2/60.3 precedent): 10-item internal audit pushes the brief past the 1500-word ceiling and the session past the 30-tool-call budget (~38 calls); prose kept tight, floors all met.
+Tier: simple (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
+Prior phase-60.4 brief archived by hook to handoff/archive/phase-60/ (this file overwrites the rolling slot per handoff convention).
+Disclosed overrun: the 4-item internal audit (incl. the double-cycle restart-safety question) pushes past the simple-tier 10-tool-call budget; floors all met, prose kept tight.
 
-## 1. Exec summary (one sentence per criterion leg)
+## Sources read in full (>=5 required; counts toward gate)
 
-- **C1 (CC-rail metering):** The writer (`log_llm_call`, api_call_log.py:211) and the lite-path caller (`_log_claude_code_call`, autonomous_loop.py:1865) already exist from 56.2, but the orchestrator full-path rail `ClaudeCodeClient.generate_content` (claude_code_client.py:338-394) writes ZERO rows -- and the agent/ticker labels it needs are already delivered to it via the orchestrator's `generation_config` side-channel (`_role`/`_ticker`, exactly as the SDK clients consume at llm_client.py:1090/:1099 and :1766/:1775), so the fix is a mirror of the existing call with `provider="claude-code"`, latency from `envelope["duration_ms"]`, cost 0.
-- **C2 (ingestion silence + failure notice):** Tickets are created only by `backend/services/ticket_ingestion.py` (:129/:184; consumers slack_bot/commands.py:17 + services/slack_ticket_webhook.py:11) into sqlite at repo-root `tickets.db` (tickets_db.py:46-47) with an indexed `created_at` (:75,:96), so the silence check is a `SELECT MAX(created_at)` mirroring the phase-30.1 `cycle_heartbeat_alarm` state-transition pattern (scheduler.py:549-583); the max-retries close path (ticket_queue_processor.py:344-359) has a literal `TODO: Implement follow-up trigger` at :357 and posts nothing to the ticket's `channel_id` (tickets schema :68).
-- **C3 (event-loop hygiene + busy-vs-down):** Both lite analyzers are `async def` and call `stock.info`/`stock.history` directly on the loop (claude :1906-1908, gemini :2191-2193) despite an in-file to_thread idiom at :467; the watchdog (scheduler.py:469-540) already got the 30s-timeout bounded fix in 56.2 but its alert text (:519-523) cannot distinguish busy-vs-down -- the file-based cycle lock `handoff/.autonomous_loop.lock` with `inspect_lock()` (cycle_lock.py:40,:62-81) is readable from the slack-bot process on the same machine and carries pid-alive + age.
-- **C4 (cost budget / PEAD / meta-scorer):** The "$4.3262 > $0.50" pair of log lines comes from `cost_tracker.check_budget` (cost_tracker.py:275-280) called at orchestrator.py:2254-2256 against `settings.max_analysis_cost_usd` (settings.py:203, default 0.50, description says "does not abort" BY DESIGN -- enforcement is an operator-gated semantics change); PEAD's daily 404 is `pead_signal.py:337-341` querying `pyfinagent_data.calendar_events` whose creating migration ALREADY EXISTS with a --dry-run mode (scripts/migrations/add_calendar_events_schema.py:21-52, schema matches the SELECT: event_type/scheduled_at/ticker); the meta-scorer leg fails inside `ClaudeClient` (metered anthropic SDK, meta_scorer.py:185-194, model `meta_scorer_model` default claude-haiku-4-5, settings.py:363) and 56.2 already detects total degradation (`_all_conviction_fallback` autonomous_loop.py:1856 wired at :744-754 with `raise_cron_alert`) but nothing surfaces in digest/signals (`meta_scorer_degraded` has zero consumers beyond :745; formatters.py has no conviction mention).
-- **C5 (secret hygiene + gateway escalation):** backend.log (repo root, 397 MB) holds 2,101 `api_key=` lines emitted by the `httpx` library logger (`[_client]` prefix, "HTTP Request: GET https://api.stlouisfed.org/...&api_key=...") from fred_data.py:37's AsyncClient -- no `getLogger("httpx")` level/filter exists anywhere in backend, and per the Python logging docs the redaction filter MUST attach to the root HANDLERS (or the `httpx` logger itself), not the root logger, because logger-level filters do not see descendant-logger records; the OpenClaw gateway escalation quote is pinned from 59.3 (see 5.9).
+| # | URL | Accessed | Kind | Fetched how | Key finding |
+|---|-----|----------|------|-------------|-------------|
+| 1 | https://apscheduler.readthedocs.io/en/3.x/userguide.html | 2026-06-12 | Official docs (APScheduler 3.11.2) | WebFetch, full page | Misfire applies to run times the scheduler KNOWS were missed: "The most common case is when a job is scheduled in a persistent job store and the scheduler is shut down and restarted after the job was supposed to execute." Default store "simply keeps the jobs in memory"; "If you always recreate your jobs at the start of your application, then you can probably go with the default (MemoryJobStore)." Coalesce merges queued executions into one. |
+| 2 | https://ss64.com/mac/launchctl.html | 2026-06-12 | Official man-page mirror | WebFetch, full page | `kickstart`: "Instructs launchd to kickstart the specified service." `-k`: "If the service is already running, kill the running instance before restarting the service." `-p` prints new PID. `gui/uid/label` targets the user's login domain. Kill-then-restart is atomic at the service (label) level — launchd owns instance uniqueness. |
+| 3 | https://pydantic.dev/docs/validation/latest/concepts/pydantic_settings/ | 2026-06-12 | Official docs (pydantic-settings, redirect from docs.pydantic.dev) | WebFetch, full page | Dotenv is loaded at `Settings()` INSTANTIATION; "no mention of caching across instantiations" — each new instance re-reads the file. Priority: init args > env vars > dotenv > secrets > defaults ("environment variables will always take priority over values loaded from a dotenv file"). "By default, environment variable names are case-insensitive." Extra dotenv keys: `extra='ignore'` (this repo, settings.py:536) skips them. |
+| 4 | https://raw.githubusercontent.com/encode/uvicorn/master/docs/server-behavior.md | 2026-06-12 | Official docs source (uvicorn.org/server-behavior — site itself ECONNREFUSED twice, GitHub canonical source used) | WebFetch, full page | Graceful shutdown: "Close any connections that are not currently waiting on an HTTP response, and wait for any other connections to finalize their HTTP responses... Wait for any background tasks to run to completion." "Uvicorn handles process shutdown gracefully, ensuring that connections are properly finalized, and all tasks have run to completion" within configured timeouts. |
+| 5 | https://martinfowler.com/articles/feature-toggles.html | 2026-06-12 | Authoritative blog (Hodgson/Fowler — canonical feature-toggle reference) | WebFetch, full page | Test BOTH toggle states; ship the production-intended config plus "the fall-back configuration where those toggles you intend to release are also flipped Off" (phase-60/57 did exactly this: OFF byte-identity tests + ON behavior tests). Env-var/parameterized toggles "still require process restart" — restart-to-flip is a recognized point on the spectrum, acceptable for non-emergency flags. Release toggles are transitionary (~1-2 weeks): plan flag retirement after validation. |
 
-## 2. External research
+Supplementing #1 with code-level proof, the INSTALLED APScheduler 3.11.2 source was read (internal evidence, not counted in the external gate): see §2 of the internal audit.
 
-### A. Secret redaction in logged URLs
-- **OWASP Logging Cheat Sheet** (canonical): never log "encryption keys and other primary secrets" or "access tokens"; data should be "removed, masked, sanitized, hashed or encrypted"; sanitization belongs "in the log handler" during collection. Maps directly to a handler-level filter in `setup_logging` (main.py:84).
-- **Python logging docs** (official, load-bearing): "events which have been generated by descendant loggers will not be filtered by a logger's filter setting, unless the filter has also been applied to those descendant loggers" -- filters attached to HANDLERS see all propagated records; filters "can either modify log records in-place or return a completely different record instance" (3.12+). So `root.addFilter(RedactFilter())` would MISS the httpx records that are the actual leak; attach to each root handler (or to `logging.getLogger("httpx")`).
-- **Better Stack guide** (practitioner): Python `logging.Filter` subclass mutating `record.msg` is the standard idiom; "URLs is easily overlooked, yet they can pose a risk in data leaks"; add the filter before log statements run. Regex shape from the ecosystem (loggingredactor): lookbehind `(?<=api_key=)[\w-]+` -> `REDACTED`. Generalize to `(api_key|apikey|token|key)=[^&\s]+` to cover ALPHAVANTAGE/API-Ninjas keys too (.claude/rules/security.md lists the key inventory).
-- In-repo precedent: `QuietAccessFilter` (main.py:73, attached to the ORIGINATING `uvicorn.access` logger at :110 -- that works only because it is the originating logger; the httpx case is different, see the docs caveat above).
+## Snippet-only table (does NOT count toward gate)
 
-### B. Ingestion-silence / dead-man's-switch alarms
-- **healthchecks.io docs** (official): the dead man's switch expects pings on a `period`; `grace` is "the additional time to wait before sending an alert when a check is late"; silence past period+grace -> alert. The 60.4 in-process analog: expected-ingestion period = continuous, threshold N days (default 7 per criterion), alarm on age > threshold.
-- **OTel/OneUptime 2026** (snippet): "the worst kind of outage ... is the silent one ... the absence of data does not trigger any alert"; layered defense = heartbeats + per-source freshness + external DMS. pyfinagent already has the freshness layer (`cycle_health.py` two-tier bands :39-52) and the cycle heartbeat (phase-30.1, scheduler.py:549-583 state-transition gated) -- the tickets stream is the missing source.
-- Design consequence: implement ingestion-silence as a sibling of `cycle_heartbeat_alarm` (pure verdict function returning `{stale, age_sec, should_alarm, last_ingested_at}` + a fire function), state-transition gated exactly like `_cycle_heartbeat_last_was_stale` to avoid the every-15-min spam failure mode documented at scheduler.py:88.
+| URL | Kind | Why not fetched in full |
+|-----|------|------------------------|
+| https://eclecticlight.co/2019/08/27/kickstarting-and-tearing-down-with-launchctl/ | Authoritative blog | ss64 man page covers kickstart -k authoritatively |
+| https://www.kevinmcox.com/2024/03/changes-to-launchctl-kickstart-in-macos-14-4/ | Practitioner blog | Recency datapoint only: macOS 14.4 blocks `kickstart -k` on critical SYSTEM daemons; user-domain `gui/` agents (our case) unaffected |
+| https://github.com/agronholm/apscheduler/issues/1095 | Maintainer issue tracker (Dec 2025) | Confirms 3.x missed-job semantics discussion; user guide + installed source already decisive |
+| https://apscheduler.readthedocs.io/en/3.x/modules/jobstores/memory.html | Official docs | MemoryJobStore "stores jobs in memory as-is, without serializing them" — covered by user guide |
+| https://betterstack.com/community/guides/scaling-python/apscheduler-scheduled-tasks/ | Community guide | "By default, APScheduler keeps all jobs in memory... lost when your application restarts" — corroboration only |
+| https://launchdarkly.com/blog/guide-to-dark-launching/ | Vendor blog | Fowler covers the canonical practice; LD adds percentage-rollout detail not applicable to a single-operator local deployment |
+| https://www.digitalapplied.com/blog/feature-flag-rollout-strategies-2026-engineering-playbook | Industry blog (2026) | Recency datapoint: keep kill-switch/rollback path ~30 days post-enable with explicit exit criteria |
+| https://github.com/encode/uvicorn/pull/853 | Maintainer PR | SIGTERM/SIGINT graceful-shutdown fix history; docs read in full instead |
+| https://github.com/Kludex/uvicorn/issues/668 | Issue tracker | Multi-worker SIGTERM edge cases — not applicable (single-process uvicorn here) |
+| https://leancrew.com/all-this/man/man1/launchctl.html | Man-page mirror | Duplicate of ss64 content |
+| https://launchdarkly.com/blog/release-management-flags-best-practices/ | Vendor blog | Overlaps Fowler |
+| https://apscheduler.readthedocs.io/en/3.x/faq.html | Official docs | No restart-specific content beyond user guide |
 
-### C. LLM cost-budget enforcement (FinOps 2025-2026)
-- **LiteLLM a2a iteration budgets** (official docs, 2026): per-session `max_budget_per_session` blocks with HTTP 429 at breach ("Session budget exceeded ... Current spend: $5.0032, max_budget_per_session: $5.00"); enforcement-based, no alert-only mode; budget + iteration ceiling are independent knobs.
-- **FinOps Foundation, FinOps for AI Overview (2026-02-17)** (official): favors visibility-first (showback, anomaly alerts at 50/80/100%, throttling for non-critical loads) over automatic shutdowns, "especially during experimental (Crawl) phases"; hard caps only in specific governance contexts.
-- Synthesis for criterion 4: the literature legitimizes BOTH outcomes the criterion allows -- ENFORCE (LiteLLM-style abort at breach; pyfinagent already hard-enforces at the provider layer via `_check_cost_budget` daily $25/monthly $300, llm_client.py:396 called at :870/:1142/:1346) or RE-SPEC with rationale (FinOps alert-first; the observed breach was 8.6x over a $0.50 soft target that settings.py:203 explicitly documents as non-aborting). Either way the decision must be operator-gated and recorded verbatim in the live_check (criterion text).
+## Search queries run (three-variant discipline)
 
-## 3. Recency scan (2024-2026)
+1. `launchctl kickstart -k semantics kill restart service man page` — year-less canonical
+2. `APScheduler misfire_grace_time coalesce missed jobs restart 2025` — last-2-year window
+3. `feature flag dark launch safe rollout best practice 2026` — current-year frontier
+4. `APScheduler MemoryJobStore jobs lost on restart add_job next_run_time` — year-less canonical
+5. `pydantic-settings env_file loading precedence dotenv` — year-less canonical
+6. `uvicorn graceful shutdown SIGTERM supervisor process managers` — year-less canonical
 
-Performed. Findings: (a) agentic-loop budget enforcement matured into product semantics in 2025-2026 (LiteLLM per-session 429s; AgentBudget; "five-layer" token-budget patterns -- aisecuritygateway 2026; relayplane 2026 runaway-cost postmortems; Gartner 2026-03: only 44% of orgs have AI FinOps guardrails); these COMPLEMENT rather than supersede the canonical FrugalGPT (Chen et al. 2023) cascade idea. (b) Dead-man's-switch practice is stable; 2026 posts (OneUptime 2026-02-06, 2026-03-02) add OTel-pipeline framing but identical period+grace semantics. (c) Log-redaction guidance unchanged at core (OWASP); 2025-2026 additions are pipeline-level redaction products (Datadog Observability Pipelines, OpenTelemetry .NET redaction docs) -- not applicable to a local single-process deployment. No finding invalidates the planned approaches.
+Disclosure (simple tier): six queries across five topics, not 3x5=15 literal variants. The variant mix is covered in aggregate — current-year (#3), last-2-year (#2, plus 2024-2026 hits surfacing inside #1/#3/#4 result sets), year-less (#1,#4,#5,#6). launchctl/pydantic/uvicorn are versioned-docs topics where the canonical page IS the current-year source; their recency hits (macOS 14.4 change, Dec-2025 APScheduler issue) arrived inside the year-less result sets and are reported below.
 
-## 4. Search queries run
+## Recency scan (last 2 years)
 
-Three-variant discipline per research-gate.md, with variants #1 (2026) and #2 (2025) compressed into single "2025 2026" window queries (disclosed):
-1. `python logging filter redact sensitive data api key URL` (year-less canonical, A)
-2. `log redaction secrets best practices 2025 2026` (window+frontier, A)
-3. `dead man's switch monitoring data pipeline absence alerting healthchecks cron` (year-less, B)
-4. `data pipeline silence heartbeat freshness alert 2025 2026` (window+frontier, B)
-5. `LLM cost budget enforcement production agents FrugalGPT` (year-less canonical, C)
-6. `FinOps LLM token cost controls budget caps 2025 2026` (window+frontier, C)
+Performed; window 2024-2026. Findings:
 
-## 5. Internal audit (file:line on HEAD, snapshot 2026-06-11)
+1. **macOS 14.4 (Mar 2024) restricted `launchctl kickstart -k`** for critical SYSTEM processes (e.g. `cfprefsd`) — kill via `kill` instead (kevinmcox.com). NOT applicable here: `com.pyfinagent.backend`/`.frontend` are user `gui/` domain LaunchAgents, on macOS Darwin 25.5; the watchdog has exercised this exact command in production (scripts/launchd/backend_watchdog.sh:76) without issue.
+2. **APScheduler issue #1095 (Dec 2025)**: "Missed jobs run at next fire time instead of immediately" — active maintainer discussion confirming 3.x does not eagerly re-fire missed cron occurrences in the cases users expected; consistent with the no-double-cycle conclusion.
+3. **Feature-flag practice 2026** (digitalapplied 2026 playbook): classify the toggle (these three are release/ops hybrids) and keep the rollback path live ~30 days with explicit exit criteria — maps to keeping the flags revertible via `.env` edit + restart, and to the planned post-flag BQ evidence collection before flag retirement.
+4. pydantic-settings docs (current 2025-2026 versions) unchanged on the load-at-instantiation + env-over-dotenv precedence semantics relied on here. No finding supersedes any canonical source used.
 
-**5.1 CC-rail logging.** Writer: `log_llm_call(provider, model, agent, latency_ms, ttft_ms, input_tok, output_tok, cache_creation_tok, cache_read_tok, request_id, ok, ticker, cycle_id, session_cost_usd)` (api_call_log.py:211-226); cycle_id/session_cost auto-populate from autonomous_loop module state (:245-256); buffered flush to `{project}.{bq_dataset_observability|pyfinagent_data}.llm_call_log` (:317-319); never raises. Lite path (56.2): `_log_claude_code_call` (autonomous_loop.py:1865-1889) maps envelope -> `provider="claude-code"`, model from `envelope["model"]` else "claude-code-cli", latency from `duration_ms`, 4 token fields from `usage`, fires at :2029/:2036 (lite_trader) and :2093/:2100 (lite_risk_judge). **Gap:** `ClaudeCodeClient.generate_content` (claude_code_client.py:338-394) parses the envelope (:376-381 -- tokens; `duration_ms`/`total_cost_usd` available per :108-110 docstring) but never calls `log_llm_call`; the error path (:365-374) is also unmetered (no `ok=False` row). Agent-label/ticker WITHOUT signature change: the orchestrator already injects `_role`/`_ticker` into `generation_config` -- consumed by GeminiClient at llm_client.py:1090/:1099 and ClaudeClient at :1766/:1775; `generate_content` receives that dict at :341 (`config`). make_client routes to the CC rail at llm_client.py:1958-1972 (`paper_use_claude_code_route`). Unit-test seam: `claude_code_invoke` is patchable (module-level, claude_code_client.py:79); BQ MCP proof query: `SELECT * FROM pyfinagent_data.llm_call_log WHERE provider='claude-code' ORDER BY ts DESC LIMIT 5`.
+## Internal code audit
 
-**5.2 Tickets ingestion.** Creation: ticket_ingestion.py:129/:184 (`self.db.create_ticket`); entry points slack_bot/commands.py:17 and services/slack_ticket_webhook.py:11 (`get_ingestion_service`). Store: sqlite `~/.openclaw/workspace/pyfinagent/tickets.db` (tickets_db.py:45-50); schema has `channel_id` (:68), `created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP` (:75), index `idx_tickets_created_at` (:96). Last-ingested = `SELECT MAX(created_at) FROM tickets` (no helper exists yet; `get_ticket_stats` :330 is adjacent precedent). Max-retries close: ticket_queue_processor.py:344-359 -- `max_retries=3` (:345), closes `TicketStatus.CLOSED` with `error_message="Max retries (3) exceeded"` (:349-353), then logs "CLOSURE TRIGGER ... Follow-up action pending" with `# TODO: Implement follow-up trigger (notify user, escalate, archive, etc.)` (:355-357) -- the #5101 gap verbatim. Silence-check home: slack-bot watchdog block (scheduler.py:549-583 pattern) -- the bot process can read tickets.db directly (same machine) or import tickets_db; do NOT probe backend HTTP (couples the alarm to backend health).
+### 1. Flag definitions + reader sites
 
-**5.3 yfinance-in-async.** `async def _run_claude_analysis` (autonomous_loop.py:1892): `stock = yf.Ticker(ticker); info = stock.info; hist = stock.history(period="3mo")` at :1906-1908 -- direct blocking calls on the loop. `async def _run_gemini_analysis` (:2171): same at :2191-2193. The 60.3 integrity wiring consumes `info` AFTER the fetch (:1930-1948 claude / :2213-2234 gemini), so a wrap that returns the same `info`/`hist` names is byte-equivalent downstream: one helper `def _fetch_yf_market_data(ticker) -> tuple[dict, DataFrame]` executed via `await asyncio.to_thread(...)` (single hop, atomic). In-file precedent: `info = await asyncio.to_thread(lambda x=t: yf.Ticker(x).info or {})` (:467); envelope call already wrapped at :2020. Other yf sites in async funcs are already to_thread-wrapped (:467, :710, :774 etc.). Test shape: inject a fake `yf` module whose `.info`/`.history` record `threading.current_thread()` and assert it differs from the loop thread (or AST-scan the two function bodies for naked `.info`/`.history(`).
+Definitions (all `bool = Field(False, ...)`, default OFF, in `backend/config/settings.py`):
 
-**5.4 Watchdog.** scheduler.py:469-540: probe `_HEALTH_PROBE_URL` with 30s httpx timeout (56.2 bounded fix, :485-490); state machine `_watchdog_last_was_healthy` (:101, transitions :505-527); alert text built at :519-523 (`Detail: unreachable: ReadTimeout at HH:MM:SS`). Busy-vs-down source: `backend/services/cycle_lock.py` -- `_LOCK_PATH = handoff/.autonomous_loop.lock` (:40), TTL 90 min (:41), `inspect_lock()` (:62-81) returns `{cycle_id, pid, age_sec, pid_alive, is_stale}`; acquired at autonomous_loop.py:150/:167, released :1380-1387. Slack-bot runs on the same machine -> import and call `inspect_lock()` when the probe fails; if lock fresh + pid alive, append "cycle in progress (cycle_id=..., started Xs ago) -- backend busy, not down" to the alert text. Criterion wants the DISTINCTION in the text, not suppression.
-
-**5.5 Cost budget.** Per-analysis soft budget: `max_analysis_cost_usd: float = Field(0.50, description="Soft budget per analysis in USD. Logs warnings when exceeded; does not abort.")` (settings.py:203). Check: `cost_tracker.check_budget` (cost_tracker.py:275-280, warning "Cost budget exceeded: $%.4f > $%.2f limit") called at orchestrator.py:2254 with the second log "Analysis for %s exceeded cost budget: $%.4f > $%.2f" (:2256) -- post-analysis, log-only by documented design. Separate HARD layer already enforcing: `_check_cost_budget` (llm_client.py:396, phase-27.5.2 daily $25/monthly $300, callers :870/:1142/:1346). ENFORCE options at the soft layer: (a) mid-pipeline abort (check between orchestrator steps, persist partial with over-budget marker), (b) post-analysis flag persisted + alert, (c) re-spec the $0.50 (8.6x breach observed) with rationale. All operator-gated per the criterion.
-
-**5.6 PEAD calendar_events.** Query: pead_signal.py:336-343 (`SELECT ticker FROM pyfinagent_data.calendar_events WHERE event_type='earnings' AND scheduled_at >= ... INTERVAL 7 DAY`), fail-open at :345-347 (the daily WARNING). Caller: autonomous_loop.py:275-276, gated by `pead_signal_enabled` (settings.py:351, default False, ON in .env per 59.3 observation). Migration EXISTS: scripts/migrations/add_calendar_events_schema.py -- DDL `CREATE TABLE IF NOT EXISTS {project}.{dataset}.calendar_events` (:36-52: event_id, event_type, ticker, scheduled_at, window, source, confidence, blackout_start, blackout_end, fetched_at; PARTITION BY DATE(scheduled_at); cluster event_type,ticker) with `--dry-run` mode (:21-22). Schema satisfies the SELECT's columns. Writers exist: news/bq_writer.py:205 `write_calendar_events`; econ_calendar/watcher.py:32-34 documents the row shape. Fix = operator-gated run of the existing script (BQ DDL); the disable alternative = flip `pead_signal_enabled` OFF + logged rationale. Dependency note: post-migration the PEAD LLM leg still uses metered claude-haiku (settings.py:352) -- same anthropic-credit failure class as the meta-scorer (5.7).
-
-**5.7 Meta-scorer.** LLM call: meta_scorer.py:185-194 -- `ClaudeClient(model_name=getattr(settings,"meta_scorer_model","claude-haiku-4-5"))` (:186-187; settings.py:363) via `asyncio.to_thread(client.generate_content, ...)` (:193-194); on exception -> "meta_scorer LLM call failed" (:204) -> `_fallback_all` (:249-256) stamping `conviction_reason="fallback (LLM unavailable)"` (:254) with `_fallback_conviction` scores (can be 10 -- the "conviction 10.00" masquerade). ClaudeClient = metered anthropic SDK (NOT the CC rail) -> failure class is API-key/credit (the SecretStr family from 51.1; unwrap_secret already imported at meta_scorer.py:18). 56.2 detection EXISTS: `_all_conviction_fallback` (autonomous_loop.py:1856-1862) wired at :744-754 -- sets `summary["meta_scorer_degraded"]=True` + `raise_cron_alert(source="meta_scorer", error_type="conviction_overlay_degraded")`. **Gap:** `meta_scorer_degraded` has NO consumer besides :745 (repo grep), and formatters.py contains zero "conviction" mentions -- digest surfacing points are `format_morning_digest` (formatters.py:323, already takes `cron_health`/`system_state` params) and `format_evening_digest` (:422). Repair option = route meta-scorer through the CC rail (make_client + `paper_use_claude_code_route`, $0) or fix the anthropic credit -- operator decision.
-
-**5.8 FRED key in logs.** Evidence: repo-root `backend.log` (397,600,188 bytes) has **2,101** `api_key=` lines of the form `[_client] HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=FEDFUNDS&api_key=<REDACTED>&file_type=json...` -- emitter is the `httpx` library logger (`httpx._client`), triggered by fred_data.py:37 (`httpx.AsyncClient`; FRED_BASE :13). fred_releases.py uses `requests` (:60, no URL logging). No `getLogger("httpx")` level/filter anywhere in backend (repo grep). Redaction point: `setup_logging()` (main.py:84) -- attach a `RedactFilter(logging.Filter)` to the root HANDLERS (NOT the root logger -- descendant-logger records bypass logger-level filters per Python docs; the in-repo `QuietAccessFilter` :73/:110 attaches to the originating logger, a different situation). Regex: `(api_key|apikey|token|key)=[^&\s]+` -> `\1=REDACTED`. Optional belt-and-braces: `logging.getLogger("httpx").setLevel(logging.WARNING)`. Note: redaction fixes FUTURE lines; the 397MB file retains 2,101 historical keys (rotation/scrub + FRED key rotation = operator note; local-only deployment lowers severity).
-
-**5.9 OpenClaw gateway escalation (verbatim from 59.3 file).** Failure since 2026-04-09 19:09 (gateway.err.log:121) through 2026-06-11 05:03 (:6073+); throw site `/opt/homebrew/lib/node_modules/openclaw/dist/model-auth-CElc27BR.js:310`: `No API key found for provider "anthropic". Auth store: /Users/ford/.openclaw/agents/pyfinagent/agent/auth-profiles.json ...`; user-facing text built by `buildMissingApiKeyFailureText` (agent-runner.runtime-CH0aH7T6.js:544); two failures logged at gateway.err.log:5792-5799 on lane `session:agent:pyfinagent:slack:channel:c0antgnnk8d`. Escalation one-liner for live_check: operator repairs the OpenClaw anthropic auth profile (out of repo scope).
-
-**5.10 Test inventory.** `pytest -k "cc_rail_log or ingestion_silence or ticket_failure or redact or 60_4" --collect-only` -> **0 collected (823 deselected)**. New tests MUST be named `test_phase_60_4_*` and embed the -k terms (59.1 false-green lesson). Nearest precedent file: backend/tests/test_phase_56_2_ops_fixes.py (:108-138 covers `_all_conviction_fallback`).
-
-## 6. Risks & gotchas (what 56.2 built that 60.4 must EXTEND, not duplicate)
-
-1. **56.2 inventory already shipped:** `log_llm_call` writer + lite-path `_log_claude_code_call` + `_all_conviction_fallback` + `raise_cron_alert` wiring + watchdog 30s timeout. 60.4's C1 is ONLY the `ClaudeCodeClient.generate_content` mirror (success + `ok=False` paths); do not add a second helper -- call `log_llm_call` directly with `agent=config.get("_role")`, `ticker=config.get("_ticker")`.
-2. **Logger-vs-handler filter trap (C5):** a filter on the root LOGGER will not see httpx records; attach to root handlers (or the httpx logger). This is the single most likely silent-failure in this step -- unit-test through a real logger hierarchy (`logging.getLogger("httpx._client").info(...)` with a synthetic key, assert the handler output is redacted).
-3. **Busy-vs-down must not suppress:** criterion 3 wants the cycle-in-progress state IN the alert text, not an alert skip; `inspect_lock()` is fail-open (returns None when no lock) and 90-min TTL guards stale locks.
-4. **Silence alarm spam guard:** mirror the state-transition gating (`_cycle_heartbeat_last_was_stale` idiom) or a 7-day-stale tickets.db will page every 15 minutes (the scheduler.py:88 failure mode).
-5. **Cost-budget semantics are documented-soft:** settings.py:203 says "does not abort" -- flipping to ENFORCE is a live-behavior change; the hard daily/monthly layer (llm_client.py:396) already bounds runaway risk, which legitimizes the FinOps alert-first/re-spec outcome if the operator prefers it. Either outcome: record verbatim in live_check (criterion text).
-6. **PEAD fix has a second dependency:** creating calendar_events unblocks the BQ read, but the table starts EMPTY (writers must run: econ_calendar watcher / news bq_writer) and the PEAD scorer itself uses metered claude-haiku -- same credit class as the meta-scorer; a migration alone may convert the 404 into a silent empty-set.
-7. **Emoji constraint:** scheduler/formatters use Slack emoji codes (`:rotating_light:`) -- allowed per backend-slack-bot.md conventions; ticket_queue_processor.py:330-332 contains literal emoji in pre-existing strings -- do not expand emoji use when adding the failure notice (and source the notice's channel from the ticket row's `channel_id`, falling back to `settings.slack_channel_id`).
-8. **The lite analyzers' yf wrap must keep `info`/`hist` names** so the 60.3 integrity wiring (:1930-1948/:2213-2234) and prompt builders stay byte-identical; wrap the fetch, not the consumers.
-
-## 7. Source table
-
-### Read in full (counts toward gate)
-| URL | Accessed | Kind | Fetched how | Key finding |
-|---|---|---|---|---|
-| https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html | 2026-06-11 | official/canonical | WebFetch full | Never log keys/tokens; sanitize in the log handler |
-| https://docs.python.org/3/library/logging.html | 2026-06-11 | official doc | WebFetch full | Logger-level filters miss descendant-logger records; handler filters see all; filters may mutate records (3.12+ replace) |
-| https://betterstack.com/community/guides/logging/sensitive-data/ | 2026-06-11 | practitioner guide | WebFetch full | Python RedactFilter idiom; URLs are an overlooked leak channel |
-| https://healthchecks.io/docs/ | 2026-06-11 | official doc | WebFetch full | Dead man's switch period+grace semantics; alert on silence past grace |
-| https://docs.litellm.ai/docs/a2a_iteration_budgets | 2026-06-11 | official doc (2026) | WebFetch full | Per-session $ budget blocks with 429 at breach; enforcement-only, no alert-only mode |
-| https://www.finops.org/wg/finops-for-ai-overview/ | 2026-06-11 | official foundation (2026-02-17) | WebFetch full | Visibility-first: showback + 50/80/100% alerts + throttling; hard caps only in governance contexts |
-
-### Identified, snippet-only (does NOT count toward gate; representative subset of ~44)
-| URL | Kind | Why not fetched |
+| Flag (field name) | Definition | Env var (pydantic-settings case-insensitive field-name mapping; no alias) |
 |---|---|---|
-| https://github.com/armurox/loggingredactor + https://pypi.org/project/logredactor/ | community lib | regex pattern captured from snippet |
-| https://dev.to/camillehe1992/mask-sensitive-data-using-python-built-in-logging-module-45fa | community | duplicates Better Stack idiom |
-| https://www.skyflow.com/post/how-to-keep-sensitive-data-out-of-your-logs-nine-best-practices | vendor | secondary to OWASP |
-| https://opentelemetry.io/docs/languages/dotnet/logs/redaction/ | official (wrong stack) | .NET-specific |
-| https://www.datadoghq.com/blog/observability-pipelines-sensitive-data-redaction/ | vendor | pipeline-level, N/A locally |
-| https://oneuptime.com/blog/post/2026-02-06-heartbeat-dead-man-switch-opentelemetry-pipeline/view | practitioner 2026 | recency scan; semantics match healthchecks |
-| https://blog.ediri.io/how-to-set-up-a-dead-mans-switch-in-prometheus + https://github.com/pingcap/dead-mans-switch | practitioner/community | Prometheus-stack specific |
-| https://aisecuritygateway.ai/blog/llm-token-budget-strategies-for-agents | practitioner 2026 | five-layer model captured in snippet |
-| https://relayplane.com/blog/agent-runaway-costs-2026 | practitioner 2026 | anecdotal cost postmortems |
-| https://www.finops.org/wg/cost-estimation-of-ai-workloads/ | official | overview doc covered the question |
-| https://www.infoworld.com/article/4138748/finops-for-agents-loop-limits-tool-call-caps-and-the-new-unit-economics-of-agentic-saas.html | industry press | Gartner 44% stat captured |
-| https://www.traceloop.com/blog/from-bills-to-budgets-how-to-track-llm-token-usage-and-cost-per-user | vendor | per-user attribution out of scope |
-| FrugalGPT (Chen et al. 2023, arXiv:2305.05176) | peer-reviewed canonical | cascade concept known; cited as prior art, not load-bearing for this step |
+| `paper_swap_churn_fix_enabled` | settings.py:311-314 | `PAPER_SWAP_CHURN_FIX_ENABLED` |
+| `paper_data_integrity_enabled` | settings.py:42-45 | `PAPER_DATA_INTEGRITY_ENABLED` |
+| `paper_risk_judge_reject_binding` | settings.py:277-280 | `PAPER_RISK_JUDGE_REJECT_BINDING` |
 
-## 8. JSON envelope
+Env-file wiring: `_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"` (settings.py:12) -> `backend/.env`; `model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}` (settings.py:536). No `case_sensitive` override, so `PAPER_..._ENABLED=true` maps to the lowercase field and `"true"` coerces to `True` for `bool` fields.
+
+Reader sites (ALL use `getattr(settings, "<flag>", False)` — tolerant of older Settings objects):
+
+| File:line | Flag | What it gates |
+|---|---|---|
+| `backend/services/portfolio_manager.py:194-212` (read at :196) | reject_binding | Binding REJECT gate at the candidate-build chokepoint (covers main BUY + swap paths); appends to `blocked_out`, `continue`s before `buy_candidates.append` |
+| `backend/services/portfolio_manager.py:471` | churn_fix | `_churn_fix_on` — holding absent from same-cycle `holding_lookup` excluded from swap displacement |
+| `backend/services/portfolio_manager.py:561` | churn_fix | `denom = max(abs(holding_score), 1.0 if _churn_fix_on else 0.01)` — kills the ~70,000% sentinel deltas |
+| `backend/services/autonomous_loop.py:805` | churn_fix | Re-eval age hours-precise (`total_seconds()/86400`) vs truncated `.days` |
+| `backend/services/autonomous_loop.py:1948` | data_integrity | `_di_enabled` in lite Claude analyzer — blocking flags -> `_data_integrity_blocked_analysis` pre-LLM |
+| `backend/services/autonomous_loop.py:2228` | data_integrity | Same gate in the lite Gemini mirror path |
+| `backend/services/data_integrity.py:17,114` | data_integrity | Pure functions; docstrings state `blocking=True` flags are enforced only when the flag is ON — the settings read itself lives in autonomous_loop (the module takes no settings object) |
+
+**backend/.env duplicate check: NOT COMPLETABLE BY THIS AGENT.** Both `Bash grep` and `Read` on `backend/.env` are permission-denied in the researcher sandbox. Main MUST run, before editing:
+`grep -nE "^(PAPER_SWAP_CHURN_FIX_ENABLED|PAPER_DATA_INTEGRITY_ENABLED|PAPER_RISK_JUDGE_REJECT_BINDING)=" backend/.env`
+and expect zero hits. Indirect evidence none are set: phase-60.2/60.3/57.1 live_checks all recorded flag-OFF (byte-identical) behavior in the running system, which is impossible if `.env` already carried `=true`. Also note python-dotenv resolves duplicate keys last-occurrence-wins, so even an accidental duplicate is deterministic — but Main should still de-duplicate rather than append blindly. The launchd plist's `EnvironmentVariables` block (see §2) sets only `DEV_LOCALHOST_BYPASS`, `PATH`, `PYTHONUNBUFFERED` — no conflict with the three flags (real env vars would beat `.env` per pydantic-settings precedence; none exist here).
+
+### 2. Restart safety (double-cycle risk) — THE critical question
+
+**Verdict: a restart tonight CANNOT re-fire today's daily job. Code-level certainty, three independent reasons.**
+
+Registration code, verbatim (`backend/api/paper_trading.py:1299-1322`):
+
+```python
+def _add_scheduler_job(settings):
+    if not _scheduler:
+        return
+    _scheduler.add_job(
+        _scheduled_run,
+        "cron",
+        hour=settings.paper_trading_hour,
+        minute=0,
+        day_of_week="mon-fri",
+        timezone=ZoneInfo("America/New_York"),
+        id=_scheduler_job_id,
+        name="Paper trading daily run",  # phase-23.3.1: human-readable label
+        replace_existing=True,
+        # phase-44.2.X (2026-05-26): default APScheduler misfire_grace_time
+        # is 1 second; on 2026-05-25 the cron fired at the right second but
+        # event-loop contention from the ticket-queue interval job + polling
+        # endpoints pushed dispatch 2.10s late, so APScheduler skipped the
+        # run and advanced next_run to tomorrow. A daily job has no harm in
+        # running a few seconds (or minutes) late, so we raise the grace
+        # window to 1 hour. coalesce=True ensures if multiple windows are
+        # missed (e.g. backend down for hours), we run ONCE, not N times.
+        misfire_grace_time=3600,
+        coalesce=True,
+    )
+```
+
+And the lifespan wiring (`backend/main.py:264-272`): `scheduler = AsyncIOScheduler()` — constructed with **no jobstores argument**, i.e. the default **in-memory `MemoryJobStore`** — then `init_scheduler(scheduler)` (paper_trading.py:1289-1296, which only calls `_add_scheduler_job`) and `scheduler.start()`.
+
+Reason 1 — **MemoryJobStore has no cross-restart state.** Misfire handling (`misfire_grace_time`, `coalesce`) applies only to run times the scheduler *knows were missed* — i.e. a `next_run_time` already recorded in a job store (persistent store across restarts, or a live process whose event loop stalled). A fresh process builds a fresh scheduler and calls `add_job` anew; APScheduler computes the job's first `next_run_time` as the next fire time **strictly after now**. Verbatim from the INSTALLED package (`.venv/lib/python3.14/site-packages/apscheduler-3.11.2`), `apscheduler/schedulers/base.py:1066-1068` inside `_real_add_job`:
+
+```python
+# Calculate the next run time if there is none defined
+if not hasattr(job, "next_run_time"):
+    now = datetime.now(self.timezone)
+    replacements["next_run_time"] = job.trigger.get_next_fire_time(None, now)
+```
+
+and `apscheduler/triggers/cron/__init__.py:205-222` (`CronTrigger.get_next_fire_time`): with `previous_fire_time=None` — always the case for a newly added job — `start_date = now` (no trigger `start_date` configured at the call site) and the field search proceeds forward from `datetime_ceil(start_date)`; it can only return a time **at or after now**. A job added at process start therefore has zero past run times for `_process_jobs` to evaluate against `misfire_grace_time` — the misfire/coalesce machinery never even engages. There is no record that 2026-06-11 14:00 ET fired or didn't; the new scheduler's first scheduled fire is 2026-06-12 14:00 ET. No startup catch-up exists for in-memory stores (official docs: "If you always recreate your jobs at the start of your application, then you can probably go with the default (MemoryJobStore)").
+
+Reason 2 — **even the hypothetical grace window is long past.** Today's fire time was 18:00 UTC (14:00 ET; the observed 18:00-19:10 UTC cycle implies `PAPER_TRADING_HOUR=14` in the operator env — settings.py:335 default is 10, ET-denominated). A restart at ~23:30 UTC 06-11 / ~01:30 Oslo 06-12 is >5.5h after the fire time, far outside `misfire_grace_time=3600` (1h) even if a persistent store existed.
+
+Reason 3 — **no run-on-startup code path.** Exhaustive grep for `run_daily_cycle` callers in `backend/`: exactly three — `paper_trading.py:1031` (`dry_run=True` smoke endpoint), `paper_trading.py:1279` (`_run_cycle_background`, the operator-triggered run-now path), `paper_trading.py:1329` (`_scheduled_run`, the cron callback). The lifespan startup calls only `init_scheduler` + `scheduler.start()`; nothing invokes a cycle at boot. (Triple in-cycle guards — run-now 409 + `_running` + cycle_lock — exist independently per phase-49.2 memory.)
+
+**Watchdog interaction (`com.pyfinagent.backend-watchdog`):** the watchdog (`scripts/launchd/backend_watchdog.sh`, StartInterval=60, RunAtLoad=true) restarts the backend with the *same* command — `launchctl kickstart -k "gui/$UID_NUM/com.pyfinagent.backend"` (line 76) — after 3 consecutive `/api/health` failures (lines 20,44-46). launchd enforces ONE instance per service label, so there is no topology in which watchdog + manual kickstart produce two backend processes. Worst case (backend down >3 min during the restart) the watchdog issues a redundant kickstart — another clean restart, not a double process, and per Reasons 1-3 not a double cycle. The watchdog resets its own failure counter after kickstarting (line 79) and on the first healthy check (line 35), so a normal seconds-long restart never reaches the threshold.
+
+**Process-group teardown:** the backend plist (`~/Library/LaunchAgents/com.pyfinagent.backend.plist`) runs `caffeinate -i -s <venv>/uvicorn backend.main:app --host 0.0.0.0 --port 8000` with `KeepAlive=true`, `RunAtLoad=true`, `ThrottleInterval=5`. `kickstart -k` kills the running instance and restarts it (man-page semantics; external §below) — launchd tears down the job's process group (caffeinate parent + uvicorn child). Uvicorn here is **single-process** (no `--workers`, no `--reload` in ProgramArguments), so the CLAUDE.md "kill parent AND child workers" zombie rule reduces to the caffeinate->uvicorn pair, both inside the launchd job. Residual risk is uvicorn's own graceful-shutdown of in-flight requests (external §uvicorn); at ~23:30 UTC no cycle is in flight (today's finished ~19:10 UTC), so nothing is interrupted.
+
+### 3. get_settings() lru_cache semantics
+
+Verbatim (`backend/config/settings.py:539-541`):
+
+```python
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()  # type: ignore[call-arg]  # pydantic-settings loads from env/.env
+```
+
+- The cache is **per-process**: first `get_settings()` call in a new process instantiates `Settings()`, which reads `backend/.env` at that moment; every later call returns the same object. There is no TTL, no SIGHUP re-read, no file-watcher. **Restart is the only deterministic pickup** — confirmed.
+- `_scheduled_run` (paper_trading.py:1327) calls `get_settings()` per invocation but receives the cached instance — irrelevant post-restart since the cache is rebuilt from the new env.
+- Module-level snapshot sweep: `grep -rn "^settings = |^_settings = |^SETTINGS = " backend --include="*.py"` -> only `backend/agents/mcp_servers/data_server.py:28` (`_settings = None`, lazy init) plus two test-file path constants. **No eager module-level `Settings()` snapshot exists in backend/**; all three flag readers use `getattr(settings, ...)` on objects passed down from `get_settings()` at cycle/request time.
+- Cross-process caveat (the only true stale-path class): the **Slack bot** is a separate long-lived process with its own lru_cache — it does NOT execute the trading path (digests/alerts only), so the three flags never matter there; restarting it tonight is optional. Cron wrapper scripts and the harness spawn fresh interpreters per run -> automatic pickup. Frontend never reads backend flags.
+
+### 4. Frontend launchctl label
+
+`~/Library/LaunchAgents/com.pyfinagent.frontend.plist` exists (ls verified, mode 600, dated Apr 8). `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend` is the documented stale-chunk remedy (CLAUDE.md npm-kickstart rule + auto-memory `feedback_npm_install_requires_launchctl_kickstart`: pkill races the launchd watchdog; a stale dev server serves 404 chunk bundles — exactly the reported stale `/login` chunk symptom). No `npm install` happens in 61.1, but the kickstart remedy is install-independent.
+
+## Risks & gotchas (go/no-go)
+
+**VERDICT: GO — restarting the backend tonight (~23:30 UTC 06-11 / 01:30 Oslo 06-12) is safe. The double-cycle risk is ZERO with code-level certainty** (internal audit §2: in-memory job store + forward-only `get_next_fire_time(None, now)` + no run-on-startup call site + restart instant >5.5h past the fire time vs a 1h grace window that could not apply anyway).
+
+Conditions and residual gotchas, in execution order:
+
+1. **Pre-edit .env check (MUST, blocking).** This agent is permission-blocked from `backend/.env`; Main must run `grep -nE "^(PAPER_SWAP_CHURN_FIX_ENABLED|PAPER_DATA_INTEGRITY_ENABLED|PAPER_RISK_JUDGE_REJECT_BINDING)=" backend/.env` and expect zero hits before appending the three `=true` lines (python-dotenv is last-wins on duplicates, but append-blind is sloppy and the 54.1 NoDecode comment shows cron wrappers `set -a; . backend/.env` bash-source this file — keep one line per key, no quotes needed for `true`).
+2. **No cycle in flight at restart.** Today's cycle ended ~19:10 UTC; confirm via `curl -s localhost:8000/api/paper-trading/status` (loop status + `next_run`) before kickstart. A kickstart mid-cycle would SIGKILL a running cycle (watchdog comments, backend_watchdog.sh:56-58: kickstart -k bypasses Python finally blocks) — not tonight's situation, but check anyway.
+3. **Watchdog cannot double-start** (same `kickstart -k` on the same label; launchd enforces one instance per label). Worst case it issues a redundant restart if `/api/health` is down 3 consecutive minutes — backend warm-up is seconds, so unreachable in practice.
+4. **kickstart -k kills caffeinate + uvicorn together** (launchd job teardown; uvicorn is single-process here — no `--workers`, no `--reload` in the plist — so the zombie-children rule is satisfied by construction). `KeepAlive=true` + `ThrottleInterval=5` respawn the service; expect /api/health green within ~10-30s (BQ/macro preloads log after).
+5. **Verify the new process postdates b0fe1983 (phase-60.4).** `ps -p $(pgrep -f "uvicorn backend.main" | head -1) -o lstart=` must show a start time after the .env edit; the phase-60.2/3/4 code is already on disk (committed), so process start time is the only deployment variable.
+6. **Flag-load verification.** Log line `Paper trading scheduler active: daily at 14:00 ET` (paper_trading.py:1296) confirms init; for the flags themselves, `.venv/bin/python -c "from backend.config.settings import get_settings; s=get_settings(); print(s.paper_swap_churn_fix_enabled, s.paper_data_integrity_enabled, s.paper_risk_judge_reject_binding)"` proves the .env parses to `True True True` (fresh interpreter = same read path the backend takes at boot). For the RUNNING process, the next_run timestamp from /api/paper-trading/status must read 2026-06-12T14:00:00-04:00 — that simultaneously proves the no-double-cycle conclusion live.
+7. **Frontend kickstart is independent and safe at any hour** (`com.pyfinagent.frontend` label confirmed on disk; documented stale-chunk remedy). Playwright-capture /login after it settles (per the UI-verification rule).
+8. **Slack bot does NOT need a restart** for these flags (separate process, never executes the trading path). Do not touch it — it is crontab-monitored, not launchd (54.2 memory), and a pkill would be pure risk.
+9. **First post-flag evidence is 2026-06-12 18:00 UTC.** Expect: swap-path logs using the 1.0-clamp denominator (portfolio_manager.py:561), any non-US blocking integrity flag producing `_data_integrity_blocked_analysis` rows (autonomous_loop.py:1948/2228), and any REJECT verdict appending to `blocked_out` instead of `buy_candidates` (portfolio_manager.py:196-212). Absence-of-trigger is also valid evidence (e.g. zero REJECTs that cycle) — record what fired and what had no occasion to.
+10. **Fowler discipline note:** both flag states are already tested (phase-60/57 shipped OFF-byte-identity + ON-behavior tests), which is exactly the canonical "test the production-intended config AND the fall-back config" requirement — the flip itself is the residual untested surface, hence the 18:00 UTC evidence collection. Keep the rollback path (flags back to false + restart) live for the LaunchDarkly/2026-playbook ~30-day window before any flag-retirement refactor.
+
+## Recommendations
+
+1. Execute in this order: .env grep (item 1) -> append three lines -> backend kickstart -> health + process-age + flag-load checks (items 5-6) -> frontend kickstart -> Playwright /login capture -> wait for 2026-06-12 18:00 UTC cycle -> BQ evidence pull. No step requires waiting for another day.
+2. Capture for `live_check_61.1.md`: the grep output, the `ps -o lstart=` line, the three-flag `True True True` print, the /status next_run JSON, the Playwright screenshot path, and (next day) the BQ rows. That converts every claim in this brief into operator-auditable artifacts.
+3. The restart can happen tonight with zero scheduling risk; equally, there is no urgency-forcing reason it must (next cycle is 18.5h out). If the operator prefers daylight, tomorrow before ~17:30 UTC is equivalent — the only hard constraint is restarting BEFORE the 18:00 UTC cycle so the flags govern it.
+4. Plan (not now) flag retirement per Fowler: once the flags have survived their validation window, fold the fixed behavior in as default and delete the dead OFF branches — release toggles "should generally not stick around much longer than a week or two"; these are operator-gated so a few weeks is fine, but do not let them become permanent inventory.
+
+## JSON envelope
 
 ```json
 {
-  "tier": "complex",
-  "external_sources_read_in_full": 6,
-  "snippet_only_sources": 44,
-  "urls_collected": 50,
+  "tier": "simple",
+  "external_sources_read_in_full": 5,
+  "snippet_only_sources": 12,
+  "urls_collected": 36,
   "recency_scan_performed": true,
-  "internal_files_inspected": 23,
+  "internal_files_inspected": 12,
   "report_md": "handoff/current/research_brief.md",
   "gate_passed": true
 }
 ```
 
-### Research Gate Checklist
-Hard blockers:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6)
-- [x] 10+ unique URLs total (~50 across 6 searches)
-- [x] Recency scan (2024-2026) performed + reported (section 3)
-- [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim (section 5)
-
-Soft checks:
-- [x] Internal exploration covered all 10 caller-specified items
-- [x] Contradictions noted (LiteLLM hard-429 vs FinOps alert-first -- both legitimate, operator-gated)
-- [x] Claims cited per-claim
+Gate basis: 5 authoritative external sources fetched in full via WebFetch (2 official docs, 1 official man-page mirror, 1 official docs source via GitHub after the site refused connections, 1 canonical practice article); 36 unique URLs collected across 6 queries; recency scan performed with 4 reported findings; every internal claim carries file:line anchors. The one item this agent could not complete (backend/.env duplicate grep — sandbox permission denial on that file) is converted into a blocking pre-edit command for Main with indirect evidence already supporting the expected zero-hit result; it is an execution-step precondition, not an unresolved research question.
