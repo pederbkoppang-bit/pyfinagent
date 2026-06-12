@@ -1,198 +1,87 @@
-# Research Brief — phase-61.1: Activate dark fixes + deploy phase-60 code
+# Research Brief — phase-62.0 (goal-away-ops: hard-rules file + away goal + deferred flips + PreToolUse away-patterns)
 
-Tier: simple (caller-stated). Date: 2026-06-11. Agent: researcher (Layer-3 MAS, merged Explore).
-Prior phase-60.4 brief archived by hook to handoff/archive/phase-60/ (this file overwrites the rolling slot per handoff convention).
-Disclosed overrun: the 4-item internal audit (incl. the double-cycle restart-safety question) pushes past the simple-tier 10-tool-call budget; floors all met, prose kept tight.
+Tier: moderate (caller-stated). Date: 2026-06-12. Agent: researcher (Layer-3 MAS, merged Explore).
+Disclosed overrun: ~21 tool calls vs the 18 budget (4-item internal audit + one sandbox denial on `backend/.env` — researcher is DENIED that file; Main must grep the PAPER_* flag names itself). All floors met.
 
 ## Sources read in full (>=5 required; counts toward gate)
 
 | # | URL | Accessed | Kind | Fetched how | Key finding |
 |---|-----|----------|------|-------------|-------------|
-| 1 | https://apscheduler.readthedocs.io/en/3.x/userguide.html | 2026-06-12 | Official docs (APScheduler 3.11.2) | WebFetch, full page | Misfire applies to run times the scheduler KNOWS were missed: "The most common case is when a job is scheduled in a persistent job store and the scheduler is shut down and restarted after the job was supposed to execute." Default store "simply keeps the jobs in memory"; "If you always recreate your jobs at the start of your application, then you can probably go with the default (MemoryJobStore)." Coalesce merges queued executions into one. |
-| 2 | https://ss64.com/mac/launchctl.html | 2026-06-12 | Official man-page mirror | WebFetch, full page | `kickstart`: "Instructs launchd to kickstart the specified service." `-k`: "If the service is already running, kill the running instance before restarting the service." `-p` prints new PID. `gui/uid/label` targets the user's login domain. Kill-then-restart is atomic at the service (label) level — launchd owns instance uniqueness. |
-| 3 | https://pydantic.dev/docs/validation/latest/concepts/pydantic_settings/ | 2026-06-12 | Official docs (pydantic-settings, redirect from docs.pydantic.dev) | WebFetch, full page | Dotenv is loaded at `Settings()` INSTANTIATION; "no mention of caching across instantiations" — each new instance re-reads the file. Priority: init args > env vars > dotenv > secrets > defaults ("environment variables will always take priority over values loaded from a dotenv file"). "By default, environment variable names are case-insensitive." Extra dotenv keys: `extra='ignore'` (this repo, settings.py:536) skips them. |
-| 4 | https://raw.githubusercontent.com/encode/uvicorn/master/docs/server-behavior.md | 2026-06-12 | Official docs source (uvicorn.org/server-behavior — site itself ECONNREFUSED twice, GitHub canonical source used) | WebFetch, full page | Graceful shutdown: "Close any connections that are not currently waiting on an HTTP response, and wait for any other connections to finalize their HTTP responses... Wait for any background tasks to run to completion." "Uvicorn handles process shutdown gracefully, ensuring that connections are properly finalized, and all tasks have run to completion" within configured timeouts. |
-| 5 | https://martinfowler.com/articles/feature-toggles.html | 2026-06-12 | Authoritative blog (Hodgson/Fowler — canonical feature-toggle reference) | WebFetch, full page | Test BOTH toggle states; ship the production-intended config plus "the fall-back configuration where those toggles you intend to release are also flipped Off" (phase-60/57 did exactly this: OFF byte-identity tests + ON behavior tests). Env-var/parameterized toggles "still require process restart" — restart-to-flip is a recognized point on the spectrum, acceptable for non-emergency flags. Release toggles are transitionary (~1-2 weeks): plan flag retirement after validation. |
-
-Supplementing #1 with code-level proof, the INSTALLED APScheduler 3.11.2 source was read (internal evidence, not counted in the external gate): see §2 of the internal audit.
+| 1 | https://code.claude.com/docs/en/hooks | 2026-06-12 | Official docs (Claude Code) | WebFetch, full page | PreToolUse stdin JSON: `{session_id, transcript_path, cwd, permission_mode, hook_event_name, effort.level, tool_name, tool_input}`. Exit 2 = block, stderr fed to Claude, stdout ignored. Exit 0 + JSON `hookSpecificOutput.permissionDecision: allow|deny|ask|defer` (+`permissionDecisionReason`, `updatedInput`) is the richer alternative; exit-2 takes highest precedence. **Any OTHER non-zero exit = non-blocking error, tool proceeds** (crash = fail-open by construction). Matcher: omitted/`*` = all tools; exact; `Edit\|Write` lists; regex; `if: "Bash(git *)"` evaluated pre-spawn and checks each `&&` subcommand and `$()` substitution. Parallel PreToolUse hooks: any block wins. `CLAUDE_PROJECT_DIR` + `CLAUDE_EFFORT` env available. |
+| 2 | https://git-scm.com/docs/git-push | 2026-06-12 | Official docs (git) | WebFetch, full page | The complete force surface: `--force`, `-f`, `--force-with-lease[=<ref>[:<expect>]]`, `--force-if-includes` (no-op standalone), AND the **`+<refspec>` form (`git push origin +main`) which forces with NO flag at all**. Flags are position-free: `git push origin main --force` is valid — flag-after-refspec ordering. Server-side `receive.denyNonFastForwards` rejects all forced updates regardless of client flags. |
+| 3 | https://ss64.com/mac/launchctl.html | 2026-06-12 | Official man-page mirror | WebFetch, full page | Removal surface is FOUR commands, not one: `bootout` (modern; "equivalent to unload in the legacy syntax"; takes domain target or plist path), `unload` (legacy; `-w` persists), `remove` (by label, returns immediately), `disable` ("cannot be loaded… persists across boots", label-based). `kill` stops a running instance without unloading; `kickstart -k` is the restart-only verb. A deny list covering only `bootout`+`unload` misses `remove` and `disable`. |
+| 4 | https://www.anthropic.com/engineering/harness-design-long-running-apps | 2026-06-12 | Official engineering blog (Anthropic) | WebFetch, full page | Canonical harness article has **minimal explicit destructive-action guardrail content** — safety is implicit (file-based handoffs as checkpoints, evaluator-as-gate, "every component in a harness encodes an assumption about what the model can't do on its own"). Implication: the away-ops 3-layer enforcement (prompt rails + hook + sentinel reconciliation) fills a gap the canonical pattern leaves open; layering is the correct defense-in-depth shape since no single layer is documented as sufficient. |
+| 5 | https://mywiki.wooledge.org/BashFAQ/050 | 2026-06-12 | Community-canonical (Greg's Wiki; lowest-tier slot) | WebFetch, full page | "Directly manipulating raw code strings is among the least robust of metaprogramming techniques." Only the shell can parse shell: quoting ambiguity, word splitting, variable expansion mean regex inspection of a command string **cannot** reliably determine which files it writes (sed -i / tee -a / heredoc / `F=…; echo >> $F` all evade). Implication: the .env pattern is a TRIPWIRE for high-confidence write shapes, not a parser — the daily sentinel flag-vs-token reconciliation (approved plan, enforcement layer 3) is the ground-truth backstop. |
 
 ## Snippet-only table (does NOT count toward gate)
 
 | URL | Kind | Why not fetched in full |
-|-----|------|------------------------|
-| https://eclecticlight.co/2019/08/27/kickstarting-and-tearing-down-with-launchctl/ | Authoritative blog | ss64 man page covers kickstart -k authoritatively |
-| https://www.kevinmcox.com/2024/03/changes-to-launchctl-kickstart-in-macos-14-4/ | Practitioner blog | Recency datapoint only: macOS 14.4 blocks `kickstart -k` on critical SYSTEM daemons; user-domain `gui/` agents (our case) unaffected |
-| https://github.com/agronholm/apscheduler/issues/1095 | Maintainer issue tracker (Dec 2025) | Confirms 3.x missed-job semantics discussion; user guide + installed source already decisive |
-| https://apscheduler.readthedocs.io/en/3.x/modules/jobstores/memory.html | Official docs | MemoryJobStore "stores jobs in memory as-is, without serializing them" — covered by user guide |
-| https://betterstack.com/community/guides/scaling-python/apscheduler-scheduled-tasks/ | Community guide | "By default, APScheduler keeps all jobs in memory... lost when your application restarts" — corroboration only |
-| https://launchdarkly.com/blog/guide-to-dark-launching/ | Vendor blog | Fowler covers the canonical practice; LD adds percentage-rollout detail not applicable to a single-operator local deployment |
-| https://www.digitalapplied.com/blog/feature-flag-rollout-strategies-2026-engineering-playbook | Industry blog (2026) | Recency datapoint: keep kill-switch/rollback path ~30 days post-enable with explicit exit criteria |
-| https://github.com/encode/uvicorn/pull/853 | Maintainer PR | SIGTERM/SIGINT graceful-shutdown fix history; docs read in full instead |
-| https://github.com/Kludex/uvicorn/issues/668 | Issue tracker | Multi-worker SIGTERM edge cases — not applicable (single-process uvicorn here) |
-| https://leancrew.com/all-this/man/man1/launchctl.html | Man-page mirror | Duplicate of ss64 content |
-| https://launchdarkly.com/blog/release-management-flags-best-practices/ | Vendor blog | Overlaps Fowler |
-| https://apscheduler.readthedocs.io/en/3.x/faq.html | Official docs | No restart-specific content beyond user guide |
+|---|---|---|
+| https://github.com/anthropics/claude-code/issues/24327 | Bug tracker | Exit-2 block can make Claude stop awaiting user input instead of acting on stderr (intermittent, 2026) — captured in Risks |
+| https://github.com/anthropics/claude-code/issues/40580 | Bug tracker | "PreToolUse hook exit code ignored for subagent tool calls" — captured in Risks as coverage gap |
+| https://www.atlassian.com/blog/it-teams/force-with-lease | Industry blog | Lease nullified by background fetch; Git 2.30 `--force-if-includes` — covered by source 2 |
+| https://gist.github.com/pixelhandler/5718585 | Community gist | pre-push git-hook precedent; bypassable with `--no-verify` (our hook sits above git, unaffected) |
+| https://sonim1.com/en/blog/git-force-push-safely | Blog | Redundant with source 2 |
+| https://www.graphapp.ai/engineering-glossary/git/git-push---force-with-lease | Glossary | Redundant with source 2 |
+| https://claudefa.st/blog/tools/hooks/hooks-guide | Blog | Redundant with official doc (source 1) |
+| https://stevekinney.com/courses/ai-development/claude-code-hook-control-flow | Course notes | Confirms continue:false > decision:block > exit-2 hierarchy; redundant with source 1 |
+| https://www.morphllm.com/claude-code-hooks | Reference site | Redundant with source 1 |
+| https://linuxize.com/post/bash-heredoc/ | Tutorial | Heredoc mechanics; subsumed by source 5's stronger claim |
 
-## Search queries run (three-variant discipline)
+## Search queries (three-variant discipline)
 
-1. `launchctl kickstart -k semantics kill restart service man page` — year-less canonical
-2. `APScheduler misfire_grace_time coalesce missed jobs restart 2025` — last-2-year window
-3. `feature flag dark launch safe rollout best practice 2026` — current-year frontier
-4. `APScheduler MemoryJobStore jobs lost on restart add_job next_run_time` — year-less canonical
-5. `pydantic-settings env_file loading precedence dotenv` — year-less canonical
-6. `uvicorn graceful shutdown SIGTERM supervisor process managers` — year-less canonical
-
-Disclosure (simple tier): six queries across five topics, not 3x5=15 literal variants. The variant mix is covered in aggregate — current-year (#3), last-2-year (#2, plus 2024-2026 hits surfacing inside #1/#3/#4 result sets), year-less (#1,#4,#5,#6). launchctl/pydantic/uvicorn are versioned-docs topics where the canonical page IS the current-year source; their recency hits (macOS 14.4 change, Dec-2025 APScheduler issue) arrived inside the year-less result sets and are reported below.
+- T1 hooks: `Claude Code PreToolUse hook exit code 2 block tool call JSON decision 2026` (current-year). Year-less canonical = direct fetch of the official doc (source 1); last-2-year window covered by the 2026 GH issues surfaced. Topic is too new (2025-2026 feature) for older prior art — stated explicitly per protocol.
+- T3 force-push: `git push force protection pre-push hook --force-with-lease detect` (year-less canonical); recency via Atlassian/`--force-if-includes` hits; git-scm doc is the versionless canonical.
+- T5 .env detection: `parsing shell command string pitfalls heredoc sed tee detect file modification` (year-less canonical); BashFAQ/050 is the founding prior art.
+- T2 (Anthropic guardrails) + T4 (launchctl): direct canonical fetches of versionless references (engineering article, man page) — no year-variant search run; disclosed; recency addressed below.
 
 ## Recency scan (last 2 years)
 
-Performed; window 2024-2026. Findings:
-
-1. **macOS 14.4 (Mar 2024) restricted `launchctl kickstart -k`** for critical SYSTEM processes (e.g. `cfprefsd`) — kill via `kill` instead (kevinmcox.com). NOT applicable here: `com.pyfinagent.backend`/`.frontend` are user `gui/` domain LaunchAgents, on macOS Darwin 25.5; the watchdog has exercised this exact command in production (scripts/launchd/backend_watchdog.sh:76) without issue.
-2. **APScheduler issue #1095 (Dec 2025)**: "Missed jobs run at next fire time instead of immediately" — active maintainer discussion confirming 3.x does not eagerly re-fire missed cron occurrences in the cases users expected; consistent with the no-double-cycle conclusion.
-3. **Feature-flag practice 2026** (digitalapplied 2026 playbook): classify the toggle (these three are release/ops hybrids) and keep the rollback path live ~30 days with explicit exit criteria — maps to keeping the flags revertible via `.env` edit + restart, and to the planned post-flag BQ evidence collection before flag retirement.
-4. pydantic-settings docs (current 2025-2026 versions) unchanged on the load-at-instantiation + env-over-dotenv precedence semantics relied on here. No finding supersedes any canonical source used.
+Searched 2024-2026 window across topics. Findings: (a) `hookSpecificOutput.permissionDecision` + the `if` field + `updatedInput` are 2025-2026 additions to Claude Code — the JSON-decision path now exists alongside the exit-2 path our hook uses (both current; exit-2 remains valid and highest-precedence); (b) two OPEN 2026 issues (#24327 exit-2 stall, #40580 subagent exit-code ignored) qualify hook reliability — fed into Risks; (c) git force semantics unchanged since `--force-if-includes` (Git 2.30, 2021) — no new finding; (d) launchctl semantics stable since macOS 10.11 split — no new finding; (e) no 2024-2026 work supersedes BashFAQ/050's parse-impossibility argument.
 
 ## Internal code audit
 
-### 1. Flag definitions + reader sites
-
-Definitions (all `bool = Field(False, ...)`, default OFF, in `backend/config/settings.py`):
-
-| Flag (field name) | Definition | Env var (pydantic-settings case-insensitive field-name mapping; no alias) |
+| File | Lines | Finding |
 |---|---|---|
-| `paper_swap_churn_fix_enabled` | settings.py:311-314 | `PAPER_SWAP_CHURN_FIX_ENABLED` |
-| `paper_data_integrity_enabled` | settings.py:42-45 | `PAPER_DATA_INTEGRITY_ENABLED` |
-| `paper_risk_judge_reject_binding` | settings.py:277-280 | `PAPER_RISK_JUDGE_REJECT_BINDING` |
+| `.claude/settings.json` | 4-13 | PreToolUse has ONE entry, NO matcher (fires on every tool call), command-type → `pre-tool-use-danger.sh`. Extend that script; do not add a parallel entry (keeps the audit JSONL single-writer). |
+| `.claude/settings.json` | 154-171 | Permissions deny layer already holds `Bash(git push --force *)`, `Bash(git push -f *)`, `Bash(git reset --hard *)` — second defense layer; same ordering gap as the hook (see Risks). |
+| `.claude/hooks/pre-tool-use-danger.sh` | 19-43 | Input: `CLAUDE_TOOL_NAME`/`CLAUDE_TOOL_INPUT` env first, stdin-JSON fallback parsing `tool_name`/`tool_input` — matches the documented schema (source 1). New patterns slot into the existing `TOOL = "Bash"` branch (:78-159). |
+| `.claude/hooks/pre-tool-use-danger.sh` | 10-17, 60-69, 72-75 | Exit 2 = block via `block_with_msg` (stderr + audit line); designed FAIL-OPEN on internal error; `CLAUDE_ALLOW_DANGER=1` escape hatch reads the HOOK process env (a `VAR=1 cmd` prefix in the Bash command string cannot set it — no trivial self-bypass). |
+| `.claude/hooks/pre-tool-use-danger.sh` | 46-55, 140-145, 161-168 | Audit JSONL `handoff/audit/pre_tool_use_audit.jsonl`, single writer (repo-wide grep: only this script). Force-push case-glob :141 misses flag-after-refspec + `+refspec` (fix in same edit). `MCP_MIGRATE_TOKEN=granted` gate :163-167 is the in-file precedent for the tokens_cursor gate shape. |
+| `.claude/hooks/archive-handoff.sh` | 66-67, 87-111 | Archives ONLY `status == "done"` ids newly seen vs baseline `.claude/.archive-baseline.json`. pending→deferred is invisible to it. |
+| `.claude/hooks/auto-commit-and-push.sh` | 82, 106, 129-133 | `load_done_ids` collects only `status=="done"`; newly_done = worktree-vs-HEAD diff; empty → silent exit ("metadata only"). Deferred flips alone trigger NO commit/push. |
+| `.claude/masterplan.json` | (walk) | All 10 ids exist in BARE form (`36.2` … `40.1`, no `phase-` prefix), all `status: "pending"`. Status census: done 734, pending 84, in-progress 12, **deferred 8**, dropped 5, superseded 3, blocked 1 → `deferred` matches existing vocabulary exactly. |
+| `scripts/mas_harness/cycle_prompt.md` | 8-29, 86-95 | Precedent: numbered "Hard rules you MUST follow:" inline at top + "Context you have access to:" reading list naming rule files (CLAUDE.md, `.claude/rules/`). Away kickoff prompts should mirror: inline rails + `docs/runbooks/away-ops-rules.md` FIRST in the reading list (matches approved plan read order, `handoff/away_ops/approved_plan_2026-06-12.md:124`). |
+| `handoff/away_ops/` | (ls) | Contains only `approved_plan_2026-06-12.md` → `tokens_cursor` is a NEW file; absent cursor must read as "no token". `handoff/current/active_goal.md` EXISTS (3371 B, 2026-06-11) → 62.0 refreshes, not creates. |
 
-Env-file wiring: `_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"` (settings.py:12) -> `backend/.env`; `model_config = {"env_file": str(_ENV_FILE), "env_file_encoding": "utf-8", "extra": "ignore"}` (settings.py:536). No `case_sensitive` override, so `PAPER_..._ENABLED=true` maps to the lowercase field and `"true"` coerces to `True` for `bool` fields.
+## Risks & gotchas
 
-Reader sites (ALL use `getattr(settings, "<flag>", False)` — tolerant of older Settings objects):
-
-| File:line | Flag | What it gates |
-|---|---|---|
-| `backend/services/portfolio_manager.py:194-212` (read at :196) | reject_binding | Binding REJECT gate at the candidate-build chokepoint (covers main BUY + swap paths); appends to `blocked_out`, `continue`s before `buy_candidates.append` |
-| `backend/services/portfolio_manager.py:471` | churn_fix | `_churn_fix_on` — holding absent from same-cycle `holding_lookup` excluded from swap displacement |
-| `backend/services/portfolio_manager.py:561` | churn_fix | `denom = max(abs(holding_score), 1.0 if _churn_fix_on else 0.01)` — kills the ~70,000% sentinel deltas |
-| `backend/services/autonomous_loop.py:805` | churn_fix | Re-eval age hours-precise (`total_seconds()/86400`) vs truncated `.days` |
-| `backend/services/autonomous_loop.py:1948` | data_integrity | `_di_enabled` in lite Claude analyzer — blocking flags -> `_data_integrity_blocked_analysis` pre-LLM |
-| `backend/services/autonomous_loop.py:2228` | data_integrity | Same gate in the lite Gemini mirror path |
-| `backend/services/data_integrity.py:17,114` | data_integrity | Pure functions; docstrings state `blocking=True` flags are enforced only when the flag is ON — the settings read itself lives in autonomous_loop (the module takes no settings object) |
-
-**backend/.env duplicate check: NOT COMPLETABLE BY THIS AGENT.** Both `Bash grep` and `Read` on `backend/.env` are permission-denied in the researcher sandbox. Main MUST run, before editing:
-`grep -nE "^(PAPER_SWAP_CHURN_FIX_ENABLED|PAPER_DATA_INTEGRITY_ENABLED|PAPER_RISK_JUDGE_REJECT_BINDING)=" backend/.env`
-and expect zero hits. Indirect evidence none are set: phase-60.2/60.3/57.1 live_checks all recorded flag-OFF (byte-identical) behavior in the running system, which is impossible if `.env` already carried `=true`. Also note python-dotenv resolves duplicate keys last-occurrence-wins, so even an accidental duplicate is deterministic — but Main should still de-duplicate rather than append blindly. The launchd plist's `EnvironmentVariables` block (see §2) sets only `DEV_LOCALHOST_BYPASS`, `PATH`, `PYTHONUNBUFFERED` — no conflict with the three flags (real env vars would beat `.env` per pydantic-settings precedence; none exist here).
-
-### 2. Restart safety (double-cycle risk) — THE critical question
-
-**Verdict: a restart tonight CANNOT re-fire today's daily job. Code-level certainty, three independent reasons.**
-
-Registration code, verbatim (`backend/api/paper_trading.py:1299-1322`):
-
-```python
-def _add_scheduler_job(settings):
-    if not _scheduler:
-        return
-    _scheduler.add_job(
-        _scheduled_run,
-        "cron",
-        hour=settings.paper_trading_hour,
-        minute=0,
-        day_of_week="mon-fri",
-        timezone=ZoneInfo("America/New_York"),
-        id=_scheduler_job_id,
-        name="Paper trading daily run",  # phase-23.3.1: human-readable label
-        replace_existing=True,
-        # phase-44.2.X (2026-05-26): default APScheduler misfire_grace_time
-        # is 1 second; on 2026-05-25 the cron fired at the right second but
-        # event-loop contention from the ticket-queue interval job + polling
-        # endpoints pushed dispatch 2.10s late, so APScheduler skipped the
-        # run and advanced next_run to tomorrow. A daily job has no harm in
-        # running a few seconds (or minutes) late, so we raise the grace
-        # window to 1 hour. coalesce=True ensures if multiple windows are
-        # missed (e.g. backend down for hours), we run ONCE, not N times.
-        misfire_grace_time=3600,
-        coalesce=True,
-    )
-```
-
-And the lifespan wiring (`backend/main.py:264-272`): `scheduler = AsyncIOScheduler()` — constructed with **no jobstores argument**, i.e. the default **in-memory `MemoryJobStore`** — then `init_scheduler(scheduler)` (paper_trading.py:1289-1296, which only calls `_add_scheduler_job`) and `scheduler.start()`.
-
-Reason 1 — **MemoryJobStore has no cross-restart state.** Misfire handling (`misfire_grace_time`, `coalesce`) applies only to run times the scheduler *knows were missed* — i.e. a `next_run_time` already recorded in a job store (persistent store across restarts, or a live process whose event loop stalled). A fresh process builds a fresh scheduler and calls `add_job` anew; APScheduler computes the job's first `next_run_time` as the next fire time **strictly after now**. Verbatim from the INSTALLED package (`.venv/lib/python3.14/site-packages/apscheduler-3.11.2`), `apscheduler/schedulers/base.py:1066-1068` inside `_real_add_job`:
-
-```python
-# Calculate the next run time if there is none defined
-if not hasattr(job, "next_run_time"):
-    now = datetime.now(self.timezone)
-    replacements["next_run_time"] = job.trigger.get_next_fire_time(None, now)
-```
-
-and `apscheduler/triggers/cron/__init__.py:205-222` (`CronTrigger.get_next_fire_time`): with `previous_fire_time=None` — always the case for a newly added job — `start_date = now` (no trigger `start_date` configured at the call site) and the field search proceeds forward from `datetime_ceil(start_date)`; it can only return a time **at or after now**. A job added at process start therefore has zero past run times for `_process_jobs` to evaluate against `misfire_grace_time` — the misfire/coalesce machinery never even engages. There is no record that 2026-06-11 14:00 ET fired or didn't; the new scheduler's first scheduled fire is 2026-06-12 14:00 ET. No startup catch-up exists for in-memory stores (official docs: "If you always recreate your jobs at the start of your application, then you can probably go with the default (MemoryJobStore)").
-
-Reason 2 — **even the hypothetical grace window is long past.** Today's fire time was 18:00 UTC (14:00 ET; the observed 18:00-19:10 UTC cycle implies `PAPER_TRADING_HOUR=14` in the operator env — settings.py:335 default is 10, ET-denominated). A restart at ~23:30 UTC 06-11 / ~01:30 Oslo 06-12 is >5.5h after the fire time, far outside `misfire_grace_time=3600` (1h) even if a persistent store existed.
-
-Reason 3 — **no run-on-startup code path.** Exhaustive grep for `run_daily_cycle` callers in `backend/`: exactly three — `paper_trading.py:1031` (`dry_run=True` smoke endpoint), `paper_trading.py:1279` (`_run_cycle_background`, the operator-triggered run-now path), `paper_trading.py:1329` (`_scheduled_run`, the cron callback). The lifespan startup calls only `init_scheduler` + `scheduler.start()`; nothing invokes a cycle at boot. (Triple in-cycle guards — run-now 409 + `_running` + cycle_lock — exist independently per phase-49.2 memory.)
-
-**Watchdog interaction (`com.pyfinagent.backend-watchdog`):** the watchdog (`scripts/launchd/backend_watchdog.sh`, StartInterval=60, RunAtLoad=true) restarts the backend with the *same* command — `launchctl kickstart -k "gui/$UID_NUM/com.pyfinagent.backend"` (line 76) — after 3 consecutive `/api/health` failures (lines 20,44-46). launchd enforces ONE instance per service label, so there is no topology in which watchdog + manual kickstart produce two backend processes. Worst case (backend down >3 min during the restart) the watchdog issues a redundant kickstart — another clean restart, not a double process, and per Reasons 1-3 not a double cycle. The watchdog resets its own failure counter after kickstarting (line 79) and on the first healthy check (line 35), so a normal seconds-long restart never reaches the threshold.
-
-**Process-group teardown:** the backend plist (`~/Library/LaunchAgents/com.pyfinagent.backend.plist`) runs `caffeinate -i -s <venv>/uvicorn backend.main:app --host 0.0.0.0 --port 8000` with `KeepAlive=true`, `RunAtLoad=true`, `ThrottleInterval=5`. `kickstart -k` kills the running instance and restarts it (man-page semantics; external §below) — launchd tears down the job's process group (caffeinate parent + uvicorn child). Uvicorn here is **single-process** (no `--workers`, no `--reload` in ProgramArguments), so the CLAUDE.md "kill parent AND child workers" zombie rule reduces to the caffeinate->uvicorn pair, both inside the launchd job. Residual risk is uvicorn's own graceful-shutdown of in-flight requests (external §uvicorn); at ~23:30 UTC no cycle is in flight (today's finished ~19:10 UTC), so nothing is interrupted.
-
-### 3. get_settings() lru_cache semantics
-
-Verbatim (`backend/config/settings.py:539-541`):
-
-```python
-@lru_cache()
-def get_settings() -> Settings:
-    return Settings()  # type: ignore[call-arg]  # pydantic-settings loads from env/.env
-```
-
-- The cache is **per-process**: first `get_settings()` call in a new process instantiates `Settings()`, which reads `backend/.env` at that moment; every later call returns the same object. There is no TTL, no SIGHUP re-read, no file-watcher. **Restart is the only deterministic pickup** — confirmed.
-- `_scheduled_run` (paper_trading.py:1327) calls `get_settings()` per invocation but receives the cached instance — irrelevant post-restart since the cache is rebuilt from the new env.
-- Module-level snapshot sweep: `grep -rn "^settings = |^_settings = |^SETTINGS = " backend --include="*.py"` -> only `backend/agents/mcp_servers/data_server.py:28` (`_settings = None`, lazy init) plus two test-file path constants. **No eager module-level `Settings()` snapshot exists in backend/**; all three flag readers use `getattr(settings, ...)` on objects passed down from `get_settings()` at cycle/request time.
-- Cross-process caveat (the only true stale-path class): the **Slack bot** is a separate long-lived process with its own lru_cache — it does NOT execute the trading path (digests/alerts only), so the three flags never matter there; restarting it tonight is optional. Cron wrapper scripts and the harness spawn fresh interpreters per run -> automatic pickup. Frontend never reads backend flags.
-
-### 4. Frontend launchctl label
-
-`~/Library/LaunchAgents/com.pyfinagent.frontend.plist` exists (ls verified, mode 600, dated Apr 8). `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend` is the documented stale-chunk remedy (CLAUDE.md npm-kickstart rule + auto-memory `feedback_npm_install_requires_launchctl_kickstart`: pkill races the launchd watchdog; a stale dev server serves 404 chunk bundles — exactly the reported stale `/login` chunk symptom). No `npm install` happens in 61.1, but the kickstart remedy is install-independent.
-
-## Risks & gotchas (go/no-go)
-
-**VERDICT: GO — restarting the backend tonight (~23:30 UTC 06-11 / 01:30 Oslo 06-12) is safe. The double-cycle risk is ZERO with code-level certainty** (internal audit §2: in-memory job store + forward-only `get_next_fire_time(None, now)` + no run-on-startup call site + restart instant >5.5h past the fire time vs a 1h grace window that could not apply anyway).
-
-Conditions and residual gotchas, in execution order:
-
-1. **Pre-edit .env check (MUST, blocking).** This agent is permission-blocked from `backend/.env`; Main must run `grep -nE "^(PAPER_SWAP_CHURN_FIX_ENABLED|PAPER_DATA_INTEGRITY_ENABLED|PAPER_RISK_JUDGE_REJECT_BINDING)=" backend/.env` and expect zero hits before appending the three `=true` lines (python-dotenv is last-wins on duplicates, but append-blind is sloppy and the 54.1 NoDecode comment shows cron wrappers `set -a; . backend/.env` bash-source this file — keep one line per key, no quotes needed for `true`).
-2. **No cycle in flight at restart.** Today's cycle ended ~19:10 UTC; confirm via `curl -s localhost:8000/api/paper-trading/status` (loop status + `next_run`) before kickstart. A kickstart mid-cycle would SIGKILL a running cycle (watchdog comments, backend_watchdog.sh:56-58: kickstart -k bypasses Python finally blocks) — not tonight's situation, but check anyway.
-3. **Watchdog cannot double-start** (same `kickstart -k` on the same label; launchd enforces one instance per label). Worst case it issues a redundant restart if `/api/health` is down 3 consecutive minutes — backend warm-up is seconds, so unreachable in practice.
-4. **kickstart -k kills caffeinate + uvicorn together** (launchd job teardown; uvicorn is single-process here — no `--workers`, no `--reload` in the plist — so the zombie-children rule is satisfied by construction). `KeepAlive=true` + `ThrottleInterval=5` respawn the service; expect /api/health green within ~10-30s (BQ/macro preloads log after).
-5. **Verify the new process postdates b0fe1983 (phase-60.4).** `ps -p $(pgrep -f "uvicorn backend.main" | head -1) -o lstart=` must show a start time after the .env edit; the phase-60.2/3/4 code is already on disk (committed), so process start time is the only deployment variable.
-6. **Flag-load verification.** Log line `Paper trading scheduler active: daily at 14:00 ET` (paper_trading.py:1296) confirms init; for the flags themselves, `.venv/bin/python -c "from backend.config.settings import get_settings; s=get_settings(); print(s.paper_swap_churn_fix_enabled, s.paper_data_integrity_enabled, s.paper_risk_judge_reject_binding)"` proves the .env parses to `True True True` (fresh interpreter = same read path the backend takes at boot). For the RUNNING process, the next_run timestamp from /api/paper-trading/status must read 2026-06-12T14:00:00-04:00 — that simultaneously proves the no-double-cycle conclusion live.
-7. **Frontend kickstart is independent and safe at any hour** (`com.pyfinagent.frontend` label confirmed on disk; documented stale-chunk remedy). Playwright-capture /login after it settles (per the UI-verification rule).
-8. **Slack bot does NOT need a restart** for these flags (separate process, never executes the trading path). Do not touch it — it is crontab-monitored, not launchd (54.2 memory), and a pkill would be pure risk.
-9. **First post-flag evidence is 2026-06-12 18:00 UTC.** Expect: swap-path logs using the 1.0-clamp denominator (portfolio_manager.py:561), any non-US blocking integrity flag producing `_data_integrity_blocked_analysis` rows (autonomous_loop.py:1948/2228), and any REJECT verdict appending to `blocked_out` instead of `buy_candidates` (portfolio_manager.py:196-212). Absence-of-trigger is also valid evidence (e.g. zero REJECTs that cycle) — record what fired and what had no occasion to.
-10. **Fowler discipline note:** both flag states are already tested (phase-60/57 shipped OFF-byte-identity + ON-behavior tests), which is exactly the canonical "test the production-intended config AND the fall-back config" requirement — the flip itself is the residual untested surface, hence the 18:00 UTC evidence collection. Keep the rollback path (flags back to false + restart) live for the LaunchDarkly/2026-playbook ~30-day window before any flag-retirement refactor.
+1. **.env false-positive (caller-required).** Operator keystrokes (`echo 'PAPER_X=true' >> backend/.env` in their own terminal) never pass through PreToolUse — hooks intercept only Claude tool calls, so the operator path is structurally safe; no carve-out needed. Token-authorized agent flips: gate on `handoff/away_ops/tokens_cursor` freshness (mtime within a short window, or content naming the flag/step), mirroring the `MCP_MIGRATE_TOKEN` precedent (:163). Read-only mentions (`grep PAPER_ backend/.env`, `cat`, `source`) must NOT block — match write shapes only (`>>`/`>` redirection into `backend/.env`, `sed -i`, `tee [-a]`, `perl -i`, `python … open(...'w')` with the path). Per BashFAQ/050 the regex can never be complete (heredocs, `$F` indirection evade) — tripwire only; sentinel reconciliation is the backstop.
+2. **Fail-open vs fail-closed.** Project precedent is fail-open on internal error (`danger.sh:13-17`, both masterplan hooks `trap 'exit 0'`). Keep it: a crashed guard exiting non-2 must not brick 3 weeks of unattended sessions (doc source 1: non-2 nonzero = non-blocking). But on a MATCHED away-pattern with missing/stale cursor, the decision is deny (exit 2) — fail-SAFE per pattern, exactly the caller's framing.
+3. **Hook coverage gaps.** (a) GH #40580: exit code possibly ignored for SUBAGENT tool calls — don't rely on the hook alone; add the launchctl/push patterns to the settings.json deny list too (layer 2). (b) GH #24327: exit-2 can stall Claude awaiting input — away wrapper already exits 0 on anything (approved plan:119-120); make `block_with_msg` stderr prescribe the next action ("write a token ask; move on" — rail 10). (c) The hook inspects only `TOOL=Bash` command strings — an **Edit/Write tool call on backend/.env bypasses it entirely**; extend matching to `tool_name in {Edit,Write}` with `tool_input.file_path` ending `backend/.env` (caller's spec says "Bash edits", but this hole is one tool-choice away). (d) Self-modification: an away session could edit the hook/settings themselves — cover via rules-file prohibition + sentinel checksum, not more regex.
+4. **Force-push pattern gap (fix in same edit).** Current globs (`danger.sh:141`, settings deny:168-169) miss `git push origin main --force` (flags are position-free per git docs) and `git push origin +main`. New pattern needs: any `git push` containing `--force*`/`-f` anywhere, plus refspec tokens starting `+`.
+5. **launchctl surface.** Deny must cover `bootout`, `unload`, `remove`, `disable` (and consider `kill`) against `com.pyfinagent.*` labels AND plist paths; `kickstart` stays allowed (rail 9). Blocking only `bootout`/`unload` leaves `remove`/`disable` open.
+6. **Deferred-flip push hazard.** The flip edit itself is push-silent (auto-commit sees no new `done`), BUT the diff is HEAD-vs-worktree: if an uncommitted done-flip is sitting in masterplan.json when 62.0 edits it, the chain will commit+push EVERYTHING (`git add -A`). Do the 10 flips on a clean masterplan (done-set identical to HEAD). Flips land via Edit → the Edit-matcher chain (settings.json:76-100) fires identically.
 
 ## Recommendations
 
-1. Execute in this order: .env grep (item 1) -> append three lines -> backend kickstart -> health + process-age + flag-load checks (items 5-6) -> frontend kickstart -> Playwright /login capture -> wait for 2026-06-12 18:00 UTC cycle -> BQ evidence pull. No step requires waiting for another day.
-2. Capture for `live_check_61.1.md`: the grep output, the `ps -o lstart=` line, the three-flag `True True True` print, the /status next_run JSON, the Playwright screenshot path, and (next day) the BQ rows. That converts every claim in this brief into operator-auditable artifacts.
-3. The restart can happen tonight with zero scheduling risk; equally, there is no urgency-forcing reason it must (next cycle is 18.5h out). If the operator prefers daylight, tomorrow before ~17:30 UTC is equivalent — the only hard constraint is restarting BEFORE the 18:00 UTC cycle so the flags govern it.
-4. Plan (not now) flag retirement per Fowler: once the flags have survived their validation window, fold the fixed behavior in as default and delete the dead OFF branches — release toggles "should generally not stick around much longer than a week or two"; these are operator-gated so a few weeks is fine, but do not let them become permanent inventory.
+1. Extend `pre-tool-use-danger.sh` in place (new "away patterns" section after :159), keeping `block_with_msg` + audit JSONL; mirror the three new patterns into the permissions deny list where expressible (defense-in-depth, covers the subagent gap).
+2. Fix the existing force-push ordering gap in the same edit; include `+refspec` and `--force-with-lease`/`--force-if-includes` variants.
+3. Pattern the .env gate as: (Bash write-shape on `backend/.env` AND line content matching `PAPER_[A-Z_]*=`) OR (Edit/Write with file_path `backend/.env`) → require fresh tokens_cursor, else exit 2 with a "write a token ask" stderr.
+4. For the 10 flips: use the literal status string `deferred` (8 existing uses), bare ids, add an `audit_note` field, leave `verification` untouched; sequence on a clean tree.
+5. away-ops-rules.md referenced like the mas-harness precedent: numbered binding rails inline in each kickoff prompt + first entry in the session reading list.
 
 ## JSON envelope
 
 ```json
 {
-  "tier": "simple",
+  "tier": "moderate",
   "external_sources_read_in_full": 5,
-  "snippet_only_sources": 12,
-  "urls_collected": 36,
+  "snippet_only_sources": 10,
+  "urls_collected": 15,
   "recency_scan_performed": true,
-  "internal_files_inspected": 12,
+  "internal_files_inspected": 8,
   "report_md": "handoff/current/research_brief.md",
   "gate_passed": true
 }
 ```
-
-Gate basis: 5 authoritative external sources fetched in full via WebFetch (2 official docs, 1 official man-page mirror, 1 official docs source via GitHub after the site refused connections, 1 canonical practice article); 36 unique URLs collected across 6 queries; recency scan performed with 4 reported findings; every internal claim carries file:line anchors. The one item this agent could not complete (backend/.env duplicate grep — sandbox permission denial on that file) is converted into a blocking pre-edit command for Main with indirect evidence already supporting the expected zero-hit result; it is an execution-step precondition, not an unresolved research question.

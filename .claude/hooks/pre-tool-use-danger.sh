@@ -143,6 +143,60 @@ print("allow")
         *"git reset --hard"*)
             block_with_msg "git reset --hard detected" ;;
     esac
+    # phase-62.0 (away-ops rails 3+9): robust force-push + launchd removal,
+    # scoped PER COMMAND SEGMENT (split on ; && || |) so prose inside a
+    # commit message / heredoc in ANOTHER segment cannot false-positive
+    # (live-discovered: the 62.0 commit message mentioning the guards
+    # blocked its own commit). Flags are position-free and "+refspec"
+    # forces with no flag at all -- both missed by the static case above.
+    if [ -n "$PY" ] && { [[ "$cmd" == *"git push"* ]] || [[ "$cmd" == *launchctl* ]]; }; then
+        seg_verdict=$(printf '%s' "$cmd" | "$PY" -c '
+import sys, re
+cmd = sys.stdin.read()
+for seg in re.split(r";|&&|\|\||\|", cmd):
+    if re.search(r"(^|\s)git\s+push(\s|$)", seg):
+        if re.search(r"\s(--force|--force-with-lease|--force-if-includes|-f)(\s|$|=)", seg):
+            print("block:force-push flag"); sys.exit(0)
+        if re.search(r"git\s+push\s+\S+\s+\+[A-Za-z0-9_./-]+", seg):
+            print("block:+refspec force-push"); sys.exit(0)
+    if re.search(r"(^|\s)launchctl\s+(bootout|unload|remove|disable)\s", seg) and "com.pyfinagent." in seg:
+        print("block:launchctl removal on pyfinagent agent"); sys.exit(0)
+print("allow")
+' 2>/dev/null || printf 'allow')
+        case "$seg_verdict" in
+            block:*force*)
+                block_with_msg "force-push variant detected (${seg_verdict#block:}) -- away-ops rail 3" ;;
+            block:*launchctl*)
+                block_with_msg "launchctl removal verb on a pyfinagent agent -- away-ops rail 9 (kickstart is the allowed restart path)" ;;
+        esac
+    fi
+    # phase-62.0 (away-ops rail 1): backend/.env write tripwire. Shapes per
+    # BashFAQ/050 (a complete parser is impossible; the 62.4 sentinel
+    # reconciliation is the backstop): >>/> redirects, sed -i, tee, perl -i.
+    # Gate: handoff/away_ops/tokens_cursor fresh (mtime < 6h) = an operator
+    # token was just applied = the write is authorized.
+    if [[ "$cmd" =~ (\>\>|\>)[[:space:]]*([A-Za-z0-9_./\"\x27-]*/)?backend/\.env ]] \
+       || [[ "$cmd" =~ sed[[:space:]]+(-[A-Za-z]*i|--in-place)[^\;\&\|]*backend/\.env ]] \
+       || [[ "$cmd" =~ tee[[:space:]]+(-a[[:space:]]+)?[^\;\&\|]*backend/\.env ]] \
+       || [[ "$cmd" =~ perl[[:space:]]+[^\;\&\|]*-[A-Za-z]*i[^\;\&\|]*backend/\.env ]]; then
+        CURSOR="${CLAUDE_PROJECT_DIR:-$(pwd)}/handoff/away_ops/tokens_cursor"
+        fresh=0
+        if [ -f "$CURSOR" ]; then
+            now_s=$(date +%s 2>/dev/null || echo 0)
+            cur_s=$(stat -f %m "$CURSOR" 2>/dev/null || echo 0)
+            if [ "$now_s" -gt 0 ] && [ "$cur_s" -gt 0 ] && [ $((now_s - cur_s)) -lt 21600 ]; then
+                fresh=1
+            fi
+        fi
+        if [ "$fresh" != "1" ]; then
+            log_event "block" "backend/.env write without fresh token cursor"
+            printf 'pre-tool-use-danger blocked this call: backend/.env write without a fresh operator token (away-ops rail 1).\n' >&2
+            printf 'Do NOT retry. Record the ask in handoff/away_ops/pending_tokens.json and move on to the next calendar item.\n' >&2
+            printf 'The gate opens automatically when a session applies a matching operator token (tokens_cursor mtime < 6h).\n' >&2
+            exit 2
+        fi
+        log_event "allow" "backend/.env write with fresh token cursor"
+    fi
     # File-level checkout/restore guard. Patterns matched (word-boundary
     # regex, so 'git checkout -- ' appearing INSIDE a grep/rg/awk quoted
     # argument is not blocked -- that is just searching for the string,
@@ -157,6 +211,44 @@ print("allow")
         block_with_msg "git restore detected -- silently discards working-tree edits"
     fi
 fi
+
+# ── phase-62.0: Edit/Write tool coverage for backend/.env ────────
+# A Bash-only tripwire is bypassable via the Edit/Write tools
+# (researcher finding); same token-cursor gate applies.
+case "$TOOL" in
+    Edit|Write|NotebookEdit)
+        fp=""
+        PY="$(command -v python3 || command -v python || true)"
+        if [ -n "$INPUT" ] && [ -n "$PY" ]; then
+            fp=$(printf '%s' "$INPUT" | "$PY" -c 'import sys,json
+try:
+    d = json.loads(sys.stdin.read() or "{}")
+    print(d.get("file_path", ""))
+except Exception:
+    pass' 2>/dev/null || true)
+        fi
+        case "$fp" in
+            *backend/.env)
+                CURSOR="${CLAUDE_PROJECT_DIR:-$(pwd)}/handoff/away_ops/tokens_cursor"
+                fresh=0
+                if [ -f "$CURSOR" ]; then
+                    now_s=$(date +%s 2>/dev/null || echo 0)
+                    cur_s=$(stat -f %m "$CURSOR" 2>/dev/null || echo 0)
+                    if [ "$now_s" -gt 0 ] && [ "$cur_s" -gt 0 ] && [ $((now_s - cur_s)) -lt 21600 ]; then
+                        fresh=1
+                    fi
+                fi
+                if [ "$fresh" != "1" ]; then
+                    log_event "block" "$TOOL on backend/.env without fresh token cursor"
+                    printf 'pre-tool-use-danger blocked this call: %s on backend/.env without a fresh operator token (away-ops rail 1).\n' "$TOOL" >&2
+                    printf 'Do NOT retry. Record the ask in handoff/away_ops/pending_tokens.json and move on.\n' >&2
+                    exit 2
+                fi
+                log_event "allow" "$TOOL on backend/.env with fresh token cursor"
+                ;;
+        esac
+        ;;
+esac
 
 # ── MCP execute_sql gate ─────────────────────────────────────────
 case "$TOOL" in

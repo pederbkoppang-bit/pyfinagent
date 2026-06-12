@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-12T07:20:42.756906+00:00",
+  "updated_at": "2026-06-12T07:46:31.410345+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11758,7 +11758,7 @@
         {
           "id": "36.2",
           "name": "ATR-scaled stops + trail distance (OPEN-1)",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "36.1",
@@ -11774,12 +11774,13 @@
             "live_check": "live_check_36.2.md quotes a phase-32.2-shape trail event whose stop calculation uses ATR(14)."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "36.3",
           "name": "Triple-barrier EXIT (OPEN-6)",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "36.1",
@@ -11795,12 +11796,13 @@
             "live_check": "live_check_36.3.md quotes a barrier-fire paper_trades row of each type."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "36.4",
           "name": "Persist entry_strategy at BUY time (OPEN-8)",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -11817,12 +11819,13 @@
             "live_check": "live_check_36.4.md quotes a new BUY whose entry_strategy != 'momentum'."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "36.5",
           "name": "Continuous sector-cap re-check (OPEN-7) -- alert-only first",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": null,
@@ -11839,12 +11842,13 @@
             "live_check": "live_check_36.5.md quotes the cycle_history row with concentration_breach + the Slack message + the feature flag value."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "36.6",
           "name": "Tiered per-position drawdown ladder (OPEN-3) -- owner-gated",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,
@@ -11861,7 +11865,8 @@
             "live_check": "live_check_36.6.md quotes each ladder fire."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         }
       ]
     },
@@ -11938,7 +11943,7 @@
         {
           "id": "37.3.1",
           "name": "Re-evaluate budget_tokens removal when Anthropic legacy-model EOL announced (follow-up to 37.3 NO_OP closure)",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "37.3",
@@ -11953,7 +11958,8 @@
             "live_check": null
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "37.4",
@@ -12341,7 +12347,7 @@
         {
           "id": "40.1",
           "name": "OpenAlex key + .env.example (OPEN-24)",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": null,
@@ -12355,7 +12361,8 @@
             "live_check": null
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "40.2",
@@ -12399,7 +12406,7 @@
         {
           "id": "40.3.1",
           "name": "Re-run stress-test doctrine on next major Opus release (follow-up to 40.3)",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": "40.3",
@@ -12414,7 +12421,8 @@
             "live_check": null
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "40.4",
@@ -12477,7 +12485,7 @@
         {
           "id": "40.7",
           "name": "Meta-labeling exit classifier (OPEN-4) -- owner-gated",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": null,
@@ -12493,7 +12501,8 @@
             "live_check": "live_check_40.7.md captures the secondary-classifier output on a synth scenario."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         },
         {
           "id": "40.8",
@@ -12538,7 +12547,7 @@
         {
           "id": "40.8.2",
           "name": "BQ schema column + Kenneth French cache for factor_loadings (follow-up to 40.8.1)",
-          "status": "pending",
+          "status": "deferred",
           "harness_required": true,
           "priority": "P3",
           "depends_on_step": "40.8.1",
@@ -12554,7 +12563,8 @@
             "live_check": null
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         }
       ]
     },
@@ -14568,7 +14578,7 @@
         {
           "id": "62.0",
           "name": "Hard-rules file + away goal install + backlog disposition -- docs/runbooks/away-ops-rules.md (10 rails), active_goal.md refresh, deferred-status flips for 36.2-36.6/37.3.1/40.3.1/40.8.2/40.7/40.1 with audit notes, pre-tool-use-danger.sh away patterns (force-push, launchctl bootout, .env flag edit without fresh token cursor).",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

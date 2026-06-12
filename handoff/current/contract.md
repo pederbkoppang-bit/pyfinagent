@@ -1,105 +1,108 @@
-# Contract -- phase-61.1: Activate the dark fixes + deploy phase-60 code
+# Contract -- phase-62.0: Hard-rules file + away goal install + backlog disposition + hook away-patterns
 
-Date: 2026-06-12 (session start 2026-06-11 evening). Goal: goal-phase61-churn-integrity.
-Install commit: 255d6cc9 (operator decision verbatim: "Install + begin 61.1 now (Recommended)").
+Date: 2026-06-12. Goal: goal-away-ops (install commit 66cb8bc1, operator plan-mode approval).
 
 ## Research-gate summary
 
-Brief: handoff/current/research_brief.md (198 lines; tier simple; gate_passed: true;
-5 external sources read in full incl. APScheduler 3.x user guide, launchctl man page,
-pydantic-settings docs, uvicorn server-behavior docs, Fowler feature-toggles; recency scan
-performed; 12 internal files inspected). Headline findings:
-
-- GO on tonight's restart: double-cycle risk is ZERO with code-level certainty --
-  (1) AsyncIOScheduler at backend/main.py:267 uses the default in-memory MemoryJobStore
-  (no cross-restart state); APScheduler 3.11.2 base.py:1066-1068 computes a fresh job's
-  next_run_time strictly forward from now; (2) misfire_grace_time=3600/coalesce=True
-  (paper_trading.py:1299-1322) is moot >5.5h past the 18:00 UTC fire; (3) exactly three
-  run_daily_cycle callers, none on startup. Next fire: 2026-06-12T14:00:00-04:00.
-- Watchdog safe: kickstart -k on the same label; launchd enforces single instance;
-  uvicorn here is single-process (no --workers/--reload in the plist) so the
-  caffeinate->uvicorn pair tears down together.
-- get_settings() lru_cache (settings.py:539-541): restart is the only deterministic flag
-  pickup; no stale module-level Settings snapshots found; Slack bot unaffected.
-- All three flag definitions confirmed (settings.py:311 / :42 / :277) with 7 reader
-  sites (portfolio_manager.py:196/:471/:561, autonomous_loop.py:805/:1948/:2228,
-  data_integrity.py:17/:114).
-- Precondition: verify backend/.env has no existing lines for the three env names before
-  appending (researcher was permission-denied on .env; Main also denied -- operator runs
-  the grep + append via `!` commands; this is consistent with the secrets deny rule).
-- Frontend label com.pyfinagent.frontend confirmed; kickstart is the documented
-  stale-chunk remedy.
+Brief: handoff/current/research_brief.md (tier moderate, gate_passed: true, 5 sources in
+full -- Claude Code hooks reference, git-push docs, launchctl man, Anthropic harness
+design, BashFAQ/050 -- plus issues #24327/#40580; recency scan done). Key findings:
+- EXTEND .claude/hooks/pre-tool-use-danger.sh (single PreToolUse entry, no matcher, env
+  vars CLAUDE_TOOL_NAME/CLAUDE_TOOL_INPUT with stdin-JSON fallback, exit 2 = block,
+  fail-open on internal error by design). The MCP_MIGRATE_TOKEN gate at :161-168 is the
+  in-file precedent shape for the tokens_cursor gate.
+- Force-push surface gaps: flags are position-free (`git push origin main --force`) and
+  `+refspec` forces with no flag -- current glob (:141) and settings deny both miss these.
+- launchctl removal surface = FOUR verbs: bootout, unload, remove, disable (deny on
+  com.pyfinagent.* labels/plists); kickstart stays allowed (rail 9).
+- .env detection is a TRIPWIRE on write shapes (>>/>, sed -i, tee, perl -i), not a
+  complete parser (BashFAQ/050); daily sentinel reconciliation (62.4) is the backstop.
+  GAP found by researcher: Edit/Write tool calls on backend/.env bypass a Bash-only
+  check -- must match tool_name in {Edit,Write,NotebookEdit} + file_path too.
+- Operator keystrokes (`!` commands) never traverse PreToolUse -- no operator carve-out
+  needed.
+- Block stderr must prescribe "write a token ask, move on" (issue #24327 stall guard);
+  mirror patterns into settings.json deny as layer 2 (issue #40580 subagent caveat).
+- Deferred flips are push-silent (archive/auto-commit hooks key ONLY on status=="done");
+  hazard: run flips on a clean masterplan (verified clean now). `deferred` is existing
+  status vocabulary (8 uses). All 10 target ids exist in bare form, all pending.
+- active_goal.md exists (refresh, don't create); handoff/away_ops/tokens_cursor does not
+  exist yet (absent = no token = gate closed).
 
 ## Hypothesis
 
-The phase-60.2/60.3 fixes and the 57.1 binding gate are correct (each passed its own
-step's Q/A) but inert: flags default OFF and the running backend process (PID 77557,
-started 2026-06-11 11:43:34) predates all phase-60 commits. Appending the three env lines
-per the operator's tokens and restarting will (a) load phase-60.2/60.3/60.4 code,
-(b) activate the churn fix, data-integrity normalization, and binding REJECT gate, and
-(c) the next daily cycle (2026-06-12 18:00 UTC) will show zero sentinel-driven swap-outs
-and zero REJECT-executed buys.
+Encoding the away rails as (1) a binding rules document, (2) deterministic PreToolUse
+blocks with a token-cursor gate, and (3) settings-deny mirrors gives three independent
+layers that make the prior away-week failure mode (unauthorized behavior change) require
+three simultaneous failures instead of one, without blocking legitimate work.
 
-## Operator tokens (recorded verbatim, AskUserQuestion 2026-06-11 local session)
+## Immutable success criteria (verbatim from .claude/masterplan.json, phase-62 step 62.0)
 
-- "60.2 FLAG: ON (Recommended)"  -> PAPER_SWAP_CHURN_FIX_ENABLED=true
-- "60.3 FLAG: ON (Recommended)"  -> PAPER_DATA_INTEGRITY_ENABLED=true
-- "57.1 FLAG: ON (Recommended)"  -> PAPER_RISK_JUDGE_REJECT_BINDING=true
+1. "docs/runbooks/away-ops-rules.md contains the 10 numbered rails from the approved plan
+   verbatim and is referenced by every kickoff prompt"
+2. "the 10 disposition steps are status=deferred with an audit note citing the operator's
+   verbatim 'Confirm disposition' reply; a git diff in experiment_results.md proves ONLY
+   status/audit fields changed (verification criteria byte-identical)"
+3. ".claude/hooks/pre-tool-use-danger.sh (or equivalent PreToolUse hook) blocks: git push
+   --force variants, launchctl bootout/unload of pyfinagent labels, and edits
+   adding/changing PAPER_* flag lines in backend/.env when handoff/away_ops/tokens_cursor
+   has no fresh matching token -- each pattern unit-tested by invoking the hook with a
+   synthetic payload"
+4. "handoff/current/active_goal.md points at goal_away_ops.md with the away calendar"
 
-## Immutable success criteria (verbatim from .claude/masterplan.json, phase-61 step 61.1)
+verification.command (verbatim): cd /Users/ford/.openclaw/workspace/pyfinagent && test -f
+docs/runbooks/away-ops-rules.md && python3 -c "import json; mp=json.load(open('.claude/
+masterplan.json')); ids={'36.2','36.3','36.4','36.5','36.6','37.3.1','40.3.1','40.8.2',
+'40.7','40.1'}; steps={s['id']: s for p in mp['phases'] for s in p.get('steps',[])};
+bad=[i for i in ids if steps.get(i,{}).get('status')!='deferred']; assert not bad, bad;
+print('deferred OK')"
 
-1. "the operator's verbatim flag tokens (60.2 FLAG / 60.3 FLAG / 57.1 FLAG, each ON or
-   KEEP OFF) are recorded in handoff/current/live_check_61.1.md and backend/.env matches
-   them exactly; no flag changed without its token"
-2. "post-restart, the running uvicorn process start time is later than the phase-60.4
-   commit timestamp (ps -o lstart vs git log evidence pasted verbatim), proving
-   phase-60.2/60.3/60.4 code is loaded"
-3. "frontend kickstarted via launchctl; Playwright capture shows
-   http://localhost:3000/login loads without ChunkLoadError"
-4. "first post-restart daily-cycle evidence in live_check_61.1.md as verbatim BQ rows: if
-   60.2 FLAG: ON, zero swap_for_higher_conviction SELLs of holdings lacking a same-cycle
-   analysis_results row; if 57.1 FLAG: ON, zero executed trades with
-   risk_judge_decision='REJECT'"
-5. "handoff/harness_log.md cycle entry appended before the status flip"
-
-verification.command (verbatim): cd /Users/ford/.openclaw/workspace/pyfinagent && source
-.venv/bin/activate && python -c "from backend.config.settings import get_settings; s =
-get_settings(); print('churn_fix', s.paper_swap_churn_fix_enabled, 'data_integrity',
-s.paper_data_integrity_enabled, 'rj_binding', s.paper_risk_judge_reject_binding)" && test
--f handoff/current/live_check_61.1.md
-
-live_check (verbatim): live_check_61.1.md containing: verbatim operator flag tokens,
-ps -o lstart output post-restart vs commit timestamps, Playwright screenshot path for
-/login, and first post-flag cycle BQ rows from financial_reports.paper_trades
+Criterion-1 forward-reference note: kickoff prompts are CREATED by 62.3; at 62.0 close the
+"referenced by every kickoff prompt" leg is satisfiable only as a 62.3 obligation. Q/A may
+mark that leg deferred-to-62.3; 62.3's contract re-verifies it. The rules file itself +
+all other legs complete here.
 
 ## Plan
 
-1. Operator runs (Main is .env-denied by design):
-   `! grep -nE "^(PAPER_SWAP_CHURN_FIX_ENABLED|PAPER_DATA_INTEGRITY_ENABLED|PAPER_RISK_JUDGE_REJECT_BINDING)=" backend/.env`
-   (expect zero hits), then the append of the three lines + provenance comment.
-2. Main: `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`; wait for health;
-   run the verification command (fresh interpreter settings print = True True True);
-   `ps -o pid,lstart,command` vs `git log -1 --format=%ci` for the phase-60.4 commit;
-   curl /api/paper-trading/status asserting next_run 2026-06-12T14:00:00-04:00 (proves
-   flags loaded AND no double cycle).
-3. Main: `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.frontend`; Playwright
-   navigate /login + snapshot; assert no ChunkLoadError in console.
-4. Write live_check_61.1.md (criteria 1-3 evidence; criterion 4 marked PENDING until the
-   2026-06-12 18:00 UTC cycle) + experiment_results.md.
-5. Spawn fresh Q/A. Expected honest verdict: CONDITIONAL pending criterion-4 cycle
-   evidence -- that is the correct verdict tonight, not a failure of the step.
-6. Append harness_log.md cycle entry (log-last). NO masterplan status flip until
-   criterion 4 evidence lands after the 2026-06-12 cycle and a fresh Q/A passes the step.
+1. Write docs/runbooks/away-ops-rules.md: the 10 rails verbatim from
+   handoff/away_ops/approved_plan_2026-06-12.md "Safety rails" section + enforcement-
+   layers note + token grammar reference.
+2. Extend pre-tool-use-danger.sh (fail-open shell discipline preserved):
+   (a) robust force-push: any `git push` segment carrying --force/--force-with-lease/-f
+   anywhere, or a `+refspec` argument; (b) launchctl {bootout,unload,remove,disable} on
+   com.pyfinagent.* labels or plist paths (kickstart untouched); (c) backend/.env write
+   tripwire for Bash shapes (>>, >, sed -i/--in-place, tee [-a], perl -i) AND for
+   Edit/Write/NotebookEdit with file_path matching backend/.env -- gated on
+   handoff/away_ops/tokens_cursor existing with mtime < 6h; block stderr prescribes
+   "record a token ask in handoff/away_ops/pending_tokens.json and move on".
+3. Mirror layer-2 deny entries in .claude/settings.json permissions.deny:
+   Bash(git push*--force*), Bash(git push*-f *), Bash(git push* +*),
+   Bash(launchctl bootout*com.pyfinagent*), Bash(launchctl unload*com.pyfinagent*),
+   Bash(launchctl remove*com.pyfinagent*), Bash(launchctl disable*com.pyfinagent*).
+4. Masterplan flips: python round-trip setting status=deferred + new deferral_audit field
+   on the 10 ids (audit_basis and verification untouched); git diff captured verbatim
+   into experiment_results.md.
+5. Refresh active_goal.md: dual in-flight goals (phase-61 chain + goal-away-ops), away
+   calendar pointer, token grammar, pending token asks.
+6. Tests: backend/tests/test_phase_62_0_danger_hook.py -- subprocess the hook with
+   synthetic env payloads: BLOCK cases (git push origin main --force; git push -f; git
+   push origin +main; launchctl bootout/unload/remove/disable gui/501/com.pyfinagent.
+   backend; echo X >> backend/.env without cursor; sed -i on backend/.env; Edit tool
+   file_path backend/.env) and ALLOW cases (git push origin main; launchctl kickstart -k
+   com.pyfinagent.backend; >> on other files; .env write WITH fresh cursor; rm -rf
+   node_modules). Assert exit codes 2/0 and stderr content for blocks.
+7. Q/A spawn -> harness_log append -> flip 62.0 (auto-commit hook pushes).
 
-## Out of scope for this step
+## Out of scope
 
-Any code edit (61.2-61.5 own those); any change to paper_swap_min_delta_pct; any
-hysteresis-family work; disturbing phase-58.1.
+62.1-62.8 artifacts (plists, wrapper, sentinel, healthcheck, digests); any backend/.env
+edit (the hook gate is built and tested with a TEMP cursor fixture, never a real flag
+write); phase-61 step work.
 
 ## References
 
-- handoff/current/research_brief.md (this step's gate)
-- handoff/current/goal_phase61_churn_integrity.md (goal prompt, CRITICAL constraints)
-- handoff/archive/phase-60/ (60.2 replay + live_check promotion sections)
-- APScheduler 3.x user guide; launchctl man page; pydantic-settings docs; uvicorn
-  server-behavior docs; Fowler feature-toggles (full list in research_brief.md)
+- handoff/current/research_brief.md (62.0 gate)
+- handoff/away_ops/approved_plan_2026-06-12.md (rails source of truth)
+- https://code.claude.com/docs/en/hooks ; git-scm.com/docs/git-push ; ss64.com/mac/
+  launchctl.html ; anthropic.com/engineering/harness-design-long-running-apps ;
+  mywiki.wooledge.org/BashFAQ/050 ; issues #24327, #40580

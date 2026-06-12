@@ -1,177 +1,200 @@
-# Evaluator Critique -- Step 61.1 (Q/A, single merged agent)
+# Evaluator Critique -- phase-62.0 (Q/A, first spawn, 2026-06-12)
 
-**Step:** 61.1 -- Activate the dark fixes + deploy phase-60 code (flags 60.2/60.3/57.1,
-backend restart, frontend kickstart, first-cycle evidence).
-**Date:** 2026-06-12 (~06:30 UTC). **Spawn:** FIRST Q/A spawn for 61.1 (0 prior
-CONDITIONALs in harness_log.md; rolling critique slot held 60.4 PASS before this overwrite).
-**Verdict: CONDITIONAL (ok: false)** -- criteria 1-3 MET with reproduced evidence;
-criterion 4 structurally time-gated on the 2026-06-12 18:00 UTC cycle (honestly marked
-PENDING); criterion 5 (log-last) correctly queued behind this verdict. Nothing failed;
-two of five immutable criteria are not yet satisfiable. This is the honest verdict the
-contract itself predicted (contract.md plan item 5).
+Verdict: **PASS** (ok: true). All four immutable criteria met as scoped; two
+forward obligations recorded with named owners (62.3, 62.2). Deterministic
+checks reproduced independently, including a mutation probe and an
+allow-traffic probe. No BLOCK/WARN code-review heuristics fired.
+(Rolling slot note: this overwrites the 61.1 CONDITIONAL critique, which is
+preserved in harness_log.md Cycle 56 and will archive with 61.1's close.)
 
-## 1. Harness-compliance audit (5 items) -- ALL PASS
+## 1. Harness-compliance audit (5/5)
 
-1. **Researcher before contract: PASS.** `handoff/current/research_brief.md` (198 lines,
-   tier simple): `gate_passed: true`, 5 external sources read in full (4 official-docs
-   tier: APScheduler 3.x user guide, ss64 launchctl man page, pydantic-settings docs,
-   uvicorn server-behavior via GitHub canonical source; 1 authoritative: Fowler
-   feature-toggles), 36 URLs collected, 12 snippet-only sources tabled, recency scan
-   performed (4 findings incl. macOS 14.4 kickstart restriction -- correctly scoped as
-   N/A for gui/ domain), three-variant query discipline disclosed (6 queries, aggregation
-   disclosed rather than hidden). Internal audit carries file:line anchors throughout
-   (settings.py:311/:42/:277, paper_trading.py:1299-1322, installed APScheduler
-   base.py:1066-1068). The first researcher spawn died at a session limit with only a
-   skeleton; the fresh respawn after reset completed the brief -- disclosed in
-   experiment_results.md item 2, consistent with the write-first discipline. The one
-   incompletable item (researcher sandbox denied on backend/.env) was converted into an
-   explicit blocking precondition for the operator -- executed (grep zero hits per
-   live_check section A). Brief mtime 06:08:12 local precedes contract mtime.
-2. **Contract before generate: PASS.** contract.md dated 2026-06-12. All 5 success
-   criteria + verification.command diffed against `.claude/masterplan.json` phase-61 step
-   61.1: **verbatim match** (line-wrapping only). Mtime chronology proves ordering:
-   research_brief 06:08:12 -> contract 06:11:40 -> first generate action (Playwright
-   after-capture 06:12:17 local = 04-12-17Z filename) -> .env append ~08:04 ->
-   restart 08:05:49 -> live_check 08:06:57 -> experiment_results 08:07:19 (all local,
-   +0200). Every generate action postdates the contract's final write.
-3. **experiment_results.md present and honest: PASS.** Header states "GENERATE, in
-   progress"; criteria 1-3 complete, 4 gated, 5 queued. Discloses the first-spawn death,
-   the .env comment line-wrap glitch (harmless, dotenv ignores non-KEY lines), and "NO
-   source-code changes (per contract scope: 61.1 is config/ops only)" -- verified below.
-   No overclaim found: every COMPLETE claim is backed by verbatim evidence I reproduced.
-4. **Log-last respected: PASS.** `grep -cE "61\.1|phase-61" handoff/harness_log.md` = 0.
-   Last entry is Cycle 55 phase=60.4 PASS (line 26937). Absence is CORRECT here -- the
-   61.1 append is queued after this verdict, before any status flip. Masterplan 61.1
-   status confirmed still `pending`, retry_count 0.
-5. **No verdict-shopping: PASS.** Zero prior 61.1 Q/A entries (harness_log grep = 0; no
-   handoff/archive/phase-61* directory; rolling evaluator_critique.md was 60.4's PASS,
-   agent a692923a). First spawn. 3rd-CONDITIONAL rule not in play (0 prior CONDITIONALs).
+1. **Researcher before contract: PASS.** handoff/current/research_brief.md --
+   gate_passed: true, 5 sources read in full covering exactly the required
+   topics (Claude Code hooks reference #1, git-scm git-push #2, launchctl man
+   #3, Anthropic harness design #4, BashFAQ/050 #5), issues #24327/#40580 in
+   the snippet table, recency scan present and substantive (2025-2026 hook
+   JSON-decision additions; two open 2026 hook-reliability issues). Tool-call
+   overrun (21 vs 18) disclosed -- honest. Internal audit table covers the
+   hook, settings.json, both masterplan hooks, and the 10 target ids.
+2. **Contract before generate: PASS.** All 4 success criteria verbatim-
+   confirmed programmatically against .claude/masterplan.json step 62.0
+   (whitespace-normalized string containment: 4/4 True). The criterion-1
+   "referenced by every kickoff prompt" forward declaration sits at
+   contract.md:60-63, i.e. PRE-declared before GENERATE -- judged legitimate
+   scoping, not criterion-dodging (analysis in section 3, criterion 1).
+3. **experiment_results.md honest: PASS, both iteration claims verified.**
+   (a) perl flag-cluster widening is real -- hook line 170 matches
+   `-[A-Za-z]*i`, and the test suite includes `perl -pi -e` (test line 99).
+   (b) The "legacy substring guard blocks the grep payload" claim verified
+   two ways: the case-glob exists at HEAD:.claude/hooks/
+   pre-tool-use-danger.sh:141 (predates this step, phase-4.14.27 header), and
+   it fired LIVE on this Q/A session's own grep command mid-evaluation --
+   first-hand confirmation the false positive exists, is conservative-
+   direction, and predates the step. Leaving it as-is is reasonable: fixing
+   it would modify pre-existing guard semantics (scope expansion) for a
+   command shape that only ever blocks string-searching, never real work.
+4. **Log-last respected: PASS.** Zero `phase=62` entries in
+   handoff/harness_log.md; the file is unmodified in git status. Entry queued
+   behind this verdict, correct order.
+5. **No verdict-shopping: PASS.** This is the first 62.0 Q/A spawn; no prior
+   CONDITIONALs for this step-id anywhere in harness_log.md.
 
-## 2. Deterministic checks (reproduced live, verbatim)
+## 2. Deterministic checks (all run by Q/A, verbatim results)
 
-**Immutable verification command** (exit code captured):
+- **Immutable verification command**: exit 0, output `deferred OK`.
+- **Test suite**: `python -m pytest backend/tests/test_phase_62_0_danger_hook.py -q`
+  -> `30 passed in 0.86s` (matches the claimed 30).
+- **Mutation probe (anti-rubber-stamp)**: copied the hook to a temp dir,
+  surgically deleted the 4-line launchctl guard (hook lines 158-161), invoked
+  the mutant with the bootout payload via the documented env interface
+  (CLAUDE_TOOL_NAME/CLAUDE_TOOL_INPUT, temp CLAUDE_PROJECT_DIR): mutant
+  exit=0 where the real hook exit=2 with "rail 9" stderr. Re-executing the
+  test's exact assertion (`returncode == 2`) against the mutant raised
+  AssertionError -> the tests genuinely constrain the hook. Control: the
+  mutant still blocked force-push (guard removal was surgical). Real hook
+  untouched; temp dir removed.
+- **Allow-traffic probe**: real hook, synthetic payloads `git push origin
+  main`, `launchctl kickstart -k gui/501/com.pyfinagent.backend`, `ls` -- all
+  exit 0. The guard does not block normal away-session traffic.
+- **Masterplan diff (criterion 2), independently re-derived**:
+  `git diff HEAD .claude/masterplan.json` filtered of
+  status/deferral_audit/updated_at lines leaves ONLY 10x `"max_retries": 3`
+  trailing-comma pairs (the JSON-serialization artifact, exactly as
+  experiment_results claims). Python compare vs `git show
+  HEAD:.claude/masterplan.json`: all 10 ids (36.2-36.6, 37.3.1, 40.1, 40.3.1,
+  40.7, 40.8.2) are status=deferred; every `verification` block byte-identical
+  to HEAD; every deferral_audit contains the operator's verbatim "Confirm
+  disposition"; no other field on the 10 changed; ZERO other steps changed.
+- **Rails verbatim (criterion 1)**: extracted approved_plan_2026-06-12.md:136-152
+  vs docs/runbooks/away-ops-rules.md:10-26. Word-identical after line-wrap
+  normalization and ASCII transliteration; the ONLY raw-byte differences are
+  three unicode glyphs ASCII-fied (<= for U+2264, => for U+21D2, -> for
+  U+2192). No words added, removed, or reordered. See NOTE-1.
+- **Layer-2 mirrors**: .claude/settings.json loads as valid JSON; all 7 deny
+  entries present (git push*--force* / * -f * / * +*; launchctl
+  bootout|unload|remove|disable *com.pyfinagent*); `git diff HEAD
+  .claude/settings.json` shows ONLY those 7 additions (+comma artifact).
+- **Hook diff scope**: `git diff HEAD --stat` = 81 insertions, 0 deletions --
+  no pre-existing guard weakened or removed.
+- **live_check_62.0.md**: all three block transcripts present with exit=2 and
+  the rail-numbered stderr. Self-demonstration corroborated independently:
+  handoff/audit/pre_tool_use_audit.jsonl contains exactly ONE
+  "backend/.env write without fresh token cursor" block event
+  (2026-06-12T07:33:31Z). The .env unit tests run against temp
+  CLAUDE_PROJECT_DIR dirs (test file lines 87-91, 101-102), so their audit
+  lines cannot land in the real jsonl -- that single event can only be live
+  session traffic, consistent with the self-demonstration narrative.
+- **Scope honesty**: backend/.env untracked (`git ls-files` empty) and absent
+  from `git status --porcelain`; no behavior flags touched. Dirty set =
+  exactly the declared file list + hook-written audit streams.
+  handoff/away_ops/tokens_cursor does NOT exist -> gate closed by default,
+  as designed. handoff/current/goal_away_ops.md exists (41,713 bytes).
 
-    churn_fix True data_integrity True rj_binding True
-    VERIFICATION_EXIT=0
+## 3. Criterion-by-criterion judgment
 
-Matches expected True True True; `test -f handoff/current/live_check_61.1.md` passes
-(file exists, untracked, mtime 08:06:57).
+1. **Rules file + kickoff-prompt reference: MET as scoped.** The 10 rails are
+   word-verbatim (deterministic check above). The "referenced by every
+   kickoff prompt" leg: zero kickoff prompts exist today (they are 62.3's
+   deliverable -- scripts/away_ops/prompt_*.md), so no existing artifact
+   violates the criterion (vacuously satisfied), and the handling was
+   PRE-declared in the contract (lines 60-63) before GENERATE -- the
+   signature of legitimate scoping rather than criterion-dodging, which
+   would look like post-hoc discovery or wording that hides the leg. The
+   rules file operationalizes the intent now (enforcement-layers section:
+   prompts "read this file FIRST and quote the rails inline") and
+   active_goal.md puts the rails first in the session reading order.
+   **Q/A independent finding correcting the record**: 62.3's immutable
+   success criteria do NOT mention the rules file or the rails (verified by
+   scanning every phase-62 step's criteria -- only 62.0's own criteria
+   reference them; the prompts appear only in 62.3's name). The forward
+   obligation therefore rests on contract/process, not on an immutable
+   criterion. Binding follow-through recorded as FORWARD-OBLIGATION-1 below
+   and to be echoed in the harness_log entry.
+2. **Backlog disposition: MET**, fully deterministic (see section 2). The
+   auto-push hook stayed correctly silent (keys only on status=="done") --
+   matching the research-brief prediction.
+3. **Hook blocks + unit tests: MET.** All three pattern classes block with
+   exit 2 and rail-numbered stderr; each is unit-tested by invoking the hook
+   with synthetic payloads (the criterion's literal requirement): force-push
+   x6 variants including the position-free flag and +refspec gaps the
+   research found, launchctl x4 removal verbs (+ kickstart and other-label
+   allows), .env write shapes x5 + fresh/stale cursor + Edit/Write/
+   NotebookEdit tool coverage (the researcher-found Bash-only bypass) +
+   other-file allows + pre-existing rm-rf/escape-hatch regressions. Tests
+   are behavioral (exit codes AND stderr content, real subprocess, no
+   mocks) and mutation-verified. The block stderr prescribes the
+   pending_tokens.json ask path (issue #24327 stall guard). Two scoping
+   observations that do NOT violate the criterion: (a) the hook blocks ALL
+   backend/.env write shapes, stricter than the criterion's "PAPER_* flag
+   lines" minimum -- strictness in the safe direction; (b) "fresh MATCHING
+   token" is implemented as cursor mtime < 6h without content matching --
+   pre-declared in the contract (plan step 2) and documented in the rules
+   file's token mechanics, where matching is procedural: the cursor is
+   advanced only as the final act of applying one specific operator token
+   (62.2's machinery; no token infrastructure exists yet to match against).
+   See FORWARD-OBLIGATION-2.
+4. **active_goal.md: MET.** Points at goal_away_ops.md (exists), carries the
+   away-calendar pointer (approved_plan "Calendar" table authority), rails
+   first in reading order, token mechanics, dual in-flight goals.
 
-**Criterion-2 reproduction** (ps -axo pid,lstart,command, live; vs git):
+## 4. Code-review heuristics (5 dimensions evaluated -- no BLOCK, no WARN)
 
-    84680 fre. 12 jun. 08.05.49 2026   .../Python .../.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
-    84682 fre. 12 jun. 08.05.49 2026   /usr/bin/caffeinate -i -s .../.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
-    b0fe1983 2026-06-11 16:30:22 +0200 phase-60.4: observability + ops residuals (AW-7/AW-1/AW-2/AW-10, hygiene) -- PASS, CLOSES PHASE-60
+- Security: no secrets in diff; tests use subprocess list-args shell=False;
+  step ADDS restrictions (deny entries, hook guards) -- the inverse of
+  excessive-agency scope creep; no new endpoints, deps, or LLM surfaces.
+- Trading-domain: kill_switch / paper_trader / perf_metrics / risk_engine
+  untouched (diff is hooks/settings/docs/masterplan/tests only).
+- Code quality: 81 new hook lines carry 30 behavioral tests; ASCII-only
+  throughout (rules file has zero non-ASCII bytes -- verified).
+- Anti-rubber-stamp: no tautological assertions; allow-side cases prevent
+  the "block everything" degenerate implementation; mutation probe run.
+- Evaluator anti-patterns: first spawn, no prior verdict to flip; every
+  finding above cites file:line or verbatim command output.
 
-Process start 2026-06-12 08:05:49 +0200 > commit 2026-06-11 16:30:22 +0200 by ~15.6h.
-Phase-60.2/60.3/60.4 code is loaded. Old PID pair 77557/77559 absent from ps (no
-zombies; exactly one uvicorn+caffeinate pair). Matches live_check section D verbatim.
+## 5. Forward obligations and NOTEs (none blocking)
 
-**Scheduler state** (curl /api/paper-trading/status, live):
-
-    {"scheduler_active": true, "next_run": "2026-06-12T14:00:00-04:00",
-     "loop": {"running": false, "last_run": null}}
-
-Job registered for 18:00 UTC today; loop idle; last_run null in the fresh process -- no
-startup re-fire. The research brief's no-double-cycle prediction (MemoryJobStore +
-forward-only CronTrigger.get_next_fire_time + no run-on-startup caller) held live.
-
-**Criterion-3 frontend evidence** (live + on-disk artifacts):
-
-    LOGIN_HTTP=200
-    -rw-r--r--  270   12 jun. 06:12  .playwright-mcp/console-2026-06-12T04-12-17-492Z.log
-    -rw-r--r--  664   12 jun. 06:12  .playwright-mcp/page-2026-06-12T04-12-17-914Z.yml
-    -rw-r--r--  25389 12 jun. 06:12  .playwright-mcp/page-2026-06-12T04-12-23-333Z.png
-
-Console log content read in full: a SINGLE React DevTools INFO line, zero errors, no
-ChunkLoadError. Screenshot viewed (Q/A, this spawn): fully styled dark-theme login card,
-PyFinAgent branding + chart icon, "Sign in with Google" and "Sign in with Passkey"
-buttons, "Access restricted to authorized users" footer. The before-probe artifact
-(console-2026-06-11T18-58-57-517Z.log, ChunkLoadError + 404 chunk) documents the prior
-broken state -- a genuine before/after pair. Live-UI capture gate (qa.md section 1c):
-SATISFIED (navigate + snapshot + screenshot + console, taken during this step's window;
-my live curl confirms the page still serves 200 now).
-
-**Scope check** (git status --porcelain): only handoff/, handoff/audit/, and
-.claude/agent-memory/researcher/ files modified; live_check_61.1.md untracked-new. NO
-backend/*.py, NO frontend/** changes -- config/ops-only scope honored. Frontend lint/tsc
-gate (qa.md 1b) not triggered (no frontend diff). **backend/.env: tracked=0, staged=0**
--- not in git, deny rules respected (operator ran the edit via `!` keystrokes; neither
-Main nor Q/A read the file).
-
-## 3. Per-criterion judgment
-
-| # | Criterion (abbrev.) | State | Basis |
-|---|---------------------|-------|-------|
-| 1 | Tokens verbatim + .env matches exactly | **MET (via accepted proxy)** | Tokens recorded verbatim in live_check section A (all three "ON (Recommended)" + install decision). .env proxy: controlled before/after on the SAME read path -- fresh interpreter printed False/False/False pre-append (~04:15 UTC) and True/True/True post-append (06:04 UTC), with the .env append the only intervention. Defaults are Field(False); launchd plist env block sets none of these names; the pre-append False baseline rules out ambient env vars. The proxy isolates backend/.env as the source and proves the three values match the tokens. No flag changed without its token (all three tokens say ON; all three read True). Proxy sufficiency: YES -- it is the masterplan's own immutable verification command, and the before/after design makes it evidential, not decorative. Residual (accepted): no direct read of .env to rule out unrelated line edits; mitigated by operator grep precondition (zero pre-existing flag lines), printf append of exactly 3 KEY=true lines + comment, healthy backend post-restart, and the disclosed line-wrap artifact. |
-| 2 | Restart postdates phase-60.4 commit | **MET** | Independently reproduced live (above); live_check section D evidence matches my reproduction on PIDs/lstart. |
-| 3 | Frontend kickstart + no ChunkLoadError | **MET** | HTTP 200 live; three Playwright artifacts on disk; console clean (read in full); screenshot visually verified by this Q/A. |
-| 4 | First post-flag cycle BQ evidence | **PENDING (time-gated)** | The 18:00 UTC 2026-06-12 cycle has not occurred (status endpoint: next_run 14:00 ET today, loop idle, last_run null). The PENDING marking is honest and the evidence plan is concrete AND falsifiable: named table (financial_reports.paper_trades + analysis_results cross-check), named fields/filters (reason='swap_for_higher_conviction' lacking same-cycle analysis_results row; risk_judge_decision='REJECT' on executed trades), zero-row assertions a single counter-row would falsify. Research brief item 9 correctly pre-commits to recording absence-of-trigger semantics (what fired vs what had no occasion to). |
-| 5 | harness_log append before status flip | **QUEUED (correct order)** | Log intentionally not yet appended; status still pending. Sequencing is the protocol working, not a defect. |
-
-## 4. Code-review heuristics (5 dimensions evaluated)
-
-No source-code diff exists, so trading-domain BLOCK heuristics (kill-switch, stop-loss,
-perf-metrics, LLM09 execution-path) are N/A by construction. Findings:
-
-- **secret-in-diff: none.** .env untracked/unstaged; handoff files contain flag NAMES and
-  boolean values (documented in the masterplan itself), not credentials.
-- **excessive-agency: none.** The .env mutation was operator-keystroke, preserving the
-  deny-rule separation; Main performed only restart/verify actions.
-- **anti-rubber-stamp: satisfied.** The step's evidence is a controlled mutation pair --
-  flags demonstrably False before (planted-negative state captured verbatim) and True
-  after; process demonstrably stale before (PID 77557 lstart 11:43:34 predating all
-  phase-60 commits) and fresh after. Before/after on the same instruments is the ops
-  equivalent of a mutation-resistance test.
-- **NOTE (doc hygiene, non-blocking): stale section heading.** live_check_61.1.md line 53
-  reads "## D. Restart evidence (criterion 2 -- baseline captured, restart PENDING)" while
-  the section body (and the file's own Status line) records RESTART EXECUTED / CRITERION 2
-  SATISFIED. Fix the heading when filling section E.
-- **3rd-conditional-not-escalated: N/A** (this is the first CONDITIONAL for 61.1).
-
-## 5. What converts CONDITIONAL to PASS
-
-1. **Criterion 4:** after the 2026-06-12 18:00 UTC cycle, fill live_check section E with
-   verbatim BQ rows (or verbatim zero-row query results) from
-   financial_reports.paper_trades + analysis_results: (a) zero swap_for_higher_conviction
-   SELLs of holdings lacking a same-cycle analysis_results row; (b) zero executed trades
-   with risk_judge_decision='REJECT'. Record absence-of-trigger explicitly (e.g. "no swap
-   candidates evaluated this cycle" is valid evidence if true -- paste the query that
-   shows it).
-2. **Criterion 5:** append the phase-61.1 cycle entry to handoff/harness_log.md BEFORE
-   the masterplan status flip.
-3. Spawn a fresh Q/A on the updated evidence (documented cycle-2 flow -- evidence will
-   have changed; this is not verdict-shopping).
-4. Hygiene (with item 1's edit): fix the stale "restart PENDING" heading in section D.
+- **FORWARD-OBLIGATION-1 (owner: 62.3 contract + Q/A).** Every
+  scripts/away_ops/prompt_*.md MUST reference docs/runbooks/away-ops-rules.md
+  (read-first + rails inline). 62.3's immutable criteria do NOT carry this
+  leg, so the 62.3 contract must add it as a plan obligation and the 62.3
+  Q/A prompt must check it explicitly. Until then, criterion 1's second leg
+  is satisfied only vacuously.
+- **FORWARD-OBLIGATION-2 (owner: 62.2).** The token-application flow must be
+  the ONLY writer of handoff/away_ops/tokens_cursor (touch = final act of
+  applying one specific token), preserving the procedural meaning of
+  "matching" that the mtime-only gate relies on.
+- **NOTE-1 (glyph transliteration).** Rails are word-verbatim; three unicode
+  glyphs were ASCII-fied, consistent with the project's ASCII discipline
+  (.claude/rules/security.md). If the operator wants byte-verbatim, it is a
+  three-character fix -- flagged, not held.
+- **NOTE-2 (residual evasion shapes, pre-agreed tripwire scope).**
+  `git -C <path> push` with a force flag evades both the hook regex (requires
+  `git<space>push` adjacency) and the anchored deny globs; `cd backend &&
+  echo X >> .env` evades the path match; variable indirection evades any
+  regex (BashFAQ/050, contract-acknowledged). The 62.4 sentinel
+  reconciliation is the designed backstop. Consider widening the push regex
+  to tolerate `-C <path>` in a later step.
+- **NOTE-3 (audit-stream hygiene).** The non-env tests default
+  CLAUDE_PROJECT_DIR to the repo, so every pytest run appends ~11 block
+  events to the real handoff/audit/pre_tool_use_audit.jsonl. Cosmetic;
+  consider temp-dir for all tests later.
+- **NOTE-4 (live false-positive confirmed).** The legacy substring guard
+  (hook:141) blocked this Q/A session's own grep command (search string
+  contained the force-push literal) during evaluation -- conservative-
+  direction, predates the step, documented in experiment_results. Acceptable
+  as-is for the away window.
 
 ## 6. JSON envelope
 
 ```json
 {
-  "ok": false,
-  "verdict": "CONDITIONAL",
-  "reason": "Criteria 1-3 MET with independently reproduced evidence (verification cmd exit 0 / True True True; PID 84680 lstart 2026-06-12 08:05:49 +0200 > b0fe1983 2026-06-11 16:30:22 +0200; /login 200 + clean console + styled-card screenshot verified). Criterion 4 is structurally time-gated on the 2026-06-12 18:00 UTC cycle and honestly marked PENDING with a concrete falsifiable evidence plan; criterion 5 (log-last) correctly queued behind this verdict. First Q/A spawn; no prior CONDITIONALs; harness-compliance audit 5/5 PASS.",
-  "violated_criteria": [
-    "criterion-4: first post-flag daily-cycle BQ evidence (time-gated, cycle not yet run)",
-    "criterion-5: harness_log.md cycle entry before status flip (queued by design)"
-  ],
-  "violation_details": [
-    {
-      "violation_type": "Threshold_Not_Met",
-      "action": "evaluate live_check_61.1.md section E (first post-flag cycle evidence)",
-      "state": "section E empty-pending; /api/paper-trading/status shows next_run 2026-06-12T14:00:00-04:00, loop.running=false, last_run=null -- the gating cycle has not occurred",
-      "constraint": "masterplan 61.1 criterion 4: verbatim BQ rows showing zero unanalyzed swap_for_higher_conviction SELLs and zero REJECT-executed trades in the first post-restart daily cycle",
-      "severity": "PENDING-TIME-GATED"
-    },
-    {
-      "violation_type": "Threshold_Not_Met",
-      "action": "grep -cE 'phase-61' handoff/harness_log.md",
-      "state": "0 entries (last is Cycle 55 phase=60.4); masterplan 61.1 status=pending",
-      "constraint": "masterplan 61.1 criterion 5: cycle entry appended before the status flip (absence is correct NOW; the criterion is unmet until the append lands)",
-      "severity": "PENDING-SEQUENCED"
-    }
-  ],
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 4 immutable criteria met: rails word-verbatim (3 unicode glyphs ASCII-fied, NOTE-1); 10 deferrals proven diff-clean vs HEAD with byte-identical verification blocks; all 3 hook pattern classes block exit-2 + 30 behavioral tests + mutation probe proved tests constrain the hook + allow-traffic 3/3 exit 0; active_goal points at goal_away_ops.md with the calendar. Criterion-1 'referenced by every kickoff prompt' leg = pre-declared 62.3 forward obligation, vacuously true today (zero prompts exist); Q/A finding: 62.3's immutable criteria do NOT bind it -- 62.3 contract + Q/A must (FORWARD-OBLIGATION-1). Deterministic: verification cmd exit 0 'deferred OK'; pytest 30/30; settings 7/7 mirrors valid JSON; rail-1 live block event corroborated in audit jsonl; backend/.env untouched.",
+  "violated_criteria": [],
+  "violation_details": [],
   "certified_fallback": false,
-  "checks_run": ["harness_compliance_audit_5item", "verification_command", "criteria_diff_masterplan_vs_contract", "process_lstart_vs_commit", "scheduler_status_live", "frontend_http_200", "playwright_artifacts_on_disk", "console_log_read_full", "screenshot_visual_review", "live_ui_capture_gate_1c", "git_status_scope", "env_not_tracked_not_staged", "harness_log_grep", "mtime_chronology", "code_review_heuristics", "research_gate_compliance"]
+  "checks_run": ["harness_compliance_audit", "verification_command", "pytest_30", "mutation_probe", "allow_traffic_probe", "masterplan_diff_vs_HEAD", "rails_verbatim_compare", "settings_deny_mirrors", "live_check_audit_corroboration", "scope_honesty_git_status", "code_review_heuristics", "contract_verbatim_check"]
 }
 ```

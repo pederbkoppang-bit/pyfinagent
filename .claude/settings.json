@@ -167,7 +167,14 @@
       "Bash(rm -rf *)",
       "Bash(git push --force *)",
       "Bash(git push -f *)",
-      "Bash(git reset --hard *)"
+      "Bash(git reset --hard *)",
+      "Bash(git push*--force*)",
+      "Bash(git push* -f *)",
+      "Bash(git push* +*)",
+      "Bash(launchctl bootout*com.pyfinagent*)",
+      "Bash(launchctl unload*com.pyfinagent*)",
+      "Bash(launchctl remove*com.pyfinagent*)",
+      "Bash(launchctl disable*com.pyfinagent*)"
     ]
   }
 }
