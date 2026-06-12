@@ -23,8 +23,11 @@ token AUTORESEARCH SPEND: RESUME (pending_tokens.json).
 
 REGRESSION FOUND AND FIXED during the dry run: this morning's operator .env paste left
 an unbalanced quote in a comment line -- pydantic-harmless but it KILLED
-run_nightly.sh's shell-sourcing (exit 2 before any log line; last night's 02:00 run
-likely died the same way). run_nightly.sh now sources a sanitized KEY=value-only
+run_nightly.sh's shell-sourcing (exit 2 before any log line). CORRECTION (Q/A
+spawn-1 catch): the 06-12 02:00 scheduled run SURVIVED -- autoresearch.log:1-3 shows
+START + skip + END OK, and the .env paste happened ~08:04, AFTER 02:00; the original
+"last night likely died the same way" inference here was wrong. The breakage window was
+08:04 -> the 62.6 fix only. run_nightly.sh now sources a sanitized KEY=value-only
 stream; backend_watchdog.sh + healthcheck.sh already used safe greps (audited).
 Cosmetic .env cleanup = ENV-LINE-81 operator keystroke (62.7).
 

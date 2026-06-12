@@ -23,8 +23,13 @@ hour (the 23:00 evening digest reads the files you write).
 2. CYCLE EVIDENCE: pull today's trading-cycle BQ rows (financial_reports.paper_trades +
    analysis_results) and update whichever live_check files are wall-clock-gated on cycle
    evidence (61.1 criterion 4 until closed; 65.4 during its proof window; 35.3 when
-   active). Verbatim rows, never summaries. If a gated step's evidence is now COMPLETE:
-   spawn ONE fresh qa for that step, and on PASS append harness_log.md + flip it.
+   active). ALSO record the 02:00 autoresearch scheduled-night outcome (tail
+   handoff/autoresearch.log -- START/preflight-only/END OK lines, verbatim) into
+   live_check_39.1.md; after the THIRD consecutive post-fix scheduled night
+   (06-13/14/15), spawn ONE fresh qa to close 39.1 AND 62.6 together (the 62.6
+   criterion-3 coupling; see live_check_62.6.md). Verbatim rows, never summaries. If a
+   gated step's evidence is now COMPLETE: spawn ONE fresh qa for that step, and on PASS
+   append harness_log.md + flip it.
 3. PENDING ASKS: refresh handoff/away_ops/pending_tokens.json -- every open operator
    decision with its EXACT reply string and age in days.
 4. COST: append today's session COST/LIMIT_HIT lines from session.log into
