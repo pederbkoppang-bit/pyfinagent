@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `849a131b` | chore: gitignore the away-session lockfile (transient wrapper state self-dirtied every preflight) |
 | 2026-06-12 | `f3be7cf9` | phase-62.4: wrapper dirty-check ignores perpetually-churning evidence paths (preflight-test discover |
 | 2026-06-12 | `9936e91a` | phase-62.4+62.5+62.8: sentinel + healthcheck P1 delivery fix + away digest (62.8 PASS cycle-2; 62.4/ |
 | 2026-06-12 | `b01a03bd` | phase-62.8: Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by m... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `fa62b5fe` | phase-60.1: deep-pipeline restoration + honest-degradation alarm (AW-4) -- PASS |
 | 2026-06-11 | `7524e3cf` | feat(masterplan): install phase-60 -- 59.3 re-audit remediation, steps 60.1-60.4 ONLY, operator-appr |
 | 2026-06-11 | `ad349f57` | revert(masterplan): remove unauthorized phase-60 install (7258d241) -- written by the 59.3 stress-te |
-| 2026-06-11 | `cd29b9b5` | docs(handoff): preserve unauthorized phase-60 draft as UNAPPROVED reference input |
 
 ---
 
