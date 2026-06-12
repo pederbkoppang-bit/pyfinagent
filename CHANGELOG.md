@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `80008b10` | chore: masterplan phase-status reconciliation -- 7 stale in-progress phases resolved (status-only) |
 | 2026-06-12 | `86749179` | phase-17.4: stale-step closure -- researcher x Alpaca MCP x dry-run -- PASS (cycle-2) |
 | 2026-06-12 | `6684c9c7` | phase-17.4: dryrun log force-added past the *.log gitignore (criterion 3) + evidence addendum |
 | 2026-06-12 | `ae07a48c` | phase-62.1 (in progress): slack bot cut over to launchd -- agent live PID 2585, dual-supervisor race |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `731297c8` | docs(59.3): post-scoring addendum -- disclosed second-pass deviation (scored version preserved at 23 |
 | 2026-06-11 | `23153016` | feat(harness): phase-59.3 stress-test doctrine run -- PASS (bare Fable 5 10/10 anchors + 2 verified  |
 | 2026-06-11 | `d97cf30b` | feat(mcp): phase-59.2 MCP audit + integration -- PASS (playwright 0.0.76 + alwaysLoad discipline; BI |
-| 2026-06-11 | `96b52299` | feat(models): phase-59.1 Fable 5 adoption -- PASS (L3 researcher/qa model:fable + caps 40/30; L2 mas |
 
 ---
 
