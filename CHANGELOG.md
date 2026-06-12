@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `d203634d` | chore(away-ops): recovery -- commit runtime/audit appends + PM session artifact (no in-flight step) |
 | 2026-06-12 | `875e25d4` | chore: PM-session prompt also owns 62.1/62.2 evidence closure while they remain open |
 | 2026-06-12 | `f9595486` | phase-62.6: hygiene batch -- Q/A CONDITIONAL (coupled to 39.1 strict 3-night path; criteria 1+2 veri |
 | 2026-06-12 | `1be98e83` | phase-62.7 prep: P1 paging fix in alerting.py (R-1, live-proven) + token cursor-advance rule (I-4) + |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `d77f55b3` | phase-62.0 cycle-2: per-segment guard scoping fixes self-blocking false positive -- delta Q/A PASS ( |
 | 2026-06-12 | `928ae228` | phase-62.0: Hard-rules file + away goal install + backlog disposition -- docs/runbooks/away-ops-r... |
 | 2026-06-12 | `66cb8bc1` | feat: install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3-week away plan 2026-06-1 |
-| 2026-06-12 | `99860d6e` | phase-61.1: activate dark fixes -- flags ON + backend/frontend restart; Q/A CONDITIONAL pending toni |
 
 ---
 
