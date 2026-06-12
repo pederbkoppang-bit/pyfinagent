@@ -89,9 +89,14 @@ if [ "${AWAY_SESSION_DRY_RUN:-0}" != "1" ]; then
         fi
     fi
     # ── Dirty tree => recovery (a crashed prior session left WIP) ────────
+    # 62.4 refinement (preflight-test discovery): handoff/audit/*.jsonl are
+    # appended by hooks AFTER every commit and handoff/away_ops/ holds the
+    # wrapper's own logs -- both are perpetually dirty by design and would
+    # route EVERY session into recovery. Real WIP = anything else dirty.
     if [ "$PROMPT_KIND" = "am" ] || [ "$PROMPT_KIND" = "pm" ]; then
-        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-            slog "dirty tree detected -- recovery prompt selected"
+        dirty=$(git status --porcelain 2>/dev/null | grep -vE '^.. (handoff/audit/|handoff/away_ops/|handoff/logs/)')
+        if [ -n "$dirty" ]; then
+            slog "dirty tree detected (non-evidence paths) -- recovery prompt selected"
             PROMPT_KIND="recovery"
         fi
     fi
