@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-12T07:46:31.410345+00:00",
+  "updated_at": "2026-06-12T08:53:23.248272+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -6151,7 +6151,7 @@
         {
           "id": "17.4",
           "name": "Researcher subagent calls Alpaca MCP during a dry-run harness cycle",
-          "status": "in-progress",
+          "status": "done",
           "harness_required": true,
           "verification": {
             "command": "source .venv/bin/activate && python3 scripts/harness/run_harness.py --cycles 1 --iterations-per-cycle 1 --dry-run 2>&1 | tee handoff/current/alpaca-researcher-dryrun.log | grep -c 'mcp__alpaca' || true",

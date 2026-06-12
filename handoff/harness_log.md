@@ -26980,3 +26980,48 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
   indirection, e.g. flag-in-shell-var) = BashFAQ/050 class, 62.4 sentinel backstop.
 - Auto-push note: hook stalled once (INVOKED, no commit), then recovered and landed
   928ae228 itself; manual fallback remains the documented remedy.
+
+---
+
+## Cycle 1 -- 2026-06-12 08:37 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.06% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+---
+
+## Cycle 1 -- 2026-06-12 08:43 UTC
+
+**Planner hypothesis:** Continue parameter optimization with random perturbation
+**Generator:** 0 trials, Sharpe 0.0000 -> 0.0000 (+0.0000), kept=0, elapsed=0s
+**Evaluator verdict:** DRY_RUN (composite 0/10)
+- Statistical: 0/10
+- Robustness: 0/10
+- Simplicity: 0/10
+- Reality Gap: 0/10
+- Sub-periods: 
+- 2x costs: Sharpe=0.0000
+- Reconciliation: divergence=4.06% alert=False (threshold=5.0%)
+**Decision:** CONDITIONAL -- kept with warning
+**Total cycle time:** 0s
+
+## Cycle 58 -- 2026-06-12 -- phase=17.4 result=PASS (stale-step closure: researcher x Alpaca MCP x dry-run harness)
+
+- **TRIGGER:** Stop-hook flag on a stale in-progress step the 62.0-era inventory missed; verified real against masterplan before acting.
+- **RESEARCH:** researcher (simple) gate_passed: 5 in full (sub-agents docs, issue #13898, alpaca-mcp-server repo+docs, dry-run practice). KEY: dry-run NOT rotted (pure-Python, no subagents, ~6s, never touches paper state); historical blocker resolved (ALPACA PK keys now in shell env; pinned server 2.0.1 attaches, 61 tools); researcher.md tools allowlist structurally closes in-harness mcp__ calls -- the criteria's "brief OR log" arm exists for exactly this; DECISIVE: the researcher session itself called mcp__alpaca__get_account_info + get_clock live (paper acct PA3VQZZLAKE2 ACTIVE, same as 17.3).
+- **GENERATE (verification-only closure, zero code changes):** verification command run verbatim (HARNESS COMPLETE, Sharpe=1.1705 DSR=0.9526; rolling-contract overwrite hazard accepted + documented); evidence addendum with honest provenance framing appended to the log. Per-step artifact files used (contract_17.4.md etc.) due to interleaving with 62.1/62.2 -- experiment_results deviation ruled acceptable by Q/A for a verification-only closure (N3).
+- **EVALUATE:** Q/A spawn 1 **CONDITIONAL** -- criteria 1/2/4 PASS (criterion-2 OR-arm explicitly RULED criterion-satisfying, six-point rationale); criterion 3 BLOCKED: .gitignore:24 (*.log) silently excluded the log from git add -A -- the same mechanism that left ALL THREE prior attempts' logs untracked, falsifying the 2026-04 "Log committed" note. FIX: git add -f + committed proof section (6684c9c7, pushed). Q/A spawn 2 (cycle-2 on changed evidence) **PASS, ok:true** -- six delta checks deterministic.
+- **OPERATOR-AWARENESS (Q/A N2, queued for digest/return):** the Alpaca paper account shows short_market_value -$13,842.89 on a long-only system -- needs a 63.x defect-register look.
+- **LESSON (N1):** never write "committed" criteria against *.log paths without an explicit force-add plan.
+- **Files:** handoff/current/{alpaca-researcher-dryrun.log (TRACKED), contract_17.4.md, research_brief_17.4.md, evaluator_critique_17.4.md} + masterplan flip.
+- **Next:** resume 62.2 (token handler build; research already complete).
