@@ -1,6 +1,6 @@
 ---
 name: cron-maintenance-jobs
-description: phase-51.4 cron repairs -- autoresearch run_memo.py huggingface-dep skip + weekly_data_integrity BQ wiring; the two-name autoresearch collision; client.client.query idiom
+description: phase-51.4 cron repairs + phase-62.6 facts -- autoresearch huggingface-dep skip (live, exit 0 nightly); ablation exit=1 is STALE (exit 0 since 05-25, 37/37 tested); backend.log copytruncate-safe (launchd O_APPEND FD); constraints-pinned install resolve; 39.1 grep can never match
 metadata:
   type: project
 ---
@@ -23,3 +23,9 @@ phase-51.4 fixed two ISOLATED maintenance-job bugs (NOT the trading loop). Resea
 
 **Why:** operator-reported issue 2 (cron health); stop nightly failure noise + make the inert integrity check actually run, without pip/feature-removal.
 **How to apply:** if asked to "fix the cron" or touch run_memo.py / weekly_data_integrity, these are the exact lines + the pip-free fixes. Remember the two-name autoresearch collision before reasoning about impact.
+
+**phase-62.6 additions (researched 2026-06-12):**
+- **Ablation exit=1 is STALE.** `launchctl print gui/$UID/com.pyfinagent.ablation` -> last exit code = 0, runs=16. All 37/37 `_NUMERIC_FEATURES` have TSV verdicts (feature_ablation_results.tsv last row 2026-05-24); since 05-25 every nightly run takes the all-tested branch (`run_ablation.py:329-331` prints `all-features-tested`, returns 0). The job self-resumes if _NUMERIC_FEATURES grows -- do NOT disable. Historical exit=1 traceback unrecoverable (handoff/ablation.log truncated to 265 B by housekeeping).
+- **backend.log copytruncate is SAFE without restart.** `lsof +fg backend.log` shows uvicorn FD 1/2 with `AP` (O_APPEND) flag -- launchd opens StandardOut/ErrorPath append-mode; POSIX write() re-derives offset at EVERY write, so `cp` + `: > backend.log` never leaves a sparse hole and needs no restart. No code opens backend.log for write (only 2 read-only tests: test_phase_23_2_9 :72-78 has skip-guard, test_phase_23_2_6 :234 guard unverified -- post-truncate wobble risk). newsyslog is rename-based (held FD follows the renamed inode -> new file stays empty until restart) + root-owned newsyslog.d -> wrong tool for user LaunchAgent logs. Archive to gitignored handoff/logs/ (.gitignore:72); archives hold the FRED key until key rotation -- compress, never delete, never commit.
+- **The safe install for the memo dep:** `pip install -c <(echo langchain-core==1.2.30) langchain-huggingface sentence-transformers` -> langchain-huggingface-1.2.1 + sentence-transformers-5.5.1 + torch-2.12.0 (cp314 arm64 wheel EXISTS) + transformers-5.11.0 + 5 small deps. WITHOUT the constraint pip silently upgrades langchain-core 1.2.30->1.4.6. First run downloads bge-small-en-v1.5 (~130 MB) to ~/.cache/huggingface. WARNING: once importable, the 02:00 job spends real Anthropic tokens nightly (run_memo.py:178-180) -- needs explicit operator cost ack. run_memo.py has NO --dry-run flag; without ANTHROPIC_API_KEY it exits 1 (:187-188).
+- **masterplan 39.1's immutable grep can NEVER match**: it greps `2026-05-2[3-9]...-PASS` but (a) those dates produced only `-ERROR-` files, (b) success memos are named `{date}-topic{NN}-{slug}.md` (write_memo, run_memo.py:86-91) -- no `-PASS` token exists. Closure rides the success_criteria triplet (3 exit-0 nights + root_cause.md [exists] + operator action recorded), not the literal command.

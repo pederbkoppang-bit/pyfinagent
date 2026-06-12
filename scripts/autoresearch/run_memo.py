@@ -158,6 +158,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Nightly autoresearch memo runner")
     parser.add_argument("--topic", help="Override topic (freeform question)")
     parser.add_argument("--topic-index", type=int, help="Force a specific topics.txt index")
+    parser.add_argument(
+        "--preflight-only", action="store_true",
+        help="phase-62.6 (goal-away-ops): verify deps + embedding preflight and exit 0 "
+             "WITHOUT running GPTResearcher (zero LLM spend). The away-window nightly "
+             "uses this; full runs resume on the operator token "
+             "'AUTORESEARCH SPEND: RESUME' (see handoff/away_ops/pending_tokens.json).",
+    )
     args = parser.parse_args()
 
     # Baseline env config for Claude + no-Tavily retrieval. Launchd plist
@@ -194,6 +201,13 @@ def main() -> int:
     _skip_msg = _embedding_preflight()
     if _skip_msg is not None:
         print(_skip_msg, file=sys.stderr)
+        return 0
+
+    # phase-62.6: $0 away-window mode -- deps verified importable, embedding
+    # preflight passed, stop BEFORE any LLM call.
+    if args.preflight_only:
+        print("preflight-only: deps importable, embedding preflight OK, "
+              "skipping GPTResearcher (zero spend)", file=sys.stderr)
         return 0
 
     return asyncio.run(_main_async(args))

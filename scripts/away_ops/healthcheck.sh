@@ -156,6 +156,21 @@ print('true' if ok else 'false')" 2>>"$OPS/healthcheck_err.log" || echo false)
     fi
 fi
 
+# ── backend.log rotation (62.6): cp+truncate is restart-free because the
+# launchd FDs carry O_APPEND (lsof-verified; POSIX write re-derives EOF).
+# Archives are gitignored + compressed + never deleted (they hold the
+# pre-redaction FRED key; forensics pending the deferred rotation).
+log_rotated=false
+BLOG="$REPO/backend.log"
+if [ -f "$BLOG" ] && [ "$(stat -f%z "$BLOG" 2>/dev/null || echo 0)" -gt 52428800 ]; then
+    rts=$(date -u +%Y%m%dT%H%M%SZ)
+    if cp "$BLOG" "$REPO/handoff/logs/backend.log.$rts" 2>>"$OPS/healthcheck_err.log"; then
+        : > "$BLOG"
+        gzip "$REPO/handoff/logs/backend.log.$rts" 2>>"$OPS/healthcheck_err.log" || true
+        log_rotated=true
+    fi
+fi
+
 ok=true
 [ "${backend_state%%:*}" != "running" ] && ok=false
 [ "$api_health" != "200" ] && ok=false
@@ -164,10 +179,10 @@ ok=true
 [ "$adc_ok" != "true" ] && ok=false
 [ "${disk_free_gb:-0}" -lt 20 ] 2>/dev/null && ok=false
 
-printf '{"ts":"%s","ok":%s,"backend":"%s","frontend":"%s","slack_bot":"%s","api_health":%s,"frontend_http":%s,"kill_switch_paused":"%s","cycle_age_h":%s,"cycle_fresh_26h":"%s","disk_free_gb":%s,"adc_ok":%s,"gh_ok":%s,"restarts_performed":%s,"restart_failed":%s,"restart_note":"%s","p1_raised":%s}\n' \
+printf '{"ts":"%s","ok":%s,"backend":"%s","frontend":"%s","slack_bot":"%s","api_health":%s,"frontend_http":%s,"kill_switch_paused":"%s","cycle_age_h":%s,"cycle_fresh_26h":"%s","disk_free_gb":%s,"adc_ok":%s,"gh_ok":%s,"restarts_performed":%s,"restart_failed":%s,"restart_note":"%s","p1_raised":%s,"log_rotated":%s}\n' \
     "$ts" "$ok" "$backend_state" "$frontend_state" "$slackbot_state" \
     "${api_health:-0}" "${frontend_http:-0}" "$ks" "${cycle_age_h:--1}" "$cycle_fresh" \
-    "${disk_free_gb:--1}" "$adc_ok" "$gh_ok" "$restarts" "$restart_failed" "$restart_note" "$p1_raised" \
+    "${disk_free_gb:--1}" "$adc_ok" "$gh_ok" "$restarts" "$restart_failed" "$restart_note" "$p1_raised" "$log_rotated" \
     >> "$HEALTH" 2>/dev/null
 
 [ "$ok" = "true" ] && exit 0 || exit 1

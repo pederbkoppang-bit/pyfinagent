@@ -39,7 +39,11 @@ from typing import Deque
 logger = logging.getLogger(__name__)
 
 
-_CRITICAL_SEVERITIES = frozenset({"P0", "critical", "CRITICAL"})
+# phase-62.7 (R-1): P1 added -- page-class severities bypass the consecutive
+# threshold. The deduper's 3-in-5-min rule silently swallowed ONE-SHOT P1s
+# (e.g. the kill-switch breach alert fires once per cycle), so a real breach
+# paged nobody. P0/P1 = page-worthy by definition; single occurrence fires.
+_CRITICAL_SEVERITIES = frozenset({"P0", "P1", "critical", "CRITICAL"})
 
 
 @dataclass
@@ -116,6 +120,49 @@ def _get_default_deduper() -> AlertDeduper:
     return _DEFAULT_DEDUPER
 
 
+async def _bot_token_fallback(
+    source: str, severity: str, title: str, details: dict | str
+) -> bool:
+    """phase-62.7 (R-1): deliver a page-class alert via the bot token when the
+    webhook path is unconfigured. urllib + asyncio.to_thread (no new deps;
+    safe from any loop). Fail-open: returns False, never raises."""
+    try:
+        import json as _json
+        import urllib.request as _ur
+
+        from backend.config.settings import get_settings
+
+        s = get_settings()
+        tok = s.slack_bot_token.get_secret_value() if hasattr(
+            s.slack_bot_token, "get_secret_value") else str(s.slack_bot_token)
+        channel = getattr(s, "slack_channel_id", "") or "C0ANTGNNK8D"
+        if not tok:
+            logger.warning("alert bot-token fallback: no bot token configured")
+            return False
+        detail_str = (" | ".join(f"{k}={v}" for k, v in details.items())
+                      if isinstance(details, dict) else str(details))
+        body = _json.dumps({
+            "channel": channel,
+            "text": f"[{severity}] {title} -- {source}: {detail_str[:1500]}",
+        }).encode()
+
+        def _post() -> bool:
+            req = _ur.Request(
+                "https://slack.com/api/chat.postMessage", data=body,
+                headers={"Authorization": f"Bearer {tok}",
+                         "Content-Type": "application/json; charset=utf-8"})
+            with _ur.urlopen(req, timeout=10) as r:
+                return bool(_json.load(r).get("ok"))
+
+        ok = await asyncio.to_thread(_post)
+        logger.warning("alert bot-token fallback delivered=%s source=%s title=%r",
+                       ok, source, title)
+        return ok
+    except Exception as exc:
+        logger.warning("alert bot-token fallback fail-open: %r", exc)
+        return False
+
+
 async def raise_cron_alert(
     source: str,
     error_type: str,
@@ -148,6 +195,14 @@ async def raise_cron_alert(
         settings = get_settings()
         webhook = getattr(settings, "slack_webhook_url", "") or ""
         if not webhook:
+            # phase-62.7 (R-1): the webhook is EMPTY on this machine, which
+            # silently killed every webhook-path alert. Page-class severities
+            # fall back to the bot-token chat.postMessage path -- the same
+            # credential that delivers the daily digests (live-proven by the
+            # 62.5 healthcheck drill). Non-page severities keep the old
+            # warn-and-return-False behavior (no spam channel).
+            if severity in _CRITICAL_SEVERITIES:
+                return await _bot_token_fallback(source, severity, title, details)
             logger.warning(
                 "raise_cron_alert: slack_webhook_url not configured "
                 "(source=%s severity=%s title=%r)",

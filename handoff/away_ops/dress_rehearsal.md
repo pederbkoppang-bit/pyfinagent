@@ -4,6 +4,18 @@ Built incrementally by steps 62.0-62.6 as their Q/A verdicts queued operator act
 Every drill gets a PASS/FAIL line with a timestamp; the signed checklist closes 62.7.
 Estimated operator time: ~30-40 minutes.
 
+## A0. SATURDAY PREP (research-mandated; do NOT leave for Sunday)
+
+- [ ] DISABLE the queued macOS 26.5.1 auto-install (R-2: AutoInstallProductKeys carries
+      MSU_UPDATE_25F80_patch_26.5.1 RIGHT NOW; a clicked notification can restart the
+      Mac regardless of settings): System Settings > General > Software Update > turn
+      OFF automatic install; verify: defaults read /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -> 0
+- [ ] sudo pmset -a sleep 0  (R-3: sleep=1 today -- the Mac is held awake ONLY by the
+      backend's caffeinate; if that job dies, everything sleeps in ~1 min)
+- [ ] DONE BY MAIN 06-12 (verify only): alerting.py P1 fix live (single-occurrence P1
+      delivers via bot-token fallback -- drill message visible in the channel); backend
+      restarted with it
+
 ## A. Operator keystrokes (terminal, ~5 min)
 
 - [ ] MAS-PLIST-ZOMBIE: mv ~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist \
@@ -23,6 +35,10 @@ Estimated operator time: ~30-40 minutes.
 
 - [ ] TEST TOKEN: PING            (62.2 live round-trip -- bot must thread-ACK with a
                                    line number; if already done earlier, skip)
+- [ ] AWAY DRILL: ON              (exercises the FULL token->cursor->hook-gate->.env
+                                   chain once, attended; writes the no-op
+                                   AWAY_DRILL_NOOP flag -- removed during the
+                                   ENV-LINE-81 cleanup)
 - [ ] SDK CREDIT: STOP-ON-EXHAUSTION   or   SDK CREDIT: ENABLE USAGE CREDITS <cap>
       (HARD June-15 fuse; recommendation: STOP-ON-EXHAUSTION)
 - [ ] MAS PLIST: MOVED            (after the mv in section A)

@@ -50,6 +50,12 @@ RESERVED_BARE = {"HALT-DEV", "RESUME-DEV"}
 # gate non-env actions, e.g. KILL SWITCH: RESUME -> paper-trading API call).
 # Steps that ship a new dark flag MUST register their key here in the same PR.
 KNOWN_TOKEN_ENV_MAP: dict[str, str] = {
+    # phase-62.7: drill key -- exercises the FULL semantic-cursor + hook-gate +
+    # .env-write chain ONCE, attended, at the Sunday rehearsal (otherwise the
+    # chain's first live execution would be 65.2's EU SCREENER, unattended).
+    # AWAY_DRILL_NOOP is read by nothing; the rehearsal writes it true, then
+    # the operator's ENV-LINE-81 cleanup keystroke removes it.
+    "AWAY DRILL": "AWAY_DRILL_NOOP",
     # "FEE TABLE": "PAPER_FEE_TABLE_ENABLED",        # registered by 61.5 when it ships
     # "EU SCREENER": "PAPER_SCREENER_PER_MARKET",    # registered by 65.2 when it ships
 }

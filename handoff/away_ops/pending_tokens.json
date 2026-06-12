@@ -1,5 +1,5 @@
 {
-  "updated": "2026-06-12T10:17:13.391451+00:00",
+  "updated": "2026-06-12T10:53:31.752859+00:00",
   "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl.",
   "asks": [
     {
@@ -36,6 +36,29 @@
         "WEBHOOK: SKIP"
       ],
       "recommended": "WEBHOOK: SKIP (bot-token fallback is live-proven; do on return)"
+    },
+    {
+      "id": "AUTORESEARCH-SPEND",
+      "raised_by": "62.6",
+      "raised_at": "2026-06-12",
+      "due": "operator's discretion (nightly stays $0 preflight-only until then)",
+      "ask": "langchain-huggingface stack installed (constrained; langchain-core held at 1.2.30) -- the nightly autoresearch cron is FIXED and exits 0, but full GPTResearcher runs would spend ~$0.10-0.50/night on Anthropic API. The nightly is pinned to --preflight-only ($0) for the away window. To resume full nightly memos: reply the token; the session removes the flag from scripts/autoresearch/run_nightly.sh.",
+      "reply_options": [
+        "AUTORESEARCH SPEND: RESUME",
+        "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY"
+      ],
+      "recommended": "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY (consistent with $0; resume on return)"
+    },
+    {
+      "id": "ENV-LINE-81",
+      "raised_by": "62.6 (regression find)",
+      "raised_at": "2026-06-12",
+      "due": "62.7 rehearsal (keystroke, 30 seconds)",
+      "ask": "The 2026-06-12 morning paste left an unbalanced quote in a backend/.env comment (line ~81) -- harmless to pydantic but it broke shell-sourcing (killed the autoresearch nightly silently; run_nightly.sh now hardened). Cleanup keystroke: open backend/.env, fix/delete the wrapped comment line ending in a stray quote (the three PAPER_*=true lines below it are correct -- do not touch them).",
+      "reply_options": [
+        "ENV LINE: FIXED"
+      ],
+      "recommended": "ENV LINE: FIXED (during 62.7)"
     }
   ]
 }

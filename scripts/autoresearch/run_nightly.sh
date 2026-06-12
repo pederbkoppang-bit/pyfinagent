@@ -11,12 +11,19 @@ LOG="$REPO/handoff/autoresearch.log"
 cd "$REPO"
 
 # Source backend/.env into the environment (POSIX-compatible).
-# Only picks up lines of the form KEY=value, ignores comments and blanks.
+# phase-62.6 fix: the file is DOTENV format, not shell -- a wrapped comment
+# line with an unbalanced quote (introduced by an operator paste 2026-06-12)
+# made a raw `. .env` die with "unexpected EOF". Source a SANITIZED stream
+# instead: only KEY=value lines, comments/garbage dropped, shell quote
+# semantics preserved for well-formed lines.
 if [ -f "$REPO/backend/.env" ]; then
+    _envtmp=$(mktemp)
+    grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$REPO/backend/.env" > "$_envtmp" 2>/dev/null || true
     set -a
     # shellcheck disable=SC1090
-    . "$REPO/backend/.env"
+    . "$_envtmp"
     set +a
+    rm -f "$_envtmp"
 fi
 
 # Activate venv
@@ -24,7 +31,10 @@ fi
 . "$REPO/.venv/bin/activate"
 
 echo "[$(date -Iseconds)] START nightly autoresearch" >> "$LOG"
-if python "$REPO/scripts/autoresearch/run_memo.py" >> "$LOG" 2>&1; then
+# phase-62.6 (goal-away-ops): --preflight-only keeps the nightly at $0 during
+# the away window (deps now installed; a full run would spend on Anthropic
+# nightly). Remove the flag on the operator token 'AUTORESEARCH SPEND: RESUME'.
+if python "$REPO/scripts/autoresearch/run_memo.py" --preflight-only >> "$LOG" 2>&1; then
     echo "[$(date -Iseconds)] END nightly autoresearch OK" >> "$LOG"
 else
     rc=$?

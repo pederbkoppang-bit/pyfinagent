@@ -1,54 +1,75 @@
-# Experiment Results -- Step 62.8 (GENERATE)
+# Experiment Results -- Step 62.6 (GENERATE)
 
-**Step:** 62.8 -- Away-mode digest sections. **Date:** 2026-06-12. **State:** complete
-pending Q/A. (Rolling slot reclaimed from closed 62.3; archived snapshot exists.)
-Contract: handoff/current/contract_62.8.md (per-step file -- rolling contract belongs to
-in-flight 62.4). Research: research_brief_62.8.md.
+**Step:** 62.6 -- ops hygiene batch. **Date:** 2026-06-12. **State:** complete pending
+Q/A (which also rules on the 39.1 lenient closure).
 
-## What was built
+## Sub-item 1: backend.log rotation -- DONE
 
-1. backend/slack_bot/formatters.py: _aggregate_trades_by_market() (pure; ticker-suffix
-   market derivation -- trades carry no market column); format_away_digest_sections()
-   (six sections, explicit empty states per incident.io practice, _truncate(2800) per
-   section); format_away_compact_sections() (morning: asks+health only, selected by
-   title not position); format_morning_digest/format_evening_digest gain optional
-   away_sections=None param inserted before the footer (phase-54.2 byte-identity idiom).
-2. backend/slack_bot/scheduler.py: _gather_away_data() -- trades (limit=200&since_today),
-   _compute_system_state reuse, git log --since-as-filter=midnight via to_thread,
-   harness_log Cycle-line grep for steps-flipped (zero new state), pending_tokens.json
-   + age derivation, health.jsonl last line, defect_register.md counts; EVERY source
-   fail-open. Both senders append flag-gated sections.
-3. backend/config/settings.py: away_mode_enabled Field(False) OPS toggle (env
-   AWAY_MODE_ENABLED; operator keystroke at 62.7; post-return removal noted).
-4. scripts/away_ops/send_away_digest.py: standalone one-shot WebClient sender
-   (morning|evening, --force-away, prints permalink; PM sessions reuse it).
-5. backend/tests/test_phase_62_8_away_digest.py: 12 tests (sections/empty/None, EU:0
-   flag, compact variant, offline caps, OFF-path byte-identity x2, footer-last,
-   aggregation + garbage tolerance).
+385MB (403,648,199 B) rotated live with NO backend restart: cp -> truncate -> gzip.
+Archive: handoff/logs/backend.log.20260612T104931Z.gz (18MB; gitignored dir; holds the
+pre-redaction FRED key -> compressed, local-only, never deleted). Live file 338B and
+STILL receiving writes post-truncate (O_APPEND research validated live). Ongoing
+mechanism: size-gated block (>50MB) in healthcheck.sh (30-min watchdog cadence), new
+log_rotated field in the health JSON line.
+
+## Sub-item 2a: autoresearch -- DONE at $0
+
+Constrained install (unconstrained pip would have silently upgraded langchain-core
+1.2.30 -> 1.4.6): langchain-huggingface==1.2.1, sentence-transformers==5.5.1,
+torch==2.12.0, transformers==5.11.0, langchain-core HELD ==1.2.30. SPEND GUARD: new
+--preflight-only flag in run_memo.py (exit 0 after deps + embedding preflight, zero
+LLM calls); run_nightly.sh pinned to it for the away window; resumption = verbatim
+token AUTORESEARCH SPEND: RESUME (pending_tokens.json).
+
+REGRESSION FOUND AND FIXED during the dry run: this morning's operator .env paste left
+an unbalanced quote in a comment line -- pydantic-harmless but it KILLED
+run_nightly.sh's shell-sourcing (exit 2 before any log line; last night's 02:00 run
+likely died the same way). run_nightly.sh now sources a sanitized KEY=value-only
+stream; backend_watchdog.sh + healthcheck.sh already used safe greps (audited).
+Cosmetic .env cleanup = ENV-LINE-81 operator keystroke (62.7).
+
+Dry invocation through the REAL nightly entrypoint (verbatim):
+
+    [2026-06-12T12:53:08+02:00] START nightly autoresearch
+    preflight-only: deps importable, embedding preflight OK, skipping GPTResearcher (zero spend)
+    [2026-06-12T12:53:08+02:00] END nightly autoresearch OK
+    nightly-exit=0
+
+## Sub-item 2b: ablation -- documented, no fix needed
+
+launchctl: last exit 0, 16 runs. 37/37 numeric features carry TSV verdicts (last
+2026-05-24) -> every run since takes the all-tested branch (run_ablation.py:329-331,
+exit 0). The original failing night's traceback is unrecoverable (handoff/ablation.log
+truncated to 265B by housekeeping). Disposition: fix-not-needed with evidence; job
+stays loaded (self-resumes via --next-untested if the feature set grows). No disable.
+
+## Sub-item 3: 39.1 closure -- live_check_39.1.md written (lenient path)
+
+Evidence-by-output per its success_criteria: 11 consecutive ERROR-free exit-0 nights +
+today's deps-live exit-0 dry run (criterion a); root_cause.md exists + the NEW
+second-failure-mode root cause documented (criterion b); the owner-gated install
+executed under the operator-approved plan with the $0 guard + resumption token
+(criterion c). The literal verification command is structurally unsatisfiable (only
+-ERROR- files exist in its date window; success memos never carry -PASS; exit is
+head's) -- Q/A rules. STRICT path (3 deps-live nights, closes 06-15 via PM sessions)
+documented as the fallback if Q/A holds.
+
+## Residual: sector-cap log test
+
+test_phase_23_2_6_backend_log_has_skipping_buy_evidence failed post-rotation exactly as
+researched -- adapted per its own original comment ("the log was rotated and the test
+should adapt"): falls back to the newest gzip archive; 6/6 green.
 
 ## Verification (verbatim)
 
-    ast OK (4 files) | 12 passed in 0.22s
-    live send: ts=1781258302.614489 blocks=19
-    permalink=https://pyfinagent.slack.com/archives/C0ANTGNNK8D/p1781258302614489
-
-## Iterations (honest log)
-
-- One bug at live-send time: direct script invocation lacked repo root on sys.path
-  (ModuleNotFoundError) -> standard parents[2] bootstrap added; re-ran clean.
-- Flag remains FALSE in .env (operator keystroke is a 62.7 checklist item); the live
-  proof used --force-away by design (no flag flip needed).
+    $ test $(stat -f%z backend.log) -lt 52428800 && python -c "import langchain_huggingface; print('lh OK')"
+    lh OK
 
 ## File list
 
-formatters.py, scheduler.py, settings.py, scripts/away_ops/send_away_digest.py (NEW),
-backend/tests/test_phase_62_8_away_digest.py (NEW), contract_62.8.md,
-live_check_62.8.md, this file.
-
-## Cycle-2 addendum (62.8)
-
-Q/A spawn-1 CONDITIONAL (live_check EU:0 overclaim; screenshot-shape gap) -> corrected
-prose + dual server-side read-back justification; BONUS defect from the read-back fixed
-(_steps_closed_from_log PASS filter -- a CONDITIONAL step had been listed as closed).
-Suite is now 13 passed (the "12 passed" above is the accurate cycle-1 capture).
-Spawn-2 delta Q/A: PASS, ok:true.
+scripts/away_ops/healthcheck.sh (rotation block + log_rotated field),
+scripts/autoresearch/run_memo.py (--preflight-only), scripts/autoresearch/run_nightly.sh
+(sanitized sourcing + preflight pin), backend/tests/test_phase_23_2_6_sector_cap_emit.py
+(rotation-aware fallback), handoff/logs/backend.log.20260612T104931Z.gz (archive,
+untracked), handoff/current/live_check_39.1.md (NEW), pending_tokens.json (+2 asks),
+handoff artifacts.

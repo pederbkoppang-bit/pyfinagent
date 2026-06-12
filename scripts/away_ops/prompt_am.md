@@ -43,6 +43,12 @@ advance_cursor(line_no, record) FIRST (the cursor rename refreshes mtime, which 
 launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend, THEN write
 handoff/current/live_check_<step>.md citing the jsonl line number; (d) KILL SWITCH:
 RESUME => POST the paper-trading resume endpoint, never touch risk params.
+(e) 62.7 I-4 RULE -- EVERY processed token advances the cursor, env-mapped or not
+(acknowledgments, KILL SWITCH: RESUME, drill tokens included). A consumed token left
+"unapplied" is a live hazard: a stale RESUME would re-fire on a FUTURE real breach and
+un-pause it. advance_cursor(line_no, record) is the LAST action for every token you
+acted on; tokens you could not act on get a pending_tokens.json note instead and you
+still advance past them only after recording why.
 
 ## Step 1 -- execute exactly ONE masterplan step
 
