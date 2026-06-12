@@ -8,7 +8,7 @@
 # distinguish tamper from outage.
 #
 # METERED SOURCE (pinned): sunny-might-477607-p8.pyfinagent_data.llm_call_log
-# -- SUM(cost_usd) WHERE DATE(ts)=CURRENT_DATE() (UTC, matches partitioning;
+# -- SUM(session_cost_usd) WHERE DATE(ts)=CURRENT_DATE() (UTC, matches partitioning;
 # never shell date arithmetic) AND the rail/provider is METERED (everything
 # except the flat-fee claude_code CLI rail). This figure is a LOWER BOUND on
 # invoice truth: grounding/per-request charges and provider-internal retry

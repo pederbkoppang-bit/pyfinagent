@@ -27051,3 +27051,11 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 - **CRITERION-2 ruling:** intent-satisfied (KeepAlive heals a plain stop in <3s -- faster layer than the criterion assumed; kickstart branch evidenced by real invocation; booted-out chain operator-only by our own 62.0 guard -> queued as a 62.7 drill).
 - **Files:** scripts/away_ops/healthcheck.sh (NEW), away-watchdog plist (outside repo), pending_tokens WEBHOOK ask + handoff artifacts.
 - **Next:** 62.4 Q/A (built + preflight-hardened), 62.6 hygiene, 62.7 Sunday (checklist growing: TEST TOKEN, SDK-CREDIT, MAS PLIST mv, frontend bootout drill, AWAY_MODE keystroke, power/login).
+
+## Cycle 62 -- 2026-06-12 -- phase=62.4 result=PASS (guardrail/budget sentinel)
+
+- **RESEARCH (two-spawn, ruled satisfied):** internal pass 1 (died at limit) + external pass 2; 9 in full. KEY: enforcement outside the agent; metered figure = LOWER BOUND; pinned baseline 8.00 (rolling mean would false-trip); insertAll streaming buffer makes synthetic prod rows a self-DoS -> env-override tamper tests; breach(1)/infra(2) exit split; SQL-only date math.
+- **GENERATE:** sentinel.sh (5-key JSON, named gates, report-only kill-switch w/ audit fallback) + flag_baseline.json (3 keystroke + 2 self-discovered pre-away operational flags) + wrapper AWAY_SESSION_TEST_PREFLIGHT mode + 9 tests. Iterations: BQ schema mismatch (no rail col -> session_cost_usd SUM, flat-fee rows 0 by design, mechanism-verified); 2 false-positive flags grandfathered; chmod +x; THREE preflight slot-wasters found+fixed (evidence-path churn, lockfile self-dirty, changelog race documented).
+- **EVALUATE:** ONE fresh Q/A -- **PASS, ok:true** first spawn. Criterion-2 deviation ruled satisfying; healthy->am reproduced live by Q/A; schema-fix mechanism-traced + 7-day breakdown reproduced exactly. NOTEs: header nit (fixed), PAPER_* perimeter, substring-token matching pending FO-2, silent double-fallback on report-only field.
+- **Files:** scripts/away_ops/{sentinel.sh (NEW), flag_baseline.json (NEW), run_away_session.sh (amended)}, backend/tests/test_phase_62_4_sentinel.py (NEW, 9) + handoff artifacts.
+- **Next:** 62.6 hygiene batch (last build step before Sunday's 62.7 rehearsal); 62.1/62.2 close on digest + operator token.
