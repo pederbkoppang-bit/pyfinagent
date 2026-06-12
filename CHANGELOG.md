@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `66cb8bc1` | feat: install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3-week away plan 2026-06-1 |
 | 2026-06-12 | `99860d6e` | phase-61.1: activate dark fixes -- flags ON + backend/frontend restart; Q/A CONDITIONAL pending toni |
 | 2026-06-11 | `255d6cc9` | phase-61.0: install goal-phase61-churn-integrity (operator-approved: 'Install + begin 61.1 now (Reco |
 | 2026-06-11 | `b0fe1983` | phase-60.4: observability + ops residuals (AW-7/AW-1/AW-2/AW-10, hygiene) -- PASS, CLOSES PHASE-60 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `78b264bf` | feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware prompt context -- PASS (F-3/F-8; |
 | 2026-06-11 | `af4aa8d6` | feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-57: FEATURE' (2026-06-11) -- bi |
 | 2026-06-11 | `e97c33fe` | feat(56.1): execute operator-approved KR backfill (9 rows restated, idempotency proven) + restatemen |
-| 2026-06-11 | `9df6271d` | feat(58.1): record verbatim operator replies (LLM SPEND: APPROVED $25 / PHASE-57: FEATURE) + pre-win |
 
 ---
 
+### v6.48.0 — install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3... (2026-06-12)
+
+- **install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3-week away plan 2026-06-1**
 ### v6.47.1 — phase-61.1: activate dark fixes -- flags ON + backend/frontend restar... (2026-06-12)
 
 - **phase-61.1: activate dark fixes -- flags ON + backend/frontend restart; Q/A CONDITIONAL pending toni**
