@@ -54,3 +54,20 @@
 researched necessity: insertAll rows sit in the streaming buffer ~30 min un-DML-able and
 would inflate the real metered figure all day (self-DoS). The override exercises the
 identical gate logic and can only TRIP gates, never mask a breach.
+
+## Preflight-hardening addendum (same cycle)
+
+The preflight-test mode immediately earned its keep by exposing THREE would-be
+slot-wasters, each fixed and re-proven:
+1. Evidence-path churn: hooks append to handoff/audit/*.jsonl after EVERY commit ->
+   every away session would have started in recovery mode. Dirty-check now filters
+   handoff/{audit,away_ops,logs}/.
+2. Lockfile self-dirty: the wrapper's own handoff/.away-session.lock (untracked,
+   exists only during a run) tripped the check -> gitignored (transient state).
+3. Changelog-hook race: the post-commit changelog hook holds CHANGELOG.md dirty for a
+   few seconds -- benign (a real session at that instant goes to recovery, whose prompt
+   commits it and exits; self-healing), documented not "fixed".
+Final proof chain, all live: healthy -> PREFLIGHT_PROMPT=am (sentinel ok:true on real
+BQ); breach override -> digest_only; dirty non-evidence file -> recovery; sentinel
+missing (pre-chmod) -> digest_only (fail-closed for the wrong-but-safe reason);
+HALT-DEV -> AM exit (62.3 probes).
