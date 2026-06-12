@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-12T08:53:23.248272+00:00",
+  "updated_at": "2026-06-12T09:01:35.559241+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -11727,7 +11727,7 @@
     {
       "id": "phase-36",
       "name": "Profit-Protection Completion (closes OPEN-2 BLOCK + ATR + triple-barrier + entry_strategy)",
-      "status": "in-progress",
+      "status": "deferred",
       "depends_on": [
         "phase-35"
       ],
@@ -11868,12 +11868,13 @@
           "max_retries": 3,
           "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         }
-      ]
+      ],
+      "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."
     },
     {
       "id": "phase-37",
       "name": "LLM-Route + Structured-Output Hardening",
-      "status": "in-progress",
+      "status": "deferred",
       "depends_on": [
         "phase-34"
       ],
@@ -11980,12 +11981,13 @@
           "retry_count": 0,
           "max_retries": 3
         }
-      ]
+      ],
+      "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 4 done, 1 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."
     },
     {
       "id": "phase-38",
       "name": "Observability + Ops Hardening",
-      "status": "in-progress",
+      "status": "done",
       "depends_on": [
         "phase-34"
       ],
@@ -12304,7 +12306,8 @@
           "retry_count": 0,
           "max_retries": 3
         }
-      ]
+      ],
+      "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): all steps done; phase status was stale 'in-progress'. Status-only edit; no verification fields touched."
     },
     {
       "id": "phase-39",
@@ -12338,7 +12341,7 @@
     {
       "id": "phase-40",
       "name": "Dev-MAS Housekeeping (NOTE-tier batch)",
-      "status": "in-progress",
+      "status": "deferred",
       "depends_on": [
         "phase-34"
       ],
@@ -12566,7 +12569,8 @@
           "max_retries": 3,
           "deferral_audit": "deferred 2026-06-12 per operator verbatim 'Confirm disposition (Recommended)' (goal-away-ops backlog disposition; rationale per id in handoff/away_ops/approved_plan_2026-06-12.md 'Backlog disposition'; verification criteria untouched)"
         }
-      ]
+      ],
+      "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 7 done, 4 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."
     },
     {
       "id": "phase-41",
@@ -13232,7 +13236,7 @@
     {
       "id": "phase-47",
       "name": "Trade-path unblock + data freshness + Opus-4.8 cost hardening (money-critical production push)",
-      "status": "in-progress",
+      "status": "done",
       "audit_basis": "diagnose-prod-and-money workflow 2026-05-28 + phase-47.1 freshness research gate; handoff/current/roadmap_master.md + active_goal.md",
       "steps": [
         {
@@ -13593,7 +13597,8 @@
           "retry_count": 0,
           "max_retries": 3
         }
-      ]
+      ],
+      "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): all steps done; phase status was stale 'in-progress'. Status-only edit; no verification fields touched."
     },
     {
       "id": "phase-50",
@@ -13731,7 +13736,7 @@
     {
       "id": "phase-51",
       "name": "Operator-reported integrity + dormant-alpha fixes (post-50.5 diagnostic, workflow w1g3l301s, 2026-05-31). FOUR confirmed defects, money-per-effort order: 51.1 resurrect 4 SecretStr-dead alpha overlays -> 51.2 sector diversification (Tech-concentration is out-competed not excluded) -> 51.3 weekend/holiday Slack digest guard -> 51.4 cron repairs (autoresearch + weekly_data_integrity). Operator chose 'fix dead signals first, then flip' 2026-05-31 -> 51.1 precedes the EU+KR go-live flip; 50.6 UI follows. Each step via the FULL harness (researcher -> contract -> generate -> fresh qa -> log -> flip).",
-      "status": "in-progress",
+      "status": "done",
       "audit_basis": "Diagnostic workflow w1g3l301s (4 parallel evidence-cited investigators) confirmed all four issues the operator raised from the cockpit screenshots. Full findings in handoff/audit + the Cycle-23 harness_log note. 51.1/51.2 are north-star alpha (4 dead overlays + an undiversified book); 51.3/51.4 are integrity/hygiene. The working US pure-quant engine (+20% NAV) is unaffected by all four (the overlays are additive; the digest + crons are isolated plumbing) -- so none may regress it.",
       "steps": [
         {
@@ -13817,12 +13822,13 @@
           "retry_count": 0,
           "max_retries": 3
         }
-      ]
+      ],
+      "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): all steps done; phase status was stale 'in-progress'. Status-only edit; no verification fields touched."
     },
     {
       "id": "phase-52",
       "name": "Element-2 redirect / north-star #4: research-backed PRICE-BASED alpha-signal enhancements for the LIVE long-only US momentum book, measured $0 (no live change until proven + operator-approved). Breadth (sector-neutral, measured -0.166 Sharpe) + winner-take-all rotation (architecturally disconnected + losing strategies) are measured-and-CLOSED; this phase pursues a STRONGER momentum/alpha signal (52w-high / residual-momentum / trend-filter / skip-month family) per the 2025-2026 + canonical literature. Each candidate: research -> $0 replay ON-vs-OFF -> keep/wire ONLY if it beats baseline risk-adjusted return without unacceptable turnover. MEASURE-FIRST (the goal's discipline); the working +20% engine is the regression surface.",
-      "status": "in-progress",
+      "status": "done",
       "audit_basis": "After rotation (element 2) + sector-neutral breadth were both measured-and-rejected, the genuine open money lever is a stronger alpha SIGNAL (goal north-star #4: 'stronger alpha signals from the 2025-2026 literature'). Reuses the $0 replay harness built in 51.2 (scripts/ablation/sector_neutral_replay.py) -- production rank_candidates over 48 monthly rebalances, no live change. Each step: full harness (researcher -> contract -> generate -> fresh qa -> log -> flip).",
       "steps": [
         {
@@ -13909,7 +13915,8 @@
           "retry_count": 0,
           "max_retries": 3
         }
-      ]
+      ],
+      "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): all steps done; phase status was stale 'in-progress'. Status-only edit; no verification fields touched."
     },
     {
       "id": "phase-53",

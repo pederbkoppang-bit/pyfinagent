@@ -527,6 +527,15 @@ class Settings(BaseSettings):
     slack_bot_token: SecretStr = Field(SecretStr(""), description="Slack Bot User OAuth Token (xoxb-...)")
     slack_app_token: SecretStr = Field(SecretStr(""), description="Slack App-Level Token for Socket Mode (xapp-...)")
     slack_channel_id: str = Field("", description="Slack channel ID for proactive alerts and digests")
+    slack_operator_user_id: str = Field(
+        "U0A078KP4FQ",
+        description=(
+            "phase-62.2 (goal-away-ops): the ONLY Slack user whose messages are "
+            "recorded as operator decision tokens (operator_tokens.jsonl). "
+            "Identity constant, not a secret (same class as the approval-channel "
+            "id in commands.py). Empty string = fail-closed (no tokens accepted)."
+        ),
+    )
     morning_digest_hour: int = Field(8, description="Hour (0-23) for daily morning digest in local timezone")
     evening_digest_hour: int = Field(17, description="Hour (0-23) for daily evening digest in local timezone")
     watchdog_interval_minutes: int = Field(15, description="Interval (minutes) for watchdog health check")

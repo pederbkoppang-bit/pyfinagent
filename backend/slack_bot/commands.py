@@ -86,6 +86,59 @@ def _read_status() -> str:
 
 
 def register_commands(app: AsyncApp):
+    # ── phase-62.2: operator-token handler (MUST register before the
+    # catch-all @app.message below -- Bolt dispatch is first-match-wins in
+    # registration order; register_commands is the first registrar). The
+    # allowlist lives in the MATCHER so non-matches fall through to ticket
+    # ingestion instead of being swallowed.
+    import re as _re
+
+    from backend.slack_bot.operator_tokens import (
+        append_operator_token,
+        is_operator_token_message,
+    )
+
+    _settings = get_settings()
+    _token_channels = {
+        c for c in (_settings.slack_channel_id, _APPROVAL_CHANNEL) if c
+    }
+
+    async def _operator_token_matcher(message) -> bool:
+        return is_operator_token_message(
+            message, _settings.slack_operator_user_id, _token_channels
+        )
+
+    _TOKEN_KEYWORD = _re.compile(
+        r"^(?:[0-9][0-9.]*\s+)?[A-Z][A-Z0-9 _-]+:\s*.+$|^(?:HALT-DEV|RESUME-DEV)$"
+    )
+
+    @app.message(_TOKEN_KEYWORD, matchers=[_operator_token_matcher])
+    async def handle_operator_token(message, say, body, logger):
+        """Record a verbatim operator decision token (goal-away-ops)."""
+        thread_ts = message.get("thread_ts") or message.get("ts")
+        result = await append_operator_token(
+            text=message.get("text", ""),
+            user=message.get("user", ""),
+            channel=message.get("channel", ""),
+            ts=message.get("ts", ""),
+            event_id=body.get("event_id"),
+        )
+        if result is None:
+            await say(
+                text="Token already recorded (duplicate delivery) -- no new line written.",
+                thread_ts=thread_ts,
+            )
+            return
+        line_no, record = result
+        await say(
+            text=(
+                f"OPERATOR TOKEN RECORDED (operator_tokens.jsonl line {line_no}): "
+                f"`{record['raw']}` -- the next away session acts on it. "
+                f"Open asks live in handoff/away_ops/pending_tokens.json."
+            ),
+            thread_ts=thread_ts,
+        )
+
     """Register all slash command handlers."""
 
     @app.command("/analyze")
