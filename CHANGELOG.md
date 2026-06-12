@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `ae07a48c` | phase-62.1 (in progress): slack bot cut over to launchd -- agent live PID 2585, dual-supervisor race |
 | 2026-06-12 | `d77f55b3` | phase-62.0 cycle-2: per-segment guard scoping fixes self-blocking false positive -- delta Q/A PASS ( |
 | 2026-06-12 | `928ae228` | phase-62.0: Hard-rules file + away goal install + backlog disposition -- docs/runbooks/away-ops-r... |
 | 2026-06-12 | `66cb8bc1` | feat: install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3-week away plan 2026-06-1 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `96b52299` | feat(models): phase-59.1 Fable 5 adoption -- PASS (L3 researcher/qa model:fable + caps 40/30; L2 mas |
 | 2026-06-11 | `d04b57e8` | feat(masterplan): install phase-59 Fable-5 adoption + MCP audit (operator-directed 2026-06-11; 8 in- |
 | 2026-06-11 | `06d4ee3e` | docs(handoff): post-checkpoint state -- phase-57 shipped, $25 window running, ask list refreshed |
-| 2026-06-11 | `78b264bf` | feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware prompt context -- PASS (F-3/F-8; |
 
 ---
 
+### v6.49.2 — phase-62.1 (in progress): slack bot cut over to launchd -- agent live... (2026-06-12)
+
+- **phase-62.1 (in progress): slack bot cut over to launchd -- agent live PID 2585, dual-supervisor race**
 ### v6.49.1 — phase-62.0 cycle-2: per-segment guard scoping fixes self-blocking fal... (2026-06-12)
 
 - **phase-62.0 cycle-2: per-segment guard scoping fixes self-blocking false positive -- delta Q/A PASS (**
