@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `2c65b793` | phase-62.5: healthcheck + away-watchdog -- PASS (cycle-2, P1 paging resurrected via bot-token fallba |
 | 2026-06-12 | `d86e1f52` | phase-62.4: live_check + preflight-hardening addendum |
 | 2026-06-12 | `849a131b` | chore: gitignore the away-session lockfile (transient wrapper state self-dirtied every preflight) |
 | 2026-06-12 | `f3be7cf9` | phase-62.4: wrapper dirty-check ignores perpetually-churning evidence paths (preflight-test discover |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `6a4fc351` | phase-60.3: non-USD decision-input integrity (AW-9) -- PASS |
 | 2026-06-11 | `7f0de140` | phase-60.2: churn-engine fix -- swap sentinel + delta scale (AW-5) -- PASS |
 | 2026-06-11 | `fa62b5fe` | phase-60.1: deep-pipeline restoration + honest-degradation alarm (AW-4) -- PASS |
-| 2026-06-11 | `7524e3cf` | feat(masterplan): install phase-60 -- 59.3 re-audit remediation, steps 60.1-60.4 ONLY, operator-appr |
 
 ---
 
+### v6.49.10 — phase-62.5: healthcheck + away-watchdog -- PASS (cycle-2, P1 paging r... (2026-06-12)
+
+- **phase-62.5: healthcheck + away-watchdog -- PASS (cycle-2, P1 paging resurrected via bot-token fallba**
 ### v6.49.9 — phase-62.4: live_check + preflight-hardening addendum (2026-06-12)
 
 - **phase-62.4: live_check + preflight-hardening addendum**
