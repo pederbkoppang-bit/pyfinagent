@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `a0733d46` | chore: 62.7 dress-rehearsal checklist assembled from the week's Q/A-queued operator actions |
 | 2026-06-12 | `680b89c8` | phase-62.4: guardrail/budget sentinel -- PASS (first spawn) |
 | 2026-06-12 | `2c65b793` | phase-62.5: healthcheck + away-watchdog -- PASS (cycle-2, P1 paging resurrected via bot-token fallba |
 | 2026-06-12 | `d86e1f52` | phase-62.4: live_check + preflight-hardening addendum |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `255d6cc9` | phase-61.0: install goal-phase61-churn-integrity (operator-approved: 'Install + begin 61.1 now (Reco |
 | 2026-06-11 | `b0fe1983` | phase-60.4: observability + ops residuals (AW-7/AW-1/AW-2/AW-10, hygiene) -- PASS, CLOSES PHASE-60 |
 | 2026-06-11 | `6a4fc351` | phase-60.3: non-USD decision-input integrity (AW-9) -- PASS |
-| 2026-06-11 | `7f0de140` | phase-60.2: churn-engine fix -- swap sentinel + delta scale (AW-5) -- PASS |
 
 ---
 
