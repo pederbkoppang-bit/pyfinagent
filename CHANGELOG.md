@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `928ae228` | phase-62.0: Hard-rules file + away goal install + backlog disposition -- docs/runbooks/away-ops-r... |
 | 2026-06-12 | `66cb8bc1` | feat: install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3-week away plan 2026-06-1 |
 | 2026-06-12 | `99860d6e` | phase-61.1: activate dark fixes -- flags ON + backend/frontend restart; Q/A CONDITIONAL pending toni |
 | 2026-06-11 | `255d6cc9` | phase-61.0: install goal-phase61-churn-integrity (operator-approved: 'Install + begin 61.1 now (Reco |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `06d4ee3e` | docs(handoff): post-checkpoint state -- phase-57 shipped, $25 window running, ask list refreshed |
 | 2026-06-11 | `78b264bf` | feat(risk): phase-57.1 binding RiskJudge gate + concentration-aware prompt context -- PASS (F-3/F-8; |
 | 2026-06-11 | `af4aa8d6` | feat(masterplan): install phase-57 FEATURE per operator reply 'PHASE-57: FEATURE' (2026-06-11) -- bi |
-| 2026-06-11 | `e97c33fe` | feat(56.1): execute operator-approved KR backfill (9 rows restated, idempotency proven) + restatemen |
 
 ---
 
+### v6.49.0 — phase-62.0: Hard-rules file + away goal install + backlog disposition... (2026-06-12)
+
+- **phase-62.0: Hard-rules file + away goal install + backlog disposition -- docs/runbooks/away-ops-r...**
 ### v6.48.0 — install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3... (2026-06-12)
 
 - **install goal-away-ops (phases 62-65, 23 steps) -- operator-approved 3-week away plan 2026-06-1**
