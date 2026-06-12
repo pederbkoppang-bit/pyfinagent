@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-12 | `b01a03bd` | phase-62.8: Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by m... |
 | 2026-06-12 | `91bfa46f` | phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff prompts) -- PASS (cycle-2) |
 | 2026-06-12 | `80008b10` | chore: masterplan phase-status reconciliation -- 7 stale in-progress phases resolved (status-only) |
 | 2026-06-12 | `86749179` | phase-17.4: stale-step closure -- researcher x Alpaca MCP x dry-run -- PASS (cycle-2) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-11 | `cd29b9b5` | docs(handoff): preserve unauthorized phase-60 draft as UNAPPROVED reference input |
 | 2026-06-11 | `86caa529` | Revert "chore: auto-changelog hook entry for 7258d241" |
 | 2026-06-11 | `731297c8` | docs(59.3): post-scoring addendum -- disclosed second-pass deviation (scored version preserved at 23 |
-| 2026-06-11 | `23153016` | feat(harness): phase-59.3 stress-test doctrine run -- PASS (bare Fable 5 10/10 anchors + 2 verified  |
 
 ---
 
+### v6.49.6 — phase-62.8: Away-mode digest sections -- formatters.py format_away_di... (2026-06-12)
+
+- **phase-62.8: Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by m...**
 ### v6.49.5 — phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff pr... (2026-06-12)
 
 - **phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff prompts) -- PASS (cycle-2)**
