@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-13 | `acb2bc2f` | chore(away-ops): recovery -- final self-referential audit-line sweep (2026-06-13 PM) |
 | 2026-06-13 | `53232c5a` | chore(away-ops): recovery -- session_notes.md Recovery 2026-06-13 PM section |
 | 2026-06-13 | `b9a52a15` | chore(away-ops): recovery -- capture self-referential audit append (2026-06-13 PM) |
 | 2026-06-13 | `d3bb4025` | chore(away-ops): recovery -- sweep audit/session runtime accumulation (2026-06-13 PM) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `b01a03bd` | phase-62.8: Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by m... |
 | 2026-06-12 | `91bfa46f` | phase-62.3: scheduled-session engine (plists + wrapper + 4 kickoff prompts) -- PASS (cycle-2) |
 | 2026-06-12 | `80008b10` | chore: masterplan phase-status reconciliation -- 7 stale in-progress phases resolved (status-only) |
-| 2026-06-12 | `86749179` | phase-17.4: stale-step closure -- researcher x Alpaca MCP x dry-run -- PASS (cycle-2) |
 
 ---
 
