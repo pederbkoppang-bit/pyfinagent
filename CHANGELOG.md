@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-13 | `d3bb4025` | chore(away-ops): recovery -- sweep audit/session runtime accumulation (2026-06-13 PM) |
 | 2026-06-13 | `b6f321d9` | chore(away-ops): phase-62.1 Cycle 64 -- restart slack-bot on current code (criteria 1-2 PASS; crit-3 |
 | 2026-06-12 | `e5790143` | chore(away-ops): sweep trailing pre-tool-use audit appends (recovery close) |
 | 2026-06-12 | `d203634d` | chore(away-ops): recovery -- commit runtime/audit appends + PM session artifact (no in-flight step) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `86749179` | phase-17.4: stale-step closure -- researcher x Alpaca MCP x dry-run -- PASS (cycle-2) |
 | 2026-06-12 | `6684c9c7` | phase-17.4: dryrun log force-added past the *.log gitignore (criterion 3) + evidence addendum |
 | 2026-06-12 | `ae07a48c` | phase-62.1 (in progress): slack bot cut over to launchd -- agent live PID 2585, dual-supervisor race |
-| 2026-06-12 | `d77f55b3` | phase-62.0 cycle-2: per-segment guard scoping fixes self-blocking false positive -- delta Q/A PASS ( |
 
 ---
 
