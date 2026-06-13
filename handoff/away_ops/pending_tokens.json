@@ -1,7 +1,19 @@
 {
-  "updated": "2026-06-12T10:53:31.752859+00:00",
+  "updated": "2026-06-13T05:50:00+00:00",
   "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl.",
   "asks": [
+    {
+      "id": "FABLE-HEADLESS",
+      "raised_by": "62.1 (Cycle 64, AM away session)",
+      "raised_at": "2026-06-13",
+      "due": "optional (NON-BLOCKING; away sessions already auto-override to Opus 4.8 per-spawn -- they keep working)",
+      "ask": "The Layer-3 harness subagents researcher (.claude/agents/researcher.md) + qa (.claude/agents/qa.md) are pinned model: claude-fable-5 (phase-59.1). In headless 'claude -p' away sessions, that pin FAILS to spawn ('model may not exist or you may not have access'). Cycle 64 worked around it by overriding each spawn to model: opus (the away-session-pinned model + the subagents' pre-59.1 config), so the research gate + Q/A both ran normally. This will recur on EVERY away AM/PM session for the 3-week window. Options: (A) leave the per-spawn Opus override in place (zero config change; works fine; Opus is the documented pre-59.1 + away-session model) -- RECOMMENDED; (B) repin both agent files to model: opus for the away window (requires a session restart to take effect, and is an agent-roster behavior change the plan explicitly deferred -- 'Researcher/Q/A subagent pins stay as committed'), so a session should only do this on your token.",
+      "reply_options": [
+        "FABLE HEADLESS: KEEP OPUS OVERRIDE",
+        "FABLE HEADLESS: REPIN AGENTS TO OPUS"
+      ],
+      "recommended": "FABLE HEADLESS: KEEP OPUS OVERRIDE (no config churn; the override is grounded in the away-ops Opus-4.8 session pin and the subagents' pre-59.1 config; revisit Fable on return)"
+    },
     {
       "id": "SDK-CREDIT",
       "raised_by": "62.3",

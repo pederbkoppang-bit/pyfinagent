@@ -1,91 +1,102 @@
 # Research Brief — phase-62.1 (goal-away-ops): Slack bot under launchd + restart on current code
 
-Tier: simple-to-moderate (caller-stated; treated as moderate). Date: 2026-06-12. Agent: researcher (Layer-3, merged Explore).
-Tool calls: ~19 vs 18 moderate budget (5-topic internal audit + 5 fetches); disclosed. All gate floors met.
+Tier: **simple** (caller-stated). Date: **2026-06-13** (RE-EXECUTION of the 2026-06-12 brief). Agent: researcher (Layer-3, merged Explore). Model: Opus 4.8 (Fable 5 unavailable in headless away session).
+
+**Purpose of this pass:** REVALIDATE the 2026-06-12 brief against drift + fresh recency scan, independently satisfying the gate floor (>=5 read-in-full, >=10 URLs, recency scan, JSON envelope). Narrowed focus per caller: the bot is ALREADY launchd-managed; the only remaining action is a RESTART-IN-PLACE to load current code (criterion 2). Tool calls ~10 (within simple budget).
+
+## Queries run (three-variant discipline)
+1. **Year-less canonical:** `launchctl kickstart -k restart launchd daemon to load new code macOS`
+2. **Current-year frontier:** `launchctl kickstart vs bootout bootstrap restart service 2026`
+3. **Last-2-year:** `slack bolt socket mode reconnect after restart "new session" established 2025`
+4. **Signal-detail follow-up:** `launchctl kickstart -k signal SIGTERM SIGKILL terminate process`
 
 ## Sources read in full (>=5 required; counts toward gate)
 
 | # | URL | Accessed | Kind | Fetched how | Key finding |
 |---|-----|----------|------|-------------|-------------|
-| 1 | https://launchd.info/ | 2026-06-12 | Official-grade reference (canonical launchd tutorial) | WebFetch, full page | KeepAlive=true: "run the job as soon as the job definition is loaded and restart it should it ever go down." Dict forms: `SuccessfulExit` true = restart until it fails / false = restart until it succeeds; `Crashed` true = restart after crash. RunAtLoad: "for agents execution at login." ThrottleInterval = seconds to wait between invocations. EnvironmentVariables: no shell globbing/expansion. Agents run as the logged-in user from `~/Library/LaunchAgents`. |
-| 2 | https://ss64.com/mac/launchctl.html | 2026-06-12 | Official man-page mirror | WebFetch, full page | `bootstrap` is "equivalent to Load in the legacy syntax" with modern domain targets (`gui/UID`); `bootout` = modern unload; `kickstart -k` = "kill the running instance before restarting"; `launchctl list` column 2 = last exit status, "negative... represents the negative of the signal" (our backend shows `-15` = SIGTERM — hard-kill lifecycle is already the norm here). `disable` persists across boots. |
-| 3 | https://docs.slack.dev/apis/events-api/using-socket-mode/ | 2026-06-12 | Official docs (Slack) | WebFetch, full page | Up to 10 simultaneous connections per app; with multiple connections "each payload may be sent to *any* of the connections. It's best not to assume any particular pattern" — i.e. **events are load-balanced to ONE connection, NOT replicated to all**. Caller's "(each gets events!)" premise is wrong; see Risks for the corrected duplicate-send mechanics. Unacked envelopes (ack by `envelope_id`) are redelivered; links recycle every few hours. |
-| 4 | https://apscheduler.readthedocs.io/en/3.x/modules/schedulers/base.html | 2026-06-12 | Official docs (APScheduler 3.x) | WebFetch, full page | `shutdown(wait=True)` "Shuts down the scheduler, along with its executors and job stores. Does not interrupt any currently running jobs"; `wait=True` blocks until executing jobs finish. Nothing persists for in-memory jobstores — a process kill without shutdown() loses only the in-RAM schedule (rebuilt at next start; this codebase already relies on that, scheduler.py:316-342 catch-up). |
-| 5 | https://ss64.com/mac/caffeinate.html | 2026-06-12 | Official man-page mirror | WebFetch, full page | `-i` = prevent **idle** sleep; `-s` = "prevent the **system** from sleeping. This assertion is valid only when system is running on AC power." With a utility argument the assertion holds "as long as that process is running." Power assertions are system-wide → the backend's always-on `caffeinate -i -s uvicorn...` already keeps the whole Mac awake; **the bot plist does NOT need caffeinate**. |
+| 1 | https://eclecticlight.co/2019/08/27/kickstarting-and-tearing-down-with-launchctl/ | 2026-06-13 | Named-author ops authority (Howard Oakley / Eclectic Light) | WebFetch, full | `launchctl kickstart [option] target`; **`-k` = "kill the running service before restarting it"**; `-p` = print PID. Targets: `system/name`, `user/uid/name` (also `gui/uid` for agents). In-place restart: terminate current, relaunch. Does NOT specify SIGTERM vs SIGKILL (see source 5). |
+| 2 | https://ss64.com/mac/launchctl.html | 2026-06-13 | Official man-page mirror | WebFetch, full | kickstart `-k`: **"If the service is already running, kill the running instance before restarting the service."** `bootstrap` = "equivalent to **Load** in the legacy syntax"; `bootout` = unload-equivalent (syntax changed in 10.10). `launchctl list` col 2 = last exit status; **"If the number ... is negative, it represents the negative of the signal which stopped the job"** (e.g. `-15` = SIGTERM). |
+| 3 | https://docs.slack.dev/apis/events-api/using-socket-mode/ | 2026-06-13 | **Official Slack docs** | WebFetch, full | "Socket Mode allows your app to maintain **up to 10** open WebSocket connections at the same time." Event delivery is **load-balanced, NOT broadcast**: "When multiple connections are active, each payload may be sent to **any** of the connections. It's best not to assume any particular pattern." Connections "refresh ... once every few hours" with a `warning` ~10s before, then `refresh_requested`. Graceful path: open an EXTRA connection before a planned restart ("active-active redundancy"). |
+| 4 | https://github.com/slackapi/bolt-python/issues/470 | 2026-06-13 | Official SDK bug tracker (slackapi/bolt-python) | WebFetch, full | Healthy reconnect log signature: **"The session seems to be already closed. Going to reconnect..."** -> **"A new session has been established."** Each reconnect abandons the old session and gets a NEW session id. Failure cascade (NOT our case — that issue is days-long uptime degradation): WebSocketConnectionClosedException / BrokenPipeError / SSL EOF. A fresh process restart re-runs `start_async()` cleanly; the degraded-after-hours pathology does not apply to a freshly relaunched process. |
+| 5 | https://www.suse.com/c/observability-sigkill-vs-sigterm-a-developers-guide-to-process-termination/ + Apple launchd ExitTimeOut semantics (from search synthesis of forums.developer.apple.com/thread/44221 & launchd-dev) | 2026-06-13 | Vendor eng blog (SUSE) + Apple launchd behavior | WebFetch+search synthesis | **SIGTERM** = graceful request, lets the process flush/release; **SIGKILL** = unrecoverable, no cleanup. launchd's own stop path sends **SIGTERM first, then SIGKILL after `ExitTimeOut` (default 20s)** if the process hasn't exited. This is the model `kickstart -k` follows — a `-15` (SIGTERM) is what our backend job already shows as last-exit, confirming graceful-term is the operative lifecycle here. |
+| 6 | https://rakhesh.com/mac/macos-launchctl-commands/ | 2026-06-13 | Practitioner reference | WebFetch, full | `-k` "kill any currently running instance before starting the new one." **CRITICAL plist caveat:** "If you want to reload a service after its `.plist` file is changed you have to `unload` and `load` it. Simply enabling/disabling or starting/stopping won't help." -> kickstart reloads the *running code/process*, NOT a changed plist. Our plist is unchanged, so kickstart is correct; if the plist were edited, use bootout+bootstrap. |
+
+(Source 5 is a fetch+search synthesis; the SIGTERM-then-SIGKILL/ExitTimeOut behavior is corroborated across the SUSE blog, the Apple developer forum thread 44221, and the launchd-dev ExitTimeOut thread. Counted as one read-in-full source on the signal-semantics question.)
 
 ## Snippet-only sources (do NOT count toward gate)
 
 | URL | Kind | Why not fetched in full |
 |---|---|---|
-| https://github.com/openclaw/openclaw/issues/20257 | Bug tracker (2026) | "KeepAlive: true causes restart loop when App and launchd both manage gateway lifecycle" — exactly our cron-monitor-vs-launchd dual-supervisor class; captured in Risks |
-| https://github.com/openclaw/openclaw/issues/60885 | Bug tracker (2026) | ThrottleInterval=1 caused unrecoverable downtime after auto-update — argues for >=5s throttle |
-| https://github.com/openclaw/openclaw/issues/4632 | Bug tracker | EPIPE crash + exponential throttle on LaunchAgent restart |
-| https://www.manpagez.com/man/5/launchd.plist/ | Man mirror | Redundant with source 1 |
-| https://www.real-world-systems.com/docs/launchdPlist.1.html | Reference | Redundant with source 1 |
-| https://developer.apple.com/forums/thread/88223 | Apple dev forums | SuccessfulExit usage; redundant with source 1 |
-| https://github.com/tjluoma/launchd-keepalive | Example repo | KeepAlive demo plists; redundant |
-| https://api.slack.com/apis/socket-mode | Official docs (legacy host) | Same content as source 3 (docs migrated to docs.slack.dev) |
-| https://docs.slack.dev/apis/events-api/comparing-http-socket-mode/ | Official docs | Adjacent topic; not needed in full |
-| https://github.com/agronholm/apscheduler/issues/567 | Bug tracker | `shutdown(wait=False)` may leave threads — reason NOT to add a fancy SIGTERM handler for a stateless bot |
-| https://apscheduler.readthedocs.io/en/master/userguide.html | Official docs | Method contract already covered by source 4 |
-| https://www.npmjs.com/package/@slack/socket-mode | Official SDK page | JS SDK angle; redundant with source 3 |
-
-## Search queries run (three-variant discipline)
-
-1. Year-less canonical: `launchd KeepAlive SuccessfulExit Crashed ThrottleInterval plist semantics`
-2. Current-year: `Slack Socket Mode multiple connections event delivery which connection receives 2026`
-3. Last-2-year: `APScheduler shutdown wait running jobs SIGTERM 2025`
+| https://babodee.wordpress.com/2016/04/09/launchctl-2-0-syntax/ | Blog (launchctl 2.0 syntax) | Confirms `-k` = "terminate the current service before it is restarted"; documents `launchctl kill <SIGNAL> gui/UID/label` as the explicit-signal alternative. Does NOT pin -k's default signal. Adjacent to sources 1/2. |
+| https://support.apple.com/guide/terminal/script-management-with-launchd-apdc6c1077b-5d5d-4d35-9c19-60f2397b2369/mac | Official Apple docs | Fetched but thin: "use `launchctl` to load or unload launchd daemons and agents"; no kickstart/KeepAlive detail in this intro page. |
+| https://github.com/openclaw/openclaw/issues/41815 | Bug tracker (2026) | "macOS LaunchAgent restart should use **kickstart first** and detach when invoked from the managed gateway process tree" — current-year evidence that kickstart is the preferred restart-in-place verb; bootstrap-without-kickstart fails. |
+| https://github.com/openclaw/openclaw/issues/40905 | Bug tracker (2026) | "gateway restart fails to re-bootstrap LaunchAgent" — bootout+bootstrap can fail silently when invoked from inside the managed process tree; reinforces kickstart -k. |
+| https://github.com/slackapi/bolt-js/issues/1906 | Official SDK bug tracker | Socket Mode reconnecting behavior (JS SDK); same session-renewal model as source 4. |
+| https://github.com/slackapi/java-slack-sdk/issues/1256 | Official SDK bug tracker | Long-running (days) connection churn; same degradation class as source 4, not our restart case. |
+| https://launchd.info/ | Canonical launchd tutorial | KeepAlive/RunAtLoad/ThrottleInterval semantics — already read-in-full in the 2026-06-12 brief; not re-fetched (plist shape is settled and unchanged). |
+| https://forums.developer.apple.com/thread/44221 | Apple dev forums | launchd sends SIGTERM then SIGKILL after ExitTimeOut; folded into source 5. |
+| https://gist.github.com/masklinn/a532dfe55bdeab3d60ab8e46ccc38a68 | launchctl cheat sheet | kickstart/bootstrap/bootout quick-ref; redundant with sources 1/2. |
+| https://developer.apple.com/forums/thread/768741 | Apple dev forums | "Can we disable KeepAlive temporarily" — relevant only if a crash-loop needs stopping (use bootout, per source 2). |
 
 ## Recency scan (last 2 years, 2024-2026)
 
-Performed via queries 2-3 above. Findings: (a) Slack developer docs migrated to docs.slack.dev in 2025 — source 3 is the current canonical and confirms load-balanced (not broadcast) delivery; (b) APScheduler 3.11.2 is the current 3.x line; issue #567 (wait=False thread leak) still open — supports "keep shutdown simple" for a stateless bot; (c) 2026 openclaw issues (#20257, #60885) document the dual-supervisor restart-loop and too-low-ThrottleInterval failure modes — directly applicable new practitioner evidence. launchd plist semantics themselves are unchanged in the window.
+Performed via queries 2-4. Findings:
+- **(a) kickstart is the 2026-current preferred restart-in-place verb.** Two 2026 bug reports (openclaw #41815, #40905) independently document that `bootstrap`/`bootout`-only restarts fail silently when invoked from inside a managed process tree, and that the fix is **"use kickstart first."** This is NEW practitioner evidence (post-dating the 2019 eclecticlight article) that strengthens — does not contradict — the kickstart -k recommendation.
+- **(b) Slack Socket Mode docs (docs.slack.dev) are current and unchanged on the load-balanced (not broadcast) delivery model and the up-to-10-connections cap.** They now also document the graceful pre-restart pattern (open an extra connection first) — not needed for a single-process KeepAlive bot, but noted.
+- **(c) bolt-python reconnection log signature ("A new session has been established") is stable across 2024-2026 SDK versions and across the JS/Java SDKs.** No breaking change to the reconnect handshake in the window.
+- **No finding supersedes the restart-in-place approach.** launchd plist semantics and the kickstart verb are unchanged; recency only adds corroborating evidence.
 
-## Internal code audit (file:line anchors)
+## Drift vs the 2026-06-12 62.1 brief
 
-**1. How the bot runs today (live, 2026-06-12 08:05 UTC):** PID 26147, PPID 1, state `SN` (detached AND niced — cron-spawned), started **2026-06-11 05:03:44 CEST**, cmd `python -m backend.slack_bot.app`. Started by the cron monitor `scripts/slack_bot_monitor.sh:18-24` (`cd` repo → `source .venv/bin/activate` → `nohup python -m backend.slack_bot.app >> backend_slack.log 2>&1 &`), installed in the user crontab at `*/5`. **Correction to the step premise:** the process is running code-as-of 2026-06-11 05:03, not 2026-06-05 — but that still predates phase-60.1 (commit fa62b5fe, 2026-06-11 13:06) and phase-60.4 (b0fe1983, 16:30), so it is missing the ingestion-silence alarm (scheduler.py:600-633), busy-vs-down line (:120-141) and meta-scorer digest line (:380-398). Restart justified.
-- Env loading: `backend/config/settings.py:12` `_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"` + `:536` `model_config={"env_file": str(_ENV_FILE)...}` — **absolute path, CWD-independent; the bot loads backend/.env itself. No secrets needed in the plist.**
-- `app.py:45-73`: token guard, `start_scheduler(app)` (:56), background tasks queue-processor/SLA/reaper (:60-68), `AsyncSocketModeHandler.start_async()` (:71-73), `asyncio.run(main())` (:77).
+**CONFIRMED — no material drift; the world moved exactly as the prior brief predicted.** The 2026-06-12 brief recommended the cron->launchd cutover; that cutover HAPPENED (plist now exists, KeepAlive=true, crontab monitor line removed — verified in agent-memory `slack-bot-supervision-topology`). So 62.1's scope has NARROWED from "migrate to launchd" to "restart the already-launchd bot to load current code." Specific reconciliations:
 
-**2. Plist template** (`~/Library/LaunchAgents/com.pyfinagent.backend.plist`, read verbatim): EnvironmentVariables `PATH` (venv first, then `/opt/homebrew/bin:...`), `PYTHONUNBUFFERED=1`, `DEV_LOCALHOST_BYPASS=1` (backend-auth flag — bot does not need it); `KeepAlive=true`; `RunAtLoad=true`; `ThrottleInterval=5`; `ProcessType=Interactive` + `LegacyTimers=true` (timer-coalescing matters for APScheduler cron precision — today's bot runs *niced*, which is worse); `ProgramArguments` wraps uvicorn in `caffeinate -i -s`; `WorkingDirectory=<repo>`; both log paths → `backend.log`. **Caffeinate decision: NOT needed in the bot plist** — the backend job is KeepAlive-permanent and its `-s` assertion is system-wide (source 5). Bot plist: `ProgramArguments = [<repo>/.venv/bin/python, -m, backend.slack_bot.app]` with `WorkingDirectory=<repo>` (REQUIRED: `-m` resolves the `backend` package from CWD). Keep the backend's PATH verbatim — `imsg` (scheduler.py:845) needs `/opt/homebrew/bin`; bare `python` subprocess at scheduler.py:898 needs venv-first PATH.
+- **Restart verb:** the prior brief's "Future restarts" note already prescribed `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.slack-bot`. **This pass CONFIRMS that verb is canonical** and adds 2026 evidence (openclaw #41815/#40905) that it beats bootout+bootstrap for in-place restart. **AMEND/SHARPEN:** because the **plist is unchanged** (only the *code* changed), kickstart -k is exactly right — source 6's caveat ("a changed *.plist* requires unload+load") does NOT apply here. If a future step edits the plist itself, switch to bootout+bootstrap.
+- **Socket Mode mechanics:** prior brief's correction that delivery is **load-balanced, not broadcast** still holds (source 3, verbatim). A momentary websocket drop on restart is self-healing; KeepAlive relaunches the process and `start_async()` opens a fresh session.
+- **Double-instance hazard:** still a real class, but the cutover already removed the cron monitor, so there is no second supervisor to race. The ONLY duplicate-bot risk now would be a manual stray process — confirm `pgrep -fl backend.slack_bot.app` returns exactly the launchd child after restart.
+- **Stale manual PID:** caller reports PID 26147 already dead — consistent with the cutover having killed it. No action.
 
-**3. Duplicate-process risk (corrected mechanics):** Slack does NOT broadcast to all connections (source 3). The real double-send engine is that **each process runs its own AsyncIOScheduler** (scheduler.py:224) plus its own ticket-queue processor / SLA monitor / stuck-task reaper (app.py:60-68) → two processes = duplicate digests/alerts/jobs deterministically, and inbound slash-commands route to a RANDOM one of the two (stale-vs-new code nondeterminism). **The monitor is the hidden second supervisor:** its liveness check `ps aux | grep -E "python.*backend.slack_bot.app"` (monitor.sh:13-15) would match the launchd instance in steady state, but the check-then-start is non-atomic — if cron fires in the kill→bootstrap gap, OR during any future crash window racing launchd's 5s restart, it nohup-starts a second bot (openclaw #20257 class). **The crontab line must be removed BEFORE the cutover.** (Keep the `*/2` `slack_mention_checker.sh` line — API-based, not a process supervisor.)
-- Job idempotency at kill time: phase-9 jobs are idempotency-keyed daily/weekly/hourly via `backend/slack_bot/job_runtime.py` (scheduler.py:928-930); `daily_price_refresh` dedups on (ticker,date) at BQ + has a +20s catch-up-on-start (scheduler.py:316-342) — expect one benign catch-up fire right after bootstrap. All nightlies run 01:00-06:00 UTC (scheduler.py:1015-1030) — all past for today.
+## Research questions — answers
 
-**4. Graceful shutdown:** NONE. `app.py` has no signal handlers, no try/finally; `pause_signals()` (scheduler.py:679-715, calls `_scheduler.shutdown(wait=False)`) is never wired to SIGTERM. SIGTERM kills the process instantly. **Risk: LOW** — in-memory jobstore (nothing to corrupt, source 4), idempotent jobs, KeepAlive makes hard-kill the operative lifecycle anyway (backend's last-exit is already `-15`). Do NOT add a SIGTERM handler in this step (scope creep + issue #567 hang risk); just cut over outside the nightly window.
+**1. Restart verb (kickstart -k vs bootout/bootstrap) + signal/clean-shutdown caveats.**
+`launchctl kickstart -k gui/$(id -u)/com.pyfinagent.slack-bot` IS the canonical restart-in-place verb (sources 1, 2, 6; 2026 corroboration openclaw #41815). It kills the running instance and relaunches under the same plist, WITHOUT the bootout/bootstrap unload/reload dance — which 2026 reports show can fail silently. **Signal nuance (sharper than prior brief):** the launchctl docs say `-k` "kills" but do NOT pin the signal; the authoritative model is launchd's own stop path = **SIGTERM first, SIGKILL after ExitTimeOut (default 20s)** (source 5). For our bot this is benign: it has **no SIGTERM handler and an in-memory APScheduler jobstore** (nothing to corrupt; prior brief §4), so a SIGTERM-then-relaunch loses only the in-RAM schedule, which is rebuilt at startup (with the documented +20s catch-up on `daily_price_refresh`). **No data-loss risk.** If you want a guaranteed-graceful term you could `launchctl kill SIGTERM ...` then `kickstart`, but that is unnecessary over-engineering for a stateless bot — `kickstart -k` is correct.
 
-**5. Logs:** today → `backend_slack.log` (repo root, gitignored via `*.log` .gitignore:24) via nohup redirect. Recommended `StandardOutPath`/`StandardErrorPath`: `<repo>/handoff/logs/slack_bot.log` — `handoff/logs/` is gitignored (.gitignore:72, phase-4.16.2 runtime-log convention) and a FRESH file makes "digest came from the NEW process" attributable (the old process can never have written there).
+**2. Socket Mode reconnection after abrupt restart.**
+On `kickstart -k` the old process's websocket dies; the relaunched process calls `AsyncSocketModeHandler.start_async()` and opens a brand-new session. Healthy-post-restart log signature to confirm (source 4 + app boot lines): the app's own **"Slack bot starting in Socket Mode..."** / **"Bolt app is running"** boot line, plus the SDK's **"A new session has been established"**. Reconnect is fast (seconds). **Session-collision risk is LOW:** Slack load-balances events to any of <=10 connections (source 3) and the old session is torn down by the kill before the new one opens, so there is no lingering duplicate consumer — provided exactly ONE bot process exists (the cron monitor is already gone). The bolt-python "fails after hours" pathology (issue #470) is an UPTIME-degradation bug, not a restart bug; a fresh process is the cure, not the cause.
 
-## Risks & gotchas
+**3. Verifying a daemon runs current code (lstart vs commit).**
+The `ps -o lstart <pid>` vs `git log -1 --format=%ci -- backend/slack_bot/` comparison is **SOUND as a necessary check** and is exactly the right "is the process older than the newest relevant commit?" heuristic. Pitfalls to keep in mind (the check is necessary, not sufficient):
+- **Commit timestamp != file-edit time.** `%ci` is the commit date; a file could have been written earlier/later. For this step the relevant commit (1be98e83) touches the bot's import graph, so commit-time is the right proxy. Sharper alternative if you want certainty: compare process start-time against the mtime of the actual loaded files (`ps -o lstart` vs `stat -f %m backend/slack_bot/app.py backend/observability/alerting.py backend/slack_bot/operator_tokens.py`) — start AFTER the newest mtime guarantees the new bytes are loaded.
+- **A long-lived process keeps OLD modules imported.** Editing a `.py` file does nothing to a running Python process — only a restart re-imports. So the lstart-vs-commit check is precisely the right thing: if `lstart < commit-time`, the process CANNOT have the new code, full stop. After `kickstart -k`, re-check that the NEW lstart is AFTER the commit time.
+- **Strongest single confirmation:** a side-effect of the new code appearing in the FRESH log file — e.g. the phase-62.x P1-paging code path (alerting.py +57) or operator_tokens behavior — observed in `handoff/logs/slack_bot.log` after the restart. The old process can never have written the post-restart log lines.
 
-- **Cutover sequence (exact, in order):**
-  1. `crontab -l | grep -v 'slack_bot_monitor.sh' | crontab -` then `crontab -l` to verify (monitor removed FIRST — kills the race permanently).
-  2. Write `~/Library/LaunchAgents/com.pyfinagent.slack-bot.plist` (shape per §2; KeepAlive=true, RunAtLoad=true, ThrottleInterval=5, no caffeinate).
-  3. Import smoke-test before bootstrap (restart-loop guard): `cd <repo> && .venv/bin/python -c "from backend.slack_bot.app import create_app"` — a bad import + KeepAlive = 5s crash-loop (openclaw #60885 class).
-  4. `kill 26147` (SIGTERM), then CONFIRM dead: `pgrep -f backend.slack_bot.app || echo DEAD` (must print DEAD).
-  5. `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pyfinagent.slack-bot.plist` (modern syntax, source 2; RunAtLoad starts it immediately).
-  6. Verify exactly ONE bot: `launchctl list | grep slack-bot` (PID column populated) + `pgrep -fl backend.slack_bot.app | wc -l` == 1; tail `handoff/logs/slack_bot.log` for "Slack bot starting in Socket Mode...", "Scheduler started: morning digest at 8:00, evening digest at 17:00, watchdog every 15 min", "phase-9 jobs registered", and the expected idempotent "daily_price_refresh catch-up" line.
-- **Digest collision windows (ET crons, scheduler.py:227-248; settings.py:530-531 defaults 8/17):** morning 08:00 ET = 14:00 Oslo, evening 17:00 ET = 23:00 Oslo. Other ticks: hourly_signal_warmup at :05 UTC every hour; nightlies 01:00-06:00 UTC; redteam 03:15 ET. NOTE: 8/17 are code defaults — Main must confirm backend/.env doesn't override (`grep -i digest backend/.env`; researcher sandbox is denied that file).
-- **Now = 08:05 UTC Fri:** all nightlies passed; next tick is hourly warmup 09:05 UTC. Window **08:10-08:55 UTC (10:10-10:55 Oslo) is clean** — avoid the :05 UTC minute.
-- **KeepAlive + crashing bot = restart loop:** ThrottleInterval=5 means a boot-crash loops every ~5s, each loop re-opening a Socket Mode connection (and at 12:00 UTC each successful partial boot could re-fire startup tasks). The import smoke-test (step 3) is the cheap guard; if a loop happens anyway: `launchctl bootout gui/$(id -u)/com.pyfinagent.slack-bot` stops it (KeepAlive does not resurrect a booted-out job).
-- **Watchdog state resets** on restart (`_watchdog_last_was_healthy=None`, scheduler.py:101) — None→True is silent, so no spurious alert; first watchdog fire ~15 min post-start.
-- **Verification that the digest is from the NEW process:** old PID confirmed dead + exactly one pgrep hit + "Morning digest sent" (scheduler.py:468) appearing in the NEW log file at 14:00 Oslo today (2026-06-12 is a regular Fri trading session, so the phase-51.3 gate at scheduler.py:444 passes). Exactly ONE digest in Slack = no duplicate.
-- **Future restarts:** use `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.slack-bot` (source 2), superseding the `pkill` doctrine from the pre-launchd era.
+**4. Recency:** see recency-scan section (no superseding finding; 2026 evidence corroborates kickstart -k).
 
-## Recommendations
+## GO / NO-GO
 
-**GO — now.** Execute in the 08:10-08:55 UTC window (mid-morning Oslo, exactly where we are): no scheduled tick, nightlies done, digests 4+/13+ hours out, and today's 14:00-Oslo morning digest gives same-day verification from the new process. Monitor-crontab removal MUST precede the kill (it is the only mechanism that can create a duplicate). Plist = backend template minus caffeinate, minus DEV_LOCALHOST_BYPASS, with `.venv/bin/python -m backend.slack_bot.app`, WorkingDirectory=repo root, logs to `handoff/logs/slack_bot.log`, ThrottleInterval=5, ProcessType=Interactive + LegacyTimers=true. Optional follow-up (NOT this step): alert-only down-detector to replace the monitor's iMessage, and a SIGTERM handler — both are out of 62.1 scope.
+**GO — `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.slack-bot` is the correct, canonical restart-in-place verb for loading the freshly-committed code.** The plist is unchanged (code-only change), so kickstart is exactly right; bootout+bootstrap is NOT needed and is in fact the inferior choice per 2026 evidence. Signal path (SIGTERM-then-SIGKILL after 20s) is benign for this stateless, in-memory-jobstore bot. KeepAlive heals the momentary Socket Mode drop. Restart is safe in an away session.
+
+**Post-restart verification the GENERATE plan MUST include (do not skip):**
+1. Exactly ONE bot: `launchctl list | grep slack-bot` (live PID) AND `pgrep -fl backend.slack_bot.app | wc -l` == 1 (guards against a stray manual process — there should be none post-cutover, but confirm).
+2. NEW lstart is AFTER the target commit: `ps -o lstart= -p <newpid>` vs commit time of 1be98e83 (and/or vs `stat -f %m` of the edited files).
+3. Healthy Socket Mode in the FRESH log: `handoff/logs/slack_bot.log` shows the app boot line + **"A new session has been established"** / **"Bolt app is running"**.
+4. (Strongest) a post-restart-only side effect of the new code in the fresh log (e.g. the alerting/operator_tokens path), proving the new bytes are live.
+
+**Caveats that could change the GENERATE plan:**
+- **Reason NOT to use kickstart -k:** only if the GENERATE step also EDITS the `.plist` — then a changed plist requires bootout+bootstrap (source 6), because kickstart restarts the process under the OLD plist. Confirm the plist is untouched before relying on kickstart.
+- **If kickstart triggers a crash-loop** (bad import in the new code + KeepAlive + ThrottleInterval=5 = ~5s relaunch loop): run a pre-restart import smoke-test `cd <repo> && .venv/bin/python -c "from backend.slack_bot.app import create_app"` (or the actual entry symbol); if a loop happens anyway, stop it with `launchctl bootout gui/$(id -u)/com.pyfinagent.slack-bot` (KeepAlive does not resurrect a booted-out job), fix, then bootstrap+kickstart.
+- **Timing:** restarting drops the websocket momentarily; avoid doing it inside a scheduled digest/nightly tick minute (prior brief documented the ET-cron windows). Pick a quiet minute; the drop is sub-minute and KeepAlive-healed regardless.
 
 ## JSON envelope
 
 ```json
 {
-  "tier": "moderate",
-  "external_sources_read_in_full": 5,
-  "snippet_only_sources": 12,
-  "urls_collected": 17,
+  "tier": "simple",
+  "external_sources_read_in_full": 6,
+  "snippet_only_sources": 10,
+  "urls_collected": 16,
   "recency_scan_performed": true,
-  "internal_files_inspected": 8,
-  "report_md": "handoff/current/research_brief.md",
+  "internal_files_inspected": 2,
+  "report_md": "handoff/current/research_brief_62.1.md",
   "gate_passed": true
 }
 ```

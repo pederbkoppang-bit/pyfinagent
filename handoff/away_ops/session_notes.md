@@ -40,3 +40,44 @@ was raised (nothing unattributable surfaced -- rail 10 not triggered).
 **What remains.** Nothing for recovery. Tree is clean. The next scheduled AM session
 resumes the away-ops calendar normally. Open backlog (62.1 / 62.2 evidence closure,
 phase 62-65) is untouched and remains owned by the regular AM/PM cadence.
+
+## AM away session -- 2026-06-13 (Cycle 64, phase=62.1)
+
+**Step 0 (tokens).** `unapplied_tokens()` = 0. No operator_tokens.jsonl yet (62.2 handler
+not shipped). No HALT-DEV. Cursor file absent (no tokens consumed to date). Clean no-op.
+
+**Step selected: 62.1** (Slack bot under launchd -- restart on current code). Rationale:
+every other pre-departure pending step has a live/operator/time gate that blocks an
+unattended weekend AM flip -- 62.2 needs a live operator token round-trip; 62.6 is parked
+CONDITIONAL (PM-owned, 39.1 3-night evidence, closes ~06-15/16); 62.7 is the
+operator-watched Sunday dress rehearsal. 62.1 had the most valuable AM-actionable work.
+
+**Outcome: CONDITIONAL (ok:true), no flip.** Full harness loop ran:
+- RESEARCH: research_brief_62.1.md REVALIDATED (gate_passed, 6 in full, recency scan).
+- GENERATE: restart-only, NO file/plist edits. The launchd cutover was already done
+  (Jun-12); the gap was criterion 2 (running PID 38084 lstart was 8s older than commit
+  1be98e83 -- a pure commit-timestamp artifact; file mtimes predated the lstart, so the
+  bot already held current code). `kickstart -k` (rail-9 authorized) -> new PID 83982
+  lstart Sat Jun 13 07:46:26 (postdates commit + file mtimes); single instance; old PIDs
+  dead; healthy Socket Mode reconnect <1s. Criteria 1+2 COMPLETE.
+- EVALUATE: ONE fresh Q/A (Opus) -- CONDITIONAL. Reproduced 1+2 live; 5/5 compliance PASS;
+  rails 4/6/9 clean. CAUGHT a material error: digests are WEEKEND-GATED (scheduler.py:543),
+  so criterion 3's "today 14:00 CEST" was wrong -- earliest qualifying digest is
+  **MON 2026-06-15**. Corrected in live_check + experiment_results.
+
+**Handoff convention:** ran in SUFFIXED files (*_62.1.md); rolling slots left untouched
+for the parked 62.6 closure. No status flip -> archive hook did not fire.
+
+**Criterion-3 closure (Monday 2026-06-15):** capture the real `digest sent` log line
+(not `skipped`) from the launchd bot (PID 83982 or a later KeepAlive successor whose
+lstart still postdates 1be98e83) + Slack permalink into live_check_62.1.md -> closing Q/A
+-> flip 62.1.
+
+**FINDING (pending_tokens FABLE-HEADLESS):** researcher/qa `model: claude-fable-5` pins
+fail to spawn in headless `claude -p` away sessions. Worked around by per-spawn override
+to `model: opus` (away-session pin + pre-59.1 config). Recurs every away session.
+Recommended default: keep the Opus override; operator may repin on a token. NON-BLOCKING.
+
+**Rails check:** no .env edit; no trading-behavior file touched; no force-push/history
+rewrite; main-only; $0 metered (restart + import smoke-test are LLM-free; bot digests use
+pre-fetched BQ data); launchctl limited to slack-bot kickstart. All clean.
