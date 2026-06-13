@@ -81,3 +81,45 @@ Recommended default: keep the Opus override; operator may repin on a token. NON-
 **Rails check:** no .env edit; no trading-behavior file touched; no force-push/history
 rewrite; main-only; $0 metered (restart + import smoke-test are LLM-free; bot digests use
 pre-fetched BQ data); launchctl limited to slack-bot kickstart. All clean.
+
+## Recovery -- 2026-06-13 (PM)
+
+**Trigger.** The PM session that started `2026-06-13T20:00:02Z` detected a dirty tree on
+startup and routed to the recovery prompt (`session.log`:
+`[2026-06-13T20:00:09Z] [pm] dirty tree detected (non-evidence paths) -- recovery prompt
+selected`). `git pull --rebase` failed on the unstaged changes, so the session ran in
+OFFLINE MODE (work local; push retried here).
+
+**What was found.** Inventory of `git status --porcelain` -- 4 modified + 1 untracked,
+ALL non-code, every one a pure append (27 insertions, 0 deletions):
+
+| File | Class | Writer |
+|------|-------|--------|
+| `handoff/audit/instructions_loaded_audit.jsonl` (+2) | audit (append-only) | InstructionsLoaded hook |
+| `handoff/audit/pre_tool_use_audit.jsonl` (+13) | audit (append-only) | PreToolUse hook (incl. this session) |
+| `handoff/prompt_leak_redteam_audit.jsonl` (+11) | audit (append-only) | redteam harness; all 7/7 caught, 0 FP, ok:true |
+| `handoff/away_ops/session_am_20260613T053008Z.json` (+1) | session artifact | AM session 053008Z result (62.1 CONDITIONAL, $9.40) |
+| `handoff/away_ops/session_pm_20260613T200009Z.json` (untracked, 0B) | session artifact | this PM session startup marker |
+
+**Classification.** Every dirty path is an append-only audit stream or a session artifact
+-- exactly recovery-procedure step 3 ("just commit"). `handoff/current/` is clean: NO
+in-flight contract / experiment_results / evaluator_critique, and there is NO
+`chore(away-wip)` checkpoint commit. So the prior session left **no half-finished
+masterplan step**. The AM-session 62.1 commits (`b6f321d9` + changelog `dcef12f8`) had
+already reached `origin/main` (local was 0/0 with origin before this recovery's commits) --
+i.e. 62.1's CONDITIONAL outcome is intact and remains correctly `pending`. Nothing
+unattributable surfaced; rail 10 not triggered.
+
+**What was done.** Staged + committed all in two truthful `chore(away-ops)` recovery
+commits (`d3bb4025` sweep + `b9a52a15` self-referential audit-line capture), with the
+auto-changelog hook adding `e8376216` between them; pushed all to `origin/main` (manual
+push, since the wrapper was OFFLINE). **No `git checkout/restore/stash`** (rail 3). No
+`.env`, code, or trading-behavior file touched (rail 6). Main-only, no force-push (rail 3).
+$0 metered (rail 4). No token consumed; no operator ask raised.
+
+**What remains.** Nothing for recovery. Tree is clean at `b9a52a15`. The only possible
+residual is a single self-referential `pre_tool_use_audit.jsonl` line from this session's
+final status check (inherent to the per-Bash-call audit hook) -- harmless, swept by the
+next session. Open backlog (62.1 Monday 2026-06-15 criterion-3 closure; 62.2 token
+handler; phases 62-65) is untouched and owned by the regular AM/PM cadence. Per the
+recovery rail, this session does NOT start a new masterplan step.
