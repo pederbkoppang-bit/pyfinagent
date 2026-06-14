@@ -108,3 +108,106 @@ Soft checks:
   "gate_passed": true
 }
 ```
+
+---
+
+## Revalidation 2026-06-14 (post-implementation drift check)
+
+Tier: simple (caller-stated, post-implementation revalidation). Agent: researcher (Layer-3). Session: AM away-ops (operator away). The 62.2 code shipped 2026-06-12. This section is a DRIFT CHECK: does the shipped implementation satisfy the design + masterplan criteria, and has the external literature moved since 2026-06-12. NOT changing trading behavior; `commands.py`/`operator_tokens.py` are bot-side (not rail-6 trading-behavior files).
+
+### External re-confirmation (read in full this session via WebFetch; >=5 floor)
+
+| # | URL | Accessed | Kind | Fetched how | Drift finding |
+|---|-----|----------|------|-------------|---------------|
+| 1 | https://docs.slack.dev/tools/bolt-python/concepts/listener-middleware/ | 2026-06-14 | Official docs (Slack) | WebFetch, full | STILL RESOLVES (no 301 this time — already on docs.slack.dev). Re-confirms: a matcher "returns `bool` value (`True` for proceeding) instead of requiring `next()` method call." Doc STILL silent on cross-listener dispatch order + fall-through — unchanged since 2026-06-12; resolved from SDK source (see below). No drift. |
+| 2 | https://docs.slack.dev/tools/bolt-python/reference/listener_matcher/async_listener_matcher.html | 2026-06-14 | Official docs (Slack) | WebFetch, full | `AsyncListenerMatcher.async_matches(req, resp) -> bool`; "Matches against the request and returns True if matched." Confirms the bool contract the shipped `_operator_token_matcher` implements. Doc does not state AND-combination — that is in SDK source (anchored below). No drift. |
+| 3 | https://cwe.mitre.org/data/definitions/117.html | 2026-06-14 | Official-grade (MITRE) | WebFetch, full | CWE-117 mitigations: (1) accept-known-good input validation, (2) "Use and specify an output encoding that can be handled by the downstream component that is reading the output," (3) canonicalization. Example exploits CRLF (`%0a`). Note: MITRE frames it as "output encoding" generically; `json.dumps` (which escapes `\n`/`\r` to `\\n`/`\\r`) IS a valid output-encoding instance — the shipped `append_operator_token` uses `json.dumps(record, ensure_ascii=False)` so raw operator text cannot inject a fake JSONL line. No drift. |
+| 4 | https://docs.slack.dev/concepts/security/ | 2026-06-14 | Official docs (Slack) | WebFetch, full | "Never expose tokens (or other customer secrets) to the end user, especially in error messages or by echoing them back to the UI." + "validating message sources before processing (particularly important for AI-integrated apps)." Directly validates the shipped allowlist-as-matcher + the ACK that echoes only the raw token line, never any secret. No drift. |
+| 5 | https://moldstud.com/articles/p-comprehensive-guide-to-auditing-slack-bot-user-permissions-for-compliance | 2026-06-14 | Industry practitioner (2025) | WebFetch, full | RECENCY HIT: "45% of security incidents [in collaboration platforms] stem from unchecked or excessive access granted to automation tools"; 2025 Snyk survey: 40% of enterprise Slack apps request a scope beyond documented need; "less is more in permission management." Corroborates (does NOT supersede) the 62.0 design's fail-closed single-operator allowlist. No drift to the design. |
+
+Also re-read in full locally (installed `slack_bolt` 1.27.0 source — code, not WebFetch; does NOT count toward floor, anchors the load-bearing CRIT-1 fact the docs won't confirm):
+- `slack_bolt/app/async_app.py:614` — `for listener in self._async_listeners:` (registration order); `:617` `if await listener.async_matches(...)` runs the first matching listener; `:634-635` `# This means the listener is not for this incoming request.` / `continue` — fall-through to the next listener when the `@app.message(keyword)` regex middleware does NOT match.
+- `slack_bolt/listener/async_listener.py:27-31` — matcher AND-combination with short-circuit: `for matcher in self.matchers: is_matched = await matcher.async_matches(...); if not is_matched: return is_matched`. So `_operator_token_matcher` returning False = the whole listener doesn't match = Bolt falls through to the catch-all. Empirically re-confirmed this session (version still 1.27.0; behavior byte-identical to the 2026-06-12 brief).
+
+### Recency scan (last 2 years) — revalidation pass
+
+Three-variant queries run this session: current-year — "Slack Bolt Python listener matchers message dispatch order 2026"; last-2-year — "chatops slack bot command authorization allowlist security 2025"; year-less canonical — "OWASP logging cheat sheet log injection CWE-117 sanitization". Findings:
+- **No semantic change to Slack Bolt-Python matcher/dispatch behavior** in 2025-2026. Bolt remains on the 1.27.0 line (installed); matchers still return bool, still AND-combine with short-circuit, dispatch still first-match-wins-with-fall-through. The official docs completed their migration to `docs.slack.dev` (2025) — the prior brief's 5 URLs all resolve there now (#1 no longer even 301s).
+- **One NEW corroborating practitioner data point (2025):** Moldstud/Snyk 45%/40% over-permissioned-automation statistics (#5) — reinforces, does not change, the fail-closed single-operator allowlist already shipped. CWE-117 mitigation guidance unchanged (output encoding / accept-known-good).
+- **No new finding supersedes the 62.0 design.** The shipped allowlist-as-matcher + json.dumps append + dual-key dedupe + append-before-ACK remain best-practice as of 2026-06-14.
+
+### Internal drift audit (file:line evidence — the load-bearing part)
+
+**Settings field NOW EXISTS** (prior brief flagged it missing): `backend/config/settings.py:530-538` `slack_operator_user_id: str = Field("U0A078KP4FQ", ...)` — default is the operator's real Slack uid (identity constant, not a secret; same class as the hardcoded approval channel). Empty string = fail-closed. The shipped code is MORE complete than the prior design (which only recommended adding it).
+
+**File-absence confirmed:** `handoff/operator_tokens.jsonl` does NOT exist; `handoff/away_ops/tokens_cursor` does NOT exist (verified via `ls` 2026-06-14). No operator token has been sent yet -> criterion 3 (live round-trip) is structurally unsatisfiable headless this session.
+
+#### Drift Q1 — CRIT-1: token handler ABOVE catch-all; non-match falls through (NOT swallowed)?  PASS
+- Token listener registered at `commands.py:115` (`@app.message(_TOKEN_KEYWORD, matchers=[_operator_token_matcher])`) INSIDE `register_commands` (`commands.py:88`), which is the FIRST registrar called (`app.py:32`, before `register_assistant_lifecycle`/`register_governance`). Catch-all is `@app.message("")` at `commands.py:237`. So the token listener is registered ABOVE the catch-all in the same registrar -> earlier in `self._async_listeners` order.
+- Fall-through proven from SDK source: `async_app.py:614/617/634-635`. A non-token message (or non-operator/wrong-channel, via the matcher) fails the token listener's match -> Bolt `continue`s -> reaches the catch-all at `:237` -> ticket ingestion at `:260`. Not swallowed.
+- Tests assert the fall-through INVARIANT at the matcher level: `test_matcher_rejects` (`:64-71`) asserts non-operator/bot/wrong-channel/non-token all return False (-> would fall through), and `test_malformed_never_written` (`:112-116`) asserts a non-token never writes the jsonl.
+
+#### Drift Q2 — CRIT-2: allowlist on operator user id AND channel; others/bots/wrong-channel IGNORED; malformed NOT written?  PASS
+- Allowlist is on the MESSAGE PATH as a matcher: `is_operator_token_message` (`operator_tokens.py:79-95`) enforces, in order: fail-closed if `operator_user_id` unset (`:87-88`), reject `bot_id` (`:89-90`), reject `user != operator_user_id` (`:91-92`), reject `channel not in allowed_channels` (`:93-94`), then require parseability (`:95`). Channel set built at `commands.py:102-104` = `{slack_channel_id, _APPROVAL_CHANNEL}` (both non-empty), wired with `slack_operator_user_id` at `:108`.
+- Tests (names): `test_matcher_accepts_operator` (`:60-61`); `test_matcher_rejects` parametrized over `user="U_SOMEONE_ELSE"`, `bot_id="B123"`, `channel="C_RANDOM"`, `text="not a token"` (`:64-71`) — all asserted False; `test_matcher_fail_closed_when_unconfigured` (`:74-75`) asserts empty operator id => False; `test_malformed_never_written` (`:112-116`) asserts a non-token append returns None AND `not TOKENS_PATH.exists()` (malformed never written).
+
+#### Drift Q3 — Grammar: bare HALT-DEV/RESUME-DEV (no `: value`) AND `KILL SWITCH: RESUME`; regex an alternation?  PASS
+- `parse_operator_token` (`operator_tokens.py:67-76`): bare reserved words handled FIRST via `RESERVED_BARE = {"HALT-DEV", "RESUME-DEV"}` set membership (`:46`, `:70-71`) -> `{step:None, key:<word>, value:""}`; otherwise `TOKEN_RE` (`:43-45`) `^(?:(?P<step>[0-9][0-9.]*)\s+)?(?P<key>[A-Z][A-Z0-9 _-]+):\s*(?P<value>.+)$`. `KILL SWITCH: RESUME` parses under the generic rule (key allows spaces) -> `{step:None, key:"KILL SWITCH", value:"RESUME"}`.
+- The Bolt KEYWORD at `commands.py:111-113` IS an explicit alternation: `^(?:[0-9][0-9.]*\s+)?[A-Z][A-Z0-9 _-]+:\s*.+$|^(?:HALT-DEV|RESUME-DEV)$` — matches the prior brief's recommendation. NOTE: this keyword is a coarse pre-filter; the authoritative parse is re-done inside the handler via `parse_operator_token` (handler calls `append_operator_token` which re-parses at `:107`), exactly as the prior brief advised (ignore Bolt's lossy `context["matches"]`).
+- Tests: `test_grammar_accepts` (`:25-37`) covers `KILL SWITCH: RESUME`, `HALT-DEV`, `RESUME-DEV`, stepped tokens, whitespace-trim; `test_grammar_rejects` (`:39-49`) covers lowercase, prose, no-value, reserved-word-with-trailing-prose, multiline (no MULTILINE flag), empty/None.
+
+#### Drift Q4 — Safety: secrets never echoed in ACK; raw JSON-encoded on write (CWE-117); append-before-ACK + dedup?  PASS
+- **No secret in ACK:** the success ACK (`commands.py:133-140`) echoes only `record['raw']` (the operator's own token text) + the line number + a static pointer to `pending_tokens.json`. No token/secret is in scope in the handler. Matches Slack security doc (#4) "never echo tokens back."
+- **CWE-117 neutralized on write:** `append_operator_token` writes `json.dumps(record, ensure_ascii=False)` (`operator_tokens.py:125-127`); `raw` is stored as a JSON string value, so any CR/LF in operator text is escaped to `\\n`/`\\r` and cannot forge a new JSONL line. Matches CWE-117 "output encoding" mitigation (#3).
+- **Append-before-ACK:** the handler `await append_operator_token(...)` FIRST (`commands.py:119-125`), THEN `say(...)` (`:133`). Append happens before the ACK round-trip, narrowing the 3s-ack redelivery window (prior-brief finding 3).
+- **Dedup:** dual-key `{event_id, (channel, ts)}` (`operator_tokens.py:110`), checked under `_append_lock` against process-lifetime `_seen_events` (`:111-114`), updated only after a successful write (`:128`). `event_id` threaded from `body.get("event_id")` at `commands.py:124`. Tests: `test_duplicate_event_id_not_rewritten` (`:94-100`), `test_duplicate_channel_ts_not_rewritten` (`:103-109`). Documented limitation (`operator_tokens.py:18-19` docstring): a redelivery straddling a bot restart can double-append — ACCEPTED by design (sessions treat identical raw+slack_ts as one token; 62.4 sentinel is the detective backstop).
+
+#### Drift Q5 — CRIT-3 (live round-trip) is operator-gated.  CONFIRMED OPERATOR-GATED
+- Masterplan verification for 62.2 tails the REAL `handoff/operator_tokens.jsonl` and requires >=1 line at close. That file does not exist yet (confirmed `ls`, 2026-06-14) and CAN ONLY be created by a real operator message from `slack_operator_user_id` in an allowlisted channel reaching the running Socket-Mode bot. It is NOT satisfiable headless in this AM away session (operator away). The pytest leg (`pytest -k 'operator_token or 62_2'`) IS satisfiable headless and exercises the same append helper against `tmp_path`. State plainly: **criterion 3 is operator-gated and cannot be closed by Main alone this session.**
+
+#### Drift Q6 — GAP between shipped code and criteria / prior-brief recs?  NO BLOCKING GAP (3 non-blocking notes)
+- **No missing allowlist leg, no grammar miss, no secret echo, no non-atomic append.** All four safety properties + both CRIT-1/CRIT-2 are present with test coverage. The shipped code is a faithful (and more complete) implementation of the 62.0 design.
+- Non-blocking note (a): the catch-all at `commands.py:241` gates on `channel != _APPROVAL_CHANNEL` ONLY (single channel), while the token allowlist accepts `{slack_channel_id, _APPROVAL_CHANNEL}`. CONSEQUENCE: an operator token sent in the digest channel (`slack_channel_id`, if different from the approval channel) IS recorded as a token but would NOT have fallen through to ticketing anyway (catch-all early-returns on non-approval channels). No swallow risk, no behavior bug — just an asymmetry to be aware of. Not a blocker.
+- Non-blocking note (b): the handler's success-ACK references `handoff/away_ops/pending_tokens.json` (`commands.py:137`) which does not exist yet and is produced by a later step. Cosmetic only (a forward-looking pointer in a Slack message); not a code defect.
+- Non-blocking note (c) — **rail-6 check:** this handler/parser touches NEITHER `kill_switch.py` logic NOR any trading-behavior file. `KILL SWITCH: RESUME` is merely RECORDED as a token line; no kill-switch state is mutated by 62.2 code (the FO-2 cursor + a later session applies effects). So nothing here is rail-6 (no dark+token gating needed for the 62.2 code itself). `operator_tokens.py` + `commands.py` are bot-side, outside the rail-6 trading-behavior file list — consistent with the away-ops rules.
+
+### Revalidation Gate Checklist
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch (5 this session; all 5 prior-brief sources re-confirmed resolving on docs.slack.dev)
+- [x] 10+ unique URLs (5 full + 8 snippet-only this session; ~40 cumulative with prior brief)
+- [x] Recency scan (2024-2026) performed + reported (Bolt unchanged; one new 2025 Snyk/Moldstud corroboration; no supersession)
+- [x] file:line anchors for every internal claim (drift Q1-Q6)
+- [x] All six drift questions answered with file:line evidence
+
+### Snippet-only this session (does NOT count toward gate)
+| URL | Kind | Why not fetched in full |
+|-----|------|-------------------------|
+| https://docs.slack.dev/tools/bolt-python/reference/listener_matcher/index.html | Official docs | Matcher base-class ref; AND-combination not in doc -> resolved from SDK source |
+| https://github.com/slackapi/bolt-python/issues/284 | Community | Event-matching-specific-reaction; matcher predicate precedent |
+| https://docs.slack.dev/tools/bolt-python/concepts/authorization/ | Official docs | Per-installation authorization (OAuth scope), not message-path allowlist |
+| https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html | Official-grade (OWASP) | Re-confirmed via CWE-117 (#3); CR/LF sanitization guidance unchanged |
+| https://cwe.mitre.org/data/definitions/117.html (dup of #3) | — | (read in full as #3) |
+| https://www.rapid7.com/fundamentals/chatops/ | Industry | ChatOps conversational-security overview; no new allowlist mechanics |
+| https://www.tines.com/blog/chatbots-for-security-and-it-teams-part-3-creating-a-slack-chatbot/ | Blog | Slack security-bot build walkthrough; corroborates least-privilege |
+| https://docs.slack.dev/concepts/security/ (dup of #4) | — | (read in full as #4) |
+| https://docs.nautobot.com/projects/chatops/en/latest/admin/platforms/slack/ | Official docs | Per-user ChatOps access-grant precedent (carried from prior brief) |
+
+```json
+{
+  "tier": "simple",
+  "external_sources_read_in_full": 5,
+  "snippet_only_sources": 8,
+  "urls_collected": 13,
+  "recency_scan_performed": true,
+  "internal_files_inspected": 5,
+  "gate_passed": true
+}
+```
+
+### Internal drift audit (file:line evidence — the load-bearing part)
+
+**Settings field NOW EXISTS** (prior brief flagged it missing): `backend/config/settings.py:530-538` `slack_operator_user_id: str = Field("U0A078KP4FQ", ...)` — default is the operator's real Slack uid (identity constant, not a secret; same class as the hardcoded approval channel). Empty string = fail-closed. So the shipped code is MORE complete than the prior design (which only recommended adding it).
+
+**File-absence confirmed:** `handoff/operator_tokens.jsonl` does NOT exist; `handoff/away_ops/tokens_cursor` does NOT exist (verified via `ls` 2026-06-14). No operator token has been sent yet -> criterion 3 (live round-trip) is structurally unsatisfiable headless this session.
+
+(drift questions 1-6 answered below as the section is filled)
+

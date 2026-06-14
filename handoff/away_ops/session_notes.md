@@ -123,3 +123,52 @@ final status check (inherent to the per-Bash-call audit hook) -- harmless, swept
 next session. Open backlog (62.1 Monday 2026-06-15 criterion-3 closure; 62.2 token
 handler; phases 62-65) is untouched and owned by the regular AM/PM cadence. Per the
 recovery rail, this session does NOT start a new masterplan step.
+
+## AM away session -- 2026-06-14 (Cycle 65, phase=62.2)
+
+**Step 0 (tokens).** `unapplied_tokens()` = `[]`. No `handoff/operator_tokens.jsonl` yet
+(no operator has sent a token). No `tokens_cursor` (none consumed to date). No HALT-DEV.
+Clean no-op.
+
+**Step selected: 62.2** (inbound operator-token handler). Rationale: it is the only
+AM-actionable pending pre-departure step. 62.1 is Monday-digest-gated (weekend trading-day
+gate -- earliest qualifying digest MON 2026-06-15); 62.6 is PM-owned + coupled to 39.1's
+3-night strict path (closes ~06-15/16); 62.7 is the operator-watched Sunday dress
+rehearsal. 62.2's handler code shipped 2026-06-12 with the 62.0 install but was never run
+through the per-step harness loop -- this cycle verifies it against the immutable criteria.
+
+**Outcome: CONDITIONAL (ok:false), no flip.** Full harness loop ran:
+- RESEARCH: research_brief_62.2.md REVALIDATED (`## Revalidation 2026-06-14` appended;
+  gate_passed, 5 in full, recency scan, 5 internal files file:line). DRIFT: NO BLOCKING
+  GAP -- shipped code is a faithful, more-complete implementation (prior brief's
+  missing-to-add `slack_operator_user_id` now exists at settings.py:530). rail-6 CLEAN.
+- GENERATE: verify-only, NO code change. Ran the immutable verification command verbatim:
+  pytest leg `29 passed` (exit 0); full command exit 1 because the `tail -3
+  handoff/operator_tokens.jsonl` leg fails (file does not exist -- no operator token sent).
+  CRIT-1 (handler@115 above catch-all@237; TOKEN_RE byte-identical to the masterplan regex;
+  HALT-DEV/RESUME-DEV via RESERVED_BARE; structured append + CWE-117 + dedup) and CRIT-2
+  (fail-closed user+channel allowlist; test_matcher_rejects / fail_closed / malformed_never_written;
+  tests tmp_path-isolated) both VERIFIED. CRIT-3 OPERATOR-GATED -- a synthetic jsonl line
+  was deliberately NOT written (would fabricate operator evidence; a stale RESUME could
+  re-fire per the I-4 rule).
+- EVALUATE: ONE fresh Q/A (Opus) -- CONDITIONAL, ok:false (first 62.2 spawn; prior-CONDITIONAL
+  count = 0 -> auto-FAIL does NOT apply). Independently reproduced criteria 1+2; 5/5
+  harness-compliance PASS; rail-6 CLEAN via git diff (zero source files modified;
+  settings.py:530 pre-existing in HEAD). Confirmed Main correctly refused to fabricate the
+  jsonl. Criterion 3 ruled a legitimate operator-gate, not a defect.
+
+**Handoff convention:** ran in SUFFIXED files (*_62.2.md); rolling slots left untouched
+for the parked 62.6 closure. No status flip -> archive hook did not fire.
+
+**Criterion-3 closure path:** operator sends `TEST TOKEN: PING` in the approvals channel
+(C0ANTGNNK8D) -- already on the 62.7 rehearsal checklist + now an explicit
+pending_tokens.json ask (id TEST-TOKEN-62.2). The next session pastes the jsonl line + ACK
+permalink into live_check_62.2.md -> closing Q/A -> flip 62.2. `TEST TOKEN` is not in
+KNOWN_TOKEN_ENV_MAP -> recorded only, NO .env/trading effect (safe drill token).
+
+**Rails check:** no .env edit; no trading-behavior file touched (commands.py/operator_tokens.py
+are bot-side, outside the rail-6 list; handler only RECORDS `KILL SWITCH: RESUME`, mutates
+no kill_switch.py state); no force-push/history rewrite; main-only; $0 metered (pytest +
+grep + ls are LLM-free); launchctl untouched. All clean. researcher+qa fable pins
+unavailable headless -> both spawned on Opus 4.8 (recurring FABLE-HEADLESS finding,
+NON-BLOCKING).

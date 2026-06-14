@@ -1,7 +1,18 @@
 {
-  "updated": "2026-06-13T05:50:00+00:00",
+  "updated": "2026-06-14T05:45:00+00:00",
   "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl.",
   "asks": [
+    {
+      "id": "TEST-TOKEN-62.2",
+      "raised_by": "62.2 (Cycle 65, AM away session)",
+      "raised_at": "2026-06-14",
+      "due": "62.7 dress rehearsal (already on the rehearsal checklist) OR any earlier real token",
+      "ask": "62.2 (operator-token handler) is verified for criteria 1+2 (handler-above-catch-all + quoted grammar + append; operator-user+channel allowlist; 29 unit tests; pytest exit 0). Criterion 3 is the LIVE round-trip and is the only thing left to flip 62.2 to done: it needs ONE real operator Slack message because handoff/operator_tokens.jsonl is created only by the running bot (a synthetic line was deliberately NOT written -- it would fabricate operator evidence and a stale RESUME could re-fire). Send the drill token from your phone in the approvals channel (C0ANTGNNK8D). It is NOT in KNOWN_TOKEN_ENV_MAP, so it is recorded only -- NO .env change, NO trading effect. Expected threaded ACK: 'OPERATOR TOKEN RECORDED (operator_tokens.jsonl line 1): `TEST TOKEN: PING` -- the next away session acts on it.' The next session then pastes the jsonl line + ACK permalink into live_check_62.2.md and a fresh Q/A flips 62.2.",
+      "reply_options": [
+        "TEST TOKEN: PING"
+      ],
+      "recommended": "TEST TOKEN: PING (sent in C0ANTGNNK8D during the 62.7 rehearsal; closes 62.2's last criterion and proves the whole token pipeline end-to-end)"
+    },
     {
       "id": "FABLE-HEADLESS",
       "raised_by": "62.1 (Cycle 64, AM away session)",
