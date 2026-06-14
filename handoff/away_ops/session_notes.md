@@ -172,3 +172,34 @@ no kill_switch.py state); no force-push/history rewrite; main-only; $0 metered (
 grep + ls are LLM-free); launchctl untouched. All clean. researcher+qa fable pins
 unavailable headless -> both spawned on Opus 4.8 (recurring FABLE-HEADLESS finding,
 NON-BLOCKING).
+
+## Recovery -- 2026-06-14 (PM)
+
+PM session 20:00:07Z hit the recurring benign-churn dirty tree (`session.log` tail:
+"dirty tree detected (non-evidence paths) -- recovery prompt selected"). Same structural
+pattern documented in the 2026-06-13 (PM) section above -- audit-hook appends + wrapper
+session-output writes that land outside any single session's commit window.
+
+**Found (6 dirty paths), all classified category-(a)/(c) -- no unattributable category-(b):**
+- `handoff/audit/instructions_loaded_audit.jsonl` (+11), `handoff/audit/pre_tool_use_audit.jsonl`
+  (+118), `handoff/prompt_leak_redteam_audit.jsonl` (+11) -- append-only audit streams
+  (verified 0 deletion lines). Committed (procedure step 3).
+- `handoff/away_ops/session_pm_20260613T200009Z.json` (+1) -- the 06-13 PM recovery
+  session's own trailing result line, written by the wrapper after that session exited
+  (file was committed empty e69de29b, then appended). Committed.
+- `handoff/away_ops/session_am_20260614T053008Z.json` (untracked, 3871 B) -- completed
+  06-14 AM session output (exited 07:52). Committed.
+
+**Left untracked (intentionally NOT committed):**
+- `handoff/away_ops/session_pm_20260614T200007Z.json` -- THIS session's live output, still
+  0 bytes; the wrapper writes it after exit. Committing an empty artifact would just
+  re-dirty the next session. Honest to leave it; carried by a future commit.
+
+**Remaining work:** none. No masterplan step started/advanced (recovery rail + away-ops
+rails 2/8 bind). 62.2 stays CONDITIONAL pending the operator `TEST TOKEN: PING` drill
+(pending_tokens.json id TEST-TOKEN-62.2) -- unchanged by this recovery.
+
+**Rails honored:** commit-only, no checkout/restore/stash (rail 3); no .env/code/
+trading-behavior/masterplan file touched (rails 2/6); main-only, no force-push (rail 3);
+$0 metered, LLM-free git/ls only (rail 4); no operator ask needed (rail 10). Next AM
+session resumes the calendar on a clean tree.
