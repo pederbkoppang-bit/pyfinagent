@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-14 | `1aa8f34a` | chore(away-ops): recovery -- fold self-referential audit line, push trailing changelog (2026-06-14 P |
 | 2026-06-14 | `9c12ec0a` | chore(away-ops): recovery -- benign audit/session-artifact sweep (2026-06-14 PM) |
 | 2026-06-14 | `e00122b9` | chore(away-ops): phase-62.2 harness cycle 65 -- operator-token handler verify (CONDITIONAL, criteria |
 | 2026-06-13 | `acb2bc2f` | chore(away-ops): recovery -- final self-referential audit-line sweep (2026-06-13 PM) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `849a131b` | chore: gitignore the away-session lockfile (transient wrapper state self-dirtied every preflight) |
 | 2026-06-12 | `f3be7cf9` | phase-62.4: wrapper dirty-check ignores perpetually-churning evidence paths (preflight-test discover |
 | 2026-06-12 | `9936e91a` | phase-62.4+62.5+62.8: sentinel + healthcheck P1 delivery fix + away digest (62.8 PASS cycle-2; 62.4/ |
-| 2026-06-12 | `b01a03bd` | phase-62.8: Away-mode digest sections -- formatters.py format_away_digest_sections(): trades by m... |
 
 ---
 
