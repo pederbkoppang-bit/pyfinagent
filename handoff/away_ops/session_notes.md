@@ -203,3 +203,57 @@ rails 2/8 bind). 62.2 stays CONDITIONAL pending the operator `TEST TOKEN: PING` 
 trading-behavior/masterplan file touched (rails 2/6); main-only, no force-push (rail 3);
 $0 metered, LLM-free git/ls only (rail 4); no operator ask needed (rail 10). Next AM
 session resumes the calendar on a clean tree.
+
+## AM away session -- 2026-06-15 (Cycle 66, phase=61.1) -- result=PASS, FLIPPED
+
+**Step 0 (tokens).** `unapplied_tokens()` = `[]`. No `handoff/operator_tokens.jsonl`, no
+`tokens_cursor`, no HALT-DEV. Clean no-op.
+
+**Step selected: 61.1** (activate dark fixes + deploy phase-60 code -- criterion-4 closure).
+Rationale: 61.1 is the OVERDUE HEAD of the phase-61 money chain (61.2 cannot proceed until it
+closes); criteria 1-3 were COMPLETE since 06-12 (live_check A-D), only criterion 4
+(first-post-flag-cycle BQ evidence) open, and it became satisfiable read-only at $0. The
+weekend AM sessions (62.1 Sat, 62.2 Sun) correctly prioritized pre-departure infra; with the
+first post-flag cycle (`5f15fdbe`, 06-12 18:00 UTC) now complete and queryable, 61.1 was the
+highest-value AM-actionable step. Alternatives all operator/time-gated (62.1 = Mon digest
+log-line + Slack permalink, a PM/evidence task since the digest fires later today; 62.2 =
+operator `TEST TOKEN: PING`; 62.6 = PM-owned 39.1 3-night; 62.7 = operator-watched).
+
+**Outcome: PASS (ok:true), FLIPPED to done.** Full harness loop:
+- RESEARCH (moderate): `research_brief_61.1.md` gate_passed (7 in full / 17 URLs / recency
+  scan; 8 internal files). Verified guardrail wiring (no defect). KEY: no queryable
+  "blocked-decision" table -> criterion-4 live evidence is *necessarily* absence-in-paper_trades.
+- GENERATE (evidence-only, NO code/.env/trading edit): live_check section E (E.1-E.7). BQ:
+  0 post-flag swap_for_higher_conviction SELLs (4a), 0 executed REJECT trades (4b), 0 post-flag
+  trades total. Pre-flag contrast = 6 rows incl. 06-09 066570.KS REJECT-that-executed.
+  Positive witness: env-neutralized `28 passed`. Vacuousness (n_trades=0) disclosed honestly.
+- EVALUATE: ONE fresh Q/A (Opus) -- PASS, cycle-2 (1 prior CONDITIONAL = Cycle 56, which
+  pre-declared this exact path; evidence genuinely changed -> sanctioned, not verdict-shopping;
+  auto-FAIL not triggered at 1 prior). All checks reproduced independently; rails clean.
+- LOG: harness_log Cycle 66 appended BEFORE the flip. FLIP committed `f65765d8` + changelog
+  `b02eb620`, pushed `1aa8f34a..b02eb620` (in sync 0/0); live_check_gate allowed the push.
+
+**HANDOFF-CONVENTION NOTE (for next session / auditors).** 61.1 ran in SUFFIXED files
+(`*_61.1.md`) to preserve the rolling slots (`contract.md`/`experiment_results.md`/
+`evaluator_critique.md`) which still hold PARKED phase-62.6 content (62.6 is PM-owned, not yet
+closed). Consequence: the `archive-handoff` hook COPIED the rolling slots into
+`handoff/archive/phase-61.1/{contract,experiment_results,evaluator_critique,research_brief}.md`
+-- so THAT archive dir contains 62.6's content, NOT 61.1's. This is a cosmetic mislabel from
+running a flip while 62.6's rolling slots are parked; 62.6's originals are intact in current/
+(the hook copies, never moves, rolling files). The AUTHORITATIVE 61.1 record is the committed
+`handoff/current/*_61.1.md` suffixed files + the harness_log Cycle 66 entry + live_check_61.1.md.
+
+**FORWARD REGISTER (phase-63 candidate, NON-BLOCKING).** A `.env`-bleed test-isolation defect:
+4 tests in `test_phase_57_1_reject_binding.py` + `test_phase_60_3_data_integrity.py` read the
+live `backend/.env` (flags now ON) instead of pinning the flag, so default-OFF/off-path
+assertions FAIL in a plain `pytest` run. Proven NOT a guardrail regression (env-neutralized run
+= 28 passed). Surfaced when the flags flipped ON pre-departure. Fix = pin the flag in
+`_make_settings()` defaults / monkeypatch; deferred to phase-63 (scope creep on a criterion-4
+evidence step). Also `5f15fdbe` carried `meta_scorer_degraded: true` -- a separate cycle-health
+flag, noted for transparency, not a 61.1 concern.
+
+**Rails check:** no .env edit; no trading-behavior file touched (evidence-only; `git status`
+showed only handoff/ paths through the flip); no force-push/history rewrite; main-only; $0
+metered (BQ read-only via ADC, offline pytest, all LLM-free); launchctl untouched.
+researcher+qa fable pins unavailable headless -> both Opus 4.8 (recurring FABLE-HEADLESS,
+non-blocking). One masterplan step (rail 8); no chaining. **Next AM step: 61.2.**
