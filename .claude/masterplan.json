@@ -14460,7 +14460,7 @@
         {
           "id": "61.1",
           "name": "Activate the dark fixes + deploy phase-60 code: operator flag tokens (60.2/60.3/57.1), backend/.env edits, backend restart (running PID predates ALL phase-60 commits so none of that code is loaded), frontend kickstart (stale /login chunk 404), first-cycle live evidence.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,
