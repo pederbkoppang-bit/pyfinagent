@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-15 | `f65765d8` | phase-61.1: Activate the dark fixes + deploy phase-60 code: operator flag tokens (60.2/60.3/57.1)... |
 | 2026-06-14 | `1aa8f34a` | chore(away-ops): recovery -- fold self-referential audit line, push trailing changelog (2026-06-14 P |
 | 2026-06-14 | `9c12ec0a` | chore(away-ops): recovery -- benign audit/session-artifact sweep (2026-06-14 PM) |
 | 2026-06-14 | `e00122b9` | chore(away-ops): phase-62.2 harness cycle 65 -- operator-token handler verify (CONDITIONAL, criteria |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `d86e1f52` | phase-62.4: live_check + preflight-hardening addendum |
 | 2026-06-12 | `849a131b` | chore: gitignore the away-session lockfile (transient wrapper state self-dirtied every preflight) |
 | 2026-06-12 | `f3be7cf9` | phase-62.4: wrapper dirty-check ignores perpetually-churning evidence paths (preflight-test discover |
-| 2026-06-12 | `9936e91a` | phase-62.4+62.5+62.8: sentinel + healthcheck P1 delivery fix + away digest (62.8 PASS cycle-2; 62.4/ |
 
 ---
 
+### v6.49.14 — phase-61.1: Activate the dark fixes + deploy phase-60 code: operator... (2026-06-15)
+
+- **phase-61.1: Activate the dark fixes + deploy phase-60 code: operator flag tokens (60.2/60.3/57.1)...**
 ### v6.49.13 — phase-62.6: hygiene batch -- Q/A CONDITIONAL (coupled to 39.1 strict... (2026-06-12)
 
 - **phase-62.6: hygiene batch -- Q/A CONDITIONAL (coupled to 39.1 strict 3-night path; criteria 1+2 veri**
