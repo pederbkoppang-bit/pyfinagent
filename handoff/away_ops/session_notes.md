@@ -257,3 +257,77 @@ showed only handoff/ paths through the flip); no force-push/history rewrite; mai
 metered (BQ read-only via ADC, offline pytest, all LLM-free); launchctl untouched.
 researcher+qa fable pins unavailable headless -> both Opus 4.8 (recurring FABLE-HEADLESS,
 non-blocking). One masterplan step (rail 8); no chaining. **Next AM step: 61.2.**
+
+## Recovery -- 2026-06-18 (AM)
+
+**Trigger.** The AM session that started `2026-06-18T05:30:03Z` detected a dirty tree on
+startup and routed to the recovery prompt (`session.log`: `[2026-06-18T05:30:38Z] [am]
+dirty tree detected (non-evidence paths) -- recovery prompt selected`). `git pull --rebase`
+failed on the unstaged changes -> OFFLINE MODE (work local; push retried here).
+
+**Root cause of the accumulation.** EVERY scheduled session since the 06-15 AM 61.1 PASS
+flip (`0387bd03`) crashed with `API Error: Unable to connect to API (ECONNRESET)` before
+committing: 06-16 AM (rc1, $0.71), 06-16 PM (rc1, $0.001), 06-17 AM (rc1, $0.42), 06-17 PM
+(rc1, $1.43), plus the prior 06-15 PM. Each got partway through recovery investigation but
+died before the commit, so three days of benign audit/runtime/session churn piled up. This
+is a network/infrastructure failure pattern, not a logic defect; nothing was lost because
+all dirty paths are append-only or wrapper-written.
+
+**What was found (12 dirty paths), all classified category-(a)/(c) -- no unattributable
+category-(b) FILE:**
+
+| File | Class | Disposition |
+|------|-------|-------------|
+| `handoff/.cycle_heartbeat.json` (1-line overwrite) | runtime (cycle `dd457de2` end 06-17T19:54Z) | committed |
+| `handoff/cycle_history.jsonl` (+6) | runtime (cycles 758d6025 done / 32ff027f TIMEOUT / dd457de2 done; all n_trades=0) | committed |
+| `handoff/kill_switch_audit.jsonl` (+4) | runtime (peak/sod NAV 23983->24021; NOT paused) | committed |
+| `handoff/audit/instructions_loaded_audit.jsonl` (+894/-0) | audit append-only | committed |
+| `handoff/audit/pre_tool_use_audit.jsonl` (+36/-0) | audit append-only | committed |
+| `handoff/prompt_leak_redteam_audit.jsonl` (+33/-0) | audit append-only | committed |
+| `handoff/away_ops/session_am_20260615T053011Z.json` (+1) | session artifact (06-15 AM trailing line) | committed |
+| `handoff/away_ops/session_am_20260616T053016Z.json` (1437B) | session artifact (06-16 AM result) | committed |
+| `handoff/away_ops/session_am_20260617T053019Z.json` (1432B) | session artifact (06-17 AM result) | committed |
+| `handoff/away_ops/session_pm_20260615T200014Z.json` (984B) | session artifact (06-15 PM result) | committed |
+| `handoff/away_ops/session_pm_20260616T200023Z.json` (984B) | session artifact (06-16 PM result) | committed |
+| `handoff/away_ops/session_pm_20260617T200014Z.json` (1437B) | session artifact (06-17 PM result) | committed |
+
+**Left untracked (intentionally NOT committed):**
+- `handoff/away_ops/session_am_20260618T053038Z.json` -- THIS session's live output, still
+  0 bytes (the wrapper writes it after exit). Committing an empty artifact just re-dirties
+  the next session; honest to leave it (same call as the 06-14 PM recovery).
+
+**Classification verdict.** `handoff/current/` is clean -- NO in-flight contract /
+experiment_results / evaluator_critique, and NO `chore(away-wip)` checkpoint commit. The
+crashed sessions left **no half-finished masterplan step**; 61.1 stays PASS/done, 61.2 is
+still the next AM step. Every dirty path was an append-only audit stream, a runtime artifact
+written by the still-running autonomous cycle, or a wrapper-written session result --
+recovery-procedure step 3 ("just commit").
+
+**MATERIAL FINDING surfaced -- rail-4 metered breach (06-17), never durably recorded.**
+The 06-17 PM sentinel measured `metered_llm_usd_today=$16.51` vs baseline `$8.0`
+(`gates_failed=["metered_budget"]`, session.log 2026-06-17T20:00:14Z). The wrapper correctly
+auto-downgraded that PM session to digest-only, but it then crashed (ECONNRESET, 13 turns)
+WITHOUT raising the mandated P1 ask or writing a digest. By 06-18 the daily metric was back
+to `$0` (sentinel ok:true). Root cause undiagnosed (would need a `llm_call_log` read --
+out of recovery scope, rail 8). NOT a dev-session API-spend issue (away Claude Code sessions
+are first-party Max usage). Candidate causes: 06-16 cycle 32ff027f's 2h TIMEOUT bleeding
+retries into the 06-17 window; the rail-4-exempt $25 58.1 window not netted out; or a heavy
+Gemini pipeline day. **Recorded as P1 ask `METERED-BREACH-0617` in pending_tokens.json**
+(reply options: `METERED 0617: ACCEPT` / `METERED 0617: INVESTIGATE` / `HALT-DEV`).
+
+**What was done.** Staged + committed the 12 benign paths plus this recovery's two
+documentation writes (this section + the pending_tokens.json P1 ask) in a single truthful
+`chore(away-ops)` recovery commit, pushed to `origin/main` (manual push -- wrapper was
+OFFLINE). **No `git checkout/restore/stash`** (rail 3). No `.env`, code, masterplan, or
+trading-behavior file touched (rails 2/6). Main-only, no force-push (rail 3). $0 metered --
+git/ls/python-json/grep only, LLM-free (rail 4). launchctl untouched (rail 9). No HALT-DEV;
+no operator token in `operator_tokens.jsonl`.
+
+**What remains.** Nothing for recovery -- tree is clean. Per the recovery rail this session
+does NOT start a masterplan step. Open items, all owned by the regular AM/PM cadence:
+**(1) operator decision on the `METERED-BREACH-0617` P1 ask**; (2) 62.1 Monday-digest
+criterion-3 closure; (3) 62.2 `TEST TOKEN: PING` drill; (4) the standing pending_tokens
+asks (FABLE-HEADLESS, SDK-CREDIT, MAS-PLIST-ZOMBIE, WEBHOOK, AUTORESEARCH-SPEND, ENV-LINE-81);
+(5) next AM masterplan step is 61.2. A possible residual single self-referential
+`pre_tool_use_audit.jsonl` line from this session's final git calls is harmless and swept
+next session.

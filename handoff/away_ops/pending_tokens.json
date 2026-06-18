@@ -1,7 +1,20 @@
 {
-  "updated": "2026-06-14T05:45:00+00:00",
+  "updated": "2026-06-18T05:50:00+00:00",
   "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl.",
   "asks": [
+    {
+      "id": "METERED-BREACH-0617",
+      "raised_by": "Recovery 2026-06-18 (AM) -- surfacing a rail-4 breach no prior session durably recorded",
+      "raised_at": "2026-06-18",
+      "due": "operator discretion (P1). The daily metric self-reset to $0 on 06-18 (sentinel ok:true), but the $0-metered mandate was exceeded once and the session that should have raised this P1 crashed before doing so.",
+      "ask": "Rail-4 ($0 metered) breach on 2026-06-17: the PM-session sentinel measured metered_llm_usd_today=$16.51 vs the pinned baseline $8.0 (gates_failed=['metered_budget'], session.log 2026-06-17T20:00:14Z). The wrapper CORRECTLY auto-downgraded that PM session to digest-only mode (rail-4's mechanical response fired), but the session then crashed with an API ECONNRESET after 13 turns and never raised the mandated P1 ask or wrote a digest -- so this recovery commit is the FIRST durable record. By 2026-06-18 the daily metric was back to $0 (sentinel ok:true). Root cause is NOT diagnosed -- that needs a read of pyfinagent_data.llm_call_log for 2026-06-17, which is out of recovery scope (rail 8). Candidate causes (none implicate dev-session API spend -- the away Claude Code sessions are first-party Max usage, not metered API): (a) the 06-16 trading cycle 32ff027f TIMED OUT at 2h and may have retried/burned extra Gemini calls bleeding into the 06-17 daily window; (b) the $25 58.1 window (rail-4 EXEMPT) may be active and not fully netted out of the sentinel metric; (c) a heavier-than-baseline Gemini pipeline day. NOTE: kill-switch was NOT paused and NAV rose 23951->24021 across the window, so trading itself stayed healthy.",
+      "reply_options": [
+        "METERED 0617: ACCEPT",
+        "METERED 0617: INVESTIGATE",
+        "HALT-DEV"
+      ],
+      "recommended": "METERED 0617: ACCEPT (the daily metric was back at/under baseline by 06-18 and trading stayed healthy; INVESTIGATE only if you want the next session to break down llm_call_log for 06-17; ACCEPT/INVESTIGATE are not in KNOWN_TOKEN_ENV_MAP so they are recorded-only with NO .env/trading effect, while HALT-DEV is the reserved stop-all token)"
+    },
     {
       "id": "TEST-TOKEN-62.2",
       "raised_by": "62.2 (Cycle 65, AM away session)",
