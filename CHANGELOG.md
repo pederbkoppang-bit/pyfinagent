@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-06-18 | `fc17023b` | chore(away-ops): recovery -- 3-day benign churn sweep + rail-4 metered-breach P1 (2026-06-18 AM) |
 | 2026-06-15 | `0387bd03` | chore(away-ops): session_notes Cycle 66 -- 61.1 PASS + handoff-convention note |
 | 2026-06-15 | `f65765d8` | phase-61.1: Activate the dark fixes + deploy phase-60 code: operator flag tokens (60.2/60.3/57.1)... |
 | 2026-06-14 | `1aa8f34a` | chore(away-ops): recovery -- fold self-referential audit line, push trailing changelog (2026-06-14 P |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `680b89c8` | phase-62.4: guardrail/budget sentinel -- PASS (first spawn) |
 | 2026-06-12 | `2c65b793` | phase-62.5: healthcheck + away-watchdog -- PASS (cycle-2, P1 paging resurrected via bot-token fallba |
 | 2026-06-12 | `d86e1f52` | phase-62.4: live_check + preflight-hardening addendum |
-| 2026-06-12 | `849a131b` | chore: gitignore the away-session lockfile (transient wrapper state self-dirtied every preflight) |
 
 ---
 
