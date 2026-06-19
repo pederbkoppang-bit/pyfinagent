@@ -331,3 +331,74 @@ asks (FABLE-HEADLESS, SDK-CREDIT, MAS-PLIST-ZOMBIE, WEBHOOK, AUTORESEARCH-SPEND,
 (5) next AM masterplan step is 61.2. A possible residual single self-referential
 `pre_tool_use_audit.jsonl` line from this session's final git calls is harmless and swept
 next session.
+
+## Recovery -- 2026-06-19 (AM)
+
+**Trigger.** The AM session that started `2026-06-19T05:30:03Z` detected a dirty tree on
+startup and routed to the recovery prompt (`session.log`: `[2026-06-19T05:30:14Z] [am]
+dirty tree detected (non-evidence paths) -- recovery prompt selected`). `git pull --rebase`
+failed on the unstaged changes -> OFFLINE MODE. Confirmed at recovery start that
+`origin/main == local HEAD` (4e72cfaa) and origin is reachable -- the 06-18 AM recovery
+commit (fc17023b + auto-changelog 4e72cfaa) DID push cleanly; this session's churn is fresh.
+
+**Root cause of the accumulation.** Same benign-churn pattern as 06-18: scheduled sessions
+since the 06-18 AM recovery either crashed or ran read-only without committing the
+append-only audit / runtime churn they generated, so one day of it piled up. The 06-18 PM
+session in particular downgraded to digest-only then crashed rc1 ($0.000976) before
+committing. Network/infra + crash pattern, not a logic defect; all dirty paths are
+append-only or wrapper-written, nothing lost.
+
+**What was found (7 dirty paths), all classified category-(a)/(c) -- no unattributable
+category-(b) FILE:**
+
+| File | Class | Disposition |
+|------|-------|-------------|
+| `handoff/.cycle_heartbeat.json` (1-line overwrite) | runtime (cycle `97dd1224` end 06-18T20:00Z) | committed |
+| `handoff/cycle_history.jsonl` (+2) | runtime (cycle 97dd1224 started -> timeout @2h, n_trades=0) | committed |
+| `handoff/audit/instructions_loaded_audit.jsonl` (+424) | audit append-only | committed |
+| `handoff/audit/pre_tool_use_audit.jsonl` (+10, all verdict=allow incl. this session's early calls) | audit append-only | committed |
+| `handoff/prompt_leak_redteam_audit.jsonl` (+11; 7/7 caught, 0 FP, ok:true) | audit append-only | committed |
+| `handoff/away_ops/session_am_20260618T053038Z.json` (4052B) | session artifact (06-18 AM recovery result, rc0) | committed |
+| `handoff/away_ops/session_pm_20260618T200050Z.json` (984B) | session artifact (06-18 PM digest-only result, rc1) | committed |
+
+**Left untracked (intentionally NOT committed):**
+- `handoff/away_ops/session_am_20260619T053014Z.json` -- THIS session's live output, still
+  0 bytes (the wrapper writes it after exit). Committing an empty artifact just re-dirties
+  the next session; honest to leave it (same call as the 06-18 AM recovery).
+
+**Classification verdict.** `handoff/current/` holds only pre-existing committed files
+(none modified, dated Jun 12-15) -- NO new in-flight contract / experiment_results /
+evaluator_critique for a crashed step, and NO `chore(away-wip)` checkpoint commit. The
+crashed sessions left **no half-finished masterplan step**; 61.1 stays PASS/done, 61.2 is
+still the next AM step.
+
+**MATERIAL FINDING -- the rail-4 metered breach RECURRED and WORSENED on 06-18 PM.** The
+06-18 PM sentinel measured `metered_llm_usd_today=$42.00` vs baseline `$8.0`
+(`gates_failed=["metered_budget"]`, session.log 2026-06-18T20:00:50Z) -- ~2.5x the 06-17
+breach ($16.51) and ~5x baseline. The wrapper again correctly auto-downgraded to
+digest-only, then crashed (rc1) before raising the P1 or writing a digest. So the breach has
+now fired on 2 of the last 3 PM sessions, trending UP, while each following morning the
+daily metric self-resets to $0 (sentinel ok:true 06-18 AM and 06-19 AM). Note both 06-16
+(32ff027f) and 06-18 (97dd1224) trading cycles hit the 2h TIMEOUT -- a candidate cause
+(retry-bleed into the daily window). **Consolidated the existing `METERED-BREACH-0617` ask
+into `METERED-BREACH-RECURRING` in pending_tokens.json**, escalated the recommendation from
+ACCEPT to INVESTIGATE given the recurrence/escalation. Root cause still undiagnosed (rail 8 /
+out of recovery scope -- needs an llm_call_log read).
+
+**What was done.** Staged + committed the 7 benign paths plus this recovery's two
+documentation writes (this section + the consolidated/escalated pending_tokens.json ask) in
+a single truthful `chore(away-ops)` recovery commit, pushed to `origin/main`. **No
+`git checkout/restore/stash`** (rail 3). No `.env`, code, masterplan, or trading-behavior
+file touched (rails 2/6). Main-only, no force-push (rail 3). $0 metered -- git/ls/python-json/
+grep, LLM-free (rail 4). launchctl untouched (rail 9). researcher+qa fable pins
+unavailable headless -> recovery used no subagents (Main-only sweep, no GENERATE/EVALUATE).
+No HALT-DEV; no new operator token in `operator_tokens.jsonl`.
+
+**What remains.** Nothing for recovery -- tree is clean. Per the recovery rail this session
+does NOT start a masterplan step. Open items, all owned by the regular AM/PM cadence:
+**(1) operator decision on the escalated `METERED-BREACH-RECURRING` P1 ask**; (2) 62.1
+Monday-digest criterion-3 closure; (3) 62.2 `TEST TOKEN: PING` drill; (4) the standing
+pending_tokens asks (FABLE-HEADLESS, SDK-CREDIT, MAS-PLIST-ZOMBIE, WEBHOOK,
+AUTORESEARCH-SPEND, ENV-LINE-81); (5) next AM masterplan step is 61.2. A residual
+self-referential `pre_tool_use_audit.jsonl` line from this session's final git calls is
+harmless and swept next session.
