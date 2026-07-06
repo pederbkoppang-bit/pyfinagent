@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `edb8600a` | phase-66.5: results + live_check (criterion 1 satisfied; sign-off pending) |
 | 2026-07-07 | `57e2b477` | phase-66.5: research brief + contract + triage deliverable (14-row disposition, awaiting operator si |
 | 2026-07-07 | `ac7fed54` | chore(harness): hotfix log -- P1 page storm root-caused + fixed + live-verified |
 | 2026-07-07 | `70de8188` | fix(alerting): P1 page storm hotfix -- critical severities respect the repeat window (bypass consecu |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-15 | `f65765d8` | phase-61.1: Activate the dark fixes + deploy phase-60 code: operator flag tokens (60.2/60.3/57.1)... |
 | 2026-06-14 | `1aa8f34a` | chore(away-ops): recovery -- fold self-referential audit line, push trailing changelog (2026-06-14 P |
 | 2026-06-14 | `9c12ec0a` | chore(away-ops): recovery -- benign audit/session-artifact sweep (2026-06-14 PM) |
-| 2026-06-14 | `e00122b9` | chore(away-ops): phase-62.2 harness cycle 65 -- operator-token handler verify (CONDITIONAL, criteria |
 
 ---
 
+### v6.54.4 — phase-66.5: results + live_check (criterion 1 satisfied; sign-off pen... (2026-07-07)
+
+- **phase-66.5: results + live_check (criterion 1 satisfied; sign-off pending)**
 ### v6.54.3 — phase-66.5: research brief + contract + triage deliverable (14-row di... (2026-07-07)
 
 - **phase-66.5: research brief + contract + triage deliverable (14-row disposition, awaiting operator si**
