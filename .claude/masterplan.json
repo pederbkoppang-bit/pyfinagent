@@ -15090,7 +15090,7 @@
         {
           "id": "66.0",
           "name": "Recovery re-baseline -- backlog swept+pushed, pending_tokens re-dispositioned with METERED-BREACH root cause, away-wrapper recovery loop exited",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,
