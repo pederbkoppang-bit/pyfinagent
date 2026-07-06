@@ -15172,7 +15172,7 @@
         {
           "id": "66.4",
           "name": "Credential-expiry resilience -- daily auth probe in healthcheck with single deduped P1 page; away wrapper pages-once-and-skips on 401; pre-expiry warning if feasible",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "66.0",

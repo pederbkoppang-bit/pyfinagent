@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Credential-expiry empirics (phase-66.4)](project_credential_expiry_66_4.md) — keychain expiresAt = 8h ACCESS token (refresh expiry invisible -> pre-warning infeasible); auth status = LOCAL presence check; 401 JSON subtype:"success"+api_error_status:401+rc=1; healthcheck tail-1 dedupe re-pages every other run
+- [cc_rail guard audit (phase-66.1)](project_cc_rail_guard_66_1.md) — zero-pages root cause = 4 broken `backend.services.alerting` imports (loop :220/:751/:923/:957, module doesn't exist); probe runs but gates nothing; cc failures = EMPTY LLMResponse not exceptions; P1 bypasses deduper -> caller latch
 - [Slack Bolt token handler (phase-62.2)](project_slack_bolt_token_handler.md) — Bolt 1.27.0 dispatch = first-match + fall-through (allowlist as MATCHER); @app.message can't see edits; Socket-Mode drops retry headers -> dedupe on event_id; FO-2 cursor = {applied_line, token_sha256, key/value echo}
 - [Backend restart safety (phase-61.1)](project_backend_restart_safety.md) — restart can NEVER double-fire paper_trading_daily (MemoryJobStore + forward-only get_next_fire_time(None,now)); don't kickstart mid-cycle; researcher sandbox is DENIED backend/.env (delegate grep to Main)
 - [Blinded stress-test re-run design (phase-59.3)](project_stress_test_blinded_rerun.md) — recurring per model release; analysis-steps-only; worktree pin + rm handoff (chore commits capture partial write-first briefs!); process-weighted scoring vs leakage; per-component verdicts attributed-not-isolated
