@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-06-12T10:35:00.044754+00:00",
+  "updated_at": "2026-07-06T21:31:29.277457+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15072,6 +15072,139 @@
               "no kill_switch_audit.jsonl pause event in the window, or any event is documented with trading left paused per rail 5; results judged against the 65.3 HEALTHY-THRESHOLD lines"
             ],
             "live_check": "live_check_65.4.md with the per-market BQ rows and the threshold judgment table"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-66",
+      "name": "Reactivation + single-credential resilience (operator goal 2026-07-06, goal-phase66-reactivation). Return-day audit: portfolio 100% cash at NAV 23997.71 (+19.99% incp / alpha +14.8pp, all pre-vacation); cc_rail 100% failure 06-15..07-06 (ECONNRESET then 401 expired OAuth) with no breaker and no page; same credential killed 34 away sessions; METERED-BREACH P1 = phantom accounting (real window spend ~$8 Gemini). Two outcomes: (1) the engine analyzes and trades again through its normal gates; (2) any decision-path or credential death pages within one cycle. Boundaries: trailing-stop engine untouchable; hysteresis banned absent HYSTERESIS: AUTHORIZE; behavior changes config-gated default OFF; no manufactured trades; no new metered spend without operator approval. Full spec: handoff/current/goal_phase66_reactivation.md.",
+      "gate": null,
+      "depends_on": [
+        "phase-62"
+      ],
+      "status": "pending",
+      "steps": [
+        {
+          "id": "66.0",
+          "name": "Recovery re-baseline -- backlog swept+pushed, pending_tokens re-dispositioned with METERED-BREACH root cause, away-wrapper recovery loop exited",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "Return-day audit 2026-07-06: 34 consecutive 401 away sessions (06-20..07-06), last commit 06-19, dirty tree kept every session in prompt_recovery mode; METERED-BREACH P1 root-caused as phantom $0.50 cost rows on failed flat-fee cc_rail calls (llm_call_log: 06-17 137/137 fail $16.30, 06-18 207/207 fail $42.20, 0 tokens).",
+          "verification": {
+            "command": "git log origin/main..HEAD --oneline | wc -l && git status --porcelain | grep -vE 'handoff/(audit/|logs/|\\.cycle_heartbeat|cycle_history|kill_switch_audit|prompt_leak)' | wc -l && jq -r '.updated' handoff/away_ops/pending_tokens.json",
+            "success_criteria": [
+              "Away-window backlog committed AND pushed: git log origin/main..HEAD empty at verification time, and no modified/untracked files outside hook-appended audit streams (handoff/audit/*, handoff/*.jsonl heartbeat/history) and runtime logs",
+              "pending_tokens.json re-dispositioned per goal_phase66 Part-1 table: METERED-BREACH entry carries the phantom-cost root-cause note (failed cc_rail calls logging flat $0.50 with 0 tokens; real metered spend for the window ~ Gemini-only ~$8), resolved asks (MAS-PLIST) marked resolved, operator-gated asks retained open",
+              "Recovery-loop exit evidenced: run_away_session.sh's prompt-selection condition quoted verbatim against a current clean 'git status --porcelain' output showing the next scheduled session selects a NON-recovery prompt"
+            ],
+            "live_check": "live_check_66.0.md with push output, pending_tokens before/after summary, and the prompt-selection evidence"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "66.1",
+          "name": "Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + single P1 page on rail-down; degraded-mode fallback policy config-gated default OFF",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "66.0",
+          "audit_basis": "cc_rail 100% failure 2026-06-15..07-06 (~162 doomed calls/cycle, 2400+ total, zero pages) while claude_code_health_probe existed unused pre-cycle; probe returns ok after operator /login 2026-07-06.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_66_1_rail_guard.py -q",
+            "success_criteria": [
+              "Pre-cycle health probe gates the rail: on probe failure the cycle SKIPS all cc_rail calls for that cycle (test evidence: forced probe failure -> zero cc_rail invocation attempts)",
+              "Circuit breaker: after a configurable threshold (default <=20) of consecutive cc_rail failures, the rail stops retrying for the cycle and emits exactly ONE P1 page via the proven bot-token path, deduped (drill evidence: forced failure -> one Slack P1, permalink in live_check); no cycle may ever log >20 consecutive failed cc_rail calls without a page",
+              "A SCHEDULED (not manual) trading cycle after deploy writes ok=true agent LIKE 'cc_rail%' rows to pyfinagent_data.llm_call_log (BQ row paste in live_check; scheduled-run evidence per the 39.1 lesson)",
+              "Degraded-mode policy (Claude-rail-down => hold, current behavior) documented; any Gemini-fallback alternative ships config-gated default OFF requiring an operator token to enable"
+            ],
+            "live_check": "live_check_66.1.md with pytest output, drill P1 permalink, and the post-deploy scheduled-cycle BQ rows"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "66.2",
+          "name": "Redeploy capital through the NORMAL path only -- first gate-approved BUY, or Q/A-verified per-stage no-trade diagnosis; fold in Alpaca short_market_value + paper_portfolio market-row integrity checks",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "66.1",
+          "audit_basis": "Portfolio 100% cash since 2026-07-03 (current_cash == total_nav == 23997.71); zero BUYs since 06-10; 18 consecutive n_trades=0 cycles; Cycle-58 finding: Alpaca paper acct short_market_value -13842.89 on a long-only system; paper_portfolio shows a single US market row despite KR trades.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"from google.cloud import bigquery; c=bigquery.Client(project='sunny-might-477607-p8'); [print(dict(r)) for r in c.query(\\\"SELECT ticker, action, reason, risk_judge_decision, DATE(created_at) d FROM \\`sunny-might-477607-p8.financial_reports.paper_trades\\` WHERE action='BUY' AND created_at >= '2026-07-07' ORDER BY created_at DESC LIMIT 5\\\").result(timeout=30)]\"",
+            "success_criteria": [
+              "EITHER (a) first BUY row in financial_reports.paper_trades dated after the 66.1 deploy, executed by the ordinary scheduled pipeline with risk_judge_decision recorded (BQ paste), OR (b) after >=5 consecutive healthy-rail trading days with zero BUYs, a Q/A-verified per-stage funnel diagnosis with candidate counts at every gate (signals -> scorer -> risk judge -> execution) from BQ/logs distinguishing gates-correctly-reject from pipeline-defect",
+              "No gate threshold, risk cap, position limit, or entry criterion modified to manufacture trades (git diff evidence over the step's commit range)",
+              "Alpaca short_market_value anomaly (-13842.89 long-only) explained with evidence or filed as a verified defect with root cause",
+              "paper_portfolio single-US-row representation for EU/KR markets verified as intended design (cite code) or filed as a verified defect"
+            ],
+            "live_check": "live_check_66.2.md with the BUY BQ row or the 5-day funnel diagnosis, plus both integrity-check verdicts"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "66.3",
+          "name": "Cost-truth restoration -- pin+fix the phantom $0.50 failure-cost writer; sentinel metered figure means dollars actually billed; failure counts become their own signal",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "66.1",
+          "audit_basis": "llm_call_log rows for failed cc_rail calls (ok=false, 0 input/0 output tokens) carry flat session_cost_usd=0.50 via an unpinned writer (claude_code_client._log_cc_call deliberately logs 0; candidates: com.pyfinagent.claude-code-proxy, log_llm_call default); sentinel counted flat-fee Max rail rows as metered -> phantom breaches 06-17 ($16.51) and 06-18 ($42.00) against the $8 baseline.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_66_3_cost_truth.py -q",
+            "success_criteria": [
+              "The writer of nonzero session_cost_usd on failed cc_rail calls is pinned to file:line in the results, and fixed: auth/connection failures with 0 tokens log cost 0",
+              "The sentinel metered figure excludes flat-fee (Max subscription) rail rows, either by billing-class tagging at write time or provider/agent filtering, with the choice documented; consecutive-failure counts surface as a first-class sentinel warning",
+              "Replay of the 2026-06-18 window through the new logic yields a metered figure that does NOT breach the $8 baseline, AND one live day's sentinel figure matches a hand audit of actually-billed spend (both pastes in live_check)"
+            ],
+            "live_check": "live_check_66.3.md with writer file:line, replay output, and the live-day hand-audit comparison"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "66.4",
+          "name": "Credential-expiry resilience -- daily auth probe in healthcheck with single deduped P1 page; away wrapper pages-once-and-skips on 401; pre-expiry warning if feasible",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "66.0",
+          "audit_basis": "One expired OAuth credential silently killed 34 consecutive scheduled sessions AND the trading decision rail for 17 days with zero pages; healthcheck.sh monitors app services only.",
+          "verification": {
+            "command": "bash scripts/away_ops/healthcheck.sh --help 2>/dev/null || grep -n 'auth' scripts/away_ops/healthcheck.sh | head -5",
+            "success_criteria": [
+              "healthcheck (or successor) runs a daily Claude auth probe that distinguishes auth failure (401/expired) from network error; first auth failure produces exactly ONE P1 page via the bot-token path with dedupe (drill evidence: forced/invalidated credential -> one page, permalink)",
+              "The away wrapper treats auth failure as page-once-and-skip: a forced-401 session shows the skip + page with no retry-forever burn (session.log excerpt)",
+              "A pre-expiry warning (credential age/expiry surface) fires >=24h before expiry, OR infeasibility is documented with evidence from the credential storage format"
+            ],
+            "live_check": "live_check_66.4.md with drill page permalink, forced-401 session.log excerpt, and the pre-expiry feasibility verdict"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "66.5",
+          "name": "Away-backlog triage (planning-only) -- disposition every phase-63/64/65 step keep/merge/drop with rationale; operator sign-off before masterplan edits",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "66.0",
+          "audit_basis": "Phases 63/64/65 (live-audit defect register, test matrix, all-markets proof) were designed for unattended away operation and executed 0%; the operator is now present, so scope and sequencing need re-decision, not silent resumption.",
+          "verification": {
+            "command": "test -f handoff/current/triage_phase63-65.md && jq -r '[.phases[] | select(.id==\"phase-63\" or .id==\"phase-64\" or .id==\"phase-65\") | .steps[].status] | group_by(.) | map({s: .[0], n: length})' .claude/masterplan.json",
+            "success_criteria": [
+              "Every step in phases 63/64/65 dispositioned keep/merge/drop with a one-line rationale in handoff/current/triage_phase63-65.md",
+              "Masterplan reflects the dispositions WITHOUT deleting history (dropped steps marked status=dropped with rationale; kept steps re-sequenced under attended-operation assumptions)",
+              "Operator sign-off on the triage recorded (in-session approval quoted, or token) BEFORE any masterplan edit takes effect; no build work performed inside 66.5"
+            ],
+            "live_check": "live_check_66.5.md with the triage table and the recorded operator sign-off"
           },
           "retry_count": 0,
           "max_retries": 3

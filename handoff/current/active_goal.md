@@ -1,42 +1,49 @@
-# Active Goals -- goal-away-ops (primary) + goal-phase61-churn-integrity (in flight)
+# Active Goal -- goal-phase66-reactivation (primary)
 
-Refreshed 2026-06-12 by step 62.0. Operator away ~2026-06-15 .. ~2026-07-06.
+Refreshed 2026-07-06, return-day session. Operator BACK (in-session approval "do it");
+the away window (2026-06-15..07-06) and its rails are OVER. Normal attended rules apply:
+CLAUDE.md harness protocol per step, LLM API (metered) costs still require Peder's
+approval, no feature branches, push to main.
 
-## Binding rails
+## Primary: goal-phase66-reactivation (masterplan phase-66; spec: handoff/current/goal_phase66_reactivation.md)
 
-docs/runbooks/away-ops-rules.md -- read FIRST in every session. Headline: bug fixes live /
-behavior changes dark+token; $0 new metered spend; kill-switch stays paused absent
-`KILL SWITCH: RESUME`; masterplan freeze (phases 62-65 + existing backlog only); one step
-per AM session; `HALT-DEV` honored before any step work.
+Why: portfolio is 100% cash at NAV $23,997.71 -- zero expected alpha until reactivated.
+The Claude decision rail (cc_rail) was dead 06-15..07-06 (ECONNRESET, then 401 expired
+OAuth) with no circuit breaker and no page; the same credential killed 34 consecutive
+away sessions. Two outcomes: (1) the engine analyzes and trades again through its normal
+gates; (2) any decision-path or credential death pages within one cycle, forever.
 
-## goal-away-ops (phases 62-65; payload + constraints: handoff/current/goal_away_ops.md)
+Strict step order (do not start N+1 while N has an unmet P0 criterion):
+- 66.0 recovery re-baseline (backlog pushed, pending_tokens dispositioned, recovery loop exited)
+- 66.1 rail restore: probe-gate + circuit breaker + single P1 page; fallback dark
+- 66.2 redeploy capital via the NORMAL path only (first honest BUY or verified funnel diagnosis)
+- 66.3 cost-truth (phantom $0.50 failure-cost fix; sentinel = dollars actually billed)
+- 66.4 credential-expiry paging within 24h (drill-proven)
+- 66.5 phase-63/64/65 triage (planning-only, operator sign-off)
 
-Calendar authority: handoff/away_ops/approved_plan_2026-06-12.md "Calendar" table.
-- phase-62 away infra: PRE-DEPARTURE, ends with the 62.7 dress rehearsal (operator watching)
-- phase-63 live audit -> defect register -> fixes (week 1 + rolling AM fix slots)
-- phase-64 test matrix (weekends)
-- phase-65 all-markets proof (65.1/65.2 week 1; 65.4 wall-clock-gated week 3)
+Boundaries (binding): trailing-stop engine untouchable; hysteresis family banned absent
+`HYSTERESIS: AUTHORIZE`; trading behavior changes config-gated default OFF; never
+manufacture trades or evidence; scheduled-run evidence for scheduled-job claims (39.1
+lesson); progress claims cite tool results.
 
-## goal-phase61-churn-integrity (phases continue inside the away window)
+## Prior goals -- state
 
-61.1 PARTIAL: criteria 1-3 done (flags ON + restarts), criterion 4 = first post-flag cycle
-BQ evidence (2026-06-12 18:00 UTC cycle), then fresh Q/A -> flip. Then 61.2 -> 61.3 ->
-61.4 -> 61.5 (dark; FEE TABLE / TURNOVER LEVERS tokens). Full spec:
-handoff/current/goal_phase61_churn_integrity.md.
+- goal-away-ops (phases 62-65): 62.1 done; 62.2/62.6/62.7 pending (62.2 needs the
+  operator `TEST TOKEN: PING`); phases 63/64/65 executed 0% (credential death) -- their
+  disposition is 66.5's job. Away rails (away-ops-rules.md) NO LONGER BINDING except
+  where restated above; away plists remain loaded and harmless (healthy sessions on a
+  clean tree do one masterplan step per the standing prompts).
+- goal-phase61-churn-integrity: 61.1 done (Cycle 66); 61.2-61.5 pending -- resume AFTER
+  phase-66 P0s (a churn fix is worthless while the book is 100% cash).
+- phase-58.1 $25 window: expired during the away window; do not disturb its artifacts.
 
-## Prior goal residue
+## Open operator asks (handoff/away_ops/pending_tokens.json)
 
-phase-58.1 ($25 live window, operator-approved 06-11) self-closes on its window evidence;
-MUST NOT be disturbed. FRED key rotation = return-day ask (operator deferred).
-
-## Token mechanics (after 62.2 ships)
-
-Operator replies in the bot channel; bot appends to handoff/operator_tokens.jsonl;
-sessions apply new tokens FIRST, then advance handoff/away_ops/tokens_cursor (mtime opens
-the .env hook gate 6h). Open asks + exact reply strings:
-handoff/away_ops/pending_tokens.json.
+MAS-PLIST resolved (mv done 2026-07-06). Still open: TEST-TOKEN-62.2 (`TEST TOKEN: PING`
+in C0ANTGNNK8D), WEBHOOK, AUTORESEARCH-SPEND, FRED key rotation (now due), SDK-CREDIT
+(re-decide before any next away window). METERED-BREACH closes via 66.0 note + 66.3 fix.
 
 ## Cycle ledger
 
-- 2026-06-12: goal-away-ops installed (66cb8bc1); 62.0 in progress (rules file, 10
-  backlog deferrals, hook away-patterns, deny mirrors).
+- 2026-07-06: return-day analysis (100%-cash + credential-death findings); phase-66
+  installed; backlog sweep commit; 66.0 cycle begins.
