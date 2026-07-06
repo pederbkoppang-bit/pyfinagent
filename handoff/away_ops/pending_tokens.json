@@ -1,6 +1,6 @@
 {
-  "updated": "2026-06-19T05:55:00+00:00",
-  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl.",
+  "updated": "2026-07-06T21:30:00+00:00",
+  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md).",
   "asks": [
     {
       "id": "METERED-BREACH-RECURRING",
@@ -13,7 +13,10 @@
         "METERED BREACH: INVESTIGATE",
         "HALT-DEV"
       ],
-      "recommended": "METERED BREACH: INVESTIGATE (escalated recommendation -- the prior 06-18 recovery recommended ACCEPT when it looked like a one-off, but the 06-18 PM recurrence at $42 makes this a worsening trend; INVESTIGATE directs the next session to break down pyfinagent_data.llm_call_log for 06-17 + 06-18 and net out the 58.1 exempt window. ACCEPT remains valid if you judge the daily self-reset + healthy trading sufficient; ACCEPT/INVESTIGATE are not in KNOWN_TOKEN_ENV_MAP so they are recorded-only with NO .env/trading effect, while HALT-DEV is the reserved stop-all token.)"
+      "recommended": "METERED BREACH: INVESTIGATE (escalated recommendation -- the prior 06-18 recovery recommended ACCEPT when it looked like a one-off, but the 06-18 PM recurrence at $42 makes this a worsening trend; INVESTIGATE directs the next session to break down pyfinagent_data.llm_call_log for 06-17 + 06-18 and net out the 58.1 exempt window. ACCEPT remains valid if you judge the daily self-reset + healthy trading sufficient; ACCEPT/INVESTIGATE are not in KNOWN_TOKEN_ENV_MAP so they are recorded-only with NO .env/trading effect, while HALT-DEV is the reserved stop-all token.)",
+      "disposition": "root_caused_pending_fix",
+      "disposition_note": "ROOT CAUSE (return-day session 2026-07-06, BQ-measured): 100% of breach-day anthropic spend is agent=cc_rail FAILED calls (06-17: 137/137 fail $16.30; 06-18: 207/207 fail $42.20; 0 input/0 output tokens, ~5s latency). A subset of failed rows carries a flat $0.50 session_cost_usd from an unpinned writer (claude_code_client._log_cc_call deliberately logs 0; candidates: claude-code-proxy, log_llm_call default). cc_rail is Max flat-fee and 401/ECONNRESET calls bill nothing -> the breach was PHANTOM ACCOUNTING; real metered spend for the whole away window ~ $8.24 Gemini + $0.07 claude-code. Candidate causes (a)/(b)/(c) from the original ask are all ruled out. Fix (log 0 cost on failed calls + sentinel excludes flat-fee rail + failure-count signal) is owned by masterplan step 66.3.",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     },
     {
       "id": "TEST-TOKEN-62.2",
@@ -24,7 +27,10 @@
       "reply_options": [
         "TEST TOKEN: PING"
       ],
-      "recommended": "TEST TOKEN: PING (sent in C0ANTGNNK8D during the 62.7 rehearsal; closes 62.2's last criterion and proves the whole token pipeline end-to-end)"
+      "recommended": "TEST TOKEN: PING (sent in C0ANTGNNK8D during the 62.7 rehearsal; closes 62.2's last criterion and proves the whole token pipeline end-to-end)",
+      "disposition": "open_operator_gated",
+      "disposition_note": "Re-asked return-day 2026-07-06: send TEST TOKEN: PING in C0ANTGNNK8D to close 62.2 criterion 3.",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     },
     {
       "id": "FABLE-HEADLESS",
@@ -36,7 +42,10 @@
         "FABLE HEADLESS: KEEP OPUS OVERRIDE",
         "FABLE HEADLESS: REPIN AGENTS TO OPUS"
       ],
-      "recommended": "FABLE HEADLESS: KEEP OPUS OVERRIDE (no config churn; the override is grounded in the away-ops Opus-4.8 session pin and the subagents' pre-59.1 config; revisit Fable on return)"
+      "recommended": "FABLE HEADLESS: KEEP OPUS OVERRIDE (no config churn; the override is grounded in the away-ops Opus-4.8 session pin and the subagents' pre-59.1 config; revisit Fable on return)",
+      "disposition": "resolved",
+      "disposition_note": "Operator approved the goal_phase66 Part-1 disposition table in-session 2026-07-06 ('do it'): KEEP OPUS OVERRIDE for away windows; Fable pins verified working in attended sessions (this session runs Fable 5 Main + Fable researcher/qa).",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     },
     {
       "id": "SDK-CREDIT",
@@ -48,7 +57,10 @@
         "SDK CREDIT: STOP-ON-EXHAUSTION",
         "SDK CREDIT: ENABLE USAGE CREDITS <monthly cap USD>"
       ],
-      "recommended": "SDK CREDIT: STOP-ON-EXHAUSTION (consistent with the $0 decision; worst case dev pauses until the monthly refresh while trading + digests continue)"
+      "recommended": "SDK CREDIT: STOP-ON-EXHAUSTION (consistent with the $0 decision; worst case dev pauses until the monthly refresh while trading + digests continue)",
+      "disposition": "deferred",
+      "disposition_note": "Moot while operator is home (no scheduled headless dev load beyond the standing plists). Re-decide before any next away window.",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     },
     {
       "id": "MAS-PLIST-ZOMBIE",
@@ -59,7 +71,10 @@
       "reply_options": [
         "MAS PLIST: MOVED"
       ],
-      "recommended": "MAS PLIST: MOVED (run the mv during the 62.7 dress rehearsal)"
+      "recommended": "MAS PLIST: MOVED (run the mv during the 62.7 dress rehearsal)",
+      "disposition": "resolved",
+      "disposition_note": "mv executed 2026-07-06 by the return-day session with in-session operator approval: com.pyfinagent.mas-harness.plist -> disabled.com.pyfinagent.mas-harness.plist.bak (verified via ls ~/Library/LaunchAgents).",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     },
     {
       "id": "WEBHOOK",
@@ -71,7 +86,10 @@
         "WEBHOOK: CONFIGURED",
         "WEBHOOK: SKIP"
       ],
-      "recommended": "WEBHOOK: SKIP (bot-token fallback is live-proven; do on return)"
+      "recommended": "WEBHOOK: SKIP (bot-token fallback is live-proven; do on return)",
+      "disposition": "open_operator_gated",
+      "disposition_note": "Re-asked return-day 2026-07-06: CONFIGURED or SKIP (bot-token path remains live-proven).",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     },
     {
       "id": "AUTORESEARCH-SPEND",
@@ -83,7 +101,10 @@
         "AUTORESEARCH SPEND: RESUME",
         "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY"
       ],
-      "recommended": "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY (consistent with $0; resume on return)"
+      "recommended": "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY (consistent with $0; resume on return)",
+      "disposition": "open_operator_gated",
+      "disposition_note": "Re-asked return-day 2026-07-06: RESUME or keep $0 preflight-only.",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     },
     {
       "id": "ENV-LINE-81",
@@ -94,7 +115,10 @@
       "reply_options": [
         "ENV LINE: FIXED"
       ],
-      "recommended": "ENV LINE: FIXED (during 62.7)"
+      "recommended": "ENV LINE: FIXED (during 62.7)",
+      "disposition": "open_operator_gated",
+      "disposition_note": "Re-asked return-day 2026-07-06: one-keystroke backend/.env comment cleanup (stray quote ~line 81); .env edits are operator keystrokes by convention. Reply ENV LINE: FIXED when done.",
+      "disposition_at": "2026-07-06T21:30:00+00:00"
     }
   ]
 }
