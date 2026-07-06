@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-06 | `41f4185d` | chore(away-ops): return-day recovery -- 3-week backlog sweep (34x 401 sessions 2026-06-20..07-06) +  |
 | 2026-06-19 | `7be476b3` | chore(away-ops): recovery -- benign churn sweep + rail-4 metered-breach recurrence P1 (2026-06-19 AM |
 | 2026-06-18 | `fc17023b` | chore(away-ops): recovery -- 3-day benign churn sweep + rail-4 metered-breach P1 (2026-06-18 AM) |
 | 2026-06-15 | `0387bd03` | chore(away-ops): session_notes Cycle 66 -- 61.1 PASS + handoff-convention note |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `1be98e83` | phase-62.7 prep: P1 paging fix in alerting.py (R-1, live-proven) + token cursor-advance rule (I-4) + |
 | 2026-06-12 | `a0733d46` | chore: 62.7 dress-rehearsal checklist assembled from the week's Q/A-queued operator actions |
 | 2026-06-12 | `680b89c8` | phase-62.4: guardrail/budget sentinel -- PASS (first spawn) |
-| 2026-06-12 | `2c65b793` | phase-62.5: healthcheck + away-watchdog -- PASS (cycle-2, P1 paging resurrected via bot-token fallba |
 
 ---
 
