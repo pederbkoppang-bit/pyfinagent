@@ -82,6 +82,89 @@ disk_free_gb=$(df -g "$REPO" 2>/dev/null | awk 'NR==2{print $4}' || echo -1)
 adc_ok=$(gcloud auth application-default print-access-token >/dev/null 2>&1 && echo true || echo false)
 gh_ok=$(gh auth status >/dev/null 2>&1 && echo true || echo false)
 
+# ── phase-66.4: Claude credential probe (auth vs network) ────────────────
+# Two layers: (a) `claude auth status` = LOCAL credential presence (cannot
+# catch an expired-but-present refresh token -- the actual 2026-06/07 mode);
+# (b) the newest away session JSON scanned for api_error_status 401 -- the
+# API-delivered auth signal. Network errors (ECONNRESET) carry no 401 and do
+# not open an auth incident. Page once per INCIDENT via a latch file (NOT
+# the tail-1 dedupe above, which re-pages every other 30-min watchdog run);
+# a 401 session older than the latch's cleared_at never re-opens the
+# incident (prevents re-page after recovery before the next session runs).
+AUTH_STATE="$OPS/auth_page_state.json"
+CLAUDE_BIN_HC="$HOME/.local/bin/claude"; [ -x "$CLAUDE_BIN_HC" ] || CLAUDE_BIN_HC="claude"
+auth_status_ok=$("$CLAUDE_BIN_HC" auth status >/dev/null 2>&1 && echo true || echo false)
+read -r auth_ok auth_detail <<< "$(python3 - "$OPS" "$AUTH_STATE" "$auth_status_ok" <<'PYEOF' 2>/dev/null || echo "unknown probe_error"
+import datetime, glob, json, os, sys
+ops, state_path, status_ok = sys.argv[1], sys.argv[2], sys.argv[3] == "true"
+ok, detail = True, "ok"
+if not status_ok:
+    ok, detail = False, "auth_status_rc_nonzero"
+cleared_at = None
+try:
+    st = json.load(open(state_path))
+    if st.get("cleared_at"):
+        cleared_at = datetime.datetime.fromisoformat(st["cleared_at"])
+except Exception:
+    pass
+sessions = sorted(glob.glob(os.path.join(ops, "session_*.json")), key=os.path.getmtime)
+if sessions:
+    newest = sessions[-1]
+    try:
+        body = open(newest, encoding="utf-8", errors="replace").read()
+    except Exception:
+        body = ""
+    if '"api_error_status": 401' in body or '"api_error_status":401' in body:
+        mt = datetime.datetime.fromtimestamp(os.path.getmtime(newest), datetime.timezone.utc)
+        if cleared_at is None or mt > cleared_at:
+            ok, detail = False, "401_in_" + os.path.basename(newest)
+print("true" if ok else "false", detail)
+PYEOF
+)"
+auth_p1=false
+if [ "${HEALTHCHECK_TEST_AUTH_P1:-0}" = "1" ] || [ "$auth_ok" = "false" ]; then
+    latch_open=$(python3 -c 'import json; print(str(json.load(open("'"$AUTH_STATE"'")).get("incident_open", False)).lower())' 2>/dev/null || echo false)
+    if [ "${HEALTHCHECK_TEST_AUTH_P1:-0}" = "1" ] || [ "$latch_open" != "true" ]; then
+        BOT_TOKEN=$(grep -m1 '^SLACK_BOT_TOKEN=' "$REPO/backend/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+        CHANNEL=$(grep -m1 '^SLACK_CHANNEL_ID=' "$REPO/backend/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+        [ -z "$CHANNEL" ] && CHANNEL="C0ANTGNNK8D"
+        auth_sent=false
+        if [ -n "$BOT_TOKEN" ]; then
+            if [ "${HEALTHCHECK_TEST_AUTH_P1:-0}" = "1" ]; then
+                auth_msg="P1 AWAY-WATCHDOG [DRILL 66.4]: forced auth-probe page -- delivery test only, credential is NOT actually dead."
+            else
+                auth_msg="P1 AWAY-WATCHDOG: Claude credential auth failure detected ($auth_detail, $ts). Scheduled sessions AND the cc_rail trading rail will fail until re-login on the host (claude /login, or claude setup-token for a 1-year credential). Paged ONCE per incident. Runbook: docs/runbooks/credential-expiry-monitoring.md"
+            fi
+            resp=$(curl -s -m 10 -X POST https://slack.com/api/chat.postMessage \
+                -H "Authorization: Bearer $BOT_TOKEN" \
+                -H 'Content-type: application/json; charset=utf-8' \
+                --data "{\"channel\":\"$CHANNEL\",\"text\":\"$auth_msg\"}" 2>/dev/null)
+            printf '%s' "$resp" | grep -q '"ok":true' && auth_sent=true
+        fi
+        if [ "${HEALTHCHECK_TEST_AUTH_P1:-0}" = "1" ]; then
+            # drill isolation (62.5 doctrine): real delivery, NO latch write,
+            # no auth_p1 in the JSON line.
+            printf '[%s] AUTH-P1-TEST delivery=%s\n' "$ts" "$auth_sent" >> "$OPS/healthcheck_err.log" 2>/dev/null
+            echo "AUTH_P1_TEST_DELIVERY=$auth_sent"
+        else
+            auth_p1="$auth_sent"
+            python3 -c 'import json,datetime; json.dump({"incident_open": True, "opened_at": "'"$ts"'", "detail": "'"$auth_detail"'", "paged": '"$([ "$auth_sent" = "true" ] && echo True || echo False)"', "paged_by": "healthcheck"}, open("'"$AUTH_STATE"'", "w"))' 2>>"$OPS/healthcheck_err.log"
+        fi
+    fi
+elif [ -f "$AUTH_STATE" ]; then
+    # Healthy observation closes an open incident so the NEXT death re-pages.
+    python3 -c '
+import json, datetime
+p = "'"$AUTH_STATE"'"
+try:
+    st = json.load(open(p))
+except Exception:
+    st = {}
+if st.get("incident_open"):
+    json.dump({"incident_open": False, "cleared_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "cleared_by": "healthcheck_healthy"}, open(p, "w"))
+' 2>>"$OPS/healthcheck_err.log"
+fi
+
 # ── Frontend-only restart authority ──────────────────────────────────────
 restarts=0; restart_failed=false; restart_note=""
 if [ "$frontend_http" != "200" ] || [ "${frontend_state%%:*}" != "running" ]; then
@@ -177,12 +260,13 @@ ok=true
 [ "$frontend_http" != "200" ] && ok=false
 [ "${slackbot_state%%:*}" != "running" ] && ok=false
 [ "$adc_ok" != "true" ] && ok=false
+[ "$auth_ok" = "false" ] && ok=false  # phase-66.4: credential death is a health failure ("unknown" stays fail-open)
 [ "${disk_free_gb:-0}" -lt 20 ] 2>/dev/null && ok=false
 
-printf '{"ts":"%s","ok":%s,"backend":"%s","frontend":"%s","slack_bot":"%s","api_health":%s,"frontend_http":%s,"kill_switch_paused":"%s","cycle_age_h":%s,"cycle_fresh_26h":"%s","disk_free_gb":%s,"adc_ok":%s,"gh_ok":%s,"restarts_performed":%s,"restart_failed":%s,"restart_note":"%s","p1_raised":%s,"log_rotated":%s}\n' \
+printf '{"ts":"%s","ok":%s,"backend":"%s","frontend":"%s","slack_bot":"%s","api_health":%s,"frontend_http":%s,"kill_switch_paused":"%s","cycle_age_h":%s,"cycle_fresh_26h":"%s","disk_free_gb":%s,"adc_ok":%s,"gh_ok":%s,"auth_ok":"%s","auth_detail":"%s","auth_p1":%s,"restarts_performed":%s,"restart_failed":%s,"restart_note":"%s","p1_raised":%s,"log_rotated":%s}\n' \
     "$ts" "$ok" "$backend_state" "$frontend_state" "$slackbot_state" \
     "${api_health:-0}" "${frontend_http:-0}" "$ks" "${cycle_age_h:--1}" "$cycle_fresh" \
-    "${disk_free_gb:--1}" "$adc_ok" "$gh_ok" "$restarts" "$restart_failed" "$restart_note" "$p1_raised" "$log_rotated" \
+    "${disk_free_gb:--1}" "$adc_ok" "$gh_ok" "$auth_ok" "$auth_detail" "$auth_p1" "$restarts" "$restart_failed" "$restart_note" "$p1_raised" "$log_rotated" \
     >> "$HEALTH" 2>/dev/null
 
 [ "$ok" = "true" ] && exit 0 || exit 1

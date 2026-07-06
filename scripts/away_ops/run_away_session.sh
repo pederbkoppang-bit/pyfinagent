@@ -15,7 +15,9 @@
 # echo substitute for claude (used by the 62.3 acceptance proof and 62.7).
 
 REPO="/Users/ford/.openclaw/workspace/pyfinagent"
-CLAUDE_BIN="/Users/ford/.local/bin/claude"
+# phase-66.4: env-overridable for auth drills (stub binary emitting the 401
+# envelope); production plists set nothing and get the real path.
+CLAUDE_BIN="${AWAY_SESSION_CLAUDE_BIN:-/Users/ford/.local/bin/claude}"
 GTIMEOUT="/opt/homebrew/bin/gtimeout"
 LOCK="$REPO/handoff/.away-session.lock"
 OPS="$REPO/handoff/away_ops"
@@ -127,6 +129,29 @@ fi
 
 OUT_JSON="$OPS/session_${SESSION}_$(date -u +%Y%m%dT%H%M%SZ).json"
 
+# ── phase-66.4: AUTH-DEAD latch -- page-once-and-skip on credential death ─
+# The 2026-06-20..07-06 mode: 34 consecutive sessions burned their slot on a
+# dead credential, each logged as generic "crash or limit". With the latch
+# open, a session spends ONE 20s-capped probe instead of a full launch; on
+# probe success it clears the latch and proceeds (recovery is automatic).
+AUTH_STATE="$OPS/auth_page_state.json"
+if [ "${AWAY_SESSION_DRY_RUN:-0}" != "1" ] && [ -f "$AUTH_STATE" ] \
+    && python3 -c 'import json,sys; sys.exit(0 if json.load(open("'"$AUTH_STATE"'")).get("incident_open") else 1)' 2>/dev/null; then
+    slog "AUTH-DEAD latch active -- probing credential before launch"
+    printf 'ping' | "$GTIMEOUT" -k 5 20 "$CLAUDE_BIN" -p \
+        --model claude-opus-4-8 --max-turns 1 --output-format json \
+        > "$OPS/auth_probe_last.json" 2>>"$SLOG"
+    probe_rc=$?
+    if [ "$probe_rc" -eq 0 ] && ! grep -q '"api_error_status": *401' "$OPS/auth_probe_last.json" 2>/dev/null; then
+        python3 -c 'import json,datetime; json.dump({"incident_open": False, "cleared_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "cleared_by": "wrapper_probe"}, open("'"$AUTH_STATE"'", "w"))' 2>>"$SLOG"
+        slog "AUTH-RECOVERED -- probe ok, latch cleared, proceeding with session"
+    else
+        slog "AUTH-DEAD latch active + probe still failing (rc=$probe_rc) -- session skipped (no full launch, no page; paged once at incident open)"
+        slog "END session result=auth-dead-skip"
+        exit 0
+    fi
+fi
+
 if [ "${AWAY_SESSION_DRY_RUN:-0}" = "1" ]; then
     sleep "${AWAY_SESSION_DRY_RUN_SLEEP:-5}"
     printf '{"result":"dry-run-ok","total_cost_usd":0}\n' > "$OUT_JSON"
@@ -147,6 +172,33 @@ case "$rc" in
     137) slog "TIMEOUT-KILL -- survived TERM, KILLed after grace" ;;
     *)   slog "claude exited rc=$rc (crash or limit)" ;;
 esac
+
+# ── phase-66.4: 401-in-session = credential death, not a generic crash ───
+# Detector per research_brief_66.4.md: rc!=0 AND api_error_status 401 in the
+# session JSON (never key on subtype -- 401 sessions carry subtype "success").
+# Page exactly once per incident via the bot-token path; the latch makes
+# every subsequent slot a cheap probe-and-skip (block above).
+if [ "$rc" -ne 0 ] && grep -q '"api_error_status": *401' "$OUT_JSON" 2>/dev/null; then
+    slog "AUTH-DEAD -- 401 in session JSON (credential expired/corrupted)"
+    latch_open=$(python3 -c 'import json; print(str(json.load(open("'"$AUTH_STATE"'")).get("incident_open", False)).lower())' 2>/dev/null || echo false)
+    if [ "$latch_open" != "true" ]; then
+        BOT_TOKEN=$(grep -m1 '^SLACK_BOT_TOKEN=' "$REPO/backend/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+        CHANNEL=$(grep -m1 '^SLACK_CHANNEL_ID=' "$REPO/backend/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+        [ -z "$CHANNEL" ] && CHANNEL="C0ANTGNNK8D"
+        sent=false
+        if [ -n "$BOT_TOKEN" ]; then
+            resp=$(curl -s -m 10 -X POST https://slack.com/api/chat.postMessage \
+                -H "Authorization: Bearer $BOT_TOKEN" \
+                -H 'Content-type: application/json; charset=utf-8' \
+                --data "{\"channel\":\"$CHANNEL\",\"text\":\"P1 AWAY: Claude credential DEAD (401) -- session $(basename "$OUT_JSON") died at launch. Scheduled sessions AND the cc_rail trading rail will fail until re-login on the host (claude /login, or claude setup-token for a 1-year credential). Paged ONCE; further sessions probe-and-skip. See docs/runbooks/credential-expiry-monitoring.md\"}" 2>/dev/null)
+            printf '%s' "$resp" | grep -q '"ok":true' && sent=true
+        fi
+        python3 -c 'import json,datetime; json.dump({"incident_open": True, "opened_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "detail": "401 in '"$(basename "$OUT_JSON")"'", "paged": '"$([ "$sent" = "true" ] && echo True || echo False)"'}, open("'"$AUTH_STATE"'", "w"))' 2>>"$SLOG"
+        slog "AUTH-DEAD paged (delivered=$sent); latch OPEN -- subsequent sessions probe-and-skip"
+    else
+        slog "AUTH-DEAD latch already open -- no page (once per incident)"
+    fi
+fi
 
 # ── Cost + limit surfacing (June-15 Agent SDK credit; digest reads these) ─
 if [ -s "$OUT_JSON" ]; then

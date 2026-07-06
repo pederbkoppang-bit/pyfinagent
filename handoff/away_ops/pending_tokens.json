@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-06T21:30:00+00:00",
+  "updated": "2026-07-07T00:55:00+00:00",
   "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md).",
   "asks": [
     {
@@ -119,6 +119,18 @@
       "disposition": "open_operator_gated",
       "disposition_note": "Re-asked return-day 2026-07-06: one-keystroke backend/.env comment cleanup (stray quote ~line 81); .env edits are operator keystrokes by convention. Reply ENV LINE: FIXED when done.",
       "disposition_at": "2026-07-06T21:30:00+00:00"
+    },
+    {
+      "id": "SETUP-TOKEN",
+      "raised_by": "66.4 (Cycle 69)",
+      "raised_at": "2026-07-07",
+      "due": "operator discretion (structural mitigation; detection layer already live)",
+      "ask": "The 2026-06 outage would have been survived by `claude setup-token` (1-year credential via CLAUDE_CODE_OAUTH_TOKEN, env precedence above the keychain OAuth slot). Adopting it changes the credential model for every headless surface (away sessions + cc_rail), so it is an operator decision: run `claude setup-token` interactively on the host and store per its instructions. The 66.4 detection layer (30-min auth probe + page-once + probe-based auto-recovery) is live either way. Runbook: docs/runbooks/credential-expiry-monitoring.md",
+      "reply_options": [
+        "SETUP TOKEN: ADOPTED",
+        "SETUP TOKEN: DECLINED"
+      ],
+      "recommended": "SETUP TOKEN: ADOPTED (a 1-year credential removes the single most damaging failure mode observed to date)"
     }
   ]
 }
