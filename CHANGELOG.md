@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `27d40df5` | fix(rail): phase-66.1 cc_rail guard -- probe gate + circuit breaker + single P1 page; repair the fou |
 | 2026-07-06 | `27d27252` | phase-66.0: Recovery re-baseline -- backlog swept+pushed, pending_tokens re-dispositioned with METER |
 | 2026-07-06 | `4df3c73f` | phase-66.0: experiment results + live_check evidence |
 | 2026-07-06 | `576fdb13` | phase-66.0: research brief + contract + pending_tokens return-day disposition (8/8 asks) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-13 | `b6f321d9` | chore(away-ops): phase-62.1 Cycle 64 -- restart slack-bot on current code (criteria 1-2 PASS; crit-3 |
 | 2026-06-12 | `e5790143` | chore(away-ops): sweep trailing pre-tool-use audit appends (recovery close) |
 | 2026-06-12 | `d203634d` | chore(away-ops): recovery -- commit runtime/audit appends + PM session artifact (no in-flight step) |
-| 2026-06-12 | `875e25d4` | chore: PM-session prompt also owns 62.1/62.2 evidence closure while they remain open |
 
 ---
 
+### v6.53.1 — fix(rail): phase-66.1 cc_rail guard -- probe gate + circuit breaker +... (2026-07-07)
+
+- **fix(rail): phase-66.1 cc_rail guard -- probe gate + circuit breaker + single P1 page; repair the fou**
 ### v6.53.0 — phase-66.0: Recovery re-baseline -- backlog swept+pushed, pending_tok... (2026-07-06)
 
 - **phase-66.0: Recovery re-baseline -- backlog swept+pushed, pending_tokens re-dispositioned with METER**
