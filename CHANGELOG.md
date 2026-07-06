@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-06 | `576fdb13` | phase-66.0: research brief + contract + pending_tokens return-day disposition (8/8 asks) |
 | 2026-07-06 | `68909af1` | feat(goal): install goal-phase66-reactivation -- masterplan phase-66 (6 steps) + active_goal refresh |
 | 2026-07-06 | `41f4185d` | chore(away-ops): return-day recovery -- 3-week backlog sweep (34x 401 sessions 2026-06-20..07-06) +  |
 | 2026-06-19 | `7be476b3` | chore(away-ops): recovery -- benign churn sweep + rail-4 metered-breach recurrence P1 (2026-06-19 AM |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-12 | `875e25d4` | chore: PM-session prompt also owns 62.1/62.2 evidence closure while they remain open |
 | 2026-06-12 | `f9595486` | phase-62.6: hygiene batch -- Q/A CONDITIONAL (coupled to 39.1 strict 3-night path; criteria 1+2 veri |
 | 2026-06-12 | `1be98e83` | phase-62.7 prep: P1 paging fix in alerting.py (R-1, live-proven) + token cursor-advance rule (I-4) + |
-| 2026-06-12 | `a0733d46` | chore: 62.7 dress-rehearsal checklist assembled from the week's Q/A-queued operator actions |
 
 ---
 
+### v6.51.0 — phase-66.0: research brief + contract + pending_tokens return-day dis... (2026-07-06)
+
+- **phase-66.0: research brief + contract + pending_tokens return-day disposition (8/8 asks)**
 ### v6.50.0 — feat(goal): install goal-phase66-reactivation -- masterplan phase-66... (2026-07-06)
 
 - **feat(goal): install goal-phase66-reactivation -- masterplan phase-66 (6 steps) + active_goal refresh**
