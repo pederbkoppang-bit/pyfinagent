@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `fa2ef0f0` | feat(away-ops): phase-66.4 credential-expiry resilience -- auth probe + page-once latch + wrapper pr |
 | 2026-07-07 | `65eedc29` | chore(harness): Cycle 68 log -- 66.1 CONDITIONAL (criteria 1/2/4 verified, criterion 3 wall-clock-ga |
 | 2026-07-07 | `0545fda5` | phase-66.1: experiment results + live_check (criteria 1/2/4 evidence; criterion 3 pending 07-07 sche |
 | 2026-07-07 | `27d40df5` | fix(rail): phase-66.1 cc_rail guard -- probe gate + circuit breaker + single P1 page; repair the fou |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-13 | `53232c5a` | chore(away-ops): recovery -- session_notes.md Recovery 2026-06-13 PM section |
 | 2026-06-13 | `b9a52a15` | chore(away-ops): recovery -- capture self-referential audit append (2026-06-13 PM) |
 | 2026-06-13 | `d3bb4025` | chore(away-ops): recovery -- sweep audit/session runtime accumulation (2026-06-13 PM) |
-| 2026-06-13 | `b6f321d9` | chore(away-ops): phase-62.1 Cycle 64 -- restart slack-bot on current code (criteria 1-2 PASS; crit-3 |
 
 ---
 
+### v6.54.0 — feat(away-ops): phase-66.4 credential-expiry resilience -- auth probe... (2026-07-07)
+
+- **feat(away-ops): phase-66.4 credential-expiry resilience -- auth probe + page-once latch + wrapper pr**
 ### v6.53.2 — phase-66.1: experiment results + live_check (criteria 1/2/4 evidence;... (2026-07-07)
 
 - **phase-66.1: experiment results + live_check (criteria 1/2/4 evidence; criterion 3 pending 07-07 sche**
