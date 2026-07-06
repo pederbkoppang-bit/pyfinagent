@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `ac7fed54` | chore(harness): hotfix log -- P1 page storm root-caused + fixed + live-verified |
 | 2026-07-07 | `70de8188` | fix(alerting): P1 page storm hotfix -- critical severities respect the repeat window (bypass consecu |
 | 2026-07-07 | `bd8aaffe` | phase-66.4: Credential-expiry resilience -- daily auth probe in healthcheck with single deduped P1 p |
 | 2026-07-07 | `fa2ef0f0` | feat(away-ops): phase-66.4 credential-expiry resilience -- auth probe + page-once latch + wrapper pr |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-14 | `9c12ec0a` | chore(away-ops): recovery -- benign audit/session-artifact sweep (2026-06-14 PM) |
 | 2026-06-14 | `e00122b9` | chore(away-ops): phase-62.2 harness cycle 65 -- operator-token handler verify (CONDITIONAL, criteria |
 | 2026-06-13 | `acb2bc2f` | chore(away-ops): recovery -- final self-referential audit-line sweep (2026-06-13 PM) |
-| 2026-06-13 | `53232c5a` | chore(away-ops): recovery -- session_notes.md Recovery 2026-06-13 PM section |
 
 ---
 
