@@ -212,12 +212,25 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     # non-blocking, own try/except: a probe bug must never break a cycle.
     if getattr(settings, "paper_use_claude_code_route", False):
         try:
-            from backend.agents.claude_code_client import claude_code_health_probe
+            from backend.agents.claude_code_client import (
+                claude_code_health_probe,
+                rail_guard_disable,
+                rail_guard_reset,
+            )
+            # phase-66.1: per-cycle breaker window reset BEFORE the probe.
+            rail_guard_reset(_cycle_id)
             _rail_ok, _rail_detail = await asyncio.to_thread(claude_code_health_probe)
             summary["claude_rail_healthy"] = _rail_ok
             if not _rail_ok:
+                # phase-66.1 (criterion 1): failed probe gates the rail --
+                # every ClaudeCodeClient call this cycle returns the empty
+                # LLMResponse immediately, zero subprocess spawns. The P1
+                # below is the incident's single page (the guard's latch is
+                # consumed by rail_guard_disable, so the breaker won't
+                # double-page the same rail-down incident).
+                rail_guard_disable(_rail_detail)
                 logger.warning("claude-code rail health probe FAILED: %s", _rail_detail)
-                from backend.services.alerting import raise_cron_alert
+                from backend.services.observability.alerting import raise_cron_alert  # phase-66.1: was backend.services.alerting (module DOES NOT EXIST; ModuleNotFoundError swallowed by the fail-open except -> zero pages all away window)
                 await raise_cron_alert(
                     source="claude_code_rail",
                     error_type="rail_down",
@@ -748,7 +761,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                             "(conviction overlay degraded; damping leg inactive)",
                             len(candidates),
                         )
-                        from backend.services.alerting import raise_cron_alert
+                        from backend.services.observability.alerting import raise_cron_alert  # phase-66.1: was backend.services.alerting (module DOES NOT EXIST; ModuleNotFoundError swallowed by the fail-open except -> zero pages all away window)
                         await raise_cron_alert(
                             source="meta_scorer",
                             error_type="conviction_overlay_degraded",
@@ -920,7 +933,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         "Degraded-scoring guard fired: %d/%d analyses scored 0/degraded",
                         _n_degraded, _n_total,
                     )
-                    from backend.services.alerting import raise_cron_alert
+                    from backend.services.observability.alerting import raise_cron_alert  # phase-66.1: was backend.services.alerting (module DOES NOT EXIST; ModuleNotFoundError swallowed by the fail-open except -> zero pages all away window)
                     await raise_cron_alert(
                         source="autonomous_loop",
                         error_type="degraded_scoring",
@@ -954,7 +967,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                         "Fallback-rate alarm fired: %d/%d analyses fell back full->lite (threshold %.0f%%)",
                         _n_fb, _n_fb_total, _fb_threshold * 100,
                     )
-                    from backend.services.alerting import raise_cron_alert
+                    from backend.services.observability.alerting import raise_cron_alert  # phase-66.1: was backend.services.alerting (module DOES NOT EXIST; ModuleNotFoundError swallowed by the fail-open except -> zero pages all away window)
                     await raise_cron_alert(
                         source="autonomous_loop",
                         error_type="fallback_rate",
@@ -1390,6 +1403,24 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         _current_cycle_id = None
         # 4.5.8 cycle health: end-of-cycle row (always, regardless of branch).
         try:
+            # phase-66.1: rail-guard outcome persisted per cycle so the 66.2
+            # funnel diagnosis can separate "rail skipped/tripped" from
+            # "gates rejected". Fail-open: guard status must never break
+            # the cycle-health write.
+            _rail_skipped = False
+            _breaker_tripped = False
+            try:
+                from backend.agents.claude_code_client import rail_guard_status
+
+                _rg = rail_guard_status()
+                _rail_skipped = bool(_rg.get("rail_skipped"))
+                _breaker_tripped = bool(_rg.get("breaker_tripped"))
+                if _rail_skipped or _breaker_tripped:
+                    summary["rail_skipped"] = _rail_skipped
+                    summary["breaker_tripped"] = _breaker_tripped
+                    summary["rail_skipped_calls"] = _rg.get("skipped_calls")
+            except Exception:
+                pass
             _cycle_log().record_cycle_end(
                 cycle_id=_cycle_id,
                 started_at=_cycle_started_at,
@@ -1399,6 +1430,8 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 data_source_ages=summary.get("data_source_ages") or {},
                 bq_ingest_lag_sec=summary.get("bq_ingest_lag_sec"),
                 meta_scorer_degraded=bool(summary.get("meta_scorer_degraded")),
+                rail_skipped=_rail_skipped,
+                breaker_tripped=_breaker_tripped,
             )
         except Exception as _e:
             logger.warning(f"cycle_health record_cycle_end failed: {_e}")

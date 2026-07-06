@@ -29,7 +29,9 @@ import logging
 import os
 import shutil
 import subprocess
+import threading
 import time
+from dataclasses import dataclass
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -75,6 +77,138 @@ def _resolve_claude_binary(binary: str) -> str:
 
 class ClaudeCodeError(RuntimeError):
     """Raised when the `claude` CLI returns a non-success envelope."""
+
+
+# ── phase-66.1: rail guard (probe gate + circuit breaker) ────────────────
+# The 2026-06-15..07-06 outage fired ~162 doomed 5s subprocess calls per
+# cycle for three weeks with zero pages. The guard makes that structurally
+# impossible: a failed pre-cycle probe disables the rail for the cycle, and
+# a consecutive-failure breaker trips mid-cycle with exactly ONE P1 page
+# (caller-side latch -- P1s bypass the AlertDeduper by design, phase-62.7).
+# Healthy-path behavior is byte-identical: the guard engages only on probe
+# failure or after the failure threshold.
+@dataclass
+class _RailGuardState:
+    cycle_id: Optional[str] = None
+    disabled_reason: Optional[str] = None  # probe gate (set by the loop)
+    consecutive_failures: int = 0
+    open: bool = False                     # breaker tripped this cycle
+    paged: bool = False                    # exactly-once page latch
+    last_error: str = ""
+    skipped_calls: int = 0
+
+
+_RAIL_GUARD = _RailGuardState()
+_RAIL_GUARD_LOCK = threading.Lock()
+
+
+def _rail_breaker_threshold() -> int:
+    try:
+        from backend.config.settings import get_settings
+
+        return int(getattr(get_settings(), "claude_rail_breaker_threshold", 20))
+    except Exception:  # settings must never break the rail
+        return 20
+
+
+def rail_guard_reset(cycle_id: Optional[str] = None) -> None:
+    """Per-cycle reset (Azure circuit-breaker per-window semantics).
+
+    Called by the autonomous loop at cycle start, BEFORE the health probe.
+    """
+    global _RAIL_GUARD
+    with _RAIL_GUARD_LOCK:
+        _RAIL_GUARD = _RailGuardState(cycle_id=cycle_id)
+
+
+def rail_guard_disable(reason: str) -> None:
+    """Probe-gate: skip ALL rail calls for this cycle.
+
+    The loop's own probe-failure branch already raises the P1 (site
+    autonomous_loop rail-probe), so the latch is consumed here -- the guard
+    must not double-page the same rail-down incident.
+    """
+    with _RAIL_GUARD_LOCK:
+        _RAIL_GUARD.disabled_reason = reason[:400]
+        _RAIL_GUARD.paged = True
+
+
+def rail_guard_status() -> dict[str, Any]:
+    with _RAIL_GUARD_LOCK:
+        return {
+            "cycle_id": _RAIL_GUARD.cycle_id,
+            "rail_skipped": _RAIL_GUARD.disabled_reason is not None,
+            "breaker_tripped": _RAIL_GUARD.open,
+            "consecutive_failures": _RAIL_GUARD.consecutive_failures,
+            "skipped_calls": _RAIL_GUARD.skipped_calls,
+            "disabled_reason": _RAIL_GUARD.disabled_reason,
+            "last_error": _RAIL_GUARD.last_error,
+        }
+
+
+def _rail_guard_blocked() -> Optional[str]:
+    """Reason the rail is blocked right now, else None."""
+    with _RAIL_GUARD_LOCK:
+        if _RAIL_GUARD.disabled_reason is not None:
+            _RAIL_GUARD.skipped_calls += 1
+            return f"probe gate: {_RAIL_GUARD.disabled_reason}"
+        if _RAIL_GUARD.open:
+            _RAIL_GUARD.skipped_calls += 1
+            return (
+                f"breaker open after {_RAIL_GUARD.consecutive_failures} "
+                f"consecutive failures: {_RAIL_GUARD.last_error}"
+            )
+    return None
+
+
+def _rail_guard_record_success() -> None:
+    with _RAIL_GUARD_LOCK:
+        _RAIL_GUARD.consecutive_failures = 0
+
+
+def _rail_guard_record_failure(error: str) -> None:
+    """Count a real (subprocess-attempted) failure; trip + page on threshold.
+
+    The page fires on the closed->open TRANSITION only (Fowler/PagerDuty
+    alert-on-transition), via the live-proven bot-token path. Fail-open:
+    paging problems never break the rail's own error handling.
+    """
+    threshold = _rail_breaker_threshold()
+    should_page = False
+    with _RAIL_GUARD_LOCK:
+        _RAIL_GUARD.consecutive_failures += 1
+        _RAIL_GUARD.last_error = error[:400]
+        if _RAIL_GUARD.consecutive_failures >= threshold and not _RAIL_GUARD.open:
+            _RAIL_GUARD.open = True
+            if not _RAIL_GUARD.paged:
+                _RAIL_GUARD.paged = True
+                should_page = True
+        cycle_id = _RAIL_GUARD.cycle_id
+        n = _RAIL_GUARD.consecutive_failures
+        last = _RAIL_GUARD.last_error
+    if should_page:
+        try:
+            from backend.services.observability.alerting import raise_cron_alert_sync
+
+            raise_cron_alert_sync(
+                source="claude_code_rail",
+                error_type="breaker_open",
+                severity="P1",
+                title=(
+                    f"Claude Code rail breaker OPEN -- {n} consecutive "
+                    f"failures; remaining rail calls skipped this cycle"
+                ),
+                details={
+                    "cycle_id": cycle_id or "unknown",
+                    "consecutive_failures": n,
+                    "threshold": threshold,
+                    "last_error": last,
+                    "consequence": "rail calls skipped for the rest of the cycle; pipeline runs degraded fallbacks (policy: hold)",
+                    "operator_action": "check `claude auth status` on the host; see docs/runbooks/claude-rail-degraded-mode.md",
+                },
+            )
+        except Exception as page_exc:  # paging must never break the rail
+            logger.warning("rail breaker page failed (non-fatal): %r", page_exc)
 
 
 def claude_code_invoke(
@@ -387,6 +521,18 @@ def _make_claude_code_client_class():
                 if isinstance(schema, dict):
                     json_schema = schema
 
+            # phase-66.1: rail guard -- probe gate / open breaker means NO
+            # subprocess spawn and NO llm_call_log row (the skip is cycle-
+            # level state, recorded once via rail_guard_status; per-call
+            # rows for skips would re-create the 06-17/18 phantom-row spam).
+            _blocked = _rail_guard_blocked()
+            if _blocked is not None:
+                return LLMResponse(
+                    text="",
+                    thoughts=f"rail_guard_skipped: {_blocked}",
+                    usage_metadata=UsageMeta(),
+                )
+
             _t0 = time.monotonic()
             try:
                 envelope = claude_code_invoke(
@@ -406,6 +552,7 @@ def _make_claude_code_client_class():
                     latency_ms=(time.monotonic() - _t0) * 1000.0,
                     model=self.model_name, ok=False,
                 )
+                _rail_guard_record_failure(str(exc))
                 return LLMResponse(
                     text="",
                     thoughts=f"errored: {exc}",
@@ -424,6 +571,7 @@ def _make_claude_code_client_class():
                 latency_ms=(time.monotonic() - _t0) * 1000.0,
                 model=self.model_name, ok=True,
             )
+            _rail_guard_record_success()
 
             return LLMResponse(
                 text=text,

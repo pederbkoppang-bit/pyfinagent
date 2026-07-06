@@ -299,6 +299,8 @@ class CycleHealthLog:
         data_source_ages: Optional[dict] = None,
         bq_ingest_lag_sec: Optional[int] = None,
         meta_scorer_degraded: bool = False,
+        rail_skipped: bool = False,
+        breaker_tripped: bool = False,
     ) -> None:
         completed_at = _now_iso()
         dur_ms: Optional[int] = None
@@ -320,6 +322,10 @@ class CycleHealthLog:
             # surface "conviction values were no-LLM fallbacks" instead of
             # letting conviction 10.00 masquerade as an LLM judgment.
             "meta_scorer_degraded": bool(meta_scorer_degraded),
+            # phase-66.1: rail-guard outcome -- lets the 66.2 funnel separate
+            # "Claude rail skipped/tripped" from "gates rejected candidates".
+            "rail_skipped": bool(rail_skipped),
+            "breaker_tripped": bool(breaker_tripped),
         }
         with self._lock:
             try:

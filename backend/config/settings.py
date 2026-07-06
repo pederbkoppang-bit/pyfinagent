@@ -173,6 +173,12 @@ class Settings(BaseSettings):
         False,
         description="Route Claude analysis calls through the `claude` CLI subprocess (Max-subscription rail) instead of api.anthropic.com direct billing. Testing-phase only; flip to False before flipping real_capital_enabled to True.",
     )
+    claude_rail_breaker_threshold: int = Field(
+        20,
+        ge=1,
+        le=500,
+        description="phase-66.1: consecutive cc_rail failure count that trips the rail circuit breaker for the rest of the cycle (claude_code_client rail guard). On trip: remaining rail calls return empty responses without spawning the CLI, and exactly ONE P1 pages via the bot-token path (transition latch; P1s bypass the AlertDeduper by design). Resets every cycle. The 2026-06 outage logged ~162 doomed calls/cycle for 3 weeks with zero pages -- the immutable 66.1 criterion caps silent consecutive failures at <=20.",
+    )
     openai_api_key: SecretStr = Field(SecretStr(""), description="OpenAI API key for direct GPT/o-series access (sk-...)")
     github_token: SecretStr = Field(SecretStr(""), description="GitHub PAT for GitHub Models (Copilot Pro). Routes GITHUB_MODELS_CATALOG models via models.inference.ai.azure.com")
     gemini_api_key: SecretStr = Field(SecretStr(""), description="Google AI Studio API key for direct Gemini access (genai.Client(api_key=...)). When set, gemini-* models route through the direct API instead of Vertex AI ADC. Leave empty to keep using Vertex AI / GCP service-account credentials.")
