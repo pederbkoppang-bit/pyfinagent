@@ -43,6 +43,14 @@ logger = logging.getLogger(__name__)
 # threshold. The deduper's 3-in-5-min rule silently swallowed ONE-SHOT P1s
 # (e.g. the kill-switch breach alert fires once per cycle), so a real breach
 # paged nobody. P0/P1 = page-worthy by definition; single occurrence fires.
+# phase-66 hotfix (2026-07-07, P1 page storm): "single occurrence fires"
+# never meant "EVERY occurrence fires". The blanket bypass turned the
+# 60s-polled freshness alarm (cycle_health._fire_freshness_alarm, whose
+# docstring explicitly relies on this deduper) into ~120 pages/hour the
+# moment a dashboard tab was open against a red table. Critical severities
+# now bypass the consecutive THRESHOLD only; the repeat window still
+# applies per (source, error_type) -- first occurrence pages instantly,
+# repeats are suppressed for repeat_hours (default 1h).
 _CRITICAL_SEVERITIES = frozenset({"P0", "P1", "critical", "CRITICAL"})
 
 
@@ -76,8 +84,13 @@ class AlertDeduper:
             with self._lock:
                 st = self._state.setdefault((source, error_type), _AlertState())
                 st.occurrences.append(now)
-                st.last_fired_at = now
-            return True
+                fire = (
+                    st.last_fired_at is None
+                    or (now - st.last_fired_at) >= self.repeat
+                )
+                if fire:
+                    st.last_fired_at = now
+            return fire
 
         with self._lock:
             key = (source, error_type)

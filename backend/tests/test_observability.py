@@ -148,9 +148,38 @@ def test_alert_deduper_respects_repeat_window():
 
 def test_alert_deduper_critical_bypasses_dedup():
     d = AlertDeduper(window_minutes=5, repeat_hours=1, consecutive_threshold=100)
-    # Even with threshold=100, critical fires on first call
+    # Even with threshold=100, critical fires on the FIRST occurrence of a
+    # (source, error_type). phase-66 hotfix: distinct keys, because same-key
+    # repeats within repeat_hours are now suppressed (see storm test below).
     assert d.should_fire("x", "y", severity="P0") is True
-    assert d.should_fire("x", "y", severity="critical") is True
+    assert d.should_fire("x", "y2", severity="critical") is True
+
+
+def test_alert_deduper_critical_repeat_suppressed_page_storm_regression():
+    """phase-66 hotfix (2026-07-07): the 62.7 blanket P1 bypass turned the
+    60s-polled freshness alarm into ~120 pages/hour. Critical severities
+    bypass the consecutive threshold (first occurrence fires instantly) but
+    still respect repeat_hours per (source, error_type)."""
+    from datetime import datetime, timedelta, timezone
+
+    d = AlertDeduper(window_minutes=5, repeat_hours=1, consecutive_threshold=3)
+    fired = sum(
+        d.should_fire("cycle_health", "freshness_critical_paper_trades", severity="P1")
+        for _ in range(60)  # one simulated hour of 60s dashboard polls
+    )
+    assert fired == 1  # first pages, 59 repeats suppressed
+
+    # after the repeat window elapses, the SAME key pages again
+    st = d._state[("cycle_health", "freshness_critical_paper_trades")]
+    st.last_fired_at = datetime.now(timezone.utc) - timedelta(hours=1, minutes=1)
+    assert d.should_fire(
+        "cycle_health", "freshness_critical_paper_trades", severity="P1"
+    ) is True
+
+    # independent incidents (different error_type) are unaffected
+    assert d.should_fire(
+        "cycle_health", "freshness_critical_historical_macro", severity="P1"
+    ) is True
 
 
 # ---------- 8 + 9. api_call_log ----------
