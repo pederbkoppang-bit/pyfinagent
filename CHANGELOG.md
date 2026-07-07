@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `c64408aa` | phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1/64.5 merged, 64.4 repointed, r |
 | 2026-07-07 | `f33e60f7` | chore(away-ops): 2026-07-07 recovery -- commit benign hook/runtime/audit churn |
 | 2026-07-07 | `5fddca93` | chore(harness): Cycle 70 log -- 66.5 CONDITIONAL (triage delivered, sign-off pending) |
 | 2026-07-07 | `edb8600a` | phase-66.5: results + live_check (criterion 1 satisfied; sign-off pending) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-06-19 | `7be476b3` | chore(away-ops): recovery -- benign churn sweep + rail-4 metered-breach recurrence P1 (2026-06-19 AM |
 | 2026-06-18 | `fc17023b` | chore(away-ops): recovery -- 3-day benign churn sweep + rail-4 metered-breach P1 (2026-06-18 AM) |
 | 2026-06-15 | `0387bd03` | chore(away-ops): session_notes Cycle 66 -- 61.1 PASS + handoff-convention note |
-| 2026-06-15 | `f65765d8` | phase-61.1: Activate the dark fixes + deploy phase-60 code: operator flag tokens (60.2/60.3/57.1)... |
 
 ---
 
+### v6.54.5 — phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1... (2026-07-07)
+
+- **phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1/64.5 merged, 64.4 repointed, r**
 ### v6.54.4 — phase-66.5: results + live_check (criterion 1 satisfied; sign-off pen... (2026-07-07)
 
 - **phase-66.5: results + live_check (criterion 1 satisfied; sign-off pending)**
