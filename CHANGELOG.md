@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `9262ed36` | fix(alerting): drawdown alarm DESC-order trap -- phantom -61.51% P1 on a book UP 20% |
 | 2026-07-07 | `c1e6050b` | phase-66.2 prep: research brief + contract + read-only funnel_report.py (operator-authorized pre-66. |
 | 2026-07-07 | `1e751a56` | chore(ops): operator decisions 2026-07-07 -- autoresearch nightly spend RESUMED (--preflight-only re |
 | 2026-07-07 | `0a512c5f` | phase-66.3: Cost-truth restoration -- pin+fix the phantom failure-cost writer; sentinel metered figu |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `27d40df5` | fix(rail): phase-66.1 cc_rail guard -- probe gate + circuit breaker + single P1 page; repair the fou |
 | 2026-07-06 | `27d27252` | phase-66.0: Recovery re-baseline -- backlog swept+pushed, pending_tokens re-dispositioned with METER |
 | 2026-07-06 | `4df3c73f` | phase-66.0: experiment results + live_check evidence |
-| 2026-07-06 | `576fdb13` | phase-66.0: research brief + contract + pending_tokens return-day disposition (8/8 asks) |
 
 ---
 
+### v6.54.10 — fix(alerting): drawdown alarm DESC-order trap -- phantom -61.51% P1 o... (2026-07-07)
+
+- **fix(alerting): drawdown alarm DESC-order trap -- phantom -61.51% P1 on a book UP 20%**
 ### v6.54.9 — phase-66.2 prep: research brief + contract + read-only funnel_report.... (2026-07-07)
 
 - **phase-66.2 prep: research brief + contract + read-only funnel_report.py (operator-authorized pre-66.**
