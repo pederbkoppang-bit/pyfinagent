@@ -241,6 +241,17 @@ def log_llm_call(
     are None outside an active autonomous cycle.
     """
     try:
+        # phase-66.3 (cost-truth): a failed call that moved ZERO tokens
+        # billed zero dollars -- never stamp the cycle's cumulative
+        # session-cost GAUGE on it. session_cost_usd is a per-cycle running
+        # total (autonomous_loop._session_cost), NOT a per-call cost; the
+        # 2026-06 outage stamped it onto 2,400+ failed cc_rail rows and
+        # row-summing consumers (away sentinel) read the staircase as
+        # ~$42/day of phantom metered spend. An explicit caller-passed
+        # value always wins; failures that DID move tokens keep the gauge
+        # (mid-stream work may bill).
+        if session_cost_usd is None and not ok and not input_tok and not output_tok:
+            session_cost_usd = 0.0
         # phase-26.1: lazy-fetch cycle context if caller did not pass.
         if cycle_id is None or session_cost_usd is None:
             try:

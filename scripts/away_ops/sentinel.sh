@@ -40,6 +40,7 @@ REPO = Path("/Users/ford/.openclaw/workspace/pyfinagent")
 BASELINE_USD = 8.00  # pinned; see header
 report = {
     "metered_llm_usd_today": None,
+    "rail_failures_today": None,  # phase-66.3: first-class failure signal
     "baseline_usd": BASELINE_USD,
     "kill_switch_paused": "unknown",
     "flags_match_tokens": None,
@@ -58,20 +59,26 @@ elif test_metered is not None:
     report["warnings"].append("metered figure from SENTINEL_TEST_METERED_USD (test override)")
 else:
     try:
-        from google.cloud import bigquery
-        client = bigquery.Client(project="sunny-might-477607-p8")
-        # Schema (verified 2026-06-12): provider/model/session_cost_usd; no
-        # rail column. Flat-fee claude_code-rail rows log session_cost_usd=0
-        # by design (60.4 writer), so a plain SUM IS the metered figure --
-        # any metered call (gemini, anthropic API) carries real cost.
-        sql = """
-            SELECT COALESCE(SUM(COALESCE(session_cost_usd, 0)), 0) AS usd
-            FROM `sunny-might-477607-p8.pyfinagent_data.llm_call_log`
-            WHERE DATE(ts) = CURRENT_DATE()
-        """
-        rows = list(client.query(sql, job_config=bigquery.QueryJobConfig(
-            use_query_cache=True)).result(timeout=25))
-        report["metered_llm_usd_today"] = round(float(rows[0].usd or 0.0), 4)
+        # phase-66.3 (cost-truth): the pre-07-07 query here row-SUMmed
+        # session_cost_usd, which is a CUMULATIVE per-cycle gauge stamped on
+        # every row (api_call_log lazy-fill) -- summing a running total
+        # over-counted quadratically and manufactured the 06-17/06-18
+        # "breaches" ($42 reported vs ~$1 nominal). The metered figure is
+        # now TOKEN-DERIVED over metered providers only (flat-fee cc_rail /
+        # claude-code excluded; unpriced models fail-visible). Logic lives
+        # in metered_spend.py (importable + testable + --date replay).
+        sys.path.insert(0, str(REPO / "scripts" / "away_ops"))
+        from metered_spend import compute_for_date
+        res = compute_for_date(os.environ.get("SENTINEL_DATE"))
+        report["metered_llm_usd_today"] = res["metered_llm_usd"]
+        report["rail_failures_today"] = res["rail_failures"]
+        report["warnings"].extend(res["warnings"])
+        if res["rail_failures"] >= 20:
+            report["warnings"].append(
+                f"rail_failures_today={res['rail_failures']} >= 20 -- cc_rail "
+                "failure storm (mirrors the 66.1 breaker threshold); check the "
+                "breaker P1 and claude auth status"
+            )
     except Exception as e:
         report["gates_failed"].append("metered_source_unavailable")
         report["warnings"].append(f"BQ error: {type(e).__name__}: {str(e)[:160]}")
