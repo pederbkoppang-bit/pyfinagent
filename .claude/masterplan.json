@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-06T21:31:29.277457+00:00",
+  "updated_at": "2026-07-07T09:19:59.006190+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -14796,7 +14796,7 @@
         },
         {
           "id": "63.2",
-          "name": "BQ cross-check of displayed numbers -- for every number-bearing page (cockpit /, /paper-trading/*, /performance, /learnings, /sovereign): displayed value vs API response (curl) vs independent BQ aggregate, side-by-side; mismatches beyond rounding become defect rows.",
+          "name": "(post-66.2) BQ cross-check of displayed numbers -- for every number-bearing page (cockpit /, /paper-trading/*, /performance, /learnings, /sovereign): displayed value vs API response (curl) vs independent BQ aggregate, side-by-side; mismatches beyond rounding become defect rows.",
           "status": "pending",
           "harness_required": true,
           "priority": "P0",
@@ -14836,7 +14836,7 @@
         },
         {
           "id": "63.4",
-          "name": "Fix queue execution (rolling AM slots) -- one register fix per AM slot under the full harness loop; failing-then-passing regression test + fresh Q/A PASS + live re-capture per fix; any fix touching order/sizing/risk/screener/fee paths is reclassified trading-behavior -> dark+token.",
+          "name": "(post-66.2) Fix queue execution (rolling AM slots) -- one register fix per AM slot under the full harness loop; failing-then-passing regression test + fresh Q/A PASS + live re-capture per fix; any fix touching order/sizing/risk/screener/fee paths is reclassified trading-behavior -> dark+token.",
           "status": "pending",
           "harness_required": true,
           "priority": "P0",
@@ -14907,7 +14907,7 @@
         },
         {
           "id": "64.2",
-          "name": "Functional specs for all 22 routes -- load + one key interaction per route family; suite completes <15 min so the PM session runs it nightly.",
+          "name": "Functional specs for all 22 routes -- load + one key interaction per route family; suite completes <15 min so the PM session runs it nightly. ; absorbs 64.5 (CI wiring + nightly execution) per triage 66.5",
           "status": "pending",
           "harness_required": true,
           "priority": "P0",
@@ -14951,7 +14951,7 @@
           "status": "pending",
           "harness_required": true,
           "priority": "P1",
-          "depends_on_step": "65.1",
+          "depends_on_step": "66.2",
           "audit_basis": "No end-to-end multi-market test exists (Explore audit); EU funnel counters from 65.1 define the assertions; fixtures keep it $0 and deterministic.",
           "verification": {
             "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'multi_market_e2e' -q -m 'not requires_live'",
@@ -14968,7 +14968,7 @@
         {
           "id": "64.5",
           "name": "CI wiring + nightly runner -- credential-free functional subset added to .github/workflows/e2e-smoke.yml; PM session runs the full local suite nightly with results in the digest.",
-          "status": "pending",
+          "status": "merged",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "64.2",
@@ -14983,7 +14983,8 @@
             "live_check": "live_check_64.5.md with the CI diff and one nightly-run digest permalink"
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "merge_note": "nightly-runner leg -> 64.2; CI leg folded into 64.2 (triage 66.5, operator-approved 2026-07-07)"
         }
       ]
     },
@@ -14999,7 +15000,7 @@
         {
           "id": "65.1",
           "name": "EU zero-trades funnel diagnosis -- per-gate counters (universe 40 -> screener -> price_quality -> calendar -> rank -> order) over a replayed cycle; confirm/refute ranked causes: US-tuned min_avg_volume=100000/min_price=5.0 (backend/tools/screener.py:93-99) vs DAX-40 (universe_lists.py:19-26), price_quality R3, calendar gate; counters become permanent structured-log lines (no behavior change).",
-          "status": "pending",
+          "status": "merged",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,
@@ -15014,7 +15015,8 @@
             "live_check": "live_check_65.1.md with eu_funnel.json verbatim and the per-ticker exclusion table"
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "merge_note": "subsumed by 66.2 funnel criterion (triage 66.5, operator-approved 2026-07-07); per-ticker counter design carries over as 66.2 input"
         },
         {
           "id": "65.2",
@@ -15038,7 +15040,7 @@
         },
         {
           "id": "65.3",
-          "name": "US+KR health baseline -- BQ per-market trade counts, win rate, exit-reason mix, holding-day distribution since 2026-06-01, written to handoff/away_ops/market_health_baseline.md with explicit 'healthy' thresholds for the 65.4 proof.",
+          "name": "(post-66.2) US+KR health baseline -- BQ per-market trade counts, win rate, exit-reason mix, holding-day distribution since 2026-06-01, written to handoff/away_ops/market_health_baseline.md with explicit 'healthy' thresholds for the 65.4 proof.",
           "status": "pending",
           "harness_required": true,
           "priority": "P1",
@@ -15058,7 +15060,7 @@
         },
         {
           "id": "65.4",
-          "name": "Three-market proof (wall-clock-gated, week 3) -- >=1 filled paper trade per market (US, KR, EU) on >=3 distinct trading days each within >=5 trading days after the 65.2 token timestamp; EUR-scale entry prices; no unexplained kill-switch event; judged against the 65.3 thresholds. If the token never arrives: documented blocked-on-token with diagnosis + replay ready, closing one day post-return.",
+          "name": "(post-66.2) Three-market proof (wall-clock-gated, week 3) -- >=1 filled paper trade per market (US, KR, EU) on >=3 distinct trading days each within >=5 trading days after the 65.2 token timestamp; EUR-scale entry prices; no unexplained kill-switch event; judged against the 65.3 thresholds. If the token never arrives: documented blocked-on-token with diagnosis + replay ready, closing one day post-return.",
           "status": "pending",
           "harness_required": true,
           "priority": "P0",
@@ -15155,7 +15157,7 @@
           "status": "pending",
           "harness_required": true,
           "priority": "P1",
-          "depends_on_step": "66.1",
+          "depends_on_step": "66.0",
           "audit_basis": "llm_call_log rows for failed cc_rail calls (ok=false, 0 input/0 output tokens) carry flat session_cost_usd=0.50 via an unpinned writer (claude_code_client._log_cc_call deliberately logs 0; candidates: com.pyfinagent.claude-code-proxy, log_llm_call default); sentinel counted flat-fee Max rail rows as metered -> phantom breaches 06-17 ($16.51) and 06-18 ($42.00) against the $8 baseline.",
           "verification": {
             "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_66_3_cost_truth.py -q",
@@ -15167,7 +15169,8 @@
             "live_check": "live_check_66.3.md with writer file:line, replay output, and the live-day hand-audit comparison"
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "sequencing_note": "operator authorized start-now 2026-07-07 (AskUserQuestion) while 66.1 awaits scheduled-cycle evidence; edge relaxed 66.1 -> 66.0"
         },
         {
           "id": "66.4",

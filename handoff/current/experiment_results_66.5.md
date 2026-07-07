@@ -49,3 +49,14 @@ recorded sign-off + applied edits).
 handoff/current/{research_brief_66.5.md, contract_66.5.md, triage_phase63-65.md,
 experiment_results_66.5.md, live_check_66.5.md, evaluator_critique_66.5.md (Q/A)}.
 NO code, NO masterplan edits, NO plists.
+
+## Follow-up (closing cycle, 2026-07-07 ~08:50 UTC)
+
+Operator sign-off RECORDED via in-session AskUserQuestion (verbatim answers in
+live_check_66.5.md section 2): triage APPROVED, away-plists KEEP ARMED, 66.3
+start-now authorized, setup-token adopted. Criterion 2 executed: 6 drafted edits
+applied exactly (65.1+64.5 -> merged with notes; 64.4 depends -> 66.2; 64.2 name
+absorbs 64.5; 4 re-anchor prefixes) PLUS the operator-authorized 66.3 edge
+relaxation (66.1 -> 66.0, sequencing_note records the authorization). Post-edit
+verification: `[{"s":"merged","n":2},{"s":"pending","n":12}]` -- no deletions, no
+done-flips. Criteria 1+2+3 now all satisfied.

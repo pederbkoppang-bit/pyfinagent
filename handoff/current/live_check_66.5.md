@@ -14,15 +14,22 @@ Verification command output (masterplan untouched):
 [ { "s": "pending", "n": 14 } ]
 ```
 
-## 2. Operator sign-off -- PENDING
+## 2. Operator sign-off -- RECORDED (2026-07-07 ~08:50 UTC, in-session AskUserQuestion)
 
-Awaiting one of:
-- in-session approval (quoted verbatim here by the closing session), or
-- bot-channel token `TRIAGE 63-65: APPROVED` / `TRIAGE 63-65: AMEND <notes>`
-  (recorded to handoff/operator_tokens.jsonl by the 62.2 handler).
+Verbatim answers (operator present, return-day+1 session):
+- Q1 triage: **"Approve (Recommended)"** -- "Sign-off recorded verbatim; the 6
+  drafted masterplan edits are applied; fresh Q/A closes 66.5."
+- Q2 away plists: **"Keep armed (Recommended)"**.
+- (Bundled in the same exchange: 66.3 start-now sequencing **authorized**;
+  `claude setup-token` adoption **approved** -- operator to run it interactively;
+  SETUP-TOKEN ask closes on verification of the new credential.)
 
-Also awaiting the two bundled decisions: Q2 away-plists (recommendation: KEEP
-ARMED), Q3 hook-stall fix promotion (recommendation: YES).
+Criterion 2 executes now: the 6 edits from triage_phase63-65.md applied exactly as
+drafted (see section 3 below).
 
-This section is honestly PENDING; criterion 2's masterplan edits execute in the
-closing cycle immediately after the sign-off lands.
+## 3. Masterplan edits applied (criterion 2)
+
+Applied post-sign-off, verbatim from the triage doc's "Proposed masterplan edits":
+65.1 -> merged (+note); 64.5 -> merged (+note); 64.4 depends_on_step -> "66.2";
+64.2 name += absorbs-64.5; 63.2/63.4/65.3/65.4 re-anchor prefixes; no deletions,
+no done-flips. Post-edit verification output pasted by the closing Q/A.

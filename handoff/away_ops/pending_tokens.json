@@ -1,6 +1,6 @@
 {
-  "updated": "2026-07-07T00:55:00+00:00",
-  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md).",
+  "updated": "2026-07-07T08:50:00+00:00",
+  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md). 2026-07-07: TRIAGE 63-65 APPROVED + away-plists KEEP ARMED + 66.3 start-now authorized + SETUP-TOKEN adopted, all via in-session AskUserQuestion (operator present).",
   "asks": [
     {
       "id": "METERED-BREACH-RECURRING",
@@ -130,7 +130,10 @@
         "SETUP TOKEN: ADOPTED",
         "SETUP TOKEN: DECLINED"
       ],
-      "recommended": "SETUP TOKEN: ADOPTED (a 1-year credential removes the single most damaging failure mode observed to date)"
+      "recommended": "SETUP TOKEN: ADOPTED (a 1-year credential removes the single most damaging failure mode observed to date)",
+      "disposition": "approved_pending_operator_run",
+      "disposition_note": "Operator approved ADOPT via in-session AskUserQuestion 2026-07-07 ~08:50 UTC. Awaiting the interactive `claude setup-token` run on the host; the session then verifies the credential surface and closes this ask.",
+      "disposition_at": "2026-07-07T08:50:00+00:00"
     }
   ]
 }
