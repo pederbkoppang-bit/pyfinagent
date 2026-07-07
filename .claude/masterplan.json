@@ -15112,7 +15112,7 @@
         {
           "id": "66.1",
           "name": "Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + single P1 page on rail-down; degraded-mode fallback policy config-gated default OFF",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "66.0",

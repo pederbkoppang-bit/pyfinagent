@@ -213,3 +213,20 @@ Q/A on the changed evidence (sanctioned cycle-2 flow).
   "checks_run": ["harness_compliance_audit", "verification_command", "code_inspection_criterion1", "mutation_resistance_review", "settings_field_bounds", "latch_logic_inspection", "deduper_p1_bypass_confirmation", "live_slack_readback", "find_spec_broken_module", "import_count_grep", "masterplan_status", "deploy_lstart_reproduction", "runbook_read", "scope_git_stat", "regression_suite_60_4", "criteria_byte_diff", "code_review_heuristics", "llm_judgment"]
 }
 ```
+
+## Closing cycle -- criterion 3 evidence (fresh Q/A spawn, 2026-07-07 ~18:16 UTC)
+
+Sanctioned cycle-2 flow on CHANGED evidence (prior-CONDITIONAL count = 1).
+
+### VERDICT: PASS
+
+(Verbatim from the closing Q/A; full detail in its JSON verdict below.)
+
+- Changed evidence, not verdict-shopping: live_check section 4 PENDING -> SATISFIED (old framing preserved as 4b); Q/A reproduced the BQ evidence independently -- 52 rows at ~18:16 UTC, ALL cycle_id=0725d2aa: 32 ok=true ALL with nonzero tokens (tok_sum=274,539), 20 ok=false (0 tokens).
+- Scheduled provenance (39.1): sole cycle row today, started_at 2026-07-07T18:00:00.125788+00:00 (cron signature), deploy precedes. SATISFIED.
+- status=started ruling: "writes rows" is an existence verb; completion is not in the wording.
+- Regression: immutable command 9 passed EXIT=0 (8 rail-guard + 1 funnel-persistence test).
+- Breaker correctly closed: max ok=false streak tonight = 4 (< 20); LIVE Slack read-back: zero breaker P1s. One NON-breaker P1 observed at 18:01:20 UTC (meta_scorer no-LLM fallback, pre-first-rail-success) -- register item with the transient-failure diagnosis.
+- Register follow-ups (NOTE): transient cc_rail failure rate ~38% (0-token fails, max streak 4) -- concurrency/timeout class, distinct from the credential class; meta_scorer fallback P1 same family.
+
+JSON: {"ok": true, "verdict": "PASS", "violated_criteria": [], "certified_fallback": false, "checks_run": ["harness_compliance_audit", "changed_evidence_confirmation", "verification_command", "bq_reproduction_llm_call_log", "token_nonzero_verification", "cycle_history_provenance", "single_cycle_today_check", "masterplan_criteria_verbatim", "masterplan_status_pending", "test_count_reconciliation", "breaker_streak_analysis", "live_slack_readback_breaker_scan", "code_review_heuristics", "llm_judgment"]}

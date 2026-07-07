@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Funnel zero-trade audit (phase-66.2)](project_funnel_zero_trade_66_2.md) — cash-BUY needs NO swap; rail death=structural all-HOLD; probe-green!=rail-green; n_trades excludes stop-loss sells; loop=bq_sim forever (launchd env); short_market_value SIGNED; DESC drawdown phantom
 - [Cost-truth 66.3](project_cost_truth_66_3.md) — session_cost_usd = CUMULATIVE per-cycle nominal gauge auto-stamped on ALL rows (api_call_log:245); $0.50 = gauge staircase not constant; sentinel SUM bug :67-71; proxy exonerated; read = MAX per cycle_id
 - [Credential-expiry empirics (phase-66.4)](project_credential_expiry_66_4.md) — keychain expiresAt = 8h ACCESS token (refresh expiry invisible -> pre-warning infeasible); auth status = LOCAL presence check; 401 JSON subtype:"success"+api_error_status:401+rc=1; healthcheck tail-1 dedupe re-pages every other run
 - [cc_rail guard audit (phase-66.1)](project_cc_rail_guard_66_1.md) — zero-pages root cause = 4 broken `backend.services.alerting` imports (loop :220/:751/:923/:957, module doesn't exist); probe runs but gates nothing; cc failures = EMPTY LLMResponse not exceptions; P1 bypasses deduper -> caller latch

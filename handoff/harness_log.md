@@ -27164,3 +27164,10 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 - **LESSON:** a gauge column without a unit contract becomes a lie the moment a consumer sums it -- document write-semantics AT the writer, and derive billed figures from primary quantities (tokens), never from convenience fields.
 - **Files:** api_call_log.py, metered_spend.py (NEW), sentinel.sh, test_phase_66_3_cost_truth.py (NEW, 10) + handoff artifacts. Status flip follows this entry.
 - **Next:** 66.1 closes on today's 18:00 UTC cycle evidence -> 66.2 (redeploy capital). Operator items open: TEST TOKEN: PING, setup-token run, WEBHOOK, AUTORESEARCH-SPEND, ENV-LINE-81, FRED.
+
+## Cycle 68-close -- 2026-07-07 -- phase=66.1 result=PASS (closing cycle -- THE RAIL IS BACK)
+
+- **SANCTIONED CYCLE-2:** prior CONDITIONAL (criteria 1/2/4 verified) closed on changed evidence: scheduled cycle 0725d2aa (cron start 18:00:00.125 UTC, sole cycle today, post-deploy) wrote the first ok=true cc_rail rows since 2026-06-14 -- Q/A independently reproduced 32 ok=true rows, ALL nonzero tokens (274,539 total), model claude-sonnet-4-6.
+- **EVALUATE:** ONE fresh Q/A -- **PASS, ok:true**. Existence-verb ruling on status=started; breaker correctly closed (max fail streak 4 < 20; server-side Slack scan: zero breaker P1s); immutable cmd 9 passed.
+- **REGISTER (NOTE):** transient cc_rail failure rate ~38% tonight (0-token fails interleaved with successes; success-reset design held) -- concurrency/timeout diagnosis item, distinct from the credential class; meta_scorer no-LLM-fallback P1 at 18:01:20 UTC (pre-first-rail-success) same family. Live monitor observing the cycle streamed a debate completing consensus=BUY confidence=0.62 at 18:17 UTC -- the full pipeline is live.
+- **Files:** live_check_66.1.md section 4 (evidence), evaluator_critique_66.1.md closing section. Status flip 66.1 pending -> done follows this entry; 66.2's criterion-1 clock STARTS NOW.
