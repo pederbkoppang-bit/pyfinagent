@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `be19b1a0` | phase-66.5: Away-backlog triage (planning-only) -- disposition every phase-63/64/65 step keep/merge/ |
 | 2026-07-07 | `c64408aa` | phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1/64.5 merged, 64.4 repointed, r |
 | 2026-07-07 | `f33e60f7` | chore(away-ops): 2026-07-07 recovery -- commit benign hook/runtime/audit churn |
 | 2026-07-07 | `5fddca93` | chore(harness): Cycle 70 log -- 66.5 CONDITIONAL (triage delivered, sign-off pending) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-06 | `41f4185d` | chore(away-ops): return-day recovery -- 3-week backlog sweep (34x 401 sessions 2026-06-20..07-06) +  |
 | 2026-06-19 | `7be476b3` | chore(away-ops): recovery -- benign churn sweep + rail-4 metered-breach recurrence P1 (2026-06-19 AM |
 | 2026-06-18 | `fc17023b` | chore(away-ops): recovery -- 3-day benign churn sweep + rail-4 metered-breach P1 (2026-06-18 AM) |
-| 2026-06-15 | `0387bd03` | chore(away-ops): session_notes Cycle 66 -- 61.1 PASS + handoff-convention note |
 
 ---
 
+### v6.54.6 — phase-66.5: Away-backlog triage (planning-only) -- disposition every... (2026-07-07)
+
+- **phase-66.5: Away-backlog triage (planning-only) -- disposition every phase-63/64/65 step keep/merge/**
 ### v6.54.5 — phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1... (2026-07-07)
 
 - **phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1/64.5 merged, 64.4 repointed, r**
