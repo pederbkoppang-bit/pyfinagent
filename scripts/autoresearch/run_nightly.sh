@@ -31,10 +31,12 @@ fi
 . "$REPO/.venv/bin/activate"
 
 echo "[$(date -Iseconds)] START nightly autoresearch" >> "$LOG"
-# phase-62.6 (goal-away-ops): --preflight-only keeps the nightly at $0 during
-# the away window (deps now installed; a full run would spend on Anthropic
-# nightly). Remove the flag on the operator token 'AUTORESEARCH SPEND: RESUME'.
-if python "$REPO/scripts/autoresearch/run_memo.py" --preflight-only >> "$LOG" 2>&1; then
+# phase-62.6 kept this at $0 (--preflight-only) through the away window.
+# 2026-07-07: operator RESUMED real nightly spend (in-session AskUserQuestion,
+# the AUTORESEARCH SPEND: RESUME decision) -- flag removed; the sentinel's
+# token-derived metered figure (66.3) makes the spend honestly visible.
+# Scheduled-run evidence: tonight's cron is the proof (39.1 doctrine).
+if python "$REPO/scripts/autoresearch/run_memo.py" >> "$LOG" 2>&1; then
     echo "[$(date -Iseconds)] END nightly autoresearch OK" >> "$LOG"
 else
     rc=$?

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-07T08:50:00+00:00",
+  "updated": "2026-07-07T15:58:00+00:00",
   "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md). 2026-07-07: TRIAGE 63-65 APPROVED + away-plists KEEP ARMED + 66.3 start-now authorized + SETUP-TOKEN adopted, all via in-session AskUserQuestion (operator present).",
   "asks": [
     {
@@ -87,9 +87,9 @@
         "WEBHOOK: SKIP"
       ],
       "recommended": "WEBHOOK: SKIP (bot-token fallback is live-proven; do on return)",
-      "disposition": "open_operator_gated",
-      "disposition_note": "Re-asked return-day 2026-07-06: CONFIGURED or SKIP (bot-token path remains live-proven).",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
+      "disposition": "resolved",
+      "disposition_note": "Operator chose SKIP PERMANENTLY (in-session AskUserQuestion 2026-07-07 ~15:57 UTC). Bot-token path is the sole page channel; dead webhook branches noted for the 63.3 register scope.",
+      "disposition_at": "2026-07-07T15:58:00+00:00"
     },
     {
       "id": "AUTORESEARCH-SPEND",
@@ -102,9 +102,9 @@
         "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY"
       ],
       "recommended": "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY (consistent with $0; resume on return)",
-      "disposition": "open_operator_gated",
-      "disposition_note": "Re-asked return-day 2026-07-06: RESUME or keep $0 preflight-only.",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
+      "disposition": "resolved",
+      "disposition_note": "Operator chose RESUME NIGHTLY SPEND (in-session AskUserQuestion 2026-07-07 ~15:57 UTC). --preflight-only removed from run_nightly.sh same session; tonight's scheduled cron run is the evidence (39.1 doctrine); spend visible via the 66.3 token-derived sentinel figure.",
+      "disposition_at": "2026-07-07T15:58:00+00:00"
     },
     {
       "id": "ENV-LINE-81",
