@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `9fee2422` | phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes ok=true cc_rail rows (first sinc |
 | 2026-07-07 | `4adf7e3b` | feat(observability): phase-66.2 -- persist per-stage funnel counts (universe/screened/candidates/ana |
 | 2026-07-07 | `de93e3f5` | phase-66.2 prep: live_check -- criteria 3+4 CLOSED (Alpaca shorts = d4-* drill orders on disconnecte |
 | 2026-07-07 | `9262ed36` | fix(alerting): drawdown alarm DESC-order trap -- phantom -61.51% P1 on a book UP 20% |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `fa2ef0f0` | feat(away-ops): phase-66.4 credential-expiry resilience -- auth probe + page-once latch + wrapper pr |
 | 2026-07-07 | `65eedc29` | chore(harness): Cycle 68 log -- 66.1 CONDITIONAL (criteria 1/2/4 verified, criterion 3 wall-clock-ga |
 | 2026-07-07 | `0545fda5` | phase-66.1: experiment results + live_check (criteria 1/2/4 evidence; criterion 3 pending 07-07 sche |
-| 2026-07-07 | `27d40df5` | fix(rail): phase-66.1 cc_rail guard -- probe gate + circuit breaker + single P1 page; repair the fou |
 
 ---
 
+### v6.55.1 — phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes o... (2026-07-07)
+
+- **phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes ok=true cc_rail rows (first sinc**
 ### v6.55.0 — feat(observability): phase-66.2 -- persist per-stage funnel counts (u... (2026-07-07)
 
 - **feat(observability): phase-66.2 -- persist per-stage funnel counts (universe/screened/candidates/ana**
