@@ -15154,7 +15154,7 @@
         {
           "id": "66.3",
           "name": "Cost-truth restoration -- pin+fix the phantom $0.50 failure-cost writer; sentinel metered figure means dollars actually billed; failure counts become their own signal",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "66.0",

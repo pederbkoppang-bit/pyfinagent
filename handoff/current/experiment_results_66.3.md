@@ -28,7 +28,7 @@
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/test_phase_66_3_cost_truth.py -q
 ...........                                                              [100%]
-11 passed
+10 passed
 ```
 Regression: 66_3 + test_phase_62_4_sentinel.py + test_observability.py together:
 `32 passed, 1 warning in 18.44s`. `bash -n sentinel.sh` clean.
@@ -63,4 +63,4 @@ Regression: 66_3 + test_phase_62_4_sentinel.py + test_observability.py together:
 
 api_call_log.py (guard), scripts/away_ops/metered_spend.py (NEW),
 scripts/away_ops/sentinel.sh (metered block + field), backend/tests/
-test_phase_66_3_cost_truth.py (NEW, 11) + handoff artifacts.
+test_phase_66_3_cost_truth.py (NEW, 10) + handoff artifacts.

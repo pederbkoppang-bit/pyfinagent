@@ -62,6 +62,6 @@ Full sentinel run (live, post-change):
 
 ```
 $ python -m pytest backend/tests/test_phase_66_3_cost_truth.py -q
-11 passed
+10 passed
 ```
 (within the combined run: 66_3 + 62_4 sentinel + observability = 32 passed.)
