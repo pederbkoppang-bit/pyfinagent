@@ -15149,7 +15149,8 @@
             "live_check": "live_check_66.2.md with the BUY BQ row or the 5-day funnel diagnosis, plus both integrity-check verdicts"
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "sequencing_note": "Operator authorized PREP start 2026-07-07 ~15:57 UTC (in-session AskUserQuestion) while 66.1 awaits the 18:00 UTC scheduled-cycle evidence: research gate + contract + funnel-diagnosis tooling + the two read-only integrity investigations only. NO trading-behavior change; the >=5-healthy-rail-trading-day BUY/no-BUY evidence clock starts ONLY after 66.1 closes."
         },
         {
           "id": "66.3",
