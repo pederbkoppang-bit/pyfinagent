@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `1e751a56` | chore(ops): operator decisions 2026-07-07 -- autoresearch nightly spend RESUMED (--preflight-only re |
 | 2026-07-07 | `0a512c5f` | phase-66.3: Cost-truth restoration -- pin+fix the phantom failure-cost writer; sentinel metered figu |
 | 2026-07-07 | `c4f91bdd` | fix(cost): phase-66.3 cost-truth -- gauge-guard on failed 0-token rows + token-derived sentinel mete |
 | 2026-07-07 | `be19b1a0` | phase-66.5: Away-backlog triage (planning-only) -- disposition every phase-63/64/65 step keep/merge/ |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-06 | `4df3c73f` | phase-66.0: experiment results + live_check evidence |
 | 2026-07-06 | `576fdb13` | phase-66.0: research brief + contract + pending_tokens return-day disposition (8/8 asks) |
 | 2026-07-06 | `68909af1` | feat(goal): install goal-phase66-reactivation -- masterplan phase-66 (6 steps) + active_goal refresh |
-| 2026-07-06 | `41f4185d` | chore(away-ops): return-day recovery -- 3-week backlog sweep (34x 401 sessions 2026-06-20..07-06) +  |
 
 ---
 
