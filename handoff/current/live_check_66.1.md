@@ -50,7 +50,34 @@ skips + 1 page. The probe-gate no-double-page path is unit-covered
   running process holds the deployed guard code.
 - `curl http://localhost:8000/docs` -> HTTP 200.
 
-## 4. Post-deploy scheduled-cycle BQ rows (criterion 3) -- PENDING, wall-clock-gated
+## 4. Post-deploy scheduled-cycle BQ rows (criterion 3) -- SATISFIED 2026-07-07
+
+Scheduled cycle `0725d2aa` fired by the scheduler at exactly 18:00:00.125 UTC
+(cycle_history row below; not a manual run). BQ `pyfinagent_data.llm_call_log`,
+queried 18:12 UTC (cycle still running):
+
+```
+2026-07-07 18:02:45+00 | cc_rail | claude-sonnet-4-6 | ok=True  | in=3863 out=3274 | cycle=0725d2aa
+2026-07-07 18:04:49+00 | cc_rail | claude-sonnet-4-6 | ok=True  | in=3370 out=1692 | cycle=0725d2aa
+2026-07-07 18:06:21+00 | cc_rail | claude-sonnet-4-6 | ok=True  | in=5218 out=2069 | cycle=0725d2aa
+2026-07-07 18:06:32+00 | cc_rail | claude-sonnet-4-6 | ok=True  | in=5195 out=2897 | cycle=0725d2aa
+... (12 of 37 shown)
+TOTAL at 18:12 UTC: 37 rows, ok=26, fail=11
+```
+
+```
+{"cycle_id": "0725d2aa", "started_at": "2026-07-07T18:00:00.125788+00:00", ..., "status": "started", ...}
+```
+
+First ok=true rail rows since 2026-06-14. NOTE (register, non-blocking): 11
+ok=false rows (0 tokens) interleave with successes -- transient CLI failures at
+~30% rate; the guard's success-reset design correctly kept the breaker closed
+(never >=20 consecutive); transient-failure cause (concurrency/timeout) is a
+follow-up diagnosis item, distinct from the credential outage class.
+The launchd-context prediction (research_brief_66.2.md section 8) did NOT fire:
+the credential works in the backend process context.
+
+## 4b. Original PENDING framing (superseded by section 4 above)
 
 The next SCHEDULED trading cycle is 2026-07-07 18:00 UTC (cycles run mon-fri 18:00;
 manual runs do not count per the 39.1 scheduled-evidence lesson). The credential is
