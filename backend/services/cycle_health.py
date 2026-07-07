@@ -301,6 +301,7 @@ class CycleHealthLog:
         meta_scorer_degraded: bool = False,
         rail_skipped: bool = False,
         breaker_tripped: bool = False,
+        funnel: Optional[dict] = None,
     ) -> None:
         completed_at = _now_iso()
         dur_ms: Optional[int] = None
@@ -326,6 +327,10 @@ class CycleHealthLog:
             # "Claude rail skipped/tripped" from "gates rejected candidates".
             "rail_skipped": bool(rail_skipped),
             "breaker_tripped": bool(breaker_tripped),
+            # phase-66.2: per-stage funnel counts (universe/screened/candidates/
+            # new_to_analyze/reeval) -- previously summary-only (log-parse to
+            # recover); persisting them makes criterion-b diagnosis durable.
+            "funnel": funnel or {},
         }
         with self._lock:
             try:

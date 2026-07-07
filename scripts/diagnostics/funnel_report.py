@@ -72,6 +72,8 @@ def load_cycles(start: str, end: str) -> dict[str, dict]:
             "scorer_degraded": r.get("meta_scorer_degraded"),
             "rail_skipped": r.get("rail_skipped"),
             "breaker_tripped": r.get("breaker_tripped"),
+            # phase-66.2: persisted per-stage counts (cycles from 07-07 on)
+            "funnel": r.get("funnel") or {},
         }
     return out
 
@@ -164,14 +166,20 @@ def main() -> int:
     days = sorted(set(cycles) | set(rail) | set(analyses) | set(signals) | set(trades))
 
     print(f"# BUY-funnel report {a.start}..{a.end} (read-only; phase-66.2)\n")
-    print("| day | cycle | rail ok/fail | rail_skip | breaker | analyses (deg) | rec mix | non-HOLD | signals B/S/hb | trades (by reason) | verdict |")
-    print("|---|---|---|---|---|---|---|---|---|---|---|")
+    print("| day | cycle | funnel u/s/c/a | rail ok/fail | rail_skip | breaker | analyses (deg) | rec mix | non-HOLD | signals B/S/hb | trades (by reason) | verdict |")
+    print("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for d in days:
         cy, an, rl, sg, tr = cycles.get(d), analyses.get(d), rail.get(d), signals.get(d), trades.get(d)
         recs = " ".join(f"{k}:{v}" for k, v in sorted((an or {}).get("recs", {}).items())) or "-"
         tr_s = " ".join(f"{k}={v}" for k, v in sorted((tr or {}).items()) if not k.startswith("mkt:")) or "-"
+        fn = (cy or {}).get("funnel") or {}
+        fn_s = (
+            f"{fn.get('universe_size', '?')}/{fn.get('screened', '?')}/"
+            f"{fn.get('candidates', '?')}/{fn.get('new_to_analyze', '?')}"
+            if fn else "-"
+        )
         print(
-            f"| {d} | {cy['cycle_id'] if cy else '-'} "
+            f"| {d} | {cy['cycle_id'] if cy else '-'} | {fn_s} "
             f"| {rl['rail_ok'] if rl else 0}/{rl['rail_fail'] if rl else 0} "
             f"| {(cy or {}).get('rail_skipped', '-')} | {(cy or {}).get('breaker_tripped', '-')} "
             f"| {an['n'] if an else 0} ({an['degraded'] if an else 0}) | {recs} "

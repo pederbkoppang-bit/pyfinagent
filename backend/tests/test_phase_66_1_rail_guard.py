@@ -201,3 +201,21 @@ def test_rail_guard_cycle_history_row_carries_flags(tmp_path, monkeypatch):
 
     row = json.loads((tmp_path / "cycle_history.jsonl").read_text().splitlines()[-1])
     assert row["rail_skipped"] is True and row["breaker_tripped"] is True
+    assert row["funnel"] == {}  # phase-66.2: field present, defaults empty
+
+
+def test_cycle_history_row_carries_funnel_counts(tmp_path, monkeypatch):
+    """phase-66.2: per-stage funnel counts persist per cycle."""
+    import backend.services.cycle_health as ch
+
+    monkeypatch.setattr(ch, "_HISTORY_PATH", tmp_path / "cycle_history.jsonl")
+    ch.CycleHealthLog().record_cycle_end(
+        cycle_id="c2", started_at="2026-07-07T18:00:00+00:00", status="completed",
+        funnel={"universe_size": 550, "screened": 41, "candidates": 10,
+                "new_to_analyze": 5, "reeval_tickers": 0},
+    )
+    import json
+
+    row = json.loads((tmp_path / "cycle_history.jsonl").read_text().splitlines()[-1])
+    assert row["funnel"]["screened"] == 41
+    assert row["funnel"]["new_to_analyze"] == 5

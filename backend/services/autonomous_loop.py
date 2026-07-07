@@ -1421,6 +1421,17 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     summary["rail_skipped_calls"] = _rg.get("skipped_calls")
             except Exception:
                 pass
+            # phase-66.2: persist the per-stage funnel counts that previously
+            # lived only in the in-memory summary + backend.log lines (the
+            # criterion-b diagnosis needs durable per-cycle stage counts).
+            _funnel = {
+                k: summary.get(k)
+                for k in (
+                    "universe_source", "universe_size", "screened",
+                    "candidates", "new_to_analyze", "reeval_tickers",
+                )
+                if summary.get(k) is not None
+            }
             _cycle_log().record_cycle_end(
                 cycle_id=_cycle_id,
                 started_at=_cycle_started_at,
@@ -1432,6 +1443,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 meta_scorer_degraded=bool(summary.get("meta_scorer_degraded")),
                 rail_skipped=_rail_skipped,
                 breaker_tripped=_breaker_tripped,
+                funnel=_funnel,
             )
         except Exception as _e:
             logger.warning(f"cycle_health record_cycle_end failed: {_e}")
