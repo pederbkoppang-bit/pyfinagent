@@ -181,3 +181,129 @@ Research-gate compliance: PASS (see audit item 1).
   ]
 }
 ```
+
+## Closing cycle (Cycle 71)
+
+Q/A single-agent verdict, fresh spawn on CHANGED evidence (sanctioned
+cycle-2 flow), 2026-07-07. Prior-CONDITIONAL count for 66.5 = 1 (Cycle 70,
+harness_log.md:27140; the "Cycle 71" grep hits at lines 4227/17368/23809 are
+old-epoch entries). 3rd-CONDITIONAL rule not in play.
+
+## VERDICT: PASS
+
+All three immutable criteria are now satisfied. Evidence changed between
+spawns via commit c64408aa (sign-off recorded + 6 edits applied), so the
+verdict change from CONDITIONAL is the documented cycle-2 flow, not
+sycophancy (simultaneous-presentation rule applied: prior verdict, updated
+results, updated live_check, and the c64408aa diff read in one pass).
+
+### Compliance quick-audit
+
+1. Changed evidence confirmed: live_check_66.5.md section 2 records the
+   operator sign-off verbatim (in-session AskUserQuestion ~08:50 UTC:
+   triage "Approve (Recommended)", plists "Keep armed (Recommended)",
+   66.3 start-now authorized, setup-token adopted).
+   experiment_results_66.5.md:53-62 carries the Follow-up section. Not
+   verdict-shopping.
+2. Log-last respected: no `Cycle 71 -- 2026-07-07 -- phase=66.5` entry in
+   harness_log.md at evaluation time.
+
+### Deterministic checks (closing)
+
+a. Immutable command re-run verbatim by Q/A: exit 0, output
+   `[ { "s": "merged", "n": 2 }, { "s": "pending", "n": 12 } ]` --
+   exactly 2 merged + 12 pending as required. Byte-matches the Follow-up
+   section's claim.
+
+b. Criterion 2 -- all 6 drafted edits (triage_phase63-65.md:33-40) applied
+   exactly, verified against the c64408aa masterplan diff:
+   (1) 65.1 status=merged, merge_note "subsumed by 66.2 funnel criterion
+   (triage 66.5, operator-approved 2026-07-07); per-ticker counter design
+   carries over as 66.2 input" -- references subsumption + approval; the
+   carry-over clause is lifted verbatim from the approved table row 65.1.
+   (2) 64.5 status=merged, merge_note "nightly-runner leg -> 64.2; CI leg
+   folded into 64.2 (triage 66.5, operator-approved 2026-07-07)".
+   (3) 64.4 depends_on_step "65.1" -> "66.2".
+   (4) 64.2 name contains "absorbs 64.5 (CI wiring + nightly execution)".
+   (5) 63.2/63.4/65.3/65.4 names prefixed "(post-66.2)"; the diff shows
+   name-field-only hunks, zero verification-block lines changed.
+   (6) 14 step ids still present (jq dump: 5+5+4), statuses only
+   merged(2)/pending(12), no done-flips, no deletions.
+   The merge_notes are supersets of the drafted one-liners: additions are
+   operator-approval provenance + the approved table row's carry-over
+   clause. Enrichment from the same approved document, not deviation.
+
+   66.3 additional edit RULING: ACCEPTABLE inside the 66.5 closing commit.
+   depends_on_step "66.1" -> "66.0" + sequencing_note ("operator authorized
+   start-now 2026-07-07 (AskUserQuestion); edge relaxed 66.1 -> 66.0") are
+   sequencing metadata, NOT verification criteria -- the c64408aa diff
+   shows 66.3's verification block (command/success_criteria/live_check)
+   untouched. Authorization is from the same operator exchange, disclosed
+   in the commit subject ("+ 66.3 edge authorized"), in live_check section
+   2, and in the note itself. Not build work, so criterion 3 is unharmed.
+   Fully traceable; bundling is honest.
+
+c. Criterion 3 -- ordering + scope: sign-off recorded ~08:50 UTC; the edit
+   commit c64408aa lands 09:20 UTC (11:20:16 +0200) and is the FIRST
+   masterplan-touching commit since bd8aaffe (phase-66.4, pre-66.5) --
+   edits took effect strictly AFTER sign-off. c64408aa touches exactly 4
+   files: .claude/masterplan.json, handoff/away_ops/pending_tokens.json,
+   handoff/current/{experiment_results,live_check}_66.5.md. No code, no
+   plists, no build work. Interleaved f33e60f7 is away-ops churn (66.4
+   archive snapshots, audit JSONL, heartbeat, session notes -- no code).
+   pending_tokens.json diff is same-exchange bookkeeping (SETUP-TOKEN ask
+   dispositioned "approved_pending_operator_run"); secret-in-diff scan
+   clean (reply strings are ask tokens, not credentials).
+
+d. Criteria integrity: masterplan 66.5 verification.success_criteria are
+   byte-identical (modulo line wrap) to contract_66.5.md:40-46; command
+   and live_check spec match verbatim; the c64408aa diff contains zero
+   hunks inside ANY verification block across all edited steps.
+
+e. 66.x isolation: the only phase-66 hunks in c64408aa are 66.3's
+   depends_on_step + sequencing_note. 66.0/66.1/66.2/66.4/66.5 step
+   objects unmodified. Post-state: 66.0 done, 66.1 pending(dep 66.0),
+   66.2 pending(dep 66.1), 66.3 pending(dep 66.0), 66.4 done.
+
+Frontend gate (1b): N/A (no frontend/** in range). Live-UI gate (1c): N/A
+(no UI claims; the step's own live_check spec is sign-off-shaped).
+Code-review heuristics: all 5 dimensions on a markdown+JSON-metadata diff;
+no heuristic fired.
+
+### Non-blocking NOTEs
+
+1. Cosmetic ". ;" double separator in the 64.2 name (period retained
+   before the appended clause). Fix opportunistically on the next
+   legitimate 64.2 edit; do not commit for this alone.
+2. Cycle-70 blocker 4 carries forward: when seeding 63.3's defect
+   register, use the measured 64 INVOKED (2026-07-06Z), not "12".
+
+### JSON verdict (closing)
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 3 immutable criteria met. C1: 14/14 dispositions with rationale (verified Cycle 70; triage file unchanged since 57e2b477). C2: masterplan reflects dispositions without deleting history -- 6 drafted edits applied exactly (2 merged+notes, 1 repoint, 1 name-absorb, 4 re-anchor prefixes, 0 deletions/done-flips); immutable cmd exit=0 -> 2 merged + 12 pending. C3: operator sign-off recorded verbatim in live_check section 2 BEFORE the first masterplan-touching commit (bd8aaffe -> c64408aa gap); closing commit scope = masterplan + handoff artifacts + pending_tokens only, no build work. 66.3 edge relaxation ruled acceptable: sequencing metadata only, same-exchange authorization, verification blocks untouched, disclosed in commit subject.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "changed_evidence_confirmation",
+    "log_last_check",
+    "prior_conditional_count",
+    "verification_command_verbatim_rerun",
+    "six_edit_exactness_vs_c64408aa_diff",
+    "step_id_census_14",
+    "no_done_flip_no_deletion",
+    "66.3_edge_authorization_ruling",
+    "signoff_before_edit_ordering",
+    "closing_commit_scope_stat",
+    "interleaved_commit_scope_stat",
+    "secret_in_diff_scan",
+    "criteria_integrity_byte_compare",
+    "66x_isolation_diff_check",
+    "code_review_heuristics"
+  ]
+}
+```

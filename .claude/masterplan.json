@@ -15195,7 +15195,7 @@
         {
           "id": "66.5",
           "name": "Away-backlog triage (planning-only) -- disposition every phase-63/64/65 step keep/merge/drop with rationale; operator sign-off before masterplan edits",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "66.0",
