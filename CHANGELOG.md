@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `c1e6050b` | phase-66.2 prep: research brief + contract + read-only funnel_report.py (operator-authorized pre-66. |
 | 2026-07-07 | `1e751a56` | chore(ops): operator decisions 2026-07-07 -- autoresearch nightly spend RESUMED (--preflight-only re |
 | 2026-07-07 | `0a512c5f` | phase-66.3: Cost-truth restoration -- pin+fix the phantom failure-cost writer; sentinel metered figu |
 | 2026-07-07 | `c4f91bdd` | fix(cost): phase-66.3 cost-truth -- gauge-guard on failed 0-token rows + token-derived sentinel mete |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-06 | `27d27252` | phase-66.0: Recovery re-baseline -- backlog swept+pushed, pending_tokens re-dispositioned with METER |
 | 2026-07-06 | `4df3c73f` | phase-66.0: experiment results + live_check evidence |
 | 2026-07-06 | `576fdb13` | phase-66.0: research brief + contract + pending_tokens return-day disposition (8/8 asks) |
-| 2026-07-06 | `68909af1` | feat(goal): install goal-phase66-reactivation -- masterplan phase-66 (6 steps) + active_goal refresh |
 
 ---
 
+### v6.54.9 — phase-66.2 prep: research brief + contract + read-only funnel_report.... (2026-07-07)
+
+- **phase-66.2 prep: research brief + contract + read-only funnel_report.py (operator-authorized pre-66.**
 ### v6.54.8 — phase-66.3: Cost-truth restoration -- pin+fix the phantom failure-cos... (2026-07-07)
 
 - **phase-66.3: Cost-truth restoration -- pin+fix the phantom failure-cost writer; sentinel metered figu**
