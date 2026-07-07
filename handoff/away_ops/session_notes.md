@@ -402,3 +402,70 @@ pending_tokens asks (FABLE-HEADLESS, SDK-CREDIT, MAS-PLIST-ZOMBIE, WEBHOOK,
 AUTORESEARCH-SPEND, ENV-LINE-81); (5) next AM masterplan step is 61.2. A residual
 self-referential `pre_tool_use_audit.jsonl` line from this session's final git calls is
 harmless and swept next session.
+
+## Recovery -- 2026-07-07 (AM)
+
+**Trigger.** The AM session started `2026-07-07T05:30:02Z`, detected a dirty tree on
+startup, and routed to the recovery prompt (`session.log`: `[2026-07-07T05:30:07Z] [am]
+dirty tree detected (non-evidence paths) -- recovery prompt selected`). `git pull --rebase`
+failed on the unstaged changes -> OFFLINE MODE (work local; push retried by hooks/next
+session).
+
+**Root cause of the accumulation -- CREDENTIAL DEATH (401), not benign churn.** The
+`2026-07-06T22:57:52Z` PM session crashed rc1 with a 401 in the session JSON
+(`session.log`: `[2026-07-06T22:57:55Z] [pm] AUTH-DEAD -- 401 in session JSON (credential
+expired/corrupted)`). The wrapper paged once, opened the AUTH-DEAD latch, and every
+subsequent PM session probed-and-skipped (`END session result=auth-dead-skip`). This matches
+the return-day memory (`away window died on one expired OAuth token`). The credential expiry
+is the P0 the operator owns -- OUT of recovery scope (no `.env`/auth action a dev session may
+take). Recovery's only job is the dirty tree; the credential re-auth is the operator's.
+
+**What was found (7 dirty paths), all category-(a)/(c) hook/runtime/audit/session artifacts
+-- NO unattributable category-(b) file, NO half-finished masterplan step:**
+
+| File | Class | Disposition |
+|------|-------|-------------|
+| `.claude/.archive-baseline.json` (+`"66.4"`) | archive-handoff hook artifact (66.4->66.5 transition) | committed |
+| `.claude/scheduled_tasks.lock` (session/pid rewrite) | runtime lock (Mon Jul 6 21:12 backend proc) | committed |
+| `handoff/.cycle_heartbeat.json` (1-line overwrite) | runtime heartbeat (cycle c1 end 07-06T23:12Z) | committed |
+| `handoff/audit/instructions_loaded_audit.jsonl` (+3) | audit append-only | committed |
+| `handoff/audit/pre_tool_use_audit.jsonl` (+109, all verdict=allow; 66.4/66.5 work + this session's early calls) | audit append-only | committed |
+| `handoff/archive/phase-66.4/` (untracked; contract+results+critique+brief) | archive-handoff hook snapshot of the DONE 66.4 step | committed |
+
+**Left untracked (intentionally NOT committed):**
+- `handoff/away_ops/session_am_20260707T053007Z.json` -- THIS session's live output, still
+  0 bytes (the wrapper writes it after exit). Committing an empty artifact just re-dirties
+  the next session; honest to leave it (same call as prior AM recoveries).
+
+**Classification verdict.** All 66.4/66.5 WORK is already committed: `66.4` is `status:done`
+(five files committed, hook-archived to `handoff/archive/phase-66.4/`); `66.5` is
+`status:pending` **because its Q/A verdict is CONDITIONAL awaiting operator sign-off** on the
+14-row backlog triage -- but its full five-file protocol AND the Cycle 70 harness-log append
+are committed (HEAD `5fddca93`/`fe1e9b8b`). CONDITIONAL-pending-sign-off is an operator-hold
+state, NOT an unfinished session step, so recovery does not flip it. `handoff/current/` holds
+only committed step files. **No `chore(away-wip)` checkpoint was needed** -- nothing
+half-built. `pending_tokens.json` was NOT modified: every dirty path is benign and
+attributable, so no new operator ask is warranted (the credential incident is already
+surfaced via `session.log` + the standing `SDK-CREDIT`/`SETUP-TOKEN` asks + the phase-66
+reactivation draft).
+
+**What was done.** Staged + committed the 5 tracked benign paths + the untracked
+`handoff/archive/phase-66.4/` snapshot + this recovery note in a single truthful
+`chore(away-ops)` recovery commit; pushed to `origin/main` (manual, since a `chore:` commit
+does not trigger the masterplan auto-push hook). **No `git checkout/restore/stash`** (rail
+3). No `.env`, code, masterplan, or trading-behavior file touched (rails 2/6). Main-only, no
+force-push (rail 3). $0 metered -- git/python-json/grep only, LLM-free (rail 4). launchctl
+untouched (rail 9). No subagents (researcher/qa fable pins unavailable headless; recovery is
+Main-only, no GENERATE/EVALUATE). No HALT-DEV; no new operator token in
+`operator_tokens.jsonl`.
+
+**What remains (all owned by the regular cadence / operator, NOT recovery).** Tree is clean;
+this session does NOT start a masterplan step. Open items: **(P0, operator) re-auth the
+expired OAuth credential that killed the 07-06 PM window** -- until then AM/PM sessions
+probe-and-skip; (1) operator sign-off on the 66.5 CONDITIONAL 14-row backlog triage; (2)
+next AM masterplan step is 66.1 (`pending`); (3) standing pending_tokens asks
+(METERED-BREACH-RECURRING, TEST-TOKEN-62.2, FABLE-HEADLESS, SDK-CREDIT, MAS-PLIST-ZOMBIE,
+WEBHOOK, AUTORESEARCH-SPEND, ENV-LINE-81, SETUP-TOKEN); (4) portfolio all-cash since 07-03
+(kill-switch state per return-day memory). A residual self-referential
+`pre_tool_use_audit.jsonl` line from this session's final git calls is harmless and swept
+next session.
