@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-07 | `3be16145` | phase-66.1: Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + sin |
 | 2026-07-07 | `9fee2422` | phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes ok=true cc_rail rows (first sinc |
 | 2026-07-07 | `4adf7e3b` | feat(observability): phase-66.2 -- persist per-stage funnel counts (universe/screened/candidates/ana |
 | 2026-07-07 | `de93e3f5` | phase-66.2 prep: live_check -- criteria 3+4 CLOSED (Alpaca shorts = d4-* drill orders on disconnecte |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `bd8aaffe` | phase-66.4: Credential-expiry resilience -- daily auth probe in healthcheck with single deduped P1 p |
 | 2026-07-07 | `fa2ef0f0` | feat(away-ops): phase-66.4 credential-expiry resilience -- auth probe + page-once latch + wrapper pr |
 | 2026-07-07 | `65eedc29` | chore(harness): Cycle 68 log -- 66.1 CONDITIONAL (criteria 1/2/4 verified, criterion 3 wall-clock-ga |
-| 2026-07-07 | `0545fda5` | phase-66.1: experiment results + live_check (criteria 1/2/4 evidence; criterion 3 pending 07-07 sche |
 
 ---
 
+### v6.55.2 — phase-66.1: Restore the decision path -- pre-cycle cc_rail health-pro... (2026-07-07)
+
+- **phase-66.1: Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + sin**
 ### v6.55.1 — phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes o... (2026-07-07)
 
 - **phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes ok=true cc_rail rows (first sinc**
