@@ -62,11 +62,42 @@ def compute_drawdown_from_snapshots(snapshots: Iterable[dict]) -> float | None:
     or all rows have NAV<=0. A return of 0.0 means current NAV equals
     or exceeds the all-time peak (no drawdown).
     """
-    navs: list[float] = []
+    # phase-66.2 hotfix (2026-07-07): "current" was navs[-1], which assumes
+    # ASC order -- but the production caller feeds get_paper_snapshots(),
+    # which is ORDER BY snapshot_date DESC (bigquery_client.py:1042), so the
+    # OLDEST row in the window was treated as current NAV. On 2026-07-06 this
+    # paged a phantom "-61.51% drawdown" P1 against a book UP 20% (the
+    # phase-47.4 DESC-trap class). Fix: order by the snapshot's own date key
+    # when present; refuse to guess (return None) when no date key exists
+    # and the sequence order is therefore unknowable.
+    dated: list[tuple] = []
+    undated_navs: list[float] = []
     for s in snapshots or []:
         nav = _snapshot_nav(s) if isinstance(s, dict) else None
-        if nav is not None:
-            navs.append(nav)
+        if nav is None:
+            continue
+        ts = None
+        for key in ("snapshot_date", "date", "created_at", "updated_at", "ts"):
+            v = s.get(key)
+            if v is not None:
+                ts = str(v)
+                break
+        if ts is not None:
+            dated.append((ts, nav))
+        else:
+            undated_navs.append(nav)
+
+    if dated:
+        dated.sort()  # ISO strings sort chronologically
+        navs = [nav for _, nav in dated]
+    else:
+        navs = undated_navs
+        if len(navs) >= 2:
+            logger.warning(
+                "drawdown: snapshots carry no date key; order unknowable -- "
+                "refusing to compute (fail-safe, no alarm)"
+            )
+            return None
 
     if len(navs) < 2:
         return None
