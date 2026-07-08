@@ -149,6 +149,17 @@ Clock stands at DAY 0 pending tonight's cycle.
 
 ### 5d. NEW live degradation: direct-API Anthropic credits dead since ~07-03
 
+CORRECTION (2026-07-08 ~09:35 UTC, BQ-verified): the death is FAR older than
+~07-03. Last GENUINE direct-API success = 2026-05-17 (51-52 real calls
+05-16/17 with real token counts). Every "ok" non-rail anthropic row since
+06-01 (30 rows) is a TEST FIXTURE (identical 1000/50/123.4 signature; writer:
+backend/tests/test_observability.py:230 -- tests pollute the prod table,
+register item). Direct-API failures are never written to llm_call_log at all,
+and the conviction-overlay alert site was one of the four dead alerting.py
+imports until 66.1 (07-07) -- three independent blinders explain ~7 weeks of
+invisible fallback. The 61.2 criterion-4 "06-03..06-10 unavailability" window
+is subsumed: it is one continuous credit-death span since ~2026-05-18.
+
 'credit balance is too low' on the DIRECT Anthropic SDK (not the rail, not the
 Max plan): meta_scorer (meta_scorer.py:168-190, fires once per cycle at Step 1)
 falls back to raw composite ranking every cycle; compute_macro_regime's LLM leg
