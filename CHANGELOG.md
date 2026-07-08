@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `d6158cc7` | phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades resolves the nested risk_assessme |
 | 2026-07-08 | `b09115d0` | phase-66.2: day-2 scheduled-cycle evidence (9a8720b3) -- zero BUYs, rail 65.4% (not healthy-rail; cl |
 | 2026-07-08 | `6826289d` | chore(away-ops): recovery -- commit benign cycle/audit/kill-switch churn + populated AM session arti |
 | 2026-07-08 | `a024f261` | chore(models): Fable->Opus repin (window ends today) -- researcher/qa agent files, mas_main, autores |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `de93e3f5` | phase-66.2 prep: live_check -- criteria 3+4 CLOSED (Alpaca shorts = d4-* drill orders on disconnecte |
 | 2026-07-07 | `9262ed36` | fix(alerting): drawdown alarm DESC-order trap -- phantom -61.51% P1 on a book UP 20% |
 | 2026-07-07 | `c1e6050b` | phase-66.2 prep: research brief + contract + read-only funnel_report.py (operator-authorized pre-66. |
-| 2026-07-07 | `1e751a56` | chore(ops): operator decisions 2026-07-07 -- autoresearch nightly spend RESUMED (--preflight-only re |
 
 ---
 
+### v6.55.12 — phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades re... (2026-07-08)
+
+- **phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades resolves the nested risk_assessme**
 ### v6.55.11 — phase-66.2: day-2 scheduled-cycle evidence (9a8720b3) -- zero BUYs, r... (2026-07-08)
 
 - **phase-66.2: day-2 scheduled-cycle evidence (9a8720b3) -- zero BUYs, rail 65.4% (not healthy-rail; cl**
