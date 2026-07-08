@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `6826289d` | chore(away-ops): recovery -- commit benign cycle/audit/kill-switch churn + populated AM session arti |
 | 2026-07-08 | `a024f261` | chore(models): Fable->Opus repin (window ends today) -- researcher/qa agent files, mas_main, autores |
 | 2026-07-08 | `97b0b704` | fix(tests): stop pytest polluting prod llm_call_log -- PYFINAGENT_TEST_NO_BQ guard in flush/flush_ll |
 | 2026-07-08 | `354eb6b4` | phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- designed intermediate state, live le |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `c1e6050b` | phase-66.2 prep: research brief + contract + read-only funnel_report.py (operator-authorized pre-66. |
 | 2026-07-07 | `1e751a56` | chore(ops): operator decisions 2026-07-07 -- autoresearch nightly spend RESUMED (--preflight-only re |
 | 2026-07-07 | `0a512c5f` | phase-66.3: Cost-truth restoration -- pin+fix the phantom failure-cost writer; sentinel metered figu |
-| 2026-07-07 | `c4f91bdd` | fix(cost): phase-66.3 cost-truth -- gauge-guard on failed 0-token rows + token-derived sentinel mete |
 
 ---
 
