@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `399fdad4` | fix(rail): log CLI stdout on failure (limit messages live there, not stderr) + 66.2 day-1 funnel row |
 | 2026-07-08 | `552f518e` | chore(away-ops): recovery -- commit benign audit/heartbeat/session-artifact churn + catch-up 66.1 ar |
 | 2026-07-07 | `3be16145` | phase-66.1: Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + sin |
 | 2026-07-07 | `9fee2422` | phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes ok=true cc_rail rows (first sinc |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `ac7fed54` | chore(harness): hotfix log -- P1 page storm root-caused + fixed + live-verified |
 | 2026-07-07 | `70de8188` | fix(alerting): P1 page storm hotfix -- critical severities respect the repeat window (bypass consecu |
 | 2026-07-07 | `bd8aaffe` | phase-66.4: Credential-expiry resilience -- daily auth probe in healthcheck with single deduped P1 p |
-| 2026-07-07 | `fa2ef0f0` | feat(away-ops): phase-66.4 credential-expiry resilience -- auth probe + page-once latch + wrapper pr |
 
 ---
 
+### v6.55.3 — fix(rail): log CLI stdout on failure (limit messages live there, not... (2026-07-08)
+
+- **fix(rail): log CLI stdout on failure (limit messages live there, not stderr) + 66.2 day-1 funnel row**
 ### v6.55.2 — phase-66.1: Restore the decision path -- pre-cycle cc_rail health-pro... (2026-07-07)
 
 - **phase-66.1: Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + sin**
