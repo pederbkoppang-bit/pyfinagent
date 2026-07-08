@@ -519,3 +519,49 @@ pattern. NOTE: staging in this session triggered the `archive-handoff` hook to c
 missed archival -- it snapshotted the DONE 66.1 step to `handoff/archive/phase-66.1/` and
 added `"66.1"` to `.claude/.archive-baseline.json`; both are benign hook bookkeeping and are
 committed here (same disposition as the prior recovery's `phase-66.4/` snapshot).
+
+## Recovery -- 2026-07-08 (PM)
+
+**What was found.** Dirty tree of 8 paths, ALL benign accumulation since the 07-08 AM
+recovery commit (`552f518e` + auto-changelog `dac40756`, both confirmed as clean ancestors of
+HEAD `01c1cb49`; `git ls-remote` shows remote main also at `01c1cb49`, so the AM recovery
+landed and local↔remote are in sync). Reconciliation: the recurring "OFFLINE MODE / git pull
+failed" wrapper line is git refusing to *rebase-pull over a dirty tree* ("You have unstaged
+changes"), NOT a network outage -- `ls-remote` succeeded this session. Classification:
+- `handoff/.cycle_heartbeat.json` (M) -- heartbeat `end` for cycle `9a8720b3`.
+- `handoff/cycle_history.jsonl` (+2) -- the 07-08 18:00 SCHEDULED cycle `9a8720b3` started
+  and **completed cleanly**: 0 trades, `error_count:0`, `breaker_tripped:false`,
+  `rail_skipped:false`, `meta_scorer_degraded:true` (known state), funnel universe
+  583/screened 577/10 candidates/5 new (US+EU+KR).
+- `handoff/kill_switch_audit.jsonl` (+1) -- one `sod_snapshot` 07-08, NAV 23997.71
+  (unchanged from 07-06/07-07); no kill-switch flip; portfolio still all-cash since 07-03.
+- `handoff/audit/{config_change,instructions_loaded,pre_tool_use}_audit.jsonl` (M) --
+  append-only hook streams (+1 / +272 / +1254 lines, 0 deletions each); pure appends.
+- `handoff/away_ops/session_am_20260708T053007Z.json` (??) -- the 07-08 AM recovery
+  session's OWN result artifact, now populated (3853 B; was 0 bytes at AM exit, which is why
+  AM left it untracked). Committed now as a completed-session artifact.
+
+**Classification verdict.** No category-(a) half-built step (the AM session completed rc=0 and
+its work is already committed as `552f518e`; the 07-08 scheduled cycle finished on its own) and
+no category-(b) unexpected/unattributable file (every path is under `handoff/`
+durable-state/audit/session-artifacts). No code, `.env`, masterplan, or trading-behavior file
+touched. Nothing to revert. No `chore(away-wip)` checkpoint needed. `pending_tokens.json` NOT
+modified -- no new operator ask warranted.
+
+**What was done.** Staged + committed the 6 tracked benign paths + the populated
+`session_am_20260708T053007Z.json` + this note in one `chore(away-ops)` recovery commit.
+**Left untracked:** `session_pm_20260708T200006Z.json` (0 bytes -- this session's own live
+output, written post-exit; committing an empty artifact re-dirties the next session -- same
+call as every prior recovery). **No git checkout/restore/stash** (rail 3). Main-only, no
+force-push, no history rewrite (rail 3). $0 metered -- git/cat/wc/grep only, LLM-free
+(rail 4). No `.env`/code/masterplan/trading-behavior touch (rails 2/6). launchctl untouched
+(rail 9). No subagents (recovery is Main-only). No HALT-DEV seen; no new
+`operator_tokens.jsonl` line.
+
+**What remains (regular cadence / operator, NOT recovery).** Tree is clean; this session does
+NOT start a masterplan step -- the next AM session resumes the calendar. Standing operator
+items unchanged: (P0) `SETUP-TOKEN` interactive `claude setup-token` run still pending;
+direct-API credits dead since ~2026-05-18; portfolio all-cash since 07-03 (kill-switch
+state); next AM masterplan step is 66.2 (`pending`; 66.1 `done`). Expected residual after this
+commit: a self-referential `pre_tool_use_audit.jsonl` line from the post-commit git calls plus
+the 0-byte `session_pm` artifact -- both swept by the next session.
