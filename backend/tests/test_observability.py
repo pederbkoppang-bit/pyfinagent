@@ -234,3 +234,34 @@ def test_log_llm_call_separate_buffer_from_api_call_log():
     assert buffer_size() == 0  # api_call_log buffer NOT touched
     flush_llm()
     assert llm_buffer_size() == 0
+
+
+# ---------- phase-61.2 register fix: test-run BQ egress guard ----------
+
+
+def test_flush_guard_blocks_bq_egress_and_still_drains(monkeypatch):
+    """PYFINAGENT_TEST_NO_BQ=1 (set suite-wide by conftest.py) must prevent
+    any BQ client construction while preserving drain semantics."""
+    monkeypatch.setenv("PYFINAGENT_TEST_NO_BQ", "1")
+    reset_buffer_for_test()
+    flush_llm()  # drain any prior state
+    log_llm_call(
+        provider="anthropic",
+        model="claude-haiku-4-5-20251001",
+        latency_ms=123.4,
+        input_tok=1000,
+        output_tok=50,
+    )
+    assert llm_buffer_size() == 1
+    # If the guard failed, bigquery.Client would be constructed; make that loud.
+    import google.cloud.bigquery as _bq
+
+    def _boom(*a, **k):
+        raise AssertionError("BQ egress attempted during tests (guard failed)")
+
+    monkeypatch.setattr(_bq, "Client", _boom)
+    assert flush_llm() == 0
+    assert llm_buffer_size() == 0  # drained, nothing egressed
+    log_api_call(source="guard-test", endpoint="/x", http_status=200, latency_ms=1.0)
+    assert flush() == 0
+    assert buffer_size() == 0

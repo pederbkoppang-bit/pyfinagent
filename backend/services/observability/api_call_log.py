@@ -26,6 +26,7 @@ Fail-open:
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -114,6 +115,14 @@ def flush() -> int:
     if not rows:
         with _lock:
             _last_flush_ts = datetime.now(timezone.utc)
+        return 0
+
+    # phase-61.2 register fix (prod-pollution audit 2026-07-08): pytest under
+    # live ADC leaked 106 unlabeled fixture rows into REAL BQ since 05-19
+    # (masking a 7-week credit death). backend/tests/conftest.py sets this
+    # guard for every test run; dormant in production (never set in launchd
+    # env). Placed AFTER the drain so buffer semantics stay unchanged.
+    if os.environ.get("PYFINAGENT_TEST_NO_BQ") == "1":
         return 0
 
     try:
@@ -305,6 +314,11 @@ def flush_llm() -> int:
     if not rows:
         with _llm_lock:
             _llm_last_flush_ts = datetime.now(timezone.utc)
+        return 0
+
+    # phase-61.2 register fix: see flush() above -- test-run guard, dormant
+    # in production.
+    if os.environ.get("PYFINAGENT_TEST_NO_BQ") == "1":
         return 0
 
     try:
