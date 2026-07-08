@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `ccdf2e28` | phase-66.2: day-2 pre-cycle evidence sweep -- rail GO, BUYs died at synthesis not gates, 5-day clock |
 | 2026-07-08 | `399fdad4` | fix(rail): log CLI stdout on failure (limit messages live there, not stderr) + 66.2 day-1 funnel row |
 | 2026-07-08 | `552f518e` | chore(away-ops): recovery -- commit benign audit/heartbeat/session-artifact churn + catch-up 66.1 ar |
 | 2026-07-07 | `3be16145` | phase-66.1: Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + sin |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `57e2b477` | phase-66.5: research brief + contract + triage deliverable (14-row disposition, awaiting operator si |
 | 2026-07-07 | `ac7fed54` | chore(harness): hotfix log -- P1 page storm root-caused + fixed + live-verified |
 | 2026-07-07 | `70de8188` | fix(alerting): P1 page storm hotfix -- critical severities respect the repeat window (bypass consecu |
-| 2026-07-07 | `bd8aaffe` | phase-66.4: Credential-expiry resilience -- daily auth probe in healthcheck with single deduped P1 p |
 
 ---
 
+### v6.55.4 — phase-66.2: day-2 pre-cycle evidence sweep -- rail GO, BUYs died at s... (2026-07-08)
+
+- **phase-66.2: day-2 pre-cycle evidence sweep -- rail GO, BUYs died at synthesis not gates, 5-day clock**
 ### v6.55.3 — fix(rail): log CLI stdout on failure (limit messages live there, not... (2026-07-08)
 
 - **fix(rail): log CLI stdout on failure (limit messages live there, not stderr) + 66.2 day-1 funnel row**
