@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `f2d1eee8` | docs(triage): document 4 stale in-progress phases (35/39/43/44) flagged by Stop hook -- operator-gat |
 | 2026-07-08 | `71fef45d` | phase-66.2: Cycle 75 harness log -- day-2 evidence (clock DAY 0), RJ-shape dark fix, 61.2 deploy (15 |
 | 2026-07-08 | `d6158cc7` | phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades resolves the nested risk_assessme |
 | 2026-07-08 | `b09115d0` | phase-66.2: day-2 scheduled-cycle evidence (9a8720b3) -- zero BUYs, rail 65.4% (not healthy-rail; cl |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `9fee2422` | phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes ok=true cc_rail rows (first sinc |
 | 2026-07-07 | `4adf7e3b` | feat(observability): phase-66.2 -- persist per-stage funnel counts (universe/screened/candidates/ana |
 | 2026-07-07 | `de93e3f5` | phase-66.2 prep: live_check -- criteria 3+4 CLOSED (Alpaca shorts = d4-* drill orders on disconnecte |
-| 2026-07-07 | `9262ed36` | fix(alerting): drawdown alarm DESC-order trap -- phantom -61.51% P1 on a book UP 20% |
 
 ---
 
