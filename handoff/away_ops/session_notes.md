@@ -469,3 +469,53 @@ WEBHOOK, AUTORESEARCH-SPEND, ENV-LINE-81, SETUP-TOKEN); (4) portfolio all-cash s
 (kill-switch state per return-day memory). A residual self-referential
 `pre_tool_use_audit.jsonl` line from this session's final git calls is harmless and swept
 next session.
+
+## Recovery -- 2026-07-08 (AM)
+
+**What was found.** Dirty tree of 9 paths, ALL benign accumulation since the 07-07 AM
+recovery push (which is still local -- branch was `ahead 1`, pulls have failed in OFFLINE
+MODE). Classification:
+- `handoff/.cycle_heartbeat.json` (M) -- heartbeat end for cycle `0725d2aa`.
+- `handoff/cycle_history.jsonl` (+1) -- the 07-07 18:00 SCHEDULED cycle `0725d2aa`
+  completed cleanly: 0 trades, `error_count:0`, `breaker_tripped:false`, `rail_skipped:false`
+  (phase-66.1 cc_rail breaker healthy), funnel universe 583/screened 577/10 candidates.
+- `handoff/kill_switch_audit.jsonl` (+1) -- one `sod_snapshot` 07-07, NAV 23997.71
+  (unchanged from 07-06); no kill-switch flip.
+- `handoff/audit/{instructions_loaded,pre_tool_use}_audit.jsonl` (M) -- append-only hook
+  streams (66.x work + this session's early calls).
+- `handoff/.autonomous_loop.lock` (D) -- normal lock release.
+- `handoff/autoresearch/2026-07-08-ERROR-topic07.md` (??) -- nightly autoresearch topic07
+  failed on an UPSTREAM arXiv HTTP 500 (external service, not our code); transient.
+- `handoff/away_ops/session_pm_20260707T200007Z.json` (??) -- the 07-07 PM crash artifact.
+  Crash was a **session-limit 429** (`"You've hit your session limit · resets 1am
+  (Europe/Oslo)"`, `total_cost_usd:0`, `num_turns:1`) -- NOT credential death, NOT a
+  half-built step. Self-resetting; already covered by the standing SDK-CREDIT ask.
+
+**Classification verdict.** No category-(a) half-built step (the 07-07 PM session did zero
+work before the 429) and no category-(b) unexpected/unattributable file (every path is under
+`handoff/` durable-state/audit/artifacts). No code, `.env`, masterplan, or trading-behavior
+file touched. Nothing to revert. No `chore(away-wip)` checkpoint needed. `pending_tokens.json`
+NOT modified -- no new operator ask warranted (429 is known + self-resetting).
+
+**What was done.** Staged + committed the 5 tracked benign paths + the lock deletion + the
+untracked autoresearch ERROR + the `session_pm_20260707` crash artifact + this note in one
+`chore(away-ops)` recovery commit. **Left untracked:** `session_am_20260708T053007Z.json`
+(0 bytes -- this session's own live output, written post-exit; committing an empty artifact
+re-dirties the next session -- same call as prior AM recoveries). **No git
+checkout/restore/stash** (rail 3). Main-only, no force-push (rail 3). $0 metered -- git/cat/wc
+only, LLM-free (rail 4). No `.env`/code/masterplan/trading-behavior touch (rails 2/6).
+launchctl untouched (rail 9). No subagents (recovery is Main-only, no GENERATE/EVALUATE).
+No HALT-DEV; no new `operator_tokens.jsonl` line.
+
+**What remains (regular cadence / operator, NOT recovery).** Tree is clean; this session does
+NOT start a masterplan step. (P0, operator) `SETUP-TOKEN` interactive `claude setup-token`
+run still pending (approved 07-07); standing pending_tokens asks unchanged
+(METERED-BREACH-RECURRING root-caused, TEST-TOKEN-62.2, FABLE-HEADLESS, SDK-CREDIT,
+MAS-PLIST-ZOMBIE resolved, WEBHOOK skip, AUTORESEARCH-SPEND resume, ENV-LINE-81, SETUP-TOKEN);
+portfolio all-cash since 07-03 (kill-switch state per return-day memory); next AM masterplan
+step is 66.2 (`pending`; 66.1 is `done` per commit `3be16145`). Push may be held in OFFLINE
+MODE (branch was ahead 1 before this commit) -- hooks/next session retry per the documented
+pattern. NOTE: staging in this session triggered the `archive-handoff` hook to catch up on a
+missed archival -- it snapshotted the DONE 66.1 step to `handoff/archive/phase-66.1/` and
+added `"66.1"` to `.claude/.archive-baseline.json`; both are benign hook bookkeeping and are
+committed here (same disposition as the prior recovery's `phase-66.4/` snapshot).
