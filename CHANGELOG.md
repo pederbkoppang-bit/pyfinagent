@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `354eb6b4` | phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- designed intermediate state, live le |
 | 2026-07-08 | `fc528c9b` | phase-61-prep: final pre-pay research briefs 61.3/61.4/61.5 complete (all 4 gates passed; TAF fee dr |
 | 2026-07-08 | `6186784c` | phase-61.2: decision-input integrity DARK BUILD -- synthesis-error routing + degraded NULL rows, ret |
 | 2026-07-08 | `4b5cd167` | phase-66.2: CORRECTION -- direct-API credit death dates to ~2026-05-18 (last genuine call 05-17); al |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `c4f91bdd` | fix(cost): phase-66.3 cost-truth -- gauge-guard on failed 0-token rows + token-derived sentinel mete |
 | 2026-07-07 | `be19b1a0` | phase-66.5: Away-backlog triage (planning-only) -- disposition every phase-63/64/65 step keep/merge/ |
 | 2026-07-07 | `c64408aa` | phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1/64.5 merged, 64.4 repointed, r |
-| 2026-07-07 | `f33e60f7` | chore(away-ops): 2026-07-07 recovery -- commit benign hook/runtime/audit churn |
 
 ---
 
+### v6.55.9 — phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- desig... (2026-07-08)
+
+- **phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- designed intermediate state, live le**
 ### v6.55.8 — phase-61-prep: final pre-pay research briefs 61.3/61.4/61.5 complete... (2026-07-08)
 
 - **phase-61-prep: final pre-pay research briefs 61.3/61.4/61.5 complete (all 4 gates passed; TAF fee dr**
