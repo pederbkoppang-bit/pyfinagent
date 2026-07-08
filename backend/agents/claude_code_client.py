@@ -323,13 +323,23 @@ def claude_code_invoke(
         ) from exc
 
     if completed.returncode != 0:
+        # phase-66.2 (2026-07-08): on failure the CLI's diagnostic usually
+        # lives on STDOUT (a JSON error envelope or a plain-text limit
+        # message like "You've hit your session limit"), NOT stderr -- the
+        # 07-07 quota-exhaustion burst logged 65 failures as "stderr=" (empty)
+        # and the cause was only recoverable from the away-session JSON.
+        # Log + raise with both streams so limit/auth/API errors are
+        # identifiable from backend.log alone.
+        _out_snip = (completed.stdout or "").strip()[:300]
         logger.error(
-            "claude_code_invoke: non-zero exit code=%d stderr=%s",
+            "claude_code_invoke: non-zero exit code=%d stderr=%s stdout=%s",
             completed.returncode,
-            (completed.stderr or "")[:500],
+            (completed.stderr or "")[:300],
+            _out_snip,
         )
         raise ClaudeCodeError(
-            f"claude CLI exited with code {completed.returncode}: {(completed.stderr or '')[:200]}"
+            f"claude CLI exited with code {completed.returncode}: "
+            f"{(completed.stderr or '')[:150]} | stdout: {_out_snip[:150]}"
         )
 
     stdout = completed.stdout or ""

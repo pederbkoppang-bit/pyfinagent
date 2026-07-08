@@ -3,7 +3,28 @@
 Required shape: "live_check_66.2.md with the BUY BQ row or the 5-day funnel
 diagnosis, plus both integrity-check verdicts."
 
-## 1. Criterion 1 -- OPEN (clock starts when 66.1 closes)
+## 1. Criterion 1 -- clock RUNNING (66.1 closed 2026-07-07 ~18:30 UTC)
+
+### Day 1 of <=5: 2026-07-07 cycle 0725d2aa -- ZERO BUYs, cause DIAGNOSED (not gates)
+
+Funnel row (the new persisted funnel field's first cycle -- working):
+```
+| 2026-07-07 | 0725d2aa | 583/577/10/5 | rail 58/65 | rail_skip False | breaker False | 5 analyses (5 degraded) | HOLD:5 | trades - | ALL-HOLD COLLAPSE (pipeline defect: rail down; gates never evaluated) |
+```
+ROOT CAUSE (evidence-confirmed): **Max-plan session-limit exhaustion on the shared
+credential** -- 65 of 123 rail calls failed (0 tokens, empty stderr, bursts; max
+streak 12 < breaker threshold 20, correctly no trip), concentrated at the
+decision phase (18:42-18:44Z) after live debates had produced consensus=BUY 0.62;
+the 20:00 UTC away PM session then died with the smoking gun: "You've hit your
+session limit - resets 1am (Europe/Oslo)". The heavy return-day dev workload
+(this session + subagents + drills) shares the Max quota with the trading rail.
+07-08 morning: probe healthy, AM session rc0 -- quota reset confirmed.
+
+OPERATIONAL RULE derived (register + operator advisory): keep dev-session usage
+light in the 17:00-20:00 UTC window on trading days, or the rail starves.
+Follow-up fix shipped 07-08: rail failures now log the CLI's STDOUT snippet
+(the limit message lives there, not stderr) so this diagnosis takes minutes,
+not hours, next time.
 
 First post-deploy scheduled cycle: 2026-07-07 18:00 UTC (backend restarted
 16:31:55 UTC holding all phase-66 fixes). Evidence lands here when it exists:
