@@ -222,3 +222,62 @@ OPERATOR DECISION REQUIRED (metered spend): top up API credits, or accept/repin.
 2. Anthropic direct-API credit decision (5d) -- metered, needs your approval.
 3. Ratify (or amend) the healthy-rail-day definition in 5c.
 4. Keep dev-session Claude usage light 16:30-20:30 UTC (quota guard).
+
+## 6. Money-engine audit findings bearing on tonight's evidence (2026-07-08 ~10:00 UTC)
+
+Provenance: ultracode Workflow wf_e26ca01b-6c6 -- 5 read-only auditors + 20
+adversarial verifiers (25 agents, 0 errors; 18 CONFIRMED, 2 REFUTED-corrected).
+Full dossier: handoff/current/money_engine_audit_2026-07-08.md. READ-ONLY.
+
+### 6a. P0 -- full-path RiskJudge consumption is broken (affects criterion 1a TONIGHT)
+
+VERIFIED by direct invocation: risk_debate.py:306-313 nests the judge verdict
+under risk_assessment['judge'], but portfolio_manager._extract_position_pct
+(:655-668) and the REJECT gate (:194) read TOP-LEVEL only (api/analysis.py:158
++ tasks/analysis.py:162 read 'judge' correctly -- the consumer drifted).
+Consequences on the CURRENT book if tonight's cycle emits a full-path BUY:
+- sized at the hardcoded 10% default ($2,399.77), NOT the judge's pct;
+- a judge REJECT/0% still buys full size (binding flag irrelevant -- '' != 'REJECT');
+- paper_trades.risk_judge_decision persists '' -- the criterion-1(a) text
+  requires "risk_judge_decision recorded", so a ''-decision BUY tonight is
+  NOT clean 1(a) evidence; it is itself pipeline-defect evidence for the (b)
+  arm. Detection rule: alert on ''-decision BUY rows (lite-era BUYs 06-01..10
+  all carry decisions, $238-736 sizes = correct 1-3% consumption).
+OPERATOR DECISION REQUIRED: (i) accept tonight as-is (any BUY = 10%-sized,
+''-decision; documented, capped by sector/NAV caps at $2.4k, stops apply), or
+(ii) authorize a same-day hotfix (one-line judge-aware fallback + zero-falsy
+fix) + pre-16:30 restart -- a trading-behavior change on cycle day, hence not
+done unilaterally. Related verified: fail-open judge defaults trade
+APPROVE_REDUCED/3% with no alarm; `if pct:` zero-falsy inverts judge 0% into
+the 10%/3% defaults.
+
+### 6b. Already-fired money defect: KR realized P&L overstated
+
+paper_trader.py:443 revalues the ENTIRE price move at exit-date FX, dropping
+the FX leg on entry notional: real 07-03 000660.KS stop sell recorded
+realized_pnl_usd 87.18 vs true 84.20 (+3.5%). The correct decomposition
+fx_pnl_attribution() exists in-file with ZERO production callers. Fold into
+61.3 (money-display/currency step) -- register.
+
+### 6c. Latent money-risk registers (verified; for 61.3/61.5/63.3)
+
+- Add-on-buy USD-into-LOCAL averaging (61.3's headline) CONFIRMED latent with
+  precise triggers; post-corruption effect = stop-ratchet FREEZE (:1128).
+- upsert_paper_portfolio DELETE-then-INSERT: crash window silently re-seeds
+  cash to $20,000 (vs $23,997.71).
+- execute_sell: no positive-price guard; price=None -> hash-synthetic $50-550
+  router fill credited as real cash.
+- Fee truth for 61.5: 0.1%/side IS charged (45/45 live trades) -- the gap is
+  slippage=0, per-market fees, and LLM cost never debited from NAV.
+- Alpha axis: dividend-adjusted SPY vs dividend-less book (~1.2%/yr
+  understatement) + EU/KR FX beta misattributed as alpha.
+- Dual divergent Sortino implementations both claiming canonical.
+
+### 6d. Prod-table pollution (corrects section 5d's count)
+
+Fixture contamination is 106 rows since 2026-05-19 (not 30 -- the 30 was the
+June-July window only; writer test_observability.py:226-235, zero conftest
+isolation, 60s auto-flush). ALSO: pyfinagent_data.api_call_log does not exist
+-- ALL production API telemetry silently dropped today; sla_alerts is 100%
+drill output. Marker convention + conftest no-op flush + operator-approved
+cleanup DELETEs drafted in the dossier (BQ deletes need explicit approval).

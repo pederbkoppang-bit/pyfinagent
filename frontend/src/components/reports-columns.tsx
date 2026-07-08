@@ -91,9 +91,15 @@ export function reportsColumns(
       id: "score",
       accessorKey: "final_score",
       header: "Score",
-      cell: ({ row }) => (
-        <span className="font-mono text-sky-300">{row.original.final_score.toFixed(2)}</span>
-      ),
+      cell: ({ row }) =>
+        // phase-61.2: degraded rows carry null score (honest absence, not 0.0)
+        row.original.final_score != null ? (
+          <span className="font-mono text-sky-300">{row.original.final_score.toFixed(2)}</span>
+        ) : (
+          <span className="font-mono text-slate-500" title="degraded analysis (no score persisted)">
+            —
+          </span>
+        ),
       meta: { align: "right", className: "tabular-nums" },
     },
     {
@@ -144,7 +150,11 @@ export function buildTickerHistory(
       a.analysis_date.localeCompare(b.analysis_date),
     );
     const tail = sorted.slice(-30);
-    out[ticker] = tail.map((r) => r.final_score);
+    // phase-61.2: drop degraded rows (null score) from the series -- a null
+    // would render as NaN points in the sparkline.
+    out[ticker] = tail
+      .map((r) => r.final_score)
+      .filter((v): v is number => v != null);
   }
   return out;
 }

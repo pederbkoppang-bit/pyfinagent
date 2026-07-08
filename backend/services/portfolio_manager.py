@@ -40,6 +40,14 @@ class TradeOrder:
     # to in-memory pos_row in execute_buy. None until phase-40.8.1 producer
     # populates. BQ persistence deferred to phase-40.8.2.
     factor_loadings: Optional[dict] = None
+    # phase-61.2 (criterion 5): the ANALYSIS recommendation (BUY/STRONG_BUY)
+    # behind this order, distinct from `reason` (the trade mechanism, e.g.
+    # "new_buy_signal"/"swap_buy"). paper_trader historically wrote `reason`
+    # into paper_positions.recommendation, so the signal_downgrade SELL rule
+    # (old_rec in _BUY_RECS at :127) could never match -- structurally dead.
+    # Consumed by execute_buy only when
+    # paper_position_recommendation_fix_enabled is ON.
+    analysis_recommendation: str = ""
 
 
 # Recommendations that imply selling
@@ -93,6 +101,20 @@ def decide_trades(
         ticker = analysis.get("ticker", "")
         if ticker:
             holding_lookup[ticker] = analysis
+
+    # phase-61.2 (criterion 5 interaction guard): reviving signal_downgrade
+    # while synthetic HOLDs can still be fabricated means a transient rail
+    # failure on a held ticker's re-eval would SELL a healthy position. The
+    # combination is legal (flags are independent operator levers) but loud.
+    if getattr(settings, "paper_position_recommendation_fix_enabled", False) and not getattr(
+        settings, "paper_synthesis_integrity_enabled", False
+    ):
+        logger.warning(
+            "paper_position_recommendation_fix_enabled is ON while "
+            "paper_synthesis_integrity_enabled is OFF -- rail-failure synthetic "
+            "HOLDs can trigger signal_downgrade SELLs of healthy positions. "
+            "Enable the integrity flag first (phase-61.2 interaction hazard)."
+        )
 
     for pos in current_positions:
         ticker = pos["ticker"]
@@ -387,6 +409,9 @@ def decide_trades(
             # phase-40.8.1 (P3): forward FF3 loadings to execute_buy
             # so the in-memory pos_row carries them.
             factor_loadings=cand.get("factor_loadings"),
+            # phase-61.2 (criterion 5): the analysis verdict, so positions can
+            # persist BUY/STRONG_BUY instead of the trade mechanism string.
+            analysis_recommendation=cand.get("recommendation", ""),
         ))
         available_cash -= buy_amount
         remaining_positions += 1
@@ -629,6 +654,8 @@ def _compute_swap_candidates(
             sector=cand.get("sector", ""),
             market=markets.market_for_symbol(cand["ticker"]),  # phase-50.3
             factor_loadings=cand.get("factor_loadings"),
+            # phase-61.2 (criterion 5): swap BUYs carry the analysis verdict too.
+            analysis_recommendation=cand.get("recommendation", ""),
         ))
         swapped_tickers.add(weakest["ticker"])
         # Update sector_market_values so subsequent swap-checks see the

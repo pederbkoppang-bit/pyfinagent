@@ -476,9 +476,14 @@ def _make_claude_code_client_class():
         # retried, instead of the step giving up mid-flight).
         recommended_step_timeout = 150
 
-        def __init__(self, model_name: str, timeout_s: int = 120):
+        def __init__(self, model_name: str, timeout_s: int = 150):
             self.model_name = model_name
             self._timeout_s = timeout_s
+            # phase-61.2 (criterion 2): keep the orchestrator's per-step
+            # budget ABOVE the subprocess timeout for any configured value,
+            # not just the class-attribute default -- 150/150 would recreate
+            # the race the phase-60.1 note above warns about.
+            self.recommended_step_timeout = timeout_s + 30
 
         @staticmethod
         def _log_cc_call(envelope, *, agent, ticker, latency_ms, model, ok):

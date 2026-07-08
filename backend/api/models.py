@@ -93,9 +93,14 @@ class ReportSummary(BaseModel):
     ticker: str
     company_name: Optional[str] = None
     analysis_date: datetime
-    final_score: float
-    recommendation: str
+    # phase-61.2 (criterion 1 read-side): degraded rows persist NULL score +
+    # NULL recommendation (honest absence, never fabricated 0.0/"Hold"). The
+    # non-Optional annotations made ONE degraded row 500 the whole reports
+    # list (Pydantic ValidationError). NULL final_score <=> degraded row.
+    final_score: Optional[float] = None
+    recommendation: Optional[str] = None
     summary: str
+    degraded: Optional[bool] = None
     # phase-60.1 (AW-4): lite/full provenance ("lite" | "full" | None for
     # rows persisted before the tag existed). The away week showed
     # identical-looking 7.0/10 digest rows from the 2-call lite wrapper.

@@ -142,6 +142,41 @@ def _fallback_conviction(c: dict) -> int:
     return 5
 
 
+def _rank_normalized_convictions(cands: list[dict]) -> list[int]:
+    """phase-61.2 (criterion 4): percentile-rank composite scores into 1-10.
+
+    The legacy per-candidate clamp saturates every composite >= 9.5 to a
+    constant 10 (live composites run 78-163 -> every fallback cycle emitted
+    'conviction 10.00' for all candidates, erasing the ranking the overlay
+    exists to provide). Midpoint tie ranks; single candidate -> 5.
+    Returned list is aligned with the input order."""
+    import bisect
+
+    vals = sorted(float(c.get("composite_score") or 0.0) for c in cands)
+    n = len(vals)
+    out: list[int] = []
+    for c in cands:
+        if n <= 1:
+            out.append(5)
+            continue
+        v = float(c.get("composite_score") or 0.0)
+        lo = bisect.bisect_left(vals, v)
+        hi = bisect.bisect_right(vals, v) - 1
+        pct = ((lo + hi) / 2.0) / (n - 1)
+        out.append(1 + int(round(9 * pct)))
+    return out
+
+
+def _fallback_convictions(cands: list[dict]) -> list[int]:
+    """Set-aware fallback dispatcher: rank-normalized under the phase-61.2
+    integrity flag, legacy per-candidate clamp otherwise (byte-identical OFF)."""
+    from backend.config.settings import get_settings
+
+    if getattr(get_settings(), "paper_synthesis_integrity_enabled", False):
+        return _rank_normalized_convictions(cands)
+    return [_fallback_conviction(c) for c in cands]
+
+
 async def meta_score_candidates(
     candidates: list[dict],
     regime: Optional[Any] = None,
@@ -169,9 +204,9 @@ async def meta_score_candidates(
     if not anthropic_key:
         logger.warning("meta_scorer: no ANTHROPIC_API_KEY -- using fallback")
         out = []
-        for c in candidates:
+        for c, _cv in zip(candidates, _fallback_convictions(candidates)):
             c2 = dict(c)
-            c2["conviction_score"] = _fallback_conviction(c)
+            c2["conviction_score"] = _cv
             c2["conviction_reason"] = "fallback (no API key)"
             out.append(c2)
         return sorted(out, key=lambda c: c["conviction_score"], reverse=True)
@@ -231,9 +266,17 @@ async def meta_score_candidates(
             c2["conviction_reason"] = scored.conviction_reason
         out.append(c2)
 
-    for c in tail:
+    # phase-61.2 (criterion 4): under the integrity flag, tail convictions are
+    # percentile-ranked over the FULL candidate set so head (LLM-scored) and
+    # tail (fallback) stay on comparable 1-10 scales -- the legacy clamp put
+    # saturated-10 tail entries ABOVE honestly-scored head entries.
+    if getattr(settings, "paper_synthesis_integrity_enabled", False):
+        _tail_convs = _rank_normalized_convictions(head + tail)[len(head):]
+    else:
+        _tail_convs = [_fallback_conviction(c) for c in tail]
+    for c, _cv in zip(tail, _tail_convs):
         c2 = dict(c)
-        c2["conviction_score"] = _fallback_conviction(c)
+        c2["conviction_score"] = _cv
         c2["conviction_reason"] = "below batch cap (composite-score fallback)"
         out.append(c2)
 
@@ -248,9 +291,9 @@ async def meta_score_candidates(
 
 def _fallback_all(candidates: list[dict]) -> list[dict]:
     out = []
-    for c in candidates:
+    for c, _cv in zip(candidates, _fallback_convictions(candidates)):
         c2 = dict(c)
-        c2["conviction_score"] = _fallback_conviction(c)
+        c2["conviction_score"] = _cv
         c2["conviction_reason"] = "fallback (LLM unavailable)"
         out.append(c2)
     return sorted(out, key=lambda c: c["conviction_score"], reverse=True)

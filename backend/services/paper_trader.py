@@ -136,6 +136,11 @@ class PaperTrader:
         # phase-40.8.1 (P3): FF3 factor loadings carried IN-MEMORY only.
         # BQ persistence deferred to phase-40.8.2 (Step 7 schema window).
         factor_loadings: Optional[dict] = None,
+        # phase-61.2 (criterion 5): the ANALYSIS recommendation (BUY/STRONG_BUY).
+        # Persisted into paper_positions.recommendation instead of the trade
+        # mechanism `reason` when paper_position_recommendation_fix_enabled is
+        # ON, so the signal_downgrade rule (portfolio_manager.py:127) can match.
+        analysis_recommendation: str = "",
     ) -> Optional[dict]:
         """Buy shares of a ticker. Returns the trade record or None if can't execute."""
         # phase-25.6: no-stop-on-entry HARD BLOCK. If stop_loss_price is None
@@ -282,6 +287,18 @@ class PaperTrader:
         if factor_loadings is not None:
             trade["factor_loadings"] = factor_loadings
 
+        # phase-61.2 (criterion 5): choose what paper_positions.recommendation
+        # stores. Legacy = the trade mechanism (`reason`), which never matches
+        # _BUY_RECS, leaving signal_downgrade structurally dead. Flag ON + a
+        # non-empty analysis verdict = store the verdict. Flag OFF or empty
+        # verdict = byte-identical legacy.
+        _pos_rec = reason
+        if (
+            getattr(self.settings, "paper_position_recommendation_fix_enabled", False)
+            and analysis_recommendation
+        ):
+            _pos_rec = analysis_recommendation
+
         # Update or create position
         if existing:
             old_qty = existing["quantity"]
@@ -302,7 +319,7 @@ class PaperTrader:
                 "unrealized_pnl_pct": round(((new_qty * price * _local_to_usd - new_cost) / new_cost) * 100, 2),
                 "entry_date": existing["entry_date"],
                 "last_analysis_date": now,
-                "recommendation": reason,
+                "recommendation": _pos_rec,  # phase-61.2 (criterion 5)
                 "risk_judge_position_pct": risk_judge_position_pct,
                 "stop_loss_price": stop_loss_price,
                 # phase-23.2.6-fix: prefer the new sector arg; preserve existing
@@ -326,7 +343,7 @@ class PaperTrader:
                 "unrealized_pnl_pct": 0.0,
                 "entry_date": now,
                 "last_analysis_date": now,
-                "recommendation": reason,
+                "recommendation": _pos_rec,  # phase-61.2 (criterion 5)
                 "risk_judge_position_pct": risk_judge_position_pct,
                 "stop_loss_price": stop_loss_price,
                 "sector": sector or None,  # phase-23.2.6-fix

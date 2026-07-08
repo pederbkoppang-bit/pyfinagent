@@ -255,6 +255,12 @@ AVAILABLE_MODELS = [
 
 # Mapping from SettingsUpdate field names to .env variable names
 _FIELD_TO_ENV = {
+    # phase-61.2: decision-input integrity flags (operator-visible in the
+    # Settings UI rather than manual-.env-only -- the 61.1 lesson).
+    "paper_synthesis_integrity_enabled": "PAPER_SYNTHESIS_INTEGRITY_ENABLED",
+    "paper_position_recommendation_fix_enabled": "PAPER_POSITION_RECOMMENDATION_FIX_ENABLED",
+    "claude_code_timeout_s": "CLAUDE_CODE_TIMEOUT_S",
+    "claude_code_empty_retry_max": "CLAUDE_CODE_EMPTY_RETRY_MAX",
     "gemini_model": "GEMINI_MODEL",
     "deep_think_model": "DEEP_THINK_MODEL",
     "max_debate_rounds": "MAX_DEBATE_ROUNDS",

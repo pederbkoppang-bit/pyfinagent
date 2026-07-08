@@ -130,7 +130,8 @@ export function ReportCompareDrawer({
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="font-mono text-sm text-sky-300">
-                        {r.final_score.toFixed(2)}
+                        {/* phase-61.2: null on degraded rows */}
+                        {r.final_score != null ? r.final_score.toFixed(2) : "—"}
                       </span>
                       <span className={`text-xs font-medium ${scoreColor(r.recommendation)}`}>
                         {formatRecommendation(r.recommendation)}

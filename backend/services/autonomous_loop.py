@@ -773,6 +773,29 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                                 "consequence": "momentum damping inactive; rankings are raw composite scores",
                             },
                         )
+                        # phase-61.2 (criterion 4): cross-cycle streak WARN.
+                        # The per-cycle P1 above fires every degraded cycle;
+                        # the streak alert marks PERSISTENT unavailability
+                        # (>=2 consecutive cycles -- the 7-week credit death
+                        # went unnoticed partly for lack of exactly this).
+                        # P2 is this project's WARN tier. Counter lives in a
+                        # state file (module state dies on kickstart restarts).
+                        if getattr(settings, "paper_synthesis_integrity_enabled", False):
+                            _streak = _bump_conviction_fallback_streak(1)
+                            if _streak >= 2:
+                                await raise_cron_alert(
+                                    source="meta_scorer",
+                                    error_type="conviction_fallback_streak",
+                                    severity="P2",
+                                    title=f"Conviction overlay on no-LLM fallback for {_streak} consecutive cycles",
+                                    details={
+                                        "cycle_id": _cycle_id,
+                                        "streak": _streak,
+                                        "root_cause_hint": "direct-API Anthropic credit/key (live_check_66.2.md 5d)",
+                                    },
+                                )
+                    elif getattr(settings, "paper_synthesis_integrity_enabled", False):
+                        _bump_conviction_fallback_streak(0)
                 except Exception as e:
                     logger.warning("Meta-scorer failed (non-fatal): %s", e)
             summary["screened"] = len(screen_data)
@@ -792,9 +815,14 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # phase-57.1 (F-8): compute the RiskJudge sector context ONCE per
             # cycle (positions are identical for every ticker in the fan-out;
             # a per-ticker fetch would be N redundant BQ reads + a race).
-            # Only built when the binding flag is ON -- OFF stays byte-identical.
+            # phase-61.2 (criterion 6): ALSO built when the integrity flag is
+            # ON -- the judge receives portfolio context in ADVISORY mode
+            # regardless of the binding flag (which stays OFF). Both OFF =
+            # byte-identical legacy.
             _rj_portfolio_ctx = ""
-            if getattr(settings, "paper_risk_judge_reject_binding", False):
+            if getattr(settings, "paper_risk_judge_reject_binding", False) or getattr(
+                settings, "paper_synthesis_integrity_enabled", False
+            ):
                 try:
                     _rj_portfolio_ctx = _build_portfolio_sector_context(positions)
                 except Exception as _ctx_exc:
@@ -893,13 +921,20 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     cost = analysis.get("total_cost_usd", 0.1)
                     total_analysis_cost += cost
                     _add_session_cost(cost)
-                    if analysis.get("_path") in ("lite", "full"):
+                    if analysis.get("_path") in ("lite", "full", "degraded"):
                         try:
                             await _persist_analysis(analysis, bq)
                         except Exception as exc:
                             logger.warning(
                                 f"Persist failed for {kind} {ticker} (non-fatal): {exc}"
                             )
+                    if analysis.get("_degraded"):
+                        # phase-61.2: the degraded marker exists ONLY to leave
+                        # an honest BQ row; it must never be folded into
+                        # candidate/holding analyses (a NULL recommendation
+                        # would crash decide_trades at portfolio_manager:114,
+                        # and a fabricated value is the bug being fixed).
+                        return None
                     return analysis
 
             # Dispatch new candidates concurrently.
@@ -1252,6 +1287,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     # phase-40.8.1 (P3): in-memory FF3 loadings; BQ persist
                     # deferred to phase-40.8.2.
                     factor_loadings=order.factor_loadings,
+                    # phase-61.2 (criterion 5): analysis verdict for the
+                    # position row (consumed only when the fix flag is ON).
+                    analysis_recommendation=getattr(order, "analysis_recommendation", ""),
                 )
                 if trade:
                     trades_executed += 1
@@ -1524,6 +1562,17 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 logger.warning(f"drawdown_alarm dispatch failed: {_dd_err}")
 
 
+class SynthesisDegradedError(RuntimeError):
+    """phase-61.2 (criterion 1): raised INSIDE _run_single_analysis's full-path
+    try when the orchestrator returns a synthesis carrying final_synthesis.error
+    (or missing scoring_matrix), so the EXISTING except -> lite-fallback ->
+    60.1 fallback-rate-alarm machinery handles it. Before this, the error dict
+    returned successfully and was assembled into a synthetic HOLD/0.0 that
+    decide_trades could not distinguish from a conviction HOLD (destroyed two
+    live BUY/0.62 consensuses on cycle 0725d2aa). Only raised when
+    paper_synthesis_integrity_enabled is ON."""
+
+
 async def _run_single_analysis(
     ticker: str, settings: Settings, portfolio_context: str | None = None,
 ) -> Optional[dict]:
@@ -1586,6 +1635,21 @@ async def _run_single_analysis(
             raise RuntimeError("orchestrator returned empty report")
 
         synthesis = report.get("final_synthesis", {})
+        # phase-61.2 (criterion 1): a synthesis error dict must never be
+        # assembled into a persistable result. Raise into the except below so
+        # the lite fallback produces a REAL scored row (first option of the
+        # immutable criterion); the raise also stamps _fallback_reason for the
+        # 60.1 fallback-rate alarm. Flag OFF = legacy fabrication (covered by
+        # the byte-identical regression test).
+        if getattr(settings, "paper_synthesis_integrity_enabled", False) and (
+            not isinstance(synthesis, dict)
+            or synthesis.get("error")
+            or "scoring_matrix" not in synthesis
+        ):
+            _syn_err = (
+                synthesis.get("error") if isinstance(synthesis, dict) else None
+            ) or "missing scoring_matrix"
+            raise SynthesisDegradedError(f"synthesis_error: {_syn_err}")
         rec = synthesis.get("recommendation", {})
         quant = report.get("quant", {})
         risk = synthesis.get("risk_assessment", {})
@@ -1647,6 +1711,28 @@ async def _run_single_analysis(
         return _lite
     except Exception as e:
         logger.error("Both full and lite paths failed for %s: %s", ticker, e)
+        # phase-61.2 (criterion 1, second option): with the integrity flag ON,
+        # leave an HONEST trace instead of vanishing -- a degraded marker dict
+        # that _run_and_persist_one persists as a NULL-score/NULL-rec row with
+        # $._degraded, then converts to None so it NEVER enters
+        # candidate/holding analyses (decide_trades input not neutralized,
+        # not poisoned). Flag OFF = legacy silent None (no row).
+        if getattr(settings, "paper_synthesis_integrity_enabled", False):
+            return {
+                "ticker": ticker,
+                "_degraded": True,
+                "_degraded_reason": (
+                    f"both_paths_failed: full={( _fb_reason or '')[:200]}; "
+                    f"lite={type(e).__name__}: {e}"
+                )[:500],
+                "_path": "degraded",
+                "recommendation": None,
+                "final_score": None,
+                "risk_assessment": {},
+                "total_cost_usd": 0.0,
+                "analysis_date": datetime.now(timezone.utc).isoformat(),
+                "full_report": {},
+            }
         return None
 
 
@@ -1906,6 +1992,37 @@ def _all_conviction_fallback(candidates: list[dict]) -> bool:
         "fallback (LLM unavailable)" in str(c.get("conviction_reason") or "")
         for c in candidates
     )
+
+
+_CONVICTION_STREAK_PATH = (
+    Path(__file__).parent.parent.parent / "handoff" / ".conviction_fallback_streak.json"
+)
+
+
+def _bump_conviction_fallback_streak(delta: int) -> int:
+    """phase-61.2 (criterion 4): durable consecutive-all-fallback-cycle
+    counter. delta=1 increments, delta=0 resets. File-backed (module state
+    dies on the routine kickstart restarts -- same rationale as the cycle
+    heartbeat). Never raises; on any IO/parse error returns the in-flight
+    value so the caller's alert logic stays fail-open."""
+    streak = 0
+    try:
+        if _CONVICTION_STREAK_PATH.exists():
+            streak = int(
+                json.loads(_CONVICTION_STREAK_PATH.read_text(encoding="utf-8")).get(
+                    "streak", 0
+                )
+            )
+    except Exception:
+        streak = 0
+    streak = streak + 1 if delta else 0
+    try:
+        _CONVICTION_STREAK_PATH.write_text(
+            json.dumps({"streak": streak}), encoding="utf-8"
+        )
+    except Exception as exc:  # fail-open: alerting still works this cycle
+        logger.warning("conviction-fallback streak write failed (non-fatal): %s", exc)
+    return streak
 
 
 def _log_claude_code_call(
@@ -2450,14 +2567,37 @@ async def _persist_analysis(analysis: dict, bq: BigQueryClient) -> None:
             full_report = {**full_report, "_path": analysis["_path"]}
             if analysis.get("_fallback_reason"):
                 full_report["_fallback_reason"] = str(analysis["_fallback_reason"])[:500]
+        # phase-61.2 (criterion 1c): honest-absence passthrough. Marker rows
+        # keep NULL score/recommendation instead of being re-fabricated into
+        # 0.0/"Hold" by the coercions below (this function was the SECOND
+        # fabrication site). $._degraded mirrors the $._path JSON-marker idiom.
+        _degraded = bool(analysis.get("_degraded"))
+        if _degraded and isinstance(full_report, dict):
+            full_report = {
+                **full_report,
+                "_degraded": True,
+                "_degraded_reason": str(analysis.get("_degraded_reason") or "")[:500],
+            }
         market_data = full_report.get("market_data") or {}
         await asyncio.to_thread(
             bq.save_report,
             ticker=ticker,
-            company_name=market_data.get("name") or None,
-            final_score=float(analysis.get("final_score") or 0.0),
-            recommendation=analysis.get("recommendation") or "Hold",
-            summary=(analysis.get("risk_assessment") or {}).get("reason", "") or "",
+            # phase-61.2 (criterion 3, ungated pure fix): full-path reports
+            # carry no market_data key (lite-only), so every full-path
+            # autonomous row persisted NULL company_name; the quant dict is
+            # present on the full path and carries the name.
+            company_name=(
+                market_data.get("name")
+                or (full_report.get("quant") or {}).get("company_name")
+                or None
+            ),
+            final_score=None if _degraded else float(analysis.get("final_score") or 0.0),
+            recommendation=None if _degraded else (analysis.get("recommendation") or "Hold"),
+            summary=(
+                ("DEGRADED: " + str(analysis.get("_degraded_reason") or "")[:400])
+                if _degraded
+                else (analysis.get("risk_assessment") or {}).get("reason", "") or ""
+            ),
             full_report=full_report,
             price_at_analysis=analysis.get("price_at_analysis"),
             market_cap=market_data.get("market_cap"),

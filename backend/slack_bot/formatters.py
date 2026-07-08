@@ -414,8 +414,11 @@ def format_signal_alert(signal: dict, trade: dict | None = None) -> list[dict]:
 
 def format_report_card(data: dict, ticker: str) -> list[dict]:
     """Format a stored report as Block Kit blocks."""
-    score = data.get("final_score", 0)
-    rec = data.get("recommendation", "N/A")
+    # phase-61.2: degraded rows carry present-but-None score/recommendation
+    # (.get defaults do NOT fire on present-None; None crashed _score_emoji
+    # comparisons and the :.1f format).
+    score = data.get("final_score", 0) or 0
+    rec = data.get("recommendation", "N/A") or "DEGRADED"
     summary = data.get("summary", "")
     date = data.get("analysis_date", "")
 
@@ -529,8 +532,9 @@ def format_morning_digest(portfolio_data: dict, recent_reports: list, cron_healt
         lines = []
         for r in recent_reports[:5]:
             t = r.get("ticker", "?")
-            s = r.get("final_score", 0)
-            rec = r.get("recommendation", "N/A")
+            # phase-61.2: None-safe (degraded rows persist NULL score/rec).
+            s = r.get("final_score", 0) or 0
+            rec = r.get("recommendation", "N/A") or "DEGRADED"
             # phase-60.1 (AW-4): lite/full provenance marker. The away week
             # showed identical-looking 7.0/10 lines from the 2-call lite
             # wrapper; `[lite]` makes a degraded score visibly degraded.

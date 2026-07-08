@@ -117,9 +117,15 @@ export interface ReportSummary {
   ticker: string;
   company_name?: string;
   analysis_date: string;
-  final_score: number;
-  recommendation: string;
+  /**
+   * phase-61.2: null on degraded rows -- the backend persists honest NULLs
+   * when an analysis failed both paths, never a fabricated 0.0/"Hold".
+   * A null final_score identifies a degraded row.
+   */
+  final_score: number | null;
+  recommendation: string | null;
   summary: string;
+  degraded?: boolean | null;
 }
 
 export interface PerformanceStats {

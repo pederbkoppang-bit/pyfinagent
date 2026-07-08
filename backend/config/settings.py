@@ -179,6 +179,26 @@ class Settings(BaseSettings):
         le=500,
         description="phase-66.1: consecutive cc_rail failure count that trips the rail circuit breaker for the rest of the cycle (claude_code_client rail guard). On trip: remaining rail calls return empty responses without spawning the CLI, and exactly ONE P1 pages via the bot-token path (transition latch; P1s bypass the AlertDeduper by design). Resets every cycle. The 2026-06 outage logged ~162 doomed calls/cycle for 3 weeks with zero pages -- the immutable 66.1 criterion caps silent consecutive failures at <=20.",
     )
+    claude_code_timeout_s: int = Field(
+        150,
+        ge=60,
+        le=600,
+        description="phase-61.2 (criterion 2): cc_rail CLI subprocess timeout in seconds. Was a hardcoded 120 default that raced the orchestrator's lifted 150s step budget (claude_code_client.py recommended_step_timeout note) -- the subprocess died first and the step budget lift was moot. ClaudeCodeClient also derives its instance recommended_step_timeout as timeout_s + 30 so the step budget always stays above the subprocess timeout.",
+    )
+    claude_code_empty_retry_max: int = Field(
+        2,
+        ge=0,
+        le=5,
+        description="phase-61.2: max EXTRA attempts when a cc_rail call returns an errored-empty LLMResponse (thoughts prefix 'errored:'). Effective only when paper_synthesis_integrity_enabled is True. rail_guard_skipped empties are NEVER retried (open breaker / probe-dead -- Fowler: no calls through an open breaker). Total attempts = 1 + this value; default 3 total matches the Google SRE per-request budget and Anthropic's own SDK retry default (2).",
+    )
+    paper_synthesis_integrity_enabled: bool = Field(
+        False,
+        description="phase-61.2 (criteria 1/4/6, DARK until operator promotion): analysis-input integrity umbrella. ON = (a) synthesis results carrying final_synthesis.error or missing scoring_matrix raise SynthesisDegradedError inside _run_single_analysis's existing try, routing to the EXISTING lite fallback + 60.1 fallback-rate alarm instead of persisting synthetic 0.0/HOLD (the defect that destroyed two live BUY/0.62 consensuses on cycle 0725d2aa, live_check_66.2.md 5b); (b) if the lite fallback also fails, persist an honest degraded row (final_score NULL, recommendation NULL, $._degraded marker) and return None so decide_trades never sees a fabricated value; (c) orchestrator retry-on-empty for errored-empty rail responses (claude_code_empty_retry_max); (d) RiskJudge advisory portfolio context regardless of the binding flag; (e) meta-scorer fallback percentile-rank normalization + 2-consecutive-all-fallback-cycle WARN. OFF = byte-identical legacy behavior (regression-tested).",
+    )
+    paper_position_recommendation_fix_enabled: bool = Field(
+        False,
+        description="phase-61.2 (criterion 5, DARK until operator promotion; SEPARATE flag because its blast radius is SELLs of held positions): positions persist the ANALYSIS recommendation instead of the trade reason (paper_trader pos_row 'recommendation' carried 'new_position'/'swap_...' since inception, so the signal_downgrade SELL rule at portfolio_manager.py:127 could never match -- structurally dead exit path). ON revives signal_downgrade for NEW buys (old rows keep trade reasons and never match; no backfill). UNSAFE COMBINATION GUARD: enabling this while paper_synthesis_integrity_enabled is OFF logs a WARNING every decide_trades call -- a rail-failure synthetic HOLD on a held ticker would otherwise trigger a downgrade SELL of a healthy position.",
+    )
     openai_api_key: SecretStr = Field(SecretStr(""), description="OpenAI API key for direct GPT/o-series access (sk-...)")
     github_token: SecretStr = Field(SecretStr(""), description="GitHub PAT for GitHub Models (Copilot Pro). Routes GITHUB_MODELS_CATALOG models via models.inference.ai.azure.com")
     gemini_api_key: SecretStr = Field(SecretStr(""), description="Google AI Studio API key for direct Gemini access (genai.Client(api_key=...)). When set, gemini-* models route through the direct API instead of Vertex AI ADC. Leave empty to keep using Vertex AI / GCP service-account credentials.")

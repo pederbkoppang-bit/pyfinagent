@@ -19,6 +19,7 @@ import json
 from backend.utils import json_io
 import logging
 import re
+import random
 import time
 from typing import Optional
 
@@ -774,6 +775,28 @@ class AnalysisOrchestrator:
         if isinstance(generation_config, dict):
             call_ticker = generation_config.get("_ticker")
 
+        # phase-61.2 (criterion 1 supporting leg): result-based retry-on-empty
+        # for the cc_rail. ClaudeCodeClient converts ClaudeCodeError into a
+        # SUCCESSFULLY-RETURNED empty LLMResponse (claude_code_client.py
+        # ~:556-570), so the exception-only retry arms below never fire and a
+        # single transient rail failure irrecoverably degraded that ticker to
+        # a synthetic HOLD (5/5 on cycle 0725d2aa). Classification contract:
+        # thoughts "errored:..."           -> transient, retryable;
+        # thoughts "rail_guard_skipped:..." -> open breaker / probe-dead,
+        #                                      NEVER retried (no calls through
+        #                                      an open breaker).
+        # Each retry re-enters generate_content, which re-checks the rail
+        # guard and records the attempt -- retries count toward the breaker
+        # and llm_call_log instead of hiding failures. Retry lives at THIS
+        # layer only (single-retry-layer rule); bounded by
+        # claude_code_empty_retry_max with full-jitter backoff.
+        _empty_retry_budget = 0
+        if getattr(self.settings, "paper_synthesis_integrity_enabled", False):
+            _empty_retry_budget = max(
+                0, int(getattr(self.settings, "claude_code_empty_retry_max", 2))
+            )
+        _empty_attempts = 0
+
         # phase-4.14.12 (MF-37): thinking config for judge agents now
         # flows to any client whose `supports_thinking=True` -- both
         # Gemini and Claude judges benefit. Each client's
@@ -837,6 +860,27 @@ class AnalysisOrchestrator:
                         )
                 except Exception as _llm_log_exc:  # pragma: no cover -- fail-open
                     logger.debug("[_generate_with_retry] code_exec llm_call_log write skipped: %r", _llm_log_exc)
+                # phase-61.2: retry-on-empty (see the classification contract
+                # above). Falls through to the legacy return for: flag OFF,
+                # non-empty text, rail_guard_skipped empties, exhausted
+                # budget, or last loop iteration -- callers keep receiving
+                # the empty response they always received, never None.
+                if _empty_retry_budget > 0 and attempt < max_retries - 1:
+                    _rtxt = getattr(response, "text", None)
+                    _rth = getattr(response, "thoughts", "") or ""
+                    if (
+                        _rtxt == ""
+                        and _rth.startswith("errored:")
+                        and _empty_attempts < _empty_retry_budget
+                    ):
+                        _empty_attempts += 1
+                        _jit = random.uniform(0.0, min(15.0, 2.0 * (2 ** _empty_attempts)))
+                        logger.warning(
+                            "%s returned errored-empty rail response; retry-on-empty %d/%d in %.1fs",
+                            agent_name, _empty_attempts, _empty_retry_budget, _jit,
+                        )
+                        time.sleep(_jit)
+                        continue
                 return response
             except concurrent.futures.TimeoutError:
                 logger.error(f"{agent_name} timed out after {timeout}s (attempt {attempt+1}/{max_retries})")

@@ -1969,7 +1969,12 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
             logger.info(
                 f"[LLMClient] Routing {model_name} -> Claude Code CLI (Max-subscription rail; paper_use_claude_code_route=True)"
             )
-            return ClaudeCodeClient(model_name=model_name)
+            # phase-61.2 (criterion 2): configurable subprocess timeout,
+            # default 150s (was hardcoded 120 -- raced the lifted step budget).
+            return ClaudeCodeClient(
+                model_name=model_name,
+                timeout_s=int(getattr(settings, "claude_code_timeout_s", 150)),
+            )
         except ImportError as exc:
             logger.warning(
                 "[LLMClient] ClaudeCodeClient import failed (%r); falling through to Anthropic-direct",
