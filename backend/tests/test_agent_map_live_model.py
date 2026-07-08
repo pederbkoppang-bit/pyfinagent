@@ -56,7 +56,7 @@ def test_endpoint_injects_live_model_field():
     # rare-event orchestrator role; was claude-opus-4-8 since 2026-05-28,
     # claude-opus-4-7 before that)
     main_node = next(n for n in nodes if n["id"] == "main")
-    assert main_node.get("live_model") == "claude-fable-5"
+    assert main_node.get("live_model") == "claude-opus-4-8"  # 2026-07-08 repin (Fable window ended)
 
 
 def test_swappable_nodes_get_default_when_override_off():

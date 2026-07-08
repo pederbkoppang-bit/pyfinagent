@@ -20,10 +20,12 @@ from backend.config import model_tiers as mt
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-# ── Layer-2: rare-event roles on Fable; metered roles unchanged ──────
+# ── Layer-2: rare-event roles -- 2026-07-08 repin (Fable window ended;
+# /goal item 4): fable -> opus-4-8. The 59.1 decision structure (rare-event
+# roles get the flagship; metered roles stay cheap) is preserved.
 def test_rare_event_roles_resolve_to_fable():
-    assert mt.resolve_model("mas_main") == "claude-fable-5"
-    assert mt.resolve_model("autoresearch_strategic") == "claude-fable-5"
+    assert mt.resolve_model("mas_main") == "claude-opus-4-8"
+    assert mt.resolve_model("autoresearch_strategic") == "claude-opus-4-8"
 
 
 def test_metered_roles_unchanged():
@@ -52,8 +54,9 @@ def test_ticket_agent_map_pins():
     """Ticket agents are operator-paced (~$0.18/day on Fable): main + q-and-a
     repinned; research deliberately stays on cost-efficient Sonnet."""
     src = (REPO_ROOT / "backend/services/ticket_queue_processor.py").read_text(encoding="utf-8")
-    assert '"main": "claude-fable-5"' in src
-    assert '"q-and-a": "claude-fable-5"' in src
+    # 2026-07-08 repin: fable -> opus-4-8 (Fable window ended).
+    assert '"main": "claude-opus-4-8"' in src
+    assert '"q-and-a": "claude-opus-4-8"' in src
     assert '"research": "claude-sonnet-4-6"' in src
 
 
@@ -66,8 +69,13 @@ def _frontmatter(path: Path) -> str:
 def test_layer3_agents_pin_fable_with_raised_caps():
     researcher = _frontmatter(REPO_ROOT / ".claude/agents/researcher.md")
     qa = _frontmatter(REPO_ROOT / ".claude/agents/qa.md")
-    assert "model: fable" in researcher
-    assert "model: fable" in qa
+    # 2026-07-08 repin: fable -> opus (alias -> latest Opus); turn caps kept.
+    # Match the ACTIVE frontmatter key line (comments may mention the old pin).
+    import re
+    assert re.search(r"^model: opus$", researcher, flags=re.M)
+    assert not re.search(r"^model: fable$", researcher, flags=re.M)
+    assert re.search(r"^model: opus$", qa, flags=re.M)
+    assert not re.search(r"^model: fable$", qa, flags=re.M)
     assert "maxTurns: 40" in researcher   # was 30; stalled twice on complex briefs
     assert "maxTurns: 30" in qa           # was 12; FIVE mid-evaluation stalls 2026-06-10/11
     assert "effort: max" in researcher    # retained (documented over-spec)

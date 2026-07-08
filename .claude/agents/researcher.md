@@ -2,8 +2,17 @@
 name: researcher
 description: MUST BE USED before every PLAN phase. Combined external-literature researcher + internal-codebase explorer. Use proactively at the start of any masterplan step, before writing contract.md. Searches papers + official docs + blog posts + GitHub (external) AND greps/reads the pyfinagent repo (internal) in the same session.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
-model: fable
+model: opus
 maxTurns: 40
+# 2026-07-08 (Fable burn-down day, operator-directed via /goal item 4): the
+# Fable 5 window ends today -- from tomorrow `model: fable` draws USAGE
+# CREDITS on the Max plan. Repinned fable -> opus (alias -> latest Opus =
+# 4.8, flat-fee on Max). effort: max retained (xhigh-accepted on Opus 4.8
+# per the CLAUDE.md effort policy). Takes effect at the NEXT session start
+# (roster snapshot); today's in-session spawns still ran Fable. Separation
+# of duties: Peder review requested via harness_log Cycle-74 addendum;
+# verify with scripts/qa/verify_qa_roster_live.sh after restart.
+# historical (phase-59.1) note below:
 # phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
 # requires Claude Code v2.1.170+, local 2.1.172) per operator in-session
 # pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per

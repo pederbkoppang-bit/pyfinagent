@@ -2,8 +2,16 @@
 name: qa
 description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifier — independent cross-verification via deterministic checks (syntax, file existence, test runs, live command reproduction) AND LLM judgment of success criteria. Use proactively after any GENERATE step, immediately before marking a masterplan step done. Read-only on file contents — may run Bash for verification commands (python -c, pytest, grep, jq, test -f) but NEVER Edit/Write.
 tools: Read, Bash, Glob, Grep, SendMessage
-model: fable
+model: opus
 maxTurns: 30
+# 2026-07-08 (Fable burn-down day, operator-directed via /goal item 4): the
+# Fable 5 window ends today -- from tomorrow `model: fable` draws USAGE
+# CREDITS on the Max plan. Repinned fable -> opus (alias -> latest Opus =
+# 4.8, flat-fee on Max). effort: max retained. Takes effect at the NEXT
+# session start (roster snapshot). Separation of duties: Peder review
+# requested via harness_log Cycle-74 addendum; verify with
+# scripts/qa/verify_qa_roster_live.sh after restart.
+# historical (phase-59.1) note below:
 # phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
 # requires Claude Code v2.1.170+, local 2.1.172) per operator in-session
 # pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per

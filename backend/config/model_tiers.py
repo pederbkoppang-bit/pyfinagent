@@ -62,7 +62,11 @@ _BUILD_TIER: dict[str, str] = {
     # for the gate role; "the longer and more complex the task, the larger
     # Fable 5's lead" (Anthropic 2026-06-09 announcement). History:
     # 2026-05-28 bumped 4-7 -> 4-8 on flagship release day.
-    "mas_main": "claude-fable-5",
+    # 2026-07-08 (Fable window ends today, /goal item 4): repinned
+    # claude-fable-5 -> claude-opus-4-8 -- from tomorrow Fable draws usage
+    # credits; Opus 4.8 is the flat-fee flagship. Do NOT re-pin to Fable
+    # without a fresh cost decision (CLAUDE.md Fable-adoption section).
+    "mas_main": "claude-opus-4-8",
     # agent_definitions.py:225
     # phase-59.1: mas_qa DELIBERATELY KEPT on Opus 4.8 -- it fires per ticker
     # analysis (metered volume role); cost discipline per the operator's
@@ -78,7 +82,9 @@ _BUILD_TIER: dict[str, str] = {
     "autoresearch_smart": "claude-sonnet-4-6",
     # phase-59.1 (2026-06-11): strategic memo -> Fable 5 (nightly 2am cron =
     # rare-event; long-horizon synthesis is Fable's strongest delta).
-    "autoresearch_strategic": "claude-fable-5",
+    # 2026-07-08: repinned -> claude-opus-4-8 (Fable window ends; see mas_main
+    # note above).
+    "autoresearch_strategic": "claude-opus-4-8",
     # settings.py:28 -- TRULY Gemini-locked (Vertex AI Search / Search Grounding /
     # Vertex structured-output schemas). DO NOT swap to Claude.
     # phase-60.1: repinned from the discontinued gemini-2.0-flash (AW-4).
