@@ -259,6 +259,7 @@ _FIELD_TO_ENV = {
     # Settings UI rather than manual-.env-only -- the 61.1 lesson).
     "paper_synthesis_integrity_enabled": "PAPER_SYNTHESIS_INTEGRITY_ENABLED",
     "paper_position_recommendation_fix_enabled": "PAPER_POSITION_RECOMMENDATION_FIX_ENABLED",
+    "paper_risk_judge_shape_fix_enabled": "PAPER_RISK_JUDGE_SHAPE_FIX_ENABLED",
     "claude_code_timeout_s": "CLAUDE_CODE_TIMEOUT_S",
     "claude_code_empty_retry_max": "CLAUDE_CODE_EMPTY_RETRY_MAX",
     "gemini_model": "GEMINI_MODEL",

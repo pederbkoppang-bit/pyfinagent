@@ -304,6 +304,10 @@ class Settings(BaseSettings):
         False,
         description="phase-57.1 (F-3/F-8): when True, a lite-path RiskJudge REJECT verdict BLOCKS the BUY (binding pre-execution gate per SEC 15c3-5 rejection doctrine) and the judge prompts receive the real configured sector cap + live sector breakdown. Default OFF preserves byte-identical behavior including prompts.",
     )
+    paper_risk_judge_shape_fix_enabled: bool = Field(
+        False,
+        description="phase-66.2 RJ-shape fix (money-engine audit 2026-07-08, operator-approved dark, DARK until promotion): the FULL-orchestrator RiskJudge verdict is nested under risk_assessment['judge'] (risk_debate.py:310) but decide_trades historically read risk_assessment top-level -> every full-path BUY sized at the 10%-NAV default (not the judge's pct), a REJECT never bound even with reject_binding ON, and risk_judge_decision persisted '' (which fails 66.2 criterion-1(a)'s 'risk_judge_decision recorded'). ON = resolve the judge nested-first (matching api/analysis.py:158 + tasks/analysis.py:162, the two consumers that already do this) for position sizing, the REJECT gate, and the recorded decision, AND respect an explicit 0.0 recommended_position_pct as no-buy (is-not-None instead of the zero-falsy 10% default). OFF = byte-identical top-level reads (the lite path is already flat, so lite is unaffected either way).",
+    )
     # phase-cycle-1 (2026-05-26): position-swap framework. Sell-to-buy-better
     # path so the autonomous loop doesn't idle on cash when a higher-conviction
     # candidate is sector-blocked by an existing low-conviction holding. North

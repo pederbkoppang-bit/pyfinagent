@@ -185,7 +185,28 @@ def decide_trades(
 
         # Extract Risk Judge sizing
         risk_assessment = analysis.get("risk_assessment", {})
-        position_pct = _extract_position_pct(risk_assessment, analysis)
+        # phase-66.2 RJ-shape fix (flag-gated, default OFF): the FULL-path
+        # judge verdict is nested under risk_assessment['judge']
+        # (risk_debate.py:310); the lite path is flat. Resolve nested-first so
+        # sizing, the REJECT gate, and the recorded decision all read the real
+        # judge (matching api/analysis.py:158 + tasks/analysis.py:162). OFF ->
+        # _rj_view IS risk_assessment == current top-level behavior (lite
+        # already flat, so lite is byte-identical either way).
+        _rj_view = risk_assessment
+        if getattr(settings, "paper_risk_judge_shape_fix_enabled", False):
+            _judge = risk_assessment.get("judge")
+            if isinstance(_judge, dict):
+                _rj_view = _judge
+        position_pct = _extract_position_pct(_rj_view, analysis)
+        # Respect an explicit 0.0 pct as no-buy (the zero-falsy `if pct:` in
+        # _extract_position_pct otherwise falls through to the 10% default).
+        if getattr(settings, "paper_risk_judge_shape_fix_enabled", False):
+            _raw_pct = _rj_view.get("recommended_position_pct")
+            if _raw_pct is not None:
+                try:
+                    position_pct = float(_raw_pct)
+                except (ValueError, TypeError):
+                    pass
         stop_loss = _extract_stop_loss(risk_assessment, analysis, settings=settings)
         final_score = analysis.get("final_score", 0)
 
@@ -213,7 +234,10 @@ def decide_trades(
         # remain advisory sizing. Budget reallocates by construction -- a
         # dropped candidate never enters buy_candidates, so the next-ranked
         # survivor draws its cash in the emit loop. Flag default-OFF.
-        _rj_decision = (risk_assessment.get("decision", "") or "")
+        # phase-66.2 RJ-shape fix: read the decision from the resolved judge
+        # view (nested-first when the flag is ON) so the binding gate actually
+        # sees a full-path REJECT. OFF -> _rj_view is risk_assessment (top-level).
+        _rj_decision = (_rj_view.get("decision", "") or "")
         if (
             _rj_decision == "REJECT"
             and getattr(settings, "paper_risk_judge_reject_binding", False)
@@ -238,7 +262,10 @@ def decide_trades(
             "recommendation": rec,
             "position_pct": position_pct,
             "stop_loss_price": stop_loss,
-            "risk_judge_decision": risk_assessment.get("decision", ""),
+            # phase-66.2 RJ-shape fix: record the resolved judge decision so
+            # full-path BUYs no longer persist risk_judge_decision='' (66.2
+            # criterion-1(a) requires it recorded). OFF -> top-level (lite).
+            "risk_judge_decision": _rj_view.get("decision", ""),
             "analysis_id": analysis.get("analysis_date", ""),
             "final_score": final_score,
             "price": analysis.get("price_at_analysis"),
@@ -246,7 +273,7 @@ def decide_trades(
             "signals": extract_all_signals(analysis, candidate=screener_candidate),
         })
 
-        decision = risk_assessment.get("decision", "") or ""
+        decision = _rj_view.get("decision", "") or ""
         if decision and decision != "APPROVE_FULL":
             logger.info(
                 "buy_candidate risk_judge decision=%s ticker=%s position_pct=%s final_score=%s",
@@ -342,7 +369,14 @@ def decide_trades(
                 continue
 
         # Position size: min(risk_judge_pct * NAV, available_cash)
-        position_pct = cand["position_pct"] or 10.0  # Default 10% if Risk Judge didn't specify
+        # phase-66.2 RJ-shape fix: under the flag, an explicit 0.0 pct means
+        # no-buy (falls below the $50 floor below) instead of inverting to the
+        # 10% default via `or`. OFF -> `or 10.0` byte-identical. A genuinely
+        # absent pct (None, judge didn't specify) still defaults to 10%.
+        if getattr(settings, "paper_risk_judge_shape_fix_enabled", False):
+            position_pct = cand["position_pct"] if cand["position_pct"] is not None else 10.0
+        else:
+            position_pct = cand["position_pct"] or 10.0  # Default 10% if Risk Judge didn't specify
         target_amount = nav * (position_pct / 100.0)
         buy_amount = min(target_amount, available_cash)
 
