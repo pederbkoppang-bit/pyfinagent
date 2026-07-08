@@ -203,8 +203,11 @@ OPERATOR DECISION REQUIRED (metered spend): top up API credits, or accept/repin.
 
 ### 5g. Operator asks (pre-18:00 UTC today)
 
-1. Run `claude setup-token` (approved 07-07, STILL PENDING per today's AM
-   session artifact) -- until then the rail shares the interactive Max quota.
+1. DONE 2026-07-08 ~08:45 UTC -- `claude setup-token` run + wired into 4
+   plists (backend/away-am/away-pm/away-watchdog), jobs reloaded, backend
+   healthy (PID 24910, /docs 200); validated end-to-end: auth status under
+   the wired env = loggedIn=true authMethod=oauth_token. 1-year credential,
+   renewal ~2027-07. NOTE: same Max quota pool -- ask 4 unchanged.
 2. Anthropic direct-API credit decision (5d) -- metered, needs your approval.
 3. Ratify (or amend) the healthy-rail-day definition in 5c.
 4. Keep dev-session Claude usage light 16:30-20:30 UTC (quota guard).

@@ -1,139 +1,139 @@
 {
-  "updated": "2026-07-07T15:58:00+00:00",
-  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md). 2026-07-07: TRIAGE 63-65 APPROVED + away-plists KEEP ARMED + 66.3 start-now authorized + SETUP-TOKEN adopted, all via in-session AskUserQuestion (operator present).",
-  "asks": [
-    {
-      "id": "METERED-BREACH-RECURRING",
-      "raised_by": "Recovery 2026-06-18 (AM) recorded the 06-17 breach; Recovery 2026-06-19 (AM) added the 06-18 PM recurrence -- the rail-4 breach is now RECURRING and WORSENING (2 of the last 3 PM sessions), so this is consolidated into one P1 trend (was id METERED-BREACH-0617).",
-      "raised_at": "2026-06-18",
-      "due": "operator discretion (P1, escalated). The daily metric self-resets to $0 each morning (sentinel ok:true on both 06-18 AM and 06-19 AM), but the $0-metered mandate has now been exceeded twice and trending UP, and both PM sessions that should have raised the P1 crashed before doing so.",
-      "ask": "Rail-4 ($0 metered) breach has fired on TWO of the last three PM sessions and the magnitude is INCREASING. (1) 2026-06-17 PM: sentinel measured metered_llm_usd_today=$16.51 vs pinned baseline $8.0 (gates_failed=['metered_budget'], session.log 2026-06-17T20:00:14Z). (2) 2026-06-18 PM: sentinel measured metered_llm_usd_today=$42.00 vs baseline $8.0 (gates_failed=['metered_budget'], session.log 2026-06-18T20:00:50Z) -- ~2.5x the prior breach and ~5x baseline. In BOTH cases the wrapper CORRECTLY auto-downgraded the PM session to digest-only (rail-4's mechanical response fired), but the session then crashed (06-17: ECONNRESET after 13 turns, $0.42; 06-18: rc1 after ~7 turns, $0.000976) and never raised the mandated P1 ask or wrote a digest -- so these two recovery commits are the only durable record. Each following morning the daily metric was back to $0 (sentinel ok:true), so this is a PM-window spike that resets at the daily boundary, not a permanent leak. Root cause is NOT diagnosed -- that needs a read of pyfinagent_data.llm_call_log for 2026-06-17 and 2026-06-18, which is out of recovery scope (rail 8). Candidate causes (none implicate dev-session API spend -- away Claude Code sessions are first-party Max usage, not metered API): (a) trading cycles timing out at 2h (32ff027f on 06-16, 97dd1224 on 06-18 both status=timeout, n_trades=0) and retrying/burning extra Gemini calls that bleed into the daily window; (b) the $25 58.1 window (rail-4 EXEMPT) not fully netted out of the sentinel metric; (c) heavier-than-baseline Gemini pipeline days. The recurrence + escalating magnitude makes (a) or (c) more likely than a one-off. NOTE: kill-switch was NOT paused across the window and trading stayed healthy (NAV ~24021 region).",
-      "reply_options": [
-        "METERED BREACH: ACCEPT",
-        "METERED BREACH: INVESTIGATE",
-        "HALT-DEV"
-      ],
-      "recommended": "METERED BREACH: INVESTIGATE (escalated recommendation -- the prior 06-18 recovery recommended ACCEPT when it looked like a one-off, but the 06-18 PM recurrence at $42 makes this a worsening trend; INVESTIGATE directs the next session to break down pyfinagent_data.llm_call_log for 06-17 + 06-18 and net out the 58.1 exempt window. ACCEPT remains valid if you judge the daily self-reset + healthy trading sufficient; ACCEPT/INVESTIGATE are not in KNOWN_TOKEN_ENV_MAP so they are recorded-only with NO .env/trading effect, while HALT-DEV is the reserved stop-all token.)",
-      "disposition": "root_caused_pending_fix",
-      "disposition_note": "ROOT CAUSE (return-day session 2026-07-06, BQ-measured): 100% of breach-day anthropic spend is agent=cc_rail FAILED calls (06-17: 137/137 fail $16.30; 06-18: 207/207 fail $42.20; 0 input/0 output tokens, ~5s latency). A subset of failed rows carries a flat $0.50 session_cost_usd from an unpinned writer (claude_code_client._log_cc_call deliberately logs 0; candidates: claude-code-proxy, log_llm_call default). cc_rail is Max flat-fee and 401/ECONNRESET calls bill nothing -> the breach was PHANTOM ACCOUNTING; real metered spend for the whole away window ~ $8.24 Gemini + $0.07 claude-code. Candidate causes (a)/(b)/(c) from the original ask are all ruled out. Fix (log 0 cost on failed calls + sentinel excludes flat-fee rail + failure-count signal) is owned by masterplan step 66.3.",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
-    },
-    {
-      "id": "TEST-TOKEN-62.2",
-      "raised_by": "62.2 (Cycle 65, AM away session)",
-      "raised_at": "2026-06-14",
-      "due": "62.7 dress rehearsal (already on the rehearsal checklist) OR any earlier real token",
-      "ask": "62.2 (operator-token handler) is verified for criteria 1+2 (handler-above-catch-all + quoted grammar + append; operator-user+channel allowlist; 29 unit tests; pytest exit 0). Criterion 3 is the LIVE round-trip and is the only thing left to flip 62.2 to done: it needs ONE real operator Slack message because handoff/operator_tokens.jsonl is created only by the running bot (a synthetic line was deliberately NOT written -- it would fabricate operator evidence and a stale RESUME could re-fire). Send the drill token from your phone in the approvals channel (C0ANTGNNK8D). It is NOT in KNOWN_TOKEN_ENV_MAP, so it is recorded only -- NO .env change, NO trading effect. Expected threaded ACK: 'OPERATOR TOKEN RECORDED (operator_tokens.jsonl line 1): `TEST TOKEN: PING` -- the next away session acts on it.' The next session then pastes the jsonl line + ACK permalink into live_check_62.2.md and a fresh Q/A flips 62.2.",
-      "reply_options": [
-        "TEST TOKEN: PING"
-      ],
-      "recommended": "TEST TOKEN: PING (sent in C0ANTGNNK8D during the 62.7 rehearsal; closes 62.2's last criterion and proves the whole token pipeline end-to-end)",
-      "disposition": "open_operator_gated",
-      "disposition_note": "Re-asked return-day 2026-07-06: send TEST TOKEN: PING in C0ANTGNNK8D to close 62.2 criterion 3.",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
-    },
-    {
-      "id": "FABLE-HEADLESS",
-      "raised_by": "62.1 (Cycle 64, AM away session)",
-      "raised_at": "2026-06-13",
-      "due": "optional (NON-BLOCKING; away sessions already auto-override to Opus 4.8 per-spawn -- they keep working)",
-      "ask": "The Layer-3 harness subagents researcher (.claude/agents/researcher.md) + qa (.claude/agents/qa.md) are pinned model: claude-fable-5 (phase-59.1). In headless 'claude -p' away sessions, that pin FAILS to spawn ('model may not exist or you may not have access'). Cycle 64 worked around it by overriding each spawn to model: opus (the away-session-pinned model + the subagents' pre-59.1 config), so the research gate + Q/A both ran normally. This will recur on EVERY away AM/PM session for the 3-week window. Options: (A) leave the per-spawn Opus override in place (zero config change; works fine; Opus is the documented pre-59.1 + away-session model) -- RECOMMENDED; (B) repin both agent files to model: opus for the away window (requires a session restart to take effect, and is an agent-roster behavior change the plan explicitly deferred -- 'Researcher/Q/A subagent pins stay as committed'), so a session should only do this on your token.",
-      "reply_options": [
-        "FABLE HEADLESS: KEEP OPUS OVERRIDE",
-        "FABLE HEADLESS: REPIN AGENTS TO OPUS"
-      ],
-      "recommended": "FABLE HEADLESS: KEEP OPUS OVERRIDE (no config churn; the override is grounded in the away-ops Opus-4.8 session pin and the subagents' pre-59.1 config; revisit Fable on return)",
-      "disposition": "resolved",
-      "disposition_note": "Operator approved the goal_phase66 Part-1 disposition table in-session 2026-07-06 ('do it'): KEEP OPUS OVERRIDE for away windows; Fable pins verified working in attended sessions (this session runs Fable 5 Main + Fable researcher/qa).",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
-    },
-    {
-      "id": "SDK-CREDIT",
-      "raised_by": "62.3",
-      "raised_at": "2026-06-12",
-      "due": "2026-06-15 (HARD: the Agent SDK credit regime starts that day, 3 days into the away window)",
-      "ask": "From 2026-06-15, headless claude -p sessions draw a separate monthly Agent SDK credit (Max 5x = $100/mo, Max 20x = $200/mo). Two Opus sessions/day for 3 weeks may exceed it. On exhaustion, scheduled sessions STOP until the credit refreshes -- unless usage credits are enabled, which is metered spend (conflicts with the $0 decision). The wrapper already logs per-session cost + LIMIT_HIT lines so the digest shows burn from day 1.",
-      "reply_options": [
-        "SDK CREDIT: STOP-ON-EXHAUSTION",
-        "SDK CREDIT: ENABLE USAGE CREDITS <monthly cap USD>"
-      ],
-      "recommended": "SDK CREDIT: STOP-ON-EXHAUSTION (consistent with the $0 decision; worst case dev pauses until the monthly refresh while trading + digests continue)",
-      "disposition": "deferred",
-      "disposition_note": "Moot while operator is home (no scheduled headless dev load beyond the standing plists). Re-decide before any next away window.",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
-    },
-    {
-      "id": "MAS-PLIST-ZOMBIE",
-      "raised_by": "62.3",
-      "raised_at": "2026-06-12",
-      "due": "pre-departure (62.7 checklist item)",
-      "ask": "~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist is bootout'd but NOT disabled and still on disk -- a reboot + auto-login re-bootstraps its 30-minute loop, racing the away sessions on a different lockfile. Away sessions are hook-blocked from launchctl disable on pyfinagent labels (the 62.0 guard, working as designed), so only you can neutralize it: mv ~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist ~/Library/LaunchAgents/disabled.com.pyfinagent.mas-harness.plist.bak",
-      "reply_options": [
-        "MAS PLIST: MOVED"
-      ],
-      "recommended": "MAS PLIST: MOVED (run the mv during the 62.7 dress rehearsal)",
-      "disposition": "resolved",
-      "disposition_note": "mv executed 2026-07-06 by the return-day session with in-session operator approval: com.pyfinagent.mas-harness.plist -> disabled.com.pyfinagent.mas-harness.plist.bak (verified via ls ~/Library/LaunchAgents).",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
-    },
-    {
-      "id": "WEBHOOK",
-      "raised_by": "62.5 (Q/A spawn-1 BLOCK find)",
-      "raised_at": "2026-06-12",
-      "due": "optional (return-day OK; away paging works via the bot-token fallback)",
-      "ask": "settings.slack_webhook_url is EMPTY, which silently disables webhook-path P1 paging incl. the legacy backend_watchdog.sh:64 alert. Away-window paging is COVERED by the new bot-token fallback (live-proven). To resurrect the webhook path too: create a Slack incoming webhook and add SLACK_WEBHOOK_URL=<url> to backend/.env (keystroke), then restart backend + bot.",
-      "reply_options": [
-        "WEBHOOK: CONFIGURED",
-        "WEBHOOK: SKIP"
-      ],
-      "recommended": "WEBHOOK: SKIP (bot-token fallback is live-proven; do on return)",
-      "disposition": "resolved",
-      "disposition_note": "Operator chose SKIP PERMANENTLY (in-session AskUserQuestion 2026-07-07 ~15:57 UTC). Bot-token path is the sole page channel; dead webhook branches noted for the 63.3 register scope.",
-      "disposition_at": "2026-07-07T15:58:00+00:00"
-    },
-    {
-      "id": "AUTORESEARCH-SPEND",
-      "raised_by": "62.6",
-      "raised_at": "2026-06-12",
-      "due": "operator's discretion (nightly stays $0 preflight-only until then)",
-      "ask": "langchain-huggingface stack installed (constrained; langchain-core held at 1.2.30) -- the nightly autoresearch cron is FIXED and exits 0, but full GPTResearcher runs would spend ~$0.10-0.50/night on Anthropic API. The nightly is pinned to --preflight-only ($0) for the away window. To resume full nightly memos: reply the token; the session removes the flag from scripts/autoresearch/run_nightly.sh.",
-      "reply_options": [
-        "AUTORESEARCH SPEND: RESUME",
-        "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY"
-      ],
-      "recommended": "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY (consistent with $0; resume on return)",
-      "disposition": "resolved",
-      "disposition_note": "Operator chose RESUME NIGHTLY SPEND (in-session AskUserQuestion 2026-07-07 ~15:57 UTC). --preflight-only removed from run_nightly.sh same session; tonight's scheduled cron run is the evidence (39.1 doctrine); spend visible via the 66.3 token-derived sentinel figure.",
-      "disposition_at": "2026-07-07T15:58:00+00:00"
-    },
-    {
-      "id": "ENV-LINE-81",
-      "raised_by": "62.6 (regression find)",
-      "raised_at": "2026-06-12",
-      "due": "62.7 rehearsal (keystroke, 30 seconds)",
-      "ask": "The 2026-06-12 morning paste left an unbalanced quote in a backend/.env comment (line ~81) -- harmless to pydantic but it broke shell-sourcing (killed the autoresearch nightly silently; run_nightly.sh now hardened). Cleanup keystroke: open backend/.env, fix/delete the wrapped comment line ending in a stray quote (the three PAPER_*=true lines below it are correct -- do not touch them).",
-      "reply_options": [
-        "ENV LINE: FIXED"
-      ],
-      "recommended": "ENV LINE: FIXED (during 62.7)",
-      "disposition": "open_operator_gated",
-      "disposition_note": "Re-asked return-day 2026-07-06: one-keystroke backend/.env comment cleanup (stray quote ~line 81); .env edits are operator keystrokes by convention. Reply ENV LINE: FIXED when done.",
-      "disposition_at": "2026-07-06T21:30:00+00:00"
-    },
-    {
-      "id": "SETUP-TOKEN",
-      "raised_by": "66.4 (Cycle 69)",
-      "raised_at": "2026-07-07",
-      "due": "operator discretion (structural mitigation; detection layer already live)",
-      "ask": "The 2026-06 outage would have been survived by `claude setup-token` (1-year credential via CLAUDE_CODE_OAUTH_TOKEN, env precedence above the keychain OAuth slot). Adopting it changes the credential model for every headless surface (away sessions + cc_rail), so it is an operator decision: run `claude setup-token` interactively on the host and store per its instructions. The 66.4 detection layer (30-min auth probe + page-once + probe-based auto-recovery) is live either way. Runbook: docs/runbooks/credential-expiry-monitoring.md",
-      "reply_options": [
-        "SETUP TOKEN: ADOPTED",
-        "SETUP TOKEN: DECLINED"
-      ],
-      "recommended": "SETUP TOKEN: ADOPTED (a 1-year credential removes the single most damaging failure mode observed to date)",
-      "disposition": "approved_pending_operator_run",
-      "disposition_note": "Operator approved ADOPT via in-session AskUserQuestion 2026-07-07 ~08:50 UTC. Awaiting the interactive `claude setup-token` run on the host; the session then verifies the credential surface and closes this ask.",
-      "disposition_at": "2026-07-07T08:50:00+00:00"
-    }
-  ]
+ "updated": "2026-07-08",
+ "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md). 2026-07-07: TRIAGE 63-65 APPROVED + away-plists KEEP ARMED + 66.3 start-now authorized + SETUP-TOKEN adopted, all via in-session AskUserQuestion (operator present).",
+ "asks": [
+  {
+   "id": "METERED-BREACH-RECURRING",
+   "raised_by": "Recovery 2026-06-18 (AM) recorded the 06-17 breach; Recovery 2026-06-19 (AM) added the 06-18 PM recurrence -- the rail-4 breach is now RECURRING and WORSENING (2 of the last 3 PM sessions), so this is consolidated into one P1 trend (was id METERED-BREACH-0617).",
+   "raised_at": "2026-06-18",
+   "due": "operator discretion (P1, escalated). The daily metric self-resets to $0 each morning (sentinel ok:true on both 06-18 AM and 06-19 AM), but the $0-metered mandate has now been exceeded twice and trending UP, and both PM sessions that should have raised the P1 crashed before doing so.",
+   "ask": "Rail-4 ($0 metered) breach has fired on TWO of the last three PM sessions and the magnitude is INCREASING. (1) 2026-06-17 PM: sentinel measured metered_llm_usd_today=$16.51 vs pinned baseline $8.0 (gates_failed=['metered_budget'], session.log 2026-06-17T20:00:14Z). (2) 2026-06-18 PM: sentinel measured metered_llm_usd_today=$42.00 vs baseline $8.0 (gates_failed=['metered_budget'], session.log 2026-06-18T20:00:50Z) -- ~2.5x the prior breach and ~5x baseline. In BOTH cases the wrapper CORRECTLY auto-downgraded the PM session to digest-only (rail-4's mechanical response fired), but the session then crashed (06-17: ECONNRESET after 13 turns, $0.42; 06-18: rc1 after ~7 turns, $0.000976) and never raised the mandated P1 ask or wrote a digest -- so these two recovery commits are the only durable record. Each following morning the daily metric was back to $0 (sentinel ok:true), so this is a PM-window spike that resets at the daily boundary, not a permanent leak. Root cause is NOT diagnosed -- that needs a read of pyfinagent_data.llm_call_log for 2026-06-17 and 2026-06-18, which is out of recovery scope (rail 8). Candidate causes (none implicate dev-session API spend -- away Claude Code sessions are first-party Max usage, not metered API): (a) trading cycles timing out at 2h (32ff027f on 06-16, 97dd1224 on 06-18 both status=timeout, n_trades=0) and retrying/burning extra Gemini calls that bleed into the daily window; (b) the $25 58.1 window (rail-4 EXEMPT) not fully netted out of the sentinel metric; (c) heavier-than-baseline Gemini pipeline days. The recurrence + escalating magnitude makes (a) or (c) more likely than a one-off. NOTE: kill-switch was NOT paused across the window and trading stayed healthy (NAV ~24021 region).",
+   "reply_options": [
+    "METERED BREACH: ACCEPT",
+    "METERED BREACH: INVESTIGATE",
+    "HALT-DEV"
+   ],
+   "recommended": "METERED BREACH: INVESTIGATE (escalated recommendation -- the prior 06-18 recovery recommended ACCEPT when it looked like a one-off, but the 06-18 PM recurrence at $42 makes this a worsening trend; INVESTIGATE directs the next session to break down pyfinagent_data.llm_call_log for 06-17 + 06-18 and net out the 58.1 exempt window. ACCEPT remains valid if you judge the daily self-reset + healthy trading sufficient; ACCEPT/INVESTIGATE are not in KNOWN_TOKEN_ENV_MAP so they are recorded-only with NO .env/trading effect, while HALT-DEV is the reserved stop-all token.)",
+   "disposition": "root_caused_pending_fix",
+   "disposition_note": "ROOT CAUSE (return-day session 2026-07-06, BQ-measured): 100% of breach-day anthropic spend is agent=cc_rail FAILED calls (06-17: 137/137 fail $16.30; 06-18: 207/207 fail $42.20; 0 input/0 output tokens, ~5s latency). A subset of failed rows carries a flat $0.50 session_cost_usd from an unpinned writer (claude_code_client._log_cc_call deliberately logs 0; candidates: claude-code-proxy, log_llm_call default). cc_rail is Max flat-fee and 401/ECONNRESET calls bill nothing -> the breach was PHANTOM ACCOUNTING; real metered spend for the whole away window ~ $8.24 Gemini + $0.07 claude-code. Candidate causes (a)/(b)/(c) from the original ask are all ruled out. Fix (log 0 cost on failed calls + sentinel excludes flat-fee rail + failure-count signal) is owned by masterplan step 66.3.",
+   "disposition_at": "2026-07-06T21:30:00+00:00"
+  },
+  {
+   "id": "TEST-TOKEN-62.2",
+   "raised_by": "62.2 (Cycle 65, AM away session)",
+   "raised_at": "2026-06-14",
+   "due": "62.7 dress rehearsal (already on the rehearsal checklist) OR any earlier real token",
+   "ask": "62.2 (operator-token handler) is verified for criteria 1+2 (handler-above-catch-all + quoted grammar + append; operator-user+channel allowlist; 29 unit tests; pytest exit 0). Criterion 3 is the LIVE round-trip and is the only thing left to flip 62.2 to done: it needs ONE real operator Slack message because handoff/operator_tokens.jsonl is created only by the running bot (a synthetic line was deliberately NOT written -- it would fabricate operator evidence and a stale RESUME could re-fire). Send the drill token from your phone in the approvals channel (C0ANTGNNK8D). It is NOT in KNOWN_TOKEN_ENV_MAP, so it is recorded only -- NO .env change, NO trading effect. Expected threaded ACK: 'OPERATOR TOKEN RECORDED (operator_tokens.jsonl line 1): `TEST TOKEN: PING` -- the next away session acts on it.' The next session then pastes the jsonl line + ACK permalink into live_check_62.2.md and a fresh Q/A flips 62.2.",
+   "reply_options": [
+    "TEST TOKEN: PING"
+   ],
+   "recommended": "TEST TOKEN: PING (sent in C0ANTGNNK8D during the 62.7 rehearsal; closes 62.2's last criterion and proves the whole token pipeline end-to-end)",
+   "disposition": "open_operator_gated",
+   "disposition_note": "Re-asked return-day 2026-07-06: send TEST TOKEN: PING in C0ANTGNNK8D to close 62.2 criterion 3.",
+   "disposition_at": "2026-07-06T21:30:00+00:00"
+  },
+  {
+   "id": "FABLE-HEADLESS",
+   "raised_by": "62.1 (Cycle 64, AM away session)",
+   "raised_at": "2026-06-13",
+   "due": "optional (NON-BLOCKING; away sessions already auto-override to Opus 4.8 per-spawn -- they keep working)",
+   "ask": "The Layer-3 harness subagents researcher (.claude/agents/researcher.md) + qa (.claude/agents/qa.md) are pinned model: claude-fable-5 (phase-59.1). In headless 'claude -p' away sessions, that pin FAILS to spawn ('model may not exist or you may not have access'). Cycle 64 worked around it by overriding each spawn to model: opus (the away-session-pinned model + the subagents' pre-59.1 config), so the research gate + Q/A both ran normally. This will recur on EVERY away AM/PM session for the 3-week window. Options: (A) leave the per-spawn Opus override in place (zero config change; works fine; Opus is the documented pre-59.1 + away-session model) -- RECOMMENDED; (B) repin both agent files to model: opus for the away window (requires a session restart to take effect, and is an agent-roster behavior change the plan explicitly deferred -- 'Researcher/Q/A subagent pins stay as committed'), so a session should only do this on your token.",
+   "reply_options": [
+    "FABLE HEADLESS: KEEP OPUS OVERRIDE",
+    "FABLE HEADLESS: REPIN AGENTS TO OPUS"
+   ],
+   "recommended": "FABLE HEADLESS: KEEP OPUS OVERRIDE (no config churn; the override is grounded in the away-ops Opus-4.8 session pin and the subagents' pre-59.1 config; revisit Fable on return)",
+   "disposition": "resolved",
+   "disposition_note": "Operator approved the goal_phase66 Part-1 disposition table in-session 2026-07-06 ('do it'): KEEP OPUS OVERRIDE for away windows; Fable pins verified working in attended sessions (this session runs Fable 5 Main + Fable researcher/qa).",
+   "disposition_at": "2026-07-06T21:30:00+00:00"
+  },
+  {
+   "id": "SDK-CREDIT",
+   "raised_by": "62.3",
+   "raised_at": "2026-06-12",
+   "due": "2026-06-15 (HARD: the Agent SDK credit regime starts that day, 3 days into the away window)",
+   "ask": "From 2026-06-15, headless claude -p sessions draw a separate monthly Agent SDK credit (Max 5x = $100/mo, Max 20x = $200/mo). Two Opus sessions/day for 3 weeks may exceed it. On exhaustion, scheduled sessions STOP until the credit refreshes -- unless usage credits are enabled, which is metered spend (conflicts with the $0 decision). The wrapper already logs per-session cost + LIMIT_HIT lines so the digest shows burn from day 1.",
+   "reply_options": [
+    "SDK CREDIT: STOP-ON-EXHAUSTION",
+    "SDK CREDIT: ENABLE USAGE CREDITS <monthly cap USD>"
+   ],
+   "recommended": "SDK CREDIT: STOP-ON-EXHAUSTION (consistent with the $0 decision; worst case dev pauses until the monthly refresh while trading + digests continue)",
+   "disposition": "deferred",
+   "disposition_note": "Moot while operator is home (no scheduled headless dev load beyond the standing plists). Re-decide before any next away window.",
+   "disposition_at": "2026-07-06T21:30:00+00:00"
+  },
+  {
+   "id": "MAS-PLIST-ZOMBIE",
+   "raised_by": "62.3",
+   "raised_at": "2026-06-12",
+   "due": "pre-departure (62.7 checklist item)",
+   "ask": "~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist is bootout'd but NOT disabled and still on disk -- a reboot + auto-login re-bootstraps its 30-minute loop, racing the away sessions on a different lockfile. Away sessions are hook-blocked from launchctl disable on pyfinagent labels (the 62.0 guard, working as designed), so only you can neutralize it: mv ~/Library/LaunchAgents/com.pyfinagent.mas-harness.plist ~/Library/LaunchAgents/disabled.com.pyfinagent.mas-harness.plist.bak",
+   "reply_options": [
+    "MAS PLIST: MOVED"
+   ],
+   "recommended": "MAS PLIST: MOVED (run the mv during the 62.7 dress rehearsal)",
+   "disposition": "resolved",
+   "disposition_note": "mv executed 2026-07-06 by the return-day session with in-session operator approval: com.pyfinagent.mas-harness.plist -> disabled.com.pyfinagent.mas-harness.plist.bak (verified via ls ~/Library/LaunchAgents).",
+   "disposition_at": "2026-07-06T21:30:00+00:00"
+  },
+  {
+   "id": "WEBHOOK",
+   "raised_by": "62.5 (Q/A spawn-1 BLOCK find)",
+   "raised_at": "2026-06-12",
+   "due": "optional (return-day OK; away paging works via the bot-token fallback)",
+   "ask": "settings.slack_webhook_url is EMPTY, which silently disables webhook-path P1 paging incl. the legacy backend_watchdog.sh:64 alert. Away-window paging is COVERED by the new bot-token fallback (live-proven). To resurrect the webhook path too: create a Slack incoming webhook and add SLACK_WEBHOOK_URL=<url> to backend/.env (keystroke), then restart backend + bot.",
+   "reply_options": [
+    "WEBHOOK: CONFIGURED",
+    "WEBHOOK: SKIP"
+   ],
+   "recommended": "WEBHOOK: SKIP (bot-token fallback is live-proven; do on return)",
+   "disposition": "resolved",
+   "disposition_note": "Operator chose SKIP PERMANENTLY (in-session AskUserQuestion 2026-07-07 ~15:57 UTC). Bot-token path is the sole page channel; dead webhook branches noted for the 63.3 register scope.",
+   "disposition_at": "2026-07-07T15:58:00+00:00"
+  },
+  {
+   "id": "AUTORESEARCH-SPEND",
+   "raised_by": "62.6",
+   "raised_at": "2026-06-12",
+   "due": "operator's discretion (nightly stays $0 preflight-only until then)",
+   "ask": "langchain-huggingface stack installed (constrained; langchain-core held at 1.2.30) -- the nightly autoresearch cron is FIXED and exits 0, but full GPTResearcher runs would spend ~$0.10-0.50/night on Anthropic API. The nightly is pinned to --preflight-only ($0) for the away window. To resume full nightly memos: reply the token; the session removes the flag from scripts/autoresearch/run_nightly.sh.",
+   "reply_options": [
+    "AUTORESEARCH SPEND: RESUME",
+    "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY"
+   ],
+   "recommended": "AUTORESEARCH SPEND: KEEP PREFLIGHT-ONLY (consistent with $0; resume on return)",
+   "disposition": "resolved",
+   "disposition_note": "Operator chose RESUME NIGHTLY SPEND (in-session AskUserQuestion 2026-07-07 ~15:57 UTC). --preflight-only removed from run_nightly.sh same session; tonight's scheduled cron run is the evidence (39.1 doctrine); spend visible via the 66.3 token-derived sentinel figure.",
+   "disposition_at": "2026-07-07T15:58:00+00:00"
+  },
+  {
+   "id": "ENV-LINE-81",
+   "raised_by": "62.6 (regression find)",
+   "raised_at": "2026-06-12",
+   "due": "62.7 rehearsal (keystroke, 30 seconds)",
+   "ask": "The 2026-06-12 morning paste left an unbalanced quote in a backend/.env comment (line ~81) -- harmless to pydantic but it broke shell-sourcing (killed the autoresearch nightly silently; run_nightly.sh now hardened). Cleanup keystroke: open backend/.env, fix/delete the wrapped comment line ending in a stray quote (the three PAPER_*=true lines below it are correct -- do not touch them).",
+   "reply_options": [
+    "ENV LINE: FIXED"
+   ],
+   "recommended": "ENV LINE: FIXED (during 62.7)",
+   "disposition": "open_operator_gated",
+   "disposition_note": "Re-asked return-day 2026-07-06: one-keystroke backend/.env comment cleanup (stray quote ~line 81); .env edits are operator keystrokes by convention. Reply ENV LINE: FIXED when done.",
+   "disposition_at": "2026-07-06T21:30:00+00:00"
+  },
+  {
+   "id": "SETUP-TOKEN",
+   "raised_by": "66.4 (Cycle 69)",
+   "raised_at": "2026-07-07",
+   "due": "operator discretion (structural mitigation; detection layer already live)",
+   "ask": "The 2026-06 outage would have been survived by `claude setup-token` (1-year credential via CLAUDE_CODE_OAUTH_TOKEN, env precedence above the keychain OAuth slot). Adopting it changes the credential model for every headless surface (away sessions + cc_rail), so it is an operator decision: run `claude setup-token` interactively on the host and store per its instructions. The 66.4 detection layer (30-min auth probe + page-once + probe-based auto-recovery) is live either way. Runbook: docs/runbooks/credential-expiry-monitoring.md",
+   "reply_options": [
+    "SETUP TOKEN: ADOPTED",
+    "SETUP TOKEN: DECLINED"
+   ],
+   "recommended": "SETUP TOKEN: ADOPTED (a 1-year credential removes the single most damaging failure mode observed to date)",
+   "disposition": "resolved",
+   "disposition_note": "Operator approved ADOPT via in-session AskUserQuestion 2026-07-07 ~08:50 UTC. Awaiting the interactive `claude setup-token` run on the host; the session then verifies the credential surface and closes this ask. RESOLVED 2026-07-08 ~08:45 UTC: operator ran claude setup-token interactively; token (sk-ant-oat01, 92 chars) wired into EnvironmentVariables of 4 plists (backend, away-session-am, away-session-pm, away-watchdog) + jobs bootout/bootstrap reloaded (backend needed a bootstrap retry after a launchd I/O-error race, then explicit kickstart -- runs=1, /docs 200, PID 24910). End-to-end validation: claude auth status under the wired env returns loggedIn=true authMethod=oauth_token apiProvider=firstParty (env token, not keychain). Credential model now 1-year for all headless surfaces; renewal due ~2027-07; 66.4 probe pages within 30 min on any future death. NOTE: same Max account quota pool -- quota discipline 16:30-20:30 UTC unchanged.",
+   "disposition_at": "2026-07-08T08:45:00+00:00"
+  }
+ ]
 }
