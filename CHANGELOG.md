@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `ca8873ce` | phase-66.2: healthy-rail-day codified definition PROPOSAL (ok-rate>=90% + booleans; clock frozen at  |
 | 2026-07-08 | `a225d735` | chore(ops): SETUP-TOKEN resolved -- 1-year CLAUDE_CODE_OAUTH_TOKEN wired into 4 launchd plists, vali |
 | 2026-07-08 | `ccdf2e28` | phase-66.2: day-2 pre-cycle evidence sweep -- rail GO, BUYs died at synthesis not gates, 5-day clock |
 | 2026-07-08 | `399fdad4` | fix(rail): log CLI stdout on failure (limit messages live there, not stderr) + 66.2 day-1 funnel row |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `5fddca93` | chore(harness): Cycle 70 log -- 66.5 CONDITIONAL (triage delivered, sign-off pending) |
 | 2026-07-07 | `edb8600a` | phase-66.5: results + live_check (criterion 1 satisfied; sign-off pending) |
 | 2026-07-07 | `57e2b477` | phase-66.5: research brief + contract + triage deliverable (14-row disposition, awaiting operator si |
-| 2026-07-07 | `ac7fed54` | chore(harness): hotfix log -- P1 page storm root-caused + fixed + live-verified |
 
 ---
 
+### v6.55.5 — phase-66.2: healthy-rail-day codified definition PROPOSAL (ok-rate>=9... (2026-07-08)
+
+- **phase-66.2: healthy-rail-day codified definition PROPOSAL (ok-rate>=90% + booleans; clock frozen at**
 ### v6.55.4 — phase-66.2: day-2 pre-cycle evidence sweep -- rail GO, BUYs died at s... (2026-07-08)
 
 - **phase-66.2: day-2 pre-cycle evidence sweep -- rail GO, BUYs died at synthesis not gates, 5-day clock**
