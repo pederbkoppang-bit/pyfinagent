@@ -281,3 +281,52 @@ isolation, 60s auto-flush). ALSO: pyfinagent_data.api_call_log does not exist
 -- ALL production API telemetry silently dropped today; sla_alerts is 100%
 drill output. Marker convention + conftest no-op flush + operator-approved
 cleanup DELETEs drafted in the dossier (BQ deletes need explicit approval).
+
+## 7. Day-2 SCHEDULED-CYCLE evidence -- 2026-07-08 cycle 9a8720b3 (completed 19:21:33 UTC)
+
+Scheduled-run evidence (39.1 doctrine): the persistent cycle monitor caught
+9a8720b3 start 18:00:00.3Z -> complete 19:21:33.6Z. NO manual rerun.
+
+### Funnel row 2 (canonical, funnel_report.py)
+```
+| 2026-07-08 | 9a8720b3 | 583/577/10/5 | rail 87/46 | rail_skip False | breaker False | 5 analyses (4 deg) | HOLD:5 | non-HOLD 0 | trades - | ALL-HOLD COLLAPSE (pipeline defect) |
+```
+
+### Result: ZERO BUYs (n_trades=0); NOT a healthy-rail day
+- cc_rail ok-rate **65.4% (87 ok / 46 fail of 133)** -- BETTER than day-1's 47.2%
+  but BELOW the proposed >=90% healthy-rail threshold (healthy_rail_day_
+  definition_PROPOSAL.md). By the proposed rule (and funnel_report's own
+  ALL-HOLD-COLLAPSE verdict), 07-08 does NOT count. **Clock stays DAY 0.**
+- rail_skipped False, breaker_tripped False (max streak < 20; success-reset held).
+- 0 paper_trades today (BQ verified); kill-switch not involved.
+
+### Cause: the 61.2 defect fired AGAIN, live, 2nd consecutive cycle
+BQ analysis_results for 9a8720b3 (verbatim):
+- DELL / MU / SNDK: `_path=full`, `final_synthesis.error='Failed to parse final
+  report.'` -> synthetic **HOLD/0.0** (the exact 61.2 fabrication).
+- **MU had debate consensus=BUY** destroyed at synthesis; **009150.KS** full-path
+  debate=BUY but persisted "Hold"/5.0 (falsy-recommendation -> the _persist
+  `or "Hold"` coercion, 61.2's second fabrication site).
+- 000660.KS: fell back to `_path=lite` (rail failure on its full path) -> HOLD.
+- meta_scorer_degraded=true again (direct-API credits dead; operator chose
+  leave-degraded 2026-07-08).
+So >=2 tickers carried a BUY-side debate signal that the synthesis/persist
+fabrication converted to HOLD. This is criterion-1(b) "pipeline-defect (NOT
+gates-correctly-reject)" evidence, live-reproduced at scale twice.
+
+### NEW diagnostic finding (rail failure class differs from day 1)
+The 46 failures (18:44 UTC decision-phase burst) log **empty stdout AND empty
+stderr** under the 66.1 stdout-capture logging -- so they are NOT the
+"session-limit message on stdout" class that explained day 1. Empty-both exit=1
+is consistent with subprocess TIMEOUT (the 120s cap 61.2 raises to 150s) or
+concurrency, NOT quota. The setup-token wiring (08:44 UTC) removed the shared-
+credential quota risk (ok-rate improved 47->65%), exposing a SECOND failure
+class underneath. This directly motivates deploying 61.2 (150s timeout +
+retry-on-empty). Register: instrument the empty-both exit-1 class (add rc/
+timeout discriminator to the 66.1 logging) -- follow-on.
+
+### Disposition
+NO status flip. 66.2 stays pending. The 61.2 build (Cycle 74, dark) is the
+targeted fix; tonight re-confirms its necessity. Next: deploy 61.2 ungated
+fixes at the post-cycle restart; the integrity flag (retry-on-empty + synthesis
+routing) is the operator promotion that would have saved MU/009150.KS tonight.
