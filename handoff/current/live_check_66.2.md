@@ -94,3 +94,117 @@ DESC-order trap in compute_drawdown_from_snapshots (navs[-1]=OLDEST row as
 "current"). Fixed (date-key ordering; refuses to guess when unknowable),
 5 tests, live verification: real drawdown -2.76% (below the -3% tier,
 correctly silent). Deployed in the 16:31 UTC restart.
+
+## 5. Day-2 pre-cycle evidence sweep (2026-07-08 ~07:30 UTC)
+
+Provenance: ultracode Workflow wf_5ec0a566-4e2 -- 5 read-only finders + 30
+adversarial per-claim verifiers (35 agents, 448 tool calls, 0 errors; 27
+CONFIRMED, 3 REFUTED-and-corrected). Every claim below survived independent
+reproduction. Full dossier: workflow journal + scratchpad sweep_full.txt.
+READ-ONLY sweep: zero repo/table writes; criterion 2 untouched.
+
+### 5a. GO/NO-GO tonight: rail GO, BUY path structurally open
+
+- stdout-logging fix LOADED: PID 3937 started 09:14:26 CEST > commit 399fdad4
+  09:14:24; code at claude_code_client.py:333-342; no uncommitted diff.
+- probe ok=True (07:31 UTC), route=True, breaker=20 armed, per-cycle
+  rail_guard_reset at autonomous_loop.py:221. 0 cc_rail rows today (expected;
+  single combined US+EU+KR cycle, APScheduler 14:00 ET = 18:00 UTC, no earlier
+  EU/KR cycles -- paper_trading.py:1299-1322).
+- decide_trades admission = rec in {BUY, STRONG_BUY} ONLY (portfolio_manager.py
+  :50,:161); NO confidence/score floor anywhere; ~$22.8k spendable after 5%
+  reserve; sector/count/NAV caps at zero utilization; RiskJudge REJECT gate
+  default OFF (settings.py:283); kill-switch paused=false (daily 0.0%/4%,
+  trailing 0.53%/10%). Sizing: ~$720 at APPROVE_REDUCED 3%, ~$2,400 at 10%.
+- Criterion-2 audit CLEAN over c1e6050b..HEAD: only 3 backend commits
+  (drawdown-alarm fix, funnel persistence, stdout logging); zero touches of
+  thresholds/caps/limits/entry/sizing (aggregate diff grep = 0 hits).
+
+### 5b. HEADLINE: yesterday's BUYs EXISTED and died at synthesis, not gates
+
+Debate consensus BUY/0.62 for 000660.KS (18:17:49Z) and SNDK (18:20:26Z); all
+5 analyses (000660.KS SNDK 009150.KS DELL MU) ran the FULL path (zero lite
+rows) and persisted HOLD/0.0 with final_synthesis.error='Failed to parse final
+report.' -- the orchestrator fallback (orchestrator.py:2172) converted rail
+starvation into synthetic HOLDs. Root enabler (61.2-class, live-confirmed at
+5/5 scale): ClaudeCodeError -> EMPTY LLMResponse (claude_code_client.py:555-570)
+which _generate_with_retry never retries (orchestrator.py:797-862 retries
+exceptions only). The deep-path Risk Judge also starved (DELL/MU 18:42-18:44Z)
+and fail-opened to APPROVE_REDUCED/3%. A 0.62-confidence BUY would have cleared
+decide_trades -- there is no threshold. This is the primary pipeline-defect
+(vs-gates) confound for criterion 1(b); fix is masterplan 61.2 (pending,
+post-66.2 per goal sequencing).
+
+### 5c. CORRECTION: the 5-day healthy-rail clock is at DAY 0, not day 1
+
+Section-1 above headered 07-07 as "Day 1 of <=5". The sweep found NO codified
+healthy-rail-day definition anywhere, and the three existing signals CONFLICT
+on 07-07: rail_skipped/breaker_tripped both false (pass; max fail streak 12 <
+20), but funnel_report.py's own verdict = "ALL-HOLD COLLAPSE (pipeline defect:
+rail down)" and research_brief_66.2.md:102's falsifier (ok-rate >90%) fails at
+47.2% (58/123). Honest ruling: 07-07 does NOT count as a healthy-rail day.
+PROPOSED definition for Q/A + operator ratification: healthy-rail day :=
+rail_skipped=false AND breaker_tripped=false AND cycle cc_rail ok-rate >= 90%.
+Clock stands at DAY 0 pending tonight's cycle.
+
+### 5d. NEW live degradation: direct-API Anthropic credits dead since ~07-03
+
+'credit balance is too low' on the DIRECT Anthropic SDK (not the rail, not the
+Max plan): meta_scorer (meta_scorer.py:168-190, fires once per cycle at Step 1)
+falls back to raw composite ranking every cycle; compute_macro_regime's LLM leg
+fails the same way -> regime=unknown conviction=0.00 mult=0.85 applied
+uniformly (rank-preserving, macro_regime.py:526-542; FRED HTTP itself healthy,
+9x HTTP 200 on 07-07). Neither forces HOLD nor blocks BUY, but candidate
+ranking + regime context run degraded EVERY cycle regardless of rail health.
+OPERATOR DECISION REQUIRED (metered spend): top up API credits, or accept/repin.
+
+### 5e. historical_macro staleness verdict: (c) backtest/reporting-only
+
+- The live funnel NEVER reads historical_macro; sole service-layer consumer is
+  cycle_health monitoring -- i.e. the staleness alert itself. Live macro flows
+  via compute_macro_regime -> direct FRED HTTP. NOT a BUY suppressor.
+- Root cause: the table NEVER had a scheduled writer. Only writer =
+  DataIngestionService.ingest_macro via run-once migration
+  extend_historical_data.py (end_date hardcoded '2025-12-31'); exactly two
+  write days ever (2026-03-22, 2026-03-25). max data date 2025-12-31 (189d),
+  max ingested_at 2026-03-25 (105d), 4412 rows / 7 series.
+- weekly_fred_refresh is triple-dead-but-green: no FRED_API_KEY in slack-bot
+  env, writes nonexistent pyfinagent_data.fred_observations, zero readers,
+  reports status=ok written=0. (Backend's own FRED key WORKS -- rotation ask
+  is hygiene, not the root cause.)
+- REAL impact: backtests/optimizer -- preload_macro refuses stale cache
+  (189d>35d, cache.py:243-251) -> slow per-cutoff path with NO staleness guard
+  (cache.py:399-421) silently serving 2025-12-31 macro features for 2026
+  cutoffs. DO NOT run the optimizer until macro ingestion is repaired
+  (register: promoted params would inherit stale-macro bias).
+
+### 5f. Register additions (file into 63.3's defect register)
+
+1. Probe blind spot: auth-status probe cannot detect Max session-limit
+   exhaustion (07-07's actual failure mode) -- probe passes while quota is dead.
+2. Breaker rate gap: 65 interleaved failures never trip the consecutive-20
+   breaker (max streak 12); needs a per-cycle failure-RATE alarm.
+3. 61.2-class synthetic-HOLD persistence + empty-response-no-retry (see 5b).
+4. Fail-open risk gate: unparseable Risk Judge output yields APPROVE_REDUCED/3%
+   -- unsafe if paper_risk_judge_reject_binding ever flips ON.
+5. Debate evidence loss: debate_consensus/debate_confidence columns empty when
+   synthesis fails (BUY/0.62 recoverable only from full_report_json).
+6. cc_rail llm_call_log rows carry ticker=NULL on the full path -- per-ticker
+   starvation attribution requires backend.log parsing.
+7. weekly_fred_refresh triple-dead-but-green (5e).
+8. sortino.py:101-121 tier-1 MAR: wrong dataset + never-present series ->
+   permanent 404, fail-open to tier 2/3.
+9. mcp data_server.py:142,:172 hardcode cutoff '2025-12-31'.
+10. cycle_health P1 staleness alert fires for a non-live-path table
+    (alert fatigue; pairs with the 07-07 hotfix's repeat-window).
+11. No codified healthy-rail-day definition (5c) -- ratification pending.
+12. Degraded-scoring guard is observability-only AND decide_trades has no
+    floor: a PARSED BUY with confidence 0 would trade (sorts last, tradeable).
+
+### 5g. Operator asks (pre-18:00 UTC today)
+
+1. Run `claude setup-token` (approved 07-07, STILL PENDING per today's AM
+   session artifact) -- until then the rail shares the interactive Max quota.
+2. Anthropic direct-API credit decision (5d) -- metered, needs your approval.
+3. Ratify (or amend) the healthy-rail-day definition in 5c.
+4. Keep dev-session Claude usage light 16:30-20:30 UTC (quota guard).
