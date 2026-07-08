@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `97b0b704` | fix(tests): stop pytest polluting prod llm_call_log -- PYFINAGENT_TEST_NO_BQ guard in flush/flush_ll |
 | 2026-07-08 | `354eb6b4` | phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- designed intermediate state, live le |
 | 2026-07-08 | `fc528c9b` | phase-61-prep: final pre-pay research briefs 61.3/61.4/61.5 complete (all 4 gates passed; TAF fee dr |
 | 2026-07-08 | `6186784c` | phase-61.2: decision-input integrity DARK BUILD -- synthesis-error routing + degraded NULL rows, ret |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `0a512c5f` | phase-66.3: Cost-truth restoration -- pin+fix the phantom failure-cost writer; sentinel metered figu |
 | 2026-07-07 | `c4f91bdd` | fix(cost): phase-66.3 cost-truth -- gauge-guard on failed 0-token rows + token-derived sentinel mete |
 | 2026-07-07 | `be19b1a0` | phase-66.5: Away-backlog triage (planning-only) -- disposition every phase-63/64/65 step keep/merge/ |
-| 2026-07-07 | `c64408aa` | phase-66.5: operator sign-off recorded + 6 triage edits applied (65.1/64.5 merged, 64.4 repointed, r |
 
 ---
 
+### v6.55.10 — fix(tests): stop pytest polluting prod llm_call_log -- PYFINAGENT_TES... (2026-07-08)
+
+- **fix(tests): stop pytest polluting prod llm_call_log -- PYFINAGENT_TEST_NO_BQ guard in flush/flush_ll**
 ### v6.55.9 — phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- desig... (2026-07-08)
 
 - **phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- designed intermediate state, live le**
