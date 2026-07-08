@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-08 | `71fef45d` | phase-66.2: Cycle 75 harness log -- day-2 evidence (clock DAY 0), RJ-shape dark fix, 61.2 deploy (15 |
 | 2026-07-08 | `d6158cc7` | phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades resolves the nested risk_assessme |
 | 2026-07-08 | `b09115d0` | phase-66.2: day-2 scheduled-cycle evidence (9a8720b3) -- zero BUYs, rail 65.4% (not healthy-rail; cl |
 | 2026-07-08 | `6826289d` | chore(away-ops): recovery -- commit benign cycle/audit/kill-switch churn + populated AM session arti |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-07 | `4adf7e3b` | feat(observability): phase-66.2 -- persist per-stage funnel counts (universe/screened/candidates/ana |
 | 2026-07-07 | `de93e3f5` | phase-66.2 prep: live_check -- criteria 3+4 CLOSED (Alpaca shorts = d4-* drill orders on disconnecte |
 | 2026-07-07 | `9262ed36` | fix(alerting): drawdown alarm DESC-order trap -- phantom -61.51% P1 on a book UP 20% |
-| 2026-07-07 | `c1e6050b` | phase-66.2 prep: research brief + contract + read-only funnel_report.py (operator-authorized pre-66. |
 
 ---
 
+### v6.55.13 — phase-66.2: Cycle 75 harness log -- day-2 evidence (clock DAY 0), RJ-... (2026-07-08)
+
+- **phase-66.2: Cycle 75 harness log -- day-2 evidence (clock DAY 0), RJ-shape dark fix, 61.2 deploy (15**
 ### v6.55.12 — phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades re... (2026-07-08)
 
 - **phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades resolves the nested risk_assessme**
