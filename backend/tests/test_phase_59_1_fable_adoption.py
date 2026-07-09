@@ -69,13 +69,21 @@ def _frontmatter(path: Path) -> str:
 def test_layer3_agents_pin_fable_with_raised_caps():
     researcher = _frontmatter(REPO_ROOT / ".claude/agents/researcher.md")
     qa = _frontmatter(REPO_ROOT / ".claude/agents/qa.md")
-    # 2026-07-08 repin: fable -> opus (alias -> latest Opus); turn caps kept.
-    # Match the ACTIVE frontmatter key line (comments may mention the old pin).
+    # phase-67.6 (2026-07-10): this assertion previously pinned the exact
+    # model string and broke on every operator-directed window flip
+    # (59.1 fable -> 07-08 opus -> 07-09 fable window with REVERT-BY
+    # 2026-07-12). Per the 67.3 no-hardcoded-drifting-state lesson, assert
+    # the DURABLE 59.1 decision instead: Layer-3 gate agents run a
+    # flagship-tier pin (fable or opus alias, never sonnet/haiku) with the
+    # raised turn caps. The window-specific pin is operator policy tracked
+    # in the masterplan (67.4), not a regression-test invariant.
     import re
-    assert re.search(r"^model: opus$", researcher, flags=re.M)
-    assert not re.search(r"^model: fable$", researcher, flags=re.M)
-    assert re.search(r"^model: opus$", qa, flags=re.M)
-    assert not re.search(r"^model: fable$", qa, flags=re.M)
+    for fm, label in ((researcher, "researcher"), (qa, "qa")):
+        m = re.search(r"^model: (\S+)$", fm, flags=re.M)
+        assert m, f"{label}: no active model frontmatter line"
+        assert m.group(1) in ("fable", "opus"), (
+            f"{label}: Layer-3 gate agent pinned to non-flagship {m.group(1)!r}"
+        )
     assert "maxTurns: 40" in researcher   # was 30; stalled twice on complex briefs
     assert "maxTurns: 30" in qa           # was 12; FIVE mid-evaluation stalls 2026-06-10/11
     assert "effort: max" in researcher    # retained (documented over-spec)

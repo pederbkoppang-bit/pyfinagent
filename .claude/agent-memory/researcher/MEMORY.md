@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [CC runtime adoption 67.5](project_cc_runtime_adoption_67_5.md) — MCP approvals live in ~/.claude.json project entry + untracked settings.local.json (v2.1.196 distrusts committed self-approval; all servers were Pending pre-fix); fallbackModel NEVER fires on rate-limit/auth; SessionStart can't block; Agent(type) allowlist ignored in subagent frontmatter
+- [Fable/Sonnet-5 request shapes (67.6)](project_fable_sonnet5_request_shapes_67_6.md) -- fable OMIT thinking (disabled 400s); sonnet-5 adaptive-default + tokenizer +30%; xhigh GA fable/sonnet-5; SDK 0.96.0 advisor/iterations BETA-only; pin-downgrade time bomb; mas orchestrator :1089 second ungated trap
 - [Funnel zero-trade audit (phase-66.2)](project_funnel_zero_trade_66_2.md) — cash-BUY needs NO swap; rail death=structural all-HOLD; probe-green!=rail-green; n_trades excludes stop-loss sells; loop=bq_sim forever (launchd env); short_market_value SIGNED; DESC drawdown phantom
 - [Cost-truth 66.3](project_cost_truth_66_3.md) — session_cost_usd = CUMULATIVE per-cycle nominal gauge auto-stamped on ALL rows (api_call_log:245); $0.50 = gauge staircase not constant; sentinel SUM bug :67-71; proxy exonerated; read = MAX per cycle_id
 - [Credential-expiry empirics (phase-66.4)](project_credential_expiry_66_4.md) — keychain expiresAt = 8h ACCESS token (refresh expiry invisible -> pre-warning infeasible); auth status = LOCAL presence check; 401 JSON subtype:"success"+api_error_status:401+rc=1; healthcheck tail-1 dedupe re-pages every other run

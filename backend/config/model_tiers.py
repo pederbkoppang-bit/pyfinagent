@@ -216,6 +216,11 @@ EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
     # DROPS the effort param for fable-pinned roles -- the trap the 59.1
     # researcher flagged.
     "claude-fable-5",
+    # phase-67.6: Sonnet 5 supports the full effort range (low..max incl.
+    # xhigh per the effort doc). Load-bearing the same way the fable entry
+    # is -- without it, llm_client silently drops effort for sonnet-5 pins
+    # (the 67.4 post-window ROI candidate).
+    "claude-sonnet-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
@@ -276,6 +281,9 @@ MODEL_EFFORT_FALLBACK: tuple[tuple[str, Effort | None], ...] = (
     ("claude-opus-4-6",   "high"),
     ("claude-opus-4-5",   "high"),
     ("claude-opus-4-1",   "high"),
+    # phase-67.6: Sonnet 5 doc default is high (the effort doc keeps high
+    # as the default; xhigh reserved for the hardest coding/agentic work).
+    ("claude-sonnet-5",   "high"),
     ("claude-sonnet-4-6", "medium"),
     ("claude-sonnet-4-5", "medium"),
     ("claude-haiku-4-5",  None),

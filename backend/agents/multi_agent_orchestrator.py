@@ -41,7 +41,6 @@ from typing import Optional
 
 from backend.agents.agent_definitions import (
     AGENT_CONFIGS,
-    AgentConfig,
     AgentType,
     ClassificationResult,
     QueryComplexity,
@@ -171,7 +170,7 @@ class MultiAgentOrchestrator:
         if self._masker is None:
             try:
                 from backend.agents.harness_memory import (
-                    ObservationMasker, HarnessMemory, create_masker, init_session_memory,
+                    create_masker, init_session_memory,
                 )
                 memory, _ = init_session_memory()
                 self._masker = create_masker(
@@ -1083,13 +1082,22 @@ class MultiAgentOrchestrator:
                 # {type:"enabled",budget_tokens}; it only accepts adaptive.
                 # Also: the doc REQUIRES temperature=1 whenever thinking
                 # is active (enabled or adaptive). Branch on model id.
-                _thinking_arg: dict
+                _thinking_arg: dict | None
                 _extra_kwargs: dict
                 _max_tokens: int
-                if agent_config.model.startswith(("claude-opus-4-8", "claude-opus-4-7")):
+                if agent_config.model.startswith("claude-fable-5"):
+                    # phase-67.6: Fable 5 thinking is always on and the API
+                    # 400s on ANY explicit thinking config (even disabled) --
+                    # omit the key entirely. No sampling params either.
+                    _thinking_arg = None
+                    _extra_kwargs = {}
+                    _max_tokens = _adaptive_max_tokens(agent_config.max_tokens)
+                elif agent_config.model.startswith(("claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-5")):
                     # phase-4.14.7: Opus 4.7 rejects temperature /
                     # top_p / top_k with 400 on every request,
                     # thinking or not. Do NOT set any sampling param.
+                    # phase-67.6: Sonnet 5 shares the adaptive-only +
+                    # no-sampling-params contract.
                     _thinking_arg = {"type": "adaptive"}
                     _extra_kwargs = {}
                     # phase-47.9: adaptive thinking shares max_tokens with the
@@ -1105,13 +1113,16 @@ class MultiAgentOrchestrator:
                     # Manual thinking caps at budget_tokens=2048, so the answer
                     # is not starved by unbounded thinking -- unchanged.
                     _max_tokens = agent_config.max_tokens + 2048
+                # phase-67.6: thinking is passed conditionally so the
+                # fable-5 branch can omit the key entirely.
+                if _thinking_arg is not None:
+                    _extra_kwargs["thinking"] = _thinking_arg
                 response = client.messages.create(
                     model=agent_config.model,
                     max_tokens=_max_tokens,
                     system=agent_config.system_prompt,
                     tools=AGENT_TOOLS,
                     messages=messages,
-                    thinking=_thinking_arg,
                     **_extra_kwargs,
                 )
             except Exception as e:

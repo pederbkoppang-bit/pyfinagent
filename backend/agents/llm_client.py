@@ -1445,16 +1445,27 @@ class ClaudeClient(LLMClient):
         thinking_requested = isinstance(thinking_cfg, dict) and thinking_cfg.get("budget_tokens", 0) > 0
         model_id = self.model_name or ""
         if thinking_requested:
-            if model_id.startswith(("claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5")):
-                # Adaptive path (no budget_tokens accepted).
-                kwargs["thinking"] = {"type": "adaptive"}
+            if model_id.startswith("claude-fable-5"):
+                # phase-67.6: Fable 5 thinking is ALWAYS ON and the API
+                # rejects ANY explicit thinking config (even
+                # {"type": "disabled"}) with a 400 -- the only valid
+                # request shape omits the key entirely. Depth is steered
+                # via output_config.effort below. The temperature=1
+                # thinking override is skipped too (this family's
+                # sampling params are stripped below regardless).
+                pass
             else:
-                # Legacy manual path.
-                budget = thinking_cfg["budget_tokens"]
-                kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
-            # Claude REQUIRES temperature=1 whenever thinking is active,
-            # for both adaptive and enabled modes.
-            kwargs["temperature"] = 1
+                if model_id.startswith(("claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5")):
+                    # Adaptive path (no budget_tokens accepted).
+                    # phase-67.6: Sonnet 5 added (adaptive-only family).
+                    kwargs["thinking"] = {"type": "adaptive"}
+                else:
+                    # Legacy manual path.
+                    budget = thinking_cfg["budget_tokens"]
+                    kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
+                # Claude REQUIRES temperature=1 whenever thinking is active,
+                # for both adaptive and enabled modes.
+                kwargs["temperature"] = 1
 
         # phase-4.14.7: Opus 4.7 rejects temperature / top_p / top_k
         # with a 400 error on EVERY request (per Anthropic's
@@ -1464,7 +1475,10 @@ class ClaudeClient(LLMClient):
         # into 4.7 calls either. 2026-05-28: Opus 4.8 inherits the
         # same restriction (adaptive-thinking only, no sampling
         # params); applies to both prefixes.
-        if model_id.startswith(("claude-opus-4-8", "claude-opus-4-7")):
+        # phase-67.6: claude-fable-5 + claude-sonnet-5 share the same
+        # contract (non-default sampling params 400 on both per the
+        # migration guides) -- extended so a future re-pin cannot 400.
+        if model_id.startswith(("claude-opus-4-8", "claude-opus-4-7", "claude-fable-5", "claude-sonnet-5")):
             kwargs.pop("temperature", None)
             kwargs.pop("top_p", None)
             kwargs.pop("top_k", None)
@@ -1504,9 +1518,12 @@ class ClaudeClient(LLMClient):
                 effort, model_id,
             )
             effort = None
-        if effort == "xhigh" and not model_id.startswith(("claude-opus-4-8", "claude-opus-4-7")):
+        # phase-67.6: xhigh is GA on claude-fable-5 + claude-sonnet-5 per the
+        # effort doc; the old opus-only guard spuriously downgraded fable's
+        # xhigh fallback (MODEL_EFFORT_FALLBACK carries fable -> xhigh).
+        if effort == "xhigh" and not model_id.startswith(("claude-opus-4-8", "claude-opus-4-7", "claude-fable-5", "claude-sonnet-5")):
             logger.warning(
-                "[ClaudeClient] xhigh downgraded to high; %s is not opus-4-8/4-7",
+                "[ClaudeClient] xhigh downgraded to high; %s does not support xhigh",
                 model_id,
             )
             effort = "high"
@@ -1544,10 +1561,13 @@ class ClaudeClient(LLMClient):
         # server-side. Response text is still parsed by the caller via
         # backend.utils.json_io.loads -- we do NOT switch to .parse()
         # here (that would change LLMResponse shape; out-of-scope).
-        # Supported on Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6, Haiku 4.5.
+        # Supported on Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 4.6, Haiku 4.5;
+        # phase-67.6: Fable 5 + Sonnet 5 added (both in the official
+        # structured-outputs supported-models list).
         _fmt_eligible = model_id.startswith((
             "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6",
             "claude-sonnet-4-6", "claude-haiku-4-5",
+            "claude-fable-5", "claude-sonnet-5",
         ))
         if schema is not None and _fmt_eligible:
             try:
