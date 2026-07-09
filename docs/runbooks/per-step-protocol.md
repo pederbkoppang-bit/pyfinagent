@@ -116,7 +116,7 @@ Q/A runs deterministic-first:
 1. Syntax / file-existence / `verification.command` exit code
 2. Reads existing `handoff/current/evaluator_critique.md` +
    `experiment_results.md`
-3. Optional harness dry-run (under 55s budget)
+3. Optional harness dry-run (scoped-tests tier of the verification budget)
 4. LLM judgment on contract alignment, scope honesty, mutation-
    resistance, and research-gate compliance
 
@@ -232,9 +232,13 @@ contract.md` to `handoff/archive/phase-<id>/`.
 4. **Batched done-marking** — marking multiple steps done in one
    masterplan write. Write once per step so the archive hook can
    attribute artifacts correctly.
-5. **Second-opinion shopping** — if Q/A returns CONDITIONAL, fix the
-   blockers then SendMessage back to the SAME agent. Do NOT spawn a
-   fresh Q/A and hope for PASS.
+5. **Second-opinion shopping** — spawning a fresh Q/A on UNCHANGED
+   evidence, hoping for a different verdict. The legitimate recovery
+   (§4 Retry-on-FAIL loop, CLAUDE.md canonical cycle-2 flow) is: fix
+   the blockers, update the handoff evidence files, THEN spawn a FRESH
+   Q/A that reads the updated files. The distinguishing test: did the
+   files change between spawns? Changed → legitimate retry; unchanged
+   → forbidden verdict-shop.
 6. **Re-split agents** — reintroducing `Explore` as a separate
    subagent, or `harness-verifier` as a separate evaluator, after
    they've been merged. That's the old pattern. The new MAS is 3
@@ -252,8 +256,10 @@ sub-agents audit:
   (The TaskCompleted hook was retired in phase-23.8.2 because the
   audit found it was a weaker, parallel evaluator that diluted
   Q/A's independence rather than reinforcing it.)
-- Main second-opinion-shops after CONDITIONAL. Fix: require
-  SendMessage-to-same-agent after any fix.
+- Main second-opinion-shops after CONDITIONAL. Fix: require the
+  documented retry loop — fix blockers, update the handoff evidence,
+  spawn a FRESH Q/A on the changed files (respawn on unchanged
+  evidence stays forbidden).
 
 ## Hook sanity (prevents "No such file or directory" errors)
 

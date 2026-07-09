@@ -88,9 +88,29 @@ test -f expected/output/file.py
 # Immutable verification command from masterplan.json
 source .venv/bin/activate && <step.verification.command>
 
-# Test suite if present
-python -m pytest tests/ -v --timeout=30
+# Test suite scoped to the diff (backend/tests is the clean tree; the root
+# tests/ tree has known collection errors -- do not run it wholesale)
+python -m pytest backend/tests/ -q --timeout=60 -k "<pattern matching the affected area>"
+# or, for a small diff, the specific test files that exercise the changed code
 ```
+
+### 1a. Python lint gate (REQUIRED if the diff touches any *.py)
+
+Undefined-name-class bugs (`except (json.JSONDecodeError, ...)` with `json`
+never imported; dead imports; shadowed redefinitions) are invisible to
+`ast.parse` -- this gate is their deterministic kill. Audit basis: the live
+NameError at `backend/agents/agent_definitions.py:396` shipped precisely
+because no lint ran anywhere (phase-67.1; mirror of the phase-23.2.24
+ESLint-gate precedent).
+
+```bash
+uvx ruff check --select F821,F401,F811 <changed .py files>; echo "exit=$?"
+```
+
+Non-zero exit = FAIL (quote the finding verbatim). Do NOT pipe the command
+into `tail`/`head` -- that masks the exit code; run it bare or read
+`${PIPESTATUS[0]}`. `uvx` resolves ruff ephemerally (dev tooling stays out
+of backend/requirements.txt).
 
 ### 1b. Frontend lint + typecheck (REQUIRED if diff touches `frontend/**`)
 
@@ -117,7 +137,8 @@ exit-1 semantics; warnings do NOT fail the gate. The hook-order rule
 is set to `"error"` severity in the project config so the canonical
 class of bug surfaces as an error.
 
-Total runtime ~30-40s, well within the 55s Q/A budget.
+Total runtime ~30-40s -- fits the deterministic tier of the verification
+budget (see Constraints).
 
 ### 1c. Live UI capture gate (BINDING -- REQUIRED if the step makes UI claims)
 
@@ -139,6 +160,18 @@ satisfies this gate (session-only connector, absent headless).
 RESTART CAVEAT: this section binds Q/A spawns from the session AFTER the
 one that authored it (roster snapshot semantics).
 
+### 1d. Backend runtime smoke (REQUIRED if the diff touches backend/**)
+
+"It parses" is not "it runs". For every changed backend module: import it in
+the venv (`source .venv/bin/activate && python -c "import backend.<module>"`)
+and capture the output. When the diff touches a live API or service path,
+exercise it for real -- the backend runs on :8000 (`/api/health` is
+auth-exempt): curl the touched endpoint, or run the actual command the code
+path serves, and capture the response verbatim. An import error or a dead
+endpoint = FAIL regardless of green unit tests (the 345,968-NAV bug and the
+argv-vs-stdin class both shipped through parse+tests; only live exercise
+catches them).
+
 ### 2. Existing results check
 
 Read in order:
@@ -150,7 +183,7 @@ Read in order:
 If an evaluator verdict is FAIL or CONDITIONAL, that is ground
 truth. Do NOT override it.
 
-### 3. Harness dry-run (if time permits within 55s)
+### 3. Harness dry-run (optional -- scoped-tests tier of the budget)
 
 ```bash
 source .venv/bin/activate && python scripts/harness/run_harness.py --dry-run --cycles 1
@@ -241,14 +274,28 @@ Score below 6 on ANY criterion = FAIL.
   `jq`, `test -f`, `ls`, `git log --oneline`. Never `rm`, `mv`,
   `sed -i`, `git commit`, `git push`, no redirects `>` or `>>`.
 - **NEVER approve a FAIL verdict** from the evaluator.
-- **Maximum runtime: 55 seconds** (leave buffer for hook timeout).
+- **Verification budget (tiered -- bound the WORK, not wall-clock panic).**
+  The old flat 55-second cap was calibrated to the TaskCompleted hook
+  retired in phase-23.8.2; no hook spawns or times Q/A today, and your real
+  bound is maxTurns. Tiers: deterministic checks + lint under ~60s; scoped
+  test runs up to ~5 min; runtime smoke up to ~2 min; LLM judgment last.
+  Depth is the point -- a full pytest run on the affected area beats a
+  skipped one; do not truncate verification to chase a clock.
 - **If no evaluator_critique exists** for a harness-required step,
   return `{"ok": false, "reason": "No evaluator critique found"}`.
-- **If `stop_hook_active` is true** in your context, return
-  `{"ok": true, "reason": "loop prevention"}` immediately.
-- **Never second-opinion-shop.** If the first spawn returned
-  CONDITIONAL, the orchestrator must fix the blockers then SendMessage
-  back to the SAME agent, not spawn a new one.
+- **If `stop_hook_active` is true** in your context, exit verdict-NEUTRAL:
+  return `{"ok": false, "verdict": null, "reason": "loop-prevention exit;
+  no evaluation performed"}` immediately. Never return ok:true from a
+  loop-prevention exit -- an evaluator must have no auto-PASS path
+  (phase-67.1; the settings.json Stop-hook ok:true is a different,
+  legitimate semantic -- "allow the stop" -- and is not this clause).
+- **Never second-opinion-shop -- but fresh-respawn on changed evidence is
+  the documented pattern.** After a CONDITIONAL/FAIL the orchestrator must
+  fix the blockers AND update the handoff evidence, then spawn a FRESH Q/A
+  that reads the updated files (CLAUDE.md canonical cycle-2 flow; runbook
+  §4 Retry-on-FAIL). Respawning on UNCHANGED evidence is the forbidden
+  verdict-shop. The distinguishing test: did the files change between
+  spawns?
 - **3rd-CONDITIONAL auto-FAIL.** Before issuing a CONDITIONAL verdict,
   grep `handoff/harness_log.md` for the current step-id. If there are
   already 2+ `result=CONDITIONAL` entries for this step-id (i.e. this

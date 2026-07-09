@@ -27239,3 +27239,13 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Decision**: PASS -> 66.2 done -> **phase-66 COMPLETE** (66.0-66.5 all done). The engine is trading again through its normal gates; decision-path/credential death now pages within one cycle (66.1/66.4).
 **Register**: AMD/MU avg_entry magnitudes ($545/$1005 vs ~$150/~$110 real) flagged by Q/A as a possible price-feed data-quality issue (sizing correct; non-blocking) -- carry into the 61.x integrity track. Optional operator convenience stands: add synthesis-integrity + rj-shape flag lines to backend/.env (authorized 07-09, no longer blocking).
 **Next**: phase-67 window work (67.1 in flight -- research gates running); 61.2-61.5 resume after.
+
+## Cycle 78 -- 2026-07-09 -- phase=67.1 result=PASS (Q/A verification-depth upgrade shipped)
+
+**Step**: 67.1 Q/A verification-depth upgrade -- retire the dead 55s cap, add deterministic backend lint + runtime-smoke gates, remove the stop_hook_active auto-PASS, reconcile CONDITIONAL-recovery guidance
+**Research**: moderate tier, 7 full reads, 17 URLs, recency scan (research_brief_67_1.md). Key: no hook consumes Q/A runtime (TaskCompleted retired 23.8.2); settings.json ok:true is a DIFFERENT legitimate semantic (do-not-touch); lint proven live pre-change (uvx ruff F821 at agent_definitions.py:396); qa.md's own pytest command was broken (root tests/ tree + missing pytest-timeout); R6 watermelon warning (two grep-escaping residuals).
+**Plan**: contract_67.1.md -- incl. PLAN-time honest interpretation of criterion 5 for a markdown-only diff.
+**Generate**: qa.md 7 edits (new 1a lint gate REQUIRED for any *.py diff; new 1d backend runtime smoke; tiered verification budget replacing the 55s cap; stop_hook_active -> verdict-neutral ok:false; canonical fresh-respawn recovery; fixed suite command; watermelon phrases) + per-step-protocol.md 3 edits (anti-pattern #5, drift-modes line, :119 residual found by post-edit sweep) + pytest-timeout 2.4.0 into .venv (also unblocks 67.2's immutable --timeout=60). settings.json/CLAUDE.md/backend untouched per contract.
+**Evaluate**: fresh Q/A (qa-67-1, pre-change snapshot -- separation of duties) verdict PASS, 0 violations, 10 checks_run; independently reproduced the immutable command (exit=0), ruff teeth demo (exit=1 on buggy, exit=0 on clean), gate-integrity greps (1b/1c/3rd-CONDITIONAL/certified_fallback/read-only intact), settings.json-untouched. evaluator_critique_67.1.md + live_check_67.1.md.
+**Decision**: PASS -> 67.1 done. New gates bind Q/A spawns from the NEXT session's roster snapshot.
+**Next**: 67.2 (NameError fix + consumer-contract-break heuristic; unblocked -- pytest-timeout in place, ruff gate live).
