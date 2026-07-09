@@ -330,3 +330,38 @@ NO status flip. 66.2 stays pending. The 61.2 build (Cycle 74, dark) is the
 targeted fix; tonight re-confirms its necessity. Next: deploy 61.2 ungated
 fixes at the post-cycle restart; the integrity flag (retry-on-empty + synthesis
 routing) is the operator promotion that would have saved MU/009150.KS tonight.
+
+## 8. MANUAL TEST CYCLE 2026-07-09 (operator-requested; NOT scheduled-evidence)
+
+Operator asked to trigger a cycle manually to test the deployed fixes.
+Triggered 08:48 UTC via POST /api/paper-trading/run-now; cycle 28e9bde9
+completed 10:13 UTC. This is a MANUAL run -> per the 39.1 doctrine it does NOT
+satisfy 66.2 criterion-1(a) ("ordinary scheduled pipeline"); it is a diagnostic
+test of whether the deployed 150s timeout cut the empty-stdout rail failures.
+
+Funnel row (test, clearly labeled):
+```
+| 2026-07-09 | 28e9bde9 | 583/577/10/5 | 80/55 | rail_skip False | breaker False | 5 (4 deg) | HOLD:5 | 0 | trades - | ALL-HOLD COLLAPSE (pipeline defect) | TEST/manual |
+```
+
+### VERDICT: the 150s timeout did NOT help; synthesis-integrity is the fix
+- cc_rail ok-rate **59.3% (80 ok / 55 fail)** -- WORSE than day-2's 65.4% and
+  day-1's 47.2% is the only lower one. The deployed 120->150s timeout made no
+  positive difference to the rail failure rate -> the failures are NOT
+  (mostly) timeout-class.
+- **4 of 5 analyses hit `final_synthesis.error='Failed to parse final report.'`
+  -> synthetic HOLD/0.0** (000660.KS, DELL, MU, SNDK all `_path=full`); worse
+  than the prior two cycles' 3/5. DELL carried debate consensus=BUY destroyed
+  at synthesis. 009150.KS fell to `_path=lite` (HOLD/4.0).
+- 0 paper_trades; NAV unchanged $23,997.71.
+
+### Conclusion (3-cycle evidence, timeout deployed on this one)
+The synthetic-HOLD defect is now reproduced across 07-07 / 07-08 / 07-09, the
+last WITH the 150s timeout live. The timeout was a reasonable hypothesis but is
+empirically NOT the lever. The **retry-on-empty in
+`paper_synthesis_integrity_enabled`** (retry the errored-empty rail call, and
+route persistent synthesis errors to the lite fallback instead of fabricating
+HOLD/0.0) is the fix that directly addresses this failure mode. Promotion is an
+operator decision (flag-promotion brief 2026-07-09, recommend PROMOTE
+synthesis-integrity + RJ-shape). NO status flip; 66.2 stays pending; the formal
+1(a) close still requires a SCHEDULED-cycle BUY.

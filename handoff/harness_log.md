@@ -27198,3 +27198,9 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 - **REGISTER:** pre-existing red test test_portfolio_swap.py::test_swap_framework_fills_zero_buy_gap fails on this morning's committed code (07b7d9c3) too -- NOT a regression from tonight's work; separate triage. Swap-path sizing (:642/:667 `or 10.0`) left un-fixed (unreachable on 100%-cash book; 53.1/55.3-protected territory) -- register. Empty-both exit-1 rail failure class needs an rc/timeout discriminator added to the 66.1 logging.
 - **NO status flip.** 66.2 stays pending; the RJ-shape fix is a supporting dark build, not yet a formalized step.
 - **Next:** (operator) promote integrity + RJ-shape flags after next-session Opus Q/A -> the pair fixes the synthetic-HOLD + records risk_judge_decision, the two things blocking a clean 1(a). (auto) tomorrow's 18:00 UTC cycle on the 150s-timeout pipeline -- expect fewer rail failures; if ok-rate >=90% AND zero BUYs, that's a genuine healthy-rail DAY-1.
+
+## Manual test cycle -- 2026-07-09 -- phase=66.2 (operator-requested diagnostic; NOT a masterplan cycle)
+
+- Operator ("trigger now to test it") -> POST /run-now 08:48 UTC; cycle 28e9bde9 completed 10:13 UTC on the DEPLOYED config (150s timeout live, 3 flags DARK). Manual -> NOT scheduled-evidence (39.1); does not advance criterion-1(a).
+- RESULT: cc_rail 59.3% ok (80/55) -- WORSE than day-2's 65.4%; 4/5 analyses synthesis-failed to synthetic HOLD/0.0 (DELL debate=BUY destroyed); 0 trades; NAV unchanged. The 150s timeout did NOT cut the empty-stdout rail failures -> hypothesis disproven.
+- CONCLUSION: 3-cycle reproduction (07-07/08/09) of the 61.2 synthetic-HOLD defect, the last WITH timeout deployed -> retry-on-empty (paper_synthesis_integrity_enabled) is the empirically-backed fix. Flag-promotion brief (8b579031) recommends PROMOTE synthesis-integrity + RJ-shape; awaiting operator token (live trading-behavior change). Evidence: live_check_66.2.md section 8.
