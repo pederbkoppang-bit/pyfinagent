@@ -25,7 +25,8 @@ maxTurns: 30
 # scripts/qa/verify_qa_roster_live.sh after restart.
 # historical (phase-59.1) note below:
 # phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
-# requires Claude Code v2.1.170+, local 2.1.172) per operator in-session
+# requires Claude Code v2.1.170+; local was 2.1.172 at adoption,
+# 2.1.205 as of 2026-07-10 phase-67.5) per operator in-session
 # pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per
 # Mtok and on Max plans draws USAGE CREDITS from 2026-06-23 (free Jun 9-22)
 # -- SUPERSEDES the phase-29.2 "Max flat-fee" rationale. New rationale:

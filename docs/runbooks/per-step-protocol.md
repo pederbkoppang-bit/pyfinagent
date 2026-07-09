@@ -261,6 +261,23 @@ sub-agents audit:
   spawn a FRESH Q/A on the changed files (respawn on unchanged
   evidence stays forbidden).
 
+## Subagent runtime semantics (Claude Code v2.1.198+; phase-67.5)
+
+- Subagent spawns run in the BACKGROUND by default (v2.1.198); Main is
+  re-invoked on completion. Do not busy-wait or poll transcripts.
+- Subagents cut off by rate limits or errors KEEP their partial work
+  (v2.1.199). After a stall-class cutoff, read the partial artifacts
+  (e.g. the incrementally-written research brief -- the write-first
+  discipline exists exactly for this) before respawning.
+- Subagents can spawn their own subagents to 5 levels (v2.1.172) when
+  granted the Agent tool; the researcher deep-tier fork may be
+  self-managed on a per-spawn grant (researcher.md deep-tier item 4).
+  This does NOT change the 3-agent doctrine: forks are more instances
+  of the SAME role, never new roles.
+- settings.json `fallbackModel` (phase-67.5) covers OVERLOAD-class
+  model failures only -- rate-limit/usage-limit cutoffs never trigger
+  a model switch (partial-work retention covers those instead).
+
 ## Hook sanity (prevents "No such file or directory" errors)
 
 All hook commands in `.claude/settings.json` use

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-09T22:20:33.832139+00:00",
+  "updated_at": "2026-07-09T22:29:36.990277+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15310,7 +15310,7 @@
         {
           "id": "67.5",
           "name": "Claude Code feature adoption -- fallbackModel chain, SessionStart revert tripwire, runtime-semantics doc truth, legacy agent-memory prune",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

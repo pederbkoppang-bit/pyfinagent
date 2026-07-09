@@ -24,7 +24,8 @@ maxTurns: 40
 # verify with scripts/qa/verify_qa_roster_live.sh after restart.
 # historical (phase-59.1) note below:
 # phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
-# requires Claude Code v2.1.170+, local 2.1.172) per operator in-session
+# requires Claude Code v2.1.170+; local was 2.1.172 at adoption,
+# 2.1.205 as of 2026-07-10 phase-67.5) per operator in-session
 # pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per
 # Mtok and on Max plans draws USAGE CREDITS from 2026-06-23 (free Jun 9-22)
 # -- this SUPERSEDES the phase-29.2 "Max flat-fee removes per-token ceiling"
@@ -240,14 +241,20 @@ tiers:
 
 4. **Multi-subagent fork option.** If the caller requests it, OR if
    the topic has >=3 clearly separable sub-questions that each
-   warrant a `complex`-tier session on their own, Main may spawn 2-3
-   parallel deep-tier subagents covering different angles and merge
-   their read-in-full tables. Each subagent must meet the >=20-
-   source floor INDEPENDENTLY. The merged brief must deduplicate
-   URLs and label sources by subagent origin. Estimated cost: ~1
-   Claude Max 5-hour rolling window per subagent; confirm with
-   caller before forking. (Source: Anthropic multi-agent research
-   blog -- "complex research might use more than 10 subagents".)
+   warrant a `complex`-tier session on their own, the fork may be
+   spawned as 2-3 parallel deep-tier researcher subagents covering
+   different angles, with their read-in-full tables merged. Since
+   Claude Code v2.1.172 subagents can spawn their own subagents
+   (5-level depth cap), so YOU may self-manage the fork WHEN the
+   caller grants the Agent tool for that spawn -- the standing tools
+   list above deliberately omits it, so absent that per-spawn grant,
+   Main forks on your recommendation as before (phase-67.5). Each
+   subagent must meet the >=20-source floor INDEPENDENTLY. The
+   merged brief must deduplicate URLs and label sources by subagent
+   origin. Estimated cost: ~1 Claude Max 5-hour rolling window per
+   subagent; confirm with caller before forking. (Source: Anthropic
+   multi-agent research blog -- "complex research might use more
+   than 10 subagents".)
 
 **`deep` gate check:** `gate_passed: true` only if (a) >=20 sources
 read in full, (b) >=1 `[ADVERSARIAL]` source present in the read-

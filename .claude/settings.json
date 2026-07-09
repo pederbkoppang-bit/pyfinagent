@@ -1,6 +1,18 @@
 {
   "effortLevel": "xhigh",
+  "fallbackModel": ["claude-opus-4-8", "claude-sonnet-5"],
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/session-start-fable-tripwire.sh\"",
+            "statusMessage": "phase-67.5 tripwire: warn if the Fable window pin outlives 2026-07-12 (masterplan 67.4). fallbackModel note: the chain above covers OVERLOAD-class failures only -- rate/usage-limit cutoffs never switch models (v2.1.199 partial-work retention covers those)."
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "hooks": [
