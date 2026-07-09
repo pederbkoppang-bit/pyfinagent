@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `fe75163a` | phase-66.2: CRITERION 1(a) MET -- scheduled cycle 603e287c reactivated the engine (AMD+MU BUYs, APPR |
 | 2026-07-09 | `845541d7` | chore(ops): reconcile 66.2 flag-promotion state -- operator chat-yes recorded + cursor advanced, but |
 | 2026-07-09 | `26aee52e` | chore(ops): record PROMOTE-66.2-FLAGS ask -- operator verbal go-ahead 2026-07-09; away-ops rail-1 bl |
 | 2026-07-09 | `5d512c04` | phase-66.2: harden per adversarial promotion-readiness review -- None-safe recommendation guard (fix |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-08 | `6186784c` | phase-61.2: decision-input integrity DARK BUILD -- synthesis-error routing + degraded NULL rows, ret |
 | 2026-07-08 | `4b5cd167` | phase-66.2: CORRECTION -- direct-API credit death dates to ~2026-05-18 (last genuine call 05-17); al |
 | 2026-07-08 | `ca8873ce` | phase-66.2: healthy-rail-day codified definition PROPOSAL (ok-rate>=90% + booleans; clock frozen at  |
-| 2026-07-08 | `a225d735` | chore(ops): SETUP-TOKEN resolved -- 1-year CLAUDE_CODE_OAUTH_TOKEN wired into 4 launchd plists, vali |
 
 ---
 
+### v6.55.16 — phase-66.2: CRITERION 1(a) MET -- scheduled cycle 603e287c reactivate... (2026-07-09)
+
+- **phase-66.2: CRITERION 1(a) MET -- scheduled cycle 603e287c reactivated the engine (AMD+MU BUYs, APPR**
 ### v6.55.15 — phase-66.2: harden per adversarial promotion-readiness review -- None... (2026-07-09)
 
 - **phase-66.2: harden per adversarial promotion-readiness review -- None-safe recommendation guard (fix**
