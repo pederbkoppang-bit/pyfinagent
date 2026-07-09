@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `6814211e` | phase-67.0: install goal-phase67-fable-window (4 pending steps) + Fable window pins (REVERT-BY 2026- |
 | 2026-07-09 | `df0e829a` | chore(away-ops): 2026-07-09 PM recovery -- sweep benign accumulation (4 audit streams + populated AM |
 | 2026-07-09 | `8ed5cc2e` | phase-66.2: closing Q/A deferred to Opus next session (both Fable qa subagents stalled; no self-flip |
 | 2026-07-09 | `fe75163a` | phase-66.2: CRITERION 1(a) MET -- scheduled cycle 603e287c reactivated the engine (AMD+MU BUYs, APPR |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-08 | `97b0b704` | fix(tests): stop pytest polluting prod llm_call_log -- PYFINAGENT_TEST_NO_BQ guard in flush/flush_ll |
 | 2026-07-08 | `354eb6b4` | phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- designed intermediate state, live le |
 | 2026-07-08 | `fc528c9b` | phase-61-prep: final pre-pay research briefs 61.3/61.4/61.5 complete (all 4 gates passed; TAF fee dr |
-| 2026-07-08 | `6186784c` | phase-61.2: decision-input integrity DARK BUILD -- synthesis-error routing + degraded NULL rows, ret |
 
 ---
 
+### v6.56.0 — phase-67.0: install goal-phase67-fable-window (4 pending steps) + Fab... (2026-07-09)
+
+- **phase-67.0: install goal-phase67-fable-window (4 pending steps) + Fable window pins (REVERT-BY 2026-**
 ### v6.55.17 — phase-66.2: closing Q/A deferred to Opus next session (both Fable qa... (2026-07-09)
 
 - **phase-66.2: closing Q/A deferred to Opus next session (both Fable qa subagents stalled; no self-flip**
