@@ -150,6 +150,23 @@
    "recommended": "A (triage) + B (hook-scope) so the goal loop is not gated on abandoned orthogonal phases; C only for 39.1 if wanted",
    "disposition": "open",
    "disposition_at": "2026-07-09T00:35:00+00:00"
+  },
+  {
+   "id": "PROMOTE-66.2-FLAGS",
+   "raised_by": "phase-66.2 (operator said \"go ahead\" in chat 2026-07-09 ~16:40 UTC; away-ops rail-1 blocks the backend/.env write without a channel token)",
+   "raised_at": "2026-07-09",
+   "due": "operator -- gates the phase-66.2 flag promotion (the earn-again fix)",
+   "ask": "Operator verbally authorized promoting paper_synthesis_integrity_enabled + paper_risk_judge_shape_fix_enabled (readiness review 0 blockers; brief flag_promotion_brief_2026-07-09.md). The .env write is blocked by away-ops rail-1 which needs a token via the approvals-channel ingestion (chat go-ahead does not satisfy the mechanical gate). Drop the token there to open the gate; the next .env-write attempt then succeeds and I flip flags + restart, letting the 18:00 UTC scheduled cycle validate live.",
+   "reply_options": [
+    "PROMOTE SYNTHESIS-INTEGRITY",
+    "PROMOTE RJ-SHAPE",
+    "PROMOTE ALL THREE",
+    "HOLD",
+    "RETIRE RAIL-1 (attended)"
+   ],
+   "recommended": "PROMOTE SYNTHESIS-INTEGRITY + RJ-SHAPE (both, per the readiness review); position-rec HELD",
+   "disposition": "operator-verbally-approved-pending-channel-token",
+   "disposition_at": "2026-07-09T16:40:00+00:00"
   }
  ]
 }
