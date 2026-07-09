@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `4af84d4e` | phase-67.3: researcher write-first/incremental-brief discipline codified; stale scaffolding pruned ( |
 | 2026-07-09 | `bcbae55f` | phase-67.3: Researcher correctness upgrade -- codify WRITE-FIRST/incremental-brief discipline; pr... |
 | 2026-07-09 | `6a6b1679` | phase-67.2: bug-catching upgrade -- consumer-contract-break heuristic (SKILL.md #16, append-only, er |
 | 2026-07-09 | `e8be1930` | phase-67.1: Q/A verification-depth upgrade -- retire dead 55s cap, add deterministic backend lint +  |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-08 | `71fef45d` | phase-66.2: Cycle 75 harness log -- day-2 evidence (clock DAY 0), RJ-shape dark fix, 61.2 deploy (15 |
 | 2026-07-08 | `d6158cc7` | phase-66.2: RJ-shape fix DARK (operator-approved) -- decide_trades resolves the nested risk_assessme |
 | 2026-07-08 | `b09115d0` | phase-66.2: day-2 scheduled-cycle evidence (9a8720b3) -- zero BUYs, rail 65.4% (not healthy-rail; cl |
-| 2026-07-08 | `6826289d` | chore(away-ops): recovery -- commit benign cycle/audit/kill-switch churn + populated AM session arti |
 
 ---
 
+### v6.56.5 — phase-67.3: researcher write-first/incremental-brief discipline codif... (2026-07-09)
+
+- **phase-67.3: researcher write-first/incremental-brief discipline codified; stale scaffolding pruned (**
 ### v6.56.4 — phase-67.3: Researcher correctness upgrade -- codify WRITE-FIRST/incr... (2026-07-09)
 
 - **phase-67.3: Researcher correctness upgrade -- codify WRITE-FIRST/incremental-brief discipline; pr...**
