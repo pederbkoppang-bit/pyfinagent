@@ -2,9 +2,19 @@
 name: researcher
 description: MUST BE USED before every PLAN phase. Combined external-literature researcher + internal-codebase explorer. Use proactively at the start of any masterplan step, before writing contract.md. Searches papers + official docs + blog posts + GitHub (external) AND greps/reads the pyfinagent repo (internal) in the same session.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
-model: opus
+model: fable
 maxTurns: 40
-# 2026-07-08 (Fable burn-down day, operator-directed via /goal item 4): the
+# 2026-07-09 (goal-phase67-fable-window, operator-directed via /goal): Anthropic
+# RENEWED free Fable 5 on the Max plan through ~Sunday 2026-07-12. Repinned
+# opus -> fable for the window so the strongest model runs the research gates
+# while phase-67 upgrades the harness artifacts. REVERT-BY 2026-07-12
+# (masterplan step 67.4, P0): back to `model: opus` unless the operator
+# records `FABLE PERMANENT: AUTHORIZE`. effort: max retained (xhigh silently
+# downgrades to high on non-Opus models per llm_client.py:1507-1512 -- max
+# passes through). Takes effect at the NEXT session start (roster snapshot).
+# Separation of duties: Peder review requested via harness_log phase-67
+# setup addendum.
+# historical (2026-07-08 Fable burn-down day, /goal item 4): the
 # Fable 5 window ends today -- from tomorrow `model: fable` draws USAGE
 # CREDITS on the Max plan. Repinned fable -> opus (alias -> latest Opus =
 # 4.8, flat-fee on Max). effort: max retained (xhigh-accepted on Opus 4.8

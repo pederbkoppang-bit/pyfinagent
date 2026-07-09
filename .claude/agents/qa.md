@@ -2,9 +2,21 @@
 name: qa
 description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifier — independent cross-verification via deterministic checks (syntax, file existence, test runs, live command reproduction) AND LLM judgment of success criteria. Use proactively after any GENERATE step, immediately before marking a masterplan step done. Read-only on file contents — may run Bash for verification commands (python -c, pytest, grep, jq, test -f) but NEVER Edit/Write.
 tools: Read, Bash, Glob, Grep, SendMessage
-model: opus
+model: fable
 maxTurns: 30
-# 2026-07-08 (Fable burn-down day, operator-directed via /goal item 4): the
+# 2026-07-09 (goal-phase67-fable-window, operator-directed via /goal): Anthropic
+# RENEWED free Fable 5 on the Max plan through ~Sunday 2026-07-12. Repinned
+# opus -> fable for the window. REVERT-BY 2026-07-12 (masterplan step 67.4,
+# P0): back to `model: opus` unless the operator records `FABLE PERMANENT:
+# AUTHORIZE`. STALL WATCH: two Fable Q/A spawns stalled mid-evaluation on
+# 2026-07-09 (Cycle-76 addendum) -- if a fresh-session Fable Q/A stalls
+# again, revert THIS pin immediately without waiting for Sunday (Opus is the
+# reliable evaluator; Fable is optional upside here). effort: max retained
+# (xhigh silently downgrades to high on non-Opus per llm_client.py:1507-1512;
+# max passes through). Takes effect at the NEXT session start (roster
+# snapshot). Separation of duties: Peder review requested via harness_log
+# phase-67 setup addendum.
+# historical (2026-07-08 Fable burn-down day, /goal item 4): the
 # Fable 5 window ends today -- from tomorrow `model: fable` draws USAGE
 # CREDITS on the Max plan. Repinned fable -> opus (alias -> latest Opus =
 # 4.8, flat-fee on Max). effort: max retained. Takes effect at the NEXT

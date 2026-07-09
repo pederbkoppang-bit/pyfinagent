@@ -1,49 +1,57 @@
-# Active Goal -- goal-phase66-reactivation (primary)
+# Active Goal -- goal-phase67-fable-window (primary)
 
-Refreshed 2026-07-06, return-day session. Operator BACK (in-session approval "do it");
-the away window (2026-06-15..07-06) and its rails are OVER. Normal attended rules apply:
-CLAUDE.md harness protocol per step, LLM API (metered) costs still require Peder's
-approval, no feature branches, push to main.
+Refreshed 2026-07-09 (operator in-session via /goal, Stop hook active). Attended rules
+apply: CLAUDE.md harness protocol per step, metered LLM costs need Peder's approval,
+push to main, no feature branches.
 
-## Primary: goal-phase66-reactivation (masterplan phase-66; spec: handoff/current/goal_phase66_reactivation.md)
+## Primary: goal-phase67-fable-window (masterplan phase-67; spec: handoff/current/goal_phase67_fable_window.md)
 
-Why: portfolio is 100% cash at NAV $23,997.71 -- zero expected alpha until reactivated.
-The Claude decision rail (cc_rail) was dead 06-15..07-06 (ECONNRESET, then 401 expired
-OAuth) with no circuit breaker and no page; the same credential killed 34 consecutive
-away sessions. Two outcomes: (1) the engine analyzes and trades again through its normal
-gates; (2) any decision-path or credential death pages within one cycle, forever.
+Why: FREE Fable 5 on the Max plan until ~Sun 2026-07-12. Fable is the UPGRADE ENGINE,
+not the runtime model: it audits + rewrites the harness/MAS artifacts during the window;
+the improvements persist on Opus 4.8 after the pins revert. Deliverable = durably better
+researching, bug-catching, and does-it-actually-run verification.
 
-Strict step order (do not start N+1 while N has an unmet P0 criterion):
-- 66.0 recovery re-baseline (backlog pushed, pending_tokens dispositioned, recovery loop exited)
-- 66.1 rail restore: probe-gate + circuit breaker + single P1 page; fallback dark
-- 66.2 redeploy capital via the NORMAL path only (first honest BUY or verified funnel diagnosis)
-- 66.3 cost-truth (phantom $0.50 failure-cost fix; sentinel = dollars actually billed)
-- 66.4 credential-expiry paging within 24h (drill-proven)
-- 66.5 phase-63/64/65 triage (planning-only, operator sign-off)
+Strict step order:
+- 67.1 Q/A verification depth (P0): retire dead 55s cap; backend lint + runtime-smoke
+  gates; remove stop_hook_active auto-PASS; reconcile CONDITIONAL-recovery contradiction
+- 67.2 bug-catching (P0, after 67.1): consumer-contract-break heuristic + fix the
+  verified NameError at agent_definitions.py:396 (+ behavioral test)
+- 67.3 researcher WRITE-FIRST discipline (P1): codify incremental-brief writing; prune
+  stale scaffolding; NO floor weakened
+- 67.4 revert (P0, SCHEDULED 2026-07-12): pins -> opus, KEEP all artifacts. Any session
+  on/after 07-12 treats this as its top P0.
 
-Boundaries (binding): trailing-stop engine untouchable; hysteresis family banned absent
-`HYSTERESIS: AUTHORIZE`; trading behavior changes config-gated default OFF; never
-manufacture trades or evidence; scheduled-run evidence for scheduled-job claims (39.1
-lesson); progress claims cite tool results.
+Boundaries (binding): $0 metered (Fable via free Max rail only; NO in-app Fable pins);
+harness stays exactly 3 agents; full five-file protocol per step; research-gate floors
+immutable; trailing stops / sector caps / kill-switch / gate thresholds untouched;
+progress claims cite tool results.
+
+## Rider in flight: 66.2 close (from Cycle-76 addendum)
+
+Criterion-1(a) MET 2026-07-09 (scheduled cycle 603e287c: AMD+MU BUYs,
+APPROVE_REDUCED recorded; evidence live_check_66.2.md section 9). Closing fresh Opus
+Q/A spawned this session; on PASS: log-last Cycle 77 -> flip 66.2 -> phase-66 DONE ->
+operator summary.
 
 ## Prior goals -- state
 
-- goal-away-ops (phases 62-65): 62.1 done; 62.2/62.6/62.7 pending (62.2 needs the
-  operator `TEST TOKEN: PING`); phases 63/64/65 executed 0% (credential death) -- their
-  disposition is 66.5's job. Away rails (away-ops-rules.md) NO LONGER BINDING except
-  where restated above; away plists remain loaded and harmless (healthy sessions on a
-  clean tree do one masterplan step per the standing prompts).
-- goal-phase61-churn-integrity: 61.1 done (Cycle 66); 61.2-61.5 pending -- resume AFTER
-  phase-66 P0s (a churn fix is worthless while the book is 100% cash).
-- phase-58.1 $25 window: expired during the away window; do not disturb its artifacts.
+- goal-phase66-reactivation: 66.0/66.1/66.3/66.4/66.5 done; 66.2 closing (above).
+  Engine IS trading again (2 positions ~$1,560). Optional operator convenience: add the
+  synthesis-integrity + rj-shape flag lines to backend/.env (authorized, no longer
+  blocking).
+- goal-phase61-churn-integrity: 61.1 done; 61.2-61.5 pending -- resume AFTER the
+  phase-67 window work (the Fable-tuned harness makes them cheaper/safer).
+- goal-away-ops (62-65): 62.2/62.6/62.7 pending operator tokens; 63/64/65 dispositioned
+  by 66.5.
 
-## Open operator asks (handoff/away_ops/pending_tokens.json)
+## Open operator asks
 
-MAS-PLIST resolved (mv done 2026-07-06). Still open: TEST-TOKEN-62.2 (`TEST TOKEN: PING`
-in C0ANTGNNK8D), WEBHOOK, AUTORESEARCH-SPEND, FRED key rotation (now due), SDK-CREDIT
-(re-decide before any next away window). METERED-BREACH closes via 66.0 note + 66.3 fix.
+TEST-TOKEN-62.2 (`TEST TOKEN: PING` in C0ANTGNNK8D), WEBHOOK, AUTORESEARCH-SPEND, FRED
+key rotation (due), SDK-CREDIT (before any next away window). NEW: `FABLE PERMANENT:
+AUTHORIZE` only if Fable should outlive 2026-07-12 on personal credits (default: revert).
 
 ## Cycle ledger
 
-- 2026-07-06: return-day analysis (100%-cash + credential-death findings); phase-66
-  installed; backlog sweep commit; 66.0 cycle begins.
+- 2026-07-09: /goal fable-window set; phase-67 installed (4 steps pending); Fable pins
+  applied (effect next session); 66.2 closing Q/A spawned; audit findings verified
+  (NameError repro, no-linter, dead 55s cap).

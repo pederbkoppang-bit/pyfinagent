@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-07T09:19:59.006190+00:00",
+  "updated_at": "2026-07-09T20:54:34.082503+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15212,6 +15212,100 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-67",
+      "name": "Fable-window durable harness upgrades -- use free Fable 5 (window ends ~2026-07-12) as the UPGRADE ENGINE for persistent improvements to research correctness, bug-catching, and does-it-actually-run verification; then revert the pins keeping every artifact. Operator /goal 2026-07-09 (verbatim quotes + audit in handoff/current/goal_phase67_fable_window.md). Audit basis, all tool-verified 2026-07-09: dead 55s Q/A cap (calibrated to the TaskCompleted hook retired phase-23.8.2); zero Python lint gate in .venv (ruff/pyflakes/flake8 absent); live NameError at backend/agents/agent_definitions.py:396 (except tuple references unimported json; repro'd in venv); qa.md:237-239 + runbook anti-pattern #5 contradict CLAUDE.md canonical fresh-respawn recovery; stop_hook_active returns ok:true (auto-PASS backdoor); researcher unbounded-read incident 2026-05-16 (132K tokens, zero brief) not codified in the agent file.",
+      "gate": "Fable 5 free window (ends ~2026-07-12); $0 metered (Fable via Max rail only, NO in-app Fable pins); harness stays exactly 3 agents; research-gate floors immutable",
+      "depends_on": [],
+      "status": "pending",
+      "steps": [
+        {
+          "id": "67.1",
+          "name": "Q/A verification-depth upgrade -- retire the dead 55s cap, add deterministic backend lint + runtime-smoke gates, remove the stop_hook_active auto-PASS, reconcile CONDITIONAL-recovery guidance",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "55s cap is a relic of the TaskCompleted hook retired in phase-23.8.2 (per-step-protocol.md:227-229, audit R-2); Q/A now spawns via Agent tool with maxTurns 30 and observed 20-26 tool uses per evaluation. No Python linter exists in .venv (verified 2026-07-09) so undefined-name bugs are invisible to the deterministic checks -- mirror of the phase-23.2.24 ESLint-gate precedent. qa.md's stop_hook_active clause returns ok:true (an unconditional PASS path). qa.md:237-239 and runbook anti-pattern #5 mandate SendMessage-to-SAME-agent recovery while CLAUDE.md + runbook section 4 mandate fresh-spawn-on-changed-evidence; Cycle-76 re-confirmed SendMessage nudges do not wake dormant agents.",
+          "verification": {
+            "command": "bash -c '! grep -q \"55 seconds\" .claude/agents/qa.md && grep -qiE \"ruff|pyflakes\" .claude/agents/qa.md && ! grep -q \"back to the SAME agent\" .claude/agents/qa.md && ! grep -q \"back to the SAME agent\" docs/runbooks/per-step-protocol.md && ! grep -q \"\\\"ok\\\": true, \\\"reason\\\": \\\"loop prevention\\\"\" .claude/agents/qa.md'",
+            "success_criteria": [
+              ".claude/agents/qa.md contains no global 55-second runtime cap; the verification budget is tiered and explicitly permits full pytest + runtime smoke for backend-touching diffs",
+              "qa.md defines a deterministic backend gate REQUIRED for diffs touching backend/**: (a) an undefined-name-class Python lint (ruff or pyflakes) over changed .py files with verbatim exit code, and (b) a runtime smoke that imports each changed module inside .venv and, when the diff touches a live API/service path, exercises it (endpoint or command) with output captured",
+              "The stop_hook_active escape hatch no longer returns ok:true; loop-prevention exits are verdict-neutral (ok:false with an explicit no-evaluation-performed reason) so no auto-PASS path remains in the evaluator",
+              "CONDITIONAL/FAIL recovery guidance is consistent across .claude/agents/qa.md, docs/runbooks/per-step-protocol.md, and CLAUDE.md: fix blockers -> update handoff evidence -> spawn a FRESH Q/A; respawn on UNCHANGED evidence stays forbidden; no artifact still mandates SendMessage-to-the-SAME-agent as the recovery path",
+              "A fresh Q/A (running the pre-change roster snapshot) returns PASS on this step's diff, and the new lint gate is proven live with verbatim ruff/pyflakes output over this step's own changed files"
+            ],
+            "live_check": "live_check_67.1.md with (a) verbatim output of the new lint gate executed from the venv over a real diff and (b) the runtime-smoke output (module import + exercised path), plus the fresh Q/A verdict JSON"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "67.2",
+          "name": "Bug-catching upgrade -- consumer-contract-break heuristic in code-review-trading-domain + fix the live NameError in agent_definitions.py classification fallback",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "67.1",
+          "audit_basis": "Operator 2026-05-26 complaint (memory feedback_full_codebase_audit_before_changes): recurring shipped-bug class is interface/flag/output-shape changes without all consumers verified (argv-vs-stdin, --max-tokens SDK-vs-CLI, Recent Reports alpha/casing) -- no existing heuristic covers it. Live bug verified 2026-07-09: parse_llm_classification('not json {') raises NameError (agent_definitions.py:396 references json.JSONDecodeError; module never imports json), killing the graceful-default-to-Main fallback built for malformed Communication-agent output.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_agent_definitions_classification.py -q -x --timeout=60 && grep -q \"consumer-contract-break\" .claude/skills/code-review-trading-domain/SKILL.md'",
+            "success_criteria": [
+              ".claude/skills/code-review-trading-domain/SKILL.md gains a consumer-contract-break heuristic (interface/CLI-flag/output-shape/schema change without every consumer verified; the Q/A greps consumers itself) with a severity rating and a negation list; every pre-existing heuristic name remains present (criteria-erosion guard)",
+              "backend/agents/agent_definitions.py::parse_llm_classification degrades gracefully on malformed input: the exception tuple references only imported names, and the documented repro now returns the default Main-routed ClassificationResult instead of raising NameError",
+              "A behavioral test exercises the malformed-classification path (not tautological, not over-mocked) and passes in the venv",
+              "Fresh Q/A PASS with the 67.1 gates applied to this diff (lint-gate output over the changed files included in the critique)"
+            ],
+            "live_check": "live_check_67.2.md with the pre-fix NameError repro output AND the post-fix graceful-default output, both verbatim from the venv"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "67.3",
+          "name": "Researcher correctness upgrade -- codify WRITE-FIRST/incremental-brief discipline; prune stale scaffolding without weakening any research-gate floor",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "67.1",
+          "audit_basis": "2026-05-16 incident (memory feedback_researcher_write_first): researcher burned 132K tokens on unbounded reading and wrote ZERO brief; the write-first fix lives only in operator memory and per-spawn prompts, not in the agent definition. Stale scaffolding: per-step-protocol.md diagram labels Researcher '(sonnet)' (runs opus/fable); researcher.md Domain-context carries undated point-in-time metrics. Floors stay immutable per operator feedback (feedback_research_gate_min_three_sources).",
+          "verification": {
+            "command": "bash -c 'grep -qiE \"write-first|write the brief incrementally|incrementally as you\" .claude/agents/researcher.md && grep -q \"external_sources_read_in_full\" .claude/agents/researcher.md && grep -qi \"recency\" .claude/agents/researcher.md && ! grep -q \"(sonnet)\" docs/runbooks/per-step-protocol.md'",
+            "success_criteria": [
+              ".claude/agents/researcher.md codifies WRITE-FIRST: the brief artifact is created early and written incrementally as sources are read, and a session that cannot meet the gate still leaves a partial brief plus an honest gate_passed:false envelope",
+              "No research-gate floor is weakened: the >=5 read-in-full floor, >=10 URL collection, mandatory recency scan, source-quality hierarchy, and the JSON envelope all remain (grep-verifiable)",
+              "Stale scaffolding pruned: the runbook 3-agent diagram no longer labels Researcher '(sonnet)'; hardcoded point-in-time metrics in researcher.md are dated or removed; changes stay cross-linked and non-duplicative with .claude/rules/research-gate.md",
+              "Fresh Q/A PASS on the diff"
+            ],
+            "live_check": "live_check_67.3.md quoting the researcher.md diff hunks for the write-first section and the floors intact, plus the fresh Q/A verdict JSON"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "67.4",
+          "name": "Post-window revert -- Fable pins back to Opus 4.8 on/before 2026-07-12; keep every artifact improvement",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "67.1",
+          "audit_basis": "Free Fable 5 access on the Max plan ends ~Sunday 2026-07-12; from then model: fable draws usage credits (precedent: the 2026-07-08 burn-down repin, harness_log Cycle-74 addendum). The whole point of phase-67 is durable artifacts on Opus 4.8, not a standing Fable pin.",
+          "verification": {
+            "command": "bash -c 'grep -q \"^model: opus\" .claude/agents/qa.md && grep -q \"^model: opus\" .claude/agents/researcher.md && grep -qiE \"ruff|pyflakes\" .claude/agents/qa.md && grep -q \"consumer-contract-break\" .claude/skills/code-review-trading-domain/SKILL.md'",
+            "success_criteria": [
+              "On/before 2026-07-13T00:00Z both .claude/agents/researcher.md and .claude/agents/qa.md frontmatter are back to model: opus, OR the operator token FABLE PERMANENT: AUTHORIZE is recorded verbatim in harness_log",
+              "Every phase-67 artifact improvement (qa gates, skill heuristic, researcher discipline, protocol reconciliation) remains in place post-revert (grep evidence)",
+              "The CLAUDE.md model-policy paragraph reflects the final steady state (no present-tense claim of an expired Fable pin)"
+            ],
+            "live_check": "live_check_67.4.md dated on/after 2026-07-12 with the frontmatter grep output and the git log line of the revert commit"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "sequencing_note": "SCHEDULED: execute on 2026-07-12 before free Fable access ends; any session running on/after that date treats this as its top P0."
         }
       ]
     }
