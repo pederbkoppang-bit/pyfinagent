@@ -610,3 +610,51 @@ hook), `TEST-TOKEN-62.2`, `METERED-BREACH-RECURRING` (root-caused, fix owned by 
 66.2 (`pending`; 66.1 `done`). Expected residual after this commit: a self-referential
 `pre_tool_use_audit.jsonl` line from the post-commit git calls plus the 0-byte
 `session_am_20260709T053007Z.json` artifact -- both swept by the next session.
+
+## Recovery -- 2026-07-09 (PM)
+
+Structural continuation of the AM recovery -- **nothing died mid-step**. The 07-09 AM
+recovery predicted this exact state and it landed as predicted: its own result artifact
+`session_am_20260709T053007Z.json` (0 B at AM exit) is now populated (3795 B) and swept
+here; a fresh 0-B `session_pm_20260709T200006Z.json` (this session's own post-exit output)
+is left untracked for the next session. No masterplan step was in flight; the dirty tree is
+pure benign accumulation on a clean base (`ahead 1` of origin -- the unpushed
+`f8929d1d`/`8ed5cc2e` phase-66.2 pair, held only by the rebase-over-dirty-tree wrapper
+symptom, not a network outage). The PM sentinel logged a `cc_rail` failure storm
+(`rail_failures_today=93 >= 20`) but `ok:true` / `metered_llm_usd_today=$0.0473` -- the
+storm is the known claude-auth/breaker symptom (66.1 threshold), NOT a rail-4 metered
+breach; recorded, not over-claiming causation.
+
+**Classification (6 dirty paths, all benign -- no code, `.env`, masterplan, or
+trading-behavior file):**
+| Path | Disposition |
+|---|---|
+| `handoff/audit/instructions_loaded_audit.jsonl` (M, +2) | append-only hook stream, 0 deletions -> committed |
+| `handoff/audit/pre_tool_use_audit.jsonl` (M, +20) | append-only hook stream, 0 deletions -> committed |
+| `handoff/kill_switch_audit.jsonl` (M, +1) | append-only audit stream (root-legacy location), 0 deletions -> committed |
+| `handoff/prompt_leak_redteam_audit.jsonl` (M, +11) | append-only audit stream (root-legacy location), 0 deletions -> committed |
+| `handoff/away_ops/session_am_20260709T053007Z.json` (??, 3795 B) | the 07-09 AM recovery's OWN result artifact, now populated (was 0 B at AM exit) -> committed as a completed-session artifact |
+| `handoff/away_ops/session_pm_20260709T200006Z.json` (??, 0 B) | THIS session's own live output, written post-exit -> **left untracked** (committing an empty artifact re-dirties the next session; same call as every prior recovery) |
+
+**Classification verdict.** No category-(a) half-built step and no category-(b)
+unexpected/unattributable file -- every path is under `handoff/` durable-state / audit /
+session-artifacts. Nothing to revert; no `chore(away-wip)` checkpoint needed.
+`pending_tokens.json` NOT modified -- no new operator ask warranted (the open asks are
+unchanged and already filed; the `cc_rail` storm is the pre-existing 66.1/breaker symptom,
+not a new defect).
+
+**What was done.** Staged + committed the 4 audit paths + the populated
+`session_am_20260709T053007Z.json` + this note in one `chore(away-ops)` recovery commit,
+then pushed (`ahead 1` pre-existing + this = flushed to `origin/main`). **No git
+checkout/restore/stash** (rail 3). Main-only, no force-push, no history rewrite (rail 3).
+$0 metered -- git/cat/wc/grep only, LLM-free (rail 4). No `.env`/code/masterplan/
+trading-behavior touch (rails 2/6). launchctl untouched (rail 9). No subagents (recovery is
+Main-only). No `HALT-DEV` seen; no new `operator_tokens.jsonl` line.
+
+**What remains (regular cadence / operator, NOT recovery).** Tree is clean; this session
+does NOT start a masterplan step -- the next AM session resumes the calendar. Open operator
+asks in `pending_tokens.json` unchanged: `STALE-PHASE-TRIAGE-35-44` (open, blocks the
+goal-loop Stop hook), `TEST-TOKEN-62.2`, `METERED-BREACH-RECURRING`, `ENV-LINE-81`. Next AM
+masterplan step is 66.2 (`pending`; 66.1 `done`). Expected residual after this commit: a
+self-referential `pre_tool_use_audit.jsonl` line from the post-commit git calls plus the
+0-byte `session_pm_20260709T200006Z.json` artifact -- both swept by the next session.
