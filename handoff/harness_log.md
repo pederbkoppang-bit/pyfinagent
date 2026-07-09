@@ -27249,3 +27249,14 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Evaluate**: fresh Q/A (qa-67-1, pre-change snapshot -- separation of duties) verdict PASS, 0 violations, 10 checks_run; independently reproduced the immutable command (exit=0), ruff teeth demo (exit=1 on buggy, exit=0 on clean), gate-integrity greps (1b/1c/3rd-CONDITIONAL/certified_fallback/read-only intact), settings.json-untouched. evaluator_critique_67.1.md + live_check_67.1.md.
 **Decision**: PASS -> 67.1 done. New gates bind Q/A spawns from the NEXT session's roster snapshot.
 **Next**: 67.2 (NameError fix + consumer-contract-break heuristic; unblocked -- pytest-timeout in place, ruff gate live).
+
+## Cycle 79 -- 2026-07-09 -- phase=67.2 result=PASS (bug-catching upgrade shipped; live NameError fixed)
+
+**Step**: 67.2 Bug-catching upgrade -- consumer-contract-break heuristic + fix the live NameError in agent_definitions.py classification fallback
+**Research**: moderate tier, 6 full reads, 14 URLs, recency scan (research_brief_67_2.md). Key: sole caller un-wrapped (NameError propagated into the Slack/iMessage classify path); json_io.py:15-16 documents call sites keep import json; second latent break (JSON scalar -> AttributeError at .get); fix variant (a)+AttributeError matches 5 sibling modules; pytest-timeout prereq flagged (closed by 67.1).
+**Plan**: contract_67.2.md.
+**Generate**: agent_definitions.py (+import json, -unused Optional, tuple +AttributeError -- exactly 3 changes); NEW backend/tests/test_agent_definitions_classification.py (5 behavioral tests, no mocks); SKILL.md append-only x3 (Dimension-3 row + negation bullet + ranked #16). Immutable cmd exit=0 (5 passed); 67.1 lint gate clean over the diff (pre-fix baseline F821+F401 exit=1); runtime smoke import OK.
+**Evaluate**: fresh Q/A (qa-67-2) PASS, 0 violations, 11 checks_run -- ran the 67.1 gates itself (verbatim lint output in critique per criterion 4), proved mutation resistance deterministically (git show HEAD lacks import json), extracted+verified all 45 heuristic names (erosion 0), applied the NEW consumer-contract-break grep to the diff that introduced it (sole caller :49/:982 unbroken). evaluator_critique_67.2.md + live_check_67.2.md.
+**Decision**: PASS -> 67.2 done. The dead fallback path is live again: malformed Communication-agent output now degrades to Main-routed default instead of crashing the classify path.
+**Register**: multi_agent_orchestrator.py:989 pre-existing emoji (no-emoji rule) -- cleanup pass candidate; agent_definitions.py docstring still says "Opus 4.6" (doc drift, registered 67.2 contract).
+**Next**: 67.3 (researcher write-first; contract staged).

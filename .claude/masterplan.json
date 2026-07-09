@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-09T21:14:51.783525+00:00",
+  "updated_at": "2026-07-09T21:21:57.148656+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15247,7 +15247,7 @@
         {
           "id": "67.2",
           "name": "Bug-catching upgrade -- consumer-contract-break heuristic in code-review-trading-domain + fix the live NameError in agent_definitions.py classification fallback",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "67.1",

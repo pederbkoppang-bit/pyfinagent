@@ -68,6 +68,7 @@ is forbidden" rule.
 13. **sycophantic-all-criteria-pass** [WARN] — evaluator output with every criterion PASS in <3 sentences, no file:line, no quoted evidence.
 14. **supply-chain-dep-pin-removal** [WARN] — pinned version removed from `requirements.txt`/`pyproject.toml`/`package.json` without explicit reason. OWASP LLM03 2025.
 15. **unicode-in-logger** [NOTE] — logger call with non-ASCII characters (Windows cp1252 crash defense per `security.md`).
+16. **consumer-contract-break** [WARN->BLOCK] — interface/CLI-flag/output-shape/dict-key/response-casing/input-routing change (or an `except`/annotation name the module never imports) shipped without grepping every consumer. Operator 2026-05-26 recurring class (argv-vs-stdin, --max-tokens SDK-vs-CLI, Recent Reports alpha/casing); live catch: agent_definitions.py:396 NameError (phase-67.2). Behavioral breaks evade tests (arXiv 2605.24397, 2408.14431); ruff F821 covers only the undefined-name subset. Added 2026-07-09 (appended #16; list name kept for historical stability).
 
 ### Dimension 1 — Security audit
 
@@ -145,12 +146,14 @@ Source: [kill_switch.py](../../../backend/services/kill_switch.py), [risk_engine
 | unicode-in-logger | `logger.{info,warning,error,debug}` with non-ASCII | NOTE |
 | magic-number | Numeric literal in financial formula without named constant | NOTE |
 | composition-over-inheritance | Inheritance chain >2 levels added | NOTE |
+| consumer-contract-break | A diff changes a PUBLIC contract shape -- function/method signature, kwarg name, CLI flag, dict/JSON key, response-field casing, return type, or how a value is passed (argv vs stdin, positional vs `--flag`, SDK kwarg vs CLI flag) -- WITHOUT every consumer verified in the SAME diff. Q/A greps consumers itself: `grep -rn "<old_symbol>" backend/ frontend/ scripts/` for each renamed/removed/re-shaped symbol; any surviving reference to the old shape => escalate to BLOCK. Also flag a module that references a name in an `except (...)` tuple or type annotation that the module never imports (grep the module's `^import`/`^from` vs names used in `except`/annotations -- the agent_definitions.py:396 `json` NameError class, phase-67.2). Behavioral-break subset (same signature, changed runtime semantics/exception/output): changed return-value spec, changed default behavior, changed error-handling path. | WARN (BLOCK if a live unverified consumer is found) |
 
 **What NOT to flag (negation list):**
 - `print()` in `scripts/`, `tests/`, or `__main__` blocks
 - Missing type hints on private (`_`-prefixed) helper functions
 - Global state in `*_constants.py`, `settings.py`, or singleton modules tagged as such
 - Test files that exceed the >50-lines-with-no-tests rule by definition
+- `consumer-contract-break`: purely ADDITIVE changes (new optional kwarg WITH default, new dict key, new endpoint) that narrow no existing consumer contract are non-breaking -- do NOT flag. A rename where a grep for the old symbol returns zero non-test hits because every consumer was updated in the SAME diff is verified, not a break. Internal/private (`_`-prefixed) symbols with no cross-module or cross-process consumer are exempt. Changes behind a default-OFF flag that are byte-identical when the flag is absent are exempt. Distinct from `rename-as-refactor` (Dim 4): that fires on rename + semantic change hiding old behavior; consumer-contract-break fires on ANY shape/routing change -- including a pure rename with correct new behavior -- when consumers are not grep-verified. Both may fire; verdict = worst severity.
 
 Source: Python 3.14 typing conventions; [security.md](../../rules/security.md) ASCII logger rule.
 

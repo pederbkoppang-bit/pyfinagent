@@ -20,9 +20,10 @@ References:
   https://www.anthropic.com/engineering/harness-design-long-running-apps
 """
 
+import json
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from backend.config.model_tiers import resolve_model
 
@@ -393,7 +394,7 @@ def parse_llm_classification(response_text: str) -> ClassificationResult:
             triggers_harness=bool(triggers_harness),
         )
 
-    except (json.JSONDecodeError, KeyError, TypeError) as e:
+    except (json.JSONDecodeError, AttributeError, KeyError, TypeError) as e:
         return ClassificationResult(
             agent_type=AgentType.MAIN,
             complexity=QueryComplexity.SIMPLE,
