@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-08",
+ "updated": "2026-07-09",
  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md). 2026-07-07: TRIAGE 63-65 APPROVED + away-plists KEEP ARMED + 66.3 start-now authorized + SETUP-TOKEN adopted, all via in-session AskUserQuestion (operator present).",
  "asks": [
   {
@@ -134,6 +134,22 @@
    "disposition": "resolved",
    "disposition_note": "Operator approved ADOPT via in-session AskUserQuestion 2026-07-07 ~08:50 UTC. Awaiting the interactive `claude setup-token` run on the host; the session then verifies the credential surface and closes this ask. RESOLVED 2026-07-08 ~08:45 UTC: operator ran claude setup-token interactively; token (sk-ant-oat01, 92 chars) wired into EnvironmentVariables of 4 plists (backend, away-session-am, away-session-pm, away-watchdog) + jobs bootout/bootstrap reloaded (backend needed a bootstrap retry after a launchd I/O-error race, then explicit kickstart -- runs=1, /docs 200, PID 24910). End-to-end validation: claude auth status under the wired env returns loggedIn=true authMethod=oauth_token apiProvider=firstParty (env token, not keychain). Credential model now 1-year for all headless surfaces; renewal due ~2027-07; 66.4 probe pages within 30 min on any future death. NOTE: same Max account quota pool -- quota discipline 16:30-20:30 UTC unchanged.",
    "disposition_at": "2026-07-08T08:45:00+00:00"
+  },
+  {
+   "id": "STALE-PHASE-TRIAGE-35-44",
+   "raised_by": "phase-66 goal loop (Stop-hook cross-verification gate re-fired 2026-07-09 overnight)",
+   "raised_at": "2026-07-09",
+   "due": "operator discretion (blocks the phase-66 goal-loop Stop hook; not urgent to trading)",
+   "ask": "Four phases (35.3, 39.1, 43.0, 44.3-44.10) are status=in-progress with genuinely-pending, largely operator-gated leaf steps (44.3/44.5/44.8/44.10 need operator_approval_*.md; 39.1 owner-gated). Orthogonal to phase-66. A Stop hook blocks the goal loop on them. I did NOT fabricate artifacts, flip statuses, or do the work. Full triage + recommended disposition: handoff/current/stale_inprogress_phases_35-44_TRIAGE.md. Decide: (A) 66.5-style keep/defer/drop triage sign-off, (B) scope the Stop hook to the active goal phase, and/or (C) name any step to genuinely resume (39.1 cron fix is small).",
+   "reply_options": [
+    "STALE-PHASE: TRIAGE (prep table for my sign-off)",
+    "STALE-PHASE: HOOK-SCOPE (limit gate to active phase)",
+    "STALE-PHASE: RESUME <step-id>",
+    "STALE-PHASE: DEFER-ALL"
+   ],
+   "recommended": "A (triage) + B (hook-scope) so the goal loop is not gated on abandoned orthogonal phases; C only for 39.1 if wanted",
+   "disposition": "open",
+   "disposition_at": "2026-07-09T00:35:00+00:00"
   }
  ]
 }
