@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `6a6b1679` | phase-67.2: bug-catching upgrade -- consumer-contract-break heuristic (SKILL.md #16, append-only, er |
 | 2026-07-09 | `e8be1930` | phase-67.1: Q/A verification-depth upgrade -- retire dead 55s cap, add deterministic backend lint +  |
 | 2026-07-09 | `547e5369` | phase-66.2: Redeploy capital through the NORMAL path only -- closed PASS by fresh Opus Q/A; phase-66 |
 | 2026-07-09 | `6814211e` | phase-67.0: install goal-phase67-fable-window (4 pending steps) + Fable window pins (REVERT-BY 2026- |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-08 | `b09115d0` | phase-66.2: day-2 scheduled-cycle evidence (9a8720b3) -- zero BUYs, rail 65.4% (not healthy-rail; cl |
 | 2026-07-08 | `6826289d` | chore(away-ops): recovery -- commit benign cycle/audit/kill-switch churn + populated AM session arti |
 | 2026-07-08 | `a024f261` | chore(models): Fable->Opus repin (window ends today) -- researcher/qa agent files, mas_main, autores |
-| 2026-07-08 | `97b0b704` | fix(tests): stop pytest polluting prod llm_call_log -- PYFINAGENT_TEST_NO_BQ guard in flush/flush_ll |
 
 ---
 
+### v6.56.3 — phase-67.2: bug-catching upgrade -- consumer-contract-break heuristic... (2026-07-09)
+
+- **phase-67.2: bug-catching upgrade -- consumer-contract-break heuristic (SKILL.md #16, append-only, er**
 ### v6.56.2 — phase-67.1: Q/A verification-depth upgrade -- retire dead 55s cap, ad... (2026-07-09)
 
 - **phase-67.1: Q/A verification-depth upgrade -- retire dead 55s cap, add deterministic backend lint +**
