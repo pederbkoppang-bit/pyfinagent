@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-09T21:27:46.907449+00:00",
+  "updated_at": "2026-07-09T21:55:10.850915+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15305,7 +15305,52 @@
           },
           "retry_count": 0,
           "max_retries": 3,
-          "sequencing_note": "SCHEDULED: execute on 2026-07-12 before free Fable access ends; any session running on/after that date treats this as its top P0."
+          "sequencing_note": "SCHEDULED: execute on 2026-07-12 before free Fable access ends; any session running on/after that date treats this as its top P0. ADDENDUM 2026-07-09 (latest-features audit): 67.6 must be done before this step's in-app Sonnet-5 option is exercised -- llm_client.py carries temperature + legacy-thinking 400-traps for sonnet-5/fable-5 until 67.6 de-mines them."
+        },
+        {
+          "id": "67.5",
+          "name": "Claude Code feature adoption -- fallbackModel chain, SessionStart revert tripwire, runtime-semantics doc truth, legacy agent-memory prune",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": null,
+          "audit_basis": "Latest-features audit 2026-07-09 vs changelog through v2.1.205 (running locally): fallbackModel (v2.1.166, up to 3 fallbacks) unset -- would have auto-fallen the two 2026-07-09 Fable Q/A stalls to Opus; no SessionStart hook (v2.1.152) -- the natural home for a self-enforcing 67.4 Sunday-revert tripwire; runbook does not reflect subagents background-by-default (2.1.198), partial-work retention on rate-limit cutoffs (2.1.199, mitigates the Q/A stall class), or 5-level subagent self-nesting (2.1.172, lets the researcher deep-tier fork self-manage); stale 'local 2.1.172' comments in agent files; v2.1.196 MCP spawn-approval needs a headless-attach verification; two empty legacy agent-memory dirs (harness-verifier/, qa-evaluator/) prunable per stress-test doctrine.",
+          "verification": {
+            "command": "bash -c 'grep -q \"fallbackModel\" .claude/settings.json && grep -q \"SessionStart\" .claude/settings.json && test -f .claude/hooks/session-start-fable-tripwire.sh && ! grep -rq \"local 2.1.172\" .claude/agents/ && test ! -d .claude/agent-memory/harness-verifier && test ! -d .claude/agent-memory/qa-evaluator'",
+            "success_criteria": [
+              ".claude/settings.json carries a fallbackModel chain (fable-first falling to opus-4-8), shape verified against the running Claude Code version's documentation at research-gate time",
+              "A SessionStart hook injects a loud warning (additionalContext) when the session date is on/after 2026-07-12 AND either agent file still pins model: fable, naming masterplan 67.4 as the top P0; hook is fail-open like every hook in this project",
+              "Runbook + researcher.md reflect current subagent runtime semantics (background-by-default, partial-work retention, 5-level self-nesting for the deep-tier fork); stale local-version comments refreshed to the running version; the two empty legacy agent-memory dirs are removed",
+              "Headless MCP attach verified: a fresh non-interactive session lists the pyfinagent stdio servers, or the v2.1.196 approval posture is documented and fixed via enabledMcpjsonServers so away sessions do not silently lose servers",
+              "Fresh Q/A PASS on the diff; harness stays exactly 3 agents (no doctrine violation)"
+            ],
+            "live_check": "live_check_67.5.md with (a) tripwire dry-run output under a faked date >= 2026-07-12 showing the warning text verbatim, (b) the headless MCP attach listing, (c) the fresh Q/A verdict JSON"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "67.6",
+          "name": "Layer-2 API modernization -- extend Fable-5/Sonnet-5 request guards (temperature strip + thinking allowlist), reconcile anthropic SDK pin to installed 0.96.0, request-shape behavioral tests",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "Latest-features audit 2026-07-09 (operator-requested): llm_client.py:1396 sets temperature on every Claude request, stripped only for opus-4-8/4-7 (:1467-1470) -- claude-fable-5/claude-sonnet-5 400 on non-default sampling params; adaptive-thinking allowlist (:1448-1450) omits fable-5/sonnet-5 so a thinking.budget_tokens caller routes them to the legacy enabled+budget_tokens branch (:1451-1454) which 400s. Both traps are dormant (no fable/sonnet-5 pins since 2026-07-08) but FIRE on 67.4's Sonnet-5 option. SDK skew verified live: installed anthropic 0.96.0 vs requirements.txt:39 pin 0.87.0 while code comments require >=0.96.0 (llm_client.py:1272-1278,:1831) -- the pin is the lie.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_claude_request_shapes.py -q -x --timeout=60 && grep -q \"anthropic==0.96.0\" backend/requirements.txt'",
+            "success_criteria": [
+              "backend/agents/llm_client.py sends NO sampling params (temperature/top_p/top_k) in request shapes for claude-fable-5, claude-sonnet-5, claude-opus-4-8, claude-opus-4-7 (strip-list extended; behavioral test proves it)",
+              "llm_client.py never sends legacy {type:enabled, budget_tokens} thinking to claude-fable-5 or claude-sonnet-5: fable-5 omits the thinking param entirely (always-on per Anthropic docs); sonnet-5 receives adaptive; behavioral tests prove both",
+              "backend/requirements.txt anthropic pin matches the installed-and-required SDK (exact pin 0.96.0, supply-chain-hardening rationale comment preserved); the documented-vs-pinned mismatch is gone",
+              "No behavior change for currently-pinned models: opus-4-8/4-7/4-6, sonnet-4-6, haiku-4-5 request shapes preserved and asserted by the same test module",
+              "Fresh Q/A PASS with the 67.1 gates applied to this diff (lint + runtime smoke over the changed files, output in the critique)"
+            ],
+            "live_check": "live_check_67.6.md with verbatim builder-level request-payload dumps for a fable-5 and a sonnet-5 shape (no temperature, no budget_tokens, effort in output_config) plus pip show anthropic output matching the reconciled pin"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "sequencing_note": "Must be DONE before 67.4 exercises its in-app Sonnet-5 option (the traps this step de-mines fire exactly there)."
         }
       ]
     }
