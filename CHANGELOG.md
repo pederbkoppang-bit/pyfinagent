@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-10 | `7a833f21` | phase-67.5: Claude Code feature adoption -- fallbackModel chain, SessionStart Sunday-revert tripwire |
 | 2026-07-10 | `b629228d` | phase-67.6: Layer-2 API modernization -- Fable-5/Sonnet-5 request guards (fable omits thinking; sonn |
 | 2026-07-09 | `0a18af08` | phase-67.0: install steps 67.5 + 67.6 (latest-features gap closure, operator-approved plan) + 67.4 s |
 | 2026-07-09 | `4af84d4e` | phase-67.3: researcher write-first/incremental-brief discipline codified; stale scaffolding pruned ( |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-09 | `91ff4db7` | chore(away-ops): recovery checkpoint 2026-07-09 (AM) -- benign accumulation, clean tree |
 | 2026-07-09 | `833efc0f` | chore(ops): file STALE-PHASE-TRIAGE-35-44 operator ask (Stop-hook re-fire; decision queued via pendi |
 | 2026-07-09 | `f2d1eee8` | docs(triage): document 4 stale in-progress phases (35/39/43/44) flagged by Stop hook -- operator-gat |
-| 2026-07-08 | `71fef45d` | phase-66.2: Cycle 75 harness log -- day-2 evidence (clock DAY 0), RJ-shape dark fix, 61.2 deploy (15 |
 
 ---
 
+### v6.57.2 — phase-67.5: Claude Code feature adoption -- fallbackModel chain, Sess... (2026-07-10)
+
+- **phase-67.5: Claude Code feature adoption -- fallbackModel chain, SessionStart Sunday-revert tripwire**
 ### v6.57.1 — phase-67.6: Layer-2 API modernization -- Fable-5/Sonnet-5 request gua... (2026-07-10)
 
 - **phase-67.6: Layer-2 API modernization -- Fable-5/Sonnet-5 request guards (fable omits thinking; sonn**
