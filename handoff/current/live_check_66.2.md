@@ -365,3 +365,47 @@ HOLD/0.0) is the fix that directly addresses this failure mode. Promotion is an
 operator decision (flag-promotion brief 2026-07-09, recommend PROMOTE
 synthesis-integrity + RJ-shape). NO status flip; 66.2 stays pending; the formal
 1(a) close still requires a SCHEDULED-cycle BUY.
+
+## 9. CRITERION 1(a) SATISFIED -- 2026-07-09 SCHEDULED cycle 603e287c: engine reactivated
+
+Scheduled-run evidence (39.1 doctrine): the 18:00 UTC APScheduler cron cycle
+603e287c (started 18:00:00.66Z, completed 19:18:30Z) -- NOT a manual run --
+executed the FIRST BUYs since 2026-06-10. Flags were DARK (synthesis-integrity
++ rj-shape both OFF); reactivation did NOT require the promotion.
+
+### The BUYs (immutable verification command output, verbatim)
+```
+{'ticker': 'AMD', 'action': 'BUY', 'reason': 'new_buy_signal', 'risk_judge_decision': 'APPROVE_REDUCED', 'd': 2026-07-09}
+{'ticker': 'MU',  'action': 'BUY', 'reason': 'new_buy_signal', 'risk_judge_decision': 'APPROVE_REDUCED', 'd': 2026-07-09}
+```
+paper_trades: MU total_value $839.92 (~3.5% NAV), AMD $719.93 (~3.0% NAV) --
+judge-sized APPROVE_REDUCED, NOT the 10% default. paper_positions now holds
+AMD (1.32 sh) + MU (0.836 sh); book no longer 100% cash (~$1,560 deployed).
+
+Criterion 1(a) verbatim: "first BUY row in financial_reports.paper_trades dated
+after the 66.1 deploy, executed by the ordinary scheduled pipeline with
+risk_judge_decision recorded (BQ paste)" -- ALL MET: BUY rows (AMD/MU),
+after 66.1 (07-07), ordinary scheduled cron (603e287c), risk_judge_decision
+recorded (APPROVE_REDUCED on both).
+
+### How it worked (LITE FALLBACK, flags off)
+cc_rail 64.2% ok (68/38). 3/5 full-path analyses hit the synthesis defect ->
+synthetic HOLD (009150.KS, DELL, SNDK). BUT AMD + MU FELL BACK TO LITE
+(_path=lite, no synthesis error) and produced real BUYs (AMD BUY/6.0, MU
+BUY/8.0). The lite path reads risk_judge decision top-level (so it records
+correctly + sizes at judge pct WITHOUT the rj-shape flag). So the reactivation
+came through the existing lite fallback catching two strong candidates -- the
+promotion flags were unnecessary tonight (they remain valuable for full-path
+robustness: retry-on-empty would cut the 3/5 full-path synthesis failures).
+
+### Register (follow-up, non-blocking)
+AMD avg_entry $545.42 / MU $1004.70 look HIGH vs real levels (~$150 / ~$110) --
+possible price-feed magnitude issue; DOLLAR sizing (~3% NAV) is correct, so
+criterion 1(a) holds, but verify the price feed (data-quality register).
+
+### Disposition
+Criterion 1(a) MET via scheduled evidence; criteria 2/3/4 already closed.
+NO self-flip: a FRESH Q/A (Opus roster, next session) must verify (immutable
+cmd reproduction + criterion-2 flag-gated-diff ruling + this evidence) BEFORE
+66.2 flips done. This session did NOT spawn Q/A (roster = Fable; operator moved
+to Opus). Recorded for the next-session Opus Q/A + flip.
