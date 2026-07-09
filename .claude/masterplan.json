@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-09T22:29:36.990277+00:00",
+  "updated_at": "2026-07-09T22:32:03.255884+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15351,6 +15351,192 @@
           "retry_count": 0,
           "max_retries": 3,
           "sequencing_note": "Must be DONE before 67.4 exercises its in-app Sonnet-5 option (the traps this step de-mines fire exactly there)."
+        }
+      ]
+    },
+    {
+      "id": "phase-68",
+      "name": "Real-Fill Runway -- every fill ever made is synthetic; convert the mock engine into an Alpaca-paper-executed, price-verified, learning system producing GO_LIVE_CHECKLIST 4.4.2.2/.4/.5 evidence. Alpha re-opening DEFERRED to phase-69 (hold strategy constant while measuring divergence). Operator /goal 2026-07-10 verbatim in handoff/current/goal_phase68_real_fill_runway.md. QUEUED BEHIND phase-67's P0s; 67.4 Sunday revert untouchable. Audit basis (tool-verify at each step's research gate): execution stuck on bq_sim (EXECUTION_BACKEND never reaches the launchd process); AMD/MU avg_entry corruption feeds trailing-stop math (live risk); learn-loop 0 rows ever (sole blocker paper_learn_loop_enabled=False; return_pct fixed 47.7); stray paper-account shorts -13,842.89 to flatten; DON'T RE-FIX alerting imports (66.1) or cc-rail guard (66.1/66.4).",
+      "gate": "$0 metered; paper-only triple-enforced (no live key); do-no-harm on stops/caps/kill-switch/thresholds; dark-until-token on every behavior change (ALPACA-RESET / EXEC-BACKEND / PAPER-LEARN-LOOP / STALE 35-44 tokens in pending_tokens.json); full 5-file protocol, 3 agents; no bypass of parked 61.x/63-65",
+      "depends_on": [
+        "phase-66"
+      ],
+      "status": "pending",
+      "steps": [
+        {
+          "id": "68.0",
+          "name": "Deep-research + design pack -- env propagation to launchd, shadow-mode TRUE order semantics (code-traced), alpaca-py paper order/reconciliation, AMD/MU price-defect hypothesis tree",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": null,
+          "audit_basis": "Operator /goal 2026-07-10. Every fill ever made is synthetic: execution_router.py defaults to bq_sim and EXECUTION_BACKEND never reaches the launchd process (pydantic env_file does not export; plist lacks env keys; researcher memory project_funnel_zero_trade_66_2.md); absent creds fall to _alpaca_mock_fill. Design must precede any cutover code.",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/research_brief_68.0.md && test -f handoff/current/design_execution_cutover_68.md && grep -q \"gate_passed\" handoff/current/research_brief_68.0.md && grep -qi \"rollback\" handoff/current/design_execution_cutover_68.md && grep -qi \"idempoten\" handoff/current/design_execution_cutover_68.md'",
+            "success_criteria": [
+              "research_brief_68.0.md exists with an honest gate envelope and covers all four topics: env propagation into the launchd-started backend process, shadow-mode TRUE order semantics traced through the actual code path (file:line), alpaca-py paper order lifecycle + reconciliation primitives, and an AMD/MU price-defect hypothesis tree ranked by evidence",
+              "design_execution_cutover_68.md exists and specifies: config precedence (env > .env > default) with the exact propagation mechanism to the launchd process; shadow-mode isolation (shadow NEVER mutates bq_sim position state); order-id idempotency; rollback = single env flip back to bq_sim; existing PKLIVE/paper-only guards kept and named",
+              "No production code changed by this step (research + design only; git diff shows handoff/doc artifacts only)",
+              "Fresh Q/A PASS on the pack"
+            ],
+            "live_check": "live_check_68.0.md quoting the design doc's config-precedence and rollback sections plus the brief's envelope; fresh Q/A verdict JSON"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "sequencing_note": "CALENDAR-GATED: complete before 2026-07-12 so the design pack benefits from the Fable window (research spawned 2026-07-10; session roster snapshot = Opus, Main = Fable authors the design)."
+        },
+        {
+          "id": "68.1",
+          "name": "EXECUTION_BACKEND demonstrably reaches execution_router in the launchd process -- startup mode+source log, byte-identical bq_sim default, LOUD missing-creds log, paper-only triple-enforcement tested. DARK.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "68.0",
+          "audit_basis": "Root cause chain from the audit basis: pydantic env_file loads into settings without exporting to os.environ; the launchd plist carries no EXECUTION_BACKEND key; execution_router silently defaults to bq_sim forever. The fix is plumbing + observability, not behavior: default stays bq_sim.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_execution_backend_wiring.py -q -x --timeout=120'",
+            "success_criteria": [
+              "EXECUTION_BACKEND set for the launchd-started backend process demonstrably reaches execution_router (live_check: the startup log line printing BOTH the resolved mode AND its source -- env/.env/default -- from the real launchd process)",
+              "With no EXECUTION_BACKEND set anywhere, behavior is byte-identical to today's bq_sim default (test-asserted)",
+              "Alpaca creds absent while mode=alpaca_paper logs LOUDLY (single unmissable startup error naming the missing keys) instead of silently mock-filling",
+              "Paper-only triple-enforcement tested: (a) paper base URL pinned, (b) live-key pattern (PKLIVE-class) rejected, (c) mode never escalates beyond paper regardless of env values",
+              "No trading-behavior change (DARK): no scheduled cycle executes through any new path in this step; fresh Q/A PASS with the 67.1 gates"
+            ],
+            "live_check": "live_check_68.1.md with the launchd-process startup log line (mode+source), the LOUD missing-creds log verbatim, and the triple-enforcement test output"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "68.2",
+          "name": "Flatten stray paper-account shorts, then >=5 days of shadow-mode paired fills to BQ + drift report; shadow NEVER mutates bq_sim position state",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "68.1",
+          "audit_basis": "The Alpaca paper account carries -13,842.89 short_market_value from the 2026-06-10 MCP drill (66.2 close, C3). Drift measurement against a dirty book is meaningless; flatten first, then measure bq_sim-vs-alpaca-paper divergence in shadow.",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/live_check_68.2.md && grep -qi \"drift\" handoff/current/live_check_68.2.md'",
+            "success_criteria": [
+              "TOKEN GATE: no Alpaca account mutation before the operator token ALPACA-RESET: APPROVED is recorded (pending_tokens.json ask; away-ops token mechanics)",
+              "Stray shorts flattened with before/after account snapshots pasted (positions + short_market_value ~0 after)",
+              ">=5 calendar days of shadow operation: every bq_sim fill paired with a shadow alpaca-paper order record in BQ (same cycle, same ticker) plus a drift report (fill-price and timing deltas)",
+              "Shadow mode provably NEVER mutates bq_sim position state (test + BQ evidence: bq_sim book identical with shadow on/off)",
+              "Fresh Q/A PASS"
+            ],
+            "live_check": "live_check_68.2.md with the before/after account snapshots, a BQ paste of paired shadow fills, and the drift report summary"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "68.3",
+          "name": "Cutover: >=3 SCHEDULED cycles executing with source='alpaca_paper' fills; reconciliation <2% drift zero orphans; mismatch pages P1; one rollback drill; risk caps byte-untouched",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "68.2",
+          "audit_basis": "The go-live checklist items 4.4.2.2/.4/.5 need REAL fills. Cutover only after shadow proves drift is bounded; rollback is the 68.0-designed single env flip.",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/live_check_68.3.md && grep -q \"alpaca_paper\" handoff/current/live_check_68.3.md'",
+            "success_criteria": [
+              "TOKEN GATE (DARK until then): no cutover before the operator token EXEC-BACKEND: ALPACA_PAPER is recorded",
+              ">=3 SCHEDULED (not manual) cycles produce fills recorded with source='alpaca_paper' (BQ paste with cycle ids)",
+              "Reconciliation report: <2% price drift vs bq_sim expectations, ZERO orphan orders (every order maps to a decision row and vice versa); any mismatch pages P1 (page evidence or drill)",
+              "One rollback drill executed and evidenced: env flip back to bq_sim, next cycle clean on bq_sim, flip forward again",
+              "Risk caps / stops / kill-switch / thresholds byte-untouched over the step's commit range (git diff evidence); fresh Q/A PASS"
+            ],
+            "live_check": "live_check_68.3.md with the BQ fill rows (source='alpaca_paper', scheduled cycle ids), the reconciliation report, and the rollback-drill log"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "68.4",
+          "name": "Learn-loop activation: dark write-drill against LIVE schemas, token ask with measured reflection cost, then first real sell-close writes outcome_tracking + agent_memories rows. NO manufactured SELLs.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "68.0",
+          "audit_basis": "Learn-loop has written 0 rows ever; the return_pct bug was fixed in 47.7 and the sole remaining blocker is paper_learn_loop_enabled=False. Tables live in financial_reports (us-central1) per the paper-trading dataset split.",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/live_check_68.4.md && grep -qi \"outcome_tracking\" handoff/current/live_check_68.4.md'",
+            "success_criteria": [
+              "Dark write-drill validates row construction against the LIVE BigQuery schemas (financial_reports / us-central1) without persisting to prod tables (staging or dry-run evidence)",
+              "TOKEN GATE: the pending_tokens ask for PAPER-LEARN-LOOP: ENABLE states the MEASURED per-close reflection cost (from the drill), not an estimate",
+              "Post-token: the FIRST REAL sell-close (stop-loss or gate-driven; NO manufactured SELLs) writes matching rows to outcome_tracking AND agent_memories (BQ paste)",
+              "Fresh Q/A PASS"
+            ],
+            "live_check": "live_check_68.4.md with the drill output, the measured cost figure quoted in the token ask, and (post-token) the BQ rows from the first real sell-close"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "68.5",
+          "name": "Price-integrity: root-cause AMD/MU avg_entry defect to file:line with repro; correct rows auditably; pre-persist fill-price sanity gate (block+page vs independent quote; covers close-cache + hash-fallback); DESC phantom fix + regression test; FX-1 root cause handed to parked 61.3; defects filed as 63.3 seeds",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "68.0",
+          "audit_basis": "AMD/MU avg_entry $545.42/$1004.70 vs real ~$150/~$110 (live_check_66.2.md sec 9; Cycle-77 register): avg_entry feeds trailing-stop math, so corrupted entries are live risk TODAY. Plus the DESC-order phantom drawdown pages and the hash-fallback price path from the audit basis.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_fill_price_sanity_gate.py -q -x --timeout=120'",
+            "success_criteria": [
+              "AMD/MU price defect root-caused to file:line with a deterministic repro (not a hypothesis -- the repro reproduces the bad magnitude)",
+              "The corrupted BQ rows corrected AUDITABLY: original values preserved (audit column or log paste), correction query + before/after rows in the live_check",
+              "Pre-persist fill-price sanity gate: any fill whose price deviates beyond a bounded threshold vs an independent quote source is BLOCKED and PAGES before persisting; the gate demonstrably covers the close-cache and hash-fallback paths (tests)",
+              "DESC-order phantom drawdown fixed with a regression test that fails on the old ordering",
+              "FX-1 root cause documented and HANDED to parked 61.3 (no 61.x execution); defect register entries filed as 63.3 seeds (no 63.3 execution)",
+              "Fresh Q/A PASS with the 67.1 gates"
+            ],
+            "live_check": "live_check_68.5.md with the repro output, the before/after corrected rows, a blocked+paged sanity-gate demonstration, and the regression-test run"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "68.6",
+          "name": "Weekly go-live tracker from REAL fills only -- immutable clean-window start; Sharpe vs 0.82; missed days (stop-loss sells count); divergence per 4.4.2.5. Feeds 65.3/65.4 + 58.1; flips nothing.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "68.3",
+          "audit_basis": "GO_LIVE_CHECKLIST 4.4.2.2/.4/.5 need evidence computed from real fills over a clean window. Also requires 68.5 (price integrity) so the tracker never ingests corrupted entries. Alpha/strategy held constant (phase-69).",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/live_check_68.6.md && grep -qi \"clean-window\\|clean window\" handoff/current/live_check_68.6.md'",
+            "success_criteria": [
+              "ALSO GATED ON 68.5 done (tracker must not ingest un-sanitized fills) -- assert both dependencies in the contract",
+              "Weekly tracker computes ONLY from fills with source='alpaca_paper' inside an immutable clean-window start date recorded at creation (never restated)",
+              "Tracker reports: Sharpe vs the 0.82 benchmark, missed trading days (stop-loss sells COUNT as activity), and bq_sim-vs-real divergence per GO_LIVE_CHECKLIST 4.4.2.5",
+              "Tracker output feeds the 65.3/65.4 + 58.1 evidence trails but FLIPS NOTHING (no masterplan/status writes from the tracker)",
+              "Fresh Q/A PASS"
+            ],
+            "live_check": "live_check_68.6.md with the first tracker output over the clean window and the immutable start-date record"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "68.7",
+          "name": "Stale-phase triage table for phases 35/39/43/44 (66.5-style; recommend 35.3 superseded-by 68.6); NO status surgery before the operator token",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": null,
+          "audit_basis": "Phases 35.3/39.1/43.0/44.3-44.10 are status=in-progress with operator-gated leaf steps (existing open ask STALE-PHASE-TRIAGE-35-44, raised 2026-07-09, amended with this step's token). Planning-only until the token.",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/triage_phase35-44.md'",
+            "success_criteria": [
+              "TOKEN GATE (DARK until then): no masterplan status changes before the operator token STALE 35-44: APPROVED is recorded",
+              "A 66.5-style triage table covering every open step in phases 35/39/43/44 with keep/merge/drop/supersede recommendation + one-line rationale each (including the 35.3 superseded-by-68.6 recommendation)",
+              "Post-token only: dispositions applied WITHOUT deleting history (dropped steps marked status=dropped with rationale)",
+              "Fresh Q/A PASS on the table (pre-token) and on the application (post-token)"
+            ],
+            "live_check": "live_check_68.7.md with the triage table and, post-token, the recorded operator sign-off + applied dispositions diff"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

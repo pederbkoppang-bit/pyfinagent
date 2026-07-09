@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-09",
+ "updated": "2026-07-10",
  "format_note": "Canonical open-operator-asks file (away-ops-rules.md token mechanics). Every entry carries the EXACT reply string(s); the operator replies in the Slack bot channel and the 62.2 handler records it to handoff/operator_tokens.jsonl. Return-day 2026-07-06: disposition/disposition_note/disposition_at fields added per goal_phase66 Part-1 table (schema-tolerant per scheduler.py:499-503; research_brief_66.0.md). 2026-07-07: TRIAGE 63-65 APPROVED + away-plists KEEP ARMED + 66.3 start-now authorized + SETUP-TOKEN adopted, all via in-session AskUserQuestion (operator present).",
  "asks": [
   {
@@ -142,6 +142,7 @@
    "due": "operator discretion (blocks the phase-66 goal-loop Stop hook; not urgent to trading)",
    "ask": "Four phases (35.3, 39.1, 43.0, 44.3-44.10) are status=in-progress with genuinely-pending, largely operator-gated leaf steps (44.3/44.5/44.8/44.10 need operator_approval_*.md; 39.1 owner-gated). Orthogonal to phase-66. A Stop hook blocks the goal loop on them. I did NOT fabricate artifacts, flip statuses, or do the work. Full triage + recommended disposition: handoff/current/stale_inprogress_phases_35-44_TRIAGE.md. Decide: (A) 66.5-style keep/defer/drop triage sign-off, (B) scope the Stop hook to the active goal phase, and/or (C) name any step to genuinely resume (39.1 cron fix is small).",
    "reply_options": [
+    "STALE 35-44: APPROVED",
     "STALE-PHASE: TRIAGE (prep table for my sign-off)",
     "STALE-PHASE: HOOK-SCOPE (limit gate to active phase)",
     "STALE-PHASE: RESUME <step-id>",
@@ -149,7 +150,8 @@
    ],
    "recommended": "A (triage) + B (hook-scope) so the goal loop is not gated on abandoned orthogonal phases; C only for 39.1 if wanted",
    "disposition": "open",
-   "disposition_at": "2026-07-09T00:35:00+00:00"
+   "disposition_at": "2026-07-09T00:35:00+00:00",
+   "disposition_note": "AMENDED 2026-07-10 (phase-68 install): masterplan step 68.7 now owns the 66.5-style triage (table for 35/39/43/44 incl. 35.3 superseded-by-68.6 recommendation); the canonical apply token is 'STALE 35-44: APPROVED'. No status surgery before it."
   },
   {
    "id": "PROMOTE-66.2-FLAGS",
@@ -168,6 +170,48 @@
    "disposition": "operator-authorized; NO LONGER BLOCKING (engine reactivated 2026-07-09 via lite fallback w/ flags dark); promotion now OPTIONAL robustness improvement",
    "disposition_at": "2026-07-09T19:25:00+00:00",
    "disposition_note": "Operator said \"yes\" in chat 2026-07-09 ~17:45 UTC authorizing PROMOTE synthesis-integrity + rj-shape. Agent recorded the authorization in operator_tokens.jsonl (line 1, provenance=in-session-chat) and advanced tokens_cursor (gate open ~6h) BEFORE discovering backend/.env is agent-locked at multiple layers (Bash write auto-denied, Read directory-denied, CLAUDE_ALLOW_DANGER not propagated to the hook) and the settings API SettingsUpdate model does not expose these two flags. RECONCILIATION: the token+cursor are truthful artifacts of a REAL operator authorization; no automatic .env write occurs from the open gate (benign; expires ~23:49 UTC). Promotion completes when the OPERATOR adds PAPER_SYNTHESIS_INTEGRITY_ENABLED=true + PAPER_RISK_JUDGE_SHAPE_FIX_ENABLED=true to backend/.env; agent then kickstart-restarts + verifies + lets the next scheduled cycle validate. NO agent path to write .env exists by design."
+  },
+  {
+   "id": "ALPACA-RESET-68.2",
+   "raised_by": "phase-68 install (operator /goal 2026-07-10, goal-phase68-real-fill-runway)",
+   "raised_at": "2026-07-10",
+   "due": "gates 68.2 (shadow-mode drift measurement); not urgent to trading (bq_sim engine unaffected)",
+   "ask": "68.2 needs to FLATTEN the stray shorts in the Alpaca PAPER account (-13,842.89 short_market_value, the 2026-06-10 MCP-drill artifact confirmed at the 66.2 close) before shadow-mode drift measurement is meaningful. This mutates the PAPER account only (paper-only triple-enforcement lands in 68.1 first; no live key exists). Before/after account snapshots will be pasted into live_check_68.2.md.",
+   "reply_options": [
+    "ALPACA-RESET: APPROVED",
+    "ALPACA-RESET: HOLD"
+   ],
+   "recommended": "ALPACA-RESET: APPROVED (paper account only; a dirty book makes the >=5-day drift report meaningless)",
+   "disposition": "open",
+   "disposition_at": "2026-07-10T00:00:00+00:00"
+  },
+  {
+   "id": "EXEC-BACKEND-68.3",
+   "raised_by": "phase-68 install (operator /goal 2026-07-10)",
+   "raised_at": "2026-07-10",
+   "due": "gates the 68.3 cutover; only meaningful AFTER 68.1 (wiring, dark) + 68.2 (>=5 days shadow drift) are done and their evidence is in front of you",
+   "ask": "68.3 cuts execution over from bq_sim mock fills to REAL Alpaca-paper fills (source='alpaca_paper'). Dark until this token. The ask will be RE-PRESENTED with the shadow drift report attached when 68.2 closes; reply then. Rollback is a single env flip (68.0 design), drilled as part of 68.3's own criteria. Risk caps/stops/kill-switch byte-untouched.",
+   "reply_options": [
+    "EXEC-BACKEND: ALPACA_PAPER",
+    "EXEC-BACKEND: HOLD"
+   ],
+   "recommended": "decide AFTER the 68.2 drift report (do not pre-approve; the whole point of shadow mode is evidence-first)",
+   "disposition": "open",
+   "disposition_at": "2026-07-10T00:00:00+00:00"
+  },
+  {
+   "id": "PAPER-LEARN-LOOP-68.4",
+   "raised_by": "phase-68 install (operator /goal 2026-07-10)",
+   "raised_at": "2026-07-10",
+   "due": "gates 68.4 flag enable; the dark write-drill runs first regardless",
+   "ask": "68.4 enables paper_learn_loop_enabled (currently False; the sole remaining blocker -- the return_pct bug was fixed in 47.7) so real sell-closes write outcome_tracking + agent_memories rows. Per the goal, this ask is INCOMPLETE until the dark write-drill has measured the per-close reflection cost; the session will UPDATE this entry with the measured figure before you need to reply. No manufactured SELLs either way.",
+   "reply_options": [
+    "PAPER-LEARN-LOOP: ENABLE",
+    "PAPER-LEARN-LOOP: HOLD"
+   ],
+   "recommended": "pending the measured reflection cost from the 68.4 drill (entry will be updated)",
+   "disposition": "open_awaiting_measured_cost",
+   "disposition_at": "2026-07-10T00:00:00+00:00"
   }
  ]
 }

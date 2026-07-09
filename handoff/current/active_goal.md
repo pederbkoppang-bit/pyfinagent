@@ -1,8 +1,8 @@
-# Active Goal -- goal-phase67-fable-window (primary)
+# Active Goal -- goal-phase67-fable-window (PRIMARY through Sunday 2026-07-12) + goal-phase68-real-fill-runway (queued)
 
-Refreshed 2026-07-09 (operator in-session via /goal, Stop hook active). Attended rules
-apply: CLAUDE.md harness protocol per step, metered LLM costs need Peder's approval,
-push to main, no feature branches.
+Refreshed 2026-07-10 (operator /goal installed phase-68). Attended rules apply:
+CLAUDE.md harness protocol per step, metered LLM costs need Peder's approval, push to
+main, no feature branches.
 
 ## Primary: goal-phase67-fable-window (masterplan phase-67; spec: handoff/current/goal_phase67_fable_window.md)
 
@@ -58,5 +58,18 @@ AUTHORIZE` only if Fable should outlive 2026-07-12 on personal credits (default:
   67.1 PASS (Cycle 78: lint+runtime-smoke gates, tiered budget, auto-PASS backdoor
   removed, recovery reconciled); 67.2 PASS (Cycle 79: consumer-contract-break
   heuristic, live NameError fixed + 5 tests); 67.3 PASS (Cycle 80: write-first
-  codified, wrong DSR pruned). **SOLE REMAINING: 67.4 Sunday 2026-07-12 revert**
-  (pins -> opus, KEEP artifacts) -- top P0 for any session on/after that date.
+  codified, wrong DSR pruned).
+- 2026-07-10: latest-features audit -> 67.6 PASS (Cycle 81: Fable/Sonnet-5 API traps
+  de-mined incl. orchestrator twin; SDK pin 0.87->0.96 downgrade bomb defused; 14
+  request-shape tests) + 67.5 PASS (Cycle 82: fallbackModel chain; SessionStart
+  Sunday tripwire = 67.4 now SELF-ENFORCING; MCP approvals restored 7x
+  Pending->Connected -- headless fleet had been MCP-blind since v2.1.196; doc truth).
+  **Phase-67 remaining: 67.4 Sunday 2026-07-12 revert ONLY** (pins -> opus, KEEP all
+  artifacts; tripwire-enforced) -- top P0 for any session on/after that date.
+- 2026-07-10: **phase-68 Real-Fill Runway INSTALLED** (operator /goal; 8 steps
+  pending; spec handoff/current/goal_phase68_real_fill_runway.md). QUEUED BEHIND
+  phase-67 P0s; 67.4 untouchable. 68.0 research spawned same session (calendar-gated
+  before Sunday). Tokens filed: ALPACA-RESET-68.2, EXEC-BACKEND-68.3 (decide after
+  shadow drift), PAPER-LEARN-LOOP-68.4 (awaiting measured cost), STALE 35-44 amended
+  onto the existing triage ask (68.7). Window plan: 68.5/68.4 briefs Sat; Sun commit
+  briefs then 67.4; 68.1+ continues on Opus.
