@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `e8be1930` | phase-67.1: Q/A verification-depth upgrade -- retire dead 55s cap, add deterministic backend lint +  |
 | 2026-07-09 | `547e5369` | phase-66.2: Redeploy capital through the NORMAL path only -- closed PASS by fresh Opus Q/A; phase-66 |
 | 2026-07-09 | `6814211e` | phase-67.0: install goal-phase67-fable-window (4 pending steps) + Fable window pins (REVERT-BY 2026- |
 | 2026-07-09 | `df0e829a` | chore(away-ops): 2026-07-09 PM recovery -- sweep benign accumulation (4 audit streams + populated AM |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-08 | `6826289d` | chore(away-ops): recovery -- commit benign cycle/audit/kill-switch churn + populated AM session arti |
 | 2026-07-08 | `a024f261` | chore(models): Fable->Opus repin (window ends today) -- researcher/qa agent files, mas_main, autores |
 | 2026-07-08 | `97b0b704` | fix(tests): stop pytest polluting prod llm_call_log -- PYFINAGENT_TEST_NO_BQ guard in flush/flush_ll |
-| 2026-07-08 | `354eb6b4` | phase-61.2: Cycle 74 harness log + Q/A critique (CONDITIONAL -- designed intermediate state, live le |
 
 ---
 
+### v6.56.2 — phase-67.1: Q/A verification-depth upgrade -- retire dead 55s cap, ad... (2026-07-09)
+
+- **phase-67.1: Q/A verification-depth upgrade -- retire dead 55s cap, add deterministic backend lint +**
 ### v6.56.1 — phase-66.2: Redeploy capital through the NORMAL path only -- closed P... (2026-07-09)
 
 - **phase-66.2: Redeploy capital through the NORMAL path only -- closed PASS by fresh Opus Q/A; phase-66**
