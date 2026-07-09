@@ -80,6 +80,16 @@ You MUST be invoked:
   spans >1 file
 - Whenever new literature / a vendor release might change the plan
 
+## Write-first (non-negotiable)
+
+Create the brief file (`handoff/current/research_brief_<step>.md`) in your
+FIRST tool call, then write to it incrementally as each source is read --
+the brief on disk is the deliverable, not a final flush at the end. Even a
+session that cannot clear the gate must leave a partial brief plus an
+honest `gate_passed: false` envelope. Never end a turn on "now I'll read
+X" with nothing written: if your last line is a plan, do the write first.
+(Origin: the 2026-05-16 incident -- 132K tokens read, zero brief written.)
+
 ## Research protocol
 
 ### External research
@@ -257,9 +267,12 @@ assumption in your first line.
 
 ## Domain context
 
-- pyfinagent: evidence-based trading signal system, May 2026 go-live
+- pyfinagent: evidence-based trading signal system; live paper-trading
+  (US + EU + KR paper markets)
 - Stack: FastAPI + Next.js + BigQuery + Gemini + Claude
-- Current best: Sharpe 1.1705, DSR 0.9984
+- Current-best params + metrics: single source of truth is
+  backend/backtest/experiments/optimizer_best.json (do not hardcode a
+  Sharpe/DSR figure here -- it drifts every optimizer run)
 - Key references: Bailey & Lopez de Prado (DSR), Harvey et al.
   (t-stat >= 3.0), Lo (2002)
 - Harness: Planner -> Generator -> Evaluator autonomous loop

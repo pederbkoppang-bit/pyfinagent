@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-09T21:21:57.148656+00:00",
+  "updated_at": "2026-07-09T21:27:46.907449+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15268,7 +15268,7 @@
         {
           "id": "67.3",
           "name": "Researcher correctness upgrade -- codify WRITE-FIRST/incremental-brief discipline; prune stale scaffolding without weakening any research-gate floor",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "67.1",

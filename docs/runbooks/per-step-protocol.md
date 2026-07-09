@@ -30,7 +30,7 @@ executable sequence so we stop drifting.
 └──────────────────┬─────────────────────┬─────────────────────┘
                    │                     │
      ┌─────────────▼──────────┐ ┌────────▼──────────┐
-     │ Researcher (sonnet)    │ │ Q/A (opus)        │
+     │ Researcher             │ │ Q/A               │
      │ (merged with Explore)  │ │ (merged with      │
      │                        │ │  harness-verifier)│
      │ External docs + papers │ │ Deterministic     │

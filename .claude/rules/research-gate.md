@@ -182,6 +182,15 @@ ask for it:
 `recency_scan_performed == true` AND every hard-blocker checklist
 item is satisfied.
 
+## Write-first discipline
+
+The brief must be created early and written incrementally as sources are
+read (never a single end-of-session flush); a session that cannot clear
+the gate still leaves a partial brief + an honest `gate_passed: false`
+envelope. The agent-facing directive lives in
+`.claude/agents/researcher.md` ("Write-first (non-negotiable)") -- do not
+duplicate the wording here.
+
 ## Handoff folder convention
 
 The `handoff/` tree is strictly partitioned:

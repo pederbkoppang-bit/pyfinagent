@@ -52,6 +52,11 @@ AUTHORIZE` only if Fable should outlive 2026-07-12 on personal credits (default:
 
 ## Cycle ledger
 
-- 2026-07-09: /goal fable-window set; phase-67 installed (4 steps pending); Fable pins
-  applied (effect next session); 66.2 closing Q/A spawned; audit findings verified
-  (NameError repro, no-linter, dead 55s cap).
+- 2026-07-09: /goal fable-window set; phase-67 installed; Fable pins applied (effect
+  next session); audit findings verified (NameError repro, no-linter, dead 55s cap).
+- 2026-07-09 evening: **66.2 CLOSED (Cycle 77) -> phase-66 COMPLETE, engine trading**;
+  67.1 PASS (Cycle 78: lint+runtime-smoke gates, tiered budget, auto-PASS backdoor
+  removed, recovery reconciled); 67.2 PASS (Cycle 79: consumer-contract-break
+  heuristic, live NameError fixed + 5 tests); 67.3 PASS (Cycle 80: write-first
+  codified, wrong DSR pruned). **SOLE REMAINING: 67.4 Sunday 2026-07-12 revert**
+  (pins -> opus, KEEP artifacts) -- top P0 for any session on/after that date.

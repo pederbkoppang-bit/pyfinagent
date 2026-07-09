@@ -27260,3 +27260,13 @@ save_outcome append-only dedup; DoD-6 probe references a cycle_id column neither
 **Decision**: PASS -> 67.2 done. The dead fallback path is live again: malformed Communication-agent output now degrades to Main-routed default instead of crashing the classify path.
 **Register**: multi_agent_orchestrator.py:989 pre-existing emoji (no-emoji rule) -- cleanup pass candidate; agent_definitions.py docstring still says "Opus 4.6" (doc drift, registered 67.2 contract).
 **Next**: 67.3 (researcher write-first; contract staged).
+
+## Cycle 80 -- 2026-07-09 -- phase=67.3 result=PASS (researcher write-first codified; window step-work COMPLETE)
+
+**Step**: 67.3 Researcher correctness upgrade -- codify WRITE-FIRST/incremental-brief discipline; prune stale scaffolding without weakening any research-gate floor
+**Research**: simple tier (floors met: 5 full reads, 27 URLs, recency scan; research_brief_67_3.md -- itself written incrementally from the first tool call, a live demo of the discipline). Key: three-file ownership map (researcher.md owns behavior; research-gate.md cross-refs; ARCHITECTURE.md untouched); the hardcoded DSR 0.9984 was factually WRONG (optimizer_best.json:28 = 0.9525811).
+**Plan**: contract_67.3.md.
+**Generate**: researcher.md +"Write-first (non-negotiable)" (8 lines, artifact-phrased, 2026-05-16 origin cited) + Domain-context de-staled (metrics -> optimizer_best.json single-source pointer); runbook diagram de-modeled ("(sonnet)"/"(opus)" cells, widths preserved); research-gate.md cross-ref subsection (no duplication). Immutable cmd exit=0; all 10 floor patterns verified surviving.
+**Evaluate**: fresh Q/A (qa-67-3) PASS, 0 violations, 14 checks_run -- incl. a MUTATION TEST (immutable command exit=1 vs HEAD, exit=0 vs working tree: discriminating, not vacuous), programmatic diagram-alignment check (columns [5,30,32,52] x 15 lines), independent dsr verification, frontmatter-pin-untouched check. evaluator_critique_67.3.md + live_check_67.3.md.
+**Decision**: PASS -> 67.3 done. Phase-67 step work for the window is COMPLETE (67.1/67.2/67.3 all PASS in one evening); 67.4 (Sunday revert) is the sole pending step, calendar-gated 2026-07-12.
+**Next**: 67.4 on Sunday (any session on/after 07-12: revert pins -> opus, KEEP artifacts). Then resume 61.2-61.5 on the upgraded harness.
