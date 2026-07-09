@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `26aee52e` | chore(ops): record PROMOTE-66.2-FLAGS ask -- operator verbal go-ahead 2026-07-09; away-ops rail-1 bl |
 | 2026-07-09 | `5d512c04` | phase-66.2: harden per adversarial promotion-readiness review -- None-safe recommendation guard (fix |
 | 2026-07-09 | `ae1b0d03` | phase-66.2: manual test cycle 28e9bde9 evidence -- 150s timeout did NOT help (rail 59.3%, 4/5 synthe |
 | 2026-07-09 | `8b579031` | docs(66.2): flag-promotion decision brief -- recommend promote synthesis-integrity + RJ-shape (low-r |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-08 | `ca8873ce` | phase-66.2: healthy-rail-day codified definition PROPOSAL (ok-rate>=90% + booleans; clock frozen at  |
 | 2026-07-08 | `a225d735` | chore(ops): SETUP-TOKEN resolved -- 1-year CLAUDE_CODE_OAUTH_TOKEN wired into 4 launchd plists, vali |
 | 2026-07-08 | `ccdf2e28` | phase-66.2: day-2 pre-cycle evidence sweep -- rail GO, BUYs died at synthesis not gates, 5-day clock |
-| 2026-07-08 | `399fdad4` | fix(rail): log CLI stdout on failure (limit messages live there, not stderr) + 66.2 day-1 funnel row |
 
 ---
 
