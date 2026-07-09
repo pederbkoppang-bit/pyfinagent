@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-09 | `8b579031` | docs(66.2): flag-promotion decision brief -- recommend promote synthesis-integrity + RJ-shape (low-r |
 | 2026-07-09 | `91ff4db7` | chore(away-ops): recovery checkpoint 2026-07-09 (AM) -- benign accumulation, clean tree |
 | 2026-07-09 | `833efc0f` | chore(ops): file STALE-PHASE-TRIAGE-35-44 operator ask (Stop-hook re-fire; decision queued via pendi |
 | 2026-07-09 | `f2d1eee8` | docs(triage): document 4 stale in-progress phases (35/39/43/44) flagged by Stop hook -- operator-gat |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-08 | `399fdad4` | fix(rail): log CLI stdout on failure (limit messages live there, not stderr) + 66.2 day-1 funnel row |
 | 2026-07-08 | `552f518e` | chore(away-ops): recovery -- commit benign audit/heartbeat/session-artifact churn + catch-up 66.1 ar |
 | 2026-07-07 | `3be16145` | phase-66.1: Restore the decision path -- pre-cycle cc_rail health-probe gate + circuit breaker + sin |
-| 2026-07-07 | `9fee2422` | phase-66.1: criterion-3 evidence -- scheduled cycle 0725d2aa writes ok=true cc_rail rows (first sinc |
 
 ---
 
