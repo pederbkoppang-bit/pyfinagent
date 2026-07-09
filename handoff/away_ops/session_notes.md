@@ -565,3 +565,48 @@ direct-API credits dead since ~2026-05-18; portfolio all-cash since 07-03 (kill-
 state); next AM masterplan step is 66.2 (`pending`; 66.1 `done`). Expected residual after this
 commit: a self-referential `pre_tool_use_audit.jsonl` line from the post-commit git calls plus
 the 0-byte `session_pm` artifact -- both swept by the next session.
+
+## Recovery -- 2026-07-09 (AM)
+
+Pure benign accumulation on top of a clean base; **nothing died mid-step**. The 07-08 PM
+recovery exited `rc=0` and its work is committed. The overnight phase-66 goal loop already
+committed its own output (the `STALE-PHASE-TRIAGE-35-44` operator ask, `833efc0f` +
+changelog `ffb876fc`). The recurring "OFFLINE MODE / git pull failed" wrapper line is git
+refusing to *rebase-pull over a dirty tree* ("You have unstaged changes"), NOT a network
+outage. The 07-09 AM sentinel was clean (`metered_llm_usd_today=0.0`, `rail_failures_today=0`,
+`ok:true`) -- a marked improvement over the 07-07/07-08 PM `cc_rail` failure storms
+(65 / 46), consistent with the now-resolved `SETUP-TOKEN` 1-year credential wiring; not
+over-claiming causation.
+
+**Classification (5 dirty paths, all benign -- no code, `.env`, masterplan, or
+trading-behavior file):**
+| Path | Disposition |
+|---|---|
+| `handoff/audit/instructions_loaded_audit.jsonl` (M, +2) | append-only hook stream, 0 deletions -> committed |
+| `handoff/audit/pre_tool_use_audit.jsonl` (M, +39) | append-only hook stream, 0 deletions -> committed |
+| `handoff/autoresearch/2026-07-09-ERROR-topic08.md` (??) | nightly autoresearch cron output (RESUMED per the `AUTORESEARCH-SPEND` token 07-07); transient arXiv HTTP 503 on topic08; expected cron error log, retries next night -> committed |
+| `handoff/away_ops/session_pm_20260708T200006Z.json` (??, 3949 B) | the 07-08 PM recovery's OWN result artifact, now populated (was 0 bytes at PM exit, which is why PM left it untracked) -> committed as a completed-session artifact |
+| `handoff/away_ops/session_am_20260709T053007Z.json` (??, 0 B) | THIS session's own live output, written post-exit -> **left untracked** (committing an empty artifact re-dirties the next session; same call as every prior recovery) |
+
+**Classification verdict.** No category-(a) half-built step and no category-(b)
+unexpected/unattributable file -- every path is under `handoff/` durable-state / audit /
+session-artifacts. Nothing to revert; no `chore(away-wip)` checkpoint needed.
+`pending_tokens.json` NOT modified -- no new operator ask warranted (the `STALE-PHASE-TRIAGE-35-44`
+ask is already filed by the overnight goal loop; the arXiv 503 is a transient upstream hiccup,
+not a defect).
+
+**What was done.** Staged + committed the 2 audit paths + the autoresearch ERROR log + the
+populated `session_pm_20260708T200006Z.json` + this note in one `chore(away-ops)` recovery
+commit. **No git checkout/restore/stash** (rail 3). Main-only, no force-push, no history
+rewrite (rail 3). $0 metered -- git/cat/wc/grep only, LLM-free (rail 4). No `.env`/code/
+masterplan/trading-behavior touch (rails 2/6). launchctl untouched (rail 9). No subagents
+(recovery is Main-only). No HALT-DEV seen; no new `operator_tokens.jsonl` line.
+
+**What remains (regular cadence / operator, NOT recovery).** Tree is clean; this session does
+NOT start a masterplan step -- the next AM session resumes the calendar. Open operator asks in
+`pending_tokens.json` unchanged: `STALE-PHASE-TRIAGE-35-44` (open, blocks the goal-loop Stop
+hook), `TEST-TOKEN-62.2`, `METERED-BREACH-RECURRING` (root-caused, fix owned by 66.3),
+`ENV-LINE-81`. `SETUP-TOKEN` is RESOLVED (07-08 credential wiring). Next AM masterplan step is
+66.2 (`pending`; 66.1 `done`). Expected residual after this commit: a self-referential
+`pre_tool_use_audit.jsonl` line from the post-commit git calls plus the 0-byte
+`session_am_20260709T053007Z.json` artifact -- both swept by the next session.
