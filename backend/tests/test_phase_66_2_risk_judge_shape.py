@@ -139,3 +139,24 @@ class TestFlagOnResolved:
 def test_settings_flag_default_off():
     from backend.config.settings import Settings
     assert Settings.model_fields["paper_risk_judge_shape_fix_enabled"].default is False
+
+
+# ── phase-66.2 review C1: None-safe recommendation guard (crash fix) ─────────
+
+def test_none_recommendation_does_not_crash_decide_trades():
+    """The lite fallback can return recommendation=None; decide_trades read
+    analysis.get('recommendation','HOLD').upper() which crashed on present-None
+    (the .get default only fires on a MISSING key). Guard makes None -> HOLD."""
+    a_new = {"ticker": "NN", "recommendation": None, "final_score": 7.0,
+             "price_at_analysis": 100.0, "analysis_date": "x", "risk_assessment": {}}
+    a_hold = {"ticker": "HH", "recommendation": None, "final_score": 3.0,
+              "analysis_date": "x", "risk_assessment": {}, "current_price": 50.0}
+    pos = {"ticker": "HH", "recommendation": "BUY", "quantity": 5.0,
+           "avg_entry_price": 50.0, "cost_basis": 250.0, "current_price": 50.0,
+           "market_value": 250.0, "stop_loss_price": 40.0, "sector": "Tech"}
+    # must not raise (was AttributeError: 'NoneType' object has no attribute 'upper')
+    orders = decide_trades([pos], [a_new], [a_hold],
+                           {"nav": 10000.0, "cash": 9000.0, "position_count": 1},
+                           _settings())
+    # None rec is treated as HOLD -> no BUY for NN, no downgrade-SELL for HH
+    assert not any(o.action == "BUY" for o in orders)

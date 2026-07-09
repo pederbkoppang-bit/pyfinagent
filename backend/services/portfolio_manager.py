@@ -132,7 +132,7 @@ def decide_trades(
 
         # If we have a fresh re-evaluation
         if analysis:
-            rec = analysis.get("recommendation", "HOLD").upper()
+            rec = (analysis.get("recommendation") or "HOLD").upper()  # phase-66.2 review C1: None-safe (lite fallback can return recommendation=None -> None.upper() crashed decide_trades)
             old_rec = (pos.get("recommendation") or "").upper()
 
             # Explicit sell signal
@@ -174,7 +174,7 @@ def decide_trades(
     buy_candidates = []
     for analysis in candidate_analyses:
         ticker = analysis.get("ticker", "")
-        rec = analysis.get("recommendation", "HOLD").upper()
+        rec = (analysis.get("recommendation") or "HOLD").upper()  # phase-66.2 review C1: None-safe (lite fallback can return recommendation=None -> None.upper() crashed decide_trades)
 
         # Skip if already held (and not being sold)
         if ticker in held_tickers and ticker not in selling_tickers:

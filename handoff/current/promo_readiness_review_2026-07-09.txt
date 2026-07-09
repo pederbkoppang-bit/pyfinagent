@@ -1,0 +1,818 @@
+{
+  "summary": "Adversarial pre-promotion review of the 3 dark phase-61.2/66.2 trading flags: what breaks when each flips ON in the LIVE pipeline, per-flag + interactions, each concern verified against code",
+  "agentCount": 24,
+  "logs": [
+    "4 adversarial reviewers: synthesis-integrity, rj-shape, position-rec, interactions (all-3-ON)",
+    "concerns verified: 20; confirmed high/blocker: 1"
+  ],
+  "result": {
+    "results": [
+      {
+        "flag": "synthesis-integrity",
+        "rev": {
+          "flag": "paper_synthesis_integrity_enabled",
+          "on_summary": "ON changes four live-cycle legs. (1) In _run_single_analysis (autonomous_loop.py:1644-1652) a full-orchestrator report whose final_synthesis is a non-dict, carries .error, or LACKS a top-level scoring_matrix key now raises SynthesisDegradedError into the existing except, routing that ticker to the lite fallback instead of persisting a synthetic 0.0/HOLD; if lite also fails it persists an honest NULL-score/NULL-rec $._degraded row and returns None (dropped in _run_and_persist_one:931-937 so it never reaches decide_trades). (2) orchestrator._generate_with_retry (788-884) retries errored-empty cc_rail responses up to claude_code_empty_retry_max (never retrying rail_guard_skipped empties). (3) meta_scorer fallback convictions switch from per-candidate clamp to percentile-rank normalization (meta_scorer.py:170-177,269-281) plus a 2-consecutive-cycle P2 streak WARN. (4) RiskJudge gets an advisory portfolio-sector context (empty here since the book is 100% cash). No binding trade-gate changes; the routing is conservative (drop, not fabricate).",
+          "concerns": [
+            {
+              "id": "C1",
+              "concern": "Flag ON amplifies traffic into the lite fallback, and the lite analyzer can return recommendation=None (autonomous_loop.py:2325 returns analysis[\"action\"] verbatim; a haiku regex-parsed JSON with \"action\": null yields None). The degraded-drop at _run_and_persist_one:931-937 fires ONLY on the _degraded marker, so a non-degraded lite dict carrying recommendation:None is NOT dropped and reaches decide_trades. Both consumption sites portfolio_manager.py:135 and :177 do analysis.get(\"recommendation\",\"HOLD\").upper() -- .get returns the present None (default only applies to a MISSING key), so None.upper() raises AttributeError and aborts the entire cycle's trade decisions. Pre-flag, a synthesis-error ticker produced a safe string \"HOLD\"; ON it is re-routed to lite where None becomes possible. Financially conservative (a crashed decide_trades makes no trades -> stays cash) but it is an unhandled cycle-failure the flag makes materially more likely. The code comment at 934-936 explicitly acknowledges this crash site.",
+              "severity": "high",
+              "evidence_cmd": "sed -n '2319,2327p' backend/services/autonomous_loop.py; sed -n '931,938p' backend/services/autonomous_loop.py; sed -n '135p;177p' backend/services/portfolio_manager.py"
+            },
+            {
+              "id": "C2",
+              "concern": "The predicate '\"scoring_matrix\" not in synthesis' (autonomous_loop.py:1647) over-fires. scoring_matrix is a required schema field (schemas.py:45) only when the provider ENFORCES it. run_synthesis_pipeline can return the critic's corrected_report verbatim (orchestrator.py:1535-1547) which is pulled via _parse_json_with_fallback + .get(\"corrected_report\") and is NEVER pydantic-validated, and on the cc_rail / Claude synthesis path the schema is prompt-injected not enforced. LLMs correcting a report routinely drop unchanged sections like scoring_matrix. Legacy tolerated this (final_json.get(\"scoring_matrix\", {}) -> weighted 0.0 but a usable recommendation). ON, every such case is treated as fully degraded -> full->lite downgrade + a 60.1 fallback-rate alarm, systematically lowering analysis quality/alpha and inflating the fallback alarm on healthy cycles. Note the predicate ALSO under-catches: a present-but-empty scoring_matrix ({}) passes the check yet still yields the exact 0.0 fabrication the flag targets. Unit tests mock clean dicts and miss both.",
+              "severity": "medium",
+              "evidence_cmd": "sed -n '1644,1652p' backend/services/autonomous_loop.py; sed -n '1520,1548p;1569,1577p' backend/agents/orchestrator.py; grep -n 'scoring_matrix\\|corrected_report' backend/agents/schemas.py"
+            },
+            {
+              "id": "C3",
+              "concern": "retry-on-empty (orchestrator.py:868-884) is correctly bounded per call (min(claude_code_empty_retry_max, max_retries-1); thoughts=None coalesces to '' so startswith('errored:') is False; rail_guard_skipped never retried; no cost double-count since errored responses carry empty UsageMeta) and runs off the event loop (all agent calls are asyncio.to_thread-wrapped), so no unbounded loop or loop-blocking. BUT it is applied to EVERY one of the ~28 pipeline agents, not just synthesis. Under a flapping cc_rail where the breaker has not yet opened, each early agent can burn up to claude_code_empty_retry_max full-jitter sleeps (~4-12s each) before _rail_guard_record_failure trips the breaker, inflating per-ticker wall-clock and holding the per-provider concurrency semaphore + to_thread worker longer. Effect is added latency/throughput drag on degraded cycles, not a crash.",
+              "severity": "low",
+              "evidence_cmd": "sed -n '793,798p;820,884p' backend/agents/orchestrator.py"
+            },
+            {
+              "id": "C4",
+              "concern": "meta_scorer rank-normalization edge cases are handled (empty->[]; single->[5]; n<=1 guarded so no div-by-zero on n-1; all-equal composites -> midpoint pct 0.5 -> banker's-rounded to conviction 5 for all), so no crash. However the ranking-quality claims are weak: (a) the tail path (meta_scorer.py:273-281) percentile-ranks head+tail composites while HEAD convictions come from the LLM's raw 1-10 -- the two halves are still on different metrics, so the 'comparable scale' rationale is not actually achieved; (b) all-equal or narrow-band composites collapse every candidate to ~5, flattening the exact ranking the overlay exists to provide. This leg is ACTIVELY exercised RIGHT NOW: with no Anthropic API key (credit death, 100% cash) meta_score_candidates hits _fallback_all -> _fallback_convictions -> _rank_normalized_convictions for the whole set every cycle.",
+              "severity": "low",
+              "evidence_cmd": "sed -n '145,177p;204,212p;269,299p' backend/services/meta_scorer.py"
+            },
+            {
+              "id": "C5",
+              "concern": "Observability blind spot: the degraded/None rows are dropped in _run_and_persist_one:937 BEFORE _degraded_scoring_check runs (it operates on candidate_analyses+holding_analyses at :961-962, both already None-filtered). So a total-outage cycle where every ticker degrades to None yields n_total=0 -> fire=False -> the P1 'all analyses degraded' alarm never fires; detection then rests solely on the 60.1 _fallback_reason path. Separately, leg (e) RiskJudge advisory context is benign here: _build_portfolio_sector_context is built once per cycle inside a try/except (autonomous_loop.py:822-829) and is empty at 100% cash, so no per-ticker race or perf cost. Low overall, but the alarm gap means a flag-ON cycle can silently produce zero usable analyses.",
+              "severity": "low",
+              "evidence_cmd": "sed -n '931,938p;954,970p;1934,1961p' backend/services/autonomous_loop.py"
+            }
+          ],
+          "net_assessment": "PROMOTE-WITH-CAVEATS"
+        },
+        "verdicts": [
+          {
+            "concern_id": "C1",
+            "verdict": "OVERSTATED",
+            "corrected_severity": "medium",
+            "reasoning": "Every link in the chain reproduces against the code, but \"high\" overstates a fail-safe, rarely-triggered robustness bug.\n\nVERIFIED MECHANISM (all confirmed):\n1. Flag-ON re-routing (autonomous_loop.py:1644-1652): with paper_synthesis_integrity_enabled ON, a synthesis-error dict raises SynthesisDegradedError, which is caught at the :1690 except and falls through to the lite fallback (_select_lite_analyzer at :1707). With the flag OFF the code falls through to :1653 and returns rec.get(\"action\",\"HOLD\") -> the safe string \"HOLD\". So the flag genuinely amplifies traffic into lite. CONFIRMED.\n2. Lite returns None (:2325 \"recommendation\": analysis[\"action\"]). analysis comes from regex-parsed JSON at :2223-2225; json.loads({\"action\": null,...}) yields {\"action\": None}. CONFIRMED.\n3. Degraded-drop bypass (:931-937): the _degraded marker is set ONLY in the both-paths-failed branch (:1720-1725), not on a successful lite dict. A lite dict with recommendation=None and _path=\"lite\" is not _degraded, so it is returned into candidate/holding analyses. CONFIRMED.\n4. Crash (portfolio_manager.py:135 and :177): both do analysis.get(\"recommendation\",\"HOLD\").upper(); the key is present with value None, so .get returns None and None.upper() raises AttributeError. The default only applies to a MISSING key. CONFIRMED at BOTH sites.\n5. Blast radius: decide_trades is called unguarded at autonomous_loop.py:1211; the AttributeError propagates to the outer except at :1411, logged as \"Paper trading cycle failed\" status=error, cycle returns with zero trades. So it aborts the WHOLE cycle's decisions, not one ticker. CONFIRMED. The comment at :934-936 explicitly names this crash site (it cites :114; the actual raise lines are :135/:177 -- minor line-number drift, substance correct).\n\nWHY OVERSTATED / DOWNGRADE TO MEDIUM:\n- Rare, non-deterministic trigger. The crash requires the lite LLM to emit valid JSON with an EXPLICIT \"action\": null AND confidence+score keys present. If confidence/score are absent, :2245 (analysis['confidence']) KeyErrors first, which propagates to the :1712 except -> both-paths-failed -> _degraded dict -> dropped at :931 (safe). The example prompt at :2185 shows string actions; models emitting explicit null for action is an edge case, not a normal output.\n- Fail-safe, not money-losing. Outcome is a clean cycle abort (status=error, stays cash), not an erroneous trade. The trailing-stop engine is separate/untouchable, so protective exits are unaffected.\n- Zero impact on the current 100% cash book beyond a skipped buy-deployment cycle; matters more once positions exist (a single malformed lite response would also block signal-downgrade SELLs that cycle), but never produces an unsafe trade.\n\nNet: a real, code-confirmed unhandled crash that the flag makes materially more likely, but its severity is a rare fail-safe availability abort, not a high-severity safety/financial defect. Correct rating is medium. Cheap hardening would be adding recommendation-None coalescing at portfolio_manager.py:135/:177 (or dropping None-rec non-degraded dicts alongside the :931 _degraded check).\n\nVERIFICATION: sed -n '1644,1652p;1707,1725p;2223,2226p;2325p' backend/services/autonomous_loop.py; sed -n '135p;177p' backend/services/portfolio_manager.py; sed -n '931,938p' backend/services/autonomous_loop.py"
+          },
+          {
+            "concern_id": "C2",
+            "verdict": "OVERSTATED",
+            "corrected_severity": "low",
+            "reasoning": "All cited code facts reproduce exactly. autonomous_loop.py:1647 uses `\"scoring_matrix\" not in synthesis` where synthesis=report.get(\"final_synthesis\",{}) (1637). orchestrator.run_synthesis_pipeline returns the critic's corrected_report as a raw dict (critic_result.get(\"corrected_report\"), from _parse_json_with_fallback — plain JSON parse, NO pydantic), returned verbatim and assigned to report[\"final_synthesis\"] at orchestrator.py:2208 with zero SynthesisReport validation. schemas.py:45 makes scoring_matrix required; :66 makes corrected_report Optional[SynthesisReport]. claude_code_client.py:531-535 confirms the cc_rail/Claude path injects schema text into the prompt rather than enforcing it, so a corrected_report can legitimately drop the unchanged scoring_matrix. compute_weighted_score (orchestrator.py:1588) does scoring_matrix.get(k,0)*v, so a present-but-empty {} yields 0.0 — confirming the stated under-catch (empty {} passes the `not in` guard yet still fabricates 0.0). So the MECHANICS are all CONFIRMED.\n\nWhere the concern is OVERSTATED is impact/severity. The corrected_report-missing-scoring_matrix case is precisely the fabrication this flag exists to stop: under legacy, final_json.get(\"scoring_matrix\",{}) -> compute_weighted_score({}) -> 0.0 weighted score attached to a recommendation. The flag firing there and forcing the lite fallback (which per the in-code comment produces a REAL scored row for the immutable criterion's first option) is the INTENDED remediation, not an unintended over-fire that \"systematically lowers analysis quality/alpha.\" Framing the downgrade as quality loss is backwards — it swaps a silent 0.0 fabrication for a real lite-path score. Net real-world effect of ON is (a) more full->lite downgrades on genuinely under-scored reports and (b) 60.1 fallback-rate alarm counting them — an operational/monitoring nuisance, not a trading break, and lite is the SAFE path. On the current 100% cash book (0 positions) nothing unsafe executes regardless; the full orchestrator/analysis path still runs today, so the effect is observable but benign. The one genuine residual defect is the narrow under-catch: a present-but-empty scoring_matrix ({}) slips past `not in` and still yields the 0.0 fabrication the flag claims to eliminate — real but low-frequency (requires the provider to emit an empty-but-present matrix, unlikely on Gemini schema-enforced path, only reachable on the prompt-injected Claude path). That residual, plus alarm-inflation noise, supports low, not medium. No unit test covers the corrected_report/empty-{} paths (tests mock clean dicts), so the gap is real but under-severe as stated. Precondition: this only shapes analysis-quality/alarm behavior; it does not create unsafe orders on the cash book."
+          },
+          {
+            "concern_id": "C3",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "low",
+            "reasoning": "Verified against orchestrator.py:793-884 and settings.py:188-198. The retry-on-empty block is inside the generic _generate_with_retry and gated ONLY by paper_synthesis_integrity_enabled with no agent-name filter, so it applies to every agent routed through this method, not just synthesis — the concern's central claim is correct. Confirmed sub-claims: per-call bound is min(budget, max_retries-1) (budget default 2); thoughts=None coalesces via `or \"\"` so startswith('errored:') is False; rail_guard_skipped empties fall through and are never retried; retry only fires on text=='' AND thoughts startswith 'errored:'. The blast radius is bounded: the cc_rail breaker (claude_code_client.py:109, default threshold 20 consecutive failures) opens mid-cycle, after which responses become rail_guard_skipped and are no longer retried, so the degraded window is capped at ~20 errored-empty calls. Effect is exactly latency/throughput drag (added full-jitter sleeps + longer hold of the provider semaphore and to_thread worker) on degraded (flapping cc_rail) cycles — no crash, no correctness bug, no unsafe trade. Two minor overstatements that don't change severity: (1) the jitter is uniform(0, min(15, 2*2**n)) = 0-4s on retry 1 and 0-8s on retry 2, so '~4-12s each' is the per-agent two-retry total worst case, not per-sleep; (2) only cc_rail-routed agents returning an 'errored:'-empty response actually trigger the sleep (Gemini agents never carry that prefix), though the retry logic is installed on every agent path. Precondition: only matters when the flag is ON AND cc_rail is flapping; position-independent so it applies on the current 100% cash book, but with zero safety consequence there since it is pure latency. Correctly rated low — arguably desirable transient-recovery behavior with a bounded cost, more observation than defect."
+          },
+          {
+            "concern_id": "C4",
+            "verdict": "OVERSTATED",
+            "reasoning": "Verified against backend/services/meta_scorer.py:145-177,204-212,269-281 and reproduced the rank-normalization math. The no-crash claims are CONFIRMED (empty->[], single->[5], all-equal composites->banker's-rounded 5, n<=1 guards the n-1 divisor). Routing is accurate under the review premise: with no ANTHROPIC_API_KEY the no-key branch (204-212) calls _fallback_convictions, which only reaches _rank_normalized_convictions when paper_synthesis_integrity_enabled is True (175) -- so flipping the flag ON does exercise this leg every cycle. HOWEVER the two ranking-quality claims are overstated/partly refuted: (a) candidates are sorted desc by composite (192-196) so head=top-30 and tail=bottom; percentile-ranking head+tail forces every tail entry into low percentiles -> convictions land below head, which is exactly the code's stated goal (comment 269-272: prevent saturated-10 tail outranking head). The 'comparable scale not achieved' point is a semantic nuance, not a functional defect. (b) is REFUTED for the realistic case: percentile rank is ordinal, so narrow-band DISTINCT composites spread fully across 1-10 (rn([100.1,100.2,100.3,100.4,100.5])=[1,3,5,8,10]); ONLY exact ties collapse to 5 (rn([100,100,100,100])=[5,5,5,5]). Live composites are floats in 78-163 per the code comment, so exact ties across candidates are practically impossible and the 'flattening' is a theoretical non-event. Precondition: any impact is on buy-candidate ranking only; the book is 100% cash with no positions, and the flag is safe to flip (no crash, ranking fix works as intended). Severity low is generous; practical safety impact is effectively none.</reasoning>\n<parameter name=\"corrected_severity\">low"
+          },
+          {
+            "concern_id": "C5",
+            "verdict": "CONFIRMED",
+            "reasoning": "Reproduced against backend/services/autonomous_loop.py. Line 936-937: _run_and_persist_one returns None when analysis['_degraded'] is set. Lines 946 and 953: candidate_analyses/holding_analyses are built with `if isinstance(r, dict)`, filtering out every None (degraded) and exception result BEFORE the guard. Line 961-962: _degraded_scoring_check receives candidate_analyses + holding_analyses (already None-filtered). Line 1959: fire = n_total > 0 and (n_degraded == n_total or n_degraded >= 3). On a total-outage cycle every ticker returns None -> both lists empty -> n_total == 0 -> the `n_total > 0` conjunct short-circuits fire to False. So the P1 'all analyses degraded' alarm cannot fire in exactly the worst case (every ticker degraded). The blind spot is structural: the total-outage signal is destroyed by the None-filter before the guard evaluates it, so no unit test on the guard's input would catch it. Detection then rests solely on the 60.1 _fallback_reason path, as the concern states. Severity low is accurate: this is an observability/alerting gap, not a trading-safety defect -- decide_trades correctly receives an empty candidate set (safe no-op), no bad orders result. Precondition (still CONFIRMED): the missed page requires a FULL outage where every analyzed ticker degrades to None; a partial outage with >=1 successful row fires the guard normally. On the current 100% cash book reeval_tickers is empty so only candidate analyses feed the guard, but the gap holds regardless of positions.",
+            "corrected_severity": "low"
+          }
+        ]
+      },
+      {
+        "flag": "rj-shape",
+        "rev": {
+          "flag": "paper_risk_judge_shape_fix_enabled",
+          "on_summary": "ON makes decide_trades resolve the RiskJudge verdict nested under risk_assessment['judge'] (the real full-orchestrator shape per orchestrator.py:2279 / risk_debate.py:310) instead of the top-level dict, so on the FULL path a BUY is now sized at the judge's recommended_position_pct (typically 2-10% per risk_judge.md:43) rather than the 10%-NAV default, an explicit 0.0 pct becomes a no-buy via the $50 floor instead of inverting to 10%, a full-path REJECT is now visible to the binding gate (which still only blocks if paper_risk_judge_reject_binding is ALSO ON), and risk_judge_decision is persisted from the real judge instead of ''. OFF stays byte-identical top-level reads and the lite/flat path is unaffected either way (verified: lite decision/pct live at top level so nested-first is a no-op). The fix deliberately touches only sizing, the REJECT gate, and the recorded decision -- it does NOT re-shape the stop-loss extraction (line 210 still reads top-level risk_assessment) nor the swap path (lines 649/674 still use `or 10.0`).",
+          "concerns": [
+            {
+              "id": "swap-path-inverts-zero-pct",
+              "concern": "The main BUY loop treats position_pct==0.0 as no-buy (line 377, is-not-None), but the swap path re-derives size with `cand.get('position_pct') or 10.0` (lines 649 and 674), which turns an explicit 0.0 back into 10% NAV. A judge-REJECTED or 0%-sized candidate that reached sector_blocked (it is queued at line 368 BEFORE the $50 floor at 384, and REJECTs pass into buy_candidates whenever reject_binding is OFF) would be BOUGHT at 10% NAV via a swap -- defeating both the new 0.0 no-buy semantics and the REJECT signal. Not reachable on the current 0-position cash book (swap needs a sector at cap, i.e. existing positions, plus paper_swap_enabled), but it activates the moment positions build up.",
+              "severity": "medium",
+              "evidence_cmd": "grep -nE \"position_pct = (cand\\[|cand.get)\" backend/services/portfolio_manager.py"
+            },
+            {
+              "id": "stop-loss-still-reads-flat-shape",
+              "concern": "The fix resolves the nested judge for sizing/decision/recording but line 210 still passes top-level `risk_assessment` (not `_rj_view`) to _extract_stop_loss. On the full path the judge's risk_limits.stop_loss_pct is nested under risk_assessment['judge']['risk_limits'], so _extract_stop_loss finds no risk_limits at top level and falls back to settings.paper_default_stop_loss_pct. Result: a full-path BUY is now sized by the judge (e.g. a tight 2-3%) yet its INITIAL stop is the generic default, never the judge's recommended stop. This is identical OFF vs ON (not a flip-induced regression) and the untouchable trailing-stop engine still protects, but the fix's 'resolve the judge' intent is silently incomplete for stops -- a risk-consistency gap the operator may not expect after promotion.",
+              "severity": "low",
+              "evidence_cmd": "grep -n \"_extract_stop_loss(risk_assessment\" backend/services/portfolio_manager.py"
+            },
+            {
+              "id": "cash-book-deploys-less-not-more",
+              "concern": "On the 100%-cash book the operator is presumably trying to REACTIVATE, ON is strictly MORE conservative than today's buggy OFF: full-path BUYs drop from a fixed 10%-NAV default to the judge's pct (APPROVE_REDUCED = 2-5%, ~2-5x smaller), and REJECT/0.0-pct names (incl. low-data-quality skips whose skip-branch judge is REJECT/pct=0 at orchestrator.py:2242) are now sized to 0 and skipped instead of bought at 10%. This is the safer/correct direction, but the operator should expect slower capital deployment and more 0-trade cycles, not the current 10%-chunk behavior. Verify this matches intent before flipping on a book you want to put to work.",
+              "severity": "low",
+              "evidence_cmd": "grep -n \"APPROVE_FULL = full conviction\" backend/agents/skills/risk_judge.md"
+            },
+            {
+              "id": "reject-advisory-inconsistent-when-binding-off",
+              "concern": "With shape_fix ON but reject_binding OFF, REJECT enforcement is inconsistent: a REJECT whose judge pct is 0 is effectively dropped by the $50 floor (line 384), but a REJECT that carries a nonzero leftover pct (the RiskJudgeVerdict schema requires a float and does not force 0 on REJECT) is still BOUGHT at that pct while risk_judge_decision is now recorded as 'REJECT'. So the book can log a position stamped 'REJECT' that the gate did not block. The mental model 'reject_binding is the only thing that blocks' holds, but ON silently makes REJECT behavior pct-dependent (blocked iff pct==0) rather than uniformly advisory.",
+              "severity": "low",
+              "evidence_cmd": "grep -nE \"reject_binding|buy_amount < 50\" backend/services/portfolio_manager.py"
+            },
+            {
+              "id": "absent-and-tiny-pct-floor-behavior",
+              "concern": "Sanity check on (b): a genuinely-absent pct still defaults to 10% (line 377 None->10.0, and _extract_position_pct returns None when the judge omits the field), so absent != dropped -- good. A 'valid small pct' is only dropped by the $50 floor below ~0.21% of NAV ($50/23,997.71), and the judge prompt never recommends an APPROVE below 2% (=$480), so no legitimate BUY is silently lost at current NAV; the only drop is the intended explicit-0.0 case. This is SAFE, but flagged so the verifier confirms the floor math against NAV rather than assuming small pcts get dropped.",
+              "severity": "none",
+              "evidence_cmd": "grep -nE \"is not None else 10.0|buy_amount < 50\" backend/services/portfolio_manager.py"
+            }
+          ],
+          "net_assessment": "PROMOTE-WITH-CAVEATS"
+        },
+        "verdicts": [
+          {
+            "concern_id": "rj-shape:swap-path-inverts-zero-pct",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "medium",
+            "reasoning": "Verified in backend/services/portfolio_manager.py. Under paper_risk_judge_shape_fix_enabled ON, lines 196-207 deliberately preserve an explicit recommended_position_pct==0.0 as position_pct=0.0 in buy_candidates (the _raw_pct is-not-None branch bypasses the falsy `if pct:` in _extract_position_pct at line 717). The main buy loop (line 377) correctly treats 0.0 as no-buy via is-not-None, and the sector count-cap check at line 359-368 appends the candidate to sector_blocked and continues BEFORE the $50 floor at line 384. The swap path then re-derives size at line 674 (`cand.get('position_pct') or 10.0`) and line 649, inverting 0.0 back to 10% NAV and emitting a BUY (line 675). The pre-swap min-delta gate (line 620-621) does not reliably block it because final_score is the analysis score, independent of the judge's 0%/REJECT verdict. The REJECT variant also holds: line 241-243 only drops REJECTs when paper_risk_judge_reject_binding is ON; with that flag OFF a REJECT enters buy_candidates and can reach the swap path. The flag introduces the asymmetry: pre-flag both loops did `or 10.0` (consistent), but 66.2 fixes only the main loop, leaving the swap path to defeat the new 0.0 no-buy semantic and the REJECT signal by buying 10% NAV. Severity medium (not blocker): NOT reachable on the current 100%-cash 0-position book -- the swap path requires paper_swap_enabled ON, max_per_sector>0 with a sector already at the count cap, and existing holdings to displace, all of which need positions to exist. It activates once positions build up in a capped sector. Precondition noted per instructions."
+          },
+          {
+            "concern_id": "rj-shape",
+            "verdict": "CONFIRMED",
+            "reasoning": "Reproduced. `grep -n \"_extract_stop_loss(risk_assessment\" backend/services/portfolio_manager.py` returns line 210, which passes the top-level `risk_assessment` (NOT `_rj_view`). `_extract_stop_loss` (line 732) reads `risk_assessment.get(\"risk_limits\", {})` at the TOP level (line 749). On the full orchestrator path `risk_assessment` is `{aggressive, conservative, neutral, judge:{...}, risk_debate_rounds, total_risk_rounds}` (risk_debate.py:306-313) and the judge's `risk_limits.stop_loss_pct` is nested under `risk_assessment['judge']` (risk_debate.py:301). So the top-level lookup finds no `risk_limits`, no `stop_loss_pct`, and falls through to `settings.paper_default_stop_loss_pct` (lines 765-772). A full-path BUY is therefore sized by the resolved judge (via `_rj_view` at lines 200/204) yet its INITIAL stop is the generic default, not the judge's recommended stop -- exactly the risk-consistency gap described. Severity low is accurate and I would even underscore the concern's own caveat: stop extraction at line 210 is flag-INDEPENDENT (uses `risk_assessment` under both flag states), so flipping paper_risk_judge_shape_fix_enabled ON changes NOTHING about stop-loss behavior -- it is not a promotion-induced regression, just a pre-existing incompleteness in the fix's 'resolve the judge' intent. PRECONDITION: only manifests once a full-path BUY actually opens a position; the book is currently 100% cash (0 positions), so there is no live exposure today. The untouchable trailing-stop engine remains the backstop. Not a flip blocker; a latent risk-consistency gap the operator should be told about.",
+            "corrected_severity": "low"
+          },
+          {
+            "concern_id": "rj-shape",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "low",
+            "reasoning": "Reproduced against code. Flag paper_risk_judge_shape_fix_enabled (settings.py:307); sizing logic portfolio_manager.py:194-208 and 373-378; helper _extract_position_pct:713 with zero-falsy `if pct:`; skip-branch judge REJECT/pct=0 at orchestrator.py:2242; APPROVE_FULL=5-10% / APPROVE_REDUCED=2-5% at risk_judge.md:43. OFF reads top-level risk_assessment which lacks recommended_position_pct (nested under ['judge'] per risk_debate.py:310), so every full-path BUY falls to `position_pct or 10.0` = flat 10% NAV. ON resolves nested-first -> judge's actual pct (<=10 by prompt cap) so BUYs are weakly smaller, and an explicit 0.0 (incl. low-data-quality REJECT skips) drops below the $50 floor and is skipped instead of bought at 10%. Lite path is flat and byte-identical either way; no path makes ON deploy MORE capital. The characterization is accurate and describes the SAFER/correct direction, so it is genuinely low severity — an intent/expectations flag, not a break or unsafe behavior. Precondition: only affects BUY-rec candidates; on the 100%-cash reactivation book it directly slows deployment and yields more 0-trade cycles. One minor caveat: nothing downstream re-enforces the judge's <=10% cap, so an out-of-spec judge pct >10 would let ON size larger than OFF's 10% default — but that requires the judge to violate its own prompt."
+          },
+          {
+            "concern_id": "rj-shape",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "low",
+            "reasoning": "Verified against code. schemas.py:120 declares recommended_position_pct as a required float with NO validator forcing 0 on decision=='REJECT' (schemas.py:118); the fallback verdict at risk_debate.py:298 even hardcodes a nonzero 3. So a REJECT carrying a nonzero pct is schema-valid and plausible. With paper_risk_judge_shape_fix_enabled ON: _rj_view resolves to the nested judge (portfolio_manager.py:196-199), _rj_decision=='REJECT' (240), the binding gate at 241-244 is skipped because paper_risk_judge_reject_binding defaults False (settings.py:304), and the candidate is appended (260) with risk_judge_decision='REJECT' (268) and the judge's nonzero position_pct. In the emit loop line 377 takes that pct, line 380 sizes it, and if buy_amount>=50 (line 384) the BUY executes and is persisted with risk_judge_decision='REJECT' (line 432). An explicit 0.0 pct is instead honored as no-buy (203-209) and dropped by the $50 floor. So enforcement is pct-dependent (blocked iff pct==0) exactly as stated. CONFIRMED and accurate. Severity low is correct with one nuance the concern omits: flipping shape_fix ON is not worse than the current OFF state -- pre-fix a full-path REJECT is invisible (top-level decision='') and bought anyway at the 10% default (line 379) unlabeled; post-fix the same REJECT is bought at the judge's usually-smaller pct and correctly labeled, or dropped if pct==0. shape_fix introduces no NEW unsafe BUY; actual REJECT blocking is reject_binding's job, explicitly out of scope. The 'behaves unsafely' framing is thus mildly overstated but the labeling/mental-model inconsistency is real. Precondition: matters only once BUYs occur (book is 100% cash now, 0 positions, but the next full-orchestrator cycle can create them) and requires a judge REJECT with nonzero recommended_position_pct. evidence_cmd: grep -nE \"reject_binding|buy_amount < 50\" backend/services/portfolio_manager.py (lines 243, 384) plus sed -n '117,124p' backend/agents/schemas.py."
+          },
+          {
+            "concern_id": "rj-shape (absent-and-tiny-pct-floor-behavior)",
+            "verdict": "CONFIRMED",
+            "reasoning": "Reproduced the evidence_cmd: line 377 (`... is not None else 10.0`) and line 384 (`buy_amount < 50`) both present in backend/services/portfolio_manager.py. All sub-claims check out: (a) a genuinely-absent pct defaults to 10% via line 377's None->10.0; (b) _extract_position_pct (line 713-729) returns None when the judge omits the field, so absent != dropped. The function's truthy `if pct:` guards would also collapse an explicit 0.0 to None, but the flag-ON override at lines 203-209 re-reads recommended_position_pct directly and preserves an explicit 0.0, so 0.0 -> position_pct=0.0 -> buy_amount=0 < 50 -> dropped (the intended no-buy), while absent -> None -> 10%. The two paths are correctly distinguished. Floor math: $50/$23,997.71 = 0.2084%, so only pcts below ~0.21% of NAV are dropped; a 2% APPROVE = $479.95 and even a 0.3% recommendation = $72 survive the $50 floor, so no legitimate BUY is silently lost. The \"safe\" conclusion is robust even if the exact judge-prompt floor differs from the stated 2%. Severity 'none' is accurate. Precondition: this code only fires when the orchestrator emits BUY candidates; the book is currently 100% cash/0 positions, but the path activates on the next full-orchestrator paper cycle (lite_mode off), so it is immediately live-relevant rather than position-gated.",
+            "corrected_severity": "none"
+          }
+        ]
+      },
+      {
+        "flag": "position-rec",
+        "rev": {
+          "flag": "paper_position_recommendation_fix_enabled",
+          "on_summary": "ON makes portfolio_manager populate TradeOrder.analysis_recommendation with the UPPERCASED analysis verdict (BUY/STRONG_BUY) on BOTH the fresh-buy path (portfolio_manager.py:448) and the swap-buy path (:692), and execute_buy then persists that verdict into paper_positions.recommendation instead of the trade-mechanism string like \"new_buy_signal\"/\"swap_buy\" (paper_trader.py:295-300, written at pos_row lines 322/346). This revives the structurally-dead signal_downgrade SELL rule (portfolio_manager.py:149, condition old_rec in _BUY_RECS and rec in _DOWNGRADE_RECS): a held position whose next re-eval returns HOLD/SELL/STRONG_SELL now triggers a full-exit SELL. Only NEW buys taken while ON gain a matching verdict; legacy rows keep trade-reason strings and never match (no backfill). On the current 0-position cash book the change is inert this cycle -- it can only persist a recommendation on a BUY; no SELL path can fire until a position with a persisted verdict later re-evaluates.",
+          "concerns": [
+            {
+              "id": "C1-guard-insufficient-healthy-sell",
+              "concern": "(b) The unsafe-combination guard is WARN-ONLY, not a block. When this flag is ON while paper_synthesis_integrity_enabled is OFF, a rail/full-orchestrator failure that yields a synthetic HOLD on a held ticker's re-eval flows straight into holding_analyses (when integrity is OFF the row is NOT marked _degraded, autonomous_loop.py:1720 only tags degraded when integrity is ON), so decide_trades sees old_rec=BUY in _BUY_RECS and rec=HOLD in _DOWNGRADE_RECS and emits a signal_downgrade SELL that FULLY liquidates a healthy conviction position. HOLD is the universal default/fallback value in this system, so reviving this exit path couples position liquidation to the single most common failure artifact. The guard at portfolio_manager.py:109-117 merely logs; it does not gate. Given rail failures are recently recurrent (credential death / 100% cash on 2026-07-03) and positions will be re-established, this flag should be BLOCKED (or the guard hard-blocked) until synthesis_integrity is proven ON, not co-enabled on a warning. Inert THIS cycle only because the book is 0-position; the hazard arms on the first re-eval after a BUY.",
+              "severity": "high",
+              "evidence_cmd": "sed -n '105,157p' /Users/ford/.openclaw/workspace/pyfinagent/backend/services/portfolio_manager.py; sed -n '1699,1736p' /Users/ford/.openclaw/workspace/pyfinagent/backend/services/autonomous_loop.py"
+            },
+            {
+              "id": "C2-residual-hold-liquidation-even-integrity-on",
+              "concern": "Even with paper_synthesis_integrity_enabled ON, the hazard is not fully closed: a full-orchestrator run that lands in the lite fallback and PARSE-FAILS returns a 'successful' HOLD dict (action=HOLD, confidence=0, score=5, 'Could not parse analysis' at autonomous_loop.py:2225/2451) which is NOT marked _degraded (only the both-paths-failed branch sets _degraded), so it enters holding_analyses and triggers a full-exit signal_downgrade SELL. The cycle-level degraded-scoring guard (autonomous_loop.py:960-984) and fallback-rate alarm only raise_cron_alert + stamp summary -- they NEVER block decide_trades, and the alert module itself was recently dead (paging outage). So reviving signal_downgrade converts any noisy/low-confidence/parse-fallback HOLD on a single re-eval into a full liquidation, with no confidence floor, no partial exit, and asymmetric to entry (which required BUY conviction + RiskJudge sizing).",
+              "severity": "medium",
+              "evidence_cmd": "sed -n '954,984p' /Users/ford/.openclaw/workspace/pyfinagent/backend/services/autonomous_loop.py; grep -n 'Could not parse analysis\\|_degraded\\|action.: .HOLD' /Users/ford/.openclaw/workspace/pyfinagent/backend/services/autonomous_loop.py | head"
+            },
+            {
+              "id": "C3-no-other-consumer-breaks",
+              "concern": "(c) Consumer audit is CLEAN -- storing the verdict instead of the trade reason breaks no other reader. The only READ of paper_positions.recommendation is portfolio_manager.py:136 (old_rec, the intended signal_downgrade consumer); paper_trader.py:494 is a passthrough carry-forward on partial sells; the frontend PaperPosition.recommendation field (types.ts:652) is not rendered in positions-columns.tsx; outcome_tracker reads analysis_results.recommendation, not paper_positions. One residual: mixed semantics coexist going forward (legacy rows hold 'new_buy_signal'/'swap_buy', new rows hold 'BUY'), but legacy strings uppercase to values not in _BUY_RECS so they never match -- inert, as designed. No break, low risk.",
+              "severity": "low",
+              "evidence_cmd": "grep -rn 'get(.recommendation\\|\\[.recommendation.\\]' /Users/ford/.openclaw/workspace/pyfinagent/backend /Users/ford/.openclaw/workspace/pyfinagent/frontend/src; grep -n 'recommendation' /Users/ford/.openclaw/workspace/pyfinagent/frontend/src/components/paper-trading/positions-columns.tsx"
+            },
+            {
+              "id": "C4-swap-churn-no-interaction",
+              "concern": "(d) The premise that 60.2 swap-churn logic reads position recommendation is FALSE: _compute_swap_candidates (portfolio_manager.py:498-699) reads only sector, holding_lookup.final_score, market_value, current_price -- never pos['recommendation']. Its sole 'recommendation' reference is the WRITE that populates the swap BUY order (:692). So there is no direct interaction. The only cross-effect is indirect and already safe: reviving signal_downgrade adds more tickers to selling_tickers, and the swap path explicitly excludes selling_tickers (:533), so a downgraded holding cannot be both signal_downgrade-SOLD and swap-displaced (no double-SELL). Minor doc hygiene: the flag description and TradeOrder comment cite 'portfolio_manager.py:127' but the actual signal_downgrade condition is at :149 (:127 is now the stop_loss SELL) -- stale line ref, not a bug.",
+              "severity": "low",
+              "evidence_cmd": "awk 'NR>=498 && NR<=699 && /recommendation/' /Users/ford/.openclaw/workspace/pyfinagent/backend/services/portfolio_manager.py; sed -n '531,575p' /Users/ford/.openclaw/workspace/pyfinagent/backend/services/portfolio_manager.py"
+            },
+            {
+              "id": "C5-inert-on-cash-book-confirmed",
+              "concern": "(a) CONFIRMED inert on the current 0-position cash book. Every SELL-producing branch in decide_trades lives inside 'for pos in current_positions' (stop_loss :127, sell_signal :140, signal_downgrade :150), which does not execute when current_positions is empty; the swap path additionally requires sector_blocked and existing holdings. execute_buy only WRITES recommendation, it never sells. Therefore with 0 positions the flag ON cannot emit any SELL this cycle -- the first SELL risk arrives on a later re-eval (gated >= paper_reeval_frequency_days, ~3 days) after a BUY establishes a position carrying a persisted BUY/STRONG_BUY verdict.",
+              "severity": "none",
+              "evidence_cmd": "grep -n 'for pos in current_positions\\|action=\"SELL\"\\|reason=\"signal_downgrade\"\\|reason=\"stop_loss\"' /Users/ford/.openclaw/workspace/pyfinagent/backend/services/portfolio_manager.py"
+            }
+          ],
+          "net_assessment": "PROMOTE-WITH-CAVEATS"
+        },
+        "verdicts": [
+          {
+            "concern_id": "C1-guard-insufficient-healthy-sell",
+            "verdict": "OVERSTATED",
+            "corrected_severity": "medium",
+            "reasoning": "CONFIRMED core: the guard at portfolio_manager.py:109-117 is WARN-ONLY (logger.warning then the sell loop proceeds unconditionally at :119; settings.py:200 itself documents it as a per-call warning). The flag genuinely revives a full-liquidation SELL path: _DOWNGRADE_RECS includes HOLD (:56) and :149-156 emits a signal_downgrade SELL when old_rec in _BUY_RECS and rec=HOLD. HOLD is the pervasive fallback (line 135 default, data-integrity block at autonomous_loop.py:1826). Precondition confirmed and correctly stated: only positions bought AFTER the flag is ON persist recommendation in _BUY_RECS (settings.py:200: no backfill), so the current 0-position book is inert; hazard arms ~2 cycles out (first buy, then a failing re-eval). Per task guidance, position-precondition alone would keep this CONFIRMED.\n\nDowngraded to OVERSTATED because the concern's SPECIFIC cited mechanism is factually wrong. It claims autonomous_loop.py:1720 (both-paths-failed, integrity OFF) leaves the row unmarked so a synthetic HOLD 'flows straight into holding_analyses.' It does NOT: when integrity is OFF that branch returns None at :1736, the ticker is excluded from holding_analyses (:952 keeps only dicts), and with analysis=None the `if analysis:` at portfolio_manager.py:134 is False -> the held position is NOT re-evaluated and NOT sold. The pure both-paths-fail + integrity-OFF case is actually SAFE. The genuine hazard is a SUCCESSFUL lite fallback returning HOLD -- most concretely the data-integrity block (autonomous_loop.py:1818-1839) which returns recommendation=HOLD, _path=lite, is NOT marked _degraded (so :931 does not filter it) and is NOT gated by the integrity flag. Consequently the concern's own remediation ('enable synthesis_integrity first, then co-enabling is safe') is insufficient: integrity ON only neutralizes the both-paths-failed branch, not the un-gated lite/data-integrity synthetic HOLD. Net: real, money-relevant hazard (full liquidation of a healthy post-flag position on a fabricated neutral), but conditional and mis-attributed; severity medium, not high."
+          },
+          {
+            "concern_id": "C2-residual-hold-liquidation-even-integrity-on",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "medium",
+            "reasoning": "Every link in the causal chain is verified in code. (1) Full-orchestrator failure routes to the lite fallback via _run_single_analysis except block (~autonomous_loop.py:1710) calling _select_lite_analyzer. (2) A lite parse failure sets analysis={\"action\":\"HOLD\",\"confidence\":0,\"score\":5,\"reason\":\"Could not parse analysis\"} at lines 2225/2451, and the lite return dict (2318) maps recommendation=\"HOLD\", _path=\"lite\", with NO _degraded key. Only the both-paths-failed branch (1720) sets _degraded, so this dict enters holding_analyses (line 952, isinstance(dict) filter). (3) In decide_trades, portfolio_manager.py:145-153 fires when old_rec in _BUY_RECS and rec(\"HOLD\") in _DOWNGRADE_RECS, appending a full SELL TradeOrder reason=\"signal_downgrade\" with no quantity (full exit), no confidence floor, no partial exit — asymmetric to entry which requires BUY conviction + RiskJudge sizing. The cycle-level degraded-scoring guard (960-984) only raise_cron_alert + stamps summary and never blocks decide_trades, AND _degraded_scoring_check (1934) does not even COUNT this analysis as degraded: it checks score==0 (here score=5) or confidence==0+uppercase-rec, but the lite return dict has no top-level confidence key (it lives in full_report.analysis), so _conf_raw=None → not counted. The guard is thus doubly ineffective — this strengthens the concern. Preconditions (noted, not disqualifying): book must hold a position with stored recommendation BUY/STRONG_BUY (currently 100% cash, no immediate impact); paper_position_recommendation_fix_enabled must ALSO be ON (dark by default) since integrity ON alone leaves signal_downgrade structurally dead — the liquidation is a two-flag interaction; and a compound full-then-lite parse failure must land on that held ticker's re-eval. Medium is appropriate: the mechanism is real and unguarded, but the compound two-dark-flag + BUY-position + compound-failure preconditions bound the blast radius below high."
+          },
+          {
+            "concern_id": "C3-no-other-consumer-breaks",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "low",
+            "reasoning": "Reproduced the evidence_cmd and read every cited path. The consumer audit is accurate: the only meaningful read of paper_positions.recommendation is portfolio_manager.py:136 (old_rec, the intended signal_downgrade consumer, paired with _BUY_RECS={BUY,STRONG_BUY} at :58/:149); paper_trader.py:494 is a carry-forward passthrough in the partial-sell pos_row rebuild; positions-columns.tsx has no recommendation reference (grep empty); types.ts:652 declares the field but it is not rendered; outcome_tracker.py:140/161 and signal_attribution.py:185 read analysis/outcome dicts (analysis_results), not paper_positions. I checked one consumer the concern omitted — api/portfolio.py:128 reads enriched.get('recommendation') — but its _positions is a module-level in-memory dict (line 23) fed by POST bodies, a separate legacy portfolio API, NOT the paper_positions BQ table, so it is not a counterexample. The mixed-semantics claim is confirmed verbatim by the code comment at portfolio_manager.py:43-49: legacy strings like NEW_BUY_SIGNAL uppercase to values not in _BUY_RECS and are inert. Storing the verdict instead of the reason breaks no reader — CONFIRMED at low. Two caveats an operator should note, neither of which raises severity: (1) On the current 100%-cash book (0 positions) there is zero runtime consumer, so this is entirely dormant until positions exist. (2) The flag does more than store a harmless value — it revives the previously structurally-dead signal_downgrade SELL rule (portfolio_manager.py:149): new rows storing BUY now match _BUY_RECS, so re-analysis returning HOLD/SELL will trigger downgrade SELLs. That is the documented intended effect (flag paper_position_recommendation_fix_enabled), not a break, but it is a real behavioral activation once the book holds positions."
+          },
+          {
+            "concern_id": "C4-swap-churn-no-interaction",
+            "verdict": "CONFIRMED",
+            "reasoning": "All four sub-claims reproduce. (a) awk over 498-699 returns exactly one 'recommendation' hit: line 692, a WRITE populating the swap BUY order from cand.get('recommendation',''); _compute_swap_candidates reads only pos sector/market_value/current_price and holding_lookup.final_score, never pos['recommendation'] -- so the premise that 60.2 swap-churn logic reads position recommendation is FALSE. (b) The swap loop excludes selling_tickers at :533 (if pos['ticker'] in selling_tickers: continue). (c) selling_tickers is built at :159 from all SELL orders including the signal_downgrade SELL emitted at :151, so a downgraded holding is already excluded from swap displacement -- the only cross-effect (reviving signal_downgrade adds tickers to selling_tickers) is indirect and safe, no double-SELL. (d) Stale line ref confirmed: the comment at :46-47 cites the signal_downgrade _BUY_RECS rule as being 'at :127', but grep shows the actual condition at :149; lines 127-128 are now the stop_loss SELL. This is doc hygiene, not a functional bug. Severity low is correct. Precondition: the entire swap path is dormant on the current 0-position cash book and only becomes exercisable once positions exist.",
+            "corrected_severity": "low"
+          },
+          {
+            "concern_id": "C5-inert-on-cash-book-confirmed",
+            "verdict": "CONFIRMED",
+            "reasoning": "Reproduced the evidence_cmd and read backend/services/portfolio_manager.py. All SELL-producing branches (stop_loss :127-128, sell_signal :140-141, signal_downgrade :150-151) are nested inside `for pos in current_positions:` (:119), which does not execute when current_positions is empty. The swap path likewise builds holdings_by_sector from `for pos in current_positions:` (:532); with 0 positions holdings_by_sector is empty, weakest resolves to None (:599-606) and every sector_blocked candidate is skipped, so no swap_for_higher_conviction SELL fires (:668-671). The buy loop only appends BUY orders and skips already-held tickers; the persisted BUY/STRONG_BUY recommendation it writes is what later feeds the downgrade check (old_rec in _BUY_RECS and rec in _DOWNGRADE_RECS, :149) on a subsequent re-eval. Therefore, on the current 0-position, 100% cash book, flipping the flag ON cannot emit any SELL this cycle. Precondition confirmed as stated: the first SELL risk arrives only on a later re-eval (gated >= paper_reeval_frequency_days) after a BUY establishes a position carrying a persisted BUY/STRONG_BUY verdict. Severity none is correct for the current book; the concern accurately notes the risk is deferred, not absent. (Adjacent, not altering C5: the module itself warns at :112-117 that this flag ON with paper_synthesis_integrity_enabled OFF can drive signal_downgrade SELLs of healthy positions -- also position-gated, inert on the cash book.)",
+            "corrected_severity": "none"
+          }
+        ]
+      },
+      {
+        "flag": "interactions",
+        "rev": {
+          "flag": "paper_synthesis_integrity_enabled + paper_risk_judge_shape_fix_enabled + paper_position_recommendation_fix_enabled (all three ON together)",
+          "on_summary": "synthesis_integrity ON makes a full-orchestrator synthesis error RAISE and route to the lite fallback (instead of persisting a synthetic 0.0/HOLD), adds up to 2 orchestrator retry-on-empty attempts per errored-empty rail step, persists an honest NULL degraded row + returns None ONLY when BOTH full and lite paths throw, and switches meta-scorer fallback convictions to percentile rank-normalization. rj_shape ON makes full-path BUYs size at the judge's nested recommended_position_pct (smaller than the 10% default), binds a full-path REJECT, records risk_judge_decision, and treats an explicit 0.0% as no-buy. position_rec ON persists the analysis verdict (\"BUY\"/\"STRONG_BUY\") into paper_positions.recommendation for NEW buys, which re-arms the previously-dead signal_downgrade SELL rule on those positions. On the current 100%-cash book rj_shape and synthesis_integrity are low-risk reliability/sizing changes; position_rec is inert only until a position is held and ages into re-eval.",
+          "concerns": [
+            {
+              "id": "C1",
+              "concern": "The all-three-ON combo does NOT prevent healthy-position SELLs, and the unsafe-combo guard gives false assurance. The guard (portfolio_manager.py:109) only warns for position_rec ON + synthesis_integrity OFF, on the premise that synthesis_integrity converts a fabricated HOLD into a None-drop. But the None-drop (autonomous_loop.py:1720) fires ONLY when the lite fallback THROWS. On a rail-empty response the lite analyzer does NOT throw -- it fabricates {\"action\":\"HOLD\",score:5} (autonomous_loop.py:2225, also 2451/2453) and returns a normal dict, so _degraded is never set and it is folded into holding_analyses. With position_rec ON old_rec=\"BUY\", so the unconditional signal_downgrade rule (portfolio_manager.py:149) SELLs the healthy held position on fabricated evidence -- exactly the AW-5/F-5 churn class. Inert at 0 positions, but rail degradation is currently the COMMON path (brief: 4/5 synthesis-failed), so it bites the first BUY that ages >=3 days into a re-eval.",
+              "severity": "high",
+              "evidence_cmd": "sed -n '2222,2226p' backend/services/autonomous_loop.py; sed -n '1714,1735p' backend/services/autonomous_loop.py; sed -n '148,156p' backend/services/portfolio_manager.py"
+            },
+            {
+              "id": "C2",
+              "concern": "Rollback of position_rec is NOT a clean revert. The signal_downgrade rule (portfolio_manager.py:149) is not flag-gated; the flag only controls what gets WRITTEN to paper_positions.recommendation (paper_trader.py:295-300) and there is no backfill (settings.py:200). Any position BOUGHT while the flag is ON persists recommendation=\"BUY\", so flipping the flag OFF after a misbehavior does NOT disarm signal_downgrade for those rows -- they stay armed to SELL on the next HOLD/SELL re-eval. Persisted BQ state survives the flag flip, so operators cannot cleanly stop the C1 hazard by toggling OFF.",
+              "severity": "high",
+              "evidence_cmd": "grep -n 'paper_position_recommendation_fix_enabled\\|old_rec in _BUY_RECS' backend/services/portfolio_manager.py; sed -n '290,301p' backend/services/paper_trader.py"
+            },
+            {
+              "id": "C3",
+              "concern": "rj_shape's explicit-0%-as-no-buy is bypassed by the swap path. The main buy loop respects a judge 0.0% as no-buy via is-not-None (portfolio_manager.py:376-379), but a 0%-sized non-REJECT candidate is added to sector_blocked BEFORE that check (the sector-cap continue at :359-369 precedes sizing). The swap path then sizes it with the zero-falsy `float(cand.get('position_pct') or 10.0)` (portfolio_manager.py:649), reinflating a judge-zeroed name to 10% NAV and executing a SELL of a healthy holding + BUY of a name the judge said not to buy. paper_swap_enabled defaults True (settings.py:326), so this is live once positions exist and a sector is at its count cap.",
+              "severity": "medium",
+              "evidence_cmd": "sed -n '376,381p' backend/services/portfolio_manager.py; sed -n '648,650p' backend/services/portfolio_manager.py"
+            },
+            {
+              "id": "C4",
+              "concern": "Promoting mid-window contaminates the 66.2 evidence accounting. Criterion-2 (masterplan.json:15145) forbids modifying any gate/cap/limit/entry-criterion to manufacture trades over the step's commit range, and criterion-1 hinges on either a BUY 'executed by the ordinary scheduled pipeline' or '>=5 consecutive healthy-rail trading days with zero BUYs' funnel. rj_shape changes BUY SIZING and synthesis_integrity changes rail-failure behavior (retry/lite-route) mid-clock, so pre- vs post-flip funnel counts are not comparable and a landed BUY's attribution is ambiguous (real buyability vs a synthesis-integrity-rescued survivor). rj_shape is arguably required to satisfy criterion-1(a) (risk_judge_decision recorded), but flipping it during the >=5-day clock muddies the healthy-rail-day funnel diagnosis under 1(b).",
+              "severity": "medium",
+              "evidence_cmd": "sed -n '15144,15145p' .claude/masterplan.json"
+            },
+            {
+              "id": "C5",
+              "concern": "synthesis_integrity's meta-scorer rank-normalization reshuffles candidate conviction ordering, changing which tickers get analyzed (paper_analyze_top_n) and therefore the BUY set. This is NOT a rare edge: it only affects the FALLBACK path, and the fallback IS the live path right now because the away window died on an expired credential (no working ANTHROPIC key -> meta_scorer no-key branch at meta_scorer.py:204-212 uses _fallback_convictions). So flipping synthesis_integrity ON silently re-ranks the top-N under the current credit-death, producing a different analyzed/BUY set than the OFF baseline with no A/B trace. Arguably an improvement (comparable 1-10 scales), but it is a live decision-input change, not the byte-identical reliability-only change the brief implies.",
+              "severity": "low",
+              "evidence_cmd": "sed -n '169,177p' backend/services/meta_scorer.py; sed -n '203,212p' backend/services/meta_scorer.py; sed -n '269,281p' backend/services/meta_scorer.py"
+            }
+          ],
+          "net_assessment": "PROMOTE-WITH-CAVEATS"
+        },
+        "verdicts": [
+          {
+            "concern_id": "C1",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "high",
+            "reasoning": "Reproduced the full chain against code. (1) autonomous_loop.py:2205-2211: rail failure (ClaudeCodeError) is caught INSIDE the lite analyzer, sets text=\"\", does NOT throw. (2) :2225: empty text → json_match None → fabricated {\"action\":\"HOLD\",\"score\":5}; lite output maps recommendation=analysis[\"action\"]=\"HOLD\", _path=\"lite\" (:2324-2325). (3) The integrity flag's degraded None-drop lives only in the except Exception block (:1716-1735) and the fold-skip only fires on _degraded truthy (:931-936); rail-empty never sets _degraded, so the fabricated HOLD is folded into holding_analyses (:938) REGARDLESS of the integrity flag. (4) portfolio_manager.py:56/58: _DOWNGRADE_RECS includes HOLD, _BUY_RECS includes BUY; :149-156 old_rec=BUY + rec=HOLD → unconditional SELL reason=signal_downgrade. (5) Guard at :109-117 warns only for position_rec ON + integrity OFF and advises 'Enable the integrity flag first', but integrity ON does NOT close the rail-empty hole — false assurance confirmed. Authors' own comment (:933-935) concedes 'a fabricated value is the bug being fixed.' Severity high upheld: silent SELL of healthy positions on fabricated evidence (AW-5/F-5 churn) exactly when the guard implies safety. Precondition: requires a held BUY-rec position aging into re-eval during a rail failure; book is 100% cash today so inert now, but arms on the first BUY that ages >=3 days, and the brief reports rail degradation is the common path (4/5 synthesis-failed)."
+          },
+          {
+            "concern_id": "C2",
+            "verdict": "OVERSTATED",
+            "corrected_severity": "medium",
+            "reasoning": "All mechanical claims reproduce. signal_downgrade (portfolio_manager.py:149) reads old_rec = pos.get(\"recommendation\") unconditionally with NO flag guard; _BUY_RECS={BUY,STRONG_BUY}, _DOWNGRADE_RECS={HOLD,SELL,STRONG_SELL}. The flag only gates the WRITTEN value: paper_trader.py:295-300 sets _pos_rec=reason unless flag ON + analysis_recommendation, and recommendation is written to pos_row only on BUY/add (lines 323, 347). settings.py:200 states verbatim \"old rows keep trade reasons and never match; no backfill.\" So a row written with recommendation=\"BUY\" while ON persists and stays armed; flipping OFF only changes FUTURE writes. It is actually stronger than stated: recommendation is rewritten only on a subsequent add, so a merely re-evaluated held position never gets its stale \"BUY\" scrubbed until it is sold. Rollback-is-not-clean is CONFIRMED. PRECONDITION: no impact on the current 100%-cash book (0 positions); requires a position bought while ON, then flag OFF, then a HOLD/downgrade re-eval. Severity \"high\" is overstated: (a) harm is a bounded exit-to-cash SELL, not an unbounded/wrong-direction loss; (b) the genuinely UNSAFE spurious-sell path requires a SECOND misconfig (paper_synthesis_integrity_enabled also OFF to fabricate synthetic HOLDs) -- a SELL on a legitimate downgrade is intended behavior; (c) that exact two-flag combination already emits a loud per-call WARNING at portfolio_manager.py:109-117; (d) the operator retains a hard trading kill-switch, so \"cannot cleanly stop\" applies only to this one lever. Real defect (fix = backfill/scrub on flag-OFF or gate :149 on the flag) but medium, not high."
+          },
+          {
+            "concern_id": "C3",
+            "verdict": "CONFIRMED",
+            "corrected_severity": "medium",
+            "reasoning": "Reproduced the full chain against portfolio_manager.py. (1) The sector-count-cap continue at :363-368 appends the candidate to sector_blocked BEFORE the no-buy sizing check at :376-381, so a judge-0% candidate whose sector is at the count cap is queued for swap without ever being filtered. (2) The swap path sizes with zero-falsy `or 10.0` at :646 and :649, reinflating a stored 0.0 to 10% NAV. (3) The interaction is genuinely flag-created: with paper_risk_judge_shape_fix_enabled OFF, _extract_position_pct's zero-falsy `if pct:` returns None so a judge-0% never persists as 0.0 and the main loop would buy it at 10% anyway (no guarantee to bypass); only with the flag ON does line 203-208 preserve 0.0, producing the contradiction where the main loop honors no-buy but the swap path executes SELL(healthy holding)+BUY(judge-declined name at 10% NAV). Preconditions confirmed by defaults: paper_swap_enabled=True (settings.py:326), paper_max_per_sector=2>0 (settings.py:266), swap-emit gate at :467-470. The REJECT-binding gate at :487 does NOT cover this (fires only on decision==REJECT; a non-REJECT 0%-sized candidate slips through), matching the concern's 'non-REJECT candidate' framing. final_score is independent of position_pct so a judge-zeroed name can still clear the 25% swap-delta bar. PRECONDITION: current book is 100% cash / 0 positions, so it cannot fire today (swap needs an existing sector holding to displace and a sector at its count cap); it is a latent bug that activates once positions reach the count cap. Medium (not blocker) is correct: real unsafe execution but bounded by paper_swap_max_per_cycle and the 25% delta threshold, and dormant on the current cash book. Evidence cmd verbatim confirmed both cited line ranges."
+          },
+          {
+            "concern_id": "C4",
+            "verdict": "OVERSTATED",
+            "corrected_severity": "low",
+            "reasoning": "Verified via `sed -n '15144,15145p' .claude/masterplan.json` (criteria verbatim) + reads of settings.py:307-310 (rj_shape), :194-200 (synthesis_integrity), and flag_promotion_brief_2026-07-09.md. The factual premises hold (rj_shape changes sizing, synthesis_integrity changes rail-failure behavior, mid-clock flip makes pre/post funnel counts non-comparable), but the medium-severity framing is overstated. (1) Criterion-2 forbids modifying a gate/cap/limit/entry-criterion TO MANUFACTURE trades; neither flag loosens: rj_shape TIGHTENS (sizes at judge's pct < 10% default, REJECT binds, 0.0=no-buy) and synthesis_integrity is a bounded retry/lite-route/honest-NULL reliability fix that 'loosens NO gate' -- so criterion-2 is not tripped (the concern even concedes rj_shape is 'arguably required'). (2) The criteria are structured to accommodate the flip: path 1(a) is the intended clean route and explicitly requires 'risk_judge_decision recorded', which ONLY rj_shape supplies (settings.py:309 states the '' persistence 'fails 66.2 criterion-1(a)'). A post-flip BUY via the ordinary scheduled pipeline satisfies 1(a) directly; the claimed 'attribution ambiguity (real buyability vs synthesis-rescued survivor)' is not a criterion requirement, and a rail-retry-survived BUY is a genuine pipeline BUY, not fabricated (synthesis_integrity never fabricates a signal). (3) The valid kernel is narrow: IF the step falls back to path 1(b) (>=5 healthy-rail days + funnel), whoever closes 66.2 must log the flip commit as a boundary event and scope the funnel to the post-flip window instead of mixing pre/post counts -- an evidence-hygiene discipline note for Q/A, not a runtime break or criterion violation. Precondition: purely an evidence-accounting concern at 66.2 close; zero runtime/safety impact on the current 100%-cash book, independent of whether positions exist."
+          },
+          {
+            "concern_id": "C5",
+            "verdict": "REFUTED",
+            "reasoning": "The concern claims flipping synthesis_integrity ON silently re-ranks the top-N in the current no-key fallback path, changing the analyzed/BUY set. Reproduced the full chain and this does not occur. In the no-key live branch (meta_scorer.py:204-212), the candidate list is already sorted composite-descending at lines 192-195 BEFORE conviction assignment, and the branch returns sorted(out, key=conviction_score, reverse=True). Both fallback conviction functions are monotonic non-decreasing in composite_score: OFF's _fallback_conviction clamps live composites (78-163, per the code's own comment at 151-156) all to a constant 10, so the stable descending sort of an all-equal sequence preserves composite-descending order; ON's _rank_normalized_convictions is a monotonic percentile mapping, so its descending sort is also composite-descending. Both flag states therefore yield the identical composite-descending ordering. Downstream selection at autonomous_loop.py:813 (new_candidates[:paper_analyze_top_n]) is a pure order slice with NO conviction-magnitude threshold, and the swap path in portfolio_manager.py:505+ keys on final_score, not this conviction_score. Hence the analyzed set and BUY set are byte-identical between OFF and ON; only the recorded conviction VALUES change (saturated 10.00 -> distributed percentiles), which is exactly the intended observability/reliability improvement, not a decision-input change. The no-key branch also returns before the head/tail split, so the tail rank-normalization at 269-281 never runs in the live path. The concern's precondition (dead credential -> fallback is the live path) is correct, but the selection is provably invariant under the flag, so the load-bearing claim is refuted.",
+            "corrected_severity": "none"
+          }
+        ]
+      }
+    ],
+    "confirmed_high_or_blocker": 1
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Review"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 2,
+      "title": "Verify"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "review:synthesis-integrity",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "aa76fb3fe0db40646",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592246690,
+      "queuedAt": 1783592246680,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "paper_synthesis_integrity_enabled",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592758954,
+      "tokens": 121825,
+      "toolCalls": 33,
+      "durationMs": 512264,
+      "resultPreview": "{\"flag\":\"paper_synthesis_integrity_enabled\",\"on_summary\":\"ON changes four live-cycle legs. (1) In _run_single_analysis (autonomous_loop.py:1644-1652) a full-orchestrator report whose final_synthesis is a non-dict, carries .error, or LACKS a top-level scoring_matrix key now raises SynthesisDegradedError into the existing except, routing that ticker to the lite fallback instead of persisting a synth…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "review:rj-shape",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a2fc8858b6d4abee8",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592246694,
+      "queuedAt": 1783592246680,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "paper_risk_judge_shape_fix_enabled",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592650407,
+      "tokens": 94463,
+      "toolCalls": 24,
+      "durationMs": 403713,
+      "resultPreview": "{\"flag\":\"paper_risk_judge_shape_fix_enabled\",\"on_summary\":\"ON makes decide_trades resolve the RiskJudge verdict nested under risk_assessment['judge'] (the real full-orchestrator shape per orchestrator.py:2279 / risk_debate.py:310) instead of the top-level dict, so on the FULL path a BUY is now sized at the judge's recommended_position_pct (typically 2-10% per risk_judge.md:43) rather than the 10%-…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "review:position-rec",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a543f3168c5bfb690",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592246696,
+      "queuedAt": 1783592246680,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "paper_position_recommendation_fix_enabled",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592623807,
+      "tokens": 106430,
+      "toolCalls": 31,
+      "durationMs": 377111,
+      "resultPreview": "{\"flag\":\"paper_position_recommendation_fix_enabled\",\"on_summary\":\"ON makes portfolio_manager populate TradeOrder.analysis_recommendation with the UPPERCASED analysis verdict (BUY/STRONG_BUY) on BOTH the fresh-buy path (portfolio_manager.py:448) and the swap-buy path (:692), and execute_buy then persists that verdict into paper_positions.recommendation instead of the trade-mechanism string like \\\"n…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "review:interactions",
+      "phaseIndex": 1,
+      "phaseTitle": "Review",
+      "agentId": "a46536d9d234f1b5a",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592246698,
+      "queuedAt": 1783592246680,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "paper_synthesis_integrity_enabled + paper_risk_judge_shape_…",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592632232,
+      "tokens": 123412,
+      "toolCalls": 27,
+      "durationMs": 385534,
+      "resultPreview": "{\"flag\":\"paper_synthesis_integrity_enabled + paper_risk_judge_shape_fix_enabled + paper_position_recommendation_fix_enabled (all three ON together)\",\"on_summary\":\"synthesis_integrity ON makes a full-orchestrator synthesis error RAISE and route to the lite fallback (instead of persisting a synthetic 0.0/HOLD), adds up to 2 orchestrator retry-on-empty attempts per errored-empty rail step, persists a…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "verify:position-rec:C1-guard-insufficient-healthy-sell",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a3e474e99391692f5",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592623818,
+      "queuedAt": 1783592623809,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C1-guard-insufficient-healthy-sell",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592789076,
+      "tokens": 57670,
+      "toolCalls": 10,
+      "durationMs": 165258,
+      "resultPreview": "{\"concern_id\":\"C1-guard-insufficient-healthy-sell\",\"verdict\":\"OVERSTATED\",\"corrected_severity\":\"medium\",\"reasoning\":\"CONFIRMED core: the guard at portfolio_manager.py:109-117 is WARN-ONLY (logger.warning then the sell loop proceeds unconditionally at :119; settings.py:200 itself documents it as a per-call warning). The flag genuinely revives a full-liquidation SELL path: _DOWNGRADE_RECS includes H…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "verify:position-rec:C2-residual-hold-liquidation-even-integrity-on",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "abaf06ae882d6f97e",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592623820,
+      "queuedAt": 1783592623809,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C2-residual-hold-liquidation-even-integrity-on",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592724504,
+      "tokens": 55077,
+      "toolCalls": 11,
+      "durationMs": 100684,
+      "resultPreview": "{\"concern_id\":\"C2-residual-hold-liquidation-even-integrity-on\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"medium\",\"reasoning\":\"Every link in the causal chain is verified in code. (1) Full-orchestrator failure routes to the lite fallback via _run_single_analysis except block (~autonomous_loop.py:1710) calling _select_lite_analyzer. (2) A lite parse failure sets analysis={\\\"action\\\":\\\"HOLD\\\",\\\"conf…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 7,
+      "label": "verify:position-rec:C3-no-other-consumer-breaks",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a13ee79b7e0a0d895",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592623822,
+      "queuedAt": 1783592623809,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C3-no-other-consumer-breaks",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592704885,
+      "tokens": 50102,
+      "toolCalls": 8,
+      "durationMs": 81062,
+      "resultPreview": "{\"concern_id\":\"C3-no-other-consumer-breaks\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"low\",\"reasoning\":\"Reproduced the evidence_cmd and read every cited path. The consumer audit is accurate: the only meaningful read of paper_positions.recommendation is portfolio_manager.py:136 (old_rec, the intended signal_downgrade consumer, paired with _BUY_RECS={BUY,STRONG_BUY} at :58/:149); paper_trader.py:4…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 8,
+      "label": "verify:position-rec:C4-swap-churn-no-interaction",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a0ab6022087fd75cd",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592623825,
+      "queuedAt": 1783592623809,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C4-swap-churn-no-interaction",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592674631,
+      "tokens": 46459,
+      "toolCalls": 6,
+      "durationMs": 50806,
+      "resultPreview": "{\"concern_id\":\"C4-swap-churn-no-interaction\",\"verdict\":\"CONFIRMED\",\"reasoning\":\"All four sub-claims reproduce. (a) awk over 498-699 returns exactly one 'recommendation' hit: line 692, a WRITE populating the swap BUY order from cand.get('recommendation',''); _compute_swap_candidates reads only pos sector/market_value/current_price and holding_lookup.final_score, never pos['recommendation'] -- so th…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 9,
+      "label": "verify:position-rec:C5-inert-on-cash-book-confirmed",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "ad051240653d338dc",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592623827,
+      "queuedAt": 1783592623809,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C5-inert-on-cash-book-confirmed",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592667667,
+      "tokens": 46042,
+      "toolCalls": 5,
+      "durationMs": 43840,
+      "resultPreview": "{\"concern_id\":\"C5-inert-on-cash-book-confirmed\",\"verdict\":\"CONFIRMED\",\"reasoning\":\"Reproduced the evidence_cmd and read backend/services/portfolio_manager.py. All SELL-producing branches (stop_loss :127-128, sell_signal :140-141, signal_downgrade :150-151) are nested inside `for pos in current_positions:` (:119), which does not execute when current_positions is empty. The swap path likewise builds…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 10,
+      "label": "verify:interactions:C1",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "ae604064a4d1379a1",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592632236,
+      "queuedAt": 1783592632234,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C1",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592729238,
+      "tokens": 47318,
+      "toolCalls": 6,
+      "durationMs": 97002,
+      "resultPreview": "{\"concern_id\":\"C1\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"high\",\"reasoning\":\"Reproduced the full chain against code. (1) autonomous_loop.py:2205-2211: rail failure (ClaudeCodeError) is caught INSIDE the lite analyzer, sets text=\\\"\\\", does NOT throw. (2) :2225: empty text → json_match None → fabricated {\\\"action\\\":\\\"HOLD\\\",\\\"score\\\":5}; lite output maps recommendation=analysis[\\\"action\\\"]=\\\"HO…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 11,
+      "label": "verify:interactions:C2",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a39c53e8534b1bb08",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592650410,
+      "queuedAt": 1783592632234,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C2",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592740906,
+      "tokens": 45203,
+      "toolCalls": 8,
+      "durationMs": 90496,
+      "resultPreview": "{\"concern_id\":\"C2\",\"verdict\":\"OVERSTATED\",\"corrected_severity\":\"medium\",\"reasoning\":\"All mechanical claims reproduce. signal_downgrade (portfolio_manager.py:149) reads old_rec = pos.get(\\\"recommendation\\\") unconditionally with NO flag guard; _BUY_RECS={BUY,STRONG_BUY}, _DOWNGRADE_RECS={HOLD,SELL,STRONG_SELL}. The flag only gates the WRITTEN value: paper_trader.py:295-300 sets _pos_rec=reason unles…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 12,
+      "label": "verify:interactions:C3",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a0637731379afcf5f",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592667670,
+      "queuedAt": 1783592632234,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C3",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592773874,
+      "tokens": 51238,
+      "toolCalls": 10,
+      "durationMs": 106204,
+      "resultPreview": "{\"concern_id\":\"C3\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"medium\",\"reasoning\":\"Reproduced the full chain against portfolio_manager.py. (1) The sector-count-cap continue at :363-368 appends the candidate to sector_blocked BEFORE the no-buy sizing check at :376-381, so a judge-0% candidate whose sector is at the count cap is queued for swap without ever being filtered. (2) The swap path sizes w…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 13,
+      "label": "verify:interactions:C4",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a2570d8dc936d06a8",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592674634,
+      "queuedAt": 1783592632234,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C4",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592782360,
+      "tokens": 49632,
+      "toolCalls": 8,
+      "durationMs": 107726,
+      "resultPreview": "{\"concern_id\":\"C4\",\"verdict\":\"OVERSTATED\",\"corrected_severity\":\"low\",\"reasoning\":\"Verified via `sed -n '15144,15145p' .claude/masterplan.json` (criteria verbatim) + reads of settings.py:307-310 (rj_shape), :194-200 (synthesis_integrity), and flag_promotion_brief_2026-07-09.md. The factual premises hold (rj_shape changes sizing, synthesis_integrity changes rail-failure behavior, mid-clock flip make…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 14,
+      "label": "verify:interactions:C5",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a576607669ed467df",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592704888,
+      "queuedAt": 1783592632234,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C5",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592839638,
+      "tokens": 52492,
+      "toolCalls": 11,
+      "durationMs": 134749,
+      "resultPreview": "{\"concern_id\":\"C5\",\"verdict\":\"REFUTED\",\"reasoning\":\"The concern claims flipping synthesis_integrity ON silently re-ranks the top-N in the current no-key fallback path, changing the analyzed/BUY set. Reproduced the full chain and this does not occur. In the no-key live branch (meta_scorer.py:204-212), the candidate list is already sorted composite-descending at lines 192-195 BEFORE conviction assig…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 15,
+      "label": "verify:rj-shape:swap-path-inverts-zero-pct",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a70fb6d71cbada551",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592724507,
+      "queuedAt": 1783592650414,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "rj-shape:swap-path-inverts-zero-pct",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592813921,
+      "tokens": 50248,
+      "toolCalls": 8,
+      "durationMs": 89414,
+      "resultPreview": "{\"concern_id\":\"rj-shape:swap-path-inverts-zero-pct\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"medium\",\"reasoning\":\"Verified in backend/services/portfolio_manager.py. Under paper_risk_judge_shape_fix_enabled ON, lines 196-207 deliberately preserve an explicit recommended_position_pct==0.0 as position_pct=0.0 in buy_candidates (the _raw_pct is-not-None branch bypasses the falsy `if pct:` in _extra…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 16,
+      "label": "verify:rj-shape:stop-loss-still-reads-flat-shape",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a21a2721f20f633ee",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592729241,
+      "queuedAt": 1783592650414,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "rj-shape",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592780005,
+      "tokens": 46053,
+      "toolCalls": 7,
+      "durationMs": 50764,
+      "resultPreview": "{\"concern_id\":\"rj-shape\",\"verdict\":\"CONFIRMED\",\"reasoning\":\"Reproduced. `grep -n \\\"_extract_stop_loss(risk_assessment\\\" backend/services/portfolio_manager.py` returns line 210, which passes the top-level `risk_assessment` (NOT `_rj_view`). `_extract_stop_loss` (line 732) reads `risk_assessment.get(\\\"risk_limits\\\", {})` at the TOP level (line 749). On the full orchestrator path `risk_assessment` is…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 17,
+      "label": "verify:rj-shape:cash-book-deploys-less-not-more",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a4fbabb89030c10a6",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592740909,
+      "queuedAt": 1783592650414,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "rj-shape",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592832316,
+      "tokens": 52823,
+      "toolCalls": 9,
+      "durationMs": 91407,
+      "resultPreview": "{\"concern_id\":\"rj-shape\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"low\",\"reasoning\":\"Reproduced against code. Flag paper_risk_judge_shape_fix_enabled (settings.py:307); sizing logic portfolio_manager.py:194-208 and 373-378; helper _extract_position_pct:713 with zero-falsy `if pct:`; skip-branch judge REJECT/pct=0 at orchestrator.py:2242; APPROVE_FULL=5-10% / APPROVE_REDUCED=2-5% at risk_judge.md…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 18,
+      "label": "verify:rj-shape:reject-advisory-inconsistent-when-binding-off",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "adca04bb5bb9fe14d",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592758960,
+      "queuedAt": 1783592650414,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "rj-shape",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592869434,
+      "tokens": 54976,
+      "toolCalls": 8,
+      "durationMs": 110474,
+      "resultPreview": "{\"concern_id\":\"rj-shape\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"low\",\"reasoning\":\"Verified against code. schemas.py:120 declares recommended_position_pct as a required float with NO validator forcing 0 on decision=='REJECT' (schemas.py:118); the fallback verdict at risk_debate.py:298 even hardcodes a nonzero 3. So a REJECT carrying a nonzero pct is schema-valid and plausible. With paper_risk_…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 19,
+      "label": "verify:rj-shape:absent-and-tiny-pct-floor-behavior",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a146956d0389bc9dc",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592773877,
+      "queuedAt": 1783592650414,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "rj-shape (absent-and-tiny-pct-floor-behavior)",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592837838,
+      "tokens": 45200,
+      "toolCalls": 6,
+      "durationMs": 63961,
+      "resultPreview": "{\"concern_id\":\"rj-shape (absent-and-tiny-pct-floor-behavior)\",\"verdict\":\"CONFIRMED\",\"reasoning\":\"Reproduced the evidence_cmd: line 377 (`... is not None else 10.0`) and line 384 (`buy_amount < 50`) both present in backend/services/portfolio_manager.py. All sub-claims check out: (a) a genuinely-absent pct defaults to 10% via line 377's None->10.0; (b) _extract_position_pct (line 713-729) returns No…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 20,
+      "label": "verify:synthesis-integrity:C1",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a90a69f322e02f52a",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592780008,
+      "queuedAt": 1783592758966,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C1",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592909174,
+      "tokens": 51678,
+      "toolCalls": 12,
+      "durationMs": 129166,
+      "resultPreview": "{\"concern_id\":\"C1\",\"verdict\":\"OVERSTATED\",\"corrected_severity\":\"medium\",\"reasoning\":\"Every link in the chain reproduces against the code, but \\\"high\\\" overstates a fail-safe, rarely-triggered robustness bug.\\n\\nVERIFIED MECHANISM (all confirmed):\\n1. Flag-ON re-routing (autonomous_loop.py:1644-1652): with paper_synthesis_integrity_enabled ON, a synthesis-error dict raises SynthesisDegradedError, w…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 21,
+      "label": "verify:synthesis-integrity:C2",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a016c03230734c2e9",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592782363,
+      "queuedAt": 1783592758966,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C2",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592879538,
+      "tokens": 46717,
+      "toolCalls": 10,
+      "durationMs": 97175,
+      "resultPreview": "{\"concern_id\":\"C2\",\"verdict\":\"OVERSTATED\",\"corrected_severity\":\"low\",\"reasoning\":\"All cited code facts reproduce exactly. autonomous_loop.py:1647 uses `\\\"scoring_matrix\\\" not in synthesis` where synthesis=report.get(\\\"final_synthesis\\\",{}) (1637). orchestrator.run_synthesis_pipeline returns the critic's corrected_report as a raw dict (critic_result.get(\\\"corrected_report\\\"), from _parse_json_with_…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 22,
+      "label": "verify:synthesis-integrity:C3",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a7222b9452f640968",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592789079,
+      "queuedAt": 1783592758966,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C3",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592859002,
+      "tokens": 44330,
+      "toolCalls": 4,
+      "durationMs": 69923,
+      "resultPreview": "{\"concern_id\":\"C3\",\"verdict\":\"CONFIRMED\",\"corrected_severity\":\"low\",\"reasoning\":\"Verified against orchestrator.py:793-884 and settings.py:188-198. The retry-on-empty block is inside the generic _generate_with_retry and gated ONLY by paper_synthesis_integrity_enabled with no agent-name filter, so it applies to every agent routed through this method, not just synthesis — the concern's central claim …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 23,
+      "label": "verify:synthesis-integrity:C4",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a62800878fb65d84d",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592813926,
+      "queuedAt": 1783592758966,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C4",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592901744,
+      "tokens": 46976,
+      "toolCalls": 4,
+      "durationMs": 87818,
+      "resultPreview": "{\"concern_id\":\"C4\",\"verdict\":\"OVERSTATED\",\"reasoning\":\"Verified against backend/services/meta_scorer.py:145-177,204-212,269-281 and reproduced the rank-normalization math. The no-crash claims are CONFIRMED (empty->[], single->[5], all-equal composites->banker's-rounded 5, n<=1 guards the n-1 divisor). Routing is accurate under the review premise: with no ANTHROPIC_API_KEY the no-key branch (204-21…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 24,
+      "label": "verify:synthesis-integrity:C5",
+      "phaseIndex": 2,
+      "phaseTitle": "Verify",
+      "agentId": "a6c11aab4a5a8ef90",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1783592832319,
+      "queuedAt": 1783592758966,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "C5",
+      "promptPreview": "RULES (binding): repo /Users/ford/.openclaw/workspace/pyfinagent. STRICTLY READ-ONLY -- no Edit/Write to repo files, no .env, no orders, no BQ writes, no flag flips; scratch only under /private/tmp. Python: cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate.\nThe book is 100% CASH (0 positions, NAV $23,997.71). The trailing-stop engine is UNTOUCHABLE (cite only). Today 2026-…",
+      "lastProgressAt": 1783592863956,
+      "tokens": 39397,
+      "toolCalls": 3,
+      "durationMs": 31637,
+      "resultPreview": "{\"concern_id\":\"C5\",\"verdict\":\"CONFIRMED\",\"reasoning\":\"Reproduced against backend/services/autonomous_loop.py. Line 936-937: _run_and_persist_one returns None when analysis['_degraded'] is set. Lines 946 and 953: candidate_analyses/holding_analyses are built with `if isinstance(r, dict)`, filtering out every None (degraded) and exception result BEFORE the guard. Line 961-962: _degraded_scoring_chec…"
+    }
+  ],
+  "totalTokens": 1425761,
+  "totalToolCalls": 269
+}

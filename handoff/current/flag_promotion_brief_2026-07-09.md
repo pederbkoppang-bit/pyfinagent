@@ -55,3 +55,51 @@ synthesis-integrity is ON).
 No flag flipped without your token. No heavy subagent/workflow run while the
 manual cycle's rail is live (quota-starvation lesson, 07-07). No fabricated
 evidence. Trailing-stop untouched.
+
+---
+
+## ADVERSARIAL PROMOTION-READINESS REVIEW (2026-07-09, workflow wf_cff750df)
+
+24 agents (4 per-flag/interaction reviewers + 20 verifiers). **Net: PROMOTE-
+WITH-CAVEATS on all four; ZERO blockers.** Full dossier:
+promo_readiness_review_2026-07-09.txt. Verified findings:
+
+### synthesis-integrity -> SAFE TO PROMOTE (one gap FIXED this commit)
+- C1 (was high->medium): lite fallback can return recommendation=None ->
+  `None.upper()` crashed decide_trades. **FIXED** now (None-safe guard at
+  portfolio_manager.py:135/:177, ungated crash fix, test added). Fail-safe
+  even before the fix (crash = no trade = stays cash) but real.
+- C2 (low): the `"scoring_matrix" not in synthesis` predicate can over-fire
+  (route a healthy critic-corrected report to lite) and under-catch (empty
+  `{}` still fabricates 0.0). FOLLOW-UP: tighten to `synthesis.get("error") or
+  not synthesis.get("scoring_matrix")`. Non-blocking.
+- C5 (low): all-degraded cycle -> rows dropped before _degraded_scoring_check
+  -> the P1 "all degraded" alarm can miss (60.1 fallback-rate path still
+  fires). FOLLOW-UP: count degraded-None in the guard. Non-blocking.
+
+### rj-shape -> SAFE TO PROMOTE (strictly safer on a cash book)
+- Confirmed: ON makes full-path BUYs SMALLER (judge pct 2-5% vs the 10%
+  default) + records the decision. Pure risk reduction for reactivation.
+- FOLLOW-UPs (both UNREACHABLE on the 100%-cash book -- swaps need positions):
+  swap-path :649/:674 still `or 10.0` (0% not honored on swaps);
+  _extract_stop_loss (line 210) reads flat `risk_assessment` not `_rj_view`
+  so full-path BUYs use the 8% default stop, not the judge's nested stop.
+  Both are flag-gated + position-dependent -> fix before positions accumulate.
+
+### position-rec -> **HOLD (do NOT promote yet)**
+- interactions-C1 (CONFIRMED high): the unsafe-combination guard is WARN-ONLY,
+  not a block. ON + a synthetic-HOLD-shaped output on a HELD ticker's re-eval
+  -> signal_downgrade SELL of a healthy position. And even with synthesis-
+  integrity ON, a lite parse-fail returns a real HOLD (not degraded), so the
+  hazard is not fully closed. Inert now (0 positions) but a real downside once
+  the book holds anything. REQUIRE before promoting: harden the guard to a
+  hard block (or gate signal_downgrade on the flag) + prove synthesis-integrity
+  live. rollback is also not perfectly clean (rule not flag-gated; only the
+  WRITE is) -- another reason to hold until positions exist.
+
+## REFINED RECOMMENDATION
+**PROMOTE `synthesis-integrity` + `rj-shape`** (the earn-again levers; safe/
+safer on the cash book; the one real crash gap is fixed). **HOLD
+`position-rec`** until positions exist AND its guard is hardened. Validation
+plan unchanged: on token -> set flags in .env, restart, run-now flags-ON
+cycle, report ON-vs-OFF delta.
