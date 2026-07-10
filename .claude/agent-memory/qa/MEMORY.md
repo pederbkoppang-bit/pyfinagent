@@ -6,3 +6,4 @@
 - [criterion-wording-existence-vs-completion](project_criterion_wording_existence_vs_completion.md) — rule criteria on their literal verbs: "writes rows" = existence at eval time, completion not required; streak criteria need the full window (66.1 closing)
 - [contract-order-mtime-fallback](project_contract_order_mtime_fallback.md) — single-commit steps defeat git-timestamp ordering; audit JSONL has no file paths; use stat mtime chain (61.2)
 - [stepid-grep-escape-dot](project_stepid_grep_escape_dot.md) — harness_log step-id greps need -F/escaped dot; "67.6" matched "67/67 tests" and skewed the CONDITIONAL count (67.6)
+- [premise-embedded-criteria-yfinance-check](project_premise_embedded_criteria_yfinance_check.md) — criteria embedding factual premises can be false (68.5 AMD/MU); free yfinance fetch = no-cost price corroboration; overturn+operator-route = PASS, silent edit = FAIL
