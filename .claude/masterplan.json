@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-10T07:26:01.262470+00:00",
+  "updated_at": "2026-07-10T07:26:39.111949+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15474,26 +15474,39 @@
         },
         {
           "id": "68.5",
-          "name": "Price-integrity: root-cause AMD/MU avg_entry defect to file:line with repro; correct rows auditably; pre-persist fill-price sanity gate (block+page vs independent quote; covers close-cache + hash-fallback); DESC phantom fix + regression test; FX-1 root cause handed to parked 61.3; defects filed as 63.3 seeds",
+          "name": "Price-integrity (RESTATED 2026-07-10, operator-authorized): pre-persist fill-price sanity gate targeting the real latent holes; FX-1 root-cause handoff to parked 61.3; defect register filed as 63.3 seeds; AMD/MU rows remain untouched (book verified correct)",
           "status": "pending",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "68.0",
-          "audit_basis": "AMD/MU avg_entry $545.42/$1004.70 vs real ~$150/~$110 (live_check_66.2.md sec 9; Cycle-77 register): avg_entry feeds trailing-stop math, so corrupted entries are live risk TODAY. Plus the DESC-order phantom drawdown pages and the hash-fallback price path from the audit basis.",
+          "audit_basis": "Restatement basis: 68.0 evidence (qa-68-0 independently corroborated) killed the defect-correction premise; the REAL latent holes stand: unguarded SELL fill price with hash-synthetic fallback (execution_router.py:96-98 class), the phase-30.6 tolerance gate fails OPEN when price_at_analysis is absent, and any sanity check must use an independent NON-yfinance quote source (the stale-anchor failure class that produced the false premise). FX-1 and the 63.3 seeds carry over from the original step unchanged.",
           "verification": {
             "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_fill_price_sanity_gate.py -q -x --timeout=120'",
             "success_criteria": [
+              "Pre-persist fill-price sanity gate: any fill whose price deviates beyond a bounded threshold vs an INDEPENDENT non-yfinance quote source is BLOCKED and PAGES before persisting; the gate demonstrably covers the hash-synthetic-fallback path and the SELL fill path, and the tolerance gate no longer fails open when price_at_analysis is absent (tests for all three)",
+              "The 2026-07-09 AMD/MU rows remain byte-untouched (the book is correct; live_check includes a BQ read proving no mutation)",
+              "FX-1 root cause documented and HANDED to parked 61.3 (no 61.x execution)",
+              "Defect register entries filed as 63.3 seeds (no 63.3 execution)",
+              "Fresh Q/A PASS with the 67.1 gates applied to the diff"
+            ],
+            "live_check": "live_check_68.5.md with the blocked+paged sanity-gate demonstration, the fails-open-fixed test run, the BQ read proving AMD/MU rows untouched, and the FX-1/63.3 handoff artifacts"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "superseded_record": {
+            "superseded_at": "2026-07-10",
+            "authorized_by": "operator AskUserQuestion 2026-07-10: 'Restate 68.5 (Recommended)' (recorded in harness_log Cycle 83)",
+            "reason": "68.0 research overturned the premise with evidence, independently corroborated by qa-68-0: the 2026-07-09 AMD/MU fills were REAL market prices (AMD close $546.72, MU $991.64; backend.log:124393/124398), the '~$150/~$110' anchor in live_check_66.2.md:402 was stale world-knowledge, and the DESC phantom was already fixed (9262ed36 + regression tests). Original criteria 1-2 unsatisfiable as written; 4 pre-satisfied.",
+            "original_name": "Price-integrity: root-cause AMD/MU avg_entry defect to file:line with repro; correct rows auditably; pre-persist fill-price sanity gate (block+page vs independent quote; covers close-cache + hash-fallback); DESC phantom fix + regression test; FX-1 root cause handed to parked 61.3; defects filed as 63.3 seeds",
+            "original_success_criteria": [
               "AMD/MU price defect root-caused to file:line with a deterministic repro (not a hypothesis -- the repro reproduces the bad magnitude)",
               "The corrupted BQ rows corrected AUDITABLY: original values preserved (audit column or log paste), correction query + before/after rows in the live_check",
               "Pre-persist fill-price sanity gate: any fill whose price deviates beyond a bounded threshold vs an independent quote source is BLOCKED and PAGES before persisting; the gate demonstrably covers the close-cache and hash-fallback paths (tests)",
               "DESC-order phantom drawdown fixed with a regression test that fails on the old ordering",
               "FX-1 root cause documented and HANDED to parked 61.3 (no 61.x execution); defect register entries filed as 63.3 seeds (no 63.3 execution)",
               "Fresh Q/A PASS with the 67.1 gates"
-            ],
-            "live_check": "live_check_68.5.md with the repro output, the before/after corrected rows, a blocked+paged sanity-gate demonstration, and the regression-test run"
-          },
-          "retry_count": 0,
-          "max_retries": 3
+            ]
+          }
         },
         {
           "id": "68.6",
