@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-10 | `0abdc13d` | phase-68.0: cutover design pack PASS -- env propagation, shadow isolation, idempotency + cutover tra |
 | 2026-07-10 | `a480b95d` | phase-68.0: install goal-phase68-real-fill-runway (8 pending steps, full verification objects) + 4 t |
 | 2026-07-10 | `7a833f21` | phase-67.5: Claude Code feature adoption -- fallbackModel chain, SessionStart Sunday-revert tripwire |
 | 2026-07-10 | `b629228d` | phase-67.6: Layer-2 API modernization -- Fable-5/Sonnet-5 request guards (fable omits thinking; sonn |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-09 | `ae1b0d03` | phase-66.2: manual test cycle 28e9bde9 evidence -- 150s timeout did NOT help (rail 59.3%, 4/5 synthe |
 | 2026-07-09 | `8b579031` | docs(66.2): flag-promotion decision brief -- recommend promote synthesis-integrity + RJ-shape (low-r |
 | 2026-07-09 | `91ff4db7` | chore(away-ops): recovery checkpoint 2026-07-09 (AM) -- benign accumulation, clean tree |
-| 2026-07-09 | `833efc0f` | chore(ops): file STALE-PHASE-TRIAGE-35-44 operator ask (Stop-hook re-fire; decision queued via pendi |
 
 ---
 
+### v6.59.0 — phase-68.0: cutover design pack PASS -- env propagation, shadow isola... (2026-07-10)
+
+- **phase-68.0: cutover design pack PASS -- env propagation, shadow isolation, idempotency + cutover tra**
 ### v6.58.0 — phase-68.0: install goal-phase68-real-fill-runway (8 pending steps, f... (2026-07-10)
 
 - **phase-68.0: install goal-phase68-real-fill-runway (8 pending steps, full verification objects) + 4 t**
