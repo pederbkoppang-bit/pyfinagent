@@ -15556,7 +15556,7 @@
     {
       "id": "phase-69",
       "name": "Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified; register handoff/current/audit_phase69/register.md; 50 confirmed / 30 contested / 4 refuted of 85) into banked P&L protection: stop the working engine from destroying its own book (FX=1.0 default, unrecoverable trailing-DD kill-switch, clear-queue pkill, lock strands), make the promotion instruments measure what they claim (DSR units, purge+embargo, boundary snap, fracdiff-at-predict, go-live booleans), and un-invert the live signal overlays (sign-safe algebra, news token cap, QMJ Growth, INDPRO+net-liquidity) -- before new alpha is trusted. Operator /goal 2026-07-11 verbatim in handoff/current/goal_phase69_audit_burndown_DRAFT.md. QUEUED BEHIND 67.4 Sunday-2026-07-12 revert + phase-68 P0s: money-path 69.1/69.3 byte-coordinate with in-flight phase-68 fill work; offline 69.0/69.2 do not conflict and open the phase. Boundaries (binding): $0 metered, free APIs only, paper-only; do-no-harm (kill-switch limits / stops / sector caps / DSR>=0.95 / PBO<=0.5 byte-untouched; fixes are fail-safe + ledger-math only); hysteresis fixes stay banned; historical_macro stays frozen; DARK-until-token on every guard-behavior change; full 5-file protocol per step; harness stays exactly 3 agents (Main + Researcher + Q/A).",
-      "status": "in-progress",
+      "status": "done",
       "theme": null,
       "steps": [
         {
