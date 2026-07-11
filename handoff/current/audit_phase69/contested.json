@@ -1,0 +1,805 @@
+[
+ {
+  "file": "backend/services/paper_trader.py",
+  "line": 308,
+  "summary": "Adding to an existing non-USD position computes avg_entry_price as USD cost divided by local-currency share count, corrupting the entry price unit that stops and realized P&L treat as local currency.",
+  "severity": "medium",
+  "evidence": "old_qty = existing[\"quantity\"]\nold_cost = existing[\"cost_basis\"] or (old_qty * existing[\"avg_entry_price\"])   # cost_basis is USD\nnew_qty = old_qty + quantity                                                    # shares\nnew_cost = old_cost + amount_usd                                                # USD\nnew_avg = new_cost / new_qty                                                    # USD/share, but stored as avg_entry_price which every consumer reads as LOCAL price",
+  "failure_scenario": "MCP publish_signal (signals_server.py:411) calls execute_buy with no held-position guard and no market arg, so an add-on BUY of a held EU ticker (SAP.DE, 10 sh @ EUR200, FX 1.10, cost $2,200) plus $1,100 more at EUR200 yields new_avg = 3300/15 = 220 -- 10% above the EUR200 market price. Once USD MFE >= 8%, _advance_stop's breakeven ratchet (line 1145: `if current_stop_f >= entry_price`/return entry_price) sets stop_loss_price=220 while current_price is ~EUR208-216, so check_stop_losses fires next cycle and force-sells the winning position; execute_sell then records realized_pnl_pct=(208-220)/220=-5.5% on a profitable trade. For KRW the mixed avg (~1/1300 of local) kills the stop machinery entirely and records ~+13,000,000% realized P&L.",
+  "money_impact": "Spurious full liquidation of winning EU positions via fake stop triggers (churn + fees + lost upside), dead stop protection on KR positions, and garbage realized_pnl_pct poisoning paper_round_trips, capture_ratio, and the outcome-tracker learn loop that tunes future signals. The same MCP path also books any non-US buy with market='US' (KRW price treated as USD) even on a first buy.",
+  "fix_sketch": "Keep avg_entry_price in local currency: new_avg_local = (old_qty*old_avg_local + quantity*price) / new_qty; keep cost_basis in USD as today. Also derive market in signals_server via markets.market_for_symbol and skip/merge-guard held tickers.",
+  "subsystem": "money-path-core",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "THE UNIT-MIXING DEFECT IS REAL IN CODE, BUT THE HEADLINE FAILURE PATH IS NARROWER THAN CLAIMED.\n\nCode mechanics (confirmed by trace of backend/services/paper_trader.py):\n- First-buy branch (lines 334-352) stores `avg_entry_price = price` (LOCAL currency per the phase-50.2 comments at lines 208-217 and 316) and `cost_basis = amount_usd` (USD, line 339).\n- Add-on branch (lines 303-331): `old_cost = "
+   },
+   {
+    "real": false,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "Code-level defect confirmed: paper_trader.py:305-308 blends USD cost_basis with local-currency share count into avg_entry_price on add-on buys, while first buys store local price (line 338), and consumers (_advance_stop breakeven ratchet ~line 1145, execute_sell round-trip P&L line 460) treat avg_entry_price as local currency. However, the add-on (`existing`) branch is unreachable under the live c"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/wash_sale_filter.py",
+  "line": 116,
+  "summary": "The wash-sale filter is never wired into the trade or P&L path (its only importer is a --test compliance script), so realized losses feed the evaluator/learning loop without wash-sale disallowance -- exactly the distortion the module's own docstring says it exists to prevent; the ledger is also in-memory only, so it could not survive restarts even if wired.",
+  "severity": "medium",
+  "evidence": "wash_sale_filter.py:12-14: 'For paper trading this filter preserves learning-signal accuracy: a system that ignores wash sales over-reports realized losses and feeds the evaluator agent misleading P&L.' Repo-wide grep for WashSaleLedger/filter_candidates/wash_sale finds only scripts/compliance/wash_sale_filter.py (self-test) and scripts/audit/regulatory_memo_audit.py (asserts the self-test exits 0). The ledger is `entries: list[LossEntry] = field(default_factory=list)` with no persistence hook -- no BQ or file backing.",
+  "failure_scenario": "Engine sells ticker X at a $2k realized loss on day 0; a fresh BUY signal re-enters X on day 10 (well inside the 61-day window). filter_candidates never runs, so the buy proceeds and the $2k loss remains fully counted in realized P&L fed to outcome_tracker and the evaluator agent, with no wash_sale flag anywhere. Repeated churn on the same names (the operator-confirmed real cost driver) compounds the mis-stated loss picture.",
+  "money_impact": "Over-reported realized losses distort the learning signal the evaluator agent uses to steer strategy (per the module's own rationale), and the tax-fidelity property the go-live analysis implicitly assumes exists is absent. Silent, because the module ships, passes its self-test, and is cited by the regulatory memo audit as working.",
+  "fix_sketch": "Back the ledger with paper_trades (rebuild entries from realized-loss sells in the last 61 days at cycle start), call filter_candidates on buy candidates in portfolio_manager.decide_trades, and tag blocked/flagged trades in BQ; or explicitly de-scope with a docstring stating it is a reference implementation not wired to the money path.",
+  "subsystem": "money-path-guards",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "Every factual leg of the claim verifies by code trace. (1) Never wired: a repo-wide grep for WashSaleLedger/filter_candidates/wash_sale hits exactly three files -- backend/services/wash_sale_filter.py (the module itself), scripts/compliance/wash_sale_filter.py (self-test, `from backend.services.wash_sale_filter import WashSaleLedger, filter_candidates` at line 31-32, exercised only on synthetic AA"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The claim's facts verify: backend/services/wash_sale_filter.py is imported only by scripts/compliance/wash_sale_filter.py (self-test) and scripts/audit/regulatory_memo_audit.py; nothing in the trade/P&L path (portfolio_manager, paper_trader, autonomous_loop, outcome_tracker) references it, and the ledger is in-memory only. However, under the live-config reachability rubric this is dead/never-sched"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/fx_rates.py",
+  "line": 176,
+  "summary": "_usd_value_asof silently substitutes TODAY's live FX rate for a requested historical date whenever the BQ row is missing or the query errors, injecting look-ahead / cross-era FX into point-in-time reads.",
+  "severity": "medium",
+  "evidence": "fx_rates.py _usd_value_asof (docstring: \"point-in-time, no look-ahead\"):\n        if rows:\n            return float(rows[0][\"rate\"])\n        return _usd_value_live(ccy)  # not yet backfilled -> live\n    except Exception as e:\n        logger.warning(\"fx_rates: as-of query %s@%s failed: %s\", ccy, date, e)\n        return _usd_value_live(ccy)\nConsumer backend/backtest/analytics.py:598-601:\n    _fs = get_fx_rate(local_currency, base_currency, test_start)\n    _fe = get_fx_rate(local_currency, base_currency, test_end)\n    if _fs and _fe and _fs != 0:\n        fx_ratio = _fe / _fs",
+  "failure_scenario": "An EU/KR backtest window starts before the earliest backfilled historical_fx_rates row (or the 30s BQ query times out on one leg). _fs becomes the 2026 live rate while _fe is the true historical rate: fx_ratio = _fe/_fs mixes eras, e.g. EURUSD 1.05 (2023) vs 1.16 (today) mis-states benchmark returns by ~10% relative. The fallback also _persists the substituted rate under TODAY's date, so the historical gap never heals and the substitution stays invisible (WARN log only, or none on the empty-rows path).",
+  "money_impact": "Baseline/alpha numbers for non-US backtests are silently wrong, and those are exactly the numbers the promotion gates (beat incumbent OOS, DSR/PBO context) compare against -- a strategy can be promoted or rejected off corrupted FX-converted benchmarks. The KR trade-value backfill migration (scripts/migrations/backfill_56_1_kr_trade_values.py) reads the same path.",
+  "fix_sketch": "For dated reads, never fall back to live: return None (callers already handle None by reporting local-currency returns), or fall back only when |date - today| <= a small tolerance. Distinguish 'row missing' from 'BQ error' in logs and persist backfill rows under the REQUESTED date range instead of today.",
+  "subsystem": "broker-markets-fx",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "The claimed mechanism is verbatim-verified: fx_rates.py:174-179 returns _usd_value_live() for a dated read on both the empty-rows and exception paths, contradicting the line-154 docstring \"point-in-time, no look-ahead\"; _usd_value_live persists the substituted rate under TODAY's date (line 103) so the gap never heals; backfill_fx (line 215) has zero callers repo-wide, so historical coverage is wri"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level description is accurate: fx_rates.py:_usd_value_asof (lines 176, 179) substitutes today's live rate for a dated read on missing-row or BQ error, and _usd_value_live persists under today's date so gaps never heal. However, the dated path is unreachable in the live config: (1) the only backend callers passing a date are analytics.py:598-599 in compute_baseline_strategies; (2) its sole"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/insider_signal_screen.py",
+  "line": 161,
+  "summary": "The insider overlay aggregates a 'value' field and groups by 'insider_name', but upstream get_insider_trades() returns neither key (it returns 'filer', 'shares', 'price' on a top-15-trades list), so aggregate_usd is always 0.0 and the signal can never fire for any ticker.",
+  "severity": "high",
+  "evidence": "insider_signal_screen.py:161: `aggregate = float(sum((t.get(\"value\") or 0) for t in recent_opportunistic_buys))` then :162 `if aggregate < min_usd: return None` (min_usd default 500_000). Also :93 `key = (t.get(\"insider_name\") or \"\").strip().lower() or \"<anon>\"`. But sec_insider.py:259-263 builds the returned trades as `formatted.append({\"filer\": t[\"filer\"], \"date\": t[\"date\"], \"type\": t[\"type\"], \"form\": \"4\", \"shares\": t.get(\"shares\", 0), \"price\": t.get(\"price\", 0.0), \"description\": desc})` \u2014 no 'value', no 'insider_name' key anywhere in the module. Additionally sec_insider.py:204 `if len(form4_filings) >= 20: break` and :255 `sorted(all_trades, ...)[:15]` cap history to ~15 recent trades, so the CMP 48-month lookback (`_has_min_history` needs a 3-year span) is unobtainable for active names.",
+  "failure_scenario": "Operator flips insider_signal_screen_enabled=true. Every cycle: ~20 candidates x get_insider_trades(months=48) fetches ~20 Form 4 XMLs each from SEC EDGAR; all trades pool under '<anon>' (insider_name missing); any surviving opportunistic BUYs sum value=0; 0 < 500000 -> _fetch_one returns None for every ticker; log prints 'insider_signal_screen: 0/20 candidates flagged' forever, which is indistinguishable from a normal quiet day.",
+  "money_impact": "The phase-28.10 CMP alpha overlay (82bps/mo abnormal return on opportunistic insider buys, per its own design doc) is structurally incapable of contributing to ranking \u2014 a designed money signal permanently killed while appearing live \u2014 plus ~400 wasted rate-limited SEC HTTP fetches per cycle when enabled.",
+  "fix_sketch": "In _fetch_one/_classify_trades read `filer` for the insider key and compute value as shares*price (`t.get(\"shares\",0)*t.get(\"price\",0.0)`); have get_insider_trades return the full unformatted trade list (or a separate raw list) instead of the top-15 display slice, and raise/parametrize the 20-filing cap when months>6.",
+  "subsystem": "signal-screens-a",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace. Producer sec_insider.py:259-263 returns trades with keys {filer, date, type, form, shares, price, description} only; repo-wide grep shows 'insider_name' exists nowhere in the backend except the consumer (insider_signal_screen.py:93,165) and no code adds a 'value' key. Consumer _fetch_one therefore dead-ends on every path: (a) all trades pool under '<anon>' (line 93) a"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level defect is CONFIRMED but the path is DARK under live config, so per the rubric this is real=false.\n\nCode facts verified by reading both files: backend/services/insider_signal_screen.py:161 sums `t.get(\"value\")` and :93 groups by `t.get(\"insider_name\")`, while backend/tools/sec_insider.py:259-263 builds the returned `trades` list with only {filer, date, type, form, shares, price, desc"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/short_interest.py",
+  "line": 109,
+  "summary": "_parse_finra_csv selects the first header column containing 'float' OR 'percent' as shortPercentOfFloat, which on FINRA's canonical layout (quoted in the function's own docstring) matches 'Percent Change' \u2014 the bimonthly change in short position \u2014 not percent-of-float (FINRA publishes no float-based column).",
+  "severity": "medium",
+  "evidence": "short_interest.py:107-111: `pof_idx: Optional[int] = None\\n    for i, c in enumerate(cols):\\n        if \"float\" in c or \"percent\" in c:\\n            pof_idx = i\\n            break` then :122-126 `raw = parts[pof_idx].replace(\"%\", \"\").strip()\\n... val = float(raw)\\n  lookup[ticker] = val / 100.0 if val > 1.0 else val`. The docstring (:89-92) lists the canonical columns: 'Settlement Date | Symbol | ... | Change | Percent Change | Average Daily Volume Quantity | Days to Cover | Revised' \u2014 'percent change' is the first match; no percent-of-float column exists. Consumer screener.py:187: `if short_pct is not None and short_pct > short_interest_threshold: continue` (threshold 0.10). Currently unreachable only because the FINRA URL 403s (docs/audits/phase-28.5-smoke-test-2026-05-17.md: 'HTTP/1.1 403 Forbidden' on all probes, 'URL pattern wrong \u2014 follow-up tracked').",
+  "failure_scenario": "The tracked follow-up fixes the FINRA URL and the flag goes on. A healthy candidate whose short interest merely grew 25% off a tiny base gets lookup=0.25 > 0.10 -> excluded from the buy screen; changePercent values in (0.1,1.0] are stored raw (e.g. 0.5 -> '50% of float') and also excluded \u2014 collectively a large pseudo-random slice of the universe. Meanwhile a genuine 30%-of-float squeeze-risk name with changePercent=-2 is stored as -2.0 and sails through the exclusion filter.",
+  "money_impact": "Once armed, the Boehmer-Jones-Zhang exclusion is inverted/randomized: the filter blocks good candidates on noise while admitting exactly the high-short cohort it exists to exclude (the -1.16%/mo underperformance decile), directly degrading realized P&L of every screen-driven buy.",
+  "fix_sketch": "Require both 'percent' AND 'float' in the column name; when absent (always, for FINRA), never treat Percent Change as a ratio \u2014 instead return the -1.0 'position-only' sentinel or compute days-to-cover, and route percent-of-float exclusively through the yfinance fallback.",
+  "subsystem": "signal-screens-a",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms the claim exactly. short_interest.py:107-111 picks the FIRST header column containing 'float' OR 'percent'; on the canonical FINRA layout quoted in the function's own docstring (:89-92) the first match is 'Percent Change' (index 6) \u2014 the bimonthly change in short position \u2014 because FINRA publishes no float-based column at all. Lines 122-126 then store it as a ratio (val/100 if "
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level defect is genuine: on FINRA's canonical header (quoted in the function's own docstring at short_interest.py:89-92), the first column matching `\"float\" in c or \"percent\" in c` (lines 107-111) is 'percent change' \u2014 the bimonthly change in short position \u2014 and FINRA publishes no percent-of-float column, so the value stored at line 126 would be semantically wrong. However, under the CUR"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/short_interest.py",
+  "line": 208,
+  "summary": "The yfinance fallback only runs when the FINRA lookup is COMPLETELY empty AND the caller passed fallback_tickers \u2014 but the production caller passes none, so with FINRA permanently 403ing, an enabled short-interest filter silently loads 0 tickers and never excludes anything.",
+  "severity": "medium",
+  "evidence": "short_interest.py:206-209: `if fallback_tickers:\\n        missing = [t for t in fallback_tickers if t.upper() not in lookup]\\n        if missing and not lookup:\\n            yf_lookup = await _yfinance_fallback(missing[:50])` \u2014 contradicting the docstring ':param fallback_tickers: If FINRA path returns nothing for these tickers, try yfinance per-ticker.' Production call autonomous_loop.py:341: `short_interest_lookup = await fetch_short_interest_lookup()` (no arguments). Smoke-test doc (2026-05-17) proves FINRA has never returned 200 ('403 Forbidden' on every probed settlement date) and the cache dir backend/services/_cache/short_interest/ is empty to this day; the smoke test only demonstrated the feature via fallback_tickers the production path never supplies.",
+  "failure_scenario": "Operator enables short_interest_filter_enabled believing the smoke-tested filter works (it excluded GME/AMC in the test). Live loop: FINRA 403 -> csv_text None -> lookup {} -> fallback_tickers is None -> returns {} -> screener's `if short_interest_lookup:` is falsy -> exclusion never evaluated. Only trace is 'Short-interest lookup loaded: 0 tickers' in a busy log.",
+  "money_impact": "The exclusion gate against the high-short underperformance cohort is inert in every configuration reachable from production \u2014 heavily-shorted names flow into the paper book while the operator believes the risk filter is active (protection believed live, actually dead).",
+  "fix_sketch": "Pass the screening universe/candidate list as fallback_tickers from autonomous_loop, and change the gate to `if missing:` (per-ticker fallback as the docstring promises), keeping the [:50] bound.",
+  "subsystem": "signal-screens-a",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Verified by direct code trace. Production caller autonomous_loop.py:341 calls fetch_short_interest_lookup() with no arguments, so fallback_tickers=None and the entire yfinance fallback block (short_interest.py:206-210, gated on `if fallback_tickers:`) is unreachable from production. FINRA is confirmed dead in this environment: handoff/archive/phase-28.5/experiment_results.md:90-92 shows 403 Forbid"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level claim is factually correct: short_interest.py:206-209 gates the yfinance fallback on `if fallback_tickers:` + `if missing and not lookup:`, the production caller (autonomous_loop.py:341) passes no fallback_tickers, FINRA appears to have never succeeded (cache dir backend/services/_cache/short_interest/ is empty since creation on 2026-05-17), so if enabled the filter would load 0 tic"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/pead_signal.py",
+  "line": 257,
+  "summary": "compute_pead_signal_for_ticker uses the most recent item-2.02 8-K with no recency check against the earnings event that triggered the fetch, so when the fresh 8-K is not yet on EDGAR the prior quarter's press release (~90 days old) is scored and applied as a current PEAD signal \u2014 including the hard filter-out path.",
+  "severity": "medium",
+  "evidence": "pead_signal.py:257-268: `latest_8k = await _fetch_recent_8k(http, cik)\\n        if not latest_8k:\\n            return _fallback(\"no_8k_found\")\\n\\n        if quarter_end is None:\\n            quarter_end = latest_8k.get(\"filing_date\") or datetime.now(timezone.utc).strftime(\"%Y-%m-%d\")\\n\\n        if use_cache:\\n            cached = _load_pead_cache(ticker, quarter_end)\\n            if cached is not None: ... return cached` \u2014 _fetch_recent_8k (:160-171) returns the first (most recent) 8-K containing '2.02' with no max-age filter, while the caller fetch_pead_signals_for_recent_reporters (:336-341) selects tickers whose calendar_events earnings fell in the last 7 days. Consumer screener.py:326-328 drops the candidate entirely when apply_pead_to_score returns None (negative_surprise & surprise < -0.3) or boosts up to +30%.",
+  "failure_scenario": "calendar_events has scheduled_at = yesterday (provider estimate) but the company furnishes its 2.02 8-K a day later, or reports via item 7.01 only. Today's cycle resolves the PRIOR quarter's 8-K, hits the cache keyed on that old filing_date, and applies last quarter's negative_surprise (surprise -0.35) -> apply_pead_to_score returns None -> the candidate is silently deleted from the ranked buy list for up to 7 days; symmetrically a stale positive_surprise grants a +30% rank boost off a 3-month-old press release.",
+  "money_impact": "Wrong trades in the highest-information window of the quarter: fresh-earnings candidates get filtered out or materially boosted based on the previous quarter's tone, exactly when PEAD is supposed to trade the NEW announcement.",
+  "fix_sketch": "In _fetch_recent_8k accept a min_filing_date (e.g. now-10d derived from the calendar window) and return None when the newest 2.02 8-K predates it, falling back to skip_reason='no_recent_8k'.",
+  "subsystem": "signal-screens-a",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed via full trace of backend/services/pead_signal.py and both consumers. The only production path is autonomous_loop.py:289 -> fetch_pead_signals_for_recent_reporters (tickers with calendar_events earnings in the last 7 days) -> compute_pead_signal_for_ticker(t) with quarter_end=None. _fetch_recent_8k (lines 160-171) returns the newest 8-K containing item '2.02' with zero recency filtering,"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The static-code analysis in the claim is correct: backend/services/pead_signal.py:257-268 uses the most recent item-2.02 8-K with no recency check (_fetch_recent_8k at :134-171 has no max-age filter), quarter_end defaults to the stale filing_date, and screener.py:324-328 would drop or boost candidates off a prior-quarter signal. However, the path is UNREACHABLE under the current live configuration"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/autonomous_loop.py",
+  "line": 459,
+  "summary": "The ma_preannounce aggregator reads options_surge_signals/insider_signals ~170 lines BEFORE those locals are first assigned (lines 628/600), so enabling ma_preannounce_enabled raises UnboundLocalError every cycle, swallowed by the non-fatal except -- the M&A signal is permanently dead and can never fire.",
+  "severity": "high",
+  "evidence": "autonomous_loop.py:457-460 (executes first): `ma_preannounce_signals = compute_ma_preannounce_signals(\\n    cand_tickers,\\n    options_surge_signals=options_surge_signals or {},\\n    insider_signals=insider_signals or {},` ... first assignments come LATER in the same function: line 600 `insider_signals = {}` and line 628 `options_surge_signals = {}`. The error is swallowed at 466-467: `except Exception as e:\\n    logger.warning(\"ma_preannounce_screen compute failed (non-fatal): %s\", e)`. Both names are locals of run_daily_cycle (assigned at 600/628), so the read at 459 is UnboundLocalError by Python scoping. handoff/archive/misc/live_check_28.16.md confirms the shipped verification was a 'Synthetic 3-leg aggregator demo' -- the real autonomous_loop wiring was never executed with the flag on.",
+  "failure_scenario": "Operator sets MA_PREANNOUNCE_ENABLED=true (the documented enablement path for phase-28.16). Every daily cycle: line 459 raises UnboundLocalError before compute_ma_preannounce_signals runs; the except logs one warning and continues; ma_preannounce_signals stays {} so rank_candidates receives None and apply_ma_preannounce_to_score is identity for every stock. Even if the variables were pre-initialized, the block runs BEFORE the 28.9/28.10 leg fetches (lines 600-652), so the aggregator would always see empty legs -- zero signals either way.",
+  "money_impact": "The convergence signal built to catch pre-M&A accumulation (the strongest boost tier in the stack, +10%) is silently dead-on-enable: candidate scores never get the strong-tier boost, so takeover-target candidates are under-ranked and the 17-phase signal investment produces zero P&L contribution while the operator believes it is live (a 'non-fatal' warning is the only trace).",
+  "fix_sketch": "Move the ma_preannounce block AFTER the options_flow (line 628-652) and insider (line 600-623) blocks, or hoist `options_surge_signals = {}` / `insider_signals = {}` initializations above line 449 AND relocate the aggregator after both fetches so it sees real leg data.",
+  "subsystem": "signal-screens-b",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Verified by code trace in /Users/ford/.openclaw/workspace/pyfinagent/backend/services/autonomous_loop.py. All three blocks are inside run_daily_cycle (def at line 124): the ma_preannounce aggregator at 452-467 reads `options_surge_signals or {}` and `insider_signals or {}` at lines 459-460, but the first (and only) assignments to those names are at line 600 (`insider_signals = {}`) and line 628 (`"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level defect is real and verified: in backend/services/autonomous_loop.py, the ma_preannounce block (lines 449-467) reads locals options_surge_signals/insider_signals at lines 459-460, but their only assignments in run_daily_cycle are at lines 600/628 \u2014 later in the same function. With the flag on, line 459 raises UnboundLocalError, swallowed by the except at 466-467, permanently neuterin"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/autonomous_loop.py",
+  "line": 662,
+  "summary": "All per-ticker overlay fetches slice `screen_data[: 2 * paper_screen_top_n]` BEFORE any ranking -- screen_data is in raw universe (Wikipedia-alphabetical) order, so analyst_revisions, analyst_narrative, call_transcript_gpr, social_velocity, peer_leadlag (and options/insider) fetch signals for the ~20 alphabetically-first S&P 500 tickers instead of the top candidates.",
+  "severity": "high",
+  "evidence": "autonomous_loop.py:661-663: `candidate_tickers = [\\n    s[\"ticker\"] for s in screen_data[: 2 * settings.paper_screen_top_n]\\n    if s.get(\"ticker\")\\n]` (same pattern at 456, 476, 528, 555, 579, 605, 633). screener.py builds screen_data with `for ticker in tickers: ... results.append(row)` and `return results` (lines 147/240/246) -- NO sort; get_sp500_tickers returns the Wikipedia table order (alphabetical by Symbol, screener.py:56); sorting happens only later inside rank_candidates (screener.py:483 `scored.sort(key=lambda x: x[\"composite_score\"], reverse=True)`), AFTER these fetches. paper_screen_top_n default = 10 (settings.py:363), so the slice is the first 20 tickers ~ A, AAPL, ABBV, ABNB, ABT, ACGL... every cycle. Module docstrings claim the opposite: analyst_revisions.py:139 'tickers: list of ticker symbols (typically the top-N candidates)'; peer_leadlag_screen.py:19 'bounded by top 2xpaper_screen_top_n'.",
+  "failure_scenario": "Operator enables any per-ticker overlay (e.g. ANALYST_REVISIONS_ENABLED=true). fetch_revision_signals runs on the fixed alphabetical prefix (A, AAPL, ABBV, ...), not on the momentum leaders that rank_candidates will select. The actual top-10 candidates -- the stocks that get bought -- have no entry in revision_signals, so apply_revisions_to_score returns base_score (identity) for all of them. The overlay burns yfinance/EDGAR/LLM/AlphaVantage quota on ~20 arbitrary tickers each cycle and influences the buy list only when an A-prefixed ticker happens to be near the top-N boundary.",
+  "money_impact": "Six phase-28 alpha/risk overlays (Mill Street revision breadth Sharpe~1.60 claim, narrative, GPR filter, social velocity, peer lead-lag, M&A legs) are effectively disconnected from trade selection when enabled: trades are made on the un-overlaid momentum score while paying the full data/LLM cost of the overlays, and the operator reads log lines like 'analyst_revisions signals: 8/20 candidates scored' believing the top candidates were scored.",
+  "fix_sketch": "Rank first (or pre-sort a copy of screen_data by the base momentum composite), take the top 2*top_n from that ranked list for all overlay fetches, then apply overlays in rank_candidates as today.",
+  "subsystem": "signal-screens-b",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Code trace fully confirms the claim. (1) screen_data is in raw universe order: get_sp500_tickers (screener.py:56) returns the Wikipedia table order (alphabetical by Symbol), and screen_universe (screener.py:147-246) iterates `for ticker in tickers` appending rows with no sort \u2014 its docstring even says 'Returns raw screening data'. (2) All eight overlay fetch sites in autonomous_loop.py (lines 456,"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level defect is genuinely there: autonomous_loop.py:453-676 slices screen_data[: 2*paper_screen_top_n] BEFORE rank_candidates (line 679), and screener.py::screen_universe preserves the input Wikipedia-alphabetical S&P 500 order with no sort \u2014 so if any of these overlays were enabled, they would score the alphabetical prefix instead of the top candidates. HOWEVER, under the current live co"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/sector_momentum.py",
+  "line": 40,
+  "summary": "Sector-momentum ranks are keyed \"Technology\" but the live sector source (build_sector_map, raw Wikipedia GICS) emits \"Information Technology\", and the sector field is only attached to screen rows at all when the UNRELATED sector_neutral/multidim flags are on -- so the boost no-ops universe-wide when enabled alone, and never fires for the 74 tech names even when the sector map is built; peer_leadlag and the GPR exemption break the same way.",
+  "severity": "high",
+  "evidence": "sector_momentum.py:39-41: `_SECTOR_ETFS: dict[str, str] = {\\n    \"Technology\": \"XLK\",` -- ranks dict is keyed by these names (line 162 `out[sector] = RankedSector(...)`). screener.py:81 build_sector_map returns raw `str(r[\"GICS Sector\"]).strip()`; live Wikipedia page verified 2026-07-10: 74 constituents carry \">Information Technology<\" (no \"Technology\" value exists). autonomous_loop.py:417-418 gates the lookup: `_sector_lookup = None\\nif getattr(settings, \"sector_neutral_momentum_enabled\", False) or getattr(settings, \"multidim_momentum_enabled\", False):` -- with both OFF, screen rows have NO \"sector\" key, and apply_sector_momentum_to_score (sector_momentum.py:195-197) returns base_score for sector=None. Dependent in-scope consumers: peer_leadlag_screen.py:77-79 drops every ticker with empty sector (`if not sector: continue`), and call_transcript_gpr.py:221 `if sector and sector.strip() in exempt: return base_score` never exempts when sector is None.",
+  "failure_scenario": "Operator sets SECTOR_MOMENTUM_ENABLED=true (alone, the documented knob): fetch_sector_momentum_ranks runs, writes the cache, and logs 'sector_momentum: top-3 sectors [...]' every cycle -- but every candidate lacks a sector field, so every apply call is identity; the overlay does literally nothing while appearing alive in logs. With multidim/sector_neutral also on, sectors are attached as Wikipedia names, and tech stocks -- the dominant momentum sector -- look up ranks[\"Information Technology\"] -> None -> never boosted (and the multidim 'sector' z-component is 0 for them). PEER_LEADLAG_ENABLED=true alone -> by_sector is empty -> zero signals ever. CALL_TRANSCRIPT_GPR_ENABLED=true alone -> HIGH-exposure defense/energy names lose their exemption and take the 0.97 haircut -- the exact inverse of the documented intent that they BENEFIT from elevated GPR.",
+  "money_impact": "Three signals mis-fire in realistic enablement: the Quantpedia top-3 sector rotation boost (+4%/yr claim) contributes nothing or skips tech entirely; the Hou-2007 lead-lag signal is stone dead; the GPR defensive filter actively penalizes defense contractors during geopolitical stress instead of exempting them -- wrong-direction score adjustments on exactly the reference case (phase-28.14) the stack was built around.",
+  "fix_sketch": "Normalize sector names at one boundary (map Wikipedia 'Information Technology' -> 'Technology' in build_sector_map or key ranks by normalized names), and attach the sector lookup whenever ANY sector-consuming flag (sector_momentum, peer_leadlag, call_transcript_gpr, defense) is enabled, not just sector_neutral/multidim.",
+  "subsystem": "signal-screens-b",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Every element of the claim survives adversarial code trace. (1) Name mismatch: sector_momentum.py:39-40 keys ranks by \"Technology\" while build_sector_map (screener.py:81) emits raw Wikipedia GICS names \u2014 the GICS tech sector is \"Information Technology\", confirmed by the repo's own test (test_phase_51_2_sector_div.py:26) which uses \"Information Technology\" through the same path; no normalization ex"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "Code-level claim verified as accurate: (1) sector_momentum.py ranks are keyed \"Technology\" while build_sector_map (screener.py:81) emits raw Wikipedia GICS \"Information Technology\", so tech names would never match; (2) autonomous_loop.py:417-418 only builds the sector lookup when sector_neutral_momentum_enabled or multidim_momentum_enabled is on, so screen rows lack a \"sector\" key otherwise and ap"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/peer_leadlag_screen.py",
+  "line": 137,
+  "summary": "All overlay multipliers are applied to a SIGNED momentum composite (weighted momentum percentages, routinely negative), so every boost >1 inverts into a penalty and every penalty <1 into a boost for negative-score stocks -- and peer_leadlag's own target cohort (laggards, momentum_1m < 2%) is disproportionately negative-composite, so the +8% catch-up boost demotes the very stocks it exists to promote.",
+  "severity": "medium",
+  "evidence": "peer_leadlag_screen.py:137: `return base_score * sig.boost_multiplier` (boost_multiplier = 1.08). Base score from screener.py:299-303: `score = (\\n    mom_1m * 0.40 +\\n    mom_3m * 0.35 +\\n    mom_6m * 0.25\\n)` where momentum_* are percent values that are negative for falling stocks; no sign guard anywhere in the multiply chain. Same pattern in call_transcript_gpr.py:223 `return base_score * high_penalty` (0.97) and analyst_revisions.py:187 `return base_score * (1.0 + sig.breadth * weight)` (0.85 for breadth=-1).",
+  "failure_scenario": "A qualifying laggard with mom_1m=-4%, mom_3m=-2%, mom_6m=+1% has composite = -1.6 - 0.7 + 0.25 = -2.05; the 1.08 'boost' makes it -2.21, ranking it BELOW where it stood unboosted -- the signal actively suppresses its own alpha cohort in any normal tape. In a broad drawdown where most composites are negative (2022-style), the whole overlay stack inverts: net-downgraded stocks (x0.85) rise in rank above net-upgraded ones (x1.15), and HIGH-GPR-risk stocks (x0.97) rank better than clean peers -- precisely in the regime where the defensive filter matters.",
+  "money_impact": "Wrong relative ranking near the top-N buy boundary: the DeltaLag catch-up trade is partially inverted at all times for negative-composite laggards, and in bear regimes the screener systematically prefers analyst-downgraded and GPR-exposed names over upgraded/clean ones -- direct wrong-buy selection when capital preservation matters most.",
+  "fix_sketch": "Apply multiplicative overlays to a shifted/non-negative score (e.g. rank-percentile as sector_neutral already does), or convert boosts to sign-aware additive adjustments: score += |score_scale| * (multiplier - 1).",
+  "subsystem": "signal-screens-b",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CONFIRMED by code trace, but currently latent behind a default-off flag. (1) Logic verified: screener.py:299-303 composite is signed momentum percent (negative for falling stocks); peer_leadlag_screen.py:137 returns `base_score * sig.boost_multiplier` (1.08, line 116) with no sign guard anywhere; laggard qualification (line 91) only requires momentum_1m < 2%, so negative-composite laggards qualify"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The math in the claim is correct as a latent flaw (screener.py:299-303 composite is a signed momentum sum; multiplying a negative composite by boost_multiplier=1.08 at peer_leadlag_screen.py:137 demotes the laggard it's meant to promote), but the code path is DARK under live config. peer_leadlag_enabled defaults False (settings.py:497) and the only call site is gated on it (autonomous_loop.py:472)"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/analyst_narrative_scorer.py",
+  "line": 72,
+  "summary": "In _classify_boost the weak_thr term algebraically cancels (`weak_thr + (1.0 - strong_thr) - weak_thr + 0.10` == `1.0 - strong_thr + 0.10`), so the plumbed analyst_narrative_weak_threshold setting has zero effect, and the resulting hard-coded bearish band (<= 0.40) contradicts the rubric given to the LLM (0.40-0.55 = neutral), penalizing scores of exactly 0.40.",
+  "severity": "medium",
+  "evidence": "analyst_narrative_scorer.py:72-73: `if outlook_score <= weak_thr + (1.0 - strong_thr) - weak_thr + 0.10:\\n    return max(0.90, 1.0 - moderate_boost), \"bearish\"` -- weak_thr cancels, leaving 0.40 with defaults. The prompt (lines 89-90) tells the model: `0.40-0.55 = neutral (steady / no notable forward signal)\\n0.31-0.39 = bearish`. The knob is plumbed as if live: autonomous_loop.py:586 `weak_threshold=getattr(settings, \"analyst_narrative_weak_threshold\", 0.30)`.",
+  "failure_scenario": "At temperature 0.0 an LLM scoring a steady no-signal press release frequently emits the round boundary value 0.40 (the bottom of the stated neutral band); _classify_boost tags it 'bearish' and applies the 0.975 multiplier the rubric said it would not get. Separately, an operator who tunes ANALYST_NARRATIVE_WEAK_THRESHOLD (e.g. 0.20 to narrow the bearish band after observing over-penalization) sees zero behavior change -- a silent config no-op on a scoring path.",
+  "money_impact": "Neutral-outlook candidates get an unearned ~2.5% score haircut at the 0.40 boundary (mis-ranking near the buy cutoff), and the documented tuning lever for correcting the narrative signal's penalty band is dead -- miscalibration cannot be fixed through the exposed setting, so any observed signal damage persists across operator tuning attempts.",
+  "fix_sketch": "Replace line 72 with an actual weak_thr band, e.g. `if outlook_score <= 0.39:` per the rubric or `if outlook_score < weak_thr + 0.10:` with the constant intent made explicit, and make the prompt bands derive from strong_thr/weak_thr so code and rubric cannot diverge.",
+  "subsystem": "signal-screens-b",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "Verified by direct code trace of backend/services/analyst_narrative_scorer.py. (1) Line 72: `weak_thr + (1.0 - strong_thr) - weak_thr + 0.10` \u2014 weak_thr cancels algebraically, leaving `1.0 - strong_thr + 0.10` = 0.40 with defaults; weak_thr is used nowhere else in _classify_boost (line 70 uses `1.0 - strong_thr`), so analyst_narrative_weak_threshold (settings.py:470, plumbed via autonomous_loop.py"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code defect is genuine as written: backend/services/analyst_narrative_scorer.py:72 contains `weak_thr + (1.0 - strong_thr) - weak_thr + 0.10`, where weak_thr algebraically cancels to a hard-coded 0.40 bearish cutoff (with strong_thr=0.70 default), making the plumbed analyst_narrative_weak_threshold setting a no-op inside _classify_boost, and the 0.40 boundary contradicts the LLM rubric (lines "
+   }
+  ]
+ },
+ {
+  "file": "backend/services/social_velocity_screen.py",
+  "line": 37,
+  "summary": "The screen's throttle (concurrency 2, 0.5s per-ticker sleep) permits ~60-120 AlphaVantage calls/min against its own documented free-tier budget of 5 req/min (real 2026 AV free tier is per-day), and the downstream tool converts rate-limit responses into silent NO_DATA with no retry -- so most of the ~20-ticker candidate set silently produces no signal while the shared AV key quota is burned.",
+  "severity": "medium",
+  "evidence": "social_velocity_screen.py:18 docstring: 'Cost: free tier Alpha Vantage = 5 req/min. Bounded to top 2*paper_screen_top_n (~20 candidates), throttled at 0.5s per ticker.' vs lines 37-38: `_CONCURRENCY = 2  # AV free tier is strict -- keep concurrency low\\n_PER_TICKER_SLEEP_S = 0.5` -- two slots each cycling fetch+0.5s sleep yields on the order of 1-4 calls/sec, 12-24x the stated 5/min budget. social_sentiment.py:54-56 swallows the limit: `if \"Information\" in data or \"Note\" in data:\\n    logger.warning(\"Alpha Vantage rate limit in social_sentiment for %s\", ticker)\\n    feed = []` -> returns `\"signal\": \"NO_DATA\"` (line 66); _fetch_one_velocity then returns None (screen line 82). No retry/backoff anywhere on this path.",
+  "failure_scenario": "Operator enables SOCIAL_VELOCITY_ENABLED=true. The 20 candidate calls fire in ~10-20 seconds; under the module's own 5/min assumption only ~the first 5 in any minute can succeed and the rest return AV rate-limit notes -> NO_DATA -> None -> dropped, so the DNUT-style velocity spike the signal exists to catch is missed on ~75% of the candidate list every cycle with only debug/warning traces. The burned requests also count against the single shared ALPHAVANTAGE_API_KEY used by backend/tools/alphavantage.py in the Layer-1 analysis pipeline, degrading a live consumer.",
+  "money_impact": "The pre-rally social-velocity signal is mostly dead-on-enable (silently, non-deterministically -- whichever tickers win the first rate-limit slots get scored), and enabling it consumes the shared free-tier AV quota that live pipeline tools depend on -- collateral data loss in an unrelated, currently-live money path.",
+  "fix_sketch": "Serialize with a real rate limiter (~12-15s spacing for 5/min, or a daily budget for the modern 25/day free tier), detect the rate-limit note and stop the batch early instead of burning remaining quota, and surface a per-cycle 'rate-limited N/M' summary log.",
+  "subsystem": "signal-screens-b",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms every element. (1) Throttle: social_velocity_screen.py:37-38 (_CONCURRENCY=2, _PER_TICKER_SLEEP_S=0.5) with the sleep inside the semaphore (line 81) yields 2/(latency+0.5s) req/s ~= 48-120 req/min, vs the module's own docstring budget \"free tier Alpha Vantage = 5 req/min\" (line 18) \u2014 no other limiter, cache, or spacing exists on the path. (2) Silent drop: social_sentiment.py:54"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level analysis in the claim is accurate as a latent defect: social_velocity_screen.py:37-38 (concurrency 2, 0.5s sleep) permits an order of magnitude more Alpha Vantage calls/min than the module's own documented 5 req/min budget, and social_sentiment.py silently converts rate-limit notes into NO_DATA with no retry, so most of a ~20-ticker batch would be silently dropped if it ran. HOWEVER"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/meta_scorer.py",
+  "line": 262,
+  "summary": "When the LLM batch response omits or rewrites a ticker (e.g. drops the .KS/.DE suffix), the per-candidate miss path uses the un-gated legacy clamp _fallback_conviction, which saturates to conviction 10 for any live composite (78-163) and promotes that candidate to rank #1 above all honestly-scored candidates -- and unlike the other three fallback paths, this one is NOT fixed by the phase-61.2 paper_synthesis_integrity_enabled flag.",
+  "severity": "medium",
+  "evidence": "scored = by_ticker.get(ticker)\n        if scored is None:\n            c2[\"conviction_score\"] = _fallback_conviction(c)\n            c2[\"conviction_reason\"] = \"fallback (ticker missing in batch response)\"\n\nwhere _fallback_conviction (lines 138-142) is 'return max(1, min(10, int(round(cs))))' and the module's own phase-61.2 comment (lines 148-151) states 'live composites run 78-163 -> every fallback cycle emitted conviction 10.00'. The no-key path (line 207), the tail path (lines 273-276) and _fallback_all (292-299) were all routed through the flag-gated _fallback_convictions/_rank_normalized_convictions; this by_ticker-miss path was not. Final ordering: 'out.sort(key=lambda c: c[\"conviction_score\"], reverse=True)' (line 283), and autonomous_loop.py:812-813 takes 'new_candidates[:settings.paper_analyze_top_n]' from that order to pick the 5 tickers that get deep analysis and can be bought.",
+  "failure_scenario": "Meta-scorer is live (meta_scorer_enabled ON; cycle_history rows carry meta_scorer_degraded) and the universe is US+EU+KR, so heads include suffixed tickers like 066570.KS. Haiku echoes '066570' (or normalizes BRK.B-style punctuation) for one candidate; by_ticker lookup misses; that candidate -- possibly the WORST of the 10 by composite -- gets conviction 10, sorts to rank #1, consumes one of the 5 analysis slots and top BUY priority, while the honest #5 candidate silently drops out of the analyze set that cycle. The identical mechanism fires if the LLM returns 9 of 10 candidates.",
+  "money_impact": "One ticker-echo mismatch corrupts the conviction ranking that drives the analyze/BUY funnel: an arbitrary candidate leapfrogs genuinely top-scored ones, so capital is allocated by LLM echo noise rather than signal -- and the gap survives the operator's pending integrity-flag promotion because this path never checks the flag.",
+  "fix_sketch": "Route the by_ticker-miss path through _fallback_convictions (rank-normalized under the flag), or assign missing-echo candidates a neutral mid score (5) and log/alert on any head ticker absent from the batch response.",
+  "subsystem": "macro-factor-integrity",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms every element. meta_scorer.py:257-263: a by_ticker miss calls _fallback_conviction(c) directly with NO paper_synthesis_integrity_enabled check, while all three sibling fallback paths (no-key line 207, tail lines 273-276, _fallback_all line 294) route through the flag-gated dispatchers. _fallback_conviction (line 141) clamps composite to [1,10], and the module's own phase-61.2 d"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code reading is accurate: backend/services/meta_scorer.py:262 (by_ticker-miss path) is genuinely the only fallback path using the un-gated legacy clamp _fallback_conviction while the no-key (207), tail (273-276), and _fallback_all (294) paths route through the phase-61.2 flag-gated dispatcher; conviction order really does drive the analyze/BUY funnel via autonomous_loop.py:813. However, the pa"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/factor_loadings.py",
+  "line": 69,
+  "summary": "The FF3 factor-crowding risk cap is structurally inert even when enabled: its only live caller builds price_histories from a 'price_history' key that no screener row ever contains, so every candidate gets factor_loadings=None and the portfolio_manager cap can never fire; independently, the factor basis is a fixed-seed RNG stub, not real Fama-French returns.",
+  "severity": "medium",
+  "evidence": "price_window = price_histories.get(ticker)\n        if not price_window:\n            cand[\"factor_loadings\"] = None\n            continue\n\nSole live caller autonomous_loop.py:441-445: 'price_histories = { s[\"ticker\"]: s.get(\"price_history\", []) for s in screen_data ... }; compute_candidate_loadings(screen_data, price_histories, window_days=60)' -- but screen_universe rows (screener.py:219-236) contain only ticker/current_price/avg_volume_20d/momentum_*/rsi_14/volatility_ann/sma_50_distance_pct/pct_to_52w_high/sector; grep confirms autonomous_loop.py:442 is the ONLY 'price_history' consumer and nothing ever produces it. Downstream gate (portfolio_manager.py:413-417): 'if max_factor_corr > 0 and port_factor_loadings: cand_loadings = cand.get(\"factor_loadings\"); if cand_loadings: ...' -- always short-circuits. Second break: factor_returns defaults to synthetic_ff3_returns (lines 31-37, 'rng = random.Random(seed=4081)') and no caller passes real factors; the promised Kenneth-French ingestion (phase-40.8.2) was never built.",
+  "failure_scenario": "Operator follows the documented procedure in settings.py:288-293 ('Recommended live value 0.85... quiet-log for 1-2 weeks before enabling') and flips enable_factor_loadings=True + paper_max_factor_corr=0.85. The quiet-log shows zero blocks (indistinguishable from 'no crowding'), the operator enables, and the cap still never evaluates a single candidate because every factor_loadings is None. Two same-factor bets in different GICS sectors -- the exact case this control exists for -- sail through. The pipeline test (test_phase_40_8_1_loadings_pipeline.py:75) only asserts the call string exists in autonomous_loop.py, so the empty-feed wiring is invisible to CI.",
+  "money_impact": "A believed-configurable risk control against cross-sector factor crowding is dead code: the paper book can silently concentrate into one factor bet (e.g. multiple high-momentum small-value names across sectors), taking correlated drawdowns the GICS sector cap explicitly does not catch, while the operator believes a guard is armed.",
+  "fix_sketch": "Attach the already-downloaded close series as price_history on screen_universe rows (or pass closes from the screener's yfinance frame), and fail-closed with a loud log/refusal when enable_factor_loadings is ON but factor_returns is the synthetic stub; ship real FF3 daily returns before allowing the cap to be enabled.",
+  "subsystem": "macro-factor-integrity",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace. (1) screen_universe (backend/tools/screener.py:219-240) builds rows with only ticker/current_price/avg_volume_20d/momentum_*/rsi_14/volatility_ann/sma_50_distance_pct/pct_to_52w_high/sector \u2014 never a 'price_history' key; repo-wide grep shows autonomous_loop.py:442 is the sole consumer of that key and nothing produces it. (2) Hence price_histories at autonomous_loop.py"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The claim's code mechanics are all confirmed by direct reading: screener rows (backend/tools/screener.py:219-243) never carry a 'price_history' key; the sole caller (autonomous_loop.py:441-445) builds price_histories from that missing key, so every candidate would get factor_loadings=None (factor_loadings.py:69-71) and the portfolio_manager cap (portfolio_manager.py:413-417) would always short-cir"
+   }
+  ]
+ },
+ {
+  "file": "backend/alt_data/features.py",
+  "line": 109,
+  "summary": "Congress-trade IC evaluation timestamps the signal at transaction_date, but STOCK Act disclosures only become public up to 45 days later, so measured IC is look-ahead-biased upward.",
+  "severity": "high",
+  "evidence": "aggregate_congress_features SQL (lines 107-115): \"SELECT ticker, DATE(COALESCE(transaction_date, disclosure_date, as_of_date)) AS d, ...\" -- and run_ic_evaluation correlates that same d against forward returns starting at d: \"fr = fwd.get((t, d))\" (line 393), where _fetch_forward_returns computes \"fwd = (vals[i + window_days] / vals[i] - 1.0)\" from the close ON the transaction date.",
+  "failure_scenario": "A senator buys AAPL on Jan 2 and files the disclosure Feb 10 (STOCK Act allows up to 45 days). The evaluation correlates net_usd dated Jan 2 with the Jan 2 -> Jan 9 forward return -- information no strategy could have traded on until Feb 10. Across the whole 2-year window every row is shifted ~30-45 days into the future relative to availability, systematically inflating IC/ICIR.",
+  "money_impact": "The IC TSV lands in backend/backtest/experiments/results/ (the canonical dir feeding quant_results.tsv and promote/kill decisions per CLAUDE.md). An inflated IC promotes an untradeable signal; the immutable DSR>=0.95/PBO<=0.5 gates cannot catch this because any backtest built on the same mis-timestamped feature table inherits the bias -- capital gets rotated into a signal whose real-time (disclosure-lagged) IC may be ~0, a direct live P&L drag.",
+  "fix_sketch": "Date the signal at availability, not execution: DATE(COALESCE(disclosure_date, as_of_date)) (optionally +1 trading day) as d; keep transaction_date as metadata only.",
+  "subsystem": "alt-data",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "The code defect is real and exactly as described. backend/alt_data/features.py:109 timestamps the congress signal at DATE(COALESCE(transaction_date, disclosure_date, as_of_date)) \u2014 transaction_date preferred \u2014 and congress.py:192 confirms the ingester populates transaction_date, so the fallback never masks it. run_ic_evaluation (lines 380-397) matches that date d directly against _fetch_forward_re"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level analysis is accurate (COALESCE(transaction_date,...) at features.py:109 correlated against forward returns from that same date is genuine look-ahead bias for a disclosure-lagged signal), but the path is unreachable and money-irrelevant under live config: (1) run_ic_evaluation/aggregate_congress_features have zero importers anywhere in the repo \u2014 the only entry point is the manual ph"
+   }
+  ]
+ },
+ {
+  "file": "backend/alt_data/congress.py",
+  "line": 270,
+  "summary": "ingest_recent re-inserts the ENTIRE senate transaction history (~8k rows) on every run via plain streaming insert, and the read-side dedup the code promises does not exist in the only reader, so aggregates multiply-count every trade.",
+  "severity": "medium",
+  "evidence": "upsert_trades comment (lines 262-267): \"BQ streaming has no native UPSERT; we rely on read-side dedup via (disclosure_id, MAX(as_of_date)).\" followed by \"errors = client.insert_rows_json(table_ref, rows)\" (line 270). Module docstring claims \"Re-running the ingest today will re-bump as_of_date for all matching rows instead of creating duplicates\" -- false. features.py aggregate_congress_features (lines 105-131) has no disclosure_id / ROW_NUMBER / QUALIFY dedup (grep confirmed), and fetch is the full aggregate/all_transactions.json with --since-days documented \"not yet used\".",
+  "failure_scenario": "Run python -m backend.alt_data.congress on N different days (the masterplan freshness criterion as_of_date >= CURRENT_DATE()-30 explicitly invites re-runs). Each historical transaction now has up to N physical rows. COUNTIF(...) and SUM(mid_usd) in the feature SQL count all copies; trades disclosed later have fewer copies than older ones, so within one transaction-date cross-section different trades carry different multipliers -- net_usd ranks flip, buy_count/sell_count are inflated N-fold.",
+  "money_impact": "Corrupted per-(ticker,date) feature values feed the IC evaluation -> wrong promote/kill decision on the congress signal; any future consumer of alt_congress_trades trusting the documented disclosure_id idempotency silently gets inflated notionals; table grows ~8k rows per run (silent data corruption/cost growth).",
+  "fix_sketch": "Either make the reader honor the stated contract (QUALIFY ROW_NUMBER() OVER (PARTITION BY disclosure_id ORDER BY as_of_date DESC) = 1) or make ingest delta-only / a real MERGE into the target.",
+  "subsystem": "alt-data",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms every element. Write side: congress.py fetches the full senate history each run (fetch_disclosures, --since-days documented 'not yet used' at line 312), stamps as_of_date=today (normalize line 184), and inserts via plain client.insert_rows_json(table_ref, rows) at line 270 with no row_ids and no MERGE \u2014 despite the upsert_trades docstring claiming 'MERGE rows into alt_congress_"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level claim is accurate: congress.py:270 does plain insert_rows_json of the full ~8k-row Senate history with as_of_date=today on every run, the docstring's idempotency promise (lines 11-13) is false, and the only reader (features.py aggregate_congress_features, lines 105-131) has no disclosure_id/ROW_NUMBER/QUALIFY dedup, so reruns would multiply-count aggregates. However, under the curre"
+   }
+  ]
+ },
+ {
+  "file": "backend/alt_data/features.py",
+  "line": 315,
+  "summary": "Forward returns for the IC evaluation are computed from UNADJUSTED closes (auto_adjust=False, raw 'Close'), so any split inside the rolling 2-year window produces catastrophic fake returns and dividends are systematically excluded.",
+  "severity": "medium",
+  "evidence": "df = yf.download(tickers=..., start=start, end=end_plus, progress=False, auto_adjust=False, group_by=\"ticker\") (lines 310-317), then closes = df[t][\"Close\"].dropna() and \"fwd = (vals[i + window_days] / vals[i] - 1.0) if vals[i] > 0 else float(\\\"nan\\\")\" (line 331).",
+  "failure_scenario": "AVGO executed a 10:1 split 2024-07-15, inside the start = today-2y window (2024-07-11 onward as of 2026-07-10); senators trade AVGO frequently. Every signal date whose window_days horizon crosses the split gets fwd ~= -90%, an extreme false observation that dominates the Spearman rank for that cross-section; SMCI 10:1 (2024-10-01) and other in-window splits do the same. All dividend payers' returns are understated (raw Close, not Adj Close).",
+  "money_impact": "Forward-return leg of the IC is wrong for affected dates -> IC/ICIR recorded in the canonical results TSV are corrupted noise -> wrong signal evaluation feeding promotion decisions.",
+  "fix_sketch": "Pass auto_adjust=True (Close becomes split+dividend adjusted) or read the 'Adj Close' column.",
+  "subsystem": "alt-data",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "Code mechanics fully confirmed: backend/alt_data/features.py:310-317 downloads with auto_adjust=False, lines 324-326 read raw 'Close' (not 'Adj Close'), and line 331 computes fwd = vals[i+window_days]/vals[i] - 1.0 with no split/dividend adjustment anywhere; an in-window 10:1 split (e.g. AVGO 2024-07-15, inside the today-2y start) would produce ~-90% fake forward returns that corrupt the Spearman "
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code defect is genuine as written: backend/alt_data/features.py:310-331 fetches yfinance data with auto_adjust=False and computes forward returns from raw unadjusted Close, so any in-window split (e.g. AVGO 10:1 2024-07-15, SMCI 10:1 2024-10-01) yields catastrophic fake ~-90% returns and dividends are excluded from all returns. HOWEVER, the path is dead under live configuration: run_ic_evaluat"
+   }
+  ]
+ },
+ {
+  "file": "backend/alt_data/congress.py",
+  "line": 104,
+  "summary": "The top STOCK Act amount bracket ('Over $50,000,000', and any non-'lo - hi' amount string) parses to (None, None), which the feature SQL coalesces to mid_usd = 0 -- the largest-conviction congressional trades are silently zeroed out of the signal.",
+  "severity": "medium",
+  "evidence": "_parse_amount_range (lines 92-107): after stripping '$'/',', only 'lo - hi' or a bare float parse; 'Over 50000000' hits \"v = float(s)\" -> ValueError -> \"return None, None\". Senate JSON has no numeric amount_min/amount_max fallback fields, and features.py line 111 does \"COALESCE((amount_min + amount_max) / 2, amount_min, amount_max, 0) AS mid_usd\" -> 0.",
+  "failure_scenario": "A senator files a 'Over $50,000,000' purchase of ticker X (the highest STOCK Act disclosure bracket). normalize() stores amount_min=amount_max=NULL; aggregate_congress_features assigns the trade mid_usd=0, so it contributes nothing to net_usd while a $1,001-$15,000 trade in ticker Y contributes ~$8k -- the cross-sectional ranking inverts the true conviction ordering.",
+  "money_impact": "Exactly the most informative disclosures are stripped from the net_usd signal magnitude -> the evaluated IC understates the signal's real strength -> a genuinely profitable alt-signal can be killed at the promotion decision (the mirror-image error of the look-ahead finding, both distorting the same decision).",
+  "fix_sketch": "Add a branch for 'Over $X' / '$X +' patterns: extract the number and return (X, X) so mid_usd reflects at least the bracket floor.",
+  "subsystem": "alt-data",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CODE TRACE CONFIRMED BY EXECUTION. (1) backend/alt_data/congress.py:92-107 `_parse_amount_range`: for 'Over $50,000,000', line 96 strips to 'Over 50000000'; no '-' so the partition branch is skipped; line 104 `v = float(s)` raises ValueError; line 107 returns (None, None). Verified by running the actual function: `_parse_amount_range('Over $50,000,000') -> (None, None)` while `'$1,001 - $15,000' -"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code defect itself is verified real: _parse_amount_range (backend/alt_data/congress.py:92-107) does return (None, None) for 'Over $50,000,000' (no '-' after stripping, float() raises), the Senate Stock Watcher JSON lacks numeric amount_min/amount_max fallback fields, and features.py:111 coalesces NULL+NULL to mid_usd=0. However, under LIVE configuration the entire congress alt-data path is dar"
+   }
+  ]
+ },
+ {
+  "file": "backend/alt_data/f13.py",
+  "line": 290,
+  "summary": "13F <value> has been reported in FULL dollars since EDGAR's January 2023 13F change, but the ingester stores it as value_usd_thousands with a schema description asserting thousands -- every row this code can fetch in 2026 is unit-mislabeled by 1000x.",
+  "severity": "medium",
+  "evidence": "parse_information_table: '\"value_usd_thousands\": _find_int(it, \"value\"),' (line 290); DDL: 'value_usd_thousands INT64' (line 65) with table description 'value_usd_thousands is EDGAR <value> in thousands USD' (line 78). The ingester fetches only the LATEST 13F-HR filings (fetch_13f_submissions last_n=1 default), i.e. exclusively post-2023 filings where the SEC requires round-dollar values (thousands-rounding was eliminated effective 2023-01-03).",
+  "failure_scenario": "python -m backend.alt_data.f13 (default Berkshire CIK) ingests the latest 13F-HR: a $1.0B position arrives as <value>1000000000</value> and is stored as value_usd_thousands=1000000000, i.e. '$1.0 trillion' per the documented unit. Any consumer honoring the column contract (value * 1000) overstates institutional position notional by 3 orders of magnitude; a later pre-2023 backfill would silently mix true-thousands rows with mislabeled full-dollar rows in the same column.",
+  "money_impact": "Wrong-unit money data persisted at write time: any ownership-delta / institutional-flow feature, LLM agent, or display built on alt_13f_holdings per its schema produces values 1000x off -- classic bps-vs-% class corruption of a future signal input (aggregate_13f_features already SUMs this column into the results TSV).",
+  "fix_sketch": "Store <value> as value_usd (rename column + description), or divide by 1000 on ingest only for pre-2023 period_of_report filings if the thousands column name must be kept.",
+  "subsystem": "alt-data",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by direct code trace. backend/alt_data/f13.py:290 stores raw EDGAR <value> via _find_int with no scaling into a column named value_usd_thousands, and the DDL (lines 65, 78) persists a table description asserting the value is \"in thousands USD\". fetch_13f_submissions (lines 146-179) walks EDGAR's newest-first filings.recent list and stops at last_n (default 1), so every filing reachable i"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level defect is genuine: post-2023 EDGAR 13F <value> is full dollars, and f13.py:290 stores it into value_usd_thousands (DDL description asserts thousands; confirmed live in BQ table pyfinagent_data.alt_13f_holdings). However, the path is unreachable under live configuration: (1) backend/alt_data/f13.py and features.py are imported by NOTHING in the running app \u2014 CLI-only modules; (2) no "
+   }
+  ]
+ },
+ {
+  "file": "backend/econ_calendar/sources/finnhub_earnings.py",
+  "line": 115,
+  "summary": "Every earnings event is stamped scheduled_at=13:30 UTC regardless of the Finnhub 'hour' field, so after-market-close (amc) reporters are timestamped ~7 hours before their actual release, and the live PEAD money path treats them as already-reported on the morning of their earnings day.",
+  "severity": "high",
+  "evidence": "finnhub_earnings.py:112-115:\n            # Conservative: assume 13:30 UTC (09:30 ET open) for bmo / amc\n            # timing so downstream code has a sortable timestamp; intraday\n            # treated as 17:00 UTC mid-session.\n            scheduled_at = f\"{report_date}T13:30:00+00:00\"\n(the promised 17:00 UTC intraday case is never implemented; hour is only stored as `window`)\n\nConsumer backend/services/pead_signal.py:336-341:\n            \"SELECT ticker FROM `pyfinagent_data.calendar_events` \"\n            \"WHERE event_type = 'earnings' \"\n            \"AND scheduled_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY) \"\n            \"AND scheduled_at <= CURRENT_TIMESTAMP() \"\n\npead_signal.py:257-262 then fetches the LATEST 8-K with no recency check:\n        latest_8k = await _fetch_recent_8k(http, cik)\n        ...\n        if quarter_end is None:\n            quarter_end = latest_8k.get(\"filing_date\") ...\n\nand screener.py:325-326 applies it: `new_score = apply_pead_to_score(score, stock.get(\"ticker\"), pead_signals)` where apply_pead_to_score returns None (candidate FILTERED OUT) on negative_surprise < -0.3 or boosts base_score up to +30%.",
+  "failure_scenario": "Ticker X is scheduled to report AMC today (Finnhub hour='amc', actual release ~21:00 UTC). The calendar row is written with scheduled_at=13:30Z. The daily autonomous cycle runs ~14:00 UTC; fetch_pead_signals_for_recent_reporters sees scheduled_at (13:30Z) <= NOW and includes X as a 'recent reporter'. compute_pead_signal_for_ticker fetches the most recent item-2.02 8-K -- which is LAST quarter's press release since today's isn't filed yet -- and scores it (or serves the ~90-day-old cached signal for that quarter_end). apply_pead_to_score then boosts X's screener score up to +30% or hard-filters it based on the previous quarter's tone, hours before today's binary earnings event.",
+  "money_impact": "Wrong buy-candidate ranking and wrong candidate elimination on the exact day of maximum single-name event risk: positions can be initiated into an imminent earnings print on a stale positive signal (or valid candidates dropped on a stale negative one). pead_signal is a live-enabled alpha overlay (it was one of the SecretStr-dead overlays explicitly revived in phase-51.1), so this feeds real paper-trading decisions.",
+  "fix_sketch": "Map the hour field to a real time when building scheduled_at: bmo -> 12:00Z/13:30Z, amc -> 21:30Z (after 16:00 ET close in both DST regimes), dmh/missing -> 17:00Z as the comment already claims. Alternatively (defense in depth) have the PEAD query exclude rows with window='post_close' whose scheduled_at date is today until after the close, or add a filing_date >= scheduled_at-1d recency check on the 8-K in compute_pead_signal_for_ticker.",
+  "subsystem": "news-econ-intel",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Every link in the claimed chain is confirmed by direct code trace. (1) finnhub_earnings.py:110-115 reads the Finnhub `hour` field but then unconditionally stamps `scheduled_at = f\"{report_date}T13:30:00+00:00\"` for all of bmo/amc/dmh/missing; the comment's 17:00Z intraday case is never implemented and `hour` survives only as the `window` label. (2) watcher.py normalize_event (line 68/83) passes sc"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code defect is real as written: finnhub_earnings.py:115 hardcodes scheduled_at=13:30 UTC for all earnings events (amc included), and the PEAD consumer (pead_signal.py:336-344) would treat AMC reporters as already-reported ~7h early, fetching the prior quarter's 8-K. However, the path is unreachable under live config: (1) the calendar ingestion pipeline is never scheduled \u2014 econ_calendar.watche"
+   }
+  ]
+ },
+ {
+  "file": "backend/econ_calendar/sources/fred_releases.py",
+  "line": 52,
+  "summary": "The FRED releases/dates request omits include_release_dates_with_no_data=true, and FRED's documented default (false) excludes future release dates -- so with the production forward-looking window (days_backward=0, days_forward=90) the macro-release calendar source silently returns ~zero events, permanently.",
+  "severity": "medium",
+  "evidence": "fred_releases.py:52-58:\n        params = {\n            \"api_key\": api_key,\n            \"file_type\": \"json\",\n            \"realtime_start\": from_date.isoformat(),\n            \"realtime_end\": to_date.isoformat(),\n            \"limit\": 1000,\n        }\n\nCaller window is strictly future: backend/econ_calendar/watcher.py:135-151 `run_once(days_forward=90, days_backward=0, ...)` -> `from_date = today - timedelta(days=days_backward)`; the only invoker scripts/smoketest/phase6_e2e.py:180 calls `fetch_calendar(days_forward=days_forward, days_backward=0)`.\n\nFRED API docs for fred/releases/dates (fred.stlouisfed.org/docs/api/fred/releases_dates.html, mirrored in the fredr reference): include_release_dates_with_no_data -- \"The default value 'false' excludes release dates that do not have data. In particular, this excludes future release dates which may be available in the FRED release calendar.\" Verified via web search 2026-07-10.",
+  "failure_scenario": "run_once() computes from_date=today, to_date=today+90 and calls FredReleasesSource.fetch. FRED, with the default include_release_dates_with_no_data=false, returns only release dates that already have data -- i.e. nothing in a future-only window (at most today's already-published prints). The generator yields ~0 events, no exception is raised, no warning is logged; the CalendarFetchReport simply shows fred_releases contributing 0 among the finnhub earnings rows, and calendar_events never receives any cpi/ppi/nfp/gdp/retail_sales/unemployment rows for upcoming dates.",
+  "money_impact": "Silent data loss: the forward macro-event calendar (CPI/PPI/NFP/GDP prints) that phase-6.6 built for event-risk awareness never exists in BigQuery. Any current or future gating that reads calendar_events for macro event types (e.g. avoiding new positions into a CPI/NFP print, macro blackout logic) operates on a false 'no upcoming events' view forever, and the failure is invisible because the earnings source still populates the table.",
+  "fix_sketch": "Add \"include_release_dates_with_no_data\": \"true\" to the params dict (optionally sort_order=asc), then verify a known future CPI/NFP date appears in the parsed events; consider logging a WARNING when a non-empty whitelist query returns zero release_dates in a forward window so a regression is not silent again.",
+  "subsystem": "news-econ-intel",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by code trace plus independent verification of the FRED API contract. (1) fred_releases.py:52-58 builds params with only api_key/file_type/realtime_start/realtime_end/limit \u2014 include_release_dates_with_no_data is absent. (2) The sole invoker chain is scripts/smoketest/phase6_e2e.py:180 fetch_calendar(days_forward=N, days_backward=0) -> watcher.py:150-151 from_date=today, to_date=today+N "
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level defect is plausibly genuine: fred_releases.py:52-58 omits include_release_dates_with_no_data=true, and with the future-only window (days_backward=0) FRED's default would exclude future release dates, yielding ~0 macro events. However, under the CURRENT live configuration this path is dark and money-irrelevant on three independent grounds: (1) econ_calendar.watcher.run_once is never "
+   }
+  ]
+ },
+ {
+  "file": "backend/services/autonomous_loop.py",
+  "line": 2693,
+  "summary": "Step 9 learn-from-closed-trades is dead for every sell-close: SELL rows' created_at is always tz-aware ISO, and OutcomeTracker.evaluate_recommendation subtracts an aware rec_date from a naive now -> TypeError, swallowed at DEBUG level, so neither outcome_tracking nor agent_memories is ever written.",
+  "severity": "medium",
+  "evidence": "autonomous_loop.py:2683-2693:\n            analysis_date = trade.get(\"analysis_id\") or trade.get(\"created_at\", \"\")   # SELL rows write analysis_id=\"\" (paper_trader.py:436) -> created_at, an aware ISO (\"...+00:00\", paper_trader.py:407,438)\n            ...\n            price_at_rec = trade.get(\"price\", 0.0)   # the SELL fill price, not the price at recommendation\n            outcome = tracker.evaluate_recommendation(\n                ticker, str(analysis_date), recommendation, price_at_rec\n            )\noutcome_tracker.py:47-50:\n        rec_date = datetime.fromisoformat(analysis_date)   # aware (offset present)\n        holding_days = (datetime.now(timezone.utc).replace(tzinfo=None) - rec_date).days   # naive - aware -> TypeError\nautonomous_loop.py:2794-2795:\n        except Exception as e:\n            logger.debug(f\"Outcome evaluation failed for {ticker}: {e}\")",
+  "failure_scenario": "Any stop-loss or signal-flip SELL: created_at ('2026-07-10T...+00:00', whether returned by BQ as aware datetime then .isoformat()'d, or as string) parses to an AWARE datetime; the naive-minus-aware subtraction raises TypeError inside evaluate_recommendation; the per-ticker except logs at DEBUG and continues. Because the exception bypasses the `if outcome is None:` branch, even the phase-35.1/47.7 flag-gated fallback writer (which correctly reads realized_pnl_pct) never executes. Nothing lands in outcome_tracking or agent_memories.",
+  "money_impact": "The advertised learning loop (outcomes -> reflections -> BM25 memories -> future prompts) is silently dead on the production path: realized P&L never feeds back, get_performance_stats (win_rate/avg_return/benchmark_beat_rate over the outcomes table, bigquery_client.py:460-476) and MetaCoordinator.agent_accuracy run on stale/empty data \u2014 the exact 'agent_memories empty across 36+ days' symptom phases 30.3/31.1/35.1 claimed to close. Even if the tz bug were fixed, price_at_rec = the sell price would record ~0% return for every close, poisoning win_rate (counted as losses) instead of using realized_pnl_pct.",
+  "fix_sketch": "Normalize tz in evaluate_recommendation (parse then .replace(tzinfo=None) or use aware now), and in _learn_from_closed_trades pass the trade's realized_pnl_pct/entry price instead of the sell price as price_at_rec (or route sell-closes exclusively through the realized-pnl fallback writer).",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real via full code trace + runtime reproduction.\n\nChain: (1) Step 9 runs live \u2014 autonomous_loop.py:1314-1317 calls _learn_from_closed_trades whenever closed_tickers is non-empty (stop-loss / signal-flip SELLs). (2) SELL rows are written with analysis_id=\"\" and created_at=datetime.now(timezone.utc).isoformat() (paper_trader.py:407,436,438), i.e. an AWARE ISO string \"...+00:00\". (3) Dispat"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The underlying CODE defect is genuine and the path is REACHABLE (this is not dead/never-scheduled code): Step 9 `_learn_from_closed_trades` is wired into the live daily cycle at autonomous_loop.py:1317 and runs on every sell-close; `evaluate_recommendation` is called unconditionally at line 2693 (before the paper_learn_loop_enabled gate at 2709); SELL rows write `created_at=datetime.now(timezone.u"
+   }
+  ]
+ },
+ {
+  "file": "backend/api/cost_budget_api.py",
+  "line": 83,
+  "summary": "_fetch_llm_tokens_today queries columns input_tokens/output_tokens that do not exist in pyfinagent_data.llm_call_log (real columns: input_tok/output_tok), so the query errors on every call and the fail-open except returns (None, None) forever.",
+  "severity": "medium",
+  "evidence": "cost_budget_api.py:81-88:\n    sql = f\"\"\"\n      SELECT\n        COALESCE(SUM(input_tokens) + SUM(output_tokens), 0) AS tokens,\n        COUNT(*) AS calls\n      FROM `{project}.pyfinagent_data.llm_call_log`\n      WHERE DATE(ts) = CURRENT_DATE()\n    \"\"\"\nLive schema (get_table pyfinagent_data.llm_call_log): 'input_tok': 'INTEGER', 'output_tok': 'INTEGER' -- there is no input_tokens/output_tokens. Migration scripts/migrations/add_llm_call_log.py:46-47 confirms `input_tok INT64, output_tok INT64`. The except at :93-95 logs a warning and returns (None, None).",
+  "failure_scenario": "Every GET /api/cost-budget/today and /api/cost-budget/status executes the bad SQL, BigQuery raises 'Unrecognized name: input_tokens', the exception is swallowed, and llm_tokens_today / cost_per_llm_call_usd render as null on the budget tile permanently. Because calls also comes from the same failed query, cost_per_llm_call_usd can never be computed even when daily spend is nonzero.",
+  "money_impact": "The LLM token-burn / cost-per-call observability metric is silently dead -- the same silent-failure class that let the SecretStr bug kill 4 alpha overlays for weeks. Operator cannot see token spend spikes from the budget tile, weakening the $5/day / $50/month cap oversight.",
+  "fix_sketch": "Rename to SUM(input_tok) + SUM(output_tok) (optionally + cache columns), and consider surfacing the fail-open reason in the response instead of a bare None so schema drift is visible.",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CONFIRMED via code trace. cost_budget_api.py:82-83 queries `COALESCE(SUM(input_tokens) + SUM(output_tokens), 0)` against `pyfinagent_data.llm_call_log`, but those columns do not exist. Three independent corroborations show the real columns are input_tok/output_tok: (1) migration DDL add_llm_call_log.py:46-47 defines `input_tok INT64, output_tok INT64`; (2) the canonical writer backend/services/obs"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code facts are correct: cost_budget_api.py:83 queries SUM(input_tokens)+SUM(output_tokens), but the live llm_call_log schema uses input_tok/output_tok (confirmed via migration DDL scripts/migrations/add_llm_call_log.py:46-47 and its column-comment header lines 14-15; no input_tokens/output_tokens column exists). So the query fails BQ compilation, the except at lines 93-95 swallows it, and _fet"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/llm_client.py",
+  "line": 895,
+  "summary": "GeminiClient.generate_content fail-opens to an empty LLMResponse when the bundle/client is None, and make_client swallows Gemini-direct init failures then constructs GeminiClient around a None vertex_model \u2014 so a missing/failed GEMINI_API_KEY silently turns the lite-analyzer money path into a HOLD/confidence-0 generator instead of raising.",
+  "severity": "medium",
+  "evidence": "llm_client.py:892-895: `bundle = self._model\\nif bundle is None or getattr(bundle, \"client\", None) is None:\\n    logger.warning(\"[GeminiClient] no google-genai client; returning empty LLMResponse\")\\n    return LLMResponse(text=\"\", thoughts=\"\", usage_metadata=UsageMeta())`. Entry chain: make_client:1960 `if model_name.startswith(\"gemini-\") and gemini_key:` (branch skipped when key empty) and :1972-1975 `except Exception as exc: logger.warning(\"[LLMClient] Gemini-direct init failed (%r); falling through\", exc)`; branch 5 (:2042-2044) returns `GeminiClient(model=vertex_model, ...)` \u2014 and the live lite path passes `vertex_model=None` (autonomous_loop.py ~2418: `client = make_client(model_name, vertex_model=None, settings=settings)`), whose empty text then parses to `analysis = {\"action\": \"HOLD\", \"confidence\": 0, \"score\": 5, \"reason\": \"No JSON in trader response\"}`.",
+  "failure_scenario": "Operator sets gemini_model to a gemini-* model (the phase-27.3 dispatch sends the lite safety net to _run_gemini_analysis) but GEMINI_API_KEY is unset in that process's env (fresh checkout, cron env without .env sourcing, key rotation). Every trader and risk-judge call returns \"\" with only a log WARNING; every ticker persists as HOLD/conf-0. Contrast: the claude-* branch hard-raises ValueError when its key is missing \u2014 the gemini branch is asymmetrically silent.",
+  "money_impact": "The engine stops initiating BUYs and re-evaluations produce fabricated neutral analyses that persist as real rows \u2014 the exact synthetic-HOLD defect family that destroyed live BUY consensuses on cycle 0725d2aa. Detection relies solely on the downstream >=3-degraded heuristic (phase-56.2) rather than a hard failure at the source, so partial-cycle damage lands before any page.",
+  "money_impact_note": null,
+  "fix_sketch": "In make_client, raise ValueError for gemini-* when both gemini_key and vertex_model are absent (mirror the claude-*/gpt-* branches); reserve the empty-LLMResponse shim for explicit test contexts, or have the empty response carry thoughts='errored: no client' so the 61.2 retry/degraded classification catches it.",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace fully confirms the claim. (1) llm_client.py:892-895 fail-opens: `bundle = self._model; if bundle is None or getattr(bundle,\"client\",None) is None: ...return LLMResponse(text=\"\", ...)`. (2) GeminiClient.__init__ (756-767) does `self._model = model`, so a None passthrough leaves self._model=None. (3) make_client branch 1 (line 1960) `if model_name.startswith(\"gemini-\") and gemini_key:` is"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The quoted code exists exactly as described: GeminiClient.generate_content fail-opens to an empty LLMResponse when bundle/client is None (llm_client.py:892-895), make_client swallows Gemini-direct init failures (1972-1975), and branch 5 returns GeminiClient(model=vertex_model) with a possibly-None bundle (2042-2044). But under the CURRENT live configuration the money-relevant path is NOT reachable"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/llm_client.py",
+  "line": 1167,
+  "summary": "OpenAIClient's input-truncation and o-series detection both use the raw self.model_name, which for the GitHub Models route is the namespaced id ('openai/gpt-4.1', 'openai/o3') \u2014 so the truncation table never matches (oversized prompts 413) and o-series calls send max_tokens+temperature instead of max_completion_tokens (400), breaking the designated fallback rail exactly when direct keys are unavailable.",
+  "severity": "medium",
+  "evidence": "make_client:2032-2039 constructs the GitHub route with the namespaced id: `api_model_id = _GITHUB_MODELS_ID_MAP.get(model_name, model_name) ... return OpenAIClient(model_name=api_model_id, api_key=github_token, base_url=\"https://models.github.ai/inference\")`. llm_client.py:1167: `_max_chars = _MODEL_MAX_INPUT_CHARS.get(self.model_name)` \u2014 dict keys are canonical (`\"gpt-4.1\": 26_000`, :533), so 'openai/gpt-4.1' returns None and the 413-safety-net comment (:1164-1166 'catches any call ... that would otherwise get a 413 / tokens_limit_reached from GitHub Models') never fires; the module-level helper get_model_max_input_chars (:571) normalizes via _normalize_model_name but this inline check does not. llm_client.py:1187: `_is_reasoning = self.model_name.startswith((\"o1\", \"o3\", \"o4\"))` \u2014 'openai/o1' fails the prefix, so :1196-1197 sends `kwargs[\"max_tokens\"] = max_tokens; kwargs[\"temperature\"] = temperature`, which o-series rejects.",
+  "failure_scenario": "Anthropic/OpenAI direct keys are absent or removed (the recorded credit-exhaustion contingency this rail exists for) while GITHUB_TOKEN is set: make_client routes catalog models to GitHub. Any debate/synthesis prompt over ~8K tokens gets a 413 instead of being truncated, and any o-series model 400s on the first call \u2014 the fallback aggregator fails on precisely the calls it was built to rescue.",
+  "money_impact": "During a direct-API outage the backup analysis rail errors instead of degrading gracefully, so tickers fall to synthetic fallbacks or the cycle aborts \u2014 lost/killed signals on the days the system is already degraded.",
+  "fix_sketch": "Use `_MODEL_MAX_INPUT_CHARS.get(_normalize_model_name(self.model_name))` (or call get_model_max_input_chars) at :1167, and compute _is_reasoning on the normalized name at :1187.",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED by code trace. The GitHub Models route in make_client (llm_client.py:2032-2039) sets self.model_name to the namespaced id: api_model_id = _GITHUB_MODELS_ID_MAP.get(model_name, model_name) maps \"gpt-4.1\"->\"openai/gpt-4.1\", \"o1\"->\"openai/o1\", \"o3\"->\"openai/o3\" (map at 583-599), and OpenAIClient.__init__ (1126) stores it verbatim. Both inline checks then use this raw namespaced name:\\n\\n(1)"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level defect is genuine and accurately described. At backend/agents/llm_client.py:1167 the inline truncation lookup `_MODEL_MAX_INPUT_CHARS.get(self.model_name)` uses the raw model name (dict keys are canonical, e.g. \"gpt-4.1\"), so a GitHub-namespaced id like \"openai/gpt-4.1\" returns None and the 413 safety net never fires; at :1187 `startswith((\"o1\",\"o3\",\"o4\"))` fails on \"openai/o1\", so "
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/multi_agent_orchestrator.py",
+  "line": 1238,
+  "summary": "The max_tokens/tool_use retry in _call_agent_with_tools passes `thinking=_thinking_arg` while `_extra_kwargs` already contains 'thinking', raising TypeError (duplicate keyword) on every reachable model branch -- the recovery path crashes the whole MAS flow instead of retrying; even if it succeeded, the `continue` discards the retry response.",
+  "severity": "medium",
+  "evidence": "Lines 1117-1119 put thinking into the kwargs: `if _thinking_arg is not None: _extra_kwargs[\"thinking\"] = _thinking_arg` (Opus-4.8 branch sets `_thinking_arg = {\"type\": \"adaptive\"}`). The retry at 1232-1240 then passes it twice: `response = client.messages.create(model=agent_config.model, max_tokens=_retry_max, system=agent_config.system_prompt, tools=AGENT_TOOLS, messages=messages, thinking=_thinking_arg, **_extra_kwargs)` -> TypeError('got multiple values for keyword argument thinking'). On the fable-5 branch `thinking=None` is passed explicitly, which the code's own phase-67.6 comment says the API 400s on. This create is NOT inside the try/except that wraps the top-of-loop create (lines 1074-1148), so the exception propagates. Additionally the `continue` at 1245 jumps to the next turn, whose first statement re-calls messages.create, overwriting the retry response.",
+  "failure_scenario": "mas_qa (claude-opus-4-8, effort=max) answers a complex portfolio/harness question; adaptive thinking + a long tool_use exhausts the 16384-token floor, so stop_reason == 'max_tokens' with a tool_use tail -- exactly the case this branch was written for (phase-4.14.4 MF-26). The retry create raises TypeError before any network call; it propagates through run_in_executor into _execute_full_flow, and execute_classified_sync returns 'Error: ...' as the Slack response. In _iterative_parallel_research the agent's entire finding becomes an error string.",
+  "money_impact": "Kills Layer-2 MAS analyses (portfolio, P&L, harness-state money questions over Slack) precisely on the longest/most complex answers, replacing them with error text; run_orchestrated_round harness verifications hit the same crash. The truncation-recovery path has been broken since the thinking kwarg was moved into _extra_kwargs (phase-67.6), so every max_tokens+tool_use event is an unhandled crash rather than a retried turn.",
+  "fix_sketch": "Remove `thinking=_thinking_arg` from the retry call (it is already inside `_extra_kwargs` when applicable), and process the retry `response` directly (re-dispatch on its stop_reason) instead of `continue`, which discards it.",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real by code trace. In backend/agents/multi_agent_orchestrator.py, lines 1116-1119 fold the thinking config into _extra_kwargs for every non-fable branch: `if _thinking_arg is not None: _extra_kwargs[\"thinking\"] = _thinking_arg`. The max_tokens/tool_use retry at lines 1232-1240 then passes it a SECOND time: `thinking=_thinking_arg, **_extra_kwargs` \u2014 where **_extra_kwargs already carries"
+   },
+   {
+    "real": false,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "The CODE defect is genuine: multi_agent_orchestrator.py:1118-1119 writes _extra_kwargs[\"thinking\"]=_thinking_arg for every non-fable claude branch, then the max_tokens/tool_use retry at 1232-1240 passes thinking=_thinking_arg AND **_extra_kwargs, producing TypeError('got multiple values for keyword argument thinking'). This is true for both live Layer-2 branches: opus-4-8 (mas_main/mas_qa, adaptiv"
+   }
+  ]
+ },
+ {
+  "file": "backend/api/paper_trading.py",
+  "line": 811,
+  "summary": "The /learnings 'reconciliation_divergences' section computes drift_pct as (exit_price - entry_price)/entry_price -- the round-trip RETURN -- and mislabels entry price as 'sim_fill' and exit price as 'paper_fill', so it measures no sim-vs-paper fill divergence at all.",
+  "severity": "medium",
+  "evidence": "paper_trading.py:806-819:\n    entry_price = float(rt.get(\"entry_price\") or 0.0)\n    exit_price = float(rt.get(\"exit_price\") or 0.0)\n    ...\n    drift_pct = (exit_price - entry_price) / entry_price * 100.0\n    divergences.append({\n        \"symbol\": rt.get(\"ticker\"),\n        \"side\": \"sell\",\n        \"paper_fill\": round(exit_price, 4),\n        \"sim_fill\": round(entry_price, 4),\n        \"drift_pct\": round(drift_pct, 4),",
+  "failure_scenario": "Once finding 1 (the STRING/TIMESTAMP query bug that currently makes this list always empty) is fixed, every closed trade appears as a 'reconciliation divergence': a +20% winner renders as 20% drift between 'paper_fill' and 'sim_fill', sorted to the top of the list (sort key is abs(drift_pct)). The endpoint's stated purpose -- paper-vs-simulated execution drift per round trip -- reports pure trade returns instead.",
+  "money_impact": "Wrong display of money data on the Virtual Fund Learnings page: it fabricates large fill-quality/reconciliation problems exactly proportional to trade P&L, which would mislead the operator into distrusting fills or the reconciliation pipeline (or conversely masks real fill drift behind return noise).",
+  "fix_sketch": "Compute drift against an actual sim reference (e.g., yfinance adj-close used by backend/services/reconciliation.py) vs. the paper fill for the SAME side/timestamp, or drop the section until a real sim-fill source exists -- do not derive it from entry vs exit price of the same round trip.",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The claim is an ACCURATE reading of the source, verified line-by-line. paper_trading.py:811 computes `drift_pct = (exit_price - entry_price) / entry_price * 100.0`, which is exactly the round-trip return (identical formula to realized_pnl_pct in paper_round_trips.py:88-89). Lines 815-816 then emit `\"paper_fill\": exit_price, \"sim_fill\": entry_price`. pair_round_trips confirms both entry_price (BUY "
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The claim accurately reads the code: backend/api/paper_trading.py:806-819 computes drift_pct = (exit_price-entry_price)/entry_price*100 (the round-trip RETURN) and mislabels entry as sim_fill / exit as paper_fill, so it measures trade P&L, not sim-vs-paper fill divergence. As a code-logic reading, the claim is correct. However, under the CURRENT live configuration this path fails the reachability "
+   }
+  ]
+ },
+ {
+  "file": "backend/backtest/quant_optimizer.py",
+  "line": 550,
+  "summary": "The optimizer proposes ~13 of 24 parameters that the engine never reads (screen weights are never applied; vol/trailing/blend keys are written to _strategy_params which has no engine readers), and `engine.strategy = params[\"strategy\"]` bypasses the STRATEGY_REGISTRY guard so strategy='blend' silently runs triple_barrier while results are recorded as 'blend'.",
+  "severity": "medium",
+  "evidence": "_PARAM_BOUNDS includes momentum_weight/rsi_weight/volatility_weight/sma_weight, vol_barrier_multiplier, target_annual_vol, trailing_trigger_pct, trailing_distance_pct, tb/qm/mr/fm_weight; AVAILABLE_STRATEGIES includes 'blend'. _apply_params_to_engine (lines 534-569) never handles the 4 screen weights at all (the engine reads them from `self._strategy_params` in _run_window:397-401, which never contains them), and writes the others into `engine._strategy_params` \u2014 grep confirms backtest_engine.py contains no reader for any of them; rotation_runner.py:21-22 documents 'DEAD-KEY HONESTY: ... written but the engine ignores them (engine readers reverted in 9fbd9cd6)'. Line 550: `engine.strategy = params[\"strategy\"]` (the registry fallback only exists in __init__); _compute_label then does `STRATEGY_REGISTRY.get(self.strategy, \"_compute_triple_barrier_label\")` -> triple_barrier for 'blend'.",
+  "failure_scenario": "After a warm-start (best_sharpe loaded from a stale optimizer_best.json), the first trial 'momentum_weight: 0.4 -> 0.35' reruns a bit-identical backtest whose fresh Sharpe differs from the stale stored value -> delta>0 -> KEEP attributes a phantom improvement to a knob that did nothing. A 'strategy: quality_momentum -> blend' trial actually runs triple_barrier; if TB beats QM it is KEPT and optimizer_best.json records strategy='blend' \u2014 rotation_runner's make_engine then raises `unknown strategy 'blend'`, and all TSV/insights rows carry false attribution. In steady state, dead-param trials produce delta==0 -> discard, inflating consecutive_discards toward the plateau lock (threshold 10) that halts optimization pending operator action.",
+  "money_impact": "Roughly half the optimizer's search budget (each trial = a full multi-minute backtest) is burned on no-ops; quant_results.tsv accumulates phantom 'tested, no improvement' evidence for trailing stops / vol targeting (documented as +0.1-0.4 Sharpe levers) that misleads the LLM proposer and operators into abandoning genuinely promising directions; a kept 'blend' poisons warm-starts and crashes rotation backtests.",
+  "fix_sketch": "Remove dead keys from _PARAM_BOUNDS/_CATEGORICAL_PARAMS (or restore engine readers), validate strategy against STRATEGY_REGISTRY in _apply_params_to_engine, and re-run the baseline instead of trusting warm-start Sharpe for delta comparisons.",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Direct code trace confirms every sub-claim; I actively tried to refute it and could not.\n\nDECISIVE LINES:\n1) quant_optimizer.py:534-569 (_apply_params_to_engine) enumerates exactly which proposed params reach the engine: holding_days/mr_holding_days/tp_pct/sl_pct/frac_diff_d/top_n_candidates (setattr, 537-539), n_estimators/max_depth/min_samples_leaf/learning_rate (ml_params, 541-543), target_vol-"
+   },
+   {
+    "real": false,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "The CODE observation is accurate and even self-documented by the repo. Confirmed in backend/backtest/quant_optimizer.py + backend/backtest/backtest_engine.py: (1) the 4 screen weights (momentum/rsi/volatility/sma_weight) are in _PARAM_BOUNDS but _apply_params_to_engine (534-569) has NO branch for them and _strategy_params init (237-248) omits them, so the guarded _run_window reader (398-401, `if k"
+   }
+  ]
+ },
+ {
+  "file": "backend/autoresearch/strategy_backtest_adapter.py",
+  "line": 234,
+  "summary": "When the seed variant's backtest fails, the strategy's DSR/Sharpe are silently taken from a different (jittered) param variant while the candidate still carries the seed's params, corrupting the rotation gate input.",
+  "severity": "medium",
+  "evidence": "Loop appends only successes: `for i, variant in enumerate(grid): try: engine = engine_factory(variant); results.append(engine.run_backtest(skip_cache_clear=True)) except Exception as exc:  # one bad variant drops a column, not the strategy` ... then `dsr, sharpe = _extract_dsr_sharpe(results[0], n)` where `_extract_dsr_sharpe` is documented \"(dsr, sharpe) from the SEED variant\" and `_default_param_grid` builds `variants: list[dict] = [dict(base)]  # variant 0 == the seed itself`. If grid[0] raises, results[0] is grid[1]'s result. The candidate emitted by build_per_strategy_candidates pairs this dsr with `\"params\": params` (the seed's params).",
+  "failure_scenario": "run_rotation_bakeoff (scripts/run_rotation_smoke.py, the phase-48.4 live-validated flow) runs K=8 variants per strategy; variant 0 (the seed) is the cold-cache run and times out on BQ, variants 1-7 succeed warm. results[0] is now the holding_days+7/tp_pct+5% jitter config; its DSR (say 0.97) is attributed to the seed. The candidate {strategy: 'qm_trend_tilt', dsr: 0.97, params: <seed params that never completed a backtest>} passes the DSR>=0.95 gate and wins select_best_strategy; _persist_verdict writes it to rotation_log.jsonl (+optional BQ) as the switch recommendation.",
+  "money_impact": "The strategy-rotation signal (the layer that decides which strategy earns capital) is computed from a config that is not the one recorded for deployment: a never-validated seed can be recommended on a neighbor's DSR, or a genuinely good seed rejected on a worse neighbor's DSR. Today this corrupts the operator-facing verdict audit trail; the moment the planned params->settings deployment bridge lands, it promotes unvalidated params into live paper sizing/exits.",
+  "fix_sketch": "Track the seed result explicitly (seed_result = res when i == 0). If the seed variant failed, either return a dict without dsr (producer already skips on missing metrics) or attribute dsr/params to the variant actually measured (results[0]'s variant dict), never mixing the two.",
+  "confirmed": false,
+  "contested": true,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real. The claim is that when the seed variant's backtest fails, DSR/Sharpe are silently taken from a jittered variant while the candidate still carries the seed's params.\n\nDecisive lines traced in backend/autoresearch/strategy_backtest_adapter.py:\n- Line 111 (_default_param_grid): `variants: list[dict] = [dict(base)]  # variant 0 == the seed itself` \u2014 the seed is deterministically grid[0"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level logic defect is genuine. In backend/autoresearch/strategy_backtest_adapter.py, the results list only appends successful variant backtests (line 211 inside the try; a failed variant is logged and dropped at lines 212-216, never appended). Line 234 then calls _extract_dsr_sharpe(results[0], n), whose docstring states it returns metrics \"from the SEED variant.\" _default_param_grid buil"
+   }
+  ]
+ }
+]

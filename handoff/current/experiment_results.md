@@ -1,78 +1,73 @@
-# Experiment Results -- Step 62.6 (GENERATE)
+# Experiment Results — Step 69.0 (P0 design pack, phase-69 audit burn-down)
 
-**Step:** 62.6 -- ops hygiene batch. **Date:** 2026-06-12. **State:** complete pending
-Q/A (which also rules on the 39.1 lenient closure).
+- **Phase / step**: phase-69 → 69.0
+- **Date**: 2026-07-11
+- **Type**: DESIGN PACK ONLY (research + design; no production code)
 
-## Sub-item 1: backend.log rotation -- DONE
+## What was produced
 
-385MB (403,648,199 B) rotated live with NO backend restart: cp -> truncate -> gzip.
-Archive: handoff/logs/backend.log.20260612T104931Z.gz (18MB; gitignored dir; holds the
-pre-redaction FRED key -> compressed, local-only, never deleted). Live file 338B and
-STILL receiving writes post-truncate (O_APPEND research validated live). Ongoing
-mechanism: size-gated block (>50MB) in healthcheck.sh (30-min watchdog cadence), new
-log_rotated field in the health JSON line.
+1. **`handoff/current/research_brief_69.0.md`** — research-gate brief, **gate_passed: true**.
+   8 external sources read in full (23 URLs collected), recency scan performed, all 4 design topics
+   covered, 19 internal code sites re-verified against the register. Includes the DSR worked reference
+   (0.9004) independently re-derived, the sign-safe overlay formula + proof, the FX fail-closed
+   waterfall, the kill-switch peak-reset triggers, and the purge/embargo rule.
+   - **Provenance**: two researcher subagent spawns (Fable, then Opus) each read all 8 sources but
+     STALLED on the end-of-session flush and were stopped per CLAUDE.md STALL WATCH (Fable ~14 min
+     transcript-idle; Opus ~4.5 min). Sources + DSR example + internal inventory were persisted
+     incrementally (write-first partially held). Main (Opus) finalized the synthesis sections + the
+     envelope from the already-read sources plus an independent re-derivation of the DSR reference —
+     the "Main updates the stalled handoff file" pattern. Every synthesis claim traces to a "Read in
+     full" source row. Full note in the brief's "Gate completion note (provenance)" section.
 
-## Sub-item 2a: autoresearch -- DONE at $0
+2. **`handoff/current/contract.md`** — step contract: research-gate summary, hypothesis, immutable
+   success criteria copied VERBATIM from `.claude/masterplan.json` phase-69 → 69.0, plan, references.
 
-Constrained install (unconstrained pip would have silently upgraded langchain-core
-1.2.30 -> 1.4.6): langchain-huggingface==1.2.1, sentence-transformers==5.5.1,
-torch==2.12.0, transformers==5.11.0, langchain-core HELD ==1.2.30. SPEND GUARD: new
---preflight-only flag in run_memo.py (exit 0 after deps + embedding preflight, zero
-LLM calls); run_nightly.sh pinned to it for the away window; resumption = verbatim
-token AUTORESEARCH SPEND: RESUME (pending_tokens.json).
+3. **`handoff/current/design_audit_burndown_69.md`** — the design pack. Six sections, each element
+   naming its exact file:line target and the do-no-harm invariant it preserves:
+   - §1 FX degradation chain (yfinance→FRED→historical_fx_rates→last-known→BLOCK; direct-BQ last-known
+     helper to avoid the `_usd_value_asof` mutual-recursion; execute_sell credit-last-known-else-block,
+     never 1.0) — `paper_trader.py:388-392`, `fx_rates.py:78-104`.
+   - §2 Kill-switch audited restart-replayable `peak_reset` state machine (new event + `_load_from_audit`
+     replay branch + 2 authorized emit sites, DARK until `KS-PEAK-RESET: APPROVED`) + `current_nav<=0`
+     null-breach guard — `kill_switch.py:212, :230-264, :61-106`.
+   - §3 Sign-safe overlay algebra `score + abs(score)·(mult−1)` with the both-regimes proof + worked
+     table — `news_screen:329`, `macro_regime:542/547`, pead/options/insider/peer_leadlag.
+   - §4 Gate corrections: DSR de-annualization pinned to the 0.9004 BBLZ reference (+ the ≈√252 bug
+     quantification), purge+embargo (1.5·holding_days), boundary business-day-snap, fracdiff-at-predict
+     parity, go-live booleans — `analytics.py:292-335/654-661`, `backtest_engine.py:566-598/486-490/793-801`,
+     `walk_forward.py:61`, `paper_go_live_gate.py:111`.
+   - §5 Do-no-harm ledger (every immutable threshold byte-untouched; guard-behavior changes DARK-until-token).
+   - §6 Downstream step map (69.1 money-path byte-coordinated with phase-68; 69.2 offline; 69.3 live flag-gated).
 
-REGRESSION FOUND AND FIXED during the dry run: this morning's operator .env paste left
-an unbalanced quote in a comment line -- pydantic-harmless but it KILLED
-run_nightly.sh's shell-sourcing (exit 2 before any log line). CORRECTION (Q/A
-spawn-1 catch): the 06-12 02:00 scheduled run SURVIVED -- autoresearch.log:1-3 shows
-START + skip + END OK, and the .env paste happened ~08:04, AFTER 02:00; the original
-"last night likely died the same way" inference here was wrong. The breakage window was
-08:04 -> the 62.6 fix only. run_nightly.sh now sources a sanitized KEY=value-only
-stream; backend_watchdog.sh + healthcheck.sh already used safe greps (audited).
-Cosmetic .env cleanup = ENV-LINE-81 operator keystroke (62.7).
+Also installed this cycle: **phase-69** (5 steps 69.0-69.4, immutable criteria) appended to
+`.claude/masterplan.json` (pure additive merge — 92 prior phases byte-identical, count 92→93).
 
-Dry invocation through the REAL nightly entrypoint (verbatim):
+## Verification command output (verbatim)
 
-    [2026-06-12T12:53:08+02:00] START nightly autoresearch
-    preflight-only: deps importable, embedding preflight OK, skipping GPTResearcher (zero spend)
-    [2026-06-12T12:53:08+02:00] END nightly autoresearch OK
-    nightly-exit=0
+Command (from masterplan 69.0):
+```
+bash -c 'test -f handoff/current/research_brief_69.0.md && test -f handoff/current/design_audit_burndown_69.md && grep -q "gate_passed" handoff/current/research_brief_69.0.md && grep -qi "last-known" handoff/current/design_audit_burndown_69.md && grep -Eqi "peak.reset" handoff/current/design_audit_burndown_69.md && grep -qi "sign-safe" handoff/current/design_audit_burndown_69.md && grep -Eqi "deflated sharpe|dsr" handoff/current/design_audit_burndown_69.md && grep -Eqi "purge|embargo" handoff/current/design_audit_burndown_69.md'
+```
+Result: **VERIFY EXIT=0 PASS**
 
-## Sub-item 2b: ablation -- documented, no fix needed
+## Proof: no production code changed (criterion 4)
 
-launchctl: last exit 0, 16 runs. 37/37 numeric features carry TSV verdicts (last
-2026-05-24) -> every run since takes the all-tested branch (run_ablation.py:329-331,
-exit 0). The original failing night's traceback is unrecoverable (handoff/ablation.log
-truncated to 265B by housekeeping). Disposition: fix-not-needed with evidence; job
-stays loaded (self-resumes via --next-untested if the feature set grows). No disable.
+- `git status --short` under `backend/` and `frontend/`: **nothing** (no production code files touched).
+- `git diff --stat backend/ frontend/`: empty.
+- Only artifacts changed: `handoff/current/*` (this step's five-file set + design pack), the audit
+  register/goal draft (untracked), and `.claude/masterplan.json` (phase-69 install).
 
-## Sub-item 3: 39.1 closure -- live_check_39.1.md written (lenient path)
+## Artifact shape
 
-Evidence-by-output per its success_criteria: 11 consecutive ERROR-free exit-0 nights +
-today's deps-live exit-0 dry run (criterion a); root_cause.md exists + the NEW
-second-failure-mode root cause documented (criterion b); the owner-gated install
-executed under the operator-approved plan with the $0 guard + resumption token
-(criterion c). The literal verification command is structurally unsatisfiable (only
--ERROR- files exist in its date window; success memos never carry -PASS; exit is
-head's) -- Q/A rules. STRICT path (3 deps-live nights, closes 06-15 via PM sessions)
-documented as the fallback if Q/A holds.
+Four markdown artifacts under `handoff/current/`: `research_brief_69.0.md`, `contract.md`,
+`design_audit_burndown_69.md`, `experiment_results.md`. The design pack is the implementation contract
+for 69.1/69.2/69.3; each fix is specified with file:line + do-no-harm invariant + a red→green (or
+fixture) reproduction-test sketch so the code steps are surgical.
 
-## Residual: sector-cap log test
+## Known limitation / honesty
 
-test_phase_23_2_6_backend_log_has_skipping_buy_evidence failed post-rotation exactly as
-researched -- adapted per its own original comment ("the log was rotated and the test
-should adapt"): falls back to the newest gzip archive; 6/6 green.
-
-## Verification (verbatim)
-
-    $ test $(stat -f%z backend.log) -lt 52428800 && python -c "import langchain_huggingface; print('lh OK')"
-    lh OK
-
-## File list
-
-scripts/away_ops/healthcheck.sh (rotation block + log_rotated field),
-scripts/autoresearch/run_memo.py (--preflight-only), scripts/autoresearch/run_nightly.sh
-(sanitized sourcing + preflight pin), backend/tests/test_phase_23_2_6_sector_cap_emit.py
-(rotation-aware fallback), handoff/logs/backend.log.20260612T104931Z.gz (archive,
-untracked), handoff/current/live_check_39.1.md (NEW), pending_tokens.json (+2 asks),
-handoff artifacts.
+- The DSR reference (0.9004) and the ≈√252 inflation were re-derived by Main this session and match the
+  Bailey paper's printed numerical example; the ACTUAL pinned unit test is authored in 69.2 (this step is
+  design only). Q/A can independently recompute from the inputs in §4a.
+- 69.1 (money-path code) must byte-coordinate with in-flight phase-68 work (68.5 fill-price gate shares
+  `paper_trader.py`); this pack flags the shared surface but the coordination is enforced at 69.1 GENERATE.

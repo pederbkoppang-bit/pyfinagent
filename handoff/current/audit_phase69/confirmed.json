@@ -1,0 +1,1327 @@
+[
+ {
+  "file": "backend/services/paper_trader.py",
+  "line": 392,
+  "summary": "execute_sell credits non-USD sale proceeds at FX rate 1.0 when both FX sources fail, booking KRW notional as USD dollars (or haircutting EUR proceeds ~14%).",
+  "severity": "high",
+  "evidence": "_l2u = _fx_local_to_usd(position.get(\"market\"))\nif _l2u is None:\n    logger.warning(\"phase-50.2: FX %s->USD unavailable on SELL %s; crediting at 1.0\",\n                   position.get(\"market\"), ticker)\n    _l2u = 1.0\n...\nnew_cash = portfolio[\"current_cash\"] + net_proceeds * _l2u   # line 505",
+  "failure_scenario": "EU+KR trading is live (PAPER_MARKETS go-live 2026-06-01). A KR position (e.g. 10 sh of 066570.KS at ~W248,000) is sold while yfinance is rate-limited/broken AND the FRED fallback fails (fx_rates._usd_value_live returns None; the 6h api_cache is in-process and cold after a restart). net_proceeds ~W2.47M is credited as $2,477,000 instead of ~$1,790. NAV explodes ~25x; check_and_enforce_kill_switch's state.update_peak(nav) ratchets the peak monotonically; when the phantom cash is later corrected (or an EUR sell at 1.0 silently loses 14% and trips the 4% daily-loss limit), trailing-DD >= 10% fires and flatten_all liquidates the entire portfolio.",
+  "money_impact": "Direct cash-ledger corruption: 1300x phantom cash on a KRW exit or a silent ~14% loss on every EUR exit during an FX outage; poisoned monotonic kill-switch peak then guarantees a spurious auto-flatten of all positions, destroying the live book and the P&L history. mark_to_market (lines 532-540) and execute_buy (line 214) handle the identical FX-None case safely (keep last-known / skip) -- only the sell path invents 1.0.",
+  "fix_sketch": "Never default to 1.0. Derive last-known FX from the position row itself (market_value / (quantity * current_price)) or read the last persisted historical_fx_rates row; if genuinely unavailable, block the exit for non-USD (mirror execute_buy) or hold the trade for the next cycle.",
+  "subsystem": "money-path-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Confirmed by direct code trace. backend/services/paper_trader.py:388-392 does exactly what is claimed: on FX-None, execute_sell sets _l2u=1.0 and line 505 credits `net_proceeds * _l2u` to cash, where net_proceeds is in LOCAL currency (price comes from _get_live_price or position.current_price, both LOCAL per comments at lines 316/478/529). For a KR position this books KRW notional as USD (~1300x p"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Claim verified against code and live system. (1) Code is verbatim as claimed: paper_trader.py:388-392 defaults _l2u=1.0 when FX is unavailable on SELL, and line 505 credits net_proceeds (LOCAL currency) * _l2u to cash. The sibling paths handle FX-None safely (execute_buy:214-216 skips the trade; mark_to_market:532-540 keeps last-known USD mark) \u2014 only the sell path invents 1.0, justified by a stal"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/paper_trader.py",
+  "line": 942,
+  "summary": "External-flow recording is structurally dead: the only producer of external_flow_today != 0 (adjust_cash_and_mtm) has zero production callers, the real deposit endpoint bypasses it, and the daily cycle's snapshot MERGE clobbers any same-day flow back to 0.0 -- so deposits re-create the exact phantom-return bug phase-30.4 claims to have fixed.",
+  "severity": "high",
+  "evidence": "\"external_flow_today\": round(external_flow_today, 2),   # save_daily_snapshot, default arg 0.0\n...\nself.bq.save_paper_snapshot(snap)\n-- autonomous_loop.py:1307-1311 calls trader.save_daily_snapshot(trades_today=..., analysis_cost_today=...) with NO external_flow_today\n-- bigquery_client.save_paper_snapshot:1007 `row = {k: v for k, v in row.items() if v is not None}` (0.0 survives) then MERGE ON snapshot_date UPDATE SET T.external_flow_today = 0.0\n-- api/paper_trading.py:1220 deposit_funds writes cash/starting_capital directly and never records a flow; grep shows adjust_cash_and_mtm has no callers outside paper_trader.py/tests",
+  "failure_scenario": "Operator deposits $5K via POST /deposit at 09:00 UTC. No snapshot flow is recorded (deposit_funds bypasses adjust_cash_and_mtm). The 14:00 UTC cycle writes today's snapshot with external_flow_today=0.0. paper_metrics_v2._nav_to_returns computes r_t=(V_t - 0 - V_{t-1})/V_{t-1} and sees the +$5K NAV jump as a ~+5% market return. Even if the operator used adjust_cash_and_mtm (the documented helper), the later same-day cycle snapshot MERGE overwrites its 5000.0 with 0.0.",
+  "money_impact": "Every deposit day injects a phantom daily return into the live track record: Sharpe/DSR/vol/alpha from /api/paper-trading/metrics-v2 and the snapshot daily_pnl_pct are corrupted (documented precedent: 2026-05-13 $5K deposit produced a +32.12% phantom return and Sharpe -6.26). The operator and agents steer capital off a falsified risk-adjusted return series.",
+  "fix_sketch": "Make deposit_funds call adjust_cash_and_mtm (or save a snapshot carrying the flow), and make save_daily_snapshot accumulate rather than overwrite: read today's existing snapshot row and sum external_flow_today (or default the param to None and drop it from the MERGE when not explicitly passed).",
+  "subsystem": "money-path-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Code trace confirms every leg. (1) The only deposit path, POST /deposit (backend/api/paper_trading.py:1219-1272), writes current_cash/starting_capital/total_nav directly via upsert_paper_portfolio and never records an external flow or snapshot \u2014 it does not call adjust_cash_and_mtm. (2) adjust_cash_and_mtm (paper_trader.py:977), the sole producer of external_flow_today != 0, has zero production ca"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "All four legs verified by direct code reads. (1) The live deposit path (POST /api/paper-trading/deposit, api/paper_trading.py:1219-1272, wired to the frontend manage-page Deposit button via api.ts:304) mutates cash/starting_capital/total_nav directly and never records external_flow_today. (2) The only producer of a nonzero flow, PaperTrader.adjust_cash_and_mtm (paper_trader.py:977-1029), has zero "
+   }
+  ]
+ },
+ {
+  "file": "backend/services/paper_trader.py",
+  "line": 555,
+  "summary": "mark_to_market (and the add-on-buy/partial-sell paths) DELETE the position row before re-saving via an upsert MERGE, so any transient BQ failure between the two DMLs permanently destroys an open position.",
+  "severity": "medium",
+  "evidence": "new_stop, advance_iso = self._advance_stop(pos, new_mfe)\n\nself.bq.delete_paper_position(ticker)\nupdates: dict = { ... }\npos.update(updates)\nself._safe_save_position(pos)\n-- save_paper_position (bigquery_client.py:593) is already a MERGE ON ticker (\"idempotent natural-key write\"), making the preceding delete pure risk; _safe_save_position retries only schema errors, and _run_dml_with_retry wraps the DELETE but not the MERGE",
+  "failure_scenario": "mark_to_market runs 2-3x per cycle over ~14 positions (~30-80 delete+MERGE pairs/day). A transient BQ 500/network error on the MERGE after the DELETE committed raises out of _safe_save_position: the position row is gone, no SELL trade exists, cash is never credited. The cycle logs an error but nothing restores the row. The same delete-first pattern in execute_buy:309 and execute_sell:476 additionally forces the MERGE INSERT branch, so those rewrites silently NULL out columns the new row omits (mfe_pct/mae_pct/stop_advanced_at_R/entry_strategy, and sector on the partial-sell row -- breaking sector-cap accounting and the trailing-stop state machine).",
+  "money_impact": "Silent permanent loss of an open position from the ledger: NAV drops by the position's full market value with no trade record, the holding is never sold (cash unrecoverable in the books), and P&L/alpha history is corrupted. Column-nulling variant degrades stop protection and lets sector concentration exceed caps.",
+  "fix_sketch": "Delete the delete: save_paper_position's MERGE already upserts in place. Keep delete_paper_position only for full exits in execute_sell.",
+  "subsystem": "money-path-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by direct code trace. (1) mark_to_market (paper_trader.py:555) unconditionally DELETEs the position row then re-saves via _safe_save_position -> save_paper_position, which is already a MERGE ON ticker (bigquery_client.py:593-632, docstring: \"idempotent natural-key write\") \u2014 the delete is provably redundant. (2) The window is unprotected: the DELETE gets _run_dml_with_retry (streaming-buf"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Fully verified in code and live-reachable. paper_trader.py:555 (mark_to_market), :309 (add-on buy), :476 (partial sell) each DELETE the paper_positions row and then re-save via save_paper_position, which is already an idempotent MERGE ON ticker (bigquery_client.py:593-632) \u2014 the delete is redundant and creates a destroy-then-recreate window. _safe_save_position re-raises all non-schema errors, the"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/paper_trader.py",
+  "line": 1124,
+  "summary": "Trailing-stop branch reconstructs a local-currency peak price from the USD-return MFE, so for EU/KR positions the trail distance is tightened or loosened by the FX return component.",
+  "severity": "medium",
+  "evidence": "trail_pct = float(getattr(self.settings, \"paper_trailing_stop_pct\", 8.0))\npeak_price = entry_price * (1.0 + max(new_mfe, 0.0) / 100.0)   # entry_price LOCAL, new_mfe = USD pnl_pct incl. FX (mark_to_market line 543: pnl/cost_basis in USD)\nnew_trail = peak_price * (1.0 - trail_pct / 100.0)",
+  "failure_scenario": "Live-loop path, no MCP needed: an EU position post-breakeven is +10% local while EUR gained 5% -> USD MFE ~15.5%. peak_price = entry*1.155 though the true local peak is entry*1.10, so new_trail = entry*1.0626 instead of entry*1.012 -- the intended 8% trail becomes ~3.5%. A routine local pullback stops the winner out early; conversely a 5% FX loss widens the trail to ~13%, under-protecting the position. check_stop_losses compares this misplaced stop against the LOCAL current_price (line 615).",
+  "money_impact": "Systematically premature exits on EU/KR winners whenever the local currency appreciates (extra churn, fees, forfeited upside on the engine's best positions) and weakened downside protection when it depreciates -- a direct degradation of the trailing-stop machinery that the measured +14% alpha partly rests on.",
+  "fix_sketch": "Track MFE in local price terms for the stop machinery (or store peak local price directly on the position at MtM time) and keep the USD MFE only for P&L analytics; the local peak is available in mark_to_market as live_price before FX conversion.",
+  "subsystem": "money-path-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by direct code trace in backend/services/paper_trader.py. (1) execute_buy stores avg_entry_price in LOCAL currency (line 338, price is local; qty sized via _usd_to_local at 217) but cost_basis in USD (line 339). (2) mark_to_market computes pnl_pct as USD-on-USD (lines 540-543: market_value = qty*live_price*_l2u vs USD cost_basis), so pnl_pct \u2014 and hence new_mfe (line 550) \u2014 includes the "
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED by code reading plus live-config reachability. Mechanics: (1) mark_to_market (backend/services/paper_trader.py:517-553) computes pnl_pct = pnl/cost_basis where market_value = qty * live_price(LOCAL) * _fx_local_to_usd and cost_basis is USD at entry FX (comment at :477-478 explicitly says \"cost_basis = proportional USD cost ... current_price stays LOCAL\"). So new_mfe at :550 is a USD retu"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/paper_trader.py",
+  "line": 1082,
+  "summary": "Portfolio cash updates are an unguarded read-modify-write (compute from a stale read, then re-read and overwrite), so a concurrent deposit or MCP trade during cycle execution is silently destroyed; the underlying upsert is itself a non-atomic DELETE+INSERT.",
+  "severity": "medium",
+  "evidence": "def _update_portfolio_cash(self, new_cash: float) -> None:\n    portfolio = self.get_or_create_portfolio()          # fresh read (sees concurrent deposit)\n    portfolio[\"current_cash\"] = round(new_cash, 2)      # overwrites with value derived from the STALE read at execute_buy:190-191\n    self.bq.upsert_paper_portfolio(portfolio)\n-- upsert_paper_portfolio (bigquery_client.py:550-571) = DELETE WHERE portfolio_id then INSERT: two concurrent writers can leave 0 or 2 'default' rows (get_paper_portfolio does LIMIT 1)",
+  "failure_scenario": "execute_buy reads cash at line 190, then spends several seconds on the idempotency BQ query, router fill, trade INSERT and position MERGE before writing cash-total_cost at line 357. POST /deposit (api/paper_trading.py:1220, its own thread) lands +$5,000 inside that window: _update_portfolio_cash re-reads the deposited portfolio (keeping the bumped starting_capital) but overwrites current_cash with the stale-derived value -- the $5,000 vanishes while starting_capital retains it, so NAV shows a phantom loss of the full deposit; if the deposit predated the cycle's SOD anchor and exceeds 4% of NAV, the daily-loss kill switch auto-flattens the book. There is no lock shared between the cycle (thread), FastAPI handlers, and the MCP signals server; the file-based cycle_lock only serializes cycle-vs-cycle.",
+  "money_impact": "Silently destroyed deposits (cash ledger loses real operator top-ups), phantom NAV losses that can trigger a full kill-switch liquidation, and a possible duplicated/vanished paper_portfolio row from the non-atomic DELETE+INSERT under concurrency.",
+  "fix_sketch": "Serialize all cash mutations behind a process-wide threading.Lock on PaperTrader (single-Mac deployment makes this sufficient), express cash changes as deltas applied at write time (UPDATE ... SET current_cash = current_cash + @delta), and replace upsert_paper_portfolio's DELETE+INSERT with a MERGE like the other paper tables.",
+  "subsystem": "money-path-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Every load-bearing element of the claim checks out in the code as written today.\n\n1. Lost-update pattern confirmed. backend/services/paper_trader.py:1082-1086 is exactly as quoted: `_update_portfolio_cash` calls `get_or_create_portfolio()` (fresh BQ read), then `portfolio[\"current_cash\"] = round(new_cash, 2)` and `self.bq.upsert_paper_portfolio(portfolio)`. The `new_cash` argument is derived from "
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Every element of the claim verifies against code actually read, and the path is live under current config. (1) The lost-update pattern is exactly as claimed: execute_buy reads cash at paper_trader.py:190-191, performs multiple slow BQ/network operations (idempotency query, router fill, trade insert, position save), then calls _update_portfolio_cash(cash - total_cost) at :357; _update_portfolio_cas"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/kill_switch.py",
+  "line": 212,
+  "summary": "A trailing-DD kill-switch pause is permanently unrecoverable: the high-water mark only ratchets upward and nothing in the codebase ever resets it, while both the manual resume endpoint and auto-resume hysteresis refuse to resume while the breach persists -- and with the book flattened to 100% cash the trailing-DD breach persists forever.",
+  "severity": "high",
+  "evidence": "kill_switch.py:212-217: `def update_peak(self, nav: float) -> None: \"\"\"Ratchet the trailing high-water mark upward. Never moves down.\"\"\" ... if self._peak_nav is None or nav > self._peak_nav: self._peak_nav = float(nav)`. Breach eval (252-254): `trailing_dd_pct = (peak - current_nav) / peak * 100.0; trailing_dd_breached = trailing_dd_pct >= trailing_dd_limit_pct`. Resume gate (api/paper_trading.py:561-567): `if breach[\"any_breached\"]: raise HTTPException(409, f\"Cannot resume: limit still breached...\")`. Auto-resume (kill_switch.py:313-320): `if breach[\"any_breached\"]: return {\"action\": \"no_op\", \"reason\": \"breach_still_active\", ...}`. Loop gate (autonomous_loop.py:1070-1072): `if ks_check.get(\"triggered\") or _ks_state().is_paused(): logger.warning(\"Paper trading: kill-switch active -- skipping decide/execute\")`. Grep of backend/ + scripts/ shows no code path that resets or lowers `_peak_nav` (only kill_switch.py itself and test monkeypatching).",
+  "failure_scenario": "Peak NAV ratchets to $120k; a pullback marks NAV at $108k (trailing_dd_pct = 10.0 >= paper_trailing_dd_limit_pct=10) -> check_and_enforce_kill_switch flattens all positions and pauses. NAV is now frozen at <= 0.90*peak in cash (loop skips decide/execute while paused; zero positions means mark-to-market never moves NAV). Every subsequent POST /api/paper-trading/resume recomputes the same >=10% trailing DD and returns 409; check_auto_resume returns breach_still_active on every cycle. Trading is halted indefinitely.",
+  "money_impact": "After any 10% pullback from the rolling high (entirely plausible on a +20% NAV equity book), the engine stops earning permanently -- all future signals are killed. The only escapes are outside the designed control surface: hand-editing handoff/kill_switch_audit.jsonl and restarting, or depositing external cash via adjust_cash_and_mtm to inflate NAV past the threshold, distorting the capital base of the experiment. The module docstring promises 'explicit human resume required once both limits read healthy', but the trailing limit can never read healthy again post-flatten.",
+  "fix_sketch": "On kill-switch flatten+pause (or on explicit operator resume), write a `peak_reset` audit event that re-anchors _peak_nav to the post-flatten NAV; alternatively, exclude the trailing-DD leg from the resume precondition when open positions == 0 (the condition the flatten itself created). Keep the reset audited and restart-replayable like pause/resume.",
+  "subsystem": "money-path-guards",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Every link in the claimed deadlock chain is confirmed by direct code trace; I attempted several refutations and all failed.\n\n1. Peak only ratchets up, never resets. backend/services/kill_switch.py:212-217: `if self._peak_nav is None or nav > self._peak_nav: self._peak_nav = float(nav)`. Grep across backend/ and scripts/ shows the ONLY production writer is paper_trader.py:1042 (`state.update_peak(n"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Every load-bearing element of the claim verified against code actually read. (1) kill_switch.py:212-217 update_peak is monotonic-up and repo-wide grep (backend/ + scripts/) confirms the only writers of _peak_nav are update_peak and the boot replay of peak_update audit rows (lines 103-104), so the high-water mark survives restarts and is never reset by any endpoint, script, or Slack command. (2) Th"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/funding_guard.py",
+  "line": 36,
+  "summary": "Both pre-submit BUY guards (t1_funding_guard, realtime_margin_guard) are dead code -- zero production callers -- and the live BUY path explicitly funds same-day buys from same-day sell proceeds, the exact financing the T+1 guard exists to block.",
+  "severity": "medium",
+  "evidence": "funding_guard.py:1-8 docstring: 'Two pre-submit guards on BUY orders: 1. t1_funding_guard(...) -- blocks BUY when notional exceeds SETTLED cash. Same-day sell proceeds are NOT available to fund a same-day BUY under SEC Rule 15c6-1 T+1'. Repo-wide grep: the only importer is scripts/compliance/wash_sale_filter.py (a --test self-check script); nothing in backend/services/paper_trader.py or portfolio_manager.py calls either guard. Meanwhile portfolio_manager.py:162-167 does the opposite: `estimated_freed_cash = 0.0 ... estimated_freed_cash += pos.get(\"market_value\", 0) ... available_cash = cash + estimated_freed_cash - min_cash`, and line 490: 'executor relies on cash being freed by SELLs before BUYs draw from it.'",
+  "failure_scenario": "A daily cycle sells $30k of positions and immediately buys $30k of new candidates with only $5k of settled cash. t1_funding_guard would return (False, \"UNSETTLED_CASH_INSUFFICIENT\") but is never invoked, so the paper fills all succeed with financing a real T+1 cash account could not provide.",
+  "money_impact": "Paper P&L is systematically built on same-day proceeds reuse, overstating deployable capital and turnover capacity versus live execution. The go-live gate's Sharpe-gap check cannot detect a structural financing assumption, so the paper record used for the live-capital decision reflects performance that is unreplicable at go-live. Classic 'guard believed live is dead code' -- the module docstring presents it as an active pre-submit guard.",
+  "fix_sketch": "Wire t1_funding_guard into the BUY loop of portfolio_manager.decide_trades with settled_cash = cash (excluding estimated_freed_cash) and pending_proceeds = estimated_freed_cash; or, if the margin-account assumption is deliberate for paper, delete/de-scope the module and document the assumption where the go-live gate is defined.",
+  "subsystem": "money-path-guards",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Every factual element of the claim verified by direct code trace. (1) Dead code confirmed: backend/services/funding_guard.py:1-19 docstring presents t1_funding_guard and realtime_margin_guard as \"Two pre-submit guards on BUY orders,\" but a repo-wide grep finds exactly two importers, both non-production: scripts/compliance/wash_sale_filter.py (a --test fixture self-check that calls the guards with "
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "All factual claims verified by direct code reading. (1) Dead code confirmed: repo-wide grep shows the only importers of t1_funding_guard/realtime_margin_guard are scripts/compliance/wash_sale_filter.py (a --test self-check) and scripts/audit/regulatory_memo_audit.py (only checks callable()); neither is scheduled/cron-registered anywhere; no feature flag gates the guards \u2014 they are simply unwired. "
+   }
+  ]
+ },
+ {
+  "file": "backend/services/paper_go_live_gate.py",
+  "line": 111,
+  "summary": "Two of the five go-live booleans are weaker than their documented immutable definitions: 'psr_ge_95_sustained_30d' tests only point-in-time PSR with n_obs>=30 (no sustainment), and 'max_dd_within_tolerance' scans only the last 30 snapshots and omits the documented backtest-DD+5pp comparison entirely.",
+  "severity": "medium",
+  "evidence": "Docstring (lines 9-15): '2. psr_ge_95_sustained_30d -- PSR >= 0.95 over the most recent 30 days ... 5. max_dd_within_tolerance -- realized max drawdown is not worse than the backtest max drawdown + 5pp buffer; default tolerance = 20% absolute cap'. Code: line 89 `snapshots = bq.get_paper_snapshots(limit=PSR_SUSTAINED_DAYS) or []` (only 30 rows), lines 111-113 `\"psr_ge_95_sustained_30d\": bool(psr is not None and psr >= PSR_THRESHOLD and metrics.get(\"n_obs\", 0) >= PSR_SUSTAINED_DAYS)`, line 117 `\"max_dd_within_tolerance\": bool(realized_max_dd <= MAX_DD_ABS_TOLERANCE)` -- no per-day PSR series and no backtest max-DD term anywhere in the function.",
+  "failure_scenario": "PSR sat at 0.80 for 29 of the last 30 days and crossed 0.95 today with n_obs=45 -> psr_ge_95_sustained_30d=True. A 25% drawdown occurred 45 days ago but the last 30 snapshots show only 4% DD -> max_dd_within_tolerance=True (and would be True even if backtest max DD was 6%, where the documented +5pp rule would demand <=11%). With the other three booleans green, promote_eligible=true renders green in the UI.",
+  "money_impact": "This is the deterministic gate that blocks promotion of real capital (phase-4.4 go-live). It can display green on materially weaker evidence than its documented criteria -- a one-day PSR spike plus a conveniently quiet 30-day DD window -- inviting a live-capital promotion on an insufficient track record. Wrong display of the exact money data the operator relies on for the highest-stakes decision in the system.",
+  "fix_sketch": "Compute PSR on each of the trailing 30 days (or a rolling series from compute_metrics_v2) and require min(psr_30d) >= 0.95; fetch snapshots with limit=365+ for the realized max-DD leg; add the documented `realized_max_dd <= backtest_max_dd + 5.0` term (falling back to the 20% absolute cap only when backtest DD is unavailable, keeping None -> red).",
+  "subsystem": "money-path-guards",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms both legs. (1) paper_go_live_gate.py:111-113 tests `psr >= 0.95 and n_obs >= 30` where psr is a single point-in-time PSR computed by compute_metrics_v2 over up to 365 snapshots (paper_metrics_v2.py:112-149) and n_obs is the full return-series length \u2014 no per-day PSR series, no min-over-30-days, despite the boolean name 'sustained_30d', the docstring 'PSR >= 0.95 over the most r"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by direct code read. (1) paper_go_live_gate.py:111-113: 'psr_ge_95_sustained_30d' is point-in-time PSR>=0.95 with n_obs>=30; compute_metrics_v2 (paper_metrics_v2.py:112-142) computes one PSR over up to 365 days of returns \u2014 no per-day series, no sustainment, so the claimed one-day-spike scenario passes the boolean. (2) Line 89 fetches only the 30 newest snapshots for the realized-DD leg "
+   }
+  ]
+ },
+ {
+  "file": "backend/services/kill_switch.py",
+  "line": 246,
+  "summary": "evaluate_breach has no sanity guard on current_nav <= 0, so callers' `or 0.0` BigQuery-timeout fallbacks produce a phantom 100% daily-loss + 100% trailing-DD breach -- the kill-switch status endpoint displays a full limit-breach on a transient 5s BQ timeout, directly contradicting its own 'null breach' comment.",
+  "severity": "medium",
+  "evidence": "kill_switch.py:246-254 guards sod/peak but not nav: `if sod and sod > 0: daily_loss_pct = (sod - current_nav) / sod * 100.0; daily_loss_breached = daily_loss_pct >= daily_loss_limit_pct ... if peak and peak > 0: trailing_dd_pct = (peak - current_nav) / peak * 100.0`. Caller api/paper_trading.py:488-502: comment says 'On timeout we still return the in-memory pause state and a null breach, so the UI badge stays informative' -- but the code does `except TimeoutError: ... portfolio = None` then `nav = float((portfolio or {}).get(\"total_nav\") or (portfolio or {}).get(\"starting_capital\") or 0.0)` and `breach = evaluate_breach(current_nav=nav, ...)`, returning the computed breach dict to the UI. With sod/peak populated in-process by the trading loop, nav=0.0 yields daily_loss_pct=100.0 and trailing_dd_pct=100.0, any_breached=True.",
+  "failure_scenario": "The BQ portfolio fetch exceeds the 5s asyncio.timeout during normal BQ latency -> portfolio=None -> nav=0.0 -> the /api/paper-trading/kill-switch response carries breach={daily_loss_pct: 100.0, daily_loss_breached: true, trailing_dd_pct: 100.0, trailing_dd_breached: true, any_breached: true} while the book is actually up 20%. The same `or 0.0` pattern in the /resume handler (line 555) turns a null total_nav row into a spurious 409 'Cannot resume: limit still breached'.",
+  "money_impact": "The operator cockpit badge/banner (the endpoint docstring says 'poll this to drive UI badge + banner') shows a catastrophic 100%-loss limit breach against a healthy book during any BQ hiccup -- wrong display of money data that invites a panic manual pause/flatten, and blocks legitimate resumes. The read-only path never flips state itself, which is why this stays medium rather than high.",
+  "fix_sketch": "In evaluate_breach, treat current_nav <= 0 as no-data: return the dict with breach flags False and an explicit `valid: false` (or None percentages) so callers cannot render a phantom breach; additionally make the endpoint honor its own comment by skipping breach computation when the portfolio fetch timed out or returned no NAV.",
+  "subsystem": "money-path-guards",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace. evaluate_breach (kill_switch.py:244-254) guards sod/peak but not current_nav; nav=0.0 with positive sod/peak yields exactly 100% daily-loss and 100% trailing-DD, any_breached=true. The GET /kill-switch handler (paper_trading.py:491-502) sets portfolio=None on a 5s BQ TimeoutError, computes nav via `or 0.0` fallback = 0.0, and returns the computed breach dict to the UI"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by direct code read and live-state inspection. (1) evaluate_breach (backend/services/kill_switch.py:244-254) guards sod>0 and peak>0 but not current_nav; nav=0.0 yields daily_loss_pct=100.0 and trailing_dd_pct=100.0 vs defaults 4%/10% (settings.py:511-512) -> any_breached=True. (2) GET /api/paper-trading/kill-switch (api/paper_trading.py:488-502) sets portfolio=None on the 5s BQ TimeoutE"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/outcome_tracker.py",
+  "line": 50,
+  "summary": "evaluate_recommendation subtracts a tz-aware rec_date from a naive datetime, raising TypeError on every production analysis_date, and the autonomous loop swallows it at DEBUG level -- the entire learning loop (outcome_tracking rows, agent_memories reflections) is silently dead.",
+  "severity": "high",
+  "evidence": "outcome_tracker.py:47-50:\n    rec_date = datetime.fromisoformat(analysis_date)\n    # phase-16.36: rec_date from fromisoformat is naive; strip tzinfo from\n    # datetime.now(timezone.utc) before subtraction to avoid TypeError.\n    holding_days = (datetime.now(timezone.utc).replace(tzinfo=None) - rec_date).days\n\nCaller autonomous_loop.py:2683-2694: analysis_date = trade.get(\"analysis_id\") or trade.get(\"created_at\", \"\") ... outcome = tracker.evaluate_recommendation(ticker, str(analysis_date), ...). SELL rows ALWAYS have analysis_id=\"\" (paper_trader.py:436 '\"analysis_id\": \"\"') so it is always created_at, written as datetime.now(timezone.utc).isoformat() (paper_trader.py:407) -- carries +00:00, so fromisoformat returns an AWARE datetime. Verified: python3 -> \"TypeError: can't subtract offset-naive and offset-aware datetimes\". The exception is caught at autonomous_loop.py:2794 'except Exception as e: logger.debug(f\"Outcome evaluation failed for {ticker}: {e}\")', which also skips the phase-35.1 fallback save_outcome (it only fires when outcome is None, not on raise) and the _generate_and_persist_reflections fan-out. Tests mock evaluate_recommendation (test_phase_35_1_learn_loop_writer.py:88) so the crash was never exercised.",
+  "failure_scenario": "Any paper position closes (e.g. a stop-loss SELL of AMD). autonomous_loop.py:1317 calls _learn_from_closed_trades; the SELL row's created_at '2026-07-08T14:00:03+00:00' reaches fromisoformat -> aware; the naive-minus-aware subtraction raises TypeError before bq.save_outcome (line 74) runs; the per-ticker except logs one DEBUG line and moves on. Perversely, rows are only written when yfinance FAILS (early None return triggers the fallback writer).",
+  "money_impact": "outcome_tracking never receives realized results, so get_performance_stats() returns stale/zero avg_return and benchmark_beat_rate -- the inputs to get_scalar_metric_from_bq (THE optimizer scalar metric) and meta_coordinator health.agent_accuracy (meta_coordinator.py:258). agent_memories reflections never persist, so the BM25 learn-from-losses loop is dead: agents keep repeating losing patterns with zero feedback, and the corruption is invisible (DEBUG-level swallow).",
+  "fix_sketch": "Normalize to aware UTC: rec_date = datetime.fromisoformat(str(analysis_date)); if rec_date.tzinfo is None: rec_date = rec_date.replace(tzinfo=timezone.utc); holding_days = (datetime.now(timezone.utc) - rec_date).days. Raise the autonomous_loop.py:2795 swallow from logger.debug to logger.warning.",
+  "subsystem": "pnl-accounting",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Confirmed by full code trace plus live repro. (1) Caller is live: autonomous_loop.py:1314-1317 invokes _learn_from_closed_trades on every cycle with closed positions. (2) SELL rows always have analysis_id=\"\" (paper_trader.py:436), so analysis_date falls through to created_at, written as datetime.now(timezone.utc).isoformat() (paper_trader.py:407) into a STRING BQ column (migrate_paper_trading.py:6"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real and live-reachable. Every claimed mechanic verified against code actually read: (1) SELL rows always have analysis_id=\"\" (paper_trader.py:436), so autonomous_loop.py:2683 falls back to created_at, which is always tz-aware (+00:00) whether stored as isoformat string (paper_trader.py:407) or re-isoformatted from a BQ datetime (line 2685); (2) outcome_tracker.py:50 subtracts that aware"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/perf_metrics.py",
+  "line": 116,
+  "summary": "compute_sharpe_from_snapshots computes raw NAV diffs and ignores external_flow_today, so operator deposits/withdrawals appear as phantom daily returns in the live Sharpe used by the go-live gate and every dashboard -- the exact bug phase-30.4 fixed, but only in paper_metrics_v2, leaving this duplicated NAV->returns path divergent.",
+  "severity": "high",
+  "evidence": "perf_metrics.py:110-116:\n    navs = [s.get(nav_key, 0) for s in snapshots if s.get(nav_key)]\n    ...\n    nav_arr = np.array(navs, dtype=float)\n    # Daily returns from NAV series\n    daily_returns = np.diff(nav_arr) / nav_arr[:-1]\n(no external_flow_today anywhere in perf_metrics.py). Contrast the fixed sibling paper_metrics_v2.py:70-81: 'flows = np.array([float(s.get(\"external_flow_today\") or 0.0)...]); return (navs[1:] - flows[1:] - navs[:-1]) / navs[:-1]', whose docstring documents the live incident: 'Anomaly A (5/13 $5K deposit produced +32.12% phantom daily return that polluted the Sharpe denominator -> Sharpe -6.26 anomaly)'. Consumers: paper_go_live_gate.py:99 'sharpe_gap = compute_sharpe_gap(bq)' -> perf_metrics.py:297+302 get_paper_snapshots(limit=365) -> compute_sharpe_from_snapshots (window_days=None default); paper_trading.py:228-230 and 309+321 (limit=365 dashboards); meta_coordinator.py:253.",
+  "failure_scenario": "The backfilled 2026-05-13 snapshot (external_flow_today=5000) sits inside every limit=365 fetch. compute_sharpe_gap's live arm still ingests the +32.12% phantom return, inflating std and shifting the mean, so live_sharpe is materially wrong (documented magnitude: -6.26 vs the true positive), gap_rel = |live-backtest|/|backtest| is wrong, and the gate boolean sr_gap_le_30pct flips on a corrupted number. Any future deposit via adjust_cash_and_mtm re-poisons all these consumers even though the flow is correctly recorded.",
+  "money_impact": "The live-capital promotion gate (paper_go_live_gate sr_gap_le_30pct) evaluates a corrupted live Sharpe -- it can stay falsely red (blocking a working strategy) or go falsely green (promoting on garbage). The portfolio Sharpe shown on the home cockpit and /performance page is the same wrong number.",
+  "fix_sketch": "Make paper_metrics_v2._nav_to_returns the single NAV->returns primitive (per the module's own 'single source of truth' charter) and have compute_sharpe_from_snapshots delegate to it, subtracting flows[1:] before differencing.",
+  "subsystem": "pnl-accounting",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Code trace confirms every link. perf_metrics.py:110-116 computes daily_returns = np.diff(nav_arr)/nav_arr[:-1] from raw NAVs with no external_flow_today handling anywhere in the module. The sibling paper_metrics_v2._nav_to_returns (lines 70-81) implements the phase-30.4 GIPS fix ((navs[1:]-flows[1:]-navs[:-1])/navs[:-1]) and its docstring documents the live incident: the 2026-05-13 $5K deposit pro"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED via code + live BQ data. Code: perf_metrics.py:116 does raw np.diff(nav)/nav with no external_flow_today handling anywhere in the file, while paper_metrics_v2._nav_to_returns (lines 67-81) subtracts flows[1:] per GIPS TWR \u2014 the divergence is exactly as claimed. Reachability under current live config: no feature flag or env gate anywhere on the path; consumers are (1) GET /api/paper-tradi"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/paper_round_trips.py",
+  "line": 109,
+  "summary": "pair_round_trips computes realized_pnl_usd from raw trade prices that are stored in LOCAL currency (KRW/EUR for the KR/EU markets live since 2026-06-01) with no FX conversion, so summarize()'s profit_factor and gross win/loss sums mix KRW, EUR and USD as if they were all dollars.",
+  "failure_scenario": "One closed Samsung (KRX) round trip: buy at \u20a970,000, sell at \u20a975,000, qty 10 -> realized_pnl_usd = 50,000 (actually KRW, ~$36) summed against US wins of a few hundred (real) dollars in summarize(): gross_win = sum(rt[\"realized_pnl_usd\"] for wins). One KR trade outweighs the entire US book ~1400x, so profit_factor (gross_win/gross_loss) and the per-row P&L column on /round-trips and /performance become meaningless the moment the first non-USD round trip closes.",
+  "severity": "medium",
+  "evidence": "paper_round_trips.py:109: '\"realized_pnl_usd\": round((price - entry_price) * matched, 2),' where price/entry_price come straight from trade rows. paper_trader.py execute_sell:430-434 shows price is LOCAL while only total_value is converted: '\"price\": price, ... \"total_value\": round(sell_value * _l2u, 2)' -- and paper_trader's own canonical rt_row DOES convert ('\"realized_pnl_usd\": round((price - entry_price) * sell_qty * _l2u, 2)  # phase-50.2: LOCAL pnl -> USD', line 460), proving pair_round_trips' re-derivation missed the phase-50.2 FX pass. Consumers: summarize() lines 147-149 (profit_factor), /api/paper-trading/performance (paper_trading.py:330-331) and /round-trips (paper_trading.py:989).",
+  "money_impact": "profit_factor -- a headline Go-Live-Gate-adjacent quality stat shown on the paper-trading dashboard -- and the displayed per-trade dollar P&L are corrupted by orders of magnitude once any EU/KR round trip closes; operators reading it will misjudge whether the engine's wins actually pay for its losses.",
+  "fix_sketch": "Derive the row's own FX at pairing time (fx = total_value / (quantity * price) from each trade row, both legs) or join the market column and reuse _fx_local_to_usd; apply it to (price - entry_price) * matched.",
+  "subsystem": "pnl-accounting",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace. paper_round_trips.py:109 computes realized_pnl_usd = (price - entry_price) * matched from raw trade-row prices with no FX. paper_trader.py explicitly documents (phase-50.2 comments) that trade-row `price` is LOCAL currency for KR/EU markets \u2014 BUY line 269 stores exec_price local (only total_value converted at line 271 via _local_to_usd), SELL line 430 stores price loc"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED, and the corruption is already ACTIVE, not latent. (1) Code: backend/services/paper_round_trips.py:109 computes realized_pnl_usd = (price - entry_price) * matched from raw trade-row prices with no FX; backend/services/paper_trader.py stores LOCAL-currency price on both legs (BUY line 269 exec_price with phase-50.2 comment at 208-217 stating price is local; SELL line 430) while only total"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/outcome_tracker.py",
+  "line": 118,
+  "summary": "evaluate_all_pending passes the BQ-native datetime analysis_date into bq.get_report, whose str-only handling calls analysis_date.replace(\"Z\", \"+00:00\") and raises TypeError on datetime input -- the first report older than 7 days kills the whole batch, breaking POST /api/reports/evaluate and crashing skill_optimizer at baseline.",
+  "failure_scenario": "get_recent_reports returns analysis_date as tz-aware datetime objects (module's own phase-16.30 comment, lines 96-99, confirms). The isinstance guard added there covers only the local days_since math; line 118 'stored = self.bq.get_report(report[\"ticker\"], report[\"analysis_date\"])' forwards the datetime to bigquery_client.py:309 'clean = analysis_date.replace(\"Z\", \"+00:00\")' -> datetime.replace(year=\"Z\",...) -> verified 'TypeError: an integer is required (got type str)'. Reports older than 7 days always exist, so every invocation dies on its first qualifying row: POST /api/reports/evaluate 500s (reports.py:77) and skill_optimizer.establish_baseline (skill_optimizer.py:136, unguarded) aborts the entire prompt-optimization run before measuring anything.",
+  "severity": "medium",
+  "evidence": "outcome_tracker.py:100-118:\n    _ad = report[\"analysis_date\"]\n    if isinstance(_ad, datetime):\n        rec_date = _ad\n    ...\n    stored = self.bq.get_report(report[\"ticker\"], report[\"analysis_date\"])\nbigquery_client.py:303-311: 'def get_report(self, ticker: str, analysis_date: Optional[str] = None) ... clean = analysis_date.replace(\"Z\", \"+00:00\")'. Even if it survived, evaluate_recommendation (called at line 137-142 with the same datetime) would raise 'TypeError: fromisoformat: argument must be str' at line 47.",
+  "money_impact": "The batch re-evaluation path (the 7/30/90/180/365-day windows this module exists for) never completes, so outcome_tracking coverage of past recommendations is frozen, and the skill optimizer -- which tunes agent prompts against get_scalar_metric_from_bq -- crashes at its baseline step, killing the whole autoresearch optimization loop.",
+  "fix_sketch": "Convert before the call: ad = report[\"analysis_date\"]; ad_str = ad.isoformat() if isinstance(ad, datetime) else str(ad); pass ad_str to both get_report and evaluate_recommendation (or make get_report accept datetime).",
+  "subsystem": "pnl-accounting",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace plus live runtime verification on the repo's venv. (1) get_recent_reports (bigquery_client.py:282) returns raw dict(row) with the BQ TIMESTAMP analysis_date as a tz-aware datetime \u2014 the module's own phase-16.30/16.36 comments (outcome_tracker.py:96-110) document this observed shape. (2) The isinstance guard at lines 100-104 covers only the local days_since math; line 1"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CONFIRMED as a real, reachable defect -- but with materially lower money impact than claimed. Mechanics: verified by execution that datetime.replace('Z','+00:00') raises TypeError('an integer is required (got type str)') and fromisoformat(datetime) raises TypeError, exactly as claimed. Data shape: get_recent_reports (bigquery_client.py:257) returns analysis_date as a BQ-native tz-aware datetime (t"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/reconciliation.py",
+  "line": 136,
+  "summary": "_fetch_prices calls yfinance history(start, end) with end = the latest snapshot date, but yfinance's end is EXCLUSIVE, so the final date -- the exact point that drives latest_divergence_pct and the alert -- has no price and the shadow NAV silently marks to the previous day's close.",
+  "failure_scenario": "Snapshots run 2026-06-01..2026-07-09; end=\"2026-07-09\" excludes 07-09 from every ticker's price map. At the last curve point, _shadow_nav_curve's fallback ('candidates = [k for k in hist.keys() if k <= d] ... px = hist[max(candidates)]') marks all positions at the 07-08 close while paper_nav is marked at 07-09 prices. On a day the book moves 3%, latest_div gains a spurious ~3pp against the 5.0 alert threshold -- false alarms on volatile up-days or masked real divergence on down-days, recomputed at the newest point every single day.",
+  "severity": "medium",
+  "evidence": "reconciliation.py:183-185:\n    start = dates[0]\n    end = dates[-1]\n    prices = _fetch_prices(tickers, start, end)\nreconciliation.py:136: 'hist = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True)' (yfinance documents end as exclusive). Alert wiring lines 200-209: 'latest_div = div ... alert = latest_div > DIVERGENCE_ALERT_THRESHOLD_PCT' -- latest_div is exactly the point priced with the stale fallback.",
+  "money_impact": "The reconciliation alert and latest_reconciliation_divergence_pct (surfaced in paper_go_live_gate details and used as compute_sharpe_gap's tier-3 proxy) systematically embed one full day of portfolio move as phantom divergence at the only point that matters, degrading the execution-drift control and the gate diagnostics it feeds.",
+  "fix_sketch": "Fetch one day past the window: end = (date.fromisoformat(dates[-1]) + timedelta(days=1)).isoformat() so the last snapshot date's close is included.",
+  "subsystem": "pnl-accounting",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by direct code trace. reconciliation.py:183-185 sets end=dates[-1] (newest snapshot date) and passes it to _fetch_prices; line 136 calls yf.Ticker().history(start, end) where yfinance's end is exclusive, so the price map never contains the final snapshot date for any ticker \u2014 on every run, not an edge case. At the last curve point, _shadow_nav_curve's fallback (lines 105-112: candidates "
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "Confirmed: reconciliation.py:183-185 passes end=dates[-1] (newest snapshot date) to yf.history() at line 136; yfinance end is exclusive, so the final date's close is missing and _shadow_nav_curve's at-or-before fallback (lines 105-111) marks the last point at the previous day's close while paper_nav uses day-T marks. latest_div (the alert driver, lines 193-209) therefore always embeds one day of s"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/fx_rates.py",
+  "line": 93,
+  "summary": "The live FX path returns None when yfinance and FRED both fail, never falling back to the module's own historical_fx_rates table (or any last-known rate), which triggers paper_trader's documented last-resort FX=1.0 on sells -- crediting KRW proceeds at ~1350x their USD value.",
+  "severity": "high",
+  "evidence": "fx_rates.py _usd_value_live:\n    val = _fetch_yf(ccy)\n    if val is None:\n        val = _fetch_fred(ccy)\n    if val is not None:\n        ...\n        _persist(ccy, datetime.now(timezone.utc).date().isoformat(), val, \"yfinance/fred-live\")\n    return val\n(no BQ/last-known fallback before returning None). Traced consumer backend/services/paper_trader.py:388-392+505:\n    _l2u = _fx_local_to_usd(position.get(\"market\"))\n    if _l2u is None:\n        logger.warning(\"phase-50.2: FX %s->USD unavailable on SELL %s; crediting at 1.0\", ...)\n        _l2u = 1.0\n    ...\n    new_cash = portfolio[\"current_cash\"] + net_proceeds * _l2u\nThe None state is not hypothetical: backend/tests/test_phase_60_3_data_integrity.py:183 models it verbatim -- monkeypatch(fx, \"get_fx_rate\", lambda f, t, date=None: None)  # away-week state",
+  "failure_scenario": "yfinance is rate-limited/down (documented as aggressive) and FRED is unreachable or FRED_API_KEY missing -- the exact 'away-week state' the project's own tests encode. A trailing-stop SELL fires autonomously on a KR position (e.g. 066570.KS, ~13,000,000 KRW proceeds): _fx_local_to_usd returns None, execute_sell credits at 1.0, cash += 13,000,000 'USD' instead of ~9,600 USD. For EUR positions the same path silently under-credits ~14%.",
+  "money_impact": "One KR sell during an FX outage permanently corrupts current_cash/total_nav in BQ paper_portfolio by 3 orders of magnitude; every subsequent NAV, P&L%, and alpha number is garbage. EUR sells silently leak ~14% per exit. The module writes a fresh rate to historical_fx_rates every day precisely so a last-known value exists, but the live path never reads it.",
+  "fix_sketch": "In _usd_value_live, after both fetchers fail, read the latest row from historical_fx_rates (the _usd_value_asof BQ query with date=today, guarded against recursion via a flag) and/or serve the expired api_cache entry before returning None. Alternatively have get_fx_rate(date=None) degrade to the as-of read. Keep None only when no rate has EVER been stored.",
+  "subsystem": "broker-markets-fx",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Code trace fully confirms the claim. fx_rates.py:_usd_value_live (lines 93-104) returns None when yfinance and FRED both fail, with no fallback to the historical_fx_rates table it itself writes daily via _persist (line 103), and no stale-cache serve (api_cache hard-expires at 6h on time.monotonic and is in-memory only). get_fx_rate(date=None) uses only the live path (lines 192-195), so it propagat"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Code claim verified verbatim: fx_rates.py _usd_value_live (lines 78-104) returns None after cache-miss + yfinance + FRED failures with no fallback to the module's own historical_fx_rates table (asymmetric: _usd_value_asof degrades BQ->live at lines 160/176/179, but live never degrades ->BQ). Consumer paper_trader.py execute_sell (lines 388-392, 505) converts None to _l2u=1.0 and credits net_procee"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/sector_calendars.py",
+  "line": 122,
+  "summary": "The RTTNews FDA-calendar parser requires a standalone ticker cell and a standalone date cell, but the live page embeds tickers inside the company cell and dates inside the Event sentence, so the parser yields zero FDA events and the binary-risk filter/catalyst boost are dead.",
+  "severity": "medium",
+  "evidence": "Parser (sector_calendars.py:120-141):\n        ticker = None\n        for cell in row:\n            cell_clean = cell.strip().upper()\n            if _TICKER_RE.match(cell_clean):   # _TICKER_RE = ^[A-Z]{1,6}$ -- full-cell match\n                ticker = cell_clean\n                break\n        if not ticker:\n            continue\n        ...\n        for fmt in (\"%m/%d/%Y\", \"%m-%d-%Y\", \"%b %d, %Y\", \"%B %d, %Y\"):\n            scheduled = datetime.strptime(cell.strip(), fmt).date()  # full-cell match\nLive page structure (fetched 2026-07-10): rows are 'Vera Therapeutics, Inc. (VERA) | Atacicept (BLA) | 07/07/2026 FDA decision on atacicept for ... | ...' -- ticker only appears in parentheses inside the company cell ('(TAK, TKPHF, 4502.T)'), and the date is a prefix of the long Event sentence. No cell is exactly a 1-6-letter ticker and no cell is exactly a date, so every row hits `continue`.",
+  "failure_scenario": "Operator enables sector_calendars_enabled (settings.py:395, currently default False) expecting the documented behavior: 'FILTERS OUT tickers within +/-1 day of a binary FDA event'. fetch_sector_events returns fda=0 every run (only an INFO count line, no error), apply_sector_events_to_score never returns None for FDA tickers, and the screener scores a biotech normally the day before its PDUFA decision, opening a new position into a coin-flip binary event.",
+  "money_impact": "The FDA protective filter and +20% catalyst boost are believed live once the flag is on but silently do nothing -- killed signal plus absent tail-risk protection (PDUFA rejections routinely gap biotech -30/-60% overnight, beyond any stop-loss). The earnings leg (BQ calendar_events) still works, masking the FDA leg's failure in the merged event count.",
+  "fix_sketch": "Parse tickers from the parenthesized list in the company cell (regex \\(([A-Z.,\\s]{1,30})\\) taking the first US-listed symbol) and extract dates with a search (re.search(r'\\d{2}/\\d{2}/\\d{4}', cell)) instead of full-cell strptime. Add a hard alert (WARN + summary flag) when the FDA fetch parses 0 rows from a 200 response, so a future page change can't silently kill the filter again.",
+  "subsystem": "broker-markets-fx",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED by code trace plus live-page fetch plus on-disk cache evidence. (1) The live RTTNews FDA calendar page (fetched 2026-07-10 with the module's own User-Agent) contains ZERO <table> elements; data is in <div class=\"grid-row\"> markup with data-th attributes. _RTTNewsTableParser (sector_calendars.py:64-103) only handles table/tr/td, so parser.rows is empty and _parse_rttnews_html returns [] \u2014"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED with live evidence, and the claim actually understates reachability. (1) Live-enabled, not merely enable-able: fetch_sector_events only runs behind the sector_calendars_enabled gate (autonomous_loop.py:308), and backend/services/_cache/sector_calendars/ shows daily cache writes at ~20:00 UTC every trading day 2026-04-26 \u2192 2026-07-09, proving the flag is ON in the running environment desp"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/news_screen.py",
+  "line": 329,
+  "summary": "All four in-scope apply_*_to_score overlays are multiplicative on a signed momentum composite, so whenever a candidate's base score is negative (broad drawdowns) every boost/penalty inverts: positive news/insider-buys/call-surges demote a candidate and negative news promotes it.",
+  "severity": "medium",
+  "evidence": "news_screen.py:329-332: `if sig.impact_polarity == \"positive\":\\n        return base_score * 1.10\\n    if sig.impact_polarity == \"negative\":\\n        return base_score * 0.90`. Base score is signed: screener.py:299-303 `score = (mom_1m * 0.40 + mom_3m * 0.35 + mom_6m * 0.25)` where _pct_change (screener.py:587) returns `((new - old) / old) * 100` with no positivity filter before ranking (basic filters are price/volume/short-interest only), and screener.py:483 ranks by raw score descending. Same pattern: pead_signal.py:387-389 (`base_score * (1.0 + ...)` / `base_score * max(1.0 + surprise * 0.5, 0.6)`), options_flow_screen.py:183, insider_signal_screen.py:224.",
+  "failure_scenario": "Market-wide drawdown (e.g. all 1m/3m momentum negative, as in Mar-2020/2022 tape): candidate A scores -2.0 and has an earnings_beat positive headline -> -2.0*1.10 = -2.2; candidate B scores -2.1 with a negative regulatory headline -> -2.1*0.90 = -1.89. B now outranks A, so the loop's top-N buy list systematically tilts toward negative-news names and away from positive-catalyst names precisely when selection matters most.",
+  "money_impact": "In negative-composite regimes every enabled overlay contributes anti-alpha: the +10%/+30%/+7%/+6% boosts subtract rank from the stocks they were built to favor, and the 0.6-0.9 penalties add rank to earnings-missers and negative-news names entering the paper book.",
+  "fix_sketch": "Make boosts sign-safe, e.g. `score + abs(score)*(mult-1)` or apply multipliers to a shifted/percentile score; alternatively clamp overlays to no-op when base_score <= 0.",
+  "subsystem": "signal-screens-a",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms every element of the claim. (1) All four overlays are pure multiplicative on the incoming score with no sign guard: news_screen.py:329-332 (base*1.10 / base*0.90), pead_signal.py:387-389 (base*(1+min(surprise*0.5,0.3)) / base*max(1+surprise*0.5,0.6)), options_flow_screen.py:183 and insider_signal_screen.py:224 (base*boost_multiplier, multipliers >1). (2) The base score is signe"
+   },
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "The sign-inversion logic is verified verbatim: news_screen.py:329-332 and pead_signal.py:387-389 apply multiplicative boosts/penalties to a signed momentum composite (screener.py:299-303, raw pct-change, no positivity filter in screen_stocks whose only filters are price>=5, volume, short-interest; ranking at screener.py:483 is raw descending). On a negative base score a positive-news 1.10x boost d"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/news_screen.py",
+  "line": 282,
+  "summary": "max_output_tokens = min(8192, 250 * len(deduped)) inverts its own 250-token-per-signal budget for any batch over 32 headlines, so at the default 100-headline batch the JSON array is truncated at 8192 tokens, json.loads fails, and the entire news screen returns {} on precisely the busiest news days.",
+  "severity": "medium",
+  "evidence": "news_screen.py:280-284: `\"max_output_tokens\": min(8192, 250 * len(deduped)),` with default `max_headlines: int = 100` (:233) and autonomous_loop passing news_screen_max_headlines default 100. Parse path :290-299: `raw_payload = json.loads(response.text)\\n... except Exception as e:\\n        logger.warning(\"News screen parse failed: %s | raw=%s\", ...)\\n        return {}`. At 100 signals the budget is ~82 tokens each, while one NewsHeadlineSignal JSON object (6 field names + enum values + a rationale the prompt invites up to 200 chars) runs ~50-90 tokens \u2014 the tail of the array is cut whenever rationales are not uniformly terse, and there is no retry/shrink.",
+  "failure_scenario": "Busy news day: 8 feeds -> 300+ raw items -> dedup saturates at exactly 100 headlines -> Haiku emits ~8.5K tokens of JSON -> stop at max_output_tokens mid-array -> json.loads raises -> fetch_news_signals returns {} (warning only), and nothing is cached so every cycle that day repeats the failed call.",
+  "money_impact": "The news overlay and the news-only candidate surfacing (positive-polarity tickers injected into the pool before ranking) silently produce zero signal on high-news-flow days \u2014 the signal is killed exactly when it carries the most information \u2014 while still paying the full Haiku input cost per attempt.",
+  "fix_sketch": "Drop the min() cap or raise it to 250*len(deduped) (Haiku 4.5 supports far larger outputs); on parse failure retry once with the batch split in half; optionally cap rationale via schema maxLength that survives _strip_unsupported_schema_keys.",
+  "subsystem": "signal-screens-a",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "medium",
+    "note": "Mechanism fully verified by code trace. (1) news_screen.py:282 sets max_output_tokens=min(8192, 250*len(deduped)); live logs prove dedup saturates at exactly 100 headlines virtually every cycle (\"400 raw -> 100 deduped\" in backend.log.20260612/20260706 gz), so the effective budget is ~82 tokens/signal versus the author's own 250/signal sizing \u2014 the min() inversion claim is arithmetically correct a"
+   },
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "Reachable and money-relevant: NEWS_SCREEN_ENABLED=true in backend/.env, autonomous_loop.py:295-305 calls fetch_news_signals(max_headlines=100) each cycle, and live backend.log shows dedup saturating at exactly 100 headlines every run (366-400 raw -> 100). Signals flow into screener composite scores (x1.10/x0.90) and inject news-only candidates, so the value is trade-relevant. The defect itself is "
+   }
+  ]
+ },
+ {
+  "file": "backend/services/macro_regime.py",
+  "line": 547,
+  "summary": "apply_regime_to_score applies the regime sector tilt multiplicatively to a signed composite score, so for negative scores the tilt inverts: overweight (favored) sectors are ranked LOWER and underweight sectors HIGHER.",
+  "severity": "medium",
+  "evidence": "score = base_score * regime.conviction_multiplier\n    if sector and sector_etf_for:\n        etf = sector_etf_for.get(sector)\n        if etf:\n            if etf in regime.sector_hints.overweight:\n                score *= 1.05\n            elif etf in regime.sector_hints.underweight:\n                score *= 0.95\n    return score\n\nCaller (backend/tools/screener.py:318-322, live -- macro-regime overlay confirmed ON since phase-51.1 fix): 'if regime is not None: ... score = apply_regime_to_score(score, stock.get(\"sector\"), SECTOR_ETFS, regime)'. Composite = mom_1m*0.40 + mom_3m*0.35 + mom_6m*0.25 (percent units, screener.py:299-303) with no positivity filter anywhere in screen_universe; rank_candidates ends with 'scored.sort(key=lambda x: x[\"composite_score\"], reverse=True); return scored[:top_n]' -- pure signed top-N.",
+  "failure_scenario": "Broad drawdown: most of the 577-name universe has negative 1m/3m/6m momentum, so composites are negative. LLM regime = risk_off with sector_hints.overweight=[XLU,XLP,XLV,XLE] (exactly what the prompt instructs). A Utilities candidate at score -5.0 becomes -5.0*0.70*1.05 = -3.675 while an equal Tech (underweight XLK) candidate becomes -5.0*0.70*0.95 = -3.325, ranking ABOVE the defensive name. The tilt systematically prefers risk-ON sectors during risk_OFF regimes whenever scores are negative -- the opposite of the regime's intent. (The uniform conviction_multiplier cancels out in top-N ranking, so in a bear tape the inverted sector tilt is the regime filter's ONLY ranking effect.)",
+  "money_impact": "In the market state where the regime overlay matters most (risk_off selloffs), the top-10 candidate cut fed to LLM analysis and BUYs is tilted toward cyclicals instead of the intended defensives -- wrong trade selection precisely when downside protection is the goal.",
+  "fix_sketch": "Make the tilt sign-aware (e.g. score += abs(score)*0.05 for overweight / -= for underweight), or apply tilts on cross-sectional rank/percentile instead of the raw signed score.",
+  "subsystem": "macro-factor-integrity",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace. macro_regime.py:542-550 applies `score *= 1.05` (overweight) / `*= 0.95` (underweight) to a SIGNED composite: for negative scores the favored sector becomes more negative and ranks lower in the descending sort. The composite (screener.py:299-303) is a weighted sum of raw percent momentum (negative in drawdowns); screen_universe has no positivity filter (only price/vol"
+   },
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "Code defect CONFIRMED: apply_regime_to_score (macro_regime.py:542-550) applies multiplicative 1.05/0.95 sector tilts to a SIGNED composite; for negative scores the tilt inverts (overweight sectors rank lower). Caller verified: screener.py rank_candidates builds a signed momentum composite (lines 299-311), applies the regime at 318-322, no positivity filter anywhere, and ends in a pure signed desce"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/cycle_health.py",
+  "line": 523,
+  "summary": "compute_freshness bands paper_trades (and signals_log) against a flat 24h cycle interval using MAX(event_time), so legitimate no-trade stretches and every weekend push the strip to red and fire hourly P1 'Data freshness critical' Slack alerts, conflating 'engine rationally chose not to trade' with 'trade-data pipeline dead'.",
+  "severity": "medium",
+  "evidence": "\"paper_trades\": {\n            \"last_tick_age_sec\": trade_age,\n            \"interval_sec\": cycle_interval_sec,\n            \"ratio\": (trade_age / cycle_interval_sec) if (trade_age and cycle_interval_sec) else None,\n            \"band\": _band(trade_age, cycle_interval_sec),\n        },\n\nwith trade_age = _bq_max_event_age(bq, 'paper_trades', 'created_at') (line 502), _band red at ratio >= 2.0 (lines 78-86), cycle_interval_sec hardcoded 24h by the API caller (paper_trading.py:476), and 'if overall_band == \"red\": _fire_freshness_alarm(sources)' (lines 564-565) raising severity='P1' per red table via raise_cron_alert_sync, whose AlertDeduper re-fires critical alerts every repeat_hours=1. signals_log uses the same flat interval (lines 552-557). Live cycle_history.jsonl shows n_trades=0 on nearly every cycle for weeks (the measured-healthy 66% cash book) and zero weekend rows.",
+  "failure_scenario": "Any two consecutive cycles without an executed trade -- the routine state of this book -- puts paper_trades age > 48h -> red band -> P1 'freshness_critical_paper_trades' re-posted every hour that the UI polls /api/paper-trading/freshness. Even in an actively-trading week, Friday's last write ages past 48h by Sunday, so the strip is red and paging every Monday morning by construction. The operator is trained that red-paper_trades/red-overall is normal.",
+  "money_impact": "The freshness strip is the money-data health display and P1 is the silent-data-loss channel: permanent false reds mean a REAL paper_trades write-path failure (trades executing but not persisting -> corrupted positions/P&L accounting) is indistinguishable from background noise -- the exact 65h-gap / 6-week-silent-outage failure class this monitor was built to catch.",
+  "money impact_note": null,
+  "fix_sketch": "Band event tables against trading-calendar-aware expectations (time since last EXPECTED weekday cycle, like _TABLE_MAX_AGE_SEC does for historical tables) and use cycle_history completion rows -- not trade events -- as the data-plane liveness proxy; treat n_trades=0 cycles as fresh.",
+  "subsystem": "macro-factor-integrity",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms every link in the claimed chain. (1) All three API callers pass a flat 24h interval: paper_trading.py:476 and observability_api.py:40,59 use getattr(settings, \"paper_cycle_interval_sec\", 86400.0), and no such settings field exists anywhere in backend/, so 86400s always applies. (2) cycle_health.py:519-524 bands paper_trades via _band(trade_age, 86400) with trade_age from MAX(cr"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Every load-bearing element verified. (1) cycle_health.py:518-524/552-557 bands paper_trades and signals_log against a flat cycle_interval_sec; both API callers (paper_trading.py:476, observability_api.py:40/59) pass getattr(settings, \"paper_cycle_interval_sec\", 24*3600.0) and settings.py has no such attribute, so the interval is a hardcoded 24h. (2) _band goes red at ratio>=2.0 (48h) and trade_age"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/cycle_health.py",
+  "line": 216,
+  "summary": "cycle_heartbeat_alarm's 26h staleness threshold ignores the weekend gap, so every Monday between 00:00 ET and the ~10:05 ET cycle completion the verdict is should_alarm=True and the 15-minute watchdog fires a guaranteed false P1 'Autonomous cycle silent' page weekly.",
+  "severity": "medium",
+  "evidence": "age_sec = (now - completed_dt).total_seconds()\n        is_weekday_et = now.astimezone(_NYSE_TZ).weekday() < 5\n        stale = age_sec > threshold_sec\n        return {\n            \"stale\": stale,\n            \"age_sec\": age_sec,\n            \"should_alarm\": stale and is_weekday_et,\n\nwith _CYCLE_HEARTBEAT_STALE_SEC = 93_600.0 (26h, line 61). The docstring only excuses Sat/Sun ('Weekends have no scheduled cron fire so a 26h stale on Sat/Sun is normal') but Monday pre-cycle is the same normal state. Consumer (slack_bot/scheduler.py:767-779) runs on the 15-min watchdog interval and fires on the False->True transition: Sunday evaluates should_alarm=False, first Monday tick evaluates True -> fire_cycle_heartbeat_alarm posts P1. Verified against handoff/cycle_history.jsonl: cycles complete weekdays only (e.g. Fri 2026-07-03 then Mon 2026-07-06), so Monday-00:00-ET age is always ~58-66h >> 26h.",
+  "failure_scenario": "Every Monday: Friday's cycle completed ~15:00-19:00 UTC; at Monday 00:00-00:15 ET the watchdog computes age ~58h > 26h with is_weekday_et=True, transitions False->True, and posts P1 'Autonomous cycle silent: heartbeat stale on weekday' although the next cycle is not even due for 10 more hours. One false P1 per week on the channel whose sole purpose is catching real silent cycle death (the 65h 34m gap of 2026-05-17..19 that this alarm was built for).",
+  "money_impact": "Weekly false pages on the P1 dead-cycle channel condition the operator to dismiss it; a real multi-day silent failure of the trading loop (no screening, no exits, trailing stops unmonitored by the cycle) then goes unnoticed again -- missed trades and unmanaged positions, the documented Anomaly-C money cost this alarm exists to prevent.",
+  "fix_sketch": "Compare age against the most recent EXPECTED completion (last scheduled weekday paper_trading_hour + buffer) instead of a flat 26h, or count staleness in weekday-hours; alternatively require now to be past today's scheduled cycle time + grace before alarming on Mondays.",
+  "subsystem": "macro-factor-integrity",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED by code trace AND live log evidence. (1) cycle_health.py:210-216: should_alarm = (age_sec > 93,600s) AND is_weekday_et \u2014 the only weekend handling is suppression while now is Sat/Sun; there is no guard for 'Monday before the scheduled cycle'. (2) scheduler.py:251-258 registers _watchdog_health_check on a 24/7 interval trigger (default 15 min, no day/hour restriction); scheduler.py:767-77"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED with live empirical evidence, not just code reading. handoff/logs/slack_bot.log shows the exact predicted false P1 ('cycle_heartbeat_alarm fired P1') on four consecutive Mondays: 2026-06-15, 06-22, 06-29, and 07-06, each at ~06:01 UTC with age_sec ~200-208k (56-58h), each referencing the prior Friday's completion, and each hours before that Monday's cycle completed normally (~18:00-19:20"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/orchestrator.py",
+  "line": 2216,
+  "summary": "Bias audit reads the recommendation from the wrong key (`recommendation.recommendation`; the SynthesisReport schema field is `action`), so detect_biases always evaluates \"HOLD\" and the tech-bias and confirmation-bias flags are structurally dead on every full-pipeline analysis.",
+  "severity": "high",
+  "evidence": "orchestrator.py:2216: `recommendation=final_json.get(\"recommendation\", {}).get(\"recommendation\", \"HOLD\"),` -- but schemas.py:39-41 defines `class Recommendation(BaseModel): action: str = Field(description=\"Strong Buy, Buy, Hold, Sell, or Strong Sell\")` (no `recommendation` key), and the live trade path proves the real key: services/autonomous_loop.py reads `rec.get(\"action\", \"HOLD\")`. bias_detector.py then gates every tech/confirmation flag on it: `if is_tech and recommendation.upper() in (\"STRONG_BUY\", \"BUY\") and score >= 7.5` and `is_bullish_rec = rec in (\"STRONG_BUY\", \"BUY\") ... if is_bullish_rec and bearish >= 3: BiasFlag(severity=\"HIGH\", ...)`. Same wrong key mirrored in conflict_detector.py:114: `rec_label = (rec.get(\"recommendation\", \"\") or rec.get(\"label\", \"\")).upper()`.",
+  "failure_scenario": "NVDA full-path analysis: synthesis returns {\"recommendation\": {\"action\": \"Buy\"}, \"final_weighted_score\": 8.2} with 4 bearish enrichment signals. Expected: tech_bias MEDIUM + confirmation_bias HIGH flags, adjusted_score 8.2 - 0.4 = 7.8. Actual: detect_biases receives \"HOLD\", is_bullish_rec is always False, 0 flags fire, bias_count=0 and adjusted_score=8.2 are persisted, and run_risk_debate serializes this sanitized bias_report into the Risk Judge prompt (risk_debate.py:171 `json.dumps(synthesis_result...)[:6000]`).",
+  "money_impact": "The anti-groupthink safety net is killed exactly on the risky bullish calls it was built for: the Risk Judge (which sets recommended_position_pct) never sees HIGH confirmation-bias flags on BUYs contradicted by bearish signals; bias_count/bias_adjusted_score persisted to the analysis_results ML-training table (tasks/analysis.py:257-258) are systematically inflated; and the UI shows \"Bias flags: 0\" for every analysis -- wrong display of a money-relevant risk metric. Secondary latent bug: even with the right key, \"Strong Buy\".upper() == \"STRONG BUY\" (space) never matches \"STRONG_BUY\".",
+  "fix_sketch": "Read `final_json.get(\"recommendation\", {}).get(\"action\", \"HOLD\")` and normalize (upper + spaces->underscores) before the set comparisons in bias_detector; apply the same key fix in conflict_detector.py:114.",
+  "subsystem": "agents-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Code trace confirms every link. orchestrator.py:2216 reads final_json.get(\"recommendation\", {}).get(\"recommendation\", \"HOLD\"), but the synthesis output shape is enforced (Gemini response_schema=SynthesisReport, orchestrator.py:87/124) and prompted (skills/synthesis_agent.md:81) as {\"recommendation\": {\"action\": ..., \"justification\": ...}} \u2014 no nested \"recommendation\" key exists. run_synthesis_pipel"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED and live-reachable. orchestrator.py:2216 reads final_json[\"recommendation\"][\"recommendation\"] but the SynthesisReport schema field is \"action\" (schemas.py:39-41); the runtime shape is proven by every other consumer reading .get(\"action\") (tasks/analysis.py:214/326, api/analysis.py:210/319, autonomous_loop.py:1660, slack_bot/formatters.py:182, compaction.py:161). detect_biases therefore a"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/orchestrator.py",
+  "line": 825,
+  "summary": "_generate_with_retry's per-step timeout does not actually free the pipeline: the ThreadPoolExecutor context manager joins the still-running LLM call on exit, so wall time is unbounded by `timeout`, and each timed-out attempt is fully completed/billed server-side then discarded and re-submitted (up to 3x).",
+  "severity": "medium",
+  "evidence": "orchestrator.py:820-889: `for attempt in range(max_retries): try: with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor: future = executor.submit(model.generate_content, prompt, **gen_kwargs); response = future.result(timeout=timeout)` ... `except concurrent.futures.TimeoutError: logger.error(f\"{agent_name} timed out after {timeout}s...\"); if attempt < max_retries - 1: continue; raise TimeoutError(...)`. When future.result raises, the `with` block's __exit__ calls shutdown(wait=True), which blocks until model.generate_content returns; running futures cannot be cancelled.",
+  "failure_scenario": "A grounded Enhanced Macro call on gemini-2.5-flash hangs past the 180s budget (google-genai's default HttpOptions has no read timeout). future.result(180) raises at 180s, but the executor exit blocks until the transport finishes (minutes, or indefinitely on a dead streaming connection); the completed response is then discarded and the identical call re-submitted. After 3 attempts, TimeoutError propagates, _run_single_analysis catches it, and the ticker silently degrades to the lite analyzer -- the documented away-week failure mode (comment at orchestrator.py:324-346 records 'the SAME grounded step ... blew 3x90s').",
+  "money_impact": "Per hang: up to 3 fully-billed generations thrown away, plus an unbounded stall of the per-ticker analysis that can consume the cycle window; end state converts full-pipeline analyses into lite-fallback rows whose degraded scores drive real paper-trade decisions, and a truly hung transport freezes the pipeline with no recovery despite the 'timeout'.",
+  "fix_sketch": "Set explicit client/transport timeouts matching the step budget (google-genai HttpOptions timeout, Anthropic client timeout), or use a persistent executor and abandon the future without joining (shutdown(wait=False)) so the timeout actually bounds wall time; do not resubmit while the prior attempt is unresolved.",
+  "subsystem": "agents-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED by code trace. orchestrator.py:822-825 submits model.generate_content to a ThreadPoolExecutor inside a `with` block and calls future.result(timeout=timeout). When that raises TimeoutError, the with-block's __exit__ (shutdown(wait=True)) runs BEFORE the except clause at line 885, and running futures cannot be cancelled \u2014 so the join blocks until the LLM call actually returns. Wall time is"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED. (1) Code matches claim exactly: orchestrator.py:822-825 wraps future.result(timeout) in a ThreadPoolExecutor context manager; on TimeoutError the with-block __exit__ runs shutdown(wait=True) BEFORE the except at :885, joining the still-running LLM call \u2014 wall time is unbounded by `timeout`, and the completed response is discarded then the identical call resubmitted (continue at :888, up"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/orchestrator.py",
+  "line": 1835,
+  "summary": "`self.bq` is never assigned anywhere in AnalysisOrchestrator, so the phase-25.B7 yfinance-fallback telemetry write always raises AttributeError, which the surrounding except swallows -- the data_source_events row is never persisted.",
+  "severity": "medium",
+  "evidence": "orchestrator.py:1834-1845: `try: self.bq.save_data_source_event(ticker=ticker, source=\"yfinance_fallback\", kind=\"fallback\", article_count=len(fallback_articles), notes=\"AV sentiment_summary empty\") except Exception as _bq_exc: logger.warning(\"save_data_source_event fail-open for %s: %r\", ticker, _bq_exc)`. grep confirms line 1835 is the ONLY `self.bq` reference in the file (__init__ never sets it; other call sites construct local clients, e.g. line 1718 `_bq_pse = BigQueryClient(self.settings)`), and `save_data_source_event` exists at bigquery_client.py:902 with no other caller in backend/.",
+  "failure_scenario": "Alpha Vantage hits its free-tier daily cap mid-cycle; sentiment_summary comes back empty for every remaining ticker and the pipeline switches to yfinance fallback articles. Each analysis attempts the BQ event write, gets AttributeError(\"'AnalysisOrchestrator' object has no attribute 'bq'\"), logs a 'fail-open' warning, and writes nothing. The operator's pct_yfinance_fallback_dominance query over data_source_events returns zero events for a window where 100% of sentiment inputs were degraded.",
+  "money_impact": "Silent data loss of the exact monitoring signal built (phase-25.B7) to detect when sentiment-driven signals are running on degraded fallback data. Sentiment/NLP/social enrichment can silently run on lower-quality yfinance articles for weeks -- the same 'silent degradation for weeks' class as the SecretStr overlay kill -- with the detection metric permanently reading zero.",
+  "fix_sketch": "Add `self.bq = BigQueryClient(settings)` in __init__ (mirroring the _bq_pse pattern) or construct a local BigQueryClient at the call site; the feature has otherwise been dead since it shipped.",
+  "subsystem": "agents-core",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace. backend/agents/orchestrator.py:1835 is the ONLY occurrence of `self.bq` in the file; `__init__` (lines 475+) never assigns it; the class has no base class, no `__getattr__`, and no setattr-based assignment. All seven construction sites (backend/tasks/analysis.py:62,378, backend/api/analysis.py:63, backend/api/investigate.py:24, backend/services/autonomous_loop.py:1632"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed at every level. (1) Bug is structurally certain: `self.bq` at orchestrator.py:1835 is the sole reference in the file; `AnalysisOrchestrator` (line 438, no base class) never assigns it in `__init__` (lines 475+), no `__getattr__` hook exists, and no external code setattr's `.bq` onto an orchestrator instance \u2014 so the call raises AttributeError every time, which the enclosing `except Excep"
+   }
+  ]
+ },
+ {
+  "file": "backend/slack_bot/jobs/_production_fns.py",
+  "line": 222,
+  "summary": "nightly_outcome_rebuild's ledger fetch selects nonexistent paper_trades columns (`timestamp`, `realized_pnl`), so the BQ query fails every night, is swallowed to [], and the job heartbeats \"ok\" while writing zero outcome rows forever.",
+  "severity": "medium",
+  "evidence": "sql = \"\"\"\n    SELECT trade_id, ticker, action, price, quantity, timestamp,\n           SAFE_CAST(realized_pnl AS FLOAT64) AS pnl\n    FROM `sunny-might-477607-p8.financial_reports.paper_trades`\n    WHERE TIMESTAMP_TRUNC(timestamp, DAY) >= ...\n      AND realized_pnl IS NOT NULL\n...\nexcept Exception as exc:\n    logger.warning(\"nightly_outcome_rebuild: BQ fetch fail-open: %r\", exc)\n    return []  (_production_fns.py:220-232). paper_trades has only created_at (migrate_paper_trading.py:54-66) and realized_pnl_pct (add_round_trip_schema.py:56); no `timestamp`, no dollar `realized_pnl` in any migration. Wired nightly at 04:00 UTC via scheduler.py:1143-1144 + prod_fns_per_job[\"nightly_outcome_rebuild\"] (scheduler.py:1106-1109).",
+  "failure_scenario": "Every night BQ raises \"Unrecognized name: timestamp\" at query time; the closure logs WARNING and returns []; nightly_outcome_rebuild._compute_outcomes([]) -> outcome_write_fn([]) returns 0 without erroring; job_runtime.heartbeat marks status=\"ok\" (job_runtime.py:104) and _aps_to_heartbeat pushes a green status to /api/jobs, which _compute_cron_health then reports as \"healthy\" in the morning digest. financial_reports.outcome_tracking never receives a row from this path (consistent with test_phase_23_2_11_bq_table_freshness.py marking outcome_tracking n=0 xfail).",
+  "money_impact": "The outcome-tracking rebuild -- the feedback ledger of realized trade outcomes that the learn-loop / accuracy reporting consume -- silently produces nothing while the ops dashboard and cron-health digest line show it green. Killed learning signal + silent data loss disguised as a healthy job (same failure class as the SecretStr overlay outage).",
+  "fix_sketch": "Fix the SQL to the real columns: SELECT ... created_at, SAFE_CAST(realized_pnl_pct AS FLOAT64) with WHERE action='SELL' AND realized_pnl_pct IS NOT NULL AND created_at >= ...; align the outcome write schema with the actual outcome_tracking table; make the closure return a sentinel/raise so heartbeat records \"failed\" instead of ok-with-0 when the fetch errors.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED via full code trace. The ledger-fetch closure at backend/slack_bot/jobs/_production_fns.py:220-227 selects `timestamp` and `realized_pnl` from `financial_reports.paper_trades`, both in the SELECT and WHERE (`TIMESTAMP_TRUNC(timestamp, DAY)`, `AND realized_pnl IS NOT NULL`). Neither column exists: migrate_paper_trading.py:54-66 defines the timestamp column as `created_at` (STRING), and ad"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CONFIRMED reachable and the bug is real. (1) Schema: paper_trades has only created_at (STRING) and realized_pnl_pct (FLOAT64) per migrate_paper_trading.py:54-66 and add_round_trip_schema.py:56 \u2014 there is NO `timestamp` column and NO dollar `realized_pnl`. The writer confirms this: paper_trader.execute_buy/execute_sell write created_at + realized_pnl_pct, never timestamp/realized_pnl (paper_trader."
+   }
+  ]
+ },
+ {
+  "file": "backend/slack_bot/jobs/_production_fns.py",
+  "line": 348,
+  "summary": "weekly_data_integrity's Slack alert reads drift key 'pct' but _compute_drifts emits 'delta_pct', so every table-drift alert renders \"(0.0%)\" regardless of actual drift magnitude.",
+  "severity": "medium",
+  "evidence": "body = \"\\n\".join(\n    f\"- `{d.get('table')}`: {d.get('prev')} \u2192 {d.get('cur')} ({d.get('pct', 0):.1%})\"\n    for d in drifts[:10]\n)  (_production_fns.py:347-350) vs the producer: drifts.append({\"table\": table, \"prev\": prev_n, \"cur\": cur_n, \"delta_pct\": delta})  (jobs/weekly_data_integrity.py:74). Wired live via prod_fns_per_job[\"weekly_data_integrity\"] = {\"alert_fn\": pf.make_alert_fn_for_integrity(...)} (scheduler.py:1113-1115), cron Mondays 05:00 UTC.",
+  "failure_scenario": "pyfinagent_data table row counts drift >20% week-over-week (e.g. an ingestion job dies and historical table growth stalls, or a runaway writer doubles a table). The alert fires but every line reads \"prev \u2192 cur (0.0%)\" because d.get('pct') always misses. An operator scanning the alert sees 0.0% drift figures that contradict the alert's own premise and may dismiss it as a false positive.",
+  "money_impact": "The one automated alarm guarding the row-count integrity of the datasets that feed signals/backtests understates every drift as 0.0% -- weakens detection of exactly the silent-table-outage class (calendar_events, tickets.db) this project has been burned by.",
+  "fix_sketch": "Use d.get('delta_pct', 0) (value is a fraction, so :.1% formatting is then correct), or rename the producer key to 'pct' consistently.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED via full code trace. Producer backend/slack_bot/jobs/weekly_data_integrity.py:74 emits drift dicts keyed `delta_pct`: `drifts.append({\"table\": table, \"prev\": prev_n, \"cur\": cur_n, \"delta_pct\": delta})`. Those drifts flow unchanged \u2014 run() line 52 builds them via _compute_drifts, then line 56 calls `alert_fn(drifts)` with no key transformation. The consumer at _production_fns.py:348 reads"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CONFIRMED code defect and reachable-in-live-config, but severity overstated. The key mismatch is real: weekly_data_integrity._compute_drifts appends {\"table\",\"prev\",\"cur\",\"delta_pct\": delta} (jobs/weekly_data_integrity.py:74), while the Slack alert renderer reads d.get('pct', 0) (_production_fns.py:348). A repo-wide grep shows these are the ONLY two references \u2014 'delta_pct' is produced once and 'p"
+   }
+  ]
+ },
+ {
+  "file": "backend/backtest/analytics.py",
+  "line": 323,
+  "summary": "compute_deflated_sharpe mixes units: annualized Sharpe is plugged into Bailey-L\u00f3pez de Prado's per-period standard-error formula with daily T, inflating z by ~sqrt(252) and collapsing the immutable DSR>=0.95 promotion gate into a near-binary pass for any Sharpe above E[max SR].",
+  "severity": "high",
+  "evidence": "generate_report passes `observed_sr=result.aggregate_sharpe` (annualized: compute_sharpe returns `(excess.mean()/std) * np.sqrt(periods_per_year)`, line 144) and `T = len(daily_returns)`. compute_deflated_sharpe then computes `se_sr = math.sqrt((1 - skewness * observed_sr + (kurtosis - 1) / 4 * observed_sr**2) / T)` (lines 323-325) and `z = (observed_sr - e_max_sr) / se_sr`. The BLdP formula's SR-hat is the per-period (non-annualized) Sharpe; the SE of an ANNUALIZED SR is ~sqrt(252) larger than computed here. Also `variance_of_srs` is the variance of per-window Sharpes of one strategy (generate_report line 642), not the variance across the N trials, and standalone backtests always call generate_report with num_trials=1 while the optimizer resets num_trials per run on warm-start (quant_optimizer.py:759).",
+  "failure_scenario": "Aggregate annualized Sharpe 1.5 over T=500 daily returns, kurt=3, 10 trials, V=0.5: implementation gives se~0.06, z~(1.5-1.11)/0.06~6.3 -> DSR~1.0 (gate passes). Correct per-paper computation (per-period units or annualization-consistent SE ~0.71) gives z~0.55 -> DSR~0.71 (gate fails). The statistic behaves as a step function around e_max_sr instead of a probability that deflates for short samples and many trials.",
+  "money_impact": "DSR>=0.95 is one of the NORTH-STAR immutable promotion gates ('DSR guard: required for optimizer to keep a result'). As implemented it provides almost no multiple-testing or sample-length deflation, so overfit parameter sets clear the gate and get promoted toward the live book, while the gate's apparent rigor gives false confidence; combined with the per-run num_trials reset, hundreds of cumulative trials are counted as 1.",
+  "fix_sketch": "Convert to per-period units before applying the BLdP SE (sr_daily = sr_ann/sqrt(252), same for e_max via trial-SR variance in per-period units), use sqrt(T-1) per the paper, and persist a cumulative trial counter across optimizer runs.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED via code trace + numerical reproduction. compute_deflated_sharpe (analytics.py:323-325) applies the Bailey/Lopez de Prado per-period standard-error formula se_sr = sqrt((1 - skew*SR + (kurt-1)/4*SR^2)/T) but is fed an ANNUALIZED Sharpe with a DAILY T. generate_report (analytics.py:654-661) passes observed_sr=result.aggregate_sharpe, which is compute_sharpe()'s annualized value ((excess.m"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "BUG IS GENUINE. analytics.py:654-661 (generate_report) passes observed_sr=result.aggregate_sharpe \u2014 an ANNUALIZED Sharpe (compute_sharpe multiplies by np.sqrt(252), line 144) \u2014 into compute_deflated_sharpe with T=len(daily_returns). The SE at lines 323-325 (se_sr=sqrt((1-skew*sr+(kurt-1)/4*sr^2)/T)) is Bailey-Lopez de Prado's PER-PERIOD SE formula, which requires a non-annualized Sharpe. The numer"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/autonomous_loop.py",
+  "line": 167,
+  "summary": "run_daily_cycle acquires the file lock and sets _running=True ~90 lines BEFORE the try/finally that releases them; an exception from the unguarded init in between (notably BigQueryClient construction) permanently bricks the trading loop with no alert.",
+  "severity": "high",
+  "evidence": "    try:\n        _lock_cm = _cycle_lock_acquire(_cycle_id_for_lock)\n        _lock_cm.__enter__()\n    except CycleLockError as _lock_exc:\n        ...\n    _running = True\n    settings = settings or get_settings()\n    bq = BigQueryClient(settings)      # unguarded: json.loads(GCP_CREDENTIALS_JSON) / bigquery.Client() -> DefaultCredentialsError\n    trader = PaperTrader(settings, bq)\n    ...\n    _cycle_timeout = float(getattr(settings, \"paper_cycle_max_seconds\", 1800.0))\n    try:                                # line 260 -- finally at 1429 does _running = False + _lock_cm.__exit__\n        async with asyncio.timeout(_cycle_timeout):",
+  "failure_scenario": "ADC file missing/corrupt after a gcloud re-auth, or malformed GCP_CREDENTIALS_JSON: BigQueryClient(settings) at line 175 raises. The exception escapes run_daily_cycle (the releasing finally at 1429 belongs to the try at 260, which was never entered). _scheduled_run (paper_trading.py:1325-1332) just logs it. _running stays True and the flock+pidfile stay held for the process lifetime, so EVERY subsequent scheduled cycle returns {\"status\": \"skipped\", \"reason\": \"already_running\"} at line 153 \u2014 before any alerting, cycle-health, or record_cycle_start code runs.",
+  "money_impact": "The engine silently stops trading AND stops enforcing stop-losses (Step 5.6 runs only inside the cycle) until a manual backend restart \u2014 open positions ride unprotected through drawdowns. The only backstop is the separate 26h no-heartbeat dead-man alarm, leaving a 1+ day blind window; the cycle's own failure-alert path never fires because the finally never runs.",
+  "fix_sketch": "Move the lock acquire + _running=True immediately adjacent to the try (or wrap lines 173-259 in the same try), so the finally always releases; alternatively guard BigQueryClient/PaperTrader construction and release the lock + alert on init failure.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED via full code trace. Structure (autonomous_loop.py:162-201, 260, 1429-1436): the file lock is acquired at lines 167-168 and `_running = True` is set at line 173 (a MODULE-LEVEL global), then `bq = BigQueryClient(settings)` (175) and `trader = PaperTrader(settings, bq)` (176) run unguarded. I verified there is NO enclosing try between line 168 and the releasing try at line 260 \u2014 the only "
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED real and live-config reachable. Direct code read of backend/services/autonomous_loop.py verifies the structural defect exactly as claimed: the file lock is acquired via `_lock_cm.__enter__()` at line 168 and `_running=True` is set at line 173, while the try whose finally releases them (lines 1429-1430: `_running=False` + `_lock_cm.__exit__`) begins at line 260. Any exception in the ungua"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/autonomous_loop.py",
+  "line": 943,
+  "summary": "The phase-26.1 session-budget HARD-BLOCK is a no-op: BudgetBreachError deliberately re-raised in _run_and_persist_one is silently swallowed by asyncio.gather(return_exceptions=True) and then filtered out, so the cycle never halts, never reports budget_breach, and never alerts.",
+  "severity": "medium",
+  "evidence": "                    try:\n                        _check_session_budget(f\"pre_analysis_{kind}\")\n                    except Exception as exc:\n                        # BudgetBreachError -- propagate to the cycle-level catch.\n                        raise\n...\n            candidate_results = await asyncio.gather(\n                *[_run_and_persist_one(t, \"new\") for t in analyze_tickers],\n                return_exceptions=True,\n            )\n            candidate_analyses = [r for r in candidate_results if isinstance(r, dict)]\n...\n        if type(e).__name__ == \"BudgetBreachError\":   # line 1417: intended halt -> status budget_breach; unreachable from the fan-out",
+  "failure_scenario": "PYFINAGENT_SESSION_BUDGET_USD defaults to $1.0 while paper_max_daily_cost_usd is $2.0, so on full-pipeline cycles (per-ticker cost from cost_summary, default 0.1 charged even on lite) the session budget trips first, mid-fan-out. Every remaining ticker's coroutine raises BudgetBreachError; gather(return_exceptions=True) returns the exceptions as values; the isinstance(r, dict) filter drops them. The cycle proceeds to decide/trade and ends status='completed'. The documented halt (status budget_breach + P1 alert, lines 1411-1423) never happens.",
+  "money_impact": "Holdings due for re-evaluation get no analysis, so deteriorated positions produce no SELL signal that cycle \u2014 stale positions trade unmanaged while the operator sees a green 'completed' cycle. The cost ceiling also degrades from a hard stop to a silent partial skip, undermining the operator's LLM-spend control (spend requires explicit approval per project rules).",
+  "fix_sketch": "After each gather, re-raise any result whose type name is BudgetBreachError (or drop return_exceptions and catch/inspect ExceptionGroup), so the cycle-level except at 1411 actually receives it.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED via full code trace. The session-budget BudgetBreachError raised in the fan-out is swallowed and its documented halt is unreachable.\\n\\nChain of evidence (all links verified in the repo as it stands today):\\n\\n1. Re-raise: autonomous_loop.py:899-903 \u2014 `try: _check_session_budget(f\\\"pre_analysis_{kind}\\\") except Exception as exc: # BudgetBreachError -- propagate to the cycle-level catch. "
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "STRUCTURAL BUG CONFIRMED (read exact code). `_check_session_budget()` (autonomous_loop.py:95-105) raises BudgetBreachError when `_session_cost >= _SESSION_BUDGET_USD`, and it is called ONLY at line 900 inside the `_run_and_persist_one` fan-out coroutine; the `except ... raise` at 901-903 re-raises it. Both `asyncio.gather(..., return_exceptions=True)` calls (941-951) convert that exception into a "
+   }
+  ]
+ },
+ {
+  "file": "backend/services/autonomous_loop.py",
+  "line": 1309,
+  "summary": "Stop-loss SELLs are excluded from trades_executed, so the persisted daily snapshot's trades_today under-counts real trades, and the operator's cycle-completed digest reads a never-populated 'stops_executed' key that is always 0.",
+  "severity": "medium",
+  "evidence": "line 1129-1131 (Step 5.6): \n                    if sl_trade:\n                        summary[\"stop_loss_triggered\"].append(sl_ticker)\n                        closed_tickers.append(sl_ticker)   # trades_executed NOT incremented (only lines 1249/1295 in Step 7 do)\nline 1307-1310 (Step 8):\n            snapshot = await asyncio.to_thread(\n                trader.save_daily_snapshot,\n                trades_today=trades_executed,\nline 1542 (P3 completed digest):\n                        \"stops_executed\": summary.get(\"stops_executed\", 0),   # grep: no writer ever sets summary[\"stops_executed\"]",
+  "failure_scenario": "A cycle where 2 positions stop out and decide_trades emits no orders: execute_sell writes 2 real SELL rows to paper_trades (with realized P&L and transaction costs), yet save_daily_snapshot persists trades_today=0 to paper_portfolio snapshots, cycle_history records n_trades=0, and the operator's 'Autonomous trading cycle completed' Slack alert reports trades_executed=0, stops_executed=0.",
+  "money_impact": "Stop-outs \u2014 the highest-signal money events (realized losses) \u2014 are invisible in the daily operator digest and under-counted in the persisted BQ snapshot series that downstream turnover/churn and activity analyses read (churn mis-accounting is this project's known cost blind spot). An away-week operator reading digests would believe no trades occurred on days positions were being stopped out.",
+  "fix_sketch": "Increment trades_executed (or a separate stops counter surfaced as summary['stops_executed']) in the Step 5.6 loop, and have the digest read len(summary['stop_loss_triggered']).",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace of backend/services/autonomous_loop.py confirms both halves of the claim.\n\nPART A (trades_today under-counts stop-loss SELLs): `trades_executed = 0` at line 178 is incremented ONLY at line 1249 (Step 7 discretionary SELL loop) and line 1295 (Step 7 BUY loop). The Step 5.6 stop-loss loop (lines 1118-1137) executes `trader.execute_sell(reason=\"stop_loss_trigger\")` and, on success, appends"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED and LIVE. Every code assertion in the claim checks against the current file: (1) the Step 5.6 stop-loss loop (autonomous_loop.py:1118-1137) never increments trades_executed on a successful execute_sell \u2014 the only two increment sites are line 1249 (decide_trades SELL) and 1295 (BUY); (2) line 1309 passes trades_executed to save_daily_snapshot(trades_today=...), which (paper_trader.py:897-"
+   }
+  ]
+ },
+ {
+  "file": "backend/backtest/backtest_engine.py",
+  "line": 488,
+  "summary": "Trade execution and final liquidation fetch prices with exact-date lookups (test_start,test_start)/(test_end,test_end); on weekend/holiday boundaries this returns empty, so entire windows silently execute zero trades and close_all_positions liquidates every position at its ENTRY price.",
+  "severity": "critical",
+  "evidence": "Line 488: `p = cache.cached_prices(ticker, test_start_str, test_start_str)` and line 514: `p = cache.cached_prices(ticker, test_end_str, test_end_str)` \u2014 cache.py:288-292 slices `full.loc[start_date:end_date]` and returns an empty frame for a non-trading day. backtest_trader.py execute_trades skips buys on missing price (`price = prices.get(ticker); if not price ... continue`), and close_all_positions line 207 falls back to cost basis: `price = prices.get(ticker, pos.avg_entry_price)`. WalkForwardScheduler does pure calendar arithmetic (`test_start = train_end + timedelta(days=embargo_days+1)`), never adjusting to business days.",
+  "failure_scenario": "Reproduced with the deployed settings (backtest_start_date='2018-01-01', end='2025-12-31', 12/3-month windows, embargo 5): 10 of 27 windows have a weekend test_start (2019-01-06 Sun, 2020-01-26 Sun, 2022-03-06 Sun, 2022-06-11 Sat, 2023-03-26 Sun, 2023-07-01 Sat, 2024-07-21 Sun, 2024-10-26 Sat, 2025-08-10 Sun, 2025-11-15 Sat) \u2014 signals are generated (feature building uses range queries) but every BUY is skipped, so the window trades nothing and produces no NAV snapshots. 9 of 27 windows have a weekend test_end; e.g. w9 (test 2021-02-16 -> 2021-05-15 Sat) marks positions daily at real prices then liquidates all of them at avg_entry_price, erasing ~3 months of P&L into a fake NAV jump and recording round-trips with exit_price == entry_price. Holidays hit too (w4 test_end 2020-01-20 is MLK Day).",
+  "money_impact": "About a third of every backtest's test windows contribute zero strategy exposure while SPY/equal-weight baselines span the full period \u2014 understating strategy return and alpha (kills legitimate signals in comparisons) \u2014 and windows ending on non-trading days have their P&L silently rewritten to break-even-minus-commissions in both the NAV/Sharpe series and compute_round_trips/trade_statistics. Optimizer keep/discard, DSR, and displayed money metrics are all computed on this corrupted record.",
+  "fix_sketch": "Fetch execution/liquidation prices with a short trailing range (e.g. cached_prices(ticker, test_start - 5d, test_start).iloc[-1]) or snap test_start/test_end to the next/previous business day in the scheduler; never fall back to avg_entry_price when liquidating.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "critical",
+    "note": "CONFIRMED via full code trace + independent reproduction. Every link in the chain holds in the repo today:\n\n1. cache.cached_prices (cache.py:282-292) slices preloaded data with `full.loc[start_date:end_date]` over a raw DatetimeIndex (preload_prices stores yfinance rows with no reindex/ffill, so weekend/holiday rows genuinely do not exist). For an exact-date lookup start==end on a non-trading day,"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "MECHANISM CONFIRMED from code (not abstracts): (1) cache.cached_prices(ticker, d, d) slices full.loc[d:d] on a set_index(\"date\").sort_index() DatetimeIndex and returns an empty frame for a non-trading day (cache.py:288-292); (2) WalkForwardScheduler.generate_windows does pure calendar arithmetic with NO business-day snapping \u2014 test_start = train_end + timedelta(days=embargo+1), test_end = test_sta"
+   }
+  ]
+ },
+ {
+  "file": "backend/backtest/backtest_engine.py",
+  "line": 587,
+  "summary": "Walk-forward training has no purging: triple-barrier labels for samples near train_end are computed from prices inside the test window (label horizon 90-135 days vs 5-day embargo), leaking test-period outcomes into training.",
+  "severity": "critical",
+  "evidence": "_build_training_data samples biweekly up to train_end: `while current <= end: sample_dates.append(...)` then `label = self._compute_label(ticker, sample_date)` (line 587). The label reads far forward: `end_date = (pd.Timestamp(entry_date) + timedelta(days=int(self.holding_days * 1.5))).strftime(\"%Y-%m-%d\"); prices = cache.cached_prices(ticker, entry_date, end_date)` (lines 658-659, holding_days default 90 -> 135 days). walk_forward.py:61 sets `test_start = train_end + timedelta(days=self.embargo_days + 1)` (6 calendar days). No sample whose label window overlaps the test period is dropped; sample-weighting (`_compute_sample_weights`) only down-weights overlap among training samples, it does not purge test overlap.",
+  "failure_scenario": "Window with train_end=2023-12-31, test=[2024-01-06, 2024-04-05]: a training sample dated 2023-12-29 gets its +1/-1 label from the ticker's price path through ~2024-05-13 \u2014 the exact test-window move the backtest then 'predicts'. Features days apart on the same ticker are highly autocorrelated, so the GBM effectively memorizes test-period outcomes for the same candidate universe it trades at test_start. Every window repeats this for its last ~4.5 months of training samples.",
+  "money_impact": "Systematically inflated Sharpe/hit-rate/alpha in every backtest (this is the exact leakage L\u00f3pez de Prado's purging in AFML Ch.7 exists to prevent \u2014 the project rule file claims the 5-day embargo prevents leakage, but the embargo is ~20x shorter than the label horizon). The optimizer's keep/discard decisions and optimizer_best.json promotion \u2014 the research engine behind live strategy parameters \u2014 are made on leaked performance, so promoted params are selected for in-sample memorization, not OOS edge.",
+  "fix_sketch": "Purge: in _build_training_data, drop samples where entry_date + holding_days*1.5 >= test_start (pass test_start in, or stop sampling at train_end - holding_days*1.5). Keep the embargo for serial-correlation residue.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "critical",
+    "note": "CONFIRMED real via full code trace. (1) Default triple_barrier label horizon = 135 calendar days: holding_days=90 (backtest_engine.py:150); _compute_label (1022-1026) dispatches to _compute_triple_barrier_label, which sets end_date = entry_date + int(holding_days*1.5) (line 658) and walks cached_prices(entry_date, end_date) (line 659). (2) Embargo = only 6 calendar days: walk_forward.py default em"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED technically real. backtest_engine.py `_build_training_data` samples biweekly up to train_end (lines 568-574); the label via `_compute_triple_barrier_label` reads prices forward holding_days*1.5 = 135 days (line 658, holding_days default 90 per settings.py:243); walk_forward.py:61 sets test_start = train_end + embargo_days+1 = 6 calendar days (embargo default 5). No purge exists: `_comput"
+   }
+  ]
+ },
+ {
+  "file": "backend/backtest/backtest_engine.py",
+  "line": 794,
+  "summary": "Fractional differentiation is applied to 5 non-stationary features at training time (over an interleaved mixed-ticker sample series) but never at prediction time, so the model is trained on small frac-diff values and fed raw price/market-cap/revenue levels when generating trade signals; NaN imputation also differs (train=median, predict=0).",
+  "severity": "high",
+  "evidence": "Training (lines 629-638): `if col in _NON_STATIONARY and col in X.columns: ... diffed = HistoricalDataProvider.fractional_diff(series, d=self.frac_diff_d); X.loc[diffed.index, col] = diffed` then `X = X.fillna(X.median())`. X's rows are ordered (sample_date, ticker) \u2014 the frac_diff window blends different tickers' prices. Prediction (lines 794-801): `row = {f: fv.get(f, 0) for f in feature_names} ... X_test = pd.DataFrame([row])[feature_names].fillna(0)` \u2014 no fractional_diff, zero-fill instead of median. historical_data.py:55-57 docstring even promises 'fractional differentiation is applied at the engine level across the full training set for consistency'.",
+  "failure_scenario": "price_at_analysis for a $400 stock: training values are frac-diff residuals (small magnitude, partially cross-ticker noise); at predict time the model receives 400.0 \u2014 far outside the trained distribution \u2014 so every tree split on the 5 non-stationary features routes all live candidates into the same extreme leaf. A candidate with pe_ratio=None is median-filled (~20) in training but 0-filled at predict, scoring like a deep-value stock.",
+  "money_impact": "Signal quality is corrupted on price, market_cap, total_revenue, total_debt, total_equity for every strategy and every window: predicted labels/probabilities (which drive BUY selection and inverse-vol position sizing via `probability`) are systematically biased, and MDI/MDA importances for those features \u2014 persisted via _save_mda_cache and fed to the MDA->Agent bridge and live quant_model tool \u2014 are measured on a train/serve-skewed model.",
+  "fix_sketch": "Either drop frac_diff (apply it per-ticker on time series, not across a pooled sample matrix) or apply the identical transform + median imputation (fit on training) in _predict_and_trade.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED as a genuine train/serve skew via full code trace of the caller chain.\n\nTRAINING SIDE (backtest_engine.py:628-638): For each col in feature_cols, `if col in _NON_STATIONARY and col in X.columns` -> `diffed = HistoricalDataProvider.fractional_diff(series, d=self.frac_diff_d)`; `X.loc[diffed.index, col] = diffed`, then `X = X.fillna(X.median())`. Verified the 5 `_NON_STATIONARY` features ("
+   },
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "CODE BEHAVIOR CONFIRMED: backtest_engine.py trains the 5 _NON_STATIONARY features (price_at_analysis, market_cap, total_revenue, total_debt, total_equity) through fractional_diff (frac_diff_d=0.4 default, settings.py:246) + median fill at lines 628-638, but _predict_and_trade (lines 793-801) applies neither the transform nor median fill (zero-fill only). The train/serve skew is genuine and runs on"
+   }
+  ]
+ },
+ {
+  "file": "backend/db/bigquery_client.py",
+  "line": 557,
+  "summary": "upsert_paper_portfolio is a non-atomic DELETE-then-INSERT on the singleton portfolio row: the DELETE gets retry protection but the INSERT does not, and there is no transaction, so a crash/restart or transient INSERT failure between the two statements permanently deletes the fund's cash/NAV ledger row.",
+  "severity": "high",
+  "evidence": "bigquery_client.py:550-571:\n    delete_query = f\"DELETE FROM `{table}` WHERE portfolio_id = @pid\"\n    ...\n    self._run_dml_with_retry(delete_query, job_config)\n    # Use DML INSERT (not streaming) to avoid buffer conflicts\n    ...\n    self.client.query(insert_query, job_config=insert_config).result()\nRecovery path paper_trader.py:91-109: `portfolio = self.bq.get_paper_portfolio(\"default\"); if portfolio: return portfolio; ... \"current_cash\": self.settings.paper_starting_capital ...` silently re-creates a fresh portfolio. Reader bigquery_client.py:522-524 is `WHERE portfolio_id = @pid LIMIT 1` with no ORDER BY.",
+  "failure_scenario": "upsert runs on every mark_to_market (paper_trader.py:589, every cycle), every buy/sell cash update (paper_trader.py:1086), and /deposit (paper_trading.py:1254). This deployment routinely kills workers (zombie-prevention rule), launchd `kickstart -k` restarts the backend, and a watchdog force-restarts after 3 failed probes -- any of these landing in the DELETE..INSERT window, or a transient BQ/network error on the un-retried INSERT, leaves zero portfolio rows. Next cycle get_or_create_portfolio() re-initializes current_cash = paper_starting_capital while paper_positions still holds all open positions. Additionally, two concurrent upserts (deposit endpoint has no cycle-running guard) can interleave DELETE-A/DELETE-B/INSERT-A/INSERT-B producing two portfolio rows that LIMIT-1-without-ORDER-BY reads nondeterministically.",
+  "money_impact": "Portfolio silently resets: NAV double-counts (fresh starting cash + surviving positions), total_pnl_pct re-anchors to the wrong starting_capital, and the engine believes it has phantom cash to deploy -> real wrong BUY sizing on the next cycles. This is the exact bug class phases 23.1.15/23.1.18 fixed with MERGE for positions and snapshots -- the portfolio table was left on the old pattern.",
+  "fix_sketch": "Convert to a single MERGE on portfolio_id (identical pattern to save_paper_position / save_paper_snapshot in the same file), which is atomic and removes both the crash-loss and duplicate-row races.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "Code trace confirms the mechanism directly. bigquery_client.py:550-571 implements upsert_paper_portfolio as two independent BigQuery DML jobs: a retry-wrapped DELETE (self._run_dml_with_retry, line 557) followed by a bare, un-retried, un-transactional INSERT (self.client.query(insert_query).result(), line 571). BigQuery has no multi-statement transaction here, so the two commits are independent an"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED real and live-reachable. Code at backend/db/bigquery_client.py:550-571 is exactly as claimed: DELETE via _run_dml_with_retry (line 557) followed by a bare, un-retried, un-transactioned INSERT (line 571). No multi-statement transaction wraps the two BQ jobs, so the singleton portfolio row has a window with zero rows between the DELETE commit and the INSERT commit.\n\nReachability under CURR"
+   }
+  ]
+ },
+ {
+  "file": "backend/db/bigquery_client.py",
+  "line": 957,
+  "summary": "get_paper_trades_in_window compares the STRING column created_at against a TIMESTAMP expression, so the query fails BigQuery compilation on every single call (verified by live dry-run).",
+  "severity": "high",
+  "evidence": "bigquery_client.py:955-960:\n    query = f\"\"\"\n        SELECT * FROM `{self._pt_table(\"paper_trades\")}`\n        WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @window_days DAY)\n        ORDER BY created_at DESC\n        LIMIT 2000\n    \"\"\"\nLive schema (get_table financial_reports.paper_trades): 'created_at': 'STRING'. Live dry-run of this exact query returns: \"400 No matching signature for operator >= for argument types: STRING, TIMESTAMP\".",
+  "failure_scenario": "Any call raises BadRequest. Three consumers: (1) /api/paper-trading/attribution -> _compute_attribution (paper_trading.py:368 `trades = bq.get_paper_trades_in_window(window_days) or []`, no try/except) -> endpoint 500s on every request; (2) /api/paper-trading/learnings -> _compute_learnings (paper_trading.py:804) catches and logs -> reconciliation_divergences is ALWAYS empty; (3) /api/sovereign/efficiency (sovereign_api.py:550) catches at :555 -> realized_pnl_usd stays 0.0 -> profit_per_llm_dollar = 0/llm_cost = 0.0 reported, and with ?persist=true the zeroed realized_pnl_usd rows are MERGE-written into pyfinagent_data.efficiency_snapshots.",
+  "money_impact": "The north-star efficiency metric (profit per LLM dollar) permanently reports zero profit regardless of actual P&L and corrupts the persisted efficiency_snapshots trend table with realized_pnl_usd=0 rows; per-ticker P&L attribution is completely dead (500); reconciliation-drift learnings silently killed. Operator decisions about which tickers/strategies earn vs. cost are fed garbage.",
+  "fix_sketch": "Compare string-to-string like the sibling helpers do: compute the ISO cutoff in Python and bind it as a STRING param (`WHERE created_at >= @since_iso`, as get_paper_trades/get_paper_trades_for_ticker_since already do), or wrap the column: `TIMESTAMP(created_at) >= TIMESTAMP_SUB(...)`.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED real. The query at bigquery_client.py:957 compares the STRING column `created_at` against a TIMESTAMP expression, which BigQuery cannot compile.\n\nDecisive evidence:\n1. Schema: `migrate_paper_trading.py:65` declares `bigquery.SchemaField(\"created_at\", \"STRING\", mode=\"REQUIRED\")`. The only other paper_trades migration (`add_round_trip_schema.py`) is ADD COLUMN only \u2014 nothing alters `create"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The defect is genuine and independently confirmed. LIVE dry-run of the exact query at bigquery_client.py:955-960 returned precisely the claimed error: \"No matching signature for operator >= for argument types: STRING, TIMESTAMP\". The live BQ schema (get_table_info on financial_reports.paper_trades) and the migration (migrate_paper_trading.py:65) both show created_at is STRING/REQUIRED; the sibling"
+   }
+  ]
+ },
+ {
+  "file": "frontend/src/components/paper-trading/cockpit-helpers.tsx",
+  "line": 308,
+  "summary": "Risk Monitor kill-switch tile and drawdown bar are permanently dead: they read perf.max_drawdown_pct, a field the /api/paper-trading/performance endpoint never returns, and default it to 0 (= SAFE).",
+  "severity": "high",
+  "evidence": "cockpit-helpers.tsx:308 `const maxDd = perf?.max_drawdown_pct ?? 0;` then `{maxDd > -10 ? \"SAFE\" : maxDd > -13 ? \"WARNING\" : \"DANGER\"}` and `<span>{perf?.max_drawdown_pct?.toFixed(1) ?? \"0\"}% / -15%</span>` with bar width `(Math.abs(maxDd) / 15) * 100`. Same at line 256 in PaperVsBacktestCard. The producing endpoint (backend/api/paper_trading.py:333-345) returns only `{\"nav\", \"starting_capital\", \"pnl_pct\", \"benchmark_return_pct\", \"alpha_pct\", \"sharpe_ratio\", \"total_sell_trades\", \"total_buy_trades\", \"total_analysis_cost\", \"days_active\", \"round_trip_summary\"}` \u2014 grep for \"drawdown\" in backend/api/paper_trading.py returns nothing. perf flows unmodified from layout.tsx:193 `getPaperPerformance().catch(() => null)` into RiskMonitorCard (positions/page.tsx:150) and PaperVsBacktestCard (reality-gap/page.tsx:48). types.ts:733 declares it optional (`max_drawdown_pct?: number`) so TS never flagged it.",
+  "failure_scenario": "Fund draws down -14% (past the -10% warning and -13% danger thresholds, approaching the -15% kill switch). perf.max_drawdown_pct is undefined -> maxDd = 0 -> the cockpit Risk Monitor renders 'Kill switch (-15%): SAFE' in green, 'Drawdown 0% / -15%', and an empty progress bar; Paper-vs-Backtest Max DD shows '\u2014%' colored emerald (0 > -15). The display asserts zero drawdown no matter what the book does.",
+  "money_impact": "The operator's primary risk display actively reports SAFE/0% during real drawdowns, masking approach to the -15% flatten-all kill switch and the -10/-13% intervention bands. Operator does not de-risk/pause when the panel was designed to prompt exactly that; a 2026-05-13-style incident would render green until the backend force-flattens the book at -15%.",
+  "fix_sketch": "Backend: compute max_drawdown_pct from NAV snapshots via the canonical perf_metrics helper and include it in the /performance result (single-metric-source rule). Frontend: never default a risk gauge to 0/SAFE \u2014 when the field is absent render an explicit 'unknown' state (gray) instead of `?? 0`.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED via full code trace. Frontend cockpit-helpers.tsx:308 (RiskMonitorCard) and :256 (PaperVsBacktestCard) both read `perf?.max_drawdown_pct ?? 0`. The producing endpoint backend/api/paper_trading.py get_performance() builds its result dict at lines 333-345 with ONLY {nav, starting_capital, pnl_pct, benchmark_return_pct, alpha_pct, sharpe_ratio, total_sell_trades, total_buy_trades, total_ana"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "VERIFIED REAL and LIVE-REACHABLE. Full chain confirmed against current code:\n\n(1) Producer: backend/api/paper_trading.py:294-347 (GET /api/paper-trading/performance) returns a literal-keyed dict at lines 333-345 with no max_drawdown_pct; `grep drawdown backend/api/paper_trading.py` returns nothing. No **spread/dynamic key, so the field is definitively never emitted. This is the ONLY endpoint getPa"
+   }
+  ]
+ },
+ {
+  "file": "backend/slack_bot/commands.py",
+  "line": 295,
+  "summary": "Any message in #ford-approvals containing the substring \"clear queue\" executes `pkill -9 -f python`, SIGKILLing the trading backend (uvicorn), the autonomous loop, the harness, and the Slack bot itself.",
+  "severity": "critical",
+  "evidence": "if \"clear queue\" in text_lower:\n    logger.warning(\"CLEAR QUEUE COMMAND RECEIVED - EXECUTING HARD RESET\")\n    try:\n        import sqlite3\n        import subprocess\n        ...\n        # Kill all Python processes (subagents, workers)\n        subprocess.run([\"pkill\", \"-9\", \"-f\", \"python\"], timeout=5)\n        # Drop database\n        db = get_ingestion_service().db\n        with closing(sqlite3.connect(db.db_path)) as conn, conn:\n            conn.execute(\"DELETE FROM tickets\")  (commands.py:287-302; handler is the catch-all @app.message(\"\") for _APPROVAL_CHANNEL, registered via register_commands in app.py:32)",
+  "failure_scenario": "Operator (or anyone in the channel) writes a sentence containing \"clear queue\" (e.g. \"should I clear queue after this?\" or the intended command itself) during the 18:00Z trading cycle. pkill -9 -f python matches `python -m uvicorn backend.main:app` and SIGKILLs it mid execute_buy/execute_sell -- between the paper_trades DML INSERT, the cash update, and the paper_positions MERGE (backend/services/paper_trader.py) -- leaving a trade row with no matching position/cash update. The bot's own process (`python -m backend.slack_bot.app`) also matches, so it kills itself inside subprocess.run and the subsequent sqlite DELETE/ack never execute: even the intended reset does not complete.",
+  "money_impact": "Trailing-stop and kill-switch enforcement (which run inside the backend process) are dead until a human manually restarts the backend -- open positions ride unmanaged through drawdowns. A kill landing between the trade INSERT and the position/portfolio writes corrupts the paper ledger (NAV/cash/position divergence, wrong P&L thereafter). Also kills any in-flight harness/optimizer run machine-wide.",
+  "fix_sketch": "Require an exact-match command from the operator user id only (reuse is_operator_token_message-style allowlist), and scope the kill to the ticket-worker process names (pkill -f specific patterns like ticket_queue_processor) -- never a bare \"python\" pattern. Do the DB purge BEFORE any kill, and never signal the backend (uvicorn) or the bot's own pid.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "critical",
+    "note": "CONFIRMED via code trace. Wiring: app.py:32 calls register_commands(app), which registers the catch-all `@app.message(\"\")` handler handle_any_message (commands.py:237-238). Reachability of the sink is direct and unguarded:\n\n1. Only three early returns precede the sink: channel != _APPROVAL_CHANNEL (line 241), bot_id present (line 244), empty text (line 250). A normal human message in #ford-approva"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "critical",
+    "note": "Verified verbatim: backend/slack_bot/commands.py:287-309 runs `subprocess.run([\"pkill\",\"-9\",\"-f\",\"python\"], timeout=5)` when any message text_lower contains \"clear queue\", inside the @app.message(\"\") catch-all handler gated only by `channel == _APPROVAL_CHANNEL` (C0ANTGNNK8D).\n\nLIVE-CONFIG REACHABILITY \u2014 fully confirmed, not dead/dark code:\n1) register_commands(app) IS invoked in create_app() at a"
+   }
+  ]
+ },
+ {
+  "file": "backend/services/cycle_lock.py",
+  "line": 144,
+  "summary": "acquire()'s finally block unlinks the lockfile even when acquisition FAILED (CycleLockError path), deleting the live cycle's pidfile and breaking mutual exclusion for every subsequent acquire.",
+  "severity": "high",
+  "evidence": "@contextmanager\ndef acquire(cycle_id: str) -> Iterator[None]:\n    fd = os.open(_LOCK_PATH, os.O_RDWR | os.O_CREAT, 0o644)\n    try:\n        try:\n            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)\n        except BlockingIOError:\n            ...\n            else:\n                os.close(fd)\n                raise CycleLockError(\n                    f\"another live cycle holds the lock: \" ...)\n        ...\n        yield\n    finally:\n        try:\n            _LOCK_PATH.unlink(missing_ok=True)\n        except Exception:\n            pass\n        try:\n            fcntl.flock(fd, fcntl.LOCK_UN)  # fd already closed on the error path",
+  "failure_scenario": "Cycle A (process 1, e.g. a zombie backend worker with its own APScheduler \u2014 a documented failure mode of this project) holds the flock mid-cycle. Process 2's cron or an operator POST /run-now calls acquire(): flock raises BlockingIOError, lock is not stale, CycleLockError is raised \u2014 but since the raise happens inside the generator's try, the finally executes and unlinks A's pidfile. A's flock lives on the now-anonymous inode. Any third acquire (operator clicking run-now again after seeing 'skipped', a misfire retry) opens the path fresh, creates a NEW inode, and flock SUCCEEDS while A is still trading.",
+  "money_impact": "Two concurrent full cycles: both mark-to-market, both decide from the same cash/positions, both execute BUYs and SELLs \u2014 duplicate positions, doubled transaction costs/churn, and interleaved DELETE+INSERT DML on paper_positions (execute_sell does delete-then-reinsert) that can corrupt position rows and NAV. This is exactly the double-fire the phase-38.6 lock was built to prevent.",
+  "fix_sketch": "Only unlink/cleanup when the lock was actually acquired: set a flag after a successful flock and guard the finally on it (or move the unlink into the post-yield path and handle the failed-acquire branch with a bare close(fd) before raising).",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED real via code trace + empirical reproduction. In cycle_lock.py the `acquire()` generator (@contextmanager) has structure: `fd=os.open(...)` then `try: try: flock(...) except BlockingIOError: ...else: os.close(fd); raise CycleLockError(...) ... yield finally: _LOCK_PATH.unlink(missing_ok=True); flock(UN); close(fd)`. The `raise CycleLockError` at line 127 sits INSIDE the outer try whose f"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED real and reachable in live, money-relevant code.\n\nCODE LOGIC (empirically proven). I mirrored acquire()'s exact structure in a standalone repro (/private/tmp/.../scratchpad/repro_cycle_lock.py). Because the `raise CycleLockError(...)` (cycle_lock.py:126-131) fires INSIDE the outer `try:`, the `@contextmanager` generator's `finally:` (lines 142-154) runs during exception unwind and execut"
+   }
+  ]
+ },
+ {
+  "file": "backend/slack_bot/formatters.py",
+  "line": 247,
+  "summary": "/portfolio Slack command renders $0.00 total value, +$0.00 P&L, 0.0% return and +$0.00 per position because format_portfolio_summary reads keys that exist neither in the /api/paper-trading/portfolio envelope nor in the paper_positions schema.",
+  "severity": "high",
+  "evidence": "total_value = data.get(\"total_value\", 0)\ntotal_pnl = data.get(\"total_pnl\", 0)\ntotal_return = data.get(\"total_pnl_pct\", data.get(\"total_return_pct\", 0))\n...\n    pnl = p.get(\"pnl\", 0)\n    ret = p.get(\"return_pct\", 0)  (formatters.py:246-277). The endpoint returns result = {\"portfolio\": portfolio, \"positions\": positions, \"sector_breakdown\": ...} (backend/api/paper_trading.py:235-239) -- money fields live INSIDE portfolio as total_nav/total_pnl_pct, and positions rows carry unrealized_pnl/unrealized_pnl_pct (scripts/migrations/migrate_paper_trading.py:44-45). commands.py:191-194 passes the raw envelope: data = res.json(); blocks = format_portfolio_summary(data).",
+  "failure_scenario": "Operator runs /portfolio from Slack (the evening digest footer explicitly says \"`/portfolio` for details\"). Envelope has no top-level total_value/total_pnl/total_pnl_pct -> all default to 0 -> header shows \"Total Value: $0.00\" and \"P&L: +$0.00 (+0.0%)\" with a green up-trend emoji; every position line shows \"+$0.00 (+0.0%)\" with a green circle regardless of a real drawdown. Phase-71 fixed this exact envelope unwrap in the digests (formatters.py:496-504) but format_portfolio_summary was never updated.",
+  "money_impact": "The operator's on-demand money view in the primary away-ops channel shows all-zero P&L with positive-green icons -- a position 15% underwater renders as +$0.00 green. Masks losses/drawdowns exactly when the operator queries them remotely.",
+  "fix_sketch": "Unwrap like format_morning_digest: p = data.get(\"portfolio\") if isinstance(...) else data; total_nav/starting_capital/total_pnl_pct; positions use unrealized_pnl / unrealized_pnl_pct (fallback to pnl/return_pct for old callers).",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real via full code trace. Path: Slack /portfolio -> commands.py:190-194 GET /api/paper-trading/portfolio then format_portfolio_summary(data) with the RAW envelope (no unwrap). The endpoint (paper_trading.py:235-239) returns {\"portfolio\":{...},\"positions\":[...],\"sector_breakdown\":{...}}; money fields (total_nav, total_pnl_pct, starting_capital) live INSIDE portfolio, and there is no total"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED and REACHABLE under live config. Code: /api/paper-trading/portfolio returns {\"portfolio\":{...},\"positions\":[...],\"sector_breakdown\":{...}} (paper_trading.py:235-239); top level has no total_value/total_pnl/total_pnl_pct. Money fields live inside `portfolio` (total_nav, starting_capital, total_pnl_pct \u2014 verified in migrate_paper_trading.py schema and by the digest's own unwrap at formatte"
+   }
+  ]
+ },
+ {
+  "file": "backend/backtest/historical_data.py",
+  "line": 202,
+  "summary": "quality_score reads revenue_growth_yoy before it is computed (assigned 51 lines later), so the Growth dimension of the Asness QMJ quality composite is silently always missing.",
+  "severity": "medium",
+  "evidence": "Line 202: `rev_growth = features.get(\"revenue_growth_yoy\")` inside the quality-score block (lines 197-250: `if rev_growth is not None: growth_score = ...` never fires), but the feature is only assigned at line 253: `features[\"revenue_growth_yoy\"] = self._compute_revenue_growth_yoy(fundamentals_list, revenue)` \u2014 after quality_score has already been finalized at line 248.",
+  "failure_scenario": "A ticker with 30% YoY revenue growth and one with -15% get identical quality_scores whenever their profitability/safety/payout match; quality_score is computed from at most 3 of the 4 documented QMJ dimensions on every single call.",
+  "money_impact": "quality_score drives the quality_momentum strategy's labels (`momentum_6m > 5 and quality_score > 0.3`), carries a 25% weight in _compute_factor_label's composite, and is an ML training feature \u2014 all three consume a quality signal that ignores growth entirely, degrading stock selection versus the researched design the backtests are believed to be measuring.",
+  "fix_sketch": "Move the `features[\"revenue_growth_yoy\"] = ...` assignment above the quality-score block and read the computed value.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED via full code trace of build_feature_vector (backend/backtest/historical_data.py:52-269). The function initializes `features` as a fresh dict each call at line 64 (`features: dict = {\\\"ticker\\\": ticker, \\\"date\\\": cutoff_date}`), so there is no cross-call carryover. Grep for `revenue_growth_yoy` shows the ONLY write inside this function is line 253 (`features[\\\"revenue_growth_yoy\\\"] = sel"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CODE BUG CONFIRMED. At historical_data.py:202, `rev_growth = features.get(\"revenue_growth_yoy\")` reads a key that is only assigned 51 lines later at line 253, after quality_score is finalized at line 248. `features` is freshly built at line 64 on every call (no cross-call reuse), and revenue_growth_yoy has no earlier assignment, so rev_growth is unconditionally None. The growth branch (line 219 `i"
+   }
+  ]
+ },
+ {
+  "file": "frontend/src/app/paper-trading/layout.tsx",
+  "line": 211,
+  "summary": "The cockpit layout fetches status/portfolio/positions/trades/snapshots exactly once per mount (no polling) while LivePortfolioProvider polls its own duplicate copies every 60s, so tables, Cash tile, and donut slices silently diverge from the live NAV after any scheduled cycle trades.",
+  "severity": "medium",
+  "evidence": "layout.tsx:211-213: `useEffect(() => { refresh(); }, [refresh]);` \u2014 the only interval in the file is the manual Run-Now poll (line 259); scheduled cycles never re-trigger `refresh` (only manage/page.tsx:78 after a deposit does). Meanwhile live-portfolio-context.tsx:142-146 polls `getPaperTradingStatus/getPaperPortfolio/getPaperSnapshots` every 60s into SEPARATE state. SummaryHero then mixes the two clocks: `navDisplay = liveNav ?? ...` (provider, live) next to `<MetricCard label=\"Cash\"><Dollar value={status?.portfolio.cash} />` (layout's mount-time copy) (cockpit-helpers.tsx:232-233); positions/trades tables and donut slices use the layout's copies while the donut center uses `lp.liveNav` (positions/page.tsx:169). Additionally layout.tsx:190 `getPaperPortfolio().catch(() => null)` swallows portfolio failures, silently keeping stale positions with no error banner.",
+  "failure_scenario": "Operator opens the cockpit at 09:30 ET and leaves it open. The 10:00 ET scheduled cycle sells a stopped-out position and buys two new ones. Within 60s the NAV tile, Total P&L, and donut-center NAV update (provider copy reflects the new book), but the Positions table still lists the sold ticker with a green live price, the Trades table lacks the new fills, the Cash tile shows pre-trade cash, and donut slices no longer sum to the center NAV \u2014 until a full page remount (tab navigation within /paper-trading/* does not remount the layout).",
+  "money_impact": "The operator's money screen shows a book that no longer exists (positions already exited, cash already spent) side-by-side with live NAV that reflects the real book \u2014 internally inconsistent money data for an unbounded time window, on the exact page used to supervise the autonomous engine during its daily trade window. This is the same duplicated-state class the phase-72 SSOT provider was built to kill ('4 different NAV values rendering simultaneously').",
+  "fix_sketch": "Have the layout consume the provider's status/portfolio/positions/snapshots (one copy, one poll) and fetch only trades/perf itself on the same 60s cadence \u2014 or add the standard 60s interval with 5-failure stop to the layout's refresh; surface the swallowed getPaperPortfolio failure instead of `.catch(() => null)`.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED by full code trace. The paper-trading layout maintains its own useState copies of status/portfolio/positions/trades/snapshots/perf (layout.tsx:124-129) that are set only by `refresh` (186-209). `refresh` is a useCallback with empty deps (stable), and `useEffect(() => { refresh(); }, [refresh])` at layout.tsx:211-213 fires exactly ONCE on mount. Grep confirms `refresh()` is called only at"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Verified every link in the chain against the live code; could not refute it.\n\nREACHABILITY (live, not dead/dark): (1) layout.tsx:211-213 `useEffect(() => { refresh(); }, [refresh])` with `refresh` a stable useCallback([]) => runs exactly once per mount. No recurring setInterval exists for the layout's status/portfolio/positions/trades/snapshots/perf state; the only intervals are the manual Run-Now"
+   }
+  ]
+ },
+ {
+  "file": "frontend/src/lib/live-portfolio-context.tsx",
+  "line": 91,
+  "summary": "Freshness band is derived from the server-reported age_sec captured at the last successful poll and never ages client-side, so when polling fails the badge stays green while every price and the live NAV freeze.",
+  "severity": "medium",
+  "evidence": "live-portfolio-context.tsx:89-97: `for (const v of Object.values(prices)) { if (typeof v?.age_sec === \"number\") ages.push(v.age_sec); } ... const max = Math.max(...ages); if (max < 90) return { band: \"green\", ageSec: max };`. `prices` only changes on a successful fetch: useLivePrices.ts:48-53 on error does `failRef.current += 1; if (failRef.current >= 5) setError(...)` \u2014 prices (and their age_sec) stay frozen and polling continues; the provider discards both `error` and `updatedAt` (live-portfolio-context.tsx:154 `const { prices: livePrices } = useLivePrices(...)`). Per-row badges share the class: paper-trading-utils.ts:35-40 `bandFromAgeSec` also reads only the stored age_sec ('under 90s = green').",
+  "failure_scenario": "Backend dies (e.g. zombie-worker restart) one second after a successful poll that returned age_sec=5 for all tickers. Every subsequent tick() throws and is swallowed; livePrices keeps the frozen payload with age_sec=5 -> deriveFreshness returns green forever. The cockpit hero LiveBadge, donut freshness, and every per-row position badge display 'live/green' while Current price, Market Value, live NAV, and P&L(Today) are frozen at pre-outage marks for hours.",
+  "money_impact": "The staleness indicator fails open in exactly the failure window it exists for: the operator reads frozen NAV/position marks as live-confirmed data and makes pause/flatten/deposit decisions on prices that may be hours old. A real market drop during the outage is invisible while the UI asserts freshness.",
+  "fix_sketch": "Age client-side: effectiveAge = age_sec + (Date.now() - updatedAt)/1000, with updatedAt already returned by useLivePrices; propagate the hook's `error`/`updatedAt` through LivePortfolioProvider and force band='red'/'unknown' when the last successful poll is older than one interval.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by direct code trace. deriveFreshness (live-portfolio-context.tsx:86-98) derives the band purely from the server-reported v.age_sec (line 91 pushes it verbatim; line 95 `if (max < 90) return { band: \"green\" }`) with NO client-side aging \u2014 grep confirms no Date.now()/updatedAt/effectiveAge arithmetic anywhere in the freshness path (also true of the per-row bandFromAgeSec at paper-trading-"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real and live-reachable. LivePortfolioProvider is mounted at the root layout (frontend/src/app/layout.tsx:36) \u2014 not dead/dark/gated code \u2014 and freshnessBand is consumed by three live cockpit surfaces (page.tsx:454, sovereign/page.tsx:175, positions/page.tsx:170), each rendering LiveBadge where band=\"green\" => emerald dot + \"live\" label (LiveBadge.tsx:28-32).\\n\\nDefect mechanics verified "
+   }
+  ]
+ },
+ {
+  "file": "frontend/src/lib/live-portfolio-context.tsx",
+  "line": 199,
+  "summary": "'P&L (Today)' is computed against snapshots[0] assuming it is yesterday's close, but the daily cycle upserts a snapshot dated today (UTC) at 10:00 ET, so from 10:00 ET onward the tile measures drift since this morning's cycle mark and resets to ~$0 every day.",
+  "severity": "medium",
+  "evidence": "live-portfolio-context.tsx:198-202: `const yesterdayNav = snapshots[0].total_nav; const dollars = liveNav - yesterdayNav;` under the comment 'P&L (Today) = live NAV - latest snapshot NAV (yesterday's close)'. But backend/services/paper_trader.py:927 writes `\"snapshot_date\": datetime.now(timezone.utc).strftime(\"%Y-%m-%d\")` (MERGE-upserted per date, bigquery_client.py:1022), called from every daily cycle scheduled `hour=settings.paper_trading_hour` (=10) `timezone=ZoneInfo(\"America/New_York\")` (backend/api/paper_trading.py:1305-1308) and from every manual Run Now; get_paper_snapshots is `ORDER BY snapshot_date DESC` (bigquery_client.py:1042) so snapshots[0] is TODAY's row after ~10:00 ET. Consumed by the Home tile at app/page.tsx:294-297 (`liveToday = { dollars: lp.pnlTodayDollars, pct: lp.pnlTodayPct }`).",
+  "failure_scenario": "Book gaps +$400 overnight and through the 09:30-10:00 ET open. At 10:00 ET the cycle snapshots NAV (today's UTC date). Within one 60s poll the Home 'P&L (Today)' tile snaps from +$400 to ~$0 and shows only post-10:00 drift for the rest of the day. Conversely at 08:00 ET the tile shows liveNav minus YESTERDAY'S 10:00-ET mark, booking yesterday afternoon's move as 'today'; on Monday pre-cycle it shows Friday-10:00->now (3 days) as 'today'.",
+  "money_impact": "The headline daily-P&L number the operator uses to judge whether the engine made or lost money today is systematically misattributed every trading day \u2014 hides the overnight/morning move after 10:00 ET and double-books prior-afternoon moves before it. Daily performance reads (and any pause/intervene decisions based on them) are wrong; this recreates the same '$0.00 today' symptom class the phase-72 SSOT fix was shipped to eliminate.",
+  "fix_sketch": "Anchor to the most recent snapshot strictly BEFORE today: `const ref = snapshots.find(s => String(s.snapshot_date) < todayIso)` (UTC or exchange-local, chosen deliberately), falling back to snapshots[0] only when none exists; or relabel the tile 'since last cycle mark'.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real via full code trace. The P&L (Today) derivation at frontend/src/lib/live-portfolio-context.tsx:199-201 (`const yesterdayNav = snapshots[0].total_nav; const dollars = liveNav - yesterdayNav;`) uses snapshots[0] under the comment (line 187) \"latest snapshot NAV (yesterday's close)\" \u2014 but that assumption is false in this repo.\n\nEvery link verified in actual code:\n1. paper_trader.py:927"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED real and reachable under live config. The code path is not dead/dark: LivePortfolioProvider is mounted at the app root (frontend/src/app/layout.tsx:36), wrapping every page, and the Home page renders the buggy value in the 'P&L (today)' tile (page.tsx:294-297 consumes lp.pnlTodayDollars/pnlTodayPct; page.tsx:396-403 renders it). The derivation at live-portfolio-context.tsx:198-202 (yeste"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/llm_client.py",
+  "line": 431,
+  "summary": "The 'LLM-spend' hard-block (_check_cost_budget) actually meters BigQuery bytes-billed, not LLM spend: it imports _default_fetch_spend which sums INFORMATION_SCHEMA.JOBS_BY_PROJECT total_bytes_billed at $6.25/TiB, so the documented $25/day LLM circuit breaker never limits LLM API dollars, while heavy BQ scanning can raise BudgetBreachError on every generate_content and halt trading for the rest of the day or month.",
+  "severity": "high",
+  "evidence": "llm_client.py:426-431: `from backend.slack_bot.jobs.cost_budget_watcher import _default_fetch_spend ... daily_cap = float(getattr(settings, \"cost_budget_daily_usd\", 5.0)) ... daily_usd, monthly_usd = _default_fetch_spend()`. cost_budget_watcher.py:82-111: `\"\"\"Fetch today + this-month BQ spend from INFORMATION_SCHEMA.JOBS_BY_PROJECT ... \"\"\" ... SUM(total_bytes_billed) AS monthly_bytes ... daily = daily_bytes / 1e12 * _BQ_USD_PER_TIB`. settings.py:375 describes the cap as: `\"Daily LLM-spend cap across all cycles (USD). When tripped, _check_cost_budget raises BudgetBreachError on every new generate_content call\"`, and settings.py:235 (max_analysis_cost_usd) tells the operator `\"The REAL circuit breaker is the $25/day hard cap at llm_client.py (cost_budget_daily_usd)\"`. autonomous_loop.py:1417-1424 halts the cycle on BudgetBreachError (`status: budget_breach`). Additionally, BudgetBreachError's docstring (llm_client.py:390-393) says `\"Manual POST /api/cost-budget/reset clears the breach\"` but cost_budget_api.py contains no reset route and reset_cost_budget_cache() has zero callers outside llm_client.py.",
+  "failure_scenario": "Direction A: Anthropic/OpenAI/AI-Studio metered calls run away (retry storm, concurrent-8 batch, effort=xhigh defaults) \u2014 daily_usd stays ~$0 because no LLM call bills BigQuery bytes, so the breaker never trips and metered spend is unbounded (the only remaining guard, max_analysis_cost_usd, is explicitly log-only). Direction B: a backtest/migration week scans historical_* tables; once cumulative month-to-date BQ billing >= $300 (48 TiB), every generate_content in every process raises BudgetBreachError for the REMAINDER OF THE MONTH \u2014 and the documented recovery endpoint does not exist, so cycles keep halting until someone sets COST_BUDGET_HARD_BLOCK_DISABLED=1 or the month rolls.",
+  "money_impact": "A: uncapped real-dollar LLM spend despite the operator's $0-metered constraint and the settings text promising a hard cap. B: total signal loss \u2014 the autonomous loop exits with status=budget_breach and executes zero trades on a phantom 'LLM budget' breach that no LLM behavior can clear; in the monthly case the engine is dark for weeks.",
+  "fix_sketch": "Point _check_cost_budget at an LLM-cost source (e.g., SUM of llm_call_log token costs for the day/month) or rename/split the caps into bq_spend_* vs llm_spend_* with separate meters; add the missing POST /api/cost-budget/reset that calls reset_cost_budget_cache; give the fetch query a 30s timeout per the project BQ rule.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "high",
+    "note": "CONFIRMED. Every factual assertion in the claim is verified against code read directly, and the mismeter executes unconditionally on the hot path.\n\nDecisive lines:\n- llm_client.py:427,431 \u2014 `_check_cost_budget` does `from backend.slack_bot.jobs.cost_budget_watcher import _default_fetch_spend` then `daily_usd, monthly_usd = _default_fetch_spend()`. Its own docstring (l.399) even says \"Reads today's"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "All core technical assertions verify against source and the path is fully LIVE, not dead/dark. _check_cost_budget (llm_client.py:396) imports _default_fetch_spend (line 427) which sums INFORMATION_SCHEMA.JOBS_BY_PROJECT total_bytes_billed at $6.25/TiB (cost_budget_watcher.py:94-111) -- BigQuery bytes-billed, not LLM API dollars. The caps are cost_budget_daily_usd=25.0 / cost_budget_monthly_usd=300"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/llm_client.py",
+  "line": 989,
+  "summary": "GeminiClient's 240s 'hang guard' cannot catch a hung HTTP call: future.result(timeout=240) inside `with ThreadPoolExecutor(...)` raises TimeoutError, but the context-manager exit calls shutdown(wait=True) which joins the still-running worker, so the exception only propagates after the underlying call finishes \u2014 and google-genai's default HTTP timeout is None/inf, so a stalled socket never finishes.",
+  "severity": "medium",
+  "evidence": "llm_client.py:982-989: `with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:\\n    future = executor.submit(_do_call)\\n    # phase-60.1 (AW-4): hang guard raised 120 -> 240s ... this inner cap only catches a truly hung HTTP call\\n    response = future.result(timeout=240)`. ThreadPoolExecutor.__exit__ calls shutdown(wait=True), which blocks until _do_call returns; running futures cannot be cancelled. make_client:1963 builds `genai.Client(api_key=gemini_key)` with no http_options; vendored SDK google/genai/_api_client.py:222 sets `timeout_in_seconds = None` when HttpOptions.timeout is unset and :795 uses `float('inf') if self._http_options.timeout is None` \u2014 i.e., no transport timeout. The upstream step budget shares the identical pattern (orchestrator.py:822-825 `with concurrent.futures.ThreadPoolExecutor(...) ... future.result(timeout=timeout)`), so the claimed 90s/180s budgets also cannot fire on a true hang.",
+  "failure_scenario": "Mac sleeps/wakes or Wi-Fi drops mid-request without TCP RST while the lite trader call (autonomous_loop.py ~2437 `await asyncio.to_thread(client.generate_content, trader_prompt, ...)`) is in flight. The read blocks forever with no socket timeout; both the 90s step budget and the 240s inner cap raise TimeoutError but then block in shutdown(wait=True); the analysis step never returns.",
+  "money_impact": "The whole trading cycle stalls until the 7200s asyncio.timeout aborts it with status=timeout \u2014 zero trades executed that day \u2014 and the hung worker thread (plus its connection) leaks permanently (the documented zombie-worker class). Recurs on every network stall.",
+  "fix_sketch": "Create the executor outside `with` (or shutdown(wait=False)) so TimeoutError propagates at 240s and the worker is abandoned; better, pass http_options=HttpOptions(timeout=<ms>) when constructing genai.Client so the SDK itself times out at the transport layer.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED REAL. I traced every load-bearing element and could not refute it; the core mechanism is deterministic Python semantics, empirically demonstrated.\n\nCODE PATH (live). backend/agents/llm_client.py:982-989:\n```\nwith concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:\n    future = executor.submit(_do_call)\n    response = future.result(timeout=240)\n```\n_do_call (975-980) calls b"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "Technical mechanism verified end-to-end and reachable on the live money path; money magnitude is smaller than claimed, so severity corrected medium->low.\n\nCONFIRMED (all load-bearing facts checked in code, not memory):\n1) llm_client.py:982-989 wraps future.result(timeout=240) in `with ThreadPoolExecutor(...) as executor`. TimeoutError at 240s triggers __exit__ -> shutdown(wait=True), which joins t"
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/orchestrator.py",
+  "line": 1810,
+  "summary": "Blocking network I/O runs directly on the asyncio event loop inside async run_full_analysis: the yfinance news fallback (`yf.Ticker(ticker).news`) is called synchronously, and the AnalysisOrchestrator constructor (BQ agent-memories query + optional Anthropic Files bulk upload) is likewise invoked un-threaded from async callers.",
+  "severity": "medium",
+  "evidence": "orchestrator.py:1808-1810 (inside `async def run_full_analysis`): `if not articles: import yfinance as yf; yf_news = yf.Ticker(ticker).news or []` -- no asyncio.to_thread, unlike every neighboring fetch (e.g. line 1683 `await asyncio.to_thread(yfinance_tool.get_comprehensive_financials, ticker)`). Constructor side: __init__ calls `self._load_memories_from_bq()` (line 705) which runs `bq.get_agent_memories(limit=200)` synchronously, and services/autonomous_loop.py:1632 constructs it inside `async def _run_single_analysis`: `orchestrator = AnalysisOrchestrator(settings); report = await orchestrator.run_full_analysis(ticker)`.",
+  "failure_scenario": "Alpha Vantage is rate-limited during a 14-ticker autonomous cycle (the exact condition that triggers this branch), and Yahoo's news endpoint is slow or hanging. Each ticker's analysis blocks the shared event loop for seconds (unboundedly if the socket stalls), during which every coroutine scheduled on that loop -- paper-trading API endpoints, cycle health monitors, other in-flight analyses -- is frozen; the project's own backend rules call this out as causing 'all concurrent HTTP requests to hang'.",
+  "money_impact": "Backend-wide event-loop freezes concentrated in AV-outage windows: stop/position monitoring and paper-trading endpoints served by the same process stall behind a third-party HTTP call, delaying money-state reads and any same-loop trade-decision work; per-cycle wall time inflates on every degraded-data cycle.",
+  "fix_sketch": "Wrap the news fallback as `yf_news = await asyncio.to_thread(lambda: yf.Ticker(ticker).news or [])`, and construct AnalysisOrchestrator via asyncio.to_thread (or defer _load_memories_from_bq/skill upload to a threaded lazy init).",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED by code trace. orchestrator.py:1808-1810 inside `async def run_full_analysis` (def at line 1590) executes `yf.Ticker(ticker).news` \u2014 a synchronous, blocking Yahoo Finance HTTP fetch \u2014 with NO asyncio.to_thread wrapper. This is an anomaly: every neighboring fetch is threaded (line 1683 `await asyncio.to_thread(yfinance_tool.get_comprehensive_financials, ticker)`; lines 1763/1777 `await as"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "VERIFIED REAL and REACHABLE. Direct read of backend/agents/orchestrator.py:1808-1810 confirms `yf.Ticker(ticker).news` (blocking network I/O) is called synchronously with NO asyncio.to_thread, inside `async def run_full_analysis` (def at line 1590) \u2014 a genuine inconsistency versus immediate neighbors that DO offload (line 1777 await asyncio.to_thread(run_competitor_agent), 1792 await asyncio.to_th"
+   }
+  ]
+ },
+ {
+  "file": "backend/api/paper_trading.py",
+  "line": 1254,
+  "summary": "POST /deposit does an unguarded read-modify-write of the whole portfolio row while a trading cycle may be mid-flight; execute_buy/sell write current_cash computed from a portfolio snapshot read seconds earlier, so a deposit landing in that window is silently erased from cash while starting_capital keeps the bump.",
+  "severity": "medium",
+  "evidence": "paper_trading.py:1232+1254: `portfolio = await asyncio.to_thread(trader.get_or_create_portfolio)` ... `await asyncio.to_thread(bq.upsert_paper_portfolio, updated)` (no check of get_loop_status(), unlike /run-now which 409s). paper_trader.py:190-191 `portfolio = self.get_or_create_portfolio(); cash = portfolio[\"current_cash\"]` then after idempotency BQ query + ExecutionRouter fill + trade/position writes, :356-357 `new_cash = cash - total_cost; self._update_portfolio_cash(new_cash)` which overwrites current_cash wholesale (paper_trader.py:1082-1086).",
+  "failure_scenario": "Daily cycle is running (window up to paper_cycle_max_seconds=7200s) and executing a BUY: it reads cash=X at t0. Operator posts /deposit amount=5000 at t1: row becomes cash=X+5000, starting_capital+=5000, nav+=5000. At t2 the BUY finishes and writes current_cash = X - total_cost, erasing the $5,000 from cash; starting_capital keeps the +5000 (the buy path's _update_portfolio_cash re-reads the row so starting/nav fields survive, but cash is clobbered with the stale-derived value).",
+  "money_impact": "The virtual fund's ledger loses the deposited cash: NAV drops by the deposit while starting_capital includes it, so total_pnl_pct shows a phantom loss of deposit/starting_capital, the deposit-is-P&L-neutral invariant (phase-23.1.9) is broken, and the engine under-deploys because current_cash no longer reflects real available capital.",
+  "fix_sketch": "Reject or queue deposits while get_loop_status()['running'] (mirror /run-now's 409), or make cash mutations delta-based in one DML (`UPDATE ... SET current_cash = current_cash + @delta`) instead of full-row read-modify-write.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Confirmed by full code trace. (1) `/deposit` (paper_trading.py:1219-1272) has NO cycle-running guard, whereas the sibling `/run-now` (1016-1026) does: `status = get_loop_status(); if status[\"running\"]: raise HTTPException(409, ...)`. So a deposit is accepted mid-cycle. (2) The buy path performs a read-modify-write of cash from a stale snapshot: `execute_buy` reads `cash = portfolio[\"current_cash\"]"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CONFIRMED as a real defect in live, exercised code (not dead/dark). Code mechanism verified end-to-end: POST /deposit (paper_trading.py:1219-1272) does an unguarded full-row read-modify-write of the singleton portfolio (read line 1232, write via upsert_paper_portfolio line 1254) with NO get_loop_status() guard \u2014 whereas /run-now DOES 409 on a running cycle (lines 1024-1026). execute_buy reads cash"
+   }
+  ]
+ },
+ {
+  "file": "backend/slack_bot/scheduler.py",
+  "line": 545,
+  "summary": "Morning and evening digests are gated on the US trading calendar only, but the engine trades EU and KR too -- trades executed on US-only holidays are never reported in any digest.",
+  "severity": "medium",
+  "evidence": "if not _is_us_trading_day_now():\n    logger.info(\"morning_digest skipped: %s ET is not a US trading day\", ...)\n    return  (scheduler.py:545-548, same gate in _send_evening_digest at 590-593; _is_us_trading_day_now calls is_trading_day(et_today, \"US\") only, scheduler.py:345-355). Meanwhile the autonomous loop gates only non-US ENTRIES per each market's own local calendar and never stops on US holidays: \"def _open_today(sym): mk = market_for_symbol(sym); if mk == 'US': return True ... return is_trading_day(local_date, mk)\" (backend/services/autonomous_loop.py:385-392).",
+  "failure_scenario": "US-only holiday that is a normal EU/KR session (Juneteenth, July 4, Thanksgiving, Labor Day -- roughly 6-8 weekdays/year). The weekday autonomous cycle runs and can execute EU/KR paper trades (multi-market live since 2026-06-01). Both digests skip that day. The next trading day's evening digest fetches /api/paper-trading/trades?since_today=true (start-of-that-day UTC, paper_trading.py:265-269), so the holiday's trades fall outside the window and are never surfaced in any digest.",
+  "money_impact": "Executed EU/KR trades (position changes, realized P&L) silently drop out of the operator's primary away-ops reporting channel -- during away weeks the digest IS the monitoring surface, so a losing holiday trade goes unnoticed until the operator opens the cockpit.",
+  "fix_sketch": "Gate on \"any configured market trading today\": any(is_trading_day(today_local(mkt), mkt) for mkt in settings.paper_markets), or keep the US gate for the portfolio section but always emit the trades section when since_today returns rows.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CODE TRACE CONFIRMS THE DEFECT. Full chain verified in-repo:\n\n1) scheduler.py:545 (`_send_morning_digest`) and :590 (`_send_evening_digest`) both start with `if not _is_us_trading_day_now(): ... return`. `_is_us_trading_day_now()` (scheduler.py:345-355) is exactly `return is_trading_day(et_today, \"US\")` \u2014 US calendar only. On a US-only holiday this returns False and BOTH digests return early. (Fai"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "CONFIRMED reachable under current live config. Full chain verified: (1) backend/.env sets PAPER_MARKETS=[\"US\",\"EU\",\"KR\"] \u2014 EU/KR are genuinely live, not the [\"US\"] default in settings.py:73-76. (2) The daily cycle is scheduled day_of_week=\"mon-fri\" with NO holiday gate (paper_trading.py:1302-1322) and run_daily_cycle has no US-calendar early exit, so it runs on US-only holidays that fall on weekda"
+   }
+  ]
+ },
+ {
+  "file": "backend/slack_bot/scheduler.py",
+  "line": 1164,
+  "summary": "nightly_mda_retrain and hourly_signal_warmup are registered without any production functions, so they run built-in stubs every night/hour (fake model {'dsr': 0.80}, throwaway cache dict) while heartbeating green into /api/jobs and the digest cron-health line.",
+  "severity": "medium",
+  "evidence": "prod_fns_per_job = { \"weekly_fred_refresh\": ..., \"nightly_outcome_rebuild\": ..., \"cost_budget_watcher\": ..., \"weekly_data_integrity\": ... }  (scheduler.py:1096-1116 -- no entries for nightly_mda_retrain or hourly_signal_warmup) then: prod_fns = prod_fns_per_job.get(job_id, {}); func = functools.partial(run_fn, **prod_fns) if prod_fns else run_fn  (scheduler.py:1163-1164). With no train_fn, nightly_mda_retrain runs _default_train(): return {\"trial_id\": \"stub_nightly\", \"dsr\": 0.80, \"pbo\": 0.30, \"sharpe\": 1.0}  (nightly_mda_retrain.py:46-48, and commit_fn is None so even promotion would write nothing). hourly_signal_warmup with cache_backend None warms `cache = {}` -- a local dict discarded on return -- via `lambda t: {\"score\": 0.0}` (hourly_signal_warmup.py:22,29).",
+  "failure_scenario": "Every night at 03:00 UTC the \"MDA retrain\" job gate-evaluates a hardcoded fake model and exits ok; every hour the \"signal warmup\" job writes {'score': 0.0} into a dict that is immediately garbage-collected. _aps_to_heartbeat posts status=ok for both, so /api/jobs/all and the morning digest's \"Crons: N/N healthy\" line (scheduler.py:369-374) count them as healthy production jobs.",
+  "money_impact": "Dead code believed live: the operator's dashboards claim a nightly walk-forward retrain guard and hourly signal-cache freshness exist, but no model is ever retrained and no signal is ever warmed. The advertised model-improvement loop is a no-op reported as green -- decisions (\"the model retrains nightly, so parameter staleness is handled\") rest on machinery that does nothing.",
+  "fix_sketch": "Either wire real train_fn/commit_fn (quant_optimizer walk-forward + optimizer_best.json write behind the PromotionGate) and a real compute_signal_fn/shared cache, or unregister the two jobs so job-status honestly shows them absent instead of green.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "Code trace confirms every factual assertion. In scheduler.py the production-fn dict `prod_fns_per_job` (lines 1096-1116) wires exactly four jobs and omits both `nightly_mda_retrain` and `hourly_signal_warmup`. Both are nonetheless present in the `mapping` dict (lines 1139-1142) and get scheduled via `scheduler.add_job(func, ...)` (line 1166). At line 1163 `prod_fns = prod_fns_per_job.get(job_id, {"
+   },
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "low",
+    "note": "FACTUALLY CONFIRMED and LIVE-REACHABLE (not dead/dark/never-scheduled), so the real=false carve-out does not apply. Traced the full chain in the current code: (1) both jobs are scheduled crons -- scheduler.py:1134-1149 registers nightly_mda_retrain (hour=3 UTC) and hourly_signal_warmup (minute=5, hourly) via register_phase9_jobs, called from start_scheduler(app) at app.py:56 in the live Slack-bot "
+   }
+  ]
+ },
+ {
+  "file": "backend/api/sovereign_api.py",
+  "line": 261,
+  "summary": "_fetch_llm_cost_by_provider prices only input_tok/output_tok and ignores the cache_creation_tok / cache_read_tok columns, understating real Anthropic spend by roughly an order of magnitude (live 30d data: 9.55M cache-write + 7.77M cache-read tokens vs only 1.15M input tokens).",
+  "severity": "medium",
+  "evidence": "sovereign_api.py:257-266 + 277-278:\n    SELECT provider, model, SUM(input_tok) AS in_tok, SUM(output_tok) AS out_tok\n    FROM `{_GCP_PROJECT}.pyfinagent_data.llm_call_log` ...\n    pricing = MODEL_PRICING.get(model, _DEFAULT_PRICING)\n    cost = (in_tok * pricing[0] + out_tok * pricing[1]) / 1_000_000.0\nLive llm_call_log schema has cache_creation_tok / cache_read_tok, and a live 30-day aggregate returned: provider=anthropic in_t=1,147,970 cc=9,546,431 cr=7,768,967 (writers store usage.input_tokens, which per the Anthropic API excludes cache tokens -- claude_code_client.py:505, llm_client.py:1789).",
+  "failure_scenario": "For the anthropic bucket over the last 30 days, counted input cost is ~1.15M tokens x $5/M = ~$5.7, while ignored cache cost at Opus 4.8 rates (cache write 1.25x input = $6.25/M, cache read 0.1x = $0.50/M) is ~9.55M x $6.25 + 7.77M x $0.50 = ~$63.5. /api/sovereign/compute-cost totals and the llm_cost_usd denominator of /api/sovereign/efficiency (profit_per_llm_dollar) and /api/paper-trading/attribution's per-ticker cost split all understate Anthropic cost ~10x.",
+  "money_impact": "The charter objective is NET, COST-adjusted P&L. Cost-adjusted metrics (profit_per_llm_dollar, per-ticker pnl_per_cost_usd, compute-cost dashboard) look ~10x better than reality on the anthropic rail, biasing operator decisions about whether the strategy clears costs.",
+  "fix_sketch": "Add SUM(cache_creation_tok), SUM(cache_read_tok) to the query and price them at 1.25x / 0.1x of the model's input rate (or extend MODEL_PRICING with cache rates); keep the claude-code provider excluded per the flat-fee Max policy.",
+  "confirmed": true,
+  "contested": false,
+  "votes": [
+   {
+    "real": true,
+    "confidence": "high",
+    "severity": "medium",
+    "note": "CONFIRMED via code trace. The claim is that _fetch_llm_cost_by_provider (backend/api/sovereign_api.py:257-286) prices only input_tok/output_tok and ignores cache_creation_tok/cache_read_tok, understating Anthropic spend ~10x.\n\nDecisive lines:\n- SQL (257-267): `SELECT provider, model, SUM(input_tok) AS in_tok, SUM(output_tok) AS out_tok ... GROUP BY provider, model` \u2014 cache columns never selected.\n"
+   },
+   {
+    "real": true,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "CODE FACT (confirmed verbatim): sovereign_api.py:257-278 _fetch_llm_cost_by_provider aggregates SUM(input_tok)+SUM(output_tok) and prices via MODEL_PRICING[0/1]; it never touches cache_creation_tok/cache_read_tok. The project's own canonical pricer cost_tracker.py:175-181 DOES price cache tokens, so the BQ-side aggregation is inconsistent with it. Claim's code assertion is true.\n\nREACHABILITY (con"
+   }
+  ]
+ }
+]

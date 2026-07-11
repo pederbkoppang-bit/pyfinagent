@@ -15552,6 +15552,94 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-69",
+      "name": "Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified; register handoff/current/audit_phase69/register.md; 50 confirmed / 30 contested / 4 refuted of 85) into banked P&L protection: stop the working engine from destroying its own book (FX=1.0 default, unrecoverable trailing-DD kill-switch, clear-queue pkill, lock strands), make the promotion instruments measure what they claim (DSR units, purge+embargo, boundary snap, fracdiff-at-predict, go-live booleans), and un-invert the live signal overlays (sign-safe algebra, news token cap, QMJ Growth, INDPRO+net-liquidity) -- before new alpha is trusted. Operator /goal 2026-07-11 verbatim in handoff/current/goal_phase69_audit_burndown_DRAFT.md. QUEUED BEHIND 67.4 Sunday-2026-07-12 revert + phase-68 P0s: money-path 69.1/69.3 byte-coordinate with in-flight phase-68 fill work; offline 69.0/69.2 do not conflict and open the phase. Boundaries (binding): $0 metered, free APIs only, paper-only; do-no-harm (kill-switch limits / stops / sector caps / DSR>=0.95 / PBO<=0.5 byte-untouched; fixes are fail-safe + ledger-math only); hysteresis fixes stay banned; historical_macro stays frozen; DARK-until-token on every guard-behavior change; full 5-file protocol per step; harness stays exactly 3 agents (Main + Researcher + Q/A).",
+      "status": "in-progress",
+      "theme": null,
+      "steps": [
+        {
+          "id": "69.0",
+          "status": "done",
+          "name": "P0 design pack (offline, dev-time frontier reasoning -- Fable while the 07-12 window is open, else Opus 4.8; ZERO live surface, no production code): FX degradation chain; audited restart-replayable kill-switch peak-reset; sign-safe overlay algebra; DSR/purge corrections vs Bailey-Lopez de Prado reference values. Opens phase-69 because it does not conflict with in-flight phase-68 money-path work.",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/research_brief_69.0.md && test -f handoff/current/design_audit_burndown_69.md && grep -q \"gate_passed\" handoff/current/research_brief_69.0.md && grep -qi \"last-known\" handoff/current/design_audit_burndown_69.md && grep -Eqi \"peak.reset\" handoff/current/design_audit_burndown_69.md && grep -qi \"sign-safe\" handoff/current/design_audit_burndown_69.md && grep -Eqi \"deflated sharpe|dsr\" handoff/current/design_audit_burndown_69.md && grep -Eqi \"purge|embargo\" handoff/current/design_audit_burndown_69.md'",
+            "success_criteria": [
+              "research_brief_69.0.md exists with an honest JSON gate envelope (gate_passed, >=5 external sources read in full, recency scan performed) covering all four design topics: (a) FX last-known-rate fallback and fail-closed-vs-fail-open discipline for multi-currency ledgers, (b) audited restart-replayable high-water-mark / drawdown-guard reset state-machine patterns, (c) sign-safe multiplicative-overlay algebra on signed scores, (d) Bailey-Borwein-Lopez de Prado-Zhu Deflated Sharpe standard-error and AFML Ch.7 purge/embargo reference values.",
+              "design_audit_burndown_69.md exists and specifies, each element naming the exact file:line target(s) and the do-no-harm invariant it preserves: (a) the FX degradation chain [yfinance -> FRED -> historical_fx_rates -> last-known api_cache -> BLOCK when no rate was ever stored] with the block-not-1.0 rule for paper_trader.py:392 mirroring execute_buy and fx_rates.py:93 serving its own historical table; (b) an audited restart-replayable kill-switch peak_reset state machine (trigger conditions [flatten / operator-resume], a peak_reset audit row, persistence across restart) DARK-until-KS-PEAK-RESET:APPROVED, plus the current_nav<=0 no-data guard (kill_switch.py:212 and :246); (c) sign-safe overlay algebra with the exact formula and a proof it preserves intended ranking for BOTH positive and negative composites (macro_regime.py:547, news_screen.py:329 and the pead/options/insider/peer_leadlag overlays); (d) the DSR unit-correction (annualized-Sharpe vs per-period-T) with the corrected z pinned to a BBLZ reference value, plus purge+embargo (no training label horizon overlaps the test window), boundary-snap, and fracdiff-at-predict corrections (analytics.py:323, backtest_engine.py:587 / :488 / :794).",
+              "Every design element preserves the do-no-harm boundary explicitly: no threshold byte changes (4%/10%/8%/30% guards, DSR>=0.95, PBO<=0.5) and every guard-behavior change is flagged DARK-until-token.",
+              "No production code changed by this step (git diff shows only handoff/ doc artifacts; research + design only).",
+              "Fresh Q/A PASS on the pack."
+            ],
+            "live_check": "live_check_69.0.md quoting the design doc's four sections (FX degradation chain, kill-switch peak-reset state machine, sign-safe overlay formula, DSR/purge correction) plus the brief's gate envelope and the fresh Q/A verdict JSON."
+          }
+        },
+        {
+          "id": "69.1",
+          "status": "pending",
+          "name": "P0 book-safety (money-path code; register items 1-4) -- each with a red->green reproduction test. FX=1.0 default + missing fallback; current_nav<=0 phantom breach guard; restart-replayable peak-reset DARK until KS-PEAK-RESET:APPROVED; clear-queue pkill removal; failed-acquire pidfile unlink + unguarded-init flock strand. BYTE-COORDINATE with in-flight phase-68 money-path steps (68.5 fill-price gate).",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_book_safety_69.py -q -x --timeout=120'",
+            "success_criteria": [
+              "FX correctness (red->green): a test reproduces a KR/EU SELL under a monkeypatched dual-FX outage crediting local-notional-as-USD at 1.0 (RED), and after the fix fx_rates serves the last-known fallback chain; the non-USD exit is BLOCKED (never credited at 1.0) only when NO rate has ever been stored, mirroring execute_buy. paper_trader.py:392 + fx_rates.py:93.",
+              "Kill-switch no-data guard (red->green): a current_nav<=0 (BQ-timeout `or 0.0`) input no longer renders a phantom 100% daily+trailing breach. kill_switch.py:246. The audited restart-replayable peak_reset is implemented but DARK: no peak reset fires until KS-PEAK-RESET:APPROVED is recorded (test asserts dark-by-default); the 4%/10%/8%/30% thresholds are byte-untouched.",
+              "Op-safety: the 'clear queue' pkill -9 -f python sink is removed; a grep + a test prove the #ford-approvals handler can no longer reach any process-kill sink. commands.py:295.",
+              "Lock safety (red->green): a FAILED acquire no longer unlinks the live pidfile (cycle_lock.py:144); the unguarded init is wrapped so a startup exception cannot strand the flock forever (autonomous_loop.py:167).",
+              "Do-no-harm + coordination: risk-cap / stop / kill-switch thresholds byte-untouched over the step's commit range (git diff evidence); all changes are fail-safe additions + ledger-math only; money-path edits are byte-coordinated with any in-flight phase-68 fill work (no conflict with 68.5's fill-price sanity gate). Fresh Q/A PASS with the 67.1 gates."
+            ],
+            "live_check": "live_check_69.1.md with the red->green pytest runs for each of FX / kill-switch-guard / lock-safety, the pkill-removal grep, the git diff proving thresholds untouched, and evidence the peak_reset is DARK pending the KS-PEAK-RESET token."
+          }
+        },
+        {
+          "id": "69.2",
+          "status": "pending",
+          "name": "P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR units, purge+embargo, boundary snap, fracdiff-at-predict, go-live booleans to documented spec; fixture-tested. Incumbent re-validation waits on the historical_macro un-freeze (separate operator token); this step ships code + fixtures only.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_gate_correctness_69.py -q -x --timeout=180'",
+            "success_criteria": [
+              "DSR units (fixture): compute_deflated_sharpe no longer feeds an annualized Sharpe into the per-period standard-error formula with daily T; a test on a known annualized-Sharpe/daily-T case asserts the corrected z matches the Bailey-Borwein-Lopez de Prado-Zhu reference value and that the pre-fix value was ~sqrt(252) too large. analytics.py:323.",
+              "Purge+embargo (fixture): walk-forward training purges samples whose label horizon overlaps the test window; a test asserts no training sample's [entry, entry + label_horizon] overlaps [test_start, test_end] and the embargo is >= the max label horizon (not the old 5-day). backtest_engine.py:587.",
+              "Boundary snap (fixture): trade-execution and final-liquidation price lookups business-day-snap (or range-widen) so a weekend/holiday-bounded window no longer silently executes zero trades or liquidates every position at its entry price. backtest_engine.py:488.",
+              "Fracdiff-at-predict (fixture): the fractional-differentiation transform and its NaN-fill policy are applied identically at predict time as at train time. backtest_engine.py:794.",
+              "Go-live booleans: paper_go_live_gate's two under-spec booleans (psr_ge_95_sustained_30d, max_dd_within_tolerance) are tightened to their documented immutable definitions (per-day PSR sustainment over 30d + realized-DD vs backtest-DD+5pp), fixture-tested. paper_go_live_gate.py:111. The immutable promotion thresholds (DSR>=0.95, PBO<=0.5) are byte-untouched; incumbent re-validation under the corrected gates is explicitly deferred behind the historical_macro un-freeze token. Fresh Q/A PASS."
+            ],
+            "live_check": "live_check_69.2.md with the DSR-vs-reference test run, the purge/embargo assertion, the boundary-snap and fracdiff-at-predict test runs, the go-live-boolean tests, and the git diff proving DSR>=0.95 / PBO<=0.5 thresholds are byte-untouched."
+          }
+        },
+        {
+          "id": "69.3",
+          "status": "pending",
+          "name": "P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_macro untouched) -- sign-safe overlays (ON-vs-OFF live_check), news token cap + parse-retry, QMJ Growth fix; INDPRO + net-liquidity (WALCL-WTREGEN-RRPONTSYD) into _REGIME_SERIES via a NEW cached path (NOT the frozen ingestion path). Final IC/ablation/optimizer validation deferred behind the historical_macro un-freeze.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_signal_integrity_69.py -q -x --timeout=180'",
+            "success_criteria": [
+              "Sign-safe overlays (red->green, flag-gated): a test proves a negative-base candidate with a POSITIVE catalyst now ranks ABOVE an equal candidate with a negative catalyst (inversion eliminated) across macro_regime.py:547, news_screen.py:329 and the pead/options/insider/peer_leadlag overlays; the live ranking-behavior change is behind a flag with an ON-vs-OFF live_check comparison.",
+              "News token cap + parse-retry: the news_screen max_output_tokens min()-inversion is fixed so a 100-headline batch parses instead of truncating to {}, and a parse-fail retry is added. news_screen.py:282.",
+              "QMJ Growth: revenue_growth_yoy is assigned before quality_score consumes it, so the Asness QMJ Growth dimension fires (test). historical_data.py:202.",
+              "INDPRO + net-liquidity lift ($0, existing free FRED key, historical_macro untouched): INDPRO is repaired and net-liquidity (WALCL - WTREGEN - RRPONTSYD) is added into _REGIME_SERIES via a NEW cached path (fred_data.SERIES + _REGIME_SERIES + prompt thresholds, 24h file cache) -- NOT the frozen ingestion path; a live_check shows the regime prompt now includes INDPRO (restoring the intended series set) plus the net-liquidity component.",
+              "Do-no-harm: final IC / ablation / optimizer validation of any ranking change is deferred behind the historical_macro un-freeze token; the live overlay fixes and the FRED-prompt repair do not require it. historical_macro is byte-untouched (git diff). Fresh Q/A PASS with a live ON-vs-OFF ranking comparison."
+            ],
+            "live_check": "live_check_69.3.md with the sign-inversion test, the 100-headline parse test, the QMJ test, the regime-prompt capture proving INDPRO + net-liquidity are present, and the ON-vs-OFF flag ranking comparison."
+          }
+        },
+        {
+          "id": "69.4",
+          "status": "pending",
+          "name": "P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: learn-loop tz TypeError -> 68.4; external-flow/deposit Sharpe corruption + STRING/TIMESTAMP trade query -> 68.5/68.6; FX-1 residual -> parked 61.3; the 30 contested findings + Slack/UI display defects -> 63.3-style seeds. A coverage table maps all 50 confirmed findings to their disposition.",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/audit_phase69/handoffs_69.4.md && grep -q \"68.4\" handoff/current/audit_phase69/handoffs_69.4.md && grep -q \"63.3\" handoff/current/audit_phase69/handoffs_69.4.md && grep -Eqi \"coverage|disposition\" handoff/current/audit_phase69/handoffs_69.4.md'",
+            "success_criteria": [
+              "Learn-loop tz TypeError (outcome_tracker.py:50 / :118) filed as a hand-off to phase-68.4 (no 68.x execution in this step).",
+              "External-flow/deposit Sharpe corruption (perf_metrics.py:116) + get_paper_trades_in_window STRING/TIMESTAMP query bug (bigquery_client.py:957) filed to their phase-68.5 / 68.6 owners (no execution).",
+              "FX-1 residual root-cause handed to parked 61.3 (no 61.x execution).",
+              "The 30 contested findings + all Slack/UI display defects (formatters.py:247, _production_fns.py, cockpit-helpers.tsx, live-portfolio-context.tsx et al.) filed as 63.3-style seed entries, each with location + claim + verifier split (no 63.3 execution).",
+              "A coverage table maps every one of the 50 confirmed findings to a disposition {fixed-in-69.x | filed-to-<owner> | deferred-<reason>} so no confirmed defect is silently dropped. Fresh Q/A PASS."
+            ],
+            "live_check": "live_check_69.4.md with the coverage table mapping all 50 confirmed findings to their disposition and pointers to the filed seed entries."
+          }
+        }
+      ]
     }
   ]
 }

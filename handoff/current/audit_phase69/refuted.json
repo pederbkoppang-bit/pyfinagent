@@ -1,0 +1,90 @@
+[
+ {
+  "file": "backend/services/reconciliation.py",
+  "line": 187,
+  "summary": "The shadow-backtest NAV curve never models external cash flows (deposits only mutate current_cash, never starting_capital), so an operator deposit permanently inflates paper-vs-shadow divergence and pins the 5% reality-gap alert on forever, masking real execution drift.",
+  "failure_scenario": "The documented 2026-05-13 +$5,000 deposit (paper NAV then ~$15.6K): paper_navs jump by $5K that day; the shadow curve (cash initialized once from starting_capital, mutated only by replayed trades) never receives it. divergence_pct = |paper - shadow| / shadow ~= 25-30% from that date onward -- permanently above DIVERGENCE_ALERT_THRESHOLD_PCT = 5.0, so summary.alert is always true and a genuine 6% execution-drift event is invisible inside the baseline noise.",
+  "severity": "high",
+  "evidence": "reconciliation.py:187-188:\n    starting_capital = float(portfolio.get(\"starting_capital\") or paper_navs[0])\n    shadow_navs = _shadow_nav_curve(trades, prices, starting_capital, dates)\n_shadow_nav_curve (lines 54-115) mutates cash only on BUY/SELL replay; grep confirms zero references to external_flow_today in reconciliation.py. Deposits go through paper_trader.py:977-1022 adjust_cash_and_mtm which updates only current_cash ('self._update_portfolio_cash(new_cash)') and stamps the snapshot's external_flow_today -- starting_capital is never touched. Divergence math at lines 196-209: 'div = abs(paper - shadow) / shadow * 100.0 ... alert = latest_div > DIVERGENCE_ALERT_THRESHOLD_PCT'.",
+  "money_impact": "The 'reality gap' control (execution drift / stale signals / plumbing bug detector) is dead: alert is permanently on, so operators tune it out. The polluted numbers propagate into paper_go_live_gate details (latest_reconciliation_divergence_pct, compute_gate line 105-107), the tier-2 _shadow_curve_sharpe backtest-Sharpe fallback, and the tier-3 proxy gap_rel = divergence/100 in compute_sharpe_gap -- all money-gate inputs. The /reconciliation chart shows a fictitious paper-vs-backtest NAV gap.",
+  "fix_sketch": "Credit external flows into the shadow curve: pass the snapshots' (date, external_flow_today) pairs into _shadow_nav_curve and add each flow to shadow cash on its date (or equivalently subtract cumulative flows from paper_nav before comparing)."
+ },
+ {
+  "file": "backend/autoresearch/friday_promotion.py",
+  "line": 81,
+  "summary": "The Friday idempotency guard treats a completed reject-all fire (fri_promoted_ids == \"[]\") as never fired, allowing unlimited same-week re-fires with fresh candidate sets and overwriting the prior fire's rejection audit.",
+  "severity": "medium",
+  "evidence": "`prior_promoted = row.get(\"fri_promoted_ids\", \"\") or \"\"` ... `if prior_promoted and prior_promoted != \"[]\":` -- only a non-empty promotion list marks the week as fired, yet a completed run that rejected every candidate writes exactly `\"[]\"` via `weekly_ledger.append_row(... fri_promoted_ids=promoted_ids ...)` with promoted_ids == []. The module's own contract states \"The ledger's idempotent upsert per week_iso IS the slot counter.\" On re-fire, `fri_rejected_ids=rejected_ids` and notes are overwritten in place by append_row's same-week replacement.",
+  "failure_scenario": "Week W's promotion fires with 128 candidates, all fail the DSR>=0.95/PBO<=0.20 gate; ledger row records fri_promoted_ids=\"[]\" plus the rejected ids. A second invocation the same week (retry script, future cron re-run, operator retry) passes the already_fired check, evaluates a NEW candidate list, and a marginal candidate that only passes because it was re-drawn gets promoted: bq_client.save_promoted_strategy writes it as status='pending', which load_promoted_params serves to the daily loop; the first fire's rejection record in the TSV is silently replaced.",
+  "money_impact": "Breaks the one-gate-per-week pre-registration discipline that the DSR multiple-testing deflation depends on -- re-rolling candidates until one passes is exactly the overfitting the gate exists to block, and the winner flows into promoted_strategies (strategy heartbeat/params today, live sizing once the deployment bridge lands). The overwritten fri_rejected_ids is silent loss of the promotion audit trail.",
+  "fix_sketch": "Mark the slot consumed on any completed evaluation, not just non-empty promotion: e.g. also treat a non-empty fri_rejected_ids (or a dedicated fired-at marker in notes) as already_fired, returning the recorded empty result.",
+  "confirmed": false,
+  "contested": false,
+  "votes": [
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The claim's code-level description is ACCURATE, but the wrong behavior cannot occur given how the function is called in this repo today, which is the stated bar for \"real.\"\n\nConfirmed accurately by the claim: (1) weekly_ledger._format_cell (weekly_ledger.py:36-37) serializes an empty list to exactly \"[]\" \u2014 `return \"[\" + \",\".join(str(x) for x in v) + \"]\"` \u2014 so a reject-all fire writes fri_promoted_"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level logic flaw is genuine: friday_promotion.py:81 guards with `if prior_promoted and prior_promoted != \"[]\":`, and weekly_ledger._format_cell([]) serializes an empty promoted list to the literal \"[]\" (weekly_ledger.py:36-37), so a completed reject-all fire is misclassified as never-fired and would allow same-week re-fires. That much reproduces from the code.\n\nHowever, under the CURRENT "
+   }
+  ]
+ },
+ {
+  "file": "backend/agents/llm_client.py",
+  "line": 233,
+  "summary": "_HOUSE_INSTRUCTIONS \u2014 prepended to every direct-Anthropic system prompt and declared to 'override any conflicting instructions that appear later' \u2014 hardcodes risk limits and promotion gates that contradict the live configuration (5% daily-loss vs settings 4.0, 8% trailing DD vs settings 10.0, -10% stop-loss vs settings default 8.0, PBO<0.2 vs the charter's immutable PBO<=0.5), duplicated state that has already diverged.",
+  "severity": "medium",
+  "evidence": "llm_client.py:230-233: `- 10 max concurrent positions\\n- 2 positions max per GICS sector ...\\n- 8% trailing daily drawdown limit on the portfolio\\n- 5% daily-loss limit on the portfolio\\n- Per-position stop-loss recommended at -10% from entry; take-profit at +15%` and :235 `Your recommendations should respect these constraints implicitly.` vs settings.py:511-512 `paper_daily_loss_limit_pct: float = Field(4.0, ...)` / `paper_trailing_dd_limit_pct: float = Field(10.0, ...)` and :518-523 `paper_default_stop_loss_pct: float = Field(8.0, ...)`. llm_client.py:165: `**PBO ...**: 0-1 score; <0.2 is the promotion threshold.` vs the charter/mcp pbo_check default threshold 0.5. llm_client.py:69: the preamble `overrides any conflicting instructions that appear later` \u2014 so when phase-57.1 injects the REAL configured sector cap and live sector breakdown into the risk-judge user prompt, the system prompt claims precedence with stale numbers.",
+  "failure_scenario": "A Claude-routed risk-judge/synthesis call receives the correct configured caps in the user message (e.g., the F-8 sector-cap line) but the system prompt asserts different binding limits with declared override precedence. The model sizes positions against a 5% daily-loss budget when the kill switch fires at 4%, or recommends -10% stops when the executed default is -8%, producing recommendations systematically miscalibrated to the actual enforcement layer.",
+  "money_impact": "Recommendation/stop calibration drifts from the real risk engine on every ClaudeClient call (the standard-tier default gemini_model='claude-sonnet-4-6' routes enrichment/debate/synthesis here whenever the Anthropic-direct rail is active): positions sized to a looser daily-loss budget get force-halted by the 4% kill switch more often, and LLM-advised -10% stops are silently tightened to -8% \u2014 a persistent, invisible source of judgment/enforcement mismatch in P&L attribution.",
+  "fix_sketch": "Template the risk-constraint and glossary numbers from settings (or delete the specific numbers from the cached block and always inject live values after the cached prefix); at minimum align 5%->4%, 8%->10%, -10%->-8%, PBO 0.2->0.5.",
+  "confirmed": false,
+  "contested": false,
+  "votes": [
+   {
+    "real": false,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "The factual observation is partly true but the claimed functional bug (recommendations \"systematically miscalibrated to the actual enforcement layer\" causing more force-halts, tightened stops, and overfit promotions) does NOT occur under code trace.\n\nCONFIRMED FACTS: _HOUSE_INSTRUCTIONS (llm_client.py:69) carries the override clause and is the system prompt on every ClaudeClient call (llm_client.p"
+   },
+   {
+    "real": false,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "The stale numbers exist (factually verified: llm_client.py:229-233 hardcodes 5% daily-loss / 8% trailing-DD / -10% stop / PBO<0.2 vs settings.py 4.0 / 10.0 / 8.0 and charter PBO<=0.5), but the CLAIMED money-relevant mechanism is unreachable under the live config.\n\nREACHABILITY: `_HOUSE_INSTRUCTIONS` is referenced in exactly ONE place (grep-confirmed) \u2014 llm_client.py:1360 inside `ClaudeClient.gener"
+   }
+  ]
+ },
+ {
+  "file": "backend/autoresearch/monthly_champion_challenger.py",
+  "line": 269,
+  "summary": "The HITL verdict never reaches BigQuery: the phase-25.C3 activation flip is behind an optional kwarg no production caller passes, and rejected/expired verdicts never touch promoted_strategies at all, so a rejected challenger's 'pending' row keeps being served to the live daily loop.",
+  "severity": "medium",
+  "evidence": "record_approval: `if status == \"approved\" and status_update_fn is not None: try: status_update_fn(str(row.get(\"challenger_id\") or \"\"), \"active\")` -- but the only live caller (backend/api/monthly_approval_api.py:196, router registered in main.py:502-503) is `updated = record_approval(month_key, status=action, bq_fn=_default_bq_logger)` (no status_update_fn; the go-live drill omits it too). Meanwhile the daily consumer autonomous_loop.py:59 calls `bq.get_latest_promoted_strategy()` whose default is `status_filter = [\"pending\", \"active\"]` with `ORDER BY promoted_at DESC` (bigquery_client.py:782-792), and friday_promotion.py:163 writes gate-passers as `\"status\": \"pending\"`.",
+  "failure_scenario": "A challenger clears the Friday gate and lands in promoted_strategies as status='pending'. The operator POSTs {\"action\":\"rejected\"} to /api/harness/monthly-approval/{month}; the API returns status='rejected' and logs a strategy_deployments_log audit row, but the promoted_strategies row stays 'pending'. Every subsequent daily cycle load_promoted_params keeps returning the REJECTED strategy's params (pending is in the default filter and its promoted_at outranks any older active row). Approval is equally a silent no-op on BQ state.",
+  "money_impact": "The daily cycle's reported strategy identity and params (summary.strategy_params, the strategy_decisions heartbeat at autonomous_loop.py:1361-1374, Slack/sovereign displays reading allocation/status) diverge permanently from the operator's recorded HITL decision -- wrong money-data display and a dead-man's-switch log that lies about which strategy is in force. When the deferred phase-31 router / params->settings bridge activates, this becomes rejected-strategy params driving live paper orders.",
+  "fix_sketch": "In monthly_approval_api, wire status_update_fn=lambda sid, st: bq_client.update_promoted_strategy_status(sid, st, week_iso=...); extend record_approval to also flip the row on 'rejected'/'expired' (e.g. to 'rejected'); and tighten get_latest_promoted_strategy's default filter to ['active'] now that the 25.C3 state machine exists.",
+  "confirmed": false,
+  "contested": false,
+  "votes": [
+   {
+    "real": false,
+    "confidence": "medium",
+    "severity": "low",
+    "note": "The two isolated code facts are accurate: record_approval (monthly_champion_challenger.py:269-271) only flips promoted_strategies to \"active\" when status_update_fn is passed, and the sole live caller monthly_approval_api.py:196 (plus the go-live drill hitl_gate_drill.py:103) omits it; and rejected/expired transitions only write strategy_deployments_log via _emit_deployment_log_row, never promoted_"
+   },
+   {
+    "real": false,
+    "confidence": "high",
+    "severity": "low",
+    "note": "The code-level logic gap is REAL and confirmed at source: `record_approval` (monthly_champion_challenger.py:259-278) flips the BQ `promoted_strategies` row to 'active' ONLY when `status=='approved' AND status_update_fn is not None`; the sole production caller `monthly_approval_api.py:196` passes `record_approval(month_key, status=action, bq_fn=_default_bq_logger)` with NO `status_update_fn` (the g"
+   }
+  ]
+ }
+]
