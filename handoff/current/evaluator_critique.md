@@ -1,89 +1,44 @@
-# Evaluator Critique — Step 69.2 (P0 gate correctness, OFFLINE)
+# Evaluator Critique — Step 69.4 (P2 hand-offs)
 
-## Cycle 1 — Q/A verdict: FAIL (independent Q/A, workflow structured-output, 2026-07-11)
+## Q/A verdict: PASS (independent Q/A, workflow structured-output on Opus, 2026-07-11)
 
-Evaluator: fresh `qa` agent run via the Workflow structured-output path (the Agent-tool subagent
-path stalled 6× on the file-write this session; the workflow captured the verdict as a return
-value). Read-only; Main authors this file from the agent's structured verdict.
-
-**Verdict: FAIL** — on exactly ONE deterministic gate; *absent it, this evaluation is a PASS*.
+Fresh `qa` agent via the Workflow structured-output path, on **Opus** (the Fable-5 free budget was
+exhausted mid-session; running Fable would draw metered credits → violate the $0 boundary, so the
+workflow agent was re-run with `model: opus` on the Max flat-fee rail). Read-only; Main authors this file
+from the structured verdict. **Verdict: PASS**, `violated_criteria: []`.
 
 ### Harness compliance (5/5 PASS)
-- **research_gate**: PASS — research_brief_69.2.md gate_passed=true, 5 external sources read in full
-  (building on 8 in 69.0), recency scan, 11 internal anchors, provenance disclosed, research preceded code.
-- **contract_before_generate**: DISCLOSED SLIP, judged **acceptable-not-blocking** — actual order was
-  research → code → contract; the full plan pre-existed in research_brief_69.2.md §Application (written
-  during the gate, before code), immutable criteria copied verbatim/unaltered, the slip is self-disclosed
-  at the top of contract.md. Rule intent (no post-hoc criteria fitting) preserved. Must not recur as a pattern.
-- **results_present**: PASS — complete (diff stat, 5-fix inventory, verbatim pytest, scipy DSR check,
-  do-no-harm evidence, honest C4 scope note, deferral of incumbent re-validation).
-- **log_last**: PASS — no 69.2 harness_log entry yet, status not flipped.
-- **no_verdict_shopping**: PASS — first Q/A for 69.2.
+- **research_gate**: PASS — research_brief_69.4.md gate_passed=true; 5 external defect-triage/traceability
+  sources read in full; recency scan; provenance disclosed (internal disposition map by the researcher
+  before the 7th subagent stall, external floor + envelope finalized by Main).
+- **contract_before_generate**: PASS — contract holds step id, research summary, verbatim criteria,
+  hypothesis, plan; authored before experiment_results.md.
+- **results_present**: PASS — verbatim verification output (VERIFY EXIT=0), criteria→evidence mapping,
+  no-execution proof.
+- **log_last**: PASS — no 69.4 harness_log entry yet, status not flipped.
+- **no_verdict_shopping**: PASS — first Q/A on 69.4.
 
-### Immutable criteria
-- **C1 DSR**: MET — both SR and V de-annualized, caller ppy=252, Bailey **0.9004880** pinned, default
-  byte-identical, `dsr_52wh_verdict.py` untouched.
-- **C2 Purge+embargo**: MET — purge wired into `_build_training_data` with the test window, separating the
-  full 1.5·holding_days label horizon (strictly dominates the old 5-day embargo; walk_forward embargo_days
-  constant itself unchanged, purge subsumes its pre-test-leakage role).
-- **C3 Boundary snap**: MET — `_price_asof` at entry + liquidation; snap and no-data paths tested.
-- **C4 Fracdiff-at-predict**: **ACCEPT-ON-INTENT** (non-blocking) with a mandatory tracked follow-on.
-  NaN-fill half now literally identical (train medians persisted + applied at predict); windowed FFD on a
-  single cross-sectional row is architecturally impossible, and the series lives in the live-adjacent
-  build_feature_vector (out of a zero-live-surface step). Honest limit: predict non-stationary features are
-  median-NEUTRALIZED (constant), not equivalent to train's varying fracdiff'd values — disclosed
-  harm-reduction. **Condition of acceptance**: file a tracked follow-on for the true per-ticker FFD fix +
-  document the neutralization. (68.5 precedent: disclosure+routing acceptable; silent reinterpretation is not.)
-- **C5 Go-live booleans**: MET — true 30-day expanding-window min-PSR sustainment (fail-safe red on short
-  history), DD tolerance = backtest-DD+5pp with documented 20% cap fallback, PSR via
-  `services/perf_metrics.compute_psr` (no perf-metrics bypass).
+### Immutable criteria (all met)
+- **C1** learn-loop tz (outcome_tracker.py:50/:118) → FILE→68.4. ✓
+- **C2** perf_metrics.py:116 → 68.6; bigquery_client.py:957 → 68.5/68.6. ✓
+- **C3** FX-1 residual (paper_trader.py:1124, paper_round_trips.py:109 = #6/#14) → 61.3. ✓
+- **C4** 30 contested + Slack/UI defects → 63.3 seeds with location + claim + verifier split. ✓
+- **C5** coverage table maps all 50 confirmed findings; **independently verified**: leading finding-number
+  column = integers 1..50 all present, zero gaps; subsystem checksum totals 50 (matches register's 50
+  confirmed); spot-checked #11/#34/#45/#38 each dispositioned. Zero silent drops. ✓
 
-### Do-no-harm: VERIFIED
-DSR_THRESHOLD / PSR_THRESHOLD / MAX_DD_ABS_TOLERANCE / TRADES_THRESHOLD byte-untouched; quant_optimizer
-dsr_threshold=0.95 untouched; the only external `_build_training_data` consumer (`run_ablation.py:253`)
-calls positionally so new kwargs default to None = pre-fix behavior; 1028 tests still collect. Code-review
-heuristics: financial-logic-with-behavioral-test satisfied (18 fixtures), no tautological assertions, no
-consumer break, no security findings; `_load_backtest_max_dd` broad-except is a fail-safe config read → None
-→ stricter fallback (NOTE only).
+### Deterministic checks (Q/A ran itself)
+- 69.4 verification command → **exit 0**.
+- No code execution → `git status` has **zero backend/frontend changes** (doc-only step).
+- Routing targets 68.4/68.5/68.6/61.3/63.3 → all EXIST and pending in masterplan.json.
+- Criteria in contract verbatim-identical to masterplan success_criteria.
+- Code-review heuristics: no code diff → none fire; live-UI gate does not bind (files UI defects to owners,
+  makes no UI-render/fix claim).
 
-### The single blocker (violated_criteria)
-`ruff_lint_gate_F401` (qa.md §1a): `uvx ruff check --select F821,F401,F811 ...` exit=1 —
-verbatim: **"F401 [*] `numpy` imported but unused --> backend/tests/test_gate_correctness_69.py:13:17"**.
-The three production files are lint-clean; the sole finding is the new test file's dead import. The gate text
-is binding ("Non-zero exit = FAIL"); dead imports are its explicit target class → FAIL (correctly not softened).
+### NOTE (non-degrading; addressed)
+Q/A flagged a cosmetic subtotal-count label in the research BRIEF section B ("13 filed … =48") vs the actual
+15 routed findings (total 50) — NOT in the deliverable, not a silent drop. **Main corrected the brief**
+(section B now reads "15 findings"; reconciliation now "16+15+19=50 ✓"). The deliverable's per-finding
+coverage + the authoritative 1..50 checksum were already correct.
 
----
-
-## Cycle 2 — Main remediation (2026-07-11)
-
-Per the documented cycle-2 flow (fix the blocker → update handoff files → fresh Q/A on changed evidence):
-
-1. **F401 fixed**: removed the unused `import numpy as np` from `backend/tests/test_gate_correctness_69.py:13`
-   (verified no `np.` references remain).
-2. **Re-verified** (verbatim):
-   - `uvx ruff check --select F821,F401,F811 <4 files>` → **"All checks passed!"** (exit 0).
-   - `python -m pytest backend/tests/test_gate_correctness_69.py -q` → **18 passed in 1.48s**.
-3. **C4 follow-on filed** (condition of acceptance satisfied): `handoff/current/audit_phase69/followons_69.2.md`
-   (FO-69.2-A: true per-ticker time-series FFD in the feature builder, future live-adjacent step, gated on the
-   historical_macro un-freeze) + the median-neutralization LIMITATION documented in the `_build_predict_features`
-   docstring. Routed as a 69.4 hand-off seed.
-4. **experiment_results.md updated** with the new ruff+pytest outputs and the C4 follow-on record.
-
-Evidence changed (F401 removed; ruff now clean; follow-on filed) → a FRESH Q/A evaluates the updated state.
-This is the documented file-based fresh-respawn, not verdict-shopping on unchanged evidence.
-
-## Cycle 2 — Q/A verdict: PASS (fresh independent Q/A, workflow structured-output, 2026-07-11)
-
-Fresh `qa` agent (Workflow structured-output). **Verdict: PASS**, `violated_criteria: []`.
-
-Independently verified the CHANGED evidence (not sycophancy — the flip is grounded in the real code change):
-- Re-ran the ruff gate BARE: `uvx ruff check --select F821,F401,F811 <4 files>` → **exit 0 / "All checks passed!"** (cycle-1 was exit 1).
-- `git grep "import numpy as np"` in the test file → **no match** (import gone; no residual `np.` references).
-- `pytest backend/tests/test_gate_correctness_69.py` → **18 passed**.
-- C4 ACCEPT-ON-INTENT condition satisfied: `followons_69.2.md` exists (FO-69.2-A substantive, mtime post-cycle-1).
-- All 5 immutable criteria re-affirmed (C1 Bailey 0.9004880 asserted behaviorally, not tautologically; C2/C3/C5 met;
-  C4 accept-on-intent). Threshold constants byte-intact (`paper_go_live_gate.py:39-44`, `quant_optimizer.py:123`).
-- mtime chain proves changed-evidence (followons 18:01 < critique/results 18:03, all post-cycle-1).
-
-**Non-degrading NOTE**: the research→code→contract ordering slip was disclosed and accepted; must not recur as a pattern.
-Reminder honored: harness_log append precedes the status flip.
+Log-append precedes the status flip.

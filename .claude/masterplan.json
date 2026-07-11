@@ -15625,7 +15625,7 @@
         },
         {
           "id": "69.4",
-          "status": "pending",
+          "status": "done",
           "name": "P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: learn-loop tz TypeError -> 68.4; external-flow/deposit Sharpe corruption + STRING/TIMESTAMP trade query -> 68.5/68.6; FX-1 residual -> parked 61.3; the 30 contested findings + Slack/UI display defects -> 63.3-style seeds. A coverage table maps all 50 confirmed findings to their disposition.",
           "verification": {
             "command": "bash -c 'test -f handoff/current/audit_phase69/handoffs_69.4.md && grep -q \"68.4\" handoff/current/audit_phase69/handoffs_69.4.md && grep -q \"63.3\" handoff/current/audit_phase69/handoffs_69.4.md && grep -Eqi \"coverage|disposition\" handoff/current/audit_phase69/handoffs_69.4.md'",
