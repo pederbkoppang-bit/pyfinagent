@@ -12,7 +12,6 @@ Cost target: <$0.05/cycle. ~2-5 tickers/day on average for S&P 500.
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import re
@@ -383,8 +382,10 @@ def apply_pead_to_score(
 
     if tag == "negative_surprise" and surprise < -0.3:
         return None
+    # phase-69.3: sign-safe (flag-gated default-OFF = byte-identical base*mult).
+    from backend.services.overlay_math import sign_safe_mult
     if tag == "positive_surprise":
-        return base_score * (1.0 + min(max(surprise, 0.0) * 0.5, 0.3))
+        return sign_safe_mult(base_score, 1.0 + min(max(surprise, 0.0) * 0.5, 0.3))
     if tag == "negative_surprise":
-        return base_score * max(1.0 + surprise * 0.5, 0.6)
+        return sign_safe_mult(base_score, max(1.0 + surprise * 0.5, 0.6))
     return base_score

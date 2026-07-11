@@ -1,42 +1,58 @@
-# Contract — Step 69.1 (P0 book-safety: FX, kill-switch, pkill, locks)
+# Contract — Step 69.3 (P1 signal integrity + first $0 free-data alpha lift)
 
-- **Phase / step**: phase-69 → 69.1
+- **Phase / step**: phase-69 → 69.3
 - **Date**: 2026-07-11
-- **Type**: MONEY-PATH book-safety. All fixes fail-safe (FX / current_nav-guard / pkill-removal / locks ship active as corrections) or DARK-until-token (peak_reset). Thresholds 4/10/8/30 byte-untouched.
-- **Boundaries**: $0 metered, paper-only; do-no-harm (fail-safe + ledger-math only; thresholds byte-untouched); peak_reset DARK until `KS-PEAK-RESET: APPROVED`; money-path edits byte-coordinated with phase-68 (68.5 not in-flight; the execute_sell:392 edit is a distinct site from 68.5's fill-price gate).
+- **Type**: LIVE signal-integrity fixes + a $0 free-data lift, **all flag-gated default-OFF** (live engine byte-identical until the operator flips the flag).
+- **Boundaries**: $0 metered, free APIs (existing FRED key); do-no-harm (flag-gated default-OFF); historical_macro FROZEN (new cached path only, NO BQ write); final IC/ablation/optimizer validation DEFERRED behind the historical_macro un-freeze token; does NOT conflict with phase-68 (overlays ≠ fills).
 
 ## Research-gate summary
 
-Brief: `handoff/current/research_brief_69.1.md` — **gate_passed: true**, 5 external sources read in full
-(OWASP Command Injection + CWE-78 → pkill removal; Fowler CircuitBreaker → operator-resettable+logged
-peak_reset; Python contextlib acquire-then-guard → lock fixes; Modern Treasury → FX never-1.0) + 69.0's 8.
-All 6 internal targets re-verified vs the 69.0 design §1-2 (internal map by the researcher before the 9th
-subagent stall; external floor by Main). Full fix design in `design_audit_burndown_69.md` §1-2.
+Brief: `handoff/current/research_brief_69.3.md` — **gate_passed: true**, 5 external sources read in full
+(netliquidity.org, macrolighthouse, Anthropic models doc [haiku 64k], eco3min [units confirmed], themarketsunplugged)
++ 69.0's overlay/INDPRO sources. Internal map by the researcher (before the 8th subagent stall); external floor
+by Main. Scaffolding already committed (with 69.1): `backend/services/overlay_math.sign_safe_mult` (verified) +
+settings flags `sign_safe_overlays` / `regime_net_liquidity` (default-OFF).
+
+**Key design (complete)**: 14 `apply_*_to_score` overlays, ALL `base_score * mult`, applied at ONE chain
+(`screener.py:318-411`) → route through the shared flag-gated `sign_safe_mult` helper. INDPRO 1-line fix
+(missing from `fred_data.SERIES`). Net-liq `WALCL − WTREGEN − RRPONTSYD*1000` (units confirmed) via a new 24h
+file-cache path mirroring `_fetch_gpr_acts`. News cap → chunk ~32 + retry. QMJ reorder. **Do-no-harm
+refinement**: the INDPRO + net-liq regime-prompt inclusion is flag-gated behind `regime_net_liquidity` (so the
+live regime prompt is byte-identical when OFF), since `_REGIME_SERIES` already lists INDPRO.
 
 ## Hypothesis
 
-The three ways the engine self-destructs (FX=1.0 phantom proceeds, unrecoverable kill-switch, Slack pkill)
-plus the lock strands can be corrected with fail-safe / DARK-gated changes — never touching the 4/10/8/30
-thresholds — each with a red→green reproduction test, so the live book can no longer book non-USD proceeds
-at 1.0, brick itself post-flatten, or be SIGKILLed from Slack.
+The sign-inversion, news-truncation, QMJ-dead-Growth, and INDPRO-dead bugs can be corrected — and net-liquidity
+added — behind default-OFF flags so the LIVE engine stays byte-identical, with red→green unit tests + a $0
+ON-vs-OFF live ranking comparison + a regime-prompt string render proving the fix, and historical_macro
+byte-untouched; final IC/ablation validation deferred behind the un-freeze token.
 
-## Immutable success criteria (verbatim from `.claude/masterplan.json` phase-69 → 69.1)
+## Immutable success criteria (verbatim from `.claude/masterplan.json` phase-69 → 69.3)
 
-1. FX correctness (red->green): a test reproduces a KR/EU SELL under a monkeypatched dual-FX outage crediting local-notional-as-USD at 1.0 (RED), and after the fix fx_rates serves the last-known fallback chain; the non-USD exit is BLOCKED (never credited at 1.0) only when NO rate has ever been stored, mirroring execute_buy. paper_trader.py:392 + fx_rates.py:93.
-2. Kill-switch no-data guard (red->green): a current_nav<=0 (BQ-timeout `or 0.0`) input no longer renders a phantom 100% daily+trailing breach. kill_switch.py:246. The audited restart-replayable peak_reset is implemented but DARK: no peak reset fires until KS-PEAK-RESET:APPROVED is recorded (test asserts dark-by-default); the 4%/10%/8%/30% thresholds are byte-untouched.
-3. Op-safety: the 'clear queue' pkill -9 -f python sink is removed; a grep + a test prove the #ford-approvals handler can no longer reach any process-kill sink. commands.py:295.
-4. Lock safety (red->green): a FAILED acquire no longer unlinks the live pidfile (cycle_lock.py:144); the unguarded init is wrapped so a startup exception cannot strand the flock forever (autonomous_loop.py:167).
-5. Do-no-harm + coordination: risk-cap / stop / kill-switch thresholds byte-untouched over the step's commit range (git diff evidence); all changes are fail-safe additions + ledger-math only; money-path edits are byte-coordinated with any in-flight phase-68 fill work (no conflict with 68.5's fill-price sanity gate). Fresh Q/A PASS with the 67.1 gates.
+1. Sign-safe overlays (red->green, flag-gated): a test proves a negative-base candidate with a POSITIVE catalyst now ranks ABOVE an equal candidate with a negative catalyst (inversion eliminated) across macro_regime.py:547, news_screen.py:329 and the pead/options/insider/peer_leadlag overlays; the live ranking-behavior change is behind a flag with an ON-vs-OFF live_check comparison.
+2. News token cap + parse-retry: the news_screen max_output_tokens min()-inversion is fixed so a 100-headline batch parses instead of truncating to {}, and a parse-fail retry is added. news_screen.py:282.
+3. QMJ Growth: revenue_growth_yoy is assigned before quality_score consumes it, so the Asness QMJ Growth dimension fires (test). historical_data.py:202.
+4. INDPRO + net-liquidity lift ($0, existing free FRED key, historical_macro untouched): INDPRO is repaired and net-liquidity (WALCL - WTREGEN - RRPONTSYD) is added into _REGIME_SERIES via a NEW cached path (fred_data.SERIES + _REGIME_SERIES + prompt thresholds, 24h file cache) -- NOT the frozen ingestion path; a live_check shows the regime prompt now includes INDPRO (restoring the intended series set) plus the net-liquidity component.
+5. Do-no-harm: final IC / ablation / optimizer validation of any ranking change is deferred behind the historical_macro un-freeze token; the live overlay fixes and the FRED-prompt repair do not require it. historical_macro is byte-untouched (git diff). Fresh Q/A PASS with a live ON-vs-OFF ranking comparison.
 
 ## Plan (GENERATE)
 
-1. **FX** (`fx_rates.py`): new `_last_known_usd_value(ccy)` (DIRECT historical_fx_rates read, no `_usd_value_asof` recursion); `_usd_value_live` serves it on dual yf+FRED failure before returning None. `paper_trader.execute_sell:392`: replace `_l2u = 1.0` with credit-at-last-known-else-BLOCK+PAGE (never 1.0).
-2. **Kill-switch** (`kill_switch.py`): `current_nav<=0`→null-breach guard in `evaluate_breach` (fail-safe, active); new `peak_reset` audit event + `_load_from_audit` replay branch + `reset_peak` gated on `kill_switch_peak_reset_enabled` (default False = DARK), wired into `resume()`; thresholds byte-untouched.
-3. **Op-safety** (`commands.py:295`): remove the `subprocess.run(["pkill",...])` + `import subprocess`; "clear queue" purges the DB ticket queue only.
-4. **Locks**: `cycle_lock.py` — `acquired` flag guarding the finally (no unlink/release on FAILED acquire); `autonomous_loop.py:167` — release lock + reset `_running` if post-acquire init raises.
-5. Tests `backend/tests/test_book_safety_69.py`: FX red→green (dual-outage KR sell → last-known, not 1.0; block when no rate ever); current_nav<=0 → no phantom breach; peak_reset dark-by-default; pkill sink unreachable (grep + test); cycle_lock failed-acquire keeps the live pidfile; guarded-init releases on failure. Then experiment_results.md, a git-diff proving thresholds untouched, Workflow Q/A.
+1. Route the 14 `apply_*_to_score` fns through `sign_safe_mult(base, mult)` (helper reads `sign_safe_overlays`,
+   default-OFF = byte-identical). Sites: news_screen:330/332, macro_regime:542/547/549, pead_signal:387/389,
+   analyst_revisions:187, call_transcript_gpr:223, sector_momentum:200, options_flow_screen:183,
+   analyst_narrative_scorer:242, peer_leadlag_screen:137, insider_signal_screen:224, social_velocity_screen:175,
+   ma_preannounce_screen:150, defense_signal:164, sector_calendars:321/323. (The 3 inline base-score penalties
+   at screener:306/308/311 are LISTED for operator, NOT changed.)
+2. `news_screen`: chunk `deduped` into ~32 batches + parse-fail retry (byte-identical single call for N≤32).
+3. `INDPRO` → `fred_data.SERIES`; `QMJ` → reorder `revenue_growth_yoy` before its read in `historical_data.py`.
+4. `_fetch_net_liquidity` (WALCL−WTREGEN−RRPONTSYD*1000) 24h file-cache + regime-prompt line, both the INDPRO
+   and net-liq regime-prompt inclusion gated behind `regime_net_liquidity` (default-OFF → regime prompt
+   byte-identical). NO BQ write.
+5. `backend/tests/test_signal_integrity_69.py`: sign-inversion (negative-base positive-catalyst > negative-base
+   negative-catalyst; flag-OFF byte-identity), news 100-headline parse, QMJ Growth fires, net-liq unit scaling
+   (RRP ×1000). Then experiment_results.md, a $0 live ON-vs-OFF + regime-prompt-string live_check, Workflow Q/A.
 
 ## References
-- `handoff/current/research_brief_69.1.md` (5 sources + 6 re-verified targets) + `research_brief_69.0.md`.
-- `handoff/current/design_audit_burndown_69.md` §1 (FX chain) + §2 (peak_reset state machine).
-- OWASP/CWE-78 (command injection), Fowler CircuitBreaker, Python contextlib, Modern Treasury.
+- `handoff/current/research_brief_69.3.md` (5 sources + complete internal map) + `research_brief_69.0.md` §3/§4.
+- `handoff/current/design_audit_burndown_69.md` §3 (sign-safe algebra) + §6.
+- FRED net-liquidity sources; Anthropic models doc (haiku 64k); `backend/services/overlay_math.py` (committed helper).

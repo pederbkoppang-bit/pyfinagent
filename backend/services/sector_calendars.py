@@ -317,8 +317,9 @@ def apply_sector_events_to_score(
     if ev.signal_direction == "binary_risk":
         return None
     if ev.signal_direction == "positive_catalyst":
+        from backend.services.overlay_math import sign_safe_mult  # phase-69.3 sign-safe (default-OFF byte-identical)
         if ev.event_type == "fda_pdufa" and 0 < ev.days_to_event <= 7:
-            return base_score * 1.20
+            return sign_safe_mult(base_score, 1.20)
         if ev.event_type == "earnings" and 1 <= ev.days_to_event <= 3:
-            return base_score * 1.10
+            return sign_safe_mult(base_score, 1.10)
     return base_score

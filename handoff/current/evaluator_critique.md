@@ -1,56 +1,63 @@
-# Evaluator Critique — Step 69.1 (P0 book-safety: FX, kill-switch, pkill, locks)
+# Evaluator Critique — Step 69.3 (P1 signal integrity + $0 free-data lift)
 
-## Cycle 1 — Q/A verdict: PASS with 2 non-degrading NOTEs (independent Q/A, workflow structured-output on Opus)
+**Evaluator**: fresh Q/A subagent via the Workflow structured-output path (Opus 4.8,
+effort=high) — the reliable evaluator route when Agent-tool subagents stall
+(see auto-memory `feedback_workflow_qa_when_subagents_stall.md`).
+**Run**: `wf_7564cca5-54c` / task `w94h9jlst`. Single agent, 0 errors, 82,011 subagent tokens.
+**Verdict**: **PASS** (`ok: true`, `violated_criteria: []`).
 
-**Verdict: PASS**, `violated_criteria: []`. All 5 immutable criteria met on independent verification.
+## Harness-compliance audit (ran FIRST, per `feedback_qa_harness_compliance_first`)
 
-### Harness compliance (5/5 PASS)
-- research_gate: research_brief_69.1.md gate_passed=true, 5 external sources read in full (OWASP/CWE-78, Fowler,
-  Python contextlib, Modern Treasury), provenance disclosed.
-- contract_before_generate: PASS — **mtime-proven** (research 18:59 → contract 19:00 → code 19:02-07 →
-  results 19:12); the contract genuinely preceded GENERATE (no ordering slip this cycle).
-- results_present / log_last / no_verdict_shopping: PASS.
+| Check | Result |
+|-------|--------|
+| research_gate | PASS — `research_brief_69.3.md` `gate_passed=true`, 5 external sources read in full + 69.0 carryover; provenance disclosed (internal map by researcher before 8th stall, external floor by Main). |
+| contract_before_generate | PASS — mtime order verified: research_brief_69.3 (1783788090) → contract.md (1783790793) → 69.3 code macro_regime.py (1783791572) → experiment_results.md (1783791669). overlay_math.py is 69.1 pre-committed scaffolding. |
+| results_present | PASS — `experiment_results.md` carries verbatim pytest (12 passed), ruff exit 0, and the $0 ON-vs-OFF + regime-prompt evidence. |
+| log_last | PASS — no `phase=69.3` entry in `harness_log.md` at verdict time (grep count 0); Main appends after PASS and before the status flip. |
+| no_verdict_shopping | PASS — first Q/A on 69.3 (0 prior entries). |
 
-### Immutable criteria (all met)
-- **C1 FX**: `return val` moved inside the truthy block; `_last_known_usd_value` queries historical_fx_rates
-  DIRECTLY (no `_usd_value_asof` recursion); `execute_sell:392` returns None (BLOCK+PAGE) instead of `_l2u=1.0`;
-  USD returns 1.0 unaffected; fail-safe confirmed intended + unreachable for any traded market (execute_buy
-  write-throughs a rate).
-- **C2 kill-switch**: `current_nav<=0` guard → no-breach + `nav_invalid` (fail-safe); a valid 20%-down NAV STILL
-  breaches (guard doesn't suppress real breaches); reset_peak DARK-by-default; thresholds are caller-args.
-- **C3 op-safety**: pkill + `import subprocess` removed; grep + comment-stripped test prove no process-kill sink.
-- **C4 locks**: cycle_lock `acquired`-flag guards the finally (live contention raises before `acquired=True` →
-  live pidfile survives); autonomous_loop guarded init releases `_lock_cm` + resets `_running`.
-- **C5 do-no-harm**: single paper_trader edit at execute_sell (distinct from 68.5); fail-safe additions only;
-  thresholds byte-untouched (4.0/10.0/8.0/30.0 verified live); no trading-domain BLOCK/WARN.
+## Deterministic checks (independently reproduced)
 
-Deterministic gates: 12 passed, ruff exit 0, 7 modules import OK, thresholds intact. Pre-existing
-ma_preannounce F821 (confirmed in HEAD, not a 69.1 regression) cleared by a disclosed do-no-harm hoist.
+`checks_run`: syntax, verification_command_pytest_12_passed, ruff_F821_F401_F811_exit_0,
+backend_runtime_import_smoke, do_no_harm_flag_off_byte_identity, netliq_no_bq_write_grep,
+regime_prompt_off_live_render, on_vs_off_ranking_reproduction, overlay_routing_spot_check,
+code_review_heuristics, contract_mtime_order, harness_log_verdict_shop_check, research_gate,
+experiment_results.
 
-### The 2 NOTEs (non-degrading)
-1. `reset_peak` had NO call site (defined/gated/tested but not invoked) → on activation it would never fire.
-2. Two out-of-scope 69.3 flags in settings.py (additive default-OFF, inert) — a commit-hygiene note.
+- **pytest** `backend/tests/test_signal_integrity_69.py` → **12 passed**.
+- **ruff** `--select F821,F401,F811` on all touched files → **exit 0**.
+- **runtime import smoke** — all changed modules import cleanly.
 
----
+## Immutable success criteria — all met
 
-## Cycle 2 — Main remediation + fresh Q/A verdict: PASS
+- **C1 (sign-safe overlays)** — `sign_safe_mult` routes 14 overlays; neg-base **+catalyst (-9)** now
+  ranks ABOVE neg-base **-catalyst (-11)**; OFF inverts (-11 vs -9). Reproduced directly AND via test;
+  spot-checked options_flow / pead / insider / macro_regime all route through the helper.
+- **C2 (news cap)** — the truncating `min(8192,250*len)` inversion is removed →
+  `min(48000,max(8192,...))` + `range(2)` parse-retry.
+- **C3 (QMJ Growth)** — `revenue_growth_yoy` assigned before its QMJ read (`assign_idx < read_idx`).
+- **C4 (INDPRO + net-liquidity)** — INDPRO added to `fred_data.SERIES` (True at runtime); net-liq
+  `WALCL−WTREGEN−RRPONTSYD×1000` via a new 24h file-cache, **no BQ**; regime-prompt inclusion gated on
+  `regime_net_liquidity` (`macro_regime.py:516-518`).
+- **C5 (do-no-harm)** — CONFIRMED byte-identical when flags OFF:
+  (a) `sign_safe_mult` OFF `== base*mult` (grid-verified);
+  (b) regime prompt OFF has no INDPRO / NET_LIQUIDITY and is byte-identical to the pre-fix prompt,
+      net-liq not fetched when OFF (`_nl_on = settings.regime_net_liquidity`, default False);
+  (c) `_fetch_net_liquidity` body has zero BQ sinks (grep for insert_rows/bigquery/_bq(/.query( → NONE),
+      and `data_ingestion.py` (the only historical_macro writer) is absent from the diff → **historical_macro
+      byte-untouched**. Both flags default `False` (verified at runtime).
 
-**Main addressed both NOTEs:**
-1. **reset_peak wired into `resume(nav=...)`** (kill_switch.py:208) — an operator resume re-anchors the trailing
-   peak to the current NAV, called OUTSIDE the state lock (non-reentrant), still DARK-gated. +2 tests
-   (DARK-off → peak unchanged; token-on → re-anchored). Re-verified: **14 passed**, ruff **exit 0**.
-2. **69.3 scaffolding disclosed** in experiment_results.md (inert, default-OFF, imported nowhere).
+## Q/A note (non-degrading, recorded for honesty)
 
-**Fresh cycle-2 Q/A (workflow, Opus): PASS**, `violated_criteria: []`. Independently verified:
-- pytest **14 passed** (the +2 are the resume DARK-off + token-on tests); ruff F821/F401/F811 **exit 0**.
-- reset_peak invoked at :208 **outside** the `with self._lock` block (lines 191-200 close before :208) → the
-  non-reentrant lock **cannot deadlock** — empirically confirmed (token-ON test drove both lock acquisitions in
-  <1s, not hanging to the 120s timeout).
-- DARK-by-default holds (flag OFF → peak 1000.0 unchanged, still un-pauses); ON → re-anchors to 800.0.
-- All 5 criteria still hold; 4/10/8/30 byte-untouched; sod-nav-anchor WARN does not fire (peak_reset ships with
-  its audit-log invariant: new event + `_load_from_audit` replay).
-- NOTE (non-degrading, disclosed): the resume ENDPOINT (paper_trading.py:569) still calls resume() without `nav`
-  — full operator-path activation needs the endpoint update, a disclosed KS-PEAK-RESET activation follow-on;
-  criterion 2 only requires the DARK-gated implementation + dark-by-default test, which is satisfied.
+Q/A flagged that the C2/C3 tests assert **source-string ordering** rather than executing the code paths,
+while C1/C4 are behavioral. Because every ranking/prompt change is behind a default-OFF flag (live engine
+byte-identical), no code-review heuristic fires at BLOCK/WARN. The C2 news-cap and C3 QMJ-ordering behavioral
+validation is therefore deferred to the operator token window (documented in `live_check_69.3.md` "Deferred").
+This is a disclosed test-strength limitation, not a correctness defect.
 
-PASS→PASS re-affirm on genuinely improved code, verified not rubber-stamped. Log-append precedes the status flip.
+## Do-no-harm verdict
+**CONFIRMED byte-identical when flags OFF.** kill-switch / stops / sector caps / DSR / PBO untouched;
+historical_macro frozen; $0 metered (all evidence rendered from strings + fixtures, no LLM call).
+
+## Verdict
+**PASS** — proceed to `harness_log.md` Cycle 88 append, then flip 69.3 → done.

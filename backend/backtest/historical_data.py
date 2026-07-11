@@ -6,7 +6,7 @@ No future leakage allowed.
 
 import logging
 import math
-from datetime import date, timedelta
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -199,6 +199,16 @@ class HistoricalDataProvider:
             de_val = features.get("debt_equity")
             fcf_val = features.get("fcf_yield")
             div_val = features.get("dividend_yield")
+            # phase-69.3 (audit item 6): compute revenue_growth_yoy BEFORE reading it
+            # for the QMJ Growth dimension. It was previously assigned ~51 lines below
+            # (after quality_score), so this read was always None and the Asness QMJ
+            # Growth dimension was silently dead (quality from only 3 of 4 dims).
+            # _compute_revenue_growth_yoy depends only on fundamentals_list + revenue
+            # (both in scope above; nothing between here and the old site mutates them),
+            # so the move is safe (no forward dependency).
+            features["revenue_growth_yoy"] = self._compute_revenue_growth_yoy(
+                fundamentals_list, revenue
+            )
             rev_growth = features.get("revenue_growth_yoy")
             vol_val = features.get("annualized_volatility")
 
@@ -249,10 +259,8 @@ class HistoricalDataProvider:
             else:
                 features["quality_score"] = None
 
-            # Revenue growth YoY: compare current quarter vs same quarter 4 periods ago
-            features["revenue_growth_yoy"] = self._compute_revenue_growth_yoy(
-                fundamentals_list, revenue
-            )
+            # phase-69.3: revenue_growth_yoy is now computed ABOVE (before the QMJ
+            # Growth read); the duplicate assignment that used to live here was removed.
 
             features["sector"] = fundamentals.get("sector", "")
             features["industry"] = fundamentals.get("industry", "")

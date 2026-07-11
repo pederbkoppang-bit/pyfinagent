@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -161,5 +160,6 @@ def apply_defense_boost_to_score(
     if not signal or not signal.triggered or not ticker:
         return base_score
     if ticker.upper() in {t.upper() for t in signal.defense_tickers}:
-        return base_score * signal.boost_multiplier
+        from backend.services.overlay_math import sign_safe_mult  # phase-69.3 sign-safe (default-OFF byte-identical)
+        return sign_safe_mult(base_score, signal.boost_multiplier)
     return base_score

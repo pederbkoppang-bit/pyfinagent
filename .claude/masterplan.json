@@ -15609,7 +15609,7 @@
         },
         {
           "id": "69.3",
-          "status": "pending",
+          "status": "done",
           "name": "P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_macro untouched) -- sign-safe overlays (ON-vs-OFF live_check), news token cap + parse-retry, QMJ Growth fix; INDPRO + net-liquidity (WALCL-WTREGEN-RRPONTSYD) into _REGIME_SERIES via a NEW cached path (NOT the frozen ingestion path). Final IC/ablation/optimizer validation deferred behind the historical_macro un-freeze.",
           "verification": {
             "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_signal_integrity_69.py -q -x --timeout=180'",

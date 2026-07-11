@@ -221,4 +221,5 @@ def apply_insider_signal_to_score(
     sig = signals.get(ticker.upper())
     if sig is None:
         return base_score
-    return base_score * sig.boost_multiplier
+    from backend.services.overlay_math import sign_safe_mult  # phase-69.3 sign-safe (default-OFF byte-identical)
+    return sign_safe_mult(base_score, sig.boost_multiplier)

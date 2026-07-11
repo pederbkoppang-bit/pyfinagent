@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -184,4 +184,5 @@ def apply_revisions_to_score(
         return base_score
     if abs(sig.breadth) <= threshold:
         return base_score
-    return base_score * (1.0 + sig.breadth * weight)
+    from backend.services.overlay_math import sign_safe_mult  # phase-69.3 sign-safe (default-OFF byte-identical)
+    return sign_safe_mult(base_score, 1.0 + sig.breadth * weight)

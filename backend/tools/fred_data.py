@@ -23,6 +23,12 @@ SERIES = {
     "DGS10": "10-Year Treasury Yield",
     "VIXCLS": "CBOE VIX",
     "BAMLH0A0HYM2": "ICE BofA HY OAS (credit stress)",
+    # phase-69.3 (audit item 6): INDPRO was referenced in macro_regime._REGIME_SERIES
+    # but MISSING here (the actual fetch list) -> never fetched -> the regime prompt's
+    # INDPRO line was always skipped. Adding it activates the already-intended series.
+    # (Additive fetch; the regime-prompt INCLUSION of INDPRO + net-liquidity is gated
+    # behind settings.regime_net_liquidity so the live prompt is byte-identical OFF.)
+    "INDPRO": "Industrial Production Index",
 }
 
 

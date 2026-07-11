@@ -220,4 +220,5 @@ def apply_gpr_exposure_to_score(
     exempt = {s.strip() for s in exempt_sectors_csv.split(",") if s.strip()}
     if sector and sector.strip() in exempt:
         return base_score
-    return base_score * high_penalty
+    from backend.services.overlay_math import sign_safe_mult  # phase-69.3 sign-safe (default-OFF byte-identical)
+    return sign_safe_mult(base_score, high_penalty)

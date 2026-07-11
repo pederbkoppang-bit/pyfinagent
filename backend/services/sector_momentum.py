@@ -197,4 +197,5 @@ def apply_sector_momentum_to_score(
     entry = ranks.get(sector)
     if entry is None:
         return base_score
-    return base_score * entry.boost_multiplier
+    from backend.services.overlay_math import sign_safe_mult  # phase-69.3 sign-safe (default-OFF byte-identical)
+    return sign_safe_mult(base_score, entry.boost_multiplier)

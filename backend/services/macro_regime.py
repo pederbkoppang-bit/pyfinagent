@@ -13,7 +13,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from dataclasses import asdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Literal, Optional
@@ -348,13 +347,77 @@ def _save_cache(regime: MacroRegimeOutput) -> None:
         logger.warning("Macro regime cache write failed: %s", e)
 
 
-def _build_prompt(indicators: dict) -> str:
+_NETLIQ_CACHE_PATH = _CACHE_DIR / "net_liquidity.json"
+
+
+async def _fetch_net_liquidity(fred_key: str, cache_hours: int = 24) -> Optional[dict]:
+    """phase-69.3 (audit item 6): Fed NET LIQUIDITY = WALCL - WTREGEN - RRPONTSYD*1000,
+    all in MILLIONS USD (RRPONTSYD is reported in BILLIONS on FRED -> x1000). A usable-
+    dollar-liquidity proxy that historically correlates strongly with risk-asset prices
+    (netliquidity.org / macrolighthouse / eco3min). 24h file cache; uses the existing
+    free FRED key; writes NO BQ table (historical_macro untouched). Mirrors the
+    _fetch_gpr_acts / _fetch_crude_momentum cache idiom. None on any failure."""
+    if _NETLIQ_CACHE_PATH.exists():
+        try:
+            age = datetime.now(timezone.utc) - datetime.fromtimestamp(
+                _NETLIQ_CACHE_PATH.stat().st_mtime, tz=timezone.utc)
+            if age < timedelta(hours=cache_hours):
+                return json.loads(_NETLIQ_CACHE_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    try:
+        from backend.tools.fred_data import _fetch_series
+
+        def _cur_prev(obs: list):
+            if not obs:
+                return None, None
+            cur = obs[0]["value"]
+            prev = obs[min(3, len(obs) - 1)]["value"] if len(obs) > 1 else cur
+            return cur, prev
+
+        walcl = (await _fetch_series("WALCL", fred_key)).get("observations", [])
+        wtregen = (await _fetch_series("WTREGEN", fred_key)).get("observations", [])
+        rrp = (await _fetch_series("RRPONTSYD", fred_key)).get("observations", [])
+        (w, pw), (t, pt), (r, pr) = _cur_prev(walcl), _cur_prev(wtregen), _cur_prev(rrp)
+        if w is None or t is None or r is None:
+            return None
+        # UNIT GOTCHA: WALCL/WTREGEN are millions; RRPONTSYD is billions -> x1000.
+        net_liq = float(w) - float(t) - float(r) * 1000.0
+        prev_nl = None
+        if pw is not None and pt is not None and pr is not None:
+            prev_nl = float(pw) - float(pt) - float(pr) * 1000.0
+        trend = "flat"
+        if prev_nl is not None:
+            trend = "rising" if net_liq > prev_nl else ("falling" if net_liq < prev_nl else "flat")
+        out = {
+            "net_liquidity_musd": round(net_liq, 1),
+            "previous_musd": (round(prev_nl, 1) if prev_nl is not None else None),
+            "trend": trend,
+            "as_of": (walcl[0]["date"] if walcl else None),
+        }
+        try:
+            _NETLIQ_CACHE_PATH.write_text(json.dumps(out), encoding="utf-8")
+        except Exception:
+            pass
+        return out
+    except Exception as e:
+        logger.warning("net_liquidity fetch failed: %s", e)
+        return None
+
+
+def _build_prompt(indicators: dict, *, net_liquidity: Optional[dict] = None,
+                  include_indpro: bool = False) -> str:
     lines = [
         "Classify the current US macro regime for equity portfolio sizing.",
         "",
         "Available FRED indicators (current value, prior, trend):",
     ]
     for sid in _REGIME_SERIES:
+        # phase-69.3: INDPRO's regime-prompt inclusion is gated behind the
+        # regime_net_liquidity flag so the LIVE prompt is byte-identical when OFF
+        # (INDPRO was dead pre-69.3). include_indpro=True only when the flag is on.
+        if sid == "INDPRO" and not include_indpro:
+            continue
         info = indicators.get(sid)
         if not info or "current" not in info:
             continue
@@ -362,6 +425,15 @@ def _build_prompt(indicators: dict) -> str:
             f"- {sid} ({info.get('name', sid)}): "
             f"current={info['current']:.3f} previous={info.get('previous', 'n/a')} "
             f"trend={info.get('trend', 'n/a')} as_of={info.get('date', 'n/a')}"
+        )
+    # phase-69.3: net-liquidity indicator (flag-gated; net_liquidity is None when
+    # regime_net_liquidity is OFF -> prompt byte-identical).
+    if net_liquidity and net_liquidity.get("net_liquidity_musd") is not None:
+        lines.append(
+            f"- NET_LIQUIDITY (Fed WALCL-TGA-RRP, $M): "
+            f"current={net_liquidity['net_liquidity_musd']:.0f} "
+            f"trend={net_liquidity.get('trend', 'n/a')} as_of={net_liquidity.get('as_of', 'n/a')} "
+            f"[rising -> more usable dollars chasing risk assets (risk_on lean); falling -> tightening (risk_off lean)]"
         )
     lines += [
         "",
@@ -437,7 +509,13 @@ async def compute_macro_regime(use_cache: bool = True) -> MacroRegimeOutput:
         enable_prompt_caching=False,
     )
 
-    prompt = _build_prompt(indicators)
+    # phase-69.3 (audit item 6): net-liquidity + INDPRO regime lift, flag-gated
+    # (regime_net_liquidity default-OFF -> the regime prompt is byte-identical:
+    # net_liquidity=None and INDPRO excluded). Uses the existing free FRED key; the
+    # new _fetch_net_liquidity path writes NO BQ table (historical_macro untouched).
+    _nl_on = bool(getattr(settings, "regime_net_liquidity", False))
+    _net_liq = await _fetch_net_liquidity(fred_key) if _nl_on else None
+    prompt = _build_prompt(indicators, net_liquidity=_net_liq, include_indpro=_nl_on)
     cleaned_schema = _strip_unsupported_schema_keys(MacroRegimeOutput.model_json_schema())
     try:
         response = await asyncio.to_thread(
@@ -539,12 +617,14 @@ def apply_regime_to_score(
     """
     if regime is None:
         return base_score
-    score = base_score * regime.conviction_multiplier
+    # phase-69.3: sign-safe (flag-gated default-OFF = byte-identical base*mult).
+    from backend.services.overlay_math import sign_safe_mult
+    score = sign_safe_mult(base_score, regime.conviction_multiplier)
     if sector and sector_etf_for:
         etf = sector_etf_for.get(sector)
         if etf:
             if etf in regime.sector_hints.overweight:
-                score *= 1.05
+                score = sign_safe_mult(score, 1.05)
             elif etf in regime.sector_hints.underweight:
-                score *= 0.95
+                score = sign_safe_mult(score, 0.95)
     return score

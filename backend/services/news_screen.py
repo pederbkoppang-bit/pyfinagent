@@ -272,30 +272,41 @@ async def fetch_news_signals(
 
     prompt = _build_batch_prompt(deduped)
     cleaned_schema = _strip_unsupported_schema_keys(NewsSignalBatch.model_json_schema())
-    try:
-        response = await asyncio.to_thread(
-            client.generate_content,
-            prompt,
-            {
-                "response_schema": cleaned_schema,
-                "response_mime_type": "application/json",
-                "max_output_tokens": min(8192, 250 * len(deduped)),
-                "temperature": 0.0,
-            },
-        )
-    except Exception as e:
-        logger.warning("News screen LLM call failed: %s", e)
-        return {}
-
-    try:
-        raw_payload = json.loads(response.text)
-        # Trim rationale to 200 chars per signal before validation
-        for s in raw_payload.get("signals", []):
-            if isinstance(s.get("rationale"), str):
-                s["rationale"] = s["rationale"][:200]
-        batch = NewsSignalBatch.model_validate(raw_payload)
-    except Exception as e:
-        logger.warning("News screen parse failed: %s | raw=%s", e, response.text[:200])
+    # phase-69.3 (audit item 6): the old `min(8192, 250*len(deduped))` FROZE the
+    # output budget at 8192 for any batch > 32 headlines, truncating the JSON array
+    # -> json.loads fails -> the whole news screen returns {} on the BUSIEST news
+    # days. Raise the cap to fit the batch (claude-haiku-4-5 max output = 64k) and
+    # add a parse-fail retry so one bad response no longer loses all signals.
+    max_tokens = min(48000, max(8192, 250 * len(deduped)))
+    batch = None
+    for _attempt in range(2):
+        try:
+            response = await asyncio.to_thread(
+                client.generate_content,
+                prompt,
+                {
+                    "response_schema": cleaned_schema,
+                    "response_mime_type": "application/json",
+                    "max_output_tokens": max_tokens,
+                    "temperature": 0.0,
+                },
+            )
+        except Exception as e:
+            logger.warning("News screen LLM call failed (attempt %d): %s", _attempt + 1, e)
+            continue
+        try:
+            raw_payload = json.loads(response.text)
+            # Trim rationale to 200 chars per signal before validation
+            for s in raw_payload.get("signals", []):
+                if isinstance(s.get("rationale"), str):
+                    s["rationale"] = s["rationale"][:200]
+            batch = NewsSignalBatch.model_validate(raw_payload)
+            break
+        except Exception as e:
+            logger.warning("News screen parse failed (attempt %d): %s | raw=%s",
+                           _attempt + 1, e, getattr(response, "text", "")[:200])
+            continue
+    if batch is None:
         return {}
 
     out: dict[str, NewsHeadlineSignal] = {}
@@ -326,8 +337,10 @@ def apply_news_to_score(
     sig = news_signals[ticker]
     if sig.confidence == "low":
         return base_score
+    # phase-69.3: sign-safe (flag-gated default-OFF = byte-identical base*mult).
+    from backend.services.overlay_math import sign_safe_mult
     if sig.impact_polarity == "positive":
-        return base_score * 1.10
+        return sign_safe_mult(base_score, 1.10)
     if sig.impact_polarity == "negative":
-        return base_score * 0.90
+        return sign_safe_mult(base_score, 0.90)
     return base_score
