@@ -171,9 +171,24 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         return {"status": "skipped", "reason": "already_running_file_lock"}
 
     _running = True
-    settings = settings or get_settings()
-    bq = BigQueryClient(settings)
-    trader = PaperTrader(settings, bq)
+    # phase-69.1 (audit item 4b): the file-lock + _running are set ~90 lines BEFORE
+    # the main try/finally that releases them. An exception from the unguarded init
+    # (notably BigQueryClient construction) would otherwise strand the flock (never
+    # __exit__'d) and leave _running=True -> the trading loop is permanently bricked
+    # with no alert. Guard the init so a construction failure releases the lock +
+    # resets _running (Python contextlib acquire-then-guard).
+    try:
+        settings = settings or get_settings()
+        bq = BigQueryClient(settings)
+        trader = PaperTrader(settings, bq)
+    except Exception as _init_exc:
+        logger.error("Paper trading cycle init failed after lock acquire: %r", _init_exc)
+        _running = False
+        try:
+            _lock_cm.__exit__(type(_init_exc), _init_exc, _init_exc.__traceback__)
+        except Exception:
+            pass
+        return {"status": "error", "reason": "init_failed", "error": str(_init_exc)[:200]}
     total_analysis_cost = 0.0
     trades_executed = 0
     # phase-30.3: hoist closed_tickers to cycle-top so the stop-loss-
@@ -446,6 +461,16 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 except Exception as e:
                     logger.warning("phase-40.8.1: factor_loadings producer failed (fail-open): %r", e)
 
+            # phase-69.1: hoist options_surge_signals / insider_signals defaults
+            # BEFORE the ma_preannounce aggregator reads them at :474-475. They are
+            # otherwise first assigned ~140 lines below (at the options/insider
+            # screens), so the read raised UnboundLocalError when ma_preannounce_enabled
+            # was on (a pre-existing latent bug + ruff F821 in this file, which 69.1's
+            # lock fix already edits). Matches the existing `or {}` fallback; no prod
+            # effect (ma_preannounce_enabled defaults OFF; the screens re-init these
+            # unconditionally at their own blocks below). Do-no-harm side-fix to clear the gate.
+            options_surge_signals: dict = {}
+            insider_signals: dict = {}
             # phase-28.16: M&A pre-announcement aggregator (Legs 1+2 from 28.9+28.10; Leg 3 stub).
             # Pure compute — no extra fetches; reuses options_surge + insider signals already
             # collected by phase-28.9 + 28.10 when their flags are on. Default OFF.

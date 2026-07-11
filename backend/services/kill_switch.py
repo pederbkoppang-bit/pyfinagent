@@ -102,6 +102,11 @@ class KillSwitchState:
                         self._sod_date = sod_date
                     elif row.get("event") == "peak_update":
                         self._peak_nav = float(row.get("nav") or 0.0) or None
+                    elif row.get("event") == "peak_reset":
+                        # phase-69.1 (audit item 2): audited peak reset (flatten /
+                        # operator-resume). Restart-replayable + idempotent -- the
+                        # reset value wins over prior peak_update rows in stream order.
+                        self._peak_nav = float(row.get("new_peak") or 0.0) or None
         except Exception as e:
             logger.warning(f"kill_switch: audit load failed: {e}")
 
@@ -181,7 +186,8 @@ class KillSwitchState:
                 logger.warning(f"kill_switch pause-alert dispatch failed: {_alert_err}")
         return snap
 
-    def resume(self, trigger: str = "manual", details: Optional[dict] = None) -> dict:
+    def resume(self, trigger: str = "manual", details: Optional[dict] = None,
+               nav: Optional[float] = None) -> dict:
         with self._lock:
             self._paused = False
             self._pause_reason = None
@@ -191,7 +197,19 @@ class KillSwitchState:
             self._append_audit("resume", trigger=trigger, details=details or {})
             # phase-23.1.22: call _snapshot_locked, NOT snapshot(), to avoid
             # re-acquiring self._lock (threading.Lock is not reentrant).
-            return self._snapshot_locked()
+            snap = self._snapshot_locked()
+        # phase-69.1 (audit item 2): re-anchor the trailing peak to the current
+        # NAV on an operator resume, so a monotonic peak can no longer keep the
+        # trailing-DD breach alive forever after a flatten (the resume endpoint
+        # passes `nav`). DARK: reset_peak is a no-op until KS-PEAK-RESET: APPROVED.
+        # Called OUTSIDE the with-block -- reset_peak takes self._lock, which is
+        # non-reentrant. If it fired, prefer its post-reset snapshot.
+        if nav is not None and nav > 0:
+            rp = self.reset_peak(float(nav), trigger=f"resume:{trigger}",
+                                 operator=(details or {}).get("operator"))
+            if rp is not None:
+                snap = rp
+        return snap
 
     def update_sod_nav(self, nav: float, date: Optional[str] = None) -> None:
         """Record start-of-day NAV for daily-loss calculation.
@@ -216,6 +234,39 @@ class KillSwitchState:
                 self._peak_nav = float(nav)
                 self._append_audit("peak_update", nav=self._peak_nav)
 
+    def reset_peak(self, new_peak: float, trigger: str,
+                   operator: Optional[str] = None) -> Optional[dict]:
+        """phase-69.1 (audit item 2): audited, restart-replayable reset of the
+        trailing high-water mark.
+
+        The monotonic `update_peak` never moves down and nothing ever reset it,
+        so after a >=10% pullback that flattens the book to 100% cash the
+        trailing-DD breach persists forever and BOTH resume paths refuse -- the
+        engine stops earning permanently. `reset_peak` re-anchors the peak on a
+        flatten-to-cash or an operator resume (callers pass the current/post-flatten
+        NAV), emitting a `peak_reset` audit row that `_load_from_audit` replays, so
+        the reset survives a restart and is idempotent. Thresholds (4/10/8/30) are
+        byte-untouched -- this restores the documented "human resume once healthy".
+
+        DARK by default: a no-op returning None unless the operator has recorded the
+        token via `settings.kill_switch_peak_reset_enabled=True` (KS-PEAK-RESET:
+        APPROVED). This is a guard-behavior change, so it must not fire until then.
+        """
+        try:
+            from backend.config.settings import get_settings
+            enabled = bool(getattr(get_settings(), "kill_switch_peak_reset_enabled", False))
+        except Exception:
+            enabled = False
+        if not enabled:
+            return None  # DARK -- no peak reset until KS-PEAK-RESET: APPROVED
+        with self._lock:
+            old_peak = self._peak_nav
+            self._peak_nav = float(new_peak)
+            self._append_audit("peak_reset", old_peak=old_peak,
+                               new_peak=self._peak_nav, trigger=trigger,
+                               operator=operator)
+            return self._snapshot_locked()
+
 
 _state = KillSwitchState()
 
@@ -237,6 +288,20 @@ def evaluate_breach(
     and diagnostic context. Does NOT flip state -- callers (see PaperTrader
     below) decide whether to flatten+pause based on the returned flags.
     """
+    # phase-69.1 (audit item 2, kill_switch:246): guard against invalid NAV.
+    # A caller's BQ-timeout `or 0.0` fallback yields current_nav<=0, which the
+    # (sod - current_nav)/sod math would render as a phantom 100% daily +
+    # trailing breach -- flattening the whole book on a transient 5s timeout.
+    # A funded paper book's NAV is never <=0, so treat it as no-data (fail-safe:
+    # no breach) rather than a real breach. Thresholds are untouched.
+    if current_nav is None or current_nav <= 0:
+        return {
+            "daily_loss_breached": False, "daily_loss_pct": 0.0,
+            "daily_loss_limit_pct": float(daily_loss_limit_pct),
+            "trailing_dd_breached": False, "trailing_dd_pct": 0.0,
+            "trailing_dd_limit_pct": float(trailing_dd_limit_pct),
+            "any_breached": False, "nav_invalid": True,
+        }
     s = _state.snapshot()
     sod = s.get("sod_nav")
     peak = s.get("peak_nav")

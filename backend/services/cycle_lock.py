@@ -112,6 +112,7 @@ def acquire(cycle_id: str) -> Iterator[None]:
     """
     _HANDOFF.mkdir(parents=True, exist_ok=True)
     fd = os.open(_LOCK_PATH, os.O_RDWR | os.O_CREAT, 0o644)
+    acquired = False  # phase-69.1: did WE take the flock? (audit item 4)
     try:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -129,6 +130,9 @@ def acquire(cycle_id: str) -> Iterator[None]:
                     f"pid={state and state.get('pid')} "
                     f"age_sec={state and state.get('age_sec')}"
                 )
+        # phase-69.1: we now hold the flock (directly or via stale-reacquire).
+        # Only past this point may the finally clean up the lockfile.
+        acquired = True
         payload = json.dumps({
             "pid": os.getpid(),
             "cycle_id": cycle_id,
@@ -140,14 +144,19 @@ def acquire(cycle_id: str) -> Iterator[None]:
         os.fsync(fd)
         yield
     finally:
-        try:
-            _LOCK_PATH.unlink(missing_ok=True)
-        except Exception:
-            pass
-        try:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        except Exception as exc:
-            logger.warning("cycle_lock: release failed (%r).", exc)
+        # phase-69.1 (audit item 4): a FAILED acquire (contention with a LIVE
+        # cycle) must NOT unlink the live holder's pidfile or release its flock.
+        # Guard cleanup on `acquired` (Python contextlib acquire-then-guard
+        # pattern) so we only clean up the lock WE actually took.
+        if acquired:
+            try:
+                _LOCK_PATH.unlink(missing_ok=True)
+            except Exception:
+                pass
+            try:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            except Exception as exc:
+                logger.warning("cycle_lock: release failed (%r).", exc)
         try:
             os.close(fd)
         except Exception:

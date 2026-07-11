@@ -283,29 +283,29 @@ def register_commands(app: AsyncApp):
         # ── Route based on content (existing behavior) ──────────
         text_lower = text.lower()
         
-        # CLEAR QUEUE COMMAND - Hard reset
+        # CLEAR QUEUE COMMAND - purge the ticket queue ONLY (phase-69.1)
         if "clear queue" in text_lower:
-            logger.warning("CLEAR QUEUE COMMAND RECEIVED - EXECUTING HARD RESET")
+            logger.warning("CLEAR QUEUE COMMAND RECEIVED - clearing the ticket queue")
             try:
                 import sqlite3
-                import subprocess
                 from contextlib import closing  # phase-23.1.19: ensure FD release
 
-                # Kill all Python processes (subagents, workers)
-                subprocess.run(["pkill", "-9", "-f", "python"], timeout=5)
-
-                # Drop database
+                # phase-69.1 (audit item 3): REMOVED `subprocess.run(["pkill","-9","-f","python"])`.
+                # A Slack message in #ford-approvals containing "clear queue" MUST NOT be able
+                # to SIGKILL the trading backend / autonomous loop / harness / bot (OWASP command
+                # injection / CWE-78: never let external input reach a process-kill sink; use
+                # library calls). "Clear queue" now means ONLY: purge the ticket queue.
                 db = get_ingestion_service().db
                 with closing(sqlite3.connect(db.db_path)) as conn, conn:
                     conn.execute("DELETE FROM tickets")
                     conn.execute("DELETE FROM ticket_counter")
                     conn.execute("INSERT INTO ticket_counter (id, current_number) VALUES (1, 0)")
-                
-                await say("🔄 HARD RESET COMPLETE\n✅ Database purged\n✅ Counter reset to #1\n✅ Ready for fresh start")
-                logger.info("[OK] CLEAR QUEUE: Database reset, ticket counter at 0")
+
+                await say("Queue cleared: ticket queue purged, counter reset to #1. (No processes were touched.)")
+                logger.info("[OK] CLEAR QUEUE: ticket queue purged, counter at 0")
             except Exception as e:
                 logger.error(f"Error executing clear queue: {e}")
-                await say(f"❌ Clear queue failed: {str(e)[:100]}")
+                await say(f"Clear queue failed: {str(e)[:100]}")
             return
         
         if "status" in text_lower:

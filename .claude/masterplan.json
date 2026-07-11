@@ -15577,7 +15577,7 @@
         },
         {
           "id": "69.1",
-          "status": "pending",
+          "status": "done",
           "name": "P0 book-safety (money-path code; register items 1-4) -- each with a red->green reproduction test. FX=1.0 default + missing fallback; current_nav<=0 phantom breach guard; restart-replayable peak-reset DARK until KS-PEAK-RESET:APPROVED; clear-queue pkill removal; failed-acquire pidfile unlink + unguarded-init flock strand. BYTE-COORDINATE with in-flight phase-68 money-path steps (68.5 fill-price gate).",
           "verification": {
             "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_book_safety_69.py -q -x --timeout=120'",

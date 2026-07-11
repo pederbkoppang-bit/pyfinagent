@@ -101,7 +101,17 @@ def _usd_value_live(ccy: str) -> Optional[float]:
                 pass
         # write-through: today's live mark becomes tomorrow's history
         _persist(ccy, datetime.now(timezone.utc).date().isoformat(), val, "yfinance/fred-live")
-    return val
+        return val
+    # phase-69.1 (audit item 1): both live sources failed. Serve the last-known-good
+    # rate from historical_fx_rates BEFORE returning None, so paper_trader.execute_sell
+    # never falls back to the phantom FX=1.0 default (crediting e.g. KRW notional as USD
+    # at ~1300x). Query the table DIRECTLY -- NOT via _usd_value_asof, which degrades
+    # back to _usd_value_live on BQ failure -> infinite mutual recursion. Do NOT persist
+    # a stale value as today's mark.
+    lk = _last_known_usd_value(ccy)
+    if lk is not None:
+        logger.warning("fx_rates: %s live+FRED down; serving last-known %.6f (stale)", ccy, lk)
+    return lk
 
 
 def _fetch_yf(ccy: str) -> Optional[float]:
@@ -147,6 +157,42 @@ def _fetch_fred(ccy: str) -> Optional[float]:
         return None
     except Exception as e:
         logger.warning("fx_rates: FRED fetch %s failed: %s", ccy, e)
+        return None
+
+
+def _last_known_usd_value(ccy: str) -> Optional[float]:
+    """phase-69.1 (audit item 1): most-recent stored usd_value(ccy) from
+    historical_fx_rates, queried DIRECTLY (no date bound, no degrade-to-live).
+
+    Used by `_usd_value_live` to serve a last-known rate on a dual live-source
+    (yfinance + FRED) outage without recursing through `_usd_value_asof` (which
+    degrades back to `_usd_value_live` on BQ failure -> mutual recursion). Returns
+    None only if NO rate for `ccy` was EVER stored (the write-through in
+    _usd_value_live + backfill_fx populate this table on every successful fetch/BUY).
+    """
+    ccy = ccy.upper()
+    if ccy == "USD":
+        return 1.0
+    client, dataset = _bq()
+    if client is None:
+        return None
+    try:
+        from backend.config.settings import get_settings
+        proj = get_settings().gcp_project_id
+        sql = (
+            f"SELECT rate FROM `{proj}.{dataset}.historical_fx_rates` "
+            f"WHERE pair=@pair ORDER BY date DESC LIMIT 1"
+        )
+        from google.cloud import bigquery
+        job = client.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("pair", "STRING", _pair(ccy)),
+        ]))
+        rows = list(job.result(timeout=30))
+        if rows:
+            return float(rows[0]["rate"])
+        return None
+    except Exception as e:
+        logger.warning("fx_rates: last-known query %s failed: %s", ccy, e)
         return None
 
 

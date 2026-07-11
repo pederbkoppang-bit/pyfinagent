@@ -387,9 +387,21 @@ class PaperTrader:
         # with a WARN (never block an exit; non-USD only, the live engine is USD).
         _l2u = _fx_local_to_usd(position.get("market"))
         if _l2u is None:
-            logger.warning("phase-50.2: FX %s->USD unavailable on SELL %s; crediting at 1.0",
-                           position.get("market"), ticker)
-            _l2u = 1.0
+            # phase-69.1 (audit item 1): fx_rates now serves a last-known-good rate
+            # on a dual live-source outage, so _l2u is None ONLY when NO rate for this
+            # market was EVER stored (unreachable for any market the engine has traded,
+            # since execute_buy persists a rate). Booking non-USD proceeds at 1.0 would
+            # credit e.g. KRW notional as USD (~1300x phantom cash) and poison the
+            # monotonic kill-switch peak -> spurious full-book flatten. BLOCK the exit +
+            # PAGE instead of crediting at 1.0 (Modern Treasury: never assume parity at
+            # booking). USD positions are unaffected (_fx_local_to_usd returns 1.0 for
+            # the USD market, so this branch is not reached).
+            logger.error(
+                "phase-69.1: FX %s->USD has NO stored rate on SELL %s; BLOCKING exit "
+                "(never credit non-USD proceeds at 1.0). Operator: backfill FX for this market.",
+                position.get("market"), ticker,
+            )
+            return None
 
         # phase-17.5: route sell through ExecutionRouter (mirrors execute_buy).
         trade_id = str(uuid.uuid4())
