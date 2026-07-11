@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-11 | `087ce360` | phase-69.4: P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: ... |
 | 2026-07-11 | `cbf5cbce` | phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR unit... |
 | 2026-07-11 | `d0c8453d` | phase-69.0: P0 design pack (offline, dev-time frontier reasoning -- Fable while the 07-12 window ... |
 | 2026-07-10 | `f74b1472` | phase-68.5: operator-authorized criteria restatement (AskUserQuestion 2026-07-10, recorded Cycle 83) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-09 | `fe75163a` | phase-66.2: CRITERION 1(a) MET -- scheduled cycle 603e287c reactivated the engine (AMD+MU BUYs, APPR |
 | 2026-07-09 | `845541d7` | chore(ops): reconcile 66.2 flag-promotion state -- operator chat-yes recorded + cursor advanced, but |
 | 2026-07-09 | `26aee52e` | chore(ops): record PROMOTE-66.2-FLAGS ask -- operator verbal go-ahead 2026-07-09; away-ops rail-1 bl |
-| 2026-07-09 | `5d512c04` | phase-66.2: harden per adversarial promotion-readiness review -- None-safe recommendation guard (fix |
 
 ---
 
+### v6.60.2 — phase-69.4: P2 hand-offs (NO execution) -- file every non-owned confi... (2026-07-11)
+
+- **phase-69.4: P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: ...**
 ### v6.60.1 — phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO liv... (2026-07-11)
 
 - **phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR unit...**
