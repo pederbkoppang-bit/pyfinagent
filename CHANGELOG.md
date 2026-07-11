@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-11 | `8463b952` | phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified;... |
 | 2026-07-11 | `b25aeab2` | phase-69.3: P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_mac... |
 | 2026-07-11 | `36e4c288` | phase-69.1: P0 book-safety (money-path code; register items 1-4) -- each with a red->green reprod... |
 | 2026-07-11 | `087ce360` | phase-69.4: P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-09 | `6814211e` | phase-67.0: install goal-phase67-fable-window (4 pending steps) + Fable window pins (REVERT-BY 2026- |
 | 2026-07-09 | `df0e829a` | chore(away-ops): 2026-07-09 PM recovery -- sweep benign accumulation (4 audit streams + populated AM |
 | 2026-07-09 | `8ed5cc2e` | phase-66.2: closing Q/A deferred to Opus next session (both Fable qa subagents stalled; no self-flip |
-| 2026-07-09 | `fe75163a` | phase-66.2: CRITERION 1(a) MET -- scheduled cycle 603e287c reactivated the engine (AMD+MU BUYs, APPR |
 
 ---
 
+### v6.60.5 — phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (... (2026-07-11)
+
+- **phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified;...**
 ### v6.60.4 — phase-69.3: P1 signal integrity + first $0 free-data alpha lift (LIVE... (2026-07-11)
 
 - **phase-69.3: P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_mac...**
