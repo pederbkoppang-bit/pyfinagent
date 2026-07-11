@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-11 | `cbf5cbce` | phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR unit... |
 | 2026-07-11 | `d0c8453d` | phase-69.0: P0 design pack (offline, dev-time frontier reasoning -- Fable while the 07-12 window ... |
 | 2026-07-10 | `f74b1472` | phase-68.5: operator-authorized criteria restatement (AskUserQuestion 2026-07-10, recorded Cycle 83) |
 | 2026-07-10 | `0abdc13d` | phase-68.0: cutover design pack PASS -- env propagation, shadow isolation, idempotency + cutover tra |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-09 | `845541d7` | chore(ops): reconcile 66.2 flag-promotion state -- operator chat-yes recorded + cursor advanced, but |
 | 2026-07-09 | `26aee52e` | chore(ops): record PROMOTE-66.2-FLAGS ask -- operator verbal go-ahead 2026-07-09; away-ops rail-1 bl |
 | 2026-07-09 | `5d512c04` | phase-66.2: harden per adversarial promotion-readiness review -- None-safe recommendation guard (fix |
-| 2026-07-09 | `ae1b0d03` | phase-66.2: manual test cycle 28e9bde9 evidence -- 150s timeout did NOT help (rail 59.3%, 4/5 synthe |
 
 ---
 
+### v6.60.1 — phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO liv... (2026-07-11)
+
+- **phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR unit...**
 ### v6.60.0 — phase-69.0: P0 design pack (offline, dev-time frontier reasoning -- F... (2026-07-11)
 
 - **phase-69.0: P0 design pack (offline, dev-time frontier reasoning -- Fable while the 07-12 window ...**
