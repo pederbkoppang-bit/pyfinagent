@@ -296,6 +296,7 @@ def compute_deflated_sharpe(
     skewness: float = 0.0,
     kurtosis: float = 3.0,
     T: int = 252,
+    periods_per_year: int = 1,
 ) -> float:
     """
     Deflated Sharpe Ratio (Bailey & López de Prado, 2014).
@@ -307,28 +308,47 @@ def compute_deflated_sharpe(
 
     Returns probability [0, 1] that observed SR >= expected max SR under null.
     DSR >= 0.95 means the result is statistically significant.
+
+    phase-69.2 (unit correction): the Bailey-Borwein-Lopez de Prado-Zhu DSR
+    requires ``observed_sr`` AND ``variance_of_srs`` to be in PER-PERIOD units
+    that match the per-period sample length ``T``. Pass ``periods_per_year`` =
+    the annualization factor (e.g. 252 for daily returns) when ``observed_sr``
+    is ANNUALIZED and ``T`` is a DAILY observation count; the function then
+    de-annualizes both (SR/sqrt(ppy), V/ppy) so the z-statistic is not inflated
+    by ~sqrt(periods_per_year) (which collapsed the DSR>=0.95 gate into a
+    near-binary pass). ``periods_per_year=1`` (default) leaves the inputs
+    unchanged and is byte-identical to the pre-fix behavior for callers that
+    already pass per-period values. Reference (Bailey paper numerical example):
+    observed_sr=2.5 (annualized), T=1250, N=100, V=0.5, skew=-3, kurt=10,
+    periods_per_year=250 -> DSR ~= 0.90 (vs the pre-fix ~0.9999999 at ppy=1).
     """
     if num_trials < 1 or T < 10 or observed_sr == 0:
         return 0.0
 
+    # De-annualize to per-period units so SR and the trials-variance match the
+    # per-period T (phase-69.2). ppy=1 is a no-op (backward compatible).
+    ppy = periods_per_year if periods_per_year and periods_per_year >= 1 else 1
+    sr = observed_sr / math.sqrt(ppy)
+    var_srs = variance_of_srs / ppy
+
     # Expected maximum Sharpe ratio under null for num_trials independent trials
     # E[max(SR)] ≈ sqrt(V) * [(1-γ)*Φ^{-1}(1-1/N) + γ*Φ^{-1}(1-1/(N*e))]
     # Simplified: E[max(SR)] ≈ sqrt(2*log(N)) * sqrt(V) (Euler approx)
-    e_max_sr = math.sqrt(variance_of_srs) * (
+    e_max_sr = math.sqrt(var_srs) * (
         (1 - 0.5772) * stats.norm.ppf(1 - 1 / max(num_trials, 2))
         + 0.5772 * stats.norm.ppf(1 - 1 / (max(num_trials, 2) * math.e))
     )
 
     # Standard error of the Sharpe ratio (accounting for non-normality)
     se_sr = math.sqrt(
-        (1 - skewness * observed_sr + (kurtosis - 1) / 4 * observed_sr**2) / T
+        (1 - skewness * sr + (kurtosis - 1) / 4 * sr**2) / T
     )
 
     if se_sr == 0:
         return 0.0
 
     # Test statistic
-    z = (observed_sr - e_max_sr) / se_sr
+    z = (sr - e_max_sr) / se_sr
 
     # Probability (one-sided)
     dsr = float(stats.norm.cdf(z))
@@ -658,6 +678,10 @@ def generate_report(
         skewness=skew,
         kurtosis=kurt,
         T=T,
+        # phase-69.2: aggregate_sharpe is ANNUALIZED (sqrt(252) daily) while T is
+        # a DAILY observation count; pass the annualization factor so the DSR is
+        # de-annualized to per-period units and not inflated by ~sqrt(252).
+        periods_per_year=252,
     )
 
     # Top features by MDA (primary) and MDI (secondary)

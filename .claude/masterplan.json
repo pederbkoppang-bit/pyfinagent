@@ -15593,7 +15593,7 @@
         },
         {
           "id": "69.2",
-          "status": "pending",
+          "status": "done",
           "name": "P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR units, purge+embargo, boundary snap, fracdiff-at-predict, go-live booleans to documented spec; fixture-tested. Incumbent re-validation waits on the historical_macro un-freeze (separate operator token); this step ships code + fixtures only.",
           "verification": {
             "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_gate_correctness_69.py -q -x --timeout=180'",

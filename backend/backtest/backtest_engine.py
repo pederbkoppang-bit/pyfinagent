@@ -427,6 +427,7 @@ class BacktestEngine:
         self._report_progress("building_features", "Building training data", window=wid)
         train_features, train_labels, sample_weights = self._build_training_data(
             candidate_tickers, window.train_start.isoformat(), train_end_str,
+            test_start=test_start_str, test_end=test_end_str,  # phase-69.2 purge
         )
 
         if len(train_features) < 20:
@@ -485,9 +486,9 @@ class BacktestEngine:
             # Get prices at test_start for trading
             prices = {}
             for ticker in test_tickers:
-                p = cache.cached_prices(ticker, test_start_str, test_start_str)
-                if not p.empty:
-                    prices[ticker] = float(p["close"].iloc[-1])
+                px = self._price_asof(ticker, test_start_str)  # phase-69.2 boundary snap
+                if px is not None:
+                    prices[ticker] = px
 
             executed = self.trader.execute_trades(signals, test_start_str, prices)
             logger.info(f"Window {wid}: {len(executed)} trades from {len(signals)} signals (BUY={sum(1 for s in signals if s['label']==1)}, SELL={sum(1 for s in signals if s['label']==-1)}, HOLD={sum(1 for s in signals if s['label']==0)})")
@@ -511,9 +512,9 @@ class BacktestEngine:
         # Final mark + close at test end
         end_prices = {}
         for ticker in active_tickers:
-            p = cache.cached_prices(ticker, test_end_str, test_end_str)
-            if not p.empty:
-                end_prices[ticker] = float(p["close"].iloc[-1])
+            px = self._price_asof(ticker, test_end_str)  # phase-69.2 boundary snap
+            if px is not None:
+                end_prices[ticker] = px
 
         self.trader.close_all_positions(test_end_str, end_prices)
 
@@ -548,15 +549,88 @@ class BacktestEngine:
 
     # ── Training data construction ───────────────────────────────
 
+    @staticmethod
+    def _price_asof(ticker: str, date_str: str, lookback_days: int = 7) -> float | None:
+        """phase-69.2 (boundary snap): as-of close for `date_str`, snapping a
+        weekend/holiday boundary to the nearest PRIOR trading day. An exact-date
+        lookup on a non-trading boundary returns empty -- which silently made a
+        window execute zero trades and liquidate every position at its ENTRY
+        price. Widen to [date-lookback, date] and take the last available close.
+        """
+        p = cache.cached_prices(ticker, date_str, date_str)
+        if not p.empty:
+            return float(p["close"].iloc[-1])
+        start = (pd.Timestamp(date_str) - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        p = cache.cached_prices(ticker, start, date_str)
+        s = p["close"].dropna() if not p.empty else p
+        if not p.empty and not s.empty:
+            return float(s.iloc[-1])
+        return None
+
+    @staticmethod
+    def _label_overlaps_test(sample_date: str, horizon_days: int,
+                             test_start: str, test_end: str) -> bool:
+        """phase-69.2 (purge, AFML Ch.7): True iff a training sample's triple-
+        barrier label span [sample_date, sample_date + horizon_days] overlaps the
+        test window [test_start, test_end]. Such samples leak test-period outcomes
+        into training (label horizon 1.5*holding_days ~= 90-135d >> the 5-day
+        embargo) and MUST be purged from the training set.
+        """
+        s = pd.Timestamp(sample_date)
+        label_end = s + timedelta(days=int(horizon_days))
+        ts, te = pd.Timestamp(test_start), pd.Timestamp(test_end)
+        return (s <= te) and (label_end >= ts)
+
+    @staticmethod
+    def _build_predict_features(fv: dict, feature_names: list[str],
+                                train_medians: dict | None,
+                                ablation_mask: list | None = None) -> pd.DataFrame:
+        """phase-69.2: build the single-row PREDICT feature frame with the SAME
+        imputation as training (train-median fill, not the pre-fix fillna(0)) and
+        the non-stationary features placed on the train (fracdiff'd) scale via the
+        persisted train median -- a single prediction row has no series window to
+        reproduce the fixed-width fractional-difference convolution, and feeding
+        the model raw price/market-cap levels it never trained on is the defect.
+        Testable mirror of the train-time transform (_build_training_data).
+
+        LIMITATION (phase-69.2, tracked follow-on): predict-time non-stationary
+        features are median-NEUTRALIZED (a constant train median) and therefore
+        carry no cross-sectional signal at predict time -- disclosed harm-reduction,
+        NOT exact equivalence (train rows carry varying fracdiff'd values). The
+        true fix is a per-ticker time-series FFD with the persisted data-independent
+        weight vector applied inside the feature builder (build_feature_vector),
+        deferred to a future live-adjacent step. See
+        handoff/current/audit_phase69/followons_69.2.md."""
+        tm = train_medians or {}
+        row = {f: fv.get(f, np.nan) for f in feature_names}
+        if ablation_mask:
+            for col in ablation_mask:
+                if col in row:
+                    row[col] = 0
+        for col in _NON_STATIONARY:
+            if col in row and col in tm:
+                row[col] = tm[col]
+        X_test = pd.DataFrame([row])[feature_names]
+        if tm:
+            X_test = X_test.fillna(pd.Series(tm))  # identical to train imputation
+        return X_test.fillna(0)
+
     def _build_training_data(
         self,
         tickers: list[str],
         train_start: str,
         train_end: str,
+        test_start: str | None = None,
+        test_end: str | None = None,
     ) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
         """
         Build feature matrix + Triple Barrier labels + sample weights
         for the training window.
+
+        phase-69.2: when `test_start`/`test_end` are provided, training samples
+        whose label horizon (1.5*holding_days) overlaps the test window are
+        PURGED (AFML Ch.7) to remove look-ahead leakage. Omitting them preserves
+        the pre-fix behavior (no purge).
         """
         features_list = []
         labels_list = []
@@ -576,7 +650,19 @@ class BacktestEngine:
         total_iterations = len(sample_dates) * len(tickers)
         iteration_count = 0
 
+        # phase-69.2: the true triple-barrier label horizon is 1.5*holding_days
+        # (see _compute_triple_barrier_label); use it for BOTH the purge overlap
+        # test and the recorded exit date (the prior holding_days understated it).
+        horizon_days = int(self.holding_days * 1.5)
+
         for sample_date in sample_dates:
+            # phase-69.2 purge (AFML Ch.7): drop samples whose label span
+            # [sample_date, sample_date+1.5*holding_days] overlaps the test
+            # window -- they leak test-period outcomes into training.
+            if test_start and test_end and self._label_overlaps_test(
+                sample_date, horizon_days, test_start, test_end
+            ):
+                continue
             for ticker in tickers:
                 iteration_count += 1
                 try:
@@ -594,7 +680,7 @@ class BacktestEngine:
                     # Track entry/exit dates for sample weight computation
                     entry_dates.append(pd.Timestamp(sample_date))
                     exit_dates.append(
-                        pd.Timestamp(sample_date) + timedelta(days=self.holding_days)
+                        pd.Timestamp(sample_date) + timedelta(days=horizon_days)
                     )
 
                     # Throttled progress: emit every 200 samples
@@ -634,7 +720,16 @@ class BacktestEngine:
                     X.loc[diffed.index, col] = diffed
 
         # Fill NaN with median (robust to outliers)
-        X = X.fillna(X.median())
+        train_medians = X.median()
+        # phase-69.2: persist the (post-fracdiff) per-feature TRAIN medians so the
+        # PREDICT path applies the SAME imputation (was fillna(0)) and places the
+        # non-stationary features -- which cannot be windowed-fracdiff'd on a
+        # single prediction row -- on the train (fracdiff'd) scale rather than
+        # feeding the model raw price/market-cap levels it never trained on.
+        self._train_feature_medians = {
+            k: float(v) for k, v in train_medians.to_dict().items() if pd.notna(v)
+        }
+        X = X.fillna(train_medians)
         X = X.fillna(0)  # Remaining NaN → 0
 
         labels = np.array(labels_list)
@@ -790,15 +885,14 @@ class BacktestEngine:
                 if not fv or fv.get("price_at_analysis") is None:
                     continue
 
-                # Build feature row
-                row = {f: fv.get(f, 0) for f in feature_names}
-                # Ablation mask mirrors the training-time zeroing so the
-                # trained model sees consistent zeros in both regimes.
-                if self._ablation_mask:
-                    for col in self._ablation_mask:
-                        if col in row:
-                            row[col] = 0
-                X_test = pd.DataFrame([row])[feature_names].fillna(0)
+                # phase-69.2: build the predict frame via the shared, testable
+                # transform (train-median imputation + non-stationary features on
+                # the train fracdiff'd scale). Mirrors _build_training_data.
+                X_test = self._build_predict_features(
+                    fv, feature_names,
+                    getattr(self, "_train_feature_medians", None),
+                    self._ablation_mask,
+                )
 
                 pred_label = int(model.predict(X_test)[0])
                 pred_proba = model.predict_proba(X_test)[0]
