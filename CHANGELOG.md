@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-13 | `0975a7ea` | phase-67.4: Post-window revert -- Fable pins back to Opus 4.8 on/before 2026-07-12; keep every ar... |
 | 2026-07-11 | `8463b952` | phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified;... |
 | 2026-07-11 | `b25aeab2` | phase-69.3: P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_mac... |
 | 2026-07-11 | `36e4c288` | phase-69.1: P0 book-safety (money-path code; register items 1-4) -- each with a red->green reprod... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-09 | `547e5369` | phase-66.2: Redeploy capital through the NORMAL path only -- closed PASS by fresh Opus Q/A; phase-66 |
 | 2026-07-09 | `6814211e` | phase-67.0: install goal-phase67-fable-window (4 pending steps) + Fable window pins (REVERT-BY 2026- |
 | 2026-07-09 | `df0e829a` | chore(away-ops): 2026-07-09 PM recovery -- sweep benign accumulation (4 audit streams + populated AM |
-| 2026-07-09 | `8ed5cc2e` | phase-66.2: closing Q/A deferred to Opus next session (both Fable qa subagents stalled; no self-flip |
 
 ---
 
+### v6.60.6 — phase-67.4: Post-window revert -- Fable pins back to Opus 4.8 on/befo... (2026-07-13)
+
+- **phase-67.4: Post-window revert -- Fable pins back to Opus 4.8 on/before 2026-07-12; keep every ar...**
 ### v6.60.5 — phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (... (2026-07-11)
 
 - **phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified;...**
