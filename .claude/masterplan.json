@@ -15640,6 +15640,129 @@
           }
         }
       ]
+    },
+    {
+      "id": "phase-70",
+      "name": "Trade diversity + changeable fund -- convert the 2026-07-13 ultracode audit (31 agents, 6 dimensions, adversarial-verify; 17 confirmed / 8 refuted; register handoff/current/confirmed_findings.json; live evidence handoff/current/audit_2026-07-13_live_evidence.md) into fixes for the three operator symptoms: (S1) 'can't change MAX POSITIONS PER SECTOR' -- root cause is the frontend clear-snapback controlled-input bug (cockpit-helpers.tsx:467, Playwright-confirmed: clear->snaps back to 2, type 5 -> '25' -> 422) plus an unclearable risk_overrides shadow and missing UI editors for active knobs; (S2) 'no new stock from other sectors' -- a monosector momentum funnel (analyze top-5 all-semis, autonomous_loop.py:838) + a swap path that only rotates within the same sector (portfolio_manager.py:620/675); (S3) 'as many trades as possible' -- throughput starved by silent BUY-gates (hidden $1 session budget vs visible $2 cap autonomous_loop.py:90; 5% price-tolerance gate paper_trader.py:182; lite-analyzer silent HOLD autonomous_loop.py:2250) + money-path bugs that shrink the book (non-atomic swap SELL-without-BUY portfolio_manager.py:675; non-US avg-entry corruption paper_trader.py:308). 'More trades' reframed to the north star: more DIVERSE, higher-quality capital deployment + clean round-trips for the learning loop, NOT churn of the same 20 names. Operator /goal 2026-07-13 verbatim in handoff/current/goal_phase70_trade_diversity_DRAFT.md. Boundaries (binding): $0 metered, free APIs only, paper-only; do-no-harm (kill-switch limits / stops / risk-sector-caps / DSR>=0.95 / PBO<=0.5 byte-untouched unless the step's whole point is that fix); every live-loop behavior change ships flag-gated DARK-until-token with an ON-vs-OFF $0 diff; hysteresis stays banned; historical_macro stays frozen; diversification must not lower risk-adjusted OOS P&L (paper/backtest check before any activation token); full 5-file protocol per step; harness stays exactly 3 agents (Main + Researcher + Q/A); Q/A runs the live Playwright gate on every UI-touching step.",
+      "status": "pending",
+      "theme": null,
+      "steps": [
+        {
+          "id": "70.0",
+          "status": "pending",
+          "name": "Research gate + design pack (offline, $0): (a) soft, profit-aware sector-diversification of the analyzed top-N that respects the 2026-06-01 replay finding that HARD sector-neutral hurts long-only returns (min-K-sectors-among-analyzed / round-robin / soft penalty -- design + cite); (b) atomic, cash-bounded, cross-sector-capable swap/rotation design; (c) BUY-gate observability design (surface + log + reconcile the hidden $1 session budget with the visible $2 cap). Opens the phase; no production code.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/research_brief_70.0.md && test -f handoff/current/design_trade_diversity_70.md && grep -q \"gate_passed\" handoff/current/research_brief_70.0.md && grep -Eqi \"sector.?neutral|diversif\" handoff/current/design_trade_diversity_70.md && grep -Eqi \"atomic|rollback|two-leg|swap\" handoff/current/design_trade_diversity_70.md && grep -Eqi \"budget|cost cap|gate visibility|observab\" handoff/current/design_trade_diversity_70.md'",
+            "success_criteria": [
+              "research_brief_70.0.md exists with an honest JSON gate envelope (gate_passed, >=5 external sources read in full, recency scan performed) covering: soft vs hard sector-diversification for long-only momentum books, atomic multi-leg paper-order execution / rollback patterns, and gate/limit observability for autonomous trading loops",
+              "design_trade_diversity_70.md specifies the soft-diversification algorithm (and why it does NOT hard-neutralize the ranking, citing the 2026-06-01 replay), the atomic cross-sector swap design, and the BUY-gate visibility design -- each with the exact files/flags it will touch",
+              "The design reaffirms the binding boundaries: flag-gated DARK-until-token, $0 metered, paper-only, no change to risk-sector-caps as risk limits, and a paper/backtest gate before any diversification activation token"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "70.1",
+          "status": "pending",
+          "name": "S1 -- make the setting actually changeable. Fix the frontend clear-snapback bug (cockpit-helpers.tsx:467 -- represent the cleared/empty state instead of deleting the field so clear-then-type yields the typed value, not an appended '25'); block/clamp out-of-range input client-side with a specific message instead of a generic save-time 422 (cockpit-helpers.tsx:471). Surface & clear the risk_overrides shadow from the Manage tab (add getRiskLimits/setRiskLimit/clearRiskLimit to api.ts + an effective-vs-configured display with a Clear-override button + active-override warning banner; portfolio_manager.py:304, paper_trading.py risk-limits routes). Add UI editors for active BUY-gating knobs that currently have none, incl. paper_max_per_sector_nav_pct (settings.py:277 / positions/page.tsx:29 false 'editable at /manage' comment).",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "70.0",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"getRiskLimits|setRiskLimit|clearRiskLimit|risk-limits\" frontend/src/lib/api.ts && grep -Eqi \"paper_max_per_sector_nav_pct\" frontend/src/app/paper-trading/manage/page.tsx frontend/src/components/paper-trading/*.tsx'",
+            "success_criteria": [
+              "On /paper-trading/manage a numeric settings field (e.g. Max positions per sector) can be cleared to empty and a new in-range value typed that becomes exactly that value (no snap-back, no append) and saves via PUT /api/settings/ 200 -- proven by a live Playwright capture of the clear-then-type flow (the exact flow that reproduced '2'->'25' pre-fix)",
+              "Out-of-range numeric input is prevented or clamped client-side with a field-specific message; no silent generic 422 for a value the UI accepted",
+              "The Manage tab shows any active risk_overrides shadow (effective-vs-configured) with a working Clear button and a warning banner; api.ts exposes get/set/clear risk-limits; with no override active the UI-saved cap is what the engine enforces",
+              "Every active BUY-gating knob incl. paper_max_per_sector_nav_pct has a working UI editor OR the false 'editable at /manage' comment is corrected; no UI claim about a control that does not exist",
+              "No emojis; Phosphor icons only; error/loading/empty states present"
+            ],
+            "live_check": "live_check_70.1.md referencing a fresh Playwright MCP capture (skip-auth :3100) of the clear-then-type flow producing the typed value + save 200, plus the risk-override display"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "70.2",
+          "status": "pending",
+          "name": "S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to produce BUY candidates from >=2 distinct GICS sectors WITHOUT hard sector-neutral (respect the 2026-06-01 replay): diversify the analyzed top-N set (autonomous_loop.py:838 / screener.rank_candidates sector_neutral lever) so the deep-analyze set spans >=K sectors rather than the momentum-leading cluster only. Harden sector attribution so a ticker-meta enrichment failure no longer collapses all candidates/positions into a single 'Unknown' bucket that shares the count/NAV cap (portfolio_manager.py:272/319/360). Flag-gated default-OFF; backtest/paper-validated before any activation token; historical_macro stays frozen.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "70.0",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"sector\" backend/services/autonomous_loop.py && ls backend/tests/ | grep -Eqi \"70_2|diversif|sector\" && python -c \"import ast; ast.parse(open(\\'backend/services/autonomous_loop.py\\').read())\"'",
+            "success_criteria": [
+              "Under the new flag (default-OFF), the analyzed top-N candidate set for a representative cycle spans >=2 distinct GICS sectors (proven by a test/fixture or a $0 dry-run log), and the book can consequently hold positions in >=2 sectors",
+              "The change is SOFT (does not hard-neutralize the momentum ranking) and is justified against the 2026-06-01 hard-neutral-hurts-returns replay; a paper/backtest check shows it does not lower risk-adjusted OOS P&L before activation",
+              "A ticker-meta / sector enrichment failure no longer buckets everything into 'Unknown' and freezes the book at the count cap -- unresolved-sector candidates are handled without collapsing distinct real sectors together",
+              "Flag OFF -> live loop byte-identical to pre-change (ON-vs-OFF $0 diff in the results); DARK-until-token"
+            ],
+            "live_check": "experiment_results_70.2 ON-vs-OFF evidence: OFF analyzed-set monosector (reproduces today), ON analyzed-set spans >=2 sectors; $0, historical_macro untouched"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "70.3",
+          "status": "pending",
+          "name": "S3 + money-path -- swap/rotation correctness & safety. Make the sector-blocked swap path cross-sector-capable, ATOMIC, cash-bounded, and $50-floor-aware so it can never execute the SELL and silently drop the BUY (net position loss -- portfolio_manager.py:675) and so it stops firing on a fabricated 0.0-conviction sentinel that just churns (portfolio_manager.py:620; reconcile with the paper_swap_churn_fix flag). Fix add-to-existing-position avg_entry_price corruption for non-US tickers (USD-cost / local-share unit mix, paper_trader.py:308). All fixes fail-safe.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "70.0",
+          "verification": {
+            "command": "bash -c 'ls backend/tests/ | grep -Eqi \"70_3|swap|atomic\" && python -c \"import ast; ast.parse(open(\\'backend/services/portfolio_manager.py\\').read()); ast.parse(open(\\'backend/services/paper_trader.py\\').read())\"'",
+            "success_criteria": [
+              "The swap path cannot leave the book smaller than before the swap: either both legs execute or neither does (atomic/rollback); the BUY leg is bounded by available_cash and honors the $50 floor -- proven by a red->green test covering the SELL-executes-BUY-drops scenario",
+              "The swap can rotate into a DIFFERENT sector (not only same-sector churn), gated behind the diversification/churn flag; with the flag OFF, behavior is byte-identical to today",
+              "Add-to-existing-position computes avg_entry_price in consistent units for non-US tickers (no USD-cost / local-share mix) -- proven by a test with a non-USD ticker",
+              "All changes are fail-safe (a failure blocks/holds rather than corrupting the book); no live risk-limit thresholds moved"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "70.4",
+          "status": "pending",
+          "name": "S3 -- un-gate throughput by making the silent BUY-blockers visible + tunable. Reconcile the hidden per-cycle $1.00 session budget with the operator-visible $2.00 daily cost cap and stop swallowing breaches silently (autonomous_loop.py:90). Surface + log the 5% price-tolerance gate rejections (paper_trader.py:182) and make the tolerance tunable. Make the lite analyzer's parse-fail path distinguishable from a genuine HOLD and stop letting a parse-fail default score=5 evade the degraded-guard (autonomous_loop.py:2250). Observability-first; any threshold change ships flag-gated.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "70.0",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"session budget|per-cycle|cost cap\" backend/services/autonomous_loop.py && ls backend/tests/ | grep -Eqi \"70_4|budget|tolerance|gate\"'",
+            "success_criteria": [
+              "The per-cycle session budget and the operator-visible daily cost cap are reconciled (no hidden budget that is a fraction of the visible cap) OR the hidden budget is surfaced to the operator and logged on breach -- a cost-cut cycle is never silent",
+              "Price-tolerance rejections are logged with ticker + drift so 0-trade cycles are diagnosable, and the tolerance is tunable via settings",
+              "A lite-analyzer parse/rail failure is logged and counted as degraded (does not masquerade as a legitimate HOLD via a default score=5) so it cannot silently suppress BUYs",
+              "Any threshold that changes trading behavior is flag-gated default-OFF; observability additions are always-on and $0"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "70.5",
+          "status": "pending",
+          "name": "General/observability polish. Make the Manage-page 'Starting capital' display reflect deposits (settings-config vs BQ paper_portfolio.starting_capital divergence, settings_api.py:362 / deposit path paper_trading.py:1249). Reschedule the APScheduler cron when paper_trading_hour changes on PUT /api/settings/ so a changed daily-run hour takes effect without a backend restart (paper_trading.py:1305; replace_existing already idempotent). Note: this is scoped to the cron HOUR only -- the position/sector caps are already re-read fresh each cycle (audit-confirmed, ruling the scheduler out as the S1 cause).",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "70.0",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"paper_trading_hour\" backend/api/settings_api.py backend/api/paper_trading.py && python -c \"import ast; ast.parse(open(\\'backend/api/paper_trading.py\\').read())\"'",
+            "success_criteria": [
+              "The Manage-page Starting capital reflects deposits (matches paper_portfolio.starting_capital after a Top-up), OR the label is corrected to state it is the configured base -- no UI value that silently diverges from the BQ truth",
+              "Changing paper_trading_hour via the settings surface reschedules the APScheduler job without a backend restart (verified by the job's next_run reflecting the new hour)",
+              "No regression to the fresh-per-cycle reading of the position/sector caps"
+            ],
+            "live_check": "live_check_70.5.md with a Playwright capture of the Starting-capital display post-deposit (UI claim)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
