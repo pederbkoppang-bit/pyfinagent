@@ -2,7 +2,7 @@
 name: researcher
 description: MUST BE USED before every PLAN phase. Combined external-literature researcher + internal-codebase explorer. Use proactively at the start of any masterplan step, before writing contract.md. Searches papers + official docs + blog posts + GitHub (external) AND greps/reads the pyfinagent repo (internal) in the same session.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
-model: fable
+model: opus
 maxTurns: 40
 # 2026-07-09 (goal-phase67-fable-window, operator-directed via /goal): Anthropic
 # RENEWED free Fable 5 on the Max plan through ~Sunday 2026-07-12. Repinned

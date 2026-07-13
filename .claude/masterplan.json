@@ -15289,7 +15289,7 @@
         {
           "id": "67.4",
           "name": "Post-window revert -- Fable pins back to Opus 4.8 on/before 2026-07-12; keep every artifact improvement",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "67.1",

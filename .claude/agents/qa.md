@@ -2,7 +2,7 @@
 name: qa
 description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifier — independent cross-verification via deterministic checks (syntax, file existence, test runs, live command reproduction) AND LLM judgment of success criteria. Use proactively after any GENERATE step, immediately before marking a masterplan step done. Read-only on file contents — may run Bash for verification commands (python -c, pytest, grep, jq, test -f) but NEVER Edit/Write.
 tools: Read, Bash, Glob, Grep, SendMessage
-model: fable
+model: opus
 maxTurns: 30
 # 2026-07-09 (goal-phase67-fable-window, operator-directed via /goal): Anthropic
 # RENEWED free Fable 5 on the Max plan through ~Sunday 2026-07-12. Repinned
