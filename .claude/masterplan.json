@@ -15649,7 +15649,7 @@
       "steps": [
         {
           "id": "70.0",
-          "status": "pending",
+          "status": "done",
           "name": "Research gate + design pack (offline, $0): (a) soft, profit-aware sector-diversification of the analyzed top-N that respects the 2026-06-01 replay finding that HARD sector-neutral hurts long-only returns (min-K-sectors-among-analyzed / round-robin / soft penalty -- design + cite); (b) atomic, cash-bounded, cross-sector-capable swap/rotation design; (c) BUY-gate observability design (surface + log + reconcile the hidden $1 session budget with the visible $2 cap). Opens the phase; no production code.",
           "harness_required": true,
           "priority": "P1",

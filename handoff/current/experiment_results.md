@@ -1,67 +1,58 @@
-# Experiment Results — Step 69.3 (P1 signal integrity + $0 free-data lift)
+# Experiment results — step 70.0 (Research gate + design pack)
 
-- **Phase / step**: phase-69 → 69.3
-- **Date**: 2026-07-11
-- **Type**: LIVE signal-integrity fixes + a $0 free-data lift, all flag-gated default-OFF (live engine byte-identical). historical_macro untouched.
+**Phase/step:** phase-70 → 70.0 | **Date:** 2026-07-16 | **Type:** research + design only (offline, $0, NO production code)
 
-## What was changed
+## What was produced
 
-1. **Sign-safe overlays (criterion 1)** — all **14** `apply_*_to_score` overlays now route through the shared
-   flag-gated `sign_safe_mult(base, mult)` helper (`backend/services/overlay_math.py`, committed in 69.1):
-   news_screen, macro_regime (conviction + sector tilt), pead_signal, options_flow_screen,
-   insider_signal_screen, peer_leadlag_screen, analyst_revisions, call_transcript_gpr, sector_momentum,
-   analyst_narrative_scorer, social_velocity_screen, ma_preannounce_screen, defense_signal, sector_calendars.
-   Flag `sign_safe_overlays` default-OFF = byte-identical legacy `base*mult`. (The 3 inline base-score
-   penalties at screener:306/308/311 are LEFT for operator decision, per the research brief — NOT changed.)
-2. **News token-cap + retry (criterion 2)** — `news_screen.py`: the truncating `min(8192, 250*len(deduped))`
-   (froze at 8192 for >32 headlines → JSON truncated → `{}`) is replaced with `min(48000, max(8192, ...))`
-   (claude-haiku-4-5 max output = 64k) + a parse-fail retry (2 attempts).
-3. **QMJ Growth (criterion 3)** — `historical_data.py`: `revenue_growth_yoy` is now assigned BEFORE the QMJ
-   Growth read (was ~51 lines after → always None → Growth dimension dead). Deps in scope earlier; safe move.
-4. **INDPRO + net-liquidity (criterion 4)** — INDPRO added to `fred_data.SERIES` (was referenced in
-   `_REGIME_SERIES` but never fetched); new `macro_regime._fetch_net_liquidity` (WALCL−WTREGEN−RRPONTSYD×1000,
-   24h file cache, existing free FRED key, **writes NO BQ**) + a net-liq regime-prompt line. The INDPRO +
-   net-liq regime-prompt INCLUSION is gated behind `regime_net_liquidity` (default-OFF → the live regime
-   prompt is BYTE-IDENTICAL; verified `off == pre-fix prompt`).
+1. **`handoff/current/research_brief_70.0.md`** (229 lines) — research-gate output. Sections: 3-variant
+   query disclosure; source table (7 read-in-full + 14 snippet-only); mandatory recency scan (last 2 yrs);
+   internal code audit (6 files); design recommendations for (a)/(b)/(c); JSON gate envelope.
+   Gate envelope: `gate_passed=true`, `external_sources_read_in_full=7`, `snippet_only_sources=14`,
+   `urls_collected=48`, `recency_scan_performed=true`, `internal_files_inspected=6`, tier=complex.
+   Launched via Workflow structured-output (Opus 4.8, $0 Max rail, stall-immune) because this session's
+   Agent-tool roster is fable-snapshotted — the sanctioned path per `feedback_workflow_qa_when_subagents_stall`.
+2. **`handoff/current/contract.md`** — step 70.0 contract; verbatim immutable criteria; research summary;
+   hypothesis; plan; boundaries. Written BEFORE the design (mtime-proven).
+3. **`handoff/current/design_trade_diversity_70.md`** — the design pack (GENERATE deliverable):
+   - (a) SOFT profit-aware sector diversification: two-part (soft diversity penalty at rank time
+     `(1-w_d)^(j-1)` + min-K-sector round-robin on the analyze slice) + Unknown-bucket exemption; explicit
+     rationale for NOT hard-neutralizing (cites the -0.166 2026-06-01 replay + Ehsani-Harvey-Li FAJ 2023);
+     files/flags: screener.py rank_candidates, autonomous_loop.py:838, portfolio_manager.py:272/319/360;
+     flags `paper_soft_sector_diversity_enabled`/`_w`, `paper_min_k_sectors_analyzed` (default OFF);
+     validation via scripts/ablation/sector_neutral_replay.py w_d×K grid before any token.
+   - (b) ATOMIC cross-sector swap: pre-flight aggregate validation (Saga/SagaLLM — drop the whole pair,
+     never a half-swap), cash-bound + $50 floor, compensating buy-back, cross-sector HHI-reducing rotation;
+     files portfolio_manager.py:594/620/675 + autonomous_loop.py:1262-1320; flags
+     `paper_atomic_swap_enabled`/`paper_cross_sector_rotation_enabled` (default OFF); depends on
+     paper_swap_churn_fix.
+   - (c) BUY-gate observability: structured skip-reason ledger (VeritasChain/arXiv 2607.02830) + fix the
+     swallowed BudgetBreachError + reconcile the hidden $1 session budget vs visible $2 cap; files
+     autonomous_loop.py:90/:925/:966-970; do-no-harm split (logging un-flagged, ceiling change flag-gated).
+   - Downstream step map (70.1–70.5) + rejected alternatives (hard neutralization, 2PC, un-gated budget raise).
 
 ## Verification command output (verbatim)
 
 ```
-$ python -m pytest backend/tests/test_signal_integrity_69.py -q --timeout=180
-............                                                             [100%]
-12 passed in 0.04s
+$ bash -c 'test -f handoff/current/research_brief_70.0.md && test -f handoff/current/design_trade_diversity_70.md && grep -q "gate_passed" handoff/current/research_brief_70.0.md && grep -Eqi "sector.?neutral|diversif" handoff/current/design_trade_diversity_70.md && grep -Eqi "atomic|rollback|two-leg|swap" handoff/current/design_trade_diversity_70.md && grep -Eqi "budget|cost cap|gate visibility|observab" handoff/current/design_trade_diversity_70.md'
+VERIFICATION: PASS (exit 0)
 ```
 
-Ruff gate (qa.md §1a) on all 17 touched files + the test: **All checks passed!** (exit 0). (8 PRE-EXISTING
-F401 unused-imports — confirmed in HEAD, not a 69.3 regression — were auto-removed via `ruff --fix -select
-F401`; the 6 affected modules re-import OK; 1054 tests collect.)
-
-## $0 live ON-vs-OFF check (criteria 1 + 4) — no metered LLM call
-
+mtime ordering (research → contract → design; contract BEFORE generate):
 ```
-ON-vs-OFF live ranking (base=-10.0; AAA=+catalyst boost, BBB=-catalyst penalty):
-  sign_safe_overlays=False -> AAA=-11.00  BBB=-9.00  higher-rank=BBB(-catalyst)     # INVERTED
-  sign_safe_overlays=True  -> AAA=-9.00   BBB=-11.00 higher-rank=AAA(+catalyst)     # FIXED
-  => OFF ranks the NEGATIVE catalyst higher; ON ranks the POSITIVE catalyst higher (inversion eliminated).
-
-Regime prompt:
-  OFF: INDPRO present=False  NET_LIQUIDITY present=False  (byte-identical to pre-fix prompt: True)
-  ON : INDPRO present=True   NET_LIQUIDITY present=True
-    - INDPRO (IP): current=103.200 previous=102.9 trend=rising as_of=2026-07-01
-    - NET_LIQUIDITY (Fed WALCL-TGA-RRP, $M): current=6100000 trend=rising as_of=2026-07-01 [rising -> risk_on lean]
+1784221757  research_brief_70.0.md
+1784221919  contract.md
+1784221981  design_trade_diversity_70.md
 ```
 
-## Do-no-harm evidence
+## Do-no-harm
 
-- **Live engine byte-identical when flags OFF**: `sign_safe_mult` OFF = `base*mult` (fixture over a grid);
-  the regime prompt OFF == the pre-fix (INDPRO-absent) prompt (fixture). Both flags default-OFF.
-- **historical_macro FROZEN**: the net-liq path writes NO BQ (`_fetch_net_liquidity` has no `insert_rows` /
-  `bigquery` / `_bq(` / `.query(` — fixture-asserted); uses a file cache + the existing free FRED key.
-- **No regressions**: 1054 tests collect; the 6 ruff-fixed modules re-import OK.
-- **No conflict with phase-68**: overlays/regime ≠ fills.
+70.0 is design + research only. NO production code changed; NO live-loop behavior change; NO risk-limit
+threshold moved; `historical_macro` untouched; $0 metered (Workflow on the Opus Max rail). All downstream
+behavior changes are specified as flag-gated default-OFF with a validation-before-token gate.
 
-## Deferred (operator tokens)
-- Final IC / ablation / optimizer validation of the sign-safe ranking + the net-liquidity feature is DEFERRED
-  behind the historical_macro un-freeze token. The code + flags + the $0 ON-vs-OFF proof do NOT require it.
-- Activating the live behavior change is the operator's call: flip `sign_safe_overlays` and/or
-  `regime_net_liquidity` after reviewing this ON-vs-OFF evidence.
+## Scope honesty
+
+This step delivers the DESIGN for 70.1–70.5; it does NOT implement any fix. The soft-diversification
+approach is deliberately conservative (soft tilt, not hard neutralization) precisely because the internal
+replay showed hard neutralization hurts long-only returns — activation is gated on a backtest that must
+beat the incumbent OOS and clear DSR/PBO.

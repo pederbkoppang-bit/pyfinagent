@@ -1,63 +1,95 @@
-# Evaluator Critique — Step 69.3 (P1 signal integrity + $0 free-data lift)
+# Evaluator Critique — Step 70.0 (Research gate + design pack)
 
-**Evaluator**: fresh Q/A subagent via the Workflow structured-output path (Opus 4.8,
-effort=high) — the reliable evaluator route when Agent-tool subagents stall
-(see auto-memory `feedback_workflow_qa_when_subagents_stall.md`).
-**Run**: `wf_7564cca5-54c` / task `w94h9jlst`. Single agent, 0 errors, 82,011 subagent tokens.
-**Verdict**: **PASS** (`ok: true`, `violated_criteria: []`).
+**Evaluator:** fresh, independent Q/A subagent via the Workflow structured-output path (Opus 4.8, `effort: max`,
+$0 Max rail, stall-immune — run wf_ad603a92-c4c). Launched this way because this session's Agent-tool roster is
+fable-snapshotted; the Workflow path is the sanctioned launch per `feedback_workflow_qa_when_subagents_stall`.
+**Verdict transcribed VERBATIM below by Main** (no editorial edits — the no-self-eval guardrail; the verdict
+originates from the independent Q/A agent, not Main).
 
-## Harness-compliance audit (ran FIRST, per `feedback_qa_harness_compliance_first`)
+**VERDICT: PASS** | violated_criteria: [] | do_no_harm_ok: true | scope_honesty_ok: true
 
-| Check | Result |
-|-------|--------|
-| research_gate | PASS — `research_brief_69.3.md` `gate_passed=true`, 5 external sources read in full + 69.0 carryover; provenance disclosed (internal map by researcher before 8th stall, external floor by Main). |
-| contract_before_generate | PASS — mtime order verified: research_brief_69.3 (1783788090) → contract.md (1783790793) → 69.3 code macro_regime.py (1783791572) → experiment_results.md (1783791669). overlay_math.py is 69.1 pre-committed scaffolding. |
-| results_present | PASS — `experiment_results.md` carries verbatim pytest (12 passed), ruff exit 0, and the $0 ON-vs-OFF + regime-prompt evidence. |
-| log_last | PASS — no `phase=69.3` entry in `harness_log.md` at verdict time (grep count 0); Main appends after PASS and before the status flip. |
-| no_verdict_shopping | PASS — first Q/A on 69.3 (0 prior entries). |
+## Harness compliance (5/5 PASS)
+- research_gate_before_contract: true
+- contract_before_generate: true
+- results_present: true
+- log_last_ok: true
+- no_verdict_shopping: true (FIRST Q/A on 70.0 evidence)
 
-## Deterministic checks (independently reproduced)
+## Checks run
+- verification_command_exit: 0
+- files_exist: true
+- mtime_ordering_ok: true (research 1784221757 < contract 1784221919 < design 1784221981 < results 1784222045)
+- no_production_code_changed: true (git status: only handoff/ + hook-appended audit JSONLs; grep for backend/frontend/scripts *.py edits outside handoff/ → none)
 
-`checks_run`: syntax, verification_command_pytest_12_passed, ruff_F821_F401_F811_exit_0,
-backend_runtime_import_smoke, do_no_harm_flag_off_byte_identity, netliq_no_bq_write_grep,
-regime_prompt_off_live_render, on_vs_off_ranking_reproduction, overlay_routing_spot_check,
-code_review_heuristics, contract_mtime_order, harness_log_verdict_shop_check, research_gate,
-experiment_results.
+## Violation details
+None. All three immutable success criteria for step 70.0 (design + research only) are met, harness compliance is
+clean 5/5, and no production code changed.
 
-- **pytest** `backend/tests/test_signal_integrity_69.py` → **12 passed**.
-- **ruff** `--select F821,F401,F811` on all touched files → **exit 0**.
-- **runtime import smoke** — all changed modules import cleanly.
+## Q/A notes (verbatim)
 
-## Immutable success criteria — all met
+A. HARNESS-COMPLIANCE AUDIT (5/5 PASS):
+(1) Research gate BEFORE contract: research_brief_70.0.md exists, gate_passed=true, external_sources_read_in_full=7
+(floor 5), recency_scan_performed=true (dedicated Section 3 with 3 new-window findings + canonical-still-valid
+note). Covers all three required topics: soft-vs-hard sector diversification (Topic A: Ehsani-Harvey-Li FAJ 2023,
+QuantPedia, arXiv 2601.08717), atomic multi-leg execution/rollback (Topic B: microservices.io Saga, SagaLLM arXiv
+2503.11951), gate/limit observability (Topic C: VeritasChain, oneuptime). Three-variant query discipline disclosed.
+(2) Contract BEFORE design (mtime): research 1784221757 < contract 1784221919 < design 1784221981 <
+experiment_results 1784222045. Correct order.
+(3) experiment_results.md present: lists all 3 artifacts + verbatim verification command output
+("VERIFICATION: PASS (exit 0)") + mtime ordering block.
+(4) Log-last OK: NO phase=70.0 entry in harness_log.md. Log correctly comes after this verdict.
+(5) No verdict-shopping: FIRST Q/A on 70.0 evidence. evaluator_critique.md on disk was still the Step 69.3 file.
 
-- **C1 (sign-safe overlays)** — `sign_safe_mult` routes 14 overlays; neg-base **+catalyst (-9)** now
-  ranks ABOVE neg-base **-catalyst (-11)**; OFF inverts (-11 vs -9). Reproduced directly AND via test;
-  spot-checked options_flow / pead / insider / macro_regime all route through the helper.
-- **C2 (news cap)** — the truncating `min(8192,250*len)` inversion is removed →
-  `min(48000,max(8192,...))` + `range(2)` parse-retry.
-- **C3 (QMJ Growth)** — `revenue_growth_yoy` assigned before its QMJ read (`assign_idx < read_idx`).
-- **C4 (INDPRO + net-liquidity)** — INDPRO added to `fred_data.SERIES` (True at runtime); net-liq
-  `WALCL−WTREGEN−RRPONTSYD×1000` via a new 24h file-cache, **no BQ**; regime-prompt inclusion gated on
-  `regime_net_liquidity` (`macro_regime.py:516-518`).
-- **C5 (do-no-harm)** — CONFIRMED byte-identical when flags OFF:
-  (a) `sign_safe_mult` OFF `== base*mult` (grid-verified);
-  (b) regime prompt OFF has no INDPRO / NET_LIQUIDITY and is byte-identical to the pre-fix prompt,
-      net-liq not fetched when OFF (`_nl_on = settings.regime_net_liquidity`, default False);
-  (c) `_fetch_net_liquidity` body has zero BQ sinks (grep for insert_rows/bigquery/_bq(/.query( → NONE),
-      and `data_ingestion.py` (the only historical_macro writer) is absent from the diff → **historical_macro
-      byte-untouched**. Both flags default `False` (verified at runtime).
+B. DETERMINISTIC: immutable verification command exit code = 0. No production code changed — git status shows only
+handoff/ files plus two hook-appended audit JSONLs; grep for backend/frontend/scripts/*.py outside handoff/
+returned none. masterplan 70.0 status still 'pending' (flip correctly deferred). All 7 design-cited files exist.
 
-## Q/A note (non-degrading, recorded for honesty)
+C. LLM JUDGMENT — all 3 criteria MET:
+- Criterion 1 (research brief + honest envelope + 3 topics): MET. Envelope honest and internally consistent; 7
+  read-in-full sources have differentiated, topic-tied takeaways with a proper source-quality mix (peer-reviewed
+  FAJ/arXiv + authoritative reference + practitioner), not community-tier padding; 14 snippet-only recorded
+  separately. Research reads genuine, not padded.
+- Criterion 2 (algorithm + why-not-hard-neutral w/ replay citation + atomic swap + BUY-gate, each w/ files/flags):
+  MET, and code-verified. Soft algorithm specified: rank-time penalty (1-w_d)^(j-1) shading same-sector j-th name
+  (profit-aware analog of arXiv 2601.08717's -w_d*theta1*HHI, w_d=0 byte-identical) + secondary min-K-sector
+  round-robin at the analyze slice. Why-not-hard-neutral cites the 2026-06-01 replay (-0.166 long-only Sharpe) AND
+  Ehsani-Harvey-Li — confirmed this maps to a VERBATIM in-repo comment at screener.py:71-73. Atomic cross-sector
+  swap: pre-flight aggregate validation (Saga/SagaLLM 'drop the whole pair, never a half-swap'), cash-bound + $50
+  floor, compensating buy-back, HHI-reducing cross-sector rotation, depends on paper_swap_churn_fix_enabled
+  (confirmed real at settings.py:344). BUY-gate: structured skip-reason ledger (VeritasChain REJ pattern) + fix the
+  swallowed BudgetBreachError (real: autonomous_loop.py:90/:99-101 raises with no log, :968/:975
+  return_exceptions=True swallows it) + reconcile hidden $1 session vs visible $2 daily cap. Exact files/flags named
+  per block; spot-checked anchors are real.
+- Criterion 3 (boundaries): MET. Design reaffirms flag-gated DARK-until-token, $0 metered, paper-only, no change to
+  risk-sector-caps as risk limits (kill-switch/stops/DSR>=0.95/PBO<=0.5 byte-untouched), and a paper/backtest gate
+  before any diversification activation token; hysteresis banned; historical_macro frozen; harness stays 3 agents.
+- Soft-design soundness / north star: SOUND. Shades but never zeroes (respects the -0.166 replay), w_d=0 is
+  byte-identical, and activation is gated on a backtest that must beat the incumbent OOS and clear DSR/PBO — so
+  diversification cannot lower risk-adjusted OOS P&L. Scope honest (design-only, no code — git-verified). Mutation
+  test: verdict IS criterion-sensitive, so this is not a rubber stamp.
 
-Q/A flagged that the C2/C3 tests assert **source-string ordering** rather than executing the code paths,
-while C1/C4 are behavioral. Because every ranking/prompt change is behind a default-OFF flag (live engine
-byte-identical), no code-review heuristic fires at BLOCK/WARN. The C2 news-cap and C3 QMJ-ordering behavioral
-validation is therefore deferred to the operator token window (documented in `live_check_69.3.md` "Deferred").
-This is a disclosed test-strength limitation, not a correctness defect.
+NON-BLOCKING WEAKNESSES to carry to downstream steps (none affect the 70.0 criteria):
+(i) Line-drift: some cited line numbers (portfolio_manager.py:594 same-sector / :620 denom / :675 swap sizing) were
+not all surfaced by grep on HEAD — the function _compute_swap_candidates and the $50-floor/position_pct sizing
+exist, but exact lines may have drifted. Implementation step 70.3 must RE-ANCHOR against HEAD, not trust these
+numbers verbatim.
+(ii) The freshest external cite (arXiv 2607.02830, rejection-auditing) is snippet-only, not read-in-full — fine,
+the read-in-full floor is met by the other 7; a reader should note it isn't load-bearing.
+(iii) theta1 auto-scaling and the exact penalty formula are specified at design level, not code-ready pseudocode —
+appropriate for a design pack that defers the exact formula to 70.2, backstopped by the validation gate.
+(iv) The design (c) do-no-harm split ships observability logging/surfacing UN-flagged as read-only/additive;
+downstream Q/A on 70.4 should verify the ledger truly alters no trade-decision control flow before accepting the
+un-flagged posture.
 
-## Do-no-harm verdict
-**CONFIRMED byte-identical when flags OFF.** kill-switch / stops / sector caps / DSR / PBO untouched;
-historical_macro frozen; $0 metered (all evidence rendered from strings + fixtures, no LLM call).
+VERDICT: PASS. All 3 immutable criteria met, harness compliance clean, no production code changed, research honest,
+scope honest, soft-diversification design sound and consistent with the -0.166 replay + the risk-adjusted-OOS-P&L
+north star.
 
-## Verdict
-**PASS** — proceed to `harness_log.md` Cycle 88 append, then flip 69.3 → done.
+---
+
+## Main's disposition of the non-blocking carry-forwards (recorded, not a verdict edit)
+These do NOT affect the 70.0 PASS. They are folded into the downstream steps:
+- (i) → 70.3 step text already says "re-anchor against HEAD"; reaffirmed here.
+- (ii) → noted; the read-in-full floor (7) is met without it.
+- (iii) → 70.2 owns the exact θ₁/penalty formula + the w_d×K ablation gate.
+- (iv) → 70.4's Q/A must confirm the skip-reason ledger changes no trade-decision control flow before the un-flagged posture is accepted.
