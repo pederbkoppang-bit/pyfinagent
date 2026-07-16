@@ -15,6 +15,7 @@ import {
   PaperMarketsField,
   ReadOnlyField,
 } from "@/components/paper-trading/cockpit-helpers";
+import { RiskLimitsPanel } from "@/components/paper-trading/RiskLimitsPanel";
 import { usePaperTradingData } from "@/lib/paper-trading-context";
 import {
   depositPaperFunds,
@@ -37,6 +38,13 @@ export default function ManagePage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
+  // phase-70.1: per-field client-side range errors lifted from PaperSettingNum
+  // so Save is disabled (and a summary shown) while any field is out of range,
+  // instead of the old silent save-time 422.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+  const handleFieldValidity = (field: string, err: string | undefined) =>
+    setFieldErrors((fe) => ({ ...fe, [field]: err }));
+  const hasFieldError = Object.values(fieldErrors).some(Boolean);
 
   useEffect(() => {
     if (manageSettings) return;
@@ -173,7 +181,7 @@ export default function ManagePage() {
           <button
             type="button"
             onClick={handleSettingsSave}
-            disabled={settingsSaving || Object.keys(manageDirty).length === 0}
+            disabled={settingsSaving || hasFieldError || Object.keys(manageDirty).length === 0}
             className="rounded-md bg-sky-600/30 px-5 py-2.5 text-sm font-medium text-sky-200 hover:bg-sky-600/50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {settingsSaving ? "Saving..." : "Save"}
@@ -191,6 +199,11 @@ export default function ManagePage() {
         {settingsSuccess && (
           <div className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-950/30 p-3 text-sm text-emerald-300">
             {settingsSuccess}
+          </div>
+        )}
+        {hasFieldError && (
+          <div className="mb-3 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-sm text-rose-300">
+            Fix the highlighted fields before saving.
           </div>
         )}
 
@@ -234,19 +247,23 @@ export default function ManagePage() {
             </div>
             {/* phase-50.6: live-loop markets multi-select (writes paper_markets). */}
             <PaperMarketsField settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} />
-            <PaperSettingNum label="Max simultaneous positions" field="paper_max_positions" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={1} />
-            <PaperSettingNum label="Max positions per sector" field="paper_max_per_sector" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={20} step={1} hint="Default 2 = at least 5 distinct sectors for a 10-position portfolio. 0 disables (legacy)." />
-            <PaperSettingNum label="Daily LLM cost cap (USD)" field="paper_max_daily_cost_usd" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0.1} max={50} step={0.1} />
-            <PaperSettingNum label="Default stop-loss (%)" field="paper_default_stop_loss_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={0.5} hint="O'Neil canonical: 7-8%." />
-            <PaperSettingNum label="Screen top-N candidates" field="paper_screen_top_n" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={100} step={1} />
-            <PaperSettingNum label="Analyze top-K with LLM" field="paper_analyze_top_n" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={1} />
-            <PaperSettingNum label="Transaction cost (%)" field="paper_transaction_cost_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={5} step={0.05} />
-            <PaperSettingNum label="Daily loss limit (%)" field="paper_daily_loss_limit_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0.5} max={25} step={0.5} />
-            <PaperSettingNum label="Trailing drawdown limit (%)" field="paper_trailing_dd_limit_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={0.5} />
-            <PaperSettingNum label="Min cash reserve (%)" field="paper_min_cash_reserve_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={50} step={0.5} />
+            <PaperSettingNum label="Max simultaneous positions" field="paper_max_positions" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={1} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Max positions per sector" field="paper_max_per_sector" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={20} step={1} hint="Default 2 = at least 5 distinct sectors for a 10-position portfolio. 0 disables (legacy)." onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Daily LLM cost cap (USD)" field="paper_max_daily_cost_usd" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0.1} max={50} step={0.1} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Default stop-loss (%)" field="paper_default_stop_loss_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={0.5} hint="O'Neil canonical: 7-8%." onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Screen top-N candidates" field="paper_screen_top_n" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={100} step={1} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Analyze top-K with LLM" field="paper_analyze_top_n" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={1} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Transaction cost (%)" field="paper_transaction_cost_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={5} step={0.05} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Daily loss limit (%)" field="paper_daily_loss_limit_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0.5} max={25} step={0.5} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Trailing drawdown limit (%)" field="paper_trailing_dd_limit_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={0.5} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Min cash reserve (%)" field="paper_min_cash_reserve_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={50} step={0.5} onValidity={handleFieldValidity} />
           </div>
         )}
       </div>
+
+      {/* phase-70.1: risk-override transparency + editor (incl. the NAV%/sector
+          cap, which is a risk_overrides ALLOWED_KEY, not a .env settings field). */}
+      <RiskLimitsPanel onChanged={refresh} />
     </div>
   );
 }

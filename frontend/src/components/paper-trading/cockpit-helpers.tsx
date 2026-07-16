@@ -3,6 +3,7 @@
 // phase-44.2 -- cockpit helper components hoisted out of the old
 // /paper-trading monolith. Pure presentational; consume props.
 
+import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import NumberFlow from "@number-flow/react";
 import type {
@@ -451,6 +452,7 @@ export function PaperSettingNum({
   max,
   step,
   hint,
+  onValidity,
 }: {
   label: string;
   field: PaperNumKey;
@@ -461,10 +463,47 @@ export function PaperSettingNum({
   max: number;
   step: number;
   hint?: string;
+  // phase-70.1: lets the parent (manage/page) disable Save + show a summary
+  // when any field is out of range. Optional -- fields without it still show
+  // their own inline error and never persist an invalid value into `dirty`.
+  onValidity?: (field: PaperNumKey, error: string | undefined) => void;
 }) {
   const stored = settings[field];
-  const draft = dirty[field];
-  const value = (draft ?? stored ?? "") as number | string;
+  // phase-70.1: string-state-then-coerce (React docs + MDN nullish + web.dev
+  // constraint validation). The old `value={draft ?? stored ?? ""}` binding
+  // made an EMPTY field unrepresentable: clearing it -> onChange next=undefined
+  // -> the draft was deleted -> `??` fell back through to `stored`, so the box
+  // snapped back to the stored digits and the next keystroke APPENDED
+  // (2 -> "25"), which then failed the save-time bound check as a generic 422.
+  // Now the input is bound to a defined string that CAN be "", so clear-then-
+  // type yields exactly the typed value, and we coerce to a number only for
+  // the dirty/save path.
+  const [text, setText] = useState<string>(
+    dirty[field] !== undefined ? String(dirty[field]) : stored != null ? String(stored) : "",
+  );
+  // Re-seed from the stored value after a save (dirty cleared) or an external
+  // settings reload -- but never clobber an in-progress edit (draft present).
+  useEffect(() => {
+    if (dirty[field] === undefined) {
+      setText(stored != null ? String(stored) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stored, field]);
+
+  const trimmed = text.trim();
+  const num = trimmed === "" ? undefined : Number(trimmed);
+  const error =
+    trimmed !== "" && (num === undefined || Number.isNaN(num))
+      ? "Enter a number."
+      : num !== undefined && (num < min || num > max)
+        ? `Must be between ${min} and ${max}.`
+        : undefined;
+
+  useEffect(() => {
+    onValidity?.(field, error);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error]);
+
   return (
     <div>
       <label className="mb-1 block text-xs uppercase tracking-wider text-slate-500">{label}</label>
@@ -473,24 +512,40 @@ export function PaperSettingNum({
         min={min}
         max={max}
         step={step}
-        value={value}
+        value={text}
+        aria-invalid={error ? true : undefined}
         onChange={(e) => {
           const raw = e.target.value;
-          const next = raw === "" ? undefined : Number(raw);
+          setText(raw);
+          const t = raw.trim();
+          const n = t === "" ? undefined : Number(t);
+          const invalid = n === undefined || Number.isNaN(n) || n < min || n > max;
           setDirty((d) => {
             const merged = { ...d };
-            if (next === undefined || next === stored) {
+            // Never persist an empty / non-numeric / out-of-range value into
+            // dirty -- so the PUT /api/settings/ payload is always valid and a
+            // value the UI rejected can never produce a silent 422.
+            if (invalid || n === stored) {
               delete merged[field];
             } else {
-              merged[field] = next;
+              merged[field] = n;
             }
             return merged;
           });
         }}
-        className="w-full rounded-md border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-slate-100 focus:border-sky-500/50 focus:outline-none"
+        className={clsx(
+          "w-full rounded-md border bg-navy-900 px-3 py-2 text-sm text-slate-100 focus:outline-none",
+          error
+            ? "border-rose-500/60 focus:border-rose-500/60"
+            : "border-navy-600 focus:border-sky-500/50",
+        )}
       />
-      {hint && <p className="mt-1 text-xs text-slate-600">{hint}</p>}
-      {draft !== undefined && (
+      {error ? (
+        <p className="mt-1 text-xs text-rose-400">{error}</p>
+      ) : (
+        hint && <p className="mt-1 text-xs text-slate-600">{hint}</p>
+      )}
+      {dirty[field] !== undefined && !error && (
         <p className="mt-1 text-[10px] uppercase tracking-wider text-amber-400">unsaved</p>
       )}
     </div>

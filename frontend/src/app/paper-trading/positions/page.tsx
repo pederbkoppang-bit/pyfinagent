@@ -20,12 +20,13 @@ import { latestTradeIdForTicker } from "@/lib/paper-trading-utils";
 import { resolveMarket } from "@/lib/format";
 import type { PaperPosition } from "@/lib/types";
 
-// Hard-coded default cap; the operator-tunable setting is
-// paper_max_per_sector_nav_pct (lives at /paper-trading/manage; reachable
-// via the Settings gear button in the layout header).
-// We don't fetch FullSettings at the layout level to avoid an extra
-// round-trip on every cockpit page load; the cap rendered here will
-// update when /manage refetches and the operator returns.
+// phase-70.1: DISPLAY-ONLY fallback, not the live cap. The operator-tunable
+// setting is paper_max_per_sector_nav_pct, which is a risk_overrides
+// ALLOWED_KEY edited via the "Risk limits (live overrides)" panel on
+// /paper-trading/manage (NOT a .env settings-form field -- it is not in
+// SettingsUpdate). This constant is only a static default used for rendering;
+// it does NOT reflect an active runtime override. For the true enforced value,
+// read effective_value from getRiskLimits() (GET /api/paper-trading/risk-limits).
 const DEFAULT_SECTOR_CAP_PCT = 30;
 
 export default function PositionsPage() {

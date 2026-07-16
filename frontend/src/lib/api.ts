@@ -255,6 +255,51 @@ export function updateSettings(body: Partial<FullSettings>): Promise<FullSetting
   });
 }
 
+// ── phase-70.1: runtime risk-limit overrides (deployment/concentration caps) ──
+// Surfaces the operator-adjustable caps that portfolio_manager reads at
+// decide-time via risk_overrides.get_effective(). An active override SHADOWS
+// the .env/settings value, so the Manage tab must show effective-vs-configured
+// and let the operator clear it. Backend: GET/PUT/DELETE /api/paper-trading/
+// risk-limits (paper_trading.py:578-628). PUT requires the SET_RISK_LIMIT token.
+export interface RiskLimitEntry {
+  type: "int" | "float";
+  min: number;
+  max: number;
+  description: string;
+  overridden: boolean;
+  override_value: number | null;
+  settings_default: number | null;
+  effective_value: number | null;
+}
+
+export interface RiskLimitsResponse {
+  risk_limits: Record<string, RiskLimitEntry>;
+  allowed_keys: string[];
+}
+
+export function getRiskLimits(): Promise<RiskLimitsResponse> {
+  return apiFetch("/api/paper-trading/risk-limits");
+}
+
+export function setRiskLimit(
+  key: string,
+  value: number,
+  reason = "operator UI",
+): Promise<{ status: string; key: string; effective_value: number | null; overrides: Record<string, number> }> {
+  return apiFetch("/api/paper-trading/risk-limits", {
+    method: "PUT",
+    body: JSON.stringify({ key, value, confirmation: "SET_RISK_LIMIT", reason }),
+  });
+}
+
+export function clearRiskLimit(
+  key: string,
+): Promise<{ status: string; key: string; effective_value: number | null; overrides: Record<string, number> }> {
+  return apiFetch(`/api/paper-trading/risk-limits/${encodeURIComponent(key)}`, {
+    method: "DELETE",
+  });
+}
+
 export function getLatestCostSummary(): Promise<LatestCostSummary> {
   return apiFetch("/api/reports/latest-cost-summary");
 }

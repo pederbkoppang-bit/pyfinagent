@@ -1,0 +1,5 @@
+{"ts": "2026-07-16T18:16:10.146667+00:00", "event": "set", "key": "paper_max_per_sector_nav_pct", "old_value": null, "new_value": 25.0, "reason": "operator UI"}
+{"ts": "2026-07-16T18:16:54.826654+00:00", "event": "set", "key": "paper_max_per_sector_nav_pct", "old_value": 25.0, "new_value": 25.0, "reason": "operator UI"}
+{"ts": "2026-07-16T18:17:00.038799+00:00", "event": "clear", "key": "paper_max_per_sector_nav_pct", "old_value": 25.0, "new_value": null, "reason": "manual"}
+{"ts": "2026-07-16T18:29:16.618475+00:00", "event": "set", "key": "paper_max_per_sector_nav_pct", "old_value": null, "new_value": 25.0, "reason": "70.1 live_check capture"}
+{"ts": "2026-07-16T18:29:57.671306+00:00", "event": "clear", "key": "paper_max_per_sector_nav_pct", "old_value": 25.0, "new_value": null, "reason": "manual"}

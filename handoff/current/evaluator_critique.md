@@ -1,95 +1,97 @@
-# Evaluator Critique — Step 70.0 (Research gate + design pack)
+# Evaluator Critique — Step 70.1 (S1: make the setting changeable)
 
-**Evaluator:** fresh, independent Q/A subagent via the Workflow structured-output path (Opus 4.8, `effort: max`,
-$0 Max rail, stall-immune — run wf_ad603a92-c4c). Launched this way because this session's Agent-tool roster is
-fable-snapshotted; the Workflow path is the sanctioned launch per `feedback_workflow_qa_when_subagents_stall`.
-**Verdict transcribed VERBATIM below by Main** (no editorial edits — the no-self-eval guardrail; the verdict
-originates from the independent Q/A agent, not Main).
+**Evaluator:** fresh, independent Q/A via the Workflow structured-output path (Opus 4.8, `effort: max`,
+$0 Max rail, stall-immune). Verdicts transcribed VERBATIM by Main (no-self-eval guardrail).
 
-**VERDICT: PASS** | violated_criteria: [] | do_no_harm_ok: true | scope_honesty_ok: true
+## Cycle 1 — verdict: CONDITIONAL (run wf_98dd8a92-b0b)
 
-## Harness compliance (5/5 PASS)
-- research_gate_before_contract: true
-- contract_before_generate: true
-- results_present: true
-- log_last_ok: true
-- no_verdict_shopping: true (FIRST Q/A on 70.0 evidence)
+**Harness compliance 5/5 PASS** (audited first). **Deterministic:** verification exit 0, `npm run build`
+green, no backend change (frontend/ + handoff/ only), no emoji. **do_no_harm_ok: true.** No criterion
+VIOLATED in the implementation — all 5 met in code, backend untouched, no risk-limit threshold moved.
 
-## Checks run
-- verification_command_exit: 0
-- files_exist: true
-- mtime_ordering_ok: true (research 1784221757 < contract 1784221919 < design 1784221981 < results 1784222045)
-- no_production_code_changed: true (git status: only handoff/ + hook-appended audit JSONLs; grep for backend/frontend/scripts *.py edits outside handoff/ → none)
+**Why CONDITIONAL (evidentiary, not a code defect):** the binding UI live-capture gate (qa.md §1c) was only
+partially satisfied — `70.1-risk-limits-panel.png` captured the page TOP, not the risk panel (it is below the
+fold), so criteria 3 & 4 (the risk panel — the step's largest new UI surface) and criterion 2 (the
+out-of-range inline error + disabled Save) had no VISUAL live evidence, only prose. Q/A remediation guidance:
+re-capture (a) the RiskLimitsPanel with an active override (amber badge + warning banner + configured-vs-
+effective + enabled Clear) and (b) the out-of-range error with Save disabled; update the live_check; fresh Q/A.
 
-## Violation details
-None. All three immutable success criteria for step 70.0 (design + research only) are met, harness compliance is
-clean 5/5, and no production code changed.
+**Non-blocking notes (carry-forward, do not block):** RiskLimitsPanel mount-fetch effect + PaperSettingNum
+re-seed/onValidity effects trigger React-Compiler "setState in effect" advisories — but this is a PERVASIVE
+pre-existing project pattern (66 instances across 39 files), consistent with the codebase, non-fatal, not a
+regression. The re-seed effect could theoretically clobber a cleared-but-unsaved field if `stored` changes
+via a background context refresh (narrow edge case). Neither blocks.
 
-## Q/A notes (verbatim)
+## Cycle-2 remediation applied by Main (evidence only — NO code change)
 
-A. HARNESS-COMPLIANCE AUDIT (5/5 PASS):
-(1) Research gate BEFORE contract: research_brief_70.0.md exists, gate_passed=true, external_sources_read_in_full=7
-(floor 5), recency_scan_performed=true (dedicated Section 3 with 3 new-window findings + canonical-still-valid
-note). Covers all three required topics: soft-vs-hard sector diversification (Topic A: Ehsani-Harvey-Li FAJ 2023,
-QuantPedia, arXiv 2601.08717), atomic multi-leg execution/rollback (Topic B: microservices.io Saga, SagaLLM arXiv
-2503.11951), gate/limit observability (Topic C: VeritasChain, oneuptime). Three-variant query discipline disclosed.
-(2) Contract BEFORE design (mtime): research 1784221757 < contract 1784221919 < design 1784221981 <
-experiment_results 1784222045. Correct order.
-(3) experiment_results.md present: lists all 3 artifacts + verbatim verification command output
-("VERIFICATION: PASS (exit 0)") + mtime ordering block.
-(4) Log-last OK: NO phase=70.0 entry in harness_log.md. Log correctly comes after this verdict.
-(5) No verdict-shopping: FIRST Q/A on 70.0 evidence. evaluator_critique.md on disk was still the Step 69.3 file.
+Per the canonical cycle-2 flow (fix the flagged gap + update the handoff files + fresh Q/A on updated
+evidence — NOT verdict-shopping, the evidence changed):
+- Added `70.1-out-of-range-error.png` — element screenshot of the Trading-settings card showing the inline
+  "Must be between 0 and 20." error, the "Fix the highlighted fields before saving." summary, and disabled Save.
+- Added `70.1-risk-panel-override-active.png` — element screenshot of the RiskLimitsPanel with an ACTIVE
+  override on Max NAV % per sector: amber warning banner, "OVERRIDE ACTIVE" badge, configured 30 vs effective
+  25, enabled Clear. (Override set for the capture then CLEARED — `active_overrides: []`, `max_per_sector = 2`.)
+- Updated `live_check_70.1.md` to map each capture to the criterion it evidences.
+- No production code changed between cycle 1 and cycle 2 (git diff on frontend/ is identical); only the
+  screenshots + live_check were added.
 
-B. DETERMINISTIC: immutable verification command exit code = 0. No production code changed — git status shows only
-handoff/ files plus two hook-appended audit JSONLs; grep for backend/frontend/scripts/*.py outside handoff/
-returned none. masterplan 70.0 status still 'pending' (flip correctly deferred). All 7 design-cited files exist.
+## Cycle 2 — verdict: CONDITIONAL (run wf_a21250f3-a3a)
 
-C. LLM JUDGMENT — all 3 criteria MET:
-- Criterion 1 (research brief + honest envelope + 3 topics): MET. Envelope honest and internally consistent; 7
-  read-in-full sources have differentiated, topic-tied takeaways with a proper source-quality mix (peer-reviewed
-  FAJ/arXiv + authoritative reference + practitioner), not community-tier padding; 14 snippet-only recorded
-  separately. Research reads genuine, not padded.
-- Criterion 2 (algorithm + why-not-hard-neutral w/ replay citation + atomic swap + BUY-gate, each w/ files/flags):
-  MET, and code-verified. Soft algorithm specified: rank-time penalty (1-w_d)^(j-1) shading same-sector j-th name
-  (profit-aware analog of arXiv 2601.08717's -w_d*theta1*HHI, w_d=0 byte-identical) + secondary min-K-sector
-  round-robin at the analyze slice. Why-not-hard-neutral cites the 2026-06-01 replay (-0.166 long-only Sharpe) AND
-  Ehsani-Harvey-Li — confirmed this maps to a VERBATIM in-repo comment at screener.py:71-73. Atomic cross-sector
-  swap: pre-flight aggregate validation (Saga/SagaLLM 'drop the whole pair, never a half-swap'), cash-bound + $50
-  floor, compensating buy-back, HHI-reducing cross-sector rotation, depends on paper_swap_churn_fix_enabled
-  (confirmed real at settings.py:344). BUY-gate: structured skip-reason ledger (VeritasChain REJ pattern) + fix the
-  swallowed BudgetBreachError (real: autonomous_loop.py:90/:99-101 raises with no log, :968/:975
-  return_exceptions=True swallows it) + reconcile hidden $1 session vs visible $2 daily cap. Exact files/flags named
-  per block; spot-checked anchors are real.
-- Criterion 3 (boundaries): MET. Design reaffirms flag-gated DARK-until-token, $0 metered, paper-only, no change to
-  risk-sector-caps as risk limits (kill-switch/stops/DSR>=0.95/PBO<=0.5 byte-untouched), and a paper/backtest gate
-  before any diversification activation token; hysteresis banned; historical_macro frozen; harness stays 3 agents.
-- Soft-design soundness / north star: SOUND. Shades but never zeroes (respects the -0.166 replay), w_d=0 is
-  byte-identical, and activation is gated on a backtest that must beat the incumbent OOS and clear DSR/PBO — so
-  diversification cannot lower risk-adjusted OOS P&L. Scope honest (design-only, no code — git-verified). Mutation
-  test: verdict IS criterion-sensitive, so this is not a rubber stamp.
+Harness compliance 5/5, verification exit 0, build green, no backend change, no emoji, do_no_harm true, all 5
+criteria met in CODE, no criterion violated. **Block was again purely evidentiary:** the criteria-3&4 risk-panel
+capture (`70.1-risk-panel-override-active.png`, 1109×498) was now correct (amber banner + OVERRIDE ACTIVE badge
++ configured 30 vs effective 25 + enabled Clear), BUT `70.1-out-of-range-error.png` was a 398×48 crop showing
+only the card HEADER — the element selector grabbed the header ref, not the card body — so criterion 2's
+out-of-range error + disabled Save still had no valid visual evidence, and the live_check mapped a capture whose
+content contradicted the description. Non-blocking carry-forwards unchanged. 2nd consecutive CONDITIONAL (below
+the 3rd-consecutive auto-FAIL threshold).
 
-NON-BLOCKING WEAKNESSES to carry to downstream steps (none affect the 70.0 criteria):
-(i) Line-drift: some cited line numbers (portfolio_manager.py:594 same-sector / :620 denom / :675 swap sizing) were
-not all surfaced by grep on HEAD — the function _compute_swap_candidates and the $50-floor/position_pct sizing
-exist, but exact lines may have drifted. Implementation step 70.3 must RE-ANCHOR against HEAD, not trust these
-numbers verbatim.
-(ii) The freshest external cite (arXiv 2607.02830, rejection-auditing) is snippet-only, not read-in-full — fine,
-the read-in-full floor is met by the other 7; a reader should note it isn't load-bearing.
-(iii) theta1 auto-scaling and the exact penalty formula are specified at design level, not code-ready pseudocode —
-appropriate for a design pack that defers the exact formula to 70.2, backstopped by the validation gate.
-(iv) The design (c) do-no-harm split ships observability logging/surfacing UN-flagged as read-only/additive;
-downstream Q/A on 70.4 should verify the ledger truly alters no trade-decision control flow before accepting the
-un-flagged posture.
+## Cycle-3 remediation applied by Main (evidence only — NO code change)
 
-VERDICT: PASS. All 3 immutable criteria met, harness compliance clean, no production code changed, research honest,
-scope honest, soft-diversification design sound and consistent with the -0.166 replay + the risk-adjusted-OOS-P&L
-north star.
+- Re-captured `70.1-out-of-range-error.png` as an element screenshot of the FULL Trading-settings card
+  (1109×859). **Main visually confirmed** (Read the PNG) it shows the "MAX POSITIONS PER SECTOR" field = `25`
+  with a rose border, the inline "Must be between 0 and 20." error directly below it, the rose "Fix the
+  highlighted fields before saving." summary banner, and the disabled Save button.
+- Root cause of the two bad captures: this page's shell is `h-screen overflow-hidden` with an inner
+  `overflow-y-auto` scroll container, so `fullPage` only yields the 1440×900 viewport (fields below the fold) and
+  a `:has-text` div selector matched the small header — an element screenshot of the card `div.rounded-xl`
+  (filtered by the "Trading settings" heading) is the correct tool and captures the full card.
+- Updated `live_check_70.1.md` with the cycle-3 correction note. No production code changed between cycles 1–3
+  (git diff on `frontend/` unchanged since 20:14); only the one screenshot + live_check text were updated.
 
----
+## Cycle 3 — verdict: PASS (run wf_cd856131-e18)
 
-## Main's disposition of the non-blocking carry-forwards (recorded, not a verdict edit)
-These do NOT affect the 70.0 PASS. They are folded into the downstream steps:
-- (i) → 70.3 step text already says "re-anchor against HEAD"; reaffirmed here.
-- (ii) → noted; the read-in-full floor (7) is met without it.
-- (iii) → 70.2 owns the exact θ₁/penalty formula + the w_d×K ablation gate.
-- (iv) → 70.4's Q/A must confirm the skip-reason ledger changes no trade-decision control flow before the un-flagged posture is accepted.
+Fresh independent Q/A (Workflow structured-output, Opus 4.8) that VISUALLY INSPECTED the capture PNGs (Read
+tool). **verdict: PASS** | violated_criteria: [] | do_no_harm_ok: true | live_capture_gate.satisfied: true.
+
+Visual inspection (what the Q/A SAW, verbatim):
+- `70.1-out-of-range-error.png` (full Trading-settings card, 1109×859): the MAX POSITIONS PER SECTOR field
+  contains 25 with a highlighted rose border and spinner arrows; a rose inline error "Must be between 0 and 20."
+  sits directly below the field; a rose summary banner near the card top reads "Fix the highlighted fields
+  before saving."; the top-right Save button is rendered muted/grayed (disabled) versus the tinted enabled Save
+  in the saved-state capture — all four criterion-2 elements visible.
+- `70.1-risk-panel-override-active.png`: the "Risk limits (live overrides)" panel shows an amber warning banner
+  with a warning-triangle icon ("1 active override shadowing your saved settings: Max NAV % per sector..."); the
+  Max NAV % per sector row shows CONFIGURED 30 and EFFECTIVE 25 (25 in amber), an "OVERRIDE ACTIVE" badge, and an
+  enabled Clear button while non-overridden rows have muted Clear buttons — criterion-3 elements present, and the
+  nav_pct Set input on that row is its editor (criterion 4).
+- `70.1-manage-fixed-fullpage.png`: green "Settings saved." banner; MAX POSITIONS PER SECTOR = 5 — criterion 1.
+
+Harness compliance 5/5 (research-gate-before-contract, contract-before-generate, results present, log-last, no
+verdict-shopping — the only on-disk change since cycles 1/2 is the re-captured PNG + live_check text; frontend
+code diff unchanged since cycle 1, so this is the documented file-based cycle-N flow, not shopping). Deterministic:
+verification exit 0, no backend change (git clean of backend), build green (trusted — no code changed since
+cycle 1), no emoji (the only regex hit is a pre-existing `->` arrow in an api.ts comment, not an added line, not
+pictographic). Code spot-verified independently (manage/page.tsx Save disabled via hasFieldError; cockpit-helpers
+useState<string> fix + "Must be between" message + onValidity + aria-invalid; api.ts get/set/clear with
+SET_RISK_LIMIT token; positions/page.tsx false comment removed; RiskLimitsPanel Phosphor IconWarning + states).
+Auto-FAIL rule acknowledged (3rd cycle after 2 CONDITIONALs): the Q/A judged PASS on genuine visual + code
+evidence, not reflexively. do_no_harm: UI + api.ts only, no backend route change, no live-loop behavior change, no
+risk-limit threshold moved; capture override set then CLEARED (active_overrides=[], max_per_sector=2 restored).
+Non-blocking carry-forwards (React-Compiler setState-in-effect advisories matching a pervasive pre-existing
+project pattern; the re-seed effect's narrow clobber edge case) recorded, do not block.
+
+**Cycle summary:** 3 Q/A cycles — CONDITIONAL (risk panel + out-of-range not visually captured) → CONDITIONAL
+(out-of-range capture grabbed the card header) → PASS (out-of-range re-captured as full-card element screenshot,
+visually confirmed). No production code changed across the three cycles; the harness rigor was entirely about
+producing valid live-UI evidence for the binding qa.md §1c gate.

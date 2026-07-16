@@ -15666,7 +15666,7 @@
         },
         {
           "id": "70.1",
-          "status": "pending",
+          "status": "done",
           "name": "S1 -- make the setting actually changeable. Fix the frontend clear-snapback bug (cockpit-helpers.tsx:467 -- represent the cleared/empty state instead of deleting the field so clear-then-type yields the typed value, not an appended '25'); block/clamp out-of-range input client-side with a specific message instead of a generic save-time 422 (cockpit-helpers.tsx:471). Surface & clear the risk_overrides shadow from the Manage tab (add getRiskLimits/setRiskLimit/clearRiskLimit to api.ts + an effective-vs-configured display with a Clear-override button + active-override warning banner; portfolio_manager.py:304, paper_trading.py risk-limits routes). Add UI editors for active BUY-gating knobs that currently have none, incl. paper_max_per_sector_nav_pct (settings.py:277 / positions/page.tsx:29 false 'editable at /manage' comment).",
           "harness_required": true,
           "priority": "P1",

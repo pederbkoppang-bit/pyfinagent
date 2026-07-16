@@ -1,58 +1,51 @@
-# Experiment results — step 70.0 (Research gate + design pack)
+# Experiment results — step 70.1 (S1: make the setting changeable)
 
-**Phase/step:** phase-70 → 70.0 | **Date:** 2026-07-16 | **Type:** research + design only (offline, $0, NO production code)
+**Phase/step:** phase-70 → 70.1 | **Date:** 2026-07-16 | **Type:** frontend + api.ts (UI-touching)
 
-## What was produced
+## Files changed (5)
 
-1. **`handoff/current/research_brief_70.0.md`** (229 lines) — research-gate output. Sections: 3-variant
-   query disclosure; source table (7 read-in-full + 14 snippet-only); mandatory recency scan (last 2 yrs);
-   internal code audit (6 files); design recommendations for (a)/(b)/(c); JSON gate envelope.
-   Gate envelope: `gate_passed=true`, `external_sources_read_in_full=7`, `snippet_only_sources=14`,
-   `urls_collected=48`, `recency_scan_performed=true`, `internal_files_inspected=6`, tier=complex.
-   Launched via Workflow structured-output (Opus 4.8, $0 Max rail, stall-immune) because this session's
-   Agent-tool roster is fable-snapshotted — the sanctioned path per `feedback_workflow_qa_when_subagents_stall`.
-2. **`handoff/current/contract.md`** — step 70.0 contract; verbatim immutable criteria; research summary;
-   hypothesis; plan; boundaries. Written BEFORE the design (mtime-proven).
-3. **`handoff/current/design_trade_diversity_70.md`** — the design pack (GENERATE deliverable):
-   - (a) SOFT profit-aware sector diversification: two-part (soft diversity penalty at rank time
-     `(1-w_d)^(j-1)` + min-K-sector round-robin on the analyze slice) + Unknown-bucket exemption; explicit
-     rationale for NOT hard-neutralizing (cites the -0.166 2026-06-01 replay + Ehsani-Harvey-Li FAJ 2023);
-     files/flags: screener.py rank_candidates, autonomous_loop.py:838, portfolio_manager.py:272/319/360;
-     flags `paper_soft_sector_diversity_enabled`/`_w`, `paper_min_k_sectors_analyzed` (default OFF);
-     validation via scripts/ablation/sector_neutral_replay.py w_d×K grid before any token.
-   - (b) ATOMIC cross-sector swap: pre-flight aggregate validation (Saga/SagaLLM — drop the whole pair,
-     never a half-swap), cash-bound + $50 floor, compensating buy-back, cross-sector HHI-reducing rotation;
-     files portfolio_manager.py:594/620/675 + autonomous_loop.py:1262-1320; flags
-     `paper_atomic_swap_enabled`/`paper_cross_sector_rotation_enabled` (default OFF); depends on
-     paper_swap_churn_fix.
-   - (c) BUY-gate observability: structured skip-reason ledger (VeritasChain/arXiv 2607.02830) + fix the
-     swallowed BudgetBreachError + reconcile the hidden $1 session budget vs visible $2 cap; files
-     autonomous_loop.py:90/:925/:966-970; do-no-harm split (logging un-flagged, ceiling change flag-gated).
-   - Downstream step map (70.1–70.5) + rejected alternatives (hard neutralization, 2PC, un-gated budget raise).
+1. **`frontend/src/components/paper-trading/cockpit-helpers.tsx`** — `PaperSettingNum` rewritten to
+   string-state-then-coerce: local `useState<string>` bound to `value={text}` ('' now representable → no
+   snap-back), coerce to number only for the dirty/save path; a re-seed effect keeps the field in sync with
+   `stored` after a save/reload without clobbering an in-progress edit; field-specific range error
+   (`Must be between {min} and {max}.` / `Enter a number.`) with rose border + `aria-invalid`; out-of-range
+   values are never written into `dirty`; new optional `onValidity(field, error)` prop lifts validity to the
+   parent. Added `import { useEffect, useState } from "react"`.
+2. **`frontend/src/lib/api.ts`** — new `getRiskLimits` (GET), `setRiskLimit(key,value,reason)` (PUT with the
+   required `confirmation:"SET_RISK_LIMIT"` token), `clearRiskLimit(key)` (DELETE) + `RiskLimitEntry` /
+   `RiskLimitsResponse` types, wired to the existing `/api/paper-trading/risk-limits` routes.
+3. **`frontend/src/components/paper-trading/RiskLimitsPanel.tsx`** (NEW) — surfaces the risk_overrides shadow:
+   per ALLOWED_KEY (friendly labels incl. `paper_max_per_sector_nav_pct`) shows configured-vs-effective, an
+   "OVERRIDE ACTIVE" badge, a bounded Set input + Set button, a Clear button (disabled unless overridden), an
+   amber active-override warning banner (Phosphor `IconWarning`, no emoji), and loading/error/empty states.
+   Refetches + calls the passed `onChanged` (cockpit `refresh`) after set/clear.
+4. **`frontend/src/app/paper-trading/manage/page.tsx`** — `fieldErrors` state via `onValidity`; Save disabled
+   + rose summary banner when any field is out of range; renders `<RiskLimitsPanel onChanged={refresh} />`
+   after the Trading-settings card; `onValidity={handleFieldValidity}` on all 10 number fields.
+5. **`frontend/src/app/paper-trading/positions/page.tsx`** — corrected the false "editable at /manage" comment
+   (nav_pct is a risk-limit ALLOWED_KEY edited via the risk panel; the constant is a display-only fallback).
 
 ## Verification command output (verbatim)
 
 ```
-$ bash -c 'test -f handoff/current/research_brief_70.0.md && test -f handoff/current/design_trade_diversity_70.md && grep -q "gate_passed" handoff/current/research_brief_70.0.md && grep -Eqi "sector.?neutral|diversif" handoff/current/design_trade_diversity_70.md && grep -Eqi "atomic|rollback|two-leg|swap" handoff/current/design_trade_diversity_70.md && grep -Eqi "budget|cost cap|gate visibility|observab" handoff/current/design_trade_diversity_70.md'
+$ bash -c 'grep -Eqi "getRiskLimits|setRiskLimit|clearRiskLimit|risk-limits" frontend/src/lib/api.ts && grep -Eqi "paper_max_per_sector_nav_pct" frontend/src/app/paper-trading/manage/page.tsx frontend/src/components/paper-trading/*.tsx'
 VERIFICATION: PASS (exit 0)
 ```
 
-mtime ordering (research → contract → design; contract BEFORE generate):
-```
-1784221757  research_brief_70.0.md
-1784221919  contract.md
-1784221981  design_trade_diversity_70.md
-```
+Frontend build: `npm run build` → success (route table printed; `/paper-trading/manage` compiled, 7 kB).
 
-## Do-no-harm
+## Live Playwright evidence (see live_check_70.1.md; captures_70.1/)
 
-70.0 is design + research only. NO production code changed; NO live-loop behavior change; NO risk-limit
-threshold moved; `historical_macro` untouched; $0 metered (Workflow on the Opus Max rail). All downstream
-behavior changes are specified as flag-gated default-OFF with a validation-before-token gate.
+- **Clear-then-type (criterion 1):** before `"2"` → clear → `""` (no snap-back) → type `"5"` → `"5"` (no
+  append) → Save `PUT /api/settings/ 200` → GET returns `paper_max_per_sector: 5`. Restored to 2.
+- **Out-of-range (criterion 2):** type `"25"` (>20) → inline `"Must be between 0 and 20."` + Save disabled.
+- **Risk override roundtrip (criterion 3):** Set NAV%/sector `25` → `PUT /risk-limits 200`, effective 25 vs
+  configured 30 + badge + warning banner; Clear → `DELETE 200`, effective back to 30, badge/banner gone.
+- **Panel + editor (criterion 4):** risk panel + nav_pct editor render; false comment corrected.
+- **Styling (criterion 5):** Phosphor icon, no emoji, loading/error/empty states, navy/slate palette; build green.
 
-## Scope honesty
-
-This step delivers the DESIGN for 70.1–70.5; it does NOT implement any fix. The soft-diversification
-approach is deliberately conservative (soft tilt, not hard neutralization) precisely because the internal
-replay showed hard neutralization hurts long-only returns — activation is gated on a backtest that must
-beat the incumbent OOS and clear DSR/PBO.
+## Do-no-harm / scope
+UI + api.ts only; no backend route change (routes pre-existed); no live-loop behavior change; no risk-limit
+threshold moved (the panel exposes the EXISTING operator-adjustable caps). Operator config left as found
+(max_per_sector=2, zero active overrides). Out-of-scope knobs (factor_corr, reject_binding) explicitly
+deferred to a backend follow-up rather than given no-op UI controls.
