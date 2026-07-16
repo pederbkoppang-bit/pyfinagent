@@ -15763,6 +15763,141 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-71",
+      "name": "Harness + MAS upgrade (stress-test doctrine self-audit) -- convert the 2026-07-16 max-effort ultracode self-audit (37 agents, 5 research/audit dimensions x adversarial critique, Opus 4.8 effort:max, $0 Max rail; 17 kept / 15 rejected; register handoff/current/harness_proposals.json) into durable improvements to our Layer-3 harness (Main+Researcher+Q/A) and Layer-2/4 in-app MAS, using the LATEST Claude Code + Anthropic capabilities. Through-line (surfaced independently by 3 of 5 dimensions): our harness still launches Q/A + Researcher via the Agent tool, which STALLED 6x on end-flush 2026-07-11 (model-agnostic) and blocks unattended step closure; the proven fix (Workflow structured-output, verdict = captured return value, immune to the file-write hang) is discovered but NOT codified. Codifying it is the P1 win and de-risks away-ops autonomy (phases 62-65). The rest hardens honesty + structure: guaranteed structured outputs (Anthropic GA) to kill silent JSON-clobber corruption (multi_agent_orchestrator.py:883-885), delete the fabricated evaluator spot-check stub (evaluator_agent.py hardcoded 1.02/0.95/0.99 that can flip CONDITIONAL->PASS), independent adversarial evaluation before self-improvement edits (skill_optimizer.apply_modification), a machine-readable verdict schema, and an effort/model posture that is truly max-where-it-helps + cost-appropriate elsewhere. Operator /goal 2026-07-16 verbatim in handoff/current/goal_phase71_harness_mas_upgrade_DRAFT.md. Boundaries (binding): Layer-3 stays EXACTLY 3 agents (no re-splitting Explore/harness-verifier; adversarial/worst-of-N checks live WITHIN the single Q/A role); $0 metered on the Layer-3 rail; Layer-2 is per-ticker cost-sensitive (the effort proposals RECONCILE/REDUCE, never inflate); local-only (Peder's Mac; scheduled self-audit uses local /loop or a report-only routine, no assumed cloud fleet); Main self-evaluation stays forbidden and verdicts are transcribed VERBATIM; the file-based 5-file handoff protocol stays; agent-file edits take effect only at NEXT session start (roster snapshot) + require separation-of-duties review; every change cites a REAL current feature/recommendation; full 5-file protocol per step; harness stays exactly 3 agents.",
+      "status": "pending",
+      "theme": null,
+      "steps": [
+        {
+          "id": "71.0",
+          "status": "pending",
+          "name": "Design pack (offline, $0): consume the completed 2026-07-16 self-audit register (handoff/current/harness_proposals.json) as the research basis; write design_harness_mas_71.md specifying (a) the saved .claude/workflows/ Q/A + Researcher structured-output launch scripts + the verbatim-transcription guardrail, (b) the structured-outputs adoption sites + the clobber-bug fix, (c) the Q/A rubric additions + machine-readable verdict schema, (d) the evaluator-optimizer gate design, (e) the effort-posture reconciliation vs the CLAUDE.md policy. Opens the phase; no production code.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/harness_proposals.json && test -f handoff/current/design_harness_mas_71.md && grep -Eqi \"structured.?output|workflow\" handoff/current/design_harness_mas_71.md && grep -Eqi \"verbatim|transcrib\" handoff/current/design_harness_mas_71.md && grep -Eqi \"clobber|883|structured\" handoff/current/design_harness_mas_71.md'",
+            "success_criteria": [
+              "design_harness_mas_71.md cites, for every phase-71 change, the specific Claude Code feature or Anthropic doc that grounds it (Workflow structured-output resumability; structured-outputs GA; evaluator-optimizer; effort guidance) -- with URLs",
+              "The design preserves every binding constraint verbatim (exactly-3-agents at L3, no self-eval, $0 metered L3 rail, Layer-2 cost-sensitivity, local-only) and calls out the separation-of-duties + roster-snapshot handling for the steps that edit .claude/agents/*.md",
+              "The register's 15 REJECTED proposals are acknowledged so the phase does not silently re-introduce a rejected idea"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "71.1",
+          "status": "pending",
+          "name": "P1 -- codify the Workflow structured-output path as the FIRST-CLASS launch for Q/A (and Researcher), retiring the stall-prone Agent-tool-only path. Save a reusable .claude/workflows/ script that runs the role as a StructuredOutput task (verdict = captured return value, immune to the end-flush stall); update docs/runbooks/per-step-protocol.md + .claude/agents/qa.md + .claude/agents/researcher.md + CLAUDE.md so the Workflow path is documented as the primary unattended launch with the Agent-tool path as fallback. GUARDRAIL: the protocol MUST require Main to transcribe the returned verdict VERBATIM into evaluator_critique.md (no editorial edits) so the no-self-eval guarantee stays airtight. Preserves the single-Q/A-per-step rule + the file-based fresh-respawn cycle-2 pattern.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "71.0",
+          "verification": {
+            "command": "bash -c 'ls .claude/workflows/ 2>/dev/null | grep -Eqi \"qa|eval|verdict\" && grep -Eqi \"workflow|structured.?output\" .claude/agents/qa.md docs/runbooks/per-step-protocol.md'",
+            "success_criteria": [
+              "A saved, reusable .claude/workflows/ script runs the Q/A (and optionally Researcher) role and returns a structured verdict; a dry-run or a real step shows the verdict captured as the workflow return value (not dependent on a file-write flush)",
+              "per-step-protocol.md + qa.md + CLAUDE.md document the Workflow structured-output path as the first-class unattended launch, with the Agent-tool path explicitly retained as fallback and the verbatim-transcription guardrail spelled out",
+              "The single-Q/A-per-step rule and the no-second-opinion-shopping / file-based fresh-respawn cycle-2 pattern are preserved unchanged; harness stays exactly 3 agents",
+              "NOTE the roster-snapshot + separation-of-duties caveat: qa.md/researcher.md edits take effect at NEXT session start; the harness_log requests review before a step depends on the new wording"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "71.2",
+          "status": "pending",
+          "name": "P1 -- Layer-2 honesty: guaranteed structured outputs + kill silent-failure classes. Adopt output_config.format json_schema (constrained decoding) or strict submit-verdict tools on the highest-frequency Claude JSON sites (start with the quality gate + the classifier in multi_agent_orchestrator.py). Fix the response-clobber bug at multi_agent_orchestrator.py:883-885 so a parse failure PRESERVES the original agent answer instead of returning the gate response to the user. Delete evaluator_agent.py::_run_spot_checks + evaluate_with_spot_checks (or wire them to a real backtest_engine spot-check) so the evaluator can never flip CONDITIONAL->PASS on fabricated 1.02/0.95/0.99 numbers; add output_config.format to evaluator_agent._call_model. All Layer-2 (metered) -- no effort bump, structured-output is a $0-delta correctness upgrade.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "71.0",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"output_config|json_schema|response_format|strict\" backend/agents/multi_agent_orchestrator.py backend/agents/evaluator_agent.py && ! grep -Eq \"1.02|0.95|0.99\" backend/agents/evaluator_agent.py; python -c \"import ast; ast.parse(open(\\'backend/agents/multi_agent_orchestrator.py\\').read()); ast.parse(open(\\'backend/agents/evaluator_agent.py\\').read())\"'",
+            "success_criteria": [
+              "The two highest-frequency Claude JSON sites use constrained-decoding structured output (guaranteed-valid JSON), matching the schema-enforcement the Gemini debate paths already have",
+              "The quality-gate clobber bug (multi_agent_orchestrator.py:883-885) is fixed: a parse failure preserves the original agent answer, never substituting the gate response as the user-facing result -- proven by a red->green test",
+              "The fabricated spot-check stub is deleted or wired to a real backtest; the evaluator can no longer flip a verdict on hardcoded numbers -- proven by a test",
+              "No live risk-limit or threshold behavior changed; pure correctness/honesty upgrade; metered cost delta ~0"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "71.3",
+          "status": "pending",
+          "name": "P2 -- harden Q/A judgment + emit machine-readable verdicts (WITHIN the single Q/A role, no re-split). Add a 'contract completeness' dimension to the qa.md rubric (does experiment_results.md cover every contract criterion?). For P0/P1 money-path steps, add an adversarial worst-of-N self-consistency check (the single Q/A samples its own verdict N times / from N lenses and takes the worst) instead of a single-shot judgment. Emit a machine-readable verdict JSON (handoff/current/evaluator_critique.json: {ok, verdict PASS|CONDITIONAL|FAIL, violated_criteria[], checks_run{}, step_id, cycle_num}) alongside the markdown so the status-flip gate reads JSON, not prose.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "71.0",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"contract completeness|completeness\" .claude/agents/qa.md && grep -Eqi \"worst-of-n|self-consistency|adversarial\" .claude/agents/qa.md docs/runbooks/per-step-protocol.md'",
+            "success_criteria": [
+              "qa.md rubric includes a contract-completeness dimension and (for P0/P1 money-path steps) an adversarial worst-of-N / self-consistency verdict, both explicitly WITHIN the single Q/A role (no fourth agent, no re-split)",
+              "Q/A emits a machine-readable evaluator_critique.json alongside the markdown with the verdict schema; the status-flip / live_check gate can read it deterministically",
+              "The single-Q/A-per-step rule and file-based handoffs are preserved"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "71.4",
+          "status": "pending",
+          "name": "P2 -- evaluator-optimizer for the self-improvement loops + loop-until-dry coverage. Insert an independent directive_review-style adversarial evaluator between skill_optimizer.propose_skill_modification and apply_modification (skill_optimizer.py:300-451): score the proposed prompt diff on alignment (preserves placeholders/schema), safety (no constraint weakened vs the RULES given), proportionality, and factuality (description matches the actual diff); reject-and-skip below threshold; fail-closed on LLM error. Add a loop-until-dry completeness-critic pass for audit-class steps + turn the research gate's fixed source-count floor into an adaptive coverage gate (keep discovering until K rounds add nothing new, floor still >=5).",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "71.0",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"review|evaluat|adversar\" backend/agents/skill_optimizer.py && ls backend/tests/ | grep -Eqi \"71_4|skill_optim|evaluator\" && python -c \"import ast; ast.parse(open(\\'backend/agents/skill_optimizer.py\\').read())\"'",
+            "success_criteria": [
+              "A proposed skill/prompt modification is independently reviewed before apply_modification writes it; a diff that weakens a constraint or whose description does not match the diff is rejected-and-skipped; LLM-error fails closed (no write) -- proven by a test",
+              "Audit-class steps have a loop-until-dry completeness-critic option, and the research gate documents an adaptive coverage gate (keep going until K dry rounds; >=5-source floor preserved)",
+              "Grounded in the Anthropic evaluator-optimizer + multi-agent 'separate the doer from the judge' pattern (cited); reuses the existing directive_review pattern where possible"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "71.5",
+          "status": "pending",
+          "name": "P3 -- effort/model posture reconciliation (max-where-it-helps, cost-appropriate elsewhere). RECONCILE (not blindly revert) the stale model_tiers.py::EFFORT_DEFAULTS 'max' override (whose own comment says 'revert after closure') against the authoritative CLAUDE.md effort policy: mas_* per-ticker roles to their cost-justified baseline unless CLAUDE.md says otherwise; wire resolve_effort(role) so config==runtime on the MAS messages.create path. Pin Main's Layer-3 tier deterministically (settings.json effortLevel / env), resolve xhigh-vs-max explicitly. Tighten the Layer-3 fallbackModel chain (drop any primary-equal first hop; add an availability floor). Prune the now-stale Fable-window frontmatter COMMENTS in researcher.md/qa.md (the model pins are already opus post-67.4; the comments still narrate the expired window).",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "71.0",
+          "verification": {
+            "command": "bash -c 'python -c \"import ast; ast.parse(open(\\'backend/config/model_tiers.py\\').read())\" && grep -Eqi \"effortLevel|fallbackModel\" .claude/settings.json'",
+            "success_criteria": [
+              "EFFORT_DEFAULTS is reconciled against the CLAUDE.md effort policy with the rationale recorded; config==runtime on the MAS path (resolve_effort wired or the drift documented as intentional); no silent effort drop (EFFORT_SUPPORTED_MODELS / MODEL_EFFORT_FALLBACK still correct)",
+              "Main's Layer-3 effort tier is pinned deterministically and the xhigh-vs-max choice is stated; the fallbackModel chain has no redundant primary-equal first hop and has an availability floor",
+              "The stale Fable-window frontmatter comments in researcher.md/qa.md are pruned/updated to the opus steady state (pins already reverted in 67.4); no functional model/effort change smuggled in without CLAUDE.md sign-off"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "71.6",
+          "status": "pending",
+          "name": "P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harness/MAS self-audit as a reusable .claude/workflows/ script and schedule a WEEKLY report-only run (local /loop or a report-only routine -- NO auto-apply; it only writes a findings report for the operator, honoring the background-agent-resumption-risk memory). Adopt the subagent context-hygiene pattern: researcher/Q/A return a compact envelope (summary + verdict + handoff file path), NOT the full brief/critique through Main's context. Prune the dormant self-evaluating driver code path if the stress-test confirms it is dead weight.",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "71.0",
+          "verification": {
+            "command": "bash -c 'ls .claude/workflows/ 2>/dev/null | grep -Eqi \"audit|self|stress\" && grep -Eqi \"envelope|summary|file path|return\" .claude/agents/researcher.md .claude/agents/qa.md'",
+            "success_criteria": [
+              "The harness/MAS self-audit is a saved, re-runnable workflow scheduled REPORT-ONLY on a weekly cadence (local); it never auto-applies changes -- it writes a findings report the operator reviews (honors the background-agent unauthorized-action memory)",
+              "researcher.md/qa.md instruct the subagent to return a compact envelope (summary + verdict + handoff path) rather than the full brief/critique through Main's context",
+              "Any dormant/dead self-evaluating driver path confirmed unused by the stress-test is pruned (or explicitly kept with a reason); harness stays exactly 3 agents"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
