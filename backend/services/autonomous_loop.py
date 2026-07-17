@@ -92,15 +92,30 @@ _session_cost: float = 0.0
 _current_cycle_id: Optional[str] = None
 
 
+# phase-70.4 (G1-C): the EFFECTIVE per-cycle session ceiling. Defaults to the
+# hidden $1.00 module const (byte-identical); run_daily_cycle raises it to the
+# operator-visible paper_max_daily_cost_usd when paper_session_budget_reconcile_enabled
+# is ON. Read by _check_session_budget so the reconcile is honored.
+_effective_session_budget: float = _SESSION_BUDGET_USD
+
+
 def _check_session_budget(stage: str = "pre_call") -> None:
     """phase-26.1: raise BudgetBreachError if cumulative session LLM cost
     has reached the per-cycle ceiling. Called before LLM-heavy steps.
     Lazy-imports BudgetBreachError to avoid module-load coupling."""
-    if _session_cost >= _SESSION_BUDGET_USD:
+    if _session_cost >= _effective_session_budget:
         from backend.agents.llm_client import BudgetBreachError
+        # phase-70.4 (G1-A): log the breach BEFORE raising so a cost-truncated cycle
+        # is NEVER silent (the raise is swallowed by gather(return_exceptions=True)).
+        logger.warning(
+            "phase-70.4: SESSION BUDGET BREACH -- cumulative $%.4f >= ceiling $%.4f "
+            "(stage=%s, cycle=%s); remaining candidates this cycle are SKIPPED "
+            "(cost-truncated, NOT a no-signal cycle)",
+            _session_cost, _effective_session_budget, stage, _current_cycle_id,
+        )
         raise BudgetBreachError(
             f"session_budget_breach: cumulative ${_session_cost:.4f} "
-            f">= ceiling ${_SESSION_BUDGET_USD:.4f} (stage={stage}, "
+            f">= ceiling ${_effective_session_budget:.4f} (stage={stage}, "
             f"cycle_id={_current_cycle_id})"
         )
 
@@ -332,7 +347,15 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
     # stamp BQ rows with cycle_id + session_cost_usd. Reset to None in
     # the finally block at end of cycle.
     _current_cycle_id = _cycle_id
-    summary["session_budget_usd"] = _SESSION_BUDGET_USD
+    # phase-70.4 (G1-C): reconcile the per-cycle session ceiling with the
+    # operator-visible daily cost cap when the flag is ON (session==daily); else
+    # the legacy hidden $1.00 (byte-identical). Cost knob only; NO risk threshold moved.
+    global _effective_session_budget
+    if getattr(settings, "paper_session_budget_reconcile_enabled", False):
+        _effective_session_budget = float(getattr(settings, "paper_max_daily_cost_usd", _SESSION_BUDGET_USD))
+    else:
+        _effective_session_budget = _SESSION_BUDGET_USD
+    summary["session_budget_usd"] = _effective_session_budget
 
     # phase-56.2 (55.3 finding F-4): claude-CLI rail health probe at cycle
     # start. The 2026-06 away week ran with the OAuth rail silently down --
@@ -1100,6 +1123,29 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             )
             holding_analyses = [r for r in holding_results if isinstance(r, dict)]
 
+            # phase-70.4 (G1-B): detect a swallowed session-budget breach in the raw
+            # gather results (return_exceptions=True captures BudgetBreachError as a
+            # result element, which the isinstance(dict) filter above silently drops).
+            # Surface it so a cost-truncated cycle is never mistaken for a no-signal one.
+            _budget_breaches = [
+                r for r in (candidate_results + holding_results)
+                if type(r).__name__ == "BudgetBreachError"
+            ]
+            if _budget_breaches:
+                _n_skipped = (len(analyze_tickers) + len(reeval_tickers)) - (
+                    len(candidate_analyses) + len(holding_analyses)
+                )
+                summary["session_budget_breach"] = True
+                summary["session_budget_ceiling_usd"] = _effective_session_budget
+                summary["session_cost_at_breach_usd"] = round(_session_cost, 4)
+                summary["analyses_skipped_by_budget"] = _n_skipped
+                logger.warning(
+                    "phase-70.4: session-budget breach truncated this cycle -- ceiling $%.4f, "
+                    "cost $%.4f, ~%d analysis(es) skipped. Set paper_session_budget_reconcile_enabled "
+                    "(+ paper_max_daily_cost_usd) to lift the per-cycle ceiling.",
+                    _effective_session_budget, _session_cost, _n_skipped,
+                )
+
             # phase-56.2 (55.3 finding F-5): cycle-level degraded-scoring guard.
             # The 2026-05-27 incident wrote 11 rows of 0.0/HOLD (the rail-down
             # fallback) and the digest published them as confident neutrals --
@@ -1467,6 +1513,19 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 )
                 if trade:
                     trades_executed += 1
+
+            # phase-70.4 (G2-A): surface BUY rejections (price-tolerance etc.) to the
+            # cycle summary so a 0-trade cycle is attributable, not silently un-counted.
+            if getattr(trader, "buy_rejections", None):
+                from collections import Counter as _Counter
+                summary["buy_rejections"] = list(trader.buy_rejections)
+                summary["buy_rejections_by_reason"] = dict(
+                    _Counter(r.get("reason", "unknown") for r in trader.buy_rejections)
+                )
+                logger.warning(
+                    "phase-70.4: %d BUY(s) rejected this cycle by reason %s",
+                    len(trader.buy_rejections), summary["buy_rejections_by_reason"],
+                )
 
             # ── Step 7.5: Log signals to BQ signals_log ─────────────
             today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -2127,7 +2186,10 @@ def _degraded_scoring_check(analyses: list[dict]) -> tuple[bool, int, int]:
                 and rec.isupper()
                 and bool(rec)
             )
-            if score_zero or conf_zero_upper:
+            # phase-70.4 (G3-B): a lite parse-fail (or an explicitly-degraded row) is
+            # degraded even though it carries a fabricated score-5 HOLD -- count it so
+            # the P1 degraded-scoring alert fires (this affects only the ALERT, not any trade).
+            if score_zero or conf_zero_upper or a.get("_parse_failed") or a.get("_degraded"):
                 n_degraded += 1
         except (TypeError, ValueError):
             n_degraded += 1
@@ -2396,9 +2458,21 @@ Respond in this exact JSON format:
     if json_match:
         analysis = json_io.loads(json_match.group())
     else:
-        analysis = {"action": "HOLD", "confidence": 0, "score": 5, "reason": "Could not parse analysis"}
+        # phase-70.4 (G3-A): a parse failure is NOT a genuine HOLD. Mark it so the
+        # degraded guard counts it (G3-B) and, under paper_synthesis_integrity_enabled,
+        # so it is dropped from decide_trades input (G3-C) rather than silently
+        # suppressing a BUY as a fabricated score-5 neutral.
+        analysis = {"action": "HOLD", "confidence": 0, "score": 5,
+                    "reason": "Could not parse analysis", "_parse_failed": True}
+        logger.warning(
+            "phase-70.4: lite analysis parse FAILED for %s -- degraded HOLD placeholder "
+            "(not a genuine neutral); response head=%r", ticker, (text or "")[:120],
+        )
 
-    logger.info(f"Claude analysis for {ticker}: {analysis['action']} (confidence={analysis['confidence']}, score={analysis['score']})")
+    if analysis.get("_parse_failed"):
+        logger.info("Claude analysis for %s: PARSE-FAILED -> degraded HOLD placeholder", ticker)
+    else:
+        logger.info(f"Claude analysis for {ticker}: {analysis['action']} (confidence={analysis['confidence']}, score={analysis['score']})")
 
     # phase-25.A: SECOND, INDEPENDENT LLM call -- the Risk Judge. Closes
     # phase-24.4 F-1 (the lite path previously aliased the trader's reason
@@ -2496,6 +2570,13 @@ Respond in this exact JSON format:
         # path (and therefore needs explicit persist via _persist_lite_analysis).
         # The full orchestrator path writes its own row directly.
         "_path": "lite",
+        # phase-70.4 (G3-A/B): mark a parse failure so the degraded-scoring guard counts
+        # it and it is not mistaken for a genuine HOLD. (G3-C) under paper_synthesis_
+        # integrity_enabled, ALSO mark it _degraded so the cycle loop (:~1088) drops it
+        # from decide_trades input -- fail-safe (removing a spurious neutral can never
+        # create a BUY; a genuine parsed HOLD is untouched). OFF -> _degraded absent (legacy).
+        "_parse_failed": bool(analysis.get("_parse_failed")),
+        **({"_degraded": True} if analysis.get("_parse_failed") and getattr(settings, "paper_synthesis_integrity_enabled", False) else {}),
         "recommendation": analysis["action"],
         "final_score": analysis["score"],
         "risk_assessment": risk_assessment,

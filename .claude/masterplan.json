@@ -15726,7 +15726,7 @@
         },
         {
           "id": "70.4",
-          "status": "pending",
+          "status": "done",
           "name": "S3 -- un-gate throughput by making the silent BUY-blockers visible + tunable. Reconcile the hidden per-cycle $1.00 session budget with the operator-visible $2.00 daily cost cap and stop swallowing breaches silently (autonomous_loop.py:90). Surface + log the 5% price-tolerance gate rejections (paper_trader.py:182) and make the tolerance tunable. Make the lite analyzer's parse-fail path distinguishable from a genuine HOLD and stop letting a parse-fail default score=5 evade the degraded-guard (autonomous_loop.py:2250). Observability-first; any threshold change ships flag-gated.",
           "harness_required": true,
           "priority": "P2",

@@ -76,6 +76,10 @@ class PaperTrader:
         # don't need notification). Failures inside the hook are caught
         # and logged so they never break trade execution.
         self.trade_notifier = trade_notifier
+        # phase-70.4 (G2-A): per-instance accumulator of BUYs the trader rejected
+        # (price-tolerance etc.) so a 0-trade cycle is attributable at the summary
+        # layer instead of a silent `return None`. Always-on, $0, no behavior change.
+        self.buy_rejections: list[dict] = []
 
     def _maybe_notify_trade(self, trade: dict) -> None:
         """phase-25.J: best-effort dispatch to the optional trade_notifier."""
@@ -190,6 +194,11 @@ class PaperTrader:
                     "analysis-time price $%.4f (tolerance %.2f%%). Likely stale analysis or news-driven move.",
                     ticker, price, divergence_pct, price_at_analysis, price_tolerance_pct,
                 )
+                self.buy_rejections.append({  # phase-70.4 (G2-A)
+                    "ticker": ticker, "reason": "price_tolerance",
+                    "divergence_pct": round(divergence_pct, 2), "tolerance_pct": price_tolerance_pct,
+                    "live_price": round(price, 4), "analysis_price": round(price_at_analysis, 4),
+                })
                 return None
 
         portfolio = self.get_or_create_portfolio()

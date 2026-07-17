@@ -1,77 +1,70 @@
-# Contract — step 70.3 (S3 + money-path: atomic cross-sector swap + non-US avg-entry fix)
+# Contract — step 70.4 (S3: un-gate throughput — surface + reconcile the silent BUY-gates)
 
-**Phase:** phase-70 | **Step:** 70.3 | **Priority:** P1 | harness_required: true
-**Cycle:** 1 | Date: 2026-07-17 | **Type:** backend money-path, flag-gated default-OFF (double-gated behind
-`paper_swap_enabled` too), $0, paper-only, DARK-until-token, fail-safe. live_check: none (no UI).
+**Phase:** phase-70 | **Step:** 70.4 | **Priority:** P2 | harness_required: true
+**Cycle:** 1 | Date: 2026-07-17 | **Type:** backend observability (always-on, $0) + 2 flag-gated behavior knobs
+(default-OFF). live_check: none (no UI).
 
 ## Research-gate summary (gate PASSED)
 
 Researcher via Workflow structured-output (Opus 4.8, $0). Envelope: **gate_passed=true**, tier=complex,
-**8 external sources read in full**, 14 snippet-only, 45 URLs, recency scan performed, 6 internal files
-re-anchored on HEAD ec64e4ea (70.0's 594/620/675 refs drifted +9). Brief: `research_brief_70.3.md`.
+**8 external sources read in full**, 26 snippet-only, 34 URLs, recency scan performed, 6 internal files
+re-anchored on HEAD d0efa50d. Brief: `research_brief_70.4.md`. Grounding: SEC Rule 15c3-5 (rejections are
+auditable first-class events); arXiv 2603.07752 (rejection tolerance is a first-class MEASURED state; silent
+rejections hurt throughput); LLM cost-observability practice (surface budget truncation, never silent).
 
-Grounding: SagaLLM arXiv 2503.11951 (pre-execution validation + "either fully committed S' or coherent
-rollback"); microservices.io Saga + Temporal (compensation is a designed inverse, idempotent IfPresent);
-multi-currency weighted-average-cost accounting (unit consistency).
+## Confirmed on HEAD
 
-Confirmed bugs on HEAD: (a) swap BUY sizing `buy_amount=nav*(pct/100.0)` (portfolio_manager.py:684) has NO
-`min(available_cash)` and NO $50 floor, and the SELL is appended (:677) BEFORE the BUY amount is known → a SELL
-that executes while its paired BUY drops = net -1 position. (b) add-on `new_avg=new_cost(USD)/new_qty(LOCAL)`
-(paper_trader.py:308) mixes USD cost with local shares → corrupts avg_entry_price for non-US add-ons (the
-first lot :338 stores the LOCAL price; execute_sell:472 treats avg_entry as LOCAL).
+- **Session budget**: `_SESSION_BUDGET_USD=$1.00` (autonomous_loop.py:90, hidden module const) is HALF the
+  operator-visible `paper_max_daily_cost_usd=$2.00` and fires first; `_check_session_budget` (:95-105) raises
+  `BudgetBreachError` with NO log; captured under `gather(return_exceptions=True)` (:1090/:1097) then dropped by
+  the `isinstance(r,dict)` filter (:1094/:1101) → silent truncation (never reaches the clean halt at :1585).
+- **Price-tolerance** (paper_trader.py:169-193): ALREADY logs ticker+drift (:188) AND is ALREADY tunable via
+  `paper_price_tolerance_pct` (settings.py:557). Gap: the WARN-only `return None` is UN-COUNTED; the caller
+  (autonomous_loop.py:1468 `if trade:`) is a silent no-op → 0-trade cycles un-attributable at the summary layer.
+- **Lite parse-fail** (autonomous_loop.py:2399): the parse-fail else-branch defaults `{HOLD, score:5}` with no
+  log; the returned lite dict has no top-level `confidence`, so `_degraded_scoring_check` (:2108) sees score 5 ≠ 0
+  and conf None → it EVADES the degraded guard and masquerades as a genuine HOLD (silently suppresses a BUY).
 
-## Hypothesis / design (all flag-gated default-OFF; OFF ⇒ byte-identical)
+## Hypothesis / design
 
-1. **Atomic swap (criterion 1)** — new `paper_atomic_swap_enabled`. LAYER 1 (emit): thread `available_cash`
-   into `_compute_swap_candidates`; size the swap BUY `min(nav*pct/100, available_cash + freed)` (freed =
-   weakest.market_value), apply the $50 floor, and only emit BOTH legs together (tagged with a shared
-   `swap_group_id`) when fundable — else drop the whole pair (never a lone SELL). LAYER 2 (execution): a
-   `_execute_swap_pair` helper runs the pair **BUY-first with reserved cash** after a **SELL-feasibility
-   pre-check** (position exists + FX available): pre-check → BUY(reserved_cash=freed) → if BUY drops, SELL is
-   never attempted (atomic); the SELL (pre-validated) then executes. The SELL-fails-after-BUY branch is
-   unreachable given the pre-check (defensive compensation only: delete the just-created BUY + LOUD log). This
-   avoids any ledger reversal. Design note: I use BUY-first (vs the brief's SELL-first+compensation) because a
-   paper ledger makes BUY-first strictly simpler and equally atomic — the common failure (BUY drops) needs NO
-   compensation, and the SELL pre-check removes the rare one. `execute_buy` gains `reserved_cash`.
-2. **Cross-sector rotation (criterion 2)** — new `paper_cross_sector_rotation_enabled`. OFF → same-sector-only
-   (portfolio_manager.py:603 unchanged, byte-identical). ON → also consider the weakest-OVERALL holding across
-   all sectors, REUSING the churn-fix exclusion + clamped denom + untouched 25% delta bar; fire only if
-   projected portfolio HHI strictly drops; RE-VALIDATE the destination-sector count + NAV-pct caps on the
-   projected composition (a fail-safe block, not a threshold move). Hard dependency: requires
-   `paper_swap_churn_fix_enabled` ON (else no-op + WARN) so it inherits the anti-churn safety.
-3. **avg_entry FX fix (criterion 3)** — new `paper_avg_entry_fx_fix_enabled`. ON →
-   `new_avg=(old_qty*avg_entry + quantity*price)/new_qty` (LOCAL-share-weighted LOCAL prices); cost_basis stays
-   USD. Byte-identical for US (quantity*price == amount_usd at fx=1). OFF → the legacy USD/LOCAL formula.
-4. **Fail-safe (criterion 4)** — every new path holds/drops on failure; NO risk-limit threshold moved; the
-   destination-cap re-validation only ADDS a default-OFF guard.
+ALWAYS-ON observability ($0, no threshold moved): **G1-A** log at the budget raise; **G1-B** scan the raw gather
+results for `BudgetBreachError` before the isinstance filter → `summary['session_budget_breach'/…]` + WARN;
+**G2-A** a `PaperTrader.buy_rejections` accumulator (append `{ticker,reason,divergence_pct,…}` at the
+price-tolerance `return None` + the other None-exits) folded into `summary['buy_rejections']` + by-reason count;
+**G3-A** log WARN at the parse-fail + set `_parse_failed=True` on the returned dict + fix the mislabeled INFO log
+(:2401); **G3-B** extend `_degraded_scoring_check` to count `_parse_failed`/`_degraded` + `summary['lite_parse_failures']`
+(affects ONLY the P1 degraded-scoring alert, NOT any trade).
 
-## Immutable success criteria (verbatim from masterplan.json 70.3)
+FLAG-GATED behavior changes (default-OFF → byte-identical): **G1-C** new `paper_session_budget_reconcile_enabled`
+→ effective session budget = `paper_max_daily_cost_usd` when ON (single knob, session==daily==$2), else $1.00
+(cost knob only, NO risk threshold moved); **G3-C** reuse the EXISTING `paper_synthesis_integrity_enabled` → set
+`_degraded=True` on a parse-fail so the unconditional guard (:1080) drops it from decide_trades input (fail-safe:
+removing a spurious neutral can never create a BUY; a genuine parsed HOLD is untouched).
 
-1. The swap path cannot leave the book smaller than before the swap: either both legs execute or neither does
-   (atomic/rollback); the BUY leg is bounded by available_cash and honors the $50 floor -- proven by a
-   red->green test covering the SELL-executes-BUY-drops scenario
-2. The swap can rotate into a DIFFERENT sector (not only same-sector churn), gated behind the
-   diversification/churn flag; with the flag OFF, behavior is byte-identical to today
-3. Add-to-existing-position computes avg_entry_price in consistent units for non-US tickers (no USD-cost /
-   local-share mix) -- proven by a test with a non-USD ticker
-4. All changes are fail-safe (a failure blocks/holds rather than corrupting the book); no live risk-limit
-   thresholds moved
+## Immutable success criteria (verbatim from masterplan.json 70.4)
+
+1. The per-cycle session budget and the operator-visible daily cost cap are reconciled (no hidden budget that is
+   a fraction of the visible cap) OR the hidden budget is surfaced to the operator and logged on breach -- a
+   cost-cut cycle is never silent
+2. Price-tolerance rejections are logged with ticker + drift so 0-trade cycles are diagnosable, and the tolerance
+   is tunable via settings
+3. A lite-analyzer parse/rail failure is logged and counted as degraded (does not masquerade as a legitimate HOLD
+   via a default score=5) so it cannot silently suppress BUYs
+4. Any threshold that changes trading behavior is flag-gated default-OFF; observability additions are always-on and $0
 
 Verification command (immutable):
-`bash -c 'ls backend/tests/ | grep -Eqi "70_3|swap|atomic" && python -c "import ast; ast.parse(open(\'backend/services/portfolio_manager.py\').read()); ast.parse(open(\'backend/services/paper_trader.py\').read())"'`
+`bash -c 'grep -Eqi "session budget|per-cycle|cost cap" backend/services/autonomous_loop.py && ls backend/tests/ | grep -Eqi "70_4|budget|tolerance|gate"'`
 
 ## Plan
-2 (this contract, before code). 3. GENERATE: settings.py (3 flags); TradeOrder.swap_group_id; execute_buy
-`reserved_cash` param + avg_entry gated fix; `_compute_swap_candidates` cash-bound + $50 floor + swap_group_id
-+ cross-sector rotation (available_cash threaded at the :480 call); `_execute_swap_pair` helper + autonomous_loop
-wiring (atomic-ON groups via the helper, rest via the flat loops; OFF byte-identical); test
-`test_phase_70_3_atomic_swap.py` (red->green atomic; non-US avg_entry; OFF byte-identical). Verify: command +
-import-smoke + pytest. 4. Q/A (Workflow). 5. LOG. 6. FLIP.
+2 (this contract). 3. GENERATE: settings.py (new paper_session_budget_reconcile_enabled); autonomous_loop.py
+(G1-A/B/C, G3-A/B/C, fold buy_rejections into summary); paper_trader.py (G2-A buy_rejections accumulator);
+test test_phase_70_4_gate_observability.py. Verify: command + import-smoke + pytest. 4. Q/A (Workflow). 5. LOG. 6. FLIP.
 
 ## Boundaries (binding)
-$0, paper-only; flag-gated default-OFF + double-gated behind paper_swap_enabled (DARK-until-token); NO risk
-threshold moved; historical_macro FROZEN; hysteresis BANNED; fail-safe; harness stays 3 agents.
+$0 metered; observability always-on; behavior changes flag-gated default-OFF (byte-identical OFF); NO risk-limit
+threshold moved; historical_macro FROZEN; hysteresis untouched; fail-safe; harness stays 3 agents.
 
 ## References
-research_brief_70.3.md; design_trade_diversity_70.md (b); confirmed_findings.json (#3/#9/#10). Code:
-portfolio_manager.py:20/480/507/603/629/677-702, paper_trader.py:119/197/217/305-338/365-404, autonomous_loop.py:1313-1374, settings.py:328/344.
+research_brief_70.4.md; design_trade_diversity_70.md (c); confirmed_findings.json (#6/#7/#8). Code:
+autonomous_loop.py:90/95-105/335/1037-1101/1103-1131/2108-2135/2395-2401/2493-2516, paper_trader.py:169-193/1445-1469,
+settings.py:371/557.
