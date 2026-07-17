@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `7708b87d` | phase-70.4: S3 -- un-gate throughput by making the silent BUY-blockers visible + tunable. Reconci... |
 | 2026-07-17 | `8d858211` | phase-70.3: S3 + money-path -- swap/rotation correctness & safety. Make the sector-blocked swap p... |
 | 2026-07-17 | `1d493993` | phase-70.2: S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to pr... |
 | 2026-07-16 | `64257b05` | phase-70.1: S1 -- make the setting actually changeable. Fix the frontend clear-snapback bug (cock... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-10 | `7a833f21` | phase-67.5: Claude Code feature adoption -- fallbackModel chain, SessionStart Sunday-revert tripwire |
 | 2026-07-10 | `b629228d` | phase-67.6: Layer-2 API modernization -- Fable-5/Sonnet-5 request guards (fable omits thinking; sonn |
 | 2026-07-09 | `0a18af08` | phase-67.0: install steps 67.5 + 67.6 (latest-features gap closure, operator-approved plan) + 67.4 s |
-| 2026-07-09 | `4af84d4e` | phase-67.3: researcher write-first/incremental-brief discipline codified; stale scaffolding pruned ( |
 
 ---
 
+### v6.61.4 — phase-70.4: S3 -- un-gate throughput by making the silent BUY-blocker... (2026-07-17)
+
+- **phase-70.4: S3 -- un-gate throughput by making the silent BUY-blockers visible + tunable. Reconci...**
 ### v6.61.3 — phase-70.3: S3 + money-path -- swap/rotation correctness & safety. Ma... (2026-07-17)
 
 - **phase-70.3: S3 + money-path -- swap/rotation correctness & safety. Make the sector-blocked swap p...**
