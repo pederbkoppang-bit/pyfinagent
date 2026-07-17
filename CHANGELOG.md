@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `b628953e` | phase-63.1: Playwright walk of all 22 routes (find frontend/src/app -name page.tsx; incl. one con... |
 | 2026-07-17 | `515c35e1` | phase-71.5: P3 -- effort/model posture reconciliation (max-where-it-helps, cost-appropriate elsew... |
 | 2026-07-17 | `7c134fde` | phase-71.6: P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harnes... |
 | 2026-07-17 | `0e003e6e` | phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + subagent context-hygiene + dead-dri |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-13 | `c1ae3fd0` | chore: phase-70 goal draft + masterplan steps from 2026-07-13 ultracode trade-diversity audit |
 | 2026-07-13 | `0975a7ea` | phase-67.4: Post-window revert -- Fable pins back to Opus 4.8 on/before 2026-07-12; keep every ar... |
 | 2026-07-11 | `8463b952` | phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified;... |
-| 2026-07-11 | `b25aeab2` | phase-69.3: P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_mac... |
 
 ---
 
+### v6.62.9 — phase-63.1: Playwright walk of all 22 routes (find frontend/src/app -... (2026-07-17)
+
+- **phase-63.1: Playwright walk of all 22 routes (find frontend/src/app -name page.tsx; incl. one con...**
 ### v6.62.8 — phase-71.5: P3 -- effort/model posture reconciliation (max-where-it-h... (2026-07-17)
 
 - **phase-71.5: P3 -- effort/model posture reconciliation (max-where-it-helps, cost-appropriate elsew...**
