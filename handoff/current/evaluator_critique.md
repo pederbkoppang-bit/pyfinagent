@@ -1,106 +1,96 @@
-# Evaluator Critique — Step 71.1 (Workflow structured-output as the first-class Q/A + Researcher launch)
+# Evaluator Critique — Step 71.2 (Layer-2 honesty: structured outputs + kill silent-failure classes)
 
-**Evaluator:** fresh, independent Q/A via the **newly-delivered** `.claude/workflows/qa-verdict.js` (dogfood) on
-the Workflow structured-output path (Opus 4.8, `effort: max`, `model: opus`, $0 Max rail). Verdict = the captured
-`agent()` return value; transcribed VERBATIM by Main (no-self-eval guardrail).
+**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8,
+`effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main.
 
 ---
 
-## Cycle 1 — VERDICT: PASS (run wf_c0f9d225-ab5; transcribed verbatim)
+## Cycle 1 — VERDICT: CONDITIONAL (run wf_4c499286-704; transcribed verbatim)
 
-**ok:** true | **verdict:** PASS | **harness_compliance_ok:** true | **certified_fallback:** false
-**violated_criteria:** [] | **violation_details:** []
+**ok:** false | **verdict:** CONDITIONAL | **harness_compliance_ok:** true | **certified_fallback:** false
+**violated_criteria:** `["qa_md_1a_python_lint_gate_ruff_F401"]`
 
 **reason (verbatim):**
-> All 4 immutable success criteria for step 71.1 are MET, harness compliance is 5/5 clean, the immutable
-> verification command exits 0, and no unintended production code changed. C1 is empirically PROVEN by dogfood:
-> this Q/A is running inside .claude/workflows/qa-verdict.js -- its PROMPT is byte-identical to my received prompt
-> and my verdict is the captured agent() return value via VERDICT_SCHEMA, with no dependence on a file-write flush.
-> C2: qa.md, docs/runbooks/per-step-protocol.md (+ Subagent-runtime-semantics), and CLAUDE.md each carry the
-> 'Launch -- Workflow structured-output is FIRST-CLASS; Agent-tool is the fallback' section with the 'Main
-> transcribes the returned verdict VERBATIM into evaluator_critique.md' guardrail (researcher.md too). C3:
-> single-Q/A-per-step + exactly-3-agents + no-second-opinion-shopping / file-based fresh-respawn preserved
-> unchanged; no separate harness-verifier or parallel pair re-introduced. C4: the roster-snapshot caveat is
-> explicitly noted (Workflow reads qa.md from disk live; only the Agent-tool qa type snapshots at session start).
-> Deterministic gates all green: verification cmd exit=0, node --check exit=0, tsc --noEmit exit=0, eslint 0 errors.
+> All 4 immutable criteria are independently VERIFIED MET (C1 both Claude sites route through _call_agent_json with
+> output_config.format json_schema, subset-compliant schemas, decision logic byte-identical to legacy; C2 clobber
+> else-branch is now `return None` with a genuine red->green test that would fail pre-fix; C3 both spot-check
+> methods fully deleted, zero external callers, immutable grep exit 0 with no 1.02/0.95/0.99 literal; C4
+> LOOSE_DSR_MIN==0.95, rubric is an f-string so {LOOSE_DSR_MIN} renders 0.95 -> prompt byte-identical, shared
+> _call_agent untouched, no model/effort change). Harness compliance is clean 5/5 and no unintended production code
+> changed. The SINGLE blocker: the qa.md §1a Python lint gate returns exit 1 -- ruff F401 flags an unused
+> `import pytest` at test_phase_71_2_layer2_honesty.py:18 (this step) plus a pre-existing unused `import os` at
+> evaluator_agent.py:34. Per qa.md §1a a non-zero lint exit blocks PASS; because no immutable criterion is missed
+> and the fix is 1-2 import lines, this is a fixable CONDITIONAL, not a FAIL.
 
-**checks_run (verbatim):** harness_compliance_audit_5_of_5, research_gate_gate_passed_true_7_sources_recency_scan,
-contract_before_generate_mtime_ordering, immutable_verification_command_exit_0, node_check_qa_verdict_js_exit_0,
-dogfood_prompt_identity_match, structuredoutput_schema_matches_VERDICT_SCHEMA, frontend_tsc_noEmit_exit_0,
-frontend_eslint_0_errors, git_scope_no_production_code_changed, archive_baseline_hook_sideeffect_benign,
-docs_C2_launch_section_grep, docs_C3_single_qa_exactly3_no_shopping_grep,
-re_split_guard_no_harness_verifier_reintroduced, log_last_no_71.1_harness_log_entry,
-no_verdict_shopping_first_qa_on_71.1, researcher_md_launch_note, R11_monitor_watchdog_exclusion_documented
+**violation_details (verbatim):** `{violation_type: Threshold_Not_Met, action: "uvx ruff check --select
+F821,F401,F811 ...", state: "exit=1; 2 F401 -- unused import pytest (test, NEW) + unused import os
+(evaluator_agent.py:34, pre-existing, in a modified file)", constraint: "qa.md §1a Python lint gate: non-zero ruff
+exit blocks PASS"}`
 
-**notes (verbatim excerpt):** INDEPENDENT dogfood evaluation (FIRST Q/A on 71.1). HARNESS COMPLIANCE 5/5
-(research-gate gate_passed=true 7 sources; contract-before-generate mtime-proven; results present; log-last —
-no phase=71.1 in harness_log, masterplan pending; no-verdict-shopping — critique on disk was still the 71.0 file).
-DETERMINISTIC all green. C1 MET (empirical — I AM the live return-value proof, launched by this very script). C2
-MET (all three named docs + researcher.md). C3 MET (single-Q/A + exactly-3 + no-shopping preserved; re-split guard
-clean). C4 MET on the docs/caveat portion.
-> NON-BLOCKING NOTES: (a) experiment_results.md claimed the JS header bakes in R1/R4/R11 but the header named only
-> R1+R4+no-auto-PASS; R11 was documented in per-step-protocol.md, not the JS header — a documentation-location
-> wording imprecision, not a substantive gap (R11 IS genuinely excluded + documented). (b) C4 REMINDER: the LOG
-> step MUST include the separation-of-duties Peder-review request AND the note that
-> scripts/qa/verify_qa_roster_live.sh must confirm the new qa.md/researcher.md roster next session.
-> Also observed: stepId defaulted to 'UNSPECIFIED' / empty criteria → the args reached the script as a JSON string
-> (empty-args launch), and the script self-recovered context from the masterplan + handoff.
+**notes (verbatim excerpt):** SUBSTANCE IS SOUND -- this CONDITIONAL is purely the lint-gate hygiene blocker; the
+four immutable criteria are all met and fail-safe by construction. Verified in depth: _call_agent_json degrades to
+_gemini_text_call on auth-error and to the shared _call_agent on any other error; the shared _call_agent def is NOT
+in the diff. The clobber red->green test genuinely reaches the fixed else-branch. The prompt is an f-string so
+{LOOSE_DSR_MIN} renders 0.95 (byte-identical). FO-71.2-A is an HONEST deferral (the grep is satisfied by the
+orchestrator; _call_model is Gemini; deferring the live evaluate_proposal path is prudent).
+> NON-BLOCKING SCOPE-HONESTY OBSERVATION on C1: "worst-case == today's behavior" is slightly optimistic for one
+> rare sub-path -- when Anthropic is DOWN, the reworded JSON prompt goes to Gemini WITHOUT constrained decoding,
+> and if Gemini wraps output in ```json fences, json.loads fails and the legacy text parser finds no scores -> the
+> gate returns None (keeps original). Still fail-safe (no crash/clobber) but loses answer-improvement on that
+> sub-path. The classifier path is robust (parse_llm_classification strips fences). Rare degraded path, fail-safe,
+> violates no immutable criterion.
 
 ---
 
-## Cycle-1 → post-PASS hardening (Main; deterministic re-verify + fresh Q/A on changed code)
+## Cycle-1 → fix (Main; per canonical cycle-2 flow — fix blocker + address the honest finding + fresh respawn)
 
-The verdict was PASS, but the Q/A's transparency surfaced two real items I acted on rather than deferring — the
-harness's own core evaluator-launcher should not ship half-working:
+1. **Lint blocker (required for PASS):** removed the unused `import pytest` (test file) + the pre-existing unused
+   `import os` (evaluator_agent.py:34). `uvx ruff check --select F821,F401,F811` now **exit 0** (re-run, verified).
+2. **C1 Gemini-fallback robustness (the honest non-blocking finding — fixed at the source, not just documented):**
+   the gate's structured parse now **strips ```json code fences** before `json.loads` (mirrors
+   `parse_llm_classification`). So on the Anthropic-DOWN + Gemini-fenced-JSON sub-path the structured parse still
+   works → the gate keeps its answer-improvement ability. With this, post-71.2 is **≥ today on every path**. New
+   test `test_c1_structured_fenced_json_still_parses` proves it. experiment_results "worst-case" claim corrected.
 
-1. **Robust args parsing** (the "empty-args launch" observation). `qa-verdict.js` now parses `args` whether it
-   arrives as a parsed object, a JSON string (the Workflow tool stringifies scriptPath args on some paths), or
-   absent — proven by a node unit check across all three forms (`string→71.1/2`, `object→71.1/1`, `undef→{}`).
-   The parameterized launch now genuinely threads its parameters; empty/unparseable args still self-recover.
-2. **R11 wording** (note a). R11 (no Monitor/transcript-mtime watchdog) is now named in the JS header alongside
-   R1/R4/no-auto-PASS, so the experiment_results claim is accurate at its source; experiment_results wording synced.
+Re-verified deterministically after the fixes: ruff exit 0; immutable verification exit 0; **28 tests pass**
+(11 new 71.2 incl. the fence test + 17 regression across evaluator/fallback/classification); both modules import.
+The changes are import-lines + an additive fence-strip (strictly a superset) → the four criteria remain verified.
+Evidence CHANGED → a **fresh** Cycle-2 Q/A runs on it (documented fix-then-respawn; NOT verdict-shopping).
 
-Both are supersets (they cannot make any criterion FAIL). `node --check` OK; immutable verification still exit 0.
-Because these edited the graded script, a **fresh Cycle-2 Q/A runs on the changed code, WITH args threaded** —
-double duty: re-confirm the criteria hold on the new script AND prove the parameterized path end-to-end. This is
-fresh-respawn-on-CHANGED-evidence, the documented pattern (not verdict-shopping — the cycle-1 verdict was already
-PASS; the respawn re-verifies an improvement, it does not shop for a better verdict).
-
-## Cycle 2 — VERDICT: PASS (fresh Q/A via qa-verdict.js WITH args; run wf_b1ed5841-167; transcribed verbatim)
+## Cycle 2 — VERDICT: PASS (fresh Q/A on the lint-clean + fence-robust code; run wf_583e066f-aa5; transcribed verbatim)
 
 **ok:** true | **verdict:** PASS | **harness_compliance_ok:** true | **certified_fallback:** false
 **violated_criteria:** [] | **violation_details:** []
 
 **reason (verbatim excerpt):**
-> CYCLE-2 fresh Q/A on CHANGED code (post-PASS robustness hardening of qa-verdict.js; cycle-1 was PASS, so this is
-> fresh-respawn-on-changed-evidence, NOT verdict-shopping). All 4 immutable criteria for 71.1 remain MET, harness
-> compliance is 5/5 clean, and no backend/frontend production code changed. SPECIAL CHECK (A) PARAMETERIZED-PATH
-> PROOF — CONFIRMED: my received prompt was shaped by .claude/workflows/qa-verdict.js with stepId='71.1'
-> substituted AND the 4 immutable criteria enumerated INLINE (the criteria.map branch, not the fallback). I
-> received step_id and criteria THREADED FROM ARGS via my prompt; I did NOT have to self-recover them. The
-> args-threading fix WORKS. SPECIAL CHECK (B): node --check exit=0 and the immutable verification command exit=0;
-> the hardening is strictly ADDITIVE and did NOT weaken any of the 4 criteria. C1 MET (empirical — I AM running
-> inside it; verdict is the constrained-decoding return value, not a file-write flush). C2 MET (qa.md +42,
-> per-step-protocol +37, CLAUDE.md +26, researcher.md +23). C3 MET (docs diff purely ADDITIVE, 128 insertions /
-> 0 deletions; single-Q/A + exactly-3 + no-shopping preserved; no parallel pair / harness-verifier reintroduced).
-> C4 MET (roster-snapshot caveat documented; the harness_log Peder-review + verify_qa_roster_live.sh note is a
-> LOG-step commitment, correctly deferred per log-last). Deterministic gates all green.
+> All 4 immutable criteria are independently VERIFIED MET and the cycle-1 lint blocker is RESOLVED (qa.md §1a ruff
+> F821,F401,F811 now exits 0 -- "All checks passed!"). C1: both Claude JSON sites now route through the fail-safe
+> helper _call_agent_json with output_config={"format":{"type":"json_schema","schema":...}}; I confirmed via $0
+> local SDK introspection that the PINNED anthropic 0.96.0 exposes output_config on messages.create, so on
+> claude-sonnet-4-6 (GA) this is genuine constrained decoding; QUALITY_VERDICT_SCHEMA + CLASSIFY_SCHEMA are
+> subset-compliant and CLASSIFY_SCHEMA field names match parse_llm_classification exactly. C2: the clobber
+> else-branch is now `return None, usage`; I traced the caller -> the ORIGINAL analyst answer stands; test_c2 is a
+> genuine red->green. C3: both spot-check methods fully deleted (zero external callers), the 1.02/0.95/0.99 dict +
+> CONDITIONAL->PASS flip are gone, immutable grep exit 0. C4: LOOSE_DSR_MIN==0.95 (byte-identical, asserted); no
+> model/effort change; thresholds byte-identical; shared _call_agent untouched. Deterministic: lint exit 0,
+> immutable exit 0, 28 tests pass, both import, no unintended production code changed. Harness 5/5. FO-71.2-A
+> deferral is HONEST. Every change is fail-safe; worst case is today's behavior, strictly better (fail-safe None,
+> no clobber) on the unparseable path.
 
-**notes (verbatim excerpt):** PARAMETERIZED-PATH PROOF CONFIRMED WORKING. ARGS-PARSER independently replicated
-(node -e on the actual lines): JSON-string→71.1/2, object→71.1/1, absent→UNSPECIFIED/0, unparseable→graceful (no
-throw), camelCase→handled — matches the experiment_results claim exactly (real anti-rubber-stamp verification).
-NON-BLOCKING carried forward: (a) C4 LOG-STEP REMINDER — the LOG entry MUST include the separation-of-duties
-Peder-review request + the verify_qa_roster_live.sh next-session note; (b) frontend/tsconfig.tsbuildinfo untracked
-build-cache artifact (tsc side-effect, arguably gitignore); (c) research_brief header stale "IN PROGRESS/2026-07-13"
-(cosmetic; envelope authoritative). None affects any immutable criterion.
+**notes (verbatim excerpt):** CYCLE 2, fresh Q/A on CHANGED evidence (documented fix-then-respawn). Harness 5/5
+(research gate gate_passed=true 5 sources; contract-before-generate mtime-proven; results present; log-last — 71.2
+not in harness_log, masterplan in-progress; no verdict-shop). NON-BLOCKING OBSERVATIONS (no verdict effect): (a)
+the structured parse decides PASS/FAIL from the four scores and ignores the schema's `verdict` enum — intentional,
+byte-identical to the legacy score-driven block. (b) _call_agent_json returns text-or-"" vs _call_agent's
+text-or-"No response." — benign, still fail-safe. (c) no live end-to-end MAS Claude call (metered, needs Peder
+approval per CLAUDE.md); the 28 direct-method tests + import smoke are the substantive exercise for an internal
+fail-safe correctness change. Live book untouched; historical_macro FROZEN; harness stays exactly 3 agents.
 
 ## Main's disposition (recorded; not a verdict edit)
-- Both Cycle-2 non-blocking hygiene items were **fixed before the flip**: (b) `*.tsbuildinfo` + the specific path
-  added to `.gitignore` (verified `git check-ignore` matches → the build cache can never be committed); (c) the
-  research-brief header updated to `COMPLETE — gate_passed=true`, date 2026-07-17.
-- (a) is actioned in the LOG step below (the separation-of-duties Peder-review request + `verify_qa_roster_live.sh`
-  next-session note), satisfying the C4 harness_log clause.
-- **Separation of duties honored:** Main authored the qa.md/researcher.md edits; the evaluator was an INDEPENDENT
-  fresh general-purpose instance that read qa.md **fresh from disk** and evaluated the artifacts — it did not run
-  under a Main-authored verdict. The Peder-review request below covers the standing agent-file-edit rule before a
-  LATER step depends on the new wording.
+- Both Cycle-1 items were fixed at the SOURCE, not just documented: the ruff blocker (unused imports removed → exit
+  0) and the honest degraded-path finding (fence-stripping added → the gate now works on the Gemini-fallback JSON
+  path; post-71.2 is ≥ today on every path). The three Cycle-2 non-blocking observations are accurate and accepted
+  as-is (all intentional/benign/fail-safe).
+- **FO-71.2-A** (Gemini structured output on `evaluator_agent._call_model`) remains an honest deferral — not
+  criterion-required (`_call_model` is Gemini; the grep is satisfied by the orchestrator), and prudently avoids
+  risking the high-frequency live `evaluate_proposal` path. Recommended approach recorded in experiment_results.

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-17T12:37:06.064710+00:00",
+  "updated_at": "2026-07-17T13:29:54.640622+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15808,7 +15808,7 @@
         },
         {
           "id": "71.2",
-          "status": "pending",
+          "status": "done",
           "name": "P1 -- Layer-2 honesty: guaranteed structured outputs + kill silent-failure classes. Adopt output_config.format json_schema (constrained decoding) or strict submit-verdict tools on the highest-frequency Claude JSON sites (start with the quality gate + the classifier in multi_agent_orchestrator.py). Fix the response-clobber bug at multi_agent_orchestrator.py:883-885 so a parse failure PRESERVES the original agent answer instead of returning the gate response to the user. Delete evaluator_agent.py::_run_spot_checks + evaluate_with_spot_checks (or wire them to a real backtest_engine spot-check) so the evaluator can never flip CONDITIONAL->PASS on fabricated 1.02/0.95/0.99 numbers; add output_config.format to evaluator_agent._call_model. All Layer-2 (metered) -- no effort bump, structured-output is a $0-delta correctness upgrade.",
           "harness_required": true,
           "priority": "P1",

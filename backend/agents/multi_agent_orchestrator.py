@@ -61,6 +61,45 @@ MAX_RESEARCH_ITERATIONS = 3
 MAX_TOOL_TURNS = 5
 
 # ═══════════════════════════════════════════════════════════════════
+# phase-71.2: constrained-decoding output schemas for the two highest-
+# frequency Claude JSON sites (quality gate + classifier). Passed via
+# `output_config={"format": {"type": "json_schema", "schema": ...}}` so the
+# Claude response is GUARANTEED valid JSON (structured-outputs GA on
+# claude-sonnet-4-6). Subset rules: additionalProperties MUST be false, all
+# keys in `required`, no minimum/maximum (0.0-1.0 scores stay plain `number`
+# and thresholds are applied CLIENT-side). Any SDK/schema hiccup degrades to
+# the plain text call (see _call_agent_json) -- never a live break.
+# ═══════════════════════════════════════════════════════════════════
+QUALITY_VERDICT_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["accuracy", "completeness", "groundedness", "conciseness", "verdict", "improved_response"],
+    "properties": {
+        "accuracy": {"type": "number"},
+        "completeness": {"type": "number"},
+        "groundedness": {"type": "number"},
+        "conciseness": {"type": "number"},
+        "verdict": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "improved_response": {"type": "string"},
+    },
+}
+
+CLASSIFY_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["primary", "secondary", "reasoning", "complexity", "triggers_harness"],
+    "properties": {
+        # "" (empty) when there is no secondary agent -- parse_llm_classification
+        # treats a falsy/unknown secondary as "no parallel".
+        "primary": {"type": "string", "enum": ["main", "qa", "research"]},
+        "secondary": {"type": "string"},
+        "reasoning": {"type": "string"},
+        "complexity": {"type": "string", "enum": ["simple", "moderate", "complex"]},
+        "triggers_harness": {"type": "boolean"},
+    },
+}
+
+# ═══════════════════════════════════════════════════════════════════
 # TOOL DEFINITIONS (for subagent tool loops)
 #
 # From the diagram: each subagent runs web_search → think(evaluate)
@@ -794,14 +833,13 @@ class MultiAgentOrchestrator:
             f"  Scores: Accuracy=0.4, Completeness=0.1, Groundedness=0.1, Conciseness=0.9\n"
             f"  Verdict: FAIL (avg 0.375 — no specific data from actual runs)\n\n"
             f"NOW EVALUATE THE RESPONSE ABOVE.\n\n"
-            f"Output format (EXACTLY this, nothing else):\n"
-            f"ACCURACY: <score>\n"
-            f"COMPLETENESS: <score>\n"
-            f"GROUNDEDNESS: <score>\n"
-            f"CONCISENESS: <score>\n"
-            f"VERDICT: PASS|FAIL\n"
-            f"If FAIL, add on the next line:\n"
-            f"IMPROVED: <your complete replacement response>\n"
+            f"Return a JSON object with EXACTLY these fields (nothing else):\n"
+            f'  "accuracy": <0.0-1.0>,\n'
+            f'  "completeness": <0.0-1.0>,\n'
+            f'  "groundedness": <0.0-1.0>,\n'
+            f'  "conciseness": <0.0-1.0>,\n'
+            f'  "verdict": "PASS" or "FAIL",\n'
+            f'  "improved_response": "<your complete replacement response if FAIL, else an empty string>"\n'
         )
 
         comms_config = AGENT_CONFIGS[AgentType.COMMUNICATION]
@@ -821,10 +859,55 @@ class MultiAgentOrchestrator:
 
         loop = asyncio.get_event_loop()
         gate_response, usage = await loop.run_in_executor(
-            None, self._call_agent, gate_config, gate_prompt,
+            None, self._call_agent_json, gate_config, gate_prompt, QUALITY_VERDICT_SCHEMA,
         )
 
-        # Parse scoring rubric response
+        # phase-71.2 PRIMARY parse: on the Claude path gate_response is
+        # GUARANTEED valid JSON (constrained decoding). Parse it and apply the
+        # SAME client-side thresholds (any<0.6 or avg<0.7 = FAIL) as the legacy
+        # path. On the Gemini-fallback / degraded path the text is not our JSON
+        # -> fall through to the legacy text-rubric parse below (clobber-fixed).
+        # phase-71.2: strip ```json code fences before parsing. The Claude path
+        # (constrained decoding) returns bare JSON, but the Gemini-FALLBACK path
+        # (Anthropic down) is unconstrained and may wrap the JSON in fences --
+        # stripping here keeps the structured parse (and the gate's answer-improve
+        # ability) working on BOTH paths, mirroring parse_llm_classification.
+        _stripped = gate_response.strip() if isinstance(gate_response, str) else ""
+        if _stripped.startswith("```"):
+            _stripped = _stripped.split("\n", 1)[1] if "\n" in _stripped else _stripped[3:]
+        if _stripped.endswith("```"):
+            _stripped = _stripped[:-3]
+        _stripped = _stripped.strip()
+        if _stripped.startswith("json"):
+            _stripped = _stripped[4:].strip()
+        try:
+            _obj = json.loads(_stripped)
+        except (json.JSONDecodeError, ValueError, AttributeError):
+            _obj = None
+        if isinstance(_obj, dict) and all(
+            k in _obj for k in ("accuracy", "completeness", "groundedness", "conciseness")
+        ):
+            try:
+                s = {k: float(_obj[k]) for k in ("accuracy", "completeness", "groundedness", "conciseness")}
+                avg = sum(s.values()) / len(s)
+                logger.info(
+                    "[Plan] Quality gate scores (structured): "
+                    + ", ".join(f"{k}={v:.1f}" for k, v in s.items())
+                    + f" (avg={avg:.2f})"
+                )
+                if any(v < 0.6 for v in s.values()) or avg < 0.7:
+                    improved = (_obj.get("improved_response") or "").strip()
+                    if improved:
+                        logger.info(f"[cycle] Quality gate: FAIL (avg={avg:.2f}) -> improved (structured)")
+                        return improved, usage
+                    logger.info(f"[cycle] Quality gate: FAIL (avg={avg:.2f}) but no improvement (structured)")
+                    return None, usage
+                logger.info(f"[OK] Quality gate: PASS (avg={avg:.2f}) (structured)")
+                return None, usage
+            except (ValueError, TypeError):
+                pass  # malformed scores -> fall through to legacy text parse
+
+        # Parse scoring rubric response (legacy text path -- Gemini fallback / degraded)
         response_upper = gate_response.strip().upper()
         scores = {}
         for line in gate_response.strip().split('\n'):
@@ -880,9 +963,13 @@ class MultiAgentOrchestrator:
             logger.info("[cycle] Quality gate: FAIL but no improvement")
             return None, usage
         else:
-            # If we can't parse, treat non-PASS as improvement
-            logger.info(f"[cycle] Quality gate: unparseable, treating as improvement ({len(gate_response)} chars)")
-            return gate_response, usage
+            # phase-71.2 CLOBBER FIX: an unparseable gate response CANNOT confirm a
+            # problem, so we must NOT substitute the raw gate text as the user-facing
+            # answer (the old `return gate_response` clobbered the vetted analyst
+            # response with quality-gate scaffolding). Fail-SAFE: return None so the
+            # caller keeps the ORIGINAL analyst answer (caller: `if checked_response:`).
+            logger.info(f"[cycle] Quality gate: unparseable ({len(gate_response)} chars) -> keeping original answer (fail-safe)")
+            return None, usage
 
     # ═══════════════════════════════════════════════════════════════
     # MEMORY INTEGRATION
@@ -974,8 +1061,11 @@ class MultiAgentOrchestrator:
     async def _classify_via_llm(self, message):
         comms_config = AGENT_CONFIGS[AgentType.COMMUNICATION]
         loop = asyncio.get_event_loop()
+        # phase-71.2: constrained-decoding structured output guarantees the
+        # classifier returns schema-valid JSON (parse_llm_classification already
+        # json-loads it). Fail-safe: degrades to the plain text call on any error.
         text, usage = await loop.run_in_executor(
-            None, self._call_agent, comms_config, message,
+            None, self._call_agent_json, comms_config, message, CLASSIFY_SCHEMA,
         )
         logger.info(f"[Classify] Classification ({usage.get('input',0)}+{usage.get('output',0)} tok): {text[:100]}")
         return parse_llm_classification(text)
@@ -1034,6 +1124,63 @@ class MultiAgentOrchestrator:
                 return self._gemini_text_call(agent_config, task)
             logger.error(f"API call to {agent_config.name} failed: {type(e).__name__}: {e}")
             raise
+
+    def _call_agent_json(self, agent_config, task, schema):
+        """phase-71.2: one-shot Claude call with CONSTRAINED-DECODING structured
+        output so the returned text is GUARANTEED valid JSON matching `schema`
+        (output_config.format json_schema; structured-outputs GA on
+        claude-sonnet-4-6). Matches the schema-enforcement the Gemini debate
+        paths already have.
+
+        FAIL-SAFE by construction: if Anthropic is known-unavailable, or the SDK
+        rejects the param, or the schema is invalid, or ANY other error fires, it
+        degrades to the plain `_call_agent` text path -- worst case is today's
+        unconstrained behavior, NEVER a live break. Returns (text, usage) exactly
+        like `_call_agent`, so callers can json-parse on success and fall back to
+        their legacy text parse otherwise.
+        """
+        if self._anthropic_unavailable:
+            return self._gemini_text_call(agent_config, task)
+        try:
+            client = self._get_client()
+            response = client.messages.create(
+                model=agent_config.model,
+                max_tokens=agent_config.max_tokens,
+                system=agent_config.system_prompt,
+                messages=[{"role": "user", "content": task}],
+                output_config={"format": {"type": "json_schema", "schema": schema}},
+            )
+            text = "".join(b.text for b in response.content if hasattr(b, "text"))
+            usage = {
+                "input": response.usage.input_tokens if response.usage else 0,
+                "output": response.usage.output_tokens if response.usage else 0,
+            }
+            return text or "", usage
+        except Exception as e:
+            # phase-16.31 parity: a typed Anthropic auth error routes permanently
+            # to the Gemini fallback for this instance.
+            try:
+                import anthropic
+                _is_auth_err = isinstance(e, anthropic.AuthenticationError)
+            except Exception:
+                _is_auth_err = False
+            if _is_auth_err:
+                logger.warning(
+                    "[MAS] Anthropic 401 on %s (structured); switching to Gemini fallback",
+                    agent_config.name,
+                )
+                self._anthropic_unavailable = True
+                self._client = None
+                return self._gemini_text_call(agent_config, task)
+            # Any other error (e.g. output_config unsupported by the pinned SDK):
+            # structured output is a best-effort correctness upgrade -- degrade to
+            # the plain text call rather than break the live gate/classifier.
+            logger.warning(
+                "[MAS] structured output_config call on %s failed (%s: %s); "
+                "falling back to plain text call",
+                agent_config.name, type(e).__name__, e,
+            )
+            return self._call_agent(agent_config, task)
 
     # ═══════════════════════════════════════════════════════════════
     # API CALL WITH TOOLS (subagent tool loop — GAP 1.14 FIX)
