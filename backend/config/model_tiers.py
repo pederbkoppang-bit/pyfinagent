@@ -253,16 +253,32 @@ EFFORT_SUPPORTED_MODELS: tuple[str, ...] = (
 # - mas_research (Sonnet 4.6, balanced lit search): medium (recommended default).
 # - autoresearch_*: vary by sub-role; smart=medium, strategic=high, fast=None.
 # phase-23.2.2 (2026-05-16): per user directive "mas agents all running max
-# effort" for the next step, ALL mas_* roles temporarily raised to max.
-# Pre-23.2.2 values (for revert): communication=low, main=xhigh, qa=high,
-# research=medium. The Anthropic doc warns "Reserve max for genuinely frontier
-# problems. On most workloads max adds significant cost for relatively small
-# quality gains" -- this is a STEP-SCOPED override; revert after closure.
+# effort" for the next step, ALL mas_* roles were temporarily raised to max
+# with an explicit "STEP-SCOPED override; revert after closure" note.
+# phase-71.5 (2026-07-17): RECONCILED back to the CLAUDE.md baseline
+# (communication=low, main=xhigh, qa=high, research=medium -- the exact
+# "Applied below" posture documented above). Rationale + why this is safe:
+#   * The Anthropic doc warns "Reserve max for genuinely frontier problems.
+#     On most workloads max adds significant cost for relatively small quality
+#     gains" -- the closure that scoped the override happened long ago.
+#   * VERIFIED RUNTIME NO-OP on the live per-ticker MAS path: the Layer-2 MAS
+#     uses the RAW Anthropic SDK (multi_agent_orchestrator.py:243 _get_client)
+#     and every messages.create (mao:1098/1146/1267/1379) OMITS
+#     output_config.effort -> runtime effort = API-default `high`.
+#     EFFORT_DEFAULTS/resolve_effort is consumed ONLY at llm_client.py:1506-1509
+#     (the ClaudeClient wrapper), which the MAS BYPASSES; no live caller sets
+#     config["_role"] to a mas_* key. So these values are the DOCUMENTED INTENT
+#     for any future EFFORT_DEFAULTS consumer, NOT the current runtime (which is
+#     API-default high on the metered path). That is the "drift documented as
+#     intentional" reconciliation -- no MAS wiring is added (API-default high is
+#     correct for Sonnet-4.6 per the doc, and wiring would add runtime
+#     cost/complexity). No trading-behavior change; $0; no CLAUDE.md sign-off
+#     needed (this MATCHES the CLAUDE.md policy rather than deviating from it).
 EFFORT_DEFAULTS: dict[str, Effort | None] = {
-    "mas_communication":       "max",
-    "mas_main":                "max",
-    "mas_qa":                  "max",
-    "mas_research":            "max",
+    "mas_communication":       "low",
+    "mas_main":                "xhigh",
+    "mas_qa":                  "high",
+    "mas_research":            "medium",
     "autoresearch_fast":       None,
     "autoresearch_smart":      "medium",
     "autoresearch_strategic":  "high",

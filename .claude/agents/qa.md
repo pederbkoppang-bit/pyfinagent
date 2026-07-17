@@ -4,44 +4,23 @@ description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifie
 tools: Read, Bash, Glob, Grep, SendMessage
 model: opus
 maxTurns: 30
-# 2026-07-09 (goal-phase67-fable-window, operator-directed via /goal): Anthropic
-# RENEWED free Fable 5 on the Max plan through ~Sunday 2026-07-12. Repinned
-# opus -> fable for the window. REVERT-BY 2026-07-12 (masterplan step 67.4,
-# P0): back to `model: opus` unless the operator records `FABLE PERMANENT:
-# AUTHORIZE`. STALL WATCH: two Fable Q/A spawns stalled mid-evaluation on
-# 2026-07-09 (Cycle-76 addendum) -- if a fresh-session Fable Q/A stalls
-# again, revert THIS pin immediately without waiting for Sunday (Opus is the
-# reliable evaluator; Fable is optional upside here). effort: max retained
-# (xhigh silently downgrades to high on non-Opus per llm_client.py:1507-1512;
-# max passes through). Takes effect at the NEXT session start (roster
-# snapshot). Separation of duties: Peder review requested via harness_log
-# phase-67 setup addendum.
-# historical (2026-07-08 Fable burn-down day, /goal item 4): the
-# Fable 5 window ends today -- from tomorrow `model: fable` draws USAGE
-# CREDITS on the Max plan. Repinned fable -> opus (alias -> latest Opus =
-# 4.8, flat-fee on Max). effort: max retained. Takes effect at the NEXT
-# session start (roster snapshot). Separation of duties: Peder review
-# requested via harness_log Cycle-74 addendum; verify with
-# scripts/qa/verify_qa_roster_live.sh after restart.
-# historical (phase-59.1) note below:
-# phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
-# requires Claude Code v2.1.170+; local was 2.1.172 at adoption,
-# 2.1.205 as of 2026-07-10 phase-67.5) per operator in-session
-# pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per
-# Mtok and on Max plans draws USAGE CREDITS from 2026-06-23 (free Jun 9-22)
-# -- SUPERSEDES the phase-29.2 "Max flat-fee" rationale. New rationale:
-# Q/A is the evaluator gate on financial-trading code; it fires once per
-# masterplan step, so frequency contains cost, and shallow reasoning remains
-# the expensive failure mode. `effort: max` retained (Fable baseline is
-# `high`; max is a deliberate documented over-spec on the gate role).
-# maxTurns 12->30 (phase-59.1): the old cap caused FIVE mid-evaluation
-# stalls on 2026-06-10/11 (observed tool-use 20-26 per evaluation), each
-# needing a manual SendMessage resume before the critique was written.
-# RESTART CAVEAT: roster snapshots at session start -- takes effect next
-# session; run scripts/qa/verify_qa_roster_live.sh.
-# History: phase-29.2 (2026-05-18) codified Opus+max (pre-29.2 was xhigh);
-# 2026-05-28 alias->4.8.
-# See handoff/archive/phase-29.2/research_brief.md + CLAUDE.md effort-policy.
+# Layer-3 Q/A pin: model=opus (alias -> latest Opus, currently 4.8, flat-fee on
+# the Max rail), effort=max. CLAUDE.md-PERMANENT per phase-29.2: Q/A is the
+# rare-event evaluator gate on financial-trading code (fires once per masterplan
+# step, so frequency contains cost), and shallow reasoning is the expensive
+# failure mode -- so effort:max is a deliberate, documented over-spec on the gate
+# role (NOT xhigh: xhigh silently downgrades to high on non-Opus-4.8/4.7 models
+# per llm_client.py:1507-1512; max passes through). Layer-3 subagent effort is a
+# SEPARATE system from Layer-2 EFFORT_DEFAULTS (model_tiers.py) -- do not conflate.
+# maxTurns 30 (phase-59.1): the old 12 cap caused mid-evaluation stalls (20-26
+# tool-uses per evaluation); 30 gives headroom.
+# The 2026-07 free-Fable window is EXPIRED and the pin was reverted to opus in
+# masterplan 67.4 (no `FABLE PERMANENT: AUTHORIZE` was recorded); the expired
+# window narration is pruned here (phase-71.5) -- the model/effort VALUES are
+# unchanged. RESTART CAVEAT: the Agent-tool roster snapshots at session start --
+# an edit here takes effect next session; run scripts/qa/verify_qa_roster_live.sh.
+# The Workflow qa-verdict.js path reads this file from disk live.
+# See CLAUDE.md "Effort policy (Layer-3 harness MAS)" + "Fable 5 policy".
 effort: max
 memory: project
 color: green

@@ -1,119 +1,70 @@
-# Experiment results — step 71.6 (report-only self-audit workflow + context-hygiene + dead-driver keep)
+# Experiment results — step 71.5 (effort/model posture reconciliation)
 
-**Phase/step:** phase-71 → 71.6 | **Date:** 2026-07-17 | **Type:** harness-infra (a saved report-only workflow) +
-agent-file context-hygiene + a dead-driver decision. $0, local-only, NO production/live-loop change; historical_macro
-FROZEN; live book untouched.
+**Step:** 71.5 (P3, depends_on 71.0). $0; local-only; NO trading-behavior change; historical_macro FROZEN; live book
+untouched. Research gate PASSED this session (research_brief_71.5.md, gate_passed=true, 5 external sources read in
+full + recency scan; Main independently re-verified all 5 crux claims via grep/sed before the contract).
 
-## What was changed
+## What changed (6 files)
 
-### `.claude/workflows/harness-self-audit.js` (NEW — STRUCTURALLY report-only) [criterion 1, saved re-runnable]
-A re-runnable self-audit workflow (mirrors `qa-verdict.js`): fan-out finder agents over 4 harness+MAS dimensions
-(harness-protocol / layer2-mas / layer4-meta / capabilities-drift) → adversarial verify (pipeline, no barrier) →
-**RETURNS ranked confirmed findings** (the register shape of `harness_proposals.json`). **Enforcement = TOOL-
-RESTRICTION, not a prompt:** every auditor is `agentType:'Explore'` (READ-ONLY — no Edit/Write/Agent); the workflow
-SCRIPT has no fs/shell/git access; nothing writes files, commits, pushes, or flips the masterplan. Registered as the
-discoverable `harness-self-audit` command (confirmed live). Lands the `ls .claude/workflows/ | grep audit|self|stress`
-check. Backstopped by the 62.0 PreToolUse guard (blocks `git push`/`launchctl`) as defense-in-depth.
+1. **`backend/config/model_tiers.py`** [criterion 1] — reverted `EFFORT_DEFAULTS[mas_*]` from the expired
+   phase-23.2.2 all-`max` override back to the CLAUDE.md baseline: `mas_communication="low"`, `mas_main="xhigh"`,
+   `mas_qa="high"`, `mas_research="medium"` (autoresearch_* + gemini_* UNCHANGED). Rewrote the comment block to a
+   phase-71.5 reconciliation note RECORDING THE RATIONALE + the verified-no-op fact (the MAS uses the raw Anthropic
+   SDK and omits `output_config.effort` → runtime = API-default `high`; `EFFORT_DEFAULTS` is consumed only at
+   `llm_client.py:1506-1509`, which the MAS bypasses; so these values are the DOCUMENTED INTENT, not the current
+   runtime). This is the "drift documented as intentional" branch of criterion 1; no `resolve_effort` wiring added.
+2. **`backend/agents/multi_agent_orchestrator.py:164`** [criterion 1 hygiene] — corrected the factually-wrong comment
+   "Layer-2 agents run at effort=max" → "run at the API-default effort (`high`)... EFFORT_DEFAULTS is not consulted
+   here". Comment-only (+3/−1); no code change.
+3. **`backend/tests/test_phase_59_1_fable_adoption.py`** [criteria 1 + 3 co-changes] — (a) line ~51 assertion
+   `resolve_effort("mas_main") == "max"` → `== "xhigh"` (the reconciled baseline); (b) `test_layer3_agents_pin_...`
+   line ~94: replaced the assertion that the EXPIRED Fable-window narration is present (`2026-06-23`/`June`/`USAGE
+   CREDITS`) with the DURABLE economics rationale (`phase-29.2` / `Max rail`), since 71.5 prunes that narration.
+4. **`.claude/settings.json`** [criterion 2] — `fallbackModel` `["claude-opus-4-8","claude-sonnet-5"]` →
+   `["claude-sonnet-5","claude-haiku-4-5"]`: dropped the redundant primary-equal Opus-4.8 first hop (== Main's
+   primary; re-hits the same 529 pool) and added a Haiku availability floor. `effortLevel` KEPT `"xhigh"` (Main =
+   xhigh per the Opus 4.8 doc; `max` reserved for frontier).
+5. **`.claude/agents/qa.md`** [criterion 3] — pruned the expired Fable-window comments (was ~38 lines) to a concise
+   opus steady-state note. **KEPT `model: opus` + `effort: max` VALUES** (Layer-3 subagent effort is CLAUDE.md-
+   permanent per phase-29.2; separate system from Layer-2 EFFORT_DEFAULTS). Documented why max-not-xhigh.
+6. **`.claude/agents/researcher.md`** [criterion 3] — same prune to the opus steady state; KEPT `model: opus` +
+   `effort: max`.
 
-### `.claude/agents/researcher.md` + `.claude/agents/qa.md` (context-hygiene) [criterion 2]
-- researcher.md: retired the full-brief `report_md` envelope field → a `<=200-word` `summary` + `brief_path` +
-  an explicit "return the compact envelope, NOT the full brief through Main's context; Main reads it from
-  brief_path" instruction (Anthropic "lightweight references").
-- qa.md: added a "Context hygiene" clause — the return IS a **compact verdict envelope** (verdict + one-sentence
-  reason summary + violated_criteria); the full critique prose lives at the `evaluator_critique.md` **file path**,
-  never pasted through Main's context. (Adds envelope/summary/file-path to qa.md, matching the grep for BOTH files.)
+## Verification (verbatim)
 
-### Dead-driver: KEEP-WITH-REASON [criterion 3] — no file edit
-`scripts/mas_harness/{cycle_prompt.md,run_cycle.sh}` are DEAD as a driver (no live plist; absent from `launchctl
-list`; the mas-harness label cannot fire) — the safety intent (neutralize the dangerous `claude -p
---dangerously-skip-permissions` driver) is already MET. But they are **LIVE test fixtures**: `revert_hygiene_drill.py`
-reads both + executes `run_cycle.sh` (a passing dirty-tree-refusal drill), `test_phase_47_9` asserts the model pin
-from `run_cycle.sh`, `smoke_test_4_17_11` references it, and `cron_dashboard_api.py::_LAUNCHD_JOBS` lists the label.
-A naive `rm` REDs 3 consumers — the 71.0 design's "just delete" is a RIDER-TRAP the research caught. → **KEPT with
-reason** (documented here + in the harness_log); the files are NOT edited (editing risks breaking the live drills).
-`run_harness.py::_default_spawn_researcher` (the live spawn path) NOT touched. Harness stays exactly 3 agents.
+- IMMUTABLE cmd `bash -c 'python -c "import ast; ast.parse(open('backend/config/model_tiers.py').read())" && grep -Eqi "effortLevel|fallbackModel" .claude/settings.json'` → **exit 0 (PASS)**.
+- Reconciled values via `resolve_effort`: mas_main=**xhigh**, mas_qa=**high**, mas_communication=**low**,
+  mas_research=**medium**. No silent effort drop: `EFFORT_SUPPORTED_MODELS` (9 entries) + `MODEL_EFFORT_FALLBACK`
+  (10 entries; claude-opus-4-8→xhigh) UNCHANGED.
+- `.claude/settings.json` valid JSON: effortLevel=**xhigh**, fallbackModel=**["claude-sonnet-5","claude-haiku-4-5"]**.
+- Agent-file YAML valid: qa.md → model=**opus**, effort=**max**, maxTurns=30; researcher.md → model=**opus**,
+  effort=**max**, maxTurns=40. `model:opus` + `effort:max` VALUES unchanged (only comments pruned).
+- `uvx ruff check` on the SUBSTANTIVELY-changed files (model_tiers.py + test) → **All checks passed** (clean).
+- `pytest test_phase_59_1_fable_adoption.py` → **6 passed**. Regression
+  `test_phase_59_1/71_2/71_3/71_4/71_6` → **48 passed**.
+- Runtime smoke: `get_settings()` loads; `model_tiers` imports; `resolve_model("mas_main")`=claude-opus-4-8,
+  `resolve_effort("mas_main")`=xhigh.
 
-### Schedule ACTIVATION — operator-gated (`schedule_needs_operator=true`) [criterion 1, "scheduled" part]
-Claude Code has NO native recurring trigger; scheduling is external. Per the research + the
-background-agent-resumption-risk memory ("review-only prompts are NOT enforcement"), a recurring *agentic* weekly run
-is precisely the resumption-risk category → **ACTIVATION is the operator's call.** The safe mechanisms are documented
-(the workflow header + here): (a) an external cron/launchd invoking the saved report-only workflow, or (b) a
-deterministic-Python report writer registered on the `register_meta_evolution_cron` weekly APScheduler pattern (no
-LLM = no agency). The saved workflow is structurally report-only and re-runnable NOW (manually or once activated).
+## Scope honesty — pre-existing lint (NOT introduced by 71.5)
 
-## Verification command output (verbatim)
-```
-$ bash -c 'ls .claude/workflows/ 2>/dev/null | grep -Eqi "audit|self|stress" && grep -Eqi "envelope|summary|file path|return" .claude/agents/researcher.md .claude/agents/qa.md'
-VERIFICATION: PASS (exit 0)
-$ node --check .claude/workflows/harness-self-audit.js   -> OK
-```
-git scope: `.claude/workflows/harness-self-audit.js` (new), `.claude/agents/{researcher,qa}.md`, handoff. NO
-backend/frontend/production code changed; the dead-driver files + `run_harness.py` are UNTOUCHED.
+`uvx ruff check backend/agents/multi_agent_orchestrator.py` reports **17 pre-existing errors** (3× F841 unused-var at
+lines 430/471/474; 14× F541 f-string-without-placeholder at 685–1580). ALL are ≥ line 430; my only change to that
+file is the comment at line 164. They are legacy issues UNRELATED to effort reconciliation — sweeping 17 changes
+across a 1900-line file during a config-reconciliation step would be scope creep (and the F841 fixes carry a small
+behavior-change risk). Left untouched; flagged here for transparency. My 71.5 changes introduce ZERO lint errors.
 
-## Criterion evidence
-- **C1** — saved, re-runnable `.claude/workflows/harness-self-audit.js`, STRUCTURALLY report-only (read-only Explore
-  auditors; script has no fs/git; returns findings, never applies). The weekly SCHEDULE is documented + its
-  safe mechanisms specified; **activation is operator-gated** (`schedule_needs_operator=true`; honors the
-  background-agent memory — enforcement by tool-restriction, not a "report-only" prompt).
-- **C2** — researcher.md + qa.md now both instruct the subagent to return a COMPACT envelope (summary + verdict +
-  file path) rather than the full brief/critique through Main's context.
-- **C3** — the dead self-evaluating driver is EXPLICITLY KEPT WITH A REASON (neutralized driver + live drill
-  fixtures; deletion is a rider-trap); harness stays exactly 3 agents; `run_harness.py` untouched.
+## Do-no-harm / boundaries
 
-## Do-no-harm / scope honesty
-$0; local-only; NO production/live-loop change. The audit workflow is structurally report-only (tool-restriction, not
-prompt). The dead driver is KEPT (deleting it would RED 3 live drills — a real regression the research caught). The
-weekly-schedule ACTIVATION is transparently flagged operator-gated (the recurring agentic run is the resumption-risk
-category the operator flagged) — I built + documented the safe mechanism but did NOT create a recurring autonomous
-run. historical_macro FROZEN; live book untouched; harness stays 3 agents. Agent-file edits → separation-of-duties +
-verify_qa_roster_live.sh note in the harness_log.
+$0 metered. The EFFORT_DEFAULTS revert is a VERIFIED runtime no-op on the live metered MAS path (raw SDK omits effort;
+dict dead at runtime except the unit test) → NO trading-behavior change, NO CLAUDE.md sign-off needed (MATCHING the
+policy, not deviating). settings.json fallbackModel is Layer-3 ($0 Max rail; overload-class-only per the phase-67.5
+tripwire note, still accurate). Fable-comment pruning is pure documentation; `model:opus` + `effort:max` stay (Fable
+pins stay reverted per the drain directive; Layer-3 effort:max is CLAUDE.md-permanent). No functional model/effort
+change smuggled in. kill-switch/stops/sector-caps/DSR/PBO byte-untouched; historical_macro FROZEN; live book
+untouched. **Separation of duties:** 71.5 edits `.claude/agents/qa.md` + `researcher.md` (comment prune only) → Peder
+review requested + `scripts/qa/verify_qa_roster_live.sh` next session (Agent-tool roster snapshots at session start;
+the Workflow qa-verdict.js/researcher paths read from disk live).
 
-## Cycle 2 — deterministic weekly REPORT-ONLY scheduler BUILT (resolves the C1 CONDITIONAL)
-
-**Why Cycle-1 parked C1, and why that was too conservative.** Cycle-1 treated ALL scheduling as the
-agentic-resumption category and deferred activation to the operator. But criterion 1 demands BOTH "scheduled
-REPORT-ONLY on a weekly cadence (local)" AND "honors the background-agent unauthorized-action memory." A scheduled
-*agentic* audit VIOLATES that memory — so the only criterion-satisfying implementation is a scheduled **deterministic
-(non-agentic) report-only** job. The 71.6 research brief already RANKED this as safe option 2: "a DETERMINISTIC Python
-report writer on the proven register_meta_evolution_cron weekly APScheduler pattern — greps the harness invariants
-(3-agent roster, dead-driver absence...)" — "zero-agency," no resumption risk. Cycle-2 builds it.
-
-**Files (4):**
-- `backend/harness_self_audit_report.py` (NEW): `register_harness_self_audit_cron(scheduler)` (weekly Sun 03:00 ET
-  cron, `replace_existing=True`, fail-open — mirrors `backend/meta_evolution/cron.py`) +
-  `run_harness_self_audit_report()` — DETERMINISTIC, report-only: greps roster integrity (exactly Researcher+Q/A; a
-  re-split guard for explore.md/harness-verifier.md), saved workflows present, 5-file protocol presence+age,
-  deep-audit staleness (harness_proposals.json age > 14d → nudge). Writes ONE file
-  `handoff/self_audit/<date>-harness-health.md`. NO LLM / NO agent / NO subprocess / NO git / NO network / NO BQ / NO
-  trade / NO risk touch / NO masterplan flip. Each sub-check fail-open.
-- `backend/config/settings.py`: `harness_self_audit_report_enabled: bool = Field(True, ...)`. Default **True** —
-  criterion 1 needs the weekly cadence ACTUALLY scheduled (not flag-conditional), and this is report-only
-  observability CATEGORICALLY OUTSIDE the do-no-harm set (kill-switch/stops/caps/DSR/PBO byte-untouched). Activates on
-  the next backend restart; set False to disable.
-- `backend/main.py`: registers the job on the live `AsyncIOScheduler` inside the existing paper-trading scheduler
-  block (after `_register_cron_scheduler("main", scheduler)`), gated by the flag, wrapped fail-open so it can never
-  break startup.
-- `backend/tests/test_phase_71_6_self_audit_cron.py` (NEW, 8 tests): weekly-cron shape, fail-open register,
-  report-written+status, determinism, re-split guard → ATTENTION, stale/missing deep-audit → ATTENTION, and a
-  report-ONLY assertion (the writer touches ONLY handoff/self_audit/).
-
-**Verification (verbatim):**
-- `ast.parse` 4 files → `ast OK`.
-- IMMUTABLE cmd `ls .claude/workflows | grep -Eqi "audit|self|stress" && grep -Eqi "envelope|summary|file path|return" researcher.md qa.md` → **exit 0 (PASS)**.
-- `uvx ruff check` (qa.md §1a lint gate) → **All checks passed** (exit 0).
-- `pytest test_phase_71_6_self_audit_cron.py` → **8 passed**. Regression
-  `test_phase_71_2/71_3/71_4/71_6/59_1` → **48 passed** (the effort assertion untouched by 71.6).
-- **DOGFOOD** against the REAL repo: `run_harness_self_audit_report()` → status **OK**, wrote
-  `handoff/self_audit/2026-07-17-harness-health.md`, roster.ok=True (no re-split), workflows present, deep_audit
-  age_days=1, attention=[], errors=[].
-- `get_settings().harness_self_audit_report_enabled` → **True**.
-
-**Scope / do-no-harm.** $0; deterministic (no LLM/agents); report-only observability. Live book untouched; no risk
-threshold moved; historical_macro FROZEN. The DEEP *agentic* audit stays MANUAL / operator-scheduled (that recurring
-agentic run is the resumption-risk category — unchanged). What is now live-on-restart is only the benign deterministic
-weekly HEALTH report. No operator token required to satisfy criterion 1; if the operator prefers DARK, flip
-`harness_self_audit_report_enabled=False`. Cycle-1 agent-file edits (researcher.md/qa.md) still carry the
-separation-of-duties + `verify_qa_roster_live.sh` note.
-
-**Artifact shape:** `handoff/self_audit/<date>-harness-health.md`. Return dict: `{status, report_path, roster,
-workflows, five_file, deep_audit, attention[], errors[]}`.
+## Artifact shape
+Config/doc reconciliation — no new runtime artifact. Verifiable via the immutable command + `resolve_effort(role)`
+values + the settings.json/agent-file contents.

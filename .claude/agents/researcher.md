@@ -4,42 +4,24 @@ description: MUST BE USED before every PLAN phase. Combined external-literature 
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, SendMessage
 model: opus
 maxTurns: 40
-# 2026-07-09 (goal-phase67-fable-window, operator-directed via /goal): Anthropic
-# RENEWED free Fable 5 on the Max plan through ~Sunday 2026-07-12. Repinned
-# opus -> fable for the window so the strongest model runs the research gates
-# while phase-67 upgrades the harness artifacts. REVERT-BY 2026-07-12
-# (masterplan step 67.4, P0): back to `model: opus` unless the operator
-# records `FABLE PERMANENT: AUTHORIZE`. effort: max retained (xhigh silently
-# downgrades to high on non-Opus models per llm_client.py:1507-1512 -- max
-# passes through). Takes effect at the NEXT session start (roster snapshot).
-# Separation of duties: Peder review requested via harness_log phase-67
-# setup addendum.
-# historical (2026-07-08 Fable burn-down day, /goal item 4): the
-# Fable 5 window ends today -- from tomorrow `model: fable` draws USAGE
-# CREDITS on the Max plan. Repinned fable -> opus (alias -> latest Opus =
-# 4.8, flat-fee on Max). effort: max retained (xhigh-accepted on Opus 4.8
-# per the CLAUDE.md effort policy). Takes effect at the NEXT session start
-# (roster snapshot); today's in-session spawns still ran Fable. Separation
-# of duties: Peder review requested via harness_log Cycle-74 addendum;
-# verify with scripts/qa/verify_qa_roster_live.sh after restart.
-# historical (phase-59.1) note below:
-# phase-59.1 (2026-06-11): pinned to Fable 5 (`fable` alias -> claude-fable-5;
-# requires Claude Code v2.1.170+; local was 2.1.172 at adoption,
-# 2.1.205 as of 2026-07-10 phase-67.5) per operator in-session
-# pre-approval (quality-first on rare-event roles). Fable 5 is $10/$50 per
-# Mtok and on Max plans draws USAGE CREDITS from 2026-06-23 (free Jun 9-22)
-# -- this SUPERSEDES the phase-29.2 "Max flat-fee removes per-token ceiling"
-# rationale. New rationale: cost is contained by FREQUENCY (researcher fires
-# once per masterplan step, not per ticker) + the announcement's "the longer
-# and more complex the task, the larger Fable 5's lead" fits research
-# synthesis exactly. `effort: max` retained (Fable docs recommend `high` as
-# baseline; max is a deliberate documented over-spec on this gate role).
-# maxTurns 30->40 (phase-59.1): complex briefs hit the old cap mid-write
-# twice on 2026-06-10/11 and needed manual SendMessage resumes.
-# RESTART CAVEAT: the Agent-tool roster snapshots at session start -- this
-# pin takes effect next session; run scripts/qa/verify_qa_roster_live.sh.
-# History: phase-29.2 (2026-05-18) codified Opus+max; 2026-05-28 alias->4.8.
-# See handoff/archive/phase-29.2/research_brief.md + CLAUDE.md effort-policy.
+# Layer-3 Researcher pin: model=opus (alias -> latest Opus, currently 4.8,
+# flat-fee on the Max rail), effort=max. CLAUDE.md-PERMANENT per phase-29.2
+# (operator override of Anthropic's Sonnet/medium baseline): cost is contained
+# by FREQUENCY (fires once per masterplan step, not per ticker) and research
+# depth on Opus outperforms on GPQA-adjacent multi-source synthesis; effort:max
+# is a deliberate over-spec on the gate role (NOT xhigh: xhigh silently
+# downgrades to high on non-Opus-4.8/4.7 models per llm_client.py:1507-1512;
+# max passes through). Layer-3 subagent effort is a SEPARATE system from
+# Layer-2 EFFORT_DEFAULTS (model_tiers.py) -- do not conflate.
+# maxTurns 40 (phase-59.1): complex briefs hit the old 30 cap mid-write; 40
+# gives headroom.
+# The 2026-07 free-Fable window is EXPIRED and the pin was reverted to opus in
+# masterplan 67.4 (no `FABLE PERMANENT: AUTHORIZE` was recorded); the expired
+# window narration is pruned here (phase-71.5) -- the model/effort VALUES are
+# unchanged. RESTART CAVEAT: the Agent-tool roster snapshots at session start --
+# an edit here takes effect next session; run scripts/qa/verify_qa_roster_live.sh.
+# The Workflow researcher path reads this file from disk live.
+# See CLAUDE.md "Effort policy (Layer-3 harness MAS)" + "Fable 5 policy".
 effort: max
 memory: project
 color: cyan

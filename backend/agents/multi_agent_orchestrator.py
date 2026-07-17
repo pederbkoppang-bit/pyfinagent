@@ -161,7 +161,9 @@ MAX_RESEARCH_ITERATIONS = 3
 # phase-47.9: On the Opus-4.8/4.7 ADAPTIVE thinking path, max_tokens is a hard
 # ceiling on thinking + visible text COMBINED (Anthropic adaptive-thinking doc:
 # "Use max_tokens as a hard limit on total output (thinking + response text)").
-# Layer-2 agents run at effort=max but with small configured output budgets
+# Layer-2 agents run at the API-default effort (`high`) -- this raw-SDK path
+# omits output_config.effort, and EFFORT_DEFAULTS is not consulted here (see
+# model_tiers.py phase-71.5 note) -- but with small configured output budgets
 # (500-3000), so adaptive thinking can exhaust the budget and silently starve
 # the visible answer. Floor the ceiling so thinking always has headroom. 16384
 # matches the prior tool_use retry cap, leaves room for the largest intended

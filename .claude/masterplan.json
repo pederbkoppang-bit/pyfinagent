@@ -15863,7 +15863,7 @@
         },
         {
           "id": "71.5",
-          "status": "pending",
+          "status": "done",
           "name": "P3 -- effort/model posture reconciliation (max-where-it-helps, cost-appropriate elsewhere). RECONCILE (not blindly revert) the stale model_tiers.py::EFFORT_DEFAULTS 'max' override (whose own comment says 'revert after closure') against the authoritative CLAUDE.md effort policy: mas_* per-ticker roles to their cost-justified baseline unless CLAUDE.md says otherwise; wire resolve_effort(role) so config==runtime on the MAS messages.create path. Pin Main's Layer-3 tier deterministically (settings.json effortLevel / env), resolve xhigh-vs-max explicitly. Tighten the Layer-3 fallbackModel chain (drop any primary-equal first hop; add an availability floor). Prune the now-stale Fable-window frontmatter COMMENTS in researcher.md/qa.md (the model pins are already opus post-67.4; the comments still narrate the expired window).",
           "harness_required": true,
           "priority": "P3",

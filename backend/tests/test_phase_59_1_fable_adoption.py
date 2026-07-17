@@ -46,8 +46,9 @@ def test_fable_is_effort_supported_not_silently_dropped():
     param for fable-pinned roles."""
     assert mt.model_supports_effort("claude-fable-5") is True
     assert mt.resolve_effort_by_model("claude-fable-5") == "xhigh"
-    # role-level override still wins (mas_main runs max per EFFORT_DEFAULTS)
-    assert mt.resolve_effort("mas_main") == "max"
+    # role-level override still wins (mas_main = xhigh, the reconciled CLAUDE.md
+    # baseline per phase-71.5; was "max" under the expired phase-23.2.2 override)
+    assert mt.resolve_effort("mas_main") == "xhigh"
 
 
 def test_ticket_agent_map_pins():
@@ -88,9 +89,13 @@ def test_layer3_agents_pin_fable_with_raised_caps():
     assert "maxTurns: 30" in qa           # was 12; FIVE mid-evaluation stalls 2026-06-10/11
     assert "effort: max" in researcher    # retained (documented over-spec)
     assert "effort: max" in qa
-    # the economics + restart caveats must be recorded in the files
+    # the economics + restart caveats must be recorded in the files.
+    # phase-71.5 (2026-07-17): reconciled to the opus steady state and PRUNED
+    # the expired Fable-window narration; assert the DURABLE economics rationale
+    # (CLAUDE.md-permanent phase-29.2 / flat-fee Max rail) rather than the
+    # window-specific "USAGE CREDITS from 2026-06-23" text that is now removed.
     for fm in (researcher, qa):
-        assert "2026-06-23" in fm or "June" in fm or "USAGE CREDITS" in fm
+        assert "phase-29.2" in fm or "Max rail" in fm
         assert "verify_qa_roster_live" in fm
 
 
