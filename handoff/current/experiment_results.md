@@ -67,3 +67,53 @@ weekly-schedule ACTIVATION is transparently flagged operator-gated (the recurrin
 category the operator flagged) — I built + documented the safe mechanism but did NOT create a recurring autonomous
 run. historical_macro FROZEN; live book untouched; harness stays 3 agents. Agent-file edits → separation-of-duties +
 verify_qa_roster_live.sh note in the harness_log.
+
+## Cycle 2 — deterministic weekly REPORT-ONLY scheduler BUILT (resolves the C1 CONDITIONAL)
+
+**Why Cycle-1 parked C1, and why that was too conservative.** Cycle-1 treated ALL scheduling as the
+agentic-resumption category and deferred activation to the operator. But criterion 1 demands BOTH "scheduled
+REPORT-ONLY on a weekly cadence (local)" AND "honors the background-agent unauthorized-action memory." A scheduled
+*agentic* audit VIOLATES that memory — so the only criterion-satisfying implementation is a scheduled **deterministic
+(non-agentic) report-only** job. The 71.6 research brief already RANKED this as safe option 2: "a DETERMINISTIC Python
+report writer on the proven register_meta_evolution_cron weekly APScheduler pattern — greps the harness invariants
+(3-agent roster, dead-driver absence...)" — "zero-agency," no resumption risk. Cycle-2 builds it.
+
+**Files (4):**
+- `backend/harness_self_audit_report.py` (NEW): `register_harness_self_audit_cron(scheduler)` (weekly Sun 03:00 ET
+  cron, `replace_existing=True`, fail-open — mirrors `backend/meta_evolution/cron.py`) +
+  `run_harness_self_audit_report()` — DETERMINISTIC, report-only: greps roster integrity (exactly Researcher+Q/A; a
+  re-split guard for explore.md/harness-verifier.md), saved workflows present, 5-file protocol presence+age,
+  deep-audit staleness (harness_proposals.json age > 14d → nudge). Writes ONE file
+  `handoff/self_audit/<date>-harness-health.md`. NO LLM / NO agent / NO subprocess / NO git / NO network / NO BQ / NO
+  trade / NO risk touch / NO masterplan flip. Each sub-check fail-open.
+- `backend/config/settings.py`: `harness_self_audit_report_enabled: bool = Field(True, ...)`. Default **True** —
+  criterion 1 needs the weekly cadence ACTUALLY scheduled (not flag-conditional), and this is report-only
+  observability CATEGORICALLY OUTSIDE the do-no-harm set (kill-switch/stops/caps/DSR/PBO byte-untouched). Activates on
+  the next backend restart; set False to disable.
+- `backend/main.py`: registers the job on the live `AsyncIOScheduler` inside the existing paper-trading scheduler
+  block (after `_register_cron_scheduler("main", scheduler)`), gated by the flag, wrapped fail-open so it can never
+  break startup.
+- `backend/tests/test_phase_71_6_self_audit_cron.py` (NEW, 8 tests): weekly-cron shape, fail-open register,
+  report-written+status, determinism, re-split guard → ATTENTION, stale/missing deep-audit → ATTENTION, and a
+  report-ONLY assertion (the writer touches ONLY handoff/self_audit/).
+
+**Verification (verbatim):**
+- `ast.parse` 4 files → `ast OK`.
+- IMMUTABLE cmd `ls .claude/workflows | grep -Eqi "audit|self|stress" && grep -Eqi "envelope|summary|file path|return" researcher.md qa.md` → **exit 0 (PASS)**.
+- `uvx ruff check` (qa.md §1a lint gate) → **All checks passed** (exit 0).
+- `pytest test_phase_71_6_self_audit_cron.py` → **8 passed**. Regression
+  `test_phase_71_2/71_3/71_4/71_6/59_1` → **48 passed** (the effort assertion untouched by 71.6).
+- **DOGFOOD** against the REAL repo: `run_harness_self_audit_report()` → status **OK**, wrote
+  `handoff/self_audit/2026-07-17-harness-health.md`, roster.ok=True (no re-split), workflows present, deep_audit
+  age_days=1, attention=[], errors=[].
+- `get_settings().harness_self_audit_report_enabled` → **True**.
+
+**Scope / do-no-harm.** $0; deterministic (no LLM/agents); report-only observability. Live book untouched; no risk
+threshold moved; historical_macro FROZEN. The DEEP *agentic* audit stays MANUAL / operator-scheduled (that recurring
+agentic run is the resumption-risk category — unchanged). What is now live-on-restart is only the benign deterministic
+weekly HEALTH report. No operator token required to satisfy criterion 1; if the operator prefers DARK, flip
+`harness_self_audit_report_enabled=False`. Cycle-1 agent-file edits (researcher.md/qa.md) still carry the
+separation-of-duties + `verify_qa_roster_live.sh` note.
+
+**Artifact shape:** `handoff/self_audit/<date>-harness-health.md`. Return dict: `{status, report_path, roster,
+workflows, five_file, deep_audit, attention[], errors[]}`.

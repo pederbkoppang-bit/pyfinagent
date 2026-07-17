@@ -58,4 +58,68 @@ the neutralized mas-harness pattern)."}`
 - **Separation of duties honored:** Main authored the researcher.md/qa.md edits; an INDEPENDENT Q/A judged them. The
   context-hygiene additions make the return path LEANER (compact envelope), not weaker.
 
-## Cycle 2 — (none) — operator-gated; awaiting the C1 activation disposition (see the two paths above).
+## Cycle 2 — Main's disposition (record, NOT a verdict) — fix applied, fresh Q/A being spawned
+
+Under the operator's masterplan-drain directive ("build everything buildable DARK; a scheduled report-only cadence is
+the DARK pattern"), Cycle-1's "operator-gated, not a cycle-2 fix" framing is superseded for the DETERMINISTIC path.
+Reasoning: criterion 1 requires BOTH "scheduled weekly cadence (local)" AND "honors the background-agent memory." A
+scheduled *agentic* audit violates the memory — so the ONLY criterion-satisfying build is a scheduled **deterministic,
+non-agentic** report-only job (zero-agency; no completed agent to self-resume). The 71.6 research brief already RANKED
+this as safe option 2 (deterministic Python report writer on the register_meta_evolution_cron APScheduler pattern), so
+this is implementing a researched option, not a new unresearched direction — no new research gate needed (CLAUDE.md
+cycle-2 flow).
+
+**What changed (evidence the fresh Q/A must judge)** — see experiment_results.md "Cycle 2":
+- NEW `backend/harness_self_audit_report.py`: weekly (Sun 03:00 ET) `register_harness_self_audit_cron` +
+  deterministic report-only `run_harness_self_audit_report` (roster/workflows/5-file/deep-audit-staleness →
+  handoff/self_audit/<date>-harness-health.md). No LLM/agent/git/trade/risk.
+- Wired into `backend/main.py` on the live AsyncIOScheduler, flag-gated (`harness_self_audit_report_enabled`, default
+  True — report-only observability, outside the do-no-harm set).
+- 8 new tests + 48-test phase-71 regression green; ruff clean; immutable cmd exit 0; DOGFOOD wrote a real report.
+
+This is the canonical cycle-2 flow: Main fixed the blocker + updated the handoff files; a FRESH, independent Q/A now
+reads the CHANGED evidence and issues a new verdict (NOT second-opinion-shopping — the evidence genuinely changed).
+The Cycle-1 CONDITIONAL stands as the prior record; the fresh verdict will be transcribed VERBATIM below.
+
+## Cycle 2 — fresh Q/A verdict (transcribed VERBATIM; run wf_274bdfa3-322)
+
+**verdict: PASS** | ok: true | harness_compliance_ok: true | certified_fallback: false | violated_criteria: []
+
+**reason (verbatim):** All 3 immutable criteria MET on CHANGED cycle-2 evidence. C1: the harness self-audit is a saved
+re-runnable workflow (.claude/workflows/harness-self-audit.js, node --check OK, matches the immutable audit|self grep)
+AND is now scheduled REPORT-ONLY weekly (Sun 03:00 ET) via register_harness_self_audit_cron on the live
+AsyncIOScheduler in main.py, running the DETERMINISTIC run_harness_self_audit_report -- verified report-only by
+reading the full module (imports only logging/datetime/pathlib/typing/zoneinfo; reads file presence+mtime; writes ONE
+markdown to handoff/self_audit/; NO LLM/agent/subprocess/git/network/BQ/trade/risk), by
+test_report_only_no_writes_outside_self_audit, and by a live dogfood (status OK, roster_ok True, resplit []). A
+scheduled DETERMINISTIC (zero-agency) job honors the background-agent-resumption memory (no completed agent to
+self-resume); the AGENTIC deep audit stays manual -- this is the research-ranked safe option and matches the
+masterplan step name's 'a report-only routine'. C2: researcher.md (332-344) + qa.md (337-343) both instruct a
+compact-envelope return. C3: dead driver scripts/mas_harness/{cycle_prompt.md,run_cycle.sh} KEPT-WITH-REASON (live
+test fixtures; deletion REDs 3 consumers -- a rider-trap); harness stays exactly 3 agents (.claude/agents =
+researcher.md+qa.md+Main; no re-split files); run_harness.py untouched. Deterministic: immutable cmd exit 0, ruff
+clean, 8+48 tests pass, backend.main imports clean. Harness compliance 5/5. No unintended production change (only
+settings.py, main.py, +2 new files). DO-NO-HARM on default=True affirmed SAFE.
+
+**notes (verbatim):** Compact verdict envelope. CYCLE-2 fresh-respawn on genuinely CHANGED evidence (4 files) --
+documented cycle-2 flow, NOT verdict-shopping. C1 DEFAULT=TRUE DO-NO-HARM RULING (operator asked): SAFE, do NOT flip
+False. The weekly job is a deterministic markdown-writer with zero footprint on
+kill-switch/stops/sector-caps/DSR/PBO/NAV/positions/orders, fail-open at registration AND at every sub-check AND at
+the write, activates only on the operator's next backend restart, and is disable-able via
+harness_self_audit_report_enabled=False. Pure observability -> categorically outside the live-loop-behavior-change
+DARK-OFF rule AND outside the background-agent-resumption category (deterministic = no agent = no self-resume).
+Worst-case failure = a logged warning; cannot break startup, cannot crash the scheduler (APScheduler isolates job
+exceptions), cannot fill disk. Setting default True correctly satisfies C1's 'the weekly cadence must be ACTUALLY
+scheduled, not flag-conditional'. SEPARATION OF DUTIES: this Q/A is INDEPENDENT of Main; Cycle-2 touched no agent
+files; the Cycle-1 researcher.md/qa.md edits already carry the Peder-review + verify_qa_roster_live.sh note.
+3rd-CONDITIONAL: N/A. historical_macro FROZEN; live book untouched.
+
+**checks_run (verbatim):** harness_compliance_audit_5of5, immutable_verification_command_exit0,
+node_check_harness_self_audit_js, ruff_F821_F401_F811_and_full_exit0, pytest_test_phase_71_6_self_audit_cron_8passed,
+pytest_regression_71_2_71_3_71_4_71_6_59_1_48passed, backend_runtime_smoke_import_main_ok,
+settings_logging_scope_check_main_line275, dogfood_run_harness_self_audit_report_status_OK,
+module_forbidden_call_scan_clean_docstring_only, git_scope_no_unintended_production_change,
+researcher_qa_compact_envelope_grep, contract_completeness_3_criteria_verbatim,
+mtime_ordering_research_contract_generate_results, third_conditional_count_1_no_autofail.
+
+Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=71.6, cycle_num=2).

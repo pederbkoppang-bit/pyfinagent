@@ -15881,7 +15881,7 @@
         },
         {
           "id": "71.6",
-          "status": "in-progress",
+          "status": "done",
           "name": "P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harness/MAS self-audit as a reusable .claude/workflows/ script and schedule a WEEKLY report-only run (local /loop or a report-only routine -- NO auto-apply; it only writes a findings report for the operator, honoring the background-agent-resumption-risk memory). Adopt the subagent context-hygiene pattern: researcher/Q/A return a compact envelope (summary + verdict + handoff file path), NOT the full brief/critique through Main's context. Prune the dormant self-evaluating driver code path if the stress-test confirms it is dead weight.",
           "harness_required": true,
           "priority": "P3",

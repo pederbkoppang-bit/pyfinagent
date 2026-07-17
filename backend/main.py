@@ -269,6 +269,19 @@ async def lifespan(app: FastAPI):
             scheduler.start()
             # phase-23.2.23: register so /api/jobs/all can introspect
             _register_cron_scheduler("main", scheduler)
+            # phase-71.6: deterministic, report-only, weekly harness self-audit
+            # (zero-agency observability; report-only by construction). Gated
+            # by a settings flag (default True); fail-open inside register_*.
+            if settings.harness_self_audit_report_enabled:
+                try:
+                    from backend.harness_self_audit_report import (
+                        register_harness_self_audit_cron,
+                    )
+                    register_harness_self_audit_cron(scheduler)
+                except Exception as _e:  # never break startup
+                    logging.warning(
+                        "harness self-audit cron registration fail-open: %r", _e
+                    )
             logging.info("Paper trading scheduler started")
         except ImportError:
             logging.warning("APScheduler not installed, paper trading scheduler disabled")
