@@ -1,40 +1,31 @@
-# Evaluator Critique — Step 65.3 (US+KR per-market health baseline)
+# Evaluator Critique — Step 63.3 (Verified defect register published)
 
 **Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8,
 `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted
-to `handoff/current/evaluator_critique.json`. Run `wf_77b3e5e4-461`.
+to `handoff/current/evaluator_critique.json`. Run `wf_24174a12-dd0`.
 
 ## Verdict (transcribed VERBATIM)
 
-**verdict: PASS** | ok: true | harness_compliance_ok: true | certified_fallback: false | violated_criteria: []
+**verdict: CONDITIONAL** | ok: false | harness_compliance_ok: true | certified_fallback: false | violated_criteria: ["criterion_3_register_summary_appeared_in_slack_digest"]
 
-**reason (verbatim):** All 3 immutable criteria MET and independently verified. Crit 1 (per-market aggregates + SQL
-pasted verbatim): the deliverable pastes 4 complete BQ queries; I re-ran them via the Python bigquery client
-(us-central1) and EVERY number reproduces exactly (US 11 buys/17 sells/70.6% win/$20.30 fees/median-3d; KR
-5/5/20.0%/$4.82/median-1d; EU 0; holding-day dist US 6/4/1/6 & KR 4/0/0/1; exit-reason mix US swap n=10@4.7d+11.95% &
-stop n=7@29.3d+32.19%, KR stop n=3@8.0d-0.40% & swap n=2@0.5d-3.26%) -- REAL, not fabricated. Crit 2: 8 explicit
-quantified HEALTHY-THRESHOLD lines with concrete X/Y/Z + current PASS/FAIL (grep-c=10). Crit 3: dedicated
-pre/post-61.1-fix split section, segments never merged, independently confirmed PRE-FIX 12 swap-exits vs POST-FIX 0,
-thin-post-fix-sample + away-ops-quiet confound honestly disclosed + trend PENDING more cycles. Harness compliance 5/5
-(contract criteria copied BYTE-VERBATIM -- 63.2's softening mistake not repeated). Low-n honesty explicit. $0
-read-only BQ; NO production code; no trade/risk/money touch; historical_macro FROZEN; live book untouched.
+**reason (verbatim):** CONDITIONAL (ok:false). Criteria 1+2 MET and INDEPENDENTLY verified; criterion 3 GENUINELY NOT MET (register summary has NOT appeared in a Slack digest — no chat_postMessage, live_check permalink=PENDING/OPEN), an intentional operator-gated PARK honestly disclosed across register+experiment_results+live_check. Not PASS (crit3 unmet); not FAIL (crit1+2 correctly built and reproduced, step flips nothing to done, first Q/A on 63.3 so 3rd-CONDITIONAL auto-FAIL is N/A, harness compliance 5/5 clean, docs-only diff with no production code touched).
 
-**notes (verbatim):** Independent BQ re-verification ($0 read-only) reproduced all four aggregate queries AND the
-churn-split query exactly as pasted -- numbers genuine, not fabricated. Sanity: 61 total rows, 38 since 2026-06-01 =
-US 28 + KR 10, internally consistent. Gates N/A (no .py/frontend/backend touched; read-only BQ baseline doc). ONE
-minor non-blocking observation: the SQL defines the market-derivation CASE once + references it via a <market>
-placeholder rather than inlining -- the full CASE is pasted verbatim above + I reproduced every query end-to-end, so
-'SQL pasted verbatim' is satisfied (shared-subexpression convention; materially different from the 63.2 failure).
-Flag naming: criterion 3 says '61.1 flags' but the actual flag is paper_swap_churn_fix_enabled (phase-60.2) ON
-2026-06-12 -- honest, not a defect. The current-state FAILs the doc surfaces (KR median 1d, KR 80% <=1d exits, KR
-swap-hold 0.5d) are the pre-fix churn baseline documented honestly, not rigged to pass -- the intended purpose of a
-baseline.
+**violation_details (verbatim):** [{"violation_type":"Missing_Assumption","action":"post the register summary to the away-ops Slack digest (chat_postMessage + chat_getPermalink via scripts/away_ops/send_away_digest.py:80,85)","state":"digest summary text drafted DARK (defect_register.md L177-181); 62.8 formatter format_away_digest_sections confirmed present (formatters.py:49); NO chat_postMessage performed; live_check_63.3.md digest-permalink field = '<PENDING>' (OPEN); masterplan 63.3 status=pending (flips nothing to done)","constraint":"criterion 3 (verbatim): 'the register summary appeared in a Slack digest (sections wired in 62.8)' -- requires an actual outward-facing Slack post + permalink, which this unattended $0/paper drain does not auto-perform; operator-gated PARK, honestly disclosed as unsatisfied"}]
 
-Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=65.3, cycle_num=1).
+**checks_run (verbatim):** harness_compliance_audit_5items; immutable_verification_command:grep_DEF=2_SCREENSHOT-AREA=8_exit=0; byte_verbatim_criteria_vs_masterplan:3of3_identical; git_status_short:only_handoff_docs+hook_audit_streams_no_production_code; mtime_order:research00:40<contract00:44<register00:45<results00:46<livecheck00:46; harness_log_conditional_count_63.3=0_and_no_result_line(log-last); walk_summary_json_independent_read:console=[/agent-map]_failed_request=[]_page_error=[]_delta_empty; def_row_dedup:DEF-001_L88+DEF-002_L127_no_double_count; screenshot_area_coverage:4_areas_mapped_with_evidence; def002_rootcause_spotcheck:AgentMap.tsx_no_sourceHandle_grep=0; formatter_62.8_exists:formatters.py:49+poster_send_away_digest.py:80,85; criterion3_park_honesty:register+results+livecheck_all_disclose_PENDING_no_overclaim; no_lint_or_test_gates_apply:zero_py_frontend_backend_files_in_diff
+
+**notes (verbatim):** HARNESS COMPLIANCE (5/5 CLEAN): (1) research-gate-before-contract -- research_brief_63.3.md exists, gate_passed:true, moderate tier, 6 external sources read-in-full (Rootly/BrowserStack/softwaretestinghelp/auditfindings/DefectDojo/TestRail; vendor+practitioner+official-docs tier, >=5 floor cleared), recency scan present (classic severity!=priority + no-silent-drops model STABLE 2024-2026), mtime research(00:40:46)<contract(00:44:20). (2) contract-before-generate -- contract(00:44:20)<register(00:45:36); all 3 immutable criteria copied BYTE-IDENTICAL from masterplan.json (verified via json load + regex compare; the 63.2 self-inflicted criteria-softening was NOT repeated). (3) experiment_results present with verbatim cmd output (2/8). (4) log-last -- 63.3 has NO result= line in harness_log (the 63.3 hits are forward-references from prior steps 66.5/69.4/63.1/63.2), masterplan status=pending; correctly PRE-LOG. (5) no-verdict-shopping -- 0 prior CONDITIONALs for 63.3; this is the FIRST Q/A on the step.
+
+CRITERION-BY-CRITERION:
+- CRIT 1 MET: 63.1 console_error_routes=['/agent-map']->DEF-002 (verified independently from walk_summary.json, not from the register's own claim); failed_request_routes=[] and page_error_routes=[] -> 0 rows recorded explicitly in the no-silent-drops ledger (L139-140), not silently dropped; 63.2 number-mismatch=none (every API==BQ exact) -> ledger L142; the sole 63.2 defect is the source-availability DEF-001. grep DEF-=2 = DEF-001(L88)+DEF-002(L127), no double-count (DEF-001 kept in its canonical Criterion-2 table and cross-referenced from the consolidation, per L129). 120 /agent-map warnings merged to ONE row with instance count noted (L127), matching the researched DefectDojo merge-duplicates-as-link convention. DEF-002 root cause confirmed accurate: AgentMap.tsx edge-builder emits {id,source,target} with no sourceHandle and grep -c 'sourceHandle'=0 file-wide.
+- CRIT 2 MET: all 4 operator areas mapped with evidence -- reports->DEF-001 (outcome_tracking 404-absent, 63.2 Q5); positions/currency->ALL-CLEAR (AMD qty/avg/cost/sector MATCH + identities hold + 64.3 currency tests); dashboard-numbers->ALL-CLEAR (every API==BQ exact: NAV 23874.56/cash 23214.43/P&L 19.37/benchmark 5.18/counts); new-pages->DEF-002-else-clear (63.1 walk all 22 routes, only /agent-map warned). grep SCREENSHOT-AREA=8>=4.
+- CRIT 3 NOT MET (intended PARK): the summary has NOT 'appeared in a Slack digest'. 62.8 formatter is DONE and the digest text is drafted DARK, but no chat_postMessage was made and live_check permalink=PENDING. The miss is honestly disclosed (no overclaim that the digest was posted) in all three handoff files. This is an outward-facing operator gate, not a build defect -> CONDITIONAL, not FAIL.
+
+SCOPE/SAFETY: $0 confirmed (no metered LLM, no Slack post); documentation-only (git diff = handoff/ .md + hook-written audit jsonl + scheduled_tasks.lock; ZERO production .py/frontend/backend) so no lint/tsc/import-smoke gates apply; historical_macro untouched; no kill-switch/stop/sector-cap/DSR/PBO byte touched; operator :3000 not touched (audit used :8000 curls per 63.2).
+
+MINOR NON-BLOCKING CLEANUP (fold into the criterion-3 operator pass; does NOT change this verdict): defect_register.md line 170 states "grep -c 'SCREENSHOT-AREA' counts 4" but the actual count is 8 -- experiment_results.md and live_check_63.3.md both correctly report 8, and the criterion holds regardless (8>=4; all 4 distinct areas mapped with evidence), so this is only a self-inconsistent inline count inside the deliverable and should read 8 (or "4 distinct areas / 8 token hits").
+
+REMEDIATION TO REACH PASS: operator posts the drafted phase-63.3 digest summary to Slack (run scripts/away_ops/send_away_digest.py with the register section wired in, or chat_postMessage the summary), then paste the resulting chat_getPermalink into the live_check_63.3.md digest-permalink field; a FRESH Q/A on that CHANGED evidence can then clear criterion 3. Until the permalink lands, 63.3 correctly stays pending/parked.
 
 ## Main's disposition
-PASS, violated_criteria=[]. The Q/A independently re-ran every aggregate + the churn-split query (all reproduce
-exactly) and confirmed the contract criteria are byte-verbatim (the 63.2 softening mistake was NOT repeated this
-cycle). The 2 minor non-blocking notes are accepted (the shared-CASE SQL convention; the honest 61.1-vs-
-paper_swap_churn_fix_enabled flag-naming disclosure). Proceeding to LOG (Cycle 110) then flip 65.3 -> done -- which
-exhausts the non-gated single-cycle-closeable drain frontier.
+CONDITIONAL, violated_criteria=["criterion_3_register_summary_appeared_in_slack_digest"]. **This is the intended, honest outcome** — criteria 1+2 are built DARK and independently verified (Q/A re-read walk_summary.json, re-ran the grep, byte-checked the criteria vs masterplan, spot-checked the DEF-002 root cause), and criterion 3 is the outward-facing operator Slack-post gate the drain directive says to PARK (not auto-perform). **Main does NOT flip 63.3 to done.** Main applied the ONE minor cleanup the Q/A flagged (register inline count 4→8; no re-grade needed — the fix is inside the disclosure text, criterion 1+2 evidence unchanged, count still 8≥4). LOG the CONDITIONAL to harness_log, then PARK 63.3 with the owed operator Slack-post token + permalink. This is a park-not-close; per the drain directive I do not spawn a cycle-2 Q/A (no fix reaches criterion 3 without the operator's outward Slack post — the gate itself is the blocker, not a build defect).

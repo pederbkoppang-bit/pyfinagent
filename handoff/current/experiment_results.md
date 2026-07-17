@@ -1,53 +1,36 @@
-# Experiment results — step 65.3 (US+KR per-market health baseline)
+# Experiment Results — Step 63.3 (Verified defect register published)
 
-**Step:** 65.3 (P1, phase-65, depends_on none; post-66.2=done). $0 BQ read-only baseline audit; live book untouched;
-historical_macro FROZEN; NO trade/risk/money touch. Research gate PASSED (research_brief_65.3.md, gate_passed=true, 7
-external sources read in full).
+**Date:** 2026-07-18 | **Method:** $0 documentation consolidation of two already-completed $0 audits (63.1 route-walk + 63.2 BQ cross-check). No metered LLM. No production code. Operator `:3000` untouched. historical_macro FROZEN.
 
-## What was done
+## What was built/changed
 
-Ran the 4 per-market aggregate BQ queries (read-only, $0) against `financial_reports.paper_trades` for trades since
-2026-06-01, market derived from the ticker suffix (no `market` column; `created_at` is STRING → lexical filter), plus
-the pre/post-61.1-churn-fix split. Wrote the baseline doc.
+**Single file edited:** `handoff/away_ops/defect_register.md` (extended the existing 63.2 register; DEF numbers NOT re-numbered).
+1. **Title/banner** updated to "consolidated (phase-63.1 route-walk + phase-63.2 BQ cross-check)" with a pointer to the new `## Phase-63.3 consolidation` section.
+2. **Consolidated DEF table** — added **DEF-002** (63.1 `/agent-map` React Flow error#008 "source handle null", **120 warnings across ~24 edges merged to ONE row** with instance count, root cause `AgentMap.tsx` L258-276, fix → 63.4, P2/pure-bug). DEF-001 (63.2) is NOT re-listed as a `| DEF-001 |` row (kept in its canonical Criterion-2 table) so the count stays "exactly one DEF- row per finding".
+3. **No-silent-drops ledger** — explicitly records `failed_request_routes=[]`, `page_error_routes=[]`, `route_list_delta` empty, and "no number mismatch" as **0 rows each** (recorded, not silently dropped).
+4. **P0/P1/P2 triage** — rubric (P0 money/risk = none; P1 reporting-broken = DEF-001; P2 cosmetic/console = DEF-002) + priority table.
+5. **4 `SCREENSHOT-AREA` rows** — reports→DEF-001; positions/currency→ALL-CLEAR (63.2 AMD match + 64.3 currency tests); dashboard-numbers→ALL-CLEAR (every API==BQ exact); new-pages→DEF-002-else-clear. Each carries the literal `SCREENSHOT-AREA` token + evidence.
+6. **Digest summary** — a DARK draft of the register-summary digest text + an explicit `⛔ Criterion 3 is OPERATOR-GATED` block naming the poster (`scripts/away_ops/send_away_digest.py:80,85`) and the owed operator action.
 
-Deliverable: **`handoff/away_ops/market_health_baseline.md`** — per-market aggregate tables + **the verbatim SQL
-pasted** (criterion 1) + **10 `HEALTHY-THRESHOLD:` lines** (criterion 2) + the **pre/post-61.1-fix split noted
-separately** (criterion 3) + the low-n descriptive caveat.
+Also created `handoff/current/live_check_63.3.md` (register header + row count recorded; **digest permalink field left OPEN — owed operator token**).
 
-## Findings (baseline)
+## File list
+- `handoff/away_ops/defect_register.md` (edited — title banner + `## Phase-63.3 consolidation` section)
+- `handoff/current/contract.md` (this step's contract)
+- `handoff/current/research_brief_63.3.md` (research gate, gate_passed:true)
+- `handoff/current/live_check_63.3.md` (stub; permalink OPEN)
 
-- **US:** 11 buys / 17 sells / **70.6% win** / $20.30 fees (0.085% NAV) / median hold **3d**. Holding dist:
-  6×≤1d, 4×2-5d, 1×6-20d, 6×≥21d. Exits: swap n=10 (avg 4.7d, +11.95%), stop_loss n=7 (avg 29.3d, +32.19%).
-- **KR:** 5 buys / 5 sells / **20.0% win** / $4.82 fees (0.020% NAV) / median hold **1d**. Holding dist: 4×≤1d,
-  1×≥21d. Exits: stop_loss n=3 (avg 8.0d, -0.40%), swap n=2 (avg 0.5d, -3.26%).
-- **EU:** 0 trades yet (zero-trades diagnosis is 65.1/65.2, separate).
-- **Churn split (criterion 3):** `paper_swap_churn_fix_enabled` ON 2026-06-12. **PRE-FIX (06-01→06-11)** carries the
-  whole swap-churn cluster (US 10 + KR 2 = 12 swap-exits, many ≤1d holds). **POST-FIX (06-12+)** has **0 swap-exits**
-  (fix holds) but a thin sample (US 2 sells, KR 1) confounded by the away-ops quiet period → directionally confirmed,
-  trend PENDING more cycles. Presented separately, never merged.
-- **Low-n honesty:** US 17 / KR 5 closed trades < the ~30/metric inferential minimum → win-rate/PF are DESCRIPTIVE;
-  65.4 should lean on the STRUCTURAL thresholds (holding-days, churn-swap-hold, fee-drag, liveness).
+## Verbatim verification command output
+```
+$ grep -cE '^\| DEF-[0-9]+ \|' handoff/away_ops/defect_register.md && grep -c 'SCREENSHOT-AREA' handoff/away_ops/defect_register.md
+2
+8
+```
+- `grep -cE '^\| DEF-[0-9]+ \|'` = **2** → DEF-001 (line 88) + DEF-002 (line 127); the two distinct findings, no double-count. **Criterion 1 satisfied** (console-error route `/agent-map`→DEF-002; failed-request/page-error/number-mismatch all explicitly 0 rows; duplicates merged with cross-references).
+- `grep -c 'SCREENSHOT-AREA'` = **8** (≥4) → all four operator screenshot areas mapped (reports+new-pages→DEF; positions/currency+dashboard-numbers→ALL-CLEAR-with-evidence). **Criterion 2 satisfied.**
 
-## Verification (verbatim)
-
-- IMMUTABLE cmd `test -f handoff/away_ops/market_health_baseline.md && grep -c 'HEALTHY-THRESHOLD' ...` → **10**,
-  exit **0**.
-- Criterion 1: 4 verbatim SQL SELECT blocks pasted (the market-suffix CASE + `created_at >= '2026-06-01'` filter +
-  the 4 aggregate queries), matching the run outputs above.
-- Criterion 2: 10 explicit `HEALTHY-THRESHOLD:` lines (structural primary + secondary-descriptive-until-n≥30) with
-  the concrete X/Y/Z + current PASS/FAIL annotations (e.g. "no market > 0.50% of NAV in fees" = $119.37; "≤1d exits <
-  40%"; "swap-exit avg hold ≥ 3d"; "median holding_days ≥ 5").
-- Criterion 3: the PRE-FIX vs POST-FIX split table (8 rows) + the "noted separately, never merged" narrative.
-- $0: read-only BQ SELECT + Python only. NO metered LLM. NO production code changed (git = only the baseline doc +
-  handoff docs).
-
-## Do-no-harm / boundaries
-
-$0 read-only BQ. READ-ONLY baseline audit — the only deliverable is `market_health_baseline.md`. NO production code
-change; NO trade/risk/money touch; kill-switch/stops/caps/DSR/PBO untouched; historical_macro FROZEN; live book
-untouched. The HEALTHY-THRESHOLD lines are BASELINE targets for 65.4 (not enforced live). Scope honesty: git may also
-show incidental live autonomous-loop runtime artifacts (the :8000 backend) — runtime state, not 65.3.
+## Criterion 3 — PARKED (operator-gated, outward-facing)
+"The register summary appeared in a Slack digest" requires an actual `chat_postMessage` + `chat_getPermalink` (poster `scripts/away_ops/send_away_digest.py:80,85`; 62.8 formatter DONE). That is an **outward-facing side effect** — out of scope for this $0/paper unattended drain. Built the digest summary **text** DARK; **owed operator action:** post it and record the permalink into `live_check_63.3.md`. **This step is PARKED, not flipped to done.**
 
 ## Artifact shape
-`handoff/away_ops/market_health_baseline.md` (per-market aggregate tables + verbatim SQL + 10 HEALTHY-THRESHOLD lines
-+ pre/post-fix split). live_check_65.3.md = the baseline doc (per the immutable live_check field).
+`handoff/away_ops/defect_register.md` — one consolidated register: 63.2 body (24 triples + Q1-Q6 SQL + DEF-001) + `## Phase-63.3 consolidation` (DEF-002 + no-silent-drops ledger + P0/P1/P2 triage + 4 SCREENSHOT-AREA rows + DARK digest draft + operator-gate block).

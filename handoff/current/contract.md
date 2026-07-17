@@ -1,56 +1,46 @@
-# Contract — step 65.3 (US+KR per-market health baseline)
+# Contract — Step 63.3 (Verified defect register published)
 
-**Phase:** phase-65 | **Step:** 65.3 | **Priority:** P1 | harness_required: true | depends_on: none; post-66.2 (done)
-**Cycle:** 1 | Date: 2026-07-18 | **Type:** $0 BQ baseline AUDIT (read-only; produces a baseline doc). live book
-untouched; historical_macro FROZEN; NO trade/risk/money touch.
+**Step id:** 63.3
+**Name (verbatim):** "Verified defect register published -- handoff/away_ops/defect_register.md consolidating 63.1+63.2 findings, P0/P1/P2 triage, digest summary; operator screenshot areas all covered or explicitly cleared."
+**depends_on:** null (63.1 + 63.2 both `done`)
+**Tier:** moderate | **audit_class:** false
 
-## Research-gate summary (gate PASSED)
+## Research-gate summary
+`researcher` spawned BEFORE this contract (gate_passed: **true**, moderate, 6 external sources read in full, recency scan performed, all hard-blockers satisfied). Brief: `handoff/current/research_brief_63.3.md`. Sources: Rootly P-levels, BrowserStack + TestRail (2025-05-08) defect fields, softwaretestinghelp sev≠pri, auditfindings lifecycle=no-silent-drops, DefectDojo merge-duplicates-as-link-to-original. Recency scan: classic severity/priority + no-silent-drops model STABLE 2024–2026, not superseded. Internal anchors: `defect_register.md` (existing 63.2 DEF-001, EXTEND not re-number), `route_walk_2026-07-17/walk_summary.json` (63.1 contributes exactly ONE finding: `console_error_routes=['/agent-map']`; failed_request/page_error empty), `frontend/src/components/AgentMap.tsx` L258-276 (both edge branches omit `sourceHandle` → React Flow error#008 → root cause of DEF-002; fix belongs to 63.4), `backend/slack_bot/formatters.py:49` + `scripts/away_ops/send_away_digest.py:80,85` (`chat_postMessage`+`chat_getPermalink` = the outward-facing criterion-3 poster).
 
-Researcher subagent (Agent tool, Opus 4.8 effort:max, $0), brief `research_brief_65.3.md`. Envelope:
-**gate_passed=true**, tier=moderate, **7 external sources read in full**, 11 snippet-only, 25 URLs, recency scan, 6
-internal files. KEY:
-- **Schema trap**: `financial_reports.paper_trades` (61 rows) has **NO `market` column** and `created_at` is a
-  **STRING** → derive market from the ticker suffix (`market_for_symbol`, markets.py:142: bare=US, .KS/.KQ=KR,
-  .DE/.PA=EU); filter `created_at >= "2026-06-01"` (lexical, works) — NOT `>= TIMESTAMP(...)` (that failed).
-- **Definitions**: win = `realized_pnl_pct > 0` on SELL rows (paper_round_trips.py:145; break-even=loss);
-  `holding_days` + `realized_pnl_pct` precomputed on SELL rows (no re-pairing); fee = `transaction_cost` = notional ×
-  `paper_transaction_cost_pct`(0.1, settings.py:371)/100 (USD).
-- **Live dry-run** (to re-run): US 28 trades / 70.6% win / median-hold 3d / $20.30 fees; KR 10 / 20% / 1d / $4.82;
-  EU 0.
-- **Churn split** (criterion 3): `paper_swap_churn_fix_enabled` operator-activated ON **2026-06-12** (harness_log
-  :27097). PRE-FIX = 06-01→06-11 (swap-churn cluster, dominates the aggregates); POST-FIX = 06-12+ (0 churn swaps,
-  thin sample confounded by the away-ops quiet period — disclose both causes; post-fix trend PENDING more cycles).
-- **Statistical caveat**: min ~30 trades/metric → at US 17 / KR 5 closed, win-rate/PF are DESCRIPTIVE not inferential
-  → lean the thresholds on robust STRUCTURAL gates (holding-days, churn-swap-hold, fee-drag, liveness).
+## Immutable success criteria (copied VERBATIM from .claude/masterplan.json 63.3 verification.success_criteria)
+1. "every console-error route, failed-request route, and number mismatch from 63.1/63.2 appears as exactly one DEF- row (no silent drops; duplicates merged with cross-references)"
+2. "all four operator-reported screenshot areas map to register rows or an explicit ALL-CLEAR entry with evidence"
+3. "the register summary appeared in a Slack digest (sections wired in 62.8)"
 
-## Plan
-1. Run the 4 aggregate BQ queries ($0, read-only, Python bigquery client, us-central1) with the market-from-suffix
-   CASE + `WHERE created_at >= "2026-06-01"`: (B1) per-market trade counts (buys/sells); (B2) per-market win rate
-   (COUNTIF(SELL & realized_pnl_pct>0)/COUNTIF(SELL)); (B3) per-market exit-reason mix (GROUP BY reason + avg
-   holding_days + avg realized_pnl_pct); (B4) per-market holding-day distribution (<=1d / 2-5 / 6-20 / >=21 + median).
-2. Run the same split by the churn flag date (pre-fix 06-01→06-11 vs post-fix 06-12+).
-3. Write **`handoff/away_ops/market_health_baseline.md`**: per-market aggregate tables + **the verbatim SQL pasted**
-   (criterion 1) + **≥1 explicit `HEALTHY-THRESHOLD:` lines** (criterion 2, e.g. "no market > X% of NAV in fees",
-   "stop-out rate < Y%", median holding-days ≥ Z, churn-swap-hold ≥ 3d) + the **pre/post-61.1-fix split noted
-   separately** (criterion 3) + the low-n descriptive caveat.
+**Immutable verification command (verbatim):**
+`cd /Users/ford/.openclaw/workspace/pyfinagent && grep -cE '^\| DEF-[0-9]+ \|' handoff/away_ops/defect_register.md && grep -c 'SCREENSHOT-AREA' handoff/away_ops/defect_register.md`
 
-## Immutable success criteria (VERBATIM from masterplan.json 65.3)
-1. "per-market aggregates (trades, win rate, exit reasons, holding days) since 2026-06-01 with the SQL pasted verbatim"
-2. "explicit HEALTHY-THRESHOLD lines that 65.4 will be judged against (e.g. no market >X% of NAV in fees, stop-out rate <Y%)"
-3. "post-churn-fix (61.1 flags ON) trend noted separately from the pre-fix baseline"
+**live_check (verbatim):** "live_check_63.3.md with the register header, row count, and digest permalink"
 
-**Verification command (immutable):**
-`cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/away_ops/market_health_baseline.md && grep -c 'HEALTHY-THRESHOLD' handoff/away_ops/market_health_baseline.md`
+## Hypothesis
+The register (63.2) already exists with DEF-001 + 24 matching triples. 63.3 EXTENDS it to consolidate the 63.1 route-walk finding, add screenshot-area coverage, and triage — closing criteria 1 + 2 at $0. **Criterion 3 (the register summary "appeared in a Slack digest" + the live_check "digest permalink") is an OUTWARD-FACING action** (a `chat_postMessage` to Slack requiring the bot token) that this unattended $0/paper drain will NOT auto-perform → **criteria 1+2 are built DARK; the step is PARKED on criterion 3 with the operator Slack-post token + permalink owed.**
 
-## Boundaries (binding)
-$0 — read-only BQ SELECT + Python aggregation. READ-ONLY baseline AUDIT; the only deliverable is
-`market_health_baseline.md` (+ live_check). NO production code change; NO trade/risk/money touch;
-kill-switch/stops/caps/DSR/PBO untouched; historical_macro FROZEN; live book untouched. The HEALTHY-THRESHOLD lines
-are BASELINE targets that 65.4 will judge against (not enforced live). Low-n honesty: win-rate/PF at US 17 / KR 5
-closed trades are DESCRIPTIVE, not inferential (disclosed). The post-61.1-fix trend is noted separately + flagged as
-pending more cycles (away-ops quiet). SQL pasted verbatim per criterion 1 (lesson from 63.2: copy criteria verbatim).
+## Plan steps (buildable-DARK; criterion 3 parked)
+1. **DEF rows — no silent drops, no double-count (crit 1):**
+   - DEF-001 (63.2) KEEP → triage **P1** (reporting-broken).
+   - DEF-002 (63.1) ADD → `/agent-map` React Flow error#008 "source handle null", **120 warnings across ~24 edges merged to ONE row** (instance count noted), root cause `AgentMap.tsx` L258-276 (edges omit `sourceHandle`), fix → 63.4. Triage **P2** (cosmetic/console; graph edges drop; no money/risk impact).
+   - Explicitly record `failed_request_routes=[]` and `page_error_routes=[]` → **0 rows** (no silent drop).
+2. **P0/P1/P2 triage rubric + table (crit 1):** P0=money/risk-affecting (none); P1=reporting/gate-feeding broken (DEF-001); P2=cosmetic/console (DEF-002). Priority defaults to severity; escalate only on a money/risk reason.
+3. **4 SCREENSHOT-AREA rows (crit 2)** — literal `SCREENSHOT-AREA` token so `grep -c 'SCREENSHOT-AREA' >= 4`:
+   - reports → **DEF-001** (all-0; outcome_tracking 404-absent).
+   - positions/currency → **ALL-CLEAR** (63.2: AMD qty/avg/cost/sector MATCH BQ; currency + 64.3 currency-path tests).
+   - dashboard numbers → **ALL-CLEAR** (63.2: every API==BQ exact — NAV 23874.56, cash 23214.43, P&L 19.37, benchmark 5.18, counts).
+   - new pages → **DEF-002** (the 63.1 walk covered all 22 routes; only `/agent-map` warned) else ALL-CLEAR.
+4. **Digest summary draft (crit 3, DARK):** write the register-summary digest text into the register + a `live_check_63.3.md` stub recording the register header + row count, with the **digest permalink field left OPEN (owed operator token)**. Do NOT call `chat_postMessage`.
+5. Run the immutable verification command; confirm `grep DEF- >= 2` and `grep SCREENSHOT-AREA >= 4`.
+
+## Boundaries honored
+$0 (no metered LLM; no Slack post); paper-only; do-no-harm (no kill-switch/stops/sector-cap/DSR/PBO byte touched); no production code (documentation-only consolidation); historical_macro FROZEN; operator `:3000` untouched; harness = exactly 3 agents. This step FLIPS NOTHING to done — it builds the DARK part and PARKS on criterion 3 (Slack post) with the token owed.
 
 ## References
-research_brief_65.3.md; backend/backtest/markets.py:142 (market_for_symbol); backend/services/paper_round_trips.py:145
-(win def); backend/config/settings.py:345 (paper_swap_churn_fix_enabled), :371 (paper_transaction_cost_pct); the
-financial_reports.paper_trades schema; harness_log.md:27097 (flag ON 2026-06-12).
+- `handoff/current/research_brief_63.3.md` (research gate)
+- `handoff/away_ops/defect_register.md` (63.2 base being extended)
+- `handoff/away_ops/route_walk_2026-07-17/walk_summary.json` (63.1 finding)
+- `frontend/src/components/AgentMap.tsx` L258-276 (DEF-002 root cause)
+- `backend/slack_bot/formatters.py:49`, `scripts/away_ops/send_away_digest.py:80,85` (criterion-3 outward poster)

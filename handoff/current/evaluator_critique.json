@@ -1,26 +1,35 @@
 {
-  "step_id": "65.3",
+  "step_id": "63.3",
   "cycle_num": 1,
-  "ok": true,
-  "verdict": "PASS",
-  "reason": "All 3 immutable criteria MET and independently verified. Crit 1 (per-market aggregates + SQL pasted verbatim): the deliverable pastes 4 complete BQ queries; I re-ran them via the Python bigquery client (us-central1) and EVERY number reproduces exactly (US 11 buys/17 sells/70.6% win/$20.30 fees/median-3d; KR 5/5/20.0%/$4.82/median-1d; EU 0; holding-day dist US 6/4/1/6 & KR 4/0/0/1; exit-reason mix US swap n=10@4.7d+11.95% & stop n=7@29.3d+32.19%, KR stop n=3@8.0d-0.40% & swap n=2@0.5d-3.26%) -- REAL, not fabricated. Crit 2: 8 explicit quantified HEALTHY-THRESHOLD lines with concrete X/Y/Z + current PASS/FAIL (grep-c=10). Crit 3: dedicated pre/post-61.1-fix split section, segments never merged, independently confirmed PRE-FIX 12 swap-exits vs POST-FIX 0, thin-post-fix-sample + away-ops-quiet confound honestly disclosed + trend PENDING more cycles. Harness compliance 5/5 (contract criteria copied BYTE-VERBATIM -- 63.2's softening mistake not repeated). Low-n honesty explicit. $0 read-only BQ; NO production code; no trade/risk/money touch; historical_macro FROZEN; live book untouched.",
-  "violated_criteria": [],
-  "violation_details": [],
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "CONDITIONAL (ok:false). Criteria 1+2 MET and INDEPENDENTLY verified; criterion 3 GENUINELY NOT MET (register summary has NOT appeared in a Slack digest — no chat_postMessage, live_check permalink=PENDING/OPEN), an intentional operator-gated PARK honestly disclosed across register+experiment_results+live_check. Not PASS (crit3 unmet); not FAIL (crit1+2 correctly built and reproduced, step flips nothing to done, first Q/A on 63.3 so 3rd-CONDITIONAL auto-FAIL is N/A, harness compliance 5/5 clean, docs-only diff with no production code touched).",
+  "violated_criteria": ["criterion_3_register_summary_appeared_in_slack_digest"],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "post the register summary to the away-ops Slack digest (chat_postMessage + chat_getPermalink via scripts/away_ops/send_away_digest.py:80,85)",
+      "state": "digest summary text drafted DARK (defect_register.md L177-181); 62.8 formatter format_away_digest_sections confirmed present (formatters.py:49); NO chat_postMessage performed; live_check_63.3.md digest-permalink field = '<PENDING>' (OPEN); masterplan 63.3 status=pending (flips nothing to done)",
+      "constraint": "criterion 3 (verbatim): 'the register summary appeared in a Slack digest (sections wired in 62.8)' -- requires an actual outward-facing Slack post + permalink, which this unattended $0/paper drain does not auto-perform; operator-gated PARK, honestly disclosed as unsatisfied"
+    }
+  ],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit_5item",
-    "research_gate_verified",
-    "contract_criteria_byte_verbatim_vs_masterplan",
-    "mtime_ordering_research_contract_generate",
-    "immutable_verification_command",
-    "independent_bq_reverification_python_client",
-    "churn_split_pre_post_fix_reproduced",
-    "git_status_no_production_code",
-    "log_last_and_masterplan_status_check",
-    "low_n_caveat_honesty_check",
-    "adversarial_3lens_correctness_reproduce_scopehonesty"
+    "harness_compliance_audit_5items",
+    "immutable_verification_command:grep_DEF=2_SCREENSHOT-AREA=8_exit=0",
+    "byte_verbatim_criteria_vs_masterplan:3of3_identical",
+    "git_status_short:only_handoff_docs+hook_audit_streams_no_production_code",
+    "mtime_order:research00:40<contract00:44<register00:45<results00:46<livecheck00:46",
+    "harness_log_conditional_count_63.3=0_and_no_result_line(log-last)",
+    "walk_summary_json_independent_read:console=[/agent-map]_failed_request=[]_page_error=[]_delta_empty",
+    "def_row_dedup:DEF-001_L88+DEF-002_L127_no_double_count",
+    "screenshot_area_coverage:4_areas_mapped_with_evidence",
+    "def002_rootcause_spotcheck:AgentMap.tsx_no_sourceHandle_grep=0",
+    "formatter_62.8_exists:formatters.py:49+poster_send_away_digest.py:80,85",
+    "criterion3_park_honesty:register+results+livecheck_all_disclose_PENDING_no_overclaim",
+    "no_lint_or_test_gates_apply:zero_py_frontend_backend_files_in_diff"
   ],
   "harness_compliance_ok": true,
-  "notes": "Independent BQ re-verification ($0 read-only) reproduced all four aggregate queries AND the churn-split query exactly as pasted -- numbers genuine, not fabricated. Sanity: 61 total rows, 38 since 2026-06-01 = US 28 + KR 10, internally consistent. Gates N/A (no .py/frontend/backend touched; read-only BQ baseline doc). ONE minor non-blocking observation: the SQL defines the market-derivation CASE once + references it via a <market> placeholder rather than inlining into each query -- the full CASE is pasted verbatim above + I reproduced every query end-to-end, so 'SQL pasted verbatim' is satisfied (shared-subexpression convention; materially different from the 63.2 failure). Flag naming: criterion 3 says '61.1 flags' but the actual flag is paper_swap_churn_fix_enabled (phase-60.2, settings.py:345) ON 2026-06-12 -- the researcher flagged this + the deliverable references the correct flag, honest not a defect. The current-state FAILs the doc surfaces (KR median 1d, KR 80% <=1d exits, KR swap-hold 0.5d) are the pre-fix churn baseline documented honestly, not rigged to pass -- the intended purpose of a baseline.",
-  "run_id": "wf_77b3e5e4-461"
+  "notes": "CRIT 1 MET (DEF-001+DEF-002, no double-count, empties recorded in no-silent-drops ledger, 120 warnings merged to one row); CRIT 2 MET (4 SCREENSHOT-AREA areas mapped with evidence, grep=8>=4); CRIT 3 NOT MET (intended operator-gated PARK — digest text drafted DARK, no chat_postMessage, permalink PENDING, honestly disclosed). Harness compliance 5/5. Docs-only diff, $0, no production code, historical_macro/risk gates untouched. Minor non-blocking cleanup flagged: register inline 'counts 4' should read 8 (fixed by Main; does not change verdict). REMEDIATION TO PASS: operator posts the drafted digest to Slack + pastes the chat_getPermalink into live_check_63.3.md, then a FRESH Q/A on the changed evidence clears criterion 3.",
+  "run_id": "wf_24174a12-dd0"
 }
