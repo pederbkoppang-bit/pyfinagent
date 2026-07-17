@@ -14797,7 +14797,7 @@
         {
           "id": "63.2",
           "name": "(post-66.2) BQ cross-check of displayed numbers -- for every number-bearing page (cockpit /, /paper-trading/*, /performance, /learnings, /sovereign): displayed value vs API response (curl) vs independent BQ aggregate, side-by-side; mismatches beyond rounding become defect rows.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "63.1",

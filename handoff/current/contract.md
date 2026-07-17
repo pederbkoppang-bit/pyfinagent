@@ -1,73 +1,73 @@
-# Contract — step 64.4 (Multi-market fixture-replay e2e)
+# Contract — step 63.2 (BQ cross-check of displayed numbers)
 
-**Phase:** phase-64 | **Step:** 64.4 | **Priority:** P1 | harness_required: true | depends_on: 66.2 (done)
-**Cycle:** 1 | Date: 2026-07-17 | **Type:** test-infra (1 e2e test file + synthetic fixture helper). $0; local-only;
-NO production/live-loop change; historical_macro FROZEN; live book untouched. NO network (synthetic fixtures).
+**Phase:** phase-63 | **Step:** 63.2 | **Priority:** P0 | harness_required: true | depends_on: 63.1 (done); post-66.2 (done)
+**Cycle:** 1 | Date: 2026-07-17 | **Type:** live AUDIT (read-only; produces a defect register). $0 (curl + BQ only,
+ZERO metered LLM); historical_macro FROZEN; live book untouched; **operator :3000 NEVER touched**.
 
 ## Research-gate summary (gate PASSED)
 
-Researcher subagent (Agent tool, Opus 4.8 effort:max, $0), brief `research_brief_64.4.md`. Envelope:
-**gate_passed=true**, tier=complex, **7 external sources read in full**, 10 snippet-only, 17 URLs, recency scan, 12
-internal files. VERDICT: **single-cycle GENERATE, NOT blocked on 65.2, NOT multi-session.** KEY:
-- **Smallest offline seam** (drive once PER MARKET): `screen_universe` (`backend/tools/screener.py:91`; mock the ONLY
-  net call `yf.download` at :137, `yf` module-level :11) → `rank_candidates` (:249, pure) → `decide_trades`
-  (`backend/services/portfolio_manager.py:66`, pure :66-240, no bq/net/await → `list[TradeOrder]` with `.market`).
-  Per-market funnel = universe→screened→ranked→order-intent counts, driven per market.
-- **Fixtures: SYNTHETIC** (deterministic, no network EVER). Reuse `_clean_series`
-  (`test_phase_50_5_dataquality.py:15`) which survives `validate_ohlcv` R1-R3. 2-3 tickers/market × ~60 bars (≥20
-  required, screener.py:172). US bare, EU `.DE`, KR `.KS` from `INTL_UNIVERSE` (universe_lists.py:17-41). MultiIndex
-  via `pd.concat({tkr:_clean_series() for tkr in tickers}, axis=1)`.
-- **KEY PITFALL**: drive the PURE seam, NOT the full loop — the loop's phase-50.4 calendar gate calls
-  `datetime.now()` (autonomous_loop.py:536) and drops all intl tickers on weekends (flaky funnel=0). The pure
-  screen_universe seam never touches the clock.
+Researcher subagent (Agent tool, Opus 4.8 effort:max, $0), brief `research_brief_63.2.md`. Envelope:
+**gate_passed=true**, tier=moderate, **5 external sources read in full**, 35 snippet-only, 40 URLs, recency scan, 10
+internal files. KEY:
+- **Framing**: the page renders the API JSON → displayed==API is definitional; the meaningful cross-check is
+  **API-vs-BQ**. Record the displayed/API/BQ triple; DEF- only for API-vs-BQ mismatches beyond rounding/tolerance.
+- **$0 curl path (verified live)**: `curl -s http://localhost:8000<ep>` returns 200 with NO token
+  (`DEV_LOCALHOST_BYPASS` active, auth.py:150; middleware auth main.py:426-460); `/api/sovereign|signals|
+  observability` are also `_PUBLIC_PATHS`. **GETs ONLY** (no POST/PUT/DELETE). Never touch :3000.
+- **BQ SoT** in `financial_reports` (paper_portfolio/paper_positions/paper_trades/paper_portfolio_snapshots) +
+  `pyfinagent_data.outcome_tracking` (performance). Read-only via the Python bigquery client (ADC) — SELECT the single
+  needed column; tiny tables, far under free tier. Project sunny-might-477607-p8.
+- **STORED vs COMPUTED**: get_paper_portfolio is SELECT* (NAV/cash/pnl/benchmark = direct cell compare); Sharpe/alpha/
+  counts/metrics-v2 = re-derived (compare via identity/re-derivation). snapshots read DESC (phase-47.4 resort trap).
+- **Tolerance**: "beyond rounding" = the display unit for displayed-vs-API (2dp → ±0.005); ~0.5-1% rel for API-vs-BQ.
+  TZ/formatting/live-lag/different-formula differences are recorded in the triple but are NOT DEFs.
+- **WATCH (record, not auto-DEF)**: `/portfolio.sharpe_ratio` (3.56) vs `/metrics-v2.rolling_sharpe` (3.0168) —
+  different formulas/windows.
 
-## Criterion-1 interpretation (documented up front; flagged for Q/A)
+## Plan (the audit worklist — page → number → API path → BQ SoT → type)
+Execute per the research worklist (22 rows). Representative:
+- `/` NAV/cash/pnl%/benchmark → `/api/paper-trading/{status,portfolio}` → paper_portfolio.{total_nav,current_cash,
+  total_pnl_pct,benchmark_return_pct} [STORED, direct cell]; position_count → COUNT paper_positions [COMPUTED];
+  sharpe → compute_sharpe_from_snapshots [COMPUTED].
+- `/paper-trading/positions` per-position qty/avg_entry/cost_basis/sector → paper_positions.<col> [STORED];
+  market_value/unrealized_pnl → identities (cost_basis==qty*avg_entry; mv==qty*price; upnl==mv-cost_basis) [LIVE/C].
+- `/paper-trading/nav` → paper_portfolio_snapshots (DESC) [STORED]. `/paper-trading/trades` rows/count → paper_trades
+  [STORED/COMPUTED]. `/performance` → outcome_tracking [COMPUTED]. `/learnings` → the learnings endpoint [COMPUTED].
+  `/sovereign` compute-cost/leaderboard/red-line → the PUBLIC sovereign endpoints.
 
-Criterion 1: "...per-market funnel counts >0 (**EU under the 65.2 thresholds via test flag**)". Step 65.2 (per-market
-threshold PRODUCTION flag) is `pending` and its code does NOT exist yet (grep = 0 hits). We read "**via test flag**"
-as a TEST-ONLY override: passing lowered `min_avg_volume`/`min_price` kwargs to `screen_universe` (screener.py:93-94,
-already accepted) so EU tickers pass under lowered thresholds — simulating the 65.2 concept without 65.2 production
-code. Justification: (a) 64.4's DAG `depends_on` is **66.2 (done), NOT 65.2** — if 64.4 required the real 65.2 flag
-the plan would gate it on 65.2; (b) the phrase "via test flag" explicitly means a test-level override, not a prod
-flag; (c) 65.2 will productionize the same concept later. **Flagged for the Q/A to adjudicate** (mirrors the accepted
-64.2 "(testid)" interpretation pattern).
+For each: curl the API value + query the BQ SoT + compare. Build the triple table; add a `| DEF-NNN |` row only for a
+real mismatch beyond tolerance.
 
-## Plan
+### Deliverable: `handoff/away_ops/defect_register.md`
+- A CRITERION-1 TRIPLE table FIRST (rows start `| /route ...` — NOT matched by `grep '^| DEF-'`): columns
+  `| route | number | displayed/API | BQ | verdict |`.
+- Then CRITERION-2 DEF rows (start `| DEF-NNN |`): `| DEF-NNN | route | number | API | BQ | severity | repro |`.
+  Severity: CRITICAL money/risk (NAV/cash/stop/P&L) · HIGH gate-feeding (Sharpe/DSR/alpha/win_rate) · MEDIUM counts ·
+  LOW chrome. `grep -c '^| DEF-'` counts ONLY defects (0 = valid pass if all triples match).
 
-### `backend/tests/test_64_4_multi_market_e2e.py` (NEW)
-- **Synthetic fixture helper**: `_ohlcv(tickers, bars=60)` → a `yf.download`-shaped MultiIndex DataFrame built from
-  `_clean_series`-style bars (survives validate_ohlcv). Craft EU bars that would fail US-default thresholds but pass
-  lowered ones.
-- **Per-market cycle test** [criteria 1]: for each market in (US bare, KR `.KS`, EU `.DE`):
-  patch `screener.yf.download`→the synthetic fixture; call `screen_universe(universe, market=..., [lowered kwargs for
-  EU])` → assert screened count >0; `rank_candidates(screened)` → assert ranked count >0; `decide_trades(...)` →
-  assert order-intent (`list[TradeOrder]`) present / funnel >0 for the market. Assert per-market funnel counts all >0
-  (US/KR/EU). Drive the PURE seam only (never the loop).
-- **Currency invariants** [criterion 2]: in the same file, reuse the 50.2/64.3 fx-mock pattern (`_mk_trader` +
-  patch `fx_rates.get_fx_rate` + `paper_avg_entry_fx_fix_enabled`) → assert KR avg_entry stays KRW-scale, EU stays
-  EUR-scale.
-- **requires_live variant** [criterion 3]: one `@pytest.mark.requires_live` smoke that hits real `yf.download`
-  (marker registered pytest.ini:8-9), EXCLUDED by `-m 'not requires_live'`.
-- Test names contain `multi_market_e2e` for the `-k` selection. PURE (no network in the default run).
+## Immutable success criteria (verbatim from masterplan.json 63.2)
+1. "each number-bearing page has a displayed-vs-API-vs-BQ triple recorded with the SQL pasted verbatim"
+2. "every mismatch beyond rounding is a DEF- row with route, severity, reproduction, displayed-vs-truth values, suspected file, and {pure-bug | trading-behavior} classification"
+3. "zero metered LLM calls used (BQ + curl only)"
 
-## Immutable success criteria (verbatim from masterplan.json 64.4)
-1. "a fixture-replayed cycle produces screening->ranking->order-intent output for ALL THREE markets with per-market
-   funnel counts >0 (EU under the 65.2 thresholds via test flag)"
-2. "currency invariants asserted in the same test (KR KRW-scale, EU EUR-scale)"
-3. "the requires_live variant exists and is excluded from default/CI runs"
+**[Cycle-1 CONDITIONAL fix]**: cycle-1 SOFTENED these criteria (dropped "with the SQL pasted verbatim" from #1 and
+"reproduction, displayed-vs-truth values, suspected file, and {pure-bug | trading-behavior} classification" from #2) —
+the Q/A caught it. Restored verbatim above. The deliverable is updated accordingly: SQL pasted verbatim per triple +
+DEF-001 carries suspected-file + classification.
 
 **Verification command (immutable):**
-`cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'multi_market_e2e' -q -m 'not requires_live'`
+`cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/away_ops/defect_register.md && grep -c '^| DEF-' handoff/away_ops/defect_register.md`
 
 ## Boundaries (binding)
-$0; local-only; test-infra ONLY (1 new test file + a synthetic-fixture helper inside it; NO production code change).
-NO network in the default run (synthetic fixtures; `yf.download` mocked); the requires_live smoke is EXCLUDED from
-default/CI. NO trade/risk/money touch; kill-switch/stops/caps/DSR/PBO byte-untouched; historical_macro FROZEN; live
-book untouched. `requires_live` list grows by exactly 1 (the intentional live smoke) — that is the criterion-3
-deliverable, not a quarantine-of-a-flaky-default. Drive the PURE seam only (calendar-gate pitfall avoided).
+$0 — curl (GET only) + BQ (read-only SELECT) + a Python re-derivation for computed values. ZERO metered LLM
+(criterion 3). READ-ONLY audit — the only new file is `handoff/away_ops/defect_register.md` (+ live_check). NO
+production code change; NO trade/risk/money touch; kill-switch/stops/caps/DSR/PBO untouched; historical_macro FROZEN;
+live book untouched. **Operator :3000 NEVER touched** (all curls hit :8000). Any real mismatch is RECORDED as a DEF-
+row (the register is the deliverable), not fixed here (fixes are 63.4). Formula/TZ/live-lag differences → triple, not
+DEF.
 
 ## References
-research_brief_64.4.md; backend/tools/screener.py:11,91,93,137,172,249; backend/services/portfolio_manager.py:66,34;
-backend/backtest/universe_lists.py:17-41; backend/tests/test_phase_50_5_dataquality.py:15 (_clean_series); the 50.2
-_mk_trader + 64.3 fx pattern; backend/config/settings.py:455 (paper_avg_entry_fx_fix_enabled); pytest.ini:8-9
-(requires_live marker); autonomous_loop.py:536,1698 (the loop path we DELIBERATELY avoid).
+research_brief_63.2.md; backend/api/auth.py:150 (DEV_LOCALHOST_BYPASS); backend/main.py:426-460 (middleware auth);
+backend/db/bigquery_client.py:521 (get_paper_portfolio), :1039 (snapshots DESC); CLAUDE.md BigQuery section
+(financial_reports = paper tables, us-central1... actually paper tables via _pt_table = financial_reports);
+frontend/src/lib/api.ts (page→endpoint map). The 63.1 walk (route inventory).
