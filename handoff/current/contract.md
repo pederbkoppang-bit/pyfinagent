@@ -1,85 +1,74 @@
-# Contract — step 71.2 (Layer-2 honesty: guaranteed structured outputs + kill silent-failure classes)
+# Contract — step 71.3 (harden Q/A judgment + machine-readable verdicts, WITHIN the single Q/A role)
 
-**Phase:** phase-71 | **Step:** 71.2 | **Priority:** P1 | harness_required: true | depends_on: 71.0 (done)
-**Cycle:** 1 | Date: 2026-07-17 | **Type:** LIVE Layer-2 production code (metered MAS). $0-delta correctness/honesty.
-live_check: none (no UI). NO risk-threshold VALUE change; paper-only; historical_macro FROZEN.
+**Phase:** phase-71 | **Step:** 71.3 | **Priority:** P2 | harness_required: true | depends_on: 71.0 (done)
+**Cycle:** 1 | Date: 2026-07-17 | **Type:** harness-protocol / qa.md rubric edit + evaluator_critique.json emission.
+$0, local-only, NO production/live-loop change. Edits `.claude/agents/qa.md` → separation-of-duties + roster note.
 
 ## Research-gate summary (gate PASSED)
 
-Researcher via Workflow structured-output (Opus 4.8, $0), run wf_dcbba583-946. Envelope: **gate_passed=true**,
-tier=complex, **5 external sources read in full**, 25 snippet-only, 30 URLs, recency scan, 14 internal files,
-HEAD 838d2398. Brief: `research_brief_71.2.md`. Both open questions resolved:
-- **SDK**: `anthropic==0.96.0` (requirements.txt:39; introspection-confirmed messages.create accepts
-  output_config/tool_choice/tools, ToolParam supports `strict`). The two Claude JSON sites run on
-  `claude-sonnet-4-6` (model_tiers.py:57) which the live July-2026 structured-outputs doc lists in the GA set —
-  **no model change, no effort bump**. SCHEMA subset caveat: no minimum/maximum/minLength; `additionalProperties`
-  must be false; keep 0.0-1.0 scores as plain `number` and the `<0.6/avg<0.7` thresholds CLIENT-side.
-- **`evaluator_agent._call_model` calls GEMINI** (google-genai 1.73.1), NOT Claude → use `response_json_schema`
-  (real constrained decode; satisfies the `json_schema` grep). Guard it fail-safe.
-- **DSR relocation**: import `LOOSE_DSR_MIN` (=0.95) from `backend/autoresearch/meta_dsr.py:20` (leaf module,
-  verified no import cycle, value byte-identical). Relocate the 3 code literals + reword 3 docstrings so no bare
-  `0.95/0.99/1.02` remains; the fabricated `1.02/0.95/0.99` (L513-515) vanish with the spot-check deletion.
-- **Clobber fix** (`return None` at :885) provably preserves the original analyst answer (caller
-  multi_agent_orchestrator.py:461 `if checked_response:` → :462; :459 `passed = checked_response is None`).
-- **`risk_threshold_value_change=false`** — the real DSR gates live OUTSIDE evaluator_agent.py; the 6 legit `0.95`s
-  are docstrings + `_mock_response` green-flag heuristics (run only when `self.model is None`), NOT live gates.
-  Spot-check methods have **zero external callers** (grep-confirmed) → safe to delete.
+Researcher via Workflow structured-output (Opus 4.8, $0), run wf_f8bce7de-c96. Envelope: **gate_passed=true**,
+tier=moderate, **6 external sources read in full**, 10 snippet-only, 24 URLs, recency scan, 12 internal files.
+Brief: `research_brief_71.3.md`. Grounding HOLDS. **Reconciliation resolved** (the crux): phase-71.0 DROPPED #8a
+(worst-of-N **self-consistency** = N IDENTICAL samples, "no independent signal / correlated bias") but KEPT #8b
+(the adversarial red-team leg). 71.3 implements ONLY the **"FROM N LENSES"** reading — the single Q/A judges the
+claimed PASS from N DISTINCT adversarial lenses (correctness / does-it-reproduce / scope-honesty) and takes the
+WORST. This (i) satisfies the criterion + the `adversarial`/`worst-of-N` grep, and (ii) is CONSISTENT with 71.0
+(which objected to N-identical resampling, NOT perspective diversity). Grounded: arXiv:2505.19477 (perspective-
+diverse meta-judge resists bias), arXiv:2508.06709 (self-bias correlated across a judge's own samples), Anthropic
+judge-rubric "completeness" + doer/judge separation. GENERATE MUST explicitly NEGATE the N-identical #8a.
 
-## Plan (line-anchored, fail-safe; HEAD 838d2398 → re-anchor on GENERATE)
+## Plan (line-anchored)
 
-### A. `backend/agents/multi_agent_orchestrator.py`
-1. **Clobber fix (C2)** — `_quality_gate` :885 `return gate_response, usage` → `return None, usage` (fail-safe: an
-   unparseable gate can't confirm a problem → keep the vetted analyst answer, never inject raw gate scaffolding).
-   RED→GREEN test: feed an unparseable gate response → assert `_quality_gate` returns `(None, ...)`.
-2. **Quality gate structured output (C1)** — add a strict `submit_quality_verdict` tool (input schema:
-   accuracy/completeness/groundedness/conciseness=number, verdict=enum[PASS,FAIL], improved_response=string;
-   `additionalProperties:false`, all required). Low-blast-radius: a NEW dedicated helper
-   `_call_agent_strict_tool(cfg, prompt, tool_name, schema)` (does NOT touch the shared `_call_agent`); on
-   `_anthropic_unavailable`/auth-error it returns `None` so the gate falls through to the EXISTING text-rubric
-   parse (now clobber-fixed) on the Gemini path. On the Claude path the guaranteed `input` dict is scored with the
-   SAME client-side thresholds (any<0.6 or avg<0.7 → FAIL; extract improved_response) → SAME return contract
-   (None / improved). Decision semantics byte-identical; only the parse is made robust.
-3. **Classifier structured output (C1)** — `_classify_via_llm` :974: add `output_config={"format":{"type":
-   "json_schema","schema":{...}}}` on the Claude call via a dedicated `_call_agent_json` helper (Gemini fallback →
-   text; `parse_llm_classification` already `json_io.loads`, so it parses either path). Schema matches the
-   classifier's existing JSON contract.
+### A. `.claude/agents/qa.md` (edits → separation-of-duties + roster note in harness_log)
+1. **Contract-completeness dimension** — add a bullet to the §4 LLM-judgment list (after "Research-gate
+   compliance", ~L247) requiring the Q/A to map EVERY contract/immutable criterion → covering evidence in
+   `experiment_results.md`; an uncovered criterion = `Missing_Assumption` that caps the verdict. Add a
+   "Contract completeness" row to the Quality-criteria table (~L304-311) to unambiguously land the `completeness`
+   grep token.
+2. **Adversarial worst-of-N-LENSES leg (P0/P1 money-path only)** — new subsection "### 4a. Adversarial
+   worst-of-N-LENSES verdict (P0/P1 money-path only)" after §4: the SAME single Q/A evaluates the claimed PASS from
+   N DISTINCT lenses (correctness / does-it-reproduce / scope-honesty) and takes the WORST verdict — WITHIN the
+   single Q/A role (no fourth agent, no re-split). MUST state: "worst-of-N over N distinct LENSES, NOT the
+   N-identical self-consistency resampling (#8a, dropped in phase-71.0 as correlated / no independent signal)."
+   Lands the `adversarial` + `worst-of-N` grep tokens.
+3. **evaluator_critique.json emission** — note (after the Output-format schema, ~L267, + a Constraints clause
+   ~L315-318) that MAIN persists the returned verdict VERBATIM to `handoff/current/evaluator_critique.json`
+   (injecting `step_id` + `cycle_num`; transforming `checks_run` to an object map) alongside the .md. **Q/A stays
+   read-only** — Main is the scribe (mirrors the verbatim .md transcription → no-self-eval holds). Do NOT edit the
+   71.1-owned qa-verdict.js VERDICT_SCHEMA.
 
-### B. `backend/agents/evaluator_agent.py`
-4. **Delete fabricated spot-checks (C3)** — remove `_run_spot_checks` (:496) + `evaluate_with_spot_checks` (:459)
-   entirely (zero external callers). This deletes the hardcoded 1.02/0.95/0.99 and the CONDITIONAL→PASS flip path.
-   RED→GREEN test: assert `hasattr(EvaluatorAgent, "_run_spot_checks")` is False AND no `1.02/0.95/0.99` literal.
-5. **DSR literal relocation (C3 grep + C4 value-unchanged)** — `from backend.autoresearch.meta_dsr import
-   LOOSE_DSR_MIN`; L349 `>= 0.95` → `>= LOOSE_DSR_MIN`; L353 `>= 0.95` → `>= LOOSE_DSR_MIN`; L333 f-string digit →
-   `{LOOSE_DSR_MIN}`; reword docstrings L15/211/217 to drop the "0.95" digits (semantics preserved). Leave L332
-   `< 0.90` (not in the grep alternation). Assert `LOOSE_DSR_MIN == 0.95` in a test (value byte-identical).
-6. **Gemini structured output on `_call_model` (:288, real path)** — add
-   `config=types.GenerateContentConfig(response_mime_type="application/json", response_json_schema=<evaluator
-   output schema>)`, **GUARDED**: on any genai error, fall back to the current unconstrained call (fail-safe — must
-   never break the live `evaluate_proposal` path called from autonomous_loop.py:464). If the guard adds meaningful
-   risk on inspection, satisfy the evaluator honesty via #4/#5 only and record #6 as FO-71.2-A. Non-`self.model`
-   (mock) path untouched.
+### B. `docs/runbooks/per-step-protocol.md` §4 EVALUATE
+Add a paragraph (after the "Returns the JSON schema" block, ~L148) documenting the completeness dimension + the
+P0/P1 N-lens leg (distinct lenses, NOT N-identical) + the `evaluator_critique.json` persistence; add the JSON
+filename to the LOG/flip step notes.
 
-## Immutable success criteria (verbatim from masterplan.json 71.2)
+### C. Status-flip gate reads JSON (criterion 2)
+- **Persist evaluator_critique.json for 71.3 itself** (dogfood) from this step's Q/A return value.
+- **Fail-open `verdict_gate.py`** under `.claude/hooks/lib/` mirroring `live_check_gate.py` (proceed on
+  missing/unreadable JSON = fail-open; passed iff `verdict=="PASS"` and `ok==true`; else WARN + hold-push), wired
+  into `auto-commit-and-push.sh` after the existing gate block — IF reading the existing gate confirms a clean
+  fail-open mirror (else fall back to documented Main-discipline read, which still satisfies "the gate CAN read it
+  deterministically"). The gate must NEVER break the masterplan Write (fail-open discipline).
 
-1. The two highest-frequency Claude JSON sites use constrained-decoding structured output (guaranteed-valid JSON),
-   matching the schema-enforcement the Gemini debate paths already have
-2. The quality-gate clobber bug (multi_agent_orchestrator.py:883-885) is fixed: a parse failure preserves the
-   original agent answer, never substituting the gate response as the user-facing result -- proven by a red->green test
-3. The fabricated spot-check stub is deleted or wired to a real backtest; the evaluator can no longer flip a
-   verdict on hardcoded numbers -- proven by a test
-4. No live risk-limit or threshold behavior changed; pure correctness/honesty upgrade; metered cost delta ~0
+## Immutable success criteria (verbatim from masterplan.json 71.3)
+
+1. qa.md rubric includes a contract-completeness dimension and (for P0/P1 money-path steps) an adversarial
+   worst-of-N / self-consistency verdict, both explicitly WITHIN the single Q/A role (no fourth agent, no re-split)
+2. Q/A emits a machine-readable evaluator_critique.json alongside the markdown with the verdict schema; the
+   status-flip / live_check gate can read it deterministically
+3. The single-Q/A-per-step rule and file-based handoffs are preserved
 
 Verification command (immutable):
-`bash -c 'grep -Eqi "output_config|json_schema|response_format|strict" backend/agents/multi_agent_orchestrator.py backend/agents/evaluator_agent.py && ! grep -Eq "1.02|0.95|0.99" backend/agents/evaluator_agent.py; python -c "import ast; ast.parse(open(\'backend/agents/multi_agent_orchestrator.py\').read()); ast.parse(open(\'backend/agents/evaluator_agent.py\').read())"'`
+`bash -c 'grep -Eqi "contract completeness|completeness" .claude/agents/qa.md && grep -Eqi "worst-of-n|self-consistency|adversarial" .claude/agents/qa.md docs/runbooks/per-step-protocol.md'`
 
 ## Boundaries (binding)
-LIVE Layer-2 code — every change is fail-SAFE (clobber→keep-original; spot-check DELETION not addition; structured
-output additive with a text/Gemini fallback; Gemini schema guarded). NO risk-threshold VALUE change (literal→named
-import only; `LOOSE_DSR_MIN==0.95` asserted). NO effort bump / NO model change (sonnet-4-6 already GA). The shared
-`_call_agent` is NOT modified (new dedicated helpers) → other MAS callers unaffected. Decision semantics of the
-quality gate preserved byte-identical (only the parse hardened). $0-delta metered; paper-only; historical_macro
-FROZEN; harness stays 3 agents. Independent Q/A REQUIRED (live-code change) — verdict transcribed VERBATIM.
+$0; local-only; NO production/live-loop change (harness-protocol + docs + a fail-open hook only). WITHIN the single
+Q/A role — exactly-3-agents, NO re-split, NO fourth agent. The dropped N-identical #8a is NOT re-introduced (the
+N-lens leg explicitly negates it). Do NOT edit the 71.1-owned qa-verdict.js VERDICT_SCHEMA. Any hook is FAIL-OPEN
+(never breaks the masterplan Write / push). Q/A stays read-only (Main persists the JSON). Separation of duties +
+roster snapshot: edits qa.md → harness_log requests Peder review + verify_qa_roster_live.sh next session (the
+Workflow path reads qa.md from disk live; only the Agent-tool type snapshots). historical_macro FROZEN.
 
 ## References
-research_brief_71.2.md; design_harness_mas_71.md §71.2; harness_proposals.json (#4/#9/#17);
-anthropic 0.96.0 structured-outputs GA; google-genai 1.73.1 response_json_schema; meta_dsr.py:20.
+research_brief_71.3.md; design_harness_mas_71.md §71.3 (kept #6+#8b, DROP #8a); harness_proposals.json;
+arXiv:2505.19477 + arXiv:2508.06709; qa-verdict.js VERDICT_SCHEMA; live_check_gate.py (mirror pattern).
