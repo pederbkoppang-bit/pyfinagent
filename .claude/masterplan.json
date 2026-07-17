@@ -14928,7 +14928,7 @@
         {
           "id": "64.3",
           "name": "Backend gap tests -- kill-switch state machine (pause/resume/breach/auto-resume-off), currency/money paths (KR/EU add-on averaging, fx fallback, 61.3 follow-through), per-market screener units, learnings reader error-vs-empty.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

@@ -1,42 +1,43 @@
-# Evaluator Critique — Step 64.2 (Functional specs for all 22 routes)
+# Evaluator Critique — Step 64.3 (Backend gap tests)
 
 **Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8,
 `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted
-to `handoff/current/evaluator_critique.json`. Run `wf_64fa867c-402`.
+to `handoff/current/evaluator_critique.json`. Run `wf_f1b9a72a-321`.
 
 ## Verdict (transcribed VERBATIM)
 
 **verdict: PASS** | ok: true | harness_compliance_ok: true | certified_fallback: false | violated_criteria: []
 
-**reason (verbatim):** All 3 immutable criteria MET and independently reproduced: (1) 6 family spec files, 22 distinct
-routes (programmatically counted), all green on the Mac; (2) every route load asserts primary-region-renders + zero
-console.error + zero 5xx (+ zero pageerror) via _helpers.assertFunctionalRoute; (3) full run 73s wall / "28 passed
-(1.2m)" << 15-min ceiling. Immutable cmd reproduced clean: exit 0, 28 passed. tsc + eslint exit 0. Zero production code
-changed (only e2e-functional test-infra). Operator :3000 untouched (200 before+after; next-env.d.ts/tsconfig.json
-git-clean). Harness compliance clean (research<contract<generate mtimes, results present, log-last, cycle-1 no
-verdict-shopping).
+**reason (verbatim):** All 3 immutable criteria MET, harness compliance clean, no unintended production change:
+immutable cmd -> 18 passed exit 0 (5 kill_switch + 4 currency + 5 screener + 4 learnings, all 4 gap areas);
+requires_live stays 11 (+0); ruff F821/F401/F811 clean; tests independently traced against real code and are
+non-rigged.
 
-**notes (verbatim):** Criterion-2 "(testid)" ruling: read as an EXAMPLE of a stable primary-region target, NOT a
-literal per-route mandate. Justified by (a) the ACCEPTED 64.1 precedent asserting a heading with no testid, (b)
-Playwright official locator priority getByRole > getByTestId, (c) disclosure up front in contract §D + research
-finding #2, (d) the mix actually used: literal testids where clean (agent-map, virtual-fund-learnings,
-strategy-detail), route-distinctive #panel-<subpage> ids for all 8 paper-trading subpages, #signals-ticker-input,
-getByRole headings elsewhere. Sound, precedented, disclosed -- verdict not capped. Scope honesty CONFIRMED: git status
-outside test-infra+handoff = none; the .autonomous_loop.lock (D), cycle_heartbeat.json, auth_probe_last.json,
-cycle_history.jsonl, audit JSONL changes are the LIVE :8000 autonomous loop cycling during the session (backend
-runtime state, NOT 64.2 code) -- correctly disclosed. The single GENERATE fix (/agents heading vs table testid behind
-a non-default tab) disclosed. Dev-vs-prod-build trade-off disclosed, acceptable. Non-blocking NOTES (cosmetic, no
-criterion impact): (i) settings.spec.ts:22 redundant duplicated-alternation regex (passes correctly); (ii) /agents
-asserts the page heading rather than the data table (shell-render proxy, backstopped by same-route zero-5xx +
-zero-console.error). Adversarial worst-of-N lenses (correctness/reproduce/scope-honesty) = PASS. 3rd-CONDITIONAL N/A.
-Live UI gate satisfied intrinsically (the immutable command IS a live Playwright run against :3100 with a timed
-transcript).
+**notes (verbatim):** CRITERION 1 MET: 4 new pure pytest files cover all four gap areas; requires_live does NOT grow
+(grep = none; pytest -m requires_live --co = 11 unchanged; 64.3 adds +0; the research's estimate of 6 is stale, the
+criterion is 'does not grow' and 64.3 = +0 -- disclosed honestly, not a criterion miss). CRITERION 2 MET: stays-paused
+test asserts action=='no_op' + 'auto_resume_disabled' + is_paused() STILL True after check_auto_resume(healthy,
+enabled=False) -- rail-5 (away-ops-rules.md:17-18), traced against kill_switch.py:362-363; active-breach test does NOT
+resume. CRITERION 3 MET: KR ON~70000/OFF<1000; EU(.DE) ON~150/OFF~162(>ON); tests toggle the REAL flag
+paper_avg_entry_fx_fix_enabled (settings.py:455) exercising execute_buy's ON (:332) vs OFF (:334) branch -- materially
+different values = dispositive proof the flag is load-bearing, NOT a tautology. EU is the NEW case; US byte-identical +
+fx-unavailable->None. Code fix is phase-70.3 (61.3 display-only); asserts 70.3 behavior in the SHAPE of the 61.3
+criteria. ANTI-RIG: fx helpers call the PATCHED get_fx_rate; get_paper_trades_in_window has NO try/except so error
+propagates vs empty->[]; market_for_symbol + validate_ohlcv logic traced. PURITY+NO-HARM: all pure (MagicMock/patched/
+monkeypatched; PYFINAGENT_TEST_NO_BQ=1); git status = ONLY the 4 test files + handoff + hook audit JSONL; zero
+production code changed. _compute_learnings swallow left out-of-scope + FLAGGED; runtime autonomous-loop artifacts
+correctly attributed to the :8000 backend. No weakness found on independent adversarial review.
 
-Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=64.2, cycle_num=1).
+**checks_run (verbatim, 13):** harness_compliance_5item_audit, research_gate_verified, mtime_ordering,
+immutable_verification_command_18_passed_exit0, git_status_no_production_code_change, ruff_clean,
+requires_live_count_stays_11, antirig_trace_code_under_test, currency_flag_load_bearing_ON_vs_OFF_differ,
+killswitch_state_pause_sets_paused_at, learnings_reader_no_try_except_error_propagates, log_last_masterplan_pending,
+3rd_conditional_count_zero.
+
+Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=64.3, cycle_num=1).
 
 ## Main's disposition
-PASS, violated_criteria=[]. The 2 non-blocking cosmetic notes are accepted; I applied note (i) — the redundant regex
-`/\/$|\/$/` → `/\/$/` in settings.spec.ts (behavior-identical, so the Q/A's PASS on the passing test holds). Note (ii)
-(/agents heading vs table) is accepted as-is (the table sits behind a non-default tab; the heading is a valid
-primary-region proof, backstopped by the same route's zero-5xx + zero-console.error, and consistent with the 64.1
-precedent). Proceeding to LOG (Cycle 106) then flip 64.2 -> done.
+PASS, violated_criteria=[]. No weakness on adversarial review; the tests were independently traced against real code
+and confirmed non-rigged (the ON/OFF flag is load-bearing, the kill-switch stays-paused invariant is real, error≠empty
+confirmed via the no-try/except reader). The requires_live-count discrepancy (11 actual vs the research's estimated 6)
+is honestly disclosed and irrelevant to "does not grow" (64.3 = +0). Proceeding to LOG (Cycle 107) then flip 64.3 -> done.
