@@ -14908,7 +14908,7 @@
         {
           "id": "64.2",
           "name": "Functional specs for all 22 routes -- load + one key interaction per route family; suite completes <15 min so the PM session runs it nightly. ; absorbs 64.5 (CI wiring + nightly execution) per triage 66.5",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "64.1",
