@@ -1,50 +1,48 @@
-# Experiment results — step 70.5 (deposit-aware Starting-capital + cron reschedule)
+# Experiment results — step 71.0 (Harness + MAS upgrade design pack)
 
-**Phase/step:** phase-70 → 70.5 (LAST phase-70 step) | **Date:** 2026-07-17 | **Type:** frontend + backend. $0,
-paper-only. live_check: Playwright capture of the Starting-capital display.
+**Phase/step:** phase-71 → 71.0 (phase opener) | **Date:** 2026-07-17 | **Type:** design + research only (offline,
+$0, NO production code).
 
-## Files changed (6)
+## What was produced
 
-1. **`frontend/src/app/paper-trading/manage/page.tsx`** — destructure `portfolio` from `usePaperTradingData()`;
-   the Starting-capital ReadOnlyField renders `portfolio?.starting_capital ?? paper_starting_capital ?? 10000`
-   (BQ deposit truth, live via `refresh()`) with a corrected hint; added a "Daily run hour (ET, 0-23)"
-   `PaperSettingNum`.
-2. **`frontend/src/components/paper-trading/cockpit-helpers.tsx`** — `paper_trading_hour` added to `PaperNumKey`.
-3. **`frontend/src/lib/types.ts`** — `paper_trading_hour?` added to `FullSettings`; corrected the misleading
-   `paper_starting_capital` comment.
-4. **`backend/api/settings_api.py`** — `paper_trading_hour` added to `FullSettings`, `SettingsUpdate`
-   (Field(None, ge=0, le=23)), `_FIELD_TO_ENV` (`PAPER_TRADING_HOUR`), `_settings_to_full`; `update_settings`
-   calls `reschedule_paper_job(settings)` (fail-open) when `paper_trading_hour` is in the PUT body.
-5. **`backend/api/paper_trading.py`** — `reschedule_paper_job(settings)`: reuses `_add_scheduler_job`
-   (`add_job(replace_existing=True)` → fresh trigger + recomputed `next_run`, not `modify_job`), guarded by
-   `_scheduler and _scheduler.get_job('paper_trading_daily')` (never creates the job when off), fail-open.
-6. **`backend/tests/test_phase_70_5_reschedule.py`** (NEW) — 4 tests.
+1. **`handoff/current/research_brief_71.0.md`** — research-gate output. Envelope: `gate_passed=true`,
+   `external_sources_read_in_full=7` (floor 5), 13 snippet-only, 20 URLs, recency scan performed, 10 internal
+   files re-anchored. It re-validated every grounding WITH URLs, confirmed every register fact still holds on HEAD
+   7d54d30d, and refined the design (dropped the oversold worst-of-N #8a, reframed 71.5 as config hygiene, flagged
+   3 rider-traps). Launched via Workflow structured-output (Opus 4.8, $0).
+2. **`handoff/current/contract.md`** — step 71.0 contract; verbatim immutable criteria; research summary; plan;
+   boundaries. Written BEFORE the design (mtime-proven).
+3. **`handoff/current/design_harness_mas_71.md`** — the design pack (GENERATE deliverable): per-step design for
+   71.1–71.6, EACH grounded in a specific Claude Code feature / Anthropic doc WITH a URL; the binding constraints
+   (exactly-3-agents at L3, no self-eval, $0 L3 rail, Layer-2 cost-sensitivity, local-only, file-based handoffs,
+   separation-of-duties + roster-snapshot for the agent-file-editing steps); and all 15 REJECTED proposals
+   enumerated with disqualifiers (+ the rider-trap note so a rejected idea can't ride in on a kept one).
 
 ## Verification command output (verbatim)
 
 ```
-$ bash -c 'grep -Eqi "paper_trading_hour" backend/api/settings_api.py backend/api/paper_trading.py && python -c "import ast; ast.parse(open(\"backend/api/paper_trading.py\").read())"'
+$ bash -c 'test -f handoff/current/harness_proposals.json && test -f handoff/current/design_harness_mas_71.md && grep -Eqi "structured.?output|workflow" handoff/current/design_harness_mas_71.md && grep -Eqi "verbatim|transcrib" handoff/current/design_harness_mas_71.md && grep -Eqi "clobber|883|structured" handoff/current/design_harness_mas_71.md'
 VERIFICATION: PASS (exit 0)
-$ python -m pytest backend/tests/test_phase_70_5_reschedule.py -q
-4 passed
-$ (cd frontend && npx tsc --noEmit)   # exit 0 (NEVER npm run build)
 ```
-Import-smoke: settings_api + paper_trading import clean; `reschedule_paper_job` present.
+mtime ordering (research → contract → design): `1784288555 < 1784288681 < 1784288753` (contract BEFORE generate).
 
 ## Criterion evidence
+- **C1 (grounded with URLs):** design_harness_mas_71.md cites, per step: 71.1 → code.claude.com/docs/en/workflows
+  (resumability) + multi-agent-research + harness-design; 71.2 → structured-outputs GA + building-effective-agents;
+  71.3 → multi-agent-research judge rubric; 71.4 → multi-agent-research + building-effective-agents stopping
+  conditions; 71.5 → effort doc + model-config doc; 71.6 → multi-agent-research + harness-design. All with URLs.
+- **C2 (constraints + separation-of-duties):** the "Binding constraints" section states each verbatim, and calls
+  out separation-of-duties + roster-snapshot handling for **71.1/71.3/71.4/71.5/71.6** — every downstream step
+  EXCEPT the pure Layer-2 backend step 71.2 (all edit `.claude/agents/*.md`). *(Cycle-2 fix: the first Q/A
+  correctly flagged that 71.6's envelope-return change edits `qa.md`/`researcher.md`, and 71.4's `coverage`-field
+  addition edits `researcher.md`'s envelope block — both were missing from the enumeration; now added at the
+  Binding-constraints list, the 71.4/71.6 per-step sections, and the Sequencing note.)*
+- **C3 (rejected acknowledged):** all 15 rejected proposals (R1–R15) enumerated with disqualifiers + the rider-trap
+  note (R1/R4/R11 ride on 71.1, R13/R14/R15 on the effort theme) — the design adopts the kept ideas WITHOUT them.
 
-- **C1 (Starting capital reflects deposits) — LIVE Playwright (skip-auth :3100):** the display shows **$20 000**
-  (BQ `paper_portfolio.starting_capital`, from a $10k deposit over the $10k config), NOT the stale $10,000;
-  corrected hint "Reflects deposits (Top up fund)." `shows_20000: true, shows_10000_stale: false`. See
-  `live_check_70.5.md` + `captures_70.5/70.5-starting-capital-deposit.png` (visually verified).
-- **C2 (hour reschedules without restart):** `test_phase_70_5_reschedule.py` — `reschedule_paper_job` re-adds the
-  cron with the new hour (`add_job(hour=18, replace_existing=True)` → fresh `next_run`), is a guarded no-op when
-  no live job exists, and is fail-open; `paper_trading_hour` is now writable. Bootstrapping caveat: the running
-  `:8000` is on pre-70.5 code, so live activation needs the standard one-time restart to load the new code;
-  thereafter hour changes reschedule without a restart (documented in the live_check).
-- **C3 (no cap-read regression):** the fresh-per-cycle reads of `paper_max_per_sector`/`paper_max_positions` are
-  untouched (70.5 adds only a reschedule side-effect + a display fix; no settings caching, no cap-read move).
-
-## Do-no-harm / scope
-frontend + backend API only; $0; paper-only; NO risk threshold moved; reschedule fail-open (never 500s the save);
-historical_macro FROZEN; no operator config mutated during the capture (read-only). Closes phase-70 (6/6).
+## Do-no-harm / scope honesty
+71.0 is design + research only. NO production code changed (git: only handoff/ + masterplan/task files); NO
+live-loop behavior change; historical_macro untouched; $0 metered (Workflow on the Opus Max rail). It delivers the
+DESIGN for 71.1–71.6; it does NOT implement any change. The design deliberately DROPS one kept proposal (#8a
+worst-of-N) whose grounding the researcher found oversold, and DESCOPES #12 to report-only — honest refinements,
+not scope creep.
