@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `21c49817` | phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff) |
 | 2026-07-17 | `8043c4ed` | phase-71.2: Layer-2 honesty -- guaranteed structured outputs + kill silent-failure classes |
 | 2026-07-17 | `ccddeff4` | phase-71.1: codify Workflow structured-output as the FIRST-CLASS Q/A + Researcher launch (Agent-tool |
 | 2026-07-17 | `43caead5` | phase-71.0: Harness+MAS upgrade DESIGN pack -- ground the 2026-07-16 self-audit register (17 kept/15 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-11 | `cbf5cbce` | phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR unit... |
 | 2026-07-11 | `d0c8453d` | phase-69.0: P0 design pack (offline, dev-time frontier reasoning -- Fable while the 07-12 window ... |
 | 2026-07-10 | `f74b1472` | phase-68.5: operator-authorized criteria restatement (AskUserQuestion 2026-07-10, recorded Cycle 83) |
-| 2026-07-10 | `0abdc13d` | phase-68.0: cutover design pack PASS -- env propagation, shadow isolation, idempotency + cutover tra |
 
 ---
 
+### v6.62.3 — phase-71.3: research gate PASS + contract (WIP checkpoint for session... (2026-07-17)
+
+- **phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff)**
 ### v6.62.2 — phase-71.2: Layer-2 honesty -- guaranteed structured outputs + kill s... (2026-07-17)
 
 - **phase-71.2: Layer-2 honesty -- guaranteed structured outputs + kill silent-failure classes**
