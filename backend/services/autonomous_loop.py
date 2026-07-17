@@ -121,6 +121,49 @@ def get_session_cost_usd() -> float:
     return _session_cost
 
 
+def _min_k_sector_slice(candidates: list[dict], n: int, k: int) -> list[dict]:
+    """phase-70.2: pick n candidates that span >=min(k, #distinct-sectors) GICS
+    sectors, best-effort, WITHOUT hard-neutralizing the momentum order (S2).
+
+    `candidates` arrive in composite-score-descending order. Bucket by sector
+    preserving that order; take the LEADER (highest-scored remaining) of each of
+    the k highest-peak distinct sectors first (guarantees the sector spread), then
+    fill the remaining slots by pure score, then re-sort the picked set by
+    composite_score desc so the analyzer still sees the best names first
+    (arXiv 2408.09168 multinomial-blend leader-pick). Graceful when fewer than k
+    sectors exist. Callers pass k>0; k=0 keeps the plain top-N slice.
+    """
+    if n <= 0 or not candidates:
+        return candidates[: max(n, 0)]
+    from collections import OrderedDict
+    buckets: "OrderedDict[str, list[dict]]" = OrderedDict()
+    for c in candidates:
+        sec = (c.get("sector") or "").strip() or "Unknown"
+        buckets.setdefault(sec, []).append(c)
+    sectors_by_peak = sorted(
+        buckets.keys(),
+        key=lambda s: buckets[s][0].get("composite_score") or 0.0,
+        reverse=True,
+    )
+    picked: list[dict] = []
+    picked_ids: set[int] = set()
+    for sec in sectors_by_peak[:k]:
+        if len(picked) >= n:
+            break
+        lead = buckets[sec][0]
+        picked.append(lead)
+        picked_ids.add(id(lead))
+    for c in candidates:
+        if len(picked) >= n:
+            break
+        if id(c) in picked_ids:
+            continue
+        picked.append(c)
+        picked_ids.add(id(c))
+    picked.sort(key=lambda c: c.get("composite_score") or 0.0, reverse=True)
+    return picked[:n]
+
+
 async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = False) -> dict:
     """
     Execute one full paper trading cycle:
@@ -430,7 +473,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # HURTS long-only Sharpe (-0.166), so the flag stays OFF; this keeps the lever
             # live-measurable for a future SOFT-tilt variant.
             _sector_lookup = None
-            if getattr(settings, "sector_neutral_momentum_enabled", False) or getattr(settings, "multidim_momentum_enabled", False):
+            if getattr(settings, "sector_neutral_momentum_enabled", False) or getattr(settings, "multidim_momentum_enabled", False) or getattr(settings, "paper_soft_sector_diversity_enabled", False):
                 try:
                     from backend.tools.screener import build_sector_map
                     _sector_lookup = build_sector_map(universe)
@@ -710,6 +753,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 revision_signals=revision_signals or None,
                 sector_neutral=getattr(settings, "sector_neutral_momentum_enabled", False),
                 sector_neutral_min_group_size=getattr(settings, "sector_neutral_min_group_size", 3),
+                # phase-70.2: soft cross-sector diversity (default OFF -> byte-identical)
+                soft_sector_diversity=getattr(settings, "paper_soft_sector_diversity_enabled", False),
+                soft_sector_diversity_w=getattr(settings, "paper_soft_sector_diversity_w", 0.0),
                 sector_momentum_ranks=sector_momentum_ranks or None,
                 multidim_momentum=getattr(settings, "multidim_momentum_enabled", False),
                 multidim_weights={
@@ -835,7 +881,15 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             positions = await asyncio.to_thread(trader.get_positions)
             held_tickers = {p["ticker"] for p in positions}
             new_candidates = [c for c in candidates if c["ticker"] not in held_tickers]
-            analyze_tickers = [c["ticker"] for c in new_candidates[:settings.paper_analyze_top_n]]
+            # phase-70.2: min-K-sector round-robin on the deep-analyze slice (S2).
+            # K=0 -> plain top-N slice (byte-identical). Enrichment already ran on
+            # the top-N candidates above, so new_candidates carry a sector here.
+            _min_k = int(getattr(settings, "paper_min_k_sectors_analyzed", 0) or 0)
+            if _min_k > 0:
+                _analyze_cands = _min_k_sector_slice(new_candidates, settings.paper_analyze_top_n, _min_k)
+            else:
+                _analyze_cands = new_candidates[:settings.paper_analyze_top_n]
+            analyze_tickers = [c["ticker"] for c in _analyze_cands]
 
             # phase-57.1 (F-8): compute the RiskJudge sector context ONCE per
             # cycle (positions are identical for every ticker in the fan-out;

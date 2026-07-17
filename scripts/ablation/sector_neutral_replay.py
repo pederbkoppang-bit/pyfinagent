@@ -173,7 +173,11 @@ def main():
     configs = {"baseline": False, "sector_neutral": True}
     # phase-52.1: 52-week-high multiplicative tilt configs (k = tilt strength).
     tilt_configs = {"hi52_k0.5": 0.5, "hi52_k1.0": 1.0}
-    _all = list(configs) + ["vol_scaled"] + list(tilt_configs)
+    # phase-70.2: SOFT cross-sector diversity penalty configs (w_d rank-decay strength).
+    # Same PRODUCTION rank_candidates path, soft_sector_diversity=True. w=0 would be the
+    # baseline, so the grid probes the OOS Sharpe / breadth trade for the activation gate.
+    soft_configs = {"soft_w0.10": 0.10, "soft_w0.20": 0.20, "soft_w0.30": 0.30}
+    _all = list(configs) + ["vol_scaled"] + list(tilt_configs) + list(soft_configs)
     monthly = {k: [] for k in _all}
     spread = {k: [] for k in _all}
     prev_basket = {k: set() for k in _all}
@@ -227,6 +231,21 @@ def main():
                 turnover[tname].append(1 - len(bs & prev_basket[tname]) / max(len(bs), 1))
             prev_basket[tname] = bs
 
+        # phase-70.2: SOFT cross-sector diversity -- PRODUCTION rank_candidates with the
+        # soft multiplicative rank-decay penalty (rows carry sector via sec_map). This is
+        # the rank-time lever whose OOS impact IS measurable in the top-N basket.
+        for sname, w in soft_configs.items():
+            ranked = rank_candidates(rows, top_n=TOP_N, strategy="momentum",
+                                     soft_sector_diversity=True, soft_sector_diversity_w=w)
+            basket = [r["ticker"] for r in ranked]
+            fwd = basket_fwd_return(basket, closes, t_idx)
+            monthly[sname].append(fwd)
+            spread[sname].append(len({sec_map.get(t, "") for t in basket}))
+            bs = set(basket)
+            if prev_basket[sname]:
+                turnover[sname].append(1 - len(bs & prev_basket[sname]) / max(len(bs), 1))
+            prev_basket[sname] = bs
+
     log("[4/4] results\n")
     print(f"{'config':<16}{'ann_Sharpe':>12}{'avg_fwd_mo%':>14}{'avg_sectors':>13}{'avg_turnover':>14}")
     print("-" * 69)
@@ -264,6 +283,37 @@ def main():
         keep_any = keep_any or keep
         print(f"{tname} vs baseline: dSharpe={d_sharpe:+.3f}, dTurnover={d_to:+.3f} -> KEEP? {keep}")
     print(f"52wh-tilt recommendation: {'ESCALATE to a live operator gate' if keep_any else 'REJECT (large-cap mute, per Barroso-Wang) -> pivot to residual momentum (52.2)'}")
+
+    # phase-70.2: SOFT cross-sector diversity verdict. Gate: breadth up >=1 sector AND
+    # OOS Sharpe not materially worse than baseline (dSharpe >= -0.05). The FULL activation
+    # gate additionally requires DSR>=0.95 + PBO<=0.5 on the paired monthly returns (dumped).
+    print("\n--- VERDICT (70.2 soft cross-sector diversity) ---")
+    print(f"baseline: ann_Sharpe={base_sharpe:+.3f}, avg_sectors={base_spread:.2f}")
+    soft_keep = False
+    soft_dump = {}
+    for sname in soft_configs:
+        s_sharpe = ann_sharpe(monthly[sname])
+        s_spread = float(np.mean(spread[sname])) if spread[sname] else 0.0
+        s_to = float(np.mean(turnover[sname])) if turnover[sname] else 0.0
+        d_sharpe = s_sharpe - base_sharpe
+        d_sec = s_spread - base_spread
+        keep = (d_sec >= 1.0) and (d_sharpe >= -0.05)
+        soft_keep = soft_keep or keep
+        soft_dump[sname] = {"ann_sharpe": s_sharpe, "d_sharpe": d_sharpe,
+                            "avg_sectors": s_spread, "d_sectors": d_sec,
+                            "avg_turnover": s_to, "keep": keep, "monthly": monthly[sname]}
+        print(f"{sname} vs baseline: dSharpe={d_sharpe:+.3f}, dSectors={d_sec:+.2f}, avgTurnover={s_to:.3f} -> KEEP? {keep}")
+    print(f"soft-diversity recommendation: {'ESCALATE to operator activation gate (then DSR>=0.95 + PBO<=0.5 on the dumped paired returns)' if soft_keep else 'HOLD DARK -- no w cleared the breadth+Sharpe gate'}")
+
+    import json as _json
+    _soft_out = "handoff/current/_70_2_soft_diversity_replay.json"
+    with open(_soft_out, "w", encoding="utf-8") as f:
+        _json.dump({"baseline_sharpe": base_sharpe, "baseline_avg_sectors": base_spread,
+                    "baseline_monthly": monthly["baseline"], "soft": soft_dump,
+                    "n_rebalances": len([m for m in monthly["baseline"] if m is not None])},
+                   f, indent=2)
+    print(f"phase-70.2: soft-diversity paired returns dumped -> {_soft_out}")
+
     print(f"\nN rebalances scored: {len([m for m in monthly['baseline'] if m is not None])}")
 
     # phase-52.3: dump the paired monthly arrays + the 5 config Sharpes -> the reproducibility

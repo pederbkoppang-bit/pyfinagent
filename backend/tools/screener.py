@@ -257,6 +257,8 @@ def rank_candidates(
     revision_signals=None,
     sector_neutral: bool = False,
     sector_neutral_min_group_size: int = 3,
+    soft_sector_diversity: bool = False,
+    soft_sector_diversity_w: float = 0.0,
     sector_momentum_ranks=None,
     multidim_momentum: bool = False,
     multidim_weights: Optional[dict[str, float]] = None,
@@ -480,8 +482,51 @@ def rank_candidates(
     if momentum_52wh_tilt and scored:
         _apply_52wh_tilt(scored, momentum_52wh_tilt_k)
 
+    # phase-70.2: SOFT profit-aware cross-sector diversity (S2). Runs LAST, after
+    # every score overlay, just before the sort/truncation that structurally
+    # discards cross-sector names. w=0 or flag OFF -> byte-identical.
+    if soft_sector_diversity and soft_sector_diversity_w > 0 and scored:
+        _apply_soft_sector_diversity(scored, soft_sector_diversity_w)
+
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
     return scored[:top_n]
+
+
+def _apply_soft_sector_diversity(scored: list[dict], w: float) -> None:
+    """phase-70.2: SOFT, profit-aware sector diversification (S2).
+
+    Within each sector, rank candidates by descending RAW composite score; the
+    j-th (0-based) same-sector name is shaded by mult=(1-w)^j -- so the sector
+    LEADER (j=0) is untouched (across-sector momentum kept) and deeper same-sector
+    names are progressively demoted, never zeroed (arXiv 2601.08717; Springer 2026
+    prefers bounded multiplicative rank-decay over linear). This is NOT hard
+    sector-neutralization (which the 2026-06-01 replay measured at -0.166 long-only
+    Sharpe). w=0 -> mult=1 everywhere -> byte-identical.
+
+    Shading uses the canonical SIGN-SAFE multiplier (overlay_math.sign_safe_mult,
+    forced enabled) so a penalty always LOWERS rank even for a negative composite
+    score (a raw base*mult would raise a negative score toward zero -- the sign
+    inversion the phase-69.3 sign-safe work fixed). Sets composite_score_raw and
+    mutates composite_score in place.
+    """
+    from collections import defaultdict
+    from backend.services.overlay_math import sign_safe_mult
+
+    order = sorted(
+        range(len(scored)),
+        key=lambda i: scored[i].get("composite_score") or 0.0,
+        reverse=True,
+    )
+    seen: dict[str, int] = defaultdict(int)
+    for i in order:
+        s = scored[i]
+        sec = (s.get("sector") or "").strip() or "Unknown"
+        j = seen[sec]
+        seen[sec] += 1
+        base = s.get("composite_score") or 0.0
+        s["composite_score_raw"] = s.get("composite_score")
+        mult = (1.0 - w) ** j
+        s["composite_score"] = round(sign_safe_mult(base, mult, enabled=True), 4)
 
 
 def _zscore(values: list[float]) -> list[float]:

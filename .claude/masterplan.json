@@ -15687,7 +15687,7 @@
         },
         {
           "id": "70.2",
-          "status": "pending",
+          "status": "done",
           "name": "S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to produce BUY candidates from >=2 distinct GICS sectors WITHOUT hard sector-neutral (respect the 2026-06-01 replay): diversify the analyzed top-N set (autonomous_loop.py:838 / screener.rank_candidates sector_neutral lever) so the deep-analyze set spans >=K sectors rather than the momentum-leading cluster only. Harden sector attribution so a ticker-meta enrichment failure no longer collapses all candidates/positions into a single 'Unknown' bucket that shares the count/NAV cap (portfolio_manager.py:272/319/360). Flag-gated default-OFF; backtest/paper-validated before any activation token; historical_macro stays frozen.",
           "harness_required": true,
           "priority": "P1",

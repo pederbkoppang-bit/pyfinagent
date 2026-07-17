@@ -310,6 +310,10 @@ def decide_trades(
     )
     # phase-40.8 (OPEN-5): FF3 factor-correlation cap. Default-OFF (0.0).
     max_factor_corr = float(getattr(settings, "paper_max_factor_corr", 0.0) or 0.0)
+    # phase-70.2: optionally exempt the "Unknown" (missing-sector) bucket from the
+    # count + NAV-pct caps, so a ticker-meta enrichment failure can't collapse N
+    # real sectors into one bucket and freeze the funnel. OFF -> byte-identical.
+    unknown_sector_cap_exempt = bool(getattr(settings, "paper_unknown_sector_cap_exempt", False))
     sector_counts: dict[str, int] = {}
     sector_market_values: dict[str, float] = {}
     if max_per_sector > 0 or max_sector_nav_pct > 0:
@@ -358,8 +362,11 @@ def decide_trades(
         # mandate = default to firing, not gating, when risk caps permit.
         if max_per_sector > 0:
             cand_sector = cand.get("sector") or "Unknown"
+            # phase-70.2: skip the count cap for the "Unknown" (missing-data) bucket
+            # when exempt -- it is not concentration evidence. OFF -> byte-identical.
+            _unk_exempt = unknown_sector_cap_exempt and cand_sector == "Unknown"
             current_in_sector = sector_counts.get(cand_sector, 0)
-            if current_in_sector >= max_per_sector:
+            if not _unk_exempt and current_in_sector >= max_per_sector:
                 logger.info(
                     "Skipping BUY %s: sector %s at cap (%d/%d) -- queued for swap check",
                     cand["ticker"], cand_sector,
@@ -393,11 +400,13 @@ def decide_trades(
         # so we know exactly how much this BUY would push the sector past.
         if max_sector_nav_pct > 0 and nav > 0:
             cand_sector_nav = cand.get("sector") or "Unknown"
+            # phase-70.2: exempt the "Unknown" bucket from the NAV-pct cap too. OFF -> byte-identical.
+            _unk_exempt_nav = unknown_sector_cap_exempt and cand_sector_nav == "Unknown"
             existing_sector_value = sector_market_values.get(cand_sector_nav, 0.0)
             projected_sector_pct = (
                 (existing_sector_value + buy_amount) / nav * 100.0
             )
-            if projected_sector_pct > max_sector_nav_pct:
+            if not _unk_exempt_nav and projected_sector_pct > max_sector_nav_pct:
                 logger.info(
                     "Skipping BUY %s: sector %s would hit NAV-pct cap "
                     "(%.2f%% projected > %.2f%% cap; existing=$%.2f buy=$%.2f nav=$%.2f)",

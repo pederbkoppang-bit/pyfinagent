@@ -1,90 +1,85 @@
-# Contract — step 70.1 (S1: make the setting actually changeable)
+# Contract — step 70.2 (S2: soft, profit-aware cross-sector diversification)
 
-**Phase:** phase-70 (Trade diversity + changeable fund) | **Step:** 70.1 | **Priority:** P1 | harness_required: true
-**Cycle:** 1 | Date: 2026-07-16 | **Type:** frontend + api.ts (UI-touching → live Playwright Q/A gate)
+**Phase:** phase-70 | **Step:** 70.2 | **Priority:** P1 | harness_required: true
+**Cycle:** 1 | Date: 2026-07-17 | **Type:** backend + ML (screener/loop/portfolio), flag-gated default-OFF, $0, paper-only, DARK-until-token
 
 ## Research-gate summary (gate PASSED)
 
-Researcher via Workflow structured-output (Opus 4.8, $0 Max rail, stall-immune — fable-snapshot avoidance).
-Envelope: **gate_passed=true**, tier=moderate, **8 external sources read in full**, 16 snippet-only, 40 URLs,
-recency scan performed, **9 internal files audited**. Brief: `handoff/current/research_brief_70.1.md`.
+Researcher via Workflow structured-output (Opus 4.8, $0). Envelope: **gate_passed=true**, tier=moderate,
+**6 external sources read in full**, 10 snippet-only, 34 URLs, recency scan performed, 5 internal files audited.
+Brief: `handoff/current/research_brief_70.2.md`. Builds on the 70.0 design pack.
 
-**Snap-back mechanism (confirmed on HEAD 3dd7fc53):** `cockpit-helpers.tsx` `PaperSettingNum` binds
-`value = (draft ?? stored ?? "")` (:467); onChange maps a cleared field to `undefined` then DELETES the draft
-(:478-483) → `value` re-derives via `??` to `stored` (empty is unrepresentable) → snap-back → next keystroke
-appends (`2`→`5`→`25`) → 25 > max 20 → generic save-time 422.
-
-**Fix pattern (React docs + MDN + web.dev):** string-state-then-coerce — local `useState<string>` bound to
-`value={text}` ('' allowed → no snap-back), coerce to number only for the dirty/save path; field-specific
-range validation lifted to a parent `fieldErrors` record that disables Save + shows a rose summary; keep the
-422 as a server backstop. Risk-limits: `api.ts` get/set/clear wired to the existing
-`GET/PUT/DELETE /api/paper-trading/risk-limits` routes (PUT requires `confirmation:"SET_RISK_LIMIT"`), a
-Manage-tab "Risk limits (live overrides)" panel (configured-vs-effective, amber OVERRIDE-ACTIVE badge, Set +
-Clear per key, warning banner when any override active). `paper_max_per_sector_nav_pct` is an
-`risk_overrides.ALLOWED_KEYS` member so the risk-panel Set IS its editor. Scope guard: `paper_max_factor_corr`
-+ `paper_risk_judge_reject_binding` are in NEITHER SettingsUpdate NOR ALLOWED_KEYS → a UI control would no-op
-→ OUT OF SCOPE (backend follow-up).
+Key grounding: arXiv 2601.08717 (soft HHI penalty, `w_d=0` recovers baseline exactly, shades-never-zeroes);
+arXiv 2408.09168 (multinomial-blend leader-pick → sector round-robin); Bailey-Lopez de Prado DSR (JPM 2014,
+on MONTHLY returns per phase-69.2) + Bailey/Borwein/LdP/Zhu PBO; internal 2026-06-01 replay (hard-neutral
+= -0.166 long-only Sharpe → hard neutralization REJECTED). Springer 2026: linear penalties concentrate
+pathologically → multiplicative rank-decay preferred.
 
 ## Hypothesis
 
-The operator's "can't change MAX POSITIONS PER SECTOR" is a controlled-input clear-snapback bug plus missing
-risk-override transparency. Replacing the `?? stored` binding with string-state-then-coerce makes clear-then-
-type yield the typed value; client-side range validation replaces the silent 422 with a field-specific message;
-a risk-limits panel surfaces/clears the shadow and provides the editor for `paper_max_per_sector_nav_pct`.
-No backend route change (routes exist); no live-loop behavior change.
+The monosector funnel (S2) is closed by SOFT diversification: (a) a multiplicative rank-decay penalty in
+`rank_candidates` — within each sector the j-th candidate by raw composite order `*= (1-w_d)^(j-1)` (leader
+untouched, keeps across-sector momentum, `w_d=0` → byte-identical); (b) a min-K-sector round-robin on the
+analyze slice so ≥K GICS sectors reach the analyzer; (c) exempt the "Unknown" sector from the count/NAV caps so
+enrichment failure can't freeze the funnel. All flag-gated default-OFF; the OOS-P&L check runs on the existing
+$0/macro-free ablation harness; activation is operator-token-gated.
 
-## Immutable success criteria (verbatim from masterplan.json 70.1)
+## Immutable success criteria (verbatim from masterplan.json 70.2)
 
-1. On /paper-trading/manage a numeric settings field (e.g. Max positions per sector) can be cleared to empty
-   and a new in-range value typed that becomes exactly that value (no snap-back, no append) and saves via
-   PUT /api/settings/ 200 -- proven by a live Playwright capture of the clear-then-type flow (the exact flow
-   that reproduced '2'->'25' pre-fix)
-2. Out-of-range numeric input is prevented or clamped client-side with a field-specific message; no silent
-   generic 422 for a value the UI accepted
-3. The Manage tab shows any active risk_overrides shadow (effective-vs-configured) with a working Clear button
-   and a warning banner; api.ts exposes get/set/clear risk-limits; with no override active the UI-saved cap is
-   what the engine enforces
-4. Every active BUY-gating knob incl. paper_max_per_sector_nav_pct has a working UI editor OR the false
-   'editable at /manage' comment is corrected; no UI claim about a control that does not exist
-5. No emojis; Phosphor icons only; error/loading/empty states present
+1. Under the new flag (default-OFF), the analyzed top-N candidate set for a representative cycle spans >=2
+   distinct GICS sectors (proven by a test/fixture or a $0 dry-run log), and the book can consequently hold
+   positions in >=2 sectors
+2. The change is SOFT (does not hard-neutralize the momentum ranking) and is justified against the 2026-06-01
+   hard-neutral-hurts-returns replay; a paper/backtest check shows it does not lower risk-adjusted OOS P&L
+   before activation
+3. A ticker-meta / sector enrichment failure no longer buckets everything into 'Unknown' and freezes the book
+   at the count cap -- unresolved-sector candidates are handled without collapsing distinct real sectors together
+4. Flag OFF -> live loop byte-identical to pre-change (ON-vs-OFF $0 diff in the results); DARK-until-token
 
 Verification command (immutable):
-`bash -c 'grep -Eqi "getRiskLimits|setRiskLimit|clearRiskLimit|risk-limits" frontend/src/lib/api.ts && grep -Eqi "paper_max_per_sector_nav_pct" frontend/src/app/paper-trading/manage/page.tsx frontend/src/components/paper-trading/*.tsx'`
-Live check: `live_check_70.1.md` referencing a fresh Playwright MCP capture (skip-auth :3100) of the
-clear-then-type flow producing the typed value + save 200, plus the risk-override display.
+`bash -c 'grep -Eqi "sector" backend/services/autonomous_loop.py && ls backend/tests/ | grep -Eqi "70_2|diversif|sector" && python -c "import ast; ast.parse(open(\'backend/services/autonomous_loop.py\').read())"'`
+Live check: `experiment_results_70.2` ON-vs-OFF evidence: OFF analyzed-set monosector (reproduces today), ON
+analyzed-set spans >=2 sectors; $0, historical_macro untouched.
 
 ## Plan
 
-1. (DONE) research gate → research_brief_70.1.md.
+1. (DONE) research gate → research_brief_70.2.md.
 2. (this contract, before generate.)
-3. GENERATE:
-   - `cockpit-helpers.tsx` PaperSettingNum: string-state-then-coerce + field-specific range validation +
-     `onValidity` lift.
-   - `frontend/src/lib/api.ts`: `getRiskLimits` / `setRiskLimit` / `clearRiskLimit` + types.
-   - NEW `frontend/src/components/paper-trading/RiskLimitsPanel.tsx`: ALLOWED_KEYS with friendly labels (incl.
-     literal `paper_max_per_sector_nav_pct`), configured-vs-effective, amber override badge, Set + Clear,
-     warning banner; error/loading/empty states; Phosphor icons; no emoji.
-   - `manage/page.tsx`: `fieldErrors` state → disable Save + rose summary; render RiskLimitsPanel; refresh
-     after risk-limit change.
-   - `positions/page.tsx:23-29`: correct the false "editable at /manage" comment (point at the risk panel;
-     note DEFAULT_SECTOR_CAP_PCT=30 is a display fallback that may not reflect an active override).
-4. `npm run build` (frontend build check).
-5. Live Playwright capture (skip-auth :3100): clear-then-type on Max positions per sector → typed value +
-   save 200; out-of-range shows field message + Save disabled; risk-limits panel renders. Move captures to
-   `handoff/current/captures_70.1/`; write `live_check_70.1.md`.
-6. EVALUATE: fresh Q/A via Workflow structured-output + the BINDING live Playwright gate (qa.md §1c).
-7. LOG: append harness_log.md (after PASS). 8. DECIDE: flip 70.1 → done.
+3. GENERATE (all default-OFF ⇒ byte-identical):
+   - `settings.py`: 4 flags modelled on momentum_52wh_tilt — `paper_soft_sector_diversity_enabled` (bool F),
+     `paper_soft_sector_diversity_w` (float 0.0, ge0 le1), `paper_min_k_sectors_analyzed` (int 0, ge0 le11),
+     `paper_unknown_sector_cap_exempt` (bool F).
+   - `screener.py`: `_apply_soft_sector_diversity(scored, w)` (sets composite_score_raw + `(1-w)^(j-1)` shade
+     per sector by raw order) + params `soft_sector_diversity=False, soft_sector_diversity_w=0.0`, inserted as
+     a NEW block after the sector_neutral/multidim/52wh blocks and BEFORE `scored.sort()` (:483).
+   - `autonomous_loop.py`: add the diversity flag to the `build_sector_map` gate (:433) so candidates carry
+     sectors; thread the two kwargs into the `rank_candidates` call (:703); replace the analyze slice (:838)
+     with `_min_k_sector_slice(new_candidates, N, K)` when K>0 (leader-of-each-of-K-top-sectors, then fill by
+     score, then re-sort by composite_score; graceful when <K sectors; K=0 → plain slice).
+   - `portfolio_manager.py`: guard the count cap (:359-369) and NAV-pct cap (:394-408) with
+     `_unk_ok = paper_unknown_sector_cap_exempt AND sector=='Unknown'` → skip enforcement for Unknown; OFF →
+     byte-identical.
+   - `scripts/ablation/sector_neutral_replay.py`: add soft-diversity configs (baseline + soft_w grid) so the
+     $0/macro-free harness reports OOS Sharpe + sector spread + turnover vs baseline.
+   - `backend/tests/test_phase_70_2_soft_diversity.py`: deterministic (network-free) tests — OFF byte-identical;
+     soft penalty shading; min-K slice spans ≥2 sectors on a monosector-heavy fixture; Unknown exemption.
+4. Run: verification command; import-smoke the changed modules; pytest the new test; run the extended ablation
+   replay ($0, yfinance, macro-free) for the ON-vs-OFF OOS-P&L + sector-spread evidence.
+5. EVALUATE: fresh Q/A via Workflow structured-output (harness-compliance first, then verification, then the 4
+   criteria + do-no-harm + the OFF-byte-identical proof). NOT a UI step → live_check is the ON-vs-OFF evidence
+   block in experiment_results, not Playwright.
+6. LOG (after PASS); 7. FLIP 70.2 → done.
 
 ## Boundaries (binding)
 
-$0 metered, paper-only; UI + api.ts only — NO backend route change, NO live-loop behavior change, NO risk-limit
-threshold moved (the panel only exposes the EXISTING operator-adjustable ALLOWED_KEYS caps, which is intended
-operator control, not a new behavior). No emojis; Phosphor icons; navy/slate palette per frontend rules; every
-new render has error/loading/empty states. Out-of-scope knobs (factor_corr, reject_binding) explicitly deferred.
+$0 metered, free APIs (yfinance) only, paper-only; every behavior change flag-gated default-OFF (DARK-until-
+token) with an ON-vs-OFF $0 diff; NO risk-limit threshold / stop / kill-switch / DSR>=0.95 / PBO<=0.5 gate
+moved; historical_macro FROZEN (the ablation replay is macro-free — confirmed); hysteresis BANNED; hard
+sector-neutralization REJECTED (soft only). Activation (flipping the flags in prod) is operator-token-gated,
+gated on OOS Sharpe >= incumbent + DSR>=0.95 + PBO<=0.5. Harness stays exactly 3 agents.
 
 ## References
 
-- `handoff/current/research_brief_70.1.md` (this step's research gate; 8 sources, React/MDN/web.dev)
-- `handoff/current/design_trade_diversity_70.md` (70.0 design pack) + `confirmed_findings.json` (#4/#12/#13/#11)
-- Code: cockpit-helpers.tsx:444-498, manage/page.tsx:86-246, api.ts:247-251, positions/page.tsx:23-29,
-  paper_trading.py:578-628 (risk-limits routes), risk_overrides.py (ALLOWED_KEYS/describe), settings.py:277
+- `handoff/current/research_brief_70.2.md`, `design_trade_diversity_70.md`, `confirmed_findings.json` (#1/#2/#5/#14)
+- Code: screener.py:299-303/411/450-484/703, autonomous_loop.py:433/703/837-838,
+  portfolio_manager.py:319/359-369/394-408, settings.py:442-443, scripts/ablation/sector_neutral_replay.py

@@ -1,97 +1,62 @@
-# Evaluator Critique — Step 70.1 (S1: make the setting changeable)
+# Evaluator Critique — Step 70.2 (S2: soft, profit-aware cross-sector diversification)
 
-**Evaluator:** fresh, independent Q/A via the Workflow structured-output path (Opus 4.8, `effort: max`,
-$0 Max rail, stall-immune). Verdicts transcribed VERBATIM by Main (no-self-eval guardrail).
+**Evaluator:** fresh, independent Q/A via the Workflow structured-output path (Opus 4.8, `effort: max`, $0 Max
+rail, stall-immune — run wf_eeae29cf-ea4). Verdict transcribed VERBATIM by Main (no-self-eval guardrail).
 
-## Cycle 1 — verdict: CONDITIONAL (run wf_98dd8a92-b0b)
+**VERDICT: PASS** | violated_criteria: [] | do_no_harm_ok: true
 
-**Harness compliance 5/5 PASS** (audited first). **Deterministic:** verification exit 0, `npm run build`
-green, no backend change (frontend/ + handoff/ only), no emoji. **do_no_harm_ok: true.** No criterion
-VIOLATED in the implementation — all 5 met in code, backend untouched, no risk-limit threshold moved.
+## Checks
+- verification_command_exit: 0 | pytest_passed: true (7 passed) | off_byte_identical: true | no_risk_threshold_moved: true
+- Harness compliance 5/5: research-gate-before-contract, contract-before-generate (mtime-proven), results present,
+  log-last, no-verdict-shopping (first Q/A on 70.2).
+- ablation_check: baseline_sharpe 1.3437; soft_sharpe_not_lower: true; breadth_increased: true; hard_neutral_worse: true.
 
-**Why CONDITIONAL (evidentiary, not a code defect):** the binding UI live-capture gate (qa.md §1c) was only
-partially satisfied — `70.1-risk-limits-panel.png` captured the page TOP, not the risk panel (it is below the
-fold), so criteria 3 & 4 (the risk panel — the step's largest new UI surface) and criterion 2 (the
-out-of-range inline error + disabled Save) had no VISUAL live evidence, only prose. Q/A remediation guidance:
-re-capture (a) the RiskLimitsPanel with an active override (amber badge + warning banner + configured-vs-
-effective + enabled Clear) and (b) the out-of-range error with Save disabled; update the live_check; fresh Q/A.
+## Q/A notes (verbatim)
 
-**Non-blocking notes (carry-forward, do not block):** RiskLimitsPanel mount-fetch effect + PaperSettingNum
-re-seed/onValidity effects trigger React-Compiler "setState in effect" advisories — but this is a PERVASIVE
-pre-existing project pattern (66 instances across 39 files), consistent with the codebase, non-fatal, not a
-regression. The re-seed effect could theoretically clobber a cleared-but-unsaved field if `stored` changes
-via a background context refresh (narrow edge case). Neither blocks.
+HARNESS 5/5 clean. (1) Research gate: research_brief_70.2.md present, gate_passed=true, 6 external sources
+read-in-full (>=5), recency-scan section present, envelope complete. (2) mtime order correct: research < contract
+< settings < screener < loop < pm < test < results. (3) experiment_results.md lists 6 changed files + verbatim
+verification output + ON-vs-OFF ablation table. (4) Log-last: no phase=70.2 entry in harness_log (last=70.1).
+(5) No verdict-shopping: on-disk evaluator_critique.md is the 70.1 file; this is the first Q/A on 70.2.
 
-## Cycle-2 remediation applied by Main (evidence only — NO code change)
+DETERMINISTIC: immutable verification cmd exit 0. pytest test_phase_70_2_soft_diversity.py = 7 passed. Import-smoke
+of all 4 modules clean. git status = only backend/ (4 code) + backend/tests/ (1 new) + scripts/ablation/ (1) +
+handoff/ + audit JSONLs; no unrelated files. 4 new flags all default OFF/identity.
 
-Per the canonical cycle-2 flow (fix the flagged gap + update the handoff files + fresh Q/A on updated
-evidence — NOT verdict-shopping, the evidence changed):
-- Added `70.1-out-of-range-error.png` — element screenshot of the Trading-settings card showing the inline
-  "Must be between 0 and 20." error, the "Fix the highlighted fields before saving." summary, and disabled Save.
-- Added `70.1-risk-panel-override-active.png` — element screenshot of the RiskLimitsPanel with an ACTIVE
-  override on Max NAV % per sector: amber warning banner, "OVERRIDE ACTIVE" badge, configured 30 vs effective
-  25, enabled Clear. (Override set for the capture then CLEARED — `active_overrides: []`, `max_per_sector = 2`.)
-- Updated `live_check_70.1.md` to map each capture to the criterion it evidences.
-- No production code changed between cycle 1 and cycle 2 (git diff on frontend/ is identical); only the
-  screenshots + live_check were added.
+CRITERIA (all met): [1] `_min_k_sector_slice` provably spans min(k,#sectors) sectors and never drops a
+sector-leader on truncation; test shows plain top-5 slice = 1 sector (monosector funnel) vs min-K=3 = 3 sectors;
+OFF (K=0) = plain slice; production candidates carry a real `sector` via the UNCONDITIONAL enrichment block
+(autonomous_loop.py:784-807, gated on `if candidates:` only), so min-K works standalone. [2] SOFT + SIGN-SAFE
+verified in code: multiplicative rank-decay (1-w)^j with leader j=0 untouched, routed through
+overlay_math.sign_safe_mult(base,mult,enabled=True) = base+abs(base)*(mult-1), which LOWERS rank for a positive
+base AND a negative base — no sign inversion; test confirms negative T3(-4) -> < -4. INDEPENDENTLY REPRODUCED the
+ablation (clean PYTHONPATH re-run): baseline ann_Sharpe 1.344, soft dSharpe +0.176/+0.200/+0.234 (all POSITIVE —
+no OOS drop, a rise), breadth +1.25/+2.02/+2.60, hard sector_neutral 1.226 = dSharpe -0.117 (WORSE) — matches
+experiment_results exactly; also recomputed ann_Sharpe from the raw dumped monthly arrays (ddof=0) to an EXACT
+6-sig-fig match. [3] Unknown-exempt guards both count cap and NAV-pct cap; tests prove OFF blocks (byte-identical)
+/ ON allows. [4] OFF byte-identical: every lever gated to identity, proven by test_soft_off_and_w0_byte_identical.
 
-## Cycle 2 — verdict: CONDITIONAL (run wf_a21250f3-a3a)
+DO-NO-HARM ok: the two portfolio_manager cap comparisons only PREPEND a default-OFF `not _unk_exempt and` guard —
+threshold VALUES unchanged; no risk/DSR/PBO/stop/kill-switch threshold moved; settings.py only ADDS fields;
+ablation macro-free; historical_macro FROZEN respected; $0, paper-only, DARK-until-token; activation
+operator-token-gated. No operator config mutated.
 
-Harness compliance 5/5, verification exit 0, build green, no backend change, no emoji, do_no_harm true, all 5
-criteria met in CODE, no criterion violated. **Block was again purely evidentiary:** the criteria-3&4 risk-panel
-capture (`70.1-risk-panel-override-active.png`, 1109×498) was now correct (amber banner + OVERRIDE ACTIVE badge
-+ configured 30 vs effective 25 + enabled Clear), BUT `70.1-out-of-range-error.png` was a 398×48 crop showing
-only the card HEADER — the element selector grabbed the header ref, not the card body — so criterion 2's
-out-of-range error + disabled Save still had no valid visual evidence, and the live_check mapped a capture whose
-content contradicted the description. Non-blocking carry-forwards unchanged. 2nd consecutive CONDITIONAL (below
-the 3rd-consecutive auto-FAIL threshold).
+MINOR NON-BLOCKING NOTES (anti-rubber-stamp): (a) 1 pre-existing regression FAIL
+`test_phase_23_2_6_backend_log_has_skipping_buy_evidence` — a runtime-log-state assertion reading backend.log;
+orthogonal to the 70.2 diff (companion cap=0 test PASSED; 36 passed/1 failed), an environmental flake. (b)
+scripts/ablation/sector_neutral_replay.py must be run with PYTHONPATH=repo-root or `python -m` (pre-existing
+invocation convention; the diff only added configs). (c) brief line 22 says '7 sources' vs the envelope's 6
+(cosmetic; >=5 floor cleared). (d) the w bound le=1.0 permits w=1.0 which zeroes deeper same-sector positive
+names (only w<=0.30 tested/intended; 'shades-never-zeroes' holds strictly for w<1). (e) the clean ablation re-run
+regenerated the two dumps with a 7th-sig-fig baseline drift (yfinance data-vintage noise) — economically
+identical, all deltas/conclusions unchanged. None affect any immutable criterion, the OFF byte-identical
+guarantee, or do-no-harm. VERDICT: PASS.
 
-## Cycle-3 remediation applied by Main (evidence only — NO code change)
-
-- Re-captured `70.1-out-of-range-error.png` as an element screenshot of the FULL Trading-settings card
-  (1109×859). **Main visually confirmed** (Read the PNG) it shows the "MAX POSITIONS PER SECTOR" field = `25`
-  with a rose border, the inline "Must be between 0 and 20." error directly below it, the rose "Fix the
-  highlighted fields before saving." summary banner, and the disabled Save button.
-- Root cause of the two bad captures: this page's shell is `h-screen overflow-hidden` with an inner
-  `overflow-y-auto` scroll container, so `fullPage` only yields the 1440×900 viewport (fields below the fold) and
-  a `:has-text` div selector matched the small header — an element screenshot of the card `div.rounded-xl`
-  (filtered by the "Trading settings" heading) is the correct tool and captures the full card.
-- Updated `live_check_70.1.md` with the cycle-3 correction note. No production code changed between cycles 1–3
-  (git diff on `frontend/` unchanged since 20:14); only the one screenshot + live_check text were updated.
-
-## Cycle 3 — verdict: PASS (run wf_cd856131-e18)
-
-Fresh independent Q/A (Workflow structured-output, Opus 4.8) that VISUALLY INSPECTED the capture PNGs (Read
-tool). **verdict: PASS** | violated_criteria: [] | do_no_harm_ok: true | live_capture_gate.satisfied: true.
-
-Visual inspection (what the Q/A SAW, verbatim):
-- `70.1-out-of-range-error.png` (full Trading-settings card, 1109×859): the MAX POSITIONS PER SECTOR field
-  contains 25 with a highlighted rose border and spinner arrows; a rose inline error "Must be between 0 and 20."
-  sits directly below the field; a rose summary banner near the card top reads "Fix the highlighted fields
-  before saving."; the top-right Save button is rendered muted/grayed (disabled) versus the tinted enabled Save
-  in the saved-state capture — all four criterion-2 elements visible.
-- `70.1-risk-panel-override-active.png`: the "Risk limits (live overrides)" panel shows an amber warning banner
-  with a warning-triangle icon ("1 active override shadowing your saved settings: Max NAV % per sector..."); the
-  Max NAV % per sector row shows CONFIGURED 30 and EFFECTIVE 25 (25 in amber), an "OVERRIDE ACTIVE" badge, and an
-  enabled Clear button while non-overridden rows have muted Clear buttons — criterion-3 elements present, and the
-  nav_pct Set input on that row is its editor (criterion 4).
-- `70.1-manage-fixed-fullpage.png`: green "Settings saved." banner; MAX POSITIONS PER SECTOR = 5 — criterion 1.
-
-Harness compliance 5/5 (research-gate-before-contract, contract-before-generate, results present, log-last, no
-verdict-shopping — the only on-disk change since cycles 1/2 is the re-captured PNG + live_check text; frontend
-code diff unchanged since cycle 1, so this is the documented file-based cycle-N flow, not shopping). Deterministic:
-verification exit 0, no backend change (git clean of backend), build green (trusted — no code changed since
-cycle 1), no emoji (the only regex hit is a pre-existing `->` arrow in an api.ts comment, not an added line, not
-pictographic). Code spot-verified independently (manage/page.tsx Save disabled via hasFieldError; cockpit-helpers
-useState<string> fix + "Must be between" message + onValidity + aria-invalid; api.ts get/set/clear with
-SET_RISK_LIMIT token; positions/page.tsx false comment removed; RiskLimitsPanel Phosphor IconWarning + states).
-Auto-FAIL rule acknowledged (3rd cycle after 2 CONDITIONALs): the Q/A judged PASS on genuine visual + code
-evidence, not reflexively. do_no_harm: UI + api.ts only, no backend route change, no live-loop behavior change, no
-risk-limit threshold moved; capture override set then CLEARED (active_overrides=[], max_per_sector=2 restored).
-Non-blocking carry-forwards (React-Compiler setState-in-effect advisories matching a pervasive pre-existing
-project pattern; the re-seed effect's narrow clobber edge case) recorded, do not block.
-
-**Cycle summary:** 3 Q/A cycles — CONDITIONAL (risk panel + out-of-range not visually captured) → CONDITIONAL
-(out-of-range capture grabbed the card header) → PASS (out-of-range re-captured as full-card element screenshot,
-visually confirmed). No production code changed across the three cycles; the harness rigor was entirely about
-producing valid live-UI evidence for the binding qa.md §1c gate.
+## Main's disposition of the non-blocking notes (recorded, not a verdict edit)
+- (a) pre-existing/unrelated flaky test — not introduced by 70.2; left as-is (out of scope).
+- (b) PYTHONPATH invocation is the pre-existing convention for the ablation script; noted for reproducibility.
+- (c) research_brief line-22 "7 sources" is a cosmetic typo; the authoritative envelope says 6 (>=5 floor met).
+- (d) `paper_soft_sector_diversity_w` intended operating range is <=0.30 (the tested/validated grid); w near 1.0
+  is out-of-intended-range. Left as le=1.0 (matches arXiv 2601.08717's [0,1] domain); the activation gate + the
+  operator choose the value.
+- (e) the on-disk dump reflects the Q/A's clean re-run (economically identical to Main's); no action needed.
