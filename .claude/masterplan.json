@@ -15041,7 +15041,7 @@
         {
           "id": "65.3",
           "name": "(post-66.2) US+KR health baseline -- BQ per-market trade counts, win rate, exit-reason mix, holding-day distribution since 2026-06-01, written to handoff/away_ops/market_health_baseline.md with explicit 'healthy' thresholds for the 65.4 proof.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": null,

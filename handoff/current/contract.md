@@ -1,73 +1,56 @@
-# Contract — step 63.2 (BQ cross-check of displayed numbers)
+# Contract — step 65.3 (US+KR per-market health baseline)
 
-**Phase:** phase-63 | **Step:** 63.2 | **Priority:** P0 | harness_required: true | depends_on: 63.1 (done); post-66.2 (done)
-**Cycle:** 1 | Date: 2026-07-17 | **Type:** live AUDIT (read-only; produces a defect register). $0 (curl + BQ only,
-ZERO metered LLM); historical_macro FROZEN; live book untouched; **operator :3000 NEVER touched**.
+**Phase:** phase-65 | **Step:** 65.3 | **Priority:** P1 | harness_required: true | depends_on: none; post-66.2 (done)
+**Cycle:** 1 | Date: 2026-07-18 | **Type:** $0 BQ baseline AUDIT (read-only; produces a baseline doc). live book
+untouched; historical_macro FROZEN; NO trade/risk/money touch.
 
 ## Research-gate summary (gate PASSED)
 
-Researcher subagent (Agent tool, Opus 4.8 effort:max, $0), brief `research_brief_63.2.md`. Envelope:
-**gate_passed=true**, tier=moderate, **5 external sources read in full**, 35 snippet-only, 40 URLs, recency scan, 10
+Researcher subagent (Agent tool, Opus 4.8 effort:max, $0), brief `research_brief_65.3.md`. Envelope:
+**gate_passed=true**, tier=moderate, **7 external sources read in full**, 11 snippet-only, 25 URLs, recency scan, 6
 internal files. KEY:
-- **Framing**: the page renders the API JSON → displayed==API is definitional; the meaningful cross-check is
-  **API-vs-BQ**. Record the displayed/API/BQ triple; DEF- only for API-vs-BQ mismatches beyond rounding/tolerance.
-- **$0 curl path (verified live)**: `curl -s http://localhost:8000<ep>` returns 200 with NO token
-  (`DEV_LOCALHOST_BYPASS` active, auth.py:150; middleware auth main.py:426-460); `/api/sovereign|signals|
-  observability` are also `_PUBLIC_PATHS`. **GETs ONLY** (no POST/PUT/DELETE). Never touch :3000.
-- **BQ SoT** in `financial_reports` (paper_portfolio/paper_positions/paper_trades/paper_portfolio_snapshots) +
-  `pyfinagent_data.outcome_tracking` (performance). Read-only via the Python bigquery client (ADC) — SELECT the single
-  needed column; tiny tables, far under free tier. Project sunny-might-477607-p8.
-- **STORED vs COMPUTED**: get_paper_portfolio is SELECT* (NAV/cash/pnl/benchmark = direct cell compare); Sharpe/alpha/
-  counts/metrics-v2 = re-derived (compare via identity/re-derivation). snapshots read DESC (phase-47.4 resort trap).
-- **Tolerance**: "beyond rounding" = the display unit for displayed-vs-API (2dp → ±0.005); ~0.5-1% rel for API-vs-BQ.
-  TZ/formatting/live-lag/different-formula differences are recorded in the triple but are NOT DEFs.
-- **WATCH (record, not auto-DEF)**: `/portfolio.sharpe_ratio` (3.56) vs `/metrics-v2.rolling_sharpe` (3.0168) —
-  different formulas/windows.
+- **Schema trap**: `financial_reports.paper_trades` (61 rows) has **NO `market` column** and `created_at` is a
+  **STRING** → derive market from the ticker suffix (`market_for_symbol`, markets.py:142: bare=US, .KS/.KQ=KR,
+  .DE/.PA=EU); filter `created_at >= "2026-06-01"` (lexical, works) — NOT `>= TIMESTAMP(...)` (that failed).
+- **Definitions**: win = `realized_pnl_pct > 0` on SELL rows (paper_round_trips.py:145; break-even=loss);
+  `holding_days` + `realized_pnl_pct` precomputed on SELL rows (no re-pairing); fee = `transaction_cost` = notional ×
+  `paper_transaction_cost_pct`(0.1, settings.py:371)/100 (USD).
+- **Live dry-run** (to re-run): US 28 trades / 70.6% win / median-hold 3d / $20.30 fees; KR 10 / 20% / 1d / $4.82;
+  EU 0.
+- **Churn split** (criterion 3): `paper_swap_churn_fix_enabled` operator-activated ON **2026-06-12** (harness_log
+  :27097). PRE-FIX = 06-01→06-11 (swap-churn cluster, dominates the aggregates); POST-FIX = 06-12+ (0 churn swaps,
+  thin sample confounded by the away-ops quiet period — disclose both causes; post-fix trend PENDING more cycles).
+- **Statistical caveat**: min ~30 trades/metric → at US 17 / KR 5 closed, win-rate/PF are DESCRIPTIVE not inferential
+  → lean the thresholds on robust STRUCTURAL gates (holding-days, churn-swap-hold, fee-drag, liveness).
 
-## Plan (the audit worklist — page → number → API path → BQ SoT → type)
-Execute per the research worklist (22 rows). Representative:
-- `/` NAV/cash/pnl%/benchmark → `/api/paper-trading/{status,portfolio}` → paper_portfolio.{total_nav,current_cash,
-  total_pnl_pct,benchmark_return_pct} [STORED, direct cell]; position_count → COUNT paper_positions [COMPUTED];
-  sharpe → compute_sharpe_from_snapshots [COMPUTED].
-- `/paper-trading/positions` per-position qty/avg_entry/cost_basis/sector → paper_positions.<col> [STORED];
-  market_value/unrealized_pnl → identities (cost_basis==qty*avg_entry; mv==qty*price; upnl==mv-cost_basis) [LIVE/C].
-- `/paper-trading/nav` → paper_portfolio_snapshots (DESC) [STORED]. `/paper-trading/trades` rows/count → paper_trades
-  [STORED/COMPUTED]. `/performance` → outcome_tracking [COMPUTED]. `/learnings` → the learnings endpoint [COMPUTED].
-  `/sovereign` compute-cost/leaderboard/red-line → the PUBLIC sovereign endpoints.
+## Plan
+1. Run the 4 aggregate BQ queries ($0, read-only, Python bigquery client, us-central1) with the market-from-suffix
+   CASE + `WHERE created_at >= "2026-06-01"`: (B1) per-market trade counts (buys/sells); (B2) per-market win rate
+   (COUNTIF(SELL & realized_pnl_pct>0)/COUNTIF(SELL)); (B3) per-market exit-reason mix (GROUP BY reason + avg
+   holding_days + avg realized_pnl_pct); (B4) per-market holding-day distribution (<=1d / 2-5 / 6-20 / >=21 + median).
+2. Run the same split by the churn flag date (pre-fix 06-01→06-11 vs post-fix 06-12+).
+3. Write **`handoff/away_ops/market_health_baseline.md`**: per-market aggregate tables + **the verbatim SQL pasted**
+   (criterion 1) + **≥1 explicit `HEALTHY-THRESHOLD:` lines** (criterion 2, e.g. "no market > X% of NAV in fees",
+   "stop-out rate < Y%", median holding-days ≥ Z, churn-swap-hold ≥ 3d) + the **pre/post-61.1-fix split noted
+   separately** (criterion 3) + the low-n descriptive caveat.
 
-For each: curl the API value + query the BQ SoT + compare. Build the triple table; add a `| DEF-NNN |` row only for a
-real mismatch beyond tolerance.
-
-### Deliverable: `handoff/away_ops/defect_register.md`
-- A CRITERION-1 TRIPLE table FIRST (rows start `| /route ...` — NOT matched by `grep '^| DEF-'`): columns
-  `| route | number | displayed/API | BQ | verdict |`.
-- Then CRITERION-2 DEF rows (start `| DEF-NNN |`): `| DEF-NNN | route | number | API | BQ | severity | repro |`.
-  Severity: CRITICAL money/risk (NAV/cash/stop/P&L) · HIGH gate-feeding (Sharpe/DSR/alpha/win_rate) · MEDIUM counts ·
-  LOW chrome. `grep -c '^| DEF-'` counts ONLY defects (0 = valid pass if all triples match).
-
-## Immutable success criteria (verbatim from masterplan.json 63.2)
-1. "each number-bearing page has a displayed-vs-API-vs-BQ triple recorded with the SQL pasted verbatim"
-2. "every mismatch beyond rounding is a DEF- row with route, severity, reproduction, displayed-vs-truth values, suspected file, and {pure-bug | trading-behavior} classification"
-3. "zero metered LLM calls used (BQ + curl only)"
-
-**[Cycle-1 CONDITIONAL fix]**: cycle-1 SOFTENED these criteria (dropped "with the SQL pasted verbatim" from #1 and
-"reproduction, displayed-vs-truth values, suspected file, and {pure-bug | trading-behavior} classification" from #2) —
-the Q/A caught it. Restored verbatim above. The deliverable is updated accordingly: SQL pasted verbatim per triple +
-DEF-001 carries suspected-file + classification.
+## Immutable success criteria (VERBATIM from masterplan.json 65.3)
+1. "per-market aggregates (trades, win rate, exit reasons, holding days) since 2026-06-01 with the SQL pasted verbatim"
+2. "explicit HEALTHY-THRESHOLD lines that 65.4 will be judged against (e.g. no market >X% of NAV in fees, stop-out rate <Y%)"
+3. "post-churn-fix (61.1 flags ON) trend noted separately from the pre-fix baseline"
 
 **Verification command (immutable):**
-`cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/away_ops/defect_register.md && grep -c '^| DEF-' handoff/away_ops/defect_register.md`
+`cd /Users/ford/.openclaw/workspace/pyfinagent && test -f handoff/away_ops/market_health_baseline.md && grep -c 'HEALTHY-THRESHOLD' handoff/away_ops/market_health_baseline.md`
 
 ## Boundaries (binding)
-$0 — curl (GET only) + BQ (read-only SELECT) + a Python re-derivation for computed values. ZERO metered LLM
-(criterion 3). READ-ONLY audit — the only new file is `handoff/away_ops/defect_register.md` (+ live_check). NO
-production code change; NO trade/risk/money touch; kill-switch/stops/caps/DSR/PBO untouched; historical_macro FROZEN;
-live book untouched. **Operator :3000 NEVER touched** (all curls hit :8000). Any real mismatch is RECORDED as a DEF-
-row (the register is the deliverable), not fixed here (fixes are 63.4). Formula/TZ/live-lag differences → triple, not
-DEF.
+$0 — read-only BQ SELECT + Python aggregation. READ-ONLY baseline AUDIT; the only deliverable is
+`market_health_baseline.md` (+ live_check). NO production code change; NO trade/risk/money touch;
+kill-switch/stops/caps/DSR/PBO untouched; historical_macro FROZEN; live book untouched. The HEALTHY-THRESHOLD lines
+are BASELINE targets that 65.4 will judge against (not enforced live). Low-n honesty: win-rate/PF at US 17 / KR 5
+closed trades are DESCRIPTIVE, not inferential (disclosed). The post-61.1-fix trend is noted separately + flagged as
+pending more cycles (away-ops quiet). SQL pasted verbatim per criterion 1 (lesson from 63.2: copy criteria verbatim).
 
 ## References
-research_brief_63.2.md; backend/api/auth.py:150 (DEV_LOCALHOST_BYPASS); backend/main.py:426-460 (middleware auth);
-backend/db/bigquery_client.py:521 (get_paper_portfolio), :1039 (snapshots DESC); CLAUDE.md BigQuery section
-(financial_reports = paper tables, us-central1... actually paper tables via _pt_table = financial_reports);
-frontend/src/lib/api.ts (page→endpoint map). The 63.1 walk (route inventory).
+research_brief_65.3.md; backend/backtest/markets.py:142 (market_for_symbol); backend/services/paper_round_trips.py:145
+(win def); backend/config/settings.py:345 (paper_swap_churn_fix_enabled), :371 (paper_transaction_cost_pct); the
+financial_reports.paper_trades schema; harness_log.md:27097 (flag ON 2026-06-12).
