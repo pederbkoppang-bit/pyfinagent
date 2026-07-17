@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `de7e8270` | phase-71.3: harden Q/A judgment (contract-completeness + adversarial N-lens) + machine-readable verd |
 | 2026-07-17 | `21c49817` | phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff) |
 | 2026-07-17 | `8043c4ed` | phase-71.2: Layer-2 honesty -- guaranteed structured outputs + kill silent-failure classes |
 | 2026-07-17 | `ccddeff4` | phase-71.1: codify Workflow structured-output as the FIRST-CLASS Q/A + Researcher launch (Agent-tool |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-11 | `087ce360` | phase-69.4: P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: ... |
 | 2026-07-11 | `cbf5cbce` | phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR unit... |
 | 2026-07-11 | `d0c8453d` | phase-69.0: P0 design pack (offline, dev-time frontier reasoning -- Fable while the 07-12 window ... |
-| 2026-07-10 | `f74b1472` | phase-68.5: operator-authorized criteria restatement (AskUserQuestion 2026-07-10, recorded Cycle 83) |
 
 ---
 
+### v6.62.4 — phase-71.3: harden Q/A judgment (contract-completeness + adversarial... (2026-07-17)
+
+- **phase-71.3: harden Q/A judgment (contract-completeness + adversarial N-lens) + machine-readable verd**
 ### v6.62.3 — phase-71.3: research gate PASS + contract (WIP checkpoint for session... (2026-07-17)
 
 - **phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff)**
