@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `f7e76f7a` | phase-63.2: (post-66.2) BQ cross-check of displayed numbers -- for every number-bearing page (coc... |
 | 2026-07-17 | `8fbb1a6b` | phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (recorded yfinance fixtures, no n... |
 | 2026-07-17 | `541bd40a` | phase-64.3: Backend gap tests -- kill-switch state machine (pause/resume/breach/auto-resume-off),... |
 | 2026-07-17 | `4eb6ceea` | phase-64.2: Functional specs for all 22 routes -- load + one key interaction per route family; su... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `8d858211` | phase-70.3: S3 + money-path -- swap/rotation correctness & safety. Make the sector-blocked swap p... |
 | 2026-07-17 | `1d493993` | phase-70.2: S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to pr... |
 | 2026-07-16 | `64257b05` | phase-70.1: S1 -- make the setting actually changeable. Fix the frontend clear-snapback bug (cock... |
-| 2026-07-16 | `dcc65575` | phase-70.0: Research gate + design pack (offline, $0): (a) soft, profit-aware sector-diversificat... |
 
 ---
 
+### v6.62.14 — phase-63.2: (post-66.2) BQ cross-check of displayed numbers -- for ev... (2026-07-18)
+
+- **phase-63.2: (post-66.2) BQ cross-check of displayed numbers -- for every number-bearing page (coc...**
 ### v6.62.13 — phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (reco... (2026-07-17)
 
 - **phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (recorded yfinance fixtures, no n...**
