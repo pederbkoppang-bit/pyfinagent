@@ -334,6 +334,14 @@ prose. Do NOT edit the 71.1-owned `VERDICT_SCHEMA`; Main is the scribe for
 both the `.md` and the `.json`, mirroring the verbatim-transcription rule so
 the no-self-eval guarantee holds.
 
+**Context hygiene (phase-71.6):** your return IS a **compact verdict
+envelope** -- the verdict + a one-sentence reason `summary` +
+`violated_criteria` + `checks_run`. The full critique prose lives at the
+`evaluator_critique.md` **file path**; NEVER paste whole file contents or the
+full critique text back through Main's context. Return the lightweight
+reference (the schema object) that Main transcribes -- per Anthropic
+multi-agent-research ("pass lightweight references back to the coordinator").
+
 ## Certified fallback (SEVerA 2026)
 
 If step's `retry_count >= max_retries` in `.claude/masterplan.json`,

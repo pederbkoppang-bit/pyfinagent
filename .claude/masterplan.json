@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-17T15:31:50.254852+00:00",
+  "updated_at": "2026-07-17T16:02:36.231239+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15881,7 +15881,7 @@
         },
         {
           "id": "71.6",
-          "status": "pending",
+          "status": "in-progress",
           "name": "P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harness/MAS self-audit as a reusable .claude/workflows/ script and schedule a WEEKLY report-only run (local /loop or a report-only routine -- NO auto-apply; it only writes a findings report for the operator, honoring the background-agent-resumption-risk memory). Adopt the subagent context-hygiene pattern: researcher/Q/A return a compact envelope (summary + verdict + handoff file path), NOT the full brief/critique through Main's context. Prune the dormant self-evaluating driver code path if the stress-test confirms it is dead weight.",
           "harness_required": true,
           "priority": "P3",

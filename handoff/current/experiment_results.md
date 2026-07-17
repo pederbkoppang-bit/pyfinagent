@@ -1,75 +1,69 @@
-# Experiment results — step 71.4 (independent evaluator for the self-improvement loop + coverage gate)
+# Experiment results — step 71.6 (report-only self-audit workflow + context-hygiene + dead-driver keep)
 
-**Phase/step:** phase-71 → 71.4 | **Date:** 2026-07-17 | **Type:** LIVE Layer-2/4 code (skill self-improvement
-loop) — flag-gated DARK — + research-gate docs. $0-delta when OFF; paper-only; historical_macro FROZEN; live book
-untouched.
+**Phase/step:** phase-71 → 71.6 | **Date:** 2026-07-17 | **Type:** harness-infra (a saved report-only workflow) +
+agent-file context-hygiene + a dead-driver decision. $0, local-only, NO production/live-loop change; historical_macro
+FROZEN; live book untouched.
 
-## What was changed (every change fail-safe / additive)
+## What was changed
 
-### `backend/agents/skill_modification_review.py` (NEW — mirrors directive_review, FAIL-CLOSED)
-`review_skill_modification(content, old_text, new_text, description, *, modifiable_sections, llm_call_override)`
-→ `SkillReviewResult`. Two stages:
-1. **Deterministic pre-check ($0, no LLM):** hard-REJECT on a `{{variable}}` placeholder-set delta, a section-scope
-   escape (old_text's enclosing section not in the modifiable set), or a new non-allowed section header. Only rejects
-   on unambiguous violations (no prose false-positives).
-2. **LLM semantic judge (mirrors directive_review):** 2 dims — `safety` (doesn't weaken a constraint) + `factuality`
-   (description matches the diff). ACCEPT iff mean ≥ 0.70 AND min-dim ≥ 0.5 (a single weak dim can't be averaged
-   away). FAIL-CLOSED: empty/None/exception/non-dict/missing-dim/out-of-range → REJECT, scores 0.0. `llm_call_override`
-   test seam. The modifiable set is the SAFE narrow `("## Prompt Template",)` (matches skill_optimizer's own rule —
-   deliberately NOT widened, which would loosen).
+### `.claude/workflows/harness-self-audit.js` (NEW — STRUCTURALLY report-only) [criterion 1, saved re-runnable]
+A re-runnable self-audit workflow (mirrors `qa-verdict.js`): fan-out finder agents over 4 harness+MAS dimensions
+(harness-protocol / layer2-mas / layer4-meta / capabilities-drift) → adversarial verify (pipeline, no barrier) →
+**RETURNS ranked confirmed findings** (the register shape of `harness_proposals.json`). **Enforcement = TOOL-
+RESTRICTION, not a prompt:** every auditor is `agentType:'Explore'` (READ-ONLY — no Edit/Write/Agent); the workflow
+SCRIPT has no fs/shell/git access; nothing writes files, commits, pushes, or flips the masterplan. Registered as the
+discoverable `harness-self-audit` command (confirmed live). Lands the `ls .claude/workflows/ | grep audit|self|stress`
+check. Backstopped by the 62.0 PreToolUse guard (blocks `git push`/`launchctl`) as defense-in-depth.
 
-### `backend/agents/skill_optimizer.py`
-Inserted inside `apply_modification` AFTER the mechanical checks (:422) and BEFORE the write (:424/425): when
-`get_settings().skill_modification_review_enabled` → call the review; on non-ACCEPT → log + `return False` (NO write,
-NO commit). Gates ONLY the forward write, never the read/revert. **Flag OFF (default) → byte-identical to today**
-(the block is skipped — proven by a test). Also swept a pre-existing unused `import json` (§1a lint gate, file
-touched by this diff).
+### `.claude/agents/researcher.md` + `.claude/agents/qa.md` (context-hygiene) [criterion 2]
+- researcher.md: retired the full-brief `report_md` envelope field → a `<=200-word` `summary` + `brief_path` +
+  an explicit "return the compact envelope, NOT the full brief through Main's context; Main reads it from
+  brief_path" instruction (Anthropic "lightweight references").
+- qa.md: added a "Context hygiene" clause — the return IS a **compact verdict envelope** (verdict + one-sentence
+  reason summary + violated_criteria); the full critique prose lives at the `evaluator_critique.md` **file path**,
+  never pasted through Main's context. (Adds envelope/summary/file-path to qa.md, matching the grep for BOTH files.)
 
-### `backend/config/settings.py`
-`skill_modification_review_enabled: bool = Field(False, ...)` — DARK-until-token; description documents fail-closed +
-gates-only-the-write + no-threshold-moved + OFF=byte-identical.
+### Dead-driver: KEEP-WITH-REASON [criterion 3] — no file edit
+`scripts/mas_harness/{cycle_prompt.md,run_cycle.sh}` are DEAD as a driver (no live plist; absent from `launchctl
+list`; the mas-harness label cannot fire) — the safety intent (neutralize the dangerous `claude -p
+--dangerously-skip-permissions` driver) is already MET. But they are **LIVE test fixtures**: `revert_hygiene_drill.py`
+reads both + executes `run_cycle.sh` (a passing dirty-tree-refusal drill), `test_phase_47_9` asserts the model pin
+from `run_cycle.sh`, `smoke_test_4_17_11` references it, and `cron_dashboard_api.py::_LAUNCHD_JOBS` lists the label.
+A naive `rm` REDs 3 consumers — the 71.0 design's "just delete" is a RIDER-TRAP the research caught. → **KEPT with
+reason** (documented here + in the harness_log); the files are NOT edited (editing risks breaking the live drills).
+`run_harness.py::_default_spawn_researcher` (the live spawn path) NOT touched. Harness stays exactly 3 agents.
 
-### Coverage-gate / loop-until-dry docs (ADDITIVE; >=5 floor PRESERVED)
-`.claude/agents/researcher.md` (a `coverage` envelope object + an audit-class gate clause + a new "Adaptive coverage"
-section), `.claude/rules/research-gate.md` (an "Adaptive coverage gate" how-to + the gate-logic clause), `ARCHITECTURE.md`
-(MADR decision #5). Audit-class steps loop-until-dry (K=2 dry rounds) after the floor; `gate_passed` for an audit step
-additionally requires `coverage.dry==true`; the >=5-source floor + recency scan stay HARD (an audit at 4 sources still
-FAILS). Cross-linked, no duplication.
-
-### `backend/tests/test_phase_71_4_skill_review.py` (NEW, 14 tests)
-accept / reject-safety-low / reject-factuality-low / min-dim-gate / fail-closed (None + raise + non-dict + missing-dim
-+ out-of-range) / pre-check (var-delta + section-scope + header-injection) / **apply_modification flag-OFF writes &
-never reviews** / **apply_modification flag-ON REJECT skips the write (byte-identical file)**.
+### Schedule ACTIVATION — operator-gated (`schedule_needs_operator=true`) [criterion 1, "scheduled" part]
+Claude Code has NO native recurring trigger; scheduling is external. Per the research + the
+background-agent-resumption-risk memory ("review-only prompts are NOT enforcement"), a recurring *agentic* weekly run
+is precisely the resumption-risk category → **ACTIVATION is the operator's call.** The safe mechanisms are documented
+(the workflow header + here): (a) an external cron/launchd invoking the saved report-only workflow, or (b) a
+deterministic-Python report writer registered on the `register_meta_evolution_cron` weekly APScheduler pattern (no
+LLM = no agency). The saved workflow is structurally report-only and re-runnable NOW (manually or once activated).
 
 ## Verification command output (verbatim)
 ```
-$ bash -c 'grep -Eqi "review|evaluat|adversar" backend/agents/skill_optimizer.py && ls backend/tests/ | grep -Eqi "71_4|skill_optim|evaluator" && python -c "import ast; ast.parse(...)"'
+$ bash -c 'ls .claude/workflows/ 2>/dev/null | grep -Eqi "audit|self|stress" && grep -Eqi "envelope|summary|file path|return" .claude/agents/researcher.md .claude/agents/qa.md'
 VERIFICATION: PASS (exit 0)
-$ uvx ruff check --select F821,F401,F811 <the 4 files>     -> All checks passed!
-$ python -m pytest test_phase_71_4_skill_review.py test_skill_optimizer.py -q  -> 25 passed
-$ python -c "import backend.agents.skill_optimizer"          -> imports OK; flag default = False
+$ node --check .claude/workflows/harness-self-audit.js   -> OK
 ```
-git scope: `backend/agents/{skill_optimizer,skill_modification_review}.py`, `backend/config/settings.py`,
-`.claude/agents/researcher.md`, `.claude/rules/research-gate.md`, `ARCHITECTURE.md`, the new test + handoff. NO
-frontend / paper-trading / risk code changed.
+git scope: `.claude/workflows/harness-self-audit.js` (new), `.claude/agents/{researcher,qa}.md`, handoff. NO
+backend/frontend/production code changed; the dead-driver files + `run_harness.py` are UNTOUCHED.
 
 ## Criterion evidence
-- **C1** — the independent review runs BEFORE the write (apply_modification:422→424); rejects a
-  constraint-weakening diff (safety-low + pre-check section-scope/var-delta) and a description-mismatch (factuality-low)
-  — rejected-and-skipped (`return False`, no write); LLM-error fails CLOSED (None/raise/non-dict/missing/out-of-range →
-  REJECT) — all proven by the 14 tests, incl. the flag-OFF byte-identical + flag-ON reject-skips-write integration
-  tests.
-- **C2** — audit-class loop-until-dry critic + the adaptive coverage gate documented in researcher.md +
-  research-gate.md + ARCHITECTURE.md; the >=5-source floor is preserved (coverage can only ADD a requirement).
-- **C3** — grounded in Anthropic evaluator-optimizer + multi-agent doer/judge separation (cited in the module + docs);
-  REUSES the directive_review pattern (mirrored fail-closed shape, `_coerce_score`/`llm_call_override` seam,
-  `_parse_llm_json`, the Anthropic→Gemini caller).
+- **C1** — saved, re-runnable `.claude/workflows/harness-self-audit.js`, STRUCTURALLY report-only (read-only Explore
+  auditors; script has no fs/git; returns findings, never applies). The weekly SCHEDULE is documented + its
+  safe mechanisms specified; **activation is operator-gated** (`schedule_needs_operator=true`; honors the
+  background-agent memory — enforcement by tool-restriction, not a "report-only" prompt).
+- **C2** — researcher.md + qa.md now both instruct the subagent to return a COMPACT envelope (summary + verdict +
+  file path) rather than the full brief/critique through Main's context.
+- **C3** — the dead self-evaluating driver is EXPLICITLY KEPT WITH A REASON (neutralized driver + live drill
+  fixtures; deletion is a rider-trap); harness stays exactly 3 agents; `run_harness.py` untouched.
 
 ## Do-no-harm / scope honesty
-LIVE code but **flag-gated DARK** (`skill_modification_review_enabled=False` default → OFF byte-identical, proven by a
-test). The review is FAIL-CLOSED and can ONLY BLOCK a bad self-modification, never force one (gates the forward write
-only). NO risk-limit VALUE change; the metered review LLM call fires only when a proposal exists AND the flag is ON
-(OFF = $0-delta). Docs additive; the >=5 floor stays HARD. historical_macro FROZEN; live book untouched. The narrow
-modifiable set was chosen for SAFETY (not widened). `researcher.md` is an agent file → separation-of-duties + roster
-note in the harness_log. Activation follow-on: operator flips `skill_modification_review_enabled=true` to close the
-un-reviewed-self-modification gap.
+$0; local-only; NO production/live-loop change. The audit workflow is structurally report-only (tool-restriction, not
+prompt). The dead driver is KEPT (deleting it would RED 3 live drills — a real regression the research caught). The
+weekly-schedule ACTIVATION is transparently flagged operator-gated (the recurring agentic run is the resumption-risk
+category the operator flagged) — I built + documented the safe mechanism but did NOT create a recurring autonomous
+run. historical_macro FROZEN; live book untouched; harness stays 3 agents. Agent-file edits → separation-of-duties +
+verify_qa_roster_live.sh note in the harness_log.

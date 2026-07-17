@@ -1,26 +1,29 @@
 {
-  "step_id": "71.4",
+  "step_id": "71.6",
   "cycle_num": 1,
-  "ok": true,
-  "verdict": "PASS",
+  "ok": false,
+  "verdict": "CONDITIONAL",
   "harness_compliance_ok": true,
   "certified_fallback": false,
-  "violated_criteria": [],
-  "violation_details": [],
+  "violated_criteria": ["criterion_1_live_weekly_schedule_not_armed_operator_activation_gated"],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "Deliver criterion 1's 'scheduled REPORT-ONLY on a weekly cadence'",
+      "state": "Saved re-runnable structurally-report-only workflow EXISTS (node --check OK, registered, agentType:'Explore', no fs/git/exec, returns findings only). No live weekly cron/launchd/APScheduler arm -- documented + operator-activation-gated (schedule_needs_operator=true).",
+      "constraint": "The live weekly arm is reserved for the operator by the criterion's own 'honors the background-agent unauthorized-action memory' parenthetical; a recurring autonomous agentic run is the neutralized mas-harness resumption risk."
+    }
+  ],
   "checks_run": {
     "immutable_verification_command_exit": 0,
-    "ruff_F821_F401_F811": "clean",
-    "pytest": "25 passed (14 new + 11 skill_optimizer regression)",
-    "flag_default": false,
-    "apply_modification_insertion_before_write_after_mechanical": true,
-    "revert_path_untouched": true,
-    "modifiable_set_narrow_not_widened": true,
-    "fail_closed_paths": "None/raise/non-dict/missing-dim/out-of-range -> REJECT",
-    "directive_review_pattern_reuse": true,
-    "coverage_gate_docs_floor_preserved": true,
-    "no_risk_paper_frontend_changes": true,
-    "harness_compliance": "5/5"
+    "node_check_harness_self_audit_js": "OK",
+    "structural_report_only": "no fs/git/exec; both agent() agentType:'Explore'",
+    "criterion2_both_files": "researcher.md + qa.md compact-envelope; report_md consumers = 0",
+    "criterion3_dead_driver": "KEEP-WITH-REASON; files untouched; run_harness.py untouched",
+    "three_agent_roster": "intact",
+    "harness_compliance": "5/5",
+    "no_production_change": true
   },
-  "reason": "All 3 immutable criteria MET; independent FAIL-CLOSED review before the write (gates only the forward write, revert untouched); rejects weakening/mismatched diffs; LLM-error fails closed; flag default OFF byte-identical (proven); modifiable set NOT widened (safe/tighter); coverage-gate docs preserve the >=5 floor; reuses directive_review; no risk threshold moved.",
-  "notes": "Run wf_cfdffc39-224. Flag-gated DARK (skill_modification_review_enabled=False). LOG-step: separation-of-duties + verify_qa_roster_live.sh (edits researcher.md). FO-71.4-A: optional flag-ON+ACCEPT->write integration test. Persisted by Main from the Q/A return value (Q/A read-only)."
+  "reason": "C2 + C3 fully MET; C1 mechanism MET (saved structurally-report-only re-runnable workflow) but the live weekly schedule is operator-activation-gated (schedule_needs_operator=true). NOT a code defect, NOT unsafe -- the safest construction; closure is an operator decision (2 paths). Do NOT flip to done until the operator resolves the C1 activation disposition.",
+  "notes": "Run wf_7423b945-cd0. The Q/A explicitly forbids arming a recurring agentic run (resumption risk; 62.0 guard does not block launchctl enable). Two operator closure paths: (a) activate the documented safe schedule; (b) accept mechanism+documented-cadence+operator-gated-activation as criterion-1-intent with an owed activation token. Persisted by Main from the Q/A return value (Q/A read-only)."
 }

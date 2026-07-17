@@ -329,10 +329,19 @@ gate was actually met vs merely claimed.
     "new_findings_last_round": 0,
     "dry": false
   },
-  "report_md": "...",
+  "summary": "<=200-word compact summary of the findings",
+  "brief_path": "handoff/current/research_brief_<step>.md",
   "gate_passed": true
 }
 ```
+
+**Context hygiene (phase-71.6):** return the **compact envelope** above
+-- the `<=200-word` `summary` + the `brief_path` -- NOT the full brief
+text through Main's context. The full brief is the deliverable ON DISK;
+Main reads it from `brief_path`. Do NOT dump the whole `report_md`/brief
+body into the return value (the old `report_md` field is retired): pass a
+lightweight reference, per Anthropic multi-agent-research ("pass
+lightweight references back to the coordinator").
 
 Gate logic (non-negotiable):
 `gate_passed: true` iff
