@@ -1,68 +1,73 @@
-# Contract — step 64.3 (Backend gap tests)
+# Contract — step 64.4 (Multi-market fixture-replay e2e)
 
-**Phase:** phase-64 | **Step:** 64.3 | **Priority:** P1 | harness_required: true | depends_on: none
-**Cycle:** 1 | Date: 2026-07-17 | **Type:** test-infra (4 pure pytest files). $0; local-only; NO production/live-loop
-change; historical_macro FROZEN; live book untouched. Pure unit tests — NO live network/BQ.
+**Phase:** phase-64 | **Step:** 64.4 | **Priority:** P1 | harness_required: true | depends_on: 66.2 (done)
+**Cycle:** 1 | Date: 2026-07-17 | **Type:** test-infra (1 e2e test file + synthetic fixture helper). $0; local-only;
+NO production/live-loop change; historical_macro FROZEN; live book untouched. NO network (synthetic fixtures).
 
 ## Research-gate summary (gate PASSED)
 
-Researcher subagent (Agent tool, Opus 4.8 effort:max, $0), brief `research_brief_64.3.md`. Envelope:
-**gate_passed=true**, tier=moderate, **5 external sources read in full**, 9 snippet-only, 14 URLs, recency scan, 10
-internal files. KEY: all 4 gap areas map to PURE testable seams (no live net/BQ) → `requires_live` quarantine stays at
-6 (criterion 1). Mocking patterns identified from existing harnesses.
+Researcher subagent (Agent tool, Opus 4.8 effort:max, $0), brief `research_brief_64.4.md`. Envelope:
+**gate_passed=true**, tier=complex, **7 external sources read in full**, 10 snippet-only, 17 URLs, recency scan, 12
+internal files. VERDICT: **single-cycle GENERATE, NOT blocked on 65.2, NOT multi-session.** KEY:
+- **Smallest offline seam** (drive once PER MARKET): `screen_universe` (`backend/tools/screener.py:91`; mock the ONLY
+  net call `yf.download` at :137, `yf` module-level :11) → `rank_candidates` (:249, pure) → `decide_trades`
+  (`backend/services/portfolio_manager.py:66`, pure :66-240, no bq/net/await → `list[TradeOrder]` with `.market`).
+  Per-market funnel = universe→screened→ranked→order-intent counts, driven per market.
+- **Fixtures: SYNTHETIC** (deterministic, no network EVER). Reuse `_clean_series`
+  (`test_phase_50_5_dataquality.py:15`) which survives `validate_ohlcv` R1-R3. 2-3 tickers/market × ~60 bars (≥20
+  required, screener.py:172). US bare, EU `.DE`, KR `.KS` from `INTL_UNIVERSE` (universe_lists.py:17-41). MultiIndex
+  via `pd.concat({tkr:_clean_series() for tkr in tickers}, axis=1)`.
+- **KEY PITFALL**: drive the PURE seam, NOT the full loop — the loop's phase-50.4 calendar gate calls
+  `datetime.now()` (autonomous_loop.py:536) and drops all intl tickers on weekends (flaky funnel=0). The pure
+  screen_universe seam never touches the clock.
 
-## Plan — 4 test files (each name carries a `-k` keyword so the immutable command selects it)
+## Criterion-1 interpretation (documented up front; flagged for Q/A)
 
-### 1. `backend/tests/test_64_3_kill_switch_machine.py` [criterion 2]
-Target `backend/services/kill_switch.py`: `evaluate_breach` (:281), `check_auto_resume(..., enabled=False)` (:340).
-Isolate via a `_fresh_state` helper (mirror `test_phase_38_1_kill_switch_auto_resume.py:26` — monkeypatch
-`kill_switch._AUDIT_PATH`→tmp_path AND `kill_switch._state`→fresh `KillSwitchState()`). ASSERT (rail-5 stays-paused,
-away-ops-rules.md:17-18): pause("test")→is_paused True; `check_auto_resume(healthy_nav,4,10,enabled=False)`→
-action=="no_op" AND "auto_resume_disabled" in reason AND is_paused() STILL True; enabled=True + active breach →
-"breach_still_active" still paused; `evaluate_breach(nav<=0)` → nav_invalid True / any_breached False.
+Criterion 1: "...per-market funnel counts >0 (**EU under the 65.2 thresholds via test flag**)". Step 65.2 (per-market
+threshold PRODUCTION flag) is `pending` and its code does NOT exist yet (grep = 0 hits). We read "**via test flag**"
+as a TEST-ONLY override: passing lowered `min_avg_volume`/`min_price` kwargs to `screen_universe` (screener.py:93-94,
+already accepted) so EU tickers pass under lowered thresholds — simulating the 65.2 concept without 65.2 production
+code. Justification: (a) 64.4's DAG `depends_on` is **66.2 (done), NOT 65.2** — if 64.4 required the real 65.2 flag
+the plan would gate it on 65.2; (b) the phrase "via test flag" explicitly means a test-level override, not a prod
+flag; (c) 65.2 will productionize the same concept later. **Flagged for the Q/A to adjudicate** (mirrors the accepted
+64.2 "(testid)" interpretation pattern).
 
-### 2. `backend/tests/test_64_3_currency_path.py` [criterion 3]
-Target `backend/services/paper_trader.py` `execute_buy` add-on avg_entry math (:332 fix ON vs :334 legacy), flag
-`settings.paper_avg_entry_fx_fix_enabled` (settings.py:455, default False). Mirror the proven KR harness
-(`test_phase_70_3_atomic_swap.py:192` `_kr_trader`: MagicMock bq with the get_* return_values, `save_paper_position`
-side_effect captures the row, patch `fx_rates.get_fx_rate`, patch `ExecutionRouter`, `_maybe_notify_trade`=noop,
-`get_settings().model_copy(update={flag})`). ASSERT: KR add-on avg_entry stays KRW-scale (~70000, tolerance) ON vs
-tiny OFF; **ADD EU (.DE)**: avg_entry stays EUR-scale (== EUR-weighted avg) ON vs USD-inflated OFF; US byte-identical;
-fx unavailable (`get_fx_rate`→None) → execute_buy returns None (skips buy). Note: fix is **phase-70.3** (61.3 was
-display-only) — assert 70.3 behavior in the SHAPE of the 61.3 criteria. Tolerance asserts (`abs<eps`), not bit-exact.
+## Plan
 
-### 3. `backend/tests/test_64_3_screener_market.py`
-Target `backend/tools/price_quality.py` `validate_ohlcv(df, market, ticker)` (:48, pure pandas) + `market_for_symbol`
-(`backend/backtest/markets.py:142`). ASSERT: market="US" → df UNCHANGED (dropped==0, fast-path); EU/KR impossible bar
-(R1) dropped; R2 identical-OHLC zero-vol dropped vs vol>0 flagged-not-dropped; R3 >50% move dropped; market_for_symbol
-`.KS`→KR / `.DE`→EU / bare→US. Pure pandas DataFrames, no mock.
+### `backend/tests/test_64_4_multi_market_e2e.py` (NEW)
+- **Synthetic fixture helper**: `_ohlcv(tickers, bars=60)` → a `yf.download`-shaped MultiIndex DataFrame built from
+  `_clean_series`-style bars (survives validate_ohlcv). Craft EU bars that would fail US-default thresholds but pass
+  lowered ones.
+- **Per-market cycle test** [criteria 1]: for each market in (US bare, KR `.KS`, EU `.DE`):
+  patch `screener.yf.download`→the synthetic fixture; call `screen_universe(universe, market=..., [lowered kwargs for
+  EU])` → assert screened count >0; `rank_candidates(screened)` → assert ranked count >0; `decide_trades(...)` →
+  assert order-intent (`list[TradeOrder]`) present / funnel >0 for the market. Assert per-market funnel counts all >0
+  (US/KR/EU). Drive the PURE seam only (never the loop).
+- **Currency invariants** [criterion 2]: in the same file, reuse the 50.2/64.3 fx-mock pattern (`_mk_trader` +
+  patch `fx_rates.get_fx_rate` + `paper_avg_entry_fx_fix_enabled`) → assert KR avg_entry stays KRW-scale, EU stays
+  EUR-scale.
+- **requires_live variant** [criterion 3]: one `@pytest.mark.requires_live` smoke that hits real `yf.download`
+  (marker registered pytest.ini:8-9), EXCLUDED by `-m 'not requires_live'`.
+- Test names contain `multi_market_e2e` for the `-k` selection. PURE (no network in the default run).
 
-### 4. `backend/tests/test_64_3_learnings_reader.py`
-Target `backend/db/bigquery_client.py` `get_paper_trades_in_window` (:948) — the clean error≠empty seam. Construct via
-`BigQueryClient.__new__(BigQueryClient)`; `bq.client=MagicMock()`; `bq._pt_table=lambda t:"p.d.t"` (skips
-__init__/ADC). ASSERT: `bq.client.query.side_effect=RuntimeError` → `pytest.raises` (error SURFACES); `.return_value=[]`
-→ returns [] (empty); `pair_round_trips([])==[]`. Pins error != empty. (Do NOT touch `_compute_learnings`'s swallow —
-behavior change, out of scope; flag it in the brief only.)
-
-## Boundaries (binding)
-$0; local-only; test-infra ONLY (4 new pure pytest files; NO production code change). All tests are PURE (MagicMock
-bq, patched fx/ExecutionRouter, monkeypatched _AUDIT_PATH/_state, pandas frames); `conftest.py` already sets
-`PYFINAGENT_TEST_NO_BQ=1`. NONE use `@pytest.mark.requires_live` → the quarantine list STAYS at 6 (criterion 1). NO
-trade/risk/money touch; kill-switch/stops/caps/DSR/PBO byte-untouched; historical_macro FROZEN; live book untouched.
-The tests only READ the code-under-test with mocked IO. Note: the 70.3 KR test already exists + passes; 64.3 adds the
-EU case + the `currency_path` name for `-k` selection.
-
-## Immutable success criteria (verbatim from masterplan.json 64.3)
-1. "new test files cover all four gap areas and pass; the requires_live quarantine list does not grow"
-2. "the kill-switch tests assert the stays-paused policy (auto-resume OFF) that rail 5 depends on"
-3. "currency tests assert KR avg_entry stays KRW-scale on add-on buys and EU rows stay EUR-scale (mirrors 61.3 criteria)"
+## Immutable success criteria (verbatim from masterplan.json 64.4)
+1. "a fixture-replayed cycle produces screening->ranking->order-intent output for ALL THREE markets with per-market
+   funnel counts >0 (EU under the 65.2 thresholds via test flag)"
+2. "currency invariants asserted in the same test (KR KRW-scale, EU EUR-scale)"
+3. "the requires_live variant exists and is excluded from default/CI runs"
 
 **Verification command (immutable):**
-`cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k '64_3 or kill_switch_machine or currency_path or screener_market or learnings_reader' -q`
+`cd /Users/ford/.openclaw/workspace/pyfinagent && source .venv/bin/activate && python -m pytest backend/tests -k 'multi_market_e2e' -q -m 'not requires_live'`
+
+## Boundaries (binding)
+$0; local-only; test-infra ONLY (1 new test file + a synthetic-fixture helper inside it; NO production code change).
+NO network in the default run (synthetic fixtures; `yf.download` mocked); the requires_live smoke is EXCLUDED from
+default/CI. NO trade/risk/money touch; kill-switch/stops/caps/DSR/PBO byte-untouched; historical_macro FROZEN; live
+book untouched. `requires_live` list grows by exactly 1 (the intentional live smoke) — that is the criterion-3
+deliverable, not a quarantine-of-a-flaky-default. Drive the PURE seam only (calendar-gate pitfall avoided).
 
 ## References
-research_brief_64.3.md; backend/services/kill_switch.py:281,340; docs/runbooks/away-ops-rules.md:17-18 (rail 5);
-backend/services/paper_trader.py:231-233,332,334; backend/config/settings.py:455 (paper_avg_entry_fx_fix_enabled);
-backend/tools/price_quality.py:48; backend/backtest/markets.py:142; backend/db/bigquery_client.py:948;
-test_phase_38_1_kill_switch_auto_resume.py:26 (_fresh_state); test_phase_70_3_atomic_swap.py:192 (_kr_trader harness);
-conftest.py (PYFINAGENT_TEST_NO_BQ). pytest docs (monkeypatch, parametrize).
+research_brief_64.4.md; backend/tools/screener.py:11,91,93,137,172,249; backend/services/portfolio_manager.py:66,34;
+backend/backtest/universe_lists.py:17-41; backend/tests/test_phase_50_5_dataquality.py:15 (_clean_series); the 50.2
+_mk_trader + 64.3 fx pattern; backend/config/settings.py:455 (paper_avg_entry_fx_fix_enabled); pytest.ini:8-9
+(requires_live marker); autonomous_loop.py:536,1698 (the loop path we DELIBERATELY avoid).

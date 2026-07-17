@@ -1,43 +1,41 @@
-# Evaluator Critique — Step 64.3 (Backend gap tests)
+# Evaluator Critique — Step 64.4 (Multi-market fixture-replay e2e)
 
 **Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8,
 `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted
-to `handoff/current/evaluator_critique.json`. Run `wf_f1b9a72a-321`.
+to `handoff/current/evaluator_critique.json`. Run `wf_18e36f44-95b`.
 
 ## Verdict (transcribed VERBATIM)
 
 **verdict: PASS** | ok: true | harness_compliance_ok: true | certified_fallback: false | violated_criteria: []
 
-**reason (verbatim):** All 3 immutable criteria MET, harness compliance clean, no unintended production change:
-immutable cmd -> 18 passed exit 0 (5 kill_switch + 4 currency + 5 screener + 4 learnings, all 4 gap areas);
-requires_live stays 11 (+0); ruff F821/F401/F811 clean; tests independently traced against real code and are
-non-rigged.
+**reason (verbatim):** All 3 immutable criteria MET, harness compliance clean (5/5), and no unintended production
+change. C1: fixture-replayed funnel produces screening->ranking->order-intent >0 for US/KR/EU (independently
+reproduced 2/2/2/2 each, real BUY TradeOrders, .market matches); EU 'via test flag' satisfied by a load-bearing
+lowered-threshold kwarg override (default 100k-vol screens 0, lowered 10k screens 2 -- not a tautology). C2: currency
+invariants asserted in the same 64.4 file via the real execute_buy+fx-fix path (KR avg_entry=70000.0 KRW-scale, EU=150.0
+EUR-scale, tolerances discriminate against ~45.85/~162 USD-scale corruption). C3: exactly 1 @pytest.mark.requires_live
+smoke, collection 11->12 (+1 intentional), excluded by -m 'not requires_live'. Deterministic: immutable cmd 5 passed
+exit 0; ruff clean; git = only the new test file + handoff/audit (zero production .py/.ts changed); no default-run
+network; no emojis.
 
-**notes (verbatim):** CRITERION 1 MET: 4 new pure pytest files cover all four gap areas; requires_live does NOT grow
-(grep = none; pytest -m requires_live --co = 11 unchanged; 64.3 adds +0; the research's estimate of 6 is stale, the
-criterion is 'does not grow' and 64.3 = +0 -- disclosed honestly, not a criterion miss). CRITERION 2 MET: stays-paused
-test asserts action=='no_op' + 'auto_resume_disabled' + is_paused() STILL True after check_auto_resume(healthy,
-enabled=False) -- rail-5 (away-ops-rules.md:17-18), traced against kill_switch.py:362-363; active-breach test does NOT
-resume. CRITERION 3 MET: KR ON~70000/OFF<1000; EU(.DE) ON~150/OFF~162(>ON); tests toggle the REAL flag
-paper_avg_entry_fx_fix_enabled (settings.py:455) exercising execute_buy's ON (:332) vs OFF (:334) branch -- materially
-different values = dispositive proof the flag is load-bearing, NOT a tautology. EU is the NEW case; US byte-identical +
-fx-unavailable->None. Code fix is phase-70.3 (61.3 display-only); asserts 70.3 behavior in the SHAPE of the 61.3
-criteria. ANTI-RIG: fx helpers call the PATCHED get_fx_rate; get_paper_trades_in_window has NO try/except so error
-propagates vs empty->[]; market_for_symbol + validate_ohlcv logic traced. PURITY+NO-HARM: all pure (MagicMock/patched/
-monkeypatched; PYFINAGENT_TEST_NO_BQ=1); git status = ONLY the 4 test files + handoff + hook audit JSONL; zero
-production code changed. _compute_learnings swallow left out-of-scope + FLAGGED; runtime autonomous-loop artifacts
-correctly attributed to the :8000 backend. No weakness found on independent adversarial review.
+**notes (verbatim):** CRITERION-1 ADJUDICATION (test-flag interpretation) = SOUND, verdict PASS. 'EU under the 65.2
+thresholds via test flag' is correctly satisfied by a TEST-ONLY kwarg override (lowered min_avg_volume/min_price to
+screen_universe), NOT the non-existent 65.2 production flag, on four grounds: (a) 64.4 depends_on_step='66.2' (done),
+65.2 is pending and NOT a dep -- if C1 required the real 65.2 flag, 64.4 would be un-closeable (blocked on a pending
+P0), contradicting its ready DAG state; (b) 'via TEST flag' literally signals a test-level override; (c) 65.2
+productionizes the same concept later (demonstration-ahead, not a papered-over gap); (d) the override is LOAD-BEARING
+(default->0 / lowered->2, independently reproduced). Disclosed up-front in contract.md + experiment_results.md;
+mirrors the accepted 64.2 '(testid)' pattern. MINOR note (not a blocker): C2's 'in the same test' read as 'same 64.4
+test FILE/deliverable' (currency + funnel co-located as separate functions) -- the natural reading + better
+engineering. SCOPE-HONESTY: experiment_results honestly discloses the hand-crafted BUY candidate_analyses feeding
+decide_trades (LLM analysis layer intentionally bypassed -- legitimate for an order-intent plumbing assertion), the
+PURE-seam-not-full-loop choice (avoids the datetime.now() calendar-gate weekend flake), the +1 requires_live being the
+C3 deliverable (not quarantine growth), and the incidental running-backend runtime artifacts. No overclaim found.
 
-**checks_run (verbatim, 13):** harness_compliance_5item_audit, research_gate_verified, mtime_ordering,
-immutable_verification_command_18_passed_exit0, git_status_no_production_code_change, ruff_clean,
-requires_live_count_stays_11, antirig_trace_code_under_test, currency_flag_load_bearing_ON_vs_OFF_differ,
-killswitch_state_pause_sets_paused_at, learnings_reader_no_try_except_error_propagates, log_last_masterplan_pending,
-3rd_conditional_count_zero.
-
-Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=64.3, cycle_num=1).
+Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=64.4, cycle_num=1).
 
 ## Main's disposition
-PASS, violated_criteria=[]. No weakness on adversarial review; the tests were independently traced against real code
-and confirmed non-rigged (the ON/OFF flag is load-bearing, the kill-switch stays-paused invariant is real, error≠empty
-confirmed via the no-try/except reader). The requires_live-count discrepancy (11 actual vs the research's estimated 6)
-is honestly disclosed and irrelevant to "does not grow" (64.3 = +0). Proceeding to LOG (Cycle 107) then flip 64.3 -> done.
+PASS, violated_criteria=[]. The criterion-1 "via test flag" interpretation was independently adjudicated sound (4
+grounds; disclosed up front). The funnel was independently reproduced non-vacuous, the EU threshold override confirmed
+load-bearing (default->0 vs lowered->2), and no overclaim/production change found. Proceeding to LOG (Cycle 108) then
+flip 64.4 -> done -- which completes phase-64 (5/5).
