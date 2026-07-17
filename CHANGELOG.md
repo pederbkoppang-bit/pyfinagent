@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `7c134fde` | phase-71.6: P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harnes... |
 | 2026-07-17 | `0e003e6e` | phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + subagent context-hygiene + dead-dri |
 | 2026-07-17 | `5e88a383` | phase-71.4: independent fail-closed evaluator before skill self-modification + adaptive coverage/loo |
 | 2026-07-17 | `de7e8270` | phase-71.3: harden Q/A judgment (contract-completeness + adversarial N-lens) + machine-readable verd |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-11 | `8463b952` | phase-69: Audit burn-down -- convert the 2026-07-10 ultracode audit (280 agents, double-verified;... |
 | 2026-07-11 | `b25aeab2` | phase-69.3: P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_mac... |
 | 2026-07-11 | `36e4c288` | phase-69.1: P0 book-safety (money-path code; register items 1-4) -- each with a red->green reprod... |
-| 2026-07-11 | `087ce360` | phase-69.4: P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: ... |
 
 ---
 
+### v6.62.7 — phase-71.6: P3 -- automate the stress-test doctrine + context hygiene... (2026-07-17)
+
+- **phase-71.6: P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harnes...**
 ### v6.62.6 — phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + suba... (2026-07-17)
 
 - **phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + subagent context-hygiene + dead-dri**
