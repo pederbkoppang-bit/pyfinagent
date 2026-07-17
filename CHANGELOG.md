@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `1d493993` | phase-70.2: S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to pr... |
 | 2026-07-16 | `64257b05` | phase-70.1: S1 -- make the setting actually changeable. Fix the frontend clear-snapback bug (cock... |
 | 2026-07-16 | `dcc65575` | phase-70.0: Research gate + design pack (offline, $0): (a) soft, profit-aware sector-diversificat... |
 | 2026-07-16 | `789a0dba` | chore: phase-71 goal draft + masterplan steps from 2026-07-16 harness+MAS max-effort self-audit |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-09 | `0a18af08` | phase-67.0: install steps 67.5 + 67.6 (latest-features gap closure, operator-approved plan) + 67.4 s |
 | 2026-07-09 | `4af84d4e` | phase-67.3: researcher write-first/incremental-brief discipline codified; stale scaffolding pruned ( |
 | 2026-07-09 | `bcbae55f` | phase-67.3: Researcher correctness upgrade -- codify WRITE-FIRST/incremental-brief discipline; pr... |
-| 2026-07-09 | `6a6b1679` | phase-67.2: bug-catching upgrade -- consumer-contract-break heuristic (SKILL.md #16, append-only, er |
 
 ---
 
+### v6.61.2 — phase-70.2: S2 -- soft, profit-aware cross-sector diversification. Ma... (2026-07-17)
+
+- **phase-70.2: S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to pr...**
 ### v6.61.1 — phase-70.1: S1 -- make the setting actually changeable. Fix the front... (2026-07-16)
 
 - **phase-70.1: S1 -- make the setting actually changeable. Fix the frontend clear-snapback bug (cock...**
