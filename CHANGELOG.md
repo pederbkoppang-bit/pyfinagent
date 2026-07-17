@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `4eb6ceea` | phase-64.2: Functional specs for all 22 routes -- load + one key interaction per route family; su... |
 | 2026-07-17 | `9e6766e6` | phase-64.1: Functional-E2E Playwright project -- new testDir tests/e2e-functional as a second pro... |
 | 2026-07-17 | `b628953e` | phase-63.1: Playwright walk of all 22 routes (find frontend/src/app -name page.tsx; incl. one con... |
 | 2026-07-17 | `515c35e1` | phase-71.5: P3 -- effort/model posture reconciliation (max-where-it-helps, cost-appropriate elsew... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-16 | `dcc65575` | phase-70.0: Research gate + design pack (offline, $0): (a) soft, profit-aware sector-diversificat... |
 | 2026-07-16 | `789a0dba` | chore: phase-71 goal draft + masterplan steps from 2026-07-16 harness+MAS max-effort self-audit |
 | 2026-07-13 | `c1ae3fd0` | chore: phase-70 goal draft + masterplan steps from 2026-07-13 ultracode trade-diversity audit |
-| 2026-07-13 | `0975a7ea` | phase-67.4: Post-window revert -- Fable pins back to Opus 4.8 on/before 2026-07-12; keep every ar... |
 
 ---
 
+### v6.62.11 — phase-64.2: Functional specs for all 22 routes -- load + one key inte... (2026-07-17)
+
+- **phase-64.2: Functional specs for all 22 routes -- load + one key interaction per route family; su...**
 ### v6.62.10 — phase-64.1: Functional-E2E Playwright project -- new testDir tests/e2... (2026-07-17)
 
 - **phase-64.1: Functional-E2E Playwright project -- new testDir tests/e2e-functional as a second pro...**
