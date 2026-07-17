@@ -14777,7 +14777,7 @@
         {
           "id": "63.1",
           "name": "Playwright walk of all 22 routes (find frontend/src/app -name page.tsx; incl. one concrete /sovereign/strategy/[id]) -- per route: full-page screenshot, console errors, failed (4xx/5xx) network requests -> handoff/away_ops/route_walk_<date>/walk_summary.json.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

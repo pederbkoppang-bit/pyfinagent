@@ -1,0 +1,765 @@
+{
+  "generated_at": "2026-07-17T18:49:49.037Z",
+  "base_url": "http://localhost:3100",
+  "auth_bypass": "LIGHTHOUSE_SKIP_AUTH=1 + NEXT_PUBLIC_E2E_TESTING=true on :3100 (middleware.ts:24)",
+  "strategy_id_used": "baseline",
+  "routes_discovered": 22,
+  "routes_visited": 22,
+  "login_redirect_count": 0,
+  "console_error_routes": [
+    "/agent-map"
+  ],
+  "failed_request_routes": [],
+  "page_error_routes": [],
+  "route_list_delta": {
+    "on_disk_not_visited": [],
+    "visited_not_on_disk": []
+  },
+  "routes": [
+    {
+      "route": "/",
+      "route_template": "/",
+      "final_url": "http://localhost:3100/",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/root.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2375
+    },
+    {
+      "route": "/agent-map",
+      "route_template": "/agent-map",
+      "final_url": "http://localhost:3100/agent-map",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/agent-map.png",
+      "console_errors": [
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-researcher. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-qa. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-planner_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-communication_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-analyst_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-multi_agent_orchestrator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: planner_agent-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: communication_agent-slack_bot. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-moderator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-synthesis_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-layer1_pipeline. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-outcome_tracker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: paper_trader-execution_router. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: portfolio_manager-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: execution_router-alpaca_broker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: kill_switch-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-skill_optimizer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-cron_allocator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-provider_rebalancer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-alpha_velocity. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-directive_rewriter. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: directive_rewriter-directive_review. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-researcher. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-qa. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-planner_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-communication_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-analyst_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-multi_agent_orchestrator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: planner_agent-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: communication_agent-slack_bot. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-moderator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-synthesis_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-layer1_pipeline. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-outcome_tracker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: paper_trader-execution_router. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: portfolio_manager-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: execution_router-alpaca_broker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: kill_switch-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-skill_optimizer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-cron_allocator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-provider_rebalancer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-alpha_velocity. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-directive_rewriter. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: directive_rewriter-directive_review. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-researcher. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-qa. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-planner_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-communication_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-analyst_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-multi_agent_orchestrator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: planner_agent-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: communication_agent-slack_bot. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-moderator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-synthesis_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-layer1_pipeline. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-outcome_tracker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: paper_trader-execution_router. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: portfolio_manager-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: execution_router-alpaca_broker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: kill_switch-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-skill_optimizer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-cron_allocator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-provider_rebalancer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-alpha_velocity. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-directive_rewriter. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: directive_rewriter-directive_review. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-researcher. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-qa. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-planner_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-communication_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-analyst_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-multi_agent_orchestrator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: planner_agent-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: communication_agent-slack_bot. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-moderator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-synthesis_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-layer1_pipeline. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-outcome_tracker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: paper_trader-execution_router. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: portfolio_manager-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: execution_router-alpaca_broker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: kill_switch-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-skill_optimizer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-cron_allocator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-provider_rebalancer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-alpha_velocity. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-directive_rewriter. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: directive_rewriter-directive_review. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-researcher. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: main-qa. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-planner_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-communication_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-analyst_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-multi_agent_orchestrator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: planner_agent-evaluator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: communication_agent-slack_bot. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-moderator_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-synthesis_agent. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: multi_agent_orchestrator-layer1_pipeline. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: autonomous_loop-outcome_tracker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: paper_trader-execution_router. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: portfolio_manager-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: execution_router-alpaca_broker. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: kill_switch-paper_trader. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-skill_optimizer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-cron_allocator. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-provider_rebalancer. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-alpha_velocity. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: meta_evolution_cron-directive_rewriter. Help: https://reactflow.dev/error#008"
+        },
+        {
+          "type": "warning",
+          "text": "[React Flow]: Couldn't create edge for source handle id: \"null\", edge id: directive_rewriter-directive_review. Help: https://reactflow.dev/error#008"
+        }
+      ],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 15135
+    },
+    {
+      "route": "/agents",
+      "route_template": "/agents",
+      "final_url": "http://localhost:3100/agents",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/agents.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 5171
+    },
+    {
+      "route": "/backtest",
+      "route_template": "/backtest",
+      "final_url": "http://localhost:3100/backtest",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/backtest.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 5348
+    },
+    {
+      "route": "/cron",
+      "route_template": "/cron",
+      "final_url": "http://localhost:3100/cron",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/cron.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2805
+    },
+    {
+      "route": "/learnings",
+      "route_template": "/learnings",
+      "final_url": "http://localhost:3100/learnings",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/learnings.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2674
+    },
+    {
+      "route": "/login",
+      "route_template": "/login",
+      "final_url": "http://localhost:3100/login",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/login.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2705
+    },
+    {
+      "route": "/observability",
+      "route_template": "/observability",
+      "final_url": "http://localhost:3100/observability",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/observability.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2423
+    },
+    {
+      "route": "/paper-trading",
+      "route_template": "/paper-trading",
+      "final_url": "http://localhost:3100/paper-trading",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 3154
+    },
+    {
+      "route": "/paper-trading/exit-quality",
+      "route_template": "/paper-trading/exit-quality",
+      "final_url": "http://localhost:3100/paper-trading/exit-quality",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading_exit-quality.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 3406
+    },
+    {
+      "route": "/paper-trading/learnings",
+      "route_template": "/paper-trading/learnings",
+      "final_url": "http://localhost:3100/paper-trading/learnings",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading_learnings.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2627
+    },
+    {
+      "route": "/paper-trading/manage",
+      "route_template": "/paper-trading/manage",
+      "final_url": "http://localhost:3100/paper-trading/manage",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading_manage.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2464
+    },
+    {
+      "route": "/paper-trading/nav",
+      "route_template": "/paper-trading/nav",
+      "final_url": "http://localhost:3100/paper-trading/nav",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading_nav.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 3354
+    },
+    {
+      "route": "/paper-trading/positions",
+      "route_template": "/paper-trading/positions",
+      "final_url": "http://localhost:3100/paper-trading/positions",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading_positions.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 3957
+    },
+    {
+      "route": "/paper-trading/reality-gap",
+      "route_template": "/paper-trading/reality-gap",
+      "final_url": "http://localhost:3100/paper-trading/reality-gap",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading_reality-gap.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 2862
+    },
+    {
+      "route": "/paper-trading/trades",
+      "route_template": "/paper-trading/trades",
+      "final_url": "http://localhost:3100/paper-trading/trades",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/paper-trading_trades.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 3724
+    },
+    {
+      "route": "/performance",
+      "route_template": "/performance",
+      "final_url": "http://localhost:3100/performance",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/performance.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 10266
+    },
+    {
+      "route": "/reports",
+      "route_template": "/reports",
+      "final_url": "http://localhost:3100/reports",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/reports.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 5095
+    },
+    {
+      "route": "/settings",
+      "route_template": "/settings",
+      "final_url": "http://localhost:3100/settings",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/settings.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 5828
+    },
+    {
+      "route": "/signals",
+      "route_template": "/signals",
+      "final_url": "http://localhost:3100/signals",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/signals.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 16650
+    },
+    {
+      "route": "/sovereign",
+      "route_template": "/sovereign",
+      "final_url": "http://localhost:3100/sovereign",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/sovereign.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 20329
+    },
+    {
+      "route": "/sovereign/strategy/baseline",
+      "route_template": "/sovereign/strategy/[id]",
+      "final_url": "http://localhost:3100/sovereign/strategy/baseline",
+      "http_status": 200,
+      "redirected_to_login": false,
+      "screenshot": "screenshots/sovereign_strategy__id_.png",
+      "console_errors": [],
+      "page_errors": [],
+      "failed_requests": [],
+      "load_ms": 5940
+    }
+  ]
+}

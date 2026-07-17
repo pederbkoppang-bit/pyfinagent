@@ -1,70 +1,61 @@
-# Experiment results — step 71.5 (effort/model posture reconciliation)
+# Experiment results — step 63.1 (Playwright walk of all 22 routes)
 
-**Step:** 71.5 (P3, depends_on 71.0). $0; local-only; NO trading-behavior change; historical_macro FROZEN; live book
-untouched. Research gate PASSED this session (research_brief_71.5.md, gate_passed=true, 5 external sources read in
-full + recency scan; Main independently re-verified all 5 crux claims via grep/sed before the contract).
+**Step:** 63.1 (P0, phase-63 full-app live audit, depends_on none). $0; local-only; READ-ONLY audit; live book
+untouched; historical_macro FROZEN; **operator :3000 NEVER touched**. Research gate PASSED (research_brief_63.1.md,
+gate_passed=true, 6 external sources read in full + recency scan).
 
-## What changed (6 files)
+## What was built + run
 
-1. **`backend/config/model_tiers.py`** [criterion 1] — reverted `EFFORT_DEFAULTS[mas_*]` from the expired
-   phase-23.2.2 all-`max` override back to the CLAUDE.md baseline: `mas_communication="low"`, `mas_main="xhigh"`,
-   `mas_qa="high"`, `mas_research="medium"` (autoresearch_* + gemini_* UNCHANGED). Rewrote the comment block to a
-   phase-71.5 reconciliation note RECORDING THE RATIONALE + the verified-no-op fact (the MAS uses the raw Anthropic
-   SDK and omits `output_config.effort` → runtime = API-default `high`; `EFFORT_DEFAULTS` is consumed only at
-   `llm_client.py:1506-1509`, which the MAS bypasses; so these values are the DOCUMENTED INTENT, not the current
-   runtime). This is the "drift documented as intentional" branch of criterion 1; no `resolve_effort` wiring added.
-2. **`backend/agents/multi_agent_orchestrator.py:164`** [criterion 1 hygiene] — corrected the factually-wrong comment
-   "Layer-2 agents run at effort=max" → "run at the API-default effort (`high`)... EFFORT_DEFAULTS is not consulted
-   here". Comment-only (+3/−1); no code change.
-3. **`backend/tests/test_phase_59_1_fable_adoption.py`** [criteria 1 + 3 co-changes] — (a) line ~51 assertion
-   `resolve_effort("mas_main") == "max"` → `== "xhigh"` (the reconciled baseline); (b) `test_layer3_agents_pin_...`
-   line ~94: replaced the assertion that the EXPIRED Fable-window narration is present (`2026-06-23`/`June`/`USAGE
-   CREDITS`) with the DURABLE economics rationale (`phase-29.2` / `Max rail`), since 71.5 prunes that narration.
-4. **`.claude/settings.json`** [criterion 2] — `fallbackModel` `["claude-opus-4-8","claude-sonnet-5"]` →
-   `["claude-sonnet-5","claude-haiku-4-5"]`: dropped the redundant primary-equal Opus-4.8 first hop (== Main's
-   primary; re-hits the same 529 pool) and added a Haiku availability floor. `effortLevel` KEPT `"xhigh"` (Main =
-   xhigh per the Opus 4.8 doc; `max` reserved for frontier).
-5. **`.claude/agents/qa.md`** [criterion 3] — pruned the expired Fable-window comments (was ~38 lines) to a concise
-   opus steady-state note. **KEPT `model: opus` + `effort: max` VALUES** (Layer-3 subagent effort is CLAUDE.md-
-   permanent per phase-29.2; separate system from Layer-2 EFFORT_DEFAULTS). Documented why max-not-xhigh.
-6. **`.claude/agents/researcher.md`** [criterion 3] — same prune to the opus steady state; KEPT `model: opus` +
-   `effort: max`.
+1. **`frontend/scripts/audit/route_walk.mjs`** (NEW, checked-in, re-runnable) — playwright-core standalone script.
+   Globs `frontend/src/app/**/page.tsx` at runtime (criterion-3 reconciliation), resolves the dynamic
+   `/sovereign/strategy/[id]` id via `GET /api/sovereign/leaderboard` (fallback "baseline"), and per route: a fresh
+   page with 4 listeners (console error/warning, pageerror, requestfailed, response≥400) registered BEFORE nav +
+   `page.goto(waitUntil:'load')` + `page.screenshot({fullPage:true})`. Benign-noise filter (favicon/map/manifest/HMR/
+   ext). Emits `walk_summary.json` + `screenshots/`. Exit non-zero if <22 routes or bypass-misfire (all-login).
+2. **Live run (isolated, teardown-clean):**
+   - Preflight: :3000 = 302 (healthy, left UNTOUCHED); :3100 free.
+   - Spun up isolated bypass server: `LIGHTHOUSE_SKIP_AUTH=1 NEXT_PUBLIC_E2E_TESTING=true npx next dev --port 3100`
+     (Ready in 1156ms; bypass probe `GET :3100/` → **HTTP 200**, not 302).
+   - One-time dev-browser install: `npx playwright install chromium-headless-shell` (playwright 1.60 wanted build
+     1223; cache had 1208 — free dev tooling, like npm install; user-level ms-playwright cache, repo untouched).
+   - Ran `node scripts/audit/route_walk.mjs --base http://localhost:3100`.
+   - **Killed :3100; verified :3000 still 302** (operator instance untouched).
+
+## Results (walk_summary.json)
+
+- `routes_discovered`: **22**, `routes_visited`: **22** (criterion 1 — every page.tsx route visited).
+- `login_redirect_count`: **0** (bypass active on every route — no silent all-login misfire).
+- `route_list_delta`: `{on_disk_not_visited: [], visited_not_on_disk: []}` — **fully reconciled** (criterion 3; no
+  delta defect rows).
+- `failed_request_routes`: **[]** (no 4xx/5xx after benign filter).
+- `page_error_routes`: **[]** (no uncaught page exceptions).
+- `console_error_routes`: **["/agent-map"]** — **DEFECT SURFACED**: /agent-map emits **120 React Flow warnings**
+  `"[React Flow]: Couldn't create edge for source handle id: 'null'"` (edges main→researcher, main→qa,
+  multi_agent_orchestrator→planner_agent, etc.). Root cause shape: the agent-graph edges reference source handles that
+  render as `null`, so React Flow rejects them. This is a concrete defect-register row for a later phase-63 fix step
+  (63.4, post-66.2). **63.1 is the AUDIT — the defect is RECORDED, not fixed here** (per the contract boundary).
+- `strategy_id_used`: "baseline" (the leaderboard fallback; the concrete-`[id]` route `/sovereign/strategy/baseline`
+  loaded HTTP 200 with no console/page errors — criterion 1 "including one concrete strategy [id]" satisfied).
+- Per-route artifacts: 22 full-page screenshots + per-route console/failed-request arrays (criterion 2).
 
 ## Verification (verbatim)
 
-- IMMUTABLE cmd `bash -c 'python -c "import ast; ast.parse(open('backend/config/model_tiers.py').read())" && grep -Eqi "effortLevel|fallbackModel" .claude/settings.json'` → **exit 0 (PASS)**.
-- Reconciled values via `resolve_effort`: mas_main=**xhigh**, mas_qa=**high**, mas_communication=**low**,
-  mas_research=**medium**. No silent effort drop: `EFFORT_SUPPORTED_MODELS` (9 entries) + `MODEL_EFFORT_FALLBACK`
-  (10 entries; claude-opus-4-8→xhigh) UNCHANGED.
-- `.claude/settings.json` valid JSON: effortLevel=**xhigh**, fallbackModel=**["claude-sonnet-5","claude-haiku-4-5"]**.
-- Agent-file YAML valid: qa.md → model=**opus**, effort=**max**, maxTurns=30; researcher.md → model=**opus**,
-  effort=**max**, maxTurns=40. `model:opus` + `effort:max` VALUES unchanged (only comments pruned).
-- `uvx ruff check` on the SUBSTANTIVELY-changed files (model_tiers.py + test) → **All checks passed** (clean).
-- `pytest test_phase_59_1_fable_adoption.py` → **6 passed**. Regression
-  `test_phase_59_1/71_2/71_3/71_4/71_6` → **48 passed**.
-- Runtime smoke: `get_settings()` loads; `model_tiers` imports; `resolve_model("mas_main")`=claude-opus-4-8,
-  `resolve_effort("mas_main")`=xhigh.
-
-## Scope honesty — pre-existing lint (NOT introduced by 71.5)
-
-`uvx ruff check backend/agents/multi_agent_orchestrator.py` reports **17 pre-existing errors** (3× F841 unused-var at
-lines 430/471/474; 14× F541 f-string-without-placeholder at 685–1580). ALL are ≥ line 430; my only change to that
-file is the comment at line 164. They are legacy issues UNRELATED to effort reconciliation — sweeping 17 changes
-across a 1900-line file during a config-reconciliation step would be scope creep (and the F841 fixes carry a small
-behavior-change risk). Left untouched; flagged here for transparency. My 71.5 changes introduce ZERO lint errors.
+- `node --check scripts/audit/route_walk.mjs` → syntax OK.
+- IMMUTABLE cmd `python3 -c "import json,glob; d=json.load(open(sorted(glob.glob('handoff/away_ops/route_walk_*/walk_summary.json'))[-1])); assert d['routes_visited']>=22, d; print(...)"` → **routes_visited: 22 | console_error_routes: ['/agent-map']**, exit 0 (PASS).
+- Artifacts: `handoff/away_ops/route_walk_2026-07-17/walk_summary.json` (34KB) + `screenshots/` (22 PNGs, 1.6M).
+- Operator :3000 verified 302 AFTER teardown (untouched).
 
 ## Do-no-harm / boundaries
 
-$0 metered. The EFFORT_DEFAULTS revert is a VERIFIED runtime no-op on the live metered MAS path (raw SDK omits effort;
-dict dead at runtime except the unit test) → NO trading-behavior change, NO CLAUDE.md sign-off needed (MATCHING the
-policy, not deviating). settings.json fallbackModel is Layer-3 ($0 Max rail; overload-class-only per the phase-67.5
-tripwire note, still accurate). Fable-comment pruning is pure documentation; `model:opus` + `effort:max` stay (Fable
-pins stay reverted per the drain directive; Layer-3 effort:max is CLAUDE.md-permanent). No functional model/effort
-change smuggled in. kill-switch/stops/sector-caps/DSR/PBO byte-untouched; historical_macro FROZEN; live book
-untouched. **Separation of duties:** 71.5 edits `.claude/agents/qa.md` + `researcher.md` (comment prune only) → Peder
-review requested + `scripts/qa/verify_qa_roster_live.sh` next session (Agent-tool roster snapshots at session start;
-the Workflow qa-verdict.js/researcher paths read from disk live).
+$0 metered (Playwright browser download is free dev tooling, not an API cost). READ-ONLY audit — the only new files
+are the checked-in script + the evidence artifacts (walk_summary.json + 22 screenshots). NO production code change; NO
+trade/risk/money touch; kill-switch/stops/caps/DSR/PBO untouched; historical_macro FROZEN; live book untouched. The
+walk ran against an ISOLATED :3100 bypass server (spun up + torn down); the operator's :3000 was never touched
+(verified 302 before and after). The /agent-map console-error defect is RECORDED for the phase-63 defect register, not
+fixed here.
 
 ## Artifact shape
-Config/doc reconciliation — no new runtime artifact. Verifiable via the immutable command + `resolve_effort(role)`
-values + the settings.json/agent-file contents.
+`handoff/away_ops/route_walk_2026-07-17/walk_summary.json` (top-level: routes_discovered, routes_visited,
+login_redirect_count, console_error_routes, failed_request_routes, page_error_routes, route_list_delta, routes[] with
+per-route final_url/http_status/screenshot/console_errors/page_errors/failed_requests/load_ms) + `screenshots/<slug>.png`.
+Re-runnable: `node frontend/scripts/audit/route_walk.mjs --base http://localhost:3100` against the isolated bypass server.

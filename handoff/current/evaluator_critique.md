@@ -1,56 +1,51 @@
-# Evaluator Critique — Step 71.5 (effort/model posture reconciliation)
+# Evaluator Critique — Step 63.1 (Playwright walk of all 22 routes)
 
 **Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8,
 `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted
-to `handoff/current/evaluator_critique.json`. Run `wf_aabd39e8-bd3`.
+to `handoff/current/evaluator_critique.json`. Run `wf_56f4e47d-f42`.
 
 ## Verdict (transcribed VERBATIM)
 
 **verdict: PASS** | ok: true | harness_compliance_ok: true | certified_fallback: false | violated_criteria: []
 
-**reason (verbatim):** All 3 immutable criteria MET; harness compliance 5/5 clean; no unintended production change.
-C1: EFFORT_DEFAULTS[mas_*] reverted to the CLAUDE.md baseline (communication=low, main=xhigh, qa=high, research=medium;
-resolve_effort confirms at runtime) with a phase-71.5 comment recording the rationale AND the config-vs-runtime drift
-as intentional. Crux independently verified: the _role-setter grep is EMPTY and resolve_effort/EFFORT_DEFAULTS is
-consumed ONLY at llm_client.py:1499-1513 (the ClaudeClient wrapper the MAS bypasses); the MAS raw-SDK create calls
-carry output_config.format but omit output_config.effort -> runtime=API-default high -> the dict is DEAD at runtime,
-so the revert is a verified no-op and the documented-drift branch is honest. No silent effort drop:
-EFFORT_SUPPORTED_MODELS(9)+MODEL_EFFORT_FALLBACK(10, opus-4-8->xhigh) absent from the diff = unchanged. mao:164 stale
-"effort=max" comment corrected. C2: effortLevel pinned deterministically at xhigh with the xhigh-vs-max choice stated
-(Opus 4.8 doc "start with xhigh for agentic"; max reserved for frontier/overthinking-risk); fallbackModel changed
-[opus-4-8,sonnet-5]->[sonnet-5,haiku-4-5], dropping the redundant primary-equal opus-4-8 first hop and adding the
-haiku-4-5 availability floor (opus->sonnet->haiku shape). C3: both agent-file diffs are pure comment-block prunes to
-the opus steady state; model:opus + effort:max VALUES are unchanged context lines (no functional model/effort change
-smuggled); Layer-3 effort:max correctly preserved as CLAUDE.md-permanent (phase-29.2), a separate system from Layer-2.
-Deterministic: immutable cmd exit 0; ruff clean on model_tiers.py+test (mao's 17 errors all >=line 430, pre-existing,
-none at line 164); pytest 6+42=48; both changed backend modules import clean.
+**reason (verbatim):** All 3 immutable criteria MET with covering evidence. (1) 22/22 page.tsx routes visited via
+playwright core against the :3100 LIGHTHOUSE_SKIP_AUTH bypass (login_redirect_count=0, all HTTP 200), including the
+concrete dynamic route /sovereign/strategy/baseline (200, clean). (2) 22 valid full-page PNG screenshots + per-route
+console/page-error/failed-request arrays; walk_summary.json enumerates routes_visited=22,
+console_error_routes=['/agent-map'], failed_request_routes=[]. (3) route_list_delta empty and independently
+reconciled (my own find of frontend/src/app gives 22 page.tsx == 22 visited; only [...nextauth] catch-all is an API
+handler, correctly excluded). Deterministic: immutable cmd exit 0; node --check + eslint on route_walk.mjs exit 0; git
+shows NO backend/ or frontend/src change (only handoff docs + hook-written audit logs + the new checked-in audit
+script + evidence artifacts). The /agent-map 120 React-Flow null-source-handle warnings are a REAL defect
+(corroborated against AgentMap.tsx:270 edge id `${e.from}-${e.to}` with no sourceHandle -> RF error #008), correctly
+RECORDED not fixed per the 63.1 audit boundary (fixes are 63.4 post-66.2). Harness compliance 5/5; the walk script is
+read-only; operator :3000 untouched.
 
-**notes (verbatim):** Harness compliance 5/5: (1) research-gate-before-contract -- research_brief_71.5.md
-gate_passed=true, 5 external sources read in full + recency scan; (2) contract-before-generate -- mtime research <
-contract < all 6 code changes < experiment_results; (3) experiment_results present with verbatim command output +
-honest scope-honesty section; (4) log-last -- masterplan 71.5=pending, no result= header in harness_log; (5)
-no-verdict-shopping -- cycle 1. Scope: ONLY the 6 contracted production files + handoff/ + hook-appended audit JSONL.
-TWO NON-BLOCKING NOTES (neither a criterion miss, both sound, optional future cleanup): (a) mao:1254 retains an "at
-effort=max" mention -- a DIFFERENT semantic from the 164 fix (worst-case sizing rationale for the _adaptive_max_tokens
-floor, correct regardless of the actual API-default-high runtime), outside the contract's scoped single-comment fix at
-164. (b) The "opus-4-8 == Main's primary" premise underpinning the fallbackModel dedup rests on CLAUDE.md doctrine
-(settings.json has no top-level "model" key) -- valid regardless; the [sonnet-5, haiku-4-5] chain is a valid
-opus->sonnet->haiku floor. Separation-of-duties on the qa.md/researcher.md edits correctly flagged in
-experiment_results (Peder review + verify_qa_roster_live.sh next session). $0/local-only/historical_macro-FROZEN/
-live-book-untouched boundaries hold; kill-switch/stops/sector-caps/DSR/PBO byte-untouched.
+**notes (verbatim):** Harness audit 5/5 (mtime research<contract<code<artifact<results; gate_passed w/ 6 sources +
+recency scan; 0 prior 63.1 verdicts; log-last intact). INDEPENDENT CORROBORATION (not blind JSON trust): (a) 22
+page.tsx on disk exactly match the walk's route list; (b) the sole defect verified against actual source (AgentMap.tsx
+builds RF edges with source:e.from and no sourceHandle -> error #008 for main-researcher/main-qa/etc., exactly the
+observed warnings), so the walk demonstrably ran against the live app. Minor NON-BLOCKING observations: (i) playwright
+core (standalone script) rather than the MCP -- contract-justified (MCP cannot emit the structured JSON); an
+equivalent/stronger live-browser capture, so qa.md 1c's purpose is met; (ii) console_error_routes includes
+warning-type messages -- intentional + honestly labeled, and is the schema-mandated key the immutable command reads;
+(iii) strategy_id_used='baseline' is the honestly-disclosed leaderboard fallback -- a concrete id, route rendered 200,
+so criterion-1's 'one concrete strategy [id]' is satisfied. Mutation-resistance real: the bypass-misfire guard (exit 3)
++ routes_visited<22 exit-1 are genuine failure paths; login_redirect_count=0 proves the bypass took. Boundaries: $0,
+local-only, read-only audit, :3000 verified 302 before/after (untouched), historical_macro frozen, live book
+untouched, kill-switch/stops/caps/DSR/PBO not touched.
 
-**checks_run (verbatim, 21):** harness_compliance_audit_5item, mtime_ordering, immutable_verification_command_exit0,
-git_status_scope, git_diff_review_all_6_files, resolve_effort_runtime_values, effort_supported_models_unchanged,
-model_effort_fallback_unchanged, settings_json_effortlevel_fallbackmodel, agent_file_pins_comment_only_diff,
-crux_role_setter_grep_empty, crux_resolve_effort_consumers, crux_mao_omits_output_config_effort, ruff_F821_F401_F811_scoped,
-ruff_full_changed_files, mao_preexisting_lint_lineno_audit, pytest_test_phase_59_1_fable_adoption_6passed,
-pytest_regression_71_2_3_4_6_42passed, backend_runtime_smoke_import, no_verdict_shopping_prior_critique_is_71_6,
-third_conditional_guard_zero.
+**checks_run (verbatim, 12):** harness_compliance_audit_5_items, immutable_verification_command_exit0,
+mtime_ordering_research_lt_contract_lt_code_lt_artifact_lt_results, git_status_no_production_change,
+node_check_route_walk_mjs, eslint_route_walk_mjs, screenshots_valid_png_22_nonzero,
+ondisk_route_reconciliation_22_eq_22, agent_map_defect_source_corroboration, script_read_only_audit,
+contract_completeness_mapping_3_criteria, harness_log_no_prior_verdict_cycle1.
 
-Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=71.5, cycle_num=1).
+Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=63.1, cycle_num=1).
 
 ## Main's disposition
-PASS, violated_criteria=[]. The 2 non-blocking notes are optional future cleanup (mao:1254 wording; the
-CLAUDE.md-doctrine premise) -- neither is a criterion miss, both accepted. Proceeding to LOG (Cycle 103) then flip
-71.5 -> done, which completes phase-71 (7/7). Separation-of-duties: the qa.md/researcher.md comment-prune edits carry
-the Peder-review + verify_qa_roster_live.sh note in the harness_log.
+PASS, violated_criteria=[]. The 3 non-blocking observations are accepted (all sound: playwright-core is
+contract-justified and stronger than code-reading; the warning-inclusive key is the schema key; 'baseline' is a
+concrete id). The Q/A independently reproduced/corroborated the /agent-map defect against source — strong evidence the
+walk ran live. Proceeding to LOG (Cycle 104) then flip 63.1 -> done. The /agent-map defect carries forward to the
+phase-63 defect register (63.3) / fix queue (63.4, post-66.2).
