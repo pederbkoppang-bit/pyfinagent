@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `4a3c63a5` | phase-70.5: General/observability polish. Make the Manage-page 'Starting capital' display reflect... |
 | 2026-07-17 | `7708b87d` | phase-70.4: S3 -- un-gate throughput by making the silent BUY-blockers visible + tunable. Reconci... |
 | 2026-07-17 | `8d858211` | phase-70.3: S3 + money-path -- swap/rotation correctness & safety. Make the sector-blocked swap p... |
 | 2026-07-17 | `1d493993` | phase-70.2: S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to pr... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-10 | `a480b95d` | phase-68.0: install goal-phase68-real-fill-runway (8 pending steps, full verification objects) + 4 t |
 | 2026-07-10 | `7a833f21` | phase-67.5: Claude Code feature adoption -- fallbackModel chain, SessionStart Sunday-revert tripwire |
 | 2026-07-10 | `b629228d` | phase-67.6: Layer-2 API modernization -- Fable-5/Sonnet-5 request guards (fable omits thinking; sonn |
-| 2026-07-09 | `0a18af08` | phase-67.0: install steps 67.5 + 67.6 (latest-features gap closure, operator-approved plan) + 67.4 s |
 
 ---
 
+### v6.61.5 — phase-70.5: General/observability polish. Make the Manage-page 'Start... (2026-07-17)
+
+- **phase-70.5: General/observability polish. Make the Manage-page 'Starting capital' display reflect...**
 ### v6.61.4 — phase-70.4: S3 -- un-gate throughput by making the silent BUY-blocker... (2026-07-17)
 
 - **phase-70.4: S3 -- un-gate throughput by making the silent BUY-blockers visible + tunable. Reconci...**
