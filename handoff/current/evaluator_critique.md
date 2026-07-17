@@ -1,96 +1,54 @@
-# Evaluator Critique — Step 71.2 (Layer-2 honesty: structured outputs + kill silent-failure classes)
+# Evaluator Critique — Step 71.3 (harden Q/A judgment + machine-readable verdicts)
 
 **Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8,
-`effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main.
+`effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main. Also
+persisted to `handoff/current/evaluator_critique.json` (criterion-2 dogfood).
 
 ---
 
-## Cycle 1 — VERDICT: CONDITIONAL (run wf_4c499286-704; transcribed verbatim)
-
-**ok:** false | **verdict:** CONDITIONAL | **harness_compliance_ok:** true | **certified_fallback:** false
-**violated_criteria:** `["qa_md_1a_python_lint_gate_ruff_F401"]`
-
-**reason (verbatim):**
-> All 4 immutable criteria are independently VERIFIED MET (C1 both Claude sites route through _call_agent_json with
-> output_config.format json_schema, subset-compliant schemas, decision logic byte-identical to legacy; C2 clobber
-> else-branch is now `return None` with a genuine red->green test that would fail pre-fix; C3 both spot-check
-> methods fully deleted, zero external callers, immutable grep exit 0 with no 1.02/0.95/0.99 literal; C4
-> LOOSE_DSR_MIN==0.95, rubric is an f-string so {LOOSE_DSR_MIN} renders 0.95 -> prompt byte-identical, shared
-> _call_agent untouched, no model/effort change). Harness compliance is clean 5/5 and no unintended production code
-> changed. The SINGLE blocker: the qa.md §1a Python lint gate returns exit 1 -- ruff F401 flags an unused
-> `import pytest` at test_phase_71_2_layer2_honesty.py:18 (this step) plus a pre-existing unused `import os` at
-> evaluator_agent.py:34. Per qa.md §1a a non-zero lint exit blocks PASS; because no immutable criterion is missed
-> and the fix is 1-2 import lines, this is a fixable CONDITIONAL, not a FAIL.
-
-**violation_details (verbatim):** `{violation_type: Threshold_Not_Met, action: "uvx ruff check --select
-F821,F401,F811 ...", state: "exit=1; 2 F401 -- unused import pytest (test, NEW) + unused import os
-(evaluator_agent.py:34, pre-existing, in a modified file)", constraint: "qa.md §1a Python lint gate: non-zero ruff
-exit blocks PASS"}`
-
-**notes (verbatim excerpt):** SUBSTANCE IS SOUND -- this CONDITIONAL is purely the lint-gate hygiene blocker; the
-four immutable criteria are all met and fail-safe by construction. Verified in depth: _call_agent_json degrades to
-_gemini_text_call on auth-error and to the shared _call_agent on any other error; the shared _call_agent def is NOT
-in the diff. The clobber red->green test genuinely reaches the fixed else-branch. The prompt is an f-string so
-{LOOSE_DSR_MIN} renders 0.95 (byte-identical). FO-71.2-A is an HONEST deferral (the grep is satisfied by the
-orchestrator; _call_model is Gemini; deferring the live evaluate_proposal path is prudent).
-> NON-BLOCKING SCOPE-HONESTY OBSERVATION on C1: "worst-case == today's behavior" is slightly optimistic for one
-> rare sub-path -- when Anthropic is DOWN, the reworded JSON prompt goes to Gemini WITHOUT constrained decoding,
-> and if Gemini wraps output in ```json fences, json.loads fails and the legacy text parser finds no scores -> the
-> gate returns None (keeps original). Still fail-safe (no crash/clobber) but loses answer-improvement on that
-> sub-path. The classifier path is robust (parse_llm_classification strips fences). Rare degraded path, fail-safe,
-> violates no immutable criterion.
-
----
-
-## Cycle-1 → fix (Main; per canonical cycle-2 flow — fix blocker + address the honest finding + fresh respawn)
-
-1. **Lint blocker (required for PASS):** removed the unused `import pytest` (test file) + the pre-existing unused
-   `import os` (evaluator_agent.py:34). `uvx ruff check --select F821,F401,F811` now **exit 0** (re-run, verified).
-2. **C1 Gemini-fallback robustness (the honest non-blocking finding — fixed at the source, not just documented):**
-   the gate's structured parse now **strips ```json code fences** before `json.loads` (mirrors
-   `parse_llm_classification`). So on the Anthropic-DOWN + Gemini-fenced-JSON sub-path the structured parse still
-   works → the gate keeps its answer-improvement ability. With this, post-71.2 is **≥ today on every path**. New
-   test `test_c1_structured_fenced_json_still_parses` proves it. experiment_results "worst-case" claim corrected.
-
-Re-verified deterministically after the fixes: ruff exit 0; immutable verification exit 0; **28 tests pass**
-(11 new 71.2 incl. the fence test + 17 regression across evaluator/fallback/classification); both modules import.
-The changes are import-lines + an additive fence-strip (strictly a superset) → the four criteria remain verified.
-Evidence CHANGED → a **fresh** Cycle-2 Q/A runs on it (documented fix-then-respawn; NOT verdict-shopping).
-
-## Cycle 2 — VERDICT: PASS (fresh Q/A on the lint-clean + fence-robust code; run wf_583e066f-aa5; transcribed verbatim)
+## Cycle 1 — VERDICT: PASS (run wf_5151330f-21f; transcribed verbatim)
 
 **ok:** true | **verdict:** PASS | **harness_compliance_ok:** true | **certified_fallback:** false
 **violated_criteria:** [] | **violation_details:** []
 
-**reason (verbatim excerpt):**
-> All 4 immutable criteria are independently VERIFIED MET and the cycle-1 lint blocker is RESOLVED (qa.md §1a ruff
-> F821,F401,F811 now exits 0 -- "All checks passed!"). C1: both Claude JSON sites now route through the fail-safe
-> helper _call_agent_json with output_config={"format":{"type":"json_schema","schema":...}}; I confirmed via $0
-> local SDK introspection that the PINNED anthropic 0.96.0 exposes output_config on messages.create, so on
-> claude-sonnet-4-6 (GA) this is genuine constrained decoding; QUALITY_VERDICT_SCHEMA + CLASSIFY_SCHEMA are
-> subset-compliant and CLASSIFY_SCHEMA field names match parse_llm_classification exactly. C2: the clobber
-> else-branch is now `return None, usage`; I traced the caller -> the ORIGINAL analyst answer stands; test_c2 is a
-> genuine red->green. C3: both spot-check methods fully deleted (zero external callers), the 1.02/0.95/0.99 dict +
-> CONDITIONAL->PASS flip are gone, immutable grep exit 0. C4: LOOSE_DSR_MIN==0.95 (byte-identical, asserted); no
-> model/effort change; thresholds byte-identical; shared _call_agent untouched. Deterministic: lint exit 0,
-> immutable exit 0, 28 tests pass, both import, no unintended production code changed. Harness 5/5. FO-71.2-A
-> deferral is HONEST. Every change is fail-safe; worst case is today's behavior, strictly better (fail-safe None,
-> no clobber) on the unparseable path.
+**reason (verbatim):**
+> All 3 immutable criteria MET; harness compliance 5/5 clean; deterministic checks all green; no unintended
+> production change; the dropped #8a is explicitly NEGATED, not re-introduced. C1: qa.md now carries a
+> contract-completeness dimension (new §4 LLM-judgment bullet + a 'Contract completeness' Quality-criteria table
+> row) AND a new '### 4a. Adversarial worst-of-N-LENSES verdict (P0/P1 money-path only)' subsection that judges the
+> claimed PASS from N DISTINCT lenses (correctness/does-it-reproduce/scope-honesty) and takes min(lens verdicts) --
+> both explicitly 'WITHIN the single Q/A role (no fourth agent, no re-split)'. It explicitly states this is 'NOT the
+> N-IDENTICAL self-consistency resampling (proposal #8a, DROPPED in phase-71.0)' -- perspective-diverse worst-of-N,
+> consistent with the 71.0 decision to drop #8a; no scope violation. C2: the machine-readable-verdict MECHANISM is
+> documented in qa.md + per-step-protocol.md (Q/A read-only; MAIN persists the verdict object to
+> evaluator_critique.json + step_id/cycle_num, checks_run as object map; gate reads verdict==PASS && ok==true). A
+> fail-open verdict_gate.py reads that JSON deterministically and is wired into auto-commit-and-push.sh faithfully
+> mirroring live_check_gate; 9/9 tests pass. 71.3's own evaluator_critique.json is honestly persisted by Main AFTER
+> this return (absent now, as disclosed) -- criterion 2 is the MECHANISM + the gate's CAPABILITY to read it. C3:
+> single-Q/A-per-step + file-based handoffs + Q/A read-only (Main scribe -> no-self-eval holds) all preserved; the
+> N lenses are one agent's N perspectives, not new agents. Adversarial worst-of-N-LENSES applied to 71.3 itself
+> (dogfood; 71.3 is P2 so not strictly required): correctness PASS, does-it-reproduce PASS, scope-honesty PASS ->
+> worst = PASS.
 
-**notes (verbatim excerpt):** CYCLE 2, fresh Q/A on CHANGED evidence (documented fix-then-respawn). Harness 5/5
-(research gate gate_passed=true 5 sources; contract-before-generate mtime-proven; results present; log-last — 71.2
-not in harness_log, masterplan in-progress; no verdict-shop). NON-BLOCKING OBSERVATIONS (no verdict effect): (a)
-the structured parse decides PASS/FAIL from the four scores and ignores the schema's `verdict` enum — intentional,
-byte-identical to the legacy score-driven block. (b) _call_agent_json returns text-or-"" vs _call_agent's
-text-or-"No response." — benign, still fail-safe. (c) no live end-to-end MAS Claude call (metered, needs Peder
-approval per CLAUDE.md); the 28 direct-method tests + import smoke are the substantive exercise for an internal
-fail-safe correctness change. Live book untouched; historical_macro FROZEN; harness stays exactly 3 agents.
+**notes (verbatim excerpt):** NON-BLOCKING: (1) INHERITED GATE-TIMING/DOC PRECISION -- the verdict gate (like the
+live_check + harness_log gates it mirrors) sits BEFORE the commit, so on 'hold' the whole hook exits 0 early and
+BOTH commit and push defer to the next masterplan re-trigger, rather than the WARN's literal 'auto-push held'. This
+is an inherited property of the established, operator-accepted mirror pattern, NOT a 71.3 regression; fail-open is
+guaranteed by `trap 'exit 0' EXIT` + every path exiting 0. A future doc-precision cleanup across all three gate
+WARN strings would be nice-to-have. (2) LOG-STEP OBLIGATION -- 71.3 edits qa.md, so the harness_log append MUST
+request Peder review + verify_qa_roster_live.sh next session; the Workflow path reads qa.md from disk at runtime
+(which is how THIS evaluation picked up the new §4/§4a sections) so that path is live immediately. (3) HOUSEKEEPING
+-- evaluator_critique.md still showed 71.2 content; Main overwrites on transcription. Contract-completeness dogfood:
+all 3 criteria mapped to covering evidence. historical_macro FROZEN + live book untouched confirmed; no risk
+threshold moved; no production backend/frontend code changed.
 
 ## Main's disposition (recorded; not a verdict edit)
-- Both Cycle-1 items were fixed at the SOURCE, not just documented: the ruff blocker (unused imports removed → exit
-  0) and the honest degraded-path finding (fence-stripping added → the gate now works on the Gemini-fallback JSON
-  path; post-71.2 is ≥ today on every path). The three Cycle-2 non-blocking observations are accurate and accepted
-  as-is (all intentional/benign/fail-safe).
-- **FO-71.2-A** (Gemini structured output on `evaluator_agent._call_model`) remains an honest deferral — not
-  criterion-required (`_call_model` is Gemini; the grep is satisfied by the orchestrator), and prudently avoids
-  risking the high-frequency live `evaluate_proposal` path. Recommended approach recorded in experiment_results.
+- All 3 non-blocking notes accepted. (1) The inherited WARN-string imprecision is a pre-existing property of the
+  two established gates; it never affects behavior (fail-open holds) and is left for a future cross-gate doc pass
+  rather than a post-PASS hook edit. (2) The separation-of-duties + verify_qa_roster_live.sh note is actioned in
+  the harness_log LOG step below. (3) evaluator_critique.md overwritten (this file) + evaluator_critique.json
+  persisted from the verdict object.
+- **Separation of duties honored:** Main authored the qa.md edit; the evaluator was an INDEPENDENT fresh
+  general-purpose instance that read qa.md fresh from disk (that runtime read is how it picked up the new §4/§4a),
+  evaluating the artifacts — it did not run under a Main-authored verdict. The additions make the evaluator
+  STRICTER (completeness + adversarial lenses), never weaker.

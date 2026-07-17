@@ -245,6 +245,34 @@ FAIL over PASS when uncertain. The LLM judgment covers:
   rather than overclaim?
 - Research-gate compliance: does the contract cite the researcher's
   findings?
+- **Contract completeness (phase-71.3):** map EVERY immutable success
+  criterion in the contract to the covering evidence in
+  `experiment_results.md`. A criterion with NO covering evidence is a
+  `Missing_Assumption` violation that CAPS the verdict (CONDITIONAL, or
+  FAIL if a criterion is materially unaddressed) -- a step is not done
+  until every criterion is demonstrably COVERED, not merely claimed.
+
+### 4a. Adversarial worst-of-N-LENSES verdict (P0/P1 money-path only)
+
+For P0/P1 money-path steps, do NOT settle for a single-shot judgment.
+The SAME single Q/A (no fourth agent, no re-split) evaluates the claimed
+PASS from N DISTINCT adversarial LENSES and takes the **worst** verdict
+across them (`verdict = min(lens verdicts)`):
+- **correctness lens** -- is the logic / numeric result actually right?
+- **does-it-reproduce lens** -- do the deterministic checks + tests
+  reproduce the claim on a clean run?
+- **scope-honesty lens** -- does `experiment_results.md` disclose the
+  real bounds, or overclaim / hide a degraded path?
+
+This is adversarial **worst-of-N over N distinct LENSES**. It is
+explicitly NOT the N-IDENTICAL **self-consistency** resampling
+(proposal #8a, DROPPED in phase-71.0: N identical samples add cost
+without independent signal, and ensembling identical judges carries
+correlated self-bias -- arXiv:2508.06709). Distinct lenses ask
+DIFFERENT questions, so they catch failure modes that identical
+resampling cannot (arXiv:2505.19477, perspective-diverse meta-judge).
+One agent, N perspectives, one worst-case verdict -- WITHIN the single
+Q/A role.
 
 ## Worktree isolation (operator-controlled)
 
@@ -292,6 +320,20 @@ On failure, populate `violation_details` with
 }
 ```
 
+## Machine-readable verdict — `evaluator_critique.json` (phase-71.3)
+
+Your JSON return value (the schema above / `.claude/workflows/qa-verdict.js`
+`VERDICT_SCHEMA`) IS the machine-readable verdict. You stay **read-only** and
+never write files. After transcribing your verdict VERBATIM into
+`evaluator_critique.md`, **Main** ALSO persists it to
+`handoff/current/evaluator_critique.json` — the same object plus two
+Main-injected keys (`step_id`, `cycle_num`) and `checks_run` rendered as an
+object map — so the status-flip / live_check gate can read the verdict
+deterministically (`verdict == "PASS" AND ok == true`) instead of parsing
+prose. Do NOT edit the 71.1-owned `VERDICT_SCHEMA`; Main is the scribe for
+both the `.md` and the `.json`, mirroring the verbatim-transcription rule so
+the no-self-eval guarantee holds.
+
 ## Certified fallback (SEVerA 2026)
 
 If step's `retry_count >= max_retries` in `.claude/masterplan.json`,
@@ -307,6 +349,7 @@ NOT auto-revert yourself — you are read-only.
 | Robustness | 30% | Positive Sharpe in ALL sub-periods |
 | Simplicity | 15% | <=15 params, each contributing >= +0.05 Sharpe |
 | Reality Gap | 15% | >=10bps costs, 5bps slippage, max position <10% |
+| Contract completeness | gate | EVERY immutable criterion mapped to covering evidence in experiment_results.md (uncovered = Missing_Assumption, caps verdict) |
 
 Score below 6 on ANY criterion = FAIL.
 

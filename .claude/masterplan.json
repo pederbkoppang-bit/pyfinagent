@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-17T14:42:27.929744+00:00",
+  "updated_at": "2026-07-17T14:58:04.008135+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15827,7 +15827,7 @@
         },
         {
           "id": "71.3",
-          "status": "in-progress",
+          "status": "done",
           "name": "P2 -- harden Q/A judgment + emit machine-readable verdicts (WITHIN the single Q/A role, no re-split). Add a 'contract completeness' dimension to the qa.md rubric (does experiment_results.md cover every contract criterion?). For P0/P1 money-path steps, add an adversarial worst-of-N self-consistency check (the single Q/A samples its own verdict N times / from N lenses and takes the worst) instead of a single-shot judgment. Emit a machine-readable verdict JSON (handoff/current/evaluator_critique.json: {ok, verdict PASS|CONDITIONAL|FAIL, violated_criteria[], checks_run{}, step_id, cycle_num}) alongside the markdown so the status-flip gate reads JSON, not prose.",
           "harness_required": true,
           "priority": "P2",

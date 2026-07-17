@@ -147,6 +147,24 @@ Returns the JSON schema documented in `.claude/agents/qa.md` with
 `violation_details: [{violation_type, action, state, constraint}]`,
 and `certified_fallback`.
 
+**Q/A rubric hardening (phase-71.3, WITHIN the single Q/A role — no
+re-split, no fourth agent):**
+- **Contract completeness** — the Q/A maps EVERY immutable success
+  criterion to covering evidence in `experiment_results.md`; an
+  uncovered criterion is a `Missing_Assumption` that caps the verdict.
+- **Adversarial worst-of-N-LENSES (P0/P1 money-path only)** — the same
+  Q/A judges the claimed PASS from N DISTINCT lenses (correctness /
+  does-it-reproduce / scope-honesty) and takes the WORST. This is
+  perspective-diverse worst-of-N, explicitly NOT the N-IDENTICAL
+  self-consistency resampling dropped in phase-71.0 (correlated
+  self-bias, no independent signal).
+- **Machine-readable verdict** — Main persists the Q/A return value to
+  `handoff/current/evaluator_critique.json` (the verdict object +
+  `step_id` + `cycle_num`, `checks_run` as an object map) ALONGSIDE the
+  `.md`, so the status-flip gate reads `verdict == "PASS" && ok == true`
+  deterministically instead of parsing prose. Q/A stays read-only; Main
+  is the scribe (mirrors the verbatim `.md` transcription).
+
 **Certified fallback (SEVerA 2026):** when `retry_count >=
 max_retries` (3 in the masterplan schema), revert to the last
 known-good state rather than blocking — typically

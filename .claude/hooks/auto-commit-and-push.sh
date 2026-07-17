@@ -189,6 +189,31 @@ if [ -f "$HARNESS_LOG_GATE_HELPER" ]; then
     esac
 fi
 
+# --- verdict gate (phase-71.3) ---
+# Mirrors live_check_gate above. Reads the machine-readable Q/A verdict
+# (handoff/current/evaluator_critique.json, persisted by Main) so the
+# status-flip gate reads the VERDICT, not prose. FAIL-OPEN: only HOLDS the
+# push when the JSON is present, matches THIS step_id, and carries an
+# explicit non-PASS verdict (CONDITIONAL/FAIL or ok false). Missing /
+# unreadable / stale / PASS -> proceed. Never blocks the masterplan Write.
+VERDICT_GATE_HELPER="$PROJECT_ROOT/.claude/hooks/lib/verdict_gate.py"
+VERDICT_JSON="$PROJECT_ROOT/handoff/current/evaluator_critique.json"
+if [ -f "$VERDICT_GATE_HELPER" ]; then
+    VG_DECISION=$(python3 "$VERDICT_GATE_HELPER" "$VERDICT_JSON" "$STEP_ID" 2>/dev/null || echo "proceed")
+    case "$VG_DECISION" in
+        hold)
+            log "WARN: verdict gate -- evaluator_critique.json for $STEP_ID is not a clean PASS (verdict!=PASS or ok=false) -- auto-push held. Resolve the Q/A blockers + re-run a fresh Q/A to PASS, then re-trigger by re-editing the masterplan, OR run \`git push origin main\` manually if appropriate."
+            exit 0
+            ;;
+        passed)
+            log "INFO: verdict gate satisfied for $STEP_ID (evaluator_critique.json verdict=PASS)"
+            ;;
+        proceed|*)
+            # No JSON / stale / mismatched step-id -> proceed as today (fail-open).
+            ;;
+    esac
+fi
+
 # --- Build commit subject ---
 # Prefer "phase-<id>: <name>" if the id looks like a phase-style number,
 # else just "<id>: <name>".
