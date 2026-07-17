@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `8fbb1a6b` | phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (recorded yfinance fixtures, no n... |
 | 2026-07-17 | `541bd40a` | phase-64.3: Backend gap tests -- kill-switch state machine (pause/resume/breach/auto-resume-off),... |
 | 2026-07-17 | `4eb6ceea` | phase-64.2: Functional specs for all 22 routes -- load + one key interaction per route family; su... |
 | 2026-07-17 | `9e6766e6` | phase-64.1: Functional-E2E Playwright project -- new testDir tests/e2e-functional as a second pro... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `1d493993` | phase-70.2: S2 -- soft, profit-aware cross-sector diversification. Make a normal cycle able to pr... |
 | 2026-07-16 | `64257b05` | phase-70.1: S1 -- make the setting actually changeable. Fix the frontend clear-snapback bug (cock... |
 | 2026-07-16 | `dcc65575` | phase-70.0: Research gate + design pack (offline, $0): (a) soft, profit-aware sector-diversificat... |
-| 2026-07-16 | `789a0dba` | chore: phase-71 goal draft + masterplan steps from 2026-07-16 harness+MAS max-effort self-audit |
 
 ---
 
+### v6.62.13 — phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (reco... (2026-07-17)
+
+- **phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (recorded yfinance fixtures, no n...**
 ### v6.62.12 — phase-64.3: Backend gap tests -- kill-switch state machine (pause/res... (2026-07-17)
 
 - **phase-64.3: Backend gap tests -- kill-switch state machine (pause/resume/breach/auto-resume-off),...**
