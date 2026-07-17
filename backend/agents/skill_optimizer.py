@@ -9,7 +9,6 @@ The data tools, orchestrator pipeline, output schemas, and evaluation formula ar
 """
 
 import csv
-import json
 
 from backend.utils import json_io
 import logging
@@ -20,7 +19,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from backend.config.prompts import SKILLS_DIR, SkillFileIdCache, load_skill, reload_skills
-from backend.config.settings import Settings
+from backend.config.settings import Settings, get_settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.outcome_tracker import OutcomeTracker
 
@@ -420,6 +419,27 @@ class SkillOptimizer:
                 "ambiguous replacement, skipping"
             )
             return False
+
+        # phase-71.4: INDEPENDENT FAIL-CLOSED review BEFORE the write (flag-gated
+        # DARK-until-token). The skill self-improvement loop auto-applies + auto-commits
+        # with no human; this is the missing judge (unlike the HITL directive path). A
+        # diff that WEAKENS a constraint, or whose DESCRIPTION does not match the diff,
+        # is rejected-and-skipped; an LLM error FAILS CLOSED (no write). It gates ONLY
+        # this forward write -- never the read/revert path. OFF -> byte-identical.
+        if get_settings().skill_modification_review_enabled:
+            from backend.agents.skill_modification_review import review_skill_modification
+
+            review = review_skill_modification(
+                content, old_text, new_text, proposal.get("description", ""),
+            )
+            if review.verdict != "ACCEPT":
+                logger.warning(
+                    "[skill-opt] modification to %s REJECTED by independent review "
+                    "(%s; precheck=%s safety=%.2f factuality=%.2f) -- skipping (no write)",
+                    agent_name, review.reason, review.precheck,
+                    review.safety_score, review.factuality_score,
+                )
+                return False
 
         new_content = content.replace(old_text, new_text, 1)
         skill_path.write_text(new_content, encoding="utf-8")

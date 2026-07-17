@@ -321,6 +321,14 @@ gate was actually met vs merely claimed.
   "urls_collected": 12,
   "recency_scan_performed": true,
   "internal_files_inspected": 8,
+  "coverage": {
+    "audit_class": false,
+    "rounds": 1,
+    "dry_rounds": 0,
+    "K_required": 2,
+    "new_findings_last_round": 0,
+    "dry": false
+  },
   "report_md": "...",
   "gate_passed": true
 }
@@ -330,9 +338,34 @@ Gate logic (non-negotiable):
 `gate_passed: true` iff
   `external_sources_read_in_full >= 5`
   AND `recency_scan_performed == true`
-  AND all "hard blocker" checklist items are satisfied.
+  AND all "hard blocker" checklist items are satisfied
+  AND (`coverage.audit_class == false` OR `coverage.dry == true`).
 Otherwise `gate_passed: false` -- return it honestly; do NOT pad
 the brief to mask a shortfall.
+
+## Adaptive coverage (audit-class steps) -- phase-71.4
+
+The `>=5`-source floor + recency scan are a FLOOR, not a ceiling. For
+**audit-class** steps (unknown-denominator audits -- "find every X";
+the CALLER sets `coverage.audit_class` in the spawn prompt, orthogonal
+to `tier`; the researcher never self-declares to escape the loop), run a
+**loop-until-dry** completeness critic AFTER the floor is met:
+
+- Keep running extra search/fetch rounds. A round is **dry** when it
+  yields ZERO new read-in-full findings beyond de-dup.
+- Stop when `dry_rounds >= K_required` (default K=2). Set
+  `coverage.dry = true`.
+- For an audit-class step, `gate_passed` ADDITIONALLY requires
+  `coverage.dry == true` -- so an audit that stops early (still finding
+  new material) does NOT clear the gate.
+
+**The floor can only be ADDED to, never lowered:** an audit-class step
+at 4 sources + K dry rounds still FAILS (`external_sources_read_in_full
+>= 5` remains a hard requirement). For non-audit steps `coverage` is
+informational and does not gate. Basis: Anthropic multi-agent-research
+("decides whether more research is needed") + harness-design
+hard-threshold-or-fail loop. See `.claude/rules/research-gate.md`
+"Adaptive coverage gate" for the how-to.
 
 ## Constraints
 

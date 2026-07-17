@@ -1,74 +1,87 @@
-# Contract — step 71.3 (harden Q/A judgment + machine-readable verdicts, WITHIN the single Q/A role)
+# Contract — step 71.4 (independent evaluator for the self-improvement loop + coverage-gate/loop-until-dry critic)
 
-**Phase:** phase-71 | **Step:** 71.3 | **Priority:** P2 | harness_required: true | depends_on: 71.0 (done)
-**Cycle:** 1 | Date: 2026-07-17 | **Type:** harness-protocol / qa.md rubric edit + evaluator_critique.json emission.
-$0, local-only, NO production/live-loop change. Edits `.claude/agents/qa.md` → separation-of-duties + roster note.
+**Phase:** phase-71 | **Step:** 71.4 | **Priority:** P2 | harness_required: true | depends_on: 71.0 (done)
+**Cycle:** 1 | Date: 2026-07-17 | **Type:** LIVE Layer-2/4 code (skill self-improvement loop) — flag-gated DARK —
++ research-gate docs. $0 metered when OFF (byte-identical); paper-only; historical_macro FROZEN; live book untouched.
 
 ## Research-gate summary (gate PASSED)
 
-Researcher via Workflow structured-output (Opus 4.8, $0), run wf_f8bce7de-c96. Envelope: **gate_passed=true**,
-tier=moderate, **6 external sources read in full**, 10 snippet-only, 24 URLs, recency scan, 12 internal files.
-Brief: `research_brief_71.3.md`. Grounding HOLDS. **Reconciliation resolved** (the crux): phase-71.0 DROPPED #8a
-(worst-of-N **self-consistency** = N IDENTICAL samples, "no independent signal / correlated bias") but KEPT #8b
-(the adversarial red-team leg). 71.3 implements ONLY the **"FROM N LENSES"** reading — the single Q/A judges the
-claimed PASS from N DISTINCT adversarial lenses (correctness / does-it-reproduce / scope-honesty) and takes the
-WORST. This (i) satisfies the criterion + the `adversarial`/`worst-of-N` grep, and (ii) is CONSISTENT with 71.0
-(which objected to N-identical resampling, NOT perspective diversity). Grounded: arXiv:2505.19477 (perspective-
-diverse meta-judge resists bias), arXiv:2508.06709 (self-bias correlated across a judge's own samples), Anthropic
-judge-rubric "completeness" + doer/judge separation. GENERATE MUST explicitly NEGATE the N-identical #8a.
+Researcher via Workflow structured-output (Opus 4.8, $0), run wf_c171b7b9-98e. Envelope: **gate_passed=true**,
+tier=complex, **9 external sources read in full**, 10 snippet-only, 19 URLs, recency scan, 11 internal files.
+Brief: `research_brief_71.4.md`. Grounded in Anthropic evaluator-optimizer + multi-agent doer/judge separation +
+6 self-modifying-agent-safety preprints (PolicyGuard/VeriGuard/ShieldAgent — independent verifier, gate-on-mutation,
+fail-closed). **fail_closed=true, risk_threshold_value_change=false.** Key anchors (HEAD, 894-line file):
+- `apply_modification` (skill_optimizer.py:399-451) is the write path: `skill_path.write_text(new_content)` at
+  **:425** + git add/commit :446-447. Modification object `{old_text, new_text, description, hypothesis}`. Mechanical
+  gating today (old_text present :410 / unique :417 / post-write re-parse-or-REVERT :436-442) — NO pre-write judge.
+- **Insertion point: after the mechanical checks (:422), before the write (:424/425)** — all fields in scope.
+- **ONE caller** `_run_one_iteration:754` (both propose + think_harder converge → one gate covers both). LIVE
+  autonomous trigger: MetaCoordinator "skill_opt" weekly → auto-apply + auto-commit, NO human (the exact gap).
+- `directive_review.py` reuse: `review_directive_diff(...) -> ReviewResult`, 5-dim rubric (accept iff mean>=0.70),
+  `_fail_closed`/`_coerce_score`, anti-rubber-stamp (strips proposer self-score), `llm_call_override` seam, 13-test
+  template. It has NO production caller (directive path is HITL); MIRROR the SHAPE into a new module for the skill
+  path (which lacks a judge). Drift to fix: skill_optimizer.py:7/335 says "ONLY ## Prompt Template" — narrower than
+  backend-agents.md's 3 modifiable sections; enforce the union-SAFE rule.
 
-## Plan (line-anchored)
+## Plan (line-anchored, fail-closed, flag-gated DARK)
 
-### A. `.claude/agents/qa.md` (edits → separation-of-duties + roster note in harness_log)
-1. **Contract-completeness dimension** — add a bullet to the §4 LLM-judgment list (after "Research-gate
-   compliance", ~L247) requiring the Q/A to map EVERY contract/immutable criterion → covering evidence in
-   `experiment_results.md`; an uncovered criterion = `Missing_Assumption` that caps the verdict. Add a
-   "Contract completeness" row to the Quality-criteria table (~L304-311) to unambiguously land the `completeness`
-   grep token.
-2. **Adversarial worst-of-N-LENSES leg (P0/P1 money-path only)** — new subsection "### 4a. Adversarial
-   worst-of-N-LENSES verdict (P0/P1 money-path only)" after §4: the SAME single Q/A evaluates the claimed PASS from
-   N DISTINCT lenses (correctness / does-it-reproduce / scope-honesty) and takes the WORST verdict — WITHIN the
-   single Q/A role (no fourth agent, no re-split). MUST state: "worst-of-N over N distinct LENSES, NOT the
-   N-identical self-consistency resampling (#8a, dropped in phase-71.0 as correlated / no independent signal)."
-   Lands the `adversarial` + `worst-of-N` grep tokens.
-3. **evaluator_critique.json emission** — note (after the Output-format schema, ~L267, + a Constraints clause
-   ~L315-318) that MAIN persists the returned verdict VERBATIM to `handoff/current/evaluator_critique.json`
-   (injecting `step_id` + `cycle_num`; transforming `checks_run` to an object map) alongside the .md. **Q/A stays
-   read-only** — Main is the scribe (mirrors the verbatim .md transcription → no-self-eval holds). Do NOT edit the
-   71.1-owned qa-verdict.js VERDICT_SCHEMA.
+### A. `backend/agents/skill_modification_review.py` (NEW, pure module — mirrors directive_review)
+`review_skill_modification(old_text, new_text, description, modifiable_sections, *, llm_call_override=None) ->
+SkillReviewResult`. Two-stage, FAIL-CLOSED:
+1. **Deterministic pre-check ($0, no LLM):** hard-REJECT if the diff touches a section-header OUTSIDE the
+   modifiable set (## Prompt Template / ## Skills & Techniques / ## Anti-Patterns), OR changes the `{{variable}}`
+   token-SET (compare sets; reject only on a delta → no prose false-positives).
+2. **LLM semantic judge (metered, mirrors directive_review):** 2 focused dims — `safety` ("does NOT weaken any
+   existing constraint": section-scope / anti-pattern-guard removal / rule-loosening) + `factuality`
+   ("`description` accurately + completely characterizes the literal old→new diff"; under-description = smuggling).
+   ACCEPT iff both >= threshold. FAIL-CLOSED: empty/None/exception/non-dict/missing-dim/out-of-range → REJECT,
+   scores 0.0. Reuse `_coerce_score`/`_fail_closed` shape; `llm_call_override` for deterministic tests.
 
-### B. `docs/runbooks/per-step-protocol.md` §4 EVALUATE
-Add a paragraph (after the "Returns the JSON schema" block, ~L148) documenting the completeness dimension + the
-P0/P1 N-lens leg (distinct lenses, NOT N-identical) + the `evaluator_critique.json` persistence; add the JSON
-filename to the LOG/flip step notes.
+### B. `backend/agents/skill_optimizer.py`
+- Insert, inside `apply_modification` AFTER the mechanical checks (:422) and BEFORE the write (:424/425): if
+  `settings.skill_modification_review_enabled` → call `review_skill_modification(...)`; on REJECT → log + return a
+  skip result (NO write, NO commit). Gate ONLY the forward write (rider-trap #1: never the read/revert path). Fix
+  the docstring drift (:7/335) to the 3 modifiable sections.
+- **Flag OFF (default) → byte-identical to today** (the review block is skipped).
 
-### C. Status-flip gate reads JSON (criterion 2)
-- **Persist evaluator_critique.json for 71.3 itself** (dogfood) from this step's Q/A return value.
-- **Fail-open `verdict_gate.py`** under `.claude/hooks/lib/` mirroring `live_check_gate.py` (proceed on
-  missing/unreadable JSON = fail-open; passed iff `verdict=="PASS"` and `ok==true`; else WARN + hold-push), wired
-  into `auto-commit-and-push.sh` after the existing gate block — IF reading the existing gate confirms a clean
-  fail-open mirror (else fall back to documented Main-discipline read, which still satisfies "the gate CAN read it
-  deterministically"). The gate must NEVER break the masterplan Write (fail-open discipline).
+### C. `backend/config/settings.py`
+- `skill_modification_review_enabled: bool = Field(False, ...)` — DARK-until-token.
 
-## Immutable success criteria (verbatim from masterplan.json 71.3)
+### D. Coverage-gate / loop-until-dry docs (ADDITIVE, >=5 floor PRESERVED)
+- `.claude/agents/researcher.md` + `.claude/rules/research-gate.md` + `ARCHITECTURE.md`: add a `coverage` envelope
+  field `{audit_class, rounds, dry_rounds, K_required=2, new_findings_last_round, dry}` + a loop-until-dry
+  completeness critic (audit-class steps only; stop at K dry rounds) + an audit-class gate clause. **The >=5-source
+  floor + recency scan stay HARD requirements** — coverage can only ADD a requirement, never lower the floor.
+  Cross-link (mechanics→research-gate.md, spec→researcher.md, MADR→ARCHITECTURE.md); no duplication.
 
-1. qa.md rubric includes a contract-completeness dimension and (for P0/P1 money-path steps) an adversarial
-   worst-of-N / self-consistency verdict, both explicitly WITHIN the single Q/A role (no fourth agent, no re-split)
-2. Q/A emits a machine-readable evaluator_critique.json alongside the markdown with the verdict schema; the
-   status-flip / live_check gate can read it deterministically
-3. The single-Q/A-per-step rule and file-based handoffs are preserved
+### E. `backend/tests/test_phase_71_4_skill_review.py` (satisfies the `grep 71_4|skill_optim|evaluator` check)
+accept / reject-weakens-constraint / reject-description-mismatch / fail-closed (LLM None+exception+non-dict) /
+pre-check section-scope-reject / pre-check {{var}}-delta-reject / flag-OFF-byte-identical (apply_modification with
+the flag off does not call the review). All via `llm_call_override` — deterministic, $0.
+
+## Immutable success criteria (verbatim from masterplan.json 71.4)
+
+1. A proposed skill/prompt modification is independently reviewed before apply_modification writes it; a diff that
+   weakens a constraint or whose description does not match the diff is rejected-and-skipped; LLM-error fails closed
+   (no write) -- proven by a test
+2. Audit-class steps have a loop-until-dry completeness-critic option, and the research gate documents an adaptive
+   coverage gate (keep going until K dry rounds; >=5-source floor preserved)
+3. Grounded in the Anthropic evaluator-optimizer + multi-agent 'separate the doer from the judge' pattern (cited);
+   reuses the existing directive_review pattern where possible
 
 Verification command (immutable):
-`bash -c 'grep -Eqi "contract completeness|completeness" .claude/agents/qa.md && grep -Eqi "worst-of-n|self-consistency|adversarial" .claude/agents/qa.md docs/runbooks/per-step-protocol.md'`
+`bash -c 'grep -Eqi "review|evaluat|adversar" backend/agents/skill_optimizer.py && ls backend/tests/ | grep -Eqi "71_4|skill_optim|evaluator" && python -c "import ast; ast.parse(open(\'backend/agents/skill_optimizer.py\').read())"'`
 
 ## Boundaries (binding)
-$0; local-only; NO production/live-loop change (harness-protocol + docs + a fail-open hook only). WITHIN the single
-Q/A role — exactly-3-agents, NO re-split, NO fourth agent. The dropped N-identical #8a is NOT re-introduced (the
-N-lens leg explicitly negates it). Do NOT edit the 71.1-owned qa-verdict.js VERDICT_SCHEMA. Any hook is FAIL-OPEN
-(never breaks the masterplan Write / push). Q/A stays read-only (Main persists the JSON). Separation of duties +
-roster snapshot: edits qa.md → harness_log requests Peder review + verify_qa_roster_live.sh next session (the
-Workflow path reads qa.md from disk live; only the Agent-tool type snapshots). historical_macro FROZEN.
+LIVE Layer-2/4 code but **flag-gated DARK-until-token** (`skill_modification_review_enabled=False` default → OFF is
+byte-identical to today; proven by a flag-OFF test). The review is FAIL-CLOSED + can ONLY BLOCK a bad
+self-modification, never force one (rider-trap #1: gate the forward write only, never the revert). NO risk-limit
+VALUE change (adds a guard). Metered review LLM call fires ONLY when a proposal exists (i.e. the skill_opt loop is
+already spending) AND the flag is ON — so OFF = $0-delta. Reuse directive_review's proven fail-closed shape. Docs
+are ADDITIVE; the >=5-source floor + recency scan stay HARD. historical_macro FROZEN; harness stays 3 agents.
+Independent Q/A REQUIRED (live code) — verdict transcribed VERBATIM + persisted as evaluator_critique.json (71.3).
+**No agent-file edit** (researcher.md IS an agent file → separation-of-duties + roster note in harness_log).
 
 ## References
-research_brief_71.3.md; design_harness_mas_71.md §71.3 (kept #6+#8b, DROP #8a); harness_proposals.json;
-arXiv:2505.19477 + arXiv:2508.06709; qa-verdict.js VERDICT_SCHEMA; live_check_gate.py (mirror pattern).
+research_brief_71.4.md; design_harness_mas_71.md §71.4 (kept #7/#11); harness_proposals.json; directive_review.py
+(reuse template); Anthropic building-effective-agents (evaluator-optimizer) + multi-agent-research (doer/judge).

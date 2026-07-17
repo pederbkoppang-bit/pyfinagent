@@ -1,5 +1,5 @@
 {
-  "step_id": "71.3",
+  "step_id": "71.4",
   "cycle_num": 1,
   "ok": true,
   "verdict": "PASS",
@@ -9,15 +9,18 @@
   "violation_details": [],
   "checks_run": {
     "immutable_verification_command_exit": 0,
-    "bash_n_auto_commit_and_push": "ok",
-    "pytest_verdict_gate": "9 passed",
     "ruff_F821_F401_F811": "clean",
-    "negation_grep_NOT_the_N_IDENTICAL": 1,
-    "harness_compliance": "5/5",
-    "git_scope_no_production_change": true,
-    "contract_completeness_map_3criteria": "3/3",
-    "adversarial_worst_of_lenses": "PASS"
+    "pytest": "25 passed (14 new + 11 skill_optimizer regression)",
+    "flag_default": false,
+    "apply_modification_insertion_before_write_after_mechanical": true,
+    "revert_path_untouched": true,
+    "modifiable_set_narrow_not_widened": true,
+    "fail_closed_paths": "None/raise/non-dict/missing-dim/out-of-range -> REJECT",
+    "directive_review_pattern_reuse": true,
+    "coverage_gate_docs_floor_preserved": true,
+    "no_risk_paper_frontend_changes": true,
+    "harness_compliance": "5/5"
   },
-  "reason": "All 3 immutable criteria MET; harness 5/5; the dropped #8a is explicitly negated (not re-introduced); contract-completeness dimension + adversarial worst-of-N-LENSES leg added WITHIN the single Q/A role; fail-open verdict_gate.py + wiring + 9 tests; no unintended production change.",
-  "notes": "Run wf_5151330f-21f. Non-blocking: inherited gate WARN-string precision (fail-open guaranteed by trap 'exit 0'); separation-of-duties/verify_qa_roster_live.sh actioned in harness_log; evaluator_critique.md overwritten. Persisted by Main from the Q/A return value (Q/A read-only)."
+  "reason": "All 3 immutable criteria MET; independent FAIL-CLOSED review before the write (gates only the forward write, revert untouched); rejects weakening/mismatched diffs; LLM-error fails closed; flag default OFF byte-identical (proven); modifiable set NOT widened (safe/tighter); coverage-gate docs preserve the >=5 floor; reuses directive_review; no risk threshold moved.",
+  "notes": "Run wf_cfdffc39-224. Flag-gated DARK (skill_modification_review_enabled=False). LOG-step: separation-of-duties + verify_qa_roster_live.sh (edits researcher.md). FO-71.4-A: optional flag-ON+ACCEPT->write integration test. Persisted by Main from the Q/A return value (Q/A read-only)."
 }

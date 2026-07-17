@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-17T14:58:04.008135+00:00",
+  "updated_at": "2026-07-17T15:31:50.254852+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15845,7 +15845,7 @@
         },
         {
           "id": "71.4",
-          "status": "pending",
+          "status": "done",
           "name": "P2 -- evaluator-optimizer for the self-improvement loops + loop-until-dry coverage. Insert an independent directive_review-style adversarial evaluator between skill_optimizer.propose_skill_modification and apply_modification (skill_optimizer.py:300-451): score the proposed prompt diff on alignment (preserves placeholders/schema), safety (no constraint weakened vs the RULES given), proportionality, and factuality (description matches the actual diff); reject-and-skip below threshold; fail-closed on LLM error. Add a loop-until-dry completeness-critic pass for audit-class steps + turn the research gate's fixed source-count floor into an adaptive coverage gate (keep discovering until K rounds add nothing new, floor still >=5).",
           "harness_required": true,
           "priority": "P2",

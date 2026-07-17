@@ -521,6 +521,20 @@ Every `researcher` spawn (any tier) must:
    `recency_scan_performed`, `gate_passed`.
 4. Return `gate_passed: false` when fewer than 5 sources were
    fetched in full, rather than padding the brief.
+5. **(phase-71.4) Adaptive coverage gate for audit-class steps.**
+   The >=5 floor is a FLOOR, not a ceiling. For audit-class steps
+   (unknown-denominator "find every X" audits, marked by the caller
+   via `coverage.audit_class`), the envelope carries a `coverage`
+   object and the researcher runs a **loop-until-dry** completeness
+   critic: keep fetching until K consecutive rounds (default K=2)
+   surface zero new read-in-full findings, then set `coverage.dry`.
+   `gate_passed` for an audit-class step ADDITIONALLY requires
+   `coverage.dry == true`. The floor is only ever ADDED to, never
+   lowered (an audit at 4 sources still FAILS). Grounded in Anthropic
+   multi-agent-research ("decides whether more research is needed") +
+   harness-design hard-threshold-or-fail loop. How-to:
+   `.claude/rules/research-gate.md` "Adaptive coverage gate"; enforced
+   spec: `.claude/agents/researcher.md` "Adaptive coverage".
 
 ### Consequences
 

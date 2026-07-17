@@ -161,10 +161,40 @@ read-in-full set. The snippet-only set is the remaining URLs --
 recorded in its own table so auditors can see what was evaluated
 vs what was read.
 
+## Adaptive coverage gate (audit-class steps) -- phase-71.4
+
+The `>=5`-source floor is a FLOOR, not a ceiling. For **audit-class**
+steps (unknown-denominator audits -- "find every X" / "audit the whole
+surface"), a fixed source count under-covers the tail. The caller marks
+the step audit-class in the spawn prompt (`coverage.audit_class = true`;
+orthogonal to `tier`); the researcher never self-declares it to escape
+the loop.
+
+Mechanics -- a **loop-until-dry** completeness critic that runs AFTER
+the floor is met:
+
+- Keep running extra search/fetch rounds. A round is **dry** when it
+  surfaces ZERO new read-in-full findings beyond de-dup.
+- Stop when `dry_rounds >= K_required` (default **K=2**), then set
+  `coverage.dry = true`.
+- For an audit-class step, `gate_passed` ADDITIONALLY requires
+  `coverage.dry == true`.
+
+**The floor is preserved, never lowered.** `coverage` can only ADD a
+requirement: an audit-class step at 4 sources + K dry rounds still
+FAILS because `external_sources_read_in_full >= 5` stays a hard
+requirement. For non-audit steps `coverage` is informational only. This
+mirrors Anthropic multi-agent-research ("the LeadResearcher ... decides
+whether more research is needed") + the harness-design
+hard-threshold-or-fail loop. The enforced envelope spec + gate logic
+live in `.claude/agents/researcher.md` ("Adaptive coverage (audit-class
+steps)"); do not duplicate the field list here.
+
 ## JSON envelope (always emit)
 
 Every brief ends with this envelope, even when the caller does not
-ask for it:
+ask for it (the `coverage` object is added for audit-class steps; see
+`.claude/agents/researcher.md` for its shape):
 
 ```json
 {
@@ -180,7 +210,8 @@ ask for it:
 
 `gate_passed: true` iff `external_sources_read_in_full >= 5` AND
 `recency_scan_performed == true` AND every hard-blocker checklist
-item is satisfied.
+item is satisfied AND (the step is not audit-class OR `coverage.dry ==
+true`).
 
 ## Write-first discipline
 
