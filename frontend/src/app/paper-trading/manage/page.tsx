@@ -27,7 +27,7 @@ import {
 import type { FullSettings } from "@/lib/types";
 
 export default function ManagePage() {
-  const { refresh } = usePaperTradingData();
+  const { refresh, portfolio } = usePaperTradingData();
 
   const [manageSettings, setManageSettings] = useState<FullSettings | null>(null);
   const [manageDirty, setManageDirty] = useState<Partial<FullSettings>>({});
@@ -211,8 +211,11 @@ export default function ManagePage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <ReadOnlyField
               label="Starting capital"
-              value={`$${(manageSettings.paper_starting_capital ?? 10000).toLocaleString()}`}
-              hint="Adjust via Top up fund (deposit only)."
+              // phase-70.5: show the LIVE BQ paper_portfolio.starting_capital (which a
+              // Top-up updates), not the immutable .env config value -- the two diverge
+              // after a deposit. refresh() updates portfolio live after a deposit.
+              value={`$${(portfolio?.starting_capital ?? manageSettings.paper_starting_capital ?? 10000).toLocaleString()}`}
+              hint="Reflects deposits (Top up fund). Total P&L % is measured against this."
             />
             <div className="md:col-span-2 flex items-start gap-3 rounded-lg border border-navy-700 bg-navy-800/40 p-3">
               <input
@@ -257,6 +260,7 @@ export default function ManagePage() {
             <PaperSettingNum label="Daily loss limit (%)" field="paper_daily_loss_limit_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0.5} max={25} step={0.5} onValidity={handleFieldValidity} />
             <PaperSettingNum label="Trailing drawdown limit (%)" field="paper_trailing_dd_limit_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={1} max={50} step={0.5} onValidity={handleFieldValidity} />
             <PaperSettingNum label="Min cash reserve (%)" field="paper_min_cash_reserve_pct" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={50} step={0.5} onValidity={handleFieldValidity} />
+            <PaperSettingNum label="Daily run hour (ET, 0-23)" field="paper_trading_hour" settings={manageSettings} dirty={manageDirty} setDirty={setManageDirty} min={0} max={23} step={1} hint="Reschedules the daily cron on save (no restart needed)." onValidity={handleFieldValidity} />
           </div>
         )}
       </div>

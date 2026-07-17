@@ -1322,6 +1322,32 @@ def _add_scheduler_job(settings):
     )
 
 
+def reschedule_paper_job(settings) -> bool:
+    """phase-70.5: re-add the daily cron with the (possibly changed) paper_trading_hour
+    so a PUT /api/settings/ that changes the hour takes effect WITHOUT a backend restart.
+
+    Reuses _add_scheduler_job -> add_job(replace_existing=True), which builds a FRESH
+    cron trigger and recomputes next_run_time (deliberately NOT modify_job, which leaves
+    a stale next_run_time on a later->earlier trigger swap -- APScheduler GH#234). GUARDED
+    so a settings PUT never CREATES the job when paper trading is disabled (no live job ->
+    no-op). Fail-open: any error is logged, never propagated (must not 500 the save).
+    Returns True iff the job was rescheduled.
+    """
+    if not (_scheduler and _scheduler.get_job(_scheduler_job_id)):
+        return False
+    try:
+        _add_scheduler_job(settings)
+        job = _scheduler.get_job(_scheduler_job_id)
+        logger.info(
+            "phase-70.5: rescheduled paper cron to hour=%s ET (next_run=%s)",
+            settings.paper_trading_hour, getattr(job, "next_run_time", None),
+        )
+        return True
+    except Exception as e:
+        logger.error("phase-70.5: reschedule_paper_job failed (fail-open): %r", e)
+        return False
+
+
 async def _scheduled_run():
     """Wrapper for the scheduler (APScheduler calls this)."""
     settings = get_settings()

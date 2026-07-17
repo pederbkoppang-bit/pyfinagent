@@ -1,70 +1,68 @@
-# Contract — step 70.4 (S3: un-gate throughput — surface + reconcile the silent BUY-gates)
+# Contract — step 70.5 (General/observability polish: deposit-aware Starting-capital + cron reschedule)
 
-**Phase:** phase-70 | **Step:** 70.4 | **Priority:** P2 | harness_required: true
-**Cycle:** 1 | Date: 2026-07-17 | **Type:** backend observability (always-on, $0) + 2 flag-gated behavior knobs
-(default-OFF). live_check: none (no UI).
+**Phase:** phase-70 (LAST step) | **Step:** 70.5 | **Priority:** P3 | harness_required: true
+**Cycle:** 1 | Date: 2026-07-17 | **Type:** frontend (UI) + backend. $0, paper-only. live_check: Playwright
+capture of the Starting-capital display post/with-deposit.
 
 ## Research-gate summary (gate PASSED)
 
-Researcher via Workflow structured-output (Opus 4.8, $0). Envelope: **gate_passed=true**, tier=complex,
-**8 external sources read in full**, 26 snippet-only, 34 URLs, recency scan performed, 6 internal files
-re-anchored on HEAD d0efa50d. Brief: `research_brief_70.4.md`. Grounding: SEC Rule 15c3-5 (rejections are
-auditable first-class events); arXiv 2603.07752 (rejection tolerance is a first-class MEASURED state; silent
-rejections hurt throughput); LLM cost-observability practice (surface budget truncation, never silent).
+Researcher via Workflow structured-output (Opus 4.8, $0). Envelope: **gate_passed=true**, tier=moderate,
+**6 external sources read in full**, 11 snippet-only, 17 URLs, recency scan performed, 10 internal files
+re-anchored on HEAD 03414593. Brief: `research_brief_70.5.md`. Grounding: APScheduler 3.x docs (reschedule via a
+fresh trigger; `modify_job` leaves a stale `next_run_time` on a trigger swap — GH#234, so reuse
+`add_job(replace_existing=True)`); Smashing/NN-g dashboard heuristics (show the live/effective value, never a
+stale configured value; label non-live values honestly).
 
 ## Confirmed on HEAD
 
-- **Session budget**: `_SESSION_BUDGET_USD=$1.00` (autonomous_loop.py:90, hidden module const) is HALF the
-  operator-visible `paper_max_daily_cost_usd=$2.00` and fires first; `_check_session_budget` (:95-105) raises
-  `BudgetBreachError` with NO log; captured under `gather(return_exceptions=True)` (:1090/:1097) then dropped by
-  the `isinstance(r,dict)` filter (:1094/:1101) → silent truncation (never reaches the clean halt at :1585).
-- **Price-tolerance** (paper_trader.py:169-193): ALREADY logs ticker+drift (:188) AND is ALREADY tunable via
-  `paper_price_tolerance_pct` (settings.py:557). Gap: the WARN-only `return None` is UN-COUNTED; the caller
-  (autonomous_loop.py:1468 `if trade:`) is a silent no-op → 0-trade cycles un-attributable at the summary layer.
-- **Lite parse-fail** (autonomous_loop.py:2399): the parse-fail else-branch defaults `{HOLD, score:5}` with no
-  log; the returned lite dict has no top-level `confidence`, so `_degraded_scoring_check` (:2108) sees score 5 ≠ 0
-  and conf None → it EVADES the degraded guard and masquerades as a genuine HOLD (silently suppresses a BUY).
+- `FullSettings.paper_starting_capital` (settings_api.py:362) is the .env CONFIG (immutable at runtime), but
+  `deposit_funds` upserts `paper_portfolio.starting_capital` in BQ (paper_trading.py:1249) — they diverge after a
+  Top-up, and the Manage page renders the stale config (manage/page.tsx:214) with a hint that falsely implies it
+  tracks deposits. BQ truth is already exposed via the paper-trading context (`portfolio.starting_capital`).
+- `paper_trading_hour` (settings.py:368, default 10) is captured ONCE at startup (`_add_scheduler_job` :1305) and
+  is NOT writable (absent from `SettingsUpdate` :156-170, `_FIELD_TO_ENV` :295, `FullSettings`).
 
-## Hypothesis / design
+## Design (minimal correct)
 
-ALWAYS-ON observability ($0, no threshold moved): **G1-A** log at the budget raise; **G1-B** scan the raw gather
-results for `BudgetBreachError` before the isinstance filter → `summary['session_budget_breach'/…]` + WARN;
-**G2-A** a `PaperTrader.buy_rejections` accumulator (append `{ticker,reason,divergence_pct,…}` at the
-price-tolerance `return None` + the other None-exits) folded into `summary['buy_rejections']` + by-reason count;
-**G3-A** log WARN at the parse-fail + set `_parse_failed=True` on the returned dict + fix the mislabeled INFO log
-(:2401); **G3-B** extend `_degraded_scoring_check` to count `_parse_failed`/`_degraded` + `summary['lite_parse_failures']`
-(affects ONLY the P1 degraded-scoring alert, NOT any trade).
+**#17 Starting capital — UI-only:** destructure `portfolio` from `usePaperTradingData()` and render
+`portfolio?.starting_capital ?? manageSettings.paper_starting_capital ?? 10000` in the ReadOnlyField; `refresh()`
+(page.tsx:86) updates it live after a deposit. Correct the hint to the truth. No backend/no new fetch.
 
-FLAG-GATED behavior changes (default-OFF → byte-identical): **G1-C** new `paper_session_budget_reconcile_enabled`
-→ effective session budget = `paper_max_daily_cost_usd` when ON (single knob, session==daily==$2), else $1.00
-(cost knob only, NO risk threshold moved); **G3-C** reuse the EXISTING `paper_synthesis_integrity_enabled` → set
-`_degraded=True` on a parse-fail so the unconditional guard (:1080) drops it from decide_trades input (fail-safe:
-removing a spurious neutral can never create a BUY; a genuine parsed HOLD is untouched).
+**#15 Cron reschedule — backend + frontend:** add `paper_trading_hour` to `SettingsUpdate` (Field(None, ge=0,
+le=23)), `_FIELD_TO_ENV` (`PAPER_TRADING_HOUR`), `FullSettings` + `_settings_to_full`; in `update_settings`, after
+`get_settings.cache_clear()` + fresh `get_settings()`, if `paper_trading_hour` is in the body call a NEW
+`reschedule_paper_job(settings)` in paper_trading.py — it reuses `_add_scheduler_job(settings)`
+(`add_job(replace_existing=True)` → fresh trigger + recomputed `next_run`), GUARDED by
+`_scheduler and _scheduler.get_job('paper_trading_daily')` (never creates the job when paper trading is off),
+fail-open (a reschedule error must never 500 the save). Frontend: add a 0–23 hour `PaperSettingNum` to the Manage
+grid + extend `FullSettings`/`PaperNumKey` TS types.
 
-## Immutable success criteria (verbatim from masterplan.json 70.4)
+## Immutable success criteria (verbatim from masterplan.json 70.5)
 
-1. The per-cycle session budget and the operator-visible daily cost cap are reconciled (no hidden budget that is
-   a fraction of the visible cap) OR the hidden budget is surfaced to the operator and logged on breach -- a
-   cost-cut cycle is never silent
-2. Price-tolerance rejections are logged with ticker + drift so 0-trade cycles are diagnosable, and the tolerance
-   is tunable via settings
-3. A lite-analyzer parse/rail failure is logged and counted as degraded (does not masquerade as a legitimate HOLD
-   via a default score=5) so it cannot silently suppress BUYs
-4. Any threshold that changes trading behavior is flag-gated default-OFF; observability additions are always-on and $0
+1. The Manage-page Starting capital reflects deposits (matches paper_portfolio.starting_capital after a Top-up),
+   OR the label is corrected to state it is the configured base -- no UI value that silently diverges from the BQ
+   truth
+2. Changing paper_trading_hour via the settings surface reschedules the APScheduler job without a backend restart
+   (verified by the job's next_run reflecting the new hour)
+3. No regression to the fresh-per-cycle reading of the position/sector caps
 
 Verification command (immutable):
-`bash -c 'grep -Eqi "session budget|per-cycle|cost cap" backend/services/autonomous_loop.py && ls backend/tests/ | grep -Eqi "70_4|budget|tolerance|gate"'`
+`bash -c 'grep -Eqi "paper_trading_hour" backend/api/settings_api.py backend/api/paper_trading.py && python -c "import ast; ast.parse(open(\'backend/api/paper_trading.py\').read())"'`
+Live check: `live_check_70.5.md` with a Playwright capture of the Starting-capital display post-deposit.
 
 ## Plan
-2 (this contract). 3. GENERATE: settings.py (new paper_session_budget_reconcile_enabled); autonomous_loop.py
-(G1-A/B/C, G3-A/B/C, fold buy_rejections into summary); paper_trader.py (G2-A buy_rejections accumulator);
-test test_phase_70_4_gate_observability.py. Verify: command + import-smoke + pytest. 4. Q/A (Workflow). 5. LOG. 6. FLIP.
+2 (this contract). 3. GENERATE: manage/page.tsx (Starting-capital re-fetch + hint + hour input); settings_api.py
+(SettingsUpdate/_FIELD_TO_ENV/FullSettings/_settings_to_full + reschedule call); paper_trading.py
+(reschedule_paper_job); types.ts + cockpit-helpers.tsx PaperNumKey (paper_trading_hour); test
+test_phase_70_5_reschedule.py. Verify: command + import-smoke + `npx tsc --noEmit` (NEVER npm run build — clobbers
+the live :3000 dev server) + pytest. Live Playwright capture (skip-auth :3100). 4. Q/A + live gate. 5. LOG. 6. FLIP.
 
 ## Boundaries (binding)
-$0 metered; observability always-on; behavior changes flag-gated default-OFF (byte-identical OFF); NO risk-limit
-threshold moved; historical_macro FROZEN; hysteresis untouched; fail-safe; harness stays 3 agents.
+$0; paper-only; NO risk threshold moved; NO regression to fresh-per-cycle cap reads (do NOT cache settings for the
+cycle body or move cap reads into _add_scheduler_job); historical_macro FROZEN; reschedule fail-open; frontend
+rules (no emoji, Phosphor, navy/slate); harness stays 3 agents.
 
 ## References
-research_brief_70.4.md; design_trade_diversity_70.md (c); confirmed_findings.json (#6/#7/#8). Code:
-autonomous_loop.py:90/95-105/335/1037-1101/1103-1131/2108-2135/2395-2401/2493-2516, paper_trader.py:169-193/1445-1469,
-settings.py:371/557.
+research_brief_70.5.md; confirmed_findings.json (#15/#17). Code: settings_api.py:156-170/295/362/445,
+paper_trading.py:38/1249/1289-1322, manage/page.tsx:30/212-216, cockpit-helpers.tsx:433, types.ts:570/617,
+config/settings.py:368.

@@ -440,7 +440,8 @@ export type PaperNumKey =
   | "paper_transaction_cost_pct"
   | "paper_daily_loss_limit_pct"
   | "paper_trailing_dd_limit_pct"
-  | "paper_min_cash_reserve_pct";
+  | "paper_min_cash_reserve_pct"
+  | "paper_trading_hour";  // phase-70.5
 
 export function PaperSettingNum({
   label,

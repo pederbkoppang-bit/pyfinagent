@@ -98,7 +98,8 @@ class FullSettings(BaseModel):
     meta_scorer_model: str = "claude-haiku-4-5"
     meta_scorer_max_batch: int = 30
     # phase-23.1.9 — Paper trading settings
-    paper_starting_capital: float = 10000.0  # informational read-only
+    paper_starting_capital: float = 10000.0  # informational read-only (.env base; live value is paper_portfolio.starting_capital)
+    paper_trading_hour: int = 10  # phase-70.5: daily cron hour (ET, 0-23); writable + reschedules the job
     paper_max_positions: int = 10
     paper_max_per_sector: int = 2  # phase-23.1.13
     paper_markets: list[str] = ["US"]  # phase-50.6: live-loop markets (subset of US/EU/KR)
@@ -168,6 +169,9 @@ class SettingsUpdate(BaseModel):
     paper_use_claude_code_route: Optional[bool] = None
     # phase-cycle-7 (38.12, 2026-05-27): cycle wall-clock budget.
     paper_cycle_max_seconds: Optional[float] = Field(None, ge=300.0, le=21600.0)
+    # phase-70.5: daily-run hour (ET, 0-23). A change reschedules the APScheduler job
+    # in-place (no restart). Does NOT affect the fresh-per-cycle cap reads.
+    paper_trading_hour: Optional[int] = Field(None, ge=0, le=23)
 
 
 class ModelConfigUpdate(BaseModel):
@@ -292,6 +296,7 @@ _FIELD_TO_ENV = {
     "meta_scorer_model": "META_SCORER_MODEL",
     "meta_scorer_max_batch": "META_SCORER_MAX_BATCH",
     # phase-23.1.9 — Paper trading settings
+    "paper_trading_hour": "PAPER_TRADING_HOUR",  # phase-70.5
     "paper_max_positions": "PAPER_MAX_POSITIONS",
     "paper_max_per_sector": "PAPER_MAX_PER_SECTOR",  # phase-23.1.13
     "paper_markets": "PAPER_MARKETS",  # phase-50.6 (serialized as CSV; settings.py validator parses)
@@ -360,6 +365,7 @@ def _settings_to_full(s: Settings) -> FullSettings:
         meta_scorer_max_batch=int(getattr(s, "meta_scorer_max_batch", 30)),
         # phase-23.1.9 Paper trading settings
         paper_starting_capital=float(getattr(s, "paper_starting_capital", 10000.0)),
+        paper_trading_hour=int(getattr(s, "paper_trading_hour", 10)),  # phase-70.5
         paper_max_positions=int(getattr(s, "paper_max_positions", 10)),
         paper_max_per_sector=int(getattr(s, "paper_max_per_sector", 2)),  # phase-23.1.13
         paper_markets=list(getattr(s, "paper_markets", ["US"]) or ["US"]),  # phase-50.6
@@ -445,6 +451,15 @@ async def update_settings(body: SettingsUpdate):
     get_settings.cache_clear()
     get_api_cache().invalidate("settings:*")
     settings = get_settings()
+
+    # phase-70.5: reschedule the daily cron in-place when paper_trading_hour changed, so
+    # the new hour takes effect WITHOUT a backend restart. Fail-open (never 500 the save).
+    if "paper_trading_hour" in updates:
+        try:
+            from backend.api.paper_trading import reschedule_paper_job
+            reschedule_paper_job(settings)
+        except Exception as e:
+            logger.error("phase-70.5: paper cron reschedule failed (fail-open): %r", e)
 
     logger.info("Settings updated: %s", list(updates.keys()))
     return _settings_to_full(settings)

@@ -567,7 +567,8 @@ export interface FullSettings {
   meta_scorer_model?: string;
   meta_scorer_max_batch?: number;
   // phase-23.1.9 — Paper trading settings
-  paper_starting_capital?: number;  // read-only after init; mutated only via deposit
+  paper_starting_capital?: number;  // .env config base; the LIVE value is paper_portfolio.starting_capital (updated by deposits)
+  paper_trading_hour?: number;  // phase-70.5: daily cron hour (ET, 0-23); a change reschedules the job
   paper_max_positions?: number;
   paper_max_per_sector?: number;  // phase-23.1.13
   paper_markets?: string[];  // phase-50.6: live-loop markets (subset of US/EU/KR)

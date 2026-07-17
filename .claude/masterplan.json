@@ -15745,7 +15745,7 @@
         },
         {
           "id": "70.5",
-          "status": "pending",
+          "status": "done",
           "name": "General/observability polish. Make the Manage-page 'Starting capital' display reflect deposits (settings-config vs BQ paper_portfolio.starting_capital divergence, settings_api.py:362 / deposit path paper_trading.py:1249). Reschedule the APScheduler cron when paper_trading_hour changes on PUT /api/settings/ so a changed daily-run hour takes effect without a backend restart (paper_trading.py:1305; replace_existing already idempotent). Note: this is scoped to the cron HOUR only -- the position/sector caps are already re-read fresh each cycle (audit-confirmed, ruling the scheduler out as the S1 cause).",
           "harness_required": true,
           "priority": "P3",
