@@ -1,51 +1,93 @@
-# Evaluator Critique — Step 63.1 (Playwright walk of all 22 routes)
+# Evaluator Critique — Step 64.1 (Functional-E2E Playwright project + smoke)
 
 **Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8,
-`effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted
-to `handoff/current/evaluator_critique.json`. Run `wf_56f4e47d-f42`.
+`effort:max`, `model:opus`, $0 Max rail). Verdicts transcribed VERBATIM by Main + persisted to
+`handoff/current/evaluator_critique.json`.
 
-## Verdict (transcribed VERBATIM)
+## Cycle 1 — verdict (transcribed VERBATIM; run wf_7f1eca97-1bd)
+
+**verdict: CONDITIONAL** | ok: false | harness_compliance_ok: true | certified_fallback: false
+
+**violated_criteria:** ["Unjustified_Inference: visual-regression CI decoupling claim -- functional project runs
+under bare `npx playwright test` (visual-regression.yml lines 62/75, CI, no LIGHTHOUSE_SKIP_AUTH) and fails against a
+:3100 that path never starts"]
+
+**reason (verbatim):** All 3 immutable criteria MET and do-no-harm to operator :3000 is fully clean, but the
+experiment_results' load-bearing claim "no CI regression to visual-regression.yml (runs `npx playwright test` without
+--project)" is materially INACCURATE, so PASS would rubber-stamp a falsified overclaim. Criteria evidence: (1)
+functional project exists with testDir ./tests/e2e-functional and ZERO screenshot assertions MET; (2) immutable
+command exited 0 with "1 passed" reproduced 4x by me plus author's 4x MET; (3) NEXT_PUBLIC_E2E_TESTING injected in the
+:3100 webServer env MET. Do-no-harm verified independently: :3000 /login=200 and /=302 before AND after every run,
+next-env.d.ts/tsconfig.json git-clean after (teardown restored to .next), next.config.js has NO distDir key when
+PLAYWRIGHT_DIST_DIR unset (byte-identical prod/CI), :3100 torn down. THE GAP: `npx playwright test --list` (CI path,
+no LIGHTHOUSE_SKIP_AUTH) enumerates 9 tests across BOTH projects incl. [functional] smoke.spec.ts; that path's
+webServer ternary starts ONLY :3000, so the functional smoke (baseURL :3100) runs against a down :3100 and FAILS.
+visual-regression.yml lines 62 & 75 run bare `npx playwright test` (CI=true) and trigger on push/PR to main with paths
+frontend/** -> that CI step would go red. The webServer ternary decouples the SERVER but not TEST SELECTION (functional
+project is unconditionally in projects[]). Fix: gate the functional project behind LIGHTHOUSE_SKIP_AUTH (mirror the
+webServer ternary) OR scope visual-regression.yml to --project=chromium, and correct the experiment_results claim; then
+re-spawn a fresh Q/A on changed evidence.
+
+**notes (verbatim, abridged):** Harness-compliance 5/5 clean (research-before-contract gate_passed; mtime ordering;
+results present incl. the required incident disclosure; log-last; cycle 1 no verdict-shopping). The honest INCIDENT
+disclosure (intermediate global webServer array ran predev rm -rf .next against :3000 -> 500/404, recovered +
+permanently isolated) is correct scope-honesty and the FINAL state is verified do-no-harm-clean; that disclosure is
+NOT the basis for the CONDITIONAL. The CONDITIONAL rests SOLELY on the falsified 'no CI regression' claim + the
+concrete latent breakage of visual-regression.yml's bare `npx playwright test`. Recommended fix is a ~3-line change
+(conditional projects[] gated on LIGHTHOUSE_SKIP_AUTH) that preserves all 3 criteria (the immutable command sets
+LIGHTHOUSE_SKIP_AUTH=1 so functional stays present) while eliminating the regression.
+
+## Cycle 2 — Main's disposition (record; the fix), fresh Q/A being spawned
+
+The CONDITIONAL is a CORRECT, valuable catch (a real latent CI regression + a falsified claim). Fix applied (the
+Q/A's recommended ~3-line change):
+- **`playwright.config.ts`**: the functional PROJECT is now also gated on `LIGHTHOUSE_SKIP_AUTH`
+  (`...(process.env.LIGHTHOUSE_SKIP_AUTH ? [functionalProject] : [])`), mirroring the webServer ternary. VERIFIED: bare
+  `npx playwright test --list` → **[functional] count = 0** (8 chromium tests only); `LIGHTHOUSE_SKIP_AUTH=1 ... --list`
+  → functional smoke present. So the visual-regression CI never enumerates/runs the functional smoke → no regression.
+  (Also fixed a tsc widening error the gating exposed: `reducedMotion: "reduce" as const`.)
+- **`experiment_results.md`**: corrected the decoupling claim to the accurate `--list`-verified statement (both the
+  project AND its webServer are gated; bare run = 0 functional tests).
+- Re-verified: immutable cmd exit 0 ("1 passed"); :3000 /login 200 before+after (untouched); next-env.d.ts/tsconfig
+  git-clean; tsc exit 0.
+
+This is the canonical cycle-2 flow: Main fixed the blocker + updated the handoff files; a FRESH independent Q/A now
+judges the CHANGED evidence (NOT verdict-shopping — the config + claim genuinely changed). The new verdict is
+transcribed VERBATIM below.
+
+## Cycle 2 — fresh Q/A verdict (transcribed VERBATIM; run wf_4f659b10-c51)
 
 **verdict: PASS** | ok: true | harness_compliance_ok: true | certified_fallback: false | violated_criteria: []
 
-**reason (verbatim):** All 3 immutable criteria MET with covering evidence. (1) 22/22 page.tsx routes visited via
-playwright core against the :3100 LIGHTHOUSE_SKIP_AUTH bypass (login_redirect_count=0, all HTTP 200), including the
-concrete dynamic route /sovereign/strategy/baseline (200, clean). (2) 22 valid full-page PNG screenshots + per-route
-console/page-error/failed-request arrays; walk_summary.json enumerates routes_visited=22,
-console_error_routes=['/agent-map'], failed_request_routes=[]. (3) route_list_delta empty and independently
-reconciled (my own find of frontend/src/app gives 22 page.tsx == 22 visited; only [...nextauth] catch-all is an API
-handler, correctly excluded). Deterministic: immutable cmd exit 0; node --check + eslint on route_walk.mjs exit 0; git
-shows NO backend/ or frontend/src change (only handoff docs + hook-written audit logs + the new checked-in audit
-script + evidence artifacts). The /agent-map 120 React-Flow null-source-handle warnings are a REAL defect
-(corroborated against AgentMap.tsx:270 edge id `${e.from}-${e.to}` with no sourceHandle -> RF error #008), correctly
-RECORDED not fixed per the 63.1 audit boundary (fixes are 63.4 post-66.2). Harness compliance 5/5; the walk script is
-read-only; operator :3000 untouched.
+**reason (verbatim):** All 3 immutable criteria MET on CHANGED (cycle-2) evidence, and the Cycle-1 CONDITIONAL's sole
+basis -- the falsified 'no CI regression' claim -- is now ELIMINATED and independently reverified. (1) The functional
+project exists in playwright.config.ts (name:'functional', testDir './tests/e2e-functional') with ZERO screenshot
+assertions. (2) The immutable command exited 0 with '1 passed (6.3s)', reproduced by me against a freshly-started
+:3100 auth-bypass server (:3100 was down pre-run, Playwright started+tore it down). (3) NEXT_PUBLIC_E2E_TESTING is
+injected in the :3100 webServer env matching the existing config note; honestly disclosed to have NO app consumer
+today so the <60s smoke cannot flake. CI-REGRESSION FIX VERIFIED: bare `npx playwright test --list` (the exact
+visual-regression.yml path, CI=true, no env) enumerates 8 chromium tests and [functional] count = 0 -- the corrected
+experiment_results claim matches exactly. DO-NO-HARM clean: :3000 login=200/root=302 before AND after; next-env.d.ts +
+tsconfig.json git-clean post-run (teardown restored); :3100 torn down. NO unintended production change (git diff:
+next.config.js conditional distDir UNSET by default -> byte-identical, and playwright.config.ts functional project +
+webServer both gated on LIGHTHOUSE_SKIP_AUTH; new tests/e2e-functional/ + .gitignore + handoff docs). tsc exit=0,
+eslint exit=0.
 
-**notes (verbatim):** Harness audit 5/5 (mtime research<contract<code<artifact<results; gate_passed w/ 6 sources +
-recency scan; 0 prior 63.1 verdicts; log-last intact). INDEPENDENT CORROBORATION (not blind JSON trust): (a) 22
-page.tsx on disk exactly match the walk's route list; (b) the sole defect verified against actual source (AgentMap.tsx
-builds RF edges with source:e.from and no sourceHandle -> error #008 for main-researcher/main-qa/etc., exactly the
-observed warnings), so the walk demonstrably ran against the live app. Minor NON-BLOCKING observations: (i) playwright
-core (standalone script) rather than the MCP -- contract-justified (MCP cannot emit the structured JSON); an
-equivalent/stronger live-browser capture, so qa.md 1c's purpose is met; (ii) console_error_routes includes
-warning-type messages -- intentional + honestly labeled, and is the schema-mandated key the immutable command reads;
-(iii) strategy_id_used='baseline' is the honestly-disclosed leaderboard fallback -- a concrete id, route rendered 200,
-so criterion-1's 'one concrete strategy [id]' is satisfied. Mutation-resistance real: the bypass-misfire guard (exit 3)
-+ routes_visited<22 exit-1 are genuine failure paths; login_redirect_count=0 proves the bypass took. Boundaries: $0,
-local-only, read-only audit, :3000 verified 302 before/after (untouched), historical_macro frozen, live book
-untouched, kill-switch/stops/caps/DSR/PBO not touched.
+**notes (verbatim):** CYCLE-2 fresh-respawn on CHANGED evidence (NOT verdict-shopping): projects[] now conditionally
+spreads the functional project on LIGHTHOUSE_SKIP_AUTH + experiment_results corrected the decoupling claim. 3rd-
+CONDITIONAL auto-FAIL NOT triggered. CONCUR WITH CYCLE-1 on the disclosed do-no-harm INCIDENT (predev rm -rf .next
+against :3000 -> 500/404, recovered + permanently isolated) -- honest scope-disclosure, does NOT cap the verdict;
+FINAL state independently reverified clean. ONE NON-BLOCKING observation (register-only): global-teardown.ts restores
+next-env.d.ts/tsconfig.json to HEAD when they contain '.next-functional'; in the narrow case of UNRELATED uncommitted
+tsconfig edits + a functional-suite run, the restore would also discard those edits -- acceptable for best-effort
+local test-infra (try/catch, never throws, inert in CI). Live book untouched; historical_macro FROZEN;
+kill-switch/stops/caps/DSR/PBO untouched.
 
-**checks_run (verbatim, 12):** harness_compliance_audit_5_items, immutable_verification_command_exit0,
-mtime_ordering_research_lt_contract_lt_code_lt_artifact_lt_results, git_status_no_production_change,
-node_check_route_walk_mjs, eslint_route_walk_mjs, screenshots_valid_png_22_nonzero,
-ondisk_route_reconciliation_22_eq_22, agent_map_defect_source_corroboration, script_read_only_audit,
-contract_completeness_mapping_3_criteria, harness_log_no_prior_verdict_cycle1.
-
-Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=63.1, cycle_num=1).
+Full machine-readable verdict persisted to handoff/current/evaluator_critique.json (step_id=64.1, cycle_num=2).
 
 ## Main's disposition
-PASS, violated_criteria=[]. The 3 non-blocking observations are accepted (all sound: playwright-core is
-contract-justified and stronger than code-reading; the warning-inclusive key is the schema key; 'baseline' is a
-concrete id). The Q/A independently reproduced/corroborated the /agent-map defect against source — strong evidence the
-walk ran live. Proceeding to LOG (Cycle 104) then flip 63.1 -> done. The /agent-map defect carries forward to the
-phase-63 defect register (63.3) / fix queue (63.4, post-66.2).
+PASS, violated_criteria=[]. The Cycle-1 CONDITIONAL (a real latent CI regression + a falsified claim) was correctly
+caught and fixed via the ~3-line project-gating change; the fresh Q/A independently reverified the regression is gone
+(bare `--list` → 0 functional). The 1 non-blocking teardown observation is accepted (register-only; best-effort local
+test-infra; inert in CI). Proceeding to LOG (Cycle 105, one entry: result=PASS with the cycle-1 CONDITIONAL noted
+inline) then flip 64.1 -> done.

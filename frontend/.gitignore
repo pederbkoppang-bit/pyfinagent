@@ -1,0 +1,7 @@
+
+# phase-64.1: functional-E2E isolated build dir (playwright :3100 server)
+.next-functional/
+
+# phase-64.1: Playwright run outputs (regenerable)
+playwright-report/
+test-results/

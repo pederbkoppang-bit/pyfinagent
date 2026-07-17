@@ -14888,7 +14888,7 @@
         {
           "id": "64.1",
           "name": "Functional-E2E Playwright project -- new testDir tests/e2e-functional as a second project in frontend/playwright.config.ts; assertion style: primary data region renders, zero console.error, zero 5xx -- NO screenshot comparisons, so the Linux-baseline caveat does not apply and the suite runs on the Mac.",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,

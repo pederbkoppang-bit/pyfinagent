@@ -37,6 +37,9 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   testDir: "./tests/visual-regression",
+  // phase-64.1: restores next-env.d.ts/tsconfig.json if the functional :3100
+  // server (distDir=.next-functional) rewrote them. No-op for the visual run.
+  globalTeardown: "./tests/e2e-functional/global-teardown.ts",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -79,15 +82,72 @@ export default defineConfig({
         },
       },
     },
+    // phase-64.1: the functional-E2E project is INCLUDED only when
+    // LIGHTHOUSE_SKIP_AUTH is set (mirrors the webServer ternary below). A bare
+    // `npx playwright test` (the visual-regression CI path, no such env) then
+    // enumerates ONLY `chromium` and never runs the functional smoke against an
+    // unstarted :3100 -> no regression to visual-regression.yml. The immutable
+    // functional command sets LIGHTHOUSE_SKIP_AUTH=1, so the project IS present
+    // there. NO screenshot assertions, so the Linux visual-baseline caveat
+    // (lines 4-14) does not apply -- this suite runs on the Mac.
+    ...(process.env.LIGHTHOUSE_SKIP_AUTH
+      ? [
+          {
+            name: "functional",
+            testDir: "./tests/e2e-functional",
+            use: {
+              ...devices["Desktop Chrome"],
+              baseURL: "http://localhost:3100",
+              viewport: { width: 1440, height: 900 },
+              // `as const` restores the literal type lost when the project
+              // object sits inside a conditional-spread array (vs. the inline
+              // chromium project, which is contextually typed as Project).
+              contextOptions: {
+                reducedMotion: "reduce" as const,
+              },
+            },
+          },
+        ]
+      : []),
   ],
 
-  webServer: {
-    command: "npm run dev",
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: {
-      NEXT_PUBLIC_E2E_TESTING: "true",
-    },
-  },
+  // phase-64.1: the webServer set is SELECTED by LIGHTHOUSE_SKIP_AUTH so the two
+  // suites are FULLY ISOLATED and never share a managed server:
+  //   * functional command (LIGHTHOUSE_SKIP_AUTH=1) -> ONLY the isolated :3100
+  //     skip-auth server. It deliberately does NOT include the :3000 entry --
+  //     `npm run dev` carries a `predev: rm -rf .next` that must NEVER run
+  //     against the operator's live :3000 (doing so deletes the shared build
+  //     and 500s the running cockpit). `npm run dev` also hardcodes :3000, so
+  //     the :3100 server calls `next dev --port 3100` directly (no predev rm).
+  //   * default / visual-regression (`npx playwright test`, no such env) ->
+  //     ONLY the :3000 dev server, exactly as before (behavior unchanged).
+  // reuseExistingServer reuses an already-running target (operator :3000 or a
+  // live :3100) rather than starting a duplicate.
+  webServer: process.env.LIGHTHOUSE_SKIP_AUTH
+    ? [
+        {
+          command: "npx next dev --port 3100",
+          url: "http://localhost:3100",
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+          env: {
+            LIGHTHOUSE_SKIP_AUTH: "1",
+            NEXT_PUBLIC_E2E_TESTING: "true",
+            // phase-64.1: isolated build dir (next.config.js reads this) so the
+            // :3100 server never shares .next with the operator's :3000.
+            PLAYWRIGHT_DIST_DIR: ".next-functional",
+          },
+        },
+      ]
+    : [
+        {
+          command: "npm run dev",
+          url: BASE_URL,
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+          env: {
+            NEXT_PUBLIC_E2E_TESTING: "true",
+          },
+        },
+      ],
 });
