@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-17 | `0e003e6e` | phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + subagent context-hygiene + dead-dri |
 | 2026-07-17 | `5e88a383` | phase-71.4: independent fail-closed evaluator before skill self-modification + adaptive coverage/loo |
 | 2026-07-17 | `de7e8270` | phase-71.3: harden Q/A judgment (contract-completeness + adversarial N-lens) + machine-readable verd |
 | 2026-07-17 | `21c49817` | phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-11 | `b25aeab2` | phase-69.3: P1 signal integrity + first $0 free-data alpha lift (LIVE, flag-gated; historical_mac... |
 | 2026-07-11 | `36e4c288` | phase-69.1: P0 book-safety (money-path code; register items 1-4) -- each with a red->green reprod... |
 | 2026-07-11 | `087ce360` | phase-69.4: P2 hand-offs (NO execution) -- file every non-owned confirmed defect with its owner: ... |
-| 2026-07-11 | `cbf5cbce` | phase-69.2: P0 gate correctness (OFFLINE backtest/analytics; ZERO live-money surface) -- DSR unit... |
 
 ---
 
+### v6.62.6 — phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + suba... (2026-07-17)
+
+- **phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + subagent context-hygiene + dead-dri**
 ### v6.62.5 — phase-71.4: independent fail-closed evaluator before skill self-modif... (2026-07-17)
 
 - **phase-71.4: independent fail-closed evaluator before skill self-modification + adaptive coverage/loo**
