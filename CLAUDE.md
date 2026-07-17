@@ -239,6 +239,32 @@ These files must exist and be up-to-date BEFORE marking the step
 Returns `{ok, verdict, violated_criteria, violation_details,
 certified_fallback, checks_run}`.
 
+**Launch — Workflow structured-output is FIRST-CLASS; Agent-tool is the
+fallback (phase-71.1).** The primary unattended launch for Q/A (and the
+Researcher gate) is the checked-in `.claude/workflows/qa-verdict.js`
+Workflow script, run via the Workflow tool with `args={step_id,
+criteria[], verification_command, evidence}`. It runs the role as
+`agent(prompt, {schema, agentType:'general-purpose', model:'opus',
+effort:'max'})` and **the verdict is the captured return value** —
+structured-outputs GA (constrained decoding) guarantees the shape, so it
+does NOT depend on a subagent file-write flush. This is the stall-immune
+path (the Agent-tool subagent end-flush stalled 6× on 2026-07-11,
+intermittent + model-agnostic — auto-memory
+`feedback_workflow_qa_when_subagents_stall`); it runs $0 on the Opus Max
+rail. The Agent-tool `qa`/`researcher` subagents are the documented
+**fallback** (and the worktree CI path). **Main MUST transcribe the
+returned verdict VERBATIM** into `handoff/current/evaluator_critique.md`
+(no editorial edits, no paraphrase) — Main records the verdict, never
+authors it, so the no-self-eval guarantee stays airtight. An
+errored/empty return is **NO VERDICT, never PASS** → fall back to the
+Agent-tool path. The Q/A returns a verdict and STOPS; it never loops
+fix→re-grade internally (Main owns the fix + spawns a FRESH Q/A on
+changed evidence — the cycle-2 flow below). Single-Q/A-per-step and the
+exactly-3-agents doctrine are unchanged: the Workflow path is a launch
+mechanism, not a fourth agent. The Workflow launch has the Q/A **read
+`qa.md` from disk at runtime**, so a `qa.md` edit is live immediately on
+this path; only the Agent-tool roster snapshots at session start.
+
 **If `ok: false` / verdict is CONDITIONAL or FAIL — the canonical
 cycle-2 flow (per Anthropic's
 [multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)

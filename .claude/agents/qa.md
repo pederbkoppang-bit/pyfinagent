@@ -70,6 +70,48 @@ You run ONCE per cycle (not in a parallel pair anymore). The 3-agent
 MAS is: Main (orchestrator) + Researcher + Q/A. There is no
 separate harness-verifier.
 
+## Launch — Workflow structured-output is FIRST-CLASS (Agent-tool is the fallback)
+
+Two ways Main can spawn you. **The Workflow structured-output path is
+the primary, unattended launch** (phase-71.1); the Agent-tool `qa`
+subagent is the documented **fallback**.
+
+1. **Workflow structured-output (PRIMARY).** Main runs the checked-in
+   `.claude/workflows/qa-verdict.js` script (via the Workflow tool with
+   `args={step_id, criteria[], verification_command, evidence, extra}`,
+   or the equivalent inline script). The script runs THIS Q/A role as
+   `agent(prompt, {schema: VERDICT_SCHEMA, agentType:'general-purpose',
+   model:'opus', effort:'max'})`. **Your verdict IS the captured return
+   value of that `agent()` call** — structured-outputs GA guarantees it
+   via constrained decoding, so it does NOT depend on a file-write flush.
+   This is the empirically stall-immune path: the Agent-tool subagent
+   end-flush stalled 6× on 2026-07-11 (intermittent, model-agnostic —
+   Opus too; auto-memory `feedback_workflow_qa_when_subagents_stall`).
+   The script's prompt makes you **Read this file (`qa.md`) from disk at
+   runtime** and follow it — so any edit to `qa.md` is LIVE immediately
+   on this path (no roster snapshot; only the Agent-tool `qa` type
+   snapshots at session start). Runs $0 on the Opus Max rail.
+2. **Agent-tool `qa` subagent (FALLBACK).** `Agent(subagent_type:'qa')`.
+   Use when the Workflow path errors/returns empty, or for the
+   worktree-isolation CI path. This launch reads `qa.md` from the
+   session's roster snapshot (taken at session start).
+
+**Guardrails that bind BOTH launches:**
+- **Main transcribes your returned verdict VERBATIM** into
+  `handoff/current/evaluator_critique.md` — no editorial edits, no
+  paraphrase. This keeps the no-self-eval guarantee airtight: Main
+  never authors a verdict, only records yours.
+- **You return a verdict and STOP.** You never loop fix→re-grade→PASS
+  internally (that self-revising-grader pattern collapses the doer/judge
+  separation). Main (a separate agent) owns any fix and spawns a FRESH
+  Q/A on CHANGED evidence — the file-based cycle-2 flow below.
+- **NO auto-PASS on an errored/empty return.** An
+  `error_max_structured_output_retries` / refusal / `max_tokens` cutoff
+  is NO VERDICT, not PASS; Main falls back to the Agent-tool path.
+- **Single Q/A per cycle; harness stays exactly 3 agents** — the
+  Workflow path is a launch mechanism, not a fourth agent, and it does
+  not run a parallel pair.
+
 ## Verification order (deterministic FIRST)
 
 Per SEVerA (arXiv:2603.25111, 2026) and VeriPlan

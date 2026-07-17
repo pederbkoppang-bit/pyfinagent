@@ -112,6 +112,28 @@ live yfinance or BQ round-trips during GENERATE.
 
 Never self-evaluate. Spawn the Q/A agent ONCE (no more pair spawn).
 
+**Launch — Workflow structured-output is FIRST-CLASS; Agent-tool is the
+fallback (phase-71.1).** The primary unattended launch is the checked-in
+`.claude/workflows/qa-verdict.js` script (run it via the Workflow tool
+with `args={step_id, criteria[], verification_command, evidence}`, or an
+equivalent inline Workflow script). It runs the Q/A role as
+`agent(prompt, {schema, agentType:'general-purpose', model:'opus',
+effort:'max'})`, and **the verdict is the captured return value** —
+structured-outputs GA (constrained decoding) guarantees the shape, so it
+does NOT depend on a subagent file-write flush. This is the
+stall-immune path: the Agent-tool subagent end-flush stalled 6× on
+2026-07-11 (intermittent, model-agnostic; auto-memory
+`feedback_workflow_qa_when_subagents_stall`). The Agent-tool `qa`
+subagent (`Agent(subagent_type:'qa')`) is the documented **fallback**
+(and the worktree-isolation CI path). **Main MUST transcribe the
+returned verdict VERBATIM** into `handoff/current/evaluator_critique.md`
+(no editorial edits) so the no-self-eval guarantee holds — Main records
+the verdict, never authors it. An errored/empty return is **NO VERDICT,
+never PASS**: fall back to the Agent-tool path. The Q/A returns a verdict
+and STOPS; it never loops fix→re-grade internally. Single-Q/A-per-step
+and the exactly-3-agents doctrine are unchanged — the Workflow path is a
+launch mechanism, not a fourth agent.
+
 Q/A runs deterministic-first:
 1. Syntax / file-existence / `verification.command` exit code
 2. Reads existing `handoff/current/evaluator_critique.md` +
@@ -277,6 +299,21 @@ sub-agents audit:
 - settings.json `fallbackModel` (phase-67.5) covers OVERLOAD-class
   model failures only -- rate-limit/usage-limit cutoffs never trigger
   a model switch (partial-work retention covers those instead).
+- **Workflow structured-output path (phase-71.1; first-class Q/A +
+  Researcher launch).** A Workflow script runs each `agent()` stage in
+  an isolated environment; intermediate results stay in SCRIPT
+  VARIABLES, and the schema-validated return value is captured directly
+  -- so the verdict/envelope does NOT depend on a subagent file-write
+  flush (the fix for the model-agnostic end-flush stall). A run is
+  RESUMABLE within the SAME session (`resumeFromRunId`); a new session
+  restarts it. Checked-in scripts live under `.claude/workflows/` (e.g.
+  `qa-verdict.js`) with a `meta{name,description}` block and become named
+  commands. Workflow agents inherit Main's SESSION model unless the
+  `agent()` opts route otherwise -- so the Q/A/Researcher stages set
+  `model:'opus'` EXPLICITLY (never route the gate off Opus: rider-trap
+  R4). Do NOT add a Monitor/transcript-mtime watchdog around it
+  (rider-trap R11 -- the return-value path makes polling unnecessary and
+  it contradicts the do-not-poll rule above).
 
 ## Hook sanity (prevents "No such file or directory" errors)
 

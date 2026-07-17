@@ -82,3 +82,7 @@ handoff/archive/_quarantine_*/
 .coverage_html/
 htmlcov/
 handoff/.away-session.lock
+
+# TypeScript incremental build cache (tsc --noEmit side-effect; phase-71.1)
+*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo

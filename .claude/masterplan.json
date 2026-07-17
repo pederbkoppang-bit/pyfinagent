@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-17T12:01:14.979281+00:00",
+  "updated_at": "2026-07-17T12:37:06.064710+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -15789,7 +15789,7 @@
         },
         {
           "id": "71.1",
-          "status": "pending",
+          "status": "done",
           "name": "P1 -- codify the Workflow structured-output path as the FIRST-CLASS launch for Q/A (and Researcher), retiring the stall-prone Agent-tool-only path. Save a reusable .claude/workflows/ script that runs the role as a StructuredOutput task (verdict = captured return value, immune to the end-flush stall); update docs/runbooks/per-step-protocol.md + .claude/agents/qa.md + .claude/agents/researcher.md + CLAUDE.md so the Workflow path is documented as the primary unattended launch with the Agent-tool path as fallback. GUARDRAIL: the protocol MUST require Main to transcribe the returned verdict VERBATIM into evaluator_critique.md (no editorial edits) so the no-self-eval guarantee stays airtight. Preserves the single-Q/A-per-step rule + the file-based fresh-respawn cycle-2 pattern.",
           "harness_required": true,
           "priority": "P1",

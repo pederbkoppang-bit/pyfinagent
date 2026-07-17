@@ -81,6 +81,29 @@ You MUST be invoked:
   spans >1 file
 - Whenever new literature / a vendor release might change the plan
 
+## Launch — Workflow structured-output is FIRST-CLASS (Agent-tool is the fallback)
+
+Like Q/A, the research gate can be launched two ways, and the
+**Workflow structured-output path is the primary unattended launch**
+(phase-71.1); the Agent-tool `researcher` subagent is the **fallback**.
+
+- **Workflow (PRIMARY).** Main runs a Workflow script that spawns THIS
+  role as `agent(prompt, {schema: ENVELOPE_SCHEMA,
+  agentType:'general-purpose', model:'opus', effort:'max'})`. The
+  **JSON envelope below is returned as the captured return value** —
+  stall-immune (structured-outputs GA / constrained decoding), no
+  dependence on a final flush. **Write-first STILL holds**: the workflow
+  agent has Write access and MUST create + incrementally grow
+  `handoff/current/research_brief_<step>.md` on disk (the brief is the
+  deliverable; the envelope is the audit summary + `brief_path`). A
+  partial brief + honest `gate_passed:false` still survives a cutoff.
+- **Agent-tool `researcher` subagent (FALLBACK).** `Agent(subagent_type:
+  'researcher')`. Reads this file from the session roster snapshot.
+
+The verbatim/no-auto-PASS discipline mirrors Q/A: an errored/empty
+return is NO envelope (never `gate_passed:true`), and Main relies on
+the on-disk brief + the envelope together to audit the gate.
+
 ## Write-first (non-negotiable)
 
 Create the brief file (`handoff/current/research_brief_<step>.md`) in your
