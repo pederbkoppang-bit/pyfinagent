@@ -15707,7 +15707,7 @@
         },
         {
           "id": "70.3",
-          "status": "pending",
+          "status": "done",
           "name": "S3 + money-path -- swap/rotation correctness & safety. Make the sector-blocked swap path cross-sector-capable, ATOMIC, cash-bounded, and $50-floor-aware so it can never execute the SELL and silently drop the BUY (net position loss -- portfolio_manager.py:675) and so it stops firing on a fabricated 0.0-conviction sentinel that just churns (portfolio_manager.py:620; reconcile with the paper_swap_churn_fix flag). Fix add-to-existing-position avg_entry_price corruption for non-US tickers (USD-cost / local-share unit mix, paper_trader.py:308). All fixes fail-safe.",
           "harness_required": true,
           "priority": "P1",

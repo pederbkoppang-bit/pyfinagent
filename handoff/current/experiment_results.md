@@ -1,83 +1,87 @@
-# Experiment results — step 70.2 (S2: soft, profit-aware cross-sector diversification)
+# Experiment results — step 70.3 (S3 + money-path: atomic cross-sector swap + non-US avg-entry fix)
 
-**Phase/step:** phase-70 → 70.2 | **Date:** 2026-07-17 | **Type:** backend + ML, flag-gated default-OFF, $0, paper-only, DARK-until-token
+**Phase/step:** phase-70 → 70.3 | **Date:** 2026-07-17 | **Type:** backend money-path, flag-gated default-OFF
+(double-gated behind paper_swap_enabled), $0, paper-only, DARK-until-token, fail-safe. live_check: none (no UI).
 
-## Files changed (6)
+## Files changed (5)
 
-1. **`backend/config/settings.py`** — 4 flags (all default-OFF/identity): `paper_soft_sector_diversity_enabled`
-   (bool F), `paper_soft_sector_diversity_w` (float 0.0, ge0 le1), `paper_min_k_sectors_analyzed` (int 0, ge0 le11),
-   `paper_unknown_sector_cap_exempt` (bool F).
-2. **`backend/tools/screener.py`** — `_apply_soft_sector_diversity(scored, w)`: within each sector the j-th
-   (0-based) name by raw composite is shaded by `(1-w)^j` via the canonical SIGN-SAFE `overlay_math.sign_safe_mult`
-   (forced enabled), so a penalty lowers rank even for a negative score (no sign inversion). Leader (j=0)
-   untouched → keeps across-sector momentum → NOT hard neutralization. Params `soft_sector_diversity=False`,
-   `soft_sector_diversity_w=0.0`; the block runs after all overlays, before `scored.sort()`; `w=0`/OFF → skipped.
-3. **`backend/services/autonomous_loop.py`** — `_min_k_sector_slice(cands, n, k)` round-robin leader-pick on the
-   deep-analyze slice (:838) when K>0 (else plain slice); added the diversity flag to the `build_sector_map` gate
-   (:433) so candidates carry a sector at rank time; threaded the two soft kwargs into the `rank_candidates` call.
-4. **`backend/services/portfolio_manager.py`** — `_unk_exempt` guards the count cap (:359) and NAV-pct cap (:394)
-   so the "Unknown" (missing-sector) bucket is exempt when `paper_unknown_sector_cap_exempt` is ON. OFF → byte-identical.
-5. **`scripts/ablation/sector_neutral_replay.py`** — soft-diversity configs (`soft_w0.10/0.20/0.30`) + a 70.2 verdict
-   + a paired-monthly-returns dump (`handoff/current/_70_2_soft_diversity_replay.json`) for the DSR/PBO activation gate.
-6. **`backend/tests/test_phase_70_2_soft_diversity.py`** (NEW) — 7 deterministic (network-free) tests.
+1. **`backend/config/settings.py`** — 3 flags, all default-OFF/identity: `paper_atomic_swap_enabled`,
+   `paper_cross_sector_rotation_enabled`, `paper_avg_entry_fx_fix_enabled`.
+2. **`backend/services/portfolio_manager.py`** — `TradeOrder.swap_group_id` field; `_compute_swap_candidates`
+   gains an `available_cash` param (threaded from the :480 call); the swap emit (atomic ON) cash-bounds the BUY
+   `min(nav*pct/100, available_cash + freed)`, applies the $50 floor (drops the whole pair if under — never a
+   lone SELL), and tags both legs with a shared `swap_group_id`; a flag-gated cross-sector fallback (weakest-
+   overall) + a new `_cross_rotation_safe` helper (HHI-strictly-drops + destination count/NAV cap re-validation,
+   requires churn-fix). OFF → legacy sizing + same-sector-only + untagged (byte-identical). `import uuid`.
+3. **`backend/services/paper_trader.py`** — `execute_buy` gains `reserved_cash` (cash check `total_cost > cash +
+   reserved_cash`; 0.0 → byte-identical); the add-on avg_entry is gated: ON →
+   `(old_qty*avg_entry + qty*price)/new_qty` (LOCAL-share-weighted), OFF → legacy `new_cost/new_qty`. cost_basis
+   stays USD.
+4. **`backend/services/autonomous_loop.py`** — `_execute_swap_pair` helper (SELL-feasibility pre-check → BUY-first
+   with reserved cash → SELL; BUY drops ⇒ SELL never attempted; SELL-fails-after-BUY ⇒ defensive delete of the
+   just-created BUY); wired into Step 7 so atomic-ON swap pairs execute via the helper and are removed from the
+   flat loops. OFF → all orders (swap_group_id=None) flow the flat loops (byte-identical).
+5. **`backend/tests/test_phase_70_3_atomic_swap.py`** (NEW) — 11 deterministic tests.
 
 ## Verification command output (verbatim)
 
 ```
-$ bash -c 'grep -Eqi "sector" backend/services/autonomous_loop.py && ls backend/tests/ | grep -Eqi "70_2|diversif|sector" && python -c "import ast; ast.parse(open(\"backend/services/autonomous_loop.py\").read())"'
+$ bash -c 'ls backend/tests/ | grep -Eqi "70_3|swap|atomic" && python -c "import ast; ast.parse(open(\"backend/services/portfolio_manager.py\").read()); ast.parse(open(\"backend/services/paper_trader.py\").read())"'
 VERIFICATION: PASS (exit 0)
-$ python -m pytest backend/tests/test_phase_70_2_soft_diversity.py -q
-7 passed
+$ python -m pytest backend/tests/test_phase_70_3_atomic_swap.py -q
+11 passed
 ```
-Import-smoke: settings/screener/autonomous_loop/portfolio_manager all import clean; helpers present; flags default False/0.0/0/False.
+Import-smoke: all 4 changed modules import clean; helpers/flags/params present; flags default False.
 
-## Criterion 1 — analyzed set spans ≥2 sectors (ON) vs monosector (OFF) [live_check ON-vs-OFF]
+## Criterion 1 — atomic swap (both legs or neither) + cash-bound + $50 floor
 
-Deterministic (`test_min_k_slice_reproduces_and_diversifies`): a monosector-heavy candidate list (5 Technology
-+ 1 Energy + 1 Health Care) →
-- **OFF** (plain top-5 slice) = **1 sector** — reproduces today's monosector funnel.
-- **ON** (`_min_k_sector_slice`, K=3) = **3 distinct sectors** {Technology, Energy, Health Care}, best names still first.
+- `test_atomic_swap_buy_drops_does_not_sell` (RED→GREEN of "SELL-executes-BUY-drops"): with the paired BUY
+  dropped (execute_buy→None), the SELL is NEVER attempted → the WEAK position is still held → book unchanged.
+  `test_atomic_swap_contrast_old_flat_path_would_lose_position` documents the OLD flat path (SELL then BUY-drops)
+  removing the position (net −1).
+- `test_atomic_swap_happy_path_both_legs`: BUY-first ordering, both legs execute.
+- `test_swap_atomic_cash_bounded_and_grouped`: swap BUY bounded by `min(nav*pct, available + freed)`; both legs
+  share one `swap_group_id`. `test_swap_atomic_50_floor_drops_pair`: a sub-$50 swap BUY drops the WHOLE pair
+  (no lone SELL). `test_swap_off_no_group_id_and_legacy_sizing`: OFF → untagged + legacy nav*pct sizing.
 
-Corroborated by the ablation basket breadth below (avg distinct sectors 4.71 → 5.96/6.73/7.31 as w rises).
+## Criterion 2 — cross-sector rotation (flag-gated, fail-safe)
 
-## Criterion 2 — SOFT + no OOS P&L drop (it RAISES risk-adjusted P&L) [$0, macro-free ablation replay]
+`_cross_rotation_safe`: `test_cross_rotation_safe_blocks_count_cap_breach` (a count-cap-blocked candidate entering
+its at-cap sector is correctly BLOCKED — fail-safe, count cap never moved); `test_cross_rotation_safe_allows_hhi_
+drop_within_caps` (a rotation that strictly lowers HHI and keeps the destination caps is allowed). OFF →
+same-sector-only (byte-identical). Honest note: because every `sector_blocked` candidate is count-cap-blocked, the
+count-cap re-validation is what makes cross-sector rotation fail-safe — it fires only when the destination caps
+permit (HHI-improving, under-cap), which is the correct risk-preserving behavior.
 
-`scripts/ablation/sector_neutral_replay.py` — replays PRODUCTION `rank_candidates` over 47 monthly rebalances
-(2022–2025, S&P 500), $0 (yfinance + Wikipedia), NO LLM/BQ/historical_macro/optimizer (historical_macro FROZEN
-respected). ann_Sharpe of the equal-weight top-10 basket:
+## Criterion 3 — non-US avg_entry FX fix
 
-| config | ann_Sharpe | Δ vs base | avg_sectors | avg_turnover |
-|---|---|---|---|---|
-| baseline (OFF) | 1.344 | — | 4.71 | 0.557 |
-| **soft_w0.10** | **1.520** | **+0.176** | 5.96 (+1.25) | 0.543 |
-| **soft_w0.20** | **1.543** | **+0.200** | 6.73 (+2.02) | 0.545 |
-| **soft_w0.30** | **1.578** | **+0.234** | 7.31 (+2.60) | 0.549 |
-| sector_neutral (HARD — rejected) | 1.226 | **-0.117** | 10.00 | 0.638 |
+`test_avg_entry_fx_fix_local_consistent_for_kr`: a KR (KRW) add-on BUY with the fix ON yields avg_entry ≈ 70000
+(LOCAL, correct); with the fix OFF the legacy formula yields a tiny (~USD) value (documents the corruption).
+Byte-identical for US (quantity*price == amount_usd at fx=1).
 
-The SOFT penalty **raises** OOS Sharpe at every tested w (does not lower risk-adjusted P&L) AND increases sector
-breadth, with turnover slightly LOWER than baseline. HARD sector-neutralization **lowers** Sharpe (-0.117) —
-re-confirming the 2026-06-01 replay and justifying the soft (not hard) design. Replay verdict:
-"ESCALATE to operator activation gate (then DSR>=0.95 + PBO<=0.5 on the dumped paired returns)". Paired monthly
-returns dumped for the activation-gate DSR/PBO computation.
+## Criterion 4 — fail-safe, default-OFF
 
-## Criterion 3 — Unknown-bucket enrichment failure no longer freezes the funnel
+`test_flags_present_and_default_off`: all 3 flags default False; `reserved_cash` present on execute_buy. No
+risk-limit threshold moved (the cap comparisons only PREPEND default-OFF guards; the cross-sector re-validation
+only ADDS a fail-safe block). Every failure path holds/drops rather than corrupting the book.
 
-Deterministic (`test_unknown_exempt_off/on`): 2 held positions with a MISSING sector + a new missing-sector
-candidate, cap=2 →
-- **OFF** (default): the new BUY is BLOCKED (Unknown counts as one bucket at cap) — byte-identical to today.
-- **ON**: the BUY is ALLOWED — the Unknown (missing-data) bucket is exempt, so an enrichment outage can't
-  collapse N real sectors into one bucket and starve the funnel.
+## Regression (2 PRE-EXISTING failures, NOT caused by 70.3 — proof below)
 
-## Criterion 4 — flag OFF → byte-identical
-
-Deterministic (`test_soft_off_and_w0_byte_identical`): `rank_candidates` with the soft flag OFF (and with
-`w=0.0` ON) yields identical ticker order + identical composite scores as the no-param call, and no
-`composite_score_raw` side-channel is written. Min-K K=0 → plain slice; Unknown-exempt OFF → caps enforced as
-today. Every lever defaults to the identity path.
+`pytest test_portfolio_swap.py test_phase_60_2_churn_fix.py test_phase_50_2_multicurrency.py
+test_phase_23_2_6_sector_cap_emit.py test_phase_70_2_soft_diversity.py` → 33 passed, 2 failed:
+1. `test_phase_23_2_6_backend_log_has_skipping_buy_evidence` — reads `backend.log` for "Skipping BUY" strings; the
+   log is freshly rotated/quiet. Environmental; orthogonal to the 70.3 diff (also flagged as pre-existing by the
+   70.2 Q/A).
+2. `test_swap_framework_fills_zero_buy_gap` — expects 2 swap pairs (its `_make_settings` assumes churn_fix OFF),
+   but the operator's live `.env` has `PAPER_SWAP_CHURN_FIX_ENABLED=true` (Settings default is False), so the 2nd
+   swap's delta is 24% < the 25% bar → 1 swap. PROOF it is env-driven, not my change: calling
+   `_compute_swap_candidates` directly with churn_fix OFF yields **2** swaps and with churn_fix ON yields **1** —
+   and 70.3 does NOT touch the churn denom logic (:633, unchanged). So the OFF swap path is byte-identical; the
+   test just resolves churn_fix ON from the live env.
 
 ## Do-no-harm / scope
-Backend + ablation-script only; $0 metered (free yfinance + Wikipedia); paper-only; NO risk-limit threshold /
-stop / kill-switch / DSR/PBO gate moved; historical_macro FROZEN (ablation is macro-free); hysteresis untouched;
-hard sector-neutralization rejected. All live-loop behavior is DARK until the operator flips the flags —
-activation is gated on OOS Sharpe >= incumbent (met: +0.18..+0.23) + DSR>=0.95 + PBO<=0.5 (computed at the token
-from the dumped paired returns). No operator config mutated.
+Backend only; $0; paper-only; NO risk threshold moved; historical_macro FROZEN; hysteresis untouched. The swap
+path is LIVE (paper_swap_enabled=True, max_per_cycle=2), so every fix ships flag-gated default-OFF +
+double-gated → the live swap behavior is byte-identical until the operator flips a 70.3 flag. Activation
+follow-on (operator): flip paper_atomic_swap_enabled (+ optionally paper_cross_sector_rotation_enabled, which
+requires paper_swap_churn_fix_enabled ON) and paper_avg_entry_fx_fix_enabled after review.

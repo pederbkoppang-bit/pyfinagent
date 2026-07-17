@@ -5,6 +5,7 @@ Implements sell-first-then-buy logic with Risk Judge position sizing.
 """
 
 import logging
+import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -31,6 +32,10 @@ class TradeOrder:
     signals: list[dict] = field(default_factory=list)  # 4.5.5 agent attribution
     sector: str = ""  # phase-23.2.6-fix: persisted to paper_positions.sector at execute_buy
     market: str = "US"  # phase-50.3: derived from the ticker suffix (markets.market_for_symbol); "US" = byte-identical
+    # phase-70.3: shared UUID on the SELL+BUY legs of an atomic swap pair so the
+    # executor runs them as one unit (BUY-first-with-reserved-cash). None for
+    # non-swap orders and when paper_atomic_swap_enabled is OFF (byte-identical).
+    swap_group_id: Optional[str] = None
     # phase-30.6: analysis-time price reference for the price-tolerance gate.
     # Distinct from `price` which historically held the same value but will be
     # overwritten with the LIVE fetch in autonomous_loop Step 7 -- separating
@@ -486,6 +491,7 @@ def decide_trades(
             selling_tickers=selling_tickers,
             settings=settings,
             nav=nav,
+            available_cash=available_cash,  # phase-70.3: bound the atomic swap BUY
         )
         orders.extend(swap_orders)
 
@@ -504,6 +510,45 @@ def decide_trades(
     return orders
 
 
+def _cross_rotation_safe(
+    *, cand_sector: str, weakest: dict, sector_counts: dict, sector_market_values: dict,
+    buy_amount: float, nav: float, settings: "Settings",
+) -> bool:
+    """phase-70.3: a CROSS-sector rotation (SELL `weakest` in its sector, BUY the
+    candidate in `cand_sector`) is allowed ONLY if it strictly lowers portfolio HHI
+    (concentration) AND keeps the destination-sector count + NAV-pct caps on the
+    PROJECTED composition. Fail-safe: any breach / missing datum -> False (block).
+    Note: a count-cap-blocked candidate entering its already-at-cap sector is
+    correctly blocked here (the count cap is a risk limit, never moved)."""
+    if nav <= 0:
+        return False
+    w_sector = (weakest.get("sector") or "Unknown")
+    w_mv = float(weakest.get("market_value", 0.0) or 0.0)
+    max_per_sector = int(
+        risk_overrides.get_effective("paper_max_per_sector", getattr(settings, "paper_max_per_sector", 0)) or 0
+    )
+    if max_per_sector > 0 and sector_counts.get(cand_sector, 0) + 1 > max_per_sector:
+        return False
+    max_nav_pct = float(
+        risk_overrides.get_effective(
+            "paper_max_per_sector_nav_pct", getattr(settings, "paper_max_per_sector_nav_pct", 0.0)
+        ) or 0.0
+    )
+    if max_nav_pct > 0:
+        projected_cand_sector = sector_market_values.get(cand_sector, 0.0) + buy_amount
+        if (projected_cand_sector / nav) * 100.0 > max_nav_pct:
+            return False
+    smv = dict(sector_market_values)
+    smv[w_sector] = max(0.0, smv.get(w_sector, 0.0) - w_mv)
+    smv[cand_sector] = smv.get(cand_sector, 0.0) + buy_amount
+
+    def _hhi(d: dict) -> float:
+        tot = sum(d.values())
+        return sum((v / tot) ** 2 for v in d.values()) if tot > 0 else 1.0
+
+    return _hhi(smv) < _hhi(sector_market_values)
+
+
 def _compute_swap_candidates(
     sector_blocked: list[dict],
     current_positions: list[dict],
@@ -513,6 +558,7 @@ def _compute_swap_candidates(
     selling_tickers: set,
     settings: "Settings",
     nav: float,
+    available_cash: float = 0.0,  # phase-70.3: running cash to bound the atomic swap BUY (0.0 => legacy sizing)
 ) -> list[TradeOrder]:
     """phase-cycle-1: sell-to-buy-better swap path.
 
@@ -611,6 +657,39 @@ def _compute_swap_candidates(
                 continue
             weakest = h
             break
+        # phase-70.3: cross-sector rotation (flag-gated). When no eligible SAME-sector
+        # holding is available to displace, optionally displace the weakest-OVERALL
+        # holding across ALL other sectors -- but ONLY if it strictly lowers portfolio
+        # concentration (HHI) AND the destination-sector count + NAV-pct caps still hold
+        # on the projected composition (a fail-safe block, NOT a threshold move; note a
+        # count-cap-blocked candidate entering its at-cap sector will be correctly
+        # blocked here). Requires the churn-fix so it inherits the anti-churn exclusion.
+        # OFF -> same-sector-only (byte-identical).
+        if weakest is None and bool(getattr(settings, "paper_cross_sector_rotation_enabled", False)):
+            if not _churn_fix_on:
+                logger.warning(
+                    "phase-70.3: cross-sector rotation requires paper_swap_churn_fix_enabled ON "
+                    "-- skipping cross-sector displacement for %s", cand["ticker"],
+                )
+            else:
+                _overall = [
+                    h for hs in holdings_by_sector.values() for h in hs
+                    if h["ticker"] not in swapped_tickers and h["sector"] != cand_sector
+                ]
+                _overall.sort(key=lambda h: h["final_score"])
+                for _w in _overall:
+                    if _cross_rotation_safe(
+                        cand_sector=cand_sector, weakest=_w,
+                        sector_counts=sector_counts, sector_market_values=sector_market_values,
+                        buy_amount=nav * (float(cand.get("position_pct") or 10.0) / 100.0),
+                        nav=nav, settings=settings,
+                    ):
+                        logger.info(
+                            "phase-70.3: cross-sector rotation %s (%s) -> %s (%s): lowers HHI, caps hold",
+                            _w["ticker"], _w["sector"], cand["ticker"], cand_sector,
+                        )
+                        weakest = _w
+                        break
         if weakest is None:
             continue
 
@@ -673,19 +752,41 @@ def _compute_swap_candidates(
                 )
                 continue
 
-        # Emit the swap pair: SELL first, then BUY (sell-first-then-buy invariant).
+        # Emit the swap pair. phase-70.3: when paper_atomic_swap_enabled is ON, bound
+        # the swap BUY by the running available_cash + the freed value of the SELL leg,
+        # apply the $50 floor, and tag BOTH legs with a shared swap_group_id so the
+        # executor runs them as one BUY-first-with-reserved-cash unit (a SELL can never
+        # persist while its paired BUY drops). OFF -> legacy nav*pct sizing, untagged
+        # SELL-then-BUY (byte-identical). SELL-first append order preserved either way.
+        _atomic = bool(getattr(settings, "paper_atomic_swap_enabled", False))
+        position_pct = cand.get("position_pct") or 10.0
+        buy_amount = nav * (float(position_pct) / 100.0)
+        swap_gid = None
+        if _atomic:
+            freed = float(weakest.get("market_value", 0.0) or 0.0)
+            buy_amount = min(buy_amount, available_cash + freed)
+            if buy_amount < 50:
+                logger.info(
+                    "Swap skip %s -> %s: atomic BUY $%.2f below $50 floor (available=$%.2f freed=$%.2f)",
+                    weakest["ticker"], cand["ticker"], buy_amount, available_cash, freed,
+                )
+                continue
+            swap_gid = str(uuid.uuid4())
+            # running cash after this self-funding pair (BUY costs buy_amount, SELL frees ~freed)
+            available_cash = max(0.0, available_cash + freed - buy_amount)
+
         swap_orders.append(TradeOrder(
             ticker=weakest["ticker"],
             action="SELL",
             reason="swap_for_higher_conviction",
             price=weakest.get("current_price"),
+            swap_group_id=swap_gid,  # phase-70.3: None when atomic OFF (byte-identical)
         ))
-        position_pct = cand.get("position_pct") or 10.0
-        buy_amount = nav * (float(position_pct) / 100.0)
         swap_orders.append(TradeOrder(
             ticker=cand["ticker"],
             action="BUY",
             amount_usd=round(buy_amount, 2),
+            swap_group_id=swap_gid,  # phase-70.3
             reason="swap_buy",
             analysis_id=cand.get("analysis_id", ""),
             risk_judge_decision=cand.get("risk_judge_decision", ""),

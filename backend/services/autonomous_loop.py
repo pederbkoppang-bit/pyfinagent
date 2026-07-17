@@ -164,6 +164,76 @@ def _min_k_sector_slice(candidates: list[dict], n: int, k: int) -> list[dict]:
     return picked[:n]
 
 
+def _execute_swap_pair(trader, sell_order, buy_order) -> dict:
+    """phase-70.3: execute an atomic swap pair (paper_atomic_swap_enabled). Runs the
+    pair BUY-first-with-reserved-cash AFTER a SELL-feasibility pre-check so a SELL can
+    NEVER persist while its paired BUY is dropped (the net -1-position bug). The common
+    failure (BUY drops for cash/price/max-pos/idempotency) means the SELL is simply not
+    attempted -> book unchanged, NO ledger reversal. The SELL-fails-after-BUY branch is
+    unreachable given the pre-check (defensive compensation only). Returns
+    {sold, bought, reason}. Sync (called via asyncio.to_thread)."""
+    from backend.services.paper_trader import _get_live_price, _fx_local_to_usd
+    # 1. SELL-feasibility pre-check: position exists + FX resolvable. execute_sell would
+    #    return None otherwise -> we must NOT execute the BUY (keep atomicity).
+    sell_pos = trader.get_position(sell_order.ticker)
+    if not sell_pos or _fx_local_to_usd(sell_pos.get("market")) is None:
+        logger.info(
+            "phase-70.3 swap %s->%s: SELL leg infeasible (no position / FX) -- dropping BOTH legs",
+            sell_order.ticker, buy_order.ticker,
+        )
+        return {"sold": False, "bought": False, "reason": "sell_infeasible"}
+    freed = float(sell_pos.get("market_value", 0.0) or 0.0)
+    # 2. BUY-first with the paired SELL's value reserved (live price for the fill).
+    live = _get_live_price(buy_order.ticker) or 0
+    price = live if live > 0 else (buy_order.price_at_analysis or buy_order.price or 0)
+    if price <= 0:
+        logger.warning("phase-70.3 swap: no price for BUY %s -- dropping BOTH legs", buy_order.ticker)
+        return {"sold": False, "bought": False, "reason": "buy_no_price"}
+    buy_trade = trader.execute_buy(
+        ticker=buy_order.ticker,
+        amount_usd=buy_order.amount_usd or 0,
+        price=price,
+        reason=buy_order.reason,
+        analysis_id=buy_order.analysis_id,
+        risk_judge_decision=buy_order.risk_judge_decision,
+        stop_loss_price=buy_order.stop_loss_price,
+        risk_judge_position_pct=buy_order.risk_judge_position_pct,
+        signals=buy_order.signals,
+        sector=buy_order.sector or None,
+        market=getattr(buy_order, "market", "US"),
+        price_at_analysis=buy_order.price_at_analysis,
+        factor_loadings=buy_order.factor_loadings,
+        analysis_recommendation=getattr(buy_order, "analysis_recommendation", ""),
+        reserved_cash=freed,
+    )
+    if not buy_trade:
+        logger.info(
+            "phase-70.3 swap %s->%s: BUY dropped -- SELL NOT attempted (atomic, book unchanged)",
+            sell_order.ticker, buy_order.ticker,
+        )
+        return {"sold": False, "bought": False, "reason": "buy_dropped"}
+    # 3. SELL (pre-validated feasible).
+    sell_trade = trader.execute_sell(
+        ticker=sell_order.ticker,
+        quantity=sell_order.quantity,
+        price=sell_order.price,
+        reason=sell_order.reason,
+        signals=sell_order.signals,
+    )
+    if not sell_trade:
+        logger.error(
+            "phase-70.3 swap %s->%s: SELL failed AFTER BUY despite pre-check -- "
+            "compensating by removing the just-created BUY position",
+            sell_order.ticker, buy_order.ticker,
+        )
+        try:
+            trader.bq.delete_paper_position(buy_order.ticker)
+        except Exception as e:
+            logger.error("phase-70.3 swap compensation delete failed for %s: %r", buy_order.ticker, e)
+        return {"sold": False, "bought": False, "reason": "sell_failed_compensated"}
+    return {"sold": True, "bought": True, "reason": "ok"}
+
+
 async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = False) -> dict:
     """
     Execute one full paper trading cycle:
@@ -1309,6 +1379,31 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             # phase-30.3: closed_tickers now lives at cycle-top (line ~169)
             # so Step 5.6 stop-outs can populate it. Re-init here would
             # erase Step 5.6's appends.
+
+            # phase-70.3: atomic swap execution. When ON, execute swap PAIRS (tagged
+            # with a shared swap_group_id) as BUY-first-with-reserved-cash units so a
+            # SELL can never persist while its paired BUY drops (net -1 position); the
+            # handled legs are then removed from the flat loops below. OFF -> every order
+            # has swap_group_id=None -> all orders flow the flat loops (byte-identical).
+            if getattr(settings, "paper_atomic_swap_enabled", False):
+                _swap_gids = [g for g in {getattr(o, "swap_group_id", None) for o in orders} if g]
+                if _swap_gids:
+                    _handled: set = set()
+                    for _gid in _swap_gids:
+                        _legs = [o for o in orders if getattr(o, "swap_group_id", None) == _gid]
+                        _sell = next((o for o in _legs if o.action == "SELL"), None)
+                        _buy = next((o for o in _legs if o.action == "BUY"), None)
+                        if not (_sell and _buy):
+                            continue
+                        _res = await asyncio.to_thread(_execute_swap_pair, trader, _sell, _buy)
+                        if _res.get("bought"):
+                            trades_executed += 1
+                        if _res.get("sold"):
+                            trades_executed += 1
+                            closed_tickers.append(_sell.ticker)
+                        summary.setdefault("swap_pairs", []).append({"group": _gid, **_res})
+                        _handled.add(_gid)
+                    orders = [o for o in orders if getattr(o, "swap_group_id", None) not in _handled]
 
             # Sells first
             # phase-23.1.23: execute_sell/execute_buy also do blocking BQ + yfinance

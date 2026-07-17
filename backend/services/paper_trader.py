@@ -141,6 +141,11 @@ class PaperTrader:
         # mechanism `reason` when paper_position_recommendation_fix_enabled is
         # ON, so the signal_downgrade rule (portfolio_manager.py:127) can match.
         analysis_recommendation: str = "",
+        # phase-70.3: extra cash the caller guarantees will be freed by a paired
+        # SELL executed immediately after this BUY (atomic-swap BUY-first path).
+        # Lets the swap BUY draw on the imminent SELL's proceeds. 0.0 => legacy
+        # cash check (byte-identical for every non-swap BUY).
+        reserved_cash: float = 0.0,
     ) -> Optional[dict]:
         """Buy shares of a ticker. Returns the trade record or None if can't execute."""
         # phase-25.6: no-stop-on-entry HARD BLOCK. If stop_loss_price is None
@@ -194,8 +199,11 @@ class PaperTrader:
         tx_cost = amount_usd * (self.settings.paper_transaction_cost_pct / 100.0)
         total_cost = amount_usd + tx_cost
 
-        if total_cost > cash:
-            logger.warning(f"Insufficient cash for {ticker}: need ${total_cost:.2f}, have ${cash:.2f}")
+        if total_cost > cash + reserved_cash:  # phase-70.3: reserved_cash=0.0 => byte-identical
+            logger.warning(
+                f"Insufficient cash for {ticker}: need ${total_cost:.2f}, have ${cash:.2f}"
+                + (f" (+ ${reserved_cash:.2f} reserved)" if reserved_cash else "")
+            )
             return None
 
         # Check max positions
@@ -305,7 +313,16 @@ class PaperTrader:
             old_cost = existing["cost_basis"] or (old_qty * existing["avg_entry_price"])
             new_qty = old_qty + quantity
             new_cost = old_cost + amount_usd
-            new_avg = new_cost / new_qty
+            # phase-70.3: avg_entry_price must stay in the LOCAL currency (the first
+            # lot stores the LOCAL price at :338; execute_sell:472 computes realized
+            # pnl treating avg_entry as LOCAL). The legacy new_cost(USD)/new_qty(LOCAL)
+            # mixes USD cost with local shares -> corrupts non-US add-ons. Fix uses the
+            # LOCAL-share-weighted average of LOCAL prices. Byte-identical for US
+            # (quantity*price == amount_usd at fx=1). cost_basis stays USD either way.
+            if getattr(self.settings, "paper_avg_entry_fx_fix_enabled", False):
+                new_avg = (old_qty * (existing["avg_entry_price"] or 0.0) + quantity * price) / new_qty
+            else:
+                new_avg = new_cost / new_qty
             self.bq.delete_paper_position(ticker)
             pos_row = {
                 "position_id": existing["position_id"],
