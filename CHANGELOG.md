@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `64bdd798` | phase-73.4: D2d cost-integrated promotion design [executor: this session, fable-5/ultracode]. Des... |
 | 2026-07-18 | `1275dff1` | phase-73.3: D2c calibrated-sizing design [executor: this session, fable-5/ultracode]. Design doc ... |
 | 2026-07-18 | `1b26ab7e` | phase-73.2: D2b learn-loop v2 design [executor: this session, fable-5/ultracode]. Design doc desi... |
 | 2026-07-18 | `d2485c2e` | phase-73.1: D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `8fbb1a6b` | phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (recorded yfinance fixtures, no n... |
 | 2026-07-17 | `541bd40a` | phase-64.3: Backend gap tests -- kill-switch state machine (pause/resume/breach/auto-resume-off),... |
 | 2026-07-17 | `4eb6ceea` | phase-64.2: Functional specs for all 22 routes -- load + one key interaction per route family; su... |
-| 2026-07-17 | `9e6766e6` | phase-64.1: Functional-E2E Playwright project -- new testDir tests/e2e-functional as a second pro... |
 
 ---
 
+### v6.66.4 — phase-73.4: D2d cost-integrated promotion design [executor: this sess... (2026-07-18)
+
+- **phase-73.4: D2d cost-integrated promotion design [executor: this session, fable-5/ultracode]. Des...**
 ### v6.66.3 — phase-73.3: D2c calibrated-sizing design [executor: this session, fab... (2026-07-18)
 
 - **phase-73.3: D2c calibrated-sizing design [executor: this session, fable-5/ultracode]. Design doc ...**
