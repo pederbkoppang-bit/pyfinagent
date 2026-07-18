@@ -16492,7 +16492,7 @@
         },
         {
           "id": "73.5",
-          "status": "pending",
+          "status": "done",
           "name": "D2e judged pilots [executor: this session, fable-5/ultracode]. Build/hold verdicts with evidence in design_pack_73/e_pilot_verdicts.md for: (1) autoresearch->live champion bridge incl. the historical_macro un-freeze validation plan + exact operator token wording; (2) news-RAG residual-return evidence weighting; (3) LLM factor-mining pilot with IC/IR gate. Any BUILD verdict appends executor-tagged steps; HOLD verdicts carry the evidence bar that would flip them.",
           "harness_required": true,
           "priority": "P2",
@@ -16507,6 +16507,25 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "73.4"
+        },
+        {
+          "id": "73.5.1",
+          "status": "pending",
+          "name": "Build B1 -- champion-bridge, narrowed + dark [executor: sonnet-4.6/high]. Per design_pack_73/e_pilot_verdicts.md §1: new flag paper_champion_bridge_enabled=False (phase-69.3 byte-identical pattern); apply_champion_params overlay at the decide_trades injection point (autonomous_loop.py:1406-1414) writing ONLY the mapped live-consumed keys -- v1 = max_positions->paper_max_positions, DEFERRING to any live risk_overrides value (operator wins, never clobber); sl_pct->paper_default_stop_loss_pct and trailing_*->paper_trailing_stop_pct ONLY behind explicit opt-in sub-flags (semantic caveats: they move the R unit / HWM base); NEVER-BRIDGE list enforced in code (tp_pct/holding_days/target_annual_vol/strategy/training+GBM+date keys); reads via existing load_promoted_params, no new BQ surface. $0, no deps. Live-flip stays gated on the operator's HISTORICAL MACRO UNFREEZE: CHAMPION-VALIDATION-BATCH token + its validation plan (purged revalidation, CPCV distribution, champion-vs-incumbent OOS, net-of-cost DSR -- immutable gates as pass bars).",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "73.5",
+          "verification": {
+            "command": "bash -c 'grep -q \"paper_champion_bridge_enabled\" backend/config/settings.py'",
+            "success_criteria": [
+              "With the flag OFF the decision path is byte-identical (diff + replay proven); with it ON only the mapped keys change and a live risk_overrides value always wins over a bridged value (property-tested)",
+              "The NEVER-BRIDGE list is enforced in code with a test that fails if an unmapped best_params key ever reaches settings; sl/trailing bridging requires their own opt-in sub-flags",
+              "No optimizer runs, no historical_macro access in the bridge path (import/grep-proven); syntax + existing tests pass; no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_73.5.1.md: a dry-run artifact showing the overlay applied (flag simulated ON) with the mapped key, the deferred risk_overrides case, and a rejected never-bridge key -- plus the byte-identical-when-OFF proof"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         },
         {
           "id": "73.6",
