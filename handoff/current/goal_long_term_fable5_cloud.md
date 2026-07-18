@@ -1,42 +1,41 @@
-# Goal Prompt -- long-term cloud goal (Fable 5 orchestrator)
+# Goal Prompt -- long-term cloud goal v2 (Fable 5 fresh-eyes hardening)
 
-Set: 2026-07-18 (operator, Claude Code cloud session on branch
-`claude/fable-5-long-term-goal-n3nj5t`). Operator directive (paraphrased from
-session): "create the long-term goal utilizing Fable 5 capabilities; goal
-prompt under 4000 characters; check the masterplan so we don't do anything
-double."
+Set: 2026-07-18 (operator, Claude Code cloud session, branch
+`claude/fable-5-long-term-goal-n3nj5t`). Operator directives: "create the
+long-term goal utilizing Fable 5 capabilities; under 4000 characters; check
+the masterplan so we don't do anything double" + v2 correction: "this
+shouldn't be things already in masterplan but new things found out with your
+fresh eyes."
 
-Surface: the Claude Code **cloud long-term-goal field** — the fenced block
-below is the exact paste-ready text. This file is PROVENANCE ONLY: it is NOT
-installed via `/goal`, `active_goal.md` is untouched, no agent frontmatter or
-in-app model pins are changed. Fable 5 terms per operator decision 2026-07-18:
-session-rail only, no expiry, no repins ($0-metered doctrine unchanged).
-
-Anti-duplication basis (verified against `.claude/masterplan.json` this
-session): all 22 referenced build steps (72.0.1-72.2.4, 73.1.1-73.7.1) are
-`pending`; phases 67/71 (harness upgrades) and the 72/73 audit+design steps
-are `done` and are explicitly out of scope for redo; phase-68 has 7 pending
-steps; phase-10.7 is `deferred`. Referenced artifacts confirmed on disk:
-`design_pack_73/`, `money_diagnosis_72.md`, `money_runway_73.md`,
-`.claude/workflows/qa-verdict.js`.
+v2 basis: a 3-auditor parallel fresh-eyes sweep this session
+(`fresh_eyes_audit_2026-07-18.md` -- 28 verified findings with file:line
+evidence, each deduped against the masterplan, design_pack_73,
+frontier_map_73, money_diagnosis_72, and harness_proposals.json). The fenced
+block below is the exact paste-ready text for the Claude Code cloud
+long-term-goal field. This file is PROVENANCE ONLY: not installed via
+`/goal`, `active_goal.md` untouched, no model pins changed. Fable terms per
+operator decision: session-rail only, no expiry, no repins.
 
 ---
 
 ```
-# pyfinAgent — Long-Term Goal (Fable 5 orchestrator)
+# pyfinAgent — Long-Term Goal: Fresh-Eyes Hardening (Fable 5)
 
-NORTH STAR: maximize Net System Alpha = Profit − (Risk Exposure + Compute Burn). You are the Layer-3 Main orchestrator on Claude Fable 5, resuming a long-running autonomous harness. Each session: read CLAUDE.md, .claude/masterplan.json, handoff/current/*, and the tail of handoff/harness_log.md BEFORE any work. Never redo a step already `done` — the log + masterplan are the anti-duplication ledger.
+NORTH STAR: maximize Net System Alpha = Profit − (Risk Exposure + Compute Burn). You are the Layer-3 Main orchestrator on Claude Fable 5. This goal covers ONLY the fresh-eyes discoveries in handoff/current/fresh_eyes_audit_2026-07-18.md — findings NOT in the masterplan when found (file:line evidence lives there). Existing masterplan work stays governed by the masterplan; never duplicate it. Each session: read CLAUDE.md, .claude/masterplan.json, the register, and the harness_log tail first; convert findings into NEW masterplan steps (phase-74+) via the protocol; stamp each register row with its step id.
 
-MISSION ARC (strict order):
-1. DRAIN THE BUILD QUEUE: execute every pending executor-tagged step of phase-72 (meta-scorer rail decoupling, fail-forward on rail-dead, decision-seam observability, degraded-alert paging, token reconciliation, measurement-integrity fixes) and phase-73 (leakage integrity: purge tests, post-cutoff eval, counterfactual audit, CPCV; learn-loop v2; calibrated sizing; net-of-cost DSR + PBO promotion gates; judged champion-bridge pilot, dark; defect 73.7.1). Designs + audit artifacts already exist under handoff/current/ (design_pack_73/, money_diagnosis_72.md) — BUILD, don't re-audit.
-2. REAL-FILL RUNWAY (phase-68): advance every non-operator-gated step toward go-live eligibility per money_runway_73.md.
-3. META-EVOLUTION (phase-10.7, deferred): once 1–2 are exhausted, produce a recommend-only un-deferral proposal. Never self-authorize.
+WORKSTREAMS (priority order):
+A. GUARD INTEGRITY (SEV-1): flatten_all gets per-position error isolation + a positions==[] post-check (one failed sell unwinds the flatten AND skips pause()); enforce kill-switch pause at the execute_buy/execute_sell primitives (signals_server.publish_signal can trade while paused); isolate the autonomous_loop safety-chain steps so one fault can't down multiple guards.
+B. EXECUTION REALISM (gates go-live): default bq_sim fills are frictionless + side-blind and price off stale daily bars. Build side-aware spread + slippage + ADV partial fills on the LIVE submit path, intraday pricing for fills/stops/kill-switch, and a price-staleness gate on execution. Paper alpha must survive friction before phase-68 go-live means anything.
+C. CORPORATE ACTIONS + DATA RESILIENCE: splits never re-base open positions (phantom loss → spurious full-book flatten); delisted tickers mark at a frozen price; single-vendor yfinance SPOF with no fallback or alarm; full SPY-history refetch every cycle; silent universe collapse. Add split/delist handling, staleness age-gates, a second price source, caching, operator paging.
+D. PIPELINE TRUTH + EFFICIENCY: supply_chain agent NEVER runs and the sector_catalyst synthesis slot is fed PATENT text — fix both corrupt synthesis inputs; build real per-agent signal→outcome attribution (which of the 28 agents earn their tokens? retire dead weight); prune dead methods + roster drift; Gemini context caching for the fact-ledger prefix; bound the deep-dive N+1 loop.
+E. SURFACE HARDENING: authenticate POST /api/harness/monthly-approval + trim _PUBLIC_PATHS; pin core deps; reconcile Docker py3.11 vs CI py3.14; BQ partition-expiration on llm_call_log/harness_learning_log; fix the paper_positions delete-then-insert streaming-buffer race; persistent scheduler jobstores.
+F. RENEWABLE DISCOVERY: when A–E drain, re-run the fresh-eyes sweep (3 parallel read-only auditors over surfaces the masterplan does NOT cover; dedup ledger + file:line evidence mandatory) and extend the register. Discovery is this goal's renewable input — the Fable edge.
 
-PROTOCOL (non-skippable, per step): full 3-agent Layer-3 harness — Researcher gate (≥5 sources read-in-full + recency scan) → contract.md (immutable criteria verbatim) → GENERATE → FRESH Q/A via .claude/workflows/qa-verdict.js (Workflow structured-output first-class; Agent-tool fallback; transcribe the verdict VERBATIM; empty/errored return = NO VERDICT, never PASS) → harness_log.md append → masterplan flip. Never self-evaluate. On CONDITIONAL/FAIL: fix blockers + update handoff files, respawn a fresh Q/A; never verdict-shop on unchanged evidence. 3rd consecutive CONDITIONAL on one step = FAIL.
+PROTOCOL (non-skippable per step): full 3-agent Layer-3 harness — Researcher gate → contract.md (criteria verbatim) → GENERATE → FRESH Q/A via .claude/workflows/qa-verdict.js (transcribe verdict VERBATIM; empty return = NO VERDICT, never PASS) → harness_log append → masterplan flip. Never self-evaluate; fix-then-respawn on CONDITIONAL/FAIL; 3rd consecutive CONDITIONAL = FAIL.
 
-FABLE 5 USAGE: Fable runs ONLY as this session's engine on the Claude Code rail — the $0-metered doctrine is unchanged. NO .claude/agents frontmatter repins, NO in-app/API Fable pins (Layer-2 stays on its token-ROI pins; honor each step's [model/effort] executor tag for subagent spawns). Use effort `max` (never `xhigh` — silently downgrades on Fable), Workflow-tool fan-out for parallel research/verification, structured outputs for every verdict, and long context for whole-subsystem reads. Never instruct any agent to echo its reasoning as output text.
+FABLE 5: session-rail only, $0-metered doctrine unchanged; NO agent-frontmatter or in-app Fable pins; effort max (never xhigh — silent downgrade); parallel fan-out for audit/verification; never instruct any agent to echo its reasoning as output.
 
-GUARDRAILS (violating any = automatic FAIL): paper-only; DO-NO-HARM — trailing stops, sector caps, kill-switch, DSR≥0.95, PBO≤0.5 untouched; historical_macro frozen; hysteresis banned; every live-loop behavior change ships flag-gated default-OFF (dark) until an operator token; observability always-on; harness stays EXACTLY 3 agents; research-gate floors immutable; verification criteria never edited; every claim cited to a tool result; metered LLM spend requires Peder's explicit approval. Cloud sessions commit+push ONLY to their assigned claude/* branch; the operator merges to main.
+GUARDRAILS (violation = automatic FAIL): paper-only; DO-NO-HARM — stop, sector-cap, kill-switch, DSR≥0.95, PBO≤0.5 THRESHOLDS untouched (A–C harden ENFORCEMENT, never move thresholds); historical_macro frozen; hysteresis banned; live-loop changes ship flag-gated default-OFF until an operator token; observability always-on; EXACTLY 3 harness agents; verification criteria never edited; every claim cited to a tool result; metered spend needs Peder's approval. Cloud sessions push ONLY their claude/* branch.
 
-STOP CONDITIONS: stop and report when only operator-gated steps remain, or on any risk-guard ambiguity. Every session report restates the standing OPERATOR-OWED blockers until cleared: (1) Anthropic API credit top-up-or-abandon decision; (2) append PAPER_SYNTHESIS_INTEGRITY_ENABLED=true + PAPER_RISK_JUDGE_SHAPE_FIX_ENABLED=true to backend/.env; (3) backend restart (stale pid predates the approvals); (4) .env grep confirmation. The engine earns nothing until these land — say so plainly, then continue work that doesn't depend on them.
+STOP: report when only operator-gated items remain or on risk-guard ambiguity.
 ```
