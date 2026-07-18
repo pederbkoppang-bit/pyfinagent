@@ -1,40 +1,35 @@
-# Contract — phase-73.1: D2a leakage-integrity design
+# Contract — phase-73.2: D2b learn-loop v2 design
 
-**Step id:** 73.1 (phase-73, depends_on 73.0 = done/PASS @83162aa0)
+**Step id:** 73.2 (phase-73, depends_on 73.1 = done/PASS @5c058428)
 **Session role:** Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY. No product code, no .env, no flags, no optimizer runs, $0 metered.
 
 ## Research-gate summary (gate_passed: true)
 
-Researcher via structured-output Workflow `wf_5da65207-39a` (opus/max, tier=moderate): 5 sources read in full (Profit Mirage FactFin at implementation depth — Alg.1/Eq.4/Table 5; Detecting-Lookahead-Bias; Look-Ahead-Bench retry; AFML/CPCV canon writeup; Time-Machine-GPT/PiT line + The New Quant §7.1), 17 URLs, recency scan (skfolio now ships CombinatorialPurgedCV — C4 is wiring, not research), 8 internal files. Brief: `research_brief_73.1.md`. Returned four structured `design_inputs` (spec_points + seams + cost notes) — transcribed verbatim into the design doc.
+Researcher via structured-output Workflow `wf_a195f7b3-5d8` (opus/max, tier=moderate): 6 sources read in full (FinMem Eq 1-6 via ar5iv; agent survey; FinCon CVRF; Generative-Agents memory scoring; Reflexion; 2026 Agentic-Trading survey), 20 URLs, recency scan, 6 internal files re-verified line-by-line. Brief: `research_brief_73.2.md`. Returned five structured `design_inputs` + an exhaustive 6-item `deadness_causes` stack — all transcribed verbatim into the design doc.
 
 Load-bearing findings:
-1. **C1 is document+test, not build**: `_label_overlaps_test` is exactly the canonical AFML overlap predicate; no purge regression test exists anywhere in tests/ — net-new.
-2. **C2 hard gap confirmed**: no knowledge-cutoff constant exists in the codebase; MODEL_CUTOFFS registry + eval-window selector are net-new; the quant-only GBM backtest is exempt — C2 governs only the live LLM signal path.
-3. **LAP is BLOCKED for Claude** (requires logprobs the Anthropic API doesn't expose); FactFin PC (text-only) is the Claude-compatible substitute; IDS deferred (~10× cost).
-4. **Correction to 73.0**: FactFin publishes NO formal thresholds — 'PC>0.7/IDS>0.6' was interpretive; the pilot calibrates a LOCAL cutoff (Table-5 anchors: leaky PC≈0.62 vs clean PC≈0.31).
-5. **C3 cost refined + CONFIRMED METERED** (meta_scorer.py:203/:221 direct Anthropic): PC-only ≈ $0.05-0.10/candidate at M=20 hard-cap; operator cost approval required; which rail the live decision path uses is an unresolved data-gap the executor must confirm before spending.
-6. **C4 is a $0 wiring job**: cpcv_folds defined-but-unused at gate.py:42; wire as an OOS-Sharpe-distribution COMPLEMENT; gate.py byte-unchanged; buildable under the macro freeze.
+1. **The deadness is a STACK, not one crash** (corrects 73.0's "~2-line keystone" framing): DC1 the crash with TWO legs (TYPE: `evaluate_all_pending:137` passes raw native datetime; TZ: the live path's `created_at.isoformat()` is tz-aware — both die in the shared method at `:47/:50`); DC2 the flag default gating the ENTIRE fan-out at `autonomous_loop.py:2964` (independent of the crash); DC3 the `logger.debug` swallow at `:3050` that hid 36+ days of empty tables while Step 9 reported "learning" healthy; DC4 the `model=None` branch killing reflections on all periodic/manual paths; DC5 rolling-mark P&L (learns from the wrong number even when it works).
+2. **Two things are ALREADY FIXED — do not re-fix**: the close-event seam (phase-30.3) and live model-injection (phase-31.1); base BQ tables exist.
+3. **Design decisions**: single Q=90d multiplicative decay (`bm25_norm × exp(-d/90) × imp_mult`) over FinMem's filing-typed 14/90/365 layers (our-scale justified; matches the holding horizon); trim reflections 4→1-2 per close for BM25 corpus hygiene (Reflexion/FinCon one-lesson-per-episode); ONE additive nullable BQ migration serves importance-bump + idempotency + forward-compatible evidence-source attribution (73.5 PiT-RAG ready, zero backfill); two-stage injection gate (relevance floor FIRST, decay rerank within survivors); realized-exit-primary reflection satisfying the survey's Outcome-Embargo by construction.
 
 ## Hypothesis
 
-The four-component design (verify-the-existing-purge + post-cutoff windowing + a small Claude-compatible counterfactual pilot + CPCV complement) closes the genuinely-open leakage surface at our scale with three $0 builds and one hard-capped metered pilot — without touching gate.py's immutable thresholds or re-doing solved work.
+Clearing the enumerated stack (crash + swallow + realized-P&L inversion) and shipping the decay/injection upgrades turns the dead loop into the compounding-edge substrate (#2) that #1's calibration and 73.5's evidence weighting both consume — at $0, on existing tables, with the flag flip remaining the operator's dark-until-token decision.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 73.1)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 73.2)
 
-- "a_leakage_integrity.md specifies the purge/embargo mechanics (window math for 90-135d triple-barrier horizons), the post-cutoff eval harness design, and the re-validation plan for previously-gated strategies once the leak is fixed"
-- "Executor-tagged build steps appended pending with immutable live_checks (a re-run gate output on purged data; a post-cutoff eval run artifact)"
-- "No product code edited by this session; historical_macro untouched"
+- "b_learn_loop_v2.md enumerates every independent deadness cause with file:line and its fix, plus the decay-tier memory design mapped onto the existing FinancialSituationMemory/BM25 substrate (upgrade, not greenfield)"
+- "Reflection write/retrieve seams specified end-to-end (closed trade -> reflection -> retrieval into future analysis prompts) with token-cost bounds"
+- "Executor-tagged build steps appended pending with live_checks (a BQ reflection row from a real closed trade; a retrieval hit in a live analysis prompt); no code edited this session"
 
-Criterion-1 note (honest reading, criteria unamended): the purge/embargo mechanics + window math ARE specified (as verified-existing, with a regression-test spec preventing silent regression — the design's §1); the "re-validation plan once the leak is fixed" maps to §1's stale-F clearance + §2/§4's post-cutoff and CPCV validation paths, since the 73.0 study proved the leak was already fixed in phase-69.2.
-
-verification.command: `bash -c 'test -f handoff/current/design_pack_73/a_leakage_integrity.md && grep -Eqi "purge|embargo" handoff/current/design_pack_73/a_leakage_integrity.md'`
+verification.command: `bash -c 'test -f handoff/current/design_pack_73/b_learn_loop_v2.md && grep -Eqi "decay|tier" handoff/current/design_pack_73/b_learn_loop_v2.md'`
 
 ## Plan
 
-1. GENERATE: design doc finalized verbatim from the gate's design_inputs (done, 8,962 chars); append executor build steps 73.1.1-73.1.4 (pending, tagged, immutable live_checks).
-2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 119) → flip 73.1 done.
+1. GENERATE: design doc finalized verbatim from the gate (done, 15,331 chars — deadness stack §top, five component specs §1-5, decisions-of-record); append executor build steps 73.2.1-73.2.3 (pending, tagged, immutable live_checks matching the criteria's two artifacts).
+2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 120) → flip 73.2 done.
 
 ## References
 
-- `handoff/current/research_brief_73.1.md`; `handoff/current/frontier_map_73.md` (#3 verdict + corrections)
-- arXiv 2510.07920 (FactFin), 2512.23847, 2601.13770; AFML Ch.7/12 canon; The New Quant §7.1; Time-Machine-GPT principle
+- `handoff/current/research_brief_73.2.md`; `frontier_map_73.md` (#2 verdict); `design_pack_73/b_learn_loop_v2.md`
+- FinMem ar5iv 2311.13743 (Eq 1-6); Generative Agents 2304.03442; FinCon 2407.06567; Reflexion 2303.11366; agent survey 2408.06361; 2026 Agentic-Trading survey (Outcome Embargo)

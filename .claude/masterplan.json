@@ -16305,7 +16305,7 @@
         },
         {
           "id": "73.2",
-          "status": "pending",
+          "status": "done",
           "name": "D2b learn-loop v2 design [executor: this session, fable-5/ultracode]. Design doc design_pack_73/b_learn_loop_v2.md: repair the multi-cause-dead retrieve-reflect-store loop (outcome_tracker.py:50 tz crash, flag, silent DEBUG swallow) + decay-tiered memory upgrade per FinMem (shallow/intermediate/deep) so every closed trade writes a reflection future analyses retrieve. Executor build steps appended pending.",
           "harness_required": true,
           "priority": "P1",
@@ -16320,6 +16320,63 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "73.1"
+        },
+        {
+          "id": "73.2.1",
+          "status": "pending",
+          "name": "Build M1 -- learn-loop crash-fix + observability [executor: sonnet-4.6/high]. Per design_pack_73/b_learn_loop_v2.md §1 + deadness stack: type+tz normalize inside evaluate_recommendation (outcome_tracker.py:47-50, mirror sibling :100-111 verbatim -- covers BOTH the TYPE leg (:137 raw datetime) and the TZ leg (live created_at.isoformat)); ValueError guard with graceful skip; live dispatcher prefers created_at over analysis_id; raise the :3050 debug swallow to warning + summary['learn_failures'] counter. Also fix DC4 (model=None kills reflections on periodic paths) per design. $0, no behavior change while paper_learn_loop_enabled stays False (operator's flag).",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "73.2",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; [ast.parse(open(f).read()) for f in sys.argv[1:]]\" backend/services/outcome_tracker.py backend/services/autonomous_loop.py'",
+            "success_criteria": [
+              "The shared method survives all three caller input shapes (native datetime, tz-aware ISO string, plain ISO string) -- unit-tested per leg; unparseable dates skip gracefully with a warning",
+              "The DC3 swallow is observable: a forced failure surfaces at WARNING level and increments a summary counter (no more silent healthy-looking Step 9)",
+              "No behavior change with the flag OFF (byte-identical decision path); syntax + existing tests pass; no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_73.2.1.md: unit-test output covering all three input-shape legs + a forced-failure log line at WARNING with the learn_failures counter incremented"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.2.2",
+          "status": "pending",
+          "name": "Build M2 -- reflection-on-close + additive BQ migration [executor: sonnet-4.6/high]. Per design §2+§5: realized SELL-trade fields become the PRIMARY reflection input (rolling yfinance mark demoted to fallback -- fixes DC5); reflection prompt extended (entry/exit/exit_reason/realized_pnl_pct/holding_days/original thesis); trim reflection fan-out 4->1-2 per close (BM25 corpus hygiene); idempotency via source_trade_id dedup; ONE additive nullable migration in scripts/migrations/ adding {evidence_source_family, abs_pnl_pct, source_trade_id} to agent_memories (metadata-only, $0, zero backfill). Outcome-Embargo preserved by construction. Reflections fire only when the operator flips paper_learn_loop_enabled (dark-until-token).",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "73.2",
+          "verification": {
+            "command": "bash -c 'ls scripts/migrations/ | grep -Eqi \"agent_memories|reflection\"'",
+            "success_criteria": [
+              "Reflection input is the realized exit (verified against a SELL trade row), with the rolling mark only as fallback; prompt carries the six design fields; at most 2 reflection calls per close",
+              "Migration is idempotent, additive-nullable, preserves legacy rows; retry of the same close writes ZERO duplicate rows (source_trade_id dedup proven)",
+              "No same-cycle just-closed lesson can be injected into a still-open decision on the same name (embargo guard); no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_73.2.2.md: a BQ agent_memories reflection row from a REAL closed trade (post operator flag-flip) showing realized_pnl_pct-based lesson + populated source_trade_id/evidence_source_family -- or, pre-flip, the same from a staging dry-run with the flag simulated ON, clearly labeled"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.2.3",
+          "status": "pending",
+          "name": "Build M3 -- decay re-rank + two-stage retrieval injection [executor: sonnet-4.6/high]. Per design §3+§4: multiplicative composite bm25_norm * exp(-d/90) * importance_mult (single Q=90d half-life -- decision of record; importance bump from abs_pnl_pct) with the reorder happening BEFORE the top-k slice (memory.py:116-118 fix); two-stage gate: relevance floor (memory.py:123, >0.1) FIRST, decay/importance rerank WITHIN survivors, THEN top-k=2; injection seams unchanged (orchestrator.py:2102-2114 debate, :2255-2269 risk judge; ~250-350 tok/agent budget held). $0, no embeddings, no new deps.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "73.2",
+          "verification": {
+            "command": "bash -c 'grep -Eq \"exp\\(|half.?life|decay\" backend/agents/memory.py'",
+            "success_criteria": [
+              "Composite scoring reorders within-relevant only (an off-topic recent lesson can never displace an on-topic older one -- property-tested); top-k slice happens AFTER the reorder",
+              "Injection token budget stays within the design bound; retrieval output includes the composite score components for observability",
+              "Byte-identical retrieval when the memory store is empty or the flag is OFF; syntax + existing tests pass"
+            ],
+            "live_check": "handoff/current/live_check_73.2.3.md: a live (or staging) analysis prompt excerpt showing an injected lesson selected by the composite (with its recency/importance components logged) on a real ticker"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         },
         {
           "id": "73.3",
