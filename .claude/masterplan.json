@@ -16001,7 +16001,7 @@
         },
         {
           "id": "72.1",
-          "status": "pending",
+          "status": "done",
           "name": "P1 approved-but-unapplied token audit [executor: this session, fable-5/ultracode]. Reconcile EVERY handoff/operator_tokens.jsonl line against live state (code defaults + operator .env grep): 'SYNTHESIS-INTEGRITY + RJ-SHAPE ON' approved 2026-07-09 yet settings.py:197/:311 default False. Every approved-but-dark lever lands in operator_decision_sheet_72.md with the exact one-line .env change the operator must make. Session flips nothing.",
           "harness_required": true,
           "priority": "P1",
@@ -16016,6 +16016,25 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "72.0"
+        },
+        {
+          "id": "72.1.1",
+          "status": "pending",
+          "name": "Remediation -- sentinel reverse-leg token reconciliation (report-only) [executor: sonnet-4.6/high]. scripts/away_ops/sentinel.sh:102-126 reconciles one-directionally (catches .env flag ON without a token; BLIND to a recorded approval with no .env line -- the exact 2026-07-09 SYNTHESIS-INTEGRITY gap that cost 5+ trading weeks). Add a reverse leg: diff handoff/operator_tokens.jsonl recorded approvals against backend/.env presence (grep-level, values only, no writes) and WARN 'approved-but-unapplied' into the sentinel report + Slack digest. Report-only -- .env stays operator-only; no auto-apply; do NOT extend KNOWN_TOKEN_ENV_MAP auto-apply without a separate operator opt-in. External basis: bidirectional GitOps/flag-governance reconciliation (research_brief_72.1.md).",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "72.1",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"approved.?but.?unapplied|reverse\" scripts/away_ops/sentinel.sh'",
+            "success_criteria": [
+              "sentinel reverse leg detects a recorded approval whose .env line is absent and WARNs report-only; zero writes to .env under any input",
+              "The 2026-07-09 SYNTHESIS-INTEGRITY case (or a seeded fixture if the operator has applied it by then) is detected in a real sentinel run",
+              "One-directional legacy behavior unchanged; python/bash syntax checks pass on touched files"
+            ],
+            "live_check": "handoff/current/live_check_72.1.1.md: verbatim sentinel run output showing the approved-but-unapplied WARN line (real case or seeded fixture)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         },
         {
           "id": "72.2",

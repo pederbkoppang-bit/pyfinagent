@@ -61,7 +61,9 @@ Every restoration step carries an immutable live_check: **a post-restoration cyc
 
 ---
 
-## P1 — Approved-but-unapplied tokens (step 72.1 — pending)
+## P1 — Approved-but-unapplied tokens (step 72.1 — reconciled 2026-07-18)
+
+Full 15-row reconciliation in `operator_decision_sheet_72.md` §P1 (researcher `wf_ce9e1cac-e72`, gate passed). Headline: **exactly one true approval-to-deployment gap** — the 2026-07-09 PROMOTE SYNTHESIS-INTEGRITY + RJ-SHAPE bundle (settings.py:197/:311, default False), double-blocked: never written to the agent-locked `.env` AND the backend process (pid 98681, up since 07-08 23:24) predates the approval. The 06-11 keystroke batch (swap-churn-fix / data-integrity / RJ-binding) IS applied and loaded (runtime-corroborated for 60.2). The phase-69 tokens (KS-PEAK-RESET, sign_safe_overlays, regime_net_liquidity) are owed-not-approved — correctly dark, ranked in P3, not deployment gaps. Structural root: no auto-apply path (`operator_tokens.py:52-61` maps only AWAY DRILL) + one-directional sentinel (`sentinel.sh:102-126`, blind to approved-but-unapplied); report-only reverse-leg reconciliation queued as step 72.1.1 [executor: sonnet-4.6/high]. Live `.env` values remain UNCONFIRMED-marked pending the operator grep (ACT-NOW #4).
 ## P2 — Measurement integrity (step 72.2 — pending)
 ## P3 — Earning-capacity levers (step 72.3 — pending; output in operator_decision_sheet_72.md)
 ## P4 — Regime deployment policy (step 72.4 — pending)
