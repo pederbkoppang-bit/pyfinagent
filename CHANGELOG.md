@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `afa6269` | chore: session audit-trail appends |
 | 2026-07-18 | `955ac74` | chore: session audit-trail appends |
 | 2026-07-18 | `449fcad` | chore: session audit-trail appends |
 | 2026-07-18 | `c941915` | feat: v2 long-term cloud goal -- fresh-eyes hardening register + rewritten goal prompt |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `b6c95879` | phase-73.0: D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline... |
 | 2026-07-18 | `9489d8df` | phase-73.0: install phase-73 goal + D1-D4 design step queue (frontier gap-close; baseline @e835464b) |
 | 2026-07-18 | `e835464b` | chore: phase-73 frontier baseline (graded dimension map + syllabus + critic verdicts) ahead of goal  |
-| 2026-07-18 | `fca7520b` | phase-72.5: Rollup + push [executor: this session, fable-5/ultracode]. money_diagnosis_72.md comp... |
 
 ---
 
