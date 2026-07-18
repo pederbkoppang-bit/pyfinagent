@@ -16185,6 +16185,157 @@
           "depends_on_step": "72.4"
         }
       ]
+    },
+    {
+      "id": "phase-73",
+      "name": "Best-in-class LLM quant engine -- frontier gap-close, design + queue only (operator /goal 2026-07-18 #2). SESSION: Fable 5 + ultracode, effort MAX on researcher/judge/QA stages; RESEARCH + DESIGN ONLY (no product code, no .env, no flags, no optimizer runs, $0 metered). All build work lands as pending steps tagged [executor: sonnet-4.6/high | opus-4.8/xhigh] for cheaper sessions. BASELINE: handoff/current/frontier_baseline_2026-07-18.md (verified graded dimension map @e835464b). BINDING: do not rebuild debate architecture (A-) or statistical gates (B+); do not duplicate the phase-72 queue; all frontier return claims are leakage-suspect mechanism evidence only. Compounding chain: leakage integrity -> learn-loop v2 -> calibrated sizing -> cost-integrated promotion, then judged pilots + money runway.",
+      "status": "in-progress",
+      "theme": "frontier gap-close: clean backtests, working learn-loop, calibrated sizing, net-of-cost promotion",
+      "steps": [
+        {
+          "id": "73.0",
+          "status": "in-progress",
+          "name": "D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline syllabus IN FULL (arXiv /html/ chain; fan-out readers per core dimension + surveys/industry) and produce handoff/current/frontier_map_73.md: per-dimension adopt/reject mechanism verdicts at OUR scale.",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/frontier_map_73.md && grep -Eqi \"adopt\" handoff/current/frontier_map_73.md && grep -Eqi \"leakage\" handoff/current/frontier_map_73.md && grep -Eqi \"calibrat\" handoff/current/frontier_map_73.md'",
+            "success_criteria": [
+              "frontier_map_73.md carries adopt/reject mechanism verdicts for the four core dimensions (leakage integrity, memory/reflection, calibrated sizing, cost-integrated promotion) plus survey/industry anchors, each verdict citing sources read IN FULL -- no verdict rests on abstract-only reads",
+              "Every adopted mechanism is justified at OUR scale (2-person local paper fund) and every frontier return claim is treated as leakage-suspect mechanism evidence only",
+              "Reading coverage is honest: unreachable/paywalled sources are explicitly listed with what was attempted; 2026-dated preprint IDs from the baseline are verified-or-corrected"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.1",
+          "status": "pending",
+          "name": "D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc handoff/current/design_pack_73/a_leakage_integrity.md: purge/embargo fix for the confirmed test->train triple-barrier label leak (backtest_engine.py:587, AFML purged-CV/embargo) + post-knowledge-cutoff / counterfactual eval harness for every LLM-touched strategy (Profit Mirage class). Gates trust in everything downstream. Executor build steps appended pending.",
+          "harness_required": true,
+          "priority": "P0",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/design_pack_73/a_leakage_integrity.md && grep -Eqi \"purge|embargo\" handoff/current/design_pack_73/a_leakage_integrity.md'",
+            "success_criteria": [
+              "a_leakage_integrity.md specifies the purge/embargo mechanics (window math for 90-135d triple-barrier horizons), the post-cutoff eval harness design, and the re-validation plan for previously-gated strategies once the leak is fixed",
+              "Executor-tagged build steps appended pending with immutable live_checks (a re-run gate output on purged data; a post-cutoff eval run artifact)",
+              "No product code edited by this session; historical_macro untouched"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "73.0"
+        },
+        {
+          "id": "73.2",
+          "status": "pending",
+          "name": "D2b learn-loop v2 design [executor: this session, fable-5/ultracode]. Design doc design_pack_73/b_learn_loop_v2.md: repair the multi-cause-dead retrieve-reflect-store loop (outcome_tracker.py:50 tz crash, flag, silent DEBUG swallow) + decay-tiered memory upgrade per FinMem (shallow/intermediate/deep) so every closed trade writes a reflection future analyses retrieve. Executor build steps appended pending.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/design_pack_73/b_learn_loop_v2.md && grep -Eqi \"decay|tier\" handoff/current/design_pack_73/b_learn_loop_v2.md'",
+            "success_criteria": [
+              "b_learn_loop_v2.md enumerates every independent deadness cause with file:line and its fix, plus the decay-tier memory design mapped onto the existing FinancialSituationMemory/BM25 substrate (upgrade, not greenfield)",
+              "Reflection write/retrieve seams specified end-to-end (closed trade -> reflection -> retrieval into future analysis prompts) with token-cost bounds",
+              "Executor-tagged build steps appended pending with live_checks (a BQ reflection row from a real closed trade; a retrieval hit in a live analysis prompt); no code edited this session"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "73.1"
+        },
+        {
+          "id": "73.3",
+          "status": "pending",
+          "name": "D2c calibrated-sizing design [executor: this session, fable-5/ultracode]. Design doc design_pack_73/c_calibrated_sizing.md: conviction -> realized-hit-rate calibration layer (bucket/isotonic, ensemble-aware) feeding position_pct; honest sample-size math (how many closed trades before calibration beats uniform); ships dark behind a flag with an A/B live_check plan. Executor build steps appended pending.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/design_pack_73/c_calibrated_sizing.md && grep -Eqi \"isotonic|bucket|calibrat\" handoff/current/design_pack_73/c_calibrated_sizing.md'",
+            "success_criteria": [
+              "c_calibrated_sizing.md specifies the calibration method, its data requirements with honest small-sample math against our actual trade count, the fallback when insufficient data, and the flag-gated integration point at the sizing seam",
+              "The A/B evaluation plan defines the promotion evidence (calibrated vs uniform sizing on identical signals) consistent with the immutable gates",
+              "Executor-tagged build steps appended pending with live_checks; no code edited this session"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "73.2"
+        },
+        {
+          "id": "73.4",
+          "status": "pending",
+          "name": "D2d cost-integrated promotion design [executor: this session, fable-5/ultracode]. Design doc design_pack_73/d_cost_promotion.md: fold token+fees+slippage into the promotion objective (QuantAgent-style budget) so net-of-cost is the ONLY promoted metric; resolve + document the PromotionGate PBO 0.20-vs-charter-0.5 discrepancy (document intent, criteria stay immutable). Executor build steps appended pending.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/design_pack_73/d_cost_promotion.md && grep -Eqi \"token|cost\" handoff/current/design_pack_73/d_cost_promotion.md && grep -Eqi \"PBO\" handoff/current/design_pack_73/d_cost_promotion.md'",
+            "success_criteria": [
+              "d_cost_promotion.md specifies the net-of-cost objective (which costs, measured where, charged how) and its integration at gate.py/perf_metrics without weakening any immutable gate",
+              "The PBO 0.20-vs-0.5 discrepancy is resolved in writing (which value is intended, why, where documented) without editing any immutable criterion",
+              "Executor-tagged build steps appended pending with live_checks (a gate run whose output shows the cost-charged objective); no code edited this session"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "73.3"
+        },
+        {
+          "id": "73.5",
+          "status": "pending",
+          "name": "D2e judged pilots [executor: this session, fable-5/ultracode]. Build/hold verdicts with evidence in design_pack_73/e_pilot_verdicts.md for: (1) autoresearch->live champion bridge incl. the historical_macro un-freeze validation plan + exact operator token wording; (2) news-RAG residual-return evidence weighting; (3) LLM factor-mining pilot with IC/IR gate. Any BUILD verdict appends executor-tagged steps; HOLD verdicts carry the evidence bar that would flip them.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/design_pack_73/e_pilot_verdicts.md && grep -Eqi \"BUILD|HOLD\" handoff/current/design_pack_73/e_pilot_verdicts.md'",
+            "success_criteria": [
+              "e_pilot_verdicts.md gives each pilot an explicit BUILD or HOLD verdict grounded in D1's mechanism notes + our-scale constraints, never in leakage-suspect return claims",
+              "The champion-bridge verdict includes the un-freeze validation plan + verbatim proposed operator token; recommend-only discipline held",
+              "BUILD verdicts appended as executor-tagged pending steps with live_checks; HOLD verdicts state the evidence that would flip them; no code edited"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "73.4"
+        },
+        {
+          "id": "73.6",
+          "status": "pending",
+          "name": "D3 money runway (recommend-only) [executor: this session, fable-5/ultracode]. One page handoff/current/money_runway_73.md: sequence to MORE ABSOLUTE $ -- post-P0 capital redeployment discipline, real-fill runway prerequisites (phase-68: every fill ever is synthetic), go-live gate honesty (58.1) -- operator decisions enumerated verbatim-actionable.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/money_runway_73.md && grep -Eqi \"real.?fill|go.?live\" handoff/current/money_runway_73.md'",
+            "success_criteria": [
+              "money_runway_73.md is one page, sequences paper-restoration -> real-fill -> go-live with prerequisites and evidence anchors, and enumerates every operator decision as one actionable line",
+              "Consistent with (not duplicating) phase-68/58.1 masterplan entries and the phase-72 ACT-NOW block",
+              "Recommend-only; no spend, no flags, no code"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "73.5"
+        },
+        {
+          "id": "73.7",
+          "status": "pending",
+          "name": "D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (frontier_map_73.md; design_pack_73/ a-e; steps installed pending+executor-tagged+live_checks; five-file artifacts per step; verdicts verbatim), queue remaining surfaced defects (MAS retry bug multi_agent_orchestrator.py:1238 as an executor step; purge leak via 73.1; PBO doc via 73.4), commit + push to origin/main.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -c 'test -f handoff/current/frontier_map_73.md && test -d handoff/current/design_pack_73 && git log origin/main --oneline -5 | grep -q \"phase-73\"'",
+            "success_criteria": [
+              "All four DoD elements verified with a completeness-critic gate; any gap fixed before close",
+              "MAS retry bug queued as an executor-tagged pending step; the defect queue from the baseline is fully dispositioned",
+              "Every phase-73 step closed with the five-file protocol and verbatim qa-verdict transcription; work pushed to origin/main"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "73.6"
+        }
+      ]
     }
   ]
 }
