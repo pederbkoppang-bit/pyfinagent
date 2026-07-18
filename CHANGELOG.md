@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `e835464b` | chore: phase-73 frontier baseline (graded dimension map + syllabus + critic verdicts) ahead of goal  |
 | 2026-07-18 | `fca7520b` | phase-72.5: Rollup + push [executor: this session, fable-5/ultracode]. money_diagnosis_72.md comp... |
 | 2026-07-18 | `e8470ff1` | phase-72.4: P4 regime deployment-policy research (research gate, moderate tier) [executor: this s... |
 | 2026-07-18 | `34db321c` | phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `7c134fde` | phase-71.6: P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harnes... |
 | 2026-07-17 | `0e003e6e` | phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + subagent context-hygiene + dead-dri |
 | 2026-07-17 | `5e88a383` | phase-71.4: independent fail-closed evaluator before skill self-modification + adaptive coverage/loo |
-| 2026-07-17 | `de7e8270` | phase-71.3: harden Q/A judgment (contract-completeness + adversarial N-lens) + machine-readable verd |
 
 ---
 
