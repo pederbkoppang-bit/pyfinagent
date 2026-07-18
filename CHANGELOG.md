@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `2952a33` | chore: session audit-trail appends |
 | 2026-07-18 | `9e1b58b` | chore: session audit-trail appends |
 | 2026-07-18 | `d4583f4` | chore: session audit-trail appends |
 | 2026-07-18 | `ec6bf2e` | chore: session audit-trail appends |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `e8470ff1` | phase-72.4: P4 regime deployment-policy research (research gate, moderate tier) [executor: this s... |
 | 2026-07-18 | `34db321c` | phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/... |
 | 2026-07-18 | `665d7c0e` | phase-72.2: P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the ... |
-| 2026-07-18 | `080f93c1` | phase-72.1: P1 approved-but-unapplied token audit [executor: this session, fable-5/ultracode]. Re... |
 
 ---
 
