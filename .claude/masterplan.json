@@ -16168,7 +16168,7 @@
         },
         {
           "id": "72.5",
-          "status": "pending",
+          "status": "done",
           "name": "Rollup + push [executor: this session, fable-5/ultracode]. money_diagnosis_72.md complete (segmented: late-May gains / June de-risk-into-cash / July degraded-scoring stall, one verified cause per sub-period, no single-root-cause framing); operator_decision_sheet_72.md complete; all remediation steps installed pending + executor-tagged; all five-file harness artifacts per step with qa-verdict verdicts transcribed verbatim; committed and pushed to origin/main.",
           "harness_required": true,
           "priority": "P1",

@@ -41,6 +41,8 @@ Live-state basis: documentary + runtime inference only — `backend/.env` is age
 
 ### Recommend-ON, in sequence
 
+Current state for every row below: **code default (False / 0 / dark)** per the P1 reconciliation table — each line is therefore current→proposed.
+
 | Seq | Lever (.env line) | Expected impact (evidence) | Risk | Rollback |
 |---|---|---|---|---|
 | 1 | `KILL_SWITCH_PEAK_RESET_ENABLED=true` — requires you to record `KS-PEAK-RESET:APPROVED` first | $0 in normal operation; removes the permanent-lockout time-bomb (monotonic peak freezes book to 100% cash forever after a ≥10% pullback+flatten). Insurance, flip first while quiet | Guard-behavior change; concurrency nit noted in phase-69.1 critique | flag=false + restart (no-op reset, byte-identical) |

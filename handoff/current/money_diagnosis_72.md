@@ -1,13 +1,13 @@
-# Money Diagnosis — phase-72 (write-first draft, started 2026-07-18)
+# Money Diagnosis — phase-72 (2026-07-18; P0-P4 all closed PASS, Cycles 112-116)
 
-Baseline: `handoff/current/money_recon_2026-07-18.md` (adversarially verified). Window segmentation (binding for this document — no single-root-cause framing):
-1. **Late May (05-15..06-03)**: real gains booked (+$3,194.68 realized across the window's round trips), but the headline "+14% alpha" is partly a benchmark discontinuity — see P2.
-2. **June (06-03..07-02)**: profit-taking-into-cash — winners exited (+$ realized), redeployment tapered to ~1 trade/week, zero-trade week Jun 15-21.
-3. **July (07-03..present)**: degraded-scoring stall — 100% cash 07-03..07-08, brief AMD+MU re-entry 07-09, nothing since 07-13; book 97.2% cash.
+Baseline: `handoff/current/money_recon_2026-07-18.md` (adversarially verified recon). Segmented verdict — one VERIFIED cause per sub-period, no single-root-cause framing (each claim proven in the P0-P2 sections below):
+1. **Late May (05-15..06-03) — real gains, mis-measured history.** +$3,194.68 realized across the window's round trips (trailing stops harvested the spring winners; FX-clean per P2b). Measurement caveats now RESOLVED by P2a: the stored pre-05-26 alpha rows UNDERSTATE funded-basis alpha by ~10-11pp (deploy artifact of git `320b7dbb`), and the +13.28pp alpha step on 05-26 is a basis switch, not a market event — the CURRENT +14.1pp alpha is honest on the funded anchor. Latent defect already active: meta-scorer conviction leg credit-dead since 05-17/22 (ranking-only, non-trade-blocking).
+2. **June (06-03..07-02) — profit-taking into cash, then a silent outage.** Winners exited (+$ realized), and redeployment collapsed when the cc_rail credentials died 06-15 (ECONNRESET → 401) while `alerting.py` did not exist — 34 consecutive sessions failed with zero pages (P0: DEFECT, not away-posture; rail 4 exempts the pipeline). Zero-trade week Jun 15-21; from 06-15 every analysis fabricated HOLD/0.0 (61.2 defect). The benchmark itself was ~flat, so part of the flatness was regime-appropriate — but the engine could not have deployed even if signals had warranted it.
+3. **July (07-03..present) — degraded-scoring stall at ~97-100% cash.** Anthropic direct-API credit-400s continue daily (root onset 05-17), the approved synthesis-integrity + RJ-shape flags were never applied to `.env`, the meta-scorer remains bypassing the rail, and the genuine CLI rail is near-silent with 120s-timeout cascades tripping the breaker (07-10/13/14/15). The 07-09 AMD+MU BUYs were a one-off Gemini-LITE catch. Five NAV observation days were additionally dropped by the snapshot fail-safe gap (P2c).
 
 ---
 
-## P0 — Scoring-rail root cause (step 72.0, in progress)
+## P0 — Scoring-rail root cause (step 72.0 — closed PASS, Cycle 112)
 
 ### Mechanism (verified, code-level)
 
@@ -76,7 +76,7 @@ Full 15-row reconciliation in `operator_decision_sheet_72.md` §P1 (researcher `
 ### (b) FX — verdict **CLEAN** on all three legs (no corrected bounds required)
 
 - **Trade booking**: all 10 in-window KR trades (.KS only) booked at real transaction-date FX — implied 1513-1560 KRW/USD vs actual 1507-1542, |dev| ≤ 1.76%; a parity booking would store ~1500× notional and is categorically absent.
-- **Round-trip realized**: written FX-converted by `execute_sell` (`paper_trader.py:498`), NOT by the latent `paper_round_trips.py:109` raw-local path; 5 KR trips sum −$30.77. **Window-total realized re-measured: +$3,057.36** (30 trips) — the recon's +$3,194.68 does not reconcile (Δ $137.32, a non-FX reconciliation gap flagged for 72.3's evidence hygiene, not corruption).
+- **Round-trip realized**: written FX-converted by `execute_sell` (`paper_trader.py:498`), NOT by the latent `paper_round_trips.py:109` raw-local path; 5 KR trips sum −$30.77. **Window-total realized re-measured: +$3,057.36** (30 trips) — the recon's +$3,194.68 initially did not reconcile (Δ $137.32, non-FX). *(RESOLVED in P3: the delta is exactly one pre-05-15 boundary trip at −$137.32; both sums are correct on their own windows.)*
 - **NAV marks**: USD-scale throughout; a single parity-marked KR lot (~$738k) would dwarf the $24k NAV — absent.
 - **Latent** (fix stays queued as 72.2.2): `paper_round_trips.py:109` raw-local computation would book KR realized at −$49,687 if it ever rebuilt the table; look-ahead FX fallback + avg-entry unit-mix remain live code hazards.
 
