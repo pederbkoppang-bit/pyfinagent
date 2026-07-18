@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `e89cb69` | feat: adversarial verification pass on fresh-eyes register + goal prompt v2.1 |
 | 2026-07-18 | `afa6269` | chore: session audit-trail appends |
 | 2026-07-18 | `955ac74` | chore: session audit-trail appends |
 | 2026-07-18 | `449fcad` | chore: session audit-trail appends |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `d2485c2e` | phase-73.1: D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc ... |
 | 2026-07-18 | `b6c95879` | phase-73.0: D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline... |
 | 2026-07-18 | `9489d8df` | phase-73.0: install phase-73 goal + D1-D4 design step queue (frontier gap-close; baseline @e835464b) |
-| 2026-07-18 | `e835464b` | chore: phase-73 frontier baseline (graded dimension map + syllabus + critic verdicts) ahead of goal  |
 
 ---
 
+### v6.69.0 — adversarial verification pass on fresh-eyes register + goal prompt v2.1 (2026-07-18)
+
+- **adversarial verification pass on fresh-eyes register + goal prompt v2.1**
 ### v6.68.0 — v2 long-term cloud goal -- fresh-eyes hardening register + rewritten... (2026-07-18)
 
 - **v2 long-term cloud goal -- fresh-eyes hardening register + rewritten goal prompt**
