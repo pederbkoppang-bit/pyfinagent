@@ -16436,7 +16436,7 @@
         },
         {
           "id": "73.4",
-          "status": "pending",
+          "status": "done",
           "name": "D2d cost-integrated promotion design [executor: this session, fable-5/ultracode]. Design doc design_pack_73/d_cost_promotion.md: fold token+fees+slippage into the promotion objective (QuantAgent-style budget) so net-of-cost is the ONLY promoted metric; resolve + document the PromotionGate PBO 0.20-vs-charter-0.5 discrepancy (document intent, criteria stay immutable). Executor build steps appended pending.",
           "harness_required": true,
           "priority": "P1",
@@ -16451,6 +16451,44 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "73.3"
+        },
+        {
+          "id": "73.4.1",
+          "status": "pending",
+          "name": "Build P1 -- net-of-cost DSR + cost-per-bp reporting [executor: sonnet-4.6/high]. Per design_pack_73/d_cost_promotion.md §1+§2: SEAM B net series r_net[t] = r_gross[t] - (tx + slippage + token_cost)/NAV_{t-1} into the EXISTING perf_metrics.compute_dsr first arg (all_trial_sharpes/n_trials untouched; gate.py byte-identical); SEAM A gets ONLY the optional slippage haircut (the GBM backtest is already tx-net with zero token cost -- do NOT fabricate); log BOTH dsr_gross and dsr_net for >=1 transition window, promote on dsr_net; per-decision cost-per-bp row per the §2 minimum shape with the three gauge-safe token-cost derivations (NEVER SUM session_cost_usd) and the None-on-zero guard. $0, no new LLM calls.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "73.4",
+          "verification": {
+            "command": "bash -c 'grep -Eq \"dsr_net|net_of_cost|r_net\" backend/services/perf_metrics.py backend/autoresearch/strategy_backtest_adapter.py 2>/dev/null'",
+            "success_criteria": [
+              "dsr_net and dsr_gross both computed and logged on the live realized series; promotion reads dsr_net; gate.py diff-proven byte-identical; SEAM A carries no token-cost term",
+              "The per-decision cost-per-bp record matches the design's minimum shape; token cost per cycle derives via a gauge-safe method (unit test proves SUM(session_cost_usd) is NOT used); None/flag on excess_bps<=0",
+              "No double-count (cost enters the DSR series once and the diagnostic separately); syntax + existing tests pass; no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_73.4.1.md: a live/replay run artifact showing dsr_gross vs dsr_net side-by-side on the realized series + one real per-decision cost-per-bp row with its token-cost derivation labeled"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.4.2",
+          "status": "pending",
+          "name": "Build P2 -- PBO nested-gate policy documentation [executor: sonnet-4.6/high, DOCS-ONLY]. Per design §3: document the census (gate.py:21 max_pbo=0.20 promotion bar; risk_server.py:28 DEFAULT_PBO_VETO_THRESHOLD=0.5 per-candidate veto cap; adapter produces-only) as NESTED gates on different objects in ARCHITECTURE.md (MADR beside Research Gate Discipline) + a one-line cross-ref in .claude/rules/backend-backtest.md; RECOMMEND-ONLY suggestion for the operator to annotate the charter memory ('0.5 = veto cap; 0.20 = promotion gate') -- the executor never edits the operator-owned memory file. Zero code, zero threshold changes.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "73.4",
+          "verification": {
+            "command": "bash -c 'grep -Eqi \"veto cap|nested\" ARCHITECTURE.md'",
+            "success_criteria": [
+              "ARCHITECTURE.md carries the nested-gate MADR with both thresholds, their objects, and the policy rationale; backend-backtest.md cross-ref added",
+              "No numeric threshold changed anywhere (gate.py + risk_server.py diff-proven untouched); the charter memory is NOT edited -- the recommendation is delivered as a note for the operator",
+              "Docs build/lint (if any) pass; no product code touched"
+            ],
+            "live_check": "handoff/current/live_check_73.4.2.md: the ARCHITECTURE.md diff hunk + the verbatim operator-recommendation note"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         },
         {
           "id": "73.5",
