@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `e8470ff1` | phase-72.4: P4 regime deployment-policy research (research gate, moderate tier) [executor: this s... |
 | 2026-07-18 | `34db321c` | phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/... |
 | 2026-07-18 | `665d7c0e` | phase-72.2: P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the ... |
 | 2026-07-18 | `080f93c1` | phase-72.1: P1 approved-but-unapplied token audit [executor: this session, fable-5/ultracode]. Re... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `5e88a383` | phase-71.4: independent fail-closed evaluator before skill self-modification + adaptive coverage/loo |
 | 2026-07-17 | `de7e8270` | phase-71.3: harden Q/A judgment (contract-completeness + adversarial N-lens) + machine-readable verd |
 | 2026-07-17 | `21c49817` | phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff) |
-| 2026-07-17 | `8043c4ed` | phase-71.2: Layer-2 honesty -- guaranteed structured outputs + kill silent-failure classes |
 
 ---
 
+### v6.64.4 — phase-72.4: P4 regime deployment-policy research (research gate, mode... (2026-07-18)
+
+- **phase-72.4: P4 regime deployment-policy research (research gate, moderate tier) [executor: this s...**
 ### v6.64.3 — phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [exec... (2026-07-18)
 
 - **phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/...**
