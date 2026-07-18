@@ -16038,7 +16038,7 @@
         },
         {
           "id": "72.2",
-          "status": "pending",
+          "status": "done",
           "name": "P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the benchmark_pnl_pct computation; explain the 05-23 (14.97) -> 05-26 (4.76) 10pp discontinuity; re-derive honest alpha for the whole series; queue an executor-tagged fix step. (b) Cross-check KR round-trips (000660.KS/005930.KS/066570.KS) + NAV snapshots for FX-1.0 mis-booking (paper_trader.py:392, fx_rates.py:93). (c) Root-cause why NAV snapshots stop at 07-16 and paper_metrics_v2 07-17 nav is NULL. Do not republish '+14% alpha' anywhere until (a) closes.",
           "harness_required": true,
           "priority": "P2",
@@ -16053,6 +16053,82 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "72.1"
+        },
+        {
+          "id": "72.2.1",
+          "status": "pending",
+          "name": "Measurement M1 -- benchmark single-anchor policy + history rebuild [executor: opus-4.8/xhigh]. Commit 320b7dbb (2026-05-22) switched _get_benchmark_return's SPY anchor inception_date->first_funded_date (paper_trader.py:1283-1313) without rebuilding stored history (save_daily_snapshot MERGEs only today's row, bigquery_client.py:993-1037) -> benchmark_pnl_pct series mixes bases, 14.97->4.76 discontinuity 05-23->05-26, ~+10pp fake alpha. Fix: (a) codify ONE anchor policy (GIPS same-basis; use the 72.2 forensics recommendation); (b) idempotent migration script in scripts/migrations/ that REBUILDS the historical benchmark_pnl_pct + alpha_pct on the chosen anchor into the snapshots table, preserving originals (backup table or *_legacy columns) -- never destructive; (c) note in ARCHITECTURE.md. No optimizer runs; historical_macro untouched.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "72.2",
+          "verification": {
+            "command": "bash -c 'ls scripts/migrations/ | grep -Eqi \"benchmark\"'",
+            "success_criteria": [
+              "A single documented anchor policy; _get_benchmark_return and the migration use the same anchor; migration is idempotent and preserves the original series",
+              "Post-migration series has no single-day benchmark jump unexplained by SPY's own move (mechanical check in the migration output)",
+              "Published alpha derives from the rebuilt series; the '+14% alpha' figure is corrected everywhere it is surfaced (UI/digest strings audited)"
+            ],
+            "live_check": "handoff/current/live_check_72.2.1.md: migration run output showing rebuilt rows + before/after values at 2026-05-23/05-26 + the recomputed honest alpha at 07-16"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "72.2.2",
+          "status": "pending",
+          "name": "Measurement M2 -- multi-currency realized-P&L correctness [executor: sonnet-4.6/high]. paper_round_trips.py:109 computes realized_pnl_usd from raw LOCAL prices (sums KRW/EUR/USD as dollars); non-US add-on avg_entry mixes USD-cost/local-shares when paper_avg_entry_fx_fix_enabled OFF (paper_trader.py:325-334, settings.py:455); fx_rates._usd_value_asof:199-225 uses today's rate on BQ miss (look-ahead FX). Fix: realized_pnl_usd computed in USD at transaction-date stored rates (single source, per external consensus in research_brief_72.2.md); kill the look-ahead fallback (fail-closed to last-known-good AT-OR-BEFORE date); ship flag-gated where behavior-changing (do-no-harm); include an idempotent re-statement migration for affected historical round_trips rows (preserve originals).",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "72.2",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; ast.parse(open(sys.argv[1]).read())\" backend/services/paper_round_trips.py'",
+            "success_criteria": [
+              "A non-US round trip's realized_pnl_usd equals (exit_usd - entry_usd) x qty at transaction-date rates; unit test with a KRW fixture proves it",
+              "No FX path can use a rate from AFTER the transaction date; parity 1.0 is never a fallback anywhere in the P&L path (grep-proven)",
+              "Historical re-statement is migration-scripted, idempotent, preserves originals; window-total realized P&L re-published with the 72.2 forensics bounds"
+            ],
+            "live_check": "handoff/current/live_check_72.2.2.md: unit-test output for the KRW fixture + migration output listing re-stated KR round-trip rows (before/after realized_pnl_usd)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "72.2.3",
+          "status": "pending",
+          "name": "Measurement M3 -- NAV observability resilience [executor: sonnet-4.6/high]. The daily snapshot is Step-8 (autonomous_loop.py:1535-1544) inside the main try; terminal except TimeoutError(:1639)/except Exception(:1644)/finally(:1662) return WITHOUT a snapshot -> any mid-cycle raise/timeout drops the day's NAV row (07-17 lost; correlates with rail-timeout days). paper_metrics_v2.py:195 hardcodes nav=None (column never populated). Fix: fail-safe best-effort snapshot in the finally path (marked degraded=true if mid-cycle state is partial -- never fabricate marks: use last-known prices with a staleness flag); populate paper_metrics_v2.nav from the same NAV source; both observability-only, no trading behavior change.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "72.2",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; [ast.parse(open(f).read()) for f in sys.argv[1:]]\" backend/services/autonomous_loop.py backend/services/paper_metrics_v2.py'",
+            "success_criteria": [
+              "A cycle that raises before Step-8 still writes a snapshot row flagged as fail-safe/degraded; normal cycles unchanged (byte-identical row content)",
+              "paper_metrics_v2.nav is populated on new rows; no fabricated marks -- staleness is explicit in the row",
+              "Syntax checks pass; no change to decide/execute paths"
+            ],
+            "live_check": "handoff/current/live_check_72.2.3.md: a live (or forced-exception staging) cycle log line showing the fail-safe snapshot write + a BQ paper_metrics_v2 row with non-NULL nav"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "72.2.4",
+          "status": "pending",
+          "name": "Measurement M4 -- flow-blind Sharpe fix in the go-live gate [executor: sonnet-4.6/high]. perf_metrics.compute_sharpe_from_snapshots:116 converts NAV->returns ignoring external_flow_today, so the 2026-05-13 $5,000 deposit inflates the Sharpe feeding the go-live gate (paper_go_live_gate). Fix: route through (or replicate) the canonical GIPS paper_metrics_v2._nav_to_returns:36-81 flow-adjusted path; publish the corrected Sharpe. Go-live gate criteria themselves are immutable -- only the input computation is corrected.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "72.2",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; ast.parse(open(sys.argv[1]).read())\" backend/services/perf_metrics.py'",
+            "success_criteria": [
+              "compute_sharpe_from_snapshots subtracts external_flow_today identically to _nav_to_returns (shared helper preferred over copy)",
+              "Corrected Sharpe published with before/after values; go-live gate thresholds untouched",
+              "Unit test covers a deposit-day fixture"
+            ],
+            "live_check": "handoff/current/live_check_72.2.4.md: before/after Sharpe from the live snapshots series with the 05-13 deposit-day handling shown"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         },
         {
           "id": "72.3",

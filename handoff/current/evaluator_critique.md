@@ -1,6 +1,6 @@
-# Evaluator Critique — Step 72.1 (P1 approved-but-unapplied operator token audit)
+# Evaluator Critique — Step 72.2 (P2 measurement integrity)
 
-**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_98a27d29-5f3`.
+**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_bd4bcc85-831`.
 
 ## Verdict (verbatim JSON return)
 
@@ -8,24 +8,27 @@
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 3 immutable criteria MET: (1) the sole operator_tokens.jsonl line (07-09 SYNTHESIS-INTEGRITY + RJ-SHAPE) is reconciled with token/date/flag+file:line/default/live-state/verdict, and the sheet supersets 13 more owed/derived tokens; all 10 cited settings.py anchors independently verified default False; (2) the only approved-but-dark lever appears as ACT-NOW #2 with exact .env lines PAPER_SYNTHESIS_INTEGRITY_ENABLED=true + PAPER_RISK_JUDGE_SHAPE_FIX_ENABLED=true (env-var names verified correct vs pydantic case-insensitive model_config) + restart; (3) git-confirmed no backend/ or .env change. Deterministic: immutable command exit 0, scope clean. Harness compliance 5/5 clean.",
+  "reason": "All 3 immutable criteria MET and independently reproduced via read-only BQ. C1 (benchmark): computation located (paper_trader.py:1283 _get_benchmark_return; anchor bigquery_client.py:1050-1079); discontinuity mechanically proven with data — BQ confirms stored benchmark 05-22=14.97 -> 05-26=4.76 (-10.21pp) and alpha 0.95 -> 14.23 (+13.28pp step); trigger git 320b7dbb verified dated 2026-05-22 23:57:41 switching inception_date -> first_funded_date; honest funded-basis alpha 07-16=+14.13 vs stored 14.19, method stated. C2 (FX): verdict CLEAN — my own BQ recompute of implied FX (price*qty/total_value) on all 10 in-window KR trades = 1513.10-1560.00 KRW/USD, matching the artifact's 1513-1560 exactly, zero parity mis-bookings (none near 1.0). C3 (snapshots): root cause confirmed (nav=None hardcoded paper_metrics_v2.py:195; Step-8 non-fail-safe autonomous_loop.py:1535-1544); BQ confirms MAX(snapshot_date)=2026-07-16 and all 5 censused dropped days (05-28/06-16/06-18/06-19/07-17) ABSENT; fix steps 72.2.1-72.2.4 appended pending + executor-tagged + immutable live_checks; no product code edited. Verification cmd exit=0; harness compliance 5/5 clean.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "immutable_verification_command_exit0",
-    "git_scope_no_backend_or_env_change",
-    "file_mtime_ordering_research_lt_contract_lt_generate",
-    "operator_tokens_jsonl_1line_fully_reconciled",
-    "settings_py_10_anchor_defaults_all_False",
-    "pydantic_env_var_naming_case_insensitive_verified",
-    "corroboration_spotcheck_phase70.3_archive_real_not_fabricated",
-    "masterplan_72.1.1_appended_pending_report_only_with_live_check",
-    "harness_log_log_last_no_72.1_entry",
-    "conditional_count_zero_first_spawn",
-    "research_gate_envelope_gate_passed_6_sources_recency_scan"
+    "harness_compliance_audit_5item",
+    "research_gate_verified_gate_passed_7_sources",
+    "contract_before_generate_mtime_order",
+    "immutable_verification_command_exit_0",
+    "git_scope_no_product_code",
+    "fileline_claim_nav_none_195",
+    "fileline_claim_get_benchmark_return_1283",
+    "fileline_claim_round_trips_raw_local_109",
+    "git_commit_320b7dbb_verified",
+    "masterplan_72.2.1-4_pending_executor_tagged_live_checks",
+    "bq_independent_fx_reproduction_10_KR_trades",
+    "bq_independent_benchmark_discontinuity_reproduction",
+    "bq_independent_snapshot_census_5_dropped_days",
+    "conditional_count_zero"
   ],
   "harness_compliance_ok": true,
-  "notes": "Live-state is documentary/runtime-inferred (backend/.env agent-locked; operator grep not yet provided) — this is EXPLICITLY permitted by criterion 1's 'or UNCONFIRMED + the grep needed' branch, and the sheet supplies both an evidence-backed inference AND the exact confirming grep (ACT-NOW #4), so it is by-design, not a gap. The 60.2 LIVE=true claim is independently corroborated by phase-70.3 archive experiment_results.md:76 (PAPER_SWAP_CHURN_FIX_ENABLED=true confirmed in operator's live .env via decisive OFF->2-swaps/ON->1-swap causation proof) — verified real, not fabricated. Owed-vs-approved distinction verified correct: KS-PEAK-RESET/sign_safe_overlays/regime_net_liquidity are NOT in operator_tokens.jsonl (never issued) so correctly classified owed-not-approved (not 'approved-but-dark'). No code/frontend/backend/UI diff, so qa.md lint/tsc/runtime-smoke/UI-capture gates correctly do not apply (audit+doc step). ACT-NOW #1 (Anthropic credit decision) is a cross-referenced P0 item on the shared phase-72 sheet, honestly delineated from the 72.1 P1 deliverable — not scope creep. Necessary-not-sufficient caveat on the 07-09 flags disclosed. Main must now transcribe this verdict VERBATIM into evaluator_critique.md, then append harness_log Cycle 113 and flip 72.1->done (log-last)."
+  "notes": "INDEPENDENT REPRODUCTION (does-it-reproduce lens, P1 money-path). Ran three read-only BQ queries via the Python client (ADC; claude.ai BQ connector token had expired) rather than trusting the working agent's numbers: (1) 10 KR trades implied-FX = 1513.10-1560.00 KRW/USD, 0 parity suspects -> FX-CLEAN reproduced exactly; (2) benchmark 05-22=14.97/05-26=4.76 and alpha 0.95->14.23 -> discontinuity reproduced, and the data itself has NO 05-23/24/25 rows -> vindicates the 05-22->05-26 boundary correction; (3) MAX snapshot=07-16, all 5 censused dropped days ABSENT -> census reproduced. Source-level file:line spot-checks all matched: nav=None at paper_metrics_v2.py:195, _get_benchmark_return def at paper_trader.py:1283, raw-local realized_pnl_usd at paper_round_trips.py:109, git 320b7dbb dated 2026-05-22 23:57:41 msg \"phase-38.7: SPY benchmark anchor at first-funded snapshot\".\n\nCRITERION-1 BOUNDARY NOTE (not a miss): the immutable criterion text says \"05-23->05-26\" but no 05-23 snapshot row exists (weekend + Memorial Day, confirmed in BQ — series jumps 05-22 straight to 05-26). The artifacts explain the SAME discontinuity with the mechanically-correct 05-22->05-26 boundary and transparently disclose the label correction. The criterion's intent (locate computation + mechanically explain the discontinuity with data evidence + honest re-derived alpha with method) is fully satisfied; the criterion was NOT amended.\n\nHONEST-DISCLOSURE ITEMS WEIGHED, all acceptable: (a) the snapshot-census forensics agent FAILED (StructuredOutput retry cap) and the adversarial verifier rebuilt that leg — I independently re-verified the census via BQ, so no evidence gap remains; provenance disclosed in experiment_results.md. (b) The P2 verdict CORRECTS two earlier claims (recon's \"+14% alpha largely an artifact\" -> endpoint honest on the funded basis; \"05-23\" -> 05-22 boundary) — self-correction backed by mechanical proof, improves accuracy. (c) Window realized re-measured +$3,057.36 vs recon's +$3,194.68; the $137.32 delta is recorded as an OPEN non-FX reconciliation item for 72.3, not silently dropped, and does not affect the FX-CLEAN verdict.\n\nGATE APPLICABILITY: diff touches only handoff/**, .claude/masterplan.json, audit jsonl (+ CHANGELOG.md via auto-hook) — ZERO *.py, so the Python-lint (1a), frontend (1b), backend-runtime-smoke (1d), and live-UI (1c) gates are N/A. Verification budget respected (deterministic + BQ reproduction first, LLM judgment last). 3rd-CONDITIONAL rule N/A (0 prior CONDITIONALs). Not a loop-prevention exit. This is the first Q/A for 72.2 on unchanged-nothing (no prior verdict) so no verdict-shopping concern. Main must transcribe this verdict VERBATIM into evaluator_critique.md + evaluator_critique.json, append harness_log Cycle 114 (log-last), THEN flip 72.2 -> done."
 }
 ```
