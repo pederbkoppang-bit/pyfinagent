@@ -16583,6 +16583,89 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-74",
+      "name": "Local-LLM last-resort rail pilot (operator assessment 2026-07-18, plan-approved). VERDICT CONTEXT: full localization REJECTED on this hardware (base M4 mini 16GB, ~13.7GB RSS resident -> ~2-6GB inference budget; FAITH ICAIF'25: 8B models score 30-47% on financial reasoning vs Gemini-2.5-Pro 91.9%; pipeline = 18-39 serial calls/analysis; base_url path skips schema enforcement llm_client.py:1200-1202). APPROVED SCOPE: Qwen3-4B-Instruct-2507 Q4 via Ollama (OpenAI-compat /v1, JSON-schema->GBNF grammar, keep_alive=0 auto-unload MANDATORY) for: the Slack chat bot (ranked #1 -- currently on the credit-dead Anthropic path via mas_communication, zero money risk), mechanical overlays (news_screen), and the terminal fail-forward rail after the 72.0.2 Vertex leg. NEVER-LOCAL: enrichment, debate, synthesis, risk-judge, meta-scorer-primary, autoresearch, MAS harness. Motive = reliability/sovereignty (Anthropic credit-death precedent + Gemini-2.5 retirement 2026-10-16), NOT cost (~$0.2/day is the entire metered spend). Full assessment: plan file 2026-07-18 + recon wf_1ce61081-07f.",
+      "status": "pending",
+      "theme": "small local model as un-exhaustible last-resort rail + Slack bot brain; pipeline localization rejected",
+      "steps": [
+        {
+          "id": "74.0",
+          "status": "pending",
+          "name": "Ollama runtime install + memory-guarded service [executor: sonnet-4.6/high; REQUIRES operator approval for the system install]. brew install ollama; ollama pull qwen3-4b-instruct-2507 (Q4_K_M, ~2.5-3.5GB; ~30GB disk headroom check first); launchd service with keep_alive=0 (model unloads after every call -- MANDATORY on the shared 16GB box) + a pre-inference memory guard that refuses requests when free RAM < 2GB (protects the 13.7GB app stack). No app code touched in this step.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -c 'curl -s --max-time 3 http://localhost:11434/v1/models | grep -qi qwen'",
+            "success_criteria": [
+              "Ollama /v1 endpoint responds with the pulled model; keep_alive=0 verified (RSS returns to baseline within ~1min after a call, measured)",
+              "The memory guard refuses inference below the 2GB-free threshold (demonstrated with a synthetic pressure test) and never blocks non-LLM app traffic",
+              "Operator approved the install before execution; disk usage delta documented; service survives reboot via launchd"
+            ],
+            "live_check": "handoff/current/live_check_74.0.md: /v1/models output + before/during/after RSS measurements proving auto-unload + the guard refusing under synthetic pressure"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "74.1",
+          "status": "pending",
+          "name": "Local provider plumbing in llm_client [executor: sonnet-4.6/high]. (a) make_client() localhost/ollama branch mirroring the GitHub-Models branch shape (llm_client.py:2030-2039); (b) FIX the base_url schema-skip at llm_client.py:1200-1202 to pass json_schema through for base_url clients (Ollama enforces it as GBNF grammar -- guaranteed-valid JSON); (c) ($0,$0) MODEL_PRICING row in cost_tracker.py:20-83 for the local model id (else unknown ids book phantom $0.10/$0.40 metered cost at :83). Flag-gated dark; byte-identical when OFF.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -c 'grep -q \"11434\\|ollama\\|localhost\" backend/agents/llm_client.py'",
+            "success_criteria": [
+              "A base_url client receives and enforces json_schema (unit test: schema-invalid output is impossible via the grammar path; the prompt-hint-only path is gone for local)",
+              "Local calls log $0.00 cost (no phantom pricing); llm_call_log rows carry the local provider/model id for observability",
+              "Byte-identical behavior with the flag OFF (diff + replay proven); no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_74.1.md: a real local call round-trip showing grammar-enforced schema-valid JSON + the $0.00 cost_tracker row"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "74.0"
+        },
+        {
+          "id": "74.2",
+          "status": "pending",
+          "name": "Slack bot -> local model pilot [executor: sonnet-4.6/high]. Repoint mas_communication (model_tiers.py:57) and the assistant_handler.py:446 haiku call to the local model behind a flag (default OFF); tool-calling kept with a graceful 'could not run that tool' reply on a malformed tool call (4B tool-calling is the known weak spot); streaming preserved if the streaming_handler supports the local endpoint, else plain replies. Removes the bot's dependency on the credit-dead Anthropic direct key. Success = a week of subjectively-acceptable operator chat.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -c 'grep -Eq \"local|ollama\" backend/config/model_tiers.py'",
+            "success_criteria": [
+              "With the flag ON the bot answers real operator messages on the local model incl. at least one successful MCP tool call; malformed tool calls degrade gracefully (no crash, no silent hang)",
+              "With the flag OFF behavior is byte-identical; the Anthropic path remains available as the flip-back",
+              "Reply latency acceptable (<~15s for typical replies at ~40 tok/s); no memory-guard rejections during a normal chat session"
+            ],
+            "live_check": "handoff/current/live_check_74.2.md: a real Slack conversation transcript on the local model (incl. a tool call) + RSS-release evidence after the session"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "74.1"
+        },
+        {
+          "id": "74.3",
+          "status": "pending",
+          "name": "Second wave (optional, after 74.2 passes its week): news_screen_model -> local (mechanical extraction proving ground, 1/day, failure-tolerant) + the terminal fail-forward slot: local model as the LAST rail after cc_rail -> Vertex (72.0.2) in the provider order (llm_client.py:1983-2044) so a total cloud outage degrades to a real small-model answer instead of the 61.2 fabricated HOLD/0.0. Flag-dark. Meta-scorer local fallback explicitly deferred until this step's evidence exists. Pipeline scoring roles stay NEVER-LOCAL (immutable verdict of the 2026-07-18 assessment).",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "bash -c 'grep -Eq \"local|ollama\" backend/services/news_screen.py 2>/dev/null || grep -Eq \"local_fallback|ollama\" backend/agents/llm_client.py'",
+            "success_criteria": [
+              "news_screen produces schema-valid signal batches on the local model at >=95% over >=10 runs (grammar-enforced), matching the sheet's failure-tolerance expectations",
+              "The fail-forward order is cc_rail -> Vertex -> local, engaged ONLY when both upstream rails are dead, and its outputs are marked degraded-source in the analysis record (never silently equal-weighted with cloud outputs)",
+              "No pipeline scoring role routed local; flag OFF byte-identical; no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_74.3.md: the 10-run schema-validity tally + a forced dual-rail-outage drill log line showing the local rail engaging with the degraded-source marker"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on_step": "74.2"
+        }
+      ]
     }
   ]
 }
