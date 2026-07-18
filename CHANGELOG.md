@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `fca7520b` | phase-72.5: Rollup + push [executor: this session, fable-5/ultracode]. money_diagnosis_72.md comp... |
 | 2026-07-18 | `e8470ff1` | phase-72.4: P4 regime deployment-policy research (research gate, moderate tier) [executor: this s... |
 | 2026-07-18 | `34db321c` | phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/... |
 | 2026-07-18 | `665d7c0e` | phase-72.2: P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `0e003e6e` | phase-71.6 (WIP, CONDITIONAL): report-only self-audit workflow + subagent context-hygiene + dead-dri |
 | 2026-07-17 | `5e88a383` | phase-71.4: independent fail-closed evaluator before skill self-modification + adaptive coverage/loo |
 | 2026-07-17 | `de7e8270` | phase-71.3: harden Q/A judgment (contract-completeness + adversarial N-lens) + machine-readable verd |
-| 2026-07-17 | `21c49817` | phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff) |
 
 ---
 
+### v6.64.5 — phase-72.5: Rollup + push [executor: this session, fable-5/ultracode]... (2026-07-18)
+
+- **phase-72.5: Rollup + push [executor: this session, fable-5/ultracode]. money_diagnosis_72.md comp...**
 ### v6.64.4 — phase-72.4: P4 regime deployment-policy research (research gate, mode... (2026-07-18)
 
 - **phase-72.4: P4 regime deployment-policy research (research gate, moderate tier) [executor: this s...**
