@@ -16547,7 +16547,7 @@
         },
         {
           "id": "73.7",
-          "status": "pending",
+          "status": "done",
           "name": "D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (frontier_map_73.md; design_pack_73/ a-e; steps installed pending+executor-tagged+live_checks; five-file artifacts per step; verdicts verbatim), queue remaining surfaced defects (MAS retry bug multi_agent_orchestrator.py:1238 as an executor step; purge leak via 73.1; PBO doc via 73.4), commit + push to origin/main.",
           "harness_required": true,
           "priority": "P1",
@@ -16562,6 +16562,25 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "73.6"
+        },
+        {
+          "id": "73.7.1",
+          "status": "pending",
+          "name": "Defect D1 -- MAS retry bug fix [executor: sonnet-4.6/high]. CORRECTED ANCHOR per completeness-critic wf_da83e067-b72: the defect is the DISCARDED DOUBLED-BUDGET max_tokens retry at backend/agents/multi_agent_orchestrator.py:1363-1394 -- the retry create() at :1381 bills its tokens (:1390-1391) then continue's, and the next iteration's unconditional create() at :1269 OVERWRITES the retried response (wasted tokens + no-op retry; the _mt_retried_turn guard keys to the old turn so wasteful retries can repeat up to max_turns). The baseline's ':1238' was stale (a thinking-config comment). Precise characterization + red->green test spec in research_brief_73.7.md (archived under phase-73.7). Scope strictly the retry path; the debate architecture (Grade A-) is NOT re-scoped.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "73.7",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; ast.parse(open(sys.argv[1]).read())\" backend/agents/multi_agent_orchestrator.py'",
+            "success_criteria": [
+              "The retry defect characterized in the 73.7 research brief is fixed with a unit test reproducing the pre-fix failure mode and proving the corrected semantics",
+              "No behavior change outside the retry path (debate/risk-debate flow byte-identical on non-retry cycles); no re-scoping of the debate architecture",
+              "Syntax + existing tests pass; no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_73.7.1.md: the reproducing test output pre-fix (failing) and post-fix (passing), plus one live/staging cycle log line exercising the corrected retry path"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

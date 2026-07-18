@@ -1,37 +1,38 @@
-# Contract — phase-73.6: D3 money runway (recommend-only)
+# Contract — phase-73.7: D4 rollup + push (closes the phase-73 goal)
 
-**Step id:** 73.6 (phase-73, depends_on 73.5 = done/PASS @47936199)
-**Session role:** Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY. No spend, no flags, no code, $0 metered.
+**Step id:** 73.7 (phase-73, depends_on 73.6 = done/PASS @da017832)
+**Session role:** Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY.
 
-## Research-gate summary (gate_passed: true)
+## Research-gate summary (gate_passed: true — completeness-critic role)
 
-Researcher via structured-output Workflow `wf_9b114107-a7e` (opus/max, tier=simple, floor held: 6 sources read in full — 2 broker [Alpaca paper-fill fidelity], 2 governance [SR 11-7/SR 26-2], 2 practitioner [paper-to-live transition rigor]; 32 URLs; recency scan; 8 internal files incl. `paper_go_live_gate.py` in full). Brief: `research_brief_73.6.md`. Returned 3 ordered `runway_stages` with prerequisites/evidence-anchors/operator-decisions — transcribed verbatim.
+Researcher via structured-output Workflow `wf_da83e067-b72` (opus/max, tier=simple, floor held: 6 sources read in full — NASA SWE closure canon, CDR exit-criteria, undone-work/false-completion literature, 2025-26 recency; 38 URLs; **15 internal files**). Brief: `research_brief_73.7.md`. Returned `dod_gaps` (1 blocker / 2 minor / 1 cosmetic) + full `defect_dispositions`.
 
-Load-bearing findings:
-1. **The phase-69 register note is VERIFIED FIXED**: the two under-spec go-live booleans were tightened to their documented definitions in 69.2 (sustained-PSR true 30-day min; dd_tolerance = backtest_max_dd + 5.0) — the gate measures what it claims.
-2. **Honest go-live answer: NOT eligible, clock not started** — trades_ge_100 counts REAL round trips (0 today; ~30 synthetic whole-table; '59' was raw fills); the clock starts only at the Stage-2 alpaca_paper cutover.
-3. **`real_capital_enabled=False` is a hard gate beyond the 5 booleans**; its SR 11-7 citation superseded by SR 26-2 (2026-04-17) — principles carry forward, stale-citation doc-drift noted recommend-only.
-4. **Stage 2 strengthens three phase-73 designs**: measured slippage replaces 73.4's estimate; 68.4 activates the write path 73.2 repairs; real fills are the clean substrate 73.3's calibration needs.
-5. External consensus: live degrades vs sim; even Alpaca paper is optimistically biased; our 100-round-trip + human-token bar is deliberately stricter than the retail base rate.
+Verified by the critic: frontier_map (10 dimension verdicts + citations + grades) ✓; design_pack a-e internally consistent with gate run-IDs and Q/A executor notes ✓; **12 build steps** pending + executor-tagged + live_checks ✓; immutable criteria **byte-identical** install-vs-HEAD and vs first-appearance commits for every appended step (zero drift) ✓; five-file archives for 73.0-73.6 + Cycles 118-124 all PASS with verbatim wf_* transcriptions ✓; `git diff 9489d8df..HEAD -- backend/ frontend/ scripts/` EMPTY + no .env diff ✓; local == origin at audit time ✓.
 
-## Hypothesis
+Gaps and their fixes (all handled in this GENERATE):
+1. **BLOCKER**: 73.7.1 existed only in the working tree — the closure commit/push baselines it; post-push confirmation via `git show origin/main:.claude/masterplan.json` (not the green grep, which the critic flagged as a false-completion signal already satisfied by 73.0-73.6).
+2. **MINOR (fixed)**: 73.7.1's `:1238` anchor was STALE (a thinking-config comment) — the real defect is the **discarded doubled-budget max_tokens retry at `:1363-1394`** (retry billed then overwritten by the next iteration's unconditional create at `:1269`). Name corrected to the true anchor; criteria untouched; the brief carries the red→green test spec.
+3. **MINOR (procedural)**: treat the critic's brief as the real exit criterion; independently confirm 73.7.1 on origin before final reporting.
+4. **COSMETIC**: AlphaAgent venue caveat — disclosed, not load-bearing, no action.
 
-A one-page, honestly-scored runway (restore → real fills → go-live) with every operator decision as a verbatim line turns "make more absolute $" from an ambition into a checklist — without duplicating phase-68/58.1 or spending anything.
+Defect dispositions (D4 mandate): purge leak DISPOSITIONED (69.2-shipped fix + 73.1.1 regression lock); MAS retry bug QUEUED (73.7.1, corrected anchor); PBO-cap DISPOSITIONED (73.4.2 nested-gates doc).
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 73.6)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 73.7)
 
-- "money_runway_73.md is one page, sequences paper-restoration -> real-fill -> go-live with prerequisites and evidence anchors, and enumerates every operator decision as one actionable line"
-- "Consistent with (not duplicating) phase-68/58.1 masterplan entries and the phase-72 ACT-NOW block"
-- "Recommend-only; no spend, no flags, no code"
+- "All four DoD elements verified with a completeness-critic gate; any gap fixed before close"
+- "MAS retry bug queued as an executor-tagged pending step; the defect queue from the baseline is fully dispositioned"
+- "Every phase-73 step closed with the five-file protocol and verbatim qa-verdict transcription; work pushed to origin/main"
 
-verification.command: `bash -c 'test -f handoff/current/money_runway_73.md && grep -Eqi "real.?fill|go.?live" handoff/current/money_runway_73.md'`
+verification.command: `bash -c 'test -f handoff/current/frontier_map_73.md && test -d handoff/current/design_pack_73 && git log origin/main --oneline -5 | grep -q "phase-73"'`
 
 ## Plan
 
-1. GENERATE: runway finalized verbatim from the gate (done, 6,742 chars, one page, 3 stages, 13 operator-decision lines). No build steps to append — the runway references the EXISTING phase-68/58.1 queue rather than duplicating it.
-2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 124) → flip 73.6 done.
+1. GENERATE: 73.7.1 anchor corrected (done); `experiment_results.md` with verbatim outputs.
+2. EVALUATE via qa-verdict Workflow (the phase's final verdict); transcribe verbatim.
+3. LOG (Cycle 125) → flip 73.7 done → closure commit/push carries 73.7.1 + all 73.7 artifacts → **independently confirm 73.7.1 in `git show origin/main:.claude/masterplan.json`** (the critic's exit criterion) with manual-push fallback per the auto-push-stall memory.
+4. Final operator report + memory update.
 
 ## References
 
-- `handoff/current/research_brief_73.6.md`; `money_diagnosis_72.md` P0; `operator_decision_sheet_72.md` ACT-NOW/P3; `frontier_map_73.md` #10; masterplan phase-68 + 58.1
-- Alpaca paper-trading docs; SR 11-7 / SR 26-2 (sia-partners); paper-to-live practitioner treatments (in brief)
+- `handoff/current/research_brief_73.7.md` (DoD audit + the corrected MAS-bug characterization + closure canon)
+- All phase-73 artifacts; masterplan phase-73 (7 audit steps + 13 executor steps incl. 73.7.1)

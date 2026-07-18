@@ -1,6 +1,6 @@
-# Evaluator Critique — Step 73.6 (D3 money runway)
+# Evaluator Critique — Step 73.7 (D4 rollup + push; closes the phase-73 goal)
 
-**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_65b25f78-5ec`.
+**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_159964a5-ff2`.
 
 ## Verdict (verbatim JSON return)
 
@@ -8,28 +8,31 @@
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 3 immutable criteria MET; harness compliance clean (5/5); verification command exit=0; no unintended production change. C1: money_runway_73.md (6,752 chars, one continuous operator-readable page) sequences PAPER-RESTORATION -> REAL-FILL -> GO-LIVE, each stage carrying Prerequisites + Evidence anchors, with 13 operator-decision lines (6+3+4), each a single actionable line. C2: consistent-not-duplicating — Stage 1 cross-references phase-72 ACT-NOW #1-4 verbatim (verified against operator_decision_sheet_72.md L9-11), Stage 2 references the EXISTING phase-68 chain + EXEC-BACKEND: ALPACA_PAPER token (verified in masterplan), Stage 3 references 58.1's LLM SPEND token mechanics (verified); git diff confirms NO new masterplan steps appended (only the 73.6 status flip) — the deliberate absence of build steps is the non-duplication feature. C3: recommend-only — diff is handoff/** + masterplan status-flip + audit jsonl only; no backend/, no .env, no code, no spend; runway explicitly keeps real_capital_enabled=False and DEFERs. Headline honesty independently verified: phase-68 header confirms 'every fill ever made is synthetic'; 0 REAL round trips (clock starts only at Stage-2 cutover, 68.3 DARK); 69.2 boolean-fix confirmed live in paper_go_live_gate.py (_sustained_psr_ge L71, dd_tolerance=backtest_max_dd+5.0 L164, TRADES_THRESHOLD=100 L39); real_capital_enabled=Field(False) L264. Adversarial worst-of-3-lenses (correctness/reproduce/scope-honesty) = PASS on all three.",
+  "reason": "All 3 immutable criteria MET. C1: four DoD elements verified via completeness-critic gate wf_da83e067-b72 (gate_passed:true, 6 sources, recency scan, ran BEFORE contract) — frontier_map_73.md (164 lines, verdicts+citations+grades), design_pack_73/ a-e, 13 fully-formed build steps, 73.0-73.6 five-file archives + Cycles 118-124 all PASS; 1 blocker/2 minor/1 cosmetic gaps fixed or disclosed-and-compensated. C2: MAS retry bug queued as 73.7.1 (pending, [executor: sonnet-4.6/high], 3 criteria, corrected anchor :1363-1394 VERIFIED against real code — discarded doubled-budget retry billed at :1390-1391 then continue'd, overwritten by :1269); defect queue fully dispositioned (purge→73.1.1, MAS→73.7.1, PBO-cap→73.4.2 DOCS-ONLY). C3: five-file protocol + real wf_* verbatim-transcription markers per critique; 73.0-73.6 on origin/main; 73.7+73.7.1 push is the log-last-mandated post-verdict closure action with a disclosed compensating control. Zero product-code/.env change (git diff empty); immutable verification command exit=0; install-vs-HEAD criteria byte-identical (zero drift). Harness-compliance 5-item audit clean; first spawn, zero prior CONDITIONALs.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_5item_audit",
-    "research_gate_gate_passed_true_6_sources",
-    "file_mtime_ordering",
-    "verification_command_exit0",
-    "git_diff_scope_no_production_change",
-    "masterplan_criteria_verbatim_match",
-    "operator_decision_line_count_13",
-    "phase69_2_gate_fix_live_code_spotcheck",
-    "real_capital_enabled_false_spotcheck",
-    "phase68_header_synthetic_fill_spotcheck",
-    "phase72_actnow_crossref",
-    "58_1_llm_spend_token_crossref",
-    "exec_backend_token_crossref",
-    "headline_honesty_0_real_round_trips",
-    "adversarial_worst_of_3_lenses"
+    "research_gate_gate_passed_6sources_recency",
+    "mtime_ordering_research_lt_contract_lt_results",
+    "log_last_no_cycle125_step_still_in_progress",
+    "no_verdict_shopping_first_spawn_zero_conditional",
+    "immutable_verification_command_exit0",
+    "zero_product_code_and_env_diff_9489d8df_to_HEAD_and_uncommitted",
+    "dod1_frontier_map_73_verdicts_citations_grades",
+    "dod2_design_pack_73_a_to_e_present",
+    "dod3_all_13_build_steps_tag_livecheck_cmd_3criteria",
+    "dod4_archives_73.0-73.6_4of4_plus_cycles_118-124_PASS",
+    "wf_transcription_markers_real_and_match_brief",
+    "criteria_command_byte_identity_install_9489d8df_vs_HEAD_zero_drift",
+    "mas_retry_bug_anchor_1363-1394_verified_against_actual_code",
+    "defect_queue_disposition_purge_73.1.1_mas_73.7.1_pbo_73.4.2",
+    "73.7.1_provenance_working_tree_only_not_committed",
+    "origin_main_73.0-73.6_pushed_local_eq_origin_da017832",
+    "code_gates_NA_no_py_frontend_backend_ui_touched"
   ],
   "harness_compliance_ok": true,
-  "notes": "Docs/handoff-only step: diff touches no .py/frontend/backend, so lint(F821/F401/F811), ESLint, tsc, backend runtime-smoke, and live-UI Playwright gates are all correctly N/A. One immaterial, NON-BLOCKING observation (does not touch any immutable criterion): money_runway_73.md L33 wraps a composite phase-68 quote — 'every fill ever made is synthetic; EXECUTION_BACKEND never reaches execution_router, stuck on bq_sim' — in single quote marks, but the literal masterplan phase-68 header reads 'every fill ever made is synthetic; convert the mock engine into an Alpaca-paper-executed...'; the 'EXECUTION_BACKEND never reaches execution_router' clause is sourced from the phase-68 step detail / research brief, not the header. Both halves are accurate and provenance-correct within phase-68, so this is a citation-precision nit only, not a factual error. 'One page' judged in substance per instruction (single continuous brief, ~6.75KB, read in one sitting) — MET. Log-last order confirmed: harness_log Cycle 124 append + masterplan done-flip must follow this verdict (currently status=in-progress, not logged). First Q/A for 73.6; 3rd-CONDITIONAL rule N/A."
+  "notes": "Residual dependency (does NOT block PASS, per log-last + 72.5 in-flight precedent): 73.7.1 + 73.7's five files are working-tree-only at verdict time (confirmed absent from install 9489d8df AND committed HEAD da017832). They baseline via the closure commit/push that fires on the status flip AFTER this verdict. The step's green verification command (git log|grep phase-73) is a KNOWN false-completion signal — already satisfied by 73.0-73.6 — and does NOT prove 73.7.1 shipped; this is disclosed in experiment_results and compensated by Main's committed post-push check `git show origin/main:.claude/masterplan.json` with manual-push fallback (mitigates the documented auto-push-stall). Main must run that check. Evidential limitation (minor): 73.7.1 success_criteria byte-identity to its first session-append is not git-provable (never committed), but the three criteria reference \"the 73.7 research brief\" and \"the retry path\" abstractly with NO line anchor, so the name-only anchor correction (:1238→:1363-1394) structurally cannot have altered them — \"criteria untouched\" holds. Anchor correction itself is validated against the live code, not merely asserted. Cosmetic AlphaAgent KDD'25 venue caveat is disclosed, non-load-bearing, no action. This is the phase-73 goal's final verdict; the design/audit spine is complete and honest, all build work correctly queued-not-built."
 }
 ```
