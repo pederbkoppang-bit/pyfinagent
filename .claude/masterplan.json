@@ -16211,7 +16211,7 @@
         },
         {
           "id": "73.1",
-          "status": "pending",
+          "status": "done",
           "name": "D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc handoff/current/design_pack_73/a_leakage_integrity.md: purge/embargo fix for the confirmed test->train triple-barrier label leak (backtest_engine.py:587, AFML purged-CV/embargo) + post-knowledge-cutoff / counterfactual eval harness for every LLM-touched strategy (Profit Mirage class). Gates trust in everything downstream. Executor build steps appended pending.",
           "harness_required": true,
           "priority": "P0",
@@ -16226,6 +16226,82 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "73.0"
+        },
+        {
+          "id": "73.1.1",
+          "status": "pending",
+          "name": "Build L1 -- purge regression test [executor: sonnet-4.6/high]. Per design_pack_73/a_leakage_integrity.md §1: net-new tests (truth-table on _label_overlaps_test incl. s==te / label_end==ts boundaries; property test zero-overlap-survives; integration guard on _build_training_data purged_count + max retained label_end < test_start; horizon invariant int(holding_days*1.5) >= vertical_barrier_days). Documents the shipped phase-69.2 purge as a named invariant. $0, no LLM, no behavior change.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "73.1",
+          "verification": {
+            "command": "bash -c 'ls tests/regression/ tests/backtest/ 2>/dev/null | grep -Eqi \"purge|leak\"'",
+            "success_criteria": [
+              "All four test classes from the design exist and pass; deliberately breaking the purge predicate makes them fail (mutation check)",
+              "No production behavior change; tests run in the standard pytest surface",
+              "The stale-F clearance (:587 = _build_predict_features) is recorded in the test module docstring"
+            ],
+            "live_check": "handoff/current/live_check_73.1.1.md: verbatim pytest output showing the new purge tests passing AND a mutation run (predicate inverted) failing"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.1.2",
+          "status": "pending",
+          "name": "Build L2 -- post-knowledge-cutoff eval harness [executor: sonnet-4.6/high]. Per design §2: MODEL_CUTOFFS registry in config/model_tiers.py (operator-sourced dates; unknown -> None = all history suspect), eval-window selector (trusted_start = max backbone cutoff + buffer), window labeling per New Quant §7.1; governs ONLY the live LLM signal-promotion path (quant-only GBM backtest exempt). $0.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "73.1",
+          "verification": {
+            "command": "bash -c 'grep -q \"MODEL_CUTOFFS\" backend/config/model_tiers.py'",
+            "success_criteria": [
+              "MODEL_CUTOFFS exists with a documented date (or explicit None) for every backbone id in use; selector returns labeled trusted windows",
+              "The promotion path exposes the governing-cutoff label on any LLM-touched eval artifact; no change to the quant-only backtest",
+              "Syntax checks pass; no metered calls introduced"
+            ],
+            "live_check": "handoff/current/live_check_73.1.2.md: a promotion-path artifact (or dry-run output) showing an eval window labeled with its governing cutoff + cleared backbones"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.1.3",
+          "status": "pending",
+          "name": "Build L3 -- counterfactual-audit PC pilot [executor: opus-4.8/xhigh; METERED PILOT -- requires operator LLM-cost approval BEFORE first spend]. Per design §3: FactFin PC-only v1 (text-outputs, Claude-compatible): M perturbed-context re-runs of the candidate decision agent (news strong<->weak swap + numeric Gaussian noise), PC = fraction unchanged; LOCAL cutoff calibrated on our own perturbation set (NO paper threshold exists -- Table-5 anchors leaky PC~0.62 vs clean PC~0.31); hard-cap M=20 (~$0.05-0.10/candidate on metered Haiku); CI/IDS deferred to v2. Executor MUST first resolve the data-gap: which rail the perturbed re-runs actually hit (metered vs Max) -- if metered, obtain the operator token; promotion-time bolt-on at gate.py, REJECT on calibrated-high PC.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "73.1",
+          "verification": {
+            "command": "bash -c 'grep -rEqi \"prediction.?consistency|counterfactual\" backend/autoresearch/ 2>/dev/null'",
+            "success_criteria": [
+              "PC pilot runs on a handful of promotion candidates with M<=20 hard-capped and total spend logged + pre-approved by the operator",
+              "A LOCAL PC cutoff is calibrated from our own perturbation distribution and documented with the calibration data; no fabricated thresholds",
+              "REJECT wiring is promotion-time only (gate.py bolt-on), flag-gated dark until the operator promotes it; rail attribution for the re-runs confirmed before first spend"
+            ],
+            "live_check": "handoff/current/live_check_73.1.3.md: the pilot's PC distribution on real candidates + the calibrated cutoff + the spend ledger line + the operator cost-approval token"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.1.4",
+          "status": "pending",
+          "name": "Build L4 -- CPCV robustness complement [executor: sonnet-4.6/high]. Per design §4: wire cpcv_folds (gate.py:42, currently unused) into a NEW sibling path in strategy_backtest_adapter replaying STORED prices across phi=C(N,k)*k/N paths with purge+embargo per fold (reuse _label_overlaps_test); emit OOS-Sharpe distribution (mean/std/worst-path/%paths>0) ALONGSIDE the existing K-variant CSCV PBO scalar; gate.py byte-unchanged; build under the macro freeze, validate the distribution at un-freeze. $0.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "73.1",
+          "verification": {
+            "command": "bash -c 'grep -q \"cpcv\" backend/autoresearch/strategy_backtest_adapter.py'",
+            "success_criteria": [
+              "CPCV path produces the OOS-Sharpe distribution on stored prices with per-fold purge+embargo; the existing PBO scalar path is byte-identical",
+              "gate.py is unchanged (diff-proven); the distribution is reported alongside, never consumed by, the immutable gate",
+              "No historical_macro access; syntax + existing tests pass"
+            ],
+            "live_check": "handoff/current/live_check_73.1.4.md: a CPCV run output on stored prices showing the path distribution next to the unchanged CSCV PBO scalar for the same candidate set"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         },
         {
           "id": "73.2",

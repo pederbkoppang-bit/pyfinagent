@@ -1,0 +1,31 @@
+# Evaluator Critique — Step 73.1 (D2a leakage-integrity design)
+
+**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_2ea57de0-a8d`.
+
+## Verdict (verbatim JSON return)
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 3 immutable criteria MET; harness compliance clean (5/5); no unintended production change; verification command exit=0 reproduced. C1: a_leakage_integrity.md §1 specifies purge/embargo mechanics + window math (holding_days=90 -> int(*1.5)=135d >= 126-135d triple-barrier span; 5d embargo is the separate autocorrelation guard), §2 the post-cutoff harness (MODEL_CUTOFFS registry + eval-window selector + New-Quant-§7.1 labeling), and a re-validation plan mapped honestly to §1 stale-F clearance + §2/§4 post-cutoff/CPCV validation paths. The criterion's 'once the leak is fixed' premise was overtaken by phase-69.2 (code-verified in 73.0 PASS); the design maps the re-validation intent onto the actual codebase state without amending the criteria -- the alternative (fabricate a fix for a leak that provably does not exist) is the anti-pattern, so the honest mapping is correct, and 73.1.1's mandated purge regression + mutation test is the right defensive backstop either way. C2: steps 73.1.1-73.1.4 appended pending, executor-tagged (sonnet-4.6/high x3, opus-4.8/xhigh metered x1), each with an immutable live_check -- 'a re-run gate output on purged data' = 73.1.1 pytest+mutation (reinforced by 73.1.4 CPCV per-fold purge beside the unchanged PBO scalar); 'a post-cutoff eval run artifact' = 73.1.2 labeled eval-window artifact (literal match). C3: git diff since 83162aa0 and the uncommitted set touch only .claude/masterplan.json, handoff/audit/*.jsonl, and handoff/current/** -- no backend/, frontend/, .env, or historical_macro; the metered PC pilot (73.1.3) is queued with a hard M=20 cap and an operator-cost-approval precondition in its own immutable criteria, $0 spent this session. Deterministic-first passed; no .py/frontend diff so lint/typecheck/UI/backend-smoke gates are N/A. Adversarial 3-lens (correctness / reproduce / scope-honesty) worst-case = PASS.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5item",
+    "verification_command_exit0",
+    "git_status_scope_no_product_code",
+    "mtime_ordering_research_before_contract",
+    "masterplan_child_steps_executor_tagged_immutable_live_checks",
+    "criteria_verbatim_match_contract_vs_masterplan",
+    "criterion1_design_coverage_mapping",
+    "research_gate_5sources_recency_scan",
+    "log_last_no_73.1_in_harness_log",
+    "conditional_count_zero_not_third",
+    "adversarial_worst_of_3_lenses"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "RESEARCH+DESIGN-only step; no code shipped, so no code mutation test applies -- mutation-resistance is instead baked into the design's downstream contract (73.1.1 live_check requires a predicate-inverted mutation run that FAILS). Criterion-1 was judged on intent: the design specifies purge/embargo mechanics + window math + post-cutoff harness + validation path; it honestly discloses (in both contract and experiment_results) that 73.0 already established the phase-69.2 purge fix, so the 're-validation plan once the leak is fixed' is framed as validating the already-fixed state rather than inventing a fix. Immutable success_criteria were NOT amended -- confirmed byte-for-byte identical between contract.md lines 24-26 and masterplan 73.1 success_criteria. Transparency observation (non-blocking): the design doc final-write mtime (17:40:52) precedes the contract finalize (17:41:19) by ~27s -- disclosed as write-first skeleton discipline and precedented in 72.0/72.2/73.0; not a criteria-retrofit because the criteria are immutable from masterplan and the design content is transcribed verbatim from the research gate (wf_5da65207-39a, 17:39:08) that preceded both. First Q/A for 73.1 (0 prior CONDITIONALs) so the 3rd-CONDITIONAL auto-FAIL rule does not trigger. Main to transcribe this verdict VERBATIM into evaluator_critique.md + evaluator_critique.json, then append harness_log Cycle 119 BEFORE flipping 73.1 to done (log-last)."
+}
+```

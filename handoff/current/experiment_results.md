@@ -1,33 +1,28 @@
-# Experiment Results — phase-73.0: D1 deep frontier study
+# Experiment Results — phase-73.1: D2a leakage-integrity design
 
-Date: 2026-07-18. Session: Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY ($0 metered, all on the Max rail).
+Date: 2026-07-18. Session: Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY ($0 metered).
 
 ## What was built
 
-1. **Research gate** (`wf_f3f3c7ec-0fc`, opus/max, tier=complex): gate_passed=true; 5 anchor papers read IN FULL (The New Quant, agent survey, Profit Mirage, FinMem via ar5iv, LLM-judge overconfidence); all 18 non-anchor syllabus refs validated with access routes; 3 corrections (Look-Ahead-Bench canonical id 2601.13770; PiT-RAG true title; AlphaAgent IR/venue flagged unverified); 5-reader reading plan returned. Brief: `research_brief_73.0.md`.
-2. **GENERATE fan-out** (`wf_70d10c32-d28`, 6/6 agents, ~546k tokens): five dimension-readers each read their sources IN FULL (with per-paper section/table citations) and returned ADOPT/ADAPT/REJECT/DEFER verdicts; a consistency synthesizer at effort max verified chain ordering against code, resolved 3 contradiction checks, flagged all abstract-only reads for confidence downgrade, and confirmed zero scale-constraint violations among adopts.
-3. **`handoff/current/frontier_map_73.md` published (40,354 chars)** — 10 final dimension verdicts transcribed VERBATIM from the verified synthesis JSON (no paraphrase), plus: full chain-ordering verdict, per-reader read-in-full/not-fully-read coverage lists, consistency findings, and baseline corrections carried forward to the 73.1-73.5 contracts.
-
-## Headline verdicts
-
-- **Chain CONFIRMED** (#3→#2→#1→#4) with one decisive refinement: the baseline's #3 F-grade premise is **STALE** — the AFML purge + embargo were already built in phase-69.2 (verified at `backtest_engine.py:570-582,:662,:428-430` + `walk_forward.py:36,61`); residual #3 work is the **LLM-side** guards (post-cutoff eval, counterfactual audit on the live signal path — the historical backtest is quant-only GBM) + CPCV wiring as a complement. #4 (net-of-cost DSR) is parallelizable early (~10-line change feeding existing `compute_dsr`, gate.py untouched).
-- **#2 keystone verified**: the exact outcome_tracker crash mechanism (:47/:50 naive-vs-aware, sibling guards :101-110, unguarded call :137) — a ~2-line fix unlocks the already-coded reflection path; FinMem decay as O(N) BM25 re-rank, embeddings REJECTED.
-- **#1**: mechanism ADAPT (debate-derived vote-share via our existing bull/bear stack as the deliberation-calibrator; REJECT logprob — unavailable; REJECT isotonic at small samples — 2-3 bucket shrinkage on Wilson lower bound; bounded scalar at the sizing seam, caps stay downstream); live sizing DEFERRED until ~100-150 clean closed trades.
-- **#5**: champion-bridge ADOPT build-dark (verified: best_params reaches only the heartbeat, never decide_trades); training-based self-evolution DEFERRED.
-- **#6/#7 pilots**: DEFER behind #2/#3 respectively (PiT-RAG mechanism is a near-perfect future fit; factor-mining against a leaky scorer = industrialized overfitting; heavy frameworks REJECTED on cost/infra); smallest honest #7 step = an OOS rank-IC/ICIR gate, not a miner.
-- **#8/#9/#10**: KEEP — no rebuilds; two wiring upgrades feed the existing gate; PBO 0.20 kept (stricter than charter 0.5) pending the 73.4 documentation.
+1. **Research gate** (`wf_5da65207-39a`, opus/max, tier=moderate): gate_passed=true; 5 sources read in full at implementation depth (FactFin Alg.1/Eq.4/Table 5; Detecting-Lookahead-Bias; Look-Ahead-Bench retry; AFML/CPCV canon; PiT/Time-Machine + New Quant §7.1); 8 internal files; recency scan (skfolio ships CombinatorialPurgedCV → C4 is wiring). Returned four structured `design_inputs` with spec_points/seams/cost notes. Brief: `research_brief_73.1.md`.
+2. **`design_pack_73/a_leakage_integrity.md` finalized (8,962 chars)** — specs transcribed VERBATIM from the gate's design_inputs: §1 purge verification + 4-class regression-test spec (the shipped phase-69.2 purge is the canonical AFML predicate; no test exists today — net-new); §2 post-cutoff harness (MODEL_CUTOFFS registry — confirmed absent from the codebase — + labeled trusted windows; live-LLM path only); §3 FactFin PC-only counterfactual pilot (Claude-compatible; LOCAL threshold calibration — corrects 73.0's interpretive 'PC>0.7'; CONFIRMED metered at meta_scorer.py:203/:221, hard-cap M=20 ≈ $0.05-0.10/candidate, operator approval required); §4 CPCV wiring as OOS-Sharpe-distribution complement (gate.py byte-unchanged, macro-freeze-safe).
+3. **Executor build steps appended pending**: 73.1.1 purge regression test [sonnet-4.6/high], 73.1.2 post-cutoff harness [sonnet-4.6/high], 73.1.3 PC pilot [opus-4.8/xhigh, metered, operator-approval-gated], 73.1.4 CPCV complement [sonnet-4.6/high] — each with an immutable live_check (pytest+mutation output; labeled eval-window artifact; PC distribution + spend ledger + approval token; CPCV run output beside the unchanged PBO scalar).
+4. Criterion-1 honest mapping recorded in the contract: the "re-validation plan once the leak is fixed" maps to the stale-F clearance + §2/§4 validation paths, because 73.0 proved the leak was already fixed in phase-69.2 (criteria unamended).
 
 ## Verbatim verification output
 
 ```
-$ bash -c 'test -f handoff/current/frontier_map_73.md && grep -Eqi "adopt" handoff/current/frontier_map_73.md && grep -Eqi "leakage" handoff/current/frontier_map_73.md && grep -Eqi "calibrat" handoff/current/frontier_map_73.md'
-73.0 VERIFICATION COMMAND EXIT: 0 (PASS)
+$ bash -c 'test -f handoff/current/design_pack_73/a_leakage_integrity.md && grep -Eqi "purge|embargo" handoff/current/design_pack_73/a_leakage_integrity.md'
+73.1 VERIFICATION COMMAND EXIT: 0 (PASS)
 ```
 
-## Reading-coverage honesty (criterion 3)
+## File list
 
-Unreachable/partial sources are listed per-reader in the map with what was attempted: Look-Ahead-Bench body 404 (abstract+README only → Q4 confidence downgraded), CPCV-comparison 403 on both hosts (snippet + risklab.ai + AFML Ch.12), Amazon PDF unparseable locally, Man Group Bloomberg paywalled (snippet-level → #10 caveated). The three baseline-flagged 2026 arXiv IDs were verified genuine; AlphaAgent's "IR 1.5" confirmed in body as Table 2 IR=1.488.
+- `handoff/current/contract.md` (73.1; gate → contract → GENERATE order held — note the design-doc skeleton predated the contract as write-first discipline, disclosed here as in prior steps)
+- `handoff/current/research_brief_73.1.md`
+- `handoff/current/design_pack_73/a_leakage_integrity.md`
+- `.claude/masterplan.json` (73.1 in-progress; 73.1.1-73.1.4 appended pending)
 
 ## Scope honesty
 
-No product code, no .env, no flags, no optimizer runs. The map corrects our own baseline (stale :587 premise) rather than defending it. All verdict paragraphs are verbatim from the synthesis return; Main authored only headers/assembly.
+No product code, no .env, no flags, no optimizer runs, no metered spend (the metered PILOT is a queued executor step gated on operator approval, not executed here). The design corrects 73.0's own interpretive threshold rather than inheriting it.
