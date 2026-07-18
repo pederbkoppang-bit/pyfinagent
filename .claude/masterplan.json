@@ -16194,7 +16194,7 @@
       "steps": [
         {
           "id": "73.0",
-          "status": "in-progress",
+          "status": "done",
           "name": "D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline syllabus IN FULL (arXiv /html/ chain; fan-out readers per core dimension + surveys/industry) and produce handoff/current/frontier_map_73.md: per-dimension adopt/reject mechanism verdicts at OUR scale.",
           "harness_required": true,
           "priority": "P0",

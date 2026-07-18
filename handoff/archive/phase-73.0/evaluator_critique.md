@@ -1,0 +1,36 @@
+# Evaluator Critique — Step 73.0 (D1 deep frontier study)
+
+**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_691df49d-218`.
+
+## Verdict (verbatim JSON return)
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 3 immutable criteria MET; harness compliance clean (5/5); zero production code changed. (C1) frontier_map_73.md carries adopt/reject mechanism verdicts for all four core dimensions -- #3 leakage integrity (RE-SCORE off F: ADAPT post-cutoff guard + counterfactual-audit pilot + CPCV complement, LAP-logprob BLOCKED), #2 memory/reflection (ADOPT crash-fix + reflection, ADAPT FinMem decay onto BM25, REJECT ada-002 embeddings), #1 calibrated sizing (ADAPT elicitation via existing debate stack, REJECT logprob/isotonic, DEFER live sizing behind ~100-150 clean trades), #4 cost-integrated promotion (ADAPT net-of-cost DSR into existing compute_dsr, ADOPT cost-per-bp reporting, REJECT Kelly as gate tool) -- plus survey (The New Quant 2510.05533, agent survey 2408.06361, both read in full) and industry (#8/#9/#10 KEEP) anchors. Each core verdict rests on >=1 source read IN FULL (Profit Mirage 2510.07920, Detecting-Lookahead-Bias 2512.23847, FinMem via ar5iv, 2508.06225/2404.09127/2510.00263, QuantAgent 2402.03755, Kelly 2512.12735); every partially-read source (Look-Ahead-Bench 404, CPCV SSRN 403, Amazon PDF unparseable, Man Group Bloomberg paywall) is enumerated in the 'Abstract-only confidence downgrades' section and confidence-downgraded -- no UNDISCLOSED abstract-only reliance, and no verdict collapses without its abstract-only leg. (C2) Every adopt is scale-justified ($0/flat-fee, build-dark-under-freeze, zero new agents/deps); heavy frameworks REJECTED on cost/infra (QuantaAlpha ~$45-450/run, QuantEvolve $112-450/run+160GB VRAM, training-based self-evolution needs a fleet); the one metered-spend risk (counterfactual audit on the metered Anthropic conviction path) is explicitly flagged and scoped as a pilot; every frontier return is treated leakage-suspect mechanism-only (Profit Mirage 50-72% post-cutoff decay is the anchor). (C3) Reading coverage is honest: unreachable/paywalled sources listed per-reader with what was attempted and substitutions (ECC Analyzer 403->arXiv 2404.18470v2, Alpha-GPT EMNLP->2308.00016, QuantAgent /html/ 404->ar5iv); all three 2026-dated preprint IDs verified/corrected. Verification command exit=0.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5item",
+    "verification_command_exit0",
+    "grep_adopt_leakage_calibrat_present",
+    "git_scope_zero_production_code",
+    "mtime_ordering_research_lt_contract_lt_generate",
+    "masterplan_status_in_progress_not_done",
+    "harness_log_no_prior_conditional_loglast",
+    "code_spot_check_backtest_engine_428-430_570-582_656_662",
+    "code_spot_check_walk_forward_embargo_36_61",
+    "backend_backtest_md_quant_only_regime",
+    "criterion1_four_core_dimensions_sources_in_full",
+    "criterion1_abstract_only_disclosure_no_undisclosed_reliance",
+    "criterion2_scale_justification_and_leakage_suspect_treatment",
+    "criterion3_coverage_honesty_and_2026_id_verification",
+    "contract_completeness_every_criterion_mapped_to_evidence",
+    "internal_consistency_scan"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS-COMPLIANCE AUDIT (5/5 PASS): (1) research-gate-before-contract -- research_brief_73.0.md exists, gate_passed=true, 5 anchors read IN FULL (>=5 floor), recency scan present (Section 4); mtime research 17:02 < contract 17:05. (2) contract-before-generate -- contract 17:05 < frontier_map 17:23 < experiment_results 17:24; contract carries the 3 immutable criteria verbatim from masterplan. (3) experiment_results present with verbatim exit-0 output. (4) log-last -- 73.0 NOT yet in harness_log (last=Cycle 117/phase 72.5), masterplan 73.0 status='in-progress'; the Cycle-118 log + flip correctly follow this verdict. (5) no-verdict-shopping -- first Q/A spawn, 0 prior CONDITIONALs.\n\nANTI-RUBBER-STAMP: The single highest-risk 'plausible-but-possibly-wrong' claim -- the RE-SCORE of #3's F-grade on the premise that the AFML purge+embargo already shipped in phase-69.2 -- was independently verified in code by this evaluator: _label_overlaps_test (backtest_engine.py:570-582, body `return (s<=te) and (label_end>=ts)`), wired at :662 with `continue`-on-overlap, called with test_start/test_end at :428-430 (`# phase-69.2 purge`), horizon_days=int(holding_days*1.5) at :656, and walk_forward.py embargo_days=5 (:36) applied at :61, plus backend-backtest.md's quant-only historical regime. All hold. The correction is evidence-driven honesty (the map downgrades its OWN baseline), not scope drift. Contract-completeness: every immutable criterion maps to covering evidence in the map (dimension verdicts + per-dimension Sources + Reading-coverage section + Baseline-corrections rollup) -- COVERED, not merely claimed.\n\nMINOR OBSERVATION (non-blocking, recorded for transparency): internal tension on AlphaAgent's venue -- #7 body states 'genuinely KDD'25 (Proc. 31st ACM SIGKDD)... verified' while the Baseline-corrections rollup item 3 states 'venue claim remains unconfirmed in-paper.' This does NOT miss any criterion: (a) the load-bearing IR=1.488 (Table 2) is verified in both places; (b) the venue is bibliographic, not load-bearing for the #7 DEFER-the-miner verdict; (c) criterion 3's requirement concerns the three 2026-dated IDs (QuantaAlpha/PiT-RAG/Look-Ahead-Bench, all verified/corrected), and AlphaAgent is a 2025 ID (2502.16789). Recommend Main reconcile the two AlphaAgent venue sentences when carrying corrections into 73.1-73.5 (state it as 'paper self-declares KDD'25; independent venue confirmation pending'), but this is a copy-consistency cleanup, not a verdict blocker.\n\nSCOPE CONFIRM: full change set = handoff/current/{frontier_map_73.md, research_brief_73.0.md} (new) + contract.md/experiment_results.md (modified) + hook-appended audit jsonl; diff since 9489d8df = CHANGELOG.md only (auto-hook). Zero *.py touched -> lint gate, backend runtime-smoke, and live-UI capture gates all N/A (no code, no frontend, no UI claim). Research+design-only scope honored exactly. Not a loop-prevention exit; stop_hook_active not set; retry_count=0 (certified_fallback=false)."
+}
+```

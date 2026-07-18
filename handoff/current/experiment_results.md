@@ -1,24 +1,33 @@
-# Experiment Results — phase-72.5: Rollup + push (closes the phase-72 goal)
+# Experiment Results — phase-73.0: D1 deep frontier study
 
-Date: 2026-07-18. Session: Fable 5 + ultracode, AUDIT + RESEARCH ONLY ($0 metered).
+Date: 2026-07-18. Session: Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY ($0 metered, all on the Max rail).
 
 ## What was built
 
-1. **Completeness-critic research gate** (`wf_62ba4963-b33`, tier=simple, floor held: 7 sources full on postmortem/audit/DoD closure standards): **zero blocker gaps** against the operator goal's four DoD elements; two cosmetic items returned and both FIXED this step (P2 $137.32 back-annotation; P3 current→proposed header note). The critic also independently verified: immutable criteria byte-identical install→HEAD for all 15 steps (zero mutation); all 9 remediation steps pending + executor-tagged + live_check; five-file protocol complete per closed step (`handoff/archive/phase-72.{0..4}/` × 4 files + harness_log Cycles 112-116); every archived critique verbatim-transcribed with Workflow run IDs; origin/main == local at audit time; ACT-NOW ↔ P3 ↔ P4 consistency.
-2. **Doc-hygiene fixes applied** (2 edits): money_diagnosis_72.md P2 resolution note; operator_decision_sheet_72.md P3 current-state header. Earlier this step (pre-contract, flagged by the Stop-gate and confirmed by the critic as resolved on-disk): the header segmentation was rewritten to carry the three verified per-window causes, and the stale "P0 in progress" marker was closed.
-3. **DoD state at close**:
-   - `money_diagnosis_72.md`: three sub-period sections with verified causes + closed P0-P4 (all five Q/A PASSes referenced).
-   - `operator_decision_sheet_72.md`: ACT-NOW (4 items) + P1 token reconciliation (15 rows) + P3 lever ranking (7 recommend-ON in sequence, 6 evidence-based HOLDs) + P4 regime policy (two-sided evidence) + recurrence prevention.
-   - Masterplan: phase-72 with 72.0-72.4 done, 9 remediation steps pending executor-tagged with immutable live_checks.
-   - Pushes: 72.0 @7b2499e3, 72.1 @080f93c1, 72.2 @665d7c0e, 72.3 (7502c664 push), 72.4 (037b5580 push) all on origin/main; the 72.5 closure commit lands on the status flip after Q/A + log (the critic flagged watching auto-push.log for the known stall — Main will verify and fall back to manual push if needed).
+1. **Research gate** (`wf_f3f3c7ec-0fc`, opus/max, tier=complex): gate_passed=true; 5 anchor papers read IN FULL (The New Quant, agent survey, Profit Mirage, FinMem via ar5iv, LLM-judge overconfidence); all 18 non-anchor syllabus refs validated with access routes; 3 corrections (Look-Ahead-Bench canonical id 2601.13770; PiT-RAG true title; AlphaAgent IR/venue flagged unverified); 5-reader reading plan returned. Brief: `research_brief_73.0.md`.
+2. **GENERATE fan-out** (`wf_70d10c32-d28`, 6/6 agents, ~546k tokens): five dimension-readers each read their sources IN FULL (with per-paper section/table citations) and returned ADOPT/ADAPT/REJECT/DEFER verdicts; a consistency synthesizer at effort max verified chain ordering against code, resolved 3 contradiction checks, flagged all abstract-only reads for confidence downgrade, and confirmed zero scale-constraint violations among adopts.
+3. **`handoff/current/frontier_map_73.md` published (40,354 chars)** — 10 final dimension verdicts transcribed VERBATIM from the verified synthesis JSON (no paraphrase), plus: full chain-ordering verdict, per-reader read-in-full/not-fully-read coverage lists, consistency findings, and baseline corrections carried forward to the 73.1-73.5 contracts.
+
+## Headline verdicts
+
+- **Chain CONFIRMED** (#3→#2→#1→#4) with one decisive refinement: the baseline's #3 F-grade premise is **STALE** — the AFML purge + embargo were already built in phase-69.2 (verified at `backtest_engine.py:570-582,:662,:428-430` + `walk_forward.py:36,61`); residual #3 work is the **LLM-side** guards (post-cutoff eval, counterfactual audit on the live signal path — the historical backtest is quant-only GBM) + CPCV wiring as a complement. #4 (net-of-cost DSR) is parallelizable early (~10-line change feeding existing `compute_dsr`, gate.py untouched).
+- **#2 keystone verified**: the exact outcome_tracker crash mechanism (:47/:50 naive-vs-aware, sibling guards :101-110, unguarded call :137) — a ~2-line fix unlocks the already-coded reflection path; FinMem decay as O(N) BM25 re-rank, embeddings REJECTED.
+- **#1**: mechanism ADAPT (debate-derived vote-share via our existing bull/bear stack as the deliberation-calibrator; REJECT logprob — unavailable; REJECT isotonic at small samples — 2-3 bucket shrinkage on Wilson lower bound; bounded scalar at the sizing seam, caps stay downstream); live sizing DEFERRED until ~100-150 clean closed trades.
+- **#5**: champion-bridge ADOPT build-dark (verified: best_params reaches only the heartbeat, never decide_trades); training-based self-evolution DEFERRED.
+- **#6/#7 pilots**: DEFER behind #2/#3 respectively (PiT-RAG mechanism is a near-perfect future fit; factor-mining against a leaky scorer = industrialized overfitting; heavy frameworks REJECTED on cost/infra); smallest honest #7 step = an OOS rank-IC/ICIR gate, not a miner.
+- **#8/#9/#10**: KEEP — no rebuilds; two wiring upgrades feed the existing gate; PBO 0.20 kept (stricter than charter 0.5) pending the 73.4 documentation.
 
 ## Verbatim verification output
 
 ```
-$ bash -c 'test -f handoff/current/money_diagnosis_72.md && test -f handoff/current/operator_decision_sheet_72.md && git log origin/main --oneline -5 | grep -q "phase-72"'
-72.5 VERIFICATION COMMAND EXIT: 0 (PASS)
+$ bash -c 'test -f handoff/current/frontier_map_73.md && grep -Eqi "adopt" handoff/current/frontier_map_73.md && grep -Eqi "leakage" handoff/current/frontier_map_73.md && grep -Eqi "calibrat" handoff/current/frontier_map_73.md'
+73.0 VERIFICATION COMMAND EXIT: 0 (PASS)
 ```
+
+## Reading-coverage honesty (criterion 3)
+
+Unreachable/partial sources are listed per-reader in the map with what was attempted: Look-Ahead-Bench body 404 (abstract+README only → Q4 confidence downgraded), CPCV-comparison 403 on both hosts (snippet + risklab.ai + AFML Ch.12), Amazon PDF unparseable locally, Man Group Bloomberg paywalled (snippet-level → #10 caveated). The three baseline-flagged 2026 arXiv IDs were verified genuine; AlphaAgent's "IR 1.5" confirmed in body as Table 2 IR=1.488.
 
 ## Scope honesty
 
-This step changed only handoff documentation (2 cosmetic fixes + this rollup's own artifacts) and the masterplan status flip. No product code, no .env, no flags, throughout the entire phase — verified per-step by five independent Q/A spawns and re-verified by the 72.5 completeness critic.
+No product code, no .env, no flags, no optimizer runs. The map corrects our own baseline (stale :587 premise) rather than defending it. All verdict paragraphs are verbatim from the synthesis return; Main authored only headers/assembly.
