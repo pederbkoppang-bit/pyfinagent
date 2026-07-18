@@ -1,36 +1,37 @@
-# Experiment Results — Step 63.3 (Verified defect register published)
+# Experiment Results — phase-72.0: P0 scoring-rail restoration audit
 
-**Date:** 2026-07-18 | **Method:** $0 documentation consolidation of two already-completed $0 audits (63.1 route-walk + 63.2 BQ cross-check). No metered LLM. No production code. Operator `:3000` untouched. historical_macro FROZEN.
+Date: 2026-07-18. Session: Fable 5 + ultracode, AUDIT + RESEARCH ONLY (no product code, no .env, no flags, no optimizer, $0 metered — all subagent work on the Max rail via Workflow structured-output launches). Predecessor 63.3 artifacts preserved at `handoff/archive/phase-63.3-parked/`.
 
-## What was built/changed
+## What was built
 
-**Single file edited:** `handoff/away_ops/defect_register.md` (extended the existing 63.2 register; DEF numbers NOT re-numbered).
-1. **Title/banner** updated to "consolidated (phase-63.1 route-walk + phase-63.2 BQ cross-check)" with a pointer to the new `## Phase-63.3 consolidation` section.
-2. **Consolidated DEF table** — added **DEF-002** (63.1 `/agent-map` React Flow error#008 "source handle null", **120 warnings across ~24 edges merged to ONE row** with instance count, root cause `AgentMap.tsx` L258-276, fix → 63.4, P2/pure-bug). DEF-001 (63.2) is NOT re-listed as a `| DEF-001 |` row (kept in its canonical Criterion-2 table) so the count stays "exactly one DEF- row per finding".
-3. **No-silent-drops ledger** — explicitly records `failed_request_routes=[]`, `page_error_routes=[]`, `route_list_delta` empty, and "no number mismatch" as **0 rows each** (recorded, not silently dropped).
-4. **P0/P1/P2 triage** — rubric (P0 money/risk = none; P1 reporting-broken = DEF-001; P2 cosmetic/console = DEF-002) + priority table.
-5. **4 `SCREENSHOT-AREA` rows** — reports→DEF-001; positions/currency→ALL-CLEAR (63.2 AMD match + 64.3 currency tests); dashboard-numbers→ALL-CLEAR (every API==BQ exact); new-pages→DEF-002-else-clear. Each carries the literal `SCREENSHOT-AREA` token + evidence.
-6. **Digest summary** — a DARK draft of the register-summary digest text + an explicit `⛔ Criterion 3 is OPERATOR-GATED` block naming the poster (`scripts/away_ops/send_away_digest.py:80,85`) and the owed operator action.
-
-Also created `handoff/current/live_check_63.3.md` (register header + row count recorded; **digest permalink field left OPEN — owed operator token**).
+1. **Research gate** (Workflow `wf_a3f9906e-095`, researcher role, opus/max, tier=complex): gate_passed=true, 9 external sources read in full, 21 URLs, recency scan, 7 internal files. Brief: `handoff/current/research_brief.md`. Identified the two-surface root-cause frame (Surface A pipeline rail, Surface B meta-scorer direct-API bypass) + 8 restoration seams.
+2. **Forensics GENERATE** (Workflow `wf_0542bf62-ffb`, 3 read-only Explore auditors + adversarial verifier at effort max; 4/4 returned): log-onset timeline across all rotations, BQ `llm_call_log` daily provider/error series (bounded SELECTs), away-window disentangle, live host inspection (`claude auth status`, `launchctl print`, `ps`). Verifier independently re-ran the load-bearing queries/greps.
+3. **`handoff/current/money_diagnosis_72.md`** — P0 section complete: verified mechanism, onset + attribution (ROOT 2026-05-17 credit-400; Surface-B 2026-05-22; observable freeze 06-11/15; markers = instrumentation lag), away-vs-defect per window, corrected restoration stack-rank. The contract's Surface-A hypothesis (route flag/OAuth) is recorded as PARTIALLY REFUTED — OAuth alive, route effectively ON; the real Surface-A failure is rail-tagged calls regressing to the credit-dead direct API + 120s subprocess timeouts tripping the breaker.
+4. **`handoff/current/live_check_72.0.md`** — verbatim onset/provider evidence (log lines with request_ids, BQ SQL + key rows, live host state); explicit note that the operator `.env` grep was NOT provided by step close (criteria escape hatch).
+5. **Masterplan restoration steps appended** (pending, executor-tagged, immutable live_checks requiring a live cycle log line showing non-degraded scoring): `72.0.1` meta-scorer rail decoupling [sonnet-4.6/high, flag-gated dark], `72.0.2` standard-tier fail-forward on rail-dead [opus-4.8/xhigh, flag-gated dark], `72.0.3` decision-seam observability [sonnet-4.6/high, always-on log], `72.0.4` degraded-alert paging verification [sonnet-4.6/high]. Verification commands smoke-tested exit 0.
+6. Operator-side levers routed to the decision sheet (NOT flipped): Anthropic credit decision (dead since 05-17), write approved synthesis-integrity + RJ-shape flags to `.env` + restart, provide the `.env` grep.
 
 ## File list
-- `handoff/away_ops/defect_register.md` (edited — title banner + `## Phase-63.3 consolidation` section)
-- `handoff/current/contract.md` (this step's contract)
-- `handoff/current/research_brief_63.3.md` (research gate, gate_passed:true)
-- `handoff/current/live_check_63.3.md` (stub; permalink OPEN)
 
-## Verbatim verification command output
+- `handoff/current/contract.md` (PLAN, written after research gate, before GENERATE)
+- `handoff/current/research_brief.md` (researcher, write-first)
+- `handoff/current/money_diagnosis_72.md` (P0 complete; P1-P4 placeholders for later steps)
+- `handoff/current/live_check_72.0.md`
+- `.claude/masterplan.json` (phase-72 installed earlier @403f376c; steps 72.0.1-72.0.4 appended this step; 72.0 in-progress)
+- `handoff/archive/phase-63.3-parked/` (snapshot of the parked 63.3 rolling files before overwrite)
+
+## Verbatim verification output
+
 ```
-$ grep -cE '^\| DEF-[0-9]+ \|' handoff/away_ops/defect_register.md && grep -c 'SCREENSHOT-AREA' handoff/away_ops/defect_register.md
-2
-8
+$ bash -c 'test -f handoff/current/money_diagnosis_72.md && grep -q "P0" handoff/current/money_diagnosis_72.md && grep -Eqi "onset|since" handoff/current/money_diagnosis_72.md && grep -Eqi "restoration" handoff/current/money_diagnosis_72.md'
+VERIFICATION COMMAND EXIT: 0 (PASS)
 ```
-- `grep -cE '^\| DEF-[0-9]+ \|'` = **2** → DEF-001 (line 88) + DEF-002 (line 127); the two distinct findings, no double-count. **Criterion 1 satisfied** (console-error route `/agent-map`→DEF-002; failed-request/page-error/number-mismatch all explicitly 0 rows; duplicates merged with cross-references).
-- `grep -c 'SCREENSHOT-AREA'` = **8** (≥4) → all four operator screenshot areas mapped (reports+new-pages→DEF; positions/currency+dashboard-numbers→ALL-CLEAR-with-evidence). **Criterion 2 satisfied.**
 
-## Criterion 3 — PARKED (operator-gated, outward-facing)
-"The register summary appeared in a Slack digest" requires an actual `chat_postMessage` + `chat_getPermalink` (poster `scripts/away_ops/send_away_digest.py:80,85`; 62.8 formatter DONE). That is an **outward-facing side effect** — out of scope for this $0/paper unattended drain. Built the digest summary **text** DARK; **owed operator action:** post it and record the permalink into `live_check_63.3.md`. **This step is PARKED, not flipped to done.**
+## Artifact shape / headline findings
 
-## Artifact shape
-`handoff/away_ops/defect_register.md` — one consolidated register: 63.2 body (24 triples + Q1-Q6 SQL + DEF-001) + `## Phase-63.3 consolidation` (DEF-002 + no-silent-drops ledger + P0/P1/P2 triage + 4 SCREENSHOT-AREA rows + DARK digest draft + operator-gate block).
+- ROOT onset **2026-05-17 03:55:44** (HTTP-400 "credit balance too low", req_011Cb7JtX5fXgpryDPiYpSxo; genuine anthropic successes cease after this date — later ok-rows are input=1000/output=50 smoke fixtures).
+- Meta-scorer LLM leg failed **every trading day 05-22 → 07-17**, zero llm_call_log rows (rail + telemetry bypass), still 400ing 07-17 20:01.
+- Away window = **DEFECT not posture** (rail 4 exempts the live pipeline; cc_rail credential death 06-15 + `alerting.py` missing → 34 silent failures).
+- Post-return persistence = approved flags never written to agent-locked `.env` + meta-scorer left degraded + direct-API re-blackouts; the 07-09 AMD+MU BUYs were a one-off Gemini-lite catch.
+- Gemini leg: **0 failures all window** — the healthy fail-forward target for R2.
+- Scope honesty: no product code touched, no .env touched, no flags flipped; the only writes are handoff/**, masterplan step additions, and this session's harness artifacts.

@@ -15902,12 +15902,12 @@
     {
       "id": "phase-72",
       "name": "Make the engine earn again -- money-first diagnosis + remediation queue (operator /goal 2026-07-18). SESSION ROLE: Fable 5 + ultracode, AUDIT + RESEARCH ONLY -- never edits product code, never touches backend/.env, never flips flags/dark levers, no optimizer runs (historical_macro FROZEN), $0 metered (Max rail only). Remediation steps are appended executor-tagged ([executor: sonnet-4.6/high] mechanical, [executor: opus-4.8/xhigh] judgment-heavy) for cheaper sessions to execute. Dark flags & operator tokens: RECOMMEND ONLY via handoff/current/operator_decision_sheet_72.md; operator flips. BASELINE (adversarially verified 2026-07-18): handoff/current/money_recon_2026-07-18.md -- trades NET PROFITABLE (+$3,194.68 realized since 05-15, costs ~$51) but NAV flat since 05-29 because book is 97.2% cash: LLM scoring rail degraded -> all analyses HOLD -> decide_trades silently drops everything (portfolio_manager.py:63,182-189; autonomous_loop.py:1103-1109), 8 of 9 cycles 0 trades. Kill-switch NOT the blocker. REFUTED (do not build on): KS-PEAK-RESET lockout as active cause; swap-churn as active leak (+$1,103 in-window); '+14% alpha' headline (~10pp benchmark discontinuity 05-23->05-26).",
-      "status": "pending",
+      "status": "in-progress",
       "theme": "money-first diagnosis: restore the scoring rail, reconcile approved tokens, fix measurement, rank earning levers",
       "steps": [
         {
           "id": "72.0",
-          "status": "pending",
+          "status": "done",
           "name": "P0 scoring-rail restoration audit [executor: this session, fable-5/ultracode]. Root-cause the degraded LLM scoring end-to-end: which rail/key/tier fails (settings.py:30 claude-sonnet-4-6 Anthropic-routed; cc_rail health probe FAILED; 'credit-exhaustion class' cycle_block_summary.md:27), the exact onset date (backend.log + BQ llm_call_log timeline), and away-ops-$0-posture leftover (06-12..07-06) vs live defect. Confirm live .env state via operator grep (subagents+Main are permission-blocked). Output: money_diagnosis_72.md P0 section + restoration steps appended to this phase as pending, executor-tagged, each with an immutable live_check requiring a post-restoration cycle log line showing non-degraded scoring.",
           "harness_required": true,
           "priority": "P0",
@@ -15919,6 +15919,82 @@
               "Restoration steps installed in masterplan as pending, executor-tagged, with immutable live_checks requiring a cycle log line showing non-degraded scoring; this session edited no product code and no .env"
             ],
             "live_check": "handoff/current/live_check_72.0.md with verbatim backend.log/BQ llm_call_log lines pinning the degraded-scoring onset + failing provider/key, plus the operator .env grep output (or an explicit note it was not provided)"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "72.0.1",
+          "status": "pending",
+          "name": "Restoration R1 -- meta-scorer rail decoupling [executor: sonnet-4.6/high]. Surface B fix: backend/services/meta_scorer.py:220-225 constructs ClaudeClient with anthropic_api_key directly, bypassing make_client()/paper_use_claude_code_route, so the conviction overlay is credit-dead even when the cc_rail is healthy (collapses to flat conviction=10, erasing ranking). Route the meta-scorer LLM leg through make_client()/the claude-code route OR repin meta_scorer_model to a Vertex-Gemini id. Ship FLAG-GATED DARK (default OFF, do-no-harm) per away-ops rail 1; preserve the honest-null degraded fallback exactly.",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "72.0",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; ast.parse(open(sys.argv[1]).read())\" backend/services/meta_scorer.py'",
+            "success_criteria": [
+              "meta_scorer no longer depends on direct-API Anthropic credits when the new flag is ON; flag default OFF is byte-identical legacy behavior",
+              "The honest-null/_degraded fallback semantics are preserved (no fabricated scores), and the degraded-streak alert seam (autonomous_loop.py:902-958) still fires",
+              "No other call site changes; python -c ast.parse passes on every touched file"
+            ],
+            "live_check": "handoff/current/live_check_72.0.1.md: a post-activation cycle log line showing the meta-scorer LLM leg ACTIVE (no 'Meta-scorer ran ENTIRELY on the no-LLM fallback' for that cycle) with the flag ON in a live cycle"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "72.0.2",
+          "status": "pending",
+          "name": "Restoration R2 -- standard-tier fail-forward on rail-dead [executor: opus-4.8/xhigh]. Surface A resilience: when the cc_rail probe is dead AND direct-API is credit-exhausted, the standard tier currently degrades to lite->HOLD and the book earns $0 (fail-closed). Add a fail-forward: standard-tier claude-* calls fall to the Vertex-Gemini workhorse under a quality floor instead of degrading to HOLD (provider-order seam backend/agents/llm_client.py:1983-2042; phase-37.2 precedent settings.py:31 moved deep_think off Anthropic for exactly this failure class; external basis: circuit-breaker + LLM-failover literature in research_brief.md). Ship FLAG-GATED DARK (default OFF). Never fabricate scores -- fail-forward only to a real model, else honest degraded.",
+          "harness_required": true,
+          "priority": "P0",
+          "depends_on_step": "72.0",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; ast.parse(open(sys.argv[1]).read())\" backend/agents/llm_client.py'",
+            "success_criteria": [
+              "With the flag ON and the cc_rail probe dead, standard-tier analyses run on Vertex-Gemini and produce real (non-degraded) scores; with the flag OFF behavior is byte-identical legacy",
+              "The circuit-breaker (claude_rail_breaker_threshold) and probe alerting are unchanged; no retry loop on 402 billing errors (non-retryable per Anthropic docs)",
+              "Cost note recorded: Vertex calls are metered -- the flag activation line in the decision sheet must state expected per-cycle cost"
+            ],
+            "live_check": "handoff/current/live_check_72.0.2.md: a live cycle log line showing a standard-tier analysis served by the fail-forward provider while the rail probe was dead, scoring non-degraded"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "72.0.3",
+          "status": "pending",
+          "name": "Restoration R3 -- decision-seam observability [executor: sonnet-4.6/high]. portfolio_manager.py:188 silently `continue`s on every non-BUY recommendation with no log, which is why 0-buy cycles show no gate messages at all (phase-70 'silent BUY-gates'). Add an INFO-level per-cycle summary log (candidate -> recommendation -> drop reason) at the decision seam. Observability-only, always-on (phase-70.4 precedent); no behavior change.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "72.0",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import ast,sys; ast.parse(open(sys.argv[1]).read())\" backend/services/portfolio_manager.py'",
+            "success_criteria": [
+              "Every decide_trades cycle logs a per-candidate recommendation summary including the non-BUY drops; no trading behavior change",
+              "Log volume bounded (one summary line per cycle or per candidate at INFO, no per-token spam)",
+              "python -c ast.parse passes on portfolio_manager.py"
+            ],
+            "live_check": "handoff/current/live_check_72.0.3.md: a live cycle log excerpt showing the new decision-seam summary line enumerating the cycle's candidates and drop reasons"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "72.0.4",
+          "status": "pending",
+          "name": "Restoration R4 -- degraded-alert paging verification [executor: sonnet-4.6/high]. The degraded-scoring guard and meta-scorer fallback alert seams (autonomous_loop.py:360-398, 902-958) emit P1s; verify they actually PAGE live via the bot-token Slack path (webhook paging is DEAD machine-wide per phase-62; bot-token fallback is the live-proven route). Fix wiring if broken; no new alert classes.",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "72.0",
+          "verification": {
+            "command": "bash -c 'grep -Eq \"degraded|no-LLM\" backend/services/autonomous_loop.py'",
+            "success_criteria": [
+              "A deliberately-triggered (or next naturally-occurring) degraded cycle produces a delivered Slack message via the bot-token path, evidenced by permalink or send-log line",
+              "No new alert classes introduced; existing thresholds unchanged",
+              "If paging is already correctly wired, the step closes with the delivery evidence alone (no code change)"
+            ],
+            "live_check": "handoff/current/live_check_72.0.4.md: the delivered Slack message permalink or bot send-log line for a degraded-cycle alert"
           },
           "retry_count": 0,
           "max_retries": 3
