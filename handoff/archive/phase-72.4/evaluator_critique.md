@@ -1,0 +1,40 @@
+# Evaluator Critique — Step 72.4 (P4 regime deployment-policy research)
+
+**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_a91d770b-c3f`.
+
+## Verdict (verbatim JSON return)
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 3 immutable criteria MET, harness compliance clean (5/5), no unintended production change. Criterion 1: researcher gate cleared — envelope gate_passed=true, 7 external sources read in full (>=5 floor: Daniel-Moskowitz JFE 2016 peer-reviewed + Faber + Vanguard + JPM industry/official + 3 arXiv preprints; clears the non-community-tier bar), dedicated recency-scan section present. Criterion 2: concrete recommend-only policy in operator_decision_sheet_72.md §P4 (deploy-by-default, scale via MACRO_REGIME_FILTER_ENABLED risk_off x0.70, cash-as-residual with 5% floor untouched, NO binary trend gate, one-lever-at-a-time) WITH genuine two-sided evidence (FOR: scale-don't-switch near-unanimous D-M SR1.19 / Barroso 0.53->0.97 / Nystrup-Shu-Mulvey; AGAINST: declined Faber DD edge 83.7%->42.2%, detector unreliability in flat regimes, unvalidated overlay). Criterion 3: no code/config/flag — git diff since 7502c664 (HEAD, incl working tree) touches only handoff/**, .claude/masterplan.json status-flip, audit jsonl; zero backend/frontend/scripts/.env. Deterministic: verification cmd exit=0; policy's load-bearing file:line chain independently verified accurate (settings.py:388 macro_regime_filter_enabled default False unchanged; macro_regime.py:33-38 multipliers exactly {1.15,0.70,1.00,0.85}; apply_regime_to_score at line 604) — no fabricated citations. First Q/A spawn for 72.4 (0 prior CONDITIONALs); log + status-flip correctly still pending this verdict.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5item",
+    "verification_command_exit0",
+    "git_diff_scope_since_7502c664",
+    "no_production_files_touched",
+    "mtime_ordering_research_before_contract_before_generate",
+    "harness_log_log_last_check",
+    "masterplan_status_in_progress_not_done",
+    "conditional_count_for_step_id",
+    "research_brief_envelope_gate_passed",
+    "sources_read_in_full_count_7",
+    "recency_scan_section_present",
+    "source_hierarchy_non_community",
+    "policy_concreteness_and_two_sided_evidence",
+    "spotcheck_settings_py_388_default_False",
+    "spotcheck_macro_regime_multipliers_33_38",
+    "spotcheck_apply_regime_to_score_604",
+    "flag_untouched_recommend_only",
+    "contract_completeness_criteria_to_evidence_map",
+    "scope_honesty_experiment_results",
+    "worst_of_lenses_correctness_reproduce_scope"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "Doc/research-only step: no .py or frontend/** in the diff, so the ruff/eslint/tsc/runtime-smoke/UI-capture gates are not applicable (correctly not run). The Workflow researcher (wf_39390b7c-9f3) is a prior-session artifact I cannot re-execute, but the brief is self-consistent, the read-in-full evidence carries specific page counts and numeric findings consistent with the known literature, and every internal file:line claim verifies against live code — strong corroboration the gate was genuinely cleared, not fabricated. Defect-vs-policy distinction (recent ~100% cash was the P0 scoring defect, not a deployment choice) is preserved consistently across research_brief_72.4.md, operator_decision_sheet_72.md §P4, and money_diagnosis_72.md §P4. The policy recommends the operator flip macro_regime_filter_enabled but the flag itself is verified untouched (settings.py:388 still Field(False)). Not a P0/P1 money-path code change (recommend-only), but worst-of-lenses (correctness/reproduce/scope-honesty) applied anyway — all pass. LOG (Cycle 116) + masterplan flip to done must follow this verdict per log-last discipline."
+}
+```

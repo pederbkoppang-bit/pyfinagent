@@ -16150,7 +16150,7 @@
         },
         {
           "id": "72.4",
-          "status": "pending",
+          "status": "done",
           "name": "P4 regime deployment-policy research (research gate, moderate tier) [executor: this session, fable-5/ultracode]. The benchmark was ~flat (-0.66pp) over the same 7 weeks: define a literature-grounded deployment policy for flat/down regimes (stay-in-cash vs harvest), with citations, feeding operator_decision_sheet_72.md -- not code.",
           "harness_required": true,
           "priority": "P4",

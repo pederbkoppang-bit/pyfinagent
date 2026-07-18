@@ -1,42 +1,39 @@
-# Contract — phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY)
+# Contract — phase-72.4: P4 regime deployment-policy research
 
-**Step id:** 72.3 (phase-72, depends_on 72.2 = done/PASS @665d7c0e)
-**Session role:** Fable 5 + ultracode, AUDIT + RESEARCH ONLY. No product code, no .env, no flag flips, no optimizer runs, $0 metered. The operator flips levers; this step only ranks and recommends.
+**Step id:** 72.4 (phase-72, depends_on 72.3 = done/PASS @7502c664)
+**Session role:** Fable 5 + ultracode, AUDIT + RESEARCH ONLY. No code, no config, no flag changes — the deliverable is a recommend-only policy in the decision sheet.
 
-## Research-gate summary (gate_passed: true)
+## Research-gate summary (gate_passed: true — the gate IS this step's core work)
 
-Researcher via structured-output Workflow `wf_c781c347-3ac` (opus/max, tier=moderate): 5 external sources read in full (scale-out/trend-exit evidence incl. arXiv 2604.27150 + practitioner counter-evidence; Ehsani/Harvey/Li FAJ 2023 sector-neutrality; single-variable rollout discipline incl. arXiv 2607.06117 "2 of 26 candidates survived incremental admission"), 42 URLs, recency scan, 11 internal files. Brief: `handoff/current/research_brief_72.3.md`. Returned **15 structured lever dossiers** (what-it-changes / existing evidence with file paths / expected impact / risk / rollback per lever), honest "NONE FOUND" where no internal evidence exists.
+Researcher via structured-output Workflow `wf_39390b7c-9f3` (opus/max, tier=moderate): 7 external sources read in full (Daniel-Moskowitz momentum crashes / dynamic weighting; Barroso-Santa-Clara vol-scaling; Nystrup + Shu-Mulvey regime-switching allocation; Faber trend-following; Vanguard + JPM cash-drag), 31 URLs, recency scan (DL/transformer regime models assessed and rejected as un-deployable), 6 internal files (screener composite, macro_regime multiplier chain, kill-switch, cash floor). Brief: `handoff/current/research_brief_72.4.md`. Returned a structured `recommended_policy` with statement / evidence_for / evidence_against / fit_to_pyfinagent (file:line).
 
 Load-bearing findings:
-1. **P0 gates everything** — no lever earns until scoring is restored; all ranks are post-P0 earning-capacity.
-2. **Tier-1 quantified alpha (only two)**: `paper_soft_sector_diversity` w=0.20 → **+0.20 ann Sharpe** (internal 70.2 replay `_70_2_soft_diversity_replay.json`: monotonic +0.176/+0.200/+0.234 at w=0.10/0.20/0.30, breadth +2 sectors, turnover-neutral; hard sector-neutral −0.117 WORSE; FAJ 2023 corroborates long-only sector retention); `momentum_52wh_tilt` k=0.5 → **+0.05 ann Sharpe** (`_52wh_paired_returns.json`, k=1.0 plateaus).
-3. **scale_out is an honest HOLD**: zero internal backtest rows; conflicting external evidence; our own exit data (trail captured avg +17.82% on 14 trips) is trend-like → partials likely cap winners.
-4. **Safety/insurance levers** (atomic_swap, avg_entry_fx_fix, sign_safe_overlays, KS-PEAK-RESET) are mechanism-proven with no $ magnitude — they protect existing profit streams, not new alpha.
-5. **Dangerous-if-early**: `position_rec_fix` without synthesis-integrity ON = wrongful downgrade-SELLs on synthetic HOLDs (settings.py:203 unsafe-combination guard); `meta_scorer_enabled` is a no-op/ranking-eraser until 72.0.1 (R1) reroutes it.
-6. **Rollout discipline**: ONE gated flip at a time, sequenced; never batch (single-variable rule + incremental-admission evidence).
+1. **Scale, don't switch** — near-unanimous: continuous exposure scaling beats binary cash-flips (D-M dynamic weight OOS Sharpe 1.19; B-S-C 0.53→0.97; binary switching "too extreme for practical trading").
+2. Binary trend/cash gating buys drawdown reduction, not return, and **whipsaws in exactly our flat regime** (Faber: identical avg returns; edge only over full cycles).
+3. Cash is a funding-level decision, not a timing dial (Vanguard 2-20bps/yr drag; JPM: best/worst days cluster — a cash gate forfeits rebounds).
+4. Regime detectors are least reliable in flat/choppy regimes → any regime lever must be a soft continuous down-weight on a fail-safe multiplier, never a hard switch.
+5. **pyfinagent already owns the endorsed mechanism as a dark lever**: `macro_regime_filter_enabled` (settings.py:388) → continuous conviction multiplier (risk_off ×0.70, macro_regime.py:33-38) → `apply_regime_to_score` (:604-630) → momentum composite. Zero new code.
+6. The recent ~100% cash was the P0 defect, not a policy — the book has no explicit deploy-vs-cash gate; it is emergent from screen + BUY seam + 5% floor.
 
 ## Hypothesis
 
-Ranking the levers by evidence tier (quantified alpha > safety/insurance > unquantified correctness > HOLD) with an explicit one-at-a-time sequence converts the dark-flag backlog into an operator playbook that maximizes expected P&L per flip while respecting the promotion gates (DSR≥0.95 / PBO≤0.5) from the north-star charter.
+Codifying "deploy by default; scale by regime via the existing continuous multiplier; cash only as residual; no binary gate" as a recommend-only decision-sheet item gives the operator a defensible earning definition per regime, aligned with both the literature and the mechanisms already built.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 72.3)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 72.4)
 
-- "Every dark lever in the money_recon inventory appears in operator_decision_sheet_72.md, ranked, with expected impact + risk + rollback + evidence per item"
-- "All impact claims cite existing backtest results or BQ evidence -- no new optimizer runs, historical_macro untouched"
-- "The sheet distinguishes recommend-ON, recommend-HOLD, and needs-more-evidence; nothing was activated by this session"
+- "Researcher gate cleared per protocol (>=5 sources read in full, recency scan, envelope) on regime-conditional deployment / cash-as-a-position literature"
+- "A concrete recommended policy (with the evidence for and against) lands in the decision sheet as a recommend-only item"
+- "No code, config, or flag changes"
 
-verification.command: `bash -c 'test -f handoff/current/operator_decision_sheet_72.md && grep -Eqi "rollback" handoff/current/operator_decision_sheet_72.md && grep -Eqi "scale.?out|SCALE_OUT" handoff/current/operator_decision_sheet_72.md'`
+verification.command: `bash -c 'grep -Eqi "regime" handoff/current/operator_decision_sheet_72.md'`
 
 ## Plan
 
-1. GENERATE (Main synthesis from the 15 verified dossiers — no new evidence collection needed beyond one bounded BQ reconciliation query for the open $137.32 realized-P&L item from 72.2): write the P3 ranked section into `operator_decision_sheet_72.md` (tiered table + one-at-a-time sequence + HOLD list + dangerous-if-early list), covering EVERY money_recon inventory lever (incl. `paper_learn_loop_enabled` :33, which the dossiers omitted — added from the phase-69 register evidence: writer crash-dead, outcome_tracker.py:50). Update `money_diagnosis_72.md` §P3 pointer.
-2. `experiment_results.md` with verbatim verification output.
-3. EVALUATE via qa-verdict Workflow; transcribe verbatim.
-4. LOG (Cycle 115) then flip 72.3 → done.
+1. GENERATE (Main transcription/synthesis of the returned policy): write the §P4 policy section into `operator_decision_sheet_72.md` (statement, evidence for/against, fit-to-mechanisms, sequencing interplay with the P3 queue — the policy carves `macro_regime_filter_enabled` out of the P3 overlay-library HOLD with regime-specific justification and its own one-lever-measured-first discipline). Update `money_diagnosis_72.md` §P4.
+2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 116) → flip 72.4 done.
 
 ## References
 
-- `handoff/current/research_brief_72.3.md` (envelope + dossiers + sources)
-- `handoff/current/_70_2_soft_diversity_replay.json`, `_52wh_paired_returns.json` (the two quantified internal replays)
-- `handoff/current/money_recon_2026-07-18.md` (inventory), `money_diagnosis_72.md` (P0-P2 verdicts)
-- arXiv 2604.27150; arXiv 2607.06117; Ehsani/Harvey/Li FAJ 2023 (via brief)
+- `handoff/current/research_brief_72.4.md` (envelope + per-source notes)
+- Daniel & Moskowitz (momentum crashes); Barroso & Santa-Clara; Nystrup et al.; Shu & Mulvey; Faber GTAA; Vanguard cash-drag; JPM stay-invested (URLs in brief)
+- `money_diagnosis_72.md` P0-P3 (defect-vs-policy distinction; P3 lever queue)
