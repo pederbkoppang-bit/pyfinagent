@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `d2485c2e` | phase-73.1: D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc ... |
 | 2026-07-18 | `b6c95879` | phase-73.0: D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline... |
 | 2026-07-18 | `9489d8df` | phase-73.0: install phase-73 goal + D1-D4 design step queue (frontier gap-close; baseline @e835464b) |
 | 2026-07-18 | `e835464b` | chore: phase-73 frontier baseline (graded dimension map + syllabus + critic verdicts) ahead of goal  |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `9e6766e6` | phase-64.1: Functional-E2E Playwright project -- new testDir tests/e2e-functional as a second pro... |
 | 2026-07-17 | `b628953e` | phase-63.1: Playwright walk of all 22 routes (find frontend/src/app -name page.tsx; incl. one con... |
 | 2026-07-17 | `515c35e1` | phase-71.5: P3 -- effort/model posture reconciliation (max-where-it-helps, cost-appropriate elsew... |
-| 2026-07-17 | `7c134fde` | phase-71.6: P3 -- automate the stress-test doctrine + context hygiene. Save the 2026-07-16 harnes... |
 
 ---
 
+### v6.66.1 — phase-73.1: D2a leakage-integrity design [executor: this session, fab... (2026-07-18)
+
+- **phase-73.1: D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc ...**
 ### v6.66.0 — phase-73.0: D1 deep frontier study [executor: this session, fable-5/u... (2026-07-18)
 
 - **phase-73.0: D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline...**
