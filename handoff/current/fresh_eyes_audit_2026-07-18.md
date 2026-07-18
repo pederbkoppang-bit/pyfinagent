@@ -9,6 +9,14 @@ verified against source with file:line evidence and confirmed absent from
 Convert findings into masterplan steps (phase-74+) via the full protocol;
 mark the register row with the step id when adopted.
 
+**ADVERSARIAL VERIFICATION (2026-07-18, ultracode dynamic workflow
+`wf_1b92b344-335`, 26 independent refute-oriented verifiers, 26/26
+returned):** 21 CONFIRMED, 3 PARTIAL (B4, D4, E1 -- corrections applied
+inline below), 1 REFUTED (E5 -- streaming-buffer race does not exist; DML
+MERGE path; residual non-atomicity note kept), 1 DUPLICATE (B3 -- covered
+by masterplan step 61.5). Findings below carry a [VERDICT] tag; unmarked
+claims inside a finding were verified as stated.
+
 ## A. Guard integrity (SEV-1 -- terminal-risk-guard defects)
 
 - **A1. flatten_all lacks per-position error isolation + post-flatten
@@ -40,12 +48,25 @@ mark the register row with the step id when adopted.
   `_get_live_price` uses `history(period="1d")` (prior session's close
   intraday) for sells/stops/kill-switch/MTM, while the dashboard uses 1m bars
   (`live_prices.py:112`) -- booked fills diverge from what the operator sees.
-- **B3. Side-blind fills.** `execution_router.py:99` -- BUY and SELL both
-  fill at the same price; no bid/ask spread axis at all.
-- **B4. No price-staleness gate on the execution path.** Integrity check is
-  default-OFF and pre-LLM only (`autonomous_loop.py:2346`); the phase-50.4
-  calendar gate never gates US tickers (`:527-529`) -- weekend/holiday fills
-  at Friday's close, unguarded.
+- **B3. Side-blind fills. [DUPLICATE -> step 61.5]** `execution_router.py:99`
+  fills BUY and SELL at the same price (defect real, line exact), but
+  masterplan step 61.5's "optional per-market half-spread bps"
+  (masterplan.json:14563; audit_basis :14559 cites execution_router.py:85-126)
+  already carries the remedy. Caveat: 61.5's spread model is config-gated
+  default-OFF -- if the DEFAULT path must be side-aware unconditionally,
+  extend 61.5's scope; do not open a new step.
+- **B4. No price-staleness gate on the execution path. [PARTIAL --
+  corrected]** Integrity check is default-OFF and pre-LLM only
+  (`backend/services/autonomous_loop.py:2346`, enforcement :2350-2354 inside
+  `_run_claude_analysis`); the phase-50.4 calendar gate never gates US
+  tickers (comment :529, impl :538-539; whole block skipped when
+  paper_markets==["US"], :522). CORRECTION: the automated loop is scheduled
+  mon-fri (`paper_trading.py:1307`), so the unguarded automated-path
+  exposure is WEEKDAY US MARKET HOLIDAYS (cron fires, gate returns True,
+  yfinance serves prior close); weekend stale-close fills occur only via the
+  manual/API triggers (`paper_trading.py:1031/1279/1355`). The only
+  pre-trade price gate (phase-30.6, `paper_trader.py:173-202`) is
+  default-OFF, BUY-only, divergence-based -- cannot catch uniform staleness.
 
 ## C. Corporate actions + data resilience
 
@@ -79,10 +100,15 @@ mark the register row with the step id when adopted.
   `signal_attribution.py:95-109` is a fixed BUY->1.0/HOLD->0.5 display
   heuristic; the only ablation harness targets ML quant features, not LLM
   agents. Nobody can say which of the 28 agents earn their tokens.
-- **D4. Roster drift / mislabeled agents.** bias_detector, info_gap,
-  conflict_detector have zero LLM calls yet are badged gemini-2.5-flash
-  (`_inventory.json:46,63`; `agent_map.py:85,99`); `quant_strategy` is
-  optimizer-only but counted as a pipeline agent (`_inventory.json:42,68`).
+- **D4. Roster drift / mislabeled agents. [PARTIAL -- corrected]**
+  bias_detector_skill (`_inventory.json:46`, `agent_map.py:85`) and
+  info_gap_agent (`_inventory.json:63`, `agent_map.py:99`) are deterministic
+  (zero LLM calls; live path runs `detect_biases()`/`detect_info_gaps()`,
+  `orchestrator.py:38,44`) yet badged gemini-2.5-flash / layer1_swappable;
+  `quant_strategy` is optimizer-only but counted as a pipeline agent
+  (`_inventory.json:42,68`; `agent_map.py:102`). CORRECTION: conflict_detector
+  is also deterministic but has NO inventory/agent_map node, so it is not
+  mislabeled -- dropped from the list.
 - **D5. Dead orchestrator methods.** `run_macro_agent` (:1121) and
   `run_alpha_decay_agent` (:1310) have zero callers; skills still enumerate.
 - **D6. No Gemini context caching.** Fact-ledger + skill bodies re-billed
@@ -95,19 +121,29 @@ mark the register row with the step id when adopted.
 
 ## E. Surface hardening (security / config / storage)
 
-- **E1. POST /api/harness/monthly-approval is UNAUTHENTICATED.**
-  `main.py:406-423` `_PUBLIC_PATHS` prefix-skips 14 paths incl. the
-  champion/challenger deployment approval (`monthly_approval_api.py:184`);
-  CORS admits the whole 100.x tailnet with credentials (`main.py:399`).
-  security.md documents only 5 skip-auth prefixes.
+- **E1. POST /api/harness/monthly-approval is UNAUTHENTICATED. [PARTIAL --
+  corrected]** `main.py:406-423` `_PUBLIC_PATHS` prefix-skips **16** paths
+  (not 14) incl. the champion/challenger deployment approval
+  (`monthly_approval_api.py:184-196` -- no route/router auth dependency,
+  mutates approval state via `record_approval`); CORS admits the whole
+  100.x tailnet with credentials (`main.py:399-400`). security.md documents
+  only 5 skip-auth prefixes. No masterplan step tracks this.
 - **E2. Core deps unpinned** (fastapi/pydantic/pandas/sklearn/cryptography
   all `>=`); Docker rebuild can silently pull breaking majors.
 - **E3. Prod/CI Python drift.** Dockerfile `python:3.11-slim` vs CI + rules
   pinned 3.14.
 - **E4. BQ retention absent.** `llm_call_log` / `harness_learning_log`
   partitioned but no partition_expiration; AI telemetry 10-50x volume.
-- **E5. paper_positions delete-then-INSERT race** vs ~30-min streaming buffer,
-  unpartitioned (`paper_trader.py:593,611`; migrate_paper_trading.py).
+- **E5. [REFUTED -- streaming-buffer race does not exist.]** paper_positions
+  is written exclusively via DML (`save_paper_position` is a MERGE,
+  `bigquery_client.py:593-632`; delete is DML `:634-640`; no
+  insert_rows_json touches it), and DML rows never enter the streaming
+  buffer -- the codebase adopted DML precisely to avoid this
+  (`bigquery_client.py:558,661`; `_run_dml_with_retry:536-548`;
+  phase-23.1.15 MERGE-upsert). RESIDUAL (minor, real): the redundant
+  delete-then-MERGE pair (`paper_trader.py:593,611`) is non-atomic -- a
+  crash between the two DML calls loses the position row; a bare MERGE
+  alone would be atomic and sufficient.
 - **E6. In-memory jobstores** on all three schedulers -- no crash-recovery
   state (`main.py:267,315`; `slack_bot/scheduler.py:224`).
 - **E7. CORS regex vs 401-path emission drift** (`main.py:399` vs `:451`);
