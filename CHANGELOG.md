@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `665d7c0e` | phase-72.2: P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the ... |
 | 2026-07-18 | `080f93c1` | phase-72.1: P1 approved-but-unapplied token audit [executor: this session, fable-5/ultracode]. Re... |
 | 2026-07-18 | `7b2499e3` | phase-72.0: P0 scoring-rail restoration audit [executor: this session, fable-5/ultracode]. Root-c... |
 | 2026-07-18 | `403f376c` | phase-72.0: install phase-72 goal + P0-P4 audit step queue (money-first diagnosis; adversarially-ver |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-17 | `21c49817` | phase-71.3: research gate PASS + contract (WIP checkpoint for session handoff) |
 | 2026-07-17 | `8043c4ed` | phase-71.2: Layer-2 honesty -- guaranteed structured outputs + kill silent-failure classes |
 | 2026-07-17 | `ccddeff4` | phase-71.1: codify Workflow structured-output as the FIRST-CLASS Q/A + Researcher launch (Agent-tool |
-| 2026-07-17 | `43caead5` | phase-71.0: Harness+MAS upgrade DESIGN pack -- ground the 2026-07-16 self-audit register (17 kept/15 |
 
 ---
 
+### v6.64.2 — phase-72.2: P2 measurement integrity [executor: this session, fable-5... (2026-07-18)
+
+- **phase-72.2: P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the ...**
 ### v6.64.1 — phase-72.1: P1 approved-but-unapplied token audit [executor: this ses... (2026-07-18)
 
 - **phase-72.1: P1 approved-but-unapplied token audit [executor: this session, fable-5/ultracode]. Re...**
