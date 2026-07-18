@@ -16380,7 +16380,7 @@
         },
         {
           "id": "73.3",
-          "status": "pending",
+          "status": "done",
           "name": "D2c calibrated-sizing design [executor: this session, fable-5/ultracode]. Design doc design_pack_73/c_calibrated_sizing.md: conviction -> realized-hit-rate calibration layer (bucket/isotonic, ensemble-aware) feeding position_pct; honest sample-size math (how many closed trades before calibration beats uniform); ships dark behind a flag with an A/B live_check plan. Executor build steps appended pending.",
           "harness_required": true,
           "priority": "P1",
@@ -16395,6 +16395,44 @@
           "retry_count": 0,
           "max_retries": 3,
           "depends_on_step": "73.2"
+        },
+        {
+          "id": "73.3.1",
+          "status": "pending",
+          "name": "Build C1 -- conviction->outcome pairs pipeline + calibration module [executor: sonnet-4.6/high]. Per design_pack_73/c_calibrated_sizing.md §1+§2+§5: vote-share reduction over persisted analysis_results confidence columns (clipped [0,1]; single-backbone caveat documented); pairs snapshot into paper_trades.signals JSON (zero migration) + the retro-backfill join (paper_round_trips.buy_trade_id -> paper_trades -> analysis_results; pre-72.0.1 meta-conviction flagged is_pre_reroute); new backend/services/conviction_calibration.py -- 2-bucket empirical-Bayes Beta-Binomial map (prior p0-centered, kappa 20-40; Jeffreys fallback), Wilson/posterior LOWER-bound per bucket, nightly batch recompute, scalar clip(lb/p0, s_min, s_max). Pipeline runs from day one; NO sizing effect (the scalar is computed + logged only until 73.3.2's flag exists AND the operator flips it).",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "73.3",
+          "verification": {
+            "command": "bash -c 'test -f backend/services/conviction_calibration.py'",
+            "success_criteria": [
+              "Vote-share + pairs computable for every new analysis AND retro-backfilled for the existing history (row counts reported; pre-reroute rows flagged); zero BQ migrations required (signals JSON path proven)",
+              "Calibration module fits the 2-bucket map with shrinkage + lower bound exactly per design; unit tests cover the small-N self-defer property (thin buckets -> scalar ~1.0) and the noise-can-only-shrink property",
+              "No sizing behavior change anywhere; syntax + existing tests pass; no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_73.3.1.md: the fitted map on REAL backfilled pairs (bucket boundaries, per-bucket n/X, lower bounds, scalars -- expected ~1.0 at current N) + a pairs-count reconciliation against paper_round_trips"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "73.3.2",
+          "status": "pending",
+          "name": "Build C2 -- sizing-seam scalar integration, flag-gated dark [executor: sonnet-4.6/high]. Per design §3+§4: position_pct *= calib_scalar(cand) at portfolio_manager.py:388-392 BEFORE target_amount; flag paper_calibrated_sizing_enabled default False -> scalar hard-coded 1.0 -> byte-identical legacy (phase-69.3 pattern); every existing cap ($50 floor :396, cash :393, sector-NAV :406-422, FF3 :427-438, count :349) verified strictly downstream and the binding RiskJudge REJECT strictly upstream (property-tested non-bypassable). A/B promotion evidence per design §4: calibrated vs uniform on identical signals (replay + paper A/B), Brier + net P&L + maxDD, consistent with the immutable DSR/PBO gates; activation stays operator-owned dark-until-token AND data-gated (~100-150 closed trips per the design's math). s_max choice (1.0 defensive vs 1.25-1.5) is surfaced to the operator decision sheet -- the executor implements whichever the operator tokens, defaulting to the defensive 1.0 if unspecified.",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "73.3",
+          "verification": {
+            "command": "bash -c 'grep -q \"calib_scalar\\|calibrated_sizing\" backend/services/portfolio_manager.py'",
+            "success_criteria": [
+              "With the flag OFF the decision path is byte-identical (diff-proven + replay-proven on identical inputs); with it ON the scalar multiplies position_pct exactly at the design seam with all caps clipping downstream",
+              "The A/B harness produces the design's promotion evidence (Brier, net P&L, maxDD, calibrated vs uniform on identical signals) without touching gate.py or any immutable threshold",
+              "Activation requires BOTH the operator token and the data bar; the step ships dark; no .env change by the executor"
+            ],
+            "live_check": "handoff/current/live_check_73.3.2.md: a replay/paper A/B run artifact on identical signals showing calibrated-vs-uniform metrics + the byte-identical-when-OFF proof"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         },
         {
           "id": "73.4",

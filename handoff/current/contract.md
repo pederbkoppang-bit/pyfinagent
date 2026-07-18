@@ -1,35 +1,37 @@
-# Contract — phase-73.2: D2b learn-loop v2 design
+# Contract — phase-73.3: D2c calibrated-sizing design
 
-**Step id:** 73.2 (phase-73, depends_on 73.1 = done/PASS @5c058428)
+**Step id:** 73.3 (phase-73, depends_on 73.2 = done/PASS @6bc67776)
 **Session role:** Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY. No product code, no .env, no flags, no optimizer runs, $0 metered.
 
 ## Research-gate summary (gate_passed: true)
 
-Researcher via structured-output Workflow `wf_a195f7b3-5d8` (opus/max, tier=moderate): 6 sources read in full (FinMem Eq 1-6 via ar5iv; agent survey; FinCon CVRF; Generative-Agents memory scoring; Reflexion; 2026 Agentic-Trading survey), 20 URLs, recency scan, 6 internal files re-verified line-by-line. Brief: `research_brief_73.2.md`. Returned five structured `design_inputs` + an exhaustive 6-item `deadness_causes` stack — all transcribed verbatim into the design doc.
+Researcher via structured-output Workflow `wf_95688663-b4a` (opus/max, tier=moderate): 5 sources read in full (Collaborative-Calibration mechanics + App A.2.2; overconfidence metrics 2508.06225; Autorater 2510.00263; Brown-Cai-DasGupta binomial intervals; Kelly-under-estimation-error 1701.02814/MacLean-Thorp-Ziemba line), 16 URLs, recency scan (incl. the adversarial 2508.18868 shrinkage-insufficient qualifier, honestly weighed), 10 internal files. Brief: `research_brief_73.3.md`. Returned five structured `design_inputs` + `sample_size_math` — transcribed verbatim into the design doc.
 
 Load-bearing findings:
-1. **The deadness is a STACK, not one crash** (corrects 73.0's "~2-line keystone" framing): DC1 the crash with TWO legs (TYPE: `evaluate_all_pending:137` passes raw native datetime; TZ: the live path's `created_at.isoformat()` is tz-aware — both die in the shared method at `:47/:50`); DC2 the flag default gating the ENTIRE fan-out at `autonomous_loop.py:2964` (independent of the crash); DC3 the `logger.debug` swallow at `:3050` that hid 36+ days of empty tables while Step 9 reported "learning" healthy; DC4 the `model=None` branch killing reflections on all periodic/manual paths; DC5 rolling-mark P&L (learns from the wrong number even when it works).
-2. **Two things are ALREADY FIXED — do not re-fix**: the close-event seam (phase-30.3) and live model-injection (phase-31.1); base BQ tables exist.
-3. **Design decisions**: single Q=90d multiplicative decay (`bm25_norm × exp(-d/90) × imp_mult`) over FinMem's filing-typed 14/90/365 layers (our-scale justified; matches the holding horizon); trim reflections 4→1-2 per close for BM25 corpus hygiene (Reflexion/FinCon one-lesson-per-episode); ONE additive nullable BQ migration serves importance-bump + idempotency + forward-compatible evidence-source attribution (73.5 PiT-RAG ready, zero backfill); two-stage injection gate (relevance floor FIRST, decay rerank within survivors); realized-exit-primary reflection satisfying the survey's Outcome-Embargo by construction.
+1. **Never trust raw conviction as probability**: meta_scorer is exactly the overconfident single-call-T=0 mode; the empirical calibration map against realized win rate is mandatory.
+2. **The deliberation stack is already a calibrator at zero extra agents**: every vote-share input (bull/bear/aggressive/conservative/neutral confidences, DA adjustment, moderator + risk-judge) is ALREADY persisted in `analysis_results` — computable from stored columns, fully retro-backfillable, and the pairs snapshot rides `paper_trades.signals` JSON with **zero migration**.
+3. **Size on the LOWER bound** (three-source convergence): estimated probabilities cause overbetting; overbetting beats underbetting in badness; the pessimistic bound means noise can only shrink a bet; asymmetric caps (s_min≈0.5; s_max is a surfaced operator decision — 1.0 defensive vs 1.25-1.5).
+4. **Sizing seam exact + non-bypassable both directions**: scalar at `portfolio_manager.py:388-392` before `target_amount`; binding REJECT strictly upstream (:246-263); $50 floor/cash/sector-NAV/FF3/count caps strictly downstream.
+5. **Honest math**: at today's ~30 round trips the Wilson 95% lower bound sits 22-30pp under the point estimate — the scalar correctly stays ~1.0; calibrated beats uniform at ~40-50/bucket ≈ 100-150 total, coinciding with the go-live TRADES_THRESHOLD=100; empirical-Bayes shrinkage makes uniform the AUTOMATIC low-N behavior even flag-ON (self-deferring design). Pre-72.0.1 meta-conviction flagged degraded in backfill.
 
 ## Hypothesis
 
-Clearing the enumerated stack (crash + swallow + realized-P&L inversion) and shipping the decay/injection upgrades turns the dead loop into the compounding-edge substrate (#2) that #1's calibration and 73.5's evidence weighting both consume — at $0, on existing tables, with the flag flip remaining the operator's dark-until-token decision.
+A two-bucket, shrinkage-priored, lower-bound-sized calibration layer — fed by a pairs pipeline that starts logging NOW and a scalar that self-defers to 1.0 until N clears — converts conviction into a defensible sizing edge exactly when the data supports it, with zero possibility of a small-sample overbet and zero new agents/migrations.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 73.2)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 73.3)
 
-- "b_learn_loop_v2.md enumerates every independent deadness cause with file:line and its fix, plus the decay-tier memory design mapped onto the existing FinancialSituationMemory/BM25 substrate (upgrade, not greenfield)"
-- "Reflection write/retrieve seams specified end-to-end (closed trade -> reflection -> retrieval into future analysis prompts) with token-cost bounds"
-- "Executor-tagged build steps appended pending with live_checks (a BQ reflection row from a real closed trade; a retrieval hit in a live analysis prompt); no code edited this session"
+- "c_calibrated_sizing.md specifies the calibration method, its data requirements with honest small-sample math against our actual trade count, the fallback when insufficient data, and the flag-gated integration point at the sizing seam"
+- "The A/B evaluation plan defines the promotion evidence (calibrated vs uniform sizing on identical signals) consistent with the immutable gates"
+- "Executor-tagged build steps appended pending with live_checks; no code edited this session"
 
-verification.command: `bash -c 'test -f handoff/current/design_pack_73/b_learn_loop_v2.md && grep -Eqi "decay|tier" handoff/current/design_pack_73/b_learn_loop_v2.md'`
+verification.command: `bash -c 'test -f handoff/current/design_pack_73/c_calibrated_sizing.md && grep -Eqi "isotonic|bucket|calibrat" handoff/current/design_pack_73/c_calibrated_sizing.md'`
 
 ## Plan
 
-1. GENERATE: design doc finalized verbatim from the gate (done, 15,331 chars — deadness stack §top, five component specs §1-5, decisions-of-record); append executor build steps 73.2.1-73.2.3 (pending, tagged, immutable live_checks matching the criteria's two artifacts).
-2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 120) → flip 73.2 done.
+1. GENERATE: design doc finalized verbatim from the gate (done, 14,698 chars — sample-size math §top, five component specs, decisions of record incl. the surfaced s_max operator decision); append executor build steps 73.3.1-73.3.2 (pending, tagged, immutable live_checks).
+2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 121) → flip 73.3 done.
 
 ## References
 
-- `handoff/current/research_brief_73.2.md`; `frontier_map_73.md` (#2 verdict); `design_pack_73/b_learn_loop_v2.md`
-- FinMem ar5iv 2311.13743 (Eq 1-6); Generative Agents 2304.03442; FinCon 2407.06567; Reflexion 2303.11366; agent survey 2408.06361; 2026 Agentic-Trading survey (Outcome Embargo)
+- `handoff/current/research_brief_73.3.md`; `frontier_map_73.md` (#1 verdict); `design_pack_73/b_learn_loop_v2.md` (outcome substrate)
+- arXiv 2404.09127, 2508.06225, 2510.00263, 1701.02814, 2508.18868; Brown-Cai-DasGupta; MacLean-Thorp-Ziemba
