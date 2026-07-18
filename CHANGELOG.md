@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-18 | `a71e56dc` | phase-73.7: D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (front... |
 | 2026-07-18 | `7e6cb6cd` | phase-73.6: D3 money runway (recommend-only) [executor: this session, fable-5/ultracode]. One pag... |
 | 2026-07-18 | `40629a8e` | phase-73.5: D2e judged pilots [executor: this session, fable-5/ultracode]. Build/hold verdicts wi... |
 | 2026-07-18 | `64bdd798` | phase-73.4: D2d cost-integrated promotion design [executor: this session, fable-5/ultracode]. Des... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `965bc17c` | phase-63.3 (WIP, CONDITIONAL): publish verified defect register (crit 1+2 DARK); PARK on Slack-diges |
 | 2026-07-18 | `765b6d1d` | phase-65.3: (post-66.2) US+KR health baseline -- BQ per-market trade counts, win rate, exit-reaso... |
 | 2026-07-18 | `f7e76f7a` | phase-63.2: (post-66.2) BQ cross-check of displayed numbers -- for every number-bearing page (coc... |
-| 2026-07-17 | `8fbb1a6b` | phase-64.4: Multi-market e2e -- fixture-replayed US/KR/EU cycle (recorded yfinance fixtures, no n... |
 
 ---
 
+### v6.66.7 — phase-73.7: D4 rollup + push [executor: this session, fable-5/ultraco... (2026-07-18)
+
+- **phase-73.7: D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (front...**
 ### v6.66.6 — phase-73.6: D3 money runway (recommend-only) [executor: this session,... (2026-07-18)
 
 - **phase-73.6: D3 money runway (recommend-only) [executor: this session, fable-5/ultracode]. One pag...**
