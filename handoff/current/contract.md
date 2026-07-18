@@ -1,37 +1,37 @@
-# Contract — phase-73.5: D2e judged pilots
+# Contract — phase-73.6: D3 money runway (recommend-only)
 
-**Step id:** 73.5 (phase-73, depends_on 73.4 = done/PASS @10dea413)
-**Session role:** Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY. No product code, no .env, no flags, no optimizer runs, $0 metered.
+**Step id:** 73.6 (phase-73, depends_on 73.5 = done/PASS @47936199)
+**Session role:** Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY. No spend, no flags, no code, $0 metered.
 
 ## Research-gate summary (gate_passed: true)
 
-Researcher via structured-output Workflow `wf_b9308ff4-315` (opus/max, tier=simple — floor held: 6 sources read in full incl. champion/challenger deployment canon [Databricks, Wallaroo, PDx arXiv:2512.22305] and the QuantAgent adversarial contrast; recency scan; **15 internal files** — the heaviest internal leg of the phase). Brief: `research_brief_73.5.md`. Returned 3 structured `pilot_verdicts` + the `unfreeze_token` package — transcribed verbatim.
+Researcher via structured-output Workflow `wf_9b114107-a7e` (opus/max, tier=simple, floor held: 6 sources read in full — 2 broker [Alpaca paper-fill fidelity], 2 governance [SR 11-7/SR 26-2], 2 practitioner [paper-to-live transition rigor]; 32 URLs; recency scan; 8 internal files incl. `paper_go_live_gate.py` in full). Brief: `research_brief_73.6.md`. Returned 3 ordered `runway_stages` with prerequisites/evidence-anchors/operator-decisions — transcribed verbatim.
 
 Load-bearing findings:
-1. **Champion-bridge scope DECISIVELY NARROWED**: exhaustive grep proved `tp_pct`/`holding_days`/`target_annual_vol` have ZERO live consumers (the live exit is an R-multiple model, structurally unlike the backtest's fixed barriers) and `backtest_*` settings are unread by services. v1 bridge = `max_positions→paper_max_positions` (the one clean live-consumed key), sl/trailing as explicit opt-in sub-flags (they move the R unit / HWM base), everything else NEVER-BRIDGE. The bridge must DEFER to the operator's `risk_overrides` runtime lever, never clobber it.
-2. **The gap re-verified**: best_params reaches only the heartbeat (autonomous_loop.py:404-408); decide_trades takes settings only (:1406, portfolio_manager.py:66); the flag is fresh.
-3. **No code-level freeze flag exists** — historical_macro freeze is a doctrinal operator boundary; the bridge consumer reads no historical_macro (freeze-safe build-dark); only the live-flip needs the validation batch.
-4. **#6/#7 DEFER re-verified post-73.2/73.3**: bars moved (73.2's attribution field advances one of #6's three prerequisites) but do NOT clear; #7 unchanged (73.1 guards designed-not-built; mining against unbuilt guards industrializes overfitting).
-5. **Adversarial anchor**: QuantAgent auto-adopts refinements with no promotion gate — the standing justification for deferring self-evolution; external champion-challenger consensus = our dark-until-validated pattern.
+1. **The phase-69 register note is VERIFIED FIXED**: the two under-spec go-live booleans were tightened to their documented definitions in 69.2 (sustained-PSR true 30-day min; dd_tolerance = backtest_max_dd + 5.0) — the gate measures what it claims.
+2. **Honest go-live answer: NOT eligible, clock not started** — trades_ge_100 counts REAL round trips (0 today; ~30 synthetic whole-table; '59' was raw fills); the clock starts only at the Stage-2 alpaca_paper cutover.
+3. **`real_capital_enabled=False` is a hard gate beyond the 5 booleans**; its SR 11-7 citation superseded by SR 26-2 (2026-04-17) — principles carry forward, stale-citation doc-drift noted recommend-only.
+4. **Stage 2 strengthens three phase-73 designs**: measured slippage replaces 73.4's estimate; 68.4 activates the write path 73.2 repairs; real fills are the clean substrate 73.3's calibration needs.
+5. External consensus: live degrades vs sim; even Alpaca paper is optimistically biased; our 100-round-trip + human-token bar is deliberately stricter than the retail base rate.
 
 ## Hypothesis
 
-One narrow, deferential, dark champion-bridge build plus two honestly-deferred pilots (each with a concrete flip bar) captures the available pilot value without a single leakage-suspect return claim or premature build.
+A one-page, honestly-scored runway (restore → real fills → go-live) with every operator decision as a verbatim line turns "make more absolute $" from an ambition into a checklist — without duplicating phase-68/58.1 or spending anything.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 73.5)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 73.6)
 
-- "e_pilot_verdicts.md gives each pilot an explicit BUILD or HOLD verdict grounded in D1's mechanism notes + our-scale constraints, never in leakage-suspect return claims"
-- "The champion-bridge verdict includes the un-freeze validation plan + verbatim proposed operator token; recommend-only discipline held"
-- "BUILD verdicts appended as executor-tagged pending steps with live_checks; HOLD verdicts state the evidence that would flip them; no code edited"
+- "money_runway_73.md is one page, sequences paper-restoration -> real-fill -> go-live with prerequisites and evidence anchors, and enumerates every operator decision as one actionable line"
+- "Consistent with (not duplicating) phase-68/58.1 masterplan entries and the phase-72 ACT-NOW block"
+- "Recommend-only; no spend, no flags, no code"
 
-verification.command: `bash -c 'test -f handoff/current/design_pack_73/e_pilot_verdicts.md && grep -Eqi "BUILD|HOLD" handoff/current/design_pack_73/e_pilot_verdicts.md'`
+verification.command: `bash -c 'test -f handoff/current/money_runway_73.md && grep -Eqi "real.?fill|go.?live" handoff/current/money_runway_73.md'`
 
 ## Plan
 
-1. GENERATE: design doc finalized verbatim (done, 10,706 chars — three verdicts + the `HISTORICAL MACRO UNFREEZE: CHAMPION-VALIDATION-BATCH` token proposal with validation plan + scope limits); append build step 73.5.1 (champion-bridge, the sole BUILD).
-2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 123) → flip 73.5 done.
+1. GENERATE: runway finalized verbatim from the gate (done, 6,742 chars, one page, 3 stages, 13 operator-decision lines). No build steps to append — the runway references the EXISTING phase-68/58.1 queue rather than duplicating it.
+2. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 124) → flip 73.6 done.
 
 ## References
 
-- `handoff/current/research_brief_73.5.md`; `frontier_map_73.md` (#5/#6/#7); `design_pack_73/{b,c}` (substrate cross-refs)
-- Databricks champion-challenger docs; Wallaroo shadow deployment; PDx arXiv:2512.22305; QuantAgent 2402.03755 (adversarial); Profit Mirage (leakage discipline)
+- `handoff/current/research_brief_73.6.md`; `money_diagnosis_72.md` P0; `operator_decision_sheet_72.md` ACT-NOW/P3; `frontier_map_73.md` #10; masterplan phase-68 + 58.1
+- Alpaca paper-trading docs; SR 11-7 / SR 26-2 (sia-partners); paper-to-live practitioner treatments (in brief)
