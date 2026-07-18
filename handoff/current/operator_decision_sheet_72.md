@@ -35,6 +35,37 @@ Live-state basis: documentary + runtime inference only — `backend/.env` is age
 | AUTORESEARCH SPEND: RESUME | 2026-07-07 | none — `--preflight-only` in run_nightly.sh | n/a | Applied 07-07 (flag removed) | NOT-A-FLAG (applied) |
 | SETUP TOKEN: ADOPTED | 2026-07-08 | none — `CLAUDE_CODE_OAUTH_TOKEN` in 4 launchd plists | n/a | Applied 07-08 (wired into backend/away-am/away-pm/watchdog) | NOT-A-FLAG (applied) |
 
+## P3 — Earning-capacity lever ranking (step 72.3; researcher `wf_c781c347-3ac`, 15 evidence dossiers, full detail in `research_brief_72.3.md`)
+
+**Standing rule (evidence-backed): flip ONE lever at a time, in this order, watching 3-5 cycles between flips** (single-variable discipline; arXiv 2607.06117: only 2 of 26 candidates survived incremental admission). Everything below is post-P0 capacity — nothing earns until the scoring rail is restored (ACT-NOW #1-3).
+
+### Recommend-ON, in sequence
+
+| Seq | Lever (.env line) | Expected impact (evidence) | Risk | Rollback |
+|---|---|---|---|---|
+| 1 | `KILL_SWITCH_PEAK_RESET_ENABLED=true` — requires you to record `KS-PEAK-RESET:APPROVED` first | $0 in normal operation; removes the permanent-lockout time-bomb (monotonic peak freezes book to 100% cash forever after a ≥10% pullback+flatten). Insurance, flip first while quiet | Guard-behavior change; concurrency nit noted in phase-69.1 critique | flag=false + restart (no-op reset, byte-identical) |
+| 2 | `PAPER_SOFT_SECTOR_DIVERSITY_ENABLED=true` + `PAPER_SOFT_SECTOR_DIVERSITY_W=0.20` + `PAPER_MIN_K_SECTORS_ANALYZED=3` + `PAPER_UNKNOWN_SECTOR_CAP_EXEMPT=false` (min-k is the candidate-generation enabler; flip together as one unit) | **+0.20 ann Sharpe** at w=0.20 — the only large quantified alpha lever (70.2 replay: monotonic +0.176/+0.200/+0.234 at w=0.10/0.20/0.30, breadth +2 sectors, turnover-neutral; hard-neutral −0.117 WORSE; FAJ 2023 corroborates). Directly attacks the monosector top-5 funnel | Precondition: run the DSR≥0.95/PBO≤0.5 clearance on the existing replay grid (`scripts/ablation/sector_neutral_replay.py`, no optimizer, historical_macro untouched) — the replay proved Sharpe uplift but not the promotion-gate stats | flags=false/0.0/0 + restart (byte-identical) |
+| 3 | `MOMENTUM_52WH_TILT_ENABLED=true` (k stays 0.5) | **+0.05 ann Sharpe**, turnover-neutral (52.1 paired replay; k=1.0 plateaus — keep 0.5); composes with #2 | Small live ranking change; DSR-deflated per settings note | flag=false + restart |
+| 4 | `PAPER_ATOMIC_SWAP_ENABLED=true` + `PAPER_AVG_ENTRY_FX_FIX_ENABLED=true` (safety pair) | Protective: stops the net−1-position swap leak (design-70 finding #9) that degrades the **+$1,103** swap profit stream; correct non-US cost basis (stops/realized on KR adds). No new alpha | Low; swap-path only; US byte-identical for the FX fix | both=false + restart |
+| 5 | `PAPER_CROSS_SECTOR_ROTATION_ENABLED=true` | Indirect: enables rotation into NEW sectors at max_positions — compounds #2's diversity alpha ("changeable fund") | HARD dependency: churn-fix ON (it is) + #4 first, never before | flag=false + restart (same-sector-only) |
+| 6 | `PAPER_SESSION_BUDGET_RECONCILE_ENABLED=true` | Throughput: full candidate set analyzed per cycle instead of truncating at the hidden $1 ceiling (~2× LLM cost, ~$0.4/day vs $0.2 — needs your LLM-cost approval per CLAUDE.md) | Cost approval required; only matters post-P0 | flag=false + restart ($1 ceiling) |
+| 7 | `SIGN_SAFE_OVERLAYS=true` and `REGIME_NET_LIQUIDITY=true` | Correctness/information: sign-safe fixes overlay INVERSION when composites go negative (bites in drawdowns only; 69.3 critique reproduced it); net-liquidity enriches regime classification (free FRED, 24h cache). Neither has $ magnitude | Ranking-behavior change (sign-safe); live FRED dependency (net-liq) | each=false + restart (byte-identical) |
+
+### Recommend-HOLD (do not flip — reasons are evidence, not caution)
+
+| Lever | Why HOLD |
+|---|---|
+| `paper_scale_out_enabled` (:34) | ZERO internal backtest rows; conflicting external evidence; our own exits are trend-like (trail captured avg **+17.82%** on 14 trips, +$1,941) — a 2R partial would cap exactly those winners. Needs a regime backtest first (blocked by the frozen-macro doctrine) |
+| `paper_position_recommendation_fix_enabled` (:201) | UNSAFE until ACT-NOW #2 is live: with synthesis-integrity OFF, a rail-failure synthetic HOLD triggers a wrongful downgrade-SELL of a healthy position (settings.py:203 guard). Revisit AFTER #2 + 3-5 healthy cycles |
+| `meta_scorer_enabled` (:402) | Credit-dead by construction until restoration step 72.0.1 reroutes it (direct-API bypass); flipping now erases ranking with flat conviction=10 |
+| `paper_price_tolerance_pct` (:560) tuning | No rejection ledger exists yet to know if the 5% gate costs trades; tune only after the 70.4 skip-reason ledger measures it |
+| `paper_learn_loop_enabled` (:33) | Writer is crash-dead regardless of the flag (tz-aware minus naive TypeError, outcome_tracker.py:50, phase-69 register #30) — flipping does nothing until that code fix ships; queue with the executor batch |
+| Dark alpha-overlay library (:362-521, ~20 flags) | Literature priors only, zero validation on OUR data (except 52wh, ranked #3). Batch-enabling risks the 2-of-26 incremental-admission failure mode; each needs its own DSR/PBO gate (blocked by frozen macro) |
+
+Already applied (not ranked): `paper_swap_churn_fix_enabled`, `paper_data_integrity_enabled`, `paper_risk_judge_reject_binding` (06-11 batch, per P1 reconciliation).
+
+**Evidence-hygiene closure (from 72.2)**: the $137.32 realized-P&L delta is RESOLVED — whole-table sum +$3,057.36 (30 trips) vs since-05-15 sum +$3,194.68 (29 trips) differ by exactly one pre-05-15 trip at −$137.32 (BQ, 2026-07-18). Both figures were correct on their own windows; no ledger inconsistency.
+
 ## Recurrence prevention (recommended, queued as masterplan step 72.1.1)
 
 The approval-to-deployment gap is structural: `operator_tokens.py:52-61` KNOWN_TOKEN_ENV_MAP registers only `AWAY DRILL` (no auto-apply path for flag promotions), and `sentinel.sh:102-126` reconciles **one-directionally** — it catches an `.env` flag that is ON without a token, but is blind to a recorded approval whose `.env` line is absent (exactly the 07-09 case). Recommended: a report-only reverse leg that diffs recorded approvals against live state and WARNs on approved-but-unapplied (GitOps bidirectional-reconciliation consensus; sources in research_brief_72.1.md). No auto-writes — `.env` stays operator-only.

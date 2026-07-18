@@ -16132,7 +16132,7 @@
         },
         {
           "id": "72.3",
-          "status": "pending",
+          "status": "done",
           "name": "P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/ultracode]. Rank every dark lever in money_recon_2026-07-18.md's inventory by expected net P&L impact with risk + rollback per item, existing backtest/BQ evidence only (no optimizer runs). One actionable line per recommendation: flag, current->proposed, impact, risk, rollback, evidence link. Operator flips; session flips nothing.",
           "harness_required": true,
           "priority": "P3",

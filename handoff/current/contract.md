@@ -1,39 +1,42 @@
-# Contract — phase-72.2: P2 measurement integrity
+# Contract — phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY)
 
-**Step id:** 72.2 (phase-72, depends_on 72.1 = done/PASS @080f93c1)
-**Session role:** Fable 5 + ultracode, AUDIT + RESEARCH ONLY. No product code, no .env, no flag flips, $0 metered.
+**Step id:** 72.3 (phase-72, depends_on 72.2 = done/PASS @665d7c0e)
+**Session role:** Fable 5 + ultracode, AUDIT + RESEARCH ONLY. No product code, no .env, no flag flips, no optimizer runs, $0 metered. The operator flips levers; this step only ranks and recommends.
 
 ## Research-gate summary (gate_passed: true)
 
-Researcher via structured-output Workflow `wf_1ae448f7-007` (opus/max, tier=moderate): 7 external sources read in full (CFA GIPS 2026, Kitces, TWR canonical, Meradia/Cube/LiveFlow/AllInvestView industry), 22 URLs, recency scan, 10 internal files, every claim file:line-anchored. Brief: `handoff/current/research_brief_72.2.md`. Root causes already pinned at the code/git level:
+Researcher via structured-output Workflow `wf_c781c347-3ac` (opus/max, tier=moderate): 5 external sources read in full (scale-out/trend-exit evidence incl. arXiv 2604.27150 + practitioner counter-evidence; Ehsani/Harvey/Li FAJ 2023 sector-neutrality; single-variable rollout discipline incl. arXiv 2607.06117 "2 of 26 candidates survived incremental admission"), 42 URLs, recency scan, 11 internal files. Brief: `handoff/current/research_brief_72.3.md`. Returned **15 structured lever dossiers** (what-it-changes / existing evidence with file paths / expected impact / risk / rollback per lever), honest "NONE FOUND" where no internal evidence exists.
 
-1. **Benchmark discontinuity = deploy artifact**: commit `320b7dbb` (phase-38.7, 2026-05-22 23:57:41) switched `_get_benchmark_return`'s SPY anchor from `inception_date` to the later `first_funded_date` (`paper_trader.py:1283-1313`; anchor from `bigquery_client.py:1050-1079`). SPY rose between the two anchors → benchmark dropped 14.97→4.76 at the first post-deploy cycle (05-26). `save_daily_snapshot` MERGEs only today's row (`bigquery_client.py:993-1037`) so the stored series permanently mixes pre-fix and post-fix rows — ~+10pp of alpha is this artifact. Daily benchmark movement while NAV is frozen is correct-by-design (SPY moves at 100% cash).
-2. **FX**: the 1.0-parity sell fallback was **closed by phase-69.1 (~07-11)** (`paper_trader.py:414-430` now blocks; `fx_rates.py:105-114` last-known-good) — but that landed AFTER the 10 in-window KR trades (.KS/.KQ in `paper_trades`, which has NO currency column). Still-LIVE bugs: `paper_round_trips.py:109` computes realized_pnl_usd from raw LOCAL prices (sums KRW+EUR+USD as dollars); non-US add-on avg_entry mixes USD-cost/local-shares when `paper_avg_entry_fx_fix_enabled` OFF (settings.py:455); `_usd_value_asof:199-225` degrades to today's rate (look-ahead FX).
-3. **Snapshots**: `nav: None` is HARDCODED in `paper_metrics_v2.py:195` (permanent writer defect, separate API trigger). The daily snapshot is Step-8 (`autonomous_loop.py:1535-1544`) inside the main try; terminal `except TimeoutError`(:1639)/`except Exception`(:1644)/`finally`(:1662) return with NO fail-safe snapshot → any mid-cycle raise/timeout cascade (P0: 305 rail timeouts, breaker OPEN 07-10/13/14/15) drops the day's row.
-4. Bonus divergence: `perf_metrics.compute_sharpe_from_snapshots:116` is flow-BLIND (ignores `external_flow_today`) and feeds the go-live gate, vs the canonical GIPS `_nav_to_returns`.
-5. External consensus: benchmark must be same-basis/same-period as the portfolio; FX must use transaction-date spot from one stored source, never parity; never sum mixed-currency P&L.
+Load-bearing findings:
+1. **P0 gates everything** — no lever earns until scoring is restored; all ranks are post-P0 earning-capacity.
+2. **Tier-1 quantified alpha (only two)**: `paper_soft_sector_diversity` w=0.20 → **+0.20 ann Sharpe** (internal 70.2 replay `_70_2_soft_diversity_replay.json`: monotonic +0.176/+0.200/+0.234 at w=0.10/0.20/0.30, breadth +2 sectors, turnover-neutral; hard sector-neutral −0.117 WORSE; FAJ 2023 corroborates long-only sector retention); `momentum_52wh_tilt` k=0.5 → **+0.05 ann Sharpe** (`_52wh_paired_returns.json`, k=1.0 plateaus).
+3. **scale_out is an honest HOLD**: zero internal backtest rows; conflicting external evidence; our own exit data (trail captured avg +17.82% on 14 trips) is trend-like → partials likely cap winners.
+4. **Safety/insurance levers** (atomic_swap, avg_entry_fx_fix, sign_safe_overlays, KS-PEAK-RESET) are mechanism-proven with no $ magnitude — they protect existing profit streams, not new alpha.
+5. **Dangerous-if-early**: `position_rec_fix` without synthesis-integrity ON = wrongful downgrade-SELLs on synthetic HOLDs (settings.py:203 unsafe-combination guard); `meta_scorer_enabled` is a no-op/ranking-eraser until 72.0.1 (R1) reroutes it.
+6. **Rollout discipline**: ONE gated flip at a time, sequenced; never batch (single-variable rule + incremental-admission evidence).
 
 ## Hypothesis
 
-The measurement layer overstates alpha by ~10pp (benchmark deploy artifact), may misstate realized P&L on KR round trips (local-raw realized computation; possible pre-69.1 parity bookings), and silently drops NAV observability exactly on the bad days (no fail-safe snapshot). Honest alpha re-derivation + a KR FX re-valuation + dropped-day census will bound the true measurement error, and 4-5 executor-tagged fix steps close the layer.
+Ranking the levers by evidence tier (quantified alpha > safety/insurance > unquantified correctness > HOLD) with an explicit one-at-a-time sequence converts the dark-flag backlog into an operator playbook that maximizes expected P&L per flip while respecting the promotion gates (DSR≥0.95 / PBO≤0.5) from the north-star charter.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 72.2)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 72.3)
 
-- "Benchmark computation located (file:line) and the 05-23->05-26 discontinuity mechanically explained with data evidence; honest re-derived alpha stated with method"
-- "FX-1.0 mis-booking check on all in-window KR round trips + NAV with verdict clean/dirty and evidence; if dirty, corrected P&L bounds stated"
-- "Snapshot-gap root cause identified; measurement fix steps appended to masterplan pending + executor-tagged; no product code edited"
+- "Every dark lever in the money_recon inventory appears in operator_decision_sheet_72.md, ranked, with expected impact + risk + rollback + evidence per item"
+- "All impact claims cite existing backtest results or BQ evidence -- no new optimizer runs, historical_macro untouched"
+- "The sheet distinguishes recommend-ON, recommend-HOLD, and needs-more-evidence; nothing was activated by this session"
 
-verification.command: `bash -c 'test -f handoff/current/money_diagnosis_72.md && grep -Eqi "benchmark" handoff/current/money_diagnosis_72.md && grep -Eqi "FX" handoff/current/money_diagnosis_72.md && grep -Eqi "snapshot" handoff/current/money_diagnosis_72.md'`
+verification.command: `bash -c 'test -f handoff/current/operator_decision_sheet_72.md && grep -Eqi "rollback" handoff/current/operator_decision_sheet_72.md && grep -Eqi "scale.?out|SCALE_OUT" handoff/current/operator_decision_sheet_72.md'`
 
 ## Plan
 
-1. GENERATE — quantitative forensics Workflow (read-only, .venv python + yfinance for SPY/KRW histories, bounded BQ SELECTs): (a) honest-alpha re-derivation on a single consistent anchor (both variants: inception-anchored and funded-anchored) at key dates (05-15, 05-29, 06-03, 07-16); (b) KR FX re-valuation — every .KS/.KQ trade + round trip: booked total_value/realized vs recomputed shares×price×transaction-date-FX; verdict clean/dirty + bounds; test whether `paper_round_trips` stored realized values used raw local prices; (c) dropped-snapshot census — cycle-ran days (llm_call_log/log evidence) vs snapshot rows since 05-01 + the 07-17 cycle's terminal path in backend.log; (d) adversarial verify (barrier).
-2. Update `money_diagnosis_72.md` §P2 with verdicts + honest alpha; add decision-sheet P2 note (measurement claims quarantine until fixes land).
-3. Append executor-tagged measurement fix steps (benchmark history rebuild migration + single-anchor policy; round-trips FX fix; metrics-v2 nav writer; fail-safe snapshot in finally; flow-blind Sharpe fix — grouped sensibly, each with immutable live_check).
-4. `experiment_results.md` verbatim output → qa-verdict Workflow → transcribe → LOG (Cycle 114) → flip 72.2 done.
+1. GENERATE (Main synthesis from the 15 verified dossiers — no new evidence collection needed beyond one bounded BQ reconciliation query for the open $137.32 realized-P&L item from 72.2): write the P3 ranked section into `operator_decision_sheet_72.md` (tiered table + one-at-a-time sequence + HOLD list + dangerous-if-early list), covering EVERY money_recon inventory lever (incl. `paper_learn_loop_enabled` :33, which the dossiers omitted — added from the phase-69 register evidence: writer crash-dead, outcome_tracker.py:50). Update `money_diagnosis_72.md` §P3 pointer.
+2. `experiment_results.md` with verbatim verification output.
+3. EVALUATE via qa-verdict Workflow; transcribe verbatim.
+4. LOG (Cycle 115) then flip 72.3 → done.
 
 ## References
 
-- `handoff/current/research_brief_72.2.md` (envelope + sources + measurement_seams file:line inventory)
-- `handoff/current/money_recon_2026-07-18.md`, `money_diagnosis_72.md` (P0/P1 verified)
-- git `320b7dbb` (phase-38.7); phase-69 register #18 (FX parity); GIPS/TWR + multi-currency sources per brief
+- `handoff/current/research_brief_72.3.md` (envelope + dossiers + sources)
+- `handoff/current/_70_2_soft_diversity_replay.json`, `_52wh_paired_returns.json` (the two quantified internal replays)
+- `handoff/current/money_recon_2026-07-18.md` (inventory), `money_diagnosis_72.md` (P0-P2 verdicts)
+- arXiv 2604.27150; arXiv 2607.06117; Ehsani/Harvey/Li FAJ 2023 (via brief)

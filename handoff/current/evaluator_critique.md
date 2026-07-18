@@ -1,6 +1,6 @@
-# Evaluator Critique — Step 72.2 (P2 measurement integrity)
+# Evaluator Critique — Step 72.3 (P3 earning-capacity decision sheet)
 
-**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_bd4bcc85-831`.
+**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_388c6a31-dd0`.
 
 ## Verdict (verbatim JSON return)
 
@@ -8,27 +8,26 @@
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 3 immutable criteria MET and independently reproduced via read-only BQ. C1 (benchmark): computation located (paper_trader.py:1283 _get_benchmark_return; anchor bigquery_client.py:1050-1079); discontinuity mechanically proven with data — BQ confirms stored benchmark 05-22=14.97 -> 05-26=4.76 (-10.21pp) and alpha 0.95 -> 14.23 (+13.28pp step); trigger git 320b7dbb verified dated 2026-05-22 23:57:41 switching inception_date -> first_funded_date; honest funded-basis alpha 07-16=+14.13 vs stored 14.19, method stated. C2 (FX): verdict CLEAN — my own BQ recompute of implied FX (price*qty/total_value) on all 10 in-window KR trades = 1513.10-1560.00 KRW/USD, matching the artifact's 1513-1560 exactly, zero parity mis-bookings (none near 1.0). C3 (snapshots): root cause confirmed (nav=None hardcoded paper_metrics_v2.py:195; Step-8 non-fail-safe autonomous_loop.py:1535-1544); BQ confirms MAX(snapshot_date)=2026-07-16 and all 5 censused dropped days (05-28/06-16/06-18/06-19/07-17) ABSENT; fix steps 72.2.1-72.2.4 appended pending + executor-tagged + immutable live_checks; no product code edited. Verification cmd exit=0; harness compliance 5/5 clean.",
+  "reason": "All 3 immutable criteria MET; harness compliance clean; no unintended production change. C1 (coverage): every dark-lever inventory flag from money_recon_2026-07-18.md appears in operator_decision_sheet_72.md in a valid disposition — ranked recommend-ON (KS-PEAK Seq1, soft_diversity/min_k/unknown_cap Seq2, 52wh Seq3, atomic_swap/avg_entry_fx Seq4, cross_sector Seq5, session_budget Seq6, sign_safe/net_liq Seq7), HOLD (scale_out, position_rec, meta_scorer, price_tolerance, learn_loop, overlay-library :362-521), already-applied (data_integrity, swap_churn, rj_reject), or ACT-NOW/P1 (synthesis_integrity, rj_shape); each recommend-ON row carries impact+evidence+risk+rollback. The three 'active, not flags' code-path suppressors (no-log continue :188, bad-bar door, FX-skip) are correctly out of operator-lever scope and routed to executor R3 in money_diagnosis. C2 (evidence): both quantified claims trace to source files — _70_2_soft_diversity_replay.json soft_w0.20 d_sharpe=0.19959 (rounds +0.200; monotonic 0.17631/0.19959/0.23439 at w=0.10/0.20/0.30 confirmed) and _52wh_paired_returns.json hi52_k0.5=1.398537 minus baseline 1.343717 = +0.05482 (rounds +0.0548); the one BQ query was a bounded 3-row aggregate read (verbatim CSV in experiment_results.md), no optimizer runs, historical_macro untouched, quant_results.tsv unmodified. C3 (dispositions): recommend-ON (7 rows) / recommend-HOLD (6 rows) / already-applied distinguished, needs-more-evidence articulated within HOLD reasons (scale-out needs regime backtest, price-tolerance needs rejection ledger), and nothing was activated (git diff since 665d7c0e = only handoff/**, masterplan status-flip pending->in-progress, auto-CHANGELOG, audit jsonl; no backend/, .env, frontend/, scripts/). Deterministic verification command exit=0. Scope-honesty verified: Seq-2 states DSR>=0.95/PBO<=0.5 as a PRECONDITION, not a claim that the Sharpe replay clears the promotion gate — consistent with the north-star charter's immutable gates.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_audit_5item",
-    "research_gate_verified_gate_passed_7_sources",
+    "research_gate_passed_5sources_recency",
     "contract_before_generate_mtime_order",
-    "immutable_verification_command_exit_0",
-    "git_scope_no_product_code",
-    "fileline_claim_nav_none_195",
-    "fileline_claim_get_benchmark_return_1283",
-    "fileline_claim_round_trips_raw_local_109",
-    "git_commit_320b7dbb_verified",
-    "masterplan_72.2.1-4_pending_executor_tagged_live_checks",
-    "bq_independent_fx_reproduction_10_KR_trades",
-    "bq_independent_benchmark_discontinuity_reproduction",
-    "bq_independent_snapshot_census_5_dropped_days",
-    "conditional_count_zero"
+    "verification_command_exit0",
+    "git_scope_clean_no_prod_change",
+    "immutable_criteria_verbatim_match",
+    "criterion1_coverage_grep_all_flags_present",
+    "criterion2_numeric_evidence_traced_to_json",
+    "criterion3_recommend_categories_and_no_activation",
+    "prior_conditional_count_zero_first_spawn",
+    "log_last_not_yet_flipped_done",
+    "py_diff_absent_lint_and_smoke_gates_NA",
+    "scope_honesty_dsr_pbo_precondition"
   ],
   "harness_compliance_ok": true,
-  "notes": "INDEPENDENT REPRODUCTION (does-it-reproduce lens, P1 money-path). Ran three read-only BQ queries via the Python client (ADC; claude.ai BQ connector token had expired) rather than trusting the working agent's numbers: (1) 10 KR trades implied-FX = 1513.10-1560.00 KRW/USD, 0 parity suspects -> FX-CLEAN reproduced exactly; (2) benchmark 05-22=14.97/05-26=4.76 and alpha 0.95->14.23 -> discontinuity reproduced, and the data itself has NO 05-23/24/25 rows -> vindicates the 05-22->05-26 boundary correction; (3) MAX snapshot=07-16, all 5 censused dropped days ABSENT -> census reproduced. Source-level file:line spot-checks all matched: nav=None at paper_metrics_v2.py:195, _get_benchmark_return def at paper_trader.py:1283, raw-local realized_pnl_usd at paper_round_trips.py:109, git 320b7dbb dated 2026-05-22 23:57:41 msg \"phase-38.7: SPY benchmark anchor at first-funded snapshot\".\n\nCRITERION-1 BOUNDARY NOTE (not a miss): the immutable criterion text says \"05-23->05-26\" but no 05-23 snapshot row exists (weekend + Memorial Day, confirmed in BQ — series jumps 05-22 straight to 05-26). The artifacts explain the SAME discontinuity with the mechanically-correct 05-22->05-26 boundary and transparently disclose the label correction. The criterion's intent (locate computation + mechanically explain the discontinuity with data evidence + honest re-derived alpha with method) is fully satisfied; the criterion was NOT amended.\n\nHONEST-DISCLOSURE ITEMS WEIGHED, all acceptable: (a) the snapshot-census forensics agent FAILED (StructuredOutput retry cap) and the adversarial verifier rebuilt that leg — I independently re-verified the census via BQ, so no evidence gap remains; provenance disclosed in experiment_results.md. (b) The P2 verdict CORRECTS two earlier claims (recon's \"+14% alpha largely an artifact\" -> endpoint honest on the funded basis; \"05-23\" -> 05-22 boundary) — self-correction backed by mechanical proof, improves accuracy. (c) Window realized re-measured +$3,057.36 vs recon's +$3,194.68; the $137.32 delta is recorded as an OPEN non-FX reconciliation item for 72.3, not silently dropped, and does not affect the FX-CLEAN verdict.\n\nGATE APPLICABILITY: diff touches only handoff/**, .claude/masterplan.json, audit jsonl (+ CHANGELOG.md via auto-hook) — ZERO *.py, so the Python-lint (1a), frontend (1b), backend-runtime-smoke (1d), and live-UI (1c) gates are N/A. Verification budget respected (deterministic + BQ reproduction first, LLM judgment last). 3rd-CONDITIONAL rule N/A (0 prior CONDITIONALs). Not a loop-prevention exit. This is the first Q/A for 72.2 on unchanged-nothing (no prior verdict) so no verdict-shopping concern. Main must transcribe this verdict VERBATIM into evaluator_critique.md + evaluator_critique.json, append harness_log Cycle 114 (log-last), THEN flip 72.2 -> done."
+  "notes": "First Q/A spawn for 72.3 (zero prior CONDITIONALs — the harness_log count=1 was a '272.3200' substring false positive; precise phase=72.3 grep returns NONE), so the 3rd-CONDITIONAL auto-FAIL rule does not apply. This is a RECOMMEND-ONLY audit/documentation step touching no code path, so ruff (1a), frontend lint/tsc (1b), live UI capture (1c), and backend runtime smoke (1d) gates are correctly N/A — the diff contains no *.py, frontend/**, backend/**, or UI claims. Two non-blocking transparency observations (neither caps the verdict): (1) 'needs-more-evidence' is expressed within the Recommend-HOLD reasons rather than as a separately-headed third bucket, but the distinction between evidence-negative/unsafe (position-rec, meta-scorer), needs-more-evidence (scale-out regime backtest, price-tolerance rejection ledger), and P0/dependency-blocked is legible per-row — criterion 3's 'distinguishes' is met in substance and the immutable verification command passes; (2) the three pure-code 'active, not flags' BUY-suppressors are handled as executor code steps in money_diagnosis P0 (R3) rather than the operator sheet, which is the correct home since they have no operator-flippable flag/rollback — 'dark lever' scope is satisfied. Masterplan.json change is exactly the status flip (pending->in-progress); immutable criteria unchanged. Adversarial worst-of-N-lenses (correctness / reproduce / scope-honesty) all concur PASS. Main should now transcribe this verdict verbatim into evaluator_critique.md + evaluator_critique.json, then LOG Cycle 115 before flipping 72.3 to done (log-last)."
 }
 ```

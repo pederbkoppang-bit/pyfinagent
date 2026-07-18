@@ -1,32 +1,39 @@
-# Experiment Results — phase-72.2: P2 measurement integrity
+# Experiment Results — phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY)
 
-Date: 2026-07-18. Session: Fable 5 + ultracode, AUDIT + RESEARCH ONLY ($0 metered; all work via Workflow structured-output launches on the Max rail).
+Date: 2026-07-18. Session: Fable 5 + ultracode, AUDIT + RESEARCH ONLY ($0 metered; researcher via structured-output Workflow `wf_c781c347-3ac` on the Max rail).
 
 ## What was built
 
-1. **Research gate** (`wf_1ae448f7-007`, opus/max, tier=moderate): gate_passed=true, 7 external sources in full (CFA GIPS 2026, Kitces, TWR, industry), 22 URLs, recency scan, 10 internal files; returned a 10-item `measurement_seams` file:line inventory and pinned all three root causes at code/git level (incl. git `320b7dbb` as the discontinuity trigger).
-2. **Quantitative forensics** (`wf_de2c26f3-397`, 3 Explore agents + adversarial verifier at effort max): honest-alpha rebuild via .venv yfinance replicating `_get_benchmark_return` on both anchors; per-trade KR FX re-valuation vs transaction-date KRW=X; snapshot census. **Disclosure: the snapshot-census agent FAILED** (StructuredOutput retry cap 5 exceeded, returned null) — the adversarial verifier **independently rebuilt the census itself** (BQ cycle_id × snapshot anti-join + source reads), so the leg is covered by verified evidence, not by the failed agent.
-3. **Verdicts (adversarially confirmed)**:
-   - Benchmark: deploy artifact mechanically proven (stored 05-22 = inception-recompute **exact to 2dp**; −10.21pp switch == SPY's pre-funding +10.27% run; boundary corrected to 05-22→05-26). **Honest alpha on the funded basis: 07-16 = +14.13pp vs stored 14.19 — current headline honest; pre-05-26 rows understate ~11pp.**
-   - FX: **CLEAN** on all three legs (10 KR trades at real FX ≤1.76% dev; KR trips −$30.77; NAV USD-scale). Window realized re-measured **+$3,057.36** (recon's +$3,194.68 flagged as a $137.32 non-FX reconciliation gap). Latent raw-local bug confirmed not in the production table.
-   - Snapshots: `nav:None` hardcoded (`paper_metrics_v2.py:195`, live-confirmed), Step-8 non-fail-safe seam confirmed, **5 dropped days censused** (05-28, 06-16, 06-18, 06-19, 07-17; 07-18 = non-run), correlating with the P0 failure cascades.
-4. **`money_diagnosis_72.md` §P2** rewritten from placeholder to closed verdicts (incl. the honest refinement that REHABILITATES the current +14.1 alpha on the funded basis — correcting the recon's own earlier framing).
-5. **Masterplan fix steps 72.2.1–72.2.4** appended (pending, executor-tagged, immutable live_checks; commands smoke-tested — 72.2.1's `ls scripts/migrations | grep benchmark` correctly exits 1 until the executor builds the migration).
+1. **Research gate** (tier=moderate): gate_passed=true, 5 external sources in full (scale-out evidence pro+con, FAJ 2023 sector-neutrality, incremental-admission/single-variable rollout), 42 URLs, recency scan, 11 internal files; returned **15 structured lever dossiers** with honest "NONE FOUND" markers where no internal evidence exists.
+2. **Decision sheet §P3 written**: tiered ranking — 7-item recommend-ON sequence (one flip at a time, exact .env lines, expected impact + evidence + risk + rollback per row) and a 6-item recommend-HOLD list with evidence-based reasons; already-applied levers noted; every lever in the money_recon dark-lever inventory is covered (incl. `paper_learn_loop_enabled`, absent from the dossiers, added from the phase-69 register crash-dead-writer evidence).
+3. **Impact claims cite existing evidence only**: the two quantified rows trace to `_70_2_soft_diversity_replay.json` (+0.176/+0.200/+0.234 monotonic; hard-neutral −0.117) and `_52wh_paired_returns.json` (+0.0548 at k=0.5, plateau at k=1.0); protective rows cite design-70 finding #9 and the +$1,103 swap stream; no optimizer run, historical_macro untouched.
+4. **Evidence-hygiene item resolved**: one bounded BQ query reconciled the 72.2 $137.32 delta — whole-table +$3,057.36 (30 trips) vs since-05-15 +$3,194.68 (29 trips) = exactly one pre-05-15 trip at −$137.32. Verbatim CSV below.
+5. **`money_diagnosis_72.md` §P3** closed.
+6. Nothing was activated: no .env change, no flag flip, no product code.
 
-## File list
-
-- `handoff/current/contract.md` (72.2; gate → contract → GENERATE order held)
-- `handoff/current/research_brief_72.2.md`
-- `handoff/current/money_diagnosis_72.md` (§P2 closed)
-- `.claude/masterplan.json` (72.2 in-progress; 72.2.1-72.2.4 appended pending)
-
-## Verbatim verification output
+## Verbatim outputs
 
 ```
-$ bash -c 'test -f handoff/current/money_diagnosis_72.md && grep -Eqi "benchmark" handoff/current/money_diagnosis_72.md && grep -Eqi "FX" handoff/current/money_diagnosis_72.md && grep -Eqi "snapshot" handoff/current/money_diagnosis_72.md'
+$ bq query --use_legacy_sql=false --format=csv "... UNION ALL windows on financial_reports.paper_round_trips ..."
+scope,n,total
+all,30,3057.36
+pre_0515,1,-137.32
+since_0515,29,3194.68
+```
+
+```
+$ bash -c 'test -f handoff/current/operator_decision_sheet_72.md && grep -Eqi "rollback" handoff/current/operator_decision_sheet_72.md && grep -Eqi "scale.?out|SCALE_OUT" handoff/current/operator_decision_sheet_72.md'
 (exit 0)
 ```
 
+## File list
+
+- `handoff/current/contract.md` (72.3; gate → contract → GENERATE order held)
+- `handoff/current/research_brief_72.3.md`
+- `handoff/current/operator_decision_sheet_72.md` (§P3 ranking added)
+- `handoff/current/money_diagnosis_72.md` (§P3 closed)
+- `.claude/masterplan.json` (72.3 in-progress only — no new steps appended this step; remediation for HOLD items already exists as 72.0.1/72.2.x or is operator-gated)
+
 ## Scope honesty
 
-No product code touched, no .env, no flags, no optimizer runs (yfinance market-data fetches are read-only external data, not backtests). One forensics agent failed and is disclosed above; its evidence was independently regenerated by the verifier, not assumed. The $137.32 realized-P&L reconciliation gap is recorded as an open evidence item for 72.3, not silently dropped.
+Recommend-only throughout; the sequence requires the operator's own token per flip, and row #2 carries an explicit DSR/PBO-clearance precondition rather than claiming the replay alone clears the promotion gate. The one BQ query was a bounded read (3 aggregate rows).
