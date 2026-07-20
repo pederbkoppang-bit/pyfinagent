@@ -21,7 +21,7 @@ from backend.utils import json_io
 import logging
 import math
 import statistics
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from datetime import datetime, timezone, date
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
@@ -76,8 +76,13 @@ class SignalsServer:
         # In-memory idempotency state for publish_signal. Cleared on process
         # restart; cross-restart dedup is Phase 4.2 territory (durable BQ
         # signal_history table). Response cache is bounded FIFO.
-        self._seen_signal_ids: set = set()
-        self._recent_responses: Dict[str, Dict[str, Any]] = {}
+        # phase-75.2/75.3 (gap4-06): ONE OrderedDict is the single source of
+        # truth for "have I seen this signal_id, and what actually happened?".
+        # The old design paired an unbounded set with a 50-entry FIFO dict, so
+        # after eviction the set still said "seen" while the response cache
+        # missed -- and the miss branch synthesized published=True, inverting
+        # the outcome for signals that had actually been REJECTED.
+        self._recent_responses: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
         self._recent_responses_limit = 50
 
         # Phase 4.3: trailing drawdown state. Running peak-equity high-water
@@ -269,17 +274,21 @@ class SignalsServer:
         }
 
     def _remember(self, signal_id: str, response: Dict[str, Any]) -> None:
-        """Add signal_id to the seen-set and cache its response for dedup hits.
-        Bounded FIFO on the response cache -- the seen-set itself is unbounded
-        but cheap (sha1 prefixes). Cache eviction keeps memory stable."""
+        """Record the TRUE terminal outcome for a signal_id (bounded FIFO).
+
+        phase-75.3 (gap4-06): only terminal outcomes are remembered, and
+        "seen" and "what happened" evict together because they are the same
+        entry. Validation-style rejections are deliberately NOT persisted, so
+        a corrected re-fire is retryable rather than permanently deduped --
+        the same rule Stripe applies to idempotent requests that failed
+        validation.
+        """
         if not signal_id:
             return
-        self._seen_signal_ids.add(signal_id)
         self._recent_responses[signal_id] = response
-        if len(self._recent_responses) > self._recent_responses_limit:
-            # Drop the oldest entry. dict preserves insertion order in 3.7+.
-            oldest = next(iter(self._recent_responses))
-            self._recent_responses.pop(oldest, None)
+        self._recent_responses.move_to_end(signal_id)
+        while len(self._recent_responses) > self._recent_responses_limit:
+            self._recent_responses.popitem(last=False)
 
     def publish_signal(self, signal: Dict[str, Any]) -> Dict[str, Any]:
         """Publish a validated signal to the paper trader and (optionally) Slack.
@@ -331,20 +340,15 @@ class SignalsServer:
 
         # ---- Step 3: signal_id + dedup check ----------------------------
         signal_id = self._signal_id(signal)
-        if signal_id and signal_id in self._seen_signal_ids:
-            cached = self._recent_responses.get(signal_id)
-            if isinstance(cached, dict):
-                # Return a copy with deduped:true so the caller can tell
-                # this was a re-fire without mutating the cache entry.
-                resp = dict(cached)
-                resp["deduped"] = True
-                resp["reason"] = cached.get("reason", "ok") + " (deduped)"
-                return resp
-            # Cache miss but seen -- synthesize a minimal dedup response.
-            resp = self._empty_response(signal_id=signal_id)
-            resp["published"] = True
+        cached = self._recent_responses.get(signal_id) if signal_id else None
+        if isinstance(cached, dict):
+            # Replay the TRUE prior outcome. Never synthesize one: a cache
+            # miss now means "not remembered", which falls through and is
+            # processed normally, rather than reporting a published trade
+            # that may never have happened (gap4-06).
+            resp = dict(cached)
             resp["deduped"] = True
-            resp["reason"] = "deduped"
+            resp["reason"] = cached.get("reason", "ok") + " (deduped)"
             return resp
 
         # ---- Step 4: stub-mode gate -------------------------------------
@@ -359,6 +363,35 @@ class SignalsServer:
 
         # ---- Step 5: portfolio snapshot + risk_check --------------------
         portfolio = self.get_portfolio()
+
+        # phase-75.3 (gap4-01): a degraded snapshot must never size or gate a
+        # trade. Refuse rather than trade against numbers we know are fake.
+        if portfolio.get("stub"):
+            resp = self._empty_response(signal_id=signal_id)
+            resp["reason"] = "degraded_portfolio"
+            resp["stub"] = True
+            self._remember(signal_id, resp)
+            return resp
+
+        # phase-75.3 (gap4-04): synthetic candidates must not become trades.
+        if signal.get("stub"):
+            resp = self._empty_response(signal_id=signal_id)
+            resp["reason"] = "stub_provenance"
+            resp["stub"] = True
+            self._remember(signal_id, resp)
+            return resp
+
+        # phase-75.3 (gap4-05): populate current_drawdown_pct so the drawdown
+        # breaker in risk_check is actually reachable. It reads this key, which
+        # get_portfolio never set -- leaving the breaker permanently inert.
+        # NOTE the key rename: track_drawdown returns "drawdown_pct"; risk_check
+        # reads "current_drawdown_pct". Mapping them is the whole fix.
+        try:
+            dd = self.track_drawdown(portfolio)
+            if isinstance(dd, dict) and dd.get("drawdown_pct") is not None:
+                portfolio["current_drawdown_pct"] = float(dd["drawdown_pct"])
+        except Exception as dd_err:  # never block publishing on telemetry
+            logger.warning(f"track_drawdown failed, drawdown gate degraded: {dd_err}")
         # Phase 4.3 sizing: hybrid lite-formula via size_position(), which
         # takes the min of (hard pct cap, half-Kelly confidence-weighted,
         # inverse-vol) with graceful degradation. Explicit signal.size_usd
@@ -454,7 +487,14 @@ class SignalsServer:
         slack_ts = ""
         slack_channel = ""
         slack_reason = ""
-        slack_token = getattr(self.settings, "slack_bot_token", "") if self.settings else ""
+        # phase-75.3 (security-05): slack_bot_token is a SecretStr. A non-empty
+        # SecretStr is TRUTHY, so the guard below never caught it, and passing
+        # the wrapper to WebClient yields the masked '**********' rather than
+        # an error -- a silent auth failure. Unwrap at the SDK boundary.
+        # Local import keeps the lazy-import invariant above Step 7 intact.
+        from backend.agents.llm_client import unwrap_secret  # noqa: PLC0415
+
+        slack_token = unwrap_secret(getattr(self.settings, "slack_bot_token", "")) if self.settings else ""
         slack_channel_cfg = getattr(self.settings, "slack_channel_id", "") if self.settings else ""
         if not slack_token or not slack_channel_cfg:
             slack_reason = "slack_not_configured"
@@ -816,9 +856,7 @@ class SignalsServer:
         # Resolve a usable per-share price for notional math:
         #   1) explicit proposed_trade.price
         #   2) last_price from existing position record
-        #   3) else 0.0 (concentration check still runs; cash check passes
-        #      trivially -- documented degraded mode for the paper-trader
-        #      scaffold; real prices wired in Phase 4.1).
+        #   3) else unresolved -> reject (phase-75.3, gap4-05)
         position_record = positions.get(ticker, {}) if isinstance(positions, dict) else {}
         try:
             unit_price = float(price) if price is not None else 0.0
@@ -829,6 +867,20 @@ class SignalsServer:
                 unit_price = float(position_record.get("price", 0.0) or 0.0)
             except (ValueError, TypeError):
                 unit_price = 0.0
+
+        # phase-75.3 (gap4-05): an unresolved price used to leave notional at
+        # 0.0, which passed the per-ticker, total-exposure AND cash gates
+        # trivially -- a BUY of unknown size cleared every size limit. Refuse
+        # instead of gating on a number we do not have. SELLs are unaffected:
+        # they reduce exposure and are already bounded by the position check
+        # above, so a missing mark must not trap an exit.
+        if action == "BUY" and unit_price <= 0.0:
+            conflicts.append("unknown_price")
+            return self._risk_response(
+                False, 0.0, max_per_ticker_pct, conflicts,
+                "BUY rejected: could not resolve a unit price for notional gates",
+            )
+
         proposed_notional = unit_price * shares_int
 
         # 2. Action/state consistency -- SELL requires sufficient existing position.
@@ -973,16 +1025,18 @@ class SignalsServer:
         if action != "BUY":
             return 0.0
 
-        # Explicit override bypasses the formula -- preserves the 4.1 contract
-        # where callers can pass an already-sized signal through publish_signal.
+        # Explicit override bypasses the FORMULA but not the hard cap
+        # (phase-75.3, gap4-05): it used to return unbounded, so a caller
+        # could size a position past every limit just by naming a number.
+        explicit_val: Optional[float] = None
         try:
             explicit = signal.get("size_usd", None)
             if explicit is not None:
-                explicit_val = float(explicit)
-                if explicit_val > 0.0:
-                    return explicit_val
+                candidate_val = float(explicit)
+                if candidate_val > 0.0:
+                    explicit_val = candidate_val
         except (ValueError, TypeError):
-            pass
+            explicit_val = None
 
         try:
             equity = float(portfolio.get("total_value", 0.0) or 0.0)
@@ -1005,6 +1059,9 @@ class SignalsServer:
             max_pos_usd = float(limits.get("max_position_usd", 1000.0))
         except (ValueError, TypeError):
             max_pos_usd = 1000.0
+
+        if explicit_val is not None:
+            return min(explicit_val, equity * (max_pos_pct / 100.0), max_pos_usd)
 
         # (a) Hard percent cap -- always included in the min().
         hard_cap = min(equity * (max_pos_pct / 100.0), max_pos_usd)
@@ -1246,32 +1303,55 @@ class SignalsServer:
         """Get current portfolio holdings."""
         logger.info("get_portfolio()")
         
+        # phase-75.3 (gap4-01): both degraded paths below are marked stub:true
+        # and ZEROED. Previously they returned a plausible $10,000 book that
+        # then sized and risk-checked real paper trades -- CWE-636 "fail
+        # functional" rather than fail safe. Zeroing is defense in depth: even
+        # if the explicit refusal in publish_signal were bypassed,
+        # size_position's own equity<=0 guard returns 0.0 and every notional
+        # gate fails closed.
         if not _SIGNALS_AVAILABLE or not self.paper_trader:
             return {
                 "timestamp": "",
-                "total_value": 10000.0,
+                "total_value": 0.0,
                 "positions": {},
-                "cash": 10000.0,
+                "cash": 0.0,
+                "stub": True,
+                "reason": "paper_trader_unavailable",
             }
-        
+
         try:
-            # Load portfolio from paper trader
-            portfolio = self.paper_trader.get_portfolio()
-            
+            # PaperTrader exposes get_or_create_portfolio() + get_positions();
+            # there is no get_portfolio(). Calling the nonexistent method was
+            # the AttributeError that drove every request into the fabricated
+            # fallback below.
+            portfolio = self.paper_trader.get_or_create_portfolio() or {}
+            positions_list = self.paper_trader.get_positions() or []
+
+            # get_positions() returns a LIST of dicts; the callers here index
+            # by ticker.
+            positions = {
+                p.get("ticker"): p
+                for p in positions_list
+                if isinstance(p, dict) and p.get("ticker")
+            }
+
             return {
-                "timestamp": portfolio.get("timestamp", ""),
-                "total_value": portfolio.get("total_value", 10000.0),
-                "positions": portfolio.get("positions", {}),
-                "cash": portfolio.get("cash", 10000.0),
-                "trades_today": len(portfolio.get("trades_today", [])),
+                "timestamp": portfolio.get("last_updated", "") or portfolio.get("timestamp", ""),
+                "total_value": float(portfolio.get("total_nav", 0.0) or 0.0),
+                "positions": positions,
+                "cash": float(portfolio.get("current_cash", 0.0) or 0.0),
+                "trades_today": len(portfolio.get("trades_today", []) or []),
             }
         except Exception as e:
             logger.error(f"Error fetching portfolio: {e}")
             return {
                 "timestamp": "",
-                "total_value": 10000.0,
+                "total_value": 0.0,
                 "positions": {},
-                "cash": 10000.0,
+                "cash": 0.0,
+                "stub": True,
+                "reason": "portfolio_fetch_failed",
                 "error": str(e),
             }
     
@@ -1816,25 +1896,18 @@ def create_signals_server():
             optimizer has not yet produced enough sharpes to run a
             meaningful DSR test.
             """
-            # DSR source: when compute_dsr is available + the optimizer
-            # history has enough entries, call it for each variant;
-            # otherwise fall back to a deterministic placeholder.
-            compute_dsr_fn = None
-            dsr_source = "placeholder_no_perf_metrics"
-            try:
-                from backend.services.perf_metrics import compute_dsr as _cd
-                compute_dsr_fn = _cd
-                dsr_source = "placeholder_compute_dsr_available_but_no_returns"
-            except Exception:
-                pass
-
-            # Optionally pull per-variant returns series from the
-            # optimizer cache; if none exist, we stay on placeholder
-            # values (honest about the label).
-            # TODO(phase-3.7.4): thread real returns arrays through here.
-            returns_by_variant: dict[str, list[float]] = {}
-            if compute_dsr_fn and returns_by_variant:
-                dsr_source = "compute_dsr_real"
+            # phase-75.3 (gap4-04): every value below is SYNTHETIC. The
+            # signals, confidences and DSRs are hardcoded placeholders, so
+            # each candidate is marked stub:true and publish_signal refuses
+            # stub provenance -- fabricated numbers must not become trades.
+            #
+            # The old "real DSR" branch was statically unreachable: the
+            # returns-by-variant dict was always empty and never written, so
+            # the condition guarding it could never be true. Removed rather
+            # than left as decoration implying real computation.
+            # TODO(phase-3.7.4): thread real returns arrays through here, then
+            # drop the stub marking for candidates that carry real DSRs.
+            dsr_source = "placeholder_no_real_returns"
 
             n = max(5, int(n))
             base_signals = ["BUY", "SELL", "BUY", "HOLD", "BUY"]
@@ -1850,21 +1923,19 @@ def create_signals_server():
                 sig = base_signals[i % len(base_signals)]
                 factors = base_factors[i % len(base_factors)]
                 variant_id = f"{ticker.upper()}-v{i+1}"
-                if dsr_source == "compute_dsr_real":
-                    returns = returns_by_variant.get(variant_id) or []
-                    try:
-                        dsr = round(float(compute_dsr_fn(returns)), 4)
-                    except Exception:
-                        dsr = round(0.92 + 0.01 * (i % 8), 3)
-                else:
-                    dsr = round(0.92 + 0.01 * (i % 8), 3)
+                dsr = round(0.92 + 0.01 * (i % 8), 3)
                 candidates.append({
                     "ticker": ticker,
                     "variant_id": variant_id,
                     "signal": sig,
                     "confidence": round(0.60 + 0.05 * (i % 7), 3),
+                    # `dsr` and the count are retained deliberately: the
+                    # phase-3.7 A/B harness asserts >=5 candidates each
+                    # carrying a dsr key. stub/reason are ADDITIVE.
                     "dsr": dsr,
                     "factors": factors,
+                    "stub": True,
+                    "reason": "PENDING_IMPLEMENTATION",
                 })
             return {
                 "ticker": ticker,

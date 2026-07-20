@@ -51,7 +51,6 @@ class BacktestServer:
         
         self.bq_client = None
         self.settings = None
-        self.timeout_seconds = 30  # Max time for backtest tool
         
         # Initialize backtest engine if available
         if _BACKTEST_AVAILABLE:
@@ -104,29 +103,37 @@ class BacktestServer:
         try:
             start = time.time()
             
-            # Create backtest engine with provided params
+            # phase-75.3 (gap4-09): pass the wrapper, not .client --
+            # BacktestEngine normalizes either form internally, and the
+            # wrapper is what the rest of the codebase hands it.
             engine = BacktestEngine(
-                bq_client=self.bq_client.client,
+                bq_client=self.bq_client,
                 project=self.settings.gcp_project_id,
                 dataset=self.settings.bq_dataset_reports,
                 **params  # Pass params as kwargs
             )
             
-            # Run backtest with timeout
             result = engine.run_backtest()
             elapsed = time.time() - start
             
-            # Extract key metrics from result
-            full_period = result.get("full_period", {})
-            
+            # phase-75.3 (gap4-09): run_backtest() returns a BacktestResult
+            # DATACLASS, not a dict. The old .get() calls raised AttributeError
+            # AFTER the full walk-forward had run, so this tool always reported
+            # ERROR despite doing all the work. Attribute access mirrors
+            # meta_coordinator.run_proxy_validation.
+            #
+            # No `dsr` key: the engine does not compute DSR, and emitting a
+            # fabricated 0.0 is exactly the failure mode this step removes.
+            # Callers wanting DSR should use perf_metrics.compute_dsr.
             return {
                 "status": "PASS",
-                "run_id": result.get("run_id", "backtest_manual"),
-                "sharpe": full_period.get("sharpe", 0.0),
-                "dsr": full_period.get("dsr", 0.0),
-                "return_pct": full_period.get("return_pct", 0.0),
-                "max_drawdown_pct": full_period.get("max_drawdown_pct", 0.0),
-                "num_trades": full_period.get("num_trades", 0),
+                "sharpe": float(getattr(result, "aggregate_sharpe", 0.0) or 0.0),
+                "return_pct": float(getattr(result, "aggregate_return_pct", 0.0) or 0.0),
+                "alpha_pct": float(getattr(result, "aggregate_alpha_pct", 0.0) or 0.0),
+                "max_drawdown_pct": float(getattr(result, "aggregate_max_drawdown_pct", 0.0) or 0.0),
+                "hit_rate": float(getattr(result, "aggregate_hit_rate", 0.0) or 0.0),
+                "total_trades": int(getattr(result, "total_trades", 0) or 0),
+                "num_windows": len(getattr(result, "windows", []) or []),
                 "elapsed_seconds": int(elapsed),
             }
         except Exception as e:

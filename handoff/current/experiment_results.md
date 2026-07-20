@@ -1,108 +1,76 @@
-# Experiment Results — Step 75.2: Audit75 S2 — Slack control-plane authorization + dead-plane removal
+# Experiment Results — Step 75.3: Audit75 S3 — MCP servers: fabricated-state removal + fail-closed publish path
 
-- **Date:** 2026-07-20 · **Executor:** Opus 4.8 (Fable rail exhausted mid-session; operator directed Opus for the remainder)
-- **Findings closed:** gap1-01, gap1-03, gap1-04, gap1-05, gap1-07, gap1-08, gap1-09, gap1-10, gap1-11
-- **Boundary honored:** control-plane only, no trading logic touched, $0 metered (no LLM call added or changed).
+- **Date:** 2026-07-20 · **Executor:** Opus 4.8
+- **Findings closed:** gap4-01 (P1), gap4-04, gap4-05, gap4-06, gap4-07, gap4-08, gap4-09, security-05
+- **Boundary honored:** paper-only; **no risk threshold edited** (a test pins all five current values); no BQ, no network in tests.
 
-## What was built/changed
+## Two spec corrections (verified by me before implementing)
 
-**Deletions (staged, 2,402 lines):**
-```
- backend/slack_bot/assistant_handler.py      | 785 ---
- backend/slack_bot/self_update.py            | 467 ---
- backend/slack_bot/governance.py             | 315 ---
- backend/slack_bot/context_management.py     | 249 ---
- backend/slack_bot/mcp_tools.py              | 247 ---
- backend/slack_bot/streaming_handler.py      | 243 ---
- scripts/go_live_drills/smoke_test_4_17_9.py |  96 ---
- 7 files changed, 2402 deletions(-)
-```
+The step spec would not have worked as written. Both corrections were flagged by the research gate and then **re-verified by me against live code** rather than taken on trust:
 
-**Modifications + additions:**
-```
- backend/slack_bot/commands.py                     | 67 ++++++++---
- backend/slack_bot/operator_tokens.py              | 55 +++++++--
- backend/slack_bot/streaming_integration.py        | 35 ++++++
- backend/slack_bot/app_home.py                     | (gate + label)
- backend/tests/test_phase_62_2_operator_tokens.py  | 24 +++--
- scripts/qa/sweep_ascii_logger_v3.py               |  2 --
- + backend/slack_bot/assistant_guards.py           (new)
- + backend/tests/test_phase_75_2_slack_control_plane.py (new, 51 tests)
-```
+1. **Paths.** Spec says `scripts/mcp_servers/` — no such files. Real location is `backend/agents/mcp_servers/`, and `meta_coordinator.py` is under `backend/agents/`, not `backend/autoresearch/`. Confirmed by `ls`. Spec line numbers are all correct.
+2. **`BacktestResult` field names.** Four of the five names in the spec do not exist. Confirmed by reading the dataclass at `backend/backtest/backtest_engine.py:112-123`: there is no `dsr`, `return_pct`, `max_drawdown_pct`, or `num_trades`. The real names are `aggregate_sharpe`, `aggregate_return_pct`, `aggregate_alpha_pct`, `aggregate_max_drawdown_pct`, `aggregate_hit_rate`, `total_trades`, `windows`. **DSR is not produced by the engine at all**, so the key is dropped rather than emitted as `0.0` — fabricating a DSR is precisely the failure class this step removes. A regression test (`test_backtest_result_lacks_the_fields_the_spec_named`) pins this so the correction cannot be quietly undone. No immutable criterion names these fields, so honoring reality amends nothing.
 
-1. **(a) gap1-01 — reaction sink** (`commands.py`). The audit registered one defect; the researcher found five, all now closed: `event['user']` is checked against `slack_operator_user_id` (deliberately `user`, the reactor — gating on `item_user` would authorize the *author* of the reacted-to message); unset operator id returns early (fail-closed, mirroring `is_operator_token_message`); the reaction must land on a ts in the new module-level `_pending_push_ts` set; approvals are single-use (`discard` before the push, so one approval cannot be replayed into repeated pushes); the push runs via `await asyncio.to_thread(...)` instead of blocking the Socket-Mode loop for up to 30s; replies are threaded to the approval ts. New `register_push_approval_request(ts)` is the only way a ts becomes approvable — **an empty set denies every reaction**, which is the correct day-one default given that no push-approval poster exists yet.
-2. **(b) dead-plane deletion + pre-LLM refusal.** Six modules deleted. `streaming_integration.py` gains a deterministic `is_deploy_request()` branch placed *after* the empty-text return and *before* `get_orchestrator()`, so a deploy verb never reaches classification and the model cannot answer as though it deployed. Refusal text contains the byte-exact lowercase literal `deploy commands are disabled`.
-
-   **CORRECTED IN CYCLE 2.** My first implementation used a 7-entry substring list and claimed parity with the deleted matcher *without reading it*. The cycle-1 Q/A proved bare `deploy`, `rollback`, `deploy diff`, `deploy revert`, `deploy logs`, `deploy info`, `deploy history`, `deploy clean`, `clean old` and `what changed` all bypassed the refusal and reached the LLM. The detector is now **derived from** the real matcher, recovered with `git show HEAD:backend/slack_bot/self_update.py` (`handle_deploy_command`, lines 435-465), which had two arms: exact whole-message groups plus a `startswith("deploy")` catch-all. Both are reproduced — `_DEPLOY_PATTERN` (`\b(?:deploy(?:s|ed|ing)?|redeploy|rollback|roll\s+back)\b`) covers any "deploy ..." phrasing anywhere in the message, which is what criterion 3's "containing" asks for, while the `(?:s|ed|ing)?` group excludes "deployment" so deployment-history questions stay answerable; `_DEPLOY_EXACT` holds the whole-message aliases with no deploy token, matched exactly as the original did so "tell me what changed in the portfolio" is not over-refused. Parity is now **measured, not asserted**:
-   ```
-   deleted-matcher surface covered: 21 / 21 | misses: []
-   legit queries still answerable:   5 / 5  | over-refused: []
-   ```
-   The 21-entry list is encoded as a parametrized test contract (`_DELETED_MATCHER_SURFACE`), so a future narrowing fails the suite — the cycle-1 tests only asserted the 7 verbs I had picked and therefore could not detect the shortfall.
-3. **(c) gap1-05 — rate limit + audit** (new `backend/slack_bot/assistant_guards.py`). Cloudflare two-integer sliding window (60s / 20 messages per user, no external store). Append-only JSONL at `handoff/logs/assistant_audit.jsonl` with `writer: "assistant_audit"`, copying the `operator_tokens.py` writer idiom (asyncio.Lock, `mkdir(parents=True, exist_ok=True)`, one `json.dumps(..., ensure_ascii=False)` line, append mode). Audit failures are caught and logged — they never break the request path. **Design decision made consciously:** the record stores `text_sha256`, not raw message text. The path is gitignored deliberately (records describe user messages); hashing preserves that rationale and makes a future promotion to a tracked path safe.
-4. **(d) gap1-07 — App Home.** Gated once inside `_handle_model_change`, which covers all four `agent_model_change_*` registrations. `await ack()` stays FIRST — Slack requires acknowledgement within 3s regardless of outcome, so denial happens *after* ack, never by withholding it. Denials append an audit line and re-render the home view. The select now carries the label "Operator-only; process-local, resets on restart" — accurate, because `AGENT_CONFIGS` is an in-memory dict.
-5. **(e) gap1-11 — sink-level authorization.** The four identity/channel checks are factored into a shared `_authorized(...)` predicate used by **both** `is_operator_token_message` and `append_operator_token`, so the two can never drift. The sink's `operator_user_id` and `allowed_channels` are **required keyword arguments with no defaults** — deliberately, because any default would be a fail-open hazard. The matcher still returns `False` rather than raising, preserving the documented contract that Bolt falls through to ticket ingestion.
-
-## Verification command (immutable) — verbatim
+## What changed
 
 ```
-$ cd /Users/ford/.openclaw/workspace/pyfinagent && python3 -c "import os,glob,py_compile; dead=[...6 modules...]; assert not any(os.path.exists(...)); txt=''.join(...); assert all(('slack_bot.%s'%d not in txt and 'import %s'%d not in txt) for d in dead); ...; [py_compile.compile('backend/slack_bot/'+f, doraise=True) for f in ['commands.py','app_home.py','streaming_integration.py','operator_tokens.py','app.py']]"
-VERIFICATION EXIT 0
+ backend/agents/mcp_servers/backtest_server.py |  33 ++--
+ backend/agents/mcp_servers/data_server.py     |  85 ++++++----
+ backend/agents/mcp_servers/signals_server.py  | 219 +++++++++++++++++---------
+ + backend/tests/test_phase_75_mcp_truth.py (new, 28 tests)
 ```
 
-First run exited 1 (`deploy refusal or audit writer missing`): the command requires both literals in `streaming_integration.py` itself, but I had put them in the shared guards module. Resolved honestly rather than by gaming the check — `REFUSAL_TEXT` now lives at its only consumer, and the audit helper is imported as `audit as assistant_audit`, so the call sites read `await assistant_audit(...)`. Both literals occur naturally at the point of use.
+1. **gap4-01 (P1) — the fabricated portfolio.** `PaperTrader` has no `get_portfolio` (verified: only `get_or_create_portfolio:95` and `get_positions:115`), so every call raised `AttributeError` into a bare `except` that returned a plausible **$10,000 book** — which then sized and risk-checked real paper trades. Now uses the real API, mapping `total_nav`→`total_value`, `current_cash`→`cash`, and converting the **list** from `get_positions()` into a dict keyed by ticker. Both degraded paths are marked `stub: true` **and zeroed**: a zeroed book makes `size_position` return 0.0 via its own `equity<=0` guard and fails every notional gate closed, so the refusal is defense-in-depth rather than a single check. `publish_signal` refuses a degraded snapshot with `published:false, reason:degraded_portfolio`.
+2. **gap4-05 — two inert gates.** An unresolved price left `proposed_notional` at 0.0, so the per-ticker, total-exposure **and** cash gates all passed trivially — a BUY of unknown size cleared every size limit. Now a BUY with an unresolvable unit price is rejected `unknown_price` before those gates. SELLs are deliberately exempt: they reduce exposure and are already bounded by the position check, so a missing mark must not trap an exit. Separately, `risk_check` read `current_drawdown_pct` from a key `get_portfolio` never set, leaving the drawdown breaker **permanently inert**; publish step 5 now wires `track_drawdown` in — note the key rename (`drawdown_pct` → `current_drawdown_pct`), which is the whole fix. Explicit `size_usd` is clamped to the hard cap instead of returning unbounded.
+3. **gap4-06 — dedup inverting outcomes.** Root cause was a set/dict eviction asymmetry: an unbounded `_seen_signal_ids` set paired with a 50-entry FIFO response cache. After eviction the set still said "seen" while the cache missed, and the miss branch **synthesized `published=True`** — reporting a trade that may never have happened, for signals that had actually been *rejected*. Replaced with one `OrderedDict` as the single source of truth, so "seen" and "what happened" evict together. A cache miss now falls through and is processed normally. This also fixes an unbounded-set memory leak.
+4. **gap4-04 — synthetic candidates.** Every `emit_candidates` candidate now carries `stub: true` + `PENDING_IMPLEMENTATION`, and `publish_signal` rejects stub provenance. The unreachable "real DSR" branch is deleted (the returns-by-variant dict was always empty and never written, so its guard could never be true). **Consumer contract preserved additively:** `scripts/harness/mcp_ab_test.py:470-490` asserts ≥5 candidates each carrying a `dsr` key, tied to a phase-3.7 immutable criterion — the count and the `dsr` field are untouched; `stub`/`reason` are added alongside. A test pins this.
+5. **security-05 — SecretStr.** A non-empty `SecretStr` is truthy, so the `if not slack_token` guard never caught it, and passing the wrapper to `WebClient` yields `**********` rather than an error — a silent auth failure. Now unwrapped via `unwrap_secret`, with a local import preserving the lazy-import invariant above Step 7.
+6. **gap4-07/08 — data_server.** `cached_macro` returns a **dict keyed by series_id**, so the old loop iterated *strings* and `item.get()` raised `AttributeError` into a swallow — meaning `macro://` returned empty **whenever data actually existed**. Now iterates `.items()` and filters to the requested series. The three hardcoded end-of-2025 cutoffs are `date.today()`-derived using the idiom already present in the same file; responses echo the effective range and the previously parsed-then-discarded `market` prefix.
+7. **gap4-09 — backtest_server.** `.get()` on a dataclass raised `AttributeError` **after** the full walk-forward had run, so the tool always reported ERROR despite doing all the work. Now uses attribute access mirroring `meta_coordinator.run_proxy_validation`, passes the bq wrapper (the engine normalizes it), and drops the never-read `timeout_seconds`.
 
-## Test + lint evidence
-
-```
-$ .venv/bin/python -m pytest backend/tests/test_phase_75_2_slack_control_plane.py backend/tests/test_phase_62_2_operator_tokens.py -q
-80 passed in 0.15s        # cycle 2: was 61; +19 from the deploy-parity contract
-
-$ uvx ruff check --select F821,F401,F811 <8 touched .py files>
-All checks passed!
-
-$ python -c "<import every backend/slack_bot module>"
-imported OK: 12 modules -> app, app_home, assistant_guards, assistant_lifecycle, commands,
-digest_test, direct_responder, formatters, job_runtime, operator_tokens, scheduler, streaming_integration
-```
-
-The new suite (51 tests) covers what the deterministic command cannot (BLOCKER-4): non-operator / unset-operator / untracked-ts reactions all perform NO push; the push goes through `asyncio.to_thread` (verified by spying on the call); approval is single-use; the six dead modules raise `ModuleNotFoundError`; deploy verbs refuse **with `get_orchestrator` patched to raise if called**, proving refusal precedes any LLM path; the rate limit blocks at the budget, is per-user, and recovers after two quiet windows; the audit writes one JSONL line per interaction and does **not** persist raw text; the token sink refuses wrong-user, wrong-channel, and unset-operator even when the matcher is bypassed.
-
-**Scope-honesty lesson (cycle 2).** Twice in this phase I wrote a confident factual claim into an artifact without measuring it -- "this machine runs DEBUG=true" in 75.1, and "verb list covers what the deleted handle_deploy_command matched" here. Both were one command away from being checked. Claims of parity with deleted code must be checked against that code (git history), never asserted from memory.
-
-**Lint honesty note:** one bug was caught by my own re-run rather than shipped — while relocating `REFUSAL_TEXT` below the imports I deleted the `assistant_guards` import block, which would have made `is_deploy_request` an undefined name at runtime. `ast.parse` and the immutable substring command both still passed; only the ruff F821 gate plus the test run caught it. Import restored, all gates re-run green.
-
-## Consumer / residual-reference evidence (criterion 2)
+## Verification
 
 ```
-$ for d in self_update assistant_handler governance mcp_tools streaming_handler context_management; do
-    grep -rn "slack_bot\.$d|slack_bot import $d|from backend.slack_bot.$d" backend scripts tests
-  done
-  slack_bot.self_update: 0        slack_bot.mcp_tools: 0
-  slack_bot.assistant_handler: 0  slack_bot.streaming_handler: 0
-  slack_bot.governance: 0         slack_bot.context_management: 0
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_mcp_truth.py -q
+28 passed in 2.28s          # the step's immutable verification command, exit 0
+
+$ .venv/bin/python -m pytest tests/test_mcp_servers.py -q
+10 passed in 321.69s        # pre-existing MCP suite, no regression
+
+$ uvx ruff check --select F821,F401,F811 <3 servers + new test>
+signals_server.py:29 F401 `pathlib.Path` unused  -- PRE-EXISTING (reproduces at HEAD via
+                                                    git show HEAD:<f> | ruff --stdin-filename)
+                                                    all other files clean
 ```
 
-Pre-deletion check confirmed the audit's "zero live importers" claim independently: `self_update` and slack_bot `governance` were imported **only** from `assistant_handler.py`, itself in the delete set. `backend.governance.*` is a **different, live package** (`limits_loader`, `limits_schema`) and was not touched. `governance.py` did not even define the names `assistant_handler.py` imported from it (`AuditRecord`, `get_token_tracker`, `classify_error`, `get_fallback_message`), so that code would have raised `ImportError` if reached — non-functional, not merely unused.
+## Mocking discipline (why these shipped undetected)
 
-**BLOCKER-2 handled:** `scripts/go_live_drills/smoke_test_4_17_9.py:33-34` hard-asserted `self_update.py` exists and would have raised `AssertionError` the moment it was deleted — retired in the same commit. `scripts/qa/sweep_ascii_logger_v3.py` needed no change (it skips missing files at `:54-56`); its two stale entries were removed as tidiness only.
+`tests/test_mcp_servers.py` contains **zero mocks** and asserts envelope shape rather than outcome — `assert "status" in result` passes when `status == "ERROR"`, and `assert result["series"] == "VIX"` passes on the AttributeError path. That is how a tool that *always* returned ERROR sat green. The new suite therefore uses `create_autospec(PaperTrader, instance=True)`, so calling a method the real class lacks raises rather than auto-vivifying — a bare `Mock()` would happily serve `.get_portfolio()` and let gap4-01 regress — and constructs a **real** `BacktestResult` instance.
 
-**BLOCKER-3 handled:** no tombstone comment anywhere contains a dotted `slack_bot.<dead>` path or the literal `import <dead>` — the step's own gate greps every `backend/slack_bot/*.py` for those substrings, so such a comment would have failed the step. Rationale lives here instead of in the source.
+## Honesty note
 
-## OPERATOR ESCALATION — immutable-criteria collision (BLOCKER-1, unresolved by design)
+Three separate times this phase I have written a literal into a comment that the criterion's own source scan then flagged (the CGNAT pattern in 75.1, and here both the date cutoff and the dead-branch name). Each was caught by my own verification run before Q/A, but the pattern is worth naming: **when a criterion scans source for the absence of a string, that string must not survive in explanatory prose either.**
 
-Deleting these modules breaks three **already-`done`** steps' immutable verification commands. CLAUDE.md forbids amending immutable criteria, so **nothing was edited**. Reporting for your decision:
+## Blast radius
 
-| Dotted path | step_id | Breaks how |
-|---|---|---|
-| `phases[26].steps[4].verification.command` | 4.14.4 | `from backend.slack_bot import assistant_handler` → ImportError |
-| `phases[26].steps[23].verification.command` | 4.14.24 | greps `assistant_handler.py`; missing file → count 0 → `awk` exits 1 |
-| `phases[29].steps[8].verification` | 4.17.9 | names `scripts/go_live_drills/self_update_audit_test.py`, **which does not exist on disk** — already unrunnable *before* this step, independent of 75.2 |
+The signals MCP server is **not on the live money path** — the autonomous loop calls `PaperTrader.execute_buy/execute_sell` directly and no live service imports `SignalsServer`, so fail-closed refusals cannot stop live trading. Consumers that should be re-run by the operator when convenient: `scripts/harness/mcp_ab_test.py` and the go_live drills (`position_limits:198` pins the strict-`>` boundary — thresholds are byte-identical; `first_week_monitoring:219` sets `server._peak_equity` directly, a seam the drawdown wiring preserves; `kill_switch:131`; `slack_signals_e2e` S9-S14 AST checks).
 
-My position, which you can overrule: these are historical verifications of code this step intentionally retires, git history preserves all seven deleted files, and the alternative (keeping 2,306 lines of non-functional dead control-plane code with a `git push` path in it) is worse. 4.17.9's pre-existing breakage is worth noting on its own — a done step has been carrying an unrunnable command.
+## Cycle-2 addendum (post Q/A wf_fcf4f363-339 CONDITIONAL)
 
-## Operator notes
+The Q/A found the production logic correct on every criterion but capped the verdict
+because two of my guards were proxies a realistic regression would evade: criterion 6
+rested on `"unwrap_secret" in SIGNALS_SRC` (a string present on BOTH the import line and
+the call site, so reverting only the call site kept it green), and criterion 3's two
+behavioral halves were never driven through `publish_signal` at all.
 
-- **Slack bot restart required** for any of this to take effect (`python -m backend.slack_bot.app`).
-- **`_pending_push_ts` starts empty**, so reaction-approved pushes are inert until something calls `register_push_approval_request(ts)`. That is intentional fail-closed behavior, and it closes gap1-01 on day one — but it does mean the checkmark-to-push workflow is currently a no-op rather than a working feature. Wiring a poster is a follow-up decision, not a regression: before this step the "feature" was an unauthenticated push trigger for any channel member.
-- **`slack_operator_user_id` must be set** or every reaction and every App Home model change is denied. That is the intended fail-closed posture.
+Fixed test-only and additively (no production diff): a WebClient-observing test for the
+SecretStr boundary, and two end-to-end dedup tests through `publish_signal`. Each was
+**mutation-tested** to confirm it fails on the exact regression described -- including a
+*reworded* `published=True` synthesis that provably evades the source scan (grep count 0,
+old guard green) while failing both new behavioral tests. Suite 24 -> 27.
+
+This is the third distinct self-inflicted issue of this phase and the most instructive:
+the step's premise is that shape-asserting tests are why these bugs shipped, and I wrote
+shape-asserting tests for the step's own criteria. Verifying that a guard *fails when the
+thing it guards is broken* is now part of how I write regression suites, not an optional
+extra.

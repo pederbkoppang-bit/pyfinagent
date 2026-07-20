@@ -1,7 +1,7 @@
-# Evaluator Critique -- Step 75.2 (Q/A verdict, cycle 1)
+# Evaluator Critique -- Step 75.3 (Q/A verdict, cycle 1)
 
-- **Launch:** `.claude/workflows/qa-verdict.js`, run `wf_160a3771-7b7` (Opus 4.8 / effort max), 2026-07-20.
-- **Transcription rule:** Main records the verdict, never authors it. The block below is the captured return value VERBATIM.
+- **Launch:** `.claude/workflows/qa-verdict.js`, run `wf_fcf4f363-339` (Opus 4.8 / effort max), 2026-07-20.
+- **Transcription rule:** Main records the verdict, never authors it. VERBATIM below.
 
 ## Verdict (verbatim captured return value)
 
@@ -9,56 +9,55 @@
 {
   "ok": false,
   "verdict": "CONDITIONAL",
-  "reason": "Criteria 1, 2, 4, 5, 6 are independently CONFIRMED (my own probe of the reaction sink reproduced all four denial legs + to_thread + single-use + threaded reply; repo-wide grep found zero residual imports; rate-limit/audit exercised live), but criterion 3 is only PARTIALLY met: the refusal branch is correctly ordered before any LLM call, yet _DEPLOY_VERBS is materially narrower than the deleted matcher it claims parity with, so bare \"deploy\", \"rollback\", \"deploy diff\", \"deploy revert\", \"deploy logs\", \"deploy info\", \"deploy history\", \"deploy clean\", \"clean old\" and \"what changed\" all bypass the refusal and reach get_orchestrator().",
+  "reason": "All 6 immutable criteria are met in SUBSTANCE and independently re-verified by me end-to-end; production logic is sound, the BOUNDARY held byte-exact (get_risk_constraints identical to HEAD, no diff line touches any threshold constant or comparison operator), no consumer contract broke, and harness compliance is clean. Capped at CONDITIONAL because the step's deliverable IS a regression suite and two criteria are pinned only by proxy assertions that a realistic regression would evade: criterion 6's 'SecretStr reaches WebClient unwrapped' is guarded by `\"unwrap_secret\" in SIGNALS_SRC`, but that string occurs on BOTH the import line (:495) and the call site (:497), so reverting only the call site leaves the test green while security-05 fully regresses; and criterion 3's two behavioral halves ('re-fired after eviction reports published=false', 'a freed-up rejection can be retried') are never exercised through publish_signal, resting instead on an exact-string source scan that a reworded regression evades. I verified both behaviors myself with independent probes (WebClient captured 'xoxb-real-token'; re-fire after eviction -> published=False; funded book -> published=True/trade_executed=True), so nothing is broken -- but the guards are illusory in a step whose own thesis is that the pre-existing tests 'assert envelope shape rather than outcome, which is why all of this shipped'. Fix is test-only and additive; no production change required.",
   "violated_criteria": [
-    "criterion_3_deploy_verb_coverage",
-    "scope_honesty_verb_parity_claim"
+    "criterion_6_secretstr_reaches_webclient_unwrapped (guard illusory, behavior correct)",
+    "criterion_3_evicted_refire_and_retry (behavioral halves unasserted, behavior correct)"
   ],
   "violation_details": [
     {
-      "violation_type": "Threshold_Not_Met",
-      "action": "is_deploy_request(text) matched against the 7-entry _DEPLOY_VERBS tuple in backend/slack_bot/assistant_guards.py:39-47",
-      "state": "Empirically probed against the live function: is_deploy_request('deploy')=False, ('deploy now')=False, ('please deploy the bot')=False, ('rollback')=False, ('deploy diff')=False, ('deploy revert')=False, ('deploy logs')=False, ('deploy info')=False, ('deploy history')=False, ('deploy clean')=False, ('clean old')=False, ('what changed')=False. All of these therefore fall through past the refusal branch (streaming_integration.py:118) to get_orchestrator() at :135 and are answered by the LLM. The deleted matcher, recovered via `git show HEAD:backend/slack_bot/self_update.py` lines 442-465, matched every one of these, including a catch-all `elif text_lower.startswith('deploy')`.",
-      "constraint": "Immutable criterion 3: 'A message containing a deploy verb reaches the refusal branch BEFORE any LLM/orchestrator call ... the assistant can no longer answer deploy requests as if it deployed.' Bare 'deploy' is unambiguously a deploy verb and does not reach the refusal branch, so the second clause is unsatisfied for the most obvious input."
+      "violation_type": "Missing_Assumption",
+      "action": "test_secretstr_slack_token_reaches_webclient_unwrapped asserts unwrap_secret() in isolation plus `\"unwrap_secret\" in SIGNALS_SRC`",
+      "state": "'unwrap_secret' occurs twice in signals_server.py -- import line :495 and call site :497. Reverting ONLY :497 to `slack_token = getattr(self.settings, 'slack_bot_token', '')` leaves the import (and comment) in place, so the source-scan assertion stays True and the test stays GREEN while security-05 is fully regressed. No assertion in the suite observes what WebClient actually receives; I had to write a fake-WebClient probe to establish the criterion's claim (captured token == 'xoxb-real-token', so the behavior IS correct today).",
+      "constraint": "Criterion 6: 'a SecretStr slack token reaches WebClient as its unwrapped plain-string value' requires an assertion that fails when the unwrap at the SDK boundary is removed. FIX: monkeypatch slack_sdk.WebClient, publish a signal with settings.slack_bot_token = SecretStr('xoxb-...'), assert the captured token == 'xoxb-...' (and != '**********')."
     },
     {
-      "violation_type": "Unjustified_Inference",
-      "action": "contract_75.2.md plan step 2 asserts 'Verb list covers what the deleted self_update.handle_deploy_command matched'; the same parity claim is repeated in-source at backend/slack_bot/assistant_guards.py:37-38 ('Verbs the deleted self_update.handle_deploy_command used to match').",
-      "state": "Git history disproves the claim: the deleted matcher covered 'deploy info', 'deploy diff', 'deploy changes', 'what changed', 'deploy revert', 'rollback', 'deploy logs', 'deploy history', 'deploy clean', 'clean old', 'git status', plus a startswith('deploy') catch-all -- 12 surfaces absent from the new 7-entry list. The step's own test file (test_phase_75_2_slack_control_plane.py:151-158) only asserts the 7 retained verbs, so the suite cannot detect the shortfall.",
-      "constraint": "Scope honesty (qa.md §4): experiment_results/contract must disclose real bounds rather than assert unverified parity. A claim of coverage parity with a deleted component must be checked against that component, not assumed."
+      "violation_type": "Missing_Assumption",
+      "action": "criterion 3 covered by test_evicted_rejection_never_replays_as_published (asserts only that _recent_responses.get('sig-1') is None after eviction), test_remembered_rejection_replays_the_true_outcome (asserts the dict entry), and test_no_synthesized_published_true_in_source (exact-string scan for `resp[\"published\"] = True`)",
+      "state": "No test re-fires a signal through publish_signal after eviction, and none exercises the retry half. The source scan is an exact-literal match that these regressions evade: `resp[\"published\"]=True` (no spaces), `resp.update({\"published\": True})`, or the same assignment under a different variable name. I verified both halves end-to-end independently: rejected BUY -> forced eviction -> re-fire returns published=False ('risk_rejected:insufficient_cash'), and the same signal on a funded book returns published=True/trade_executed=True. Behavior is correct; only the guard is weak.",
+      "constraint": "Criterion 3: 'Test asserts a previously-rejected signal_id re-fired after cache eviction reports published=false (never a synthesized published=true), and a freed-up rejection can be retried'. FIX: add a behavioral test that calls publish_signal twice around a forced eviction and asserts published is False on the re-fire, plus one that publishes successfully after the blocking condition clears."
     }
   ],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit_5_items",
-    "research_gate_envelope_verified_8_sources_gate_passed_true",
-    "mtime_ordering_research_lt_contract_lt_code_lt_results",
-    "log_last_confirmed_zero_75.2_result_entries",
-    "no_verdict_shopping_cycle_1_retry_count_0",
-    "immutable_verification_command_exit_0",
-    "pytest_61_passed_two_files",
-    "ruff_check_F821_F401_F811_exit_0",
-    "backend_runtime_import_smoke_6_changed_modules_ok",
-    "dead_modules_ModuleNotFoundError_x6",
-    "independent_criterion1_behavioral_probe_7_legs_own_harness",
-    "asyncio_to_thread_dispatch_verified_by_spy",
-    "single_use_ts_replay_denied",
-    "independent_repo_wide_residual_import_scan_zero_hits",
-    "backend_governance_package_untouched_zero_diff",
-    "git_history_deploy_verb_parity_check_self_update_py",
-    "deploy_refusal_source_ordering_before_get_orchestrator",
-    "live_rate_limit_exercise_20_allowed_2_denied_per_user_recovery",
-    "live_audit_writer_one_jsonl_line_no_raw_text_sha256_present",
-    "handoff_logs_gitignore_confirmed",
-    "existing_test_intent_diff_review_9_call_sites",
-    "app_home_gate_ack_first_fail_closed_label_on_select",
-    "operator_tokens_authorized_required_kwargs_no_default",
-    "masterplan_json_zero_diff_no_immutable_edits",
-    "scope_diff_review_no_unintended_production_change",
-    "escalation_claims_verified_4.14.4_4.14.24_4.17.9"
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope (gate_passed=true, 7 sources read in full vs floor 5, 27 URLs vs floor 10, recency scan performed)",
+    "mtime_ordering (research 11:48:03 < contract 11:49:54 < production 11:53:19-11:54:52 < test 12:00:54 < experiment_results 12:01:38 < live_check 12:02:02)",
+    "log_last (no 75.3 result entry in harness_log; masterplan status=pending)",
+    "no_verdict_shopping (cycle 1, retry_count=0, no prior 75.3 verdict)",
+    "immutable_verification_command (24 passed, bare PYTEST_EXIT=0)",
+    "ruff_lint_gate_F821_F401_F811 (exit 1; sole finding F401 pathlib.Path proven byte-identical PRE-EXISTING at HEAD)",
+    "backend_runtime_smoke (all 3 changed modules import in venv, exit 0 each)",
+    "pre_existing_suites (tests/test_mcp_servers.py + test_mcp_integration.py: 22 passed, 1 failed on missing pytest-asyncio plugin -- environmental, diff-independent)",
+    "go_live_drill_slack_signals_e2e (16/16 PASS, S9-S14 AST checks survive the publish_signal restructure)",
+    "go_live_drill_first_week_monitoring (15/15 PASS, incl. S7/S14 get_risk_constraints unchanged + _peak_equity seam preserved)",
+    "go_live_drill_kill_switch (4/4 PASS, threshold -15.0, inclusive boundary, SELL always permitted)",
+    "go_live_drill_position_limits (BLOCKED by pre-existing site-packages shadowing at line 20, byte-identical to HEAD, upstream of every 75.3 hunk)",
+    "boundary_threshold_proof (get_risk_constraints byte-identical to HEAD via diff; zero diff lines touch any threshold constant or comparison operator)",
+    "consumer_contract_live_execution (emit_candidates: candidates_per_call=5, dsr_annotated=True, all stub:true -- exact mcp_ab_test.py:484-490 assertions executed, not trusted)",
+    "consumer_removal_scan (dsr/run_id/num_trades/timeout_seconds have zero consumers repo-wide)",
+    "mutation_resistance_source_scans (all 4 scanned strings PRESENT at HEAD and absent now -> every source-scan test proven discriminating)",
+    "independent_probe_fail_closed_routes (traced zero-equity BUY -> size_position equity<=0 guard -> cash gate rejects; get_or_create_portfolio always returns a dict)",
+    "independent_probe_dedup_end_to_end (re-fire after eviction -> published=False; freed-up rejection retryable)",
+    "independent_probe_secretstr_to_webclient (fake WebClient captured 'xoxb-real-token')",
+    "independent_probe_drawdown_conflict_reason (conflicts == ['drawdown_circuit_breaker'])",
+    "sell_exemption_analysis (all 4 notional gates BUY-guarded; SELL bounded by shares-based insufficient_position)",
+    "scope_check (change surface exactly matches contract; 2 other modified files are generated/hook artifacts, not production logic)",
+    "spec_correction_legitimacy_review",
+    "test_vacuity_review (all 24 tests individually examined)"
   ],
   "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research gate: research_brief_75.2.md, gate_passed=true, 8 sources read in full (floor 5), 32 URLs, recency scan performed, 18 internal files. (2) Contract-before-generate: mtimes strictly ordered -- brief 10:59:55 < contract 11:02:46 < code 11:13-11:17 < experiment_results 11:18:20 < live_check 11:18:47. (3) experiment_results_75.2.md present and substantive. (4) Log-last honored: zero `phase=75.2 result=` entries in harness_log.md; masterplan status still `pending`, retry_count 0. (5) No verdict-shopping: cycle 1, no prior verdict exists. The absent evaluator_critique.md is the CORRECT cycle-1 state under the merged single-Q/A protocol (my return IS the critique); qa.md's legacy \"no evaluator critique found\" clause is a dual-evaluator-era artifact and does not apply.\n\nWHAT I CONFIRMED INDEPENDENTLY (not by trusting the author's tests):\n- Criterion 1 MET. I wrote my own probe that registers the real handle_reaction against a stub Bolt app. All four denial legs return 0 pushes: operator unset (even with a tracked ts), non-operator reactor on a tracked ts, correct operator in the wrong channel, correct operator+channel on an untracked ts. Authorized leg pushes exactly once; the spy confirms dispatch through asyncio.to_thread; replaying the same ts pushes 0 more times (discard precedes the push); replies carry thread_ts. Handler reads event['user'] (the reactor), not item_user -- the inversion the researcher warned about is avoided.\n- Criterion 2 MET. My own repo-wide scan across backend/, scripts/, tests/ returns 0 for all six modules; all six raise ModuleNotFoundError at runtime; backend/governance/ (the DIFFERENT live package: limits_loader, limits_schema, limits.yaml) has 0 diff lines. smoke_test_4_17_9.py correctly retired in the same change. BLOCKER-3 respected -- the one surviving mention (assistant_guards.py:37) contains \"self_update\" but neither \"slack_bot.self_update\" nor \"import self_update\", so the gate is satisfied without gaming it.\n- Criterion 4 MET. Live-exercised with AUDIT_PATH redirected to a temp dir (repo untouched): 22 calls -> 20 allowed / 2 denied, fresh user unaffected, recovery after two quiet windows. audit() wrote exactly one JSONL line; keys = ts/writer/user/channel/slack_ts/text_sha256/outcome/agent; the raw string \"secret message body\" is NOT in the file; text_sha256 present. handoff/logs/ confirmed gitignored (.gitignore:72).\n- Criterion 5 MET. Single gate inside _handle_model_change covers all four agent_model_change_* registrations; await ack() is first (Slack 3s rule); `if not operator or user_id != operator` is fail-closed on unset; denial appends an audit line and re-renders; the label \"_Operator-only; process-local, resets on restart._\" is on the model-select section block (app_home.py:204).\n- Criterion 6 MET. Shared _authorized() used by both the matcher and the sink; operator_user_id/allowed_channels are required keyword args with no defaults; sink returns None + a warning naming the bypass; matcher still returns False (not raise) so Bolt falls through to ticket ingestion. I reviewed the full diff of the 9 updated call sites in test_phase_62_2_operator_tokens.py -- it only ADDS **AUTH kwargs; every assertion is byte-identical. No existing test intent was weakened. _APPEND_CHANNELS = CHANNELS | {\"C1\"} is necessary because several pre-existing tests use channel C1 to exercise dedup/line-numbering, not authorization.\n- Author-honesty item: experiment_results.md:64 self-reports a real F821 near-miss (deleted import block while relocating REFUSAL_TEXT) that ast.parse and the immutable substring command both missed and only ruff caught. That is genuine, verifiable self-disclosure and it raises my confidence in the rest of the evidence.\n\nTHE ONE BLOCKER (criterion 3) AND ITS FIX:\nMateriality is bounded: the actual deploy CAPABILITY is gone (self_update.py deleted; its only caller assistant_handler.py:238-241 also deleted; zero live importers), so this is NOT an exploitable privilege-escalation path. The residual exposure is exactly the hallucination surface criterion 3's second clause targets (OWASP LLM01) -- a user typing \"deploy\" or \"rollback\" reaches the MAS orchestrator, whose Ford persona is presented as doing operational work (\"Scanning service health, git status, task queue\"), and the model may answer as though it deployed.\nSuggested fix (~2 lines, keeps the author's deliberate false-positive guard): replace the pure-substring test with a word-boundary match plus the missing aliases, e.g. `re.search(r\"\\bdeploy\\b\", low) or any(v in low for v in _DEPLOY_VERBS)` with _DEPLOY_VERBS extended by \"rollback\", \"deploy revert\", \"deploy diff\", \"deploy changes\", \"deploy logs\", \"deploy history\", \"deploy info\", \"deploy clean\", \"clean old\", \"what changed\". Note \\bdeploy\\b does NOT match \"deployment\", so the existing near-miss assertion test_non_deploy_text_passes(\"deployment history question\") still passes -- the author's stated reason for narrowing is preserved. Then add a regression test for bare \"deploy\" and \"rollback\", and correct the parity claim in contract_75.2.md plan step 2 and the comment at assistant_guards.py:37 (or restate it as \"the operator-facing subset, plus a word-boundary catch-all\").\n\nITEM (f) -- the inertness disclosure: HONEST, accept as written. I verified the premise: register_push_approval_request is called ONLY from tests, so _pending_push_ts is empty in production and no reaction can authorize a push. I also pulled the prior handler (git show HEAD:backend/slack_bot/commands.py:328-352) and confirmed it had NO user check at all -- any workspace member reacting white_check_mark on any message in #ford-approvals triggered `git push origin main`. The Operator-notes framing states the material fact in plain language (\"the checkmark-to-push workflow is currently a no-op rather than a working feature\"), which is the disclosure that matters; an operator reading it is not misled. The \"not a regression\" gloss is generous rather than false -- there IS a real loss of a working affordance (the operator could previously checkmark and get a push) -- but since the affordance was unauthenticated, retiring it is the correct security posture and the criterion-1 language (\"performs NO git push\") is fully satisfied by the inert state. NOTE for the operator: this is a live workflow change requiring a bot restart, and wiring a poster that calls register_push_approval_request(ts) should be queued as an explicit follow-up step rather than left implicit.\n\nITEM (g) -- the escalation: RECORDING-AND-ESCALATING WAS THE RIGHT CALL. I verified all three collisions and the untouched state. masterplan.json has 0 diff lines -- no immutable field was edited. phases[26].steps[4] (4.14.4) imports from backend.slack_bot and will ImportError; phases[26].steps[23] (4.14.24) greps assistant_handler.py through `awk '{exit ($1<1)}'` and will exit 1; phases[29].steps[8] (4.17.9) runs scripts/go_live_drills/self_update_audit_test.py, which I confirmed does not exist on disk -- so that done step was ALREADY carrying an unrunnable command before 75.2 touched anything. Blocking the step was not a coherent alternative: 75.2's own immutable criterion 2 REQUIRES the deletion, so the conflict is between two immutable artifacts, which is definitionally an operator decision, not an agent one. Editing the old criteria is forbidden by CLAUDE.md. Proceeding while recording the dotted paths verbatim in both contract and experiment_results is the only disposition that respects both rules. The independent 4.17.9 finding is a useful bonus catch.\n\nMINOR OBSERVATIONS (non-blocking, no action required):\n- rate_ok sets start=now on rollover rather than aligning to a fixed boundary, so after a >60s gap the previous window's full weight is re-applied from the moment of the next request. This deviates from canonical Cloudflare but errs STRICTER (denies more), which is the fail-safe direction for a limiter.\n- audit() performs a blocking open()/write() inside an async function while holding the asyncio lock. It faithfully mirrors the operator_tokens.py idiom the contract cites and the writes are single short lines, but it is a mild inconsistency with this same step's decision to move the 30s subprocess off the loop via to_thread.\n- _rl grows one entry per user_id with no eviction; bounded by workspace membership, so not a practical leak.\n- On the authorized push leg, discard(ts) precedes the subprocess, so a FAILED push consumes the approval and the operator cannot retry by re-reacting. This is the correct anti-replay direction; just worth knowing operationally.\n- .claude/.archive-baseline.json shows as modified; it is hook-managed state, not production code, and is outside the change surface in the honest sense.\n\n3rd-CONDITIONAL RULE: not triggered. grep of handoff/harness_log.md returns 0 entries matching `phase=75.2 result=` and 0 CONDITIONALs for this step-id. This is cycle 1, so CONDITIONAL is the correct verdict class for a fixable gap. Per the canonical cycle-2 flow, Main should fix criterion 3, correct the two parity claims, update experiment_results_75.2.md and live_check_75.2.md, then spawn a FRESH Q/A on the changed evidence -- that is the documented pattern, not verdict-shopping."
+  "notes": "CALLER'S PROBES ANSWERED. (a) Fail-closed HOLDS -- no route to a trade found. Both degraded paths return stub:true AND zeroed; publish_signal refuses at step 5 before sizing. Defense-in-depth confirmed: even bypassing the marker, size_position's equity<=0 guard returns 0.0 and the cash gate rejects a real-priced BUY. get_or_create_portfolio always returns a dict, so the `or {}` unmarked-zero path is unreachable in practice. (b) gap4-06 CANNOT report published=true for a rejection -- verified structurally (_seen_signal_ids has 0 residual refs; no literal published=True assignment anywhere in the file; replay is a verbatim dict copy; cache miss falls through to re-execution) AND behaviorally end-to-end. (c) The SELL exemption is CORRECT, not a hole -- all four notional gates (per-ticker, total-exposure, cash, drawdown) are `action == \"BUY\"`-guarded, so proposed_notional is dead code for SELLs, and the SELL path is bounded by the shares-based insufficient_position check. Rejecting SELLs on a missing mark would TRAP EXITS; kill_switch drill S4 independently pins \"SELL de-risking always permitted\". Your reasoning was right. (d) emit_candidates is genuinely ADDITIVE -- verified by LIVE EXECUTION of the exact consumer assertions rather than trusting the claim: 5 candidates, all carrying dsr, all stub:true. The consumer uses len() and `all(\"dsr\" in c)` with no key-set equality, and emit_candidates has exactly one consumer that never feeds publish_signal, so the stub_provenance refusal has zero blast radius. (e) Tests are real, not vacuous -- all four source-scan strings were PRESENT at HEAD and are absent now, so each would have failed pre-fix. The two proxy tests above are the exception.\n\nBOTH SPEC CORRECTIONS ARE LEGITIMATE -- you did not move a goalpost. The path correction is directory-only (scripts/mcp_servers/ holds only smoke-test scripts; .mcp.json launches the real servers from backend/agents/mcp_servers/) with line numbers intact. On BacktestResult: dropping the dsr key rather than emitting a fabricated 0.0 is not merely acceptable, it is the ONLY choice consistent with the step's thesis -- emitting 0.0 would recreate the exact fault class being removed. No immutable criterion names those fields; criterion 6 requires extraction \"without AttributeError\", which is satisfied and tested. Adding test_backtest_result_lacks_the_fields_the_spec_named so the correction cannot be silently undone is good practice. I also confirmed the removed keys (dsr, run_id, num_trades) and timeout_seconds have ZERO consumers repo-wide, so the response-shape change breaks nothing.\n\nTWO PRE-EXISTING FAILURES, NEITHER ATTRIBUTABLE TO 75.3, both proven rather than assumed: (1) ruff F401 pathlib.Path at signals_server.py:29 reproduces byte-identically on `git show HEAD:` content -- your disclosure was accurate. (2) go_live_drills/position_limits_test.py cannot load: a stale `backend` package in .venv/lib/python3.14/site-packages/backend/ (dated 17 apr) shadows the repo's backend.utils under the drill's importlib spec-loader, failing at signals_server.py:20 -- a line byte-identical to HEAD and upstream of every 75.3 hunk, so module execution never reaches your code. Worth a separate housekeeping ticket; it means the drill that pins the strict-`>` boundary is currently unrunnable. I substituted three independent threshold proofs (byte-diff of get_risk_constraints, first_week S7/S14, kill_switch 4/4). (3) tests/test_mcp_integration.py::test_all_servers_startup fails with \"async def functions are not natively supported ... need pytest-asyncio\" -- a missing plugin, diff-independent; I separately proved create_signals_server() works by executing emit_candidates through it. Note you ran only test_mcp_servers.py, not test_mcp_integration.py.\n\nADDITIONAL OBSERVATIONS (not criterion-covered, not blocking): (i) The new track_drawdown try/except is fail-OPEN -- if it raises, current_drawdown_pct is never set and the drawdown breaker silently reverts to the inert state gap4-05 exists to fix. The comment (\"never block publishing on telemetry\") makes it deliberate, but it is a residual fail-open seam in a fail-closed step; consider logging at ERROR or refusing BUYs when the drawdown read fails. (ii) test_drawdown_breaker_blocks_buys asserts only `allowed is False` without pinning the conflict -- it would stay green if a different gate did the rejecting (I confirmed conflicts == ['drawdown_circuit_breaker'], and kill_switch covers it independently). (iii) test_seen_and_outcome_evict_together's second clause `not hasattr(...) or not srv._seen_signal_ids` short-circuits to True and is tautological; the len()==3 assertion carries that test. (iv) The _server() test helper uses SignalsServer.__new__, bypassing __init__, so no test verifies that __init__ actually builds an OrderedDict -- a regression re-introducing the paired set/dict in __init__ would be caught only by the brittle source scan. (v) Two non-scoped files are modified but are NOT production logic: .claude/.archive-baseline.json (archive-hook bookkeeping adding \"75.2\") and backend/backtest/experiments/mda_cache.json (regenerated at 12:00:41 by the un-mocked pre-existing suite running a real backtest -- itself evidence for your mocking-discipline argument).\n\nPATH TO PASS: fix the two proxy tests (F1, F2) -- both are additive, test-only, no production change -- then update experiment_results.md/live_check_75.3.md and spawn a FRESH Q/A on the changed evidence per the canonical cycle-2 flow. This is cycle 1 (retry_count=0, zero prior 75.3 entries in harness_log), so the 3rd-CONDITIONAL auto-FAIL rule is not engaged."
 }
 ```
 
@@ -66,108 +65,206 @@
 
 ## Follow-up (Main, cycle 2 -- 2026-07-20)
 
-Both defects accepted as correct and fixed. The Q/A's core finding is exactly right: I asserted
-verb parity with the deleted matcher **without reading it**, and the list I shipped let bare
-`deploy` fall through to the LLM -- the single most obvious input for the criterion this step
-exists to satisfy.
+Both findings accepted. The Q/A confirmed the production behavior is correct on both
+counts (it wrote its own probes and observed WebClient receiving `xoxb-real-token`, and
+drove an evicted re-fire end-to-end), so **no production code changed in this cycle** --
+the defect was that my *guards* were illusory. That distinction matters, and the critique
+lands hard precisely because this step's own thesis is that the pre-existing suite
+"asserts envelope shape rather than outcome, which is why all of this shipped". I shipped
+the same mistake one layer up, in the regression suite that *is* this step's deliverable.
 
-**Root cause (same class as 75.1 cycle 2).** Twice now I have written a confident factual claim
-into an artifact without measuring it: "this machine runs DEBUG=true" in 75.1, and "verb list
-covers what the deleted handle_deploy_command matched" here. Both were cheap to check. The
-lesson is recorded in experiment_results_75.2.md rather than only here.
+### Fix (test-only, additive)
 
-**What changed:**
+1. **criterion 6** -- new `test_secretstr_token_reaches_webclient_unwrapped_end_to_end`
+   monkeypatches `slack_sdk.WebClient`, publishes a real signal with
+   `settings.slack_bot_token = SecretStr("xoxb-real-token")`, and asserts on the token the
+   client actually received (`== "xoxb-real-token"`, `!= "**********"`, not a SecretStr).
+2. **criterion 3** -- two new end-to-end tests driven through `publish_signal` rather than
+   inspecting the cache dict: a rejected BUY, forced eviction, then a re-fire that must
+   report `published=False` with `execute_buy` never called; and a rejection that becomes
+   publishable once the blocking condition clears (`published=True`, `execute_buy` called
+   exactly once).
 
-1. **Recovered the real surface** with `git show HEAD:backend/slack_bot/self_update.py`
-   (handle_deploy_command, lines 435-465) instead of relying on memory. The old matcher had two
-   arms: exact whole-message matches across six groups, plus a `startswith("deploy")` catch-all.
-2. **Rewrote the detector** (`assistant_guards.py`) to reproduce both arms:
-   - `_DEPLOY_PATTERN = \b(?:deploy(?:s|ed|ing)?|redeploy|rollback|roll\s+back)\b` -- covers every
-     "deploy ..." phrasing anywhere in the message, which is what criterion 3's word "containing"
-     asks for and is strictly broader than the old catch-all. The `(?:s|ed|ing)?` group
-     deliberately does NOT match "deployment", so deployment-history questions stay answerable.
-   - `_DEPLOY_EXACT` -- the whole-message aliases carrying no "deploy" token (`update bot`,
-     `pull and restart`, `git status`, `what changed`, `deploy changes`, `cleanup`, `clean old`),
-     matched EXACTLY as the original did, so "tell me what changed in the portfolio" is not
-     over-refused.
-3. **Measured parity rather than asserting it:**
-   ```
-   deleted-matcher surface covered: 21 / 21 | misses: []
-   legit queries still answerable:   5 / 5  | over-refused: []
-   "please deploy the bot" -> True   (criterion says CONTAINING; broader than the original)
-   ```
-   Every input the Q/A named as bypassing (`deploy`, `rollback`, `deploy diff`, `deploy revert`,
-   `deploy logs`, `deploy info`, `deploy history`, `deploy clean`, `clean old`, `what changed`,
-   `deploy now`, `please deploy the bot`) now refuses.
-4. **Encoded the parity table as a test contract** -- `_DELETED_MATCHER_SURFACE` in
-   `test_phase_75_2_slack_control_plane.py` lists all 21 recovered surfaces and is parametrized,
-   so any future narrowing fails the suite. This closes the Q/A's second observation that my
-   original tests only asserted the 7 verbs I had chosen and so could not detect the shortfall.
-5. **Corrected the false claims in place**: the in-source comment and
-   `experiment_results_75.2.md` now describe the verified derivation; `contract_75.2.md` carries
-   a marked CORRECTION note (the plan statement itself is left intact -- the plan was right, the
-   implementation failed to meet it).
+### Mutation-tested, not just written
 
-Re-verified after the fix: `80 passed` (was 61), `ruff --select F821,F401,F811` -> All checks
-passed, immutable verification command -> exit 0.
+A guard that cannot fail is worth nothing, so I verified each new test detects the exact
+regression the Q/A described:
 
-Not changed: criteria 1, 2, 4, 5, 6 were independently CONFIRMED by the Q/A's own probes and are
-untouched by this fix, which is confined to `is_deploy_request` and its tests. The BLOCKER-1
-operator escalation remains open and unedited by design.
+```
+MUTATION 1 -- revert ONLY the unwrap call site, leave the import in place
+  ("unwrap_secret" still appears in source, so the OLD source-scan guard stays green)
+  => FAILED test_secretstr_token_reaches_webclient_unwrapped_end_to_end   [caught]
 
-A FRESH Q/A is spawned on this changed evidence (cycle 2), per the canonical cycle-2 flow.
+MUTATION 2 -- reinstate the synthesized published=True on cache miss, REWORDED as
+  resp.update({"published": True, ...}) so the exact-string scan cannot see it
+  grep 'resp["published"] = True' -> 0 matches  (old source-scan guard stays GREEN)
+  => FAILED test_evicted_refire_of_a_rejection_reports_published_false_end_to_end
+     FAILED test_a_freed_up_rejection_can_be_retried_end_to_end            [caught]
+
+Both mutations reverted; suite restored to 27 passed.
+```
+
+Mutation 2 is the important one: it confirms the Q/A's specific claim that a reworded
+regression slips past the source scan, and that only the behavioral tests catch it.
+
+The original source-scan tests are **kept alongside** the new behavioral ones. They are
+cheap, and they pin the *absence* of the old code shape even though they cannot pin
+behavior; the behavioral tests are what actually guard the criteria.
+
+Suite: 24 -> 27 tests. No production diff in this cycle. A FRESH Q/A is spawned on the
+changed evidence per the canonical cycle-2 flow.
 
 ---
 
-## Cycle-2 Q/A verdict (verbatim captured return value) -- PASS
+## Cycle-2 Q/A verdict (verbatim captured return value)
 
-- **Launch:** `.claude/workflows/qa-verdict.js`, run `wf_c67c4e23-f43` (Opus 4.8 / effort max), 2026-07-20.
+- **Launch:** run `wf_a66a87f0-756` (Opus 4.8 / effort max), 2026-07-20.
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "Both cycle-1 blockers are genuinely fixed and I re-proved it myself rather than trusting the transcript: I ran four independent mutations through a read-only module-injection harness (mutated copies written to scratchpad; the repo was never touched — git status is byte-identical before and after). Reverting ONLY the unwrap call site while leaving the import fails the new SecretStr test and nothing else (1 failed / 26 passed), with the old proxy guard staying green and the captured token printing literally as SecretStr('**********'); a reworded fabricated success on the risk-rejection path fails both new dedup tests (2 failed / 25 passed) with the exact-literal source scan finding 0 matches; and a faithful gap4-06 regression (un-evicted seen-set + resp.update({\"published\": True}) on seen-but-not-cached) reproduces Main's reported 2 failed / 25 passed on exactly the two named tests, again invisible to the grep. Criteria 3 and 6 are now behaviorally guarded. Capped at CONDITIONAL because probe (d) turned up a THIRD instance of the same defect class that cycle 1 did not reach: criterion 4's first clause, \"every emit_candidates candidate carries stub:true\", is still pinned only by a source-literal scan. I mutated emit_candidates to keep the `\"stub\": True` literal in the dict while popping the key off every candidate before return — all 27 tests stayed GREEN, and I confirmed the payload really regresses by driving the tool through create_signals_server()+fastmcp Client (production: n=5, all_stub_true=True; mutated: all_stub_true=False, key absent). Behavior is correct today on every criterion and no production code needs to change; the gap is the guard, and the fix is ~10 offline lines using the same async client path mcp_ab_test.py already uses. Deterministic checks all clean: verification command bare exit 0 (27 passed), production diff 222 insertions / 115 deletions across the 3 servers exactly as claimed, get_risk_constraints byte-identical to HEAD (independently recomputed), all 3 modules import in the venv, ruff's sole finding proven byte-identically pre-existing at HEAD, harness compliance clean, and this is the 2nd CONDITIONAL for 75.3 so the 3rd-CONDITIONAL auto-FAIL rule is not engaged.",
+  "violated_criteria": [
+    "criterion_4_emit_candidates_carries_stub_true (guard illusory, behavior correct)"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "test_emit_candidates_payload_is_stub_marked_and_keeps_consumer_contract splits SIGNALS_SRC on 'def emit_candidates' and asserts the substrings '\"stub\": True', 'PENDING_IMPLEMENTATION', '\"dsr\": dsr' and the n=max(5,...) regex — a source-literal scan, not an assertion over the emitted candidates",
+      "state": "MUTATION (run by me, read-only): leave the '\"stub\": True' literal in the candidate dict untouched and add `for _c in candidates: _c.pop(\"stub\", None)` immediately before the return. Full suite result: 27 passed — the guard does not discriminate. I then executed the tool itself through create_signals_server() + fastmcp Client on both trees: production -> n=5, all_dsr=True, all_stub_true=True, candidate keys include 'stub'; mutated -> n=5, all_dsr=True, all_stub_true=False, 'stub' absent from every candidate. So criterion 4's first clause fully regresses with the suite 100% green. The behaviour is CORRECT in the shipped code (5/5 candidates carry stub:true) and publish_signal's stub_provenance refusal is separately covered by a real behavioural test, so the blast radius is bounded — emit_candidates has one consumer (scripts/harness/mcp_ab_test.py) that never feeds publish_signal. This is the third instance of the exact defect class this cycle set out to remove, and the one criterion whose wording attaches the '(source scan)' qualifier only to the OTHER clause (the compute_dsr_real branch), which reads as a deliberate distinction by the drafter.",
+      "constraint": "Criterion 4: 'Test asserts every emit_candidates candidate carries stub:true'. Requires an assertion that fails when an emitted candidate lacks stub:true. FIX (test-only, additive, offline, ~1s — I verified this exact shape runs): async def _pull(): mcp = create_signals_server(); async with Client(mcp) as c: r = await c.call_tool('emit_candidates', {'ticker':'AAPL','n':5}); d = r.data if hasattr(r,'data') else r; return d.get('candidates') or []  ->  cands = asyncio.run(_pull()); assert len(cands) >= 5; assert all('dsr' in x for x in cands); assert all(x.get('stub') is True for x in cands). Keep the existing source-scan test alongside it, as was done for criteria 3 and 6."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope (gate_passed=true, 7 sources read in full vs floor 5, 27 URLs vs floor 10, recency scan present at section 4, audit_class=false so coverage.dry not required)",
+    "mtime_ordering (research 11:48:03 < contract 11:49:54 < production 11:53:19+; cycle-2 touch of signals_server at 12:20:28 accounted for as mutation-and-revert, not new authoring)",
+    "log_last (grep 'phase=75.3 result=' handoff/harness_log.md -> 0 entries; masterplan status=pending, retry_count=0)",
+    "no_verdict_shopping (evidence CHANGED: suite 24 -> 27, three new tests, experiment_results cycle-2 addendum, live_check mutation section, cycle-1 verdict preserved verbatim + Follow-up)",
+    "third_conditional_rule (0 prior result= entries for 75.3; this is the 2nd CONDITIONAL -> auto-FAIL not engaged)",
+    "immutable_verification_command (bare exit 0, 27 passed)",
+    "production_diff_fingerprint (numstat 222 insertions / 115 deletions across the 3 servers = cycle-1 figure exactly; unwrap_secret at :495 import / :497 call site = cycle-1's quoted line numbers exactly)",
+    "boundary_threshold_proof (get_risk_constraints extracted from git show HEAD: and from the worktree — byte-identical, len 1216 == 1216)",
+    "mutation_residue_scan (grep 'resp.update(|_seen_signal_ids|published\": True|if False and' on the 3 servers -> 0 matches)",
+    "ruff_lint_gate_F821_F401_F811 (exit 1; sole finding F401 pathlib.Path:29 independently reproduced on `git show HEAD:` content, HEAD_RUFF_EXIT=1, and the diff touches no hunk near line 29 -> pre-existing, diff-independent)",
+    "backend_runtime_smoke (all 3 changed modules import in the venv, exit 0 each)",
+    "MUTATION_1_independent (revert unwrap call site only, import kept -> 1 failed / 26 passed; ONLY test_secretstr_token_reaches_webclient_unwrapped_end_to_end fails; captured token == SecretStr('**********'); old proxy guard stays GREEN)",
+    "MUTATION_2_independent (reworded fabricated success on risk-rejection path -> 2 failed / 25 passed = both new dedup tests; grep 'resp[\"published\"] = True' on mutated source -> 0 matches, old guard GREEN)",
+    "MUTATION_3_independent (reworded synthesized success on dedup cache miss -> 5 failed / 22 passed, source scan blind)",
+    "MUTATION_4_independent (faithful gap4-06: un-evicted seen-set + resp.update synthesis on seen-but-not-cached -> EXACTLY 2 failed / 25 passed on the two named tests, corroborating Main's transcript count; source scan blind)",
+    "MUTATION_5_independent (emit_candidates keeps the literal but pops 'stub' from every candidate -> 27 PASSED, guard illusory — the finding)",
+    "MUTATION_6_independent (drawdown breaker neutered via `if False and ...` -> 1 failed / 26 passed = test_drawdown_breaker_blocks_buys; cycle-1 observation (ii) cleared, the guard IS discriminating)",
+    "live_tool_execution_emit_candidates (create_signals_server + fastmcp Client, production vs mutated: all_stub_true True vs False, key present vs absent)",
+    "vacuity_review_of_the_3_new_tests (WebClient test cannot pass without a WebClient being constructed — proven by MUT3 where publish short-circuits, captured=={} and the test FAILS)",
+    "spec_correction_1_reverified (scripts/mcp_servers/ holds only smoke-test/reconcile scripts; the three servers are at backend/agents/mcp_servers/; meta_coordinator.py at backend/agents/, absent from backend/autoresearch/)",
+    "spec_correction_2_reverified (BacktestResult dataclass at backtest_engine.py:110-123 — no dsr / return_pct / max_drawdown_pct / num_trades; dropping the key beats fabricating 0.0, and test_backtest_result_lacks_the_fields_the_spec_named pins it)",
+    "criterion_5_source_facts (0 occurrences of '2025-12-31' in data_server.py; date.today() at :98, :148, :181, :281)",
+    "proxy_guard_classification (all 27 tests classified behavioural vs source-scan; the criterion-mandated scans — paper_trader.get_portfolio(, compute_dsr_real, 2025-12-31 — are legitimate; exactly one residual illusory guard found)",
+    "scope_check (only 2 non-scoped files modified: .claude/.archive-baseline.json adding \"75.2\" = archive-hook bookkeeping, and backend/backtest/experiments/mda_cache.json = regenerated cache; neither is production logic)",
+    "read_only_integrity (git status byte-identical before and after my harness; all mutated copies written to scratchpad only)"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "CALLER'S PROBES, ANSWERED WITH MY OWN RUNS. (a) YES — the three new tests genuinely fail when the thing they guard is broken; I re-ran the mutations rather than trusting the transcript. M1 (revert the unwrap call site, keep the import): 1 failed / 26 passed, only the new SecretStr e2e test fails, and the assertion output shows the WebClient literally received SecretStr('**********') — the old source-scan guard stays green exactly as cycle 1 predicted. M2 (reworded fabricated success on the risk-rejection path): 2 failed / 25 passed, both new dedup tests, grep count 0. M4 (the faithful gap4-06 shape — un-evicted seen-set plus resp.update({\"published\": True}) on seen-but-not-cached): EXACTLY 2 failed / 25 passed on precisely the two named tests, which corroborates your transcript's count, including the detail that the retry test fails on execute_buy.assert_called_once() rather than on the published flag. Your MUTATION-2 narration says \"on cache miss\", which taken literally (my M3) fails 5 tests, not 2 — the seen-set variant is what reproduces your number, so the description is slightly loose but the claim and the count are both sound. (b) The WebClient test is NOT vacuous, and I have positive proof rather than an argument: under M3 publish_signal short-circuits before Step 7, `captured` stays {}, and the test FAILS with `assert None == 'xoxb-real-token'`. It cannot pass without a WebClient actually being constructed inside publish_signal. The lazy `from slack_sdk import WebClient` at :503 is what makes the module-level monkeypatch bite at call time. (c) I cannot prove byte-identity absolutely (no cycle-1 snapshot exists on disk), but four independent fingerprints all agree: numstat is 222/115 exactly as recorded; unwrap_secret sits at :495 and :497, the exact line numbers cycle 1 quoted, so nothing above line 495 shifted; get_risk_constraints is byte-identical to HEAD by direct extraction; and a residue scan for resp.update( / _seen_signal_ids / published\": True returns 0. The 12:20:28 mtime on signals_server.py is fully explained by mutate-then-revert. I am satisfied the production diff is unchanged. (d) YES, one — and it is the finding above. test_emit_candidates_payload_is_stub_marked_and_keeps_consumer_contract is a source-literal scan, and I proved by mutation that stripping 'stub' from every emitted candidate leaves all 27 tests green. Everything else is clean: the other four source scans are criterion-mandated verbatim (\"source no longer contains 'paper_trader.get_portfolio('\", \"compute_dsr_real ... (source scan)\", \"no '2025-12-31' literal remains\"), so keeping them is correct, not false confidence. Your decision to keep the old scans ALONGSIDE the new behavioural tests is right — they are cheap and they pin the absence of the old code shape; the mistake would be relying on them alone, which is now true in exactly one place. I also cleared cycle-1's observation (ii): I neutered the drawdown breaker and test_drawdown_breaker_blocks_buys failed, so that guard does discriminate despite not pinning the conflict string. Observation (iv) still stands as a residual (the _server() helper bypasses __init__, so a regression re-introducing a paired set/dict in __init__ would be caught only by the source scan) — worth a line in a follow-up, not a blocker. (e) BOTH spec corrections re-confirmed independently and both are legitimate. scripts/mcp_servers/ contains only smoke-test and reconcile scripts — none of the three servers; meta_coordinator.py is at backend/agents/ and does not exist under backend/autoresearch/. The BacktestResult dataclass has no dsr, return_pct, max_drawdown_pct or num_trades; dropping the dsr key rather than emitting a fabricated 0.0 remains the only choice consistent with the step's own thesis, no immutable criterion names those fields, and test_backtest_result_lacks_the_fields_the_spec_named prevents the correction from being silently undone.\n\nSCOPE HONESTY: the cycle-2 write-up is accurate and the self-criticism in it is warranted and correctly aimed. Two pre-existing conditions are disclosed accurately and I verified both — the ruff F401 reproduces byte-identically at HEAD and sits upstream of every hunk, and the go_live_drills/position_limits blockage is a stale `backend` package in site-packages, not a 75.3 defect (that one deserves its own housekeeping ticket, since the drill that pins the strict-`>` boundary is currently unrunnable).\n\nPROPORTIONALITY, STATED PLAINLY: this is a smaller gap than either cycle-1 blocker. emit_candidates emits avowedly synthetic data, has a single consumer that never reaches publish_signal, and publish_signal's stub_provenance refusal is separately covered by a real behavioural test — so nothing on the money path depends on this guard. A lenient reading of criterion 4 that lets \"(source scan)\" govern the whole sentence would score it MET. I am not taking that reading, for three reasons: the semicolon places the qualifier on the other clause, the step's entire thesis is that shape-asserting tests are why these bugs shipped, and cycle 1 applied exactly this standard to criteria 3 and 6 on identical evidence. Waving it through after I had personally watched 27 tests stay green on a full behavioural regression would be the rubber-stamp this role exists to prevent.\n\nPATH TO PASS: add the one behavioural test in the constraint field (test-only, additive, offline, no production change — I ran that exact client path in about a second), keep the existing source-scan test beside it, mutation-test it the way you did the other two, update experiment_results_75.3.md and live_check_75.3.md, then spawn a FRESH Q/A on the changed evidence. That would be cycle 3; a third CONDITIONAL on this step-id would auto-FAIL under the qa.md rule, so the next pass needs to land it."
+}
+```
+
+---
+
+## Follow-up (Main, cycle 3 -- 2026-07-20)
+
+Accepted. This is the **third** instance of the same defect class in this step, and the
+Q/A found it by mutating in a way I had not: keep the `"stub": True` literal in the
+candidate dict, then `pop("stub")` off every candidate before returning. All 27 tests
+stayed green while criterion 4's first clause fully regressed. Production behaviour was
+correct, so again **no production code changed** -- production diff remains byte-identical
+at 222 insertions / 115 deletions across the 3 servers.
+
+### Fix (test-only, additive)
+
+`test_emit_candidates_really_emits_stub_marked_candidates` drives the real tool through
+`create_signals_server()` + an in-process `fastmcp` Client and asserts over the **emitted
+payload**: `len(candidates) >= 5`, every candidate has a `dsr` key (consumer contract for
+`scripts/harness/mcp_ab_test.py`), every candidate has `stub is True`, and every
+`reason == "PENDING_IMPLEMENTATION"`. Offline -- no BQ, no network.
+
+**Mutation-verified with the Q/A's exact mutation:**
+```
+keep '"stub": True' in the dict, add `for _c in candidates: _c.pop("stub", None)` before return
+  $ grep -c '"stub": True' backend/agents/mcp_servers/signals_server.py
+  3                                          <-- literal present, old source-scan guard GREEN
+  $ pytest backend/tests/test_phase_75_mcp_truth.py -q
+  FAILED test_emit_candidates_really_emits_stub_marked_candidates
+  1 failed, 27 passed                        <-- CAUGHT
+Mutation reverted; 28 passed.
+```
+
+### Proactive audit of EVERY remaining guard (probe (d), answered exhaustively)
+
+Rather than wait for a fourth finding, I classified all 28 tests. Six are source-scan-only;
+each is now either **literally what the criterion demands** or **paired with a behavioural
+test**:
+
+| Source-scan test | Status |
+|---|---|
+| `test_source_no_longer_calls_nonexistent_paper_trader_get_portfolio` | Criterion 1 demands this exact scan verbatim; paired with `test_get_portfolio_returns_real_nav_and_positions` |
+| `test_no_synthesized_published_true_in_source` | Paired with both new end-to-end dedup tests |
+| `test_emit_candidates_source_is_stub_marked_and_keeps_consumer_contract` | Paired with the new payload test (this cycle) |
+| `test_compute_dsr_real_dead_branch_is_gone` | Criterion 4 attaches "(source scan)" to this clause explicitly. The branch is *statically unreachable*, so there is no behaviour to observe -- a scan is the only possible guard |
+| `test_data_server_has_no_hardcoded_cutoff_literal` | Criterion 5 demands this exact scan verbatim; paired with `test_prices_and_fundamentals_use_today_derived_cutoffs` |
+| `test_secretstr_unwrap_helper_semantics_and_call_site_present` | Paired with the WebClient-observing test (cycle 2) |
+
+Two tests were **renamed** because their names overclaimed: the SecretStr and
+emit_candidates source scans now say "source"/"helper_semantics" so no future reader
+mistakes them for behavioural coverage. That mislabelling is part of how the illusion
+formed in the first place.
+
+Suite: 27 -> 28. No production diff. A FRESH Q/A is spawned on the changed evidence.
+
+---
+
+## Cycle-3 Q/A verdict (verbatim captured return value) -- PASS
+
+- **Launch:** run `wf_96ce4962-bff` (Opus 4.8 / effort max), 2026-07-20.
 - **Transcription rule:** Main records the verdict, never authors it.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All six immutable criteria are MET. The cycle-1 blocker is genuinely fixed, not papered over: I independently recovered the deleted matcher myself via `git show HEAD:backend/slack_bot/self_update.py` (handle_deploy_command :436-467) and confirmed its real surface is 19 exact aliases across 6 groups plus a startswith(\"deploy\") catch-all. My own probe of the new detector covers 19/19 exact aliases with zero misses, refuses all 12 inputs I named as bypassing in cycle 1, and over-refuses 0/9 legitimate finance queries. The author's 21/21 parity table is verified against my independent recovery, not taken on trust. Deterministic gates all green (immutable vcmd exit 0, 80 passed vs 61, ruff clean, runtime import smoke OK, masterplan 0 diff), harness compliance 5/5, and mtimes prove the fix is confined to is_deploy_request + its tests with criteria 1/2/4/5/6 evidence untouched.",
+  "reason": "All 6 immutable criteria MET, and I re-proved the contested ones myself with six independent mutations run through a read-only injection harness (mutated copies in scratchpad; repo sha256 + git-status fingerprint byte-identical before and after). (a) The caller's mutation re-run: keeping the '\\\"stub\\\": True' literal (grep count 3, old source-scan guard GREEN) while popping the key off every candidate before return yields 1 failed / 27 passed, failing exactly test_emit_candidates_really_emits_stub_marked_candidates — criterion 4's guard is now real. (b) That test is NOT vacuous: I forced emit_candidates to return zero candidates and it fails on `assert 0 >= 5`, and popping the `dsr` key fails the consumer-contract assertion — the len>=5 guard bites before the stub assertion, so an empty payload cannot slip through. (c) Main's classification claim VERIFIED independently: I enumerated all 28 tests and found exactly the same six source-scan-only guards, each either criterion-mandated verbatim (criterion 1's \\\"source no longer contains 'paper_trader.get_portfolio('\\\", criterion 4's explicit \\\"(source scan)\\\" on the dead branch, criterion 5's \\\"no '2025-12-31' literal remains\\\") or paired with a behavioral test I mutation-proved. I did not inherit cycles 1-2's results: reverting only the unwrap call site (import kept) fails ONLY the WebClient test with the captured token printing literally as SecretStr('**********'); a faithful gap4-06 regression (never-evicting seen-set + reworded resp.update({\\\"published\\\": True})) fails EXACTLY the two behavioral dedup tests while `grep 'resp[\\\"published\\\"] = True'` returns 0. Bonus finding in Main's favor: re-introducing the gap4-01 bug fails FIVE tests, not one — create_autospec raises \\\"Mock object has no attribute 'get_portfolio'\\\", so criterion 1 has real defense-in-depth beyond the mandated scan. (d) Production diff STILL unchanged at 222 insertions / 115 deletions across the 3 servers (independently recomputed via numstat); get_risk_constraints byte-identical to HEAD (len 1216 == 1216) and no diff line touches a risk threshold — the sole `max_drawdown_pct` hit is the BacktestResult dataclass extraction, in scope. (e) Both spec corrections re-confirmed legitimate a third time. Deterministic tier clean: verification command bare exit 0 (28 passed), all 3 modules import in the venv, pre-existing suite collects 10 exit 0, and ruff's sole F401 (pathlib.Path:29) independently reproduced on `git show HEAD:` content with line 29 in no diff hunk. Harness compliance clean on all 5 items. No criterion rests on an illusory guard; residuals are documentation nits and pre-existing conditions, named below.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit_5_items",
-    "research_gate_envelope_independently_verified_8_sources_32_urls_gate_passed_true",
-    "recency_scan_section_present",
-    "mtime_ordering_brief_lt_contract_lt_code_lt_results",
-    "contract_immutable_criteria_6_of_6_verbatim_vs_masterplan",
-    "contract_cycle2_edit_is_marked_correction_not_goalpost_move",
-    "log_last_zero_75.2_result_entries_status_pending_retry_0",
-    "no_verdict_shopping_evidence_changed_code_11:31_post_dates_cycle1_verdict",
-    "third_conditional_rule_not_triggered_zero_prior_conditionals",
-    "immutable_verification_command_exit_0",
-    "pytest_80_passed_two_files_was_61",
-    "ruff_check_F821_F401_F811_exit_0_eight_files",
-    "backend_runtime_import_smoke_all_changed_modules_ok",
-    "dead_modules_ModuleNotFoundError_x6",
-    "independent_git_recovery_of_deleted_handle_deploy_command",
-    "independent_deploy_parity_probe_19_of_19_exact_aliases_zero_misses",
-    "independent_catchall_probe_startswith_deploy_reproduced",
-    "cycle1_bypass_list_12_of_12_now_refused",
-    "over_refusal_probe_0_of_9_legit_queries_refused",
-    "case_whitespace_tolerance_probe",
-    "deleted_matcher_surface_test_contract_verified_against_git_not_authors_table",
-    "deploy_refusal_ordering_line_120_precedes_get_orchestrator_line_139",
-    "independent_repo_wide_residual_import_scan_zero_hits",
-    "governance_name_disambiguation_live_backend_governance_pkg_zero_diff",
-    "criterion1_reaction_gate_source_five_denial_legs_to_thread_single_use",
-    "criterion5_app_home_single_gate_ack_first_fail_closed_process_local_label",
-    "criterion6_operator_tokens_shared_authorized_required_kwargs_no_defaults",
-    "criterion4_live_rate_limit_exercise_20_allowed_5_denied_fresh_user_recovery",
-    "criterion4_live_audit_writer_one_jsonl_line_no_raw_text_sha256_present",
-    "handoff_logs_gitignore_confirmed_line_72",
-    "masterplan_json_zero_diff_no_immutable_edits",
-    "scope_confinement_mtime_proof_only_assistant_guards_and_test_changed_in_cycle2",
-    "sweep_ascii_logger_diff_reviewed_in_scope_consequence_of_deletion"
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope (gate_passed=true, 7 sources read in full vs floor 5, 27 URLs vs floor 10, recency scan at section 4, audit_class=false so coverage.dry not required)",
+    "mtime_ordering (research 11:48:03 < contract 11:49:54 < production 11:53+ < results/live_check 12:32:31)",
+    "contract_criteria_verbatim (all 6 criteria matched byte-exact against masterplan.json)",
+    "log_last (grep 'phase=75.3 result=' harness_log -> 0 entries; masterplan status=pending, retry_count=0)",
+    "no_verdict_shopping (evidence CHANGED: suite 27->28, new fastmcp payload test, 2 overclaiming test names renamed, cycle-3 sections added to critique + live_check; both prior verdicts preserved verbatim)",
+    "immutable_verification_command (bare exit 0, 28 passed)",
+    "ruff_lint_gate_F821_F401_F811 (exit 1; sole F401 pathlib.Path:29 reproduced on `git show HEAD:` content, HEAD_RUFF_EXIT=1; diff hunks nearest are line 24 and 79, so line 29 untouched -> pre-existing, diff-independent)",
+    "backend_runtime_smoke (all 3 changed modules import in venv, exit 0 each)",
+    "pre_existing_suite_collection (tests/test_mcp_servers.py collects 10, exit 0)",
+    "production_diff_fingerprint (numstat 222 insertions / 115 deletions across the 3 servers = cycle-1 figure exactly; cycles 2 and 3 test-only)",
+    "boundary_threshold_proof (get_risk_constraints extracted from HEAD and worktree, byte-identical, len 1216 == 1216; diff grep for threshold constants/operators returns only the in-scope BacktestResult extraction)",
+    "MUTATION_A_pop_stub_independent (keep literal grep=3, pop key from every candidate -> 1 failed / 27 passed, exactly the new test; source-scan guard stays GREEN -- caller's probe (a) reproduced)",
+    "MUTATION_B_empty_candidates_vacuity (emit zero candidates -> fails `assert 0 >= 5`; the new test is non-vacuous on the empty path -- caller's probe (b) answered with positive proof)",
+    "MUTATION_C_pop_dsr_vacuity (strip consumer-contract dsr key -> new test fails on the dsr assertion)",
+    "MUTATION_D_revert_unwrap_independent (revert only the call site, keep import -> 1 failed / 27 passed, ONLY the WebClient e2e test; captured token == SecretStr('**********'); criterion-6 source-scan guard stays GREEN)",
+    "MUTATION_E_gap4_06_faithful_independent (never-evicting seen-set + reworded resp.update synthesis -> EXACTLY 2 failed / 26 passed on the two behavioral dedup tests; grep 'resp[\"published\"] = True' -> 0 matches, old guard blind)",
+    "MUTATION_F_reintroduce_get_portfolio (gap4-01 regression -> 5 failed / 23 passed; create_autospec raises AttributeError -> criterion 1 has behavioral defense-in-depth beyond the mandated source scan)",
+    "control_run_of_injection_harness (unmutated copy -> 28 passed, harness proven non-distorting)",
+    "test_inventory_classification_independent (all 28 tests enumerated; exactly 6 source-scan-only found, matching Main's audit -- claim (c) VERIFIED, not taken on trust)",
+    "criterion_5_source_facts (0 occurrences of '2025-12-31' in data_server.py; date.today() at :98, :148, :181, :281; behavioral test compares captured cutoffs to runtime-computed today, so ANY hardcoded literal fails it)",
+    "init_seam_check (__init__ at :85 genuinely builds the OrderedDict; the _server() __new__ helper is a test-harness seam, not a production defect)",
+    "scope_check (only 2 non-scoped modified files: .claude/.archive-baseline.json archive-hook bookkeeping and backend/backtest/experiments/mda_cache.json regenerated cache; neither is production logic)",
+    "read_only_integrity (sha256 of all 3 servers + test file, and git status fingerprint, byte-identical before and after all six mutations; all mutated copies written to scratchpad only)",
+    "third_conditional_rule_evaluated (0 result= entries in harness_log; prior 2 CONDITIONALs documented in the critique -- rule considered and moot on a PASS)"
   ],
   "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research gate verified by me, not inherited: research_brief_75.2.md envelope reads gate_passed=true, external_sources_read_in_full=8 (floor 5), urls_collected=32, recency_scan_performed=true (2 \"Recency scan\" sections present), internal_files_inspected=18, tier=moderate. (2) Contract-before-generate: brief 10:59:55 < contract (11:02:46 at cycle 1) < code 11:13-11:17 < results 11:18. The cycle-2 contract mtime of 11:32:24 is an appended, explicitly-marked CORRECTION note; I read it and confirmed the original plan text is left INTACT and the note admits the implementation failed the plan (\"the plan statement here was right; my first implementation did NOT meet it\"). That is honest annotation, NOT retroactive goalpost-moving to match the code -- I checked for exactly that. All 6 immutable criteria are present VERBATIM in the contract vs masterplan.json. (3) experiment_results_75.2.md present and substantive with a CORRECTED IN CYCLE 2 block. (4) Log-last honored: 0 `phase=75.2 result=` entries in harness_log.md, masterplan status still `pending`, retry_count 0. (5) No verdict-shopping: evidence demonstrably CHANGED -- assistant_guards.py 11:31:04 and test_phase_75_2 11:31:18 both post-date the cycle-1 verdict, test count 61 -> 80. This is the documented cycle-2 flow. 3rd-CONDITIONAL rule not triggered (0 prior CONDITIONALs logged for this step-id).\n\nCRITERION 3 -- THE CYCLE-1 BLOCKER -- NOW MET, VERIFIED INDEPENDENTLY. I did NOT trust the author's parity table. I ran `git show HEAD:backend/slack_bot/self_update.py` myself and read handle_deploy_command at :436-467. The real deleted surface is six exact-match groups totalling 19 aliases (\"deploy update/deploy pull/update bot/pull and restart\"; \"deploy status/deploy info/git status\"; \"deploy diff/deploy changes/what changed\"; \"deploy rollback/deploy revert/rollback\"; \"deploy logs/deploy history\"; \"deploy cleanup/deploy clean/cleanup/clean old\") plus an `elif text_lower.startswith(\"deploy\")` catch-all. The test file's _DELETED_MATCHER_SURFACE is exactly those 19 plus 2 catch-all representatives (\"deploy\", \"deploy anything else\") = 21. The 21/21 claim is CORRECT and matches my independent recovery byte-for-byte; nothing was fabricated or back-filled from the implementation. My own probe against the live function: 19/19 exact aliases -> True, misses=[]; all 12 inputs I named as bypassing in cycle 1 (\"deploy\", \"deploy now\", \"please deploy the bot\", \"rollback\", \"deploy diff\", \"deploy revert\", \"deploy logs\", \"deploy info\", \"deploy history\", \"deploy clean\", \"clean old\", \"what changed\") -> all True; case/whitespace tolerant (DEPLOY, \"  Deploy Now  \", RollBack, GIT STATUS all True); None/\"\" safe. Ordering confirmed at source: is_deploy_request at streaming_integration.py:120, get_orchestrator() at :139, so the refusal precedes any LLM construction, and REFUSAL_TEXT carries the literal 'deploy commands are disabled'.\n\nNO SWING TO OVER-REFUSAL. I probed 9 legitimate queries; 0 were refused: \"deployment history question\", \"tell me what changed in the portfolio\", \"show me the git log\", \"what is the portfolio nav?\", \"run a backtest\", \"analyze AAPL\", \"what changed in NVDA earnings?\", \"clean up my watchlist\", \"give me the deployment status of the strategy\". The `(?:s|ed|ing)?` suffix group correctly excludes \"deployment\", and _DEPLOY_EXACT is matched whole-message so substring collisions do not fire.\n\nCRITERIA 1/2/4/5/6 -- RE-CONFIRMED, NOT INHERITED. mtime proof that the fix is confined as claimed: app_home.py 11:14:43, commands.py 11:13:18, operator_tokens.py 11:13:09, streaming_integration.py 11:17:15, test_phase_62_2 11:13:27 -- all cycle-1 vintage, untouched by the cycle-2 edit. I still re-ran the substance: repo-wide residual-import scan returns 0 hits for all six dead modules across backend/, scripts/, tests/, and all six raise ModuleNotFoundError at runtime; the 5 \"governance\" grep hits are the DIFFERENT live backend/governance/ package (limits_loader/limits_schema/limits.yaml), which has 0 diff lines, and slack_bot.governance has 0 hits. Criterion 1 gate re-read at commands.py:344-386: fail-closed on unset operator, event['user'] check, channel check, ts-must-be-in-_pending_push_ts, single-use discard before the subprocess, asyncio.to_thread dispatch. Criterion 5 re-read at app_home.py: single gate inside _handle_model_change covering all four agent_model_change_* registrations, await ack() first, fail-closed on unset, audit line on denial, \"process-local, resets on restart\" label at :204. Criterion 6 re-read at operator_tokens.py: shared _authorized() used by both matcher and sink, operator_user_id/allowed_channels required kwargs with no defaults, sink returns None + warning. Criterion 4 I live-exercised in my own process with AUDIT_PATH redirected to a temp dir (repo file untouched, confirmed): 25 calls -> 20 allowed / 5 denied at cap 20, fresh user unaffected, recovery after two quiet windows; audit() wrote exactly one JSONL line, writer token 'assistant_audit', raw text \"secret message body\" NOT present, text_sha256 present; handoff/logs/ gitignored at .gitignore:72.\n\nSCOPE HONESTY. masterplan.json has 0 diff lines -- no immutable field edited. scripts/qa/sweep_ascii_logger_v3.py shows a 2-line deletion removing the two now-deleted modules from its sweep list; that is a necessary consequence of criterion 2's deletion, was anticipated in contract plan step 3, and is in scope. .claude/.archive-baseline.json is hook-managed state. No unintended production change.\n\nMINOR OBSERVATIONS (non-blocking, no action required):\n- The one place the new detector is NARROWER than the old: the old `startswith(\"deploy\")` matched \"deployx\" and \"deployment*\"; `\\bdeploy\\b` does not. This is not a criterion-3 miss -- neither is a deploy verb -- and it is the deliberate, in-source-documented anti-over-refusal choice. I verified it is the ONLY catch-all divergence.\n- \"roll back\" and the exact alias \"what changed\" will refuse plausible finance phrasings (\"roll back our tech exposure\", a bare \"what changed\"). \"what changed\" is exact parity with the deleted matcher so it is required by the criterion; \"roll back\" is a small deliberate widening. Both fail in the SAFE direction (a refusal pointing at the runbook, never an action), so non-blocking.\n- Carried forward unchanged from cycle 1 and re-affirmed: rate_ok resets start=now on rollover (stricter than canonical Cloudflare, fail-safe); audit() does a blocking write inside async while holding the lock (mirrors the operator_tokens idiom); _rl has no eviction (bounded by workspace membership); a FAILED push consumes the approval since discard precedes the subprocess (correct anti-replay direction, operationally worth knowing).\n\nTWO OPEN ITEMS, UNCHANGED THIS CYCLE, BOTH PREVIOUSLY JUDGED AND RE-AFFIRMED:\n- Inert _pending_push_ts: register_push_approval_request is still called only from tests, so no reaction can authorize a push in production. The Operator-notes framing states this plainly (\"currently a no-op rather than a working feature\"), which is the disclosure that matters. Criterion 1's language (\"performs NO git push\") is fully satisfied by the inert state, and the prior handler had NO user check at all, so retiring the affordance is the correct security posture. Wiring a poster that calls register_push_approval_request(ts) should be an explicit follow-up step, and the bot needs a restart for any of this to go live.\n- BLOCKER-1 operator escalation: deleting the dead modules breaks the immutable verification commands of three already-done steps (4.14.4 ImportError, 4.14.24 grep-exit-1, 4.17.9 which was ALREADY unrunnable before 75.2 touched anything). Nothing was edited -- masterplan.json 0 diff confirms it. This is a conflict between two immutable artifacts, which is definitionally an operator decision; recording it verbatim in contract and experiment_results was the only disposition respecting both rules. It stays open for the operator.\n\nVERDICT PASS. Every immutable criterion is met with covering evidence I reproduced myself, harness compliance is clean, and no unintended production change occurred."
+  "notes": "CALLER'S PROBES, ANSWERED WITH MY OWN RUNS. (a) Reproduced exactly: 1 failed / 27 passed, literal present at grep count 3, only test_emit_candidates_really_emits_stub_marked_candidates fails while test_emit_candidates_source_is_stub_marked_and_keeps_consumer_contract stays green. Your measurement was accurate. (b) The new fastmcp test is NOT vacuous, and I have positive proof rather than an argument: forcing zero candidates fails at `assert 0 >= 5`, and stripping `dsr` fails the consumer-contract line. Your len>=5 assertion does bite first, exactly as you hoped -- I challenged it and it held. (c) Your all-28 classification is COMPLETE and ACCURATE. I enumerated the suite independently and found precisely the same six source-scan-only tests, no seventh. Each is defensible: three are criterion-mandated verbatim (criterion 1's 'source no longer contains', criterion 4's explicit '(source scan)' on the dead branch, criterion 5's 'no 2025-12-31 literal'), and all six are paired with a behavioral test I either mutation-proved or verified is structurally discriminating. Criterion 5's pairing is stronger than you claimed: test_prices_and_fundamentals_use_today_derived_cutoffs compares against a runtime-computed date.today(), so it catches ANY hardcoded cutoff, not just the one literal the scan names. Criterion 1's pairing is also stronger: re-introducing paper_trader.get_portfolio() fails FIVE tests because create_autospec refuses to auto-vivify the missing method -- your mocking-discipline choice is doing real load-bearing work, not just documentation. The two renames are the right call; the mislabelling genuinely was part of how the illusion formed. (d) Production diff STILL byte-identical: 222/115 recomputed by me, get_risk_constraints byte-identical to HEAD, and the only threshold-shaped grep hit in the diff is the in-scope BacktestResult max_drawdown_pct extraction. (e) Both spec corrections remain legitimate on a third independent look; dropping the dsr key rather than fabricating 0.0 is still the only choice consistent with the step's own thesis, and test_backtest_result_lacks_the_fields_the_spec_named prevents a silent undo.\n\nWHY THIS IS A PASS AND NOT A THIRD CONDITIONAL. I went in prepared to FAIL a hollow guard, and I looked for a fourth instance of the defect class specifically -- that is what the six mutations were for. There isn't one. Every immutable criterion now has at least one assertion that I personally watched fail when the thing it guards was broken. The three historically-illusory guards (criteria 3, 6, 4) are all discriminating under my own mutations, not merely under your transcript's. Holding the line for a third cycle would require naming a real defect, and manufacturing one to avoid the appearance of leniency would be the mirror-image failure of rubber-stamping.\n\nNON-BLOCKING RESIDUALS (none is a criterion miss; carry into the harness_log or a follow-up ticket): (i) experiment_results_75.3.md's trailing addendum still reads 'Suite 24 -> 27' while the same file's header and Verification block correctly say 28 tests / 28 passed -- the cycle-3 narrative lives only in the critique Follow-up and live_check. Stale prose, not a coverage gap; worth a one-line touch-up when you append the log. (ii) live_check line 7 pastes 27 progress dots above '28 passed' -- cosmetic paste artifact. (iii) The track_drawdown try/except at :389-394 is still fail-OPEN (logs a warning and continues), so a telemetry failure silently returns the drawdown breaker to the inert state gap4-05 exists to fix. This was cycle-1 observation (i), is deliberate per the comment, and no criterion covers it -- but it is a residual fail-open seam inside a fail-closed step and deserves its own ticket. (iv) test_seen_and_outcome_evict_together's second clause short-circuits to True and remains tautological; the len()==3 assertion carries that test, and the single-source-of-truth property is behaviorally proven anyway -- my gap4-06 mutation had to introduce its own separate set precisely because no _seen_signal_ids survives. (v) go_live_drills/position_limits remains unrunnable due to a stale `backend` package in .venv site-packages shadowing the repo module -- pre-existing, diff-independent, and it means the drill pinning the strict-`>` boundary is currently dark. That one is worth a housekeeping ticket on its own merits.\n\nSCOPE HONESTY: the cycle-3 write-up neither overclaims nor hides. It states plainly that this is the third instance of the same defect class, that production was correct all three times, and that the fix was test-only -- all of which I verified rather than accepted. The proactive all-28 audit was the right response to a repeated finding, and it checked out under independent enumeration."
 }
 ```

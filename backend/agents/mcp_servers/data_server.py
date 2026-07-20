@@ -86,16 +86,21 @@ class DataServer:
             return {"ticker": ticker, "prices": []}
         
         try:
-            # Parse market from ticker (e.g., "NO:EQNR" → market="NO", ticker="EQNR")
+            # Parse market from ticker (e.g., "NO:EQNR" -> market="NO",
+            # ticker="EQNR"). phase-75.3 (gap4-08): the prefix was parsed and
+            # then dropped; it is echoed in the response so callers can see
+            # which market was resolved.
             market = "US"
             if ":" in ticker:
                 market, ticker = ticker.split(":", 1)
-            
-            # Query prices from cache (default: 2023-2025, can be customized)
-            df = cache.cached_prices(ticker, "2023-01-01", "2025-12-31")
-            
+
+            # phase-75.3 (gap4-08): end date was a hardcoded end-of-2025 literal.
+            start_date, end_date = "2023-01-01", date.today().isoformat()
+            df = cache.cached_prices(ticker, start_date, end_date)
+
             if df is None or df.empty:
-                return {"ticker": ticker, "prices": []}
+                return {"ticker": ticker, "market": market, "prices": [],
+                        "start_date": start_date, "end_date": end_date}
             
             # Convert to JSON-serializable format
             prices = []
@@ -109,7 +114,8 @@ class DataServer:
                     "volume": int(row["volume"]),
                 })
             
-            return {"ticker": ticker, "prices": prices}
+            return {"ticker": ticker, "market": market, "prices": prices,
+                    "start_date": start_date, "end_date": end_date}
         except Exception as e:
             logger.error(f"Error fetching prices for {ticker}: {e}")
             return {"ticker": ticker, "prices": [], "error": str(e)}
@@ -133,18 +139,21 @@ class DataServer:
             return {"ticker": ticker, "metrics": []}
         
         try:
-            # Parse market from ticker
+            # Parse market from ticker (echoed in the response -- phase-75.3).
             market = "US"
             if ":" in ticker:
                 market, ticker = ticker.split(":", 1)
-            
-            # Query fundamentals from cache
-            metrics = cache.cached_fundamentals(ticker, "2025-12-31")
-            
+
+            # phase-75.3 (gap4-08): cutoff was a hardcoded end-of-2025 literal.
+            cutoff = date.today().isoformat()
+            metrics = cache.cached_fundamentals(ticker, cutoff)
+
             if not metrics:
-                return {"ticker": ticker, "metrics": []}
-            
-            return {"ticker": ticker, "metrics": metrics}
+                return {"ticker": ticker, "market": market, "metrics": [],
+                        "as_of": cutoff}
+
+            return {"ticker": ticker, "market": market, "metrics": metrics,
+                    "as_of": cutoff}
         except Exception as e:
             logger.error(f"Error fetching fundamentals for {ticker}: {e}")
             return {"ticker": ticker, "metrics": [], "error": str(e)}
@@ -167,22 +176,42 @@ class DataServer:
         if not _CACHE_AVAILABLE:
             return {"series": series, "data": []}
         
+        # phase-75.3 (gap4-08): was a hardcoded end-of-2025 literal, serving
+        # months-stale data. Same today() idiom get_features already uses.
+        cutoff = date.today().isoformat()
+
         try:
-            # Query macro from cache (series_id → FRED code, VIX, etc.)
-            macro_data = cache.cached_macro("2025-12-31")
-            
+            # cached_macro returns a DICT keyed by series_id, not a list.
+            macro_data = cache.cached_macro(cutoff)
+
             if not macro_data:
-                return {"series": series, "data": []}
-            
-            # Convert to JSON format
+                return {"series": series, "data": [], "as_of": cutoff}
+
+            # phase-75.3 (gap4-07): the old loop iterated the dict directly,
+            # so `item` was a str series_id and item.get() raised
+            # AttributeError -- swallowed below, making macro:// return empty
+            # WHENEVER data actually existed. Iterate .items() and filter to
+            # the requested series.
             data = []
-            for item in macro_data:
-                data.append({
-                    "date": item.get("date", ""),
-                    "value": float(item.get("value", 0)),
-                })
-            
-            return {"series": series, "data": data}
+            for series_id, entry in macro_data.items():
+                if series and series_id != series:
+                    continue
+                # A series maps to one as-of entry, but tolerate a list.
+                entries = entry if isinstance(entry, list) else [entry]
+                for item in entries:
+                    if not isinstance(item, dict):
+                        continue
+                    try:
+                        value = float(item.get("value", 0) or 0)
+                    except (ValueError, TypeError):
+                        continue
+                    data.append({
+                        "series_id": series_id,
+                        "date": str(item.get("date", "")),
+                        "value": value,
+                    })
+
+            return {"series": series, "data": data, "as_of": cutoff}
         except Exception as e:
             logger.error(f"Error fetching macro {series}: {e}")
             return {"series": series, "data": [], "error": str(e)}
