@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-20 | `8b280cfc` | phase-75.0: Ultracode full-stack audit + remediation-queue synthesis [executor: this session, fab... |
 | 2026-07-18 | `1e6dd200` | phase-74.0: install local-LLM pilot queue (assessment: full localization REJECTED on 16GB M4; Slack- |
 | 2026-07-18 | `a71e56dc` | phase-73.7: D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (front... |
 | 2026-07-18 | `7e6cb6cd` | phase-73.6: D3 money runway (recommend-only) [executor: this session, fable-5/ultracode]. One pag... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `7b2499e3` | phase-72.0: P0 scoring-rail restoration audit [executor: this session, fable-5/ultracode]. Root-c... |
 | 2026-07-18 | `403f376c` | phase-72.0: install phase-72 goal + P0-P4 audit step queue (money-first diagnosis; adversarially-ver |
 | 2026-07-18 | `965bc17c` | phase-63.3 (WIP, CONDITIONAL): publish verified defect register (crit 1+2 DARK); PARK on Slack-diges |
-| 2026-07-18 | `765b6d1d` | phase-65.3: (post-66.2) US+KR health baseline -- BQ per-market trade counts, win rate, exit-reaso... |
 
 ---
 
+### v6.68.0 — phase-75.0: Ultracode full-stack audit + remediation-queue synthesis... (2026-07-20)
+
+- **phase-75.0: Ultracode full-stack audit + remediation-queue synthesis [executor: this session, fab...**
 ### v6.67.0 — phase-74.0: install local-LLM pilot queue (assessment: full localizat... (2026-07-18)
 
 - **phase-74.0: install local-LLM pilot queue (assessment: full localization REJECTED on 16GB M4; Slack-**
