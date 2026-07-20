@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-20 | `64cd1674` | fix: phase-75.4 -- skill-prompt delivery integrity (loader truncation, undelivered sections, critic  |
 | 2026-07-20 | `8bf20673` | chore: queue 75.20 -- make the Q/A live-UI gate enforceable and the primary Q/A path actually read-o |
 | 2026-07-20 | `694893a2` | chore: queue 75.19 -- recalibrate the masterplan preflight gate, then triage its residue |
 | 2026-07-20 | `1c219fae` | chore: queue 75.17 (absent-path verification triage) + 75.18 (anti-vacuous-guard doctrine) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `b6c95879` | phase-73.0: D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline... |
 | 2026-07-18 | `9489d8df` | phase-73.0: install phase-73 goal + D1-D4 design step queue (frontier gap-close; baseline @e835464b) |
 | 2026-07-18 | `e835464b` | chore: phase-73 frontier baseline (graded dimension map + syllabus + critic verdicts) ahead of goal  |
-| 2026-07-18 | `fca7520b` | phase-72.5: Rollup + push [executor: this session, fable-5/ultracode]. money_diagnosis_72.md comp... |
 
 ---
 
+### v6.68.5 — phase-75.4 -- skill-prompt delivery integrity (loader truncation, und... (2026-07-20)
+
+- **phase-75.4 -- skill-prompt delivery integrity (loader truncation, undelivered sections, critic**
 ### v6.68.4 — phase-75.2.1: close the two escalated items from 75.2 (annotate the c... (2026-07-20)
 
 - **phase-75.2.1: close the two escalated items from 75.2 (annotate the collision, arm the push approval**
