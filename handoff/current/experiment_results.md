@@ -1,27 +1,39 @@
-# Experiment Results — phase-73.7: D4 rollup + push (closes the phase-73 goal)
+# Experiment results -- Step 75.0: Ultracode full-stack code-quality audit
 
-Date: 2026-07-18. Session: Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY ($0 metered).
+**Date:** 2026-07-19  **Session:** Fable 5 + ultracode (all agents on `claude-fable-5`, effort max, operator override).
 
-## What was built
+## What was built/changed
 
-1. **Completeness-critic gate** (`wf_da83e067-b72`, tier=simple, floor held: 6 closure-canon sources in full, 15 internal files): all four DoD elements verified — frontier_map (10 verdicts), design_pack a-e (consistent, gate-run-IDs cited, Q/A notes folded), 12 executor build steps (pending/tagged/live_checks), five-file archives + Cycles 118-124 all PASS with verbatim transcriptions, **immutable criteria byte-identical with zero drift across all commits**, zero product-code/.env change across the whole phase (`git diff 9489d8df..HEAD -- backend/ frontend/ scripts/` EMPTY).
-2. **Gaps fixed before close** (1 blocker / 2 minor / 1 cosmetic): the blocker (73.7.1 working-tree-only) is resolved by this step's closure commit/push with independent post-push confirmation; the stale `:1238` anchor CORRECTED — the real MAS defect is the **discarded doubled-budget max_tokens retry at `multi_agent_orchestrator.py:1363-1394`** (billed at :1390-1391, then overwritten by :1269's unconditional create) — 73.7.1's name updated, criteria untouched, red→green test spec in the brief; the false-completion-signal warning adopted (post-push origin check replaces trust in the already-green grep); the venue caveat needs no action.
-3. **Defect queue fully dispositioned** (D4 mandate): purge leak → 69.2-shipped fix + 73.1.1 regression lock; MAS retry bug → QUEUED as 73.7.1 [sonnet-4.6/high] with corrected anchor; PBO-cap → 73.4.2 nested-gates documentation.
-4. **Phase-73 final state**: 73.0-73.6 done (7/7 audit steps, all first-spawn PASS, Cycles 118-124); **13 executor-tagged build steps pending** (73.1.1-4, 73.2.1-3, 73.3.1-2, 73.4.1-2, 73.5.1, 73.7.1) for cheaper sessions.
+This step is AUDIT + QUEUE ONLY. No product code, no `backend/.env`, no flag flips, no optimizer runs. The change surface is confined to `handoff/**` and `.claude/masterplan.json` (+ hook-managed CHANGELOG).
 
-## Verbatim verification output
+### Artifacts produced
+
+| File | Purpose |
+|---|---|
+| `handoff/current/research_brief_75.0.md` | Research gate (24 full-read sources, audit-class coverage.dry) -- gate_passed:true |
+| `handoff/current/contract_75.0.md` (+ rolling `contract.md`) | PLAN with 5 immutable criteria |
+| `handoff/current/audit_phase75/confirmed_findings.json` | 184 confirmed + 16 refuted/dup + 78 dropped + step-review verdict (machine-readable) |
+| `handoff/current/audit_phase75/register.md` | Human-readable register: stats, 20 P1s, step map, revisions, refuted table |
+| `.claude/masterplan.json` phase-75 | step 75.0 (this audit) + 16 pending remediation steps 75.1..75.16 |
+
+### Pipeline (Workflow `wf_03d6e7c4-fda`)
+
+14 read-only role auditors (`agentType: Explore`, `model: fable`, effort max) -> JS key-dedupe (145->136) + fuzzy-cluster agent -> adversarial verify (every finding >=1 verifier; each P1 a 2nd maximally-skeptical refuter; duplicates vs phase-69..74 registers killed) -> completeness-critic + 6 targeted gap finders (+58 confirmed) -> synthesis into 16 step candidates -> independent adversarial step-review. 245 agents, ~6.76M subagent tokens, 1858 tool calls. One mid-run resume through a session-limit reset (cached agents replayed; 40 lost verifiers + gap round + synthesis ran live on the same run id).
+
+## Verbatim verification-command output
 
 ```
-$ bash -c 'test -f handoff/current/frontier_map_73.md && test -d handoff/current/design_pack_73 && git log origin/main --oneline -5 | grep -q "phase-73"'
-73.7 VERIFICATION COMMAND EXIT: 0 (PASS)
+$ bash -c 'test -f handoff/current/research_brief_75.0.md && test -f handoff/current/audit_phase75/register.md && jq -e ".confirmed | length >= 1" handoff/current/audit_phase75/confirmed_findings.json >/dev/null && jq -e "[.phases[] | select(.id==\"phase-75\") | .steps[] | select(.status==\"pending\")] | length >= 8" .claude/masterplan.json >/dev/null'; echo "exit=$?"
 ```
-(Per the critic: this green command is necessary-not-sufficient — the binding exit criterion is 73.7.1 present in `git show origin/main:.claude/masterplan.json` after the closure push, which Main verifies post-flip.)
 
-## File list
+(Exit code recorded in `handoff/current/live_check_75.0.md`.)
 
-- `handoff/current/contract.md` (73.7), `research_brief_73.7.md`, this file
-- `.claude/masterplan.json` (73.7 in-progress; 73.7.1 queued + anchor-corrected)
+## Artifact shape
 
-## Scope honesty
+- **Confirmed findings:** 184 (P1:20, P2:100, P3:64; P0:0). By role: api-design 15, docs-drift 13, gaps 58 across 6 probes, ts-contract 12, sre-ops/qa-tests 10 each, architecture/react/llm-eng/perf/deps 9 each, py-core/data-bq 6, py-services 5, security 4.
+- **Headline P1 cluster:** unauthenticated `white_check_mark`-reaction git-push (commands.py:338), dead deploy-from-Slack control plane with zero caller authz (self_update.py + ~2,900 lines dead modules), middleware auth keyed only on Google provider (Passkey config bypass), Slack assistant streaming un-awaited coroutine (whole feature broken), P0 kill-switch pager logs "sent" on failed subprocess, MCP publish path risk-checks against wrong portfolio, CC-rail silently drops Pydantic schemas, promotion-gauntlet writes seeded-noise reports that pass all gates, governance limits.yaml (2%) vs live setting (4%) divergence.
+- **16 remediation steps** 75.1..75.16, executor-tagged (sonnet-4.6/high mechanical, opus-4.8/xhigh judgment), each with an immutable testable `success_criteria` set + offline-exit-0 `verification.command` + a `live_check` gate. All ship security/observability/infra fixes with explicit BOUNDARY notes (kill-switch/stops/sector-caps/DSR/PBO byte-untouched; live-loop changes flag-gated DARK; historical_macro frozen).
 
-No product code, no .env, no flags, no spend, nothing un-frozen — for this step and for the entire phase (critic-verified with an empty diff). The rollup's own verification command's false-completion risk is disclosed and compensated rather than leaned on.
+## Boundary compliance
+
+`git diff --name-only` for this step touches only `handoff/**`, `.claude/masterplan.json`, and the goal/contract drafts. Risk-gate files (`backend/governance/limits.yaml`, kill-switch, stops, sector caps, DSR/PBO gate code) byte-untouched. No product code edited; the 16 steps defer all code changes to their executor sessions.

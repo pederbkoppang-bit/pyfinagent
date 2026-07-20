@@ -1,38 +1,39 @@
-# Contract — phase-73.7: D4 rollup + push (closes the phase-73 goal)
+# Contract — Step 75.0: Ultracode full-stack code-quality audit vs official docs + best practices
 
-**Step id:** 73.7 (phase-73, depends_on 73.6 = done/PASS @da017832)
-**Session role:** Fable 5 + ultracode, effort MAX; RESEARCH + DESIGN ONLY.
+**Step id:** 75.0 (phase-75, installed this cycle)
+**Date:** 2026-07-19
+**Session:** Fable 5 + ultracode. Operator explicit override 2026-07-19: **Fable 5 on ALL agents** including Researcher + Q/A (session-scoped launches only; `.claude/agents/*.md` Opus pins untouched — no persistent repin, so no scheduled-revert step is owed; Max usage credits knowingly drawn post-free-window).
+**Operator order (verbatim):** "use ultracode with fable 5 reasoning with all IT stack roles to audit our codebase againtst coding documenation and best practise. end goal should be adding new steps into our masterplan to improve our code on all levels" + correction "i told you to use ultracode with dynimic workflow where you use fable 5 on all agents". Goal draft: `handoff/current/goal_phase75_code_quality_audit_DRAFT.md`.
 
-## Research-gate summary (gate_passed: true — completeness-critic role)
+## Research-gate summary (gate PASSED before this contract)
 
-Researcher via structured-output Workflow `wf_da83e067-b72` (opus/max, tier=simple, floor held: 6 sources read in full — NASA SWE closure canon, CDR exit-criteria, undone-work/false-completion literature, 2025-26 recency; 38 URLs; **15 internal files**). Brief: `research_brief_73.7.md`. Returned `dod_gaps` (1 blocker / 2 minor / 1 cosmetic) + full `defect_dispositions`.
+Researcher ran via Workflow structured-output (run `wf_646a6e15-a94`, Fable 5 / effort max, agent-count 1, ~250K tokens): **24 official/peer-reviewed sources read in full**, ~200 URLs collected, 30 snippet-tier, 26 internal artifacts inspected, recency scan performed, audit-class coverage loop ran **10 rounds to 2 consecutive dry rounds (coverage.dry=true)**. Brief: `handoff/current/research_brief_75.0.md` (54KB) — per-role doc anchors + 3–8 checkable rules per role, adversarial methodology grounded in SWR-Bench (LLM-review precision crisis → verification gates mandatory), Refute-or-Promote (adversarial stage-gating), Agent Audit. Pre-verified seed facts: CVE-2025-66478 already patched (next@15.5.12); **no Python lockfile**; **no `maximum_bytes_billed` anywhere**; legacy `insertAll` streaming in 10+ modules vs Storage Write API recommendation; sync clients inside async routes in 10 files; inverted logging formatter in `backend/main.py`; `_PUBLIC_PATHS` drift vs security.md. Exclusion registers enumerated (phase-69: 50, phase-70: 17, phase-71: 17, phase-72/73/74 pending queues).
 
-Verified by the critic: frontier_map (10 dimension verdicts + citations + grades) ✓; design_pack a-e internally consistent with gate run-IDs and Q/A executor notes ✓; **12 build steps** pending + executor-tagged + live_checks ✓; immutable criteria **byte-identical** install-vs-HEAD and vs first-appearance commits for every appended step (zero drift) ✓; five-file archives for 73.0-73.6 + Cycles 118-124 all PASS with verbatim wf_* transcriptions ✓; `git diff 9489d8df..HEAD -- backend/ frontend/ scripts/` EMPTY + no .env diff ✓; local == origin at audit time ✓.
+## Hypothesis
 
-Gaps and their fixes (all handled in this GENERATE):
-1. **BLOCKER**: 73.7.1 existed only in the working tree — the closure commit/push baselines it; post-push confirmation via `git show origin/main:.claude/masterplan.json` (not the green grep, which the critic flagged as a false-completion signal already satisfied by 73.0-73.6).
-2. **MINOR (fixed)**: 73.7.1's `:1238` anchor was STALE (a thinking-config comment) — the real defect is the **discarded doubled-budget max_tokens retry at `:1363-1394`** (retry billed then overwritten by the next iteration's unconditional create at `:1269`). Name corrected to the true anchor; criteria untouched; the brief carries the red→green test spec.
-3. **MINOR (procedural)**: treat the critic's brief as the real exit criterion; independently confirm 73.7.1 on origin before final reporting.
-4. **COSMETIC**: AlphaAgent venue caveat — disclosed, not load-bearing, no action.
+A role-partitioned multi-agent audit (14 IT-stack roles, read-only), where every finding requires verbatim file:line evidence plus a citable doc/best-practice basis and must survive independent adversarial verification (double-refuter at P0/P1), will surface real, non-duplicative engineering defects across all stack layers with low false-positive rate, and can be mechanically converted into an executor-tagged phase-75 remediation queue that cheaper sessions execute — without this step touching any product code.
 
-Defect dispositions (D4 mandate): purge leak DISPOSITIONED (69.2-shipped fix + 73.1.1 regression lock); MAS retry bug QUEUED (73.7.1, corrected anchor); PBO-cap DISPOSITIONED (73.4.2 nested-gates doc).
+## Immutable success criteria (copied verbatim into `.claude/masterplan.json` step 75.0)
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 73.7)
-
-- "All four DoD elements verified with a completeness-critic gate; any gap fixed before close"
-- "MAS retry bug queued as an executor-tagged pending step; the defect queue from the baseline is fully dispositioned"
-- "Every phase-73 step closed with the five-file protocol and verbatim qa-verdict transcription; work pushed to origin/main"
-
-verification.command: `bash -c 'test -f handoff/current/frontier_map_73.md && test -d handoff/current/design_pack_73 && git log origin/main --oneline -5 | grep -q "phase-73"'`
+1. research_brief_75.0.md exists with a gate_passed:true JSON envelope, >=5 external sources read in full, a recency-scan section, and audit-class coverage.dry==true, and it predates the contract and the audit run
+2. The audit ran as a multi-agent Workflow with >=12 read-only role auditors plus adversarial verification: every CONFIRMED finding carries repo-relative file:line + verbatim evidence + a doc/best-practice basis and survived >=1 independent adversarial verifier; findings confirmed at P0/P1 severity survived a second independent refuter
+3. handoff/current/audit_phase75/register.md and handoff/current/audit_phase75/confirmed_findings.json exist, containing workflow stats, the confirmed list, and the refuted/duplicate list with reasons
+4. >=8 new remediation steps exist in phase-75 with status=pending, each with an [executor:] tag in the name, immutable testable success_criteria, and a non-interactive verification.command that exits 0 offline; an adversarial step-review ran and its verdict (approvals/revisions applied) is recorded in the register
+5. This step changed NO product code and NO backend/.env: the step's git diff is confined to handoff/**, .claude/masterplan.json, and hook-managed CHANGELOG.md; kill-switch/stops/sector-caps/DSR/PBO gate files byte-untouched
 
 ## Plan
 
-1. GENERATE: 73.7.1 anchor corrected (done); `experiment_results.md` with verbatim outputs.
-2. EVALUATE via qa-verdict Workflow (the phase's final verdict); transcribe verbatim.
-3. LOG (Cycle 125) → flip 73.7 done → closure commit/push carries 73.7.1 + all 73.7 artifacts → **independently confirm 73.7.1 in `git show origin/main:.claude/masterplan.json`** (the critic's exit criterion) with manual-push fallback per the auto-push-stall memory.
-4. Final operator report + memory update.
+1. GENERATE — launch `phase75-fullstack-audit` Workflow (script staged in session scratchpad): 14 read-only role finders (`py-services`, `py-core`, `architecture`, `frontend-react`, `frontend-ts-contract`, `data-bq`, `security`, `sre-ops`, `qa-tests`, `llm-eng`, `perf`, `deps`, `api-design`, `docs-drift`; all `agentType: Explore`, `model: fable`, effort max; each reads the research brief for doc anchors, caps 15 findings with dropped-tail logging) → JS key-dedupe + fuzzy cluster agent → adversarial verify (pass-1 all findings, pass-2 refuter on P0/P1 survivors; duplicates vs phase-69..74 registers killed here) → completeness critic + up-to-6 targeted gap finders → synthesis into step candidates → independent adversarial step review.
+2. Main writes `handoff/current/audit_phase75/{register.md, confirmed_findings.json}` + `experiment_results_75.0.md` from the captured workflow return, applies the step-review revisions editorially, and appends the approved remediation steps to phase-75 as `status: pending`.
+3. EVALUATE — Q/A via session-local Fable variant of `qa-verdict.js` (structured output; verdict transcribed VERBATIM to `evaluator_critique_75.0.md`; errored/empty return = NO VERDICT, fall back to Agent-tool qa).
+4. LOG — `live_check_75.0.md`, `harness_log.md` append, then status flip 75.0 → done (separate edit; auto-push hook).
+
+## Boundaries (binding)
+
+Audit + queue only: no product-code edits, no `backend/.env`, no flag flips, no optimizer runs (`historical_macro` FROZEN), paper-only; kill-switch/stops/sector-caps/DSR>=0.95/PBO<=0.5 files byte-untouched; no duplication of phase-72/73/74 pending queues; no re-litigation of phase-69/70/71 closed registers; Layer-3 harness internals out of scope (phase-71 just closed); harness stays exactly 3 agents (Main + Researcher + Q/A — the workflow fan-out is a launch mechanism inside GENERATE, not new harness members).
 
 ## References
 
-- `handoff/current/research_brief_73.7.md` (DoD audit + the corrected MAS-bug characterization + closure canon)
-- All phase-73 artifacts; masterplan phase-73 (7 audit steps + 13 executor steps incl. 73.7.1)
+- `handoff/current/research_brief_75.0.md` (24 full-read sources; envelope gate_passed:true, coverage.dry:true)
+- FastAPI async/concurrency docs; OWASP API Security Top 10 (2023) + Secrets Management Cheat Sheet; BigQuery cost-control + Storage Write API docs; Python 3.14 What's New; Next.js server/client components + data-security guide + CVE-2025-66478 advisory; React 19 release notes; Anthropic Building Effective Agents / Writing Tools for Agents / Structured Outputs; SWR-Bench (arXiv 2509.01494); Refute-or-Promote (arXiv 2604.19049); Agent Audit (arXiv 2603.22853); uv pip-compile; pip-audit; pytest good practices; npm package-lock docs.
+- Anthropic, "Harness design for long-running apps" (five-file protocol) — cycle mechanics.

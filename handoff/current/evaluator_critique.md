@@ -1,38 +1,47 @@
-# Evaluator Critique — Step 73.7 (D4 rollup + push; closes the phase-73 goal)
+# Evaluator critique -- Step 75.0 (Q/A verdict, VERBATIM transcription)
 
-**Evaluator:** fresh, independent Q/A via `.claude/workflows/qa-verdict.js` (Workflow structured-output, Opus 4.8, `effort:max`, `model:opus`, $0 Max rail). Verdict = captured return value; transcribed VERBATIM by Main + persisted to `handoff/current/evaluator_critique.json`. Run `wf_159964a5-ff2`.
+**Phase:** 75.0  **Date:** 2026-07-20  **Q/A rail:** Opus 4.8 (steady-state fallback; GENERATE ran all agents on Fable per operator override).
+**Launch:** Workflow structured-output `.claude/workflows/qa-verdict.js`, run `wf_091e2312-0d8`, agentType general-purpose, model opus, effort max.
+**Verdict:** PASS. Transcribed verbatim by Main (Main records, never authors -- no-self-eval intact).
 
-## Verdict (verbatim JSON return)
+## Verdict object (verbatim)
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 3 immutable criteria MET. C1: four DoD elements verified via completeness-critic gate wf_da83e067-b72 (gate_passed:true, 6 sources, recency scan, ran BEFORE contract) — frontier_map_73.md (164 lines, verdicts+citations+grades), design_pack_73/ a-e, 13 fully-formed build steps, 73.0-73.6 five-file archives + Cycles 118-124 all PASS; 1 blocker/2 minor/1 cosmetic gaps fixed or disclosed-and-compensated. C2: MAS retry bug queued as 73.7.1 (pending, [executor: sonnet-4.6/high], 3 criteria, corrected anchor :1363-1394 VERIFIED against real code — discarded doubled-budget retry billed at :1390-1391 then continue'd, overwritten by :1269); defect queue fully dispositioned (purge→73.1.1, MAS→73.7.1, PBO-cap→73.4.2 DOCS-ONLY). C3: five-file protocol + real wf_* verbatim-transcription markers per critique; 73.0-73.6 on origin/main; 73.7+73.7.1 push is the log-last-mandated post-verdict closure action with a disclosed compensating control. Zero product-code/.env change (git diff empty); immutable verification command exit=0; install-vs-HEAD criteria byte-identical (zero drift). Harness-compliance 5-item audit clean; first spawn, zero prior CONDITIONALs.",
+  "reason": "All 5 immutable criteria MET, harness compliance clean, zero unintended production change. Research gate: gate_passed:true, 24 sources (>=5), recency scan, coverage.dry:true, mtime research(07:54)<contract(07:57)<audit(17:17). Audit: 14 read-only Explore finders (>=12), every P1 double-refuted, confirmed findings carry file:line+evidence+basis+verify_reason (4 headline P1s independently reproduced against real code). Register+JSON exist with reconciling stats (184 confirmed/16 refuted/78 dropped; P0:0 P1:20). 16 pending steps, each [executor:]-tagged with 6 testable criteria + offline non-interactive vcmd (proven non-vacuous, fail-before-fix); step-review 13 approved/3 revised/0 missing with all 3 revisions applied (75.2 74.2-re-anchor, 75.5 retry-deconfliction, 75.16 assert-tighten proven to fail today on the format_exc leak). Change surface confined to handoff/** + masterplan.json; backend/frontend/scripts/.env and all risk-gate files byte-untouched. Log-last honored (no 75.0 in harness_log, masterplan still in_progress). Independent Q/A verdict (Fable-GENERATE/Opus-Q/A split is documented fallback, not a violation).",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_5item_audit",
-    "research_gate_gate_passed_6sources_recency",
-    "mtime_ordering_research_lt_contract_lt_results",
-    "log_last_no_cycle125_step_still_in_progress",
-    "no_verdict_shopping_first_spawn_zero_conditional",
+    "harness_compliance_audit_5item",
     "immutable_verification_command_exit0",
-    "zero_product_code_and_env_diff_9489d8df_to_HEAD_and_uncommitted",
-    "dod1_frontier_map_73_verdicts_citations_grades",
-    "dod2_design_pack_73_a_to_e_present",
-    "dod3_all_13_build_steps_tag_livecheck_cmd_3criteria",
-    "dod4_archives_73.0-73.6_4of4_plus_cycles_118-124_PASS",
-    "wf_transcription_markers_real_and_match_brief",
-    "criteria_command_byte_identity_install_9489d8df_vs_HEAD_zero_drift",
-    "mas_retry_bug_anchor_1363-1394_verified_against_actual_code",
-    "defect_queue_disposition_purge_73.1.1_mas_73.7.1_pbo_73.4.2",
-    "73.7.1_provenance_working_tree_only_not_committed",
-    "origin_main_73.0-73.6_pushed_local_eq_origin_da017832",
-    "code_gates_NA_no_py_frontend_backend_ui_touched"
+    "research_gate_envelope_gate_passed_true",
+    "research_sources_read_in_full_ge5",
+    "recency_scan_present",
+    "coverage_audit_class_dry_true",
+    "mtime_ordering_research_lt_contract_lt_audit",
+    "masterplan_phase75_17steps_16pending",
+    "executor_tags_all_16",
+    "success_criteria_6_each",
+    "verification_commands_offline_noninteractive",
+    "verification_commands_fail_before_fix_nonvacuous_75.1_75.13_75.16",
+    "step_review_13approved_3revised_0missing",
+    "revision_applied_75.2_74.2_reanchor",
+    "revision_applied_75.5_retry_deconfliction",
+    "revision_applied_75.16_assert_tighten_proven_nonvacuous",
+    "count_reconciliation_json_register_experiment",
+    "confirmed_findings_structure_file_line_evidence_basis_verify",
+    "findings_spot_check_vs_real_code_gap1-01_security-01_llmeng-01_pysvc-01",
+    "change_surface_audit_only_backend_frontend_scripts_env_untouched",
+    "risk_gate_files_byte_untouched",
+    "log_last_no_75.0_in_harness_log_masterplan_in_progress",
+    "no_verdict_shopping_first_spawn",
+    "no_self_eval_independent_qa",
+    "third_conditional_rule_not_triggered_zero_priors"
   ],
   "harness_compliance_ok": true,
-  "notes": "Residual dependency (does NOT block PASS, per log-last + 72.5 in-flight precedent): 73.7.1 + 73.7's five files are working-tree-only at verdict time (confirmed absent from install 9489d8df AND committed HEAD da017832). They baseline via the closure commit/push that fires on the status flip AFTER this verdict. The step's green verification command (git log|grep phase-73) is a KNOWN false-completion signal — already satisfied by 73.0-73.6 — and does NOT prove 73.7.1 shipped; this is disclosed in experiment_results and compensated by Main's committed post-push check `git show origin/main:.claude/masterplan.json` with manual-push fallback (mitigates the documented auto-push-stall). Main must run that check. Evidential limitation (minor): 73.7.1 success_criteria byte-identity to its first session-append is not git-provable (never committed), but the three criteria reference \"the 73.7 research brief\" and \"the retry path\" abstractly with NO line anchor, so the name-only anchor correction (:1238→:1363-1394) structurally cannot have altered them — \"criteria untouched\" holds. Anchor correction itself is validated against the live code, not merely asserted. Cosmetic AlphaAgent KDD'25 venue caveat is disclosed, non-load-bearing, no action. This is the phase-73 goal's final verdict; the design/audit spine is complete and honest, all build work correctly queued-not-built."
+  "notes": "AUDIT+QUEUE step (phase-72/73 opener class): produces findings + pending remediation queue, changes no code. PASS confirmed by deterministic-first verification + independent code spot-checks (not rubber-stamped). Two minor NON-BLOCKING observations for the record, neither unmet-criterion nor CONDITIONAL-worthy: (a) research_brief read-in-full source table enumerates 11 rows against an envelope claim of 24; the remaining full-reads (CVE advisory, Next data-security guide, OWASP secrets cheat sheet, structured-outputs doc, pytest goodpractices, Refute-or-Promote, RepoAudit, Agent Audit, Hypothesis) are cited inline in topic sections with URLs + fetched-in-full annotations, so the >=5 floor (the actual gate) is cleared many times over -- recommend future briefs tabulate all claimed sources for auditability. (b) 75.2's SECONDARY step-review sub-clause (extend the machine residual-import scan to backend/slack_bot/jobs/*.py) is captured only by repo-wide success-criterion [1] (\"zero imports ... anywhere in backend/, scripts/, or tests, grep evidence in experiment_results.md\"), not by the narrow vcmd glob (glob backend/slack_bot/*.py); the PRIMARY revision (74.2 re-anchor -- the material queue-integrity fix the task flagged) is fully applied and the repo-wide criterion substantively covers the jobs/ concern, so the executor+Q/A will still enforce it. Lint/UI-capture/runtime-smoke gates N/A: diff touches no product code (handoff/** + masterplan.json only; masterplan validated via jq throughout). GENERATE ran all agents on claude-fable-5 per operator override; this Q/A ran on steady-state Opus Max rail as the documented fallback -- expected. Verdict authored by independent Q/A for verbatim transcription by Main into evaluator_critique.md; no-self-eval guarantee intact."
 }
 ```
