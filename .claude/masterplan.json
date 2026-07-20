@@ -17123,6 +17123,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "75.19",
+          "status": "pending",
+          "name": "Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue [executor: opus-4.8/xhigh; BOUNDARY: NO immutable verification criteria amended -- the deliverable is a trustworthy CHECKER plus annotations, never a criterion rewrite]. Discovered 2026-07-20 while queueing 75.17. `scripts/meta/preflight_verify_masterplan.py` reports '819 steps, 141 broken, 8 unparseable', which reads as 141 defects; a Main breakdown of its 212 BROKEN lines suggests it is mostly MIS-CALIBRATION, not breakage. HEURISTIC categorization (Main's own bucketing -- the step must re-derive it, not trust it): ~135 lines name handoff/ artifacts that are transient or gitignored outputs rather than source files; ~9 name backend/tests/test_phase_75_*.py belonging to steps that are still PENDING, i.e. tests not yet written BY DESIGN; ~11 are the go_live_drills name mismatch already owned by 75.17; ~5 are unimportable modules; ~52 are uncategorized. By step status the flagged set is 108 done / 48 pending / 20 deferred / 6 dropped / 2 superseded / 28 whose ids Main's extraction regex failed to resolve. The checker applies NO status filter, so a pending step whose artifact legitimately does not exist yet is reported identically to a done step whose verification is genuinely unrunnable -- which is why the number is untrustworthy in both directions and why nobody acts on it. Work: (a) make the gate status-aware (pending/deferred/dropped/superseded steps must not be reported as broken for absent artifacts) and transient-aware (handoff/ outputs, gitignored paths, URL fragments, frontend-relative paths); (b) fix the id-extraction so no step resolves to '?'; (c) resolve the 212-lines-vs-141-steps and 8-unparseable discrepancies so the summary line means one auditable thing; (d) triage whatever residue survives recalibration and annotate genuinely-unrunnable done steps via superseded_record per the 75.2.1 shape. COORDINATE WITH 75.17: the go_live_drills cluster belongs to that step -- do not double-annotate; if 75.17 has already run, exclude its rows.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_19_preflight_calibration.py -q",
+            "success_criteria": [
+              "The recalibrated preflight does NOT report a step as broken solely because an artifact of a pending/deferred/dropped/superseded step is absent; a fixture pins one example of each status so a regression to status-blindness fails",
+              "Transient and non-source references (handoff/ outputs, gitignored paths, URL fragments like /openapi.json, frontend-relative paths like lib/icons.ts, truncated paths like /Library/LaunchAgents/com.py) are excluded by construction, each pinned by a fixture rather than by an allowlist of observed strings",
+              "Every step id in the report resolves to a real masterplan step -- zero '?' ids -- and the summary line's counts are internally consistent with the emitted rows (the current run emits 212 BROKEN lines while summarizing 141 broken steps and 8 unparseable, and a test asserts rows and summary agree)",
+              "The report distinguishes GENUINELY-UNRUNNABLE done steps from calibration noise, and the residue count is stated with the sweep output backing it -- no count asserted anywhere without reproducible evidence",
+              "Any genuinely-unrunnable done step surviving triage gains a superseded_record sibling per the 75.2.1 shape, with verification.command and verification.success_criteria BYTE-IDENTICAL to their pre-step values (asserted against git show); the go_live_drills cluster owned by 75.17 is excluded and no step carries two superseded_record entries",
+              "Each new behavioral guard is mutation-tested with the evidence recorded verbatim in live_check_75.19.md, INCLUDING at least one mutation of a test fixture (per the phase-75.2.1 lesson that mutating production alone missed a fixture which could not represent the failure)"
+            ],
+            "live_check": "handoff/current/live_check_75.19.md: verbatim before/after preflight output (the before-run is the mis-calibrated baseline), verbatim verification command output (exit 0), git diff --stat, byte-identity proof for every annotated step, and mutation evidence covering production AND fixture mutations."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
