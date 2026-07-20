@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-20 | `256867d3` | phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/08/09, security-05) |
 | 2026-07-20 | `f55e6973` | phase-75.2: Slack control-plane authorization + dead-plane removal (gap1-01/03/04/05/07/08/09/10/11) |
 | 2026-07-20 | `40111b03` | phase-75.1: backend auth surface fail-closed (security-01/03/04, gap2-03, api-design-12, pysvc-08) |
 | 2026-07-20 | `8b280cfc` | phase-75.0: Ultracode full-stack audit + remediation-queue synthesis [executor: this session, fab... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `34db321c` | phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/... |
 | 2026-07-18 | `665d7c0e` | phase-72.2: P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the ... |
 | 2026-07-18 | `080f93c1` | phase-72.1: P1 approved-but-unapplied token audit [executor: this session, fable-5/ultracode]. Re... |
-| 2026-07-18 | `7b2499e3` | phase-72.0: P0 scoring-rail restoration audit [executor: this session, fable-5/ultracode]. Root-c... |
 
 ---
 
+### v6.68.3 — phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/0... (2026-07-20)
+
+- **phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/08/09, security-05)**
 ### v6.68.2 — phase-75.2: Slack control-plane authorization + dead-plane removal (g... (2026-07-20)
 
 - **phase-75.2: Slack control-plane authorization + dead-plane removal (gap1-01/03/04/05/07/08/09/10/11)**
