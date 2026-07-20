@@ -15,7 +15,7 @@ and flag statements that show:
 
 Return a JSON object `{biases_found: list, severity: low|med|high}`.
 
-## Uncertainty Permission (phase-4.14.26)
+### Uncertainty Permission (phase-4.14.26)
 
 If the evidence does not clearly show bias -- say "I don't know" and
 flag severity=low. If there is not enough information to assess, say
@@ -24,8 +24,7 @@ bias claims to look thorough. When confidence is split between two
 biases with insufficient evidence to choose, prefer severity=low and
 note the insufficient evidence explicitly.
 
-
-## Empty-bracket retraction format (phase-4.14.26)
+### Empty-bracket retraction format (phase-4.14.26)
 
 An empty bracket marker `[]` or an omitted field is an acceptable
 form of retraction. Do NOT fill an array with placeholder entries

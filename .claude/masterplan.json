@@ -16811,7 +16811,7 @@
         },
         {
           "id": "75.4",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S4 -- skill-prompt delivery integrity: loader truncation, undelivered sections, critic cap [executor: sonnet-4.6/high]. (a) gap5-01: load_skill (backend/config/prompts.py:176) extracts '## Prompt Template' up to the next H2, so quant_model_agent.md's '## Quant Model Data' (:78) and '## Instructions' (:81) truncate the delivered prompt to ~190 chars with NO {{quant_model_data}} placeholder -- demote those headings to '### ' (or fold into the template body) so the full template ships. (b) gap5-02: the phase-4.14.26 'Uncertainty Permission'/empty-bracket sections (8 files: synthesis_agent, critic_agent, moderator_agent, risk_judge, deep_dive_agent, scenario_agent, quant_model_agent, bias_detector) and the phase-26.3 'Code Execution Tasks' sections (enhanced_macro_agent, quant_model_agent, scenario_agent) sit AFTER '## Experiment Log' and are NEVER delivered -- move that content INSIDE the '## Prompt Template' region of every affected file. (c) gap5-03: the critic must echo a 4096-token report but _CRITIC_STRUCTURED_CONFIG caps output at 2048 -- raise to >=6144 OR switch the contract to corrected-fields-only patch semantics; the orchestrator.py:1522-1524 parse-fail branch must stop silently 'treating as PASS with draft' (retry once or flag the report degraded). (d) gap5-06: _skill_gen_config must merge the documented 1024-token enrichment cap so the Claude default path (ClaudeClient default 2048) honors it provider-independently. (e) gap5-10: fix the 'sector_agent' stem to 'sector_analysis_agent' at orchestrator.py:1267 and add a startup assertion that every stem passed to _skill_gen_config resolves to an existing file in backend/agents/skills/. (f) format_skill (prompts.py:207) logs a warning when a builder kwarg has no matching {{placeholder}} in the extracted template.",
           "harness_required": true,
           "priority": "P0",
@@ -16826,6 +16826,139 @@
               "No skill .md loses content: every relocated section's text is byte-identical, only heading levels/positions change (diff summary in experiment_results.md)"
             ],
             "live_check": "handoff/current/live_check_75.4.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: gap5-01, gap5-02, gap5-03, gap5-06, gap5-10"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.4.1",
+          "status": "pending",
+          "name": "Audit75 S4 follow-up -- critic corrected-report patch semantics [executor: opus-4.8/xhigh]. Discovered during 75.4. Criterion 4 of step 75.4 offered two arms; 75.4 took the 'raise the cap to 6144' arm and this step is the OTHER arm, deliberately deferred. Today backend/agents/skills/critic_agent.md instructs 'Always include the corrected_report field with the full report JSON' and CriticVerdict.corrected_report is Optional[SynthesisReport] (backend/agents/schemas.py:66), so the critic re-emits an entire 4096-token report just to correct a few fields -- expensive and truncation-prone even at 6144. Convert to corrected-fields-only PATCH semantics: change the schema, rewrite critic_agent.md (the phase-75.4 research anchored the relevant instruction lines at :66/:71/:103/:108 -- re-verify, the file moved in 75.4), and add merge logic at BOTH accept paths in backend/agents/orchestrator.py (the two 'corrected_report and isinstance(corrected_report, dict)' branches). This sits on the LIVE synthesis path: a bad merge silently corrupts every report, so the merge must be flag-gated dark and proven ON-vs-OFF byte-identical when OFF. Anthropic's structured-output docs motivate delta/patch by grammar-compilation cost and schema-complexity limits, NOT truncation -- re-derive at the research gate whether the change is still justified.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_4_1_critic_patch.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_4_1_critic_patch.py passes offline and drives the REAL run_synthesis_pipeline (not a source scan): a critic verdict carrying only corrected FIELDS merges into the draft and the merged report retains every un-corrected field verbatim",
+              "Flag OFF is byte-identical to today: test asserts the returned report dict with the flag OFF equals the pre-change behavior on the same inputs",
+              "Mutation matrix: reverting the merge logic, dropping a single corrected field, and merging into the WRONG key each fail at least one test; matrix recorded verbatim in experiment_results.md with each mutant KILLED",
+              "critic_agent.md instruction text and CriticVerdict schema agree -- test asserts the schema field set matches what the delivered prompt (via the REAL load_skill) instructs the model to emit"
+            ],
+            "live_check": "handoff/current/live_check_75.4.1.md: verbatim verification command output (exit 0) + git diff --stat + an ON-vs-OFF $0 diff proving flag-OFF is byte-identical. No live metered LLM call without owner approval."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.4.2",
+          "status": "pending",
+          "name": "Audit75 S4 follow-up -- skill_optimizer post-write delivery invariant [executor: sonnet-4.6/high]. Discovered during 75.4 and rated HIGH there. backend/agents/skill_optimizer.py::apply_modification (~:397-459) autonomously rewrites backend/agents/skills/*.md via an old_text->new_text replacement guarded ONLY by an occurs-exactly-once check; the phase-71.4 independent review gate in the same function is flag-gated and currently DARK. Step 75.4 moved previously-undelivered content INSIDE the '## Prompt Template' region of 9 skill files, which NEWLY exposes that content to this auto-optimizer -- and an autonomous run can silently re-break the heading levels 75.4 just fixed, re-truncating delivered prompts. The function already re-loads the skill after writing and reverts on exception, but load_skill() succeeding does NOT mean the delivered content is still complete: a '### ' heading promoted back to '## ' still loads fine while silently truncating. Add a post-write DELIVERY invariant: capture the delivered template before the write and reject-and-revert if the write drops any {{placeholder}} or shrinks the delivered length beyond a threshold. Fail CLOSED (revert) on violation.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_4_2_optimizer_invariant.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_4_2_optimizer_invariant.py passes offline and calls the REAL apply_modification against a temp copy of a skill file (not a stub): a modification that promotes a '### ' heading back to '## ' inside the Prompt Template region is REVERTED and apply_modification returns False",
+              "A modification that drops a {{placeholder}} from the delivered template is REVERTED; the file on disk is byte-identical to its pre-call content",
+              "A legitimate modification that changes only body prose is ACCEPTED and written -- proving the guard is not blanket-refusing (negative control)",
+              "Mutation matrix recorded in experiment_results.md: removing the invariant check, and weakening it to a load_skill()-succeeds check only, each fail at least one test"
+            ],
+            "live_check": "handoff/current/live_check_75.4.2.md: verbatim verification command output (exit 0) + git diff --stat + evidence the guard fails CLOSED (a rejected write leaves the file byte-identical, shown by hash before/after)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.4.3",
+          "status": "pending",
+          "name": "Audit75 S4 follow-up -- quant_strategy.md load_skill contract mismatch [executor: sonnet-4.6/high]. Discovered during 75.4. backend/agents/skills/quant_strategy.md has NO '## Prompt Template' section, so backend/config/prompts.py::load_skill raises ValueError on it. Harmless in production today because the file is an OPTIMIZER skill read WHOLE via a direct path read in backend/backtest/quant_optimizer.py (~:486-488), never through load_skill -- but it is a live landmine for any code that iterates SKILLS_DIR.glob('*.md') and calls load_skill, which will crash on this one file. Step 75.4's test excludes it by name with an assertion. Decide and implement the contract: either (a) make load_skill's failure mode explicit and documented for optimizer-class skills (e.g. a declared registry of non-template skills that load_skill consults, raising a clearly-typed error), or (b) give the file a '## Prompt Template' section. Option (b) is NOT free -- it changes what the optimizer sees, since the optimizer reads the whole file; if (b) is chosen the optimizer's consumed text must be proven byte-identical. Do not silently widen any try/except to swallow the ValueError.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_4_3_skill_contract.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_4_3_skill_contract.py passes offline and asserts, via the REAL loader, that iterating every file in SKILLS_DIR and calling load_skill raises no UNHANDLED exception -- with optimizer-class skills identified by an explicit declared mechanism, not a bare try/except",
+              "Test asserts the text quant_optimizer actually consumes from quant_strategy.md is byte-identical to its pre-change content (hash pinned in the test)",
+              "The exclusion mechanism is enumerable and asserted: a test fails if a NEW skill file lacking '## Prompt Template' appears without being declared",
+              "Mutation matrix in experiment_results.md: adding an undeclared template-less skill file, and swallowing the error with a bare except, each fail at least one test"
+            ],
+            "live_check": "handoff/current/live_check_75.4.3.md: verbatim verification command output (exit 0) + git diff --stat + a hash comparison proving the optimizer-consumed text is unchanged."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.4.4",
+          "status": "pending",
+          "name": "Audit75 S4 follow-up -- bias_detector.md orphan disposition [executor: sonnet-4.6/high]. Discovered during 75.4 and independently confirmed by two Q/A passes. backend/agents/skills/bias_detector.md is an ORPHAN: no load_skill('bias_detector') caller exists anywhere in the tree, and production bias detection is deterministic Python via 'from backend.agents.bias_detector import detect_biases' (backend/agents/orchestrator.py:38). Step 75.4 relocated its uncertainty sections to satisfy an immutable criterion, and explicitly recorded that the fix has ZERO production effect -- do not re-litigate that; this step decides the file's fate. Determine via git history whether the skill was ever wired, then either DELETE it (and remove it from any roster/inventory that lists it, e.g. backend/agents/_inventory.json and backend/api/agent_map.py if present) or WIRE it to a real caller. Deleting is the likely answer but must be proven safe: the file is uploaded to the Anthropic Files API by the phase-25.D9 bulk uploader that globs SKILLS_DIR, so removal changes that upload set. Do not delete anything that a roster still references without updating the roster in the same commit.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_4_4_orphan_skills.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_4_4_orphan_skills.py passes offline and enumerates EVERY file in SKILLS_DIR, asserting each is either (a) referenced by a real load_skill call site, (b) read directly by a named consumer, or (c) present in an explicit declared-exempt list with a stated reason -- no file may be silently orphaned",
+              "The disposition of bias_detector.md is implemented and the test reflects it: if deleted, the file is absent AND no roster/inventory/API map still references it; if wired, a real caller exists and the test asserts the delivered prompt reaches it",
+              "Mutation matrix in experiment_results.md: re-introducing an unreferenced skill file without declaring it fails the test",
+              "experiment_results.md states plainly whether this change has any production behavioral effect (per 75.4's finding, deletion of an orphan has none)"
+            ],
+            "live_check": "handoff/current/live_check_75.4.4.md: verbatim verification command output (exit 0) + git diff --stat + a grep proving no remaining reference to the disposed file."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.4.5",
+          "status": "pending",
+          "name": "Audit75 S4 follow-up -- wire a consumer for critic_degraded [executor: sonnet-4.6/high]. Discovered by the 75.4 cycle-1 Q/A and disclosed in that step's experiment_results.md. Step 75.4 replaced a fail-OPEN branch (an unparseable critic verdict was silently upgraded to PASS) with a retry plus a critic_degraded flag attached to all four value-return paths of backend/agents/orchestrator.py::run_synthesis_pipeline. A grep across *.py/*.ts/*.tsx confirms NOTHING reads that flag today -- it is write-only observability groundwork with no behavioral effect. A degraded critic run means the report's quality gate DID NOT RUN, which is exactly the kind of thing that must be visible. Surface it: persist it with the report, expose it on the report API/UI, and consider alerting. Frontend work must follow .claude/rules/frontend.md (Phosphor icons only, no emojis) and any UI claim requires a Playwright capture against the running app behind the NextAuth wall -- code reading is not UI evidence.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_4_5_critic_degraded_consumer.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_4_5_critic_degraded_consumer.py passes offline and proves a REAL consumer reads critic_degraded: driving run_synthesis_pipeline with an unparseable critic verdict produces a report whose persisted/serialized form carries the degraded state through to the consumer boundary",
+              "Negative control: a parseable critic verdict produces a report the consumer reports as NOT degraded -- the signal must distinguish the two, not always fire",
+              "Mutation matrix in experiment_results.md: dropping the flag at the producer, and ignoring it at the consumer, each fail at least one test",
+              "If a UI surface is added, a Playwright capture against the running app is attached to the live_check showing the degraded state rendered"
+            ],
+            "live_check": "handoff/current/live_check_75.4.5.md: verbatim verification command output (exit 0) + git diff --stat + for any UI surface a Playwright browser_snapshot/screenshot capture behind the NextAuth wall showing the degraded indicator."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.4.6",
+          "status": "pending",
+          "name": "Audit75 S4 follow-up -- orchestrator annotation/lint hygiene [executor: sonnet-4.6/high]. Surfaced by BOTH 75.4 Q/A passes running the qa.md lint gate. 'uvx ruff --select F821,F401,F811' on backend/agents/orchestrator.py exits 1 with 3 findings: F401 unused import 'generate_reflection' (~:48) and F821 undefined name 'Any' at two annotation sites (~:1009-1010). Both Q/A passes independently confirmed the finding set is BYTE-IDENTICAL to git HEAD, so these are PRE-EXISTING and were NOT introduced by 75.4 -- do not attribute them to that step. The F821s survive only because Python 3.14 defers annotation evaluation (PEP 649); the file lacks 'from __future__ import annotations', and typing.get_type_hints() would still raise on those two functions today. Fix: import Any from typing (or add the __future__ import, whichever matches house style -- check whether other backend modules rely on runtime annotation evaluation before choosing), and remove or re-wire the unused import after confirming via grep that nothing depends on the re-export. Line numbers shift with edits; re-derive them.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_4_6_orchestrator_lint.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_4_6_orchestrator_lint.py passes offline and asserts 'ruff --select F821,F401,F811' over backend/agents/orchestrator.py exits 0 with zero findings",
+              "Test asserts typing.get_type_hints() resolves successfully on the two previously-F821 functions -- proving the annotation is genuinely resolvable at runtime, not merely deferred",
+              "Runtime smoke: importing backend.agents.orchestrator succeeds and the phase-75.4 startup stem assertion still runs (no import-order regression from the changed imports)",
+              "Removing the unused import is proven safe: experiment_results.md records a grep of every consumer of the removed name showing none"
+            ],
+            "live_check": "handoff/current/live_check_75.4.6.md: verbatim verification command output (exit 0) + git diff --stat + the verbatim ruff invocation showing exit 0 where it previously exited 1."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.4.7",
+          "status": "pending",
+          "name": "Audit75 S4 follow-up -- behavioral coverage for the corrected_report return paths [executor: sonnet-4.6/high]. Found by the 75.4 cycle-2 Q/A, which hunted 6 novel mutant shapes beyond those it was asked to try. backend/tests/test_phase_75_skill_delivery.py guards the critic_degraded flag two ways: a structural per-return-path AST check, and two BEHAVIORAL tests that drive the real run_synthesis_pipeline. The behavioral leg exercises ONLY the final_data return. Consequently an unreachable-attachment mutant (wrapping a corrected_report attachment in 'if False:') survives the entire suite -- static AST cannot reason about reachability, and no behavioral test reaches that path. This is a limit of the technique, NOT the categorical vacuity 75.4 cycle-1 fixed (plain deletion from any path is killed), so it is hardening rather than a live defect. Extend the behavioral tests to reach all four value-return paths of run_synthesis_pipeline: both corrected_report returns (verdict PASS-with-corrections, and max-iterations-reached) and the error-dict return (unparseable final draft). Do NOT weaken or delete the existing AST guard -- add to it.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_skill_delivery.py -q",
+            "success_criteria": [
+              "backend/tests/test_phase_75_skill_delivery.py gains behavioral tests that reach ALL FOUR value-return paths of run_synthesis_pipeline, each asserting the returned dict carries critic_degraded with the correct value; the existing AST guard and all 27 pre-existing tests still pass",
+              "The 'if False:' unreachable-attachment mutant on EACH corrected_report return, and on the error-dict return, now FAILS at least one test -- recorded verbatim in the experiment_results.md mutation matrix as KILLED",
+              "Negative control retained: a parseable critic verdict on each path yields critic_degraded False, so the flag distinguishes states rather than always firing",
+              "No test in the suite is skipped or xfailed (pytest -rs shows 0 skipped) -- a skipped test is a guard that cannot fail"
+            ],
+            "live_check": "handoff/current/live_check_75.4.7.md: verbatim verification command output (exit 0, 0 skipped) + git diff --stat + the verbatim mutation matrix showing the previously-surviving unreachable-attachment mutants now KILLED."
           },
           "retry_count": 0,
           "max_retries": 3

@@ -208,10 +208,36 @@ def format_skill(template: str, **kwargs: str) -> str:
     """Replace {{variable}} placeholders in a skill template with runtime values.
 
     Unmatched placeholders are left as-is (for conditional sections set to empty string).
+
+    phase-75.4 (item f): warn when a caller passes a kwarg that has NO matching
+    `{{placeholder}}` in the template. That combination means the runtime value is
+    silently discarded -- exactly the gap5-01 failure mode, where a `## ` heading
+    truncated `quant_model_agent`'s template and the builder's `quant_model_data=...`
+    went nowhere while the call still "succeeded".
+
+    The check runs against the EXTRACTED template (what `load_skill` returns), never
+    the raw file: several skill files' `## Data Inputs` prose documents bare
+    `{{debate_history}}` / `{{past_memory}}` / `{{devils_advocate}}` tokens that are
+    documentation, not real placeholders, and a raw-file comparison would emit false
+    positives for `moderator_agent` and `risk_judge`.
+
+    Only this direction is checked. The inverse (placeholder present, kwarg missing)
+    is left alone on purpose: conditional `*_section` placeholders are intentionally
+    passed as empty strings, so warning on those would be pure noise.
     """
     result = template
+    unused: list[str] = []
     for key, value in kwargs.items():
-        result = result.replace("{{" + key + "}}", str(value))
+        placeholder = "{{" + key + "}}"
+        if placeholder not in template:
+            unused.append(key)
+        result = result.replace(placeholder, str(value))
+    if unused:
+        logger.warning(
+            "format_skill: %d kwarg(s) had no matching placeholder in the template "
+            "and were silently discarded: %s",
+            len(unused), ", ".join(sorted(unused)),
+        )
     return result
 
 

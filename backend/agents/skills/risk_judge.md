@@ -120,12 +120,7 @@ You are the Risk Judge for {{ticker}}. You have received three risk assessments 
   "summary": "..."
 }
 
-## Experiment Log
-| Date | Commit | Metric Before | Metric After | Status | Description |
-|------|--------|--------------|-------------|--------|-------------|
-| — | — | — | — | baseline | Initial prompt from prompts.py |
-
-## Uncertainty Permission (phase-4.14.26)
+### Uncertainty Permission (phase-4.14.26)
 
 When the evidence is ambiguous or thin:
 - Say "I don't know" rather than forcing a guess.
@@ -138,8 +133,7 @@ Forcing a confident answer on weak evidence costs more (bad trade,
 missed nuance) than a clear retraction. Prefer retraction. A valid
 output may legitimately report no signal rather than fabricate one.
 
-
-## Empty-bracket retraction format (phase-4.14.26)
+### Empty-bracket retraction format (phase-4.14.26)
 
 An empty bracket marker `[]` or an omitted field is an acceptable
 form of retraction. Do NOT fill an array with placeholder entries
@@ -147,3 +141,8 @@ form of retraction. Do NOT fill an array with placeholder entries
 non-empty -- an empty bracket is strictly preferred when the evidence
 is thin. Downstream parsers accept `[]` as a valid "no signal"
 value.
+
+## Experiment Log
+| Date | Commit | Metric Before | Metric After | Status | Description |
+|------|--------|--------------|-------------|--------|-------------|
+| — | — | — | — | baseline | Initial prompt from prompts.py |

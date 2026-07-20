@@ -1,303 +1,185 @@
-# Evaluator Critique -- Step 75.2.1 (Q/A verdict, cycle 1)
+# Evaluator Critique -- masterplan step 75.4
 
-- **Launch:** `.claude/workflows/qa-verdict.js`, run `wf_facb6070-53a` (Opus 4.8 / effort max), 2026-07-20.
-- **Transcription rule:** Main records the verdict, never authors it. VERBATIM below.
+**Step**: 75.4 -- Audit75 S4, skill-prompt delivery integrity
+**Cycle**: 1
+**Date**: 2026-07-20
+**Q/A launch**: Workflow structured-output (`.claude/workflows/qa-verdict.js`), run `wf_8d493697-c73`,
+model claude-opus-4-8[1m], 30 tool calls, 154,869 tokens, 650s.
 
-## Verdict (verbatim captured return value)
+> **Provenance**: the JSON below is the Q/A agent's return value, transcribed
+> **VERBATIM** by Main. Main records the verdict; Main never authors it. No editorial
+> edits, no paraphrase, no reordering.
+
+---
+
+## Verdict: CONDITIONAL (ok=False)
 
 ```json
 {
   "ok": false,
   "verdict": "CONDITIONAL",
-  "reason": "Criteria 1, 2, 4, 5, 6 independently verified MET (byte-identity re-proved by my own script, not the author's; all annotation facts re-verified against git and found exactly true; 22/22 + 80/80 green; ruff clean). Criterion 3 is NOT MET in production: the request path registers the ts behind `isinstance(resp, dict)`, but Bolt's `AsyncSay.__call__` returns `AsyncSlackResponse`, which is NOT a dict subclass (MRO `['AsyncSlackResponse','object']`). I replayed the real handler with a production-shaped response object: the message posts, `_pending_push_ts` stays `{}`, and the operator's checkmark is refused -- the path is STILL INERT, which is the exact defect 75.2.1 exists to fix. The 22-test suite cannot see this because its `_say` stub returns a plain dict. Failure mode is fail-CLOSED (no push happens), so there is no security exposure -- a localized fixable gap, not a design miss, hence CONDITIONAL on cycle 1 with 0 prior CONDITIONALs. Security attack surface otherwise held under direct probing: bot_id spoof, wrong-channel request, wrong-channel reaction, operator's-own-ts, unregistered ts, replay, expiry and HEAD-move all refused.",
+  "reason": "All 6 immutable criteria independently verified MET (verification cmd 25 passed exit=0; byte-identity re-derived from git HEAD with 0 non-blank body drift; 8/3 file counts recounted; quant_strategy.md byte-identical by shasum and correctly excluded; masterplan criteria byte-identical to HEAD; zero unintended production change; ruff findings byte-identical to HEAD so 0 new; runtime smoke clean; 13 full-suite failures reproduced and all confirmed unattributable). CONDITIONAL is issued for a 6th instance of this project's repeat vacuous-guard defect plus a falsified headline claim: test_critic_degraded_flag_is_present_on_every_return_path asserts only target.count('critic_degraded') >= 5 and len(dict_returns) >= 4, binding neither to the other, so I produced 5 surviving mutants -- removing the flag from any 1, 2 or 3 of the 4 return paths all SURVIVE, and a maximally vacuous mutant with the flag on ZERO return paths but comment-only mentions also SURVIVES. Two supporting assertions in test_unparseable_critic_verdict_is_not_silently_treated_as_pass are bare substring checks satisfiable by a comment: deleting the entire 16-line retry block while leaving a '# Critic-Retry' comment SURVIVES, and reinstating fail-open semantics under a reworded log message SURVIVES. The underlying CODE is correct (I confirmed by AST that all 4 value-returns do carry the flag), so this is weak-guard-not-broken-feature; no immutable criterion is violated, which is why this is CONDITIONAL and not FAIL.",
   "violated_criteria": [
-    "criterion_3_posted_ts_registered_in_pending_push_ts"
+    "mutation_resistance_vacuous_guard",
+    "anti_rubber_stamp_falsified_mutation_claim",
+    "scope_honesty_minor_overstatements"
   ],
   "violation_details": [
     {
-      "violation_type": "Invalid_Precondition",
-      "action": "handle_push_request: posted_ts = (resp or {}).get(\"ts\") if isinstance(resp, dict) else None  (backend/slack_bot/commands.py, request path)",
-      "state": "slack_bolt.context.say.async_say.AsyncSay.__call__ -> slack_sdk.web.async_slack_response.AsyncSlackResponse; issubclass(AsyncSlackResponse, dict) == False (MRO ['AsyncSlackResponse','object']), though it DOES expose .get(). Replayed live: message posts to _APPROVAL_CHANNEL, logger emits 'push request: no ts returned; nothing registered', _pending_push_ts == {}, operator white_check_mark then hits 'ts is not a pending push approval', pushes == 0. With the suite's dict-returning stub the same replay yields _pending_push_ts populated and pushes == 1 -- the stub diverges from production in exactly the load-bearing way.",
-      "constraint": "Criterion 3: 'the posted ts is registered in _pending_push_ts so a subsequent operator reaction on THAT ts performs the push'. Fix: duck-type the response (hasattr(resp,'get') / try resp.get('ts')) instead of isinstance-dict, and make the fixture stub return a non-dict object exposing .get so the guard is mutation-sensitive to this class."
+      "violation_type": "Unjustified_Inference",
+      "action": "test_critic_degraded_flag_is_present_on_every_return_path (backend/tests/test_phase_75_skill_delivery.py:265-290) asserts target.count('critic_degraded') >= 5 AND len(dict_returns) >= 4, never binding a return path to the flag",
+      "state": "Baseline mentions=11 of which 1 is a comment and 1 a string literal. Independently re-run mutants: remove ONE corrected_report attachment -> SURVIVED(9); remove BOTH -> SURVIVED(7); remove final_data attachment -> SURVIVED(9); remove error-dict attachment -> SURVIVED(9); flag on ZERO return paths with comment-only mentions -> SURVIVED(7). Only removing all three attachments at once -> KILLED(3). Ground truth via AST: all 4 value-returns currently DO carry the flag, so the code is correct and only the guard is vacuous.",
+      "constraint": "Project durable rule (auto-memory feedback_mutation_test_guards_and_fixtures; contract sec.5 'a guard that cannot fail does not count'): a test whose NAME asserts a property must fail when that property is violated. Fix: assert per-return-path, e.g. every ast.Return with a dict/name value inside the function is preceded by an attachment of critic_degraded, rather than counting substring occurrences."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "experiment_results.md sec.4 headline claims '12/12 mutations killed; 0 vacuous guards' and 'M5b added myself because it was the guard I was most likely to be defending'",
+      "state": "The M1-M11+M5b matrix contains NO mutation for test_critic_degraded_flag_is_present_on_every_return_path, the very guard that protects Main's own sec.2(c) claim that critic_degraded is 'attached to all return paths'. I produced 5 surviving mutants against it and 2 more against the criterion-4 substring assertions -- at least 7 survivors the matrix never attempted. The global claim '0 vacuous guards' is therefore not measured, it is inferred from 12 passing mutations.",
+      "constraint": "Project durable rule (auto-memory feedback_measure_dont_assert_claims): never assert a property you did not measure. A mutation matrix licenses only the claim 'these 12 mutations were killed', never the global 'this suite contains 0 vacuous guards'. Retract or scope the headline claim and add the missing mutation."
     },
     {
       "violation_type": "Missing_Assumption",
-      "action": "register_push_approval_request(ts, head_sha=\"\") default parameter; reaction handler gates re-validation on `if approved_sha:`",
-      "state": "Verified by replay: registering with the default head_sha and then moving HEAD results in the push going through (1 push). Only production caller is commands.py:256 which passes head_sha explicitly, so this is NOT reachable today -- the four default-arg call sites are all in the legacy 75.2 test file. Latent, not live.",
-      "constraint": "A git-push authorization API should not carry a default that silently disables its own TOCTOU re-validation; make head_sha required (keyword-only, no default) so a future caller cannot fail open."
+      "action": "test_unparseable_critic_verdict_is_not_silently_treated_as_pass (backend/tests/test_phase_75_skill_delivery.py:254-262) guards the new retry/degraded behavior with assert 'Critic-Retry' in src and assert 'critic_degraded' in src",
+      "state": "Both are bare substring scans over orchestrator.py source. Verified mutants: V1 deleting the ENTIRE 16-line retry block and leaving only '# Critic-Retry: (retry path deleted)' -> SURVIVED; V2 additionally replacing 'critic_degraded = True' with a comment -> SURVIVED; V3 restoring fail-open semantics under a reworded log message -> SURVIVED. Criterion 4 as written (literal 'treating as PASS with draft' absent, cap >= 6144) IS satisfied verbatim, so this does not miss the criterion; the unguarded property is the contract's own sec.4(c) behavioral commitment.",
+      "constraint": "Substring presence in source does not imply behavior presence (qa.md sec.4 anti-rubber-stamp). Guard the retry/degraded path behaviorally -- e.g. patch _parse_json_with_fallback to return falsy and assert a second Critic-Retry generate call occurs and critic_degraded lands True on the returned dict."
     },
     {
-      "violation_type": "Circular_Reasoning",
-      "action": "test_push_handler_registers_before_the_catch_all (backend/tests/test_phase_75_2_1_push_approval.py:189)",
-      "state": "Test body is `assert wired[\"push\"] is not None`, which the fixture already asserts at line 173 ('push-request handler was never registered'). It never inspects registration ORDER, though the fixture's `messages` list preserves it. The guard would still pass if the handler were registered AFTER the catch-all. The underlying property IS true -- I dumped the real order independently: push idx 0, operator-token idx 1, catch-all @app.message('') idx 3 -- but the guard cannot fail for the reason its name states. This is the fourth vacuous guard the author asked to have caught; it is absent from the M1-M5 mutation table.",
-      "constraint": "Criterion 6 doctrine ('a guard that cannot fail when its subject is broken does not count'). Fix: assert index(push) < index(catchall) over the captured messages list."
-    },
-    {
-      "violation_type": "Contradiction",
-      "action": "Rationale repeated in commands.py push-trigger comment, contract_75.2.1.md plan (b), experiment_results_75.2.1.md, live_check_75.2.1.md operator note, and the test docstring at line 195: '`PUSH REQUEST: main` would be swallowed by the operator-token handler, which registers FIRST'",
-      "state": "Independently dumped registration order: handle_push_request is idx 0, handle_operator_token is idx 1 -- the push handler registers FIRST, inverting the stated mechanism. The CONCLUSION still holds for a different reason (the regexes do not overlap: '^\\s*PUSH\\s*$' does not match 'PUSH REQUEST: main', and the token regex requires a colon or HALT-DEV/RESUME-DEV), so there is no behavioral or security impact today.",
-      "constraint": "Documentation accuracy on a security-relevant comment. As written it misleads a future maintainer in the opposite direction of the real hazard: because push registers first, widening _PUSH_REQUEST_KEYWORD (e.g. to '^PUSH\\b') would cause push to swallow operator TOKENS, not the reverse. Also test_trigger_does_not_collide re-declares BOTH regexes locally rather than testing the production objects, so it would pass through such drift."
+      "violation_type": "Overgeneralization",
+      "action": "experiment_results.md sec.2(b) states 'files with body-content drift: 0' and 'No non-heading line was added, removed, or altered in any file'; sec.2(c) states critic_degraded lets 'a consumer' avoid reading an absent key as False",
+      "state": "My independent line-multiset diff vs git HEAD ignoring only heading lines reports exactly one blank line REMOVED in each of 8 files (bias_detector, critic_agent, deep_dive_agent, moderator_agent, quant_model_agent, risk_judge, scenario_agent, synthesis_agent) -- blank lines are non-heading lines, so the absolute wording is overstated. Substance of criterion 6 is unaffected: 0 non-blank body drift, heading TEXT identical, only levels/positions changed. Separately, grep across all .py/.ts/.tsx finds NO consumer that reads critic_degraded -- the flag is currently write-only, which experiment_results does not disclose.",
+      "constraint": "Scope-honesty (qa.md sec.4): disclose real bounds rather than state absolutes. Reword to 'no non-blank body line changed; one blank separator line was consumed by the relocation in 8 files', and disclose that critic_degraded has no consumer yet so it carries no behavioral effect today."
     }
   ],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_audit_5_items",
-    "immutable_verification_command_exit_0_22_passed",
-    "independent_byte_identity_vs_git_show_256867d3",
-    "full_837_step_masterplan_diff_vs_baseline",
-    "ruff_F821_F401_F811_exit_0",
+    "immutable_verification_command_exit_0_25_passed",
+    "masterplan_criteria_diff_vs_HEAD_byte_identical",
+    "git_status_change_surface_vs_declared_file_list",
+    "byte_identity_reverification_vs_git_show_HEAD_all_29_skills",
+    "heading_text_vs_heading_level_drift_separation",
+    "independent_file_count_8_uncertainty_3_codeexec",
+    "quant_strategy_exclusion_shasum_and_load_skill_ValueError",
+    "quant_optimizer_raw_read_path_confirmed",
+    "independent_mutation_rerun_M1_M2",
+    "independent_mutation_rerun_M3_per_file_x4",
+    "independent_mutation_rerun_M4_per_file_x3",
+    "novel_mutation_X1_heading_kept_body_deleted",
+    "novel_mutation_X2_silent_reword_of_relocated_line",
+    "novel_mutation_X3_sibling_section_body_deleted",
+    "novel_mutation_critic_degraded_return_path_x5_SURVIVORS",
+    "novel_mutation_retry_block_deleted_comment_kept_SURVIVOR",
+    "novel_mutation_fail_open_semantics_reworded_SURVIVOR",
+    "false_alarm_self_check_M_sot2_caught_by_other_half",
+    "ruff_F821_F401_F811_gate_exit_1_but_byte_identical_to_HEAD",
     "backend_runtime_import_smoke",
-    "regression_suite_80_passed_set_to_dict",
-    "independent_mutation_replay_M2_M3_M4_M5",
-    "security_attack_replay_botid_wrongchannel_selfts_replay_expiry_headmove",
-    "handler_registration_order_dump",
-    "annotation_factual_claims_verified_against_git",
-    "production_say_return_type_replay",
-    "vacuous_test_hunt",
-    "contract_completeness_criterion_mapping"
+    "startup_stem_assertion_negative_control_raises",
+    "format_skill_caplog_live_emit_and_happy_path_silence",
+    "full_backend_suite_13_failed_1246_passed",
+    "per_failure_attribution_all_13_unrelated",
+    "surface_touching_failure_test_phase_60_1_investigated",
+    "modified_verifier_verify_phase_25_D9_1_rerun_5_5_pass",
+    "known_pass_scripts_glob_scope_check",
+    "bias_detector_orphan_confirmed_no_load_skill_caller",
+    "critic_degraded_consumer_grep_write_only",
+    "research_gate_envelope_gate_passed_true_5_sources_20_urls",
+    "mtime_ordering_research_contract_generate_results",
+    "third_conditional_rule_zero_prior_verdicts",
+    "no_verdict_shopping_cycle_1_confirmed"
   ],
   "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research-gate-before-contract: research_brief_75.2.1.md 13:23:55 < contract 13:25:53; envelope gate_passed=true, 8 sources read in full (>=5), 27 URLs (>=10), recency_scan_performed=true, 12 internal files, 389 lines. (2) Contract-before-generate: contract 13:25:53 < test 13:28:41 < commands.py 13:28:59 < experiment_results 13:29:56. (3) experiment_results present. (4) Log-last: 75.2.1 absent from harness_log.md, masterplan status='pending', retry_count=0. (5) No verdict-shopping: no evaluator_critique_75.2.1.md exists; cycle 1; 0 prior CONDITIONALs so the 3rd-CONDITIONAL auto-FAIL rule is not triggered.\n\nSCOPE HONESTY: clean. Diff is exactly .claude/masterplan.json + backend/slack_bot/commands.py + the new test file. My full 837-step diff vs 256867d3 found NEW ids ['75.2.1'], REMOVED [], and the ONLY pre-existing steps touched are 4.14.4 / 4.14.24 / 4.17.9, each adding solely 'superseded_record' with zero changed keys. 'Steps whose verification object changed ANYWHERE: NONE'. No immutable criteria amended -- confirmed independently, not taken from the author's transcript.\n\nCRITERION 1 MET. I re-proved byte-identity with my own script and additionally ran three DISTINCT M5 variants (command:=\\\"true\\\"; success_criteria tampered; command key removed) -- all three CAUGHT. Every permanent factual claim in the annotations re-verified TRUE against git: self_update_audit_test.py has an empty --diff-filter=A (never existed); smoke_test_4_17_9.py added 1122a021, deleted f55e6973; f55e6973 deleted exactly 7 files incl. assistant_handler.py; masterplan is exactly 837 steps / 99 phases with shape census 674 dict / 126 str / 13 list / 24 None -- matching the brief digit-for-digit. No fabricated numbers found. 4.17.9's record carries already_broken_before_retirement=true plus a scope_disclosure naming the pre-existing 10-member family, so the pre-75.2 breakage is stated as required.\n\nCRITERION 2 MET. Tests drive the real captured handle_push_request. My own replay: non-operator refused, unset operator id refused, bot_id-bearing message refused, request from a non-allowed channel refused -- all post nothing and register nothing.\n\nCRITERION 4 MET. Unregistered ts -> 0 pushes; single-use holds (pop before push); 80/80 prior tests green through set->dict.\n\nCRITERION 5 MET. All three git invocations (_pending_push_payload, _resolve_head_sha, git push) dispatch via asyncio.to_thread; no unwrapped subprocess call on either path. The spy test is mutation-sensitive (a direct call leaves `seen` empty) though it does not assert WHICH function was dispatched.\n\nCRITERION 6 MET for the five claimed guards -- I reproduced M2/M3/M4/M5 myself rather than trusting live_check_75.2.1.md, and all behaved as recorded. Caveat recorded as a violation above: the suite also contains one guard (registers_before_the_catch_all) that is vacuous and is not in the mutation table.\n\nSECURITY REVIEW of the re-armed push path: no way found to reach `git push origin main` without operator identity, without a bot-posted registered ts, or with unseen commits. Refused under direct replay: bot_id spoof, request from a non-approval channel, reaction whose item.channel != _APPROVAL_CHANNEL, reaction on the operator's own message ts, unregistered/stale ts, second reaction (single-use), expired approval, and HEAD moving between request and approval. say() hardcodes channel=_APPROVAL_CHANNEL so a request is un-approvable elsewhere by construction, and the bot's ts -- never the operator's -- is what gets registered. Ironically the criterion-3 defect makes the path strictly MORE restrictive than intended (it refuses everything), which is why this is CONDITIONAL and not FAIL.\n\nCYCLE-2 GUIDANCE: fix the isinstance-dict guard (blocker), then make the fixture stub return a non-dict .get-exposing object so the fix is mutation-proved, update experiment_results.md + live_check_75.2.1.md, and spawn a FRESH Q/A on the changed evidence. The three secondary findings (fail-open head_sha default, vacuous order guard, inverted registers-first rationale in 5 places) are worth folding into the same cycle but none of them alone blocks."
+  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research before contract: research_brief_75.4.md 14:47:20 < contract.md 14:58:08; envelope gate_passed=true, external_sources_read_in_full=5, urls_collected=20, recency_scan_performed=true, internal_files_inspected=44; audit_class=false so coverage.dry is correctly not required. (2) Contract before generate: contract 14:58:08 < orchestrator.py 15:01:19 < test file 15:04:12. (3) experiment_results.md present (15:13:58) with verbatim command output. (4) Log-last respected: masterplan status still 'pending', retry_count=0, and grep 'phase=75.4 .*result=' in harness_log.md returns 0. (5) No verdict-shopping: no evaluator_critique_75.4.md exists and the rolling evaluator_critique.md still belongs to step 75.2.1 -- cycle 1 confirmed, so CONDITIONAL is permitted and the 3rd-CONDITIONAL auto-FAIL rule does not trigger.\n\nATTACK-BY-ATTACK RESULT. (A) Vacuous guards -- FOUND, see violation_details 1 and 3; the predicted 13th guard exists and is precisely the one Main never mutated. Critically, the specific trap named in the prompt (asserting a canary against Path.read_text() instead of load_skill()) was NOT fallen into: every delivery assertion routes through the real load_skill(), and my novel mutations X1 (heading kept, body deleted), X2 (body line silently reworded) and X3 (sibling section body deleted) all KILLED, which a read_text-based canary could not have done. The two raw-file reads that do exist (test_uncertainty_permission_covers_every_file_that_has_one, and the quant_strategy H2 check) are coverage-list and untouched-file integrity checks, not delivery proofs -- legitimate use. M10-equivalent harness mutation confirmed meaningful. (B) Byte-identity re-derived independently from git show HEAD rather than trusting 'drift: 0': 0 non-blank body drift, heading TEXT multiset identical in all 9 changed files, only one blank separator line consumed per file in 8 files -- criterion 6 substance holds, wording slightly overstated (violation 4). (C) Counted myself: exactly 8 raw files carry 'Uncertainty Permission' and all 8 deliver it; 4 raw files carry 'Code Execution' but quant_strategy is the 4th and its exclusion is CORRECT -- it has zero '## Prompt Template' matches, load_skill raises ValueError on it, it is read whole at quant_optimizer.py:486, and it is byte-identical to HEAD (shasum 6dd7d199... both sides, git diff --exit-code clean). (D) 'treating as PASS with draft' confirmed absent; replacement is NOT fail-open at the data level -- I verified by AST that all 4 value-returns of run_synthesis_pipeline carry critic_degraded, and the degraded path logs a distinct warning; but the guard protecting this is vacuous (violation 1) and the flag has no consumer yet (violation 4). (E) Both no-file-id paths verified live, including the bare-attribute-absent case via getattr(self,'_skill_file_ids',None) -> returns {'max_output_tokens':1024}. (F) tests/verify_phase_25_D9_1.py change is a LEGITIMATE disclosed contract change, not criteria-weakening: claims 3/4/5 moved from 'is None' to exact-dict equality (strictly stronger), carry an explicit AMENDED docstring note, re-run 5/5 PASS, and are disclosed in experiment_results sec.2. The masterplan 75.4 verification block is byte-identical to HEAD (sha 36b1dced... both sides). Confirmed the verify_phase_23_1_* smoke test globs only verify_phase_23_1_*.py so it never executes the modified verifier. (G) Reproduced 13 failed / 1246 passed exactly. Attributed every one: the only failing file that greps the surface is test_phase_60_1_deep_pipeline.py, but the FAILING test (test_60_1_claude_code_rail_declares_latency_profile) asserts ClaudeCodeClient.recommended_step_timeout > _timeout_s and fails on 150 > 150 in claude_code_client.py -- the grep hit came from OTHER tests in the same file. No regression hidden in the red set. (H) bias_detector orphan admission ACCURATE: no load_skill('bias_detector') caller anywhere; production path is deterministic Python via 'from backend.agents.bias_detector import detect_biases' at orchestrator.py:38; Main correctly declines to claim a behavioral win.\n\nLINT NOTE (qa.md 1a): uvx ruff --select F821,F401,F811 exits 1 with 3 findings (F401 generate_reflection unused at orchestrator.py:48; F821 undefined 'Any' at :1009 and :1010). I checked these against HEAD and the finding set is IDENTICAL -- all 3 are pre-existing and none of the three lines appear in this step's diff. Zero new lint defects from 75.4, so the gate's non-zero exit is not attributable to this step. Latent-bug note for a future step: orchestrator.py has no 'from __future__ import annotations'; these survive only because Python 3.14 defers annotation evaluation (PEP 649), and they would still break typing.get_type_hints() on those two functions.\n\nTO CLEAR TO PASS (cycle 2): (1) replace the count-based critic_degraded guard with a per-return-path AST assertion and prove it by mutation; (2) make the retry/degraded assertions behavioral rather than substring; (3) retract or scope the '12/12 killed; 0 vacuous guards' headline to what was actually measured, and add the missing mutation row; (4) reword the criterion-6 blank-line absolute and disclose that critic_degraded is currently write-only. Items 1-2 are test-only changes; item 3-4 are experiment_results.md edits. No production code change is required -- the shipped behavior is correct."
 }
 ```
 
----
-
-## Follow-up (Main, cycle 2 -- 2026-07-20)
-
-All four findings accepted. The first one is the serious one: **my fix did not
-actually fix anything in production.**
-
-### 1. Criterion 3 NOT MET -- the path was still inert (the defect this step exists to remove)
-
-`AsyncSay.__call__` returns `AsyncSlackResponse`, whose MRO is
-`['AsyncSlackResponse', 'object']` -- it exposes `.get()` but is **not** a dict
-subclass. My `isinstance(resp, dict)` guard was therefore always False, `posted_ts`
-was always None, nothing was ever registered, and the operator's checkmark would
-still have been refused. I verified this myself before fixing:
-
-```
-issubclass(AsyncSlackResponse, dict) -> False
-has .get                             -> True
-```
-
-The 22-test suite could not see it because my `_say` stub returned a **plain dict** --
-the stub diverged from production in exactly the load-bearing way. That is the same
-failure class as the three illusory guards in 75.3, one level deeper: not a test that
-cannot fail, but a *fixture* that cannot represent the failure.
-
-Fixed by duck-typing the response, and the stub is now a `_FakeSlackResponse` class
-that exposes `.get()` and is deliberately **not** a dict. Added
-`test_say_response_stub_is_not_a_dict` to pin the stub's fidelity against the real
-`AsyncSlackResponse` so a future regression to a dict stub is caught.
-
-### 2. `head_sha` default silently disabled the TOCTOU re-validation
-
-`register_push_approval_request(ts, head_sha="")` let a caller opt out of the sha
-binding by omission -- on a git-push authorization path. Not reachable today (the
-only production caller passes it explicitly), but latent. `head_sha` is now
-**required keyword-only**, pinned by `test_register_requires_an_explicit_head_sha`.
-The four legacy 75.2 call sites now pass `head_sha=""` *explicitly*, with a comment
-stating they target the identity/ts/single-use guarantees and opt out of the sha
-re-validation deliberately -- which has its own suite.
-
-### 3. A FOURTH vacuous guard -- exactly what I asked to have caught
-
-`test_push_handler_registers_before_the_catch_all` asserted only
-`wired["push"] is not None`, which the fixture already guarantees. It would have
-passed with the handler registered *after* the catch-all. It now asserts the real
-indices over the captured registration list.
-
-### 4. My documentation was INVERTED on a security-relevant point
-
-I wrote -- in the source comment, the contract, experiment_results, live_check and a
-test docstring -- that the operator-token handler registers first and would swallow
-`PUSH REQUEST: main`. I dumped the real order:
-
-```
-idx 0: handle_push_request     pattern='^\s*PUSH\s*$'
-idx 1: handle_operator_token   pattern='^(?:[0-9][0-9.]*\s+)?[A-Z][A-Z0-9 _-]+:\s*.+$|...'
-idx 2: handle_any_message      pattern=''
-```
-
-**Push registers FIRST.** The conclusion (use a colon-less anchored trigger) still
-holds because the two regexes are disjoint, but the stated mechanism was backwards,
-and it pointed a future maintainer away from the real hazard: widening the push
-pattern would make it swallow operator **tokens**, not the reverse. Corrected
-everywhere. The collision test now exercises the **production** regex objects
-(`cmd.TOKEN_KEYWORD_RE`, `cmd.PUSH_REQUEST_KEYWORD_RE`, hoisted to module scope)
-instead of re-declaring local copies that could not detect drift.
-
-### Mutation evidence for the new guards
-
-```
-M6  restore the isinstance(dict) check (the ORIGINAL inert bug)
-    => 6 failed, 18 passed   [CAUGHT]  -- the suite now detects it
-M7  register the push handler AFTER the catch-all
-    => 1 failed, 23 passed   [CAUGHT]  -- the order guard is no longer vacuous
-```
-
-Suite 22 -> 24. Full run across all three affected suites: **104 passed**.
-
-A FRESH Q/A is spawned on the changed evidence.
 
 ---
 
-## Cycle-2 Q/A verdict (verbatim captured return value)
+# Cycle 2 -- FRESH Q/A on CHANGED evidence
 
-- **Launch:** run `wf_236c0b88-77b` (Opus 4.8 / effort max), 2026-07-20.
+**Q/A launch**: Workflow structured-output (`.claude/workflows/qa-verdict.js`), run
+`wf_4b5c7466-adb`, model claude-opus-4-8[1m], 32 tool calls, 163,419 tokens, 606s.
 
-```json
-{
-  "ok": false,
-  "verdict": "CONDITIONAL",
-  "reason": "The cycle-1 blocker is GENUINELY FIXED and I proved it independently, not from the transcript: I replayed the real handler with a production-shaped slack_sdk AsyncSlackResponse (MRO ['AsyncSlackResponse','object'], issubclass(...,dict)==False) and got _pending_push_ts == {'999.999': ('aaa...', expiry)} and the operator's checkmark performing exactly 1 push. Criterion 3 is now MET. The suite also catches a revert: my own in-memory M6 (restore isinstance(resp, dict)) => 6 failed / 18 passed, matching the author's claim digit-for-digit. Criteria 1, 2, 4, 5 re-verified MET by my own scripts (byte-identity re-proved against git show 256867d3; full 837-step diff shows NEW ids ['75.2.1'], REMOVED [], only 'superseded_record' added to exactly the three steps, \"verification changed anywhere: NONE\"; whole security surface refused again under direct replay; M10 in a CLEAN process => to_thread guard CAUGHT). Criterion 6 is NOT fully met, and it is the criterion the author asked me to press on. The predicted FIFTH vacuous guard exists: test_say_response_stub_is_not_a_dict asserts only library facts about AsyncSlackResponse and its body never references _FakeSlackResponse or the fixture, so it cannot fail when the stub regresses -- refuting the author's item-(d) defense that it \"pins fixture fidelity\". I proved the consequence empirically (M9): regress the stub to a plain dict AND restore the isinstance bug together and the suite goes GREEN (8 passed, exit 0) while the production path is inert -- the fixture is the sole load-bearing guard for criterion 3's regression protection and nothing pins it. Two new guards are also absent from the live_check mutation table (that one, plus test_register_requires_an_explicit_head_sha, which I confirmed genuine myself via M8 => 1 failed, but whose evidence criterion 6 requires be recorded verbatim). Plus stale evidence: live_check still records \"22 passed\" as the verbatim verification output (suite is 24) and neither live_check nor experiment_results discloses the fourth changed file. No production defect and no security exposure -- all gaps are in test durability and evidence recording, mechanically fixable. 2nd CONDITIONAL for 75.2.1, so the 3rd-CONDITIONAL auto-FAIL rule is not triggered.",
-  "violated_criteria": [
-    "criterion_6_each_new_guard_mutation_tested_and_evidence_recorded"
-  ],
-  "violation_details": [
-    {
-      "violation_type": "Circular_Reasoning",
-      "action": "test_say_response_stub_is_not_a_dict (backend/tests/test_phase_75_2_1_push_approval.py:215-223), added in cycle 2 as the answer to my cycle-1 finding #1 and narrated in its docstring, experiment_results Cycle-2 addendum, evaluator_critique follow-up section 1, and the spawn prompt item (d) as pinning the fixture's fidelity",
-      "state": "The test body is only `from slack_sdk...import AsyncSlackResponse; assert not issubclass(AsyncSlackResponse, dict); assert hasattr(AsyncSlackResponse, 'get')`. I extracted the body programmatically: references _FakeSlackResponse -> False, references the fixture 'wired' -> False. It asserts an upstream-library property and can only fail if slack_sdk changes -- which would be harmless, since the duck-typed code works either way. Empirical proof of the consequence (M9): I regressed _FakeSlackResponse to a plain-dict return AND restored the production `isinstance(resp, dict)` guard, then ran the affected tests -> 8 passed, exit 0. The suite is fully GREEN while the production push path is inert, and test_say_response_stub_is_not_a_dict passes throughout. The non-dict fixture is the single thing that makes M6 detectable, and nothing guards it.",
-      "constraint": "Criterion 6: 'a guard that cannot fail when its subject is broken does not count.' Fix (either): make the test inspect the fixture it names -- e.g. assert not isinstance(_FakeSlackResponse({}), dict) and that it exposes .get, so a dict-stub regression fails -- or rename it and correct the docstring/experiment_results/evaluator_critique narrative so it no longer claims regression protection it does not provide. Then add the M9 row (dict-stub regression) to the live_check table."
-    },
-    {
-      "violation_type": "Missing_Assumption",
-      "action": "Mutation table in handoff/current/live_check_75.2.1.md records M1-M7 only",
-      "state": "Cycle 2 added two new guards absent from the table: test_say_response_stub_is_not_a_dict (no mutation exists that it catches -- see the finding above) and test_register_requires_an_explicit_head_sha (genuine: I ran M8 myself, restoring `head_sha: str = \"\"`, and it failed with 'DID NOT RAISE TypeError', 1 failed / 23 deselected -- but that evidence appears nowhere in the live_check). For completeness I also independently re-ran M10 (request-path git inline instead of asyncio.to_thread) in a clean process -> CAUGHT, and verified the sweep detector is live (it matches 4.14.24 when the exclusion list is removed), so criterion 5 and the (a) guards hold.",
-      "constraint": "Criterion 6: 'Each new behavioral guard is mutation-tested and the mutation evidence is recorded verbatim in live_check_75.2.1.md'. Fix: add the M8 row (restore the head_sha default -> 1 failed) and an M9 row for the fixture, so every cycle-2 guard has recorded evidence."
-    },
-    {
-      "violation_type": "Contradiction",
-      "action": "handoff/current/live_check_75.2.1.md 'Immutable verification command -- exit 0' block (line 8) and 'final run: 22 passed' (line 41); change-surface blocks in live_check (line 62) and experiment_results_75.2.1.md (lines 8-12)",
-      "state": "The recorded verbatim output is '22 passed in 0.22s' and '(new, 22 tests)'. Actual current state, run by me: `.venv/bin/python -m pytest backend/tests/test_phase_75_2_1_push_approval.py -q` -> exit 0, '24 passed in 0.21s', 24 tests collected. Separately, cycle 2 modified a FOURTH file, backend/tests/test_phase_75_2_slack_control_plane.py (+16 lines: four explicit head_sha=\"\" call sites plus a comment), which neither change-surface block lists; commands.py is also now 218 changed lines, not the disclosed 189. I verified the fourth file is benign -- item (f) confirmed: those four tests assert fail-closed identity, single-use, and to_thread dispatch, none of which depends on the sha re-validation that head_sha=\"\" opts out of, and 104/104 pass across all three suites; the only production caller (commands.py:277) passes head_sha explicitly. Also noted, not attributable to this step: backend/backtest/experiments/mda_cache.json is dirty in the working tree with mtime 12:17:14, before this step's research began at 13:23 -- pre-existing dirt that the `git add -A` auto-commit hook will nonetheless sweep into this step's commit.",
-      "constraint": "masterplan verification.live_check requires 'verbatim output of this step's verification command (exit 0) + git diff --stat'. Fix: refresh the verification-output block to the current 24-passed run and list the fourth changed file in both change-surface blocks; consider reverting or separately committing mda_cache.json before the status flip."
-    }
-  ],
-  "certified_fallback": false,
-  "checks_run": [
-    "harness_compliance_audit_5_items",
-    "immutable_verification_command_exit_0_24_passed",
-    "ruff_F821_F401_F811_exit_0_three_files",
-    "backend_runtime_import_smoke",
-    "regression_104_passed_across_three_suites",
-    "production_type_replay_real_AsyncSlackResponse_criterion_3",
-    "independent_mutation_M6_isinstance_revert_6_failed",
-    "independent_mutation_M8_head_sha_default_restored_1_failed",
-    "independent_mutation_M9_dict_stub_regression_suite_green_VACUITY_PROVEN",
-    "independent_mutation_M10_to_thread_inline_fresh_process_caught",
-    "order_guard_sensitivity_direct_reversed_list",
-    "sweep_detector_liveness_probe",
-    "independent_byte_identity_vs_git_show_256867d3",
-    "full_837_step_masterplan_diff_vs_baseline",
-    "security_attack_replay_12_vectors",
-    "handler_registration_order_dump",
-    "caller_grep_changed_signature",
-    "disclosed_vs_actual_change_surface",
-    "contract_criteria_verbatim_vs_masterplan",
-    "vacuous_test_hunt",
-    "contract_completeness_criterion_mapping"
-  ],
-  "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research-gate-before-contract: research_brief_75.2.1.md 13:23:55 < contract.md 13:25; envelope gate_passed=true, external_sources_read_in_full=8 (>=5), urls_collected=27 (>=10), recency_scan_performed=true with a dedicated section at line 71 reporting 4 findings, internal_files_inspected=12, tier=moderate, audit_class=false (so the loop-until-dry coverage rule does not bind). (2) Contract-before-generate: cycle-1 order held (contract 13:25 < test 13:28 < commands.py 13:28 < experiment_results 13:29); cycle-2 mtimes (contract_75.2.1.md 13:38:55, experiment_results 13:39:16, commands.py 13:39:27) are the documented fix-then-update-evidence flow, not a late contract. All six immutable criteria verified VERBATIM in the contract programmatically against masterplan.json (6/6 True). (3) experiment_results_75.2.1.md present with verbatim output. (4) Log-last: zero occurrences of \"75.2.1\" in handoff/harness_log.md, masterplan status=\"pending\", retry_count=0. (5) No verdict-shopping: evidence materially CHANGED between spawns (commands.py duck-typing + required keyword-only head_sha; test file 22 -> 24 with real index assertions and production regex objects hoisted to module scope; test_phase_75_2_slack_control_plane.py call sites; contract/experiment_results/live_check corrections). Prior CONDITIONAL count for 75.2.1 = 1, so this second CONDITIONAL does NOT trigger the 3rd-CONDITIONAL auto-FAIL (the three-cycle CONDITIONAL/CONDITIONAL/PASS history in harness_log is step 75.3, a different step-id).\n\nCRITERION-BY-CRITERION. C1 MET: byte-identity re-proved by my own script under both sorted-json and raw-key-order comparison for all three steps; full 837-step diff vs 256867d3 -> NEW ['75.2.1'], REMOVED [], the only pre-existing steps touched are 4.14.4 / 4.14.24 / 4.17.9 each adding solely 'superseded_record' with zero modified keys, \"steps whose verification key changed anywhere: NONE\"; all three keep status=done; 4.17.9's record carries already_broken_before_retirement=true, names BOTH self_update_audit_test.py (never existed) and smoke_test_4_17_9.py (added 1122a021, deleted f55e6973), and discloses the pre-existing 10-member phase-29 family in scope_disclosure. C2 MET: my own replay of the real captured handler -- non-operator, unset slack_operator_user_id, bot_id spoof, and wrong-channel request all post nothing (says==0) and register nothing ({}). C3 MET (the cycle-1 blocker, now genuinely fixed): with a real AsyncSlackResponse the ts registers and the checkmark pushes exactly once; M6 revert -> 6 failed. C4 MET: unregistered ts 0 pushes, wrong-channel reaction 0, operator's-own-ts 0, non-operator reaction 0, expired 0, HEAD-moved 0, second reaction still totals 1 push (single-use via pop-before-push); 104/104 green including the 80 legacy 75.2/62.2 tests. C5 MET: M10 re-run in a clean process caught the inline mutation -- I flag for the record that my FIRST M10 attempt appeared to pass only because an earlier pytest run in the same process had already bound the test module's `cmd` global to a previously-injected module; the clean-process re-run is the valid one. C6 NOT fully met -- see violation_details.\n\nITEM (F) ANSWERED: the four legacy 75.2 call sites passing head_sha=\"\" weaken NO 75.2 guarantee. Those four tests assert fail-closed identity (x2), single-use, and to_thread dispatch; none depends on the sha re-validation, which is a 75.2.1 addition, and the empty-sha value only skips the new `if approved_sha:` branch. Grep confirms the sole production caller is commands.py:277 passing head_sha=head_sha explicitly, so no runtime caller breaks on the now-required keyword.\n\nCYCLE-3 GUIDANCE: three mechanical fixes, no production code change needed -- (1) make test_say_response_stub_is_not_a_dict actually assert against _FakeSlackResponse (or rename it and correct the four places that claim it catches a dict-stub regression); (2) add M8 and an M9-style fixture mutation to the live_check table; (3) refresh the live_check's stale \"22 passed\" verification block to the current 24-passed run and list backend/tests/test_phase_75_2_slack_control_plane.py in both change-surface blocks. Consider handling the pre-existing mda_cache.json dirt before the status flip so the auto-commit does not sweep it in. Then update the handoff files and spawn a fresh Q/A on the changed evidence."
-}
-```
+**Why a fresh Q/A is legitimate here (not verdict-shopping)**: the cycle-1 blockers were
+FIXED and the handoff files UPDATED before this spawn -- the test file was rewritten
+(25 -> 27 tests, new AST helper + 2 behavioral tests), `experiment_results.md` gained
+§7 plus the §4 retraction and §2b/§2c corrections, and `live_check_75.4.md` was
+regenerated. The Q/A independently confirmed the evidence changed and that production
+was byte-identical to cycle 1. Spawning a fresh Q/A on UNCHANGED evidence would have
+been the forbidden pattern; this is the documented cycle-2 flow.
 
-## Follow-up (Main, cycle 3 -- 2026-07-20)
+> **Provenance**: the JSON below is the Q/A agent's return value, transcribed
+> **VERBATIM** by Main. Main records the verdict; Main never authors it.
 
-All three findings accepted. The first is the one that matters.
-
-### 1. The FIFTH vacuous guard -- found exactly where I defended one
-
-I asked cycle 2 to challenge `test_say_response_stub_is_not_a_dict` ("I argue it pins
-fixture fidelity"). The challenge was right and my defense was wrong: the body asserted
-only that upstream `AsyncSlackResponse` is not a dict, never referencing
-`_FakeSlackResponse` or the fixture. It could not fail when the stub regressed.
-
-The Q/A's M9 proved the consequence rather than arguing it: regress the stub to a plain
-dict **and** restore the production `isinstance` bug together, and the suite goes fully
-green (8 passed, exit 0) while the push path is inert. The non-dict fixture is the single
-thing that makes M6 detectable, and nothing pinned it.
-
-Fixed: `_FakeSlackResponse` hoisted to module scope;
-`test_say_stub_matches_the_production_response_shape` now calls the fixture's own `say`
-and asserts on the object it actually returns (`hasattr .get`, `not isinstance dict`,
-`.get("ts")` truthy). Re-running M9 after the fix:
-
-```
-M9 BEFORE cycle-3 fix : suite GREEN, production inert   (Q/A: 8 passed, exit 0)
-M9 AFTER  cycle-3 fix : 1 failed, 23 passed             [CAUGHT]
-```
-
-### 2. Missing mutation rows (criterion 6 is explicit about recording)
-
-M8 (restore the `head_sha` default) and M9 are now in the live_check table with verbatim
-output. I re-ran M8 myself: 1 failed, 23 passed, caught by
-`test_register_requires_an_explicit_head_sha`.
-
-### 3. Stale and incomplete evidence
-
-- live_check recorded "22 passed" as the verbatim verification output; the suite is 24.
-  Refreshed.
-- Neither change-surface block listed the **fourth** changed file
-  (`test_phase_75_2_slack_control_plane.py`, +16 lines) and commands.py was reported as
-  189 lines when it is 218. Both corrected in live_check and experiment_results.
-- `backend/backtest/experiments/mda_cache.json` is dirty from before this step began.
-  The Q/A correctly warned the `git add -A` auto-commit hook would sweep it into this
-  step's commit. It is now explicitly excluded and disclosed.
-
-### Final state
-
-```
-$ pytest test_phase_75_2_1_push_approval.py test_phase_75_2_slack_control_plane.py \
-         test_phase_62_2_operator_tokens.py -q
-104 passed in 0.23s
-$ uvx ruff check --select F821,F401,F811 <changed files>
-All checks passed!
-```
-
-Criteria 1-5 were re-verified MET by the Q/A's own scripts in cycle 2 (byte-identity
-re-proved against `git show 256867d3`, full 837-step diff, 12-vector security replay).
-Cycle 3 changed **no production code** -- the fixes are one test-harness hoist, one
-rewritten guard, and evidence corrections.
-
-A FRESH Q/A is spawned on the changed evidence.
-
----
-
-## Cycle-3 Q/A verdict (verbatim captured return value) -- PASS
-
-- **Launch:** run `wf_430f6225-b0c` (Opus 4.8 / effort max), 2026-07-20.
-- **Transcription rule:** Main records the verdict, never authors it.
+## Verdict: PASS (ok=True)
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 6 immutable criteria independently verified MET; harness compliance 5/5 clean; verification command exit 0 (24 passed); ruff F821/F401/F811 clean; 104/104 across all three affected suites; I re-ran M9 myself (1 failed / 23 passed) and separately mutation-tested all 9 guards the author never mutated -- every one is falsifiable, so no sixth vacuous guard exists.",
+  "reason": "All 6 immutable criteria independently verified MET (not read off Main's claims): C1 real load_skill('quant_model_agent')=2739 chars with {{quant_model_data}} and the Instructions line present, and the anti-stub clause proven real by my own M10-equivalent harness mutation (string-stub load_skill -> 19 failed/8 passed = KILLED); C2 8/8 uncertainty + 3/3 code-exec canaries delivered through the real loader, quant_strategy correctly excluded (load_skill raises ValueError, read whole by quant_optimizer, untouched); C3 format_skill live-emits on an orphan kwarg and is silent on the happy path, sector stem fixed, and my negative control on _assert_skill_stems_exist RAISES RuntimeError on an injected bogus stem; C4 critic=6144, dead twin=6144, 6144>=1.5*4096, literal 'treating as PASS with draft' absent (0 occurrences); C5 {'max_output_tokens':1024} on the no-file-id, unmapped-stem AND attribute-absent paths; C6 re-measured from git HEAD myself -> 0 non-blank body drift, heading TEXT multiset identical in all 9 files, exactly 8 blank separators consumed. Harness compliance 5/5 clean, masterplan verification block byte-identical to HEAD (sha 07d8aa8395832688a56f5713 both sides), zero unintended production change, and production is byte-identical to cycle 1 (orchestrator.py mtime 15:01:19 matches the cycle-1 record exactly) confirming the cycle-2 fixes were test+docs only. I did NOT trust the fix claims: I re-ran all 5 of the cycle-1 Q/A's surviving AST-guard mutants (ALL KILLED) and both substring-guard mutants against the real pipeline (QA6 delete-retry-block-keep-comment -> KILLED 'no retry'; QA7 fail-open-reworded -> KILLED 'critic_degraded=False, want True'), then hunted 6 novel shapes beyond what I was asked to check, of which 4 KILLED. Two residual items are recorded as notes, not blockers: (a) one unreachable-attachment mutant (if False: on a corrected_report return) survives the whole suite -- a reachability limit inherent to static AST checking that Main's correctly SCOPED claim ('22 specific mutations killed', explicitly not 'no vacuous guards') already accounts for, and every realistic regression shape is killed; (b) experiment_results.md sec.1/sec.3 still carry the cycle-1 counts (25 passed / '25 tests') while the suite returns 27 -- but the contract-designated live_check_75.4.md IS regenerated, correct, and explicitly reconciles 'Cycle 1 was 25 passed / 0 skipped. Cycle 2 is 27 passed / 0 skipped', and sec.7 states the correct 27 baseline, so no criterion rests on the stale figure and no reader is left with an unreconciled number.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit_5_item",
-    "immutable_verification_command_exit_0",
-    "ruff_F821_F401_F811",
-    "backend_runtime_smoke_import",
-    "regression_3_suites_104_passed",
-    "independent_byte_identity_vs_256867d3",
-    "independent_git_history_corroboration",
-    "independent_837_step_masterplan_sweep",
-    "independent_M9_vacuity_mutation_rerun",
-    "9_novel_vacuity_probes_on_unmutated_guards",
-    "sweep_guard_blind_spot_probe",
-    "adversarial_security_replay_push_path",
-    "criterion5_static_dispatch_audit",
-    "contract_criteria_verbatim_check",
-    "repo_integrity_unchanged_after_audit",
-    "prior_verdict_verbatim_transcription_check"
+    "harness_compliance_audit_5_items",
+    "immutable_verification_command_exit_0_27_passed",
+    "zero_skipped_zero_xfail_confirmed_via_pytest_rs",
+    "masterplan_75_4_verification_block_sha_vs_HEAD_byte_identical",
+    "git_status_change_surface_vs_declared_file_list",
+    "production_byte_identity_vs_cycle_1_via_mtime_and_git",
+    "blocker1_rerun_QA1_QA5_all_five_cycle1_mutants_ALL_KILLED",
+    "novel_6th_shape_hunt_6_mutants_4_killed_2_survived",
+    "blocker2_rerun_QA6_QA7_behavioral_BOTH_KILLED",
+    "behavioral_stub_fidelity_baseline_GREEN_and_3_mutants_killed_through_it",
+    "generate_with_retry_signature_vs_instance_attr_patch_verified",
+    "raising_false_masking_check_get_critic_prompt_get_synthesis_prompt_exist",
+    "blocker3_zero_skips_and_no_swallowing_try_except",
+    "blocker4_criterion6_blank_line_independent_remeasure_8_AGREE",
+    "critic_degraded_consumer_grep_write_only_disclosure_ACCURATE",
+    "N3_self_invalidation_reasoning_judged_CORRECT",
+    "criterion1_real_load_skill_2739_chars_placeholder_and_instructions",
+    "M10_equivalent_anti_stub_harness_mutation_KILLED_19_failed",
+    "criterion2_8of8_uncertainty_3of3_codeexec_delivered_live",
+    "quant_strategy_exclusion_ValueError_and_untouched_confirmed",
+    "criterion3_format_skill_caplog_live_emit_and_happy_path_silence",
+    "criterion3_startup_stem_assertion_NEGATIVE_CONTROL_raises_RuntimeError",
+    "criterion4_6144_dead_twin_and_literal_string_absent",
+    "criterion5_all_three_no_file_id_paths_return_1024",
+    "criterion6_nonblank_drift_zero_heading_text_multiset_identical",
+    "ruff_F821_F401_F811_gate_exit_1_finding_set_IDENTICAL_to_HEAD_zero_new",
+    "backend_runtime_import_smoke_clean",
+    "full_backend_suite_13_failed_1248_passed_delta_plus2_equals_new_tests",
+    "log_last_masterplan_pending_retry_0_zero_logged_verdicts",
+    "no_verdict_shopping_evidence_demonstrably_changed",
+    "third_conditional_rule_not_triggered_cycle_2_of_2",
+    "read_only_discipline_confirmed_no_QA_introduced_repo_change"
   ],
   "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research-gate-before-contract: research_brief_75.2.1.md 13:23:55 < contract; envelope gate_passed=true, external_sources_read_in_full=8 (>=5 floor), urls_collected=27 (>=10), recency_scan_performed=true with a dedicated section at line 71 reporting 4 findings, internal_files_inspected=12, tier=moderate, audit_class=false so the loop-until-dry rule does not bind. (2) Contract-before-generate: the cycle-1 Q/A recorded the original ordering (contract 13:25:53 < test 13:28:41 < commands.py 13:28:59 < experiment_results 13:29:56); masterplan.json's last write is 13:29:00 and .archive-baseline.json 13:27:36, both AFTER the contract, so part (a)'s annotation write is also post-contract. All 6 criteria confirmed VERBATIM in the contract programmatically (6/6). (3) experiment_results_75.2.1.md present with verbatim output. (4) Log-last: zero occurrences of 75.2.1 in harness_log.md, masterplan status=\"pending\", retry_count=0. (5) No verdict-shopping: evidence materially CHANGED -- _FakeSlackResponse hoisted to module scope, the guard rewritten as test_say_stub_matches_the_production_response_shape, M8+M9 rows added, verification output refreshed 22->24, fourth changed file and true line count disclosed in both blocks. Both prior verdicts are transcribed VERBATIM in chronological order. Prior CONDITIONAL count for 75.2.1 = 2, so the 3rd-CONDITIONAL auto-FAIL rule was live: I would have returned FAIL rather than a third CONDITIONAL, and did not need to.\n\nCRITERION-BY-CRITERION (all independently re-derived, not taken from the author's transcript).\n\nC1 MET. My own script: for 4.14.4 / 4.14.24 / 4.17.9 the verification.command, verification.success_criteria AND the whole verification object are identical to git show 256867d3; the only key added to any of the three is superseded_record; zero keys removed; all three keep status=\"done\". Each record carries retired_by_commit=\"f55e6973\", still_runnable=false, criteria_amended=false. 4.17.9 carries already_broken_before_retirement=true, a reason naming BOTH causes, and a scope_disclosure naming the pre-existing 10-member phase-29 family. Every historical claim re-verified against git: `git log --all --diff-filter=A -- scripts/go_live_drills/self_update_audit_test.py` is EMPTY (never existed); smoke_test_4_17_9.py added 1122a021, deleted f55e6973; f55e6973 deleted exactly SEVEN files (6 slack_bot modules + smoke_test_4_17_9.py). Masterplan shape census over 837 steps = 674 dict / 126 str / 13 list / 24 None, matching the brief digit-for-digit. I ran my own broader sweep, which surfaced 9 extra `governance` hits (4.9.0-4.9.3, 23.2.13, 24.1, 24.8, 75.8) -- ALL FALSE POSITIVES pointing at the separate live backend/governance/ package (limits_loader, limits.yaml, scripts/governance/), not the deleted slack_bot/governance.py. A precise regex confirms the annotated three are the complete set. Mutations Ga (drop superseded_record), Ga2 (flip criteria_amended), Gb (strip the 2nd cause), Gc (inject a colliding done step) -> each CAUGHT by exactly the intended test.\n\nC2 MET. My own replay against the real captured handler: intruder request, unset slack_operator_user_id, bot_id spoof, and a request from a non-allowed channel ALL post nothing (says=0) and register nothing ({}). The tests drive the production function object returned by cmd.register_commands, not a copy.\n\nC3 MET -- the cycle-1 blocker is genuinely closed. The operator request posts with channel=_APPROVAL_CHANNEL hardcoded on the say(), the body carries the git log origin/main..HEAD commit list, the count, HEAD[:12], and the \"last-known origin/main\" staleness disclosure; the BOT's ts registers; the subsequent operator reaction on that ts pushes exactly once (happy path pushes=1).\n\nC4 MET. Unregistered ts -> 0 pushes; single-use holds (pop before push; replay leaves the total at 1); plus wrong-channel reaction, reaction on the operator's own ts, intruder reaction and :x: all 0. 104/104 green including the 80 legacy 75.2/62.2 tests through the set->dict change. Mutations Gg (drop the ts-membership check) and Gh (drop the reaction identity check) -> both CAUGHT.\n\nC5 MET. Request path dispatches _pending_push_payload (which holds BOTH git rev-parse and git log) via asyncio.to_thread; reaction path dispatches _resolve_head_sha and the git push itself via asyncio.to_thread (commands.py:567-572). No unwrapped subprocess call on either path -- my first static regex false-positived on the multi-line to_thread call and I resolved it by reading the source. Mutation Gf (call the payload directly, blocking the loop) -> CAUGHT by the spy test.\n\nC6 MET, with a coverage NOTE recorded below. I re-ran M9 INDEPENDENTLY as instructed: regressed the _say stub to a plain dict AND restored the production `isinstance(resp, dict)` guard together, in an isolated symlink-farm sandbox. Result: 1 failed, 23 passed, failing at test_say_stub_matches_the_production_response_shape:234 with \"stub regressed to a dict -- it can no longer detect the isinstance bug that left the push path inert\". Before the cycle-3 fix this same mutation left the suite green. The rewritten guard is NOT vacuous in a new way: it calls wired[\"say\"] -- the exact function object every other test hands the handlers -- and asserts on the object that call actually returns (hasattr .get, not isinstance dict, .get(\"ts\") truthy), which is precisely why mutating the fixture breaks it. M8 and M9 rows are present with verbatim output; the stale \"22 passed\" is refreshed to 24.\n\nSIXTH-VACUOUS-GUARD HUNT (item c) -- NEGATIVE. I assumed one existed and mutation-tested every guard with NO row in the author's table: Ga, Ga2, Gb, Gc (masterplan record content + sweep), Gd (widen PUSH regex to ^PUSH\\b), Ge (register with no pending commits), Gf (block the loop), Gg (drop ts-membership), Gh (drop reaction identity). ALL NINE were caught by exactly the intended test. Zero vacuous guards remain in the 24-test suite. The suite went 24 passed before and after every probe; the repo working tree is byte-identical to its pre-audit state.\n\nADVERSARIAL SECURITY REPLAY of the re-armed path: I found no route to `git push origin main` without operator identity, without a bot-posted registered ts, or with commits the operator never saw. Refused under direct replay: bot_id spoof, non-approval-channel request, intruder request, unset operator id, intruder reaction, wrong-channel reaction, reaction on the operator's own ts, unregistered ts, second reaction (single-use), expired approval, and HEAD moving between request and approval. Happy path pushes exactly once.\n\nNOTE 1 (non-blocking, criterion-6 wording) -- the live_check mutation table records 9 mutations covering roughly 11 of the suite's 20 distinct guards. Nine guards have no row: the superseded_record presence/content guards, the 4.17.9 both-causes guard, the sweep guard, the regex-disjointness guard, nothing-to-push, the to_thread spy (criterion 5's ONLY guard), and the two 75.2-preservation guards. Criterion 6 asks for the evidence to be \"recorded verbatim in live_check_75.2.1.md\". I ran all nine myself and every one is falsifiable, so the criterion's operative standard (\"a guard that cannot fail when its subject is broken does not count\") holds for 100% of the suite -- which is why this is a NOTE and not a violation. Both prior evaluators applied the same pragmatic reading (rows for the guards on genuinely new behavior), and introducing a stricter reading at cycle 3 would be moving an immutable goalpost. RECOMMENDED FOLLOW-UP (non-blocking): append the nine rows above to live_check_75.2.1.md; this verdict supplies the results.\n\nNOTE 2 (non-blocking, a real guard weakness) -- test_no_other_done_step_references_the_deleted_modules has an empirically-confirmed blind spot. Its `dead` tuple carries only dotted (\"slack_bot.governance\") and slash (\"slack_bot/governance.py\") forms. I injected a done step whose command reads `from backend.slack_bot import governance`: dotted form CAUGHT, space form MISSED (24 passed, clean). That space form is exactly the style step 4.14.4's own verification command uses, so the guard would not catch a future regression written the way the existing collision was written. The guard is non-vacuous and the completeness claim is TRUE today (I verified it independently) -- but its detection surface is narrower than it reads. Worth widening in a later step.\n\nNOTE 3 (non-blocking, scope-honesty wording) -- the live_check says mda_cache.json \"is excluded from this step's commit\". It is TRACKED and NOT gitignored, and .claude/hooks/auto-commit-and-push.sh runs `git add -A` (line 239), so it WILL be swept into the commit. The disclosure itself is honest and its mtime (12:17:14) genuinely predates the research (13:23:55), so the pre-existing-dirt claim is accurate; only the word \"excluded\" overclaims. Honest phrasing: \"pre-existing unrelated dirt that the auto-commit will sweep in.\"\n\nNOTE 4 (informational) -- .claude/.archive-baseline.json is modified (adds \"75.2\" and \"75.3\" to the archived list) and appears in neither change-surface block. It is written by .claude/hooks/archive-handoff.sh, i.e. hook state in the same class as the handoff audit JSONL streams, not authored surface. No action needed.\n\nNO UNINTENDED PRODUCTION CHANGE. The authored diff is exactly .claude/masterplan.json (annotations + the 75.2.1 install), backend/slack_bot/commands.py, backend/tests/test_phase_75_2_slack_control_plane.py (4 call sites + comment), and the new backend/tests/test_phase_75_2_1_push_approval.py. Everything else in git status is hook-written or pre-existing dirt. No LLM call added/removed/repointed, no .env change, no trading logic touched -- the $0 / control-plane boundary holds.\n\nOPERATOR ACTION REQUIRED for the fix to go live: the Slack bot must be restarted (the request handler only registers at register_commands time), and slack_operator_user_id must be set or both seams stay fail-closed by design."
+  "notes": "HARNESS COMPLIANCE 5/5 CLEAN. (1) Research before contract: research_brief_75.4.md 14:47:20 < contract.md 14:58:08; envelope gate_passed=true, external_sources_read_in_full=5, snippet_only=15, urls_collected=20, recency_scan_performed=true; not audit-class so coverage.dry correctly not required. (2) Contract before generate: contract 14:58:08 < skills 14:58:51 < orchestrator 15:01:19 < prompts 15:01:42 < verify_phase_25_D9_1 15:02:01 < test file 15:04:12 (c1) / 15:28:09 (c2). (3) experiment_results.md present 15:32:06. (4) Log-last respected: masterplan status=pending, retry_count=0, grep 'phase=75.4 .*result=' returns 0. (5) NO verdict-shopping -- evidence demonstrably CHANGED: test file rewritten (25->27 tests, new _returns_missing_critic_degraded AST helper + 2 behavioral tests), experiment_results sec.2b/2c/4/7 updated, live_check regenerated; production mtimes UNCHANGED, confirming the 'test+docs only' claim. Cycle 2 with exactly ONE prior CONDITIONAL -- 3rd-CONDITIONAL auto-FAIL does not trigger, and I did not need it.\n\nBLOCKER-BY-BLOCKER, VERIFIED NOT TRUSTED. B1: I replicated the real test's exact logic against mutated SOURCE STRINGS in memory (repo untouched). Baseline passes; QA1 missing=[1642], QA2 [1642,1651], QA3 [1679], QA4 [1683], QA5 [1643,1652,1678,1681] -- all 5 KILLED. B2: I copied orchestrator.py to scratch, mutated, importlib-loaded, and drove run_synthesis_pipeline with the suite's own stub. QA6 KILLED (\"no retry; calls=['Synthesis','Critic']\"), QA7 KILLED (\"critic_degraded=False (want True)\"). B3: 0 skipped via -rs; the single try/except (lines 162-164) is the assertive exclusion-set builder asserting == {\"quant_strategy\"}, not a swallow; no pytest.skip/xfail. B4: my independent line-multiset diff vs git HEAD reproduces EXACTLY 8 blank lines (1 each in bias_detector, critic_agent, deep_dive_agent, moderator_agent, quant_model_agent, risk_judge, scenario_agent, synthesis_agent; enhanced_macro_agent 0) -- Main, the cycle-1 Q/A and I all agree. critic_degraded consumer grep across *.py/*.ts/*.tsx returns only orchestrator writer lines + the new test's assertions -> write-only disclosure ACCURATE.\n\nFIXTURE-FIDELITY SCRUTINY (the 75.2.1 failure mode I was asked to hunt): the behavioral stub is NOT divorced from production. Baseline is GREEN and three separate mutants die THROUGH it, which a divorced stub could not do. Signature checks out: real _generate_with_retry(self, model, prompt, agent_name, ...) patched on the INSTANCE (therefore unbound), so fake_generate(client, prompt, agent_name, **kwargs) aligns correctly -- raising=False is REQUIRED there, not a hole. get_critic_prompt/get_synthesis_prompt both exist in prompts.py so raising=False masks nothing today; if either were renamed the real function would be invoked with stub args and the test would go RED, not falsely green.\n\nN3 SELF-INVALIDATION: Main's reasoning is CORRECT, not a talked-out real finding. Replacing `missing = _returns_missing_critic_degraded(target)` with `missing = []` deletes the computation, which is equivalent to deleting the assertion -- it survives against ANY suite and carries zero information about guard strength. M10's shape (keep the assertion, break the FIXTURE) is the valid harness mutation; N3b is the right replacement.\n\nRESIDUAL FINDING (note, not a blocker). Of 6 novel shapes I invented beyond the assigned four, 4 KILLED (return inside a `with` block; dict(**x) call-expression return; attachment moved after the return; attachment retargeted to a different variable). 2 SURVIVED the AST guard, both the unreachable-attachment shape (`if False:`): N6a on final_data is KILLED by the new behavioral leg, but N6b on ONE corrected_report attachment survives the ENTIRE suite, because static AST cannot do reachability and the two behavioral tests exercise only the final_data return, not the two corrected_report returns or the error-dict return. This is a limit of the technique rather than the cycle-1 defect -- cycle 1 was categorical vacuity (plain deletion from any 1/2/3/4 paths survived); now every realistic regression shape dies. Critically, N6b falsifies nothing Main asserted: the cycle-2 claim is correctly scoped to \"22 specific mutations were killed\" with an explicit disclaimer that this is not \"no vacuous guards\" -- so my survivor actually vindicates the retraction rather than contradicting it. Optional future hardening: extend behavioral coverage to the corrected_report return paths.\n\nDOCUMENTATION NOTE (not a blocker). experiment_results.md sec.1 \"Verbatim verification command output\" still shows the cycle-1 transcript (25 passed, 1.94s) against an actual 27; sec.3 says \"NEW -- 25 tests\"; the sec.4 heading still literally reads \"12/12 killed, 0 vacuous guards\" though the body immediately and thoroughly retracts it. I weighed this against the project's measure-dont-assert rule and concluded it does not warrant CONDITIONAL: the contract-designated live-evidence artifact live_check_75.4.md is regenerated and correct (27 passed, EXIT=0) and explicitly reconciles the delta (\"Cycle 1 was 25 passed / 0 skipped. Cycle 2 is 27 passed / 0 skipped\"), sec.7 records the correct 27 baseline, and no immutable criterion depends on the count. Stale sub-section text with an accurate authoritative companion is a hygiene wart, not a false claim being relied upon. Worth refreshing on the next touch.\n\nLINT (qa.md 1a): uvx ruff --select F821,F401,F811 exits 1 with 3 findings (F401 generate_reflection at :48; F821 Any at :1009/:1010). I ran the same gate against the HEAD blobs: the finding set is IDENTICAL (same three, line numbers shifted only by insertions above). Zero new lint defects from 75.4; already queued as 75.4.6.\n\nFULL SUITE: 13 failed / 1248 passed, matching Main's claim exactly; cycle 1 was 13/1246 and the +2 delta is precisely the two new behavioral tests. 0 regressions. READ-ONLY DISCIPLINE: all mutation work ran in the session scratchpad via in-memory strings and importlib-loaded copies; final git status is identical to the pre-verification surface and the suite is still 27 passed."
 }
 ```
+
+---
+
+## Main's follow-up on the two residual NOTES (neither a blocker)
+
+**(a) N6b unreachable-attachment survivor.** The Q/A invented 6 novel mutant shapes
+beyond the 4 it was asked to try; 4 KILLED. The 2 survivors are both the `if False:`
+unreachable-attachment shape, and one (N6b, on a `corrected_report` return) survives the
+whole suite because static AST cannot reason about reachability and the behavioral leg
+exercises only the `final_data` return. **Accepted as a known limit of the technique,
+not a defect to fix in this step** -- and it is precisely why the cycle-2 claim is scoped
+to "22 specific mutations were killed" rather than "no vacuous guards". Extending
+behavioral coverage to the two `corrected_report` returns and the error-dict return is
+queued as **75.4.7**.
+
+**(b) Stale counts in `experiment_results.md`.** The Q/A found §1 still showed the
+cycle-1 transcript (25 passed) against an actual 27, §3 said "NEW -- 25 tests", and the
+§4 heading still literally read "0 vacuous guards" though the body retracted it. Root
+cause: one of my cycle-2 edits used a plain `str.replace()` **without an assertion**, so
+it silently no-matched -- the same measure-don't-assert lapse in miniature. **Fixed
+after this verdict**: all three corrected, every substitution asserted. No immutable
+criterion depended on the count, and `live_check_75.4.md` was already correct and
+explicitly reconciled the delta, which is why the Q/A correctly graded it a hygiene wart
+rather than a false claim being relied upon.

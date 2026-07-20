@@ -81,21 +81,78 @@ SECTOR_SKIP_MAP = {
 }
 
 # Structured output configs — Gemini JSON schema enforcement (Phase 3)
+# phase-75.4 (gap5-06): single source of truth for the documented enrichment output
+# cap (`.claude/rules/backend-agents.md`: "Enrichment 1024"). Referenced by both the
+# Gemini bundle base_config and _skill_gen_config so the two rails cannot drift.
+_ENRICHMENT_MAX_OUTPUT_TOKENS = 1024
+
+# phase-75.4 (gap5-10): every skill stem passed to _skill_gen_config. A stem that does
+# not resolve to a real backend/agents/skills/<stem>.md fails OPEN, not loud: the
+# file-id lookup simply misses, the helper falls back, and the agent silently loses the
+# phase-25.D9 Files-API token saving forever. `"sector_agent"` sat here undetected --
+# the file has always been `sector_analysis_agent.md`. This registry plus the
+# import-time assertion below converts that silent cost regression into a startup
+# failure. Keep in sync with the call sites; test_phase_75_skill_delivery.py asserts
+# the registry and the actual call sites match exactly.
+_SKILL_GEN_STEMS = frozenset({
+    "insider_agent",
+    "options_agent",
+    "social_sentiment_agent",
+    "patent_agent",
+    "earnings_tone_agent",
+    "alt_data_agent",
+    "sector_analysis_agent",
+    "nlp_sentiment_agent",
+    "anomaly_agent",
+    "scenario_agent",
+    "quant_model_agent",
+    "alpha_decay_agent",
+})
+
+
+def _assert_skill_stems_exist() -> None:
+    """phase-75.4 (gap5-10): fail loudly at import when a registered skill stem has no
+    backing .md file. A missing skill file is a deploy-time configuration error; the
+    pre-75.4 behavior was to degrade silently and permanently."""
+    missing = sorted(
+        stem for stem in _SKILL_GEN_STEMS
+        if not (prompts.SKILLS_DIR / f"{stem}.md").is_file()
+    )
+    if missing:
+        raise RuntimeError(
+            "phase-75.4 skill-stem assertion failed -- these stems are passed to "
+            f"_skill_gen_config but have no backend/agents/skills/<stem>.md: {missing}"
+        )
+
+
+_assert_skill_stems_exist()
+
 _SYNTHESIS_STRUCTURED_CONFIG = {
     "temperature": 0.0, "top_k": 1, "max_output_tokens": 4096,
     "response_mime_type": "application/json",
     "response_schema": SynthesisReport,
 }
+# phase-75.4 (gap5-03): 2048 -> 6144. The critic's delivered template instructs it to
+# "Always include the corrected_report field with the full report JSON"; that field is
+# Optional[SynthesisReport] (schemas.py:66) and SynthesisReport is itself budgeted at
+# 4096 (_SYNTHESIS_STRUCTURED_CONFIG above) -- so a 2048 critic budget cannot fit the
+# echo it demands, and the response truncates mid-JSON. 6144 = 1.5x the 4096 expected
+# output, per Anthropic's "max_tokens at least 1.5-2x your expected output size".
 _CRITIC_STRUCTURED_CONFIG = {
-    "temperature": 0.0, "top_k": 1, "max_output_tokens": 2048,
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 6144,
     "response_mime_type": "application/json",
     "response_schema": CriticVerdict,
 }
 
 # Thinking configs for judge agents (Phase 5 — Gemini 2.5 Flash extended thinking)
 # Thinking overrides temperature on Gemini 2.5+; non-thinking agents keep temp=0.0
+# phase-75.4 (gap5-03): kept in lockstep with _CRITIC_STRUCTURED_CONFIG at 6144 for the
+# same corrected_report-echo reason. NOTE: this config is currently DEFINED BUT NEVER
+# REFERENCED anywhere in the tree (the live critic call at the reflection loop below
+# passes _CRITIC_STRUCTURED_CONFIG). It is retained as the wired-up thinking variant;
+# if it is ever adopted, it must not silently reintroduce the 2048 truncation.
 _THINKING_CRITIC_CONFIG = {
-    "temperature": 0.0, "top_k": 1, "max_output_tokens": 2048,
+    "temperature": 0.0, "top_k": 1, "max_output_tokens": 6144,
     "response_mime_type": "application/json",
     "response_schema": CriticVerdict,
     "thinking": {"type": "enabled", "budget_tokens": 8192},
@@ -527,7 +584,10 @@ class AnalysisOrchestrator:
         # minimizes the diff against callers that used to pass generation_config
         # dicts directly.
         _gen_config = {"temperature": 0.0, "top_k": 1}
-        _enrichment_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 1024}
+        _enrichment_config = {
+            "temperature": 0.0, "top_k": 1,
+            "max_output_tokens": _ENRICHMENT_MAX_OUTPUT_TOKENS,
+        }
         _synthesis_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 4096}
         _deep_think_config = {"temperature": 0.0, "top_k": 1, "max_output_tokens": 2048}
 
@@ -905,32 +965,42 @@ class AnalysisOrchestrator:
                 else:
                     raise
 
-    def _skill_gen_config(self, skill_stem: str) -> dict | None:
+    def _skill_gen_config(self, skill_stem: str) -> dict:
         """phase-25.D9.1: build the per-call generation_config dict that
         threads a pre-uploaded Anthropic Files API `file_id` into the
         request payload.
 
         Returns:
-            `{"skill_file_id": "<file_id>"}` when the orchestrator was
+            A dict that ALWAYS carries `max_output_tokens=1024` (the
+            documented enrichment cap, `.claude/rules/backend-agents.md`),
+            plus `"skill_file_id": "<file_id>"` when the orchestrator was
             initialized with a Claude general_client AND 25.D9 successfully
             populated `self._skill_file_ids` for the given stem.
-            `None` otherwise -- Gemini path, upload failure, missing stem.
 
-        The `None` return is the safe fallback: `_generate_with_retry`
-        already handles `generation_config=None` (line 511); callers see
-        the existing inline-skill path with zero overhead.
+        phase-75.4 (gap5-06): this helper previously returned `None` on the
+        Gemini / upload-failure / missing-stem paths and a file-id-only dict
+        otherwise -- carrying the token cap on NEITHER. That was safe on the
+        Gemini rail only by accident: `llm_client.py:968-970` merges
+        `bundle.base_config` via `setdefault`, and both `_general_vertex` and
+        `_quant_exec_vertex` already carry `max_output_tokens=1024`. On the
+        CLAUDE rail there is no such bundle, so `llm_client.py:1348` fell back
+        to its own default of 2048 -- silently double the documented cap.
+        Returning the cap on BOTH paths makes the limit provider-independent.
+        Gemini behavior is unchanged (same value it already had).
 
         North-star: each Claude-path Files API call drops from 5K-15K
         skill tokens to ~8 token file_id ref (98-99.5% reduction per
         Anthropic Files API docs).
         """
+        config: dict = {"max_output_tokens": _ENRICHMENT_MAX_OUTPUT_TOKENS}
         fid_map = getattr(self, "_skill_file_ids", None)
         if not fid_map:
-            return None
+            return config
         fid = fid_map.get(skill_stem)
         if not fid:
-            return None
-        return {"skill_file_id": fid}
+            return config
+        config["skill_file_id"] = fid
+        return config
 
     def _run_enrichment_batch(
         self,
@@ -1264,7 +1334,7 @@ class AnalysisOrchestrator:
         """Analyze sector relative strength and rotation."""
         logger.info(f"Sector Agent: analyzing sector for {ticker}")
         prompt = prompts.get_sector_analysis_prompt(ticker, sector_data, fact_ledger=getattr(self, '_fact_ledger_json', ''))
-        response = self._generate_with_retry(self.general_client, prompt, "Sector", generation_config=self._skill_gen_config("sector_agent"))
+        response = self._generate_with_retry(self.general_client, prompt, "Sector", generation_config=self._skill_gen_config("sector_analysis_agent"))
         return {"text": _extract_text(response), "data": sector_data}
 
     def run_nlp_sentiment_agent(self, ticker: str, nlp_data: dict) -> dict:
@@ -1490,6 +1560,10 @@ class AnalysisOrchestrator:
             draft_text = _clean_json_output(_extract_text(draft_response))
 
         synthesis_iterations = 1
+        # phase-75.4 (gap5-03): True when the critic's verdict could not be parsed even
+        # after the retry, i.e. the report was NOT reviewed. Always present on the
+        # returned dict so a consumer can never mistake "gate skipped" for "gate passed".
+        critic_degraded = False
         critic_issues_log = []
         critic_quant_data = compact_quant_snapshot(quant_data) if _compact_context else quant_data
 
@@ -1519,8 +1593,38 @@ class AnalysisOrchestrator:
 
             # Parse structured Critic verdict
             critic_result = _parse_json_with_fallback(critic_text, "Critic")
+
+            # phase-75.4 (gap5-03): an unparseable critic response used to be silently
+            # upgraded to PASS -- the quality gate DISAPPEARED rather than failed
+            # (fail-OPEN). Anthropic's guidance is explicit: "Treat max_tokens
+            # truncation as a retriable error for structured outputs, not as a valid
+            # response to parse" / "Do NOT treat truncated responses as success."
+            # Mirror the existing in-repo idiom at llm_client.py:1656-1684 -- retry
+            # once at a raised budget, then proceed FLAGGED rather than blessed.
             if not critic_result:
-                logger.warning("Critic returned invalid JSON, treating as PASS with draft.")
+                _retry_budget = min(_CRITIC_STRUCTURED_CONFIG["max_output_tokens"] * 2, 8192)
+                logger.warning(
+                    "Critic returned unparseable JSON -- retrying once at "
+                    "max_output_tokens=%d (was %d)",
+                    _retry_budget, _CRITIC_STRUCTURED_CONFIG["max_output_tokens"],
+                )
+                critic_retry_config = {
+                    **_CRITIC_STRUCTURED_CONFIG, "max_output_tokens": _retry_budget,
+                }
+                critic_response = self._generate_with_retry(
+                    self.deep_think_client, critic_prompt, "Critic-Retry",
+                    is_deep_think=True, generation_config=critic_retry_config,
+                )
+                critic_text = _clean_json_output(_extract_text(critic_response))
+                critic_result = _parse_json_with_fallback(critic_text, "Critic-Retry")
+
+            if not critic_result:
+                logger.warning(
+                    "Critic returned unparseable JSON after retry -- proceeding with "
+                    "the UNREVIEWED draft, flagged critic_degraded=True. The quality "
+                    "gate did NOT run for this report."
+                )
+                critic_degraded = True
                 break
 
             verdict = critic_result.get("verdict", "PASS").upper()
@@ -1535,6 +1639,7 @@ class AnalysisOrchestrator:
                 if corrected_report and isinstance(corrected_report, dict):
                     corrected_report["synthesis_iterations"] = synthesis_iterations
                     corrected_report["critic_issues"] = issues
+                    corrected_report["critic_degraded"] = critic_degraded
                     return corrected_report
                 break
 
@@ -1544,6 +1649,7 @@ class AnalysisOrchestrator:
                 if corrected_report and isinstance(corrected_report, dict):
                     corrected_report["synthesis_iterations"] = synthesis_iterations
                     corrected_report["critic_issues"] = issues
+                    corrected_report["critic_degraded"] = critic_degraded
                     return corrected_report
                 break
 
@@ -1570,10 +1676,15 @@ class AnalysisOrchestrator:
         final_data = _parse_json_with_fallback(draft_text, "Synthesis-Final")
         if final_data:
             final_data["synthesis_iterations"] = synthesis_iterations
+            final_data["critic_degraded"] = critic_degraded
             return final_data
 
         logger.warning("Failed to parse final report, returning error.")
-        return {"error": "Failed to parse final report.", "synthesis_iterations": synthesis_iterations}
+        return {
+            "error": "Failed to parse final report.",
+            "synthesis_iterations": synthesis_iterations,
+            "critic_degraded": critic_degraded,
+        }
 
     def compute_weighted_score(self, scoring_matrix: dict) -> float:
         """Apply pillar weights to compute the final score."""

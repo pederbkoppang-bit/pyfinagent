@@ -4,9 +4,17 @@ Verifies:
   1. AnalysisOrchestrator has `_skill_gen_config(skill_stem)` helper.
   2. At least 11 `run_*_agent` call sites pass
      `generation_config=self._skill_gen_config(...)`.
-  3. Helper returns None when `_skill_file_ids` is empty (Gemini fallback).
-  4. Helper returns `{"skill_file_id": "<file_id>"}` when stem is mapped.
-  5. Helper returns None when stem is missing from the dict (no KeyError).
+  3. Helper returns the enrichment cap alone when `_skill_file_ids` is empty
+     (Gemini fallback).
+  4. Helper returns `{"max_output_tokens": 1024, "skill_file_id": "<file_id>"}`
+     when stem is mapped.
+  5. Helper returns the enrichment cap alone when stem is missing (no KeyError).
+
+phase-75.4 (gap5-06) AMENDED claims 3/4/5: the helper used to return `None` on the
+two fallback paths and a file-id-only dict on the mapped path -- carrying the
+documented 1024 enrichment cap on NEITHER, so the Claude rail silently used its own
+2048 default. It now ALWAYS carries `max_output_tokens`. Gemini behavior is
+unchanged (its bundle base_config already merged the same 1024 via setdefault).
 
 Exit 0 on PASS, 1 on FAIL.
 """
@@ -69,8 +77,8 @@ stub = AnalysisOrchestrator.__new__(AnalysisOrchestrator)
 stub._skill_file_ids = {}
 out_empty = stub._skill_gen_config("insider_agent")
 claim(
-    "3. helper_returns_none_when_skill_file_ids_empty_gemini_fallback",
-    out_empty is None,
+    "3. helper_returns_enrichment_cap_only_when_skill_file_ids_empty_gemini_fallback",
+    out_empty == {"max_output_tokens": 1024},
     f"got {out_empty}",
 )
 
@@ -80,7 +88,7 @@ stub._skill_file_ids = {"insider_agent": "file_xyz_123"}
 out_mapped = stub._skill_gen_config("insider_agent")
 claim(
     "4. helper_returns_skill_file_id_dict_for_mapped_stem",
-    out_mapped == {"skill_file_id": "file_xyz_123"},
+    out_mapped == {"max_output_tokens": 1024, "skill_file_id": "file_xyz_123"},
     f"got {out_mapped}",
 )
 
@@ -89,8 +97,8 @@ claim(
 stub._skill_file_ids = {"insider_agent": "file_xyz_123"}
 out_missing = stub._skill_gen_config("nonexistent_agent")
 claim(
-    "5. helper_returns_none_for_unmapped_stem_no_keyerror",
-    out_missing is None,
+    "5. helper_returns_enrichment_cap_only_for_unmapped_stem_no_keyerror",
+    out_missing == {"max_output_tokens": 1024},
     f"got {out_missing}",
 )
 
