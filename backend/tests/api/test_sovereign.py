@@ -15,7 +15,6 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
@@ -23,9 +22,13 @@ if str(_REPO_ROOT) not in sys.path:
 
 from backend.api import sovereign_api as sov  # noqa: E402
 from backend.main import app  # noqa: E402
+from backend.tests.auth_helper import authed_test_client  # noqa: E402
 from backend.services.api_cache import get_api_cache  # noqa: E402
 
-client = TestClient(app)
+# phase-75.1: /api/sovereign is no longer in _PUBLIC_PATHS, and the
+# DEV_LOCALHOST_BYPASS rail does not cover TestClient (client.host is
+# "testclient"), so this suite authenticates like any other consumer.
+client = authed_test_client(app)
 
 
 @pytest.fixture(autouse=True)

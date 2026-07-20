@@ -567,7 +567,10 @@ class Settings(BaseSettings):
     # --- Authentication ---
     # phase-25.B10: SecretStr-typed so repr() masks the secret in logs / stack traces.
     auth_secret: SecretStr = Field(SecretStr(""), description="NextAuth.js AUTH_SECRET for JWE decryption. Empty = auth disabled (dev mode).")
-    allowed_emails: str = Field("", description="Comma-separated email whitelist. Empty = allow all authenticated users.")
+    allowed_emails: str = Field("", description="Comma-separated email whitelist. Empty = allow all authenticated users unless auth_enforce_allowlist is set.")
+    # phase-75.1 (gap2-03): DARK fail-closed switch, default False so behavior
+    # is byte-identical until the operator flips AUTH_ENFORCE_ALLOWLIST=true.
+    auth_enforce_allowlist: bool = Field(False, description="phase-75.1: True makes an EMPTY allowed_emails reject ALL authenticated users (fail-closed). Default False preserves the fail-open legacy behavior.")
 
     # --- Slack Bot ---
     # phase-25.B10: SecretStr-typed so repr() masks tokens in logs / stack traces.

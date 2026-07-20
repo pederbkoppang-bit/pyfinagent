@@ -7,6 +7,7 @@ import importlib.util
 import io
 import logging
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -117,11 +118,35 @@ def setup_logging():
     logging.getLogger("uvicorn.access").addFilter(QuietAccessFilter())
 
 
+def _warn_if_allowlist_empty(settings) -> bool:
+    """phase-75.1 (gap2-03): the email allowlist is fail-open by default --
+    empty ALLOWED_EMAILS admits ANY Google-authenticated user. Say so loudly
+    at startup (called from lifespan). Sited here rather than a Settings
+    model_validator because Settings is instantiated outside the lru_cache
+    singleton too and a validator would multi-fire. ASCII-only messages per
+    .claude/rules/security.md. Returns True iff the WARNING fired."""
+    if [e for e in settings.allowed_emails.split(",") if e.strip()]:
+        return False
+    if settings.auth_enforce_allowlist:
+        logging.warning(
+            "ALLOWED_EMAILS is empty and auth_enforce_allowlist=True -- "
+            "ALL authenticated users will be REJECTED (fail-closed)."
+        )
+    else:
+        logging.warning(
+            "ALLOWED_EMAILS is empty -- any Google-authenticated user is "
+            "admitted (auth_enforce_allowlist=False, fail-open legacy). "
+            "Set ALLOWED_EMAILS or flip AUTH_ENFORCE_ALLOWLIST=true."
+        )
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
     settings = get_settings()
     logging.info(f"PyFinAgent backend starting (project={settings.gcp_project_id})")
+    _warn_if_allowlist_empty(settings)
 
     # phase-31.1: misnamed `settings.gemini_model` field can silently route
     # to Anthropic when set to "claude-*" -> the orchestrator hits the in-app
@@ -386,40 +411,51 @@ async def lifespan(app: FastAPI):
             pass
 
 
+# phase-75.1 (pysvc-08): interactive docs are debug-only. openapi_url=None
+# cascades -- /docs and /redoc 404 without a schema to render. Re-enable
+# locally with DEBUG=true (docs then sit behind the auth middleware anyway).
+_docs_enabled = get_settings().debug
 app = FastAPI(
     title="PyFinAgent API",
     description="Agentic AI financial analyst backend",
     version="2.0.0",
     lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
+
+# phase-75.1 (security-04): single origin predicate for BOTH CORS seams --
+# the CORSMiddleware regex and the manual 401 echo below. Tailscale hands
+# out addresses only from the CGNAT block 100.64.0.0/10 (RFC 6598), i.e.
+# second octet 64..127; the old any-second-octet pattern also matched
+# publicly routable 100.0-63/128-255.x.x origins with credentials enabled.
+_TAILSCALE_ORIGIN_RE = re.compile(
+    r"^http://(localhost|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+):\d+$"
 )
 
 # CORS \u2014 allow the Next.js frontend in dev, production, and Tailscale
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://(localhost|100\.\d+\.\d+\.\d+):\d+$",
+    allow_origin_regex=_TAILSCALE_ORIGIN_RE.pattern,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Paths that skip authentication
+# Paths that skip authentication. phase-75.1 (security-01/security-03):
+# pruned from 16 drifted entries back to the minimal read-only set; every
+# survivor carries its justification. Adding a prefix here requires the
+# same inline justification + a matching row in .claude/rules/security.md.
 _PUBLIC_PATHS = (
-    "/api/health",
-    "/api/changelog",
-    "/api/auth",
-    "/api/cost-budget",
-    "/api/jobs/status",
-    "/api/harness/monthly-approval",
-    "/api/harness/demotion-audit",
-    "/api/harness/weekly-ledger",
-    "/api/harness/candidate-space",
-    "/api/harness/results-distribution",
-    "/api/signals",
-    "/api/observability",
-    "/api/sovereign",
-    "/docs",
-    "/openapi.json",
-    "/redoc",
+    "/api/health",  # liveness probe: Slack bot, launchd watchdog, away-ops healthcheck
+    "/api/changelog",  # public changelog page, no business data
+    "/api/auth",  # session bootstrap -- must be reachable pre-auth by definition
+    "/api/jobs/status",  # read-only job liveness poll (Slack bot + frontend header)
+    "/api/harness/demotion-audit",  # read-only harness telemetry (Harness tab pre-auth)
+    "/api/harness/weekly-ledger",  # read-only harness telemetry (Harness tab pre-auth)
+    "/api/harness/candidate-space",  # read-only harness telemetry (Harness tab pre-auth)
+    "/api/harness/results-distribution",  # read-only harness telemetry (Harness tab pre-auth)
 )
 
 
@@ -446,10 +482,11 @@ async def auth_and_security_middleware(request: Request, call_next):
             from starlette.responses import JSONResponse
             origin = request.headers.get("origin", "")
             headers = {"WWW-Authenticate": "Bearer"}
-            if origin and (
-                origin.startswith("http://localhost:")
-                or (origin.startswith("http://100.") and origin.count(".") == 3)
-            ):
+            # phase-75.1 (security-04): same predicate as allow_origin_regex
+            # above so the two seams can never drift again. Stricter than the
+            # old startswith('http://100.') shortcut: CGNAT range enforced and
+            # an explicit :port required (browser origins always carry one).
+            if origin and _TAILSCALE_ORIGIN_RE.match(origin):
                 headers["Access-Control-Allow-Origin"] = origin
                 headers["Access-Control-Allow-Credentials"] = "true"
                 headers["Vary"] = "Origin"

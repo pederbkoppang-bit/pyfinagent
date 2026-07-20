@@ -23,9 +23,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from fastapi.testclient import TestClient
 
 from backend.main import app
+from backend.tests.auth_helper import authed_test_client
 from backend.services.perf_tracker import get_perf_tracker
 from backend.api.cost_budget_api import (
     structured_log as cb_structured_log,
@@ -38,7 +38,10 @@ from backend.api.harness_autoresearch import (
 )
 
 
-client = TestClient(app)
+# phase-75.1: /api/observability and /api/cost-budget are no longer in
+# _PUBLIC_PATHS, and the DEV_LOCALHOST_BYPASS rail does not cover TestClient
+# (client.host is "testclient"), so this suite authenticates.
+client = authed_test_client(app)
 
 
 def test_latency_endpoint_keys_present():

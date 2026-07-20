@@ -1,39 +1,40 @@
-# Contract — Step 75.0: Ultracode full-stack code-quality audit vs official docs + best practices
+# Contract — Step 75.1: Audit75 S1 — backend auth surface fail-closed
 
-**Step id:** 75.0 (phase-75, installed this cycle)
-**Date:** 2026-07-19
-**Session:** Fable 5 + ultracode. Operator explicit override 2026-07-19: **Fable 5 on ALL agents** including Researcher + Q/A (session-scoped launches only; `.claude/agents/*.md` Opus pins untouched — no persistent repin, so no scheduled-revert step is owed; Max usage credits knowingly drawn post-free-window).
-**Operator order (verbatim):** "use ultracode with fable 5 reasoning with all IT stack roles to audit our codebase againtst coding documenation and best practise. end goal should be adding new steps into our masterplan to improve our code on all levels" + correction "i told you to use ultracode with dynimic workflow where you use fable 5 on all agents". Goal draft: `handoff/current/goal_phase75_code_quality_audit_DRAFT.md`.
+- **Step id:** 75.1 (phase-75, P0, executor: sonnet-4.6/high — run this cycle on the Fable rail per operator budget directive 2026-07-20)
+- **Date:** 2026-07-20
+- **Boundary:** no `.env` edits — allowlist enforcement ships DARK behind default-OFF flag `auth_enforce_allowlist`.
+- **Findings remediated:** security-01 (P1), security-03 (P2), security-04 (P2), gap2-03 (P2), api-design-12 (P3), pysvc-08 (P3)
 
-## Research-gate summary (gate PASSED before this contract)
+## Research-gate summary
 
-Researcher ran via Workflow structured-output (run `wf_646a6e15-a94`, Fable 5 / effort max, agent-count 1, ~250K tokens): **24 official/peer-reviewed sources read in full**, ~200 URLs collected, 30 snippet-tier, 26 internal artifacts inspected, recency scan performed, audit-class coverage loop ran **10 rounds to 2 consecutive dry rounds (coverage.dry=true)**. Brief: `handoff/current/research_brief_75.0.md` (54KB) — per-role doc anchors + 3–8 checkable rules per role, adversarial methodology grounded in SWR-Bench (LLM-review precision crisis → verification gates mandatory), Refute-or-Promote (adversarial stage-gating), Agent Audit. Pre-verified seed facts: CVE-2025-66478 already patched (next@15.5.12); **no Python lockfile**; **no `maximum_bytes_billed` anywhere**; legacy `insertAll` streaming in 10+ modules vs Storage Write API recommendation; sync clients inside async routes in 10 files; inverted logging formatter in `backend/main.py`; `_PUBLIC_PATHS` drift vs security.md. Exclusion registers enumerated (phase-69: 50, phase-70: 17, phase-71: 17, phase-72/73/74 pending queues).
+Gate PASSED (moderate tier, envelope in `handoff/current/research_brief_75.1.md`): 6 official/canonical sources read in full (FastAPI conditional-OpenAPI, FastAPI CORS, Tailscale CGNAT KB / RFC 6598, OWASP Fail Securely, FastAPI Path() reference, Pydantic v2 Literal), 40 URLs across the 3-variant query discipline, recency scan performed (regex=→pattern= rename settled ≥FastAPI 0.100; no superseding patterns). Internal audit line-anchored all six findings across 16 files; consumer grep exhaustive. Verified: the proposed CGNAT regex accepts exactly octets 64..127 (100.64.0.0/10). Key risk is NOT code: immutable masterplan curls + `smoke_test_4_17_6.py` + the Slack bot's existing non-public calls all ride the `DEV_LOCALHOST_BYPASS` rail (auth.py:150-153) — the GENERATE must live-probe and document that rail, never claim "nothing breaks" without it.
 
 ## Hypothesis
 
-A role-partitioned multi-agent audit (14 IT-stack roles, read-only), where every finding requires verbatim file:line evidence plus a citable doc/best-practice basis and must survive independent adversarial verification (double-refuter at P0/P1), will surface real, non-duplicative engineering defects across all stack layers with low false-positive rate, and can be mechanically converted into an executor-tagged phase-75 remediation queue that cheaper sessions execute — without this step touching any product code.
+Pruning the 8 drifted prefixes from `_PUBLIC_PATHS`, gating docs on `settings.debug`, sharing one compiled CGNAT origin-predicate across both CORS seams, adding the DARK `auth_enforce_allowlist` flag + startup WARNING, and adding POST validation (Path pattern + Literal) closes all six audit findings **without breaking any live consumer**, because every frontend caller of the affected prefixes already sends credentials via `apiFetch`, the Slack bot calls none of them, and localhost tooling rides the pre-existing `DEV_LOCALHOST_BYPASS` rail.
 
-## Immutable success criteria (copied verbatim into `.claude/masterplan.json` step 75.0)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 75.1)
 
-1. research_brief_75.0.md exists with a gate_passed:true JSON envelope, >=5 external sources read in full, a recency-scan section, and audit-class coverage.dry==true, and it predates the contract and the audit run
-2. The audit ran as a multi-agent Workflow with >=12 read-only role auditors plus adversarial verification: every CONFIRMED finding carries repo-relative file:line + verbatim evidence + a doc/best-practice basis and survived >=1 independent adversarial verifier; findings confirmed at P0/P1 severity survived a second independent refuter
-3. handoff/current/audit_phase75/register.md and handoff/current/audit_phase75/confirmed_findings.json exist, containing workflow stats, the confirmed list, and the refuted/duplicate list with reasons
-4. >=8 new remediation steps exist in phase-75 with status=pending, each with an [executor:] tag in the name, immutable testable success_criteria, and a non-interactive verification.command that exits 0 offline; an adversarial step-review ran and its verdict (approvals/revisions applied) is recorded in the register
-5. This step changed NO product code and NO backend/.env: the step's git diff is confined to handoff/**, .claude/masterplan.json, and hook-managed CHANGELOG.md; kill-switch/stops/sector-caps/DSR/PBO gate files byte-untouched
+1. _PUBLIC_PATHS in backend/main.py contains none of: /api/harness/monthly-approval, /api/sovereign, /api/signals, /api/observability, /api/cost-budget, /docs, /openapi.json, /redoc; every remaining public prefix carries an inline justification and .claude/rules/security.md lists exactly the final set
+2. CORS allow_origin_regex uses exactly the CGNAT block 100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+ and the permissive 100\.\d+\.\d+\.\d+ pattern plus the startswith('http://100.') 401-echo shortcut are gone -- one shared origin predicate for both seams
+3. Every HTTP consumer of a newly-authed prefix is enumerated by grep in experiment_results.md and each either sends credentials or was moved to an explicitly-public sub-route -- no frontend page or slack_bot caller left silently 401ing (curl-level evidence for at least /api/sovereign and /api/signals consumers)
+4. monthly-approval POST: non-^\d{4}-\d{2}$ month_key and non-Literal action both return 422; an invalid action can no longer produce HTTP 200 with status 'rejected'
+5. allowed_emails empty at startup emits WARNING; auth_enforce_allowlist defaults False (byte-identical today, executor edits no .env); with the flag True an empty allowlist rejects all authenticated users
+6. python -c 'import ast; ast.parse(...)' passes on every touched backend file
 
-## Plan
+## Plan steps (shapes per research brief §Application)
 
-1. GENERATE — launch `phase75-fullstack-audit` Workflow (script staged in session scratchpad): 14 read-only role finders (`py-services`, `py-core`, `architecture`, `frontend-react`, `frontend-ts-contract`, `data-bq`, `security`, `sre-ops`, `qa-tests`, `llm-eng`, `perf`, `deps`, `api-design`, `docs-drift`; all `agentType: Explore`, `model: fable`, effort max; each reads the research brief for doc anchors, caps 15 findings with dropped-tail logging) → JS key-dedupe + fuzzy cluster agent → adversarial verify (pass-1 all findings, pass-2 refuter on P0/P1 survivors; duplicates vs phase-69..74 registers killed here) → completeness critic + up-to-6 targeted gap finders → synthesis into step candidates → independent adversarial step review.
-2. Main writes `handoff/current/audit_phase75/{register.md, confirmed_findings.json}` + `experiment_results_75.0.md` from the captured workflow return, applies the step-review revisions editorially, and appends the approved remediation steps to phase-75 as `status: pending`.
-3. EVALUATE — Q/A via session-local Fable variant of `qa-verdict.js` (structured output; verdict transcribed VERBATIM to `evaluator_critique_75.0.md`; errored/empty return = NO VERDICT, fall back to Agent-tool qa).
-4. LOG — `live_check_75.0.md`, `harness_log.md` append, then status flip 75.0 → done (separate edit; auto-push hook).
-
-## Boundaries (binding)
-
-Audit + queue only: no product-code edits, no `backend/.env`, no flag flips, no optimizer runs (`historical_macro` FROZEN), paper-only; kill-switch/stops/sector-caps/DSR>=0.95/PBO<=0.5 files byte-untouched; no duplication of phase-72/73/74 pending queues; no re-litigation of phase-69/70/71 closed registers; Layer-3 harness internals out of scope (phase-71 just closed); harness stays exactly 3 agents (Main + Researcher + Q/A — the workflow fan-out is a launch mechanism inside GENERATE, not new harness members).
+1. **(a)+(b) prune** — remove the 8 target entries from `_PUBLIC_PATHS` (main.py:406-423); add inline justification comments on each survivor (`/api/health`, `/api/changelog`, `/api/auth`, `/api/jobs/status`, 4 read-only harness dashboards). No other entries touched (pitfall 9: scope guard).
+2. **(b) docs gating** — `FastAPI(..., docs_url=... if debug, redoc_url=..., openapi_url=... if debug else None)` driven by `get_settings().debug` (settings.py:20). `openapi_url=None` cascades 404 to /docs+/redoc.
+3. **(c) shared predicate** — module-level `_TAILSCALE_ORIGIN_RE = re.compile(r"^http://(localhost|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+):\d+$")`; `allow_origin_regex=_TAILSCALE_ORIGIN_RE.pattern`; 401-echo uses `_TAILSCALE_ORIGIN_RE.match(origin)` (replaces both startswith checks). Intended tightening: echo now requires an explicit `:port` (browser origins always carry it here).
+4. **(d) DARK flag** — `auth_enforce_allowlist: bool = Field(False, ...)` in settings.py Authentication section; auth.py allowlist leg becomes: empty+flag-True → 401 reject-all; empty+flag-False → today's fail-open (byte-identical); non-empty → unchanged membership check. Startup WARNING for empty allowlist emitted ONCE in `main.py::lifespan` (ASCII-only), NOT a model_validator (Settings multi-instantiation, pitfall 4).
+5. **(e) POST validation** — `month_key: str = Path(pattern=r"^\d{4}-\d{2}$")` + `ApprovalActionBody.action: Literal["approved","rejected"]` (monthly_approval_api.py:58-59, 184-193). Intended tightening: mixed-case actions now 422 (no repo caller sends them; no POST callers exist in-repo).
+6. **Doc rewrite** — `.claude/rules/security.md` auth section lists exactly the 8-entry post-prune public set with per-prefix justification.
+7. **Consumer evidence** — grep-enumerate all consumers in experiment_results.md; curl-level evidence for /api/sovereign + /api/signals consumers; live-probe the `DEV_LOCALHOST_BYPASS` state (tokenless localhost curl to a non-public endpoint, record 200-bypass vs 401) and state consequences for smoke_test_4_17_6.py + immutable masterplan curls.
+8. **Verify** — run the step's immutable verification command (exit 0) + ast.parse on every touched backend file; write experiment_results_75.1.md + live_check_75.1.md; spawn Q/A (Workflow structured-output launch); log-last; flip.
 
 ## References
 
-- `handoff/current/research_brief_75.0.md` (24 full-read sources; envelope gate_passed:true, coverage.dry:true)
-- FastAPI async/concurrency docs; OWASP API Security Top 10 (2023) + Secrets Management Cheat Sheet; BigQuery cost-control + Storage Write API docs; Python 3.14 What's New; Next.js server/client components + data-security guide + CVE-2025-66478 advisory; React 19 release notes; Anthropic Building Effective Agents / Writing Tools for Agents / Structured Outputs; SWR-Bench (arXiv 2509.01494); Refute-or-Promote (arXiv 2604.19049); Agent Audit (arXiv 2603.22853); uv pip-compile; pip-audit; pytest good practices; npm package-lock docs.
-- Anthropic, "Harness design for long-running apps" (five-file protocol) — cycle mechanics.
+- `handoff/current/research_brief_75.1.md` (source tables: FastAPI docs conditional-openapi + CORS + Path reference, Tailscale KB CGNAT, OWASP Fail Securely, Pydantic Literal; 9 pitfalls; exact shapes)
+- `handoff/current/audit_phase75/register.md` — security-01/03/04, gap2-03, api-design-12, pysvc-08
+- `.claude/masterplan.json` step 75.1 (immutable criteria + verification command)

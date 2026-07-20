@@ -39,14 +39,28 @@ NAV_MATCH_TOLERANCE_PCT_SAME_SOURCE = 0.01  # 1 bp
 
 
 def _backend_is_up() -> bool:
-    """Probe /api/health; True if 200 OK."""
-    import urllib.request
+    """True when the backend is listening AND reachable without a token.
+
+    This suite curls the live backend tokenless, so it depends on the
+    `DEV_LOCALHOST_BYPASS=1` rail (backend/api/auth.py). `/api/health` alone
+    is not a sufficient probe: it stays public, while the endpoints the
+    tests actually hit do not. phase-75.1 additionally moved
+    `/api/sovereign` out of `_PUBLIC_PATHS`, so probe the real target and
+    skip (rather than fail) when the rail is off.
+    """
     import urllib.error
-    try:
-        with urllib.request.urlopen(f"{BACKEND_URL}/api/health", timeout=2) as r:
-            return r.status == 200
-    except (urllib.error.URLError, OSError, TimeoutError):
-        return False
+    import urllib.request
+    for path in ("/api/health", "/api/sovereign/red-line?window=7d"):
+        try:
+            with urllib.request.urlopen(f"{BACKEND_URL}{path}", timeout=5) as r:
+                if r.status != 200:
+                    return False
+        except urllib.error.HTTPError:
+            # 401 => DEV_LOCALHOST_BYPASS is not active on this backend.
+            return False
+        except (urllib.error.URLError, OSError, TimeoutError):
+            return False
+    return True
 
 
 def _fetch_json(path: str) -> dict:

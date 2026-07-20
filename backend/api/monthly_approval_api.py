@@ -20,9 +20,12 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Annotated, Any, Literal, Optional
 
+# pathlib.Path is used for state-file handling above; alias the FastAPI
+# path-parameter marker to avoid the name collision.
 from fastapi import APIRouter, Query
+from fastapi import Path as PathParam
 from pydantic import BaseModel
 
 from backend.autoresearch.monthly_champion_challenger import (
@@ -38,10 +41,6 @@ router = APIRouter(
     tags=["monthly-approval"],
 )
 
-# Status values the frontend + verification command may see.
-_ALLOWED_ACTIONS = frozenset({"approved", "rejected"})
-
-
 class MonthlyApprovalState(BaseModel):
     status: str
     month: Optional[str] = None
@@ -56,7 +55,10 @@ class MonthlyApprovalState(BaseModel):
 
 
 class ApprovalActionBody(BaseModel):
-    action: str
+    # phase-75.1 (api-design-12): Literal makes an invalid action a 422 at
+    # validation time. Strict exact match -- the old .strip().lower()
+    # normalization is intentionally gone (no in-repo caller sent mixed case).
+    action: Literal["approved", "rejected"]
 
 
 def _current_month_key() -> str:
@@ -182,15 +184,13 @@ def get_monthly_approval_status(
 
 
 @router.post("/{month_key}", response_model=MonthlyApprovalState)
-def post_monthly_approval(month_key: str, body: ApprovalActionBody) -> MonthlyApprovalState:
-    action = (body.action or "").strip().lower()
-    if action not in _ALLOWED_ACTIONS:
-        # Preserve allow-list invariant -- degrade to rejected on bad action.
-        return MonthlyApprovalState(
-            status="rejected",
-            month=month_key,
-            reason=f"invalid_action:{body.action!r}",
-        )
+def post_monthly_approval(
+    # phase-75.1 (api-design-12): mirror the GET's month_key pattern (a bad
+    # key or action now 422s instead of the old HTTP-200 degrade-to-rejected).
+    month_key: Annotated[str, PathParam(pattern=r"^\d{4}-\d{2}$")],
+    body: ApprovalActionBody,
+) -> MonthlyApprovalState:
+    action = body.action
 
     try:
         updated = record_approval(month_key, status=action, bq_fn=_default_bq_logger)

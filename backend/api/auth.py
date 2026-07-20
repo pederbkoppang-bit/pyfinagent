@@ -204,13 +204,19 @@ async def get_current_user(request: Request) -> Optional[dict]:
         logger.warning("auth_failed: invalid token (%s)", last_error)
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    # Check email whitelist
+    # Check email whitelist. phase-75.1 (gap2-03): parse unconditionally so
+    # the enforcement flag can act on an empty list. With the default
+    # auth_enforce_allowlist=False this is byte-identical to the legacy
+    # fail-open behavior (empty list admits any authenticated user); with
+    # the flag True an empty list rejects ALL users (fail-closed).
     email = payload.get("email", "")
-    if settings.allowed_emails:
-        allowed = [e.strip().lower() for e in settings.allowed_emails.split(",") if e.strip()]
-        if allowed and email.lower() not in allowed:
-            logger.warning(f"auth_denied: email={email}")
-            raise HTTPException(status_code=401, detail="Authentication required")
+    allowed = [e.strip().lower() for e in settings.allowed_emails.split(",") if e.strip()]
+    if not allowed and settings.auth_enforce_allowlist:
+        logger.warning("auth_denied: empty allowlist with auth_enforce_allowlist=True (email=%s)", email)
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if allowed and email.lower() not in allowed:
+        logger.warning(f"auth_denied: email={email}")
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     # Check token expiry
     exp = payload.get("exp")

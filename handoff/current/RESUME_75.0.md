@@ -1,3 +1,7 @@
+# RESUME step 75.0 -- CLOSED 2026-07-20 (Q/A PASS on Opus wf_091e2312-0d8, pushed 8b280cfc). This file is historical; nothing to resume.
+
+---
+ORIGINAL (blocked state, superseded):
 # RESUME step 75.0 -- blocked on Max-rail session limit (resets 20:30 Oslo 2026-07-19)
 
 GENERATE is COMPLETE and staged. Only the EVALUATE gate + LOG + status-flip remain.

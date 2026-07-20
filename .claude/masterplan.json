@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-18",
+  "updated_at": "2026-07-20",
   "phases": [
     {
       "id": "phase-0",
@@ -16695,7 +16695,7 @@
         },
         {
           "id": "75.1",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S1 -- backend auth surface fail-closed [executor: sonnet-4.6/high; BOUNDARY: no .env edits -- allowlist enforcement ships DARK behind default-OFF flag]. (a) security-01: remove '/api/harness/monthly-approval' from the _PUBLIC_PATHS tuple (backend/main.py:404-421) so GET+POST require get_current_user (frontend already sends the NextAuth cookie via apiFetch credentials). (b) security-03+pysvc-08: also remove '/api/sovereign', '/api/signals', '/api/observability', '/api/cost-budget', '/docs', '/openapi.json', '/redoc' from _PUBLIC_PATHS; gate docs/openapi/redoc on settings.debug (docs_url/openapi_url None in prod default); grep ALL consumers of newly-authed prefixes (frontend pages + backend/slack_bot httpx callers, which send no token today per docs-07) and fix each caller; update .claude/rules/security.md to the exact final public list with per-prefix justification. (c) security-04: narrow CORS allow_origin_regex (main.py:398) from 100\\.\\d+\\.\\d+\\.\\d+ to the Tailscale CGNAT block 100\\.(6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])\\.\\d+\\.\\d+ and share the same predicate with the manual 401 CORS echo (main.py:449-454, currently startswith('http://100.')). (d) gap2-03: empty settings.allowed_emails (settings.py:570) logs a loud startup WARNING; new settings flag auth_enforce_allowlist default False keeps today's behavior byte-identical, True makes empty-allowlist reject-all (operator flips later; no .env edits by executor). (e) api-design-12: POST /api/harness/monthly-approval/{month_key} (monthly_approval_api.py:185) gains Path(pattern='^\\d{4}-\\d{2}$') and ApprovalActionBody.action becomes Literal['approved','rejected'] so invalid input 422s instead of returning HTTP 200 with status 'rejected'.",
           "harness_required": true,
           "priority": "P0",
