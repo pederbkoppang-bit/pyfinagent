@@ -17081,6 +17081,48 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "75.17",
+          "status": "pending",
+          "name": "Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.6/high; BOUNDARY: NO immutable verification criteria amended -- annotate via superseded_record (house convention, see 75.2.1) or repair the referenced ARTIFACT, never the criterion]. Discovered during 75.2.1 and deliberately NOT folded into it. Many status=done steps carry verification commands naming paths that do not exist on disk, so those commands are unrunnable and their PASS is unreproducible. COUNT IS DELIBERATELY UNSTATED: the 75.2.1 research brief reported 15 using a regex whose author flagged a .tsx/.ts alternation caveat; an independent Main sweep with a different regex returned 33 raw candidates including clear false positives (a truncated launchd plist path '/Library/LaunchAgents/com.py', URL fragments '/openapi.json' and '/walk_summary.json', and frontend-relative paths like 'lib/icons.ts' and 'src/components/ui/Button.tsx' that exist under frontend/). Step 1 is therefore TRIAGE, not repair: build one sweep that handles all four verification shapes (674 dict / 126 str / 13 list / 24 None -- a naive .get('command') CRASHES on the list-shaped ones), resolves frontend-relative and URL-fragment candidates correctly, and classifies each hit as (i) genuine never-existed name mismatch, (ii) artifact retired by a later step, (iii) false positive. Ten-ish phase-29 go_live_drills steps (4.17.2-4.17.12) are the largest suspected cluster: their plan-side names never matched the on-disk smoke_test_4_17_N.py convention. 4.14.24 and 4.17.9 are ALREADY annotated by 75.2.1 and must be excluded, not re-annotated.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_17_verification_paths.py -q",
+            "success_criteria": [
+              "A committed sweep script handles all four verification shapes without crashing (dict/str/list/None), resolves frontend-relative paths and URL fragments correctly, and its output is reproducible; the test asserts the sweep runs clean and that its false-positive classes (URL fragments, frontend-relative paths, truncated plist paths) are excluded by construction, pinned with fixtures",
+              "Every genuine hit is classified as never-existed / retired-by-later-step / false-positive with the evidence command recorded per row (git log --all --diff-filter=A for never-existed, the retiring commit for retired)",
+              "Every step needing a record gains a superseded_record sibling following the 75.2.1 shape; a test asserts verification.command and verification.success_criteria are BYTE-IDENTICAL to their pre-step values for EVERY step touched (git show against the pre-step commit)",
+              "Steps 4.14.4, 4.14.24 and 4.17.9 are excluded as already annotated by 75.2.1 and are not double-annotated; test asserts exactly one superseded_record per step repo-wide",
+              "The final report states how many candidates were triaged, how many were genuine, and how many were false positives -- no count is asserted anywhere without the sweep output backing it",
+              "Each new behavioral guard is mutation-tested and the evidence recorded verbatim in live_check_75.17.md, INCLUDING at least one mutation of the test fixture itself (per the 75.2.1 lesson: mutating only production code missed a fixture that could not represent the failure)"
+            ],
+            "live_check": "handoff/current/live_check_75.17.md: verbatim sweep output + verbatim verification command output (exit 0) + git diff --stat + byte-identity proof for every touched step + mutation evidence covering production AND fixture mutations."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.18",
+          "status": "pending",
+          "name": "Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [executor: opus-4.8/xhigh; BOUNDARY: harness/docs only, no product code; SEPARATION OF DUTIES -- this edits .claude/agents/qa.md, so per CLAUDE.md the authoring session must not also self-evaluate work depending on it; leave a review note in harness_log]. Phase-75 produced FIVE instances of one root cause across 75.3 and 75.2.1: a guard that cannot fail. It changed shape each time -- (1,2,3) tests asserting source-string literals, (4) a tautology `assert x is not None` the fixture already guaranteed, (5) a FIXTURE that could not represent the production type (AsyncSlackResponse is not a dict, so a dict-returning stub kept the suite green while the feature was inert), and (6) a guard that CLAIMED to pin that fixture while asserting only an upstream library fact. Mutation testing caught 1/2/4 but MISSED 3 (production was mutated while the broken stub stayed in place) and 5 (the test harness itself was never mutated). Codify: (a) .claude/agents/qa.md gains an explicit vacuity check -- for each criterion, name the mutation that would make its guard fail, and treat 'no such mutation exists' as a finding; (b) qa.md + docs/runbooks/per-step-protocol.md require that mutation evidence cover the FIXTURE as well as the code under test; (c) .claude/skills/code-review-trading-domain heuristics gain a ranked 'illusory guard' entry (source-scan-only assertion, tautology, stub that cannot represent the failure, library-fact assertion masquerading as a fixture pin); (d) per-step-protocol records the companion doctrine that surfaced alongside it -- a checkable claim must be measured before it is written into an artifact (phase-75 shipped three unverified claims: a DEBUG env state, verb-parity with deleted code, and an inverted handler registration order), and a literal that a criterion source-scans for must not survive in explanatory comments (3 instances).",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && python3 -c \"qa=open('.claude/agents/qa.md').read(); assert 'mutation' in qa.lower() and 'fixture' in qa.lower(), 'qa.md missing the fixture-mutation doctrine'; pr=open('docs/runbooks/per-step-protocol.md').read(); assert 'fixture' in pr.lower(), 'per-step-protocol missing fixture-mutation doctrine'; import glob; sk=''.join(open(f).read() for f in glob.glob('.claude/skills/code-review-trading-domain/**/*.md', recursive=True)); assert 'illusory' in sk.lower() or 'vacuous' in sk.lower(), 'code-review heuristics missing the illusory-guard entry'\"",
+            "success_criteria": [
+              "qa.md instructs the evaluator, for EACH immutable criterion, to name the concrete mutation that would make that criterion's guard fail, and to report 'no such mutation exists' as a finding rather than a pass",
+              "qa.md and docs/runbooks/per-step-protocol.md both state that mutation evidence must cover the TEST FIXTURE as well as the code under test, citing the phase-75.2.1 case where mutating production alone left a dict-returning stub undetected",
+              "The code-review-trading-domain skill gains a ranked illusory-guard heuristic naming all four observed shapes (source-scan-only, tautology, non-representative fixture, library-fact assertion posing as a fixture pin) with a severity dispatch",
+              "per-step-protocol records the measure-before-asserting rule with the three phase-75 examples, and the rule that a criterion-scanned literal must not appear in explanatory comments",
+              "The changes are documentation/harness only -- git diff touches no file under backend/ or frontend/ (asserted by the test or by a recorded git diff --stat)",
+              "harness_log carries a note requesting operator review of the qa.md edit before any later step depends on it (CLAUDE.md separation-of-duties on agent-definition changes)"
+            ],
+            "live_check": "handoff/current/live_check_75.18.md: verbatim verification command output (exit 0) + git diff --stat proving no backend/ or frontend/ file changed + the qa.md and per-step-protocol diff hunks."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
