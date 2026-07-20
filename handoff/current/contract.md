@@ -1,63 +1,64 @@
-# Contract — Step 75.3: Audit75 S3 — MCP servers: fabricated-state removal + fail-closed publish path
+# Contract — Step 75.2.1: close the two operator-escalated items from 75.2
 
-- **Step id:** 75.3 (phase-75, P0, executor: opus-4.8/xhigh)
-- **Date:** 2026-07-20
-- **Boundary:** paper-only; kill-switch / DSR / PBO gate **THRESHOLDS byte-untouched** — plumbing and fail-closed additions only.
-- **Findings remediated:** gap4-01 (P1), gap4-04, gap4-05, gap4-06, gap4-07, gap4-08, gap4-09, security-05 (P2)
+- **Step id:** 75.2.1 (phase-75, P1, executor: opus-4.8/xhigh)
+- **Date:** 2026-07-20 · **Operator directive:** "fix them both after your recommendation"
+- **Boundary:** control-plane only, $0 metered, **no immutable verification criteria amended**.
 
 ## Research-gate summary
 
-Gate PASSED (moderate tier, `handoff/current/research_brief_75.3.md`): 7 sources read in full (MCP spec, Stripe idempotency, MITRE CWE-636, Pydantic, CPython dataclasses, CPython unittest.mock, arXiv:2607.11098 AgentCheck), 27 URLs, 3-variant discipline, recency scan, 18 internal files line-anchored.
+Gate PASSED (moderate tier, `handoff/current/research_brief_75.2.1.md`, 389 lines): 8 sources read in full (OWASP Transaction Authorization Cheat Sheet, Slack Bolt/API docs, CPython asyncio, Azure Well-Architected ADR doctrine, GHSA advisory DB, 2025-26 HITL literature), 27 URLs, 3-variant discipline, recency scan with 4 findings, 12 internal files line-anchored.
 
-External consensus is one-directional: **mark degraded state, refuse the privileged action, never substitute a plausible default.** CWE-636 names this exact anti-pattern ("fail functional" instead of "fail safe"). The MCP spec puts business-logic errors in the result via `isError` rather than raising. Stripe replays the **true** terminal outcome (including 500s) and never synthesizes success, and deliberately leaves validation failures unpersisted so they stay retryable. AgentCheck measures that agent failures are "silent, confident use of incorrect tool outputs rather than crashes" — which is precisely this step's fault class.
+The brief changed the plan in five material ways, all adopted:
 
-### TWO SPEC CORRECTIONS (verified by me independently before planning)
-
-1. **Paths.** The step spec says `scripts/mcp_servers/` — those files do not exist there. Real location is **`backend/agents/mcp_servers/{signals,data,backtest}_server.py`**, and `meta_coordinator.py` is under **`backend/agents/`**, not `backend/autoresearch/`. All spec LINE numbers are correct against the real files.
-2. **`BacktestResult` field names.** Four of the five names in the spec do not exist. Verified at `backend/backtest/backtest_engine.py:112-123`: the dataclass has `aggregate_sharpe`, `aggregate_return_pct`, `aggregate_alpha_pct`, `aggregate_max_drawdown_pct`, `aggregate_hit_rate`, `total_trades`, `windows`, `nav_history`, `all_trades`. There is **no `dsr`, no `return_pct`, no `max_drawdown_pct`, no `num_trades`**. DSR is not produced by the engine at all — so the key is dropped rather than emitted as a fabricated `0.0` (emitting 0.0 would be the very fault this step exists to remove). The immutable criteria never name these fields, so honoring reality does not amend any criterion.
-
-Both corrections re-verified by me against live code (`ls`, dataclass read, `grep` for `def get_portfolio`) rather than taken on trust — twice this phase I have shipped an unverified claim, so parity/shape claims now get checked before use.
+1. **The sweep is complete and the scope is bigger than stated.** All 837 steps across 99 phases were swept, handling every verification shape (674 dict, 126 str, 13 list, 24 None — a naive `.get("command")` sweep *crashes* on the list-shaped ones). The three known collisions **are** the complete set for the 75.2 cause. But 4.17.9 turns out to be one member of a **pre-existing 10-member family**: 15 done steps have verification commands referencing absent paths, ten of them phase-29 go_live_drills steps whose plan names never matched the on-disk `smoke_test_4_17_N.py` convention. That is unrelated to 75.2 and must be disclosed, not quietly folded in.
+2. **`f55e6973` deleted SEVEN files, not six** — the six modules plus `scripts/go_live_drills/smoke_test_4_17_9.py`. For 4.17.9 this matters: `git log --all --diff-filter=A -- scripts/go_live_drills/self_update_audit_test.py` is **empty** (that script never existed), while `smoke_test_4_17_9.py` **did** exist (added `1122a021`, deleted `f55e6973`). So 4.17.9 had a name mismatch from day one **and** 75.2 removed its plausible real target. An annotation naming only one of those misattributes the breakage.
+3. **A house convention already exists — do not invent a key.** A census over 837 steps found `superseded_by` (6), `superseded_record` (1), `dropped_reason` (5), `deferral_audit` (10), `notes` (191), `audit_basis` (303). The closest prior art is `superseded_record` on step 68.5. 75.2.1 is its mirror image: `verification.*` stays byte-identical and the sibling records collision *facts*, never copies of the criteria.
+4. **Status stays `done`.** Per the append-only ADR doctrine the brief cites verbatim — *"Don't go back and edit accepted records"* — the work **was** done; the artifact is gone, not the history.
+5. **Part (b) has a real design gap I had not planned for (OWASP 2.6/2.8).** `_pending_push_ts` is a set of bare strings: it records *that* an approval was requested but not *what was shown*. A commit landing between request and reaction is pushed **without ever having been displayed** — textbook TOCTOU. The fix is to bind the approval to the commit set, not just the ts.
 
 ## Hypothesis
 
-Every one of these findings is the same bug wearing different clothes: **a failure path that returns a confident, plausible value instead of refusing.** Replacing each with a marked-degraded, fail-closed result removes the fabricated state without touching a single risk threshold.
+Recording the collision in a sibling field (never touching `verification.*`) makes a silent landmine auditable without rewriting history; and binding the push approval to `(ts, HEAD sha, expiry)` rather than a bare ts closes the TOCTOU that would otherwise let an unreviewed commit ride an approved reaction.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json step 75.3)
+## Immutable success criteria (verbatim from .claude/masterplan.json step 75.2.1)
 
-1. New backend/tests/test_phase_75_mcp_truth.py passes offline and asserts AT MINIMUM: (1) get_portfolio with a stub PaperTrader exposing get_or_create_portfolio/get_positions returns the stub's real NAV and positions, and signals_server source no longer contains 'paper_trader.get_portfolio('; (2) with a degraded (stub:true) snapshot publish_signal returns published=false with a degraded reason and books no trade
-2. Test asserts a BUY whose unit price resolves to 0.0 is rejected 'unknown_price'; a -16% drawdown book blocks BUYs; an oversized explicit size_usd is clamped to the hard cap -- with all EXISTING threshold constants unchanged (test pins current values)
-3. Test asserts a previously-rejected signal_id re-fired after cache eviction reports published=false (never a synthesized published=true), and a freed-up rejection can be retried
-4. Test asserts every emit_candidates candidate carries stub:true and publish_signal rejects stub provenance; the compute_dsr_real dead branch is gone (source scan)
-5. Test asserts get_macro returns the requested series' {date,value} entries from a fake _macro_full (dict iteration fixed) and that no '2025-12-31' literal remains in data_server.py; get_prices/get_fundamentals default end date is computed from date.today()
-6. Test asserts backtest_server extracts metrics from a mocked BacktestResult dataclass without AttributeError, and that a SecretStr slack token reaches WebClient as its unwrapped plain-string value
-
-## Confirmed root causes (each verified against live code)
-
-- **gap4-01 (P1, live not latent).** `PaperTrader` has no `get_portfolio` — confirmed by enumerating its defs (`get_or_create_portfolio:95`, `get_positions:115`). So `signals_server.py:1259` raises `AttributeError` → bare `except` at `:1268` → fabricated $10K book → consumed at `:361` by `size_position` (`:988` reads `total_value`) and `risk_check` (`:396`). Note `get_positions()` returns a **list**, so the fix must build `{p['ticker']: p for p in ...}`.
-- **gap4-05, with a second inert gate.** A `0.0` unit price makes `proposed_notional` 0.0, so per-ticker (`:871`), total-exposure (`:880`) and cash (`:890`) gates all pass trivially — the code comment at `:819-821` admits it. Separately `current_dd` is read at `:798` from a `current_drawdown_pct` key that `get_portfolio` never sets, so the drawdown breaker at `:896-901` is **permanently inert**. `track_drawdown` already exists at `:1237` and must be wired into publish step 5.
-- **gap4-06 is a set/dict eviction asymmetry.** `_seen_signal_ids` (set, `:79`) is never evicted; `_recent_responses` (`:80`) is capped at 50 (`:279-282`). So `:334` stays True forever while `:335` misses, falling into `:343-348` which sets `published=True` — inverting the outcome for previously **rejected** signals. Also an unbounded-set memory leak. Fix: one `OrderedDict` as single source of truth so both evict together.
-- **gap4-04 dead branch proven statically unreachable.** `returns_by_variant` is `{}` at `:1835` and never written, so `dsr_source` can never become `compute_dsr_real` and `:1853-1858` is dead.
-- **gap4-07 is worse than "iterates wrong".** `cache.cached_macro` returns a dict keyed by series_id, so `data_server.py:177` iterating it yields **str** keys and `item.get()` raises `AttributeError` → caught at `:187` → `macro://` returns empty **whenever data exists**.
-- **gap4-09.** `backtest_server.py:119` calls `.get()` on a dataclass → `AttributeError` → except at `:133` → the tool runs the FULL walk-forward and then **always** returns ERROR.
-- **security-05.** A non-empty `SecretStr` is truthy, so the `if not slack_token` guard at `:459` does not catch it, and `str()` yields `**********`.
+1. The verification.command and verification.success_criteria of steps 4.14.4, 4.14.24 and 4.17.9 are BYTE-IDENTICAL to their values at commit 256867d3 (test asserts this against git show); each step gains a sibling annotation field recording the retiring commit, and 4.17.9's annotation states its script was already missing pre-75.2
+2. A non-operator request, and a request when slack_operator_user_id is unset, both post NO approval message and register NO ts (fail-closed); test drives the real handler
+3. An operator request posts into _APPROVAL_CHANNEL, the posted message includes the pending-commit summary derived from git log origin/main..HEAD, and the posted ts is registered in _pending_push_ts so a subsequent operator reaction on THAT ts performs the push
+4. A reaction on a ts that was never registered still performs no push, and an approved ts is single-use (second reaction pushes nothing) -- the 75.2 guarantees are preserved, proven by test not by inspection
+5. Every git invocation on the request path runs via asyncio.to_thread (test spies on the dispatch); no subprocess call blocks the Socket-Mode event loop
+6. Each new behavioral guard is mutation-tested and the mutation evidence is recorded verbatim in live_check_75.2.1.md -- a guard that cannot fail when its subject is broken does not count
 
 ## Plan steps
 
-1. **gap4-01** — `get_portfolio` uses `get_or_create_portfolio()` + `get_positions()` (list→dict by ticker), mapping `total_nav`→`total_value`, `current_cash`→`cash`. BOTH degraded paths (no-backend `:1249`, exception `:1268`) return `stub: true` **and zeroed `total_value`/`cash`** per the brief's defense-in-depth recommendation: a zeroed book makes `size_position` return 0.0 via its own `equity<=0` guard and makes every BUY gate fail closed even if the explicit refusal were bypassed. `publish_signal` refuses on `stub` with `published:false, reason: degraded_portfolio`.
-2. **gap4-05** — `risk_check` rejects `unknown_price` when a BUY's unit price is `<= 0`, BEFORE the notional gates; wire `track_drawdown` into publish step 5 so `current_drawdown_pct` is actually populated; clamp explicit `size_usd` to the hard cap. **No threshold constant is edited** — tests pin current values.
-3. **gap4-06** — single `OrderedDict` keyed by signal_id holding the true terminal outcome; evict both together; replay the true prior outcome; do NOT persist rejections permanently (Stripe's retryable-validation-failure rule).
-4. **gap4-04** — every `emit_candidates` candidate carries `stub: true` + `PENDING_IMPLEMENTATION`; delete the unreachable branch; `publish_signal` rejects stub provenance. **CONSUMER CONSTRAINT:** `scripts/harness/mcp_ab_test.py:470-490` asserts ≥5 candidates each carrying a `dsr` key, tied to a phase-3.7 immutable criterion — add `stub:true` **additively**; do NOT drop the count or the `dsr` field.
-5. **security-05** — `unwrap_secret` before `WebClient`, local import inside the function to preserve the lazy-import invariant at `:450-452`.
-6. **gap4-07/08** — `get_macro` iterates `.items()` and filters to the requested series; the three hardcoded `2025-12-31` cutoffs (`:95`, `:142`, `:172`) become `date.today()`-derived using the idiom already present in the same file at `:251-252`; responses carry the effective range; drop the parsed-but-unused `market` prefix.
-7. **gap4-09** — attribute access mirroring `meta_coordinator.py:306-311` with the **real** field names; drop the DSR key (engine does not produce it) rather than fabricating 0.0; pass the bq wrapper (BacktestEngine normalizes at `:176-177`); delete the never-read `timeout_seconds`.
-8. **Tests** — `backend/tests/test_phase_75_mcp_truth.py`, offline. **Mocking discipline is load-bearing:** the existing `tests/test_mcp_servers.py` has zero mocks and asserts envelope shape rather than outcome (`assert "status" in result` passes when status == ERROR), which is *why* all of this shipped. New tests MUST use `create_autospec(PaperTrader, instance=True)` — a bare `Mock()` would happily serve `.get_portfolio()` and let gap4-01 regress — and return a real `BacktestResult` instance.
+### (a) Collision record — annotate, never amend
 
-## Blast radius (fail-closed is safe here)
+- Add a `superseded_record` sibling to 4.14.4, 4.14.24, 4.17.9 (house convention, mirroring step 68.5). Fields: `retired_by_commit: f55e6973`, `retired_at`, `reason`, `still_runnable: false`, `note`. **`verification.*` is not touched.**
+- 4.17.9's record states **both** facts: its command names a script that never existed on disk (name mismatch from day one, `--diff-filter=A` empty), **and** 75.2 separately deleted `smoke_test_4_17_9.py`, its plausible real target.
+- Disclose the pre-existing 10-member family in the record + experiment_results so 4.17.9 is not mistaken for a 75.2 casualty.
+- Run `scripts/meta/preflight_verify_masterplan.py` before and after (the `$schema` is the bare string `masterplan-v1`, so no validator enforces `additionalProperties`, but the preflight is the project's own gate).
 
-The signals MCP server is **not on the live money path**: the autonomous loop calls `PaperTrader.execute_buy/execute_sell` directly and no live service imports `SignalsServer`. Consumers to re-run: `scripts/harness/mcp_ab_test.py` and four go_live_drills — `position_limits:198` pins the strict-`>` boundary at `:874` (thresholds must stay byte-identical), `first_week_monitoring:219` sets `server._peak_equity` directly (the drawdown wiring must not break that seam), `kill_switch:131`, and `slack_signals_e2e` S9-S14 AST checks.
+### (b) Push approval — wire it, and close the TOCTOU
+
+- **Trigger:** `@app.message` (a slash command would need App-Management config, out of bounds for a $0/control-plane step). **Colon-less bare `PUSH`** — the brief verified that `PUSH REQUEST: main` *matches* `_TOKEN_KEYWORD` (`commands.py:123-127`) and would be silently swallowed by the operator-token handler, which registers first. Pinned by test.
+- **Registration order:** alongside the operator-token handler, **before** the catch-all `@app.message("")` at `:252` (dispatch is first-match-wins).
+- **Authorize with the existing predicate:** reuse `operator_tokens._authorized(...)` at the matcher *and* re-check at the sink — the docstring's own rationale ("a matcher is a capability gate, not an authorization decision"), and the documented countermeasure to hermes-agent #36848 (unset env var skipping the auth block = fail-open) and GHSA-wv26-j37q-2g7p (CWE-863 approval-scope confusion, 2026-05-12).
+- **Payload off the loop:** `git log origin/main..HEAD --oneline` via `asyncio.to_thread`, reusing the existing shape at `commands.py:72-78`. Empty list → say so, register nothing.
+- **Show what is signed (OWASP 1.1):** commit list + count + target ref + resolved HEAD sha, posted into `_APPROVAL_CHANNEL` specifically — the reaction gate only accepts that channel, so a request posted elsewhere is un-approvable by construction.
+- **Register the BOT's posted ts** (`say()` returns the `chat.postMessage` response). Registering the operator's own ts would be self-approval.
+- **Bind to the commit set + TTL (OWASP 2.6/2.8/2.9):** `_pending_push_ts` becomes `dict[str, tuple[str, float]]` mapping ts → (HEAD sha, expiry). At push time re-resolve HEAD and **refuse if it moved**; reject expired approvals. `dict` keeps `in` and `.clear()` semantics so the 75.2 suite still holds.
+- **Staleness honesty:** `origin/main` is a *local* ref. No fetch is performed (it would lengthen the TOCTOU window and add network to a $0 step), so the message says the comparison is against the **last-known** `origin/main` rather than implying freshness.
+- **Preserve 75.2 order exactly:** identity → channel → ts membership → `discard()` *before* the push (a crashed push must not leave a re-approvable ts).
+- **Confirmation fatigue (recency finding):** 2025 HITL literature names it the primary failure mode — "users stop reading the payloads and blindly click Approve". Keep this surface rare and the message dense.
+
+### Tests
+
+- New `backend/tests/test_phase_75_2_1_push_approval.py`.
+- **Test-shape blocker:** the `_App` stub at `test_phase_75_2_slack_control_plane.py:62-77` captures only `event` handlers; `message()` returns `lambda fn: fn` and **discards** the function. The stub must be extended to capture message handlers + their `matchers=` kwargs or the new tests cannot invoke the path.
+- Every new behavioral guard **mutation-tested**, evidence verbatim in the live_check (criterion 6). Three times in 75.3 I shipped guards that could not fail; on a `git push` authorization path that is unacceptable.
 
 ## References
 
-- `handoff/current/research_brief_75.3.md` — 7 sources, 2 spec corrections, blast radius, mocking-discipline finding
-- `handoff/current/audit_phase75/register.md` — gap4-01/04/05/06/07/08/09, security-05
-- `.claude/masterplan.json` step 75.3 (immutable criteria + verification command)
+- `handoff/current/research_brief_75.2.1.md` — 8 sources, full 837-step sweep, key census, OWASP mapping, verified regex collision, test-shape blocker
+- `handoff/current/evaluator_critique_75.2.md` — the two escalated items
+- 75.2 commits `f55e6973` / `800b3c6b`; 75.3 commit `256867d3` (byte-identity baseline)

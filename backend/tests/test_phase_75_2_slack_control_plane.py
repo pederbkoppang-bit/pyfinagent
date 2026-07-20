@@ -85,6 +85,14 @@ def _event(user=OP, ts="111.1", channel=CHANNEL, reaction="white_check_mark"):
             "item": {"channel": channel, "ts": ts}}
 
 
+# phase-75.2.1: register_push_approval_request now REQUIRES head_sha (no
+# default -- a default would silently disable the TOCTOU re-validation on a
+# git-push authorization path). These 75.2 tests target identity / ts-binding /
+# single-use / to_thread, so they pass head_sha="" to opt out of the sha
+# re-validation deliberately; that binding has its own suite in
+# backend/tests/test_phase_75_2_1_push_approval.py.
+
+
 def _set_operator(monkeypatch, value):
     from backend.config.settings import get_settings
     settings = get_settings()
@@ -94,7 +102,7 @@ def _set_operator(monkeypatch, value):
 def test_non_operator_reaction_performs_no_push(reaction_handler, monkeypatch):
     handler, push_calls, _, say = reaction_handler
     _set_operator(monkeypatch, OP)
-    cmd.register_push_approval_request("111.1")
+    cmd.register_push_approval_request("111.1", head_sha="")
     asyncio.run(handler(event=_event(user=INTRUDER), say=say))
     assert push_calls == []
 
@@ -102,7 +110,7 @@ def test_non_operator_reaction_performs_no_push(reaction_handler, monkeypatch):
 def test_unset_operator_is_fail_closed(reaction_handler, monkeypatch):
     handler, push_calls, _, say = reaction_handler
     _set_operator(monkeypatch, "")
-    cmd.register_push_approval_request("111.1")
+    cmd.register_push_approval_request("111.1", head_sha="")
     asyncio.run(handler(event=_event(user=OP), say=say))
     assert push_calls == []
 
@@ -120,7 +128,7 @@ def test_operator_on_tracked_ts_pushes_once_then_is_single_use(
 ):
     handler, push_calls, _, say = reaction_handler
     _set_operator(monkeypatch, OP)
-    cmd.register_push_approval_request("111.1")
+    cmd.register_push_approval_request("111.1", head_sha="")
     asyncio.run(handler(event=_event(), say=say))
     assert len(push_calls) == 1
     # Replaying the same approval must not push again.
@@ -132,7 +140,7 @@ def test_push_runs_off_the_event_loop(reaction_handler, monkeypatch):
     """The subprocess must go through asyncio.to_thread, not run inline."""
     handler, push_calls, _, say = reaction_handler
     _set_operator(monkeypatch, OP)
-    cmd.register_push_approval_request("111.1")
+    cmd.register_push_approval_request("111.1", head_sha="")
 
     seen = []
     real_to_thread = asyncio.to_thread

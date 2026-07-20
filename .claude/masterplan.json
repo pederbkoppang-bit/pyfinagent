@@ -3904,7 +3904,17 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "superseded_record": {
+            "superseded_at": "2026-07-20",
+            "authorized_by": "operator directive 2026-07-20 ('fix them both after your recommendation'); recorded in harness_log Cycle 130 (step 75.2.1)",
+            "reason": "phase-75.2 deleted backend/slack_bot/assistant_handler.py as part of the dead Slack control plane (zero live importers, grep-verified). This step's verification command imports that module, so re-running it now raises ImportError. The step's WORK was genuinely done in phase-4.14; only the artifact it inspected has been retired.",
+            "retired_by_commit": "f55e6973",
+            "retired_in_step": "75.2",
+            "still_runnable": false,
+            "criteria_amended": false,
+            "note": "verification.command and verification.success_criteria are deliberately left BYTE-IDENTICAL (CLAUDE.md: immutable). This record annotates, it does not amend. Byte-identity vs commit 256867d3 is asserted by backend/tests/test_phase_75_2_1_push_approval.py."
+          }
         },
         {
           "id": "4.14.5",
@@ -4231,7 +4241,17 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "superseded_record": {
+            "superseded_at": "2026-07-20",
+            "authorized_by": "operator directive 2026-07-20 ('fix them both after your recommendation'); recorded in harness_log Cycle 130 (step 75.2.1)",
+            "reason": "phase-75.2 deleted backend/slack_bot/assistant_handler.py. This step's verification greps that file and pipes through 'awk {exit ($1<1)}', so a missing file yields count 0 and a non-zero exit. The harmlessness pre-screen it verified lived in code that phase-75.2 retired as unreachable.",
+            "retired_by_commit": "f55e6973",
+            "retired_in_step": "75.2",
+            "still_runnable": false,
+            "criteria_amended": false,
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only."
+          }
         },
         {
           "id": "4.14.25",
@@ -4846,7 +4866,19 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:37:40.574041+00:00"
+          "completed_at": "2026-04-24T05:37:40.574041+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-20",
+            "authorized_by": "operator directive 2026-07-20 ('fix them both after your recommendation'); recorded in harness_log Cycle 130 (step 75.2.1)",
+            "reason": "TWO INDEPENDENT CAUSES, both recorded so the breakage is not misattributed to phase-75.2 alone. (1) PRE-EXISTING NAME MISMATCH: the verification command names scripts/go_live_drills/self_update_audit_test.py, which NEVER EXISTED -- 'git log --all --diff-filter=A' for that path returns empty. This step's command was therefore already unrunnable when it was marked done, independent of phase-75.2. (2) phase-75.2 SEPARATELY deleted scripts/go_live_drills/smoke_test_4_17_9.py (added 1122a021, deleted f55e6973), which was the plausible real target of that command, because it hard-asserted the existence of the now-deleted backend/slack_bot/self_update.py.",
+            "retired_by_commit": "f55e6973",
+            "retired_in_step": "75.2",
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "scope_disclosure": "4.17.9 is ONE MEMBER of a pre-existing family, not a phase-75.2 casualty in isolation: a full 837-step sweep found 15 done steps whose verification commands reference absent paths, ten of them phase-29 go_live_drills steps (4.17.2-4.17.12) whose plan-side names never matched the on-disk smoke_test_4_17_N.py convention. That family is unrelated to phase-75.2 and is NOT addressed by step 75.2.1.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only."
+          }
         },
         {
           "id": "4.17.10",
@@ -16731,6 +16763,27 @@
               "append_operator_token refuses (returns None + warning log) records whose user or channel fail the operator/channel allowlist even when called by a future non-matcher caller"
             ],
             "live_check": "handoff/current/live_check_75.2.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: gap1-01, gap1-03, gap1-04, gap1-05, gap1-07, gap1-08, gap1-09, gap1-10, gap1-11"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.2.1",
+          "status": "done",
+          "name": "Audit75 S2 follow-up -- close the two operator-escalated items from 75.2 [executor: opus-4.8/xhigh; BOUNDARY: control-plane only, $0 metered, NO immutable verification criteria amended]. (a) IMMUTABLE-CRITERIA COLLISION: steps 4.14.4, 4.14.24 and 4.17.9 are status=done but their verification commands reference the dead Slack control plane deleted in 75.2 (commit 800b3c6b). Record the collision as a SIBLING annotation field on each step -- verification.command and verification.success_criteria stay BYTE-IDENTICAL -- naming the retiring commit and, for 4.17.9, the fact that its named script scripts/go_live_drills/self_update_audit_test.py never existed on disk (already unrunnable BEFORE 75.2). (b) INERT PUSH-APPROVAL: 75.2 left _pending_push_ts permanently empty with no caller of register_push_approval_request, so checkmark-to-push is a no-op. Wire an operator-gated request path that posts a push-approval message into _APPROVAL_CHANNEL showing exactly what would be pushed (git log origin/main..HEAD), registers the posted ts via register_push_approval_request, and runs any git invocation off the event loop via asyncio.to_thread. Fail-closed posture from 75.2 preserved end to end: non-operator requests refuse, unset slack_operator_user_id refuses, and approval remains single-use.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_2_1_push_approval.py -q",
+            "success_criteria": [
+              "The verification.command and verification.success_criteria of steps 4.14.4, 4.14.24 and 4.17.9 are BYTE-IDENTICAL to their values at commit 256867d3 (test asserts this against git show); each step gains a sibling annotation field recording the retiring commit, and 4.17.9's annotation states its script was already missing pre-75.2",
+              "A non-operator request, and a request when slack_operator_user_id is unset, both post NO approval message and register NO ts (fail-closed); test drives the real handler",
+              "An operator request posts into _APPROVAL_CHANNEL, the posted message includes the pending-commit summary derived from git log origin/main..HEAD, and the posted ts is registered in _pending_push_ts so a subsequent operator reaction on THAT ts performs the push",
+              "A reaction on a ts that was never registered still performs no push, and an approved ts is single-use (second reaction pushes nothing) -- the 75.2 guarantees are preserved, proven by test not by inspection",
+              "Every git invocation on the request path runs via asyncio.to_thread (test spies on the dispatch); no subprocess call blocks the Socket-Mode event loop",
+              "Each new behavioral guard is mutation-tested and the mutation evidence is recorded verbatim in live_check_75.2.1.md -- a guard that cannot fail when its subject is broken does not count"
+            ],
+            "live_check": "handoff/current/live_check_75.2.1.md: verbatim output of this step's verification command (exit 0) + git diff --stat + mutation evidence for every new behavioral guard + a byte-identity proof that no immutable criterion changed."
           },
           "retry_count": 0,
           "max_retries": 3

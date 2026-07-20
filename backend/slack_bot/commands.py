@@ -7,6 +7,7 @@ Ticket ingestion: all messages in #ford-approvals are persisted as tickets
 import asyncio
 import logging
 import subprocess
+import time
 from pathlib import Path
 
 import httpx
@@ -27,17 +28,76 @@ _APPROVAL_CHANNEL = "C0ANTGNNK8D"
 # Project root
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
 
-# phase-75.2 (gap1-01): ts values of bot-posted push-approval requests. A
-# reaction only authorizes a push when it lands on one of these, and each is
-# single-use. Process-local: it resets on restart, and an empty set denies
-# every reaction -- the correct fail-closed default.
-_pending_push_ts: set[str] = set()
+# phase-75.2 (gap1-01) / phase-75.2.1: pending push approvals, keyed by the ts
+# of the bot-posted request message. A reaction only authorizes a push when it
+# lands on one of these, and each is single-use. Process-local: it resets on
+# restart, and an empty mapping denies every reaction -- the fail-closed default.
+#
+# phase-75.2.1 binds the approval to WHAT WAS SHOWN, not merely to the message:
+# the value carries the HEAD sha displayed in the request plus an expiry. A ts
+# alone records THAT an approval was requested, not what the operator actually
+# reviewed, so a commit landing between request and reaction would ride an
+# approval it was never part of (OWASP Transaction Authorization 2.6/2.8 -- the
+# approved data must be re-validated at execution). The TTL is 2.9.
+_APPROVAL_TTL_SECONDS = 600.0
+
+# ts -> (head_sha_shown, expires_at_monotonic)
+_pending_push_ts: dict[str, tuple[str, float]] = {}
+
+# phase-75.2.1: module-scope so tests exercise the PRODUCTION regex objects.
+# Re-declaring copies in a test cannot detect drift in these.
+import re as _re_mod
+
+TOKEN_KEYWORD_RE = _re_mod.compile(
+    r"^(?:[0-9][0-9.]*\s+)?[A-Z][A-Z0-9 _-]+:\s*.+$|^(?:HALT-DEV|RESUME-DEV)$"
+)
+PUSH_REQUEST_KEYWORD_RE = _re_mod.compile(r"^\s*PUSH\s*$")
 
 
-def register_push_approval_request(ts: str) -> None:
-    """Record the ts of a bot-posted push-approval request as approvable."""
+def register_push_approval_request(
+    ts: str, *, head_sha: str, ttl_seconds: float = _APPROVAL_TTL_SECONDS
+) -> None:
+    """Record a bot-posted push-approval request as approvable.
+
+    `head_sha` is the commit the request message displayed, and it is REQUIRED
+    (keyword-only, no default): the reaction handler skips its TOCTOU
+    re-validation when the stored sha is empty, so a default would let a future
+    caller silently fail open on a git-push authorization path.
+    """
     if ts:
-        _pending_push_ts.add(ts)
+        _pending_push_ts[ts] = (head_sha, time.monotonic() + ttl_seconds)
+
+
+def _pending_push_payload() -> tuple[str, str]:
+    """Return (head_sha, commit_list) for commits not yet on origin/main.
+
+    Blocking: callers must dispatch this via asyncio.to_thread so the
+    Socket-Mode event loop is never held. Both git invocations carry their own
+    timeout, which is the real bound -- cancelling the awaiting coroutine does
+    not kill the worker thread.
+
+    NOTE origin/main is a LOCAL ref. No fetch is performed here (it would add
+    network to this path and widen the window between what is displayed and
+    what is pushed), so the comparison is against the last-known origin/main.
+    Callers must say so rather than imply freshness.
+    """
+    head_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(_PROJECT_ROOT), text=True, timeout=5,
+    ).strip()
+    commits = subprocess.check_output(
+        ["git", "log", "origin/main..HEAD", "--oneline"],
+        cwd=str(_PROJECT_ROOT), text=True, timeout=5,
+    ).strip()
+    return head_sha, commits
+
+
+def _resolve_head_sha() -> str:
+    """Current HEAD sha. Blocking -- dispatch via asyncio.to_thread."""
+    return subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(_PROJECT_ROOT), text=True, timeout=5,
+    ).strip()
 
 
 def _read_status() -> str:
@@ -103,9 +163,9 @@ def register_commands(app: AsyncApp):
     # registration order; register_commands is the first registrar). The
     # allowlist lives in the MATCHER so non-matches fall through to ticket
     # ingestion instead of being swallowed.
-    import re as _re
 
     from backend.slack_bot.operator_tokens import (
+        _authorized,
         append_operator_token,
         is_operator_token_message,
     )
@@ -120,9 +180,102 @@ def register_commands(app: AsyncApp):
             message, _settings.slack_operator_user_id, _token_channels
         )
 
-    _TOKEN_KEYWORD = _re.compile(
-        r"^(?:[0-9][0-9.]*\s+)?[A-Z][A-Z0-9 _-]+:\s*.+$|^(?:HALT-DEV|RESUME-DEV)$"
-    )
+    _TOKEN_KEYWORD = TOKEN_KEYWORD_RE
+
+    # phase-75.2.1: operator-gated push-approval REQUEST path. Without this,
+    # _pending_push_ts stays empty forever and the checkmark-to-push flow that
+    # 75.2 secured is inert.
+    #
+    # Trigger is deliberately COLON-LESS and anchored. `PUSH REQUEST: main`
+    # matches TOKEN_KEYWORD_RE, so an unanchored trigger would make these two
+    # handlers ambiguous. NOTE the ordering: this handler registers FIRST
+    # (index 0, before the operator-token handler and the catch-all), and Bolt
+    # dispatch is first-match-wins -- so the hazard runs THIS way: widening
+    # PUSH_REQUEST_KEYWORD_RE (e.g. to ^PUSH\b) would make this path swallow
+    # operator TOKENS. The two regexes are disjoint today and
+    # test_trigger_does_not_collide_with_the_operator_token_grammar pins that
+    # against the production objects.
+    _PUSH_REQUEST_KEYWORD = PUSH_REQUEST_KEYWORD_RE
+
+    async def _push_request_matcher(message) -> bool:
+        # Capability gate. Authorization is re-checked at the sink below --
+        # a matcher is not an authorization decision.
+        return _authorized(
+            user=message.get("user"),
+            channel=message.get("channel"),
+            operator_user_id=_settings.slack_operator_user_id,
+            allowed_channels=_token_channels,
+            bot_id=message.get("bot_id"),
+        )
+
+    @app.message(_PUSH_REQUEST_KEYWORD, matchers=[_push_request_matcher])
+    async def handle_push_request(message, say, logger):
+        """Post a push-approval request the operator can react to."""
+        # Sink-side re-check: fail closed if the matcher was bypassed or the
+        # operator id is unset (an unset id must never authorize anything).
+        if not _authorized(
+            user=message.get("user"),
+            channel=message.get("channel"),
+            operator_user_id=_settings.slack_operator_user_id,
+            allowed_channels=_token_channels,
+            bot_id=message.get("bot_id"),
+        ):
+            logger.warning(
+                "push request refused: unauthorized user=%s channel=%s",
+                message.get("user"), message.get("channel"),
+            )
+            return
+
+        thread_ts = message.get("thread_ts") or message.get("ts")
+        try:
+            head_sha, commits = await asyncio.to_thread(_pending_push_payload)
+        except Exception as e:
+            logger.error(f"push request: git inspection failed: {e}")
+            await say(text=f"Could not inspect the repo: {str(e)[:200]}",
+                      thread_ts=thread_ts)
+            return
+
+        if not commits:
+            # Nothing to approve -- register nothing, so no ts becomes live.
+            await say(text="Nothing to push -- HEAD matches the last-known origin/main.",
+                      thread_ts=thread_ts)
+            return
+
+        count = len(commits.splitlines())
+        # Show exactly what is being signed for, in the approval channel --
+        # the reaction gate only accepts that channel, so a request posted
+        # anywhere else would be un-approvable by construction.
+        resp = await say(
+            channel=_APPROVAL_CHANNEL,
+            text=(
+                f"*Push approval requested* -- {count} commit(s) to `origin/main`\n"
+                f"HEAD `{head_sha[:12]}`\n"
+                f"```{commits}```\n"
+                "React :white_check_mark: to push, :x: to reject. "
+                f"Valid for {int(_APPROVAL_TTL_SECONDS // 60)} minutes, single use. "
+                "Commit list is against the last-known origin/main (no fetch performed); "
+                "the push is refused if HEAD moves before you approve."
+            ),
+        )
+
+        # Bolt's AsyncSay returns AsyncSlackResponse, which exposes .get()
+        # but is NOT a dict subclass (MRO is [AsyncSlackResponse, object]).
+        # Duck-type it: an isinstance(dict) check silently registers nothing
+        # and leaves this whole path inert.
+        posted_ts = None
+        if resp is not None and hasattr(resp, "get"):
+            try:
+                posted_ts = resp.get("ts")
+            except Exception:  # pragma: no cover - defensive
+                posted_ts = None
+        if not posted_ts:
+            logger.error("push request: no ts returned; nothing registered")
+            return
+
+        # Register the BOT's message ts, never the operator's own -- binding to
+        # the operator's message would be self-approval.
+        register_push_approval_request(posted_ts, head_sha=head_sha)
+        logger.info("push approval requested: ts=%s head=%s", posted_ts, head_sha[:12])
 
     @app.message(_TOKEN_KEYWORD, matchers=[_operator_token_matcher])
     async def handle_operator_token(message, say, body, logger):
@@ -370,9 +523,44 @@ def register_commands(app: AsyncApp):
             logger.warning("reaction ignored: ts=%s is not a pending push approval", ts)
             return
 
+        approved_sha, expires_at = _pending_push_ts[ts]
+        if time.monotonic() > expires_at:
+            _pending_push_ts.pop(ts, None)
+            logger.warning("reaction ignored: approval for ts=%s expired", ts)
+            await say(text="That push approval expired. Send `PUSH` again to re-request.",
+                      thread_ts=ts)
+            return
+
         reaction = event.get("reaction", "")
         if reaction == "white_check_mark":
-            _pending_push_ts.discard(ts)  # single-use: no replay into repeat pushes
+            _pending_push_ts.pop(ts, None)  # single-use: no replay into repeat pushes
+
+            # phase-75.2.1: re-validate at execution. The operator approved a
+            # specific commit list; if HEAD moved since the request, commits
+            # they never saw would ride this approval (OWASP 2.6/2.8).
+            if approved_sha:
+                try:
+                    current_sha = await asyncio.to_thread(_resolve_head_sha)
+                except Exception as e:
+                    logger.error(f"push refused: could not re-resolve HEAD: {e}")
+                    await say(text=f"Push refused: could not verify HEAD ({str(e)[:120]}).",
+                              thread_ts=ts)
+                    return
+                if current_sha != approved_sha:
+                    logger.warning(
+                        "push refused: HEAD moved %s -> %s since approval",
+                        approved_sha[:12], current_sha[:12],
+                    )
+                    await say(
+                        text=(
+                            f"Push refused: HEAD moved since you approved "
+                            f"(`{approved_sha[:12]}` -> `{current_sha[:12]}`). "
+                            "Send `PUSH` again to review the current commits."
+                        ),
+                        thread_ts=ts,
+                    )
+                    return
+
             logger.info("Push approved by operator reaction on ts=%s", ts)
             try:
                 # to_thread keeps the 30s subprocess off the Socket-Mode loop.
@@ -389,6 +577,6 @@ def register_commands(app: AsyncApp):
                 await say(text=f"*Push error:* {str(e)[:200]}", thread_ts=ts)
 
         elif reaction == "x":
-            _pending_push_ts.discard(ts)
+            _pending_push_ts.pop(ts, None)
             logger.info("Push rejected by operator reaction on ts=%s", ts)
             await say(text="Push rejected. Commits stay local.", thread_ts=ts)
