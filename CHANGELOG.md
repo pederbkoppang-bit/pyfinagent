@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-20 | `e610b918` | phase-75.2.1: close the two escalated items from 75.2 (annotate the collision, arm the push approval |
 | 2026-07-20 | `256867d3` | phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/08/09, security-05) |
 | 2026-07-20 | `f55e6973` | phase-75.2: Slack control-plane authorization + dead-plane removal (gap1-01/03/04/05/07/08/09/10/11) |
 | 2026-07-20 | `40111b03` | phase-75.1: backend auth surface fail-closed (security-01/03/04, gap2-03, api-design-12, pysvc-08) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `e8470ff1` | phase-72.4: P4 regime deployment-policy research (research gate, moderate tier) [executor: this s... |
 | 2026-07-18 | `34db321c` | phase-72.3: P3 earning-capacity decision sheet (RECOMMEND-ONLY) [executor: this session, fable-5/... |
 | 2026-07-18 | `665d7c0e` | phase-72.2: P2 measurement integrity [executor: this session, fable-5/ultracode]. (a) Locate the ... |
-| 2026-07-18 | `080f93c1` | phase-72.1: P1 approved-but-unapplied token audit [executor: this session, fable-5/ultracode]. Re... |
 
 ---
 
+### v6.68.4 — phase-75.2.1: close the two escalated items from 75.2 (annotate the c... (2026-07-20)
+
+- **phase-75.2.1: close the two escalated items from 75.2 (annotate the collision, arm the push approval**
 ### v6.68.3 — phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/0... (2026-07-20)
 
 - **phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/08/09, security-05)**
