@@ -1,138 +1,108 @@
-# Experiment Results — Step 75.1: Audit75 S1 — backend auth surface fail-closed
+# Experiment Results — Step 75.2: Audit75 S2 — Slack control-plane authorization + dead-plane removal
 
-- **Date:** 2026-07-20 · **Executor:** Fable rail (operator budget directive 2026-07-20; step tag sonnet-4.6/high)
-- **Findings closed:** security-01 (P1), security-03 (P2), security-04 (P2), gap2-03 (P2), api-design-12 (P3), pysvc-08 (P3)
-- **Boundary honored:** zero `.env` edits (a value-read attempt was even permission-denied by the harness — only presence checks used).
+- **Date:** 2026-07-20 · **Executor:** Opus 4.8 (Fable rail exhausted mid-session; operator directed Opus for the remainder)
+- **Findings closed:** gap1-01, gap1-03, gap1-04, gap1-05, gap1-07, gap1-08, gap1-09, gap1-10, gap1-11
+- **Boundary honored:** control-plane only, no trading logic touched, $0 metered (no LLM call added or changed).
 
-> **CYCLE 2 (2026-07-20).** Cycle-1 Q/A (`wf_e2ad4954-e93`) returned **FAIL** on criterion 3: my "exhaustive" consumer grep omitted the entire **test tier**, and the prune broke 8 passing tests with 401. The Q/A was right — `DEV_LOCALHOST_BYPASS` does NOT cover Starlette TestClient (`client.host == "testclient"`, not `127.0.0.1`), so in-process suites had no valid disposition. Fixed below; the consumer table now includes the test tier. See `evaluator_critique_75.1.md` for the verbatim verdict.
+## What was built/changed
 
-## What was built/changed (git diff --stat, cycle 2)
-
+**Deletions (staged, 2,402 lines):**
 ```
- .claude/rules/security.md                          | 16 ++++-
- backend/api/auth.py                                | 18 +++--
- backend/api/monthly_approval_api.py                | 30 ++++----
- backend/config/settings.py                         |  5 +-
- backend/main.py                                    | 81 ++++++++++++++++------
- backend/tests/api/test_sovereign.py                |  6 +-
- .../tests/test_phase_23_2_7_red_line_nav_match.py  | 28 ++++++--
- tests/api/test_observability.py                    |  6 +-
- 8 files changed, 134 insertions(+), 56 deletions(-)
- + backend/tests/auth_helper.py (new, 89 lines, untracked)
+ backend/slack_bot/assistant_handler.py      | 785 ---
+ backend/slack_bot/self_update.py            | 467 ---
+ backend/slack_bot/governance.py             | 315 ---
+ backend/slack_bot/context_management.py     | 249 ---
+ backend/slack_bot/mcp_tools.py              | 247 ---
+ backend/slack_bot/streaming_handler.py      | 243 ---
+ scripts/go_live_drills/smoke_test_4_17_9.py |  96 ---
+ 7 files changed, 2402 deletions(-)
 ```
 
-1. **backend/main.py**
-   - `_PUBLIC_PATHS` pruned 16 → 8 entries; all 8 targets removed (`/api/harness/monthly-approval`, `/api/sovereign`, `/api/signals`, `/api/observability`, `/api/cost-budget`, `/docs`, `/openapi.json`, `/redoc`); every survivor now carries an inline justification comment (security-01/03).
-   - `FastAPI(...)` ctor gates `docs_url`/`redoc_url`/`openapi_url` on `get_settings().debug` — prod default (DEBUG unset) unmounts them entirely (`openapi_url=None` cascades) (pysvc-08).
-   - New module-level `_TAILSCALE_ORIGIN_RE = ^http://(localhost|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+):\d+$` shared by BOTH seams: `allow_origin_regex=_TAILSCALE_ORIGIN_RE.pattern` AND the manual 401 CORS echo (`.match(origin)` replaces both `startswith` shortcuts). Old permissive any-second-octet pattern gone (security-04). Intended tightening: the echo now requires an explicit `:port`.
-   - New `_warn_if_allowlist_empty(settings)` helper called from `lifespan` right after startup logging — WARNs loudly when `ALLOWED_EMAILS` is empty, with distinct fail-open vs fail-closed messages; extracted as a helper (not inline / not a Settings validator) so it is unit-provable without booting schedulers, and because Settings multi-instantiates outside the lru_cache singleton (gap2-03).
-2. **backend/config/settings.py** — `auth_enforce_allowlist: bool = Field(False, ...)` DARK flag in the Authentication section; default False (gap2-03).
-3. **backend/api/auth.py** — allowlist leg parses unconditionally; `empty + flag True → 401 reject-all`; `empty + flag False → legacy fail-open (byte-identical)`; non-empty membership check unchanged (gap2-03).
-4. **backend/api/monthly_approval_api.py** — `ApprovalActionBody.action: Literal["approved","rejected"]`; POST `month_key: Annotated[str, PathParam(pattern=r"^\d{4}-\d{2}$")]` (FastAPI `Path` aliased — pathlib.Path already imported); the now-unreachable degrade-to-HTTP-200-"rejected" branch and its `_ALLOWED_ACTIONS` frozenset removed (api-design-12). Intended tightening: mixed-case actions now 422 (no in-repo POST caller exists; grep below).
-5. **.claude/rules/security.md** — Authentication section now lists EXACTLY the 8-entry post-prune public set with per-prefix justification, the debug-only docs rule, the DARK-flag semantics, and the `DEV_LOCALHOST_BYPASS` rail; CORS section documents the shared CGNAT predicate.
+**Modifications + additions:**
+```
+ backend/slack_bot/commands.py                     | 67 ++++++++---
+ backend/slack_bot/operator_tokens.py              | 55 +++++++--
+ backend/slack_bot/streaming_integration.py        | 35 ++++++
+ backend/slack_bot/app_home.py                     | (gate + label)
+ backend/tests/test_phase_62_2_operator_tokens.py  | 24 +++--
+ scripts/qa/sweep_ascii_logger_v3.py               |  2 --
+ + backend/slack_bot/assistant_guards.py           (new)
+ + backend/tests/test_phase_75_2_slack_control_plane.py (new, 51 tests)
+```
+
+1. **(a) gap1-01 — reaction sink** (`commands.py`). The audit registered one defect; the researcher found five, all now closed: `event['user']` is checked against `slack_operator_user_id` (deliberately `user`, the reactor — gating on `item_user` would authorize the *author* of the reacted-to message); unset operator id returns early (fail-closed, mirroring `is_operator_token_message`); the reaction must land on a ts in the new module-level `_pending_push_ts` set; approvals are single-use (`discard` before the push, so one approval cannot be replayed into repeated pushes); the push runs via `await asyncio.to_thread(...)` instead of blocking the Socket-Mode loop for up to 30s; replies are threaded to the approval ts. New `register_push_approval_request(ts)` is the only way a ts becomes approvable — **an empty set denies every reaction**, which is the correct day-one default given that no push-approval poster exists yet.
+2. **(b) dead-plane deletion + pre-LLM refusal.** Six modules deleted. `streaming_integration.py` gains a deterministic `is_deploy_request()` branch placed *after* the empty-text return and *before* `get_orchestrator()`, so a deploy verb never reaches classification and the model cannot answer as though it deployed. Refusal text contains the byte-exact lowercase literal `deploy commands are disabled`.
+
+   **CORRECTED IN CYCLE 2.** My first implementation used a 7-entry substring list and claimed parity with the deleted matcher *without reading it*. The cycle-1 Q/A proved bare `deploy`, `rollback`, `deploy diff`, `deploy revert`, `deploy logs`, `deploy info`, `deploy history`, `deploy clean`, `clean old` and `what changed` all bypassed the refusal and reached the LLM. The detector is now **derived from** the real matcher, recovered with `git show HEAD:backend/slack_bot/self_update.py` (`handle_deploy_command`, lines 435-465), which had two arms: exact whole-message groups plus a `startswith("deploy")` catch-all. Both are reproduced — `_DEPLOY_PATTERN` (`\b(?:deploy(?:s|ed|ing)?|redeploy|rollback|roll\s+back)\b`) covers any "deploy ..." phrasing anywhere in the message, which is what criterion 3's "containing" asks for, while the `(?:s|ed|ing)?` group excludes "deployment" so deployment-history questions stay answerable; `_DEPLOY_EXACT` holds the whole-message aliases with no deploy token, matched exactly as the original did so "tell me what changed in the portfolio" is not over-refused. Parity is now **measured, not asserted**:
+   ```
+   deleted-matcher surface covered: 21 / 21 | misses: []
+   legit queries still answerable:   5 / 5  | over-refused: []
+   ```
+   The 21-entry list is encoded as a parametrized test contract (`_DELETED_MATCHER_SURFACE`), so a future narrowing fails the suite — the cycle-1 tests only asserted the 7 verbs I had picked and therefore could not detect the shortfall.
+3. **(c) gap1-05 — rate limit + audit** (new `backend/slack_bot/assistant_guards.py`). Cloudflare two-integer sliding window (60s / 20 messages per user, no external store). Append-only JSONL at `handoff/logs/assistant_audit.jsonl` with `writer: "assistant_audit"`, copying the `operator_tokens.py` writer idiom (asyncio.Lock, `mkdir(parents=True, exist_ok=True)`, one `json.dumps(..., ensure_ascii=False)` line, append mode). Audit failures are caught and logged — they never break the request path. **Design decision made consciously:** the record stores `text_sha256`, not raw message text. The path is gitignored deliberately (records describe user messages); hashing preserves that rationale and makes a future promotion to a tracked path safe.
+4. **(d) gap1-07 — App Home.** Gated once inside `_handle_model_change`, which covers all four `agent_model_change_*` registrations. `await ack()` stays FIRST — Slack requires acknowledgement within 3s regardless of outcome, so denial happens *after* ack, never by withholding it. Denials append an audit line and re-render the home view. The select now carries the label "Operator-only; process-local, resets on restart" — accurate, because `AGENT_CONFIGS` is an in-memory dict.
+5. **(e) gap1-11 — sink-level authorization.** The four identity/channel checks are factored into a shared `_authorized(...)` predicate used by **both** `is_operator_token_message` and `append_operator_token`, so the two can never drift. The sink's `operator_user_id` and `allowed_channels` are **required keyword arguments with no defaults** — deliberately, because any default would be a fail-open hazard. The matcher still returns `False` rather than raising, preserving the documented contract that Bolt falls through to ticket ingestion.
 
 ## Verification command (immutable) — verbatim
 
 ```
-$ python3 -c "s=open('backend/main.py').read(); blob=s.split('_PUBLIC_PATHS')[1].split(')')[0]; bad=[...8 prefixes...]; assert not any(b in blob for b in bad), 'public paths not pruned'; assert '6[4-9]|[7-9]' in s, 'CGNAT regex missing'; old='100'+chr(92)+'.'+chr(92)+'d'; assert old not in s, ...; m=open('backend/api/monthly_approval_api.py').read(); assert 'Literal[' in m and m.count('{4}-')>=2, ...; c=open('backend/config/settings.py').read(); assert 'auth_enforce_allowlist' in c, ..."
+$ cd /Users/ford/.openclaw/workspace/pyfinagent && python3 -c "import os,glob,py_compile; dead=[...6 modules...]; assert not any(os.path.exists(...)); txt=''.join(...); assert all(('slack_bot.%s'%d not in txt and 'import %s'%d not in txt) for d in dead); ...; [py_compile.compile('backend/slack_bot/'+f, doraise=True) for f in ['commands.py','app_home.py','streaming_integration.py','operator_tokens.py','app.py']]"
 VERIFICATION EXIT 0
-ast OK: backend/main.py
-ast OK: backend/api/auth.py
-ast OK: backend/api/monthly_approval_api.py
-ast OK: backend/config/settings.py
 ```
 
-(First run exited 1: my own CGNAT comment quoted the old regex literally and tripped the `100\.\d` forbidden-substring check — comment reworded, then exit 0.)
+First run exited 1 (`deploy refusal or audit writer missing`): the command requires both literals in `streaming_integration.py` itself, but I had put them in the shared guards module. Resolved honestly rather than by gaming the check — `REFUSAL_TEXT` now lives at its only consumer, and the audit helper is imported as `audit as assistant_audit`, so the call sites read `await assistant_audit(...)`. Both literals occur naturally at the point of use.
 
-## Consumer enumeration (criterion 3) — grep, exhaustive
+## Test + lint evidence
 
-| Prefix | Consumers found | Disposition |
+```
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_2_slack_control_plane.py backend/tests/test_phase_62_2_operator_tokens.py -q
+80 passed in 0.15s        # cycle 2: was 61; +19 from the deploy-parity contract
+
+$ uvx ruff check --select F821,F401,F811 <8 touched .py files>
+All checks passed!
+
+$ python -c "<import every backend/slack_bot module>"
+imported OK: 12 modules -> app, app_home, assistant_guards, assistant_lifecycle, commands,
+digest_test, direct_responder, formatters, job_runtime, operator_tokens, scheduler, streaming_integration
+```
+
+The new suite (51 tests) covers what the deterministic command cannot (BLOCKER-4): non-operator / unset-operator / untracked-ts reactions all perform NO push; the push goes through `asyncio.to_thread` (verified by spying on the call); approval is single-use; the six dead modules raise `ModuleNotFoundError`; deploy verbs refuse **with `get_orchestrator` patched to raise if called**, proving refusal precedes any LLM path; the rate limit blocks at the budget, is per-user, and recovers after two quiet windows; the audit writes one JSONL line per interaction and does **not** persist raw text; the token sink refuses wrong-user, wrong-channel, and unset-operator even when the matcher is bypassed.
+
+**Scope-honesty lesson (cycle 2).** Twice in this phase I wrote a confident factual claim into an artifact without measuring it -- "this machine runs DEBUG=true" in 75.1, and "verb list covers what the deleted handle_deploy_command matched" here. Both were one command away from being checked. Claims of parity with deleted code must be checked against that code (git history), never asserted from memory.
+
+**Lint honesty note:** one bug was caught by my own re-run rather than shipped — while relocating `REFUSAL_TEXT` below the imports I deleted the `assistant_guards` import block, which would have made `is_deploy_request` an undefined name at runtime. `ast.parse` and the immutable substring command both still passed; only the ruff F821 gate plus the test run caught it. Import restored, all gates re-run green.
+
+## Consumer / residual-reference evidence (criterion 2)
+
+```
+$ for d in self_update assistant_handler governance mcp_tools streaming_handler context_management; do
+    grep -rn "slack_bot\.$d|slack_bot import $d|from backend.slack_bot.$d" backend scripts tests
+  done
+  slack_bot.self_update: 0        slack_bot.mcp_tools: 0
+  slack_bot.assistant_handler: 0  slack_bot.streaming_handler: 0
+  slack_bot.governance: 0         slack_bot.context_management: 0
+```
+
+Pre-deletion check confirmed the audit's "zero live importers" claim independently: `self_update` and slack_bot `governance` were imported **only** from `assistant_handler.py`, itself in the delete set. `backend.governance.*` is a **different, live package** (`limits_loader`, `limits_schema`) and was not touched. `governance.py` did not even define the names `assistant_handler.py` imported from it (`AuditRecord`, `get_token_tracker`, `classify_error`, `get_fallback_message`), so that code would have raised `ImportError` if reached — non-functional, not merely unused.
+
+**BLOCKER-2 handled:** `scripts/go_live_drills/smoke_test_4_17_9.py:33-34` hard-asserted `self_update.py` exists and would have raised `AssertionError` the moment it was deleted — retired in the same commit. `scripts/qa/sweep_ascii_logger_v3.py` needed no change (it skips missing files at `:54-56`); its two stale entries were removed as tidiness only.
+
+**BLOCKER-3 handled:** no tombstone comment anywhere contains a dotted `slack_bot.<dead>` path or the literal `import <dead>` — the step's own gate greps every `backend/slack_bot/*.py` for those substrings, so such a comment would have failed the step. Rationale lives here instead of in the source.
+
+## OPERATOR ESCALATION — immutable-criteria collision (BLOCKER-1, unresolved by design)
+
+Deleting these modules breaks three **already-`done`** steps' immutable verification commands. CLAUDE.md forbids amending immutable criteria, so **nothing was edited**. Reporting for your decision:
+
+| Dotted path | step_id | Breaks how |
 |---|---|---|
-| /api/sovereign | frontend `sovereign/page.tsx`, `ComputeCostBreakdown.tsx`, `RedLineMonitor.tsx` via `api.ts:740,746,750,807` | ALL via `apiFetch` (Bearer + credentials:'include') — no change needed |
-| /api/signals | frontend `AltDataPanel.tsx` via `api.ts:191,195,199` | ALL via `apiFetch` — no change needed |
-| /api/observability | frontend via `api.ts:464` | via `apiFetch` — no change needed |
-| /api/cost-budget | **zero** frontend callers; `llm_client.py:371-396` references are in-process (not HTTP) | no change needed |
-| /api/harness/monthly-approval | **zero** frontend callers; **zero** in-repo POST callers | no change needed |
-| slack_bot (`app_home.py`, `direct_responder.py`, `scheduler.py`, `commands.py`) | calls ONLY `/api/jobs/*`, `/api/health`, `/api/paper-trading/*`, `/api/reports/`, `/api/analysis/`, `/api/backtest/status` — **none of the five pruned prefixes** | untouched by this step |
-| scripts | `go_live_drills/smoke_test_4_17_6.py:63,71,81` hits `/api/signals/*` + `/api/sovereign/leaderboard` tokenless | rides the DEV_LOCALHOST_BYPASS rail (probed ACTIVE below) |
-| **TEST TIER — added cycle 2** | | |
-| /api/sovereign | `backend/tests/api/test_sovereign.py` (6 call sites, module-level `TestClient(app)`) | **FIXED**: now `authed_test_client(app)` — sends a real minted JWE. 7/7 pass. |
-| /api/observability + /api/cost-budget | `tests/api/test_observability.py:55,89` (module-level `TestClient(app)`) | **FIXED**: now `authed_test_client(app)`. 5/5 pass. |
-| /api/sovereign (live backend) | `backend/tests/test_phase_23_2_7_red_line_nav_match.py:63,92` (tokenless urllib to :8000) | **FIXED**: `_backend_is_up()` now probes the real authed target and skips on 401 instead of failing. It already depended on the bypass rail today (it also curls `/api/paper-trading/portfolio`, never public) — now that dependency is explicit, not assumed. 4 passed, 1 skipped. |
-| /api/sovereign (Playwright) | `frontend/tests/e2e-functional/_helpers.ts:73` | No change needed: wrapped in try/catch with a `"baseline"` fallback (fail-soft, degrades rather than breaks); Playwright's `page.request` also inherits the authenticated browser context. |
+| `phases[26].steps[4].verification.command` | 4.14.4 | `from backend.slack_bot import assistant_handler` → ImportError |
+| `phases[26].steps[23].verification.command` | 4.14.24 | greps `assistant_handler.py`; missing file → count 0 → `awk` exits 1 |
+| `phases[29].steps[8].verification` | 4.17.9 | names `scripts/go_live_drills/self_update_audit_test.py`, **which does not exist on disk** — already unrunnable *before* this step, independent of 75.2 |
 
-**Why the cycle-1 table missed these:** it leaned on the `DEV_LOCALHOST_BYPASS` rail as the blanket mitigation for tokenless callers. That rail requires `request.client.host in (127.0.0.1, ::1, localhost)`; Starlette's TestClient reports `"testclient"`, so in-process suites never hit it. The rail covers live-backend curls only.
-
-### Cycle-2 fix: `backend/tests/auth_helper.py` (new)
-
-`mint_session_token()` builds a real NextAuth-shaped JWE (dir / A256CBC-HS512) with the configured `AUTH_SECRET`, defaulting the email to the first `ALLOWED_EMAILS` entry so the allowlist leg is cleared too; `authed_test_client(app)` returns a `TestClient` sending it on every request. Suites therefore exercise the **true decrypt + allowlist path**, not a bypass. If `AUTH_SECRET` is absent (clean CI checkout) it falls back to the documented `DEV_DISABLE_AUTH=1` escape hatch, which only functions when there is no secret to verify against.
-
-## Live evidence (in-process TestClient against the NEW code + running-backend probes)
-
-**Bypass-rail probe (running backend, OLD code, proves the rail is load-bearing & ACTIVE):**
-```
-/api/health -> 200    /api/jobs/all -> 200  (jobs/all is NOT public => DEV_LOCALHOST_BYPASS active)
-/api/sovereign/leaderboard -> 200    /api/signals/macro/indicators -> 200
-```
-Consequence: after the operator restarts the backend, tokenless localhost tooling (immutable masterplan curls, smoke_test_4_17_6.py, Slack bot's existing non-public calls) KEEPS WORKING via the same rail. Confirmed against the new code: `MODE=bypass ... /api/sovereign/leaderboard -> 200`.
-
-**MODE=noauth (no bypass, no token) — 15/15:** all five newly-authed prefixes → 401; `/docs`,`/openapi.json`,`/redoc` → 401; `/api/health` → 200; CGNAT preflight allowed + non-CGNAT (100.20.x) refused; 401-echo echoes CGNAT + localhost origins, refuses non-CGNAT — shared-predicate proof at both seams.
-
-> **CORRECTION (cycle 3).** An earlier revision of this file claimed the docs 401 was "mounted because this machine runs DEBUG=true". That was wrong and the cycle-2 Q/A caught it. Verified runtime state on this machine:
-> ```
-> settings.debug = False
-> app.docs_url = None | redoc_url = None | openapi_url = None
-> ```
-> Docs are **already unmounted here** — the observed 401 is the auth middleware short-circuiting *before* routing, not a mounted-but-authed `/docs`. The probe script sets no DEBUG var. The docs-gating code is correct and verified (debug False → all three URLs None); only the environment claim was wrong.
-
-**MODE=bypass (DEV_LOCALHOST_BYPASS=1, client 127.0.0.1) — 4/4:**
-```
-[OK] POST bad month_key -> 422
-[OK] POST invalid action -> 422  body={"detail":[{"type":"literal_error","loc":["body","action"],...
-[OK] POST valid shape on rowless month -> 200 no_row_to_resolve (no mutation)
-[OK] localhost tooling (bypass rail) still reaches /api/sovereign  code=200
-```
-
-**MODE=flag_on / flag_off (REAL minted JWE via AUTH_SECRET, empty ALLOWED_EMAILS):**
-```
-[OK] valid token + empty allowlist + flag ON  -> 401 reject-all
-[OK] valid token + empty allowlist + flag OFF -> 200 legacy fail-open
-```
-
-**MODE=warn — 3/3:** `_warn_if_allowlist_empty` fires the fail-open WARNING (empty+flag-off), the fail-closed WARNING (empty+flag-on), silent when non-empty.
-
-Probe script: scratchpad `probe_75_1.py` (5 modes, 24/24 checks total).
-
-## Test-suite evidence (cycle 2)
-
-Before the fix (Q/A-reproduced):
-```
-$ .venv/bin/python -m pytest backend/tests/api/test_sovereign.py tests/api/test_observability.py -q
-8 failed, 4 passed
-```
-
-After the fix:
-```
-$ .venv/bin/python -m pytest backend/tests/api/test_sovereign.py tests/api/test_observability.py -q
-12 passed, 1 warning in 11.06s
-
-$ .venv/bin/python -m pytest backend/tests/test_phase_23_2_7_red_line_nav_match.py -q
-4 passed, 1 skipped in 1.34s
-
-$ .venv/bin/python -m pytest backend/tests/api/ tests/api/ -q
-2 failed, 94 passed, 1 warning in 21.52s
-```
-
-The 2 residual failures are `tests/api/test_ticker_meta.py` (yfinance mock assertions) and are **pre-existing, not 75.1's**:
-- 75.1 never touched `backend/api/paper_trading.py`, the module under test (`git diff --name-only` confirms).
-- The HEAD copy of that test file (`git show HEAD:tests/api/test_ticker_meta.py`) fails identically against the current tree: `2 failed, 7 passed`.
-- The failures are `yf_mock.assert_not_called()` assertions — no auth/HTTP surface involved.
-
-One transient note for honesty: in the first full-directory run, `test_phase_23_2_7_red_line_nav_match` hit a 5s `TimeoutError` on `/api/paper-trading/portfolio` under suite load; run alone it passes and the endpoint answers in 3ms by curl. Not a 401, not auth-related.
+My position, which you can overrule: these are historical verifications of code this step intentionally retires, git history preserves all seven deleted files, and the alternative (keeping 2,306 lines of non-functional dead control-plane code with a `git push` path in it) is worse. 4.17.9's pre-existing breakage is worth noting on its own — a done step has been carrying an unrunnable command.
 
 ## Operator notes
 
-- **Restart required** for the new auth surface to go live on :8000 (kill parent AND child workers per CLAUDE.md).
-- **Docs are already unmounted on this machine** (`settings.debug` is False → `docs_url`/`redoc_url`/`openapi_url` all None). No action needed. Set `DEBUG=true` only if you *want* `/docs` back locally — it will then be mounted and sit behind the auth middleware.
-- `auth_enforce_allowlist` ships DARK (False). Flip `AUTH_ENFORCE_ALLOWLIST=true` to make an empty allowlist reject-all.
-- Intended tightenings on record: 401-echo now requires explicit `:port` in the origin; monthly-approval POST no longer lowercases/trims `action`.
+- **Slack bot restart required** for any of this to take effect (`python -m backend.slack_bot.app`).
+- **`_pending_push_ts` starts empty**, so reaction-approved pushes are inert until something calls `register_push_approval_request(ts)`. That is intentional fail-closed behavior, and it closes gap1-01 on day one — but it does mean the checkmark-to-push workflow is currently a no-op rather than a working feature. Wiring a poster is a follow-up decision, not a regression: before this step the "feature" was an unauthenticated push trigger for any channel member.
+- **`slack_operator_user_id` must be set** or every reaction and every App Home model change is denied. That is the intended fail-closed posture.

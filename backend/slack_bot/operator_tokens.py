@@ -76,6 +76,27 @@ def parse_operator_token(text: str | None) -> dict | None:
     return {"step": d["step"], "key": d["key"].strip(), "value": d["value"].strip()}
 
 
+def _authorized(
+    *, user: str | None, channel: str | None, operator_user_id: str,
+    allowed_channels: set[str], bot_id: str | None = None,
+) -> bool:
+    """Shared identity/channel predicate (phase-75.2, gap1-11).
+
+    Used by BOTH the matcher and the append sink so the two can never drift.
+    A matcher is a capability gate, not an authorization decision, so the same
+    check is repeated at the sink and fails closed on anything unexpected.
+    """
+    if not operator_user_id:
+        return False  # fail-closed: unconfigured operator accepts nothing
+    if bot_id:
+        return False
+    if user != operator_user_id:
+        return False
+    if channel not in allowed_channels:
+        return False
+    return True
+
+
 def is_operator_token_message(
     message: dict, operator_user_id: str, allowed_channels: set[str]
 ) -> bool:
@@ -84,26 +105,44 @@ def is_operator_token_message(
     Matcher-False makes Bolt fall through to the catch-all, so non-operator
     lookalikes and operator non-tokens still become tickets -- never swallowed.
     """
-    if not operator_user_id:
-        return False  # fail-closed: unconfigured operator accepts nothing
-    if message.get("bot_id"):
-        return False
-    if message.get("user") != operator_user_id:
-        return False
-    if message.get("channel") not in allowed_channels:
+    if not _authorized(
+        user=message.get("user"),
+        channel=message.get("channel"),
+        operator_user_id=operator_user_id,
+        allowed_channels=allowed_channels,
+        bot_id=message.get("bot_id"),
+    ):
         return False
     return parse_operator_token(message.get("text", "")) is not None
 
 
 async def append_operator_token(
-    *, text: str, user: str, channel: str, ts: str, event_id: str | None = None
+    *, text: str, user: str, channel: str, ts: str,
+    operator_user_id: str, allowed_channels: set[str],
+    event_id: str | None = None,
 ) -> tuple[int, dict] | None:
     """Dedupe-check -> append -> return (1-based line number, record).
 
     Returns None for duplicates or unparseable text (the matcher should have
     filtered the latter; double-checked here because append is the last line
     of defense for file integrity).
+
+    phase-75.2 (gap1-11): the identity/channel check is repeated HERE, at the
+    sink, so a future caller that skips `is_operator_token_message` cannot
+    write. `operator_user_id` and `allowed_channels` are REQUIRED -- there is
+    deliberately no default, because any default would be a fail-open hazard.
     """
+    if not _authorized(
+        user=user, channel=channel,
+        operator_user_id=operator_user_id, allowed_channels=allowed_channels,
+    ):
+        logger.warning(
+            "operator_token: REFUSED unauthorized append (user=%r channel=%r) "
+            "-- sink-level check, caller bypassed the matcher",
+            user, channel,
+        )
+        return None
+
     parsed = parse_operator_token(text)
     if parsed is None:
         return None

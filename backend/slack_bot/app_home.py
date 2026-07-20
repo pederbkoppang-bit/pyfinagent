@@ -195,7 +195,15 @@ def _build_home_blocks(data):
 
         blocks.append({
             "type": "section",
-            "text": {"type": "mrkdwn", "text": f"{label}\n_{desc}_\nCurrent: `{current_model}`"},
+            # phase-75.2 (gap1-07): AGENT_CONFIGS is an in-memory dict, so a
+            # change here does not survive a bot restart. Say so in the UI.
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"{label}\n_{desc}_\nCurrent: `{current_model}`\n"
+                    "_Operator-only; process-local, resets on restart._"
+                ),
+            },
             "accessory": {
                 "type": "static_select",
                 "placeholder": {"type": "plain_text", "text": "Change model"},
@@ -376,12 +384,31 @@ def register_governance(app):
     # ── Agent Model Change Handlers ─────────────────────────
 
     async def _handle_model_change(ack, body, client, agent_type_str):
-        """Handle model change for any agent."""
+        """Handle model change for any agent.
+
+        phase-75.2 (gap1-07): gated here, once, which covers all four action
+        registrations below. Slack App Home puts no restriction on which
+        workspace member can fire a block action, so the operator check is
+        ours to make -- and it fails closed when the setting is unset.
+        """
+        # ack() must come FIRST: Slack requires acknowledgement within 3s
+        # regardless of the authorization outcome. Deny after ack, never by
+        # withholding it.
         await ack()
         from backend.agents.agent_definitions import AGENT_CONFIGS, AgentType
+        from backend.config.settings import get_settings
+        from backend.slack_bot.assistant_guards import audit
 
         selected = body["actions"][0]["selected_option"]["value"]
         user_id = body["user"]["id"]
+
+        operator = get_settings().slack_operator_user_id
+        if not operator or user_id != operator:
+            logger.warning("app_home model change DENIED for user=%s", user_id)
+            await audit(user=user_id, channel=None, text=f"{agent_type_str}={selected}",
+                        outcome="denied_model_change", agent=agent_type_str)
+            await update_app_home(client=client, event={"user": user_id}, logger=logger)
+            return
 
         type_map = {t.value: t for t in AgentType}
         agent_type = type_map.get(agent_type_str)

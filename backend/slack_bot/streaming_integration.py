@@ -37,8 +37,22 @@ from backend.agents.agent_definitions import (
     AgentType,
     QueryComplexity,
 )
+from backend.slack_bot.assistant_guards import (
+    audit as assistant_audit,
+    is_deploy_request,
+    rate_ok,
+)
 
 logger = logging.getLogger(__name__)
+
+# phase-75.2 (gap1-04): deploys are operator-only and were never reachable
+# from this path anyway -- the module that implemented them is deleted. The
+# refusal is deterministic and fires before classification, so the model
+# cannot answer a deploy request as though it had deployed.
+REFUSAL_TEXT = (
+    "deploy commands are disabled -- deploys are operator-only. "
+    "See docs/runbooks/away-ops-rules.md."
+)
 
 
 # ── Agent task metadata for Slack task cards ─────────────────────
@@ -99,6 +113,27 @@ async def handle_user_message_with_streaming(
             return
 
         logger.info(f"Streaming message: user={user_id}, text={user_text[:50]}")
+
+        # ── phase-75.2 live-path guards, BEFORE any LLM call ─────
+        # Deterministic refusal first: the model never sees a deploy request,
+        # so it cannot answer as though it deployed (gap1-04, OWASP LLM01).
+        if is_deploy_request(user_text):
+            logger.warning("deploy request refused: user=%s", user_id)
+            await assistant_audit(user=user_id, channel=channel_id, text=user_text,
+                                  outcome="refused_deploy", slack_ts=thread_ts)
+            await say(text=REFUSAL_TEXT, thread_ts=thread_ts)
+            return
+
+        if not rate_ok(user_id):
+            logger.warning("assistant rate limit hit: user=%s", user_id)
+            await assistant_audit(user=user_id, channel=channel_id, text=user_text,
+                                  outcome="rate_limited", slack_ts=thread_ts)
+            await say(text="Rate limit reached -- please wait a moment and try again.",
+                      thread_ts=thread_ts)
+            return
+
+        await assistant_audit(user=user_id, channel=channel_id, text=user_text,
+                              outcome="accepted", slack_ts=thread_ts)
 
         # ── Classify via Communication Agent (Sonnet 4.6) ────────
         orchestrator = get_orchestrator()

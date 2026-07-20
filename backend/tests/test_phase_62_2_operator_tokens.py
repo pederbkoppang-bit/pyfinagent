@@ -11,6 +11,12 @@ from backend.slack_bot import operator_tokens as ot
 OP = "U0A078KP4FQ"
 CHANNELS = {"C0ANTGNNK8D", "C_DIGEST"}
 
+# phase-75.2 (gap1-11): append_operator_token now REQUIRES the identity
+# context (no fail-open default). These suites exercise the authorized
+# path, so they pass the operator + the channels they use.
+_APPEND_CHANNELS = CHANNELS | {"C1"}
+AUTH = {"operator_user_id": OP, "allowed_channels": _APPEND_CHANNELS}
+
 
 @pytest.fixture(autouse=True)
 def isolate_paths(tmp_path, monkeypatch):
@@ -79,7 +85,7 @@ def test_matcher_fail_closed_when_unconfigured():
 
 def test_append_writes_structured_line():
     res = asyncio.run(ot.append_operator_token(
-        text="65.2 EU SCREENER: ON", user=OP, channel="C0ANTGNNK8D",
+        **AUTH, text="65.2 EU SCREENER: ON", user=OP, channel="C0ANTGNNK8D",
         ts="171.001", event_id="Ev1"))
     assert res is not None
     line_no, rec = res
@@ -93,25 +99,25 @@ def test_append_writes_structured_line():
 
 def test_duplicate_event_id_not_rewritten():
     asyncio.run(ot.append_operator_token(
-        text="TEST TOKEN: PING", user=OP, channel="C0ANTGNNK8D", ts="1.1", event_id="EvX"))
+        **AUTH, text="TEST TOKEN: PING", user=OP, channel="C0ANTGNNK8D", ts="1.1", event_id="EvX"))
     dup = asyncio.run(ot.append_operator_token(
-        text="TEST TOKEN: PING", user=OP, channel="C0ANTGNNK8D", ts="1.2", event_id="EvX"))
+        **AUTH, text="TEST TOKEN: PING", user=OP, channel="C0ANTGNNK8D", ts="1.2", event_id="EvX"))
     assert dup is None
     assert len(ot.TOKENS_PATH.read_text().strip().splitlines()) == 1
 
 
 def test_duplicate_channel_ts_not_rewritten():
     asyncio.run(ot.append_operator_token(
-        text="TEST TOKEN: PING", user=OP, channel="C1", ts="9.9", event_id=None))
+        **AUTH, text="TEST TOKEN: PING", user=OP, channel="C1", ts="9.9", event_id=None))
     dup = asyncio.run(ot.append_operator_token(
-        text="TEST TOKEN: PING", user=OP, channel="C1", ts="9.9", event_id=None))
+        **AUTH, text="TEST TOKEN: PING", user=OP, channel="C1", ts="9.9", event_id=None))
     assert dup is None
     assert len(ot.TOKENS_PATH.read_text().strip().splitlines()) == 1
 
 
 def test_malformed_never_written():
     res = asyncio.run(ot.append_operator_token(
-        text="not a token at all", user=OP, channel="C1", ts="2.2"))
+        **AUTH, text="not a token at all", user=OP, channel="C1", ts="2.2"))
     assert res is None
     assert not ot.TOKENS_PATH.exists()
 
@@ -119,7 +125,7 @@ def test_malformed_never_written():
 def test_line_numbers_increment():
     for i, t in enumerate(["TEST TOKEN: ONE", "TEST TOKEN: TWO"], start=1):
         n, _ = asyncio.run(ot.append_operator_token(
-            text=t, user=OP, channel="C1", ts=f"3.{i}", event_id=f"Ev{i}"))
+            **AUTH, text=t, user=OP, channel="C1", ts=f"3.{i}", event_id=f"Ev{i}"))
         assert n == i
 
 
@@ -128,14 +134,14 @@ def test_line_numbers_increment():
 def test_cursor_absent_means_no_tokens_applied():
     assert ot.read_cursor() is None
     asyncio.run(ot.append_operator_token(
-        text="TEST TOKEN: PING", user=OP, channel="C1", ts="4.1", event_id="Ev4"))
+        **AUTH, text="TEST TOKEN: PING", user=OP, channel="C1", ts="4.1", event_id="Ev4"))
     pending = ot.unapplied_tokens()
     assert len(pending) == 1 and pending[0][0] == 1
 
 
 def test_advance_cursor_semantic_fields_and_mtime():
     asyncio.run(ot.append_operator_token(
-        text="65.2 EU SCREENER: ON", user=OP, channel="C1", ts="5.1", event_id="Ev5"))
+        **AUTH, text="65.2 EU SCREENER: ON", user=OP, channel="C1", ts="5.1", event_id="Ev5"))
     [(line_no, rec)] = ot.unapplied_tokens()
     payload = ot.advance_cursor(line_no, json.dumps(rec))
     assert payload["applied_line"] == 1

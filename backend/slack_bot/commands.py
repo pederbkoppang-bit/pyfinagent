@@ -27,6 +27,18 @@ _APPROVAL_CHANNEL = "C0ANTGNNK8D"
 # Project root
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
 
+# phase-75.2 (gap1-01): ts values of bot-posted push-approval requests. A
+# reaction only authorizes a push when it lands on one of these, and each is
+# single-use. Process-local: it resets on restart, and an empty set denies
+# every reaction -- the correct fail-closed default.
+_pending_push_ts: set[str] = set()
+
+
+def register_push_approval_request(ts: str) -> None:
+    """Record the ts of a bot-posted push-approval request as approvable."""
+    if ts:
+        _pending_push_ts.add(ts)
+
 
 def _read_status() -> str:
     """Read current plan status from memory and plan files."""
@@ -121,6 +133,9 @@ def register_commands(app: AsyncApp):
             user=message.get("user", ""),
             channel=message.get("channel", ""),
             ts=message.get("ts", ""),
+            # phase-75.2 (gap1-11): the sink re-checks identity itself.
+            operator_user_id=_settings.slack_operator_user_id,
+            allowed_channels=_token_channels,
             event_id=body.get("event_id"),
         )
         if result is None:
@@ -327,29 +342,53 @@ def register_commands(app: AsyncApp):
 
     @app.event("reaction_added")
     async def handle_reaction(event, say):
-        """Handle ✅/❌ reactions on push approval messages."""
-        reaction = event.get("reaction", "")
-        item = event.get("item", {})
-        channel = item.get("channel", "")
+        """Handle approval reactions on bot-posted push-approval requests.
 
-        if channel != _APPROVAL_CHANNEL:
+        phase-75.2 (gap1-01). Authorization is hand-rolled by necessity: Bolt's
+        `authorize` is installation-level and performs no per-user check. Order
+        matters -- identity first, then the ts binding, so an unauthorized user
+        can never reach the push.
+        """
+        operator = get_settings().slack_operator_user_id
+        if not operator:
+            # Fail-closed when unconfigured, mirroring is_operator_token_message.
+            logger.warning("reaction ignored: slack_operator_user_id unset (fail-closed)")
             return
 
+        # `user` is the reactor; `item_user` is the author of the reacted-to
+        # message. Gating on item_user would authorize the wrong party.
+        if event.get("user") != operator:
+            logger.warning("reaction ignored: non-operator user=%s", event.get("user"))
+            return
+
+        item = event.get("item") or {}
+        if item.get("channel") != _APPROVAL_CHANNEL:
+            return
+
+        ts = item.get("ts")
+        if not ts or ts not in _pending_push_ts:
+            logger.warning("reaction ignored: ts=%s is not a pending push approval", ts)
+            return
+
+        reaction = event.get("reaction", "")
         if reaction == "white_check_mark":
-            # Approved — push to GitHub
-            logger.info("Push approved via [OK] reaction")
+            _pending_push_ts.discard(ts)  # single-use: no replay into repeat pushes
+            logger.info("Push approved by operator reaction on ts=%s", ts)
             try:
-                result = subprocess.check_output(
+                # to_thread keeps the 30s subprocess off the Socket-Mode loop.
+                result = await asyncio.to_thread(
+                    subprocess.check_output,
                     ["git", "push", "origin", "main"],
                     cwd=str(_PROJECT_ROOT), text=True, timeout=30,
-                    stderr=subprocess.STDOUT
+                    stderr=subprocess.STDOUT,
                 )
-                await say(f"✅ *Pushed to GitHub*\n```{result.strip()}```")
+                await say(text=f"*Pushed to GitHub*\n```{result.strip()}```", thread_ts=ts)
             except subprocess.CalledProcessError as e:
-                await say(f"❌ *Push failed:*\n```{e.output[:500]}```")
+                await say(text=f"*Push failed:*\n```{e.output[:500]}```", thread_ts=ts)
             except Exception as e:
-                await say(f"❌ *Push error:* {str(e)[:200]}")
+                await say(text=f"*Push error:* {str(e)[:200]}", thread_ts=ts)
 
         elif reaction == "x":
-            logger.info("Push rejected via [FAIL] reaction")
-            await say("❌ Push rejected. Commits stay local.")
+            _pending_push_ts.discard(ts)
+            logger.info("Push rejected by operator reaction on ts=%s", ts)
+            await say(text="Push rejected. Commits stay local.", thread_ts=ts)
