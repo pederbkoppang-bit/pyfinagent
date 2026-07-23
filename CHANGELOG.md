@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-23 | `33553e46` | phase-75.5: close on certified_fallback (operator-approved 2026-07-23) |
 | 2026-07-23 | `435ede5e` | chore: archive phase-75.5 (certified_fallback) + phase-75.6 handoff snapshots |
 | 2026-07-23 | `f466e859` | phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS (cycle 1) |
 | 2026-07-23 | `3a7942cf` | fix: phase-75.5 LLM rail + root-cause remediation of the unmeasured-scope-claim defect |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `64bdd798` | phase-73.4: D2d cost-integrated promotion design [executor: this session, fable-5/ultracode]. Des... |
 | 2026-07-18 | `1275dff1` | phase-73.3: D2c calibrated-sizing design [executor: this session, fable-5/ultracode]. Design doc ... |
 | 2026-07-18 | `1b26ab7e` | phase-73.2: D2b learn-loop v2 design [executor: this session, fable-5/ultracode]. Design doc desi... |
-| 2026-07-18 | `d2485c2e` | phase-73.1: D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc ... |
 
 ---
 
+### v6.68.8 — phase-75.5: close on certified_fallback (operator-approved 2026-07-23) (2026-07-23)
+
+- **phase-75.5: close on certified_fallback (operator-approved 2026-07-23)**
 ### v6.68.7 — phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS... (2026-07-23)
 
 - **phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS (cycle 1)**
