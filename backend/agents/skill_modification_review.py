@@ -36,6 +36,7 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
+from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5 (llmeng-06)
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +214,7 @@ def _call_llm_for_review(prompt: str) -> Optional[dict[str, Any]]:
             location=getattr(settings, "gcp_location", "us-central1"),
         )
         resp = g_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=GEMINI_WORKHORSE,
             contents=prompt,
         )
         text = getattr(resp, "text", "") or ""

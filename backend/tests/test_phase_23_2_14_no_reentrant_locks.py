@@ -17,11 +17,31 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
-EXPECTED_LOCK_COUNT = 15
+EXPECTED_LOCK_COUNT = 17
+# phase-75.5 RE-AUDIT (2026-07-20). The count was 15 (set phase-56.2, 2026-06-10) but
+# the tree measured 17, so this guard was RED and had been for ~2 weeks -- which meant
+# it could no longer detect the very drift it exists to catch. Both extra locks audited
+# against the phase-23.2.14 re-entrancy criteria; both CLEAN:
+#
+#   16th -- `_RAIL_GUARD_LOCK`, backend/agents/claude_code_client.py:103.
+#           PRE-EXISTING drift, NOT from phase-75.5: added 2026-07-07 by phase-66.1
+#           (commit 27d40df5, cc_rail probe gate + circuit breaker) without the bump
+#           this docstring requires. Audited: `_rail_guard_record_failure` mutates
+#           state under the lock, copies `should_page` out, and performs the
+#           `raise_cron_alert_sync` call OUTSIDE the `with` block -- the canonical
+#           non-re-entrant shape. No `_*_locked` helper re-acquires it.
+#
+#   17th -- `_DEGRADED_LOCK`, backend/services/observability/spend.py:39.
+#           Added by phase-75.5 (arch-04 spend-guard degradation counter). Audited:
+#           identical shape -- counter mutation under the lock, `should_alert` copied
+#           out, and both `logger.warning` and `raise_cron_alert_sync` executed OUTSIDE
+#           the lock. Single-acquire, never nested.
+#
+# The pre-existing 16th masked the 17th: because the guard was already failing, adding
+# a new lock produced NO visible status change. A red guard is not a guard. Clearing
+# the count to the measured 17 restores its ability to detect the next real drift.
 # Researcher 2026-05-23 found 13 REAL threading.Lock() instantiations across
 # backend/. The 14th regex hit is at kill_switch.py:112 INSIDE a triple-quoted
 # docstring that describes the phase-23.1.22 BUG (text reads "re-entered the

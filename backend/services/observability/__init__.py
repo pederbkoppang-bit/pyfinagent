@@ -46,3 +46,22 @@ __all__ = [
     "flush_llm",
     "llm_buffer_size",
 ]
+
+# phase-75.5 (arch-04): public home for the cloud-spend fetch, promoted out of
+# the private slack_bot.jobs.cost_budget_watcher._default_fetch_spend symbol.
+from backend.services.observability.spend import (  # noqa: E402
+    fetch_spend,
+    reset_spend_guard_status,
+    spend_guard_status,
+)
+
+# phase-75.5 (arch-04, cycle 6): register the promoted symbols in __all__. They were
+# re-exported here but omitted from __all__ for five cycles, so `import *` did not bind
+# them and the module's public surface disagreed with itself -- while all 15 other
+# re-exports WERE listed. The unused-import suppression that used to sit on the import
+# above (ruff code F401) was the linter correctly reporting exactly this; with the names
+# registered it is no longer needed. arch-04's whole purpose was to give the money guard a PUBLIC home, so leaving
+# it out of the public surface undercut the fix. This is the same
+# added-without-registering class that masterplan 75.5.7 was queued to generalise --
+# found here in the module this step created.
+__all__ = [*__all__, "fetch_spend", "spend_guard_status", "reset_spend_guard_status"]

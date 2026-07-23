@@ -21,7 +21,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from backend.services.api_cache import get_api_cache
-from backend.slack_bot.jobs.cost_budget_watcher import _default_fetch_spend
+# phase-75.5 (arch-04): public observability home, not the private slack_bot symbol.
+from backend.services.observability import fetch_spend as _default_fetch_spend
 
 logger = logging.getLogger(__name__)
 

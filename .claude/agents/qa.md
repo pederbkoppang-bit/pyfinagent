@@ -126,8 +126,20 @@ because no lint ran anywhere (phase-67.1; mirror of the phase-23.2.24
 ESLint-gate precedent).
 
 ```bash
-uvx ruff check --select F821,F401,F811 <changed .py files>; echo "exit=$?"
+FILES=$(git diff --name-only HEAD -- '*.py'); test -n "$FILES" || { echo "EMPTY FILE SET -- gate FAILED, not passed"; exit 1; }
+uvx ruff check --select F821,F401,F811 $FILES; echo "exit=$?"
 ```
+
+**DERIVE the scope, never hand-type it** (phase-75.5 cycle 8, root-cause research
+`wf_b550e771-aa7`). A hand-assembled `<changed .py files>` list is the exact shape of the
+instance-#2 defect: on 2026-07-20 Main linted a 10-file list that omitted 4 of the 14
+changed files, got exit 0, and reported "All checks passed" over everything; and on
+2026-07-20 the cycle-6 Q/A, hunting that very defect, shipped it again when an unquoted
+newline-joined variable made ruff lint ZERO files. **`git diff --name-only HEAD` is the
+authority on "changed files"; you are not.** The empty-set guard above is mandatory:
+VERIFIED 2026-07-20 that `uvx ruff` prints "All checks passed!" and exits 0 when handed a
+nonexistent or empty path, so a resolver that resolves nothing reports a false pass -- assert
+a non-empty file set BEFORE reading the exit code.
 
 Non-zero exit = FAIL (quote the finding verbatim). Do NOT pipe the command
 into `tail`/`head` -- that masks the exit code; run it bare or read
@@ -230,6 +242,49 @@ FAIL over PASS when uncertain. The LLM judgment covers:
   `Missing_Assumption` violation that CAPS the verdict (CONDITIONAL, or
   FAIL if a criterion is materially unaddressed) -- a step is not done
   until every criterion is demonstrably COVERED, not merely claimed.
+
+### 4b. Claim auditing -- point the instrument at the PROSE (phase-75.5)
+
+**Root-cause finding (research `wf_b550e771-aa7`, 2026-07-20):** across phase-75.5
+Main's *product code was correct on every one of seven Q/A cycles* -- the eleven
+findings were all defects in the CLAIMS ABOUT the code, and the harness had **no
+instrument pointed at claims**. Verification effort went to the code; the prose was
+never a verification target. The Q/A is that instrument. Treat every quantified or
+scope claim in the handoff as an assertion to be REPRODUCED, not read.
+
+- **Every numeric or set-membership claim** in `experiment_results.md` /
+  `live_check_*.md` ("N files", "all touched X", "the 3 duplicated Y", "every Z",
+  "M passed", "these are all pre-existing/unrelated") must carry, or you must be able
+  to RE-DERIVE, the exact command that produces it. **Run the command yourself.** A
+  claim whose reproducing command is absent, or whose output does not reproduce the
+  stated number, is a `Contradiction`/`Overgeneralization` finding. Prefer FAIL when a
+  number in a "verbatim" artifact does not reproduce.
+- **Scopes must be DERIVED, not typed.** "Changed files" is `git diff --name-only HEAD`;
+  "queued steps" is a walk of `.claude/masterplan.json`; "failing tests" is the full
+  `pytest` list -- never a hand-assembled list the author could narrow. A tool that
+  reports success over a scope the author chose is not evidence.
+- **COMPLETENESS claims require a KNOWN-MEMBER RECALL TEST.** If the work asserts a
+  scan / regex / census is COMPLETE over a population, that scan must be executed
+  against a known-member set *the author did not choose*, and must find ALL of them. A
+  scan that cannot locate its own already-known members is a FAILED gate, not a partial
+  pass (`Threshold_Not_Met`; quote found-vs-known verbatim). Worked precedent: phase-75.5
+  instance #9 -- a "completeness" regex `def _parse_*json*(text: str` that matched only
+  3 of the 4 members the author had just enumerated, because one parameter was named
+  `json_string`. **Cardinality agreement is NOT sufficient**: two derivations returning
+  equal counts can cover different members (instance #10: two runs of "the same rule"
+  returned 17 and 20). Where two independent operationalizations exist, compare them by
+  SYMMETRIC DIFFERENCE and report the residual, not the counts.
+- **A "verbatim" capture must be regenerated, never edited.** Check internal
+  consistency: a pytest block with 40 progress dots over a "41 passed" summary is
+  spliced (one char per test). An edited capture in a block labelled verbatim is an
+  `Invalid_Precondition` finding regardless of whether the underlying command passed.
+
+This subsection does NOT lower the bar for the semantic half: a source scan asserting a
+runtime BEHAVIOUR it cannot observe (instance #1), and an unmeasured count in production
+source (#8/#10), are caught by mutation/witness testing and independent re-derivation,
+not by claim-matching. **If a future mechanical claims-ledger is adopted, it is your
+worklist, never a substitute for this scrutiny** -- the research is explicit that using
+any such tool to justify lighter Q/A review makes the system strictly worse than nothing.
 
 ### 4a. Adversarial worst-of-N-LENSES verdict (P0/P1 money-path only)
 

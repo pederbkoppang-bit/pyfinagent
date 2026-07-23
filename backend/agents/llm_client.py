@@ -424,7 +424,9 @@ def _check_cost_budget() -> None:
 
     try:
         from backend.config.settings import get_settings
-        from backend.slack_bot.jobs.cost_budget_watcher import _default_fetch_spend
+        # phase-75.5 (arch-04): resolve from the public observability home,
+        # not the private slack_bot job symbol.
+        from backend.services.observability import fetch_spend as _default_fetch_spend
         settings = get_settings()
         daily_cap = float(getattr(settings, "cost_budget_daily_usd", 5.0))
         monthly_cap = float(getattr(settings, "cost_budget_monthly_usd", 50.0))
@@ -670,6 +672,30 @@ class LLMResponse:
     # LLMResponse directly). Defaults to 0 so existing callers are unaffected.
     input_tokens: int = 0
     output_tokens: int = 0
+    # phase-75.5 (llmeng-04): provider-native termination reason, so callers can tell
+    # a COMPLETE response from a TRUNCATED one. Before this, truncation was invisible
+    # above the client layer: a max_tokens cut-off returned a normal-looking
+    # LLMResponse whose text happened to be half a JSON document, and the parse
+    # helpers reported it as ordinary malformed output.
+    #
+    # NORMALIZATION POLICY: store the provider-native string VERBATIM -- Claude emits
+    # lowercase ("end_turn", "max_tokens", "tool_use", "refusal", ...), Gemini emits
+    # UPPERCASE ("STOP", "MAX_TOKENS", "SAFETY", ...), and the Claude Code envelope
+    # carries its own. Do NOT lowercase at construction; compare via
+    # `is_truncated()` so one helper owns the case-folding and no call site
+    # hand-rolls `== "max_tokens"` and silently misses the Gemini form.
+    stop_reason: Optional[str] = None
+    # phase-75.5 (llmeng-04): set by the shared JSON-parse helper when it observes a
+    # truncated response. The helper NEVER retries -- see parse_llm_json().
+    degraded: bool = False
+
+    def is_truncated(self) -> bool:
+        """True when the provider stopped because the output budget ran out.
+
+        Case- and provider-insensitive: matches Claude's `max_tokens` and Gemini's
+        `MAX_TOKENS` through the same call.
+        """
+        return str(self.stop_reason or "").strip().lower() == "max_tokens"
 
     def __post_init__(self):
         # phase-27.2 (C1): enforce `text: str` contract. Gemini's response.text
@@ -1101,11 +1127,23 @@ class GeminiClient(LLMClient):
         except Exception as _exc:  # pragma: no cover -- fail-open
             logger.debug("[GeminiClient] llm_call_log write skipped: %r", _exc)
 
+        # phase-75.5 (llmeng-04): surface Gemini's finishReason as stop_reason.
+        # Gemini emits UPPERCASE ("STOP"/"MAX_TOKENS"/"SAFETY"); stored verbatim and
+        # case-folded by LLMResponse.is_truncated().
+        _finish_reason = None
+        try:
+            _cand = (getattr(response, "candidates", None) or [None])[0]
+            _fr = getattr(_cand, "finish_reason", None)
+            _finish_reason = getattr(_fr, "name", None) or (str(_fr) if _fr else None)
+        except Exception:  # pragma: no cover -- telemetry must not break the call
+            _finish_reason = None
+
         return LLMResponse(
             text=text,
             thoughts=thoughts,
             usage_metadata=umeta,
             grounding_metadata=grounding_sources,
+            stop_reason=_finish_reason,
         )
 
 
@@ -1201,7 +1239,11 @@ class OpenAIClient(LLMClient):
             # GitHub Models doesn't always support response_format — skip for them
             kwargs["response_format"] = {"type": "json_object"}
 
+        # phase-75.5 (llmeng-11): OpenAIClient had NO latency timer, so the
+        # log_llm_call retrofit below needs one. Matches the GeminiClient shape.
+        _t0 = _time.perf_counter()
         response = client.chat.completions.create(**kwargs)
+        _latency_ms = (_time.perf_counter() - _t0) * 1000.0
 
         text = response.choices[0].message.content or ""
         usage = response.usage
@@ -1211,7 +1253,42 @@ class OpenAIClient(LLMClient):
             total_token_count=getattr(usage, "total_tokens", 0) or 0,
         ) if usage else UsageMeta()
 
-        return LLMResponse(text=text, usage_metadata=umeta)
+        # phase-75.5 (llmeng-11): telemetry retrofit matching the GeminiClient
+        # phase-35.2 shape (:1086-1101). This client was the only provider path
+        # writing NO llm_call_log row, so OpenAI/GitHub-Models spend and latency
+        # were invisible to observability.
+        # NOTE: this ONE class serves BOTH direct OpenAI and GitHub Models (routed
+        # at make_client via base_url), so `provider` must be CONDITIONAL -- a
+        # hardcoded "openai" would mis-attribute every GitHub Models call.
+        try:  # pragma: no cover -- fail-open, telemetry must never break a call
+            from backend.services.observability import log_llm_call as _log_llm_call
+            _cfg = generation_config if isinstance(generation_config, dict) else {}
+            _log_llm_call(
+                provider="github_models" if self._base_url else "openai",
+                model=self.model_name,
+                agent=_cfg.get("_role"),
+                latency_ms=_latency_ms,
+                ttft_ms=_latency_ms,
+                input_tok=umeta.prompt_token_count,
+                output_tok=umeta.candidates_token_count,
+                cache_creation_tok=0,
+                cache_read_tok=0,
+                request_id=getattr(response, "id", None),
+                ok=True,
+                ticker=_cfg.get("_ticker"),
+            )
+        except Exception as _exc:  # pragma: no cover -- fail-open
+            logger.debug("[OpenAIClient] log_llm_call skipped: %s", _exc)
+
+        # phase-75.5 (llmeng-04): OpenAI's finish_reason ("stop"/"length"/...).
+        # "length" is OpenAI's truncation signal; normalized to the shared
+        # "max_tokens" vocabulary so is_truncated() works uniformly.
+        _fr = getattr(response.choices[0], "finish_reason", None) if response.choices else None
+        return LLMResponse(
+            text=text,
+            usage_metadata=umeta,
+            stop_reason="max_tokens" if _fr == "length" else _fr,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1691,6 +1768,7 @@ class ClaudeClient(LLMClient):
                 text="[refused: model declined this request]",
                 thoughts="",
                 usage_metadata=UsageMeta(),
+                stop_reason=stop_reason,
             )
         elif stop_reason == "pause_turn":
             # Server-tool sampling loop hit its iteration limit. Single
@@ -1800,11 +1878,16 @@ class ClaudeClient(LLMClient):
         # phase-25.E9: surface native Citations metadata when present.
         # `None` (not empty list) when no citations -> consumers can
         # distinguish "feature inactive" from "feature active, no matches".
+        # phase-75.5 (llmeng-04): surface Claude's stop_reason. NOTE this is read
+        # AFTER the MF-26/27 retry above, so a call that retried and completed
+        # reports the FINAL stop_reason -- which is what makes the no-double-retry
+        # guard in parse_llm_json() correct rather than merely convenient.
         return LLMResponse(
             text=text,
             thoughts=thoughts,
             usage_metadata=umeta,
             citations=citations_collected if citations_collected else None,
+            stop_reason=getattr(response, "stop_reason", None),
         )
 
 
@@ -2099,13 +2182,39 @@ def advisor_call(
     The advisor row's agent field ends in '_advisor_tool' to satisfy live_check.
     """
     import anthropic as _anthropic
-    import os as _os
     import time as _time
 
-    key = api_key or _os.getenv("ANTHROPIC_API_KEY")
+    # phase-75.5 (llmeng-03): this is a LIVE metered Anthropic call site that
+    # bypassed BOTH spend rails. Two guards, matching the pattern the three sibling
+    # generate_content paths already use (:870 Gemini, :1142 OpenAI, :1346 Claude).
+
+    # Guard 1 -- hard-block when the cost budget is tripped. Raises BudgetBreachError.
+    _check_cost_budget()
+
+    # Guard 2 -- routing-breach guard, mirroring make_client's fallthrough check.
+    # When the operator has opted into the Claude Code (Max-subscription) rail, a
+    # direct-API advisor call silently bills api.anthropic.com instead. Fail loudly.
+    from backend.config.settings import get_settings
+
+    settings = get_settings()
+    if getattr(settings, "paper_use_claude_code_route", False):
+        raise ValueError(
+            "Routing breach: paper_use_claude_code_route=True but advisor_call is "
+            "about to construct a direct-Anthropic client. This would silently bill "
+            "against api.anthropic.com instead of the Max-subscription rail. "
+            "advisor_call has no Claude Code equivalent -- either disable the CC "
+            "route for this call path or do not use the advisor tool here."
+        )
+
+    # phase-75.5: resolve the key from settings via unwrap_secret rather than a raw
+    # os.getenv. NOTE the SecretStr trap (auto-memory project_secretstr_dead_overlays):
+    # a non-empty SecretStr is TRUTHY, so `settings.anthropic_api_key or ""` returns
+    # the WRAPPER, not the string -- that exact bug silently disabled 4 alpha overlays
+    # for ~3 weeks. unwrap_secret() is the single sanctioned idiom (see :1953).
+    key = api_key or unwrap_secret(getattr(settings, "anthropic_api_key", ""))
     if not key:
         raise ValueError(
-            "advisor_call requires ANTHROPIC_API_KEY env var or api_key arg"
+            "advisor_call requires settings.anthropic_api_key or an api_key arg"
         )
     client = _anthropic.Anthropic(api_key=key)
 

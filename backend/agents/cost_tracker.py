@@ -172,8 +172,31 @@ class CostTracker:
         # is the 1h-TTL 2.0x rate (not the 5-min 1.25x). Prior 1.25x under-reported
         # cache-write cost by ~60% (e.g., $0.026 reported vs $0.041 actual for a
         # 4096-token Opus 4.7 system prompt). Closes phase-24.9 audit finding F-1.
+        # phase-75.4/75.5 (llmeng-10, MONEY FIX): `regular_input` used to be
+        #   max(0, input_tokens - cache_read - cache_creation)
+        # which DOUBLE-SUBTRACTS. Anthropic's prompt-caching doc is explicit:
+        #   "The input_tokens field represents only the tokens that come after the
+        #    last cache breakpoint in your request - not all the input tokens you sent"
+        #   "total_input_tokens = cache_read_input_tokens
+        #                       + cache_creation_input_tokens + input_tokens"
+        # i.e. `input_tokens` ALREADY excludes both cache buckets, so subtracting them
+        # again charges for fewer uncached tokens than were actually billed -- and the
+        # max(0, ...) clamp silently floored the result at zero instead of going
+        # negative, which is why this never surfaced. Worked example (Opus 4.8,
+        # input=1000, cache_read=5000): old = $0.002500, correct = $0.007500 -- a 66.7%
+        # UNDER-report of input cost on every cached call.
+        #
+        # SHAPE WARNING: this function is provider-polymorphic -- it reads Gemini's
+        # `prompt_token_count` but Anthropic's cache field names, and Gemini's
+        # semantics are the OPPOSITE (its prompt_token_count INCLUDES cached tokens).
+        # `regular_input = input_tokens` is correct today only because GeminiClient
+        # never populates the cache fields (llm_client.py:1072-1076 omits them;
+        # :1091-1092 hardcodes 0), so this branch is Anthropic-only in practice. That
+        # safety is INCIDENTAL, not structural -- test_phase_75_llm_rail.py pins it, so
+        # a future Gemini caching change fails the test instead of silently
+        # over-counting.
         if cache_read > 0 or cache_creation > 0:
-            regular_input = max(0, input_tokens - cache_read - cache_creation)
+            regular_input = input_tokens
             cached_read_cost = cache_read * pricing[0] * 0.1 / 1_000_000
             cache_write_cost = cache_creation * pricing[0] * 2.0 / 1_000_000
             regular_cost = regular_input * pricing[0] / 1_000_000

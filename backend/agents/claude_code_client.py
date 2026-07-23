@@ -24,6 +24,7 @@ ASCII-only log messages per backend-services.md::Logging.
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
@@ -527,14 +528,52 @@ def _make_claude_code_client_class():
             _ticker = config.get("_ticker")
             json_schema = None
             if config.get("response_mime_type") == "application/json":
-                # The orchestrator may pass a Pydantic model class as
-                # response_schema. We surface no schema to the CLI (the
-                # caller injects schema text into the prompt itself per
-                # existing convention) but flip --json-schema when the
-                # caller explicitly provides a dict.
+                # Lazy import: llm_client <-> claude_code_client is a known cycle
+                # (llm_client.py:1988 imports this module lazily; :455 above does
+                # the same in reverse), so this must NOT move to module scope.
+                from backend.agents.llm_client import (
+                    _ensure_additional_properties_false,
+                )
+
+                # phase-75.5 (llmeng-01): this used to accept ONLY dicts, so a
+                # Pydantic model CLASS fell straight through, json_schema stayed
+                # None, and --json-schema was never emitted -- the flag was dead
+                # code on the whole Layer-1 pipeline path, where all 9
+                # response_schema values are Pydantic classes (SynthesisReport,
+                # CriticVerdict, RiskJudgeVerdict, ModeratorConsensus, ...).
+                # The CC rail therefore ran UNCONSTRAINED while the sibling
+                # direct-API client (llm_client.py:1578-1592) enforced the schema.
+                #
+                # The dict branch is PRESERVED, not replaced: six production
+                # services legitimately pass pre-cleaned dicts (meta_scorer.py:232,
+                # news_screen.py:288, pead_signal.py:292, macro_regime.py:525,
+                # analyst_narrative_scorer.py:161, call_transcript_gpr.py:139).
+                #
+                # $defs/$ref need no flattening -- Anthropic documents $ref/$defs as
+                # supported (external $ref is not), and 4 of our 6 schemas emit
+                # $defs. Unsupported keywords (minimum/maxLength/recursive) would
+                # 400; test_phase_75_llm_rail.py guards against one appearing.
                 schema = config.get("response_schema")
                 if isinstance(schema, dict):
-                    json_schema = schema
+                    json_schema = _ensure_additional_properties_false(
+                        copy.deepcopy(schema)
+                    )
+                elif isinstance(schema, type) and hasattr(schema, "model_json_schema"):
+                    try:
+                        json_schema = _ensure_additional_properties_false(
+                            schema.model_json_schema()
+                        )
+                    except Exception as _schema_err:
+                        # Fail OPEN, deliberately: an unconvertible schema must not
+                        # break a live call. Behavior degrades to the pre-75.5 path
+                        # (no --json-schema), but LOUDLY rather than silently.
+                        logger.warning(
+                            "[ClaudeCodeClient] response_schema %s could not be "
+                            "converted to JSON schema; proceeding WITHOUT "
+                            "--json-schema (unconstrained): %s",
+                            getattr(schema, "__name__", schema), _schema_err,
+                        )
+                        json_schema = None
 
             # phase-66.1: rail guard -- probe gate / open breaker means NO
             # subprocess spawn and NO llm_call_log row (the skip is cycle-
@@ -588,8 +627,13 @@ def _make_claude_code_client_class():
             )
             _rail_guard_record_success()
 
+            # phase-75.5 (llmeng-04): the CLI envelope already carries stop_reason
+            # (documented at the module docstring's envelope description, :246);
+            # surface it so the CC rail is not the one path where truncation stays
+            # invisible to callers.
             return LLMResponse(
                 text=text,
+                stop_reason=envelope.get("stop_reason"),
                 usage_metadata=UsageMeta(
                     prompt_token_count=input_tokens,
                     candidates_token_count=output_tokens,

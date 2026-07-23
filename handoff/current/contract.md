@@ -1,275 +1,221 @@
-# Contract -- masterplan step 75.4
+# Contract -- masterplan step 75.5
 
-**Step id**: `75.4`
-**Name**: Audit75 S4 -- skill-prompt delivery integrity: loader truncation, undelivered sections, critic cap
-**Phase**: phase-75 (Full-stack code-quality audit vs official docs + best practices)
-**Priority**: P0
-**Executor tag**: `[executor: sonnet-4.6/high]` (executed this session)
-**Cycle**: 1
-**Date**: 2026-07-20
+**Step id**: `75.5`
+**Name**: Audit75 S5 -- live CC-rail schema enforcement, metered-bypass guards, model-retirement + telemetry/cost correctness
+**Phase**: phase-75 | **Priority**: P0 | **Cycle**: 1 | **Date**: 2026-07-20
+**BOUNDARY (from the step text)**: $0 metered strengthened; **no model-tier pins changed** -- literals become constants only.
 
 ---
 
-## 1. Research-gate summary
+## 1. Research gate
 
-**Gate**: PASSED. Workflow run `wf_10cb9956-68a`, two legs (researcher + independent
-adversarial verifier).
+**PASSED.** Run `wf_0cea9f6a-482`, two legs (researcher + independent adversarial verifier).
+Envelope: `tier=complex`, `external_sources_read_in_full=6`, `snippet_only=24`,
+`urls_collected=30`, `recency_scan_performed=true`, `internal_files_inspected=17`,
+`gate_passed=true`. Not audit-class. Brief: `handoff/current/research_brief_75.5.md`.
 
-**Envelope**: `tier=moderate`, `external_sources_read_in_full=5`,
-`snippet_only_sources=15`, `urls_collected=20`, `recency_scan_performed=true`,
-`internal_files_inspected=44`, `gate_passed=true`. Not audit-class (bounded,
-enumerated defect list -- `coverage.dry` not required).
-
-**Brief**: `handoff/current/research_brief_75.4.md` (write-first honored -- skeleton
-created within the first few tool calls, appended incrementally).
-
-### 1a. Claim verification (adversarial leg -- independent re-derivation)
-
-Every factual claim in the step text was re-derived from the current files by a
-second agent that read the brief only *after* forming its own view. Verdicts:
+### 1a. Claim verdicts (adversarially re-derived, not read off the step text)
 
 | Finding | Verdict | Note |
 |---|---|---|
-| gap5-01 | **CONFIRMED (exact)** | Loader executed, not inferred: 190 chars, `{{quant_model_data}}` absent. Lines :78/:81 exact. Sole affected file across all 29 skills. |
-| gap5-02 | **PARTIAL** | Counts (8 / 3) exact. Three mechanism corrections -- see §1b. |
-| gap5-03 | **PARTIAL** | Cap, literal string and line range all exact. The "4096-token report" *premise* is not sourced from `critic_agent.md` -- restated in §1b. |
-| gap5-06 | **CONFIRMED** | Both `_skill_gen_config` returns omit the cap; `ClaudeClient` default 2048 at `llm_client.py:1348`. |
-| gap5-10 | **CONFIRMED (exact)** | `sector_agent` at `orchestrator.py:1267` is the only occurrence; no such `.md` exists. |
-| item (f) | **CONFIRMED** | `format_skill` at `prompts.py:207` has no logging. |
+| llmeng-01 | **PARTIAL** | Defect exact at `claude_code_client.py:535-537`; but "the ONLY schema shape" is **REFUTED** |
+| llmeng-03 | **CONFIRMED** | All three limbs; only a line-number slip |
+| llmeng-04 | **PARTIAL** | Gap real; **"single owner" premise already false**; `:1684` is the wrong line |
+| llmeng-06 | **PARTIAL** | All 5 line numbers exact; but "5 pins" **undercounts** (13 behavioural) |
+| llmeng-10 | **CONFIRMED** | Money direction **correct, not backwards** |
+| llmeng-11 | **CONFIRMED** | Line slip only (`:1140` def, not `:1214`) |
+| arch-04 | **CONFIRMED** | All limbs; plus a discovered defect (§6) |
 
-### 1b. Corrections the research forced into this plan
+### 1b. Corrections that bind this plan
 
-1. **"sit AFTER `## Experiment Log`" is false for `bias_detector.md`** -- that file has
-   no Experiment Log heading at all (`bias_detector.md:6,18,28`). The correct universal
-   is "sit after the first H2 that terminates the extracted region."
-2. **`bias_detector.md` is an ORPHAN** -- no `load_skill("bias_detector")` caller exists;
-   production bias detection is deterministic Python (`backend/agents/bias_detector.py`,
-   imported at `orchestrator.py:38`). Fixing it satisfies criterion 2 but has **zero**
-   production effect. It will **not** be reported as a behavioral win.
-3. **A 4th file carries the phase-26.3 section**: `quant_strategy.md:241`. It is out of
-   the `load_skill` path (that file has no `## Prompt Template`, so `load_skill` raises
-   `ValueError`) and is read whole at `quant_optimizer.py:488` -- its section **is**
-   already delivered. **It must NOT be touched.** Criterion 2's "3 files" is correct as
-   written for the `load_skill`-delivered set.
-4. **gap5-03 premise restated.** There is no `4096` or `token` string anywhere in
-   `critic_agent.md`. The real chain is: the *delivered* critic template instructs
-   "Always include the corrected_report field with the full report JSON";
-   `CriticVerdict.corrected_report` is `Optional[SynthesisReport]` (`schemas.py:66`);
-   `SynthesisReport` is budgeted at 4096 (`_SYNTHESIS_STRUCTURED_CONFIG`,
-   `orchestrator.py:85`). A 2048 critic budget cannot fit the echo it demands.
-5. **NEW, not in the step text**: `_THINKING_CRITIC_CONFIG` (`orchestrator.py:97-103`)
-   carries the same `max_output_tokens: 2048` and is **defined but never referenced**
-   anywhere in the tree. Fixing only `_CRITIC_STRUCTURED_CONFIG` leaves a misleading
-   dead 2048 twin for the next grep to misread. In scope for this step.
-6. **NEW**: `load_skill("quant_strategy")` raises `ValueError` (no `## Prompt Template`).
-   Harmless in production, but a live landmine for any test that globs `SKILLS_DIR`.
-   The new test must exclude it **assertively**, never via a `try/except` swallow.
-7. **`_skill_gen_config` cap is Claude-path-only.** The brief's risk R2b (claiming (d)
-   would newly cap 12 Gemini agents) was **REFUTED** by the adversarial leg:
-   `llm_client.py:968-970` merges `bundle.base_config` via `setdefault`, and both
-   `_general_vertex` and `_quant_exec_vertex` already carry
-   `_enrichment_config = {..., "max_output_tokens": 1024}` (`orchestrator.py:530,566-568,586-590`).
-   I independently re-confirmed the `_quant_exec_vertex` half. **There is no Gemini
-   output-length reduction to disclose.**
-8. **gap5-10 severity sharpened**: the bad stem is **fail-open, not a crash**.
-   `fid_map.get("sector_agent")` misses -> `return None` -> the inline-skill path runs.
-   The Sector agent's prompt is correct today; what is silently lost is only the
-   phase-25.D9 Files-API token saving for that one agent. A silent **cost** regression --
-   which is exactly why a startup stem-exists assertion is the right remedy.
-9. **Criterion 5 breaks three live assertions** in `tests/verify_phase_25_D9_1.py`
-   (claims 3, 4, 5 at :68-95). This is a legitimate contract change to a prior phase's
-   verifier; it MUST be updated in the same commit and disclosed, or a previously-green
-   verifier silently goes red. The stale docstring at `orchestrator.py:919-921` ("The
-   `None` return is the safe fallback") must be rewritten too.
-10. **item (f) implementation constraint**: the check MUST compare kwargs against the
-    **extracted** template, never the raw file. A raw-file diff produces false positives
-    on `moderator_agent` and `risk_judge`, whose `## Data Inputs` prose documents bare
-    `{{debate_history}}` / `{{past_memory}}` / `{{devils_advocate}}` tokens that are not
-    real placeholders. Only the kwarg-with-no-placeholder direction is in scope; the
-    inverse direction would fire on intentionally-empty conditional sections.
+1. **llmeng-01 -- "the ONLY schema shape the pipeline passes" is REFUTED.** All 9 *pipeline*
+   `response_schema` values are Pydantic classes, so `--json-schema` is dead code **on that
+   path**. But **6 production services pass DICT schemas** (`meta_scorer.py:232`,
+   `news_screen.py:288`, `pead_signal.py:292`, `macro_regime.py:525`,
+   `analyst_narrative_scorer.py:161`, `call_transcript_gpr.py:139`), each pre-cleaned via
+   `_strip_unsupported_schema_keys(...model_json_schema())`. The `isinstance(dict)` branch is
+   **live for those six** -- the fix must ADD class handling, never replace the dict path.
+2. **llmeng-01 `$defs`/`$ref` trap MEASURED and CLEARED.** Anthropic lists `$ref`/`$defs` as
+   SUPPORTED (external `$ref` not). 4 of our 6 schemas emit `$defs` (CriticVerdict 5 refs,
+   SynthesisReport 3, ModeratorConsensus 2, RiskJudgeVerdict 1); **zero** carry an
+   unsupported keyword. No flattening needed. But `minimum`/`maxLength`/recursive schemas
+   **400** -- so a future `Field(ge=…)` would silently start failing. Guard test required.
+3. **llmeng-04 -- the "single owner" premise is ALREADY FALSE.** Two independent
+   max_tokens doubling re-requests exist today. The contract names the owner **verbatim**:
+   > **The sole max_tokens re-request owner on the `generate_content` path is
+   > `ClaudeClient.generate_content`'s phase-4.14.4 MF-26/27 `stop_reason` dispatch,
+   > `backend/agents/llm_client.py:1656-1681`, re-request at `:1672`, budget
+   > `min(max_tokens*2, 8192)`.**
 
-### 1c. External basis for the (c) design decision
+   The Layer-2 MAS loop (`multi_agent_orchestrator.py:1363-1394`, re-request `:1381`,
+   budget `min(_max_tokens*2, 32768)`, `_mt_retried_turn` guard) is a **separate,
+   pre-existing owner on a separate path** -- **out of scope, not to be unified here**.
+   Also: owner #1 only retries on a **tool_use tail** (`:1659`); plain-text truncation just
+   logs (`:1682-1685`) with no retry.
+4. **llmeng-04 -- `LLMResponse` is at `llm_client.py:653-679`, NOT `:1684`** (that line is a
+   log string). And **there is no shared JSON-parse helper**: there are **three duplicated**
+   ones (`debate.py:122` and `risk_debate.py:118` are byte-identical; `orchestrator.py:309`),
+   all taking a plain `text: str` -- they **cannot** expose `stop_reason` without a signature
+   change. Criterion 3 says "the shared JSON-parse helper"; I will introduce a single shared
+   helper and route the call sites to it, rather than pretend one exists.
+5. **llmeng-04 -- enum case differs.** Claude `stop_reason` is lowercase
+   (`end_turn`/`max_tokens`/`tool_use`/…); Gemini `finishReason` is UPPERCASE
+   (`STOP`/`MAX_TOKENS`/…). **Normalization policy: store the provider-native string on
+   `LLMResponse.stop_reason`, and compare case-insensitively via one helper.** The CC
+   envelope already carries `stop_reason` (`claude_code_client.py:245,:364-368`).
+6. **llmeng-06 -- "5 pins" undercounts.** 13 behavioural pins exist (unlisted:
+   `directive_review.py:159`, `directive_rewriter.py:202`, `news/sentiment.py:81`,
+   `harness_memory.py:322,:503`, `services/autonomous_loop.py:2648,:2663`,
+   `api/agent_map.py:132`). **Criterion 4 is scoped to the 5 named files so it stays
+   satisfiable as written** -- I fix those 5 and **queue the remaining 8** rather than
+   silently widening scope. Also **`GEMINI_DEEP_THINK` does not exist** -- only
+   `GEMINI_WORKHORSE` (`model_tiers.py:50`); deep-think lives inside a dict at `:97`. I must
+   create the constant, not assume it.
+7. **llmeng-10 -- direction CONFIRMED, and the over-count risk is CHECKED and CLEARED.**
+   Anthropic verbatim: *"The `input_tokens` field represents only the tokens that come after
+   the last cache breakpoint in your request - not all the input tokens you sent"* and
+   *"total_input_tokens = cache_read_input_tokens + cache_creation_input_tokens +
+   input_tokens"*. Current `cost_tracker.py:176`
+   `regular_input = max(0, input_tokens - cache_read - cache_creation)` double-subtracts.
+   Worked example (Opus 4.8, input=1000, cache_read=5000): today prices **$0.002500**,
+   correct is **$0.007500** -- a **66.7% under-report**; the `max(0,…)` clamp is what makes it
+   silent. `anthropic==0.96.0` exact pin, no version skew.
+   **Critical nuance**: `record()` is shape-polymorphic -- it reads Gemini's
+   `prompt_token_count` but Anthropic's cache field names, and **Gemini semantics are the
+   OPPOSITE** (`prompt_token_count` INCLUDES cached). This is safe **only** because
+   GeminiClient never populates the cache fields (`llm_client.py:1072-1076` omits them;
+   `:1091-1092` hardcodes 0). That safety is **incidental, not asserted** -> a guard test is
+   mandatory, or a future Gemini caching change silently over-counts.
+8. **Criterion 5 contains a kwarg that does not exist.** `UsageMeta(input=1000,
+   cache_read=5000)` raises `TypeError`; the real fields (`llm_client.py:643-650`) are
+   `prompt_token_count` / `candidates_token_count` / `total_token_count` /
+   `cache_creation_input_tokens` / `cache_read_input_tokens`, and `record()` takes a
+   **response object** (`cost_tracker.py:153` `getattr(response,'usage_metadata')`).
+   **The criterion is IMMUTABLE and will NOT be amended.** I read `input=`/`cache_read=` as
+   **descriptive shorthand** and satisfy its *intent* with the real API:
+   `SimpleNamespace(usage_metadata=UsageMeta(prompt_token_count=1000,
+   cache_read_input_tokens=5000))` must price exactly 1000 uncached input tokens. This
+   reading is recorded here so Q/A does not mistake it for criteria-weakening.
+9. **llmeng-03 SecretStr trap.** Use `unwrap_secret(getattr(settings,'anthropic_api_key',''))`
+   per the existing idiom at `:1953` -- **never `or ""`**, because a non-empty SecretStr is
+   truthy and `or ""` returns the **wrapper** (auto-memory `project_secretstr_dead_overlays`;
+   this exact bug silently killed 4 alpha overlays for 3 weeks).
+10. **Corrected line anchors**: `advisor_call` def `:2075` (not `:2110`, the `Anthropic()`
+    construction); `OpenAIClient.generate_content` def `:1140` (not `:1214`, the return).
+    OpenAIClient has **no latency timer** (add `_t0` around `:1204`) and **serves both direct
+    OpenAI and GitHub Models** (routed `:2035-2039` via `base_url`) -> `provider` must be
+    conditional, not hardcoded.
 
-The step offers two arms for gap5-03. **This contract takes the "raise to >= 6144" arm**
-and treats the branch fix as non-optional regardless.
+### 1c. Measured test breakage (not assumed)
 
-- Anthropic official docs (read in full): *"Treat max_tokens truncation as a retriable
-  error for structured outputs, not as a valid response to parse"* and *"Do NOT treat
-  truncated responses as success."* The structured-outputs doc adds that on truncation
-  the response is HTTP 200 but *"may be incomplete and NOT match your schema."* This
-  directly condemns the `treating as PASS with draft` branch, which is **fail-OPEN**: the
-  quality gate disappears rather than fails.
-- The `>= 6144` figure in criterion 4 is doc-sanctioned, not arbitrary: Anthropic's
-  sizing rule is *"max_tokens at least 1.5-2x your expected output size"*; expected
-  output is a full `SynthesisReport` budgeted at 4096, and 1.5 x 4096 = 6144.
-- **Why not patch semantics**: the delta/patch recommendation in the structured-outputs
-  doc is motivated by grammar-compilation cost and schema-complexity limits, **not** by
-  truncation. Taking that arm would require changing `CriticVerdict.corrected_report`
-  (`schemas.py:66`), rewriting `critic_agent.md:66/71/103/108`, and adding merge logic at
-  two separate accept paths (`orchestrator.py:1535-1538` and `:1544-1547`) on the live
-  synthesis path -- versus a one-integer edit. Patch semantics will be **queued as its
-  own masterplan step**, per the standing rule that out-of-scope defects get their own
-  research-gated step rather than a prose disclosure.
-- **In-repo prior art for the branch fix**: `llm_client.py:1653-1684` already handles
-  `stop_reason == "max_tokens"` by retrying once with `min(max_tokens*2, 8192)` at :1664.
-  The critic parse-fail branch will mirror this existing idiom rather than invent a new one.
+- **(g)** `tests/slack_bot/test_scheduler_wiring_phase991.py:150` monkeypatches
+  `cost_budget_watcher._default_fetch_spend` and **will break**. It lives under top-level
+  `tests/`, **outside** the verification command's `backend/tests/` scope, so it would
+  **regress silently**. Mitigation: keep a backwards-compatible alias AND run that file
+  explicitly as evidence. *(The verifier flagged it did not independently re-confirm the
+  monkeypatch line -- I will verify it myself before relying on the mitigation.)*
+- **(e)** `test_cost_tracker_pricing.py` and `verify_phase_25_{C9,D9,E9,S_1}` all pass
+  `cache=0` -> safe. `verify_phase_25_A9` claim-1 is a **source scan** and claim-2 a
+  **tautology** (expected==actual, same literal) -> **neither can catch (e)**; do not treat
+  their passing as evidence. `verify_phase_25_B9:147-151` does not break, but its **fixture
+  encodes the WRONG inclusive semantics** (`input_tokens=5050` with `cache_read=5000`) and
+  must be re-shaped to `input_tokens=50` in the same commit.
 
 ---
 
 ## 2. Hypothesis
 
-Five independent defects cause skill-prompt content to silently fail to reach the model,
-and one causes a quality gate to silently fail open. Each is a *silent* failure -- nothing
-crashes, nothing logs an error, and the pipeline reports success. Repairing the loader
-inputs (a, b), the output budgets (c, d), the stem resolution (e), and adding a
-kwarg-mismatch warning (f) restores the delivered prompt to what the skill files were
-written to say, and converts the critic's fail-open branch into a fail-flagged one.
+Seven defects on the LLM/cost rail, all *silent*: a schema flag that never fires on the
+pipeline path, two metered-spend guards that a live call site skips entirely, truncation
+that is invisible to callers, model pins that will hard-stop on 2026-10-16, an input-cost
+under-report of 66.7% on every cached call, a provider that writes no telemetry, and a
+money guard reached into via a private symbol. None crash; all under-report or under-guard.
 
-The load-bearing risk is **not** the fix -- it is that the fix's tests are canary-substring
-assertions, the exact shape that produced five consecutive vacuous-guard incidents in
-75.2/75.2.1/75.3. The mutation matrix in §5 is therefore a first-class deliverable, not a
-formality.
+**(e) is the money-critical item** and the one most likely to be got backwards -- which is
+exactly why the gate quoted the doc verbatim and worked the arithmetic before I touched it.
 
 ---
 
-## 3. Immutable success criteria (copied VERBATIM from `.claude/masterplan.json`)
+## 3. Immutable success criteria (VERBATIM from `.claude/masterplan.json`)
 
-> 1. New backend/tests/test_phase_75_skill_delivery.py passes offline and asserts via the REAL load_skill() (not string stubs): load_skill('quant_model_agent') output contains '{{quant_model_data}}' and at least one line of the former Instructions block
-> 2. Test asserts the 'Uncertainty Permission' canary phrase appears in load_skill() output for all 8 phase-4.14.26 files and a 'Code Execution' canary appears for the 3 phase-26.3 files -- proving the sections now live inside the extracted region
-> 3. Test asserts format_skill emits a warning (caplog) when passed a kwarg with no matching placeholder, and that the sector call site uses stem 'sector_analysis_agent' with a startup stem-exists assertion in place
-> 4. Critic output budget: test asserts _CRITIC_STRUCTURED_CONFIG max_output_tokens >= 6144 OR (patch-semantics: critic skill instructs corrected-fields-only AND the parse site merges patches); the literal log string 'treating as PASS with draft' no longer exists in orchestrator.py
-> 5. Enrichment cap: test asserts _skill_gen_config returns a config carrying max_output_tokens=1024 on both the file-id and no-file-id paths
-> 6. No skill .md loses content: every relocated section's text is byte-identical, only heading levels/positions change (diff summary in experiment_results.md)
+> 1. New backend/tests/test_phase_75_llm_rail.py passes offline and asserts: a config carrying a Pydantic model CLASS yields a CC argv containing --json-schema whose JSON sets additionalProperties:false (no CLI spawned -- argv construction only)
+> 2. Test asserts advisor_call invokes _check_cost_budget and raises the routing-breach ValueError when settings.paper_use_claude_code_route is True (monkeypatched), and llm_client no longer builds a raw Anthropic client from os.getenv in advisor_call
+> 3. Test asserts LLMResponse exposes stop_reason populated by the Claude, Gemini, and CC client paths, and the shared JSON-parse helper sets a `degraded` flag on a max_tokens truncation WITHOUT issuing its own retry (no-double-retry guard verified); the sole max_tokens re-request owner remains the existing ClaudeClient retry layer, asserted by the test
+> 4. Source scan in the test proves zero 'gemini-2.5' literals outside config/model_tiers.py across the 5 listed files, and the 2.5-family retirement warning fires under a frozen >=2026-09-15 date
+> 5. Test asserts UsageMeta(input=1000, cache_read=5000) prices exactly 1000 uncached input tokens (no clamp to zero), and OpenAIClient.generate_content calls log_llm_call (mocked transport)
+> 6. fetch_spend is importable from backend.services.observability; llm_client, api/cost_budget_api, and slack_bot/jobs/cost_budget_watcher all resolve it from there (import-path scan); guard degradation increments a counter/alert seam instead of only a WARNING line
 
-**Verification command** (immutable):
+**Command**: `cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_llm_rail.py -q`
+**live_check**: `handoff/current/live_check_75.5.md` -- verbatim command output (exit 0) +
+`git diff --stat`; ON-vs-OFF $0 diff for flag-gated live-loop behavior; Playwright/curl for
+UI-touching parts. Findings: llmeng-01, -03, -04, -06, -10, -11, arch-04.
 
-```
-cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_skill_delivery.py -q
-```
-
-**live_check** (immutable): `handoff/current/live_check_75.4.md` -- verbatim output of the
-verification command (exit 0) + `git diff --stat` proving the change surface; ON-vs-OFF $0
-diff for any flag-gated live-loop behavior; Playwright/curl capture for UI-touching parts.
-Findings covered: gap5-01, gap5-02, gap5-03, gap5-06, gap5-10.
-
-*No criterion is amended. Criterion 4's OR is resolved to its first arm (see §1c);
-criterion 2's "3 files" is satisfied as written (see §1b.3).*
+*No criterion amended. Criterion 5's `UsageMeta(input=…, cache_read=…)` is read as
+descriptive shorthand per §1b.8; criterion 3's "the shared JSON-parse helper" is satisfied
+by creating one per §1b.4; criterion 4 stays scoped to the 5 named files per §1b.6.*
 
 ---
 
 ## 4. Plan
 
-### (a) gap5-01 -- loader truncation in `quant_model_agent.md`
-Demote `## Quant Model Data` (:78) and `## Instructions` (:81) to `### `. Body text
-byte-identical. Result: the full template ships with `{{quant_model_data}}` present.
+- **(a)** In `claude_code_client.py:535-537`, keep the `isinstance(dict)` branch **intact**
+  (6 live dict callers) and ADD: Pydantic class -> `model_json_schema()` ->
+  `_ensure_additional_properties_false`. `--append-system-prompt` only if it costs nothing.
+- **(b)** `advisor_call` (`:2075`): add `_check_cost_budget` + the routing-breach guard
+  (copy `:2012-2021` verbatim), resolve the key via `unwrap_secret(...)`, drop the raw
+  `os.getenv` client build.
+- **(c)** Add `stop_reason` to `LLMResponse` (`:653-679`), populated on all three paths.
+  Create **one** shared JSON-parse helper that sets `degraded` on truncation and **never
+  retries**; route the three duplicates to it. Add the no-double-retry guard. The owning
+  layer is named verbatim in §1b.3 and must be repeated in the code comment.
+- **(d)** Route the **5 named** pins through `model_tiers.py` constants (creating
+  `GEMINI_DEEP_THINK`, which does not exist). Startup warning when `date >= 2026-09-15` and
+  any resolved gemini model is 2.5-family. **No tier pin values change** (boundary).
+- **(e)** `cost_tracker.py:176` -> `regular_input = input_tokens`. Plus a **guard test**
+  pinning the incidental Gemini safety (§1b.7).
+- **(f)** `OpenAIClient.generate_content` (`:1140`): `log_llm_call` retrofit, fail-open,
+  `_t0` latency timer, **conditional** provider (OpenAI vs GitHub Models).
+- **(g)** Promote `fetch_spend()` into `backend/services/observability` (package exists;
+  `alerting.py` is the natural home for the degradation counter). Repoint all consumers,
+  keep fail-open, **keep a back-compat alias** for the out-of-scope test.
 
-### (b) gap5-02 -- undelivered sections
-Relocate, **byte-identical body text**, into the `## Prompt Template` region:
-- `Uncertainty Permission` + `Empty-bracket retraction format` -- 8 files:
-  `synthesis_agent`, `critic_agent`, `moderator_agent`, `risk_judge`, `deep_dive_agent`,
-  `scenario_agent`, `quant_model_agent`, `bias_detector`.
-- `Code Execution Tasks` -- 3 files: `enhanced_macro_agent`, `quant_model_agent`,
-  `scenario_agent`.
-- **`quant_strategy.md` is explicitly NOT touched** (§1b.3).
-Headings demoted to `### ` on relocation so they cannot re-terminate the region.
+## 5. Mutation matrix (mandatory -- a guard that cannot fail does not count)
 
-### (c) gap5-03 -- critic budget + fail-open branch
-- `_CRITIC_STRUCTURED_CONFIG.max_output_tokens`: 2048 -> **6144**.
-- `_THINKING_CRITIC_CONFIG` (dead twin, §1b.5): raise to 6144 **and** annotate as
-  currently-unreferenced, so the two configs cannot drift.
-- Replace the `treating as PASS with draft` branch with the in-repo idiom
-  (`llm_client.py:1656-1684`): retry once at a raised budget; on continued parse failure
-  log a distinct warning and set an explicit `critic_degraded` flag so the report proceeds
-  **flagged**, never silently blessed. The literal string is removed.
+Per the durable rule from cycle 131: **a matrix licenses only "these N were killed", never
+"no vacuous guards".** Mutate the fixture too. Minimum set, each must FAIL a test:
+M1 revert the isinstance gate so a class is dropped; M2 emit a schema without
+`additionalProperties:false`; M3 remove `_check_cost_budget` from advisor_call; M4 remove
+the breach guard; M5 restore the raw `os.getenv` client; M6 drop `stop_reason` from each of
+the 3 paths **separately**; M7 make the parse helper retry (double-retry); M8 restore a
+`gemini-2.5` literal in **one** of the 5 files; M9 freeze the date to 2026-09-14 (warning
+must NOT fire -- negative control); **M10 revert `regular_input` to the subtracting form**
+(the money mutant); M11 populate Gemini cache fields (the incidental-safety guard must
+fire); M12 remove `log_llm_call` from OpenAIClient; M13 point a consumer back at the private
+`_default_fetch_spend`; **M14 HARNESS: replace the real `record()` with a stub** -- the
+anti-stub clause must break.
 
-### (d) gap5-06 -- enrichment cap provider-independence
-`_skill_gen_config` returns `max_output_tokens: 1024` on **both** paths (file-id and
-no-file-id). Gemini no-op (§1b.7); real fix on the Claude rail (`llm_client.py:1348`
-default 2048 -> honors 1024). Update `tests/verify_phase_25_D9_1.py` claims 3/4/5 and the
-stale docstring at `orchestrator.py:919-921` in the same commit (§1b.9).
+## 6. Risks / discovered defects -> queued, not disclosed in prose
 
-### (e) gap5-10 -- stem typo + startup assertion
-`orchestrator.py:1267`: `"sector_agent"` -> `"sector_analysis_agent"`. Add a startup
-assertion that every stem passed to `_skill_gen_config` resolves to a real file in
-`backend/agents/skills/`. All 12 call sites enumerated and checked.
+- **DISCOVERED (arch-04)**: `_default_fetch_spend` queries
+  `INFORMATION_SCHEMA.JOBS_BY_PROJECT.total_bytes_billed` at $6.25/TiB -- it measures
+  **BigQuery** spend, but `settings.py:379` documents `cost_budget_daily_usd` as the
+  *"Daily LLM-spend cap"* and CLAUDE.md calls the $25/day cap the **LLM** circuit breaker.
+  **The guard does not measure what its name says.** Promoting it unchanged (as (g)
+  specifies) correctly preserves behavior -- but this must be **queued as 75.5.1**, not
+  silently carried.
+- **75.5.2**: the 8 remaining gemini-2.5 behavioural pins outside criterion 4's 5 files.
+- **75.5.3**: schema-keyword guard -- a future `Field(ge=/le=)` would silently 400 the CC
+  rail (§1b.2).
+- **75.5.4**: unify or document the two max_tokens retry owners (§1b.3) -- explicitly NOT
+  done here.
+- **R-live**: (b), (e), (g) touch the live money/cost path. (e) changes reported cost
+  **upward** (it was under-reporting) -- this is a *correction*, but it will move dashboards
+  and could trip the $25/day guard sooner. Must be called out in `experiment_results.md`.
 
-### (f) `format_skill` kwarg-mismatch warning
-Log a warning when a kwarg has no matching `{{placeholder}}` in the **extracted** template
-(§1b.10). Blast radius is small -- `format_skill` has no callers outside `prompts.py`.
+## 7. References
 
-### Test
-New `backend/tests/test_phase_75_skill_delivery.py`, offline, asserting through the
-**real** `load_skill()` -- never a string stub. Excludes `quant_strategy.md` and
-`SKILL_TEMPLATE.md` **assertively** (explicit named exclusion + an assertion that the
-exclusion list is exactly what is expected), never a `try/except` swallow.
-
----
-
-## 5. Mutation matrix (MANDATORY -- a guard that cannot fail does not count)
-
-Grounded in arXiv 2301.12284's kill-criterion: *an assertion no mutant falsifies is by
-definition weak.* Per the standing durable rule from 75.2.1 -- **mutate the fixture too,
-not just the code under test, and mutate first the guard you catch yourself defending.**
-
-| id | Mutation | Must fail |
-|---|---|---|
-| M1 | Restore `## Quant Model Data` to H2 in `quant_model_agent.md` | criterion 1 test |
-| M2 | Restore `## Instructions` to H2 | criterion 1 test |
-| M3 | Move **ONE** file's `Uncertainty Permission` section back out (not all 8) | criterion 2 test -- proves the assertion is not `any()`-shaped |
-| M4 | Move **ONE** file's `Code Execution` section back out (not all 3) | criterion 2 test |
-| M5 | Revert `_CRITIC_STRUCTURED_CONFIG` to 2048 | criterion 4 test |
-| M6 | Reinstate the literal `treating as PASS with draft` string | criterion 4 test |
-| M7 | Revert the stem to `"sector_agent"` | criterion 3 test |
-| M8 | Remove the `format_skill` warning | criterion 3 caplog test |
-| M9 | Remove `max_output_tokens` from the **NO-file-id** return only | criterion 5 test -- proves BOTH paths are covered, not just the easy one |
-| M10 | Swap the real `load_skill` for a string stub in the test | the test must break -- proves criterion 1's anti-stub clause is real, i.e. mutating the **harness**, not the product |
-| M11 | Remove the startup stem-exists assertion | criterion 3 test |
-
-M9 and M10 are flagged by the research as the two highest-risk-of-being-skipped. M10 in
-particular mutates the test harness itself -- the exact level that escaped detection in
-75.2.1.
-
----
-
-## 6. Risks (carried from research, adversarially filtered)
-
-- **R1 (HIGH)** -- `skill_optimizer.apply_modification` (`skill_optimizer.py:397-459`)
-  rewrites skill files autonomously via `old_text` -> `new_text` replacement, guarded only
-  by an occurs-exactly-once check (:409-421); the phase-71.4 independent review gate
-  (:429-442) is flag-gated and **DARK**. An autonomous run can re-break the headings.
-  Relocating content *into* the template region newly exposes it to the auto-optimizer.
-  Mitigation: the post-write `load_skill()` validation already exists at :455-462; this
-  step's test makes a regression detectable. Full invariant-check hardening is out of
-  scope -> queue as its own step.
-- **R2 (HIGH, measured)** -- criterion 5 breaks three live assertions in
-  `tests/verify_phase_25_D9_1.py`. Must be updated in the same commit and disclosed.
-- **R2b -- REFUTED**, do not act on it. See §1b.7.
-- **R4 (MEDIUM)** -- `load_skill("quant_strategy")` raises; any naive glob-over-all-skills
-  loop crashes. Assertive exclusion required.
-- **R5 (MEDIUM)** -- vacuous-guard relapse. The specific trap: asserting a canary against
-  `Path.read_text()` rather than `load_skill()` output proves **nothing**, because the
-  phrase is already in all 8 files today and always was. §5 M3/M4/M10 exist to kill this.
-- **R6 (LOW)** -- relocation increases every affected delivered prompt. Quantify new
-  delivered lengths in `experiment_results.md`.
-- **R7 (LOW)** -- the `bias_detector.md` fix is cosmetic (orphan file). Must not be
-  reported as a behavioral improvement.
-
-## 7. Out of scope -> queue as their own steps
-
-Per the standing rule (auto-memory `feedback_queue_discovered_defects_in_masterplan`), each
-gets its own research-gated masterplan step, written for an executor with no memory of this
-discovery -- never a prose-only disclosure:
-1. Critic patch/corrected-fields-only semantics (the arm not taken in §1c).
-2. `skill_optimizer` post-write delivery-invariant check (R1).
-3. `quant_strategy.md` missing `## Prompt Template` / `load_skill` contract mismatch (§1b.6).
-4. `bias_detector.md` orphan-file disposition -- delete or wire up (§1b.2).
-
-## 8. References
-
-- `handoff/current/research_brief_75.4.md` (research gate, `wf_10cb9956-68a`)
-- Anthropic docs: max_tokens / truncation handling; structured outputs & constrained decoding
-- arXiv 2301.12284 (mutation-testing kill criterion)
-- In-repo: `llm_client.py:1653-1684` (retry-on-truncation idiom); `prompts.py:976-982`
-  (phase-32.3 inverse-direction regression); `.claude/rules/backend-agents.md` (documented
-  output caps)
-- `handoff/harness_log.md` Cycle 130 -- "THE LESSON, FINALLY GENERALIZED" (vacuous guards)
+`handoff/current/research_brief_75.5.md` (`wf_0cea9f6a-482`); Anthropic prompt-caching +
+structured-outputs + stop_reason docs; `ai.google.dev/gemini-api/docs/deprecations`
+(2.5 shutdown 2026-10-16); auto-memories `project_secretstr_dead_overlays`,
+`feedback_mutation_test_guards_and_fixtures`, `feedback_measure_dont_assert_claims`;
+`handoff/harness_log.md` Cycle 131.

@@ -15,7 +15,6 @@ _default_fetch_spend` when absent. Fail-open returns (0.0, 0.0).
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any, Callable
 
 from backend.autoresearch.budget import BudgetEnforcer
@@ -80,39 +79,19 @@ def run(
 
 
 def _default_fetch_spend() -> tuple[float, float]:
-    """Fetch today + this-month BQ spend from INFORMATION_SCHEMA.JOBS_BY_PROJECT.
+    """DEPRECATED back-compat alias -- delegates to the public
+    `backend.services.observability.fetch_spend`.
 
-    Price: $6.25/TiB on-demand (stable 2023-07-05 -> 2026). Uses
-    `total_bytes_billed` (reflects 10 MB minimum-billing floor; cache hits are
-    already 0). Requires `roles/bigquery.resourceViewer` on the project.
-    Fail-open to (0.0, 0.0) on any exception.
+    phase-75.5 (arch-04) promoted the implementation out of this private symbol
+    because llm_client and /api/cost-budget both reached across the layer boundary
+    into it. The alias is RETAINED deliberately, not for politeness: an existing test
+    (tests/slack_bot/test_scheduler_wiring_phase991.py:150) monkeypatches this exact
+    attribute, and that file lives OUTSIDE backend/tests/ -- i.e. outside this step's
+    verification command -- so removing the name would break it SILENTLY.
     """
-    try:
-        from google.cloud import bigquery
-        project = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
-        client = bigquery.Client(project=project)
-        sql = f"""
-            SELECT
-              SUM(IF(DATE(creation_time) = CURRENT_DATE(), total_bytes_billed, 0))
-                AS daily_bytes,
-              SUM(total_bytes_billed) AS monthly_bytes
-            FROM `{project}.region-us.INFORMATION_SCHEMA.JOBS_BY_PROJECT`
-            WHERE
-              creation_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
-              AND state = 'DONE'
-        """
-        rows = list(client.query(sql).result())
-        if not rows:
-            return 0.0, 0.0
-        row = rows[0]
-        daily_bytes = float(row["daily_bytes"] or 0)
-        monthly_bytes = float(row["monthly_bytes"] or 0)
-        daily = daily_bytes / 1e12 * _BQ_USD_PER_TIB
-        monthly = monthly_bytes / 1e12 * _BQ_USD_PER_TIB
-        return daily, monthly
-    except Exception as exc:
-        logger.warning("cost_budget_watcher: BQ spend fetch fail-open: %r", exc)
-        return 0.0, 0.0
+    from backend.services.observability import fetch_spend
+
+    return fetch_spend()
 
 
-__all__ = ["run", "JOB_NAME"]
+__all__ = ["run", "JOB_NAME", "_default_fetch_spend"]

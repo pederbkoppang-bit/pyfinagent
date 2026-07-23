@@ -16981,6 +16981,199 @@
             ],
             "live_check": "handoff/current/live_check_75.5.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: llmeng-01, llmeng-03, llmeng-04, llmeng-06, llmeng-10, llmeng-11, arch-04"
           },
+          "retry_count": 3,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.1",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- the cost-budget guard does not measure what its name says [executor: opus-4.8/xhigh; MONEY-ADJACENT: this is the $25/day circuit breaker]. Discovered during 75.5 and independently confirmed by that step's Q/A. backend/services/observability/spend.py::fetch_spend (promoted there by 75.5/arch-04, previously the private _default_fetch_spend in the Slack job) prices INFORMATION_SCHEMA.JOBS_BY_PROJECT.total_bytes_billed at $6.25/TiB -- i.e. it measures BIGQUERY spend. But backend/config/settings.py documents cost_budget_daily_usd as the 'Daily LLM-spend cap', and CLAUDE.md describes the $25/day cap as the LLM circuit breaker. Its three consumers (the llm_client hard-block, /api/cost-budget, the Slack watcher job) all read it as if it were LLM spend. 75.5 preserved this behaviour DELIBERATELY (behaviour-preserving refactor, no semantic change) and queued the reconciliation here. Decide and implement: either (a) add a real LLM-spend source (pyfinagent_data.llm_call_log already records per-call provider/model/tokens -- price it against backend/agents/cost_tracker.py::MODEL_PRICING) and make the budget gate read THAT, keeping BQ spend as a separate metric; or (b) rename the setting + docs so the guard's name matches what it measures. (a) is the likely correct answer since the operator's intent is an LLM cost ceiling, but it CHANGES when the breaker trips -- so ship it flag-gated dark with an ON-vs-OFF comparison before any default flip.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_1_spend_metric.py passes offline and asserts, against the REAL pricing table, that the metric feeding the budget gate reflects LLM spend (or, if arm (b) is chosen, that setting name/docs/consumers consistently say BigQuery and no consumer treats it as LLM spend)",
+              "If arm (a): the new LLM-spend path is flag-gated and the test proves flag-OFF is byte-identical to today's behaviour on the same inputs (no silent change to when the $25/day breaker trips)",
+              "Test asserts the guard still FAILS OPEN on a spend-fetch exception and that the phase-75.5 degradation counter/alert seam still fires (regression guard on arch-04)",
+              "Mutation matrix in experiment_results.md: swapping the metric source back, and removing the flag gate, each fail at least one test"
+            ],
+            "live_check": "handoff/current/live_check_75.5.1.md: verbatim verification command output (exit 0) + git diff --stat + an ON-vs-OFF $0 diff showing the breaker's trip point is unchanged with the flag OFF. No live BQ billing query without owner approval."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.2",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- the 8 remaining gemini-2.5 behavioural pins [executor: sonnet-4.6/high; BOUNDARY: literals become constants only, NO tier pin VALUE changed]. Discovered during 75.5: that step's text named '5 hardcoded gemini-2.5 pins' but the research gate's adversarial leg counted 13 behavioural pins tree-wide. 75.5's immutable criterion 4 was scoped to its 5 named files, so it fixed those and queued the rest here rather than silently widening scope. The 8 unaddressed sites, verified at that time (RE-DERIVE the line numbers, they will have moved): backend/meta_evolution/directive_review.py:159, backend/meta_evolution/directive_rewriter.py:202, backend/news/sentiment.py:81, backend/agents/harness_memory.py:322 and :503, backend/services/autonomous_loop.py:2648 and :2663, backend/api/agent_map.py:132. Route each through the GEMINI_WORKHORSE / GEMINI_DEEP_THINK constants in backend/config/model_tiers.py (both exist as of 75.5; GEMINI_DEEP_THINK was created there). This matters on a deadline: the Gemini 2.5 family shuts down 2026-10-16 (ai.google.dev/gemini-api/docs/deprecations) and the 2.0-flash class already cost this project 9 silent days when it was retired under a hardcoded pin. 75.5 also added model_tiers.gemini_retirement_warning(); ensure every newly-routed site is covered by it.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_5_2_model_pins.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_2_model_pins.py passes offline and proves, by a tree-wide scan, that ZERO behavioural gemini-2.5 literals remain outside backend/config/model_tiers.py (docstring prose included -- 75.5 set the precedent that the scan is read strictly, not reinterpreted)",
+              "Test asserts each newly-routed site resolves to the same model string it resolved to before the change (no tier pin VALUE changed -- prove by pinning the resolved values)",
+              "Test asserts gemini_retirement_warning fires for every routed site's resolved model under a frozen >=2026-09-15 date, and is silent both before that date and for a non-2.5 model (two negative controls)",
+              "Mutation matrix in experiment_results.md: restoring a literal at ONE of the 8 sites, and changing one resolved VALUE, each fail at least one test"
+            ],
+            "live_check": "handoff/current/live_check_75.5.2.md: verbatim verification command output (exit 0) + git diff --stat + a before/after table of every routed site's RESOLVED model string proving no value changed."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.3",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- CC-rail JSON-schema keyword guard [executor: sonnet-4.6/high]. Discovered during 75.5's research gate. Step 75.5 (llmeng-01) made ClaudeCodeClient convert Pydantic model CLASSES via model_json_schema() + _ensure_additional_properties_false and pass them through --json-schema. That gate MEASURED the current 6 schemas: 4 emit $defs/$ref (supported by Anthropic; external $ref is not) and ZERO carry an unsupported keyword -- so the conversion is safe TODAY. But Anthropic's structured-output validator 400s on minimum/maximum/multipleOf, minLength/maxLength, and recursive schemas. A future Field(ge=..., le=...) or a max_length on any model reachable by the CC rail would therefore start silently 400-ing that rail in production, with no local signal. Add a guard test that walks EVERY Pydantic response_schema the pipeline can hand to ClaudeCodeClient (start from backend/agents/schemas.py plus the 6 dict-schema services enumerated in 75.5's experiment_results) and fails if any emitted JSON schema contains an unsupported keyword. Re-derive the unsupported-keyword list from the current Anthropic docs at the research gate rather than trusting this description.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_5_3_schema_keywords.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_3_schema_keywords.py passes offline and enumerates every response_schema reachable by the CC rail, asserting each emitted JSON schema is free of the documented unsupported keywords",
+              "The enumeration is proven COMPLETE, not hand-listed: the test discovers schemas programmatically (or asserts its list matches a programmatic discovery) so a newly-added schema cannot silently escape the guard",
+              "Negative control: a deliberately-constructed model carrying Field(ge=...) is detected by the guard's own checker function, proving the check can fail",
+              "Mutation matrix in experiment_results.md: adding a constrained Field to a real reachable schema fails the test"
+            ],
+            "live_check": "handoff/current/live_check_75.5.3.md: verbatim verification command output (exit 0) + git diff --stat + the enumerated schema list with each one's keyword-scan result."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.4",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- reconcile the TWO max_tokens retry owners [executor: opus-4.8/xhigh]. Discovered during 75.5: its step text asserted a 'single owner' for the max_tokens re-request, and the research gate's adversarial leg proved that premise ALREADY FALSE. Two independent doubling re-requests exist on different paths: (1) ClaudeClient.generate_content's phase-4.14.4 MF-26/27 stop_reason dispatch in backend/agents/llm_client.py (re-request bounded at min(max_tokens*2, 8192)), which fires ONLY when the truncated response ends in a tool_use block -- plain-text truncation is logged with no retry; and (2) the Layer-2 MAS tool loop in backend/agents/multi_agent_orchestrator.py (re-request bounded at min(_max_tokens*2, 32768), guarded by _mt_retried_turn). 75.5 deliberately added NO third owner (its new backend/agents/llm_parse.py observes truncation and sets a degraded flag but never retries) and left these two alone. Decide and implement: unify them behind one policy, or formally document why two bounded owners on two paths is correct. Either way the outcome must be a single written statement of retry ownership that a future step can cite, because 75.5's own contract had to name the owner verbatim to avoid creating a third. RE-DERIVE all line numbers; they moved in 75.5.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_5_4_retry_ownership.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_4_retry_ownership.py passes offline and asserts BEHAVIOURALLY (driving each path with a mocked truncated response, not by source scan) that a max_tokens truncation triggers AT MOST ONE re-request per path",
+              "Test asserts no THIRD retry owner has appeared: any re-request site in the LLM call path is either one of the two documented owners or fails the test",
+              "The chosen policy (unified or two-owner) is documented in code at each owning site AND the test asserts that documentation exists and names the other owner",
+              "Mutation matrix in experiment_results.md: making either owner retry twice, and adding a retry to llm_parse.parse_llm_json, each fail at least one test"
+            ],
+            "live_check": "handoff/current/live_check_75.5.4.md: verbatim verification command output (exit 0) + git diff --stat + a behavioural trace showing the re-request count per path under a forced truncation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.5",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- route the NAMED duplicated JSON-parse helpers through llm_parse [executor: sonnet-4.6/high]. Discovered during 75.5. Criterion 3 of that step referred to 'the shared JSON-parse helper' -- which did not exist. FOUR duplicated helpers did: backend/agents/debate.py:122::_parse_json and backend/agents/risk_debate.py:118::_parse_json are byte-identical; backend/agents/orchestrator.py:309::_parse_json_with_fallback is a richer variant; and backend/meta_evolution/directive_rewriter.py:212::_parse_llm_json is a FOURTH, consumed on live paths by directive_review.py:36 (used :147, :163), directive_rewriter.py itself (:188, :206), and backend/agents/skill_modification_review.py:186 (used :205, :221). ALL take a bare `text: str` and are therefore structurally incapable of seeing provider truncation. SCOPE-CORRECTION NOTE: this step was created during phase-75.5 cycle 5 saying THREE; a cycle-5 Q/A measured the tree and found the fourth, and the step was widened in cycle 6 BEFORE any work began on it. Re-derive all line numbers -- they move. 75.5 CREATED the shared helper (backend/agents/llm_parse.py::parse_llm_json, which accepts an LLMResponse, reports truncation via the new stop_reason field, sets a `degraded` flag, and never retries) but deliberately did NOT rewire the live call sites -- so today NO live path benefits: the debate, risk-debate and orchestrator paths still cannot distinguish a truncated response from a malformed one. Rewire them. Each call site must pass the LLMResponse (not the extracted text) so truncation is visible, and each must propagate the degraded flag rather than swallow it. This touches the LIVE analysis pipeline: prove behaviour is unchanged for non-truncated responses. SCOPE (corrected phase-75.5 cycle 7): this step covers the SIX NAMED sites listed in backend/agents/llm_parse.py's docstring -- debate.py:122, risk_debate.py:118, orchestrator.py:309, directive_rewriter.py:212, agent_definitions.py:353::parse_llm_classification (silently defaults to AgentType.MAIN on parse failure), evaluator_agent.py:412::_parse_evaluation_response (returns a conservative FAIL verdict). It does NOT claim to be the complete population -- establishing that is step 75.5.8's job, and 75.5.5 must NOT assert completeness. Two prior revisions of this step asserted a total ('three', then 'four'); both were wrong, and the second was not a measurement, just a different number.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_5_5_parse_rewire.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_5_parse_rewire.py passes offline and asserts BEHAVIOURALLY, per site, that each NAMED rewired path reports degraded=True when handed a truncated LLMResponse and degraded=False on a healthy one (a negative control per site, so a flag that always fires cannot pass)",
+              "Each of the six named sites is proven rewired by BEHAVIOUR, not by a name-shaped source scan: reverting ONE site to its old text-only helper fails exactly that site's test and no other",
+              "For the two domain-object sites, the test pins the SPECIFIC failure mode the rewire must preserve: agent_definitions.parse_llm_classification must not silently return AgentType.MAIN on a TRUNCATED reply without the degraded signal, and evaluator_agent._parse_evaluation_response must still return its conservative FAIL verdict while surfacing degraded",
+              "Behaviour on NON-truncated responses is byte-identical to today for every site (parsed output pinned against the pre-change result for the same input)",
+              "NO COMPLETENESS CLAIM: experiment_results.md states plainly that this step rewires the named sites only and does not establish the total population, and cites 75.5.8 as the census. Do not add a total count to llm_parse.py's docstring -- it deliberately asserts none."
+            ],
+            "live_check": "handoff/current/live_check_75.5.5.md: verbatim verification command output (exit 0) + git diff --stat + a per-path behavioural trace showing degraded propagation on a forced truncation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.6",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- clear the remaining F401 lint findings [executor: sonnet-4.6/high]. MEASURED at phase-75.5 cycle 8 over the derived scope `uvx ruff check --select F821,F401,F811 $(git diff --name-only HEAD -- '*.py')`: TWO F401 remain, BOTH in backend/autonomous_loop.py -- `BacktestEngine` (~:409) and `EvaluationVerdict` (~:436), each imported inside a `try/except ImportError` AVAILABILITY PROBE where ruff itself suggests `importlib.util.find_spec`. RE-DERIVE the line numbers; they move. DO NOT blindly delete these two -- they exist to test package availability, so removing the import would change the except-branch behaviour; convert each to a `find_spec` presence check OR add a targeted `# noqa: F401` with an inline justification, whichever matches house style. HISTORY (do not repeat): cycles 2-7 asserted '3 pre-existing F401s' and named `rag_agent_runtime.py::typing.Any` + the two autonomous_loop ones; the count was wrong (a fourth, `import pytest` unused in the lock-roster test, was never in the hand-typed list -- the eleventh instance of phase-75.5's unmeasured-scope-claim defect). Cycle 8 removed the two `[*]`-fixable genuinely-dead imports (`pytest`, `typing.Any`) in files 75.5 had already edited, leaving only these two judgment-call probes. Related but SEPARATE: backend/agents/orchestrator.py's own F401/F821 set + missing `from __future__ import annotations` is queued as 75.4.6 -- do not conflate the files.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && uvx ruff check --select F821,F401,F811 backend/agents/rag_agent_runtime.py backend/autonomous_loop.py",
+            "success_criteria": [
+              "The verification command `uvx ruff check --select F821,F401,F811 backend/autonomous_loop.py` exits 0 with zero findings",
+              "Each of the two probes is resolved by the find_spec pattern OR a justified inline noqa, and experiment_results.md records per-import which route was taken and why (genuine availability probe, not dead code)",
+              "Runtime smoke: backend.autonomous_loop still imports cleanly AND the except-branch behaviour is preserved -- a test or documented manual check shows the mock fallback still fires when the probed package is absent",
+              "The count is MEASURED not asserted: experiment_results.md shows the verbatim ruff output before (2 findings) and after (0), over the git-derived scope, never a typed file list"
+            ],
+            "live_check": "handoff/current/live_check_75.5.6.md: verbatim output of the ruff command showing exit 0 where it previously exited 1, plus git diff --stat and the runtime import smoke."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.7",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- make the lock-roster guard unable to go quietly red [executor: opus-4.8/xhigh; PROCESS DEFECT, not a code bug]. Discovered during 75.5 cycle 3. backend/tests/test_phase_23_2_14_no_reentrant_locks.py pins EXPECTED_LOCK_COUNT and requires 'an explicit phase-23.2.14 re-audit + this bump' whenever a threading.Lock() is added. phase-66.1 added _RAIL_GUARD_LOCK (backend/agents/claude_code_client.py, commit 27d40df5, 2026-07-07) WITHOUT that bump, leaving the guard RED for ~2 weeks -- and a permanently-red guard cannot detect the next drift. That is exactly what happened: 75.5 then added _DEGRADED_LOCK (backend/services/observability/spend.py) and the new lock produced NO visible status change, so it went unnoticed through three review cycles until a Q/A counted the sites by hand. 75.5 performed the real re-audit and bumped 15 -> 17 (both locks verified non-re-entrant), so the guard is green again -- but the PROCESS gap that let a lock land unaudited is untouched, and it will recur. Fix the mechanism, not the count: make the guard's failure message name the offending file/line and the commit that introduced it; and/or wire it into a pre-commit or CI gate so it cannot sit red; and/or have it fail LOUDER when it has been red across multiple commits. Generalise if cheap: audit whether other roster/inventory/count guards in the repo (e.g. backend/agents/_inventory.json, agent_map, any *_COUNT constant) can go quietly red the same way.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_23_2_14_no_reentrant_locks.py backend/tests/test_phase_75_5_7_roster_guards.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_7_roster_guards.py passes offline and asserts the lock guard's failure message identifies the offending file:line for a drifted lock (proven by constructing a drift condition, not by reading the source)",
+              "Test enumerates every count/roster guard of this shape in the repo and asserts each one currently PASSES -- so a guard that is silently red is itself a test failure rather than invisible",
+              "The mechanism change is proven to fire: a simulated new lock without a bump produces the improved diagnostic, and the existing 5 lock-guard assertions still pass",
+              "Mutation matrix in experiment_results.md: reverting the improved diagnostic, and silencing any enumerated roster guard, each fail at least one test"
+            ],
+            "live_check": "handoff/current/live_check_75.5.7.md: verbatim verification command output (exit 0) + git diff --stat + the improved diagnostic's actual text under a simulated drift."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.8",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- behavioural CENSUS of truncation-blind LLM-JSON parsers [executor: opus-4.8/xhigh]. Discovered across phase-75.5 cycles 5-7, where the count of duplicated parse helpers was asserted as 'three', corrected to 'four', and then shown to be at least six -- each revision a number carried forward rather than measured. THE POINT OF THIS STEP IS THE MEASUREMENT, NOT A NUMBER. Establish, by a scan defined on BEHAVIOUR rather than on names, the population of call sites under backend/ that (a) receive text originating from an LLM response, (b) json-parse it, and (c) cannot distinguish a max_tokens truncation from a malformed reply. Why name-shaped scans fail here, demonstrated: `grep -E 'def _parse_[a-z_]*json[a-z_]*\\(text: str'` misses backend/agents/orchestrator.py:309::_parse_json_with_fallback because its first parameter is named `json_string`, and is structurally blind to agent_definitions.py:353::parse_llm_classification(response_text: str) and evaluator_agent.py:412::_parse_evaluation_response, which carry no `json` token in their names. A naive scan for 'function taking a str that calls json.loads' sweeps in GCS loaders, JWE decrypt and BigQuery readers, so the discriminator must be LLM-PROVENANCE of the input, not the json call. DO NOT trust any hit-count quoted for that naive rule: phase-75.5 cycle 7 asserted '~36', and when two reviewers each executed the stated rule independently they got 17 and 20 -- neither matching the assertion nor each other, because the rule never specified whether json_io.loads counts, whether the parameter must be annotated, or how `self` shifts the position. Define your membership rule as EXECUTABLE CODE checked into the test before you count anything. Suggested approach: trace from the LLMResponse/LLMClient boundary forward to every json-parse reachable from a model reply. Two members found in cycle 6 have REAL failure modes worth prioritising: parse_llm_classification silently returns a default AgentType.MAIN routing on parse failure, and _parse_evaluation_response returns a conservative FAIL verdict -- in both cases a truncated reply is indistinguishable from a bad one. Deliverable: the census itself plus a machine-checkable guard so the population cannot grow silently again. CROSS-CHECK (added phase-75.5 cycle 8 per research wf_b550e771-aa7): produce TWO INDEPENDENT operationalizations of the truncation-blind population -- e.g. (i) a call-graph trace forward from the LLMResponse/LLMClient boundary to every json-parse it reaches, and (ii) an AST scan of functions that json-load a parameter whose value is LLM-sourced -- and report their SYMMETRIC DIFFERENCE, not their counts. Cardinality agreement is NOT member agreement: phase-75.5 instance #10 had two runs of 'the same rule' return 17 and 20. The residual of the symmetric difference is the deliverable's honesty check.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_8_parse_census.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_8_parse_census.py passes offline and implements a census whose discriminator is LLM-PROVENANCE of the parsed text, not the function's name -- proven by a SELF-TEST asserting the census finds every site already known (the six named in llm_parse.py's docstring), so a scan that cannot locate its own known members fails",
+              "The census result is recorded as data (a checked-in list or generated artifact), and a guard test fails when a NEW truncation-blind LLM-JSON parse site appears that is not in that list -- demonstrated by adding one in the test and observing the failure",
+              "The census explicitly reports its own known limits: what it can and cannot detect (e.g. dynamically-dispatched parses, text passed through intermediate variables), stated in experiment_results.md rather than claimed to be exhaustive",
+              "Negative control: a str->json function with NO LLM provenance (e.g. backend/backtest/result_store.py::load_result or backend/api/auth.py::decrypt_jwe) is NOT reported by the census, proving the discriminator discriminates",
+              "The census reports the SYMMETRIC DIFFERENCE of two independent derivations (not two counts); a non-empty residual is disclosed and explained rather than silently reconciled to a single number"
+            ],
+            "live_check": "handoff/current/live_check_75.5.8.md: verbatim verification command output (exit 0) + git diff --stat + the census output itself, with the self-test result showing all previously-known sites were rediscovered by the scan rather than hardcoded into it."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.9",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- Claims Ledger: point a mechanical instrument at handoff PROSE claims [executor: opus-4.8/xhigh; ADVISORY-FIRST, do-no-harm]. Root cause (research handoff/current/research_brief_unmeasured_scope_claims.md, wf_b550e771-aa7): across phase-75.5 the product code was correct on all 7 Q/A cycles; all 11 findings were defects in the CLAIMS ABOUT the code, and the harness had NO instrument pointed at claims -- verification effort went to code, never to prose. Build a small stdlib-only extractor+resolver that converts unbounded prose-reading into a bounded, machine-denominated worklist. SCOPE (the judge rejected the rest, do NOT build it): NEW .claude/hooks/lib/claims_ledger.py (~180 lines) cloning .claude/hooks/lib/verdict_gate.py's contract EXACTLY (gate_decision(...)->'proceed'|'passed'|'hold'; single token on stdout; NEVER raises; wrong-argc->'proceed'; fail-open). extract() over handoff/current/*.md prose lines (fenced blocks stripped) PLUS `git diff -U0 HEAD` added lines so production-source counts are in scope. Ship ONLY these four resolvers, EACH of which MUST assert a non-empty population before comparing (a resolver that resolves nothing reports ERROR, never agreement -- ruff prints 'All checks passed!' exit 0 on an empty path): changed-files (`git diff --name-only HEAD -- '*.py'`); lint-findings (ruff over that set); masterplan-ids (walk .claude/masterplan.json; would have returned 0 against instance #7's claimed-but-absent 7 steps); collected-tests (`pytest --collect-only -q`). NEW .claude/hooks/claims-ledger-refresh.sh PostToolUse on Write/Edit of handoff/current/*.md, cheap legs only, always exit 0. Wire a FOURTH gate into .claude/hooks/auto-commit-and-push.sh after the verdict block -- MIND THE ROTATION TRAP: archive-handoff.sh runs before auto-commit, so resolve at handoff/current/ OR handoff/archive/phase-<step_id>/. DO NOT BUILD: claimlock's emit/lock-file layer (its opt-in emit model is the exact dependency this defect defeats); claimc's .md.in compiler (friction unaffordable for one local dev). ADVISORY FOR TWO CYCLES: 'hold' logs WARN and proceeds; promote a leg to blocking only after it measures ZERO false positives over those two cycles -- do NOT promote a superseded-value/historical-narrative sweep to blocking (a forensic document always contains legitimate historical numbers). BINDING CONSTRAINT from the research: this ledger is the Q/A's WORKLIST, never a substitute for Q/A scrutiny; if adopting it is used to justify lighter review it makes the system strictly worse than nothing -- state that in the tool's own docstring.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_9_claims_ledger.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_9_claims_ledger.py passes offline; gate_decision returns a single token on stdout, never raises, and returns 'proceed' on wrong argc (contract identical to verdict_gate.py, asserted)",
+              "Each of the four resolvers asserts a NON-EMPTY population before comparing and reports ERROR (not agreement) when it resolves nothing -- proven by a test that feeds each resolver an empty scope and asserts it does NOT report a clean pass",
+              "REPLAY TEST against the real phase-75.5 defects: the masterplan-ids resolver returns 0 for the instance-#7 claim (the 7 steps that did not exist at the time), and the changed-files resolver flags the instance-#2 10-vs-14 omission -- both recorded verbatim",
+              "The ledger is ADVISORY: a 'hold' logs WARN and exits 0 (never blocks the commit); a mutation test confirms flipping a resolver to raise still yields 'proceed' (fail-open preserved)",
+              "The tool's docstring states verbatim that it is the Q/A's worklist and NOT a substitute for Q/A scrutiny"
+            ],
+            "live_check": "handoff/current/live_check_75.5.9.md: verbatim verification command output (exit 0) + git diff --stat + a replay showing the ledger's tokens against the actual instance-#2 and instance-#7 evidence, and an ON-vs-OFF proof that the advisory gate never blocks a commit."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.10",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- live_check_gate.py must READ its artifact, not just stat it [executor: sonnet-4.6/high]. Discovered by the phase-75.5 root-cause research (wf_b550e771-aa7) and independently confirmed: .claude/hooks/lib/live_check_gate.py currently ends `return \"passed\" if artifact.exists() else \"skip\"` -- it checks only that handoff/current/live_check_<step_id>.md EXISTS, never its content. So an EMPTY file passes the gate CLAUDE.md describes as converting 'the agent claimed PASS' into 'an artifact an operator can audit'. Both phase-75.5 live_check defects (a spliced 'verbatim' capture; a truncated regression block that concealed a real lock defect) were invisible to this gate. Harden it to a minimum content bar WITHOUT breaking its fail-open discipline (any helper error -> proceed, per the hook's never-break-the-Write rule): non-empty, contains at least one fenced ``` block, and is not solely prose. RE-DERIVE the exact current return-line; it may move.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_10_live_check_content.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_5_10_live_check_content.py passes offline and asserts, against the REAL live_check_gate.gate_decision, that an EMPTY artifact does NOT return 'passed' (it returns hold/skip), a prose-only artifact with no fenced block does NOT pass, and a normal artifact with >=1 fenced block DOES pass",
+              "Fail-open preserved: a mutation that makes the content check raise still yields 'proceed'/'passed' (the gate must never break the masterplan Write) -- asserted by injecting an exception",
+              "The gate remains backward-compatible: every EXISTING passing live_check_*.md in handoff/archive/ still passes the hardened gate (regression scan over the archive)",
+              "Mutation matrix in experiment_results.md: reverting to the exists()-only check fails the empty-artifact test"
+            ],
+            "live_check": "handoff/current/live_check_75.5.10.md: verbatim verification command output (exit 0) + git diff --stat + the hardened gate's decision on an empty file, a prose-only file, and a real capture."
+          },
           "retry_count": 0,
           "max_retries": 3
         },

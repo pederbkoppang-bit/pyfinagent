@@ -46,6 +46,7 @@ from backend.agents._genai_client import get_genai_client
 # fabricated-number honesty grep can distinguish real thresholds from the
 # deleted spot-check stub. meta_dsr is a leaf (no backend.agents import) -> no cycle.
 from backend.autoresearch.meta_dsr import LOOSE_DSR_MIN
+from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5 (llmeng-06)
 
 GENAI_AVAILABLE = True  # module imports always; runtime None-check gates real calls
 
@@ -91,7 +92,7 @@ class EvaluatorAgent:
     """
     
     # phase-60.1 (AW-4): repinned from the discontinued gemini-2.0-flash.
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = GEMINI_WORKHORSE):
         """Initialize evaluator with Claude/Gemini"""
         self.model_name = model_name
         self.max_eval_time = 30  # seconds

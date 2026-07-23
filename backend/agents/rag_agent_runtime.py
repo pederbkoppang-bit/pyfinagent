@@ -29,7 +29,7 @@ explicitly.
 - Retrieved tokens: standard context-token rate per model
 - Hard limits: 100 MB / file, ~20 GB / store recommended
 - NOT compatible with Google Search grounding + URL context (mutually exclusive)
-- Supported models: gemini-2.5-pro, gemini-2.5-flash, or newer
+- Supported models: the Gemini 2.5 family (see config/model_tiers.py) or newer
 
 == References ==
 
@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5 (llmeng-06)
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ MULTIMODAL_EMBEDDING_MODEL: str = "models/gemini-embedding-2"
 
 # Compatible generation models per docs (May 2026): 2.5-pro, 2.5-flash, or newer.
 # 2.0-flash is NOT in the supported list for file_search tool.
-DEFAULT_QUERY_MODEL: str = "gemini-2.5-flash"
+DEFAULT_QUERY_MODEL: str = GEMINI_WORKHORSE
 
 
 def _get_genai_client(prefer_developer_api: bool = False):
@@ -336,7 +336,8 @@ def multimodal_index(
             via create_multimodal_store() + upload_to_store() first. This
             keeps the function importable (satisfies verification command)
             without forcing real API calls in test contexts.
-        model: generation model. Must be gemini-2.5-pro / 2.5-flash / newer.
+        model: generation model. Must be the Gemini 2.5 family (see
+            config/model_tiers.py) or newer.
 
     Returns:
         {

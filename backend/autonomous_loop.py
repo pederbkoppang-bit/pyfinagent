@@ -18,6 +18,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from enum import Enum
 
 from google.cloud import bigquery
+from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5 (llmeng-06)
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class AutonomousLoopOrchestrator:
         dataset_id: str = "trading",
         planner_model: str = "claude-opus-4-8",
         # phase-60.1 (AW-4): repinned from the discontinued gemini-2.0-flash.
-        evaluator_model: str = "gemini-2.5-flash",
+        evaluator_model: str = GEMINI_WORKHORSE,
     ):
         """Initialize orchestrator."""
         self.project_id = project_id

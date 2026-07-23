@@ -32,6 +32,8 @@ References:
 
 from __future__ import annotations
 
+from datetime import date as _date
+
 from typing import Literal
 
 CostTier = Literal["build", "live"]
@@ -48,6 +50,40 @@ CostTier = Literal["build", "live"]
 # smoke against the then-current replacement and update THIS constant before
 # that date (also covers settings.deep_think_model=gemini-2.5-pro).
 GEMINI_WORKHORSE = "gemini-2.5-flash"
+
+# phase-75.5 (llmeng-06): the deep-think tier had NO constant -- it lived only as a
+# Field default in settings.py:31 and inside the _BUILD_TIER dict below, so the two
+# could drift and neither was greppable as a retirement target. Same retirement
+# trigger as GEMINI_WORKHORSE: the 2.5 family shuts down 2026-10-16 (official:
+# ai.google.dev/gemini-api/docs/deprecations; successors gemini-3.1-pro-preview /
+# gemini-3.5-flash / gemini-3.1-flash-lite, described as "earliest possible dates").
+GEMINI_DEEP_THINK = "gemini-2.5-pro"
+
+# phase-75.5 (llmeng-06): retirement tripwire. The 2.0-flash class already cost this
+# project 9 silent days when it was retired underneath a hardcoded pin, so this fires
+# a startup WARNING a month ahead rather than waiting for the hard stop.
+GEMINI_2_5_RETIREMENT_DATE = _date(2026, 10, 16)
+GEMINI_2_5_WARN_FROM = _date(2026, 9, 15)
+
+
+def gemini_retirement_warning(model: str, today: _date | None = None) -> str | None:
+    """Return a warning string when `model` is 2.5-family and the warn date has passed.
+
+    Returns None otherwise. Pure + date-injectable so it is testable without
+    freezing the system clock.
+    """
+    if not model or "gemini-2.5" not in str(model):
+        return None
+    today = today or _date.today()
+    if today < GEMINI_2_5_WARN_FROM:
+        return None
+    days = (GEMINI_2_5_RETIREMENT_DATE - today).days
+    state = f"retires in {days} days" if days >= 0 else f"RETIRED {abs(days)} days ago"
+    return (
+        f"[model_tiers] Gemini 2.5-family model {model!r} {state} "
+        f"(shutdown {GEMINI_2_5_RETIREMENT_DATE.isoformat()}). Migrate to a 3.x "
+        f"successor and update GEMINI_WORKHORSE / GEMINI_DEEP_THINK."
+    )
 
 # Build tier: verbatim snapshot of the mapping that existed before this
 # refactor. Lines cited for each role so a future auditor can git-blame
