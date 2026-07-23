@@ -11,7 +11,7 @@ import re
 import sys
 import time
 from pathlib import Path
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -403,18 +403,54 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logging.warning("Ticker-meta prewarm failed (non-fatal): %s", e)
 
-    asyncio.create_task(_prewarm_ticker_meta())
+    # phase-75.10 (pysvc-09): save the reference so lifespan's finally can
+    # cancel it -- was previously discarded (GC-hazard per the same asyncio
+    # "save a reference to tasks" guidance api-design-09 fixes elsewhere).
+    prewarm_task = asyncio.create_task(_prewarm_ticker_meta())
 
     try:
         yield
     finally:
         # Shutdown
         logging.info("PyFinAgent backend shutting down")
-        
+
         # Stop queue processor scheduler if it was started
         try:
             if 'queue_scheduler' in locals():
                 queue_scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+
+        # phase-75.10 (pysvc-09): stop the paper-trading scheduler too -- the
+        # prior finally only shut down queue_scheduler above. `scheduler` is
+        # only assigned when settings.paper_trading_enabled and startup didn't
+        # except out, hence the same 'in locals()' guard as queue_scheduler.
+        try:
+            if 'scheduler' in locals():
+                scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+
+        # phase-75.10 (pysvc-09): cancel + await the prewarm task so it can't
+        # outlive the process (it was fire-and-forget with the return discarded).
+        try:
+            prewarm_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await prewarm_task
+        except Exception:
+            pass
+
+        # phase-75.10 (pysvc-09): stop the Slack monitor if one was started.
+        # Correction to the step-text premise: init_slack_monitor() itself
+        # does not return the monitor instance (it returns None) -- the
+        # module-level get_slack_monitor() accessor is what exposes it; used
+        # here instead of "capturing the discarded return" as literally
+        # described, since that return is not actually the monitor object.
+        try:
+            from backend.slack_monitor import get_slack_monitor
+            _monitor = get_slack_monitor()
+            if _monitor is not None:
+                _monitor.stop()
         except Exception:
             pass
 

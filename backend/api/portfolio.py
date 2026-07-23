@@ -3,6 +3,7 @@ Portfolio API — CRUD for positions + performance tracking.
 Uses an in-memory store for simplicity (no external DB dependency).
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -21,6 +22,10 @@ router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 # ── In-memory store ──────────────────────────────────────────────
 
 _positions: dict[str, dict] = {}
+
+# phase-75.10 (api-design-05): bound concurrent yfinance calls when
+# enriching many positions at once.
+_ENRICH_SEM = asyncio.Semaphore(8)
 
 
 # ── Models ───────────────────────────────────────────────────────
@@ -54,11 +59,13 @@ class PositionResponse(BaseModel):
 @router.get("/")
 async def list_positions():
     """Return all portfolio positions with live prices."""
-    results = []
-    for pos_id, pos in _positions.items():
-        enriched = _enrich_position(pos_id, pos)
-        results.append(enriched)
-    return results
+    # phase-75.10 (api-design-05): N+1 yfinance calls were serial/blocking;
+    # Semaphore-bounded gather of to_thread -- same per-position enrichment,
+    # same result list (order preserved by gather), concurrent execution only.
+    results = await asyncio.gather(*[
+        _enrich_position_async(pos_id, pos) for pos_id, pos in _positions.items()
+    ])
+    return list(results)
 
 
 @router.post("/", status_code=201)
@@ -111,8 +118,11 @@ async def get_portfolio_performance():
     correct_recs = 0
     total_recs = 0
 
-    for pos_id, pos in _positions.items():
-        enriched = _enrich_position(pos_id, pos)
+    # phase-75.10 (api-design-05): same N+1 fix as list_positions above.
+    enriched_positions = await asyncio.gather(*[
+        _enrich_position_async(pos_id, pos) for pos_id, pos in _positions.items()
+    ])
+    for enriched in enriched_positions:
         cost = enriched.get("cost_basis", 0) or 0
         market = enriched.get("market_value", 0) or 0
         total_cost += cost
@@ -148,6 +158,13 @@ async def get_portfolio_performance():
 
 
 # ── Helpers ──────────────────────────────────────────────────────
+
+async def _enrich_position_async(pos_id: str, pos: dict) -> dict:
+    """Semaphore-bounded to_thread wrapper around the sync _enrich_position
+    below -- execution-only, identical return shape (phase-75.10 api-design-05)."""
+    async with _ENRICH_SEM:
+        return await asyncio.to_thread(_enrich_position, pos_id, pos)
+
 
 def _enrich_position(pos_id: str, pos: dict) -> dict:
     """Add live price data to a position."""

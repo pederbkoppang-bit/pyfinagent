@@ -24,12 +24,16 @@ from backend.api.models import (
     SynthesisReport,
 )
 from backend.config.settings import Settings, get_settings
+from backend.utils.asyncio_tasks import track_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
 # ── In-memory task store (used when USE_CELERY=false) ────────────
 _tasks: dict[str, dict[str, Any]] = {}
+# phase-75.10 (api-design-09): keep-set so the create_task below isn't
+# GC-collectable mid-flight (event loop only holds a weak ref to tasks).
+_background_tasks: set[asyncio.Task] = set()
 
 
 class _CeleryTaskProtocol(Protocol):
@@ -361,7 +365,17 @@ async def start_analysis(req: AnalysisRequest, settings: Settings = Depends(get_
             "steps_completed": [],
         }
         # Launch as a fire-and-forget asyncio task
-        asyncio.create_task(_run_sync_analysis(task_id, ticker, settings))
+        def _on_error(exc: BaseException, _task_id: str = task_id) -> None:
+            entry = _tasks.get(_task_id)
+            if entry is not None:
+                entry.update(
+                    status=AnalysisStatus.FAILED,
+                    error=f"[{type(exc).__name__}] unhandled: {exc}",
+                )
+        track_task(
+            asyncio.create_task(_run_sync_analysis(task_id, ticker, settings)),
+            _background_tasks, _on_error, "Analysis",
+        )
 
     logger.info(f"Analysis started for {ticker}, task_id={task_id}")
     return AnalysisResponse(analysis_id=task_id, ticker=ticker, status=AnalysisStatus.PENDING)

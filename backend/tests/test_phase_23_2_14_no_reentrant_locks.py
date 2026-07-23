@@ -19,7 +19,20 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
-EXPECTED_LOCK_COUNT = 17
+EXPECTED_LOCK_COUNT = 18
+# phase-75.10 RE-AUDIT (2026-07-23). One new lock:
+#
+#   18th -- `self._remote_worker_lock`, backend/agents/mas_events.py:108.
+#           Added by phase-75.10 (py-core-01: single daemon worker + queue.Queue
+#           replaces MASEventBus._forward_remote's old thread-per-event pattern).
+#           Guards the double-checked-locking lazy-init of the relay worker
+#           thread in `_ensure_remote_worker` (check outside the lock, re-check
+#           + create-and-assign inside it) so two concurrent emit() callers
+#           can't both win the race and spawn two workers. Audited: single
+#           acquire per call, never nested, never held across another lock's
+#           `with` block, and no `_*_locked` helper re-acquires it. Clean per
+#           the phase-23.2.14 re-entrancy criteria.
+#
 # phase-75.5 RE-AUDIT (2026-07-20). The count was 15 (set phase-56.2, 2026-06-10) but
 # the tree measured 17, so this guard was RED and had been for ~2 weeks -- which meant
 # it could no longer detect the very drift it exists to catch. Both extra locks audited

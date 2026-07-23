@@ -29,9 +29,12 @@ from backend.services.reconciliation import compute_reconciliation
 from backend.services.signal_attribution import group_signals_for_drawer, redact_pii
 from backend.services.paper_trader import PaperTrader
 from backend.services.perf_metrics import compute_sharpe_from_snapshots, compute_alpha
+from backend.utils.asyncio_tasks import track_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/paper-trading", tags=["paper-trading"])
+# phase-75.10 (api-design-09): keep-set for the fire-and-forget cycle task below.
+_background_tasks: set[asyncio.Task] = set()
 
 # APScheduler instance (set by lifespan)
 _scheduler = None
@@ -1020,7 +1023,13 @@ async def run_now(dry_run: bool = False):
         await run_daily_cycle(settings, dry_run=True)
         return {"status": "ok", "started": True, "dry_run": True,
                 "message": "Dry-run cycle completed (no trades)"}
-    asyncio.create_task(_run_cycle_background(settings))
+    def _on_error(exc: BaseException) -> None:
+        global _last_cycle_error
+        _last_cycle_error = f"[unhandled] {type(exc).__name__}: {exc}"
+    track_task(
+        asyncio.create_task(_run_cycle_background(settings)),
+        _background_tasks, _on_error, "PaperCycle",
+    )
     return {"status": "started", "started": True, "message": "Daily cycle triggered"}
 
 

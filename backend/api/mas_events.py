@@ -92,7 +92,7 @@ async def get_dashboard():
     Returns: agent configs, system health, event bus stats, cost summary,
     OpenClaw gateway status, cron jobs, active sessions.
     """
-    from backend.agents.agent_definitions import AGENT_CONFIGS, AgentType
+    from backend.agents.agent_definitions import AGENT_CONFIGS
     import httpx
 
     # Agent configs (current models)
@@ -143,14 +143,18 @@ async def get_dashboard():
         import subprocess, json as _json
 
         # Gateway status
-        gw = subprocess.run(
+        # phase-75.10 (api-design-01): the 2x subprocess.run were the real
+        # blockers here (~25s worst-case) -- async httpx above is unaffected.
+        gw = await asyncio.to_thread(
+            subprocess.run,
             ["openclaw", "gateway", "status"],
             capture_output=True, text=True, timeout=10,
         )
         openclaw["gateway"] = "running" if gw.returncode == 0 else "stopped"
 
         # Cron jobs
-        cron_out = subprocess.run(
+        cron_out = await asyncio.to_thread(
+            subprocess.run,
             ["openclaw", "cron", "list", "--json"],
             capture_output=True, text=True, timeout=15,
         )
@@ -171,7 +175,7 @@ async def get_dashboard():
     # OpenClaw sessions (live agent sessions visible to MAS)
     try:
         from backend.agents.openclaw_client import list_openclaw_sessions
-        oc_sessions = list_openclaw_sessions()
+        oc_sessions = await asyncio.to_thread(list_openclaw_sessions)
         openclaw["sessions"] = len(oc_sessions)
         openclaw["session_list"] = [
             {

@@ -17419,7 +17419,7 @@
         },
         {
           "id": "75.10",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get_running_loop idiom, task refs, lifespan drain [executor: sonnet-4.6/high; BOUNDARY: mechanical execution changes only -- zero decision/threshold changes in the live loop]. (a) perf-01: run_daily_cycle Step-1 runs yf.download(~500 tickers, 6mo) synchronously on the API server's event loop (services/autonomous_loop.py:576; siblings get_sp500_tickers :524, build_sector_map :572) -- wrap in await asyncio.to_thread; the 2026-05-25 skipped-run incident (paper_trading.py:1312-1320) came from far smaller contention. (b) perf-10: peer_leadlag serial per-ticker yf.Ticker().info awaits (:639) -> bounded asyncio.gather of to_thread calls. (c) api-design-01/02/04/05/06/08: to_thread (or plain-def) the blocking bodies of api/mas_events.get_dashboard (2x subprocess.run + sync httpx, ~35s stall), api/performance_api.get_llm_p95_latency (untimed sync BQ), api/backtest.run_data_ingestion (screen_universe inline; return 202 + status dict like /run), api/portfolio._enrich_position N+1 yfinance, api/backtest.get_optimizer_status (pgrep + TSV scan -> plain def/to_thread + TTL cache), api/cron_dashboard_api.get_log_tail (whole-file deque scan -> seek-from-end block reader, lines le=1000) + get_all_jobs launchctl probes. (d) api-design-09: save the fire-and-forget create_task references for backtest/analysis/paper-cycle runs (module refs or a keep-set + add_done_callback flipping state dicts to 'error' on exception) -- weakly-referenced tasks are GC-collectable mid-flight. (e) py-core-01: MASEventBus.__init__ (agents/mas_events.py:97) crashes on Python 3.14 from any no-loop sync context via asyncio.get_event_loop().is_running() -- use get_running_loop try/except (or delete the dead _lock); replace thread-per-event _forward_remote with one daemon worker draining a queue through a shared httpx.Client; fix make_run_id's meaningless id(asyncio.get_event_loop) term. (f) py-core-05: replace all 9 in-coroutine asyncio.get_event_loop() sites (multi_agent_orchestrator.py:430,566,586,690,723,738,862,1065; task_bus.py:140) with get_running_loop(). (g) pysvc-09: lifespan finally must shut down BOTH APScheduler instances (paper-trading scheduler from main.py:270-274 AND queue_scheduler), cancel+await the prewarm task, and stop the Slack monitor if it exposes a close hook.",
           "harness_required": true,
           "priority": "P1",
@@ -17434,6 +17434,26 @@
               "main.py lifespan finally shuts down both schedulers and cancels the prewarm task (source assert), and run_data_ingestion returns 202-immediately semantics with a pollable status (test with mocked ingestion)"
             ],
             "live_check": "handoff/current/live_check_75.10.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: perf-01, perf-10, api-design-01, api-design-02, api-design-04, api-design-05, api-design-06, api-design-08, api-design-09, py-core-01, py-core-05, pysvc-09"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.10.1",
+          "status": "pending",
+          "name": "Audit75 S10 follow-up -- the 10th in-coroutine asyncio.get_event_loop() site, ticket_queue_processor.py [executor: sonnet-4.6/high; BOUNDARY: mechanical execution change only]. Discovered during the 75.10 research gate (wf_4dffaba2-d81, 2026-07-23): backend/services/ticket_queue_processor.py:423 (re-anchor at research; the line may drift) calls asyncio.get_event_loop() -- the same latent Python-3.14 crash class 75.10 fixed (official 3.14 docs: get_event_loop() 'Raises a RuntimeError if there is no current event loop'), but OUTSIDE 75.10's criterion-2 3-file scope, so it was queued rather than silently folded in (feedback_queue_discovered_defects_in_masterplan). Determine the call's context (inside a coroutine -> get_running_loop(); sync context that may lack a loop -> get_running_loop try/except or asyncio.run restructure; dead -> delete), apply the minimal fix, and EXTEND the 75.10 zero-occurrence grep in backend/tests/test_phase_75_event_loop.py to include this file so regression is locked. Also grep backend/ repo-wide for any remaining get_event_loop occurrences outside test files and report the census in the brief (fix ONLY ticket_queue_processor here; queue any further finds).",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_event_loop.py -q",
+            "success_criteria": [
+              "backend/services/ticket_queue_processor.py contains zero asyncio.get_event_loop occurrences, and the 75.10 scan in backend/tests/test_phase_75_event_loop.py is EXTENDED to assert it (file added to the zero-occurrence list; hard-fail if the file path is missing)",
+              "The replacement is behaviorally equivalent in the call's real context, proven by a test that exercises the touched code path offline (not a source scan alone)",
+              "The research brief contains a measured repo-wide census of remaining get_event_loop occurrences in backend/ non-test code, with any additional finds queued as steps rather than fixed here",
+              "The pre-existing 75.10 test assertions still pass unchanged (this step's verification command, exit 0)",
+              "Mutation matrix in experiment_results.md: reverting the fix flips the extended scan red"
+            ],
+            "live_check": "handoff/current/live_check_75.10.1.md: verbatim verification command output (exit 0) + git diff --stat. No UI; no flag-gated behavior."
           },
           "retry_count": 0,
           "max_retries": 3

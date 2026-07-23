@@ -35,6 +35,7 @@ import asyncio
 import json
 import logging
 import os
+import queue
 import time
 import threading
 from dataclasses import dataclass, field, asdict
@@ -94,9 +95,18 @@ class MASEventBus:
     def __init__(self):
         self._subscribers: list[asyncio.Queue] = []
         self._buffer: deque[MASEvent] = deque(maxlen=_BUFFER_SIZE)
-        self._lock = asyncio.Lock() if asyncio.get_event_loop().is_running() else None
         self._total_events = 0
         self.remote_url: str | None = os.environ.get("MAS_EVENT_RELAY_URL")  # e.g. http://127.0.0.1:8000
+        # phase-75.10 (py-core-01): single daemon worker + queue.Queue replaces
+        # thread-per-event _forward_remote. Lazily started on first forwarded
+        # event so a bus that never sets remote_url spawns zero threads. Also
+        # removes the dead self._lock construction that guarded on the
+        # deprecated no-running-loop-check idiom (no in-file reader) -- that
+        # idiom is exactly the Python-3.14 crash class this step exists to fix.
+        self._remote_queue: "queue.Queue[dict]" = queue.Queue()
+        self._remote_worker: Optional[threading.Thread] = None
+        self._remote_worker_lock = threading.Lock()
+        self._remote_client = None  # type: ignore[var-annotated]  # httpx.Client, lazy
 
     def emit(self, event: MASEvent) -> None:
         """Emit an event to all subscribers + buffer. Forwards to remote if configured."""
@@ -129,19 +139,43 @@ class MASEventBus:
                 f"{event.duration_ms:.0f}ms"
             )
 
-    def _forward_remote(self, event: MASEvent) -> None:
-        """Forward event to remote backend via HTTP POST (fire-and-forget)."""
-        def _send():
+    def _ensure_remote_worker(self) -> None:
+        """Start the single relay worker thread + shared httpx.Client, once."""
+        if self._remote_worker is not None:
+            return
+        with self._remote_worker_lock:
+            if self._remote_worker is not None:
+                return
+            import httpx
+            self._remote_client = httpx.Client(timeout=3.0)
+            worker = threading.Thread(
+                target=self._remote_worker_loop, daemon=True, name="mas-event-relay",
+            )
+            worker.start()
+            self._remote_worker = worker
+
+    def _remote_worker_loop(self) -> None:
+        """Drain the relay queue forever. Daemon thread -- dies with the process."""
+        while True:
+            payload = self._remote_queue.get()
             try:
-                import httpx
-                httpx.post(
+                self._remote_client.post(
                     f"{self.remote_url}/api/mas/events/ingest",
-                    json=asdict(event),
-                    timeout=3.0,
+                    json=payload,
                 )
             except Exception as e:
                 logger.debug(f"Event relay failed: {e}")
-        threading.Thread(target=_send, daemon=True).start()
+
+    def _forward_remote(self, event: MASEvent) -> None:
+        """Forward event to remote backend via HTTP POST (fire-and-forget).
+
+        Enqueues onto the single daemon worker's queue -- never blocks the
+        caller, never spawns a thread per event (was thread-per-event before
+        phase-75.10; no consumer relies on per-event thread ordering, and a
+        single worker + shared client gives FIFO delivery + connection reuse).
+        """
+        self._ensure_remote_worker()
+        self._remote_queue.put_nowait(asdict(event))
 
     async def subscribe(self, include_buffer: bool = True):
         """Subscribe to events. Yields MASEvent objects.
@@ -202,5 +236,10 @@ def get_event_bus() -> MASEventBus:
 def make_run_id() -> str:
     """Generate a short unique run ID for grouping events."""
     import hashlib
-    raw = f"{time.time()}-{id(asyncio.get_event_loop)}"
+    import uuid
+    # phase-75.10 (py-core-01): the prior id-of-a-function-object term was a
+    # meaningless process-constant (never called) that only mattered because
+    # its source text matched the criterion-2 no-deprecated-loop-lookup scan.
+    # uuid4 is an equally-unique, actually-meaningful term for this hash input.
+    raw = f"{time.time()}-{uuid.uuid4().hex}"
     return hashlib.sha256(raw.encode()).hexdigest()[:12]

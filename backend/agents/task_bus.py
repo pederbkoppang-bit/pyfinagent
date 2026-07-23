@@ -19,11 +19,10 @@ transport later without changing caller code.
 from __future__ import annotations
 
 import asyncio
-import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable
+from typing import Awaitable, Callable
 
 
 AgentHandler = Callable[[dict], Awaitable[dict]]
@@ -137,7 +136,7 @@ class AsyncTaskBus:
         last_exc: BaseException | None = None
         for attempt in range(max_retries + 1):
             envelope.record(target, f"delegate_attempt_{attempt + 1}")
-            response_fut: asyncio.Future = asyncio.get_event_loop().create_future()
+            response_fut: asyncio.Future = asyncio.get_running_loop().create_future()
             await self._queues[target].put((envelope, response_fut))
             try:
                 return await asyncio.wait_for(

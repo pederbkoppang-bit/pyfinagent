@@ -20,6 +20,7 @@ from backend.config.settings import get_settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.backtest import result_store
+from backend.utils.asyncio_tasks import track_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
@@ -70,6 +71,21 @@ _optimizer_state = {
     "traceback": None,
 }
 _optimizer_task: Optional[asyncio.Task] = None
+
+# phase-75.10 (api-design-09): keep-set for fire-and-forget backtest/ingestion
+# tasks (_optimizer_task above is already a single saved module ref -- it only
+# needs error-callback parity, added at its create_task site below).
+_background_tasks: set[asyncio.Task] = set()
+
+# Module-level state for async data-ingestion runs (phase-75.10, api-design-04
+# 202-conversion mirroring _backtest_state / run_backtest above).
+_ingestion_state = {
+    "status": "idle",  # idle | running | completed | error
+    "run_id": None,
+    "result": None,
+    "error": None,
+    "traceback": None,
+}
 
 
 def _is_engine_busy() -> bool:
@@ -131,7 +147,16 @@ async def run_backtest(req: BacktestRunRequest = BacktestRunRequest()):
         "engine_source": "backtest",
     }
 
-    asyncio.create_task(_run_backtest_async(run_id, req))
+    def _on_error(exc: BaseException, _state=_backtest_state) -> None:
+        _state["status"] = "error"
+        _state["error"] = str(exc)
+        _state["traceback"] = "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+    track_task(
+        asyncio.create_task(_run_backtest_async(run_id, req)),
+        _background_tasks, _on_error, "Backtest",
+    )
     return {"status": "started", "run_id": run_id}
 
 
@@ -182,7 +207,39 @@ async def get_window_result(window_id: int):
 
 @router.post("/ingest")
 async def run_data_ingestion(req: IngestRequest = IngestRequest(start_date=None, end_date=None)):
-    """Ingest historical price, fundamental, and macro data into BigQuery."""
+    """Ingest historical price, fundamental, and macro data into BigQuery
+    (async background task -- phase-75.10 api-design-04, 202-immediate
+    semantics mirroring POST /run; poll GET /ingest/progress)."""
+    global _ingestion_state
+
+    if _ingestion_state["status"] == "running":
+        raise HTTPException(400, "Ingestion already running")
+
+    run_id = str(uuid.uuid4())[:8]
+    _ingestion_state = {
+        "status": "running",
+        "run_id": run_id,
+        "result": None,
+        "error": None,
+        "traceback": None,
+    }
+
+    def _on_error(exc: BaseException, _state=_ingestion_state) -> None:
+        _state["status"] = "error"
+        _state["error"] = str(exc)
+        _state["traceback"] = "".join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+    track_task(
+        asyncio.create_task(_run_ingestion_async(run_id, req)),
+        _background_tasks, _on_error, "Ingestion",
+    )
+    return {"status": "started", "run_id": run_id}
+
+
+async def _run_ingestion_async(run_id: str, req: IngestRequest) -> None:
+    """Background task for run_data_ingestion -- mirrors _run_backtest_async."""
+    global _ingestion_state
     settings = get_settings()
     bq = BigQueryClient(settings)
 
@@ -191,8 +248,9 @@ async def run_data_ingestion(req: IngestRequest = IngestRequest(start_date=None,
     service = DataIngestionService(bq.client, settings)
 
     try:
-        # Get S&P 500 tickers for ingestion
-        screen = screen_universe()
+        # phase-75.10 (api-design-04): screen_universe() is a sync ~500-ticker
+        # yf.download; to_thread -- same tickers in, same list out.
+        screen = await asyncio.to_thread(screen_universe)
         tickers = [s["ticker"] for s in screen] if screen else []
         if not tickers:
             tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "JPM", "V", "UNH"]
@@ -204,10 +262,21 @@ async def run_data_ingestion(req: IngestRequest = IngestRequest(start_date=None,
             end_date=req.end_date or settings.backtest_end_date,
             fred_api_key=settings.fred_api_key,
         )
-        return {"status": "completed", "result": result}
+        _ingestion_state["status"] = "completed"
+        _ingestion_state["result"] = result
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
-        raise HTTPException(500, f"Ingestion failed: {str(e)}")
+        _ingestion_state["status"] = "error"
+        _ingestion_state["error"] = str(e)
+        _ingestion_state["traceback"] = traceback.format_exc()
+
+
+@router.get("/ingest/progress")
+async def get_ingestion_progress():
+    """Poll run_data_ingestion's background-task progress (phase-75.10
+    202-conversion). Distinct from GET /ingest/status below, which reports
+    historical-table ROW COUNTS, not task progress -- do not conflate."""
+    return dict(_ingestion_state)
 
 
 @router.get("/ingest/status")
@@ -299,6 +368,23 @@ async def start_optimizer(req: OptimizerStartRequest = OptimizerStartRequest(max
     _optimizer_task = asyncio.create_task(
         _run_optimizer_async(req.max_iterations, req.use_llm)
     )
+
+    # phase-75.10 (api-design-09): error-callback parity -- the module ref
+    # above already keeps this task alive (no keep-set needed); this adds the
+    # same defense-in-depth exception-propagation the other sites get.
+    def _on_optimizer_task_done(t: asyncio.Task) -> None:
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc is not None:
+            logger.error(f"Optimizer task raised unhandled exception: {exc!r}", exc_info=exc)
+            _optimizer_state["status"] = "error"
+            _optimizer_state["error"] = str(exc)
+            _optimizer_state["traceback"] = "".join(
+                traceback.format_exception(type(exc), exc, exc.__traceback__)
+            )
+    _optimizer_task.add_done_callback(_on_optimizer_task_done)
+
     return {"status": "started", "max_iterations": req.max_iterations}
 
 
@@ -349,8 +435,14 @@ def clear_plateau_lock():
 
 
 @router.get("/optimize/status")
-async def get_optimizer_status():
-    """Current optimizer state. Also checks for CLI-launched optimizer."""
+def get_optimizer_status():
+    """Current optimizer state. Also checks for CLI-launched optimizer.
+
+    phase-75.10 (api-design-06): plain def -- no awaits in this body
+    (pgrep via subprocess.run + plain file reads); FastAPI runs plain-def
+    routes in its threadpool automatically, so this stops blocking the
+    event loop without needing an explicit to_thread wrap.
+    """
     import subprocess
     state = dict(_optimizer_state)
     

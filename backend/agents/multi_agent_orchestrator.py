@@ -427,7 +427,6 @@ class MultiAgentOrchestrator:
         """
         start = time.time()
         total_usage = {"input": 0, "output": 0}
-        loop = asyncio.get_event_loop()
         bus = get_event_bus()
         run_id = make_run_id()
 
@@ -563,7 +562,7 @@ class MultiAgentOrchestrator:
         )
 
         ford_config = AGENT_CONFIGS[AgentType.MAIN]
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         plan_text, usage = await loop.run_in_executor(
             None, self._call_agent, ford_config, plan_prompt,
         )
@@ -583,7 +582,7 @@ class MultiAgentOrchestrator:
         agents = classification.parallel_agents or [classification.agent_type]
         all_findings = []
         total_usage = {"input": 0, "output": 0}
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         bus = get_event_bus()
 
@@ -687,7 +686,7 @@ class MultiAgentOrchestrator:
         )
 
         ford_config = AGENT_CONFIGS[AgentType.MAIN]
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         decision_text, usage = await loop.run_in_executor(
             None, self._call_agent, ford_config, check_prompt,
         )
@@ -720,7 +719,7 @@ class MultiAgentOrchestrator:
         )
 
         ford_config = AGENT_CONFIGS[AgentType.MAIN]
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         synthesis, usage = await loop.run_in_executor(
             None, self._call_agent, ford_config, synth_prompt,
         )
@@ -735,7 +734,7 @@ class MultiAgentOrchestrator:
         config = AGENT_CONFIGS[classification.agent_type]
         task = self._build_task_prompt(message, classification, context, plan=plan)
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         # Primary agent uses tool loop — can read harness data iteratively
         response_text, usage = await loop.run_in_executor(
             None, self._call_agent_with_tools, config, task,
@@ -859,7 +858,7 @@ class MultiAgentOrchestrator:
             max_tokens=2000,
         )
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         gate_response, usage = await loop.run_in_executor(
             None, self._call_agent_json, gate_config, gate_prompt, QUALITY_VERDICT_SCHEMA,
         )
@@ -1062,7 +1061,7 @@ class MultiAgentOrchestrator:
 
     async def _classify_via_llm(self, message):
         comms_config = AGENT_CONFIGS[AgentType.COMMUNICATION]
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         # phase-71.2: constrained-decoding structured output guarantees the
         # classifier returns schema-valid JSON (parse_llm_classification already
         # json-loads it). Fail-safe: degrades to the plain text call on any error.

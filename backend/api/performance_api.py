@@ -79,7 +79,9 @@ async def get_llm_p95_latency(
             WHERE {' AND '.join(where)}
         """
         # BigQueryClient exposes .client for raw queries.
-        rows = list(bq.client.query(sql).result(timeout=30))
+        # phase-75.10 (api-design-02): to_thread -- blocking BQ call inside
+        # async def; timeout=30 already present, unchanged.
+        rows = await asyncio.to_thread(lambda: list(bq.client.query(sql).result(timeout=30)))
         if not rows:
             return {"unavailable": True, "reason": "no rows"}
         r = rows[0]

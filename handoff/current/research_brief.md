@@ -1,204 +1,159 @@
-# Research Brief -- Step 75.9 (BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost guard)
+# Research Brief — Step 75.10 (event-loop hygiene sweep)
 
-**Tier:** moderate | **Audit-class:** false (denominators enumerated in step text; job is to VERIFY + flag drift)
-**Researcher spawn:** 2026-07-23 | **Executor target:** sonnet-4.6/high
-**BOUNDARY:** paper-only, no schema/table changes, historical_macro frozen
-
-> WRITE-FIRST skeleton created at spawn; sections filled incrementally as sources are read.
-
-## Status: COMPLETE -- gate_passed: true (6 sources read in full, recency scan done, not audit-class)
+**Tier:** complex | **Audit-class:** false | **Executor:** sonnet-4.6/high
+**BOUNDARY:** mechanical execution changes only — ZERO decision/threshold changes in the live loop.
+Findings: perf-01, perf-10, api-design-01/02/04/05/06/08/09, py-core-01, py-core-05, pysvc-09.
 
 ---
 
-## 0. DRIFT SUMMARY (executor must apply these corrections)
+## STEP-TEXT CORRECTIONS (drift since the 2026-07-19 audit — every prior phase-75 research found real drift; here it is)
 
-The 2026-07-19 anchors have drifted. Measured 2026-07-23:
+1. **perf-10 is ALREADY `to_thread`'d — the "blocks the event loop" rationale is FALSE.** `autonomous_loop.py:641` is `info = await asyncio.to_thread(lambda x=t: yf.Ticker(x).info or {})` — added 2026-05-18 (commit `6ceeb10ff`), i.e. it PRE-DATES the audit. The per-ticker `.info` fetch does NOT block the loop today; the only remaining defect is **serial latency** (N sequential `await`s in the `for t in target_tickers` loop, :639). The prescription (bounded `gather`) is still a valid *latency* win, but the executor/Q/A must NOT describe it as "unblocking the event loop" — it is already non-blocking. (`lambda x=t:` already fixes the late-binding closure bug — keep it.)
 
-| # | Step-text claim | MEASURED reality | Action |
-|---|-----------------|------------------|--------|
-| D1 | "12 migration files" (gap6-09) | **13** distinct files, **20** untimed `.result()` call sites | Use the 13-file worklist in §2 |
-| D2 | `backend/backtest/sortino.py:114` | file is at **`backend/metrics/sortino.py:114`** | corrected path |
-| D3 | `backend/signals/pead_signal.py:342` | file is at **`backend/services/pead_signal.py:342`** | corrected path |
-| D4 | `backend/tools/sector_calendars.py:200` | file is at **`backend/services/sector_calendars.py:200`** | corrected path |
-| D5 | `backend/services/cost_budget_watcher.py:104` | file is at `backend/slack_bot/jobs/cost_budget_watcher.py` and has **NO `.result()`/`.query()` at all** -- PHANTOM site | drop from worklist; note in test that this site is absent |
-| D6 | `backend/autoresearch/harness_autoresearch.py:196` | file is at **`backend/api/harness_autoresearch.py:196`** | corrected path |
-| D7 | `monthly_approval_api.py:141` | untimed `.result()` is at **:143** (`job.result()`) | corrected line |
-| D8 | "34 construction sites" (perf-11) | **34 is correct for `BigQueryClient(` in `backend/api/`+`backend/services/` only**; repo-wide non-test = **45** `BigQueryClient(` / **49** `bigquery.Client(` | keep 34 as the migrate-at-least scope; state full denominator |
-| D9 | dedup fail-open named only prices+fundamentals | `_get_existing_macro` (data_ingestion.py:271-278) has the **identical** fail-open pattern but `historical_macro` is FROZEN | do NOT fix macro in 75.9; queue a separate step |
+2. **api-design-01 (get_dashboard): httpx is ALREADY async; "sync httpx" is stale.** `mas_events.py:116` and `:122` use `async with httpx.AsyncClient(timeout=3)` + `await c.get(...)`. The real blockers are the **2× `subprocess.run`** at `:146` (`openclaw gateway status`, timeout=10) and `:153` (`openclaw cron list`, timeout=15) → worst-case ~25s, plus `list_openclaw_sessions()` at `:173` (verify blocking). Criterion-3 targets `subprocess.run/sync-httpx/.result(` — the async httpx already complies; wrap the two `subprocess.run` (and `list_openclaw_sessions`) in `asyncio.to_thread`.
+
+3. **api-design-02 (get_llm_p95_latency): ALREADY carries `timeout=30`; "untimed" is stale.** `performance_api.py:82` is `rows = list(bq.client.query(sql).result(timeout=30))`. Criterion-3's "p95 query carries timeout=30" is ALREADY satisfied. Remaining work = wrap the sync `.result(...)` in `await asyncio.to_thread(...)` (it is a blocking BQ call inside `async def`).
+
+4. **api-design-04 (run_data_ingestion): the heavy call is ALREADY `to_thread`'d; two smaller items remain.** `backtest.py:200` already does `await asyncio.to_thread(service.run_full_ingestion, ...)`. Remaining: (a) `screen = screen_universe()` inline at `:195` is sync (~500-ticker `yf.download`) — wrap in `to_thread` OR move into the background task; (b) the route returns `{"status":"completed", "result":result}` synchronously at `:207` — criterion 6 wants **202-immediate + pollable status** mirroring `/run`. The `/run` pattern to copy (`run_backtest` :112-135): set a module state dict `{"status":"running","run_id":...}`, `asyncio.create_task(_run_ingestion_async(...))`, `return {"status":"started","run_id":...}`; poll via a status route (there is already `GET /ingest/status` :213 returning row counts — add a task-progress state dict, don't overload it).
+
+5. **get_log_tail cap mismatch.** Step says "lines le=1000"; actual is `lines: int = Query(200, ge=1, le=10000)` (`cron_dashboard_api.py:533`) plus a second clamp `n = max(_LINES_MIN, min(_LINES_MAX, ...))` (:543). Lowering to `le=1000` is a **behavior change** (rejects requests 1001-10000 that succeed today) — DECISION POINT for the operator/Q/A, not a silent mechanical edit. Recommend: keep the seek-from-end rewrite; leave the cap at `le=10000` unless the operator wants it lowered.
+
+6. **2026-05-25 incident line cite drift.** Step cites `paper_trading.py:1312-1320`; the actual misfire-grace comment is `:1301-1311` (`:1312-1320` is now the `reschedule_paper_job` docstring). The incident narrative (cron fired, event-loop contention pushed dispatch 2.10s late, APScheduler skipped, `misfire_grace_time` raised to 3600) is CONFIRMED at :1301-1311 and directly supports perf-01.
+
+7. **A 10th in-coroutine `get_event_loop()` exists OUTSIDE criterion-2's 3-file scope.** `ticket_queue_processor.py:423` (`loop = asyncio.get_event_loop()` inside an async method). Criterion 2 scans only orchestrator/task_bus/mas_events, so this will NOT fail the gate — but it is the same latent Python-3.14 class. Per `feedback_queue_discovered_defects_in_masterplan`, queue it as its OWN step; do NOT silently expand 75.10's surface.
+
+8. **`mas_events.py` has TWO `get_event_loop` occurrences, both must go for criterion 2.** `:97` (the crash path) AND `:205` (`id(asyncio.get_event_loop)` in `make_run_id`). Line 205 does NOT call it (takes `id()` of the function object → a process-constant, meaningless term; no crash) but the criterion-2 grep matches the string, so both must be removed.
+
+9. **Orchestrator `:430` `loop` is DEAD.** In `_execute_full_flow` (415-544) the `loop = asyncio.get_event_loop()` at :430 is never used (no `loop.` reference in the method body). Cleanest criterion-2 fix = delete the line (the other 7 orchestrator sites feed `loop.run_in_executor` and need `get_running_loop()`).
+
+10. **A 4th unsaved fire-and-forget task:** the prewarm task `asyncio.create_task(_prewarm_ticker_meta())` at `main.py:406` (return discarded — GC-able). pysvc-09 already calls for cancelling it; note it is *also* an api-design-09-class GC hazard.
 
 ---
 
-## 1. Internal Audit (load-bearing) -- re-anchored, verbatim file:line
+## Part A — Internal re-anchoring (verbatim current file:line)
 
-### (a) data-bq-01 -- fail-open dedup (data_ingestion.py)
-- `_get_existing_price_dates` def :78-92; the swallow is **:91-92** `except Exception:` / `return set()`. Dedup consumed at :117 `existing = self._get_existing_price_dates(batch)`; gate at :142 `if (ticker, date_str) in existing: continue`; insert at :167 `errors = self.client.insert_rows_json(table, sub)`.
-- `_get_existing_fundamentals` def :178-190; swallow **:189-190**. Consumed :198-200 (loop building `existing`), gate :222, insert :257.
-- `_get_existing_macro` :271-278 swallow :277-278 -- SAME BUG, but FROZEN table (D9): out of scope.
-- NEITHER dedup call is wrapped in a try/except inside `ingest_prices`/`ingest_fundamentals`, so re-raising propagates straight out BEFORE any `insert_rows_json` -- satisfies criterion 1 ("ZERO insert_rows_json calls and surfaces the error").
+### py-core-05 — the 9 `get_event_loop` sites (criterion 2 = ZERO in 3 files)
+All 8 orchestrator sites are inside `async def` (running loop guaranteed → `get_running_loop()` is safe & preferred):
 
-### (b) data-bq-02 -- f-string SQL
-- `get_agent_memories` bigquery_client.py **:496-512**; injection surface **:500** `where = f"WHERE agent_type = '{agent_type}'"` and **:506** `LIMIT {int(limit)}`. Already wrapped in try/except -> `[]` (fail-open OK for memories; non-money).
-- **Template to mirror** (same file): `get_recent_reports` **:278-282** -- `bigquery.QueryJobConfig(query_parameters=[bigquery.ScalarQueryParameter("limit","INT64",limit)])`. (Note its `.result()` at :281 is itself UNTIMED -- fix under (c).)
-- data_ingestion ticker list: **:82** (prices) + **:180** (fundamentals) `ticker_list = ", ".join(f"'{t}'" for t in tickers[:100])` interpolated into `WHERE ticker IN ({ticker_list})`. Comment at :81 falsely says "Use parameterized IN clause" -- it is NOT parameterized.
-- **Template to mirror** = cache.py **:100-113** (§3): `ArrayQueryParameter("tickers","STRING",tickers)` + `WHERE ticker IN UNNEST(@tickers)`.
-
-### (d) data-bq-06 -- no maximum_bytes_billed anywhere
-- `grep maximum_bytes_billed backend/ scripts/` = **0 hits** (confirmed 2026-07-23). bigquery_client.py builds **24 separate `bigquery.QueryJobConfig(...)`** instances (lines 278,325,339,349,371,452,526,554,570,587,631,637,655,675,703,764,795,848,899,946,961,981,1036,1045). No shared factory exists -> factory must be CREATED. Criterion only requires factory (default 5 GiB) + >=1 call-path adoption.
-
-### (e) py-core-03 -- skill_optimizer bare except
-- **:172-176** = LOGGED sibling template (`logger.warning(...); return []`). **:180-189** = the bug: outcome query at :185 untimed `.result()`, **:188 `except Exception:` / :189 `pass`** (log-free) -> agents scored against empty outcomes. Also first query :173 untimed. Fix: log warning + `timeout=30` on :173 & :185; replace bare pass with warning (mark run degraded).
-
-### (f) perf-11 -- per-request BigQueryClient construction
-- `get_bq_client()` does NOT exist yet; `@lru_cache` absent from bigquery_client.py. **Template**: settings.py **:612-613** `@lru_cache()` / `def get_settings()`. `BigQueryClient.__init__(self, settings)` (:22-35) re-parses `json.loads(gcp_credentials_json)` + builds a fresh `bigquery.Client` every call.
-- Hot spots CONFIRMED: `api/paper_trading.py` builds `BigQueryClient(settings)` **8x** inline (:82,:126,:181,:263,:287,:303,:441,:472); `api/performance_api.py:59`; `api/reports.py:24-25` `_get_bq` returns `BigQueryClient(settings)` per-request via `Depends`.
-- **DESIGN NOTE (thread-safety + hashability)**: make `get_bq_client()` ZERO-arg (`@lru_cache; def get_bq_client(): return BigQueryClient(get_settings())`) mirroring `get_settings`. Do NOT `@lru_cache` on a function taking `settings` -- Pydantic `Settings` is not reliably hashable and would raise/leak. Singleton is shared across FastAPI threads -> external §3 confirms `google.cloud.bigquery.Client` is safe to share read-side across threads.
-
-## 2. .result() timeout worklist (MEASURED per file, 2026-07-23)
-
-### bigquery_client.py -- 25 `.result(` total, **18 UNTIMED** (only 7 timed):
-Untimed BQ lines: **281, 295, 352, 374, 455, 470, 508, 540, 571, 580, 590, 632, 676, 704, 986, 1037, 1048, 1069**.
-Money-path DML: **:540** (`_run_dml_with_retry`, all paper_positions/paper_trades MERGEs -> timeout=60), **:571** (`upsert_paper_portfolio` INSERT -> 60), **:580** (`get_paper_positions` -> 30). Compliant template in-file: **:533** `.result(timeout=30)`.
-(The step's "all of bigquery_client.py incl :571/:580" is an UNDERCOUNT: 18 sites, not 3.)
-
-### 13 external files (paths corrected):
-| File:line (CORRECTED) | Untimed call | timeout to add |
+| File:line | Enclosing `async def` | Use |
 |---|---|---|
-| paper_trader.py:1245 | `...result()` | 30 |
-| services/cycle_health.py:474 | `list(bq.client.query(sql).result())` | 30 |
-| **metrics**/sortino.py:114 | `list(client.query(sql).result())` | 30 |
-| api/paper_trading.py:1127 | `list(bq.client.query(...).result())` | 30 (note :1164 is `future.result()` -- ThreadPool, NOT BQ, leave) |
-| api/performance_api.py:82 | `list(bq.client.query(sql).result())` | 30 |
-| **services**/pead_signal.py:342 | `list(bq.client.query(query).result())` | 30 |
-| **services**/sector_calendars.py:200 | `list(bq.client.query(query).result())` | 30 |
-| agents/skill_optimizer.py:173 & :185 | 2 untimed | 30 each |
-| ~~cost_budget_watcher.py:104~~ | PHANTOM (D5) | drop |
-| autoresearch/slot_accounting.py:139 | `list(client.query(sql,job_config=cfg).result())` | 30 + module client (gap3-08) |
-| **api**/harness_autoresearch.py:196 | `list(client.query(sql,job_config=cfg).result())` | 30 |
-| api/monthly_approval_api.py:**143** | `job.result()` | 30 |
+| multi_agent_orchestrator.py:430 | `_execute_full_flow` | **DEAD var → delete** |
+| :566 | `_think_plan` | `loop.run_in_executor` |
+| :586 | `_iterative_parallel_research` | `loop.run_in_executor` |
+| :690 | `_check_research_complete` | `loop.run_in_executor` |
+| :723 | `_synthesize` | `loop.run_in_executor` |
+| :738 | `_single_with_delegation` | `loop.run_in_executor` |
+| :862 | `_quality_gate` | `loop.run_in_executor` |
+| :1065 | `_classify_via_llm` | `loop.run_in_executor` |
+| task_bus.py:140 | `delegate` (async) | `asyncio.get_event_loop().create_future()` → `get_running_loop().create_future()` |
 
-### 13 migration files (D1 -- the real denominator, 20 call sites), timeout=60:
-add_efficiency_snapshots.py:96 | add_external_flow_today_column.py:70,77 | add_round_trip_schema.py:36 | add_session_budget_to_llm_call_log.py:85 | add_ticker_to_llm_call_log.py:81 | create_alpha_velocity_table.py:81,96 | create_data_source_events_table.py:93 | create_directive_versions_table.py:77,92 | create_historical_fx_rates_table.py:64 | create_options_snapshots_table.py:104 | create_promoted_strategies_table.py:96 | create_strategy_deployments_view.py:114,116,118,143 | phase_32_1_add_stop_advanced_at_R.py:71,78.
-Compliant convention: `add_llm_call_log.py:70 job.result(timeout=60)`. (These are DDL scripts; adding `timeout=` does NOT change schema -- boundary-safe. Executor must NOT re-run them.)
+Criterion-2 grep must ALSO be clean in `mas_events.py` → remove :97 and :205 (items 8 above).
 
-### gap3-08 -- slot_accounting fresh client per call:
-`_default_bq_query_count` builds `bigquery.Client(project=project)` at **:134** per call (untimed `.result()` :139); `_default_bq_insert` builds a fresh client at **:118**. Fix: module-level client + timeout=30. Both already fail-open (try/except -> 0/False).
+### py-core-01 — MASEventBus (`agents/mas_events.py`)
+- **`:97`** `self._lock = asyncio.Lock() if asyncio.get_event_loop().is_running() else None`. `_lock` is **DEAD** — no in-file reader (`emit`/`subscribe` never use it; the many other `_lock` grep hits are unrelated `threading.Lock` classes: cost_tracker, kill_switch, api_cache…). **Safe to delete outright.** If kept, use `try: asyncio.get_running_loop() except RuntimeError: None`.
+- **Construction contexts** (singleton `get_event_bus()` :192 → `MASEventBus()` :196): async callers = orchestrator :431/:588/:1336, `api/mas_events.py` routes (running loop present → fine today). **Sync/dangerous callers = the Slack-bot process** `slack_bot/app_home.py:41/455/543/559` (these can run with NO running loop → this is the Python-3.14 crash surface, and even pre-3.14 raises from a non-main thread). This is why `get_running_loop()`+try/except (or deleting `_lock`) is the fix.
+- **`_forward_remote` :132-144** spawns `threading.Thread(target=_send, daemon=True).start()` **per event**, each doing a fresh `import httpx` + sync `httpx.post(timeout=3)`. No consumer relies on the thread-per-event behavior for ordering — the remote sink is `/api/mas/events/ingest`, best-effort, buffered by arrival. A single daemon worker draining a `queue.Queue` through one shared `httpx.Client` is strictly BETTER (FIFO ordering + connection reuse — httpx docs: "avoid instantiating multiple client instances in hot loops"). Lifetime: make the worker daemon so it dies with the process.
+- **`make_run_id` :205** — output is an opaque 12-hex hash used only as an event `run_id` (grouping); no consumer parses the `id()` term. Replace `id(asyncio.get_event_loop)` with e.g. `uuid.uuid4().hex` or `os.getpid()` — any unique-ish term.
 
-## 5. Vacuous-pass traps + MANDATORY mutation matrix
+### perf-01 — run_daily_cycle Step-1 (execution context MEASURED)
+`run_daily_cycle` is `async def` (`autonomous_loop.py:252`), invoked via `await` from `_scheduled_run` (`paper_trading.py:1344`, APScheduler) and `_run_cycle_background` (:1268). **Both schedulers are `AsyncIOScheduler`** (`main.py:301` paper, `:348` queue) → jobs run **as coroutines ON the API event loop**. So `screen_universe(...)` at `:576` (→ `screener.py:137` `yf.download(tickers, period="6mo", threads=True)`, ~500 tickers) runs SYNC on the event loop → **genuinely blocks it**. Fix per criterion 4: `screen_data = await asyncio.to_thread(screen_universe, tickers=universe, period="6mo", sector_lookup=_sector_lookup, short_interest_lookup=..., short_interest_threshold=...)`. (`yf.download`'s internal `threads=True` only parallelizes the download; the outer call still blocks the caller.)
 
-The 6 criteria are mostly SOURCE/AST SCANS -- high vacuous-pass risk (per `feedback_measure_dont_assert_claims` + `feedback_mutation_test_guards_and_fixtures`). Only criterion 1 is behavioral.
-
-| Crit | Vacuous-pass trap | Guard the test MUST have |
-|---|---|---|
-| 1 (dedup) | **Fixture cannot represent failure**: if the yf.download mock returns an EMPTY frame, "zero inserts" is vacuously true even fail-OPEN (no rows to insert). | Mock `yf.download` to return a NON-EMPTY OHLCV frame so fail-open WOULD call `insert_rows_json`; mock `client.query.side_effect=RuntimeError`; assert BOTH `pytest.raises(RuntimeError)` (error surfaces) AND `client.insert_rows_json.assert_not_called()`. Template: `test_64_3_learnings_reader.py:21-48` + `test_strategy_decisions_heartbeat.py:46-61`. |
-| 2 (params) | `assert "ScalarQueryParameter" in src` passes even if the f-string ALSO stays (dead param). | ALSO assert ABSENCE: no `f"WHERE agent_type = '"` in bigquery_client src; no `IN ({ticker_list})` / no `", ".join(f"'{t}'"` in data_ingestion src. Symmetric present+absent. |
-| 3 (timeout sweep) | (i) regex too loose passes on `.result()`; (ii) **`all([])` trap** -- empty file list = vacuous True; (iii) scan silently SKIPS a drifted/missing path (D2-D6) -> the very sites at risk hide. | Use AST (parse, find every `.result` Call, require a `timeout` kw). Assert the enumerated file list is NON-EMPTY and every expected path EXISTS (hard-fail on missing, so drift can't hide). Exclude `future.result()` (ThreadPool) explicitly (paper_trading.py:1164). |
-| 4 (factory) | `assert factory_default == 5*1024**3` alone is a constant/tautology assertion. | ADD behavioral adoption: build a job_config via the factory, assert `.maximum_bytes_billed == 5 GiB`, AND mock `client.query` on >=1 real method and assert the passed `job_config.maximum_bytes_billed` is set. |
-| 5 (skill_opt/slot) | source scan `assert "logger.warning" in src` passes even if bare `pass` remains elsewhere. | Assert NO bare `except Exception:\n    pass` remains in the outcomes block (AST: except handler body is not a lone `Pass`); assert slot_accounting module-level client is reused (identity across 2 calls) + timeout present. |
-| 6 (lru singleton) | "imported by" is an import-string scan -- `from x import get_bq_client` unused still passes. | Behavioral: `assert get_bq_client() is get_bq_client()` (identity). For the 3 api files assert they actually CALL it (not just import); ideally assert the inline `BigQueryClient(settings)` hot-spots are gone. |
-
-**Mutation matrix the executor MUST run (each must FLIP the test red):**
-1. Revert dedup to `return set()` -> crit-1 red (insert called / no raise).
-2. Blank the yf.download fixture -> prove crit-1 goes vacuously GREEN (then restore non-empty; this proves the fixture can represent the failure -- mutate the STUB).
-3. Re-insert the f-string in get_agent_memories AND data_ingestion -> crit-2 red.
-4. Delete ONE `timeout=` from (a) bigquery_client.py, (b) one external file, (c) one migration -> crit-3 red x3.
-5. Point the crit-3 scan at a renamed/missing path -> must ERROR (denominator guard), not skip-green.
-6. Set factory default to 4 GiB and separately remove the adoption -> crit-4 red x2.
-7. Restore `except: pass` in skill_optimizer -> crit-5 red.
-8. Make `get_bq_client` return a fresh instance each call -> crit-6 red.
-
-## 6. BOUNDARY risk analysis -- fail-closed dedup is SAFE on every caller
-
-**Empty-result vs query-exception (the core distinction):**
-- Successful query returning 0 rows (empty/first-run table): `{(r[..],r[..]) for r in rows}` = `set()` -> gate `in existing` is always False -> **insert all rows (legitimate)**. This path is UNCHANGED by the fix.
-- Query raises (timeout / permission / transient): currently `except: return set()` -> **also inserts all rows -> DUPLICATE (ticker,date) bars**. This is the ONLY path the fix changes: log + re-raise instead.
-- First-run safety: `run_full_ingestion` calls `_ensure_tables_exist()` (:352) BEFORE `ingest_prices` (:354), so the dedup table exists -> the query SUCCEEDS-empty, never throws "table not found". Fail-closed does NOT break cold-start ingestion.
-
-**Every caller of ingest_prices/ingest_fundamentals/run_full_ingestion and abort behavior:**
-| Caller | Context | Abort effect | Verdict |
+**Siblings + gating flags (measured defaults, all `False`):**
+| Site | Call | Gate flag (settings.py) | Default |
 |---|---|---|---|
-| `slack_bot/jobs/daily_price_refresh.py:82` (`run_production`) | AUTONOMOUS scheduler (only per-cycle caller) | caught by fail-open try/except **:86-87** -> logs, returns `{written:0}`, scheduler continues; idempotent by-day heartbeat retries next run | SAFE / self-heals |
-| `backtest_engine.py:1303` (`_auto_ingest_if_needed`) | only fires when `prices_count==0` (cold start -> query succeeds-empty, fail-closed inert); any throw caught at **:1307** "non-fatal" | SAFE |
-| `api/backtest.py:201` | manual `POST /ingest` via `asyncio.to_thread`, wrapped -> `HTTPException(500)` at :208-210 | SAFE (user sees error; correct fail-closed) |
-| `scripts/migrations/extend_historical_data.py:94` | manual backfill script | fails loudly | SAFE (correct) |
+| :524 | `get_sp500_tickers()` | inside `if _intl_markets:` (paper_markets≠[US]) | paper_markets default `["US"]` (:78) — **but live .env = US+EU+KR, so this IS live-executed** |
+| :572 | `build_sector_map(universe)` | `sector_neutral_momentum_enabled` OR `multidim_momentum_enabled` OR `paper_soft_sector_diversity_enabled` | all `False` (:429/:439/:448) |
+| :639 | peer_leadlag `yf.Ticker().info` | `peer_leadlag_enabled` | `False` (:515) |
 
-**Conclusion:** NO caller relies on the fail-open `set()` for correct operation; it only ever produced silent duplicate inserts on error. Fail-closed is strictly safer everywhere and the sole autonomous caller already contains the exception. Paper-only boundary honored (no schema/table change; dedup logic only).
+Wrapping any of these in `to_thread`/`gather` is **output-identical** whether the flag is ON or OFF (it moves WHERE the same call runs, not WHAT it computes) — this is the BOUNDARY argument. Executor must still verify live flag state at implementation and record ON-vs-OFF `$0` diff for any flag that is live.
 
-## 3. External research
+### perf-10 — see correction #1. Fix = bounded `gather`:
+```python
+sem = asyncio.Semaphore(8)
+async def _one(t):
+    async with sem:
+        try: return t, await asyncio.to_thread(lambda x=t: yf.Ticker(x).info or {})
+        except Exception: return t, None
+results = await asyncio.gather(*[_one(t) for t in target_tickers])
+# then build lookup from results (same dict shape as today)
+```
 
-### Read in full (>=5 required; counts toward gate)
-| # | URL | Accessed | Kind | Key finding |
-|---|-----|----------|------|-------------|
-| 1 | https://docs.cloud.google.com/bigquery/docs/parameterized-queries | 2026-07-23 | Official doc | "you can use parameters to protect queries made from user input against SQL injection." + "Parameters cannot be used as substitutes for identifiers, column names, table names, or other parts of the query." Both WHERE values AND LIMIT are parameterizable; `ScalarQueryParameter`/`ArrayQueryParameter` + `... IN UNNEST(@states)`. |
-| 2 | https://docs.cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJob | 2026-07-23 | Official doc | `result(timeout=)` docstring: "The number of seconds to wait for the underlying HTTP transport before using `retry`. If `None`, wait indefinitely... If unset... we still wait indefinitely for the job to finish." Raises `concurrent.futures.TimeoutError`. Bounds the CLIENT-SIDE HTTP wait, does NOT cancel the BQ job. |
-| 3 | https://docs.cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.job.QueryJobConfig | 2026-07-23 | Official doc | `maximum_bytes_billed`: "Maximum bytes to be billed for this job or None if not set." (per-job, default None). `job_timeout_ms`: "If this time limit is exceeded, BigQuery might attempt to stop the job." (only THIS bounds actual job execution). |
-| 4 | https://googleapis.github.io/google-api-python-client/docs/thread_safety.html | 2026-07-23 | Official doc | "The httplib2.Http() objects are not thread-safe." Applies to the OLDER api-python-client (httplib2). NOTE: `google-cloud-bigquery` uses the google-auth/`requests` transport, NOT httplib2 -- so this is context, not the definitive bigquery.Client answer. |
-| 5 | https://github.com/googleapis/python-bigquery/issues/1922 | 2026-07-23 | GitHub (maintainer repo) | `QueryJob.result()` hung >6 DAYS after the job actually completed in 2 min (google-cloud-bigquery 3.21.0). Non-deterministic; reporter used PROCESS-level timeout as workaround. **Direct evidence the untimed-`.result()` indefinite-hang risk in data-bq-03 is real and current.** |
-| 6 | https://docs.cloud.google.com/bigquery/docs/best-practices-costs | 2026-07-23 | Official doc | maximum_bytes_billed: "the number of bytes that the query reads is estimated BEFORE the query execution. If the number of estimated bytes is beyond the limit, then the query fails without incurring a charge." Example: "Error: Query exceeded limit for bytes billed: 1000000. 10485760 or higher required." Caveat: on CLUSTERED tables the estimate is an UPPER BOUND -> can fail even when actual bytes would be under. |
+### api-design-09 — fire-and-forget create_task (GC hazard)
+| Site | Task | State dict for done-callback |
+|---|---|---|
+| analysis.py:364 | `_run_sync_analysis` | analysis task-state (keyed by `task_id`) |
+| backtest.py:134 | `_run_backtest_async` | `_backtest_state` (`status`/`error`/`traceback`) |
+| paper_trading.py:1023 | `_run_cycle_background` | `_last_cycle_error` (coro already try/excepts, but task ref still GC-able) |
+| backtest.py:299 | `_optimizer_task` | ALREADY held in a module var — reference exists; add `add_done_callback` for error-state parity if not present |
 
-### Identified but snippet-only (context; does NOT count toward gate)
-| URL | Why not read in full |
-|-----|-----------------------|
-| github.com/googleapis/python-bigquery/issues/129 | thread-safety docs request, no resolution text in page |
-| github.com/googleapis/google-cloud-python/issues/3522 | "increment threadsafety when httplib2 removed" -- implies bigquery.Client threadsafety improved post-httplib2 |
-| github.com/googleapis/python-bigquery/issues/1165 | retry `deadline` overridden by `timeout` in result() (google-api-core deprecation the finding flags) |
-| github.com/googleapis/google-cloud-python/issues/14274, .../python-bigquery-storage/696 | Storage READ client concurrent-construction deadlock (NOT the query client) |
-| github.com/googleapis/python-bigquery/issues/6301, 4135, 7831 | result() 500/timeout/done()-stuck reports (corroborate hang risk) |
-| docs.cloud.google.com/bigquery/docs/cached-results | cache hit -> 0 bytes billed (cap inert on cache hits) |
-| docs.cloud.google.com/bigquery/docs/custom-quotas | project/user daily byte quotas (org-level cost guard, complementary) |
-| oneuptime.com .../bigquery-parameterized-queries (2026-02-17); .../custom-cost-controls (2026-02-17) | 2026 practitioner restatements (recency) |
-| cloud.google.com/blog/.../controlling-your-bigquery-costs | maximum_bytes_billed cost-control guidance |
-| docs.cloud.google.com/bigquery/docs/samples/bigquery-query-params-arrays | ArrayQueryParameter code sample |
-| hevodata.com/learn/bigquery-parameterized-queries | parameterized-query primer |
+Pattern (official): module `set()` keep-alive + `task.add_done_callback` that (a) `discard`s from the set and (b) on `task.exception()` flips the state dict to `error`.
 
-### Key findings mapped to pyfinagent (file:line)
-1. **Params protect values, not identifiers** (Src 1). -> get_agent_memories (bigquery_client.py:500,506): parameterize the `agent_type` VALUE (`WHERE agent_type = @agent_type`) and the `LIMIT` (`LIMIT @limit`); the table name f-string at :498/:503 STAYS (identifier, cannot be a param -- and it is internal, not user input). data_ingestion ticker list (:82,:180): `ArrayQueryParameter("tickers","STRING",tickers)` + `IN UNNEST(@tickers)`, exactly cache.py:108-109.
-2. **`result(timeout=)` = client-wait ceiling, not job-cancel** (Src 2,5). -> the data-bq-03 sweep's `timeout=30/60` matches the project's existing bigquery_client.py:533 convention; it prevents the worker thread hanging on a dropped HTTP transport (the #1922 6-day-hang failure mode). It does NOT abort the BQ job -- if hard job caps are ever wanted, that's `job_timeout_ms` (out of scope for 75.9; do NOT add it -- would change job behavior).
-3. **maximum_bytes_billed is a pre-execution kill switch, fails free** (Src 3,6). -> data-bq-06 factory default 5 GiB (5*1024**3 = 5368709120). Fails the job BEFORE scanning if the estimate exceeds 5 GiB, no charge. Clustered-table upper-bound caveat: 5 GiB is generous vs pyfinagent table sizes, so false-fails are unlikely, but document the caveat. Cache hits bill 0 bytes so the cap never bites them.
-4. **bigquery.Client thread-sharing** (Src 4 + snippets 129/3522). Official docs still lack a crisp statement, BUT: (i) the httplib2 non-thread-safety (Src 4) does NOT apply -- modern bigquery.Client uses the requests transport; (ii) the documented DEADLOCK is on CONCURRENT CONSTRUCTION of the Storage READ client, which perf-11 avoids two ways: it uses the QUERY client, and `@lru_cache` constructs EXACTLY ONCE under CPython's internal lock, then shares. Sharing one query client to SUBMIT queries across threads is the common, recommended pattern. -> perf-11 zero-arg lru singleton is safe; the finding's premise (repeated credential JSON parse + fresh pools per call) is the real waste being removed.
+### pysvc-09 — lifespan `finally` (main.py:410-419)
+Today shuts down ONLY `queue_scheduler` (`:416-417`, `shutdown(wait=False)`). MISSING:
+- **paper `scheduler`** (:301, started :303) — add `if 'scheduler' in locals(): scheduler.shutdown(wait=False)`.
+- **prewarm task** (:406, unsaved) — capture `t = asyncio.create_task(...)`; in finally `t.cancel()` + `await` under `contextlib.suppress(asyncio.CancelledError)`.
+- **Slack monitor** — `init_slack_monitor` RETURNS the monitor (`slack_monitor.py:105`), and `SlackMonitor` HAS a **sync** `def stop(self)` (`:88`). But `main.py:333` **discards the return** (`await init_slack_monitor(slack_client)`). Capture it (`monitor = await init_slack_monitor(...)`) and call `monitor.stop()` in finally (or add a module-level `get_slack_monitor()`/`stop_slack_monitor()`). MEASURED: the hook exists and is sync — no `await`.
+APScheduler `shutdown(wait=False)` "Does not interrupt any currently running jobs" and won't block startup teardown (apscheduler base docs).
 
-## 4. Recency scan (last 2 years, 2024-2026)
+### api-design-05/06/08 — the remaining routes
+- **_enrich_position (portfolio.py:152, plain `def`)** — calls blocking `yfinance_tool.get_comprehensive_financials()` (:156); invoked in a `for` loop inside `async def get_portfolio_performance` (:114-115) → N+1 serial blocking on the loop. Fix: `await asyncio.gather(*[asyncio.to_thread(_enrich_position, pid, p) for pid, p in _positions.items()])` (optionally Semaphore-bounded). (Legacy in-memory `_positions` — verify still routed.)
+- **get_optimizer_status (backtest.py:352, `async def`, NO awaits in body)** — `subprocess.run(["pgrep", -f, pattern])` in a 3-iteration loop (:363) + `open(tsv)`/`open(json)` reads (:375/:391). Criterion-3 wants "plain def or fully to_thread-wrapped". Cleanest = **convert to plain `def`** (FastAPI runs it in the threadpool — fastapi/async: plain def "is run in an external threadpool that is then awaited"). TTL cache is an optional add.
+- **get_all_jobs (cron_dashboard_api.py:411, `async def`)** — `_launchctl_state(entry["id"])` (:455) → `_probe_launchctl` (:258) → `subprocess.run(["launchctl","print",...])` (:267), 30s TTL cache but a miss forks sync (~400ms/entry). Wrap the `_launchctl_state` calls in `to_thread` (or gather).
 
-Searched 2026- and 2025/2024-scoped variants for all six topics. Result: **no API-behavior change supersedes the canonical official semantics.** The parameterized-query, `maximum_bytes_billed`, and `result(timeout=)` contracts are stable. Newer material is (a) 2026-02 practitioner posts (oneuptime) that RESTATE the same official behavior, and (b) live BUG reports -- python-bigquery #1922 (result() indefinite hang, google-cloud-bigquery 3.21.0) and storage-client deadlock #14274 -- which CONFIRM rather than overturn the finding's rationale. `job_timeout_ms` (added to QueryJobConfig in recent releases) is the only genuinely newer API surface; it is the correct tool for hard job caps but is deliberately OUT of scope for 75.9 (the step scopes `result(timeout=)`, not job cancellation). Three-variant discipline: current-year (2026 oneuptime/systemsarchitect hits), last-2-year (#1922 2024, #14274), year-less canonical (official docs.cloud.google.com references + thread_safety.html).
+---
 
-## Consensus vs debate
-Consensus (official + practitioner): parameterize values; cap bytes billed per job; never rely on an untimed `.result()`. Debate/nuance: the ONLY genuinely contested point is whether `result(timeout=)` reliably bounds wall-clock -- #1922 shows it can still hang, so the honest framing for Q/A is "timeout=30 massively reduces but does not 100% eliminate the hang surface; it is the project's adopted convention (bigquery_client.py:533), not a hard guarantee." No source argues AGAINST adding the timeout.
+## Part B — External research
 
-## Pitfalls (from literature + code)
-- Adding a param but leaving the f-string in place = dead param (vacuous crit-2 pass) -- assert absence.
-- `timeout=` on `result()` != job cancel; do not oversell it or add `job_timeout_ms` (scope creep).
-- A too-low `maximum_bytes_billed` on a clustered table can false-fail (upper-bound estimate) -- 5 GiB default mitigates.
-- lru_cache on a function taking non-hashable `Settings` will error/leak -- keep `get_bq_client()` zero-arg.
-- Fail-closed dedup must distinguish empty-result (insert) from exception (abort) -- see §6.
+### Read in full (6; ≥5 gate met)
+| # | URL | Kind | Key verbatim finding |
+|---|---|---|---|
+| 1 | https://docs.python.org/3/library/asyncio-eventloop.html | official | `get_event_loop()`: **"Changed in version 3.14: Raises a RuntimeError if there is no current event loop."** `get_running_loop()` "is preferred to `get_event_loop()` in coroutines and callbacks." run_in_executor example uses `loop = asyncio.get_running_loop()`. |
+| 2 | https://docs.python.org/3/library/asyncio-task.html | official | create_task: **"Save a reference… The event loop only keeps weak references to tasks. A task that isn't referenced elsewhere may get garbage collected at any time, even before it's done."** → `background_tasks.add(task)` + `task.add_done_callback(background_tasks.discard)`. to_thread: **"Due to the GIL, asyncio.to_thread() can typically only be used to make IO-bound functions non-blocking."** |
+| 3 | https://fastapi.tiangolo.com/async/ | official | plain `def` path op "is run in an external threadpool that is then awaited, instead of being called directly (as it would block the server)"; avoid blocking I/O inside `async def`. |
+| 4 | https://apscheduler.readthedocs.io/en/3.x/modules/schedulers/base.html | official | `shutdown(wait=True)`: waits for running jobs; `wait=False` returns immediately; **"Does not interrupt any currently running jobs."** |
+| 5 | https://docs.python.org/3/library/asyncio-sync.html | official | `asyncio.Semaphore(n)` + `async with sem:` bounds concurrent operations (counter blocks at 0). |
+| 6 | https://www.python-httpx.org/async/ | official | sync `httpx.get/Client` "should be avoided in async contexts, as they will block the event loop"; use `httpx.AsyncClient` + `await`; reuse one client (no hot-loop instantiation). |
 
-## Research Gate Checklist
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch (6: 5 official Google docs + 1 maintainer GitHub issue)
-- [x] 10+ unique URLs total (24 collected: 6 full + ~18 snippet)
-- [x] Recency scan (last 2 years) performed + reported
-- [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim (§0-§2, §5-§6)
-- [x] Internal exploration covered every enumerated module (+ 5 path drifts + 1 phantom + macro-parallel found)
-- [x] Contradictions/consensus noted; all claims cited per-claim
+### Snippet-only (URLs collected, not read in full)
+docs.python.org/3/whatsnew/3.14.html; docs.python.org/3/library/asyncio-policy.html; github.com/browser-use/browser-use#4447; github.com/grpc/grpc#39507; github.com/run-llama/llama_index#18058; github.com/micropython/micropython#12299; superfastpython.com asyncio-disappearing-task-bug; mkennedy.codes fire-and-forget-asyncio; stackoverflow #136168 (tail seek-from-end); dpdzero/leapcell/sentry FastAPI threadpool posts. (**URLs collected ≥16.**)
+
+### Recency scan (2024-2026)
+The load-bearing finding IS the newest: `asyncio.get_event_loop()` raising `RuntimeError` landed in **Python 3.14** (deprecated since 3.10) — confirmed by the official "Changed in version 3.14" note and multiple 2025-2026 downstream breakage reports (browser-use #4447, grpc #39507). The create_task weak-ref note and to_thread GIL caveat are current 3.14-docs wording. No newer guidance supersedes the `get_running_loop()` replacement. No contradicting source found (the change is unambiguous in the reference).
+
+---
+
+## Part C — Application (external → pyfinagent)
+- **[1]** → py-core-05 (all 9 sites) + py-core-01:97: `get_running_loop()` inside coroutines; the 3.14 RuntimeError is exactly the MASEventBus:97 crash class. run_in_executor sites already have a running loop.
+- **[2] save-reference** → api-design-09 (+ prewarm main.py:406): keep-set + add_done_callback. **[2] to_thread GIL** → perf-01/perf-10 + every route wrap are IO-bound (yfinance/BQ/subprocess/file) so to_thread is correct; none are CPU-bound.
+- **[3]** → api-design-06 get_optimizer_status → convert to plain `def`; the other async routes stay `async def` with `to_thread` wrappers around the blocking calls.
+- **[4]** → pysvc-09 use `shutdown(wait=False)` (matches existing queue_scheduler call) so teardown never blocks.
+- **[5]** → perf-10 + _enrich_position bounded `gather` (Semaphore(8)).
+- **[6]** → get_dashboard's async httpx is already compliant; only subprocess needs to_thread.
+
+## Part D — Boundary invariants (must stay byte-identical; diff-verify)
+The executor edits ONLY *where* code runs (thread vs loop), never *what* it decides. Keep byte-identical in `autonomous_loop.py`: the rank/gate/sizing/threshold lines around the touched fetches — the flag gates (`if getattr(settings, "..._enabled", False)`), the calendar `_open_today` gate (:536-549), the `short_interest_threshold`/`peer_leadlag_*`/`ma_preannounce_*` numeric args, and every `screen_data[...]`/`paper_screen_top_n` slice. Wrapping `screen_universe`/`build_sector_map`/peer-leadlag in `to_thread`/`gather` must return the SAME objects into the SAME variables. `experiment_results.md` must carry `git diff --stat` + an explicit "no decision-line edits" diff of `autonomous_loop.py`. For any live-ON flag, record an ON-vs-OFF `$0` behavior diff.
+
+## Test guidance (`backend/tests/test_phase_75_event_loop.py`)
+- **pytest-asyncio is NOT installed** (only `anyio`); `@pytest.mark.asyncio` used in 0 tests; **`asyncio.run(...)` is the convention (17 files)**. conftest.py has NO event_loop fixture (only an import-time llm_call_log guard) → nothing interferes.
+- Criterion 1 (construct `MASEventBus()` with NO running loop): do it in a **plain `def test_...`** body (no running loop there naturally) — do NOT wrap in `asyncio.run()`. Assert no raise. For `_forward_remote`, assert single-worker/queue via source-scan AND/OR behavioral (set `remote_url`, emit N, assert ≤1 worker thread) — mutate the stub too (guard-can-fail per `feedback_mutation_test_guards_and_fixtures`).
+- Criterion 2 grep: assert `get_event_loop` count == 0 across the 3 files (this WILL catch mas_events:205 — make sure the fix removes it).
+- Criterion 3 AST: to hard-fail on missing routes, resolve each `async def` node by name and `assert` it was found (fail if the route was renamed/removed), then walk `ast.Call` nodes for `subprocess.run`/`httpx` sync/`.result(` NOT lexically inside an `asyncio.to_thread(...)` call; allow-list the async `httpx.AsyncClient().get` (it is `await`ed, not sync). Avoid false positives on `.result(` by checking the attribute chain is a BQ query, not e.g. a Future inside to_thread.
+- Criterion 5: drive one create_task to raise; assert the state dict flips to `error` via the done-callback (use `asyncio.run` around a small harness).
+- Criterion 6: mock ingestion; assert the route returns immediately (`status: started` + run_id) and the status route reports progress.
 
 ## JSON envelope
 
 ```json
 {
-  "tier": "moderate",
+  "tier": "complex",
   "external_sources_read_in_full": 6,
-  "snippet_only_sources": 18,
-  "urls_collected": 24,
+  "snippet_only_sources": 11,
+  "urls_collected": 17,
   "recency_scan_performed": true,
-  "internal_files_inspected": 25,
-  "coverage": {
-    "audit_class": false,
-    "rounds": 1,
-    "dry_rounds": 0,
-    "K_required": 2,
-    "new_findings_last_round": 0,
-    "dry": false
-  },
-  "summary": "Re-anchored all 75.9 sites; found material drift the executor must apply: migrations are 13 files/20 untimed .result() sites (not 12); 5 external file paths moved (sortino->metrics/, pead_signal->services/, sector_calendars->services/, cost_budget_watcher->slack_bot/jobs/ AND is a PHANTOM with no .result(), harness_autoresearch->api/); monthly_approval_api untimed line is :143 not :141; bigquery_client.py has 18 untimed .result() not 3; perf-11 '34' is the api+services subset (repo-wide 45 BigQueryClient/49 bigquery.Client); _get_existing_macro shares the fail-open bug but is FROZEN (queue separately). Templates confirmed: cache.py:108 UNNEST, get_recent_reports:278 params, get_paper_portfolio:533 timeout, skill_optimizer:172-176 logged-sibling, settings.py:612 lru. BOUNDARY: fail-closed dedup is safe on ALL callers (sole autonomous caller daily_price_refresh:86-87 already fail-open-wraps it; empty-result still inserts, only query-EXCEPTION aborts). External: params protect values not identifiers; result(timeout=) bounds client wait not job (issue #1922 = 6-day hang proves the risk); maximum_bytes_billed fails pre-execution free (5 GiB); lru singleton query-client sharing is safe. Prescribed a full vacuous-pass mutation matrix (crit 1 fixture must be NON-empty; crits 2/3/5 need absence-assertions + AST + missing-file hard-fail; crit 4 needs adoption not just constant; crit 6 needs identity test).",
-  "brief_path": "handoff/current/research_brief_75.9.md",
+  "internal_files_inspected": 15,
+  "coverage": {"audit_class": false, "rounds": 1, "dry_rounds": 0, "K_required": 2, "new_findings_last_round": 0, "dry": false},
+  "summary": "All 12 findings verified against current source with material drift: perf-10 (:641) is ALREADY to_thread'd (serial-latency only, not loop-blocking); get_dashboard already uses async httpx (real blockers = 2x subprocess.run); get_llm_p95 already carries timeout=30; run_data_ingestion already to_thread's run_full_ingestion (remaining = screen_universe inline + 202-conversion). Confirmed: 9 get_event_loop sites (8 orchestrator all async + task_bus:140) + mas_events has TWO occurrences (:97 crash-path dead _lock, :205 meaningless id() term) both needed for criterion-2; orchestrator:430 loop is dead (delete); a 10th get_event_loop at ticket_queue_processor:423 is OUT of the 3-file scope (queue separately). pysvc-09: finally shuts only queue_scheduler; paper scheduler + prewarm task (main:406, also GC-hazard) + Slack monitor (stop() exists, sync, slack_monitor:88, but return discarded at main:333) are unshut. perf-01 confirmed: AsyncIOScheduler runs run_daily_cycle on the event loop; gating flags all default False, paper_markets live=US+EU+KR. Test: pytest-asyncio NOT installed -> plain def + asyncio.run; criterion-1 no-loop construction natural in a def body. get_log_tail cap is le=10000 not le=1000 (behavior-change decision).",
+  "brief_path": "handoff/current/research_brief_75.10.md",
   "gate_passed": true
 }
 ```

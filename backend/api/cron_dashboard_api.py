@@ -16,13 +16,13 @@ listed in `_PUBLIC_PATHS`).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import plistlib
 import re
 import subprocess
 import time
-from collections import deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -451,8 +451,13 @@ async def get_all_jobs() -> dict[str, Any]:
     # (ablation @ 03:00, autoresearch @ 02:00). Falls back to None for
     # StartInterval-only / array-of-dicts / Weekday-bearing / missing
     # plist cases.
-    for entry in _LAUNCHD_JOBS:
-        probe = _launchctl_state(entry["id"])
+    # phase-75.10 (api-design-08): _launchctl_state forks `launchctl print`
+    # on a cache miss (~400ms/entry, TTL-cached) -- to_thread the probes so a
+    # cold cache doesn't block the loop; same per-entry dict shape/order.
+    _launchd_probes = await asyncio.gather(*[
+        asyncio.to_thread(_launchctl_state, entry["id"]) for entry in _LAUNCHD_JOBS
+    ])
+    for entry, probe in zip(_LAUNCHD_JOBS, _launchd_probes):
         next_run = probe.get("next_run") or _plist_next_run(entry["id"])
         jobs.append(
             {
@@ -527,6 +532,35 @@ async def trigger_job(job_id: str, req: CronControlRequest):
     raise HTTPException(400, f"trigger not supported for '{job_id}' in phase-49.2 (pause/resume only)")
 
 
+# phase-75.10 (api-design-08): seek-from-end block reader. The prior
+# `deque(f, maxlen=n)` iterates the WHOLE file line-by-line from the start
+# (deque only bounds memory, not I/O); this reads backwards in fixed-size
+# chunks and stops as soon as enough newlines have been seen, so a huge log
+# with a small `n` no longer pays for a full scan. Cap stays le=10000 on the
+# Query decorator (the step-prose "le=1000" would reject 1001-10000 requests
+# that succeed today -- a behavior change out of this step's mechanical-only
+# scope; _LINES_MAX's internal clamp to 1000 is pre-existing and untouched).
+def _tail_lines(path: Path, n: int, chunk_size: int = 65536) -> list[str]:
+    """Return the last `n` lines of a text file, oldest first, without
+    trailing newlines. Reads backwards from EOF in `chunk_size` blocks."""
+    with path.open("rb") as f:
+        f.seek(0, os.SEEK_END)
+        remaining = f.tell()
+        blocks: list[bytes] = []
+        newline_count = 0
+        while remaining > 0 and newline_count <= n:
+            read_size = min(chunk_size, remaining)
+            remaining -= read_size
+            f.seek(remaining)
+            block = f.read(read_size)
+            blocks.append(block)
+            newline_count += block.count(b"\n")
+        data = b"".join(reversed(blocks))
+    text = data.decode("utf-8", errors="replace")
+    all_lines = text.splitlines()
+    return all_lines[-n:] if n < len(all_lines) else all_lines
+
+
 @router.get("/logs/tail")
 async def get_log_tail(
     log: str = Query(..., description="Allowlisted log key"),
@@ -554,8 +588,7 @@ async def get_log_tail(
 
     total_size = p.stat().st_size
     try:
-        with p.open(encoding="utf-8", errors="replace") as f:
-            tail = list(deque(f, maxlen=n))
+        tail = _tail_lines(p, n)
     except Exception as exc:
         logger.warning("get_log_tail(%s) failed: %r", log, exc)
         raise HTTPException(status_code=500, detail="log read failed")

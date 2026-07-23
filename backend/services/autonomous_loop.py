@@ -521,7 +521,9 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             _intl_markets = [m for m in _paper_markets if m != "US"]
             if _intl_markets:
                 from backend.backtest.universe_lists import INTL_UNIVERSE
-                base = list(universe) if universe is not None else get_sp500_tickers()
+                # phase-75.10 (perf-01 sibling): to_thread -- yfinance/network fetch,
+                # execution-only change (same tickers, same order).
+                base = list(universe) if universe is not None else await asyncio.to_thread(get_sp500_tickers)
                 intl = [t for m in _intl_markets for t in INTL_UNIVERSE.get(m, [])]
                 universe = base + intl
                 # phase-50.4: ENTRY calendar gate -- drop a ticker whose market
@@ -569,11 +571,19 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             if getattr(settings, "sector_neutral_momentum_enabled", False) or getattr(settings, "multidim_momentum_enabled", False) or getattr(settings, "paper_soft_sector_diversity_enabled", False):
                 try:
                     from backend.tools.screener import build_sector_map
-                    _sector_lookup = build_sector_map(universe)
+                    # phase-75.10 (perf-01 sibling): to_thread -- execution-only,
+                    # same universe in -> same sector map out.
+                    _sector_lookup = await asyncio.to_thread(build_sector_map, universe)
                 except Exception as e:
                     logger.warning("phase-51.2: sector map build failed (%s); sector-aware path falls back to global pool", e)
 
-            screen_data = screen_universe(
+            # phase-75.10 (perf-01): run_daily_cycle is invoked as a coroutine ON
+            # the API event loop by both AsyncIOScheduler instances (main.py:301,
+            # :348) -- this yf.download(~500 tickers, 6mo) call genuinely blocked
+            # it (the 2026-05-25 misfire-grace incident, paper_trading.py:1301-1311,
+            # traced to smaller contention than this). to_thread moves WHERE it
+            # runs only; same kwargs in, same screen_data out.
+            screen_data = await asyncio.to_thread(screen_universe,
                 tickers=universe,
                 period="6mo",
                 sector_lookup=_sector_lookup,
@@ -636,15 +646,27 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                     from backend.services.peer_leadlag_screen import compute_peer_leadlag_signals
                     target_tickers = [s["ticker"] for s in screen_data[: 2 * settings.paper_screen_top_n] if s.get("ticker")]
                     lookup: dict[str, dict] = {}
-                    for t in target_tickers:
-                        try:
-                            info = await asyncio.to_thread(lambda x=t: yf.Ticker(x).info or {})
-                            lookup[t.upper()] = {
-                                "analyst_count": int(info.get("numberOfAnalystOpinions") or 0),
-                                "market_cap": float(info.get("marketCap") or 0),
-                            }
-                        except Exception:
-                            continue
+                    # phase-75.10 (perf-10): this was ALREADY to_thread'd (2026-05-18,
+                    # commit 6ceeb10ff) -- it does not block the loop today. The
+                    # remaining defect is serial LATENCY (N sequential awaits); this
+                    # bounds concurrency to 8 in-flight fetches, same per-ticker
+                    # try/except/continue-on-failure semantics, same lookup shape.
+                    _peer_sem = asyncio.Semaphore(8)
+
+                    async def _fetch_peer_info(x: str):
+                        async with _peer_sem:
+                            try:
+                                info = await asyncio.to_thread(lambda xx=x: yf.Ticker(xx).info or {})
+                                return x, {
+                                    "analyst_count": int(info.get("numberOfAnalystOpinions") or 0),
+                                    "market_cap": float(info.get("marketCap") or 0),
+                                }
+                            except Exception:
+                                return x, None
+
+                    for t, entry in await asyncio.gather(*[_fetch_peer_info(t) for t in target_tickers]):
+                        if entry is not None:
+                            lookup[t.upper()] = entry
                     peer_leadlag_signals = compute_peer_leadlag_signals(
                         screen_data,
                         lookup,
