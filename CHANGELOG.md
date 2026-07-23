@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-23 | `f466e859` | phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS (cycle 1) |
 | 2026-07-23 | `3a7942cf` | fix: phase-75.5 LLM rail + root-cause remediation of the unmeasured-scope-claim defect |
 | 2026-07-20 | `64cd1674` | fix: phase-75.4 -- skill-prompt delivery integrity (loader truncation, undelivered sections, critic  |
 | 2026-07-20 | `8bf20673` | chore: queue 75.20 -- make the Q/A live-UI gate enforceable and the primary Q/A path actually read-o |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `1b26ab7e` | phase-73.2: D2b learn-loop v2 design [executor: this session, fable-5/ultracode]. Design doc desi... |
 | 2026-07-18 | `d2485c2e` | phase-73.1: D2a leakage-integrity design [executor: this session, fable-5/ultracode]. Design doc ... |
 | 2026-07-18 | `b6c95879` | phase-73.0: D1 deep frontier study [executor: this session, fable-5/ultracode]. Read the baseline... |
-| 2026-07-18 | `9489d8df` | phase-73.0: install phase-73 goal + D1-D4 design step queue (frontier gap-close; baseline @e835464b) |
 
 ---
 
+### v6.68.7 — phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS... (2026-07-23)
+
+- **phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS (cycle 1)**
 ### v6.68.6 — phase-75.5 LLM rail + root-cause remediation of the unmeasured-scope-... (2026-07-23)
 
 - **phase-75.5 LLM rail + root-cause remediation of the unmeasured-scope-claim defect**
