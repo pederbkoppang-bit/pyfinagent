@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-23 | `ff6994ef` | phase-75.8: Audit75 S8 -- promotion-gate stub-fabrication refusal + governance-limits divergence ... |
 | 2026-07-23 | `e3e0bbee` | phase-75.7: Slack streaming await-correctness + P0 pager integrity -- Q/A PASS (cycle 3) |
 | 2026-07-23 | `33553e46` | phase-75.5: close on certified_fallback (operator-approved 2026-07-23) |
 | 2026-07-23 | `435ede5e` | chore: archive phase-75.5 (certified_fallback) + phase-75.6 handoff snapshots |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `7e6cb6cd` | phase-73.6: D3 money runway (recommend-only) [executor: this session, fable-5/ultracode]. One pag... |
 | 2026-07-18 | `40629a8e` | phase-73.5: D2e judged pilots [executor: this session, fable-5/ultracode]. Build/hold verdicts wi... |
 | 2026-07-18 | `64bdd798` | phase-73.4: D2d cost-integrated promotion design [executor: this session, fable-5/ultracode]. Des... |
-| 2026-07-18 | `1275dff1` | phase-73.3: D2c calibrated-sizing design [executor: this session, fable-5/ultracode]. Design doc ... |
 
 ---
 
+### v6.68.10 — phase-75.8: Audit75 S8 -- promotion-gate stub-fabrication refusal + g... (2026-07-23)
+
+- **phase-75.8: Audit75 S8 -- promotion-gate stub-fabrication refusal + governance-limits divergence ...**
 ### v6.68.9 — phase-75.7: Slack streaming await-correctness + P0 pager integrity --... (2026-07-23)
 
 - **phase-75.7: Slack streaming await-correctness + P0 pager integrity -- Q/A PASS (cycle 3)**
