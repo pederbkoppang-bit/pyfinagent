@@ -16965,7 +16965,7 @@
         },
         {
           "id": "75.5",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S5 -- live CC-rail schema enforcement, metered-bypass guards, model-retirement + telemetry/cost correctness [executor: sonnet-4.6/high; BOUNDARY: $0 metered strengthened, no model-tier pins changed -- literals become constants only]. (a) llmeng-01: ClaudeCodeClient.generate_content (claude_code_client.py:536) drops Pydantic model classes (the ONLY schema shape the pipeline passes) via its isinstance(dict) gate -- convert via model_json_schema() + _ensure_additional_properties_false and pass through the existing --json-schema flag; optionally trimmed house rules via --append-system-prompt. (b) llmeng-03: advisor_call (llm_client.py:2110) bypasses _check_cost_budget AND the paper_use_claude_code_route breach guard -- add both (same pattern as the queued 72.0.1 meta-scorer fix, distinct site; resolve the key via settings/unwrap_secret, raise the routing-breach ValueError when the CC rail is active). (c) llmeng-04 [REVISION per step-review -- retry-ownership deconfliction]: add stop_reason to LLMResponse (llm_client.py:1684), populated from Claude stop_reason / Gemini finish_reason / CC envelope. The shared JSON-parse helpers only EXPOSE stop_reason and set an explicit `degraded` flag on truncation -- they NEVER add a retry. The SINGLE owner of the max_tokens re-request stays the existing ClaudeClient phase-4.14.4 MF-26/27 higher-budget retry; add a no-double-retry guard so a truncation that already retried once at that layer surfaces as degraded rather than re-retrying. The contract for this step MUST name that one owning layer explicitly. (d) llmeng-06: route the 5 hardcoded gemini-2.5 pins (settings.py:31 deep_think default, evaluator_agent.py:94, rag_agent_runtime.py:57, skill_modification_review.py:216, backend/autonomous_loop.py:76) through GEMINI_WORKHORSE/DEEP_THINK constants in config/model_tiers.py, and add a startup warning when date>=2026-09-15 and any resolved gemini model is 2.5-family (retirement 2026-10-16; the 2.0-flash class already caused 9 silent days). (e) llmeng-10: cost_tracker.record (cost_tracker.py:176) double-subtracts cache tokens -- Anthropic input_tokens already excludes cache buckets, so regular_input = input_tokens. (f) llmeng-11: OpenAIClient.generate_content (llm_client.py:1214) gets the log_llm_call retrofit (provider/model/agent/latency, fail-open) matching the GeminiClient phase-35.2 shape. (g) arch-04: promote the spend fetch out of slack_bot/jobs/cost_budget_watcher.py into backend/services/observability as public fetch_spend(); llm_client hard-block, /api/cost-budget, and the slack job all import from there; keep fail-open semantics but count+alert when the guard degrades.",
           "harness_required": true,
           "priority": "P0",
@@ -16982,7 +16982,29 @@
             "live_check": "handoff/current/live_check_75.5.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: llmeng-01, llmeng-03, llmeng-04, llmeng-06, llmeng-10, llmeng-11, arch-04"
           },
           "retry_count": 3,
-          "max_retries": 3
+          "max_retries": 3,
+          "disposition": {
+            "type": "certified_fallback",
+            "approved_by": "operator (Peder)",
+            "approved_date": "2026-07-23",
+            "retry_count": 3,
+            "max_retries": 3,
+            "verdict_history": [
+              "CONDITIONAL",
+              "CONDITIONAL",
+              "FAIL",
+              "CONDITIONAL",
+              "CONDITIONAL",
+              "FAIL",
+              "FAIL"
+            ],
+            "criteria_met": "ALL 6 immutable criteria verified MET on every one of the 7 Q/A cycles",
+            "failure_class": "reporting-integrity only (never product code) -- 11 instances of the unmeasured-scope-claim defect, systemically remediated via qa.md section 4b + the STAGE-0 fixes in the same session",
+            "engineering_verified": "money fix (cost_tracker cache double-subtraction, 66.7% under-report) independently re-derived 4x; CC-rail schema, advisor_call guards, stop_reason/degraded, model-retirement tripwire, OpenAI telemetry, public fetch_spend all Q/A-verified; lock guard green at 17",
+            "evidence": "handoff/archive/phase-75.5/ (contract, experiment_results, evaluator_critique with all 7 verdicts, live_check, research_brief)",
+            "commit": "3a7942cf (pushed in 64fd4359)",
+            "note": "Retry budget exhausted per F1 / per-step-protocol.md 4 / SEVerA 2026. Operator adjudicated the step done-via-certified-fallback: the immutable criteria are satisfied and the residual was reporting hygiene now fixed. Follow-ups 75.5.1-75.5.10 remain pending."
+          }
         },
         {
           "id": "75.5.1",
