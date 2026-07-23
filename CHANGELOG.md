@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `07182b94` | phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unat... |
 | 2026-07-24 | `09223466` | phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get... |
 | 2026-07-23 | `fd4380b3` | phase-75.9: Audit75 S9 -- BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost g... |
 | 2026-07-23 | `ff6994ef` | phase-75.8: Audit75 S8 -- promotion-gate stub-fabrication refusal + governance-limits divergence ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-20 | `8b280cfc` | phase-75.0: Ultracode full-stack audit + remediation-queue synthesis [executor: this session, fab... |
 | 2026-07-18 | `1e6dd200` | phase-74.0: install local-LLM pilot queue (assessment: full localization REJECTED on 16GB M4; Slack- |
 | 2026-07-18 | `a71e56dc` | phase-73.7: D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (front... |
-| 2026-07-18 | `7e6cb6cd` | phase-73.6: D3 money runway (recommend-only) [executor: this session, fable-5/ultracode]. One pag... |
 
 ---
 
+### v6.68.13 — phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, si... (2026-07-24)
+
+- **phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unat...**
 ### v6.68.12 — phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the b... (2026-07-24)
 
 - **phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get...**
