@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- TEMPLATE (phase-75.11, sre-ops-01). NOT bootstrapped by this step --
+         installation is operator token OPS-ROTATE-BOOTSTRAP (see
+         handoff/current/ops_rotate_runbook_75.11.md). Before installing:
+           1. Replace every __REPO_ROOT__ placeholder below with the real
+              repo path (matches every sibling plist on this machine:
+              /Users/ford/.openclaw/workspace/pyfinagent).
+           2. Copy to ~/Library/LaunchAgents/com.pyfinagent.logrotate.plist
+              (drop the .template suffix) and
+              `launchctl bootstrap gui/$UID <path>`.
+         NO secrets are embedded here. rotate_logs.sh reads
+         SLACK_BOT_TOKEN / SLACK_CHANNEL_ID from backend/.env at RUNTIME
+         via a read-only grep (same pattern healthcheck.sh already uses) --
+         this plist's EnvironmentVariables carries no credentials. -->
+    <key>Label</key>
+    <string>com.pyfinagent.logrotate</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__REPO_ROOT__/scripts/ops/rotate_logs.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>1800</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/handoff/logs/logrotate.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/handoff/logs/logrotate.log</string>
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

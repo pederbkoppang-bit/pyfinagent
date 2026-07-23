@@ -95,10 +95,13 @@ def setup_logging():
     handler = logging.StreamHandler(stream)
 
     # Use compact format for local dev, JSON for production
+    # phase-75.11 (pysvc-05): branch order was inverted -- debug was
+    # emitting JSON and the production default was emitting the ANSI
+    # compact format, backwards from this comment's stated intent.
     if settings.debug:
-        handler.setFormatter(JsonFormatter())
-    else:
         handler.setFormatter(CompactFormatter())
+    else:
+        handler.setFormatter(JsonFormatter())
 
     # phase-60.4 (criterion 5): secret redaction at the HANDLER level -- the
     # away week left 2,101 plaintext api_key= lines in backend.log via the

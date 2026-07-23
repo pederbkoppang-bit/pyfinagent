@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- TEMPLATE (phase-75.11, sre-ops-09). The LIVE
+         ~/Library/LaunchAgents/com.pyfinagent.frontend.plist runs
+         `next dev --port 3000` today (verified 2026-07-24) -- this template
+         is the single replacement authority: production `next start` via
+         scripts/ops/frontend_start.sh's pre-start build wrapper. Installing
+         this REPLACES the live plist (bootstrap = operator token
+         OPS-ROTATE-BOOTSTRAP); do NOT run both -- a second frontend dev
+         process on :3000 breaks the operator's own session (see the
+         project memory on a second `next dev` breaking the operator's
+         port-3000 session). start_services.sh's frontend leg is reduced
+         to `launchctl kickstart` only, so this is the one authority end
+         to end.
+         Secrets: the LIVE plist embeds AUTH_SECRET / AUTH_GOOGLE_SECRET in
+         EnvironmentVariables (a research security finding) -- this template
+         deliberately carries NO EnvironmentVariables secrets; Next.js reads
+         frontend/.env.local automatically at process start instead.
+         Replace __REPO_ROOT__ before installing. -->
+    <key>Label</key>
+    <string>com.pyfinagent.frontend</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__REPO_ROOT__/scripts/ops/frontend_start.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/frontend.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/frontend.log</string>
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__/frontend</string>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>

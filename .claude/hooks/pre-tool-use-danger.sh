@@ -93,6 +93,21 @@ except Exception:
             cmd="$INPUT"
         fi
     fi
+    # phase-75.11 (sre-ops-05): pkill/killall service-process guard. The
+    # phase-69-confirmed kill-vector class (an operator or agent typing a
+    # bare `pkill -9 uvicorn` under --dangerously-skip-permissions) was
+    # previously unguarded. Scope is NARROW on purpose (python|uvicorn|next|
+    # slack_bot) so an unrelated `pkill -f some_test_fixture` still passes;
+    # CLAUDE_ALLOW_DANGER=1 (checked FIRST, above) already covers this rail.
+    # Self-lockout is bounded: this only sees the Bash TOOL's top-level
+    # command string, never a pkill running INSIDE a script (e.g.
+    # start_services.sh's own scoped legacy pkill is a subprocess, not a
+    # Bash tool call, so it is unaffected).
+    if printf '%s' "$cmd" | grep -qE '(^|[[:space:]])(pkill|killall)([[:space:]]|$)'; then
+        if printf '%s' "$cmd" | grep -qE '(python|uvicorn|next|slack_bot)'; then
+            block_with_msg "pkill/killall targeting a pyfinagent service process (python|uvicorn|next|slack_bot) -- use 'launchctl kickstart -k gui/\$UID/com.pyfinagent.<svc>' instead (sre-ops-05)"
+        fi
+    fi
     # Target-aware `rm -rf` gate. Uses Python shell-word parsing so legitimate
     # scoped cleanup (find -exec rm -rf, pycache, node_modules, explicit project
     # subpaths) is allowed while catastrophic targets are blocked.

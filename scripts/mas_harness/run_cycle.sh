@@ -16,6 +16,12 @@ PROMPT="$REPO/scripts/mas_harness/cycle_prompt.md"
 LOCKFILE="$REPO/handoff/.mas-harness.lock"
 LOGFILE="$REPO/handoff/mas-harness.log"
 CLAUDE_BIN="/Users/ford/.local/bin/claude"
+# phase-75.11 (sre-ops-07): bound the claude call so a hung/half-open
+# session cannot hold the lockfile (and this launchd slot) forever. 3600s
+# is a generous ceiling for one research->plan->generate->evaluate->log->
+# push cycle; `-k 60` gives a TERM-then-60s-grace-then-KILL, matching the
+# same idiom already used at scripts/away_ops/run_away_session.sh:160.
+GTIMEOUT="/opt/homebrew/bin/gtimeout"
 
 cd "$REPO"
 
@@ -57,7 +63,8 @@ echo "[$CYCLE_START] START cycle" >> "$LOGFILE"
 # message, exits. We pipe the prompt file in via stdin rather than as an
 # arg to avoid command-line length limits.
 CYCLE_OUTPUT=$(
-    "$CLAUDE_BIN" \
+    "$GTIMEOUT" -k 60 3600 \
+        "$CLAUDE_BIN" \
         -p \
         --dangerously-skip-permissions \
         --model claude-opus-4-8 \

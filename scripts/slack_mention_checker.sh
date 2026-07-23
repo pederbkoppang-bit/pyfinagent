@@ -35,7 +35,9 @@ if [ -z "$SLACK_BOT_TOKEN" ]; then
 fi
 
 # Use curl + jq to fetch recent messages from #ford-approvals
-RESPONSE=$(curl -s -X POST https://slack.com/api/conversations.history \
+# phase-75.11 (sre-ops-07): -m 15 bounds a hung connection so this poller
+# (run every 2-3 min) cannot stack overlapping/hanging invocations.
+RESPONSE=$(curl -s -m 15 -X POST https://slack.com/api/conversations.history \
     -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"channel\": \"$CHANNEL_ID\", \"oldest\": \"$LAST_TS\", \"limit\": 10}")

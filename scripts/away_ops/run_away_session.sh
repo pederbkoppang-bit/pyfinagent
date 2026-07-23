@@ -104,7 +104,12 @@ if [ "${AWAY_SESSION_DRY_RUN:-0}" != "1" ]; then
     fi
     # ── Sync (offline-tolerant; skipped in preflight-test mode) ──────────
     if [ "${AWAY_SESSION_TEST_PREFLIGHT:-0}" != "1" ]; then
-        if ! git pull --rebase origin main >> "$SLOG" 2>&1; then
+        # phase-75.11 (sre-ops-07): gtimeout-wrap the pull so a half-open
+        # GitHub connection cannot hold the away-session lock forever --
+        # purely additive: the existing `if ! ...` below already routes ANY
+        # nonzero rc (including gtimeout's 124-on-timeout) to the offline
+        # branch, so no new branch is needed.
+        if ! "$GTIMEOUT" -k 10 120 git pull --rebase origin main >> "$SLOG" 2>&1; then
             git rebase --abort >> "$SLOG" 2>&1
             slog "git pull failed -- OFFLINE MODE (work local; push retried by hooks/next session)"
         fi

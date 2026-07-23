@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- TEMPLATE (phase-75.11, sre-ops-04). Replaces the LIVE
+         com.pyfinagent.ablation.plist's raw `. backend/.env`
+         ProgramArguments sourcing (crash-failed ~37 nights on
+         backend/.env:81's unbalanced quote) with a call into
+         scripts/ops/run_ablation.sh, which uses the sanitized-grep
+         sourcing block instead. Bootstrap = operator token
+         OPS-ROTATE-BOOTSTRAP. Replace __REPO_ROOT__ before installing. -->
+    <key>Label</key>
+    <string>com.pyfinagent.ablation</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__REPO_ROOT__/scripts/ops/run_ablation.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>__REPO_ROOT__/handoff/logs/ablation.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>__REPO_ROOT__/handoff/logs/ablation.launchd.log</string>
+    <key>WorkingDirectory</key>
+    <string>__REPO_ROOT__</string>
+</dict>
+</plist>

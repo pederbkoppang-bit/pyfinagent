@@ -1,81 +1,72 @@
-# Contract -- Step 75.10: event-loop hygiene sweep (to_thread blocking paths, get_running_loop, task refs, lifespan drain)
+# Contract -- Step 75.11: SRE hardening (log rotation, single service authority, unattended timeouts, pkill guard, formatter fix)
 
-- **Step id**: 75.10 (phase-75, Audit75 S10) -- P1, executor sonnet-tier
-- **Date**: 2026-07-23
-- **Author**: Main (contract + review). **GENERATE delegated to a Sonnet-4.6 executor agent** per the executor tag + operator session directive (same model as 75.9: Main reviews the diff and independently re-measures before Q/A).
-- **BOUNDARY (from step text)**: mechanical execution changes ONLY -- zero decision/threshold changes in the live loop.
+- **Step id**: 75.11 (phase-75, Audit75 S11) -- P1, executor sonnet-tier
+- **Date**: 2026-07-24
+- **Author**: Main (contract + review). **GENERATE delegated to a Sonnet-4.6 executor** (same model as 75.9/75.10: Main reviews + independently re-measures before Q/A).
+- **BOUNDARY (step text + research)**: NO backend/.env edits (the .env:81 quote repair is an OPERATOR token); NO machine launchd bootstraps or modifications to live plists (bootstrap = operator token **OPS-ROTATE-BOOTSTRAP**; repo ships scripts + plist TEMPLATES + runbook only); **plist templates MUST NOT hardcode secrets** (the live plists embed plaintext AUTH_SECRET/AUTH_GOOGLE_SECRET/CLAUDE_CODE_OAUTH_TOKEN -- a research security finding; templates source from env/sourced-file, and no artifact echoes live secret values).
 
 ## Research-gate summary (gate PASSED)
 
-Workflow `wf_4dffaba2-d81` (researcher, opus/max, tier=complex).
-Envelope: `external_sources_read_in_full=6 (all official docs: asyncio-eventloop, asyncio-task, fastapi/async, apscheduler, asyncio-sync, httpx/async), snippet_only=11, urls=17, recency_scan=true, internal_files=15, gate_passed=true`.
-Brief: `handoff/current/research_brief_75.10.md`.
+Workflow `wf_9d109381-31a` (researcher, opus/max, tier=moderate).
+Envelope: `external_sources_read_in_full=7, snippet_only=18, urls=25, recency_scan=true, internal_files=14, gate_passed=true`.
+Brief: `handoff/current/research_brief_75.11.md`.
 
-**Step-text corrections adopted (binding -- four findings are PARTIALLY ALREADY FIXED; stale audit anchors):**
-1. **perf-10 already threaded**: autonomous_loop.py:641 is ALREADY `await asyncio.to_thread(lambda x=t: yf.Ticker(x).info)` (since 2026-05-18, commit 6ceeb10ff). It does NOT block the loop; the remaining defect is SERIAL latency only. Fix = Semaphore(8)-bounded gather; the "blocks the event loop" rationale must NOT be claimed.
-2. **api-design-01**: get_dashboard's httpx is ALREADY AsyncClient/awaited (:116/:122). Real blockers = 2x subprocess.run (:146 timeout=10, :153 timeout=15, ~25s worst-case not ~35s) + list_openclaw_sessions() (:173). Only those need to_thread.
-3. **api-design-02**: the p95 query ALREADY carries `.result(timeout=30)` (:82) -- criterion-3's timeout clause is already satisfied; remaining work = to_thread the sync call.
-4. **api-design-04**: run_full_ingestion is ALREADY to_thread'd (:200). Remaining = to_thread the inline `screen_universe()` (:195) + convert to 202-immediate + pollable task-state dict mirroring run_backtest (:112-135).
-5. **get_log_tail cap**: actual is `Query(200, ge=1, le=10000)` (cron_dashboard_api.py:533). The step-prose "le=1000" would REJECT 1001-10000 -- a behavior change that violates this step's own mechanical-only boundary. **Decision: keep le=10000** (the immutable criteria do not mention the cap; only the seek-from-end reader is required).
-6. **Incident cite drift**: the 2026-05-25 misfire-grace comment is paper_trading.py:1301-1311.
-7. **A 10th get_event_loop site** exists at ticket_queue_processor.py:423, OUTSIDE criterion-2's 3-file scope -> queued as step **75.10.1**, not folded in.
-8. **mas_events.py has TWO occurrences**: :97 (the crash path) AND :205 (`id(asyncio.get_event_loop)` inside make_run_id -- matches the criterion-2 grep without calling). Both must go (replace :205's term with `uuid4().hex`).
-9. **orchestrator:430 is DEAD** (`loop` never used in _execute_full_flow 415-544) -- DELETE, don't convert.
-10. **A 4th unsaved fire-and-forget**: the prewarm `asyncio.create_task(_prewarm_ticker_meta())` at main.py:406 (return discarded -- both a pysvc-09 cancel target and an api-design-09 GC hazard).
+**Step-text corrections adopted (binding):**
+1. **sre-ops-09 understated**: the LIVE `com.pyfinagent.frontend.plist` runs `next dev --port 3000` TODAY -- the fix must both collapse to one authority AND flip the surviving one to `next start` (template-only; live plist untouched).
+2. **Log paths**: backend.log + frontend.log live at REPO ROOT (launchd StandardOutPath); only slack_bot.log + auto-push.log are under handoff/logs/. Rotation targets the four at their ACTUAL paths.
+3. **backend.log measured at 112MB** (not 84MB); last rotation Jul 6 -- the rotation authority has been DEAD ~17 days with health.jsonl frozen at 2026-07-06 and nobody paged (the liveness alarm addresses a currently-firing gap).
+4. **sre-ops-04 split**: run_nightly.sh ALREADY logs FAIL rc (:41-45) -> needs only the PAGING seam; the raw `. backend/.env` lives in the ablation PLIST ProgramArguments -> new wrapper script + plist TEMPLATE pointing at it.
+5. **sre-ops-07 additive-only**: run_away_session.sh:107's `if ! git pull` already routes ANY nonzero rc to the offline branch -- the gtimeout wrap only converts an infinite hang into rc=124; no new branch needed.
+6. **newsyslog RULED OUT** for the launchd logs (rename+SIGHUP reopen model breaks on launchd-held FDs); cp+truncate confirmed correct AND empirically proven on-machine (healthcheck produced .gz archives Jun 12 + Jul 6 with no restart; O_APPEND seeks to EOF post-truncate).
 
-**Key measured findings:**
-- Python 3.14 official docs: get_event_loop() now "Raises a RuntimeError if there is no current event loop" -- confirms the MASEventBus:97 crash from sync callers (slack_bot app_home.py:41/455/543/559).
-- perf-01 context MEASURED: both schedulers are AsyncIOScheduler (main.py:301/:348) -> run_daily_cycle (async, autonomous_loop.py:252) runs ON the API event loop; screen_universe (:576 -> screener.py:137, yf.download ~500 tickers/6mo) genuinely blocks it. to_thread is warranted, output-identical.
-- MASEventBus._lock is DEAD (no in-file reader) -- delete. _forward_remote = thread-per-event with fresh httpx import; single queue + daemon worker + shared client is strictly better (FIFO, connection reuse); no consumer relies on thread-per-event.
-- lifespan finally (main.py:410-419) shuts down ONLY queue_scheduler. Missing: paper scheduler (:301), prewarm task (:406), Slack monitor -- which DOES expose sync `stop()` (slack_monitor.py:88; init returns it at :105 but main.py:333 discards the return).
-- py-core-05: all 8 orchestrator sites are inside async def (get_running_loop safe; 7 feed run_in_executor); task_bus.py:140 same.
-- Fire-and-forget inventory for criterion 5: analysis.py:364, backtest.py:134, paper_trading.py:1023 (+ backtest.py:299 already saved -- add error-callback parity; + main.py:406 prewarm).
-- Test conventions: pytest-asyncio NOT installed; anyio only; `asyncio.run()` is the idiom (17 files); no conftest loop fixture. Criterion-1's no-running-loop construction = plain def test body (NOT wrapped in asyncio.run).
-- Live-flag context: peer_leadlag/sector flags default False; paper_markets live = US+EU+KR so get_sp500_tickers IS live-executed -- wraps are output-identical ON or OFF.
+**Key cleared risks (measured):**
+- **pysvc-05 is redaction-safe**: Python docs -- handler filters run BEFORE format(); SecretRedactionFilter rewrites record.msg before either formatter, so Compact<->JSON is invisible to it.
+- **pysvc-05 is red-set-safe**: the three backend.log log-evidence tests match plain substrings that json.dumps preserves verbatim; cycle_health.py does not read backend.log; the log viewer is cosmetic. settings.debug=False measured live -> the flip changes the operator's default log format to JSON (DEBUG=true restores compact for interactive dev -- the fix makes `debug` the intuitive human-readable toggle, matching the existing comment).
+- **sre-ops-05 self-lockout bounded**: the hook matches only top-level Bash TOOL command strings (never executes them); pkill inside scripts is unaffected; CLAUDE_ALLOW_DANGER=1 escape already exists at :72-75 and is checked first. Behaviorally testable offline via `CLAUDE_TOOL_NAME=Bash CLAUDE_TOOL_INPUT='{"command":"pkill -9 uvicorn"}'` -> exit 2 (+ALLOW -> exit 0). Official hooks doc confirms exit-2-blocks + stderr-is-reason.
+- **launchctl kickstart -k** is the proven idiom already used at healthcheck.sh:172.
 
 ## Hypothesis
 
-Every blocking call can be moved off the event loop and every event-loop-API misuse corrected as pure execution-plumbing -- byte-identical decision/gate/threshold logic, identical outputs, provable offline by a test file that constructs MASEventBus without a loop, drives a task to exception, and AST-verifies the route bodies -- with zero behavior change visible to the trading loop or API consumers (202-conversion of run_data_ingestion being the single documented API-semantics change, mirroring the existing /run pattern).
+The seven SRE gaps close as repo-shipped scripts/templates/runbook + two surgical code fixes (formatter branch swap; danger-hook rail) with zero live-system mutation in this step -- machine actions deferred to OPS-ROTATE-BOOTSTRAP -- provable offline by a test file whose text-asserts are each paired with a breaking mutation and whose formatter + danger-hook legs are behavioral.
 
-## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.10)
+## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.11)
 
 verification.command:
 ```
-cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_event_loop.py -q
+cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_sre_ops.py -q
 ```
 
-1. "New backend/tests/test_phase_75_event_loop.py passes offline and constructs MASEventBus() in a context with NO running event loop without raising (the Python-3.14 crash repro), and asserts _forward_remote no longer spawns a Thread per event (single worker/queue -- source or behavioral assert)"
-2. "Scan asserts zero asyncio.get_event_loop occurrences in backend/agents/multi_agent_orchestrator.py, backend/agents/task_bus.py, backend/agents/mas_events.py"
-3. "AST assert: the named async route bodies (get_dashboard, get_llm_p95_latency, run_data_ingestion, portfolio enrichment paths, get_log_tail, get_all_jobs) contain no direct subprocess.run/sync-httpx/.result( calls outside an asyncio.to_thread wrapper, and get_optimizer_status is a plain def or fully to_thread-wrapped; the p95 query carries timeout=30"
-4. "services/autonomous_loop.py contains 'await asyncio.to_thread(screen_universe' and the flag-gated universe/sector/peer-leadlag fetches are threaded/gathered -- with the cycle's decision logic diff-verified unchanged (no edits to gate/sizing/threshold lines; diff file list in experiment_results.md)"
-5. "Backtest, analysis, and paper-cycle create_task results are stored with add_done_callback error propagation into their state dicts (source assert per site); a test drives one task to exception and sees the state flip to error"
-6. "main.py lifespan finally shuts down both schedulers and cancels the prewarm task (source assert), and run_data_ingestion returns 202-immediately semantics with a pollable status (test with mocked ingestion)"
+1. "New backend/tests/test_phase_75_sre_ops.py passes and asserts (reading the script files as text): a rotation plist template + rotation script exist under scripts/ops/ covering the four named logs with cp+truncate, and a watchdog-liveness (health.jsonl mtime) alarm seam exists; the runbook + OPS-ROTATE-BOOTSTRAP operator token are drafted in handoff/current/"
+2. "start_services.sh contains launchctl kickstart for backend and frontend, contains NO 'pkill -9 uvicorn' / 'pkill -9 \"next dev\"' outside the flag-gated legacy branch (which uses scoped pkill -f 'uvicorn backend.main' with SIGTERM), and no '> backend.log' truncation"
+3. "A frontend plist template running 'next start' with a pre-start build wrapper exists; an ablation wrapper script exists using the sanitized-sourcing block (no raw '. backend/.env') and logging FAIL rc with a paging seam; the plist template points at the wrapper"
+4. "pre-tool-use-danger.sh blocks pkill/killall whose target matches python|uvicorn|next|slack_bot with the CLAUDE_ALLOW_DANGER escape hatch (test feeds sample commands through the hook's pattern and asserts block/allow)"
+5. "run_away_session.sh git pull is gtimeout-wrapped falling into the offline branch on rc=124; slack_mention_checker curl carries -m 15; run_cycle.sh claude call is gtimeout-capped (text asserts)"
+6. "main.py setup_logging: settings.debug selects CompactFormatter and the default path selects JsonFormatter (assert the corrected branch order); executor edits no .env and bootstraps no machine agents -- machine actions are operator-token items only"
 
-verification.live_check: "handoff/current/live_check_75.10.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: perf-01, perf-10, api-design-01, api-design-02, api-design-04, api-design-05, api-design-06, api-design-08, api-design-09, py-core-01, py-core-05, pysvc-09"
+verification.live_check: "handoff/current/live_check_75.11.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: sre-ops-01, sre-ops-02, sre-ops-09, sre-ops-04, sre-ops-05, sre-ops-07, pysvc-05"
 
 ## Plan steps
 
-1. **py-core-05 + criterion 2**: get_running_loop() at the 7 live orchestrator sites (566,586,690,723,738,862,1065) + task_bus.py:140; DELETE dead orchestrator:430. mas_events.py: fix :97 (delete dead _lock outright) AND :205 (`uuid4().hex` replaces the id() term). Grep reaches zero in all 3 files.
-2. **py-core-01**: _forward_remote -> single daemon worker draining a queue.Queue through one shared httpx.Client (FIFO preserved, connection reuse). Behavioral single-worker assert + source assert.
-3. **perf-01**: `await asyncio.to_thread(screen_universe, ...)` at autonomous_loop.py:576 + to_thread get_sp500_tickers (:524) + build_sector_map (:572). **perf-10**: Semaphore(8)-bounded gather around the EXISTING to_thread call (latency fix only -- no loop-blocking claim).
-4. **API routes**: get_dashboard -> to_thread the 2 subprocess.run + list_openclaw_sessions; get_llm_p95_latency -> to_thread the .result() (timeout=30 already there); get_optimizer_status -> plain def (no awaits in body); get_all_jobs -> to_thread launchctl probes; get_log_tail -> seek-from-end block reader, **cap stays le=10000**; _enrich_position -> Semaphore-bounded gather of to_thread.
-5. **api-design-04**: to_thread screen_universe (:195) + 202-immediate + task-state dict + pollable status mirroring run_backtest (:112-135).
-6. **api-design-09**: keep-set + add_done_callback (discard + flip state to error on task.exception()) at analysis.py:364, backtest.py:134, paper_trading.py:1023; error-callback parity on backtest.py:299; save + later cancel the prewarm task (main.py:406).
-7. **pysvc-09**: lifespan finally adds paper `scheduler.shutdown(wait=False)`, cancel+await prewarm under suppress(CancelledError), capture the Slack monitor from init_slack_monitor (main.py:333) and call its sync stop().
-8. **Tests** (plain def + asyncio.run idiom; NO pytest-asyncio): criterion-1 constructs MASEventBus() in a plain def body; criterion-3 AST hard-fails if any named route node is missing/renamed + allow-lists awaited AsyncClient; criterion-5 drives a real task to exception (asyncio.run) and asserts the state dict flips.
-9. **Mutation matrix** (executor runs; Main spot-checks): revert :97 to get_event_loop; restore thread-per-event; un-thread screen_universe; drop one done-callback; remove the paper-scheduler shutdown line; break the 202 semantics; point the criterion-3 AST at a renamed route (must hard-fail); mutate the test stub (loop-fixture injection) where applicable.
-10. **Queue 75.10.1** (ticket_queue_processor.py:423 get_event_loop, same 3.14 class) -- own research-gated step.
-11. **live_check_75.10.md**: verbatim pytest exit 0 + git diff --stat + the criterion-4 decision-line diff proof (no gate/sizing/threshold edits). No UI capture (no UI surface); flag-gated paths are output-identical wraps (documented as $0 no-op by construction).
+1. **sre-ops-01**: `scripts/ops/rotate_logs.sh` (cp+truncate modeled on healthcheck.sh:246-255; the four logs at their REAL paths; size caps + gzip) + `scripts/ops/com.pyfinagent.logrotate.plist.template` (user-space StartInterval; env-sourced, NO hardcoded secrets) + liveness alarm seam reading `handoff/away_ops/health.jsonl` mtime>2h + runbook `handoff/current/ops_rotate_runbook_75.11.md` + operator token **OPS-ROTATE-BOOTSTRAP** drafted in handoff/current/.
+2. **sre-ops-02**: start_services.sh -> `launchctl kickstart -k gui/$UID/com.pyfinagent.{backend,frontend}` (healthcheck.sh:172 idiom); legacy path behind an explicit flag with scoped SIGTERM `pkill -f 'uvicorn backend.main'` + wait; no backend.log truncation anywhere.
+3. **sre-ops-09**: `scripts/ops/com.pyfinagent.frontend.plist.template` running `next start -p 3000` + pre-start build wrapper; start_services frontend leg = kickstart only (one authority; honors the second-next-dev memory). Live plist NOT touched.
+4. **sre-ops-04**: ablation wrapper script reusing run_nightly.sh:19-27's sanitized-grep sourcing verbatim + FAIL-rc logging + paging seam (bot-token page after N consecutive failures); ablation plist TEMPLATE points at the wrapper; run_nightly.sh gains the paging seam only.
+5. **sre-ops-05**: pkill/killall rail inside pre-tool-use-danger.sh's Bash block (after :95), target regex NARROW (python|uvicorn|next|slack_bot), exit 2 + stderr pointing at `launchctl kickstart -k`; existing CLAUDE_ALLOW_DANGER escape covers it.
+6. **sre-ops-07**: `"$GTIMEOUT" -k 10 120` on run_away_session.sh:107 git pull; `-m 15` on slack_mention_checker.sh:38 curl; `"$GTIMEOUT"` cap on run_cycle.sh:60 claude.
+7. **pysvc-05**: swap main.py:98-101 branch order (debug -> Compact, default -> Json). BEHAVIORAL test: both debug values -> assert formatter class; + an `api_key=SECRET...` record through the JSON path -> emitted message REDACTED (branch order + redaction survival in one test).
+8. **Tests**: text asserts EACH paired with a named breaking mutation; behavioral legs for criteria 4 (drive the real hook script via env vars, zero real kills) and 6 (formatter). Criterion-1/3 file-existence asserts must also check content markers (cp+truncate lines, sanitized-sourcing block, no plaintext secrets in templates).
+9. **Mutation matrix**: strip kickstart; restore raw sourcing; revert template to next dev; remove -m 15; unwrap gtimeout; invert formatter back; neuter the danger-rail regex; STUB mutation on the hook test (feed an allowed command and assert the test would catch a hook that blocks everything).
+10. **live_check_75.11.md**: verbatim pytest exit 0 + git diff --stat + the danger-hook behavioral transcript. No UI; no flag-gated live-loop behavior (all machine actions deferred to the operator token).
 
 ## Explicitly NOT in scope
 
-- ticket_queue_processor.py:423 (queued 75.10.1)
-- get_log_tail cap change to le=1000 (behavior change; violates the mechanical-only boundary)
-- Any decision/gate/threshold line in autonomous_loop.py (byte-identical; enumerated in the brief for diff-verification)
-- Client-construction or BQ changes beyond the named to_thread wraps (75.9 territory)
+- backend/.env (any edit; the :81 quote repair is an operator token drafted in the runbook)
+- Bootstrapping/modifying ANY live launchd agent or plist (OPS-ROTATE-BOOTSTRAP)
+- Restarting services; deleting/truncating any live log in this step
+- newsyslog-based designs (ruled out)
 
 ## References
 
-- `handoff/current/research_brief_75.10.md` (6 official-doc sources read in full; Python 3.14 whatsnew/asyncio docs; FastAPI async guidance; APScheduler shutdown; create_task save-a-reference guidance)
-- `handoff/current/audit_phase75/confirmed_findings.json` (the 12 findings)
-- CLAUDE.md Harness Protocol; feedback_queue_discovered_defects_in_masterplan; feedback_mutation_test_guards_and_fixtures
+- `handoff/current/research_brief_75.11.md` (7 read-in-full: Apple/launchd + newsyslog man + logrotate copytruncate + launchctl kickstart + Claude Code hooks reference + GNU timeout + Python logging filter docs)
+- `handoff/current/audit_phase75/confirmed_findings.json` (sre-ops-01/02/04/05/07/09, pysvc-05)
+- feedback_second_next_dev_breaks_operator_3000; feedback_mutation_test_guards_and_fixtures; CLAUDE.md Harness Protocol

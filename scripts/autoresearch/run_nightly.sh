@@ -36,11 +36,39 @@ echo "[$(date -Iseconds)] START nightly autoresearch" >> "$LOG"
 # the AUTORESEARCH SPEND: RESUME decision) -- flag removed; the sentinel's
 # token-derived metered figure (66.3) makes the spend honestly visible.
 # Scheduled-run evidence: tonight's cron is the proof (39.1 doctrine).
+FAIL_STATE="$REPO/handoff/away_ops/autoresearch_fail_state.json"
+PAGE_AFTER_N="${SRE_OPS_AUTORESEARCH_PAGE_AFTER:-3}"
+mkdir -p "$(dirname "$FAIL_STATE")" 2>/dev/null
+
 if python "$REPO/scripts/autoresearch/run_memo.py" >> "$LOG" 2>&1; then
     echo "[$(date -Iseconds)] END nightly autoresearch OK" >> "$LOG"
+    python3 -c 'import json; json.dump({"consecutive_fails": 0}, open("'"$FAIL_STATE"'", "w"))' 2>>"$LOG" || true
 else
     rc=$?
     echo "[$(date -Iseconds)] END nightly autoresearch FAIL rc=$rc" >> "$LOG"
+
+    # ── phase-75.11 (sre-ops-04): paging seam -- page after N consecutive
+    # failures (bot-token pattern reused verbatim from healthcheck.sh's P1
+    # fallback). This job already logged FAIL rc above; only the page was
+    # missing.
+    prev_fails=0
+    if [ -f "$FAIL_STATE" ]; then
+        prev_fails=$(python3 -c 'import json; print(int(json.load(open("'"$FAIL_STATE"'")).get("consecutive_fails", 0)))' 2>/dev/null || echo 0)
+    fi
+    new_fails=$((prev_fails + 1))
+    python3 -c 'import json; json.dump({"consecutive_fails": '"$new_fails"'}, open("'"$FAIL_STATE"'", "w"))' 2>>"$LOG" || true
+
+    if [ "$new_fails" -ge "$PAGE_AFTER_N" ]; then
+        BOT_TOKEN=$(grep -m1 '^SLACK_BOT_TOKEN=' "$REPO/backend/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+        CHANNEL=$(grep -m1 '^SLACK_CHANNEL_ID=' "$REPO/backend/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' | tr -d "'")
+        [ -z "$CHANNEL" ] && CHANNEL="C0ANTGNNK8D"
+        if [ -n "$BOT_TOKEN" ]; then
+            curl -s -m 10 -X POST https://slack.com/api/chat.postMessage \
+                -H "Authorization: Bearer $BOT_TOKEN" \
+                -H 'Content-type: application/json; charset=utf-8' \
+                --data "{\"channel\":\"$CHANNEL\",\"text\":\"P1 AUTORESEARCH: $new_fails consecutive nightly autoresearch failures (rc=$rc). See $LOG.\"}" >/dev/null 2>&1 || true
+        fi
+    fi
     exit "$rc"
 fi
 echo "---" >> "$LOG"

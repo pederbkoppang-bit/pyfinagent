@@ -17460,7 +17460,7 @@
         },
         {
           "id": "75.11",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unattended-wrapper timeouts, pkill guard, log-formatter fix [executor: sonnet-4.6/high; BOUNDARY: no .env edits (sanitized sourcing instead; backend/.env:81 quote repair drafted as operator token); machine launchd bootstraps drafted as operator token OPS-ROTATE-BOOTSTRAP, repo ships files+runbook]. (a) sre-ops-01: the ONLY rotation authority lives in the dead away-watchdog (healthcheck.sh:248; backend.log at 84MB past its 50MB cap; frontend.log/slack_bot.log/auto-push.log have NO authority) -- ship an always-on user-space launchd rotation agent (plist template + rotation script under scripts/ops/, cp+truncate because launchd FDs are O_APPEND, size caps + compression for backend.log, frontend.log, handoff/logs/slack_bot.log, handoff/logs/auto-push.log) plus a watchdog-liveness alarm (page when health.jsonl mtime >2h while the agent is loaded). (b) sre-ops-02: start_services.sh:11 pkill -9 races launchd KeepAlive into an unsupervised nohup zombie on :8000 while the launchd twin crash-loops -- rewrite to launchctl kickstart -k gui/$UID/com.pyfinagent.{backend,frontend}; legacy path only behind an explicit flag with scoped 'pkill -f \"uvicorn backend.main\"' SIGTERM-then-wait; never truncate the launchd-owned backend.log. (c) sre-ops-09: one frontend authority -- plist template runs production 'next start -p 3000' against a committed build (pre-start build wrapper), start_services.sh frontend leg reduced to kickstart; honor the feedback memory that a second next-dev breaks the operator's :3000. (d) sre-ops-04: ablation launchd job crash-failed ~37 nights on raw '. backend/.env' sourcing (unbalanced quote at line 81) -- wrapper script reusing run_nightly.sh's phase-62.6 sanitized-grep sourcing block + a failure seam (log FAIL rc, bot-token page after N consecutive failures) for BOTH nightly jobs. (e) sre-ops-05: .claude/hooks/pre-tool-use-danger.sh gains a pkill/killall rail (targets matching python|uvicorn|next|slack_bot, CLAUDE_ALLOW_DANGER escape, message pointing at launchctl kickstart -k) -- the phase-69-confirmed kill-vector class is currently unguarded under daily --dangerously-skip-permissions sessions. (f) sre-ops-07: run_away_session.sh:107 wraps 'git pull --rebase origin main' in \"$GTIMEOUT\" -k 10 120 (rc=124 -> existing offline branch) so a half-open GitHub connection cannot hold the away-session lock forever; slack_mention_checker.sh:38 curl gets -m 15; mas_harness/run_cycle.sh:60 claude call gets a gtimeout cap. (g) pysvc-05: backend/main.py:97 formatter branches are inverted -- default/production must emit JsonFormatter and debug the ANSI CompactFormatter; confirm SecretRedactionFilter patterns still match JSON-shaped records.",
           "harness_required": true,
           "priority": "P1",
@@ -17475,6 +17475,45 @@
               "main.py setup_logging: settings.debug selects CompactFormatter and the default path selects JsonFormatter (assert the corrected branch order); executor edits no .env and bootstraps no machine agents -- machine actions are operator-token items only"
             ],
             "live_check": "handoff/current/live_check_75.11.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: sre-ops-01, sre-ops-02, sre-ops-09, sre-ops-04, sre-ops-05, sre-ops-07, pysvc-05"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.11.1",
+          "status": "pending",
+          "name": "Audit75 S11 follow-up -- setup_logging() is single-call-only and destructive to foreign root handlers [executor: sonnet-4.6/high; BOUNDARY: logging plumbing only, no format/redaction changes]. Discovered during 75.11 GENERATE (executor deviation 2, 2026-07-24): backend/main.py::setup_logging wraps sys.stderr.buffer in a FRESH io.TextIOWrapper on every call and does root.handlers.clear(); calling it a SECOND time in one process is latently unsafe -- the cleared handler's TextIOWrapper __del__ closes the underlying stderr buffer on GC (observed live as ValueError('I/O operation on closed file.') + 'lost sys.stderr' during 75.11 test development), and handlers.clear() also destroys foreign handlers (e.g. pytest's log-capture) installed by other code. Production currently calls it exactly once (lifespan), so the defect is dormant; any future re-init path (config reload, test harness, uvicorn worker respawn in-process) trips it. Fix shape (re-derive at research): make setup_logging idempotent -- keep a module-level ref to ITS OWN handler and remove/close only that handler on re-entry (never blanket-clear); guard the TextIOWrapper with closefd=False semantics or detach on teardown; preserve the debug/JSON branch and SecretRedactionFilter exactly (75.11 criterion 6 locked their behavior -- its tests must still pass). The 75.11 test workaround (snapshot+restore of root handlers in test_phase_75_sre_ops.py::_run_setup_logging_and_capture) is the REPRO harness -- after the fix, a test must call setup_logging() twice in-process against a throwaway stderr and assert no closed-file error and foreign handlers intact.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_sre_ops.py -q",
+            "success_criteria": [
+              "A test calls setup_logging() TWICE in one process (throwaway stderr acceptable) and asserts: no exception, sys.stderr usable after both calls, and a foreign handler installed on the root logger before the second call SURVIVES it",
+              "setup_logging removes/closes only its OWN previously-installed handler on re-entry (source + behavioral assert); root.handlers.clear() no longer appears (or is provably scoped)",
+              "All pre-existing 75.11 tests in backend/tests/test_phase_75_sre_ops.py pass unchanged (formatter branch order + redaction survival intact), via this step's verification command exit 0",
+              "Mutation matrix in experiment_results.md: restoring the blanket handlers.clear() and re-introducing the fresh-TextIOWrapper-per-call each flip at least one test red"
+            ],
+            "live_check": "handoff/current/live_check_75.11.1.md: verbatim verification command output (exit 0) + git diff --stat. No UI; no live-loop behavior."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.11.2",
+          "status": "pending",
+          "name": "Audit75 S11 follow-up -- anchor the danger-hook process-kill rail to command position + make the one-shot escape actually reachable from harness sessions [executor: sonnet-4.6/high; BOUNDARY: the rail must keep blocking every case in the 75.11 block/allow matrix -- no weakening]. Discovered LIVE minutes after 75.11 shipped (2026-07-24), two facets: (1) FALSE-POSITIVE CLASS: the new process-kill rail in .claude/hooks/pre-tool-use-danger.sh matches its trigger tokens ANYWHERE in the Bash command text, so a command whose HEREDOC PROSE merely mentions the kill-command names and service names (observed twice: Main's harness-log append describing the rail, and the first attempt to queue THIS step) is blocked even though no kill command appears in command position. (2) ESCAPE UNREACHABLE IN-HARNESS: the rail's escape hatch reads CLAUDE_ALLOW_DANGER from the HOOK PROCESS environment; a per-command 'VAR=1 cmd' prefix lives inside tool_input.command and never reaches the hook's env, so the hook's own stderr advice ('re-run with CLAUDE_ALLOW_DANGER=1 in env') is unsatisfiable from a normal harness Bash call -- Main verified this live (prefixed retry still blocked; the call that passed had reworded prose). Fix BOTH: (a) anchor the match to actual COMMAND POSITION (kill-command name as the leading token of a command segment -- start-of-line or after ; && || | $( or backtick -- with the service-name regex applied to that same segment only, never to heredoc/prose lines); (b) make the one-shot escape honor EITHER the hook-env var (operator export, unchanged) OR the documented literal marker appearing in the command's leading environment-assignment position (e.g. the command text starting with the assignment), and update the stderr advice to describe what actually works. A real kill command inside a heredoc-authored script body may pass this rail (it is not executed by THAT Bash call; defense remains at execution time when the script runs) -- document this bound explicitly in the hook comment. Extend the criterion-4 matrix in backend/tests/test_phase_75_sre_ops.py: all 75.11 block cases still exit 2; allow cases still exit 0; NEW repro (heredoc prose mentioning the tokens, no kill in command position) exits 0; NEW escape-via-leading-assignment case exits 0; hook-env escape still exits 0.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_sre_ops.py -q",
+            "success_criteria": [
+              "The full 75.11 block/allow matrix still passes through the REAL hook script (previously-blocked commands still exit 2; allow cases exit 0; hook-env escape exits 0)",
+              "NEW repro passes: a Bash command whose heredoc/echo prose contains the trigger tokens but whose command position carries no kill command exits 0 (test drives the real script with the exact shape that was blocked live on 2026-07-24)",
+              "The escape hatch is reachable from a harness Bash call: a command whose text begins with the documented leading environment-assignment marker exits 0 even when a real kill command follows, and the hook's stderr advice matches the mechanism that actually works (text assert)",
+              "The rail's match is anchored to command position (source assert on the anchoring construct); the documented pass-through bound (kill commands inside authored script bodies defer to execution-time defense) is present in the hook comment",
+              "Mutation matrix in experiment_results.md: reverting to the anywhere-match makes the repro test fail; neutering the regex makes the block-side tests fail; removing the leading-assignment escape makes the new escape test fail"
+            ],
+            "live_check": "handoff/current/live_check_75.11.2.md: verbatim verification command output (exit 0) + git diff --stat + a Main-driven transcript of the repro passing, a real block case still blocking, and the leading-assignment escape working."
           },
           "retry_count": 0,
           "max_retries": 3
