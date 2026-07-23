@@ -86,3 +86,4 @@ handoff/.away-session.lock
 # TypeScript incremental build cache (tsc --noEmit side-effect; phase-71.1)
 *.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
+handoff/.autonomous_loop.lock

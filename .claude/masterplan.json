@@ -17179,7 +17179,7 @@
         },
         {
           "id": "75.6",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S6 -- frontend auth fail-closed + session hardening [executor: opus-4.8/xhigh; BOUNDARY: no .env edits -- allowlist enforcement ships DARK behind AUTH_ENFORCE_ALLOWLIST default-off so the operator is never locked out]. (a) gap2-01: middleware.ts:24 keys ALL route protection on hasAuthProvider = !!(AUTH_GOOGLE_ID && AUTH_GOOGLE_SECRET) -- a passkey-only config silently disables auth entirely. Drop the provider-presence gate: enforce req.auth unconditionally for non-public paths (JWT session validation needs no provider configured), keeping only the explicit LIGHTHOUSE_SKIP_AUTH bypass (and an explicit DEV_DISABLE_AUTH-style flag if a dev-open mode is wanted). (b) gap2-02: auth.config.ts:10 empty ALLOWED_EMAILS currently admits ANY Google account -- implement deny-all-on-empty behind AUTH_ENFORCE_ALLOWLIST (default off = today's behavior, loud console warning when the allowlist is empty), mirroring 75.1's backend flag so the two layers fail closed together when the operator flips both. (c) gap2-04: signIn destructures only {user, account} and aliases account as 'profile' -- email_verified is an OIDC-profile claim so the unverified-email rejection NEVER fires; destructure profile and read profile?.email_verified. (d) gap2-06: with an active allowlist, a principal with no email must be REJECTED, not waved through by the '&& user.email' short-circuit (auth.config.ts:46). (e) gap2-05: session maxAge 30d with no updateAge on a kill-switch-capable cockpit -- set maxAge: 7 * 24 * 60 * 60 and an explicit updateAge; document the JWT-revocation limitation and the existing Prisma Session-table/database-session option as the tracked follow-up.",
           "harness_required": true,
           "priority": "P0",
@@ -17194,6 +17194,61 @@
               "npx tsc --noEmit passes and the operator login flow is re-verified against the running app per the frontend live-UI protocol (Playwright capture referenced in the live evidence file)"
             ],
             "live_check": "handoff/current/live_check_75.6.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: gap2-01, gap2-02, gap2-04, gap2-05, gap2-06"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.6.1",
+          "status": "pending",
+          "name": "Audit75 S6 follow-up -- eslint ignore for the functional-test distDir [executor: sonnet-4.6/high]. Found by the 75.6 Q/A (wf_80faa793-b78, note N1), NOT attributable to the 75.6 source diff. `eslint .` (full-tree) exits non-zero with 13 errors, ALL `@next/next/no-assign-module-variable`, ALL in gitignored generated build artifacts under `.next-functional/**` (webpack chunks). frontend/eslint.config.mjs (~:11) ignores `.next/**` but not the functional-test distDir `.next-functional/**`, so eslint lints generated code. Scoped eslint on real source is clean. Add `.next-functional/**` (and any other generated distDir) to the eslint ignore list so a full `eslint .` run is exit 0. RE-DERIVE the exact ignore-array line; it moves. Do NOT ignore real source.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npx eslint . 2>&1 | tail -3; test ${PIPESTATUS[0]} -eq 0",
+            "success_criteria": [
+              "`npx eslint .` (full tree, no path scoping) exits 0",
+              "The ignore added is a GENERATED distDir only (.next-functional and siblings), proven by listing what it matches -- no real src/ file is newly ignored (before/after `eslint --print-config` or a file-count diff recorded)",
+              "A mutation test: adding a real lint error in a src/ file still fails `eslint .` (the ignore did not over-broaden)"
+            ],
+            "live_check": "handoff/current/live_check_75.6.1.md: verbatim `npx eslint .` output showing exit 0 (was 13 errors) + the ignore diff + proof no src file is newly ignored."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.6.2",
+          "status": "pending",
+          "name": "Audit75 S6 follow-up -- triage the /login console error [executor: sonnet-4.6/high; UI-touching, Playwright required]. Found by the 75.6 Q/A (note N2): the login page renders 1 console error, disclosed but not retrieved during 75.6, and NOT introduced by the auth-logic-only 75.6 diff (no client component touched). Reproduce it via the Playwright MCP against a :3100 skip-auth instance (frontend.md live-UI protocol -- never touch :3000), capture the actual console message + stack, classify it (benign dev-tools/hydration vs a real bug), and either fix it or document why it is acceptable. This is verification hygiene: an undiagnosed console error on the auth entry point should not persist.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npx tsc --noEmit && npx vitest run 2>&1 | tail -3",
+            "success_criteria": [
+              "The /login console error's verbatim message + source is captured (Playwright console log) and recorded in experiment_results.md, with a classification (benign vs bug)",
+              "If a bug: fixed, and a Playwright capture shows /login rendering with the error GONE. If benign: documented with the specific reason it is safe (e.g. Next dev-tools only, absent in production build)",
+              "npx tsc --noEmit exit 0 and the full vitest suite still green (no regression)",
+              "The capture method is disclosed (skip-auth :3100, operator :3000 untouched, @playwright/mcp version)"
+            ],
+            "live_check": "handoff/current/live_check_75.6.2.md: the verbatim console error text, the classification, and a Playwright capture (fixed or documented-benign) per the frontend live-UI protocol."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.6.3",
+          "status": "pending",
+          "name": "Audit75 S6 follow-up -- make the security.md DB-session pointer non-dangling [executor: sonnet-4.6/high; DOCS-ONLY]. Found by the 75.6 Q/A (note N3): frontend/src/lib/auth.config.ts's session comment says '(see security.md)' for the JWT-revocation limitation + the strategy:'database' Prisma follow-up, but .claude/rules/security.md does not carry that entry. Criterion 5 of 75.6 was MET via the code comment itself (which documents both limitation and follow-up), so this is a dangling-pointer cleanliness item, not a criterion miss. Add a short Session-management subsection to .claude/rules/security.md recording: JWT-strategy sessions cannot be revoked before maxAge (7d as of 75.6); the Prisma adapter is already wired (auth.ts) so migrating to strategy:'database' is the tracked path to server-side revocation; OWASP's 4-8h absolute-timeout target for a privileged cockpit is the real endpoint. Then the code comment's pointer resolves.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "grep -qi 'strategy.*database\\|JWT.*rev[o]' .claude/rules/security.md && echo OK",
+            "success_criteria": [
+              "`.claude/rules/security.md` gains a session-management entry naming the JWT-revocation limitation and the strategy:'database' follow-up, so the auth.config.ts '(see security.md)' pointer resolves to a real section",
+              "The entry states the current maxAge (7 days) and the OWASP absolute-timeout context, matching the code comment (no contradiction between the two)",
+              "DOCS-ONLY: no code or config change; git diff touches only .claude/rules/security.md"
+            ],
+            "live_check": "handoff/current/live_check_75.6.3.md: git diff --stat showing only security.md changed + the added section quoted, and a grep proving the auth.config.ts pointer now resolves."
           },
           "retry_count": 0,
           "max_retries": 3

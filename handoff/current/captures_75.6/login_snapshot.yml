@@ -1,0 +1,18 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - heading "PyFinAgent" [level=1] [ref=e9]
+      - paragraph [ref=e10]: AI Financial Analyst
+    - generic [ref=e11]:
+      - button "Sign in with Google" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+        - text: Sign in with Google
+      - generic [ref=e22]: or
+      - button "Sign in with Passkey" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+        - text: Sign in with Passkey
+    - paragraph [ref=e26]: Access restricted to authorized users
+  - alert [ref=e27]
