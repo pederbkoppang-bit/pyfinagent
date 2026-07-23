@@ -11,6 +11,7 @@ Wired to real MAS system:
 Reference: https://docs.slack.dev/ai/agent-governance#control
 """
 
+import asyncio
 import logging
 from slack_sdk import WebClient
 
@@ -361,7 +362,10 @@ def register_governance(app):
         logger.info(f"App Home opened by {user_id}")
 
         try:
-            data = _get_live_data()
+            # phase-75.7 (gap1-06): _get_live_data does 3x httpx.get + 3x subprocess.run
+            # (worst case ~41s). Called bare, it blocked the Socket-Mode event loop for the
+            # whole App-Home render. Dispatch it to a worker thread (scheduler.py idiom).
+            data = await asyncio.to_thread(_get_live_data)
             blocks = _build_home_blocks(data)
 
             await client.views_publish(

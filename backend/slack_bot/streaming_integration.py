@@ -16,9 +16,9 @@ References:
   https://docs.slack.dev/ai/developing-agents#text-streaming
 """
 
+import asyncio
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any
 
 from slack_bolt import Say
@@ -209,7 +209,7 @@ async def _stream_simple_response(
 
     # Stream word-by-word
     team_id = body.get("event", {}).get("team", body.get("team_id"))
-    streamer = client.chat_stream(
+    streamer = await client.chat_stream(
         channel=channel_id,
         recipient_team_id=team_id,
         recipient_user_id=user_id,
@@ -217,11 +217,10 @@ async def _stream_simple_response(
     )
 
     for chunk in _split_chunks(full, 80):
-        streamer.append(markdown_text=chunk)
-        import asyncio
+        await streamer.append(markdown_text=chunk)
         await asyncio.sleep(0.04)
 
-    streamer.stop()
+    await streamer.stop()
     logger.info(f"[OK] Streamed {agent_name} ({len(full)} chars, {model_name}) in {(time.time()-start)*1000:.0f}ms")
 
 
@@ -235,7 +234,7 @@ async def _stream_complex_task_plan(
     team_id = body.get("event", {}).get("team", body.get("team_id"))
 
     # ── 1. Start stream with plan mode ───────────────────────────
-    streamer = client.chat_stream(
+    streamer = await client.chat_stream(
         channel=channel_id,
         recipient_team_id=team_id,
         recipient_user_id=user_id,
@@ -258,9 +257,8 @@ async def _stream_complex_task_plan(
                 details=meta.get("details_pending", ""),
             )
         )
-    streamer.append(chunks=initial_chunks)
+    await streamer.append(chunks=initial_chunks)
 
-    import asyncio
     await asyncio.sleep(0.5)
 
     # ── 3. Mark in_progress ──────────────────────────────────────
@@ -275,72 +273,82 @@ async def _stream_complex_task_plan(
                 details=meta.get("details_working", "Working…"),
             )
         )
-    streamer.append(chunks=progress_chunks)
+    await streamer.append(chunks=progress_chunks)
 
     # ── 4. Run agents in parallel ────────────────────────────────
     total_usage = {"input": 0, "output": 0}
     agent_responses = {}
 
+    # phase-75.7 (pysvc-02): run the per-agent SYNC calls off the Socket-Mode event
+    # loop. The old ThreadPoolExecutor + concurrent.futures.as_completed/future.result()
+    # BLOCKED the bot's single async loop until every agent finished. Each sync call now
+    # runs in a worker thread via asyncio.to_thread, awaited in completion order.
+    # _run_agent catches its own exception and returns a 3-tuple so `await done` never
+    # raises -- preserving BOTH per-agent identity (which agent) AND per-agent error
+    # isolation (one agent failing still renders its error card and does not abort the
+    # fan-out), which a bare re-raising `await done` would lose.
     def _run_agent(agent_type):
-        return agent_type, orchestrator.call_single_agent_sync(
-            agent_type=agent_type,
-            message=user_text,
-            is_subtask=True,
-            classification=classification,
-        )
+        try:
+            result = orchestrator.call_single_agent_sync(
+                agent_type=agent_type,
+                message=user_text,
+                is_subtask=True,
+                classification=classification,
+            )
+            return agent_type, result, None
+        except Exception as exc:  # noqa: BLE001 -- isolate one agent's failure
+            return agent_type, None, exc
 
-    with ThreadPoolExecutor(max_workers=len(agents)) as pool:
-        futures = {pool.submit(_run_agent, at): at for at in agents}
+    tasks = [asyncio.create_task(asyncio.to_thread(_run_agent, at)) for at in agents]
 
-        for future in as_completed(futures):
-            agent_type = futures[future]
-            meta = AGENT_TASK_META.get(agent_type, {})
-            task_id = meta.get("task_id", agent_type.value)
-            config = AGENT_CONFIGS.get(agent_type)
+    for done in asyncio.as_completed(tasks):
+        agent_type, result, err = await done
+        meta = AGENT_TASK_META.get(agent_type, {})
+        task_id = meta.get("task_id", agent_type.value)
+        config = AGENT_CONFIGS.get(agent_type)
 
-            try:
-                _, result = future.result()
-                response_text = result.get("response", "")
-                usage = result.get("token_usage", {})
-                proc_ms = result.get("processing_time_ms", 0)
-                has_error = "error" in result
+        if err is not None:
+            logger.error(f"[FAIL] {agent_type.value} failed: {err}")
+            agent_responses[agent_type] = f"⚠️ Error: {str(err)[:150]}"
+            await streamer.append(chunks=[
+                TaskUpdateChunk(
+                    id=task_id,
+                    title=meta.get("title", agent_type.value),
+                    status="error",
+                    details=f"Failed: {str(err)[:100]}",
+                ),
+            ])
+            continue
 
-                total_usage["input"] += usage.get("input", 0)
-                total_usage["output"] += usage.get("output", 0)
-                agent_responses[agent_type] = response_text
+        response_text = result.get("response", "")
+        usage = result.get("token_usage", {})
+        proc_ms = result.get("processing_time_ms", 0)
+        has_error = "error" in result
 
-                lines = response_text.strip().split("\n")
-                output_summary = lines[0][:200] if lines else "Completed"
+        total_usage["input"] += usage.get("input", 0)
+        total_usage["output"] += usage.get("output", 0)
+        agent_responses[agent_type] = response_text
 
-                streamer.append(chunks=[
-                    TaskUpdateChunk(
-                        id=task_id,
-                        title=meta.get("title", agent_type.value),
-                        status="error" if has_error else "complete",
-                        details=(
-                            f"{config.model if config else 'unknown'} · "
-                            f"{proc_ms:.0f}ms · "
-                            f"{usage.get('input',0)}+{usage.get('output',0)} tokens"
-                        ),
-                        output=output_summary,
-                    ),
-                ])
-                logger.info(f"[OK] {agent_type.value} ({config.model if config else '?'}) in {proc_ms:.0f}ms")
+        lines = response_text.strip().split("\n")
+        output_summary = lines[0][:200] if lines else "Completed"
 
-            except Exception as e:
-                logger.error(f"[FAIL] {agent_type.value} failed: {e}")
-                agent_responses[agent_type] = f"⚠️ Error: {str(e)[:150]}"
-                streamer.append(chunks=[
-                    TaskUpdateChunk(
-                        id=task_id,
-                        title=meta.get("title", agent_type.value),
-                        status="error",
-                        details=f"Failed: {str(e)[:100]}",
-                    ),
-                ])
+        await streamer.append(chunks=[
+            TaskUpdateChunk(
+                id=task_id,
+                title=meta.get("title", agent_type.value),
+                status="error" if has_error else "complete",
+                details=(
+                    f"{config.model if config else 'unknown'} · "
+                    f"{proc_ms:.0f}ms · "
+                    f"{usage.get('input',0)}+{usage.get('output',0)} tokens"
+                ),
+                output=output_summary,
+            ),
+        ])
+        logger.info(f"[OK] {agent_type.value} ({config.model if config else '?'}) in {proc_ms:.0f}ms")
 
     # ── 5. Complete plan ─────────────────────────────────────────
-    streamer.append(chunks=[PlanUpdateChunk(title="All agents completed")])
+    await streamer.append(chunks=[PlanUpdateChunk(title="All agents completed")])
 
     # ── 6. Stream synthesized response ───────────────────────────
     await asyncio.sleep(0.3)
@@ -371,10 +379,10 @@ async def _stream_complex_task_plan(
     full_synthesis += footer
 
     for chunk in _split_chunks(full_synthesis, 100):
-        streamer.append(chunks=[MarkdownTextChunk(text=chunk)])
+        await streamer.append(chunks=[MarkdownTextChunk(text=chunk)])
         await asyncio.sleep(0.04)
 
-    streamer.stop()
+    await streamer.stop()
 
     logger.info(
         f"[OK] Complex: {len(agents)} agents, models={models_used}, "

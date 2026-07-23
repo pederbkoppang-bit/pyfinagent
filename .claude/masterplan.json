@@ -14532,7 +14532,8 @@
             "live_check": "live_check_61.2.md containing BQ rows from at least one post-fix autonomous cycle: non-null company_name on full-path rows, zero new rows with final_score=0.0 AND final_synthesis.error set, and non-constant conviction values in paper_trades.signals"
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "audit_note": "phase-76 audit (wf_51a301b9-664, 2026-07-23): the R1a 0.00/HOLD Reports rows (113/123 in 30d) confirm this step is needed -- BUT the partial impl's _degraded->NULL guard (autonomous_loop.py ~:2829) does NOT fire on the 'Failed to parse final report.' synthesis-error path (orchestrator.py ~:1682), because that path never sets analysis['_degraded']. This step must extend the NULL-guard to the synthesis-error path (final_synthesis.error present OR final_weighted_score absent) at BOTH save_report call sites (backend/api/analysis.py ~:209, backend/tasks/analysis.py ~:213), or the 0.0/HOLD rows persist even after the LLM rail is restored. Shares the _persist_analysis call site with phase-76 step 76.1 (R3) -- sequence together."
         },
         {
           "id": "61.3",
@@ -14579,7 +14580,8 @@
             "live_check": "live_check_61.4.md containing the verbatim curl output showing >= 10 divergences, Playwright screenshot paths for /learnings and /reports, and the operator's verbatim SPRINT TILE token"
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "audit_note": "phase-76 audit (wf_51a301b9-664, 2026-07-23): this step also owns two operator-reported symptoms -- (R1b) the /reports blank 30-day trend sparkline: get_recent_reports dedups to one row/ticker (ROW_NUMBER ... WHERE rk=1, bigquery_client.py ~:269) but the sparkline (reports-columns.tsx buildTickerHistory ~:138 + MiniSparkSVG ~:22) needs >=2 rows/ticker, so it ALWAYS renders '—'; give the trend column a NON-deduped per-ticker score series. (R4-reconciliation) the empty RECONCILIATION DIVERGENCES section: a STRING created_at >= TIMESTAMP comparison throws a swallowed BQ 400 at paper_trading.py ~:822 (SAFE_CAST + windowing fix)."
         },
         {
           "id": "61.5",
@@ -17277,7 +17279,7 @@
         },
         {
           "id": "75.7",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S7 -- Slack assistant streaming await-correctness + P0 pager integrity [executor: sonnet-4.6/high]. (a) pysvc-01: on the live AsyncWebClient, chat_stream/append/stop are coroutines but _stream_simple_response (streaming_integration.py:177) and _stream_complex_task_plan (:203) call them synchronously -- every non-DIRECT assistant message dies with AttributeError into the broad except at :141-149. Fix to 'streamer = await client.chat_stream(...)', 'await streamer.append(...)', 'await streamer.stop(...)'. (b) pysvc-02: the agent fan-out at :260 blocks the bot's single event loop with concurrent.futures.as_completed/future.result -- replace with asyncio.create_task(asyncio.to_thread(...)) + async for asyncio.as_completed, keeping per-agent task-card updates. (c) gap1-06: app_home.update_app_home's sync _get_live_data (2x httpx.get + 3x subprocess.run, worst case ~41s), commands._read_status, and the reaction-handler git push must run via await asyncio.to_thread (the scheduler.py:487 idiom). (d) gap1-02: scheduler.py:963 send_trading_escalation's L2 iMessage leg (LAST-resort pager for 'Kill Switch Activated' P0s) never checks the imsg exit code and logs 'sent' unconditionally -- capture the CompletedProcess, on returncode!=0 log ERROR with stderr AND post a Slack fallback line ('P0 iMessage pager FAILED: ...') so L1 records the L2 failure; move the hardcoded operator phone to a backend/config/settings.py field. This is the seam the queued 72.0.4 step does NOT cover (72.0.4 anchors autonomous_loop.py:360-398/902-958).",
           "harness_required": true,
           "priority": "P0",
@@ -17292,6 +17294,24 @@
               "python -m py_compile passes on streaming_integration.py, app_home.py, commands.py, scheduler.py"
             ],
             "live_check": "handoff/current/live_check_75.7.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: pysvc-01, pysvc-02, gap1-06, gap1-02"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.7.1",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "name": "Audit75 S7 follow-up -- promote the remaining hardcoded escalation-phone literals (4 occurrences across 2 files) to settings [executor: sonnet-4.6/high]. Found by the 75.7 research gate (wf_cfc4bd83-679): 75.7 moved scheduler.py's iMessage-pager phone into settings.escalation_phone_e164, but the SAME literal '+4794810537' still appears at backend/services/sla_monitor.py (~:20) and backend/services/queue_notification.py (~:34, ~:63, ~:164). RE-DERIVE the line numbers; they move. Route each through settings.escalation_phone_e164 (created in 75.7) so the operator phone is config in ONE place, not four. Preserve each call site's existing behaviour; do not change the escalation logic, only the phone source. A personal phone number in source is also a privacy/config-hygiene issue.",
+          "verification": {
+            "command": "grep -rc '+4794810537' backend/slack_bot/ backend/services/ | grep -v ':0' | wc -l | xargs -I{} sh -c 'test {} -eq 0 && echo CLEAN'",
+            "success_criteria": [
+              "grep for the literal '+4794810537' across backend/ returns ZERO hits outside settings.py's default (the recipient resolves from settings.escalation_phone_e164 everywhere)",
+              "sla_monitor.py and queue_notification.py resolve the phone from settings.escalation_phone_e164; each call site's escalation behaviour is unchanged (a test or documented manual check)",
+              "python -m py_compile passes on every changed file; no new lint findings over the derived changed-file scope"
+            ],
+            "live_check": "handoff/current/live_check_75.7.1.md: verbatim grep output (0 hits) + git diff --stat + py_compile."
           },
           "retry_count": 0,
           "max_retries": 3
@@ -17565,6 +17585,225 @@
               "§1c is updated to say the capture must be taken BY the evaluator when the path allows it, with reading a Main-produced capture named as the explicitly-degraded fallback; harness_log carries the operator-review request for the qa.md edit and the next session verifies the new roster is live per scripts/qa/verify_qa_roster_live.sh"
             ],
             "live_check": "handoff/current/live_check_75.20.md: verbatim verification command output (exit 0) + git diff --stat + a recorded probe showing the Q/A path's tool surface BEFORE and AFTER (proving the restriction binds) + a concurrency demonstration for the profile fix + the roster-live confirmation after restart."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-76",
+      "name": "Operator-reported bug batch 2026-07-23 -- 12 verified, deduped fixes from a read-only audit (wf_51a301b9-664) of 13 operator-reported bugs. Each step carries the MEASURED root cause + file anchors + a bounded fix + a mutation-resistant verification and a Playwright/BQ live_check. Every step is research-gated (executor must RE-DERIVE line numbers -- anchors are as-of-audit 2026-07-23). ALREADY-COVERED (no step here): R1a 0.00/HOLD scores -> pending 61.2 (SEE audit_note: 61.2's _degraded->NULL guard does NOT fire on the 'Failed to parse final report' synthesis-error path); R1b blank 30d-trend sparkline + R4 reconciliation-divergences-empty -> pending 61.4. REFUTED (not bugs): R2's CSS-positioning/createPortal hypothesis (real cause is render-order, fixed in 76.4); B2's 'autoresearch failure causes stale leaderboard' causal chain (76.12 documents the real decoupled source).",
+      "status": "pending",
+      "steps": [
+        {
+          "id": "76.1",
+          "status": "pending",
+          "name": "SYMPTOM: the Tokens and Deep Think columns on /performance render blank ('—') for every autonomous-cycle row. MEASURED ROOT CAUSE (NULL-at-source, not display): BQ financial_reports.analysis_results since analysis_date>=2026-05-01 has total_rows=402, total_cost_usd non-null=402, but total_tokens non-null=2 and deep_think_calls non-null=2 (only the 2 manual-UI rows are populated). The autonomous persist path _persist_analysis (backend/services/autonomous_loop.py, def at ~:2801, bq.save_report(...) call ~:2837-2865) passes ticker/company_name/final_score/recommendation/summary/full_report/price/.../total_cost_usd/standard_model but NEVER passes total_tokens or deep_think_calls, so save_report's Optional[int]=None defaults (backend/db/bigquery_client.py ~:104,:106) write NULL. The full-path payload build (~:1910) also omits the token fields and hardcodes total_cost_usd fallback 0.1. The manual path tasks/analysis.py (~:278-280) passes all three, which is why exactly 2/402 are non-null. The read query (bigquery_client.py ~:364) and frontend (frontend/src/app/performance/page.tsx ~:410-421) already handle the fields correctly. BOUNDED FIX: add total_tokens + deep_think_calls to the full-path payload dict (~:1910, sourced from report['cost_summary']) and forward them through the bq.save_report(...) call in _persist_analysis (~:2863), mirroring tasks/analysis.py:278-280; stop hardcoding total_cost_usd=0.1 when cost_summary carries a real value. Historical-row backfill is OUT of scope. RE-DERIVE all current line numbers (anchors are as-of-audit 2026-07-23). [executor: opus-4.8/xhigh]",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read())\" && python -m pytest backend/tests/test_autonomous_persist_tokens.py -q",
+            "success_criteria": [
+              "New unit test mocks bq.save_report and asserts _persist_analysis forwards total_tokens=<v> AND deep_think_calls=<v> taken from a payload whose cost_summary carries them; MUTATION-RESISTANT: deleting either kwarg from the save_report call turns the test RED.",
+              "The hardcoded total_cost_usd=0.1 fallback is replaced by the real cost_summary value when present; test asserts a payload with cost_summary.total_cost_usd=0.37 persists 0.37 not 0.1.",
+              "LIVE BQ: after >=1 autonomous persist post-deploy, a SELECT over financial_reports.analysis_results filtered to created_at>deploy-ts returns at least one path=full row with total_tokens IS NOT NULL and deep_think_calls IS NOT NULL."
+            ],
+            "live_check": "Verbatim BQ row from financial_reports.analysis_results (analysis_date/created_at > deploy timestamp) showing total_tokens and deep_think_calls BOTH non-null for an autonomous path=full row (trigger one autonomous persist or wait for the next scheduled cycle)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.2",
+          "status": "pending",
+          "name": "SYMPTOM: on the VirtualFund Learnings UI, (A) the 'Regime underperformance buckets' section is permanently empty and (B) the reconciliation section labeled 'Paper vs BQ-sim fill drift' is mislabeled. MEASURED ROOT CAUSES: (A) backend/api/paper_trading.py ~:863 hardcodes `regime_buckets: list[dict] = []` with a log 'paper_trades has no per-trade regime column'; paper_trades INFORMATION_SCHEMA confirms NO regime column (columns: trade_id,ticker,action,quantity,price,total_value,transaction_cost,reason,analysis_id,risk_judge_decision,created_at,round_trip_id,holding_days,realized_pnl_pct,mfe_pct,mae_pct,capture_ratio,signals), so the section can never populate. (B) paper_trading.py ~:815-816 sets paper_fill=round(exit_price,4) and sim_fill=round(entry_price,4) -- it reports a single round-trip's entry-vs-exit realized P&L, NOT a reconciliation between two independent fill sources; the UI header (frontend/src/components/VirtualFundLearnings.tsx ~:96,:215) claims 'Paper vs BQ-sim fill drift' but no sim-fill source exists. BOUNDED FIX (two separable parts, same component): (A) EITHER add a regime column to paper_trades (schema migration in scripts/migrations/*.py + writer in the autonomous execution path) and aggregate per-regime returns in _compute_learnings, OR explicitly relabel the section 'not yet instrumented'; (B) rename the reconciliation section to match what is actually computed (e.g. 'Round-trip realized P&L') OR wire a genuine independent sim-fill source. Prefer the honest relabel for both if instrumentation is deferred. RE-DERIVE current line numbers (anchors as-of-audit 2026-07-23). [executor: opus-4.8/xhigh]",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/api/paper_trading.py').read())\" && python -m pytest backend/tests/test_paper_learnings_labels.py -q",
+            "success_criteria": [
+              "REGIME: if instrumented -- a migration adds a `regime` column to paper_trades (INFORMATION_SCHEMA shows it live) AND _compute_learnings returns >=1 bucket for a fixture of trades carrying distinct regime tags (MUTATION: remove the aggregation -> test RED). If deferred -- the section's empty-state copy explicitly reads 'not yet instrumented', asserted by a component/text test that turns RED if the old misleading header string returns.",
+              "RECONCILIATION: a test asserts the section header text matches the computed quantity (round-trip realized P&L) UNLESS a real independent sim-fill source is wired; MUTATION: reverting to the 'Paper vs BQ-sim fill drift' label while sim_fill is still exit-price-derived turns the test RED.",
+              "No new BQ 400s introduced: paper_trading.py get_learnings endpoint returns 200 with the chosen section shape (asserted against the live endpoint or a mocked bq)."
+            ],
+            "live_check": "Playwright capture (behind NextAuth) of the VirtualFund Learnings panel showing (A) the regime section state and (B) the reconciliation section header matching the chosen fix; PLUS a verbatim BQ INFORMATION_SCHEMA.COLUMNS row if a regime column was added."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.3",
+          "status": "pending",
+          "name": "SYMPTOM: React console warning 'Encountered two children with the same key, `seed_42`' on the /backtest Run Leaderboard. MEASURED ROOT CAUSE: backend/backtest/experiments/quant_results.tsv has TWO rows with run_id=seed_42 (verified count=2: line 56 ts=20260329T103500Z sharpe=1.0142, line 454 ts=20260416T052900Z sharpe=0.5867). backend/api/backtest.py::list_backtest_runs (GET /api/backtest/runs) iterates every TSV row and appends one dict per row with NO run_id dedup (rows.append ~:678). The /backtest page stores that array (frontend/src/app/backtest/page.tsx setRuns ~:421) and renders it with key={run.run_id} in the Run Leaderboard (~:887) and in the run-selector dropdown children (~:319 key={c.run_id}, ~:347 key={e.run_id}) -- the two seed_42 entries collide. NOTE: AlphaLeaderboard keys on row.strategy_id and AutoresearchLeaderboard on `${c.run_id}-${c.index}`, both already unique; the offending list is the Run Leaderboard on the /backtest Overview tab (the operator's 'Sovereign/Leaderboard' guess is imprecise). BOUNDED FIX: use a guaranteed-unique composite key (e.g. `${run.run_id}-${run.timestamp}` or `${run.run_id}-${i}`) at the three page.tsx map sites (~:319,:347,:887). The two seed_42 rows are legitimately distinct runs sharing a non-unique label, so run_id alone is not a valid React key; backend dedup is OPTIONAL and out of scope. RE-DERIVE current line numbers (anchors as-of-audit 2026-07-23). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd frontend && npm run build",
+            "success_criteria": [
+              "The three map sites in frontend/src/app/backtest/page.tsx use a composite key including a per-row discriminator (timestamp or index); a grep/test asserts bare `key={run.run_id}` / `key={c.run_id}` / `key={e.run_id}` no longer appear at those sites (MUTATION: revert to bare run_id -> React duplicate-key warning returns).",
+              "LIVE: with the two seed_42 rows present in quant_results.tsv, loading /backtest produces ZERO 'Encountered two children with the same key' console warnings (MUTATION-RESISTANT via the console assertion below)."
+            ],
+            "live_check": "Playwright: browser_navigate to /backtest (behind NextAuth), browser_console_messages showing NO 'same key' warning, plus a screenshot of the Run Leaderboard rendering BOTH seed_42 rows."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.4",
+          "status": "pending",
+          "name": "SYMPTOM: on /reports, clicking a row opens a 'ticker infobox' expand panel that (1) always appears at the BOTTOM of the list instead of next to the clicked row, and (2) shows only partial data. MEASURED ROOT CAUSE (the CSS-positioning/createPortal hypothesis is REFUTED -- no absolute/fixed/portal exists in the code): the expand panel (frontend/src/app/reports/page.tsx ~:355-380) is a normal-flow sibling rendered AFTER the closing </DataTable> (DataTable spans ~:345-354) inside the same card, so it renders below the ENTIRE table regardless of which row was clicked (DataTable.tsx ~:147 onRowClick only fires a callback -- there is no inline row expansion). The panel body renders only exReport.ticker + date (~:365) and exReport.summary (~:376), omitting score, recommendation, and company_name (all already on the row object) plus the full report body that getReport(ticker,date) fetches (~:175). BOUNDED FIX: (a) render the panel adjacent to the clicked row -- an inline expandable row inside DataTable, or an anchored panel/drawer -- so it appears at the clicked ticker, not the list bottom; (b) populate it with score + recommendation + company_name (from the row) AND the full getReport body. RE-DERIVE current line numbers (anchors as-of-audit 2026-07-23). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd frontend && npm run build",
+            "success_criteria": [
+              "PANEL POSITION: after clicking a row in the MIDDLE of a long list, the panel's bounding box is vertically adjacent to that row (inline-expanded row or anchored drawer), not below the last table row -- asserted by a Playwright DOM/bounding-box check (MUTATION: keep the after-table sibling -> assertion fails on a mid-list click).",
+              "PANEL CONTENT: the panel renders score, recommendation, company_name, AND the getReport report body -- asserted by Playwright text-presence for a known report (MUTATION: omit any one field -> assertion RED)."
+            ],
+            "live_check": "Playwright: browser_navigate /reports (behind NextAuth), click a row in the MIDDLE of a long list, screenshot showing the panel adjacent to that row and containing score + recommendation + company_name + the full report body (not just the summary)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.5",
+          "status": "pending",
+          "name": "SYMPTOM: operator reports the /performance page header looks visually different from the /reports header. STATUS: INVESTIGATE-OR-REFUTE -- no code-level divergence is measurable, so this is gated on a live-UI capture. MEASURED: the header markup is byte-identical -- frontend/src/app/performance/page.tsx ~:141 and frontend/src/app/reports/page.tsx ~:263 both carry `flex-shrink-0 px-6 pt-6 pb-0 md:px-8 md:pt-8`; the only code differences are that @tremor/react is imported ONLY on /performance (page.tsx ~:4, AreaChart -- a possible global CSS bleed) and a green 'Evaluate Outcomes' button on one page. STEP: at the research gate, capture BOTH headers via Playwright side by side, localize any real user-visible difference to a specific cause (tremor CSS bleed vs the extra button vs none), then EITHER apply the bounded fix that makes them consistent OR close as REFUTED with the two screenshots as evidence. Do NOT guess a fix from code -- this step is gated on the live capture. RE-DERIVE current line numbers (anchors as-of-audit 2026-07-23). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd frontend && npm run build",
+            "success_criteria": [
+              "Two Playwright screenshots (the /performance header and the /reports header) are captured and attached to the handoff.",
+              "OUTCOME is one of: (a) a code change makes the two headers render consistently -- asserted by a Playwright DOM/pixel comparison of the header region on both pages (MUTATION: revert -> the two diverge); OR (b) an explicit REFUTED note in the handoff with both screenshots demonstrating no real user-visible divergence."
+            ],
+            "live_check": "Playwright side-by-side screenshots of the /performance and /reports headers (behind NextAuth); if a fix landed, an after-screenshot showing them consistent; if refuted, the two screenshots plus a written REFUTED rationale."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.6",
+          "status": "pending",
+          "name": "SYMPTOM: the /agent-map node graph is a subjective UX complaint -- it uses React Flow (@xyflow/react) + dagre with a single rigid top-to-bottom (TB) layout (frontend/src/components/AgentMap.tsx). The component FUNCTIONS correctly; this is a visual/UX refresh, not a functional bug. STEP: refresh the node-graph layout/interaction (e.g. layout-direction options, node spacing, zoom-to-fit, node styling) per .claude/rules/frontend.md conventions. Research-gate the concrete UX changes against the current design system before editing. RE-DERIVE current line numbers (anchors as-of-audit 2026-07-23). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd frontend && npm run build",
+            "success_criteria": [
+              "AgentMap renders the intended refreshed layout -- a component test asserts the new layout prop/behavior is applied (MUTATION: revert the layout change -> test RED), backed by a Playwright before/after screenshot pair.",
+              "No console errors on /agent-map -- Playwright browser_console_messages contains zero error-level entries."
+            ],
+            "live_check": "Playwright: browser_navigate /agent-map (behind NextAuth), before/after screenshots of the node graph, console clean."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.7",
+          "status": "pending",
+          "name": "SYMPTOM: the /agents page displays the legacy product name 'OpenClaw' in user-facing strings that should read 'Claude Code'. MEASURED: grep evidence points to user-facing 'OpenClaw' copy on frontend/src/app/agents/page.tsx (the audit estimated ~2 strings but did NOT re-open the file line-by-line -- the research gate MUST re-grep the exact current strings + count; do not assume 2). BOUNDED FIX: replace the user-facing 'OpenClaw' strings with 'Claude Code' on the /agents page ONLY in user-visible copy -- do not rename infra identifiers, routes, env keys, or file paths. RE-DERIVE exact strings + line numbers at the research gate (anchors as-of-audit 2026-07-23). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd frontend && npm run build",
+            "success_criteria": [
+              "grep -rin \"openclaw\" frontend/src/app/agents/ returns ZERO user-facing-string hits after the fix (MUTATION: leave one -> grep non-empty); any remaining hits must be non-user-facing identifiers explicitly justified in the handoff.",
+              "LIVE: /agents renders no 'OpenClaw' user-facing text."
+            ],
+            "live_check": "Playwright: browser_navigate /agents (behind NextAuth), browser_snapshot / screenshot showing no 'OpenClaw' user-facing text, plus the grep output showing zero user-facing hits."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.8",
+          "status": "pending",
+          "name": "SYMPTOM (operator bug U2): the Budget view is reachable only via Trading -> Backtest -> 'Budget' sub-tab; it should be a top-level left-nav item, and the Home page should carry a compact Budget quick-view widget. MEASURED (audit wf_51a301b9-664, RE-DERIVE line numbers): the Budget view is component frontend/src/components/BudgetDashboard.tsx, mounted ONLY at frontend/src/app/backtest/page.tsx (~:133 tab def, ~:1585 render); Sidebar NAV_SECTIONS (frontend/src/components/Sidebar.tsx ~:22-64) has no Budget entry; Home renders no budget widget. The feed is NOT /api/cost-budget -- getBudgetSummary() (frontend/src/lib/api.ts ~:650) calls a backtest endpoint (backend/api/backtest.py ~:1488); BudgetDashboard is self-contained (own fetch/loading/error/empty). BOUNDED FIX, frontend-only additive: (1) create route frontend/src/app/budget/page.tsx using the mandatory two-zone page shell (.claude/rules/frontend-layout.md sec 1) with a Tier-1 header + <BudgetDashboard/>; (2) add a Budget NavItem to Sidebar; (3) add a compact Budget quick-view widget to the Home page (reuse the same data source; own loading/empty states). Keep the Backtest sub-tab OR remove it -- operator's call at the research gate; default: keep both. DISTINCT from 75.5.1 (that fixes the cost-budget GUARD measuring BQ vs LLM spend -- a data-correctness bug, not this nav/widget work). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd frontend && npm run build",
+            "success_criteria": [
+              "A top-level /budget route renders BudgetDashboard behind the standard page shell, and a Budget NavItem appears in the Sidebar -- asserted by a component/route test + a Playwright nav capture (MUTATION: remove the NavItem -> the nav test fails)",
+              "The Home page renders a compact Budget quick-view widget fed by the same data source, with its own loading/error/empty states (per frontend.md) -- Playwright screenshot shows it populated or in a correct empty state",
+              "npm run build passes; no new console errors on /budget or Home (Playwright browser_console_messages clean)"
+            ],
+            "live_check": "handoff/current/live_check_76.8.md: Playwright captures (behind NextAuth) of the new /budget route, the Sidebar Budget entry, and the Home budget widget; + git diff --stat. Never touch the operator :3000 -- use the :3100 skip-auth rig (frontend.md)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.9",
+          "status": "pending",
+          "name": "SYMPTOM (operator bug B1): launchd jobs com.pyfinagent.autoresearch and com.pyfinagent.ablation are both failing. MEASURED (audit wf_51a301b9-664 -- TWO INDEPENDENT causes; RE-DERIVE line numbers): (1) AUTORESEARCH: scripts/autoresearch/run_nightly.sh -> run_memo.py fails with arxiv.HTTPError HTTP 429 (external rate-limit from export.arxiv.org) deep inside gpt_researcher's arxiv retriever on EVERY run 2026-07-08..2026-07-23; run_memo.py catches it, writes an ERROR memo, and run_nightly.sh exits rc=1. arxiv is 1 of 3 configured retrievers (run_memo.py ~:189). This is NOT a missing dependency. FIX: add polite backoff + inter-request delay to the arxiv call AND/OR make run_memo.py tolerate an arxiv 429/500 by falling through to the semantic_scholar/duckduckgo retrievers and exiting 0 with a WARN instead of rc=1. Cross-ref pending step 39.1 (same 'nightly cron exit 1', now root-caused to arxiv 429) -- this step makes 39.1 concrete; sequence/merge accordingly. (2) ABLATION: handoff/ablation.launchd.log shows 'backend/.env: line 81: unexpected EOF while looking for matching quote' -- the ablation plist inlines a raw '. backend/.env' source that dies on a multi-line/unbalanced-quote value at backend/.env ~:80-81, which run_nightly.sh:19-31 already guards against via a phase-62.6 mktemp .env-sanitize the ablation plist LACKS. FIX: make the ablation job adopt the same mktemp .env-sanitize wrapper (script/plist change, NOT a .env edit). SEPARATELY FLAG for the operator: backend/.env ~:80-81 has an unbalanced quote that should be repaired at source (.env edits are operator-gated -- do NOT edit .env in this step; report the exact malformed line). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -n scripts/autoresearch/run_nightly.sh && .venv/bin/python -c \"import ast; ast.parse(open('scripts/autoresearch/run_memo.py').read())\"",
+            "success_criteria": [
+              "AUTORESEARCH: a run of run_memo.py with the arxiv retriever forced to raise HTTP 429 (stubbed/mocked) completes via the other retrievers and exits 0 with a WARN -- NOT rc=1 (MUTATION: revert the fall-through -> the run exits non-zero); OR, if backoff-only, a real nightly run writes a non-ERROR memo. Recorded verbatim.",
+              "ABLATION: the ablation job sources .env via the same sanitize path as run_nightly.sh so a malformed .env line no longer aborts it -- proven by running the ablation entry-point against a fixture .env containing an unbalanced-quote line and observing it does NOT die with 'unexpected EOF' (MUTATION: bypass the sanitize -> the failure returns)",
+              "The exact backend/.env malformed line (~:80-81) is reported verbatim in experiment_results.md for operator repair; NO .env file is edited by this step",
+              "bash -n on the changed shell scripts passes; py_compile on changed Python passes"
+            ],
+            "live_check": "handoff/current/live_check_76.9.md: verbatim launchd/log evidence that each job now exits 0 (or the autoresearch WARN-not-FAIL path), the ablation fixture-.env run output, the reported malformed .env line, and git diff --stat. Real cron re-run evidence where feasible."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.10",
+          "status": "pending",
+          "name": "SYMPTOM (operator bug B3): warehouse sources appear stale and there is no unified external-source health UI. MEASURED (audit wf_51a301b9-664 -- operator premise PARTLY REFUTED; RE-DERIVE line numbers): paper_portfolio_snapshots is NOT stale (MAX(snapshot_date)=2026-07-22, 1 day, inside its 26h threshold); historical_macro IS 120 days old but is FROZEN BY DESIGN per operator policy (auto-memories: historical_macro frozen; un-freeze token owed), not a broken ingest. A UNIFIED per-BQ-table freshness endpoint + UI ALREADY EXISTS: /api/observability/data-freshness (phase-25.C7, cycle_health.py) rendered at frontend/src/app/observability/page.tsx -- so the BQ-table half is DONE. SCOPE THE NEW SLICE ONLY: (1) teach backend/services/cycle_health.py a per-table 'frozen_by_policy' flag (config/env-driven, e.g. historical_macro) so a frozen source renders a distinct 'FROZEN' band instead of CRITICAL red (today it shows 120d-stale as broken); (2) add an EXTERNAL-source health endpoint + UI panel covering upstream API providers (Alpha Vantage, FRED, yfinance, Anthropic, Gemini) -- reachability/last-success/rate-limit status -- which the current BQ-table freshness does not cover. Do NOT rebuild the BQ-table freshness (25.C7/25.A7 own it). [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -c \"import ast; ast.parse(open('backend/services/cycle_health.py').read())\" && cd frontend && npm run build",
+            "success_criteria": [
+              "cycle_health marks historical_macro (and any policy-frozen table) with a frozen_by_policy flag so it renders a FROZEN band, not CRITICAL -- a unit test asserts a frozen table with age>threshold yields band='frozen' not 'critical' (MUTATION: remove the flag -> it reverts to critical)",
+              "A new external-source health endpoint returns per-provider reachability/last-success for >=3 upstream APIs, and a UI panel renders them -- asserted by an endpoint test (mocked provider calls, fail-open) + a Playwright capture",
+              "The existing /api/observability/data-freshness behaviour is unchanged for non-frozen tables (regression guard); npm run build passes"
+            ],
+            "live_check": "handoff/current/live_check_76.10.md: verbatim BQ freshness rows (showing historical_macro FROZEN not CRITICAL), the external-source endpoint JSON, a Playwright capture of both panels, + git diff --stat."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.11",
+          "status": "pending",
+          "name": "SYMPTOM (operator bug B4): the Settings model picker does not offer the newest Anthropic Claude models. MEASURED (audit wf_51a301b9-664; RE-DERIVE line numbers): the authoritative selectable set is backend AVAILABLE_MODELS (backend/api/settings_api.py ~:194, served by GET /api/settings/models/available). Its Anthropic GA block (~:221-229) lists opus-4-8/4-7/4-6/4-5/4-1, sonnet-4-6/4-5, haiku-4-5 but is MISSING claude-sonnet-5 and claude-fable-5 -- both of which model_tiers.py already recognizes (EFFORT_SUPPORTED_MODELS ~:259 'claude-sonnet-5', ~:254 'claude-fable-5'; MODEL_EFFORT_FALLBACK ~:330/338). The frontend dropdown (frontend/src/app/settings/page.tsx ~:205) falls back to the raw id when MODEL_DISPLAY_NAMES (~:99-104) lacks a label. BOUNDED FIX: (1) add claude-sonnet-5 (provider Anthropic, pricing $3/$15 per the claude-api reference) to the settings_api AVAILABLE_MODELS Anthropic GA block; (2) DECIDE fable-5 per policy -- recommend EXCLUDE from the in-app picker and cite CLAUDE.md's Fable policy (metered $10/$50, Max-rail/dev-harness only); (3) add MODEL_DISPLAY_NAMES labels for opus-4-8/4-7/4-6/4-5/4-1, haiku-4-5, sonnet-5; (4) refresh PRIMARY_MODEL_NAMES to promote opus-4-8 + sonnet-5 and drop legacy pins. Follow-on to 47.3 (added opus-4-8 -- DONE) and 67.6 (sonnet-5 Layer-2 guards, NOT the settings picker). NOT a dup of 74.2/73.1.2. [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -c \"import ast; ast.parse(open('backend/api/settings_api.py').read())\" && cd frontend && npm run build",
+            "success_criteria": [
+              "GET /api/settings/models/available returns claude-sonnet-5 in the Anthropic block -- an endpoint/source test asserts its presence (MUTATION: remove it -> test RED); the fable-5 decision is documented with its CLAUDE.md-policy citation",
+              "The frontend settings dropdown renders human labels (MODEL_DISPLAY_NAMES) for every newly-added model incl. sonnet-5 -- no raw-id fallback for the current-gen set (asserted by a component test or Playwright)",
+              "Selecting claude-sonnet-5 in the picker persists and round-trips through settings without error (endpoint test); npm run build passes"
+            ],
+            "live_check": "handoff/current/live_check_76.11.md: verbatim /api/settings/models/available JSON showing claude-sonnet-5, a Playwright capture of the settings dropdown listing it with a proper label, + git diff --stat."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.12",
+          "status": "pending",
+          "name": "SYMPTOM (operator bug B2): the Sovereign-page Alpha Leaderboard shows old strategies. MEASURED (audit wf_51a301b9-664 -- the operator's CAUSAL CHAIN is REFUTED): the failing autoresearch memo cron writes ONLY markdown memos to handoff/autoresearch/ (run_memo.py write_memo) and does NO BigQuery/leaderboard writes -- a grep for memo consumers across backend/+frontend returned ZERO hits, so fixing autoresearch (76.9) will NOT refresh the leaderboard. The REAL source is pyfinagent_pms.strategy_deployments (champion/challenger rotation; backend/api/sovereign_api.py ~:224-233,:360-413 -> frontend AlphaLeaderboard.tsx), which BQ shows has only 2 rows, newest deployed_at=2026-04-24 (~3 months stale): the rotation has produced no new deployments, which ties to the frozen-optimizer / degraded-scoring state captured by phase-72 + the strategy-rotation-unbuilt memory. SCOPE (light -- mostly documentation + a correct pointer): (1) document in code/handoff that the Alpha Leaderboard source is strategy_deployments (rotation), decoupled from the memo cron; (2) confirm whether the rotation is expected to run and, if it should, file the concrete blocker; do NOT rebuild the rotation here. RE-DERIVE line numbers. [executor: sonnet-4.6/high]",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -c \"import ast; ast.parse(open('backend/api/sovereign_api.py').read())\"",
+            "success_criteria": [
+              "experiment_results.md documents, with a verbatim BQ query, the Alpha Leaderboard's true data source (pyfinagent_pms.strategy_deployments) and its newest-row timestamp, and states plainly that the memo cron (76.9) is NOT its writer (the operator's causal chain, corrected)",
+              "The concrete reason no new deployment rows exist since 2026-04-24 is identified and either fixed (if a bounded config/blocker) or filed as a tracked dependency on the rotation/phase-72 state -- no rebuild of the rotation in this step",
+              "If any code changes: py_compile passes and the leaderboard endpoint still returns 200"
+            ],
+            "live_check": "handoff/current/live_check_76.12.md: the verbatim BQ rows proving the source + staleness, the corrected causal writeup, and git diff --stat if any code changed."
           },
           "retry_count": 0,
           "max_retries": 3

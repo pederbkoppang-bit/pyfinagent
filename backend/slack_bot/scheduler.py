@@ -950,23 +950,53 @@ async def send_trading_escalation(
         except Exception:
             logger.exception("Failed to post trading escalation to Slack")
 
-    # L2: iMessage for P0 incidents
+    # L2: iMessage for P0 incidents -- the LAST-RESORT pager for kill-switch events.
     if severity == "P0":
-        _ESCALATION_PHONE = "+4794810537"
+        escalation_phone = settings.escalation_phone_e164  # phase-75.7 (gap1-02): was a hardcoded literal
         imsg_text = (
             f"PYFINAGENT {severity}: {title}\n"
             + "\n".join(f"{k}: {v}" for k, v in list(details.items())[:5])
             + "\nImmediate attention required."
         )
-        try:
-            import subprocess
-            subprocess.run(
-                ["imsg", "send", "--to", _ESCALATION_PHONE, "--text", imsg_text],
-                capture_output=True, text=True, timeout=10,
-            )
-            logger.warning("iMessage escalation sent for %s: %s", severity, title)
-        except Exception:
-            logger.exception("Failed to send iMessage escalation")
+
+        async def _post_pager_failure(reason: str) -> None:
+            # Record the L2 failure on L1 (Slack) so a silent pager miss is VISIBLE.
+            if not settings.slack_channel_id:
+                return
+            try:
+                await app.client.chat_postMessage(
+                    channel=settings.slack_channel_id,
+                    text=f":rotating_light: P0 iMessage pager FAILED for '{title}': {reason}",
+                )
+            except Exception:
+                logger.exception("Failed to post P0-pager-failure fallback to Slack")
+
+        if not escalation_phone:
+            logger.error("P0 iMessage pager SKIPPED for '%s': no escalation_phone_e164 configured", title)
+            await _post_pager_failure("no escalation_phone_e164 configured")
+        else:
+            try:
+                import subprocess
+                # phase-75.7 (gap1-02): CAPTURE the CompletedProcess. subprocess.run does
+                # NOT raise on returncode!=0 without check=True, so the prior code logged
+                # 'sent' unconditionally -- a silent kill-switch pager failure (imsg ran,
+                # delivery failed) never reached the operator. Check the exit code.
+                proc = subprocess.run(
+                    ["imsg", "send", "--to", escalation_phone, "--text", imsg_text],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if proc.returncode != 0:
+                    logger.error(
+                        "P0 iMessage pager FAILED (exit %d) for '%s': %s",
+                        proc.returncode, title, (proc.stderr or "").strip()[:300],
+                    )
+                    await _post_pager_failure(f"imsg exit {proc.returncode}: {(proc.stderr or '').strip()[:200]}")
+                else:
+                    logger.warning("iMessage escalation sent for %s: %s", severity, title)
+            except Exception as exc:
+                # imsg binary missing / timeout / OS error -- also a silent-pager failure.
+                logger.exception("Failed to send iMessage escalation")
+                await _post_pager_failure(f"{type(exc).__name__}: {str(exc)[:200]}")
 
 
 async def send_analysis_alert(app: AsyncApp, ticker: str, report: dict):

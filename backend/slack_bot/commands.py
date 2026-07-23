@@ -478,7 +478,9 @@ def register_commands(app: AsyncApp):
         
         if "status" in text_lower:
             try:
-                status_text = _read_status()
+                # phase-75.7 (gap1-06): _read_status is blocking (its docstring says
+                # dispatch via asyncio.to_thread); called bare it stalled the event loop.
+                status_text = await asyncio.to_thread(_read_status)
                 await say(f"📊 *PyFinAgent Status*\n\n{status_text}")
             except Exception as e:
                 logger.exception("Error generating status")

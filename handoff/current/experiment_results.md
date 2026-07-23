@@ -1,148 +1,150 @@
-# Experiment Results -- masterplan step 75.6
+# Experiment Results -- masterplan step 75.7
 
-**Step**: 75.6 -- Audit75 S6, frontend auth fail-closed + session hardening
-**Cycle**: 1 | **Date**: 2026-07-23 | **Priority**: P0
-**Contract**: `handoff/current/contract.md` | **Research**: `research_brief_75.6.md`
-(gate `wf_1e89656d-6c4`, PASSED)
+**Step**: 75.7 -- Audit75 S7, Slack assistant streaming await-correctness + P0 pager integrity
+**Cycle**: 3 (cycle-1 + cycle-2 CONDITIONAL on artifact accuracy; all fixed by measurement -- see §7; cycle-3 Q/A wf_568799ec-e34 PASS) | **Date**: 2026-07-23 | **Priority**: P0
+**Contract**: `handoff/current/contract.md` | **Research**: `research_brief_75.7.md`
+(gate `wf_cfc4bd83-679`, PASSED)
 
 ---
 
 ## 1. Verbatim verification command output
 
 ```
-$ python3 -c "<string asserts>" && cd frontend && npx tsc --noEmit
-string asserts: PASS
-tsc exit=0
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_slack_streaming.py -q
+12 passed
+EXIT=0
 ```
 
-Full transcript + the live curls + the Playwright capture are in
-`handoff/current/live_check_75.6.md` (generated, not hand-edited).
-
----
+Full generated transcript (py_compile x4, criterion scans, mutation matrix, regression) in
+`handoff/current/live_check_75.7.md`.
 
 ## 2. What changed (measured)
 
-`git diff --stat HEAD` (frontend surface):
-- `frontend/src/middleware.ts` -- gap2-01
-- `frontend/src/lib/auth.config.ts` -- gap2-02, -04, -05, -06
-- `frontend/src/lib/auth.config.test.ts` -- NEW, 9 semantic tests
+### (a) pysvc-01 -- un-awaited streamer coroutines
+`streaming_integration.py`: `import asyncio` hoisted to module top; removed
+`from concurrent.futures import ThreadPoolExecutor, as_completed`; awaited **2**
+`client.chat_stream` + **7** `streamer.append` + **2** `streamer.stop` calls. The
+Python-list `.append` calls (`initial_chunks`/`progress_chunks`/`synthesis_parts`) use
+distinct variable names, so the await-transform is unambiguous and did not touch them.
+Before: `streamer.append(...)` on the coroutine returned by an un-awaited `chat_stream`
+raised `AttributeError` into the broad `except` -- every non-DIRECT assistant message died.
 
-### (a) gap2-01 -- middleware fail-closed
-Removed the `hasAuthProvider` gate (both the `:7` definition and the `:24` use). Route
-protection no longer infers "auth off" from Google-credential absence -- a passkey-only or
-misconfigured deployment used to silently disable auth for **every** route. The only
-bypasses are now the explicit, default-off `LIGHTHOUSE_SKIP_AUTH` and a named
-`DEV_DISABLE_AUTH` opt-in. `req.auth` enforcement is unchanged.
+### (b) pysvc-02 -- blocking fan-out
+Replaced `ThreadPoolExecutor` + `concurrent.futures.as_completed`/`future.result()` (which
+blocked the bot's single Socket-Mode loop) with
+`tasks = [asyncio.create_task(asyncio.to_thread(_run_agent, at)) ...]` +
+`for done in asyncio.as_completed(tasks): agent_type, result, err = await done`.
+`_run_agent` returns a **3-tuple** `(agent_type, result, err)` so `await done` never raises
+-- preserving both per-agent identity and per-agent error isolation (the gate's flagged
+risk that a bare re-raising `await done` would lose the failing agent's identity and its
+error card).
 
-**Comment-token trap I hit and fixed**: my first middleware comment documented the removed
-gate by naming the literal `hasAuthProvider`, which tripped the immutable command's
-`'hasAuthProvider' not in mw` string assert. Reworded the comment to describe it without
-the token. (Noted because it is the same string-brittleness class as phase-75.5 -- the
-verification command is naive; the comment must avoid the forbidden literal.)
+### (c) gap1-06 -- two blocking sync calls (NOT three)
+`app_home.py`: `_get_live_data()` (3x httpx + 3x subprocess, ~41s worst case) ->
+`await asyncio.to_thread(_get_live_data)`; `import asyncio` added (was absent).
+`commands.py`: `_read_status()` -> `await asyncio.to_thread(_read_status)`.
+**The reaction-handler git push was already `to_thread`-wrapped (phase-75.2.1) and was NOT
+touched** -- the step text listed three calls but only two needed the fix (the gate caught
+this over-count; re-wrapping the push would double-wrap).
 
-### (b) gap2-02 -- allowlist fail-closed, DARK behind AUTH_ENFORCE_ALLOWLIST
-`enforceAllowlist` parses `AUTH_ENFORCE_ALLOWLIST` against pydantic's truthy set
-(`true/1/yes/on/t/y`) so the frontend flag cannot desync from the backend bool. Empty
-allowlist + flag ON -> deny all; empty + flag OFF -> admit (byte-equivalent legacy
-behaviour) + a **loud** module-load `console.warn`. Mirrors 75.1's backend
-`auth_enforce_allowlist` (`settings.py:574`, default off). **No `.env` edited** -- the
-executor never sets the flag; the operator flips it, and the two layers only fail closed
-together when both are on.
+### (d) gap1-02 -- P0 pager exit-code integrity
+`settings.py`: new `escalation_phone_e164` field (default `+4794810537`, byte-identical to
+the removed literal). `scheduler.py`: the pager now CAPTURES the `CompletedProcess`. On
+`returncode != 0` it logs ERROR (not the success line) and posts a Slack fallback
+(`P0 iMessage pager FAILED: ...`) so L1 records the L2 miss. **The exception path (imsg
+binary missing / timeout) ALSO posts the fallback** -- the gate flagged that the criterion
+only tests `returncode=1`, but a `FileNotFoundError` is an equally silent pager failure.
+Empty phone -> ERROR + fallback + skip. Before: the return value was discarded and
+`"iMessage escalation sent"` logged unconditionally -- a silent kill-switch pager failure
+the operator never saw.
 
-### (c) gap2-04 -- unverified-email rejection made live
-`signIn` now destructures `profile` and reads
-`(profile as { email_verified?: boolean | string } | undefined)?.email_verified`. The
-prior code aliased `account as profile`, so `email_verified` was always `undefined` and
-the rejection was **dead code**. Rejects only an *explicitly* unverified email; an omitted
-claim (`undefined`) is admitted per OIDC. Cast added so `npx tsc --noEmit` stays green
-(the Auth.js `Profile` type may not declare the claim).
+## 3. Files
+| file | change |
+|---|---|
+| `backend/slack_bot/streaming_integration.py` | (a) awaits + import; (b) async fan-out |
+| `backend/slack_bot/app_home.py` | (c) to_thread + import asyncio |
+| `backend/slack_bot/commands.py` | (c) to_thread on `_read_status` |
+| `backend/slack_bot/scheduler.py` | (d) pager exit-code + Slack fallback + settings phone |
+| `backend/config/settings.py` | (d) `escalation_phone_e164` field |
+| `backend/tests/test_phase_75_slack_streaming.py` | NEW -- 12 tests (11 + a cycle-2 fan-out error-isolation test) |
 
-**This is the criterion the immutable command cannot verify** (contract §1c): its
-`'profile' within 250 chars of 'signIn('` assert ALREADY PASSED on the buggy pre-fix file.
-Proven instead by the semantic test's load-bearing case -- see §3, M2.
-
-### (d) gap2-06 -- emailless principal rejected under an active allowlist
-`if (!user.email) return false;` inside the `allowedEmails.length > 0` block, replacing the
-`&& user.email` short-circuit that waved a no-email principal through to `return true`.
-
-### (e) gap2-05 -- session hardening
-`maxAge: 7 * 24 * 60 * 60` (was 30 days), explicit `updateAge: 24 * 60 * 60`. No `30 * 24`
-literal remains anywhere (including comments). The comment documents the JWT-revocation
-limitation and the `strategy:"database"` Prisma follow-up (adapter already wired in
-`auth.ts`). OWASP's 4-8h absolute-timeout target is noted as the real endpoint; 7d is an
-improvement, not the destination.
-
----
-
-## 3. Mutation matrix -- 6/6 killed, 0 survived
-
+## 4. Mutation matrix -- 7/7 killed, 0 survived
 ```
-baseline: 9 passed
-
-M2   KILLED (2 failed)   alias account as profile (the gap2-04 dead-code bug the string assert misses)
-M3   KILLED (1 failed)   drop the `!user.email` reject
-M4   KILLED (2 failed)   make empty-allowlist+flag return true instead of false
-M5   KILLED (1 failed)   revert maxAge to 30 days
-M6   KILLED (1 failed)   remove updateAge
-M7   KILLED (1 failed)   reject when email_verified is undefined (breaks OIDC omitted-claim allowance)
-
-6/6 killed; 0 survived
-post-restore: 9 passed
+M1 revert an awaited streamer.append to sync          -> KILLED (the completion assertion: an un-awaited append coroutine's body never runs, so kinds=['chat_stream','stop'] and `"append" in kinds` fails)
+M2 restore ThreadPoolExecutor/as_completed fan-out    -> KILLED (AST assert)
+M3a revert _get_live_data to bare sync                -> KILLED
+M3b revert _read_status to bare sync                  -> KILLED
+M4 pager ignores returncode (log 'sent' unconditional) -> KILLED
+M5 restore a phone literal in scheduler.py            -> KILLED
+M6 drop the exception-path Slack fallback             -> KILLED
 ```
+Scoped claim: these 7 mutations were killed. Not "the suite has no vacuous guards".
 
-**M2 is the load-bearing mutant.** It re-introduces the exact aliasing bug the immutable
-verification command's string assert cannot detect (the assert passes on the bug). The
-semantic test's *"reads email_verified from profile NOT account"* case -- `false` on
-`account`, `true` on `profile`, expecting ADMIT -- fails on the bug and passes on the fix.
-This is the anti-vacuous-guard discipline (harness_log Cycle 131 + new qa.md §4b) applied:
-the string assert is not evidence, so the behaviour is proven directly.
+**M1 kill-mechanism CORRECTED (cycle 2).** Cycle 1 credited M1's kill to the `error::RuntimeWarning` + `gc.collect()` leg. Measured: that leg is **inert** -- the un-awaited-coroutine RuntimeWarning fires at coroutine finalization and is swallowed as "Exception ignored while finalizing coroutine", so a warn-only harness does NOT raise. The REAL deterministic kills are: (append-revert) the completion assertion `"append" in kinds` (the coroutine body never records the call); (chat_stream-revert) the AttributeError from calling `.append()` on the un-awaited coroutine object. The RuntimeWarning filter is retained as harmless belt-and-suspenders but is **non-load-bearing** -- do NOT remove the completion assertions on the assumption the filter guards this.
 
-Scoped claim: **these 6 mutations were killed.** Not "the suite has no vacuous guards".
+**A comment-token trap I hit and fixed** (same class as 75.5/75.6): criterion 2's first
+draft was a substring scan over the function source, which false-failed because my fan-out
+COMMENT documents the old `as_completed(futures)`/`future.result()` code. Rewrote it as a
+structural AST check over actual Call nodes -- immune to comments, and what "AST assert" in
+the criterion actually asks for.
+
+## 5. Regression + honesty
+- **Lint** (`ruff --select F821,F401,F811` over the changed **and untracked** `.py` files,
+  space-split -- see the cycle-2 correction below): **All checks passed** over the full
+  change surface INCLUDING the new test file. 0 introduced in production; the one F401 the
+  cycle-1 command missed (an unused `QueryComplexity` import in the test) was removed.
+- **Full backend suite** (re-measured cycle 2): 10 failed / **1305 passed** (+12 mine). The 10 are the standing
+  live-environment red set; **none of the failing files reference the 75.7 change surface**
+  (verified by grep). 0 regressions.
+- **Test tooling**: pytest-asyncio is absent; used `asyncio.run()` in sync defs (repo
+  precedent). Criterion 1 is anchored on the DETERMINISTIC `AttributeError` (the RuntimeWarning
+  fires at GC time and is non-deterministic); the warning filter is module-scoped with a
+  forced `gc.collect()`, never a global `error::RuntimeWarning` (would break the suite).
+- **Not verified live**: no Slack bot run, no real iMessage sent (the pager is exercised
+  offline with `subprocess.run` stubbed). A bot restart is needed for the running process
+  to pick these up. No UI surface.
+
+## 7. Cycle-2 record -- the two blockers the Q/A caught (both mine, both reporting)
+
+The cycle-1 Q/A (`wf_8b63c4cd-b25`) returned **CONDITIONAL** and confirmed the CODE is
+correct on all 6 immutable criteria (it reproduced M1/M2/M4/M6 kills + the fan-out
+isolation itself). Two blockers, both in my artifacts, both fixed with **no production
+change**:
+
+**Blocker 1 -- the lint gate false-passed (instance-2 trap, in the module I fixed it in).**
+My live_check ran `uvx ruff ... $(git diff --name-only HEAD -- '*.py')` UNQUOTED. This is
+zsh, which does NOT word-split an unquoted expansion, so ruff received the newline-joined
+blob as ONE path, linted **zero files**, and printed "All checks passed!" exit 0 -- the
+exact false-pass qa.md sec1a/sec4b (which I authored last cycle) documents. The scope also
+excluded the untracked new test file. Run correctly (`git status --porcelain`-derived,
+space-split, includes untracked), ruff exits 1 on a real F401: an unused `QueryComplexity`
+import at `test_phase_75_slack_streaming.py:63`. **Fixed**: removed the import; re-ran ruff
+over the correct scope -> genuinely clean; the live_check generator now uses the correct
+command. That I committed this in the very step-type whose fix I shipped last cycle is the
+point -- mechanism helps the Q/A, but the author still has to apply it.
+
+**Blocker 2 -- M1 kill-mechanism misattributed.** Corrected in sec4 above (the completion
+assertion, not the inert RuntimeWarning leg). I verified it by measurement: reverting
+`await streamer.append` yields `kinds=['chat_stream','stop']` -> the `"append" in kinds`
+assertion fails.
+
+**Also fixed** (non-blocking Q/A notes): the phone-literal miscount (sec6 + contract sec5: 4
+occurrences across 2 files, not "3 literals"); the 75.7.1 masterplan file paths (they are
+under `backend/services/`, not `backend/slack_bot/`); and a NEW test protecting the fan-out
+per-agent error-isolation claim (`test_fanout_one_agent_error_does_not_abort_the_others`)
+-- 11 -> 12 tests.
+
+**Scope of cycle-2 changes (stated to what is verifiable, not an unprovable absolute):** the
+cycle-2 EDITS are to the test file + these handoff docs + the 75.7.1/contract prose. The 5
+production files' CONTENT is unchanged in cycle 2 -- their current content meets all 6
+immutable criteria (re-verified) and the mutation matrix is 7/7. NOTE their mtimes were
+bumped by the mutation harness (which `copy2`-restores each file after each mutant), so mtime
+is NOT evidence of a content change; there is no committed cycle-1 baseline to byte-diff
+against (75.7 is not yet flipped), so I do not assert byte-identity -- I assert the current
+content is correct and criteria-covered.
 
 ---
 
-## 4. Live evidence (criterion 6) + honesty
-
-- **tsc**: exit 0 (test files are type-checked -- tsconfig includes `**/*.tsx`/`**/*.ts`).
-- **Full frontend suite**: 24 files / 187 tests passed (was 178; +9 mine). 0 regressions.
-- **Live enforcement on :3000**: Next dev hot-reloaded the new middleware onto the operator
-  instance (`.next/server/middleware.js` mtime after the edit). Protected routes
-  (`/`, `/paper-trading`, `/backtest`) -> `302 -> /login`; public paths (`/login`,
-  `/api/auth/session`) -> `200`. Measured by curl, in the live_check.
-- **Playwright capture**: `handoff/current/captures_75.6/login_75.6.png` (+ snapshot yml) --
-  the login page renders with Google + Passkey buttons and "Access restricted to authorized
-  users". Navigated to `http://localhost:3000/login` (public, read-only GET); **no second
-  dev server started** (auto-memory `feedback_second_next_dev_breaks_operator_3000`);
-  operator :3000 re-confirmed healthy (`/`->302, `/login`->200) after.
-- **Console error disclosure**: 1 console error observed on `/login`; its content was not
-  separately retrievable this session. It is not introduced by this change (auth-logic
-  only; no client component touched) -- stated as observed, not asserted clean.
-
-### The division of proof, stated plainly
-- **Playwright + curl** prove the app still WORKS (renders, redirects) -- regression safety.
-- **The semantic unit tests** prove the new fail-CLOSED logic (deny-on-empty+flag,
-  emailless reject, profile-email_verified, membership). You cannot Playwright-test an
-  allowlist rejection without a real Google login, so the behaviour is proven at the unit
-  boundary and the app-integrity at the live boundary. Neither substitutes for the other.
-
-### Lockout -- ruled out and PROVEN, not assumed
-Research live-probed the operator config: the `302 -> /login` on `:3000/` is emitted only
-past the old provider gate, so Google SSO is configured and working. Removing the gate is
-inert for them. The only hard-lockout path is operator-initiated (`AUTH_ENFORCE_ALLOWLIST`
-on + empty `ALLOWED_EMAILS`), behind a default-off flag the executor never sets.
-
-### Not done / follow-ups
-- Passkey users must have a stored email or the (d) reject would deny them under an active
-  allowlist (research R4) -- true of the backend allowlist too; not a regression, but worth
-  a note when the allowlist is first enabled.
-- `strategy:"database"` migration for true JWT revocation -- documented follow-up.
-- ALLOWED_EMAILS must be kept consistent across `frontend/.env.local` and `backend/.env`
-  when the operator enables enforcement, or a split (frontend login OK, backend 401) occurs.
-
----
-
-## 5. Handoff note
-75.5 is parked at CERTIFIED_FALLBACK (retry budget exhausted; awaiting operator
-adjudication). Its handoff record is preserved at `handoff/archive/phase-75.5/` (contract,
-experiment_results, evaluator_critique with all 7 verdicts, live_check, research_brief) so
-this step's rolling files do not clobber it. 75.5 is committed at `3a7942cf`.
+## 6. Out-of-scope -> queue as its own step
+Per `feedback_queue_discovered_defects_in_masterplan`: the gate found the literal `+4794810537` at **4 occurrences across 2 files** (`backend/services/sla_monitor.py:20`, `backend/services/queue_notification.py:34/63/164`) that should also
+resolve from `settings.escalation_phone_e164`. NOT folded into 75.7 -- queue as **75.7.1**.

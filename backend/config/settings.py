@@ -578,6 +578,10 @@ class Settings(BaseSettings):
     slack_bot_token: SecretStr = Field(SecretStr(""), description="Slack Bot User OAuth Token (xoxb-...)")
     slack_app_token: SecretStr = Field(SecretStr(""), description="Slack App-Level Token for Socket Mode (xapp-...)")
     slack_channel_id: str = Field("", description="Slack channel ID for proactive alerts and digests")
+    escalation_phone_e164: str = Field(
+        "+4794810537",
+        description="E.164 phone for the L2 iMessage P0 pager (kill-switch escalations). phase-75.7 (gap1-02): promoted out of a hardcoded literal in scheduler.py so it is config, not source. Empty disables the iMessage leg (L1 Slack still fires).",
+    )
     slack_operator_user_id: str = Field(
         "U0A078KP4FQ",
         description=(
