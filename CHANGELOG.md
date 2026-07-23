@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `09223466` | phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get... |
 | 2026-07-23 | `fd4380b3` | phase-75.9: Audit75 S9 -- BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost g... |
 | 2026-07-23 | `ff6994ef` | phase-75.8: Audit75 S8 -- promotion-gate stub-fabrication refusal + governance-limits divergence ... |
 | 2026-07-23 | `e3e0bbee` | phase-75.7: Slack streaming await-correctness + P0 pager integrity -- Q/A PASS (cycle 3) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-18 | `1e6dd200` | phase-74.0: install local-LLM pilot queue (assessment: full localization REJECTED on 16GB M4; Slack- |
 | 2026-07-18 | `a71e56dc` | phase-73.7: D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (front... |
 | 2026-07-18 | `7e6cb6cd` | phase-73.6: D3 money runway (recommend-only) [executor: this session, fable-5/ultracode]. One pag... |
-| 2026-07-18 | `40629a8e` | phase-73.5: D2e judged pilots [executor: this session, fable-5/ultracode]. Build/hold verdicts wi... |
 
 ---
 
+### v6.68.12 — phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the b... (2026-07-24)
+
+- **phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get...**
 ### v6.68.11 — phase-75.9: Audit75 S9 -- BigQuery fail-closed dedup, parameterizatio... (2026-07-23)
 
 - **phase-75.9: Audit75 S9 -- BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost g...**
