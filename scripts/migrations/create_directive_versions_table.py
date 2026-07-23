@@ -74,7 +74,7 @@ def _apply() -> int:
     client = bigquery.Client(project=PROJECT)
     for sql in (_create_dataset_sql(), _create_table_sql()):
         print(f"[apply] running:\n{sql}\n")
-        client.query(sql).result()
+        client.query(sql).result(timeout=60)
     print(f"[apply] PASS: table created or already exists at {TABLE_FQN}")
     return 0
 
@@ -89,7 +89,7 @@ def _verify() -> int:
     sql = _verify_table_sql()
     print(f"[verify] running:\n{sql}\n")
     job = client.query(sql)
-    rows = list(job.result())
+    rows = list(job.result(timeout=60))
     if not rows:
         print(f"[verify] FAIL: query returned no rows")
         return 1

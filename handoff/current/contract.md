@@ -1,81 +1,76 @@
-# Contract -- Step 75.8: promotion-gate stub-fabrication refusal + governance-limits divergence observability
+# Contract -- Step 75.9: BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost guard
 
-- **Step id**: 75.8 (phase-75, Audit75 S8) -- P0, executor opus-tier
+- **Step id**: 75.9 (phase-75, Audit75 S9) -- P1, executor sonnet-tier
 - **Date**: 2026-07-23
-- **Author**: Main (Claude Code session; GENERATE executed by Main per the executor tag -- toughest-work-on-best-model directive)
-- **BOUNDARY (from step text)**: kill-switch/stops/sector-caps/DSR/PBO gate code and thresholds byte-untouched -- stub-refusal and WARNING-only additions; historical_macro frozen, no backtest runs.
+- **Author**: Main (contract + orchestration + review). **GENERATE delegated to a Sonnet-4.6 executor agent** per the step's `[executor: sonnet-4.6/high]` tag and the operator's session directive (recurring/mechanical work on cheaper models; Opus stays on the Researcher/Q-A gates; Main reviews the diff before Q/A).
+- **BOUNDARY (from step text)**: paper-only, no schema/table changes, historical_macro frozen.
 
 ## Research-gate summary (gate PASSED)
 
-Workflow `wf_26a12896-e0c` (researcher role, opus/max, tier=complex, structured-output launch).
-Envelope: `external_sources_read_in_full=7, snippet_only_sources=18, urls_collected=35, recency_scan_performed=true, internal_files_inspected=20, gate_passed=true`.
-Brief: `handoff/current/research_brief_75.8.md` (177 lines, write-first).
+Workflow `wf_d6469920-55f` (researcher role, opus/max, tier=moderate).
+Envelope: `external_sources_read_in_full=6, snippet_only_sources=18, urls_collected=24, recency_scan_performed=true, internal_files_inspected=25, gate_passed=true`.
+Brief: `handoff/current/research_brief_75.9.md`.
 
-**Step-text corrections adopted from research (binding for this contract):**
-1. **Priority framing**: gap6-01=P1, gap6-10=P3, gap3-02=P1 per `audit_phase75/confirmed_findings.json`; P0 is the bundle priority. None touches live capital today (gauntlet `run` has zero importers; the alloc-init path cannot advance an existing stage; 4%-vs-2% is a governance-enforcement gap, not active loss). All three are latent/defense-in-depth fixes.
-2. **Docstring debt**: guarding the promotion_gate writes makes the module docstring (lines 3-7, "--dry-run ... ensures optimizer_best.json has allocation_pct set") FALSE -- it must be rewritten in the same change.
-3. **Scope gap**: `backend/autonomous_harness.py::promote_strategy` (:258-289) is the OTHER gauntlet-report consumer (and the one with the eventual real caller); it gets NO fingerprint/dry_run guard in this step. Per `feedback_queue_discovered_defects_in_masterplan` it is queued as its own research-gated step **75.8.1** -- NOT silently folded in (the immutable criteria scope the fingerprint check to promotion_gate).
-4. **Unit mismatch**: limits.yaml stores FRACTIONS (0.02, 0.10); settings stores PERCENTS (4.0, 10.0). divergence.py MUST normalize (fraction x100) before comparing. Only daily-loss diverges (2 governed vs 4 live); trailing-dd MATCHES (10 == 10) and must be reported NON-divergent.
-5. **Anchor drift**: the main.py lifespan governance-load block is :277-286 in the current file (audit's :252-260 is stale).
+**Step-text corrections adopted (binding; the audit anchors had drifted):**
+1. **Migrations**: 13 distinct files / 20 untimed `.result()` sites, not "12 files" (full list in the brief: add_efficiency_snapshots:96, add_external_flow_today_column:70+77, add_round_trip_schema:36, add_session_budget_to_llm_call_log:85, add_ticker_to_llm_call_log:81, create_alpha_velocity_table:81+96, create_data_source_events_table:93, create_directive_versions_table:77+92, create_historical_fx_rates_table:64, create_options_snapshots_table:104, create_promoted_strategies_table:96, create_strategy_deployments_view:114+116+118+143, phase_32_1_add_stop_advanced_at_R:71+78) -- all `timeout=60`. Scanning the 13 satisfies criterion 3's "the 12" a fortiori.
+2. **Path drifts**: sortino is `backend/metrics/sortino.py:114`; pead_signal is `backend/services/pead_signal.py:342`; sector_calendars is `backend/services/sector_calendars.py:200`; harness_autoresearch is `backend/api/harness_autoresearch.py:196`. monthly_approval_api's untimed site is `:143`.
+3. **Phantom site**: `backend/slack_bot/jobs/cost_budget_watcher.py` has NO `.result()`/`.query()` at all -- it stays in the criterion-3 scan list (vacuously satisfied at 0 sites) but gets no edit.
+4. **Undercount**: `bigquery_client.py` has **18** untimed `.result()` sites (281, 295, 352, 374, 455, 470, 508, 540, 571, 580, 590, 632, 676, 704, 986, 1037, 1048, 1069), not the 3 the step implies; `:540/:571` are DML -> `timeout=60`.
+5. **perf-11 count**: "34 construction sites" is correct only for `BigQueryClient(` under backend/api/ + backend/services/; repo-wide non-test is 45 `BigQueryClient(` / 49 `bigquery.Client(`. The step's "migrate at least these named ones" scope is unchanged.
+6. **Discovered defect (queued, NOT fixed here)**: `_get_existing_macro` (data_ingestion.py:271-278) has the identical fail-open dedup bug but historical_macro is FROZEN -> queued as step **75.9.1**.
 
-**Key research findings load-bearing for the design:**
-- Stub reports pass all four `backend/backtest/gauntlet/evaluator.py` hard gates BY CONSTRUCTION (`bt_drawdown == drawdown` -> ratio 1.0; `forced_exits=0`; `breaches=0`). The live `optimizer_best.json` already carries a stub-derived `gauntlet_report_hash`.
-- No python code imports `gauntlet.run` -- the NotImplementedError breaks zero importers.
-- REGIMES catalog = 7 regimes, exactly 1 `intraday_only` (skipped in dry-run) -> the fingerprint check must filter skipped regimes AND guard the empty list (`all([]) is True`).
-- `limits_schema.load()` (lru-cached frozen pydantic) is the sanctioned value API; `lint_limits_usage.py` is a source AST scanner, not a runtime comparator -- divergence.py is non-duplicative.
-- External consensus (7 full reads incl. Bailey/Borwein/Lopez-de-Prado PBO paper): refuse-over-fabricate; dry-run = zero side effects with EVERY writer gated (angular-cli #6810 precedent: "reassuring message while still writing" is a P1 bug class); warn-before-enforce for config-drift rollout (terraform-plan idiom).
+**Key research findings (load-bearing):**
+- **Boundary cleared**: every caller of ingest_prices/ingest_fundamentals tolerates fail-closed (daily_price_refresh.py:82 wraps in try/except at :86-87 -> self-heals next day; backtest_engine.py:1303 guarded non-fatal; api/backtest.py:201 -> HTTPException 500). No caller relies on the fail-open `set()`.
+- **The distinction the fix must preserve**: a SUCCESSFUL query returning 0 rows (empty/first-run table) keeps yielding an empty set -> insert-all (unchanged). Only the query-EXCEPTION path changes to log + re-raise. `_ensure_tables_exist()` runs before ingest in run_full_ingestion, so cold-start never throws table-not-found.
+- `result(timeout=)` bounds the client-side transport wait (raises concurrent.futures.TimeoutError), NOT job cancellation; python-bigquery #1922 documents a >6-day hang -- the risk is real. Matches the existing compliant convention at bigquery_client.py:533. Do NOT add job_timeout_ms (scope creep).
+- `maximum_bytes_billed`: bytes estimated BEFORE execution; over-cap queries FAIL WITHOUT charge (true pre-charge kill switch). 5 GiB = 5368709120. Cache hits bill 0 (cap inert on them).
+- Parameters protect VALUES not identifiers -- agent_type + LIMIT parameterizable; table-name f-strings stay. In-repo templates: cache.py:108-109 (ArrayQueryParameter + IN UNNEST(@tickers)); bigquery_client.py:278-280 (ScalarQueryParameter).
+- lru singleton is thread-safe for bigquery.Client (requests transport; the httplib2 caveat does not apply). `get_bq_client()` MUST be zero-arg (mirror settings.py:612) -- Pydantic Settings is not reliably hashable.
+- Exclude `future.result()` at api/paper_trading.py:1164 (ThreadPool future, not a BQ job) from the sweep.
 
 ## Hypothesis
 
-The promotion gate can be made fail-safe against fabricated gauntlet evidence, and the governance-vs-runtime limits divergence made visible, WITHOUT touching any live gate threshold, kill-switch line, or limits.yaml value -- via (a) two independent refusal guards in gauntlet.py, (b) a consumer-side stub-fingerprint rejection + true no-write --dry-run in promotion_gate.py, and (c) a pure, WARNING-only divergence checker wired into lifespan -- all provable offline by a new pytest file with a mutation matrix in which every guard can fail.
+The BQ data plane can be made fail-closed (dedup), injection-clean (parameterized values), hang-proof (timeout on every job result), and cost-capped (maximum_bytes_billed factory) as a purely mechanical sweep with zero behavior change on the success path -- provable offline by a mocked-client test file whose scans hard-fail on missing paths and whose fixtures can represent the failure (non-empty ingest mock).
 
-## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.8)
+## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.9)
 
 verification.command:
 ```
-cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_promotion_gate.py -q
+cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_bq_discipline.py -q
 ```
 
-1. "New backend/tests/test_phase_75_promotion_gate.py passes offline and asserts gauntlet run with dry_run=False raises NotImplementedError (or provably refuses to write a dry_run:false report), and that no code path can emit a report labeled dry_run:false from _run_regime_stub"
-2. "Test asserts promotion_gate rejects a fixture report whose every regime has bt_drawdown exactly equal to drawdown (stub fingerprint) when gauntlet evidence is required, while a fixture with realistic divergent values still passes shape-validation"
-3. "Test asserts promotion_gate --dry-run leaves a temp copy of optimizer_best.json byte-identical (both the allocation-stage init and the gauntlet-stamp writers are guarded)"
-4. "Divergence checker returns the (settings_value, governed_value) pairs and flags 4.0-vs-2.0 daily-loss divergence with CURRENT repo values; it is invoked from lifespan as a WARNING log only -- test proves it raises nothing and mutates nothing"
-5. "git diff shows zero edits to evaluator gate thresholds, kill-switch enforcement code, DSR/PBO constants, or limits.yaml values (diff file list in experiment_results.md); handoff/current/governance_limits_divergence_75.md exists with the drafted GOV-LIMITS-DECIDE operator token"
-6. "All touched scripts remain runnable: python -c ast.parse passes on gauntlet.py, promotion_gate.py, and the new divergence module"
+1. "New backend/tests/test_phase_75_bq_discipline.py passes offline and asserts with a mocked client whose query() raises: ingest_prices performs ZERO insert_rows_json calls and surfaces the error (fail-closed dedup), with the exception logged"
+2. "Source scan in the test: get_agent_memories and the data_ingestion ticker query build via QueryJobConfig parameters (ScalarQueryParameter/ArrayQueryParameter present; no f-string interpolation of agent_type/limit/ticker values into SQL text)"
+3. "AST/text scan proves every .result( call in backend/db/bigquery_client.py, the 13 enumerated external files, and the 12 enumerated migration files carries a timeout= argument"
+4. "bigquery_client exposes one shared QueryJobConfig factory setting maximum_bytes_billed (default 5 GiB documented) and its own query paths use it; test asserts the factory value and at least one call-path adoption"
+5. "skill_optimizer outcomes-query failure logs a warning and returns []/degraded (no bare pass -- source scan), and slot_accounting default helpers reuse a module-level client with timeout=30"
+6. "get_bq_client() is lru_cached and imported by api/paper_trading.py, api/performance_api.py, and api/reports.py (import scan); repeated calls return the identical instance (test)"
 
-verification.live_check: "handoff/current/live_check_75.8.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: gap6-01, gap6-10, gap3-02"
+(Criterion-3 note: "the 13 enumerated external files" is read at the corrected paths above, minus none -- the phantom cost_budget_watcher stays in the scan and passes at 0 sites; "the 12 enumerated migration files" is covered by scanning the measured 13.)
+
+verification.live_check: "handoff/current/live_check_75.9.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: data-bq-01, data-bq-02, data-bq-03, data-bq-06, py-core-03, gap3-08, gap6-09, perf-11"
 
 ## Plan steps
 
-1. **gauntlet.py (gap6-01, two independent guards)**
-   - Guard (i): top of `run()` -- `if not dry_run: raise NotImplementedError(...)` (real engine wiring pending; message names the dry-run escape). Raised BEFORE any RNG/report work, so nothing is written.
-   - Guard (ii), defense-in-depth: factor the report write into `_write_report(report, out_dir)` which raises `RuntimeError` unless `report.get("dry_run") is True` (explicit `if`+`raise`, NOT `assert` -- assert strips under `-O`). All report data flows from `_run_regime_stub`, so no path can emit a `dry_run:false` report.
-   - `main()` lets the NotImplementedError propagate (loud fail-safe; no swallowing).
-2. **promotion_gate.py (gap6-01 consumer side + gap6-10)**
-   - Stub fingerprint: after `_load_gauntlet_report`, build `non_skipped = [r for r in per_regime if not r.get("skipped")]`; reject (`{blocked: true, reason: stub fingerprint...}`, exit 1) when `non_skipped` is non-empty AND every entry has `bt_drawdown == drawdown` (exact equality is the point -- the stub copies the same float). Empty/all-skipped lists are NOT fingerprinted (they fail differently or pass through to the evaluator).
-   - Dry-run guards: wrap BOTH write paths (`update_optimizer_best` alloc-init; gauntlet stamp) in `if not args.dry_run:`; the dry-run branch prints the would-be mutation (terraform-plan idiom). Guard the post-write re-read for the no-file case.
-   - Rewrite the module docstring so --dry-run is documented as strictly no-write.
-3. **backend/governance/divergence.py (gap3-02, observability-only)**
-   - Pure `compute_divergence()` -> list of pair dicts `{name, settings_value_pct, governed_value_pct, divergent}` using `limits_schema.load()` (sanctioned cached API) + `settings.paper_daily_loss_limit_pct` / `paper_trailing_dd_limit_pct`, normalizing governed fractions x100. No I/O, no mutation.
-   - `log_divergence_warnings()` -- never raises (internal try/except, fail-open), logs one ASCII WARNING per divergent pair, INFO when clean.
-4. **main.py lifespan** -- invoke `log_divergence_warnings()` right after the :277-286 governance block, inside its own try/except (mirrors the existing fail-open discipline). WARNING-only; no gating, no enforcement.
-5. **handoff/current/governance_limits_divergence_75.md** -- all six limits.yaml entries vs their runtime counterparts (the four without settings counterparts documented as UNMAPPED/no runtime enforcement consumer), the daily-loss divergence flagged, + drafted operator token `GOV-LIMITS-DECIDE` (which value binds; lint WARN->fail flip stays operator-gated).
-6. **backend/tests/test_phase_75_promotion_gate.py** -- offline-only; imports the two CLIs via `importlib.util.spec_from_file_location` and monkeypatches module Path constants to tmp_path (NEVER touches the real optimizer_best.json). Covers criteria 1-4 + ast.parse (criterion 6). Mutation matrix (anti-vacuous-guard doctrine, incl. fixture mutations): M1 drop guard (i); M2 drop guard (ii); M3 drop fingerprint check; M4 drop skipped-filter; M5 drop non-empty check (all([]) trap); M6 unguard alloc-init write; M7 unguard stamp write; M8 drop unit normalization (trailing-dd false positive); M9 fixture mutation -- one regime with bt != dd must NOT be fingerprinted.
-7. **Queue 75.8.1** (discovered defect, own masterplan step per operator rule): fingerprint/dry_run guard for `backend/autonomous_harness.py::promote_strategy` -- the second gauntlet-report consumer. `status: pending`, research-gated, executor-tagged.
-8. **live_check_75.8.md** -- verbatim pytest output (exit 0) + `git diff --stat`. No UI surface; no flag-gated live-loop behavior beyond the WARNING log (a $0 no-op by construction -- documented as such).
+1. **(a) Fail-closed dedup**: `_get_existing_price_dates` (data_ingestion.py:91) + `_get_existing_fundamentals` (:189) -- log the exception, re-raise. `_get_existing_macro` UNTOUCHED (frozen; queued 75.9.1). Empty-success-result path byte-identical.
+2. **(b) Parameterization**: get_agent_memories (:500,:506) -> ScalarQueryParameter (mirror :278-280); data_ingestion ticker lists (:82,:180) -> ArrayQueryParameter + IN UNNEST(@tickers) (mirror cache.py:108-109). Table names stay f-strings (identifiers are not parameterizable).
+3. **(c) Timeout sweep**: `timeout=30` (DML/DDL `timeout=60`) on ALL 18 bigquery_client.py sites, the corrected external sites (paper_trader.py:1245, cycle_health.py:474, metrics/sortino.py:114, api/paper_trading.py:1127, api/performance_api.py:82, services/pead_signal.py:342, services/sector_calendars.py:200, skill_optimizer.py:173+185, slot_accounting.py:139 (+:118/:134 per module-client change), api/harness_autoresearch.py:196, monthly_approval_api.py:143), and the 13 migration files / 20 sites (timeout=60). Exclude ThreadPool future.result() sites.
+4. **(d) Cost guard**: one shared QueryJobConfig factory in bigquery_client.py applying `maximum_bytes_billed` (default 5 GiB = 5368709120, documented) adopted on its query paths; behavioral test asserts the value reaches client.query's job_config.
+5. **(e) skill_optimizer.py:188**: bare `except: pass` -> logger.warning + degraded return mirroring the sibling :172-176; timeout=30 on :173/:185. **slot_accounting**: module-level client reuse + timeout=30.
+6. **(f) `get_bq_client()`**: zero-arg @lru_cache in bigquery_client.py mirroring get_settings (settings.py:612); adopted in api/paper_trading.py (8 inline construction sites), api/performance_api.py:59, api/reports.py:24-25.
+7. **Tests** (backend/tests/test_phase_75_bq_discipline.py, offline, PYFINAGENT_TEST_NO_BQ conventions): crit-1 with a NON-EMPTY yf mock + query.side_effect (asserting BOTH the raise AND insert_rows_json.assert_not_called()); crit-3 AST scan that HARD-FAILS on any missing enumerated path and guards the empty-list case; crit-4 behavioral adoption assert; crit-6 identity assert + call-site (not just import) scan.
+8. **Mutation matrix** (executor runs, Main spot-checks): revert dedup re-raise; blank the yf fixture (STUB mutation -- crit-1 must go vacuous-red); strip one params config; drop timeout= from one site in each scanned group (bigquery_client, external, migration); point the scan at a missing path (must ERROR not skip-green); zero out maximum_bytes_billed; break lru identity; restore the bare pass. Every mutation must flip red; matrix results in experiment_results with measured figures.
+9. **Queue 75.9.1** in masterplan (pending): _get_existing_macro fail-open dedup on the frozen table (fix DARK/inert until historical_macro un-freeze token).
+10. **live_check_75.9.md**: verbatim pytest (exit 0) + git diff --stat. No UI; no flag-gated live-loop behavior.
 
 ## Explicitly NOT in scope
 
-- `backend/backtest/gauntlet/evaluator.py` (thresholds immutable -- untouched)
-- `backend/governance/limits.yaml` values (GPG-tag governed -- untouched)
-- Kill-switch enforcement code (`paper_trader.py::check_and_enforce_kill_switch` etc. -- untouched)
-- DSR/PBO constants -- untouched
-- `autonomous_harness.py` (queued as 75.8.1, not edited here)
-- Any live gauntlet/backtest run (historical_macro frozen)
+- `_get_existing_macro` / anything touching historical_macro (frozen) -- queued as 75.9.1
+- Schema/table changes of any kind; `job_timeout_ms`; repo-wide client-construction migration beyond the three named api files
+- ThreadPool `future.result()` sites
 
 ## References
 
-- `handoff/current/research_brief_75.8.md` (envelope + 35 URLs; 7 read in full incl. Bailey/Borwein/Lopez-de-Prado PBO SSRN 2326253, angular-cli #6810, terraform plan / ansible --check drift-detection docs, King "Parse, don't validate", Shingo poka-yoke)
-- `handoff/current/audit_phase75/confirmed_findings.json` (gap6-01, gap6-10, gap3-02)
-- Anthropic harness-design (file-based handoffs; fail-safe scaffolding)
-- CLAUDE.md Harness Protocol + `.claude/rules/research-gate.md`
+- `handoff/current/research_brief_75.9.md` (6 read-in-full incl. Google BQ parameterized-queries + best-practices-costs + QueryJob.result docs, python-bigquery GitHub #1922, google-api-python-client thread-safety doc; 24 URLs; recency scan)
+- `handoff/current/audit_phase75/confirmed_findings.json` (data-bq-01/02/03/06, py-core-03, gap3-08, gap6-09, perf-11)
+- CLAUDE.md Harness Protocol; `.claude/rules/research-gate.md`; feedback_queue_discovered_defects_in_masterplan; feedback_mutation_test_guards_and_fixtures

@@ -1,6 +1,6 @@
-# Evaluator critique -- Step 75.8 (Q/A cycle 1)
+# Evaluator critique -- Step 75.9 (Q/A cycle 1)
 
-Q/A launch: Workflow `wf_49dcb1ae-6a5` (`.claude/workflows/qa-verdict.js`,
+Q/A launch: Workflow `wf_a10743da-7c4` (`.claude/workflows/qa-verdict.js`,
 agentType general-purpose reading `.claude/agents/qa.md` from disk,
 model opus, effort max). Verdict transcribed VERBATIM from the captured
 structured-output return value below -- Main records the verdict, never
@@ -10,28 +10,32 @@ authors it.
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 6 immutable criteria MET with covering, independently-reproduced evidence; harness compliance clean (5/5); zero unintended production change. Deterministic: immutable pytest 20/20 exit 0; ruff F821/F401/F811 clean over all 5 py files (after correcting a zsh newline word-split that first produced a false 'All checks passed'); ast.parse clean on gauntlet.py/promotion_gate.py/divergence.py; runtime smoke imports backend.main + divergence and reproduces live 4.0-vs-2.0 daily-loss divergence and 10.0-vs-10.0 trailing-dd convergence, WARNING ASCII-only, raises/mutates nothing. Boundary (crit 5): evaluator.py, limits.yaml, paper_trader.py all byte-identical to HEAD; only masterplan.json (75.8.1 added, 75.8 node byte-identical), main.py, gauntlet.py, promotion_gate.py changed + 2 new files. Independently reproduced 3 of the 11 mutation kills on read-only copies (M1 drop-NIE-guard, M2 drop-_write_report-refusal, M11 gut-fingerprint) confirming the guards are load-bearing and the two gauntlet guards are genuinely independent defense-in-depth.",
+  "reason": "All 6 immutable criteria MET with real source implementations + discriminating tests; harness compliance clean; no unintended production change; mutation-resistance independently corroborated. (1) Fail-closed dedup: data_ingestion.py:99-103/203-207 log 'Dedup check failed...fail-closed' + re-raise; test uses a NON-EMPTY yf fixture + query.side_effect=RuntimeError asserting pytest.raises AND insert_rows_json.assert_not_called() AND ERROR-logged, with a stub-mutation companion proving the fixture is load-bearing. (2) Parameterization: get_agent_memories binds @agent_type/@limit via ScalarQueryParameter wired into SQL+job_config; data_ingestion uses ArrayQueryParameter + IN UNNEST(@tickers) x2; symmetric present+absent assertions. (3) Timeout sweep: AST scan over bigquery_client + 12 external + 13 migration (26 files), hard-fails on missing path, excludes future.result(); my INDEPENDENT repo-wide recall found 0 untimed .result( in all 26 scoped files (the 38 repo-wide untimed sites are all outside the enumerated scope, incl. the deliberately-frozen macro at data_ingestion.py:292); temp-copy mutation flipped the scanner red ([]→[301]). (4) Cost guard: MAX_BYTES_BILLED_DEFAULT=5368709120 (5 GiB documented) + _job_config() factory adopted on the class's query paths (get_recent_reports behavioral adoption asserted). (5) skill_optimizer bare except:pass replaced with logger.warning (AST-checked) + timeout=30; slot_accounting module-level client reused with timeout=30. (6) get_bq_client() zero-arg @lru_cache singleton; call-sites 20/1/2 in the three api files, residual inline BigQueryClient(settings)==0. Immutable cmd 45 passed exit 0 (re-run); lint gate F821/F401/F811 clean over derived 31-file scope; 15/15 backend modules import clean; masterplan adds ONLY the 75.9.1 follow-up (pending), 75.9 node byte-identical and still pending; all 6 removed F401s confirmed pre-existing at HEAD; api_call_log change is a purely additive test-isolation helper.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_5item_audit",
-    "research_gate_verification",
-    "mtime_ordering_research_lt_contract_lt_generate",
-    "log_last_masterplan_pending",
-    "no_verdict_shop_first_qa",
-    "verification_command_pytest_20of20_exit0",
-    "ruff_F821_F401_F811_5files_exit0",
-    "ast_parse_gauntlet_promotiongate_divergence",
-    "backend_runtime_smoke_divergence_and_main_import",
-    "criterion5_boundary_evaluator_limits_paper_trader_byte_identical",
-    "masterplan_75.8_node_byte_identical_75.8.1_queued",
-    "F401_aio_lib_pre_existing_and_dead",
-    "independent_mutation_reproduction_M1_M2_M11",
-    "contract_completeness_6of6_mapped",
-    "adversarial_worst_of_3_lenses"
+    "harness_compliance_audit_5item",
+    "research_gate_verified",
+    "contract_before_generate_mtime",
+    "log_last_verified",
+    "no_verdict_shop_first_spawn",
+    "immutable_verification_command_exit0_45passed",
+    "git_status_diff_scope_review",
+    "lint_gate_F821_F401_F811_derived_31file_scope",
+    "backend_runtime_smoke_15of15_imports",
+    "factory_constant_runtime_check",
+    "independent_repowide_untimed_result_recall_scan",
+    "tempcopy_mutation_crit3_flips_red",
+    "tempcopy_mutation_crit2_absence_assert",
+    "masterplan_boundary_only_adds_75.9.1",
+    "f401_preexisting_at_HEAD_all6_confirmed",
+    "api_call_log_additive_confirmed",
+    "deviations_7_8_test_files_pass",
+    "source_read_crit1_through_crit6",
+    "contract_completeness_all6_mapped"
   ],
   "harness_compliance_ok": true,
-  "notes": "Criterion-by-criterion: (1) MET -- test_gauntlet_live_mode_raises_not_implemented + test_write_report_refuses_anything_not_labeled_dry_run_true + AST structural test proving report.json is written ONLY by the guarded _write_report; M1/M2 spot-checks confirm both guards independently load-bearing. (2) MET -- test_promotion_gate_blocks_stub_fingerprint (rc1, file intact) + realistic-passes + all-skipped empty-list all([]) guard + anti-fixture-divorce end-to-end; M11 spot-check confirms guard load-bearing. (3) MET -- both writers guarded, byte-compare on init + stamp paths, fresh-deploy no-file case, plus non-dry-run control proving guards not over-broad. (4) MET -- divergence flags 4.0-vs-2.0, clears 10.0-vs-10.0 via x100 normalization + math.isclose, lifespan wiring inside try/except WARNING-only, raises/mutates nothing (limits.yaml sha256 + settings unchanged). (5) MET -- boundary files byte-identical, governance_limits_divergence_75.md exists with drafted GOV-LIMITS-DECIDE token. (6) MET -- ast.parse OK on all 3.\n\nScope honesty verified and adequate: experiment_results discloses (a) not-verified-live (no backend restart; WARNING first fires next operator restart -- helper proven by direct invocation + caplog), (b) 75.8.1 queued not folded (per queue-discovered-defects rule; P1, pending), (c) research-surfaced priority drift (audit P1/P3/P1 vs bundle P0), (d) the 10-fail full-suite regression set as pre-existing/order-dependent standing red.\n\nTwo non-blocking observations (neither affects the verdict): (i) experiment_results cites the removed F401 as backend/main.py:346 while HEAD carries it at line 337 -- internally consistent (the +9-line divergence block shifts it down; 337+9=346 is the working-tree line); the import (asyncio as aio_lib) is confirmed present at HEAD AND dead (zero aio_lib references remain), so removing it in a touched file follows the phase-75.5 precedent. (ii) I did NOT independently re-run the full backend/tests/ suite to reproduce the claimed 10-fail set myself -- the touched surface is two isolated CLI scripts + one new pure module + one lifespan log line, none of which the standing red families (runtime-log freshness, 57.1 reject-binding, 60.x flags, portfolio_swap) import; the touched-surface tests pass 20/20 and backend.main imports cleanly, so the no-regression claim is well supported without the full re-run. Adversarial worst-of-3-lenses (P1 money-path): correctness=PASS, reproduces=PASS, scope-honesty=PASS -> min=PASS."
+  "notes": "Execution-model disclosure audited and clean: GENERATE was a delegated Sonnet executor; Main wrote the contract, reviewed the diff, and independently re-measured. This is NOT self-evaluation — I (independent Q/A) treated both the executor draft and Main's review as author claims and verified them: pytest 45/45 exit 0 (my re-run), lint clean over MY derived 31-file scope (exceeds the executor's hand-typed 28 and Main's 30), factory/constant live-correct, and all criteria source-confirmed. The 8 executor deviations are all honestly disclosed and verified: #1/#2 (paper_trading 20 sites not 8, factory adopted on all query paths) are additive fuller applications within named files; #6 (6 F401) all confirmed pre-existing at HEAD by linting HEAD versions; #7/#8 (test-double **kwargs signature + api_call_log reset_llm_buffer_for_test) confirmed additive and the two touched test files now pass 22/22. Main's honest disclosure of a first invalid M6 comment-literal mutant (correctly survived) is a credibility signal, not a defect. The criterion-3 '12 external / 13 migration' vs the masterplan's literal '13 external / 12 migration' is a transparently-disclosed anchor-drift reconciliation (13 migrations superset the original 12 a fortiori; 13 external SITES = 12 files because skill_optimizer has 2), and the masterplan criterion text is byte-identical to HEAD (unedited). NON-BLOCKING OBSERVATIONS (do not cap the verdict; criterion 3 is explicitly scoped and every scoped file is clean): (a) 37 untimed .result( sites remain repo-wide OUTSIDE the enumerated scope (sovereign_api x4, cost_budget_api, backtest.py:1516, spend.py:129, multi_agent_orchestrator.py:1320, plus one-off scripts) — pre-existing, disclosed in research brief D8, and outside this step's finding-scope; a future hardening step could sweep them. (b) The frozen macro path data_ingestion.py:292 is correctly left untimed/fail-open and is already queued as 75.9.1 (pending, P2, research-gated) per feedback_queue_discovered_defects_in_masterplan. (c) Artifact bookkeeping: three different 'files changed' totals appear across artifacts (draft 30/246, experiment_results 37/935, live_check 38/1091, my measure 38/1112) — benign monotonic growth of a live tree (handoff + audit-log appends); file-count 38 and deletions 501 reproduce exactly, and the load-bearing 30-.py scope is stable. (d) No live BQ exercise (honestly flagged 'Not verified live') — consistent with the paper-only/offline boundary; timeout+cost-cap behavior lands on the next natural query cycle. No UI surface (live_check confirms), so 1c live-capture gate does not apply; no frontend touched, so 1b does not apply. LOG-LAST REMINDER for Main: append the harness_log.md Cycle entry BEFORE flipping 75.9 to done."
 }
 ```

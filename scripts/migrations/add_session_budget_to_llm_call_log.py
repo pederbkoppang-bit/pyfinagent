@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         client = bigquery.Client(project=PROJECT)
         job = client.query(ALTER_SQL)
-        job.result()
+        job.result(timeout=60)
         logging.info("APPLIED: %s now has cycle_id + session_cost_usd columns", TABLE_FQN)
         return 0
     except Exception as exc:

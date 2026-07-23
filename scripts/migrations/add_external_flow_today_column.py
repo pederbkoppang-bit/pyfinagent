@@ -67,14 +67,14 @@ def main(argv: list[str] | None = None) -> int:
     from google.cloud import bigquery
     client = bigquery.Client(project=PROJECT)
     job = client.query(DDL)
-    job.result()
+    job.result(timeout=60)
     logger.info("Migration applied. Job ID: %s", job.job_id)
 
     # Verify.
     rows = list(client.query(
         f"SELECT column_name, data_type FROM `{PROJECT}.{DATASET}.INFORMATION_SCHEMA.COLUMNS` "
         f"WHERE table_name='{TABLE}' AND column_name='{COLUMN}'"
-    ).result())
+    ).result(timeout=60))
     if not rows:
         logger.error("Verification FAILED -- column not present post-migration.")
         return 1

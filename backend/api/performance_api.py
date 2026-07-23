@@ -53,10 +53,10 @@ async def get_llm_p95_latency(
 ):
     """Return p50/p95/p99 latency + call count for LLM traffic in the window."""
     try:
-        from backend.db.bigquery_client import BigQueryClient
+        from backend.db.bigquery_client import get_bq_client
         from backend.config.settings import get_settings
         s = get_settings()
-        bq = BigQueryClient(s)
+        bq = get_bq_client()
         dataset = getattr(s, "bq_dataset_observability", None) or "pyfinagent_data"
         where = ["ts >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @h HOUR)"]
         params: list = [
@@ -79,7 +79,7 @@ async def get_llm_p95_latency(
             WHERE {' AND '.join(where)}
         """
         # BigQueryClient exposes .client for raw queries.
-        rows = list(bq.client.query(sql).result())
+        rows = list(bq.client.query(sql).result(timeout=30))
         if not rows:
             return {"unavailable": True, "reason": "no rows"}
         r = rows[0]

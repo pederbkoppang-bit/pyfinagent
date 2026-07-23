@@ -140,7 +140,7 @@ def _default_bq_logger(log_row: dict[str, Any]) -> None:
             else:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
         job = client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params))
-        job.result()
+        job.result(timeout=30)
     except Exception as exc:
         logger.warning("_default_bq_logger fail-open: %r", exc)
 

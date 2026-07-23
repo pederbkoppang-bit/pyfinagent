@@ -33,7 +33,7 @@ DATASET = os.environ.get("BQ_DATASET_REPORTS", "financial_reports")
 def _alter_add(client: bigquery.Client, table: str, col: str, col_type: str) -> None:
     sql = f"ALTER TABLE `{table}` ADD COLUMN IF NOT EXISTS {col} {col_type}"
     try:
-        client.query(sql).result()
+        client.query(sql).result(timeout=60)
         logger.info(f"ok  {table}.{col} ({col_type})")
     except Exception as e:
         logger.warning(f"skip {table}.{col}: {e}")

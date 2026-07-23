@@ -17359,7 +17359,7 @@
         },
         {
           "id": "75.9",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S9 -- BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost guard [executor: sonnet-4.6/high; BOUNDARY: paper-only, no schema/table changes, historical_macro frozen]. (a) data-bq-01: data_ingestion.py:91 _get_existing_price_dates/_get_existing_fundamentals swallow ALL exceptions returning set() -- ingest then re-inserts duplicate (ticker,date) bars that silently distort features/MTM/Sharpe. Fail CLOSED: log the exception and re-raise/abort the batch; a failed dedup check must never authorize blanket insert. (b) data-bq-02: get_agent_memories (bigquery_client.py:500) f-string WHERE/LIMIT -> ScalarQueryParameter (mirror get_recent_reports :276-280); data_ingestion ticker list -> ArrayQueryParameter + IN UNNEST(@tickers) (cache.py:103-112 pattern). (c) data-bq-03 + gap3-08 + gap6-09: add timeout=30 (DML 60) to every untimed .result() -- all of bigquery_client.py incl. _run_dml_with_retry/:571/:580, the 13 external sites (paper_trader.py:1245, cycle_health.py:474, sortino.py:114, api/paper_trading.py:1127, api/performance_api.py:82, pead_signal.py:342, sector_calendars.py:200, skill_optimizer.py:173+185, cost_budget_watcher.py:104, slot_accounting.py:139, harness_autoresearch.py:196, monthly_approval_api.py:141), and the 12 bare migrations listed in gap6-09 (add_round_trip_schema.py:36 et al, timeout=60); slot_accounting also reuses a module-level client instead of per-call construction. (d) data-bq-06: shared QueryJobConfig factory in bigquery_client.py applying maximum_bytes_billed (default 5 GiB) to its query paths -- the runaway-scan pre-charge kill switch currently absent repo-wide. (e) py-core-03: skill_optimizer.py:188 log-free 'except: pass' on the outcomes query -> log warning + return []/mark run degraded (match the sibling :174-176 path) + timeout=30. (f) perf-11: add @lru_cache get_bq_client() mirroring get_settings() and adopt it in the per-request hot spots api/paper_trading.py, api/performance_api.py, api/reports.py (34 construction sites exist; migrate at least these named ones).",
           "harness_required": true,
           "priority": "P1",
@@ -17374,6 +17374,45 @@
               "get_bq_client() is lru_cached and imported by api/paper_trading.py, api/performance_api.py, and api/reports.py (import scan); repeated calls return the identical instance (test)"
             ],
             "live_check": "handoff/current/live_check_75.9.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: data-bq-01, data-bq-02, data-bq-03, data-bq-06, py-core-03, gap3-08, gap6-09, perf-11"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.9.1",
+          "status": "pending",
+          "name": "Audit75 S9 follow-up -- _get_existing_macro fail-open dedup on the FROZEN historical_macro table [executor: sonnet-4.6/high; BOUNDARY: historical_macro stays frozen -- code fix only, NO ingest run, NO live verification until the operator's historical_macro un-freeze token]. Discovered during the 75.9 research gate (wf_d6469920-55f, 2026-07-23): backend/backtest/data_ingestion.py::_get_existing_macro (lines 271-278 as of 2026-07-23 -- re-anchor at research) has the IDENTICAL fail-open dedup bug 75.9 fixed for prices/fundamentals: it swallows ALL query exceptions returning set(), so a failed dedup check authorizes blanket insert of duplicate (series,date) macro rows. 75.9 deliberately left it untouched because historical_macro is FROZEN (phase-66 durable rule: no optimizer runs; the macro ingest path is dormant). Port the same fix: log the exception and re-raise; a SUCCESSFUL empty result keeps meaning insert-all. The code path is dormant while frozen so the change is inert at rest; live verification (an actual macro ingest) is expressly OUT of this step and waits for the un-freeze token. Mirror the 75.9 test shape in backend/tests/test_phase_75_bq_discipline.py or a sibling file: mocked client whose query() raises -> zero insert calls + exception surfaced + logged; mutate the stub (blank fixture) to prove the fixture can represent the failure.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_bq_discipline.py -q",
+            "success_criteria": [
+              "A test asserts with a mocked client whose query() raises that the macro dedup path surfaces the error and performs ZERO macro insert calls, with the exception logged (no bare except returning set() remains in _get_existing_macro -- source scan as support, behavioral test as primary)",
+              "A SUCCESSFUL query returning zero rows still returns an empty set (insert-all semantics unchanged on the success path), proven by test",
+              "git diff shows NO other historical_macro-touching behavior change and NO ingest/backtest was executed (historical_macro frozen)",
+              "Mutation matrix in experiment_results.md: reverting the re-raise and blanking the ingest fixture each flip at least one test red"
+            ],
+            "live_check": "handoff/current/live_check_75.9.1.md: verbatim verification command output (exit 0) + git diff --stat. Explicitly states NO live macro ingest was run (frozen); live re-verification is deferred to the historical_macro un-freeze token."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.9.2",
+          "status": "pending",
+          "name": "Audit75 S9 follow-up -- repo-wide untimed BQ .result() sweep OUTSIDE the 75.9 enumerated scope [executor: sonnet-4.6/high; BOUNDARY: paper-only, no schema/table changes, historical_macro frozen (its dedup/timeout is 75.9.1, not here)]. Discovered by the INDEPENDENT 75.9 Q/A (wf_a10743da-7c4, 2026-07-23) via a repo-wide recall scan run to verify criterion 3: after 75.9 timed every site in its enumerated scope (bigquery_client.py + 12 external files + 13 migrations), ~37 untimed BigQuery .result( call sites REMAIN elsewhere in the repo -- named in the Q/A notes: backend/api/sovereign_api.py (4 sites), backend/api/cost_budget_api.py, backend/api/backtest.py:1516, backend/services/spend.py:129, backend/agents/multi_agent_orchestrator.py:1320, plus one-off scripts/ utilities (the research brief research_brief_75.9.md section D8 and the Q/A recall scan are the two independent censuses -- re-derive the full list at research and reconcile the two by symmetric difference per qa.md sec4b). Apply the same discipline as 75.9: timeout=30 (DML/DDL 60) on every BQ job .result(); EXCLUDE concurrent.futures future.result() sites; reuse the 75.9 AST-scan pattern by EXTENDING the scan list in backend/tests/test_phase_75_bq_discipline.py (hard-fail on missing paths, empty-list guard) rather than writing a parallel scanner. Do NOT migrate client construction or add maximum_bytes_billed adoption outside backend/db/bigquery_client.py in this step (that widening needs its own analysis).",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_bq_discipline.py -q",
+            "success_criteria": [
+              "The research-gate brief contains a measured census of every untimed BQ .result( site outside the 75.9 scope (two independent derivations reconciled by symmetric difference), and experiment_results.md carries the per-site worklist with file:line",
+              "Every BQ job .result( call in the censused files carries timeout= (30, or 60 for DML/DDL), proven by extending the existing AST scan in backend/tests/test_phase_75_bq_discipline.py to the new file list (hard-fail on missing path, empty-list guard preserved); concurrent.futures future.result() sites are excluded with an explicit exclusion list",
+              "The extended test file passes offline via this step's verification command (exit 0) and the pre-existing 75.9 scan assertions still pass unchanged",
+              "Mutation matrix in experiment_results.md: dropping timeout= from one newly-swept site AND pointing the extended scan at a nonexistent path each flip the suite red",
+              "git diff touches ONLY the censused files + the test file (no schema changes, no historical_macro-path edits, no client-construction migration)"
+            ],
+            "live_check": "handoff/current/live_check_75.9.2.md: verbatim verification command output (exit 0) + git diff --stat proving the change surface. No UI; no flag-gated behavior."
           },
           "retry_count": 0,
           "max_retries": 3

@@ -197,7 +197,7 @@ def _fetch_earnings_events_sync(lookahead_days: int) -> list[SectorEvent]:
             f"AND scheduled_at <= TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL {int(lookahead_days)} DAY) "
             "GROUP BY ticker, scheduled_at"
         )
-        rows = list(bq.client.query(query).result())
+        rows = list(bq.client.query(query).result(timeout=30))
     except Exception as e:
         logger.warning("Earnings calendar BQ query failed: %s", e)
         return []

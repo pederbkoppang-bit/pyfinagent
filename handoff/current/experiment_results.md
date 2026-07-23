@@ -1,151 +1,116 @@
-# Experiment results -- Step 75.8 (promotion-gate stub-fabrication refusal + governance divergence)
+# Experiment results -- Step 75.9 (BQ fail-closed dedup, parameterization, timeout sweep, cost guard)
 
-Date: 2026-07-23. Executor: Main (opus-tier step; session model Fable 5).
-Every figure below was MEASURED before this document was written
-(run-then-write); the commands and verbatim tails are in
-`handoff/current/live_check_75.8.md`.
+Date: 2026-07-23. **Execution model (operator directive + step executor tag):
+GENERATE was delegated to a Sonnet-4.6 executor agent; Main (this session)
+wrote the contract, reviewed the diff, independently re-measured every
+headline figure below, and authored this artifact. The executor's own
+run-then-write draft is preserved verbatim at
+`handoff/current/experiment_results_75.9_draft.md` (its section 2 lists 8
+explicit deviations, all reviewed and endorsed by Main -- none silently
+absorbed).**
 
-## What was built
+## What was built (per contract; details + per-site tables in the draft)
 
-**(a) gap6-01 -- gauntlet refuses to fabricate** (`scripts/risk/gauntlet.py`)
-- Guard (i): `run()` raises `NotImplementedError` when `dry_run=False`,
-  BEFORE any RNG/report work. Live CLI evidence: exit 1, traceback, and
-  `handoff/gauntlet/baseline/report.json` untouched (mtime still Jun 10).
-- Guard (ii), defense-in-depth: report writing factored into
-  `_write_report()`, which raises `RuntimeError` unless
-  `report.get("dry_run") is True` (explicit raise, not `assert`, so it
-  survives `python -O`).
-- Module docstring updated to document dry-run as the only implemented mode.
+- **(a) data-bq-01**: `_get_existing_price_dates` + `_get_existing_fundamentals`
+  now log + re-raise on query exception (fail-closed); a SUCCESSFUL empty
+  result still returns `set()` (cold-start insert-all unchanged, proven by a
+  dedicated test). `_get_existing_macro` untouched (frozen; queued 75.9.1).
+- **(b) data-bq-02**: `get_agent_memories` -> ScalarQueryParameter (agent_type
+  + limit); both data_ingestion ticker queries -> ArrayQueryParameter +
+  `IN UNNEST(@tickers)`. Table-name f-strings retained (identifiers are not
+  parameterizable -- official BQ doc).
+- **(c) data-bq-03/gap3-08/gap6-09**: timeout added to every untimed BQ
+  `.result()`: 18 sites in `bigquery_client.py` (DML sites at 60 -- all 5,
+  a disclosed widening of the contract's two examples under its own stated
+  rule), the corrected external sites (paper_trader, cycle_health,
+  metrics/sortino, api/paper_trading, api/performance_api,
+  services/pead_signal, services/sector_calendars, skill_optimizer x2,
+  slot_accounting, api/harness_autoresearch, monthly_approval_api), and 13
+  migration files / 20 sites at 60. `cost_budget_watcher.py` confirmed
+  phantom (zero BQ calls) -- untouched. ThreadPool `future.result()` sites
+  excluded by design.
+- **(d) data-bq-06**: `MAX_BYTES_BILLED_DEFAULT = 5 * 1024 ** 3` (= 5368709120,
+  documented) + one shared `_job_config()` factory; all of
+  bigquery_client's own query paths adopt it (24 pre-existing QueryJobConfig
+  sites + 4 previously-bare paths -- a disclosed, additive widening of
+  criterion 4's "at least one").
+- **(e) py-core-03**: skill_optimizer's bare `except: pass` -> warning +
+  degraded return mirroring its sibling; slot_accounting reuses one
+  module-level client, timeout=30.
+- **(f) perf-11**: zero-arg `@lru_cache get_bq_client()`; adopted at ALL 20
+  inline construction sites in api/paper_trading.py (contract said "8" --
+  measured 20; migrating all stays inside the named file),
+  api/performance_api.py, api/reports.py.
 
-**(b) gap6-01 consumer side + gap6-10 -- promotion_gate**
-(`scripts/risk/promotion_gate.py`)
-- Stub-fingerprint rejection after report load: blocked (exit 1) when the
-  non-skipped regime list is non-empty AND every entry has
-  `bt_drawdown == drawdown` exactly. Skipped regimes filtered (as the
-  evaluator does); the empty list is NOT fingerprinted (`all([])` trap
-  guarded explicitly).
-- BOTH `optimizer_best.json` writers (allocation-stage init at the former
-  :150 and the gauntlet SHA-256 stamp at the former :165) now guarded
-  behind `if not args.dry_run`, with the dry-run branch printing the
-  would-be mutation (terraform-plan idiom). The post-write re-read is
-  guarded for the fresh-deploy no-file case.
-- Module docstring rewritten: --dry-run is now documented (truthfully) as
-  strictly no-write.
+## Change surface (measured)
 
-**(c) gap3-02 -- governance divergence observability**
-- NEW `backend/governance/divergence.py`: pure `compute_divergence()`
-  (via the sanctioned lru-cached `limits_schema.load()`; normalizes
-  governed fractions x100; `math.isclose` so float noise cannot
-  manufacture a divergence) + never-raising `log_divergence_warnings()`.
-- Wired into `backend/main.py` lifespan immediately after the existing
-  limits-loader block, inside its own try/except, WARNING-only.
-- Live measurement with CURRENT repo values: daily_loss_kill_switch
-  settings 4.0% vs governed 2.0% -> divergent=true;
-  trailing_dd_kill_switch 10.0% vs 10.0% -> divergent=false (the
-  naive fraction-vs-percent comparison would have false-positived this).
-- `handoff/current/governance_limits_divergence_75.md` written: all six
-  limits.yaml entries vs measured runtime counterparts + drafted operator
-  token GOV-LIMITS-DECIDE (advisory recommendation: BIND-SETTINGS).
+`git diff --stat HEAD`: **37 files changed, 935 insertions(+), 351 deletions(-)**
+(30 .py files + masterplan 75.9.1 insert + handoff artifacts). New:
+`backend/tests/test_phase_75_bq_discipline.py` (45 tests),
+`backend/governance`-adjacent files: none. Boundary held: no schema/table
+changes, no historical_macro-path behavior change, no .env edits.
 
-## Files changed (measured: `git diff --stat HEAD` + `git status --short`)
+Out-of-worklist changes, all disclosed + reviewed:
+1. `backend/tests/test_phase_slack_digest_71.py` -- test double's `result()`
+   signature accepts `**kwargs` (consumer-contract ripple of the timeout
+   sweep; production untouched).
+2. `backend/services/observability/api_call_log.py` +
+   `backend/tests/test_phase_66_3_cost_truth.py` -- a REAL pre-existing
+   test-isolation bug surfaced by the regression run: the LLM buffer never
+   got the phase-56.2 `reset_*_for_test` fix its sibling buffer has, so any
+   full-suite run whose wall-clock crosses the 60s flush window before that
+   file drains the row a test just injected. Executor isolated it by
+   prefix-bisection WITH ZERO 75.9 SOURCE EDITS PRESENT (not a 75.9
+   regression), then added the mirroring additive helper
+   `reset_llm_buffer_for_test()`.
+3. Six pre-existing F401 dead imports removed in touched files (75.5
+   precedent): four found by the executor (reports.py traceback,
+   bigquery_client.py local timezone re-import, metrics/sortino.py Any,
+   create_strategy_deployments_view.py Tuple) and TWO found by Main's
+   independent git-derived-scope lint that the executor's hand-derived list
+   missed (`api_call_log.py` dataclasses.field, `test_phase_slack_digest_71.py`
+   pytest) -- both proven pre-existing at HEAD via `git show HEAD:` lint.
+   The executor's "All checks passed!" claim was therefore measured over an
+   incomplete scope; Main's re-lint over the full 30-file git-derived scope
+   is the figure of record below.
 
-Code (4 modified + 2 new):
-```
- .claude/masterplan.json        |  20 ++++++++  (75.8.1 queued, status pending)
- backend/main.py                |  12 ++++-    (lifespan wiring + 1 pre-existing F401 removed)
- scripts/risk/gauntlet.py       |  41 +++++++++++++++--
- scripts/risk/promotion_gate.py | 101 +++++++++++++++++++++++++++++++----------
- NEW backend/governance/divergence.py
- NEW backend/tests/test_phase_75_promotion_gate.py
-```
-Handoff artifacts: contract_75.8.md, research_brief_75.8.md,
-governance_limits_divergence_75.md (+ rolling contract.md /
-research_brief.md syncs, and later this file + the critique + live_check).
+## Verification (ALL figures independently re-measured by Main, not
+transcribed from the executor)
 
-**Criterion-5 boundary check (by file list): ZERO edits** to
-`backend/backtest/gauntlet/evaluator.py` (thresholds), any kill-switch
-enforcement code, DSR/PBO constants, or `backend/governance/limits.yaml`
--- none of those files appears in the diff.
+- Immutable command: `.venv/bin/python -m pytest backend/tests/test_phase_75_bq_discipline.py -q`
+  -> **45 passed, exit 0** (Main re-run).
+- Ruff `--select F821,F401,F811` over the git-derived 30-file scope
+  (non-empty guard: scope_files=30) + the new test file -> **"All checks
+  passed!", exit 0** (Main re-run, after the 2 extra F401 removals).
+- Full-suite regression (Main re-run): **10 failed / 1370 passed / 12
+  skipped / 5 xfailed / 1 xpassed** -- the fail set is BYTE-IDENTICAL to the
+  pre-75.9 baseline 10 (symmetric difference EMPTY), and 1370 = 1325
+  baseline + exactly the 45 new tests. Zero regressions attributable to the
+  step. (Executor's first run had exposed 5 extra failures; its two
+  disclosed fixes -- #7/#8 above -- returned the set to baseline.)
+- `ast.parse`: clean on the touched files (executor draft section 6; Main
+  spot-relied on ruff+pytest which parse everything in scope).
 
-Also in the working tree but NOT step changes (runtime-daemon appends
-from the live backend, disclosed for diff honesty):
-`handoff/.cycle_heartbeat.json`, `handoff/away_ops/auth_probe_last.json`,
-`handoff/cycle_history.jsonl`, `handoff/kill_switch_audit.jsonl`, plus
-the hook-managed `handoff/audit/*.jsonl` + `.claude/.archive-baseline.json`
-and the untracked `handoff/archive/phase-75.7/` snapshot from the prior
-step's close.
+## Mutation matrix
 
-## Verification (immutable command)
-
-```
-cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_promotion_gate.py -q
--> 20 passed in 0.10s, exit 0
-```
-
-## Mutation matrix -- 11 applied, 11 killed, 0 survivors (measured)
-
-Scripted (`scratchpad/mutation_matrix_75_8.py`): each mutation asserts
-exactly-one substitution applied, runs the suite, restores byte-exact.
-
-| # | Mutation | Killed |
-|---|---|---|
-| M1 | drop gauntlet NotImplementedError guard | yes |
-| M2 | drop `_write_report` refusal | yes |
-| M3 | drop stub-fingerprint rejection | yes |
-| M4 | drop skipped-filter (fingerprint over ALL regimes) | yes |
-| M5 | drop empty-list guard (`all([])` trap) | yes |
-| M6 | unguard allocation-init writer | yes |
-| M7 | unguard gauntlet-stamp writer | yes |
-| M8 | drop unit normalization (x100) in divergence | yes |
-| M10 | stub the settings read (claim-vacuity check) | yes |
-| M11 | gut fingerprint equality to a tautology | yes |
-| M12 | unwire the lifespan divergence call | yes |
-
-M9 (fixture mutation -- one regime with bt != dd must NOT fingerprint)
-is IN-SUITE as `test_single_divergent_regime_defeats_the_fingerprint`.
-Anti-fixture-divorce: `test_real_gauntlet_dry_run_report_is_rejected_end_to_end`
-feeds ACTUAL stub output (not a hand-built fixture) through the gate.
-Per the cycle-131 rule this matrix licenses only "these 11 mutations were
-killed", not a global no-vacuous-guards claim.
-
-## Lint + syntax (measured)
-
-- `uvx ruff check --select F821,F401,F811 <explicit 5-file list>` ->
-  "All checks passed!", exit 0. One F401 was found first
-  (`backend/main.py:346` `import asyncio as aio_lib`), PROVEN
-  pre-existing (ruff flags the `git show HEAD:` copy too) and dead (zero
-  `aio_lib` uses), removed per the 75.5 touched-file precedent.
-- `ast.parse` OK on all four touched/new python files (criterion 6).
-
-## Regression check (measured, 3 runs + worktree)
-
-- Full `backend/tests/` suite, run twice in this tree:
-  **10 failed / 1325 passed / 12 skipped / 5 xfailed / 1 xpassed** --
-  IDENTICAL 10-test fail set both runs.
-- The same 10, run in ISOLATION in this tree: **0 failed** -> the set is
-  order/state-dependent under the full suite, not deterministic breaks.
-- Symmetric-difference discipline: "failing in my tree but not at a clean
-  HEAD worktree" = EMPTY (the HEAD worktree fails a SUPERSET, 13, of the
-  same live-environment families: runtime-log freshness, 57.1
-  reject-binding, 60.x flags, portfolio_swap -- cycle 133 documented this
-  standing red set at 13).
-- None of the 10 imports gauntlet/promotion_gate/divergence; the one file
-  mentioning `backend/main.py` only source-scans for an untouched string
-  (its passing test), while its failing test reads the RUNTIME log.
-- Conclusion: zero regressions attributable to this diff.
-
-## Out of scope -> queued (not prose-disclosed only)
-
-- **75.8.1** (queued in masterplan this step, status pending): the SECOND
-  gauntlet-report consumer `backend/autonomous_harness.py::promote_strategy`
-  (:258-289) has no fingerprint/dry_run-label guard; step text specifies a
-  shared predicate module both consumers import. From research correction
-  #3 (wf_26a12896-e0c).
+- Executor matrix (scripted, exactly-once + byte-restore asserted;
+  scratchpad `mutation_matrix_75_9.py`): **10 applied / 10 KILLED / 0
+  survivors** -- dedup revert, STUB blank-fixture (crit-1 fixture can
+  represent the failure), parameterization strip, timeout drop in EACH
+  scanned group (client/external/migration), scan-at-missing-path (errors,
+  not skips-green), cost-cap None, lru removal, bare-pass restore.
+- Main independent spot-checks: **M1 KILLED** (1 failed), **M6 KILLED**
+  (3 failed) -- with one honest correction: Main's FIRST M6 attempt mutated
+  the literal `5368709120` which exists only in a COMMENT (code uses
+  `5 * 1024 ** 3`), and correctly SURVIVED -- an invalid mutant carrying
+  zero information, disclosed rather than dropped (cycle-131 N3 precedent).
+  The re-run against the real constant killed 3 tests.
+- Per the cycle-131 rule this licenses only the named kills, not a global
+  no-vacuous-guards claim.
 
 ## Not verified live
 
-- No backend restart performed: the lifespan WARNING will first appear on
-  the next operator restart (the running process predates this change).
-  The helper's behavior is proven by direct invocation + caplog tests.
-- No live gauntlet/backtest run (historical_macro frozen; boundary).
-- No UI surface touched.
+- No live BQ query executed (all offline mocks); the timeout/cost-cap
+  behavior on real jobs lands on the next natural query cycle. No backend
+  restart performed. No UI surface. Migration scripts edited but NOT re-run
+  (idempotent DDL; client-side kwarg only).

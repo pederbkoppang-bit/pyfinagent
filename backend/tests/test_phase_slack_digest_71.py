@@ -26,7 +26,6 @@ hitting BigQuery.
 
 from __future__ import annotations
 
-import pytest
 
 
 # --- Fix 1: formatters envelope unwrap --------------------------------
@@ -183,7 +182,10 @@ def test_get_paper_trades_query_adds_where_when_since_iso_set():
     captured: dict = {}
 
     class _FakeJob:
-        def result(self):
+        def result(self, **kwargs):
+            # phase-75.9: get_paper_trades now calls .result(timeout=30) --
+            # accept and ignore any kwargs, mirroring the real
+            # bigquery.QueryJob.result() signature.
             return []
 
     class _FakeClient:

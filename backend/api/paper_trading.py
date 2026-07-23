@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.config.settings import get_settings
-from backend.db.bigquery_client import BigQueryClient
+from backend.db.bigquery_client import BigQueryClient, get_bq_client
 from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.services import risk_overrides
 from backend.services.autonomous_loop import run_daily_cycle, get_loop_status
@@ -79,7 +79,7 @@ class StartResponse(BaseModel):
 async def start_paper_trading(req: StartRequest = StartRequest()):
     """Initialize paper portfolio and start the autonomous scheduler."""
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     trader = PaperTrader(settings, bq)
 
     # Initialize portfolio (idempotent)
@@ -123,7 +123,7 @@ async def get_status():
         return cached
 
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     trader = PaperTrader(settings, bq)
 
     portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
@@ -178,7 +178,7 @@ async def get_portfolio():
         return cached
 
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     trader = PaperTrader(settings, bq)
 
     portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
@@ -259,8 +259,7 @@ async def get_trades(
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     since_iso: str | None = None
     if since_today:
         start_of_today = datetime.now(timezone.utc).replace(
@@ -283,8 +282,7 @@ async def get_snapshots(limit: int = Query(365, ge=1, le=3650)):
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     snapshots = await asyncio.to_thread(bq.get_paper_snapshots, limit=limit)
     result = {"snapshots": snapshots, "count": len(snapshots)}
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:snapshots"])
@@ -299,8 +297,7 @@ async def get_performance():
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
 
     portfolio = await asyncio.to_thread(bq.get_paper_portfolio, "default")
     if not portfolio:
@@ -437,8 +434,7 @@ async def get_attribution(window_days: int = Query(7, ge=1, le=365)):
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     result = await asyncio.to_thread(_compute_attribution, bq, window_days)
     cache.set(cache_key, result, ENDPOINT_TTLS.get("paper:attribution", 300.0))
     return result
@@ -469,7 +465,7 @@ async def get_freshness():
     "Dual-route freshness" note for the rationale.
     """
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     # Approximate cycle interval: the paper-trading scheduler runs daily at
     # paper_trading_hour, so the "normal" interval is 24h. Configurable via
     # settings.paper_cycle_interval_sec if future phases add one.
@@ -484,7 +480,7 @@ async def get_kill_switch_state():
     Read-only; poll this to drive UI badge + banner.
     """
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     # phase-23.1.20: 5s timeout on the BQ portfolio fetch (same hardening as
     # /resume). On timeout we still return the in-memory pause state and a
     # null breach, so the UI badge stays informative.
@@ -534,7 +530,7 @@ async def resume_trading(req: KillSwitchActionRequest):
     # Resume precondition: both limits healthy. Prevents auto-re-entry after a
     # breach on brief recoveries (documented anti-pattern in RESEARCH.md 4.5.7).
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     # phase-23.1.20: 5s timeout on the BQ breach-check so a slow / hung BQ
     # doesn't strand the user on a 30s frontend AbortController. On timeout
     # we return 503 + Retry-After so the UI can surface a useful error and
@@ -634,7 +630,7 @@ async def flatten_all(req: KillSwitchActionRequest):
         raise HTTPException(400, "Confirmation must equal FLATTEN_ALL")
     get_api_cache().invalidate("paper:*")
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     trader = PaperTrader(settings, bq)
     result = await asyncio.to_thread(trader.flatten_all, "manual_flatten")
     # Also pause to enter known-quiet state (industry standard per 3forge + NYIF).
@@ -675,8 +671,7 @@ async def get_trade_rationale(trade_id: str, full: bool = Query(True)):
     if not all(c.isalnum() or c in ("-", "_") for c in trade_id):
         raise HTTPException(400, "Invalid trade_id")
 
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
 
     def _load():
         trades = bq.get_paper_trades(limit=5000) or []
@@ -746,8 +741,7 @@ async def get_gate():
     if cached is not None:
         return cached
 
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     result = await asyncio.to_thread(compute_gate, bq)
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:gate"])
     return result
@@ -767,8 +761,7 @@ async def get_reconciliation():
     if cached is not None:
         return cached
 
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     result = await asyncio.to_thread(compute_reconciliation, bq)
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:reconciliation"])
     return result
@@ -887,8 +880,7 @@ async def get_learnings(window_days: int = Query(30, ge=1, le=365)):
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     result = await asyncio.to_thread(_compute_learnings, bq, window_days)
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:learnings"])
     return result
@@ -909,8 +901,7 @@ async def get_mfe_mae_scatter():
 
     from backend.services.paper_round_trips import pair_round_trips
 
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     trades = await asyncio.to_thread(bq.get_paper_trades, 2000)
     trades = trades or []
     rts = pair_round_trips(trades)
@@ -984,8 +975,7 @@ async def get_round_trips():
     if cached is not None:
         return cached
 
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     result = await asyncio.to_thread(compute_round_trips_response, bq)
     cache.set(cache_key, result, ENDPOINT_TTLS["paper:round_trips"])
     return result
@@ -1004,8 +994,7 @@ async def get_metrics_v2():
     if cached is not None:
         return cached
 
-    settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     metrics = await asyncio.to_thread(compute_metrics_v2, bq)
     await asyncio.to_thread(persist_metrics_v2, bq, metrics)
 
@@ -1124,7 +1113,7 @@ def _fetch_ticker_meta(tickers: list[str], settings, bq) -> dict:
         job_config = _bq.QueryJobConfig(query_parameters=[
             _bq.ArrayQueryParameter("tickers", "STRING", tickers),
         ])
-        rows = list(bq.client.query(query, job_config=job_config).result())
+        rows = list(bq.client.query(query, job_config=job_config).result(timeout=30))
         for r in rows:
             t = r["ticker"]
             name = r["company_name"]
@@ -1206,7 +1195,7 @@ async def get_ticker_meta(tickers: str = Query(...)):
             missing.append(t)
 
     if missing:
-        bq = BigQueryClient(settings)
+        bq = get_bq_client()
         result = await asyncio.to_thread(_fetch_ticker_meta, missing, settings, bq)
         ttl = ENDPOINT_TTLS["paper:ticker_meta"]
         for t, info in (result.get("meta") or {}).items():
@@ -1226,7 +1215,7 @@ async def deposit_funds(req: DepositRequest):
     starting_capital the operator would see a fake gain.
     """
     settings = get_settings()
-    bq = BigQueryClient(settings)
+    bq = get_bq_client()
     trader = PaperTrader(settings, bq)
 
     portfolio = await asyncio.to_thread(trader.get_or_create_portfolio)

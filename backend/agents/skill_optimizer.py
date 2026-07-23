@@ -170,7 +170,7 @@ class SkillOptimizer:
             LIMIT 50
         """
         try:
-            rows = [dict(r) for r in self.bq.client.query(query).result()]
+            rows = [dict(r) for r in self.bq.client.query(query).result(timeout=30)]
         except Exception as e:
             logger.warning(f"Could not analyze agent performance: {e}")
             return []
@@ -182,11 +182,19 @@ class SkillOptimizer:
                 SELECT ticker, analysis_date, return_pct, beat_benchmark
                 FROM `{self.bq.outcomes_table}`
             """
-            for row in self.bq.client.query(outcome_query).result():
+            for row in self.bq.client.query(outcome_query).result(timeout=30):
                 key = (row["ticker"], row["analysis_date"])
                 outcomes[key] = dict(row)
-        except Exception:
-            pass
+        except Exception as e:
+            # phase-75.9 (py-core-03): was a log-free bare pass -- a failed
+            # outcomes fetch silently scored every agent against zero
+            # outcomes with no operator-visible signal. `outcomes` stays
+            # empty, so the loop below already degrades gracefully (every
+            # report's `outcome = outcomes.get(key)` is None -> skipped ->
+            # every agent falls back to the neutral accuracy=0.5/
+            # sample_size=0 default a few lines down); this only adds the
+            # missing log line, mirroring the sibling except-block above.
+            logger.warning(f"Could not fetch outcomes for agent performance analysis (degraded to neutral scores): {e}")
 
         # Per-agent signal quality heuristic:
         # For enrichment agents, check if their signal direction aligned with actual outcome

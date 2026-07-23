@@ -26,6 +26,22 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TABLE = "pyfinagent_data.harness_learning_log"
 _VALID_SLOT_IDS = frozenset(["thu_batch", "fri_promotion", "monthly_gate", "rollback"])
 
+# phase-75.9 (gap3-08): module-level bigquery.Client singleton for the
+# default helpers below. The old code built a fresh bigquery.Client (and
+# its connection pool) on every _default_bq_insert/_default_bq_query_count
+# call -- this lazily constructs one and reuses it, mirroring perf-11's
+# get_bq_client() pattern in bigquery_client.py.
+_module_client = None
+
+
+def _get_module_client():
+    global _module_client
+    if _module_client is None:
+        from google.cloud import bigquery
+        project = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
+        _module_client = bigquery.Client(project=project)
+    return _module_client
+
 
 def log_slot_usage(
     *,
@@ -113,9 +129,8 @@ def verify_weekly_invariant(
 def _default_bq_insert(table: str, rows: list[dict[str, Any]]) -> bool:
     """Stream rows via `google.cloud.bigquery.insert_rows_json`. Fail-open."""
     try:
-        from google.cloud import bigquery
         project = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
-        client = bigquery.Client(project=project)
+        client = _get_module_client()
         errors = client.insert_rows_json(f"{project}.{table}", rows)
         if errors:
             logger.warning("slot_accounting: insert errors: %r", errors)
@@ -130,13 +145,12 @@ def _default_bq_query_count(sql: str, params: dict[str, Any]) -> int:
     """Run a parameterized scalar COUNT query. Returns 0 on failure."""
     try:
         from google.cloud import bigquery
-        project = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
-        client = bigquery.Client(project=project)
+        client = _get_module_client()
         query_params = [
             bigquery.ScalarQueryParameter(k, "STRING", v) for k, v in params.items()
         ]
         cfg = bigquery.QueryJobConfig(query_parameters=query_params)
-        rows = list(client.query(sql, job_config=cfg).result())
+        rows = list(client.query(sql, job_config=cfg).result(timeout=30))
         return int(rows[0][0]) if rows else 0
     except Exception as exc:
         logger.warning("slot_accounting: query count fail-open: %r", exc)

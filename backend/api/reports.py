@@ -3,7 +3,6 @@ Reports API routes — list past reports, get single report, performance stats.
 """
 
 import logging
-import traceback
 import asyncio
 
 from typing import Optional
@@ -13,7 +12,7 @@ from google.api_core.exceptions import GoogleAPIError
 
 from backend.api.models import PerformanceStats, ReportSummary
 from backend.config.settings import Settings, get_settings
-from backend.db.bigquery_client import BigQueryClient
+from backend.db.bigquery_client import BigQueryClient, get_bq_client
 from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.services.outcome_tracker import OutcomeTracker
 
@@ -21,8 +20,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
 
-def _get_bq(settings: Settings = Depends(get_settings)) -> BigQueryClient:
-    return BigQueryClient(settings)
+def _get_bq() -> BigQueryClient:
+    # phase-75.9 (perf-11): was `BigQueryClient(settings)` via
+    # Depends(get_settings) -- constructed a fresh client (and re-parsed
+    # GCP_CREDENTIALS_JSON) on every request. get_bq_client() is the
+    # lru-cached singleton (backend/db/bigquery_client.py).
+    return get_bq_client()
 
 
 @router.get("/", response_model=list[ReportSummary])

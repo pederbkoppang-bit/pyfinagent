@@ -6,14 +6,24 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Optional
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-from backend.config.settings import Settings
+from backend.config.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
+
+# phase-75.9 (data-bq-06): pre-execution cost kill switch. BigQuery estimates
+# bytes scanned BEFORE running a query and fails it WITHOUT charge if the
+# estimate exceeds this cap (docs.cloud.google.com/bigquery/docs/
+# best-practices-costs). 5 GiB = 5 * 1024**3 = 5368709120. Cache hits bill 0
+# bytes so the cap is inert on them. Generous versus this project's table
+# sizes; on a clustered table BQ's pre-execution estimate is an upper bound
+# so an extremely rare false-fail is possible, but not expected at 5 GiB.
+MAX_BYTES_BILLED_DEFAULT = 5 * 1024 ** 3
 
 
 class BigQueryClient:
@@ -35,6 +45,16 @@ class BigQueryClient:
         self.client = bigquery.Client(project=settings.gcp_project_id, credentials=credentials)
         self.reports_table = f"{settings.gcp_project_id}.{settings.bq_dataset_reports}.{settings.bq_table_reports}"
         self.outcomes_table = f"{settings.gcp_project_id}.{settings.bq_dataset_outcomes}.{settings.bq_table_outcomes}"
+
+    def _job_config(self, query_parameters: Optional[list] = None, **kwargs) -> bigquery.QueryJobConfig:
+        """phase-75.9 (data-bq-06): shared QueryJobConfig factory. Every
+        query path in this class builds its job_config through here so
+        maximum_bytes_billed is applied uniformly instead of ad hoc. Extra
+        kwargs pass straight through to QueryJobConfig (none of this
+        class's call sites need any today, but this keeps the factory from
+        becoming a second place to special-case DML vs SELECT configs)."""
+        kwargs.setdefault("maximum_bytes_billed", MAX_BYTES_BILLED_DEFAULT)
+        return bigquery.QueryJobConfig(query_parameters=query_parameters or [], **kwargs)
 
     # ── Reports ──────────────────────────────────────────────────────
 
@@ -275,10 +295,10 @@ class BigQueryClient:
             ORDER BY analysis_date DESC
             LIMIT @limit
         """
-        job_config = bigquery.QueryJobConfig(
+        job_config = self._job_config(
             query_parameters=[bigquery.ScalarQueryParameter("limit", "INT64", limit)]
         )
-        rows = self.client.query(query, job_config=job_config).result()
+        rows = self.client.query(query, job_config=job_config).result(timeout=30)
         return [dict(row) for row in rows]
 
     def get_latest_report_json(self) -> Optional[dict]:
@@ -292,7 +312,8 @@ class BigQueryClient:
             ORDER BY analysis_date DESC
             LIMIT 1
         """
-        rows = list(self.client.query(query).result())
+        job_config = self._job_config()
+        rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
         if not rows:
             return None
         row = dict(rows[0])
@@ -304,7 +325,7 @@ class BigQueryClient:
         if analysis_date:
             # analysis_date column is TIMESTAMP in BQ — use a 1-second window
             # to match the exact record regardless of microsecond formatting
-            from datetime import datetime, timedelta, timezone
+            from datetime import datetime, timedelta
             # Parse ISO 8601 string (handles both "Z" and "+00:00" suffixes)
             clean = analysis_date.replace("Z", "+00:00")
             try:
@@ -322,7 +343,7 @@ class BigQueryClient:
                     ORDER BY ABS(TIMESTAMP_DIFF(analysis_date, @ts_target, MICROSECOND))
                     LIMIT 1
                 """
-                job_config = bigquery.QueryJobConfig(query_parameters=[
+                job_config = self._job_config(query_parameters=[
                     bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
                     bigquery.ScalarQueryParameter("ts_start", "TIMESTAMP", ts_start),
                     bigquery.ScalarQueryParameter("ts_end", "TIMESTAMP", ts_end),
@@ -336,7 +357,7 @@ class BigQueryClient:
                     ORDER BY analysis_date DESC
                     LIMIT 1
                 """
-                job_config = bigquery.QueryJobConfig(query_parameters=[
+                job_config = self._job_config(query_parameters=[
                     bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
                 ])
         else:
@@ -346,10 +367,10 @@ class BigQueryClient:
                 ORDER BY analysis_date DESC
                 LIMIT 1
             """
-            job_config = bigquery.QueryJobConfig(query_parameters=[
+            job_config = self._job_config(query_parameters=[
                 bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
             ])
-        rows = list(self.client.query(query, job_config=job_config).result())
+        rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
         if rows:
             row = dict(rows[0])
             if row.get("full_report_json") and isinstance(row["full_report_json"], str):
@@ -368,10 +389,10 @@ class BigQueryClient:
             ORDER BY analysis_date DESC
             LIMIT @limit
         """
-        job_config = bigquery.QueryJobConfig(
+        job_config = self._job_config(
             query_parameters=[bigquery.ScalarQueryParameter("limit", "INT64", limit)]
         )
-        rows = self.client.query(query, job_config=job_config).result()
+        rows = self.client.query(query, job_config=job_config).result(timeout=30)
         return [dict(row) for row in rows]
 
     # ── Outcome Tracking ─────────────────────────────────────────────
@@ -449,10 +470,10 @@ class BigQueryClient:
                 PARTITION BY signal_id ORDER BY recorded_at DESC
             ) = 1
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("signal_id", "STRING", signal_id),
         ])
-        rows = list(self.client.query(query, job_config=job_config).result())
+        rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
         if not rows:
             return None
         return dict(rows[0])
@@ -467,7 +488,8 @@ class BigQueryClient:
                 COUNTIF(beat_benchmark) as beat_benchmark_count
             FROM `{self.outcomes_table}`
         """
-        rows = list(self.client.query(query).result())
+        job_config = self._job_config()
+        rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
         if rows:
             row = dict(rows[0])
             total = row.get("total_recommendations", 0)
@@ -494,18 +516,28 @@ class BigQueryClient:
             logger.error(f"Memory insert errors: {errors}")
 
     def get_agent_memories(self, agent_type: str | None = None, limit: int = 200) -> list[dict]:
-        """Retrieve agent memories from BigQuery."""
+        """Retrieve agent memories from BigQuery.
+
+        phase-75.9 (data-bq-02): agent_type and limit are now bound as
+        query parameters (mirrors get_recent_reports above) instead of
+        f-string-interpolated into the SQL text. The table name stays an
+        f-string -- identifiers are not parameterizable in BQ.
+        """
         table = f"{self.settings.gcp_project_id}.{self.settings.bq_dataset_reports}.agent_memories"
         try:
-            where = f"WHERE agent_type = '{agent_type}'" if agent_type else ""
+            where = "WHERE agent_type = @agent_type" if agent_type else ""
             query = f"""
                 SELECT agent_type, ticker, situation, lesson, created_at
                 FROM `{table}`
                 {where}
                 ORDER BY created_at DESC
-                LIMIT {int(limit)}
+                LIMIT @limit
             """
-            rows = list(self.client.query(query).result())
+            params = [bigquery.ScalarQueryParameter("limit", "INT64", int(limit))]
+            if agent_type:
+                params.append(bigquery.ScalarQueryParameter("agent_type", "STRING", agent_type))
+            job_config = self._job_config(query_parameters=params)
+            rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
             return [dict(row) for row in rows]
         except Exception as e:
             logger.warning(f"Could not load agent memories: {e}")
@@ -523,7 +555,7 @@ class BigQueryClient:
             SELECT * FROM `{self._pt_table("paper_portfolio")}`
             WHERE portfolio_id = @pid LIMIT 1
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("pid", "STRING", portfolio_id),
         ])
         # phase-23.1.20: enforce CLAUDE.md "BQ timeout: 30s" so a hung BQ job
@@ -537,7 +569,7 @@ class BigQueryClient:
         """Run a DML query with retry for BQ streaming buffer conflicts."""
         for attempt in range(max_retries + 1):
             try:
-                self.client.query(query, job_config=job_config).result()
+                self.client.query(query, job_config=job_config).result(timeout=60)
                 return
             except Exception as e:
                 if "streaming buffer" in str(e).lower() and attempt < max_retries:
@@ -551,7 +583,7 @@ class BigQueryClient:
         table = self._pt_table("paper_portfolio")
         pid = row["portfolio_id"]
         delete_query = f"DELETE FROM `{table}` WHERE portfolio_id = @pid"
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("pid", "STRING", pid),
         ])
         self._run_dml_with_retry(delete_query, job_config)
@@ -567,8 +599,8 @@ class BigQueryClient:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
             else:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v) if v is not None else None))
-        insert_config = bigquery.QueryJobConfig(query_parameters=params)
-        self.client.query(insert_query, job_config=insert_config).result()
+        insert_config = self._job_config(query_parameters=params)
+        self.client.query(insert_query, job_config=insert_config).result(timeout=60)
 
     # -- Positions --
 
@@ -577,17 +609,18 @@ class BigQueryClient:
             SELECT * FROM `{self._pt_table("paper_positions")}`
             ORDER BY entry_date DESC
         """
-        return [dict(r) for r in self.client.query(query).result()]
+        job_config = self._job_config()
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result(timeout=30)]
 
     def get_paper_position(self, ticker: str) -> Optional[dict]:
         query = f"""
             SELECT * FROM `{self._pt_table("paper_positions")}`
             WHERE ticker = @ticker LIMIT 1
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
         ])
-        rows = list(self.client.query(query, job_config=job_config).result())
+        rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
         return dict(rows[0]) if rows else None
 
     def save_paper_position(self, row: dict) -> None:
@@ -628,13 +661,13 @@ class BigQueryClient:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
             else:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
-        self.client.query(query, job_config=job_config).result()
+        job_config = self._job_config(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=60)
 
     def delete_paper_position(self, ticker: str) -> None:
         table = self._pt_table("paper_positions")
         query = f"DELETE FROM `{table}` WHERE ticker = @ticker"
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
         ])
         self._run_dml_with_retry(query, job_config)
@@ -652,7 +685,7 @@ class BigQueryClient:
             else:
                 params.append(bigquery.ScalarQueryParameter(f"val_{k}", "STRING", str(v)))
         query = f"UPDATE `{table}` SET {set_clauses} WHERE ticker = @ticker"
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        job_config = self._job_config(query_parameters=params)
         self._run_dml_with_retry(query, job_config)
 
     # -- Trades --
@@ -672,8 +705,8 @@ class BigQueryClient:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
             else:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
-        self.client.query(query, job_config=job_config).result()
+        job_config = self._job_config(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=60)
 
     def get_paper_trades(
         self, limit: int = 100, since_iso: str | None = None
@@ -700,8 +733,8 @@ class BigQueryClient:
             ORDER BY created_at DESC
             LIMIT @limit
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
-        return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
+        job_config = self._job_config(query_parameters=params)
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result(timeout=30)]
 
     def save_promoted_strategy(self, row: dict) -> None:
         """phase-25.A3: persist one promotion row to
@@ -761,7 +794,7 @@ class BigQueryClient:
             bigquery.ScalarQueryParameter(f"v_{k}", type_map[k][0], type_map[k][1](v))
             for k, v in filtered.items()
         ]
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        job_config = self._job_config(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=30)
 
     def get_latest_promoted_strategy(
@@ -792,7 +825,7 @@ class BigQueryClient:
             ORDER BY promoted_at DESC, dsr DESC
             LIMIT 1
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ArrayQueryParameter("statuses", "STRING", status_filter),
         ])
         rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
@@ -845,7 +878,7 @@ class BigQueryClient:
                 bigquery.ScalarQueryParameter("new_status", "STRING", new_status),
                 bigquery.ScalarQueryParameter("strategy_id", "STRING", strategy_id),
             ]
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        job_config = self._job_config(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=30)
 
     def save_efficiency_snapshot(self, row: dict) -> None:
@@ -896,7 +929,7 @@ class BigQueryClient:
             bigquery.ScalarQueryParameter(f"v_{k}", type_map[k][0], type_map[k][1](v))
             for k, v in filtered.items()
         ]
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        job_config = self._job_config(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=30)
 
     def save_data_source_event(
@@ -943,7 +976,7 @@ class BigQueryClient:
             bigquery.ScalarQueryParameter("article_count", "INT64", int(article_count) if article_count is not None else None),
             bigquery.ScalarQueryParameter("notes", "STRING", str(notes) if notes is not None else None),
         ]
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
+        job_config = self._job_config(query_parameters=params)
         self.client.query(query, job_config=job_config).result(timeout=30)
 
     def get_paper_trades_in_window(self, window_days: int) -> list[dict]:
@@ -958,7 +991,7 @@ class BigQueryClient:
             ORDER BY created_at DESC
             LIMIT 2000
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("window_days", "INT64", window_days),
         ])
         return [dict(r) for r in self.client.query(query, job_config=job_config).result(timeout=30)]
@@ -978,12 +1011,12 @@ class BigQueryClient:
               AND created_at >= @since_iso
             ORDER BY created_at DESC
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("ticker", "STRING", ticker),
             bigquery.ScalarQueryParameter("action", "STRING", action),
             bigquery.ScalarQueryParameter("since_iso", "STRING", since_iso),
         ])
-        return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result(timeout=30)]
 
     # -- Snapshots --
 
@@ -1033,8 +1066,8 @@ class BigQueryClient:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "INT64", v))
             else:
                 params.append(bigquery.ScalarQueryParameter(f"v_{k}", "STRING", str(v)))
-        job_config = bigquery.QueryJobConfig(query_parameters=params)
-        self.client.query(query, job_config=job_config).result()
+        job_config = self._job_config(query_parameters=params)
+        self.client.query(query, job_config=job_config).result(timeout=60)
 
     def get_paper_snapshots(self, limit: int = 365) -> list[dict]:
         query = f"""
@@ -1042,10 +1075,10 @@ class BigQueryClient:
             ORDER BY snapshot_date DESC
             LIMIT @limit
         """
-        job_config = bigquery.QueryJobConfig(query_parameters=[
+        job_config = self._job_config(query_parameters=[
             bigquery.ScalarQueryParameter("limit", "INT64", limit),
         ])
-        return [dict(r) for r in self.client.query(query, job_config=job_config).result()]
+        return [dict(r) for r in self.client.query(query, job_config=job_config).result(timeout=30)]
 
     def get_first_funded_snapshot_date(self) -> Optional[str]:
         """phase-38.7: earliest snapshot_date where positions_value > 0.
@@ -1066,7 +1099,8 @@ class BigQueryClient:
                 FROM `{self._pt_table("paper_portfolio_snapshots")}`
                 WHERE positions_value > 0
             """
-            rows = list(self.client.query(query).result())
+            job_config = self._job_config()
+            rows = list(self.client.query(query, job_config=job_config).result(timeout=30))
             if not rows:
                 return None
             val = rows[0].get("first_funded_date")
@@ -1077,3 +1111,19 @@ class BigQueryClient:
                 exc,
             )
             return None
+
+
+@lru_cache()
+def get_bq_client() -> BigQueryClient:
+    """phase-75.9 (perf-11): zero-arg singleton factory mirroring
+    get_settings() (backend/config/settings.py:612). Zero-arg is required --
+    Pydantic Settings is not reliably hashable, so @lru_cache cannot key on
+    a settings parameter. Per-request `BigQueryClient(settings)` construction
+    re-parses GCP_CREDENTIALS_JSON and builds a fresh bigquery.Client (plus
+    its connection pool) on every call; this collapses that to one instance,
+    built once, shared across FastAPI's threadpool. Sharing a
+    bigquery.Client to submit queries across threads is the documented,
+    recommended pattern -- the httplib2 non-thread-safety some docs mention
+    applies to the older api-python-client, not this requests-based client.
+    """
+    return BigQueryClient(get_settings())

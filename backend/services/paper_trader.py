@@ -1242,7 +1242,7 @@ class PaperTrader:
                         f"v_{k}", "STRING", str(v) if v is not None else None
                     ))
             job_config = bigquery.QueryJobConfig(query_parameters=params)
-            self.bq.client.query(query, job_config=job_config).result()
+            self.bq.client.query(query, job_config=job_config).result(timeout=30)
         except Exception as e:
             logger.warning(f"paper_round_trips insert skipped: {e}")
 

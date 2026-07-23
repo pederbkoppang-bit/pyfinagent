@@ -471,7 +471,7 @@ def _bq_max_event_age(bq: Any, table_logical: str, time_col: str) -> Optional[fl
             f"{max_expr}, SECOND) AS age "
             f"FROM `{table}`"
         )
-        rows = list(bq.client.query(sql).result())
+        rows = list(bq.client.query(sql).result(timeout=30))
         if not rows:
             return None
         age = rows[0].get("age") if hasattr(rows[0], "get") else rows[0][0]

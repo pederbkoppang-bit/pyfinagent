@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         client = bigquery.Client(project=PROJECT)
         job = client.query(CREATE_SQL)
-        job.result()  # block until complete
+        job.result(timeout=60)  # block until complete
         logging.info("APPLIED: %s created/already-exists", TABLE_FQN)
         return 0
     except Exception as exc:

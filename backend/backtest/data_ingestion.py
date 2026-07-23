@@ -76,20 +76,31 @@ class DataIngestionService:
     # ── Prices ───────────────────────────────────────────────────
 
     def _get_existing_price_dates(self, tickers: list[str]) -> set[tuple[str, str]]:
-        """Return set of (ticker, date) already in BQ."""
+        """Return set of (ticker, date) already in BQ.
+
+        phase-75.9 (data-bq-01): re-raises on query failure instead of
+        swallowing to an empty set. A silently-empty dedup set would make
+        ingest_prices insert every row again, producing duplicate
+        (ticker,date) bars that distort features/MTM/Sharpe downstream. A
+        genuinely empty *result* (first-run / cold table) is unaffected --
+        that still returns set() via the normal return path below, so
+        run_full_ingestion's cold-start insert-all behavior is unchanged.
+        """
         table = self._table("historical_prices")
-        # Use parameterized IN clause
-        ticker_list = ", ".join(f"'{t}'" for t in tickers[:100])
         query = f"""
             SELECT DISTINCT ticker, date
             FROM `{table}`
-            WHERE ticker IN ({ticker_list})
+            WHERE ticker IN UNNEST(@tickers)
         """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ArrayQueryParameter("tickers", "STRING", tickers[:100]),
+        ])
         try:
-            rows = self.client.query(query).result()
+            rows = self.client.query(query, job_config=job_config).result(timeout=30)
             return {(r["ticker"], r["date"]) for r in rows}
-        except Exception:
-            return set()
+        except Exception as e:
+            logger.error(f"Dedup check failed for historical_prices (fail-closed, aborting batch): {e}")
+            raise
 
     def ingest_prices(self, tickers: list[str], start_date: str, end_date: str) -> int:
         """Download OHLCV from yfinance and store in BQ. Returns row count inserted."""
@@ -176,18 +187,24 @@ class DataIngestionService:
     # ── Fundamentals ─────────────────────────────────────────────
 
     def _get_existing_fundamentals(self, tickers: list[str]) -> set[tuple[str, str]]:
+        """phase-75.9 (data-bq-01): same fail-closed re-raise as
+        _get_existing_price_dates -- see that docstring for the
+        empty-result-vs-exception distinction this preserves."""
         table = self._table("historical_fundamentals")
-        ticker_list = ", ".join(f"'{t}'" for t in tickers[:100])
         query = f"""
             SELECT DISTINCT ticker, report_date
             FROM `{table}`
-            WHERE ticker IN ({ticker_list})
+            WHERE ticker IN UNNEST(@tickers)
         """
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ArrayQueryParameter("tickers", "STRING", tickers[:100]),
+        ])
         try:
-            rows = self.client.query(query).result()
+            rows = self.client.query(query, job_config=job_config).result(timeout=30)
             return {(r["ticker"], r["report_date"]) for r in rows}
-        except Exception:
-            return set()
+        except Exception as e:
+            logger.error(f"Dedup check failed for historical_fundamentals (fail-closed, aborting batch): {e}")
+            raise
 
     def ingest_fundamentals(self, tickers: list[str]) -> int:
         """Download quarterly financials from yfinance and store in BQ."""

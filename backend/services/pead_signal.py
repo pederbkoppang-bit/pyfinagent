@@ -339,7 +339,7 @@ async def fetch_pead_signals_for_recent_reporters() -> dict[str, PeadSignalOutpu
             "AND scheduled_at <= CURRENT_TIMESTAMP() "
             "GROUP BY ticker"
         )
-        rows = list(bq.client.query(query).result())
+        rows = list(bq.client.query(query).result(timeout=30))
         tickers = [r["ticker"] for r in rows if r.get("ticker")]
     except Exception as e:
         logger.warning("PEAD recent-reporters BQ query failed: %s", e)

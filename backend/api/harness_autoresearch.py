@@ -193,7 +193,7 @@ def _default_bq_query(sql: str, params: dict[str, Any]) -> list[dict[str, Any]]:
             bigquery.ScalarQueryParameter(k, "STRING", v) for k, v in params.items()
         ]
         cfg = bigquery.QueryJobConfig(query_parameters=query_params)
-        rows = list(client.query(sql, job_config=cfg).result())
+        rows = list(client.query(sql, job_config=cfg).result(timeout=30))
         return [dict(r) for r in rows]
     except Exception as exc:
         logger.warning("harness_sprint_state: BQ query fail-open: %r", exc)

@@ -61,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         client = bigquery.Client(project=PROJECT)  # no --location: client resolves dataset region
-        client.query(CREATE_SQL).result()
+        client.query(CREATE_SQL).result(timeout=60)
         logging.info("APPLIED: %s created/already-exists", TABLE_FQN)
         return 0
     except Exception as exc:

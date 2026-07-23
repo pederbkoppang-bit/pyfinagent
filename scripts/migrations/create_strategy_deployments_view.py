@@ -32,7 +32,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Tuple
 
 PROJECT = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
 DATASET = "pyfinagent_pms"
@@ -111,11 +110,11 @@ SELECT
 def apply(client) -> int:
     """Create dataset + log table + view. Idempotent."""
     print(f"[apply] creating dataset {DATASET_FQN}")
-    client.query(_create_dataset_sql()).result()
+    client.query(_create_dataset_sql()).result(timeout=60)
     print(f"[apply] creating log table {LOG_TABLE_FQN}")
-    client.query(_create_log_table_sql()).result()
+    client.query(_create_log_table_sql()).result(timeout=60)
     print(f"[apply] creating view {VIEW_FQN}")
-    client.query(_create_view_sql()).result()
+    client.query(_create_view_sql()).result(timeout=60)
     print("[apply] OK")
     return 0
 
@@ -140,7 +139,7 @@ def verify(client) -> int:
     # 2. at_least_one_champion_row
     try:
         sql = f"SELECT COUNT(*) AS n FROM `{VIEW_FQN}` WHERE status = 'champion'"
-        rows = list(client.query(sql).result())
+        rows = list(client.query(sql).result(timeout=60))
         n = int(rows[0]["n"]) if rows else 0
         if n >= 1:
             print(f"[verify] at_least_one_champion_row: PASS ({n} champion rows)")

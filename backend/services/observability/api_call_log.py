@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from typing import Any
 
@@ -191,6 +191,7 @@ __all__ = [
     "log_llm_call",
     "flush_llm",
     "llm_buffer_size",
+    "reset_llm_buffer_for_test",
 ]
 
 
@@ -359,3 +360,19 @@ def flush_llm() -> int:
 def llm_buffer_size() -> int:
     with _llm_lock:
         return len(_llm_buffer)
+
+
+def reset_llm_buffer_for_test() -> None:
+    """Test helper: drop buffered LLM rows + re-arm the time-based flush
+    window. Sibling of reset_buffer_for_test() above (phase-56.2) for the
+    llm_call_log writer's OWN buffer/timestamp pair -- that fix only reset
+    `_last_flush_ts` (log_api_call's buffer), never `_llm_last_flush_ts`
+    (log_llm_call's buffer), so a full-suite run older than _FLUSH_SECONDS
+    made the first log_llm_call after a manual `_llm_buffer.clear()` trigger
+    an immediate flush that drained the row a test just injected (phase-75.9
+    cycle: order-dependent failure in test_phase_66_3_cost_truth, passes
+    alone, fails in the full suite once total runtime crosses 60s)."""
+    global _llm_last_flush_ts
+    with _llm_lock:
+        _llm_buffer.clear()
+        _llm_last_flush_ts = datetime.now(timezone.utc)

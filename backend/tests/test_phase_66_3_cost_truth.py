@@ -37,11 +37,15 @@ def _fresh_buffer(monkeypatch):
 
     monkeypatch.setattr(al, "_session_cost", 0.50, raising=False)
     monkeypatch.setattr(al, "_current_cycle_id", "cycle-t", raising=False)
-    with acl._llm_lock:
-        acl._llm_buffer.clear()
+    # phase-75.9: reset_llm_buffer_for_test() also re-arms
+    # _llm_last_flush_ts -- a bare `_llm_buffer.clear()` left the
+    # time-based auto-flush window stale, so a full-suite run older than
+    # _FLUSH_SECONDS (60s) made the first log_llm_call() below trigger an
+    # immediate flush that drained the row before _last_row() could read
+    # it back (order-dependent: passed alone, failed in the full suite).
+    acl.reset_llm_buffer_for_test()
     yield
-    with acl._llm_lock:
-        acl._llm_buffer.clear()
+    acl.reset_llm_buffer_for_test()
 
 
 def _last_row():

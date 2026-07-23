@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import math
 import os
-from typing import Any, Callable, Sequence
+from typing import Callable, Sequence
 
 import numpy as np
 
@@ -111,7 +111,7 @@ def _default_mar_fetcher() -> float:
             ORDER BY date DESC
             LIMIT 1
         """
-        rows = list(client.query(sql).result())
+        rows = list(client.query(sql).result(timeout=30))
         if rows and rows[0].get("value") is not None:
             # FRED publishes DGS3MO / DTB3 as annualized percent (e.g., 4.5).
             value = float(rows[0]["value"])
