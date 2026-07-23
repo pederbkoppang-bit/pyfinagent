@@ -13,6 +13,13 @@ Dry-run mode skips the live backtest engine (which would block on
 generates deterministic stub returns via a seeded `numpy.random.Generator`.
 Dry-run is what the masterplan verification exercises.
 
+phase-75.8 (gap6-01): dry-run is currently the ONLY implemented mode.
+`run()` refuses non-dry-run invocations with NotImplementedError until
+the real backtest engine is wired in, and the report writer refuses any
+report not labeled `dry_run: true` -- every data path in this script is
+the seeded stub, so a `dry_run: false` report would be fabricated
+evidence that passes all four evaluator hard gates by construction.
+
 Usage:
     python scripts/risk/gauntlet.py --strategy baseline --dry-run
     python scripts/risk/gauntlet.py --strategy baseline --seed 42
@@ -129,7 +136,35 @@ def _append_jsonl_row(summary: dict) -> None:
         f.write(json.dumps(summary, default=str) + "\n")
 
 
+def _write_report(report: dict, out_dir: Path) -> Path:
+    """Write report.json, refusing any report not labeled dry_run:true.
+
+    phase-75.8 (gap6-01) defense-in-depth: all report data in this script
+    comes from `_run_regime_stub`, so a report claiming to be live
+    evidence must never reach disk. Explicit raise (not `assert`) so the
+    guard survives `python -O`.
+    """
+    if report.get("dry_run") is not True:
+        raise RuntimeError(
+            "refusing to write a gauntlet report not labeled dry_run:true -- "
+            "the only data source in this script is the seeded stub"
+        )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "report.json"
+    path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
 def run(strategy: str, dry_run: bool, seed: int) -> dict:
+    if not dry_run:
+        # phase-75.8 (gap6-01): refuse rather than fabricate. The old path
+        # ran _run_regime_stub unconditionally and wrote dry_run:false
+        # reports of seeded noise that pass every evaluator hard gate.
+        raise NotImplementedError(
+            "gauntlet live mode is not implemented -- the only data source "
+            "is the dry-run stub. Re-run with --dry-run, or wire the real "
+            "backtest engine before requesting a live report."
+        )
     rng = np.random.default_rng(seed)
     per_regime = [_run_regime_stub(r, rng) for r in REGIMES]
 
@@ -156,11 +191,7 @@ def run(strategy: str, dry_run: bool, seed: int) -> dict:
         "bq_note": "BQ gauntlet_runs table pending -- JSONL at handoff/gauntlet_runs.jsonl for now",
     }
 
-    out_dir = OUT_DIR / strategy
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "report.json").write_text(
-        json.dumps(report, indent=2) + "\n", encoding="utf-8"
-    )
+    _write_report(report, OUT_DIR / strategy)
 
     _append_jsonl_row({
         "ts": now,

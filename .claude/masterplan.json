@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-20",
+  "updated_at": "2026-07-23",
   "phases": [
     {
       "id": "phase-0",
@@ -17318,7 +17318,7 @@
         },
         {
           "id": "75.8",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S8 -- promotion-gate stub-fabrication refusal + governance-limits divergence observability [executor: opus-4.8/xhigh; BOUNDARY: kill-switch/stops/sector-caps/DSR/PBO gate code and thresholds byte-untouched -- stub-refusal and WARNING-only additions; historical_macro frozen, no backtest runs]. (a) gap6-01: scripts/risk/gauntlet.py:134 runs _run_regime_stub UNCONDITIONALLY (dry_run only annotates), writing dry_run:false reports of seeded random noise that by construction pass all four evaluator hard gates and get SHA-256-stamped into optimizer_best.json by promotion_gate.py --require-gauntlet. Fix fail-safe: the non-dry-run path raises NotImplementedError until real engine wiring lands; the stub path REFUSES to write any report labeled dry_run:false; promotion_gate.py rejects reports whose per-regime bt_drawdown==drawdown exactly for all regimes (stub fingerprint). Do NOT touch evaluator gate thresholds. (b) gap6-10: promotion_gate.py:150 --dry-run currently still writes allocation_pct/stage init AND the gauntlet stamp into the real optimizer_best.json -- guard both write paths behind 'if not args.dry_run', printing the would-be mutation instead. (c) gap3-02 scoped OBSERVABILITY-ONLY: the six governance/limits.yaml RiskLimits have zero enforcement consumers while the live kill-switch runs settings.paper_daily_loss_limit_pct=4.0 vs the governed 2% -- add a divergence checker (backend/governance/divergence.py) comparing settings.paper_daily_loss_limit_pct/paper_trailing_dd_limit_pct against limits.yaml, wired ONLY as a startup WARNING log in main.py lifespan; write handoff/current/governance_limits_divergence_75.md documenting every divergent pair and draft operator token GOV-LIMITS-DECIDE (which value binds; lint WARN->fail flip stays operator-gated). No cap value, kill-switch line, or lint severity changes in this step.",
           "harness_required": true,
           "priority": "P0",
@@ -17333,6 +17333,26 @@
               "All touched scripts remain runnable: python -c ast.parse passes on gauntlet.py, promotion_gate.py, and the new divergence module"
             ],
             "live_check": "handoff/current/live_check_75.8.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: gap6-01, gap6-10, gap3-02"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.8.1",
+          "status": "pending",
+          "name": "Audit75 S8 follow-up -- stub-fingerprint + dry-run-label guard for the SECOND gauntlet-report consumer (autonomous_harness.promote_strategy) [executor: opus-4.8/xhigh; BOUNDARY: same as 75.8 -- evaluator gate thresholds, kill-switch code, DSR/PBO constants, limits.yaml all byte-untouched]. Discovered during the 75.8 research gate (wf_26a12896-e0c, 2026-07-23): 75.8 scoped the stub-fingerprint rejection (bt_drawdown == drawdown exactly for every non-skipped regime => fabricated dry-run stub evidence that passes all four evaluator hard gates by construction) to scripts/risk/promotion_gate.py, but backend/autonomous_harness.py::promote_strategy (lines 258-289 as of 2026-07-23 -- re-anchor at research, the file may have moved) is the OTHER consumer: it loads handoff/gauntlet/<strategy>/report.json and trusts it via backend/backtest/gauntlet/evaluator.evaluate() with NO dry_run-label check and NO fingerprint check. It is the consumer with the eventual real caller (as of 2026-07-23 only scripts/risk/phase4_9_redteam.py invokes it; no production caller -- hence P1 latent, not P0). Port BOTH rejections promotion_gate.py gained in 75.8: (a) refuse reports labeled dry_run:true for a real promotion, (b) refuse the stub fingerprint (filter skipped regimes; guard the empty-list all([]) trap). Factor ONE shared predicate module (e.g. backend/backtest/gauntlet/report_integrity.py) imported by BOTH consumers instead of copy-pasting -- scripts/risk/promotion_gate.py should be refactored onto it in the same step. Reference fixtures + the end-to-end anti-fixture-divorce pattern (feed REAL gauntlet dry-run stub output to the consumer) live in backend/tests/test_phase_75_promotion_gate.py.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_promotion_gate.py backend/tests/test_phase_75_8_1_harness_consumer.py -q",
+            "success_criteria": [
+              "New backend/tests/test_phase_75_8_1_harness_consumer.py passes offline and asserts promote_strategy refuses (with a logged/returned reason, no exception swallowed into a promote) a report whose every non-skipped regime has bt_drawdown exactly equal to drawdown, AND refuses a report labeled dry_run:true, while a realistic divergent dry_run:false report still promotes through the existing evaluator path",
+              "The fingerprint predicate is a SINGLE shared implementation imported by both scripts/risk/promotion_gate.py and backend/autonomous_harness.py (no duplicated predicate logic), and all pre-existing tests in backend/tests/test_phase_75_promotion_gate.py still pass unchanged",
+              "Empty and all-skipped per_regime lists are NOT fingerprinted by the shared predicate (the all([]) trap), proven by test through BOTH consumers",
+              "Mutation matrix in experiment_results.md: dropping the shared predicate call, the dry_run-label check, or the skipped-filter each fails at least one test through EACH consumer (no vacuous guards)",
+              "git diff shows zero edits to evaluator gate thresholds, kill-switch enforcement code, DSR/PBO constants, or limits.yaml values"
+            ],
+            "live_check": "handoff/current/live_check_75.8.1.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface. No UI surface; no flag-gated live-loop behavior expected."
           },
           "retry_count": 0,
           "max_retries": 3

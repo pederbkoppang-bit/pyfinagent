@@ -285,6 +285,15 @@ async def lifespan(app: FastAPI):
         logging.exception("governance: limits_loader failed; continuing "
                            "(service will run with default soft limits)")
 
+    # phase-75.8 (gap3-02): governance-vs-runtime limits divergence.
+    # WARNING-only observability -- never gates startup (fail-open like
+    # the loader above; the helper itself also never raises).
+    try:
+        from backend.governance.divergence import log_divergence_warnings
+        log_divergence_warnings()
+    except Exception:
+        logging.exception("governance: divergence check failed; continuing")
+
     # Start paper trading scheduler if enabled
     if settings.paper_trading_enabled:
         try:
@@ -334,8 +343,7 @@ async def lifespan(app: FastAPI):
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from backend.services.ticket_queue_processor import get_queue_processor
-        import asyncio as aio_lib
-        
+
         # Create a separate async scheduler just for the queue processor
         queue_scheduler = AsyncIOScheduler()
         
