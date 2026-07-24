@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `1559fada` | chore(settings): deny Bash(git stash*) -- operator-directed enforcement of feedback_no_git_stash_wit |
 | 2026-07-24 | `b4dffaf9` | chore: quant-agent experiment data artifacts (rev-00031 nightly residue) |
 | 2026-07-24 | `e7150f71` | phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LLM-spend metric (DARK, flag OFF) |
 | 2026-07-24 | `09d97705` | chore: record operator approval of the 75.20 diff (push released; flip stays restart-gated) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `09223466` | phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get... |
 | 2026-07-23 | `fd4380b3` | phase-75.9: Audit75 S9 -- BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost g... |
 | 2026-07-23 | `ff6994ef` | phase-75.8: Audit75 S8 -- promotion-gate stub-fabrication refusal + governance-limits divergence ... |
-| 2026-07-23 | `e3e0bbee` | phase-75.7: Slack streaming await-correctness + P0 pager integrity -- Q/A PASS (cycle 3) |
 
 ---
 
