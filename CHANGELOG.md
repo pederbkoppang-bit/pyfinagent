@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `8c48cc11` | chore(76.9): Max-rail live test PASSED -- first-ever non-ERROR autoresearch memo; queue 76.9.1/76.9. |
 | 2026-07-24 | `74e1b772` | phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-only enforced (LOCAL, flip+push h |
 | 2026-07-24 | `eb707333` | chore: handoff archive backfill (13 done-step artifacts to archive/misc) + queue 75.11.4 backfill st |
 | 2026-07-24 | `a8c314df` | phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance + retriever reorder; ablation san |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `4c37f1ef` | phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary path constrained [FLIP+PUSH HELD  |
 | 2026-07-24 | `fa9aaf8e` | chore: handoff layout backfill -- archive 315 misc + 3 audit + 4 log files out of handoff/current |
 | 2026-07-24 | `ee4d92b5` | phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue |
-| 2026-07-24 | `947eaf58` | chore: ops addendum -- ablation wrapper bootstrapped (leg 3 complete) |
 
 ---
 
