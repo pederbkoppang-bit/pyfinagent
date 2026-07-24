@@ -17371,7 +17371,7 @@
         },
         {
           "id": "75.5.12",
-          "status": "pending",
+          "status": "done",
           "name": "75.5.1 follow-up -- fetch_llm_spend's CC-rail exclusion misses the BARE 'cc_rail' agent shape (2,241 rows / 4.1M tokens would phantom-price on flag flip) [executor: sonnet-4.6/high; BOUNDARY: backend/services/observability/spend.py + tests]. MEASURED 2026-07-24 (phase-78 census volume query, llm_call_log 30d): 2,241 calls / 4,137,143 tokens on provider='anthropic', model=claude-sonnet-4-6 (+365 opus-4-7 / 454,801 tokens) carry agent EXACTLY 'cc_rail' -- the no-suffix else-branch at backend/agents/claude_code_client.py:504 (agent=f'cc_rail:{agent}' if agent else 'cc_rail') -- while spend.py:218's exclusion is `agent NOT LIKE 'cc_rail:%'` (colon REQUIRED), so bare-'cc_rail' rows PASS the filter and would be priced at full API rates the moment the operator flips cost_budget_use_llm_spend_enabled (the owed 75.5.1 token). This is the exact phantom-trip failure mode 75.5.1 exists to prevent, hiding in its own discriminator; the bare shape is the DOMINANT production shape. FIX: widen the exclusion to also match agent='cc_rail' AND agent LIKE 'cc_rail%' review (careful: must NOT exclude a hypothetical legit agent literally named e.g. 'cc_railway' -- use (agent = 'cc_rail' OR agent LIKE 'cc_rail:%')); update the module docstring's both-shapes inventory to THREE shapes; extend test_phase_75_5_1_spend_metric.py's both-shapes test to the bare shape (mutation: revert the widened clause -> bare-shape test red). Research gate tier simple.",
           "harness_required": true,
           "priority": "P1",
@@ -18049,6 +18049,25 @@
               "MUTATION: tag a bridge row with a shape outside the exclusion -> a test asserting $0 contribution goes red"
             ],
             "live_check": "handoff/current/live_check_76.9.6.md: the decision, a real bridge-tagged row priced at zero (or the no-instrumentation evidence), and the mutation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.14",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "name": "75.5.12 follow-up -- the qa.md lint gate can report 'All checks passed!' while linting NOTHING [executor: sonnet-4.6/high; BOUNDARY: .claude/agents/qa.md lint-gate wording + a verifying test]. FOUND BY THE Q/A IN ITS OWN CHECK, 2026-07-25 (self-reported, which is why it is trustworthy): the gate derives its scope with something like FILES=$(git diff --name-only HEAD -- '*.py') and then invokes `ruff check $FILES`. **In zsh an unquoted $FILES does NOT word-split**, so ruff receives ONE newline-joined pseudo-path, prints 'No such file or directory' AND 'All checks passed!', and exits 0 -- having linted nothing. The existing empty-set guard (added in phase-75.5 cycle 8 precisely to stop a vacuous green) does NOT catch this, because the derived file list is NON-EMPTY; only ruff's view of it is empty. So every Q/A cycle that reports a clean lint may have linted zero files, and the guard designed to prevent exactly this class does not fire. This is vacuity shape #9 biting the evaluator's own instrument. FIX: assert ruff's OWN resolved file count (e.g. parse `--statistics`/`--show-files` output, or run with `--no-cache --show-files` and count lines) rather than only asserting the derived list is non-empty; and use an explicit array/`xargs` form so word-splitting is not shell-dependent. NOTE the project already standardised on a 'robust xargs form' elsewhere (recorded in phase-76.9.2's experiment_results) -- reconcile the two so one shape is used everywhere. Research gate tier simple.",
+          "verification": {
+            "command": "bash -n .claude/hooks/*.sh 2>/dev/null; echo gate-syntax-ok",
+            "success_criteria": [
+              "The lint gate asserts the number of files RUFF ACTUALLY RESOLVED, not merely that the derived list is non-empty",
+              "The invocation form does not depend on shell word-splitting behaviour (explicit array or xargs)",
+              "A test/probe demonstrates the OLD form reporting 'All checks passed!' exit 0 over a newline-joined path while linting nothing, and the NEW form refusing to",
+              "MUTATION: feed the gate a deliberately non-existent path -> it FAILS loudly instead of reporting success"
+            ],
+            "live_check": "handoff/current/live_check_75.5.14.md: the vacuous-green reproduction verbatim, the fixed form, and the mutation."
           },
           "retry_count": 0,
           "max_retries": 3

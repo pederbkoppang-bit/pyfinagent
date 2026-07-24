@@ -216,3 +216,53 @@ before the next Q/A spawn, not after it.
 
 **No code changed** in either cycle. The implementation has been verified green by two
 independent evaluators; every defect has been in my prose.
+
+
+---
+
+## Cycle-3 Q/A verdict (verbatim) — **PASS**
+
+**Launch + provenance (disclosed).** The Workflow launch for this cycle ERRORED with an
+empty return (`subagent completed without calling StructuredOutput`); `journal.jsonl`
+held no result line, so there was NO verdict — never a PASS. Per CLAUDE.md I fell back
+to the Agent-tool `qa` subagent (model opus). That agent DID emit a complete verdict
+object as its final message, but the delivery reached Main only as an idle
+notification, so the object below was read out of the agent's own final message rather
+than a task result. It is the evaluator's emitted verdict, transcribed verbatim and
+unedited — not a reconstruction from its reasoning, which I would not do.
+
+```json
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 3 immutable criteria MET, each reproduced independently by Q/A rather than read from Main. Immutable command: 13 passed, exit 0, with 13 progress dots for 13 tests (internally consistent, not a spliced capture). Mutation matrix run by Q/A in-memory, each mutation asserting anchor-uniqueness so an unapplied mutation cannot report a false green: M1 (revert the bare clause) -> 1 failed/12 passed, the ONLY red is test_bare_cc_rail_shape_contributes_zero while test_cc_rail_rows_contribute_zero_both_shapes stays GREEN -- criterion 3 exactly; M2 (exact != -> NOT LIKE 'cc_rail%') -> red on test_cc_railway_is_not_swallowed_by_the_bare_cc_rail_exclusion -- criterion 1's 'not a prefix-wildcard' half; M4 (drop the NULL guard) -> red on test_agent_none_rows_are_included; MSTEP (the step text's own form) -> 2 failed/11 passed, reds = both-shapes + bare-shape, independently reproducing Main's cycle-1 correction; baseline 13 passed. Criterion 2 was re-derived by Q/A, not accepted: a census of every log_llm_call writer finds exactly ONE provider='claude-code' writer (backend/services/autonomous_loop.py:2298-2299) and exactly ONE cc_rail-tag writer (backend/agents/claude_code_client.py:504 ternary, producing both the colon and bare shapes) -- no fourth shape exists, and spend.py:26-38 names all three with anchors. BOTH cycle-2 findings are CLEARED. Finding (1): the refuted 'silently neuter' claim now carries adjacent [MAIN CORRECTION] notes at research_brief_75.5.12.md:409 (decisive-reason paragraph) and :421 (Alternatives-rejected table), plus a MAIN CORRECTION header at :3-33 that explicitly enumerates all three affected sites; the specific forward harm cycle-2 named (a future step re-inheriting the refuted STARTS_WITH rejection) is closed at three independent layers -- the :421 note, the header's dedicated paragraph at :27-31, and masterplan step 75.5.13, which tells a memoryless executor the rationale 'was later REFUTED BY EXECUTION ... Do not re-inherit the refuted rationale'. Finding (2): 75.5.13 and 76.9.6 both exist, are absent at 018fc06f and present at HEAD (so they are genuine cycle-2 remediation, not pre-existing), and each carries success criteria, a mutation, and its own live_check; all three 'queued as **75.5.13**' claims resolve to a real id and 76.9.6's cross-reference to step 78.8 also resolves. No code defect was found in any of the three cycles, and git diff 018fc06f..HEAD over spend.py and its test file is empty, confirming no code changed during remediation.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_5_item",
+    "immutable_verification_command",
+    "verbatim_capture_internal_consistency",
+    "ruff_F821_F401_F811_git_derived_scope",
+    "runtime_import_smoke",
+    "runtime_flag_state",
+    "mutation_M1_revert",
+    "mutation_M2_prefix",
+    "mutation_M4_null_guard",
+    "mutation_MSTEP_step_text_form",
+    "mutation_anchor_uniqueness_assertion",
+    "baseline_green",
+    "criterion2_independent_shape_census",
+    "docstring_anchor_resolution",
+    "test_count_arithmetic",
+    "repo_wide_refuted_claim_grep",
+    "masterplan_step_id_resolution",
+    "queued_step_actionability_review",
+    "envelope_machine_reader_search",
+    "claim_auditor_spot_check",
+    "scope_honesty_numeric_reconciliation"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS COMPLIANCE 5/5. (1) Research gate ran before the contract: research_brief_75.5.12.md, gate_passed true, 8 read in full / 22 URLs / recency scan, cited at contract_75.5.12.md:7 and :159. (2) Contract precedes GENERATE and copies the criteria verbatim at :106-118 -- byte-compared against masterplan 75.5.12, exact match, command matches. (3) experiment_results_75.5.12.md present. (4) Log-last honored: harness_log.md has 0 entries for this step-id, which is CORRECT now. (5) Not verdict-shopping: evidence genuinely CHANGED between cycle-2 and cycle-3 (research_brief_75.5.12.md +37 lines; masterplan gained 75.5.13 and 76.9.6, both provably absent at 018fc06f) -- the documented fresh-respawn-on-changed-evidence pattern. Step status is still 'pending', correctly.\n\nANSWERING YOUR TWO DIRECT QUESTIONS.\n\n(a) ANNOTATING the researcher's brief was the RIGHT call over rewriting -- and for a stronger reason than the one you gave. The brief is another agent's artifact. Main rewriting it in place would destroy the audit trail and would mirror exactly what the verbatim-transcription rule forbids Main from doing to a Q/A verdict. The header's own line 'The brief's own text is left UNEDITED below; this note is Main's, not the researcher's' is the correct attribution discipline, and the edit is additions-only (verified: original text preserved at :406-407 and :416-417).\n\n(b) THE ENVELOPE SUMMARY -- plainly, as you asked: YES, a machine reader of that summary would still be misled. The correction lives outside the fenced json block, so nothing reachable from the parsed object carries it; research_brief_75.5.12.md:568 still asserts the refuted clause as fact. Also, your stated reason is wrong: appending a correction sentence inside the summary STRING VALUE would not corrupt the JSON -- it would remain valid. But the DECISION not to edit is still right, on the (a) ground: the envelope is the researcher's structured machine-readable return, and Main should not edit another agent's return. I did not treat this as blocking, and I checked rather than assumed why: no machine reader of that field exists in this repo. The only automated touch on any brief envelope is scripts/add_phase_27.py:71, which greps gate_passed, never summary. Combined with the header explicitly enumerating 'the summary field of the JSON envelope at the end' as one of the three refuted sites -- so a human reading top-to-bottom is warned ~500 lines before reaching :568 -- the residual is bounded and disclosed. If you want belt-and-braces, the clean fix is a one-line note ADJACENT to the fence (outside the json), never inside it.\n\nCLAIM-AUDITOR SPOT CHECK: your judgement is correct on both unresolved paths. research_brief_76.9.2.md:71 sits under 'Q6 -- reuse' and reads 'a scripts/qa/verify_max_rail.sh (curl /health + one tiny POST) mirrors existing scripts/qa verify style' -- indefinite article, prescriptive. research_brief_75.20.1.md:153 sits under '(a) Probe shape -- BEHAVIORAL, two complementary artifacts' and is a build spec ('Spawns...', 'Clean up the scratch file'). Neither asserts existence. Positive control that the auditor's distinction is real: the SAME brief at :145 cites scripts/qa/verify_qa_roster_live.sh as an 'Existing probe pattern' -- that IS an existence claim, and that file does exist.\n\nSCOPE HONESTY: the docstring's 2,549 calls / 4.87M tokens differs from the step text's 2,241/4.1M, and live_check_75.5.12.md:20 discloses and reconciles this explicitly as a different measurement date rather than papering over it. Runtime boundary re-verified by me: cost_budget_use_llm_spend_enabled = False, cost_budget_daily_usd = 25.0 -- the metric is still dark, no production behavior changed. Test arithmetic reproduces exactly: 11 at 018fc06f~1, +2 added, 0 removed, 13 now.\n\nNON-BLOCKING IMPRECISION (not a finding, no action required): the docstring's anchors 'autonomous_loop.py:2299' and ':2722/:2762' use a bare basename, and TWO files share it -- backend/autonomous_loop.py and backend/services/autonomous_loop.py. All three anchors resolve correctly in backend/services/, and the line numbers disambiguate (the other file is 24KB), but a directory prefix would be better. Separately, '_role is written in just two places repo-wide' reproduces exactly (backend/services/autonomous_loop.py:2722 and :2762; every other hit is a .get() read or a comment).\n\nON THE 3rd-CONDITIONAL RULE, stated so it is auditable: the rule removed CONDITIONAL from my options, so I want to be explicit that PASS is not a default I fell into. FAIL would require cycle-2's findings to be uncleared. They are cleared -- the substantive forward harm is closed at three layers and both queued steps are real and actionable. The only residual is the envelope summary, which has no machine consumer and is named in the header. Escalating that to FAIL on a P1 step whose code has been correct and independently mutation-verified across three cycles would be the harness failing in the opposite direction from the one the rule guards against.\n\nMETHOD DISCLOSURE: all mutations were mine, run in-memory via a scratchpad pytest plugin that re-execs a mutated spend.py into the same module globals -- no repo file was written, and I remained read-only throughout. One caution for future cycles: my FIRST ruff run hit vacuity shape #9 -- in zsh an unquoted $FILES does NOT word-split, so ruff got one newline-joined path, printed 'No such file or directory' AND 'All checks passed!' and exited 0 while linting nothing. The qa.md empty-set guard did not catch it because the file set was non-empty; the guard needs to assert ruff's own resolved file count, not just that the derived list is non-empty. The reported clean lint is from a corrected run over three paths I confirmed exist."
+}
+```

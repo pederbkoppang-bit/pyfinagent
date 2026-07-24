@@ -28348,3 +28348,39 @@ latter from the 78.1 research gate: repo-context tax per rail call; the `--bare`
 default flip that would silently return the whole rail to METERED billing (P1); the
 rail-wide missing house system prompt; make_client's narrow ImportError catch).
 Boundary held: no production code, no flag flipped, no model pin touched.
+
+## Cycle 159 -- 2026-07-25 -- phase=75.5.12 result=PASS
+
+**P1 money fix: fetch_llm_spend was blind to the DOMINANT CC-rail row shape.**
+`spend.py`'s exclusion was `agent NOT LIKE 'cc_rail:%'` -- the colon is REQUIRED -- so
+rows tagged with the BARE `cc_rail` passed the metered-only filter and would have been
+priced at full API rates the moment the operator flips
+`cost_budget_use_llm_spend_enabled`: the exact phantom-trip 75.5.1 exists to prevent,
+hiding inside its own discriminator. Measured this cycle (30d): **2,549 bare-shape calls
+/ ~4.87M flat-fee tokens vs 7** in the colon shape the old predicate caught (~364:1).
+Root cause of the dominance: `orchestrator.py:826-835` never sets `_role`, so
+`claude_code_client.py:504`'s ternary always takes the else-branch.
+
+- Fixed with the De-Morgan'd form. **The step text's own suggested predicate was
+  declined** -- and my first stated reason for that was WRONG. I claimed it would
+  "silently neuter the existing guard"; run, it makes the test go **RED**, not green.
+  The real reason (found by Q/A, then verified): taken literally it drops every
+  NULL-agent row via SQL three-valued logic, and NULL is the *common* metered case --
+  226 Gemini calls / 232,090 tokens would have silently vanished from metered spend, an
+  UNDER-count that opens the breaker late.
+- **M4 did not kill on the first run.** The `agent IS NULL` guard was untested because
+  the fake never modelled 3VL. Rather than report it as covered, the fake now models it;
+  M4 kills. Q/A independently confirmed the branch is FAITHFUL, not tuned (removing it
+  changes nothing on correct SQL).
+- Three Q/A cycles: **CONDITIONAL -> CONDITIONAL -> PASS**, and NO code defect was ever
+  found -- every finding was a prose claim of mine that did not reproduce. Cycle-2's
+  sharpest: I fixed the three files cycle-1 *named* instead of the claim itself, leaving
+  it alive in the research brief that ORIGINATED it, where it was the sole ground for
+  rejecting the predicate the brief itself rated most wildcard-safe.
+- Queued from these cycles: **75.5.13** (three cc_rail predicate seams + the
+  wildcard-free re-decision) and **76.9.6** (the Max-rail bridge's latent fourth shape).
+
+Files: `backend/services/observability/spend.py`,
+`backend/tests/test_phase_75_5_1_spend_metric.py`. Immutable: `13 passed`, exit=0.
+**No flag flipped** -- `cost_budget_use_llm_spend_enabled` stays default-off; this makes
+the metric correct so the operator *can* flip it safely.
