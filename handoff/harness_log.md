@@ -28015,3 +28015,12 @@ Operator approval received ("do it") for the Cycle-146 action queue. Executed by
 - Session tiering note (operator directive honored): Main-on-Fable executed both
   opus-tagged steps (75.19, 75.20); Researcher + Q/A gates ran opus/max via
   Workflow; trivial probes ran haiku.
+
+### Cycle 148 addendum -- 2026-07-24 -- operator APPROVED the 75.20 diff
+
+Operator reply "i approve" (attended, same day). Held commits 4c37f1ef + c2c36bdb
+pushed to origin/main. REMAINING for 75.20 close (unchanged, restart-gated):
+session restart -> verify_qa_roster_live.sh -> fresh qa probe self-discloses the
+browser grant -> append verbatim to live_check_75.20.md section 7 -> flip 75.20
+done. The flip stays HELD this session because the roster confirmation is
+structurally after-restart evidence (live_check spec).
