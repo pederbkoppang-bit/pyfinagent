@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `77bc7db5` | fix(handoff): restore 23 artifacts the backfill swept; record the measured root cause in 75.11.4 |
 | 2026-07-25 | `751e0380` | phase-76.9.3+78.0: both PASS -- ddgs retriever leg restored; Anthropic call-site census closed |
 | 2026-07-25 | `2792c8b4` | docs(75.5.12): correct a refuted justification claim after Q/A cycle-1 |
 | 2026-07-25 | `018fc06f` | chore(76.9.3/78.0/75.5.12): three steps built + mutation-tested; 12 follow-up steps queued |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `d21b31d5` | chore: cycle-151 addendum -- 75.4.2 executor report reconciliation |
 | 2026-07-24 | `6a305da9` | chore: quant-agent experiment data artifacts (nightly residue) |
 | 2026-07-24 | `42264502` | phase-75.4.2: Audit75 S4 follow-up -- skill_optimizer post-write delivery invariant (fail-closed) |
-| 2026-07-24 | `ae13d829` | chore: quant-agent experiment data artifacts (nightly residue) |
 
 ---
 
+### v6.68.31 — fix(handoff): restore 23 artifacts the backfill swept; record the mea... (2026-07-25)
+
+- **fix(handoff): restore 23 artifacts the backfill swept; record the measured root cause in 75.11.4**
 ### v6.68.30 — phase-76.9.3+78.0: both PASS -- ddgs retriever leg restored; Anthropi... (2026-07-25)
 
 - **phase-76.9.3+78.0: both PASS -- ddgs retriever leg restored; Anthropic call-site census closed**
