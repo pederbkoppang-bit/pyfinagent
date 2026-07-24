@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `0878f13e` | chore: ops record -- operator-approved queue executed (75.18 flip, restart, logrotate live, quant re |
 | 2026-07-24 | `207da6b4` | phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [execu... |
 | 2026-07-24 | `88ebd5b9` | phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.... |
 | 2026-07-24 | `3cf2ba70` | phase-75.16: Audit75 S16 -- Cloud Functions + Docker deploy-surface retirement/hardening + script... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-20 | `64cd1674` | fix: phase-75.4 -- skill-prompt delivery integrity (loader truncation, undelivered sections, critic  |
 | 2026-07-20 | `8bf20673` | chore: queue 75.20 -- make the Q/A live-UI gate enforceable and the primary Q/A path actually read-o |
 | 2026-07-20 | `694893a2` | chore: queue 75.19 -- recalibrate the masterplan preflight gate, then triage its residue |
-| 2026-07-20 | `1c219fae` | chore: queue 75.17 (absent-path verification triage) + 75.18 (anti-vacuous-guard doctrine) |
 
 ---
 
