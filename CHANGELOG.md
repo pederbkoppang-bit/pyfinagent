@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `dd46b69a` | phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dea... |
 | 2026-07-24 | `07182b94` | phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unat... |
 | 2026-07-24 | `09223466` | phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get... |
 | 2026-07-23 | `fd4380b3` | phase-75.9: Audit75 S9 -- BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost g... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-20 | `40111b03` | phase-75.1: backend auth surface fail-closed (security-01/03/04, gap2-03, api-design-12, pysvc-08) |
 | 2026-07-20 | `8b280cfc` | phase-75.0: Ultracode full-stack audit + remediation-queue synthesis [executor: this session, fab... |
 | 2026-07-18 | `1e6dd200` | phase-74.0: install local-LLM pilot queue (assessment: full localization REJECTED on 16GB M4; Slack- |
-| 2026-07-18 | `a71e56dc` | phase-73.7: D4 rollup + push [executor: this session, fable-5/ultracode]. DoD verification (front... |
 
 ---
 
+### v6.68.14 — phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth trans... (2026-07-24)
+
+- **phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dea...**
 ### v6.68.13 — phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, si... (2026-07-24)
 
 - **phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unat...**
