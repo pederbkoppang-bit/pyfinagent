@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `88ebd5b9` | phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.... |
 | 2026-07-24 | `3cf2ba70` | phase-75.16: Audit75 S16 -- Cloud Functions + Docker deploy-surface retirement/hardening + script... |
 | 2026-07-24 | `7d65c0d4` | phase-75.15: Audit75 S15 -- CI gates made real: advisory flip, requires_live migration, lock-coun... |
 | 2026-07-24 | `f0d580fd` | phase-75.14: Audit75 S14 -- prompt-contract reconciliation, injection fencing, fact-ledger proven... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-20 | `694893a2` | chore: queue 75.19 -- recalibrate the masterplan preflight gate, then triage its residue |
 | 2026-07-20 | `1c219fae` | chore: queue 75.17 (absent-path verification triage) + 75.18 (anti-vacuous-guard doctrine) |
 | 2026-07-20 | `e610b918` | phase-75.2.1: close the two escalated items from 75.2 (annotate the collision, arm the push approval |
-| 2026-07-20 | `256867d3` | phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/08/09, security-05) |
 
 ---
 
+### v6.68.19 — phase-75.17: Audit75 S17 -- absent-path verification family: triage +... (2026-07-24)
+
+- **phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4....**
 ### v6.68.18 — phase-75.16: Audit75 S16 -- Cloud Functions + Docker deploy-surface r... (2026-07-24)
 
 - **phase-75.16: Audit75 S16 -- Cloud Functions + Docker deploy-surface retirement/hardening + script...**
