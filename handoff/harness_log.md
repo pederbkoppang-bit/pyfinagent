@@ -27950,3 +27950,36 @@ Operator approval received ("do it") for the Cycle-146 action queue. Executed by
 5. **HELD FOR OPERATOR (rails/permissions, by design)**: (a) bootstrap legs 2+3 (frontend next-start authority + ablation wrapper) -- the phase-62.0 launchctl-removal rail correctly blocks `bootout` from agent sessions and its escape reads the hook's own env (75.11.2 finding); paste-ready commands handed to the operator below in chat. NOTE: until leg 3 runs, the ablation job keeps crash-failing nightly on the raw .env sourcing. (b) backend/.env:81 quote repair -- .env reads are permission-denied to the session (correct); one-line operator edit per the runbook. (c) GOV-LIMITS-DECIDE BIND-SETTINGS arm needs the operator's GPG-signed limits-rotation tag (cannot be signed by the session). (d) SCHEMA-EXTEND-75.14 defaulted to KEEP-ALIGNED (no action) per its own token text.
 **Vestigial config note for a future step**: quant-agent still carries stale REDIS_HOST/REDIS_PORT/BUCKET_NAME env vars from the pre-January design -- harmless, but a cleanup candidate when the function is next touched.
 **Ops addendum 2026-07-24 ~07:15 UTC**: OPS-ROTATE-BOOTSTRAP leg 3 COMPLETE -- operator ran the bootout via the in-session `!` path; Main bootstrapped the corrected plist (backup at com.pyfinagent.ablation.plist.pre-75.11.bak); agent loaded on scripts/ops/run_ablation.sh (sanitized sourcing + paging seam). The ~37-night crash streak ends tonight's run. Leg 2 (frontend next-start authority) deliberately NOT run -- operator's dev workflow choice, runbook stands. Remaining operator-only items: .env:81 quote repair; GOV-LIMITS-DECIDE GPG-signed tag if BIND-SETTINGS is chosen.
+
+## Cycle 147 -- 2026-07-24 -- phase=75.19 result=PASS (cycle 1, clean)
+
+- SESSION START (owed from phase-75 handoff): `scripts/qa/verify_qa_roster_live.sh`
+  PASSED (on-disk + origin/main); fresh Agent-tool Q/A 4c self-disclosure probe
+  (haiku -- trivial quote-back) returned YES with qa.md:291-293 quoted verbatim.
+  The 75.18 anti-vacuous-guard doctrine (qa.md 4c) is LIVE in the Agent-tool
+  roster snapshot. Both roster verifications closed.
+- Executor model per operator tiering directive: 75.19 is opus-tagged -> Main
+  (Fable 5) GENERATE; Researcher gate opus/max (wf_209bbec6-ace, 7 read-in-full,
+  45 URLs, gate_passed); Q/A opus/max via qa-verdict Workflow (wf_76f208bd-e2a).
+- GENERATE: `scripts/meta/preflight_verify_masterplan.py` recalibrated around the
+  imported 75.17 adjudication core -- status-aware, superseded_record-aware,
+  container-explicit walk (steps[]+subphases[] live; archive containers
+  excluded-but-counted), status-gated import leg, shlex-independent regex
+  scanning (8 nested-quote commands NOTE-bucketed, still scanned), self-checked
+  summary (rows/summary mismatch -> exit 2), per-step de-dup. New 33-test suite
+  `backend/tests/test_phase_75_19_preflight_calibration.py`.
+- RESULT: live gate flipped from "863 steps, 151 broken, 8 unparseable" +
+  222 BROKEN lines / exit 1 (~100% effective-FP) to genuine=0 / exit 0.
+  Triage: ZERO new superseded_record owed -- residue empty by two independent
+  instruments (recalibrated preflight + 75.17 sweep CLEAN); 14-holder census
+  unchanged (13 done + 68.5 pending); go_live_drills untouched.
+- Mutation matrix: 7/7 killed (5 production + M6 FIXTURE + M7 STUB), 0 survivors,
+  post-restore green -- verbatim in live_check_75.19.md. Q/A independently
+  re-executed the guard families in-memory per qa.md 4c and confirmed M6/M7.
+- Q/A verdict PASS, 21 checks_run, 0 violated criteria, transcribed verbatim in
+  evaluator_critique.md. Two non-blocking notes: 710-vs-731 scanned-denominator
+  definitional delta (disclosed); pre-existing handoff-root redteam audit stream
+  (out of scope).
+- Measured self-correction recorded: initial test asserted annotated_excluded==14
+  (unmeasured); measured reality is 14 holders / 13 done (68.5 pending). The
+  feedback_measure_dont_assert_claims discipline caught it pre-Q/A this time.

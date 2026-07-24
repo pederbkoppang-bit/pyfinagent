@@ -1,30 +1,62 @@
-"""phase-16.38 (#29) pre-flight verifier for masterplan verification commands.
+"""Pre-flight verifier for masterplan verification commands.
 
-Walks `.claude/masterplan.json`, extracts every step's `verification`
-field, parses the command shell-style WITHOUT executing it, and checks
-that referenced file paths and Python imports actually exist.
+phase-16.38 (#29) original: walk `.claude/masterplan.json`, extract every
+step's `verification` command, and statically check that referenced file
+paths and Python imports exist -- no command execution (no side effects,
+no cost, no flake).
 
-Catches drift like phase-16.22 surfaced: ~6 verification commands had
-referenced files that had been renamed or deleted. The previous fix
-(#9 in 16.33+16.34) was reactive -- this script is the proactive gate.
+phase-75.19 RECALIBRATION. The original was status-blind, annotation-blind,
+container-blind, and used an ad-hoc path heuristic; on 2026-07-24 it
+reported "863 steps, 151 broken, 8 unparseable" across 222 BROKEN lines
+with a true genuine residue of ZERO -- ~100% effective false positives.
+A gate that noisy gets ignored (Sadowski et al., CACM 2018: checks survive
+only under ~10% effective-FP; see research_brief_75.19.md). What changed:
 
-Static checks only -- no command execution. Avoids:
-  - side effects (database writes, file creation)
-  - cost (LLM calls, BQ queries)
-  - flake (network timeouts, env-dependent tools)
+  1. STATUS-AWARE: only `status == "done"` steps can be reported broken.
+     A pending/deferred/dropped/superseded step naming a not-yet-created
+     artifact is not a defect; those land in excluded buckets.
+  2. ANNOTATION-AWARE: a step carrying a `superseded_record` sibling is
+     DISPOSITIONED (75.2.1 shape) and excluded, mirroring the 75.17 sweep.
+  3. CONTAINER-EXPLICIT walk: scans `phases[].steps[]` AND
+     `phases[].subphases[]` (live steps; the old recursive walk's ids all
+     resolve, but the 75.17 sweep's `flat_steps` missed subphases);
+     EXCLUDES `archived_legacy_steps[]` / `archived_dropped_steps[]`
+     (archive duplicates) and everything under `superseded_record`.
+     Excluded containers are counted, so the narrowing is auditable.
+  4. ADJUDICATION REUSED from `scripts.qa.sweep_absent_verification_paths`
+     (the 75.17 charter: "classify() is the IMPORTABLE core -- step 75.19
+     is chartered to reuse it"). We import the pipeline pieces
+     (`verif_commands`, `_extract_candidates`, `_clean`, `fp_reason`,
+     `git_classify`) rather than calling `classify()` itself because its
+     `flat_steps` walk misses `subphases[]` (recall gap measured
+     2026-07-24) and it has no import leg. No adjudicator is re-implemented
+     here -- a second copy would drift from the 75.17 census.
+  5. IMPORT LEG kept from the original (the sweep is path-only; imports
+     are load-bearing), gated behind the same status/annotation filters.
+  6. SHLEX-INDEPENDENT scanning: candidate extraction is regex-based, so a
+     command `shlex` cannot tokenize (nested quotes) is STILL scanned; the
+     failure is reported in its own `shlex-untokenizable` bucket, never as
+     "broken". The commands themselves are immutable and stay untouched.
+  7. INTERNALLY-CONSISTENT summary: emitted [GENUINE] lines, the distinct
+     step count they span, and every excluded bucket appear in one summary
+     whose counts are self-checked against the emitted rows before exit
+     (`check_consistency`); any mismatch is INTERNAL-INCONSISTENCY, exit 2.
+     Per-step de-duplication removes the old duplicate-line emission
+     (e.g. step 8.4 was emitted twice for one path).
 
-Handles BOTH verification field shapes per masterplan audit:
-  - String:  "verification": "python -c '...'"
-  - Object:  "verification": {"command": "...", "success_criteria": [...]}
+Verification shapes handled (via `verif_commands`): dict / str / list /
+None. The original's `_extract_command` silently dropped the 13
+list-shaped verifications.
 
 Usage:
     python scripts/meta/preflight_verify_masterplan.py .claude/masterplan.json
     python scripts/meta/preflight_verify_masterplan.py .claude/masterplan.json --quiet
+    python scripts/meta/preflight_verify_masterplan.py .claude/masterplan.json --json
 
 Exit codes:
-  0 = no broken refs detected
-  1 = one or more steps reference missing paths or unimportable modules
-  2 = filesystem / JSON parse error
+  0 = no GENUINE broken refs on done+unannotated steps
+  1 = one or more GENUINE broken refs
+  2 = filesystem / JSON parse error, or internal summary inconsistency
 """
 from __future__ import annotations
 
@@ -34,64 +66,38 @@ import json
 import re
 import shlex
 import sys
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-PATH_SUFFIXES = frozenset({
-    ".py", ".yaml", ".yml", ".json", ".md", ".sh",
-    ".tsv", ".csv", ".mjs", ".js", ".ts", ".tsx",
-})
-
-# Project subtree roots -- tokens starting with one of these are real paths.
-# A bare slash-leading token like "/login" is an HTTP route, not a file.
-PROJECT_ROOTS = (
-    "backend/", "frontend/", "tests/", "scripts/", "docs/",
-    ".claude/", "handoff/",
+from scripts.qa.sweep_absent_verification_paths import (
+    _clean,
+    _extract_candidates,
+    _git_ls_files,
+    fp_reason,
+    git_classify,
+    verif_commands,
 )
 
-# Tokens that look like file refs but are clearly NOT (regex chars, shell
-# metachars, ticker symbols, URL routes). False-positive suppressors.
-NON_PATH_PATTERNS = (
-    "\\.", "\\|",  # regex escapes
-    "://",  # URLs
-    ";",  # multi-statement blocks
-    "(",  # subshell / function
-    ")",
-    " ",  # multi-token strings broken apart
+# Container semantics (measured against the live masterplan 2026-07-24:
+# steps=859, subphases=13, archived_legacy_steps=3, archived_dropped_steps=1
+# verification-bearing entries).
+LIVE_STEP_CONTAINERS = frozenset({"steps", "subphases"})
+ARCHIVE_CONTAINERS = frozenset({"archived_legacy_steps", "archived_dropped_steps"})
+
+VENV_PREFIX_RE = re.compile(r"^source\s+\.venv/bin/activate\s*&&\s*", re.MULTILINE)
+
+IMPORT_RE = re.compile(
+    r"\b(?:from\s+([a-zA-Z_][\w.]*)\s+import|import\s+([a-zA-Z_][\w.]*))"
 )
 
-VENV_PREFIX_RE = re.compile(
-    r"^source\s+\.venv/bin/activate\s*&&\s*", re.MULTILINE
-)
 
-IMPORT_RE = re.compile(r"\b(?:from\s+([a-zA-Z_][\w.]*)\s+import|import\s+([a-zA-Z_][\w.]*))")
-
-
-def _is_path_token(token: str) -> bool:
-    """Heuristic: token looks like a file path the script should verify.
-
-    Tightened heuristic per phase-16.38 first-run feedback:
-    - Must start with one of PROJECT_ROOTS (so URL routes, ticker symbols,
-      regex patterns, and quoted shell substitutions are all suppressed)
-    - OR have a project-suffix and contain no shell metacharacters
-    """
-    if token.startswith("-"):
-        return False
-    if any(pat in token for pat in NON_PATH_PATTERNS):
-        return False
-    if "=" in token and "/" not in token:  # env var assignment
-        return False
-    # Strict: must start with a real project subtree root
-    if any(token.startswith(root) for root in PROJECT_ROOTS):
-        return True
-    # OR: bare filename with a known project suffix (no slashes)
-    if "/" not in token:
-        suffix = Path(token).suffix
-        if suffix and suffix in PATH_SUFFIXES:
-            return True
-    return False
+def _strip_venv_prefix(cmd: str) -> str:
+    return VENV_PREFIX_RE.sub("", cmd)
 
 
 def _extract_imports(cmd: str) -> set[str]:
@@ -100,44 +106,18 @@ def _extract_imports(cmd: str) -> set[str]:
     for m in IMPORT_RE.finditer(cmd):
         mod = m.group(1) or m.group(2)
         if mod:
-            # `import a, b` only catches first name; that's fine for the
-            # common `python -c "from X import Y"` pattern.
             out.add(mod.split(",")[0].strip())
     return out
 
 
-def _strip_venv_prefix(cmd: str) -> str:
-    return VENV_PREFIX_RE.sub("", cmd)
-
-
-def _check_paths(tokens: Iterable[str]) -> list[str]:
-    """Return list of broken path tokens (relative to REPO_ROOT)."""
+def _check_imports(modules: set[str], repo_root: Path) -> list[str]:
+    """Return the unimportable dotted module names (bare names skipped --
+    stdlib or top-level installed packages are not this gate's business)."""
     broken: list[str] = []
-    for tok in tokens:
-        if not _is_path_token(tok):
-            continue
-        # Resolve relative to repo root
-        candidate = REPO_ROOT / tok
-        if not candidate.exists():
-            # Some commands use globs / shell expansions -- skip if obviously not a literal path
-            if "*" in tok or "?" in tok or "[" in tok:
-                continue
-            broken.append(tok)
-    return broken
-
-
-def _check_imports(modules: set[str]) -> list[str]:
-    """Return list of unimportable module names."""
-    broken: list[str] = []
-    # Ensure REPO_ROOT is on sys.path so backend.* imports resolve
-    if str(REPO_ROOT) not in sys.path:
-        sys.path.insert(0, str(REPO_ROOT))
-    for mod in modules:
-        # Skip built-ins / single-name stdlib (find_spec triggers parent
-        # imports for dotted; for single names we only verify if it looks
-        # like a project module by having a dot).
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    for mod in sorted(modules):
         if "." not in mod:
-            # bare names like `import json` are stdlib or top-level installed; skip
             continue
         try:
             spec = importlib.util.find_spec(mod)
@@ -149,35 +129,194 @@ def _check_imports(modules: set[str]) -> list[str]:
     return broken
 
 
-def _extract_command(verification: Any) -> str | None:
-    """Handle both string + object verification shapes."""
-    if verification is None:
-        return None
-    if isinstance(verification, str):
-        return verification
-    if isinstance(verification, dict):
-        cmd = verification.get("command")
-        if isinstance(cmd, str):
-            return cmd
-    return None
+def iter_steps(node: Any, _container: str | None = None) -> Iterator[tuple[str, dict]]:
+    """Yield ("live" | "archived", step_dict) for every dict carrying both
+    an `id` and a `verification`, honoring container semantics.
 
-
-def _walk_steps(node: Any) -> Iterable[tuple[str, str]]:
-    """Yield (step_id, raw_command) tuples for every step with verification."""
+    - Entered via a LIVE_STEP_CONTAINERS key  -> "live"
+    - Entered via an ARCHIVE_CONTAINERS key   -> "archived" (sticky)
+    - `superseded_record` values are annotations, never steps: not descended.
+    - Dicts outside any step container (e.g. the phase list itself) are not
+      yielded; measured: zero phases carry their own verification.
+    """
     if isinstance(node, dict):
-        sid = node.get("id")
-        ver = node.get("verification")
-        cmd = _extract_command(ver)
-        if sid and cmd:
-            yield (str(sid), cmd)
-        for v in node.values():
-            yield from _walk_steps(v)
+        if _container is not None and node.get("id") is not None \
+                and node.get("verification") is not None:
+            yield (_container, node)
+        for key, value in node.items():
+            if key == "superseded_record":
+                continue
+            if _container == "archived":
+                child: str | None = "archived"
+            elif key in ARCHIVE_CONTAINERS:
+                child = "archived"
+            elif key in LIVE_STEP_CONTAINERS:
+                child = "live"
+            else:
+                child = _container
+            yield from iter_steps(value, child)
     elif isinstance(node, list):
         for item in node:
-            yield from _walk_steps(item)
+            yield from iter_steps(item, _container)
 
 
-def verify(masterplan_path: str | Path, *, quiet: bool = False) -> int:
+def build_report(
+    masterplan: dict,
+    repo_root: Path,
+    *,
+    git_classify_fn: Callable[[str, Path], tuple[str, str]] | None = None,
+    repo_basenames: set[str] | None = None,
+) -> dict:
+    """The testable core: parsed masterplan in, structured report out.
+
+    Returns:
+      {
+        "genuine": {sid: [{"kind": "path"|"import", "ref", "class",
+                           "retired_by_commit"}]},
+        "lines":   [formatted "[GENUINE] step=..." strings, 1:1 with entries],
+        "buckets": {"archived_excluded", "annotated_excluded", "by_status",
+                    "shlex_untokenizable": [(sid, err)]},
+        "summary": {counts -- see check_consistency for the invariants},
+      }
+    """
+    if git_classify_fn is None:
+        git_classify_fn = git_classify
+    if repo_basenames is None:
+        repo_basenames = {p.split("/")[-1] for p in _git_ls_files(repo_root)}
+
+    genuine: dict[str, list[dict]] = {}
+    lines: list[str] = []
+    by_status: dict[str, int] = {}
+    shlex_untokenizable: list[tuple[str, str]] = []
+    archived_excluded = 0
+    annotated_excluded = 0
+    live_total = 0
+    scanned = 0
+
+    for kind, step in iter_steps(masterplan):
+        if kind == "archived":
+            archived_excluded += 1
+            continue
+        live_total += 1
+        sid = str(step.get("id"))
+        status = str(step.get("status") or "unknown")
+        by_status[status] = by_status.get(status, 0) + 1
+        if status != "done":
+            continue
+        if "superseded_record" in step:
+            annotated_excluded += 1
+            continue
+        scanned += 1
+        seen: set[tuple[str, str]] = set()  # per-step de-dup (kind, ref)
+        for cmd in verif_commands(step.get("verification")):
+            cmd_s = _strip_venv_prefix(cmd)
+            try:
+                shlex.split(cmd_s, posix=True)
+            except ValueError as exc:
+                shlex_untokenizable.append((sid, str(exc)))
+            for tok in sorted(_extract_candidates(cmd_s)):
+                t = _clean(tok)
+                if not t or ("path", t) in seen:
+                    continue
+                if fp_reason(tok, cmd_s, repo_root, repo_basenames) is None:
+                    seen.add(("path", t))
+                    cls, commit = git_classify_fn(t, repo_root)
+                    genuine.setdefault(sid, []).append(
+                        {"kind": "path", "ref": t, "class": cls,
+                         "retired_by_commit": commit or None}
+                    )
+                    lines.append(f"[GENUINE] step={sid}: absent path {t!r} ({cls})")
+            for mod in _check_imports(_extract_imports(cmd_s), repo_root):
+                if ("import", mod) in seen:
+                    continue
+                seen.add(("import", mod))
+                genuine.setdefault(sid, []).append(
+                    {"kind": "import", "ref": mod, "class": "unimportable",
+                     "retired_by_commit": None}
+                )
+                lines.append(f"[GENUINE] step={sid}: unimportable module {mod!r}")
+
+    summary = {
+        "live_steps": live_total,
+        "by_status": by_status,
+        "scanned_done_unannotated": scanned,
+        "annotated_excluded": annotated_excluded,
+        "archived_excluded": archived_excluded,
+        "genuine_lines": len(lines),
+        "genuine_steps": len(genuine),
+        "shlex_untokenizable": len(shlex_untokenizable),
+    }
+    return {
+        "genuine": genuine,
+        "lines": lines,
+        "buckets": {
+            "archived_excluded": archived_excluded,
+            "annotated_excluded": annotated_excluded,
+            "by_status": by_status,
+            "shlex_untokenizable": shlex_untokenizable,
+        },
+        "summary": summary,
+    }
+
+
+def check_consistency(report: dict) -> list[str]:
+    """Re-derive every summary count from the report's own rows; return the
+    discrepancies (empty == internally consistent). This is the criterion-3
+    guard: the summary can never again say something the rows don't."""
+    problems: list[str] = []
+    summary = report["summary"]
+    genuine = report["genuine"]
+    lines = report["lines"]
+    n_entries = sum(len(v) for v in genuine.values())
+
+    if summary["genuine_lines"] != len(lines):
+        problems.append(
+            f"summary.genuine_lines={summary['genuine_lines']} != emitted lines {len(lines)}"
+        )
+    if n_entries != len(lines):
+        problems.append(f"genuine entries {n_entries} != emitted lines {len(lines)}")
+    if summary["genuine_steps"] != len(genuine):
+        problems.append(
+            f"summary.genuine_steps={summary['genuine_steps']} != distinct steps {len(genuine)}"
+        )
+    line_ids = {m.group(1) for m in
+                (re.search(r"step=([^:]+):", ln) for ln in lines) if m}
+    if line_ids != set(genuine):
+        problems.append(
+            f"line step-ids {sorted(line_ids)} != genuine keys {sorted(genuine)}"
+        )
+    if summary["scanned_done_unannotated"] != (
+        summary["by_status"].get("done", 0) - summary["annotated_excluded"]
+    ):
+        problems.append(
+            "scanned_done_unannotated != by_status[done] - annotated_excluded"
+        )
+    if summary["live_steps"] != sum(summary["by_status"].values()):
+        problems.append("live_steps != sum(by_status)")
+    if summary["shlex_untokenizable"] != len(report["buckets"]["shlex_untokenizable"]):
+        problems.append("summary.shlex_untokenizable != bucket length")
+    return problems
+
+
+def _format_summary(summary: dict) -> str:
+    status_part = " ".join(
+        f"{k}={v}" for k, v in sorted(summary["by_status"].items()) if k != "done"
+    )
+    return (
+        "preflight_verify_masterplan (recalibrated phase-75.19): "
+        f"live_steps={summary['live_steps']} "
+        f"scanned(done+unannotated)={summary['scanned_done_unannotated']} "
+        f"genuine={summary['genuine_lines']} lines across "
+        f"{summary['genuine_steps']} steps; excluded: "
+        f"archived={summary['archived_excluded']} "
+        f"annotated(superseded_record)={summary['annotated_excluded']} "
+        f"non-done{{{status_part}}}; "
+        f"shlex-untokenizable(regex-scanned)={summary['shlex_untokenizable']}"
+    )
+
+
+def verify(masterplan_path: str | Path, *, quiet: bool = False,
+           json_out: bool = False) -> int:
     p = Path(masterplan_path)
     if not p.exists():
         print(f"preflight_verify_masterplan: file not found: {p}", file=sys.stderr)
@@ -188,58 +327,41 @@ def verify(masterplan_path: str | Path, *, quiet: bool = False) -> int:
         print(f"preflight_verify_masterplan: JSON parse error: {e}", file=sys.stderr)
         return 2
 
-    steps = list(_walk_steps(data))
-    n_steps = len(steps)
-    n_broken = 0
-    n_warn = 0
+    report = build_report(data, REPO_ROOT)
+    problems = check_consistency(report)
+    if problems:
+        for prob in problems:
+            print(f"[INTERNAL-INCONSISTENCY] {prob}", file=sys.stderr)
+        return 2
 
-    for sid, raw_cmd in steps:
-        cmd = _strip_venv_prefix(raw_cmd)
-        try:
-            tokens = shlex.split(cmd, posix=True)
-        except ValueError as e:
-            n_warn += 1
-            print(
-                f"[WARN] step={sid}: unparseable command ({e})",
-                file=sys.stderr,
-            )
-            continue
+    if json_out:
+        print(json.dumps(report, indent=2))
+        return 1 if report["genuine"] else 0
 
-        broken_paths = _check_paths(tokens)
-        broken_imports = _check_imports(_extract_imports(cmd))
-
-        if broken_paths or broken_imports:
-            n_broken += 1
-            for tok in broken_paths:
-                print(
-                    f"[BROKEN] step={sid}: missing path {tok!r}",
-                    file=sys.stderr,
-                )
-            for mod in broken_imports:
-                print(
-                    f"[BROKEN] step={sid}: unimportable module {mod!r}",
-                    file=sys.stderr,
-                )
-
+    for line in report["lines"]:
+        print(line, file=sys.stderr)
+    for sid, err in report["buckets"]["shlex_untokenizable"]:
+        print(f"[NOTE] step={sid}: shlex-untokenizable ({err}); "
+              "scanned via regex extractors", file=sys.stderr)
     if not quiet:
-        print(
-            f"preflight_verify_masterplan: scanned {n_steps} steps, "
-            f"{n_broken} broken, {n_warn} unparseable"
-        )
-
-    return 1 if n_broken > 0 else 0
+        print(_format_summary(report["summary"]))
+    return 1 if report["genuine"] else 0
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         description="Pre-flight: verify masterplan verification commands "
-                    "reference live paths/modules without executing them."
+                    "reference live paths/modules without executing them "
+                    "(status-aware, annotation-aware; phase-75.19)."
     )
     parser.add_argument("path", help="path to masterplan.json")
     parser.add_argument("--quiet", action="store_true",
-                        help="no stdout (exit code only); broken refs still go to stderr")
+                        help="no stdout summary (exit code only); GENUINE "
+                             "lines still go to stderr")
+    parser.add_argument("--json", action="store_true",
+                        help="emit the full structured report as JSON on stdout")
     args = parser.parse_args(argv)
-    return verify(args.path, quiet=args.quiet)
+    return verify(args.path, quiet=args.quiet, json_out=args.json)
 
 
 if __name__ == "__main__":

@@ -1,36 +1,47 @@
-# Evaluator critique -- Step 75.18 (Q/A cycle 1)
+# Evaluator critique — Step 75.19 (Q/A cycle 1)
 
-Q/A launch: Workflow `wf_b919381b-c81` (qa-verdict.js, opus/max) WITH the
-self-reference disclosure (the evaluator loads the edited qa.md as its
-own rubric on this path -- flagged openly in its notes). Verdict
-transcribed VERBATIM below. STATUS FLIP HELD regardless of PASS: the
-operator flips 75.18 after reviewing the qa.md diff (75.5 precedent).
+Q/A launch: Workflow `wf_76f208bd-e2a` (qa-verdict.js, agentType general-purpose,
+model opus, effort max; qa.md read from disk at runtime). First Q/A spawn for
+75.19 (0 prior CONDITIONALs). Verdict transcribed VERBATIM below — Main records,
+never authors.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All six immutable criteria MET (verified by prose-reading the git diff, not token-scans), harness compliance clean (5/5), no unintended production change, known-member recall test reproduces, and cycle citations are verbatim-faithful. C1: qa.md 4c instructs, for EACH immutable criterion, to name the concrete mutation that would make its guard fail and wires 'no such mutation exists' to a Circular_Reasoning/Missing_Assumption FINDING (never a pass), plus the execution-grounded rule. C2: both qa.md and per-step-protocol state mutation evidence must cover the test FIXTURE; qa.md carries the 75.2.1/C130 dict-stub citation and per-step-protocol cross-links it per the project anti-duplication convention. C3: skill #17 illusory-guard is ranked, names all four shapes (source-scan-only, tautology, non-representative fixture, library-fact-pin) with BLOCK/WARN severity dispatch + two negation entries + a Dim-4 row. C4: per-step-protocol 'Measure before asserting' carries the three phase-75 examples (DEBUG 75.1, verb-parity 75.2, handler-order 75.2.1) and the comment-literal rule. C5: git diff touches zero backend/ or frontend/ files (I re-ran the grep: 0). C6: the harness_log Peder-review note is the pending log-last deliverable (written after the verdict, before the status flip, per protocol) and its protective intent is verifiably in force now (status=pending, flip held for operator per the 75.5 precedent). Immutable command exit 0 (disclosed as a smoke-check only, correctly treated as necessary-not-sufficient). Diff is pure additions (numstat 64/0, 4/0, 21/0) so 4b/4a are byte-unchanged. This is the first Q/A for 75.18 (no prior CONDITIONAL), not a loop-prevention or errored exit.",
+  "reason": "All 6 immutable criteria MET; harness compliance clean; no unintended production change. C1 status-awareness: 6-status fixture on one absent path, done reports vs non-done excluded, M1 kills 11 tests, reproduced in-memory (done_reports=True, pending_empty=True). C2 transient/non-source exclusion by fp_reason CLASS not allowlist (handoff/, gitignored log, /openapi.json, lib/icons.ts, /Library/LaunchAgents/com.py), 5 fixtures, M4 kills all 5, reproduced (abs-host+url-route+transient excluded WHILE a genuine backend/ absent path still reports -> discriminating). C3 zero-'?' by construction (ids from real nodes) + check_consistency 7-invariant guard + fixture-with-real-rows summary test + a proven-fail-able detector test; M5/M7 kill; reproduced clean_before=[] detects_corruption=nonempty. C4 genuine=0 distinguished from excluded buckets, residue backed by TWO reproduced instruments (preflight genuine=0 + 75.17 sweep CLEAN), stale 819/141/212 explicitly corrected to measured 863/151/222. C5 residue=0 -> nothing to annotate; masterplan diff is the status flip only, no command/success_criteria byte changed (byte-identity trivially holds), go_live_drills untouched (annotated_excluded=13 confirms existing annotations respected), positive fixture proves the 0 is a real measurement. C6 mutation matrix 7/7 killed incl M6 FIXTURE + M7 STUB, verbatim in live_check_75.19.md; I independently confirmed M6 and M7 premises. Deterministic: pytest 33 passed exit=0; ruff F821/F401/F811 clean on both changed .py; live preflight exit=0 genuine=0 verbatim-matched; sweep CLEAN exit=0; 33 progress dots=33 tests in both artifacts (no splice). First Q/A spawn (0 prior CONDITIONALs); not a loop-prevention exit.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_audit_5item",
-    "immutable_verification_command_exit0",
-    "git_status_no_unintended_change",
-    "git_numstat_pure_additions_4b_4a_unchanged",
-    "c5_boundary_zero_backend_frontend",
-    "frontend_tsc_noEmit_clean",
-    "frontend_eslint_preexisting_only",
-    "diff_prose_read_six_criteria",
-    "cycle_citation_spotcheck_C129_C130_C143",
-    "known_member_recall_test_instances_3_8_5",
-    "mtime_order_research_before_contract_before_generate",
-    "harness_log_conditional_count_zero",
-    "masterplan_status_pending_log_last",
-    "two_operator_memories_wording_faithful"
+    "research_gate_7sources_gatepassed",
+    "contract_before_generate_mtime",
+    "experiment_results_present",
+    "log_last_no_premature_entry",
+    "no_verdict_shopping_first_spawn",
+    "verification_command_pytest_33pass_exit0",
+    "ruff_lint_F821_F401_F811_both_files",
+    "syntax_import_smoke_module",
+    "live_preflight_exit0_genuine0_verbatim",
+    "sweep_75_17_clean_exit0",
+    "no_unintended_production_change",
+    "masterplan_status_flip_only",
+    "verification_block_byte_identity",
+    "inmemory_reproduction_9_guard_families",
+    "fixture_mutation_M6_premise_confirmed",
+    "stub_mutation_M7_premise_confirmed",
+    "pytest_dot_splice_check_33",
+    "positive_defect_fixture_nonvacuity",
+    "contract_completeness_all6_mapped",
+    "absent_fixture_target_verified_absent"
   ],
   "harness_compliance_ok": true,
-  "notes": "SELF-REFERENCE DISCLOSURE (flagged openly): on the Workflow path I read .claude/agents/qa.md from disk at runtime, so the new section 4c I loaded as my operating rubric IS the artifact under review — I graded the DIFF of my own instructions. Independence held: I am a separate agent from the author (Main), and I reproduced the immutable command, the known-member recall test, the citation spot-checks (against primary harness_log critiques, not the artifact's self-description), and the boundary/diff checks myself. Doer/judge separation intact.\n\nRECALL TEST (I ran it): the codification as-written flags instance #3 (pop-key literal — a behavioral mutation leaves the scanned literal green → shape #3 → FINDING), instance #8 (seed OR-hatch — re-adding the overclaim does not fail the comment-token clause → shape #8/#17(f) → FINDING), and my third pick #5 (AsyncSlackResponse dict-fixture — the fixture-mutation rule + shape #5/#17(c) catch it). All three caught. Per Goodenough-Gerhart this licenses recall on these members, not a global completeness claim — and the codification itself says 'checklist, not ceiling,' which is honest.\n\nTWO TRANSPARENCY FLAGS for the operator's qa.md-diff review (neither is a blocking gap):\n(1) C2 citation location: per-step-protocol states the fixture-coverage rule but does NOT itself restate the '75.2.1' string — it cross-links the detail to qa.md §4c per the binding research-gate.md anti-duplication convention ('each rule lives in ONE file; others cross-link'). The 75.2.1 citation lives in the canonical mechanics home (qa.md, explicit: '75.2.1, Cycle 130'). A strict-literal reading of 'both ... citing the phase-75.2.1 case' could want the citation duplicated into per-step-protocol; the design deliberately doesn't, and this is disclosed in experiment_results ('cross-linked to 4c (no duplication)'). I judge C2 MET because both files carry the rule, the doctrine cites 75.2.1, and forcing duplication would violate the convention these criteria presuppose. Trivial future tweak if the operator prefers the string duplicated.\n(2) C6 log-append is PENDING by design: the harness_log Peder-review note does not exist at evaluation time — correct, because log-last (immutable protocol) places the cycle's harness_log append AFTER the Q/A verdict and BEFORE the status flip. Demanding the note pre-exist would contradict log-last. I verified the PROTECTIVE substance of C6 is in force NOW: masterplan status=pending (flip held for operator), and contract/experiment_results/live_check all document 'no later step depends on the new 4c.' CONDITION for Main: the cycle's harness_log append (which precedes the status flip) MUST contain a note explicitly requesting Peder review of the qa.md edit before any later step depends on it; the operator should confirm that note is present when reviewing the diff prior to flipping 75.18.\n\nDETERMINISTIC NOTES: immutable command exit 0, but it is a disclosed smoke-check — partly pre-satisfied ('mutation' already appeared in qa.md 4x pre-edit) with an OR-escape-hatch skill clause; the author correctly names these limits (probe 7 satisfied: not hidden) and points to the recall test as the load-bearing evidence. §1b gate honored because the diff touches qa.md: frontend tsc --noEmit exit 0 (clean); eslint reported 13 errors but ALL are in frontend/ files and the diff touches ZERO frontend files (git diff --name-only HEAD | grep '^frontend/' = 0), so the frontend tree is byte-identical to HEAD — these errors pre-exist on HEAD and are categorically not attributable to a markdown-only docs edit; they do not gate this step (C5 certifies zero product-code change). git status shows only the 3 doctrine files, hook-written audit jsonl, rolling handoff files, and the 4 new _75.18 snapshots — no product code.\n\nCITATION FAITHFULNESS: spot-checked 4 against primary harness_log critiques — #3/C129 ('keep the \"stub\": True literal, pop the key off every candidate before return: 27/27 stayed green'), #5/C130 ('AsyncSlackResponse ... NOT a dict subclass ... 22 tests passed because the _say stub returned a plain dict'), #6/C130 ('asserted only upstream library facts and never referenced the fixture ... M9'), #8/C143 ('OR-clause permanently satisfied by a comment token the step itself added') — all verbatim-confirmed. Instance #3 is correctly kept DISTINCT from #5 (different mechanism AND cycle: C129 literal-kept-behaviour-stripped vs C130 broken-test-double), honoring research correction #1. Author-vs-independent catch split (author caught 1/2/4, independent Q/A caught 3/5/6) matches C130's 'LESSON, FINALLY GENERALIZED.' The two operator-ratified memories are faithfully carried: feedback_mutation_test_guards_and_fixtures ('a guard that cannot fail ... does not count'; 'mutate the stub itself'; 'the guard you catch yourself defending, mutate first') and feedback_measure_dont_assert_claims ('Every figure, count, or set-membership claim ... MEASURED before it is written')."
+  "notes": "Independent Q/A via Workflow path (opus/max), qa.md read from disk at runtime; read-only Bash only, no file mutations. Changed files exactly as scoped: scripts/meta/preflight_verify_masterplan.py (rewrite, in-scope) + backend/tests/test_phase_75_19_preflight_calibration.py (new, in-scope); .claude/masterplan.json touched only at the 75.19 status line (pending->in_progress; status currently in_progress, correctly NOT flipped to done). Per qa.md 4c I re-executed the anti-vacuity guards in-memory rather than trusting the author's mutation matrix -- every guard distinguishes broken from clean, and the fixture (M6) + harness-stub (M7) shapes (the ones history says only the independent Q/A catches) both verified: existing path is NOT reported (so absent->reported is load-bearing) and check_consistency detects an injected summary corruption. TWO non-blocking observations, neither affecting the verdict: (1) preflight scanned(done+unannotated)=710 vs sweep 731 -- a definitional difference (preflight counts verification-bearing steps[]+subphases[]; sweep counts all flat_steps[] incl null-verification), each internally consistent, both residue=0; the difference is disclosed in experiment_results as the subphases coverage delta. (2) handoff/prompt_leak_redteam_audit.jsonl modified at handoff root is a pre-existing hook/redteam audit stream (a qa-4c-probe agent is active this session), not 75.19's doing and not a production code change. Verdict transcribes VERBATIM to evaluator_critique.md; Main owns any follow-up."
 }
 ```
+
+Main's disposition: PASS on cycle 1; no blockers, no follow-up steps owed by the
+verdict. The two non-blocking notes are recorded above; note (2)'s
+`handoff/prompt_leak_redteam_audit.jsonl` root-level placement is a pre-existing
+layout-invariant deviation owned by the hook stream, out of 75.19 scope.
