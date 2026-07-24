@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `ee4d92b5` | phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue |
 | 2026-07-24 | `947eaf58` | chore: ops addendum -- ablation wrapper bootstrapped (leg 3 complete) |
 | 2026-07-24 | `0878f13e` | chore: ops record -- operator-approved queue executed (75.18 flip, restart, logrotate live, quant re |
 | 2026-07-24 | `207da6b4` | phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [execu... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-23 | `f466e859` | phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS (cycle 1) |
 | 2026-07-23 | `3a7942cf` | fix: phase-75.5 LLM rail + root-cause remediation of the unmeasured-scope-claim defect |
 | 2026-07-20 | `64cd1674` | fix: phase-75.4 -- skill-prompt delivery integrity (loader truncation, undelivered sections, critic  |
-| 2026-07-20 | `8bf20673` | chore: queue 75.20 -- make the Q/A live-UI gate enforceable and the primary Q/A path actually read-o |
 
 ---
 
+### v6.68.21 — phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate... (2026-07-24)
+
+- **phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue**
 ### v6.68.20 — phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine in... (2026-07-24)
 
 - **phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [execu...**
