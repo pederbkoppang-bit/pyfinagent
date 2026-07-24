@@ -28169,3 +28169,38 @@ finished, or expect and pre-explain these transients in the executor prompt.
   past the frontmatter allowlist; Glob/Grep dropped) -- 75.20.1 stays queued as
   owner.
 - Flip 75.20 -> done follows this append (auto-commit hook pushes).
+
+## Cycle 154 -- 2026-07-24 -- phase=76.9 result=PASS (cycle 2; cycle-1 CONDITIONAL = one dead import)
+
+- P1 operator bug B1: BOTH nightly launchd jobs fixed. Research gate wf_f96642e7-247
+  (7 read-in-full, 19 URLs, recency: arXiv 429s polite clients server-side since
+  ~2026-02 -> backoff-only unreliable; step-text line numbers re-derived).
+- AUTORESEARCH: arxiv moved OFF the retrievers[0] planning slot (gpt-researcher #1282:
+  planning unguarded, fan-out tolerant) + new narrow _is_network_weather classifier ->
+  WARN memo + rc 0 for 429/5xx/connection weather, ERROR + rc 1 preserved for real
+  faults (75.11 paging seam intact). ABLATION: fix was ALREADY shipped (75.11 wrapper)
+  + bootstrapped (OPS-ROTATE leg 3, ~07:15 UTC, operator-attended); this step PROVED
+  it -- live launchctl kickstart exit 0 through the malformed .env (previously died
+  before one log line; ~37-night crash class dead), fixture proof with a
+  reproduce-first guard, raw-vs-sanitized rc pair (1 vs 0) on the REAL file.
+- DELEGATED SONNET EXECUTOR GENERATE (wf_c076a6c4-d4d, step tag; operator tiering) --
+  Main reviewed the full diff, independently re-ran all suites, ran the 5/5 mutation
+  matrix AFTER executor (M1 fall-through, M2 order, M3 sanitize bypass, M4 catch-all
+  widening, M5 STUB fixture quote-balance -- killed by the reproduce-guard),
+  pre/post SHA-256 identical. 9 new tests; regression 39 passed + 1 PRE-EXISTING
+  unrelated fail (test_c1 stale runbook path, archived by fa9aaf8e) -> QUEUED 75.11.3
+  (+ the whole handoff/current-path-pin test class sweep).
+- Q/A cycle 1 CONDITIONAL (wf_bd5276e2-354): single blocker F401 dead `import sys` in
+  the new test file (qa.md 1a gate); all 4 criteria already MET. Fix + robust-form
+  relint (exit 0) -> fresh Q/A cycle 2 PASS (wf_1ff0018f-3a9) with an E501
+  positive-control proving lint non-vacuity. 6th+7th live evaluator self-catches of
+  the zsh word-split vacuous-lint shape this week (cycle-1 caught its own false-pass).
+- 39.1 -> superseded (unsatisfiable May-2026 verification grep; root-cause intent
+  carried into handoff/autoresearch/root_cause.md 76.9 append, 109 insertions / 0
+  deletions -- 39.1 history preserved).
+- OPERATOR (one-line, .env is operator-gated): backend/.env L81 is the orphan tail
+  `  ON"` of L80's wrapped comment -- rejoin it into L80 (or prefix with #). Full
+  report in experiment_results.md OPERATOR REPORT. Midday autoresearch kickstart
+  DECLINED ($1-3 metered LLM spend needs approval); tonight's 02:00 cron is the free
+  real-path evidence -- IF it still fails, suspect the phase-72 credit token, not this
+  fix. Quant residue committed separately (42008af7).

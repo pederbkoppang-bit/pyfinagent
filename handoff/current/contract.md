@@ -1,52 +1,118 @@
-# Contract — phase-75.5.2: the remaining gemini-2.5 behavioural pins → constants
+# Contract — Step 76.9 (P1, operator bug B1: both nightly launchd jobs failing)
 
-- **Step id:** 75.5.2 (phase-75 follow-up queue, **P1** — deadline-relevant: gemini-2.5 family retires 2026-10-16, and the 2.0-flash retirement under a hardcoded pin cost 9 silent days; executor: **sonnet-tagged → delegated Sonnet executor GENERATE**; Main review + mutation matrix; gates opus/max via Workflow)
-- **Date:** 2026-07-24
-- **Boundary (from step text):** literals become constants only, **NO tier pin VALUE changed**. Scope decision (researcher-recommended strict reading of C1's "outside model_tiers.py"): the census's 9 behavioural pins INCLUDING the newly-discovered `scripts/harness/run_autonomous_loop.py:74`, plus co-located non-behavioural literals in in-scope files (the 75.5 precedent scan is a strict per-file substring check). Do NOT touch: `model_tiers.py` VALUES, `cost_tracker.py` pricing keys, `settings_api.py`, `backend/tests/**` history, `scripts/migrations/add_news_sentiment_schema.py` (persisted DB enum), `harness_memory.py:48` (gemini-2.0-flash row).
+Date: 2026-07-24 | Cycle: 154 | Executor tier: DELEGATED sonnet-4.6/high (step tag) | Main: Fable 5 (orchestration + review + mutation matrix) | Gates: opus/max via Workflow
 
-## Research-gate summary (gate PASSED — wf_c5355afe-01b, AUDIT-CLASS, coverage.dry=true)
+## Research-gate summary (gate PASSED — Workflow wf_f96642e7-247)
 
-Envelope: `tier=moderate, external_sources_read_in_full=6, snippet_only_sources=12, urls_collected=20, recency_scan_performed=true, internal_files_inspected=15, gate_passed=true`; census swept until rounds 4 AND 5 surfaced zero new behavioural findings (2 consecutive dry rounds). Brief: `handoff/current/research_brief_75.5.2.md` (full census table with per-site target constants + pre-change resolved values).
+`handoff/current/research_brief_76.9.md` — tier=moderate, 7 external sources read in full
+per the brief's envelope (the researcher's resumed leg personally fetched an 8th; both legs
+reconciled, no clobber), 12 snippet-only, 19 URLs, recency scan performed, 14 internal
+files inspected, gate_passed=true. Load-bearing corrections to the step text (re-derived):
 
-Load-bearing findings:
-
-1. **Census (re-derived, not trusted):** exactly the 8 named backend pins survive — sites 1-5 & 8 at stable lines; the two `services/autonomous_loop.py` fallbacks moved +22 (:2670, :2685); none deleted/fixed since 75.5. **A 9th behavioural pin discovered:** `scripts/harness/run_autonomous_loop.py:74` (`evaluator_model="gemini-2.5-flash"`), a runtime-capable harness entrypoint — C1 says "outside model_tiers.py", so the strict reading includes it. ALL 9 resolve to `gemini-2.5-flash` → `GEMINI_WORKHORSE`; NO behavioural gemini-2.5-pro pin exists outside model_tiers.py.
-2. **Classification rule (checked into the test):** PIN = literal SELECTS a model for a call (`model=`/`model_name=`/`evaluator_model=` or a var/const/or-fallback feeding one). Non-behavioural = pricing/capability KEY, docstring/comment, roster/display metadata (`_inventory.json` confirmed display-only), sample record/env, test fixture.
-3. **`llm_client.py:985` `startswith("gemini-2.5")` is a FAMILY GUARD** — behavioural but not a pin: route via a NEW `GEMINI_2_5_FAMILY_PREFIX = "gemini-2.5"` constant in model_tiers.py (no value change); it is NOT a resolved-value pin for C2/C3.
-4. **The 75.5 scan precedent is strict** (test_phase_75_llm_rail.py:396-399: per-file raw `'gemini-2.5' not in text`, docstrings included) → co-located non-behavioural literals in in-scope files must ALSO be cleaned: `harness_memory.py:49-50` MODEL_CONTEXT_WINDOWS keys → the constants; prose rewords at sentiment:30, agent_map:120, autonomous_loop:2174, orchestrator:384, llm_client:797/921/976 (drop the exact lowercase token; "Gemini 2.5" prose form is fine).
-5. **`gemini_retirement_warning()` has ZERO runtime callers** — C3's "coverage" is the test-time resolved-model→warning relationship; no startup wiring is in scope (the missing runtime tripwire is QUEUED, see below).
-6. Import precedent settled (75.5 added the same import to 6 files; no cycle risk — model_tiers resolves settings lazily). For the 167KB autonomous_loop.py an in-function local import is acceptable (agent_map.py:142 precedent).
-7. Retirement date 2026-10-16 triple-confirmed official for 2.5-flash AND 2.5-pro (matches `GEMINI_2_5_RETIREMENT_DATE`). Recency: the official successor is now gemini-3.6-flash (model_tiers comments say 3.5) — migration context only, NOT actionable here (no VALUE changes).
-8. The `GEMINI_WORKHORSE == 'gemini-2.5-flash'` value-pin test is an INTENTIONAL Oct-2026 migration tripwire — do not loosen it.
+- RETRIEVER is set at `run_memo.py:211` (`"arxiv,semantic_scholar,duckduckgo"`), not ~:189.
+- Crash path: gpt-researcher 0.14.8 uses retrievers[0] ONLY for planning
+  (`skills/researcher.py:62`, upstream issue #1282); the planning call is UNGUARDED while
+  the sub-query fan-out is wrapped (try `:465` / except `:569` returns "" on error — exact
+  wrap lines approximate, substance verified). arxiv's 429 raises in `ArxivSearch.search`
+  (no try/except) → `run_memo.py:114` broad except → ERROR memo → `return 1` →
+  `run_nightly.sh:47/:72` rc=1.
+- `arxiv==3.0.0` already retries 3×/3.0s and ignores Retry-After (`__init__.py:600`);
+  arXiv has 429'd polite 3s clients server-side since ~2026-02-25 (recency finding) →
+  backoff-only is UNRELIABLE. Fix must remove arxiv from the fatal planning slot AND
+  tolerate network-class failures.
+- ABLATION: fix ALREADY CODED (phase-75.11 `scripts/ops/run_ablation.sh`, commit 07182b94,
+  verbatim phase-62.6 grep-sanitize at `:21-37`) and ALREADY BOOTSTRAPPED
+  (OPS-ROTATE-BOOTSTRAP leg 3, harness_log ops addendum 2026-07-24 ~07:15 UTC,
+  operator-attended; live plist verified by Main first-hand, mtime 08:52, runs=0 since).
+  Sufficiency PROVEN: backend/.env L81 is the non-KEY orphan `  ON"` (wrapped tail of
+  L80's comment), which `grep -E '^[A-Za-z_][A-Za-z0-9_]*='` drops. Remaining work =
+  PROVE (fixture + live), not code.
+- Step 39.1's verification is unsatisfiable (May-2026 date grep; memos never named
+  `-PASS`) → supersede with 76.9, carry its root-cause-documentation intent forward.
 
 ## Hypothesis
 
-Routing all 9 behavioural pins through `GEMINI_WORKHORSE` (+ the family guard through `GEMINI_2_5_FAMILY_PREFIX`) and cleaning co-located literals makes the strict tree-wide scan pass with zero behavioural change (every site provably resolves to the same string as before), so the October retirement becomes a ONE-FILE migration instead of a 10-site hunt — with the resolved-value pins acting as the deliberate migration tripwire.
+(1) Moving arxiv out of the planning slot (retrievers[0]) removes the only untolerated
+429 path, and a network-class-tolerant exit seam in run_memo.py (WARN memo + rc 0)
+converts residual external-API weather into non-paging WARNs while REAL faults still
+page through the 75.11 seam (rc 1). (2) The already-bootstrapped run_ablation.sh
+sanitize provably survives the malformed .env; a fixture proof + live sourcing-seam
+proof close the ~37-night crash class.
 
-## Plan (delegated Sonnet executor; Main reviews + runs mutations)
+## Immutable success criteria (verbatim from .claude/masterplan.json 76.9)
 
-1. `model_tiers.py`: add `GEMINI_2_5_FAMILY_PREFIX = "gemini-2.5"` (ONLY addition; no value changes).
-2. Route the 9 pins → `GEMINI_WORKHORSE` (75.5 import line; in-function import acceptable for autonomous_loop.py); `llm_client:985` → `startswith(GEMINI_2_5_FAMILY_PREFIX)`.
-3. Clean co-located literals per finding 4 (prose uses "Gemini 2.5" form or the constant NAME; `harness_memory:48` 2.0-flash row untouched).
-4. New `backend/tests/test_phase_75_5_2_model_pins.py`:
-   - C1: parametrized per-file strict scan over `(REPO/backend).rglob('*.py')` + `scripts/harness/run_autonomous_loop.py`, EXCLUDE = {model_tiers.py, cost_tracker.py, settings_api.py} + backend/tests/** — plus the NON-VACUOUS self-test (in-scope list non-empty AND a superset of the known pin files; the 75.5.8 "a scan that can't find its own members fails" doctrine);
-   - C2: value-pins `GEMINI_WORKHORSE == 'gemini-2.5-flash'`, `GEMINI_DEEP_THINK == 'gemini-2.5-pro'` (the migration tripwire); per-site resolution checks (module-const/param-default introspection for sentiment/masker; behavioural capture for agent_map + directive_review/rewriter via patched genai with Anthropic forced to fail; AST Name-reference + MISROUTE guard — references WORKHORSE, not DEEP_THINK — for the deep autonomous_loop fallbacks + the script);
-   - C3: `gemini_retirement_warning(m, date(2026,9,15))` truthy + contains '2026-10-16' for BOTH constants; negatives: date(2026,9,14) → None, off-family 'gemini-3.6-flash' at the frozen date → None.
-5. Mutation matrix (Main; C4 + §4c): M1 restore a literal at ONE site → its C1 case fails; M2 change the WORKHORSE VALUE → value-pin fails; M3 over-broaden the exclusion (fixture/scan mutation) → the self-test fails; M4 route one site to DEEP_THINK → the C2 misroute guard fails while C1 still passes (C2 independent of C1).
-6. QUEUE as follow-up step 75.5.2.1 (do NOT fix here, per feedback_queue_discovered_defects_in_masterplan): (i) the retirement tripwire is never emitted at RUNTIME (zero callers); (ii) `_inventory.json` (~20 nodes) + `.env.example` stale-able display/sample strings; (iii) `_BUILD_TIER['gemini_deep_think']` uses the literal inside model_tiers.py itself.
-7. live_check_75.5.2.md: verification output (exit 0) + git diff --stat + the census table reference + mutation evidence; Q/A via qa-verdict Workflow; log; flip; push. This step is the pre-/clear checkpoint (operator decision this session).
+1. "AUTORESEARCH: a run of run_memo.py with the arxiv retriever forced to raise HTTP 429 (stubbed/mocked) completes via the other retrievers and exits 0 with a WARN -- NOT rc=1 (MUTATION: revert the fall-through -> the run exits non-zero); OR, if backoff-only, a real nightly run writes a non-ERROR memo. Recorded verbatim."
+2. "ABLATION: the ablation job sources .env via the same sanitize path as run_nightly.sh so a malformed .env line no longer aborts it -- proven by running the ablation entry-point against a fixture .env containing an unbalanced-quote line and observing it does NOT die with 'unexpected EOF' (MUTATION: bypass the sanitize -> the failure returns)"
+3. "The exact backend/.env malformed line (~:80-81) is reported verbatim in experiment_results.md for operator repair; NO .env file is edited by this step"
+4. "bash -n on the changed shell scripts passes; py_compile on changed Python passes"
 
-## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.5.2)
+Immutable verification command (verbatim):
+`bash -n scripts/autoresearch/run_nightly.sh && .venv/bin/python -c "import ast; ast.parse(open('scripts/autoresearch/run_memo.py').read())"`
 
-> command: `cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_5_2_model_pins.py -q`
+## Plan
 
-1. "New backend/tests/test_phase_75_5_2_model_pins.py passes offline and proves, by a tree-wide scan, that ZERO behavioural gemini-2.5 literals remain outside backend/config/model_tiers.py (docstring prose included -- 75.5 set the precedent that the scan is read strictly, not reinterpreted)"
-2. "Test asserts each newly-routed site resolves to the same model string it resolved to before the change (no tier pin VALUE changed -- prove by pinning the resolved values)"
-3. "Test asserts gemini_retirement_warning fires for every routed site's resolved model under a frozen >=2026-09-15 date, and is silent both before that date and for a non-2.5 model (two negative controls)"
-4. "Mutation matrix in experiment_results.md: restoring a literal at ONE of the 8 sites, and changing one resolved VALUE, each fail at least one test"
+1. **run_memo.py** (executor): (a) RETRIEVER at :211 → `"semantic_scholar,arxiv,duckduckgo"`
+   (deprioritize: arxiv leaves the crash-prone PLANNING slot but keeps sub-query coverage,
+   where failures are already inside the tolerant fan-out wrap). (b) Network-tolerance
+   seam: classify the caught exception at :114 — arxiv HTTPError / HTTP 429/5xx /
+   connection-class → write **WARN** memo + `return 0`; everything else keeps ERROR memo +
+   `return 1` (75.11 paging seam preserved). Classification by type-name + module prefix +
+   message match (`type(e).__name__ == "HTTPError"`, module startswith `arxiv`,
+   "429"/"503"/connection tokens) — NO new dependency, NO catch-all widening. WARN memo
+   filename must NOT match the `-ERROR-` pattern (downstream counters), keep ASCII-only
+   log lines (security.md, brief pitfall P-list).
+2. **Tests** (executor): new `backend/tests/test_phase_76_9_launchd_fixes.py`:
+   - t-429: run_memo topic-run stubbed to raise `arxiv.HTTPError`(429-shaped) → WARN memo
+     written, run returns 0 (criterion 1; mutation-killable: revert fall-through → red).
+   - t-real-fault: stub raises ValueError → ERROR memo, returns 1 (seam preserved).
+   - t-retriever-order: RETRIEVER string has semantic_scholar first and arxiv NOT at
+     position 0 (mutation-killable: revert order → red).
+   - t-ablation-fixture: run the REAL `scripts/ops/run_ablation.sh` with `SRE_OPS_REPO`
+     pointed at a tmp fixture repo (fixture backend/.env WITH an unbalanced-quote non-KEY
+     line mirroring L80/L81's shape, stub .venv/bin/activate, stub
+     scripts/ablation/run_ablation.py) → exits 0, no "unexpected EOF", START/END rows in
+     fixture log (criterion 2). The test FIRST asserts the fixture .env reproduces the
+     EOF failure under raw `. .env` in a bash subshell — the fixture cannot go vacuous
+     (feedback_mutation_test_guards_and_fixtures).
+3. **Docs/state** (executor): `handoff/autoresearch/root_cause.md` (39.1's carried-forward
+   intent: both root causes, dates, citations). Report backend/.env L80-81 VERBATIM in
+   experiment_results.md (comment text only, no secret values; NO .env edit —
+   operator-gated).
+4. **Main after executor** (sequenced AFTER executor completes —
+   feedback_executor_sees_mutation_transients): full-diff review; mutation matrix:
+   M1 revert the WARN fall-through → t-429 red; M2 revert RETRIEVER order → t-retriever-order
+   red; M3 bypass sanitize in run_ablation.sh (raw `. .env`) → t-ablation-fixture red;
+   M4 widen classifier to catch-all (network-tolerance swallows real faults) →
+   t-real-fault red; M5 STUB/fixture mutation: quote-balance the fixture .env → the
+   in-test reproduce assert red.
+5. **Main live checks**: live sourcing-seam proof against the REAL backend/.env (sanitized
+   stream sources clean in a throwaway shell; raw source still dies — BEFORE/AFTER pair);
+   `launchctl kickstart` decision recorded in live_check (ablation full-run feasibility
+   gated on what `run_ablation.py --next-untested` touches — historical_macro freeze check
+   FIRST; autoresearch kickstart = one memo run on the operator-sanctioned nightly path;
+   tonight's 02:00/03:00 crons are the natural full-live evidence either way).
+6. **39.1**: status → `superseded` (note pointing here). NOT in the same edit as any
+   status:done flip (feedback_masterplan_status_flip_order).
+7. Q/A via qa-verdict Workflow (opus/max) on the changed evidence; log Cycle 154 (append
+   BEFORE flip); flip 76.9 done (auto-push; manual fallback if the hook stalls).
+
+## Boundaries
+
+- NO edit to backend/.env (operator-gated; report-only).
+- NO new backend/requirements.txt deps.
+- `run_nightly.sh` expected UNCHANGED (immutable command covers it; its sanitize is already
+  correct). Any executor change to it must be disclosed + justified.
+- `scripts/ops/run_ablation.sh` expected UNCHANGED (75.11 shipped it; 76.9 proves it).
+- No launchctl bootout/bootstrap from this session (62.0 rail); kickstart only per plan §5.
+- Existing tests `test_phase_75_sre_ops.py` / `test_phase_39_1_autoresearch_env.py` /
+  `test_phase_75_deps.py` must stay green (regression sweep).
 
 ## References
 
-- `handoff/current/research_brief_75.5.2.md` (census table + classification rule + coverage log; 6 read-in-full incl. ai.google.dev deprecations + model catalog)
-- model_tiers.py (GEMINI_WORKHORSE / GEMINI_DEEP_THINK / GEMINI_2_5_RETIREMENT_DATE / gemini_retirement_warning), test_phase_75_llm_rail.py:396-399 (strict-scan precedent), the 9-site census with pre-change resolved values
-- 75.5 doctrine + feedback_queue_discovered_defects_in_masterplan
+- Research brief: handoff/current/research_brief_76.9.md (envelope + per-claim citations:
+  arXiv API ToU + user manual, arXiv API Google-group 429 thread, arxiv.py docs +
+  installed-source verification, gpt-researcher search-engines docs + issue #1282,
+  python-dotenv #487, judy2k dotenv gist)
+- Harness-log ops addendum 2026-07-24 (~07:15 UTC) — plist bootstrap provenance
+- Baseline BEFORE evidence: scratchpad baseline_76.9.md (launchctl exit 1, verbatim logs,
+  .env structural map)

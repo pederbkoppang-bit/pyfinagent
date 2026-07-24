@@ -12479,7 +12479,7 @@
         {
           "id": "39.1",
           "name": "Autoresearch nightly cron exit 1 fix (OPEN-29) -- owner-gated",
-          "status": "pending",
+          "status": "superseded",
           "harness_required": false,
           "priority": "P1",
           "depends_on_step": null,
@@ -12494,7 +12494,8 @@
             "live_check": "live_check_39.1.md captures 3 consecutive PASS rows in handoff/autoresearch/."
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "supersession_note": "Superseded by 76.9 (2026-07-24): root cause re-derived as arxiv HTTP-429 in gpt-researcher's unguarded planning slot (this step's original .env/prefix causes were fixed earlier: anthropic: prefix by 39.1's own commit c65cc9c0, sourcing by 62.6/75.11). 39.1's verification grep (2026-05-2x-PASS filenames) is unsatisfiable -- dates in the past and memos are never named -PASS. Its root_cause_documented intent is carried forward in handoff/autoresearch/root_cause.md '2026-07-24 update (phase-76.9)' section. Verification criteria left untouched per immutability rule."
         }
       ]
     },
@@ -17686,6 +17687,24 @@
           "max_retries": 3
         },
         {
+          "id": "75.11.3",
+          "status": "pending",
+          "name": "Audit75 S11 follow-up -- archive-handoff hook broke test_phase_75_sre_ops.py::test_c1 (stale handoff/current path) + sweep the class [executor: sonnet-4.6/high; BOUNDARY: tests + hook docs only, no product code]. DISCOVERED during 76.9's regression sweep (2026-07-24): test_c1_runbook_and_operator_token_drafted FAILs at HEAD with FileNotFoundError on handoff/current/ops_rotate_runbook_75.11.md -- the archive-handoff hook moved the runbook to handoff/archive/misc/ops_rotate_runbook_75.11.md when 75.11 closed (commit fa9aaf8e), and the test still pins the pre-archive path. MEASURED: the runbook exists ONLY at the archive path in git (git ls-files); the test file was untouched by 76.9; failure reproduces verbatim with '.venv/bin/python -m pytest backend/tests/test_phase_75_sre_ops.py::test_c1_runbook_and_operator_token_drafted -q'. THE CLASS: any test asserting a handoff/current/** artifact will go red when the archive-handoff hook rotates that artifact on step close -- the fix must both repair test_c1 (accept the archive location without weakening the content assertions) AND sweep backend/tests/** for every other handoff/current/ path pin, fixing or justifying each. Research gate mandatory before PLAN.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_sre_ops.py -q",
+            "success_criteria": [
+              "test_c1 passes at HEAD without deleting or vacuously weakening its content assertions (the runbook's operator-token text is still asserted, wherever the file lives)",
+              "A measured sweep of backend/tests/** enumerates EVERY test pinning a handoff/current/ path, with each one fixed or explicitly justified as rotation-safe; the sweep methodology (grep pattern + result count) is recorded verbatim",
+              "MUTATION: point the test at a nonexistent path -> red; delete the content assertion -> a guard catches it (the test must remain content-bearing, not existence-only)"
+            ],
+            "live_check": "handoff/current/live_check_75.11.3.md: verbatim pre-fix failure, post-fix pass, the sweep output, and the mutation results."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "75.12",
           "status": "done",
           "name": "Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dead charts, polling circuit breakers, status union [executor: sonnet-4.6/high]. (a) frontend-01: /agents Glass-Box page structurally cannot authenticate -- useEventSource.ts:91 opens EventSource with withCredentials:false (EventSource cannot send Authorization headers; cookie auth is the only SSE option and backend CORS already allows credentials) and the page's stats/dashboard fetches bypass apiFetch with no credentials. Fix: { withCredentials: true } + route the raw fetches through apiFetch/credentials:'include'; verify against the RUNNING authed backend per the frontend live-UI protocol. (b) frontend-02: api.ts:114's 401 branch hard-redirects to /login with no pathname guard while root-mounted LivePortfolioProvider polls authed endpoints ON /login -- sub-second reload loop that interrupts SSO/passkey ceremonies. Fix: skip the redirect when window.location.pathname === '/login' AND gate LivePortfolioProvider polling on pathname/session as its own comment plans. (c) frontend-03: reports/page.tsx:198 compare-charts raw fetch always 401s and is swallowed -- route through apiFetch + surface a partial-failure notice. (d) frontend-05: OpsStatusBar.tsx:78 -- per-call .catch(()=>null) makes the outer catch and failRef unreachable, freezing Gate/Kill/Cycle segments stale-but-live forever on backend death; detect the all-null outcome, increment failRef, render a stale/error segment state after 5, back off the interval. (e) frontend-06: apply the cron-page failure-counter pattern (or a usePoller hook) to the agents stats/dashboard poll, observability freshness, HarnessDashboard seed-stability, and AutoresearchLeaderboard; make useLivePrices ACTUALLY stop at 5 consecutive failures (its doc already claims it does -- set an explicit circuitOpen flag and skip/clear the interval). (f) fe-ts-01: model the /api/paper-trading/status not_initialized variant as a union in types.ts and guard paper-trading/layout.tsx:217/263 before dereferencing .loop.running (fresh-install TypeError crash). (g) frontend-09: memoize getAuthToken's /api/auth/session probe in a module-level sessionTokenCache with ~60s TTL, invalidated on 401 (currently an extra serial round-trip on EVERY backend call, ~14+/min idle).",
@@ -18101,7 +18120,7 @@
         },
         {
           "id": "76.9",
-          "status": "pending",
+          "status": "done",
           "name": "SYMPTOM (operator bug B1): launchd jobs com.pyfinagent.autoresearch and com.pyfinagent.ablation are both failing. MEASURED (audit wf_51a301b9-664 -- TWO INDEPENDENT causes; RE-DERIVE line numbers): (1) AUTORESEARCH: scripts/autoresearch/run_nightly.sh -> run_memo.py fails with arxiv.HTTPError HTTP 429 (external rate-limit from export.arxiv.org) deep inside gpt_researcher's arxiv retriever on EVERY run 2026-07-08..2026-07-23; run_memo.py catches it, writes an ERROR memo, and run_nightly.sh exits rc=1. arxiv is 1 of 3 configured retrievers (run_memo.py ~:189). This is NOT a missing dependency. FIX: add polite backoff + inter-request delay to the arxiv call AND/OR make run_memo.py tolerate an arxiv 429/500 by falling through to the semantic_scholar/duckduckgo retrievers and exiting 0 with a WARN instead of rc=1. Cross-ref pending step 39.1 (same 'nightly cron exit 1', now root-caused to arxiv 429) -- this step makes 39.1 concrete; sequence/merge accordingly. (2) ABLATION: handoff/ablation.launchd.log shows 'backend/.env: line 81: unexpected EOF while looking for matching quote' -- the ablation plist inlines a raw '. backend/.env' source that dies on a multi-line/unbalanced-quote value at backend/.env ~:80-81, which run_nightly.sh:19-31 already guards against via a phase-62.6 mktemp .env-sanitize the ablation plist LACKS. FIX: make the ablation job adopt the same mktemp .env-sanitize wrapper (script/plist change, NOT a .env edit). SEPARATELY FLAG for the operator: backend/.env ~:80-81 has an unbalanced quote that should be repaired at source (.env edits are operator-gated -- do NOT edit .env in this step; report the exact malformed line). [executor: sonnet-4.6/high]",
           "harness_required": true,
           "priority": "P1",

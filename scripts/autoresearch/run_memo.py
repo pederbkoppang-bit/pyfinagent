@@ -65,6 +65,57 @@ def slugify(text: str) -> str:
     return s[:60] or "memo"
 
 
+_NETWORK_TOKENS = ("429", "503", "rate limit")
+
+
+def _is_network_weather(e: BaseException) -> bool:
+    """phase-76.9: classify a caught exception as external-retriever
+    network weather (arxiv 429/5xx, generic connection/timeout errors)
+    vs a real fault. True iff:
+      - the exception is an arxiv-package HTTPError (type name "HTTPError"
+        with a module starting "arxiv"), OR
+      - the exception (or something in its __cause__/__context__ chain) is
+        a requests/urllib3/socket ConnectionError/Timeout-class error, OR
+      - the exception's str() mentions "429" / "503" / "rate limit"
+        (case-insensitive).
+    No new dependency: only stdlib exception introspection + best-effort
+    optional imports of requests/urllib3 (already transitive deps of
+    gpt_researcher; guarded so their absence never breaks classification).
+    Kept narrow on purpose (Pitfall P3, research_brief_76.9.md): must not
+    widen into a catch-all that swallows real faults.
+    """
+    def _matches_one(exc: BaseException) -> bool:
+        cls = type(exc)
+        if cls.__name__ == "HTTPError" and cls.__module__.startswith("arxiv"):
+            return True
+        if isinstance(exc, (ConnectionError, TimeoutError)):
+            return True
+        try:
+            import requests.exceptions as _rexc
+            if isinstance(exc, (_rexc.ConnectionError, _rexc.Timeout)):
+                return True
+        except ImportError:
+            pass
+        try:
+            import urllib3.exceptions as _uexc
+            if isinstance(exc, (_uexc.ConnectTimeoutError, _uexc.ReadTimeoutError,
+                                 _uexc.NewConnectionError, _uexc.MaxRetryError)):
+                return True
+        except ImportError:
+            pass
+        msg = str(exc).lower()
+        return any(tok in msg for tok in _NETWORK_TOKENS)
+
+    seen: set[int] = set()
+    exc: BaseException | None = e
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if _matches_one(exc):
+            return True
+        exc = exc.__cause__ or exc.__context__
+    return False
+
+
 async def run_research(topic: str) -> str:
     # Late import so --help works without the package installed.
     from gpt_researcher import GPTResearcher
@@ -93,7 +144,7 @@ def write_memo(topic: str, idx: int, body: str) -> Path:
         f"# Autoresearch memo -- {date}\n\n"
         f"**Topic (index {idx}):** {topic}\n\n"
         f"**Source:** gpt-researcher `detailed_report`, Claude-driven, "
-        f"arxiv + semantic_scholar + duckduckgo retrievers.\n\n"
+        f"semantic_scholar + arxiv + duckduckgo retrievers.\n\n"
         f"---\n\n"
     )
     path.write_text(header + body + "\n", encoding="utf-8")
@@ -114,6 +165,21 @@ async def _main_async(args: argparse.Namespace) -> int:
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
         MEMO_DIR.mkdir(parents=True, exist_ok=True)
+        if _is_network_weather(e):
+            # phase-76.9: external retriever weather (arxiv 429/5xx etc.) --
+            # tolerate it. WARN memo, NOT an ERROR memo (downstream counters
+            # grep for "-ERROR-"), and rc=0 so run_nightly.sh's 75.11 paging
+            # seam does NOT fire. Real faults keep the ERROR/rc=1 path below.
+            warn_path = MEMO_DIR / f"{dt.date.today().isoformat()}-WARN-topic{idx:02d}.md"
+            warn_path.write_text(
+                f"# Autoresearch WARN (network) -- {dt.date.today().isoformat()}\n\n"
+                f"Topic: {topic}\n\nError: {type(e).__name__}: {e}\n\n"
+                f"External retriever weather; run tolerated per phase-76.9, "
+                f"see handoff/autoresearch/root_cause.md\n",
+                encoding="utf-8",
+            )
+            print(f"[autoresearch] WARN (network) -- wrote {warn_path}", flush=True)
+            return 0
         err_path = MEMO_DIR / f"{dt.date.today().isoformat()}-ERROR-topic{idx:02d}.md"
         err_path.write_text(
             f"# Autoresearch FAILED -- {dt.date.today().isoformat()}\n\n"
@@ -208,7 +274,13 @@ def main() -> int:
         "SMART_LLM": f"anthropic:{resolve_model('autoresearch_smart')}",
         "STRATEGIC_LLM": f"anthropic:{resolve_model('autoresearch_strategic')}",
         "EMBEDDING": "huggingface:BAAI/bge-small-en-v1.5",
-        "RETRIEVER": "arxiv,semantic_scholar,duckduckgo",
+        # phase-76.9: arxiv moved OFF retrievers[0] (the PLANNING slot).
+        # gpt-researcher's plan_research() uses retrievers[0] ONLY, and
+        # that call is UNGUARDED (upstream issue #1282) while the
+        # sub-query fan-out IS wrapped and tolerant. arXiv has been
+        # 429-ing polite (3s-delay) clients server-side since ~2026-02,
+        # so a fragile retriever in the fatal planning slot is a landmine.
+        "RETRIEVER": "semantic_scholar,arxiv,duckduckgo",
     }
     for k, v in env_defaults.items():
         os.environ.setdefault(k, v)
