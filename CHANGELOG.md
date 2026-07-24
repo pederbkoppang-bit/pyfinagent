@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `207da6b4` | phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [execu... |
 | 2026-07-24 | `88ebd5b9` | phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.... |
 | 2026-07-24 | `3cf2ba70` | phase-75.16: Audit75 S16 -- Cloud Functions + Docker deploy-surface retirement/hardening + script... |
 | 2026-07-24 | `7d65c0d4` | phase-75.15: Audit75 S15 -- CI gates made real: advisory flip, requires_live migration, lock-coun... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-20 | `8bf20673` | chore: queue 75.20 -- make the Q/A live-UI gate enforceable and the primary Q/A path actually read-o |
 | 2026-07-20 | `694893a2` | chore: queue 75.19 -- recalibrate the masterplan preflight gate, then triage its residue |
 | 2026-07-20 | `1c219fae` | chore: queue 75.17 (absent-path verification triage) + 75.18 (anti-vacuous-guard doctrine) |
-| 2026-07-20 | `e610b918` | phase-75.2.1: close the two escalated items from 75.2 (annotate the collision, arm the push approval |
 
 ---
 
+### v6.68.20 — phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine in... (2026-07-24)
+
+- **phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [execu...**
 ### v6.68.19 — phase-75.17: Audit75 S17 -- absent-path verification family: triage +... (2026-07-24)
 
 - **phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4....**
