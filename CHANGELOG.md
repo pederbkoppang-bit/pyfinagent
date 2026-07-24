@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `f2e5ffda` | phase-78: install Anthropic Max-rail routing goal phase + 78.0 census step (operator /goal 2026-07-2 |
 | 2026-07-24 | `8c48cc11` | chore(76.9): Max-rail live test PASSED -- first-ever non-ERROR autoresearch memo; queue 76.9.1/76.9. |
 | 2026-07-24 | `74e1b772` | phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-only enforced (LOCAL, flip+push h |
 | 2026-07-24 | `eb707333` | chore: handoff archive backfill (13 done-step artifacts to archive/misc) + queue 75.11.4 backfill st |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `09d97705` | chore: record operator approval of the 75.20 diff (push released; flip stays restart-gated) |
 | 2026-07-24 | `4c37f1ef` | phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary path constrained [FLIP+PUSH HELD  |
 | 2026-07-24 | `fa9aaf8e` | chore: handoff layout backfill -- archive 315 misc + 3 audit + 4 log files out of handoff/current |
-| 2026-07-24 | `ee4d92b5` | phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue |
 
 ---
 
+### v6.68.28 — phase-78: install Anthropic Max-rail routing goal phase + 78.0 census... (2026-07-24)
+
+- **phase-78: install Anthropic Max-rail routing goal phase + 78.0 census step (operator /goal 2026-07-2**
 ### v6.68.27 — phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-on... (2026-07-24)
 
 - **phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-only enforced (LOCAL, flip+push h**
