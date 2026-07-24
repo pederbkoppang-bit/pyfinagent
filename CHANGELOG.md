@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `02c43995` | docs(76.9.2): fix the GENERATE artifact contradicting criterion 1, plus three claim-audit defects |
 | 2026-07-25 | `818994f9` | fix(handoff): archive hook FABRICATES false archives -- 129 of 747 dirs hold another step's docs |
 | 2026-07-25 | `0ea399f3` | phase-76.9.2: criterion 1 MET -- first clean rc=0 run through the fixed durable bridge |
 | 2026-07-25 | `b041386b` | phase-75.5.12: PASS -- bare 'cc_rail' rows no longer phantom-price on the spend flag |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `eb707333` | chore: handoff archive backfill (13 done-step artifacts to archive/misc) + queue 75.11.4 backfill st |
 | 2026-07-24 | `a8c314df` | phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance + retriever reorder; ablation san |
 | 2026-07-24 | `42008af7` | chore: quant-agent experiment data artifacts (intraday session 60617e0b residue) |
-| 2026-07-24 | `12e3147a` | phase-75.20: roster-live confirmation landed -- browser grant binds, flip to done |
 
 ---
 
