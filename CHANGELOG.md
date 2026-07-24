@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `ace3e680` | phase-75.13: Audit75 S13 -- Python dependency integrity: lockfile, undeclared runtime deps, dead ... |
 | 2026-07-24 | `dd46b69a` | phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dea... |
 | 2026-07-24 | `07182b94` | phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unat... |
 | 2026-07-24 | `09223466` | phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-20 | `f55e6973` | phase-75.2: Slack control-plane authorization + dead-plane removal (gap1-01/03/04/05/07/08/09/10/11) |
 | 2026-07-20 | `40111b03` | phase-75.1: backend auth surface fail-closed (security-01/03/04, gap2-03, api-design-12, pysvc-08) |
 | 2026-07-20 | `8b280cfc` | phase-75.0: Ultracode full-stack audit + remediation-queue synthesis [executor: this session, fab... |
-| 2026-07-18 | `1e6dd200` | phase-74.0: install local-LLM pilot queue (assessment: full localization REJECTED on 16GB M4; Slack- |
 
 ---
 
+### v6.68.15 — phase-75.13: Audit75 S13 -- Python dependency integrity: lockfile, un... (2026-07-24)
+
+- **phase-75.13: Audit75 S13 -- Python dependency integrity: lockfile, undeclared runtime deps, dead ...**
 ### v6.68.14 — phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth trans... (2026-07-24)
 
 - **phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dea...**
