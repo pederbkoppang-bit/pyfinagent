@@ -217,3 +217,65 @@ server CLOSED stream   : True   <- False was the hang
 
 Criterion 1 stays **unclaimed** until a full run_memo actually completes rc=0 through
 the fixed bridge. Attempt 6 is executing.
+
+## 10. CRITERION 1 — MET. Attempt 6 completed rc=0 through the FIXED repo bridge.
+
+First clean end-to-end run through the durable routing, immediately after the §9 framing
+fix. Six attempts; the framing regression was the whole cause.
+
+```
+[2026-07-25T01:16:47+02:00] START nightly autoresearch
+[2026-07-25T01:16:47+02:00] max-rail ON -- routing via http://127.0.0.1:18797 (dummy key, $0 metered)
+[2026-07-25T01:22:47+02:00] END nightly autoresearch OK
+```
+
+**rc=0 is structural, not inferred.** `run_nightly.sh:94-96` emits
+`END nightly autoresearch OK` **only** inside the `if python …/run_memo.py; then`
+success branch; the failure branch writes `FAIL rc=$rc`. The same branch resets the
+fail-state, and it now reads `{"consecutive_fails": 0}` (it was 2 after the §1
+dead-rail test), which no other path does.
+
+**The memo is real and non-ERROR** (contrast: every prior nightly wrote `*-ERROR-*.md`):
+
+```
+handoff/autoresearch/2026-07-25-topic10-what-are-the-published-findings-2025-2026-on-retrieval-augme.md
+16,634 bytes   filename contains ERROR: NO
+
+# Autoresearch memo -- 2026-07-25
+**Topic (index 10):** What are the published findings (2025-2026) on retrieval-augmented
+LLMs for equity research ...
+**Source:** gpt-researcher `detailed_report`, Claude-driven, semantic_scholar + arxiv +
+duckduckgo retrievers.
+...
+Li, Y., Wang, S., Ding, H., & Chen, H. (2024). *Large language models in finance: A survey*.
+Wang, F., Wan, X., Sun, R., Chen, J., & Arik, S. O. (2025). Astute RAG: Overcoming imperfect r...
+```
+
+Synthesized prose with a real bibliography — not a stub. Note the three-retriever line:
+**duckduckgo is present**, so 76.9.3's ddgs pin is doing work here too.
+
+**Served by the DURABLE bridge**, not the scratchpad copy: pid 50256 running
+`scripts/ops/anthropic_max_bridge.py`, started after the framing fix; 22 `POST
+/v1/messages` served across its lifetime.
+
+**$0 metered leakage:** the run exported `ANTHROPIC_API_KEY=max-rail-dummy-key`, and the
+run output contains **zero** occurrences of `api.anthropic.com`, `401`, or
+`authentication_error` — any call escaping to the metered API with that key would have
+failed loudly and appeared here.
+
+Disclosed, and NOT a defect of this step: the memo header says
+`gpt-researcher detailed_report` while the runtime logged
+`Invalid report type ... Using default report type: research_report prompt.` — the
+artifact mislabels its own report type. That is exactly the queued **76.9.1**
+(`report_type='detailed_report'` is invalid in gpt-researcher 0.14.8), now corroborated
+by a successful run rather than only by an errored one.
+
+### Criteria status after this run
+
+| # | Criterion | Status |
+|---|-----------|--------|
+| 1 | Real run_memo rc=0 through the DURABLE routing + $0-leakage proof | **MET** (this section) |
+| 2 | Flag-gated, one-env-change revert, default documented | MET (§ earlier + tests) |
+| 3 | Other proxy clients enumerated/unbroken or additive-only | MET |
+| 4 | Durable CLAUDE_PATH + MODEL_MAP coverage | MET |
+| 5 | MUTATION: broken routing fails loudly, never silent metered fallback | MET (§1, rc=78 live) |
