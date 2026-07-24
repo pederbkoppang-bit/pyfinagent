@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-23",
+  "updated_at": "2026-07-24",
   "phases": [
     {
       "id": "phase-0",
@@ -18148,6 +18148,67 @@
               "If any code changes: py_compile passes and the leaderboard endpoint still returns 200"
             ],
             "live_check": "handoff/current/live_check_76.12.md: the verbatim BQ rows proving the source + staleness, the corrected causal writeup, and git diff --stat if any code changed."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
+    },
+    {
+      "id": "phase-77",
+      "name": "Reddit / social-sentiment data access (operator request 2026-07-24). DISCOVERY CONTEXT: Reddit script-app creation at prefs/apps returned a generic 'an error occurred (status: 500)' on TWO accounts 2026-07-24 with all client-side causes exhausted (blank about-url, old.reddit form, one-line description, verified email, fresh browser); the new-developer flow funnels to Devvit ('npm create devvit@latest <token>' -- hosted-runtime platform, does NOT issue Data-API client_id/secret). Prior in-repo research (backend/services/social_velocity_screen.py docstring, phase-28.15) already REJECTED StockTwits (portal 403/suspended as of 2026) and ApeWisdom (Reddit-only, no SLA) -- do not re-adopt them. DECISION: (a) primary social signal = existing Alpha Vantage NEWS_SENTIMENT overlay (bundles Reddit/Twitter/StockTwits/blogs), currently dark behind settings.social_velocity_enabled (backend/config/settings.py:506 as-of-2026-07-24); (b) the post-level rail alt_reddit_sentiment (backend/alt_data/reddit_wsb.py, phase-7.5 scaffold; live impl was deferred to phase-7.12 which is superseded by 77.1/77.2) gets an INTERIM transport via Reddit's unauthenticated public JSON matching the PRAW field shape; (c) the OAuth script app stays the END-STATE transport, tracked operator-gated in 77.2. Compliance record: docs/compliance/reddit-license.md must be updated by whichever step ships first. All file:line anchors are as-of-2026-07-24 -- executors MUST re-derive. Every step research-gated per protocol.",
+      "steps": [
+        {
+          "id": "77.0",
+          "status": "pending",
+          "name": "Enable + measure the Alpha Vantage social-velocity overlay [executor: sonnet-4.6/high; REQUIRES operator .env line SOCIAL_VELOCITY_ENABLED=true + backend restart -- executor NEVER writes backend/.env]. The overlay is fully built (phase-28.15: backend/services/social_velocity_screen.py, consumed in backend/services/autonomous_loop.py) and default-OFF. Work: confirm alphavantage_api_key resolves in live settings (SecretStr -- test truthiness, NEVER str() it, see project_secretstr_dead_overlays); hand the operator the two-line activation (env line + restart); after a REAL autonomous cycle, capture the 'social_velocity_screen: N/M tickers flagged' log line and measure whether apply_social_velocity_to_score changed at least one candidate score -- an honest zero-signal cycle (with one raw AV NEWS_SENTIMENT response proving the fetch path) also satisfies, per feedback_measure_dont_assert_claims. Re-verify identity behavior when the flag is off or the fetch fails (mutate the guard, don't source-scan it -- feedback_mutation_test_guards_and_fixtures).",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"from backend.config.settings import get_settings; s = get_settings(); assert s.social_velocity_enabled, \\\"flag off\\\"; assert s.alphavantage_api_key, \\\"no AV key\\\"\"'",
+            "success_criteria": [
+              "get_settings().social_velocity_enabled is True and alphavantage_api_key is truthy in the LIVE environment (operator wrote the .env line; the executor never edited backend/.env)",
+              "One real (non-synthetic) autonomous cycle after restart shows the overlay executing: the 'social_velocity_screen: N/M tickers flagged' log line captured verbatim, plus EITHER a measured before/after score delta on >=1 candidate from apply_social_velocity_to_score OR an honest zero-signal readout backed by >=1 raw Alpha Vantage NEWS_SENTIMENT response proving the fetch path worked",
+              "Fail-safe identity re-verified behaviorally (flag off OR fetch failure => scoring unchanged), demonstrated by mutating the guard condition and watching the check fail, not by reading source"
+            ],
+            "live_check": "handoff/current/live_check_77.0.md: verbatim backend log line from a real cycle + the measured score delta (or the zero-signal evidence with one raw AV response)."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "77.1",
+          "status": "pending",
+          "name": "Interim public-JSON transport for fetch_wsb_posts() [executor: opus-4.8/xhigh]. Implement the scaffold in backend/alt_data/reddit_wsb.py using Reddit's UNAUTHENTICATED endpoint https://www.reddit.com/r/<sub>/new.json?limit=100 (registration blocked by the 500 -- see phase name). Requirements: the mandated User-Agent constant _USER_AGENT ('python:pyfinagent:1.0 (by /u/pederbkoppang)', ~:42 as-of-audit) on every request; transport-aware rate limiting >= 6s/request on the unauth path (the existing _RATE_INTERVAL_S=0.6 is the 100-QPM OAUTH ceiling and MUST NOT be used unauthenticated -- unauth is ~10 QPM); no VPN/datacenter egress assumptions (local Mac, residential IP -- project_local_only_deployment); field mapping IDENTICAL to the PRAW sketch in the fetch_wsb_posts docstring (post_id, author->_hash_author, title, selftext, score, upvote_ratio, created_utc) so the 77.2 OAuth swap is transport-only; transport selection isolated behind one seam (e.g. presence of REDDIT_CLIENT_ID selects OAuth later) and reported by a callable reddit_wsb.active_transport() -> 'public_json'|'oauth' (contract consumed by 77.2's immutable verification). score_sentiment stays scaffold (FinBERT still deferred) unless the research gate says otherwise -- rows persist with the neutral placeholder + raw text for later re-scoring. ensure_table() + upsert() to pyfinagent_data.alt_reddit_sentiment; --dry-run performs ZERO BQ writes. Update docs/compliance/reddit-license.md: interim unauth path (rate, UA, personal non-commercial), OAuth end-state, the 2026-07-24 registration-500 + Devvit-funnel evidence.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"from backend.alt_data.reddit_wsb import fetch_wsb_posts, active_transport; ps = fetch_wsb_posts(\\\"stocks\\\", limit=5); assert len(ps) > 0, \\\"no posts\\\"; assert {\\\"post_id\\\", \\\"title\\\", \\\"score\\\", \\\"upvote_ratio\\\"}.issubset(ps[0].keys()), ps[0].keys(); assert active_transport() == \\\"public_json\\\"\"'",
+            "success_criteria": [
+              "fetch_wsb_posts returns real posts for each of the three _STARTER_SUBS with the PRAW-shaped field mapping; measured inter-request spacing >= 6s on the unauth transport (timing log shown, not asserted)",
+              "A real (non-dry-run) ingest lands rows in pyfinagent_data.alt_reddit_sentiment: BQ row-count delta shown; author_hash rows never contain a raw username (spot-checked); --dry-run demonstrably performs zero BQ writes",
+              "docs/compliance/reddit-license.md records the interim transport + the registration-500 evidence and names OAuth as end-state",
+              "Transport isolation proven: the diff for a hypothetical OAuth swap touches only the fetch seam (no schema, no consumer, no scoring changes) -- shown by module structure + active_transport() contract"
+            ],
+            "live_check": "handoff/current/live_check_77.1.md: verbatim BQ query result showing the new alt_reddit_sentiment rows + one sanitized sample row + the timing log proving the rate interval."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "77.2",
+          "status": "pending",
+          "name": "Reddit OAuth script-app end-state + PRAW swap [executor: sonnet-4.6/high; OPERATOR-GATED: blocked until Reddit-side registration resolves -- operator owns the support ticket and the credentials]. Operator path: file a Reddit support ticket (developer/Data-API request form) reporting that https://www.reddit.com/prefs/apps 'create app' consistently returns status 500 for a personal non-commercial script app, and retry the form periodically; the Devvit flow is NOT a substitute (no Data-API creds). When client_id/client_secret exist: operator adds REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET to backend/.env (never committed, SecretStr handling per project_secretstr_dead_overlays); executor implements the PRAW 7.8.x transport per the fetch_wsb_posts docstring sketch behind the 77.1 seam, OAuth path at _RATE_INTERVAL_S=0.6 (100 QPM) while the unauth fallback keeps >=6s, automatic fallback to public_json when creds are absent (demonstrated by unsetting creds in a subshell), and flips docs/compliance/reddit-license.md to the end-state OAuth record incl. its RBP/registration checklist items.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -c \"from backend.alt_data.reddit_wsb import fetch_wsb_posts, active_transport; assert active_transport() == \\\"oauth\\\", active_transport(); ps = fetch_wsb_posts(\\\"stocks\\\", limit=5); assert len(ps) > 0\"'",
+            "success_criteria": [
+              "A Reddit Data-API script app exists for the operator's account; credentials live only in backend/.env (never committed, never logged); an authenticated fetch succeeds and active_transport() == 'oauth' in the live env",
+              "OAuth path rate interval is 0.6s and the unauth fallback retains >= 6s; the fallback engages automatically when creds are absent (behaviorally demonstrated in a subshell with creds unset)",
+              "docs/compliance/reddit-license.md reflects the end-state OAuth record including its own RBP/registration checklist"
+            ],
+            "live_check": "handoff/current/live_check_77.2.md: sanitized authenticated-fetch output + active_transport() report + the fallback demonstration."
           },
           "retry_count": 0,
           "max_retries": 3
