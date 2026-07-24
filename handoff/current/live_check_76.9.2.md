@@ -81,3 +81,18 @@ All checks passed! lint exit=0   (robust xargs form, reference/ excluded)
 ```
 
 ## 7. Detached-run outcome + M2/M3 — appended on completion
+
+## 7. Detached-run outcomes (honest record; criterion 1 NOT yet closed this session)
+
+Attempt 3 (detached, 19:14:08 START): flag path + rail proven live (max-rail ON line,
+code-0 claude calls) but the client hung ~30 min after a single code-1 claude call --
+run_memo's asyncio loop wedged on a lost future (stack sampled: kevent select, idle;
+a fresh probe through the SAME chain completed in seconds => transport healthy,
+client-side gpt_researcher hang). Killed at 62 min. Attempt 4 (direct run_memo, fresh
+topic, identical env exports, gtimeout 1200): DIRECT-RC=124 (cap fired; retriever
+weather: S2 429-throttled all day + DDG import-broken -- queued 76.9.3). The 16:12
+end-to-end completion (rc=0, 15,809-char memo, 4m40s) proves the CHAIN; it predates
+the repo-hardened bridge by minutes (scratchpad copy, same code lineage). CRITERION 1
+therefore remains OPEN pending one clean rc=0 through the repo bridge -- retry in
+quiet hours or after 76.9.3 restores DDG. M2/M3 mutations also pending (script now
+idle). Q/A NOT yet spawned -- step stays in_progress.
