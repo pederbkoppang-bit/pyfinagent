@@ -28384,3 +28384,44 @@ Files: `backend/services/observability/spend.py`,
 `backend/tests/test_phase_75_5_1_spend_metric.py`. Immutable: `13 passed`, exit=0.
 **No flag flipped** -- `cost_budget_use_llm_spend_enabled` stays default-off; this makes
 the metric correct so the operator *can* flip it safely.
+
+## Cycle 161 -- 2026-07-25 -- phase=76.9.2 result=PASS
+
+**Durable Max-rail routing for the nightly autoresearch -- CLOSED after the Q/A found a
+regression I had introduced.** All five criteria MET.
+
+- **Criterion 1 took six attempts, and the blocker was mine.** The Q/A's cycle-1 **FAIL**
+  did what I had not: it ran a live raw-socket probe and measured the cause. The bridge
+  declares `protocol_version = "HTTP/1.1"` (`anthropic_max_bridge.py:103`) while its SSE
+  **passthrough** branch sent neither `Content-Length` nor `Transfer-Encoding` nor
+  `Connection: close`. Per RFC 7230 3.3.3 the body is then delimited ONLY by connection
+  close, so a keep-alive client -- httpx, which the anthropic SDK uses and gpt_researcher
+  reaches via `stream=True` at 6 sites -- hangs forever. **My hardening introduced it**:
+  the pre-hardening scratchpad bridge set no `protocol_version`, defaulted to HTTP/1.0
+  and closed the socket, which is the only reason the 2026-07-24 16:12 run ever
+  completed. So the criterion's "not the session scratchpad bridge" exclusion was
+  substantive, not pedantic.
+- **My own diagnosis had been wrong in a plausible way.** "Bridge logged 27/27 HTTP 200,
+  client then idle at 0% CPU" is exactly what this defect produces; I read it as
+  client-side, and the queued 76.9.5 would have pointed its executor at `sse_aggregate`
+  -- a function this branch never calls. 76.9.5 is reframed with the measured cause.
+- **The guard could never have caught it.** The sole coverage used `urllib`, whose
+  `AbstractHTTPHandler.do_open` sets `Connection: close` -- forcing the very close the
+  production client never sends. Replaced with a raw-socket keep-alive guard; mutation
+  **M7** turns the NEW guard RED while the OLD one stays GREEN, demonstrating the
+  vacuity instead of asserting it. **M8** closed an OR-escape-hatch a comment could
+  satisfy.
+- **Attempt 6**: 01:16:47 -> 01:22:47, `END nightly autoresearch OK`, a **16,634-char
+  non-ERROR memo** with real citations and a countervailing-evidence section, served by
+  the repo bridge (pid 50256, SHA equal to the HEAD blob), dummy key, zero
+  `api.anthropic.com`/`401` in the run output. Its retriever line shows **duckduckgo** --
+  76.9.3's ddgs pin contributing to the same run.
+- **Three cycles: FAIL -> CONDITIONAL -> PASS.** Cycle-2's sharpest catch was mine again:
+  `experiment_results.md` still said criterion 1 was unmet *after* the run succeeded,
+  because I had updated only `live_check`. Also corrected a POST count that attributed a
+  whole-log grep to one process lifetime (6, not 22).
+
+**OPERATOR TOKENS STILL OWED** (unchanged by this close): `AUTORESEARCH_USE_MAX_RAIL=1`
+in `backend/.env` to put the nightly on the $0 rail, and `OPS-BRIDGE-BOOTSTRAP` to make
+the bridge survive reboots via launchd. Until both, the flag stays OFF and the bridge
+must be started by hand.
