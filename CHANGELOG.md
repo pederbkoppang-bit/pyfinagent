@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `d21b31d5` | chore: cycle-151 addendum -- 75.4.2 executor report reconciliation |
 | 2026-07-24 | `6a305da9` | chore: quant-agent experiment data artifacts (nightly residue) |
 | 2026-07-24 | `42264502` | phase-75.4.2: Audit75 S4 follow-up -- skill_optimizer post-write delivery invariant (fail-closed) |
 | 2026-07-24 | `ae13d829` | chore: quant-agent experiment data artifacts (nightly residue) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `f0d580fd` | phase-75.14: Audit75 S14 -- prompt-contract reconciliation, injection fencing, fact-ledger proven... |
 | 2026-07-24 | `ace3e680` | phase-75.13: Audit75 S13 -- Python dependency integrity: lockfile, undeclared runtime deps, dead ... |
 | 2026-07-24 | `dd46b69a` | phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dea... |
-| 2026-07-24 | `07182b94` | phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unat... |
 
 ---
 
