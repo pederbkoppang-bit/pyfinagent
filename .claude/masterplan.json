@@ -17370,6 +17370,24 @@
           "max_retries": 3
         },
         {
+          "id": "75.5.12",
+          "status": "pending",
+          "name": "75.5.1 follow-up -- fetch_llm_spend's CC-rail exclusion misses the BARE 'cc_rail' agent shape (2,241 rows / 4.1M tokens would phantom-price on flag flip) [executor: sonnet-4.6/high; BOUNDARY: backend/services/observability/spend.py + tests]. MEASURED 2026-07-24 (phase-78 census volume query, llm_call_log 30d): 2,241 calls / 4,137,143 tokens on provider='anthropic', model=claude-sonnet-4-6 (+365 opus-4-7 / 454,801 tokens) carry agent EXACTLY 'cc_rail' -- the no-suffix else-branch at backend/agents/claude_code_client.py:504 (agent=f'cc_rail:{agent}' if agent else 'cc_rail') -- while spend.py:218's exclusion is `agent NOT LIKE 'cc_rail:%'` (colon REQUIRED), so bare-'cc_rail' rows PASS the filter and would be priced at full API rates the moment the operator flips cost_budget_use_llm_spend_enabled (the owed 75.5.1 token). This is the exact phantom-trip failure mode 75.5.1 exists to prevent, hiding in its own discriminator; the bare shape is the DOMINANT production shape. FIX: widen the exclusion to also match agent='cc_rail' AND agent LIKE 'cc_rail%' review (careful: must NOT exclude a hypothetical legit agent literally named e.g. 'cc_railway' -- use (agent = 'cc_rail' OR agent LIKE 'cc_rail:%')); update the module docstring's both-shapes inventory to THREE shapes; extend test_phase_75_5_1_spend_metric.py's both-shapes test to the bare shape (mutation: revert the widened clause -> bare-shape test red). Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py -q",
+            "success_criteria": [
+              "fetch_llm_spend excludes bare agent='cc_rail' rows exactly (not a prefix-wildcard that could swallow unrelated agents), proven by a new test row fixture",
+              "The docstring inventory names all shapes actually produced (bare 'cc_rail', 'cc_rail:<agent>', provider='claude-code')",
+              "MUTATION: revert the clause -> the bare-shape fixture test goes red; existing both-shapes tests stay green"
+            ],
+            "live_check": "handoff/current/live_check_75.5.12.md: the 30d measurement verbatim (2,241/4.1M), the clause diff, test+mutation output."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "75.6",
           "status": "done",
           "name": "Audit75 S6 -- frontend auth fail-closed + session hardening [executor: opus-4.8/xhigh; BOUNDARY: no .env edits -- allowlist enforcement ships DARK behind AUTH_ENFORCE_ALLOWLIST default-off so the operator is never locked out]. (a) gap2-01: middleware.ts:24 keys ALL route protection on hasAuthProvider = !!(AUTH_GOOGLE_ID && AUTH_GOOGLE_SECRET) -- a passkey-only config silently disables auth entirely. Drop the provider-presence gate: enforce req.auth unconditionally for non-public paths (JWT session validation needs no provider configured), keeping only the explicit LIGHTHOUSE_SKIP_AUTH bypass (and an explicit DEV_DISABLE_AUTH-style flag if a dev-open mode is wanted). (b) gap2-02: auth.config.ts:10 empty ALLOWED_EMAILS currently admits ANY Google account -- implement deny-all-on-empty behind AUTH_ENFORCE_ALLOWLIST (default off = today's behavior, loud console warning when the allowlist is empty), mirroring 75.1's backend flag so the two layers fail closed together when the operator flips both. (c) gap2-04: signIn destructures only {user, account} and aliases account as 'profile' -- email_verified is an OIDC-profile claim so the unverified-email rejection NEVER fires; destructure profile and read profile?.email_verified. (d) gap2-06: with an active allowlist, a principal with no email must be REJECTED, not waved through by the '&& user.email' short-circuit (auth.config.ts:46). (e) gap2-05: session maxAge 30d with no updateAge on a kill-switch-capable cockpit -- set maxAge: 7 * 24 * 60 * 60 and an explicit updateAge; document the JWT-revocation limitation and the existing Prisma Session-table/database-session option as the tracked follow-up.",
@@ -18190,6 +18208,24 @@
               "MUTATION: break the routing (wrong port) -> the run fails loudly, never silently falls through to the metered API"
             ],
             "live_check": "handoff/current/live_check_76.9.2.md: verbatim end-to-end run, leakage proof, client-compat evidence, flag flip both directions."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.9.3",
+          "status": "pending",
+          "name": "76.9 follow-up -- duckduckgo retriever import-broken: gpt-researcher 0.14.8 requires the renamed `ddgs` package, venv has none [executor: sonnet-4.6/high; BOUNDARY: requirements-autoresearch.txt + install + tests]. MEASURED 2026-07-24 (live Max-rail runs): every DDG sub-query logs verbatim 'Error searching with Duckduckgo: Unable to import ddgs. Please install with `pip install -U ddgs`' -- so the 3-retriever stack (semantic_scholar, arxiv, duckduckgo post-76.9 reorder) is effectively TWO retrievers, both externally rate-limited (arxiv 429s polite clients since ~2026-02; S2 unauthenticated 429s under load), degrading nightly memo quality and lengthening runs (stall-prone empty-retry loops). The 75.13 requirements-autoresearch.txt pins gpt-researcher + its closure but predates the upstream duckduckgo_search->ddgs rename. FIX: add the ddgs pin to requirements-autoresearch.txt (research the correct version compatible with gpt_researcher 0.14.8's import), install into .venv, prove one DDG retrieval succeeds live (a single sub-query-shaped call, no full memo needed), and add a behavioral import-guard test (the 75.13 _gpt_researcher_guard pattern) so a future rename fails LOUD at preflight instead of silently degrading. Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -c \"from gpt_researcher.retrievers.duckduckgo.duckduckgo import Duckduckgo\" && .venv/bin/python -m pytest backend/tests/test_phase_75_deps.py -q",
+            "success_criteria": [
+              "ddgs pinned in requirements-autoresearch.txt with the researched compatible version and installed; the retriever import succeeds",
+              "One live DDG search via the gpt_researcher retriever class returns results (recorded verbatim)",
+              "A guard test fails loudly if the DDG retriever import breaks again (mutation: uninstall/rename-sim -> guard red)"
+            ],
+            "live_check": "handoff/current/live_check_76.9.3.md: verbatim import error before, successful retrieval after, guard mutation result."
           },
           "retry_count": 0,
           "max_retries": 3

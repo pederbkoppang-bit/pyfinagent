@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- phase-76.9.2 TEMPLATE (NOT auto-installed; the 62.0 rail blocks launchctl
+     bootstrap from agent sessions by design). Operator token OPS-BRIDGE-BOOTSTRAP:
+
+       cp scripts/ops/templates/com.pyfinagent.anthropic-bridge.plist \
+          ~/Library/LaunchAgents/com.pyfinagent.anthropic-bridge.plist
+       launchctl bootstrap gui/$(id -u) \
+          ~/Library/LaunchAgents/com.pyfinagent.anthropic-bridge.plist
+
+     The bridge serves http://127.0.0.1:18797 -> https://localhost:18796
+     (claude-code-proxy -> claude -p on the Max plan). See
+     scripts/ops/anthropic_max_bridge.py header for the full rationale. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pyfinagent.anthropic-bridge</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python</string>
+        <string>/Users/ford/.openclaw/workspace/pyfinagent/scripts/ops/anthropic_max_bridge.py</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/ford/.openclaw/workspace/pyfinagent/handoff/logs/anthropic-bridge.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/ford/.openclaw/workspace/pyfinagent/handoff/logs/anthropic-bridge.log</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/ford/.openclaw/workspace/pyfinagent</string>
+</dict>
+</plist>

@@ -5,7 +5,10 @@
 
 set -euo pipefail
 
-REPO="/Users/ford/.openclaw/workspace/pyfinagent"
+# phase-76.9.2: AUTORESEARCH_REPO override is a TEST SEAM (fixture repos in
+# backend/tests/test_phase_76_9_2_max_bridge.py); production launchd runs
+# never set it and get the hardcoded default, byte-identical to before.
+REPO="${AUTORESEARCH_REPO:-/Users/ford/.openclaw/workspace/pyfinagent}"
 LOG="$REPO/handoff/autoresearch.log"
 
 cd "$REPO"
@@ -40,17 +43,11 @@ FAIL_STATE="$REPO/handoff/away_ops/autoresearch_fail_state.json"
 PAGE_AFTER_N="${SRE_OPS_AUTORESEARCH_PAGE_AFTER:-3}"
 mkdir -p "$(dirname "$FAIL_STATE")" 2>/dev/null
 
-if python "$REPO/scripts/autoresearch/run_memo.py" >> "$LOG" 2>&1; then
-    echo "[$(date -Iseconds)] END nightly autoresearch OK" >> "$LOG"
-    python3 -c 'import json; json.dump({"consecutive_fails": 0}, open("'"$FAIL_STATE"'", "w"))' 2>>"$LOG" || true
-else
-    rc=$?
-    echo "[$(date -Iseconds)] END nightly autoresearch FAIL rc=$rc" >> "$LOG"
-
-    # ── phase-75.11 (sre-ops-04): paging seam -- page after N consecutive
-    # failures (bot-token pattern reused verbatim from healthcheck.sh's P1
-    # fallback). This job already logged FAIL rc above; only the page was
-    # missing.
+# phase-76.9.2: fail-state increment + page-after-N, factored so BOTH failure
+# branches (max-rail preflight below, run_memo failure) share the verbatim
+# 75.11 seam. Body moved unchanged from the former run-failure else-branch.
+_record_fail_and_page() {
+    _rc="$1"; _ctx="$2"
     prev_fails=0
     if [ -f "$FAIL_STATE" ]; then
         prev_fails=$(python3 -c 'import json; print(int(json.load(open("'"$FAIL_STATE"'")).get("consecutive_fails", 0)))' 2>/dev/null || echo 0)
@@ -66,9 +63,44 @@ else
             curl -s -m 10 -X POST https://slack.com/api/chat.postMessage \
                 -H "Authorization: Bearer $BOT_TOKEN" \
                 -H 'Content-type: application/json; charset=utf-8' \
-                --data "{\"channel\":\"$CHANNEL\",\"text\":\"P1 AUTORESEARCH: $new_fails consecutive nightly autoresearch failures (rc=$rc). See $LOG.\"}" >/dev/null 2>&1 || true
+                --data "{\"channel\":\"$CHANNEL\",\"text\":\"P1 AUTORESEARCH: $new_fails consecutive nightly autoresearch failures ($_ctx rc=$_rc). See $LOG.\"}" >/dev/null 2>&1 || true
         fi
     fi
+}
+
+# ── phase-76.9.2: Anthropic Max-rail routing (default OFF -- flag lands here
+# from backend/.env via the sanitized set -a sourcing above). When ON, every
+# LLM call in run_memo routes bridge (127.0.0.1:18797) -> claude-code-proxy
+# (:18796) -> `claude -p` on the Max plan at $0 metered. LOUD FAIL doctrine:
+# if the bridge is down we page + exit non-zero -- NEVER silently fall
+# through to the metered direct API (that silent fallback is the exact spend
+# this flag exists to kill). Operator revert = one .env change (flag off).
+if [ "${AUTORESEARCH_USE_MAX_RAIL:-0}" = "1" ]; then
+    MAX_RAIL_URL="${AUTORESEARCH_MAX_RAIL_URL:-http://127.0.0.1:18797}"
+    if curl -sf -m 10 "$MAX_RAIL_URL/health" >/dev/null 2>&1; then
+        export ANTHROPIC_API_URL="$MAX_RAIL_URL"
+        export ANTHROPIC_BASE_URL="$MAX_RAIL_URL"
+        # Dummy key: run_memo requires non-empty; the rail ignores auth; any
+        # leakage to api.anthropic.com fails 401 = provable $0 metered.
+        export ANTHROPIC_API_KEY="max-rail-dummy-key"
+        echo "[$(date -Iseconds)] max-rail ON -- routing via $MAX_RAIL_URL (dummy key, \$0 metered)" >> "$LOG"
+    else
+        echo "[$(date -Iseconds)] END nightly autoresearch FAIL rc=78 (max-rail preflight: bridge $MAX_RAIL_URL down; NOT falling back to metered API)" >> "$LOG"
+        _record_fail_and_page 78 "max-rail preflight"
+        exit 78
+    fi
+fi
+
+if python "$REPO/scripts/autoresearch/run_memo.py" >> "$LOG" 2>&1; then
+    echo "[$(date -Iseconds)] END nightly autoresearch OK" >> "$LOG"
+    python3 -c 'import json; json.dump({"consecutive_fails": 0}, open("'"$FAIL_STATE"'", "w"))' 2>>"$LOG" || true
+else
+    rc=$?
+    echo "[$(date -Iseconds)] END nightly autoresearch FAIL rc=$rc" >> "$LOG"
+
+    # phase-75.11 (sre-ops-04) paging seam, factored into
+    # _record_fail_and_page above (phase-76.9.2) -- body unchanged.
+    _record_fail_and_page "$rc" "run_memo"
     exit "$rc"
 fi
 echo "---" >> "$LOG"

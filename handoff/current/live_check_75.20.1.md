@@ -83,3 +83,14 @@ suite re-run post-restore: `11 passed`.
  docs/runbooks/per-step-protocol.md                    (+19 lines, section 4)
  backend/tests/test_phase_75_20_1_qa_write_injection.py (NEW, 11 tests)
 ```
+
+## 8. POST-CLOSE upgrade (2026-07-24 ~15:00 UTC): Main-allow arm now proven LIVE
+
+handoff/logs/qa_write_guard.log began carrying agent_type:"" lines for MAIN's own
+Write/Edit calls later in the session (e.g. 14:58:56 Edit run_nightly.sh, 15:00:48
+Write test_phase_76_9_2_max_bridge.py, 15:42:36 Write experiment_results.md — all
+ALLOWED, all succeeded). The main-session hook binding happened mid-session after
+all (later than the spawn-time snapshot suggested — hooks evidently refresh on some
+settings/goal reload). Criterion 3's Main-allow arm is therefore now LIVE-proven
+first-hand, upgrading section 5's deterministic-only proof. The next-session
+one-glance check is already satisfied.

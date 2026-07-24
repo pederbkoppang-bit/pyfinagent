@@ -1,120 +1,120 @@
-# Contract — Step 75.20.1 (P2: subagent loader injects Write+Edit past the qa allowlist)
+# Contract — Step 76.9.2 (durable Max-rail routing for nightly autoresearch)
 
-Date: 2026-07-24 | Cycle: 155 | Executor: MAIN-on-Fable (opus-tagged step, tiering precedent) | Gates: opus/max via Workflow | Claude Code 2.1.218
+Date: 2026-07-24 | Cycle: 156 | Executor: MAIN-on-Fable (opus-tagged step; goal phase-78 FIX ORDER item 1) | Gates: Fable via Workflow (goal constraint; stall → opus)
 
-## Research-gate summary (gate PASSED — Workflow wf_9f6c22cf-24c, tier=complex)
+## Research-gate summary (gate PASSED — Workflow wf_12c8ead9-d26, tier=moderate, Fable)
 
-`handoff/current/research_brief_75.20.1.md` — 6 external sources read in full, 17
-snippet-only, 23 URLs, recency scan performed, 8 internal files, gate_passed=true.
-Load-bearing findings (every one re-derived from primary text, not asserted):
+`handoff/current/research_brief_76.9.2.md` — 6 read in full, 12 snippet-only, 18 URLs,
+recency scan done, 17 internal files, gate_passed=true. Deciding findings:
 
-1. **The injection is DOCUMENTED, intended upstream behavior — not a bug.** qa.md:25
-   `memory: project` triggers it; sub-agents doc verbatim: "Read, Write, and Edit tools
-   are automatically enabled so the subagent can manage its memory files." Q/A's memory
-   is real + load-bearing (.claude/agent-memory/qa/ = MEMORY.md + 6 curated files), so
-   the tools allowlist CANNOT drop Write/Edit without killing Q/A memory curation.
-2. **Upstream-wait is dead**: issues #57507 / #57118 / #40140 all closed
-   "not planned"/stale; no changelog entry reverts the memory auto-enable.
-3. **qa.md:27 `permissionMode: plan` is INERT** (parent defaultMode=bypassPermissions
-   takes precedence per sub-agents doc; corroborated by #57118).
-4. **DECIDING FACT — enforcement is a PreToolUse hook**: hooks doc L623-628 documents
-   `agent_id` + `agent_type` in the PreToolUse common input "when the hook fires inside
-   a subagent call"; for custom subagents `agent_type` = the frontmatter `name` (= "qa").
-   PreToolUse hooks run before the permission prompt and block even under
-   bypassPermissions (permissions doc L411/L419/L58; empirically corroborated: our
-   pre-tool-use-danger.sh fires today under bypassPermissions). `Agent(name)` permission
-   rules gate SPAWN only — no settings construct can deny a tool to a specific acting
-   subagent. So the hook is the ONLY provable per-acting-agent block.
-5. **Honest limitation** (permissions doc L272): Write/Edit hooks do NOT stop Bash
-   subprocess writes; Q/A has Bash → the Main-side post-verdict git-status backstop
-   (work item d) is the covering control for that path, not the hook.
-6. **The 7a Glob/Grep "drop" is a self-report artifact** (both are on the sub-agents
-   doc's background-KEEP list L336) → the probe must measure EXECUTION, not self-report.
+1. **Aggregation is REQUIRED regardless of transport fix**: anthropic 0.96.0
+   non-streaming `create()` on an SSE response tries `response.json()`, swallows the
+   failure, and returns raw `response.text` instead of a Message — silent type
+   corruption (`_response.py:266-278`, `_strict_response_validation` default False;
+   corroborated externally by sub2api #867). This alone eliminates cert-regen-only and
+   HTTP-listener-only options.
+2. Cert-regen bar is high anyway: Python 3.13+ default-enables VERIFY_X509_STRICT;
+   OpenSSL strict wants keyUsage+SKI+CA:TRUE+non-empty SAN; the measured cert has ZERO
+   extensions. And (a)/(b) edit un-versioned ~/.openclaw infra.
+3. **RE-VERIFIED: no live external proxy client** (openclaw.json no baseUrl; only the
+   stale .bak.1 ever pointed at :18796; combined-certs.pem orphaned; the gateway plist
+   sets NODE_TLS_REJECT_UNAUTHORIZED=0) → proxy-side edits LOW-RISK (criterion 3).
+4. `langchain_anthropic` 1.4.8 reads ANTHROPIC_API_URL first (`chat_models.py:947-951`),
+   `_client_utils.py` reads ANTHROPIC_BASE_URL → export BOTH; `run_memo.py:288`
+   requires non-empty ANTHROPIC_API_KEY → dummy key (metered billing impossible).
+5. Live CLI probe (2.1.218): `--model sonnet` ran as **claude-sonnet-5** (modelUsage
+   ground truth); aliases fable/opus/sonnet documented → MODEL_MAP additions
+   probe-verified. Current unknown→sonnet fallback is a silent-downgrade trap → pass
+   claude-* ids through verbatim.
+6. `~/.local/bin/claude` is the installer-maintained path (rewritten by this morning's
+   auto-update); the /opt/homebrew symlink is manual → plist CLAUDE_PATH must point at
+   `~/.local/bin/claude`.
+7. run_nightly.sh insertion point: between :31 (venv activate) and :43 (run_memo),
+   AFTER the sanitized `set -a` sourcing :19-27 (flag auto-lands from .env; dummy key
+   overrides the sourced real key); loud-fail routes through the existing
+   fail-state+paging block (:54-71).
 
 ## Hypothesis
 
-A path-aware PreToolUse hook (deny Write|Edit when `agent_type=="qa"` unless the target
-is under `.claude/agent-memory/qa/`) converts Q/A's read-only-on-file-contents property
-from prose to enforcement, without breaking Q/A memory curation or Main's own tools;
-the git-status cleanliness rule codified in per-step-protocol §4 covers the Bash-write
-path the hook structurally cannot.
+A repo-versioned SSE-aggregating bridge (hardened from the live-proven scratchpad
+pattern) + a default-OFF flag in run_nightly.sh gives autoresearch a $0 Max-rail
+transport with one-flag revert, loud preflight failure, and zero possibility of
+silent metered fallback.
 
-## Immutable success criteria (verbatim from .claude/masterplan.json 75.20.1)
+## Immutable success criteria (verbatim from .claude/masterplan.json 76.9.2)
 
-1. "A re-runnable probe artifact (script or Workflow) measures the qa agent's RUNTIME tool surface and its output is recorded verbatim; the Write/Edit-injection claim is either reproduced (with version) or found fixed (with version), never asserted from memory"
-2. "The injection source is identified with evidence (upstream docs/changelog citation or a local config culprit), or an upstream issue is filed/referenced with its URL recorded"
-3. "If a hook-level enforcement ships, it is proven to block a qa-type Write/Edit attempt in a live probe AND proven to NOT block Main's own Write/Edit (both recorded); if no enforcement ships, the step records WHY with the evidence"
-4. "per-step-protocol.md section 4 EVALUATE carries the post-verdict git-status cleanliness rule (verdict inadmissible on evaluator-authored tree changes), and the rule text names the fresh-Q/A consequence"
-5. "Each new behavioral guard is mutation-tested with evidence recorded in the step's live_check, including at least one fixture/stub mutation"
+1. "A real run_memo run completes rc=0 through the DURABLE routing (not the session scratchpad bridge) with a dummy metered key proving $0 leakage, evidence verbatim"
+2. "The routing is flag-gated so the operator can revert to the direct metered API with one env change; default documented"
+3. "Other OpenClaw clients of the proxy are enumerated and shown unbroken by any cert/listener change (or the change is additive-only)"
+4. "The claude-binary PATH fix is made durable (plist CLAUDE_PATH or documented symlink) and the proxy MODEL_MAP covers the three autoresearch roles or the fallback is documented"
+5. "MUTATION: break the routing (wrong port) -> the run fails loudly, never silently falls through to the metered API"
 
 Immutable verification command (verbatim):
-`.venv/bin/python -m pytest backend/tests/test_phase_75_20_1_qa_write_injection.py -q`
+`bash -n scripts/autoresearch/run_nightly.sh && .venv/bin/python -c "import ast; ast.parse(open('scripts/autoresearch/run_memo.py').read())"`
 
 ## Plan
 
-1. **Hook** `.claude/hooks/qa-write-guard.sh` (NEW): PreToolUse, registered in
-   `.claude/settings.json` with matcher `Write|Edit`. Reads stdin JSON. ALWAYS appends
-   `{ts, agent_type, tool_name, file_path}` to `handoff/logs/qa_write_guard.log`
-   (the log IS the empirical field-shape confirmation on 2.1.218 — the researcher's
-   log-only recommendation, fused in). BLOCKS (exit 2 + stderr reason) iff
-   `agent_type == "qa"` AND `tool_name in {Write, Edit}` AND resolved `file_path` is
-   NOT under `.claude/agent-memory/qa/`. FAIL-OPEN (exit 0) on missing fields, parse
-   errors, or absent jq/python — consistent with project hook discipline. ASCII only.
-2. **Probe** `.claude/workflows/probe-qa-tool-surface.js` (NEW, re-runnable): spawns
-   `agentType:'qa'` (haiku — trivial probe, tiering) instructing it to ATTEMPT each
-   tool against scratch paths — Write(outside memory), Edit(outside), Write(inside
-   memory dir is NOT probed against the real memory — use report-only), Glob, Grep,
-   Read — and return per-tool {attempted, succeeded, error_verbatim} JSON. Criterion 1's
-   instrument; behavioral, not self-disclosure.
-3. **Runbook** `docs/runbooks/per-step-protocol.md` §4 EVALUATE, new subsection
-   inserted after L135 (before "Q/A runs deterministic-first" at L137): POST-VERDICT
-   CLEANLINESS — after every Q/A return, Main runs `git status --short`; any tree
-   change not authored by Main renders the verdict INADMISSIBLE and a FRESH Q/A is
-   required after reverting/reconciling; names the Bash-write hook gap (L272) as why
-   this backstop exists even with the qa-write-guard live.
-4. **Tests** `backend/tests/test_phase_75_20_1_qa_write_injection.py` (NEW): drive the
-   REAL hook script via subprocess with JSON fixtures — (t1) qa+Write+outside → exit 2;
-   (t2) qa+Edit+outside → exit 2; (t3) qa+Write+inside .claude/agent-memory/qa/ →
-   exit 0; (t4) absent agent_type (Main shape) → exit 0; (t5) agent_type=other → exit 0;
-   (t6) malformed JSON → exit 0 (fail-open); (t7) settings.json registers the hook
-   under PreToolUse matcher Write|Edit; (t8) per-step-protocol §4 carries the rule
-   (content-bearing asserts: git status --short + INADMISSIBLE + fresh Q/A + Bash-gap
-   mention); (t9) qa.md:25 still has `memory: project` (pin-with-message: the hook's
-   raison d'etre — if memory is ever dropped, re-evaluate the hook, see brief).
-5. **Mutation matrix (Main, after GENERATE)**: M1 remove the agent_type=="qa"
-   condition (hook blocks Main too) → t4 red; M2 remove the memory-dir exception →
-   t3 red; M3 exit 2 → exit 0 (block becomes allow) → t1 red; M4 unregister hook from
-   settings.json → t7 red; M5 **FIXTURE mutation**: rename the fixture field
-   `agent_type` → `agentType` in t1's payload → t1 red (fail-open on the wrong shape
-   proves the fixture speaks the real schema); M6 **STUB mutation**: neuter the
-   test's `_run_hook` helper to skip the subprocess and return exit 2 constant →
-   t3/t4 red.
-6. **Live probes (Main)**: (P1) Main's own Edit still works post-registration
-   (recorded); (P2) run the probe workflow → verbatim per-tool results; expect the
-   qa Write attempt BLOCKED if hooks hot-load on 2.1.218, else record
-   "hook binds at next session start" honestly and the live block-proof becomes
-   restart-gated (75.20 roster precedent) — MEASURE, don't assume, either way the
-   guard-log shows whether the hook fired and with which fields; (P3) the guard-log
-   lines quoted verbatim (field-shape confirmation on 2.1.218).
-7. Q/A via qa-verdict Workflow → log Cycle 155 → **COMMIT LOCAL, HOLD flip+push for
-   operator review** (75.20 precedent: this step edits .claude/settings.json hook
-   machinery — separation-of-duties review requested in harness_log).
+1. **`scripts/ops/anthropic_max_bridge.py`** (NEW, stdlib-only): hardened from the
+   scratchpad bridge — 127.0.0.1:18797; upstream default https://localhost:18796
+   overridable via `ANTHROPIC_BRIDGE_UPSTREAM` (test seam); /health relayed through the
+   chain; SSE→non-streaming-JSON aggregation incl. `error`-event surfacing; SSE
+   verbatim passthrough when the client sends `"stream": true`; 600s upstream timeout
+   (> proxy's 180s per-call); upstream verify=False (loopback-only; nothing anchors the
+   cert; the gateway itself runs NODE_TLS_REJECT_UNAUTHORIZED=0); ASCII logs.
+2. **`scripts/ops/templates/com.pyfinagent.anthropic-bridge.plist`** (NEW, template —
+   NOT bootstrapped; 62.0 rail): KeepAlive service running the bridge under .venv
+   python. Operator token **OPS-BRIDGE-BOOTSTRAP** documented in experiment_results.
+   The live test runs the repo script directly in background (durable ARTIFACT, not
+   the scratchpad copy — satisfies criterion 1's "not the session scratchpad bridge").
+3. **`scripts/autoresearch/run_nightly.sh`** (EDIT — in scope this step): flag
+   `AUTORESEARCH_USE_MAX_RAIL` (default OFF/absent → byte-identical single if-guard).
+   ON: preflight `curl -sf -m 10 http://127.0.0.1:18797/health`; on failure invoke the
+   fail-state+paging path and exit non-zero (LOUD FAIL — criterion 5); on success
+   export ANTHROPIC_API_URL + ANTHROPIC_BASE_URL = http://127.0.0.1:18797 and
+   ANTHROPIC_API_KEY=max-rail-dummy-key. Flag lives in backend/.env (operator-gated
+   flip; reaches the script through the existing sanitized sourcing). Add a
+   `NIGHTLY_REPO`-style override only if the fixture tests need it (disclose).
+4. **Operator-infra edits (~/.openclaw + proxy plist; goal-authorized, backups kept)**:
+   proxy.js MODEL_MAP += `claude-opus-4-8→opus`, `claude-sonnet-5→sonnet`,
+   `claude-fable-5→fable`; replace unknown→sonnet with verbatim claude-* passthrough
+   (silent-downgrade trap); proxy plist EnvironmentVariables += CLAUDE_PATH=
+   /Users/ford/.local/bin/claude (installer-maintained; today's /opt/homebrew symlink
+   becomes non-load-bearing, left in place + documented). `launchctl kickstart -k` the
+   proxy to reload. Verbatim diffs recorded in live_check; a reference copy of the
+   edited proxy.js checked into `scripts/ops/reference/` for versioning (deploy
+   authority stays with the operator's ~/.openclaw copy).
+5. **Tests** `backend/tests/test_phase_76_9_2_max_bridge.py` (NEW): unit-test
+   `sse_aggregate` on synthetic SSE streams (text deltas, usage, stop_reason,
+   error-event surfacing); end-to-end REAL bridge against a stub plain-HTTP upstream
+   via ANTHROPIC_BRIDGE_UPSTREAM (aggregation + stream-passthrough + /health);
+   run_nightly.sh fixture runs (76.9 fixture pattern): flag OFF → no base-url exports
+   reach the stub run_memo; flag ON + bridge down → non-zero exit + fail-state (LOUD);
+   flag ON + stub healthy → both URL vars + dummy key visible to the stub. Fixture
+   must be reproduce-first where a failure shape is claimed.
+6. **Mutation matrix (Main, after GENERATE)**: M1 wrong port in the exported base-url
+   → live run fails loudly, zero api.anthropic.com traffic (criterion 5, run against
+   the real bridge); M2 flag-guard inverted → flag-OFF fixture red; M3 preflight
+   removed → bridge-down fixture red; M4 aggregation neutered (return raw text) →
+   sse_aggregate unit red; M5 FIXTURE mutation: stub upstream serves valid JSON
+   instead of SSE → the aggregation e2e assert flips (fixture load-bearing); M6 STUB:
+   fixture run_memo stub never checks env → env-assert tests red.
+7. **Live checks (Main)**: real run_memo rc=0 + non-ERROR memo through the REPO bridge
+   (dummy-key $0 proof); MODEL_MAP probe (one bridge call on claude-opus-4-8 asking
+   model self-ID — expect opus, not silent sonnet); proxy kickstart evidence; M1 live.
+8. Q/A via qa-verdict Workflow (model fable per goal; stall → opus rerun) → Cycle 156
+   log → flip (auto-push now unblocked).
 
 ## Boundaries
 
-- Harness/permission config only: `.claude/hooks/`, `.claude/settings.json` (hook
-  registration ONLY — no permission rules touched), `.claude/workflows/`,
-  `docs/runbooks/per-step-protocol.md`, `backend/tests/`. NO product code.
-- qa.md UNTOUCHED (memory stays; the hook is the fix, not an allowlist change).
-- The hook must be fail-open and scoped to agent_type=="qa" — it must be structurally
-  unable to block Main (t4 + M1 prove it).
-- No upstream issue FILED (injection is documented behavior, not a bug — criterion 2's
-  "or referenced" arm: #57507/#57118/#40140 URLs recorded in brief + results).
+- backend/.env NOT edited (flag documented; operator flips — token in results).
+- No launchd bootstrap of the new plist (62.0 rail; OPS-BRIDGE-BOOTSTRAP token).
+- No new Python deps (bridge is stdlib-only).
+- scripts/autoresearch/run_memo.py UNCHANGED (immutable command guards it).
+- ~/.openclaw edits: proxy.js + proxy plist ONLY, each with a timestamped .bak;
+  additive/verified-low-risk per criterion 3 evidence.
 
 ## References
 
-- Brief: handoff/current/research_brief_75.20.1.md (doc-verbatim quotes + issue URLs)
-- Live reproduction this session: handoff/archive/misc/live_check_75.20.md §7a
-  (haiku qa probe self-disclosed Write+Edit present on the live roster)
-- Precedents: 75.20 (held-commit review flow), existing pre-tool-use-danger.sh
-  (PreToolUse under bypassPermissions, empirical)
+- Brief: handoff/current/research_brief_76.9.2.md (SDK/langchain/CLI/cert citations)
+- Fact-check wf_3b9205bc-666 (client enumeration); live test Cycle 154 addendum
+- Patterns: 75.11 run_ablation.sh wrapper + plist template; 76.9 fixture tests

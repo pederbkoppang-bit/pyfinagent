@@ -1,119 +1,106 @@
-# Experiment results — Step 75.20.1 (loader injects Write+Edit past the qa allowlist)
+# Experiment results — Step 76.9.2 (durable Anthropic Max-rail routing for nightly autoresearch)
 
-Date: 2026-07-24 | Cycle: 155 | Execution: MAIN-on-Fable GENERATE (opus-tagged step) | Claude Code 2.1.218
+Date: 2026-07-24 | Cycle: 156 | Execution: MAIN-on-Fable GENERATE (opus-tagged; goal phase-78 FIX ORDER item 1)
 
 ## What was built
 
-### 1. Root cause — IDENTIFIED, DOCUMENTED UPSTREAM BEHAVIOR (criterion 2)
+### 1. `scripts/ops/anthropic_max_bridge.py` (NEW, stdlib-only) — the durable transport
 
-qa.md:25 `memory: project` is the injection source. Sub-agents doc verbatim: "Read,
-Write, and Edit tools are automatically enabled so the subagent can manage its memory
-files." Q/A's memory is real + load-bearing (`.claude/agent-memory/qa/` = MEMORY.md +
-6 curated files), so the tools allowlist CANNOT exclude Write/Edit without destroying
-memory curation. NOT a bug → no new upstream issue filed; the three adjacent issues are
-referenced with URLs in the brief (#57507 memory/allowlist, #57118 permissionMode
-inert, #40140 agent_type-in-hooks feature request — all closed not-planned/stale; the
-capability #40140 asked for is NOW documented in the hooks doc, which is what makes the
-enforcement below possible). qa.md:27 `permissionMode: plan` proven INERT (parent
-defaultMode=bypassPermissions precedence).
+Repo-versioned hardening of the live-proven scratchpad bridge:
+`client (SDK/langchain, plain HTTP :18797) → claude-code-proxy (https :18796) → claude -p (Max plan)`.
+SSE→non-streaming-JSON aggregation (LOAD-BEARING: anthropic 0.96.0's non-streaming
+`create()` on an SSE response silently returns raw text instead of a Message —
+`_response.py:266-278`, strict validation off by default — so cert-only fixes cannot
+work); SSE verbatim passthrough for `"stream": true` clients; proxy `error` events
+surfaced as PROXY-ERROR text (never silent empties); /health relayed through the
+chain; 600s upstream timeout (> proxy's 180s per-call); upstream verify=False
+(loopback-only; nothing else anchors that cert; the gateway itself runs
+NODE_TLS_REJECT_UNAUTHORIZED=0; no live external proxy client exists — re-verified).
+Env seams: `ANTHROPIC_BRIDGE_UPSTREAM` (test stub), `ANTHROPIC_BRIDGE_PORT`.
 
-### 2. Enforcement — `.claude/hooks/qa-write-guard.sh` (NEW) + settings registration (criterion 3)
+### 2. `scripts/ops/templates/com.pyfinagent.anthropic-bridge.plist` (NEW, template)
 
-Path-aware PreToolUse hook, matcher `Write|Edit` (second `hooks.PreToolUse` entry in
-`.claude/settings.json`):
+NOT bootstrapped (62.0 rail blocks launchctl bootstrap from sessions — by design).
+**OPERATOR TOKEN `OPS-BRIDGE-BOOTSTRAP`**: cp template → ~/Library/LaunchAgents +
+`launchctl bootstrap gui/$(id -u) …`. The same operator action should rebind the
+proxy plist so its new CLAUDE_PATH takes effect (see §4).
 
-- BLOCKS (exit 2) iff `agent_type == "qa"` AND `tool_name in {Write, Edit}` AND the
-  normpath-normalized `file_path` is NOT under `.claude/agent-memory/qa/` (normpath
-  collapses `../` so a traversal path that merely CONTAINS the memory segment cannot
-  escape — t3b).
-- ALLOWS everything else; FAIL-OPEN on missing fields / malformed JSON / python absent
-  (a broken guard must never brick the session — same discipline as
-  pre-tool-use-danger.sh).
-- ALWAYS appends `{ts, agent_type, tool_name, file_path}` to
-  `handoff/logs/qa_write_guard.log` — the log doubles as empirical confirmation of the
-  hook-input fields 2.1.218 actually populates (the researcher's log-only leg, fused
-  into the enforcing hook).
+### 3. `scripts/autoresearch/run_nightly.sh` (EDIT) — flag-gated routing, loud-fail
 
-Smoke matrix (verbatim, all six branches):
+- `AUTORESEARCH_USE_MAX_RAIL` (default OFF/absent = single false if-guard,
+  byte-identical behavior — fixture-proven). Flag lives in backend/.env
+  (operator-gated; reaches the script via the existing sanitized `set -a` sourcing).
+  **OPERATOR TOKEN**: add `AUTORESEARCH_USE_MAX_RAIL=1` to backend/.env to go live;
+  remove it (or =0) to revert — one env change (criterion 2).
+- ON: preflight `curl -sf -m 10 …/health`; failure → fail-state increment + page
+  through the factored 75.11 seam (`_record_fail_and_page`, body moved verbatim) +
+  `exit 78` — **NEVER a silent fallback to the metered API** (criterion 5).
+  Success → export `ANTHROPIC_API_URL` + `ANTHROPIC_BASE_URL` (langchain_anthropic
+  1.4.8 reads API_URL first, `_client_utils` reads BASE_URL — both needed) +
+  `ANTHROPIC_API_KEY=max-rail-dummy-key` (overrides the sourced real key; any
+  leakage to api.anthropic.com would 401 = provable $0 metered).
+- `AUTORESEARCH_REPO` override added as a TEST SEAM (disclosed; production launchd
+  never sets it — hardcoded default byte-identical).
 
-```
-qa Write outside       -> rc=2 + "qa-write-guard: BLOCKED -- the qa evaluator is read-only on file contents"
-qa Write inside memory -> rc=0
-traversal escape       -> rc=2
-Main (no agent_type)   -> rc=0
-other agent_type       -> rc=0
-malformed payload      -> rc=0 (fail-open)
-```
+### 4. Operator-infra edits (~/.openclaw + proxy plist; goal-authorized; backups kept)
 
-KNOWN GAP, disclosed and covered (permissions doc L272): Write/Edit hooks do not
-intercept Bash subprocess writes; Q/A holds Bash for verification commands → the §4
-POST-VERDICT CLEANLINESS rule is the covering control; the hook comments and the
-runbook text both say so explicitly.
+- `claude-code-proxy.js` MODEL_MAP += `claude-opus-4-8/4-7→opus`,
+  `claude-sonnet-5→sonnet`, `claude-fable-5→fable` (CLI aliases probe-verified on
+  2.1.218; `--model sonnet` runs claude-sonnet-5 per modelUsage); `resolveModel`
+  unknown→sonnet SILENT-DOWNGRADE TRAP replaced with verbatim claude-* passthrough
+  (bad ids now fail loudly at the CLI). `node --check` clean; proxy kickstarted.
+- Proxy plist += `CLAUDE_PATH=/Users/ford/.local/bin/claude` (the installer-maintained
+  symlink, auto-rewritten on version updates — the /opt/homebrew symlink from this
+  morning stays as interim cover but is no longer load-bearing once the operator
+  rebinds the plist). Criterion 4: both the plist fix AND the documented symlink.
+- Backups: `claude-code-proxy.js.bak-76.9.2-20260724`, plist `.bak-76.9.2`.
+  Reference copy checked into `scripts/ops/reference/claude-code-proxy.js` + README
+  (deployed copy stays authoritative; git gets reviewability).
+- Criterion 3 (clients unbroken): re-verified NO live external client of the proxy
+  (openclaw.json has no baseUrl override; only stale .bak.1 ever pointed at :18796;
+  combined-certs.pem orphaned) — and the changes are additive (new MODEL_MAP keys;
+  passthrough only for ids that previously mis-ran as sonnet).
 
-### 3. Re-runnable behavioral probe — `.claude/workflows/probe-qa-tool-surface.js` (NEW) (criterion 1)
+### 5. Tests — `backend/tests/test_phase_76_9_2_max_bridge.py` (NEW, 11 tests)
 
-Spawns `agentType:'qa'` (haiku) that ATTEMPTS Write/Edit/Glob/Grep/Read against scratch
-paths and returns per-tool `{attempted, succeeded, outcome_verbatim}` — execution, not
-self-disclosure. Ran live this session (wf_90a3a61d-4a4): verbatim results in
-live_check_75.20.1.md §3 — headline: the qa Write attempt was BLOCKED by the new hook
-LIVE, and Glob/Grep are genuinely absent from the qa runtime surface at execution level
-(upgrading 75.20 §7a's self-report from artifact-suspect to measured fact on the
-Workflow path).
-
-### 4. Runbook — per-step-protocol.md §4 POST-VERDICT CLEANLINESS (criterion 4)
-
-New mandatory subsection (inserted before "Q/A runs deterministic-first"): after every
-Q/A return Main runs `git status --short`; any tree change not authored by Main renders
-the verdict INADMISSIBLE → revert/reconcile → fresh Q/A (never patch or partially trust
-the verdict). Names the Bash-write hook gap as why the rule coexists with the hook, and
-the memory-dir as the sole exempt evaluator write path. (This session already practiced
-the rule on both 76.9 verdicts before codifying it.)
-
-### 5. Tests — backend/tests/test_phase_75_20_1_qa_write_injection.py (NEW, 11 tests)
-
-t1/t2 block outside (Write/Edit), t3 memory allowed, t3b traversal still blocked, t4
-Main allowed, t5 other-agent allowed, t6/t6b fail-open, t7 registration + matcher
-scoped exactly `Write|Edit`, t8 runbook content asserts (whitespace-normalized after a
-real wrap-split red run — fixed the strong way, assertions kept), t9 the
-`memory: project` root-cause pin with re-evaluation instructions.
+sse_aggregate unit (text/usage/stop accumulation; PROXY-ERROR surfacing; garbage
+tolerance); E2E against the REAL bridge process + stub upstream via
+ANTHROPIC_BRIDGE_UPSTREAM (health relay, aggregation, stream passthrough, loud 502
+on dead upstream); run_nightly fixture runs of the REAL script (flag OFF inert —
+routing env provably absent; flag ON + dead bridge → rc=78 + fail-state + run_memo
+NEVER executed; flag ON + healthy stub → both URLs + dummy key observed by the stub,
+REAL sourced key overridden); default-OFF documented assert.
 
 ## Verification (verbatim)
 
 ```
-$ .venv/bin/python -m pytest backend/tests/test_phase_75_20_1_qa_write_injection.py -q
-11 passed in 0.49s
+$ .venv/bin/python -m pytest backend/tests/test_phase_76_9_2_max_bridge.py -q
+11 passed in 3.73s
 
-$ { git diff --name-only HEAD -- '*.py'; git ls-files --others --exclude-standard -- '*.py'; } | xargs uvx ruff check --select F821,F401,F811
+$ bash -n scripts/autoresearch/run_nightly.sh && .venv/bin/python -c "import ast; ast.parse(open('scripts/autoresearch/run_memo.py').read())"
+IMMUTABLE exit=0
+
+$ {changed-py robust form} | xargs uvx ruff check --select F821,F401,F811
 All checks passed!
 lint exit=0
 
-$ bash -n .claude/hooks/qa-write-guard.sh   # exit 0
-$ python3 -c "import json; json.load(open('.claude/settings.json'))"   # valid JSON
+$ node --check ~/.openclaw/claude-code-proxy.js   # OK
+$ plutil -lint scripts/ops/templates/com.pyfinagent.anthropic-bridge.plist   # OK
 ```
 
-## Files changed
+run_memo.py: ZERO hunks (immutable command guards it; boundary held).
 
-- `.claude/hooks/qa-write-guard.sh` (NEW)
-- `.claude/settings.json` (+1 PreToolUse entry, matcher Write|Edit — restrictive only,
-  no permission rules touched)
-- `.claude/workflows/probe-qa-tool-surface.js` (NEW)
-- `docs/runbooks/per-step-protocol.md` (§4 POST-VERDICT CLEANLINESS subsection)
-- `backend/tests/test_phase_75_20_1_qa_write_injection.py` (NEW, 11 tests)
-- qa.md UNTOUCHED (boundary held — memory stays; the hook is the fix)
+## Live evidence + mutation matrix
 
-## Live probes + mutation matrix
+See `handoff/current/live_check_76.9.2.md`: the criterion-1 real run (rc=0 memo
+through the DURABLE bridge), criterion-5 live dead-rail run (rc=78 verbatim), the
+Opus MODEL_MAP probe, the M1-M6 matrix, and the first-attempt run that was
+externally stopped mid-report (disclosed; no state damage; rerun completed).
 
-Verbatim in `handoff/current/live_check_75.20.1.md`: probe output (block message
-verbatim), guard-log lines incl. the runtime-populated `agent_type:"qa"` at 11:59:29Z,
-hook-liveness finding (binds immediately for new subagent spawns; main-session binding
-lands at next session start — Main's writes provably unimpeded either way), and the
-6/6 mutation matrix with pre/post SHA-256 identity.
+## Operator tokens from this step
 
-## Post-verdict correction (N1, Q/A cycle-1 catch — disclosure, not a rewrite)
-
-The "FAIL-OPEN on missing fields" line above is imprecise in one sub-case the evaluator
-measured: a payload with agent_type=="qa" and tool_name Write/Edit but a MISSING or
-empty file_path BLOCKS (empty string normalizes to "." which is outside the memory
-dir) — i.e. that sub-case fails CLOSED, the safe direction. Fail-open remains true for
-malformed JSON, absent agent_type, absent tool_name, and python failures. Behavior
-unchanged; prose corrected here.
+1. `AUTORESEARCH_USE_MAX_RAIL=1` in backend/.env → nightly goes $0 Max-rail
+   (revert = remove the line). Recommended after reviewing live_check.
+2. `OPS-BRIDGE-BOOTSTRAP`: bootstrap the bridge plist + rebind the proxy plist
+   (commands in the template header). Until then the bridge must be started
+   manually and the flag left OFF for unattended nights.
