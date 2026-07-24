@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `74e1b772` | phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-only enforced (LOCAL, flip+push h |
 | 2026-07-24 | `eb707333` | chore: handoff archive backfill (13 done-step artifacts to archive/misc) + queue 75.11.4 backfill st |
 | 2026-07-24 | `a8c314df` | phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance + retriever reorder; ablation san |
 | 2026-07-24 | `42008af7` | chore: quant-agent experiment data artifacts (intraday session 60617e0b residue) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `fa9aaf8e` | chore: handoff layout backfill -- archive 315 misc + 3 audit + 4 log files out of handoff/current |
 | 2026-07-24 | `ee4d92b5` | phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue |
 | 2026-07-24 | `947eaf58` | chore: ops addendum -- ablation wrapper bootstrapped (leg 3 complete) |
-| 2026-07-24 | `0878f13e` | chore: ops record -- operator-approved queue executed (75.18 flip, restart, logrotate live, quant re |
 
 ---
 
+### v6.68.27 — phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-on... (2026-07-24)
+
+- **phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-only enforced (LOCAL, flip+push h**
 ### v6.68.26 — phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance +... (2026-07-24)
 
 - **phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance + retriever reorder; ablation san**
