@@ -189,6 +189,63 @@ def test_e2e_streaming_client_gets_sse_passthrough(live_bridge):
     assert b"HELLO-SSE" in resp.read()
 
 
+def test_e2e_streaming_body_is_framed_for_a_KEEP_ALIVE_client(live_bridge):
+    """phase-76.9.2 REGRESSION GUARD -- the defect that hung five run_memo attempts.
+
+    Why the sibling urllib test above CANNOT catch this: urllib's
+    AbstractHTTPHandler.do_open sets `headers["Connection"] = "close"`, so it
+    forces the very close the production client never sends. It stays green for
+    every possible state of the framing bug (vacuity shape #5 -- a harness that
+    cannot represent the failure).
+
+    The real client is httpx (anthropic SDK), which gpt_researcher reaches via
+    stream=True at 6 sites in actions/report_generation.py. It speaks HTTP/1.1
+    keep-alive. The bridge declares protocol_version = "HTTP/1.1", so per RFC
+    7230 3.3.3 a response with neither Content-Length nor Transfer-Encoding is
+    delimited ONLY by connection close -- such a client blocks forever.
+
+    So: talk raw HTTP/1.1 keep-alive over a socket and require BOTH that the
+    body arrives AND that the stream is terminated. `recv()` returning b"" is
+    the server closing; a socket.timeout here IS the production hang.
+    """
+    host, port = live_bridge.rsplit("/", 1)[-1].split(":")
+    payload = json.dumps({"model": "claude-sonnet-5", "stream": True, "max_tokens": 10,
+                          "messages": [{"role": "user", "content": "hi"}]}).encode()
+    req = (b"POST /v1/messages HTTP/1.1\r\n"
+           b"Host: 127.0.0.1\r\n"
+           b"Content-Type: application/json\r\n"
+           b"Connection: keep-alive\r\n"          # the production client's behavior
+           b"Content-Length: " + str(len(payload)).encode() + b"\r\n\r\n" + payload)
+
+    with socket.create_connection((host, int(port)), timeout=10) as s:
+        s.sendall(req)
+        s.settimeout(8.0)
+        chunks, closed = [], False
+        try:
+            while True:
+                b = s.recv(4096)
+                if not b:
+                    closed = True       # server closed => body is delimited
+                    break
+                chunks.append(b)
+        except socket.timeout:
+            closed = False              # server never terminated => the hang
+
+    raw = b"".join(chunks)
+    head = raw.split(b"\r\n\r\n", 1)[0].lower()
+    assert b"text/event-stream" in head, f"not an SSE response: {head!r}"
+    assert b"HELLO-SSE" in raw, "SSE payload did not arrive"
+    # The actual regression guard: the body must be delimited somehow.
+    framed = (b"connection: close" in head) or (b"transfer-encoding: chunked" in head)
+    assert framed, (
+        "SSE passthrough sent neither Content-Length, Transfer-Encoding nor "
+        "Connection: close on an HTTP/1.1 response -- RFC 7230 3.3.3 leaves the "
+        f"body delimited only by close, so a keep-alive client hangs. head={head!r}")
+    assert closed, (
+        "server never terminated the stream for a keep-alive client -- this is "
+        "the exact wedge that hung run_memo attempts 3 and 5 at 0% CPU")
+
+
 def test_e2e_upstream_down_is_loud_502():
     """Bridge with a dead upstream must return a typed 502 error body --
     never hang or fabricate success (loud-fail doctrine)."""
@@ -302,4 +359,14 @@ def test_nightly_flag_on_healthy_bridge_exports_routing(tmp_path):
 def test_nightly_default_documented_off():
     text = NIGHTLY.read_text(encoding="utf-8")
     assert 'AUTORESEARCH_USE_MAX_RAIL:-0' in text, "default must be OFF"
-    assert "NEVER silently fall" in " ".join(text.split()) or "NOT falling back to metered" in text
+
+    # phase-76.9.2 (76.9.2 Q/A finding): this assertion used to accept
+    #   "NEVER silently fall" in text  OR  "NOT falling back to metered" in text
+    # and the FIRST alternate is satisfied by the COMMENT at run_nightly.sh:75-76 --
+    # so deleting the loud-fail behaviour while leaving the comment kept it green
+    # (vacuity shape #8, the OR-escape-hatch / comment-token trap). Assert only on
+    # EXECUTABLE lines: strip comment-only lines before matching.
+    code = "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("#"))
+    assert "NOT falling back to metered API" in code, (
+        "the loud-fail message must live in an EXECUTED echo, not only in a comment")
+    assert "exit 78" in code, "the dead-rail path must exit non-zero, not fall through"

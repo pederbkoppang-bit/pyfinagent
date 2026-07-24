@@ -156,3 +156,64 @@ queued as its own research-gated step **76.9.5** (P1) rather than retried blindl
 step requires the wedge point to be *captured* (stack at the moment of the hang, plus an
 actual response body) and H1-vs-H2 settled before any fix, and it carries the mutation
 that a stub upstream which never responds must make the run exit loudly.
+
+## 9. ROOT CAUSE FOUND AND FIXED (2026-07-25) — an HTTP framing regression I introduced
+
+The 76.9.2 Q/A returned **FAIL** on criterion 1 and, unlike me, **measured** the cause.
+
+**The defect.** `scripts/ops/anthropic_max_bridge.py:103` declares
+`protocol_version = "HTTP/1.1"`, while the SSE **passthrough** branch sent neither
+`Content-Length`, nor `Transfer-Encoding`, nor `Connection: close`. Per **RFC 7230
+§3.3.3** that response is delimited *only* by connection close — so a keep-alive client
+blocks forever after the last SSE byte. The production client is httpx (anthropic SDK),
+which gpt_researcher reaches via `stream=True` at **6 sites** in
+`actions/report_generation.py`: the report phase, exactly where attempts 3 and 5 wedged.
+
+**Why my hardening caused it** (verified first-hand): the scratchpad bridge set NO
+`protocol_version`, so it defaulted to HTTP/1.0 and closed the socket. That accident is
+the only reason the 2026-07-24 16:12 run completed — the criterion's "not the session
+scratchpad bridge" exclusion was substantive, not pedantic.
+
+**Why my §8 inference was wrong.** "Bridge logged 200, client at 0% CPU with one idle
+connection" is precisely what this defect produces: the bridge finishes writing while
+the client waits for a delimiter that never comes. I read that as pointing client-side.
+
+**Why no test caught it.** The sole coverage,
+`test_e2e_streaming_client_gets_sse_passthrough`, uses `urllib`, whose
+`AbstractHTTPHandler.do_open` sets `headers["Connection"] = "close"` — forcing the very
+close the production client never sends. Confirmed in the installed stdlib.
+
+### The fix, and proof it is load-bearing
+
+```
+=== BASELINE (fix in place) ===              12 passed in 3.98s
+
+=== M7: revert the framing fix ===           1 failed, 11 passed
+  reds: ['test_e2e_streaming_body_is_framed_for_a_KEEP_ALIVE_client']
+  NEW keep-alive guard RED    : True
+  OLD urllib guard STILL GREEN: True   <- proves the old test was VACUOUS
+
+=== POST-REVERT ===                          12 passed  reds: []
+SHA identical: True
+```
+
+```
+=== M8: strip the loud-fail behaviour but KEEP the comment ===
+  1 failed | reds: ['test_nightly_default_documented_off']
+  guard KILLED by a comment-only survival: True     (it stayed GREEN before this fix)
+```
+
+### Live re-probe of the running bridge (raw socket, HTTP/1.1 keep-alive)
+
+```
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: close
+... body bytes=1081
+has Connection: close : True
+server CLOSED stream   : True   <- False was the hang
+```
+
+Criterion 1 stays **unclaimed** until a full run_memo actually completes rc=0 through
+the fixed bridge. Attempt 6 is executing.

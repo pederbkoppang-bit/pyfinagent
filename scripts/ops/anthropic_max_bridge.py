@@ -137,10 +137,25 @@ class Handler(BaseHTTPRequestHandler):
                 ctype = resp.headers.get("Content-Type", "")
                 if "text/event-stream" in ctype and client_wants_stream:
                     # Client speaks SSE natively -> verbatim passthrough.
+                    #
+                    # phase-76.9.2 REGRESSION FIX (found by the 76.9.2 Q/A via a live
+                    # raw-socket probe; this branch is why five run_memo attempts hung).
+                    # We declare protocol_version = "HTTP/1.1" (:103), and this branch
+                    # sends NEITHER Content-Length NOR Transfer-Encoding. Per RFC 7230
+                    # 3.3.3 such a response is delimited ONLY by connection close, so a
+                    # keep-alive client -- httpx, which the anthropic SDK uses, and which
+                    # gpt_researcher reaches via stream=True at 6 sites in
+                    # actions/report_generation.py -- blocks forever after the last SSE
+                    # byte. The pre-hardening scratchpad bridge set no protocol_version,
+                    # so it defaulted to HTTP/1.0 and closed the socket; that accident is
+                    # the only reason the 2026-07-24 16:12 end-to-end run completed.
+                    # Signalling close restores that delimiter EXPLICITLY.
                     self.send_response(resp.status)
                     self.send_header("Content-Type", "text/event-stream")
                     self.send_header("Cache-Control", "no-cache")
+                    self.send_header("Connection", "close")
                     self.end_headers()
+                    self.close_connection = True  # terminate the body for the client
                     for raw in resp:
                         self.wfile.write(raw)
                         self.wfile.flush()
