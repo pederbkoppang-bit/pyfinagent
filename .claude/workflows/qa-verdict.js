@@ -108,11 +108,21 @@ const VERDICT_SCHEMA = {
 }
 
 phase('QA')
+// phase-75.20: agentType 'qa' (was 'general-purpose') so the primary path is
+// CONSTRAINED BY CONFIGURATION, not prose: the probe (wf_9277ada4-390) showed
+// general-purpose carries Edit/Write/Bash + 7 loaded MCP tools + the full
+// deferred MCP surface (incl. playwright), while agentType 'qa' collapses the
+// MCP surface and drops Artifact/Skill. DISCLOSED RESIDUAL: the loader
+// injects Write/Edit into the qa type past its frontmatter allowlist
+// (probe-proven; disallowedTools is silently ignored) -- that residual is
+// covered by qa.md prose + Main's post-verdict `git status` cleanliness
+// check, and queued as its own masterplan step. Stall-immunity is unchanged:
+// it comes from the StructuredOutput captured-return, not the agent type.
 const verdict = await agent(PROMPT, {
   label: 'qa-verdict:' + stepId,
   phase: 'QA',
   schema: VERDICT_SCHEMA,
-  agentType: 'general-purpose',
+  agentType: 'qa',
   model: 'opus',
   effort: 'max',
 })

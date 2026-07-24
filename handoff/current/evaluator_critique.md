@@ -1,47 +1,43 @@
-# Evaluator critique — Step 75.19 (Q/A cycle 1)
+# Evaluator critique — Step 75.20 (Q/A cycle 1)
 
-Q/A launch: Workflow `wf_76f208bd-e2a` (qa-verdict.js, agentType general-purpose,
-model opus, effort max; qa.md read from disk at runtime). First Q/A spawn for
-75.19 (0 prior CONDITIONALs). Verdict transcribed VERBATIM below — Main records,
-never authors.
+Q/A launch: Workflow `wf_ce4af971-7eb` through the EDITED qa-verdict.js —
+`agentType: 'qa'`, model opus, effort max, qa.md read from disk (contains this
+step's own §1c edits; self-reference disclosed in the spawn and flagged openly in
+the verdict's notes). The evaluator IS the post-change primary path; its own tool
+surface is first-hand criterion-3 evidence. First Q/A spawn for 75.20. Verdict
+transcribed VERBATIM below — Main records, never authors.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 6 immutable criteria MET; harness compliance clean; no unintended production change. C1 status-awareness: 6-status fixture on one absent path, done reports vs non-done excluded, M1 kills 11 tests, reproduced in-memory (done_reports=True, pending_empty=True). C2 transient/non-source exclusion by fp_reason CLASS not allowlist (handoff/, gitignored log, /openapi.json, lib/icons.ts, /Library/LaunchAgents/com.py), 5 fixtures, M4 kills all 5, reproduced (abs-host+url-route+transient excluded WHILE a genuine backend/ absent path still reports -> discriminating). C3 zero-'?' by construction (ids from real nodes) + check_consistency 7-invariant guard + fixture-with-real-rows summary test + a proven-fail-able detector test; M5/M7 kill; reproduced clean_before=[] detects_corruption=nonempty. C4 genuine=0 distinguished from excluded buckets, residue backed by TWO reproduced instruments (preflight genuine=0 + 75.17 sweep CLEAN), stale 819/141/212 explicitly corrected to measured 863/151/222. C5 residue=0 -> nothing to annotate; masterplan diff is the status flip only, no command/success_criteria byte changed (byte-identity trivially holds), go_live_drills untouched (annotated_excluded=13 confirms existing annotations respected), positive fixture proves the 0 is a real measurement. C6 mutation matrix 7/7 killed incl M6 FIXTURE + M7 STUB, verbatim in live_check_75.19.md; I independently confirmed M6 and M7 premises. Deterministic: pytest 33 passed exit=0; ruff F821/F401/F811 clean on both changed .py; live preflight exit=0 genuine=0 verbatim-matched; sweep CLEAN exit=0; 33 progress dots=33 tests in both artifacts (no splice). First Q/A spawn (0 prior CONDITIONALs); not a loop-prevention exit.",
+  "reason": "All 6 immutable criteria MET; immutable verification command exit=0 (reproduced independently); 13/13 step tests pass (reproduced); ruff F821/F401/F811 clean; frontend tsc --noEmit exit 0; harness compliance clean (research gate passed, contract-before-generate by mtime, log-last respected, first spawn so no verdict-shopping); zero product-code change (only in-scope qa-verdict.js + the new test file). C1: qa.md:4 grants exactly {navigate,snapshot,take_screenshot,console_messages} within the 'at most' envelope, all 5 mutation tools independently confirmed absent, superset+parametrized tests non-vacuous (N1/N6 kills). C2: settings.json deny 23->25 with exactly browser_run_code_unsafe+browser_evaluate, live-proven binding, immutable command asserts both (N2 kill). C3 met to its achievable extent: agentType 'general-purpose'->'qa' collapses the full MCP/Artifact/Skill surface (probe 3a/3b AND my own running tool surface corroborate) and RCE is config-denied; the Write/Edit residual is a platform loader-injection (disallowedTools silently ignored), capability-redundant with the mandatory unremovable Bash, honestly disclosed and queued as research-gated step 75.20.1 -- a strict security improvement with no new risk, and the immutable command does not test Write/Edit absence (N4 kill). C4: --isolated added, --user-data-dir pin dropped, vendor citation + two-client concurrency demo, non-vacuous test kills the hazard the vacuous immutable assert #3 cannot (R11/N3b reproduced by me). C5: §1c instructs the select: ToolSearch form and reserves dev-server lifecycle to Main (N5 kill). C6: §1c capture-by-evaluator + degraded-fallback prose present; roster-live confirmation is next-session-owed by construction and status flip is correctly HELD (75.18 hold-flip precedent).",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_audit_5item",
-    "research_gate_7sources_gatepassed",
-    "contract_before_generate_mtime",
-    "experiment_results_present",
-    "log_last_no_premature_entry",
-    "no_verdict_shopping_first_spawn",
-    "verification_command_pytest_33pass_exit0",
-    "ruff_lint_F821_F401_F811_both_files",
-    "syntax_import_smoke_module",
-    "live_preflight_exit0_genuine0_verbatim",
-    "sweep_75_17_clean_exit0",
-    "no_unintended_production_change",
-    "masterplan_status_flip_only",
-    "verification_block_byte_identity",
-    "inmemory_reproduction_9_guard_families",
-    "fixture_mutation_M6_premise_confirmed",
-    "stub_mutation_M7_premise_confirmed",
-    "pytest_dot_splice_check_33",
-    "positive_defect_fixture_nonvacuity",
-    "contract_completeness_all6_mapped",
-    "absent_fixture_target_verified_absent"
+    "research_gate_check",
+    "syntax_json_ast_parse",
+    "immutable_verification_command_exit0_reproduced",
+    "python_lint_ruff_F821_F401_F811",
+    "pytest_suite_13_tests_reproduced",
+    "frontend_tsc_noEmit",
+    "frontend_eslint_1b",
+    "mutation_reproduction_R11_N1_N3b",
+    "self_tool_surface_corroboration_criterion3",
+    "git_scope_no_product_code",
+    "existing_results_check_first_spawn",
+    "code_review_heuristics"
   ],
   "harness_compliance_ok": true,
-  "notes": "Independent Q/A via Workflow path (opus/max), qa.md read from disk at runtime; read-only Bash only, no file mutations. Changed files exactly as scoped: scripts/meta/preflight_verify_masterplan.py (rewrite, in-scope) + backend/tests/test_phase_75_19_preflight_calibration.py (new, in-scope); .claude/masterplan.json touched only at the 75.19 status line (pending->in_progress; status currently in_progress, correctly NOT flipped to done). Per qa.md 4c I re-executed the anti-vacuity guards in-memory rather than trusting the author's mutation matrix -- every guard distinguishes broken from clean, and the fixture (M6) + harness-stub (M7) shapes (the ones history says only the independent Q/A catches) both verified: existing path is NOT reported (so absent->reported is load-bearing) and check_consistency detects an injected summary corruption. TWO non-blocking observations, neither affecting the verdict: (1) preflight scanned(done+unannotated)=710 vs sweep 731 -- a definitional difference (preflight counts verification-bearing steps[]+subphases[]; sweep counts all flat_steps[] incl null-verification), each internally consistent, both residue=0; the difference is disclosed in experiment_results as the subphases coverage delta. (2) handoff/prompt_leak_redteam_audit.jsonl modified at handoff root is a pre-existing hook/redteam audit stream (a qa-4c-probe agent is active this session), not 75.19's doing and not a production code change. Verdict transcribes VERBATIM to evaluator_critique.md; Main owns any follow-up."
+  "notes": "SELF-REFERENCE DISCLOSURE (flagged openly per task + 75.18 shape): (1) I read qa.md from disk as my rubric and it contains this step's own §1c edits, so the edited rubric graded its own edit. (2) I am launched through the EDITED qa-verdict.js on agentType 'qa' -- i.e. I AM the post-change primary path. My own available tool surface is exactly [Read, Bash, SendMessage, Write, Edit, StructuredOutput], which is FIRST-HAND corroboration for criterion 3: the full MCP surface IS collapsed (I hold zero mcp__* tools; no pyfinagent-data/risk, no playwright, no Artifact/Skill/ReportFindings/ToolSearch) AND the disclosed Write/Edit residual IS real (I hold Write/Edit despite qa.md:4 not listing them). This matches probe 3b verbatim. I remained read-only (Read/Bash only) throughout despite holding Write/Edit.\n\nCRITERION-3 RESIDUAL (why PASS, not CONDITIONAL/FAIL): the switch to agentType 'qa' is a STRICT reduction of the primary path (general-purpose BEFORE also had Write/Edit/Bash, plus 7 loaded MCP + hundreds deferred incl. playwright; qa AFTER has Write/Edit/Bash, no MCP). It never expands. The Write/Edit residual is (a) a platform loader-injection past the frontmatter allowlist, probe-proven un-closable via disallowedTools (silently ignored) or session-deny (would break Main); (b) capability-REDUNDANT with the mandatory, unremovable Bash tool -- an evaluator with Bash can already mutate the filesystem, so the read-only property has ALWAYS been partly prose-enforced (qa.md: 'Bash ONLY for non-mutating verification'); removing Write/Edit would be cosmetic; (c) honestly disclosed and queued as research-gated masterplan step 75.20.1 per feedback_queue_discovered_defects_in_masterplan. The immutable verification command does not test Write/Edit absence and passes exit 0. Criterion 3's evidentiary demand ('a probe demonstrates the restriction actually binds rather than being asserted') is met in the strongest form -- the probe shows what binds and honestly shows the residual.\n\nDEVIATION JUDGED OK (criterion 2): settings.json denies exactly the 2 RCE tools (run_code_unsafe, evaluate), NOT click/type/fill_form. Justified: settings.json is session-wide and Main legitimately needs interaction tools for live-UI investigation; the immutable command asserts exactly these 2; click/type/fill_form are covered on the evaluator side by grant-absence (C1's test asserts all 5 absent -- confirmed) + the agentType binding (C3). Deny is deny-first/bypass-proof and binds the primary Workflow path (research brief §4, official permissions doc).\n\nR11 (immutable command self-defect, disclosed + reproduced by me): the immutable assert #3 is VACUOUS -- 'any(user-data-dir in a and profile not in a)' is True on the OLD hazardous args because the flag TOKEN '--user-data-dir' satisfies it (I reproduced: True on old args; True on N3b hazard-restored-alongside-isolated). The command is immutable and stays; C4's real evidence is the --isolated add + no user-data-dir in args + the concurrency demo + the non-vacuous step test, whose N3b mutation I confirmed kills the case the immutable assert cannot. Correct, honest handling.\n\nGUARD-VACUITY (§4c): config-content step -- the subject of every guard IS the configuration text, so content-pins are the correct shape (not source-scans posing as behavioral evidence). 7-mutation matrix (6 config + 1 fixture/harness N6 that neuters the suite's own _tools_line extractor). I independently reproduced N1 (browser_click -> superset excess non-empty -> fail), N3b (hazard+isolated -> step test False -> kill; immutable assert blind), and R11. Behavioral claim of C3 (surface actually constrained) is proven by probe + my own surface, not merely by the agentType string-pin. No illusory-guard BLOCK.\n\nFRONTEND GATE (§1b, mandated because the diff touches .claude/agents/qa.md): tsc --noEmit exit 0 (clean). eslint . exits non-zero from 13 PRE-EXISTING @next/next/no-assign-module-variable errors in generated/bundle files (high line numbers) -- ZERO react-hooks/rules-of-hooks errors (the class §1b exists to catch), and git status -- frontend/ is EMPTY (this step changes no frontend file). Pre-existing and unrelated; does not cap the verdict (mirrors qa.md's known-collection-errors principle).\n\nOUT-OF-SCOPE DATA CHURN (noted, harmless): git status also shows backtest DATA artifacts (backend/backtest/experiments/quant_results.tsv +2 rows, mda_cache.json, results/*.json) and .archive-baseline.json + audit JSONL. These are experiment data / harness bookkeeping from a separate process, not product code; the experiment_results claim 'ZERO product code beyond the new test' holds (git diff --name-only -- backend/frontend source = only the new test + in-scope qa-verdict.js).\n\nHOLD-FLIP (correct per separation of duties): 75.20 status is in_progress (NOT done); 75.20.1 queued (pending, harness_required). scripts/qa/verify_qa_roster_live.sh confirmed to exist. Roster-live confirmation from an after-restart session is STRUCTURALLY next-session-owed (the authoring session cannot confirm its own roster snapshot); live_check §7 documents the procedure. Criterion 6 evaluated SATISFIED-BY-PLAN. harness_log operator-review request is appended by Main AFTER this verdict (log-last respected -- 75.20 not yet in harness_log with a result). This PASS does NOT authorize the flip; Main must hold it per the contract boundary and complete the next-session roster verification first."
 }
 ```
 
-Main's disposition: PASS on cycle 1; no blockers, no follow-up steps owed by the
-verdict. The two non-blocking notes are recorded above; note (2)'s
-`handoff/prompt_leak_redteam_audit.jsonl` root-level placement is a pre-existing
-layout-invariant deviation owned by the hook stream, out of 75.19 scope.
+Main's disposition: PASS on cycle 1. **STATUS FLIP HELD + PUSH HELD** — the commit
+stays local until Peder reviews the qa.md/settings/mcp diffs (75.5/75.18 precedent);
+next session completes the roster confirmation (live_check §7) before the flip.
+Post-verdict cleanliness check performed by Main: the evaluator authored zero tree
+changes (dirty files are quant-process data artifacts + hook audit streams, all
+predating/orthogonal to the Q/A run).

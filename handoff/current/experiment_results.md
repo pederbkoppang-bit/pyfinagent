@@ -1,91 +1,85 @@
-# Experiment results — Step 75.19 (recalibrate the masterplan preflight gate, then triage its true residue)
+# Experiment results — Step 75.20 (make the Q/A live-UI gate enforceable AND the primary Q/A path actually read-only)
 
-Date: 2026-07-24. Execution model: opus-tagged step → Main (Fable 5) GENERATE
-directly; Researcher gate + Q/A via Workflow structured-output at opus/max.
-Research gate PASSED (wf_209bbec6-ace, envelope in contract.md).
+Date: 2026-07-24. Execution model: opus-tagged step → Main (Fable 5) GENERATE;
+Researcher gate opus/max (wf_0d03eec3-633, gate PASSED, 6 read-in-full); probes on
+haiku (trivial self-report). SEPARATION OF DUTIES ACTIVE: this step edits
+`.claude/agents/qa.md` + `.claude/settings.json` + `.mcp.json` + qa-verdict.js —
+**STATUS FLIP HELD** for operator review + next-session roster confirmation (the
+live_check spec itself requires the after-restart confirmation).
 
 ## What was built
 
-1. **`scripts/meta/preflight_verify_masterplan.py` — full recalibration rewrite** (452-line diff).
-   - Status-aware: only `status=="done"` steps can be reported broken; every other
-     status lands in a counted excluded bucket.
-   - Annotation-aware: `superseded_record` holders are dispositioned (75.2.1/75.17
-     semantics), excluded and counted.
-   - Container-explicit walk `iter_steps()`: scans `phases[].steps[]` AND
-     `phases[].subphases[]` (live), excludes-but-counts `archived_legacy_steps[]` /
-     `archived_dropped_steps[]`, never descends into `superseded_record` values.
-     Every reported id comes from a real node — zero '?' ids by construction.
-   - Adjudication REUSED from `scripts.qa.sweep_absent_verification_paths`
-     (`verif_commands`, `_extract_candidates`, `_clean`, `fp_reason`, `git_classify`)
-     per the 75.17 charter; no adjudicator re-implemented. `classify()` itself is not
-     called because its `flat_steps` misses `subphases[]` (measured recall gap) and it
-     has no import leg — documented in the module docstring.
-   - Import leg kept (sweep is path-only), gated behind the same status/annotation filters.
-   - Shlex-independent scanning: regex extraction runs regardless; shlex failures go to
-     a `shlex-untokenizable(regex-scanned)` NOTE bucket, never "broken". Commands untouched.
-   - Internally-consistent summary + `check_consistency()` self-check (rows re-derived vs
-     summary; any mismatch → INTERNAL-INCONSISTENCY, exit 2). Per-step de-dup kills the
-     old duplicate-line emission (8.4 was emitted twice).
-   - CLI compat: positional `path` + `--quiet` survive (16.38's immutable consumer);
-     `--json` added for future status-aware CI wiring.
-   - Testable core: `build_report(masterplan, repo_root, *, git_classify_fn, repo_basenames)`.
-2. **`backend/tests/test_phase_75_19_preflight_calibration.py` — 33 tests** (new file; this
-   is the step's immutable verification target). Fixture matrix: per-status pins (6),
-   transient/non-source classes by construction (5: handoff/ output, gitignored log,
-   `/openapi.json`, `lib/icons.ts`, `/Library/LaunchAgents/com.py`), POSITIVE
-   genuine-defect fixture with absence-guard, annotation exclusion, `subphases[]`
-   inclusion + archive exclusion (by container), list/dict shape BY SHAPE, shlex-fallback
-   (bucketed AND still scanned; tokenization alone never broken), status-gated import leg,
-   per-step de-dup, summary/rows consistency (fixture + live), live zero-unresolved-ids,
-   live-clean reality pin, 14-holder/13-done annotation census, CLI exit codes 1/0/2 + --quiet.
-3. **Triage outcome (work item d): NO new `superseded_record` owed.** Genuine residue on
-   the live masterplan is 0 by two independent instruments (recalibrated preflight
-   `genuine=0`; 75.17 sweep `CLEAN`). No annotation was added; `git diff
-   .claude/masterplan.json` contains only the 75.19 status flip → byte-identity of every
-   verification block holds trivially. go_live_drills (75.17-owned) untouched.
+1. **qa.md tools line** now grants EXACTLY the §1c read-only browser subset:
+   `mcp__playwright__browser_navigate, browser_snapshot, browser_take_screenshot,
+   browser_console_messages` appended to the existing grant; NO mutation tool.
+2. **qa.md §1c amendment**: the capture must be taken BY the evaluator when the path
+   grants browser tools; a Main-produced capture is the EXPLICITLY-DEGRADED fallback
+   (disclosed in the verdict's notes); browser schemas load ONLY via the deterministic
+   `select:` ToolSearch form (keyword search surfaces run_code_unsafe/click in top-5
+   while missing navigate/snapshot); dev-server lifecycle stays MAIN's — Q/A observes,
+   never starts or kills a server.
+3. **settings.json** deny += `mcp__playwright__browser_run_code_unsafe`,
+   `mcp__playwright__browser_evaluate` (exact spelling; the typo warning is silent for
+   underscore names). Deny rules are deny-first, bypass-proof, and bind Workflow agents —
+   and they bound LIVE: the harness stripped both tools from this session's surface on
+   write (verbatim notice in live_check §3c).
+4. **.mcp.json** playwright: fixed `--user-data-dir` pin → `--isolated`. Two-client
+   demonstration: shared profile reproduces the vendor's documented contention error
+   verbatim; --isolated runs both clients clean (live_check §4).
+5. **qa-verdict.js** `agentType: 'general-purpose'` → `'qa'` with the rationale comment:
+   probe-proven removal of Edit/Write-adjacent surface (Artifact/Skill) and the ENTIRE
+   MCP surface (7 loaded + hundreds deferred incl. playwright) from the primary path.
+   Stall-immunity unchanged (StructuredOutput captured-return, not agent-type-dependent).
+6. **New test suite** `backend/tests/test_phase_75_20_qa_browser_grant.py` (13 tests):
+   grant presence/absence/superset-envelope, exact deny entries, NON-vacuous isolation
+   assert (kills the hazard the immutable command's vacuous assert #3 cannot — R11),
+   agentType pin, §1c prose pins (evaluator-capture + degraded fallback, select: form,
+   lifecycle).
+7. **75.20.1 queued** (research-gated, opus-tagged): the DISCOVERED defect that the
+   loader injects Write+Edit into the qa agent past its frontmatter allowlist
+   (probe-proven; disallowedTools silently ignored) — written for an executor with no
+   memory of this session, per feedback_queue_discovered_defects_in_masterplan.
 
 ## Files changed
 
-- `scripts/meta/preflight_verify_masterplan.py` (rewritten)
-- `backend/tests/test_phase_75_19_preflight_calibration.py` (new)
-- `.claude/masterplan.json` (75.19 status pending→in_progress only)
-- `handoff/current/{contract.md, research_brief_75.19.md, live_check_75.19.md, experiment_results.md}` (harness artifacts)
+`.claude/agents/qa.md`, `.claude/settings.json`, `.mcp.json`,
+`.claude/workflows/qa-verdict.js`, `backend/tests/test_phase_75_20_qa_browser_grant.py`
+(new), `.claude/masterplan.json` (75.20 → in_progress; 75.20.1 inserted),
+`handoff/current/{contract.md, research_brief_75.20.md, live_check_75.20.md,
+experiment_results.md}`. ZERO product code (`git diff --name-only` shows no
+backend/frontend source change beyond the new test).
 
 ## Verbatim verification output
 
-```
-$ .venv/bin/python -m pytest backend/tests/test_phase_75_19_preflight_calibration.py -q
-.................................                                        [100%]
-33 passed in 1.93s
-```
-
-Lint (scope derived from `git status --short | grep '\.py$'` AFTER the last edit):
+Immutable command: `immutable-verification-exit=0` (live_check §1, with the R11 vacuity
+of its assert #3 disclosed + proven against the OLD args).
 
 ```
-$ uvx ruff check scripts/meta/preflight_verify_masterplan.py backend/tests/test_phase_75_19_preflight_calibration.py
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_20_qa_browser_grant.py -q
+.............                                                            [100%]
+13 passed in 0.02s
+$ uvx ruff check backend/tests/test_phase_75_20_qa_browser_grant.py
 All checks passed!
+$ python3 -c "import json; json.load(open('.claude/settings.json')); json.load(open('.mcp.json')); print('json OK')"
+json OK
 ```
 
-Syntax: `python -c "import ast; ast.parse(...)"` → `ast OK` (both files).
+## Criterion-by-criterion status
 
-## Before/after artifact shape (full verbatim in live_check_75.19.md)
+- C1 grant: DONE (tests + mutation N1).
+- C2 deny: DONE, live-proven binding (tests + mutation N2 + the live strip notice).
+- C3 primary path constrained: DONE for the MCP/Artifact/Skill surface (probe-proven,
+  before/after in live_check §3); Write/Edit residual DISCLOSED + queued as 75.20.1
+  (loader injection, not removable by frontmatter/disallowedTools/session-deny).
+- C4 isolation: DONE (edit + vendor-error reproduction + fix demonstration + non-vacuous
+  test; immutable assert #3's vacuity disclosed, never used as evidence).
+- C5 select: form + lifecycle: DONE (§1c text + tests + mutation N5).
+- C6 §1c evaluator-capture + degraded fallback: DONE in text; operator-review request +
+  next-session roster verification recorded in harness_log; **roster-live confirmation
+  is next-session-owed by construction — status flip HELD.**
 
-- BEFORE (exit 1): `scanned 863 steps, 151 broken, 8 unparseable` + 222 BROKEN lines
-  (151 distinct ids: 82 done [12 already annotated] / 56 non-done / 13 in subphases).
-- AFTER (exit 0): `live_steps=872 scanned(done+unannotated)=710 genuine=0 lines across
-  0 steps; excluded: archived=4 annotated(superseded_record)=13
-  non-done{blocked=1 deferred=15 dropped=5 in_progress=1 merged=2 pending=122 superseded=3};
-  shlex-untokenizable(regex-scanned)=8`.
+## Mutation matrix
 
-## Mutation matrix (qa.md §4c)
-
-7 mutations (5 production + 1 FIXTURE + 1 STUB/harness), **7 killed, 0 survivors**,
-post-restore suite green. Full table + verbatim FAILED lines in live_check_75.19.md §6.
-
-## Measured corrections to prior claims (measure-don't-assert)
-
-- The step text's 819/141/212/28 figures were 2026-07-20 stale; live baseline re-measured
-  as 863/151/222/8+13-subphase ids. Documented, not trusted.
-- My own first test asserted `annotated_excluded == 14` from the 75.17 census without
-  measuring status: holder 68.5 is `pending`, so done-annotated is 13. Caught by the
-  suite's own run; test now asserts both counts (14 holders, 13 done) with the reason.
+7 mutations (6 config + 1 STUB/harness), **7 killed, 0 survivors**, post-restore green
+(live_check §5). N3b is the showcase: a hazard restoration that PASSES the immutable
+command is killed by the step's own non-vacuous guard.

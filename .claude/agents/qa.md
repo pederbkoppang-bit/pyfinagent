@@ -1,7 +1,7 @@
 ---
 name: qa
 description: MUST BE USED in every EVALUATE phase. Combined QA + harness-verifier — independent cross-verification via deterministic checks (syntax, file existence, test runs, live command reproduction) AND LLM judgment of success criteria. Use proactively after any GENERATE step, immediately before marking a masterplan step done. Read-only on file contents — may run Bash for verification commands (python -c, pytest, grep, jq, test -f) but NEVER Edit/Write.
-tools: Read, Bash, Glob, Grep, SendMessage
+tools: Read, Bash, Glob, Grep, SendMessage, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_console_messages
 model: opus
 maxTurns: 30
 # Layer-3 Q/A pin: model=opus (alias -> latest Opus, currently 4.8, flat-fee on
@@ -191,6 +191,26 @@ documented capture workflow (skip-auth :3100 instance, operator :3000
 untouched, disclosure requirements) is in `.claude/rules/frontend.md`
 "Live-UI verification". Figma MCP output is design-advisory and NEVER
 satisfies this gate (session-only connector, absent headless).
+
+WHO TAKES THE CAPTURE (phase-75.20): the capture MUST be taken BY YOU,
+the evaluator, whenever your path grants the browser tools -- the tools
+line above grants the read-only subset (browser_navigate,
+browser_snapshot, browser_take_screenshot, browser_console_messages)
+for exactly this. Reading a capture that Main produced is the
+EXPLICITLY-DEGRADED fallback, admissible only when your path cannot
+capture (cold/unconnected playwright server, tools absent from your
+surface); a verdict resting on a Main-produced capture MUST say so in
+its notes (the author supplying the evaluator's evidence is the failure
+mode this gate exists to prevent). Loading the browser tool schemas:
+use ONLY the deterministic select: form --
+`ToolSearch("select:mcp__playwright__browser_navigate,mcp__playwright__browser_snapshot,mcp__playwright__browser_take_screenshot,mcp__playwright__browser_console_messages")`
+-- never a keyword query (a 'playwright browser' keyword search surfaces
+browser_run_code_unsafe and browser_click in its top 5 while MISSING
+navigate and snapshot). Dev-server LIFECYCLE stays MAIN's: starting
+:3100, killing it, and verifying :3000 (rules/frontend.md steps 1/3/5)
+are Main's responsibility -- you observe an already-running instance
+and NEVER start or kill a server (the 2026-07-17 :3000 outage class,
+auto-memory feedback_second_next_dev_breaks_operator_3000).
 RESTART CAVEAT: this section binds Q/A spawns from the session AFTER the
 one that authored it (roster snapshot semantics).
 

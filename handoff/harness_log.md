@@ -27983,3 +27983,35 @@ Operator approval received ("do it") for the Cycle-146 action queue. Executed by
 - Measured self-correction recorded: initial test asserted annotated_excluded==14
   (unmeasured); measured reality is 14 holders / 13 done (68.5 pending). The
   feedback_measure_dont_assert_claims discipline caught it pre-Q/A this time.
+
+## Cycle 148 -- 2026-07-24 -- phase=75.20 result=PASS (cycle 1) -- FLIP + PUSH HELD FOR OPERATOR REVIEW
+
+- OPERATOR REVIEW REQUESTED (separation of duties, CLAUDE.md): this step edits
+  `.claude/agents/qa.md` (tools line: +4 read-only browser tools; section 1c:
+  capture-by-evaluator + degraded-fallback + select:-form + lifecycle-stays-Main),
+  `.claude/settings.json` (+2 deny: browser_run_code_unsafe, browser_evaluate),
+  `.mcp.json` (playwright --user-data-dir pin -> --isolated), and
+  `.claude/workflows/qa-verdict.js` (agentType general-purpose -> qa). Please
+  review the diff before the flip/push. Commit is LOCAL-ONLY until approved.
+- Q/A verdict PASS (wf_ce4af971-7eb), transcribed verbatim in evaluator_critique.md.
+  The evaluator ran ON the new constrained path (agentType qa) and corroborated the
+  before/after probes first-hand: zero MCP tools, no Artifact/Skill/ToolSearch; it
+  stayed read-only. Immutable command exit 0 (independently reproduced); 13/13 step
+  tests; mutation matrix 7/7 killed (incl. N3b, which the immutable command's
+  vacuous assert #3 cannot catch -- R11 disclosed + proven; and N6 stub mutation).
+- Concurrency demo: shared-profile baseline reproduces the vendor error verbatim
+  ("Browser is already in use ... use --isolated"); --isolated runs two concurrent
+  clients clean. Deny rules bound LIVE (both RCE tools stripped from the session
+  surface on settings.json write).
+- DISCOVERED DEFECT queued as 75.20.1 (research-gated): the loader injects
+  Write+Edit into the qa agent past its frontmatter allowlist (probe-proven;
+  disallowedTools silently ignored). Includes codifying Main's post-verdict
+  git-status cleanliness rule into per-step-protocol section 4.
+- NEXT SESSION CHECKLIST (in order): (1) operator reviews this diff and pushes or
+  instructs; (2) session restart binds the new roster; (3) run
+  scripts/qa/verify_qa_roster_live.sh; (4) fresh Agent-tool qa probe self-discloses
+  the browser-tool grant; (5) APPEND the verbatim confirmation to
+  handoff/current/live_check_75.20.md section 7; (6) flip 75.20 -> done (auto-push).
+- Session tiering note (operator directive honored): Main-on-Fable executed both
+  opus-tagged steps (75.19, 75.20); Researcher + Q/A gates ran opus/max via
+  Workflow; trivial probes ran haiku.

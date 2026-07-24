@@ -176,6 +176,8 @@
       "mcp__alpaca__do_not_exercise_options_position",
       "mcp__alpaca__update_account_config",
       "mcp__bigquery__execute-query",
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_evaluate",
       "Bash(rm -rf *)",
       "Bash(git push --force *)",
       "Bash(git push -f *)",
