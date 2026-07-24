@@ -4285,7 +4285,18 @@
           },
           "contract": null,
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "phase-26.4 (commit f7e24d0a, 'Consolidate 6 opinion skills into parameterized stance prompt') deleted backend/agents/skills/neutral_analyst.md and backend/agents/skills/devils_advocate_agent.md. This step's command greps a hard-coded list of 10 skill files and asserts wc -l >= 10; with 2 of the 10 now absent the grep processes only 8 -> awk '{exit (<10)}' exits non-zero. The 'I don't know permission' work it verified was consolidated into the parameterized stance prompt, so the artifact -- not the outcome -- is retired.",
+            "retired_by_commit": "f7e24d0a",
+            "retired_in_step": "26.4",
+            "still_runnable": false,
+            "already_broken_before_retirement": false,
+            "criteria_amended": false,
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL. Annotation only; byte-identity asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.14.27",
@@ -4724,7 +4735,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:27:54.263587+00:00"
+          "completed_at": "2026-04-24T05:27:54.263587+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/researcher_smoke_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/researcher_smoke_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_2.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_2.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.3",
@@ -4745,7 +4769,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:29:03.476293+00:00"
+          "completed_at": "2026-04-24T05:29:03.476293+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/qa_smoke_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/qa_smoke_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_3.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_3.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.4",
@@ -4766,7 +4803,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:29:38.267301+00:00"
+          "completed_at": "2026-04-24T05:29:38.267301+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/handoff_e2e_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/handoff_e2e_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_4.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_4.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.5",
@@ -4786,7 +4836,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:30:38.867611+00:00"
+          "completed_at": "2026-04-24T05:30:38.867611+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/coala_memory_layers_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/coala_memory_layers_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_5.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_5.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.6",
@@ -4806,7 +4869,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:34:52.654771+00:00"
+          "completed_at": "2026-04-24T05:34:52.654771+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/signal_evidence_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/signal_evidence_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_6.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_6.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.7",
@@ -4826,7 +4902,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:36:05.881015+00:00"
+          "completed_at": "2026-04-24T05:36:05.881015+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/paper_trade_e2e_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/paper_trade_e2e_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_7.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_7.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.8",
@@ -4846,7 +4935,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:36:50.938163+00:00"
+          "completed_at": "2026-04-24T05:36:50.938163+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/slack_bot_smoke_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/slack_bot_smoke_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_8.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_8.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.9",
@@ -4919,7 +5021,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:40:31.837240+00:00"
+          "completed_at": "2026-04-24T05:40:31.837240+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/openclaw_runtime_test.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/openclaw_runtime_test.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_11.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_11.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         },
         {
           "id": "4.17.12",
@@ -4940,7 +5055,20 @@
           "contract": null,
           "retry_count": 0,
           "max_retries": 3,
-          "completed_at": "2026-04-24T05:41:43.233858+00:00"
+          "completed_at": "2026-04-24T05:41:43.233858+00:00",
+          "superseded_record": {
+            "superseded_at": "2026-07-24",
+            "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle 75.17)",
+            "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs python scripts/go_live_drills/f1_recovery_drill.py, a path that NEVER EXISTED -- git log --all --diff-filter=A -- scripts/go_live_drills/f1_recovery_drill.py returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_12.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
+            "retired_by_commit": null,
+            "retired_in_step": null,
+            "still_runnable": false,
+            "already_broken_before_retirement": true,
+            "criteria_amended": false,
+            "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_12.py",
+            "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
+            "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show 7739922d8ab9ed8398dbb97da1a9a8d6ed6894ae."
+          }
         }
       ]
     },
@@ -17684,7 +17812,7 @@
         },
         {
           "id": "75.17",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.6/high; BOUNDARY: NO immutable verification criteria amended -- annotate via superseded_record (house convention, see 75.2.1) or repair the referenced ARTIFACT, never the criterion]. Discovered during 75.2.1 and deliberately NOT folded into it. Many status=done steps carry verification commands naming paths that do not exist on disk, so those commands are unrunnable and their PASS is unreproducible. COUNT IS DELIBERATELY UNSTATED: the 75.2.1 research brief reported 15 using a regex whose author flagged a .tsx/.ts alternation caveat; an independent Main sweep with a different regex returned 33 raw candidates including clear false positives (a truncated launchd plist path '/Library/LaunchAgents/com.py', URL fragments '/openapi.json' and '/walk_summary.json', and frontend-relative paths like 'lib/icons.ts' and 'src/components/ui/Button.tsx' that exist under frontend/). Step 1 is therefore TRIAGE, not repair: build one sweep that handles all four verification shapes (674 dict / 126 str / 13 list / 24 None -- a naive .get('command') CRASHES on the list-shaped ones), resolves frontend-relative and URL-fragment candidates correctly, and classifies each hit as (i) genuine never-existed name mismatch, (ii) artifact retired by a later step, (iii) false positive. Ten-ish phase-29 go_live_drills steps (4.17.2-4.17.12) are the largest suspected cluster: their plan-side names never matched the on-disk smoke_test_4_17_N.py convention. 4.14.24 and 4.17.9 are ALREADY annotated by 75.2.1 and must be excluded, not re-annotated.",
           "harness_required": true,
           "priority": "P3",

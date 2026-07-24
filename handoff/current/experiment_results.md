@@ -1,95 +1,80 @@
-# Experiment results -- Step 75.16 (Cloud Functions + Docker deploy-surface retirement/hardening)
+# Experiment results -- Step 75.17 (absent-path verification family: triage + repair)
 
-Date: 2026-07-24. **Execution model: Sonnet executor GENERATE (7th
-delegated); Main review + independent re-measurement. Executor draft at
-`experiment_results_75.16_draft.md`.**
+Date: 2026-07-24. **Execution model: Sonnet executor GENERATE (8th
+delegated); Main review + independent re-measurement. Executor draft (3
+disclosed deviations) at `experiment_results_75.17_draft.md`; the
+executor also authored `live_check_75.17.md` (Main-reviewed and adopted;
+its fixed-SHA baseline choice -- byte-identity pinned to 7739922d, the
+pre-75.17 commit, rather than a moving HEAD -- is an improvement over the
+contract's wording).**
 
-## BOUNDARY DEVIATION (executor's, disclosed up front by the executor itself)
+## What shipped
 
-Two `pip index versions` PyPI lookups (functions-framework, pyarrow) were
-made early in the executor session to source pin versions -- a NETWORK
-call violating the letter of the $0/no-network boundary. Information-only
-(nothing installed, no state changed, $0 spent); every other pin came
-from requirements.lock/pip show; zero gcloud/docker calls. The executor
-disclosed it unprompted at the top of its draft. Main's judgment: breach
-of letter, not intent (the boundary's purpose is no deploys/no metered
-spend); prominently surfaced for the Q/A to weigh.
-
-## What shipped (legs a-h; 22 files, +224/-607, net -383 lines)
-
-- **(a)** scripts/deploy/deploy_agents.sh DELETED (would today upload the
-  repo root INCLUDING backend/.env as four PUBLIC --allow-unauthenticated
-  functions; all four cd targets nonexistent, no set -e).
-- **(b)** functions/ingestion/cloudbuild.yaml DELETED with
-  functions/ingestion/RETIRED.md documenting the evidence (orphaned E-L
-  refactor, zero callers/schedulers, entry-point mismatch, live path =
-  the in-backend service).
-- **(c)** Ingestion status decisions factored into the NEW pure
-  functions/ingestion/response.py (500 fetch-exception / 500 load-failure
-  / 200 empty-success / 200 success -- Cloud Scheduler acks any 2xx and
-  ignores bodies, so the old 200-with-Failure-body read as success);
-  data_fetchers.py re-raises genuine errors.
-- **(d) THE LIVE PATH**: functions/quant/main.py -- timeout=(5,30) on
-  both SEC requests.get; the full traceback now goes ONLY to
-  logging.critical; the stream yields a SINGLE-line `ERROR: ...` with the
-  FINAL_JSON:/ERROR: tokens untouched (the orchestrator's line-prefix
-  parser contract, verified in the diff by Main).
-- **(e)** Earnings function: model id env-var'd (default aligned to the
-  live earnings_tone service; 2.5-family retirement noted); NLP failure
-  now a distinguishable status (never {'error':...}-as-data); 4-key JSON
-  validation; wildcard CORS -> the backend localhost/Tailscale allowlist
-  idiom.
-- **(f)** All 3 functions requirements.txt fully ==-pinned; all 3 added
-  to pip-audit.yml (paths + per-file --requirement steps).
-- **(g)** backend/Dockerfile -> python:3.14-slim + real requirements
-  install; frontend/Dockerfile -> npm ci from the committed lockfile.
-- **(h)** 5 migrations + extend_historical_data.py re-anchored to
-  Path(__file__).resolve().parents[2]; 4 unreferenced scripts/debug/*.py
-  DELETED (grep-zero-references evidence in the draft).
-- NEW backend/tests/test_phase_75_deploy_surface.py (44 tests, import-safe
-  -- no google-cloud imports); the 75.15 collection pin legitimately moved
-  1474/1490 -> 1518/1534 (+44 unmarked tests; deselected count -- the
-  canary -- unchanged at 16).
+- **The committed classifier** `scripts/qa/sweep_absent_verification_paths.py`
+  (refactored from the research gate's re-runnable reference impl): pure
+  importable `classify()` core + CLI; handles all four verification
+  shapes (HEAD census: 720 dict / 126 str / 13 list / 24 None); negative-
+  assertion detection (shell + python, full-path matched); frontend-
+  relative + glob-prefix re-resolution; URL/truncated/transient skips;
+  git-classification never-existed vs retired. Importability for step
+  75.19's preflight recalibration documented in the module docstring --
+  no duplicate nightly wiring.
+- **10 `superseded_record` annotations** (sibling keys ONLY -- every
+  touched step's command + success_criteria BYTE-IDENTICAL to the
+  pre-step commit): 9 class-(i) go_live_drills (4.17.2-8, 4.17.11,
+  4.17.12 -- plan names never matched disk; each on_disk_equivalent
+  smoke_test_4_17_N.py existence-verified) + 4.14.26 class-(ii)
+  (retired_by_commit f7e24d0a / phase-26.4). The three previously-
+  annotated steps untouched. Masterplan diff purity: +139 lines, and the
+  only 10 minus-lines are trailing-comma artifacts on `completed_at`
+  lines (values unchanged -- unavoidable JSON sibling insertion).
+- **45-test guard file** `test_phase_75_17_verification_paths.py`:
+  byte-identity x10 vs the FIXED baseline SHA; exactly-one-
+  superseded_record repo-wide (14 holders after +10; the guard encodes
+  the VERIFIED 4 prior holders incl. 68.5, correcting a narrower list in
+  one contract prose spot -- executor deviation 2, endorsed); the
+  classifier returns EMPTY on the live tree and EXACTLY the 10 on the
+  baseline tree; all-4-shapes fixture (list-shaped asserted BY SHAPE);
+  resolver non-flag unit proofs. The 75.16 collection canary legitimately
+  moved 1518/1534 -> 1563/1579 (+45 unmarked; 16-deselected preserved).
 
 ## Verification (Main-independent)
 
-- Immutable command: **exit 0** (re-run after every Main edit); the
-  executor's M8 proof shows it FAILED on every leg against the pre-fix
-  tree (git-show reconstructions -- no stash) and exits 0 post-fix.
-- New tests: **44 passed**; both guard files together: **60 passed**.
-- **CI-equivalent tail (Main re-run)**: `1510 passed, 0 failed, 2 skipped,
-  16 deselected` (= 75.15's 1466 + the 44 new).
-- Raw suite (executor): 8 failed -- a STRICT SUBSET of the 9-red baseline;
-  the absent one (23_2_15) is the documented PATH-shell-dependent test
-  (green in the executor's shell, red in Main's -- exactly the 75.15
-  finding; zero new failures).
-- **THE HEADLINE DELTA PROOFS, Main-reproduced**: M1 (traceback restored
-  into the yield under a RENAMED variable -- the immutable command's
-  escape hatch): the new AST guard KILLS it (1 failed) while the immutable
-  command stays exit 0 on the same mutant -- measured both ways. M2
-  (`==`-in-comment pin dodge) equivalently proven by the executor.
-  Matrix: 6/6 killed + the M7 stub-fixture discipline (vacuous-fixture
-  variant fails) + M8 pre/post proof.
-- Ruff: clean over the git-derived scope after Main removed 3 MORE
-  pre-existing F401s in touched files (earnings `Part`, ingestion
-  `datetime`, migrate_bq_schema `sys` -- each proven pre-existing via
-  git-show-HEAD lint; the 75.5 precedent, now applied in 5 consecutive
-  steps).
-- py_compile clean on all touched scripts; yaml.safe_load clean on
-  pip-audit.yml; the ci_gates suite green at the moved pin.
+- Immutable command: **exit 0**. Guard file: **45 passed** (Main re-run).
+- **Classifier reproduced BOTH WAYS by Main via the importable API**:
+  live masterplan -> genuine set EMPTY; pre-step (git-show) masterplan ->
+  EXACTLY {4.14.26, 4.17.2-8, 4.17.11, 4.17.12}. (Main's first two
+  attempts crashed on Main's OWN call-site errors -- str-vs-Path and the
+  return shape -- not module defects; the documented API is correct.)
+- CI-equivalent tail: **1555 passed / 0 failed / 16 deselected**
+  (= 75.16's 1510 + 45). Raw suite (executor shell): 8 failed -- the
+  environment-dependent baseline subset, zero new.
+- Ruff clean over the derived scope + new files.
+- Mutations: executor **M1-M10 all KILLED** (incl. M8 byte-identity-break
+  and M9 double-annotation on tmp copies only -- real criteria never
+  mutated even transiently). Main independently reproduced **M7** (the
+  mandatory fixture mutation: list-shaped fixture converted to dict ->
+  the all-4-shapes test FAILS, proving the fixture load-bearing);
+  post-restore 45/45.
 
-## Queued this step
+## Executor deviations (3, disclosed; Main-endorsed)
 
-- **75.16.1** (at contract time): earnings function missing deps
-  (vertexai, google-cloud-storage -- non-deployable as committed) +
-  the untimed :120 requests.get; retire-vs-repair decision at research.
+1. The collection-canary bump (anticipated by that canary's own comment).
+2. PRIOR_HOLDERS includes 68.5 (the verified 4-holder reality over the
+   narrower 3-item list in one contract prose spot).
+3. Two resolver unit tests assert exclusion (`is not None`) rather than a
+   specific FP-class label because the well-formedness gate fires first
+   for leading-slash tokens -- measured, documented, behaviorally
+   equivalent for the guard's purpose.
+
+## Governance meaning
+
+Every status=done step in the masterplan now has either a RUNNABLE
+verification command or an explicit, criteria-immutable supersession
+record naming the on-disk equivalent or retiring commit -- the
+"unreproducible PASS" family is closed, and the committed classifier
+makes regression detectable (75.19 charters continuous enforcement).
 
 ## Not verified live
-
-No deploy was executed (boundary): the quant hardening reaches the LIVE
-function only when the operator next redeploys it (until then the
-deployed copy still streams tracebacks -- the URL is live TODAY, so the
-redeploy is operator-actionable: OPS-QUANT-REDEPLOY suggested at next
-convenience, $0-adjacent, one gcloud command documented in RETIRED.md's
-sibling note). Docker images unbuilt. pip-audit additions first exercise
-on the next push.
+Nothing live-relevant: repo + masterplan annotations only; no service,
+UI, or deploy surface touched.

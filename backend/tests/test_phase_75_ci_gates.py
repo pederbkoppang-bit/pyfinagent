@@ -121,8 +121,12 @@ def test_backend_not_requires_live_collection_count_is_stable():
     # deploy_surface.py added 44 new tests, none carrying requires_live, so the
     # deselected count (the thing this canary actually protects) is unchanged
     # at 16 while both totals shift by +44.
-    assert "1518/1534 tests collected (16 deselected)" in tail, (
-        f"collection count drifted from the phase-75.16 baseline; got: {tail!r}"
+    # phase-75.17: baseline moved from 1518/1534 to 1563/1579 --
+    # test_phase_75_17_verification_paths.py added 45 new tests, none
+    # carrying requires_live, so deselected stays 16 while both totals
+    # shift by +45.
+    assert "1563/1579 tests collected (16 deselected)" in tail, (
+        f"collection count drifted from the phase-75.17 baseline; got: {tail!r}"
     )
 
 
