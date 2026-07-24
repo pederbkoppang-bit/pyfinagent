@@ -1,52 +1,44 @@
-# Contract — phase-75.8.1: stub-fingerprint + dry-run-label guard for the SECOND gauntlet-report consumer
+# Contract — phase-75.4.2: skill_optimizer post-write delivery invariant
 
-- **Step id:** 75.8.1 (phase-75 follow-up queue, **P1 latent, money-integrity** — the promotion path; executor: opus-tagged → Main-on-Fable GENERATE; gates opus/max via Workflow)
+- **Step id:** 75.4.2 (phase-75 follow-up queue, **P1**; executor: **sonnet-tagged → delegated Sonnet executor GENERATE** per the operator tiering directive + the overnight delegated-executor model; Main reviews + runs the mutation matrix; gates opus/max via Workflow)
 - **Date:** 2026-07-24
-- **Boundary (from step text):** same as 75.8 — evaluator gate thresholds, kill-switch code, DSR/PBO constants, limits.yaml all byte-untouched. Change surface: exactly 4 files (new `backend/backtest/gauntlet/report_integrity.py`, edit `scripts/risk/promotion_gate.py`, edit `backend/autonomous_harness.py`, new `backend/tests/test_phase_75_8_1_harness_consumer.py`). `test_phase_75_promotion_gate.py` stays byte-untouched (C2 requires its 14 tests pass UNCHANGED).
+- **Boundary:** exactly ONE code file (`backend/agents/skill_optimizer.py`) + ONE new test file. Do NOT touch `backend/config/prompts.py` (the 75.4-fixed loader), any `skills/*.md`, or the phase-71.4 flag-gated review. The invariant is UNCONDITIONAL (no flag gate) and $0 (deterministic, no LLM).
 
-## Research-gate summary (gate PASSED — wf_3d29e4a9-bd7)
+## Research-gate summary (gate PASSED — wf_91b00dc2-3ea)
 
-Envelope: `tier=moderate, external_sources_read_in_full=7, snippet_only_sources=33, urls_collected=40, recency_scan_performed=true, internal_files_inspected=10, gate_passed=true`. Brief: `handoff/current/research_brief_75.8.1.md`.
+Envelope: `tier=moderate, external_sources_read_in_full=6, snippet_only_sources=11, urls_collected=17, recency_scan_performed=true, internal_files_inspected=8, gate_passed=true`. Brief: `handoff/current/research_brief_75.4.2.md` (contains VERBATIM implementation code in §4a/§4b — the executor follows it).
 
-Load-bearing findings (each measured, with a step-text correction):
+Load-bearing findings:
 
-1. **Consumer census (repo-wide):** exactly TWO consumers of `handoff/gauntlet/<strategy>/report.json` — `scripts/risk/promotion_gate.py` (fingerprint check at :118-141) and `backend/autonomous_harness.py::promote_strategy` (NO integrity checks). Writer: `scripts/risk/gauntlet.py`. Only caller of promote_strategy: `scripts/risk/phase4_9_redteam.py:68` → P1 latent, no live impact.
-2. **Re-anchored:** `promote_strategy` def at autonomous_harness.py:251 (step text said 258-289; no real drift, HEAD 22409053). Insertion point: AFTER report load (:277), BEFORE `evaluate()` (:278). Existing refusal shape at :269/:281: `_append_blocklist(strategy, reason)` + `raise PromotionBlocked` — the new refusal mirrors it (no exception swallowed; C1).
-3. **STEP-TEXT CORRECTION (measure-don't-assert):** promotion_gate.py has ONLY the stub-fingerprint check. Its `dry_run` refs (:190,192,211,213,237) are the CLI's own `--dry-run` no-write flag, NOT a gauntlet-report label check. This step ADDS the `dry_run:true`-label refusal to BOTH consumers via the shared module — "port both rejections" was partially inaccurate.
-4. **Ordering constraint (C2):** the composite must check **fingerprint FIRST, dry_run label SECOND** — `test_phase_75_promotion_gate.py:245-257` feeds a report that is BOTH dry_run:true AND stub and asserts the 'stub fingerprint' reason; a label-first composite breaks it. All 14 existing tests verified green under fingerprint-first (every pass-test uses dry_run:False).
-5. **Both sub-guards are load-bearing:** skipped regimes carry NEITHER drawdown key (gauntlet.py:77-85) → `None==None` false-positives without the skipped-filter; `all([])==True` is the vacuous trap without the `non_skipped and` empty-guard.
-6. **Import safety:** promotion_gate.py already reaches backend.* via sys.path insert (:37-44). A PURE-LEAF report_integrity.py (imports only `typing.Any`, like evaluator.py) has zero cycle risk. Do not touch gauntlet/__init__.py.
-7. **Report shape:** writer refuses non-dry_run:true today (gauntlet.py:147; live mode raises NotImplementedError :163) → the label refusal correctly makes NOTHING promotable until a live gauntlet exists. Non-skipped regimes: id/drawdown/bt_drawdown/forced_exits (dry-run sets bt_drawdown==drawdown at :97).
-8. **External canon (2025-2026 reward-hacking):** ImpossibleBench 2510.20270 (structural test-access-control; LLM monitors caught only 42-50% of fabrication → the guard must stay a DETERMINISTIC code gate), SpecBench 2605.21384 (fabricated intermediate artifacts = most common exploit), LLMs-Gaming-Verifiers 2604.15149 (extensional checks ignore whether work happened). SSOT/DRY canon (Fowler Pull-Up; Pragmatic Programmer) mandates the single shared predicate at N=2 identical consumers.
+1. **The gap:** `apply_modification` (skill_optimizer.py:406-479) rewrites skills/*.md with only two guards: occurs-exactly-once (:424) and post-write `load_skill()` doesn't raise (:463-470). A `###`→`##` heading promotion loads fine while silently truncating delivery (the loader's region regex stops at the first `## ` — the exact 75.4 regression, 7532→190 chars, re-openable by the optimizer).
+2. **Silent-degradation path today:** broken skill loads → returns True → `_git` commits → `reload_skills` makes it live → every subsequent analysis delivers the truncated prompt; metric delta usually 0 → PENDING (:813) → persists, never auto-reverts.
+3. **Fix:** deterministic, ALWAYS-ON, fail-CLOSED postcondition: snapshot `delivered_before = load_skill(agent)` pre-write; post-write compare via `_delivery_invariant_ok`: (a) placeholder-set subset guard (`re.findall(r'\{\{(\w+)\}\}')` — no delivered placeholder may vanish), (b) length-retention guard (`DELIVERY_MIN_RETAIN_RATIO = 0.80`). Two independent guards so each is mutation-killable. Revert uses the in-function byte-exact `skill_path.write_text(content)` (:467 pattern) — NEVER `revert_modification()` (that does `git checkout HEAD~1`). `import re` must be added at module top (currently only function-local).
+4. **Vacuous-test trap (measured):** `{{quant_model_data}}` occurs TWICE in quant_model_agent.md (prose :27 + template :79) — a bare placeholder old_text is rejected by the PRE-EXISTING occurs-once guard, so that fixture would stay green under mutation. T2 must use the unique 2-line old_text `'### Quant Model Data\n{{quant_model_data}}'`; every fixture asserts `content.count(old_text) == 1`.
+5. **Canonical fixture:** quant_model_agent.md — `## Prompt Template` (:72), placeholders :73/:74/:79, `### Quant Model Data` (:78), region ends at `## Experiment Log` (:123). Promoting :78 to `## ` trips BOTH guards.
+6. **Test construction:** `SkillOptimizer.__new__(SkillOptimizer)` (skips __init__/BQ creds; apply_modification uses no self state); monkeypatch `SKILLS_DIR` in BOTH `backend.agents.skill_optimizer` AND `backend.config.prompts`, plus `prompts._SKILL_FILE_ID_CACHE_PATH` → tmp and `skill_optimizer._git` → no-op. Stubbing _git/cache is fine — the criterion's "not a stub" refers to the SKILL FILE (real temp copy) + REAL apply_modification/load_skill.
+7. **External canon (6 read in full):** Meyer DbC (postcondition violation = fail-fast), DSPy Assert fail-closed vs Suggest fail-open (arXiv:2312.13382), APE/OPRO score-before-adopt (2211.01910/2309.03409), VeriGuard verify-before-execute (2510.05156), Governed Capability Evolution 2026 — a self-evolved artifact is a CANDIDATE that must pass or ROLL BACK, "zero unsafe activations" (2604.08059).
 
 ## Hypothesis
 
-One pure-leaf `check_report_integrity(report) -> (ok, reason|None)` (fingerprint-first, byte-identical reason string, skipped-filter + empty-guard) imported module-attr-style by BOTH consumers closes the second consumer's fabricated-evidence hole with zero duplicated predicate logic — proven "single implementation" by monkeypatching the shared predicate and observing BOTH consumers flip (a behavioral proof, not a source-scan), with the 14 pre-existing promotion-gate tests untouched and green.
+An unconditional post-write delivery postcondition (placeholder-subset + 80% length-retention, byte-exact revert on violation, checked BEFORE the git commit) closes the optimizer's silent-truncation hole fail-closed, while the negative control proves it does not blanket-refuse legitimate prose edits.
 
-## Plan
+## Execution model
 
-1. **New `backend/backtest/gauntlet/report_integrity.py`** (pure leaf, imports only `typing.Any`): `is_dry_run_report()`, `has_stub_fingerprint()` (skipped-filter + `non_skipped and` empty-guard), `check_report_integrity()` — fingerprint checked FIRST, reason string byte-identical to promotion_gate.py:135-137; dry_run label second.
-2. **Edit `scripts/risk/promotion_gate.py`**: replace the inline fingerprint block (:118-141) with `report_integrity.check_report_integrity(report)` (module-attr import beside the evaluator import at :44). Gains the label refusal; keeps rc/output contract.
-3. **Edit `backend/autonomous_harness.py::promote_strategy`**: integrity check after report load (:277), before evaluate() (:278); on not-ok → `_append_blocklist(strategy, reason)` + `raise PromotionBlocked` (parity with :269/:281 — blocklist-parity choice flagged here for Q/A; raise-only would also satisfy C1).
-4. **New `backend/tests/test_phase_75_8_1_harness_consumer.py`** (offline; monkeypatch `_GAUNTLET_ROOT`/`_BLOCKLIST_PATH`/`_HARNESS_LOG` to tmp_path per the phase4_9_redteam pattern): (1) stub-through-promote raises + blocklists; (2) dry_run:true divergent-through-promote raises; (3) realistic divergent dry_run:false PROMOTES through the existing evaluator; (4) all-skipped/empty NOT fingerprinted through promote; (5) anti-fixture-divorce: feed REAL `gauntlet.run(dry_run=True)` output bytes; (6) promotion_gate label coverage (dry_run:true divergent → rc==1); (7) monkeypatch the shared predicate → BOTH consumers change (the C2 single-implementation behavioral proof).
-5. **Mutation matrix** (experiment_results per C4 + qa.md §4c): {drop the check call in promotion_gate; drop it in promote_strategy; drop the dry_run branch; drop the skipped-filter; drop the empty-guard; stub the predicate to (True, None)} — each fails ≥1 test through EACH consumer where applicable; plus a fixture/stub mutation.
-6. **C5 proof**: `git diff --stat` (4 files only) + empty `git diff -- backend/backtest/gauntlet/evaluator.py backend/governance/limits.yaml` in live_check_75.8.1.md, alongside the verification command exit-0 verbatim.
-7. Q/A via qa-verdict Workflow; log; flip; push.
+Sonnet executor implements EXACTLY the brief's §4a/§4b code + the 4-test suite (T1 heading-promotion revert + sha unchanged; T2 unique-2-line placeholder drop revert + byte-identical; T3 negative control prose edit accepted + placeholders intact; T4 length-guard-only trip). Main re-derives lint scope, runs the mutation matrix (M1 remove invariant call; M2 weaken helper to `return True,'ok'`; M3 drop placeholder guard; M4 drop length guard; + a fixture mutation M5: break T2's unique old_text back to the bare placeholder → its own count==1 assert must fail), assembles live_check, spawns Q/A.
 
-## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.8.1)
+## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.4.2)
 
-> command: `.venv/bin/python -m pytest backend/tests/test_phase_75_promotion_gate.py backend/tests/test_phase_75_8_1_harness_consumer.py -q`
+> command: `cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_4_2_optimizer_invariant.py -q`
 
-1. "New backend/tests/test_phase_75_8_1_harness_consumer.py passes offline and asserts promote_strategy refuses (with a logged/returned reason, no exception swallowed into a promote) a report whose every non-skipped regime has bt_drawdown exactly equal to drawdown, AND refuses a report labeled dry_run:true, while a realistic divergent dry_run:false report still promotes through the existing evaluator"
-2. "The fingerprint predicate is a SINGLE shared implementation imported by both scripts/risk/promotion_gate.py and backend/autonomous_harness.py (no duplicated predicate logic), and all pre-existing tests in backend/tests/test_phase_75_promotion_gate.py still pass unchanged"
-3. "Empty and all-skipped per_regime lists are NOT fingerprinted by the shared predicate (the all([]) trap), proven by test through BOTH consumers"
-4. "Mutation matrix in experiment_results.md: dropping the shared predicate call, the dry_run-label check, or the skipped-filter each fails at least one test through EACH consumer (no vacuous guards)"
-5. "git diff shows zero edits to evaluator gate thresholds, kill-switch enforcement code, DSR/PBO constants, or limits.yaml values"
+1. "New backend/tests/test_phase_75_4_2_optimizer_invariant.py passes offline and calls the REAL apply_modification against a temp copy of a skill file (not a stub): a modification that promotes a '### ' heading back to '## ' inside the Prompt Template region is REVERTED and apply_modification returns False"
+2. "A modification that drops a {{placeholder}} from the delivered template is REVERTED; the file on disk is byte-identical to its pre-call content"
+3. "A legitimate modification that changes only body prose is ACCEPTED and written -- proving the guard is not blanket-refusing (negative control)"
+4. "Mutation matrix recorded in experiment_results.md: removing the invariant check, and weakening it to a load_skill()-succeeds check only, each fail at least one test"
 
-live_check spec (verbatim): "handoff/current/live_check_75.8.1.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface. No UI surface; no flag-gated live-loop behavior expected."
+live_check spec (verbatim): "handoff/current/live_check_75.4.2.md: verbatim verification command output (exit 0) + git diff --stat + evidence the guard fails CLOSED (a rejected write leaves the file byte-identical, shown by hash before/after)."
 
 ## References
 
-- `handoff/current/research_brief_75.8.1.md` (7 read-in-full: ImpossibleBench arXiv 2510.20270, SpecBench 2605.21384, LLMs-Gaming-Verifiers 2604.15149, Fowler Pull-Up, Pragmatic Programmer SSOT)
-- autonomous_harness.py:251-289, promotion_gate.py:118-141, gauntlet.py:77-97/:147/:163, evaluator.py, test_phase_75_promotion_gate.py:245-257, phase4_9_redteam.py:63-68
-- 75.8 contract + the anti-vacuous-guard doctrine (qa.md §4c)
+- `handoff/current/research_brief_75.4.2.md` (verbatim implementation §4a/§4b; 6 read-in-full incl. DSPy/APE/OPRO/VeriGuard/DbC)
+- skill_optimizer.py:406-479 (:416 content snapshot, :424 occurs-once, :431-450 dark 71.4 review, :463-470 load-check, :467 revert pattern), prompts.py:196/:209, quant_model_agent.md:72-123
+- 75.4 doctrine: test_phase_75_skill_delivery.py:22-27 (real-loader assertions, per-case functions, paired negative controls)

@@ -12,6 +12,7 @@ import csv
 
 from backend.utils import json_io
 import logging
+import re
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -45,6 +46,36 @@ OPTIMIZABLE_AGENTS = [
     "aggressive_analyst", "conservative_analyst", "neutral_analyst",
     "risk_judge", "synthesis_agent", "critic_agent", "deep_dive_agent",
 ]
+
+# Reject a self-modification that shrinks the delivered template below this
+# fraction of its pre-write length -- a structural truncation (heading promotion),
+# never a 2-10 line prose edit. Tunable; 0.80 leaves generous headroom for real edits.
+DELIVERY_MIN_RETAIN_RATIO = 0.80
+_PLACEHOLDER_RE = re.compile(r"\{\{(\w+)\}\}")   # same pattern the 75.4 test uses
+
+
+def _delivery_invariant_ok(delivered_before: str, delivered_after: str) -> tuple[bool, str]:
+    """Return (ok, reason). ok=False -> the write broke delivery; caller must revert.
+
+    Two independent guards (both must hold):
+      1. Placeholder-subset: every {{placeholder}} in the pre-write delivered template
+         is still present after (exact; no threshold). Catches a dropped runtime var.
+      2. Length-retention: the delivered template did not shrink below
+         DELIVERY_MIN_RETAIN_RATIO of its prior length. Catches heading-promotion
+         truncation that drops non-placeholder body (Uncertainty/Code-Exec sections).
+    """
+    before_ph = set(_PLACEHOLDER_RE.findall(delivered_before))
+    after_ph = set(_PLACEHOLDER_RE.findall(delivered_after))
+    dropped = before_ph - after_ph
+    if dropped:
+        return False, f"dropped placeholders: {sorted(dropped)}"
+    if len(delivered_after) < DELIVERY_MIN_RETAIN_RATIO * len(delivered_before):
+        reason = (
+            f"delivered template shrank {len(delivered_before)}->{len(delivered_after)} "
+            + f"chars (< {DELIVERY_MIN_RETAIN_RATIO:.0%} retained)"
+        )
+        return False, reason
+    return True, "ok"
 
 
 def _git(*args: str, cwd: str | None = None) -> str:
@@ -414,6 +445,16 @@ class SkillOptimizer:
         new_text = proposal["new_text"]
 
         content = skill_path.read_text(encoding="utf-8")
+
+        try:
+            delivered_before = load_skill(agent_name)
+        except Exception as exc:
+            logger.warning(
+                "[skill-opt] cannot baseline delivered template for %s (%s) -- skipping (no write)",
+                agent_name, exc,
+            )
+            return False
+
         if old_text not in content:
             logger.warning(
                 f"Cannot apply modification to {agent_name}: old_text not found in skill file"
@@ -459,11 +500,22 @@ class SkillOptimizer:
         reload_skills()
         SkillFileIdCache.invalidate(agent_name)
 
-        # Validate the modified skill can still be loaded
+        # Validate the modified skill still LOADS *and* still DELIVERS its full template.
         try:
-            load_skill(agent_name)
+            delivered_after = load_skill(agent_name)
         except Exception as e:
             logger.error(f"Modified skill for {agent_name} failed to load: {e}. Reverting.")
+            skill_path.write_text(content, encoding="utf-8")
+            reload_skills()
+            SkillFileIdCache.invalidate(agent_name)
+            return False
+
+        ok, reason = _delivery_invariant_ok(delivered_before, delivered_after)
+        if not ok:
+            logger.error(
+                "[skill-opt] DELIVERY INVARIANT violated for %s (%s). Reverting (fail closed).",
+                agent_name, reason,
+            )
             skill_path.write_text(content, encoding="utf-8")
             reload_skills()
             SkillFileIdCache.invalidate(agent_name)

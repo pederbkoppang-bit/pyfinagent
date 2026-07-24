@@ -28068,3 +28068,23 @@ structurally after-restart evidence (live_check spec).
   autonomous_harness.py:28 routed to the already-queued 75.5.6 F401 sweep; the Q/A
   again self-caught the zsh word-split vacuous-lint trap (2nd live occurrence) --
   the 4c doctrine is earning its keep on the evaluator itself.
+
+## Cycle 151 -- 2026-07-24 -- phase=75.4.2 result=PASS (cycle 1, clean) -- optimizer can no longer silently break prompt delivery
+
+- P1. First DELEGATED SONNET EXECUTOR step this session (operator tiering
+  directive): executor implemented the researcher's verbatim-code brief exactly;
+  Main independently re-ran both suites, reviewed the full diff, fixed 2 lint
+  nits, and ran the 5-mutation matrix itself.
+- apply_modification now carries an UNCONDITIONAL fail-CLOSED delivery
+  postcondition (placeholder-subset + 80% length-retention, two independently
+  mutation-killable guards), baselined pre-write, checked BEFORE the git commit,
+  byte-exact revert. Closes the silent path: heading promotion loads fine ->
+  commits -> goes live -> truncated prompts forever (the 7532->190 class).
+- 4 new tests through the REAL apply_modification/load_skill incl. the measured
+  vacuous-fixture trap ({{quant_model_data}} occurs 2x -> unique 2-line old_text
+  + count==1 asserts everywhere); 75.4 suite regression green (31 total).
+  Mutations 5/5 killed (M1/M2 criterion-required; M3/M4 per-guard independence;
+  M5 fixture trap). Q/A PASS (wf_8db02d34-7e1, 13 checks) -- probed the REAL
+  function with author-unchosen scenarios and unit-probed WHICH guard fires.
+- Q/A note: 3rd live vacuous-lint near-miss self-caught by an evaluator this
+  session (CWD-artifact variant this time) -- 4c doctrine consistently working.

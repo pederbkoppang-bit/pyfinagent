@@ -16981,7 +16981,7 @@
         },
         {
           "id": "75.4.2",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S4 follow-up -- skill_optimizer post-write delivery invariant [executor: sonnet-4.6/high]. Discovered during 75.4 and rated HIGH there. backend/agents/skill_optimizer.py::apply_modification (~:397-459) autonomously rewrites backend/agents/skills/*.md via an old_text->new_text replacement guarded ONLY by an occurs-exactly-once check; the phase-71.4 independent review gate in the same function is flag-gated and currently DARK. Step 75.4 moved previously-undelivered content INSIDE the '## Prompt Template' region of 9 skill files, which NEWLY exposes that content to this auto-optimizer -- and an autonomous run can silently re-break the heading levels 75.4 just fixed, re-truncating delivered prompts. The function already re-loads the skill after writing and reverts on exception, but load_skill() succeeding does NOT mean the delivered content is still complete: a '### ' heading promoted back to '## ' still loads fine while silently truncating. Add a post-write DELIVERY invariant: capture the delivered template before the write and reject-and-revert if the write drops any {{placeholder}} or shrinks the delivered length beyond a threshold. Fail CLOSED (revert) on violation.",
           "harness_required": true,
           "priority": "P1",

@@ -1,40 +1,39 @@
-# Evaluator critique — Step 75.8.1 (Q/A cycle 1)
+# Evaluator critique — Step 75.4.2 (Q/A cycle 1)
 
-Q/A launch: Workflow `wf_e204c8da-1e7` via qa-verdict.js (agentType qa, opus/max,
-qa.md read from disk). First Q/A spawn for 75.8.1. Verdict transcribed VERBATIM
+Q/A launch: Workflow `wf_8db02d34-7e1` via qa-verdict.js (agentType qa, opus/max,
+qa.md read from disk). First Q/A spawn for 75.4.2. Verdict transcribed VERBATIM
 below — Main records, never authors.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 5 immutable criteria MET with independently-executed, non-vacuous guards. C1: verification cmd reproduces 31 passed (exit 0); promote_strategy REFUSES a stub report (raises PromotionBlocked match 'stub fingerprint' + blocklists) and a dry_run:true divergent report (raises match 'dry_run:true'), and a realistic divergent dry_run:false report PROMOTES (overall_pass True, no blocklist) -- the refusal raises, no exception swallowed (autonomous_harness.py:286-292 = _append_blocklist + raise). C2: single shared implementation, grep-confirmed no duplicated logic (promotion_gate:124 and autonomous_harness:286 both call report_integrity.check_report_integrity via module-attr import); proven BEHAVIORALLY (monkeypatch flips both consumers, passes) not by source-scan; test_phase_75_promotion_gate.py byte-untouched (0 diff lines), all 20 pass. C3: empty + all-skipped NOT fingerprinted through BOTH consumers (parametrized through_promote + through_pgate pass); I independently confirmed ALL_SKIPPED/EMPTY->(True,None) unmutated and that dropping the skipped-filter or empty-guard wrongly fingerprints them. C4: 7-mutation matrix; the 3 required mutations each fail >=1 test through EACH consumer (predicate-call G1 consumer1 + G2 consumer2; dry_run-label G3 both; skipped-filter G4 both) plus G5 empty-guard, G6 stub-predicate, G7 fixture-mutation. I independently re-executed G3/G4/G5/G6 (all killed) and ran the predicate-disable mutation through the REAL promote_strategy (STUB promotes when gate off -> guard load-bearing). C5: evaluator.py 0 lines, limits.yaml 0 lines, no kill-switch/DSR/PBO files in diff. Worst-of-N (P1 money): correctness/reproduce/scope-honesty all PASS. Harness compliance 5/5 clean.",
+  "reason": "All 4 immutable criteria MET with independently-executed, non-vacuous guards; harness compliance 5/5 clean; only production code changed is skill_optimizer.py (+ new test). C1 (heading promotion reverted, returns False, byte-identical): immutable cmd reproduces 4 passed exit 0 (T1); I independently drove the REAL apply_modification with a DIFFERENT heading (### Instructions->## ) -> result False, byte_identical True, length guard fired \"shrank 2739->233\"; killed by M1/M2. C2 (placeholder drop reverted byte-identical): T2 uses the unique 2-line old_text (bare {{quant_model_data}} occurs TWICE-verified, so every fixture asserts count(old_text)==1); I independently dropped a DIFFERENT placeholder ({{fact_ledger_section}}) -> False, byte-identical, \"dropped placeholders: ['fact_ledger_section']\"; killed by M3 and by M5's fixture trap-assert. C3 (prose edit ACCEPTED, negative control): T3 + my two independent prose edits -> result True, file changed, all placeholders survive delivery -> guard is not blanket-refusing. C4 (mutation matrix): recorded in experiment_results.md + live_check §3; M1 remove-invariant and M2 weaken-to-load-succeeds-only each fail 3 tests (>=1 required); reproduced. Invariant is UNCONDITIONAL (skill_optimizer.py:513, no flag gate; 71.4 review at :478 untouched), fail-closed, reverts byte-exact via write_text(content) not git-checkout, runs BEFORE the commit at :524. Regression 31 passed exit 0; ruff F821/F401/F811 clean; import smoke OK; BLE001 delta +1 reproduces (6->7). Worst-of-N (P1): correctness/reproduce/scope-honesty all PASS.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_audit",
-    "syntax_ast_parse",
+    "syntax_import_smoke",
     "verification_command",
-    "python_lint_gate_F821_F401_F811",
+    "regression_suite",
+    "python_lint_gate",
     "backend_runtime_smoke",
-    "byte_untouched_check",
-    "test_count_reproduction_collect_only",
-    "mutation_matrix_independent_execution",
-    "single_implementation_behavioral",
-    "c5_boundary_proof",
-    "duplicated_logic_grep",
-    "evaluator_critique",
+    "independent_apply_modification_probe",
+    "helper_unit_probes",
+    "mutation_test",
+    "guard_vacuity_check",
+    "claim_reproduction",
     "code_review_heuristics",
-    "worst_of_n_lenses"
+    "existing_results_check"
   ],
   "harness_compliance_ok": true,
-  "notes": "TWO non-blocking NOTES (verdict not degraded). (1) Lint gate exit=1 from a PRE-EXISTING F401 'Optional' unused import at backend/autonomous_harness.py:28 -- confirmed present in HEAD baseline (git show HEAD:), the diff does NOT touch line 28, Optional is genuinely unused; NOT introduced by this step. New/edited code (report_integrity.py, test file, promote_strategy edit region, promotion_gate refactor) introduces ZERO lint findings. experiment_results disclosed 'finding-CLASS census vs HEAD baseline IDENTICAL' which I independently verified true. Consistent with the prior 75.8 Q/A treating a pre-existing F401 as a non-blocking note; recommend queuing a trivial cleanup as its own step per the queue-discovered-defects discipline rather than bundling. (2) Working tree has unrelated data-artifact changes OUTSIDE the 75.8.1 change surface: backend/backtest/experiments/mda_cache.json, quant_results.tsv, and a new results/20260724T090330Z_*.json -- these are optimizer/backtest byproducts (75.8.1 code has no path that writes them), likely a concurrent/pre-existing dirty state; Main should confirm they are NOT swept into the 75.8.1 auto-commit. METHOD NOTE: my first ruff invocation hit the zsh unquoted-newline word-split false-pass trap (qa.md 4c shape #9) and reported 'All checks passed' over zero files; I re-ran via xargs to get the real exit=1, then confirmed the sole finding is pre-existing. The mutation matrix and single-implementation proof were re-executed by me (the evaluator), read-only, not read from the author's artifact."
+  "notes": "Independent-verification method: rather than re-run the author's file-mutating runner (would temporarily write the production file), I reproduced the invariant read-only via `python -c`, driving the REAL apply_modification with scenarios the author did NOT choose (different heading, different placeholder) plus direct _delivery_invariant_ok unit-probes confirming WHICH guard fires (anti mis-attribution, vacuity-shape #11). Both guards proven independently reachable with correct distinct reason strings. NOTE (non-blocking): (1) +1 BLE001 vs HEAD (6->7) is the new baseline `except Exception as exc` at skill_optimizer.py:451 -- a fail-closed skip that returns False, matching the file's 6 existing documented instances; skill_optimizer is not a kill-switch/stop-loss/perf-metrics/paper-trader path, so this is a benign NOTE not a risk-guard swallow. (2) The working tree carries ambient uncommitted data artifacts (backend/backtest/experiments/mda_cache.json, quant_results.tsv, results/20260724T092354Z-exp05.json) plus handoff/archive dirs from concurrent harness activity -- NONE are production code, none are in 75.4.2 scope, and the deterministic $0 invariant cannot produce them; but Main should be aware the auto-commit-and-push `git add -A` will sweep them into the 75.4.2 commit. (3) The initial lint run printed \"Failed to lint ... / No such file\" yet exited 0 with \"All checks passed!\" due to a compound-command CWD artifact -- I re-ran with absolute paths to get a genuine clean pass (the §1a false-pass trap; flagging so it is not mistaken for a real clean-on-first-try). LLM-cost: none incurred (deterministic step, no live API/UI; section 1c not triggered -- no UI claims)."
 }
 ```
 
-Main's disposition: PASS on cycle 1; no blockers. Note (1)'s F401 cleanup maps to
-the ALREADY-QUEUED step 75.5.6 (F401 sweep over the derived scope) — no new step
-needed; recorded here so 75.5.6's executor picks up autonomous_harness.py:28.
-Note (2): the quant-process data artifacts go into their own chore commit, as in
-the prior two cycles.
+Main's disposition: PASS on cycle 1; no blockers. Note (2) handled as in prior
+cycles: scoped commit for the step, separate chore commit for the quant data
+artifacts. Note (3) is the THIRD live vacuous-lint near-miss self-caught by a
+Q/A this session — the §4c doctrine is systematically effective on the
+evaluator's own tooling.
