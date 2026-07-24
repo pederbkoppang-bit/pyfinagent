@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `e7150f71` | phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LLM-spend metric (DARK, flag OFF) |
 | 2026-07-24 | `09d97705` | chore: record operator approval of the 75.20 diff (push released; flip stays restart-gated) |
 | 2026-07-24 | `4c37f1ef` | phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary path constrained [FLIP+PUSH HELD  |
 | 2026-07-24 | `fa9aaf8e` | chore: handoff layout backfill -- archive 315 misc + 3 audit + 4 log files out of handoff/current |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-23 | `ff6994ef` | phase-75.8: Audit75 S8 -- promotion-gate stub-fabrication refusal + governance-limits divergence ... |
 | 2026-07-23 | `e3e0bbee` | phase-75.7: Slack streaming await-correctness + P0 pager integrity -- Q/A PASS (cycle 3) |
 | 2026-07-23 | `33553e46` | phase-75.5: close on certified_fallback (operator-approved 2026-07-23) |
-| 2026-07-23 | `435ede5e` | chore: archive phase-75.5 (certified_fallback) + phase-75.6 handoff snapshots |
 
 ---
 
+### v6.68.23 — phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LL... (2026-07-24)
+
+- **phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LLM-spend metric (DARK, flag OFF)**
 ### v6.68.22 — phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary pa... (2026-07-24)
 
 - **phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary path constrained [FLIP+PUSH HELD**
