@@ -28204,3 +28204,38 @@ finished, or expect and pre-explain these transients in the executor prompt.
   DECLINED ($1-3 metered LLM spend needs approval); tonight's 02:00 cron is the free
   real-path evidence -- IF it still fails, suspect the phase-72 credit token, not this
   fix. Quant residue committed separately (42008af7).
+
+## Cycle 155 -- 2026-07-24 -- phase=75.20.1 result=PASS (cycle 1, clean) -- COMMIT LOCAL, FLIP+PUSH HELD FOR OPERATOR REVIEW
+
+- OPERATOR REVIEW REQUESTED (separation of duties, 75.20 precedent): this step
+  registers a NEW PreToolUse hook in .claude/settings.json (qa-write-guard,
+  matcher Write|Edit -- restrictive only, no permission rules touched) + adds
+  .claude/hooks/qa-write-guard.sh + .claude/workflows/probe-qa-tool-surface.js
+  + a per-step-protocol.md section-4 POST-VERDICT CLEANLINESS subsection.
+  Please review the local commit diff; flip + push follow your go-ahead.
+- ROOT CAUSE (criterion 2): the qa Write+Edit injection is DOCUMENTED upstream
+  behavior of qa.md:25 `memory: project` (sub-agents doc: "Read, Write, and
+  Edit tools are automatically enabled so the subagent can manage its memory
+  files"). Allowlist exclusion would kill Q/A memory; upstream-wait dead
+  (#57507/#57118/#40140 all closed not-planned). permissionMode:plan proven
+  INERT under parent bypassPermissions.
+- ENFORCEMENT SHIPPED + PROVEN LIVE: path-aware PreToolUse hook denies qa-type
+  Write/Edit outside .claude/agent-memory/qa/ (traversal-proof, fail-open,
+  always-logs field shapes). The behavioral probe (wf_90a3a61d-4a4) had a REAL
+  qa agent attempt each tool: its Write was BLOCKED live with the hook's
+  verbatim message; the guard log captured the RUNTIME populating
+  agent_type:"qa" (hooks-doc field confirmed on 2.1.218). Glob/Grep measured
+  genuinely absent at execution level. Main's writes all succeeded
+  post-registration (hook binds new subagent spawns immediately; main-session
+  binding at next session start -- one-glance guard-log follow-up noted).
+- Q/A PASS cycle 1 (wf_6cf06c05-2a8, 16 checks): independent 10-payload replay
+  of the real hook; the evaluator ran UNDER the hook it judged and stayed
+  read-only; 3 NOTE-level observations (N1 missing-file_path sub-case fails
+  CLOSED -- safe direction, prose corrected by appended disclosure). 11 tests;
+  mutations 6/6 killed (M5 fixture-schema, M6 stub). Robust-form lint exit 0.
+- per-step-protocol.md section 4 now carries the POST-VERDICT CLEANLINESS rule
+  (verdict INADMISSIBLE on evaluator-authored tree changes -> fresh Q/A);
+  practiced on both 76.9 verdicts this session before codification.
+- NEXT SESSION one-glance: qa_write_guard.log should begin showing
+  agent_type:"" allow lines for Main's own Write/Edit (main-session hook
+  binding) -- confirm and note; no step gate on it.

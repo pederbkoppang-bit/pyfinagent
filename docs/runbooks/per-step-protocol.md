@@ -134,6 +134,23 @@ and STOPS; it never loops fix→re-grade internally. Single-Q/A-per-step
 and the exactly-3-agents doctrine are unchanged — the Workflow path is a
 launch mechanism, not a fourth agent.
 
+**POST-VERDICT CLEANLINESS (phase-75.20.1, MANDATORY).** Immediately
+after EVERY Q/A return — before transcribing the verdict is fine, but
+before ACTING on it is not — Main runs `git status --short` and diffs
+the result against the tree state it last authored. Any tree change NOT
+authored by Main (a file the evaluator wrote, edited, deleted, or
+staged) renders the verdict **INADMISSIBLE**: Main reverts/reconciles
+the foreign change, updates the handoff files if evidence moved, and
+spawns a **fresh Q/A** — the inadmissible verdict is never patched or
+partially trusted. WHY this backstop exists even with the
+`qa-write-guard` PreToolUse hook live: the hook intercepts Write/Edit
+tool calls only — the permissions layer documents that Bash subprocess
+writes (`python -c 'open(...,"w")'`, `sed -i`, redirects) bypass
+Write/Edit hooks, and Q/A legitimately holds Bash for verification
+commands. The hook narrows the surface; the git-status check closes it.
+(Sole allowed evaluator write path: `.claude/agent-memory/qa/` — memory
+curation, exempted by the hook and by this rule.)
+
 Q/A runs deterministic-first:
 1. Syntax / file-existence / `verification.command` exit code
 2. Reads existing `handoff/current/evaluator_critique.md` +

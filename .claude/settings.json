@@ -1,6 +1,9 @@
 {
   "effortLevel": "xhigh",
-  "fallbackModel": ["claude-sonnet-5", "claude-haiku-4-5"],
+  "fallbackModel": [
+    "claude-sonnet-5",
+    "claude-haiku-4-5"
+  ],
   "hooks": {
     "SessionStart": [
       {
@@ -20,6 +23,16 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/pre-tool-use-danger.sh\"",
             "statusMessage": "PreToolUse danger guard..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/qa-write-guard.sh\"",
+            "statusMessage": "qa-write-guard: the qa evaluator is read-only outside .claude/agent-memory/qa/ (phase-75.20.1; fail-open; log handoff/logs/qa_write_guard.log)"
           }
         ]
       }
