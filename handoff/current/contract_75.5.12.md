@@ -23,6 +23,49 @@ Four load-bearing findings, each of which changes what GENERATE does:
    AND (agent IS NULL
         OR (agent != 'cc_rail' AND agent NOT LIKE 'cc_rail:%'))
    ```
+
+> **CORRECTION (Q/A cycle-1, 2026-07-25) — the justification above was WRONG; the
+> decision was right for a different and stronger reason.**
+>
+> I claimed adopting the step text's form "would silently neuter the existing shape-2
+> guard — the test would keep passing while no longer testing anything." **That is
+> refuted by execution.** I asserted a behavioral counterfactual without running it;
+> the Q/A ran it, and so did I afterwards:
+>
+> ```
+> === MSTEP: the masterplan step text's OWN suggested predicate ===
+>   2 failed, 11 passed
+>   reds: ['test_cc_rail_rows_contribute_zero_both_shapes',
+>          'test_bare_cc_rail_shape_contributes_zero']
+> ```
+>
+> The *mechanism* half was right — the substring `NOT LIKE 'cc_rail:%'` that the fake
+> keys on does drop out — but the *consequence* is inverted: with that branch not
+> firing, the rail row is INCLUDED in the aggregate, so the assertion fails **loudly**.
+> Nothing is silently neutered.
+>
+> **The actual reason to decline the step text's form** (supplied by the Q/A, then
+> verified here): taken literally, without re-adding an `agent IS NULL` guard, it
+> **drops every NULL-agent row** via SQL three-valued logic. ANSI oracle:
+>
+> ```
+> STEP TEXT: NOT (agent='cc_rail' OR agent LIKE 'cc_rail:%')   kept: ['cc_railway', 'synthesis']
+> MINE:      (agent IS NULL OR (agent!='cc_rail' AND ...))     kept: [None, 'cc_railway', 'synthesis']
+> ```
+>
+> And NULL is the **common** metered case, not an edge case: `llm_client.py:1127` logs
+> `agent=config.get("_role")`, and `"_role"` is set in exactly two places repo-wide
+> (`autonomous_loop.py:2722`, `:2762`). Measured blast radius from this cycle's own 30d
+> query: **226 Gemini calls / 232,090 tokens** plus 3 haiku calls carry a NULL agent and
+> would have been silently dropped from metered spend — an **under-count**, i.e. the
+> breaker opens LATE. That is the more dangerous direction, and it is why the
+> De-Morgan'd form is strictly safer.
+>
+> Recorded rather than quietly rewritten: the original claim is the kind of unverified
+> assertion this project's `feedback_measure_dont_assert_claims` memory exists to catch,
+> and it was load-bearing — it was the sole stated basis for deviating from an explicit
+> instruction on a P1 money step.
+
 2. **The true shape-set is exactly THREE, derived from code rather than from the step
    text** (criterion 2 says "all shapes actually produced", so this had to be derived):
    (a) `provider='claude-code'` with an arbitrary agent (`autonomous_loop.py:2299`);
