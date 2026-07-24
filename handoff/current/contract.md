@@ -1,59 +1,67 @@
-# Contract — phase-75.20: make the Q/A live-UI gate enforceable AND make the primary Q/A path actually read-only
+# Contract — phase-75.5.1: the cost-budget guard does not measure what its name says
 
-- **Step id:** 75.20 (phase-75, P2, harness_required; executor: opus-tagged → Main-on-Fable GENERATE; Researcher + Q/A gates opus/max via Workflow)
+- **Step id:** 75.5.1 (phase-75 follow-up queue, **P1, MONEY-ADJACENT — the $25/day circuit breaker**; executor: opus-tagged → Main-on-Fable GENERATE; gates opus/max via Workflow)
 - **Date:** 2026-07-24
-- **Boundary (from step text):** harness config only, no product code. SEPARATION OF DUTIES — edits `.claude/agents/qa.md` + `.mcp.json` + `.claude/settings.json`; per CLAUDE.md the authoring session must not self-evaluate work that depends on these edits, and agent-file changes bind the Agent-tool roster only after a session restart. Consequence embraced up front: **the status flip is HELD** (75.18 precedent) — the live_check spec itself demands "the roster-live confirmation after restart", which this session structurally cannot produce. Next session: operator review of the qa.md diff, `scripts/qa/verify_qa_roster_live.sh`, append roster confirmation to live_check, then flip.
+- **Boundary:** decide arm (a) vs (b) and implement; if (a), MUST ship flag-gated DARK with an ON-vs-OFF comparison before any default flip. No live BQ billing query without owner approval (live_check constraint).
 
-## Research-gate summary (gate PASSED — wf_0d03eec3-633)
+## Research-gate summary (gate PASSED — wf_9cece795-b16)
 
-Envelope: `tier=moderate, external_sources_read_in_full=6, snippet_only_sources=18, urls_collected=24, recency_scan_performed=true, internal_files_inspected=8, gate_passed=true`. Brief: `handoff/current/research_brief_75.20.md`. Every load-bearing claim of the 2026-07-20 prior assessment (`handoff/archive/misc/research_brief_playwright_qa.md`) revalidated against current disk state.
+Envelope: `tier=moderate, external_sources_read_in_full=6, snippet_only_sources=20, urls_collected=42, recency_scan_performed=true, internal_files_inspected=12, gate_passed=true`. Brief: `handoff/current/research_brief_75.5.1.md`.
 
 Load-bearing findings:
 
-1. **Deny rules are deny-FIRST and NON-bypassable** (official permissions doc): a matching deny blocks the call even under `defaultMode: bypassPermissions`, and binds subagents AND Workflow-spawned agents. This is the mechanism for C2. Exact-name syntax `mcp__playwright__browser_run_code_unsafe` matches the existing `mcp__bigquery__execute-query` style. CAVEAT: the deny-rule typo warning exempts names containing `_` — every browser_* rule must be spelled exactly; a typo is silent.
-2. **R11 — the immutable verification command's assert #3 is VACUOUS** (empirically confirmed): `any('user-data-dir' in str(a) and 'profile' not in str(a) for a in pw['args'])` is already True today because the flag TOKEN `--user-data-dir` matches. The command is immutable and stays; it must NOT be treated as C4 evidence. C4 evidence = the real `--isolated` addition + vendor citation + a two-client concurrency demonstration in live_check, plus a NON-vacuous replacement assert in the step's test file.
-3. **R2 correction:** on-disk qa.md:4 is exactly `tools: Read, Bash, Glob, Grep, SendMessage` (no Write/Edit — this session's Agent-registry blurb listing Write/Edit for qa is a registry-side discrepancy, not disk truth; qa.md:464 independently forbids Edit/Write).
-4. **C3 cannot use a session-wide Edit/Write deny** (breaks Main). The configuration lever is the qa-verdict.js `agentType` switch `'general-purpose'` → `'qa'` (binds the qa.md tools allowlist), which MUST be settled by a GENERATE-time empirical probe — not assumable from docs. Sub-agents doc: `tools:` accepts exact MCP names; ≥2.1.208 hard-errors on unresolved tool names (a bad grant fails loudly); built-ins in the list keep resolution non-empty so a cold playwright server degrades safely instead of false-PASSing.
-5. **Recency (2025-2026):** arXiv:2606.20023 — agents over-select privileged tools and prompt-level controls give only limited mitigation → mechanical deny-rule enforcement over prose. arXiv:2511.19477 — read-only assistant agents lacking click/type give high utility with minimal risk; enforce safety in the execution layer, not the LLM. Anthropic harness-design (canonical ref) gave its evaluator the Playwright MCP to interact with the live page before scoring — the step's direction verbatim.
-6. Dev-server lifecycle (frontend.md steps 1/3/5) is mutating and stays with Main (auto-memory `feedback_second_next_dev_breaks_operator_3000`).
+1. **All prices feeding the guard are current and correct** (externally validated: opus-4-8 $5/$25, sonnet-4-6 $3/$15, haiku-4-5 $1/$5, gemini-2.5-flash $0.30/$2.50, 2.5-pro $1.25/$10, cache read 0.1×, cache write 2.0× (1h TTL), batch 0.5×, BQ on-demand $6.25/TiB). The defect is metric-vs-name, not numbers.
+2. The breaker is `_check_cost_budget()` (llm_client.py:395-458, fires at :896/:1180/:1428/:2214), consuming `fetch_spend()` = **BigQuery** bytes×$6.25/TiB, while `cost_budget_daily_usd` (settings.py:384) is documented as the **LLM** cap.
+3. **llm_call_log has NO per-call cost column**; the only dollar field is `session_cost_usd`, a per-cycle cumulative GAUGE that must never be summed (phase-66.3 doctrine). LLM spend MUST be derived from RAW tokens × MODEL_PRICING at query time — and raw tokens are **fix-invariant** across the 75.5 cache-double-subtract boundary (the fix changed computed cost, not stored tokens).
+4. **CRUX LANDMINE:** flat-fee CC-rail rows (`provider='claude-code'` at autonomous_loop.py:2298, OR `provider='anthropic'` + `agent LIKE 'cc_rail:%'` at claude_code_client.py:502-504) record tokens at ~$0 real cost. Pricing them at API rates = phantom spend that trips the $25 breaker on FREE tokens → **false trading halt** (same phantom class as the $42/day session_cost_usd staircase). A metered-only filter is mandatory.
+5. In-repo prior art `sovereign_api.py:236-286` already prices llm_call_log × MODEL_PRICING but **ignores the cache columns** (under-counts → breaker trips late). The accurate cache-aware formula is `cost_tracker.py:198-206` (read 0.1×, write 2.0×, Anthropic-only-in-practice per the pinned test) — port THAT.
+6. No local ledger: llm_call_log is the existing durable cross-process (backend+harness+slack) daily record; in-process counters reset on restart. BQ cost bounded: column-pruned, date-filtered, 60s-cached like today's guard, timeout=30.
+7. Fail-open doctrine (Fowler/Azure circuit-breaker): serve (0,0) on failure but make degradation OBSERVABLE — the arch-04 `_record_degradation` counter + one-shot P2 alert (spend.py:67-101, pinned by test_phase_75_llm_rail.py:577-592) is the seam; the new path must reuse it.
+8. DARK-flag convention (measured in settings.py): `<name>_enabled: bool = Field(False, description="phase-X.Y: ...")` — exemplars sign_safe_overlays, kill_switch_peak_reset_enabled, paper_atomic_swap_enabled.
+9. **Discovered defects to QUEUE, not fold in** (feedback_queue_discovered_defects_in_masterplan): (i) the three consumers disagree on the CAPS themselves — hard-block $25/$300 (settings.py:384-385) vs tile+watcher hardcoded $5/$50 (cost_budget_api.py:53-54, cost_budget_watcher.py:33-34); (ii) whether metered Gemini/Vertex-only spend warrants a sub-cap. Queued as 75.5.11 below.
+10. `_check_session_budget` (autonomous_loop.py:103-116) is per-cycle/in-process — distinct guard, not this step's target.
+
+## Decision: arm (a)
+
+Add a real LLM-spend source and make the budget gate read it behind a default-OFF flag; keep `fetch_spend` (BQ) unchanged as a separate metric. Arm (b) rejected: renaming to a "BigQuery cap" abandons the operator's LLM-cost-ceiling intent and leaves metered-spend runaway ungoverned.
 
 ## Hypothesis
 
-Granting qa.md a NAMED read-only browser subset, denying the RCE-class playwright tools in settings.json (deny-first, bypass-proof, Workflow-binding), switching the primary qa-verdict launch to the restricted `qa` agent type (probe-verified), and adding `--isolated` to the playwright server makes qa.md §1c enforceable-by-configuration on both launch paths while REDUCING the primary path's surface (Edit/Write/full-MCP → the qa allowlist) — with zero product-code change and Main's own capture workflow intact.
-
-**Declared deviation (with justification, subject to Q/A):** settings.json gains exactly TWO deny entries (`browser_run_code_unsafe`, `browser_evaluate`) — the RCE-class with no legitimate use by any session role, and exactly what the immutable command asserts. `browser_click`/`browser_type`/`browser_fill_form` are kept OUT of qa's grant (C1's test asserts their absence from the grant) but NOT session-denied: settings.json is session-wide and persistent, Main legitimately needs interaction tools for live-UI investigation (phase-70 S1 reproduction; pending phase-44 frontend work), and C3's evaluator-side enforcement comes from the agentType switch binding the grant. If the GENERATE probe shows the agentType switch does NOT bind, fall back to denying all five and accept Main's capability loss.
+A `fetch_llm_spend()` that prices llm_call_log RAW tokens against the live MODEL_PRICING table with the cache-aware cost_tracker formula, restricted to METERED rows only (CC-rail excluded), wired into `_check_cost_budget` behind `cost_budget_use_llm_spend_enabled=False`, gives the $25/day breaker the metric its name promises — with flag-OFF behavior byte-identical to today (trip point unchanged), fail-open preserved through the same degradation seam, and the phantom-free-token false-halt class excluded by construction.
 
 ## Plan
 
-1. **Probe FIRST (before any edit), recorded verbatim for live_check:** (a) Workflow `agentType:'general-purpose'` self-report of tool surface (the BEFORE state); (b) Workflow `agentType:'qa'` self-report (does the qa.md tools allowlist bind on the Workflow path? does it read the session-start snapshot or disk?). The probe decides the C3 mechanism and the deny-set branch above.
-2. **Edits:**
-   - `qa.md` tools line → `tools: Read, Bash, Glob, Grep, SendMessage, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_console_messages` (read-only subset; no mutation tool).
-   - `qa.md` §1c → capture taken BY the evaluator when the path allows it; Main-produced capture = explicitly-DEGRADED fallback; deterministic `select:` ToolSearch form for loading the browser schemas (keyword search surfaces run_code_unsafe/click in top-5 and misses navigate/snapshot); dev-server lifecycle stays MAIN's (observe-only, never start/kill).
-   - `settings.json` permissions.deny += `mcp__playwright__browser_run_code_unsafe`, `mcp__playwright__browser_evaluate` (exact spelling; typo warning is silent for these names).
-   - `.mcp.json` playwright args += `--isolated`, drop the fixed `--user-data-dir` pin (vendor: persistent profile serves one instance at a time; capture flow is auth-bypassed on :3100 so no login state is needed). Disclose: a connected stdio server does not respawn on edit — reconnect via /mcp or next session.
-   - `qa-verdict.js` → `agentType: 'qa'` (if probe binds) + comment explaining the configuration-enforcement rationale.
-3. **Test file** `backend/tests/test_phase_75_20_qa_browser_grant.py`: C1 grant assertions (subset present in the tools LINE; five mutation tools absent from the grant); C2 deny entries exact-match; C4 NON-vacuous isolation assert (`'--isolated' in args AND '--user-data-dir' not in args` — the honest replacement for the vacuous immutable assert); §1c degraded-fallback + select:-form + lifecycle prose pins. Mutation-tested per qa.md §4c incl. a fixture/stub mutation.
-4. **Concurrency demonstration:** two concurrent `@playwright/mcp@0.0.76` clients — baseline shared-profile contention vs `--isolated` both-succeed; verbatim in live_check.
-5. Run the immutable verification command (expect exit 0) — with the R11 vacuity of its assert #3 explicitly disclosed next to the real C4 evidence.
-6. harness_log: operator-review request for the qa.md/settings/mcp edits + the next-session checklist (review → restart → verify_qa_roster_live.sh → append roster confirmation → flip). **Status flip HELD.**
-7. Q/A via qa-verdict Workflow with a self-reference disclosure (the evaluator reads the edited qa.md as its rubric on this path) — same disclosure shape as 75.18.
+1. `backend/config/settings.py`: `cost_budget_use_llm_spend_enabled: bool = Field(False, description="phase-75.5.1: When True the $25/day breaker reads fetch_llm_spend() (metered LLM tokens x MODEL_PRICING) instead of BigQuery bytes-billed spend. OFF -> byte-identical to pre-75.5.1 behavior.")`.
+2. `backend/services/observability/spend.py`: add `fetch_llm_spend() -> tuple[float, float]`:
+   - BQ query on `<project>.pyfinagent_data.llm_call_log`: SUM of input/output/cache_creation/cache_read tokens GROUP BY model, daily (`DATE(ts)=CURRENT_DATE()`) + month-to-date windows, `WHERE ok AND provider != 'claude-code' AND (agent IS NULL OR agent NOT LIKE 'cc_rail:%')`, column-pruned, `timeout=30` per the BQ rule;
+   - price per model in Python with the cache-aware formula ported from cost_tracker.py:198-206 (read 0.1×, write 2.0×) against the imported `MODEL_PRICING` + `_DEFAULT_PRICING` (single source of truth, no copied table);
+   - fail-open to (0.0, 0.0) on ANY exception THROUGH `_record_degradation` (same counter/alert seam);
+   - module docstring updates the 75.5 SCOPE WARNING to name the new function as the LLM-spend source.
+3. `backend/agents/llm_client.py` `_check_cost_budget`: select `fetch_llm_spend` vs `fetch_spend` by the flag; nothing else in the hot path changes (cache TTL, caps, trip logic, fail-open untouched).
+4. Tests `backend/tests/test_phase_75_5_1_spend_metric.py` (offline, BQ client mocked):
+   - price a fixture against the REAL imported MODEL_PRICING (no hardcoded prices) asserting the cache-aware daily total;
+   - metered-scope fixture representing BOTH categories (CC-rail rows via `provider='claude-code'` AND via `provider='anthropic'`+`agent='cc_rail:x'` MUST contribute $0; metered Gemini + Anthropic-SDK rows MUST count) — a fixture that cannot represent both does not count;
+   - flag-OFF byte-identity: `_check_cost_budget` routes to `fetch_spend` when OFF, `fetch_llm_spend` when ON, on identical inputs (trip point unchanged — the ON-vs-OFF $0 diff);
+   - fail-open regression: an exception in `fetch_llm_spend` returns (0,0) AND fires the arch-04 seam (`degraded_count==1`, `alerted==True`);
+   - `ok=False` rows excluded; monthly window included.
+5. Mutation matrix (experiment_results per the immutable criterion + qa.md §4c): (i) swap the metric source back under flag-ON; (ii) remove the flag gate; (iii) DROP the CC-rail exclusion (the crux mutation); (iv) break the cache-aware formula (drop the 0.1× read discount); (v) fixture/stub mutation. Each must fail ≥1 test, executed with verbatim capture.
+6. Queue step **75.5.11** (caps-disagreement: $25/$300 vs hardcoded $5/$50 across the three consumers; plus the Gemini-sub-cap question as a design note) — research-gated, written for a fresh executor.
+7. live_check_75.5.1.md: verification output (exit 0), git diff --stat, the ON-vs-OFF comparison from the offline suite ($0 diff with flag OFF), the CC-rail-exclusion evidence, mutation matrix. NO live BQ billing query.
+8. Q/A via qa-verdict Workflow; log; flip; auto-push (manual fallback per the hook-stall pattern).
 
-## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.20)
+## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.5.1)
 
-> command: `python3 -c "import json; qa=open('.claude/agents/qa.md').read(); assert 'mcp__playwright__browser_navigate' in qa and 'mcp__playwright__browser_snapshot' in qa, 'read-only browser subset not granted'; assert 'browser_run_code_unsafe' not in qa.split('tools:')[1].split(chr(10))[0], 'RCE tool granted in tools line'; m=json.load(open('.mcp.json')); pw=m['mcpServers']['playwright']; assert '--isolated' in pw['args'] or any('user-data-dir' in str(a) and 'profile' not in str(a) for a in pw['args']), 'shared-profile concurrency hazard unfixed'; s=json.load(open('.claude/settings.json')); deny=' '.join(str(d) for d in s['permissions'].get('deny',[])); assert 'browser_run_code_unsafe' in deny and 'browser_evaluate' in deny, 'mutation browser tools not denied'"`
+> command: `.venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py -q`
 
-1. "qa.md's tools line grants EXACTLY the read-only browser subset needed by §1c (browser_navigate, browser_snapshot, browser_take_screenshot, plus at most browser_console_messages/browser_network_requests/browser_resize) and grants NO mutation tool; a test asserts browser_run_code_unsafe, browser_evaluate, browser_click, browser_type and browser_fill_form are absent from the grant"
-2. ".claude/settings.json carries explicit deny rules for the playwright mutation/RCE tools so the restriction survives the primary Workflow path too, which inherits tools rather than declaring them -- defense in depth under defaultMode bypassPermissions"
-3. "The primary path is CONSTRAINED, not expanded: qa-verdict.js (or its agent definition) no longer leaves the evaluator with unrestricted Edit/Write/Bash plus the full MCP surface; the read-only property Q/A claims is enforced by configuration, and a probe recorded in the live_check demonstrates the restriction actually binds rather than being asserted"
-4. ".mcp.json's playwright server no longer shares a fixed persistent profile across concurrent clients (--isolated or a per-client user-data-dir), and the live_check records the vendor citation plus a demonstration that two concurrent clients no longer contend"
-5. "qa.md instructs the deterministic select: ToolSearch form for fetching browser tools, and states that dev-server lifecycle (start :3100, kill it, verify :3000) remains MAIN's responsibility -- Q/A observes an already-running instance and never starts or kills a server"
-6. "§1c is updated to say the capture must be taken BY the evaluator when the path allows it, with reading a Main-produced capture named as the explicitly-degraded fallback; harness_log carries the operator-review request for the qa.md edit and the next session verifies the new roster is live per scripts/qa/verify_qa_roster_live.sh"
+1. "New backend/tests/test_phase_75_5_1_spend_metric.py passes offline and asserts, against the REAL pricing table, that the metric feeding the budget gate reflects LLM spend (or, if arm (b) is chosen, that setting name/docs/consumers consistently say BigQuery and no consumer treats it as LLM spend)"
+2. "If arm (a): the new LLM-spend path is flag-gated and the test proves flag-OFF is byte-identical to today's behaviour on the same inputs (no silent change to when the $25/day breaker trips)"
+3. "Test asserts the guard still FAILS OPEN on a spend-fetch exception and that the phase-75.5 degradation counter/alert seam still fires (regression guard on arch-04)"
+4. "Mutation matrix in experiment_results.md: swapping the metric source back, and removing the flag gate, each fail at least one test"
 
-live_check spec (verbatim): "handoff/current/live_check_75.20.md: verbatim verification command output (exit 0) + git diff --stat + a recorded probe showing the Q/A path's tool surface BEFORE and AFTER (proving the restriction binds) + a concurrency demonstration for the profile fix + the roster-live confirmation after restart."
+live_check spec (verbatim): "handoff/current/live_check_75.5.1.md: verbatim verification command output (exit 0) + git diff --stat + an ON-vs-OFF $0 diff showing the breaker's trip point is unchanged with the flag OFF. No live BQ billing query without owner approval."
 
 ## References
 
-- `handoff/current/research_brief_75.20.md` (6 read-in-full: Claude Code permissions/settings/sub-agents docs, @playwright/mcp vendor docs, Anthropic harness-design, arXiv 2606.20023 + 2511.19477)
-- `handoff/archive/misc/research_brief_playwright_qa.md` (2026-07-20 assessment, revalidated)
-- qa.md §1c (:177-195), qa-verdict.js (:111-118), .mcp.json playwright block, settings.json deny (23 entries, zero playwright)
-- CLAUDE.md separation-of-duties; 75.18 hold precedent; `feedback_second_next_dev_breaks_operator_3000`
+- `handoff/current/research_brief_75.5.1.md` (6 read-in-full: Anthropic + Gemini + BQ pricing pages, Fowler circuit-breaker, Azure circuit-breaker pattern, LLM budget-manager prior art)
+- spend.py (arch-04 seam), cost_tracker.py:198-206 (cache-aware formula), sovereign_api.py:236-286 (cache-blind prior art — anti-pattern), api_call_log.py:221-295 (row schema, `ts` column, gauge doctrine), llm_client.py:395-458 (breaker), autonomous_loop.py:2298 + claude_code_client.py:502-504 (CC-rail row shapes)
+- project_return_day_state_2026_07 (session_cost_usd gauge doctrine); test_phase_75_llm_rail.py:577-592 (seam pin)

@@ -383,6 +383,7 @@ class Settings(BaseSettings):
     # full-cycle costs in the $1-3 range). Env overrides honored.
     cost_budget_daily_usd: float = Field(25.0, description="Daily LLM-spend cap across all cycles (USD). When tripped, _check_cost_budget raises BudgetBreachError on every new generate_content call until midnight UTC rolls the bucket.")
     cost_budget_monthly_usd: float = Field(300.0, description="Monthly LLM-spend cap across all cycles (USD).")
+    cost_budget_use_llm_spend_enabled: bool = Field(False, description="phase-75.5.1: When True, _check_cost_budget reads fetch_llm_spend() (metered LLM tokens x MODEL_PRICING from llm_call_log, CC-rail flat-fee rows excluded) instead of fetch_spend() (BigQuery bytes-billed). OFF -> byte-identical to pre-75.5.1 behavior: the $25/day breaker trips on exactly the same inputs as today. Flip only after the ON-vs-OFF comparison in live_check_75.5.1.md is reviewed.")
     # phase-26.2: opt-in flag for the Anthropic Advisor Tool (Sonnet executor + Opus advisor)
     # on the synthesis chain. Default False (this step adds capability; flip to True
     # via operator-driven rollout after A/B regression check). When True AND the

@@ -50,6 +50,7 @@ __all__ = [
 # phase-75.5 (arch-04): public home for the cloud-spend fetch, promoted out of
 # the private slack_bot.jobs.cost_budget_watcher._default_fetch_spend symbol.
 from backend.services.observability.spend import (  # noqa: E402
+    fetch_llm_spend,
     fetch_spend,
     reset_spend_guard_status,
     spend_guard_status,
@@ -64,4 +65,4 @@ from backend.services.observability.spend import (  # noqa: E402
 # it out of the public surface undercut the fix. This is the same
 # added-without-registering class that masterplan 75.5.7 was queued to generalise --
 # found here in the module this step created.
-__all__ = [*__all__, "fetch_spend", "spend_guard_status", "reset_spend_guard_status"]
+__all__ = [*__all__, "fetch_spend", "fetch_llm_spend", "spend_guard_status", "reset_spend_guard_status"]

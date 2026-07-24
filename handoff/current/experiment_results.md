@@ -1,85 +1,90 @@
-# Experiment results — Step 75.20 (make the Q/A live-UI gate enforceable AND the primary Q/A path actually read-only)
+# Experiment results — Step 75.5.1 (the cost-budget guard gets the LLM-spend metric its name promises)
 
-Date: 2026-07-24. Execution model: opus-tagged step → Main (Fable 5) GENERATE;
-Researcher gate opus/max (wf_0d03eec3-633, gate PASSED, 6 read-in-full); probes on
-haiku (trivial self-report). SEPARATION OF DUTIES ACTIVE: this step edits
-`.claude/agents/qa.md` + `.claude/settings.json` + `.mcp.json` + qa-verdict.js —
-**STATUS FLIP HELD** for operator review + next-session roster confirmation (the
-live_check spec itself requires the after-restart confirmation).
+Date: 2026-07-24. Execution model: opus-tagged P1 MONEY-ADJACENT step → Main (Fable 5)
+GENERATE; Researcher gate opus/max (wf_9cece795-b16, PASSED, 6 read-in-full, pricing
+externally validated). **Arm (a) chosen** per the research verdict; shipped **DARK**
+(flag default OFF, byte-identical trip point until the operator flips).
 
 ## What was built
 
-1. **qa.md tools line** now grants EXACTLY the §1c read-only browser subset:
-   `mcp__playwright__browser_navigate, browser_snapshot, browser_take_screenshot,
-   browser_console_messages` appended to the existing grant; NO mutation tool.
-2. **qa.md §1c amendment**: the capture must be taken BY the evaluator when the path
-   grants browser tools; a Main-produced capture is the EXPLICITLY-DEGRADED fallback
-   (disclosed in the verdict's notes); browser schemas load ONLY via the deterministic
-   `select:` ToolSearch form (keyword search surfaces run_code_unsafe/click in top-5
-   while missing navigate/snapshot); dev-server lifecycle stays MAIN's — Q/A observes,
-   never starts or kills a server.
-3. **settings.json** deny += `mcp__playwright__browser_run_code_unsafe`,
-   `mcp__playwright__browser_evaluate` (exact spelling; the typo warning is silent for
-   underscore names). Deny rules are deny-first, bypass-proof, and bind Workflow agents —
-   and they bound LIVE: the harness stripped both tools from this session's surface on
-   write (verbatim notice in live_check §3c).
-4. **.mcp.json** playwright: fixed `--user-data-dir` pin → `--isolated`. Two-client
-   demonstration: shared profile reproduces the vendor's documented contention error
-   verbatim; --isolated runs both clients clean (live_check §4).
-5. **qa-verdict.js** `agentType: 'general-purpose'` → `'qa'` with the rationale comment:
-   probe-proven removal of Edit/Write-adjacent surface (Artifact/Skill) and the ENTIRE
-   MCP surface (7 loaded + hundreds deferred incl. playwright) from the primary path.
-   Stall-immunity unchanged (StructuredOutput captured-return, not agent-type-dependent).
-6. **New test suite** `backend/tests/test_phase_75_20_qa_browser_grant.py` (13 tests):
-   grant presence/absence/superset-envelope, exact deny entries, NON-vacuous isolation
-   assert (kills the hazard the immutable command's vacuous assert #3 cannot — R11),
-   agentType pin, §1c prose pins (evaluator-capture + degraded fallback, select: form,
-   lifecycle).
-7. **75.20.1 queued** (research-gated, opus-tagged): the DISCOVERED defect that the
-   loader injects Write+Edit into the qa agent past its frontmatter allowlist
-   (probe-proven; disallowedTools silently ignored) — written for an executor with no
-   memory of this session, per feedback_queue_discovered_defects_in_masterplan.
+1. **`fetch_llm_spend()`** in `backend/services/observability/spend.py`: (daily, monthly)
+   METERED LLM spend — one month-window BQ query over `llm_call_log` (column-pruned,
+   `timeout=30`, GROUP BY model with a same-day split), priced in Python via
+   `_price_llm_tokens` against the LIVE imported `cost_tracker.MODEL_PRICING` +
+   `_DEFAULT_PRICING` with the cache-aware formula (read 0.1×, write 2.0×) ported from
+   cost_tracker.py:198-206. Module docstring now carries the THREE invariants:
+   metered-only (CC-rail excluded — both row shapes), raw-tokens-×-pricing (never stored
+   dollars; session_cost_usd is a gauge; token counts are invariant across the 75.5
+   cache-cost fix), cache-aware (the sovereign_api cache-blind variant under-counts).
+2. **Metered-only SQL filter** (the crux): `WHERE ... AND ok AND provider !=
+   'claude-code' AND (agent IS NULL OR agent NOT LIKE 'cc_rail:%')` — flat-fee CC-rail
+   tokens are FREE on the Max rail; pricing them at API rates would falsely trip the
+   $25 breaker and halt trading (the session_cost_usd-staircase phantom class).
+3. **Fail-open through the arch-04 seam**: any exception → (0.0, 0.0) via the SAME
+   `_record_degradation` (counter + one-shot P2 alert) as `fetch_spend`.
+4. **Flag routing** in `llm_client._check_cost_budget`:
+   `cost_budget_use_llm_spend_enabled` (settings.py, default **False**) selects
+   `fetch_llm_spend` vs `fetch_spend`. Nothing else in the hot path changed (cache TTL,
+   caps, trip logic, fail-open, env escape hatch untouched). Import split keeps the 75.5
+   pinned literal `from backend.services.observability import fetch_spend` intact.
+5. **New offline suite** `backend/tests/test_phase_75_5_1_spend_metric.py` (11 tests):
+   real-pricing-table assertions with expected values re-derived INLINE (never via the
+   production helper — anti-tautology), cache-token pricing, CC-rail zero-contribution
+   (both shapes), failed-call exclusion, agent-NULL inclusion, daily/monthly window
+   split, fake-client self-test (the stub CAN represent a filter-less query), fail-open
+   + seam regression, flag OFF/ON routing against the real breaker, flag-default pin.
+6. **Queued 75.5.11** (research-gated, sonnet-tagged): the DISCOVERED caps disagreement —
+   hard-block enforces $25/$300 from settings while the tile + Slack watcher hardcode
+   $5/$50 (operator-facing numbers 5× off the real halt point). Per
+   feedback_queue_discovered_defects_in_masterplan, queued not folded in.
 
 ## Files changed
 
-`.claude/agents/qa.md`, `.claude/settings.json`, `.mcp.json`,
-`.claude/workflows/qa-verdict.js`, `backend/tests/test_phase_75_20_qa_browser_grant.py`
-(new), `.claude/masterplan.json` (75.20 → in_progress; 75.20.1 inserted),
-`handoff/current/{contract.md, research_brief_75.20.md, live_check_75.20.md,
-experiment_results.md}`. ZERO product code (`git diff --name-only` shows no
-backend/frontend source change beyond the new test).
+`backend/services/observability/spend.py`, `backend/services/observability/__init__.py`,
+`backend/config/settings.py`, `backend/agents/llm_client.py`,
+`backend/tests/test_phase_75_5_1_spend_metric.py` (new),
+`.claude/masterplan.json` (75.5.1 → in_progress; +75.5.11),
+`handoff/current/{contract.md, research_brief_75.5.1.md, live_check_75.5.1.md,
+experiment_results.md}`.
 
 ## Verbatim verification output
 
-Immutable command: `immutable-verification-exit=0` (live_check §1, with the R11 vacuity
-of its assert #3 disclosed + proven against the OLD args).
-
 ```
-$ .venv/bin/python -m pytest backend/tests/test_phase_75_20_qa_browser_grant.py -q
-.............                                                            [100%]
-13 passed in 0.02s
-$ uvx ruff check backend/tests/test_phase_75_20_qa_browser_grant.py
-All checks passed!
-$ python3 -c "import json; json.load(open('.claude/settings.json')); json.load(open('.mcp.json')); print('json OK')"
-json OK
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py -q
+...........                                                              [100%]
+11 passed in 1.41s
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py backend/tests/test_phase_75_llm_rail.py -q
+53 passed, 1 warning in 5.72s
 ```
 
-## Criterion-by-criterion status
+## Mutation matrix (immutable criterion 4 + qa.md §4c) — 6 mutations, 6 killed
 
-- C1 grant: DONE (tests + mutation N1).
-- C2 deny: DONE, live-proven binding (tests + mutation N2 + the live strip notice).
-- C3 primary path constrained: DONE for the MCP/Artifact/Skill surface (probe-proven,
-  before/after in live_check §3); Write/Edit residual DISCLOSED + queued as 75.20.1
-  (loader injection, not removable by frontmatter/disallowedTools/session-deny).
-- C4 isolation: DONE (edit + vendor-error reproduction + fix demonstration + non-vacuous
-  test; immutable assert #3's vacuity disclosed, never used as evidence).
-- C5 select: form + lifecycle: DONE (§1c text + tests + mutation N5).
-- C6 §1c evaluator-capture + degraded fallback: DONE in text; operator-review request +
-  next-session roster verification recorded in harness_log; **roster-live confirmation
-  is next-session-owed by construction — status flip HELD.**
+Runner + verbatim log in scratchpad (`run_mutations_75_5_1.py`,
+`mutation_matrix_75_5_1.txt`); summary line verbatim:
+`SUMMARY: 6 mutations, 6 killed, survivors: NONE` + `post-restore sanity: pytest exit 0`.
 
-## Mutation matrix
+| # | Mutation (applied to real code, executed) | Killed by |
+|---|---|---|
+| S1 | flag-ON branch swapped back to the BQ metric (criterion-4 required) | `test_flag_on_reads_the_llm_metric` |
+| S2 | flag gate removed — always the LLM metric (criterion-4 required) | `test_flag_off_is_byte_identical_to_bq_source` |
+| S3 | CC-rail exclusion DROPPED from the SQL (the phantom-spend crux) | `test_cc_rail_rows_contribute_zero_both_shapes` |
+| S4 | cache-read discount broken (0.1× → 1.0×) | `test_metered_rows_priced_against_real_pricing_table` + `test_cache_tokens_are_priced_not_ignored` |
+| S5 | **STUB**: fake client filters CC-rail unconditionally (SQL-sensitivity neutered — would mask S3) | `test_fake_client_honors_filter_absence` |
+| S6 | **FIXTURE/expected**: test's inline cache multiplier drifted to match a hypothetical wrong prod | `test_metered_rows_priced_against_real_pricing_table` |
 
-7 mutations (6 config + 1 STUB/harness), **7 killed, 0 survivors**, post-restore green
-(live_check §5). N3b is the showcase: a hazard restoration that PASSES the immutable
-command is killed by the step's own non-vacuous guard.
+## Honest disclosures
+
+- Cycle-internal regression caught pre-Q/A: my first import shape broke the 75.5 pin
+  `test_consumers_resolve_fetch_spend_from_observability`; fixed by import split, both
+  suites green after.
+- Process incident: a stray `git stash -q` in a diagnostic command stashed the entire
+  uncommitted GENERATE mid-cycle (the codified `feedback_no_git_stash_with_active_hooks`
+  hazard, hit by Main itself). Surgical recovery via `git checkout stash@{0} -- <files>`
+  + drop; all 53 tests, imports, contract, and masterplan state re-verified identical
+  post-recovery. Recommend the operator consider a `Bash(git stash*)` deny rule to make
+  the memory mechanical.
+- Known conservative biases of the new metric (documented, acceptable for a breaker):
+  no `is_batch` column in llm_call_log → batched rows priced at full rate (over-count →
+  trips EARLY = safe); advisor blended-model calls priced at the row's single model.
+- Lint: 3× BLE001 blind-except on spend.py are the documented fail-open idiom
+  (2 pre-existing at HEAD, proven); `__init__.py` finding classes unchanged vs HEAD.

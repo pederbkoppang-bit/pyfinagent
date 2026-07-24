@@ -17138,7 +17138,7 @@
         },
         {
           "id": "75.5.1",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S5 follow-up -- the cost-budget guard does not measure what its name says [executor: opus-4.8/xhigh; MONEY-ADJACENT: this is the $25/day circuit breaker]. Discovered during 75.5 and independently confirmed by that step's Q/A. backend/services/observability/spend.py::fetch_spend (promoted there by 75.5/arch-04, previously the private _default_fetch_spend in the Slack job) prices INFORMATION_SCHEMA.JOBS_BY_PROJECT.total_bytes_billed at $6.25/TiB -- i.e. it measures BIGQUERY spend. But backend/config/settings.py documents cost_budget_daily_usd as the 'Daily LLM-spend cap', and CLAUDE.md describes the $25/day cap as the LLM circuit breaker. Its three consumers (the llm_client hard-block, /api/cost-budget, the Slack watcher job) all read it as if it were LLM spend. 75.5 preserved this behaviour DELIBERATELY (behaviour-preserving refactor, no semantic change) and queued the reconciliation here. Decide and implement: either (a) add a real LLM-spend source (pyfinagent_data.llm_call_log already records per-call provider/model/tokens -- price it against backend/agents/cost_tracker.py::MODEL_PRICING) and make the budget gate read THAT, keeping BQ spend as a separate metric; or (b) rename the setting + docs so the guard's name matches what it measures. (a) is the likely correct answer since the operator's intent is an LLM cost ceiling, but it CHANGES when the breaker trips -- so ship it flag-gated dark with an ON-vs-OFF comparison before any default flip.",
           "harness_required": true,
           "priority": "P1",
@@ -17325,6 +17325,25 @@
               "Mutation matrix in experiment_results.md: reverting to the exists()-only check fails the empty-artifact test"
             ],
             "live_check": "handoff/current/live_check_75.5.10.md: verbatim verification command output (exit 0) + git diff --stat + the hardened gate's decision on an empty file, a prose-only file, and a real capture."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.11",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- the three budget-guard consumers disagree on the CAPS themselves [executor: sonnet-4.6/high; MONEY-ADJACENT observability]. Discovered by the 75.5.1 research gate (2026-07-24, research_brief_75.5.1.md). The llm_client hard-block reads settings.cost_budget_daily_usd/monthly ($25/$300, settings.py:384-385), but the /api/cost-budget endpoint AND the Slack cost-budget watcher hardcode $5/$50 (cost_budget_api.py:53-54, cost_budget_watcher.py:33-34) -- so the operator-facing tile and the Slack pager alert at 5x LOWER thresholds than the breaker actually enforces: the pager cries wolf at $5 while trading continues until $25, and an operator who trusts the tile's cap misreads the real halt point. Work: make settings the single cap source -- wire the endpoint and the watcher to settings.cost_budget_daily_usd/cost_budget_monthly_usd (env-overridable), delete the hardcoded literals, and surface WHICH metric (BQ vs LLM, per the 75.5.1 flag) the displayed number reflects so the tile cannot silently mislabel. DESIGN NOTE to evaluate during research (not necessarily implement): whether metered Gemini/Vertex-only spend warrants its own sub-cap once cost_budget_use_llm_spend_enabled flips ON. Research gate mandatory before PLAN.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_11_caps_single_source.py -q",
+            "success_criteria": [
+              "All three consumers (llm_client hard-block, /api/cost-budget, Slack watcher) resolve the daily and monthly caps from settings -- a test imports each consumer's cap-resolution path and proves a settings override propagates to all three identically",
+              "No hardcoded 5.0/50.0 cap literal remains on the tile/watcher cap paths, pinned behaviorally (override settings, observe the consumer's cap change) rather than by a source-scan alone",
+              "The /api/cost-budget response names which spend metric it reflects (bq vs llm per the 75.5.1 flag) so the operator-facing number cannot be silently mislabeled",
+              "Each new behavioral guard is mutation-tested with evidence recorded verbatim in live_check_75.5.11.md, including at least one fixture/stub mutation"
+            ],
+            "live_check": "handoff/current/live_check_75.5.11.md: verbatim verification output (exit 0) + git diff --stat + a before/after of the /api/cost-budget payload shape + the mutation evidence."
           },
           "retry_count": 0,
           "max_retries": 3

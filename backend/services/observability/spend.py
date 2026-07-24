@@ -7,15 +7,31 @@ boundary into it: the llm_client hard-block (`llm_client.py:427`) and the
 `/api/cost-budget` endpoint (`cost_budget_api.py:24`). A money guard that three
 subsystems depend on should not be a private symbol in a Slack job.
 
-SCOPE WARNING -- READ BEFORE USING THIS AS AN "LLM SPEND" NUMBER.
-This function measures **BigQuery** spend: it prices
+SCOPE WARNING -- READ BEFORE USING `fetch_spend` AS AN "LLM SPEND" NUMBER.
+`fetch_spend` measures **BigQuery** spend: it prices
 `INFORMATION_SCHEMA.JOBS_BY_PROJECT.total_bytes_billed` at the on-demand $6.25/TiB rate.
 It does NOT measure LLM/Anthropic/Gemini spend. That matters because
 `settings.cost_budget_daily_usd` is documented as the *"Daily LLM-spend cap"* and
-CLAUDE.md describes the $25/day cap as the LLM circuit breaker -- so the guard does not
-measure what its consumers' names imply. phase-75.5 deliberately promoted this
-**unchanged** (behavior-preserving refactor); reconciling the metric with its name is
-queued as its own masterplan step. Do not paper over it here.
+CLAUDE.md describes the $25/day cap as the LLM circuit breaker.
+
+phase-75.5.1 resolves the mismatch with `fetch_llm_spend`: metered LLM tokens from
+`llm_call_log` priced against the live `cost_tracker.MODEL_PRICING` table with the
+cache-aware formula. The budget gate selects it via
+`settings.cost_budget_use_llm_spend_enabled` (default OFF = the BQ metric, byte-identical
+to pre-75.5.1). Three invariants the LLM metric MUST keep:
+
+  1. METERED-ONLY. Flat-fee CC-rail rows (provider='claude-code', or
+     provider='anthropic' with agent LIKE 'cc_rail:%') record tokens whose real cost is
+     ~$0 (Claude Code Max rail). Pricing them at API rates would trip the $25 breaker on
+     FREE tokens and falsely halt trading -- the same phantom class as the 2026-06
+     session_cost_usd staircase.
+  2. RAW TOKENS x PRICING, never stored dollars. llm_call_log has no per-call cost
+     column, and session_cost_usd is a per-cycle cumulative GAUGE (phase-66.3: never
+     sum it). Token counts are also invariant across the 75.5 cache-cost fix, so a
+     day window spanning that boundary still prices correctly.
+  3. CACHE-AWARE pricing ported from cost_tracker (read 0.1x input rate, write 2.0x) --
+     the sovereign_api variant that ignores cache columns under-counts and would let
+     the breaker trip late.
 
 Fail-open is intentional and preserved: a spend-fetch failure must never block a live
 call. But phase-75.5 adds a degradation COUNTER + alert seam, because the pre-existing
@@ -141,4 +157,90 @@ def fetch_spend() -> tuple[float, float]:
         return 0.0, 0.0
 
 
-__all__ = ["fetch_spend", "spend_guard_status", "reset_spend_guard_status"]
+def _price_llm_tokens(
+    model: str,
+    input_tok: float,
+    output_tok: float,
+    cache_creation_tok: float,
+    cache_read_tok: float,
+) -> float:
+    """Cache-aware pricing, ported from cost_tracker.CostTracker (the accurate
+    formula -- read 0.1x input rate, write 2.0x for the 1h-TTL tier) against the
+    LIVE MODEL_PRICING table. Single source of truth: import, never copy."""
+    from backend.agents.cost_tracker import _DEFAULT_PRICING, MODEL_PRICING
+
+    pricing = MODEL_PRICING.get(model, _DEFAULT_PRICING)
+    if cache_read_tok > 0 or cache_creation_tok > 0:
+        return (
+            cache_read_tok * pricing[0] * 0.1
+            + cache_creation_tok * pricing[0] * 2.0
+            + input_tok * pricing[0]
+            + output_tok * pricing[1]
+        ) / 1_000_000
+    return (input_tok * pricing[0] + output_tok * pricing[1]) / 1_000_000
+
+
+def fetch_llm_spend() -> tuple[float, float]:
+    """Return (daily_usd, monthly_usd) of METERED LLM spend.
+
+    Sums raw token columns from `llm_call_log` per model (month-to-date, with a
+    same-day split) and prices them in Python via `_price_llm_tokens`. Excludes
+    the flat-fee CC-rail rows and failed calls (see the module docstring's three
+    invariants). Fail-open to (0.0, 0.0) through the SAME arch-04 degradation
+    seam as `fetch_spend` -- a spend-fetch failure must never block a live call,
+    but it must be counted and alerted once.
+    """
+    try:
+        from google.cloud import bigquery
+
+        from backend.config.settings import get_settings
+
+        settings = get_settings()
+        project = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
+        dataset = getattr(settings, "bq_dataset_observability", "pyfinagent_data")
+        client = bigquery.Client(project=project)
+        sql = f"""
+            SELECT
+              model,
+              SUM(IF(DATE(ts) = CURRENT_DATE(), input_tok, 0)) AS d_in,
+              SUM(IF(DATE(ts) = CURRENT_DATE(), output_tok, 0)) AS d_out,
+              SUM(IF(DATE(ts) = CURRENT_DATE(), cache_creation_tok, 0)) AS d_cw,
+              SUM(IF(DATE(ts) = CURRENT_DATE(), cache_read_tok, 0)) AS d_cr,
+              SUM(input_tok) AS m_in,
+              SUM(output_tok) AS m_out,
+              SUM(cache_creation_tok) AS m_cw,
+              SUM(cache_read_tok) AS m_cr
+            FROM `{project}.{dataset}.llm_call_log`
+            WHERE
+              ts >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
+              AND ok
+              AND provider != 'claude-code'
+              AND (agent IS NULL OR agent NOT LIKE 'cc_rail:%')
+            GROUP BY model
+        """
+        daily = 0.0
+        monthly = 0.0
+        for row in client.query(sql, timeout=30).result():
+            model = str(row["model"] or "")
+            daily += _price_llm_tokens(
+                model,
+                float(row["d_in"] or 0), float(row["d_out"] or 0),
+                float(row["d_cw"] or 0), float(row["d_cr"] or 0),
+            )
+            monthly += _price_llm_tokens(
+                model,
+                float(row["m_in"] or 0), float(row["m_out"] or 0),
+                float(row["m_cw"] or 0), float(row["m_cr"] or 0),
+            )
+        return daily, monthly
+    except Exception as exc:
+        _record_degradation(exc)
+        return 0.0, 0.0
+
+
+__all__ = [
+    "fetch_llm_spend",
+    "fetch_spend",
+    "reset_spend_guard_status",
+    "spend_guard_status",
+]

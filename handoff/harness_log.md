@@ -28024,3 +28024,27 @@ session restart -> verify_qa_roster_live.sh -> fresh qa probe self-discloses the
 browser grant -> append verbatim to live_check_75.20.md section 7 -> flip 75.20
 done. The flip stays HELD this session because the roster confirmation is
 structurally after-restart evidence (live_check spec).
+
+## Cycle 149 -- 2026-07-24 -- phase=75.5.1 result=PASS (cycle 1, clean) -- $25/day breaker gets its LLM metric (DARK)
+
+- P1 MONEY-ADJACENT. Arm (a) per research gate (wf_9cece795-b16, 6 read-in-full,
+  all pricing externally validated): new fetch_llm_spend() prices llm_call_log RAW
+  tokens x the LIVE MODEL_PRICING (cache-aware 0.1x/2.0x, ported from cost_tracker)
+  -- METERED rows only: flat-fee CC-rail rows (both shapes) excluded so free
+  Max-rail tokens can never phantom-trip the breaker and halt trading. Fail-open
+  preserved through the SAME arch-04 degradation seam. Flag
+  cost_budget_use_llm_spend_enabled default OFF = trip point byte-identical
+  (proven against the real _check_cost_budget). OPERATOR TOKEN: flip the flag
+  after reviewing live_check_75.5.1.md section 2.
+- 11 new tests + 42-test rail regression green (53 total); mutation matrix 6/6
+  killed (incl. the SQL-crux S3, stub S5, fixture S6). Q/A PASS cycle 1
+  (wf_88c8115e-e17, 23 checks, independent mutation probes incl. partial-drop
+  variants). Q/A self-caught the zsh word-split vacuous-lint trap (4c shape #9)
+  live and re-ran via xargs -- the doctrine catching its own evaluator.
+- DISCOVERED + QUEUED 75.5.11 (sonnet-tagged): tile + Slack watcher hardcode
+  $5/$50 caps while the breaker enforces settings' $25/$300 -- operator-facing
+  numbers 5x off the real halt point.
+- Process incident recorded honestly: Main's stray `git stash -q` stashed the
+  uncommitted GENERATE mid-cycle (the codified no-stash hazard); surgically
+  recovered (checkout from stash + drop), all suites re-verified, Q/A
+  independently confirmed the recovered tree. Recommend Bash(git stash*) deny.

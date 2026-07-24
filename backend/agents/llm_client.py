@@ -426,11 +426,20 @@ def _check_cost_budget() -> None:
         from backend.config.settings import get_settings
         # phase-75.5 (arch-04): resolve from the public observability home,
         # not the private slack_bot job symbol.
-        from backend.services.observability import fetch_spend as _default_fetch_spend
+        # phase-75.5.1: the flag selects WHICH spend metric feeds the breaker.
+        # OFF (default) keeps the pre-75.5.1 BigQuery metric byte-identically;
+        # ON reads metered LLM spend (llm_call_log tokens x MODEL_PRICING,
+        # CC-rail flat-fee rows excluded) -- the metric the setting's name and
+        # CLAUDE.md's "$25/day LLM circuit breaker" always promised.
+        from backend.services.observability import fetch_spend
+        from backend.services.observability import fetch_llm_spend
         settings = get_settings()
         daily_cap = float(getattr(settings, "cost_budget_daily_usd", 5.0))
         monthly_cap = float(getattr(settings, "cost_budget_monthly_usd", 50.0))
-        daily_usd, monthly_usd = _default_fetch_spend()
+        if getattr(settings, "cost_budget_use_llm_spend_enabled", False):
+            daily_usd, monthly_usd = fetch_llm_spend()
+        else:
+            daily_usd, monthly_usd = fetch_spend()
     except Exception as exc:
         # Fail-open: never let a broken budget API halt trading.
         logger.warning("cost_budget hard-block fail-open: %r", exc)
