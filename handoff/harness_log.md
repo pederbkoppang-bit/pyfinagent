@@ -28088,3 +28088,17 @@ structurally after-restart evidence (live_check spec).
   function with author-unchosen scenarios and unit-probed WHICH guard fires.
 - Q/A note: 3rd live vacuous-lint near-miss self-caught by an evaluator this
   session (CWD-artifact variant this time) -- 4c doctrine consistently working.
+
+### Cycle 151 addendum -- executor report reconciliation (post-close)
+
+The delegated executor's full report flushed AFTER 75.4.2 closed (42264502).
+Reconciles cleanly with Main's first-hand verification: identical suite outputs,
+identical lint census (its "exactly ONE new finding" = the ISC004 Main fixed;
+BLE001:451 left per the file's 6-instance pattern -- same call Main + Q/A made),
+sha256 byte-identity trail for T1/T2 (c2484d3c... before==after, both refusals),
+and its (e).2 note (T1/T2 both trip the placeholder guard; T4 alone carries the
+length guard) matches the mutation result exactly (M3 killed only T2, M4 only
+T4). CORRECTION for the record: the executor's "(c).2 unplanned mid-task
+reformat by an external writer" was MAIN's own review edits (ISC004 restructure
++ ruff --fix PLR0402 on its files while its report was composing) -- no phantom
+concurrent editor existed; noted so nobody chases it later.
