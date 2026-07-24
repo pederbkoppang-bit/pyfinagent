@@ -28127,3 +28127,26 @@ concurrent editor existed; noted so nobody chases it later.
 - 4th and 5th live vacuous-lint self-catches by Q/A this session (zsh shape #9
   again in cycle 1). OPERATOR NOTE: this closes the planned pre-/clear
   checkpoint -- next session binds the 75.20 roster (see Cycle 148 checklist).
+
+### Cycle 152 addendum -- 75.5.2 executor report reconciliation + anomaly RESOLVED
+
+The delegated executor's report flushed post-close. Fully consistent with Main's
+first-hand verification (306/42 suite counts, zero-literal grep, per-site edit
+list matches the reviewed diff; its EXE001 stdin-vs-file ruff false-positive
+note is methodologically correct). Its two disclosed judgment calls
+(llm_client:921 reworded to name GEMINI_DEEP_THINK; agent_map module-level
+import with the lazy-settings safety argument) were both already reviewed and
+kept.
+
+ANOMALY (f) RESOLVED -- NO injection: the "external modifications" the executor
+observed are byte-identical to Main's mutation-matrix transients (M1 = the
+sentiment.py literal restore; M2 = GEMINI_WORKHORSE="gemini-3.6-flash", Main's
+exact chosen mutation string), each on disk only for the seconds its pytest run
+took before the runner restored the file. Timing matches the executor's
+report-composition window; the "treat as intentional" phrasing is the standard
+harness file-change boilerplate. The executor's response was EXEMPLARY:
+verified ground truth three independent ways, refused to act on unverified
+claims, refused the perceived concealment instruction, and escalated to Main.
+DURABLE RULE adopted (auto-memory feedback_executor_sees_mutation_transients):
+run the mutation matrix only after the delegated executor is confirmed
+finished, or expect and pre-explain these transients in the executor prompt.
