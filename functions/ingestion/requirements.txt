@@ -1,14 +1,17 @@
 # ingestion-agent/requirements.txt (Refactored)
+# phase-75.16 (deps-07): pinned to == so pip-audit evaluates the actual
+# resolved dependency graph, not a hypothetical one; versions match the
+# repo's other pinned graph (backend/requirements.lock) as of 2026-07-24.
 
 # Core GCP Libraries
-google-cloud-bigquery
-functions-framework  # For Google Cloud Functions deployment
+google-cloud-bigquery==3.40.1
+functions-framework==3.10.2  # For Google Cloud Functions deployment
 
 # Data Handling
-pandas
-numpy
-pyarrow  # Essential for efficient BigQuery loading
-pytz     # For robust timezone handling
+pandas==3.0.1
+numpy==2.4.4
+pyarrow==25.0.0  # Essential for efficient BigQuery loading
+pytz==2026.1.post1     # For robust timezone handling
 
 # Data Sources (Keep only the necessary providers)
-yfinance # Or your primary market data provider SDK
+yfinance==1.2.0 # Or your primary market data provider SDK

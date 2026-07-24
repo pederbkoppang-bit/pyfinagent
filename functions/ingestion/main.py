@@ -1,13 +1,14 @@
 # ingestion-agent/main.py (Refactored)
 import functions_framework
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 import pandas as pd
 from utils.data_fetchers import fetch_raw_market_data
 from utils.bigquery_utils import load_data_to_bigquery
 from config import (
     PROJECT_ID, DATASET_ID, MARKET_TABLE_ID, START_DATE, API_SOURCE_MARKET
 )
+from response import decide_response
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,26 +55,39 @@ def ingest_market_data_el(request):
     logging.info(f"Starting ingestion. Mode: {mode}. Range: {start_date} to {end_date}. Tickers: {len(tickers)}")
 
     # 3. Execute E-L Process
-    
-    # Extract and Standardize
-    raw_data_df = fetch_raw_market_data(tickers, start_date, end_date, API_SOURCE_MARKET)
-    
-    if not raw_data_df.empty:
+
+    # Extract and Standardize. data_fetchers.fetch_raw_market_data now
+    # re-raises genuine fetch errors (phase-75.16 leg c) instead of
+    # swallowing them into an empty DataFrame, so a real exception here
+    # is distinguishable from "ran fine, no rows for this range."
+    try:
+        raw_data_df = fetch_raw_market_data(tickers, start_date, end_date, API_SOURCE_MARKET)
+        fetch_ok = True
+    except Exception as e:
+        logging.error(f"Fetch failed for ingestion run (mode={mode}): {e}")
+        raw_data_df = pd.DataFrame()
+        fetch_ok = False
+
+    rows_fetched = len(raw_data_df) if fetch_ok else 0
+    load_ok = None  # meaningful only when fetch_ok and rows_fetched > 0
+
+    if fetch_ok and rows_fetched > 0:
         # Load to Staging
         try:
             load_data_to_bigquery(
-                raw_data_df, 
-                PROJECT_ID, 
-                DATASET_ID, 
-                MARKET_TABLE_ID, 
+                raw_data_df,
+                PROJECT_ID,
+                DATASET_ID,
+                MARKET_TABLE_ID,
                 schema_type="MARKET"
             )
-            status = "Success"
+            load_ok = True
         except Exception as e:
             logging.error(f"Failed to load data to BigQuery: {e}")
-            status = "Failure"
-    else:
+            load_ok = False
+    elif fetch_ok:
         logging.warning("No data fetched. Skipping BigQuery load.")
-        status = "Success (No Data)"
 
-    return f"Ingestion completed. Status: {status}. Rows: {len(raw_data_df)}."
+    body, status_code = decide_response(fetch_ok, rows_fetched, load_ok)
+    logging.info(body)
+    return (body, status_code)

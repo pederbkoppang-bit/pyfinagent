@@ -15,6 +15,11 @@ name: pip-audit
 # backend/requirements.lock is the full ==-pinned `pip freeze` snapshot of
 # the live venv; audit BOTH so the loose-floor advisory surface and the
 # exact-deployed surface are both covered.
+#
+# phase-75.16 (deps-07): the 3 Cloud Functions each carry their own
+# requirements.txt, fully ==-pinned as of this phase, and were entirely
+# outside this workflow's coverage before -- their python311 deploy path
+# had no CVE audit at all. Covered here the same way as the backend files.
 
 on:
   push:
@@ -23,12 +28,18 @@ on:
       - "backend/requirements.txt"
       - "backend/requirements.lock"
       - "requirements.txt"
+      - "functions/ingestion/requirements.txt"
+      - "functions/quant/requirements.txt"
+      - "functions/earnings/requirements.txt"
       - ".github/workflows/pip-audit.yml"
   pull_request:
     paths:
       - "backend/requirements.txt"
       - "backend/requirements.lock"
       - "requirements.txt"
+      - "functions/ingestion/requirements.txt"
+      - "functions/quant/requirements.txt"
+      - "functions/earnings/requirements.txt"
   schedule:
     # Weekly, Mondays at 07:00 UTC. Keeps cadence aligned with
     # the runbook drills (next drill 2026-07-18, Monday).
@@ -65,6 +76,27 @@ jobs:
             --strict \
             --progress-spinner off
 
+      - name: Run pip-audit (strict, functions/ingestion)
+        run: |
+          pip-audit \
+            --requirement functions/ingestion/requirements.txt \
+            --strict \
+            --progress-spinner off
+
+      - name: Run pip-audit (strict, functions/quant)
+        run: |
+          pip-audit \
+            --requirement functions/quant/requirements.txt \
+            --strict \
+            --progress-spinner off
+
+      - name: Run pip-audit (strict, functions/earnings)
+        run: |
+          pip-audit \
+            --requirement functions/earnings/requirements.txt \
+            --strict \
+            --progress-spinner off
+
       - name: Upload audit output on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -73,4 +105,7 @@ jobs:
           path: |
             backend/requirements.txt
             backend/requirements.lock
+            functions/ingestion/requirements.txt
+            functions/quant/requirements.txt
+            functions/earnings/requirements.txt
           retention-days: 30

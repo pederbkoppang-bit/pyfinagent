@@ -1,8 +1,13 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+# phase-75.16 (deps-03/04): build context is the repo root (COPY . . below
+# assumes this); the old `COPY requirements.txt .` pointed at a file that
+# does not exist at the repo root -- only backend/requirements.txt does --
+# so the build could never succeed. Runtime pinned to match the deployed
+# 3.14.4 interpreter (was 3.11).
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 

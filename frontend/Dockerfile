@@ -1,7 +1,11 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+# phase-75.16 (deps-03/04): `npm install` ignored the committed
+# package-lock.json (507KB, tracked in git) -- non-reproducible builds could
+# silently resolve different transitive versions than local dev. `npm ci`
+# installs exactly what the lockfile pins and fails closed if it drifts.
+COPY package.json package-lock.json ./
+RUN npm ci
 
 FROM node:20-alpine AS builder
 WORKDIR /app

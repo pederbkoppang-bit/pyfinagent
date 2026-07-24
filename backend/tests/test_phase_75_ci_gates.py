@@ -117,8 +117,12 @@ def test_backend_not_requires_live_collection_count_is_stable():
     assert result.returncode == 0, f"collection failed:\n{result.stdout}\n{result.stderr}"
     tail = result.stdout.strip().splitlines()[-1]
     # pytest --collect-only summary line: "N/M tests collected (K deselected) in Ts"
-    assert "1474/1490 tests collected (16 deselected)" in tail, (
-        f"collection count drifted from the phase-75.15 baseline; got: {tail!r}"
+    # phase-75.16: baseline moved from 1474/1490 to 1518/1534 -- test_phase_75_
+    # deploy_surface.py added 44 new tests, none carrying requires_live, so the
+    # deselected count (the thing this canary actually protects) is unchanged
+    # at 16 while both totals shift by +44.
+    assert "1518/1534 tests collected (16 deselected)" in tail, (
+        f"collection count drifted from the phase-75.16 baseline; got: {tail!r}"
     )
 
 

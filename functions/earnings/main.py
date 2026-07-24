@@ -1,10 +1,52 @@
 import os
+import re
 import requests
 import json
 from flask import jsonify
 from google.cloud import storage
 import vertexai
-from vertexai.generative_models import GenerativeModel, Part
+from vertexai.generative_models import GenerativeModel
+
+# phase-75.16 (leg e): env-configurable model id -- the previous hardcoded
+# gemini-1.5 pin is retired. Default mirrors
+# backend/config/model_tiers.py::GEMINI_WORKHORSE; this Cloud Function has
+# its own isolated gcloud deploy source root (this directory only) and
+# cannot import the backend package, so the value is duplicated here --
+# keep the two in sync manually. The gemini-2.5 family retires 2026-10-16
+# (Google Gemini API deprecations); re-pin both constants together before
+# that date.
+EARNINGS_NLP_MODEL_DEFAULT = "gemini-2.5-flash"
+
+# phase-75.16 (leg e): the 4 keys the NLP prompt below asks Gemini to return.
+# Validated after json.loads() so a malformed/partial response is treated as
+# a failure (nlp_status="failed"), not silently accepted as good data.
+REQUIRED_NLP_KEYS = {
+    "forward_sentiment_score",
+    "qa_confidence_summary",
+    "cyclical_catalysts_detected",
+    "key_quotes",
+}
+
+# phase-75.16 (leg e): mirrors backend/main.py's `_TAILSCALE_ORIGIN_RE` --
+# the single origin predicate shared there by CORSMiddleware and the manual
+# 401 CORS echo (.claude/rules/security.md "CORS"). Tailscale hands out
+# addresses only from the CGNAT block 100.64.0.0/10 (RFC 6598), i.e. second
+# octet 64..127 -- never a bare '*' wildcard.
+_ALLOWED_ORIGIN_RE = re.compile(
+    r"^http://(localhost|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+):\d+$"
+)
+
+
+def _cors_headers(request) -> dict:
+    """Return CORS response headers for `request`'s Origin, or {} if the
+    origin is absent/not allowed (never a wildcard)."""
+    origin = request.headers.get("Origin", "")
+    if origin and _ALLOWED_ORIGIN_RE.match(origin):
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Vary": "Origin",
+        }
+    return {}
 
 
 def get_npl_tone_analysis_prompt(transcript_text: str) -> str:
@@ -66,17 +108,16 @@ def earnings_ingestion_agent(request):
     # Set CORS headers for preflight requests to allow cross-origin calls
     if request.method == 'OPTIONS':
         headers = {
-            'Access-Control-Allow-Origin': '*',
+            **_cors_headers(request),
             'Access-Control-Allow-Methods': 'POST, GET',
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Max-Age': '3600'
         }
         return ('', 204, headers)
 
-    # Set CORS headers for the main request
-    headers = {
-        'Access-Control-Allow-Origin': '*'
-    }
+    # Set CORS headers for the main request (localhost/Tailscale allowlist
+    # only -- phase-75.16 leg e; never a '*' wildcard)
+    headers = _cors_headers(request)
 
     # Extract ticker from request JSON body
     request_json = request.get_json(silent=True)
@@ -136,22 +177,39 @@ def earnings_ingestion_agent(request):
             # --- New NLP Tone Analysis Step ---
             if transcript_content:
                 try:
-                    model = GenerativeModel("gemini-1.5-flash-001")
+                    model_id = os.getenv("EARNINGS_NLP_MODEL", EARNINGS_NLP_MODEL_DEFAULT)
+                    model = GenerativeModel(model_id)
                     prompt = get_npl_tone_analysis_prompt(transcript_content)
                     response = model.generate_content(prompt)
-                    
+
                     # Clean and parse the JSON output from the model
                     cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
                     nlp_analysis = json.loads(cleaned_response)
 
+                    # phase-75.16 (leg e): validate the parsed JSON actually
+                    # carries all 4 keys the prompt asked for -- a
+                    # well-formed-but-partial response used to be accepted
+                    # silently as good data.
+                    missing_keys = REQUIRED_NLP_KEYS - nlp_analysis.keys()
+                    if missing_keys:
+                        raise ValueError(f"NLP response missing required keys: {sorted(missing_keys)}")
+
                     # Append the NLP metadata to the transcript item
                     transcript_item['nlp_analysis'] = nlp_analysis
+                    transcript_item['nlp_status'] = 'ok'
                     print(f"Successfully performed NLP analysis for {ticker} {year} Q{quarter}.")
 
                 except Exception as e:
                     print(f"ERROR: Vertex AI NLP analysis failed for {ticker}: {e}")
-                    # Proceed without NLP data, but log the error. The core data is still valuable.
-                    transcript_item['nlp_analysis'] = {"error": f"NLP analysis failed: {str(e)}"}
+                    # phase-75.16 (leg e): failure must be distinguishable
+                    # from real data -- `nlp_analysis` used to hold
+                    # {"error": ...} as if it were the analysis itself.
+                    # Proceed without NLP data (the core transcript is
+                    # still valuable), but signal failure via an explicit
+                    # status field instead.
+                    transcript_item['nlp_analysis'] = None
+                    transcript_item['nlp_status'] = 'failed'
+                    transcript_item['nlp_error'] = str(e)
 
             storage_client = storage.Client()
             bucket = storage_client.bucket(bucket_name)

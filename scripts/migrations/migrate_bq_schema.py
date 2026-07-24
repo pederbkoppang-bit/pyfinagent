@@ -7,15 +7,19 @@ Run: python migrate_bq_schema.py
 
 import json
 import os
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-# Load SA credentials from backend/.env (works regardless of ADC state)
-load_dotenv(Path(__file__).parent / "backend" / ".env")
+# Load SA credentials from backend/.env (works regardless of ADC state).
+# phase-75.16 (leg h): was Path(__file__).parent -- resolved to the
+# nonexistent scripts/migrations/backend/.env, so load_dotenv silently
+# no-op'd and every run fell back to whatever ambient ADC identity was
+# active. parents[2] anchors from this file to the repo root regardless of
+# the caller's CWD.
+load_dotenv(Path(__file__).resolve().parents[2] / "backend" / ".env")
 
 # ── Config ──────────────────────────────────────────────────────
 PROJECT_ID = "sunny-might-477607-p8"

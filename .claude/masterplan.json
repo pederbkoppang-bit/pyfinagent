@@ -17624,7 +17624,7 @@
         },
         {
           "id": "75.16",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S16 -- Cloud Functions + Docker deploy-surface retirement/hardening + script bootstrap repair [executor: sonnet-4.6/high; BOUNDARY: repo-only edits, NO gcloud/docker deploys executed, $0 metered]. (a) sre-ops-08: DELETE scripts/deploy/deploy_agents.sh (no set -e, unguarded cd into four directories that no longer exist -- a run today would gcloud-deploy the repo root INCLUDING backend/.env as public --allow-unauthenticated functions; git history preserves it). (b) gap6-03: functions/ingestion/cloudbuild.yaml deploys nonexistent entry-point ingestion_agent_http with --allow-unauthenticated and placeholder env values -- fix entry-point to ingest_market_data_el (functions/ingestion/main.py:25), drop --allow-unauthenticated (OIDC invocation documented), align runtime python311, remove placeholder envs -- or delete the file if the staging pipeline is declared retired. (c) gap6-08: functions/ingestion/main.py returns HTTP 200 on BOTH fetch failure and BQ load failure -- return ('...',500) on load failure and on fetch exception so Cloud Scheduler sees failures. (d) gap6-04: functions/quant/main.py:255 streams full tracebacks to unauthenticated HTTP callers ON THE LIVE orchestrator path (orchestrator.py:1061 consumes quant_agent_url) and both SEC requests (:64, :140) have NO timeout -- yield a sanitized one-line error (traceback stays in Cloud Logging via the existing logging.critical), add timeout=(5,30) to both requests.get. (e) gap6-05: functions/earnings/main.py:139 pins retired gemini-1.5-flash-001 with a swallow-all except storing {'error':...} as data -- env-sourced model id, distinguishable failure status (non-200 or explicit status field), validate the parsed 4-key JSON, drop the wildcard CORS. (f) deps-07: pin every functions/*/requirements.txt to == versions (currently fully unpinned, python311 deploy path outside all audit coverage) and add them to pip-audit.yml's paths + --requirement set. (g) deps-03/04: backend/Dockerfile copies a pointer requirements.txt whose nested target does not exist in the layer (build cannot succeed) and pins python:3.11 vs the 3.14.4 runtime -- COPY backend/requirements.txt + install from it + python:3.14-slim; frontend/Dockerfile ignores the committed lockfile -- COPY package.json package-lock.json + npm ci. (h) gap6-06: five migrations load dotenv from the nonexistent scripts/migrations/backend/.env (silent ADC fallback) and extend_historical_data.py inserts the wrong sys.path -- sweep to Path(__file__).resolve().parents[2] anchors in scripts/migrations/*.py and scripts/debug/*.py; fix or delete the four stale debug scripts.",
           "harness_required": true,
           "priority": "P2",
@@ -17639,6 +17639,45 @@
               "scripts/migrations and scripts/debug contain zero CWD-relative 'parent/backend/.env' bootstraps (parents[2] anchors); extend_historical_data.py imports backend.* successfully via a py_compile + import-path note; no gcloud, docker, or network command executed by this step"
             ],
             "live_check": "handoff/current/live_check_75.16.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: sre-ops-08, gap6-03, gap6-04, gap6-05, gap6-08, deps-07, deps-03, deps-04, gap6-06"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.16.1",
+          "status": "pending",
+          "name": "Audit75 S16 follow-up -- functions/earnings deployability + untimed fetch [executor: sonnet-4.6/high; BOUNDARY: repo-only, no deploys, $0]. Discovered during the 75.16 research gate (wf_e787b99b-faf, 2026-07-24), out of 75.16's leg scope: (1) functions/earnings/requirements.txt is MISSING vertexai and google-cloud-storage although functions/earnings/main.py imports both -- the function is non-deployable as committed (a fresh gcloud deploy would crash on import); (2) functions/earnings/main.py:120 requests.get carries NO timeout (the 75.16 leg-d timeout fix covered only functions/quant :64/:140). NOTE the earnings function is ORPHANED per the same research (live earnings = backend earnings_tone service) -- so at research, FIRST decide retire-vs-repair with evidence (the 75.16 cloudbuild delete-with-retirement-note precedent applies if retiring; if repairing, pin the two missing deps at deployable versions consistent with the function's runtime and add timeout=(5,30)). Either way extend the 75.16 test file's parsed-requirements/timeout asserts to cover the outcome, with the comment-stripped-first + non-empty-guard discipline and a mutation each.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_deploy_surface.py -q",
+            "success_criteria": [
+              "A researched retire-vs-repair decision for functions/earnings is recorded with evidence; the chosen arm is fully executed (retirement note + config removal, OR deps pinned deployable + timeout=(5,30) added at the :120 fetch)",
+              "The 75.16 deploy-surface test file is extended to lock the outcome (parsed-line asserts with comments stripped first and a non-empty guard; timeout assert if repairing), passing offline via this step's verification command exit 0",
+              "Mutation matrix in experiment_results.md: un-pinning a dep (or removing the timeout / restoring the retired config) each flips a test red",
+              "No deploy/network command executed; git diff confined to functions/earnings/, the test file, and handoff artifacts"
+            ],
+            "live_check": "handoff/current/live_check_75.16.1.md: verbatim verification output (exit 0) + git diff --stat."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.16.2",
+          "status": "pending",
+          "name": "Audit75 S16 follow-up -- archive deploy-config scrub [executor: sonnet-4.6/high; BOUNDARY: docs/archive/** only, repo-file edits, no deploys]. Discovered by the INDEPENDENT 75.16 Q/A's criterion-1 completeness sweep (wf_64083d75-5ee, 2026-07-24): docs/archive/pyfinagent-app/cloudbuild.yaml carries --allow-unauthenticated. It is a HISTORICAL ARCHIVE with zero live references (verified by the Q/A: not referenced by any live code, not in the 75.16 audit scope) -- so the risk is copy-paste resurrection, not invocation. At research: census docs/archive/** (and any other archive trees) for deploy configs / scripts carrying --allow-unauthenticated, credentialed URLs, or live-looking gcloud commands (two independent derivations, symmetric-difference reconciled per qa.md sec4b); then either (a) neutralize each in place (a clearly-marked ARCHIVED header + the dangerous flag lines commented with a do-not-resurrect note) or (b) delete where the archive value is nil -- decided per file with evidence. Extend backend/tests/test_phase_75_deploy_surface.py with a repo-wide scan asserting no ACTIVE (non-archive, non-comment) --allow-unauthenticated remains and that archive copies carry the neutralization marker; comment-stripped-first + non-empty-guard discipline; a mutation each direction.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_deploy_surface.py -q",
+            "success_criteria": [
+              "A measured census of archive deploy configs/scripts with dangerous flags exists in the research brief (two derivations reconciled by symmetric difference), and every censused file is either neutralized-in-place with the marker or deleted with evidence",
+              "The extended deploy-surface test asserts: zero ACTIVE --allow-unauthenticated outside archives/comments repo-wide, and every retained archive copy carries the neutralization marker (hard-fail on missing paths; non-empty scan set guard)",
+              "This step's verification command exits 0 and the pre-existing 75.16 assertions pass unchanged",
+              "Mutation matrix in experiment_results.md: adding an active --allow-unauthenticated to a non-archive file AND stripping one neutralization marker each flip the scan red",
+              "git diff confined to docs/archive/** + the test file + handoff artifacts; no deploy/network commands"
+            ],
+            "live_check": "handoff/current/live_check_75.16.2.md: verbatim verification output (exit 0) + git diff --stat."
           },
           "retry_count": 0,
           "max_retries": 3

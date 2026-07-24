@@ -13,8 +13,11 @@ from dotenv import load_dotenv
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
-# Load SA credentials from backend/.env (works regardless of ADC state)
-load_dotenv(Path(__file__).parent / "backend" / ".env")
+# Load SA credentials from backend/.env (works regardless of ADC state).
+# phase-75.16 (leg h): parents[2] anchors from this file to the repo root
+# regardless of the caller's CWD (was Path(__file__).parent, which resolved
+# to the nonexistent scripts/migrations/backend/.env).
+load_dotenv(Path(__file__).resolve().parents[2] / "backend" / ".env")
 
 PROJECT_ID = "sunny-might-477607-p8"
 DATASET = "financial_reports"

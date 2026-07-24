@@ -78,5 +78,10 @@ def fetch_raw_market_data(tickers, start_date, end_date, api_source):
         return stack_data[required_columns]
 
     except Exception as e:
+        # phase-75.16 (leg c): this used to swallow every exception into an
+        # empty DataFrame, which is indistinguishable from a genuine
+        # no-data range at the main.py caller (main.py could never observe
+        # a fetch failure and return 500). Re-raise so the caller can tell
+        # "fetch raised" apart from "fetch succeeded, zero rows".
         logging.error(f"Error fetching market data: {e}")
-        return pd.DataFrame()
+        raise

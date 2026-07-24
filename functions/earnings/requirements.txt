@@ -1,2 +1,7 @@
-requests>=2.25.0
-functions-framework>=3.0.0
+# phase-75.16 (deps-07): pinned to == (was `>=`). NOTE: this file is still
+# missing `vertexai` and `google-cloud-storage` -- both imported directly by
+# main.py -- which makes this function non-deployable as committed. That gap
+# is OUT OF SCOPE for this step (queued separately as masterplan step
+# 75.16.1); fixing it here would silently expand this leg's boundary.
+requests==2.32.5
+functions-framework==3.10.2

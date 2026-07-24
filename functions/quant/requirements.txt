@@ -1,5 +1,8 @@
-functions-framework
-requests
-yfinance
-python-dotenv
-google-cloud-storage
+# phase-75.16 (deps-07): pinned to == so pip-audit evaluates the actual
+# resolved dependency graph; versions match backend/requirements.lock as of
+# 2026-07-24.
+functions-framework==3.10.2
+requests==2.32.5
+yfinance==1.2.0
+python-dotenv==1.2.2
+google-cloud-storage==3.10.1

@@ -18,13 +18,20 @@ import json
 import os
 import sys
 import logging
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# phase-75.16 (leg h): this used to insert scripts/migrations itself onto
+# sys.path then `import backend.config.settings` below -- with repo root
+# NOT on sys.path, `backend` resolves to whatever unrelated package of that
+# name is in site-packages (see scripts/go_live_drills/kill_switch_test.py's
+# own warning about this exact hazard) or raises ModuleNotFoundError.
+# parents[2] anchors to the repo root regardless of the caller's CWD.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
 
-load_dotenv("backend/.env")
+load_dotenv(_REPO_ROOT / "backend" / ".env")
 
 from google.cloud import bigquery
 from google.oauth2 import service_account

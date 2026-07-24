@@ -61,7 +61,10 @@ def get_cik_map():
     headers = {'User-Agent': f"PyFinAgent {YOUR_EMAIL}"}
     for attempt in range(3):
         try:
-            response = requests.get(CIK_MAP_URL, headers=headers)
+            # phase-75.16 (leg d): requests has no default timeout -- an
+            # untimed call "may hang for minutes or more" (requests docs).
+            # (connect, read) tuple per requests' documented shape.
+            response = requests.get(CIK_MAP_URL, headers=headers, timeout=(5, 30))
             if response.status_code == 429:
                 wait = 2 ** attempt + 1
                 logging.warning(f"SEC 429 rate-limit on CIK map, retrying in {wait}s...")
@@ -137,7 +140,8 @@ def get_company_facts(cik_10_digit: str, ticker_str: str) -> dict:
     # Fallback to SEC API
     logging.info(f"Fetching company facts directly from SEC API for CIK{cik_10_digit}.")
     facts_url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik_10_digit}.json"
-    response = requests.get(facts_url, headers=SEC_API_HEADERS)
+    # phase-75.16 (leg d): see get_cik_map() above for the same timeout rationale.
+    response = requests.get(facts_url, headers=SEC_API_HEADERS, timeout=(5, 30))
     response.raise_for_status()
     facts = response.json()
     logging.info("Successfully fetched company facts from SEC API.")
@@ -249,10 +253,17 @@ def quant_agent(request):
             yield f"FINAL_JSON:{json.dumps(report)}"
     
         except Exception as e:
-            error_message = f"QuantAgent failed for {ticker_str}: {str(e)}\n{traceback.format_exc()}"
-            logging.critical(error_message, exc_info=True)
+            # phase-75.16 (leg d): the full traceback goes ONLY to Cloud
+            # Logging via logging.critical -- streaming it in the HTTP
+            # response body leaks internals to unauthenticated callers
+            # (CWE-209 / OWASP Top 10:2025 A10 "Mishandling of Exceptional
+            # Conditions"). The orchestrator only parses a single `ERROR:`
+            # -prefixed line (orchestrator.py aiter_lines()), so this is
+            # also a single-line yield -- never rename FINAL_JSON:/ERROR:.
+            tb = traceback.format_exc()
+            logging.critical(f"QuantAgent failed for {ticker_str}: {e}\n{tb}", exc_info=True)
             for log in stream_handler.queue: yield log
-            yield f"ERROR: {error_message}"
+            yield f"ERROR: QuantAgent failed for {ticker_str}: {str(e)}"
         finally:
             # IMPORTANT: Remove the handler to avoid adding it again on the next invocation
             logger.removeHandler(stream_handler)

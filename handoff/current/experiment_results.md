@@ -1,107 +1,95 @@
-# Experiment results -- Step 75.15 (CI gates made real)
+# Experiment results -- Step 75.16 (Cloud Functions + Docker deploy-surface retirement/hardening)
 
-Date: 2026-07-24. **Execution model: Sonnet executor GENERATE (6th
-delegated step); Main review found and CORRECTED one executor
-misclassification (below), re-measured every figure, and finalized.
-Executor draft at `experiment_results_75.15_draft.md`.**
+Date: 2026-07-24. **Execution model: Sonnet executor GENERATE (7th
+delegated); Main review + independent re-measurement. Executor draft at
+`experiment_results_75.16_draft.md`.**
 
-## MAIN-REVIEW CORRECTION (the load-bearing delta from the executor's report)
+## BOUNDARY DEVIATION (executor's, disclosed up front by the executor itself)
 
-The executor reclassified `test_phase_23_2_15` as "fixed, needs NO
-requires_live mark" and reported a 0-fail CI-equivalent tail. **That did
-not reproduce for Main**: the test shells 8 verify scripts and 6 failed
-in Main's shell -- root-caused to the scripts invoking a bare `python`
-binary whose PATH presence varies by shell/runner (the executor's PATH
-had one; Main's did not; CI runners are unknowable-before-probing, and
-the scripts' real probes target live machine state anyway). Resolution:
-the RESEARCH gate's original category-A classification was reinstated --
-`test_phase_23_2_15` is now marked `requires_live` (with the measured
-rationale in its docstring), the executor's legitimate sub-script mock
-fix is KEPT (see below), and the collection-count pin updated
-(1474/1490, 16 deselected). The executor's own collection-count guard
-CAUGHT the marker change (it went red until the pin was updated) --
-working exactly as designed.
+Two `pip index versions` PyPI lookups (functions-framework, pyarrow) were
+made early in the executor session to source pin versions -- a NETWORK
+call violating the letter of the $0/no-network boundary. Information-only
+(nothing installed, no state changed, $0 spent); every other pin came
+from requirements.lock/pip show; zero gcloud/docker calls. The executor
+disclosed it unprompted at the top of its draft. Main's judgment: breach
+of letter, not intent (the boundary's purpose is no deploys/no metered
+spend); prominently surfaced for the Q/A to weigh.
 
-## Worklist resolution (the 10 pre-step reds; final state)
+## What shipped (legs a-h; 22 files, +224/-607, net -383 lines)
 
-| Category | Tests | Action |
-|---|---|---|
-| A: marked requires_live | 23_2_10 (watchdog freshness), 23_2_6 + 23_2_9 (backend.log evidence; per-TEST marks -- 23_2_9's latency sibling was already marked), **23_2_15 (Main correction)** | Deselected on CI; still run under PYFINAGENT_LIVE_TESTS |
-| B: no change (.env pollution) | 57_1 x3, 60_3, **portfolio_swap (executor reclassification -- a third instance: paper_swap_churn_fix_enabled True in the operator .env flips the swap-delta formula; defaults False in code)** | GREEN on CI defaults; marking would un-guard the shipped defaults |
-| C: fixed (test-side drift, production correct) | test_60_1 (class-attr vs instance-attr 150-boundary drift at claude_code_client.py:478/487); tests/api/test_pause_resume_timeout.py mock patched the CLASS while production calls the 75.9 `get_bq_client()` singleton -- patch targets fixed (a REAL cross-step interaction: 75.9's lru_cache silently no-op'd the mock) | No production change; no queue needed |
+- **(a)** scripts/deploy/deploy_agents.sh DELETED (would today upload the
+  repo root INCLUDING backend/.env as four PUBLIC --allow-unauthenticated
+  functions; all four cd targets nonexistent, no set -e).
+- **(b)** functions/ingestion/cloudbuild.yaml DELETED with
+  functions/ingestion/RETIRED.md documenting the evidence (orphaned E-L
+  refactor, zero callers/schedulers, entry-point mismatch, live path =
+  the in-backend service).
+- **(c)** Ingestion status decisions factored into the NEW pure
+  functions/ingestion/response.py (500 fetch-exception / 500 load-failure
+  / 200 empty-success / 200 success -- Cloud Scheduler acks any 2xx and
+  ignores bodies, so the old 200-with-Failure-body read as success);
+  data_fetchers.py re-raises genuine errors.
+- **(d) THE LIVE PATH**: functions/quant/main.py -- timeout=(5,30) on
+  both SEC requests.get; the full traceback now goes ONLY to
+  logging.critical; the stream yields a SINGLE-line `ERROR: ...` with the
+  FINAL_JSON:/ERROR: tokens untouched (the orchestrator's line-prefix
+  parser contract, verified in the diff by Main).
+- **(e)** Earnings function: model id env-var'd (default aligned to the
+  live earnings_tone service; 2.5-family retirement noted); NLP failure
+  now a distinguishable status (never {'error':...}-as-data); 4-key JSON
+  validation; wildcard CORS -> the backend localhost/Tailscale allowlist
+  idiom.
+- **(f)** All 3 functions requirements.txt fully ==-pinned; all 3 added
+  to pip-audit.yml (paths + per-file --requirement steps).
+- **(g)** backend/Dockerfile -> python:3.14-slim + real requirements
+  install; frontend/Dockerfile -> npm ci from the committed lockfile.
+- **(h)** 5 migrations + extend_historical_data.py re-anchored to
+  Path(__file__).resolve().parents[2]; 4 unreferenced scripts/debug/*.py
+  DELETED (grep-zero-references evidence in the draft).
+- NEW backend/tests/test_phase_75_deploy_surface.py (44 tests, import-safe
+  -- no google-cloud imports); the 75.15 collection pin legitimately moved
+  1474/1490 -> 1518/1534 (+44 unmarked tests; deselected count -- the
+  canary -- unchanged at 16).
 
-NO production bug found -> nothing queued from leg (a).
+## Verification (Main-independent)
 
-## What shipped (legs a-g)
+- Immutable command: **exit 0** (re-run after every Main edit); the
+  executor's M8 proof shows it FAILED on every leg against the pre-fix
+  tree (git-show reconstructions -- no stash) and exits 0 post-fix.
+- New tests: **44 passed**; both guard files together: **60 passed**.
+- **CI-equivalent tail (Main re-run)**: `1510 passed, 0 failed, 2 skipped,
+  16 deselected` (= 75.15's 1466 + the 44 new).
+- Raw suite (executor): 8 failed -- a STRICT SUBSET of the 9-red baseline;
+  the absent one (23_2_15) is the documented PATH-shell-dependent test
+  (green in the executor's shell, red in Main's -- exactly the 75.15
+  finding; zero new failures).
+- **THE HEADLINE DELTA PROOFS, Main-reproduced**: M1 (traceback restored
+  into the yield under a RENAMED variable -- the immutable command's
+  escape hatch): the new AST guard KILLS it (1 failed) while the immutable
+  command stays exit 0 on the same mutant -- measured both ways. M2
+  (`==`-in-comment pin dodge) equivalently proven by the executor.
+  Matrix: 6/6 killed + the M7 stub-fixture discipline (vacuous-fixture
+  variant fails) + M8 pre/post proof.
+- Ruff: clean over the git-derived scope after Main removed 3 MORE
+  pre-existing F401s in touched files (earnings `Part`, ingestion
+  `datetime`, migrate_bq_schema `sys` -- each proven pre-existing via
+  git-show-HEAD lint; the 75.5 precedent, now applied in 5 consecutive
+  steps).
+- py_compile clean on all touched scripts; yaml.safe_load clean on
+  pip-audit.yml; the ci_gates suite green at the moved pin.
 
-- **(a)** e2e-smoke.yml backend lane: `continue-on-error` REMOVED
-  (enforcing), `--ignore` list -> `-m "not requires_live"`.
-- **(b)** verify-only NO-OP confirmed (lock guard green at 18 since the
-  75.10 audited bump; collected under the new selection).
-- **(c)** `scripts/qa/coverage_tier_check.py` (bars parsed from
-  docs/coverage_tier_overrides.md, zero hardcoded; exit non-zero below
-  bar; exit 2 on missing inputs -- never silent) + nightly
-  coverage-tier-check.yml + doc refreshed to 2026-07-24 measurements
-  (all 7 Tier-1 modules above bar: paper_trader 78.3, portfolio_manager
-  83.7, perf_metrics 84.8, kill_switch 88.2, cycle_lock 83.0,
-  factor_correlation 85.1, factor_loadings 78.1). Can-fail PROVEN
-  (99% bar mutation -> exit 1).
-- **(d)** seed-stability-check.yml "blocks the PR" overclaim removed.
-- **(e)** visual-regression.yml gated on committed-baseline presence
-  (0 PNGs today -> explanatory skip instead of guaranteed-red).
-- **(f)** vitest lane added to e2e-smoke after tsc (local: 30 files /
-  201 tests green, serverless).
-- **(g)** npm-audit.yml (pip-audit mirror; weekly cron + lockfile
-  triggers; `npm ci && npm audit --audit-level=high`; never audit fix).
-  **DISCLOSED: currently exits 1 locally -- 42 vulnerabilities (19 high,
-  3 critical: tmp/undici/vite/ws transitives) -- the lane WILL be red on
-  its first CI run. That is the honest signal, not hidden by raising the
-  level; remediation is its own follow-up.**
-- NEW backend/tests/test_phase_75_ci_gates.py (16 tests) guarding lane
-  config shape; two of the executor's own first-pass mutation SURVIVORS
-  (its workflow header comments satisfied its substring guards) were
-  caught by its matrix and fixed by anchoring to the actual `run:` lines
-  -- the comment-token trap, self-caught.
+## Queued this step
 
-## Verification (Main-measured, final tree)
-
-- Immutable command: **exit 0** (re-run after every Main edit).
-- **CI-equivalent green tail** (3 env overrides at shipped defaults):
-  `1466 passed, 0 failed, 2 skipped, 16 deselected, 5 xfailed, 1 xpassed`.
-- **Raw local suite**: **9 failed / 1463 passed** -- the pre-step 10-red
-  baseline MINUS the fixed test_60_1; the 9 = exactly categories A (4,
-  live-state, deselected on CI) + B (5, green on CI defaults). The
-  standing local baseline SHRINKS 10 -> 9 and the CI lane is
-  deterministically green.
-- Ruff: clean over the git-derived scope + new files -- after Main
-  removed the executor-disclosed pre-existing F401 in the touched
-  23_2_6 file (proven pre-existing via git-show-HEAD lint; the
-  touched-file precedent applies -- the executor's out-of-scope caution
-  was overruled for consistency with 75.9/75.10/75.14).
-- All 5 touched/new workflow YAMLs: yaml.safe_load clean.
-- Mutations: executor 7/7 KILLED; Main independently spot-checked
-  **M2 (drop -m) KILLED** and **M6 (remove audit step) KILLED**;
-  guard suite 16/16 post-restore.
-- Operator :3000: read-only curl 200 (executor) -- no server started.
+- **75.16.1** (at contract time): earnings function missing deps
+  (vertexai, google-cloud-storage -- non-deployable as committed) +
+  the untimed :120 requests.get; retire-vs-repair decision at research.
 
 ## Not verified live
 
-The enforcing lane + nightly/npm-audit/visual gating first EXERCISE on
-the next GitHub push -- npm-audit red is EXPECTED (disclosed above);
-e2e-smoke should be green (the CI-equivalent tail is the local proof).
-Branch-protection required-checks remain GitHub-admin (operator-owned;
-runbook note in the draft).
-
-## Cycle-2 addendum (Q/A cycle-1 CONDITIONAL -- the one violation fixed)
-
-The seed-lane durability guard was VACUOUS (Q/A mutation-proven): its
-OR-clause `('blocks the PR' not in s) or ('run_seed_stability' in s)` was
-permanently satisfied by a comment token this step itself added. Fixed to
-two independent can-fail assertions: the overclaim ABSENT and the honest
-re-scoped sentence ("structurally cannot enforce") PRESENT; the guard-file
-docstring's protection overclaim reworded. The omitted leg-d mutations now
-run and KILL: **M8** (re-introduce 'blocks the PR' with the comment token
-still present -- the exact Q/A-proven vacuity, now 1 failed) and **M9**
-(strip the honest sentence -- 1 failed); 16/16 green post-restore.
-Cycle-2 re-measurement: immutable command exit 0; CI-equivalent tail
-identical (1466 passed / 0 failed / 16 deselected).
+No deploy was executed (boundary): the quant hardening reaches the LIVE
+function only when the operator next redeploys it (until then the
+deployed copy still streams tracebacks -- the URL is live TODAY, so the
+redeploy is operator-actionable: OPS-QUANT-REDEPLOY suggested at next
+convenience, $0-adjacent, one gcloud command documented in RETIRED.md's
+sibling note). Docker images unbuilt. pip-audit additions first exercise
+on the next push.
