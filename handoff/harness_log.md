@@ -28271,3 +28271,11 @@ finished, or expect and pre-explain these transients in the executor prompt.
 - Tonight's 02:00 cron still runs the METERED direct API (unchanged) -- it
   remains the unmodified-path evidence; if credits are still dead it will
   ERROR on the LLM call (phase-72 token), NOT on arxiv.
+
+### Cycle 155 addendum -- 2026-07-24 -- operator APPROVED the 75.20.1 diff
+
+Operator reply "i approve" (attended, same day). Held stack pushed to origin/main
+(74e1b772 qa-write-guard + 8c48cc11 Max-rail test evidence + f2e5ffda phase-78
+install + changelogs). 75.20.1 flip -> done executes now. The qa-write-guard hook
+binds for Main's own calls at next session start (one-glance guard-log check owed);
+it already binds for every freshly-spawned qa subagent (probe-proven).
