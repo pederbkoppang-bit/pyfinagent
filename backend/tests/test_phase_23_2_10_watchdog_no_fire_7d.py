@@ -66,9 +66,22 @@ def _extract_log_lines_in_window() -> list[str]:
     return in_window
 
 
+@pytest.mark.requires_live
 def test_phase_23_2_10_watchdog_log_present_and_fresh():
     """The watchdog log file must exist + be fresh (entries within last 24h).
-    Stale log = watchdog process is dead = invisible failure mode."""
+    Stale log = watchdog process is dead = invisible failure mode.
+
+    phase-75.15 (qa-tests-01): asserts LIVE machine state -- a running
+    backend-watchdog process having ticked within the last 24h. On a fresh
+    CI checkout `handoff/logs/` is gitignored (not tracked), so the file is
+    absent and this test SKIPS cleanly there. It fails on the OPERATOR's
+    machine instead: the log file exists (real launchd watchdog artifact)
+    but its freshness window lapsed (measured 1016h stale 2026-07-24 --
+    the watchdog process isn't currently running). That's genuine
+    live-machine state, not code drift -- quarantined per the
+    requires_live convention (pytest.ini:9); set PYFINAGENT_LIVE_TESTS=1
+    to run.
+    """
     if not WATCHDOG_LOG.exists():
         pytest.skip(f"watchdog log not present: {WATCHDOG_LOG}")
     text = WATCHDOG_LOG.read_text(encoding="utf-8", errors="replace")

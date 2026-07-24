@@ -66,9 +66,21 @@ def test_phase_23_2_9_prewarm_hook_present_in_main():
     )
 
 
+@pytest.mark.requires_live
 def test_phase_23_2_9_backend_log_has_prewarm_evidence():
     """backend.log must show the prewarm line has fired at least once
-    (researcher counted 54 occurrences). Defensive bound: >= 1."""
+    (researcher counted 54 occurrences). Defensive bound: >= 1.
+
+    phase-75.15 (qa-tests-01): asserts LIVE backend.log evidence (the
+    file is gitignored -> absent + skip on a fresh CI checkout). Fails
+    locally: the prewarm line only fires on backend BOOT
+    (backend/main.py's startup hook), and the live backend.log (measured
+    2026-07-24) has zero occurrences in its current, unrotated window --
+    the process simply hasn't restarted recently, unlike its already-
+    marked latency sibling in this file. Genuine live-system uptime
+    state, not a code defect -- quarantined per the requires_live
+    convention (pytest.ini:9); set PYFINAGENT_LIVE_TESTS=1 to run.
+    """
     backend_log = REPO_ROOT / "backend.log"
     if not backend_log.exists() or backend_log.stat().st_size < 100:
         pytest.skip(f"backend.log not present or too small: {backend_log}")

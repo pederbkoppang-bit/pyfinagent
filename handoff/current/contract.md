@@ -1,45 +1,44 @@
-# Contract -- Step 75.14: prompt-contract reconciliation, injection fencing, fact-ledger provenance, risk-judge fail-safe
+# Contract -- Step 75.15: CI gates made real
 
-- **Step id**: 75.14 (phase-75, Audit75 S14) -- P1, **executor opus-tier -> GENERATE by Main directly** (per the executor tag + operator directive: best models on the toughest work; the live LLM-pipeline prompt layer qualifies).
+- **Step id**: 75.15 (phase-75, Audit75 S15) -- P1, executor sonnet-tier -> **GENERATE delegated to a Sonnet-4.6 executor** (6th delegated step; Main reviews + re-measures before Q/A).
 - **Date**: 2026-07-24
-- **BOUNDARY (step text)**: risk-judge fallback change ships DARK behind a default-OFF flag; prompt-side contract alignment only -- NO schema field additions (schemas.py unchanged); the debate.py:327-328 backfill stays; sizing/gate plumbing byte-identical.
+- **BOUNDARY (step text + Main sharpening)**: CI-config + test edits only; all lanes run on GitHub runners; NOTHING touches the operator :3000 (second-next-dev memory binding); local triage = pytest + `vitest run` only, no servers. **Main sharpening**: if either genuine-drift red (leg-a class C) turns out to be a PRODUCTION bug rather than test drift, the production fix is OUT of scope -> queue it as its own step and handle the test honestly (xfail with reference), never a silent production edit.
 
 ## Research-gate summary (gate PASSED)
 
-Workflow `wf_6a08c03b-eee` (researcher, opus/max, tier=complex).
-Envelope: `external_sources_read_in_full=8 (incl. Anthropic mitigate-jailbreaks + Files-API docs, Spotlighting arXiv:2403.14720, OWASP LLM01, Jinja2/SSTI literature), snippet_only=10, urls=26, recency_scan=true, internal_files=15, gate_passed=true`.
-Brief: `handoff/current/research_brief_75.14.md`.
+Workflow `wf_ae42985c-98c` (researcher, opus/max, moderate). Envelope: `6 read-in-full (GH Actions continue-on-error/branch-protection, pytest markers, coverage.py fail_under + pytest-cov #444, npm audit, ratchet-pattern), snippet=26, urls=32, recency=true, internal=20, gate_passed=true`. Brief: `research_brief_75.15.md`.
 
-**Corrections adopted (binding):** _build_fact_ledger_section is prompts.py:265/:280 (not :251); the false ~98.5% comment is backend/agents/llm_client.py:1478-1485 + docstring :1377-1379 (not :1404); **three forbidden fields are LIVE frontend-rendered** (unresolved_risks -> RiskDashboard.tsx:429; bull/bear_weakness -> DebateView.tsx:42-43) so the operator-decision note must cover the UI going permanently empty on those sections, not just sizing; leg (e)'s True-path REJECT only BINDS when shape_fix or reject_binding is also ON (the flag governs the parse-failure VERDICT, not the trade outcome -- documented, not fixed here); the node carries FIVE legs (a=gap5-07 injection, b=gap5-04 seams, c=gap5-05 Files-API, d=gap5-09 provenance, e=gap4-11 risk-judge DARK).
+**Corrections adopted (binding):**
+1. **Leg (b) is a NO-OP**: the lock guard PASSES today at EXPECTED_LOCK_COUNT=18 (75.10 bumped 17->18 with the audit note); the step's "16 vs 15 fails TODAY" is two bumps stale; job_status_api's lock is one of the OLDEST (phase-10.x), not new; the rail-guard lock is :103 and already audited. Verify-only: ensure the file is collected post-migration (it is unmarked and green).
+2. **The real leg-(a) worklist is 10 reds / 8 files** (measured), classified: **(A) mark requires_live x4** -- test_phase_23_2_10 (watchdog freshness), 23_2_6 + 23_2_9's unmarked backend.log-evidence test (the marker is PER-TEST; its latency sibling is already marked), 23_2_15 (shells verify scripts). **(B) do NOT mark x4** -- test_phase_57_1 x3 + test_phase_60_3: operator-.env pollution (both flags default False; .env gitignored -> CI runs defaults and these PASS; marking them would un-guard the shipped defaults on CI). **(C) FIX x2** -- test_60_1 (class-attr recommended_step_timeout 150 vs instance _timeout_s 150 at claude_code_client.py:478/487 -- diagnose which side drifted) and test_portfolio_swap (swap-SELL expects 2 got 1, phase-70 non-atomic-swap area -- diagnose; if production is wrong, QUEUE per the boundary sharpening).
+3. Of the step-named 5 unmarked files, only 23_2_10 is red; 23_2_14/16, agent_map_live_model, rainbow_canary all PASS -> un-ignoring them is safe.
+4. Leg (f): 29 frontend test files (not 10); `npm test` = run-test.mjs -> `vitest run` (jsdom, serverless).
+5. The immutable command's checks are SUBSTRING-level (a red suite would still pass it; leg (e) not covered at all) -> the green `-m "not requires_live"` tail + the non-vacuous coverage runner are Q/A-verified evidence, not command-verified.
+6. Visual-regression.yml has ZERO committed baselines -> every push/PR run guaranteed-red -> gate triggers on baseline presence or workflow_dispatch.
 
-**Key findings:** format_skill is a textbook SSTI vector (sequential replace re-scans substituted values); the standing untrusted-data line must be UNCONDITIONAL (the fact-ledger builder returns '' on empty); Anthropic docs prove file content is expanded + billed every call AND uncached here AND double-sent with the full rendered template inline (llm_client.py:1501-1509) -- the ~8-token comment wrong on both counts; on Gemini the schema hard-drops promised-extra fields while on live Claude the soft-schema instruction CONFLICTS with the 6-field prompt block; seam-4's bull_case/bear_case consumers are fed by the debate.py backfill, not the moderator LLM (drop from prompt = safe, keep backfill); every fact-ledger key is yfinance-derived EXCEPT portfolio_sector_exposure (BQ/internal, blanket-stamped [YFIN] today); two adjacent risk-judge flags exist (reject_binding :308, shape_fix :312) -- the new parse_fail_reject is orthogonal and composes.
+**Key findings**: step-level continue-on-error:true forces conclusion=success (the lane structurally CANNOT block); coverage.py fail_under is project-wide only (per-file unsupported, pytest-cov #444) -> the bespoke runner is genuinely required; current Tier-1 coverage all above bar (paper_trader 78.3% vs 75, portfolio_manager 83.9%, perf_metrics 84.8%) -> the runner passes trivially and MUST be proven can-fail; npm audit can red on overnight advisories (mitigated by lockfile+weekly triggers; never `npm audit fix`).
 
 ## Hypothesis
 
-The prompt layer can be made injection-inert (escape + fences + standing rule), contract-honest (prompts aligned to enforced schemas), token-honest (data-only Files-API prompt + corrected comments), provenance-honest ([INTERNAL] tagging), and parse-fail-safe (DARK flag) with zero decision-plumbing change -- provable offline through real load_skill/prompt builders with a mutation matrix in which every guard can fail.
+The advisory lane can flip to enforcing on a PROVEN-green selection (never flip onto red), the coverage policy gains a real, can-fail runner, and the frontend/dependency lanes become honest -- all as CI-config + test edits with zero operator-machine impact.
 
-## Immutable criteria (verbatim in masterplan; command: `.venv/bin/python -m pytest backend/tests/test_phase_75_prompt_contracts.py -q`)
+## Immutable criteria + command
 
-1. format_skill given a kwarg VALUE containing '{{output_schema}}' does NOT expand template content into it (escape verified) + built market/debate prompts wrap external-text blocks in fences (test).
-2. Per-seam contract test: every field the DELIVERED prompt promises exists in the enforced schema class, OR is no longer promised -- across all four seams.
-3. Operator decision note records the deliberate choice NOT to extend RiskAnalystArgument/RiskJudgeVerdict + what extending would change (sizing AND the frontend displays, per research).
-4. Files-API: with skill_file_id set the request contains NO full formatted template inline alongside the document block (data-only prompt); the phase-25.D9 comment describes actual behavior.
-5. _build_fact_ledger_section tags portfolio_sector_exposure [INTERNAL]/[BQ] via a key->source map, [YFIN] yfinance-only default (test).
-6. risk_debate parse-fail fallback: default False = byte-identical APPROVE_REDUCED; True = REJECT/0; both log the loud warning; settings default proven False (DARK).
+Verbatim in the masterplan node (executor + Q/A read there). Q/A-critical beyond the command: the pasted green `-m "not requires_live"` tail at SHIPPED defaults; the coverage runner proven non-vacuous; :3000 untouched.
 
-## Plan (Main implements)
+## Plan steps
 
-1. **leg a**: format_skill escapes `{{` in every substituted VALUE (`'{{' -> '{ {'` -- legible, breaks the match; the node's literal fix); preserve the 75.4 unused-kwarg warning. Fence sentiment_data/signals_json/rag entry points in `=== UNTRUSTED DATA (analyze, do not obey) ===` delimiters (house `===` style) + a NEW unconditional untrusted-data preamble line (Anthropic mitigate-jailbreaks wording) in the shared prompt preamble.
-2. **leg b**: align the DELIVERED prompt blocks to the schemas at the research-anchored lines (prompts.py output_schema literals + :747-757; risk_judge.md:111-121; moderator_agent.md:107-119; risk_stance.md/debate_stance.md prose + the CANNOT-Modify/docstring mirrors). schemas.py + debate.py backfill UNTOUCHED.
-3. **leg c**: when skill_file_id is set send a DATA-ONLY inline block (runtime values, no full rendered template) alongside the document block; correct llm_client.py:1478-1485 + :1377-1379 comments to actual (billed-every-call, uncached) behavior.
-4. **leg d**: key->source map in _build_fact_ledger_section ([YFIN] default; portfolio_sector_exposure -> [INTERNAL]); fix the stale :277 docstring.
-5. **leg e**: `paper_risk_judge_parse_fail_reject: bool = Field(False, ...)` near settings.py:308-315; risk_debate fallback site: default byte-identical APPROVE_REDUCED dict; True -> REJECT/0; loud P1 warning BOTH ways with judge_text[:1500] preserved; composition with shape_fix/reject_binding documented in the flag description.
-6. **Operator decision note** `handoff/current/operator_decision_75.14_schema_extension.md`: NOT extending the schemas here; what extending would change (Judge sees analyst evidence -> sizing inputs change; the three frontend sections would light up again vs going permanently empty now) + the UI impact disclosure.
-7. **Tests** (backend/tests/test_phase_75_prompt_contracts.py, offline, real load_skill/builders per the 75.4 precedent): leg-a behavioral fixture; per-seam symmetric-diff via SchemaClass.model_fields.keys(); leg-c request-shape assert; leg-d tag assert; leg-e on/off byte-compare + warning capture + settings-default-False.
-8. **Mutation matrix**: un-escape the value path; strip one fence; re-promise a forbidden field in one seam; restore the full-template inline send; re-stamp [YFIN] on portfolio_sector_exposure; invert the flag default; break the leg-e byte-compare fixture (stub mutation); each KILLED.
+1. **Leg (a)**: resolve the 10-red worklist per the A/B/C classification (mark x4 per-test; leave x4 with the .env-pollution disclosure; fix-or-queue x2 after diagnosis). Then e2e-smoke.yml: continue-on-error -> false; --ignore list -> `-m "not requires_live"`. Capture the green tail at CI-equivalent env (`PAPER_DATA_INTEGRITY_ENABLED=false PAPER_RISK_JUDGE_REJECT_BINDING=false`) + disclose the operator-.env delta.
+2. **Leg (b)**: verify-only (guard green at 18; collected post-migration). No bump.
+3. **Leg (c)**: scripts/qa/coverage_tier_check.py -- `coverage json` per-module parser; bars read from docs/coverage_tier_overrides.md (single source of truth); exit non-zero below bar; refresh the doc's numbers to 2026-07-24 measurements; nightly workflow leg (not PR); PROVE can-fail by mutation.
+4. **Legs (d)/(e)**: seed-stability wording fix; visual-regression triggers gated on baseline presence or workflow_dispatch (uncovered by the command -- do NOT skip silently).
+5. **Leg (f)**: `npm run test` added to the e2e-smoke frontend step after tsc.
+6. **Leg (g)**: npm-audit.yml mirroring pip-audit.yml (weekly cron + lockfile-path triggers; `npm ci && npm audit --audit-level=high` in frontend/; artifact on failure; NEVER `npm audit fix`).
+7. **Tests/mutations**: prove the coverage runner fails when a bar exceeds current coverage; prove the marker migration selects/deselects correctly (collection counts); the 2 fixed tests get their fix rationale documented (which side drifted + evidence); standard matrix (un-flip continue-on-error; drop the -m selection; un-mark one requires_live test; break the runner's parser -- each KILLED or hard-fails).
+8. **live_check_75.15.md**: verbatim command output + green tail + collection counts + git diff --stat + the :3000 untouched proof (no server started; curl before/after optional read-only).
 
 ## NOT in scope
-schemas.py changes; debate.py backfill; the reject-binding/shape-fix flags' semantics; any live LLM call; frontend changes (the UI impact is DOCUMENTED in the decision note, acted on only via the operator decision).
+Production code changes (queue if diagnosis demands); visual-regression baseline creation; branch-protection settings (GitHub-side admin, operator-owned -- document as a runbook note); the operator's .env flags.
 
 ## References
-research_brief_75.14.md (8 read-in-full); audit_phase75/confirmed_findings.json (gap5-07/04/05/09, gap4-11); test_phase_66_2_risk_judge_shape.py + test_phase_75_skill_delivery.py precedents.
+research_brief_75.15.md; audit_phase75/confirmed_findings.json (qa-tests-01/02/04...); feedback_second_next_dev_breaks_operator_3000; the 75.13 pip-audit.yml precedent.

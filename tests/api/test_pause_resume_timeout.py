@@ -43,8 +43,14 @@ def test_resume_returns_503_when_bq_hangs():
 
     req = KillSwitchActionRequest(confirmation="RESUME")
 
+    # phase-75.15 fix: resume_trading calls get_bq_client() (an @lru_cache
+    # singleton factory, backend/db/bigquery_client.py:1116, added
+    # phase-75.9), not `BigQueryClient(...)` directly -- patching the class
+    # was a no-op post-75.9 and let the real cached client's live BQ data
+    # leak through (verify_phase_23_1_22.py started exit=1'ing silently).
+    # Patch the actual call site's name instead.
     with patch(
-        "backend.api.paper_trading.BigQueryClient",
+        "backend.api.paper_trading.get_bq_client",
         return_value=SimpleNamespace(get_paper_portfolio=_slow_get_paper_portfolio),
     ):
         t0 = time.monotonic()
@@ -70,8 +76,11 @@ def test_kill_switch_status_degrades_gracefully_when_bq_hangs():
     in-memory state, so the response is informative even with portfolio=None."""
     from backend.api.paper_trading import get_kill_switch_state
 
+    # phase-75.15 fix: see test_resume_returns_503_when_bq_hangs -- same
+    # stale patch target (get_bq_client() singleton, not the BigQueryClient
+    # class, is what get_kill_switch_state actually calls).
     with patch(
-        "backend.api.paper_trading.BigQueryClient",
+        "backend.api.paper_trading.get_bq_client",
         return_value=SimpleNamespace(get_paper_portfolio=_slow_get_paper_portfolio),
     ):
         t0 = time.monotonic()

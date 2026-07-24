@@ -64,8 +64,14 @@ def test_phase_23_2_15_verify_scripts_present_on_disk():
     )
 
 
+@pytest.mark.requires_live
 def test_phase_23_2_15_known_pass_scripts_still_pass():
-    """The 8 scripts that PASSed at researcher live-run (2026-05-23) must
+    """phase-75.15: marked requires_live -- the shelled verify scripts probe
+    live operator-machine state AND invoke a bare `python` binary whose PATH
+    presence varies by shell/runner (measured 2026-07-24: 6 of 8 fail in a
+    PATH-minimal shell), so this test's contract is the live machine, not CI.
+
+    The 8 scripts that PASSed at researcher live-run (2026-05-23) must
     still PASS now. Catches regression in any of cycles 12, 15, 17, 18,
     19, 21, 22, 23."""
     expected_pass_cycles = {c for c, ok in KNOWN_PASS.items() if ok}

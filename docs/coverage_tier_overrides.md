@@ -28,10 +28,10 @@ Risk-bearing execution paths: capital-protection invariants. A bug here means re
 
 | Module | Line | Branch | Status |
 |---|---|---|---|
-| `backend/services/kill_switch.py` | **89%** | (combined 89%) | PASS |
-| `backend/services/cycle_lock.py` | **84%** | (combined 84%) | PASS |
-| `backend/services/factor_correlation.py` | **85%** | (combined 85%) | PASS |
-| `backend/services/factor_loadings.py` | **78%** | (combined 78%) | PASS |
+| `backend/services/kill_switch.py` | **88.2%** | (combined 88.2%) | PASS |
+| `backend/services/cycle_lock.py` | **83.0%** | (combined 83.0%) | PASS |
+| `backend/services/factor_correlation.py` | **85.1%** | (combined 85.1%) | PASS |
+| `backend/services/factor_loadings.py` | **78.1%** | (combined 78.1%) | PASS |
 
 ### Tier-1 EXTENDED (>=75% combined STRICT bar, post-phase-43.0.2)
 
@@ -39,9 +39,9 @@ All 3 modules cleared STRICT bar in cycle 55 (phase-43.0.2 closure).
 
 | Module | Combined | Status | Lift |
 |---|---|---|---|
-| `backend/services/paper_trader.py` | **79.1%** (post-phase-43.0.2) | PASS STRICT | +28pp (51% -> 79%) -- execute_sell + execute_buy-avg-up + backfill + scale-out + flatten_all + check_and_enforce_kill_switch + check_stop_losses + save_daily_snapshot |
-| `backend/services/portfolio_manager.py` | **81.2%** (post-phase-43.0.2) | PASS STRICT | +15pp (66% -> 81%) -- _extract_position_pct + _extract_stop_loss + decide_trades branches (stop_loss / sell_signal / signal_downgrade / already-held / max-positions / sector-cap) |
-| `backend/services/perf_metrics.py` | **81.2%** (post-phase-43.0.2) | PASS STRICT | +27pp (54% -> 81%) -- PSR / DSR / Sortino / Calmar / bootstrap-CI / compute_sharpe_gap / shadow_curve_sharpe / reconciliation_divergence_pct / get_scalar_metric_from_bq |
+| `backend/services/paper_trader.py` | **78.3%** (2026-07-24) | PASS STRICT | -0.8pp vs 2026-05-25 (79.1% -> 78.3%), still >75% bar -- execute_sell + execute_buy-avg-up + backfill + scale-out + flatten_all + check_and_enforce_kill_switch + check_stop_losses + save_daily_snapshot |
+| `backend/services/portfolio_manager.py` | **83.7%** (2026-07-24) | PASS STRICT | +2.5pp vs 2026-05-25 (81.2% -> 83.7%) -- _extract_position_pct + _extract_stop_loss + decide_trades branches (stop_loss / sell_signal / signal_downgrade / already-held / max-positions / sector-cap) |
+| `backend/services/perf_metrics.py` | **84.8%** (2026-07-24) | PASS STRICT | +3.6pp vs 2026-05-25 (81.2% -> 84.8%) -- PSR / DSR / Sortino / Calmar / bootstrap-CI / compute_sharpe_gap / shadow_curve_sharpe / reconciliation_divergence_pct / get_scalar_metric_from_bq |
 
 ### Tier-2 (>=60% combined; business-logic services / agents / api)
 
@@ -69,14 +69,29 @@ Confirmed dead code or deferred-deployment code that no live path reaches. Enume
 
 ## 3. DoD-4 verdict under tiered policy
 
-**PASS (Tier-1 STRICT) + PASS (Tier-1 EXTENDED at STRICT) + PASS (Tier-2 at 60% floor)** (post-phase-43.0.2).
+**PASS (Tier-1 STRICT) + PASS (Tier-1 EXTENDED at STRICT) + PASS (Tier-2 at 60% floor)** (measured 2026-07-24, phase-75.15).
 
-All Tier-1 EXTENDED modules cleared the 75% line+branch STRICT bar in cycle 55:
-- paper_trader.py: 79.1%
-- portfolio_manager.py: 81.2%
-- perf_metrics.py: 81.2%
+All 7 Tier-1 modules (STRICT + EXTENDED) clear the 75% combined bar today:
+- kill_switch.py: 88.2%, cycle_lock.py: 83.0%, factor_correlation.py: 85.1%, factor_loadings.py: 78.1%
+- paper_trader.py: 78.3%, portfolio_manager.py: 83.7%, perf_metrics.py: 84.8%
 
 DoD-4 gate is **FULL GREEN** for Tier-1 (both STRICT and EXTENDED tracks) and Tier-2 floor. No silent drops; all follow-ups closed.
+
+## 3a. Enforcement (phase-75.15, qa-tests-04)
+
+This doc was measurement-only until phase-75.15: nothing re-derived these
+numbers on a schedule, and coverage.py's own `fail_under` is project-wide
+only (no native per-module threshold -- pytest-cov#444 is still open).
+`scripts/qa/coverage_tier_check.py` closes that gap: it PARSES the two
+Tier-1 tables above (the backtick-quoted module paths + each section's
+">=NN%" header) as the single source of truth -- no bars are hardcoded in
+the script -- and fails (non-zero) when a fresh `coverage json` shows any
+of the 7 modules below its section's bar, or errors (exit 2, never a
+silent pass) if the doc or the coverage report can't be parsed. Wired
+into `.github/workflows/coverage-tier-check.yml` (nightly +
+workflow_dispatch, not on every PR -- the full-suite `--cov` run adds
+meaningfully to wall-clock time). Whenever this doc's numbers are
+refreshed, re-run the checker locally to confirm it still parses cleanly.
 
 ## 4. Defensibility chain
 
@@ -96,3 +111,4 @@ This file is the operator-override record. Append-only on future revisions. No m
 | 2026-05-25 | 53 | Tier policy adopted; baseline measurements recorded | Initial operator override post "i approve" + "you decide". |
 | 2026-05-25 | 54 | phase-43.0.1 Tier-1 EXTENDED floor cleanup: perf_metrics 59% -> 64% (+5pp); cycle_health 54% -> 72% (+18pp). Both above 60% floor; cycle_health approaching 75% STRICT bar. | 10 targeted tests for compute_benchmark_return / beat_benchmark / turnover_ratio / tx_cost_drag / scalar_metric / _band / _worst_band / _bq_max_event_age / compute_freshness. |
 | 2026-05-25 | 55 | phase-43.0.2 Tier-1 EXTENDED -> STRICT lift: ALL 3 modules cleared 75% bar. paper_trader 62%->79.1% (+17pp); portfolio_manager 62%->81.2% (+19pp); perf_metrics 64%->81.2% (+17pp). | 32 additional targeted tests covering execute_buy-avg-up, backfill_stops, check_scale_out_fires, decide_trades branches, PSR/DSR/Sortino/Calmar/bootstrap-CI, compute_sharpe_gap, shadow_curve_sharpe, get_scalar_metric_from_bq, check_and_enforce_kill_switch, check_stop_losses, flatten_all, save_daily_snapshot. |
+| 2026-07-24 | phase-75.15 | Refreshed all 7 Tier-1 numbers (previously stale since 2026-05-25). Measured via full non-live suite (`-m "not requires_live"`, CI-equivalent env) + `coverage json`: kill_switch 89%->88.2%, cycle_lock 84%->83.0%, factor_correlation 85%->85.1%, factor_loadings 78%->78.1%, paper_trader 79.1%->78.3% (drift, still >75% bar), portfolio_manager 81.2%->83.7% (+2.5pp), perf_metrics 81.2%->84.8% (+3.6pp). Added `scripts/qa/coverage_tier_check.py` (parses this doc's bars, no hardcoded thresholds) + nightly `.github/workflows/coverage-tier-check.yml` -- the policy now has a real, can-fail enforcement runner instead of being measurement-only. See CLI command in section 3a. |

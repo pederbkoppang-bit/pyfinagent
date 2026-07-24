@@ -22,7 +22,6 @@ counted; (c) log message format drift; (d) cap=0-disables semantics.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -227,10 +226,24 @@ def test_phase_23_2_6_cap_zero_disables_gate(caplog):
     )
 
 
+@pytest.mark.requires_live
 def test_phase_23_2_6_backend_log_has_skipping_buy_evidence():
     """Read-only verification: backend.log must contain at least one
     'Skipping BUY ... at cap' line if the gate has ever fired in the
-    log's retention window. Researcher counted 24 today."""
+    log's retention window. Researcher counted 24 today.
+
+    phase-75.15 (qa-tests-01): asserts LIVE backend.log evidence on THIS
+    machine (root backend.log + its handoff/logs/*.gz rotation archives,
+    both gitignored -> absent + skip on a fresh CI checkout). Fails
+    locally because it IS live-system-dependent: the live backend.log
+    (114MB, size>=100 met) has zero 'Skipping BUY' occurrences measured
+    2026-07-24, and the newest rotation archive (2026-07-06) also has
+    zero -- an older 2026-06-12 archive has 56, but the fallback only
+    checks the single newest archive. No recent sector-cap-blocked BUY
+    in this window is genuine live-system state, not a code defect --
+    quarantined per the requires_live convention (pytest.ini:9); set
+    PYFINAGENT_LIVE_TESTS=1 to run.
+    """
     backend_log = REPO_ROOT / "backend.log"
     if not backend_log.exists() or backend_log.stat().st_size < 100:
         pytest.skip(f"backend.log not present or too small: {backend_log}")

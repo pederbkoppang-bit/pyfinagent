@@ -329,8 +329,17 @@ def test_60_1_claude_code_rail_declares_latency_profile():
 
     # The declared step budget must sit ABOVE the rail's own subprocess
     # timeout, or the step gives up while the CLI call is still in flight.
+    # phase-75.15 fix (test-vs-code drift, not a regression): phase-61.2
+    # (claude_code_client.py:487) moved recommended_step_timeout from a
+    # fixed class attribute to a per-instance override
+    # (`timeout_s + 30`) precisely so ANY configured `timeout_s` keeps the
+    # budget above it -- the CLASS attribute (:478, still 150, kept as a
+    # documentation-only default) was never updated to reflect that, and
+    # this assertion kept reading the class side, comparing 150 > 150 =
+    # False at the default `timeout_s=150`. Read the INSTANCE attribute,
+    # which is what _generate_with_retry actually consults.
     client = ClaudeCodeClient("claude-sonnet-4-6")
-    assert ClaudeCodeClient.recommended_step_timeout > client._timeout_s
+    assert client.recommended_step_timeout > client._timeout_s
 
 
 def test_60_1_digest_renders_lite_full_markers():

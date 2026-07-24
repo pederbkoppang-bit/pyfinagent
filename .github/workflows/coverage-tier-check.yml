@@ -1,0 +1,62 @@
+name: Coverage Tier Check
+
+# phase-75.15 (qa-tests-04): enforces the DoD-4 tiered coverage policy
+# (docs/coverage_tier_overrides.md) via scripts/qa/coverage_tier_check.py.
+# coverage.py's `fail_under` is project-wide only (no native per-module
+# threshold, pytest-cov#444 open) -- this is the bespoke per-module gate.
+#
+# Nightly (not on every PR/push): a full-suite `--cov` run adds real
+# wall-clock time on top of the already-run credential-free suite in
+# e2e-smoke.yml, and Tier-1 coverage drift is a slow-moving signal, not a
+# per-commit one. workflow_dispatch is available for on-demand checks.
+
+on:
+  schedule:
+    - cron: '42 6 * * *'   # 06:42 UTC nightly (offset from e2e-smoke's 06:17)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage-tier-check:
+    name: Tier-1 coverage floor
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run full non-live suite under coverage
+        env:
+          PAPER_DATA_INTEGRITY_ENABLED: "false"
+          PAPER_RISK_JUDGE_REJECT_BINDING: "false"
+          PAPER_SWAP_CHURN_FIX_ENABLED: "false"
+        run: |
+          python -m pytest backend/tests/ -q -m "not requires_live" \
+            --cov=backend --cov-report=json:coverage.json --cov-report=term
+
+      - name: Enforce Tier-1 coverage floor
+        run: python scripts/qa/coverage_tier_check.py --coverage-json coverage.json
+
+      - name: Upload coverage report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-tier-report
+          path: coverage.json
+          retention-days: 30

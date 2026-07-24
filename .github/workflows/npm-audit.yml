@@ -1,0 +1,73 @@
+name: npm-audit
+
+# Supply-chain security audit: scans the frontend's LOCKED dependency
+# graph for known CVEs against the npm advisory database. Mirrors
+# pip-audit.yml's shape (weekly schedule + lockfile-change triggers +
+# artifact-on-failure) for the frontend side of the stack.
+#
+# phase-75.15 (deps-06): `npm ci` (deterministic, honors package-lock.json
+# exactly) then `npm audit --audit-level=high` (fails only on high/critical
+# advisories -- npm docs: "--audit-level ... minimum level of vulnerability
+# for npm audit to exit with a non-zero exit code"). NEVER run
+# `npm audit fix` in this gate -- it mutates dependencies/the lockfile,
+# which is a code change requiring its own review, not something a CI
+# audit job should do silently.
+#
+# KNOWN AT AUTHORING (2026-07-24, disclosed not hidden): `npm audit
+# --audit-level=high` in frontend/ currently exits 1 (42 vulnerabilities:
+# 1 low, 19 moderate, 19 high, 3 critical -- tmp, undici, vite, ws
+# transitives). This lane WILL be red on its first run until those are
+# triaged/updated; that is the correct, honest signal -- raising the
+# level to hide it would defeat the gate's purpose.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/package-lock.json"
+      - ".github/workflows/npm-audit.yml"
+  pull_request:
+    paths:
+      - "frontend/package-lock.json"
+  schedule:
+    # Weekly, Mondays at 07:15 UTC (offset from pip-audit.yml's 07:00 to
+    # avoid both audits queueing on the same minute).
+    - cron: "15 7 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (locked)
+        run: npm ci
+
+      - name: Run npm audit (high + critical)
+        run: npm audit --audit-level=high
+
+      - name: Upload audit output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: |
+            frontend/package.json
+            frontend/package-lock.json
+          retention-days: 30

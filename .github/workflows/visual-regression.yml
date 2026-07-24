@@ -14,6 +14,17 @@ name: Visual Regression
 #      under `frontend/tests/visual-regression/snapshots/chromium/`.
 #   3. Subsequent push/PR runs compare the new screenshots vs the
 #      committed baselines; CI fails when maxDiffPixelRatio > 0.015.
+#
+# phase-75.15 (qa-tests-06): frontend/tests/visual-regression/snapshots/
+# chromium/ has ZERO committed PNGs as of 2026-07-24 -- every push/PR run
+# would otherwise be guaranteed-red (comparing against nonexistent
+# baselines). The "Check baseline presence" step below gates the actual
+# comparison run so push/PR triggers stay wired (no re-enable step needed
+# once the operator completes the first-run flow above) without ever
+# producing a guaranteed-red job in the meantime -- a missing-baseline
+# run reports success/skipped (GitHub: "Successful check statuses are
+# success, skipped, and neutral" --
+# docs.github.com/.../troubleshooting-required-status-checks).
 
 on:
   push:
@@ -57,6 +68,15 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Check baseline presence
+        id: baseline_check
+        run: |
+          if [ -n "$(find tests/visual-regression/snapshots/chromium -name '*.png' -print -quit 2>/dev/null)" ]; then
+            echo "has_baselines=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_baselines=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Update baselines (workflow_dispatch only)
         if: ${{ github.event.inputs.update_snapshots == 'true' }}
         run: npx playwright test --update-snapshots
@@ -71,10 +91,16 @@ jobs:
           file_pattern: "frontend/tests/visual-regression/snapshots/**"
 
       - name: Run visual regression tests
-        if: ${{ github.event.inputs.update_snapshots != 'true' }}
+        if: ${{ github.event.inputs.update_snapshots != 'true' && steps.baseline_check.outputs.has_baselines == 'true' }}
         run: npx playwright test
         env:
           CI: "true"
+
+      - name: Skip (no baselines committed yet)
+        if: ${{ github.event.inputs.update_snapshots != 'true' && steps.baseline_check.outputs.has_baselines != 'true' }}
+        run: |
+          echo "No committed baselines under tests/visual-regression/snapshots/chromium/ -- skipping the comparison run (would be guaranteed-red)."
+          echo "Run this workflow via workflow_dispatch with update_snapshots=true to capture the first baseline set (see header)."
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

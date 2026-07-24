@@ -4,8 +4,18 @@ name: Seed-Stability Gate
 # `scripts/go_live_drills/seed_stability_test.py` reads
 # `handoff/seed_stability_results.json` and asserts that the
 # Sharpe stddev across 5 random seeds is below 0.1 (Lopez de
-# Prado canonical reproducibility threshold). A failing drill
-# blocks the PR.
+# Prado canonical reproducibility threshold).
+#
+# phase-75.15 (qa-tests-05) re-scoped wording: this lane recomputes
+# mean/std over a FROZEN, committed baseline JSON -- it re-validates the
+# baseline's own internal shape/arithmetic on every run, but a code
+# regression that changes today's actual seed-to-seed Sharpe spread would
+# NOT be re-measured here, so it structurally cannot enforce
+# reproducibility on new code -- only guard the committed baseline's
+# arithmetic/shape (a malformed or drifted baseline JSON does still fail
+# this run_seed_stability job). Regenerating the baseline against a
+# live/pinned-fixture backtest run is the documented follow-up (NOT done
+# here -- optimizer runs stay frozen per the historical_macro freeze).
 
 on:
   pull_request:

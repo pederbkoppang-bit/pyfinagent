@@ -6,12 +6,18 @@ name: e2e-smoke
 #   run_harness.py --dry-run -> intel_e2e.py --fixtures -> phase6_e2e.py --dry-run.
 # Triggers: manual (workflow_dispatch) + nightly (schedule) + every PR to main.
 #
-# Soft-launch (continue-on-error: true) -- mirrors env-syntax-lint.yml (phase-40.6):
-# the step commands are verified GREEN locally this cycle, but the CI runner lane
-# (fresh checkout, no .venv) has not yet had a real run, so it reports without
-# blocking merges. Flip continue-on-error -> false once it is green across a few
-# real runs (documented follow-up). Least-privilege: read-only contents, no secrets,
-# never pull_request_target.
+# phase-75.15 (qa-tests-01): the advisory soft-launch above is RETIRED. The
+# backend pytest lane now selects tests via `-m "not requires_live"`
+# (pytest.ini:9, phase-56.2 marker) instead of a hardcoded --ignore list, and
+# the job is enforcing (continue-on-error removed) -- a red test now reddens
+# this lane and can block a PR. Verified green locally 2026-07-24 at
+# CI-equivalent env (PAPER_DATA_INTEGRITY_ENABLED=false
+# PAPER_RISK_JUDGE_REJECT_BINDING=false PAPER_SWAP_CHURN_FIX_ENABLED=false --
+# these 3 flags default False in code; a fresh CI checkout has no .env and
+# so already runs at these defaults) -- see experiment_results_75.15.md for
+# the full green tail + the operator-.env-pollution disclosure (these 3
+# flags differ locally because the operator's untracked .env has them ON).
+# Least-privilege: read-only contents, no secrets, never pull_request_target.
 
 on:
   workflow_dispatch:
@@ -33,7 +39,6 @@ jobs:
     name: Credential-free end-to-end smoke
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true   # soft-launch; flip to false once green on real runs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -63,26 +68,35 @@ jobs:
       - name: AST syntax check
         run: python -m compileall -q backend scripts
 
-      # 2. Credential-free backend pytest. Ignore the 6 live/state/always-fail
-      #    files (need live BQ / running services / time-sensitive state) so the
-      #    subset is deterministic on a runner. Durable fix = a `requires_live`
-      #    pytest marker (follow-up).
+      # 2. Credential-free backend pytest. Deselect via the `requires_live`
+      #    pytest marker (pytest.ini:9, phase-56.2) instead of a hardcoded
+      #    --ignore file list -- `-m "not requires_live"` DESELECTS marked
+      #    tests (they don't run, so they can't fail the job) while still
+      #    collecting every file, catching future live/state-dependent
+      #    tests that forget the marker. The 3 flags below default False in
+      #    code (backend/config/settings.py) -- a fresh checkout has no
+      #    .env so this is already CI's natural state; set explicitly here
+      #    so the lane is self-documenting and immune to a future default
+      #    flip.
       - name: Backend pytest (credential-free subset)
+        env:
+          PAPER_DATA_INTEGRITY_ENABLED: "false"
+          PAPER_RISK_JUDGE_REJECT_BINDING: "false"
+          PAPER_SWAP_CHURN_FIX_ENABLED: "false"
         run: |
-          python -m pytest backend/tests/ -q \
-            --ignore=backend/tests/test_phase_23_2_10_watchdog_no_fire_7d.py \
-            --ignore=backend/tests/test_phase_23_2_12_layer1_pipeline_active.py \
-            --ignore=backend/tests/test_phase_23_2_14_no_reentrant_locks.py \
-            --ignore=backend/tests/test_phase_23_2_16_shortlist_doc_presence.py \
-            --ignore=backend/tests/test_agent_map_live_model.py \
-            --ignore=backend/tests/test_rainbow_canary.py
+          python -m pytest backend/tests/ -q -m "not requires_live"
 
-      # 3. Frontend: install, typecheck, production build.
+      # 3. Frontend: install, typecheck, unit tests, production build.
+      #    phase-75.15 (qa-tests-10): `npm run test` -> scripts/run-test.mjs
+      #    -> `vitest run` (jsdom environment, no server/no :3000 -- 30
+      #    files / 201 tests measured 2026-07-24). Placed after tsc so a
+      #    typecheck failure still fails fast before the slower test run.
       - name: Frontend tsc + build
         run: |
           cd frontend
           npm ci
           npx tsc --noEmit
+          npm run test
           npm run build
 
       # 4. Harness dry-run (credential-free: lazy BQ client, never queries).
