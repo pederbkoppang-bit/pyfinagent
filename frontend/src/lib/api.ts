@@ -43,11 +43,30 @@ import type {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// phase-75.12 (frontend-09): getAuthToken previously round-tripped
+// `/api/auth/session` on EVERY apiFetch call -- an extra serial fetch on
+// every single backend call (~14+/min idle). Memoize the probe result for
+// a short TTL; invalidate immediately on a 401 so a real re-login is never
+// masked by a stale sentinel (see the 401 branch below).
+interface SessionTokenCache {
+  value: string | null;
+  ts: number;
+}
+let sessionTokenCache: SessionTokenCache | null = null;
+const SESSION_TOKEN_TTL_MS = 60_000;
+
 async function getAuthToken(): Promise<string | null> {
   if (typeof window === "undefined") return null;
+  const now = Date.now();
+  if (sessionTokenCache && now - sessionTokenCache.ts < SESSION_TOKEN_TTL_MS) {
+    return sessionTokenCache.value;
+  }
   try {
     const res = await fetch("/api/auth/session");
-    if (!res.ok) return null;
+    if (!res.ok) {
+      sessionTokenCache = { value: null, ts: now };
+      return null;
+    }
     const session = await res.json();
     // NextAuth JWT — the session cookie itself is the token
     // For backend auth, we pass the raw session token cookie
@@ -55,9 +74,15 @@ async function getAuthToken(): Promise<string | null> {
     const tokenCookie = cookies.find(
       (c) => c.startsWith("__Secure-authjs.session-token=") || c.startsWith("authjs.session-token=")
     );
-    if (tokenCookie) return tokenCookie.split("=").slice(1).join("=");
-    return session?.user ? "session-active" : null;
+    const token = tokenCookie
+      ? tokenCookie.split("=").slice(1).join("=")
+      : session?.user
+        ? "session-active"
+        : null;
+    sessionTokenCache = { value: token, ts: now };
+    return token;
   } catch {
+    sessionTokenCache = { value: null, ts: now };
     return null;
   }
 }
@@ -110,7 +135,15 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     // 401 → redirect to login
     if (res.status === 401) {
-      if (typeof window !== "undefined") {
+      // Invalidate the memoized session probe so a genuine re-login is
+      // never masked by a stale cached sentinel (phase-75.12 frontend-09).
+      sessionTokenCache = null;
+      // phase-75.12 (frontend-02): skip the redirect when already on
+      // /login -- this fires as a side effect of apiFetch regardless of
+      // caller error handling, which is why the root-mounted
+      // LivePortfolioProvider (gated separately below) looped /login
+      // before this guard existed.
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
       throw new Error("Session expired. Redirecting to login.");
@@ -484,6 +517,25 @@ export function getPaperLivePrices(
   return apiFetch(`/api/paper-trading/live-prices?tickers=${q}`);
 }
 
+// phase-75.12 (frontend-03): reports/page.tsx compare-charts previously
+// raw-`fetch`ed this endpoint with no credentials and silently swallowed
+// both non-ok responses and thrown errors ("ignore chart failures"),
+// producing a silently empty chart. No wrapper existed for this endpoint
+// before this step.
+export interface ChartPricePoint {
+  Date: string;
+  Close: number;
+}
+
+export function getChartData(
+  ticker: string,
+  period = "1y",
+): Promise<ChartPricePoint[]> {
+  return apiFetch(
+    `/api/charts/${encodeURIComponent(ticker)}?period=${encodeURIComponent(period)}`,
+  );
+}
+
 // ── Backtest ────────────────────────────────────────────────────
 
 export function runBacktest(params?: Record<string, unknown>): Promise<{ status: string; run_id: string }> {
@@ -812,6 +864,21 @@ import type { AllJobsResponse, LogTailResponse } from "./types";
 
 export function getAllJobs(): Promise<AllJobsResponse> {
   return apiFetch("/api/jobs/all");
+}
+
+// phase-75.12 (frontend-01): the /agents page previously raw-`fetch`ed
+// these two endpoints with no credentials/auth headers at all. Routing
+// through apiFetch gains credentials:"include" + the Bearer sentinel +
+// the shared timeout/error handling (inert on this box today because
+// DEV_LOCALHOST_BYPASS=1 bypasses auth entirely for 127.0.0.1 -- see
+// research_brief_75.12.md -- but correct end-to-end for the Tailscale /
+// non-bypass path).
+export function getMasEventsStats(): Promise<Record<string, unknown>> {
+  return apiFetch("/api/mas/events/stats");
+}
+
+export function getMasDashboard(): Promise<Record<string, unknown>> {
+  return apiFetch("/api/mas/dashboard");
 }
 
 export function getLogTail(

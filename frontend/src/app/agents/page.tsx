@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { useEventSource } from "@/lib/hooks";
+import { getMasEventsStats, getMasDashboard } from "@/lib/api";
 import {
   Robot,
   TreeStructure,
@@ -167,6 +168,7 @@ function EventDetail({ event }: { event: MASEvent }) {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const MAX_STATS_FAILURES = 5;
 
 // ── Main Page ────────────────────────────────────────────────────
 
@@ -177,7 +179,13 @@ export default function AgentsPage() {
   const [activeAgents, setActiveAgents] = useState<Set<string>>(new Set());
   const [openclawData, setOpenclawData] = useState<OpenClawData | null>(null);
   const [costSummary, setCostSummary] = useState<{ total_cost_usd?: number; agents?: Array<{ agent_name?: string; cost_usd?: number }> } | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // phase-75.12 (frontend-06): cron-page failure-counter template applied
+  // to the stats/dashboard poll -- stops after 5 consecutive failures
+  // instead of retrying a dead backend every 15s forever.
+  const statsFailuresRef = useRef(0);
+  const statsStoppedRef = useRef(false);
 
   // phase-44.7 cycle 66: migrated from inline EventSource (~46 LoC) to the
   // foundation `useEventSource` hook. The hook owns reconnect-on-error +
@@ -216,29 +224,47 @@ export default function AgentsPage() {
   // ── Fetch stats + OpenClaw data ─────────────────────────────
 
   useEffect(() => {
+    // phase-75.12 (frontend-01 + frontend-06): routed through apiFetch
+    // (credentials:"include" + Bearer sentinel + typed errors) instead of
+    // a raw unauthenticated fetch; the stats poll now drives a cron-style
+    // failure counter that stops the interval after 5 consecutive failures.
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/mas/events/stats`);
-        if (res.ok) setStats(await res.json());
-      } catch {
-        // silent
+        setStats((await getMasEventsStats()) as unknown as EventBusStats);
+        statsFailuresRef.current = 0;
+        statsStoppedRef.current = false;
+        setStatsError(null);
+      } catch (e) {
+        statsFailuresRef.current += 1;
+        if (statsFailuresRef.current >= MAX_STATS_FAILURES) {
+          statsStoppedRef.current = true;
+          const msg = e instanceof Error ? e.message : String(e);
+          setStatsError(
+            `Agent stats polling stopped after ${MAX_STATS_FAILURES} consecutive failures. Last error: ${msg}`,
+          );
+        }
       }
     };
     const fetchOpenClaw = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/mas/dashboard`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.openclaw) setOpenclawData(data.openclaw);
-          if (data.cost_summary) setCostSummary(data.cost_summary);
-        }
+        const data = (await getMasDashboard()) as {
+          openclaw?: OpenClawData;
+          cost_summary?: { total_cost_usd?: number; agents?: Array<{ agent_name?: string; cost_usd?: number }> };
+        };
+        if (data.openclaw) setOpenclawData(data.openclaw);
+        if (data.cost_summary) setCostSummary(data.cost_summary);
       } catch {
-        // silent
+        // OpenClaw panel is secondary; the stats poll above drives the circuit.
       }
     };
     fetchStats();
     fetchOpenClaw();
-    const interval = setInterval(() => { fetchStats(); fetchOpenClaw(); }, 15000);
+    const interval = setInterval(() => {
+      if (!statsStoppedRef.current) {
+        fetchStats();
+        fetchOpenClaw();
+      }
+    }, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -349,6 +375,13 @@ export default function AgentsPage() {
                 className="text-xs text-rose-300 hover:text-rose-100 underline">
                 Retry
               </button>
+            </div>
+          )}
+
+          {/* phase-75.12 (frontend-06): stats/dashboard poll circuit-breaker banner */}
+          {statsError && (
+            <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3">
+              <p className="text-sm text-rose-300">{statsError}</p>
             </div>
           )}
 

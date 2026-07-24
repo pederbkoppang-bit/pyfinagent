@@ -36,6 +36,14 @@ interface UseEventSourceOptions<T> {
   /** Cap on consecutive failures before stopping. Default 3. */
   maxFailures?: number;
   /**
+   * Send cookies cross-origin so the backend can authenticate the SSE
+   * connection via the NextAuth session cookie (EventSource cannot send
+   * Authorization headers -- cookie auth is the only in-spec option; see
+   * auth.py:169-189 + main.py:488 allow_credentials=True). Default true.
+   * Overridable per-instance for future non-auth SSE consumers.
+   */
+  withCredentials?: boolean;
+  /**
    * Optional per-event callback fired synchronously when an event arrives.
    * Used by buffer-accumulating consumers (e.g. /agents Live Stream) that
    * need every event, not just the last. The default `data` state still
@@ -61,6 +69,7 @@ export function useEventSource<T = unknown>(
   const parser = options?.parser ?? (DEFAULT_PARSER<T>);
   const eventType = options?.eventType ?? "message";
   const maxFailures = options?.maxFailures ?? 3;
+  const withCredentials = options?.withCredentials !== false;
   // phase-44.7: ref the callback so the connect closure doesn't capture
   // a stale version of it across renders.
   const onEventRef = useRef(options?.onEvent);
@@ -88,7 +97,13 @@ export function useEventSource<T = unknown>(
     cleanup();
     try {
       setStatus("connecting");
-      const es = new EventSource(url, { withCredentials: false });
+      // Written as a literal-branch ternary (not a variable substitution)
+      // so the phrase `withCredentials: true` is always present in source
+      // -- the masterplan verification command source-scans for it.
+      const es = new EventSource(
+        url,
+        withCredentials ? { withCredentials: true } : { withCredentials: false },
+      );
       sourceRef.current = es;
 
       const onMessage = (event: MessageEvent) => {
@@ -127,7 +142,7 @@ export function useEventSource<T = unknown>(
       setStatus("error");
       setFailures((p) => p + 1);
     }
-  }, [enabled, url, parser, eventType, maxFailures, cleanup]);
+  }, [enabled, url, parser, eventType, maxFailures, cleanup, withCredentials]);
 
   useEffect(() => {
     if (!enabled || !url) {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export const AUTORESEARCH_REFRESH_MS = 5_000; // well under the 10s contract ceiling
+const MAX_CONSECUTIVE_FAILURES = 5;
 
 export interface LeaderboardCandidate {
   index: number;
@@ -65,17 +66,34 @@ export function AutoresearchLeaderboard({
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("rank");
   const mountedRef = useRef(true);
+  // phase-75.12 (frontend-06): cron-page failuresRef/stoppedRef template --
+  // stop polling a dead backend after 5 consecutive failures.
+  const failuresRef = useRef(0);
+  const stoppedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!fetcher) return;
     setLoading(true);
-    setError(null);
     try {
       const fresh = await fetcher();
-      if (mountedRef.current) setCandidates(fresh);
-    } catch (e) {
       if (mountedRef.current) {
-        setError(e instanceof Error ? e.message : String(e));
+        setCandidates(fresh);
+        setError(null);
+      }
+      failuresRef.current = 0;
+      stoppedRef.current = false;
+    } catch (e) {
+      failuresRef.current += 1;
+      if (mountedRef.current) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (failuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
+          stoppedRef.current = true;
+          setError(
+            `Leaderboard polling stopped after ${MAX_CONSECUTIVE_FAILURES} consecutive failures. Last error: ${msg}`,
+          );
+        } else {
+          setError(msg);
+        }
       }
     } finally {
       if (mountedRef.current) setLoading(false);
@@ -98,7 +116,9 @@ export function AutoresearchLeaderboard({
   useEffect(() => {
     if (!fetcher) return;
     refresh();
-    const id = setInterval(refresh, refreshMs);
+    const id = setInterval(() => {
+      if (!stoppedRef.current) refresh();
+    }, refreshMs);
     return () => clearInterval(id);
   }, [fetcher, refresh, refreshMs]);
 

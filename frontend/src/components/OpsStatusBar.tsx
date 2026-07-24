@@ -60,6 +60,8 @@ interface Props {
   onMarketChange?: (market: string) => void;
 }
 
+const MAX_CONSECUTIVE_FAILURES = 5;
+
 export function OpsStatusBar({
   nextRunAt,
   markets,
@@ -71,32 +73,51 @@ export function OpsStatusBar({
   const [fresh, setFresh] = useState<Freshness | null>(null);
   const [latestCycle, setLatestCycle] = useState<CycleRow | null>(null);
   const [actionBusy, setActionBusy] = useState<"PAUSE" | "FLATTEN_ALL" | "RESUME" | null>(null);
+  // phase-75.12 (frontend-05): failRef was DEAD CODE -- every fetcher below
+  // already `.catch(() => null)`s individually, so Promise.all never
+  // rejects and the outer try/catch's `catch` branch (where failRef used
+  // to be incremented) was unreachable. failRef now increments on the
+  // ALL-FOUR-null outcome instead, which IS reachable, and after 5
+  // consecutive rounds renders a visible stale segment + stops the
+  // interval-driven poll (cron-page failuresRef/stoppedRef template).
   const failRef = useRef(0);
+  const stoppedRef = useRef(false);
+  const [stale, setStale] = useState(false);
 
   const refresh = useCallback(async () => {
-    try {
-      const [g, k, f, c] = await Promise.all([
-        getPaperGate().catch(() => null),
-        getPaperKillSwitchState().catch(() => null) as Promise<KillSwitchState | null>,
-        getPaperFreshness().catch(() => null) as Promise<Freshness | null>,
-        getPaperCyclesHistory(1).catch(() => null),
-      ]);
-      if (g) setGate(g);
-      if (k) setKill(k);
-      if (f) setFresh(f);
-      if (c?.cycles?.length) setLatestCycle(c.cycles[0] as CycleRow);
-      failRef.current = 0;
-    } catch {
+    const [g, k, f, c] = await Promise.all([
+      getPaperGate().catch(() => null),
+      getPaperKillSwitchState().catch(() => null) as Promise<KillSwitchState | null>,
+      getPaperFreshness().catch(() => null) as Promise<Freshness | null>,
+      getPaperCyclesHistory(1).catch(() => null),
+    ]);
+    const allNull = g == null && k == null && f == null && c == null;
+    if (allNull) {
       failRef.current += 1;
+      if (failRef.current >= MAX_CONSECUTIVE_FAILURES) {
+        stoppedRef.current = true;
+        setStale(true);
+      }
+      return;
     }
+    if (g) setGate(g);
+    if (k) setKill(k);
+    if (f) setFresh(f);
+    if (c?.cycles?.length) setLatestCycle(c.cycles[0] as CycleRow);
+    failRef.current = 0;
+    stoppedRef.current = false;
+    setStale(false);
   }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
     void refresh();
     const id = window.setInterval(() => {
-      if (!document.hidden) void refresh();
+      if (!document.hidden && !stoppedRef.current) void refresh();
     }, 60_000);
+    // Regaining tab focus always retries, even after the circuit has
+    // tripped -- the recovery path (mirrors the pre-existing visibility
+    // refetch semantics; a success here clears `stale` above).
     const onVis = () => {
       if (!document.hidden) void refresh();
     };
@@ -155,6 +176,15 @@ export function OpsStatusBar({
       />
       <Divider />
       <CycleSegment fresh={fresh} latestCycle={latestCycle} />
+      {stale && (
+        <>
+          <Divider />
+          <div className="flex items-center gap-2" data-testid="ops-stale-segment">
+            <IconWarning size={14} weight="fill" className="text-amber-400" />
+            <span className="text-xs text-amber-300">Stale (polling paused)</span>
+          </div>
+        </>
+      )}
       <Divider />
       <LastSegment lastStartedAt={latestCycle?.started_at ?? null} />
       <Divider />

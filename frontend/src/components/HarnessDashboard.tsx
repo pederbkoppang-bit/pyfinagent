@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BentoCard } from "@/components/BentoCard";
 import {
   getHarnessLog,
@@ -198,6 +198,11 @@ export function HarnessDashboard() {
   const [sprintState, setSprintState] = useState<HarnessSprintWeekState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // phase-75.12 (frontend-06): cron-page failuresRef/stoppedRef template
+  // applied to the seed-stability poll -- stop after 5 consecutive
+  // failures instead of hammering a dead backend every 30s forever.
+  const seedFailuresRef = useRef(0);
+  const seedStoppedRef = useRef(false);
 
   useEffect(() => {
     Promise.all([
@@ -221,7 +226,16 @@ export function HarnessDashboard() {
 
     // Auto-refresh seed stability every 30s while running
     const interval = setInterval(() => {
-      getSeedStability().then(setSeedStability).catch(() => {});
+      if (seedStoppedRef.current) return;
+      getSeedStability()
+        .then((s) => {
+          setSeedStability(s);
+          seedFailuresRef.current = 0;
+        })
+        .catch(() => {
+          seedFailuresRef.current += 1;
+          if (seedFailuresRef.current >= 5) seedStoppedRef.current = true;
+        });
     }, 30_000);
     return () => clearInterval(interval);
   }, []);

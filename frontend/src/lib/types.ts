@@ -700,7 +700,14 @@ export interface PaperSnapshot {
 }
 
 export interface PaperTradingStatus {
-  status: string;
+  // phase-75.12 (fe-ts-01): literal union so `status !== "not_initialized"`
+  // narrows correctly (TS Handbook discriminated-union rule -- a plain
+  // `string` discriminant can't be narrowed). The backend's not_initialized
+  // branch (paper_trading.py:134) returns ONLY {status, message} -- no
+  // portfolio/loop/etc -- which is why `loop` below is optional, not the
+  // other fields (see paper-trading/layout.tsx:217/:263 guards).
+  status: "not_initialized" | "active" | "paused";
+  message?: string;
   portfolio: {
     nav: number | null;
     cash: number | null;
@@ -713,7 +720,10 @@ export interface PaperTradingStatus {
   position_count: number;
   scheduler_active: boolean;
   next_run: string | null;
-  loop: {
+  // Optional: absent on the not_initialized payload. Callers MUST use
+  // `?.loop?.running`, never `?.loop.running` (that still throws when
+  // `status` is a non-null not_initialized object with no `loop` key).
+  loop?: {
     running: boolean;
     last_run: string | null;
     last_result: Record<string, unknown> | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Database } from "@/lib/icons";
 import { getObservabilityDataFreshness } from "@/lib/api";
@@ -53,19 +53,38 @@ function BandPill({ band }: { band: FreshnessBand }) {
   );
 }
 
+const MAX_CONSECUTIVE_FAILURES = 5;
+
 export default function ObservabilityPage() {
   const [data, setData] = useState<FreshnessResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // phase-75.12 (frontend-06): cron-page failuresRef/stoppedRef template --
+  // stop polling a dead backend after 5 consecutive failures. The manual
+  // "Refresh" button still calls load() directly (bypassing stoppedRef),
+  // so it doubles as the recovery action.
+  const failuresRef = useRef(0);
+  const stoppedRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const resp = await getObservabilityDataFreshness();
       setData(resp);
+      setError(null);
+      failuresRef.current = 0;
+      stoppedRef.current = false;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load freshness");
+      failuresRef.current += 1;
+      const msg = err instanceof Error ? err.message : "Failed to load freshness";
+      if (failuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
+        stoppedRef.current = true;
+        setError(
+          `Freshness polling stopped after ${MAX_CONSECUTIVE_FAILURES} consecutive failures. Last error: ${msg}`,
+        );
+      } else {
+        setError(msg);
+      }
       setData(null);
     } finally {
       setLoading(false);
@@ -74,7 +93,9 @@ export default function ObservabilityPage() {
 
   useEffect(() => {
     void load();
-    const id = setInterval(() => void load(), 30_000);
+    const id = setInterval(() => {
+      if (!stoppedRef.current) void load();
+    }, 30_000);
     return () => clearInterval(id);
   }, [load]);
 

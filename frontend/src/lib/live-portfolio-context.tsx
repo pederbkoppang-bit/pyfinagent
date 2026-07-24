@@ -32,6 +32,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import {
   getPaperTradingStatus,
   getPaperPortfolio,
@@ -98,6 +99,17 @@ function deriveFreshness(
 }
 
 export function LivePortfolioProvider({ children }: { children: ReactNode }) {
+  // phase-75.12 (frontend-02): root-mounted LivePortfolioProvider (see
+  // app/layout.tsx:36) previously polled authed endpoints unconditionally,
+  // including on a logged-out /login visit -- combined with api.ts's
+  // then-unguarded 401 redirect, this produced a sub-second reload loop
+  // that interrupted SSO/passkey ceremonies. Gate the initial fetch, the
+  // 60s interval, and the live-price/ticker-meta polls on pathname !==
+  // "/login". This realizes the "future hardening pass" this comment
+  // used to describe.
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/login";
+
   const [status, setStatus] = useState<PaperTradingStatus | null>(null);
   const [portfolio, setPortfolio] = useState<PaperPortfolio | null>(null);
   const [positions, setPositions] = useState<PaperPosition[]>([]);
@@ -109,6 +121,7 @@ export function LivePortfolioProvider({ children }: { children: ReactNode }) {
   // polled by the dedicated useLivePrices hook below (its own 60s loop).
   const refresh = useMemo(() => {
     return async () => {
+      if (isLoginPage) return;
       try {
         const [s, port, snap] = await Promise.allSettled([
           getPaperTradingStatus(),
@@ -137,23 +150,34 @@ export function LivePortfolioProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     };
-  }, []);
+  }, [isLoginPage]);
 
   useEffect(() => {
+    if (isLoginPage) {
+      // Nothing will populate `positions`/`status` while gated -- clear
+      // the initial loading spinner rather than leaving it stuck forever
+      // for any /login-rendered consumer of useLivePortfolioOptional().
+      setLoading(false);
+      return;
+    }
     void refresh();
     const id = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [refresh]);
+  }, [refresh, isLoginPage]);
 
   // ONE useLivePrices instance for the whole app. Every surface gets
-  // the same prices at the same moment (no race).
+  // the same prices at the same moment (no race). Next.js App Router
+  // keeps this provider mounted across client-side navigations, so
+  // `positions` can still hold a stale non-empty array from a previous
+  // route when the user lands on /login (e.g. after the 401 redirect
+  // above) -- `!isLoginPage` guards that, not just `positions.length`.
   const positionTickers = useMemo(
     () => positions.map((p) => p.ticker),
     [positions],
   );
   const { prices: livePrices } = useLivePrices(
     positionTickers,
-    positions.length > 0,
+    !isLoginPage && positions.length > 0,
   );
 
   // ONE useLiveNav derivation for the whole app.
@@ -169,7 +193,7 @@ export function LivePortfolioProvider({ children }: { children: ReactNode }) {
     positions.forEach((p) => p.ticker && set.add(p.ticker));
     return Array.from(set);
   }, [positions]);
-  const { meta: tickerMeta } = useTickerMeta(allTickers, allTickers.length > 0);
+  const { meta: tickerMeta } = useTickerMeta(allTickers, !isLoginPage && allTickers.length > 0);
 
   // Freshness band: max age across live-price entries.
   const { band: freshnessBand, ageSec: freshnessAgeSec } = useMemo(

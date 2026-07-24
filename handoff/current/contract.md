@@ -1,72 +1,70 @@
-# Contract -- Step 75.11: SRE hardening (log rotation, single service authority, unattended timeouts, pkill guard, formatter fix)
+# Contract -- Step 75.12: frontend data-plane (SSE/fetch auth transport, login reload-loop, dead charts, circuit breakers, status union)
 
-- **Step id**: 75.11 (phase-75, Audit75 S11) -- P1, executor sonnet-tier
+- **Step id**: 75.12 (phase-75, Audit75 S12) -- P1, executor sonnet-tier
 - **Date**: 2026-07-24
-- **Author**: Main (contract + review). **GENERATE delegated to a Sonnet-4.6 executor** (same model as 75.9/75.10: Main reviews + independently re-measures before Q/A).
-- **BOUNDARY (step text + research)**: NO backend/.env edits (the .env:81 quote repair is an OPERATOR token); NO machine launchd bootstraps or modifications to live plists (bootstrap = operator token **OPS-ROTATE-BOOTSTRAP**; repo ships scripts + plist TEMPLATES + runbook only); **plist templates MUST NOT hardcode secrets** (the live plists embed plaintext AUTH_SECRET/AUTH_GOOGLE_SECRET/CLAUDE_CODE_OAUTH_TOKEN -- a research security finding; templates source from env/sourced-file, and no artifact echoes live secret values).
+- **Author**: Main (contract + review + Playwright capture). **GENERATE delegated to a Sonnet-4.6 executor** (4th delegated step; Main reviews + independently re-measures before Q/A).
+- **BOUNDARY**: UI-touching -- the operator's `next dev` on :3000 hot-reloads every edit IMMEDIATELY. NEVER start a second dev server (standing memory); the Playwright capture is read-only against the operator instance (75.6 pattern, no LIGHTHOUSE_SKIP_AUTH). Land order is risk-ordered (below). No emoji; Phosphor icons via @/lib/icons; navy/slate palette; scrollbar-thin.
 
 ## Research-gate summary (gate PASSED)
 
-Workflow `wf_9d109381-31a` (researcher, opus/max, tier=moderate).
-Envelope: `external_sources_read_in_full=7, snippet_only=18, urls=25, recency_scan=true, internal_files=14, gate_passed=true`.
-Brief: `handoff/current/research_brief_75.11.md`.
+Workflow `wf_edd47d0e-32d` (researcher, opus/max, tier=moderate).
+Envelope: `external_sources_read_in_full=6, snippet_only=20, urls=26, recency_scan=true, internal_files=20, gate_passed=true`.
+Brief: `handoff/current/research_brief_75.12.md`.
 
 **Step-text corrections adopted (binding):**
-1. **sre-ops-09 understated**: the LIVE `com.pyfinagent.frontend.plist` runs `next dev --port 3000` TODAY -- the fix must both collapse to one authority AND flip the surviving one to `next start` (template-only; live plist untouched).
-2. **Log paths**: backend.log + frontend.log live at REPO ROOT (launchd StandardOutPath); only slack_bot.log + auto-push.log are under handoff/logs/. Rotation targets the four at their ACTUAL paths.
-3. **backend.log measured at 112MB** (not 84MB); last rotation Jul 6 -- the rotation authority has been DEAD ~17 days with health.jsonl frozen at 2026-07-06 and nobody paged (the liveness alarm addresses a currently-firing gap).
-4. **sre-ops-04 split**: run_nightly.sh ALREADY logs FAIL rc (:41-45) -> needs only the PAGING seam; the raw `. backend/.env` lives in the ablation PLIST ProgramArguments -> new wrapper script + plist TEMPLATE pointing at it.
-5. **sre-ops-07 additive-only**: run_away_session.sh:107's `if ! git pull` already routes ANY nonzero rc to the offline branch -- the gtimeout wrap only converts an infinite hang into rc=124; no new branch needed.
-6. **newsyslog RULED OUT** for the launchd logs (rename+SIGHUP reopen model breaks on launchd-held FDs); cp+truncate confirmed correct AND empirically proven on-machine (healthcheck produced .gz archives Jun 12 + Jul 6 with no restart; O_APPEND seeks to EOF post-truncate).
-
-**Key cleared risks (measured):**
-- **pysvc-05 is redaction-safe**: Python docs -- handler filters run BEFORE format(); SecretRedactionFilter rewrites record.msg before either formatter, so Compact<->JSON is invisible to it.
-- **pysvc-05 is red-set-safe**: the three backend.log log-evidence tests match plain substrings that json.dumps preserves verbatim; cycle_health.py does not read backend.log; the log viewer is cosmetic. settings.debug=False measured live -> the flip changes the operator's default log format to JSON (DEBUG=true restores compact for interactive dev -- the fix makes `debug` the intuitive human-readable toggle, matching the existing comment).
-- **sre-ops-05 self-lockout bounded**: the hook matches only top-level Bash TOOL command strings (never executes them); pkill inside scripts is unaffected; CLAUDE_ALLOW_DANGER=1 escape already exists at :72-75 and is checked first. Behaviorally testable offline via `CLAUDE_TOOL_NAME=Bash CLAUDE_TOOL_INPUT='{"command":"pkill -9 uvicorn"}'` -> exit 2 (+ALLOW -> exit 0). Official hooks doc confirms exit-2-blocks + stderr-is-reason.
-- **launchctl kickstart -k** is the proven idiom already used at healthcheck.sh:172.
+1. **THE HEADLINE**: `DEV_LOCALHOST_BYPASS=1` is ACTIVE in the running backend (verified: no-cred curls to the three authed endpoints all 200) and the operator's browser hits localhost -> **frontend-01/02/03 CANNOT be reproduced live on this box**; the criterion-1 Playwright "connected stream" capture is VACUOUS as fix evidence. Discriminating proof = vitest behavioral tests; the capture is still taken (criterion requires it) and DISCLOSED as non-discriminating.
+2. The cookie-auth premise is otherwise SOUND end-to-end: EventSource cannot send Authorization headers (spec); `get_current_user` reads the NextAuth cookie cross-origin (auth.py:169-189); CORS `allow_credentials=True` (main.py:488); localhost:3000/:8000 are same-site (port not in cookie scope) -- no SameSite change needed.
+3. `apiFetch` ALREADY sends `credentials:"include"` (:87) -- re-routing raw fetches through it is the whole credentials fix. The 401 redirect is at api.ts **:113** (not :114) and fires as a SIDE EFFECT regardless of caller error handling -- why the root-mounted, ungated LivePortfolioProvider (layout.tsx:36, 3 authed polls on mount + 60s) loops /login.
+4. **fe-ts-01 is a REAL fresh-install crash**: backend returns `{status:'not_initialized'}` with NO `loop` key (paper_trading.py:134); types.ts:716 types `loop` REQUIRED so tsc is blind to `status?.loop.running` (layout.tsx:217) / `s.loop.running` (:263). Making `loop` optional turns `npx tsc --noEmit` into the mutation test.
+5. useEventSource ALREADY caps reconnects (maxFailures 3 default :63; /agents overrides 5 :191) -- the stop-at-5 gap is **useLivePrices.ts:48-53** (interval keeps firing; the doc comment lies). OpsStatusBar `failRef` (:74) is FULLY dead code (per-call `.catch(()=>null)` at :79-82 -> Promise.all never rejects -> the :89 catch never runs AND failRef is never read).
+6. The immutable command is a python3 source-scan + `npx tsc --noEmit` ONLY -- every asserted token is trivially writable without correct behavior; the vitest behavioral legs + mutation matrix carry the verification weight.
+7. No chart wrapper exists today -- frontend-03 needs a new `getChartData` in api.ts.
+8. Live state healthy: :3000/login 200, :3000/ 302, :8000 health ok; Playwright pinned @0.0.76; vitest is the runner with existing @/lib/api + window.location mock precedents.
 
 ## Hypothesis
 
-The seven SRE gaps close as repo-shipped scripts/templates/runbook + two surgical code fixes (formatter branch swap; danger-hook rail) with zero live-system mutation in this step -- machine actions deferred to OPS-ROTATE-BOOTSTRAP -- provable offline by a test file whose text-asserts are each paired with a breaking mutation and whose formatter + danger-hook legs are behavioral.
+All seven data-plane defects are fixable client-side with zero backend change and zero visible regression on the operator's live UI, with correctness carried by vitest behavioral tests (fake timers for the breakers; navigation/no-navigation asserts for the loop) because the localhost bypass makes live captures non-discriminating.
 
-## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.11)
+## Immutable success criteria (copied VERBATIM from .claude/masterplan.json step 75.12)
 
-verification.command:
+verification.command (python3 source-scan asserts + tsc; copied verbatim in the masterplan node -- executor must read it there in full):
 ```
-cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_sre_ops.py -q
+cd /Users/ford/.openclaw/workspace/pyfinagent && python3 -c "..." (source-scan) && cd frontend && npx tsc --noEmit
 ```
 
-1. "New backend/tests/test_phase_75_sre_ops.py passes and asserts (reading the script files as text): a rotation plist template + rotation script exist under scripts/ops/ covering the four named logs with cp+truncate, and a watchdog-liveness (health.jsonl mtime) alarm seam exists; the runbook + OPS-ROTATE-BOOTSTRAP operator token are drafted in handoff/current/"
-2. "start_services.sh contains launchctl kickstart for backend and frontend, contains NO 'pkill -9 uvicorn' / 'pkill -9 \"next dev\"' outside the flag-gated legacy branch (which uses scoped pkill -f 'uvicorn backend.main' with SIGTERM), and no '> backend.log' truncation"
-3. "A frontend plist template running 'next start' with a pre-start build wrapper exists; an ablation wrapper script exists using the sanitized-sourcing block (no raw '. backend/.env') and logging FAIL rc with a paging seam; the plist template points at the wrapper"
-4. "pre-tool-use-danger.sh blocks pkill/killall whose target matches python|uvicorn|next|slack_bot with the CLAUDE_ALLOW_DANGER escape hatch (test feeds sample commands through the hook's pattern and asserts block/allow)"
-5. "run_away_session.sh git pull is gtimeout-wrapped falling into the offline branch on rc=124; slack_mention_checker curl carries -m 15; run_cycle.sh claude call is gtimeout-capped (text asserts)"
-6. "main.py setup_logging: settings.debug selects CompactFormatter and the default path selects JsonFormatter (assert the corrected branch order); executor edits no .env and bootstraps no machine agents -- machine actions are operator-token items only"
+1. "useEventSource opens with withCredentials: true and the /agents stats+dashboard fetches go through apiFetch (or carry credentials:'include'); live evidence: a Playwright capture of /agents against the running app"
+2. "apiFetch's 401 branch does not redirect when already on /login, and LivePortfolioProvider does not fire its poll trio on /login (pathname/session gate) -- no reload loop during a logged-out /login visit"
+3. "Reports compare flow fetches charts via apiFetch and renders a visible partial-failure notice when price series are unavailable (never a silently empty chart)"
+4. "OpsStatusBar: all-four-null results increment failRef and after 5 consecutive failures a stale/error segment state renders and polling stops or backs off -- failRef is no longer dead code; the same stale/backoff pattern applied to the other named pollers"
+5. "types.ts declares the not_initialized union for PaperTradingStatus and paper-trading/layout.tsx guards .loop access -- a fresh/reset install renders the section without a TypeError"
+6. "getAuthToken caches the session probe in sessionTokenCache with a TTL and invalidates on 401; npx tsc --noEmit passes"
 
-verification.live_check: "handoff/current/live_check_75.11.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: sre-ops-01, sre-ops-02, sre-ops-09, sre-ops-04, sre-ops-05, sre-ops-07, pysvc-05"
+(NOTE: Main re-read the criteria verbatim from the masterplan node; the executor must too -- the list above is Main's faithful transcription of the criterion intents; where wording differs the masterplan text governs.)
 
-## Plan steps
+verification.live_check: "handoff/current/live_check_75.12.md: verbatim verification command output (exit 0) + git diff --stat; UI-touching -> Playwright capture (read-only, operator instance) with the DEV_LOCALHOST_BYPASS non-discrimination disclosure."
 
-1. **sre-ops-01**: `scripts/ops/rotate_logs.sh` (cp+truncate modeled on healthcheck.sh:246-255; the four logs at their REAL paths; size caps + gzip) + `scripts/ops/com.pyfinagent.logrotate.plist.template` (user-space StartInterval; env-sourced, NO hardcoded secrets) + liveness alarm seam reading `handoff/away_ops/health.jsonl` mtime>2h + runbook `handoff/current/ops_rotate_runbook_75.11.md` + operator token **OPS-ROTATE-BOOTSTRAP** drafted in handoff/current/.
-2. **sre-ops-02**: start_services.sh -> `launchctl kickstart -k gui/$UID/com.pyfinagent.{backend,frontend}` (healthcheck.sh:172 idiom); legacy path behind an explicit flag with scoped SIGTERM `pkill -f 'uvicorn backend.main'` + wait; no backend.log truncation anywhere.
-3. **sre-ops-09**: `scripts/ops/com.pyfinagent.frontend.plist.template` running `next start -p 3000` + pre-start build wrapper; start_services frontend leg = kickstart only (one authority; honors the second-next-dev memory). Live plist NOT touched.
-4. **sre-ops-04**: ablation wrapper script reusing run_nightly.sh:19-27's sanitized-grep sourcing verbatim + FAIL-rc logging + paging seam (bot-token page after N consecutive failures); ablation plist TEMPLATE points at the wrapper; run_nightly.sh gains the paging seam only.
-5. **sre-ops-05**: pkill/killall rail inside pre-tool-use-danger.sh's Bash block (after :95), target regex NARROW (python|uvicorn|next|slack_bot), exit 2 + stderr pointing at `launchctl kickstart -k`; existing CLAUDE_ALLOW_DANGER escape covers it.
-6. **sre-ops-07**: `"$GTIMEOUT" -k 10 120` on run_away_session.sh:107 git pull; `-m 15` on slack_mention_checker.sh:38 curl; `"$GTIMEOUT"` cap on run_cycle.sh:60 claude.
-7. **pysvc-05**: swap main.py:98-101 branch order (debug -> Compact, default -> Json). BEHAVIORAL test: both debug values -> assert formatter class; + an `api_key=SECRET...` record through the JSON path -> emitted message REDACTED (branch order + redaction survival in one test).
-8. **Tests**: text asserts EACH paired with a named breaking mutation; behavioral legs for criteria 4 (drive the real hook script via env vars, zero real kills) and 6 (formatter). Criterion-1/3 file-existence asserts must also check content markers (cp+truncate lines, sanitized-sourcing block, no plaintext secrets in templates).
-9. **Mutation matrix**: strip kickstart; restore raw sourcing; revert template to next dev; remove -m 15; unwrap gtimeout; invert formatter back; neuter the danger-rail regex; STUB mutation on the hook test (feed an allowed command and assert the test would catch a hook that blocks everything).
-10. **live_check_75.11.md**: verbatim pytest exit 0 + git diff --stat + the danger-hook behavioral transcript. No UI; no flag-gated live-loop behavior (all machine actions deferred to the operator token).
+## Plan steps (RISK-ORDERED for hot-reload safety -- research rec)
+
+1. **fe-ts-01 FIRST, atomically**: types.ts `PaperTradingStatus` status literal union + `loop?` optional AND the layout.tsx:217/:263 optional-chaining guards in the SAME edit burst (types-only first would throw a red tsc overlay on the live app).
+2. **frontend-09**: module-level `sessionTokenCache={value,ts}` with ~60s TTL in getAuthToken; INVALIDATE (clear) in the 401 branch.
+3. **frontend-01**: `{ withCredentials: true }` at useEventSource:91 (as an overridable option defaulting true); re-route agents fetchStats/fetchOpenClaw (:221/:229) through apiFetch. Inert on this box (bypass) -- no stale claims.
+4. **frontend-03**: new `getChartData(ticker)` -> apiFetch in api.ts; reports compare flow catches per-ticker and renders a rose partial-failure notice (border-rose-500/30 bg-rose-950/30, IconWarning from @/lib/icons) -- never a silently empty chart.
+5. **frontend-05/06**: cron-page failuresRef+stoppedRef template applied to OpsStatusBar (detect ALL-FOUR-null -> failRef++ -> after 5: stale/error segment renders + polling stops/backs off; keep per-call graceful degrade), agents stats/dashboard, observability freshness, HarnessDashboard seed-stability, AutoresearchLeaderboard; useLivePrices gets an explicit circuitOpen that SKIPS tick and CLEARS the interval at exactly 5.
+6. **frontend-02 LAST (highest live risk)**: api.ts:113 skip redirect when `window.location.pathname === '/login'`; LivePortfolioProvider gated via usePathname to skip mount+interval polls on /login. Provider-gate vitest test lands with it.
+7. **Vitest behavioral tests** (the discriminating evidence): 401-on-/login does NOT navigate; provider fires zero polls on /login (and normal polls elsewhere); useLivePrices stops at EXACTLY 5 (fake timers; 4 fails -> still polling); OpsStatusBar renders stale after 5 all-null rounds and recovers on success; not_initialized payload renders without throw; sessionTokenCache TTL + 401 invalidation.
+8. **Mutation matrix**: revert withCredentials; drop the pathname guard; un-gate the provider; remove the notice render; re-deadify failRef; restore useLivePrices' non-stopping interval; make `loop` required again (tsc must go red); stub mutation -- break the fake-timer clock so the breaker test would pass vacuously (test must fail).
+9. **Main takes the Playwright capture** (read-only /agents against :3000) after the executor lands -- stored under handoff/current/captures_75.12/ with the non-discrimination disclosure.
+10. **live_check_75.12.md** per the spec above.
 
 ## Explicitly NOT in scope
 
-- backend/.env (any edit; the :81 quote repair is an operator token drafted in the runbook)
-- Bootstrapping/modifying ANY live launchd agent or plist (OPS-ROTATE-BOOTSTRAP)
-- Restarting services; deleting/truncating any live log in this step
-- newsyslog-based designs (ruled out)
+- Any backend change (the SSE auth path is already correct server-side)
+- Disabling/altering DEV_LOCALHOST_BYPASS (operator env)
+- A second dev server or any :3000 restart (hot-reload only)
+- The /login console error triage (queued 75.6.2)
 
 ## References
 
-- `handoff/current/research_brief_75.11.md` (7 read-in-full: Apple/launchd + newsyslog man + logrotate copytruncate + launchctl kickstart + Claude Code hooks reference + GNU timeout + Python logging filter docs)
-- `handoff/current/audit_phase75/confirmed_findings.json` (sre-ops-01/02/04/05/07/09, pysvc-05)
-- feedback_second_next_dev_breaks_operator_3000; feedback_mutation_test_guards_and_fixtures; CLAUDE.md Harness Protocol
+- `handoff/current/research_brief_75.12.md` (6 read-in-full: WHATWG/MDN EventSource + fetch credentials + cookie same-site scope, NextAuth v5 session-cookie handling, circuit-breaker patterns, TS discriminated unions)
+- `.claude/rules/frontend.md` + `frontend-layout.md`; feedback_second_next_dev_breaks_operator_3000
+- `handoff/current/audit_phase75/confirmed_findings.json` (frontend-01/02/03/05/06, fe-ts-01, frontend-09)

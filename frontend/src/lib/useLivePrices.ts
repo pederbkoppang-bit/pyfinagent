@@ -28,14 +28,24 @@ export function useLivePrices(tickers: string[], enabled = true) {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const failRef = useRef(0);
+  // phase-75.12 (frontend-06): the doc comment above claimed polling
+  // "stops after 5 in a row" but nothing actually cleared the interval --
+  // it kept firing forever. circuitOpenRef now makes that true: at the
+  // 5th consecutive failure, `tick()` becomes a no-op AND the interval is
+  // cleared outright (a harder stop than the other pollers' stoppedRef
+  // pattern, per the contract).
+  const circuitOpenRef = useRef(false);
 
   useEffect(() => {
     if (!enabled || tickers.length === 0) return;
     let cancelled = false;
+    let id: number | undefined;
     const uniq = Array.from(new Set(tickers.filter(Boolean)));
+    circuitOpenRef.current = false;
+    failRef.current = 0;
 
     async function tick() {
-      if (cancelled) return;
+      if (cancelled || circuitOpenRef.current) return;
       // Only fetch when tab is visible -- respects the user's attention.
       if (typeof document !== "undefined" && document.hidden) return;
       try {
@@ -49,13 +59,18 @@ export function useLivePrices(tickers: string[], enabled = true) {
         failRef.current += 1;
         if (failRef.current >= 5) {
           setError(e instanceof Error ? e.message : "live-prices failed");
+          circuitOpenRef.current = true;
+          if (id !== undefined) {
+            window.clearInterval(id);
+            id = undefined;
+          }
         }
       }
     }
 
     // Fire once on mount (or dependency change), then poll every 60s.
     void tick();
-    const id = window.setInterval(tick, 60_000);
+    id = window.setInterval(tick, 60_000);
 
     // Also fire when the tab regains visibility so the user sees fresh data.
     const onVis = () => {
@@ -65,7 +80,7 @@ export function useLivePrices(tickers: string[], enabled = true) {
 
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      if (id !== undefined) window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [tickers.join(","), enabled]);

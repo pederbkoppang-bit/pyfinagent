@@ -27,15 +27,13 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ReportCompareDrawer } from "@/components/ReportCompareDrawer";
 import { reportsColumns, buildTickerHistory } from "@/components/reports-columns";
 import { useURLState } from "@/lib/hooks";
-import { listReports, getReport } from "@/lib/api";
+import { listReports, getReport, getChartData } from "@/lib/api";
 import type { ReportSummary, SynthesisReport } from "@/lib/types";
 import {
-  IconChart, IconStar, IconScoringMatrix,
+  IconChart, IconStar, IconScoringMatrix, IconWarning,
 } from "@/lib/icons";
 import { Trophy, ChartPolar, NotePencil, Files, ArrowsLeftRight } from "@/lib/icons";
 import type { Icon } from "@/lib/icons";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /* ── Shared utilities ── */
 function scoreColor(recommendation: string): string {
@@ -122,6 +120,10 @@ function ReportsContent() {
   const [loaded, setLoaded] = useState<FullReport[]>([]);
   const [priceData, setPriceData] = useState<Record<string, PriceRow[]>>({});
   const [comparing, setComparing] = useState(false);
+  // phase-75.12 (frontend-03): tickers whose 1y price series failed to
+  // load -- surfaced as a visible partial-failure notice so a partial
+  // chart is never silently mistaken for a complete one.
+  const [chartFailedTickers, setChartFailedTickers] = useState<string[]>([]);
   // phase-44.4: drawer-open state for the compare wizard. Selection step
   // lives in the drawer (per master_design Section 3.8); results below.
   const [compareDrawerOpen, setCompareDrawerOpen] = useState(false);
@@ -164,6 +166,7 @@ function ReportsContent() {
   const startCompare = async () => {
     setComparing(true);
     setError(null);
+    setChartFailedTickers([]);
     const prices: Record<string, PriceRow[]> = {};
 
     // Parallel fetch all selected reports
@@ -192,17 +195,23 @@ function ReportsContent() {
     const results = fetched.filter((r): r is FullReport => r !== null);
 
     const uniqueTickers = [...new Set(results.map((r) => r.ticker))];
+    const failedTickers: string[] = [];
     await Promise.all(
       uniqueTickers.map(async (t) => {
         try {
-          const res = await fetch(`${API_BASE}/api/charts/${encodeURIComponent(t)}?period=1y`);
-          if (res.ok) prices[t] = await res.json();
-        } catch { /* ignore chart failures */ }
+          prices[t] = await getChartData(t);
+        } catch {
+          // phase-75.12 (frontend-03): tracked, not silently swallowed --
+          // rendered as a partial-failure notice below (never a silently
+          // empty chart).
+          failedTickers.push(t);
+        }
       }),
     );
 
     setLoaded(results);
     setPriceData(prices);
+    setChartFailedTickers(failedTickers);
     setComparing(false);
   };
 
@@ -442,6 +451,25 @@ function ReportsContent() {
                     );
                   })}
                 </div>
+
+                {/* phase-75.12 (frontend-03): partial-failure notice -- renders
+                    whenever any ticker's price series failed to load, even if
+                    the chart below is empty for every ticker (never a silently
+                    empty chart). */}
+                {chartFailedTickers.length > 0 && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-rose-500/30 bg-rose-950/30 p-3"
+                  >
+                    <div className="flex items-start gap-2">
+                      <IconWarning size={16} className="mt-0.5 flex-shrink-0 text-rose-400" />
+                      <p className="text-sm text-rose-300">
+                        Price history unavailable for {chartFailedTickers.join(", ")} --
+                        the chart below may be incomplete.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Price comparison chart */}
                 {normalizedChart.length > 0 && (

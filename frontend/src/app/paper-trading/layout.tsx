@@ -214,7 +214,11 @@ export default function PaperTradingLayout({
 
   const isInitialized = status?.status !== "not_initialized";
   const isActive = status?.scheduler_active;
-  const cycleRunning = !!status?.loop.running;
+  // phase-75.12 (fe-ts-01): `loop` is optional (absent on the
+  // not_initialized payload) -- `status?.loop.running` threw a TypeError
+  // on every fresh/reset install because `?.` only guards `status` being
+  // null, not `loop` being undefined.
+  const cycleRunning = !!status?.loop?.running;
 
   const handleStart = async () => {
     setActionLoading(true);
@@ -260,7 +264,7 @@ export default function PaperTradingLayout({
         try {
           const s = await getPaperTradingStatus();
           setStatus(s);
-          if (!s.loop.running) {
+          if (!s.loop?.running) {
             clearTimers();
             setActionLoading(false);
             await refresh();
