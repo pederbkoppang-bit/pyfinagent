@@ -18310,6 +18310,33 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-78",
+      "status": "in_progress",
+      "name": "Anthropic Max-rail LLM routing -- full audit + fix (operator /goal 2026-07-24, ultracode all-Fable). Facts pre-verified by wf_3b9205bc-666 (5 read-only finders + opus synthesis; RE-DERIVE line numbers at execution). WHY: Anthropic credits dead since 05-17 (phase-72); PROVEN LIVE 2026-07-24 run_memo topic09 rc=0 via bridge -> claude-code-proxy :18796 -> claude -p on Max, $0 by dummy key. SIX transports measured: ClaudeClient SDK (llm_client.py:1331), BatchClient (:1931 unwired), advisor_call (:2191 always-metered no-CC-equivalent), claude_code_invoke CLI Max rail (claude_code_client.py, paper_use_claude_code_route, own claude_rail_breaker_threshold), GitHub Models gateway (GITHUB_MODELS_CATALOG, fires when ANTHROPIC_API_KEY unset), external ~/.openclaw proxy :18796. SEQUENCE: 76.9.2 (phase-76, durable autoresearch rail) FIRST, then 78.0 census, then remediation steps AUTHORED FROM the census (phase-75 pattern). Standing constraints: LOUD-FAIL never silent-metered-fallback; cc_rail: discriminator on every Max-rail llm_call_log row (spend.py:216); $25 breaker default-BLIND (cost_budget_use_llm_spend_enabled=False) must be resolved before honesty claims; llmeng-01 already REMEDIATED by 75.5 (do not re-fix; 75.5.3 guard only); sonnet-4-6 -> sonnet-5 on rail-routed roles (3 live pins: mas_communication/mas_research/autoresearch_smart) + hand-edit openclaw_client.py:48,51 + close 76.11 INCLUDING _VALID_MODELS + MODEL_PRICING sonnet-5 rows; EFFORT tables already carry sonnet-5/fable-5 (no edit); .env operator-gated; dummy-key $0-leakage proof per routed path; all-Fable session-scoped Workflow pins, agents/*.md untouched, Fable Q/A stall -> opus.",
+      "steps": [
+        {
+          "id": "78.0",
+          "status": "pending",
+          "name": "Anthropic call-site CENSUS (audit-class) -- per-role routing decision table [executor: Main-on-Fable + Workflow fan-out; READ-ONLY deliverable]. Scope (pre-verified by wf_3b9205bc-666, re-derive): Layer-2 MAS (multi_agent_orchestrator.py:239 raw SDK), autoresearch fast/smart/strategic (run_memo.py:273 langchain), Slack bot (via MAS + own anthropic import streaming_integration.py:504), meta-evolution (directive_review + directive_rewriter + backend/agents/skill_modification_review.py twin), ticket queue (dual rail :199-226), phase-3.3 planner backend/autonomous_loop.py (top-level -- disambiguate from services/autonomous_loop.py), claude_code_invoke callers, news/sentiment.py HaikuScorer (~:757), rag_agent_runtime.py multimodal_index_claude (~:223), advisor_call, BatchClient. MCP servers EXCLUDED (verified zero outbound LLM calls). _inventory.json NEVER ground truth (stale qa pin). Deliverable: census table (file handoff/current/census_78.md + JSON) with per-role: model, volume/frequency (measure from llm_call_log where possible), structured-output needs, latency budget, decision Max-rail-CLI / Max-rail-proxy / justified-stay-metered + why. Follow-up remediation steps 78.1+ are AUTHORED from this census, executor-tagged, each research-gated.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "python3 -c \"import json; c=json.load(open('handoff/current/census_78.json')); assert len(c['roles'])>=12, f'census too small: {len(c[chr(39)+chr(114)+chr(111)+chr(108)+chr(101)+chr(115)+chr(39)])}'; assert all(r.get('decision') in ('max_rail_cli','max_rail_proxy','stay_metered') for r in c['roles']), 'undecided rows'\"",
+            "success_criteria": [
+              "Census covers EVERY area in the step scope incl. the 4 previously-missed raw-SDK sites, with file:line anchors re-derived (not copied from the goal text)",
+              "Audit-class research gate ran with coverage.dry=true (loop-until-dry; a fixed-list census under-covers the tail)",
+              "Every role row carries a decision from {max_rail_cli, max_rail_proxy, stay_metered} with a stated reason; volume/frequency measured from llm_call_log or honestly marked unmeasurable",
+              "advisor_call and BatchClient rows are stay_metered with the no-CC-equivalent evidence cited",
+              "The census names which follow-up step (78.x, authored in this step's close) owns each max_rail decision"
+            ],
+            "live_check": "handoff/current/live_check_78.0.md: census table verbatim, the coverage.dry envelope, llm_call_log volume queries + outputs."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
