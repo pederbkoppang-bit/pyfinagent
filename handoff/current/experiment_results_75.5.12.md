@@ -129,5 +129,7 @@ kills. Both the before and after states are in live_check §5.
   (`LIKE 'cc_rail%'`, opposite polarity, diagnostic-only).
 - The gate's finding that `_` is itself a LIKE wildcard — so `'ccXrail:synthesis' LIKE
   'cc_rail:%'` is True — has **zero production impact** (no such agent names exist,
-  verified against the 30d shape census) and is likewise left for a queued P3 rather
-  than bundled here.
+  verified against the 30d shape census) and is queued as **75.5.13** together with the
+  two adjacent seams above. 75.5.13 also re-decides the STARTS_WITH/wildcard-free
+  predicate question: the gate rated it the most wildcard-safe form but rejected it on a
+  test-coupling argument that was later refuted by execution.

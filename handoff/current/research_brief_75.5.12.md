@@ -1,5 +1,38 @@
 # Research Brief -- phase-75.5.12
 
+> ## ⚠ MAIN CORRECTION (2026-07-25) — read before using this brief
+>
+> **One load-bearing claim in this brief is REFUTED BY EXECUTION.** The brief argues in
+> three places (the "decisive reason" paragraph below, the *Alternatives rejected*
+> table, and the `summary` field of the JSON envelope at the end) that the step text's
+> `NOT (A OR B)` form "would silently neuter the existing shape-2 guard". It would not.
+> Running that exact form yields:
+>
+> ```
+> 2 failed, 11 passed
+> reds: ['test_cc_rail_rows_contribute_zero_both_shapes',
+>        'test_bare_cc_rail_shape_contributes_zero']
+> ```
+>
+> The substring the fake keys on does drop out (mechanism correct), but the consequence
+> is inverted: the rail row is then INCLUDED and the assertion fails **loudly**. Nothing
+> is silently vacated.
+>
+> **The recommendation the brief reaches is still right, for a different reason:** taken
+> literally without re-adding an `agent IS NULL` guard, the step-text form drops every
+> NULL-agent row via SQL three-valued logic, and NULL is the *common* metered case
+> (`llm_client.py:1127`; `_role` is set in only two places repo-wide) — measured, 226
+> Gemini calls / 232,090 tokens would silently vanish from metered spend.
+>
+> **Consequence for the *Alternatives rejected* table specifically:** the
+> `NOT STARTS_WITH(...) AND agent != 'cc_rail'` row — which the brief itself rates
+> "strictly the most wildcard-safe" — was rejected *only* on this refuted
+> test-coupling ground. That rejection no longer stands on the stated reason. Queued as
+> **75.5.13** so a future reader does not inherit a refuted rationale.
+>
+> The brief's own text is left UNEDITED below; this note is Main's, not the researcher's.
+
+
 Tier: **simple**. Audit-class: **false**.
 Topic: `fetch_llm_spend`'s CC-rail exclusion misses the BARE `cc_rail`
 agent shape (colon-required `LIKE 'cc_rail:%'`), so the dominant production
@@ -373,6 +406,8 @@ Why this exact form (De Morgan of the step's suggested
   substring and would silently neuter the existing shape-2 guard. **This is the
   decisive reason to prefer this form over the one written in the step text.**
 
+> **[MAIN CORRECTION]** This "decisive reason" is refuted by execution — the form fails LOUDLY, it does not pass silently. See the correction note at the top of this brief. The recommendation stands on the NULL/3VL argument instead.
+
 ### Alternatives rejected
 
 | Form | Verdict |
@@ -382,6 +417,8 @@ Why this exact form (De Morgan of the step's suggested
 | `NOT STARTS_WITH(agent, 'cc_rail:') AND agent != 'cc_rail'` | Strictly the most wildcard-safe (E3, and E2's canonical example uses STARTS_WITH). Rejected only for test-coupling: same fake-hook problem, larger diff. Worth a follow-up step if the project wants wildcard-free predicates project-wide |
 | `agent NOT LIKE ANY ('cc_rail', 'cc_rail:%')` | REJECTED -- GA since 2024-04-17 (E5) so it is available, but quantified-LIKE negation semantics are subtle, it still carries the `_` wildcard, and it is a novel idiom in this codebase |
 | Query parameter (`@rail_tag`) | Unnecessary -- no user input in the predicate (finding 5) |
+
+> **[MAIN CORRECTION]** The two "breaks the fake's hook / silently vacating the shape-2 guard" verdicts in this table are refuted — that form fails loudly. The STARTS_WITH row in particular was rejected ONLY on that ground despite being rated the most wildcard-safe; queued as **75.5.13** for a proper decision.
 
 ### Optional hardening (NOT bundled -- disclosure only)
 

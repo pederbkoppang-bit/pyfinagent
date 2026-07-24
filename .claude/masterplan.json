@@ -18013,6 +18013,45 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "75.5.13",
+          "status": "pending",
+          "name": "75.5.12 follow-up -- make EVERY cc_rail discriminator in the repo consistent, and settle the wildcard-safety question [executor: sonnet-4.6/high; BOUNDARY: the three predicate seams + tests; do NOT change spend.py's semantics, only its form if the decision calls for it]. THREE seams were found while working 75.5.12 and were disclosed in prose only -- this step exists because a prose disclosure is not a queue entry (operator standing rule). (1) backend/services/observability/spend.py now uses `(agent IS NULL OR (agent != 'cc_rail' AND agent NOT LIKE 'cc_rail:%'))` -- correct, but note the `_` in `cc_rail` IS ITSELF A LIKE WILDCARD, so the surviving `'cc_rail:%'` pattern over-matches: `'ccXrail:synthesis' LIKE 'cc_rail:%'` is TRUE (confirmed empirically by the 75.5.12 research gate). ZERO production impact today -- no such agent names exist, verified against the 30d shape census -- but it is a latent correctness trap. (2) scripts/away_ops/metered_spend.py:69 uses `startswith('cc_rail')`, which DOES catch the bare shape but carries the `cc_railway` over-match that spend.py deliberately avoids -- the two seams disagree about what counts as a rail row. (3) scripts/diagnostics/funnel_report.py:96 uses `LIKE 'cc_rail%'` with the OPPOSITE polarity (diagnostic/inclusive). DECISION REQUIRED, and it is the real content of this step: the 75.5.12 gate rated `NOT STARTS_WITH(agent,'cc_rail:') AND agent != 'cc_rail'` **strictly the most wildcard-safe** form (BigQuery docs' own canonical prefix example) but REJECTED it solely on a test-coupling argument that was later REFUTED BY EXECUTION (see the MAIN CORRECTION header in handoff/current/research_brief_75.5.12.md -- the rejected form fails LOUDLY, it does not vacate the guard). So that rejection no longer stands on its stated reason and must be re-decided on the merits: adopt wildcard-free STARTS_WITH predicates across all three seams, or document why LIKE is retained. Do not re-inherit the refuted rationale. Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py -q",
+            "success_criteria": [
+              "All three seams agree on ONE definition of a CC-rail row, or each documented difference is justified in writing (the diagnostic seam may legitimately differ in polarity -- say so explicitly)",
+              "The STARTS_WITH-vs-LIKE decision is made on the merits and recorded, explicitly noting that the original rejection rationale was refuted",
+              "A test proves the chosen predicate does NOT over-match on the underscore-wildcard case: a fixture row with agent='ccXrail:synthesis' must be treated as METERED (not excluded)",
+              "spend.py's existing 13 tests stay green; no semantic change to which rows are excluded beyond the underscore fix",
+              "MUTATION: reintroduce a bare `LIKE 'cc_rail:%'` where the decision says otherwise -> the over-match test goes red"
+            ],
+            "live_check": "handoff/current/live_check_75.5.13.md: the three seams before/after, the underscore over-match fixture proving the fix, and the mutation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.9.6",
+          "status": "pending",
+          "name": "76.9.2 follow-up -- the Max-rail bridge is a LATENT FOURTH llm_call_log agent shape [executor: sonnet-4.6/high; BOUNDARY: anthropic_max_bridge.py instrumentation decision + spend.py exclusion if a writer is added + tests]. Surfaced by the 75.5.12 Q/A (cycle-1, 2026-07-25) and disclosed in prose only until now. scripts/ops/anthropic_max_bridge.py (127.0.0.1:18797) routes Anthropic SDK traffic to `claude -p` on the flat-fee Max plan, so any call through it is $0. TODAY it writes NO llm_call_log row at all, so no fourth agent shape exists and fetch_llm_spend's three-shape exclusion (bare 'cc_rail', 'cc_rail:<agent>', provider='claude-code') is complete -- verified. THE RISK IS FORWARD-LOOKING: the moment anyone instruments the bridge (which step 78.8 makes likely, since it is closing exactly this kind of observability gap), those rows will be FLAT-FEE but will carry whatever agent tag the writer chooses. If that tag is not one of the three excluded shapes, every bridge call gets priced at full API rates and the $25/day breaker trips on free tokens -- the identical phantom-spend failure 75.5.1 and 75.5.12 exist to prevent, re-entering through a new door. WORK: decide whether the bridge should be instrumented at all; if yes, choose its agent tag so it falls inside the existing exclusion (or widen the exclusion in the SAME change, never after), and add the shape to spend.py's docstring inventory. Coordinate explicitly with 78.8. Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py -q && .venv/bin/python -c \"import ast; ast.parse(open('scripts/ops/anthropic_max_bridge.py').read())\"",
+            "success_criteria": [
+              "A decision is recorded: the bridge is instrumented with a tag inside the flat-fee exclusion, or it is deliberately left uninstrumented with the reason stated",
+              "If instrumented: a fixture row carrying the bridge's actual agent tag contributes ZERO to fetch_llm_spend, and spend.py's docstring inventory names the shape",
+              "The exclusion widening (if any) ships in the SAME change as the writer -- never a writer first and an exclusion later",
+              "MUTATION: tag a bridge row with a shape outside the exclusion -> a test asserting $0 contribution goes red"
+            ],
+            "live_check": "handoff/current/live_check_76.9.6.md: the decision, a real bridge-tagged row priced at zero (or the no-instrumentation evidence), and the mutation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },

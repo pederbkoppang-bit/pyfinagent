@@ -105,3 +105,114 @@ Fixed in `contract_75.5.12.md`, `experiment_results_75.5.12.md` and
 above it rather than quietly rewritten, so the error and its correction are both
 auditable. **No code changed** — the Q/A verified the implementation green on its own
 runs, and the defect was entirely in my justification.
+
+
+---
+
+## Cycle-2 Q/A verdict (verbatim) — CONDITIONAL
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "Cycle-2 on materially CHANGED evidence (commit 2792c8b4: +43 lines each to contract/experiment_results/live_check, +107 to the critique, ZERO deletions, ZERO .py files) -- a legitimate cycle-2 flow, not verdict-shopping. All 3 immutable criteria remain MET and were re-reproduced independently by Q/A: immutable command 13 passed / true exit=0; my own in-memory M1 revert -> exactly ONE red (test_bare_cc_rail_shape_contributes_zero) with test_cc_rail_rows_contribute_zero_both_shapes GREEN (criterion 3 exactly); M2 prefix -> RED on the cc_railway over-match test (criterion 1's \"not a prefix-wildcard\"); M4 -> RED on test_agent_none_rows_are_included; docstring names all three shapes with writer anchors (criterion 2). Cycle-1's ONE finding is genuinely fixed and its replacement justification is now FULLY verified rather than swapped for another story: the MSTEP counterfactual reproduces character-for-character (\"2 failed, 11 passed\", reds = {bare-shape, both-shapes}); the sqlite ANSI 3VL oracle reproduces exactly (STEP TEXT drops NULL, MINE keeps it, and the two forms disagree ONLY on NULL); llm_client.py:1127 is verbatim correct and a known-member recall over ALL 34 `_role` occurrences confirms exactly two production setters (autonomous_loop.py:2722/:2762); and I QUERIED BigQuery directly (ADC, dry-run 0.18MB) -- 226 gemini-2.5-flash calls / 232,090 tok plus 3 claude-haiku calls with a NULL agent, an EXACT match, as are the dominant-shape figures (2192+357=2549 calls / 4,871,109 tok vs 7). No code changed since cycle-1 (git diff 018fc06f..HEAD on both in-scope files is empty; flag False at RUNTIME). CONDITIONAL is withheld from PASS for TWO prose defects of the SAME class cycle-1 flagged, neither of which is a code defect: (1) the refuted claim survives UNCORRECTED in the artifact that ORIGINATED it -- research_brief_75.5.12.md:373 states it as \"**This is the decisive reason**\", :380 uses it to reject the STARTS_WITH predicate the brief itself calls \"strictly the most wildcard-safe\", and :531 carries it in the machine-readable gate-envelope `summary`; Main corrected exactly the three files cycle-1 named and stopped at the named copies rather than the class, and the archive hook will freeze the uncorrected origin into handoff/archive/phase-75.5.12/ on status flip; (2) the present-tense claim \"is queued as an optional P3\" (contract Boundaries) / \"a queued P3\" (experiment_results) does NOT reproduce -- an exhaustive jq over .claude/masterplan.json finds ZERO steps for the `_`-wildcard finding, scripts/away_ops/metered_spend.py:69, or scripts/diagnostics/funnel_report.py:96, so three discovered defects are prose-only, which the standing operator directive feedback_queue_discovered_defects_in_masterplan explicitly forbids. Both fixes are documentation + a masterplan queue entry; no code change is required. This is the SECOND verdict on 75.5.12 (harness_log has 0 entries for this step-id), so the 3rd-CONDITIONAL auto-FAIL rule does not engage.",
+  "violated_criteria": [
+    "claim-auditing (qa.md 4b): refuted claim uncorrected in its ORIGIN artifact, research_brief_75.5.12.md :373/:380/:531 [WARN]",
+    "claim-auditing (qa.md 4b): 'is queued as an optional P3' does not reproduce -- 0 matching masterplan steps [WARN]"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Contradiction",
+      "action": "grep -rn -iE 'silently neuter|neuter(ed|ing)? the existing|keep passing while no longer testing' over the whole repo (excluding .git/.venv/node_modules), then read handoff/current/research_brief_75.5.12.md at :360-385 and :525-540",
+      "state": "Main's cycle-2 remediation corrected the refuted claim in exactly the three files cycle-1 named (contract_75.5.12.md, experiment_results_75.5.12.md, live_check_75.5.12.md) -- verified faithful, additions-only. But the claim survives UNCORRECTED in three places in the artifact that ORIGINATED it: research_brief_75.5.12.md:373 ('The De-Morgan'd NOT (agent = ... OR agent LIKE ...) form would NOT contain that substring and would silently neuter the existing shape-2 guard. **This is the decisive reason to prefer this form over the one written in the step text.**'); :380, the Alternatives-rejected table, which rejects both the step-text form and the STARTS_WITH form -- the latter explicitly called 'Strictly the most wildcard-safe ... Rejected only for test-coupling: same fake-hook problem' and simultaneously flagged 'Worth a follow-up step if the project wants wildcard-free predicates project-wide'; and :531, the machine-readable gate-envelope `summary` field ('the step's suggested NOT(A OR B) form would silently neuter the existing shape-2 guard'). Q/A executed the counterfactual: '2 failed, 11 passed', reds = ['test_bare_cc_rail_shape_contributes_zero', 'test_cc_rail_rows_contribute_zero_both_shapes'] -- a LOUD failure, so the claim is false in all three sites. The brief is cited as References entry #1 of contract_75.5.12.md, is a non-skippable handoff artifact, and will be frozen into handoff/archive/phase-75.5.12/ by the archive-handoff hook on status flip. masterplan.json and harness_log.md are CLEAN (verified) -- Main checked the two places it named and missed the origin. Concrete forward harm: a future step revisiting wildcard-free predicates reads the :380 table and re-inherits a refuted rejection rationale for the predicate the brief itself rates most wildcard-safe. SEVERITY: WARN -- caps at CONDITIONAL; no immutable criterion is violated and no code is affected.",
+      "constraint": "qa.md 4b claim-auditing: every behavioral claim in the handoff must carry, or be able to re-derive, the exact command that produces it; a claim whose output does not reproduce is a Contradiction finding. Remediating a claim-auditing defect must address the CLAIM, not only the copies the evaluator enumerated -- the origin artifact and its machine-readable summary are the propagation source."
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "jq -r '.. | objects | select(.id? != null) | select((.|tostring) | test(\"metered_spend|funnel_report|latent wildcard|ccXrail|underscore\"))' .claude/masterplan.json, plus a broadened search over all pending steps for cc_rail / prefix-wildcard / STARTS_WITH",
+      "state": "ZERO masterplan steps match. contract_75.5.12.md:151-153 asserts in the present tense that the `_`-is-a-wildcard finding 'is queued as an optional P3 rather than bundled here', and experiment_results_75.5.12.md:130-133 asserts it 'is likewise left for a queued P3'. No such step exists. The same applies to the two adjacent seams the contract Boundaries section defers: scripts/away_ops/metered_spend.py:69 (startswith('cc_rail') prefix over-match) and scripts/diagnostics/funnel_report.py:96 (LIKE 'cc_rail%'). All three discovered defects are therefore PROSE DISCLOSURES ONLY. Cycle-1 independently flagged a fourth item of this class (the phase-76.9.2 anthropic_max_bridge fourth-shape risk, 'This deserves its own masterplan step, not a prose mention') -- also still unqueued. The standing operator directive is explicit: any out-of-scope defect found while working a step gets its OWN masterplan step (research-gated), never just a prose disclosure. SEVERITY: WARN -- caps at CONDITIONAL; a state claim in the just-corrected artifacts that does not reproduce, i.e. the same defect class as cycle-1's finding.",
+      "constraint": "feedback_queue_discovered_defects_in_masterplan (operator, 2026-07-20): out-of-scope defects get their own masterplan step, never a prose disclosure. qa.md 4b: set-membership/state claims must be DERIVED and must reproduce; a tool or artifact reporting a state the author asserted but never measured is not evidence."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope (8 read-in-full >= 5, urls 22, recency scan present, gate_passed true)",
+    "contract_before_generate (git history: contract+code both in 018fc06f; cycle-1 mtime chain 00:32:41 < 00:33:58 < 00:36:13)",
+    "log_last (0 harness_log entries for 75.5.12; masterplan status still pending)",
+    "no_verdict_shopping (evidence CHANGED: 2792c8b4 = +254 lines, 0 deletions, 0 .py files)",
+    "immutable_verification_command (13 passed, TRUE_EXIT=0 captured bare, not via pipe)",
+    "no_code_change_since_cycle_1 (git diff 018fc06f..HEAD on both in-scope files = EMPTY)",
+    "cycle2_commit_is_documentation_only (git show --name-only 2792c8b4 | grep .py$ = 0)",
+    "ruff_lint_gate F821/F401/F811 on git-DERIVED 3-file scope (non-empty asserted; exit=0; positive control exit=1 proves non-vacuous)",
+    "backend_runtime_smoke (module import OK; flag False at RUNTIME and as declared default)",
+    "scoped_pytest (-k spend/observability/cost_budget/cost_truth/telemetry: 86 passed, exit 0)",
+    "independent_in_memory_mutation_matrix_CONTROL_M1_M2_M4",
+    "step_text_counterfactual_MSTEP (reproduces Main's quoted output exactly)",
+    "sql_3vl_oracle_sqlite (reproduces Main's recorded oracle exactly)",
+    "predicate_truth_table_5_agent_values (forms disagree ONLY on NULL)",
+    "known_member_recall_test on all 34 `_role` occurrences repo-wide",
+    "llm_client_line_anchor_verification (:1127 verbatim)",
+    "LIVE_BigQuery_measurement (dry-run 0.18MB; NULL-agent 226 gemini/232,090 tok + 3 haiku; cc_rail shapes 2192/357/7)",
+    "stale_claim_sweep repo-wide incl. masterplan.json + harness_log.md",
+    "queued_followup_step_existence_check (jq over masterplan)",
+    "criteria_immutability_vs_HEAD (byte-identical)",
+    "test_file_deletion_check (0 deleted lines -> both-shapes test byte-untouched)",
+    "git_scope_isolation (76.9.3 / 78.0 parallel work correctly attributed elsewhere)",
+    "code_review_heuristics",
+    "claim_auditing_4b",
+    "guard_vacuity_4c",
+    "adversarial_worst_of_N_lenses"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "ANSWERS TO THE FOUR SPAWN-PROMPT QUESTIONS.\n\n(1) DID MAIN ACTUALLY RUN THE COUNTERFACTUAL? Evidence says YES, and the output is true regardless. I re-ran it independently (in-memory module injection via stdin, never touching disk): \"2 failed, 11 passed\", reds = {test_bare_cc_rail_shape_contributes_zero, test_cc_rail_rows_contribute_zero_both_shapes} -- Main's quoted block reproduces exactly. Two forensic details support genuine independent execution rather than transcription of cycle-1: (i) Main's red list is in pytest EXECUTION order (test_cc_rail_rows_contribute_zero_both_shapes at :180 before test_bare_cc_rail_shape_contributes_zero at :197), whereas cycle-1 and I both emitted the ALPHABETICALLY SORTED order -- Main's ordering could not have been copied from cycle-1; (ii) spend.py's mtime moved from cycle-1's recorded 00:36:13 to 00:49:11 while its content stayed byte-identical to commit 018fc06f -- the signature of a mutate-run-restore cycle. I cannot PROVE authorship (handoff/audit/pre_tool_use_audit.jsonl records only {ts, tool, verdict}, no command text), and I say so rather than overclaim.\n\n(2) IS THE REPLACEMENT JUSTIFICATION VERIFIED, OR ONE UNVERIFIED STORY SWAPPED FOR ANOTHER? VERIFIED -- both halves, independently, and this time I could reach the live table. (a) 3VL: sqlite ANSI oracle gives STEP TEXT kept ['cc_railway','synthesis'] / MINE kept [None,'cc_railway','synthesis'] -- Main's recorded oracle character-for-character; my 5-value truth table shows the two forms agree on every non-NULL value and disagree ONLY on NULL, so the step text taken literally drops NULL-agent metered rows and UNDER-counts spend (breaker opens late -- the dangerous direction). (b) Frequency: llm_client.py:1127 is verbatim `agent=generation_config.get(\"_role\") if isinstance(generation_config, dict) else None`; a known-member recall over ALL 34 `_role` occurrences in backend/ + scripts/ confirms exactly TWO production setters (autonomous_loop.py:2722 lite_trader, :2762 lite_risk_judge) -- every other hit is a read, a comment, a test fixture, or unrelated (get_by_role). (c) Blast radius: unlike cycle-1 I queried BigQuery directly (google-cloud-bigquery via ADC, dry-run 0.18MB, 30d window) -- NULL-agent rows = 226 gemini-2.5-flash / 232,090 tok + 3 claude-haiku-4-5 / 3,150 tok. EXACT match to Main's \"226 Gemini calls / 232,090 tokens plus 3 haiku calls\". I also re-measured the dominant-shape claim: cc_rail sonnet-4-6 2192 calls/4,370,458 tok, cc_rail opus-4-7 357/500,651, cc_rail:drill_66_1 7/0 -- so 2,549 bare calls / 4,871,109 tok (~4.87M) and the ~364:1 ratio both reproduce. Every quantified claim in these artifacts now reproduces against the live system. Minor, non-blocking: Main writes `config.get(\"_role\")` where the variable is `generation_config` -- a harmless abbreviation (still a literal substring of the real line).\n\n(3) IS THE CORRECTION HONEST? Leaving the refuted claim VISIBLE with a CORRECTION block is the RIGHT call and I want that recorded as a credit, not a grudging concession: git proves it is additions-only (43 insertions, 0 deletions in each of the three files), so the original text is genuinely preserved for audit rather than quietly rewritten. Two caveats. (i) Placement: the blocks sit BELOW the refuted text, not above as Main's own spawn prompt described -- a skimmer of contract finding #1 or live_check section 3 reads the wrong claim first. The block's header (\"the justification above was WRONG\") is self-consistent with being below, so this is a NOTE, not a violation; moving it above would close the gap. (ii) THE BLOCKING PART: a stale uncorrected copy survives in research_brief_75.5.12.md -- see violation_details #1. Main verified the two places it named (masterplan.json and harness_log.md are indeed CLEAN -- I confirmed both) but did not sweep the origin artifact. The brief states the claim MORE strongly than the corrected files did (\"**This is the decisive reason**\") and carries it in the machine-readable envelope summary.\n\n(4) NO CODE CHANGED: CONFIRMED. git diff 018fc06f..HEAD over backend/services/observability/spend.py + backend/tests/test_phase_75_5_1_spend_metric.py is EMPTY; commit 2792c8b4 touches 0 .py files; working tree carries only a hook-appended handoff/audit/pre_tool_use_audit.jsonl. Suite still 13 passed / exit 0; cost_budget_use_llm_spend_enabled is False at RUNTIME (not merely in source), closing vacuity shape #9. The in-scope diffstat in 018fc06f is 90 insertions / 6 deletions -- identical to the figure cycle-1 recorded, corroborating that the code I graded is byte-identical to the code cycle-1 graded.\n\nCRITERIA (re-reproduced by me, not accepted from Main):\n- C1 MET. spend.py:229-230 uses exact `agent != 'cc_rail'`, not a prefix. My M2 (swap to NOT LIKE 'cc_rail%') -> RED on test_cc_railway_is_not_swallowed_by_the_bare_cc_rail_exclusion (:222). New bare-shape fixture at :197.\n- C2 MET. Module docstring invariant 1 enumerates all three shapes with writer anchors: (a) provider='claude-code' autonomous_loop.py:2299, (b) cc_rail:<role> and (c) bare cc_rail both claude_code_client.py:504, plus the dominance rationale and the exact-equality rationale. Notably the docstring carries the CORRECT reasoning -- the refuted claim never entered production source.\n- C3 MET. My M1 revert -> exactly ONE red (bare-shape); test_cc_rail_rows_contribute_zero_both_shapes (:180) GREEN. That test is byte-untouched: git diff -U0 over the whole step shows 0 deleted lines in the test file, so \"stay green\" is a genuinely independent signal.\n\nNOT RE-LITIGATED (confirmed sound in cycle-1, unaffected by the documentation edits): the 3-shape derivation, the 3VL fake-branch fidelity, the prefix-branch legitimacy, and scope isolation. Spot-checked only that the doc edits broke nothing -- they did not.\n\nREQUIRED TO CLEAR (documentation + queue only; NO code change):\n1. Correct the refuted claim in handoff/current/research_brief_75.5.12.md at :373 (strike \"This is the decisive reason\"), :380 (the Alternatives-rejected table -- and re-evaluate the STARTS_WITH row, rejected \"only for test-coupling: same fake-hook problem\", a rationale now known to produce a LOUD failure, not a silent one), and :531 (the envelope `summary`). Appending the same CORRECTION block, or a one-line pointer to it, satisfies this -- the point is that the origin and its machine-readable summary must not be archived asserting a refuted claim.\n2. Either queue real masterplan steps for the three deferred defects (the `_`-latent-wildcard P3; scripts/away_ops/metered_spend.py:69 prefix over-match; scripts/diagnostics/funnel_report.py:96) per the standing operator directive, OR downgrade the present-tense \"is queued as an optional P3\" / \"a queued P3\" wording in contract_75.5.12.md and experiment_results_75.5.12.md to an accurate future-tense disclosure. Queuing is the operator-directed option; cycle-1's anthropic_max_bridge fourth-shape finding belongs in the same sweep.\n\nNON-BLOCKING NOTES:\n- Consider moving the CORRECTION blocks ABOVE the refuted text in all three files.\n- handoff/current/evaluator_critique_75.5.12.json (the phase-71.3 machine-readable sidecar) does not exist yet; Main is the scribe for it after this verdict.\n- Verdict via the P1 worst-of-N-lenses rule: correctness PASS, does-it-reproduce PASS (every number and every mutation reproduced this cycle), scope-honesty CONDITIONAL (uncorrected origin + unqueued \"queued\" defects) -> min() = CONDITIONAL.\n- Second verdict on this step-id; harness_log.md has 0 entries for 75.5.12, so the 3rd-CONDITIONAL auto-FAIL rule does not engage. retry_count 0 < max_retries 3 -> certified_fallback false.\n- Q/A was fully read-only: no Edit/Write, no rm/mv/sed -i, no output redirects. All mutation work ran in memory via stdin heredocs with the module injected into sys.modules; the working tree was re-verified unchanged afterwards (only the hook-appended audit jsonl).\n- No frontend/** in the diff, so gate 1b (eslint/tsc) and gate 1c (live UI capture) are not applicable. The BigQuery MCP tools are absent from my surface, so I used the CLAUDE.md-sanctioned Python-client + ADC fallback (rule 6) with a bounded, dry-run-checked, read-only SELECT.\n- Code-review heuristics: no BLOCK or WARN findings on the diff (no secrets, no kill-switch/stop-loss path touched, no broad-except added, no perf-metrics bypass, no consumer-contract break -- the predicate change is internal to one SQL string with its fake updated in the same diff, and criterion 1's over-match guard is non-vacuous as proven by M2)."
+}
+```
+## Main's response to cycle-2 (Main's own words)
+
+Cycle-2 re-confirmed all three immutable criteria by re-running the mutations itself,
+and went further than cycle-1: it **queried BigQuery directly** and reproduced my
+NULL-agent blast radius exactly (226 gemini-2.5-flash calls / 232,090 tok + 3 haiku),
+along with the dominant-shape figures (2,549 calls / 4,871,109 tok vs 7). The MSTEP
+counterfactual and the sqlite 3VL oracle both reproduced character-for-character, and a
+known-member recall over all 34 `_role` occurrences confirmed exactly two production
+setters. So the replacement justification is verified, not a second unverified story.
+
+Both new findings are the **same class**, and both are mine:
+
+**1. I fixed the copies the evaluator named, not the claim.** Cycle-1 listed three files;
+I corrected exactly those three and stopped. The refuted claim survived in
+`research_brief_75.5.12.md` — the artifact that *originated* it — at the "decisive
+reason" paragraph, in the *Alternatives rejected* table, and inside the machine-readable
+gate envelope's `summary`. Worse, the table used the refuted argument to reject
+`NOT STARTS_WITH(...)`, a form the brief itself rates "strictly the most wildcard-safe".
+Left unfixed, the archive hook would have frozen that into
+`handoff/archive/phase-75.5.12/` and a future step would have inherited a refuted
+rationale for rejecting the *better* predicate.
+
+Fixed by annotation, not rewriting: the researcher's text stands, with a prominent
+`MAIN CORRECTION` header at the top of the brief plus inline notes at the two prose
+sites. The envelope `summary` is inside a JSON block, so it is covered by the header
+rather than edited (editing it would corrupt the machine-readable envelope).
+
+**2. "is queued as an optional P3" did not reproduce.** Zero masterplan steps existed
+for the `_`-wildcard finding, `metered_spend.py:69`, or `funnel_report.py:96` — and
+cycle-1 had flagged a fourth (the Max-rail bridge's latent fourth shape) that was also
+still prose-only. Four discovered defects, none queued, which the operator's standing
+rule explicitly forbids. Now queued as **75.5.13** (the three predicate seams plus the
+re-decision on wildcard-free predicates, since the original rejection no longer stands
+on its stated reason) and **76.9.6** (the bridge shape, explicitly coordinated with
+78.8 because instrumenting the bridge is exactly what would create the fourth shape).
+Every "queued as **X**" claim in these artifacts now resolves against
+`.claude/masterplan.json`.
+
+**On the pattern.** This is the third time this session a claim of mine failed to
+reproduce, and the second time I patched instances instead of the class. Rather than
+promise to be careful, I wrote a checker: it sweeps every step-id and repo-path
+reference across all 26 handoff artifacts and reports anything that does not resolve.
+It now reports zero unresolved references in my artifacts (its only two hits are
+proposals in other steps' briefs, correctly not claims of existence). That check runs
+before the next Q/A spawn, not after it.
+
+**No code changed** in either cycle. The implementation has been verified green by two
+independent evaluators; every defect has been in my prose.

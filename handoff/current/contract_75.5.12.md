@@ -149,8 +149,10 @@ Immutable verification command:
   `scripts/diagnostics/funnel_report.py:96` (`LIKE 'cc_rail%'`, opposite polarity,
   diagnostic-only).
 - The gate's `_`-is-a-wildcard finding (`'ccXrail:synthesis' LIKE 'cc_rail:%'` → True)
-  has **zero production impact** (no such agent names exist) and is queued as an
-  optional P3 rather than bundled here.
+  has **zero production impact** (no such agent names exist, verified against the 30d
+  shape census) and is queued as **75.5.13**, together with the two adjacent seams
+  above -- that step also re-decides the STARTS_WITH/wildcard-free question, whose
+  original rejection rationale was refuted by execution.
 
 ## References
 
