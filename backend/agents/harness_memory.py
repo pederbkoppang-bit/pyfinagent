@@ -27,6 +27,8 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
 
+from backend.config.model_tiers import GEMINI_DEEP_THINK, GEMINI_WORKHORSE  # phase-75.5.2
+
 logger = logging.getLogger(__name__)
 
 # ── Configuration ───────────────────────────────────
@@ -46,8 +48,8 @@ TOOL_OUTPUT_THRESHOLD = 500  # Token count threshold for tool output masking
 MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     # Gemini
     "gemini-2.0-flash": 1_048_576,
-    "gemini-2.5-flash": 1_048_576,
-    "gemini-2.5-pro": 1_048_576,
+    GEMINI_WORKHORSE: 1_048_576,
+    GEMINI_DEEP_THINK: 1_048_576,
     # Claude — current GA (1M context on Opus 4.8/4.7/4.6 + Sonnet 4.6)
     "claude-opus-4-8": 1_000_000,
     "claude-opus-4-7": 1_000_000,
@@ -319,7 +321,7 @@ class ObservationMasker:
 
     def __init__(
         self,
-        model_name: str = "gemini-2.5-flash",
+        model_name: str = GEMINI_WORKHORSE,
         harness_memory: HarnessMemory | None = None,
         trigger_pct: float = MASKING_TRIGGER_PCT,
         keep_last_n: int = KEEP_LAST_N_TURNS,
@@ -500,7 +502,7 @@ def init_session_memory(
 
 
 def create_masker(
-    model_name: str = "gemini-2.5-flash",
+    model_name: str = GEMINI_WORKHORSE,
     memory: HarnessMemory | None = None,
 ) -> ObservationMasker:
     """Create an observation masker for the given model."""

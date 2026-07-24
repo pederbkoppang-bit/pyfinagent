@@ -381,8 +381,8 @@ def _resolve_step_timeout(model, timeout: int, is_grounded: bool) -> int:
     """phase-60.1 (AW-4): per-step LLM budget, adjusted for what the call
     actually is. Two live-observed failure legs (2026-06-11):
 
-    1. Grounded multi-tool calls on gemini-2.5-flash (the post-retirement
-       workhorse) have higher tail latency than the old gemini-2.0-flash --
+    1. Grounded multi-tool calls on the `GEMINI_WORKHORSE` model (the
+       post-retirement workhorse) have higher tail latency than the old gemini-2.0-flash --
        the SAME grounded step finished in ~30s on one run and blew 3x90s on
        the next. Grounded calls at the 90s default get 180s.
     2. Rails declare their own latency profile via an optional

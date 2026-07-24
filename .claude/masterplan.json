@@ -17157,7 +17157,7 @@
         },
         {
           "id": "75.5.2",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S5 follow-up -- the 8 remaining gemini-2.5 behavioural pins [executor: sonnet-4.6/high; BOUNDARY: literals become constants only, NO tier pin VALUE changed]. Discovered during 75.5: that step's text named '5 hardcoded gemini-2.5 pins' but the research gate's adversarial leg counted 13 behavioural pins tree-wide. 75.5's immutable criterion 4 was scoped to its 5 named files, so it fixed those and queued the rest here rather than silently widening scope. The 8 unaddressed sites, verified at that time (RE-DERIVE the line numbers, they will have moved): backend/meta_evolution/directive_review.py:159, backend/meta_evolution/directive_rewriter.py:202, backend/news/sentiment.py:81, backend/agents/harness_memory.py:322 and :503, backend/services/autonomous_loop.py:2648 and :2663, backend/api/agent_map.py:132. Route each through the GEMINI_WORKHORSE / GEMINI_DEEP_THINK constants in backend/config/model_tiers.py (both exist as of 75.5; GEMINI_DEEP_THINK was created there). This matters on a deadline: the Gemini 2.5 family shuts down 2026-10-16 (ai.google.dev/gemini-api/docs/deprecations) and the 2.0-flash class already cost this project 9 silent days when it was retired under a hardcoded pin. 75.5 also added model_tiers.gemini_retirement_warning(); ensure every newly-routed site is covered by it.",
           "harness_required": true,
           "priority": "P1",
@@ -17170,6 +17170,26 @@
               "Mutation matrix in experiment_results.md: restoring a literal at ONE of the 8 sites, and changing one resolved VALUE, each fail at least one test"
             ],
             "live_check": "handoff/current/live_check_75.5.2.md: verbatim verification command output (exit 0) + git diff --stat + a before/after table of every routed site's RESOLVED model string proving no value changed."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.5.2.1",
+          "status": "pending",
+          "name": "Audit75 S5 follow-up -- make the gemini-2.5 retirement tripwire actually fire at runtime + pin the display/sample strings [executor: sonnet-4.6/high; BOUNDARY: no tier pin VALUE changed; warning emission must be log/Slack-observable, never blocking]. Discovered by the 75.5.2 research gate (2026-07-24, research_brief_75.5.2.md, QUEUE items i-iii). THREE adjacent gaps around the 2026-10-16 gemini-2.5 shutdown: (i) model_tiers.gemini_retirement_warning() has ZERO runtime callers -- it is defined (75.5) and test-covered but nothing ever emits it, so the tripwire that exists to prevent a repeat of the 9-silent-days 2.0-flash retirement can never actually page anyone; wire it into a startup/daily seam (candidates: backend lifespan startup log, the cron-alert seam raise_cron_alert_sync, or the Slack nightly memo) so a >=2026-09-15 date produces an OBSERVABLE warning per routed model; (ii) backend/agents/_inventory.json (~20 nodes) and .env.example carry gemini-2.5-flash DISPLAY/sample strings that will silently go stale at migration -- add a consistency test that pins them against model_tiers constants (display strings may lag intentionally, but the test must FORCE the October migration to visit them); (iii) inside model_tiers.py itself, _BUILD_TIER['gemini_deep_think'] uses the literal 'gemini-2.5-pro' instead of GEMINI_DEEP_THINK -- route it (a within-file constant reference, still no value change). Research gate mandatory before PLAN; re-derive all three claims (zero-callers, node count, the literal) rather than trusting this text.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_5_2_1_retirement_tripwire.py -q",
+            "success_criteria": [
+              "A runtime seam demonstrably EMITS the retirement warning: a test drives the seam with a frozen >=2026-09-15 date and captures the emitted warning (log record or alert payload) containing 2026-10-16; a pre-window date emits nothing (negative control)",
+              "The emission seam is non-blocking by construction: a test proves an exception inside the warning path cannot prevent the wrapped operation from completing",
+              "The display/sample-string consistency test pins _inventory.json and .env.example gemini-2.5 occurrences against model_tiers constants such that changing GEMINI_WORKHORSE without visiting them fails the test",
+              "_BUILD_TIER['gemini_deep_think'] references GEMINI_DEEP_THINK (no literal), with the resolved tier value proven unchanged",
+              "Each new behavioral guard is mutation-tested with evidence recorded in live_check_75.5.2.1.md, including at least one fixture/stub mutation"
+            ],
+            "live_check": "handoff/current/live_check_75.5.2.1.md: verbatim verification output (exit 0) + git diff --stat + the captured warning emission evidence + mutation matrix."
           },
           "retry_count": 0,
           "max_retries": 3

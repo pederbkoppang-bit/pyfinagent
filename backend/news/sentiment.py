@@ -27,7 +27,8 @@ Design decisions with empirical backing (see
 - Gemini Flash tier-4 default OFF via `settings.sentiment_use_gemini_flash`.
 
 scorer_model enum (matches `scripts/migrations/add_news_sentiment_schema.py:24-36`):
-`vader`, `finbert`, `claude-haiku-4-5`, `gemini-2.5-flash`.
+`vader`, `finbert`, `claude-haiku-4-5`, the Gemini 2.5 Flash workhorse
+(`SCORER_MODEL_GEMINI_FLASH`, routed through `GEMINI_WORKHORSE`).
 
 Fail-open: any tier exception returns a neutral/0-confidence result.
 Never raises out of `score_ladder()`.
@@ -41,6 +42,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Mapping
+
+from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5.2
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +81,7 @@ except Exception as exc:  # pragma: no cover
 SCORER_MODEL_VADER = "vader"
 SCORER_MODEL_FINBERT = "finbert"
 SCORER_MODEL_HAIKU = "claude-haiku-4-5"
-SCORER_MODEL_GEMINI_FLASH = "gemini-2.5-flash"  # phase-60.1: 2.0-flash discontinued 2026-06-01
+SCORER_MODEL_GEMINI_FLASH = GEMINI_WORKHORSE  # phase-60.1: 2.0-flash discontinued 2026-06-01
 
 LABEL_BULLISH = "bullish"
 LABEL_BEARISH = "bearish"

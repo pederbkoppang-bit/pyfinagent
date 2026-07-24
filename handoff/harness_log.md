@@ -28102,3 +28102,28 @@ T4). CORRECTION for the record: the executor's "(c).2 unplanned mid-task
 reformat by an external writer" was MAIN's own review edits (ISC004 restructure
 + ruff --fix PLR0402 on its files while its report was composing) -- no phantom
 concurrent editor existed; noted so nobody chases it later.
+
+## Cycle 152 -- 2026-07-24 -- phase=75.5.2 result=PASS (cycle 2; cycle-1 CONDITIONAL fixed the strong way)
+
+- P1 deadline step (gemini-2.5 retires 2026-10-16). Delegated Sonnet executor
+  GENERATE off an AUDIT-CLASS research gate (coverage.dry; census re-derived 9
+  behavioural pins -- one MORE than the step text, the 9th in
+  scripts/harness/run_autonomous_loop.py). All 9 routed to GEMINI_WORKHORSE;
+  +GEMINI_2_5_FAMILY_PREFIX for the llm_client family guard; NO value changed
+  (the value-pin tests are the deliberate Oct-2026 migration tripwire).
+  October migration is now a ONE-FILE change.
+- THE MUTATION-MATRIX STORY (4c earning its keep twice): Main's matrix found
+  M4 aliased-import misroute SURVIVING; Main fixed site 9 and claimed the shape
+  closed. The cycle-1 Q/A (wf_71687e5e-c63, CONDITIONAL) re-probed ALL guarded
+  sites and proved the shape still open at autonomous_loop sites 6,7 -- an
+  Overgeneralization catch on Main's own headline. Cycle-2 fix: import-level
+  alias-proof test for the module; matrix extended with M5 = the exact
+  surviving shape; 5/5 killed. Fresh Q/A (wf_14d854ad-c3c) PASS -- executed the
+  real tests against mutated source, confirmed the OLD guard still misses what
+  the NEW guard kills (not a re-implemented copy), no other site alias-blind.
+- 307 tests + 349 combined green; independent zero-literal grep; per-file lint
+  parity vs HEAD (5 F401s proven pre-existing). QUEUED 75.5.2.1 (runtime
+  tripwire emission + display strings + in-file _BUILD_TIER literal).
+- 4th and 5th live vacuous-lint self-catches by Q/A this session (zsh shape #9
+  again in cycle 1). OPERATOR NOTE: this closes the planned pre-/clear
+  checkpoint -- next session binds the 75.20 roster (see Cycle 148 checklist).

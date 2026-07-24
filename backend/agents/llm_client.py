@@ -794,7 +794,7 @@ class GeminiClient(LLMClient):
             model: A `GeminiModelBundle` wrapping a google-genai client +
                 per-model config + tools. (phase-11.3: was a
                 vertexai.generative_models.GenerativeModel.)
-            model_name: String name for cost tracking (e.g. "gemini-2.5-flash").
+            model_name: String name for cost tracking (e.g. the `GEMINI_WORKHORSE` value).
                 Kept for backward compatibility with legacy callsites; must
                 match `model.model_name` when the bundle is non-None.
         """
@@ -914,11 +914,13 @@ class GeminiClient(LLMClient):
         """
         from google.genai import types as _genai_types  # local: avoid import cost if Claude-only session
         import concurrent.futures
+        from backend.config.model_tiers import GEMINI_2_5_FAMILY_PREFIX  # phase-75.5.2
 
         # phase-35.2: start timer for llm_call_log telemetry. Mirror of the
         # ClaudeClient._t0 pattern at line ~1500. Closes closure_roadmap §3
         # OPEN-23: Risk-Judge calls bypassed telemetry because phase-34.1
-        # flipped to gemini-2.5-pro but GeminiClient.generate_content lacked
+        # flipped to the Gemini 2.5 Pro deep-think tier (`GEMINI_DEEP_THINK`)
+        # but GeminiClient.generate_content lacked
         # the log_llm_call retrofit that ClaudeClient has at line 1645+.
         _t0 = _time.perf_counter()
 
@@ -973,16 +975,16 @@ class GeminiClient(LLMClient):
                 )
         # phase-60.1 (AW-4): Gemini 2.5 flash-family models think BY DEFAULT
         # (dynamic budget). The repin from the no-thinking gemini-2.0-flash to
-        # gemini-2.5-flash made grounded agent calls exceed the 90s step
-        # timeout (MU market step, 3x90s timeouts, live 2026-06-11). When the
-        # caller did NOT opt into thinking, disable it explicitly (budget=0)
-        # so the workhorse behaves like the model it replaced. 2.5 -pro
-        # models REJECT budget=0 (min 128) and keep their default; the
+        # the Gemini 2.5 Flash workhorse made grounded agent calls exceed the
+        # 90s step timeout (MU market step, 3x90s timeouts, live 2026-06-11).
+        # When the caller did NOT opt into thinking, disable it explicitly
+        # (budget=0) so the workhorse behaves like the model it replaced. 2.5
+        # -pro models REJECT budget=0 (min 128) and keep their default; the
         # enable_thinking opt-in path above is unaffected.
         if (
             typed_thinking is None
             and isinstance(bundle.model_name, str)
-            and bundle.model_name.startswith("gemini-2.5")
+            and bundle.model_name.startswith(GEMINI_2_5_FAMILY_PREFIX)
             and "-pro" not in bundle.model_name
         ):
             typed_thinking = _genai_types.ThinkingConfig(thinking_budget=0)

@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from backend.autonomous_loop import AutonomousLoopOrchestrator, LoopStatus
+from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5.2
 
 # Setup logging
 logging.basicConfig(
@@ -71,7 +72,7 @@ async def run_autonomous_loop(
             project_id=project_id,
             dataset_id="trading",
             planner_model="claude-opus-4-8",
-            evaluator_model="gemini-2.5-flash",  # phase-60.1: 2.0-flash discontinued
+            evaluator_model=GEMINI_WORKHORSE,  # phase-60.1: 2.0-flash discontinued
         )
         
         orchestrator.max_iterations = max_iterations

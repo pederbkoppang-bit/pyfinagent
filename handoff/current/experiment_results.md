@@ -1,80 +1,98 @@
-# Experiment results — Step 75.4.2 (skill_optimizer post-write delivery invariant)
+# Experiment results — Step 75.5.2 (the remaining gemini-2.5 behavioural pins → constants)
 
 Date: 2026-07-24. Execution model: **sonnet-tagged → delegated Sonnet executor
-GENERATE** (operator tiering directive; first delegated executor this session),
-Main review + mutation matrix; Researcher gate opus/max (wf_91b00dc2-3ea, PASSED,
-6 read-in-full — DbC/DSPy/APE/OPRO/VeriGuard canon; brief carried VERBATIM
-implementation code the executor followed).
+GENERATE**; Main review + mutation matrix (which FOUND AND FIXED a guard
+weakness); Researcher gate opus/max, **AUDIT-CLASS with coverage.dry**
+(wf_c5355afe-01b — census swept until 2 consecutive dry rounds).
 
 ## What was built
 
-1. **`backend/agents/skill_optimizer.py`** — unconditional, fail-CLOSED delivery
-   postcondition on `apply_modification`:
-   - module-level `DELIVERY_MIN_RETAIN_RATIO = 0.80`, `_PLACEHOLDER_RE`, and
-     `_delivery_invariant_ok(before, after) -> (ok, reason)` with two INDEPENDENT
-     guards: placeholder-set subset (no delivered `{{placeholder}}` may vanish)
-     and 80% length retention (catches heading-promotion truncation of
-     placeholder-free body);
-   - pre-write baseline `delivered_before = load_skill(agent)` (fail-closed skip
-     if the baseline itself cannot be established);
-   - post-write: the existing load-exception revert is KEPT, then the invariant
-     runs on (before, after); on violation → byte-exact revert via the in-function
-     `skill_path.write_text(content)` pattern (never `revert_modification`'s
-     `git checkout`), reload + cache invalidate, `return False` — all BEFORE the
-     `_git` commit. No flag gate: the guard is always on, deterministic, $0.
-2. **`backend/tests/test_phase_75_4_2_optimizer_invariant.py`** (new, 4 tests, all
-   through the REAL `apply_modification` + REAL `load_skill` on a temp copy of the
-   real `quant_model_agent.md`): T1 `###`→`##` promotion refused + sha256
-   unchanged; T2 placeholder drop via the UNIQUE 2-line old_text refused +
-   byte-identical (the bare placeholder occurs TWICE in the file — every fixture
-   asserts `count(old_text)==1` so the pre-existing occurs-once guard can never
-   make a test vacuously green); T3 negative control: prose-only edit ACCEPTED,
-   file changed, delivery still carries `{{quant_model_data}}`; T4
-   length-guard-only trip refused.
+1. **Census executed (9 sites, not the step text's 8):** the audit-class research
+   gate re-derived the 8 named backend pins (2 had moved +22 lines) AND discovered
+   a 9th behavioural pin at `scripts/harness/run_autonomous_loop.py:74` — included
+   under C1's strict "outside model_tiers.py" reading. All 9 routed to
+   `GEMINI_WORKHORSE` (none to deep-think — no behavioural 2.5-pro pin exists
+   outside model_tiers.py).
+2. **`model_tiers.py`:** ONE addition — `GEMINI_2_5_FAMILY_PREFIX = "gemini-2.5"`
+   for the llm_client:985 thinking-budget family guard (behavioural but not a
+   pin). NO value changed.
+3. **Co-located literal cleanup** per the 75.5 strict-scan precedent (per-file raw
+   substring, docstrings included): harness_memory MODEL_CONTEXT_WINDOWS keys →
+   constants (the 2.0-flash row untouched); prose rewords at 7 sites using the
+   "Gemini 2.5" form.
+4. **New `backend/tests/test_phase_75_5_2_model_pins.py`** (306 collected):
+   parametrized per-file strict scan + the NON-VACUOUS self-test (in-scope list
+   must be a superset of the known pin files — a scan that can't find its own
+   members fails); the deliberate migration-tripwire value-pins; per-site
+   resolution proofs (const/default introspection + behavioural capture with
+   patched genai for the meta_evolution fallbacks + AST reference/misroute guards
+   for the deep sites); retirement-warning firing + two negative controls.
 
-## Closed hole (why this matters)
+## The mutation-matrix finding (this cycle's headline)
 
-Before: the optimizer's only post-write check was `load_skill()` not raising — a
-heading promotion loads FINE while truncating the delivered prompt from 7532→190
-chars (the exact 75.4 regression), then `_git` commits it, `reload_skills` makes
-it live, and the PENDING metric path never auto-reverts. After: the write is
-refused and reverted byte-exactly at the moment it happens.
+M4 (misroute one site to GEMINI_DEEP_THINK) initially **SURVIVED**: an aliased
+import (`GEMINI_DEEP_THINK as GEMINI_WORKHORSE`) defeats a call-site name check
+while binding the wrong value. Main strengthened the script's guard with an
+import-level AST assertion (un-aliased GEMINI_WORKHORSE import required;
+GEMINI_DEEP_THINK import forbidden), documented the finding in the test comment,
+and re-ran the FULL matrix: **4/4 killed, post-restore green**. This is §4c
+working as designed — the matrix found a guard that could not fail under a
+realistic sneaky mutation, and the guard got fixed before Q/A.
 
 ## Files changed
 
-`backend/agents/skill_optimizer.py`, `backend/tests/test_phase_75_4_2_optimizer_invariant.py`
-(new), `.claude/masterplan.json` (75.4.2 → in_progress), handoff artifacts.
-prompts.py / skills/*.md / the 71.4 review block: untouched.
+`backend/config/model_tiers.py` (+1 constant), the 9 pin files
+(`directive_review.py`, `directive_rewriter.py`, `sentiment.py`,
+`harness_memory.py`, `autonomous_loop.py` ×2 sites, `agent_map.py`,
+`llm_client.py`, `orchestrator.py` prose, `scripts/harness/run_autonomous_loop.py`),
+`backend/tests/test_phase_75_5_2_model_pins.py` (new),
+`.claude/masterplan.json` (75.5.2 → in_progress; +75.5.2.1 queued), handoff artifacts.
 
 ## Verbatim verification output
 
 ```
-$ cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_4_2_optimizer_invariant.py -q
-4 passed
-$ .venv/bin/python -m pytest backend/tests/test_phase_75_4_2_optimizer_invariant.py backend/tests/test_phase_75_skill_delivery.py -q
-31 passed, 1 warning in 2.69s
+$ cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_75_5_2_model_pins.py -q
+306 passed, 1 warning in 4.01s
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_5_2_model_pins.py backend/tests/test_phase_75_llm_rail.py -q
+348 passed, 1 warning in 7.05s
+$ .venv/bin/python -c "import backend.config.model_tiers, backend.news.sentiment, ... ; print('imports OK')"
+imports OK
+$ grep -rn "gemini-2.5" backend/ --include='*.py' | <exclusions> | wc -l
+0
 ```
 
-Lint: new test file clean; skill_optimizer.py class-census delta vs HEAD = +1
-BLE001 (the file's documented fail-open idiom, 7th instance). Main fixed two
-executor nits during review (an ISC004 implicit-concat + 2 PLR0402 import
-aliases in the test).
+Lint: new test clean; all 10 edited files at exact finding-class parity with
+their HEAD baselines.
 
-## Mutation matrix (criterion 4 + qa.md §4c) — 5 mutations, 5 killed
+## Mutation matrix (C4 + qa.md §4c) — final 4/4 killed (1 survivor found + fixed)
 
-Runner + verbatim log in scratchpad; table + per-guard independence analysis in
-live_check_75.4.2.md §3. The two criterion-4-required mutations are M1 (invariant
-call removed → 3 tests fail) and M2 (helper weakened to always-ok → 3 tests
-fail); M3/M4 prove each guard independently load-bearing (each kills exactly the
-test designed for it); M5 mutates the FIXTURE (T2's unique old_text degraded to
-the bare twice-occurring placeholder → the fixture's own count==1 trap-assert
-kills it).
+Full table + the survivor narrative in live_check_75.5.2.md §3; runner + both
+verbatim logs in the session scratchpad. The two criterion-4-required mutations:
+M1 (restore a literal → that file's scan case fails) and M2 (change a resolved
+VALUE → 7 failures across the value-pin + every resolution test).
+
+## Queued (feedback_queue_discovered_defects_in_masterplan)
+
+**75.5.2.1** (P2, sonnet-tagged, research-gated): (i) the retirement tripwire has
+ZERO runtime callers — nothing will ever page before 2026-10-16; (ii)
+_inventory.json + .env.example stale-able display/sample strings; (iii)
+_BUILD_TIER's in-file literal.
 
 ## Delegation record
 
-The Sonnet executor implemented the brief's verbatim code with zero design
-deviations; Main independently re-ran both suites, reviewed the full diff line by
-line, fixed the two lint nits, re-derived the lint scope from git after the last
-edit, and executed the mutation matrix. (The executor's own report channel had
-not flushed by close; all its claims were verified first-hand by Main rather
-than trusted.)
+Executor followed the census/brief precisely (its report pending flush at close;
+Main verified everything first-hand: both suites, independent zero-literal grep,
+per-file lint parity, key-diff review, and the mutation matrix incl. the M4
+survivor fix authored by Main).
+
+## CYCLE 2 (post-CONDITIONAL fix)
+
+The cycle-1 Q/A CONDITIONAL named exactly one blocker: the alias-misroute shape
+was closed at 1 of 3 AST-guarded sites (Main's site-9 fix), still open at
+autonomous_loop sites 6,7. Fix: a new import-level alias-proof test scoped to
+the module's model_tiers imports (un-aliased bind required; GEMINI_DEEP_THINK
+import forbidden), comment citing the Q/A finding. Matrix extended with M5 (the
+exact surviving mutation) — final: **5 mutations, 5 killed, survivors NONE**,
+post-restore green, combined suites 349 passed. The cycle-1 headline
+("aliased shape closed") is now true at ALL guarded sites, and the
+over-generalisation is corrected here per the critique.

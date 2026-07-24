@@ -65,6 +65,11 @@ GEMINI_DEEP_THINK = "gemini-2.5-pro"
 GEMINI_2_5_RETIREMENT_DATE = _date(2026, 10, 16)
 GEMINI_2_5_WARN_FROM = _date(2026, 9, 15)
 
+# phase-75.5.2: family-membership prefix for the llm_client thinking-budget guard.
+# Value == the substring the guard already used; routing it here makes the family
+# check a named, retirement-visible target. NOT a model pin.
+GEMINI_2_5_FAMILY_PREFIX = "gemini-2.5"
+
 
 def gemini_retirement_warning(model: str, today: _date | None = None) -> str | None:
     """Return a warning string when `model` is 2.5-family and the warn date has passed.

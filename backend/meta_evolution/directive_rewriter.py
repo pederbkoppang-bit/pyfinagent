@@ -36,6 +36,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5.2
+
 logger = logging.getLogger(__name__)
 
 MIN_BRIEFS_FOR_PROPOSAL = 5
@@ -199,7 +201,7 @@ def _call_llm_for_rewrite(prompt: str) -> Optional[dict[str, Any]]:
             location=getattr(settings, "gcp_location", "us-central1"),
         )
         resp = g_client.models.generate_content(
-            model="gemini-2.5-flash",  # phase-60.1: 2.0-flash discontinued 2026-06-01
+            model=GEMINI_WORKHORSE,  # phase-60.1: 2.0-flash discontinued 2026-06-01
             contents=prompt,
         )
         text = getattr(resp, "text", "") or ""

@@ -2171,8 +2171,9 @@ def _select_lite_analyzer(model_name):
     """Factory: pick the lite-analyzer coroutine for the configured standard model.
 
     phase-27.3 (C2): the lite fallback was hardcoded to Claude only, so
-    selecting `gemini-2.5-flash` as the standard model bricked the safety
-    net ("standard model … is not a Claude model" raise). The factory
+    selecting the Gemini 2.5 Flash workhorse (`GEMINI_WORKHORSE`) as the
+    standard model bricked the safety net ("standard model … is not a
+    Claude model" raise). The factory
     dispatches by model-name prefix:
       - `gemini-*` -> `_run_gemini_analysis` (direct AI Studio API key)
       - anything else (default `claude-*`) -> `_run_claude_analysis`
@@ -2634,6 +2635,7 @@ async def _run_gemini_analysis(
     """
     import re as _re
     from backend.agents.llm_client import make_client, safe_text
+    from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5.2
 
     logger.info(f"Gemini analysis: analyzing {ticker}")
 
@@ -2667,7 +2669,7 @@ async def _run_gemini_analysis(
     _di_enabled = bool(getattr(settings, "paper_data_integrity_enabled", False))
     _di_norm = normalize_market_values(ticker, info)
     _di_flags = check_data_integrity(ticker, info, _di_norm)
-    _model_for_block = (settings.gemini_model or "gemini-2.5-flash").strip()
+    _model_for_block = (settings.gemini_model or GEMINI_WORKHORSE).strip()
     if _di_enabled and any(f.get("blocking") for f in _di_flags):
         return _data_integrity_blocked_analysis(
             ticker, name, sector, industry, _model_for_block, current_price,
@@ -2682,7 +2684,7 @@ async def _run_gemini_analysis(
         else (market_cap or 0) / 1e9
     )
 
-    model_name = (settings.gemini_model or "gemini-2.5-flash").strip()
+    model_name = (settings.gemini_model or GEMINI_WORKHORSE).strip()
     if not model_name.startswith("gemini-"):
         raise ValueError(
             f"standard model '{model_name}' is not a Gemini model; "
