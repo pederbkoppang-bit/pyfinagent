@@ -17541,7 +17541,7 @@
         },
         {
           "id": "75.13",
-          "status": "pending",
+          "status": "done",
           "name": "Audit75 S13 -- Python dependency integrity: lockfile, undeclared runtime deps, dead + implicit declarations [executor: sonnet-4.6/high; BOUNDARY: lock generated from the LIVE venv snapshot (pip freeze -- no resolver run needed), no .env edits, no package installs beyond declaring what is already installed]. (a) deps-01: no lockfile exists anywhere and floors have drifted whole majors (pandas 3.0.1 vs >=2.2.0, yfinance 1.2.0 vs >=0.2.40, numpy 2.4.4) so fresh installs produce an untested resolution and pip-audit.yml scans a hypothetical graph -- commit backend/requirements.lock as a full ==-pinned snapshot of the audited .venv (pip freeze), header-comment the regeneration + sync commands, and point .github/workflows/pip-audit.yml at the lock so the audited graph equals the deployed graph. (b) deps-02: exchange_calendars (4.13.2, venv-only) is imported by backend/backtest/markets.py:12, autoresearch/monthly_champion_challenger.py:327, scripts/go_live_drills/signal_reliability_test.py:67 with silent-degrade fallbacks that change trading-calendar behavior on rebuild -- declare it pinned in backend/requirements.txt; gpt-researcher (0.14.8 + huge closure) powers the launchd nightly memo -- declare it in a new committed scripts/autoresearch/requirements-autoresearch.txt (pinned) and make run_nightly.sh fail LOUDLY (logged FAIL + page seam) on ImportError instead of drying up the research gate silently. (c) deps-09: declare the directly-imported riders numpy, PyYAML, pytest, python-dateutil, google-cloud-storage in backend/requirements.txt (all already installed -- resolution unchanged; the compliance WORM writer's 'from google.cloud import storage' has no guard). (d) deps-08: remove dead 'fpdf2>=2.7.0' (zero import sites) and annotate xlrd as the pandas .xls engine dep for macro_regime.py:154 so the next unused-dep sweep keeps it.",
           "harness_required": true,
           "priority": "P1",
@@ -17556,6 +17556,26 @@
               "A fresh-install dry-check is documented: the exact command sequence a rebuild would use (uv pip sync or pip install -r backend/requirements.lock) -- documented only, not executed against the live venv"
             ],
             "live_check": "handoff/current/live_check_75.13.md: verbatim output of this step's verification command (exit 0) + git diff --stat proving the change surface; for any flag-gated live-loop behavior an ON-vs-OFF $0 diff, and for UI-touching parts a Playwright/curl capture. Findings covered: deps-01, deps-02, deps-08, deps-09"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "75.13.1",
+          "status": "pending",
+          "name": "Audit75 S13 follow-up -- classify + declare-or-guard the undeclared OPTIONAL third-party imports [executor: sonnet-4.6/high; BOUNDARY: declaration/guard-only, NO pip install/uninstall, no behavior change to any guarded fallback]. Discovered during the 75.13 research gate (wf_fc61bc04-4cd, 2026-07-24): an import-vs-declared diff over backend/ + scripts/ surfaced third-party imports absent from backend/requirements.txt: torch, transformers, statsmodels, fredapi, voyageai, timesfm, chronos, vaderSentiment (several likely behind optional try/except guards -- the census was a research side-finding, NOT a verified per-site inventory). At research: derive the FULL measured inventory (two independent derivations reconciled by symmetric difference per qa.md sec4b), and for EACH import classify: (a) guarded-optional with a sane fallback -> document the fallback + add a '# optional:' annotated declaration in requirements.lock only if installed; (b) guarded-optional with a SILENT-degrade fallback that changes money/analysis behavior -> follow the 75.13 exchange-calendars precedent (declare pinned in requirements.txt); (c) UNGUARDED + installed -> declare pinned (75.13 google-cloud-storage precedent); (d) UNGUARDED + NOT installed -> a latent ImportError crash site: fix the guard or declare, per the consumer's criticality. No new packages installed; pip freeze before==after byte-identical.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_deps.py -q",
+            "success_criteria": [
+              "The research brief contains a measured census of every undeclared third-party import in backend/ + scripts/ non-test code (two independent derivations reconciled by symmetric difference), with per-site file:line and guard-status classification (a/b/c/d above)",
+              "Every class-(b) and class-(c) import gains a real pinned declaration line in backend/requirements.txt matching the installed version; every class-(d) site gains a guard or declaration per its documented criticality decision",
+              "A parsed-requirements test (new backend/tests/test_phase_75_deps.py, or extended if 75.13 already created one) asserts each new declaration as a REAL requirement line (not a comment substring) and passes offline via this step's verification command exit 0",
+              "pip freeze before == after byte-identical (no environment mutation), recorded in experiment_results.md",
+              "Mutation matrix: unpinning one new declaration and moving one declaration into a comment each flip the parsed-requirements test red"
+            ],
+            "live_check": "handoff/current/live_check_75.13.1.md: verbatim verification command output (exit 0) + git diff --stat + the freeze-equality proof."
           },
           "retry_count": 0,
           "max_retries": 3

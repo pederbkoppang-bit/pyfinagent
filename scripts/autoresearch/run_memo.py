@@ -128,6 +128,28 @@ async def _main_async(args: argparse.Namespace) -> int:
     return 0
 
 
+def _gpt_researcher_guard() -> str | None:
+    """phase-75.13 (deps-02): return an ASCII FAIL message if the
+    gpt_researcher PACKAGE itself is not importable, else None. Without
+    this guard, a missing gpt_researcher is only caught by the late
+    `from gpt_researcher import GPTResearcher` inside run_research() (:70),
+    which IS already loud (the broad except in _main_async -> ERROR file +
+    return 1 -> the 75.11 run_nightly.sh paging seam) -- but ONLY if
+    _embedding_preflight() below is reached and passes. _embedding_preflight
+    is an INTENTIONAL (phase-51.4) away-ops soft-skip that returns 0 the
+    moment the configured EMBEDDING backend is missing, which would mask a
+    simultaneously-missing gpt_researcher behind a silent exit-0. This guard
+    runs BEFORE _embedding_preflight so gpt_researcher's absence is never
+    masked and always reaches the loud path."""
+    import importlib.util
+    if importlib.util.find_spec("gpt_researcher") is None:
+        return (
+            "[autoresearch] FAIL: gpt_researcher not importable. Install via: "
+            "pip install -r scripts/autoresearch/requirements-autoresearch.txt"
+        )
+    return None
+
+
 def _embedding_preflight() -> str | None:
     """phase-51.4: return a skip-message if the configured EMBEDDING provider's
     backing module is NOT importable, else None. gpt-researcher builds
@@ -193,6 +215,17 @@ def main() -> int:
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
         sys.exit("ANTHROPIC_API_KEY not set in environment")
+
+    # phase-75.13 (deps-02): gpt_researcher package-missing guard -- MUST run
+    # BEFORE _embedding_preflight() below so a missing gpt_researcher is
+    # never masked by the embedding soft-skip's silent exit 0 (see
+    # _gpt_researcher_guard docstring). Loud on purpose: prints to stderr
+    # and returns 1, which run_nightly.sh already logs as FAIL + pages
+    # after PAGE_AFTER_N consecutive failures (75.11 seam, unmodified here).
+    _gpt_fail_msg = _gpt_researcher_guard()
+    if _gpt_fail_msg is not None:
+        print(_gpt_fail_msg, file=sys.stderr)
+        return 1
 
     # phase-51.4: graceful preflight (see _embedding_preflight) -- skip cleanly
     # (exit 0, no ERROR file, $0) if the configured EMBEDDING backend is absent,

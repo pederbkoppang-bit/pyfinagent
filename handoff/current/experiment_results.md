@@ -1,86 +1,82 @@
-# Experiment results -- Step 75.12 (frontend data-plane)
+# Experiment results -- Step 75.13 (Python dependency integrity)
 
 Date: 2026-07-24. **Execution model: GENERATE delegated to a Sonnet-4.6
-executor (4th delegated step); Main wrote the contract, reviewed, took the
-Playwright capture, and independently re-measured every headline figure.
-Executor draft preserved at
-`handoff/current/experiment_results_75.12_draft.md`.**
+executor (5th delegated step); Main wrote the contract, reviewed every
+diff by eye, and independently re-measured every headline figure.
+Executor draft (5 disclosed judgment calls) preserved at
+`handoff/current/experiment_results_75.13_draft.md`.**
 
-## What was built (contract plan steps 1-6, landed risk-ordered on the
-hot-reloading operator dev server -- :3000 verified healthy after every burst)
+## What was built (all FILE WRITES -- zero pip install/uninstall)
 
-- **fe-ts-01** (real fresh-install crash): `PaperTradingStatus` status
-  literal union incl. `not_initialized` + `loop?` optional in types.ts,
-  atomically with the layout.tsx guards (`status?.loop?.running`,
-  `s.loop?.running`). tsc is now the guard (proven: reverting only the
-  layout guard flips `tsc` red with TS18048 -- the original crash's type
-  signature).
-- **frontend-09**: module-level `sessionTokenCache` (~60s TTL) in
-  getAuthToken; cleared in the 401 branch.
-- **frontend-01**: `withCredentials` (default true, overridable) on the
-  EventSource open; /agents stats + dashboard fetches re-routed through
-  apiFetch (which already carries `credentials:'include'`). INERT on this
-  box (see non-discrimination below).
-- **frontend-03**: new `getChartData()` -> apiFetch; reports compare flow
-  renders a rose partial-failure notice (IconWarning via @/lib/icons,
-  ASCII) naming failed tickers -- never a silently empty chart.
-- **frontend-05/06**: cron failuresRef+stoppedRef template applied to
-  OpsStatusBar (all-four-null detection -> failRef LIVE -> stale/error
-  segments + stop/backoff after 5, recovery on success), agents
-  stats/dashboard, observability freshness, HarnessDashboard,
-  AutoresearchLeaderboard; useLivePrices now ACTUALLY stops at exactly 5
-  (circuitOpen + clearInterval -- its doc comment is finally true).
-- **frontend-02** (landed LAST): api.ts 401 branch skips the redirect on
-  `/login` (guard at api.ts:146-147); LivePortfolioProvider gated via
-  usePathname with defense-in-depth (outer mount/effect gate + inner
-  refresh gate).
-
-## Change surface (measured)
-
-`git diff --stat HEAD -- frontend/`: **13 files, +407/-66** + **6 NEW test
-files** (suite 24 -> 30 files, 187 -> 201 tests). ZERO backend files, zero
-.env, zero masterplan edits by the executor. Also in the tree (runtime,
-NOT step changes): tonight's nightly-autoresearch failure artifacts
-(`handoff/autoresearch/2026-07-24-ERROR-topic09.md` -- arXiv HTTP 429 --
-and `handoff/away_ops/autoresearch_fail_state.json` `consecutive_fails: 1`)
--- notable because the fail-state counter is the **75.11 paging seam
-working live on its first night**.
+- **deps-01**: NEW `backend/requirements.lock` -- 22-line `#` header
+  (regeneration command, both sync commands, date, pin count, the pip
+  repeatable-installs citation) + the verbatim 303-line `pip freeze`
+  snapshot. `.github/workflows/pip-audit.yml` now audits BOTH the lock
+  (deployed graph) AND the floors file (hypothetical resolution) --
+  disclosed additive widening of "point it at the lock" -- and the lock is
+  in the push/PR paths filters + failure-artifact upload.
+- **deps-02**: NEW `scripts/autoresearch/requirements-autoresearch.txt`
+  (gpt-researcher==0.14.8 + langchain-huggingface==1.2.1 +
+  sentence-transformers==5.5.1, all read from the live freeze).
+  `run_memo.py` gained `_gpt_researcher_guard()` called BEFORE
+  `_embedding_preflight()` -- a missing gpt_researcher now fails loudly
+  through the existing rc-1 -> 75.11 paging path instead of being maskable
+  by the intentional 51.4 embedding soft-skip. run_nightly.sh UNTOUCHED
+  (git diff empty -- boundary proof).
+- **deps-09**: real declaration lines with consumer-anchoring comments:
+  `exchange-calendars==4.13.2` (hyphen form per the PyPA-normalization
+  gotcha), `numpy==2.4.4` (39 direct-import sites), `PyYAML==6.0.3`
+  (CAPS), `pytest==9.0.3`, `python-dateutil==2.9.0.post0`,
+  `google-cloud-storage==3.10.1` (the unguarded compliance WORM writer).
+- **deps-08**: fpdf2 line + its comment DELETED (zero whole-file residue);
+  xlrd comment enhanced (pandas .xls engine, macro_regime.py:59,154).
+- NEW `backend/tests/test_phase_75_deps.py` -- 12 tests: PARSED-line
+  requirement asserts (comment mentions cannot satisfy), lock header +
+  pin-count, yml parsed via yaml.safe_load, the guard behavioral test
+  (find_spec->None => rc 1 with `_embedding_preflight` proven UNREACHED)
+  + the pass-through sanity test.
 
 ## Verification (ALL figures independently re-measured by Main)
 
-- Immutable command (python3 source-scan + `npx tsc --noEmit`), run
-  VERBATIM from the masterplan node: **exit 0**.
-- Full vitest suite: **30 files / 201 tests, all passed** (two independent
-  Main runs; one transient rc=1 immediately after a mutation restore was
-  re-run green -- hot-reload recompile race, disclosed).
-- Live operator instance after ALL edits: `/login` 200, `/` 302; Playwright
-  (read-only): navigating to **/agents redirects to /login** (auth wall
-  intact) and /login renders STABLE across ~30s of interactions (no reload
-  thrash); capture at `handoff/current/captures_75.12/agents_authwall_75.12.png`.
-  The 1 console error on /login is the pre-existing queued 75.6.2 item.
-- Mutation matrix: executor 6/8 killed as-specified + **2 disclosed
-  invalid mutants replaced by the real load-bearing mutation, both
-  KILLED**: M3's named line was redundant (defense-in-depth double gate;
-  the OUTER gate mutation kills), M7's spec was type-theoretically inert
-  (a required field cannot be undefined; the layout-guard revert flips
-  tsc red instead). M8 stub mutation killed (fake timers load-bearing).
-  Main independently spot-checked **M2 (drop the pathname guard) KILLED**.
+- Immutable command (verbatim from the masterplan): **exit 0**.
+- `test_phase_75_deps.py`: **12 passed** (Main re-run).
+- Full suite (Main re-run): **10 failed / 1428 passed** -- fail set
+  BYTE-IDENTICAL to baseline (comm diff empty); 1428 = 1416 + exactly the
+  12 new tests. Zero regressions.
+- Ruff over the git-derived scope + new test file: clean.
+- **Environment-mutation proof**: `pip freeze | shasum -a 256` identical
+  before (executor) and after (Main re-measured): `8df19b228e08...` --
+  303 lines both. Zero installs/uninstalls.
+- Mutation matrix: executor **7/7 KILLED** (lock truncation, unpin,
+  fpdf2 restore, yml pointer removal, guard removal, stub-break of the
+  test's own monkeypatch target) **+ M6, the documented command-vs-test
+  delta, independently REPRODUCED by Main**: moving `PyYAML==6.0.3` into
+  a comment fails the parsed-line test while the IMMUTABLE COMMAND STILL
+  PASSES (exit 0) -- measured proof the new tests out-bite the command's
+  substring asserts, exactly the weakness the research gate called out.
 
-## NON-DISCRIMINATION DISCLOSURE (research headline, applies to all live evidence)
+## Change surface (measured)
 
-`DEV_LOCALHOST_BYPASS=1` is active in the running backend and the
-operator's browser hits localhost, so the auth-transport defects
-(frontend-01/02/03) cannot reproduce live on this box -- authed endpoints
-return 200 without credentials here. The Playwright captures therefore
-evidence UI health and the auth wall, NOT the fixes; the vitest behavioral
-suite (both-directions redirect tests, zero-polls-on-login, stop-at-
-exactly-5 fake-timer tests, not_initialized render) is the discriminating
-evidence, per the contract.
+3 modified (backend/requirements.txt, .github/workflows/pip-audit.yml,
+scripts/autoresearch/run_memo.py) + 3 NEW (backend/requirements.lock,
+scripts/autoresearch/requirements-autoresearch.txt,
+backend/tests/test_phase_75_deps.py). Masterplan diff = ONLY Main's
+75.13.1 queue insert (+21 lines, verified). The executor correctly
+flagged-and-excluded the concurrent hook/daemon diffs from its surface.
 
-## Not verified live
+## Not verified live / documented-not-executed
 
-- The SSE credentialed connection and the reload-loop fix behave
-  identically on this box with or without the fix (bypass); off-localhost
-  (Tailscale) verification would discriminate but requires an operator
-  session from a non-local origin -- documented, not performed.
-- No backend change; no restart needed for this step (frontend hot-reloaded).
+- The fresh-install dry-check (throwaway venv + `uv pip sync` +
+  autoresearch closure) is DOCUMENTED verbatim in the draft but NOT
+  executed (boundary: no installs). The lock's correctness rests on it
+  being a byte-verbatim freeze of the running venv.
+- pip-audit.yml changes are GitHub-side; first exercised on the next push.
+- The find_spec guard's loud path composes with the 75.11 paging seam,
+  which was live-validated last night (arXiv-429 -> consecutive_fails: 1).
+
+## Queued this step
+
+- **75.13.1** (pending): classify + declare-or-guard the undeclared
+  OPTIONAL import families (torch, transformers, statsmodels, fredapi,
+  voyageai, timesfm, chronos, vaderSentiment) -- research side-finding,
+  out of 75.13 scope.

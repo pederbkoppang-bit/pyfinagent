@@ -1,0 +1,22 @@
+# scripts/autoresearch/requirements-autoresearch.txt
+#
+# Dependency closure for the launchd-invoked nightly autoresearch memo
+# (scripts/autoresearch/run_memo.py, wrapped by run_nightly.sh). These
+# packages back the Layer-3 research-gate memo pipeline ONLY -- they are
+# deliberately kept OUT of backend/requirements.txt / requirements.lock
+# because the backend service itself never imports gpt_researcher (phase-75.13,
+# deps-02). Install into the same .venv used by run_nightly.sh:
+#
+#   pip install -r scripts/autoresearch/requirements-autoresearch.txt
+#
+# Pinned at the versions measured installed in the live venv on 2026-07-24
+# (`.venv/bin/pip freeze`), matching the runner's own dependency contract.
+
+gpt-researcher==0.14.8        # scripts/autoresearch/run_memo.py:70 -- late import inside run_research()
+
+# EMBEDDING=huggingface:BAAI/bge-small-en-v1.5 closure (run_memo.py:188,
+# checked by _embedding_preflight() at run_memo.py:131-154). gpt-researcher
+# builds its Memory(embedding) unconditionally at GPTResearcher init, so
+# this closure must be present for the huggingface backend to load.
+langchain-huggingface==1.2.1
+sentence-transformers==5.5.1

@@ -1,6 +1,6 @@
-# Evaluator critique -- Step 75.12 (Q/A cycle 1)
+# Evaluator critique -- Step 75.13 (Q/A cycle 1)
 
-Q/A launch: Workflow `wf_20b428c2-97a` (`.claude/workflows/qa-verdict.js`,
+Q/A launch: Workflow `wf_d3f0f92e-d6b` (`.claude/workflows/qa-verdict.js`,
 agentType general-purpose reading `.claude/agents/qa.md` from disk,
 model opus, effort max). Verdict transcribed VERBATIM from the captured
 structured-output return value below -- Main records the verdict, never
@@ -10,29 +10,32 @@ authors it.
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 6 immutable criteria MET with code + discriminating vitest + independent reproduction; harness compliance clean 5/5; no unintended production change (13 frontend files + 6 new tests, ZERO backend/masterplan/.env; masterplan node byte-identical to HEAD). Immutable command exit 0, tsc --noEmit 0, vitest 201/201, eslint src 0 (the 13 `eslint .` errors are all pre-existing @next/next/no-assign-module-variable in the untracked .next-functional/ build dir, not this step; the one finding on changed code is a warning). Mutation matrix 6/8 killed as-specified + M3/M7 survivors are DISCLOSED invalid mutants whose real load-bearing mutations were killed (M7 independently reproduced: revert-guard-with-loop-optional -> TS18048 red; loop-required-unguarded -> inert; M3 outer-gate confirmed structurally). DEV_LOCALHOST_BYPASS non-discrimination independently CONFIRMED (no-cred curls to 3 authed endpoints all 200; /agents unauth -> 302 /login), so substituting the discriminating vitest suite for the vacuous connected-stream capture is legitimate and the §1c live-capture gate is met by the live auth-wall PNG.",
+  "reason": "All 6 immutable criteria for 75.13 MET with independently reproduced evidence; harness compliance clean (5/5); no unintended production change. Deterministic: immutable verification command exit 0 (re-run verbatim); 12/12 deps tests pass; full backend suite 10 failed / 1428 passed with the fail set byte-identical to the standing baseline (zero regressions, 1428 = 1416 + 12 new); ruff F821/F401/F811 clean over the git-derived scope; pip freeze shasum 8df19b228e08... identical before/after (zero venv mutation, independently confirmed); run_nightly.sh boundary git-diff empty; 51.4 embedding preflight unreverted. Mutation-resistance real: the M6 command-vs-test delta independently reproduced in-memory (whole-file 'PyYAML' substring stays True while the parsed-line test goes False), and the run_memo guard behavioral test short-circuits BEFORE _embedding_preflight. masterplan diff = ONLY the 75.13.1 queued-defect insert; other tracked mods are handoff/audit rolling + hook-appended files, not production code.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
-    "harness_compliance_audit_5items",
-    "immutable_verification_command_verbatim_exit0",
-    "tsc_noemit_exit0",
-    "vitest_full_suite_201of201",
-    "eslint_src_exit0",
-    "eslint_full_classified_to_next-functional",
-    "git_status_change_surface",
-    "masterplan_node_vs_HEAD_unchanged",
-    "mtime_ordering_research_lt_contract_lt_code_lt_results",
-    "harness_log_grep_log-last_and_3rd-conditional",
-    "playwright_capture_png_viewed",
-    "six_discriminating_test_files_read",
-    "mutation_matrix_survivor_audit_M3_M7",
-    "m7_type_theory_independent_tsc_reproduction",
-    "dev_localhost_bypass_nondiscrimination_curl_confirmation",
-    "criteria_completeness_mapping"
+    "harness_compliance_audit_5item",
+    "immutable_verification_command_exit0_reproduced",
+    "masterplan_diff_scope_only_75.13.1",
+    "production_diff_review_requirements_pipaudit_runmemo",
+    "deps_tests_12_passed",
+    "ruff_F821_F401_F811_clean_after_zsh_splitfix",
+    "full_backend_suite_10failed_1428passed_baseline_identical",
+    "lock_header_regen_and_sync_commands",
+    "lock_303_real_pins_ge150",
+    "M6_command_vs_test_delta_reproduced_inmemory",
+    "pip_freeze_shasum_boundary_identical",
+    "fpdf2_zero_residue_wholefile",
+    "run_nightly_seam_present_and_textasserted_75.11",
+    "run_memo_guard_precedes_embedding_preflight",
+    "pytest_9.0.3_real_line_by_eye",
+    "mtime_ordering_research_lt_contract_lt_generate",
+    "no_verdict_shopping_first_spawn",
+    "log_last_status_pending",
+    "3rd_conditional_NA"
   ],
   "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE (5/5): (1) research-gate-before-contract PASS -- research_brief_75.12.md gate_passed=true, external_sources_read_in_full=6 (>=5), recency scan present; (2) contract-before-generate PASS -- mtime research 01:54 < contract 01:56 < code 02:18-02:24 < results 02:25; (3) experiment_results present PASS (Main-authored + Sonnet draft); (4) log-last PASS -- 75.12 not yet in harness_log with a result, masterplan status=pending; (5) no-verdict-shopping N/A -- first Q/A pass (retry_count=0). 3rd-CONDITIONAL rule N/A.\n\nCRITERIA (6/6 MET): C1 withCredentials default-true (literal ternary, overridable) + /agents stats+dashboard via getMasEventsStats/getMasDashboard->apiFetch; §1c live-capture gate met (agents_authwall_75.12.png, live, /agents->/login); connected-stream non-discrimination independently confirmed -> discriminated by useEventSource.test (M1 KILLED). C2 401 no-redirect-on-/login guard + provider inner+outer isLoginPage gates + useLivePrices/useTickerMeta !isLoginPage; api.test both-directions + provider zero/normal tests. C3 getChartData->apiFetch + role=alert rose partial-failure notice; reports test asserts notice names MSFT not AAPL. C4 OpsStatusBar all-null->failRef->stale+stoppedRef after 5 (failRef no longer dead) + stop-after-5 on agents/observability/HarnessDashboard/AutoresearchLeaderboard/useLivePrices; OpsStatusBar+useLivePrices unit-discriminated (stale-after-5, exactly-5, recovery). C5 not_initialized literal union + loop? optional + layout ?.loop?.running guards; tsc 0 + render-without-throw test + guard proven load-bearing via independent TS18048 repro. C6 sessionTokenCache{value,ts} 60s TTL + 401 invalidation; TTL-hit + 401-reprobe tests; tsc 0.\n\nNON-BLOCKING OBSERVATIONS (not criteria violations, for operator hygiene): (a) eslint config gap -- eslint.config.mjs ignores only .next/** not .next-functional/**, so `npx eslint .` exits non-zero on 13 pre-existing build-artifact errors; source is clean (eslint src exit 0). Recommend adding .next-functional/** to ignores (pre-existing, unrelated to 75.12). (b) New react-hooks/set-state-in-effect WARNING at live-portfolio-context.tsx:160 (isLoginPage setLoading(false) exit-branch) -- warning severity, one-shot gate-exit not a cascading loop; harmless, refactor optional. (c) Criterion-1 residual: literal masterplan live_check sub-clause (\"connected stream\" capture) is non-producible read-only + non-discriminating on this DEV_LOCALHOST_BYPASS box; off-localhost (Tailscale) discrimination undone (disclosed, out of scope) -- a measured environmental limitation, not a defect. (d) Transient vitest rc=1 after a mutation-restore (hot-reload recompile race) disclosed by executor; my two clean full-suite runs were 201/201 green.\n\nSCOPE HONESTY: high -- non-discrimination disclosed in research_brief §0 + experiment_results + live_check §4; 2-poller test-gap (HarnessDashboard/AutoresearchLeaderboard code-only, no dedicated new test) disclosed; withCredentials literal-ternary-for-source-scan disclosed; useEventSource path correction disclosed; unrelated autoresearch/away_ops runtime artifacts (incl. the 75.11 paging-seam fail-state working live) correctly excluded from the change surface. Change surface independently re-derived via git status/diff matches the claim exactly."
+  "notes": "CRITERION-BY-CRITERION (all MET):\nC1 lock: backend/requirements.lock present (untracked in working tree, commits on status-flip per normal harness flow), 303 real non-comment ==-pins (>=150 cleared 2x), 22-line #-header with exact regen command (.venv/bin/pip freeze > backend/requirements.lock) + BOTH sync paths (pip install -r / uv pip sync) + date + pin count + repeatable-installs citation. MET.\nC2 pip-audit: real run step `pip-audit --requirement backend/requirements.lock --strict --progress-spinner off` (yaml-parsed test confirms, not a comment); lock added to push+PR paths + failure-artifact upload; floors step kept (disclosed additive both-graphs widening). \"audits the lock, not just the floors\" satisfied. MET. (Note: --strict over the full 303-pin deployed graph is a more aggressive CI surface than the floors-only audit and may surface a CVE on next push -- correct security posture per Semgrep-2026 rationale, inert locally, not a blocker.)\nC3 requirements.txt: exchange-calendars==4.13.2 (hyphen), numpy==2.4.4, PyYAML==6.0.3 (CAPS), pytest==9.0.3 (real line, verified by eye since command cannot assert it), python-dateutil==2.9.0.post0, google-cloud-storage==3.10.1 -- all REAL parsed lines; fpdf2 gone (zero whole-file residue, case-insensitive confirmed); xlrd comment enhanced (read_excel engine + macro_regime.py:59,154). MET.\nC4 autoresearch+loud-fail: requirements-autoresearch.txt pins gpt-researcher==0.14.8 + langchain-huggingface==1.2.1 + sentence-transformers==5.5.1; run_memo.py _gpt_researcher_guard() (find_spec None -> stderr + return 1) placed BEFORE _embedding_preflight() (line 225 vs 234, confirmed); run_nightly.sh 75.11 seam unmodified logs FAIL rc + pages after 3 + exit rc; text-asserted at test_phase_75_sre_ops.py:145 (consecutive_fails) plus this step's behavioral rc=1 test. deps-02 re-scope (guard-before-preflight, composes with 51.4 unreverted + 75.11 unmodified) is faithful to intent. MET.\nC5 boundary: pip freeze shasum 8df19b228e083e35... identical before(executor)/after(Main+my independent re-measure), 303 lines; no .env in git status. MET.\nC6 dry-check: exact fresh-install sequence (pip + uv + autoresearch closure) documented verbatim in the draft, explicitly not executed -- criterion requires documented-only. MET.\n\nHARNESS COMPLIANCE 5/5: research-gate (brief exists, gate_passed=true, 7 sources read-in-full, recency scan present) < contract (mtime 854089<854184) < generate (854714+); experiment_results present (Main + executor draft); log-last honored (75.13 absent from harness_log results, masterplan status=pending); no verdict-shopping (first spawn, no prior critique).\n\nANTI-RUBBER-STAMP: tests genuinely parse real requirement lines (comment mentions produce no entry); M6 delta reproduced by me independently; guard test uses a raise-if-reached preflight stub proving load-bearing short-circuit; executor 7/7 mutation matrix corroborated. Scope honesty strong: 5 judgment calls, execution model, concurrent-diff exclusion all disclosed.\n\nQ/A PROCESS NOTE (not a defect in the work): my first ruff run vacuously passed because zsh does not word-split unquoted $FILES on newlines (qa.md sec1a trap); re-ran with ${(f)FILES} after asserting both paths exist -> genuinely clean. Executor's own ruff (explicit args) was valid."
 }
 ```

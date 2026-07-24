@@ -1,24 +1,33 @@
 name: pip-audit
 
-# Supply-chain security audit: scans backend/requirements.txt for
-# known CVEs against PyPI advisory database. Runs on every push
+# Supply-chain security audit: scans the AUDITED (deployed) dependency
+# graph for known CVEs against PyPI advisory database. Runs on every push
 # to main, every PR, and weekly on a fixed schedule so drift into
 # a vulnerable transitive is caught within 7 days.
 #
 # phase-4.8.8 (Cycle 85). Pairs with the exact-pinned LLM clients
 # set up in phase-3.7.6 (Cycle 65) so the audit has a stable
 # dependency graph to evaluate.
+#
+# phase-75.13 (deps-01): backend/requirements.txt only carries loose ">="
+# floors, so auditing it evaluates a hypothetical resolution, not what is
+# actually deployed (Semgrep 2026: "audited graph == deployed graph").
+# backend/requirements.lock is the full ==-pinned `pip freeze` snapshot of
+# the live venv; audit BOTH so the loose-floor advisory surface and the
+# exact-deployed surface are both covered.
 
 on:
   push:
     branches: [main]
     paths:
       - "backend/requirements.txt"
+      - "backend/requirements.lock"
       - "requirements.txt"
       - ".github/workflows/pip-audit.yml"
   pull_request:
     paths:
       - "backend/requirements.txt"
+      - "backend/requirements.lock"
       - "requirements.txt"
   schedule:
     # Weekly, Mondays at 07:00 UTC. Keeps cadence aligned with
@@ -42,7 +51,14 @@ jobs:
       - name: Install pip-audit
         run: python -m pip install --upgrade pip pip-audit
 
-      - name: Run pip-audit (strict)
+      - name: Run pip-audit (strict, deployed graph)
+        run: |
+          pip-audit \
+            --requirement backend/requirements.lock \
+            --strict \
+            --progress-spinner off
+
+      - name: Run pip-audit (strict, floors file)
         run: |
           pip-audit \
             --requirement backend/requirements.txt \
@@ -56,4 +72,5 @@ jobs:
           name: pip-audit-report
           path: |
             backend/requirements.txt
+            backend/requirements.lock
           retention-days: 30
