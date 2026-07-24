@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `8df579fe` | fix(76.9.2): SSE passthrough had no HTTP/1.1 body delimiter -- the wedge that killed 5 run attempts |
 | 2026-07-25 | `5f23fe54` | docs(78.1): contract from the passed gate + measured flag state that inverts its risk ranking |
 | 2026-07-25 | `67d026de` | docs(75.5.12): fix the CLASS -- correct the refuted claim at its origin, queue 75.5.13 + 76.9.6 |
 | 2026-07-25 | `77bc7db5` | fix(handoff): restore 23 artifacts the backfill swept; record the measured root cause in 75.11.4 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `ff22d7e0` | chore: cycle-152 addendum -- 75.5.2 executor report reconciled; 'external modification' anomaly reso |
 | 2026-07-24 | `64fc644a` | chore: quant-agent experiment data artifacts (nightly residue) |
 | 2026-07-24 | `7690b7e3` | chore(masterplan): queue phase-77 reddit/social-sentiment access (3 pending steps) |
-| 2026-07-24 | `d21b31d5` | chore: cycle-151 addendum -- 75.4.2 executor report reconciliation |
 
 ---
 
+### v6.68.32 — fix(76.9.2): SSE passthrough had no HTTP/1.1 body delimiter -- the we... (2026-07-25)
+
+- **fix(76.9.2): SSE passthrough had no HTTP/1.1 body delimiter -- the wedge that killed 5 run attempts**
 ### v6.68.31 — fix(handoff): restore 23 artifacts the backfill swept; record the mea... (2026-07-25)
 
 - **fix(handoff): restore 23 artifacts the backfill swept; record the measured root cause in 75.11.4**
