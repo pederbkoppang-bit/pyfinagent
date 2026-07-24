@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `ff22d7e0` | chore: cycle-152 addendum -- 75.5.2 executor report reconciled; 'external modification' anomaly reso |
 | 2026-07-24 | `64fc644a` | chore: quant-agent experiment data artifacts (nightly residue) |
 | 2026-07-24 | `7690b7e3` | chore(masterplan): queue phase-77 reddit/social-sentiment access (3 pending steps) |
 | 2026-07-24 | `d21b31d5` | chore: cycle-151 addendum -- 75.4.2 executor report reconciliation |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `88ebd5b9` | phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.... |
 | 2026-07-24 | `3cf2ba70` | phase-75.16: Audit75 S16 -- Cloud Functions + Docker deploy-surface retirement/hardening + script... |
 | 2026-07-24 | `7d65c0d4` | phase-75.15: Audit75 S15 -- CI gates made real: advisory flip, requires_live migration, lock-coun... |
-| 2026-07-24 | `f0d580fd` | phase-75.14: Audit75 S14 -- prompt-contract reconciliation, injection fencing, fact-ledger proven... |
 
 ---
 
