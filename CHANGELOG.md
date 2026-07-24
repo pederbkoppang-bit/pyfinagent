@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `0ea399f3` | phase-76.9.2: criterion 1 MET -- first clean rc=0 run through the fixed durable bridge |
 | 2026-07-25 | `b041386b` | phase-75.5.12: PASS -- bare 'cc_rail' rows no longer phantom-price on the spend flag |
 | 2026-07-25 | `8df579fe` | fix(76.9.2): SSE passthrough had no HTTP/1.1 body delimiter -- the wedge that killed 5 run attempts |
 | 2026-07-25 | `5f23fe54` | docs(78.1): contract from the passed gate + measured flag state that inverts its risk ranking |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `42008af7` | chore: quant-agent experiment data artifacts (intraday session 60617e0b residue) |
 | 2026-07-24 | `12e3147a` | phase-75.20: roster-live confirmation landed -- browser grant binds, flip to done |
 | 2026-07-24 | `ff22d7e0` | chore: cycle-152 addendum -- 75.5.2 executor report reconciled; 'external modification' anomaly reso |
-| 2026-07-24 | `64fc644a` | chore: quant-agent experiment data artifacts (nightly residue) |
 
 ---
 
+### v6.68.34 — phase-76.9.2: criterion 1 MET -- first clean rc=0 run through the fix... (2026-07-25)
+
+- **phase-76.9.2: criterion 1 MET -- first clean rc=0 run through the fixed durable bridge**
 ### v6.68.33 — phase-75.5.12: PASS -- bare 'cc_rail' rows no longer phantom-price on... (2026-07-25)
 
 - **phase-75.5.12: PASS -- bare 'cc_rail' rows no longer phantom-price on the spend flag**
