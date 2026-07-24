@@ -1,0 +1,7 @@
+{
+  "created_at": "2026-07-24T11:04:50.802901+00:00",
+  "trigger": "plateau_10_discards",
+  "consecutive_discards": 10,
+  "run_id": "60617e0b",
+  "cleared_at": null
+}
