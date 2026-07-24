@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `12e3147a` | phase-75.20: roster-live confirmation landed -- browser grant binds, flip to done |
 | 2026-07-24 | `ff22d7e0` | chore: cycle-152 addendum -- 75.5.2 executor report reconciled; 'external modification' anomaly reso |
 | 2026-07-24 | `64fc644a` | chore: quant-agent experiment data artifacts (nightly residue) |
 | 2026-07-24 | `7690b7e3` | chore(masterplan): queue phase-77 reddit/social-sentiment access (3 pending steps) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `207da6b4` | phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [execu... |
 | 2026-07-24 | `88ebd5b9` | phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.... |
 | 2026-07-24 | `3cf2ba70` | phase-75.16: Audit75 S16 -- Cloud Functions + Docker deploy-surface retirement/hardening + script... |
-| 2026-07-24 | `7d65c0d4` | phase-75.15: Audit75 S15 -- CI gates made real: advisory flip, requires_live migration, lock-coun... |
 
 ---
 
+### v6.68.25 — phase-75.20: roster-live confirmation landed -- browser grant binds,... (2026-07-24)
+
+- **phase-75.20: roster-live confirmation landed -- browser grant binds, flip to done**
 ### v6.68.24 — phase-75.4.2: Audit75 S4 follow-up -- skill_optimizer post-write deli... (2026-07-24)
 
 - **phase-75.4.2: Audit75 S4 follow-up -- skill_optimizer post-write delivery invariant (fail-closed)**
