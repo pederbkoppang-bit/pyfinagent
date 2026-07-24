@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `0b6d3b07` | phase-76.9.2: PASS -- durable Max-rail routing closed; the blocker was a regression I shipped |
 | 2026-07-25 | `02c43995` | docs(76.9.2): fix the GENERATE artifact contradicting criterion 1, plus three claim-audit defects |
 | 2026-07-25 | `818994f9` | fix(handoff): archive hook FABRICATES false archives -- 129 of 747 dirs hold another step's docs |
 | 2026-07-25 | `0ea399f3` | phase-76.9.2: criterion 1 MET -- first clean rc=0 run through the fixed durable bridge |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `74e1b772` | phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-only enforced (LOCAL, flip+push h |
 | 2026-07-24 | `eb707333` | chore: handoff archive backfill (13 done-step artifacts to archive/misc) + queue 75.11.4 backfill st |
 | 2026-07-24 | `a8c314df` | phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance + retriever reorder; ablation san |
-| 2026-07-24 | `42008af7` | chore: quant-agent experiment data artifacts (intraday session 60617e0b residue) |
 
 ---
 
+### v6.68.36 — phase-76.9.2: PASS -- durable Max-rail routing closed; the blocker wa... (2026-07-25)
+
+- **phase-76.9.2: PASS -- durable Max-rail routing closed; the blocker was a regression I shipped**
 ### v6.68.35 — fix(handoff): archive hook FABRICATES false archives -- 129 of 747 di... (2026-07-25)
 
 - **fix(handoff): archive hook FABRICATES false archives -- 129 of 747 dirs hold another step's docs**
