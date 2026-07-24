@@ -28239,3 +28239,35 @@ finished, or expect and pre-explain these transients in the executor prompt.
 - NEXT SESSION one-glance: qa_write_guard.log should begin showing
   agent_type:"" allow lines for Main's own Write/Edit (main-session hook
   binding) -- confirm and note; no step gate on it.
+
+### Cycle 154 addendum -- 2026-07-24 -- 76.9 criterion-1 REAL-RUN ARM LANDED (operator-requested Max-rail test)
+
+- Operator: "you could test the autoresearch run with this session that has
+  antropic max subscription". Executed: run_memo topic09 (the EXACT topic that
+  failed 02:02 today) with all LLM calls routed session-bridge ->
+  claude-code-proxy (localhost:18796) -> `claude -p` on the Max plan.
+  RESULT: rc=0, wrote handoff/autoresearch/2026-07-24-topic09-*.md (15,809
+  chars, 4m40s) -- the FIRST non-ERROR memo in the directory's entire history.
+  $0 metered PROVEN: ANTHROPIC_API_KEY was a dummy, so any leak to
+  api.anthropic.com would have 401'd; none did. The 76.9 retriever fix worked
+  on the REAL pipeline (planning via semantic_scholar; arxiv 429s tolerated in
+  fan-out; S2's own 429 returned [] gracefully).
+- INFRA FINDS while enabling the test: (1) the claude-code-proxy was BROKEN
+  FOR ALL CLIENTS -- `claude` binary not on its plist PATH since the binary
+  moved to ~/.local/bin (every /v1/messages died in 13ms ENOENT); interim fix
+  applied: symlink /opt/homebrew/bin/claude -> ~/.local/bin/claude
+  (reversible, on-PATH). (2) proxy cert = self-signed leaf CN=api.anthropic.com
+  without CA:TRUE -- unverifiable by Python SDK clients; session-scratchpad
+  bridge (HTTP :18797, SSE-aggregating) worked around it; NOT durable.
+  (3) proxy MODEL_MAP lacks opus-4-8 (falls back to sonnet). (4) gpt-researcher
+  0.14.8: report_type 'detailed_report' is INVALID -> silent research_report
+  fallback (the nightly always produced the simpler shape).
+- QUEUED: 76.9.1 (report_type drift, sonnet/P3), 76.9.2 (durable Max-rail
+  routing, opus/P2, OPERATOR-GATED -- $0/night vs $1-3 metered + dead credits).
+- Test-hygiene: test1's failed attempt had overwritten today's nightly
+  ERROR-topic09.md; restored byte-identical from git history. rc-capture
+  footgun in test1's wrapper (command-substitution resets $?) noted; test2
+  captured rc correctly.
+- Tonight's 02:00 cron still runs the METERED direct API (unchanged) -- it
+  remains the unmodified-path evidence; if credits are still dead it will
+  ERROR on the LLM call (phase-72 token), NOT on arxiv.

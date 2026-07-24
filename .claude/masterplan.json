@@ -18157,6 +18157,44 @@
           "max_retries": 3
         },
         {
+          "id": "76.9.1",
+          "status": "pending",
+          "name": "76.9 follow-up -- run_memo report_type='detailed_report' is INVALID in gpt-researcher 0.14.8 and silently falls back to research_report [executor: sonnet-4.6/high; BOUNDARY: scripts/autoresearch/ + tests]. MEASURED 2026-07-24 during the Max-rail live test (verbatim warning: \"Invalid report type: detailed_report. Please use one of the following: research_report, resource_report, outline_report, custom_report, subtopic_report, deep ... Using default report type: research_report prompt\" -- gpt_researcher/prompts.py:865). run_memo.py:72-74's comment prices detailed_report at 5-10min/$1-3; the nightly has ALWAYS been getting the cheaper research_report shape instead. Work: decide the intended type against the installed enum (research_report is likely FINE -- the memo produced 2026-07-24 is 15.8K chars of well-structured output; 'deep' costs more), set it EXPLICITLY, correct the stale comment + the write_memo header string, and add a pin test asserting the configured report_type is in the installed package's valid set (tripwire for future gpt-researcher upgrades). Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_76_9_launchd_fixes.py -q",
+            "success_criteria": [
+              "run_memo.py passes a report_type that is VALID in the installed gpt-researcher (asserted by a test importing the package's valid-type source of truth, not a hardcoded copy)",
+              "The 5-10min/$1-3 comment and the memo header reflect the actual configured type",
+              "MUTATION: set report_type to an invalid string -> the pin test goes red"
+            ],
+            "live_check": "handoff/current/live_check_76.9.1.md: the verbatim warning before, absence after, one memo-run or dry-run evidence."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.9.2",
+          "status": "pending",
+          "name": "76.9 follow-up -- durable Max-rail (claude-code-proxy) routing for nightly autoresearch [executor: opus-4.8/xhigh; OPERATOR-GATED: touches ~/.openclaw proxy infra outside the repo + nightly LLM routing]. PROVEN FEASIBLE 2026-07-24 by a live end-to-end test: run_memo topic09 (the exact topic that failed at 02:02) completed rc=0 and wrote the FIRST non-ERROR memo in handoff/autoresearch history (15,809 chars, 4m40s) with ALL LLM calls routed bridge->claude-code-proxy->claude -p on the operator's Max subscription -- $0 metered (dummy ANTHROPIC_API_KEY proves zero leakage to api.anthropic.com). Vs the metered direct-API nightly: $1-3/night + currently DEAD credits (phase-72). BLOCKERS the durable version must fix (all measured today): (1) proxy cert is a self-signed LEAF CN=api.anthropic.com without CA:TRUE -- Python/OpenSSL clients cannot verify it (test1 failed [SSL: CERTIFICATE_VERIFY_FAILED] invalid CA certificate); options: regenerate cert with CA:TRUE + SAN localhost (check other OpenClaw clients' pinning first), or add a plain-HTTP localhost listener to the proxy, or productionize the session's SSE-aggregating bridge (scratchpad/anthropic_bridge.py pattern: HTTP :18797, aggregates always-SSE proxy responses into non-streaming Messages JSON, passes SSE through for stream=true). (2) proxy MODEL_MAP lacks claude-opus-4-8 (falls back to sonnet) -- add mappings or accept sonnet for STRATEGIC_LLM. (3) proxy serializes one claude -p at a time (4m40s/memo measured -- acceptable nightly). (4) the claude binary was NOT on the proxy plist PATH (every call died 13ms ENOENT since the binary moved; interim fix ALREADY APPLIED 2026-07-24: symlink /opt/homebrew/bin/claude -> ~/.local/bin/claude; the durable fix is CLAUDE_PATH in the plist or the symlink documented). Also wire run_nightly.sh env (ANTHROPIC_BASE_URL) behind a flag so the operator can flip metered<->Max-rail. Research gate mandatory (proxy-side changes need the OpenClaw client compatibility check).",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": "bash -n scripts/autoresearch/run_nightly.sh && .venv/bin/python -c \"import ast; ast.parse(open('scripts/autoresearch/run_memo.py').read())\"",
+            "success_criteria": [
+              "A real run_memo run completes rc=0 through the DURABLE routing (not the session scratchpad bridge) with a dummy metered key proving $0 leakage, evidence verbatim",
+              "The routing is flag-gated so the operator can revert to the direct metered API with one env change; default documented",
+              "Other OpenClaw clients of the proxy are enumerated and shown unbroken by any cert/listener change (or the change is additive-only)",
+              "The claude-binary PATH fix is made durable (plist CLAUDE_PATH or documented symlink) and the proxy MODEL_MAP covers the three autoresearch roles or the fallback is documented",
+              "MUTATION: break the routing (wrong port) -> the run fails loudly, never silently falls through to the metered API"
+            ],
+            "live_check": "handoff/current/live_check_76.9.2.md: verbatim end-to-end run, leakage proof, client-compat evidence, flag flip both directions."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "76.10",
           "status": "pending",
           "name": "SYMPTOM (operator bug B3): warehouse sources appear stale and there is no unified external-source health UI. MEASURED (audit wf_51a301b9-664 -- operator premise PARTLY REFUTED; RE-DERIVE line numbers): paper_portfolio_snapshots is NOT stale (MAX(snapshot_date)=2026-07-22, 1 day, inside its 26h threshold); historical_macro IS 120 days old but is FROZEN BY DESIGN per operator policy (auto-memories: historical_macro frozen; un-freeze token owed), not a broken ingest. A UNIFIED per-BQ-table freshness endpoint + UI ALREADY EXISTS: /api/observability/data-freshness (phase-25.C7, cycle_health.py) rendered at frontend/src/app/observability/page.tsx -- so the BQ-table half is DONE. SCOPE THE NEW SLICE ONLY: (1) teach backend/services/cycle_health.py a per-table 'frozen_by_policy' flag (config/env-driven, e.g. historical_macro) so a frozen source renders a distinct 'FROZEN' band instead of CRITICAL red (today it shows 120d-stale as broken); (2) add an EXTERNAL-source health endpoint + UI panel covering upstream API providers (Alpha Vantage, FRED, yfinance, Anthropic, Gemini) -- reachability/last-success/rate-limit status -- which the current BQ-table freshness does not cover. Do NOT rebuild the BQ-table freshness (25.C7/25.A7 own it). [executor: sonnet-4.6/high]",
