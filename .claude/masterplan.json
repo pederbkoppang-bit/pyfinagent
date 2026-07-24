@@ -17705,6 +17705,25 @@
           "max_retries": 3
         },
         {
+          "id": "75.11.4",
+          "status": "pending",
+          "name": "Audit75 S11 follow-up -- backfill_handoff_archive.py archives by filename pattern, blind to step status [executor: sonnet-4.6/high; BOUNDARY: scripts/housekeeping/** + its tests only]. DISCOVERED 2026-07-24 during 76.9/75.20.1 housekeeping: running the (documented-idempotent) backfill moved research_brief_75.20.1.md -- the WRITE-FIRST brief of a PENDING step with an ACTIVE researcher mid-write -- to handoff/archive/misc/, alongside legitimately-archivable done-step files. The handoff-layout invariant (research-gate.md) only bars handoff/current files belonging to status=done steps; the script's misc-classifier never consults .claude/masterplan.json status, so any step-suffixed artifact is swept regardless of the step being pending/in_progress. Main caught it live and moved the file back within seconds (researcher unaffected). Work: make the misc/step classifiers status-aware (resolve step id from filename -> look up status -> only done/superseded/dropped are archivable; unknown ids stay put with a WARN), add tests incl. a pending-step fixture that must NOT move, and mutation-test the status check. Research gate mandatory (tier simple acceptable).",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_11_4_backfill_status_aware.py -q",
+            "success_criteria": [
+              "backfill_handoff_archive.py resolves the owning step id for step-suffixed handoff/current artifacts and refuses to move files whose step status is not done/superseded/dropped; unknown ids are left in place with a WARN line",
+              "A fixture run proves a pending-step research_brief/live_check is NOT moved while a done-step sibling IS (both asserted in one run)",
+              "MUTATION: remove the status check -> the pending-step fixture file moves and the test goes red; mutate the fixture (mark the pending step done) -> the not-moved assertion must flip, proving the fixture is load-bearing",
+              "Idempotency preserved: a second run moves nothing and exits 0"
+            ],
+            "live_check": "handoff/current/live_check_75.11.4.md: verbatim fixture-run output (both directions), the mutation results, and one real-repo idempotent re-run."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "75.12",
           "status": "done",
           "name": "Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dead charts, polling circuit breakers, status union [executor: sonnet-4.6/high]. (a) frontend-01: /agents Glass-Box page structurally cannot authenticate -- useEventSource.ts:91 opens EventSource with withCredentials:false (EventSource cannot send Authorization headers; cookie auth is the only SSE option and backend CORS already allows credentials) and the page's stats/dashboard fetches bypass apiFetch with no credentials. Fix: { withCredentials: true } + route the raw fetches through apiFetch/credentials:'include'; verify against the RUNNING authed backend per the frontend live-UI protocol. (b) frontend-02: api.ts:114's 401 branch hard-redirects to /login with no pathname guard while root-mounted LivePortfolioProvider polls authed endpoints ON /login -- sub-second reload loop that interrupts SSO/passkey ceremonies. Fix: skip the redirect when window.location.pathname === '/login' AND gate LivePortfolioProvider polling on pathname/session as its own comment plans. (c) frontend-03: reports/page.tsx:198 compare-charts raw fetch always 401s and is swallowed -- route through apiFetch + surface a partial-failure notice. (d) frontend-05: OpsStatusBar.tsx:78 -- per-call .catch(()=>null) makes the outer catch and failRef unreachable, freezing Gate/Kill/Cycle segments stale-but-live forever on backend death; detect the all-null outcome, increment failRef, render a stale/error segment state after 5, back off the interval. (e) frontend-06: apply the cron-page failure-counter pattern (or a usePoller hook) to the agents stats/dashboard poll, observability freshness, HarnessDashboard seed-stability, and AutoresearchLeaderboard; make useLivePrices ACTUALLY stop at 5 consecutive failures (its doc already claims it does -- set an explicit circuitOpen flag and skip/clear the interval). (f) fe-ts-01: model the /api/paper-trading/status not_initialized variant as a union in types.ts and guard paper-trading/layout.tsx:217/263 before dereferencing .loop.running (fresh-install TypeError crash). (g) frontend-09: memoize getAuthToken's /api/auth/session probe in a module-level sessionTokenCache with ~60s TTL, invalidated on 401 (currently an extra serial round-trip on EVERY backend call, ~14+/min idle).",
