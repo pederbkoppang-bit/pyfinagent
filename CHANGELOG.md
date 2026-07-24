@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `4c37f1ef` | phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary path constrained [FLIP+PUSH HELD  |
 | 2026-07-24 | `fa9aaf8e` | chore: handoff layout backfill -- archive 315 misc + 3 audit + 4 log files out of handoff/current |
 | 2026-07-24 | `ee4d92b5` | phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue |
 | 2026-07-24 | `947eaf58` | chore: ops addendum -- ablation wrapper bootstrapped (leg 3 complete) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-23 | `33553e46` | phase-75.5: close on certified_fallback (operator-approved 2026-07-23) |
 | 2026-07-23 | `435ede5e` | chore: archive phase-75.5 (certified_fallback) + phase-75.6 handoff snapshots |
 | 2026-07-23 | `f466e859` | phase-75.6: frontend auth fail-closed + session hardening -- Q/A PASS (cycle 1) |
-| 2026-07-23 | `3a7942cf` | fix: phase-75.5 LLM rail + root-cause remediation of the unmeasured-scope-claim defect |
 
 ---
 
+### v6.68.22 — phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary pa... (2026-07-24)
+
+- **phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary path constrained [FLIP+PUSH HELD**
 ### v6.68.21 — phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate... (2026-07-24)
 
 - **phase-75.19: Audit75 S19 -- recalibrate the masterplan preflight gate, then triage its true residue**
