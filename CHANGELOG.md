@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `a8c314df` | phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance + retriever reorder; ablation san |
 | 2026-07-24 | `42008af7` | chore: quant-agent experiment data artifacts (intraday session 60617e0b residue) |
 | 2026-07-24 | `12e3147a` | phase-75.20: roster-live confirmation landed -- browser grant binds, flip to done |
 | 2026-07-24 | `ff22d7e0` | chore: cycle-152 addendum -- 75.5.2 executor report reconciled; 'external modification' anomaly reso |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `947eaf58` | chore: ops addendum -- ablation wrapper bootstrapped (leg 3 complete) |
 | 2026-07-24 | `0878f13e` | chore: ops record -- operator-approved queue executed (75.18 flip, restart, logrotate live, quant re |
 | 2026-07-24 | `207da6b4` | phase-75.18: Audit75 S18 -- codify the anti-vacuous-guard doctrine into the harness itself [execu... |
-| 2026-07-24 | `88ebd5b9` | phase-75.17: Audit75 S17 -- absent-path verification family: triage + repair [executor: sonnet-4.... |
 
 ---
 
+### v6.68.26 — phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance +... (2026-07-24)
+
+- **phase-76.9: both nightly launchd jobs fixed -- arxiv-429 tolerance + retriever reorder; ablation san**
 ### v6.68.25 — phase-75.20: roster-live confirmation landed -- browser grant binds,... (2026-07-24)
 
 - **phase-75.20: roster-live confirmation landed -- browser grant binds, flip to done**
