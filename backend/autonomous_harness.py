@@ -273,8 +273,24 @@ def promote_strategy(strategy: str) -> dict:
         )
 
     # 3. Gauntlet pass-criteria evaluator
+    from backend.backtest.gauntlet import report_integrity  # lazy import
     from backend.backtest.gauntlet.evaluator import evaluate  # lazy import
     report = _json.loads(report_path.read_text(encoding="utf-8"))
+
+    # 3a. phase-75.8.1: report-integrity gate BEFORE the evaluator. The
+    # evaluator is extensional (checks values, not provenance), so fabricated
+    # dry-run/stub evidence passes all four hard gates by construction -- the
+    # shared predicate (also used by scripts/risk/promotion_gate.py) refuses
+    # it with an explicit reason instead of promoting. Module-attr call so a
+    # monkeypatch of the shared module provably flips both consumers.
+    integrity_ok, integrity_reason = report_integrity.check_report_integrity(report)
+    if not integrity_ok:
+        _append_blocklist(strategy, integrity_reason)
+        raise PromotionBlocked(
+            f"strategy {strategy!r} gauntlet report failed integrity: "
+            f"{integrity_reason}; added to 30-day blocklist"
+        )
+
     verdict = evaluate(report)
     if not verdict["overall_pass"]:
         reason = "; ".join(verdict.get("reasons", [])) or "overall_pass=False"

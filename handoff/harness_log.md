@@ -28048,3 +28048,23 @@ structurally after-restart evidence (live_check spec).
   uncommitted GENERATE mid-cycle (the codified no-stash hazard); surgically
   recovered (checkout from stash + drop), all suites re-verified, Q/A
   independently confirmed the recovered tree. Recommend Bash(git stash*) deny.
+
+## Cycle 150 -- 2026-07-24 -- phase=75.8.1 result=PASS (cycle 1, clean) -- second gauntlet consumer refuses fabricated evidence
+
+- P1 latent money-integrity. New shared pure-leaf predicate
+  backend/backtest/gauntlet/report_integrity.py (fingerprint-first + dry_run-label
+  refusal, skipped-filter + all([]) guard) imported module-attr by BOTH consumers;
+  promotion_gate.py refactored onto it (and GAINS the label refusal); promote_strategy
+  gains the integrity gate before evaluate() (blocklist + raise, parity with existing
+  refusals). STEP-TEXT CORRECTION measured by the research gate: promotion_gate never
+  had a label check (its dry_run refs are the CLI --dry-run flag) -- this step ADDED
+  it to both consumers, not ported it.
+- 31/31 (20 pre-existing byte-untouched + 11 new incl. the behavioral
+  single-implementation proof: one monkeypatch flips BOTH consumers). Mutations 7/7
+  killed (G1/G2 per-consumer wiring, G3-G5 through both, G6 stub, G7 fixture); Q/A
+  independently re-executed G3-G6 and proved the guard load-bearing (stub PROMOTES
+  with the gate disabled). C5: evaluator.py + limits.yaml diff = 0 lines.
+- Q/A PASS (wf_e204c8da-1e7, 14 checks). Notes: pre-existing F401
+  autonomous_harness.py:28 routed to the already-queued 75.5.6 F401 sweep; the Q/A
+  again self-caught the zsh word-split vacuous-lint trap (2nd live occurrence) --
+  the 4c doctrine is earning its keep on the evaluator itself.

@@ -41,6 +41,7 @@ if str(REPO) not in sys.path:
 from backend.services.promotion_gate import (  # noqa: E402
     STAGES, evaluate_stage, update_optimizer_best,
 )
+from backend.backtest.gauntlet import report_integrity
 from backend.backtest.gauntlet.evaluator import evaluate as evaluate_gauntlet  # noqa: E402
 
 OPTIMIZER_BEST = REPO / "backend" / "backtest" / "experiments" / "optimizer_best.json"
@@ -115,27 +116,16 @@ def main() -> int:
         except FileNotFoundError as e:
             print(json.dumps({"blocked": True, "reason": str(e)}))
             return 1
-        # phase-75.8 (gap6-01): stub-fingerprint rejection. The dry-run
-        # stub copies drawdown into bt_drawdown for every regime, so exact
-        # equality across ALL non-skipped regimes marks fabricated
-        # evidence (real live-vs-backtest drawdowns never match to the
-        # last bit on every regime). Skipped regimes are filtered like the
-        # evaluator does; an empty non-skipped list is NOT fingerprinted
-        # (all([]) is True -- guard the vacuous case explicitly).
-        non_skipped = [
-            r for r in (report.get("per_regime", []) or [])
-            if not r.get("skipped")
-        ]
-        if non_skipped and all(
-            r.get("bt_drawdown") == r.get("drawdown") for r in non_skipped
-        ):
+        # phase-75.8 (gap6-01) stub-fingerprint + phase-75.8.1 dry_run-label
+        # rejection, via the SHARED predicate (backend/backtest/gauntlet/
+        # report_integrity.py -- module-attr call so a monkeypatch of the
+        # shared module flips both consumers; the other consumer is
+        # backend/autonomous_harness.py::promote_strategy).
+        integrity_ok, integrity_reason = report_integrity.check_report_integrity(report)
+        if not integrity_ok:
             print(json.dumps({
                 "blocked": True,
-                "reason": (
-                    "stub fingerprint: bt_drawdown == drawdown exactly for "
-                    "all non-skipped regimes -- report is dry-run/stub "
-                    "evidence, not a live gauntlet run"
-                ),
+                "reason": integrity_reason,
                 "report_path": str(rp.relative_to(REPO)),
             }))
             return 1

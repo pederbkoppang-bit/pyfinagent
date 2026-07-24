@@ -1,90 +1,83 @@
-# Experiment results — Step 75.5.1 (the cost-budget guard gets the LLM-spend metric its name promises)
+# Experiment results — Step 75.8.1 (shared stub-fingerprint + dry-run-label guard for the SECOND gauntlet-report consumer)
 
-Date: 2026-07-24. Execution model: opus-tagged P1 MONEY-ADJACENT step → Main (Fable 5)
-GENERATE; Researcher gate opus/max (wf_9cece795-b16, PASSED, 6 read-in-full, pricing
-externally validated). **Arm (a) chosen** per the research verdict; shipped **DARK**
-(flag default OFF, byte-identical trip point until the operator flips).
+Date: 2026-07-24. Execution model: opus-tagged P1 (latent) money-integrity step →
+Main (Fable 5) GENERATE; Researcher gate opus/max (wf_3d29e4a9-bd7, PASSED, 7
+read-in-full — reward-hacking canon: ImpossibleBench / SpecBench /
+LLMs-Gaming-Verifiers + SSOT refactoring canon).
 
 ## What was built
 
-1. **`fetch_llm_spend()`** in `backend/services/observability/spend.py`: (daily, monthly)
-   METERED LLM spend — one month-window BQ query over `llm_call_log` (column-pruned,
-   `timeout=30`, GROUP BY model with a same-day split), priced in Python via
-   `_price_llm_tokens` against the LIVE imported `cost_tracker.MODEL_PRICING` +
-   `_DEFAULT_PRICING` with the cache-aware formula (read 0.1×, write 2.0×) ported from
-   cost_tracker.py:198-206. Module docstring now carries the THREE invariants:
-   metered-only (CC-rail excluded — both row shapes), raw-tokens-×-pricing (never stored
-   dollars; session_cost_usd is a gauge; token counts are invariant across the 75.5
-   cache-cost fix), cache-aware (the sovereign_api cache-blind variant under-counts).
-2. **Metered-only SQL filter** (the crux): `WHERE ... AND ok AND provider !=
-   'claude-code' AND (agent IS NULL OR agent NOT LIKE 'cc_rail:%')` — flat-fee CC-rail
-   tokens are FREE on the Max rail; pricing them at API rates would falsely trip the
-   $25 breaker and halt trading (the session_cost_usd-staircase phantom class).
-3. **Fail-open through the arch-04 seam**: any exception → (0.0, 0.0) via the SAME
-   `_record_degradation` (counter + one-shot P2 alert) as `fetch_spend`.
-4. **Flag routing** in `llm_client._check_cost_budget`:
-   `cost_budget_use_llm_spend_enabled` (settings.py, default **False**) selects
-   `fetch_llm_spend` vs `fetch_spend`. Nothing else in the hot path changed (cache TTL,
-   caps, trip logic, fail-open, env escape hatch untouched). Import split keeps the 75.5
-   pinned literal `from backend.services.observability import fetch_spend` intact.
-5. **New offline suite** `backend/tests/test_phase_75_5_1_spend_metric.py` (11 tests):
-   real-pricing-table assertions with expected values re-derived INLINE (never via the
-   production helper — anti-tautology), cache-token pricing, CC-rail zero-contribution
-   (both shapes), failed-call exclusion, agent-NULL inclusion, daily/monthly window
-   split, fake-client self-test (the stub CAN represent a filter-less query), fail-open
-   + seam regression, flag OFF/ON routing against the real breaker, flag-default pin.
-6. **Queued 75.5.11** (research-gated, sonnet-tagged): the DISCOVERED caps disagreement —
-   hard-block enforces $25/$300 from settings while the tile + Slack watcher hardcode
-   $5/$50 (operator-facing numbers 5× off the real halt point). Per
-   feedback_queue_discovered_defects_in_masterplan, queued not folded in.
+1. **New `backend/backtest/gauntlet/report_integrity.py`** — the SINGLE shared
+   implementation (pure leaf, imports only `typing`): `is_dry_run_report()`,
+   `has_stub_fingerprint()` (skipped-filter + `bool(non_skipped) and` empty-guard),
+   `check_report_integrity() -> (ok, reason|None)` with **fingerprint checked FIRST**
+   (ordering pinned by the pre-existing test on a report that is both stub and
+   dry_run:true) and the fingerprint reason string **byte-identical** to the 75.8
+   inline original.
+2. **`scripts/risk/promotion_gate.py`** refactored onto the shared module: the 75.8
+   inline fingerprint block (:118-141) replaced by a module-attr
+   `report_integrity.check_report_integrity(report)` call — and thereby GAINS the
+   dry_run-label refusal it never had (the step-text correction from the research
+   gate: its `dry_run` refs were the CLI's own --dry-run flag, not a label check).
+3. **`backend/autonomous_harness.py::promote_strategy`** — the previously-blind
+   second consumer — gains the integrity gate after report load, before
+   `evaluate()`: on refusal, `_append_blocklist(strategy, reason)` +
+   `raise PromotionBlocked` (parity with the two existing refusal sites; the reason
+   is logged AND raised — no exception swallowed into a promote).
+4. **New `backend/tests/test_phase_75_8_1_harness_consumer.py`** (11 tests, offline):
+   stub-refused+blocklisted through promote; dry_run:true DIVERGENT refused through
+   BOTH consumers (proves the label leg, not the fingerprint, catches it); realistic
+   divergent dry_run:false PROMOTES (overall_pass True, no blocklist); empty +
+   all-skipped NOT fingerprinted through BOTH consumers (the all([]) trap);
+   anti-fixture-divorce (REAL `gauntlet.run(dry_run=True)` bytes refused through
+   promote); the C2 single-implementation proof BY BEHAVIOR (one monkeypatch of the
+   shared predicate flips BOTH consumers) plus its non-vacuity self-test.
 
-## Files changed
+## Files changed (exactly the contract's 4 + masterplan status)
 
-`backend/services/observability/spend.py`, `backend/services/observability/__init__.py`,
-`backend/config/settings.py`, `backend/agents/llm_client.py`,
-`backend/tests/test_phase_75_5_1_spend_metric.py` (new),
-`.claude/masterplan.json` (75.5.1 → in_progress; +75.5.11),
-`handoff/current/{contract.md, research_brief_75.5.1.md, live_check_75.5.1.md,
-experiment_results.md}`.
+`backend/backtest/gauntlet/report_integrity.py` (new),
+`scripts/risk/promotion_gate.py`, `backend/autonomous_harness.py`,
+`backend/tests/test_phase_75_8_1_harness_consumer.py` (new),
+`.claude/masterplan.json` (75.8.1 → in_progress), handoff artifacts.
+`test_phase_75_promotion_gate.py` BYTE-UNTOUCHED; `git diff` on evaluator.py +
+limits.yaml = 0 lines (C5, verbatim in live_check).
 
 ## Verbatim verification output
 
 ```
-$ .venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py -q
-...........                                                              [100%]
-11 passed in 1.41s
-$ .venv/bin/python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py backend/tests/test_phase_75_llm_rail.py -q
-53 passed, 1 warning in 5.72s
+$ .venv/bin/python -m pytest backend/tests/test_phase_75_promotion_gate.py backend/tests/test_phase_75_8_1_harness_consumer.py -q
+...............................                                          [100%]
+31 passed in 0.15s
 ```
 
-## Mutation matrix (immutable criterion 4 + qa.md §4c) — 6 mutations, 6 killed
+(20 pre-existing tests unchanged-and-green — the step text's "14" was the
+2026-07-23 count; measured today the suite has 20 — plus 11 new.)
 
-Runner + verbatim log in scratchpad (`run_mutations_75_5_1.py`,
-`mutation_matrix_75_5_1.txt`); summary line verbatim:
-`SUMMARY: 6 mutations, 6 killed, survivors: NONE` + `post-restore sanity: pytest exit 0`.
+Lint: new files `All checks passed!`; edited files' finding-class census diffed
+against `git show HEAD:` baselines — IDENTICAL (zero new findings).
 
-| # | Mutation (applied to real code, executed) | Killed by |
+## Mutation matrix (C4 + qa.md §4c) — 7 mutations, 7 killed, 0 survivors
+
+Runner + verbatim log in scratchpad (`run_mutations_75_8_1.py`,
+`mutation_matrix_75_8_1.txt`); post-restore sanity exit 0.
+
+| # | Mutation (executed) | Killed by (consumer coverage) |
 |---|---|---|
-| S1 | flag-ON branch swapped back to the BQ metric (criterion-4 required) | `test_flag_on_reads_the_llm_metric` |
-| S2 | flag gate removed — always the LLM metric (criterion-4 required) | `test_flag_off_is_byte_identical_to_bq_source` |
-| S3 | CC-rail exclusion DROPPED from the SQL (the phantom-spend crux) | `test_cc_rail_rows_contribute_zero_both_shapes` |
-| S4 | cache-read discount broken (0.1× → 1.0×) | `test_metered_rows_priced_against_real_pricing_table` + `test_cache_tokens_are_priced_not_ignored` |
-| S5 | **STUB**: fake client filters CC-rail unconditionally (SQL-sensitivity neutered — would mask S3) | `test_fake_client_honors_filter_absence` |
-| S6 | **FIXTURE/expected**: test's inline cache multiplier drifted to match a hypothetical wrong prod | `test_metered_rows_priced_against_real_pricing_table` |
+| G1 | integrity call dropped in promotion_gate | 4 failures THROUGH CONSUMER 1 (incl. two pre-existing 75.8 tests) |
+| G2 | integrity call dropped in promote_strategy | 4 failures THROUGH CONSUMER 2 |
+| G3 | dry_run-label branch dropped in the shared predicate | label tests fail through BOTH consumers |
+| G4 | skipped-filter dropped | all-skipped tests fail through BOTH consumers (+ the pre-existing 75.8 pin) |
+| G5 | empty-list guard dropped (all([]) trap restored) | 5 failures: all-skipped AND empty params through BOTH consumers |
+| G6 | **STUB**: fingerprint leg disabled in the shared predicate | 4 failures — and demonstrated defense-in-depth: the dry_run leg caught the real stub, and the reason-string pin still failed the test |
+| G7 | **FIXTURE**: REALISTIC fixture made stub-shaped | the promotes-test + the probe non-vacuity self-test fail |
 
-## Honest disclosures
+## Notes for Q/A
 
-- Cycle-internal regression caught pre-Q/A: my first import shape broke the 75.5 pin
-  `test_consumers_resolve_fetch_spend_from_observability`; fixed by import split, both
-  suites green after.
-- Process incident: a stray `git stash -q` in a diagnostic command stashed the entire
-  uncommitted GENERATE mid-cycle (the codified `feedback_no_git_stash_with_active_hooks`
-  hazard, hit by Main itself). Surgical recovery via `git checkout stash@{0} -- <files>`
-  + drop; all 53 tests, imports, contract, and masterplan state re-verified identical
-  post-recovery. Recommend the operator consider a `Bash(git stash*)` deny rule to make
-  the memory mechanical.
-- Known conservative biases of the new metric (documented, acceptable for a breaker):
-  no `is_batch` column in llm_call_log → batched rows priced at full rate (over-count →
-  trips EARLY = safe); advisor blended-model calls priced at the row's single model.
-- Lint: 3× BLE001 blind-except on spend.py are the documented fail-open idiom
-  (2 pre-existing at HEAD, proven); `__init__.py` finding classes unchanged vs HEAD.
+- Blocklist-parity choice (refusal also blocklists for 30 days, mirroring the two
+  existing refusal sites) was flagged in the contract; raise-only would also satisfy
+  C1 — the chosen shape is the consistent one.
+- The label refusal makes NOTHING promotable until a live gauntlet exists (the
+  writer only emits dry_run:true today; live mode raises NotImplementedError) —
+  exactly the intended fail-safe posture for a latent P1; the only current caller
+  is the phase4_9 redteam script, which expects refusals.
+- gauntlet/__init__.py deliberately untouched (consumers import the submodule).
