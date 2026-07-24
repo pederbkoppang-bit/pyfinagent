@@ -21,7 +21,7 @@ import logging
 import re
 import random
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 from google.api_core import exceptions as gcp_exceptions
@@ -45,7 +45,6 @@ from backend.agents.info_gap import detect_info_gaps, retry_critical_gaps
 from backend.agents.memory import (
     FinancialSituationMemory,
     build_situation_description,
-    generate_reflection,
 )
 from backend.agents.risk_debate import run_risk_debate
 from backend.agents.schemas import SynthesisReport, CriticVerdict, RiskJudgeVerdict
@@ -988,9 +987,11 @@ class AnalysisOrchestrator:
         Returning the cap on BOTH paths makes the limit provider-independent.
         Gemini behavior is unchanged (same value it already had).
 
-        North-star: each Claude-path Files API call drops from 5K-15K
-        skill tokens to ~8 token file_id ref (98-99.5% reduction per
-        Anthropic Files API docs).
+        phase-75.14 (gap5-05) CORRECTION: the file_id ref is small but the
+        document CONTENT is billed every call (Anthropic Files API docs);
+        without config["data_prompt"] llm_client now drops the redundant
+        document block, so this helper's file_id is a no-op until a caller
+        supplies a data-only prompt.
         """
         config: dict = {"max_output_tokens": _ENRICHMENT_MAX_OUTPUT_TOKENS}
         fid_map = getattr(self, "_skill_file_ids", None)

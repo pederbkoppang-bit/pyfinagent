@@ -14,7 +14,7 @@ Step 8 debate agent — depending on the `stance` parameter, this skill plays th
 
 ## What You CANNOT Modify (harness contract — fixed)
 - Wrapper function signatures (`get_bull_agent_prompt`, `get_bear_agent_prompt`, `get_devils_advocate_prompt` in `prompts.py`) — downstream consumers (`debate.py`) call these by name.
-- Output JSON keys that downstream consumers expect: `thesis`/`confidence`/`key_catalysts`/`evidence` (Bull); `thesis`/`confidence`/`key_threats`/`evidence` (Bear); `challenges`/`hidden_risks`/`bull_weakness`/`bear_weakness`/`groupthink_flag`/`confidence_adjustment`/`summary` (DA).
+- Output JSON keys that downstream consumers expect: `thesis`/`confidence`/`key_catalysts`/`evidence` (Bull); `thesis`/`confidence`/`key_threats`/`evidence` (Bear); `challenges`/`hidden_risks`/`groupthink_flag` (boolean)/`confidence_adjustment`/`summary` (DA -- phase-75.14: aligned to the enforced DevilsAdvocateResult schema; bull/bear_weakness dropped).
 - Debate protocol: round-based with rebuttal structure for bull/bear; single-shot post-debate for DA.
 - FACT_LEDGER anti-patterns (see below) — shared across all 3 roles.
 

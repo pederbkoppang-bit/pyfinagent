@@ -14,7 +14,7 @@ Step 12c risk assessment agent — depending on the `stance` parameter, this ski
 
 ## What You CANNOT Modify (harness contract — fixed)
 - Wrapper function signatures (`get_aggressive_analyst_prompt`, `get_conservative_analyst_prompt`, `get_neutral_analyst_prompt`) — `risk_debate.py` calls these by name.
-- Output JSON keys downstream consumers expect: Aggressive (`position`/`max_position_pct`/`upside_catalysts`/`risk_mitigation`/`entry_strategy`); Conservative (`position`/`max_position_pct`/`tail_risks`/`max_drawdown_pct`/`stop_loss_strategy`); Neutral (`position`/`max_position_pct`/`aggressive_valid_points`/`conservative_valid_points`/`optimal_strategy`/`hedging`).
+- Output JSON keys (phase-75.14: aligned to the enforced RiskAnalystArgument schema for ALL three stances): `position`, `confidence`, `max_position_pct`. Stance-specific color (catalysts, tail risks, hedging) belongs INSIDE the position argument text, not as extra JSON keys the schema strips.
 - Round-robin order: Aggressive → Conservative → Neutral → Risk Judge.
 - FACT_LEDGER anti-patterns (see below) — shared.
 

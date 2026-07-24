@@ -1374,9 +1374,14 @@ class ClaudeClient(LLMClient):
         file_id and must pass `betas=["files-api-2025-04-14"]`
         explicitly on the messages call.
 
-        Closes phase-24.9 F-5 (skill markdowns 500-3000 tokens each
-        re-injected every call; file_id reference is ~8 tokens, a
-        ~98.5% reduction per skill body).
+        phase-24.9 F-5 intent, CORRECTED phase-75.14 (gap5-05): the
+        file_id REFERENCE is small, but per Anthropic's Files API docs
+        the referenced file's CONTENT is expanded and billed as input
+        tokens on every Messages call that includes the document block.
+        The upload therefore saves re-UPLOADING, not re-BILLING; the
+        token win only materializes when the inline prompt shrinks to a
+        data-only block (config["data_prompt"]) so the template rides
+        exclusively in the document.
 
         ZDR caveat: Files API is NOT zero-data-retention eligible
         today (per ARCHITECTURE.md). Skill markdowns contain no
@@ -1475,15 +1480,30 @@ class ClaudeClient(LLMClient):
             "messages": [{"role": "user", "content": prompt}],
         }
 
-        # phase-25.D9: Files API skill reference. When the caller supplies
-        # `config["skill_file_id"]`, swap the user message from plain text
-        # to a structured content array with a document block referencing
-        # the uploaded skill .md file_id (the ~1500-token skill body is
-        # NOT re-sent inline; only the ~8-token file_id reference is).
+        # phase-25.D9 / CORRECTED phase-75.14 (gap5-05): Files API skill
+        # reference. Anthropic's Files API docs: "File content used in
+        # Messages requests is priced as input tokens" -- the document
+        # block's CONTENT is expanded and billed on EVERY call (and is not
+        # covered by the system-block cache_control above), so the original
+        # "~8-token reference / ~98.5% reduction" claim was false on both
+        # counts. Worse, the original implementation sent the FULL rendered
+        # template inline ALONGSIDE the document block (pure duplication).
+        # Now: if the caller supplies `config["data_prompt"]` (runtime data
+        # only, no template), send document + data_prompt -- the intended
+        # data-only shape. Otherwise DROP the redundant document block and
+        # send the self-sufficient rendered prompt inline only. Either way
+        # the request never carries the full template twice.
         # Beta header MUST be passed explicitly on messages.create; the
         # SDK only auto-injects it for the upload call.
-        # Closes phase-24.9 F-5 (~98.5% skill-body token reduction).
         skill_file_id = config.get("skill_file_id")
+        data_prompt = config.get("data_prompt")
+        if skill_file_id and not data_prompt:
+            logger.debug(
+                "phase-75.14 (gap5-05): skill_file_id set without data_prompt; "
+                "dropping the redundant document block (inline prompt is "
+                "self-sufficient; document content would be re-billed)."
+            )
+            skill_file_id = None
         if skill_file_id:
             # phase-25.E9: when `config["citations"]` is truthy, enable
             # native Anthropic Citations on the document block. Server
@@ -1503,7 +1523,9 @@ class ClaudeClient(LLMClient):
                     "role": "user",
                     "content": [
                         document_block,
-                        {"type": "text", "text": prompt},
+                        # phase-75.14 (gap5-05): data-only text -- the skill
+                        # template/instructions live in the document block.
+                        {"type": "text", "text": data_prompt},
                     ],
                 }
             ]

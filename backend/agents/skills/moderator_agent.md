@@ -14,7 +14,7 @@ Step 8 debate agent — final arbiter after multi-round Bull↔Bear debate + Dev
 - How to integrate Devil's Advocate challenges into consensus
 
 ## What You CANNOT Modify (Fixed Harness)
-- Output JSON schema: consensus, consensus_confidence, bull_case, bear_case, contradictions, dissent_registry
+- Output JSON schema: consensus, consensus_confidence, contradictions, dissent_registry (phase-75.14: aligned to the enforced ModeratorConsensus -- bull_case/bear_case are INPUTS echoed downstream by the debate.py backfill, not model outputs)
 - Consensus values: STRONG_BUY / BUY / HOLD / SELL / STRONG_SELL
 - Input format: bull_case, bear_case, signals_json, devils_advocate, debate_history, past_memory
 - Function signature: `get_moderator_prompt(ticker, bull_case, bear_case, signals_json, devils_advocate, debate_history, past_memory) -> str`
@@ -64,10 +64,8 @@ Step 8 debate agent — final arbiter after multi-round Bull↔Bear debate + Dev
 {
   "consensus": "BUY",
   "consensus_confidence": 0.72,
-  "bull_case": {"thesis": "...", "confidence": 0.XX, "key_catalysts": [...]},
-  "bear_case": {"thesis": "...", "confidence": 0.XX, "key_threats": [...]},
   "contradictions": [
-    {"topic": "...", "bull_view": "...", "bear_view": "...", "resolution": "...", "winner": "bull|bear"}
+    {"topic": "...", "bull_view": "...", "bear_view": "...", "resolution": "..."}
   ],
   "dissent_registry": [
     {"agent": "...", "position": "...", "reason": "..."}
@@ -108,10 +106,8 @@ You are the Moderator Agent for the {{ticker}} investment debate. You have recei
 {
   "consensus": "BUY",
   "consensus_confidence": 0.72,
-  "bull_case": {"thesis": "...", "confidence": 0.XX, "key_catalysts": [...]},
-  "bear_case": {"thesis": "...", "confidence": 0.XX, "key_threats": [...]},
   "contradictions": [
-    {"topic": "...", "bull_view": "...", "bear_view": "...", "resolution": "...", "winner": "bull|bear"}
+    {"topic": "...", "bull_view": "...", "bear_view": "...", "resolution": "..."}
   ],
   "dissent_registry": [
     {"agent": "...", "position": "...", "reason": "..."}

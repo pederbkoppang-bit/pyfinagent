@@ -18,7 +18,7 @@ from backend.utils import json_io
 import logging
 import re
 import time
-from typing import Callable, Optional
+from typing import Optional
 
 # phase-11.3: removed dead `from vertexai.generative_models import GenerativeModel`.
 # Never instantiated in this module; all calls route through LLMClient. The
@@ -28,7 +28,7 @@ from typing import Callable, Optional
 from google.api_core import exceptions as gcp_exceptions
 
 from backend.agents.cost_tracker import CostTracker
-from backend.agents.llm_client import GeminiClient, LLMClient
+from backend.agents.llm_client import LLMClient
 from backend.agents.schemas import RiskAnalystArgument, RiskJudgeVerdict
 from backend.config import prompts
 
@@ -122,6 +122,50 @@ def _parse_json(text: str, label: str) -> Optional[dict]:
     except json.JSONDecodeError:
         logger.warning(f"{label} returned invalid JSON, using raw text")
         return None
+
+
+def _judge_parse_fail_fallback(judge_text: str) -> dict:
+    """phase-75.14 (gap4-11): the Risk Judge returned unparseable/empty
+    text -- the risk gate itself failed. Loud on BOTH flag paths (the
+    silent legacy fallback approved 3% NAV with no working judge). Flag
+    semantics + the binding caveat: settings.py
+    paper_risk_judge_parse_fail_reject description. Extracted as a pure
+    function (75.14 Q/A cycle-1) so the flag ROUTING is directly
+    executable under test -- an if/else inversion here must fail the
+    behavioral both-ways test, not survive a source scan."""
+    from backend.config.settings import get_settings as _gs
+    _parse_fail_reject = bool(
+        getattr(_gs(), "paper_risk_judge_parse_fail_reject", False)
+    )
+    logger.warning(
+        "P1 RISK-JUDGE PARSE FAILURE: judge response unparseable; "
+        "fallback verdict=%s (paper_risk_judge_parse_fail_reject=%s). "
+        "Raw judge text (first 1500 chars): %s",
+        "REJECT/0" if _parse_fail_reject else "APPROVE_REDUCED/3",
+        _parse_fail_reject,
+        judge_text[:1500],
+    )
+    if _parse_fail_reject:
+        return {
+            "decision": "REJECT",
+            "risk_adjusted_confidence": 0.0,
+            "recommended_position_pct": 0,
+            "risk_level": "EXTREME",
+            "reasoning": judge_text[:1500],
+            "risk_limits": {"stop_loss_pct": 10, "max_drawdown_pct": 15},
+            "unresolved_risks": [],
+            "summary": judge_text[:500],
+        }
+    return {
+        "decision": "APPROVE_REDUCED",
+        "risk_adjusted_confidence": 0.5,
+        "recommended_position_pct": 3,
+        "risk_level": "MODERATE",
+        "reasoning": judge_text[:1500],
+        "risk_limits": {"stop_loss_pct": 10, "max_drawdown_pct": 15},
+        "unresolved_risks": [],
+        "summary": judge_text[:500],
+    }
 
 
 def run_risk_debate(
@@ -292,16 +336,7 @@ def run_risk_debate(
     judge_text = _clean_json(judge_response.text) if judge_response else ""
     judge_result = _parse_json(judge_text, "Risk Judge")
     if not judge_result:
-        judge_result = {
-            "decision": "APPROVE_REDUCED",
-            "risk_adjusted_confidence": 0.5,
-            "recommended_position_pct": 3,
-            "risk_level": "MODERATE",
-            "reasoning": judge_text[:1500],
-            "risk_limits": {"stop_loss_pct": 10, "max_drawdown_pct": 15},
-            "unresolved_risks": [],
-            "summary": judge_text[:500],
-        }
+        judge_result = _judge_parse_fail_fallback(judge_text)
 
     risk_assessment = {
         "aggressive": aggressive_result,

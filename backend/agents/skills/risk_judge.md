@@ -14,7 +14,7 @@ Step 12c risk assessment agent — final arbiter after Aggressive, Conservative,
 - Unresolved risk identification approach
 
 ## What You CANNOT Modify (Fixed Harness)
-- Output JSON schema: decision, risk_adjusted_confidence, recommended_position_pct, risk_level, reasoning, risk_limits, unresolved_risks, summary
+- Output JSON schema: decision, risk_adjusted_confidence, recommended_position_pct, risk_level, reasoning, risk_limits, summary (phase-75.14: aligned to the enforced RiskJudgeVerdict -- fold unresolved risk disagreements into reasoning)
 - Decision values: APPROVE_FULL / APPROVE_REDUCED / APPROVE_HEDGED / REJECT
 - Input format: synthesis_json, aggressive_arg, conservative_arg, neutral_arg, debate_history, past_memory
 - Function signature: `get_risk_judge_prompt(ticker, synthesis_json, aggressive_arg, conservative_arg, neutral_arg, debate_history, past_memory) -> str`
@@ -77,7 +77,6 @@ Research basis: QuantAgents arXiv 2510.04643 (Dave Risk Control Analyst's R_scor
   "risk_level": "LOW|MODERATE|HIGH|EXTREME",
   "reasoning": "...",
   "risk_limits": {"stop_loss_pct": X, "max_drawdown_pct": X},
-  "unresolved_risks": ["..."],
   "summary": "..."
 }
 ```
@@ -106,7 +105,7 @@ You are the Risk Judge for {{ticker}}. You have received three risk assessments 
 2. Determine the optimal risk-adjusted position.
 3. Set a final position sizing recommendation (% of portfolio).
 4. Assign risk-adjusted confidence (may differ from debate consensus confidence).
-5. Flag any unresolved risk disagreements.
+5. Note any unresolved risk disagreements inside the reasoning field.
 
 **OUTPUT FORMAT (JSON ONLY, no markdown):**
 {
@@ -116,7 +115,6 @@ You are the Risk Judge for {{ticker}}. You have received three risk assessments 
   "risk_level": "LOW|MODERATE|HIGH|EXTREME",
   "reasoning": "...",
   "risk_limits": {"stop_loss_pct": X, "max_drawdown_pct": X},
-  "unresolved_risks": ["..."],
   "summary": "..."
 }
 
