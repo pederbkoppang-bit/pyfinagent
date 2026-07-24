@@ -28279,3 +28279,72 @@ Operator reply "i approve" (attended, same day). Held stack pushed to origin/mai
 install + changelogs). 75.20.1 flip -> done executes now. The qa-write-guard hook
 binds for Main's own calls at next session start (one-glance guard-log check owed);
 it already binds for every freshly-spawned qa subagent (probe-proven).
+
+## Cycle 157 -- 2026-07-25 -- phase=76.9.3 result=PASS
+
+**ddgs pin: the DuckDuckGo retriever leg restored.** gpt-researcher 0.14.8's CODE
+imports `ddgs` while its dist METADATA still declares the frozen pre-rename
+`duckduckgo-search`, so pip resolved green while every live DDG sub-query raised
+`Unable to import ddgs...` -- the 3-retriever stack had silently been running as two,
+both externally rate-limited. Pinned `ddgs==9.14.4` (targeted install; langchain-core
+verified unchanged at 1.4.8), proved one live retrieval, added 4 behavioral guards.
+
+- **The trap the gate caught**: the step's OWN immutable command
+  (`from ...duckduckgo import Duckduckgo`) passes in the fully broken state, because
+  `check_pkg('ddgs')` runs inside `__init__`, not at module import. An import-only
+  guard here could never fail, so the guards CONSTRUCT. Disclosed rather than
+  "fixed" -- the criteria are immutable.
+- **Mutations N1-N6 all kill.** N2 was a real `pip uninstall`; N3 mutated the STUB;
+  N6 (the isolating one, supplied by the Q/A) patches the INSTALLED side and turns the
+  version-agreement guard RED alone while the manifest guard stays GREEN.
+- **Three Q/A cycles: CONDITIONAL -> CONDITIONAL -> PASS.** Cycle-1 caught a real
+  supply-chain gap (the install desynced the venv from backend/requirements.lock, and
+  the new deps sit in ZERO CVE-scan surfaces) -> queued as **76.9.4**. Cycle-1 also
+  found a vacuity in my own guards: nothing asserted installed-version == pinned, so a
+  venv with ddgs 9.0.0 would pass all three -> added a 4th guard. Cycle-2 caught four
+  artifact-hygiene defects, including a claim of mine that did not reproduce (I wrote
+  that the swallow note "is recorded" in 76.9.4 when it was in no step at all).
+  Cycle-3 PASSed and caught one more: I had paraphrased cycle-2's verdict instead of
+  transcribing it verbatim. Remediated in-cycle, before this append.
+- **Self-assessment worth keeping**: three separate times this session I asserted
+  something without running the command that would prove it. Every one was caught by an
+  independent evaluator, not by me. The gate worked; the writing habit is the weakness.
+
+Files: `scripts/autoresearch/requirements-autoresearch.txt` (+pin),
+`backend/tests/test_phase_75_deps.py` (+4 guards), `.venv` (ddgs==9.14.4).
+Immutable: `16 passed`, exit=0. Queued from this cycle: **76.9.4**.
+
+## Cycle 158 -- 2026-07-25 -- phase=78.0 result=PASS
+
+**Anthropic call-site CENSUS (audit-class, READ-ONLY).** Deliverables:
+`handoff/current/census_78.json` + `census_78.md` -- **28 role rows** (max_rail_cli 19,
+max_rail_proxy 1, stay_metered 8) plus **7 scope disambiguations**, the MD generated
+FROM the JSON by one renderer so the two cannot drift.
+
+- Anchors **re-derived mechanically** (42/42), not re-read by an LLM. Volumes MEASURED
+  by a 30d `llm_call_log` GROUP BY, reported as this cycle's own window rather than
+  restating the goal text's older numbers.
+- **Two findings not in the research brief**, both queued rather than fixed in a
+  read-only step: **78.8** -- 11 of the 12 raw-SDK sites write no `llm_call_log` row,
+  so `fetch_llm_spend` and the $25/day breaker are blind to exactly the metered path
+  they exist to govern; **78.9** -- 70.6% of `cc_rail` sonnet calls carry `ok=false`,
+  unalarmed (78.9's FIRST task is establishing what `ok=false` means before concluding
+  anything).
+- **The Q/A caught a genuine reasoning error of mine.** I had argued C1-C6's 0 rows
+  proved those overlays never ran. Unsound: `ClaudeClient` hardcodes `ok=True` and has
+  no `ok=False` writer (errors re-raise before the log block), so 0 rows means "no call
+  SUCCEEDED" -- equally consistent with "ran every cycle and failed every time", which
+  is the dead-credits outage itself. Corrected across every artifact, generalized into
+  the census's measurement_note as a global prohibition, and propagated into **78.1**
+  as an executable instruction not to assume the six are dormant. Also fixed: a count
+  that did not reproduce (9 -> 11, now derived by membership) and four drift
+  corrections I had claimed but never propagated.
+- Cycle-2 verdict: **PASS, zero violated criteria**, with the evaluator independently
+  re-deriving all four corrections from source and mutation-testing the immutable
+  command itself (4/4 kill shapes).
+
+**14 follow-up steps authored from this census**: 78.1-78.9 plus 78.10-78.13 (the
+latter from the 78.1 research gate: repo-context tax per rail call; the `--bare`
+default flip that would silently return the whole rail to METERED billing (P1); the
+rail-wide missing house system prompt; make_client's narrow ImportError catch).
+Boundary held: no production code, no flag flipped, no model pin touched.

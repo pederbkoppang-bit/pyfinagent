@@ -18214,7 +18214,7 @@
         },
         {
           "id": "76.9.3",
-          "status": "pending",
+          "status": "done",
           "name": "76.9 follow-up -- duckduckgo retriever import-broken: gpt-researcher 0.14.8 requires the renamed `ddgs` package, venv has none [executor: sonnet-4.6/high; BOUNDARY: requirements-autoresearch.txt + install + tests]. MEASURED 2026-07-24 (live Max-rail runs): every DDG sub-query logs verbatim 'Error searching with Duckduckgo: Unable to import ddgs. Please install with `pip install -U ddgs`' -- so the 3-retriever stack (semantic_scholar, arxiv, duckduckgo post-76.9 reorder) is effectively TWO retrievers, both externally rate-limited (arxiv 429s polite clients since ~2026-02; S2 unauthenticated 429s under load), degrading nightly memo quality and lengthening runs (stall-prone empty-retry loops). The 75.13 requirements-autoresearch.txt pins gpt-researcher + its closure but predates the upstream duckduckgo_search->ddgs rename. FIX: add the ddgs pin to requirements-autoresearch.txt (research the correct version compatible with gpt_researcher 0.14.8's import), install into .venv, prove one DDG retrieval succeeds live (a single sub-query-shaped call, no full memo needed), and add a behavioral import-guard test (the 75.13 _gpt_researcher_guard pattern) so a future rename fails LOUD at preflight instead of silently degrading. Research gate tier simple.",
           "harness_required": true,
           "priority": "P2",
@@ -18395,7 +18395,7 @@
       "steps": [
         {
           "id": "78.0",
-          "status": "pending",
+          "status": "done",
           "name": "Anthropic call-site CENSUS (audit-class) -- per-role routing decision table [executor: Main-on-Fable + Workflow fan-out; READ-ONLY deliverable]. Scope (pre-verified by wf_3b9205bc-666, re-derive): Layer-2 MAS (multi_agent_orchestrator.py:239 raw SDK), autoresearch fast/smart/strategic (run_memo.py:273 langchain), Slack bot (via MAS + own anthropic import streaming_integration.py:504), meta-evolution (directive_review + directive_rewriter + backend/agents/skill_modification_review.py twin), ticket queue (dual rail :199-226), phase-3.3 planner backend/autonomous_loop.py (top-level -- disambiguate from services/autonomous_loop.py), claude_code_invoke callers, news/sentiment.py HaikuScorer (~:757), rag_agent_runtime.py multimodal_index_claude (~:223), advisor_call, BatchClient. MCP servers EXCLUDED (verified zero outbound LLM calls). _inventory.json NEVER ground truth (stale qa pin). Deliverable: census table (file handoff/current/census_78.md + JSON) with per-role: model, volume/frequency (measure from llm_call_log where possible), structured-output needs, latency budget, decision Max-rail-CLI / Max-rail-proxy / justified-stay-metered + why. Follow-up remediation steps 78.1+ are AUTHORED from this census, executor-tagged, each research-gated.",
           "harness_required": true,
           "priority": "P1",
@@ -18416,7 +18416,7 @@
         {
           "id": "78.1",
           "status": "pending",
-          "name": "78.0 census follow-up -- REWIRE the six signal-overlay services (C1-C6) off direct ClaudeClient onto the CC rail [executor: opus-4.8/xhigh; BOUNDARY: the six service modules + tests; NO behavior change to the signals themselves]. MEASURED 2026-07-25 (census 78.0, anchors re-derived mechanically): meta_scorer.py:221, news_screen.py:267, macro_regime.py:506, pead_signal.py:279, analyst_narrative_scorer.py:135, call_transcript_gpr.py:113 each construct `ClaudeClient(` DIRECTLY, bypassing make_client -- so PAPER_USE_CLAUDE_CODE_ROUTE (backend/.env, currently true) NEVER applies to them and every one of these calls goes to the metered API. This is the phase-72 rail-bypass class that contributed to the 97%-cash incident: when Anthropic credits are dead these six overlays die while the flag says the system is on the Max rail. All six are haiku-tier with dict-shaped pydantic schemas, which the CC rail has served via --json-schema since phase-75.5, so they are rail-servable as-is. FIX: route each through make_client (or ClaudeCodeClient directly) so the existing flag governs them; keep the model tier identical; do NOT change any signal logic, threshold, or output schema. Each rewired path needs a dummy-key $0-leakage proof (set a junk ANTHROPIC_API_KEY, confirm the call still succeeds via the rail and that nothing reaches api.anthropic.com). Research gate tier moderate. CORRECTION (78.0 Q/A, 2026-07-25) -- DO NOT ASSUME THESE SIX ARE DORMANT. The 78.0 census originally read their 0 rows in llm_call_log as proof they had not run. That inference was UNSOUND: ClaudeClient logs ok=True only (llm_client.py:~1905, no ok=False writer, errors re-raise at :1739/:1746/:1790 before the log block), so 0 rows means 'no call SUCCEEDED' and is equally consistent with 'ran every cycle and failed every time' -- the dead-credits outage this step exists to fix. THE EXECUTOR MUST ESTABLISH WHICH before choosing an approach, because a dormant-service rewire and an actively-failing-service rewire are different jobs with different risk: check the callers' own logs/telemetry and the services' fallback paths (e.g. meta_scorer.py:238 swallows the exception and returns _fallback_all, so an outage here is silent by construction).",
+          "name": "78.0 census follow-up -- REWIRE the six signal-overlay services (C1-C6) off direct ClaudeClient onto the CC rail [executor: opus-4.8/xhigh; BOUNDARY: the six service modules + tests; NO behavior change to the signals themselves]. MEASURED 2026-07-25 (census 78.0, anchors re-derived mechanically): meta_scorer.py:221, news_screen.py:267, macro_regime.py:506, pead_signal.py:279, analyst_narrative_scorer.py:135, call_transcript_gpr.py:113 each construct `ClaudeClient(` DIRECTLY, bypassing make_client -- so PAPER_USE_CLAUDE_CODE_ROUTE (backend/.env, currently true) NEVER applies to them and every one of these calls goes to the metered API. This is the phase-72 rail-bypass class that contributed to the 97%-cash incident: when Anthropic credits are dead these six overlays die while the flag says the system is on the Max rail. All six are haiku-tier with dict-shaped pydantic schemas, which the CC rail has served via --json-schema since phase-75.5, so they are rail-servable as-is. FIX: route each through make_client (or ClaudeCodeClient directly) so the existing flag governs them; keep the model tier identical; do NOT change any signal logic, threshold, or output schema. Each rewired path needs a dummy-key $0-leakage proof (set a junk ANTHROPIC_API_KEY, confirm the call still succeeds via the rail and that nothing reaches api.anthropic.com). Research gate tier moderate. CORRECTION (78.0 Q/A, 2026-07-25) -- DO NOT ASSUME THESE SIX ARE DORMANT. The 78.0 census originally read their 0 rows in llm_call_log as proof they had not run. That inference was UNSOUND: ClaudeClient logs ok=True only (llm_client.py:~1905, no ok=False writer, errors re-raise at :1739/:1746/:1790 before the log block), so 0 rows means 'no call SUCCEEDED' and is equally consistent with 'ran every cycle and failed every time' -- the dead-credits outage this step exists to fix. THE EXECUTOR MUST ESTABLISH WHICH before choosing an approach, because a dormant-service rewire and an actively-failing-service rewire are different jobs with different risk: check the callers' own logs/telemetry and the services' fallback paths (e.g. meta_scorer.py:238 swallows the exception and returns _fallback_all, so an outage here is silent by construction). MEASURED FLAG STATE (Main, 2026-07-25, read from the RUNTIME settings object -- the research gate could not read backend/.env from its sandbox, so it disclosed this as an open gap): paper_use_claude_code_route=True (the rail IS on); meta_scorer_enabled=True, news_screen_enabled=True, macro_regime_filter_enabled=True, pead_signal_enabled=True -- so C1-C4 RUN EVERY CYCLE; analyst_narrative_enabled=False and call_transcript_gpr_enabled=False -- C5/C6 are DISABLED and do not run today; anthropic_api_key is SET (non-empty), so the existing empty-key guard does NOT currently bail; github_token is ABSENT, so make_client's GitHub-Models branch (llm_client.py:2148) is unreachable and cannot silently capture these calls. THIS INVERTS THE GATE'S RISK RANKING: the gate named C5/C6 the only genuine blocker on per-ticker latency (32-64s/call measured, 88.9s observed in-repo), but they are OFF -- so rewiring them is low-risk, while C1-C4 are the live surface and are the ones most likely ALREADY FAILING every cycle on dead credits (see the dormant-vs-failing correction above). Re-measure these flags before starting; they are operator-controlled and may have changed. GATE FINDINGS THE EXECUTOR MUST HONOR: (1) the CLI's --json-schema is POST-HOC VALIDATED WITH INTERNAL RE-PROMPTING, NOT constrained decoding like the API's output_config.format -- the guarantees are NOT equivalent, though the existing error path fails safe; (2) temperature=0.0 is unreachable on the rail (no CLI flag), so determinism is lost; (3) max_output_tokens is a documented CLI no-op -- harmless for C1/C3/C4/C5/C6 but it may silently LOWER news_screen's 48K cap to a model default, the one place a signal can get WORSE; (4) none of the six passes _role, so rewired rows would land in the BARE 'cc_rail' bucket -- pass _role to fix attribution and remove the ordering dependency on 75.5.12; (5) three existing meta_scorer tests break because MagicMock settings make every flag truthy; (6) two decisions must be made EXPLICITLY, not silently: D-KEY (make the empty-key guard rail-aware rather than deleting it -- it is also what keeps the GitHub-Models branch unreachable) and D-SYS (whether to add config['system'] for the six, or file the rail-wide parity gap as Q3). Full detail: handoff/current/research_brief_78.1.md.",
           "harness_required": true,
           "priority": "P1",
           "verification": {
@@ -18426,7 +18426,9 @@
               "Model tier per service is unchanged from the census table (all haiku-tier); no signal logic, threshold, or output schema is modified -- proven by git diff review recorded in experiment_results",
               "Dummy-key $0-leakage proof per rewired path: with a junk ANTHROPIC_API_KEY the rail call still succeeds and no request reaches api.anthropic.com",
               "MUTATION: force the flag OFF -> the six fall back to the metered client and a test asserting rail-routing goes red (the guard is not a tautology)",
-              "One-flag revertible: setting PAPER_USE_CLAUDE_CODE_ROUTE=false restores today's behavior exactly"
+              "One-flag revertible: setting PAPER_USE_CLAUDE_CODE_ROUTE=false restores today's behavior exactly",
+              "news_screen's 48K max-tokens cap is explicitly handled: either proven still in effect on the rail, or the behavior change is measured and disclosed with the resulting output length -- NOT left to the CLI's silent no-op",
+              "The D-KEY and D-SYS decisions are each stated explicitly in experiment_results.md with the reason"
             ],
             "live_check": "handoff/current/live_check_78.1.md: per-service before/after client type, the flag-flip test output, the dummy-key leakage proof, and one live signal run showing unchanged output shape."
           },
@@ -18584,6 +18586,80 @@
               "MUTATION: simulate a failure burst -> the alarm fires; simulate a healthy period -> it does not (both directions proven, so the alarm is not a constant-true)"
             ],
             "live_check": "handoff/current/live_check_78.9.md: the re-run volume query verbatim, the ok= write-path reading, the root-cause evidence, and both alarm directions."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.10",
+          "status": "pending",
+          "name": "78.1 gate finding Q1 -- every CC-rail invocation pays a full repo-context tax [executor: sonnet-4.6/high; BOUNDARY: claude_code_client.py invocation env + tests]. MEASURED by the 78.1 research gate 2026-07-25: claude_code_invoke passes cwd=None (claude_code_client.py:222/305) and the backend launchd WorkingDirectory is the repo root, so EVERY `claude -p` rail call loads CLAUDE.md (34,333 bytes), the 8 MCP servers declared in .mcp.json, and the SessionStart/InstructionsLoaded hooks -- on a per-call basis, for calls that need none of it. This inflates latency and context on the whole Layer-1 rail (2,549 calls in the last 30d), not just the 78.1 services. PROPOSED FIX (validate before adopting): pass a neutral cwd, add --strict-mcp-config with no --mcp-config, and add mcp__* to disallowed_tools. Measure per-call latency and token usage BEFORE and AFTER -- the win must be demonstrated, not assumed. Research gate tier moderate.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'claude_code or rail'",
+            "success_criteria": [
+              "Rail invocations no longer load repo CLAUDE.md / .mcp.json / session hooks, proven by inspecting the actual subprocess invocation (argv + cwd + env), not by reading the code",
+              "Per-call latency and input-token usage measured BEFORE and AFTER on the same prompt, both recorded verbatim; if there is no measurable improvement, say so and revert",
+              "No rail call loses a capability it actually used -- enumerate what the disallowed tools/MCP servers were being used for first",
+              "MUTATION: restore cwd=None -> a test asserting the neutral cwd goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.10.md: the before/after argv+cwd+env, the latency/token measurements, and the mutation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.11",
+          "status": "pending",
+          "name": "78.1 gate finding Q2 -- `--bare` is becoming the `claude -p` DEFAULT, which would silently move the entire CC rail back to METERED billing [executor: opus-4.8/xhigh; BOUNDARY: claude_code_client.py + a version tripwire + tests]. Sourced from Anthropic's own CLI documentation via the 78.1 research gate (2026-07-25). Bare mode skips OAuth/keychain auth and requires ANTHROPIC_API_KEY -- so on the release where the default flips, every rail call would stop using the flat-fee Max subscription and start billing the metered API key, with NO error and NO log line. That is the single highest-severity silent-cost regression identified anywhere in phase-78: it converts ~2,549 calls / ~4.87M tokens per 30d from $0 to full API rates. Note claude_code_invoke:295-298 currently SCRUBS ANTHROPIC_API_KEY from the subprocess env, which may make bare mode fail loudly instead of billing -- ESTABLISH WHICH before designing the fix, because 'fails loudly' and 'bills silently' need different responses. FIX: a `claude --version` tripwire that refuses to run (or warns loudly) on a version where the default has flipped, plus an explicit opt-out flag once one exists. Research gate tier moderate: the gate MUST confirm the current CLI version's actual default from official docs, never from memory.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'claude_code or rail or bare'",
+            "success_criteria": [
+              "The CURRENT installed CLI's actual default is established from `claude --version` plus official documentation, recorded verbatim -- not assumed",
+              "Whether the existing ANTHROPIC_API_KEY scrub makes bare mode fail-loud or bill-silent is determined experimentally and stated",
+              "A tripwire exists that fails LOUDLY (never silently proceeds) if the CLI version would put the rail into bare/metered mode",
+              "MUTATION: simulate the flipped-default version -> the tripwire fires; simulate the current version -> it does not (both directions proven)"
+            ],
+            "live_check": "handoff/current/live_check_78.11.md: claude --version verbatim, the doc citation, the scrub experiment, and both tripwire directions."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.12",
+          "status": "pending",
+          "name": "78.1 gate finding Q3 -- the house system prompt is absent from EVERY CC-rail call [executor: sonnet-4.6/high; BOUNDARY: a rail-wide parity decision + tests]. MEASURED by the 78.1 gate 2026-07-25: nothing in the repo passes config['system'] or config['system_instruction'] into generate_content (grepped across backend/agents/ and backend/services/), so ClaudeCodeClient's --append-system-prompt path is DEAD and _HOUSE_INSTRUCTIONS never reaches any rail call -- including the entire Layer-1 pipeline whenever paper_use_claude_code_route is True (it is True today). This is a RAIL-WIDE parity gap between the metered path (which gets the house financial-analyst framing) and the rail (which does not), so it must not be patched service-by-service. DECISION REQUIRED: either thread the house prompt through every rail caller, or document that the rail deliberately runs without it. Quantify the quality impact before choosing -- an unmeasured prompt change on live signals is its own risk. Research gate tier moderate.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'claude_code or house or system_prompt'",
+            "success_criteria": [
+              "The parity gap is closed rail-wide or explicitly documented as intentional, with the decision and its reason recorded",
+              "If the house prompt is threaded through, its effect on at least one real signal output is measured before/after -- not assumed to be an improvement",
+              "MUTATION: drop the system prompt from a rail call -> a test asserting parity goes red (or, if the documented decision is 'no house prompt on the rail', a test asserts --append-system-prompt is genuinely unused)"
+            ],
+            "live_check": "handoff/current/live_check_78.12.md: the grep proving the current state, the decision, and the before/after signal output."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.13",
+          "status": "pending",
+          "name": "78.1 gate finding Q4 -- make_client's ClaudeCodeClient construction catches only ImportError [executor: sonnet-4.6/high; BOUNDARY: llm_client.py make_client + tests]. MEASURED by the 78.1 gate 2026-07-25: backend/agents/llm_client.py:2114 wraps the ClaudeCodeClient construction in a try/except that catches ImportError ONLY, so any other exception raised during construction (a malformed claude_code_timeout_s, a bad model id, an env problem) ESCAPES instead of falling through to the documented fallback path. Callers that expect make_client to degrade gracefully would instead see a hard failure. FIX: either broaden to `except Exception` with a WARN log naming the cause, or document that the narrow catch is deliberate and that non-ImportError failures are meant to be fatal. Do not silently widen it without deciding which behavior is correct -- a fallback that hides a misconfigured rail is how routing bugs stay invisible. Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'make_client or llm_client or rail'",
+            "success_criteria": [
+              "The catch breadth is a stated decision (broadened with a WARN, or documented as deliberately narrow), not left ambiguous",
+              "If broadened: a test forces a non-ImportError construction failure and asserts the documented behavior (fallback + WARN)",
+              "MUTATION: revert to the narrow/broad opposite -> that test goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.13.md: the forced-failure reproduction before and after, plus the mutation."
           },
           "retry_count": 0,
           "max_retries": 3
