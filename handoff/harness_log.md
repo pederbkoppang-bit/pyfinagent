@@ -28150,3 +28150,22 @@ claims, refused the perceived concealment instruction, and escalated to Main.
 DURABLE RULE adopted (auto-memory feedback_executor_sees_mutation_transients):
 run the mutation matrix only after the delegated executor is confirmed
 finished, or expect and pre-explain these transients in the executor prompt.
+
+## Cycle 153 -- 2026-07-24 -- phase=75.20 result=PASS (close-out; restart-gated roster confirmation landed)
+
+- Fresh session post-/clear executed the Cycle 148 checklist items 2-5:
+  (2) restart bound the roster; (3) verify_qa_roster_live.sh on-disk + git
+  checks PASSED; (4) fresh Agent-tool qa probe (a433bbf0d59ced50f, haiku
+  override -- trivial probe per operator tiering) self-disclosed the tool
+  surface: all 4 read-only browser tools PRESENT, all 5 mutation/RCE tools
+  ABSENT, amended section-1c capture-by-evaluator text quoted verbatim from the
+  live snapshot; (5) verbatim result appended to live_check_75.20.md section 7a.
+- No new Q/A spawned for the flip: the Cycle-148 PASS verdict (wf_ce4af971-7eb)
+  already covered all criteria except the structurally-after-restart roster
+  confirmation, which is now first-hand evidence in the live_check. Evidence
+  unchanged otherwise; a re-verdict on unchanged evidence is the forbidden
+  pattern.
+- Probe corroborated the 75.20.1 defect on the LIVE roster (Write+Edit injected
+  past the frontmatter allowlist; Glob/Grep dropped) -- 75.20.1 stays queued as
+  owner.
+- Flip 75.20 -> done follows this append (auto-commit hook pushes).

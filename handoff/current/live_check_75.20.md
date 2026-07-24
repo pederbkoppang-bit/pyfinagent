@@ -147,3 +147,61 @@ probe asking it to self-disclose its tools list (expect the browser subset prese
 loaded schemas or ToolSearch-resolvable), and APPEND the verbatim result here. Until that
 confirmation lands, 75.20's status stays `in_progress` (flip HELD — 75.18 precedent +
 separation of duties).
+
+### 7a. CONFIRMATION — 2026-07-24, fresh session post-/clear (session after Cycle 152)
+
+Operator approved the diff attended ("i approve", Cycle 148 addendum); commits 4c37f1ef +
+c2c36bdb pushed to origin/main. This session started fresh via /clear, binding the roster.
+
+**(3) `scripts/qa/verify_qa_roster_live.sh`** — on-disk + git checks PASSED:
+
+```
+================================================================
+ On-disk + git checks PASSED. Behavioral check is operator-driven.
+================================================================
+```
+
+**(4) Fresh Agent-tool `qa` probe** (subagent a433bbf0d59ced50f, model=haiku override for a
+trivial probe per the operator tiering directive; tools list is roster-derived, not
+model-derived). Self-disclosed tool surface, verbatim:
+
+```
+## 1. Exact tools granted to me
+
+- Read
+- Bash
+- SendMessage
+- mcp__playwright__browser_navigate
+- mcp__playwright__browser_snapshot
+- mcp__playwright__browser_take_screenshot
+- mcp__playwright__browser_console_messages
+- Write
+- Edit
+
+## 2. Playwright browser tools (read-only subset)
+
+- mcp__playwright__browser_navigate — **YES**
+- mcp__playwright__browser_snapshot — **YES**
+- mcp__playwright__browser_take_screenshot — **YES**
+- mcp__playwright__browser_console_messages — **YES**
+
+## 3. Playwright interaction tools (unsafe subset)
+
+- mcp__playwright__browser_click — **NO**
+- mcp__playwright__browser_type — **NO**
+- mcp__playwright__browser_fill_form — **NO**
+- mcp__playwright__browser_evaluate — **NO**
+- mcp__playwright__browser_run_code_unsafe — **NO**
+```
+
+The probe also quoted §1c line 1 verbatim from its system prompt (capture MUST be taken BY
+the evaluator when the path grants the browser tools) and line 2 (Main-produced capture =
+EXPLICITLY-DEGRADED fallback) — the amended gate text is in the live snapshot.
+
+**Notes:** (a) Glob/Grep absent from the self-report — the loader's surface differs from the
+frontmatter grant in both directions; already covered by queued 75.20.1. (b) Write+Edit
+still injected past the allowlist — the exact 75.20.1 defect, reproduced on this session's
+roster; 75.20.1 remains the owner. (c) All 4 granted browser tools are the read-only
+subset; all 5 mutation/RCE tools absent. The 75.20 grant BINDS on the live roster.
+
+**Verdict on the owed item: CONFIRMED — roster live. Flip 75.20 → done proceeds.**
