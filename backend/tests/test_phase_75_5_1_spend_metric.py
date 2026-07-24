@@ -85,6 +85,31 @@ class FakeBQClient:
             if "NOT LIKE 'cc_rail:%'" in sql and r["agent"] is not None \
                     and str(r["agent"]).startswith("cc_rail:"):
                 continue
+            # phase-75.5.12: the BARE 'cc_rail' shape. Keyed on the SQL text like
+            # every other predicate here, so reverting the production clause makes
+            # the fake stop excluding the row and the bare-shape test goes red.
+            # Exact equality, mirroring the production `agent != 'cc_rail'` -- a
+            # startswith() here would wrongly drop 'cc_railway' and hide M2.
+            if "agent != 'cc_rail'" in sql and r["agent"] == "cc_rail":
+                continue
+            # phase-75.5.12 (M2 detection): if the production clause were ever
+            # written as the PREFIX form instead of exact equality, model THAT
+            # semantics faithfully -- otherwise swapping it in would simply go
+            # unrecognized by this fake and the cc_railway over-match test could
+            # not fail. Note "'cc_rail%'" is NOT a substring of "'cc_rail:%'",
+            # so this branch cannot fire on the correct production SQL.
+            if "NOT LIKE 'cc_rail%'" in sql and r["agent"] is not None \
+                    and str(r["agent"]).startswith("cc_rail"):
+                continue
+            # phase-75.5.12 (M4 detection): SQL three-valued logic. With a NULL
+            # agent, `agent != 'cc_rail'` and `agent NOT LIKE ...` both evaluate
+            # to NULL -- NOT true -- so without the explicit `agent IS NULL OR`
+            # guard BigQuery DROPS those metered rows and under-counts real
+            # spend. Modeling that here makes deleting the guard a killable
+            # mutation; before this, M4 was silently uncovered.
+            if r["agent"] is None and "agent IS NULL" not in sql and (
+                    "agent != 'cc_rail'" in sql or "NOT LIKE 'cc_rail" in sql):
+                continue
             a = agg.setdefault(r["model"], {
                 "model": r["model"], "d_in": 0, "d_out": 0, "d_cw": 0,
                 "d_cr": 0, "m_in": 0, "m_out": 0, "m_cw": 0, "m_cr": 0,
@@ -167,6 +192,53 @@ def test_cc_rail_rows_contribute_zero_both_shapes():
         "flat-fee CC-rail tokens were priced at API rates -- phantom spend "
         "would falsely trip the $25 breaker and halt trading")
     assert monthly == pytest.approx(only_metered, rel=1e-9)
+
+
+def test_bare_cc_rail_shape_contributes_zero():
+    """phase-75.5.12 -- shape 3: agent EXACTLY 'cc_rail', no colon suffix.
+
+    This is the DOMINANT production shape (orchestrator.py:826-835 never sets
+    `_role`, so claude_code_client.py:504's ternary takes its else-branch).
+    The pre-75.5.12 exclusion was `agent NOT LIKE 'cc_rail:%'` -- the colon is
+    required, so these flat-fee rows passed the filter and would have been
+    priced at full API rates the moment the operator flipped
+    cost_budget_use_llm_spend_enabled: the exact phantom-trip 75.5.1 exists to
+    prevent, hiding inside its own discriminator.
+    """
+    metered = _row("gemini-2.5-flash", provider="vertex", in_tok=100_000)
+    FakeBQClient.rows = [
+        metered,
+        _row("claude-opus-4-8", provider="anthropic", agent="cc_rail",
+             in_tok=500_000_000, out_tok=100_000_000),        # shape 3: BARE
+    ]
+    daily, monthly = spend.fetch_llm_spend()
+    only_metered = _expected_usd("gemini-2.5-flash", 100_000)
+    assert daily == pytest.approx(only_metered, rel=1e-9), (
+        "bare-'cc_rail' flat-fee tokens were priced at API rates -- 30d measured "
+        "2026-07-25: 2,549 such calls / ~4.87M tokens would phantom-price")
+    assert monthly == pytest.approx(only_metered, rel=1e-9)
+
+
+def test_cc_railway_is_not_swallowed_by_the_bare_cc_rail_exclusion():
+    """phase-75.5.12 -- criterion 1's 'not a prefix-wildcard' half.
+
+    The exclusion must match the bare shape EXACTLY (`agent != 'cc_rail'`), not
+    by prefix. A `NOT LIKE 'cc_rail%'` prefix form would also swallow an
+    unrelated metered agent named 'cc_railway', silently under-counting real
+    spend -- a false-negative on the budget breaker, which is the more dangerous
+    direction. Mutation M2 swaps the exact match for the prefix form and this
+    test must go red.
+    """
+    FakeBQClient.rows = [
+        _row("claude-opus-4-8", provider="anthropic", agent="cc_railway",
+             in_tok=1_000_000, out_tok=200_000),
+    ]
+    daily, monthly = spend.fetch_llm_spend()
+    expected = _expected_usd("claude-opus-4-8", 1_000_000, 200_000)
+    assert daily == pytest.approx(expected, rel=1e-9), (
+        "'cc_railway' is NOT a CC-rail row and must stay priced -- a prefix "
+        "wildcard on 'cc_rail' would wrongly exclude it and under-count spend")
+    assert monthly == pytest.approx(expected, rel=1e-9)
 
 
 def test_failed_calls_are_excluded():

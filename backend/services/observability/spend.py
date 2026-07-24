@@ -20,11 +20,22 @@ cache-aware formula. The budget gate selects it via
 `settings.cost_budget_use_llm_spend_enabled` (default OFF = the BQ metric, byte-identical
 to pre-75.5.1). Three invariants the LLM metric MUST keep:
 
-  1. METERED-ONLY. Flat-fee CC-rail rows (provider='claude-code', or
-     provider='anthropic' with agent LIKE 'cc_rail:%') record tokens whose real cost is
-     ~$0 (Claude Code Max rail). Pricing them at API rates would trip the $25 breaker on
-     FREE tokens and falsely halt trading -- the same phantom class as the 2026-06
-     session_cost_usd staircase.
+  1. METERED-ONLY. Flat-fee CC-rail rows record tokens whose real cost is ~$0 (Claude
+     Code Max rail). Pricing them at API rates would trip the $25 breaker on FREE
+     tokens and falsely halt trading -- the same phantom class as the 2026-06
+     session_cost_usd staircase. The rail produces exactly THREE row shapes, all of
+     which this query must exclude (phase-75.5.12; derived from the writers, not
+     assumed):
+       (a) provider='claude-code' with an arbitrary agent -- autonomous_loop.py:2299
+       (b) provider='anthropic', agent='cc_rail:<role>'  -- claude_code_client.py:504
+       (c) provider='anthropic', agent='cc_rail' (BARE)  -- same ternary, else-branch
+     Shape (c) is the DOMINANT production shape, not an edge case: orchestrator.py
+     :826-835 sets only `_ticker` and never `_role` ("_role" is written in just two
+     places repo-wide, autonomous_loop.py:2722/:2762), so every Layer-1 pipeline rail
+     call takes the else-branch. Measured 30d 2026-07-25: 2,549 bare-'cc_rail' calls
+     (~4.87M tokens) vs 7 in the colon shape. The exclusion below matches (c) with an
+     exact `!=` rather than a `cc_rail%` prefix wildcard on purpose -- a prefix would
+     also swallow an unrelated future agent named e.g. 'cc_railway'.
   2. RAW TOKENS x PRICING, never stored dollars. llm_call_log has no per-call cost
      column, and session_cost_usd is a per-cycle cumulative GAUGE (phase-66.3: never
      sum it). Token counts are also invariant across the 75.5 cache-cost fix, so a
@@ -215,7 +226,8 @@ def fetch_llm_spend() -> tuple[float, float]:
               ts >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
               AND ok
               AND provider != 'claude-code'
-              AND (agent IS NULL OR agent NOT LIKE 'cc_rail:%')
+              AND (agent IS NULL
+                   OR (agent != 'cc_rail' AND agent NOT LIKE 'cc_rail:%'))
             GROUP BY model
         """
         daily = 0.0

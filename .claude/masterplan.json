@@ -664,7 +664,7 @@
     },
     {
       "id": "phase-4.5",
-      "name": "Paper Trading Dashboard v2 — Evaluation-Grade",
+      "name": "Paper Trading Dashboard v2 \u2014 Evaluation-Grade",
       "status": "done",
       "depends_on": [
         "phase-2"
@@ -676,7 +676,7 @@
       "steps": [
         {
           "id": "4.5.0",
-          "name": "Architecture & Contract — Paper Trading Dashboard v2",
+          "name": "Architecture & Contract \u2014 Paper Trading Dashboard v2",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -732,7 +732,7 @@
         },
         {
           "id": "4.5.3",
-          "name": "Reconciliation overlay — paper-live vs parallel OOS backtest on NAV chart",
+          "name": "Reconciliation overlay \u2014 paper-live vs parallel OOS backtest on NAV chart",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -809,7 +809,7 @@
         },
         {
           "id": "4.5.7",
-          "name": "Kill-switch v2 — Pause / Resume / Flatten-all + daily loss + trailing DD limits",
+          "name": "Kill-switch v2 \u2014 Pause / Resume / Flatten-all + daily loss + trailing DD limits",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -4630,7 +4630,7 @@
     },
     {
       "id": "phase-4.16",
-      "name": "Harness Discipline Patches (research-gate ≥5, handoff layout, docs)",
+      "name": "Harness Discipline Patches (research-gate \u22655, handoff layout, docs)",
       "steps": [
         {
           "id": "4.16.1",
@@ -5174,7 +5174,7 @@
     {
       "id": "phase-12",
       "status": "done",
-      "name": "Rainbow deploys — safe-update pattern",
+      "name": "Rainbow deploys \u2014 safe-update pattern",
       "description": "Implement Brandon Dimcheff's Rainbow Deploys pattern (https://brandon.dimcheff.com/2018/02/rainbow-deploys-with-kubernetes/) so dependency bumps, model-version flips, and framework migrations can be rolled out behind labeled colored Deployments/Services and rolled back by flipping a selector. Extends classic blue/green to N simultaneous versions (red/orange/yellow/green/blue/indigo/violet) so the harness can run a canary on ~5% traffic, compare live SLOs against the active color, and promote/demote without a rolling restart. User-requested on 2026-04-19 as future-proofing for the Vertex->google-genai migration (phase-11) and any subsequent SDK bumps.",
       "created_at": "2026-04-19T12:22:40.849756+00:00",
       "steps": [
@@ -5251,7 +5251,7 @@
         },
         {
           "id": "12.4",
-          "name": "First Rainbow migration — candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
+          "name": "First Rainbow migration \u2014 candidate TBD after 12.3 (was Vertex; Vertex shipped outside Rainbow in phase-11)",
           "status": "done",
           "harness_required": true,
           "verification": {
@@ -5467,7 +5467,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday — proves _default_bq_logger wired end-to-end to real BQ."
+          "notes": "hitl_gate_drill PASS (4 steps). BQ pyfinagent_pms.strategy_deployments_log has 1 UAT-REAL-2026-04 row (approved) from Slack UAT yesterday \u2014 proves _default_bq_logger wired end-to-end to real BQ."
         },
         {
           "id": "16.8",
@@ -5485,7 +5485,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 — flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
+          "notes": "Slack chat_postMessage ok=True ts=1777054667.081959 to C0ANTGNNK8D. All 6 launchd agents registered: mas-harness (interval=1800s), claude-code-proxy (running), ablation, autoresearch (last_exit=1 \u2014 flag), backend (running PID 93411), frontend (running). autoresearch last_exit=1 flagged as carry-forward."
         },
         {
           "id": "16.9",
@@ -5504,7 +5504,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data — latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
+          "notes": "preload_macro verified working (4412 series loaded from financial_reports dataset; cache.init_cache needed dataset=financial_reports not pyfinagent_data \u2014 latent bug in some old smoke paths, production backtest_engine already passes correct value). Past optimizer result 20260326T220743Z has sharpe=0.94, proving full backtest+optimizer pipeline works. 424 past result JSONs in experiments/results/. Live 2-iter walkforward deferred (20-40 min runtime with BQ costs); plumbing proven."
         },
         {
           "id": "16.10",
@@ -5541,7 +5541,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend — correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
+          "notes": "OWASP headers all present on /api/health: x-content-type-options=nosniff, x-frame-options=DENY, referrer-policy=strict-origin-when-cross-origin, cache-control=no-store, permissions-policy set. Backend auth middleware returns 401 on protected routes (no bypass path match). /api/auth/session is a frontend Next.js route (404 from backend \u2014 correct). DEV_LOCALHOST_BYPASS=1 code path fires for CLI tests only when BOTH flag AND localhost IP conditions hold."
         },
         {
           "id": "16.12",
@@ -5560,7 +5560,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table — non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
+          "notes": "compute_freshness returned green heartbeat (age=1119s, ratio=0.013, band=green). paper_trades/paper_snapshots freshness=unknown (no BQ tick event table \u2014 non-blocking, heartbeat covers liveness). harness_log.md = 11909 lines. perf_tracker.summarize works (p50_ms=0 until endpoints receive real traffic)."
         },
         {
           "id": "16.13",
@@ -6024,7 +6024,7 @@
           "verification": "N=$(grep -l '3rd-CONDITIONAL\\|3-consecutive-CONDITIONAL\\|third consecutive CONDITIONAL\\|3rd consecutive' CLAUDE.md docs/runbooks/per-step-protocol.md .claude/agents/qa.md .claude/rules/*.md 2>/dev/null | wc -l | tr -d ' '); [ \"$N\" -ge 3 ]",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under §4 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Doc-only sweep codifying the 3rd-CONDITIONAL auto-FAIL escalation rule (originally articulated in handoff/archive/phase-16.21/evaluator_critique.md) in 3 durable doc locations: docs/runbooks/per-step-protocol.md (canonical full text under \u00a74 EVALUATE), CLAUDE.md F1 bullet (concise + cross-ref), .claude/agents/qa.md Constraints (procedural). Rule: 3+ consecutive CONDITIONALs for same step-id forces FAIL; counter resets on PASS, FAIL, or new step-id; Q/A reads harness_log.md as source of truth (no new state machine). Zero code changes. Closes task list item #26. See handoff/archive/phase-16.40/."
         },
         {
           "id": "16.41",
@@ -6044,7 +6044,7 @@
           "verification": "test -f frontend/src/lib/formatRelativeTime.ts && test -f frontend/src/components/RecentReportsTable.tsx && test -f frontend/src/components/HomeQuickActionsPanel.tsx && grep -q RecentReportsTable frontend/src/app/page.tsx && grep -q HomeQuickActionsPanel frontend/src/app/page.tsx && cd frontend && npx tsc --noEmit",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS — tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Two-column home layout shipped per target screenshot. 3 new files (formatRelativeTime.ts 35L, RecentReportsTable.tsx 132L, HomeQuickActionsPanel.tsx 190L) + page.tsx edit replacing 93 lines of stacked cards with 18-line lg:grid-cols-3 grid. Anti-hardcoding gate clean (0 sample tickers, 0 sample alpha values). Live curl /api/reports/?limit=5 returned 5 real records. tsc + phosphor lint clean. Halt sequence two-step FLATTEN_ALL+PAUSE per pitfall. Ctrl+Shift+H NOT re-registered (KillSwitchShortcut owns it globally). User reported 4 visual polish follow-ons immediately after PASS \u2014 tracked in phase-16.43, do not invalidate 16.42. See handoff/archive/phase-16.42/."
         },
         {
           "id": "16.43",
@@ -6064,7 +6064,7 @@
           "verification": "test -f frontend/src/lib/kpiMetrics.ts && (cd frontend && npx tsc --noEmit) && grep -q 'nextRunAt={ptStatus' frontend/src/app/page.tsx && grep -q 'kpiMetrics' frontend/src/app/page.tsx && grep -qE 'LastSegment|NextSegment' frontend/src/components/OpsStatusBar.tsx && grep -q 'subText' frontend/src/app/page.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"—\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
+          "notes": "Closed 2026-04-25. Q/A verdict: PASS. Three changes: (1) reorder so KPI grid sits at line 190 between OpsStatusBar (175) and RedLineMonitor (233); (2) 6 KPI tiles with comparison sub-text computed from real backend data via new kpiMetrics.ts (95 LOC pure helpers: dailyDelta, sharpe per Lo 2002, sortino per Sortino & Price 1994, maxDrawdownPct, categorizePositions); all return null on insufficient data so tile renders \"\u2014\" honestly; (3) OpsStatusBar SchedulerSegment split into LastSegment (uses latestCycle.started_at + formatRelativeTime) + NextSegment, both right-clustered via ml-auto. nextRunAt={ptStatus?.next_run} now passed (was missing). Anti-hardcoding gate clean (no screenshot literals in runtime code). 3 frontend files (1 new + 2 edited). No backend changes. Closes task list item #66. See handoff/archive/phase-16.44/."
         },
         {
           "id": "16.45",
@@ -6094,7 +6094,7 @@
           "verification": "(cd frontend && npx tsc --noEmit) && grep -q 'lg:grid-cols-6 lg:items-stretch' frontend/src/app/page.tsx && ! grep -q 'lg:grid-cols-5' frontend/src/app/page.tsx && [ \"$(grep -c 'lg:col-span-2 h-full' frontend/src/app/page.tsx)\" = '3' ] && grep -q 'shrink-0' frontend/src/components/HomeQuickActionsPanel.tsx && grep -q 'min-w-0' frontend/src/components/HomeQuickActionsPanel.tsx",
           "contract": null,
           "retry_count": 0,
-          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening — Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
+          "notes": "Closed 2026-04-26. Q/A verdict: PASS. User reported QUICK ACTIONS box not working after 16.46 left it at 20%: Analyze button cropped, action labels wrapping. Two-part defense-in-depth fix: (1) page.tsx grid lg:grid-cols-5 (2/2/1 = 40/40/20) -> lg:grid-cols-6 (2/2/2 = 33/33/33) for equal thirds; (2) HomeQuickActionsPanel hardening \u2014 Kbd helper +shrink-0+whitespace-nowrap, input wrapper +min-w-0, Analyze button +shrink-0, action button gap-3->gap-2, icon +shrink-0, label span +min-w-0+truncate (ellipsis on extreme overflow). Both fixes independently sufficient; together prevent regression at any viewport. Internal-only research brief honestly justified. Closes task list item #69. See handoff/archive/phase-16.47/."
         },
         {
           "id": "16.48",
@@ -6363,7 +6363,7 @@
           },
           "contract": null,
           "retry_count": 0,
-          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency — drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
+          "notes": "EXECUTION_BACKEND=alpaca_paper drill: 5/5 UAT orders submitted to Alpaca paper (AAPL/MSFT/NVDA/GOOGL/AMZN, 1 share each, client_order_id=uat-17.6-*). Verified visible in /v2/orders with status=accepted. All 5 canceled immediately after (/v2/orders DELETE HTTP 207) to preserve BQ/Alpaca consistency \u2014 drift measurement deferred to a post-open cycle that goes through full paper_trader path. drill script: scripts/go_live_drills/alpaca_shadow_drill.py. EXECUTION_BACKEND reset to bq_sim."
         },
         {
           "id": "17.7",
@@ -6410,7 +6410,7 @@
       "id": "phase-5",
       "name": "Multi-Market Expansion (15-step)",
       "status": "deferred",
-      "notes": "DEFER-POST-PROD per phase-45.0 closure_roadmap (2026-05-22): 11 of 14 substeps still pending; master_roadmap §2 explicitly defers (phase-42 depends on phase-5; both out-of-scope for production-readiness). Revisit after phase-43.0 PASS.",
+      "notes": "DEFER-POST-PROD per phase-45.0 closure_roadmap (2026-05-22): 11 of 14 substeps still pending; master_roadmap \u00a72 explicitly defers (phase-42 depends on phase-5; both out-of-scope for production-readiness). Revisit after phase-43.0 PASS.",
       "depends_on": [
         "phase-4.5"
       ],
@@ -7204,7 +7204,7 @@
         },
         {
           "id": "23.1.9",
-          "name": "Paper Trading Manage tab — deposit endpoint + 10 paper-trading settings exposed in API/UI",
+          "name": "Paper Trading Manage tab \u2014 deposit endpoint + 10 paper-trading settings exposed in API/UI",
           "status": "done",
           "harness_required": true,
           "verification": "see handoff/archive/phase-23.1.9/contract.md (immutable verification: PYTHONPATH=. python tests/verify_phase_23_1_9.py)",
@@ -7270,7 +7270,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.13/evaluator_critique.md",
           "created_at": "2026-04-28T17:30:48Z",
           "completed_at": "2026-04-28T17:30:48Z",
-          "notes": "User asked for diversification — 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
+          "notes": "User asked for diversification \u2014 11/11 Tech positions. Two research briefs (external 566 LOC + internal audit 351 LOC) converged on hard cap of 2 per GICS sector. Default 2 = at least 5 sectors for a 10-position portfolio. 0 disables. Risk Monitor renders Position size + Sector concentration as separate rows. /portfolio returns sector_breakdown. Q/A PASS first try (16/16). 170/170 unit tests."
         },
         {
           "id": "23.1.14",
@@ -7368,7 +7368,7 @@
           "evaluator_critique": "handoff/archive/phase-23.1.22/evaluator_critique.md",
           "created_at": "2026-04-30T18:55:00Z",
           "completed_at": "2026-04-30T18:55:00Z",
-          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry — first attempt wrote critique for wrong step)."
+          "notes": "User reported pause/resume crashes backend (3x). Faulthandler SIGUSR1 dump on a live hung backend revealed the actual root cause: kill_switch.py pause()/resume() acquired self._lock then called self.snapshot() which tried to re-acquire the same lock -- instant deadlock (threading.Lock is NOT reentrant). Fix: new _snapshot_locked() helper. Live proof: pause+resume cycle now 0-2s instead of infinite hang. Bundled with 23.1.20 (asyncio.timeout(5) on resume + kill-switch BQ calls, 503+Retry-After) and 23.1.21 (daemon-thread for _spawn_real_agent, faulthandler SIGUSR1, external launchd watchdog, ProcessType=Interactive). 10/10 tests. Research gates: 6+7 sources read in full. Q/A PASS (after retry \u2014 first attempt wrote critique for wrong step)."
         },
         {
           "id": "23.2.0",
@@ -8090,7 +8090,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan — sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
+          "notes": "Observed empirically in cycles 38/39/40: the auto-commit-and-push.sh hook did NOT auto-fire on Edit calls to .claude/masterplan.json; operator had to manually trigger commit/push. Hypothesis was: drop the undocumented `if` predicate. Research gate at cycle 41 REJECTED that plan \u2014 sibling hooks (masterplan-memory-sync, archive-handoff, commit-reminder) would then fire on every Edit call (wasteful), and the `if` field IS documented (just under-specified for `.claude/`-prefixed paths). Revised research-supported plan: observability-first. Keep the `if` predicate as best-effort filter; add a single `log INVOKED ...` line near the top of auto-commit-and-push.sh so EVERY invocation produces observable evidence in auto-push.log. Next cycle that fails will show definitively: no INVOKED line = `if` predicate silently blocked the hook; INVOKED line + silent exit = hook fired but newly_done was empty. Pre-contract criteria update permitted because no contract has been written yet (criteria immutability begins at contract-time). live_check NOT required: success verifiable from on-disk artifacts."
         }
       ]
     },
@@ -8164,7 +8164,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket — addresses the most user-impacting live bug (no stops firing on negative positions). Must produce phase-25 candidates that wire check_stop_losses() into the daily loop, ensure entry-path attaches stops, backfill the 5 stop-less positions, and add a no-sells-in-N-days anomaly watchdog."
+          "notes": "P0 bucket \u2014 addresses the most user-impacting live bug (no stops firing on negative positions). Must produce phase-25 candidates that wire check_stop_losses() into the daily loop, ensure entry-path attaches stops, backfill the 5 stop-less positions, and add a no-sells-in-N-days anomaly watchdog."
         },
         {
           "id": "24.2",
@@ -8196,7 +8196,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — explains why /reports page is empty (lite-only persistence) and why full 28-skill pipeline never runs in paper trading. Cross-links with 24.4 (rationale drawer sparse because lite skips per-ticker agents)."
+          "notes": "P1 bucket \u2014 explains why /reports page is empty (lite-only persistence) and why full 28-skill pipeline never runs in paper trading. Cross-links with 24.4 (rationale drawer sparse because lite skips per-ticker agents)."
         },
         {
           "id": "24.3",
@@ -8227,7 +8227,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — explains why no autoresearch has evolved the application. Champion/challenger A/B testing runs but never feeds back into daily strategy selection."
+          "notes": "P1 bucket \u2014 explains why no autoresearch has evolved the application. Champion/challenger A/B testing runs but never feeds back into daily strategy selection."
         },
         {
           "id": "24.4",
@@ -8259,7 +8259,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket — the RiskJudge rationale is byte-identical to the Trader's, meaning the risk gate provides ZERO independent verification. Same anti-pattern Anthropic warned about (cycle 39 / R-2 / 'agents tend to confidently praise their own work'). Must surface Layer-1 28-skill outputs in per-trade rationale."
+          "notes": "P0 bucket \u2014 the RiskJudge rationale is byte-identical to the Trader's, meaning the risk gate provides ZERO independent verification. Same anti-pattern Anthropic warned about (cycle 39 / R-2 / 'agents tend to confidently praise their own work'). Must surface Layer-1 28-skill outputs in per-trade rationale."
         },
         {
           "id": "24.5",
@@ -8293,7 +8293,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P0 bucket — Slack is the operator's primary real-time surface and it's broken: wrong P&L in digests, wrong tickers in recent-analyses, mis-scheduled morning digest, no trade confirmations, no kill-switch alerts, no drawdown alarms, no error escalations. User cannot trust the live system without these."
+          "notes": "P0 bucket \u2014 Slack is the operator's primary real-time surface and it's broken: wrong P&L in digests, wrong tickers in recent-analyses, mis-scheduled morning digest, no trade confirmations, no kill-switch alerts, no drawdown alarms, no error escalations. User cannot trust the live system without these."
         },
         {
           "id": "24.6",
@@ -8325,7 +8325,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — major subsystem (1167 LOC) powering /backtest page. Are backtest results actually predictive of live P&L? Champion/challenger discipline."
+          "notes": "P2 bucket \u2014 major subsystem (1167 LOC) powering /backtest page. Are backtest results actually predictive of live P&L? Champion/challenger discipline."
         },
         {
           "id": "24.7",
@@ -8357,7 +8357,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — are the BQ tables actually getting fresh data? Stale data == stale signals == bad trades."
+          "notes": "P1 bucket \u2014 are the BQ tables actually getting fresh data? Stale data == stale signals == bad trades."
         },
         {
           "id": "24.8",
@@ -8391,7 +8391,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — safety rails. Is the kill-switch actually wired? Watchdog firing on backend down? SLA monitor catching slow cycles? Cost budget enforced or honor-system?"
+          "notes": "P1 bucket \u2014 safety rails. Is the kill-switch actually wired? Watchdog firing on backend down? SLA monitor catching slow cycles? Cost budget enforced or honor-system?"
         },
         {
           "id": "24.9",
@@ -8426,7 +8426,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — checks the existing AI infrastructure against the latest Anthropic + Google docs. Identifies features we don't use (batch, files API, citations) that could reduce cost or improve quality."
+          "notes": "P2 bucket \u2014 checks the existing AI infrastructure against the latest Anthropic + Google docs. Identifies features we don't use (batch, files API, citations) that could reduce cost or improve quality."
         },
         {
           "id": "24.10",
@@ -8460,7 +8460,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — security posture + MCP gap analysis. Should we have a signals MCP? News MCP? Are deny rules tight enough on broker API write ops?"
+          "notes": "P1 bucket \u2014 security posture + MCP gap analysis. Should we have a signals MCP? News MCP? Are deny rules tight enough on broker API write ops?"
         },
         {
           "id": "24.11",
@@ -8493,7 +8493,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — already mostly clean per Phase-1 exploration. Confirms type sync, identifies orphan pages."
+          "notes": "P2 bucket \u2014 already mostly clean per Phase-1 exploration. Confirms type sync, identifies orphan pages."
         },
         {
           "id": "24.12",
@@ -8528,7 +8528,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P2 bucket — UI/UX audit. Visual regression baseline = Playwright screenshots of all 14 pages committed to screenshots/."
+          "notes": "P2 bucket \u2014 UI/UX audit. Visual regression baseline = Playwright screenshots of all 14 pages committed to screenshots/."
         },
         {
           "id": "24.13",
@@ -8561,7 +8561,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "P1 bucket — depends on 24.1-24.9 findings being complete. Asks: does current behavior match 'maximize profit at lowest cost; shift to winning strategy'? Quantifies the gap."
+          "notes": "P1 bucket \u2014 depends on 24.1-24.9 findings being complete. Asks: does current behavior match 'maximize profit at lowest cost; shift to winning strategy'? Quantifies the gap."
         },
         {
           "id": "24.14",
@@ -8754,7 +8754,7 @@
               "kill_switch_deactivate_emits_p1_slack_escalation",
               "pause_signals_calls_send_trading_escalation_before_shutdown"
             ],
-            "live_check": "Manual kill-switch press → Slack alert delivered within 30s"
+            "live_check": "Manual kill-switch press \u2192 Slack alert delivered within 30s"
           },
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
@@ -9044,7 +9044,7 @@
           "contract": "handoff/current/contract.md",
           "retry_count": 0,
           "max_retries": 3,
-          "notes": "Mechanical alignment with frontend-layout.md §5."
+          "notes": "Mechanical alignment with frontend-layout.md \u00a75."
         },
         {
           "id": "25.C12",
@@ -9654,7 +9654,7 @@
     },
     {
       "id": "phase-26",
-      "name": "Frontier-sync: adopt 2026-04→05 Anthropic/Google releases + topology gaps",
+      "name": "Frontier-sync: adopt 2026-04\u219205 Anthropic/Google releases + topology gaps",
       "status": "done",
       "notes": "DROP per phase-45.0 closure_roadmap (2026-05-22): 26.0-26.2 already done; remaining substeps folded into phase-40.2 (Claude Code v2.1.140-143) + phase-40.3 (stress-test doctrine) + phase-41.0/41.1 (Gemini 3.x audit via P2/P3 bundles).",
       "harness_required": true,
@@ -9662,7 +9662,7 @@
         "phase-25"
       ],
       "summary": "8 candidates synthesized from research_brief_external.md (5 frontier features) + research_brief_internal.md (5 topology gaps, 2 deduped vs external). Targets compute-burn reduction (Advisor Tool, opinion-skill consolidation, combined Gemini tools) and signal-quality lift (code_execution, alpha-decay detector, multimodal RAG). 26.0 + 26.1 are P0 safety/prereq; 26.2 is the highest-leverage cost win; 26.3-26.5 are signal lifts; 26.6 + 26.7 are P2 polish. NOTE: research_brief_external.md returned gate_passed=false on the 5-source floor (Main capped WebFetch at 4 to avoid timeout); the gate slip is bounded to the phase-ADD planning step. Each individual step below MUST spawn its own researcher with full 5-source gate before its own GENERATE.",
-      "description": "Source: handoff/archive/phase-26/research_brief_external.md + research_brief_internal.md (post-phase-25 close, 2026-05-16). Closes the delta between the 2026-05-12 audit window and the 2026-04-01 → 2026-05-16 frontier release window. Dependency-ordering: 26.0 + 26.1 precede 26.2; 26.3 / 26.4 / 26.5 / 26.6 / 26.7 are mutually independent.",
+      "description": "Source: handoff/archive/phase-26/research_brief_external.md + research_brief_internal.md (post-phase-25 close, 2026-05-16). Closes the delta between the 2026-05-12 audit window and the 2026-04-01 \u2192 2026-05-16 frontier release window. Dependency-ordering: 26.0 + 26.1 precede 26.2; 26.3 / 26.4 / 26.5 / 26.6 / 26.7 are mutually independent.",
       "steps": [
         {
           "id": "26.0",
@@ -9842,12 +9842,12 @@
       "steps": [
         {
           "id": "27.0",
-          "name": "Research gate: provider parity — Anthropic structured output + Gemini response shape + dual-provider fallback patterns",
+          "name": "Research gate: provider parity \u2014 Anthropic structured output + Gemini response shape + dual-provider fallback patterns",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": null,
-          "audit_basis": "Smoke audit 2026-05-16 §A B-1..B-7 + this-session findings C1/C2/C3. Each downstream fix needs canonical provider docs as ground truth — not LLM-recalled API shapes.",
+          "audit_basis": "Smoke audit 2026-05-16 \u00a7A B-1..B-7 + this-session findings C1/C2/C3. Each downstream fix needs canonical provider docs as ground truth \u2014 not LLM-recalled API shapes.",
           "verification": {
             "command": "test -f handoff/current/research_brief.md && grep -q 'gate_passed.*true' handoff/current/research_brief.md && grep -cE 'https?://' handoff/current/research_brief.md | awk '$1>=10{exit 0} {exit 1}'",
             "success_criteria": [
@@ -9866,7 +9866,7 @@
         },
         {
           "id": "27.1",
-          "name": "Fix C3 — Anthropic structured-output schema additionalProperties:false",
+          "name": "Fix C3 \u2014 Anthropic structured-output schema additionalProperties:false",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
@@ -9889,7 +9889,7 @@
         },
         {
           "id": "27.2",
-          "name": "Fix C1 — Gemini null-response safety (.text never None downstream)",
+          "name": "Fix C1 \u2014 Gemini null-response safety (.text never None downstream)",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
@@ -9912,12 +9912,12 @@
         },
         {
           "id": "27.3",
-          "name": "Fix C2 — Provider-aware lite fallback (Gemini lite + Claude lite)",
+          "name": "Fix C2 \u2014 Provider-aware lite fallback (Gemini lite + Claude lite)",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.0",
-          "audit_basis": "Live observation 2026-05-16: when standard model set to gemini-2.5-flash, the lite fallback refuses: 'standard model gemini-2.5-flash is not a Claude model; _run_claude_analysis is Claude-only'. This leaves the system with no safety net — if full path fails, nothing runs. Lite path must adapt to the selected provider.",
+          "audit_basis": "Live observation 2026-05-16: when standard model set to gemini-2.5-flash, the lite fallback refuses: 'standard model gemini-2.5-flash is not a Claude model; _run_claude_analysis is Claude-only'. This leaves the system with no safety net \u2014 if full path fails, nothing runs. Lite path must adapt to the selected provider.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"from backend.services.autonomous_loop import _select_lite_analyzer; g=_select_lite_analyzer('gemini-2.5-flash'); c=_select_lite_analyzer('claude-sonnet-4-6'); assert callable(g) and callable(c), 'both return callables'; assert g is not c, 'distinct implementations'; print('PASS')\"",
             "success_criteria": [
@@ -9935,7 +9935,7 @@
         },
         {
           "id": "27.4",
-          "name": "Fix B-2 — BQ schema migration: add 5 missing analysis_results columns",
+          "name": "Fix B-2 \u2014 BQ schema migration: add 5 missing analysis_results columns",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
@@ -10006,7 +10006,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.5.1",
-          "audit_basis": "phase-27.5.1 cycle #7 (3e90d15e) 2026-05-17 completed all 8 steps end-to-end (first cycle in session to do so, including Step 9 Learning + 1 executed trade) but persisted only 10/15 tickers because cost_budget_daily_usd defaulted to $5 and was tripped at $5.15 by the concurrent-8 batch. The 5 missed tickers (GLW, SNDK, WDC, LITE, CIEN) all failed with 'cost_budget tripped (cached): reason=daily $5.15 >= cap $5.00'. Raising cap to $25 (5x) — still conservative for an autonomous Gemini Flash trading system.",
+          "audit_basis": "phase-27.5.1 cycle #7 (3e90d15e) 2026-05-17 completed all 8 steps end-to-end (first cycle in session to do so, including Step 9 Learning + 1 executed trade) but persisted only 10/15 tickers because cost_budget_daily_usd defaulted to $5 and was tripped at $5.15 by the concurrent-8 batch. The 5 missed tickers (GLW, SNDK, WDC, LITE, CIEN) all failed with 'cost_budget tripped (cached): reason=daily $5.15 >= cap $5.00'. Raising cap to $25 (5x) \u2014 still conservative for an autonomous Gemini Flash trading system.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"from backend.config.settings import Settings; s=Settings(); assert s.cost_budget_daily_usd >= 20.0, f'cap too low: {s.cost_budget_daily_usd}'; assert hasattr(s, 'cost_budget_monthly_usd'), 'monthly cap missing'; print(f'PASS daily=${s.cost_budget_daily_usd} monthly=${s.cost_budget_monthly_usd}')\"",
             "success_criteria": [
@@ -10051,7 +10051,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6",
-          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 8 of 14 Claude full-path failures were 'Ingestion Agent Error: ERROR:429 Client Error: Too Many Requests for url: https://www.sec.gov/files/company_tickers.json'. Concurrency=8 (per 27.5.1) fires 8 simultaneous bulk downloads without throttling. SEC EDGAR fair-access requires User-Agent header + ≤10 req/sec; bulk endpoint may be stricter. Fix: cache company_tickers.json for 24h (it changes daily) + per-host concurrency limit of 2 + courtesy User-Agent.",
+          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 8 of 14 Claude full-path failures were 'Ingestion Agent Error: ERROR:429 Client Error: Too Many Requests for url: https://www.sec.gov/files/company_tickers.json'. Concurrency=8 (per 27.5.1) fires 8 simultaneous bulk downloads without throttling. SEC EDGAR fair-access requires User-Agent header + \u226410 req/sec; bulk endpoint may be stricter. Fix: cache company_tickers.json for 24h (it changes daily) + per-host concurrency limit of 2 + courtesy User-Agent.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -qE \"_INGESTION_SEMAPHORE\" backend/agents/orchestrator.py && grep -A2 \"async def run_ingestion_agent\" backend/agents/orchestrator.py | grep -q \"_INGESTION_SEMAPHORE\"",
             "success_criteria": [
@@ -10072,7 +10072,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6",
-          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 6 of 14 Claude full-path failures were 'ERROR: QuantAgent failed for X: NoneType object has no attribute get'. Affected: STX, COHR, INTC, DELL, SNDK, WDC. Cycle #8 (Gemini) had ZERO of these — so this is Claude-pathway-specific (either different upstream branch or different defensive coercion). Fix: defensive `.get()` / `or {}` on the upstream dependency before the `.get()` call.",
+          "audit_basis": "phase-27.6 Q/A 2026-05-17 (agent aa86f7cd0a7722772) returned CONDITIONAL: 6 of 14 Claude full-path failures were 'ERROR: QuantAgent failed for X: NoneType object has no attribute get'. Affected: STX, COHR, INTC, DELL, SNDK, WDC. Cycle #8 (Gemini) had ZERO of these \u2014 so this is Claude-pathway-specific (either different upstream branch or different defensive coercion). Fix: defensive `.get()` / `or {}` on the upstream dependency before the `.get()` call.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -qE \"yf\\.get\\(.valuation.\\) or \\{\\}\" backend/agents/orchestrator.py && grep -qE \"quant\\.get\\(.valuation.\\) or \\{\\}\" backend/agents/orchestrator.py",
             "success_criteria": [
@@ -10087,7 +10087,7 @@
         },
         {
           "id": "27.6.3",
-          "name": "Re-run Claude full-path smoke after 27.6.1 + 27.6.2 — zero full-orchestrator failures required",
+          "name": "Re-run Claude full-path smoke after 27.6.1 + 27.6.2 \u2014 zero full-orchestrator failures required",
           "status": "pending",
           "harness_required": true,
           "priority": "P0",
@@ -10114,9 +10114,9 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "27.6",
-          "audit_basis": "Cycle #10 (2026-05-17 02:47-02:58) showed every uncached ticker still gets `Ingestion: Failed to fetch CIK map from SEC: 429`. Our 27.6.1 Semaphore(2) limits concurrent calls from our process to the Cloud Function, but the CF still fetches SEC fresh per ticker — SEC rate-limits the CF's IP regardless of our throttle. Fix requires CF code change (cache `company_tickers.json` in-memory in the CF for the lifetime of the CF instance; refresh daily) + CF redeploy. Out of scope for this session because: (1) CF deploys are Peder-approved infra changes, (2) the CF source repo may be separate. Tickers already cached in GCS (file path `<TICKER>/<form>_<date>_<doc>.json`) succeed regardless.",
+          "audit_basis": "Cycle #10 (2026-05-17 02:47-02:58) showed every uncached ticker still gets `Ingestion: Failed to fetch CIK map from SEC: 429`. Our 27.6.1 Semaphore(2) limits concurrent calls from our process to the Cloud Function, but the CF still fetches SEC fresh per ticker \u2014 SEC rate-limits the CF's IP regardless of our throttle. Fix requires CF code change (cache `company_tickers.json` in-memory in the CF for the lifetime of the CF instance; refresh daily) + CF redeploy. Out of scope for this session because: (1) CF deploys are Peder-approved infra changes, (2) the CF source repo may be separate. Tickers already cached in GCS (file path `<TICKER>/<form>_<date>_<doc>.json`) succeed regardless.",
           "verification": {
-            "command": "echo 'manual gate — CF redeploy required'; echo 'verification: after CF redeploy, cycle log shows zero \"Failed to fetch CIK map from SEC: 429\" lines'",
+            "command": "echo 'manual gate \u2014 CF redeploy required'; echo 'verification: after CF redeploy, cycle log shows zero \"Failed to fetch CIK map from SEC: 429\" lines'",
             "success_criteria": [
               "CIK_map_cached_in_CF_instance_memory",
               "cycle_log_has_zero_failed_to_fetch_CIK_map_lines",
@@ -10134,7 +10134,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6",
-          "audit_basis": "Cycle #10 2026-05-17 02:58:39 hit `HTTP/1.1 429 Too Many Requests` from api.anthropic.com/v1/messages. Concurrency=8 (per 27.5.1, sized for Gemini's higher RPM) is too aggressive for Anthropic tier-1 (~50 RPM input, ~10 RPM output). Fix: split the cycle-wide _analysis_semaphore into a per-provider lookup — Gemini=8 (current), Claude=2-4 (conservative for default tier; raisable per Anthropic plan).",
+          "audit_basis": "Cycle #10 2026-05-17 02:58:39 hit `HTTP/1.1 429 Too Many Requests` from api.anthropic.com/v1/messages. Concurrency=8 (per 27.5.1, sized for Gemini's higher RPM) is too aggressive for Anthropic tier-1 (~50 RPM input, ~10 RPM output). Fix: split the cycle-wide _analysis_semaphore into a per-provider lookup \u2014 Gemini=8 (current), Claude=2-4 (conservative for default tier; raisable per Anthropic plan).",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/autonomous_loop.py').read()); print('syntax OK')\" && grep -qE \"claude.*[Ss]emaphore|provider.*concurrency|_semaphore_for_model\" backend/services/autonomous_loop.py",
             "success_criteria": [
@@ -10155,7 +10155,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6.5",
-          "audit_basis": "/goal hook 2026-05-17 blocks session close until Claude full path proven. Cycle #10 (post 27.6.1+.2+.5) still hit SEC 429s because the Cloud Function re-fetches CIK map per ticker — that's a CF-side issue (phase-27.6.4, deferred). Workaround: make `run_ingestion_agent` failures non-fatal in `run_full_analysis`. Downstream steps already use GCS-cached filings; only NEWLY-added filings since last successful ingestion would be missed for this cycle — acceptable for a best-effort enrichment that's gated by infra anyway.",
+          "audit_basis": "/goal hook 2026-05-17 blocks session close until Claude full path proven. Cycle #10 (post 27.6.1+.2+.5) still hit SEC 429s because the Cloud Function re-fetches CIK map per ticker \u2014 that's a CF-side issue (phase-27.6.4, deferred). Workaround: make `run_ingestion_agent` failures non-fatal in `run_full_analysis`. Downstream steps already use GCS-cached filings; only NEWLY-added filings since last successful ingestion would be missed for this cycle \u2014 acceptable for a best-effort enrichment that's gated by infra anyway.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/orchestrator.py').read()); print('syntax OK')\" && grep -A4 'Step 1: Ingestion agent' backend/agents/orchestrator.py | grep -qE 'try:|except|best-effort'",
             "success_criteria": [
@@ -10177,7 +10177,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "27.6.6",
-          "audit_basis": "Cycle #11 2026-05-17 03:39:21 surfaced: `RuntimeWarning: coroutine AnalysisOrchestrator.fetch_insider_data was never awaited`. The async function is invoked somewhere (likely an enrichment-agent dispatch path) without await, so its return value is a coroutine object — downstream `.get(...)` raises `'coroutine' object has no attribute 'get'`. Caused full orchestrator failure on STX in cycle #11. Fix requires grepping ALL call sites of fetch_insider_data + verifying each is awaited or wrapped in asyncio.run / asyncio.create_task.",
+          "audit_basis": "Cycle #11 2026-05-17 03:39:21 surfaced: `RuntimeWarning: coroutine AnalysisOrchestrator.fetch_insider_data was never awaited`. The async function is invoked somewhere (likely an enrichment-agent dispatch path) without await, so its return value is a coroutine object \u2014 downstream `.get(...)` raises `'coroutine' object has no attribute 'get'`. Caused full orchestrator failure on STX in cycle #11. Fix requires grepping ALL call sites of fetch_insider_data + verifying each is awaited or wrapped in asyncio.run / asyncio.create_task.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/agents/info_gap.py').read()); print('syntax OK')\" && grep -A8 \"iscoroutinefunction(func)\" backend/agents/info_gap.py | grep -qE \"iscoroutine\\(result\\)\"",
             "success_criteria": [
@@ -10270,7 +10270,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "28.0",
-          "audit_basis": "primary brief Phase 4 item #2; ScienceDirect 2025 ML stacking 12Q SUE history raised Sharpe from 0.34 (latest only) to 0.63 (+85% lift). Existing pead_signal.py at backend/services/pead_signal.py:91 already reads trailing cache via _trailing_mean_from_cache; extend to consume 12 quarters explicitly (currently bounded by _LOOKBACK_QUARTERS=8 — bump to 12 and reweight).",
+          "audit_basis": "primary brief Phase 4 item #2; ScienceDirect 2025 ML stacking 12Q SUE history raised Sharpe from 0.34 (latest only) to 0.63 (+85% lift). Existing pead_signal.py at backend/services/pead_signal.py:91 already reads trailing cache via _trailing_mean_from_cache; extend to consume 12 quarters explicitly (currently bounded by _LOOKBACK_QUARTERS=8 \u2014 bump to 12 and reweight).",
           "verification": {
             "command": "source .venv/bin/activate && grep -qE '_LOOKBACK_QUARTERS\\s*=\\s*12' backend/services/pead_signal.py && python -c \"import ast; ast.parse(open('backend/services/pead_signal.py').read()); print('PASS')\"",
             "success_criteria": [
@@ -10291,7 +10291,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.0",
-          "audit_basis": "primary brief Phase 4 item #3 — oil-majors reference case. Caldara-Iacoviello AER 2022 + IMF GFSR 2025 document US-as-net-exporter asymmetry: Middle-East GPR-Acts spikes positively reprice XOM/CVX/COP/OXY. Index public at matteoiacoviello.com monthly. macro_regime.py already has sector_hints.overweight; add a 'gpr_acts > threshold' branch that injects XLE-overweight regardless of base FRED reading.",
+          "audit_basis": "primary brief Phase 4 item #3 \u2014 oil-majors reference case. Caldara-Iacoviello AER 2022 + IMF GFSR 2025 document US-as-net-exporter asymmetry: Middle-East GPR-Acts spikes positively reprice XOM/CVX/COP/OXY. Index public at matteoiacoviello.com monthly. macro_regime.py already has sector_hints.overweight; add a 'gpr_acts > threshold' branch that injects XLE-overweight regardless of base FRED reading.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/macro_regime.py').read()); print('syntax OK')\" && grep -qE 'gpr|geopolitical' backend/services/macro_regime.py",
             "success_criteria": [
@@ -10417,7 +10417,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "28.0",
-          "audit_basis": "primary brief Phase 4 item #8; Wayne State / Journal of Portfolio Management documents near-expiry OTM large call buys are predictive of positive abnormal returns. Generic large options trades NOT predictive — filter is specifically near-expiry, OTM, elevated volume vs 30-day average. Existing backend/tools/options_flow.py has data layer; new screener-tier wrapper required.",
+          "audit_basis": "primary brief Phase 4 item #8; Wayne State / Journal of Portfolio Management documents near-expiry OTM large call buys are predictive of positive abnormal returns. Generic large options trades NOT predictive \u2014 filter is specifically near-expiry, OTM, elevated volume vs 30-day average. Existing backend/tools/options_flow.py has data layer; new screener-tier wrapper required.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/options_flow_screen.py').read()); from backend.services.options_flow_screen import fetch_oi_surge_signals; print('importable')\" && grep -q 'options_flow_screen_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10460,7 +10460,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.1",
-          "audit_basis": "primary brief Phase 4 item #7; arXiv 2502.20489v1 documents LLM-extracted Strategic Outlook text from analyst reports generates 68bps/month alpha, IR 0.73-1.41 — strongest signal in the literature, substantially exceeds traditional rec-change/EPS-revision signals. L effort: requires paid analyst-report feed OR EDGAR scraping path + LLM inference cost.",
+          "audit_basis": "primary brief Phase 4 item #7; arXiv 2502.20489v1 documents LLM-extracted Strategic Outlook text from analyst reports generates 68bps/month alpha, IR 0.73-1.41 \u2014 strongest signal in the literature, substantially exceeds traditional rec-change/EPS-revision signals. L effort: requires paid analyst-report feed OR EDGAR scraping path + LLM inference cost.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/analyst_narrative_scorer.py').read()); print('syntax OK')\" && grep -q 'analyst_narrative_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10482,7 +10482,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "28.4",
-          "audit_basis": "primary brief Phase 4 item #13; Quantpedia documents top-3 sector ETFs by 12-month momentum (monthly rebalance) → 13.94% annual, Sharpe 0.54. Complements 28.4 (sector-neutral momentum) by adding a sector-LEADER preference: stocks in top-3-momentum sectors get a small score boost.",
+          "audit_basis": "primary brief Phase 4 item #13; Quantpedia documents top-3 sector ETFs by 12-month momentum (monthly rebalance) \u2192 13.94% annual, Sharpe 0.54. Complements 28.4 (sector-neutral momentum) by adding a sector-LEADER preference: stocks in top-3-momentum sectors get a small score boost.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/sector_momentum.py').read()); print('syntax OK')\" && grep -q 'sector_momentum_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10503,7 +10503,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "28.11",
-          "audit_basis": "primary brief Phase 4 item #12; Fed Aug 2025 documented firm-level GPR exposure via earnings-call NLP on 240K+ transcripts. Note from primary brief: no forward return predictability shown in Fed study (R²=0.23 contemporaneous only). Add as complementary signal to 28.3 (GPR-energy tilt) and 28.11 (analyst narrative), NOT as standalone alpha generator. Re-evaluate priority after 28.11 lands.",
+          "audit_basis": "primary brief Phase 4 item #12; Fed Aug 2025 documented firm-level GPR exposure via earnings-call NLP on 240K+ transcripts. Note from primary brief: no forward return predictability shown in Fed study (R\u00b2=0.23 contemporaneous only). Add as complementary signal to 28.3 (GPR-energy tilt) and 28.11 (analyst narrative), NOT as standalone alpha generator. Re-evaluate priority after 28.11 lands.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/call_transcript_gpr.py').read()); print('syntax OK')\" && grep -q 'call_transcript_gpr_enabled' backend/config/settings.py",
             "success_criteria": [
@@ -10524,7 +10524,7 @@
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "28.3",
-          "audit_basis": "supplement Gap 1; Emerald SEF 2023 (+1.00% (−1,−1) anticipatory window; +11.65% CAAR (0,3) for European defense); PMC11700249 (81.4% defense firms reacted to Ukraine invasion); PMC11844836 (UK firms most sensitive). 28.3 adds GPR→energy; 28.14 adds GPR→defense branch + ITA/XAR ETF 5-day net-flow delta + NATO/EU budget-pledge headline scrape (Reuters/news_screen.py extension).",
+          "audit_basis": "supplement Gap 1; Emerald SEF 2023 (+1.00% (\u22121,\u22121) anticipatory window; +11.65% CAAR (0,3) for European defense); PMC11700249 (81.4% defense firms reacted to Ukraine invasion); PMC11844836 (UK firms most sensitive). 28.3 adds GPR\u2192energy; 28.14 adds GPR\u2192defense branch + ITA/XAR ETF 5-day net-flow delta + NATO/EU budget-pledge headline scrape (Reuters/news_screen.py extension).",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/defense_signal.py').read()); print('syntax OK')\" && grep -q 'defense_signal_enabled' backend/config/settings.py && grep -qE 'ITA|XAR' backend/services/defense_signal.py",
             "success_criteria": [
@@ -10568,7 +10568,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "28.9",
-          "audit_basis": "supplement Gap 3; Augustin-Brenner-Subrahmanyam document short-dated OTM call volume spike + IV term-structure inversion 5-10 days pre-M&A; Duong-Pi-Sapp 2025: insider buying before 13D filings earns 7.72% CAR (14.49% for no-prior-discussion insiders). Three-leg signal: (a) OTM-call surge via 28.9, (b) Form 4 cluster via existing sec_insider.py, (c) NEW 13D/G EDGAR polling. Picker uses ONLY public market/EDGAR data — see supplement 'legality boundary' pitfall.",
+          "audit_basis": "supplement Gap 3; Augustin-Brenner-Subrahmanyam document short-dated OTM call volume spike + IV term-structure inversion 5-10 days pre-M&A; Duong-Pi-Sapp 2025: insider buying before 13D filings earns 7.72% CAR (14.49% for no-prior-discussion insiders). Three-leg signal: (a) OTM-call surge via 28.9, (b) Form 4 cluster via existing sec_insider.py, (c) NEW 13D/G EDGAR polling. Picker uses ONLY public market/EDGAR data \u2014 see supplement 'legality boundary' pitfall.",
           "verification": {
             "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/ma_preannounce_screen.py').read()); print('syntax OK')\" && grep -q 'ma_preannounce_enabled' backend/config/settings.py && grep -qE '13[dg]|SCHEDULE.13' backend/services/ma_preannounce_screen.py",
             "success_criteria": [
@@ -10647,7 +10647,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md §1.2 + §4 ADOPT verdict + phase-29.1 research_brief.md (7 sources read in full, gate_passed=true, free_only_verdict=ADOPT). paper-search-mcp v0.1.3 (PyPI, Apr 29 2025) bundles 57 MCP tools across 18 academic sources (arXiv, OpenAlex, SSRN, CORE, Unpaywall, Semantic Scholar, PubMed, Europe PMC, IACR, Crossref, Zenodo, HAL, dblp, CiteSeerX, OpenAIRE, BASE, DOAJ, IEEE+ACM dormant). Solves Cloudflare-Turnstile wall from phase-28.7 (SSRN George&Hwang 2004 abstract_id=1104491, Novy-Marx, preprints). Free-only compliance: no source requires paid licensing; OpenAlex needs free mandatory key (since 2026-02-13 breaking change); Unpaywall accepts any email; CORE/Semantic-Scholar optional free keys; ACM (only potentially-paid) connector dormant without key. env-example documentation deferred to phase-29.8 P2 bundle (already in scope there); fetch_one_SSRN_paper_in_full_text deferred to post-restart live_check (MCP unavailable in this overnight session).",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a71.2 + \u00a74 ADOPT verdict + phase-29.1 research_brief.md (7 sources read in full, gate_passed=true, free_only_verdict=ADOPT). paper-search-mcp v0.1.3 (PyPI, Apr 29 2025) bundles 57 MCP tools across 18 academic sources (arXiv, OpenAlex, SSRN, CORE, Unpaywall, Semantic Scholar, PubMed, Europe PMC, IACR, Crossref, Zenodo, HAL, dblp, CiteSeerX, OpenAIRE, BASE, DOAJ, IEEE+ACM dormant). Solves Cloudflare-Turnstile wall from phase-28.7 (SSRN George&Hwang 2004 abstract_id=1104491, Novy-Marx, preprints). Free-only compliance: no source requires paid licensing; OpenAlex needs free mandatory key (since 2026-02-13 breaking change); Unpaywall accepts any email; CORE/Semantic-Scholar optional free keys; ACM (only potentially-paid) connector dormant without key. env-example documentation deferred to phase-29.8 P2 bundle (already in scope there); fetch_one_SSRN_paper_in_full_text deferred to post-restart live_check (MCP unavailable in this overnight session).",
           "verification": {
             "command": "jq -e '.mcpServers.\"paper-search-mcp\" | .type == \"stdio\" and .command == \"uvx\" and (.args | index(\"paper-search-mcp==0.1.3\")) and (.env | has(\"PAPER_SEARCH_MCP_UNPAYWALL_EMAIL\"))' .mcp.json && python3 -c \"import json; json.load(open('.mcp.json'))\" && grep -q 'smoke test' handoff/current/experiment_results.md",
             "success_criteria": [
@@ -10659,7 +10659,7 @@
               "post_restart_live_check_recipe_in_live_check_29_1_md",
               "audit_delegations_documented_env_example_and_ssrn_fetch_deferred"
             ],
-            "live_check": "live_check_29.1.md captures (a) pre-restart on-disk .mcp.json grep evidence; (b) post-restart operator recipe — restart Claude Code, confirm 'paper-search-mcp' attaches in the MCP server list, then call search_ssrn(query='George Hwang 52-week high momentum') and verify metadata returns for abstract_id 1104491. If OPENALEX_API_KEY is unset, the OpenAlex source falls back to 100-credits/day demo mode — documented as expected next-step block, covered by phase-29.8 P2 env-var-docs bundle."
+            "live_check": "live_check_29.1.md captures (a) pre-restart on-disk .mcp.json grep evidence; (b) post-restart operator recipe \u2014 restart Claude Code, confirm 'paper-search-mcp' attaches in the MCP server list, then call search_ssrn(query='George Hwang 52-week high momentum') and verify metadata returns for abstract_id 1104491. If OPENALEX_API_KEY is unset, the OpenAlex source falls back to 100-credits/day demo mode \u2014 documented as expected next-step block, covered by phase-29.8 P2 env-var-docs bundle."
           },
           "retry_count": 0,
           "max_retries": 3
@@ -10671,7 +10671,7 @@
           "harness_required": false,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "OPERATOR OVERRIDE of phase-29.0 audit recommendation. Phase-29.0 §2.1 recommended reverting .claude/agents/researcher.md:10 from `effort: max` to `medium` per Anthropic's Sonnet 4.6 default. Overnight prompt 2026-05-18 (operator pre-approval, owner asleep, no per-cycle re-prompt) instructs: set `model: opus` + `effort: max` in researcher.md frontmatter; `effort: max` in qa.md (already there); remove the 'temporarily raised … revert' comment blocks; update CLAUDE.md effort-policy block to document Max-subscription + Researcher-on-Opus rationale. Research support (handoff/archive/phase-29.2/research_brief.md, 6 sources read in full, gate_passed=true): 17-pt GPQA Diamond gap (91.3% vs 74.1%) + 79-Elo GDPval-AA gap (1,753 vs 1,674) of Opus 4.7 over Sonnet 4.6 favours quality-depth on research-synthesis; subagent `model: opus` + `effort: max` officially supported (code.claude.com/docs/en/sub-agents + .../model-config); Max plan auto-includes Opus 1M context, mitigating GitHub issue #51060. Researcher fires once per masterplan step (not per ticker), so token cost is contained regardless of effort. Layer-2 mas_research/mas_qa are a SEPARATE system and out-of-scope for phase-29.2.",
+          "audit_basis": "OPERATOR OVERRIDE of phase-29.0 audit recommendation. Phase-29.0 \u00a72.1 recommended reverting .claude/agents/researcher.md:10 from `effort: max` to `medium` per Anthropic's Sonnet 4.6 default. Overnight prompt 2026-05-18 (operator pre-approval, owner asleep, no per-cycle re-prompt) instructs: set `model: opus` + `effort: max` in researcher.md frontmatter; `effort: max` in qa.md (already there); remove the 'temporarily raised \u2026 revert' comment blocks; update CLAUDE.md effort-policy block to document Max-subscription + Researcher-on-Opus rationale. Research support (handoff/archive/phase-29.2/research_brief.md, 6 sources read in full, gate_passed=true): 17-pt GPQA Diamond gap (91.3% vs 74.1%) + 79-Elo GDPval-AA gap (1,753 vs 1,674) of Opus 4.7 over Sonnet 4.6 favours quality-depth on research-synthesis; subagent `model: opus` + `effort: max` officially supported (code.claude.com/docs/en/sub-agents + .../model-config); Max plan auto-includes Opus 1M context, mitigating GitHub issue #51060. Researcher fires once per masterplan step (not per ticker), so token cost is contained regardless of effort. Layer-2 mas_research/mas_qa are a SEPARATE system and out-of-scope for phase-29.2.",
           "verification": {
             "command": "grep -E '^model:\\s*opus' .claude/agents/researcher.md && grep -E '^effort:\\s*max' .claude/agents/researcher.md && grep -E '^model:\\s*opus' .claude/agents/qa.md && grep -E '^effort:\\s*max' .claude/agents/qa.md && ! grep -q 'Revert after step closes' .claude/agents/researcher.md && ! grep -q 'Revert after step closes' .claude/agents/qa.md && grep -q 'operator override' CLAUDE.md && grep -q 'Max subscription' CLAUDE.md",
             "success_criteria": [
@@ -10695,7 +10695,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 §3c + phase-29.3 research_brief.md (7 sources read in full, gate_passed=true, free_only_verdict=ADOPT all 4). 4 FastMCP servers exist in backend/agents/mcp_servers/{backtest,data,risk,signals}_server.py with __main__ blocks (file:line: backtest:404, data:475, risk:229, signals:1884) but were NOT registered in .mcp.json. Pattern A invocation: venv python + absolute server.py + PYTHONPATH env. risk-server gate chain (kill_switch -> pbo -> projected_dd) at risk_server.py:179/186-198/201-213 is the highest-value promotion (Layer-2 agents can now consult risk gate before recommending trades). alwaysLoad decisions: data+risk true (high-frequency, BQ-ADC graceful-degradation), backtest+signals false (rare-use, signals_server is 1887 lines so startup cost matters). FREE-only verified: all 4 use internal BQ via ADC, no paid external SaaS. Pre-flight smoke test confirms all 4 servers print FastMCP 3.2.4 banner on stderr with no Python traceback when launched with PYTHONPATH set.",
+          "audit_basis": "phase-29.0 \u00a73c + phase-29.3 research_brief.md (7 sources read in full, gate_passed=true, free_only_verdict=ADOPT all 4). 4 FastMCP servers exist in backend/agents/mcp_servers/{backtest,data,risk,signals}_server.py with __main__ blocks (file:line: backtest:404, data:475, risk:229, signals:1884) but were NOT registered in .mcp.json. Pattern A invocation: venv python + absolute server.py + PYTHONPATH env. risk-server gate chain (kill_switch -> pbo -> projected_dd) at risk_server.py:179/186-198/201-213 is the highest-value promotion (Layer-2 agents can now consult risk gate before recommending trades). alwaysLoad decisions: data+risk true (high-frequency, BQ-ADC graceful-degradation), backtest+signals false (rare-use, signals_server is 1887 lines so startup cost matters). FREE-only verified: all 4 use internal BQ via ADC, no paid external SaaS. Pre-flight smoke test confirms all 4 servers print FastMCP 3.2.4 banner on stderr with no Python traceback when launched with PYTHONPATH set.",
           "verification": {
             "command": "python3 -c \"import json; json.load(open(\\\".mcp.json\\\"))\" && jq -e '.mcpServers | (.\"pyfinagent-backtest\" and .\"pyfinagent-data\" and .\"pyfinagent-risk\" and .\"pyfinagent-signals\")' .mcp.json && jq -e '[.mcpServers[\"pyfinagent-backtest\",\"pyfinagent-data\",\"pyfinagent-risk\",\"pyfinagent-signals\"] | .env.PYTHONPATH] | all(. == \"/Users/ford/.openclaw/workspace/pyfinagent\")' .mcp.json && jq -e '.mcpServers.\"pyfinagent-risk\".alwaysLoad == true' .mcp.json && jq -e '.mcpServers.\"pyfinagent-data\".alwaysLoad == true' .mcp.json && jq -e '.mcpServers.\"pyfinagent-backtest\".alwaysLoad == false' .mcp.json && jq -e '.mcpServers.\"pyfinagent-signals\".alwaysLoad == false' .mcp.json && grep -q 'smoke test' handoff/current/experiment_results.md",
             "success_criteria": [
@@ -10707,7 +10707,7 @@
               "pre_flight_smoke_test_all_4_servers_passed",
               "smoke_test_recipe_documented_in_experiment_results"
             ],
-            "live_check": "live_check_29.3.md captures: (a) verbatim 4 new mcp.json entries; (b) pre-flight smoke-test output showing all 4 servers print FastMCP 3.2.4 banner on stderr with no Python traceback under PYTHONPATH; (c) post-restart operator recipe — restart Claude Code, confirm /mcp panel shows all 4 as connected, ToolSearch query 'pyfinagent' should surface evaluate_candidate (risk), prices:// (data), run_backtest (backtest), generate_signal (signals). If signals_server takes >5s to load (1887 lines), it will appear as 'connecting'; not a failure."
+            "live_check": "live_check_29.3.md captures: (a) verbatim 4 new mcp.json entries; (b) pre-flight smoke-test output showing all 4 servers print FastMCP 3.2.4 banner on stderr with no Python traceback under PYTHONPATH; (c) post-restart operator recipe \u2014 restart Claude Code, confirm /mcp panel shows all 4 as connected, ToolSearch query 'pyfinagent' should surface evaluate_candidate (risk), prices:// (data), run_backtest (backtest), generate_signal (signals). If signals_server takes >5s to load (1887 lines), it will appear as 'connecting'; not a failure."
           },
           "retry_count": 0,
           "max_retries": 3
@@ -10719,7 +10719,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 §3a + phase-29.4 research_brief.md (9 sources read in full, gate_passed=true). OWASP LLM Top-10 v2.0 (2025) added LLM07 (System Prompt Leakage), LLM08 (Vector/Embedding Weaknesses), LLM10 (Unbounded Consumption) missing from qa.md:271-296 (v1.1 2023 baseline). Vec2Text empirical 50-92% embedding-inversion recovery (Georgia Tech, IronCoreLabs 2025) does NOT directly apply to pyfinagent (uses BM25 lexical, not vectors); the real LLM08 surface is memory poisoning via add_memory() / load_from_bq_rows() in backend/agents/memory.py. All existing harness loops bounded (run_harness.py:1111, multi_agent_orchestrator.py:523/1048/57/58). 3 new heuristics + 3 negation bullets + OWASP v2.0 citation added; existing LLM07 row enhanced with explicit grep pattern. Devil's-advocate clinical study (PMC11615553) corroborates adversarial-detection severity. Sources: genai.owasp.org LLM07/08, IronCoreLabs, Repello AI 2026, StackHawk, BSG, Oligo, WitnessAI, Promptfoo, OWASP LLM Top-10 list.",
+          "audit_basis": "phase-29.0 \u00a73a + phase-29.4 research_brief.md (9 sources read in full, gate_passed=true). OWASP LLM Top-10 v2.0 (2025) added LLM07 (System Prompt Leakage), LLM08 (Vector/Embedding Weaknesses), LLM10 (Unbounded Consumption) missing from qa.md:271-296 (v1.1 2023 baseline). Vec2Text empirical 50-92% embedding-inversion recovery (Georgia Tech, IronCoreLabs 2025) does NOT directly apply to pyfinagent (uses BM25 lexical, not vectors); the real LLM08 surface is memory poisoning via add_memory() / load_from_bq_rows() in backend/agents/memory.py. All existing harness loops bounded (run_harness.py:1111, multi_agent_orchestrator.py:523/1048/57/58). 3 new heuristics + 3 negation bullets + OWASP v2.0 citation added; existing LLM07 row enhanced with explicit grep pattern. Devil's-advocate clinical study (PMC11615553) corroborates adversarial-detection severity. Sources: genai.owasp.org LLM07/08, IronCoreLabs, Repello AI 2026, StackHawk, BSG, Oligo, WitnessAI, Promptfoo, OWASP LLM Top-10 list.",
           "verification": {
             "command": "grep -q 'rag-memory-poisoning' .claude/agents/qa.md && grep -q 'unbounded-llm-loop' .claude/agents/qa.md && grep -q 'agent_config.system_prompt' .claude/agents/qa.md && grep -q 'OWASP LLM Top-10 v2.0\\|OWASP v2.0\\|OWASP LLM08:2025' .claude/agents/qa.md && grep -q 'BM25 corpus is not subject to Vec2Text' .claude/agents/qa.md && grep -q 'MAX_TOOL_TURNS\\|MAX_RESEARCH_ITERATIONS\\|MAX_CONSECUTIVE_FAIL' .claude/agents/qa.md",
             "success_criteria": [
@@ -10731,7 +10731,7 @@
               "qa_md_explicit_vec2text_BM25_exemption_documented",
               "qa_md_loop_bounds_named_constants_cited"
             ],
-            "live_check": "live_check_29.4.md captures verbatim diff of the 3 new/enhanced rows + 3 negation bullets + cited file:line anchors (memory.py:23-54 seeds; multi_agent_orchestrator.py:985 safe-pattern; run_harness.py:1111 + multi_agent_orchestrator.py:523/1048 bounded loops). Activation immediate (qa.md is loaded at Q/A spawn; next Q/A spawn picks up new heuristics — though session-restart still required per CLAUDE.md agent-definition rule for frontmatter changes; this cycle changes body content only, so activation may be earlier than session restart on some Claude Code versions)."
+            "live_check": "live_check_29.4.md captures verbatim diff of the 3 new/enhanced rows + 3 negation bullets + cited file:line anchors (memory.py:23-54 seeds; multi_agent_orchestrator.py:985 safe-pattern; run_harness.py:1111 + multi_agent_orchestrator.py:523/1048 bounded loops). Activation immediate (qa.md is loaded at Q/A spawn; next Q/A spawn picks up new heuristics \u2014 though session-restart still required per CLAUDE.md agent-definition rule for frontmatter changes; this cycle changes body content only, so activation may be earlier than session restart on some Claude Code versions)."
           },
           "retry_count": 0,
           "max_retries": 3
@@ -10743,7 +10743,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 §1.1 + §P1 #5 + phase-29.5 research_brief.md (8 sources read in full, gate_passed=true). Concrete numerical anchors from Google Deep Research Max (Apr 21 2026, ~160 queries / ~900K tokens / 10-20 min). Anthropic multi-agent research blog 1/3-5/10+ tool-call scaling rule + 'more than 10 subagents' for complex research. Multi-pass rationale validated by DeepSearchQA (arXiv:2601.20975) n=1->n=8 sampling lifting 67%->86% accuracy. Adversarial sourcing grounded in PIES bias taxonomy (arXiv:2601.22984 Anchor Effect + Homogeneity Bias) + devil's-advocate clinical study (PMC11615553, 0%->76% accuracy lift OR=3.49 p=.002). Cross-domain triangulation grounded in DRACO benchmark (arXiv:2602.11685v1, 21.6-pt Finance gap, +11.5 pts overall from richer context). Cost compatible with Claude Max flat-fee (~1 5-hour window per session, ~$300-500 API equivalent).",
+          "audit_basis": "phase-29.0 \u00a71.1 + \u00a7P1 #5 + phase-29.5 research_brief.md (8 sources read in full, gate_passed=true). Concrete numerical anchors from Google Deep Research Max (Apr 21 2026, ~160 queries / ~900K tokens / 10-20 min). Anthropic multi-agent research blog 1/3-5/10+ tool-call scaling rule + 'more than 10 subagents' for complex research. Multi-pass rationale validated by DeepSearchQA (arXiv:2601.20975) n=1->n=8 sampling lifting 67%->86% accuracy. Adversarial sourcing grounded in PIES bias taxonomy (arXiv:2601.22984 Anchor Effect + Homogeneity Bias) + devil's-advocate clinical study (PMC11615553, 0%->76% accuracy lift OR=3.49 p=.002). Cross-domain triangulation grounded in DRACO benchmark (arXiv:2602.11685v1, 21.6-pt Finance gap, +11.5 pts overall from richer context). Cost compatible with Claude Max flat-fee (~1 5-hour window per session, ~$300-500 API equivalent).",
           "verification": {
             "command": "grep -E '^\\|\\s*deep\\s*\\|' .claude/agents/researcher.md && grep -q 'at least 20 (typically 20-50)' .claude/agents/researcher.md && grep -q 'Pass 1: broad' .claude/agents/researcher.md && grep -q '\\[ADVERSARIAL\\]' .claude/agents/researcher.md && grep -q 'Cross-domain triangulation' .claude/agents/researcher.md && grep -q 'Multi-subagent fork option' .claude/agents/researcher.md && grep -q '`deep` gate check' .claude/agents/researcher.md",
             "success_criteria": [
@@ -10767,7 +10767,7 @@
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 §5 + phase-29.6 research_brief.md (6 sources read in full, gate_passed=true). Extract qa.md:210-439 (230 lines, code-review-heuristics block from phase-16.59) to .claude/skills/code-review-trading-domain/SKILL.md with `user-invocable: false` frontmatter; preload into Q/A via `skills:` YAML block-list in qa.md frontmatter. Naming: `code-review-trading-domain` (more accurate than phase-29.0 draft `code-review-heuristics` because content IS trading-domain-specific). Syntax confirmed: YAML block-list, NOT inline JSON-array. `disable-model-invocation` MUST be absent or false (true blocks preload). Body 230 lines (within 500-line ceiling). GitHub issue #29441 (team-spawned preload failure) does NOT apply — Q/A uses in-process Agent-tool dispatch from Main. Sources: code.claude.com/docs/en/skills + sub-agents docs + best-practices + Agent Skills overview + Anthropic engineering blog 'Equipping agents for the real world with Agent Skills'.",
+          "audit_basis": "phase-29.0 \u00a75 + phase-29.6 research_brief.md (6 sources read in full, gate_passed=true). Extract qa.md:210-439 (230 lines, code-review-heuristics block from phase-16.59) to .claude/skills/code-review-trading-domain/SKILL.md with `user-invocable: false` frontmatter; preload into Q/A via `skills:` YAML block-list in qa.md frontmatter. Naming: `code-review-trading-domain` (more accurate than phase-29.0 draft `code-review-heuristics` because content IS trading-domain-specific). Syntax confirmed: YAML block-list, NOT inline JSON-array. `disable-model-invocation` MUST be absent or false (true blocks preload). Body 230 lines (within 500-line ceiling). GitHub issue #29441 (team-spawned preload failure) does NOT apply \u2014 Q/A uses in-process Agent-tool dispatch from Main. Sources: code.claude.com/docs/en/skills + sub-agents docs + best-practices + Agent Skills overview + Anthropic engineering blog 'Equipping agents for the real world with Agent Skills'.",
           "verification": {
             "command": "test -f .claude/skills/code-review-trading-domain/SKILL.md && grep -q '^name: code-review-trading-domain' .claude/skills/code-review-trading-domain/SKILL.md && grep -q '^user-invocable: false' .claude/skills/code-review-trading-domain/SKILL.md && ! grep -q '^disable-model-invocation: true' .claude/skills/code-review-trading-domain/SKILL.md && grep -A1 '^skills:' .claude/agents/qa.md | grep -q '  - code-review-trading-domain' && grep -q 'code-review-trading-domain' .claude/agents/qa.md && [ $(wc -l < .claude/agents/qa.md) -le 225 ] && grep -q 'Dimension 5' .claude/skills/code-review-trading-domain/SKILL.md && grep -q 'rag-memory-poisoning' .claude/skills/code-review-trading-domain/SKILL.md && grep -q 'unbounded-llm-loop' .claude/skills/code-review-trading-domain/SKILL.md && grep -q 'BM25 corpus is not subject to Vec2Text' .claude/skills/code-review-trading-domain/SKILL.md",
             "success_criteria": [
@@ -10791,7 +10791,7 @@
           "harness_required": false,
           "priority": "P1",
           "depends_on_step": "29.0",
-          "audit_basis": "phase-29.0 experiment_results.md §1.3-1.4 + phase-29.7 research_brief.md (8 sources read in full, gate_passed=true). Fixes the binary-PDF skip pattern: researcher reflexively WebFetches arxiv.org/pdf/<id> and skips on 'Binary PDF, no text extracted'. New rule documents 3-step priority chain: (1) arxiv.org/html/<id>v<N> for TeX-source papers since Dec 1 2023 (~74% full, ~97% partial coverage per arXiv official stats); (2) ar5iv.labs.arxiv.org/html/<id> snapshot fallback through April 2026; (3) pdfplumber 0.11.9 CPU-only last-resort PDF→text (Finance F1=0.9568, Scientific F1=0.7644 per arXiv:2410.09871). pdfplumber NOT added to backend/requirements.txt — researcher-environment-only install per CPU-only / free constraint + 'no shipping research deps in prod' rule.",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a71.3-1.4 + phase-29.7 research_brief.md (8 sources read in full, gate_passed=true). Fixes the binary-PDF skip pattern: researcher reflexively WebFetches arxiv.org/pdf/<id> and skips on 'Binary PDF, no text extracted'. New rule documents 3-step priority chain: (1) arxiv.org/html/<id>v<N> for TeX-source papers since Dec 1 2023 (~74% full, ~97% partial coverage per arXiv official stats); (2) ar5iv.labs.arxiv.org/html/<id> snapshot fallback through April 2026; (3) pdfplumber 0.11.9 CPU-only last-resort PDF\u2192text (Finance F1=0.9568, Scientific F1=0.7644 per arXiv:2410.09871). pdfplumber NOT added to backend/requirements.txt \u2014 researcher-environment-only install per CPU-only / free constraint + 'no shipping research deps in prod' rule.",
           "verification": {
             "command": "grep -q '## PDF and arXiv paper fetching strategy' .claude/rules/research-gate.md && grep -q 'arxiv.org/html' .claude/rules/research-gate.md && grep -q 'ar5iv.labs.arxiv.org' .claude/rules/research-gate.md && grep -q 'pdfplumber' .claude/rules/research-gate.md && grep -q 'researcher environment' .claude/rules/research-gate.md && grep -q '### Never do' .claude/rules/research-gate.md",
             "success_criteria": [
@@ -10803,7 +10803,7 @@
               "never_do_block_present",
               "limitations_section_acknowledges_scanned_pdf_and_table_weakness"
             ],
-            "live_check": "live_check_29.7.md captures (a) pre/post line-count diff of research-gate.md (134 → 217), (b) a verbatim WebFetch test of arxiv.org/html/2402.08954v1 and ar5iv.labs.arxiv.org/html/2312.01700 (both confirmed working in this cycle's research), (c) a pdfplumber smoke-test recipe (operator runs post-restart). pdfplumber install is researcher-environment-only; this cycle does NOT install it globally."
+            "live_check": "live_check_29.7.md captures (a) pre/post line-count diff of research-gate.md (134 \u2192 217), (b) a verbatim WebFetch test of arxiv.org/html/2402.08954v1 and ar5iv.labs.arxiv.org/html/2312.01700 (both confirmed working in this cycle's research), (c) a pdfplumber smoke-test recipe (operator runs post-restart). pdfplumber install is researcher-environment-only; this cycle does NOT install it globally."
           },
           "retry_count": 0,
           "max_retries": 3
@@ -10815,7 +10815,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "29.7",
-          "audit_basis": "phase-29.0 experiment_results.md §7 P2 list (10 items). Each item is small but coherent only as a bundle; splitting into 10 sub-steps is overkill.",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a77 P2 list (10 items). Each item is small but coherent only as a bundle; splitting into 10 sub-steps is overkill.",
           "verification": {
             "command": "grep -L 'budget_tokens' backend/config/model_tiers.py && jq -e '.mcpServers.alpaca.alwaysLoad == true' .mcp.json && grep -q 'continueOnBlock' .claude/settings.json && grep -q 'OPENALEX_API_KEY' backend/.env.example",
             "success_criteria": [
@@ -10841,7 +10841,7 @@
           "harness_required": false,
           "priority": "P3",
           "depends_on_step": "29.8",
-          "audit_basis": "phase-29.0 experiment_results.md §7 P3 list (10 future-proofing items). Stress-test cycle is the most-load-bearing — without it, harness scaffolding is presumed-necessary forever.",
+          "audit_basis": "phase-29.0 experiment_results.md \u00a77 P3 list (10 future-proofing items). Stress-test cycle is the most-load-bearing \u2014 without it, harness scaffolding is presumed-necessary forever.",
           "verification": {
             "command": "grep -q 'stress-test' handoff/harness_log.md && grep -q 'Claude Mythos' backend/config/model_tiers.py",
             "success_criteria": [
@@ -12424,7 +12424,7 @@
         },
         {
           "id": "38.12",
-          "name": "Bump paper_cycle_max_seconds for Claude Code rail (expose in settings_api allow-list + raise default to 7200s) — unblocks 27.6",
+          "name": "Bump paper_cycle_max_seconds for Claude Code rail (expose in settings_api allow-list + raise default to 7200s) \u2014 unblocks 27.6",
           "status": "done",
           "harness_required": true,
           "priority": "P0",
@@ -13033,7 +13033,7 @@
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "44.1",
-          "audit_basis": "Per master_design Section 3.11: /Home self-violating h-full anti-pattern named at .claude/rules/frontend.md:23 + /signals had 52 LoC inline type coercion + no ARIA label on input + no recent-tickers UX. Per cycle 64 (2026-05-25): 7 of 9 code-side criteria CLOSED. Home: 6-KPI grid wrapped role=group + per-tile role=group + auto-aria-label; 5 of 6 tiles got Tailwind-SVG mini-sparklines + LiveBadge dots on NAV + Positions; lg:items-stretch + per-child h-full anti-pattern removed (replaced with lg:items-start per frontend-layout.md §4.5 option 2). Signals: useEnrichmentSignals hook extracted to lib/hooks (defensive pick() with typeof guards replaces 4 raw as-unknown-as casts), -52 LoC inline coercion, <label htmlFor> + aria-label on input, RecentTickerChips (last-5 LRU + dedupe + localStorage + WCAG 2.2 24px target-size; 11 vitest cases via in-memory localStorage shim), Sector+Macro dashboards moved into native <details> for level-3 progressive disclosure (NN/G ceiling-of-2 respected). 2 criteria deferred to operator Lighthouse (home_LCP_under_2_seconds + Lighthouse_a11y_at_least_95_on_both_pages). Researcher a578f3cfa9547464c (9 sources read in full, gate_passed=true). Q/A a95662f2b7fae2064 PASS (5/5 audits + 9/9 deterministic + ESLint clean + LLM judgment clean; zero violated_criteria). pytest backend 614/589 (zero new regressions), vitest 15/100 (+17 net). live_check_44.6.md captures full per-criterion verdict + operator runbook for closing remaining 2.",
+          "audit_basis": "Per master_design Section 3.11: /Home self-violating h-full anti-pattern named at .claude/rules/frontend.md:23 + /signals had 52 LoC inline type coercion + no ARIA label on input + no recent-tickers UX. Per cycle 64 (2026-05-25): 7 of 9 code-side criteria CLOSED. Home: 6-KPI grid wrapped role=group + per-tile role=group + auto-aria-label; 5 of 6 tiles got Tailwind-SVG mini-sparklines + LiveBadge dots on NAV + Positions; lg:items-stretch + per-child h-full anti-pattern removed (replaced with lg:items-start per frontend-layout.md \u00a74.5 option 2). Signals: useEnrichmentSignals hook extracted to lib/hooks (defensive pick() with typeof guards replaces 4 raw as-unknown-as casts), -52 LoC inline coercion, <label htmlFor> + aria-label on input, RecentTickerChips (last-5 LRU + dedupe + localStorage + WCAG 2.2 24px target-size; 11 vitest cases via in-memory localStorage shim), Sector+Macro dashboards moved into native <details> for level-3 progressive disclosure (NN/G ceiling-of-2 respected). 2 criteria deferred to operator Lighthouse (home_LCP_under_2_seconds + Lighthouse_a11y_at_least_95_on_both_pages). Researcher a578f3cfa9547464c (9 sources read in full, gate_passed=true). Q/A a95662f2b7fae2064 PASS (5/5 audits + 9/9 deterministic + ESLint clean + LLM judgment clean; zero violated_criteria). pytest backend 614/589 (zero new regressions), vitest 15/100 (+17 net). live_check_44.6.md captures full per-criterion verdict + operator runbook for closing remaining 2.",
           "verification": {
             "command": "test -f handoff/current/live_check_44.6.md",
             "success_criteria": [
@@ -14710,7 +14710,7 @@
           },
           "retry_count": 0,
           "max_retries": 3,
-          "audit_note": "phase-76 audit (wf_51a301b9-664, 2026-07-23): this step also owns two operator-reported symptoms -- (R1b) the /reports blank 30-day trend sparkline: get_recent_reports dedups to one row/ticker (ROW_NUMBER ... WHERE rk=1, bigquery_client.py ~:269) but the sparkline (reports-columns.tsx buildTickerHistory ~:138 + MiniSparkSVG ~:22) needs >=2 rows/ticker, so it ALWAYS renders '—'; give the trend column a NON-deduped per-ticker score series. (R4-reconciliation) the empty RECONCILIATION DIVERGENCES section: a STRING created_at >= TIMESTAMP comparison throws a swallowed BQ 400 at paper_trading.py ~:822 (SAFE_CAST + windowing fix)."
+          "audit_note": "phase-76 audit (wf_51a301b9-664, 2026-07-23): this step also owns two operator-reported symptoms -- (R1b) the /reports blank 30-day trend sparkline: get_recent_reports dedups to one row/ticker (ROW_NUMBER ... WHERE rk=1, bigquery_client.py ~:269) but the sparkline (reports-columns.tsx buildTickerHistory ~:138 + MiniSparkSVG ~:22) needs >=2 rows/ticker, so it ALWAYS renders '\u2014'; give the trend column a NON-deduped per-ticker score series. (R4-reconciliation) the empty RECONCILIATION DIVERGENCES section: a STRING created_at >= TIMESTAMP comparison throws a swallowed BQ 400 at paper_trading.py ~:822 (SAFE_CAST + windowing fix)."
         },
         {
           "id": "61.5",
@@ -16393,7 +16393,7 @@
         {
           "id": "73.1.1",
           "status": "pending",
-          "name": "Build L1 -- purge regression test [executor: sonnet-4.6/high]. Per design_pack_73/a_leakage_integrity.md §1: net-new tests (truth-table on _label_overlaps_test incl. s==te / label_end==ts boundaries; property test zero-overlap-survives; integration guard on _build_training_data purged_count + max retained label_end < test_start; horizon invariant int(holding_days*1.5) >= vertical_barrier_days). Documents the shipped phase-69.2 purge as a named invariant. $0, no LLM, no behavior change.",
+          "name": "Build L1 -- purge regression test [executor: sonnet-4.6/high]. Per design_pack_73/a_leakage_integrity.md \u00a71: net-new tests (truth-table on _label_overlaps_test incl. s==te / label_end==ts boundaries; property test zero-overlap-survives; integration guard on _build_training_data purged_count + max retained label_end < test_start; horizon invariant int(holding_days*1.5) >= vertical_barrier_days). Documents the shipped phase-69.2 purge as a named invariant. $0, no LLM, no behavior change.",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "73.1",
@@ -16412,7 +16412,7 @@
         {
           "id": "73.1.2",
           "status": "pending",
-          "name": "Build L2 -- post-knowledge-cutoff eval harness [executor: sonnet-4.6/high]. Per design §2: MODEL_CUTOFFS registry in config/model_tiers.py (operator-sourced dates; unknown -> None = all history suspect), eval-window selector (trusted_start = max backbone cutoff + buffer), window labeling per New Quant §7.1; governs ONLY the live LLM signal-promotion path (quant-only GBM backtest exempt). $0.",
+          "name": "Build L2 -- post-knowledge-cutoff eval harness [executor: sonnet-4.6/high]. Per design \u00a72: MODEL_CUTOFFS registry in config/model_tiers.py (operator-sourced dates; unknown -> None = all history suspect), eval-window selector (trusted_start = max backbone cutoff + buffer), window labeling per New Quant \u00a77.1; governs ONLY the live LLM signal-promotion path (quant-only GBM backtest exempt). $0.",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "73.1",
@@ -16431,7 +16431,7 @@
         {
           "id": "73.1.3",
           "status": "pending",
-          "name": "Build L3 -- counterfactual-audit PC pilot [executor: opus-4.8/xhigh; METERED PILOT -- requires operator LLM-cost approval BEFORE first spend]. Per design §3: FactFin PC-only v1 (text-outputs, Claude-compatible): M perturbed-context re-runs of the candidate decision agent (news strong<->weak swap + numeric Gaussian noise), PC = fraction unchanged; LOCAL cutoff calibrated on our own perturbation set (NO paper threshold exists -- Table-5 anchors leaky PC~0.62 vs clean PC~0.31); hard-cap M=20 (~$0.05-0.10/candidate on metered Haiku); CI/IDS deferred to v2. Executor MUST first resolve the data-gap: which rail the perturbed re-runs actually hit (metered vs Max) -- if metered, obtain the operator token; promotion-time bolt-on at gate.py, REJECT on calibrated-high PC.",
+          "name": "Build L3 -- counterfactual-audit PC pilot [executor: opus-4.8/xhigh; METERED PILOT -- requires operator LLM-cost approval BEFORE first spend]. Per design \u00a73: FactFin PC-only v1 (text-outputs, Claude-compatible): M perturbed-context re-runs of the candidate decision agent (news strong<->weak swap + numeric Gaussian noise), PC = fraction unchanged; LOCAL cutoff calibrated on our own perturbation set (NO paper threshold exists -- Table-5 anchors leaky PC~0.62 vs clean PC~0.31); hard-cap M=20 (~$0.05-0.10/candidate on metered Haiku); CI/IDS deferred to v2. Executor MUST first resolve the data-gap: which rail the perturbed re-runs actually hit (metered vs Max) -- if metered, obtain the operator token; promotion-time bolt-on at gate.py, REJECT on calibrated-high PC.",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "73.1",
@@ -16450,7 +16450,7 @@
         {
           "id": "73.1.4",
           "status": "pending",
-          "name": "Build L4 -- CPCV robustness complement [executor: sonnet-4.6/high]. Per design §4: wire cpcv_folds (gate.py:42, currently unused) into a NEW sibling path in strategy_backtest_adapter replaying STORED prices across phi=C(N,k)*k/N paths with purge+embargo per fold (reuse _label_overlaps_test); emit OOS-Sharpe distribution (mean/std/worst-path/%paths>0) ALONGSIDE the existing K-variant CSCV PBO scalar; gate.py byte-unchanged; build under the macro freeze, validate the distribution at un-freeze. $0.",
+          "name": "Build L4 -- CPCV robustness complement [executor: sonnet-4.6/high]. Per design \u00a74: wire cpcv_folds (gate.py:42, currently unused) into a NEW sibling path in strategy_backtest_adapter replaying STORED prices across phi=C(N,k)*k/N paths with purge+embargo per fold (reuse _label_overlaps_test); emit OOS-Sharpe distribution (mean/std/worst-path/%paths>0) ALONGSIDE the existing K-variant CSCV PBO scalar; gate.py byte-unchanged; build under the macro freeze, validate the distribution at un-freeze. $0.",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "73.1",
@@ -16487,7 +16487,7 @@
         {
           "id": "73.2.1",
           "status": "pending",
-          "name": "Build M1 -- learn-loop crash-fix + observability [executor: sonnet-4.6/high]. Per design_pack_73/b_learn_loop_v2.md §1 + deadness stack: type+tz normalize inside evaluate_recommendation (outcome_tracker.py:47-50, mirror sibling :100-111 verbatim -- covers BOTH the TYPE leg (:137 raw datetime) and the TZ leg (live created_at.isoformat)); ValueError guard with graceful skip; live dispatcher prefers created_at over analysis_id; raise the :3050 debug swallow to warning + summary['learn_failures'] counter. Also fix DC4 (model=None kills reflections on periodic paths) per design. $0, no behavior change while paper_learn_loop_enabled stays False (operator's flag).",
+          "name": "Build M1 -- learn-loop crash-fix + observability [executor: sonnet-4.6/high]. Per design_pack_73/b_learn_loop_v2.md \u00a71 + deadness stack: type+tz normalize inside evaluate_recommendation (outcome_tracker.py:47-50, mirror sibling :100-111 verbatim -- covers BOTH the TYPE leg (:137 raw datetime) and the TZ leg (live created_at.isoformat)); ValueError guard with graceful skip; live dispatcher prefers created_at over analysis_id; raise the :3050 debug swallow to warning + summary['learn_failures'] counter. Also fix DC4 (model=None kills reflections on periodic paths) per design. $0, no behavior change while paper_learn_loop_enabled stays False (operator's flag).",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "73.2",
@@ -16506,7 +16506,7 @@
         {
           "id": "73.2.2",
           "status": "pending",
-          "name": "Build M2 -- reflection-on-close + additive BQ migration [executor: sonnet-4.6/high]. Per design §2+§5: realized SELL-trade fields become the PRIMARY reflection input (rolling yfinance mark demoted to fallback -- fixes DC5); reflection prompt extended (entry/exit/exit_reason/realized_pnl_pct/holding_days/original thesis); trim reflection fan-out 4->1-2 per close (BM25 corpus hygiene); idempotency via source_trade_id dedup; ONE additive nullable migration in scripts/migrations/ adding {evidence_source_family, abs_pnl_pct, source_trade_id} to agent_memories (metadata-only, $0, zero backfill). Outcome-Embargo preserved by construction. Reflections fire only when the operator flips paper_learn_loop_enabled (dark-until-token).",
+          "name": "Build M2 -- reflection-on-close + additive BQ migration [executor: sonnet-4.6/high]. Per design \u00a72+\u00a75: realized SELL-trade fields become the PRIMARY reflection input (rolling yfinance mark demoted to fallback -- fixes DC5); reflection prompt extended (entry/exit/exit_reason/realized_pnl_pct/holding_days/original thesis); trim reflection fan-out 4->1-2 per close (BM25 corpus hygiene); idempotency via source_trade_id dedup; ONE additive nullable migration in scripts/migrations/ adding {evidence_source_family, abs_pnl_pct, source_trade_id} to agent_memories (metadata-only, $0, zero backfill). Outcome-Embargo preserved by construction. Reflections fire only when the operator flips paper_learn_loop_enabled (dark-until-token).",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "73.2",
@@ -16525,7 +16525,7 @@
         {
           "id": "73.2.3",
           "status": "pending",
-          "name": "Build M3 -- decay re-rank + two-stage retrieval injection [executor: sonnet-4.6/high]. Per design §3+§4: multiplicative composite bm25_norm * exp(-d/90) * importance_mult (single Q=90d half-life -- decision of record; importance bump from abs_pnl_pct) with the reorder happening BEFORE the top-k slice (memory.py:116-118 fix); two-stage gate: relevance floor (memory.py:123, >0.1) FIRST, decay/importance rerank WITHIN survivors, THEN top-k=2; injection seams unchanged (orchestrator.py:2102-2114 debate, :2255-2269 risk judge; ~250-350 tok/agent budget held). $0, no embeddings, no new deps.",
+          "name": "Build M3 -- decay re-rank + two-stage retrieval injection [executor: sonnet-4.6/high]. Per design \u00a73+\u00a74: multiplicative composite bm25_norm * exp(-d/90) * importance_mult (single Q=90d half-life -- decision of record; importance bump from abs_pnl_pct) with the reorder happening BEFORE the top-k slice (memory.py:116-118 fix); two-stage gate: relevance floor (memory.py:123, >0.1) FIRST, decay/importance rerank WITHIN survivors, THEN top-k=2; injection seams unchanged (orchestrator.py:2102-2114 debate, :2255-2269 risk judge; ~250-350 tok/agent budget held). $0, no embeddings, no new deps.",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "73.2",
@@ -16562,7 +16562,7 @@
         {
           "id": "73.3.1",
           "status": "pending",
-          "name": "Build C1 -- conviction->outcome pairs pipeline + calibration module [executor: sonnet-4.6/high]. Per design_pack_73/c_calibrated_sizing.md §1+§2+§5: vote-share reduction over persisted analysis_results confidence columns (clipped [0,1]; single-backbone caveat documented); pairs snapshot into paper_trades.signals JSON (zero migration) + the retro-backfill join (paper_round_trips.buy_trade_id -> paper_trades -> analysis_results; pre-72.0.1 meta-conviction flagged is_pre_reroute); new backend/services/conviction_calibration.py -- 2-bucket empirical-Bayes Beta-Binomial map (prior p0-centered, kappa 20-40; Jeffreys fallback), Wilson/posterior LOWER-bound per bucket, nightly batch recompute, scalar clip(lb/p0, s_min, s_max). Pipeline runs from day one; NO sizing effect (the scalar is computed + logged only until 73.3.2's flag exists AND the operator flips it).",
+          "name": "Build C1 -- conviction->outcome pairs pipeline + calibration module [executor: sonnet-4.6/high]. Per design_pack_73/c_calibrated_sizing.md \u00a71+\u00a72+\u00a75: vote-share reduction over persisted analysis_results confidence columns (clipped [0,1]; single-backbone caveat documented); pairs snapshot into paper_trades.signals JSON (zero migration) + the retro-backfill join (paper_round_trips.buy_trade_id -> paper_trades -> analysis_results; pre-72.0.1 meta-conviction flagged is_pre_reroute); new backend/services/conviction_calibration.py -- 2-bucket empirical-Bayes Beta-Binomial map (prior p0-centered, kappa 20-40; Jeffreys fallback), Wilson/posterior LOWER-bound per bucket, nightly batch recompute, scalar clip(lb/p0, s_min, s_max). Pipeline runs from day one; NO sizing effect (the scalar is computed + logged only until 73.3.2's flag exists AND the operator flips it).",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "73.3",
@@ -16581,7 +16581,7 @@
         {
           "id": "73.3.2",
           "status": "pending",
-          "name": "Build C2 -- sizing-seam scalar integration, flag-gated dark [executor: sonnet-4.6/high]. Per design §3+§4: position_pct *= calib_scalar(cand) at portfolio_manager.py:388-392 BEFORE target_amount; flag paper_calibrated_sizing_enabled default False -> scalar hard-coded 1.0 -> byte-identical legacy (phase-69.3 pattern); every existing cap ($50 floor :396, cash :393, sector-NAV :406-422, FF3 :427-438, count :349) verified strictly downstream and the binding RiskJudge REJECT strictly upstream (property-tested non-bypassable). A/B promotion evidence per design §4: calibrated vs uniform on identical signals (replay + paper A/B), Brier + net P&L + maxDD, consistent with the immutable DSR/PBO gates; activation stays operator-owned dark-until-token AND data-gated (~100-150 closed trips per the design's math). s_max choice (1.0 defensive vs 1.25-1.5) is surfaced to the operator decision sheet -- the executor implements whichever the operator tokens, defaulting to the defensive 1.0 if unspecified.",
+          "name": "Build C2 -- sizing-seam scalar integration, flag-gated dark [executor: sonnet-4.6/high]. Per design \u00a73+\u00a74: position_pct *= calib_scalar(cand) at portfolio_manager.py:388-392 BEFORE target_amount; flag paper_calibrated_sizing_enabled default False -> scalar hard-coded 1.0 -> byte-identical legacy (phase-69.3 pattern); every existing cap ($50 floor :396, cash :393, sector-NAV :406-422, FF3 :427-438, count :349) verified strictly downstream and the binding RiskJudge REJECT strictly upstream (property-tested non-bypassable). A/B promotion evidence per design \u00a74: calibrated vs uniform on identical signals (replay + paper A/B), Brier + net P&L + maxDD, consistent with the immutable DSR/PBO gates; activation stays operator-owned dark-until-token AND data-gated (~100-150 closed trips per the design's math). s_max choice (1.0 defensive vs 1.25-1.5) is surfaced to the operator decision sheet -- the executor implements whichever the operator tokens, defaulting to the defensive 1.0 if unspecified.",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "73.3",
@@ -16618,7 +16618,7 @@
         {
           "id": "73.4.1",
           "status": "pending",
-          "name": "Build P1 -- net-of-cost DSR + cost-per-bp reporting [executor: sonnet-4.6/high]. Per design_pack_73/d_cost_promotion.md §1+§2: SEAM B net series r_net[t] = r_gross[t] - (tx + slippage + token_cost)/NAV_{t-1} into the EXISTING perf_metrics.compute_dsr first arg (all_trial_sharpes/n_trials untouched; gate.py byte-identical); SEAM A gets ONLY the optional slippage haircut (the GBM backtest is already tx-net with zero token cost -- do NOT fabricate); log BOTH dsr_gross and dsr_net for >=1 transition window, promote on dsr_net; per-decision cost-per-bp row per the §2 minimum shape with the three gauge-safe token-cost derivations (NEVER SUM session_cost_usd) and the None-on-zero guard. $0, no new LLM calls.",
+          "name": "Build P1 -- net-of-cost DSR + cost-per-bp reporting [executor: sonnet-4.6/high]. Per design_pack_73/d_cost_promotion.md \u00a71+\u00a72: SEAM B net series r_net[t] = r_gross[t] - (tx + slippage + token_cost)/NAV_{t-1} into the EXISTING perf_metrics.compute_dsr first arg (all_trial_sharpes/n_trials untouched; gate.py byte-identical); SEAM A gets ONLY the optional slippage haircut (the GBM backtest is already tx-net with zero token cost -- do NOT fabricate); log BOTH dsr_gross and dsr_net for >=1 transition window, promote on dsr_net; per-decision cost-per-bp row per the \u00a72 minimum shape with the three gauge-safe token-cost derivations (NEVER SUM session_cost_usd) and the None-on-zero guard. $0, no new LLM calls.",
           "harness_required": true,
           "priority": "P1",
           "depends_on_step": "73.4",
@@ -16637,7 +16637,7 @@
         {
           "id": "73.4.2",
           "status": "pending",
-          "name": "Build P2 -- PBO nested-gate policy documentation [executor: sonnet-4.6/high, DOCS-ONLY]. Per design §3: document the census (gate.py:21 max_pbo=0.20 promotion bar; risk_server.py:28 DEFAULT_PBO_VETO_THRESHOLD=0.5 per-candidate veto cap; adapter produces-only) as NESTED gates on different objects in ARCHITECTURE.md (MADR beside Research Gate Discipline) + a one-line cross-ref in .claude/rules/backend-backtest.md; RECOMMEND-ONLY suggestion for the operator to annotate the charter memory ('0.5 = veto cap; 0.20 = promotion gate') -- the executor never edits the operator-owned memory file. Zero code, zero threshold changes.",
+          "name": "Build P2 -- PBO nested-gate policy documentation [executor: sonnet-4.6/high, DOCS-ONLY]. Per design \u00a73: document the census (gate.py:21 max_pbo=0.20 promotion bar; risk_server.py:28 DEFAULT_PBO_VETO_THRESHOLD=0.5 per-candidate veto cap; adapter produces-only) as NESTED gates on different objects in ARCHITECTURE.md (MADR beside Research Gate Discipline) + a one-line cross-ref in .claude/rules/backend-backtest.md; RECOMMEND-ONLY suggestion for the operator to annotate the charter memory ('0.5 = veto cap; 0.20 = promotion gate') -- the executor never edits the operator-owned memory file. Zero code, zero threshold changes.",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "73.4",
@@ -16674,7 +16674,7 @@
         {
           "id": "73.5.1",
           "status": "pending",
-          "name": "Build B1 -- champion-bridge, narrowed + dark [executor: sonnet-4.6/high]. Per design_pack_73/e_pilot_verdicts.md §1: new flag paper_champion_bridge_enabled=False (phase-69.3 byte-identical pattern); apply_champion_params overlay at the decide_trades injection point (autonomous_loop.py:1406-1414) writing ONLY the mapped live-consumed keys -- v1 = max_positions->paper_max_positions, DEFERRING to any live risk_overrides value (operator wins, never clobber); sl_pct->paper_default_stop_loss_pct and trailing_*->paper_trailing_stop_pct ONLY behind explicit opt-in sub-flags (semantic caveats: they move the R unit / HWM base); NEVER-BRIDGE list enforced in code (tp_pct/holding_days/target_annual_vol/strategy/training+GBM+date keys); reads via existing load_promoted_params, no new BQ surface. $0, no deps. Live-flip stays gated on the operator's HISTORICAL MACRO UNFREEZE: CHAMPION-VALIDATION-BATCH token + its validation plan (purged revalidation, CPCV distribution, champion-vs-incumbent OOS, net-of-cost DSR -- immutable gates as pass bars).",
+          "name": "Build B1 -- champion-bridge, narrowed + dark [executor: sonnet-4.6/high]. Per design_pack_73/e_pilot_verdicts.md \u00a71: new flag paper_champion_bridge_enabled=False (phase-69.3 byte-identical pattern); apply_champion_params overlay at the decide_trades injection point (autonomous_loop.py:1406-1414) writing ONLY the mapped live-consumed keys -- v1 = max_positions->paper_max_positions, DEFERRING to any live risk_overrides value (operator wins, never clobber); sl_pct->paper_default_stop_loss_pct and trailing_*->paper_trailing_stop_pct ONLY behind explicit opt-in sub-flags (semantic caveats: they move the R unit / HWM base); NEVER-BRIDGE list enforced in code (tp_pct/holding_days/target_annual_vol/strategy/training+GBM+date keys); reads via existing load_promoted_params, no new BQ surface. $0, no deps. Live-flip stays gated on the operator's HISTORICAL MACRO UNFREEZE: CHAMPION-VALIDATION-BATCH token + its validation plan (purged revalidation, CPCV distribution, champion-vs-incumbent OOS, net-of-cost DSR -- immutable gates as pass bars).",
           "harness_required": true,
           "priority": "P2",
           "depends_on_step": "73.5",
@@ -17971,18 +17971,18 @@
         {
           "id": "75.20",
           "status": "done",
-          "name": "Audit75 S20 -- make the Q/A live-UI gate enforceable AND make the primary Q/A path actually read-only [executor: opus-4.8/xhigh; BOUNDARY: harness config only, no product code; SEPARATION OF DUTIES -- edits .claude/agents/qa.md + .mcp.json + .claude/settings.json, so per CLAUDE.md the authoring session must not self-evaluate work depending on it, and agent-file changes need a session restart (roster snapshot) before they bind]. Assessment 2026-07-20 (research_brief_playwright_qa.md, plus a live capability probe) found the qa.md §1c BINDING live-UI gate is UNENFORCEABLE on the Agent-tool path and the primary path is UNRESTRICTED -- the opposite problems on the two launch paths. FACTS: (1) commit d97cf30b added the 20-line §1c gate but never touched qa.md's `tools:` line, so the Agent-tool `qa` subagent (tools: Read, Bash, Glob, Grep, SendMessage) structurally cannot call browser_navigate and can only read a capture MAIN produced -- the author supplying the evaluator's evidence, which is what the gate exists to prevent. (2) ZERO of 1,230 subagent transcripts contain a single mcp__playwright__* tool_use; all 51 real Playwright calls in project history came from Main. (3) The PRIMARY path (.claude/workflows/qa-verdict.js:111-118) launches agentType:'general-purpose' with NO tools argument; a live probe confirms such an agent inherits the FULL MCP surface (playwright, bigquery) plus Edit, Write and Bash -- so our evaluator's read-only-ness and no-self-eval guarantee are enforced by PROMPT TEXT ONLY, not by the permission system, under defaultMode bypassPermissions with zero playwright/browser deny rules among 23. (4) @playwright/mcp@0.0.76 exposes 23 tools, only 6 readOnlyHint:true, including browser_run_code_unsafe (documented upstream as RCE-equivalent); --caps is additive-only so there is no server-side read-only mode; a naive ToolSearch 'playwright browser' query surfaced browser_run_code_unsafe and browser_click in its top 5 while MISSING browser_navigate and browser_snapshot, so tool fetching must use the deterministic select: form. (5) .mcp.json:73 pins a FIXED --user-data-dir; the vendor documents that a persistent profile serves one browser instance at a time and concurrent clients conflict, and --isolated (present in 0.0.76) costs nothing here because the capture workflow is auth-bypassed on :3100. Anthropic's canonical harness-design doc supports the direction verbatim -- it gave its evaluator Playwright MCP to navigate the live page rather than 'scoring a static screenshot', which is precisely our current design. Work: grant Q/A a NAMED read-only browser subset; deny the mutation/RCE tools explicitly; constrain rather than expand the primary path; add --isolated; keep dev-server lifecycle with Main (Q/A observes, never starts or kills servers -- rules/frontend.md steps 1/3/5 remain Main's).",
+          "name": "Audit75 S20 -- make the Q/A live-UI gate enforceable AND make the primary Q/A path actually read-only [executor: opus-4.8/xhigh; BOUNDARY: harness config only, no product code; SEPARATION OF DUTIES -- edits .claude/agents/qa.md + .mcp.json + .claude/settings.json, so per CLAUDE.md the authoring session must not self-evaluate work depending on it, and agent-file changes need a session restart (roster snapshot) before they bind]. Assessment 2026-07-20 (research_brief_playwright_qa.md, plus a live capability probe) found the qa.md \u00a71c BINDING live-UI gate is UNENFORCEABLE on the Agent-tool path and the primary path is UNRESTRICTED -- the opposite problems on the two launch paths. FACTS: (1) commit d97cf30b added the 20-line \u00a71c gate but never touched qa.md's `tools:` line, so the Agent-tool `qa` subagent (tools: Read, Bash, Glob, Grep, SendMessage) structurally cannot call browser_navigate and can only read a capture MAIN produced -- the author supplying the evaluator's evidence, which is what the gate exists to prevent. (2) ZERO of 1,230 subagent transcripts contain a single mcp__playwright__* tool_use; all 51 real Playwright calls in project history came from Main. (3) The PRIMARY path (.claude/workflows/qa-verdict.js:111-118) launches agentType:'general-purpose' with NO tools argument; a live probe confirms such an agent inherits the FULL MCP surface (playwright, bigquery) plus Edit, Write and Bash -- so our evaluator's read-only-ness and no-self-eval guarantee are enforced by PROMPT TEXT ONLY, not by the permission system, under defaultMode bypassPermissions with zero playwright/browser deny rules among 23. (4) @playwright/mcp@0.0.76 exposes 23 tools, only 6 readOnlyHint:true, including browser_run_code_unsafe (documented upstream as RCE-equivalent); --caps is additive-only so there is no server-side read-only mode; a naive ToolSearch 'playwright browser' query surfaced browser_run_code_unsafe and browser_click in its top 5 while MISSING browser_navigate and browser_snapshot, so tool fetching must use the deterministic select: form. (5) .mcp.json:73 pins a FIXED --user-data-dir; the vendor documents that a persistent profile serves one browser instance at a time and concurrent clients conflict, and --isolated (present in 0.0.76) costs nothing here because the capture workflow is auth-bypassed on :3100. Anthropic's canonical harness-design doc supports the direction verbatim -- it gave its evaluator Playwright MCP to navigate the live page rather than 'scoring a static screenshot', which is precisely our current design. Work: grant Q/A a NAMED read-only browser subset; deny the mutation/RCE tools explicitly; constrain rather than expand the primary path; add --isolated; keep dev-server lifecycle with Main (Q/A observes, never starts or kills servers -- rules/frontend.md steps 1/3/5 remain Main's).",
           "harness_required": true,
           "priority": "P2",
           "verification": {
             "command": "python3 -c \"import json; qa=open('.claude/agents/qa.md').read(); assert 'mcp__playwright__browser_navigate' in qa and 'mcp__playwright__browser_snapshot' in qa, 'read-only browser subset not granted'; assert 'browser_run_code_unsafe' not in qa.split('tools:')[1].split(chr(10))[0], 'RCE tool granted in tools line'; m=json.load(open('.mcp.json')); pw=m['mcpServers']['playwright']; assert '--isolated' in pw['args'] or any('user-data-dir' in str(a) and 'profile' not in str(a) for a in pw['args']), 'shared-profile concurrency hazard unfixed'; s=json.load(open('.claude/settings.json')); deny=' '.join(str(d) for d in s['permissions'].get('deny',[])); assert 'browser_run_code_unsafe' in deny and 'browser_evaluate' in deny, 'mutation browser tools not denied'\"",
             "success_criteria": [
-              "qa.md's tools line grants EXACTLY the read-only browser subset needed by §1c (browser_navigate, browser_snapshot, browser_take_screenshot, plus at most browser_console_messages/browser_network_requests/browser_resize) and grants NO mutation tool; a test asserts browser_run_code_unsafe, browser_evaluate, browser_click, browser_type and browser_fill_form are absent from the grant",
+              "qa.md's tools line grants EXACTLY the read-only browser subset needed by \u00a71c (browser_navigate, browser_snapshot, browser_take_screenshot, plus at most browser_console_messages/browser_network_requests/browser_resize) and grants NO mutation tool; a test asserts browser_run_code_unsafe, browser_evaluate, browser_click, browser_type and browser_fill_form are absent from the grant",
               ".claude/settings.json carries explicit deny rules for the playwright mutation/RCE tools so the restriction survives the primary Workflow path too, which inherits tools rather than declaring them -- defense in depth under defaultMode bypassPermissions",
               "The primary path is CONSTRAINED, not expanded: qa-verdict.js (or its agent definition) no longer leaves the evaluator with unrestricted Edit/Write/Bash plus the full MCP surface; the read-only property Q/A claims is enforced by configuration, and a probe recorded in the live_check demonstrates the restriction actually binds rather than being asserted",
               ".mcp.json's playwright server no longer shares a fixed persistent profile across concurrent clients (--isolated or a per-client user-data-dir), and the live_check records the vendor citation plus a demonstration that two concurrent clients no longer contend",
               "qa.md instructs the deterministic select: ToolSearch form for fetching browser tools, and states that dev-server lifecycle (start :3100, kill it, verify :3000) remains MAIN's responsibility -- Q/A observes an already-running instance and never starts or kills a server",
-              "§1c is updated to say the capture must be taken BY the evaluator when the path allows it, with reading a Main-produced capture named as the explicitly-degraded fallback; harness_log carries the operator-review request for the qa.md edit and the next session verifies the new roster is live per scripts/qa/verify_qa_roster_live.sh"
+              "\u00a71c is updated to say the capture must be taken BY the evaluator when the path allows it, with reading a Main-produced capture named as the explicitly-degraded fallback; harness_log carries the operator-review request for the qa.md edit and the next session verifies the new roster is live per scripts/qa/verify_qa_roster_live.sh"
             ],
             "live_check": "handoff/current/live_check_75.20.md: verbatim verification command output (exit 0) + git diff --stat + a recorded probe showing the Q/A path's tool surface BEFORE and AFTER (proving the restriction binds) + a concurrency demonstration for the profile fix + the roster-live confirmation after restart."
           },
@@ -18019,7 +18019,7 @@
         {
           "id": "76.1",
           "status": "pending",
-          "name": "SYMPTOM: the Tokens and Deep Think columns on /performance render blank ('—') for every autonomous-cycle row. MEASURED ROOT CAUSE (NULL-at-source, not display): BQ financial_reports.analysis_results since analysis_date>=2026-05-01 has total_rows=402, total_cost_usd non-null=402, but total_tokens non-null=2 and deep_think_calls non-null=2 (only the 2 manual-UI rows are populated). The autonomous persist path _persist_analysis (backend/services/autonomous_loop.py, def at ~:2801, bq.save_report(...) call ~:2837-2865) passes ticker/company_name/final_score/recommendation/summary/full_report/price/.../total_cost_usd/standard_model but NEVER passes total_tokens or deep_think_calls, so save_report's Optional[int]=None defaults (backend/db/bigquery_client.py ~:104,:106) write NULL. The full-path payload build (~:1910) also omits the token fields and hardcodes total_cost_usd fallback 0.1. The manual path tasks/analysis.py (~:278-280) passes all three, which is why exactly 2/402 are non-null. The read query (bigquery_client.py ~:364) and frontend (frontend/src/app/performance/page.tsx ~:410-421) already handle the fields correctly. BOUNDED FIX: add total_tokens + deep_think_calls to the full-path payload dict (~:1910, sourced from report['cost_summary']) and forward them through the bq.save_report(...) call in _persist_analysis (~:2863), mirroring tasks/analysis.py:278-280; stop hardcoding total_cost_usd=0.1 when cost_summary carries a real value. Historical-row backfill is OUT of scope. RE-DERIVE all current line numbers (anchors are as-of-audit 2026-07-23). [executor: opus-4.8/xhigh]",
+          "name": "SYMPTOM: the Tokens and Deep Think columns on /performance render blank ('\u2014') for every autonomous-cycle row. MEASURED ROOT CAUSE (NULL-at-source, not display): BQ financial_reports.analysis_results since analysis_date>=2026-05-01 has total_rows=402, total_cost_usd non-null=402, but total_tokens non-null=2 and deep_think_calls non-null=2 (only the 2 manual-UI rows are populated). The autonomous persist path _persist_analysis (backend/services/autonomous_loop.py, def at ~:2801, bq.save_report(...) call ~:2837-2865) passes ticker/company_name/final_score/recommendation/summary/full_report/price/.../total_cost_usd/standard_model but NEVER passes total_tokens or deep_think_calls, so save_report's Optional[int]=None defaults (backend/db/bigquery_client.py ~:104,:106) write NULL. The full-path payload build (~:1910) also omits the token fields and hardcodes total_cost_usd fallback 0.1. The manual path tasks/analysis.py (~:278-280) passes all three, which is why exactly 2/402 are non-null. The read query (bigquery_client.py ~:364) and frontend (frontend/src/app/performance/page.tsx ~:410-421) already handle the fields correctly. BOUNDED FIX: add total_tokens + deep_think_calls to the full-path payload dict (~:1910, sourced from report['cost_summary']) and forward them through the bq.save_report(...) call in _persist_analysis (~:2863), mirroring tasks/analysis.py:278-280; stop hardcoding total_cost_usd=0.1 when cost_summary carries a real value. Historical-row backfill is OUT of scope. RE-DERIVE all current line numbers (anchors are as-of-audit 2026-07-23). [executor: opus-4.8/xhigh]",
           "harness_required": true,
           "priority": "P2",
           "verification": {
@@ -18283,6 +18283,47 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "76.9.4",
+          "status": "pending",
+          "name": "76.9.3 follow-up -- the autoresearch dependency manifest is governed by NOTHING: its packages are absent from backend/requirements.lock AND from every pip-audit scan target [executor: sonnet-4.6/high; BOUNDARY: backend/requirements.lock + .github/workflows/pip-audit.yml + tests; do NOT change application code]. MEASURED 2026-07-25 (independently reproduced by the 76.9.3 Q/A and by Main): (1) backend/requirements.lock is a `pip freeze` snapshot of THIS shared .venv -- it carries the autoresearch closure (duckduckgo_search==8.1.1 at :76, gpt-researcher==0.14.8 at :104, primp==1.2.2 at :209, sentence-transformers==5.5.1 at :263) -- and its own header declares it 'the DEPLOYED graph that .github/workflows/pip-audit.yml scans and that a fresh install should reproduce byte-for-byte'. (2) Step 76.9.3 installed ddgs==9.14.4 into that venv, which ALSO bumped primp 1.2.2 -> 1.3.1 and added fake-useragent, h2, hpack, hyperframe, socksio. (3) `grep -inE '^(ddgs|fake.useragent|h2|hpack|hyperframe|socksio)==' backend/requirements.lock` exits 1 (ZERO hits) and the lock still says primp==1.2.2, so the lock NO LONGER reproduces the working venv -- the exact manifest-vs-runtime divergence class 76.9.3 existed to fix. (4) `grep -c autoresearch .github/workflows/pip-audit.yml` returns 0: the workflow audits exactly 5 files (backend/requirements.lock, backend/requirements.txt, functions/*/requirements.txt), so scripts/autoresearch/requirements-autoresearch.txt is not a scan target and its packages get NO CVE scanning. Note ddgs is an unauthenticated web-scraping metasearch library, so zero-scan is a poor resting state even though its subprocess-spawning API-server path is default-OFF and unreachable via the retriever's zero-arg DDGS() (verified at ddgs/ddgs.py:156-167). NOTE for the executor: regenerating the lock is a FULL freeze of a shared venv that may carry unrelated drift -- diff it before committing and report anything you did not expect, rather than blind-regenerating. Research gate tier simple. COMPANION NOTE (surfaced by the 76.9.3 Q/A, upstream + out of that step's boundary): `Duckduckgo.search()` at site-packages/gpt_researcher/retrievers/duckduckgo/duckduckgo.py:24-28 wraps its `self.ddg.text(...)` call in a bare `except Exception` and returns `[]`, so a future rate-limit, rename or transport failure degrades SILENTLY to an empty result set again -- exactly the failure mode 76.9.3's guards were built to make loud, but at a layer those guards do not reach. Consider whether the retriever wrapper should surface (or at least log) that exception, so a silently-degraded nightly memo is distinguishable from a genuinely empty search.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_75_deps.py -q",
+            "success_criteria": [
+              "backend/requirements.lock once again reproduces the live venv for the autoresearch closure: ddgs and its transitive deps present, primp at the installed version, proven by a freeze-vs-lock comparison recorded verbatim",
+              "The autoresearch dependency set lands inside at least one pip-audit scan surface (either via the lock or by adding requirements-autoresearch.txt as a scan target + paths filter), proven by the workflow file itself",
+              "A test asserts lock-vs-venv agreement for the autoresearch packages so this divergence cannot silently recur -- the existing lock tests check header/count/prefix only and stayed green across this drift, which is why it went unnoticed",
+              "Any unrelated venv drift surfaced by the regeneration is reported, not silently committed",
+              "MUTATION: remove ddgs from the lock -> the new agreement test goes red",
+              "The upstream silent-degradation companion note is addressed or explicitly deferred with a stated reason (Duckduckgo.search swallowing every exception and returning [])"
+            ],
+            "live_check": "handoff/current/live_check_76.9.4.md: the before/after grep of the lock, the freeze-vs-lock diff, the pip-audit scan-target proof, and the mutation result."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "76.9.5",
+          "status": "pending",
+          "name": "76.9.2 blocker -- nightly run_memo WEDGES after the research phase: process goes 0% CPU with no in-flight request and never exits [executor: opus-4.8/xhigh; BOUNDARY: diagnose FIRST, then a fix scoped by the diagnosis]. This is the concrete blocker preventing 76.9.2 criterion 1 (one clean rc=0 through the durable Max-rail bridge). MEASURED across 5 attempts 2026-07-24/25: (1) 2026-07-24 16:12 SUCCEEDED end-to-end -- rc=0, 15,809-char non-ERROR memo, 4m40s -- so the chain CAN complete; (2) 2026-07-24 ~19:14 wedged and was killed at 62 min; (3) 2026-07-24 20:38 hit a gtimeout cap (rc=124); (4) 2026-07-25 00:16 attempt 5 wedged IDENTICALLY. ATTEMPT-5 EVIDENCE (the most instrumented): flag path confirmed ('max-rail ON -- routing via http://127.0.0.1:18797'); the DDG retriever leg was restored by 76.9.3 so all three retrievers were live; export.arxiv.org returned HTTP 429 on EVERY arxiv fetch (visible verbatim in handoff/autoresearch.log) while semantic_scholar+duckduckgo worked; the research phase COMPLETED and the bridge served 27 responses ALL HTTP 200 (17 of them POST /v1/messages), last one at 00:22:52. THEN the client went silent: no further log output, no further bridge requests, run_memo at 0.0% CPU with ~10.8s total CPU over 20+ minutes, NO `claude` child process, NO bridge->proxy connection, and a single idle keep-alive client->bridge connection held open. Threads sampled idle in _PySemaphore_Wait/_queue_SimpleQueue_get with the asyncio threads parked. TWO COMPETING HYPOTHESES -- THE EXECUTOR MUST ESTABLISH WHICH BEFORE FIXING ANYTHING: (H1) a client-side gpt_researcher/langchain asyncio defect (a lost future / un-awaited task) in the report-generation phase, plausibly triggered by the arxiv-429 storm leaving an empty or partial source set; (H2) the bridge's SSE->JSON aggregation returned a 200 whose BODY was subtly malformed or truncated for the final large report call, leaving the client waiting. NOTE 27x HTTP 200 proves the transport DELIVERED responses; it does NOT prove the bodies were well-formed, so H2 is NOT excluded by the status codes -- capture an actual response body to settle it. Suggested first move: re-run with the bridge logging full response bodies to a file (temporarily) plus faulthandler/py-spy on the client, so the wedge point is captured rather than inferred. Research gate tier moderate.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": "bash -n scripts/autoresearch/run_nightly.sh && .venv/bin/python -c \"import ast; ast.parse(open('scripts/autoresearch/run_memo.py').read())\"",
+            "success_criteria": [
+              "The wedge point is CAPTURED, not inferred: a stack/trace taken at the moment of the hang naming the exact awaiting frame, recorded verbatim",
+              "H1 vs H2 is settled with evidence (an actual captured response body for the final call, or a client-side stack proving the hang is independent of the response) -- and the losing hypothesis is explicitly ruled out, not just unmentioned",
+              "A fix or a bounded mitigation exists such that run_memo TERMINATES (success or loud failure) rather than hanging indefinitely -- an unconditional wall-clock timeout inside the runner counts as an acceptable mitigation if the root cause proves upstream",
+              "One clean end-to-end rc=0 run through the REPO bridge is produced, which also closes 76.9.2 criterion 1 -- or, if that remains impossible, an explicit written statement of why, with the evidence",
+              "MUTATION: simulate the hang (e.g. a stub upstream that accepts a request and never responds) -> the new timeout/mitigation fires loudly and the run exits non-zero; without the mitigation the same stub hangs (both directions proven)"
+            ],
+            "live_check": "handoff/current/live_check_76.9.5.md: the captured hang stack, the H1-vs-H2 evidence, the terminating run, and both mutation directions."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },
@@ -18368,6 +18409,181 @@
               "The census names which follow-up step (78.x, authored in this step's close) owns each max_rail decision"
             ],
             "live_check": "handoff/current/live_check_78.0.md: census table verbatim, the coverage.dry envelope, llm_call_log volume queries + outputs."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.1",
+          "status": "pending",
+          "name": "78.0 census follow-up -- REWIRE the six signal-overlay services (C1-C6) off direct ClaudeClient onto the CC rail [executor: opus-4.8/xhigh; BOUNDARY: the six service modules + tests; NO behavior change to the signals themselves]. MEASURED 2026-07-25 (census 78.0, anchors re-derived mechanically): meta_scorer.py:221, news_screen.py:267, macro_regime.py:506, pead_signal.py:279, analyst_narrative_scorer.py:135, call_transcript_gpr.py:113 each construct `ClaudeClient(` DIRECTLY, bypassing make_client -- so PAPER_USE_CLAUDE_CODE_ROUTE (backend/.env, currently true) NEVER applies to them and every one of these calls goes to the metered API. This is the phase-72 rail-bypass class that contributed to the 97%-cash incident: when Anthropic credits are dead these six overlays die while the flag says the system is on the Max rail. All six are haiku-tier with dict-shaped pydantic schemas, which the CC rail has served via --json-schema since phase-75.5, so they are rail-servable as-is. FIX: route each through make_client (or ClaudeCodeClient directly) so the existing flag governs them; keep the model tier identical; do NOT change any signal logic, threshold, or output schema. Each rewired path needs a dummy-key $0-leakage proof (set a junk ANTHROPIC_API_KEY, confirm the call still succeeds via the rail and that nothing reaches api.anthropic.com). Research gate tier moderate. CORRECTION (78.0 Q/A, 2026-07-25) -- DO NOT ASSUME THESE SIX ARE DORMANT. The 78.0 census originally read their 0 rows in llm_call_log as proof they had not run. That inference was UNSOUND: ClaudeClient logs ok=True only (llm_client.py:~1905, no ok=False writer, errors re-raise at :1739/:1746/:1790 before the log block), so 0 rows means 'no call SUCCEEDED' and is equally consistent with 'ran every cycle and failed every time' -- the dead-credits outage this step exists to fix. THE EXECUTOR MUST ESTABLISH WHICH before choosing an approach, because a dormant-service rewire and an actively-failing-service rewire are different jobs with different risk: check the callers' own logs/telemetry and the services' fallback paths (e.g. meta_scorer.py:238 swallows the exception and returns _fallback_all, so an outage here is silent by construction).",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'meta_scorer or news_screen or macro_regime or pead or analyst_narrative or call_transcript'",
+            "success_criteria": [
+              "All six services obtain their client through make_client (or ClaudeCodeClient) so PAPER_USE_CLAUDE_CODE_ROUTE governs them, proven by a test that flips the flag and asserts the client TYPE changes for each of the six",
+              "Model tier per service is unchanged from the census table (all haiku-tier); no signal logic, threshold, or output schema is modified -- proven by git diff review recorded in experiment_results",
+              "Dummy-key $0-leakage proof per rewired path: with a junk ANTHROPIC_API_KEY the rail call still succeeds and no request reaches api.anthropic.com",
+              "MUTATION: force the flag OFF -> the six fall back to the metered client and a test asserting rail-routing goes red (the guard is not a tautology)",
+              "One-flag revertible: setting PAPER_USE_CLAUDE_CODE_ROUTE=false restores today's behavior exactly"
+            ],
+            "live_check": "handoff/current/live_check_78.1.md: per-service before/after client type, the flag-flip test output, the dummy-key leakage proof, and one live signal run showing unchanged output shape."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.2",
+          "status": "pending",
+          "name": "78.0 census follow-up -- the CC-rail branches of B1/B2/E1 pass NO --model, so the model is whatever the CLI session default happens to be [executor: sonnet-4.6/high; BOUNDARY: claude_code_client.py callers + tests]. MEASURED 2026-07-25 (census 78.0): services/autonomous_loop.py:2454 (lite trader) and :2530 (lite risk judge), plus services/ticket_queue_processor.py:206 (ticket queue), all invoke claude_code_invoke WITHOUT a model argument -- backend/agents/claude_code_client.py:215 passes no --model flag to the CLI, so the model silently follows the `claude` session default. For the ticket queue this additionally means its agent_model_map (ticket_queue_processor.py:172-176, main/q-and-a=opus-4-8, research=sonnet-4-6) is IGNORED whenever the rail branch is taken -- a per-agent model policy that silently does nothing. Contrast scripts/mas_harness/run_cycle.sh:66-71, which DOES pass --model claude-opus-4-8 explicitly and is the correct reference pattern. Risk: a CLI default change silently re-tiers live trading decisions with no code change and no log line. FIX: thread an explicit model through claude_code_invoke to the CLI for these three call sites; log the resolved model on every rail call so the choice is auditable after the fact. Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_56_2_ops_fixes.py backend/tests/test_phase_75_llm_rail.py -q",
+            "success_criteria": [
+              "claude_code_invoke accepts and forwards an explicit model to the CLI; B1, B2 and E1 each pass one",
+              "The ticket queue's agent_model_map is actually honored on the rail branch (test asserts the per-agent model reaches the invocation), or the map is deleted as dead -- whichever the executor justifies, not left silently ignored",
+              "Every rail call logs the resolved model so post-hoc audit is possible",
+              "MUTATION: drop the model argument at one call site -> a test asserting the explicit model goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.2.md: verbatim CLI argv (or its captured equivalent) for one call per site showing the model flag, plus the new log line."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.3",
+          "status": "pending",
+          "name": "78.0 census follow-up -- rewire the rare-event raw-SDK sites (F1-F3 meta-evolution, G1 harness planner) onto the CC rail [executor: opus-4.8/xhigh; BOUNDARY: the four modules + tests]. MEASURED 2026-07-25 (census 78.0): meta_evolution/directive_review.py:138, meta_evolution/directive_rewriter.py:180, agents/skill_modification_review.py:195 and agents/planner_agent.py:166+:273 all call the raw anthropic SDK directly. F1-F3 additionally sit behind a key-prefix gate that uses Anthropic ONLY when the API key startswith 'sk-ant-api', so an OAuth-style key silently routes them to Gemini instead -- a silent quality downgrade with no error. All four are json-prompt shaped (no tool-use), so the CC rail can serve them, and all four are rare-event (review cycles / harness runs), which is exactly the shape the flat-fee Max rail suits best. FIX: route through make_client/ClaudeCodeClient; make the key-prefix fallback LOUD (log at WARNING which provider was chosen and why) instead of silent. Research gate tier moderate.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'directive_review or directive_rewriter or skill_modification or planner'",
+            "success_criteria": [
+              "F1-F3 and G1 obtain their client through the rail-aware factory; a flag-flip test proves the client type changes",
+              "The F1-F3 key-prefix provider choice is logged loudly (provider + reason) on every invocation; a silent Gemini substitution is no longer possible",
+              "json-prompt output parsing is unchanged (same parse path, same failure handling) -- proven by an existing-test-stays-green diff",
+              "MUTATION: force the rail off -> the rail-routing assertion goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.3.md: one live invocation per module through the rail, the new provider-choice log line, and the unchanged-parse evidence."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.4",
+          "status": "pending",
+          "name": "78.0 census follow-up -- rewire Layer-2 MAS text + JSON calls (D1/D2) onto the CC rail and make the 401 Gemini latch LOUD [executor: opus-4.8/xhigh; BOUNDARY: multi_agent_orchestrator.py + tests; D3 EXPLICITLY EXCLUDED]. MEASURED 2026-07-25 (census 78.0): multi_agent_orchestrator.py:1099 (_call_agent, plain text) and :1147 (_call_agent_json, dict/pydantic schema via output_config) use the raw SDK client built at :245. Both are rail-servable (plain text trivially; dict schemas via --json-schema since 75.5). D3 (_call_agent_with_tools, :1268) MUST NOT be rewired -- it needs tool-use plus interleaved thinking, which the CC rail cannot serve; leaving D3 metered is the census's justified decision. Today a 401 sets a permanent per-instance _anthropic_unavailable latch that silently falls back to Gemini for the rest of the process lifetime: the MAS keeps answering, at different quality, with no alarm. FIX: route D1/D2 through the rail; keep D3 as-is; convert the silent latch into a loud, observable state change. Research gate tier moderate.",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'multi_agent or mas'",
+            "success_criteria": [
+              "D1 and D2 route through the rail under the flag; D3 provably still uses the raw SDK (a test asserts D3 is UNCHANGED -- guarding the exclusion, not just the change)",
+              "The _anthropic_unavailable latch logs at WARNING with the triggering status code and is surfaced somewhere an operator sees it",
+              "D2's structured-output contract is preserved (same schema in, same parsed shape out) under the rail",
+              "MUTATION: rewire D3 too -> the D3-unchanged guard goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.4.md: one live MAS text call + one JSON call through the rail with output shapes, and the latch log line reproduced."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.5",
+          "status": "pending",
+          "name": "78.0 census follow-up -- BatchClient: fix or retire (doubly dark + latent no-args TypeError) [executor: sonnet-4.6/high; BOUNDARY: llm_client.py BatchClient + orchestrator.py:1043 caller + tests]. MEASURED 2026-07-25 (census 78.0): backend/agents/llm_client.py:1931 defines BatchClient with __init__(model_name, api_key) and NO defaults, while its only caller, backend/agents/orchestrator.py:1043, calls `BatchClient()` with no arguments -- a guaranteed TypeError the moment it executes. It never executes because it is doubly dark: the backtest_batch_mode flag has zero consumers AND _run_enrichment_batch (orchestrator.py:1006) has no caller. The census decision is stay_metered on purpose: the Batches API is a 50%-discount/24h-window product with NO Max-rail equivalent, so routing it to the CLI would COST money. DECISION REQUIRED: either (a) fix the constructor call and wire the flag so batch mode is actually reachable, or (b) delete BatchClient + _run_enrichment_batch + the dead flag. Do NOT leave a latent TypeError sitting behind a dark flag. Research gate tier simple (the gate must confirm current Batches API pricing/limits before choosing).",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'batch' && .venv/bin/python -c \"import ast; ast.parse(open('backend/agents/llm_client.py').read())\"",
+            "success_criteria": [
+              "Either BatchClient() constructs successfully at its call site (fix) or every BatchClient/_run_enrichment_batch/backtest_batch_mode reference is gone (retire) -- no third state",
+              "If FIXED: a test constructs it exactly as the caller does and asserts no TypeError. If RETIRED: a grep-based test asserts zero surviving references",
+              "The choice is justified in writing against current Batches API pricing/limits from the research gate",
+              "MUTATION: reintroduce the no-args call (fix path) or a dangling reference (retire path) -> the guard goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.5.md: the before-state TypeError reproduced verbatim, then the chosen end-state proven."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.6",
+          "status": "pending",
+          "name": "78.0 census follow-up -- decide the disposition of the dormant openclaw_client path [executor: sonnet-4.6/high; BOUNDARY: agents/openclaw_client.py + callers + tests]. MEASURED 2026-07-25 (census 78.0): backend/agents/openclaw_client.py defines openclaw_chat (:72) and openclaw_chat_stream (:154) with a HARDCODED model table at :47-52 ('communication' and 'research' -> anthropic/claude-sonnet-4-6 at :48/:51; 'main' and 'qa' -> anthropic/claude-opus-4-8 at :49/:50). Both functions have ZERO callers -- only check_gateway_health (multi_agent_orchestrator.py:320) and list_openclaw_sessions (mas_events.py:177) are actually used. The path routes through the OpenClaw Gateway (:18789), not api.anthropic.com, so it is neither metered-Anthropic nor Max-rail; the census lists it so the hardcoded table is not forgotten. That table is a live drift risk regardless of disposition: it duplicates model policy that lives in backend/config/model_tiers.py and will silently rot. DECISION REQUIRED: retire the dormant functions, or keep them and source their models from model_tiers.py instead of the hardcoded literals. Research gate tier simple.",
+          "harness_required": true,
+          "priority": "P3",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'openclaw' && .venv/bin/python -c \"import ast; ast.parse(open('backend/agents/openclaw_client.py').read())\"",
+            "success_criteria": [
+              "Either the dormant functions are removed (with a test asserting zero references) or their model table is derived from model_tiers.py (with a test asserting no hardcoded claude-* literals remain in openclaw_client.py)",
+              "check_gateway_health and list_openclaw_sessions keep working either way -- proven by their existing tests staying green",
+              "MUTATION: reintroduce a hardcoded claude-* literal (keep path) or a call to a removed function (retire path) -> the guard goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.6.md: the zero-caller evidence re-derived, and the chosen end-state proven."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.7",
+          "status": "pending",
+          "name": "78.0 census follow-up -- model-table hygiene: sonnet-5 pricing rows, _VALID_MODELS, and closing 76.11 [executor: sonnet-4.6/high; BOUNDARY: model_tiers.py / MODEL_PRICING / _VALID_MODELS + tests]. Carried from the operator goal (2026-07-24) and confirmed against the census: rail-routed roles can be swapped to newer model ids at $0 because they are flat-fee on the Max rail, but the supporting tables must accept those ids first or the swap fails at validation time. Scope: add the sonnet-5 rows to MODEL_PRICING, extend _VALID_MODELS to accept the current model ids, and close the open 76.11 item in the same pass. NOTE for the executor: verify EVERY table that gates a model id -- the goal text explicitly flags _VALID_MODELS as the one that gets missed. Do NOT flip any live model pin in this step; this step only makes the tables correct, and a separate step (or operator token) performs any actual model swap. Research gate tier simple (the gate MUST confirm current model ids and pricing from official Anthropic docs -- never from memory).",
+          "harness_required": true,
+          "priority": "P2",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'model_tiers or pricing or valid_models'",
+            "success_criteria": [
+              "MODEL_PRICING carries correct sonnet-5 rows sourced from official pricing docs cited in the research brief (not from memory)",
+              "_VALID_MODELS accepts the current model ids; a test enumerates every model-gating table and asserts each accepts the same id set (so no table is silently missed)",
+              "76.11 is closed with its own evidence",
+              "NO live model pin is changed in this step -- proven by git diff",
+              "MUTATION: remove one table's entry -> the cross-table consistency test goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.7.md: the cited pricing source, the cross-table enumeration output, and proof no pin changed."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.8",
+          "status": "pending",
+          "name": "78.0 census follow-up -- the llm_call_log spend meter is BLIND to every raw-SDK metered call site [executor: opus-4.8/xhigh; BOUNDARY: instrumentation only -- add logging, change no routing]. MEASURED 2026-07-25 (census 78.0, per-site instrumentation audit): 11 of the 12 raw-SDK Anthropic call sites write NO llm_call_log row at all (DERIVED from the census `instrumented` field over the denominator A4,A5,A6,D1-D4,F1-F3,G1,H1; only A4 advisor_call is instrumented -- an earlier revision of this step said '9', which did not reproduce and is corrected here) -- multi_agent_orchestrator.py:1099/:1147/:1268 (D1-D3), slack_bot/streaming_integration.py:527 (D4), meta_evolution/directive_review.py:138 (F1), meta_evolution/directive_rewriter.py:180 (F2), agents/skill_modification_review.py:195 (F3), agents/planner_agent.py:166+:273 (G1), agents/rag_agent_runtime.py:259 (H1), news/sentiment.py:798 (A6), and llm_client.py:1931 BatchClient (A5). Instrumentation today follows the CC RAIL (claude_code_client.py:498) and the wrapper clients (ClaudeClient llm_client.py:1887, GeminiClient :1123, OpenAIClient :1275, advisor_call :2321) -- NOT the raw-SDK path. On the dual-rail sites the asymmetry is exact: autonomous_loop.py logs on the rail branch (:2462) but not the direct branch (:2472); ticket_queue_processor.py logs via claude_code_invoke on the rail (:206) but not on the direct branch (:226). CONSEQUENCE (this is the money part): fetch_llm_spend and the $25/day cost breaker read llm_call_log, so the metered spend they exist to govern is precisely the spend they cannot see -- and the blindness is invisible, because an unlogged call looks identical to a call that never happened. This ALSO means '0 rows in 30d' for those sites is UNMEASURABLE, not zero. FIX: add log_llm_call instrumentation to every raw-SDK site so metered spend is observable before any spend-gating flag is trusted. Research gate tier moderate. SEQUENCING: this step and 75.5.12 should both land BEFORE the operator flips cost_budget_use_llm_spend_enabled. SECOND, DISTINCT HOLE -- found by the 78.0 Q/A and NOT covered by the raw-SDK scope above: the INSTRUMENTED wrapper clients log SUCCESSES ONLY. ClaudeClient hardcodes ok=True at its log site (llm_client.py:~1905) and llm_client.py has ZERO ok=False writers; SDK errors re-raise at :1739/:1746/:1790, BEFORE the log block at :1886. So a wrapper-client call that RUNS AND FAILS leaves no row at all, and a zero row count can never prove a path was dormant. The CC rail does log failures (claude_code_client.py:607; autonomous_loop.py:2469/:2545), which is exactly why the rail shows 1,547 failures while the wrapper clients show none. Fixing only the raw-SDK sites would leave this hole open, so it is IN SCOPE for this step.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'observability or llm_call_log or spend'",
+            "success_criteria": [
+              "Every raw-SDK Anthropic call site named above writes an llm_call_log row with provider, model, agent, token counts and ok status",
+              "A single test ENUMERATES the Anthropic call sites and asserts each one is instrumented, so a future new call site cannot silently join the blind set (the enumeration is derived, not a hand-maintained list that can drift)",
+              "The dual-rail asymmetry is closed: the direct/metered branch logs just as the rail branch does",
+              "No routing behavior changes -- instrumentation only, proven by git diff",
+              "MUTATION: delete the logging from one site -> the enumeration test goes red naming that site",
+              "The wrapper clients (ClaudeClient at minimum) log FAILURES as well as successes -- an ok=False row is written when the SDK raises -- proven by a test that forces an SDK error and asserts the row; MUTATION: remove the failure-path log -> that test goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.8.md: the before/after instrumentation audit table, one real logged row per newly-instrumented site, and the enumeration test output."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.9",
+          "status": "pending",
+          "name": "78.0 census follow-up -- 70% of Max-rail LLM calls are FAILING and nobody is paged [executor: opus-4.8/xhigh; BOUNDARY: diagnosis first, then a fix scoped by what the diagnosis finds]. MEASURED 2026-07-25 (census 78.0 volume query, pyfinagent_data.llm_call_log, 30d window): provider='anthropic' model='claude-sonnet-4-6' agent='cc_rail' shows 2,192 calls of which 1,547 have ok=false (70.6%); model='claude-opus-4-7' agent='cc_rail' shows 357 calls of which 294 have ok=false (82.4%); claude-code/lite_trader 9 calls / 4 failed; claude-code/lite_risk_judge 9 calls / 3 failed. Reproduce the query before doing anything else -- the window slides and the executor must measure, not inherit this number. This was surfaced incidentally by a READ-ONLY census whose scope was routing, which is why it is queued rather than fixed in place; it is NOT a routing defect. UNKNOWN AND MUST BE ESTABLISHED FIRST: whether ok=false here means the call genuinely failed, or the flag is set by a retry/fallback path that ultimately succeeded -- read the ok= write path in claude_code_client.py:498 and llm_client.py:1887 before drawing any conclusion, because the entire severity of this step depends on that distinction. Only after that is settled: if these are real failures, find the cause and fix it; if the flag is mis-set, fix the flag semantics. Either way the end state must include an alarm, because a 70% failure rate ran unnoticed. Research gate tier moderate.",
+          "harness_required": true,
+          "priority": "P1",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'observability or claude_code or rail'",
+            "success_criteria": [
+              "The ok=false semantics are established from the write path and stated explicitly (genuine failure vs retried-then-succeeded), with the code anchor cited",
+              "The 30d failure rates are RE-MEASURED by the executor (not inherited from this step's text) and recorded verbatim",
+              "Root cause identified and either fixed or, if it is out of this step's boundary, queued as its own step with the evidence",
+              "An alarm exists so a sustained elevated rail failure rate pages instead of accumulating silently",
+              "MUTATION: simulate a failure burst -> the alarm fires; simulate a healthy period -> it does not (both directions proven, so the alarm is not a constant-true)"
+            ],
+            "live_check": "handoff/current/live_check_78.9.md: the re-run volume query verbatim, the ok= write-path reading, the root-cause evidence, and both alarm directions."
           },
           "retry_count": 0,
           "max_retries": 3

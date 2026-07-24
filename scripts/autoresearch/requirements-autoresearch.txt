@@ -14,6 +14,16 @@
 
 gpt-researcher==0.14.8        # scripts/autoresearch/run_memo.py:70 -- late import inside run_research()
 
+# phase-76.9.3: the DuckDuckGo retriever leg. gpt-researcher 0.14.8's CODE imports
+# `ddgs` (gpt_researcher/retrievers/duckduckgo/duckduckgo.py -- `from ddgs import DDGS`,
+# upstream spec `ddgs>=9.0.0`), but its dist METADATA still declares the FROZEN
+# pre-rename `duckduckgo-search>=4.1.1`. So pip resolved green while the runtime path
+# raised `Unable to import ddgs. Please install with 'pip install -U ddgs'` on EVERY
+# DDG sub-query -- silently reducing the 3-retriever stack to two (semantic_scholar +
+# arxiv, both externally rate-limited). Import surface used: zero-arg `DDGS()` +
+# `.text(query, region=, max_results=)`, unchanged across 9.x.
+ddgs==9.14.4
+
 # EMBEDDING=huggingface:BAAI/bge-small-en-v1.5 closure (run_memo.py:188,
 # checked by _embedding_preflight() at run_memo.py:131-154). gpt-researcher
 # builds its Memory(embedding) unconditionally at GPTResearcher init, so

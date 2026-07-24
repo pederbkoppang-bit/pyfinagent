@@ -96,3 +96,63 @@ the repo-hardened bridge by minutes (scratchpad copy, same code lineage). CRITER
 therefore remains OPEN pending one clean rc=0 through the repo bridge -- retry in
 quiet hours or after 76.9.3 restores DDG. M2/M3 mutations also pending (script now
 idle). Q/A NOT yet spawned -- step stays in_progress.
+
+## 8. Attempt 5 (2026-07-25, quiet hours, 3 retrievers) — WEDGED. Criterion 1 still OPEN.
+
+Launched 00:16:04 detached (`gtimeout 1800`, subshell `nohup`), flag ON, after 76.9.3
+restored the DuckDuckGo leg so all three retrievers were live for the first time.
+
+```
+[2026-07-25T00:16:16+02:00] START nightly autoresearch
+[2026-07-25T00:16:16+02:00] max-rail ON -- routing via http://127.0.0.1:18797 (dummy key, $0 metered)
+...
+INFO: [00:17:02] Browsing the web to learn more about the task: ...
+INFO: [00:17:03] Planning the research strategy and subtasks...
+Error processing https://arxiv.org/abs/2502.05878: Page request resulted in HTTP 429 (export.arxiv.org)
+   [... HTTP 429 on EVERY arxiv fetch ...]
+Using default report type: research_report prompt.
+   [... then silence; last log write 00:17:58 ...]
+=== RUN ENDED 00:46:23 ===        <- killed by gtimeout at the 30-min cap; no END line written
+```
+
+**The transport did its job.** The bridge served **27 responses, every one HTTP 200**
+(17 of them `POST /v1/messages`), last completing at **00:22:52**:
+
+```
+$ grep -oE "\" [0-9]{3} " handoff/logs/anthropic-bridge.log | sort | uniq -c
+  27 " 200
+$ grep -vE "GET /health.*200|POST /v1/messages.*200" handoff/logs/anthropic-bridge.log
+[max-bridge] listening on http://127.0.0.1:18797 -> https://localhost:18796
+```
+
+Zero non-200s, zero PROXY-ERROR lines. The research phase completed.
+
+**Then the client wedged**, measured rather than inferred:
+
+| Probe | Observation |
+|---|---|
+| CPU | 0.0%, ~10.8s total CPU over 20+ minutes |
+| `claude` child process | none |
+| bridge → proxy connection | none (proxy showed only LISTEN) |
+| client → bridge connection | ONE, ESTABLISHED, idle keep-alive (fd 11 → 127.0.0.1:18797) |
+| retriever sockets | all CLOSED / CLOSE_WAIT |
+| thread sample | parked in `_PySemaphore_Wait` / `_queue_SimpleQueue_get`; asyncio threads idle |
+
+Identical signature to attempt 3 (2026-07-24 19:14, killed at 62 min).
+
+**Honest reading of the evidence.** 27× HTTP 200 proves the transport *delivered*
+responses; it does **not** prove the final response *body* was well-formed, so the
+bridge's SSE→JSON aggregation is **not** fully exonerated — a 200 with a subtly
+truncated body would look exactly like this from the outside. Both hypotheses (H1
+client-side gpt_researcher asyncio defect; H2 malformed aggregated body) are live, and
+settling them requires capturing an actual response body, which this run did not do.
+
+**Criterion 1 is therefore NOT met and is not claimed.** Five attempts: one success
+(2026-07-24 16:12, rc=0, 15,809-char memo, 4m40s — but through the scratchpad-lineage
+bridge, minutes before the repo hardening), one deliberate dead-rail test (rc=78, the
+criterion-5 proof in §1), one externally killed (rc=143), one gtimeout (rc=124), and
+this one. The blocker is a distinct defect, not a property of the routing, so it is
+queued as its own research-gated step **76.9.5** (P1) rather than retried blindly — the
+step requires the wedge point to be *captured* (stack at the moment of the hang, plus an
+actual response body) and H1-vs-H2 settled before any fix, and it carries the mutation
+that a stub upstream which never responds must make the run exit loudly.

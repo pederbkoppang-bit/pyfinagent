@@ -104,3 +104,43 @@ externally stopped mid-report (disclosed; no state damage; rerun completed).
 2. `OPS-BRIDGE-BOOTSTRAP`: bootstrap the bridge plist + rebind the proxy plist
    (commands in the template header). Until then the bridge must be started
    manually and the flag left OFF for unattended nights.
+
+---
+
+## Cycle-2 update (2026-07-25): mutation matrix COMPLETE; criterion 1 still OPEN
+
+**M2 and M3 executed** (the two that were pending because they mutate the script bash
+was executing; the script was idle, so they ran cleanly):
+
+| # | Mutation | Result |
+|---|----------|--------|
+| M2 | flag-guard inverted (`= "1"` → `!= "1"`) | `3 failed, 8 passed` → `test_nightly_flag_off_is_inert` **RED** (plus the two flag-ON fixtures, expected — inverting the guard breaks every branch) |
+| M3 | preflight removed (`curl -sf …/health` → `true`) | `1 failed, 10 passed` → `test_nightly_flag_on_bridge_down_fails_loud` **RED**, and only that one |
+
+```
+=== BASELINE ===     11 passed in 3.62s
+=== POST-REVERT ===  11 passed in 3.35s
+SHA pre  = bae41ae8c6b2bacf2137fd89e403183196e350743c376f66b2612154f86cfb96
+SHA post = bae41ae8c6b2bacf2137fd89e403183196e350743c376f66b2612154f86cfb96
+IDENTICAL = True
+```
+
+The full **M1–M6 matrix is now complete** and every mutation killed its intended guard.
+
+**Criterion 1 remains NOT MET, and is not claimed.** Attempt 5 (the first with all three
+retrievers live, after 76.9.3 restored DuckDuckGo) wedged after a clean research phase
+and was killed at the 30-minute cap. Full evidence in `live_check_76.9.2.md` §8. The
+useful new fact: the bridge served **27/27 HTTP 200** with the last LLM call completing
+at 00:22:52, and the client then sat at 0% CPU with no in-flight request — so the
+blocker is a distinct hang, not a routing failure. It is queued as **76.9.5** (P1),
+which requires the wedge to be *captured* rather than inferred and explicitly keeps the
+bridge's aggregation under suspicion (a 200 does not prove a well-formed body).
+
+Bridge lineage note: the process serving all of this is the **repo** script
+(`scripts/ops/anthropic_max_bridge.py`, PID 85602) — it survived the previous session,
+so the "durable routing, not the scratchpad bridge" half of criterion 1 is satisfied;
+what is missing is a completed `rc=0` run through it.
+
+**Status recommendation for this step: NOT done.** Criteria 2, 3, 4 and 5 are met with
+verbatim evidence; criterion 1 is blocked on 76.9.5. Marking it done would be a false
+claim of a passing end-to-end run.

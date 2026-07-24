@@ -37,6 +37,7 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -280,3 +281,97 @@ def test_run_memo_guard_passes_through_when_gpt_researcher_present(monkeypatch):
     rc = module.main()
     assert calls, "_embedding_preflight should have been reached when gpt_researcher IS importable"
     assert rc == 0, f"expected rc=0 (preflight skip path), got {rc}"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# phase-76.9.3 -- the DuckDuckGo retriever leg (ddgs pin + LOUD guard)
+#
+# Context: gpt-researcher 0.14.8's CODE imports `ddgs`, but its dist
+# METADATA still declares the frozen pre-rename `duckduckgo-search`. pip
+# therefore resolved green while every live DDG sub-query raised
+# `Unable to import ddgs...`, silently reducing the 3-retriever stack to
+# two. These guards make a future rename fail LOUD at test time.
+#
+# MEASURED TRAP (why the guards below CONSTRUCT rather than import):
+# `from ...duckduckgo import Duckduckgo` succeeds even with ddgs absent --
+# check_pkg('ddgs') runs inside __init__, not at module import. A
+# module-import-only guard is a guard that cannot fail.
+# ─────────────────────────────────────────────────────────────────────
+
+def test_autoresearch_requirements_manifest_pins_ddgs():
+    """Criterion 1 (manifest half): the ddgs pin is a REAL parsed
+    requirement line, not merely a name mentioned in a comment."""
+    pins = _parse_requirements(_read(AUTORESEARCH_REQS))
+    assert "ddgs" in pins, (
+        "ddgs missing from requirements-autoresearch.txt -- the DuckDuckGo "
+        "retriever leg silently degrades to an empty result set without it"
+    )
+    op, ver = pins["ddgs"]
+    assert op == "==" and ver == "9.14.4", f"expected ddgs==9.14.4, got {op}{ver}"
+
+
+def test_ddg_retriever_constructs_with_real_ddgs_installed():
+    """Criterion 3 (positive half): the REAL check_pkg('ddgs') +
+    `from ddgs import DDGS` + `DDGS()` chain executes.
+
+    Offline by construction: `DDGS` is a lazy proxy whose instantiation
+    only assigns attributes -- the http client is created lazily later,
+    and the sole network path (`_ensure_network_running`) is gated behind
+    an `api_url` the retriever never passes (it calls zero-arg `DDGS()`).
+    Network requests fire only on `.text()`, which this test never calls.
+    If a future ddgs release makes construction hit the network, this
+    test gains a network dependency -- revisit then.
+    """
+    from gpt_researcher.retrievers.duckduckgo.duckduckgo import Duckduckgo
+
+    retriever = Duckduckgo("guard probe query")
+    assert hasattr(retriever.ddg, "text"), (
+        f"ddgs client has no .text() -- the retriever calls it at "
+        f"duckduckgo.py search(); got {type(retriever.ddg)!r}"
+    )
+
+
+def test_ddg_retriever_fails_loud_when_ddgs_missing(monkeypatch):
+    """Criterion 3 (negative half): a rename/uninstall must surface the
+    LOUD verbatim ImportError seen in the live memo logs -- never a
+    silent empty result.
+
+    Simulates the broken state by making find_spec('ddgs') report absent.
+    check_pkg calls importlib.util.find_spec at CALL time, so the patch
+    bites even though ddgs is installed in this venv.
+    """
+    from gpt_researcher.retrievers.duckduckgo.duckduckgo import Duckduckgo
+
+    real_find_spec = importlib.util.find_spec
+
+    def fake_find_spec(name, *a, **kw):
+        if name == "ddgs":
+            return None  # simulate: package absent / renamed away
+        return real_find_spec(name, *a, **kw)
+
+    monkeypatch.setattr(importlib.util, "find_spec", fake_find_spec)
+
+    with pytest.raises(ImportError, match=r"pip install -U ddgs"):
+        Duckduckgo("guard probe query")
+
+
+def test_installed_ddgs_version_matches_the_manifest_pin():
+    """Closes a vacuity the other three guards share: they all pass on a
+    venv holding ANY ddgs (e.g. 9.0.0) against a 9.14.4 pin, because
+    construction and the error string are version-independent.
+
+    Asserting installed == pinned is what makes the pin mean something at
+    runtime rather than only on paper. Found by the 76.9.3 Q/A cycle-1;
+    the broader venv-vs-lock agreement problem is queued as 76.9.4.
+    """
+    from importlib.metadata import version
+
+    pins = _parse_requirements(_read(AUTORESEARCH_REQS))
+    op, pinned = pins["ddgs"]
+    assert op == "==", f"expected an exact pin for ddgs, got {op}{pinned}"
+    installed = version("ddgs")
+    assert installed == pinned, (
+        f"installed ddgs {installed} != manifest pin {pinned} -- the venv and the "
+        f"autoresearch manifest have diverged; the retriever may behave differently "
+        f"from what the pin documents"
+    )
