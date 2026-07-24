@@ -75,7 +75,8 @@ Pre/post SHA-256 identical (bridge / test file / run_nightly.sh: `OK OK OK`).
 ## 6. Suite + immutable command (verbatim)
 
 ```
-11 passed in 3.73s        (backend/tests/test_phase_76_9_2_max_bridge.py)
+12 passed in 4.14s        (backend/tests/test_phase_76_9_2_max_bridge.py; regenerated after
+                          the cycle-3 keep-alive guard was added -- was 11 passed in 3.73s)
 IMMUTABLE exit=0          (bash -n run_nightly.sh + ast.parse run_memo.py)
 All checks passed! lint exit=0   (robust xargs form, reference/ excluded)
 ```
@@ -255,8 +256,15 @@ Synthesized prose with a real bibliography — not a stub. Note the three-retrie
 **duckduckgo is present**, so 76.9.3's ddgs pin is doing work here too.
 
 **Served by the DURABLE bridge**, not the scratchpad copy: pid 50256 running
-`scripts/ops/anthropic_max_bridge.py`, started after the framing fix; 22 `POST
-/v1/messages` served across its lifetime.
+`scripts/ops/anthropic_max_bridge.py`, started after the framing fix.
+
+*Corrected claim (76.9.2 Q/A cycle-2).* This section originally read "22 `POST
+/v1/messages` served across its lifetime". That number came from a grep over the
+WHOLE bridge log, which spans every bridge process ever run -- it was not this
+process's count, and it is now 24 anyway. Re-measured properly by counting only
+lines after the last `listening on` marker (line 31 = this process's start):
+**6** `POST /v1/messages` since pid 50256 started, which covers attempt 6 plus the
+raw-socket probes run afterwards -- so attempt 6's own share is at most 6, not 22.
 
 **$0 metered leakage:** the run exported `ANTHROPIC_API_KEY=max-rail-dummy-key`, and the
 run output contains **zero** occurrences of `api.anthropic.com`, `401`, or

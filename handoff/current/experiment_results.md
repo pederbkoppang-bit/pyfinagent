@@ -61,7 +61,7 @@ proxy plist so its new CLAUDE_PATH takes effect (see §4).
   combined-certs.pem orphaned) — and the changes are additive (new MODEL_MAP keys;
   passthrough only for ids that previously mis-ran as sonnet).
 
-### 5. Tests — `backend/tests/test_phase_76_9_2_max_bridge.py` (NEW, 11 tests)
+### 5. Tests — `backend/tests/test_phase_76_9_2_max_bridge.py` (NEW, **12 tests**)
 
 sse_aggregate unit (text/usage/stop accumulation; PROXY-ERROR surfacing; garbage
 tolerance); E2E against the REAL bridge process + stub upstream via
@@ -75,12 +75,12 @@ REAL sourced key overridden); default-OFF documented assert.
 
 ```
 $ .venv/bin/python -m pytest backend/tests/test_phase_76_9_2_max_bridge.py -q
-11 passed in 3.73s
+12 passed in 4.14s
 
 $ bash -n scripts/autoresearch/run_nightly.sh && .venv/bin/python -c "import ast; ast.parse(open('scripts/autoresearch/run_memo.py').read())"
 IMMUTABLE exit=0
 
-$ {changed-py robust form} | xargs uvx ruff check --select F821,F401,F811
+$ git diff --name-only HEAD -- '*.py' | tr '\n' '\0' | xargs -0 -r uvx ruff check --select F821,F401,F811
 All checks passed!
 lint exit=0
 
@@ -144,3 +144,48 @@ what is missing is a completed `rc=0` run through it.
 **Status recommendation for this step: NOT done.** Criteria 2, 3, 4 and 5 are met with
 verbatim evidence; criterion 1 is blocked on 76.9.5. Marking it done would be a false
 claim of a passing end-to-end run.
+
+---
+
+## Cycle-3 update (2026-07-25): criterion 1 is now **MET** — this supersedes the cycle-2 recommendation above
+
+The cycle-2 section above ends "Status recommendation for this step: **NOT done**",
+which was correct when written and is **no longer true**. Recorded as a supersession
+rather than an edit, so the sequence stays auditable.
+
+**What changed.** The Q/A's cycle-1 FAIL identified the blocker with a live raw-socket
+probe: the SSE **passthrough** branch emitted no HTTP/1.1 body delimiter, so keep-alive
+clients (httpx / the anthropic SDK, which gpt_researcher reaches via `stream=True` at 6
+sites) hung forever. **My hardening had introduced it.** Fixed in
+`scripts/ops/anthropic_max_bridge.py` (`Connection: close` + `close_connection = True`),
+guarded by a new raw-socket keep-alive test, and proven by mutation **M7**: reverting
+the fix turns the NEW guard RED while the OLD urllib guard stays GREEN — demonstrating
+that guard's vacuity rather than asserting it. Full detail in `live_check_76.9.2.md` §9.
+
+**Criterion 1 evidence** (`live_check_76.9.2.md` §10): attempt 6 ran 01:16:47 → 01:22:47
+and logged `END nightly autoresearch OK`, which `run_nightly.sh:94-96` emits **only** in
+the `if python …/run_memo.py; then` success branch; that same branch reset the fail-state
+to `consecutive_fails: 0` (it had been 2). It wrote a **16,634-char non-ERROR** memo with
+synthesized prose and a real bibliography, served by the repo-versioned bridge (pid
+50256), with `ANTHROPIC_API_KEY=max-rail-dummy-key` and **zero** `api.anthropic.com` /
+`401` / `authentication_error` occurrences in the run output.
+
+**Also fixed this cycle** (from the cycle-2 verdict): a stale `11 passed` in a block
+labelled verbatim (now 12, regenerated); a `(NEW, 11 tests)` count (now 12); a
+`{changed-py robust form}` placeholder sitting inside a verbatim block (now the real
+command, executed to confirm it runs); and a POST-count claim that attributed a
+whole-log grep to one process lifetime (re-measured: 6 since this bridge started).
+Historical mutation-matrix captures were deliberately left at their original values —
+those runs really did execute against 11 tests, and rewriting them would falsify the
+record.
+
+| # | Criterion | Status |
+|---|-----------|--------|
+| 1 | Real run rc=0 through the DURABLE routing + $0-leakage proof | **MET** (live_check §10) |
+| 2 | Flag-gated, one-env-change revert, default documented | MET |
+| 3 | Other proxy clients enumerated/unbroken or additive-only | MET |
+| 4 | Durable CLAUDE_PATH + MODEL_MAP coverage | MET |
+| 5 | MUTATION: broken routing fails loudly, never silent metered fallback | MET (§1, live rc=78) |
+
+**Status recommendation: all five criteria met.** Pending an independent verdict — I am
+not closing this on my own reading of a run I wanted to succeed.

@@ -145,3 +145,128 @@ every possible state of the bug. I verified that in the installed stdlib myself.
 
 Attempt 6 of the end-to-end run is executing against the fixed bridge. Criterion 1
 remains unclaimed until a run actually completes rc=0.
+
+
+---
+
+## Cycle-2 Q/A verdict (verbatim) — CONDITIONAL
+
+**Launch + provenance (disclosed).** The Workflow launch errored with an empty return
+(`subagent completed without calling StructuredOutput`; 42 tool calls, and the
+transcript held exactly ONE assistant text block — the opening line — so there was NO
+verdict, never a PASS). Fell back to the Agent-tool `qa` subagent per CLAUDE.md. That
+agent emitted a complete verdict object as its final message but the delivery reached
+Main only as an idle notification, so the object below was read from the agent's own
+final message. It is the evaluator's emitted verdict, transcribed verbatim and
+unedited — not a reconstruction from its reasoning.
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All five immutable criteria are independently MET on substance -- I reproduced the fix, both mutations, and every leg of criterion 1 myself rather than accepting the account. THE FIX: anthropic_max_bridge.py:153-162 now sends `Connection: close` and sets `self.close_connection = True` on the SSE-passthrough branch; MY OWN raw-socket HTTP/1.1 keep-alive probe of the RUNNING bridge (PID 50256, sole LISTEN on 127.0.0.1:18797, cwd=/Users/ford/.openclaw/workspace/pyfinagent, argv `scripts/ops/anthropic_max_bridge.py` = the REPO script) returned verbatim `HTTP/1.1 200 OK / Content-Type: text/event-stream / Cache-Control: no-cache / Connection: close`, 912 body bytes including message_stop, `server CLOSED the stream: True`, elapsed 7.4s. The wedge is gone. M7 REPRODUCED, BOTH HALVES, in a scratchpad sandbox (repo untouched): with exactly the two fix lines removed from a copy (183->181 lines), `test_e2e_streaming_body_is_framed_for_a_KEEP_ALIVE_client` FAILED on the framing assert while `test_e2e_streaming_client_gets_sse_passthrough` PASSED -- 1 failed, 11 passed. The old urllib guard really does stay green, so its vacuity (shape #5) is now empirically proven, not asserted. M8 REPRODUCED: against a mutated run_nightly.sh copy with comments preserved verbatim and the executed echo + `exit 78` + `_record_fail_and_page 78` stripped, the OLD assertion stays GREEN (satisfied by the comment) and the shipped test goes RED -- the comment-token trap is closed. CRITERION 1 verified on all four legs: (a) rc=0 is structural -- run_nightly.sh:94-96 emits `END ... OK` only inside the `if python .../run_memo.py; then` branch, the same branch that writes consecutive_fails:0 at :96, and the fail-state now reads {\"consecutive_fails\": 0} (was 2); log shows START 01:16:47 -> END OK 01:22:47. (b) I READ the memo: 16,634 bytes, no `-ERROR-` in the filename, a genuinely synthesized report with in-line citations, a stated conclusion with three explicit qualifications, and a real bibliography -- not a stub, not an error transcript. (c) Served by the DURABLE bridge: source mtime 01:16:08 precedes process start 01:16:29, so PID 50256 loaded the fixed file, and its own log segment carries the run's health preflight plus 5 POST /v1/messages, all 200, zero non-200. (d) $0 leakage sound: run_nightly.sh:85 exports the dummy key unconditionally in the flag-ON branch, the `max-rail ON` line is present at 01:16:47, and handoff/autoresearch.log contains ZERO occurrences of api.anthropic.com and ZERO 401/authentication_error; run_memo.py:273-276 pins all three LLM roles to `anthropic:` and EMBEDDING to local huggingface, so no other metered provider is in the path. Criteria 2-5 re-confirmed unbroken and run_memo.py has ZERO hunks. WHAT WITHHOLDS PASS IS THE ARTIFACT SET, NOT THE ENGINEERING: handoff/current/experiment_results.md -- the GENERATE artifact -- is one full cycle stale (mtime 00:48:06, last commit 018fc06f at 00:48:40, while the fix landed 01:19 and the run completed 01:22). It states at :130 'Criterion 1 remains NOT MET, and is not claimed' and at :144 'Status recommendation for this step: NOT done', and never mentions the framing fix, the new guard, M7, M8 or attempt 6. Criterion 1 thus has NO covering evidence in experiment_results.md, which the qa.md section 4 contract-completeness gate requires; and :64/:78/:121-122 still say '11 tests'/'11 passed' where the shipped file now holds 12 test functions and the baseline is `12 passed in 4.09s`.",
+  "violated_criteria": [
+    "contract_completeness: criterion 1 has no covering evidence in experiment_results.md (the GENERATE artifact asserts the opposite)",
+    "claim-audit: '11 passed' / '(NEW, 11 tests)' in a block labelled verbatim -- shipped file has 12",
+    "claim-audit: live_check section 10 '22 POST /v1/messages served across its lifetime' attributes a cumulative whole-file count to one process lifetime",
+    "WARN repeat-of-cycle-1: experiment_results.md:83 still records the lint command as the placeholder '{changed-py robust form}' inside a verbatim block"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "Cycle-2 remediation updated the code, tests, masterplan 76.9.5, live_check_76.9.2.md (sections 9-10) and evaluator_critique_76.9.2.md, but did NOT update handoff/current/experiment_results.md",
+      "state": "experiment_results.md mtime 2026-07-25 00:48:06, last commit 018fc06f 00:48:40 -- frozen BEFORE the fix commit 8df579fe (01:19:01) and the criterion-1 run (END OK 01:22:47). It reads at :130 'Criterion 1 remains NOT MET, and is not claimed' and at :144 'Status recommendation for this step: NOT done.', with no mention of the framing fix, the keep-alive guard, M7, M8 or attempt 6. The five-file protocol therefore returns two contradictory answers to an operator: the GENERATE artifact says NOT done, the live_check says MET.",
+      "constraint": "qa.md section 4 (contract completeness, phase-71.3): EVERY immutable criterion must map to covering evidence in experiment_results.md; an uncovered criterion is a Missing_Assumption that CAPS the verdict. CLAUDE.md cycle-2 flow: Main must fix the blockers AND update the handoff files, experiment_results.md named first."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "experiment_results.md:64 '(NEW, 11 tests)', :78 '11 passed in 3.73s', :121-122 'BASELINE === 11 passed' / 'POST-REVERT === 11 passed', inside a section headed 'Verification (verbatim)'",
+      "state": "MEASURED: `grep -c '^def test_' backend/tests/test_phase_76_9_2_max_bridge.py` = 12; my baseline run reproduces `12 passed in 4.09s`. The commit 8df579fe added test_e2e_streaming_body_is_framed_for_a_KEEP_ALIVE_client, so every '11' in that file is now stale.",
+      "constraint": "qa.md section 4b: a number in an artifact labelled verbatim must reproduce under the command that allegedly produced it; count def test_ in the COMMIT (auto-memory verbatim-paste-drift-arithmetic)."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "live_check_76.9.2.md:257-259 -- 'pid 50256 running scripts/ops/anthropic_max_bridge.py, started after the framing fix; 22 POST /v1/messages served across its lifetime.'",
+      "state": "MEASURED: handoff/logs/anthropic-bridge.log is CUMULATIVE across bridge process lifetimes -- it contains TWO 'listening on' banners. Segment 1 (the pre-fix bridge, cycle-1's PID 85602) = 18 POSTs; segment 2 (PID 50256) = 6 POSTs TOTAL, one of which is MY probe at 01:36. PID 50256 served 5 POSTs for the run, not 22. The 22 is the whole-file count at write time (18+4). The number is real; the SCOPE attributed to it is not. This does NOT change criterion 1 -- the run demonstrably traversed PID 50256 (health preflight + 5x POST, all 200, zero non-200) -- but it is the derive-your-scope defect in a file labelled verbatim evidence.",
+      "constraint": "qa.md section 4b: scopes must be DERIVED, not typed; a count reported over a scope broader than the one it is attributed to is an Overgeneralization finding."
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "experiment_results.md:83 records the lint command as the literal placeholder '$ {changed-py robust form} | xargs uvx ruff check --select F821,F401,F811' under the heading 'Verification (verbatim)'",
+      "state": "Cycle-1 flagged this by name as 'exactly the shape qa.md section 4b warns about'; the cycle-2 remediation carried it forward unchanged. A reader cannot reproduce a placeholder. WARN-level only: I re-derived the scope from git myself (`git show --name-only 33d2ca1b 8df579fe 0ea399f3 e9820b19 8c48cc11 | grep '\\.py$' | sort -u` = 2 files, non-empty guard asserted) and `uvx ruff check --select F821,F401,F811` returns 'All checks passed!' exit=0 -- the substance is fine, the record is not.",
+      "constraint": "qa.md section 4b: a verbatim capture must be regenerated, never templated; the reproducing command must be present or re-derivable."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5items_all_clean",
+    "verdict_shop_check_evidence_materially_changed_commits_8df579fe_0ea399f3",
+    "research_gate_envelope_gate_passed_true_6_read_in_full_18_urls_recency_true",
+    "mtime_ordering_research_1654_lt_contract_1656_lt_results_0048",
+    "contract_criteria_verbatim_vs_masterplan_5of5",
+    "log_last_no_result_entry_for_76.9.2_status_still_pending",
+    "third_conditional_rule_does_not_bind_one_prior_FAIL_zero_prior_CONDITIONAL",
+    "immutable_verification_command_exit0",
+    "pytest_12_passed_in_4.09s_baseline",
+    "python_lint_gate_ruff_F821_F401_F811_git_derived_2file_scope_nonempty_guard_exit0",
+    "run_memo_py_ZERO_hunks_8c48cc11^..HEAD",
+    "LIVE_raw_socket_http11_keepalive_framing_probe_of_running_bridge_BY_ME",
+    "bridge_identity_pid50256_cwd_repo_argv_repo_script_sole_listener_18797",
+    "bridge_source_mtime_011608_precedes_process_start_011629",
+    "M7_reproduced_sandboxed_new_guard_RED_old_urllib_guard_GREEN",
+    "M8_reproduced_sandboxed_old_assertion_GREEN_new_assertion_RED",
+    "criterion1_rc0_structural_run_nightly_sh_94_96_success_branch_only",
+    "criterion1_failstate_reset_to_zero_was_two",
+    "criterion1_memo_READ_16634_bytes_non_ERROR_real_synthesis_with_bibliography",
+    "criterion1_leakage_scan_zero_api.anthropic.com_zero_401_zero_authentication_error",
+    "criterion1_run_memo_llm_roles_all_anthropic_embedding_local_huggingface",
+    "bridge_log_segment_analysis_two_listening_banners_18_vs_6_POSTs",
+    "criterion2_flag_default_off_run_nightly_sh_78_documented_71_77",
+    "criterion3_openclaw_18796_enumeration_only_proxy_itself",
+    "criterion3_proxy_js_diff_vs_bak_additive_modelmap_plus4_resolveModel_trap_removal_only",
+    "criterion4_three_roles_resolved_haiku45_sonnet46_opus48_all_in_MODEL_MAP_17_18_22",
+    "criterion4_plist_CLAUDE_PATH_present_symlink_chain_live_2.1.219",
+    "criterion5_exit78_at_90_precedes_run_memo_at_94_plus_real_script_fixture_test",
+    "bridge_plist_NOT_bootstrapped_launchctl_print_service_not_found",
+    "guard_vacuity_check_4c_all_5_criteria",
+    "claim_audit_4b_reproduce_counts_and_scopes",
+    "repo_integrity_git_status_clean_three_SHAs_match_HEAD_after_my_work"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "NOT VERDICT-SHOPPING -- verified in both directions. The evidence materially changed between spawns: commit 8df579fe (the framing fix, the new raw-socket guard, the rewritten OR-escape-hatch) and 0ea399f3 (the completed run, the memo, the fail-state reset). Cycle-1's blocker was ACTUALLY FIXED, and I confirmed the fix by execution rather than by reading the account. Cycle-2 is legitimate.\n\nANSWERS TO THE DIRECTED QUESTIONS.\n(1) THE FIX: yes, the passthrough branch now frames the body. `Connection: close` + `close_connection = True` is an RFC 7230 3.3.3-valid delimiter (close-delimited), not the chunked encoding cycle-1 called the 'correct HTTP/1.1 answer' -- but it is correct, minimal, and it is the delimiter the pre-hardening HTTP/1.0 bridge supplied by accident. My live probe of PID 50256 shows the header present and the server terminating the stream in 7.4s. It does NOT still hang.\n(2) M7: reproduced, both halves, and the second half is the one that matters -- the OLD urllib guard PASSED against the mutated bridge while the NEW guard FAILED. That is the empirical proof of vacuity, and it holds.\n(3) M8: reproduced. My mutation preserved every comment line verbatim and removed only executable statements; the old assertion survived on the comment, the shipped assertion killed it.\n(4) CRITERION 1: MET on all four legs, as detailed in `reason`. One caveat I raise myself, correctly disclosed by Main and NOT a criterion miss: the routing is durable but not yet AUTONOMOUS -- `launchctl print gui/501/com.pyfinagent.anthropic-bridge` returns 'Could not find service' and no plist exists in ~/Library/LaunchAgents, so PID 50256 is a manually started process. With the flag ON and the bridge down an unattended nightly exits 78 and pages, which is the designed loud-fail; the flag is default OFF and the bootstrap sits behind the OPS-BRIDGE-BOOTSTRAP operator token.\n(5) 76.9.5: the reframe is CORRECT -- it names the framing defect, explains why both original hypotheses pointed the wrong way, and identifies the vacuity shape, so no executor can now inherit the wrong hypothesis space. But it is SUPERSEDED: all four of its success criteria are already satisfied by 76.9.2's own evidence (its C1 = attempt 6's rc=0 run; its C2 = M7, which I reproduced; its C3 = the live raw-socket probe, which I reproduced; its C4 is conditional on a wedge that did not recur). Its own text says 'If run_memo completes cleanly, close this step'. RECOMMEND closing it as superseded with a pointer to live_check sections 9-10, NOT leaving it status=pending at P1 -- the top open P1 would send an executor to redo finished work. The one genuinely open residual is that a single clean run is n=1; if a future nightly wedges again, re-open with the original client-side hypothesis and a captured stack.\n\nWHAT CLOSES THIS STEP (all documentation, no code, ~10 minutes):\n1. Update experiment_results.md for cycle 2 -- criterion 1 MET with the structural rc=0 argument and the live_check section 10 pointer; add M7 and M8 to the mutation matrix; delete or supersede ':130 Criterion 1 remains NOT MET' and ':144 Status recommendation: NOT done'.\n2. In the same file, replace every '11 tests'/'11 passed' with 12 / `12 passed`, regenerated not edited.\n3. Replace the ':83 {changed-py robust form}' placeholder with the ACTUAL derived command and its output.\n4. Correct live_check section 10's POST-count claim to its true scope -- the bridge log is cumulative across process lifetimes; PID 50256's own segment is the health preflight plus 5 POST /v1/messages, all 200.\n5. Decide 76.9.5 (close-as-superseded recommended).\nThen a FRESH Q/A on the changed files.\n\nEVIDENCE PROVENANCE: every live capture in this verdict was taken BY ME this cycle -- the raw-socket framing probe of PID 50256, the process/cwd/listener identification, the bridge-log segment analysis, the memo read, the fail-state and leakage scans, the plist/symlink/MODEL_MAP inspections, the pytest baseline, the git-derived lint, and both mutations. No capture here was supplied by the author. MUTATION SAFETY: M7 and M8 were run entirely in the session scratchpad against COPIES with the test module's BRIDGE/NIGHTLY constants repointed -- no repo file was ever edited. Post-run `git status` on the three files is empty and all three SHA-256 digests match their git HEAD blobs (anthropic_max_bridge.py e2c59566..., test_phase_76_9_2_max_bridge.py af1cbb28..., run_nightly.sh bae41ae8...). No files were written or modified in the repository."
+}
+```
+## Main's response to cycle-2 (Main's own words)
+
+All four findings were real and all four were mine. Fixed:
+
+**1. The contract-completeness finding is the one that mattered.** `experiment_results.md`
+— the GENERATE artifact, the file the protocol designates as the record of what was
+built — still ended "Status recommendation for this step: **NOT done**" and asserted
+criterion 1 unmet, *after* the run had succeeded. I had updated `live_check` §10 and
+stopped. So the two artifacts contradicted each other, and the one an auditor is
+supposed to trust said the opposite of the truth. Fixed with an explicit cycle-3
+**supersession** section rather than editing the old text, so the sequence stays
+auditable.
+
+**2. A stale `11 passed` inside a block labelled verbatim** (the shipped file has 12
+tests since the keep-alive guard). Regenerated from a fresh run, along with the
+`(NEW, 11 tests)` heading. **Deliberately NOT touched:** the historical mutation-matrix
+captures that read `11 passed` — those runs really did execute against 11 tests, and
+rewriting them would falsify the record. Only current-state claims were regenerated.
+
+**3. The POST-count claim was wrong in scope, and I should have caught it.** I wrote
+"22 `POST /v1/messages` served across its lifetime" for bridge pid 50256, but that came
+from `grep -c` over the WHOLE bridge log, which spans every bridge process ever run —
+and it is now 24 anyway. Re-measured by counting only lines after the last
+`listening on` marker: **6** since this process started, covering attempt 6 plus the
+probes run afterwards. This is the same claim-audit failure class that has recurred all
+session: a count whose membership rule I never wrote down.
+
+**4. The `{changed-py robust form}` placeholder** sitting inside a block labelled
+verbatim — a cycle-1 repeat. Replaced with the actual command
+(`git diff --name-only HEAD -- '*.py' | tr '\n' '\0' | xargs -0 -r uvx ruff check …`),
+and I **ran it** to confirm it executes rather than pasting a plausible-looking string.
+
+Nothing in the code changed in response to cycle-2; the framing fix, the guards and the
+successful run were all verified by the evaluator itself. Every defect was in my prose.
