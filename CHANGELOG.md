@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `018fc06f` | chore(76.9.3/78.0/75.5.12): three steps built + mutation-tested; 12 follow-up steps queued |
 | 2026-07-25 | `e9820b19` | chore(76.9.2/78.0): session handoff -- census decision draft into handoff, live_check attempt histor |
 | 2026-07-24 | `33d2ca1b` | chore(phase-78): queue 75.5.12 (bare-cc_rail spend discriminator gap, P1, MEASURED 2241 rows/4.1M to |
 | 2026-07-24 | `5759e5d9` | phase-75.20.1: operator approved -- flip to done (qa-write-guard live) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `ae13d829` | chore: quant-agent experiment data artifacts (nightly residue) |
 | 2026-07-24 | `1559fada` | chore(settings): deny Bash(git stash*) -- operator-directed enforcement of feedback_no_git_stash_wit |
 | 2026-07-24 | `b4dffaf9` | chore: quant-agent experiment data artifacts (rev-00031 nightly residue) |
-| 2026-07-24 | `e7150f71` | phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LLM-spend metric (DARK, flag OFF) |
 
 ---
 
