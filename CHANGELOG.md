@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `33d2ca1b` | chore(phase-78): queue 75.5.12 (bare-cc_rail spend discriminator gap, P1, MEASURED 2241 rows/4.1M to |
 | 2026-07-24 | `5759e5d9` | phase-75.20.1: operator approved -- flip to done (qa-write-guard live) |
 | 2026-07-24 | `f2e5ffda` | phase-78: install Anthropic Max-rail routing goal phase + 78.0 census step (operator /goal 2026-07-2 |
 | 2026-07-24 | `8c48cc11` | chore(76.9): Max-rail live test PASSED -- first-ever non-ERROR autoresearch memo; queue 76.9.1/76.9. |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `b4dffaf9` | chore: quant-agent experiment data artifacts (rev-00031 nightly residue) |
 | 2026-07-24 | `e7150f71` | phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LLM-spend metric (DARK, flag OFF) |
 | 2026-07-24 | `09d97705` | chore: record operator approval of the 75.20 diff (push released; flip stays restart-gated) |
-| 2026-07-24 | `4c37f1ef` | phase-75.20: Audit75 S20 -- Q/A live-UI gate enforceable + primary path constrained [FLIP+PUSH HELD  |
 
 ---
 
