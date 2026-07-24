@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `7d65c0d4` | phase-75.15: Audit75 S15 -- CI gates made real: advisory flip, requires_live migration, lock-coun... |
 | 2026-07-24 | `f0d580fd` | phase-75.14: Audit75 S14 -- prompt-contract reconciliation, injection fencing, fact-ledger proven... |
 | 2026-07-24 | `ace3e680` | phase-75.13: Audit75 S13 -- Python dependency integrity: lockfile, undeclared runtime deps, dead ... |
 | 2026-07-24 | `dd46b69a` | phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dea... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-20 | `e610b918` | phase-75.2.1: close the two escalated items from 75.2 (annotate the collision, arm the push approval |
 | 2026-07-20 | `256867d3` | phase-75.3: MCP servers stop fabricating state (gap4-01/04/05/06/07/08/09, security-05) |
 | 2026-07-20 | `f55e6973` | phase-75.2: Slack control-plane authorization + dead-plane removal (gap1-01/03/04/05/07/08/09/10/11) |
-| 2026-07-20 | `40111b03` | phase-75.1: backend auth surface fail-closed (security-01/03/04, gap2-03, api-design-12, pysvc-08) |
 
 ---
 
+### v6.68.17 — phase-75.15: Audit75 S15 -- CI gates made real: advisory flip, requir... (2026-07-24)
+
+- **phase-75.15: Audit75 S15 -- CI gates made real: advisory flip, requires_live migration, lock-coun...**
 ### v6.68.16 — phase-75.14: Audit75 S14 -- prompt-contract reconciliation, injection... (2026-07-24)
 
 - **phase-75.14: Audit75 S14 -- prompt-contract reconciliation, injection fencing, fact-ledger proven...**
