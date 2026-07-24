@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-24 | `42264502` | phase-75.4.2: Audit75 S4 follow-up -- skill_optimizer post-write delivery invariant (fail-closed) |
 | 2026-07-24 | `ae13d829` | chore: quant-agent experiment data artifacts (nightly residue) |
 | 2026-07-24 | `1559fada` | chore(settings): deny Bash(git stash*) -- operator-directed enforcement of feedback_no_git_stash_wit |
 | 2026-07-24 | `b4dffaf9` | chore: quant-agent experiment data artifacts (rev-00031 nightly residue) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `dd46b69a` | phase-75.12: Audit75 S12 -- frontend data-plane: SSE/fetch auth transport, login reload-loop, dea... |
 | 2026-07-24 | `07182b94` | phase-75.11: Audit75 S11 -- SRE hardening: always-on log rotation, single service authority, unat... |
 | 2026-07-24 | `09223466` | phase-75.10: Audit75 S10 -- event-loop hygiene sweep: to_thread the blocking money/API paths, get... |
-| 2026-07-23 | `fd4380b3` | phase-75.9: Audit75 S9 -- BigQuery fail-closed dedup, parameterization, 30s-timeout sweep, cost g... |
 
 ---
 
+### v6.68.24 — phase-75.4.2: Audit75 S4 follow-up -- skill_optimizer post-write deli... (2026-07-24)
+
+- **phase-75.4.2: Audit75 S4 follow-up -- skill_optimizer post-write delivery invariant (fail-closed)**
 ### v6.68.23 — phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LL... (2026-07-24)
 
 - **phase-75.5.1: Audit75 S5 follow-up -- the $25/day breaker gets its LLM-spend metric (DARK, flag OFF)**
