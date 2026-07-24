@@ -177,6 +177,27 @@ fails, the LLM judgment wins (scope honesty, anti-rubber-stamp,
 mutation-resistance are load-bearing). Log the split in
 `harness_log.md`.
 
+**Fixture-mutation requirement (phase-75.18):** mutation evidence must
+cover the test FIXTURE/stub as well as the code under test — a fixture
+that cannot represent the failure keeps a suite green while the feature
+is inert. The full guard-vacuity checklist (11 observed shapes) and the
+per-criterion name-the-mutation rule live in `.claude/agents/qa.md`
+§4c — do not duplicate them here.
+
+#### Measure before asserting (phase-75.18)
+
+Every figure, count, or set-membership claim in a handoff artifact is
+MEASURED before it is written — run-then-write, never write-then-hope
+(`feedback_measure_dont_assert_claims`; qa.md §4b owns the evaluator
+side). Three phase-75 canonical slips: a DEBUG env value asserted
+without reading the live env (75.1); verb-parity between two surfaces
+claimed without diffing them (75.2); a handler-registration order
+written in five places and wrong in all five (75.2.1). Corollary: a
+literal that a criterion source-scans for must not survive in
+explanatory COMMENTS — comment-carried tokens tripped criteria three
+separate times (the CGNAT pattern, a date cutoff, a dead-branch name);
+reword prose rather than weakening the scan.
+
 #### Retry-on-FAIL loop (phase-23.2.24, formalised)
 
 When Q/A returns `verdict: FAIL` or `verdict: CONDITIONAL`, the

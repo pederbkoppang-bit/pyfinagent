@@ -286,6 +286,70 @@ not by claim-matching. **If a future mechanical claims-ledger is adopted, it is 
 worklist, never a substitute for this scrutiny** -- the research is explicit that using
 any such tool to justify lighter Q/A review makes the system strictly worse than nothing.
 
+### 4c. Guard-vacuity check -- a guard that cannot fail does not count (phase-75.18)
+
+**The rule (operator-ratified wording, feedback_mutation_test_guards_and_fixtures):
+a guard that cannot fail when its subject is broken does not count.** For EACH
+immutable criterion, name the CONCRETE MUTATION that would make its guard fail.
+If no such mutation exists, that is a FINDING (`Circular_Reasoning` or
+`Missing_Assumption`), never a pass. Execute the mutation when feasible -- never
+reason that a guard "looks behavioral" (research basis: intrinsic self-verification
+is blind self-reflection, ReVeal arXiv:2506.11442; agents systematically
+over-predict their own success, arXiv:2602.06948 -- only EXECUTION grounds a
+verdict).
+
+**Mutation evidence MUST cover the test FIXTURE/stub, not only the code under
+test.** The academic root cause is the pseudo-tested method (Vera-Perez
+arXiv:1807.05030): a path fully covered whose effects are never asserted. The
+phase-75 canonical instance: a dict-returning stub for AsyncSlackResponse (which
+is NOT a dict) kept 22 tests green while the production path was inert (75.2.1,
+Cycle 130). Remedy: contract-test the fake against the REAL type, and mutate the
+stub itself (blank it / regress it) to prove the suite goes red. **The
+independent evaluator mutates the fixture and the harness -- history shows the
+author's own matrix catches the code-side shapes (1/2/4) while the
+fixture/harness shapes (3/5/6) were caught only by the independent Q/A.** When
+the author is caught DEFENDING a guard in a spawn prompt, that is the guard to
+mutate first.
+
+**The 11 observed vacuity shapes** (full cycle citations in
+`handoff/current/research_brief_75.18.md`; treat this list as a checklist, not a
+ceiling -- per Goodenough-Gerhart no matrix licenses a global "no vacuous
+guards" claim):
+1. Source-scan asserting runtime behaviour it cannot observe (75.3, C129).
+2. Source-scan defeated by rewording/moving the scanned text (75.3, C129).
+3. Literal-kept-behaviour-stripped: the scanned LITERAL survives in source while
+   the behaviour it names was removed (the `"stub": True` field kept while
+   `pop("stub")` stripped it from every return -- 75.3, C129). Distinct from #5.
+4. Tautology: an assertion true by construction (`assert x is not None` on a
+   fixture that guarantees it, C130; the `... or True` dead clause, 75.14 C142).
+5. Fixture that CANNOT represent the failure (the non-dict stubbed as dict,
+   C130) -- the suite stays green for every possible production state.
+6. Library-fact assertion posing as a fixture pin (asserts an upstream truth,
+   never references the stub it claims to pin -- C130).
+7. RE-IMPLEMENTED test: a behavioral-LOOKING test that executes a COPY of the
+   logic instead of the logic (the 75.14 routing-inversion survivor, C142).
+   A flag-routing test must import and execute the function the production
+   branch calls -- extraction-for-testability beats source-position asserts.
+8. OR-escape-hatch / comment-token trap: a guard clause satisfiable by prose or
+   comment tokens the same change introduces (the 75.15 seed guard, C143;
+   comment-token strikes also C133/C139). Never accept an alternate clause a
+   comment can satisfy.
+9. Executor-environment non-reproducibility: a claim green in one shell, red in
+   another (zsh unquoted-variable word-split linting ZERO files -- caught 3x in
+   C141/C143/C144; PATH-dependent sub-shells, C143; operator-.env flag-state,
+   C144). Re-derive and re-run in YOUR environment; a claim that does not
+   reproduce is a finding to investigate, not to average away.
+10. Hand-derived-scope staleness: file lists typed before the last edit (hid
+    pre-existing F401s three separate times) -- always derive the scope from git
+    AFTER the final edit.
+11. Mis-attributed kill mechanism: a mutation genuinely killed, but by a
+    different assertion than credited (75.7 C135) -- name WHICH assertion killed.
+
+**Verdict wiring**: sole-coverage vacuity on a behavioral or money-path
+criterion is a BLOCKING violation; a vacuous guard alongside a genuine
+behavioral guard is a WARN-level finding with a named fix. A matrix result
+licenses only "these N mutations were killed" -- never a global claim.
+
 ### 4a. Adversarial worst-of-N-LENSES verdict (P0/P1 money-path only)
 
 For P0/P1 money-path steps, do NOT settle for a single-shot judgment.

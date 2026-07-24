@@ -1,432 +1,303 @@
-# Research Brief — Step 75.17: Absent-path verification family (triage + repair)
+# Research Brief — Step 75.18 (tier=complex)
 
-**Tier:** moderate (audit-class = TRUE -> adaptive coverage gate active)
-**Researcher:** Layer-3 (this session)
-**Date:** 2026-07-24
-**Status:** COMPLETE -- gate PASSED (audit-class; coverage.dry=true)
+**Codify the anti-vacuous-guard doctrine into the harness itself.**
+Boundary: harness/docs only, no product code. Separation of duties: this
+step edits `.claude/agents/qa.md`; the authoring session must NOT
+self-evaluate any later step that depends on it — Main leaves a Peder
+review note in `handoff/harness_log.md` (criterion 6).
 
-## Objective
-
-Step 75.17 audits `.claude/masterplan.json` for `verification` blocks whose
-`command` / `success_criteria` / `live_check` reference **filesystem paths that
-do not exist on disk**. Such commands are unrunnable -> their PASS is
-unreproducible -> the audit trail rots. The step is TRIAGE-first: build ONE sweep
-that handles all four verification shapes (674 dict / 126 str / 13 list / 24
-None), resolves frontend-relative + URL fragments correctly, and classifies each
-hit as (i) genuine never-existed name mismatch / (ii) artifact retired by a later
-step / (iii) false positive. Then repair per class via the `superseded_record`
-house convention — NEVER by amending an immutable criterion.
-
-## Method
-
-- TWO independent census derivations (different extraction strategies),
-  reconciled by symmetric difference (qa.md §4b).
-- Adaptive coverage: loop-until-dry on the census (K=2 dry rounds).
-- Repair prescription per class + mutation matrix for the sweep tool.
+Status: COMPLETE. Written 2026-07-24. gate_passed = true (6 sources read
+in full, recency scan performed, taxonomy built from primary critiques).
 
 ---
 
-## Internal audit — the definitive census (the core deliverable)
+## 1. Complete instance taxonomy — the core deliverable (with cycle citations)
 
-### Denominator moved since 75.2.1
+Phase-75 produced ONE root cause — *a guard that cannot fail when its
+subject is broken* — that changed shape every time. The step text
+enumerates through instance (6); the session since (Cycles 135, 142, 143)
+produced five more shapes. All eleven are grounded in the archived Q/A
+critiques (verbatim captured return values), not inferred.
 
-75.2.1 (2026-07-20) swept **837 steps** (shape census 674 dict / 126 str / 13 list
-/ 24 None). The plan has since GROWN to **883 flat steps** (`phases[].steps[]`, no
-nesting) — current shape census **720 dict / 126 str / 13 list / 24 None** (+46
-new phase-75 steps). **The node's "674 dict" figure is the stale 75.2.1-era count;
-the live figure is 720 dict.** A census must run against current HEAD, not a frozen
-count — runtime-output artifacts appear/disappear between sweeps (see 8.5.4/10.2).
+| # | Shape | Where (cycle / phase / criterion) | Concrete mechanism | Caught by |
+|---|-------|-----------------------------------|--------------------|-----------|
+| 1 | **Source-scan, dual-occurrence** | C129 / 75.3 / C6 | `"unwrap_secret" in SIGNALS_SRC` — the literal is on BOTH the import line (:495) and the call site (:497), so reverting ONLY :497 leaves the scan green while security-05 fully regresses | Q/A behavioral probe (fake WebClient captured `xoxb-real-token`) |
+| 2 | **Source-scan, reworded-regression** | C129 / 75.3 / C3 | exact-literal scan for `resp["published"] = True`; a reworded `resp.update({"published": True})` (or a renamed var) evades the grep with the suite green | Q/A end-to-end re-fire through `publish_signal` |
+| 3 | **Source-scan, literal-kept-behavior-stripped** | C129 / 75.3 / C4 | keep `"stub": True` in the dict but `pop("stub")` off every candidate before return → all 27 tests green while criterion 4 regresses | Q/A drove real tool via `create_signals_server()`+fastmcp client |
+| 4 | **Tautology** | C130 / 75.2.1 (`assert wired["push"] is not None`, fixture already guarantees it) **and** C142 / 75.14:199 (`assert ... or True`, unconditionally passes) | assertion is a logical constant given the fixture / the `or True` short-circuit | Q/A read the test body; would pass with handler registered AFTER the catch-all |
+| 5 | **Fixture-cannot-represent-failure** | C130 / 75.2.1 / C3 | `AsyncSay` returns `AsyncSlackResponse` (exposes `.get()`, **not** a `dict` subclass); production `isinstance(resp, dict)` registered nothing and left the push path INERT, while 22 tests passed because the `_say` stub returned a plain dict | Q/A replayed real `AsyncSlackResponse` type; **mutation of production alone MISSED it** |
+| 6 | **Library-fact assertion posing as a fixture pin** | C130 / 75.2.1 / C6 | the guard added to fix #5 asserted only `not issubclass(AsyncSlackResponse, dict)` — an upstream-library fact, never references the `_FakeSlackResponse` stub it claims to pin; M9: regress stub→dict AND restore isinstance bug together → suite GREEN, production inert | Q/A M9 mutation of the **test harness itself** (never mutated by author) |
+| 7 | **Re-implemented test (behavioral-looking test exercising a COPY of the logic)** | C142 / 75.14 / C6 | `test_fallback_flag_routes_verdict` re-implements the parse-fail warning inline via a monkeypatched `SimpleNamespace(get_settings)` instead of executing the real `run_risk_debate` branch → a money-path DARK-flag **if/else routing inversion** (True→REJECT vs False→APPROVE_REDUCED) passes the entire 18-test suite undetected | Q/A; fixed by EXTRACTING `_judge_parse_fail_fallback()` and executing the REAL fn both ways |
+| 8 | **OR-escape-hatch / comment-token trap** | C143 / 75.15 / C5 | `('blocks the PR' not in s) or ('run_seed_stability' in s)` — the SAME diff ADDED `run_seed_stability` to the yaml COMMENT (line 20), so the 2nd clause is permanently true; re-introducing `blocks the PR` leaves the guard GREEN. (75.15 also had 2 MORE comment-token survivors M2/M6, self-caught) | Q/A mutation: overclaim re-added + token present → guard STILL passes |
+| 9 | **Executor-environment / shell-and-state dependence** | C135 / 75.7 (×3), C132 / 75.5, C129 / 75.3, C130 / 75.2.1 | (a) unquoted `$(git diff --name-only …)` **word-splits in zsh** → lints only tracked files, misses the untracked new test file; (b) unquoted `$FILES` → newline-joined blob → `ruff` "No such file" → **exit 0 over ZERO files** ("All checks passed!"); (c) stale `backend` pkg in `.venv/site-packages` shadows the repo module (75.3 drill dark); (d) process-state pollution: an M10 "pass" only because a prior pytest run pre-bound the test module's `cmd` global (75.2.1); (e) `.env` flag-state flips raw pass/fail counts (75.14/75.15) | Q/A re-ran in a clean process / explicit-arg + `${=FILES}` scope; the qa.md §1a empty-set guard exists for exactly this |
+| 10 | **Hand-derived-scope staleness** | C142 / 75.14 ("8 files" vs actual 9), C130 / 75.2.1 ("22 passed" vs 24; commands.py 189 vs 218 lines), C132 / 75.5 (hand-typed 10-file lint list omitting 4 of 14), C135 / 75.7 (regression 1304 vs 1305) | a list/count/scope captured BY HAND goes stale against a later edit; the "verbatim" artifact no longer reproduces | Q/A re-ran the deriving command (`git diff --stat`, `pytest -q`) |
+| 11 | **Mis-attributed kill-mechanism** | C135 / 75.7 / C1 | mutation M1 IS killed — but by the completion assertion, NOT the credited `RuntimeWarning-as-error+gc.collect` leg (which is inert/swallowed as "Exception ignored while finalizing coroutine"). The guard is non-vacuous *today*, but the RECORDED reason is wrong, so a future maintainer trusting the credited leg could delete the load-bearing assertion and silently make it vacuous | Q/A re-ran M1 in-memory and observed the real failing assertion |
 
-### Methodology (two independent derivations, reconciled by symmetric diff — qa.md §4b)
+**Meta-pattern (the reason the rule must be about *mutation*, not a code
+smell):** #5 was missed by mutation because the author mutated production
+while leaving the broken stub in place; #6 was missed because the author
+never mutated the **test harness itself**. Every remaining shape (#7 copy
+of logic, #8 comment token, #9 environment, #10 stale scope, #11 wrong
+kill reason) is a case where the SUBJECT the guard names and the THING the
+guard actually observes have silently diverged.
 
-- **Extractor A** (structure-aware): `open('...')`, `test -f/-e`, `python X.py`,
-  `pytest X`, `source X`, `cat X`, `bash X.sh` argument regexes over the COMMAND.
-- **Extractor B** (broad pattern): extension-anchored regex (`tsx` BEFORE `ts` —
-  the 75.2.1 alternation caveat) + repo-dir-anchored regex.
-- Scope: **`status=done`** only. A `pending`/`deferred`/`dropped`/`merged`/
-  `superseded` step naming a not-yet-created artifact is NOT a defect (the 75.19
-  status-aware rule). 103 non-done steps carry absent-path references — all
-  informational, zero defects.
-- Resolution rules (all four shapes handled; a naive `.get('command')` crashes on
-  the 13 list-shaped): repo-root-relative, frontend-relative (`frontend/` AND
-  `frontend/src/`), URL fragments (skip), absolute host paths (skip), `/tmp` +
-  `handoff/` + `frontend/handoff/` runtime/transient (skip), globs (resolve).
-- **Negative-assertion detection** (the decisive filter both prior sweeps lacked):
-  a path under `! test -f X`, `test ! -f X`, `[ ! -f X ]`, `test -f X || …`, or a
-  Python `assert not os.path.exists(X)` is RUNNABLE and PASSES *because* the path
-  is absent. These are NOT defects.
-- Every surviving absent path is **git-classified**: `--diff-filter=A` empty ->
-  never-existed (i); added-then-deleted -> retired (ii) with the retiring commit.
-
-### FUNNEL (measured, reproducible via scratchpad `census_v3.py`)
-
-| Stage | Count | What was removed |
-|-------|-------|------------------|
-| done steps flagged by A u B (any absent token) | 236 | — |
-| after dropping transient/URL/prose/basename-exists | 20 | live_check_*.md, experiment_results.md, prose basenames (qa.md, portfolio_manager.py…), localhost URLs |
-| after negative-assertion filter | 18 | 4.14.19, 16.50 (assert absence) |
-| after resolving glob/frontend/shell-var artifacts | **10 genuine** | 4.8.6 (`$f.md`->runbooks exist), 7.12 (`alt_data_ic_*.tsv` globs), 16.37/16.39 (grep patterns; `lib/icons.ts`->`frontend/src/`), 23.1.4 (`for`), 23.5.2.6 (`found`/`located`), 75.2/75.16 (Python `assert not exists` absence-audits), `s.py` fragment |
-
-### THE GENUINE DEFECT SET — 10 done steps (command-unrunnable, not absence-asserted)
-
-| Step | Absent path in `verification.command` | Class | git evidence | Already annotated? |
-|------|----------------------------------------|-------|--------------|--------------------|
-| 4.17.2 | `scripts/go_live_drills/researcher_smoke_test.py` | (i) never-existed | `--diff-filter=A` empty | NO -> annotate |
-| 4.17.3 | `scripts/go_live_drills/qa_smoke_test.py` | (i) never-existed | empty | NO -> annotate |
-| 4.17.4 | `scripts/go_live_drills/handoff_e2e_test.py` | (i) never-existed | empty | NO -> annotate |
-| 4.17.5 | `scripts/go_live_drills/coala_memory_layers_test.py` | (i) never-existed | empty | NO -> annotate |
-| 4.17.6 | `scripts/go_live_drills/signal_evidence_test.py` | (i) never-existed | empty | NO -> annotate |
-| 4.17.7 | `scripts/go_live_drills/paper_trade_e2e_test.py` | (i) never-existed | empty | NO -> annotate |
-| 4.17.8 | `scripts/go_live_drills/slack_bot_smoke_test.py` | (i) never-existed | empty | NO -> annotate |
-| 4.17.11 | `scripts/go_live_drills/openclaw_runtime_test.py` | (i) never-existed | empty | NO -> annotate |
-| 4.17.12 | `scripts/go_live_drills/f1_recovery_drill.py` | (i) never-existed | empty | NO -> annotate |
-| 4.14.26 | `backend/agents/skills/neutral_analyst.md` + `devils_advocate_agent.md` | (ii) retired | added cb413518, **deleted f7e24d0a = phase-26.4** "Consolidate 6 opinion skills into parameterized stance prompt" | NO -> annotate |
-
-**On-disk truth for the 9 go_live_drills:** the WORK was done — the drills exist
-under the `smoke_test_4_17_N.py` convention (all added in `1122a021`); only the
-plan-side NAMES never matched. Class (i): name mismatch from day one, `git log
---all --diff-filter=A` empty for every plan-side name. This is the "ten-ish
-phase-29 go_live_drills cluster" the node predicted — precisely 9 after excluding
-the already-annotated 4.17.9. (4.17.10 runs `pytest scripts/go_live_drills/` on the
-whole dir + `aggregate_gate_check.py`, both of which EXIST -> runnable -> correctly
-NOT flagged.)
-
-**4.14.26 (class ii, NEW — 75.2.1 did not name it):** its command
-`grep -l "I don't know|…" <10 skill files> | wc -l | awk '{exit ($1<10)}'` now finds
-only 8 of 10 files (neutral_analyst.md + devils_advocate_agent.md were deleted when
-phase-26.4 consolidated the 6 opinion skills into one parameterized stance prompt),
-so `wc -l` <= 8 < 10 -> non-zero exit. Genuinely unrunnable-to-PASS. Retiring commit
-`f7e24d0a`, step 26.4.
-
-### Already annotated by 75.2.1 — EXCLUDE, do not double-annotate (node + criterion 4)
-
-| Step | Path | srec present? |
-|------|------|---------------|
-| 4.17.9 | `scripts/go_live_drills/self_update_audit_test.py` (never-existed) | YES OK |
-| 4.14.24 | `backend/slack_bot/assistant_handler.py` (grep, retired f55e6973) | YES OK |
-| 4.14.4 | `assistant_handler` import (retired f55e6973) | YES OK (not path-shaped; caught by 75.2.1's import sweep) |
-
-### Why 75.2.1's "15" and Main's "33" both mis-counted (the triage payoff)
-
-Neither prior sweep applied the three filters that resolve the discrepancy:
-
-1. **Negative-assertion blindness** -> `4.14.19` (`test ! -f backend/mcp/__init__.py`)
-   and `16.50` (`! test -f backend/agents/planner_enhanced.py && …`) were counted as
-   "absent-path" defects. They are runnable and PASS *because* the paths are absent
-   (identical to 75.2 asserting the dead modules' absence, which 75.2.1 itself said
-   "must not be touched"). **Both are FALSE POSITIVES.**
-2. **No current-disk check for runtime outputs** -> `8.5.4`
-   (`test -f backend/autoresearch/results.tsv && …`) and `10.2`
-   (`…/weekly_ledger.tsv`) name generated TSVs that EXIST on disk now (added
-   `22e78958`), so the commands are runnable today. Absent only when the harness
-   hasn't produced them — a runtime-data dependency, not a permanent mismatch.
-3. **Frontend/glob/shell-var non-resolution** -> Main's "33 raw" inflation
-   (`lib/icons.ts`->`frontend/src/lib/icons.ts`, `/openapi.json`+`/walk_summary.json`
-   URL routes, `/Library/LaunchAgents/com.py` truncated plist, `alt_data_ic_*.tsv`
-   glob, `$f.md` shell var). The `.tsx`/`.ts` alternation artifact (75.2.1's own
-   caveat) inflated 15->27.
-
-**Definitive count: 10 genuine defects needing annotation** (9 never-existed + 1
-retired), **3 already annotated (excluded)**, and the rest of both prior counts are
-false positives or runtime-conditional.
-
-## Adaptive coverage — loop-until-dry (audit-class, K=2)
-
-The census is a MEASUREMENT; dryness is proven by feeding a SINGLE rigorous
-adjudicator (negation-aware + git-classify + full FP filter set) with progressively
-different EXTRACTION strategies and confirming the *adjudicated genuine set does not
-grow*. Reproducible via scratchpad `census_final.py`.
-
-| Round | Added extraction strategy | Genuine (adjudicated) | New genuine | Verdict |
-|-------|---------------------------|----------------------|-------------|---------|
-| 1 | A = structure-aware (`open()`/`test -f`/`python`/`pytest`/`source`/`cat`/`bash`) | 12 steps / 13 paths | — | — |
-| 2 | + B = broad regex (ext-anchored + repo-dir-anchored) | 12 / 13 | empty-set (symmetric diff A^B empty on genuine) | reconciled |
-| 3 | + C = whitespace+quoted-string tokenizer | 12 / 13 | **NONE** | **DRY** |
-| 4 | + D = maximal-recall (bare-ext + verb-arg + scans success_criteria/live_check) | 12 / 13 | **NONE** | **DRY** |
-
-`{A,B}` and `{A,B,C,D}` yield the IDENTICAL genuine set -> the census is robust to
-extraction strategy. **`dry_rounds = 2 >= K_required = 2 -> coverage.dry = TRUE.`**
-
-**Design finding (feeds the sweep-tool spec):** the adjudicator cannot rescue a
-naive extractor. Crude whitespace/maximal tokenizers (C, D) emit malformed tokens
-from `python -c` inline code; only a **well-formedness gate**
-(`^[.A-Za-z0-9_][A-Za-z0-9_./+*?\[\]-]*$`) + a **boundary gate** (the token must
-appear as a WHOLE path in the command, `(?<![path-char])TOKEN(?![path-char])`)
-collapse them to the same 10. Two residual hard cases only resolve with specific
-handling, and every future sweep MUST include both:
-- **glob-prefix** (7.12): `ls …/alt_data_ic_*.tsv` — a truncated token
-  `alt_data_ic_` must be re-globbed (`glob(token+"*")`) before being called absent;
-  the real glob matches `alt_data_ic_20260419T224855.tsv` -> FALSE POSITIVE.
-- **full-path-aware negation** (75.16): `assert not os.path.exists('scripts/deploy/
-  deploy_agents.sh')` and `open(p) if os.path.exists(p) else ''` — a bare-basename
-  token must be matched against its FULL path inside the assertion, and the
-  `else ''` tolerated-missing branch recognised -> FALSE POSITIVE (security
-  absence-audit, same class as 75.2 / 16.50).
+**Companion doctrine (measure-before-assert; leg (d)) — distinct axis:**
+Phase-75 shipped **three false checkable claims**, each one command from
+verification: (i) DEBUG env state — "`DEBUG=true`" when `settings.debug`
+was `False` (75.1); (ii) verb parity — "covers what the deleted
+`handle_deploy_command` matched", missed 12 surfaces incl. bare `deploy`
+(75.2); (iii) handler-registration order — written in FIVE places that the
+operator-token handler registers first, when the push handler is idx 0
+(75.2.1). Generalized root cause (75.5, 11 instances, `wf_b550e771-aa7`):
+**a claim about a SET whose membership rule was never written down
+operationally** — the code was correct every time; the harness had no
+instrument on the CLAIMS. Sub-rule: a literal a criterion **source-scans
+for** must not survive in explanatory COMMENTS either (3 instances: CGNAT
+pattern, date cutoff, dead-branch name).
 
 ---
 
-## External research (floor: >=5 read in full; the internal-heavy nature does not lower it)
+## 2. Per-file codification map (legs a–d → files; NO duplication, cross-link)
 
-### Queries run (3-variant discipline per topic)
+House convention (`research-gate.md` "Cross-references"): each rule lives
+in ONE file; the others cross-link. Existing split: `qa.md` = evaluator
+mechanics; `per-step-protocol.md` = orchestration sequence; the skill =
+ranked code-review heuristics + severity dispatch + negation lists;
+memories = operator-ratified wording. Map the four legs onto that split:
 
-| Topic | current-year (2026) | last-2-year | year-less canonical |
-|-------|--------------------|-------------|--------------------|
-| Verification/audit-replay rot | `unrunnable verification commands audit trail integrity … 2026` | `SOX control re-performance reproducibility attestation 2025` | (ISACA/audit-evidence canon) |
-| Runbook/doc rot | `runbook automation tools 2026` | `runbook is already lying to you 2026` | `runbook rot documentation decay SRE` |
-| JSON polymorphic fields | `JSON polymorphic field heterogeneous schema robustness` | `JSON schema compatibility robustness principle 2025` | `Postel's law robustness principle` |
-| Path-resolution ambiguity | `monorepo path resolution ambiguity bazel 2026` | — | `relative path resolution workspace` |
-| Append-only supersede | — | — | `immutable append-only record supersede ADR convention` |
+| Leg | Lands in | Concrete edit | Satisfies criterion | Cross-links (don't duplicate) |
+|-----|----------|---------------|---------------------|-------------------------------|
+| (a) per-criterion vacuity check | **`qa.md`** new **§4c "Guard-vacuity check"** (sits after §4b claim-auditing) | For EACH immutable criterion, NAME the concrete mutation that would make its guard fail; apply it (or show why unreachable); **"no such mutation exists" is a FINDING (`Circular_Reasoning`/`Missing_Assumption`), never a pass.** | C1 | → skill `illusory-guard` heuristic (owns the ranked shapes); → `feedback_mutation_test_guards_and_fixtures` |
+| (b) mutation must cover the FIXTURE | **`qa.md` §4c** (mechanics) + **`per-step-protocol.md` §4** (one-line requirement) | qa.md: "mutation evidence MUST cover the test FIXTURE/stub as well as the code under test — assert on the object the fixture *actually returns*, not the library type it imitates. Cite 75.2.1: mutating production alone left a dict-returning stub undetected." per-step-protocol: one sentence + cross-link. | C2 | per-step-protocol → qa.md §4c (mechanics live there) |
+| (c) ranked illusory-guard heuristic | **`.claude/skills/code-review-trading-domain/SKILL.md`** Dimension 4 + Top-list #17 | New ranked entry `illusory-guard` naming the **four required shapes** (source-scan-only, tautology, non-representative fixture, library-fact-assertion-posing-as-fixture-pin) with **severity dispatch** (see §2a below); RECOMMEND adding #7 re-implemented-test + #8 OR-escape-hatch as sub-shapes (criterion is a floor). | C3 | generalizes existing `tautological-assertion`/`over-mocked-test`/`rename-as-refactor` — reference, don't duplicate |
+| (d) measure-before-assert + comment-literal rule | **`per-step-protocol.md`** new short subsection "Measure before asserting" | (i) a checkable factual claim must be MEASURED before it enters any artifact (contract/results/comment/commit) — 3 examples (DEBUG 75.1, verb-parity 75.2, handler-order 75.2.1); (ii) a literal a criterion source-scans for must NOT appear in explanatory comments (3 instances). | C4 | → `feedback_measure_dont_assert_claims`; qa.md §4b already enforces the reproduce-side — cross-link, don't restate |
+| C5/C6 | git-diff scope + harness_log note | no product-code file touched (assert via `git diff --stat`); **Main** appends the Peder-review-of-qa.md note to `harness_log.md` | C5, C6 | CLAUDE.md "Separation of duties on agent edits" |
 
-### Read in full (6; gate floor is 5)
+### 2a. Severity dispatch for the `illusory-guard` heuristic (leg c)
 
-| # | URL | Accessed | Kind | Tier | Key finding |
-|---|-----|----------|------|------|-------------|
-| 1 | https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record | 2026-07-24 | official doc | 2 | Verbatim: *"The ADR serves as an append-only log. Don't go back and edit accepted records. If a decision changes, write a new record that supersedes the original and link the two together."* Status field evolves (`Accepted`/`Superseded`); *"Avoid hiding consequences."* This IS the `superseded_record` doctrine. |
-| 2 | https://www.isaca.org/…/2026/volume-9/the-ai-audit-trail-from-ai-policy-to-ai-proof | 2026-07-24 | professional body | 2 | *"A policy cannot prove that an AI system behaved correctly at the moment it mattered."* Capturing prompt+answer is *"a transcript,"* not an audit trail. Genuine governance = *"auditable evidence"* an independent auditor can **reconstruct**. Maps 1:1 onto "a done step's PASS must be re-performable, not merely claimed." |
-| 3 | https://yokota.blog/2025/10/07/json-schema-compatibility-and-the-robustness-principle/ | 2026-07-24 | authoritative blog | 3 | Postel's law for schema: *"Be conservative in what you send, be liberal in what you accept";* consumers *ignore* fields not in their schema. **Caveat:** *"full compatibility does not allow you to evolve sum types"* — polymorphic (sum-type) fields are the hard case, exactly the 4-shape `verification` field. |
-| 4 | https://github.com/FasterXML/jackson-docs/wiki/JacksonPolymorphicDeserialization | 2026-07-24 | official docs | 2 | Polymorphic JSON needs *"per-instance type information"* (a discriminator) to pick the concrete shape; a *"default type handling baseline"* handles the unknown/missing-shape case. The parser must dispatch on shape — a naive fixed-shape read fails. Direct analogue to the dict/str/list/None dispatch. |
-| 5 | https://arxiv.org/html/2502.18878 (Schema Reinforcement Learning) | 2026-07-24 | preprint | 1 | Structured-output conformance is measured by a *"fine-grained validator [that] calculates the correctness ratio … proportion of correct tokens"* — split at the error position, validate the remainder, never binary pass/fail. Models show 8–36% schema/parse error without enforcement. Lesson: a robust checker reports WHERE and WHAT fails per-item, not one pass/fail. |
-| 6 | https://www.stew.so/blog/documentation-rot-devops | 2026-07-24 | industry blog | 4 | Doc rot timeline: *"Day 1 aligned … Day 180 useless"; "The longer docs sit untouched, the more they lie."* Remedy = *"actually running documentation against live systems … when documentation gets executed regularly, hidden decay becomes immediately visible."* This is precisely why an unrunnable `verification.command` on a done step is governance rot, and why the sweep must EXECUTE-resolve paths, not trust the text. |
-
-### Identified but snippet-only (context; does NOT count toward the gate)
-
-| URL | Kind | Why not read in full |
-|-----|------|----------------------|
-| https://earezki.com/ai-news/2026-05-17-the-runbook-is-already-lying-to-you/ | blog | HTTP 403 on fetch; runbook-rot thesis already covered by #6 |
-| https://www.trustedintegration.com/understanding-sox-it-general-controls-and-evidence-auditors-accept/ | industry | Returned empty body; re-performance angle covered by #2 |
-| https://dev.to/pbouillon/deserializing-polymorphic-json-in-net-without-losing-type-safety-4o4d | blog | .NET-specific; #3/#4 cover the pattern |
-| https://www.aviator.co/blog/monorepo-tools/ | blog | Monorepo path-resolution (Bazel fine-grained file graph, pnpm workspace protocol removes local-resolution ambiguity) — supports frontend-relative resolution rule |
-| https://github.com/architecture-decision-record/architecture-decision-record | repo | ADR immutability canon; #1 is the authoritative version |
-| https://www.pactvera.com/best-platforms-for-immutable-audit-trails-in-2026/ | vendor | Immutable audit-trail platforms; #2 covers the principle |
-| https://incident.io/blog/runbook-automation-tools-2026-the-complete-guide | vendor | Executable-runbook tooling; #6 covers the thesis |
-| https://novaaiops.com/runbooks | vendor | "runbooks as hypotheses not maps" framing |
-| https://www.networkintelligence.ai/blogs/sox-compliance-checklist/ | industry | SOX reperformance checklist |
-| https://yokota.blog/… (Schema Registry) | blog | producer-strict/consumer-lenient detail |
-
-**URLs collected: 16** (6 read in full + 10 snippet-only). Hierarchy satisfied:
-1 preprint (T1), 2 official docs (T2), 1 professional body (T2), 1 authoritative
-blog (T3), 1 industry blog (T4). Not community-heavy.
-
-### Recency scan (last 2 years, 2025–2026) — performed
-
-**3 findings** complement the canon; none supersedes it:
-1. **ISACA 2026 "proof vs policy"** (#2) — freshest articulation of the exact thesis:
-   a claim of a passing control is not the control; only re-performable evidence is.
-   New framing over classic SOX re-performance.
-2. **Yokota 2025 robustness-principle-for-schema** (#3) — the sum-type/polymorphic
-   caveat is the current sharpest statement of why a `union`-shaped field (dict|str|
-   list|None) resists a single-shape reader. Complements Jackson's older canon (#4).
-3. **stew.so 2026 doc-rot + arXiv 2025 Schema-RL** (#6/#5) — converge on
-   "execute-to-validate" and "per-item granular conformance reporting" as the
-   modern remedies. Both post-date and reinforce the older runbook-automation canon.
-
-The year-less canon (ADR append-only immutability #1, Postel's law, Jackson
-polymorphism #4) remains the normative base; the 2025–2026 work adds the
-proof-vs-policy sharpening and the sum-type caveat.
-
-### Key findings (external -> mapped to pyfinagent)
-
-1. **An unrunnable `verification.command` on a `status=done` step is governance rot,
-   not a cosmetic flaw.** ISACA (#2): a transcript != an audit trail; the PASS must be
-   *reconstructable*. stew.so (#6): *"execute documentation against live systems …
-   decay becomes immediately visible."* -> The sweep must **execute-resolve** every
-   path against HEAD, and the fix must **preserve** the historical PASS while marking
-   it un-reproducible — exactly what `superseded_record` does.
-2. **Immutable-append-only is the correct repair primitive.** MS ADR (#1): never edit
-   accepted records; supersede + link + preserve history. -> NEVER amend
-   `verification.command`/`success_criteria`; add a SIBLING `superseded_record`
-   (byte-identity of the criteria is the machine-checkable form of "don't edit").
-3. **The 4-shape `verification` field is a textbook polymorphic/sum-type field.**
-   Jackson (#4) + Yokota (#3): dispatch on shape, provide a default for the unknown
-   case; a fixed-shape reader (`.get('command')`) crashes on the 13 list-shaped and
-   silently skips the 126 str-shaped + 24 None. -> The sweep's shape normalizer
-   (`verif_strings`) is the discriminator; it must handle all four, verified by a
-   fixture per shape.
-4. **A robust checker reports per-item WHERE/WHAT, never a single pass/fail.**
-   Schema-RL (#5): granular per-token conformance beats binary. -> The sweep must emit
-   a per-row table (step, path, class, git-evidence), which is also what criterion 5
-   ("no count asserted without the sweep output backing it") demands.
-5. **Path-resolution ambiguity is a known monorepo hazard** (Aviator/pnpm snippet;
-   Bazel's fine-grained file graph). -> frontend-relative (`lib/icons.ts` ->
-   `frontend/src/`), URL-route, and glob tokens are the documented ambiguity classes
-   the resolver must disambiguate — the node's named false-positive families.
+Align to the skill's existing BLOCK/WARN/NOTE table:
+- **BLOCK** when the illusory guard is the **SOLE** coverage for a
+  behavioral/money-path criterion (shapes 5, 6, 7, 8; and a source-scan
+  that is the only guard for a runtime behavior).
+- **WARN** when a real behavioral guard exists alongside but the scan is
+  **mislabeled** as behavioral (the 75.3 rename-the-overclaiming-test fix).
+- **Negation list (legitimate, do NOT flag):** a source scan that is
+  **criterion-mandated verbatim** ("source no longer contains X") when
+  **paired** with a behavioral guard; a scan of a **statically unreachable
+  dead branch** where no runtime behavior exists to observe (75.3
+  `compute_dsr_real` — a scan is the only possible guard). This negation
+  list is REQUIRED so the heuristic itself is not over-broad.
 
 ---
 
-## Repair prescription — `superseded_record` per class (mirror 75.2.1, do NOT invent)
+## 3. Vacuity analysis of 75.18's OWN criteria + verification command
 
-The house convention already exists at 4 sites (`.claude/masterplan.json` lines
-3908 / 4245 / 4870 / 15530). Reuse it EXACTLY. Criteria stay byte-identical; the
-sibling annotates. Two variants:
+A doctrine step against vacuous guards must not ship vacuous guards. The
+immutable `verification.command` is **itself three of the anti-patterns**:
 
-### Class (i) never-existed — the 9 go_live_drills (template, per step)
+1. `assert 'mutation' in qa.lower()` — **ALREADY TRUE on the unmodified
+   qa.md** (measured: "mutation" appears on 4 lines today). This half-clause
+   passes regardless of whether 75.18 does anything — the family-#3
+   "literal already present" shape.
+2. `'fixture' in qa.lower()` / `'fixture' in pr.lower()` — single-token
+   source-scan (family #1). Measured: "fixture" is **absent** from both
+   files today, so it forces *a* change — but adding the bare word
+   anywhere satisfies it, WITHOUT the doctrine being present or correct.
+3. `'illusory' in sk or 'vacuous' in sk` — **OR-escape-hatch** (family #8),
+   satisfiable by EITHER token alone, anywhere (incl. a comment).
 
-```json
-"superseded_record": {
-  "superseded_at": "2026-07-24",
-  "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle NNN)",
-  "reason": "PRE-EXISTING NAME MISMATCH from day one: the verification command runs `python scripts/go_live_drills/researcher_smoke_test.py`, a path that NEVER EXISTED -- `git log --all --diff-filter=A -- scripts/go_live_drills/researcher_smoke_test.py` returns empty. The drill WORK was done under the on-disk convention scripts/go_live_drills/smoke_test_4_17_2.py (added 1122a021); only the plan-side name never matched. The command has been unrunnable since the step was marked done, independent of any later deletion.",
-  "retired_by_commit": null,
-  "retired_in_step": null,
-  "still_runnable": false,
-  "already_broken_before_retirement": true,
-  "criteria_amended": false,
-  "on_disk_equivalent": "scripts/go_live_drills/smoke_test_4_17_2.py",
-  "scope_disclosure": "One member of the phase-29 go_live_drills naming-drift family (4.17.2-4.17.8, 4.17.11, 4.17.12) surfaced by the 75.17 census; 4.17.9 was annotated by 75.2.1 and is excluded.",
-  "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL (CLAUDE.md: immutable). Annotation only; asserted against git show <pre-75.17 commit>."
-}
-```
-
-Per-step `on_disk_equivalent` mapping (all confirmed added in `1122a021`):
-`4.17.2->smoke_test_4_17_2.py`, `4.17.3->…_3`, `4.17.4->…_4`, `4.17.5->…_5`,
-`4.17.6->…_6`, `4.17.7->…_7`, `4.17.8->…_8`, `4.17.11->…_11`, `4.17.12->…_12`.
-(4.17.10 is NOT in the set — its command `pytest scripts/go_live_drills/` + existing
-`aggregate_gate_check.py` is runnable.)
-
-### Class (ii) retired-by-later-step — 4.14.26 (the NEW member 75.2.1 did not name)
-
-```json
-"superseded_record": {
-  "superseded_at": "2026-07-24",
-  "authorized_by": "operator directive for step 75.17 (recorded in harness_log Cycle NNN)",
-  "reason": "phase-26.4 (commit f7e24d0a, 'Consolidate 6 opinion skills into parameterized stance prompt') deleted backend/agents/skills/neutral_analyst.md and backend/agents/skills/devils_advocate_agent.md. This step's command greps a hard-coded list of 10 skill files and asserts `wc -l >= 10`; with 2 of the 10 now absent the grep processes only 8 -> awk '{exit ($1<10)}' exits non-zero. The 'I don't know permission' work it verified was consolidated into the parameterized stance prompt, so the artifact -- not the outcome -- is retired.",
-  "retired_by_commit": "f7e24d0a",
-  "retired_in_step": "26.4",
-  "still_runnable": false,
-  "already_broken_before_retirement": false,
-  "criteria_amended": false,
-  "note": "verification.command and verification.success_criteria left BYTE-IDENTICAL. Annotation only; byte-identity asserted against git show <pre-75.17 commit>."
-}
-```
-
-**Exclusions (criterion 4):** do NOT annotate 4.14.4, 4.14.24, 4.17.9 — each already
-carries exactly one `superseded_record` (verified). The test must assert **exactly
-one `superseded_record` per step repo-wide** (no double-annotation), and
-**byte-identity** of `verification.command` + `verification.success_criteria` for
-every touched step against the pre-75.17 commit.
+**Prescription:** the command is immutable and is a *necessary-not-
+sufficient* smoke check — keep it, do not edit it. The REAL gate is the six
+prose `success_criteria`, which are semantic ("qa.md **instructs the
+evaluator** to name the concrete mutation…"). The 75.18 Q/A must satisfy
+them the way `scripts/qa/verify_qa_roster_live.sh` satisfies "the section
+is live": that script's `grep -qF` step is necessary, but its **step 3 is a
+behavioral self-disclosure** that the section is actually operative.
+The behavioral analog for a doctrine edit is a **known-member recall test
+(qa.md §4b)**: take ≥1 *already-known* phase-75 vacuous guard from the
+taxonomy above (e.g. instance #3 pop-key, or #8 seed OR-hatch) and confirm
+the NEW qa.md §4c / skill heuristic, read as written, **would flag it**. A
+doctrine that cannot catch its own corpus is `Threshold_Not_Met`. Criterion
+C5 ("no backend/ or frontend/ file changed") is non-vacuously checkable by
+`git diff --name-only HEAD | grep -E '^(backend|frontend)/'` returning empty.
 
 ---
 
-## Mutation matrix — the sweep tool must be non-vacuous (criterion 6, incl. a fixture mutation)
+## 4. Separation-of-duties mechanics for the 75.18 Q/A spawn
 
-| # | Mutation (of production OR fixture) | Expected | Guards against |
-|---|-------------------------------------|----------|----------------|
-| M1 | Break masterplan JSON parse (truncate a brace) | test HARD-FAILS (not skip) | silent parse-drift -> empty census |
-| M2 | Plant an absent path in a done step's command (`python scripts/nope_xyz.py`) | sweep FINDS it, classes never-existed | the sweep can actually detect the target defect |
-| M3 | Feed the resolver a frontend-relative path (`lib/icons.ts`) | resolver returns EXISTS (via `frontend/src/`) — NOT flagged | frontend-relative false positive (node-named) |
-| M4 | Feed a URL fragment (`/openapi.json`, `localhost:8000/api/x`) | NOT flagged | URL-fragment false positive (node-named) |
-| M5 | Feed a truncated plist (`/Library/LaunchAgents/com.py`) | NOT flagged | truncated/host-path false positive (node-named) |
-| M6 | Feed a `! test -f X` negative assertion on an absent X | NOT flagged | absence-assertion false positive (4.14.19/16.50 class) |
-| M7 | **FIXTURE mutation:** replace the list-shaped fixture with a dict-only fixture | test that "all 4 shapes handled" FAILS | 75.2.1 lesson — a fixture that cannot represent the list shape can't prove the crash-guard; mutate the STUB too |
-| M8 | Change a superseded_record's `criteria_amended` to true / edit a criterion byte | byte-identity test FAILS | the immutability guarantee itself |
-| M9 | Add a 2nd `superseded_record` to any step | exactly-one test FAILS | double-annotation (criterion 4) |
-| M10 | Glob-truncation: feed `alt_data_ic_` where `alt_data_ic_*.tsv` exists | NOT flagged (glob-prefix re-resolve) | 7.12 hard-case |
+**The edited qa.md evaluates its own edit.** On the primary Workflow path
+(`qa-verdict.js`) the Q/A "**Read[s] this file (qa.md) from disk at
+runtime**" (qa.md:70) — so the moment Main writes §4c, the very next Q/A
+spawn is bound by the rubric under review (unlike the Agent-tool path,
+which snapshots at session start). Prescription for Main's spawn:
 
-M7 is the mandatory fixture-mutation (criterion 6): mutating only production code
-would miss a fixture that cannot express the list/None shapes — the exact 75.2.1
-trap (auto-memory `feedback_mutation_test_guards_and_fixtures`).
-
----
-
-## Where the sweep tool lives — recommendation with evidence
-
-**Precedent:** `scripts/qa/` already hosts committed sweep tools — `sweep_ascii_logger.py`
-(+`_v2`,`_v3`), `coverage_tier_check.py`, `env_syntax_check.py` — each paired with a
-nightly GitHub Actions workflow (`ascii-logger-lint.yml`, `coverage-tier-check.yml`,
-`env-syntax-lint.yml`). Phase-75 tests follow `backend/tests/test_phase_75_*.py`.
-
-**Recommendation:**
-- **Commit the sweep at `scripts/qa/sweep_absent_verification_paths.py`** (mirrors the
-  `sweep_*` idiom) and the guard at **`backend/tests/test_phase_75_17_verification_paths.py`**
-  (matches the node's immutable `verification.command` verbatim).
-- **Do NOT add a redundant nightly workflow.** Masterplan integrity is already the
-  domain of `scripts/meta/preflight_verify_masterplan.py`, which **step 75.19 is
-  chartered to recalibrate to be status-aware + transient-aware** (the exact filters
-  this census needed). The reusable classifier (shape-normalizer, negation detector,
-  git-classifier, FP filters) should be authored in 75.17 as an importable module and
-  **handed to 75.19** for the preflight/CI integration — this honors the node's
-  "COORDINATE WITH 75.19: the go_live_drills cluster belongs to 75.17; do not
-  double-annotate" directive and avoids two overlapping nightlies.
-- 75.17 is therefore a **one-shot triage + committed pytest guard**; continuous
-  enforcement is 75.19's preflight-gate job.
+1. **Evaluate the DIFF against the doctrine GOALS**, not the token-scan.
+   Feed the Q/A the six criteria + the two memory files' operator-ratified
+   wording; instruct it to confirm the PROSE instructs each named behavior
+   (read, don't grep).
+2. **Flag the self-reference explicitly.** The spawn prompt must tell the
+   Q/A it is grading a rubric that now includes the edit under review, and
+   have it apply the NEW §4c vacuity check to the doctrine's own guards
+   (the recall test in §3).
+3. **Hold-flip-for-review disposition (per CLAUDE.md separation-of-duties +
+   the 75.5 precedent).** Doer/judge separation holds for 75.18 itself
+   (Main authors, a SEPARATE Q/A agent evaluates), so 75.18 may flip to
+   `done` on a genuine PASS. The binding constraint is FORWARD: **Main
+   appends a note to `harness_log.md` requesting Peder review of the qa.md
+   edit, and NO later step may depend on the new rubric until that review
+   lands** (criterion C6; mirrors 75.5's operator-approval gate). Do not let
+   the auto-commit sweep the edit into a step that silently relies on it.
 
 ---
 
-## Step-text corrections (annotate, do not edit the immutable criteria)
+## 5. External research
 
-1. **Shape census is stale.** The node states "674 dict / 126 str / 13 list / 24
-   None" (837-step, 75.2.1-era). Current HEAD is **883 flat steps -> 720 dict / 126
-   str / 13 list / 24 None**. The +46 are new phase-75 steps. The list=13 / None=24 /
-   str=126 figures are unchanged; only dict moved 674->720. The sweep MUST run against
-   live HEAD (runtime outputs drift — see 8.5.4/10.2).
-2. **The genuine count is 10, not "ten-ish go_live_drills".** It is **9** go_live_drills
-   (4.17.2-8, 4.17.11, 4.17.12; 4.17.9 excluded-annotated) **+ 1** retired non-drill
-   (**4.14.26**, which 75.2.1 did NOT name). 75.2.1's "15" and Main's "33" both
-   over-counted by conflating absence-assertions (4.14.19, 16.50), runtime outputs
-   that exist now (8.5.4, 10.2), and extraction artifacts.
-3. **4.14.4 is import-class, not path-class.** It is already annotated; a path-only
-   sweep will NOT surface it (its reference is `from backend.slack_bot import
-   assistant_handler`, not a filesystem path). The exactly-one-superseded_record test
-   still covers it.
+### Read in full (6; ≥5 floor met — counts toward the gate)
 
-## Internal code inventory
+| # | Source | Accessed | Kind | Fetched how | Key finding |
+|---|--------|----------|------|-------------|-------------|
+| 1 | Vera-Pérez, Monperrus, Baudry — *A Comprehensive Study of Pseudo-Tested Methods* (arXiv:1807.05030) | 2026-07-24 | peer-reviewed (EMSE) | ar5iv HTML | "A method is **pseudo-tested** … if the test suite **covers** the method and **does not assess any of its effects**" — covered yet no test fails when the body is stripped; present in ALL subjects even high-coverage, ratio 1%–46% |
+| 2 | Betka & Wagner — *Extreme Mutation Testing in Practice* (arXiv:2103.08480) | 2026-07-24 | peer-reviewed | ar5iv HTML | 14% of methods pseudo-tested (291/2041); root causes = **weak tests with NO assertions (8)**, incomplete (3), side-effect-only (14); method-level ("extreme") mutation is the practical unit — 13 min vs 37 min |
+| 3 | *Agentic Uncertainty Reveals Agentic Overconfidence* (arXiv:2602.06948) | 2026-07-24 | preprint (2026) | arxiv HTML | "some agents that succeed only **22%** of the time predict **77%** success"; "**5.5× more likely to confidently predict success on a failing task** than to doubt a successful one"; post-execution info WORSENS calibration (anchors on surface plausibility) |
+| 4 | *ReVeal: Self-Evolving Code Agents via Reliable Self-Verification* (arXiv:2506.11442) | 2026-07-24 | preprint (2025) | ar5iv HTML | intrinsic self-verification → "verbose, blind self-reflection or random guessing"; reliable verification is **grounded in executable tool feedback** (Python interpreter execution), NOT model introspection |
+| 5 | Shai Yallin — *Fake, Don't Mock* | 2026-07-24 | practitioner blog | direct HTML | a hand-rolled stub "might return what the test expects while the **real implementation behaves differently**"; a **fake verified by a contract test against the real type** stays faithful — the exact remedy for instances #5/#6 |
+| 6 | CircleCI — *What is mutation testing?* | 2026-07-24 | vendor eng blog | direct HTML | runtime = mutants × suite-runtime (1000 mutants × 60s ≈ 16h); "**Run mutation tests on a schedule, not on every commit**"; scope to changed files; 60–80% target, not 100% |
 
-| File / artifact | Role | Finding |
-|-----------------|------|---------|
-| `.claude/masterplan.json` | census target | 883 flat steps (`phases[].steps[]`, no nesting); 720 dict / 126 str / 13 list / 24 None verification shapes |
-| `handoff/current/research_brief_75.2.1.md` | prior methodology | The "15" count + the `.tsx`/`.ts` alternation caveat (inflates 15->27); named 8.5.4/10.2/4.14.19/16.50 as "others" — 2 of which are FPs |
-| `handoff/archive/phase-75.2.1/{contract,experiment_results,evaluator_critique}.md` | prior triage | f55e6973 deleted 7 files; 4.17.9 `--diff-filter=A` empty; the 837-step shape census |
-| masterplan lines 3908/4245/4870 | `superseded_record` for 4.14.4/4.14.24/4.17.9 | the criteria-immutable variant to MIRROR (byte-identical + `criteria_amended:false`) |
-| masterplan line 15530 | `superseded_record` for **68.5** (pending) | the OTHER variant (preserves `original_success_criteria` because live fields changed) — do NOT use this shape for 75.17 |
-| `scripts/go_live_drills/` (36 files) | drill scripts | `smoke_test_4_17_{2..8,11,12}.py` EXIST (added 1122a021); the 10 plan-side names never existed (`--diff-filter=A` empty) |
-| `backend/agents/skills/` | skill prompts | `neutral_analyst.md` + `devils_advocate_agent.md` ABSENT (deleted f7e24d0a / phase-26.4) -> 4.14.26 defect |
-| `scripts/qa/` | sweep-tool home | `sweep_ascii_logger.py`+`_v2/_v3`, `coverage_tier_check.py`, `env_syntax_check.py` — the committed-sweep precedent |
-| `.github/workflows/` | CI | `ascii-logger-lint.yml`, `coverage-tier-check.yml`, `env-syntax-lint.yml` — nightly sweep precedent (75.15) |
-| `scripts/meta/preflight_verify_masterplan.py` | masterplan gate | 75.19's recalibration target; the natural continuous-enforcement home for the classifier |
-| `backend/tests/test_phase_75_*.py` | test naming | confirms `test_phase_75_17_verification_paths.py` convention |
-| scratchpad `census_final.py` | reproducible census | strategy-agnostic adjudicator; genuine = 12 steps / 13 paths (10 need new annotation) |
+### Identified but snippet-only (context; does NOT count toward gate)
 
-## Research Gate Checklist
+| URL | Kind | Why not fetched in full |
+|-----|------|-------------------------|
+| Descartes tool-demo arXiv:1811.03045 | paper | superseded by #1 (same authors, fuller study) |
+| IEEE 10818231 / ACM 3701659 Python mutation-tool comparison | paper | tool-selection detail; snippet gave mutmut 88.5% vs cosmic-ray 82.7% |
+| johal.in mutmut-2026 guide | blog | HTTP 403; CI-policy crux captured from search snippet |
+| qaskills cosmic-ray / mutmut guides | blog | community tier; CI policy already covered by #6 |
+| Wiley STVR 2024 competent-programmer-hypothesis | paper | coupling-effect background; covered by search synthesis |
+| ceaksan LLM agentic failure modes; Zylos LLM-as-judge 2026 | blog | corroborate #3/#4 (self-eval unreliable, cross-eval needed) |
+| arXiv:2601.19088 Hybrid Fault-Driven Mutation Testing for Python | paper | future-tooling; not needed for the manual-matrix verdict |
+
+### Recency scan (2024–2026) — performed
+
+Searched 2026-frontier + 2025 windows. **New findings that supersede/
+complement the canon:** (a) *Agentic Overconfidence* (2026) quantifies the
+self-eval blind spot the no-self-eval rule assumes — a fresh, citable
+anchor for "agents confidently praise their own work"; (b) *ReVeal* (2025)
+gives the execution-grounded-verification principle that justifies qa.md's
+deterministic-FIRST order and the manual mutation matrix (execute the real
+branch — instance #7's fix); (c) mutmut/cosmic-ray 2026 practice converges
+on "**no new surviving mutants in protected modules**, not a 100% gate,"
+and "don't assert implementation trivia to kill an equivalent mutant." The
+canonical DeMillo/Lipton/Sayward coupling-effect (1978) and
+Goodenough-Gerhart (1975) remain valid; the 2024 STVR reproduction confirms
+the coupling effect holds while the competent-programmer hypothesis is only
+partially supported — which is exactly why the doctrine targets *mutation
+detection*, not a code smell.
+
+### Key findings applied to pyfinagent
+
+1. **"Pseudo-tested" is the academic name for the whole phase-75 root
+   cause.** Definition #1 ("covers the method, does not assess its
+   effects") IS instances #1–#8. The literature's detection method —
+   **strip the body / mutate and require a test to fail** — is precisely
+   the qa.md §4c "name the mutation that makes the guard fail" rule.
+   (Source: 1807.05030 §2.1.)
+2. **Mutate the harness, not just the code.** #5/#6 are the "side-effect
+   methods / weak tests with no assertions" category (2103.08480) one level
+   up: the *test double* had no fidelity. Remedy = contract-test the fake
+   against the real type ("Fake, Don't Mock") → criterion C2's fixture-
+   mutation rule.
+3. **Self-verification must be execution-grounded (ReVeal) and agents are
+   systematically overconfident (2602.06948, 5.5× asymmetry).** This is the
+   external backbone for keeping Q/A a SEPARATE, deterministic-first agent
+   and for the "no such mutation exists = FINDING" rule — the evaluator
+   must EXECUTE the mutation, never reason that a guard "looks
+   behavioral."
+4. **Tool-adoption verdict: the manual matrix is right for this repo; do
+   NOT gate CI on mutmut/cosmic-ray.** Mutation runtime = mutants × suite
+   (CircleCI: ~16h for 1000 mutants); the field consensus is scheduled/
+   scoped runs, not a per-PR blocking gate. pyfinagent's Q/A is a
+   rare-event, per-step, read-only evaluator that already mutates the
+   *specific* guards under review (scoped-to-the-diff by construction) —
+   this is the "extreme/scoped" mutation the literature endorses, done by
+   hand. RECOMMENDATION: keep the manual per-criterion matrix as doctrine;
+   OPTIONALLY queue a *separate* future step for a nightly `mutmut` diagnostic
+   (not a gate) on protected modules (`paper_trader.py`, `risk_engine.py`,
+   `perf_metrics.py`) — out of scope for 75.18 (harness/docs only).
+
+### Consensus vs debate
+
+Consensus: pseudo-tested methods are common even at high coverage;
+mutation (not coverage) measures assertion quality; self-eval is
+unreliable and must be externally grounded. Debate: competent-programmer
+hypothesis only partially holds (2024 STVR vs Gopinath) — doesn't affect
+the doctrine, which relies on the *coupling effect* (well-supported).
+
+### Pitfalls (from literature)
+
+- Killing a mutant by **exception** (crash) rather than **assertion** can
+  still be weak (mutmut research: "killed by exception" ≠ meaningful
+  assertion). qa.md §4c should prefer assertion-kills for behavioral guards.
+- **Equivalent mutants**: "no such mutation exists" can be legitimate for a
+  statically-unreachable branch (75.3 dead `compute_dsr_real`) — the
+  negation list (§2a) must carve this out or the rule over-fires.
+- Do NOT "assert implementation trivia to kill an equivalent mutant" — that
+  makes the suite worse (CircleCI/mutmut). The rule is *behavioral effect*,
+  not line-coverage.
+
+---
+
+## 6. Internal code inventory
+
+| File | Lines | Role | Status for 75.18 |
+|------|-------|------|------------------|
+| `.claude/agents/qa.md` | 447 | Q/A evaluator prompt; §4b claim-auditing already present; §4 anti-rubber-stamp mutation bullet | EDIT: add §4c (legs a,b). Contains "mutation" (4×), NO "fixture" |
+| `docs/runbooks/per-step-protocol.md` | 353 | Orchestration sequence; §4 EVALUATE | EDIT: fixture line in §4 (leg b) + "Measure before asserting" subsection (leg d). NO "fixture" today |
+| `.claude/skills/code-review-trading-domain/SKILL.md` | 244 | Ranked heuristics; Dim-4 has `tautological-assertion`/`over-mocked-test`/`rename-as-refactor` | EDIT: add `illusory-guard` #17 + severity + negation (leg c). NO "illusory"/"vacuous" today |
+| `scripts/qa/verify_qa_roster_live.sh` | 83 | grep + git + behavioral self-disclosure | REFERENCE model for non-vacuous heading verification (§3) |
+| `feedback_mutation_test_guards_and_fixtures.md` | memory | operator-ratified wording for legs a/b/c | ALIGN qa.md §4c + skill to this verbatim; it names 75.18 as the codification step |
+| `feedback_measure_dont_assert_claims.md` | memory | operator-ratified wording for leg d | ALIGN per-step-protocol subsection to this |
+
+Boundary check (C5): all four edit targets are under `.claude/` or
+`docs/` — zero `backend/` or `frontend/` files. `git diff --name-only HEAD
+| grep -E '^(backend|frontend)/'` must return empty.
+
+---
+
+## 7. Research Gate Checklist
 
 Hard blockers — all satisfied:
-- [x] >=5 authoritative external sources READ IN FULL via WebFetch — **6**
-- [x] 10+ unique URLs total (incl. snippet-only) — **16**
-- [x] Recency scan (last 2 years) performed + reported — 3 findings
+- [x] ≥5 authoritative external sources READ IN FULL via WebFetch (6)
+- [x] 10+ unique URLs total (≈50 across 5 searches + 6 fetches)
+- [x] Recency scan (2024–2026) performed + reported
 - [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line / commit anchors for every internal claim (git-classified)
-- [x] **Audit-class coverage: `dry_rounds=2 >= K=2 -> coverage.dry=true`**
+- [x] file:line anchors for every internal claim (critiques cited by cycle)
 
 Soft checks:
-- [x] Internal exploration covered every module named in the spawn prompt
-   (masterplan shapes, 75.2.1 methodology, go_live_drills, superseded_record sites,
-   sweep-tool location, preflight gate)
-- [x] Contradictions noted (75.2.1's "15" vs Main's "33" vs the true 10; reconciled)
-- [x] Claims cited per-claim with git evidence
-- [x] TWO independent census derivations reconciled by symmetric difference (empty on
-   genuine); strategy-agnostic adjudicator confirms robustness
+- [x] Internal exploration covered qa.md, per-step-protocol, skill, memories, verify script, 4 primary critiques + harness_log map
+- [x] Contradictions / consensus noted (competent-programmer debate)
+- [x] Claims cited per-claim
 
-## JSON envelope
+---
+
+## 8. JSON envelope
 
 ```json
 {
-  "tier": "moderate",
+  "tier": "complex",
   "external_sources_read_in_full": 6,
-  "snippet_only_sources": 10,
-  "urls_collected": 16,
+  "snippet_only_sources": 7,
+  "urls_collected": 50,
   "recency_scan_performed": true,
-  "internal_files_inspected": 12,
+  "internal_files_inspected": 13,
   "coverage": {
-    "audit_class": true,
-    "rounds": 4,
-    "dry_rounds": 2,
+    "audit_class": false,
+    "rounds": 2,
+    "dry_rounds": 0,
     "K_required": 2,
-    "new_findings_last_round": 0,
-    "dry": true
+    "new_findings_last_round": 5,
+    "dry": false
   },
-  "summary": "The definitive census over the CURRENT masterplan (883 flat steps; shape census 720 dict / 126 str / 13 list / 24 None -- the node's 674-dict is the stale 75.2.1-era figure) yields exactly 10 status=done steps whose verification.command executes against an absent path and is NOT absence-asserted: 9 phase-29 go_live_drills (4.17.2-8, 4.17.11, 4.17.12) whose plan-side names never existed (git --diff-filter=A empty; the work exists under the on-disk smoke_test_4_17_N.py convention, added 1122a021) = class-i never-existed; plus 4.14.26 (retired) whose grep of 10 skill files now finds 8 because neutral_analyst.md + devils_advocate_agent.md were deleted by phase-26.4 commit f7e24d0a -- a NEW member 75.2.1 did not name. Excluded (already carry exactly one superseded_record): 4.14.4, 4.14.24, 4.17.9. Two independent extractors reconcile with an empty symmetric difference on the genuine set, and a strategy-agnostic adjudicator returns the identical set under {A,B} and {A,B,C,D} -> two dry rounds -> coverage.dry=true. 75.2.1's 15 and Main's 33 both over-counted by conflating absence-assertions (4.14.19, 16.50 use `test ! -f`/`! test -f` -> runnable, PASS because absent), runtime outputs that exist now (8.5.4/10.2 results.tsv/weekly_ledger.tsv), and extraction artifacts (frontend-relative lib/icons.ts->frontend/src, URL routes, truncated plist, alt_data_ic_*.tsv glob, $f.md shell var). Repair: add a criteria-immutable superseded_record sibling (mirror the 4.17.9 shape at masterplan:4870, NOT the 68.5 originals-preserved shape) to each of the 10; byte-identity of command+success_criteria asserted against the pre-75.17 commit; exactly one superseded_record per step repo-wide. Sweep tool -> scripts/qa/sweep_absent_verification_paths.py + backend/tests/test_phase_75_17_verification_paths.py; hand the reusable classifier to 75.19's preflight recalibration rather than adding a redundant nightly. Mutation matrix includes a mandatory fixture mutation (M7: list-shape fixture) per the 75.2.1 lesson.",
-  "brief_path": "handoff/current/research_brief_75.17.md",
+  "summary": "Built the complete 11-shape guard-vacuity taxonomy (families 1-6 from 75.3/75.2.1 per the step text, plus 7 re-implemented-test/75.14, 8 OR-escape-hatch/75.15, 9 executor-environment/75.7+75.5, 10 hand-derived-scope-staleness, 11 mis-attributed-kill-mechanism/75.7) with verbatim-critique cycle citations, plus the measure-before-assert companion doctrine (3 false claims + comment-literal rule). Mapped the four codification legs onto qa.md new sec4c (per-criterion mutation naming + fixture-mutation), per-step-protocol sec4 + a Measure-before-asserting subsection, and the code-review skill illusory-guard ranked heuristic with BLOCK/WARN severity + negation list -- each in ONE file, cross-linked. External: pseudo-tested-methods (Vera-Perez), extreme mutation in practice, agentic overconfidence 2026 (22->77pct, 5.5x asymmetry), ReVeal execution-grounded verification, Fake-Dont-Mock fixture fidelity, CircleCI mutation cost. Tool-adoption verdict: KEEP the manual per-criterion matrix (scoped-by-construction), do NOT gate CI on mutmut/cosmic-ray (runtime=mutants x suite). CRITICAL: 75.18's own verification command is itself vacuous -- 'mutation' already in qa.md, and the skill clause is an OR-escape-hatch -- so the six prose criteria are the real gate and must be met via a known-member recall test against the phase-75 corpus. Separation of duties: the Workflow Q/A reads qa.md from disk at runtime so it grades its own edit; flag the self-reference, evaluate the diff vs goals, and Main holds forward-dependence for Peder review.",
+  "brief_path": "handoff/current/research_brief_75.18.md",
   "gate_passed": true
 }
 ```
-
-

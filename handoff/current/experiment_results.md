@@ -1,80 +1,100 @@
-# Experiment results -- Step 75.17 (absent-path verification family: triage + repair)
+# Experiment results -- Step 75.18 (codify the anti-vacuous-guard doctrine into the harness)
 
-Date: 2026-07-24. **Execution model: Sonnet executor GENERATE (8th
-delegated); Main review + independent re-measurement. Executor draft (3
-disclosed deviations) at `experiment_results_75.17_draft.md`; the
-executor also authored `live_check_75.17.md` (Main-reviewed and adopted;
-its fixed-SHA baseline choice -- byte-identity pinned to 7739922d, the
-pre-75.17 commit, rather than a moving HEAD -- is an improvement over the
-contract's wording).**
+Date: 2026-07-24. **Execution model: opus-tier -> Main GENERATE directly.
+SEPARATION OF DUTIES ACTIVE: this step edits `.claude/agents/qa.md`; the
+Peder-review note is in harness_log; the STATUS FLIP IS HELD (75.5
+precedent) -- the operator flips 75.18 to done after reviewing the qa.md
+diff, which is what pushes these edits.**
 
-## What shipped
+## What shipped (+89 lines across EXACTLY the three doctrine files; zero product code)
 
-- **The committed classifier** `scripts/qa/sweep_absent_verification_paths.py`
-  (refactored from the research gate's re-runnable reference impl): pure
-  importable `classify()` core + CLI; handles all four verification
-  shapes (HEAD census: 720 dict / 126 str / 13 list / 24 None); negative-
-  assertion detection (shell + python, full-path matched); frontend-
-  relative + glob-prefix re-resolution; URL/truncated/transient skips;
-  git-classification never-existed vs retired. Importability for step
-  75.19's preflight recalibration documented in the module docstring --
-  no duplicate nightly wiring.
-- **10 `superseded_record` annotations** (sibling keys ONLY -- every
-  touched step's command + success_criteria BYTE-IDENTICAL to the
-  pre-step commit): 9 class-(i) go_live_drills (4.17.2-8, 4.17.11,
-  4.17.12 -- plan names never matched disk; each on_disk_equivalent
-  smoke_test_4_17_N.py existence-verified) + 4.14.26 class-(ii)
-  (retired_by_commit f7e24d0a / phase-26.4). The three previously-
-  annotated steps untouched. Masterplan diff purity: +139 lines, and the
-  only 10 minus-lines are trailing-comma artifacts on `completed_at`
-  lines (values unchanged -- unavoidable JSON sibling insertion).
-- **45-test guard file** `test_phase_75_17_verification_paths.py`:
-  byte-identity x10 vs the FIXED baseline SHA; exactly-one-
-  superseded_record repo-wide (14 holders after +10; the guard encodes
-  the VERIFIED 4 prior holders incl. 68.5, correcting a narrower list in
-  one contract prose spot -- executor deviation 2, endorsed); the
-  classifier returns EMPTY on the live tree and EXACTLY the 10 on the
-  baseline tree; all-4-shapes fixture (list-shaped asserted BY SHAPE);
-  resolver non-flag unit proofs. The 75.16 collection canary legitimately
-  moved 1518/1534 -> 1563/1579 (+45 unmarked; 16-deselected preserved).
+1. **qa.md NEW section 4c "Guard-vacuity check"** (+64 lines, between 4b
+   and 4a): the operator-ratified rule verbatim ("a guard that cannot
+   fail when its subject is broken does not count"); the per-criterion
+   NAME-THE-MUTATION requirement with "no such mutation exists" wired as
+   a `Circular_Reasoning`/`Missing_Assumption` FINDING; the
+   fixture-mutation requirement grounded in pseudo-tested-methods
+   (arXiv:1807.05030) with the 75.2.1 dict-stub as the canonical
+   instance; the INDEPENDENT-evaluator-mutates-the-fixture rule (history:
+   author matrices caught shapes 1/2/4, the independent Q/A caught
+   3/5/6); the execution-grounded rule (ReVeal arXiv:2506.11442 +
+   Agentic Overconfidence arXiv:2602.06948 -- run the mutation, never
+   judge by appearance); **the full 11-shape checklist with cycle
+   citations** (incl. the session's new shapes: #7 re-implemented test,
+   #8 OR-escape-hatch/comment-token, #9 executor-environment, #10
+   hand-derived-scope staleness, #11 mis-attributed kill); verdict
+   wiring (sole-coverage vacuity on behavioral/money-path = BLOCK).
+2. **per-step-protocol.md** (+21): the one-line fixture-mutation
+   requirement cross-linked to 4c (no duplication) + the NEW "Measure
+   before asserting" subsection (three phase-75 canonical slips + the
+   comments-carry-scanned-literals rule).
+3. **code-review skill** (+4 net additions): ranked heuristic **#17
+   illusory-guard** naming the four required shapes + sub-shapes (e)
+   re-implemented test and (f) OR-escape-hatch, with the
+   BLOCK-when-sole-coverage / WARN-when-paired dispatch and the
+   detection question ("name the mutation that makes this fail");
+   Dimension-4 table row; TWO negation entries (criterion-mandated
+   verbatim scans paired with behavioral guards; dead-branch scans) so
+   the heuristic does not over-fire.
 
-## Verification (Main-independent)
+## Research corrections honored
 
-- Immutable command: **exit 0**. Guard file: **45 passed** (Main re-run).
-- **Classifier reproduced BOTH WAYS by Main via the importable API**:
-  live masterplan -> genuine set EMPTY; pre-step (git-show) masterplan ->
-  EXACTLY {4.14.26, 4.17.2-8, 4.17.11, 4.17.12}. (Main's first two
-  attempts crashed on Main's OWN call-site errors -- str-vs-Path and the
-  return shape -- not module defects; the documented API is correct.)
-- CI-equivalent tail: **1555 passed / 0 failed / 16 deselected**
-  (= 75.16's 1510 + 45). Raw suite (executor shell): 8 failed -- the
-  environment-dependent baseline subset, zero new.
-- Ruff clean over the derived scope + new files.
-- Mutations: executor **M1-M10 all KILLED** (incl. M8 byte-identity-break
-  and M9 double-annotation on tmp copies only -- real criteria never
-  mutated even transiently). Main independently reproduced **M7** (the
-  mandatory fixture mutation: list-shaped fixture converted to dict ->
-  the all-4-shapes test FAILS, proving the fixture load-bearing);
-  post-restore 45/45.
+Instance #3 kept DISTINCT from #5 in the checklist (literal-kept-
+behaviour-stripped vs broken-test-double -- the step text had conflated
+them); the catch-status nuance encoded (author 1/2/4 vs independent
+3/5/6); the tool verdict encoded implicitly (the doctrine stays a manual
+scoped matrix -- no CI mutation tooling shipped, per the runtime-economics
+research; a nightly diagnostic on money modules is a possible future
+step, deliberately NOT queued here since it needs its own cost analysis).
 
-## Executor deviations (3, disclosed; Main-endorsed)
+## Verification -- and its honest limits (the step's own criteria audit)
 
-1. The collection-canary bump (anticipated by that canary's own comment).
-2. PRIOR_HOLDERS includes 68.5 (the verified 4-holder reality over the
-   narrower 3-item list in one contract prose spot).
-3. Two resolver unit tests assert exclusion (`is not None`) rather than a
-   specific FP-class label because the well-formedness gate fires first
-   for leading-slash tokens -- measured, documented, behaviorally
-   equivalent for the guard's purpose.
+- Immutable command: **exit 0** -- BUT per the research this command is
+  partly PRE-SATISFIED ('mutation' already appeared in qa.md 4x before
+  this step) and its skill clause is itself an OR-escape-hatch. It is a
+  smoke check ONLY. Disclosed, not papered.
+- **The non-vacuous evidence is the KNOWN-MEMBER RECALL TEST** (below) +
+  the Q/A's prose-read of the diff against the six criteria.
+- C5 boundary proven: `git diff --name-only HEAD | grep -E '^(backend|frontend)/'`
+  -> EMPTY (zero product code).
+- Diff stat: exactly 3 files, +89/-0 (pure additions; no existing rule
+  reworded except none -- 4b/4a untouched, verified by the diff).
 
-## Governance meaning
+## KNOWN-MEMBER RECALL TEST (applying the doctrine as-written to two known members)
 
-Every status=done step in the masterplan now has either a RUNNABLE
-verification command or an explicit, criteria-immutable supersession
-record naming the on-disk equivalent or retiring commit -- the
-"unreproducible PASS" family is closed, and the committed classifier
-makes regression detectable (75.19 charters continuous enforcement).
+**Member A -- instance #3 (75.3/C129, literal-kept-behaviour-stripped):**
+the guard asserted `'"stub": True' in source` while `pop("stub")`
+removed the key from every returned candidate. Applying 4c: the
+name-the-mutation question ("what mutation makes this guard fail?") has
+the answer "only deleting the LITERAL -- stripping the BEHAVIOUR leaves
+it green" -> shape #3 matches verbatim ("the scanned LITERAL survives in
+source while the behaviour it names was removed") -> FINDING. The #17
+heuristic detection question fails identically (no behavioral mutation
+reddens it) -> illusory-guard, BLOCK if sole coverage. **FLAGGED.**
+**Member B -- instance #8 (75.15/C143, OR-escape-hatch):** the guard
+asserted `('blocks the PR' not in s) or ('run_seed_stability' in s)`
+where the same diff added the token to a comment. Applying 4c shape #8
+("a guard clause satisfiable by prose or comment tokens the same change
+introduces") -> FINDING; #17 sub-shape (f) matches; the
+name-the-mutation answer is "re-adding the overclaim does NOT fail it"
+-> illusory-guard. **FLAGGED.**
+Both known members are caught by the codification as-written. (Per
+Goodenough-Gerhart, this licenses recall on these two members -- not a
+completeness claim; the checklist itself says list-not-ceiling.)
+
+## Separation-of-duties disposition
+
+- Peder-review note: appended to harness_log (this cycle's entry).
+- **STATUS FLIP HELD**: 75.18 stays `pending` after the Q/A verdict; the
+  operator flips after reviewing the qa.md diff (`git diff HEAD --
+  .claude/agents/qa.md` is the review surface). No later step will be
+  run by this session that depends on the new 4c.
+- The 75.18 Q/A is spawned WITH the self-reference disclosure (the
+  Workflow path reads qa.md from disk -- the edited rubric grades its
+  own edit; the Agent-tool fallback would snapshot pre-edit).
 
 ## Not verified live
-Nothing live-relevant: repo + masterplan annotations only; no service,
-UI, or deploy surface touched.
+Docs/harness only; nothing runtime. The next session's roster
+verification (scripts/qa/verify_qa_roster_live.sh + a fresh-spawn 4c
+self-disclosure probe) is the owed behavioral check AFTER the operator
+approves + a restart/fresh session occurs.

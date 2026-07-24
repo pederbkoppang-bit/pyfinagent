@@ -69,6 +69,7 @@ is forbidden" rule.
 14. **supply-chain-dep-pin-removal** [WARN] — pinned version removed from `requirements.txt`/`pyproject.toml`/`package.json` without explicit reason. OWASP LLM03 2025.
 15. **unicode-in-logger** [NOTE] — logger call with non-ASCII characters (Windows cp1252 crash defense per `security.md`).
 16. **consumer-contract-break** [WARN->BLOCK] — interface/CLI-flag/output-shape/dict-key/response-casing/input-routing change (or an `except`/annotation name the module never imports) shipped without grepping every consumer. Operator 2026-05-26 recurring class (argv-vs-stdin, --max-tokens SDK-vs-CLI, Recent Reports alpha/casing); live catch: agent_definitions.py:396 NameError (phase-67.2). Behavioral breaks evade tests (arXiv 2605.24397, 2408.14431); ruff F821 covers only the undefined-name subset. Added 2026-07-09 (appended #16; list name kept for historical stability).
+17. **illusory-guard** [BLOCK when sole coverage for a behavioral/money-path criterion; WARN when a genuine behavioral guard coexists] -- a test or assert that CANNOT fail when its subject is broken. Required shapes to check: (a) source-scan-only assertion (asserts a literal/token exists, observes no behavior); (b) tautology (`assert x is not None` on a fixture guaranteeing it; `... or True`); (c) fixture that cannot represent the failure (a stub of the wrong TYPE keeps the suite green while the path is inert -- the phase-75.2.1 dict-stub for AsyncSlackResponse); (d) library-fact assertion posing as a fixture pin (asserts an upstream truth, never references the stub). Sub-shapes from later phase-75 cycles: (e) RE-IMPLEMENTED test -- behavioral-looking test executing a COPY of the logic, not the logic (75.14 routing-inversion survivor; a flag-routing test must import and execute the production function); (f) OR-escape-hatch/comment-token -- a guard clause satisfiable by prose/comment tokens the same diff introduces (75.15 seed guard). Detection question per guard: "name the mutation that makes this fail" -- if none exists, flag. Full doctrine: `.claude/agents/qa.md` section 4c. Added phase-75.18.
 
 ### Dimension 1 — Security audit
 
@@ -174,12 +175,15 @@ positive instruction.
 | rename-as-refactor | Diff is rename + behavior change in same commit; old semantics not preserved | BLOCK |
 | pass-on-all-criteria-no-evidence | Evaluator marks every criterion PASS with <3 sentences total, no file:line, no quoted output | BLOCK |
 | formula-drift-without-citation | Risk constant (`DEFAULT_TARGET_VOL`, `daily_loss_limit_pct`, `MAX_LEVERAGE`) changed without commit/comment citing source | WARN |
+| illusory-guard | The ONLY test covering a criterion is a source-scan/tautology/wrong-type-fixture/re-implemented copy/OR-escape-hatch (see #17); no mutation can make it fail | BLOCK |
 
 **What NOT to flag (negation list):**
 - Pure-refactor diffs that move code without changing logic, where pre/post tests pass without modification
 - Added docstrings or type-hint-only changes — these don't need new tests
 - Config-only changes (yaml/json/toml) that have no Python logic
 - New constants added with citation in the same commit (cite OK = no flag)
+- Criterion-MANDATED verbatim source scans (the masterplan criterion itself demands the literal) when PAIRED with a behavioral guard in the same suite -- flag only if the scan is the sole coverage
+- Source scans of statically-unreachable/dead branches where no behavioral observation is possible (e.g. the 75.3 compute_dsr_real dead-branch scan) -- the scan IS the strongest available guard there
 
 Source: [arXiv 2404.18496](https://arxiv.org/html/2404.18496v2), [Cloudflare AI code review](https://blog.cloudflare.com/ai-code-review/), [Anthropic Code Review](https://code.claude.com/docs/en/code-review).
 
