@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `380c998e` | docs: correct commit 09fe323c -- two command names were eaten by shell substitution |
 | 2026-07-25 | `09fe323c` | fix(79.5): plist KeepAlive did not keep the bridge alive -- found by testing, not assuming |
 | 2026-07-25 | `fc33ea13` | feat(phase-79): install 54 owed OPERATOR ACTIONS as tracked masterplan steps |
 | 2026-07-25 | `0b6d3b07` | phase-76.9.2: PASS -- durable Max-rail routing closed; the blocker was a regression I shipped |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-24 | `5759e5d9` | phase-75.20.1: operator approved -- flip to done (qa-write-guard live) |
 | 2026-07-24 | `f2e5ffda` | phase-78: install Anthropic Max-rail routing goal phase + 78.0 census step (operator /goal 2026-07-2 |
 | 2026-07-24 | `8c48cc11` | chore(76.9): Max-rail live test PASSED -- first-ever non-ERROR autoresearch memo; queue 76.9.1/76.9. |
-| 2026-07-24 | `74e1b772` | phase-75.20.1: qa-write-guard PreToolUse hook -- qa evaluator read-only enforced (LOCAL, flip+push h |
 
 ---
 
