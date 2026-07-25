@@ -22,11 +22,18 @@
     </array>
     <key>RunAtLoad</key>
     <true/>
+    <!-- phase-79.5 FIX (MEASURED 2026-07-25, not assumed): this was
+         <dict><key>SuccessfulExit</key><false/></dict>, i.e. "restart only on an
+         unsuccessful exit". Tested live after bootstrap: `kill -9` the bridge and
+         launchd did NOT bring it back (`runs = 1`, `state = not running`, still dead
+         after a 21s wait spanning the ~10s restart throttle). The operator would have
+         bootstrapped this believing the bridge was durable, and it would have died
+         silently at the first crash -- taking the nightly with it once
+         AUTORESEARCH_USE_MAX_RAIL=1 is set (run_nightly.sh then exits 78 and pages).
+         KeepAlive=true is the correct semantic for an always-on local daemon:
+         restart unconditionally, whatever the exit reason. -->
     <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-    </dict>
+    <true/>
     <key>StandardOutPath</key>
     <string>/Users/ford/.openclaw/workspace/pyfinagent/handoff/logs/anthropic-bridge.log</string>
     <key>StandardErrorPath</key>

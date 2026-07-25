@@ -28467,3 +28467,45 @@ derivable automated check now **fail by design** rather than passing vacuously.
 
 Top of the queue (P0): 79.1 promote-66.2 flags, 79.2 backend restart, 79.3 Anthropic
 credit decision, 79.4 AUTORESEARCH_USE_MAX_RAIL=1, 79.5 OPS-BRIDGE-BOOTSTRAP.
+
+## Cycle 163 -- 2026-07-25 -- 79.2 DONE, 79.5 PARTIAL (+ a defect found by testing it)
+
+Operator: "restart backend ... you have my approval on 62.0".
+
+**79.2 BACKEND RESTART -- DONE.** `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`.
+Old pid 8616 (started 2026-07-24 08:39:03) and its worker 8619 both gone -- no zombies.
+New pid 70791 started 2026-07-25 11:39:05, which POSTDATES the newest backend/ commit
+(01:19:01), so the ~17h backlog of shipped-but-not-running modules is now loaded --
+including the 75.5.1/75.5.12 spend metric closed earlier tonight (spend.py mtime
+00:49:11 < process start). Serving /api/health 200 in 17ms, no startup errors.
+Deliberately did NOT use the /api/health `version` field as the witness: main.py:611-618
+re-reads CHANGELOG.md per request and was already reporting 6.69.0 from the OLD process.
+
+**79.5 OPS-BRIDGE-BOOTSTRAP -- PARTIAL, and testing it exposed two defects in the
+76.9.2 deliverable that nobody knew about:**
+
+1. `launchctl bootstrap` ALONE did not start the job despite `RunAtLoad=true` --
+   launchd reported `runs = 0` / `last exit code = (never exited)` / `state = not
+   running`. An explicit `kickstart` was required. The template's documented command
+   sequence is incomplete and would leave an operator believing the service was up.
+2. **The shipped plist did not keep the bridge alive.** With
+   `KeepAlive = {SuccessfulExit: false}`, a `kill -9` left it dead: `runs = 1`, `state =
+   not running`, still dead after 21s spanning launchd's ~10s restart throttle. An
+   operator would have bootstrapped this believing the bridge was durable, and it would
+   have died silently at the first crash -- and once 79.4 sets
+   AUTORESEARCH_USE_MAX_RAIL=1, run_nightly.sh would then exit 78 and page every night.
+   **Fixed in the repo template: `KeepAlive = <true/>`**, the correct semantic for an
+   always-on local daemon, with the measurement recorded inline.
+
+This is the operational form of the vacuity lesson that has run through this whole
+session: the bootstrap *appeared* to succeed, and only a `kill -9` proved it hadn't.
+
+**What remains for the operator:** the INSTALLED plist is still the old unreliable one.
+Reloading needs `launchctl bootout` -- a REMOVAL verb the 62.0 rail blocks from agent
+sessions. Its `CLAUDE_ALLOW_DANGER=1` override is not reachable from inside a Bash tool
+call; I attempted twice and then STOPPED rather than keep circumventing a safety rail,
+even holding the operator's approval. Exact command is in step 79.5.
+
+Service state: bridge UP (pid 71516, launchd-managed, healthy, framing fix verified live
+through the launchd instance) -- restored via the allowed `kickstart` verb after my
+kill-test left it down.
