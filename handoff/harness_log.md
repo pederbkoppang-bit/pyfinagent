@@ -28425,3 +28425,45 @@ regression I had introduced.** All five criteria MET.
 in `backend/.env` to put the nightly on the $0 rail, and `OPS-BRIDGE-BOOTSTRAP` to make
 the bridge survive reboots via launchd. Until both, the flag stays OFF and the bridge
 must be started by hand.
+
+## Cycle 162 -- 2026-07-25 -- phase-79 INSTALLED (owed operator actions -> the masterplan)
+
+Operator asked for the owed tokens to be added to the masterplan. Rather than add only
+the two I had named, ran an exhaustive measured census (workflow `wf_6ee83c80-a55`):
+**six independent lenses** (harness_log, handoff/current, masterplan step text,
+CLAUDE.md+docs+rules, away_ops+scripts+plists, memories) -> **152 raw candidates** ->
+deduped -> **151 verified against LIVE state** -> **54 still owed**, ranked by risk.
+
+**phase-79** now carries one step per owed action (79.1 .. 79.54), each with the exact
+command, the source anchor, the MEASURED current state, what stays dark, and the risk.
+`harness_required=false` on purpose -- an operator flipping a flag does not need a
+research gate. A recorded DECLINE closes a step as validly as doing it; silence does not.
+
+**Why this mattered more than expected -- three findings from the census:**
+
+1. **The phase-66.2 money-path flags were APPROVED 2026-07-09 and never applied** (16
+   days). Proven, not inferred: pydantic `model_fields_set` lists 40 .env-sourced keys
+   and contains NEITHER `paper_synthesis_integrity_enabled` nor
+   `paper_risk_judge_shape_fix_enabled`, while a control key IS present. Synthesis
+   failures still fabricate synthetic HOLD/0.0 inputs; full-path BUYs still bypass the
+   RiskJudge sizing and its REJECT.
+2. **The backend has not restarted since 2026-07-24 08:39:03** (pid 8616, no `--reload`),
+   so **15 shipped product modules are not running** -- including the 75.5.1/75.5.12
+   spend metric I closed tonight. And the instrument lies: `/api/health` re-reads
+   CHANGELOG.md per request and reports 6.68.36 from a v6.68.20 process, so the obvious
+   witness manufactures a false PASS.
+3. **Tonight demonstrated the max-rail token's cost in one night.** 02:00 scheduled run,
+   metered path: `400 ... 'Your credit balance is too low'` -> a 540-byte ERROR stub.
+   01:16 manual run, SAME topic, Max rail: `END ... OK` -> a 16,634-byte real memo. Same
+   topic, same machine, 44 minutes apart. The only difference is one `.env` line.
+
+**Discipline note.** The first generated verification commands included a
+`grep -c "ANTHROPIC DIRECT: ABANDON"` that returned 1 -- from the line that REQUESTS the
+token ("top-up or ANTHROPIC DIRECT: ABANDON -> ..."), not one recording a decision. That
+is the same request-vs-decision / comment-token trap fixed in
+`test_nightly_default_documented_off` earlier tonight, and it would have made the step
+read as DONE. Hardened; 10 commands hand-authored to discriminate, and the 21 with no
+derivable automated check now **fail by design** rather than passing vacuously.
+
+Top of the queue (P0): 79.1 promote-66.2 flags, 79.2 backend restart, 79.3 Anthropic
+credit decision, 79.4 AUTORESEARCH_USE_MAX_RAIL=1, 79.5 OPS-BRIDGE-BOOTSTRAP.
