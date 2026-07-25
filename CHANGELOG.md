@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `4bcd60ad` | wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4 FAILS, step stays open |
 | 2026-07-26 | `468bf023` | phase-80.3: [P0 -- WHOLE PAGE NON-FUNCTIONAL] /agent-map (Agent Topology) renders ZERO edges and ... |
 | 2026-07-25 | `6c7fe4f3` | phase-80.31: [P2 -- MISALIGNED PRICE/VOLUME ARRAYS IN THE ANOMALY DETECTOR] backend/tools/anomaly... |
 | 2026-07-25 | `8b1c7158` | phase-80.27: [P0 -- A DATA OUTAGE IS LAUNDERED INTO A TRADING VERDICT THAT REACHES THE LIVE LOOP]... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `0b6d3b07` | phase-76.9.2: PASS -- durable Max-rail routing closed; the blocker was a regression I shipped |
 | 2026-07-25 | `02c43995` | docs(76.9.2): fix the GENERATE artifact contradicting criterion 1, plus three claim-audit defects |
 | 2026-07-25 | `818994f9` | fix(handoff): archive hook FABRICATES false archives -- 129 of 747 dirs hold another step's docs |
-| 2026-07-25 | `0ea399f3` | phase-76.9.2: criterion 1 MET -- first clean rc=0 run through the fixed durable bridge |
 
 ---
 
+### v6.69.13 — wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4... (2026-07-26)
+
+- **wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4 FAILS, step stays open**
 ### v6.69.12 — phase-80.3: [P0 -- WHOLE PAGE NON-FUNCTIONAL] /agent-map (Agent Topol... (2026-07-26)
 
 - **phase-80.3: [P0 -- WHOLE PAGE NON-FUNCTIONAL] /agent-map (Agent Topology) renders ZERO edges and ...**
