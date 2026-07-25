@@ -20,7 +20,9 @@ import {
   ReactFlow,
   Background,
   Controls,
+  Handle,
   Position,
+  useReactFlow,
   type Edge,
   type Node,
   type NodeProps,
@@ -79,7 +81,11 @@ const LAYER_LABEL: Record<number, string> = {
   4: "L4 -- Services",
 };
 
-function AgentNode({ data }: NodeProps) {
+// Exported for phase-80.3's handle guard: React Flow needs real DOM layout to
+// draw edges, so the only thing jsdom can meaningfully assert is that this
+// custom node renders its own handles. Everything else about the graph is
+// verified by Playwright.
+export function AgentNode({ data }: NodeProps) {
   const d = data as AgentNodeData;
   const Icon = KIND_ICON[d.kind] ?? Brain;
   const colorCls = PROVIDER_COLORS[d.provider] ?? PROVIDER_COLORS.none;
@@ -103,6 +109,49 @@ function AgentNode({ data }: NodeProps) {
       data-locked={d.geminiLocked ? "true" : "false"}
       title={titleText}
     >
+      {/*
+        phase-80.3: React Flow only auto-creates handles for its BUILT-IN node
+        types. A custom nodeType must render its own, and without them
+        getEdgePosition() returns null and EVERY edge is silently dropped --
+        which is why this graph rendered 24 edges' worth of
+        "[React Flow]: Couldn't create edge for source handle id: null"
+        warnings and drew no topology at all. Setting sourcePosition /
+        targetPosition on the node object only chooses where a handle WOULD
+        sit; it does not create one.
+
+        Unnamed (no `id`) is the simplest configuration that provably works:
+        every edge built below omits sourceHandle/targetHandle, and a falsy
+        handleId makes getHandle() take bounds[0] unconditionally. Top/Bottom
+        matches the dagre "TB" direction used for layout.
+
+        Two precise notes, because the obvious intuitions are WRONG and were
+        measured against @xyflow/system 12.10.2 rather than assumed:
+
+        - Giving these an `id` does NOT drop the edges. getHandle is
+          `(!handleId ? bounds[0] : bounds.find(d => d.id === handleId)) || null`,
+          so a null handleId ignores ids entirely. Keeping them unnamed is
+          hygiene, not a binding requirement.
+        - `display:none` does NOT produce a zero-edge state either.
+          getHandleBounds returns null only when querySelectorAll matches
+          ZERO elements, and display:none does not remove an element from
+          querySelectorAll. The real consequence is a zero-size rect, so the
+          edges anchor at the node origin -- MIS-DRAWN, not absent.
+          `visibility:hidden`/`opacity:0` remain the correct way to hide a
+          handle.
+
+        They are left visible and toned to the navy/slate palette instead of
+        React Flow's default #bebebe.
+      */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!h-1.5 !w-1.5 !border-0 !bg-slate-500"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!h-1.5 !w-1.5 !border-0 !bg-slate-500"
+      />
       <div className="flex items-center gap-2">
         <Icon size={16} weight="duotone" />
         <div className="flex-1 min-w-0">
@@ -141,6 +190,60 @@ function AgentNode({ data }: NodeProps) {
 }
 
 const NODE_TYPES = { agent: AgentNode };
+
+/**
+ * phase-80.3 (C): re-fit the graph when the canvas resizes.
+ *
+ * `fitView` (the boolean prop) is ONE-SHOT on mount -- it is queued once and
+ * only re-queues when the prop VALUE changes, and ours is a constant `true`.
+ * React Flow's own container ResizeObserver records width/height but never
+ * re-fits. So after a viewport resize the transform stays computed for the
+ * old canvas while the graph is already ~2x its width, and the nodes end up
+ * entirely outside the visible area -- the "blank canvas after resize"
+ * symptom.
+ *
+ * This MUST be rendered as a CHILD of <ReactFlow>: the component that renders
+ * <ReactFlow> is outside the provider it creates, so calling useReactFlow()
+ * there throws React Flow error 001.
+ *
+ * Loop safety: fitView() changes the viewport transform on a CHILD of the
+ * observed element, not the element's own box, so the observer cannot
+ * re-trigger itself. The rAF defer also lets React Flow finish measuring
+ * before we fit.
+ */
+function RefitOnResize() {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    const container = document.querySelector(".react-flow");
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        void fitView({ padding: FIT_PADDING });
+      });
+    });
+    observer.observe(container);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [fitView]);
+
+  return null;
+}
+
+// phase-80.3 (B): the dagre graph is ~4238px wide at 29 nodes, so fitView
+// wants zoom ~0.23 (measured 0.2301) -- but React Flow's minZoom DEFAULTS TO 0.5 and the fit is
+// clamped up to it, rendering ~2119px into a ~1120px canvas and clipping nodes
+// off BOTH edges. Lowering `fitViewOptions.minZoom` alone is not enough: the
+// d3 zoom instance is constructed with scaleExtent([minZoom, maxZoom]) from
+// the PROP, so the operator's first scroll would snap back to 0.5 and re-clip.
+const MIN_ZOOM = 0.1;
+const FIT_PADDING = 0.15;
 
 const NODE_W = 220;
 const NODE_H = 70;
@@ -404,11 +507,14 @@ export function AgentMap({ data: dataOverride }: AgentMapProps = {}) {
             nodeTypes={NODE_TYPES}
             colorMode="dark"
             fitView
+            fitViewOptions={{ padding: FIT_PADDING }}
+            minZoom={MIN_ZOOM}
             proOptions={{ hideAttribution: true }}
             onNodeClick={handleNodeClick}
           >
             <Background color="#1e293b" gap={24} />
             <Controls position="bottom-right" showInteractive={false} />
+            <RefitOnResize />
           </ReactFlow>
         )}
       </div>
