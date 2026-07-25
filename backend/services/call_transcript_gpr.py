@@ -120,7 +120,19 @@ async def _fetch_one_exposure(
             # governs this call (it previously constructed ClaudeClient directly and
             # so could never see the rail -- the phase-72 rail-bypass class).
             from backend.agents.llm_client import _HOUSE_INSTRUCTIONS, make_client
-            client = make_client(model, None, settings)
+            # phase-78.16: RESTATE the pre-78.1 caching intent explicitly. All six of
+            # these services constructed ClaudeClient(..., enable_prompt_caching=False)
+            # before the 78.1 rewire; make_client dropped that intent against a
+            # constructor default of True, so PAPER_USE_CLAUDE_CODE_ROUTE=false --
+            # the documented one-flag revert -- no longer restored prior behaviour.
+            # NOTE the original rationale (phase-23.1.2 brief:301, "the prompt will be
+            # different per-ticker so caching provides no benefit") is now STALE:
+            # caching applies only to the SYSTEM block, and phase-25.B9 later made that
+            # block a 19,026-char byte-identical prefix. Whether these six should now
+            # flip to True is a real, MEASURED question -- queued as its own masterplan
+            # step, deliberately NOT decided here. Ignored on the CC rail (the CLI
+            # manages its own caching); this only bites the metered/revert path.
+            client = make_client(model, None, settings, enable_prompt_caching=False)
         except Exception as e:
             logger.debug("call_transcript_gpr: client init failed: %s", e)
             return None

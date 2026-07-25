@@ -2041,7 +2041,13 @@ class BatchClient:
         return results
 
 
-def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClient:
+def make_client(
+    model_name: str,
+    vertex_model,
+    settings: "Settings",
+    *,
+    enable_prompt_caching: bool | None = None,
+) -> LLMClient:
     """Create the appropriate LLMClient for a model name.
 
     Priority (direct provider always wins when its key is set; GitHub Models
@@ -2057,6 +2063,15 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
         model_name: The model identifier string
         vertex_model: A pre-built GeminiModelBundle (Vertex AI fallback)
         settings: App settings (for API keys)
+        enable_prompt_caching: phase-78.16. Caller's explicit prompt-caching
+            intent, forwarded to ClaudeClient. `None` (the default) means "no
+            opinion -- keep the ClaudeClient class default", which is what all
+            callers predating 78.16 get, so their behaviour is unchanged.
+            IGNORED on the Claude Code rail: ClaudeCodeClient shells out to the
+            `claude` CLI, which manages its own caching and exposes no such
+            control, so this parameter only ever bites the metered/direct path.
+            That is precisely the PAPER_USE_CLAUDE_CODE_ROUTE=false revert path
+            -- see below for why dropping it was a live defect.
 
     Returns:
         An LLMClient instance ready for generate_content() calls
@@ -2136,7 +2151,24 @@ def make_client(model_name: str, vertex_model, settings: "Settings") -> LLMClien
                 f"is False on this Settings instance due to lru_cache desync."
             )
         logger.info(f"[LLMClient] Routing {model_name} -> Anthropic direct")
-        return ClaudeClient(model_name=model_name, api_key=anthropic_key)
+        # phase-78.16: forward the caller's explicit prompt-caching intent.
+        # Before this, make_client constructed ClaudeClient with NO caching
+        # kwarg against a constructor default of True (:1345), so the six
+        # C-block overlays -- which had all passed enable_prompt_caching=False
+        # explicitly before 78.1 rewired them onto make_client -- silently got
+        # caching turned ON. That broke the documented one-flag revert
+        # (PAPER_USE_CLAUDE_CODE_ROUTE=false), which is supposed to restore
+        # pre-78.1 behaviour exactly: the `system` field changes from a plain
+        # str to a 1-block list carrying cache_control ephemeral/1h, a
+        # different request shape on the money path reached by a flag the
+        # operator is told is a safe revert.
+        # `None` means "caller expressed no preference" and is NOT the same as
+        # False -- it leaves the class default untouched for the 7 non-C-block
+        # callers, so their behaviour is unchanged by this step.
+        _claude_kwargs: dict = {"model_name": model_name, "api_key": anthropic_key}
+        if enable_prompt_caching is not None:
+            _claude_kwargs["enable_prompt_caching"] = enable_prompt_caching
+        return ClaudeClient(**_claude_kwargs)
 
     # 3. Direct OpenAI — wins over GitHub catalog for the same reason.
     if model_name.startswith(("gpt-", "o1", "o3", "o4")) and openai_key:

@@ -28509,3 +28509,109 @@ even holding the operator's approval. Exact command is in step 79.5.
 Service state: bridge UP (pid 71516, launchd-managed, healthy, framing fix verified live
 through the launchd instance) -- restored via the allowed `kickstart` verb after my
 kill-test left it down.
+
+## Cycle 164 -- 2026-07-25 -- phase=78.16 result=PASS (cycle 1, clean)
+
+**78.16 -- make_client no longer silently discards a caller's prompt-caching intent.**
+
+The 78.1 rewire moved six signal overlays from `ClaudeClient(..., enable_prompt_caching=False)`
+onto `make_client`, which constructed `ClaudeClient` with no caching kwarg against a
+class default of `True`. So `PAPER_USE_CLAUDE_CODE_ROUTE=false` -- the documented
+one-flag revert, and 78.1's own criterion 5 -- stopped restoring prior behaviour:
+on the metered path `system` turned from a plain 19,075-char str into a 1-block
+list carrying `cache_control {"type":"ephemeral","ttl":"1h"}`. A different request
+shape on the money path, reached by a flag the operator is told is safe.
+
+**Fix: option (a).** `make_client` gains a keyword-only `enable_prompt_caching:
+bool | None = None` and forwards it only when not None; the six restate their
+intent explicitly. `None` means "no opinion", so the 7 non-C-block callers are
+byte-identical -- guarded by its own test.
+
+**Option (c) was explicitly REFUSED**, and this is the substance of the step. The
+criterion allows "the divergence is measured, justified and documented as
+intended", but (c) requires *measured harmless* and the research gate showed it
+is not measurable today: Haiku 4.5's documented cache-write floor is 4,096 tokens
+and the block straddles it on every heuristic (3,877 / 4,551 / 4,769); below the
+floor `cache_control` is a SILENT no-op; above it a MISS costs 2x, and Anthropic
+documents that concurrent requests all miss -- which is exactly the three
+`asyncio.gather` per-ticker services. Refusing an escape hatch that would have
+required asserting something unmeasured is the point; the dollars (~$0.005/call)
+are not.
+
+**Research gate:** `gate_passed: true`, 7 external sources read in full, 21 URLs,
+recency scan present, 16 internal files. Its decisive archaeology: the
+`enable_prompt_caching=False` rationale IS recorded once (phase-23.1.2 brief:301,
+"the prompt will be different per-ticker so caching provides no benefit"), was
+correct in Apr 2026, and was invalidated in May 2026 by phase-25.B9, which added
+`_HOUSE_INSTRUCTIONS` -- a 19,026-char byte-identical prefix -- expressly to make
+caching register. Nobody reconciled the two. That is a STALE decision, not an
+unexplained one, which is what makes the flip-to-True question real (queued, not
+taken here).
+
+**Q/A: PASS, cycle 1, no violated criteria.** It ran its own 10-mutation battery
+in memory with production files untouched, including four mutations I had not
+run (ClaudeClient class-default flip, service flips to True, make_client inverts
+the value, caching branch deleted) -- all RED. It independently recall-tested the
+completeness of "the six" against `git log -S` (symmetric difference EMPTY),
+structurally diffed both masterplan versions to prove the immutable criteria and
+command were untouched (971 -> 972 steps, ADDED=['78.17'], zero differences on
+all 971 shared steps), and verified my mutation backups were 3/3 byte-identical
+to the working tree.
+
+**My own mutation matrix produced a GREEN on M1 and the MUTATION was the bug.**
+`replace(", enable_prompt_caching=False)", ")", 1)` hit the phase-78.16 comment
+block -- which quotes the pre-78.1 code -- rather than the call on line 242.
+Re-targeted at the full call line it goes RED. Disclosed in live_check rather
+than quietly re-run, and the scratchpad script is now corrected so it reproduces
+its own table row. Reusable lesson: **when the code under mutation is documented
+by a comment that quotes that code, a single-occurrence replace will hit the
+comment.**
+
+**Acted on 4 of the Q/A's 6 NOTE findings in this cycle:** N1 (live_check now
+states that all six revert guards stay GREEN under the str-forcing stub, and
+names the pair that closes that hole); N2 (the test docstring described a kill
+mechanism that is unreachable -- corrected to the measured one); N3 (mutation
+script fixed); N4 (disclosed that appending 78.17 re-serialized the masterplan
+with ensure_ascii=False, rewriting ~148 unrelated lines -- zero semantic drift,
+and it restores the phase-75.17 baseline encoding). N6 (my BQ zero-rows claim was
+not independently re-derived by Q/A, since it needs an approval-gated query) is
+recorded as standing un-verified.
+
+**Two defects queued rather than disclosed in prose** (feedback_queue_discovered_defects_in_masterplan):
+- **78.17** -- re-decide the six's caching posture on the STALE rationale, gated on
+  the one measurement that settles it (`cache_creation_input_tokens > 0` on a real
+  haiku-4-5 response). Blocked today: zero `provider='anthropic'` rows for
+  `claude-haiku-4-5` in 60 days and direct-API credits are dead (owed action 79.3).
+  Written with "Do NOT proceed on an estimate".
+- **78.18** -- Q/A finding N5: three count/diff pins are PERMANENTLY red (the
+  collection-count pin is 456 behind) and have stopped carrying information. Framed
+  as classify-per-pin (fixed number / monotonic floor / delete), explicitly NOT
+  "reflexively convert to floors", because a floor cannot catch an unintended
+  addition and that is precisely the masterplan-diff pin's job.
+
+**Also landed this cycle (in flight, not closed):** research gates for 78.2
+(`gate_passed: true`, 6 sources, run on **Sonnet** -- a deliberate cheaper-model
+choice for a narrow question, floor not relaxed) and `contract_78.2.md`.
+
+**A measurement from the 78.2 gate that changes the picture for the whole rail.**
+Probing `claude --print --output-format json` exactly as `claude_code_invoke`
+builds it, with NO `--model` flag:
+
+```
+key=claude-opus-5[1m]          canonicalModel=claude-opus-5     costUSD=0.061417
+key=claude-haiku-4-5-20251001  canonicalModel=claude-haiku-4-5  costUSD=0.000581
+```
+
+Every CC-rail call -- the six overlays, the lite trader, the lite risk judge --
+runs whatever `~/.claude/settings.json` pins (`opus[1m]` right now, i.e. whatever
+the operator last chose with `/model`), while `llm_call_log` records
+`claude-haiku-4-5`. So 78.1's criterion 2 ("model tier per service unchanged") is
+currently FALSE in reality, exactly as the 78.1 Q/A said. Fixing 78.2 will move
+those calls DOWN to their configured tier; that direction is disclosed in
+`contract_78.2.md` and the tier choice is queued as an operator decision rather
+than taken by me.
+
+**Note for the audit trail (78.15):** this cycle's auto-commit will sweep the
+in-flight `contract_78.2.md` + `research_brief_78.2.md` into a commit whose
+subject names 78.16. That is the `git add -A` behaviour 78.15 exists to fix, and
+it is recorded here rather than left for someone to discover in the log.
