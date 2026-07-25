@@ -37,12 +37,12 @@ nothing higher in the precedence chain.
 | `backend/services/ticket_queue_processor.py` (imports) | 6 pre-existing dead imports removed so the qa.md §1a lint gate exits 0 (see §2) |
 | `backend/services/autonomous_loop.py:2469` | B1 lite trader passes `model=model_name` |
 | `backend/services/autonomous_loop.py:2552` | B2 lite risk judge passes `model=model_name` |
-| `backend/services/ticket_queue_processor.py:206` | E1 ticket queue passes `model=model_name` — the `agent_model_map` selection |
+| `backend/services/ticket_queue_processor.py:241` | E1 ticket queue passes `model=model_name` — the `agent_model_map` selection |
 | `backend/tests/test_phase_75_llm_rail.py` | **+12 tests** (appended to an existing file named by the immutable verification command — a new file would not have been selected by it) |
 
 ### Three decisions worth stating explicitly
 
-**(a) The two `autonomous_loop` sites pass `model_name` from `:2392` — the same
+**(a) The two `autonomous_loop` sites pass `model_name` from `:2408` — the same
 value the metered branch already used.** The alternative was a new settings key,
 which would have let rail and metered drift apart again. The risk judge in
 particular must not silently run a different tier than the call it is checking.
@@ -125,8 +125,9 @@ two *availability-probe* imports in `backend/autonomous_loop.py` that must NOT b
 deleted; that step's scope is unchanged.
 
 **The gate itself was mutation-tested**, because its first run was a false green:
-passing `$FILES` as one quoted string made ruff report `All checks passed!` while
-linting **nothing** (it warned `No such file or directory`) — the exact defect
+passing `$FILES` **unquoted** made ruff receive the newline-joined list as ONE
+argument (zsh does not word-split unquoted parameter expansions), so it reported
+`All checks passed!` while linting **nothing** (it warned `No such file or directory`) — the exact defect
 masterplan step **75.5.14** describes. With proper word-splitting, injecting a
 deliberate `import uuid` into `claude_code_client.py` makes the gate exit 1 and
 name the file, and removing it returns exit 0.
@@ -183,7 +184,7 @@ does not. That pre-existing inconsistency is untouched by this step.
 |---|----------------------|----------|
 | 1 | "claude_code_invoke accepts and forwards an explicit model to the CLI; B1, B2 and E1 each pass one" | `live_check_78.2.md` §1 A1–A5: captured argv per site showing `--model`, plus AST evidence that all three direct sites supply the kwarg. Tests: `test_model_argv_flag_is_actually_emitted`, `test_every_direct_rail_call_site_passes_a_model`, `test_claude_code_client_threads_its_model_into_argv`. |
 | 2 | "The ticket queue's agent_model_map is actually honored on the rail branch (test asserts the per-agent model reaches the invocation), or the map is deleted as dead -- whichever the executor justifies, not left silently ignored" | **Honored**, justified in §1(b). `test_ticket_queue_agent_model_map_reaches_the_rail_invocation` drives the real `_spawn_real_agent` per agent id and asserts the model reaching `claude_code_invoke` — and asserts the invocation was **reached at all**, so it cannot pass silently when the call never happens. |
-| 3 | "Every rail call logs the resolved model so post-hoc audit is possible" | **All THREE rail loggers** now call the shared `resolve_rail_model` — `live_check_78.2.md` §2c. Cycle 1 fixed only one of three; that was the FAIL. Row from a REAL `claude -p` call in §2. Tests: `test_resolved_model_names_the_worker_on_the_real_envelope`, `..._max_output_tokens_would_name_the_helper`, `..._returns_the_requested_model_when_it_actually_ran`, `..._falls_back_to_the_request_label`, `..._survives_a_missing_canonical_model_field`, `test_all_three_rail_loggers_resolve_the_model`. |
+| 3 | "Every rail call logs the resolved model so post-hoc audit is possible" | **All THREE rail loggers** now call the shared `resolve_rail_model` — `live_check_78.2.md` §2c. Cycle 1 fixed only one of three; that was the FAIL. Row from a REAL `claude -p` call in §2. Tests: `test_resolved_model_names_the_worker_on_the_real_envelope`, `..._max_output_tokens_would_name_the_helper`, `..._reports_a_substitution_even_when_the_helper_matches`, `..._falls_back_to_the_request_label`, `..._survives_a_missing_canonical_model_field`, `test_all_three_rail_loggers_write_the_RESOLVED_model`, `test_ticket_queue_meters_a_FAILED_rail_call`. |
 | 4 | "MUTATION: drop the model argument at one call site -> a test asserting the explicit model goes red" | `live_check_78.2.md` §3. M1 (B1 drops `model=`) → RED. Plus M2–M6, all RED, reverts SHA-verified. |
 
 ---
@@ -300,7 +301,7 @@ verbatim in `evaluator_critique_78.2.md`; this is my account of acting on it.
 5. The tier change would ship on any unrelated backend restart before the
    operator answered. **79.55 raised to P0 and marked RESTART BLOCKER**, and
    corrected: the re-tiering is *not* uniform — B1/B2 follow
-   `settings.gemini_model` (`autonomous_loop.py:2392`), so the trade decision
+   `settings.gemini_model` (`autonomous_loop.py:2408`), so the trade decision
    itself re-tiers.
 6. `test_every_direct_rail_call_site_passes_a_model` hand-typed its file list, so
    a rail call site in a new module would escape. Replaced with a derived walk
@@ -427,3 +428,51 @@ terms of its implementation, a stale number. Cycle 4 found none of that: every
 number reproduced. What it found instead was that I had been auditing *my* diff
 rather than *the commit* — and the commit is `git add -A`, so it includes
 whatever else is sitting in the tree.
+
+---
+
+## 11. Post-close claim audit (Fable 5) — four stale references, corrected
+
+Operator-authorised an independent Fable-5 claim-audit of the close-out, pointed
+at this step's one recurring defect: claims that do not reproduce. It ran
+**after** the close-out commit and **found the next one** — 47 claims checked, 39
+reproduced, 4 failed, 4 honestly reported as unverified.
+
+All four failures were the same shape: **anchors and names pointing at a tree
+that no longer exists**, because the artifact was never regenerated after the
+code moved under it.
+
+| # | Claimed | Actual | Where |
+|---|---------|--------|-------|
+| 1 | `ticket_queue_processor.py:206` | **`:241`** — `:206` is the PARENT tree's line, where the call had *no* `model` kwarg (i.e. the defect). Post-fix, `:206` is a blank line inside `_meter_rail`'s docstring | §1 table + `live_check` §1 A5 |
+| 2 | `autonomous_loop.py:2392` | **`:2408`** — this step's own expansion of `_log_claude_code_call` shifted it +16 | §1(a) + §7 |
+| 3 | `test_resolved_model_returns_the_requested_model_when_it_actually_ran` | **does not exist** (0 of 41 defs). Renamed in cycle 2 to `..._reports_a_substitution_even_when_the_helper_matches` | §3 criterion-3 row |
+| 4 | `test_all_three_rail_loggers_resolve_the_model` | **does not exist** — that is the cycle-2-*replaced* AST scan; the shipped test is `..._write_the_RESOLVED_model` | §3 criterion-3 row |
+
+Independently re-derived all four before correcting (AST walk for the call node,
+`grep -c "def <name>"` for the test names) — the auditor was right on every one.
+Finding 1 also falsified `live_check`'s own header claim that everything below it
+had been regenerated: A5 had not been.
+
+**Two further corrections from its minor notes.** §2 described the lint
+false-green as *"passing `$FILES` as one quoted string"* — the mechanism is the
+**unquoted** expansion arriving as a single word, since zsh does not word-split
+unquoted parameter expansions. And `live_check`'s header/matrix heading still
+said "cycle 3" after later amendments.
+
+**The instrument that should have existed from cycle 1.** A checker that walks
+every `path.py:NNN` in these artifacts, resolves it against the real file, and
+prints the line it lands on. Run after the corrections: **9 anchors, 0 missing or
+out of range**, each pointing at plausible content (`envelope = claude_code_invoke(`
+at `:241`, `model_name = (settings.gemini_model ...` at `:2408`). Zero surviving
+`:206` / `:2392` references. Every one of the five Q/A rejections in this step was
+a claim that did not reproduce; a ten-line script checks the most mechanical
+class of them in under a second, and I wrote it only after being caught four
+times.
+
+**Also worth recording:** the auditor disclosed two defects in its *own*
+instruments before trusting them — a first lint probe that used a single file
+(command substitution strips the trailing newline, so the false-green could not
+manifest) and a baseline run that failed because its scratch worktree lacked the
+gitignored `backend/.env`. It proved each instrument could fail before believing
+its result. That is the discipline this step kept re-learning.

@@ -4,7 +4,7 @@
 > `handoff/current/live_check_78.2.md`: verbatim CLI argv (or its captured
 > equivalent) for one call per site showing the model flag, plus the new log line.
 
-Date: 2026-07-25 · **Cycle 3** (cycle 1 = Q/A **FAIL**, cycle 2 = **CONDITIONAL**; see §5/§6) · Machine:
+Date: 2026-07-25 · **cycles 1-6** (FAIL, CONDITIONAL, CONDITIONAL, FAIL, CONDITIONAL, **PASS**; see §5/§6) · Machine:
 operator's Mac · `claude` at `/Users/ford/.local/bin/claude`
 
 Capture script: `scratchpad/live_capture_78_2.py`. **Everything below was
@@ -55,7 +55,7 @@ recorded the caller's label `claude-haiku-4-5`.
 --- A5. AST evidence: every direct call site supplies `model` ---
   backend/services/autonomous_loop.py:2469      model=True  kwargs=['max_tokens', 'timeout_s', 'model']
   backend/services/autonomous_loop.py:2552      model=True  kwargs=['max_tokens', 'system', 'timeout_s', 'model']
-  backend/services/ticket_queue_processor.py:206 model=True  kwargs=['system', 'timeout_s', 'model']
+  backend/services/ticket_queue_processor.py:241 model=True  kwargs=['system', 'timeout_s', 'model']
 ```
 
 Criterion 2 is A3: the per-agent policy now reaches the invocation instead of
@@ -125,7 +125,7 @@ Cycle 1 changed only the first. B1/B2 log through
 
 ---
 
-## 3. Mutation matrix (cycle 3)
+## 3. Mutation matrix (final)
 
 Probe: the immutable verification command. Protocol per case: apply → **verify
 the file actually changed (sha)** → purge `__pycache__` (78.14) → run → restore
