@@ -1,0 +1,33 @@
+11. [GET] http://localhost:3100/api/auth/session => [200] OK
+12. [GET] http://localhost:3100/api/auth/session => [200] OK
+13. [GET] http://localhost:3100/api/auth/session => [200] OK
+14. [GET] http://localhost:3100/api/auth/session => [200] OK
+15. [GET] http://localhost:3100/api/auth/session => [200] OK
+16. [GET] http://localhost:3100/api/auth/session => [200] OK
+17. [GET] http://localhost:3100/api/auth/session => [200] OK
+18. [GET] http://localhost:3100/api/auth/session => [200] OK
+19. [GET] http://localhost:3100/api/auth/session => [200] OK
+20. [GET] http://localhost:3100/api/auth/session => [200] OK
+21. [GET] http://localhost:8000/api/health => [200] OK
+22. [GET] http://localhost:8000/api/paper-trading/status => [200] OK
+23. [GET] http://localhost:8000/api/paper-trading/portfolio => [200] OK
+24. [GET] http://localhost:8000/api/paper-trading/trades?limit=100 => [200] OK
+25. [GET] http://localhost:8000/api/paper-trading/snapshots?limit=365 => [200] OK
+26. [GET] http://localhost:8000/api/paper-trading/performance => [200] OK
+27. [GET] http://localhost:8000/api/paper-trading/status => [200] OK
+28. [GET] http://localhost:8000/api/paper-trading/portfolio => [200] OK
+29. [GET] http://localhost:8000/api/paper-trading/snapshots?limit=365 => [200] OK
+30. [GET] http://localhost:3100/api/auth/session => [200] OK
+31. [GET] http://localhost:8000/api/paper-trading/gate => [200] OK
+32. [GET] http://localhost:8000/api/paper-trading/kill-switch => [200] OK
+33. [GET] http://localhost:8000/api/paper-trading/freshness => [200] OK
+34. [GET] http://localhost:8000/api/paper-trading/cycles/history?limit=1 => [200] OK
+35. [GET] http://localhost:8000/api/paper-trading/ticker-meta?tickers=000660.KS,005930.KS,066570.KS,AMD,CIEN,COHR,DELL,FIX,GEV,GLW,HPE,INTC,KEYS,LITE,MU,ON,PANW,SNDK,STX,TER,WDC => [200] OK
+36. [GET] http://localhost:8000/api/paper-trading/gate => [200] OK
+37. [GET] http://localhost:8000/api/paper-trading/kill-switch => [200] OK
+38. [GET] http://localhost:8000/api/paper-trading/freshness => [200] OK
+39. [GET] http://localhost:8000/api/paper-trading/cycles/history?limit=1 => [200] OK
+40. [GET] http://localhost:8000/api/paper-trading/live-prices?tickers=PANW%2CAMD => [200] OK
+41. [GET] http://localhost:8000/api/paper-trading/ticker-meta?tickers=AMD,PANW => [200] OK
+
+Note: 10 static requests not shown, run with "static" option to see them.
