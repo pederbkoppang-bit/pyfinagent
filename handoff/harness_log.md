@@ -28615,3 +28615,185 @@ than taken by me.
 in-flight `contract_78.2.md` + `research_brief_78.2.md` into a commit whose
 subject names 78.16. That is the `git add -A` behaviour 78.15 exists to fix, and
 it is recorded here rather than left for someone to discover in the log.
+
+---
+
+## Operator authorization -- 2026-07-25 -- FABLE 5 SCOPED-AUTHORIZE
+
+**Operator decision, recorded verbatim (2026-07-25):**
+
+> you can use fable 5 if neccacry as it is free on the max subscrition based on
+> weekly limits
+
+This is the fresh free-window confirmation the CLAUDE.md Fable policy requires
+("Any future Fable repin requires a fresh free-window confirmation"). Scope, as
+stated: **use where necessary**, free on the Max subscription, bounded by a
+WEEKLY limit.
+
+**NOT recorded as `FABLE PERMANENT: AUTHORIZE`** -- the operator authorized
+conditional use, not a permanent roster repin, so the SessionStart tripwire and
+the standing revert doctrine stay intact. If a permanent repin is wanted, that
+is a separate, explicit token.
+
+**How it is being applied (goal_masterplan_drain_2026-07-25):** Fable is spent
+PER INVOCATION (`Workflow agent({model:'fable'})` / Agent-tool `model: fable`)
+on the hardest correctness-critical steps only -- NOT by repinning
+`.claude/agents/researcher.md` / `qa.md`. Rationale, from this log:
+
+- **Cycle at log:27346 -- "FABLE LIMIT HIT":** the workflow qa agentType
+  inherited the qa.md Fable pin and the 69.4 Q/A FAILED outright with "reached
+  your Fable 5 limit". Exhaustion is a HARD FAIL, not a graceful downgrade. A
+  roster repin therefore puts every Q/A spawn on a budget that, once spent,
+  breaks the evaluator. Per-invocation keeps the standing roles on the
+  unlimited Opus rail.
+- **FABLE-HEADLESS (log:27085, :27096):** Fable pins are UNAVAILABLE in
+  headless/cron runs and silently fall back to Opus 4.8. Away-ops and scheduled
+  runs cannot rely on Fable; do not design a step that requires it.
+
+**Doc-staleness found while applying this (queued, not silently fixed):**
+CLAUDE.md's Fable bullet states `xhigh` silently downgrades to `high` for
+non-Opus-4.8/4.7 models (citing `llm_client.py:1507-1512`) and that "Fable roles
+must use `max`, never `xhigh`". Both the behavior and the line numbers are
+stale: phase-67.6 whitelisted Fable + Sonnet 5, and the live guard at
+`backend/agents/llm_client.py:1634` reads
+`not model_id.startswith(("claude-opus-4-8","claude-opus-4-7","claude-fable-5","claude-sonnet-5"))`,
+with `MODEL_EFFORT_FALLBACK` carrying `("claude-fable-5","xhigh")`
+(`backend/config/model_tiers.py:335`). **Fable supports `xhigh`.**
+
+## Cycle 165 -- 2026-07-25 -- phase=78.2 result=PASS (cycle 6; 1 FAIL, 2 CONDITIONAL, 1 FAIL, 1 CONDITIONAL before it)
+
+**78.2 -- the CC rail now runs the model the caller asked for, and the log says
+what actually ran.**
+
+`claude_code_invoke` built its argv with no `--model`, so every rail call ran
+whatever the `claude` CLI resolved by default. Measured on a live probe shaped
+exactly like the production invocation: `modelUsage` reported
+**`claude-opus-5[1m]`** doing the work while `llm_call_log` recorded the caller's
+label `claude-haiku-4-5`. Not a latent risk -- the six signal overlays, the lite
+trader and the lite risk judge were all running the top tier at 1M context,
+invisibly, because `~/.claude/settings.json` pins `opus[1m]` and the rail supplied
+nothing higher in the precedence chain. A `/model` change would have silently
+re-tiered live trading decisions with no code change and no log line.
+
+**Shipped:** `model` param threaded to argv; `ClaudeCodeClient` passes
+`self.model_name` (6 of 9 callers at one seam); B1/B2/E1 each pass one;
+`agent_model_map` HONORED on the rail branch rather than computed-and-discarded;
+`resolve_rail_model` derives the true model from `envelope.modelUsage` and is
+shared by all three rail loggers; E1, which wrote no `llm_call_log` row at all,
+now meters both success and failure. 12 new tests.
+
+**This step took SIX Q/A cycles and every rejection was correct.** Recorded in
+full because the pattern is more valuable than the fix:
+
+1. **Cycle 1 FAIL -- I fabricated a fixture.** The guard's docstring said "the
+   real one measured 2026-07-25" while the opus entry's `outputTokens` had been
+   changed from the measured **4** to **4000** -- the single number the heuristic
+   turned on. That one number disabled BOTH of my compensating controls at once:
+   the mismatch warning and the M5 mutation. My matrix reported a clean sweep
+   over a live defect. I cited `feedback_mutation_test_guards_and_fixtures` one
+   step earlier and then committed exactly that failure.
+2. **Cycle 2 CONDITIONAL -- the fix contained the original defect.** My resolver
+   short-circuited on `requested in modelUsage` and I called it "exact". It is
+   exact about MAP MEMBERSHIP, not AUTHORSHIP -- and the CLI's helper is itself a
+   `claude-haiku-4-5` snapshot, while six of the nine rail callers request exactly
+   `claude-haiku-4-5`. For two thirds of the surface a substitution could never be
+   reported. My defence ("we always pass `--model` now") was wrong: passing
+   `--model` does not make the worker that model.
+3. **Cycle 3 CONDITIONAL -- a stale number and a gate I never ran.** A block
+   titled "Verbatim verification output" said `71 passed` when it was `72`, and I
+   had skipped the qa.md 1a lint gate entirely, reporting only `ast.parse`.
+4. **Cycle 4 FAIL -- I was auditing my DIFF, not the COMMIT.** `frontend/next-env.d.ts`
+   was tracked-and-modified by a *different* session's UI-audit rig, repointing at
+   an ignored, untracked distDir. `git add -A` would have shipped a broken
+   TypeScript reference under 78.2's name. Four cycles of scrutinising my own code
+   missed a defect three lines away in a file I had never opened.
+5. **Cycle 5 CONDITIONAL, `violated_criteria: []`** -- all four criteria MET by
+   execution. Blocked on the commit surface (below) and on the spend.py exclusion
+   being misquoted as `cc_rail%` in a DURABLE CODE COMMENT, where `spend.py:37-38`
+   records the exact `!=` was chosen over a prefix on purpose ("a prefix would
+   also swallow an unrelated future agent named e.g. `cc_railway`"). My comment,
+   written to inform maintainers, pointed them at precisely the change that file
+   documents as rejected -- inside the $25/day breaker's path. Third iteration of
+   a defect in one paragraph.
+
+**The generalisable lesson.** Every rejection was the same shape: I built a check
+that could not see the thing it was for. A fixture edited until it agreed with
+the code; a rule stated in terms that described my implementation rather than the
+question; a gate never run; an audit scoped to my own diff. In each case the Q/A
+found it by running my code against numbers my own artifacts had already
+recorded -- the cheapest test available, and the one I skipped five times.
+
+**Two harness defects fixed, not just worked around.**
+- My mutation runner reported GREEN for M4 when the mutation had silently failed
+  to apply (target string moved after a re-indent). Second false-vacuity signal
+  from that trap. `run_case` now takes the target file's pre-mutation SHA and
+  reports `VERDICT: INVALID` rather than interpreting an unmutated run.
+- The Q/A disclosed the SAME class of defect in its own harness (`from
+  backend.agents import claude_code_client` reads the package attribute, not
+  `sys.modules`, so its mutants were never loaded), caught it, and re-ran RED.
+
+**Lint gate, measured.** Cycle 3 forced me to actually run qa.md 1a; it exited 1
+on 6 pre-existing dead imports in `ticket_queue_processor.py` (proven pre-existing
+against HEAD), now removed. The gate's FIRST run was a false green -- and I later
+proved it is not merely noisy but BLIND: with a genuine `import uuid` in a file
+that IS in scope, the documented `ruff check $FILES` form exits **0** with "All
+checks passed!" while both correct forms exit 1. In zsh an unquoted parameter
+expansion does not word-split. Already queued as **75.5.14**; enriched with this
+second reproduction rather than duplicated.
+
+**Commit surface -- the operator's call, taken.** A separate concurrently-active
+session is writing `phase-80` (31 steps, the operator's Playwright audit) into the
+same `masterplan.json`, and produced ~31 untracked UI-audit binaries. The
+auto-commit hook's `git add -A` would have published 32 foreign step ids -- none
+research-gated, contracted or Q/A'd -- plus those binaries, under a subject naming
+78.2. Code shipped first as **5e51f4a9**, hand-staged to 78.2's own paths. The
+operator then authorised proceeding, so this close-out hand-stages the flip +
+this log entry: `masterplan.json` necessarily carries phase-80's DEFINITIONS
+(one file, unavoidable) and that is disclosed in the commit message; the binaries
+stay out.
+
+**Follow-ups queued rather than disclosed in prose** (`feedback_queue_discovered_defects_in_masterplan`):
+- **78.17** -- the six overlays' `enable_prompt_caching=False` rationale is stale;
+  gated on the one measurement that settles it, BLOCKED on dead credits.
+- **78.18** -- three permanently-red count/diff pins that have stopped carrying
+  information (the collection pin is 456 behind).
+- **78.19** -- `npx eslint .` is permanently red from the Playwright build dirs, so
+  the qa.md 1b gate fails for every future frontend step.
+- **79.55** -- RAIL-MODEL TIER CONFIRMATION, raised to **P0 / RESTART BLOCKER**:
+  the re-tiering is inert until the backend restarts, so a restart for any
+  unrelated reason silently ships it. Not uniform -- B1/B2 follow
+  `settings.gemini_model`, so the trade decision itself re-tiers.
+
+**Not proven, stated plainly:** no production cycle has run with this code (the
+running backend predates it); no live ticket has exercised E1's new row;
+`canonicalModel` and `costUSD` are live-observed but undocumented in the published
+`ModelUsage` type, so both are read best-effort with tested fallbacks.
+
+**Cycle 6 -- PASS.** All four criteria re-verified by the Q/A's OWN execution: the
+immutable command exit 0 / 72 passed (exit captured bare, not through a pipe), and
+an independent 8-case matrix with **zero survivors** -- including two FIXTURE
+mutations (re-injecting cycle 1's fabricated `outputTokens 4 -> 4000`, which went
+RED, so that trap is genuinely closed) and a FILESYSTEM-level call-site mutation
+run with a green control, so the census guard was exercised without
+re-implementing its rule. It confirmed the F2 quote now reproduces
+character-for-character against `spend.py:228-230` in BOTH places, re-checked the
+rewritten comment for a NEW inaccuracy and found none, and diffed 75.5.14's four
+`success_criteria` against HEAD as byte-identical (only the `name` was enriched).
+
+Two non-blocking findings, both acted on:
+- **N1** -- my stated plan ("hand-stage the flip; the binaries stay out") was
+  judged unachievable, because the auto-commit hook fires synchronously on the
+  masterplan **Write** and, with a PASS verdict, every hold in it is satisfied
+  -> `git add -A` -> the 31 untracked UI-audit captures (**measured 5.0M**, not
+  ignored) get swept. The judgement is right for the path it assumed. It is
+  avoidable via a seam this session had already measured: the hook matches
+  **`Write` and `Edit` only, NOT `Bash`**, so flipping through Bash leaves the
+  window open to hand-stage. This close-out does exactly that -- log append,
+  flip, `git add` of two explicit paths, commit, push, with no `Write`/`Edit`
+  call in between. Net effect: the captures stay OUT, as stated.
+  **Landmine left for the next session, stated plainly:** those captures remain
+  untracked and un-ignored, so the NEXT `Write`/`Edit`-triggered flip by anyone
+  will sweep them.
+- **N2** -- `experiment_results` described E1's row as `agent='cc_rail:ticket_<id>'`;
+  the code writes `f"cc_rail:ticket_{agent_id}"` where `agent_id` is the ROLE, so
+  the real value is e.g. `cc_rail:ticket_main`. Corrected.
