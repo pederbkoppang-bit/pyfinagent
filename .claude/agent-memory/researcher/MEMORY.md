@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [NaN trading verdict 80.27](project_nan_trading_verdict_80_27.md) — yfinance NaN tail row is PERMANENT + universal (measured Saturday, markets closed) NOT a forming-session artifact; quant_model missing from _SOURCE_CRITICALITY (11 keys vs 12); ERROR path proven crash-free (zero field derefs outside tools) but burns ~500-900 retry calls/cycle; 4 NaN-suppressed risk controls found
+
 - [CC rail vs ClaudeClient (78.1)](project_cc_rail_vs_claudeclient_78_1.md) — rail `--json-schema` is POST-HOC validated + re-prompted (NOT constrained decoding); no temperature/max-tokens flag exists; `--bare` will become the `-p` default (kills OAuth rail); cwd=repo ⇒ CLAUDE.md+8 MCP servers loaded per call; bare `cc_rail` tag unless `_role` passed; no caller sets config["system"] so `_HOUSE_INSTRUCTIONS` is absent rail-wide
 - [CC runtime adoption 67.5](project_cc_runtime_adoption_67_5.md) — MCP approvals live in ~/.claude.json project entry + untracked settings.local.json (v2.1.196 distrusts committed self-approval; all servers were Pending pre-fix); fallbackModel NEVER fires on rate-limit/auth; SessionStart can't block; Agent(type) allowlist ignored in subagent frontmatter
 - [Fable/Sonnet-5 request shapes (67.6)](project_fable_sonnet5_request_shapes_67_6.md) -- fable OMIT thinking (disabled 400s); sonnet-5 adaptive-default + tokenizer +30%; xhigh GA fable/sonnet-5; SDK 0.96.0 advisor/iterations BETA-only; pin-downgrade time bomb; mas orchestrator :1089 second ungated trap

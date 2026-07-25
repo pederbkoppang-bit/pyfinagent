@@ -16,6 +16,7 @@ Research basis:
 """
 
 import logging
+import math
 
 import numpy as np
 import yfinance as yf
@@ -23,6 +24,21 @@ import yfinance as yf
 from backend.backtest.backtest_engine import get_latest_mda
 
 logger = logging.getLogger(__name__)
+
+
+def _nonfinite_fail_safe_enabled() -> bool:
+    """phase-80.27 dark-launch gate. OFF -> byte-identical legacy behaviour.
+
+    Function-local settings import: see the twin helper in
+    `backend/tools/sector_analysis.py` for why. Fails OPEN to the legacy
+    path -- this gate must never be the reason an analysis crashes.
+    """
+    try:
+        from backend.config.settings import get_settings
+
+        return bool(getattr(get_settings(), "tools_nonfinite_fail_safe_enabled", False))
+    except Exception:  # pragma: no cover - defensive
+        return False
 
 # Features computable from live yfinance data (no BQ needed).
 # These overlap with _NUMERIC_FEATURES in backtest_engine.py.
@@ -213,6 +229,51 @@ def get_quant_model_signal(ticker: str) -> dict:
 
         # Score
         score = _score_ticker(features, mda)
+
+        # phase-80.27 -- FAIL-SAFE GUARD, BEFORE _classify_signal's ladder.
+        #
+        # `_build_live_features` reads `hist["Close"]` with no `.dropna()`
+        # (unlike its siblings anomaly_detector.py and monte_carlo.py), so a
+        # single non-finite bar poisons momentum_*, annualized_volatility and
+        # sma_*_distance -- and the `if sma50 else 0.0` guards do NOT protect,
+        # because `bool(nan)` is True.
+        #
+        # `score` is then NaN, and `_classify_signal`'s ladder is all-False
+        # against NaN (`> 0.08`, `> 0.03`, `< -0.08`, `< -0.03`), so it falls
+        # through to its `return "NEUTRAL"` -- a confident trading verdict
+        # derived from nothing, on a payload that also advertises
+        # `mda_source: "backtest"` as if real walk-forward weights had been
+        # applied. `top_factors` is meanwhile sorted by `abs()` over NaN, so
+        # the "top contributing factors" are an arbitrary permutation rather
+        # than a ranking.
+        #
+        # Criterion 6: on non-finite factors we must NOT keep claiming
+        # 'backtest' -- the payload says "non_finite_inputs" instead.
+        nonfinite_feats = [k for k, v in features.items()
+                           if isinstance(v, float) and not math.isfinite(v)]
+        if _nonfinite_fail_safe_enabled() and (
+            not math.isfinite(score) or nonfinite_feats
+        ):
+            logger.warning(
+                "quant_model %s: non-finite score=%r or features %s -- returning "
+                "ERROR instead of a fabricated NEUTRAL (phase-80.27)",
+                ticker, score, nonfinite_feats[:6],
+            )
+            return {
+                "ticker": ticker,
+                "signal": "ERROR",
+                "summary": (
+                    f"Error: quant model unavailable for {ticker} -- "
+                    f"{len(nonfinite_feats)} factor(s) computed to non-finite "
+                    "values, so no score could be produced."
+                ),
+                "score": None,
+                "top_factors": [],
+                # criterion 6: never advertise 'backtest' over non-finite factors
+                "mda_source": "non_finite_inputs",
+                "data": {},
+            }
+
         signal = _classify_signal(score)
 
         # Top contributing factors (by abs contribution)

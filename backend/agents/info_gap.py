@@ -11,6 +11,8 @@ with iterative retry loop for data completeness.
 import asyncio
 import json
 import logging
+import math
+import re
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,10 @@ _SOURCE_CRITICALITY = {
     "nlp_sentiment": "MEDIUM",
     "anomaly": "HIGH",
     "monte_carlo": "HIGH",
+    # phase-80.27: quant_model was ABSENT from this table, so the only
+    # validity test the Layer-1 pipeline applies never assessed it at all --
+    # a NaN-poisoned quant payload could not even be counted as a gap.
+    "quant_model": "HIGH",
 }
 
 # Sectors where certain signals are more critical
@@ -40,18 +46,78 @@ _SECTOR_OVERRIDES = {
 }
 
 
+# phase-80.27: `nan` as a WORD, not as a substring. A naive
+# `"nan" in summary.lower()` matches "fi-NAN-cial", "governance", "tenant" and
+# every other ordinary word containing those three letters -- it would mark
+# almost every real summary MISSING and cause a self-inflicted analysis
+# outage. Boundaries are non-letters so "+nan%", "-nan", "nan," all match
+# while "financial" does not.
+_NAN_TOKEN_RE = re.compile(r"(?<![a-z])[-+]?(nan|inf(inity)?)(?![a-z])", re.IGNORECASE)
+
+
+def _has_non_finite(obj: object, _depth: int = 0) -> bool:
+    """True if any float anywhere in `obj` is NaN or +/-Inf.
+
+    Recurses dicts and sequences. `bool` subclasses `int`, not `float`, so
+    flags are not scanned. Depth-capped so a pathological payload cannot
+    blow the stack inside the analysis pipeline.
+    """
+    if _depth > 12:
+        return False
+    if isinstance(obj, float):
+        return not math.isfinite(obj)
+    if isinstance(obj, dict):
+        return any(_has_non_finite(v, _depth + 1) for v in obj.values())
+    if isinstance(obj, (list, tuple, set)):
+        return any(_has_non_finite(v, _depth + 1) for v in obj)
+    return False
+
+
 def _assess_source_status(key: str, data: dict) -> str:
-    """Classify a data source as SUFFICIENT, PARTIAL, MISSING, or SKIPPED."""
+    """Classify a data source as SUFFICIENT, PARTIAL, MISSING, or SKIPPED.
+
+    phase-80.27 -- this is the ONLY validity test the Layer-1 pipeline
+    applies to an enrichment payload, and it used to inspect exactly four
+    things: not-a-dict, signal == 'ERROR', signal == 'SKIPPED', and the
+    substrings 'error'/'failed' in the summary. **It never looked at a
+    single number.**
+
+    So a NaN-poisoned payload -- every value non-finite, but carrying
+    signal='NEUTRAL' and a summary reading '3M return: +nan% vs sector
+    +nan%' -- fell through to SUFFICIENT. The pipeline then reported
+    "Data quality: 100%" and "Data available and complete" for a
+    HIGH-criticality source whose every number was garbage, and proceeded
+    to full debate, risk assessment and synthesis on it. The retry loop and
+    the debate-skip gate -- the designed safety nets for exactly this --
+    never fired.
+
+    Two numeric checks are added below. Both can only move a source
+    TOWARD MISSING, i.e. toward more gating and fewer trades, so this
+    tightening is fail-safe by construction and ships un-flagged.
+    """
     if not data or not isinstance(data, dict):
         return "MISSING"
-    if data.get("signal") == "ERROR":
+    signal = data.get("signal")
+    # phase-80.27: NO_DATA was an unhandled verdict -- backend/tools/alt_data.py
+    # already returns it, and with no case here it was classified SUFFICIENT.
+    # That is the same defect as the NaN one: an explicit failure read as
+    # healthy data.
+    if signal in ("ERROR", "NO_DATA"):
         return "MISSING"
-    if data.get("signal") == "SKIPPED":
+    if signal == "SKIPPED":
         return "SKIPPED"
-    summary = data.get("summary", "")
+    summary = data.get("summary", "") or ""
     if "error" in summary.lower() or "failed" in summary.lower():
         return "MISSING"
-    if data.get("signal") == "N/A" and not summary:
+    # A rendered 'nan'/'inf' in the prose is a data outage that reached the
+    # text layer -- and that text is what gets handed to the LLM agents.
+    if _NAN_TOKEN_RE.search(summary):
+        return "MISSING"
+    # The payload itself. This is the check whose absence let a 31-non-finite
+    # sector block be reported as "complete".
+    if _has_non_finite(data):
+        return "MISSING"
+    if signal == "N/A" and not summary:
         return "PARTIAL"
     return "SUFFICIENT"
 

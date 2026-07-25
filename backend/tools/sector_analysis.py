@@ -4,10 +4,47 @@ Uses yfinance sector ETFs and peer group data.
 """
 
 import logging
+import math
 
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
+
+
+def _count_non_finite(obj, _depth: int = 0) -> int:
+    """Count NaN/Inf floats anywhere in `obj` (phase-80.27 cycle 2).
+
+    Used to prove the returned payload cannot serialise a bare `NaN` token
+    into an LLM prompt. `bool` subclasses `int`, not `float`, so flags are
+    not counted. Depth-capped for safety on a pipeline path.
+    """
+    if _depth > 12:
+        return 0
+    if isinstance(obj, float):
+        return 0 if math.isfinite(obj) else 1
+    if isinstance(obj, dict):
+        return sum(_count_non_finite(v, _depth + 1) for v in obj.values())
+    if isinstance(obj, (list, tuple)):
+        return sum(_count_non_finite(v, _depth + 1) for v in obj)
+    return 0
+
+
+def _nonfinite_fail_safe_enabled() -> bool:
+    """phase-80.27 dark-launch gate. OFF -> byte-identical legacy behaviour.
+
+    The settings import is FUNCTION-LOCAL on purpose: nothing in
+    `backend/tools/` imports the settings module today, and adding a
+    module-level import here risks a circular-import regression on a
+    package that the API, the MCP servers and the Layer-1 orchestrator all
+    import. Fails OPEN to the legacy path if settings are unavailable --
+    this gate must never be the reason an analysis crashes.
+    """
+    try:
+        from backend.config.settings import get_settings
+
+        return bool(getattr(get_settings(), "tools_nonfinite_fail_safe_enabled", False))
+    except Exception:  # pragma: no cover - defensive
+        return False
 
 # SPDR Select Sector ETFs (covers all 11 GICS sectors)
 SECTOR_ETFS = {
@@ -137,6 +174,44 @@ def get_sector_analysis(ticker: str) -> dict:
         spy_3m = spy_returns.get("3mo", 0)
         stock_3m = stock_returns.get("3mo", 0)
 
+        # phase-80.27 -- FAIL-SAFE GUARD, BEFORE the comparison ladder.
+        #
+        # The `0` defaults above NEVER fire: `_compute_return` stores the key
+        # WITH a NaN value (its `if ret is not None` test at :55/:70/:78/:87
+        # is a null check being used as a numeric-validity check, and
+        # `nan is not None` is True), so `dict.get` returns the NaN, not the
+        # default.
+        #
+        # Every IEEE-754 comparison against NaN is False. So `sec_3m > spy_3m`,
+        # `stock_3m > sec_3m` and the `elif` below are ALL False, control falls
+        # through to the `signal = "NEUTRAL"` initialiser above, and the tool
+        # emits a confident NEUTRAL trading verdict built from nothing. That
+        # verdict reaches the LLM debate and the paper-trading loop, while the
+        # summary renders literally "3M return: +nan% vs sector +nan%".
+        #
+        # Initialising to a VALID verdict before a comparison ladder is itself
+        # the bug: the default must be the failure state. Guarding here rather
+        # than at each comparison keeps one decision point.
+        if _nonfinite_fail_safe_enabled() and not all(
+            math.isfinite(v) for v in (sec_3m, spy_3m, stock_3m)
+        ):
+            logger.warning(
+                "sector_analysis %s: non-finite inputs "
+                "(stock_3m=%r sector_3m=%r spy_3m=%r) -- returning ERROR "
+                "instead of a fabricated NEUTRAL (phase-80.27)",
+                ticker, stock_3m, sec_3m, spy_3m,
+            )
+            return {
+                "ticker": ticker,
+                "signal": "ERROR",
+                "summary": (
+                    f"Error: sector analysis unavailable for {ticker} -- "
+                    "price history returned non-finite values, so no "
+                    "sector/market comparison could be computed."
+                ),
+                "data": {},
+            }
+
         if sec_3m > spy_3m:
             sector_tailwind = True
 
@@ -152,7 +227,7 @@ def get_sector_analysis(ticker: str) -> dict:
         elif stock_3m < sec_3m and stock_3m < spy_3m:
             signal = "LAGGING"
 
-        return {
+        payload = {
             "ticker": ticker,
             "company_name": company_name,
             "sector": sector,
@@ -176,6 +251,45 @@ def get_sector_analysis(ticker: str) -> dict:
                 f"Signal: {signal}."
             ),
         }
+
+        # phase-80.27 cycle 2 -- PAYLOAD-COMPLETENESS GUARD.
+        #
+        # The ladder guard above only inspects the three 3mo operands, so a
+        # PARTIAL outage -- e.g. a bad bar at the START of the 1mo window,
+        # which poisons that horizon alone because _compute_return is
+        # Close[-1]/Close[0] -- produced a genuine-looking NEUTRAL whose
+        # payload still carried NaN in stock_returns["1mo"]. That dict is
+        # serialised by `json.dumps(sector_data, indent=2)` at
+        # backend/config/prompts.py:537 and handed to the sector agent, and
+        # stdlib json.dumps emits a bare `NaN` token by default. Criterion 3
+        # is about the payload the agent RECEIVES, not only the summary
+        # string, so the ladder guard alone did not satisfy it.
+        #
+        # Found by Q/A (cycle 1, finding D1) with a demonstrated leak, not by
+        # me. Guarding the assembled payload is the fail-safe reading: any
+        # non-finite anywhere means this analysis is not fit to be reasoned
+        # over, so it becomes ERROR rather than a partially-fictional verdict.
+        if _nonfinite_fail_safe_enabled():
+            leaked = _count_non_finite(payload)
+            if leaked:
+                logger.warning(
+                    "sector_analysis %s: %d non-finite value(s) in the assembled "
+                    "payload -- returning ERROR so no NaN reaches an LLM prompt "
+                    "(phase-80.27)",
+                    ticker, leaked,
+                )
+                return {
+                    "ticker": ticker,
+                    "signal": "ERROR",
+                    "summary": (
+                        f"Error: sector analysis unavailable for {ticker} -- "
+                        f"{leaked} computed value(s) were non-finite, so the "
+                        "analysis is incomplete."
+                    ),
+                    "data": {},
+                }
+
+        return payload
 
     except Exception as e:
         logger.error("Failed sector analysis for %s: %s", ticker, e)

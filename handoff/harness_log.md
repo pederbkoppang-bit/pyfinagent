@@ -28997,3 +28997,127 @@ silently wrong `1.0` -- a correctness smell, not a 500; (b) the analysis-report 
 embeds the same `quant_model` dict and may 500 identically -- **NOT VERIFIED**, flagged not
 asserted; (c) the frontend should render a `null` signal value as an explicit "data
 unavailable" state, not blank or zero.
+
+---
+
+## Cycle 168 -- 2026-07-25 -- phase=80.27 result=PASS (cycle 2; 1 CONDITIONAL before it)
+
+**THE ONLY STEP IN THIS DRAIN THAT CHANGES LIVE TRADING DECISION BEHAVIOUR.**
+A data outage was being laundered into a confident NEUTRAL trading verdict that reached the
+paper-trading loop, while the data-quality gate that exists to catch exactly this reported
+100%. Chain, confirmed at real line numbers: every IEEE-754 comparison against NaN is
+False, so the ladders fall through to their **initialised** `NEUTRAL`; `info_gap`'s
+`_assess_source_status` -- the ONLY validity test the Layer-1 pipeline applies -- never
+inspected a single number; so the retry loop and the debate-skip gate never fired.
+
+### Shipped ASYMMETRICALLY, and that is the central decision
+
+- **Half A -- the DETECTOR -- ships ON (un-flagged).** `_assess_source_status` now scans
+  payload numerics + prose for `nan`/`inf`, handles `NO_DATA`, and `quant_model` was ADDED
+  to `_SOURCE_CRITICALITY` (it was absent -- 11 keys, not 12 -- so flipping it to ERROR
+  would have done nothing). Un-flagged because it is what the immutable command exercises
+  AND because a detector tightening can only move a source toward MISSING: more gating,
+  never less. **Immutable command: `SUFFICIENT` -> `MISSING`.**
+- **Half B -- the TOOL VERDICTS -- ships DARK** behind
+  `tools_nonfinite_fail_safe_enabled` (default **False**, asserted on the live settings
+  object). OFF = byte-identical legacy. ON = documented `signal:'ERROR'` per
+  `.claude/rules/backend-tools.md`, and `mda_source` stops claiming `'backtest'` over
+  non-finite factors.
+
+### OPERATOR ACTIONS OWED -- all three, do not drop
+
+1. **FLIP TOKEN.** `tools_nonfinite_fail_safe_enabled=true` in `backend/.env` is owed and
+   is the operator's call. **Until then the defect is LIVE:** with the flag OFF the NaN
+   still reaches the sector agent's prompt today.
+2. **COST WHEN ON, MEASURED.** The failure is deterministic, so both `max_retries=2`
+   attempts are guaranteed to fail. INSTRUMENTED: `get_sector_analysis` makes **23**
+   `history()` calls + 1 `.info()`; `get_quant_model_signal` 1 + 1 -> ~**52 extra
+   round-trips per ticker per cycle** -> **~1,040-1,560 per cycle** at 20-30 tickers.
+   Retries are **sequential with NO backoff** (`info_gap.py:205`) and there is **no
+   repo-level yfinance rate limiter**. Real HTTP-429 risk. (An earlier figure of 500-900
+   was the researcher's pre-instrumentation estimate; superseded.)
+3. **SEQUENCE THE BAD-BAR REPAIR FIRST.** Fixing the malformed tail bar removes the cause,
+   which makes the retry storm moot. That repair is deliberately NOT in this step -- see
+   the HARD STOP below.
+
+### HARD STOP honoured -- what was deliberately NOT done
+
+**The bad-bar repair (dropping the NaN-OHLC tail row) is out of scope.** It *restores real
+values*, which can turn today's fabricated `NEUTRAL` into a genuine `DOUBLE_TAILWIND` /
+`BULLISH` -- a change in the **LESS conservative** direction that could open a position
+that would not otherwise open. The goal's hard stop applies. Also deferred: **monte_carlo
+(L3)**, which currently fabricates `EXTREME_RISK` on NaN, so guarding it would REMOVE an
+alarming input -- the one directionally-less-conservative change in the set.
+
+### The most alarming thing the audit found, and it is NOT in this step
+
+Non-finite values silently disable the **sector-concentration warning**
+(`orchestrator.py:347-374`) and the **per-ticker limit, total-exposure limit and KILL
+SWITCH** (`mcp_servers/signals_server.py:926`, `:935`, `:1285-1287`). Risk-control
+bypasses on the portfolio/MCP path. Needs its own research gate -- queued, not bundled.
+
+### Mechanism correction -- the step body is WRONG, measured twice independently
+
+Not a "still-forming session" placeholder. Measured Saturday 2026-07-25 with markets closed
+~22h: exactly ONE bar -- the most recent **COMPLETED** session -- carries NaN OHLC with a
+real Volume (AAPL 47,402,209), on 6/6 tickers. It does **not** self-heal at the close; the
+real Volume is why yfinance's own `keepna` `.all(axis=1)` mask keeps the row. Universal and
+permanent: **there is no quiet window in which to ship this "safely by timing"** -- the
+flag is the only control. Main and the researcher measured this independently, before
+seeing each other's numbers, and the results agree exactly.
+
+### Cycle 1 -- CONDITIONAL. Two real defects, both mine, both DEMONSTRATED not argued
+
+- **D1 (criterion 3, BLOCKING).** My sector guard tested only the three **3mo** operands.
+  A partial outage -- a bad bar at the START of one window, which poisons that horizon
+  alone since `_compute_return` is `Close[-1]/Close[0]` -- still emitted `NEUTRAL` with
+  literal `NaN` in the payload `json.dumps` at `config/prompts.py:537` hands the sector
+  agent. Fixed by widening to a **payload-completeness guard**.
+- **D2 (criterion 5).** Every Half-B test monkeypatched
+  `_nonfinite_fail_safe_enabled` itself, so the **production flag read executed in ZERO
+  tests**. Q/A mutated it to `return False` and to a MISSPELLED settings attribute -- the
+  whole 24-test suite stayed green. The guard could have shipped permanently dead.
+
+### Cycle 2 -- PASS
+
+14/17 mutations killed; 2 proven **equivalent mutants** (the ladder guard is fully
+subsumed by the payload guard) + 1 WARN, since closed. Q/A verified by execution, probed
+four further leak classes (`inf`, `sector_performance`-only, `peers`-only, all-finite
+control) and could not construct a surviving leak, and confirmed the widened guard is NOT
+fail-always. It also opened a new fail-safe attack line and closed it: an ERROR payload
+cannot degrade `cand_sector` into the cap-exempt `'Unknown'` bucket, because `cand_sector`
+is seeded from screener/yf_data, never from the sector tool. Suite **30 passed**; cross-suite
+61 passed; ruff clean (one `json` F401 in `info_gap.py` reproduces at HEAD).
+
+**A FOURTH VACUITY, caught by me this time.** My first version of the N-A closure test
+stubbed `_compute_return` to return finite values for EVERY ticker, so no NaN ever reached
+`sector_performance` -- it passed while the narrowing mutation still survived. Fixed by
+making the poison ticker-specific (XLE). **Four instances in four steps of one shape: the
+test replaces the very thing whose correctness it is meant to establish** (80.2 mutated the
+array not the wiring; 80.1 asserted a library fact as a fixture pin; 80.27-D2 stubbed the
+activation path; 80.27-N-A stubbed the poison source). Written into
+`feedback_mutation_test_guards_and_fixtures` as a standing pre-flight check.
+
+**Queued (N-B):** `_score_ticker` launders a NaN **MDA weight** into a clean `0.0` via
+`total_weight > 0`, yielding a confident NEUTRAL with `mda_source='backtest'`. NOT live
+(37/37 cache weights measured finite), outside all six criteria -- but the same bug class
+on a different input. Own research-gated step.
+
+**Evidence:** `research_brief_80.27.md` (audit-class, `gate_passed`, 8 sources in full, 38
+URLs, 24 internal files, `coverage.dry: true` after 6 rounds / 2 dry) -> `contract_80.27.md`
+-> `experiment_results_80.27.md` -> `live_check_80.27.md` -> `evaluator_critique_80.27.md`
+(both cycles).
+
+**Do-no-harm:** live book cannot move -- Half A only gates more, Half B is OFF. No `.env`
+edit, no flag FLIP (declared OFF, not enabled), no optimizer run, `historical_macro` FROZEN,
+kill-switch/stops/sector-caps/DSR/PBO not in the diff. Crash/stall traced to zero: no
+field-level dereferences of these payloads exist outside the tools, and the flag helper
+fails OPEN to legacy so the gate can never itself break an analysis. Operator `:8000` not
+restarted (`79.55` still open).
+
+**Tier ledger:** RESEARCH T3 (Opus 5/max) -- GENERATE T3 (Opus 5/xhigh) -- EVALUATE T3 x2
+(Opus 5/max). **Fable/T4 was reserved for this step and deliberately not spent:** every hard
+question here -- does ERROR crash anything, is ERROR ever more actionable, how many ladders
+exist, what does the flag cost -- was answered by measurement and code-tracing, not model
+judgment. The residual risk is an LLM-in-the-loop behaviour change, which no authoring-time
+model capability resolves; it is resolved by shipping dark and letting the operator decide.
