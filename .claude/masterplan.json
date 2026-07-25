@@ -18729,6 +18729,25 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "78.14",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "name": "MUTATION-HARNESS INTEGRITY -- fast mutate->revert cycles can leave STALE BYTECODE that corrupts mutation evidence [executor: sonnet-4.6/high; BOUNDARY: the mutation-running helper scripts + a documented rule in .claude/agents/qa.md]. OBSERVED LIVE 2026-07-25 during phase-78.1: after mutating backend/agents/llm_client.py, running the suite, and reverting (SHA verified IDENTICAL to the original, git diff clean, zero mutation markers in the source), the post-revert run STILL reported `6 failed`. The source was provably correct; Python was executing stale .pyc bytecode. Source and cache shared the same mtime SECOND (both 11:53:01) and Python's pyc validation is (source mtime, source size) -- a mutate+revert inside one filesystem second can therefore leave bytecode the interpreter still considers valid. `find backend/agents -name __pycache__ -type d -exec rm -rf {} +` immediately restored `24 passed`. WHY THIS IS MORE THAN AN ANNOYANCE: the FALSE-FAILURE direction merely wastes time, but the FALSE-PASS direction silently corrupts the harness's core evidence -- a mutation that appears NOT to kill leads to 'this guard is vacuous, go fix it' (chasing a non-defect), and a revert that leaves mutated bytecode makes every subsequent 'green' run a lie. This project runs a mutation matrix on essentially every step, so the blast radius is the whole verification method. MITIGATION ALREADY PROVEN: setting PYTHONDONTWRITEBYTECODE=1 in the subprocess env eliminates it -- the two most consequential matrices of that session (75.5.12 M1 and 76.9.2 M7) were re-run under it and REPRODUCED EXACTLY, so no prior conclusion was affected. WORK: make every mutation helper set PYTHONDONTWRITEBYTECODE=1 (or clear __pycache__ between phases), and codify the rule in qa.md so Q/A agents running their own mutations inherit it.",
+          "verification": {
+            "command": ".venv/bin/python -c \"import ast,pathlib; [ast.parse(p.read_text()) for p in pathlib.Path('backend/tests').glob('test_phase_7*.py')]; print('ok')\"",
+            "success_criteria": [
+              "Every mutation-running helper sets PYTHONDONTWRITEBYTECODE=1 (or clears __pycache__ between mutate and re-run)",
+              "qa.md documents the hazard so an independent Q/A running its own mutations inherits the mitigation",
+              "REPRODUCTION recorded: a mutate+revert inside one filesystem second demonstrably yields a false result WITHOUT the mitigation and the correct result WITH it -- both directions, not just the fixed state",
+              "MUTATION: remove the mitigation from one helper -> the reproduction test detects it"
+            ],
+            "live_check": "handoff/current/live_check_78.14.md: the false-failure reproduction, the mtime-collision evidence, and both directions under the mitigation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },
