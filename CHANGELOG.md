@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `68427db6` | phase-80.1: [P0 -- FEATURE FULLY DEAD] GET /api/signals/{ticker} returns HTTP 500 for EVERY ticke... |
 | 2026-07-25 | `9457a88d` | phase-80.2: [P0 -- MASKS EVERY BACKEND ERROR APP-WIDE] An unhandled backend 500 carries NO Access... |
 | 2026-07-25 | `0c569eb6` | chore(handoff): track the phase-80 UI-audit evidence base + archive phase-78.2 |
 | 2026-07-25 | `acf89271` | docs(78.2): correct four stale references caught by a post-close claim audit |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `b041386b` | phase-75.5.12: PASS -- bare 'cc_rail' rows no longer phantom-price on the spend flag |
 | 2026-07-25 | `8df579fe` | fix(76.9.2): SSE passthrough had no HTTP/1.1 body delimiter -- the wedge that killed 5 run attempts |
 | 2026-07-25 | `5f23fe54` | docs(78.1): contract from the passed gate + measured flag state that inverts its risk ranking |
-| 2026-07-25 | `67d026de` | docs(75.5.12): fix the CLASS -- correct the refuted claim at its origin, queue 75.5.13 + 76.9.6 |
 
 ---
 
+### v6.69.9 — phase-80.1: [P0 -- FEATURE FULLY DEAD] GET /api/signals/{ticker} retu... (2026-07-25)
+
+- **phase-80.1: [P0 -- FEATURE FULLY DEAD] GET /api/signals/{ticker} returns HTTP 500 for EVERY ticke...**
 ### v6.69.8 — phase-80.2: [P0 -- MASKS EVERY BACKEND ERROR APP-WIDE] An unhandled b... (2026-07-25)
 
 - **phase-80.2: [P0 -- MASKS EVERY BACKEND ERROR APP-WIDE] An unhandled backend 500 carries NO Access...**
