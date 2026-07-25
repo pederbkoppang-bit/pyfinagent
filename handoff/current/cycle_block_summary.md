@@ -1,6 +1,6 @@
 # Cycle block summary + batched operator ask list — 2026-07-25
 
-Session: masterplan drain, Wave 0 + Wave 1 COMPLETE. **Three P0s + one P2 closed and pushed.**
+Session: masterplan drain, Waves 0-2. **Four P0s + one P2 closed and pushed.** Phase-80 P0s: 4 of 5 done (80.4 remains).
 
 | step | verdict | commit | what |
 |---|---|---|---|
@@ -8,6 +8,7 @@ Session: masterplan drain, Wave 0 + Wave 1 COMPLETE. **Three P0s + one P2 closed
 | **80.1** | PASS (cycle 2) | `68427db6` | `/api/signals/{ticker}` 500 → 200, NaN → `null` |
 | **80.27** | PASS (cycle 2) | `8b1c7158` | a data outage can no longer become a trading verdict |
 | **80.31** | PASS (cycle 3) | `6c7fe4f3` | anomaly detector's four arrays now share one index |
+| **80.3** | PASS (cycle 7) | `468bf023` | `/agent-map` draws its topology: 120 warnings -> 0, 24 edges drawn, no clipping, re-fits on resize |
 
 Plus `0c569eb6` — tracked the phase-80 UI-audit evidence base (31 files, 5.0M) that three
 earlier sessions had left untracked and that would otherwise have been swept into whichever
@@ -142,10 +143,35 @@ change behaviour on ANY input, not that it did not on the ones you tried).
 
 # NEXT
 
-Wave 2: `80.3` (agent-map renders zero edges) and `80.4` (false "Disconnected"), then the
-remaining open P0s oldest-first across phases 27, 61, 62, 63, 65, 68, 72.
+**`80.4` was attempted and is deliberately LEFT OPEN — read this before picking it up.**
 
-**Phase-80 P0 status: 3 of 5 done** (80.1, 80.2, 80.27) — 80.3 and 80.4 remain.
+The code is written and mutation-tested (7/7 killed across both halves), and **4 of 5
+criteria are met**: `onopen` set, heartbeat live (21 bytes vs 0 on the old code),
+`/agents` reads "Connected" with 0 events, and the unit suites pass. **Criterion 4
+fails on live evidence**: with the backend killed and ~70s elapsed — past the page's
+`maxFailures: 5` budget and its ~31s of backoff — the indicator stayed **green
+"Connected"**, while the stats poll right below it correctly showed its failure banner.
+
+**Why it is not shipped:** pre-fix the indicator was wrong on a healthy backend but
+*accidentally right* on a dead one. Post-fix it is right on a healthy backend and
+**stuck green on a dead one** — a false green on an observability surface is strictly
+worse than a false red, and is the exact "always-green" regression criterion 4 exists to
+catch.
+
+**The root cause is a design problem, not a typo:** EventSource **never surfaces comment
+lines to JavaScript**, so the `: ping` heartbeat proves liveness to `curl` but is
+invisible to the client. Death detection rests entirely on `onerror`, which on this
+evidence does not fire reliably. The two candidate fixes (emit a real named `heartbeat`
+event and detect staleness client-side, or make detection independent of `onerror`) both
+change client semantics and need their own research gate — and the first risks the very
+`0 events` readout criterion 3 depends on.
+
+Full evidence: `handoff/current/live_check_80.4.md` §D, with three captures in
+`handoff/current/captures_80.4/`.
+
+Then the remaining open P0s oldest-first across phases 27, 61, 62, 63, 65, 68, 72.
+
+**Phase-80 P0 status: 4 of 5 done** (80.1, 80.2, 80.3, 80.27) — only **80.4** remains.
 
 **One more queued defect from 80.31** — and it is bigger than the bug it sits beside:
 `anomaly_detector` z-scores a **5-day mean** against the **std of DAILY** volume, a

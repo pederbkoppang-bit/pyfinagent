@@ -123,6 +123,34 @@ export function useEventSource<T = unknown>(
 
       es.addEventListener(eventType, onMessage as EventListener);
 
+      // phase-80.4: connection state must come from CONNECTION ESTABLISHMENT,
+      // not from DATA ARRIVAL.
+      //
+      // Before this, `status` only became "connected" inside onMessage, so an
+      // open and perfectly healthy stream that had simply not yet delivered an
+      // event stayed "connecting" forever -- and /agents, which renders a
+      // binary Connected/Disconnected label, showed a red **Disconnected** over
+      // a working endpoint. Measured: the MAS bus has published 0 events since
+      // process start (its emit sites fire only on MAS runs, which the trading
+      // cycle never triggers), so the idle case is the NORMAL case here, not an
+      // edge case.
+      //
+      // `onopen` fires on the validated response HEADERS, before the body is
+      // interpreted line by line (WHATWG: "announce the connection", which sets
+      // readyState=OPEN and fires `open`). So this is correct even against a
+      // backend that never sends a byte -- it does not depend on the heartbeat
+      // added in mas_events.py.
+      //
+      // DELIBERATELY sets status ONLY. It must NOT reset `failures` or
+      // `backoffRef` the way onMessage does: EventSource auto-reconnects, so a
+      // backend that accepts a connection and immediately drops it would fire
+      // open/error/open/error... and resetting the budget here would make the
+      // indicator permanently green while the backend flapped. The failure
+      // budget is deliberately only cleared by a real event arriving.
+      es.onopen = () => {
+        setStatus("connected");
+      };
+
       es.onerror = () => {
         setStatus("error");
         cleanup();

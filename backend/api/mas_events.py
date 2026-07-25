@@ -8,6 +8,7 @@ Endpoints:
 """
 
 import asyncio
+import contextlib
 import logging
 
 from fastapi import APIRouter, Query
@@ -17,6 +18,13 @@ from backend.agents.mas_events import get_event_bus
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/mas", tags=["MAS Observability"])
+
+# phase-80.4: SSE keepalive interval. 15s is the common default (and
+# sse-starlette's) -- short enough that a client distinguishes idle from dead
+# quickly, long enough to be free. NOTE the rationale here is NOT proxy
+# idle-timeouts (this deployment is localhost-only): it is dead-vs-idle
+# discrimination for the operator, plus proving the generator is still live.
+_HEARTBEAT_SECONDS = 15.0
 
 
 @router.get("/events")
@@ -30,8 +38,58 @@ async def stream_events(include_buffer: bool = Query(True)):
     bus = get_event_bus()
 
     async def event_generator():
-        async for event in bus.subscribe(include_buffer=include_buffer):
-            yield event.to_sse()
+        # phase-80.4: an idle stream used to be BYTE-IDENTICAL to a dead one.
+        # This endpoint returns 200 + text/event-stream and then, on a system
+        # with no MAS run in flight, sends nothing at all -- measured: the bus
+        # has published 0 events since process start, because its emit sites
+        # fire only on MAS runs, which the trading cycle never triggers. So
+        # "healthy but quiet" and "hung" looked the same to every client.
+        #
+        # Two additions, both SSE comment lines (":" prefix). Per the WHATWG
+        # spec a comment line is ignored by EventSource and never surfaces to
+        # onmessage, so this cannot pollute /agents' event feed or counters.
+        #   1. an immediate ": connected" so the stream proves itself on
+        #      connect rather than on first event;
+        #   2. a ": ping" every _HEARTBEAT_SECONDS while idle.
+        yield ": connected\n\n"
+
+        agen = bus.subscribe(include_buffer=include_buffer).__aiter__()
+        pending = asyncio.ensure_future(agen.__anext__())
+        try:
+            while True:
+                # NOTE: deliberately asyncio.wait(timeout=...) and NOT
+                # asyncio.wait_for(). `wait_for` CANCELS its inner awaitable on
+                # timeout, and cancelling `agen.__anext__()` throws
+                # CancelledError *into the generator* -- which would run
+                # MASEventBus.subscribe's `finally` and silently UNSUBSCRIBE
+                # the client on the very first idle heartbeat. `wait` leaves
+                # the pending task alive across timeouts, so the subscription
+                # and queue ordering are untouched and no event can be lost.
+                done, _ = await asyncio.wait({pending}, timeout=_HEARTBEAT_SECONDS)
+                if pending not in done:
+                    yield ": ping\n\n"
+                    continue
+                try:
+                    event = pending.result()
+                except StopAsyncIteration:
+                    break
+                yield event.to_sse()
+                pending = asyncio.ensure_future(agen.__anext__())
+        finally:
+            # Client disconnect closes this generator; tear the subscription
+            # down explicitly so neither the task nor the queue leaks.
+            #
+            # The cancelled task must be AWAITED before aclose(): cancel() only
+            # requests cancellation, and while `pending` is still in flight the
+            # inner generator counts as "already running", so aclose() raises
+            # RuntimeError. Awaiting it delivers CancelledError into
+            # MASEventBus.subscribe, which runs its `finally` and unsubscribes
+            # -- correct here, because we are tearing down anyway.
+            pending.cancel()
+            with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+                await pending
+            with contextlib.suppress(RuntimeError):
+                await agen.aclose()
 
     return StreamingResponse(
         event_generator(),
