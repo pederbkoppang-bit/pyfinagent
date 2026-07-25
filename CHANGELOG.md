@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `6c7fe4f3` | phase-80.31: [P2 -- MISALIGNED PRICE/VOLUME ARRAYS IN THE ANOMALY DETECTOR] backend/tools/anomaly... |
 | 2026-07-25 | `8b1c7158` | phase-80.27: [P0 -- A DATA OUTAGE IS LAUNDERED INTO A TRADING VERDICT THAT REACHES THE LIVE LOOP]... |
 | 2026-07-25 | `68427db6` | phase-80.1: [P0 -- FEATURE FULLY DEAD] GET /api/signals/{ticker} returns HTTP 500 for EVERY ticke... |
 | 2026-07-25 | `9457a88d` | phase-80.2: [P0 -- MASKS EVERY BACKEND ERROR APP-WIDE] An unhandled backend 500 carries NO Access... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `818994f9` | fix(handoff): archive hook FABRICATES false archives -- 129 of 747 dirs hold another step's docs |
 | 2026-07-25 | `0ea399f3` | phase-76.9.2: criterion 1 MET -- first clean rc=0 run through the fixed durable bridge |
 | 2026-07-25 | `b041386b` | phase-75.5.12: PASS -- bare 'cc_rail' rows no longer phantom-price on the spend flag |
-| 2026-07-25 | `8df579fe` | fix(76.9.2): SSE passthrough had no HTTP/1.1 body delimiter -- the wedge that killed 5 run attempts |
 
 ---
 
+### v6.69.11 — phase-80.31: [P2 -- MISALIGNED PRICE/VOLUME ARRAYS IN THE ANOMALY DET... (2026-07-25)
+
+- **phase-80.31: [P2 -- MISALIGNED PRICE/VOLUME ARRAYS IN THE ANOMALY DETECTOR] backend/tools/anomaly...**
 ### v6.69.10 — phase-80.27: [P0 -- A DATA OUTAGE IS LAUNDERED INTO A TRADING VERDICT... (2026-07-25)
 
 - **phase-80.27: [P0 -- A DATA OUTAGE IS LAUNDERED INTO A TRADING VERDICT THAT REACHES THE LIVE LOOP]...**
