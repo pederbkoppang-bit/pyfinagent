@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `acf89271` | docs(78.2): correct four stale references caught by a post-close claim audit |
 | 2026-07-25 | `a75c209f` | phase-78.2: CLOSE-OUT -- rail runs the requested model, log reports what actually ran |
 | 2026-07-25 | `5e51f4a9` | phase-78.2 (verified, flip HELD): thread explicit --model through every CC-rail call site |
 | 2026-07-25 | `a5ba0958` | phase-78.16: 78.1 blocker -- make_client DROPS enable_prompt_caching, so the documented one-flag ... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `67d026de` | docs(75.5.12): fix the CLASS -- correct the refuted claim at its origin, queue 75.5.13 + 76.9.6 |
 | 2026-07-25 | `77bc7db5` | fix(handoff): restore 23 artifacts the backfill swept; record the measured root cause in 75.11.4 |
 | 2026-07-25 | `751e0380` | phase-76.9.3+78.0: both PASS -- ddgs retriever leg restored; Anthropic call-site census closed |
-| 2026-07-25 | `2792c8b4` | docs(75.5.12): correct a refuted justification claim after Q/A cycle-1 |
 
 ---
 
