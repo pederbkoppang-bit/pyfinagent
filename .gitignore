@@ -19,6 +19,10 @@ __pycache__/
 # Node
 node_modules/
 .next/
+# Isolated Next build dirs used by the skip-auth Playwright rig
+# (PLAYWRIGHT_DIST_DIR in next.config.js -- never share `.next` with the
+# operator's live :3000 dev server).
+.next-*/
 
 # Logs
 *.log

@@ -598,3 +598,379 @@ def test_spend_guard_counter_stays_zero_on_the_happy_path():
 
     spend_mod.reset_spend_guard_status()
     assert spend_mod.spend_guard_status()["degraded_count"] == 0
+
+
+# ── phase-78.2: the rail must run the model the caller asked for ─────────────
+#
+# Before 78.2, `claude_code_invoke` built its argv with NO `--model` flag, so the
+# CLI resolved the model through: /model -> --model -> ANTHROPIC_MODEL -> the
+# `model` key in settings.json. The rail set none of the first three, so every
+# call rode whatever the operator last picked interactively. Measured 2026-07-25
+# with no flag: the envelope's modelUsage reported `claude-opus-5[1m]` doing the
+# work while llm_call_log recorded the caller's label `claude-haiku-4-5`.
+#
+# These guards assert BEHAVIOUR (the argv actually built, the resolved model
+# actually derived), never the presence of a substring in source.
+
+def _run_capture(**invoke_kwargs):
+    """Call claude_code_invoke against a faked subprocess; return the argv list."""
+    from backend.agents import claude_code_client as ccc
+
+    with patch.object(ccc.subprocess, "run") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"subtype": "success", "result": "{}", "is_error": False,
+                               "usage": {}, "stop_reason": "end_turn"}),
+            stderr="",
+        )
+        ccc.claude_code_invoke("hello", **invoke_kwargs)
+        return mock_run.call_args[0][0]
+
+
+def test_model_argv_flag_is_actually_emitted():
+    """criterion 1: an explicit model reaches the CLI as `--model <value>`."""
+    argv = _run_capture(model="claude-haiku-4-5")
+    assert "--model" in argv, (
+        "claude_code_invoke built no --model flag; the CLI would fall through to "
+        "the interactive session's settings.json pin (phase-78.2)"
+    )
+    assert argv[argv.index("--model") + 1] == "claude-haiku-4-5"
+
+
+def test_model_flag_omitted_when_no_model_requested():
+    """`None` must stay genuinely optional -- otherwise the mutation in criterion 4
+    could not distinguish 'flag dropped' from 'flag hardcoded'."""
+    assert "--model" not in _run_capture()
+
+
+def test_claude_code_client_threads_its_model_into_argv():
+    """criterion 1, the 6-caller seam: ClaudeCodeClient.model_name was WRITE-ONLY
+    (a BQ log label) and never reached argv, so all six phase-78.1 C-block
+    services ran the session default. Asserted through the CLASS, not by calling
+    claude_code_invoke directly, because the class is where the omission was."""
+    from backend.agents import claude_code_client as ccc
+
+    client = ccc.ClaudeCodeClient(model_name="claude-haiku-4-5", timeout_s=30)
+    with patch.object(ccc.subprocess, "run") as mock_run:
+        mock_run.return_value = SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"subtype": "success", "result": "{}", "is_error": False,
+                               "usage": {}, "stop_reason": "end_turn"}),
+            stderr="",
+        )
+        client.generate_content("hi", {})
+        argv = mock_run.call_args[0][0]
+
+    assert "--model" in argv, (
+        "ClaudeCodeClient did not pass its model_name to the CLI -- every caller "
+        "routed through this class silently runs the session-default model"
+    )
+    assert argv[argv.index("--model") + 1] == "claude-haiku-4-5"
+
+
+def test_ticket_queue_agent_model_map_reaches_the_rail_invocation():
+    """criterion 2: the per-agent model policy must actually take effect on the
+    rail branch. It was computed at ticket_queue_processor.py:177 and then
+    DISCARDED, so main/q-and-a/research all ran the same session-default model.
+
+    Asserted on the model that reaches claude_code_invoke, per agent id. The
+    invocation being REACHED is itself asserted -- a test that silently passes
+    when the call never happened would be exactly the vacuity this suite exists
+    to prevent."""
+    from backend.services.ticket_queue_processor import TicketQueueProcessor
+    import backend.config.settings as settings_mod
+
+    expected = {"main": "claude-opus-4-8",
+                "q-and-a": "claude-opus-4-8",
+                "research": "claude-sonnet-4-6"}
+
+    for agent_id, want in expected.items():
+        seen: dict = {}
+
+        def fake_invoke(prompt, **kw):
+            seen["model"] = kw.get("model")
+            return {"subtype": "success", "result": "ok", "is_error": False,
+                    "usage": {}, "stop_reason": "end_turn"}
+
+        with patch("backend.agents.claude_code_client.claude_code_invoke",
+                   side_effect=fake_invoke), \
+             patch.object(settings_mod, "get_settings",
+                          return_value=SimpleNamespace(
+                              paper_use_claude_code_route=True)):
+            proc = TicketQueueProcessor.__new__(TicketQueueProcessor)
+            TicketQueueProcessor._spawn_real_agent(
+                proc, agent_id, "do a thing", 1, "T-1")
+
+        assert seen, (
+            f"the rail invocation was never reached for {agent_id!r} -- this test "
+            f"cannot vouch for the model without it"
+        )
+        assert seen["model"] == want, (
+            f"agent_model_map is not honored on the rail branch for {agent_id!r}: "
+            f"reached the CLI as {seen['model']!r}, want {want!r}"
+        )
+
+
+# The REAL two-key envelope, captured verbatim from a live
+# `claude -p --model opus --output-format json` on 2026-07-25. Every number
+# below is as measured -- NOTHING is adjusted to make an assertion pass.
+#
+# Read it carefully: the WORKER (claude-opus-5) emitted FOUR output tokens
+# while the CLI's internal helper emitted TWELVE. An earlier version of
+# resolve_rail_model picked max(outputTokens) and therefore named the helper,
+# and its guard hid that by writing outputTokens=4000 for the opus entry under
+# a docstring claiming these were the measured numbers. The 78.2 Q/A caught
+# both. This constant is why the guard can no longer lie.
+REAL_TWO_MODEL_ENVELOPE = {"modelUsage": {
+    "claude-haiku-4-5-20251001": {
+        "inputTokens": 523, "outputTokens": 12,
+        "cacheReadInputTokens": 0, "cacheCreationInputTokens": 0,
+        "costUSD": 0.000583, "canonicalModel": "claude-haiku-4-5",
+    },
+    "claude-opus-5": {
+        "inputTokens": 2, "outputTokens": 4,
+        "cacheReadInputTokens": 17140, "cacheCreationInputTokens": 0,
+        "costUSD": 0.00868, "canonicalModel": "claude-opus-5",
+    },
+}}
+
+
+def test_resolved_model_names_the_worker_on_the_real_envelope():
+    """criterion 3, on the REAL numbers: asking for a model that is NOT in the
+    map means something else ran, and the answer must be the worker
+    (claude-opus-5), not the 12-token helper.
+
+    This is the pre-78.2 shape: no --model was passed, so the caller's label
+    does not appear among what actually ran."""
+    from backend.agents.claude_code_client import resolve_rail_model
+
+    assert resolve_rail_model(REAL_TWO_MODEL_ENVELOPE, "claude-opus-4-8") == "claude-opus-5"
+
+    # Order-independence: the answer must not depend on dict insertion order.
+    reversed_env = {"modelUsage": dict(
+        reversed(list(REAL_TWO_MODEL_ENVELOPE["modelUsage"].items())))}
+    assert resolve_rail_model(reversed_env, "claude-opus-4-8") == "claude-opus-5"
+
+
+def test_resolved_model_max_output_tokens_would_name_the_helper():
+    """The anti-regression guard for the specific bug the 78.2 Q/A found.
+
+    On the REAL envelope, max(outputTokens) selects the helper (12 > 4). If
+    anyone reintroduces that heuristic, the test above goes red -- this test
+    pins WHY, so the next reader does not have to rediscover that the worker
+    can emit fewer tokens than the helper."""
+    mu = REAL_TWO_MODEL_ENVELOPE["modelUsage"]
+    by_output = max(mu.items(), key=lambda kv: kv[1]["outputTokens"])[0]
+    assert by_output == "claude-haiku-4-5-20251001", (
+        "the real envelope no longer has the property that made max(outputTokens) "
+        "wrong; re-derive this guard against a fresh capture"
+    )
+    from backend.agents.claude_code_client import resolve_rail_model
+    assert resolve_rail_model(REAL_TWO_MODEL_ENVELOPE, "claude-opus-4-8") != "claude-haiku-4-5"
+
+
+def test_resolved_model_reports_a_substitution_even_when_the_helper_matches():
+    """THE cycle-2 Q/A finding, pinned.
+
+    An earlier rule short-circuited on `requested in modelUsage` and called that
+    "exact". It is exact about MAP MEMBERSHIP, not about AUTHORSHIP -- and the
+    CLI's internal helper is itself a claude-haiku-4-5 snapshot. Six of the nine
+    rail callers request exactly claude-haiku-4-5, so for them the short-circuit
+    was ALWAYS taken and a substitution could never be reported: the log kept
+    saying haiku while a bigger model did the work. That is the pre-78.2 defect
+    this whole step exists to remove.
+
+    So: requesting haiku against an envelope where haiku appears ONLY as the
+    12-token helper must resolve to the WORKER, so the caller's mismatch warning
+    fires."""
+    from backend.agents.claude_code_client import resolve_rail_model
+
+    assert resolve_rail_model(REAL_TWO_MODEL_ENVELOPE, "claude-haiku-4-5") == "claude-opus-5", (
+        "requested haiku, haiku is present only as the CLI helper, and opus-5 did "
+        "15x the work -- resolving to haiku would silently re-create the defect"
+    )
+    # And no spurious divergence when the request genuinely IS the worker.
+    assert resolve_rail_model(REAL_TWO_MODEL_ENVELOPE, "claude-opus-5") == "claude-opus-5"
+
+
+def test_resolved_model_falls_back_to_the_request_label():
+    """Error paths pass envelope=None, and a malformed envelope must not lose
+    the row. This sits inside the logging path, which must never break the rail."""
+    from backend.agents.claude_code_client import resolve_rail_model
+
+    for bad in (None, {}, {"modelUsage": None}, {"modelUsage": []},
+                {"modelUsage": "not-a-dict"}, {"modelUsage": {"x": None}},
+                {"modelUsage": {"x": "not-a-dict"}}):
+        assert resolve_rail_model(bad, "claude-haiku-4-5") in ("claude-haiku-4-5", "x")
+
+
+def test_resolved_model_survives_a_missing_canonical_model_field():
+    """`canonicalModel` and `costUSD` are live-observed but UNDOCUMENTED in the
+    published ModelUsage type, so both are best-effort: fall back to the map key
+    and to total billed tokens rather than raising."""
+    from backend.agents.claude_code_client import resolve_rail_model
+
+    env = {"modelUsage": {"claude-sonnet-4-6": {"outputTokens": 10}}}
+    assert resolve_rail_model(env, "whatever") == "claude-sonnet-4-6"
+
+    # No costUSD anywhere -> tiebreak on total billed tokens, which still finds
+    # the worker because cached input dwarfs the helper's plain input.
+    env2 = {"modelUsage": {
+        "helper": {"inputTokens": 523, "outputTokens": 12},
+        "worker": {"inputTokens": 2, "outputTokens": 4, "cacheReadInputTokens": 17140},
+    }}
+    assert resolve_rail_model(env2, "not-present") == "worker"
+
+
+# The envelope that exposes the substitution the rail must report: the caller
+# asked for haiku, and haiku IS present -- but only as the CLI's own helper,
+# while claude-opus-5 did 15x the work. Numbers are the measured ones (see
+# REAL_TWO_MODEL_ENVELOPE); this is the same capture, used to drive the LOGGERS.
+SUBSTITUTION_ENVELOPE = REAL_TWO_MODEL_ENVELOPE
+
+
+def test_all_three_rail_loggers_write_the_RESOLVED_model(monkeypatch):
+    """criterion 3, BEHAVIOURALLY, at all three seams.
+
+    The previous version of this guard was a structural AST scan asserting that
+    each module *calls* resolve_rail_model and log_llm_call. The 78.2 cycle-2
+    Q/A killed it: the scan passes when both calls sit in dead code, and it was
+    the SOLE coverage for the ticket queue's brand-new BQ write. A scan cannot
+    observe wiring.
+
+    So: drive each seam with a spy on log_llm_call, feed an envelope where the
+    requested model is present ONLY as the CLI helper, and assert the row
+    carries the model that actually did the work. Each of the three asserts
+    independently, and the assertion message names its seam."""
+    rows: list = []
+
+    import backend.services.observability.api_call_log as acl
+    monkeypatch.setattr(acl, "log_llm_call", lambda **kw: rows.append(kw), raising=False)
+
+    # ── seam 1: ClaudeCodeClient._log_cc_call (the six C-block overlays) ──
+    from backend.agents import claude_code_client as ccc
+    rows.clear()
+    ccc.ClaudeCodeClient._log_cc_call(
+        SUBSTITUTION_ENVELOPE, agent="unit", ticker=None,
+        latency_ms=1.0, model="claude-haiku-4-5", ok=True,
+    )
+    assert rows, "seam 1 (ClaudeCodeClient._log_cc_call) wrote no row"
+    assert rows[0]["model"] == "claude-opus-5", (
+        f"seam 1 logged {rows[0]['model']!r}; the caller requested claude-haiku-4-5 "
+        f"but claude-opus-5 did the work -- this is the pre-78.2 defect surviving"
+    )
+
+    # ── seam 2: autonomous_loop._log_claude_code_call (B1 lite trader, B2 judge) ──
+    from backend.services import autonomous_loop as al
+    rows.clear()
+    al._log_claude_code_call(
+        SUBSTITUTION_ENVELOPE, agent="lite_trader", ticker="AAPL", ok=True,
+        requested_model="claude-haiku-4-5",
+    )
+    assert rows, "seam 2 (autonomous_loop._log_claude_code_call) wrote no row"
+    assert rows[0]["model"] == "claude-opus-5", (
+        f"seam 2 logged {rows[0]['model']!r} -- B1/B2 log through this function, "
+        f"not through ClaudeCodeClient, and it must resolve too"
+    )
+
+    # ── seam 3: the ticket-queue rail branch (E1) ──
+    from backend.services.ticket_queue_processor import TicketQueueProcessor
+    import backend.config.settings as settings_mod
+    rows.clear()
+
+    def fake_invoke(prompt, **kw):
+        return {**SUBSTITUTION_ENVELOPE, "subtype": "success", "result": "ok",
+                "is_error": False, "usage": {}, "stop_reason": "end_turn"}
+
+    with patch("backend.agents.claude_code_client.claude_code_invoke",
+               side_effect=fake_invoke), \
+         patch.object(settings_mod, "get_settings",
+                      return_value=SimpleNamespace(paper_use_claude_code_route=True)):
+        proc = TicketQueueProcessor.__new__(TicketQueueProcessor)
+        TicketQueueProcessor._spawn_real_agent(proc, "research", "do a thing", 1, "T-1")
+
+    assert rows, "seam 3 (ticket queue) wrote no row -- it wrote none at all before 78.2"
+    assert rows[0]["model"] == "claude-opus-5", (
+        f"seam 3 logged {rows[0]['model']!r}; agent_id='research' requests "
+        f"claude-sonnet-4-6 and claude-opus-5 did the work"
+    )
+
+
+def test_ticket_queue_meters_a_FAILED_rail_call(monkeypatch):
+    """criterion 3 says EVERY rail call. A failed one is precisely what an audit
+    needs to see, and the other two seams already meter failures with ok=False.
+
+    Cycle-2 Q/A finding: the first version of E1's logger sat in the success
+    path, so a failed ticket rail call wrote nothing."""
+    rows: list = []
+    import backend.services.observability.api_call_log as acl
+    monkeypatch.setattr(acl, "log_llm_call", lambda **kw: rows.append(kw), raising=False)
+
+    from backend.services.ticket_queue_processor import TicketQueueProcessor
+    import backend.config.settings as settings_mod
+
+    def boom(prompt, **kw):
+        raise RuntimeError("rail down")
+
+    with patch("backend.agents.claude_code_client.claude_code_invoke", side_effect=boom), \
+         patch.object(settings_mod, "get_settings",
+                      return_value=SimpleNamespace(paper_use_claude_code_route=True)):
+        proc = TicketQueueProcessor.__new__(TicketQueueProcessor)
+        with pytest.raises(Exception):
+            TicketQueueProcessor._spawn_real_agent(proc, "main", "do a thing", 1, "T-1")
+
+    assert rows, "a FAILED ticket rail call wrote no llm_call_log row"
+    assert rows[0]["ok"] is False, f"failed call logged ok={rows[0]['ok']!r}"
+    assert rows[0]["model"] == "claude-opus-4-8", (
+        "on the error path there is no envelope, so the row must fall back to the "
+        f"REQUESTED model; got {rows[0]['model']!r}"
+    )
+
+
+def test_every_direct_rail_call_site_passes_a_model():
+    """criterion 1, the B1/B2/E1 half: EVERY direct `claude_code_invoke(...)`
+    call in production code must pass a `model` keyword.
+
+    The site list is DERIVED by walking backend/ rather than hand-typed (78.2
+    Q/A finding): a hardcoded list defends only the files someone remembered,
+    so a new rail call site in a new module would escape the guard entirely.
+
+    Structural (AST on the CALL node), not a substring scan: this file's own
+    prose mentions `model=` repeatedly, so a grep-based guard would flag itself,
+    and a comment could satisfy it."""
+    import ast
+
+    missing, sites = [], []
+    for path in sorted((REPO / "backend").rglob("*.py")):
+        if "tests" in path.parts or "__pycache__" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = getattr(fn, "id", None) or getattr(fn, "attr", None)
+            is_direct = name == "claude_code_invoke"
+            is_threaded = name == "to_thread" and any(
+                getattr(a, "id", None) == "claude_code_invoke" for a in node.args
+            )
+            if not (is_direct or is_threaded):
+                continue
+            rel = path.relative_to(REPO)
+            sites.append(f"{rel}:{node.lineno}")
+            if not any(kw.arg == "model" for kw in node.keywords):
+                missing.append(f"{rel}:{node.lineno}")
+
+    assert len(sites) >= 4, (
+        f"expected at least the 4 known rail call sites (B1, B2, E1 and the "
+        f"ClaudeCodeClient seam), found {len(sites)}: {sites}. The call shape "
+        f"changed -- update this guard deliberately rather than letting it pass "
+        f"on a smaller denominator."
+    )
+    assert not missing, (
+        "these rail call sites pass no model, so they run whatever the `claude` "
+        f"CLI session default happens to be: {missing}"
+    )

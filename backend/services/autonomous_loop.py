@@ -2286,6 +2286,7 @@ def _bump_conviction_fallback_streak(delta: int) -> int:
 
 def _log_claude_code_call(
     envelope: dict | None, *, agent: str, ticker: str, ok: bool,
+    requested_model: str | None = None,
 ) -> None:
     """phase-56.2 (55.3 finding F-6): meter the claude-CLI rail into
     llm_call_log. The away week wrote ZERO rows for 6/7 cycles because this
@@ -2295,9 +2296,24 @@ def _log_claude_code_call(
     try:
         from backend.services.observability.api_call_log import log_llm_call
         usage = (envelope or {}).get("usage") or {}
+        # phase-78.2 (criterion 3, 78.2 Q/A finding): this is the SECOND CC-rail
+        # logger -- B1 (lite trader) and B2 (lite risk judge) come through here,
+        # NOT through ClaudeCodeClient._log_cc_call. It previously read the
+        # envelope's TOP-LEVEL `model` key and fell back to the literal
+        # "claude-code-cli", so it never saw modelUsage and could not name the
+        # model that actually ran. Same resolver as the other logger, so the two
+        # seams cannot drift.
+        from backend.agents.claude_code_client import resolve_rail_model
+        _fallback_label = str((envelope or {}).get("model") or "claude-code-cli")
+        resolved = resolve_rail_model(envelope, requested_model) or _fallback_label
+        if requested_model and resolved != requested_model:
+            logger.warning(
+                "rail model MISMATCH (lite path): requested=%s resolved=%s agent=%s ticker=%s",
+                requested_model, resolved, agent, ticker,
+            )
         log_llm_call(
             provider="claude-code",
-            model=str((envelope or {}).get("model") or "claude-code-cli"),
+            model=resolved,
             agent=agent,
             latency_ms=float((envelope or {}).get("duration_ms") or 0.0),
             input_tok=int(usage.get("input_tokens") or 0),
@@ -2455,18 +2471,25 @@ Respond in this exact JSON format:
                 prompt,
                 max_tokens=200,
                 timeout_s=120,
+                # phase-78.2: pin the SAME model the metered branch below uses
+                # (:2392, guarded to be a claude-* id). Without it this rail
+                # ran the CLI session default -- measured as claude-opus-5[1m]
+                # -- for a live trading decision, while the log said otherwise.
+                model=model_name,
             )
             text = extract_result_text(envelope).strip()
             # phase-56.2 (55.3 finding F-6): the away week wrote ZERO llm_call_log
             # rows for 6/7 cycles because this rail never metered. Fail-open.
-            _log_claude_code_call(envelope, agent="lite_trader", ticker=ticker, ok=True)
+            _log_claude_code_call(envelope, agent="lite_trader", ticker=ticker, ok=True,
+                                  requested_model=model_name)
         except ClaudeCodeError as exc:
             logger.warning(
                 "claude_code rail failed for %s: %s -- returning empty text",
                 ticker, exc,
             )
             text = ""
-            _log_claude_code_call(None, agent="lite_trader", ticker=ticker, ok=False)
+            _log_claude_code_call(None, agent="lite_trader", ticker=ticker, ok=False,
+                                  requested_model=model_name)
     else:
         response = await asyncio.to_thread(
             client.messages.create,
@@ -2532,17 +2555,23 @@ Respond in this exact JSON format:
                     max_tokens=300,
                     system=_rj_system,
                     timeout_s=120,
+                    # phase-78.2: same pin as the lite trader above -- the risk
+                    # judge is the independent second opinion, so it must not
+                    # silently run a different tier than the call it checks.
+                    model=model_name,
                 )
                 risk_text = extract_result_text(risk_envelope).strip()
                 # phase-56.2 (F-6): meter the risk-judge leg of the CLI rail.
-                _log_claude_code_call(risk_envelope, agent="lite_risk_judge", ticker=ticker, ok=True)
+                _log_claude_code_call(risk_envelope, agent="lite_risk_judge", ticker=ticker, ok=True,
+                                      requested_model=model_name)
             except ClaudeCodeError as exc:
                 logger.warning(
                     "claude_code risk-judge rail failed for %s: %s",
                     ticker, exc,
                 )
                 risk_text = ""
-                _log_claude_code_call(None, agent="lite_risk_judge", ticker=ticker, ok=False)
+                _log_claude_code_call(None, agent="lite_risk_judge", ticker=ticker, ok=False,
+                                      requested_model=model_name)
         else:
             risk_response = await asyncio.to_thread(
                 client.messages.create,

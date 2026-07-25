@@ -12,14 +12,11 @@ This service:
 import asyncio
 import logging
 import time
-import subprocess
-import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-from pathlib import Path
 
 from backend.db.tickets_db import (
-    get_tickets_db, TicketStatus, TicketClassification, TicketsDB
+    get_tickets_db, TicketStatus
 )
 
 logger = logging.getLogger(__name__)
@@ -203,13 +200,70 @@ Please provide a helpful response. This will be sent back to the user via {ticke
                 )
                 start = time.time()
                 logger.info(f"HEARTBEAT: Ticket #{ticket_number} calling {agent_id} via claude-code rail...")
-                envelope = claude_code_invoke(
-                    task,
-                    system=system,
-                    timeout_s=60,
-                )
+
+                def _meter_rail(_envelope, _ok: bool) -> None:
+                    """phase-78.2 (criterion 3): meter this rail call.
+
+                    Cycle-2 Q/A finding: the first version of this sat in the
+                    SUCCESS path only, so a failed ticket rail call wrote no row
+                    at all -- and a failed call is precisely what an audit needs
+                    to see. The other two rail seams both meter failures
+                    (autonomous_loop :2491/:2573 and ClaudeCodeClient :754, each
+                    with envelope=None, ok=False); this now matches them.
+                    Fail-open: a metering bug must never fail a ticket."""
+                    try:
+                        from backend.agents.claude_code_client import resolve_rail_model
+                        from backend.services.observability.api_call_log import log_llm_call
+
+                        _usage = (_envelope or {}).get("usage") or {}
+                        _resolved = resolve_rail_model(_envelope, model_name) or model_name
+                        if _resolved != model_name:
+                            logger.warning(
+                                "rail model MISMATCH (ticket queue): requested=%s resolved=%s agent=%s",
+                                model_name, _resolved, agent_id,
+                            )
+                        log_llm_call(
+                            provider="anthropic",
+                            model=_resolved,
+                            agent=f"cc_rail:ticket_{agent_id}",
+                            latency_ms=(time.time() - start) * 1000.0,
+                            input_tok=int(_usage.get("input_tokens") or 0),
+                            output_tok=int(_usage.get("output_tokens") or 0),
+                            cache_creation_tok=int(_usage.get("cache_creation_input_tokens") or 0),
+                            cache_read_tok=int(_usage.get("cache_read_input_tokens") or 0),
+                            request_id=str((_envelope or {}).get("session_id") or "") or None,
+                            ok=_ok,
+                        )
+                    except Exception as _log_exc:
+                        logger.debug("ticket rail llm_call_log write skipped (%r)", _log_exc)
+
+                try:
+                    envelope = claude_code_invoke(
+                        task,
+                        system=system,
+                        timeout_s=60,
+                        # phase-78.2 (criterion 2): HONOR agent_model_map on the
+                        # rail branch. `model_name` is selected from it just
+                        # above, and before this line the rail branch computed
+                        # that selection and then threw it away -- a per-agent
+                        # model policy (main/q-and-a -> opus-4-8, research ->
+                        # sonnet-4-6) that silently did nothing, because its only
+                        # consumer was the direct-SDK fallthrough that the
+                        # away-ops rail flag bypasses. The map is deliberately
+                        # NOT deleted: it is an intentional policy, and deleting
+                        # it to simplify the branch would discard a real decision
+                        # rather than implement it.
+                        model=model_name,
+                    )
+                except Exception:
+                    # criterion 3: a FAILED rail call is exactly what an audit
+                    # needs to see. Meter it, then let the error propagate.
+                    _meter_rail(None, False)
+                    raise
                 response_text = extract_result_text(envelope).strip() or "No response"
                 elapsed = time.time() - start
+                _meter_rail(envelope, True)
+
                 logger.info(
                     "[OK] Agent %s completed for ticket #%s via claude-code rail (%.1fs): %s...",
                     agent_id, ticket_number, elapsed, response_text[:80],

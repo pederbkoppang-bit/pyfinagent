@@ -212,6 +212,88 @@ def _rail_guard_record_failure(error: str) -> None:
             logger.warning("rail breaker page failed (non-fatal): %r", page_exc)
 
 
+def resolve_rail_model(envelope: Optional[dict], requested: Optional[str]) -> Optional[str]:
+    """phase-78.2 (criterion 3): which model the CLI ACTUALLY ran.
+
+    The `--output-format json` envelope carries `modelUsage: {name: ModelUsage}`.
+    It is a MAP, not a single id, because one turn can involve more than one
+    model: the CLI runs a small internal helper alongside the main model.
+    Measured 2026-07-25 on a live `claude -p --model opus` (verbatim):
+
+        claude-haiku-4-5-20251001  in=523 out=12 cacheRead=0     costUSD=0.000583
+        claude-opus-5              in=2   out=4  cacheRead=17140 costUSD=0.00868
+
+    Note what that says: the WORKER (opus-5) emitted FOUR output tokens while
+    the helper emitted twelve. A first version of this function picked
+    `max(outputTokens)` and therefore named the helper -- naming the wrong
+    model in exactly the multi-model case this exists to detect. The 78.2 Q/A
+    caught it, and caught that its test fixture had been written with
+    outputTokens=4000 instead of the measured 4, which is the one number that
+    heuristic turns on. Both are fixed here; the guard now uses the real
+    numbers above.
+
+    The rule, in order:
+
+    1. **Find the DOMINANT entry** -- highest `costUSD`, tie-broken on total
+       billed tokens (input + output + cache). When two entries are different
+       models the worker is the more expensive tier, and cost folds in cached
+       input that raw token counts miss.
+    2. **That entry is the answer.** If it happens to be what we requested, the
+       caller sees no divergence; if it is not, the caller warns.
+    3. **If the envelope cannot answer, return `requested`** -- error paths pass
+       `envelope=None`, and a metering bug must never lose the row.
+
+    WHY NOT "if the requested model is in the map, it ran" (the pass-2 rule,
+    killed by the 78.2 cycle-2 Q/A). That test is exact about MAP MEMBERSHIP,
+    not about AUTHORSHIP -- and the CLI's internal helper is itself a
+    `claude-haiku-4-5` snapshot. Six of the nine rail callers request exactly
+    `claude-haiku-4-5`, so for them `requested in map` was ALWAYS true and a
+    substitution could never be reported: the log would keep saying haiku while
+    a bigger model did the work, which is the pre-78.2 defect this step exists
+    to remove. The defence "we always pass --model now, so it cannot happen"
+    was wrong -- passing `--model` does not make the worker that model, and
+    substitution is precisely the event being detected.
+
+    KNOWN FALSE-POSITIVE, disclosed rather than designed around: a long-prompt
+    helper turn can out-cost a very small worker turn, in which case the helper
+    is named and a spurious mismatch WARNING fires. That is the safe direction
+    (a visible false alarm beats a silent wrong attribution) and the caller's
+    warning names both ids, so an auditor can tell.
+
+    `canonicalModel` normalises a dated snapshot id (`claude-opus-5[1m]`,
+    `claude-haiku-4-5-20251001`) back to its alias family, matching this repo's
+    label convention. It is LIVE-OBSERVED BUT UNDOCUMENTED in the published
+    ModelUsage type, so it is read best-effort with a fallback to the map key.
+    Same for `costUSD`.
+    """
+    try:
+        usage_map = (envelope or {}).get("modelUsage") or {}
+        if not isinstance(usage_map, dict) or not usage_map:
+            return requested
+
+        named: dict = {}
+        for key, entry in usage_map.items():
+            entry = entry if isinstance(entry, dict) else {}
+            named[(entry.get("canonicalModel") or key)] = entry
+
+        # DOMINANT entry -- cost first, total billed tokens as tiebreak.
+        # Deliberately NOT short-circuited on `requested in named`: the CLI's
+        # helper is itself a claude-haiku-4-5 snapshot, so that short-circuit
+        # made substitution undetectable for the six haiku-tier callers.
+        def _weight(item):
+            e = item[1] or {}
+            cost = float(e.get("costUSD") or 0.0)
+            toks = sum(int(e.get(k) or 0) for k in (
+                "inputTokens", "outputTokens",
+                "cacheReadInputTokens", "cacheCreationInputTokens"))
+            return (cost, toks)
+
+        return max(named.items(), key=_weight)[0] or requested
+    except Exception:
+        # 3. Observability must never break the rail.
+        return requested
+
+
 def claude_code_invoke(
     prompt: str,
     *,
@@ -222,6 +304,7 @@ def claude_code_invoke(
     cwd: Optional[str] = None,
     disallowed_tools: str = "Bash,Edit,Write,Read,Glob,Grep,Agent",
     binary: str = "claude",
+    model: Optional[str] = None,
 ) -> dict[str, Any]:
     """Invoke `claude --print --output-format json` as a subprocess.
 
@@ -232,6 +315,31 @@ def claude_code_invoke(
         prompt: the user prompt to send.
         max_tokens: optional output cap (passed via --max-tokens if set).
         system: optional system prompt (passed via --append-system-prompt).
+        model: phase-78.2. The model to run, emitted as `--model <model>`.
+            Accepts either an alias (`opus`/`sonnet`/`haiku`) or a full id
+            (`claude-haiku-4-5`) -- the CLI takes both.
+
+            WHY THIS EXISTS. When omitted, the CLI resolves the model through
+            this precedence chain (Claude Code model-config docs):
+                /model mid-session  ->  --model  ->  ANTHROPIC_MODEL env
+                                    ->  the `model` key in settings.json
+            This rail passes none of the first three (the env scrub below only
+            REMOVES two auth vars, it adds nothing), so before phase-78.2 every
+            rail call silently rode `~/.claude/settings.json` -- i.e. whatever
+            the operator last picked with `/model` in an interactive session.
+            Measured 2026-07-25 with no `--model`: the envelope's modelUsage
+            reported `claude-opus-5[1m]` doing the work, while llm_call_log
+            recorded the caller's label `claude-haiku-4-5`. A `/model` change
+            could therefore re-tier live trading decisions with no code change
+            and no log line.
+
+            `None` is still accepted so the flag is genuinely optional, but no
+            production caller should rely on it; passing the model explicitly
+            is what makes the rail auditable.
+
+            An unknown value is NOT rejected at launch -- it surfaces as an
+            error on the first request, which the non-success-subtype path
+            below already turns into a ClaudeCodeError.
         timeout_s: subprocess timeout in seconds. Default 120.
         json_schema: optional JSON schema dict for structured output.
         cwd: optional working directory for the subprocess.
@@ -270,6 +378,11 @@ def claude_code_invoke(
         args.extend(["--append-system-prompt", system])
     if json_schema is not None:
         args.extend(["--json-schema", json.dumps(json_schema)])
+    # phase-78.2: pin the model explicitly. See the `model` arg docstring for the
+    # precedence chain this closes off -- without it the rail runs whatever the
+    # interactive session's settings.json happens to pin.
+    if model:
+        args.extend(["--model", model])
     # phase-cycle-5 follow-up (2026-05-26): --max-tokens is the SDK option
     # name, NOT the CLI flag. The `claude` CLI uses model-default ceilings
     # (32K for Haiku, 64K for Opus, 4K for Sonnet via Max plan) and exposes
@@ -498,9 +611,51 @@ def _make_claude_code_client_class():
                 from backend.services.observability.api_call_log import log_llm_call
 
                 usage = (envelope or {}).get("usage") or {}
+                # phase-78.2 (criterion 3): log what RAN, not what was asked
+                # for. llm_call_log has no spare column for both, and the
+                # truthful answer to "what produced this row" is the resolved
+                # model. A divergence is surfaced loudly in the app log -- once
+                # --model is threaded, a mismatch means the CLI substituted a
+                # model on us, which is exactly the event worth seeing.
+                #
+                # CONSUMERS of llm_call_log.model, enumerated at the point of
+                # change (78.2 Q/A finding W4, mechanism corrected in cycle 3).
+                # spend.py::fetch_llm_spend (the $25/day breaker) is unaffected,
+                # but note WHICH clause does the work -- its SQL carries TWO
+                # independent exclusions, quoted VERBATIM from spend.py:228-230:
+                #     AND provider != 'claude-code'
+                #     AND (agent IS NULL
+                #          OR (agent != 'cc_rail' AND agent NOT LIKE 'cc_rail:%'))
+                # The provider clause excludes B1/B2; the agent clause excludes
+                # THIS seam and E1.
+                # DO NOT "simplify" the agent clause to a `cc_rail%` prefix.
+                # spend.py:37-38 records that the exact `!=` was chosen over a
+                # prefix ON PURPOSE, because a prefix would also swallow an
+                # unrelated future agent named e.g. 'cc_railway'. An earlier
+                # revision of this comment paraphrased it as `cc_rail%` and so
+                # pointed the next maintainer at exactly the change that file
+                # documents as rejected.
+                # This seam writes provider='anthropic', agent='cc_rail:<role>',
+                # so the AGENT clause protects it. The autonomous_loop lite path
+                # (B1/B2) writes provider='claude-code', agent='lite_trader' --
+                # protected ONLY by the PROVIDER clause. Normalising that
+                # provider string to 'anthropic' would silently admit those rows
+                # into the breaker's pricing. Do not do it without revisiting
+                # this. sovereign_api::_fetch_llm_cost_by_provider excludes
+                # NEITHER and prices via MODEL_PRICING.get(model, DEFAULT) --
+                # newer ids (claude-opus-5, claude-sonnet-5) are absent from that
+                # table and fall to _DEFAULT_PRICING (queued step 78.7).
+                # performance_api and cost_budget_api do not read this column.
+                resolved = resolve_rail_model(envelope, model)
+                if resolved != model:
+                    logger.warning(
+                        "[ClaudeCodeClient] rail model MISMATCH: requested=%s resolved=%s "
+                        "(agent=%s ticker=%s) -- logging the resolved model",
+                        model, resolved, agent, ticker,
+                    )
                 log_llm_call(
                     provider="anthropic",
-                    model=model,
+                    model=resolved,
                     agent=f"cc_rail:{agent}" if agent else "cc_rail",
                     latency_ms=float(latency_ms),
                     input_tok=int(usage.get("input_tokens") or 0),
@@ -595,6 +750,13 @@ def _make_claude_code_client_class():
                     system=system,
                     timeout_s=self._timeout_s,
                     json_schema=json_schema,
+                    # phase-78.2: self.model_name was WRITE-ONLY before this --
+                    # passed to _log_cc_call as the BQ label and never read back
+                    # to build argv, so every caller routed through this class
+                    # (all six phase-78.1 C-block services via make_client) ran
+                    # the CLI's session-default model while the log claimed
+                    # otherwise. This one line covers 6 of the 9 rail callers.
+                    model=self.model_name,
                 )
             except ClaudeCodeError as exc:
                 logger.warning(
