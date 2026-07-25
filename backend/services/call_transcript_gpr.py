@@ -93,7 +93,14 @@ async def _fetch_one_exposure(
                 anthropic_key = anthropic_key.get_secret_value()
             except Exception:
                 pass
-        if not anthropic_key:
+        # phase-78.1 (D-KEY): the CC rail needs NO Anthropic key -- claude_code_invoke
+        # deliberately SCRUBS ANTHROPIC_API_KEY from the subprocess env. Without this
+        # rail-awareness the service would still disable itself in exactly the
+        # dead-credits scenario this rewire exists to survive. The guard is NOT
+        # deleted: with neither a key nor the rail, make_client raises
+        # (llm_client.py:2163), so we must still short-circuit here.
+        _rail_on = bool(getattr(settings, "paper_use_claude_code_route", False))
+        if not anthropic_key and not _rail_on:
             return None
 
         try:
@@ -109,14 +116,13 @@ async def _fetch_one_exposure(
             return None
 
         try:
-            from backend.agents.llm_client import ClaudeClient
-            client = ClaudeClient(
-                model_name=model,
-                api_key=anthropic_key,
-                enable_prompt_caching=False,
-            )
+            # phase-78.1: route through make_client so PAPER_USE_CLAUDE_CODE_ROUTE
+            # governs this call (it previously constructed ClaudeClient directly and
+            # so could never see the rail -- the phase-72 rail-bypass class).
+            from backend.agents.llm_client import make_client
+            client = make_client(model, None, settings)
         except Exception as e:
-            logger.debug("call_transcript_gpr: ClaudeClient init failed: %s", e)
+            logger.debug("call_transcript_gpr: client init failed: %s", e)
             return None
 
         prompt = _build_prompt(ticker, transcript_excerpt)

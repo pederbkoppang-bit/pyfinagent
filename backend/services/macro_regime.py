@@ -499,15 +499,20 @@ async def compute_macro_regime(use_cache: bool = True) -> MacroRegimeOutput:
     # phase-51.1: unwrap SecretStr (truthy wrapper bypassed `or ""` -> SDK header error).
     from backend.agents.llm_client import unwrap_secret
     anthropic_key = unwrap_secret(getattr(settings, "anthropic_api_key", ""))
-    if not anthropic_key:
-        return _fallback_regime(indicators, "ANTHROPIC_API_KEY not configured")
+    # phase-78.1 (D-KEY): the CC rail needs NO Anthropic key (claude_code_invoke
+    # SCRUBS ANTHROPIC_API_KEY from the subprocess env). Without rail-awareness this
+    # service disables itself in exactly the dead-credits scenario the rewire exists
+    # to survive. NOT deleted: with neither key nor rail, make_client raises
+    # (llm_client.py:2163), so the short-circuit must stay.
+    _rail_on = bool(getattr(settings, "paper_use_claude_code_route", False))
+    if not anthropic_key and not _rail_on:
+        return _fallback_regime(indicators, "ANTHROPIC_API_KEY not configured and CC rail off")
 
-    from backend.agents.llm_client import ClaudeClient
-    client = ClaudeClient(
-        model_name=getattr(settings, "macro_regime_model", "claude-haiku-4-5"),
-        api_key=anthropic_key,
-        enable_prompt_caching=False,
-    )
+    # phase-78.1: route through make_client so PAPER_USE_CLAUDE_CODE_ROUTE governs
+    # this call. It previously constructed ClaudeClient DIRECTLY and so could never
+    # see the rail -- the phase-72 rail-bypass class implicated in the 97%-cash run.
+    from backend.agents.llm_client import make_client
+    client = make_client(getattr(settings, "macro_regime_model", "claude-haiku-4-5"), None, settings)
 
     # phase-69.3 (audit item 6): net-liquidity + INDPRO regime lift, flag-gated
     # (regime_net_liquidity default-OFF -> the regime prompt is byte-identical:

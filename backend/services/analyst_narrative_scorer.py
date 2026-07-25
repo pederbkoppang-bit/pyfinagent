@@ -104,15 +104,22 @@ async def _fetch_one_narrative(
     async with sem:
         settings = get_settings()
         anthropic_key = getattr(settings, "anthropic_api_key", "") or ""
-        if not anthropic_key:
-            logger.debug("analyst_narrative_scorer: no Anthropic key; skipping %s", ticker)
+        # phase-78.1 (D-KEY): the CC rail needs NO Anthropic key -- claude_code_invoke
+        # deliberately SCRUBS ANTHROPIC_API_KEY from the subprocess env. Without this
+        # rail-awareness the service would still disable itself in exactly the
+        # dead-credits scenario this rewire exists to survive. The guard is NOT
+        # deleted: with neither a key nor the rail, make_client raises
+        # (llm_client.py:2163), so we must still short-circuit here.
+        _rail_on = bool(getattr(settings, "paper_use_claude_code_route", False))
+        if not anthropic_key and not _rail_on:
+            logger.debug("analyst_narrative_scorer: no Anthropic key and rail off; skipping %s", ticker)
             return None
         if hasattr(anthropic_key, "get_secret_value"):
             try:
                 anthropic_key = anthropic_key.get_secret_value()
             except Exception:
                 pass
-        if not anthropic_key:
+        if not anthropic_key and not _rail_on:
             return None
 
         try:
@@ -131,14 +138,12 @@ async def _fetch_one_narrative(
             return None
 
         try:
-            from backend.agents.llm_client import ClaudeClient
-            client = ClaudeClient(
-                model_name=model,
-                api_key=anthropic_key,
-                enable_prompt_caching=False,
-            )
+            # phase-78.1: route through make_client so PAPER_USE_CLAUDE_CODE_ROUTE
+            # governs this call (previously a direct ClaudeClient -- rail-invisible).
+            from backend.agents.llm_client import make_client
+            client = make_client(model, None, settings)
         except Exception as e:
-            logger.debug("analyst_narrative_scorer: ClaudeClient init failed: %s", e)
+            logger.debug("analyst_narrative_scorer: client init failed: %s", e)
             return None
 
         prompt = _build_prompt(ticker, press_text)

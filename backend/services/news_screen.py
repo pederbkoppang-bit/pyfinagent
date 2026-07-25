@@ -259,16 +259,21 @@ async def fetch_news_signals(
     # returned the wrapper -> SDK "Header value must be str or bytes"). Never str().
     from backend.agents.llm_client import unwrap_secret
     anthropic_key = unwrap_secret(getattr(settings, "anthropic_api_key", ""))
-    if not anthropic_key:
-        logger.warning("News screen: ANTHROPIC_API_KEY missing, skipping LLM extract")
+    # phase-78.1 (D-KEY): the CC rail needs NO Anthropic key (claude_code_invoke
+    # SCRUBS ANTHROPIC_API_KEY from the subprocess env). Without rail-awareness this
+    # service disables itself in exactly the dead-credits scenario the rewire exists
+    # to survive. NOT deleted: with neither key nor rail, make_client raises
+    # (llm_client.py:2163), so the short-circuit must stay.
+    _rail_on = bool(getattr(settings, "paper_use_claude_code_route", False))
+    if not anthropic_key and not _rail_on:
+        logger.warning("News screen: no ANTHROPIC_API_KEY and CC rail off, skipping LLM extract")
         return {}
 
-    from backend.agents.llm_client import ClaudeClient
-    client = ClaudeClient(
-        model_name=getattr(settings, "news_screen_model", "claude-haiku-4-5"),
-        api_key=anthropic_key,
-        enable_prompt_caching=False,
-    )
+    # phase-78.1: route through make_client so PAPER_USE_CLAUDE_CODE_ROUTE governs
+    # this call. It previously constructed ClaudeClient DIRECTLY and so could never
+    # see the rail -- the phase-72 rail-bypass class implicated in the 97%-cash run.
+    from backend.agents.llm_client import make_client
+    client = make_client(getattr(settings, "news_screen_model", "claude-haiku-4-5"), None, settings)
 
     prompt = _build_batch_prompt(deduped)
     cleaned_schema = _strip_unsupported_schema_keys(NewsSignalBatch.model_json_schema())

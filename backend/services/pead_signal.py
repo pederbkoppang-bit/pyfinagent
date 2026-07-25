@@ -270,17 +270,22 @@ async def compute_pead_signal_for_ticker(
         if not press_text:
             return _fallback("no_exhibit_99")
 
-    if not anthropic_key:
-        return _fallback("no_anthropic_key")
+    # phase-78.1 (D-KEY): the CC rail needs NO Anthropic key (claude_code_invoke
+    # SCRUBS ANTHROPIC_API_KEY from the subprocess env). Without rail-awareness this
+    # service disables itself in exactly the dead-credits scenario the rewire exists
+    # to survive. NOT deleted: with neither key nor rail, make_client raises
+    # (llm_client.py:2163), so the short-circuit must stay.
+    _rail_on = bool(getattr(settings, "paper_use_claude_code_route", False))
+    if not anthropic_key and not _rail_on:
+        return _fallback("no_anthropic_key_and_rail_off")
 
     prior_mean, n_prior = _trailing_mean_from_cache(ticker, quarter_end)
 
-    from backend.agents.llm_client import ClaudeClient
-    client = ClaudeClient(
-        model_name=getattr(settings, "pead_signal_model", "claude-haiku-4-5"),
-        api_key=anthropic_key,
-        enable_prompt_caching=False,
-    )
+    # phase-78.1: route through make_client so PAPER_USE_CLAUDE_CODE_ROUTE governs
+    # this call. It previously constructed ClaudeClient DIRECTLY and so could never
+    # see the rail -- the phase-72 rail-bypass class implicated in the 97%-cash run.
+    from backend.agents.llm_client import make_client
+    client = make_client(getattr(settings, "pead_signal_model", "claude-haiku-4-5"), None, settings)
 
     prompt = _build_pead_prompt(ticker, press_text, prior_mean, n_prior)
     cleaned_schema = _strip_unsupported_schema_keys(PeadSignalOutput.model_json_schema())
