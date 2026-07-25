@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `d72d9b3d` | phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeClient onto make_client |
 | 2026-07-25 | `78d794c5` | phase-79.2: [OPERATOR ACTION -- not an executor task] BACKEND RESTART — 15 product modules shippe. |
 | 2026-07-25 | `380c998e` | docs: correct commit 09fe323c -- two command names were eaten by shell substitution |
 | 2026-07-25 | `09fe323c` | fix(79.5): plist KeepAlive did not keep the bridge alive -- found by testing, not assuming |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `e9820b19` | chore(76.9.2/78.0): session handoff -- census decision draft into handoff, live_check attempt histor |
 | 2026-07-24 | `33d2ca1b` | chore(phase-78): queue 75.5.12 (bare-cc_rail spend discriminator gap, P1, MEASURED 2241 rows/4.1M to |
 | 2026-07-24 | `5759e5d9` | phase-75.20.1: operator approved -- flip to done (qa-write-guard live) |
-| 2026-07-24 | `f2e5ffda` | phase-78: install Anthropic Max-rail routing goal phase + 78.0 census step (operator /goal 2026-07-2 |
 
 ---
 
+### v6.69.3 — phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeCli... (2026-07-25)
+
+- **phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeClient onto make_client**
 ### v6.69.2 — phase-79.2: [OPERATOR ACTION -- not an executor task] BACKEND RESTART... (2026-07-25)
 
 - **phase-79.2: [OPERATOR ACTION -- not an executor task] BACKEND RESTART — 15 product modules shippe.**
