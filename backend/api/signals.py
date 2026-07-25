@@ -9,6 +9,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 
+from backend.api._json_safe import NaNSafeJSONResponse
 from backend.config.settings import Settings, get_settings
 from backend.tools import (
     alt_data,
@@ -26,7 +27,26 @@ from backend.tools import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/signals", tags=["signals"])
+
+# phase-80.1: every route in this router previously 500'd whenever a tool
+# produced a non-finite float, because Starlette renders with
+# json.dumps(allow_nan=False). `_safe()` below CANNOT catch that -- it guards
+# the awaited coroutine, while the ValueError is raised later, during ASGI
+# rendering, after the route has already returned its dict.
+#
+# Scoped to THIS router on purpose (13 routes, all JSON): it fixes every
+# signal sub-endpoint rather than just the reported one, without silently
+# re-encoding the ~70 routes an app-wide default_response_class would touch.
+#
+# This is a DISPLAY fix. The identical NaN is still laundered into a NEUTRAL
+# trading verdict on the pipeline path, which shares these same tool
+# functions (orchestrator.py:1261, :1271-1273) -- that is step 80.27 and it
+# is still open. A green Signals page is not a fixed pipeline.
+router = APIRouter(
+    prefix="/api/signals",
+    tags=["signals"],
+    default_response_class=NaNSafeJSONResponse,
+)
 
 
 def _yf_news_to_articles(yf_news: list[dict]) -> list[dict]:

@@ -8,3 +8,4 @@
 - [stepid-grep-escape-dot](project_stepid_grep_escape_dot.md) — harness_log step-id greps need -F/escaped dot; "67.6" matched "67/67 tests" and skewed the CONDITIONAL count (67.6)
 - [premise-embedded-criteria-yfinance-check](project_premise_embedded_criteria_yfinance_check.md) — criteria embedding factual premises can be false (68.5 AMD/MU); free yfinance fetch = no-cost price corroboration; overturn+operator-route = PASS, silent edit = FAIL
 - [derived-scope-lint-use-xargs](feedback_derived_scope_lint_use_xargs.md) — zsh doesn't word-split $FILES, so `ruff $FILES` lints ZERO files and exits 0 "All checks passed"; pipe via xargs and check findings not exit code (hit it 80.2 c2)
+- [mutate-the-library-for-upstream-pins](feedback_mutate_the_library_for_upstream_pins.md) — a library-fact-shaped test isn't automatically vacuous; mutate site-packages to decide (starlette allow_nan killed a real pin, 80.1 c2)

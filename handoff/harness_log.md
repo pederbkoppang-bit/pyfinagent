@@ -28899,3 +28899,101 @@ Workflow burned 175K tokens and returned NO structured output -- treated as NO V
 (c) `frontend/eslint.config.mjs:11` ignores `.next/**` but not `.next-*/**`, so any
 audit-rig dist dir breaks `npx eslint .` repo-wide and silently degrades the frontend lint
 gate for every future step (found by Q/A).
+
+---
+
+## Cycle 167 -- 2026-07-25 -- phase=80.1 result=PASS (cycle 2; 1 CONDITIONAL before it)
+
+**Wave 1 (the NaN family), step 1 of 3.** `GET /api/signals/{ticker}` returned HTTP 500 for
+EVERY ticker -- the operator's screenshotted dead feature. Starlette renders with
+`json.dumps(allow_nan=False)` (`responses.py:194-201`), so any non-finite float in a
+response dict is a guaranteed 500, and `_safe()` at `signals.py:57-66` provably cannot
+catch it: the ValueError is raised during ASGI rendering, after the route returned.
+
+**THE SCOPE DECISION IS THE POINT OF THIS STEP.** The research gate found that
+`sector_analysis.get_sector_analysis` and `quant_model.get_quant_model_signal` are called
+by BOTH the API (`signals.py:94`, `:98`) AND the Layer-1 trading pipeline
+(`orchestrator.py:1261`, `:1271-1273` -> `tasks/analysis.py` -> BigQuery). So the tempting
+one-word `dropna()` at `quant_model.py:63` would have changed **trading inputs** while
+looking like "fixed a 500". Fix applied at the **API boundary only** (`backend/api/_json_safe.py`,
+`default_response_class` on the signals router alone -- never app-wide), which is
+structurally incapable of moving the book because the orchestrator never traverses
+Starlette. The source fix is deferred to **80.27**, where it can be judged against trading
+criteria instead of a 200-vs-500 criterion. Q/A verified the shared-call claim itself and
+ruled boundary-only "correct, not under-delivery".
+
+Also rejected, each measured not assumed: `allow_nan=True` (emits bare `NaN`; RFC 8259 §6
+forbids it, browser `JSON.parse` throws); a Pydantic `response_model` (FastAPI never
+consults `ser_json_inf_nan` on this path -- fastapi#11821); `ORJSONResponse` (new compiled
+dep). And **there is no yfinance flag**: `keepna=False` is already the default and its mask
+is `.all(axis=1)`, which the placeholder row escapes because its Volume is a real int64.
+
+**Measured, live, real network:** `:8000` (pre-fix) -> **HTTP 500** / `:8001` rig (80.1
+code) -> **200**, 12/12 signal keys, and `sector.stock_returns["1mo"]` **present with value
+`null`** -- not dropped, not `0.0`.
+
+**Cycle 1 -- CONDITIONAL. Three findings, all mine, all accepted:**
+1. **A vacuous test I shipped.** `test_the_fixture_really_carries_a_non_finite_float`
+   asserted `not math.isfinite(float("nan"))` -- a LIBRARY FACT -- so it PASSED under the
+   very N4 fixture mutation it claimed to guard. That is the "library-fact assertion posing
+   as a fixture pin" shape recorded verbatim in
+   `feedback_mutation_test_guards_and_fixtures`. I wrote it two lines from a correct
+   behavioural guard.
+2. **"5/5 guards held, 0 vacuous"** -- a forbidden suite-level no-vacuity claim. A matrix
+   licenses only "these N mutations were killed". Falsified by (1).
+3. **live_check claimed `.next-audit-3100` was removed. It was not** (208M, 165 files).
+
+**Cycle 2 -- PASS.** C1 replaced with an `inspect.signature` pin that reads the default off
+the subject; proved by execution in both directions (old test under N4 -> PASSED; new test
+under N4 -> `1 failed`, `:276 AssertionError`). C2a corrected in both artifacts. C2b: `rm
+-rf` is policy-denied to this session (3 attempts), so the claim was **amended to the
+measured truth** rather than restated -- still on disk, but `.gitignore:25` (`.next-*/`)
+means zero commit-pollution risk. Q/A then went further than either of us: it named and
+EXECUTED a killing mutation for **all 14 tests** and all 14 died, including an upstream
+`starlette allow_nan=False->True` mutation to prove the control test is a real upstream pin
+and not a repeat vacuity, plus `sanitize_non_finite -> identity` (8 failed, real 500). Tree
+byte-identical after 22 mutations including site-packages.
+
+**C3 -- POST-RESTART OBLIGATION (carried from the Q/A, do not drop):** this fix is **INERT
+on the operator's `:8000`** until the backend restarts, and `phase-79.55` is an open
+`[RESTART BLOCKER -- answer BEFORE the next backend restart]`. Once 79.55 is answered and
+the backend restarts, **re-run the immutable command verbatim against `:8000` and record
+the result**: `curl -s -m 120 -o /dev/null -w '%{http_code}\n' http://localhost:8000/api/signals/AAPL`
+should return **200**. Until then it returns 500 -- that is the measured "before" control in
+live_check §B, not a stale quote.
+
+**80.27 IS NOT FIXED, AND ITS EVIDENCE IS INTACT BY DESIGN.** Measured after the 200:
+`sector_analysis.get_sector_analysis('AAPL')` still returns **31 non-finite floats**
+(independently reproducing the audit's count) and still `signal: 'NEUTRAL'`; the summary
+string still literally reads `3M return: +nan% vs sector +nan% vs S&P +nan%. Signal:
+NEUTRAL.`; `quant_model.mda_source` still advertises `'backtest'` over non-finite factors.
+**The repaired page now renders that on screen** (capture
+`handoff/current/captures_80.1/80.1_signals_page_renders_200.png`) -- so the defect moved
+from invisible-behind-a-500 to operator-visible. Do not mistake a green Signals page for a
+fixed pipeline.
+
+**A premise of mine that the research corrected, recorded rather than buried:** I began
+assuming the 500 was an alarm protecting the trading path. It was not -- the pipeline never
+renders JSON, so it never 500'd. The endpoint was dead while the pipeline quietly produced
+NEUTRALs. Fixing the display removed an alarm that only ever protected the UI.
+
+**Evidence:** `research_brief_80.1.md` (gate_passed, 7 sources in full, 22 URLs, 16 internal
+files) -> `contract_80.1.md` -> `experiment_results_80.1.md` -> `live_check_80.1.md` +
+`captures_80.1/` -> `evaluator_critique_80.1.md` (both cycles). 14 tests; ruff clean.
+
+**Do-no-harm:** nothing under `backend/tools/`, `orchestrator.py`, `tasks/analysis.py` or
+`config/prompts.py` is in the diff. No `.env` edit, no flag flip, no optimizer run,
+`historical_macro` FROZEN, kill-switch/stops/sector-caps/DSR/PBO untouched. The `:8001` rig
+ran `--lifespan off` so it could not start a second APScheduler paper-trading loop.
+Operator `:8000` same pid 70791; `:3000` 302/200; `tsconfig.json` + `next-env.d.ts`
+restored to baseline md5s.
+
+**Tier ledger:** RESEARCH T3 (Opus 5/max) -- GENERATE T3 (Opus 5/xhigh) -- EVALUATE T3 x2
+(Opus 5/max). **Fable (T4) not spent** -- no trading logic changed here. Quota reserved for
+80.27.
+
+**Queued, not silently fixed:** (a) `nlp_sentiment.py:161` `np.mean([])` is clamped into a
+silently wrong `1.0` -- a correctness smell, not a 500; (b) the analysis-report poll route
+embeds the same `quant_model` dict and may 500 identically -- **NOT VERIFIED**, flagged not
+asserted; (c) the frontend should render a `null` signal value as an explicit "data
+unavailable" state, not blank or zero.
