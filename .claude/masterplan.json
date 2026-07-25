@@ -18504,9 +18504,9 @@
         {
           "id": "78.2",
           "status": "pending",
-          "name": "78.0 census follow-up -- the CC-rail branches of B1/B2/E1 pass NO --model, so the model is whatever the CLI session default happens to be [executor: sonnet-4.6/high; BOUNDARY: claude_code_client.py callers + tests]. MEASURED 2026-07-25 (census 78.0): services/autonomous_loop.py:2454 (lite trader) and :2530 (lite risk judge), plus services/ticket_queue_processor.py:206 (ticket queue), all invoke claude_code_invoke WITHOUT a model argument -- backend/agents/claude_code_client.py:215 passes no --model flag to the CLI, so the model silently follows the `claude` session default. For the ticket queue this additionally means its agent_model_map (ticket_queue_processor.py:172-176, main/q-and-a=opus-4-8, research=sonnet-4-6) is IGNORED whenever the rail branch is taken -- a per-agent model policy that silently does nothing. Contrast scripts/mas_harness/run_cycle.sh:66-71, which DOES pass --model claude-opus-4-8 explicitly and is the correct reference pattern. Risk: a CLI default change silently re-tiers live trading decisions with no code change and no log line. FIX: thread an explicit model through claude_code_invoke to the CLI for these three call sites; log the resolved model on every rail call so the choice is auditable after the fact. Research gate tier simple.",
+          "name": "78.0 census follow-up -- the CC-rail branches of B1/B2/E1 pass NO --model, so the model is whatever the CLI session default happens to be [executor: sonnet-4.6/high; BOUNDARY: claude_code_client.py callers + tests]. MEASURED 2026-07-25 (census 78.0): services/autonomous_loop.py:2454 (lite trader) and :2530 (lite risk judge), plus services/ticket_queue_processor.py:206 (ticket queue), all invoke claude_code_invoke WITHOUT a model argument -- backend/agents/claude_code_client.py:215 passes no --model flag to the CLI, so the model silently follows the `claude` session default. For the ticket queue this additionally means its agent_model_map (ticket_queue_processor.py:172-176, main/q-and-a=opus-4-8, research=sonnet-4-6) is IGNORED whenever the rail branch is taken -- a per-agent model policy that silently does nothing. Contrast scripts/mas_harness/run_cycle.sh:66-71, which DOES pass --model claude-opus-4-8 explicitly and is the correct reference pattern. Risk: a CLI default change silently re-tiers live trading decisions with no code change and no log line. FIX: thread an explicit model through claude_code_invoke to the CLI for these three call sites; log the resolved model on every rail call so the choice is auditable after the fact. Research gate tier simple. *** 78.1 Q/A CROSS-REFERENCE 2026-07-25 (measured): this defect BLOCKS 78.1's criterion 2 ('model tier per service unchanged'). `--model` appears NOWHERE in backend/agents/claude_code_client.py (grep exit=1); the argv built at :263-272 is [binary, --print, --output-format json, --disallowedTools, (--append-system-prompt), (--json-schema)] and `self.model_name` is referenced only at :607/:626 as the BigQuery log LABEL. So every rail call -- including the six haiku-tier overlays rewired in 78.1 -- runs on whatever the `claude` CLI session default happens to be, while llm_call_log records the label 'claude-haiku-4-5'. The log is therefore ACTIVELY MISLEADING about which model produced a signal. Fixing --model here is what lets 78.1 honestly claim its model tiers are preserved. ***",
           "harness_required": true,
-          "priority": "P2",
+          "priority": "P1",
           "verification": {
             "command": ".venv/bin/python -m pytest backend/tests/test_phase_56_2_ops_fixes.py backend/tests/test_phase_75_llm_rail.py -q",
             "success_criteria": [
@@ -18745,6 +18745,43 @@
               "MUTATION: remove the mitigation from one helper -> the reproduction test detects it"
             ],
             "live_check": "handoff/current/live_check_78.14.md: the false-failure reproduction, the mtime-collision evidence, and both directions under the mitigation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.15",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "name": "AUDIT-TRAIL -- the auto-commit hook does `git add -A` and SWEEPS UNRELATED IN-FLIGHT WORK into a commit whose subject names a different step [executor: sonnet-4.6/high; BOUNDARY: .claude/hooks/auto-commit-and-push.sh + a test]. OBSERVED LIVE 2026-07-25: flipping step 79.2 to done triggered the PostToolUse auto-commit hook, which ran `git add -A` at auto-commit-and-push.sh:239 and committed the ENTIRE working tree under the subject 'phase-79.2: [OPERATOR ACTION -- not an executor task] BACKEND RESTART ...'. That commit (78d794c5) therefore contains the whole phase-78.1 six-service rewire (meta_scorer, news_screen, macro_regime, pead_signal, analyst_narrative_scorer, call_transcript_gpr) plus the new backend/tests/test_phase_78_1_c_block_rail.py -- work that has NOTHING to do with 79.2 and was mid-flight at the time. The later commit that carried the careful 78.1 message (d72d9b3d) got only the leftovers (masterplan + audit jsonl), so `git show` on it shows NO service changes. CONSEQUENCE: `git log -- backend/services/meta_scorer.py` attributes the rail rewire to a BACKEND RESTART operator-action commit. Anyone bisecting, reviewing, or reconstructing why a signal service changed is sent to the wrong step, and the commit message actively contradicts the diff. Same audit-trail-integrity class as 75.11.4 (archive hook writing other steps' documents into a step's archive dir) -- the record is not merely incomplete, it is WRONG. NOTE this is inherent to `git add -A` on a shared working tree whenever a session has any parallel work in flight, which is the normal case for this project. OPTIONS to evaluate (do not pick blindly): (a) stage only paths related to the flipping step; (b) refuse to auto-commit when the working tree contains changes outside the step's declared BOUNDARY, and tell the operator instead; (c) keep `add -A` but make the subject honest ('phase-X + in-flight work') and list the swept paths in the body. Option (b) is closest to the project's loud-fail doctrine. Research gate tier simple.",
+          "verification": {
+            "command": "bash -n .claude/hooks/auto-commit-and-push.sh && echo hook-syntax-ok",
+            "success_criteria": [
+              "A commit produced by the hook can no longer contain files unrelated to the flipping step, OR the subject/body honestly discloses everything it swept -- state which option was chosen and why",
+              "REPRODUCTION recorded: a scratch repo state with unrelated in-flight changes + a step flip demonstrates the OLD behaviour attributing them to the wrong step, and the NEW behaviour not doing so",
+              "The historical misattribution of 78d794c5 is documented (not rewritten -- it is pushed) so a future reader of git log on the six services is not misled",
+              "MUTATION: restore `git add -A` (or remove the disclosure) -> the reproduction test goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.15.md: the 78d794c5 evidence (subject vs actual contents), the reproduction both ways, and the mutation."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "78.16",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "name": "78.1 blocker -- make_client DROPS enable_prompt_caching, so the documented one-flag revert does NOT restore prior behaviour [executor: opus-4.8/xhigh; BOUNDARY: llm_client.py make_client + tests]. MEASURED by the 78.1 Q/A 2026-07-25 and independently confirmed: all six C-block services previously constructed ClaudeClient(..., enable_prompt_caching=False) -- 6/6 in the diff, and zero references remain in backend/services/*.py after the 78.1 rewire. make_client at llm_client.py:2139 constructs `ClaudeClient(model_name=..., api_key=...)` with NO such kwarg, against a constructor default of True (llm_client.py:1345). CONSEQUENCE: flipping PAPER_USE_CLAUDE_CODE_ROUTE=false -- the documented one-flag revert, and 78.1's criterion 5 -- no longer returns the six to their pre-78.1 behaviour: prompt caching is now ON where it was explicitly OFF. Captured wire kwargs show `system` changing from a plain 19,075-char str to a 1-block list carrying cache_control {\"type\":\"ephemeral\",\"ttl\":\"1h\"}. That is a different request shape on the money path, reached by a flag the operator is told is a safe revert. OPTIONS: (a) make_client accepts/forwards enable_prompt_caching; (b) make_client preserves the caller's intent some other way; (c) the six stop caring and the doc is corrected -- but ONLY if measured to be harmless, since caching changes both cost and cache-hit semantics. NOTE the six cannot fix this themselves: make_client owns the construction, which is why this is its own step rather than part of 78.1. Research gate tier moderate.",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/ -q -k 'llm_client or make_client or prompt_caching'",
+            "success_criteria": [
+              "Flipping PAPER_USE_CLAUDE_CODE_ROUTE=false returns the six to their PRE-78.1 request shape, proven by captured wire kwargs (system as a plain str, no cache_control) -- or the divergence is measured, justified and documented as intended",
+              "A test asserts the revert-path request shape, so this cannot regress silently again",
+              "MUTATION: drop the caching intent again -> that test goes red"
+            ],
+            "live_check": "handoff/current/live_check_78.16.md: captured pre/post wire kwargs for one service on the flag-OFF path, and the mutation."
           },
           "retry_count": 0,
           "max_retries": 3

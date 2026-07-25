@@ -226,7 +226,7 @@ async def meta_score_candidates(
     # phase-78.1: route through make_client so PAPER_USE_CLAUDE_CODE_ROUTE governs
     # this call. It previously constructed ClaudeClient DIRECTLY and so could never
     # see the rail -- the phase-72 rail-bypass class implicated in the 97%-cash run.
-    from backend.agents.llm_client import make_client
+    from backend.agents.llm_client import _HOUSE_INSTRUCTIONS, make_client
     client = make_client(getattr(settings, "meta_scorer_model", "claude-haiku-4-5"), None, settings)
 
     try:
@@ -234,6 +234,13 @@ async def meta_score_candidates(
             client.generate_content,
             prompt,
             {
+                # phase-78.1 (D-SYS): restore the house prompt on the rail. ClaudeClient set
+                # system_prompt = _HOUSE_INSTRUCTIONS UNCONDITIONALLY (llm_client.py:1453) and
+                # ignores config["system"], so before the rewire these six always received it.
+                # ClaudeCodeClient reads config["system"] (claude_code_client.py:524) and got
+                # None -- the rewire silently DROPPED 19,026 chars of framing from all six.
+                # Passing it here is inert on the metered path and restores parity on the rail.
+                "system": _HOUSE_INSTRUCTIONS,
                 "response_schema": cleaned_schema,
                 "response_mime_type": "application/json",
                 "max_output_tokens": min(8192, 250 * len(shuffled)),

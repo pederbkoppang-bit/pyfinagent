@@ -140,7 +140,7 @@ async def _fetch_one_narrative(
         try:
             # phase-78.1: route through make_client so PAPER_USE_CLAUDE_CODE_ROUTE
             # governs this call (previously a direct ClaudeClient -- rail-invisible).
-            from backend.agents.llm_client import make_client
+            from backend.agents.llm_client import _HOUSE_INSTRUCTIONS, make_client
             client = make_client(model, None, settings)
         except Exception as e:
             logger.debug("analyst_narrative_scorer: client init failed: %s", e)
@@ -163,6 +163,13 @@ async def _fetch_one_narrative(
                 client.generate_content,
                 prompt,
                 {
+                    # phase-78.1 (D-SYS): restore the house prompt on the rail. ClaudeClient set
+                    # system_prompt = _HOUSE_INSTRUCTIONS UNCONDITIONALLY (llm_client.py:1453) and
+                    # ignores config["system"], so before the rewire these six always received it.
+                    # ClaudeCodeClient reads config["system"] (claude_code_client.py:524) and got
+                    # None -- the rewire silently DROPPED 19,026 chars of framing from all six.
+                    # Passing it here is inert on the metered path and restores parity on the rail.
+                    "system": _HOUSE_INSTRUCTIONS,
                     "response_schema": cleaned,
                     "response_mime_type": "application/json",
                     "max_output_tokens": 256,
