@@ -29121,3 +29121,113 @@ question here -- does ERROR crash anything, is ERROR ever more actionable, how m
 exist, what does the flag cost -- was answered by measurement and code-tracing, not model
 judgment. The residual risk is an LLM-in-the-loop behaviour change, which no authoring-time
 model capability resolves; it is resolved by shipping dark and letting the operator decide.
+
+---
+
+## Cycle 169 -- 2026-07-25 -- phase=80.31 result=PASS (cycle 3; 2 CONDITIONAL before it)
+
+**Wave 1 tail (NaN family), step 3 of 3.** `anomaly_detector` built close/volume/high/low
+with four INDEPENDENT `.dropna()` calls. Column-wise dropna destroys positional
+correspondence the moment two columns have different NaN patterns -- and **`Volume` is
+`int64`, which cannot hold NaN**, so its dropna was a STRUCTURAL NO-OP. The misalignment
+was therefore GUARANTEED, not probabilistic: measured 251 raw rows -> close/high/low/Open
+250, volume 251, on AAPL/MSFT/NVDA. `close[-1]` was day T-1 while `volume[-5:]` spanned
+T-4..T, so `volume_5d_vs_60d` reported a precise-looking mean/std/z triple across
+mismatched sessions.
+
+**Fix:** one row-wise `hist.dropna(subset=["Open","High","Low","Close"])` BEFORE the
+`len(hist)<20` guard (so sufficiency counts USABLE rows), a named extraction helper
+`_aligned_ohlcv_arrays`, a RUNTIME alignment invariant, and an explicit NaN-volume guard.
+`+122/-9`, one file.
+
+**Mechanism correction (again):** the malformed bar is a **COMPLETED** session (Fri
+2026-07-24), not the still-forming one the step text describes -- measured on a Saturday
+with markets closed, reproduced independently by the researcher, and corroborated upstream
+by **yfinance issue #2622**. Third step running where the audit's stated mechanism was
+wrong and measurement corrected it.
+
+**No dark flag, unlike 80.27 -- and the distinction is load-bearing:** this fix DISCARDS a
+value (the malformed bar's real volume) rather than RESTORING suppressed ones;
+`_has_non_finite(payload)` is False before and after; and no paper-trading, screener or
+optimizer path consumes this tool (LLM-debate input only). It is NOT byte-identical
+though: dz +0.047..+0.338 across 6 tickers, 0 verdict flips on 6/6 today but a flip near
+the 1.5/2.0 boundary is possible.
+
+### THREE Q/A CYCLES, and the step's real output is a lesson about our own tests
+
+**Cycle 1 -- CONDITIONAL, two blockers.** (a) Criterion 1 had NO effective coverage: no
+test asserted the four lengths are equal, and the test mapped to it was a **TAUTOLOGY** --
+it read `a.get("type")` while the module writes `"metric"`, so the set was `{None}` and
+the assertion was true for EVERY possible implementation. Its documented premise was also
+inverted (measured: the spike fires when ALIGNED, not when misaligned). (b) Criterion 3
+was not literally discharged -- A1 was killed only by the dropna-ORDER and SUBSET-WIDTH
+tests; no alignment test failed. **Four deliberate misalignments SURVIVED**, including
+`A11_SHIFT_VOL`, which reproduces the original defect's exact shape.
+
+**Cycle 2 -- CONDITIONAL, one BLOCKER against ME, not the code.** I fixed the code and the
+critique and **never updated the GENERATE artifact**: `experiment_results_80.31.md` still
+cited a test I had DELETED as criterion 1's only evidence, plus stale "11 passed", "5/5
+killed", `:55-69`, and an equivalent-mutant claim I had already withdrawn. CLAUDE.md's
+cycle-2 flow names that file explicitly, and the live_check gate helper only checks the
+file EXISTS -- so a superseded capture would have passed the auto-commit hook unnoticed.
+Both artifacts were then REWRITTEN FROM MEASUREMENT, not edited. Plus three live WARNs:
+the "alignment invariant" enforced LENGTH not alignment (`np.roll` survived 14/14 with
+three metrics silently vanishing); the NaN-volume guard's WINDOW was unpinned (60->5
+survived); and the EIGHTH vacuous guard -- the key-pin test written to close cycle 1's
+tautology had a bare loop with no non-emptiness assertion, so it ran ZERO times and a
+module that never appends an anomaly passed the whole suite.
+
+**Cycle 3 -- PASS**, `violated_criteria: []`. Q/A re-derived every number in both rewritten
+artifacts, re-ran the 9/9 matrix in fresh subprocesses, and confirmed all four cycle-2
+survivors now die. It stated the 3rd-CONDITIONAL counter explicitly (cycle 1 CONDITIONAL,
+cycle 2 CONDITIONAL) and ruled the rule does not bind because it is issuing a PASS, not a
+third CONDITIONAL. It found a NINTH vacuous guard, WARN-level under qa.md 4c because it is
+redundant coverage alongside a criterion-1 test it proved non-vacuous.
+
+**A REGRESSION I INTRODUCED AND Q/A CAUGHT:** taking `Volume` out of the drop subset
+created a NaN-into-the-volume-window path that did not exist before -- `std_vol` goes NaN,
+`_z` returns None, and the anomaly vanishes SILENTLY. That is the phase-80.27 family,
+authored by me while fixing its sibling. Now guarded with an explicit WARNING. I also
+WITHDREW an equivalent-mutant claim: **finiteness is not equivalence** -- Q/A produced a
+float64-Volume input where the top-level signal differs.
+
+### The transferable finding: NINE vacuous guards, five steps, one shape
+
+*The test replaces, fails to reach, or never evaluates against the thing whose correctness
+it should establish.* Five of the nine came from THIS P2 step. I caught two myself (both
+by re-running a mutation instead of trusting a green suite); Q/A caught the rest.
+
+Three derived rules now in `feedback_mutation_test_guards_and_fixtures`:
+1. **Assert the key EXISTS before asserting on its value** -- a `.get()` on a wrong key
+   makes any membership assertion unfalsifiable.
+2. **Assert the collection is NON-EMPTY before iterating it** -- an empty loop evaluates
+   nothing.
+3. **Test the ENTRY POINT, not only the seam** -- a mutation that bypasses your seam
+   passes your test.
+Plus: **finiteness is not equivalence**, and **never claim "0 vacuous"** (a matrix
+licenses only "these N mutations were killed").
+
+**Evidence:** `research_brief_80.31.md` (gate_passed, 5 in full, 17 URLs) ->
+`contract_80.31.md` -> `experiment_results_80.31.md` (rewritten cycle 3) ->
+`live_check_80.31.md` (rewritten cycle 3) -> `evaluator_critique_80.31.md` (three cycles).
+16 tests; 78 cross-suite; ruff clean; 9/9 matrix.
+
+**Do-no-harm:** live book cannot move -- no paper-trading/screener/optimizer path reads
+this tool. No `.env` edit, no flag, no optimizer run, `historical_macro` FROZEN;
+kill-switch/stops/sector-caps/DSR/PBO not in the diff. **No collision with 80.27** -- its
+deferred ladders (`:31`, `:38`, `:188` pre-diff, `:204`, `:210`, `:217`, `:230`) and the
+`:16-18` thresholds are untouched. Two NEW production paths (a runtime ERROR return and a
+NaN-volume skip) are both fail-safe -- they withhold output, never manufacture an anomaly
+-- and neither can fire on well-formed data (asserted). Operator `:8000` not restarted
+(`79.55` open), so inert until then.
+
+**Queued, not fixed:** D1 the **sqrt(5) units mismatch** (`std` of DAILY volume used to
+z-score a 5-DAY mean -> |z| systematically ~2.24x too small; an order of magnitude larger
+than the alignment offset it sits beside; fixing it fires MORE = less conservative, so it
+needs its own gate); D2 the self-overlapping baseline (arXiv:2004.04013 says overlap can
+REDUCE bias -- not a reflex fix); D3 the genuinely in-progress session (needs a market
+calendar); the ninth vacuous guard + the `volume[-60:]` boundary + interior-permutation
+residuals from cycle 3. **D4 CLOSED BY THIS STEP** (coincidental high/low alignment).
+
+**Tier ledger:** RESEARCH T3 (Opus 5/max) -- GENERATE T2 (Opus 5/xhigh) -- EVALUATE T3 x3
+(Opus 5/max). Fable not spent: P2, non-money path.
