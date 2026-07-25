@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-25 | `fe5476f2` | fix(78.1): restore the house system prompt the rewire silently dropped + kill my own vacuous guard |
 | 2026-07-25 | `d72d9b3d` | phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeClient onto make_client |
 | 2026-07-25 | `78d794c5` | phase-79.2: [OPERATOR ACTION -- not an executor task] BACKEND RESTART — 15 product modules shippe. |
 | 2026-07-25 | `380c998e` | docs: correct commit 09fe323c -- two command names were eaten by shell substitution |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `018fc06f` | chore(76.9.3/78.0/75.5.12): three steps built + mutation-tested; 12 follow-up steps queued |
 | 2026-07-25 | `e9820b19` | chore(76.9.2/78.0): session handoff -- census decision draft into handoff, live_check attempt histor |
 | 2026-07-24 | `33d2ca1b` | chore(phase-78): queue 75.5.12 (bare-cc_rail spend discriminator gap, P1, MEASURED 2241 rows/4.1M to |
-| 2026-07-24 | `5759e5d9` | phase-75.20.1: operator approved -- flip to done (qa-write-guard live) |
 
 ---
 
+### v6.69.4 — fix(78.1): restore the house system prompt the rewire silently droppe... (2026-07-25)
+
+- **fix(78.1): restore the house system prompt the rewire silently dropped + kill my own vacuous guard**
 ### v6.69.3 — phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeCli... (2026-07-25)
 
 - **phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeClient onto make_client**
