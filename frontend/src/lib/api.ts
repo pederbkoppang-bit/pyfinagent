@@ -87,6 +87,32 @@ async function getAuthToken(): Promise<string | null> {
   }
 }
 
+/**
+ * Engine-specific `TypeError.message` values for a fetch that never
+ * produced a readable response (phase-80.2).
+ *
+ * The WHATWG Fetch spec mandates only that a network failure rejects with
+ * a `TypeError` — the message text is implementation-defined and NOT
+ * API-stable. So this is a best-effort SET, and `apiFetch` keeps a generic
+ * fallback for anything not listed: correctness never depends on the
+ * string alone.
+ *
+ * Safari's `Load failed` was the missing entry. Because a CORS-blocked
+ * response is indistinguishable from an unreachable host at the JS layer,
+ * the operator's Safari fell through to the raw
+ * `Network error calling /api/signals/AAPL: Load failed`.
+ */
+export const NETWORK_FAILURE_MESSAGES = [
+  "Failed to fetch", // Chromium / Edge
+  "NetworkError", // Firefox: "NetworkError when attempting to fetch resource."
+  "Load failed", // Safari / WebKit
+  "Network Error", // axios, any engine
+] as const;
+
+export function isNetworkFailureMessage(msg: string): boolean {
+  return NETWORK_FAILURE_MESSAGES.some((s) => msg.includes(s));
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAuthToken();
   const headers: Record<string, string> = {
@@ -122,7 +148,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     }
     // Network-level failure (CORS, DNS, refused, etc.)
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+    if (isNetworkFailureMessage(msg)) {
       throw new Error(
         `Cannot reach backend at ${API_BASE}. ` +
         "Make sure the FastAPI server is running (uvicorn backend.main:app --port 8000)."

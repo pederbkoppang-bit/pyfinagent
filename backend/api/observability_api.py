@@ -82,6 +82,8 @@ def get_observability_latency(
             "p95_ms": 0,
             "p99_ms": 0,
             "cache_hit_rate_pct": 0,
+            "error_count": 0,
+            "error_rate_pct": 0,
             "per_endpoint": {},
         }
     return {
@@ -91,6 +93,13 @@ def get_observability_latency(
         "total_requests": s.get("total_requests", 0),
         "window_seconds": s.get("window_seconds", window),
         "cache_hit_rate_pct": s.get("cache_hit_rate_pct", 0),
+        # phase-80.2: until the catch-all middleware landed, an unhandled
+        # 500 never reached PerfTracker at all, so this surface reported
+        # healthy latency over a dead endpoint. Exposing the 5xx count is
+        # what makes "the failure is visible here" true rather than merely
+        # "the request was counted".
+        "error_count": s.get("error_count", 0),
+        "error_rate_pct": s.get("error_rate_pct", 0),
         "per_endpoint": s.get("per_endpoint", {}),
     }
 

@@ -953,6 +953,10 @@ export interface EndpointLatency {
   count: number;
   p50_ms: number;
   p95_ms: number;
+  // phase-80.2: 5xx visibility. Optional because a backend that has not
+  // been restarted onto the phase-80.2 build omits these keys.
+  error_count?: number;
+  error_rate_pct?: number;
 }
 
 export interface PerfSummary {
@@ -962,6 +966,8 @@ export interface PerfSummary {
   p95_ms: number;
   p99_ms: number;
   cache_hit_rate_pct: number;
+  error_count?: number;
+  error_rate_pct?: number;
   per_endpoint: Record<string, EndpointLatency>;
 }
 

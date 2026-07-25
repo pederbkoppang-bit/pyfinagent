@@ -28797,3 +28797,105 @@ Two non-blocking findings, both acted on:
 - **N2** -- `experiment_results` described E1's row as `agent='cc_rail:ticket_<id>'`;
   the code writes `f"cc_rail:ticket_{agent_id}"` where `agent_id` is the ROLE, so
   the real value is e.g. `cc_rail:ticket_main`. Corrected.
+
+---
+
+## Cycle 166 -- 2026-07-25 -- phase=80.2 result=PASS (cycle 2; 1 CONDITIONAL before it)
+
+**Wave 0 of the masterplan drain.** An unhandled backend 500 carried NO
+`Access-Control-Allow-Origin`, so the browser blocked it and the frontend told the operator
+"Cannot reach backend ... Make sure the FastAPI server is running" -- sending them to
+restart a healthy server. This went first because until a 500 reaches `PerfTracker` and
+carries CORS, every other defect in this drain is misreported as "backend is down" and is
+invisible in `/api/observability/latency`: I could not have measured my own later fixes.
+
+**Root cause, from the installed source rather than inferred.** starlette 1.0.0
+`applications.py:57-77` hardcodes `[ServerErrorMiddleware] + user_middleware +
+[ExceptionMiddleware]`, and `:62-66` routes any handler keyed on `500`/`Exception` into
+that OUTERMOST layer. An escaping exception therefore unwinds past `CORSMiddleware` AND
+past `auth_and_security_middleware`, skipping its whole tail (`main.py:548-569`):
+PerfTracker record, `X-Response-Time`, six OWASP headers.
+
+**The intuitive fix is a trap, and I disproved it by execution rather than argument.** A
+3-variant probe reproducing pyfinagent's exact nesting showed `@app.exception_handler(
+Exception)` yields a 500 with CORS `None`, nosniff `None`, and NO PerfTracker record -- it
+only changes the body. Upstream considers this by-design (Kludex/starlette#1175 closed
+no-fix; fastapi#13398 "No plans").
+
+**Fix:** a pure-ASGI `CatchAllServerErrorMiddleware` registered BEFORE
+`add_middleware(CORSMiddleware)` -- because `add_middleware` inserts at index 0, earlier
+registration = further IN. The 500 becomes an ordinary response that travels back out
+through every decorating layer, closing all three consequences with one change, and the
+allow-list decision stays entirely inside `CORSMiddleware.is_allowed_origin` (no fourth
+copy of `_TAILSCALE_ORIGIN_RE`). Plus: a permanent auth-gated `/api/__force_500_probe`,
+additive `error_count`/`error_rate_pct` on `summarize()` + `/api/observability/latency`,
+and Safari's `Load failed` added to the `api.ts` network-failure set.
+
+**Cycle 1 -- CONDITIONAL, and the evaluator earned it.** Q/A reverted the CALL SITE at
+`api.ts` to the pre-fix predicate -- re-introducing the exact Safari bug -- and every test
+stayed green. My mutation M8 mutated the exported ARRAY that the unit test imports
+directly, so it could not tell a predicate that is CORRECT from one that is WIRED IN.
+Sole-coverage vacuity on a behavioural criterion, and it was mine. Five other conditions:
+a stale `phase-79.2` citation, a newly-introduced F401, a line count that did not
+reproduce (158 vs 149), a consumer set not derived from a full grep, and the false-pass
+caveat.
+
+**Cycle 2 -- PASS.** All six conditions closed and re-verified BY THE Q/A'S OWN EXECUTION,
+not by reading me. It re-ran its own wiring mutation (`2 failed | 11 passed`, received
+value `"Network error calling /api/reports/?limit=20: Load failed"` -- literally the
+operator's screenshot text), then authored a mutation nobody had run (predicate body ->
+`return true`) which killed the negative-direction guards too, proving the new tests are
+not vacuous in either direction. It then independently reproduced ALL SEVEN criteria
+in-process against the real `backend.main:app`. Mutation total: 10/10 guards held, 0
+vacuous -- one of which exists only because the evaluator found the hole, which is the
+gate working as designed.
+
+**READ THIS BEFORE CITING THIS STEP -- two standing caveats.**
+
+1. **The fix is INERT on the operator's `:8000`.** I did not restart it: `phase-79.55` is
+   `status: pending` and carries `[RESTART BLOCKER -- answer BEFORE the next backend
+   restart]`; restarting would have silently shipped the phase-78.2 rail re-tiering (six
+   signal overlays down to `claude-haiku-4-5`, lite trader/risk judge to
+   `settings.gemini_model`) before the operator answered. Cycle-1 Q/A: *"I would have
+   failed the step had Main restarted."* Criterion 1 is verified ON THE BUILD.
+   *(Correction carried from cycle 1: the artifacts first cited `phase-79.2` as the gate.
+   79.2 is `done` -- executed 2026-07-25 11:39:05, new pid 70791, the pid measured live.
+   Only 79.55 is open. Same decision, wrong citation.)*
+2. **DO NOT cite the immutable verification command's exit code as evidence today.** Run
+   verbatim against the un-restarted `:8000` it prints
+   `access-control-allow-origin: http://localhost:3000` and exits 0 -- on a **404** (the
+   probe route does not exist in that process) or a **401**, both of which always carried
+   the header. The command cannot currently distinguish pass from fail on `:8000`. The
+   binding evidence is the in-process suite, which asserts `status_code == 500` BEFORE any
+   CORS assertion, plus the `:8001` captures.
+   **POST-RESTART OBLIGATION (Q/A N2):** once `79.55` is answered and the backend
+   restarts, re-run the immutable command verbatim against `:8000` and record the result.
+   It should then show `HTTP/1.1 500` WITH the header.
+
+**Evidence:** `research_brief.md` (gate_passed, 8 sources in full, 23 URLs) ->
+`contract.md` (criteria verbatim, confirmed character-for-character by Q/A) ->
+`experiment_results.md` -> `live_check_80.2.md` (+ `captures_80.2/`) ->
+`evaluator_critique.md` (both cycles). Tests: 18 backend + 13 frontend new; 49 adjacent
+green; `tsc --noEmit` clean.
+
+**Do-no-harm:** live book untouched -- no `.env` edit, no flag flip, no optimizer run,
+`historical_macro` frozen, kill-switch/stops/sector-caps/DSR/PBO not in the diff. The
+`:8001` verification rig ran `--lifespan off` specifically so it could not start a second
+APScheduler paper-trading loop. Operator `:8000` same pid 70791; `:3000` 302/200 after
+teardown; `tsconfig.json` + `next-env.d.ts` restored to baseline md5s.
+
+**Tier ledger (operator tiering directive):** RESEARCH T3 (Opus 5 / max) -- GENERATE T3
+(Opus 5 / xhigh) -- EVALUATE T3 x2 (Opus 5 / max). **Fable (T4) deliberately NOT spent**:
+this step changes no trading logic and its design question was settled by measurement, not
+judgment. Quota preserved for 80.27. NOTE: the first Q/A launch via the `qa-verdict`
+Workflow burned 175K tokens and returned NO structured output -- treated as NO VERDICT
+(never PASS) per doctrine, and the Agent-tool `qa` fallback was used for both cycles.
+
+**Queued, not silently fixed** (`feedback_queue_discovered_defects_in_masterplan`):
+(a) three components bypass `apiFetch` entirely and get none of this handling --
+`ResearchInvestigator.tsx:33`, `Sidebar.tsx:155`, `StockChart.tsx:94`;
+(b) `.claude/rules/security.md` says `X-XSS-Protection: 1; mode=block` while
+`main.py` sets `0` (the modern-correct value) -- doc drift, reconcile the doc;
+(c) `frontend/eslint.config.mjs:11` ignores `.next/**` but not `.next-*/**`, so any
+audit-rig dist dir breaks `npx eslint .` repo-wide and silently degrades the frontend lint
+gate for every future step (found by Q/A).

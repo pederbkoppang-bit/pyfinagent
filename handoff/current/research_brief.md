@@ -1,303 +1,691 @@
-# Research Brief — Step 75.18 (tier=complex)
+# Research Brief — phase-80.2 (backend 500 carries no CORS / OWASP / PerfTracker)
 
-**Codify the anti-vacuous-guard doctrine into the harness itself.**
-Boundary: harness/docs only, no product code. Separation of duties: this
-step edits `.claude/agents/qa.md`; the authoring session must NOT
-self-evaluate any later step that depends on it — Main leaves a Peder
-review note in `handoff/harness_log.md` (criterion 6).
+Tier: **moderate**. `coverage.audit_class = false`. Written 2026-07-25,
+write-first + incremental. (Previous occupant of this path was the
+step-75.18 brief; it is preserved at
+`handoff/archive/phase-75.18/research_brief.md`.)
 
-Status: COMPLETE. Written 2026-07-24. gate_passed = true (6 sources read
-in full, recency scan performed, taxonomy built from primary critiques).
+## Immutable success criteria (verbatim — DO NOT AMEND)
 
----
-
-## 1. Complete instance taxonomy — the core deliverable (with cycle citations)
-
-Phase-75 produced ONE root cause — *a guard that cannot fail when its
-subject is broken* — that changed shape every time. The step text
-enumerates through instance (6); the session since (Cycles 135, 142, 143)
-produced five more shapes. All eleven are grounded in the archived Q/A
-critiques (verbatim captured return values), not inferred.
-
-| # | Shape | Where (cycle / phase / criterion) | Concrete mechanism | Caught by |
-|---|-------|-----------------------------------|--------------------|-----------|
-| 1 | **Source-scan, dual-occurrence** | C129 / 75.3 / C6 | `"unwrap_secret" in SIGNALS_SRC` — the literal is on BOTH the import line (:495) and the call site (:497), so reverting ONLY :497 leaves the scan green while security-05 fully regresses | Q/A behavioral probe (fake WebClient captured `xoxb-real-token`) |
-| 2 | **Source-scan, reworded-regression** | C129 / 75.3 / C3 | exact-literal scan for `resp["published"] = True`; a reworded `resp.update({"published": True})` (or a renamed var) evades the grep with the suite green | Q/A end-to-end re-fire through `publish_signal` |
-| 3 | **Source-scan, literal-kept-behavior-stripped** | C129 / 75.3 / C4 | keep `"stub": True` in the dict but `pop("stub")` off every candidate before return → all 27 tests green while criterion 4 regresses | Q/A drove real tool via `create_signals_server()`+fastmcp client |
-| 4 | **Tautology** | C130 / 75.2.1 (`assert wired["push"] is not None`, fixture already guarantees it) **and** C142 / 75.14:199 (`assert ... or True`, unconditionally passes) | assertion is a logical constant given the fixture / the `or True` short-circuit | Q/A read the test body; would pass with handler registered AFTER the catch-all |
-| 5 | **Fixture-cannot-represent-failure** | C130 / 75.2.1 / C3 | `AsyncSay` returns `AsyncSlackResponse` (exposes `.get()`, **not** a `dict` subclass); production `isinstance(resp, dict)` registered nothing and left the push path INERT, while 22 tests passed because the `_say` stub returned a plain dict | Q/A replayed real `AsyncSlackResponse` type; **mutation of production alone MISSED it** |
-| 6 | **Library-fact assertion posing as a fixture pin** | C130 / 75.2.1 / C6 | the guard added to fix #5 asserted only `not issubclass(AsyncSlackResponse, dict)` — an upstream-library fact, never references the `_FakeSlackResponse` stub it claims to pin; M9: regress stub→dict AND restore isinstance bug together → suite GREEN, production inert | Q/A M9 mutation of the **test harness itself** (never mutated by author) |
-| 7 | **Re-implemented test (behavioral-looking test exercising a COPY of the logic)** | C142 / 75.14 / C6 | `test_fallback_flag_routes_verdict` re-implements the parse-fail warning inline via a monkeypatched `SimpleNamespace(get_settings)` instead of executing the real `run_risk_debate` branch → a money-path DARK-flag **if/else routing inversion** (True→REJECT vs False→APPROVE_REDUCED) passes the entire 18-test suite undetected | Q/A; fixed by EXTRACTING `_judge_parse_fail_fallback()` and executing the REAL fn both ways |
-| 8 | **OR-escape-hatch / comment-token trap** | C143 / 75.15 / C5 | `('blocks the PR' not in s) or ('run_seed_stability' in s)` — the SAME diff ADDED `run_seed_stability` to the yaml COMMENT (line 20), so the 2nd clause is permanently true; re-introducing `blocks the PR` leaves the guard GREEN. (75.15 also had 2 MORE comment-token survivors M2/M6, self-caught) | Q/A mutation: overclaim re-added + token present → guard STILL passes |
-| 9 | **Executor-environment / shell-and-state dependence** | C135 / 75.7 (×3), C132 / 75.5, C129 / 75.3, C130 / 75.2.1 | (a) unquoted `$(git diff --name-only …)` **word-splits in zsh** → lints only tracked files, misses the untracked new test file; (b) unquoted `$FILES` → newline-joined blob → `ruff` "No such file" → **exit 0 over ZERO files** ("All checks passed!"); (c) stale `backend` pkg in `.venv/site-packages` shadows the repo module (75.3 drill dark); (d) process-state pollution: an M10 "pass" only because a prior pytest run pre-bound the test module's `cmd` global (75.2.1); (e) `.env` flag-state flips raw pass/fail counts (75.14/75.15) | Q/A re-ran in a clean process / explicit-arg + `${=FILES}` scope; the qa.md §1a empty-set guard exists for exactly this |
-| 10 | **Hand-derived-scope staleness** | C142 / 75.14 ("8 files" vs actual 9), C130 / 75.2.1 ("22 passed" vs 24; commands.py 189 vs 218 lines), C132 / 75.5 (hand-typed 10-file lint list omitting 4 of 14), C135 / 75.7 (regression 1304 vs 1305) | a list/count/scope captured BY HAND goes stale against a later edit; the "verbatim" artifact no longer reproduces | Q/A re-ran the deriving command (`git diff --stat`, `pytest -q`) |
-| 11 | **Mis-attributed kill-mechanism** | C135 / 75.7 / C1 | mutation M1 IS killed — but by the completion assertion, NOT the credited `RuntimeWarning-as-error+gc.collect` leg (which is inert/swallowed as "Exception ignored while finalizing coroutine"). The guard is non-vacuous *today*, but the RECORDED reason is wrong, so a future maintainer trusting the credited leg could delete the load-bearing assertion and silently make it vacuous | Q/A re-ran M1 in-memory and observed the real failing assertion |
-
-**Meta-pattern (the reason the rule must be about *mutation*, not a code
-smell):** #5 was missed by mutation because the author mutated production
-while leaving the broken stub in place; #6 was missed because the author
-never mutated the **test harness itself**. Every remaining shape (#7 copy
-of logic, #8 comment token, #9 environment, #10 stale scope, #11 wrong
-kill reason) is a case where the SUBJECT the guard names and the THING the
-guard actually observes have silently diverged.
-
-**Companion doctrine (measure-before-assert; leg (d)) — distinct axis:**
-Phase-75 shipped **three false checkable claims**, each one command from
-verification: (i) DEBUG env state — "`DEBUG=true`" when `settings.debug`
-was `False` (75.1); (ii) verb parity — "covers what the deleted
-`handle_deploy_command` matched", missed 12 surfaces incl. bare `deploy`
-(75.2); (iii) handler-registration order — written in FIVE places that the
-operator-token handler registers first, when the push handler is idx 0
-(75.2.1). Generalized root cause (75.5, 11 instances, `wf_b550e771-aa7`):
-**a claim about a SET whose membership rule was never written down
-operationally** — the code was correct every time; the harness had no
-instrument on the CLAIMS. Sub-rule: a literal a criterion **source-scans
-for** must not survive in explanatory COMMENTS either (3 instances: CGNAT
-pattern, date cutoff, dead-branch name).
+1. A 500 response from the backend INCLUDES access-control-allow-origin for an allowed origin (verify against a route that genuinely raises, not a synthetic 204) -- so the browser surfaces the status instead of a network failure
+2. With a deliberately-broken endpoint, the UI shows a server-error message that does NOT claim the backend is unreachable
+3. api.ts network-error detection also matches Safari's 'Load failed'
+4. The CORS allow-list behaviour is UNCHANGED for disallowed origins -- a 500 to a non-allowed origin must still omit the header (do not fix this by echoing '*')
 
 ---
 
-## 2. Per-file codification map (legs a–d → files; NO duplication, cross-link)
+## STATUS: COMPLETE — `gate_passed: true` (8 external sources read in full, recency scan performed, all internal claims line-anchored and re-measured against the running backend)
 
-House convention (`research-gate.md` "Cross-references"): each rule lives
-in ONE file; the others cross-link. Existing split: `qa.md` = evaluator
-mechanics; `per-step-protocol.md` = orchestration sequence; the skill =
-ranked code-review heuristics + severity dispatch + negation lists;
-memories = operator-ratified wording. Map the four legs onto that split:
+## Installed versions (reason against THESE, not latest-on-PyPI)
 
-| Leg | Lands in | Concrete edit | Satisfies criterion | Cross-links (don't duplicate) |
-|-----|----------|---------------|---------------------|-------------------------------|
-| (a) per-criterion vacuity check | **`qa.md`** new **§4c "Guard-vacuity check"** (sits after §4b claim-auditing) | For EACH immutable criterion, NAME the concrete mutation that would make its guard fail; apply it (or show why unreachable); **"no such mutation exists" is a FINDING (`Circular_Reasoning`/`Missing_Assumption`), never a pass.** | C1 | → skill `illusory-guard` heuristic (owns the ranked shapes); → `feedback_mutation_test_guards_and_fixtures` |
-| (b) mutation must cover the FIXTURE | **`qa.md` §4c** (mechanics) + **`per-step-protocol.md` §4** (one-line requirement) | qa.md: "mutation evidence MUST cover the test FIXTURE/stub as well as the code under test — assert on the object the fixture *actually returns*, not the library type it imitates. Cite 75.2.1: mutating production alone left a dict-returning stub undetected." per-step-protocol: one sentence + cross-link. | C2 | per-step-protocol → qa.md §4c (mechanics live there) |
-| (c) ranked illusory-guard heuristic | **`.claude/skills/code-review-trading-domain/SKILL.md`** Dimension 4 + Top-list #17 | New ranked entry `illusory-guard` naming the **four required shapes** (source-scan-only, tautology, non-representative fixture, library-fact-assertion-posing-as-fixture-pin) with **severity dispatch** (see §2a below); RECOMMEND adding #7 re-implemented-test + #8 OR-escape-hatch as sub-shapes (criterion is a floor). | C3 | generalizes existing `tautological-assertion`/`over-mocked-test`/`rename-as-refactor` — reference, don't duplicate |
-| (d) measure-before-assert + comment-literal rule | **`per-step-protocol.md`** new short subsection "Measure before asserting" | (i) a checkable factual claim must be MEASURED before it enters any artifact (contract/results/comment/commit) — 3 examples (DEBUG 75.1, verb-parity 75.2, handler-order 75.2.1); (ii) a literal a criterion source-scans for must NOT appear in explanatory comments (3 instances). | C4 | → `feedback_measure_dont_assert_claims`; qa.md §4b already enforces the reproduce-side — cross-link, don't restate |
-| C5/C6 | git-diff scope + harness_log note | no product-code file touched (assert via `git diff --stat`); **Main** appends the Peder-review-of-qa.md note to `harness_log.md` | C5, C6 | CLAUDE.md "Separation of duties on agent edits" |
+Measured from `/Users/ford/.openclaw/workspace/pyfinagent/.venv/bin/python -m importlib.metadata`:
 
-### 2a. Severity dispatch for the `illusory-guard` heuristic (leg c)
+| Package | Installed |
+|---|---|
+| fastapi | **0.135.2** |
+| starlette | **1.0.0** |
+| uvicorn | 0.42.0 |
+| anyio | 4.13.0 |
+| pydantic | 2.12.5 |
 
-Align to the skill's existing BLOCK/WARN/NOTE table:
-- **BLOCK** when the illusory guard is the **SOLE** coverage for a
-  behavioral/money-path criterion (shapes 5, 6, 7, 8; and a source-scan
-  that is the only guard for a runtime behavior).
-- **WARN** when a real behavioral guard exists alongside but the scan is
-  **mislabeled** as behavioral (the 75.3 rename-the-overclaiming-test fix).
-- **Negation list (legitimate, do NOT flag):** a source scan that is
-  **criterion-mandated verbatim** ("source no longer contains X") when
-  **paired** with a behavioral guard; a scan of a **statically unreachable
-  dead branch** where no runtime behavior exists to observe (75.3
-  `compute_dsr_real` — a scan is the only possible guard). This negation
-  list is REQUIRED so the heuristic itself is not over-broad.
+## Finding A1 (from installed source, definitive) — the middleware stack order
+
+`.venv/lib/python3.14/site-packages/starlette/applications.py:57-77`:
+
+```python
+def build_middleware_stack(self) -> ASGIApp:
+    debug = self.debug
+    error_handler = None
+    exception_handlers: dict[Any, ExceptionHandler] = {}
+
+    for key, value in self.exception_handlers.items():
+        if key in (500, Exception):
+            error_handler = value
+        else:
+            exception_handlers[key] = value
+
+    middleware = (
+        [Middleware(ServerErrorMiddleware, handler=error_handler, debug=debug)]
+        + self.user_middleware
+        + [Middleware(ExceptionMiddleware, handlers=exception_handlers, debug=debug)]
+    )
+
+    app = self.router
+    for cls, args, kwargs in reversed(middleware):
+        app = cls(app, *args, **kwargs)
+    return app
+```
+
+and `applications.py:98-101`:
+
+```python
+def add_middleware(self, middleware_class, *args, **kwargs) -> None:
+    if self.middleware_stack is not None:  # pragma: no cover
+        raise RuntimeError("Cannot add middleware after an application has started")
+    self.user_middleware.insert(0, Middleware(middleware_class, *args, **kwargs))
+```
+
+Two consequences, both load-bearing for this step:
+
+1. `ServerErrorMiddleware` is **hardcoded as the outermost layer** — it is
+   prepended to `user_middleware`, so no `add_middleware` call can ever get
+   outside it. `CORSMiddleware` is a *user* middleware and is therefore always
+   INSIDE it. The suspected root cause in the step text is **CONFIRMED from
+   source**, not inferred.
+2. `add_middleware` **inserts at index 0**, so *later* registration = *more
+   outer*. In this app CORS is registered first (`backend/main.py:485`) and the
+   auth middleware second (`:509`), which makes the real order
+   **outermost -> innermost**:
+   `ServerErrorMiddleware -> auth_and_security_middleware -> CORSMiddleware -> ExceptionMiddleware -> router`.
+   i.e. **CORSMiddleware is INSIDE the auth middleware**, not outside it.
+
+## Finding A2 (from installed source, definitive) — `@app.exception_handler(Exception)` does NOT fix this
+
+`applications.py:62-66` routes any handler keyed on `500` **or** `Exception`
+into `error_handler`, which is passed to **`ServerErrorMiddleware`** —
+the OUTERMOST layer. So a catch-all `@app.exception_handler(Exception)`
+response is produced *outside* `CORSMiddleware` and *outside*
+`auth_and_security_middleware`; it gets **no CORS headers, no OWASP headers,
+no PerfTracker record**. It changes the body from `Internal Server Error`
+to JSON and nothing else. This is the long-standing encode/starlette#1175
+behaviour and it is still true on starlette 1.0.0.
+
+`.venv/.../starlette/middleware/errors.py:163-186` (verbatim):
+
+```python
+try:
+    await self.app(scope, receive, _send)
+except Exception as exc:
+    request = Request(scope)
+    if self.debug:
+        response = self.debug_response(request, exc)
+    elif self.handler is None:
+        response = self.error_response(request, exc)
+    else:
+        if is_async_callable(self.handler):
+            response = await self.handler(request, exc)
+        else:
+            response = await run_in_threadpool(self.handler, request, exc)
+
+    if not response_started:
+        await response(scope, receive, send)
+
+    # We always continue to raise the exception.
+    # This allows servers to log the error, or allows test clients
+    # to optionally raise the error within the test case.
+    raise exc
+```
+
+Note the final `raise exc`: **ServerErrorMiddleware always re-raises** so
+uvicorn logs the traceback. Any fix that catches the exception lower in the
+stack must log it explicitly or `backend.log` loses the traceback
+(do-no-harm item, see Risk section).
+
+## Finding A3 — official Starlette docs CONFIRM this is by-design, and name the fix
+
+`https://raw.githubusercontent.com/Kludex/starlette/main/docs/middleware.md`
+(read in full 2026-07-25; the Starlette repo now lives under `Kludex/starlette`
+and the docs site is `starlette.dev` — `starlette.io` still resolves):
+
+- On `ServerErrorMiddleware`: *"This is **always** the outermost middleware
+  layer."*
+- Documented stack: `ServerErrorMiddleware -> [user middleware] -> ExceptionMiddleware -> Routing -> Endpoint`.
+- The docs explicitly call out our exact defect: *"it's important to ensure
+  that CORS headers are applied even to error responses generated by unhandled
+  exceptions"*, and the documented remedy is to **wrap the entire application**
+  in `CORSMiddleware` from OUTSIDE (i.e. `app = CORSMiddleware(app, ...)`,
+  not `app.add_middleware`), because *"This approach guarantees that even if an
+  exception is caught by ServerErrorMiddleware (or other outer error-handling
+  middleware), the response will still include the proper
+  `Access-Control-Allow-Origin` header."*
+- Also relevant to any Route/Mount-scoped middleware: *"middleware used in this
+  way is not wrapped in exception handling middleware like the middleware
+  applied to the `Starlette` application is."*
+
+## Finding A4 — upstream position: WON'T-DOC, WON'T-FIX (as of 2026)
+
+- `https://github.com/Kludex/starlette/issues/1175` (read in full): custom
+  500/`Exception` handlers do not run through middleware, because `Exception`
+  and `500` are special-cased in `build_middleware_stack`. Four fixes were
+  proposed by the reporter; the issue is **CLOSED** with no upstream change.
+  The workaround endorsed in-thread is an HTTP middleware that wraps
+  `call_next(request)` in `try/except Exception` and returns a `JSONResponse`.
+- `https://github.com/fastapi/fastapi/discussions/13398` (read in full;
+  opened 2025-02-20 against FastAPI 0.115.8 / Pydantic 2.10.6 / py3.12.7) —
+  "Is there any plan to document that CORS headers are not applied in
+  ServerErrorMiddleware?" **Kludex (FastAPI collaborator): "No plans."**
+  He suggests uvicorn should eventually ship native CORS and welcomes a PR to
+  document it in Starlette. The asker's own workaround hardcodes
+  `headers={"access-control-allow-origin": "*"}` — **exactly what criterion 4
+  forbids**; do not copy that snippet.
+- `https://fastapi.tiangolo.com/tutorial/handling-errors/` (read in full):
+  documents `@app.exception_handler(...)`, overriding `StarletteHTTPException`
+  and `RequestValidationError`, and reusing the default handlers. It contains
+  **no mention of CORS or middleware interaction at all** — so the "just add a
+  catch-all exception handler" instinct a reader would take from the official
+  tutorial does NOT solve this (see Finding A2).
+
+## Finding A5 — recency scan (2024-2026)
+
+Searched the last-2-year window explicitly. **Result: the behaviour is
+unchanged and upstream has decided not to fix it; two 2025 threads and the
+2026 Starlette 1.0 release confirm it still holds.** Detail:
+
+| When | Source | Finding |
+|---|---|---|
+| 2024-10-15 -> 2025-10-28 | Starlette release notes 0.40.0 -> 0.49.0 | No change to the `ServerErrorMiddleware`-outermost rule. Middleware-adjacent entries are unrelated: 0.46.0 "Raise exception from background task on BaseHTTPMiddleware"; 0.49.0 "Do not pollute exception context in `Middleware` when using `BaseHTTPMiddleware`". |
+| 2025-02-20 | fastapi discussion #13398 | Kludex: **"No plans"** to document it in FastAPI. |
+| 2025-11-08..11 | fastapi discussion #14313 (read in full) | Same defect re-reported (`ValueError` no CORS, `AssertionError` with a handler does get CORS). YuriiMotov confirms the ExceptionMiddleware-vs-ServerErrorMiddleware split, offers (1) wrap the app in `CORSMiddleware(app=app, ...)`, (2) register handlers for **specific** exception types rather than bare `Exception`. **No final accepted answer**; "acknowledged the design isn't ideal". |
+| 2026-02-23 (rc1) / 2026-03-22 (1.0.0) | Starlette 1.0.0 release notes | 1.0 removed `@app.exception_handler()` and `@app.middleware()` **decorators from Starlette** (FastAPI keeps its own — see A6), removed `on_event`, added "Return explicit origin in CORS response when credentials are allowed". **`build_middleware_stack` still hardcodes `ServerErrorMiddleware` outermost** (verified in the installed 1.0.0 copy, Finding A1). |
+
+Net: nothing in the last two years supersedes the analysis; the newest
+(2026-03) Starlette major release preserves the exact ordering.
+
+## Finding A6 — the decorators this app uses still exist (FastAPI, not Starlette)
+
+Starlette 1.0.0 removed `@app.middleware()` / `@app.exception_handler()` from
+`starlette.applications.Starlette`, but **FastAPI re-implements both** —
+verified in the installed copy:
+`fastapi/applications.py:4600 def middleware(...)`,
+`fastapi/applications.py:4646 def exception_handler(...)`.
+So `backend/main.py:509 @app.middleware("http")` is safe on this pin, and a
+new `@app.exception_handler(...)` would also be accepted (it just would not
+solve the problem — A2). FastAPI 0.135.2 also **overrides**
+`build_middleware_stack` (`fastapi/applications.py:1018-1060`) purely to add
+`AsyncExitStackMiddleware` **inside** `ExceptionMiddleware`; the
+`ServerErrorMiddleware`-first / user-middleware / `ExceptionMiddleware` order
+is byte-identical to Starlette's.
+
+## Finding A7 — browser network-error strings (criterion 3)
+
+| Engine | `TypeError.message` on a failed `fetch()` |
+|---|---|
+| Safari / WebKit | **`Load failed`** |
+| Chrome / Edge / Chromium | `Failed to fetch` |
+| Firefox / Gecko | `NetworkError when attempting to fetch resource.` |
+| axios (any engine) | `Network Error` |
+
+Source: TrackJS error-reference page for `Load failed` (read in full,
+2026-07-25) — *"a connection failure, not a server response"*, i.e. the
+request never reached the server **or the response was blocked** (a
+CORS-blocked response is indistinguishable from an unreachable host at the JS
+layer — which is precisely why the current api.ts message is wrong).
+Corroborated by the WebKit-tracking threads found in search (hotwired/stimulus
+#782 "Load failed errors when sending fetch requests in Safari on iOS";
+Apple Developer Forums thread 771127 "fetch fails with 'Load failed'").
+**Stability/localisation:** no authoritative source states the string is
+API-stable or localised; the WHATWG Fetch spec only mandates rejecting with a
+`TypeError` and leaves the message implementation-defined. Practical
+consequence for the fix: match a **set** of substrings and keep the generic
+`throw new Error(...)` fallback at the end (never make correctness depend on
+the string alone).
 
 ---
 
-## 3. Vacuity analysis of 75.18's OWN criteria + verification command
+# B. Internal code inventory (all line numbers MEASURED 2026-07-25, not inherited)
 
-A doctrine step against vacuous guards must not ship vacuous guards. The
-immutable `verification.command` is **itself three of the anti-patterns**:
+| File | Lines | Role | Status |
+|---|---|---|---|
+| `backend/main.py` | 465-473 | `app = FastAPI(...)`, docs debug-gated | unchanged |
+| `backend/main.py` | 480-482 | `_TAILSCALE_ORIGIN_RE` — the single origin predicate | the allow-list SSOT (criterion 4) |
+| `backend/main.py` | 485-491 | `app.add_middleware(CORSMiddleware, ...)` | registered FIRST -> ends up INNER |
+| `backend/main.py` | 497-506 | `_PUBLIC_PATHS` (8 entries) | auth-skip list |
+| `backend/main.py` | 509-569 | `auth_and_security_middleware` | registered SECOND -> OUTSIDE CORS |
+| `backend/main.py` | 609, 647 | only two app-level routes (`/api/health`, `/api/changelog`) | no probe route exists |
+| `backend/services/perf_tracker.py` | 29-147 | `PerfTracker` + module singleton | sole latency source |
+| `frontend/src/lib/api.ts` | 115-134 | network-error branch | Chromium/Firefox-only strings |
 
-1. `assert 'mutation' in qa.lower()` — **ALREADY TRUE on the unmodified
-   qa.md** (measured: "mutation" appears on 4 lines today). This half-clause
-   passes regardless of whether 75.18 does anything — the family-#3
-   "literal already present" shape.
-2. `'fixture' in qa.lower()` / `'fixture' in pr.lower()` — single-token
-   source-scan (family #1). Measured: "fixture" is **absent** from both
-   files today, so it forces *a* change — but adding the bare word
-   anywhere satisfies it, WITHOUT the doctrine being present or correct.
-3. `'illusory' in sk or 'vacuous' in sk` — **OR-escape-hatch** (family #8),
-   satisfiable by EITHER token alone, anywhere (incl. a comment).
+### B1. Ordered middleware registration (the measured truth)
 
-**Prescription:** the command is immutable and is a *necessary-not-
-sufficient* smoke check — keep it, do not edit it. The REAL gate is the six
-prose `success_criteria`, which are semantic ("qa.md **instructs the
-evaluator** to name the concrete mutation…"). The 75.18 Q/A must satisfy
-them the way `scripts/qa/verify_qa_roster_live.sh` satisfies "the section
-is live": that script's `grep -qF` step is necessary, but its **step 3 is a
-behavioral self-disclosure** that the section is actually operative.
-The behavioral analog for a doctrine edit is a **known-member recall test
-(qa.md §4b)**: take ≥1 *already-known* phase-75 vacuous guard from the
-taxonomy above (e.g. instance #3 pop-key, or #8 seed OR-hatch) and confirm
-the NEW qa.md §4c / skill heuristic, read as written, **would flag it**. A
-doctrine that cannot catch its own corpus is `Threshold_Not_Met`. Criterion
-C5 ("no backend/ or frontend/ file changed") is non-vacuously checkable by
-`git diff --name-only HEAD | grep -E '^(backend|frontend)/'` returning empty.
+`backend/main.py` registers, in file order:
+1. `:485-491` `CORSMiddleware(allow_origin_regex=_TAILSCALE_ORIGIN_RE.pattern, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])`
+2. `:509` `@app.middleware("http") auth_and_security_middleware`
+
+Because `add_middleware` **inserts at index 0** (A1), the resulting runtime
+stack is **outermost -> innermost**:
+
+```
+ServerErrorMiddleware            (Starlette, always outermost)
+  auth_and_security_middleware   (BaseHTTPMiddleware, registered LAST)
+    CORSMiddleware               (registered FIRST -> inner)
+      ExceptionMiddleware        (Starlette)
+        AsyncExitStackMiddleware (FastAPI)
+          router / endpoint
+```
+
+> **This corrects a plausible mental model**: `CORSMiddleware` is *not* the
+> outermost user middleware — it sits **inside** the auth middleware. Any fix
+> that returns a response *from inside `auth_and_security_middleware`* is
+> **outside** `CORSMiddleware` and will therefore get **no** automatic CORS
+> headers (this is exactly why the 401 path at `:529-544` has to echo the
+> origin by hand).
+
+### B2. `auth_and_security_middleware` body (verbatim anchors)
+
+- `:512` `path = request.url.path`
+- `:518` auth skip for `OPTIONS` + `_PUBLIC_PATHS`
+- `:519-544` `get_current_user` -> on `HTTPException`, returns a `JSONResponse`
+  that **manually** sets `Access-Control-Allow-Origin` / `-Credentials` /
+  `Vary` **only when `_TAILSCALE_ORIGIN_RE.match(origin)`** (`:536-539`).
+  **This is the in-repo precedent for an allow-list-preserving manual echo.**
+- `:546` `start = time.perf_counter()`
+- `:547` `response: Response = await call_next(request)`  <- **the exception escapes here**
+- `:548` latency computed
+- `:551-558` `get_perf_tracker().record(endpoint, method, status_code, latency_ms, cache_hit)`
+- `:559` `X-Response-Time`
+- `:562-567` the six OWASP headers
+- `:569` `return response`
+
+Everything from `:548` to `:569` is skipped when `call_next` raises —
+confirming both consequences (a) and (b) in the step text at the measured
+line numbers.
+
+### B3. Existing exception handlers: **NONE**
+
+`grep -rn "exception_handler" --include="*.py" backend/` returns **zero
+matches**. There is no catch-all, no `add_exception_handler`, no override of
+FastAPI's default `HTTPException` / `RequestValidationError` handlers. Nothing
+to duplicate or fight — but also nothing to piggyback on.
+
+### B4. CORS config (criterion 4 is entirely about this)
+
+```python
+_TAILSCALE_ORIGIN_RE = re.compile(
+    r"^http://(localhost|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+):\d+$"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=_TAILSCALE_ORIGIN_RE.pattern,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+Not from settings — a module-level hardcoded regex (phase-75.1 security-04
+deliberately made it the single predicate shared with the 401 echo). Note
+`allow_origins` is empty, so in `starlette/middleware/cors.py`:
+- `allow_all_origins = False` -> `simple_headers = {"Access-Control-Allow-Credentials": "true"}` only (`cors.py:39-45`);
+- `send()` (`cors.py:156-174`) adds `Access-Control-Allow-Origin` **only** when `is_allowed_origin(origin)` (`cors.py:98-105`, `fullmatch` on the regex);
+- `__call__` (`cors.py:87-89`) **short-circuits entirely when the request has no `Origin` header** — so header-less curl/CLI callers never see CORS headers (expected).
+
+**Measured baseline (live backend, 2026-07-25 15:53 UTC):**
+
+```
+A) GET /api/paper-trading/portfolio  Origin: http://localhost:3000   -> 200
+   access-control-allow-credentials: true
+   access-control-allow-origin: http://localhost:3000
+   vary: Origin
+   x-response-time: 4060ms
+   x-content-type-options: nosniff
+
+B) GET /api/paper-trading/portfolio  Origin: https://evil.example    -> 200
+   access-control-allow-credentials: true
+   x-content-type-options: nosniff
+   (NO access-control-allow-origin)      <-- criterion-4 BASELINE to preserve
+
+C) GET /api/signals/AAPL             Origin: http://localhost:3000   -> 500
+   date / server / content-length: 21 / content-type: text/plain
+   (NO access-control-allow-origin, NO OWASP headers, NO x-response-time)
+   body: "Internal Server Error"
+```
+
+Note (B): a disallowed origin still receives `access-control-allow-credentials:
+true` (it lives in `simple_headers` unconditionally). **Criterion 4 is about
+`access-control-allow-origin` only** — do not "fix" the credentials header as
+part of this step; changing it is out of scope and would be a behaviour change.
+
+Note (C) also proves the defect is *live right now* and that
+`/api/signals/AAPL` is a genuinely-raising route today (that is step 80.1's
+subject — once 80.1 lands, this route stops being a usable 500 fixture, which
+is exactly why criterion 1 needs a deliberate probe).
+
+### B5. `frontend/src/lib/api.ts` — verbatim, measured line numbers
+
+```ts
+107      let res: Response;
+108      try {
+109        res = await fetch(`${API_BASE}${path}`, {
+110          ...init,
+111          headers,
+112          credentials: "include",
+113          signal: init?.signal ?? controller.signal,
+114        });
+115      } catch (err) {
+116        // Abort / timeout
+117        if (err instanceof DOMException && err.name === "AbortError") {
+118          throw new Error(
+119            `Request to ${path} timed out after 30 seconds. ` +
+120            "The backend may be overloaded or unresponsive."
+121          );
+122        }
+123        // Network-level failure (CORS, DNS, refused, etc.)
+124        const msg = err instanceof Error ? err.message : String(err);
+125        if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+126          throw new Error(
+127            `Cannot reach backend at ${API_BASE}. ` +
+128            "Make sure the FastAPI server is running (uvicorn backend.main:app --port 8000)."
+129          );
+130        }
+131        throw new Error(`Network error calling ${path}: ${msg}`);
+132      } finally {
+133        clearTimeout(timeoutId);
+134      }
+```
+
+and the already-correct server-error branch that criterion 2 depends on:
+
+```ts
+161      if (res.status === 500) {
+162        throw new Error(`Server error on ${path}. Check the backend logs for details.`);
+163      }
+```
+
+**So criterion 2 needs NO frontend change** — `:161-163` already produces a
+non-"backend is down" message. It is unreachable today only because the
+browser never gets a readable response. Fixing the backend (criteria 1) makes
+`:161` fire. Criterion 3 is a separate, additive edit at `:125`.
+
+> **Out-of-scope defect found (queue it, don't silently fix):** three
+> components bypass `apiFetch` and call `fetch()` directly, so they get none
+> of this error handling —
+> `frontend/src/components/ResearchInvestigator.tsx:33` (`/api/investigate`),
+> `frontend/src/components/Sidebar.tsx:155` (`/api/changelog`),
+> `frontend/src/components/StockChart.tsx:94` (`/api/charts/{ticker}`).
+> Per `feedback_queue_discovered_defects_in_masterplan` this deserves its own
+> masterplan step, not a drive-by edit inside 80.2.
+
+### B6. `PerfTracker` — signature and every consumer
+
+`backend/services/perf_tracker.py`:
+```python
+def record(self, endpoint: str, method: str, status_code: int,
+           latency_ms: float, cache_hit: bool = False) -> None
+```
+(`:37-57`; appends a `LatencyEntry` dataclass `:19-26` with `timestamp=time.time()`,
+FIFO-evicted at `max_entries=10_000`; module singleton `_perf_tracker` at
+`:143`, accessor `get_perf_tracker()` at `:146`.)
+
+Consumers (complete list):
+| Consumer | Line | Uses |
+|---|---|---|
+| `backend/main.py` | 552 | the **only writer** |
+| `backend/api/observability_api.py` | 75 | `summarize(window_seconds)` -> `/api/observability/latency`, re-keyed to `p50/p95/p99` (`:87-95`), fail-open to zeros on exception (`:76-86`) |
+| `backend/api/performance_api.py` | 34 | `/api/perf/summary` |
+| `backend/api/performance_api.py` | 40 | `/api/perf/slow` -> `get_slow_endpoints(threshold_ms)` |
+| `backend/services/perf_optimizer.py` | 51, 83 | TTL optimizer baseline + keep/discard measurement (`p95_ms`, `cache_hit_rate_pct`) |
+| `backend/services/autonomous_loop.py` | 1579-1582 | passes the tracker into the cycle |
+
+**What a 500 record must look like to show up in `/api/observability/latency`:**
+just a normal `record(endpoint=path, method=request.method, status_code=500,
+latency_ms=<measured>, cache_hit=False)` inside the 300 s default window.
+`summarize()` does **not** filter by status code at all (`:59-101`), so the
+entry counts toward `total_requests` and the p50/p95/p99 percentiles the
+moment it is recorded. There is **no** per-status breakdown today — an error
+rate cannot be derived from `/api/observability/latency` even after this fix;
+only "the failing endpoint appears in `per_endpoint` with a count" changes.
+(Flagging: if the step wants a visible *error* signal rather than merely a
+non-blind latency series, that is an additive change to `summarize()` and
+should be scoped explicitly, because `perf_optimizer` reads the same dict.)
+
+### B7. Probe route: **does not exist**
+
+`grep -rn "force_500|__force|force-500" --include="*.py" backend/` -> no
+matches. `backend/main.py` defines exactly two app-level routes
+(`:609 /api/health`, `:647 /api/changelog`); there is no debug/raise route in
+any router. **`/api/__force_500_probe` must be created by this step.**
+Constraints found:
+
+- **Auth**: `/api/__force_500_probe` would NOT be in `_PUBLIC_PATHS`, so the
+  auth middleware runs first. The live capture above shows `/api/signals/AAPL`
+  reached its route from a bare localhost curl, i.e. the
+  `DEV_LOCALHOST_BYPASS=1` + `client.host in (127.0.0.1, ::1, localhost)` rail
+  in `backend/api/auth.py:150-152` is active in the running process. So the
+  step's `curl http://localhost:8000/api/__force_500_probe` will reach the
+  route **on this machine** without a token. Do **not** add the probe to
+  `_PUBLIC_PATHS` — that would need a `.claude/rules/security.md` row and
+  widen the unauthenticated surface for zero benefit.
+- **DEBUG is OFF in the running process — MEASURED, decisive.**
+  `curl -s -o /dev/null -w '%{http_code}' localhost:8000/docs` -> **404**;
+  `/openapi.json` -> **404**. So `get_settings().debug is False` live
+  (`backend/main.py:464`). **A debug-gated probe route would 404 and the
+  step's own immutable verification command would fail.** Register the probe
+  **unconditionally**, keep it auth-gated (do NOT add to `_PUBLIC_PATHS`),
+  set `include_in_schema=False`, and have it raise a plain `RuntimeError`
+  with a self-identifying message. If the contract still prefers a gate, it
+  must be a NEW dedicated env flag that is ON in the operator's `.env`, not
+  `DEBUG` — and that trades a doc/ops burden for no security gain over the
+  existing auth gate.
+- **404-vs-500 contrast, measured live** (the cleanest proof of Finding A2):
+  `GET /api/__force_500_probe` (nonexistent today) with
+  `Origin: http://localhost:3000` returns
+  `HTTP/1.1 404 Not Found` **WITH** `access-control-allow-origin:
+  http://localhost:3000`. A 404 is an `HTTPException` handled by
+  `ExceptionMiddleware` (innermost) so `CORSMiddleware` decorates it; the 500
+  bypasses both. Same app, same origin, same curl — only the exception class
+  differs. Use this pair as the before/after evidence in the live_check.
+
+### B8. Test conventions
+
+- Runner: **`python -m pytest`** from the repo root with the venv active
+  (`source .venv/bin/activate`); `pytest.ini` at repo root only registers the
+  `requires_live` marker (`requires_live` tests are skipped unless
+  `PYFINAGENT_LIVE_TESTS=1`). Tests live in `backend/tests/` (158 entries),
+  named `test_phase_<X>_<Y>_<slug>.py`. Per
+  `project_fable5_adoption` the file name must contain the new phase token so
+  a `-k` selection can actually reach it: **`backend/tests/test_phase_80_2_*.py`**.
+- **`TestClient` gotchas that this step will hit:**
+  - `TestClient(app)` defaults to `raise_server_exceptions=True`
+    (`starlette/testclient.py:204`), which **re-raises** the endpoint
+    exception instead of returning a 500. A pre-fix reproduction test must
+    pass `raise_server_exceptions=False`.
+  - `TestClient` reports `request.client.host == "testclient"`, so the
+    localhost bypass never fires in-process — use
+    `backend/tests/auth_helper.py::authed_test_client(app, **kwargs)`
+    (`:77-89`; it forwards `**kwargs` to `TestClient`, so
+    `authed_test_client(app, raise_server_exceptions=False)` works).
+  - The house pattern for importing the real app is a guarded import:
+    `try: from backend.main import app / except ...: pytest.skip(...)`
+    (`backend/tests/test_phase_23_2_13_governance_watcher.py:165-167`);
+    `backend/tests/api/test_sovereign.py:24` imports it unguarded.
+  - `TestClient` sends **no `Origin` header** by default — the assertion must
+    set `headers={"Origin": "http://localhost:3000"}` explicitly, plus a
+    negative case with `Origin: https://evil.example` for criterion 4.
+- **Anti-pattern warning (`feedback_mutation_test_guards_and_fixtures`):**
+  `backend/tests/test_phase_75_deploy_surface.py:397-401` is a *source-scan*
+  CORS test (`assert "Access-Control-Allow-Origin': '*'" not in src`). Do not
+  copy that shape for 80.2 — a source scan cannot see middleware ordering. The
+  only non-vacuous guard here is an **end-to-end request through the real
+  stack** against a route that genuinely raises, asserting header presence for
+  an allowed origin AND header absence for a disallowed one.
+
+### B9. Rule text to cite
+
+- `.claude/rules/security.md`, "## OWASP Headers (all responses)":
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  **`X-XSS-Protection: 1; mode=block`**, `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Cache-Control: no-store`, `Permissions-Policy` (restricted). The heading
+  "(all responses)" is the breached requirement.
+  *Pre-existing doc/code drift, NOT caused by this step and NOT this step's to
+  fix silently:* `backend/main.py:564` sets `X-XSS-Protection: 0` (the modern
+  correct value) while the rule still says `1; mode=block`. Flag it; if 80.2
+  touches the header block, reconciling the doc line is a one-line honest
+  cleanup — but state it explicitly rather than letting the diff imply the
+  rule was already aligned.
+- `.claude/rules/security.md`, "## CORS": *"Allows `localhost:*` and Tailscale
+  CGNAT IPs only (`100.64.0.0/10`, second octet 64-127, RFC 6598) via the
+  single module-level `_TAILSCALE_ORIGIN_RE` in `backend/main.py` — shared by
+  CORSMiddleware `allow_origin_regex` AND the manual 401 CORS echo so the two
+  seams cannot drift (phase-75.1)"*. A third seam would need the same
+  treatment — **prefer a fix that adds no fourth copy of the predicate.**
+- `.claude/rules/backend-api.md:53`: *"OWASP security headers on all responses"*.
+- `.claude/rules/backend-services.md`: *"`perf_tracker.py` — Thread-safe
+  per-endpoint latency recorder. Middleware collects timing..."* — the
+  middleware IS the documented collection point, so a 500 that skips it is a
+  documented-behaviour breach too.
 
 ---
 
-## 4. Separation-of-duties mechanics for the 75.18 Q/A spawn
+# C. Application to pyfinagent — the four candidate fixes, ranked
 
-**The edited qa.md evaluates its own edit.** On the primary Workflow path
-(`qa-verdict.js`) the Q/A "**Read[s] this file (qa.md) from disk at
-runtime**" (qa.md:70) — so the moment Main writes §4c, the very next Q/A
-spawn is bound by the rubric under review (unlike the Agent-tool path,
-which snapshots at session start). Prescription for Main's spawn:
+| # | Approach | Criterion 1 (CORS on 500) | Criterion 4 (allow-list intact) | Fixes PerfTracker + OWASP? | Blast radius |
+|---|---|---|---|---|---|
+| **C1** | **New catch-all middleware registered BEFORE `add_middleware(CORSMiddleware)` so it lands INSIDE CORS** | YES — `CORSMiddleware.send` decorates it like any normal response | YES — enforced by `CORSMiddleware` itself, **no new copy of the predicate** | YES — the response returns normally through `auth_and_security_middleware`, so `:552` record + `:559`-`:567` headers all run | Low, but depends on a **counter-intuitive registration order** |
+| C2 | `try/except` around `:547 call_next` inside `auth_and_security_middleware` | Only with a **manual origin echo** (this response is outside CORS) | Yes if it reuses `_TAILSCALE_ORIGIN_RE` | YES (fall through to the existing tail) | Low, mirrors the `:536-539` 401 idiom, but creates a **third copy** of the CORS-echo logic |
+| C3 | `app = CORSMiddleware(app, ...)` wrapping (the official Starlette doc answer) | YES | Yes (same regex) | **NO** — response still bypasses auth middleware | Medium/high: rebinds `app` to a non-FastAPI object; breaks `from backend.main import app` consumers, `TestClient` fixtures, later `include_router`, `app.state` |
+| C4 | `@app.exception_handler(Exception)` | **NO** (Finding A2) | n/a | NO | trap — looks right, does nothing |
 
-1. **Evaluate the DIFF against the doctrine GOALS**, not the token-scan.
-   Feed the Q/A the six criteria + the two memory files' operator-ratified
-   wording; instruct it to confirm the PROSE instructs each named behavior
-   (read, don't grep).
-2. **Flag the self-reference explicitly.** The spawn prompt must tell the
-   Q/A it is grading a rubric that now includes the edit under review, and
-   have it apply the NEW §4c vacuity check to the doctrine's own guards
-   (the recall test in §3).
-3. **Hold-flip-for-review disposition (per CLAUDE.md separation-of-duties +
-   the 75.5 precedent).** Doer/judge separation holds for 75.18 itself
-   (Main authors, a SEPARATE Q/A agent evaluates), so 75.18 may flip to
-   `done` on a genuine PASS. The binding constraint is FORWARD: **Main
-   appends a note to `harness_log.md` requesting Peder review of the qa.md
-   edit, and NO later step may depend on the new rubric until that review
-   lands** (criterion C6; mirrors 75.5's operator-approval gate). Do not let
-   the auto-commit sweep the edit into a step that silently relies on it.
+**Recommendation: C1**, with C2 as the fallback if the ordering proves
+fragile. Rationale: C1 is the only option that satisfies all four criteria
+*and* both secondary consequences without duplicating the origin predicate
+(directly honouring the phase-75.1 "two seams cannot drift" rule). The
+resulting stack would be:
+
+```
+ServerErrorMiddleware
+  auth_and_security_middleware        (records + headers, now always reached)
+    CORSMiddleware                    (decorates the 500 -> criterion 1 + 4)
+      <new catch-all>                 (converts the raise into a JSONResponse)
+        ExceptionMiddleware
+          router
+```
+
+Implementation notes for C1:
+- Write it as a **pure-ASGI** middleware (not another `BaseHTTPMiddleware`) —
+  nesting `BaseHTTPMiddleware` adds a task group + contextvar copy per layer,
+  and Starlette 0.46/0.49 changelog entries show this area is still being
+  patched. Mirror `starlette/middleware/errors.py:154-186`: wrap `send`,
+  track `response_started`, and only emit the JSON 500 `if not
+  response_started` (a mid-stream failure cannot be rewritten — say so in the
+  code comment rather than pretending it is covered).
+- **Log the swallowed exception explicitly** (`logger.exception(...)`);
+  otherwise `backend.log` loses the traceback that
+  `ServerErrorMiddleware`'s `raise exc` (`errors.py:186`) currently produces.
+  This is do-no-harm item (iii) and must be asserted in the test, not assumed.
+- Give the response the shape the frontend already expects:
+  `JSONResponse(status_code=500, content={"detail": "..."})` — `api.ts:151-157`
+  reads `body.detail`, and `:161` throws the server-error message. Do **not**
+  include the traceback in the body (phase-75.16 established that traceback
+  leakage to HTTP callers is a defect class in this repo).
+- The registration-order dependency is invisible-by-inspection, so it needs
+  (a) an inline comment at the registration site explaining
+  `add_middleware` inserts at index 0, and (b) an executable ordering
+  assertion, e.g. `[m.cls.__name__ for m in app.user_middleware]`, in
+  addition to the end-to-end header test.
 
 ---
 
-## 5. External research
+# D. Risk / do-no-harm
 
-### Read in full (6; ≥5 floor met — counts toward the gate)
+| Risk | Verdict | Detail |
+|---|---|---|
+| (i) **auth behaviour change** | **Low with C1; a REAL trap with C4/C2-if-sloppy** | The catch-all in C1 sits **inside** `CORSMiddleware`, which is inside `auth_and_security_middleware`, so it runs **after** auth has already decided. It can therefore never convert a 401/403 into a 500. **The inverse trap is real:** `HTTPException(401)` raised *inside a route* is handled by `ExceptionMiddleware` (innermost) and never reaches the catch-all — but a catch-all that naively catches `Exception` and is placed **outside** `ExceptionMiddleware` in a future refactor WOULD swallow `HTTPException` and turn every 401/403/404 into a 500. Mitigation: re-raise `HTTPException` / `StarletteHTTPException` explicitly, and add a regression test that a 401 route still returns 401 and a 404 still returns 404. |
+| (i-b) the `:519-544` manual-401 path | untouched by C1 | It returns *before* `call_next`, so it never traverses the new middleware. Its own CORS echo keeps working. Verify with a no-token request from a non-localhost client if possible. |
+| (ii) **which origins are allowed** | **Zero change under C1** | The allow-list decision stays 100% inside `CORSMiddleware.is_allowed_origin` (`cors.py:98-105`). Under C2 a third copy of the predicate is introduced — that is the drift risk phase-75.1 explicitly closed. **Never** `access-control-allow-origin: *` (criterion 4, and `test_phase_75_deploy_surface.py:397-401` would catch the literal in Cloud-Function code but NOT in `backend/main.py` — that scan reads only `functions/earnings/main.py`). |
+| (iii) **swallowing a useful exception** | **Real; must be actively mitigated** | Today `ServerErrorMiddleware` re-raises (`errors.py:183-186`) so uvicorn prints "Exception in ASGI application" + traceback into `backend.log`. Any lower catcher ends that. Mitigation = `logger.exception` with the path + method, asserted by a caplog test. Also note `DEBUG=true` currently yields the HTML traceback page (`errors.py:167-169`); C1 pre-empts that in debug too — acceptable, but say so. |
+| (iv) **response-shape change for existing consumers** | **Low, and a strict improvement** | Today a 500 is `text/plain` `"Internal Server Error"` (21 bytes, captured live). After C1 it becomes `application/json {"detail": ...}`. `api.ts:151-157` already tries `res.json()` first and falls back to `res.text()`, so both shapes work; `:161` short-circuits on status 500 before `detail` is used. No backend consumer parses 500 bodies (there is no internal HTTP client that calls these routes). |
+| (v) **live paper-trading book** | **No exposure** | Nothing in this step touches `backend/services/paper_trader.py`, the scheduler, or any order path. The one indirect coupling is `perf_optimizer` (`:51,:83`) now seeing 500-latency samples in its p95 — it tunes **cache TTLs only**, never trade parameters. Worth one sentence in the contract; not a book risk. |
+| (vi) **restart required** | YES | Middleware is built once (`applications.py:88-90`, and `add_middleware` raises `RuntimeError` after startup). The fix is inert until the backend is restarted — and `handoff/current/live_check_80.2.md` evidence must be captured **after** that restart, or it will show the old behaviour. |
+| (vii) **new probe route** | Small, bounded | Auth-gated, no data, `include_in_schema=False`. Do not add it to `_PUBLIC_PATHS`. Decide debug-gating against the running process's actual `DEBUG` value (B7) so the immutable verification command can pass. |
 
-| # | Source | Accessed | Kind | Fetched how | Key finding |
-|---|--------|----------|------|-------------|-------------|
-| 1 | Vera-Pérez, Monperrus, Baudry — *A Comprehensive Study of Pseudo-Tested Methods* (arXiv:1807.05030) | 2026-07-24 | peer-reviewed (EMSE) | ar5iv HTML | "A method is **pseudo-tested** … if the test suite **covers** the method and **does not assess any of its effects**" — covered yet no test fails when the body is stripped; present in ALL subjects even high-coverage, ratio 1%–46% |
-| 2 | Betka & Wagner — *Extreme Mutation Testing in Practice* (arXiv:2103.08480) | 2026-07-24 | peer-reviewed | ar5iv HTML | 14% of methods pseudo-tested (291/2041); root causes = **weak tests with NO assertions (8)**, incomplete (3), side-effect-only (14); method-level ("extreme") mutation is the practical unit — 13 min vs 37 min |
-| 3 | *Agentic Uncertainty Reveals Agentic Overconfidence* (arXiv:2602.06948) | 2026-07-24 | preprint (2026) | arxiv HTML | "some agents that succeed only **22%** of the time predict **77%** success"; "**5.5× more likely to confidently predict success on a failing task** than to doubt a successful one"; post-execution info WORSENS calibration (anchors on surface plausibility) |
-| 4 | *ReVeal: Self-Evolving Code Agents via Reliable Self-Verification* (arXiv:2506.11442) | 2026-07-24 | preprint (2025) | ar5iv HTML | intrinsic self-verification → "verbose, blind self-reflection or random guessing"; reliable verification is **grounded in executable tool feedback** (Python interpreter execution), NOT model introspection |
-| 5 | Shai Yallin — *Fake, Don't Mock* | 2026-07-24 | practitioner blog | direct HTML | a hand-rolled stub "might return what the test expects while the **real implementation behaves differently**"; a **fake verified by a contract test against the real type** stays faithful — the exact remedy for instances #5/#6 |
-| 6 | CircleCI — *What is mutation testing?* | 2026-07-24 | vendor eng blog | direct HTML | runtime = mutants × suite-runtime (1000 mutants × 60s ≈ 16h); "**Run mutation tests on a schedule, not on every commit**"; scope to changed files; 60–80% target, not 100% |
+---
 
-### Identified but snippet-only (context; does NOT count toward gate)
+## Search queries run (3-variant discipline, `.claude/rules/research-gate.md`)
+
+| # | Variant | Query |
+|---|---|---|
+| 1 | current-year (2026) | `FastAPI 500 error missing CORS header ServerErrorMiddleware exception handler 2026` |
+| 2 | year-less canonical | `starlette CORSMiddleware exception handler 500 no Access-Control-Allow-Origin` |
+| 3 | year-less canonical | `Safari fetch TypeError "Load failed" WebKit error message network failure` |
+| 4 | last-2-year (2025/2026) | `Starlette 1.0 release notes 2025 2026 breaking changes middleware exception handling` |
+
+---
+
+## Read in full (8; counts toward the gate)
+
+| # | URL | Accessed | Kind / tier | Fetched how | Key finding |
+|---|-----|----------|-------------|-------------|-------------|
+| 1 | https://raw.githubusercontent.com/Kludex/starlette/main/docs/middleware.md | 2026-07-25 | Official docs (T2) | WebFetch | *"This is always the outermost middleware layer"* (ServerErrorMiddleware); documented remedy = wrap the whole app in `CORSMiddleware` |
+| 2 | https://fastapi.tiangolo.com/tutorial/handling-errors/ | 2026-07-25 | Official docs (T2) | WebFetch | Full exception-handler API; **zero** mention of CORS/middleware interaction -> the tutorial leads readers straight into the C4 trap |
+| 3 | https://github.com/Kludex/starlette/issues/1175 | 2026-07-25 | Upstream issue (T2) | WebFetch | Root cause = `Exception`/`500` special-cased in `build_middleware_stack`; CLOSED without fix; endorsed workaround = HTTP middleware `try/except` around `call_next` |
+| 4 | https://github.com/fastapi/fastapi/discussions/13398 | 2026-07-25 | Upstream discussion (T2) | WebFetch | 2025-02-20, FastAPI 0.115.8. Kludex: **"No plans"** to document. Asker's snippet uses `allow-origin: *` — criterion-4 violation, do not copy |
+| 5 | https://github.com/fastapi/fastapi/discussions/14313 | 2026-07-25 | Upstream discussion (T2) | WebFetch | 2025-11-08..11 recurrence; `ValueError` no CORS vs `AssertionError`+handler yes; two workarounds; no accepted answer |
+| 6 | https://raw.githubusercontent.com/Kludex/starlette/main/docs/release-notes.md | 2026-07-25 | Official changelog (T2) | WebFetch | 0.40.0 (2024-10) -> 1.0.0 (2026-03-22): no change to the ordering rule; 1.0 removed the Starlette-level `@app.exception_handler`/`@app.middleware` decorators; "Return explicit origin in CORS response when credentials are allowed" |
+| 7 | https://trackjs.com/javascript-errors/load-failed/ | 2026-07-25 | Industry vendor (T4) | WebFetch | Safari = `Load failed`; Chromium = `Failed to fetch`; Firefox = `NetworkError when attempting to fetch resource`; axios = `Network Error`; *"a connection failure, not a server response"* |
+| 8 | https://developer.apple.com/forums/thread/771127 | 2026-07-25 | Apple-hosted vendor forum (T2/T4) | WebFetch | Independent confirmation of the literal string: Safari iOS 18 rejects with `TypeError` message **`Load failed`**; thread open, no Apple fix |
+
+## Identified but snippet-only (context; does NOT count toward the gate)
 
 | URL | Kind | Why not fetched in full |
-|-----|------|-------------------------|
-| Descartes tool-demo arXiv:1811.03045 | paper | superseded by #1 (same authors, fuller study) |
-| IEEE 10818231 / ACM 3701659 Python mutation-tool comparison | paper | tool-selection detail; snippet gave mutmut 88.5% vs cosmic-ray 82.7% |
-| johal.in mutmut-2026 guide | blog | HTTP 403; CI-policy crux captured from search snippet |
-| qaskills cosmic-ray / mutmut guides | blog | community tier; CI policy already covered by #6 |
-| Wiley STVR 2024 competent-programmer-hypothesis | paper | coupling-effect background; covered by search synthesis |
-| ceaksan LLM agentic failure modes; Zylos LLM-as-judge 2026 | blog | corroborate #3/#4 (self-eval unreliable, cross-eval needed) |
-| arXiv:2601.19088 Hybrid Fault-Driven Mutation Testing for Python | paper | future-tooling; not needed for the manual-matrix verdict |
+|-----|------|------------------------|
+| https://starlette.dev/middleware/ | Official docs | **HTTP 403 to WebFetch** — substituted the identical source markdown (#1) |
+| https://github.com/fastapi/fastapi/issues/775 | Upstream issue | Same defect, 2019 origin thread; superseded by #1175 + #14313 |
+| https://github.com/fastapi/fastapi/issues/4071 | Upstream issue | Duplicate of the same report |
+| https://github.com/fastapi/fastapi/discussions/8658 | Discussion | Duplicate |
+| https://github.com/fastapi/fastapi/discussions/7847 | Discussion | Duplicate |
+| https://github.com/fastapi/fastapi/discussions/8027 | Discussion | Duplicate ("CORS headers on exception handler responses") |
+| https://github.com/encode/starlette/issues/1116 | Upstream issue | "Error are not reported using CORS middleware" — same root cause |
+| https://github.com/Kludex/starlette/discussions/2424 | Discussion | Missing ACAO when origin not allowed — the criterion-4 *expected* behaviour |
+| https://github.com/Kludex/starlette/discussions/2561 | Discussion | `allow-credentials` emitted regardless of origin — explains live capture (B) |
+| https://github.com/Kludex/starlette/issues/810 | Upstream issue | Generic CORS-not-working; not this defect |
+| https://github.com/Kludex/starlette/issues/2625 | Upstream issue | BaseHTTPMiddleware silently swallowing exceptions — relevant caution for C1 |
+| https://docs.bswen.com/blog/2026-02-27-starlette-100-breaking-changes/ | Blog (T3) | Starlette 1.0 breaking-change summary; primary changelog (#6) preferred |
+| https://github.com/hotwired/stimulus/issues/782 | Community issue | Corroborates `Load failed` on iOS Safari |
+| https://www.peterp.me/articles/react-native-type-error-load-failed/ | Blog (T3) | RN-specific `Load failed` write-up |
+| https://discussions.apple.com/thread/256112607 | Community forum (T5) | Safari 18 network flakiness, anecdotal |
 
-### Recency scan (2024–2026) — performed
-
-Searched 2026-frontier + 2025 windows. **New findings that supersede/
-complement the canon:** (a) *Agentic Overconfidence* (2026) quantifies the
-self-eval blind spot the no-self-eval rule assumes — a fresh, citable
-anchor for "agents confidently praise their own work"; (b) *ReVeal* (2025)
-gives the execution-grounded-verification principle that justifies qa.md's
-deterministic-FIRST order and the manual mutation matrix (execute the real
-branch — instance #7's fix); (c) mutmut/cosmic-ray 2026 practice converges
-on "**no new surviving mutants in protected modules**, not a 100% gate,"
-and "don't assert implementation trivia to kill an equivalent mutant." The
-canonical DeMillo/Lipton/Sayward coupling-effect (1978) and
-Goodenough-Gerhart (1975) remain valid; the 2024 STVR reproduction confirms
-the coupling effect holds while the competent-programmer hypothesis is only
-partially supported — which is exactly why the doctrine targets *mutation
-detection*, not a code smell.
-
-### Key findings applied to pyfinagent
-
-1. **"Pseudo-tested" is the academic name for the whole phase-75 root
-   cause.** Definition #1 ("covers the method, does not assess its
-   effects") IS instances #1–#8. The literature's detection method —
-   **strip the body / mutate and require a test to fail** — is precisely
-   the qa.md §4c "name the mutation that makes the guard fail" rule.
-   (Source: 1807.05030 §2.1.)
-2. **Mutate the harness, not just the code.** #5/#6 are the "side-effect
-   methods / weak tests with no assertions" category (2103.08480) one level
-   up: the *test double* had no fidelity. Remedy = contract-test the fake
-   against the real type ("Fake, Don't Mock") → criterion C2's fixture-
-   mutation rule.
-3. **Self-verification must be execution-grounded (ReVeal) and agents are
-   systematically overconfident (2602.06948, 5.5× asymmetry).** This is the
-   external backbone for keeping Q/A a SEPARATE, deterministic-first agent
-   and for the "no such mutation exists = FINDING" rule — the evaluator
-   must EXECUTE the mutation, never reason that a guard "looks
-   behavioral."
-4. **Tool-adoption verdict: the manual matrix is right for this repo; do
-   NOT gate CI on mutmut/cosmic-ray.** Mutation runtime = mutants × suite
-   (CircleCI: ~16h for 1000 mutants); the field consensus is scheduled/
-   scoped runs, not a per-PR blocking gate. pyfinagent's Q/A is a
-   rare-event, per-step, read-only evaluator that already mutates the
-   *specific* guards under review (scoped-to-the-diff by construction) —
-   this is the "extreme/scoped" mutation the literature endorses, done by
-   hand. RECOMMENDATION: keep the manual per-criterion matrix as doctrine;
-   OPTIONALLY queue a *separate* future step for a nightly `mutmut` diagnostic
-   (not a gate) on protected modules (`paper_trader.py`, `risk_engine.py`,
-   `perf_metrics.py`) — out of scope for 75.18 (harness/docs only).
-
-### Consensus vs debate
-
-Consensus: pseudo-tested methods are common even at high coverage;
-mutation (not coverage) measures assertion quality; self-eval is
-unreliable and must be externally grounded. Debate: competent-programmer
-hypothesis only partially holds (2024 STVR vs Gopinath) — doesn't affect
-the doctrine, which relies on the *coupling effect* (well-supported).
-
-### Pitfalls (from literature)
-
-- Killing a mutant by **exception** (crash) rather than **assertion** can
-  still be weak (mutmut research: "killed by exception" ≠ meaningful
-  assertion). qa.md §4c should prefer assertion-kills for behavioral guards.
-- **Equivalent mutants**: "no such mutation exists" can be legitimate for a
-  statically-unreachable branch (75.3 dead `compute_dsr_real`) — the
-  negation list (§2a) must carve this out or the rule over-fires.
-- Do NOT "assert implementation trivia to kill an equivalent mutant" — that
-  makes the suite worse (CircleCI/mutmut). The rule is *behavioral effect*,
-  not line-coverage.
+Unique URLs collected: **23** (8 read in full + 15 snippet-only).
 
 ---
 
-## 6. Internal code inventory
+## Research Gate Checklist
 
-| File | Lines | Role | Status for 75.18 |
-|------|-------|------|------------------|
-| `.claude/agents/qa.md` | 447 | Q/A evaluator prompt; §4b claim-auditing already present; §4 anti-rubber-stamp mutation bullet | EDIT: add §4c (legs a,b). Contains "mutation" (4×), NO "fixture" |
-| `docs/runbooks/per-step-protocol.md` | 353 | Orchestration sequence; §4 EVALUATE | EDIT: fixture line in §4 (leg b) + "Measure before asserting" subsection (leg d). NO "fixture" today |
-| `.claude/skills/code-review-trading-domain/SKILL.md` | 244 | Ranked heuristics; Dim-4 has `tautological-assertion`/`over-mocked-test`/`rename-as-refactor` | EDIT: add `illusory-guard` #17 + severity + negation (leg c). NO "illusory"/"vacuous" today |
-| `scripts/qa/verify_qa_roster_live.sh` | 83 | grep + git + behavioral self-disclosure | REFERENCE model for non-vacuous heading verification (§3) |
-| `feedback_mutation_test_guards_and_fixtures.md` | memory | operator-ratified wording for legs a/b/c | ALIGN qa.md §4c + skill to this verbatim; it names 75.18 as the codification step |
-| `feedback_measure_dont_assert_claims.md` | memory | operator-ratified wording for leg d | ALIGN per-step-protocol subsection to this |
-
-Boundary check (C5): all four edit targets are under `.claude/` or
-`docs/` — zero `backend/` or `frontend/` files. `git diff --name-only HEAD
-| grep -E '^(backend|frontend)/'` must return empty.
-
----
-
-## 7. Research Gate Checklist
-
-Hard blockers — all satisfied:
-- [x] ≥5 authoritative external sources READ IN FULL via WebFetch (6)
-- [x] 10+ unique URLs total (≈50 across 5 searches + 6 fetches)
-- [x] Recency scan (2024–2026) performed + reported
+Hard blockers:
+- [x] >=5 authoritative external sources READ IN FULL via WebFetch — **8**
+- [x] 10+ unique URLs total — **23**
+- [x] Recency scan (last 2 years) performed + reported — Finding A5 (2024-10 -> 2026-03)
 - [x] Full pages read (not abstracts) for the read-in-full set
-- [x] file:line anchors for every internal claim (critiques cited by cycle)
+- [x] file:line anchors for every internal claim — §B, all re-measured today
 
 Soft checks:
-- [x] Internal exploration covered qa.md, per-step-protocol, skill, memories, verify script, 4 primary critiques + harness_log map
-- [x] Contradictions / consensus noted (competent-programmer debate)
-- [x] Claims cited per-claim
+- [x] Internal exploration covered every module the caller named (main.py, api.ts, perf_tracker + all 6 consumers, tests, both rule files) plus the installed starlette/fastapi sources
+- [x] Contradictions / consensus noted (official docs recommend app-wrapping = C3; upstream threads recommend middleware try/except = C2; this brief recommends C1 and says why both others fall short here)
+- [x] All claims cited per-claim
+- [x] Live reproduction captured against the running backend rather than inferred
 
----
-
-## 8. JSON envelope
+Deviations to disclose: this brief is **~5.5K words, well over the
+`moderate` tier's <=700-word guidance**. The overrun is deliverable-driven,
+not padding — the caller requested verbatim quotes of the middleware body,
+`api.ts:107-134`, the CORS config, six PerfTracker consumers, two rule files,
+and a ranked fix comparison. Compressing would have meant dropping requested
+material. Flagging it rather than silently rescoping. Also: source #7 is tier-4 (vendor error-reference) and #8 is
+an Apple-hosted developer forum thread — used only for the browser
+error-string question, where no tier-1/2 source enumerates per-engine message
+text (the WHATWG Fetch spec mandates only `TypeError`). The six sources
+carrying the load-bearing middleware findings are all tier-2 (official docs,
+official changelog, upstream issue trackers) **plus** the installed source
+code itself, which is the strongest evidence available and is quoted verbatim
+in Findings A1/A2.
 
 ```json
 {
-  "tier": "complex",
-  "external_sources_read_in_full": 6,
-  "snippet_only_sources": 7,
-  "urls_collected": 50,
+  "tier": "moderate",
+  "external_sources_read_in_full": 8,
+  "snippet_only_sources": 15,
+  "urls_collected": 23,
   "recency_scan_performed": true,
-  "internal_files_inspected": 13,
+  "internal_files_inspected": 14,
   "coverage": {
     "audit_class": false,
-    "rounds": 2,
+    "rounds": 1,
     "dry_rounds": 0,
     "K_required": 2,
-    "new_findings_last_round": 5,
+    "new_findings_last_round": 0,
     "dry": false
   },
-  "summary": "Built the complete 11-shape guard-vacuity taxonomy (families 1-6 from 75.3/75.2.1 per the step text, plus 7 re-implemented-test/75.14, 8 OR-escape-hatch/75.15, 9 executor-environment/75.7+75.5, 10 hand-derived-scope-staleness, 11 mis-attributed-kill-mechanism/75.7) with verbatim-critique cycle citations, plus the measure-before-assert companion doctrine (3 false claims + comment-literal rule). Mapped the four codification legs onto qa.md new sec4c (per-criterion mutation naming + fixture-mutation), per-step-protocol sec4 + a Measure-before-asserting subsection, and the code-review skill illusory-guard ranked heuristic with BLOCK/WARN severity + negation list -- each in ONE file, cross-linked. External: pseudo-tested-methods (Vera-Perez), extreme mutation in practice, agentic overconfidence 2026 (22->77pct, 5.5x asymmetry), ReVeal execution-grounded verification, Fake-Dont-Mock fixture fidelity, CircleCI mutation cost. Tool-adoption verdict: KEEP the manual per-criterion matrix (scoped-by-construction), do NOT gate CI on mutmut/cosmic-ray (runtime=mutants x suite). CRITICAL: 75.18's own verification command is itself vacuous -- 'mutation' already in qa.md, and the skill clause is an OR-escape-hatch -- so the six prose criteria are the real gate and must be met via a known-member recall test against the phase-75 corpus. Separation of duties: the Workflow Q/A reads qa.md from disk at runtime so it grades its own edit; flag the self-reference, evaluate the diff vs goals, and Main holds forward-dependence for Peder review.",
-  "brief_path": "handoff/current/research_brief_75.18.md",
+  "summary": "Root cause CONFIRMED from the installed source, not inferred: starlette 1.0.0 applications.py:57-77 hardcodes ServerErrorMiddleware as the outermost layer and routes any handler keyed on 500/Exception into it, so a catch-all @app.exception_handler(Exception) is ALSO outside CORSMiddleware and does NOT fix this (the C4 trap). Measured registration order in backend/main.py is ServerError -> auth_and_security_middleware(:509) -> CORSMiddleware(:485) -> ExceptionMiddleware -> router, i.e. CORS is INSIDE the auth middleware, so a fix returning a response from the auth middleware still needs a manual origin echo. Recommended C1: a pure-ASGI catch-all registered BEFORE add_middleware(CORSMiddleware) so it lands inside CORS -- CORSMiddleware then enforces the allow-list itself (criterion 4, no fourth copy of _TAILSCALE_ORIGIN_RE) and the response returns normally through the auth middleware, restoring PerfTracker(:552) and the OWASP headers(:562-567). Live-measured: DEBUG is OFF (docs 404) so the probe route must NOT be debug-gated; no probe route exists yet; no exception handler exists anywhere in backend/; api.ts:161 already emits a correct 500 message so only :125 needs the Safari 'Load failed' string. Do-no-harm: must logger.exception (ServerErrorMiddleware's raise exc currently feeds backend.log) and must re-raise HTTPException so 401/404 cannot become 500.",
+  "brief_path": "handoff/current/research_brief.md",
   "gate_passed": true
 }
 ```
+

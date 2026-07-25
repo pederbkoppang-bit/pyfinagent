@@ -68,6 +68,8 @@ class PerfTracker:
                 "total_requests": 0,
                 "p50_ms": 0, "p95_ms": 0, "p99_ms": 0,
                 "cache_hit_rate_pct": 0,
+                "error_count": 0,
+                "error_rate_pct": 0,
                 "per_endpoint": {},
             }
 
@@ -75,24 +77,38 @@ class PerfTracker:
         cache_hits = sum(1 for e in recent if e.cache_hit)
         hit_rate = cache_hits / len(recent) * 100
 
+        # phase-80.2: status_code was recorded but then discarded here, so
+        # an error rate was underivable from /api/observability/latency --
+        # a 500 storm looked identical to healthy traffic, just with a
+        # slightly different p95. Surfacing it is ADDITIVE: no existing key
+        # is renamed, removed, or changed in meaning, because
+        # perf_optimizer.py:51,83 reads p95_ms/cache_hit_rate_pct out of
+        # this same dict.
+        errors = [e for e in recent if e.status_code >= 500]
+
         # Per-endpoint breakdown
-        by_endpoint: dict[str, list[float]] = {}
+        by_endpoint: dict[str, list[LatencyEntry]] = {}
         for e in recent:
-            by_endpoint.setdefault(e.endpoint, []).append(e.latency_ms)
+            by_endpoint.setdefault(e.endpoint, []).append(e)
 
         per_endpoint = {}
-        for ep, lats in by_endpoint.items():
-            lats_sorted = sorted(lats)
+        for ep, entries in by_endpoint.items():
+            lats_sorted = sorted(e.latency_ms for e in entries)
+            ep_errors = sum(1 for e in entries if e.status_code >= 500)
             per_endpoint[ep] = {
-                "count": len(lats),
+                "count": len(entries),
                 "p50_ms": round(self._percentile(lats_sorted, 50), 1),
                 "p95_ms": round(self._percentile(lats_sorted, 95), 1),
+                "error_count": ep_errors,
+                "error_rate_pct": round(ep_errors / len(entries) * 100, 1),
             }
 
         latencies_sorted = sorted(latencies)
         return {
             "window_seconds": window_seconds,
             "total_requests": len(recent),
+            "error_count": len(errors),
+            "error_rate_pct": round(len(errors) / len(recent) * 100, 1),
             "p50_ms": round(self._percentile(latencies_sorted, 50), 1),
             "p95_ms": round(self._percentile(latencies_sorted, 95), 1),
             "p99_ms": round(self._percentile(latencies_sorted, 99), 1),

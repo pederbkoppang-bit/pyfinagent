@@ -16,6 +16,8 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.middleware.catch_all_errors import CatchAllServerErrorMiddleware
+
 from backend.api.agent_map import router as agent_map_router
 from backend.api.analysis import router as analysis_router
 from backend.api.auth import get_current_user
@@ -481,6 +483,20 @@ _TAILSCALE_ORIGIN_RE = re.compile(
     r"^http://(localhost|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+):\d+$"
 )
 
+# phase-80.2: catch-all server-error middleware. REGISTRATION ORDER IS
+# LOAD-BEARING AND COUNTER-INTUITIVE -- `add_middleware` INSERTS AT INDEX 0
+# (starlette/applications.py:98-101), so an EARLIER registration ends up
+# FURTHER IN. Registering this before CORSMiddleware is what nests it
+# INSIDE CORS, which is the whole fix: the 500 it returns is a normal
+# response, so CORSMiddleware decorates it (and enforces the allow-list
+# itself -- no second copy of _TAILSCALE_ORIGIN_RE) and the response then
+# returns normally through auth_and_security_middleware, restoring the
+# PerfTracker record and the OWASP headers that an escaping exception
+# skipped. Moving this line below the CORS block silently reverts the fix,
+# so test_phase_80_2_error_response_contract.py asserts the resulting order.
+# Full rationale + the measured 3-variant probe: backend/middleware/catch_all_errors.py.
+app.add_middleware(CatchAllServerErrorMiddleware)
+
 # CORS \u2014 allow the Next.js frontend in dev, production, and Tailscale
 app.add_middleware(
     CORSMiddleware,
@@ -604,6 +620,49 @@ app.include_router(observability_router)
 # phase-10.5.0 Sovereign UI read endpoints
 from backend.api.sovereign_api import router as sovereign_router
 app.include_router(sovereign_router)
+
+
+@app.get("/api/__force_500_probe", include_in_schema=False)
+async def force_500_probe():
+    """Deliberately raise, so the error-response contract is testable.
+
+    phase-80.2. Criterion 1 requires proving the CORS header on a route
+    that GENUINELY RAISES -- a synthetic 204, or a 404, proves nothing,
+    because a 404 is an HTTPException handled by the innermost
+    ExceptionMiddleware and therefore always got CORS headers even before
+    this fix. (Measured 2026-07-25: GET this path while it did not exist
+    returned 404 WITH access-control-allow-origin, while a real 500
+    returned without it. Same app, same curl -- only the exception class
+    differed.)
+
+    Deliberately NOT debug-gated: DEBUG is off in the running process
+    (/docs and /openapi.json both 404), so a debug gate would make this
+    route 404 and the step's own verification command would silently
+    "pass" on the 404's CORS header. Deliberately NOT in _PUBLIC_PATHS
+    either -- it stays behind auth like every other non-public route, so
+    it widens no unauthenticated surface. It reads nothing, writes
+    nothing, and touches no trading state.
+
+    Kept permanently rather than deleted after the step: /api/signals/AAPL
+    stops being a 500 once phase-80.1 lands, and a contract with no
+    fixture rots.
+
+    KNOWN AND ACCEPTED SIDE EFFECT (Q/A finding 5.7): because this route
+    always 500s, every hit writes an ERROR traceback to backend.log AND
+    increments the error_count / error_rate_pct that this same step added
+    to /api/observability/latency -- i.e. the fixture inflates the metric
+    it exists to prove. Nothing polls it today, so the blast radius is
+    nil. It is NOT excluded from the counter on purpose: a 500 is a 500,
+    and special-casing one path would be exactly the kind of quiet
+    exception that makes an error metric untrustworthy. If anything ever
+    starts probing it on a schedule, exclude it at the CALLER, or filter
+    it in the observability read, and say so there.
+    """
+    raise RuntimeError(
+        "phase-80.2 __force_500_probe: deliberate unhandled exception "
+        "used to verify that a 500 carries CORS + OWASP headers and is "
+        "recorded by PerfTracker. This route always raises by design."
+    )
 
 
 @app.get("/api/health")
