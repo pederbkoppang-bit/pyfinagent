@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `ed5c990d` | docs: next-session goal prompt |
 | 2026-07-26 | `9ec84b7f` | docs(36.8): cycle-4 FAIL -- route FIVE, and the fix must be a redesign not a sixth patch |
 | 2026-07-26 | `d9ea01b7` | fix(36.8): FOURTH route -- a parse failure dropped history silently |
 | 2026-07-26 | `cffe25bd` | fix(36.8): the regression had a THIRD route -- glob() hides an unlistable archive dir |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `95e32799` | docs(36.7): cycle-5 verdict recorded as INADMISSIBLE -- evaluator mutated live safety state |
 | 2026-07-26 | `631b1673` | docs(36.12): cycle-3 FAIL transcribed; step stays OPEN with two named blockers |
 | 2026-07-26 | `a0c50af8` | phase-80.40: kill-switch indicator finally has data -- max_drawdown_pct on /performance (Q/A PASS, c |
-| 2026-07-26 | `43d36747` | docs(36.7): cycle-3 FAIL + cycle-4 CONDITIONAL transcribed; queue 36.13 + 36.14 |
 
 ---
 
