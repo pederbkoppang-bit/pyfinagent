@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import re
 import sys
 from pathlib import Path
 
@@ -105,6 +106,13 @@ def test_phase_75_15_newly_marked_tests_carry_requires_live():
         )
 
 
+# phase-80.44: the ONE number this canary protects -- the count of tests carrying
+# the `requires_live` marker. Unlike the collection totals it does NOT move when
+# someone adds an ordinary test, so it is a real invariant rather than a
+# re-baselining chore.
+EXPECTED_REQUIRES_LIVE_DESELECTED = 16
+
+
 def test_backend_not_requires_live_collection_count_is_stable():
     """Pin the exact collected/deselected counts under `-m "not
     requires_live"` (M3 catches un-marking one of the 3 newly-marked
@@ -117,17 +125,33 @@ def test_backend_not_requires_live_collection_count_is_stable():
     assert result.returncode == 0, f"collection failed:\n{result.stdout}\n{result.stderr}"
     tail = result.stdout.strip().splitlines()[-1]
     # pytest --collect-only summary line: "N/M tests collected (K deselected) in Ts"
-    # phase-75.16: baseline moved from 1474/1490 to 1518/1534 -- test_phase_75_
-    # deploy_surface.py added 44 new tests, none carrying requires_live, so the
-    # deselected count (the thing this canary actually protects) is unchanged
-    # at 16 while both totals shift by +44.
-    # phase-75.17: baseline moved from 1518/1534 to 1563/1579 --
-    # test_phase_75_17_verification_paths.py added 45 new tests, none
-    # carrying requires_live, so deselected stays 16 while both totals
-    # shift by +45.
-    assert "1563/1579 tests collected (16 deselected)" in tail, (
-        f"collection count drifted from the phase-75.17 baseline; got: {tail!r}"
+    #
+    # phase-80.44: STOPPED PINNING THE TOTALS. This canary was asserting the literal
+    # "1563/1579 tests collected (16 deselected)", which had gone stale and the gate
+    # was FAILING -- silently non-authoritative for some time. Re-baselining it again
+    # would just restart the treadmill: the file's own comment history records three
+    # previous re-baselines (1474/1490 -> 1518/1534 -> 1563/1579), and every one of
+    # them says the same thing -- "the deselected count is unchanged at 16 while both
+    # totals shift". The totals move whenever ANYONE adds a test; they carry no signal.
+    #
+    # The invariant this canary actually protects is named in its own docstring: M3,
+    # un-marking one of the 3 `requires_live` tests, which would make the DESELECTED
+    # count drop. So assert that, exactly, plus the internal arithmetic. A test added
+    # anywhere no longer breaks the gate, and un-marking a requires_live test still
+    # does -- which is the whole point.
+    m = re.match(r"(\d+)/(\d+) tests collected \((\d+) deselected\)", tail)
+    assert m, f"unrecognised pytest collection summary: {tail!r}"
+    collected, total, deselected = (int(g) for g in m.groups())
+    assert deselected == EXPECTED_REQUIRES_LIVE_DESELECTED, (
+        f"requires_live deselection drifted: expected "
+        f"{EXPECTED_REQUIRES_LIVE_DESELECTED}, got {deselected} -- a test was "
+        f"un-marked or newly marked. Summary: {tail!r}"
     )
+    assert total - collected == deselected, (
+        f"collection arithmetic inconsistent: {collected}/{total} with "
+        f"{deselected} deselected. Summary: {tail!r}"
+    )
+    assert collected > 0, f"nothing collected: {tail!r}"
 
 
 # ---------------------------------------------------------------------------
