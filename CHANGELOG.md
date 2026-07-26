@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `d9ea01b7` | fix(36.8): FOURTH route -- a parse failure dropped history silently |
 | 2026-07-26 | `cffe25bd` | fix(36.8): the regression had a THIRD route -- glob() hides an unlistable archive dir |
 | 2026-07-26 | `6fed95e9` | docs(36.8): correct the matrix table to the measured 29-test baseline |
 | 2026-07-26 | `d03a40f1` | fix(36.8): cycle-1 FAIL was right -- the marker granted authority to an ACCIDENT |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `a0c50af8` | phase-80.40: kill-switch indicator finally has data -- max_drawdown_pct on /performance (Q/A PASS, c |
 | 2026-07-26 | `43d36747` | docs(36.7): cycle-3 FAIL + cycle-4 CONDITIONAL transcribed; queue 36.13 + 36.14 |
 | 2026-07-26 | `e4efdc23` | docs(80.40): cycle-3 FAIL + cycle-4/5 verdicts transcribed; criterion-3 mutation run firsthand |
-| 2026-07-26 | `cfb56572` | feat(36.12): block orders when the kill-switch baselines were lost, instead of silently re-anchoring |
 
 ---
 
+### v6.71.3 — fix(36.8): FOURTH route -- a parse failure dropped history silently (2026-07-26)
+
+- **fix(36.8): FOURTH route -- a parse failure dropped history silently**
 ### v6.71.2 — fix(36.8): the regression had a THIRD route -- glob() hides an unlist... (2026-07-26)
 
 - **fix(36.8): the regression had a THIRD route -- glob() hides an unlistable archive dir**
