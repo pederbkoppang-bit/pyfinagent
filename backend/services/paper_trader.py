@@ -1072,10 +1072,63 @@ class PaperTrader:
         flatten all positions and pause new-order generation. Call this at the
         top of every autonomous cycle BEFORE deciding trades.
         """
-        from backend.services.kill_switch import evaluate_breach, get_state, check_auto_resume
+        from backend.services.kill_switch import (
+            baseline_history_exists,
+            check_auto_resume,
+            evaluate_breach,
+            get_state,
+        )
         portfolio = self.get_or_create_portfolio()
         nav = float(portfolio.get("total_nav") or portfolio.get("starting_capital") or 0.0)
         state = get_state()
+
+        # ── phase-36.12: MEASURE THE ARMED STATE BEFORE MUTATING THE BASELINES ──
+        # Everything below used to run AFTER update_peak/update_sod_nav had already
+        # anchored a missing baseline to today's NAV, so `armed` was structurally
+        # always True here: the flag phase-36.7 added to make a lost baseline visible
+        # could not fire on the one path that actually places orders. A post-rotation
+        # cycle silently forgave the entire real drawdown and reported ARMED AND
+        # HEALTHY.
+        #
+        # THIS PRE-MEASUREMENT IS USED ONLY FOR THE ARMED/PROVENANCE DECISION. The
+        # breach decision below deliberately still runs on the POST-roll state -- see
+        # the comment there. Do not "simplify" by reusing `pre` for the breach.
+        pre = evaluate_breach(
+            current_nav=nav,
+            daily_loss_limit_pct=self.settings.paper_daily_loss_limit_pct,
+            trailing_dd_limit_pct=self.settings.paper_trailing_dd_limit_pct,
+        )
+        pre_armed = bool(pre["armed"])  # direct index: same-process, key always present
+        prior_snap = state.snapshot()
+        # A genuinely NEW book is indistinguishable from a lost-history book by
+        # `armed` alone (both are sod_nav=None, peak_nav=None), so blocking on
+        # `armed` without a provenance test would deadlock every new book. Two
+        # signals, both required to say "new": D1 = no baseline row has ever been
+        # written anywhere; D2 = the book has not traded (nav == starting_capital).
+        # Ambiguity therefore resolves to lost-history -> block, the conservative
+        # direction. Residual, accepted and documented in contract_36.12.md: a book
+        # sitting at exactly its starting capital WITH a wiped audit trail is read as
+        # new and trades one cycle unprotected.
+        starting_capital = float(portfolio.get("starting_capital") or 0.0)
+        # D2 must read the RAW total_nav, never the `nav` computed above. `nav`
+        # falls back to `starting_capital` when total_nav is missing or 0 (the
+        # `or` chain at the top of this function), so a degraded BQ read would
+        # MANUFACTURE nav == starting_capital and declare a real, traded book to
+        # be a first-ever boot -- skipping the block in the UNSAFE direction.
+        # Found by the phase-36.12 cycle-1 Q/A. An unreadable NAV is now simply
+        # not evidence of an untraded book, so the ambiguity resolves to block.
+        raw_nav = portfolio.get("total_nav")
+        try:
+            nav_is_measured = raw_nav is not None and float(raw_nav) > 0
+        except (TypeError, ValueError):
+            nav_is_measured = False
+        untraded = (
+            nav_is_measured
+            and starting_capital > 0
+            and abs(nav - starting_capital) < 0.01
+        )
+        first_ever_boot = untraded and not baseline_history_exists()
+
         # Ratchet the peak upward (monotonic).
         state.update_peak(nav)
         # phase-23.2.19: idempotent daily SOD roll. Re-anchor when either
@@ -1089,16 +1142,29 @@ class PaperTrader:
         if snap.get("sod_nav") is None or snap.get("sod_date") != today:
             state.update_sod_nav(nav, date=today)
 
+        # phase-36.12: the BREACH decision stays on the POST-roll state, and that is
+        # deliberate, not an oversight. The SOD daily roll above is a LEGITIMATE
+        # pre-measurement mutation -- a daily-loss limit is by definition measured
+        # from today's open. Evaluating the breach before the roll would compute
+        # (yesterday_sod - today_nav)/yesterday_sod, i.e. a multi-day move read as a
+        # same-day loss; step 36.9 measured exactly that on this book at 4.0%, which
+        # would fire flatten_all on the first cycle after a restart. Only the
+        # None -> anchor case is the defect, and it is handled by the disarmed block
+        # below. DO NOT blanket-reorder this.
         breach = evaluate_breach(
             current_nav=nav,
             daily_loss_limit_pct=self.settings.paper_daily_loss_limit_pct,
             trailing_dd_limit_pct=self.settings.paper_trailing_dd_limit_pct,
         )
+        # A REAL breach keeps precedence over the disarmed block: with one baseline
+        # present and one missing, the surviving leg must still flatten. Reversing
+        # these two branches would suppress that flatten.
         if breach["any_breached"] and not state.is_paused():
             logger.warning(f"kill_switch: breach detected -- flatten+pause. details={breach}")
             flatten_result = self.flatten_all(reason="kill_switch_auto_flatten")
             state.pause(trigger="limit_breach", details={"breach": breach, "flatten": flatten_result})
-            return {"triggered": True, "breach": breach, "flatten": flatten_result}
+            return {"triggered": True, "blocked": False, "pre_armed": pre_armed,
+                    "breach": breach, "flatten": flatten_result}
 
         # phase-38.1.1: hysteresis evaluation -- only fires when paused + no breach.
         # Default-OFF; operator opts in via settings.kill_switch_auto_resume_enabled.
@@ -1113,7 +1179,61 @@ class PaperTrader:
                 "kill_switch auto-resume action=%s reason=%s seconds_paused=%s",
                 auto_resume["action"], auto_resume["reason"], auto_resume.get("seconds_paused"),
             )
-        return {"triggered": False, "breach": breach, "auto_resume": auto_resume}
+
+        # phase-36.12: UNKNOWN IS NOT HEALTHY. The baselines were missing when this
+        # cycle started and this book has prior history, so the anchor performed
+        # above forgave a drawdown of unknown size. Refuse to place NEW orders for
+        # this cycle and make the anchor visible in the audit trail.
+        #
+        # BLOCK, NOT PAUSE, and that distinction is load-bearing: state.pause()
+        # latches and requires an operator resume, and POST /resume 409s while
+        # `armed` is false -- pausing here would wedge the book (resume needs armed
+        # baselines; the anchor that produces them lives on the path that just
+        # refused to run). This refusal is per-cycle and non-latching, and existing
+        # positions are untouched, matching the module's documented semantics
+        # ("Pause = halt new entries; existing positions kept").
+        if not pre_armed and not first_ever_boot:
+            state.record_lost_history_anchor(
+                prior_sod_nav=prior_snap.get("sod_nav"),
+                prior_peak_nav=prior_snap.get("peak_nav"),
+                anchored_nav=nav,
+                blocked_orders=True,
+            )
+            logger.error(
+                "kill_switch: DISARMED at cycle start on a book WITH history -- "
+                "blocking new orders this cycle. prior_sod=%s prior_peak=%s "
+                "anchored_nav=%.2f. The true high-water mark is NOT recovered here; "
+                "restoring it is step 36.8 and lowering it deliberately needs the "
+                "KS-PEAK-RESET operator token (step 79.6).",
+                prior_snap.get("sod_nav"), prior_snap.get("peak_nav"), nav,
+            )
+            try:
+                from backend.services.observability.alerting import raise_cron_alert_sync
+                raise_cron_alert_sync(
+                    source="kill_switch",
+                    error_type="disarmed_lost_history_block",
+                    severity="P1",
+                    title="Kill-switch DISARMED at cycle start -- new orders BLOCKED",
+                    details={
+                        "prior_sod_nav": str(prior_snap.get("sod_nav")),
+                        "prior_peak_nav": str(prior_snap.get("peak_nav")),
+                        "anchored_nav": f"{nav:.2f}",
+                    },
+                )
+            except Exception as _alert_err:
+                logger.warning(f"kill_switch disarmed-block alert dispatch failed: {_alert_err}")
+            return {
+                "triggered": False,
+                "blocked": True,
+                "block_reason": "kill_switch_disarmed_lost_history",
+                "pre_armed": pre_armed,
+                "pre_breach": pre,
+                "breach": breach,
+                "auto_resume": auto_resume,
+            }
+
+        return {"triggered": False, "blocked": False, "pre_armed": pre_armed,
+                "breach": breach, "auto_resume": auto_resume}
 
     # ── Internal ─────────────────────────────────────────────────
 

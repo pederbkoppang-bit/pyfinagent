@@ -528,6 +528,11 @@ async def get_kill_switch_state():
         # when daily-loss% was last re-anchored (rolls every UTC midnight).
         "sod_date": state.get("sod_date"),
         "peak_nav": state["peak_nav"],
+        # phase-36.12: "lost_history_anchor" means these baselines were anchored to
+        # a day's NAV because their history was unrecoverable -- the switch reads
+        # ARMED, but the drawdown it measures starts from a fiction. Without this
+        # key the post-anchor payload is indistinguishable from a healthy book.
+        "baseline_provenance": state.get("baseline_provenance"),
         "current_nav": nav,
         "breach": breach,
         "thresholds": {
@@ -597,9 +602,17 @@ async def resume_trading(req: KillSwitchActionRequest):
             "not be restored, so neither limit can be verified healthy "
             f"(daily_baseline_missing={breach.get('daily_baseline_missing')}, "
             f"trailing_baseline_missing={breach.get('trailing_baseline_missing')}). "
-            "The next paper-trading cycle re-anchors both baselines; retry after "
-            "it runs, or check handoff/kill_switch_audit.jsonl for sod_snapshot/"
-            "peak_update rows."
+            # phase-36.12: this used to tell the operator to wait for the next cycle
+            # to fix it. That cycle's silent anchor WAS the defect; it now blocks
+            # new orders and records the anchor instead, so the remediation text has
+            # to describe that.
+            "The next paper-trading cycle will BLOCK new orders rather than trade "
+            "on unknown baselines, raise a P1, and write a "
+            "baseline_anchor_on_lost_history row to handoff/kill_switch_audit.jsonl. "
+            "It anchors from TODAY's NAV, which does not recover the real "
+            "high-water mark -- prefer restoring the true baselines from the audit "
+            "archives (step 36.8), or recording the KS-PEAK-RESET operator token "
+            "(step 79.6), over resuming on an anchored value."
         )
     get_api_cache().invalidate("paper:*")
     state = _get_ks_state().resume(trigger="manual")

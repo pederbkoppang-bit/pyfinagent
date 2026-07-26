@@ -178,6 +178,31 @@ describe("KillSwitchPanel -- phase-36.7 disarmed state", () => {
     expect(btn.title).toMatch(/DISARMED/);
   });
 
+  // phase-36.12: the two operator tooltips used to promise "The next cycle
+  // re-anchors them" -- i.e. they recommended the very defect 36.12 fixes. The
+  // /DISARMED/ regex above is satisfied by BOTH the old and the new wording, so it
+  // could not have caught a revert. These assert the rendered DOM text itself.
+  it("the resume-button tooltip describes the BLOCK, not an automatic re-anchor", async () => {
+    await mountPanel({ ...DISARMED, paused: true, pause_reason: "manual" });
+    const btn = screen.getByRole("button", { name: /resume/i }) as HTMLButtonElement;
+    expect(btn.title).toContain("blocks new orders");
+    expect(btn.title).not.toContain("re-anchors them");
+    expect(btn.title).not.toContain("next cycle re-anchor");
+  });
+
+  it("the DISARMED badge tooltip describes the BLOCK, not an automatic re-anchor", async () => {
+    const { container } = await mountPanel(DISARMED);
+    const badge = Array.from(container.querySelectorAll("[title]")).find((el) =>
+      (el.getAttribute("title") ?? "").startsWith("DISARMED:"),
+    );
+    expect(badge, "the DISARMED badge tooltip is not in the DOM").toBeTruthy();
+    const title = badge!.getAttribute("title") ?? "";
+    expect(title).toContain("blocks new orders");
+    expect(title).toContain("baseline_anchor_on_lost_history");
+    expect(title).not.toContain("re-anchors them");
+    expect(title).not.toContain("Resume is blocked until the next cycle");
+  });
+
   it("leaves Resume enabled when armed, paused and healthy", async () => {
     await mountPanel({
       ...ARMED_AT_HIGH_WATER,

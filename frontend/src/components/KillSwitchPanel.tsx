@@ -169,7 +169,10 @@ export function KillSwitchPanel() {
             )}
             title={
               disarmed
-                ? "DISARMED: the loss baselines could not be restored, so neither breach leg can fire. Resume is blocked until the next cycle re-anchors them."
+                ? // phase-36.12: the old text told the operator to wait for the next
+                  // cycle to fix it -- but that cycle's silent anchor WAS the defect.
+                  // It now blocks new orders and records the anchor instead.
+                  "DISARMED: the loss baselines could not be restored, so neither breach leg can fire. The next cycle blocks new orders and writes an audited baseline_anchor_on_lost_history row instead of trading on unknown baselines."
                 : undefined
             }
           >
@@ -218,7 +221,7 @@ export function KillSwitchPanel() {
                 breach.any_breached
                   ? "Cannot resume while a limit is still breached"
                   : disarmed
-                    ? "Cannot resume: kill switch DISARMED (loss baselines unrestorable). The next cycle re-anchors them."
+                    ? "Cannot resume: kill switch DISARMED (loss baselines unrestorable). The next cycle blocks new orders and audits the anchor; restoring the true baselines is the fix, not resuming."
                     : "Resume paper-trading cycle"
               }
               className="rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-900/50 disabled:cursor-not-allowed disabled:opacity-50"

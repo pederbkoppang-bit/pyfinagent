@@ -148,6 +148,14 @@ class KillSwitchState:
     RATCHET (max), matching `update_peak`'s own invariant; `peak_reset` rows
     remain an authoritative downward move."""
 
+    # phase-36.12: CLASS-LEVEL default, not only an instance attribute. Several
+    # test fixtures build a detached state via `object.__new__(KillSwitchState)`
+    # and set the known fields by hand, so a new instance-only attribute would
+    # AttributeError inside `_snapshot_locked` for every one of them. A class
+    # default keeps those constructions working and keeps the key always present
+    # in the snapshot contract.
+    _baseline_provenance: Optional[str] = None
+
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._paused = False
@@ -162,6 +170,13 @@ class KillSwitchState:
         # _auto_resume_alerted_at carries the timestamp of the T+1h pager
         # alert (one-shot per pause-cycle) so we don't spam Slack.
         self._auto_resume_alerted_at: Optional[str] = None
+        # phase-36.12: provenance of the CURRENT baselines. None = ordinary
+        # (anchored on a real first boot, or ratcheted/rolled normally).
+        # "lost_history_anchor" = the baselines were unrestorable and got anchored
+        # to that day's NAV, so the drawdown they measure starts from a fiction.
+        # Latches until a deliberate operator `peak_reset` supersedes it. Display /
+        # audit only -- it gates nothing and changes no threshold.
+        self._baseline_provenance: Optional[str] = None
         self._load_from_audit()
 
     @staticmethod
@@ -253,6 +268,17 @@ class KillSwitchState:
                     # peak_update rows ratchet up from the reset value because the
                     # rows are replayed in `ts` order.
                     self._peak_nav = _coerce_nav(row.get("new_peak"))
+                    # phase-36.12: a deliberate, token-gated operator re-anchor
+                    # supersedes a lost-history anchor -- the operator has now
+                    # chosen the mark, so the baselines are no longer a fiction
+                    # nobody signed off on.
+                    self._baseline_provenance = None
+                elif event == "baseline_anchor_on_lost_history":
+                    # phase-36.12: DOES NOT set any baseline -- `peak_reset` stays
+                    # the only assignment-semantics event. It restores the
+                    # PROVENANCE flag so a restart cannot launder a lost-history
+                    # anchor into a clean-looking ACTIVE badge.
+                    self._baseline_provenance = "lost_history_anchor"
         except Exception as e:
             logger.warning(f"kill_switch: audit load failed: {e}")
 
@@ -293,6 +319,9 @@ class KillSwitchState:
             "peak_nav": self._peak_nav,
             "paused_at": self._paused_at,
             "auto_resume_alerted_at": self._auto_resume_alerted_at,
+            # phase-36.12: None normally; "lost_history_anchor" when the current
+            # baselines were anchored because their history was unrecoverable.
+            "baseline_provenance": self._baseline_provenance,
         }
 
     def snapshot(self) -> dict:
@@ -380,6 +409,40 @@ class KillSwitchState:
                 self._peak_nav = float(nav)
                 self._append_audit("peak_update", nav=self._peak_nav)
 
+    def record_lost_history_anchor(
+        self,
+        prior_sod_nav: Optional[float],
+        prior_peak_nav: Optional[float],
+        anchored_nav: float,
+        blocked_orders: bool,
+    ) -> None:
+        """phase-36.12 (CWE-223, omission of security-relevant information): record
+        that a baseline was anchored because its HISTORY WAS LOST, not because the
+        peak ratcheted.
+
+        `update_peak`'s row carries only `nav` (:381), so an anchor-from-None is
+        forensically identical to a legitimate upward ratchet -- there is no way,
+        from the trail alone, to tell "the peak rose to 24666" from "the peak was
+        lost and re-anchored at 12000". The deliberate form of that act
+        (`reset_peak`) is gated behind an operator token precisely because it is a
+        risk decision; the accidental form was neither gated nor visible.
+
+        INFORMATIONAL ONLY. `_load_from_audit`'s event chain does not consume this
+        name, so replay semantics are byte-unchanged and `peak_reset` remains the
+        only assignment-semantics event. `test_phase_36_12_the_new_event_is_replay_inert`
+        pins that. Step 36.8 (which also wants a distinguishable re-anchor event)
+        should consume this row rather than introduce a second one.
+        """
+        with self._lock:
+            self._baseline_provenance = "lost_history_anchor"
+            self._append_audit(
+                "baseline_anchor_on_lost_history",
+                prior_sod_nav=prior_sod_nav,
+                prior_peak_nav=prior_peak_nav,
+                anchored_nav=float(anchored_nav),
+                blocked_orders=bool(blocked_orders),
+            )
+
     def reset_peak(self, new_peak: float, trigger: str,
                    operator: Optional[str] = None) -> Optional[dict]:
         """phase-69.1 (audit item 2): audited, restart-replayable reset of the
@@ -415,6 +478,40 @@ class KillSwitchState:
 
 
 _state = KillSwitchState()
+
+# phase-36.12: the three events that constitute "a baseline has been anchored at
+# some point in this book's life". Kept next to the probe that reads it so the two
+# cannot drift.
+_BASELINE_EVENTS = frozenset({"sod_snapshot", "peak_update", "peak_reset"})
+
+
+def baseline_history_exists() -> bool:
+    """True iff a baseline row has EVER been written, across every audit source.
+
+    phase-36.12, provenance probe D1. `armed: False` on its own cannot tell a
+    genuinely NEW book (nothing to restore, must be allowed to trade) apart from a
+    book whose history was LOST (everything to restore, and a real drawdown behind
+    it). Both present as `sod_nav=None, peak_nav=None`.
+
+    The canonical shape for this is an on-disk provenance marker written in advance
+    -- Galera's `grastate.dat` / `safe_to_bootstrap` / `seqno: -1`, where the marker's
+    VALUE says whether the state is trustworthy and the node refuses to bootstrap
+    rather than guess. This book has no such marker and cannot retroactively acquire
+    one, so provenance is derived from the audit stream instead.
+
+    READ-ONLY: never writes, never mutates state. Pair it with the caller's own
+    book-provenance signal (nav vs starting_capital); either alone is too weak.
+    On a probe failure this returns True -- "assume history exists" resolves the
+    ambiguity toward blocking, which is the conservative direction.
+    """
+    try:
+        for row in KillSwitchState._read_audit_rows():
+            if row.get("event") in _BASELINE_EVENTS:
+                return True
+    except Exception as e:  # unreadable audit tree must not silently unblock trading
+        logger.warning(f"kill_switch: baseline-history probe failed: {e}")
+        return True
+    return False
 
 
 def get_state() -> KillSwitchState:
@@ -525,7 +622,9 @@ def _log_disarmed_once(sod: Optional[float], peak: Optional[float]) -> None:
     `evaluate_breach` is called by a polled GET, so this must not log on every
     request. Kept free of any network dispatch for the same reason -- the
     operator-visible surfaces are the `armed` flag on the API response, the
-    UNKNOWN badge in the UI, the /resume 409, and this log line.
+    UNKNOWN badge in the UI, the /resume 409, this log line, and (phase-36.12) the
+    autonomous cycle's refusal to place new orders, which emits its own P1 alert
+    plus a `baseline_anchor_on_lost_history` audit row.
     """
     global _disarmed_logged
     if _disarmed_logged:

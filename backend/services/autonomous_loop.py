@@ -136,6 +136,35 @@ def get_session_cost_usd() -> float:
     return _session_cost
 
 
+def cycle_halt_reason(ks_check: dict, is_paused: bool) -> Optional[str]:
+    """Should this cycle skip decide/execute, and why?
+
+    Extracted from `run_daily_cycle`'s Step 5.5 in phase-36.12 so the wiring that
+    converts a kill-switch verdict into "no orders placed" is BEHAVIOURALLY
+    testable. It was previously an inline three-term boolean, and the only guard
+    on it was a source scan -- which a cycle-1 Q/A defeated by keeping the literal
+    `ks_check.get("blocked")` while neutering it (`and False`). A source scan
+    cannot see that; this function can be called.
+
+    Precedence matters and is asserted by tests: a real breach outranks a
+    lost-history block, which outranks an already-paused state, because the
+    reason is what the operator reads in the log line.
+
+    Returns None when the cycle may proceed.
+    """
+    if ks_check.get("triggered"):
+        return "breach"
+    if ks_check.get("blocked"):
+        # phase-36.12: the third halt reason. A cycle that came up DISARMED on a
+        # book with prior history neither breached nor paused, so the original
+        # two-term condition let it trade on baselines that had just been
+        # silently anchored to today's NAV.
+        return str(ks_check.get("block_reason") or "blocked")
+    if is_paused:
+        return "paused"
+    return None
+
+
 def _min_k_sector_slice(candidates: list[dict], n: int, k: int) -> list[dict]:
     """phase-70.2: pick n candidates that span >=min(k, #distinct-sectors) GICS
     sectors, best-effort, WITHOUT hard-neutralizing the momentum order (S2).
@@ -1284,8 +1313,12 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
             from backend.services.kill_switch import get_state as _ks_state
             ks_check = await asyncio.to_thread(trader.check_and_enforce_kill_switch)
             summary["kill_switch"] = ks_check
-            if ks_check.get("triggered") or _ks_state().is_paused():
-                logger.warning("Paper trading: kill-switch active -- skipping decide/execute")
+            halt_reason = cycle_halt_reason(ks_check, _ks_state().is_paused())
+            if halt_reason:
+                logger.warning(
+                    "Paper trading: kill-switch active (%s) -- skipping decide/execute",
+                    halt_reason,
+                )
                 summary["steps"].append("kill_switch_halted")
                 summary["halted"] = True
                 ks_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
