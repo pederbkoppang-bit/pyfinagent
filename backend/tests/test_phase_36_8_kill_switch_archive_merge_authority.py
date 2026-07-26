@@ -24,6 +24,7 @@ not decorative.
 from __future__ import annotations
 
 import json
+import os
 import threading
 from pathlib import Path
 
@@ -267,7 +268,10 @@ def test_phase_36_8_update_peak_marks_an_anchor_but_not_a_ratchet(ks_tmp_audit):
     rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
     peaks = [r for r in rows if r.get("event") == "peak_update"]
     assert len(peaks) == 2, f"expected 2 rows (anchor + ratchet), got {peaks}"
-    assert peaks[0].get("anchor") is True and peaks[0].get("prior_peak") is None
+    assert peaks[0].get("anchor") is True
+    # `in` before `is None`: dict.get() returns None for a MISSING key, so the
+    # original assertion passed with the field deleted (cycle-2 mutant MX2).
+    assert "prior_peak" in peaks[0] and peaks[0]["prior_peak"] is None
     assert peaks[0]["nav"] == 18000.0
     assert peaks[1].get("anchor") is not True, "a ratchet must NOT be marked as an anchor"
     assert peaks[1]["nav"] == 19000.0
@@ -311,6 +315,64 @@ def test_phase_36_8_a_transient_archive_failure_cannot_destroy_the_true_peak(ks_
     assert ks.KillSwitchState().snapshot()["peak_nav"] == 24666.57
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores chmod, so the probe cannot fail")
+def test_phase_36_8_an_UNLISTABLE_archive_dir_is_incomplete_not_empty(ks_tmp_audit):
+    """The cycle-2 Q/A's finding, as a guard.
+
+    `Path.glob` SWALLOWS a directory PermissionError and returns empty, so an
+    unlistable archive dir looks exactly like an empty one: `is_dir()` stays True and
+    a stat-only check reports a COMPLETE history it never read. The Q/A executed
+    `chmod 000 handoff/audit/` against the real corpus and watched boot C return
+    18000.0 instead of 24666.57 -- the true mark destroyed, unrecoverably.
+    """
+    ks, live, archive = ks_tmp_audit
+    _write(archive / "kill_switch_audit-v3.jsonl",
+           _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
+    _write(live, _row("2026-07-01T10:00:00+00:00", "sod_snapshot", nav=1.0, date="2026-07-01"))
+
+    archive.chmod(0o000)
+    try:
+        state = ks.KillSwitchState()
+        assert state._history_complete is False, (
+            "an archive dir that cannot be listed must NOT report a complete history "
+            "-- glob() returns empty without raising, which is why is_dir() is not enough"
+        )
+    finally:
+        archive.chmod(0o755)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores chmod, so the probe cannot fail")
+def test_phase_36_8_an_unreadable_archive_FILE_is_incomplete(ks_tmp_audit):
+    """The other half of the completeness fix. Mutant MX4 (deleting `complete = False`
+    from the per-file read-failure handler) SURVIVED the cycle-2 suite, so the
+    unreadable-FILE branch had no killing test even though its differential is the
+    same destroyed peak."""
+    ks, live, archive = ks_tmp_audit
+    bad = archive / "kill_switch_audit-v3.jsonl"
+    _write(bad, _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
+    _write(live, _row("2026-07-01T10:00:00+00:00", "sod_snapshot", nav=1.0, date="2026-07-01"))
+
+    bad.chmod(0o000)
+    try:
+        assert ks.KillSwitchState()._history_complete is False, (
+            "a source file that could not be opened means the replay is partial"
+        )
+    finally:
+        bad.chmod(0o644)
+
+
+def test_phase_36_8_the_class_default_for_history_complete_is_conservative():
+    """Mutant MX3 (flipping the class default to True) SURVIVED cycle 2, yet the
+    artifacts credit this default as load-bearing safety. A state built without a
+    replay -- or one whose replay raised -- has verified nothing, so it must not
+    stamp authority."""
+    import backend.services.kill_switch as ks
+
+    assert ks.KillSwitchState._history_complete is False
+    detached = object.__new__(ks.KillSwitchState)
+    assert detached._history_complete is False
+
+
 def test_phase_36_8_an_anchor_after_a_COMPLETE_replay_does_claim_authority(ks_tmp_audit):
     """The other direction, so the gate is not simply 'never mark'. When the replay
     saw every source and genuinely found no peak, the anchor IS intentional and its
@@ -322,7 +384,7 @@ def test_phase_36_8_an_anchor_after_a_COMPLETE_replay_does_claim_authority(ks_tm
     rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
     written = [r for r in rows if r.get("event") == "peak_update"]
     assert written[-1].get("anchor") is True
-    assert written[-1].get("prior_peak") is None
+    assert "prior_peak" in written[-1] and written[-1]["prior_peak"] is None
 
 
 def test_phase_36_8_a_real_replay_sets_history_complete_both_ways(ks_tmp_audit):

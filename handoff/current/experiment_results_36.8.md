@@ -113,7 +113,7 @@ of them selected; measured `pytest -k kill_switch --collect-only | grep -c test_
 `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after every run;
 `git status` clean on both live audit files throughout.
 
-## Mutation matrix — 9 mutations, 9 killed, 0 survivors (baseline `29 passed`, all re-run in one batch after the last test landed)
+## Mutation matrix — 13 mutations, 13 killed (baseline `32 passed`; the four cycle-3 rows re-run after the last test landed)
 
 Counts DERIVED from one batch run at the final baseline. Each mutant asserts its pattern matched
 exactly once and that the source changed; `kill_switch.py` is mutated **in memory** with
@@ -131,6 +131,10 @@ into live safety state today); the housekeeping mutant is on disk with sha256 re
 | **M8** *(the cycle-1 SAFETY REGRESSION)* | stamp authority even when the replay was incomplete | KILLED `1 failed, 28 passed` |
 | **M9** *(rewritten — the first attempt was inert)* | the replay claims a complete history unconditionally | KILLED `1 failed, 28 passed` |
 | M7 | one housekeeping script drops the archive declaration (disk) | KILLED `1 failed, 28 passed`; sha256 restored `516478006960` |
+| **MXL** *(cycle-3 root cause)* | stat the archive dir instead of listing it | KILLED `1 failed, 31 passed` |
+| **MX4** *(cycle-2 survivor)* | per-file read failure not recorded as incomplete | KILLED `1 failed, 31 passed` |
+| **MX3** *(cycle-2 survivor)* | `_history_complete` class default flipped to True | KILLED `1 failed, 31 passed` |
+| **MX2** *(cycle-2 survivor)* | drop `prior_peak=None` from the anchor row | KILLED `2 failed, 30 passed` |
 
 M2 is criterion 2's guard and M1 is criterion 1's — the two directions of the same boundary. M3
 exists because `is True` is a deliberate identity check and a truthiness mutant would otherwise
@@ -205,6 +209,47 @@ command **123 passed, 1 skipped**.
 My first `M9` inserted `_unused = None` — semantically **inert**, so its "survival" carried zero
 information. A mutant that cannot change behaviour is not evidence. Rewritten to make the replay
 claim completeness unconditionally; it dies `1 failed, 28 passed`.
+
+## Cycle-3 follow-up (post-Q/A-2 FAIL) — the regression had a THIRD route
+
+Cycle 2 returned **FAIL** and was right again: my completeness gate closed two doors and missed a
+third. The Q/A executed it against a tmp copy of the real corpus:
+
+```
+chmod 000 handoff/audit/   ->  archive.is_dir() is STILL True
+                           ->  Path.glob() returns EMPTY *without raising*
+                           ->  complete = True   (a history the replay never read)
+                           ->  anchor:true stamped -> boot C = 18000.0
+```
+
+`pathlib.glob` swallows the directory `PermissionError`, so an **unlistable** archive is
+indistinguishable from an **empty** one — and the `except` I was relying on at `:104-105` never even
+fires. My own stated rule ("a brand-new install and a lost mount are indistinguishable, and only one
+is safe") applied to this case too, and I had not applied it.
+
+**Root-cause fix: LIST the directory, do not merely stat it.** `os.listdir(archive)` raises exactly
+where `glob` stays silent. Guarded by `..._an_UNLISTABLE_archive_dir_is_incomplete_not_empty`
+(a real `chmod 000`, skipped under root where chmod is a no-op), and mutant **MXL** — reverting to the
+stat-only check — now dies.
+
+### Three of its six mutants survived mine, and all three are now closed
+
+| its mutant | why it survived | now |
+|---|---|---|
+| **MX4** — delete `complete = False` from the per-file read-failure handler | only the absent-dir branch had a test; the unreadable-FILE half was unguarded although its differential is the same destroyed peak | KILLED `1 failed, 31 passed` — new `..._an_unreadable_archive_FILE_is_incomplete` |
+| **MX3** — flip the `_history_complete` class default to `True` | the artifacts credit that default as load-bearing safety, and nothing pinned it | KILLED `1 failed, 31 passed` — new `..._the_class_default_for_history_complete_is_conservative` |
+| **MX2** — drop `prior_peak=None` from the anchor write | **tautological assertions**: `dict.get("prior_peak") is None` is satisfied by the key being ABSENT, so both assertions passed with the field deleted | KILLED `2 failed, 30 passed` — assertions changed to `"prior_peak" in row and row["prior_peak"] is None` |
+
+MX2 is the one worth remembering: `.get(k) is None` can never detect a missing `k`. Two of my
+assertions were shaped that way and neither could fail.
+
+**Criterion 5 overclaim, acknowledged.** My "9 killed, 0 survivors" met three survivors in one
+independent pass. The Goodenough–Gerhart caveat was already in the artifact and it was still an
+overclaim in substance — the honest form is *"these mutations were killed"*, and the count is only
+ever a lower bound on the guard set, never a statement about the code.
+
+**Also owed and now done:** `live_check_36.8.md` was stale cycle-1 evidence carrying three numbers
+that no longer reproduce; it is refreshed from measurements taken this cycle.
 
 ## Scope honesty
 

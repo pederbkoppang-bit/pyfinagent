@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 
 from backend.utils import json_io
 import logging
@@ -207,7 +208,17 @@ class KillSwitchState:
         try:
             if not archive.is_dir():
                 complete = False
-        except Exception:
+            else:
+                # phase-36.8 (cycle-3): LIST it, do not merely stat it. `Path.glob`
+                # swallows a directory PermissionError and returns EMPTY, so an
+                # unlistable archive dir is indistinguishable from an empty one --
+                # `is_dir()` stays True and the replay would report a COMPLETE
+                # history it never actually read. A cycle-2 Q/A executed exactly that
+                # (`chmod 000 handoff/audit/`) and watched the true 24666.57 be
+                # destroyed. os.listdir raises where glob stays silent.
+                os.listdir(archive)
+        except Exception as e:
+            logger.warning(f"kill_switch: audit archive not listable: {e}")
             complete = False
         for src_idx, path in enumerate(_audit_source_paths()):
             try:
