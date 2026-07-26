@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `65ba2d43` | fix(80.36): the Risk Monitor no longer claims SAFE when it has no data |
 | 2026-07-26 | `839ef5ed` | docs(80.36): verify the navDenom 'latent' claim at source rather than assert it |
 | 2026-07-26 | `425d8e1e` | docs(80.36): pin the fabrication mechanism at source -- all four are one shape |
 | 2026-07-26 | `ff204bf2` | docs(80.11): criterion-3 census RESOLVED -- half the "duplication" is a dev artifact, half is real |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `4bcd60ad` | wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4 FAILS, step stays open |
 | 2026-07-26 | `468bf023` | phase-80.3: [P0 -- WHOLE PAGE NON-FUNCTIONAL] /agent-map (Agent Topology) renders ZERO edges and ... |
 | 2026-07-25 | `6c7fe4f3` | phase-80.31: [P2 -- MISALIGNED PRICE/VOLUME ARRAYS IN THE ANOMALY DETECTOR] backend/tools/anomaly... |
-| 2026-07-25 | `8b1c7158` | phase-80.27: [P0 -- A DATA OUTAGE IS LAUNDERED INTO A TRADING VERDICT THAT REACHES THE LIVE LOOP]... |
 
 ---
 
+### v6.69.21 — fix(80.36): the Risk Monitor no longer claims SAFE when it has no data (2026-07-26)
+
+- **fix(80.36): the Risk Monitor no longer claims SAFE when it has no data**
 ### v6.69.20 — perf(80.11): skip the session probe entirely when the auth cookie is... (2026-07-26)
 
 - **perf(80.11): skip the session probe entirely when the auth cookie is present**
