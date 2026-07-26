@@ -19829,7 +19829,7 @@
         },
         {
           "id": "80.4",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "name": "[P0 -- FALSE ALARM ON THE OBSERVABILITY SURFACE] The MAS Dashboard (/agents) shows a red 'Disconnected' indicator permanently, even though the SSE endpoint is healthy. An operator reading this concludes MAS observability is down when it is not. MEASURED 2026-07-25: `curl -D- -H 'Accept: text/event-stream' 'localhost:8000/api/mas/events?include_buffer=true'` returns HTTP 200 with 'content-type: text/event-stream; charset=utf-8', correct CORS headers and 'x-accel-buffering: no' -- but streams ZERO bytes in 5s. Meanwhile the page renders 'Disconnected' + '0 events | 1 sub'. TWO-SIDED ROOT CAUSE, both pinned: (A) FRONTEND -- frontend/src/lib/hooks/useEventSource.ts sets status='connected' ONLY inside the onMessage handler (line 110). It registers es.addEventListener(eventType, onMessage) at :124 and es.onerror at :126 but NEVER an `onopen` handler, so an open, healthy connection that has simply not yet delivered an event stays 'connecting'; /agents then derives `connected = sseStatus === 'connected'` (app/agents/page.tsx:217) and renders the binary Connected/Disconnected label at page.tsx:309. Connection state is therefore inferred from DATA ARRIVAL rather than from connection establishment. (B) BACKEND -- backend/api/mas_events.py:32-34 event_generator yields ONLY real bus events; it emits no initial comment and no periodic keepalive, so an idle stream is byte-identical to a dead one. Standard SSE practice is a ': ping' comment every ~15s. FIX BOTH: add onopen -> setStatus('connected') AND a server heartbeat. AUDIT BASIS: operator-requested full-surface Playwright MCP audit, 2026-07-25 (@playwright/mcp@0.0.76 as connected this session). Method: isolated skip-auth dev server on :3100 with PLAYWRIGHT_DIST_DIR=.next-audit-3100 so the operator's live :3000 was never touched (verified 302/200 after teardown). Every route AND every tab was visited: / /login /signals /reports(History,Compare) /performance /backtest(Overview,Results,Equity,Features,Optimizer,Harness,Budget) /paper-trading/{positions,trades,nav,reality-gap,exit-quality,manage} /agents(Live Stream,Run History,Agent Map,OpenClaw) /agent-map /cron(Jobs,Logs) /observability /settings(Models,Cost & Weights,Performance) /sovereign /learnings. Captures + the raw network log are archived in handoff/current/captures_ui_audit_2026-07-25/.",
@@ -20373,6 +20373,47 @@
               "No behaviour change to llm_client.py or model_tiers.py -- this is a documentation correction; if the code turns out to be wrong instead, that is a SEPARATE step, not a silent edit here"
             ],
             "live_check": "handoff/current/live_check_80.32.md: the corrected CLAUDE.md paragraph alongside the verbatim code it now describes, plus the list of other claims in that paragraph that were re-verified and their outcomes."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "80.33",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- SSE HOOK LEAKS A RECONNECT AFTER UNMOUNT] frontend/src/lib/hooks/useEventSource.ts:162 schedules a reconnect with `window.setTimeout(connect, delay)` inside the onerror handler but DISCARDS the returned timer handle. Nothing stores it and nothing clears it, so the effect cleanup at :182 (which returns `cleanup`, closing only the CURRENT EventSource) cannot cancel a pending reconnect. A component that unmounts during the backoff window -- 1+2+4+8s of exponential backoff, so a ~15s window on /agents -- will still run `connect()` afterwards, constructing a NEW EventSource against a dead component and leaking the connection. DISCOVERED during phase-80.4 cycle 2 (2026-07-26) while auditing the death-detection path; recorded in handoff/current/live_check_80.4.md section H item 1, and independently confirmed by the 80.4 Q/A (eslint flags the same handler for connect-before-declaration at :162). NOT a false-green risk -- it errs toward MORE connections, never a stuck-green indicator -- which is why it was scoped OUT of 80.4 rather than folded in. DO NOT weaken the phase-80.4 guards while fixing this: 'stops being green on the FIRST error' and the flapping-backend test both live in the same file and must keep passing. FIX SHAPE: hold the handle in a ref, clear it in `cleanup()` or a dedicated unmount effect, and prove it with a test that unmounts mid-backoff and asserts no further EventSource is constructed.",
+          "verification": {
+            "command": "cd frontend && npx vitest run src/lib/hooks/useEventSource.test.ts && npx tsc --noEmit -p tsconfig.json",
+            "success_criteria": [
+              "The reconnect timer handle returned by window.setTimeout in useEventSource.ts onerror is stored (e.g. in a useRef) rather than discarded",
+              "Unmounting the hook clears any pending reconnect timer so no post-unmount connect() runs",
+              "A NEW test unmounts the hook during the backoff window and asserts MockEventSource.instances does not grow afterwards -- this test MUST FAIL against the current implementation before the fix, and the failing output must be recorded verbatim",
+              "The existing useEventSource tests still pass, including the phase-80.4 first-error guard and the flapping-backend guard",
+              "MUTATION-TEST: reverting the handle-clearing must make the new test fail"
+            ],
+            "live_check": "Verbatim vitest output showing the new unmount test FAILING against the pre-fix implementation, then the full suite PASSING after the fix, plus the mutation result."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "80.34",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- IMPURE setState UPDATER DOUBLE-SCHEDULES SSE RECONNECTS] frontend/src/lib/hooks/useEventSource.ts:157-167 performs SIDE EFFECTS inside a setState updater: the `setFailures((prev) => {...})` callback calls `window.setTimeout(connect, delay)`, mutates `backoffRef.current`, and calls `setStatus('disconnected')`. React requires updater functions to be PURE, and Strict Mode deliberately invokes them TWICE to surface impurity. CONSEQUENCE if Strict Mode is on: every onerror schedules TWO reconnect timers and advances the backoff twice, so the real retry cadence does not match the intended 1/2/4/8s schedule. DISCOVERED during phase-80.4 cycle 2 (2026-07-26); recorded in handoff/current/live_check_80.4.md section H item 2. NOT a false-green risk -- it errs toward MORE failures SOONER, so the indicator goes red earlier, never later -- which is why it was scoped OUT of 80.4. IMPORTANT -- DO NOT INHERIT THE DISCOVERING SESSION'S UNVERIFIED PREMISE: the 80.4 artifacts assert 'Next 15 defaults reactStrictMode: true and next.config.js does not override it', and that claim was NEVER MEASURED in 80.4. Criterion 2 below exists to settle it. If Strict Mode turns out to be OFF, the impurity is still a real latent defect worth fixing, but the 'double-scheduling in dev' consequence does NOT currently occur and the step must say so rather than repeating the claim. RELATED: 80.33 (same handler, discarded timer handle) -- may be fixed together, but each needs its own failing-first test.",
+          "verification": {
+            "command": "cd frontend && npx vitest run src/lib/hooks/useEventSource.test.ts && npx tsc --noEmit -p tsconfig.json",
+            "success_criteria": [
+              "The setFailures updater in useEventSource.ts contains NO side effects -- no setTimeout, no ref mutation, no setStatus inside the updater callback",
+              "MEASURE and record the resolved reactStrictMode value for this app by reading frontend/next.config.* and quoting it verbatim -- do NOT assume it is true; state explicitly whether the double-scheduling consequence actually occurs today",
+              "A NEW test invokes the failure path with a double-invoked updater (simulating Strict Mode) and asserts exactly ONE reconnect is scheduled per error -- this test MUST FAIL against the current implementation before the fix, and the failing output must be recorded verbatim",
+              "Backoff advances exactly 1x per error (not 2x), asserted explicitly",
+              "The existing useEventSource tests all still pass, including the phase-80.4 first-error guard and the flapping-backend guard",
+              "MUTATION-TEST: restoring the side effect into the updater must make the new test fail"
+            ],
+            "live_check": "Verbatim vitest output showing the new double-invocation test FAILING pre-fix then PASSING post-fix, the resolved reactStrictMode value quoted from next.config.*, and the mutation result."
           },
           "retry_count": 0,
           "max_retries": 3
