@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `d5a6d392` | fix(80.45): narrow the drawdown claim instead of widening the precision |
 | 2026-07-26 | `5513f4ee` | docs(80.32): correct a CLAUDE.md rule that would have misdirected model pinning |
 | 2026-07-26 | `3f3edd96` | fix(80.44): stop the collection-count canary re-baselining treadmill |
 | 2026-07-26 | `aabfcd23` | docs: agent-memory research gate -- found the orchestrator reading a 4-month-stale MEMORY.md |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `d9ea01b7` | fix(36.8): FOURTH route -- a parse failure dropped history silently |
 | 2026-07-26 | `cffe25bd` | fix(36.8): the regression had a THIRD route -- glob() hides an unlistable archive dir |
 | 2026-07-26 | `6fed95e9` | docs(36.8): correct the matrix table to the measured 29-test baseline |
-| 2026-07-26 | `d03a40f1` | fix(36.8): cycle-1 FAIL was right -- the marker granted authority to an ACCIDENT |
 
 ---
 
+### v6.72.3 — fix(80.45): narrow the drawdown claim instead of widening the precision (2026-07-26)
+
+- **fix(80.45): narrow the drawdown claim instead of widening the precision**
 ### v6.72.2 — fix(80.44): stop the collection-count canary re-baselining treadmill (2026-07-26)
 
 - **fix(80.44): stop the collection-count canary re-baselining treadmill**
