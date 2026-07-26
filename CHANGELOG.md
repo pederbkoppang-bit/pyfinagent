@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `96ffdbab` | fix(80.4): close SSE Disconnected-over-healthy-endpoint -- criterion 4 was a measurement error, not  |
 | 2026-07-26 | `01ea9383` | chore(autoresearch): record background-rail failure artifacts (NOT phase-80.4) |
 | 2026-07-26 | `4bcd60ad` | wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4 FAILS, step stays open |
 | 2026-07-26 | `468bf023` | phase-80.3: [P0 -- WHOLE PAGE NON-FUNCTIONAL] /agent-map (Agent Topology) renders ZERO edges and ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `09fe323c` | fix(79.5): plist KeepAlive did not keep the bridge alive -- found by testing, not assuming |
 | 2026-07-25 | `fc33ea13` | feat(phase-79): install 54 owed OPERATOR ACTIONS as tracked masterplan steps |
 | 2026-07-25 | `0b6d3b07` | phase-76.9.2: PASS -- durable Max-rail routing closed; the blocker was a regression I shipped |
-| 2026-07-25 | `02c43995` | docs(76.9.2): fix the GENERATE artifact contradicting criterion 1, plus three claim-audit defects |
 
 ---
 
+### v6.69.14 — fix(80.4): close SSE Disconnected-over-healthy-endpoint -- criterion... (2026-07-26)
+
+- **fix(80.4): close SSE Disconnected-over-healthy-endpoint -- criterion 4 was a measurement error, not**
 ### v6.69.13 — wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4... (2026-07-26)
 
 - **wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4 FAILS, step stays open**
