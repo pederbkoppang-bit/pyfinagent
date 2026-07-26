@@ -392,8 +392,15 @@ export function RiskMonitorCard({
   // backend/tests/test_phase_75_mcp_truth.py::test_thresholds_are_unchanged), so
   // 80.40 fixes the LABEL and changes NO threshold. Also note the field is
   // ALL-TIME MAX drawdown, a historical extreme that never recovers -- it is not
-  // the CURRENT trailing figure the kill switch trips on, which is a second
-  // reason this row must not claim to be the kill switch.
+  // the CURRENT trailing figure EITHER ladder acts on: ladder A halts on current
+  // trailing DD from a persisted peak, and ladder B's -15 likewise gates on the
+  // CURRENT drawdown, not on the all-time extreme. So the max-vs-current mismatch
+  // applies to BOTH ladders, not only to the kill switch -- an earlier revision of
+  // this comment implied it was a kill-switch-only problem (corrected 2026-07-26
+  // after the cycle-3 Q/A on 80.40). The DIRECTION is conservative: an all-time max
+  // is always at least as deep as the current drawdown, so this row can warn early
+  // but never late. That is why the fix is the label, and why re-pointing the row
+  // at a current-drawdown field is a separate, deliberate change.
   //
   // UNSOURCED: the -13 WARNING tier below matches no constant in the repo
   // (ladder B's middle tier is -10). Left byte-untouched by 80.40 -- flagged,

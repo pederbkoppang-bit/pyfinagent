@@ -52,11 +52,20 @@ presence-check correctly renders when the field is absent. This is the exact cri
 - **`perf` absent → still `NO DATA`:** covered by the existing `80.36` test suite
   (`cockpit-helpers.risk.test.tsx`), re-run in this cycle: **6 passed**, no change to any assertion.
 
-## §E. Teardown
+## §E. Teardown — **PRE-RESTART reading, superseded; not a contradiction of the RESOLVED block**
+
+> **Annotation added cycle 3 (post-Q/A).** Everything in this section was measured **before** the
+> operator-authorized restart recorded at the top of this file. `pid 70791` is therefore the
+> pre-restart pid; the backend is now launchd pid `76381` (measured with
+> `launchctl print gui/$(id -u)/com.pyfinagent.backend` — note that `lsof -ti tcp:8000` is NOT a
+> reliable way to read it, it returns browser connection processes). "Untouched throughout" was true
+> of the rig work described here. The later restart was a separate, authorized action, and it is what
+> made criterion 1 satisfiable on the operator's own instance. Both statements are true of their own
+> moment; this annotation exists so a reader of the archive cannot mistake them for a conflict.
 
 Shared with `36.7` — see `live_check_36.7.md` §G. Confirmed once for both steps: rig torn down,
-tsconfig/next-env restored, operator's `:8000` (200, pid 70791) and `:3000` (302) untouched
-throughout.
+tsconfig/next-env restored, operator's `:8000` (200, pid 70791 at that time) and `:3000` (302)
+untouched throughout.
 
 ## §F. Criteria summary
 
@@ -64,7 +73,7 @@ throughout.
 |---|---|---|
 | 1 | `max_drawdown_pct` present and numeric | **MET** — §B |
 | 2 | computed in `perf_metrics.py` | **MET** — verified by reading the file; no inline computation in `paper_trading.py` |
-| 3 | test pins a known drawdown, fails against a `0`-stub | **MET** — workflow-reported and reproduced |
+| 3 | test pins a known drawdown, fails against a `0`-stub | **MET** — mutation **run by Main**, verbatim `AssertionError: assert 0.0 == -30.0` recorded in `experiment_results_80.40.md` §"Criterion 3 — the 0-stub mutation, RUN BY MAIN". (Cycle-3 correction: this cell previously said "workflow-reported and reproduced", which is a second-hand claim and is exactly what the criterion's "record that failing output verbatim" clause forbids.) |
 | 4 | -15%/10% threshold reconciliation | **MET** — see contract §Criterion 4; label-only fix, no value changed |
 | 5 | `80.36` behaviour unchanged | **MET** — §D |
 | 6 | mutation-tested | **MET**, plus Main's own `R7` addition |
