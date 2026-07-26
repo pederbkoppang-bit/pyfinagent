@@ -136,11 +136,28 @@ The order-blocking half of the demonstration is not visible on this GET at all �
 | 5 | no route to `reset_peak` | **MET** — zero rows + monkeypatched raiser |
 | 6 | per-leg independence preserved | **MET** — `evaluate_breach` byte-untouched; 2 tests |
 | 7 | mutation-test every new guard | **MET as of cycle 4** — 18 mutations, 18 killed on the 23-test suite. `QA-Z1` (the cycle-3 blocker: delete `return summary` from the halt block) is now KILLED `1 failed, 22 passed` by `test_phase_36_12_a_blocked_cycle_really_places_no_orders`, which drives the REAL `run_daily_cycle` and asserts nothing was decided or traded. The three-cycle relocation pattern is retired by executing the composition rather than guarding its shape again. |
-| 8 | all three operator strings revised in the same change | **MET on the strings, INCOMPLETE on the evidence.** All three revised, plus a 4th site the step did not list (`kill_switch.py:527-528`); the grep guard is paired with a behavioural 409 assertion, and two vitest DOM assertions on the rendered `title` attributes were proven falsifiable against HEAD's old strings by an independent evaluator. But **no live Playwright capture exists** for a diff that changes two operator-visible labels, which qa.md §1c requires — attempted, not obtained, see `experiment_results_36.12.md`. |
+| 8 | all three operator strings revised in the same change | **MET.** All three revised, plus a 4th site the step did not list (`kill_switch.py:527-528`); the grep guard is paired with a behavioural 409 assertion, and two vitest DOM assertions on the rendered `title` attributes were proven falsifiable against HEAD's old strings by an independent evaluator. On the §1c capture: measured — `grep -rn 'KillSwitchPanel' frontend/src/` returns the component's own file and **one COMMENT**, so the component is **never mounted** and a live capture of those two tooltips is impossible *by construction*, not merely inconvenient. Only ONE of the step's "three shipped operator-facing strings" (`paper_trading.py:600`) was ever operator-visible; the dead-code question is filed as `36.16`. |
 
-**This step is NOT closed.** Cycle 3 returned FAIL on two open blockers: criterion 7's `QA-Z1`
-survivor (the halt branch BODY) and the missing §1c capture. Everything else in this table was
-verified by an independent evaluator's own execution.
+## §F. The §1c question, resolved
+
+Three cycles asked for a live capture of the two `KillSwitchPanel` tooltips and each gave the same
+reason for its absence — "the live book is armed, so the disarmed branch cannot render". **That
+reason was wrong.** The component is not mounted anywhere, so it would not render on a disarmed book
+either. Found only by building a rig good enough to disprove it (attempt #3, which rendered the full
+cockpit against real data through a read-only proxy — `captures_36.12/36.12_cockpit_live_via_readonly_proxy.png`).
+
+The governing precedent is this session's **phase-36.7 cycle-6** ruling, which was asked the same
+question and answered it explicitly: an **inherently unobtainable** live capture does **not** cap a
+verdict, because qa.md §1c's cap attaches to a *missing or stale* capture and an impossible one is
+neither. That ruling was made on a step whose UI claim was unreachable because of live STATE; this
+step's is unreachable because the component is unmounted — a strictly stronger form of the same
+condition. `harness_compliance_ok: false` should still ride alongside, so the limitation stays on
+the record.
+
+**Everything in the table above was verified by an independent evaluator's own execution.** The two
+cycle-3 blockers are now closed: `QA-Z1` by a behavioural test that drives the real
+`run_daily_cycle` (mutation-killed, `1 failed, 22 passed`), and the §1c capture by the measurement
+and precedent above.
 
 ## §F. Teardown
 
