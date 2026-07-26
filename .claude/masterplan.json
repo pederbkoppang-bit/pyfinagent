@@ -12194,6 +12194,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "36.15",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "[P1 -- A SINGLE MALFORMED peak_reset ROW SILENTLY DISCARDS THE TRUE HIGH-WATER MARK] Found 2026-07-26 when a Q/A evaluator's own mutation harness accidentally appended 54 `peak_reset` rows to the LIVE handoff/kill_switch_audit.jsonl (its mutated source built the module-level `_state = KillSwitchState()` singleton at import time, before any pytest fixture could redirect _AUDIT_PATH). Main restored the file from HEAD and verified md5 ce8fb93348bb9a3bbe26f2d91b1bc05e; the accident is closed, but it demonstrated a real replay defect. MECHANISM, read at source and MEASURED by Main on a tmp tree, not relayed: `_load_from_audit`'s `peak_update` branch (kill_switch.py:249-261) guards with `if nav is not None and (self._peak_nav is None or nav > self._peak_nav)`, but the `peak_reset` branch (:262-270) does a bare `self._peak_nav = _coerce_nav(row.get('new_peak'))` with NO None-check. `_coerce_nav` returns None for anything absent, unparseable, non-finite, or <= 0. So a `peak_reset` row carrying new_peak=0.0 (or null, or a string) nulls the peak during replay. STATE THE CONSEQUENCE PRECISELY -- an earlier framing of this finding said the null is PERMANENT and unhealable because peak_reset assigns rather than ratchets; Main measured otherwise and the correction matters for the fix: a LATER `peak_update` row DOES heal a None peak (the ratchet's `self._peak_nav is None` arm accepts any value). Measured on a fixture of peak_update 24666.57 -> malformed peak_reset -> peak_update 20000.0, the restored peak is 20000.0, NOT None and NOT 24666.57. So the real harm is TWO-DIRECTIONAL and both directions are bad: (a) with no later peak_update the peak stays None and the trailing leg comes up DISARMED on the next restart (fail-safe, but it silently disables a limit -- the exact 36.7 condition); (b) with a later peak_update the peak silently RE-ANCHORS DOWNWARD to whatever came next, discarding the true high-water mark and under-measuring every future drawdown -- the same under-conservative harm class as 36.12, reached through the replay path instead of the trading path. FIX DIRECTION: mirror the peak_update branch's guard -- ignore a peak_reset row whose new_peak does not coerce to a positive finite float, and log it loudly rather than silently applying None. Do NOT make peak_reset a ratchet: it must stay an authoritative downward move (that is phase-69.1's whole point, and 36.7's merge correctness depends on it). Consider also whether _append_audit should refuse to write a peak_reset with a non-positive new_peak at the SOURCE, so the trail cannot carry one. RELATED: 36.7 (the ratchet + merge this sits inside), 36.8 (archive-merge authority -- overlapping surface, coordinate), 79.6 (the owed KS-PEAK-RESET token that gates the deliberate writer).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k kill_switch",
+            "success_criteria": [
+              "A test reproduces BOTH directions FIRST against the current code and records the output verbatim: (a) a malformed peak_reset with no later peak_update leaves peak_nav None (disarmed on restart); (b) a malformed peak_reset FOLLOWED by a later peak_update silently re-anchors the peak downward to the later value instead of preserving the true earlier high-water mark",
+              "After the fix, a peak_reset row whose new_peak does not coerce to a positive finite float is IGNORED during replay and logged loudly -- the true prior peak survives, asserted against a fixture where the earlier peak is higher than everything after it",
+              "A VALID peak_reset still applies as an authoritative DOWNWARD assignment -- phase-69.1's behaviour is byte-unchanged, asserted against a fixture (do not turn peak_reset into a ratchet)",
+              "The peak_update ratchet branch is untouched -- assert its existing behaviour still holds, including the None-arm that accepts the first value",
+              "Decide explicitly whether _append_audit should also refuse to WRITE a non-positive peak_reset, and state the decision either way in the artifacts",
+              "MUTATION-TEST: removing the new None/positivity guard must fail the reproduce test, and forcing it always-on must fail the valid-peak_reset test"
+            ],
+            "live_check": "Verbatim test output for both reproduce-then-fix pairs, plus a READ-ONLY simulated restart (KillSwitchState().snapshot()) against the real audit corpus showing peak_nav still 24666.57 after the change. handoff/kill_switch_audit.jsonl md5 must be identical before and after -- state it."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."

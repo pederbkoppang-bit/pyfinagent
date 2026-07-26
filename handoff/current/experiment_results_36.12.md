@@ -258,9 +258,24 @@ the `if` to be the statement IMMEDIATELY following the assignment, testing that 
 in-memory mutant cannot reach it. A harness artefact that would have been easy to misread as a
 vacuous guard.
 
-This guard is **structural, not behavioural**, and is labelled that way in the test. A true
-behavioural test of the composition means driving `run_daily_cycle` with the whole cycle's I/O
-mocked; that is queued rather than faked.
+This guard is **structural, not behavioural**, and is labelled that way in the test.
+
+> **Correction, cycle 3.** This paragraph previously ended "that is queued rather than faked" — the
+> cycle-3 Q/A walked the masterplan and found **no step queues it**. The claim was false. It also
+> could not have been true in the form written: a behavioural test of the composition is
+> **36.12's own criterion-7 obligation**, not something that can be deferred to another step. It is
+> owed by THIS step and is one of the two reasons cycle 3 returned FAIL.
+
+**AND THE STRUCTURAL GUARD IS NOT ENOUGH — cycle 3 proved it.** `QA-Z1`: delete `return summary`
+from the halt block and every suite stays green (36.12 `22 passed`; the three other
+`run_daily_cycle` suites at their pre-existing `3 failed, 40 passed`), while control falls straight
+through into Step 5.6 and then decide/execute — a halted cycle **trades**. Nothing after the halt
+block re-reads `summary["halted"]`. The AST guard constrains the SHAPE of the branch and never its
+BODY, so this is the third relocation of one hole (cycle 1: inline literal scan; cycle 2: neutered
+predicate; cycle 3: the branch body). Extending the AST guard a fourth time would move it again.
+The fix is to stop guarding shape and execute the composition once — drive `run_daily_cycle` with
+`check_and_enforce_kill_switch` stubbed to `{"triggered": False, "blocked": True, ...}` and assert
+`summary["halted"] is True` and that decide/execute never ran. **Not done. The step stays open.**
 
 ### The live UI capture (qa.md 1c) — attempted, NOT obtained, and I broke `:3000` doing it
 
