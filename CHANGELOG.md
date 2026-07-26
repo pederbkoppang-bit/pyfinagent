@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `54f3a18d` | docs(36.8): correct the What-shipped table and update_peak's docstring -- both described cycle-4 cod |
 | 2026-07-26 | `18e81f57` | docs(36.8): regenerate all three record defects -- the redesign itself passed cycle 5 |
 | 2026-07-26 | `d760f48e` | fix(36.8): REDESIGN -- authority requires naming what it superseded, killing all five routes at once |
 | 2026-07-26 | `ed5c990d` | docs: next-session goal prompt |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `948b2722` | phase-36.7: the kill switch can fire again -- rotation-aware restore + loud disarmed state (Q/A PASS |
 | 2026-07-26 | `fa853f9c` | fix(36.12): close QA-Z1 by executing the halt composition, not guarding its shape |
 | 2026-07-26 | `85ba996b` | docs: next-session goal prompt + close out the 2026-07-26 drain session |
-| 2026-07-26 | `95e32799` | docs(36.7): cycle-5 verdict recorded as INADMISSIBLE -- evaluator mutated live safety state |
 
 ---
 
