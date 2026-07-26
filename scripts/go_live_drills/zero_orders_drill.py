@@ -59,6 +59,38 @@ class StubBQ:
         self.saved_trades.append(dict(row))
 
 
+
+
+class _DrillKillSwitchState:
+    """phase-36.13: a healthy kill-switch state for this drill.
+
+    `execute_buy` now refuses when the real switch is PAUSED or its baselines are
+    lost (CWE-424 alternate-path fix). This drill's whole purpose is to place a
+    probe order against a stubbed BigQuery -- it never touches the live book -- so
+    it supplies its own state, exactly as it already supplies its own BQ client.
+
+    THIS IS REQUIRED, NOT COSMETIC: `kill_switch._state` is a module singleton
+    whose boot replay sets `_paused = True` from any `pause` row in the audit
+    trail, so a fresh process inherits a live pause. Without this injection the
+    drill would fail its probe order ONLY on days the book happens to be paused --
+    an intermittent, schedule-dependent break. Construction logs a WARNING naming
+    the injection so it is never a silent bypass.
+    """
+
+    @staticmethod
+    def is_paused():
+        return False
+
+    @staticmethod
+    def snapshot():
+        # Baselines MUST be present and positive: the gate reads them through
+        # kill_switch.baselines_present_in(), so a snapshot without them reads as
+        # LOST HISTORY and the probe order is refused. Caught by running this
+        # script after the gate was rewired -- the stub originally returned only
+        # the pause fields and the drill failed with "execute_buy returned None".
+        return {"paused": False, "pause_reason": None,
+                "sod_nav": 10000.0, "peak_nav": 10000.0}
+
 def main() -> int:
     settings = Settings()
     bq = StubBQ(starting_cash=10000.0)
@@ -89,7 +121,8 @@ def main() -> int:
     print(f"step1: decide_trades emitted BUY for {buy_orders[0].ticker} "
           f"amount=${buy_orders[0].amount_usd:.2f}")
 
-    trader = PaperTrader(settings=settings, bq_client=bq)
+    trader = PaperTrader(settings=settings, bq_client=bq,
+                         kill_switch_state=_DrillKillSwitchState())
     order = buy_orders[0]
     result = trader.execute_buy(
         ticker=order.ticker,

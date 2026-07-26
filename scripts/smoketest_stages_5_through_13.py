@@ -20,6 +20,38 @@ OUTPUT = Path(__file__).resolve().parent.parent / "handoff" / "smoketest_2026052
 results = {"stage_results": {}}
 
 
+
+
+class _DrillKillSwitchState:
+    """phase-36.13: a healthy kill-switch state for this drill.
+
+    `execute_buy` now refuses when the real switch is PAUSED or its baselines are
+    lost (CWE-424 alternate-path fix). This drill's whole purpose is to place a
+    probe order against a stubbed BigQuery -- it never touches the live book -- so
+    it supplies its own state, exactly as it already supplies its own BQ client.
+
+    THIS IS REQUIRED, NOT COSMETIC: `kill_switch._state` is a module singleton
+    whose boot replay sets `_paused = True` from any `pause` row in the audit
+    trail, so a fresh process inherits a live pause. Without this injection the
+    drill would fail its probe order ONLY on days the book happens to be paused --
+    an intermittent, schedule-dependent break. Construction logs a WARNING naming
+    the injection so it is never a silent bypass.
+    """
+
+    @staticmethod
+    def is_paused():
+        return False
+
+    @staticmethod
+    def snapshot():
+        # Baselines MUST be present and positive: the gate reads them through
+        # kill_switch.baselines_present_in(), so a snapshot without them reads as
+        # LOST HISTORY and the probe order is refused. Caught by running this
+        # script after the gate was rewired -- the stub originally returned only
+        # the pause fields and the drill failed with "execute_buy returned None".
+        return {"paused": False, "pause_reason": None,
+                "sod_nav": 10000.0, "peak_nav": 10000.0}
+
 def record(stage: str, verdict: str, evidence: dict) -> None:
     results["stage_results"][stage] = {"verdict": verdict, **evidence}
     print(f"  {stage}: {verdict}")
@@ -29,7 +61,11 @@ def record(stage: str, verdict: str, evidence: dict) -> None:
 
 def stage_5_decide_trades_synthetic():
     """Stage 5: decide_trades on synthetic portfolio + price_at_analysis threading."""
-    from backend.services.portfolio_manager import decide_trades, TradeOrder
+    # phase-36.13: `TradeOrder` was imported and never used (pre-existing at
+    # HEAD:32, F401). Removed while this file was already being modified; it
+    # was masking a lint gate that had been reported green over a scope that
+    # excluded this file.
+    from backend.services.portfolio_manager import decide_trades
 
     settings = SimpleNamespace(
         paper_max_per_sector=2,
@@ -178,7 +214,8 @@ def stage_8_phase_25_6_hard_block():
     }
     bq.get_paper_positions.return_value = []
     bq.get_paper_trades_for_ticker_since.return_value = []
-    trader = PaperTrader(settings=settings, bq_client=bq)
+    trader = PaperTrader(settings=settings, bq_client=bq,
+                         kill_switch_state=_DrillKillSwitchState())
 
     with patch("backend.services.paper_trader.ExecutionRouter") as mock_router_cls:
         mock_router = mock_router_cls.return_value
@@ -252,7 +289,8 @@ def stage_10_mark_to_market():
             "current_price": 100.0, "stop_loss_price": 92.0,
         }
     ]
-    trader = PaperTrader(settings=settings, bq_client=bq)
+    trader = PaperTrader(settings=settings, bq_client=bq,
+                         kill_switch_state=_DrillKillSwitchState())
 
     with patch("backend.services.paper_trader._get_live_price") as mock_price:
         mock_price.return_value = 110.0  # +10% move

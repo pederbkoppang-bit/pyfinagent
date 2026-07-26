@@ -12153,7 +12153,7 @@
         },
         {
           "id": "36.13",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "name": "[P0 -- execute_buy HAS NO KILL-SWITCH GATE, SO THE MCP SIGNALS PATH PLACES ORDERS WHILE THE SWITCH IS PAUSED OR DISARMED] Found during the phase-36.12 research gate (handoff/current/research_brief_36.12.md, section 'Scope-adjacent defect'), then re-verified at source by Main on 2026-07-26 by grep, not by hand-count. MEASURED: `grep -rn '\\.execute_buy(' --include=*.py backend scripts | grep -v /tests/` returns FOUR non-test call sites -- backend/agents/mcp_servers/signals_server.py:444, backend/services/autonomous_loop.py:207, scripts/smoketest_stages_5_through_13.py:188, scripts/go_live_drills/zero_orders_drill.py:94. `grep -rn 'is_paused()' --include=*.py backend scripts | grep -v /tests/` returns exactly TWO consumers repo-wide: backend/services/paper_trader.py:1097 (inside check_and_enforce_kill_switch) and backend/services/autonomous_loop.py:1287 (the cycle halt branch). `backend/services/paper_trader.py::execute_buy` (:123, body read through :260) contains NO reference to kill_switch, is_paused, or paused. NET: the kill switch is enforced ONLY on the autonomous-cycle path. An order placed through the MCP publish_signal path (signals_server.py:444) bypasses it entirely -- while PAUSED after a real breach-triggered flatten, and while DISARMED with unknown baselines. This is a textbook CWE-424 alternate path: the deliberate, audited control is present on one route and absent on another that reaches the same effect. It also means phase-36.12's block, which lands in check_and_enforce_kill_switch + the loop's halt branch, is INCOMPLETE for that route -- 36.12 states this in its own scope-honesty section rather than silently covering it. THE FIX IS NOT OBVIOUS AND MUST BE RESEARCHED, not assumed: gating inside execute_buy is the tempting shape, but execute_buy is also the function the drills and smoketests call deliberately, and a naive `if is_paused(): return None` would silently break scripts/go_live_drills/zero_orders_drill.py (whose whole purpose is to place a probe order) and the stage smoketest. Decide explicitly between (a) a gate inside execute_buy with a narrow, audited, explicitly-named bypass for drills, (b) a gate at every caller, or (c) a separate guarded entry point that production callers must use. State which and why. DO NOT change kill-switch thresholds, and do not make the gate fail OPEN on an unreadable state -- a missing or unknown kill-switch state must block, matching 36.12's direction. RELATED: 36.12 (the cycle-path block this completes), 36.7 (the armed flag), 79.6 (the owed KS-PEAK-RESET token).",
@@ -12340,6 +12340,44 @@
             "live_check": "Terminal capture showing md5 of handoff/kill_switch_audit.jsonl before and after the full backend/tests/ suite run, identical, plus the named writing test(s) and the traceback that located them."
           },
           "priority": "P1"
+        },
+        {
+          "id": "36.22",
+          "status": "pending",
+          "priority": "P1",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P1 -- signals_server KEEPS ITS OWN WEAKER DUPLICATE OF THE KILL SWITCH, AND IT RESETS ON EVERY RESTART] Found during the phase-36.13 research gate and re-verified at source (2026-07-26). backend/agents/mcp_servers/signals_server.py has ZERO references to kill_switch / is_paused / paused. What it has instead is its OWN in-memory high-water mark at :88-89 feeding a `drawdown_circuit_breaker` at :950. That duplicate is strictly weaker than the real switch in at least three ways an executor must MEASURE rather than assume: (1) it is IN-MEMORY, so it resets to zero history on every process restart, whereas kill_switch replays sod_snapshot/peak_update rows from handoff/kill_switch_audit.jsonl + handoff/audit/ archives; (2) it does not observe the PAUSED state at all, so it cannot know the operator or a breach has halted trading; (3) it has no equivalent of the phase-36.7 `armed` / phase-36.9 `baselines_present` distinction, so it cannot report that it is unable to fire. THIS DUPLICATE IS WHY THE 36.13 P0 GAP LOOKED COVERED -- a reader seeing a circuit breaker in signals_server would reasonably conclude the MCP path was protected. phase-36.13 has since gated execute_buy itself, so the ORDER PATH is now safe regardless; this step is about the duplicate control that remains and the false assurance it projects. DECIDE EXPLICITLY between (a) delete the duplicate and let the real kill switch be the only drawdown control, (b) keep it as a fast local pre-filter but make it read the real kill-switch state so it can never be MORE permissive, or (c) keep it and rename it so it cannot be mistaken for the kill switch. State which and why. DO NOT make the MCP path more permissive than it is today, and do not change kill-switch thresholds. RELATED: 36.13 (the execute_buy gate), 36.23 (the drill that tests this duplicate while claiming to test the kill switch).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or signals_server'",
+            "success_criteria": [
+              "The three weaknesses are each REPRODUCED by a test before any change: the in-memory peak resets across a simulated restart; the duplicate ignores a PAUSED kill switch; the duplicate cannot report an unevaluable state",
+              "A disposition (a)/(b)/(c) is chosen and justified against the reproduced evidence, not asserted",
+              "Whichever is chosen, the MCP path is never MORE permissive after the change than before -- a test proves the direction",
+              "kill-switch thresholds, limits and the phase-36.13 execute_buy gate are byte-untouched",
+              "MUTATION-TEST every new guard"
+            ],
+            "live_check": "Verbatim test output showing each of the three weaknesses reproduced pre-change, plus the post-change behaviour for the chosen disposition."
+          }
+        },
+        {
+          "id": "36.23",
+          "status": "pending",
+          "priority": "P1",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P1 -- scripts/go_live_drills/kill_switch_test.py DOES NOT TEST THE KILL SWITCH] Found during the phase-36.13 research gate (2026-07-26). The file's name asserts go-live coverage of backend/services/kill_switch.py. MEASURED: its scenarios at :72-129 drive the signals_server in-memory `drawdown_circuit_breaker` duplicate (see step 36.22), NOT kill_switch.py -- the executor must re-derive this with `grep -n 'kill_switch\\|is_paused\\|evaluate_breach' scripts/go_live_drills/kill_switch_test.py` rather than trusting this description. WHY IT MATTERS: this is a GO-LIVE DRILL. Its name is the assurance an operator reads when deciding whether the kill switch has been exercised before real money moves, and that assurance is currently false -- the drill can pass while every real kill-switch path is broken. This is a false-coverage defect, not a cosmetic naming issue. FIX DIRECTION, decide explicitly: (a) rename the drill to name what it actually exercises AND add a real kill-switch drill, or (b) rewrite it to drive the real switch (pause -> flatten -> refuse-new-orders -> resume). If (b), it MUST NOT write to handoff/kill_switch_audit.jsonl, which is git-tracked LIVE safety state -- inject state the way phase-36.13 wired zero_orders_drill.py, and note that a drill reading the module singleton inherits a live pause from the audit replay. DO NOT delete the drill without replacing its coverage.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch'",
+            "success_criteria": [
+              "The artifacts RE-DERIVE by grep what the drill actually exercises today, and state it as a measurement",
+              "After the change, a drill exists whose name matches what it drives -- a test or the drill's own output proves which module it exercises",
+              "If a real kill-switch drill is added, it exercises pause -> flatten -> refuse-new-orders -> resume end to end",
+              "handoff/kill_switch_audit.jsonl md5 is asserted unchanged by the drill run -- the drill must never write live safety state",
+              "MUTATION-TEST: breaking the real kill switch must fail the new drill"
+            ],
+            "live_check": "The drill's own output before and after, plus md5 of handoff/kill_switch_audit.jsonl asserted identical across a drill run."
+          }
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."

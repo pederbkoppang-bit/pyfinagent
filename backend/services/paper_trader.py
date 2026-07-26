@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import yfinance as yf
 
@@ -92,9 +92,36 @@ class PaperTrader:
     """Virtual trade execution engine backed by BigQuery."""
 
     def __init__(self, settings: Settings, bq_client: BigQueryClient,
-                 trade_notifier: "Optional[Callable[[dict], None]]" = None):
+                 trade_notifier: "Optional[Callable[[dict], None]]" = None,
+                 kill_switch_state: "Optional[Any]" = None):
         self.settings = settings
         self.bq = bq_client
+        # phase-36.13: the kill-switch state this trader gates BUYs against.
+        # Defaults to the module singleton -- the house idiom, matching
+        # execution_router.py:268-269 (`mode or _current_mode()`).
+        #
+        # WHY AN INJECTION SEAM AND NOT A BYPASS FLAG. The drills and the stage
+        # smoketest call `execute_buy` DELIBERATELY, and both already inject their
+        # own BigQuery stub, so they need to supply state -- not to skip a safety
+        # control. A `force=True` parameter would put a permanent bypass on the
+        # order path (Fowler, flag arguments); this puts it at the construction
+        # site, where a reader can see who owns the state.
+        #
+        # AND IT IS REQUIRED, not merely convenient: `kill_switch._state` is a
+        # module singleton whose `_load_from_audit` replays `pause` rows, so a
+        # fresh process inherits a live pause (verified by execution). A drill
+        # reading the real singleton would fail its probe order ONLY on days the
+        # book happens to be paused -- an intermittent, schedule-dependent break.
+        self._injected_ks_state = kill_switch_state
+        if kill_switch_state is not None:
+            # The counter-argument to injection is that it is a SILENT bypass,
+            # visible only here. Make it audible.
+            logger.warning(
+                "PaperTrader: kill-switch state was INJECTED (%s). This bypasses "
+                "the live kill switch and is intended ONLY for drills, smoketests "
+                "and tests. Production callers must not pass kill_switch_state.",
+                type(kill_switch_state).__name__,
+            )
         # phase-25.J: optional hook invoked after every successful trade.
         # Receives the persisted trade dict. Used by Slack/operator-alert
         # wiring. None by default (no behavior change for callers that
@@ -145,6 +172,59 @@ class PaperTrader:
 
     # ── Trade Execution ──────────────────────────────────────────
 
+    def _kill_switch_refusal_for_buy(self) -> Optional[dict]:
+        """phase-36.13: may this trader place a BUY right now? None => yes.
+
+        FAILS CLOSED. Any error reading the state refuses the order: an unknown
+        kill-switch state is not a healthy one, matching 36.12's direction that a
+        missing baseline must never be silently forgiven on the order path.
+
+        WHICH FLAG, and this is the lesson phase-36.9 paid for in a cycle-1 FAIL:
+        this reads `baselines_present`, NEVER `armed`. Since 36.9 `armed` also
+        answers "can the leg fire RIGHT NOW", which is False for an anchor that is
+        merely from yesterday -- and gating BUYs on that would refuse every order
+        each morning until the daily roll, which is precisely the money-path
+        regression 36.9's evaluator caught. Lost baselines are a durable fault an
+        operator must repair; an overnight anchor is repaired by the next cycle.
+        Staleness must not stop the book trading.
+        """
+        try:
+            from backend.services.kill_switch import baselines_present_in, get_state
+
+            state = self._injected_ks_state or get_state()
+            if state.is_paused():
+                snap = state.snapshot()
+                return {
+                    "reason": "kill_switch_paused",
+                    "detail": (f"the kill switch is PAUSED "
+                               f"(pause_reason={snap.get('pause_reason')!r})"),
+                }
+            # Presence is read from THIS state object, not via `evaluate_breach`,
+            # which consults the module singleton -- otherwise an injected state
+            # would govern the pause check but not the baseline check, and a drill
+            # could still be refused by the real book's lost baselines. One shared
+            # definition (`baselines_present_in`) so the two callers cannot drift.
+            snap = state.snapshot()
+            if not baselines_present_in(snap):
+                return {
+                    "reason": "kill_switch_baselines_lost",
+                    "detail": (
+                        "the loss baselines could not be restored "
+                        f"(sod_nav={snap.get('sod_nav')!r}, "
+                        f"peak_nav={snap.get('peak_nav')!r}), so no limit can be "
+                        "verified healthy"),
+                }
+        except Exception as e:
+            # FAIL CLOSED (criterion 6).
+            logger.error(
+                "kill_switch: could not read state before a BUY (%s: %s) -- "
+                "REFUSING the order. An unreadable switch is not an open one.",
+                type(e).__name__, e,
+            )
+            return {"reason": "kill_switch_unreadable",
+                    "detail": f"kill-switch state unreadable ({type(e).__name__})"}
+        return None
+
     def execute_buy(
         self,
         ticker: str,
@@ -177,6 +257,33 @@ class PaperTrader:
         reserved_cash: float = 0.0,
     ) -> Optional[dict]:
         """Buy shares of a ticker. Returns the trade record or None if can't execute."""
+        # ── phase-36.13: THE KILL-SWITCH GATE, at the single choke point ──────
+        # Until this step the switch was enforced on the CYCLE, not on the act of
+        # buying: `check_and_enforce_kill_switch` + the loop's halt branch. The MCP
+        # `publish_signal` path (signals_server.py:444) reaches this function
+        # directly and so placed orders while the book was PAUSED after a real
+        # breach-triggered flatten. CWE-424 alternate path; the remedy named by its
+        # parent CWE-638 is a single interface that performs the check, which this
+        # is: `execute_buy` and `execute_sell` are the only two `paper_trades`
+        # producers, so gating here is complete mediation for BUYs.
+        #
+        # execute_sell is deliberately NOT gated and that asymmetry is load-bearing:
+        # the switch performs its flatten THROUGH execute_sell, so gating sells on
+        # `paused` would deadlock the pause -- the switch could never close the
+        # positions it just decided to close. Selling is the safe direction.
+        ks_refusal = self._kill_switch_refusal_for_buy()
+        if ks_refusal is not None:
+            self.buy_rejections.append({
+                "ticker": ticker, "reason": ks_refusal["reason"],
+                "detail": ks_refusal["detail"],
+            })
+            logger.error(
+                "kill_switch: REFUSING BUY %s ($%.2f) -- %s. This order arrived on a "
+                "path that is not the autonomous cycle; the switch is enforced here "
+                "so no route can place orders the cycle would have blocked.",
+                ticker, amount_usd or 0.0, ks_refusal["detail"],
+            )
+            return None
         # phase-25.6: no-stop-on-entry HARD BLOCK. If stop_loss_price is None
         # at entry, synthesize one from settings.paper_default_stop_loss_pct
         # (8% default per O'Neil canonical + arxiv 2604.27150) so every new

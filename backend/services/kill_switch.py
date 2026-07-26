@@ -795,7 +795,7 @@ def evaluate_breach(
     # overnight anchor is repaired by the very next line of the same function.
     # Read surfaces (badge / resume / MCP) keep the strict `armed`; the order-placing
     # gate reads `baselines_present`.
-    baselines_present = not (daily_baseline_missing or trailing_baseline_missing)
+    baselines_present = baselines_present_in(s)
     if not armed:
         _log_disarmed_once(sod, peak, s.get("sod_date"), daily_baseline_stale)
 
@@ -851,6 +851,26 @@ def evaluate_breach(
         "baselines_present": bool(baselines_present),
         "armed": bool(armed),
     }
+
+
+def baselines_present_in(snap: dict) -> bool:
+    """phase-36.13: do BOTH loss baselines exist in this snapshot? Presence only.
+
+    ONE definition, two callers. `evaluate_breach` computes its `baselines_present`
+    key through this, and `paper_trader`'s BUY gate calls it directly on whatever
+    state object it was given -- which is what makes the drill/test injection seam
+    complete. Before this existed the gate called `evaluate_breach`, which reads the
+    module SINGLETON, so an injected state governed the pause check but not the
+    baseline check: half-honoured injection, and a drill would still have been
+    refused on a book whose real baselines were lost.
+
+    Deliberately NOT re-implemented at the call site. A hand-copied predicate that
+    drifts from the real one is the exact defect class phase-36.9 hit (a test
+    asserting a copy of a rule kept passing while the rule changed underneath it).
+    """
+    sod = snap.get("sod_nav")
+    peak = snap.get("peak_nav")
+    return (sod is not None and sod > 0) and (peak is not None and peak > 0)
 
 
 def _sod_date_is_stale(sod_date: Any, sod_nav: Optional[float]) -> bool:

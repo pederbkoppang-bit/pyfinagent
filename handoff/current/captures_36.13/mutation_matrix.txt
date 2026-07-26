@@ -1,0 +1,14 @@
+MUTANT                                               RESULT    DETAIL
+----------------------------------------------------------------------------------------------------
+baseline                                             BASELINE  203 passed, 1 skipped, 2103 deselected, 1 warning in 21.81s
+PREFIX_no_gate_at_all                                KILLED    4 failed, 199 passed, 1 skipped, 2103 deselected, 1 warning in 15.59s
+M_pause_check_removed                                KILLED    3 failed, 200 passed, 1 skipped, 2103 deselected, 1 warning in 15.24s
+M_baselines_check_removed                            KILLED    1 failed, 202 passed, 1 skipped, 2103 deselected, 1 warning in 14.98s
+M_fails_OPEN_on_unreadable_state                     KILLED    1 failed, 202 passed, 1 skipped, 2103 deselected, 1 warning in 20.40s
+M_refusal_is_silent_no_rejection_recorded            KILLED    3 failed, 200 passed, 1 skipped, 2103 deselected, 1 warning in 14.63s
+M_injection_warning_removed                          KILLED    1 failed, 202 passed, 1 skipped, 2103 deselected, 1 warning in 14.47s
+M_gate_uses_armed_instead_of_presence                KILLED    7 failed, 196 passed, 1 skipped, 2103 deselected, 1 warning in 15.03s
+M_shared_predicate_always_reports_present            KILLED    15 failed, 188 passed, 1 skipped, 2103 deselected, 1 warning in 21.33s
+M_drill_stops_injecting_state                        KILLED    1 failed, 202 passed, 1 skipped, 2103 deselected, 1 warning in 14.70s
+----------------------------------------------------------------------------------------------------
+9 killed, 0 survived, of 9 mutants

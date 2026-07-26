@@ -1,0 +1,20 @@
+=== criterion 4: re-derived inventory (commands, not hand-counts) ===
+
+$ grep -rn "\.execute_buy(" --include="*.py" backend scripts | grep -v /tests/
+backend/agents/mcp_servers/signals_server.py:444:                trade = self.paper_trader.execute_buy(
+backend/services/autonomous_loop.py:236:    buy_trade = trader.execute_buy(
+scripts/smoketest_stages_5_through_13.py:225:        trade = trader.execute_buy(
+scripts/go_live_drills/zero_orders_drill.py:127:    result = trader.execute_buy(
+
+$ grep -rn "is_paused()" --include="*.py" backend scripts | grep -v /tests/
+backend/services/paper_trader.py:195:            if state.is_paused():
+backend/services/paper_trader.py:1304:        if breach["any_breached"] and not state.is_paused():
+backend/services/autonomous_loop.py:1316:            halt_reason = cycle_halt_reason(ks_check, _ks_state().is_paused())
+scripts/smoketest_stages_5_through_13.py:42:    def is_paused():
+scripts/go_live_drills/zero_orders_drill.py:81:    def is_paused():
+
+$ grep -rn "kill_switch_state=" --include="*.py" backend | grep -v /tests/
+(none -- production cannot bypass)
+
+$ FILES=$(git diff --name-only HEAD -- "*.py"; git ls-files --others --exclude-standard -- "*.py"); echo "$FILES" | xargs ruff check --select F821,F401,F811,E9
+All checks passed!

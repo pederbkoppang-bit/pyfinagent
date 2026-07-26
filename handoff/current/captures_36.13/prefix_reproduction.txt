@@ -1,0 +1,11 @@
+==============================================================================
+PRE-FIX REPRODUCTION -- execute_buy with NO kill-switch gate
+==============================================================================
+>       assert result is None, (
+E       AssertionError: a paused kill switch must refuse the order -- pre-fix this returned a trade
+E       assert {'action': 'BUY', 'analysis_id': '', 'created_at': '2026-07-26T19:11:30.901606+00:00', 'price': 100.0, ...} is None
+>       assert result is None
+E       AssertionError: assert {'action': 'BUY', 'analysis_id': '', 'created_at': '2026-07-26T19:11:30.932133+00:00', 'price': 100.0, ...} is None
+FAILED backend/tests/test_phase_36_13_kill_switch_execute_buy_gate.py::test_phase_36_13_a_paused_book_refuses_a_buy
+FAILED backend/tests/test_phase_36_13_kill_switch_execute_buy_gate.py::test_phase_36_13_lost_baselines_refuse_a_buy
+2 failed, 8 deselected in 0.87s

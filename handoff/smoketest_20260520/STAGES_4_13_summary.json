@@ -51,9 +51,10 @@
         "WDC"
       ]
     },
-    "Stage 12 -- OutcomeTracker chain -> save_agent_memory invoked": {
-      "verdict": "PASS",
-      "save_agent_memory_calls": 1
+    "Stage 12": {
+      "verdict": "FAIL",
+      "error": "stage_12_outcome_tracker_chain.<locals>.fake_tracker_factory() got an unexpected keyword argument 'model'",
+      "traceback": "Traceback (most recent call last):\n  File \"/Users/ford/.openclaw/workspace/pyfinagent/scripts/smoketest_stages_5_through_13.py\", line 459, in main\n    fn()\n    ~~^^\n  File \"/Users/ford/.openclaw/workspace/pyfinagent/scripts/smoketest_stages_5_through_13.py\", line 373, in stage_12_outcome_tracker_chain\n    asyncio.run(_learn_from_closed_trades(closed_tickers, mock_bq, mock_settings))\n    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py\", line 204, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py\", line 127, in run\n    return self._loop.run_until_complete(task)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py\", line 719, in run_until_complete\n    return future.result()\n           ~~~~~~~~~~~~~^^\n  File \"/Users/ford/.openclaw/workspace/pyfinagent/backend/services/autonomous_loop.py\", line 3007, in _learn_from_closed_trades\n    tracker = OutcomeTracker(settings, model=model_client)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.4/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/mock.py\", line 1176, in __call__\n    return self._mock_call(*args, **kwargs)\n"
     },
     "Stage 13 -- heartbeat alarm + phase-30.7 row shape (mocked)": {
       "verdict": "PASS",
@@ -63,8 +64,8 @@
       "phase_30_7_row_shape_ok": true
     }
   },
-  "pass_count": 9,
-  "fail_count": 0,
+  "pass_count": 8,
+  "fail_count": 1,
   "total": 9,
-  "overall_verdict": "PASS"
+  "overall_verdict": "PARTIAL"
 }

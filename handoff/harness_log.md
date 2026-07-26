@@ -29738,3 +29738,86 @@ at close.
 **NOT LIVE:** like 36.12 and 36.8, this needs a backend restart the operator has not authorized.
 
 Immutable: `167 passed, 1 skipped, 2126 deselected` (exit 0).
+
+## Cycle 177 -- 2026-07-26 -- phase=36.13 result=PASS
+
+**[P0] `execute_buy` had no kill-switch gate, so the MCP signals path placed orders while the book was
+PAUSED or its baselines were lost.** CWE-424 alternate path. Q/A PASS on cycle 3 (C1 CONDITIONAL,
+C2 CONDITIONAL, C3 PASS). All 8 criteria MET, `violated_criteria` empty.
+
+**The bypass, reproduced before the fix.** With the gate reverted, a PAUSED book returned a complete
+`{'action': 'BUY', ...}` trade dict. The switch had been enforced on the CYCLE, never on the act of
+buying -- and `execute_buy` + `execute_sell` are the only two `paper_trades` producers, so gating the
+former is complete mediation for BUYs.
+
+**THE RESEARCH GATE OVERTURNED MY DESIGN, and that is the whole reason it runs.** I intended to
+rename the primitive to `_execute_buy_unchecked` behind a guarded wrapper. The gate showed my premise
+was false -- both "deliberate" callers already inject a stubbed BigQuery client, so they need to
+SUPPLY state, not bypass a control -- that the rename was 19 call sites rather than 4, and that
+CWE-638 (the parent of the CWE-424 defect) names the remedy directly: *"create and use a single
+interface that performs the access checks."* It also found the trap: `kill_switch._state` is a
+singleton whose boot replay inherits a live `pause` row, which I converted from a reading into an
+executed measurement. A naive `get_state().is_paused()` gate would have broken both drills ONLY on
+days the book happened to be paused -- the worst possible failure schedule, invisible to a green suite.
+
+**The gate reads `baselines_present`, never `armed`** -- carrying 36.9's cycle-1 lesson forward.
+Keying on `armed` would refuse every BUY each morning until the daily roll. Pinned by its own test.
+`execute_sell` stays ungated deliberately: the switch flattens THROUGH it, so gating sells would
+deadlock the pause.
+
+**I broke both drill scripts mid-step and caught it.** After rewiring the gate through a shared
+predicate, my injected stub's `snapshot()` returned only the pause fields, so the gate read it as LOST
+HISTORY: the drill died with `execute_buy returned None` and smoketest Stage 8 flipped PASS -> FAIL.
+I did not guess whether the other smoketest failure was mine -- I built a `git worktree` at HEAD
+(never `git stash`, the hooks write to tracked audit logs) and measured: HEAD is 8/9 with Stage 12
+already failing and Stage 8 passing. Both now match the baseline exactly. My earlier "the drill
+PASSES" was true when I ran it and false by the time I finished the step; criterion 5 forced the
+re-run that caught it.
+
+**What the three cycles actually cost, and why none of it was code.** C1 and C2 both confirmed the
+money path correct and mutation-proven; every finding was in my CLAIMS:
+- My lint gate read green because I had narrowed its scope. Over the true `git diff --name-only HEAD`
+  scope ruff exits 1 on a pre-existing unused import in a file this step modifies. The defect was not
+  the F401 -- it was writing a gate result I had not run over the scope I claimed, with
+  `<git-derived scope>` as an unreproducible placeholder.
+- A matrix row was a FALSE KILL. My reporter matched the first line containing `"failed"`, which was a
+  LOG line, not pytest's summary. Worse, the mutation it named is an EQUIVALENT MUTANT: `:768-769`
+  define the two flags as exact negations, so reverting the helper to the inline form is unkillable by
+  construction. My "killed by 14 tests" described a different mutation entirely. Replaced with
+  `baselines_present_in -> return True` (**15 failed**, matching the evaluator's independent figure).
+  An unkillable mutant counted as a kill inflates a matrix with a row that proves nothing.
+- My cycle-2 fix then shifted a call site by +4 lines and made a number in my own criterion-4 table
+  false -- **the fix for the previous finding introducing the next false claim**, the exact shape
+  `feedback_verify_own_completed_action_claims` records. Fixed structurally: all four line numbers are
+  now DERIVED from the live grep and rewritten by regex, with an assertion that no stale number
+  survives. It was also wrong in `live_check`, which the evaluator had not caught.
+- "(to be filed)" is not a disposition. C2 walked the masterplan and found no step for the two
+  out-of-scope defects I had disclosed in prose. Correct catch, and the operator's standing rule.
+
+**Two defects FILED rather than described:** **36.22** (signals_server keeps its own in-memory
+drawdown breaker that resets every restart, never observes PAUSED, and has no
+`armed`/`baselines_present` equivalent -- the duplicate that made this P0 gap look covered) and
+**36.23** (`go_live_drills/kill_switch_test.py` does not test the kill switch; it is a GO-LIVE drill,
+so its name is false operator assurance). Both P1, both executor-ready, both requiring re-derivation
+by grep rather than trust in my description.
+
+**C3's own independent work, recorded because it strengthens the result:** it wrote a mutant I had
+not (`baselines_present_in` AND -> OR, forgiving a single lost leg) and found it already killed by
+36.9's lost-peak test; reconciled every matrix row's arithmetic against baseline 203; verified the
+equivalence claim at source; ran the drill itself; and proved criterion 7 by a threshold-regex sweep
+over the full diff returning zero hits.
+
+**Accepted NOTE-level residual, recorded not swept:** `experiment_results_36.13.md:19` cites
+buy_rejections consumption as `autonomous_loop.py:236-1582`; measured, consumption is `:1574-1582`
+and `:236` is the call site. The substantive claim (the cycle summary consumes buy_rejections, so the
+refusal is observable) is TRUE and verified at source. Left UNEDITED: post-verdict changes to graded
+artifacts render a verdict inadmissible (phase-75.20.1).
+
+**Do-no-harm:** `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` at every
+checkpoint including both script runs and the full matrix; `:8000` GET-only, never restarted or
+POSTed to; `:3000` never driven; zero threshold/limit/DSR/PBO/sector-cap values in the diff (130
+insertions / 3 deletions); no peak reset; the drills ran against their own stubbed BigQuery.
+
+**NOT LIVE:** like 36.12, 36.8 and 36.9, this needs a backend restart the operator has not authorized.
+
+Immutable: `203 passed, 1 skipped, 2103 deselected` (exit 0).
