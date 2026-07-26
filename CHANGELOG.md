@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `e4efdc23` | docs(80.40): cycle-3 FAIL + cycle-4/5 verdicts transcribed; criterion-3 mutation run firsthand |
 | 2026-07-26 | `cfb56572` | feat(36.12): block orders when the kill-switch baselines were lost, instead of silently re-anchoring |
 | 2026-07-26 | `eaa42c1f` | docs(36.7,80.40): live_check RESOLVED on the operator's own :8000 after an authorized restart |
 | 2026-07-26 | `a3785bd1` | wip(36.7,80.40): remediate cycle-2 CONDITIONAL -- STILL NO PASS, steps remain pending |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `65586491` | fix(80.36): measure the last two done-definition items -- the Risk Monitor claims SAFE on a dead bac |
 | 2026-07-26 | `94fc0858` | wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED and re-queued as 80.35 |
 | 2026-07-26 | `3464e946` | docs: measure the done-definition evidence -- items 1-3 are restart-gated, and it is now proven |
-| 2026-07-26 | `314b02ad` | docs: close two goal deliverables -- per-step tier ledger + count re-derivation |
 
 ---
 
