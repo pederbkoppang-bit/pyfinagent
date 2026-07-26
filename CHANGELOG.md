@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `ce060f66` | docs(36.12): the owed §1c capture was impossible -- KillSwitchPanel is never mounted (files 36.16) |
 | 2026-07-26 | `948b2722` | phase-36.7: the kill switch can fire again -- rotation-aware restore + loud disarmed state (Q/A PASS |
 | 2026-07-26 | `fa853f9c` | fix(36.12): close QA-Z1 by executing the halt composition, not guarding its shape |
 | 2026-07-26 | `85ba996b` | docs: next-session goal prompt + close out the 2026-07-26 drain session |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `839ef5ed` | docs(80.36): verify the navDenom 'latent' claim at source rather than assert it |
 | 2026-07-26 | `425d8e1e` | docs(80.36): pin the fabrication mechanism at source -- all four are one shape |
 | 2026-07-26 | `ff204bf2` | docs(80.11): criterion-3 census RESOLVED -- half the "duplication" is a dev artifact, half is real |
-| 2026-07-26 | `6d12104e` | perf(80.11): skip the session probe entirely when the auth cookie is present |
 
 ---
 
