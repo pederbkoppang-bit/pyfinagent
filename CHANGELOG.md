@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `65586491` | fix(80.36): measure the last two done-definition items -- the Risk Monitor claims SAFE on a dead bac |
 | 2026-07-26 | `94fc0858` | wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED and re-queued as 80.35 |
 | 2026-07-26 | `3464e946` | docs: measure the done-definition evidence -- items 1-3 are restart-gated, and it is now proven |
 | 2026-07-26 | `314b02ad` | docs: close two goal deliverables -- per-step tier ledger + count re-derivation |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `5e51f4a9` | phase-78.2 (verified, flip HELD): thread explicit --model through every CC-rail call site |
 | 2026-07-25 | `a5ba0958` | phase-78.16: 78.1 blocker -- make_client DROPS enable_prompt_caching, so the documented one-flag ... |
 | 2026-07-25 | `fe5476f2` | fix(78.1): restore the house system prompt the rewire silently dropped + kill my own vacuous guard |
-| 2026-07-25 | `d72d9b3d` | phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeClient onto make_client |
 
 ---
 
+### v6.69.18 — fix(80.36): measure the last two done-definition items -- the Risk Mo... (2026-07-26)
+
+- **fix(80.36): measure the last two done-definition items -- the Risk Monitor claims SAFE on a dead bac**
 ### v6.69.17 — wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED an... (2026-07-26)
 
 - **wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED and re-queued as 80.35**
