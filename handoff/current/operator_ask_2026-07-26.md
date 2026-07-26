@@ -110,6 +110,27 @@ mechanism would be a measured no-op).
 Plus **54 phase-79 operator actions** (`harness_required: false`, measured from the
 masterplan today, not estimated) — those are yours by design, not executor work.
 
+## 4. Two trivial masterplan-metadata fixes (your call, not step-worthy)
+
+Both steps are **named** `[OPERATOR ACTION -- not an executor task]` but are **not flagged**
+`harness_required: false`, so every executor filter treats them as executor work:
+
+| step | `harness_required` | priority | fix |
+|---|---|---|---|
+| `79.55` | **missing (`None`)** | **P0** | set `false` |
+| `78.15` | **`true`** | P2 | set `false` |
+
+`79.55` is the consequential one — it is the RESTART BLOCKER itself, and the mislabel
+inflated this session's executor-P0 count. I did **not** create a masterplan step for a
+two-field metadata edit; flagging it here so you can decide rather than absorbing it
+silently.
+
+## 5. Precondition I could not clear
+
+`rm -rf frontend/.next-audit-3100` — **attempted and policy-denied**, exactly as the goal
+DRAFT predicted ("Main's `rm` was policy-denied; now gitignored"). Confirmed by running it,
+not assumed. Still yours.
+
 ## Also worth knowing: the autoresearch rail is dead
 
 `handoff/autoresearch/2026-07-26-ERROR-topic11.md` — the background autoresearch process
