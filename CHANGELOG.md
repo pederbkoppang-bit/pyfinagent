@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `6d12104e` | perf(80.11): skip the session probe entirely when the auth cookie is present |
 | 2026-07-26 | `6937850f` | docs(80.11): live capture -- session probes 11 -> 3, criterion 1 still unmet; and my experiment was  |
 | 2026-07-26 | `5d26feef` | wip(80.11): single-flight the session probe -- 11 concurrent probes collapse to 1 |
 | 2026-07-26 | `058a6b64` | docs(80.11,80.34): settle the reactStrictMode question from Next's source -- it is ON |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `68427db6` | phase-80.1: [P0 -- FEATURE FULLY DEAD] GET /api/signals/{ticker} returns HTTP 500 for EVERY ticke... |
 | 2026-07-25 | `9457a88d` | phase-80.2: [P0 -- MASKS EVERY BACKEND ERROR APP-WIDE] An unhandled backend 500 carries NO Access... |
 | 2026-07-25 | `0c569eb6` | chore(handoff): track the phase-80 UI-audit evidence base + archive phase-78.2 |
-| 2026-07-25 | `acf89271` | docs(78.2): correct four stale references caught by a post-close claim audit |
 
 ---
 
+### v6.69.20 — perf(80.11): skip the session probe entirely when the auth cookie is... (2026-07-26)
+
+- **perf(80.11): skip the session probe entirely when the auth cookie is present**
 ### v6.69.19 — wip(80.11): single-flight the session probe -- 11 concurrent probes c... (2026-07-26)
 
 - **wip(80.11): single-flight the session probe -- 11 concurrent probes collapse to 1**
