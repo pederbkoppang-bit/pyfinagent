@@ -222,6 +222,88 @@ def test_phase_36_12_blocked_cycle_halts_the_autonomous_loop():
     assert cycle_halt_reason({"triggered": False, "blocked": False}, False) is None
 
 
+def test_phase_36_12_a_blocked_cycle_really_places_no_orders(ks_isolated, monkeypatch):
+    """THE COMPOSITION, EXECUTED. Drives the real `run_daily_cycle` with the
+    kill-switch stubbed to `blocked: True` and asserts the cycle halts and no order
+    is placed.
+
+    This is the guard three prior cycles kept failing to build. Cycle 1 had a
+    substring scan (defeated by keeping the literal and adding `and False`); cycle 2
+    had a behavioural test of the PREDICATE but only a scan of the WIRING; cycle 3's
+    AST guard constrained the branch's SHAPE but never its BODY, so deleting
+    `return summary` survived everything and a halted cycle fell through into Step
+    5.6 and then decide/execute. Guarding structure kept relocating the hole one
+    level up. This executes it instead.
+
+    TWO HAZARDS this test had to defuse, both measured rather than assumed:
+      * COST -- the cycle reaches Step 5.5 only if the analysis pipeline is stubbed.
+        An unstubbed run makes a REAL 150s LLM call; `news_screen_enabled` must be
+        off and `AnalysisOrchestrator` mocked, or this test bills the operator.
+      * TRACKED STATE -- `run_daily_cycle` records a heartbeat and a history row via
+        `cycle_health.get_log()`, which write `handoff/.cycle_heartbeat.json` and
+        `handoff/cycle_history.jsonl`. Both are GIT-TRACKED. The first draft of this
+        test dirtied them on every run (caught by `git status`, restored from HEAD);
+        the cycle-log stub below is what keeps a test from mutating operator state.
+    """
+    import backend.services.autonomous_loop as al
+    import backend.services.cycle_health as cycle_health
+    from backend.config.settings import Settings
+
+    ks, _state, _live = ks_isolated
+
+    ks_blocked = {
+        "triggered": False,
+        "blocked": True,
+        "block_reason": "kill_switch_disarmed_lost_history",
+        "pre_armed": False,
+        "breach": {"any_breached": False, "armed": True},
+        "auto_resume": {"action": "no_op"},
+    }
+    portfolio = {"total_nav": 18_000.0, "starting_capital": 20_000.0, "current_cash": 18_000.0}
+
+    trader = MagicMock()
+    trader.check_and_enforce_kill_switch.return_value = ks_blocked
+    trader.mark_to_market.return_value = {"nav": 18_000.0, "positions": []}
+    trader.get_or_create_portfolio.return_value = portfolio
+    bq = MagicMock()
+    bq.get_paper_positions.return_value = []
+    bq.get_paper_portfolio.return_value = portfolio
+
+    settings = Settings()
+    settings.news_screen_enabled = False
+
+    monkeypatch.setattr(al, "BigQueryClient", lambda *a, **k: bq)
+    monkeypatch.setattr(al, "PaperTrader", lambda *a, **k: trader)
+    monkeypatch.setattr(al, "screen_universe", lambda *a, **k: [])
+    monkeypatch.setattr(al, "rank_candidates", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_sp500_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_russell1000_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "_log_cycle_signals_to_bq", lambda *a, **k: 0)
+    monkeypatch.setattr(al, "AnalysisOrchestrator", MagicMock())
+    decide = MagicMock(return_value=[])
+    monkeypatch.setattr(al, "decide_trades", decide)
+    monkeypatch.setattr(al, "_running", False)
+    # Keep the cycle's own bookkeeping off the GIT-TRACKED handoff files.
+    fake_log = MagicMock()
+    fake_log.record_cycle_start.return_value = "2026-01-01T00:00:00+00:00"
+    monkeypatch.setattr(cycle_health, "get_log", lambda *a, **k: fake_log)
+
+    summary = asyncio.run(al.run_daily_cycle(settings=settings))
+
+    assert summary["halted"] is True, (
+        "a blocked cycle must halt -- if this fails, the halt branch no longer "
+        "returns and the cycle continues into decide/execute"
+    )
+    assert "kill_switch_halted" in summary["steps"]
+    assert summary["steps"][-1] == "kill_switch_halted", (
+        f"the cycle continued past the halt: {summary['steps']}"
+    )
+    # The money assertions: nothing was decided and nothing was traded.
+    assert decide.called is False, "decide_trades ran on a halted cycle"
+    assert trader.execute_buy.called is False, "a BUY was placed on a halted cycle"
+    assert trader.execute_sell.called is False, "a SELL was placed on a halted cycle"
+
+
 def test_phase_36_12_halt_precedence_is_breach_then_block_then_paused():
     """The reason is what the operator reads in the log line, so precedence is part
     of the contract: a real breach must not be reported as a lost-history block."""

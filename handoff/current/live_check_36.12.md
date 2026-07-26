@@ -79,16 +79,15 @@ rows: {"event": "peak_update", "nav": 18000.0}
 
 ```
 $ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block.py -q
-22 passed
+23 passed
 
 $ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader'      # IMMUTABLE
-113 passed, 1 skipped, 2104 deselected
+114 passed, 1 skipped, 2104 deselected
 ```
 
 *Re-measured at every cycle, because the suite keeps growing and a stale count is a claim that no
 longer re-derives (the cycle-3 Q/A caught this section carrying cycle-2 numbers). Cycle 1:
-`13 passed` / `104 passed, 1 skipped`. Cycle 2: `17 passed` / `108 passed, 1 skipped`. Cycle 3:
-`22 passed` / `113 passed, 1 skipped`.*
+`13 passed` / `104 passed, 1 skipped`. Cycle 2: `17 passed` / `108 passed, 1 skipped`. Cycle 3: `22 passed` / `113 passed, 1 skipped`. Cycle 4: `23 passed` / `114 passed, 1 skipped`.*
 
 ## §D. The required curl — rig `:8002`, AFTER the simulated post-rotation cycle
 
@@ -136,7 +135,7 @@ The order-blocking half of the demonstration is not visible on this GET at all �
 | 4 | trading-path behaviour on `armed:false` decided explicitly | **MET** — BLOCK; documented in the contract and at the code site |
 | 5 | no route to `reset_peak` | **MET** — zero rows + monkeypatched raiser |
 | 6 | per-leg independence preserved | **MET** — `evaluate_breach` byte-untouched; 2 tests |
-| 7 | mutation-test every new guard | **NOT MET — this is why cycle 3 FAILED.** 17 mutations run, 17 killed on the 22-test suite (the fixture, both discriminator directions, and all five survivors earlier cycles found) — but the cycle-3 Q/A found an 18th, `QA-Z1`: deleting `return summary` from the halt block survives everything, and a halted cycle then trades. The branch BODY has no guard at any level. Owed: a behavioural test that drives `run_daily_cycle` with a `blocked: True` kill-switch result. |
+| 7 | mutation-test every new guard | **MET as of cycle 4** — 18 mutations, 18 killed on the 23-test suite. `QA-Z1` (the cycle-3 blocker: delete `return summary` from the halt block) is now KILLED `1 failed, 22 passed` by `test_phase_36_12_a_blocked_cycle_really_places_no_orders`, which drives the REAL `run_daily_cycle` and asserts nothing was decided or traded. The three-cycle relocation pattern is retired by executing the composition rather than guarding its shape again. |
 | 8 | all three operator strings revised in the same change | **MET on the strings, INCOMPLETE on the evidence.** All three revised, plus a 4th site the step did not list (`kill_switch.py:527-528`); the grep guard is paired with a behavioural 409 assertion, and two vitest DOM assertions on the rendered `title` attributes were proven falsifiable against HEAD's old strings by an independent evaluator. But **no live Playwright capture exists** for a diff that changes two operator-visible labels, which qa.md §1c requires — attempted, not obtained, see `experiment_results_36.12.md`. |
 
 **This step is NOT closed.** Cycle 3 returned FAIL on two open blockers: criterion 7's `QA-Z1`

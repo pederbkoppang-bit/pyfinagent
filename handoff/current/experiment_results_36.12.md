@@ -266,7 +266,35 @@ This guard is **structural, not behavioural**, and is labelled that way in the t
 > **36.12's own criterion-7 obligation**, not something that can be deferred to another step. It is
 > owed by THIS step and is one of the two reasons cycle 3 returned FAIL.
 
-**AND THE STRUCTURAL GUARD IS NOT ENOUGH — cycle 3 proved it.** `QA-Z1`: delete `return summary`
+## Cycle-4 follow-up (post-Q/A-3 FAIL) — QA-Z1 CLOSED with a real behavioural guard
+
+The cycle-3 FAIL's blocking finding is now closed, and closed the way the evaluator said it had to
+be: **by executing the composition, not by guarding its shape a fourth time.**
+
+`test_phase_36_12_a_blocked_cycle_really_places_no_orders` drives the **real** `run_daily_cycle`
+with `check_and_enforce_kill_switch` stubbed to `blocked: True`, and asserts `summary["halted"] is
+True`, that `kill_switch_halted` is the LAST step, and that `decide_trades`, `execute_buy` and
+`execute_sell` were all never called.
+
+**It kills QA-Z1.** Running the evaluator's own mutant (delete `return summary` from the halt block)
+as a DISK mutation: `1 failed, 22 passed`, and the captured log shows exactly the fall-through it
+predicted — the cycle continues into Step 5.6's `backfill_missing_company_names` and then dies on
+`'pnl_pct'` deep in the decide path. `autonomous_loop.py` sha256 restored to `ad10e4c49dfa`.
+Suite baseline is now **23 passed**.
+
+**Two hazards this test had to defuse, both found by measuring rather than assuming:**
+
+1. **Cost.** The first probe made a **real 150s LLM call** (`claude_code_invoke` timeout, then a
+   news-screen parse failure) before ever reaching Step 5.5. The cycle is only drivable with
+   `news_screen_enabled = False` and `AnalysisOrchestrator` mocked. An unstubbed version of this
+   test would bill the operator on every CI run.
+2. **Tracked state.** The first working draft dirtied `handoff/.cycle_heartbeat.json` and
+   `handoff/cycle_history.jsonl` — both **git-tracked** — via `cycle_health.get_log()`. Caught by
+   `git status`, restored from HEAD, and the test now stubs the cycle log. This is the same class of
+   harm as the 36.7 evaluator's audit-file incident, and it would have shipped inside the very step
+   that exists to stop silent state mutation.
+
+**AND THE STRUCTURAL GUARD WAS NOT ENOUGH — cycle 3 proved it.** `QA-Z1`: delete `return summary`
 from the halt block and every suite stays green (36.12 `22 passed`; the three other
 `run_daily_cycle` suites at their pre-existing `3 failed, 40 passed`), while control falls straight
 through into Step 5.6 and then decide/execute — a halted cycle **trades**. Nothing after the halt
@@ -308,6 +336,34 @@ browser, and the capture stays owed.
 
 **Owed cleanup:** `frontend/.next-audit-36-12` still exists (gitignored, so it cannot be committed);
 `rm -rf` was refused by the permission layer. Safe to delete.
+
+### Capture attempt #2 (cycle 4) — closer, still not obtained
+
+The first attempt failed because a stub backend only serves one router. Attempt #2 replaced it with
+a **read-only proxy** (`rig_proxy.py`, scratchpad): every request forwards to the operator's real
+`:8000` EXCEPT `GET /api/paper-trading/kill-switch`, whose body is replaced with a disarmed+paused
+payload — so the whole cockpit renders against real data while the one state under test is stubbed.
+The proxy hard-refuses any non-GET/HEAD (`POST /pause` → `405`, never forwarded), so it cannot pause,
+resume, flatten or trade.
+
+Verified working at the HTTP layer: override returns `paused true / armed false`; proxied
+`/performance` returns the real `nav 23838.16 / max_dd -5.31`; `POST` → 405. Isolation correct this
+time (`PLAYWRIGHT_DIST_DIR=.next-audit-36-12`; `:3000/login` stayed **200** throughout and at
+teardown).
+
+**Where it stopped:** the browser still rendered *"Cannot reach backend"*. The console named one
+precise cause — the frontend fetches with `credentials: 'include'`, and CORS forbids a wildcard
+origin on a credentialed request (34 errors, all *"must not be the wildcard '*'"*), which `curl`
+never shows because curl does not enforce CORS. Fixed to echo the specific origin plus
+`allow-credentials`, verified on the wire, and the proxy log then shows preflight `OPTIONS ... 204`
+arriving from the browser — but the page still reported unreachable. That is one more diagnostic
+round, and Main stopped there rather than keep iterating against a rig adjacent to the operator's
+live environment late in a long session.
+
+Capture of the failed state, kept as honest evidence of the attempt (it shows the rig unreachable,
+NOT the tooltip): `handoff/current/captures_36.12/36.12_capture_attempt_rig_unreachable.png`.
+**The §1c capture remains OWED.** The next session inherits a working proxy and a named next step:
+the preflight succeeds, so the failure is now in the actual GET, not the CORS handshake.
 
 ## Mutation matrix — RE-RUN on the shipped suite; 17 mutations, 17 killed, 0 survivors
 
