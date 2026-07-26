@@ -39,7 +39,7 @@ fixes; they are simply not in memory. `phase-79.55` (RESTART BLOCKER) gates the 
 | 3 | A raising route 500s with CORS + `nosniff` + a `PerfTracker` row | **PASS (live, rig)** | 500 + `Access-Control-Allow-Origin` + `nosniff` + no traceback, and `per_endpoint['/api/__force_500_probe'] = {count:1, error_count:1, error_rate_pct:100.0}`. |
 | 4 | `/agent-map` draws edges, **zero** React Flow console warnings at 1440×900 | **MEASURED — PASS** | Edges render (29 of 58 agents); console **0 errors, 0 warnings**. Capture: `captures_done_definition/agentmap_edges_1440x900.png`. |
 | 5 | Donut hover → **zero** layout shift (identical bounding boxes) | **IN PROGRESS** | This is step `80.5`. Research gate running. |
-| 6 | One cockpit page view issues **≤2** `/api/auth/session` requests over 20s | **MEASURED — FAILS (11)** | See below. Owned by pending step `80.11`. |
+| 6 | One cockpit page view issues **≤2** `/api/auth/session` requests over 20s | **IMPROVED 11 → 3; still FAILS** | Single-flight landed (`5d26feef`). Clean capture: **3**, criterion needs ≤2. Owned by `80.11`. |
 | 7 | Backend stopped → no page fabricates a fact | **MEASURED — FAILS** | See below. Queued as new step `80.36` (P1). |
 | 8 | Per-step tier ledger exists | **DONE** | `handoff/current/tier_ledger_2026-07-26.md`. Records that Fable was authorized and **never used** — zero T4 invocations. |
 
