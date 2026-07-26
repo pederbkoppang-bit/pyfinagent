@@ -10,7 +10,19 @@ Produced at the end of the `/goal` masterplan drain. Everything below is **block
 **This was found outside any step's scope. Nothing in the backlog would have caught it.**
 
 Your DO-NO-HARM rule says the kill switch stays byte-untouched, so **I did not fix it.**
-It is queued as a masterplan step and reported here.
+
+**Queued as masterplan step `36.7`** (phase-36 Profit-Protection, `P0`, `pending`,
+`harness_required: true`, 7 success criteria). The step carries an explicit
+**OPERATOR GATE: do not begin until you authorize editing `kill_switch.py`**, a
+prove-the-defect-first criterion, a rotation-reproduction test, mutation criteria in both
+directions, and an explicit prohibition on peak-resetting while re-arming (that is the
+separate `KS-PEAK-RESET` token, step `79.6`).
+
+> Correction, recorded rather than quietly fixed: an earlier revision of this line said the
+> defect "is queued as a masterplan step" **before any step existed**. That is the same
+> unsupported-claim defect that the phase-80.4 Q/A caught twice in this session
+> (`"verbatim"` and `"queued"`). I caught this one myself while verifying my own ask list.
+> Step `36.7` now genuinely exists.
 
 Measured live, read-only, 2026-07-26:
 
@@ -95,8 +107,16 @@ path terminates in a dead session today — i.e. your remote stop/resume is curr
 `ALPACA-RESET: APPROVED` (68.3 — triple-blocked), `65.2 EU SCREENER: ON` (current
 mechanism would be a measured no-op).
 
-Plus **~50 phase-79 operator actions** (`harness_required: false`) — those are yours by
-design, not executor work.
+Plus **54 phase-79 operator actions** (`harness_required: false`, measured from the
+masterplan today, not estimated) — those are yours by design, not executor work.
+
+## Also worth knowing: the autoresearch rail is dead
+
+`handoff/autoresearch/2026-07-26-ERROR-topic11.md` — the background autoresearch process
+failed with HTTP 400 *"Your credit balance is too low to access the Anthropic API"*, and
+`autoresearch_fail_state.json` advanced `consecutive_fails` 1 → 2. Same direct-API credit
+exhaustion tracked since 2026-05-17; the Claude Code Max rail is unaffected. Committed
+separately (`01ea9383`) so it was not swept under a step's name. Folds into ask #2.
 
 ---
 
