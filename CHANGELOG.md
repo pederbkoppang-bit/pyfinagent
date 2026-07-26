@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `948b2722` | phase-36.7: the kill switch can fire again -- rotation-aware restore + loud disarmed state (Q/A PASS |
 | 2026-07-26 | `fa853f9c` | fix(36.12): close QA-Z1 by executing the halt composition, not guarding its shape |
 | 2026-07-26 | `85ba996b` | docs: next-session goal prompt + close out the 2026-07-26 drain session |
 | 2026-07-26 | `95e32799` | docs(36.7): cycle-5 verdict recorded as INADMISSIBLE -- evaluator mutated live safety state |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `425d8e1e` | docs(80.36): pin the fabrication mechanism at source -- all four are one shape |
 | 2026-07-26 | `ff204bf2` | docs(80.11): criterion-3 census RESOLVED -- half the "duplication" is a dev artifact, half is real |
 | 2026-07-26 | `6d12104e` | perf(80.11): skip the session probe entirely when the auth cookie is present |
-| 2026-07-26 | `6937850f` | docs(80.11): live capture -- session probes 11 -> 3, criterion 1 still unmet; and my experiment was  |
 
 ---
 
+### v6.70.3 — phase-36.7: the kill switch can fire again -- rotation-aware restore... (2026-07-26)
+
+- **phase-36.7: the kill switch can fire again -- rotation-aware restore + loud disarmed state (Q/A PASS**
 ### v6.70.2 — fix(36.12): close QA-Z1 by executing the halt composition, not guardi... (2026-07-26)
 
 - **fix(36.12): close QA-Z1 by executing the halt composition, not guarding its shape**
