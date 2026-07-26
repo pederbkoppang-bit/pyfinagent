@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `b0abb061` | wip(36.7,80.40): kill switch fixed at both ends -- NO Q/A VERDICT YET (3x API 529) |
 | 2026-07-26 | `e19dd00e` | chore: subagent memory + hook-appended audit logs (NOT the step work) |
 | 2026-07-26 | `3d22ad9b` | docs: new drain goal + execute the operator-approved 80.5 disposition; HOLD the flag flip |
 | 2026-07-26 | `25205078` | fix(80.36): live captures -- and the fix revealed the kill-switch row NEVER had data |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `c3f809c8` | fix(36.7): queue the kill-switch-cannot-fire P0 -- the claim that it was queued was false |
 | 2026-07-26 | `fee8ce7e` | phase-80.4: CLOSE-OUT -- status done after Q/A PASS on cycle 4 |
 | 2026-07-26 | `96ffdbab` | fix(80.4): close SSE Disconnected-over-healthy-endpoint -- criterion 4 was a measurement error, not  |
-| 2026-07-26 | `01ea9383` | chore(autoresearch): record background-rail failure artifacts (NOT phase-80.4) |
 
 ---
 
+### v6.69.23 — wip(36.7,80.40): kill switch fixed at both ends -- NO Q/A VERDICT YET... (2026-07-26)
+
+- **wip(36.7,80.40): kill switch fixed at both ends -- NO Q/A VERDICT YET (3x API 529)**
 ### v6.69.22 — fix(80.36): live captures -- and the fix revealed the kill-switch row... (2026-07-26)
 
 - **fix(80.36): live captures -- and the fix revealed the kill-switch row NEVER had data**
