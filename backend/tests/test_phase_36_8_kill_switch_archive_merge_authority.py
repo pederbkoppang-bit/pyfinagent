@@ -361,6 +361,56 @@ def test_phase_36_8_an_unreadable_archive_FILE_is_incomplete(ks_tmp_audit):
         bad.chmod(0o644)
 
 
+def test_phase_36_8_an_UNPARSEABLE_source_is_incomplete_not_empty(ks_tmp_audit):
+    """The FOURTH route, found by the cycle-3 Q/A. A file that OPENS fine but whose
+    lines are not JSON is history we cannot see -- identical in consequence to a file
+    we cannot read. The per-file handler recorded that; the per-LINE handlers dropped
+    the rows silently and left `complete` True, so the anchor claimed authority and
+    the true peak was destroyed once the file became parseable again.
+
+    Same invariant as the other three routes: *complete is False whenever this replay
+    may be missing history it cannot see.*
+    """
+    ks, live, archive = ks_tmp_audit
+    (archive / "kill_switch_audit-v3.jsonl").write_text(
+        "this is not json\n{ broken\n", encoding="utf-8")
+    _write(live, _row("2026-07-01T10:00:00+00:00", "sod_snapshot", nav=1.0, date="2026-07-01"))
+
+    assert ks.KillSwitchState()._history_complete is False, (
+        "unparseable lines are missing history, not absent history"
+    )
+
+
+def test_phase_36_8_a_non_dict_json_row_is_also_incomplete(ks_tmp_audit):
+    """The other half of the same handler: a line that parses but is not an object."""
+    ks, live, archive = ks_tmp_audit
+    (archive / "kill_switch_audit-v3.jsonl").write_text('["a", "list"]\n42\n', encoding="utf-8")
+    _write(live, _row("2026-07-01T10:00:00+00:00", "sod_snapshot", nav=1.0, date="2026-07-01"))
+
+    assert ks.KillSwitchState()._history_complete is False
+
+
+def test_phase_36_8_an_unparseable_archive_cannot_authorise_an_anchor(ks_tmp_audit):
+    """End-to-end, the Q/A's executed differential: boot over an unparseable archive,
+    anchor, then boot again once it is readable. The true peak must survive."""
+    ks, live, archive = ks_tmp_audit
+    bad = archive / "kill_switch_audit-v3.jsonl"
+    good = _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57)
+    bad.write_text("not json at all\n", encoding="utf-8")
+
+    booted = ks.KillSwitchState()
+    assert booted.snapshot()["peak_nav"] is None
+    booted.update_peak(18000.0)
+
+    rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert rows[-1].get("anchor") is not True, (
+        "an anchor written over unparseable history must not claim authority"
+    )
+
+    _write(bad, good)  # the file becomes parseable again
+    assert ks.KillSwitchState().snapshot()["peak_nav"] == 24666.57
+
+
 def test_phase_36_8_the_class_default_for_history_complete_is_conservative():
     """Mutant MX3 (flipping the class default to True) SURVIVED cycle 2, yet the
     artifacts credit this default as load-bearing safety. A state built without a

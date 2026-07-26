@@ -23,7 +23,7 @@ At suite level the immutable selector includes 36.7's whole module:
 
 ```
 $ python -m pytest backend/tests/ -q -k kill_switch          # IMMUTABLE
-126 passed, 1 skipped, 2126 deselected
+129 passed, 1 skipped, 2126 deselected
 ```
 
 ## (b) The new behaviour: a fresh marked anchor now wins
@@ -41,7 +41,7 @@ PRE-FIX, verbatim (recorded before any code changed):
 E       assert 24666.57 == 18000.0
 ```
 
-Whole file pre-fix: **10 failed, 12 passed**. POST-FIX: **32 passed** (re-measured cycle 3; cycle 1 recorded 26 and cycle 2 recorded 29 — the module grew as each Q/A found a gap).
+Whole file pre-fix: **10 failed, 12 passed**. POST-FIX: **35 passed** (re-measured cycle 3; cycle 1 recorded 26 and cycle 2 recorded 29 — the module grew as each Q/A found a gap).
 
 The boundary behaves like a boundary, not a freeze — three further assertions pin it:
 later rows ratchet UP from the anchor (`18000 → 19000`, a subsequent `18500` ignored); an anchor
@@ -71,7 +71,7 @@ pinned by an AST test that fails if the two declarations drift.
 | 2 | 36.7's defect stays fixed | **MET** — synthetic + real-corpus assertions + 36.7's module green under the immutable selector |
 | 3 | archive growth documented or capped | **MET** — cap REFUSED on measurement; do-not-prune declared in both scripts; boot cost measured |
 | 4 | `reset_peak` stays DARK | **MET** — gate byte-untouched; a test asserts the call returns `None` and writes no row |
-| 5 | mutation-test the fix | **MET** — 13 mutations, 13 killed at baseline `32 passed`, including the four the cycle-2 Q/A found surviving. Stated honestly: this licenses *"these 13 were killed"*, not "no vacuous guard remains" — an independent pass found three survivors in my previous set. |
+| 5 | mutation-test the fix | **MET** — 14 mutations, 14 killed at baseline `35 passed`, all in one batch after the last test landed, including the four the cycle-2 Q/A found surviving. Stated honestly: this licenses *"these 13 were killed"*, not "no vacuous guard remains" — an independent pass found three survivors in my previous set. |
 
 ## Do-no-harm
 
@@ -86,4 +86,4 @@ it is owed only after Q/A passes.
 
 ## Cycle-3 refresh
 
-This file carried cycle-1 numbers through two fix rounds; the cycle-2 Q/A flagged three that no longer reproduced. All figures above are re-measured at HEAD: module **32 passed**, immutable `-k kill_switch` **126 passed, 1 skipped**, and 29→32 of this module's tests are inside that selector (cycle 1 shipped with **zero**).
+This file carried cycle-1 numbers through two fix rounds; the cycle-2 Q/A flagged three that no longer reproduced. All figures above are re-measured at HEAD: module **35 passed**, immutable `-k kill_switch` **129 passed, 1 skipped**, and all 35 of this module's tests are inside that selector (cycle 1 shipped with **zero**).

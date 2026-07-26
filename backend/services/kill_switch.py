@@ -227,8 +227,17 @@ class KillSwitchState:
                         try:
                             row = json_io.parse_json_line(line)
                         except Exception:
+                            # phase-36.8 (cycle-4): a line we cannot PARSE is history
+                            # we cannot see, exactly like a file we cannot READ. The
+                            # sibling handler below records that; this one used to
+                            # `continue` silently, so a file that opened fine but held
+                            # unparseable lines reported a COMPLETE history and let a
+                            # lost-history anchor claim authority -- destroying the
+                            # true peak. Same invariant, same treatment.
+                            complete = False
                             continue
                         if not isinstance(row, dict):
+                            complete = False
                             continue
                         keyed.append((str(row.get("ts") or ""), src_idx, line_idx, row))
             except Exception as e:

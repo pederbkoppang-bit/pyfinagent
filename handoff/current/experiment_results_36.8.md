@@ -52,7 +52,7 @@ backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py:87: Asserti
 |---|---|
 | `backend/services/kill_switch.py` | `update_peak` STAMPS the anchor-from-`None` case (`anchor: true`, `prior_peak: null`); an ordinary ratchet stays unmarked. `_load_from_audit`'s `peak_update` branch ASSIGNS at a row where `anchor is True` and RATCHETS otherwise. New `_apply_authoritative_peak(raw, source)` — the single guarded path for **every** assignment to `_peak_nav` — routes both the new anchor branch and the pre-existing `peak_reset` branch. `reset_peak`'s DARK gate byte-untouched. |
 | `scripts/housekeeping/{verify_handoff_layout,backfill_handoff_archive}.py` | new `AUDIT_KEEP_GLOBS = ("kill_switch_audit*.jsonl",)` in BOTH, with the measurement that justifies refusing a cap written into the comment. |
-| `backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py` | new, **29 collected** (`pytest --collect-only`); autouse live-file write-protect fixture ported from the 36.7 module. |
+| `backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py` | new, **35 collected** (`pytest --collect-only`); autouse live-file write-protect fixture ported from the 36.7 module. |
 
 ### Why a FIELD on `peak_update` and not a new event name
 
@@ -98,13 +98,13 @@ git-tracked — the existing recoverability backstop.
 
 ```
 $ python -m pytest backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py -q
-29 passed
+35 passed
 
 $ python -m pytest backend/tests/ -q -k kill_switch            # IMMUTABLE
-123 passed, 1 skipped, 2126 deselected
+129 passed, 1 skipped, 2126 deselected
 ```
 
-All 26 → **29** of this module's tests are now INSIDE that selector (cycle 1 shipped with **zero**
+All **35** of this module's tests are now INSIDE that selector (cycle 1 shipped with **zero**
 of them selected; measured `pytest -k kill_switch --collect-only | grep -c test_phase_36_8`).
 
 ```
@@ -113,38 +113,50 @@ of them selected; measured `pytest -k kill_switch --collect-only | grep -c test_
 `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after every run;
 `git status` clean on both live audit files throughout.
 
-## Mutation matrix — 13 mutations, 13 killed (baseline `32 passed`; the four cycle-3 rows re-run after the last test landed)
+## Mutation matrix — 14 mutations, 14 killed, at ONE baseline (`35 passed`)
 
-Counts DERIVED from one batch run at the final baseline. Each mutant asserts its pattern matched
-exactly once and that the source changed; `kill_switch.py` is mutated **in memory** with
-`_AUDIT_PATH` redirected to tmp **before** the module is built (that is how an evaluator wrote 54 rows
-into live safety state today); the housekeeping mutant is on disk with sha256 restore-verified.
+**Every row below was re-run in a single batch AFTER the last test landed.** The cycle-3 Q/A caught
+the previous version claiming "one batch run at the final baseline" while 9 of 13 rows had actually
+been measured at an earlier baseline — a provenance claim that was false even though the kills held.
+This table is regenerated from one batch; the counts are derived from its output, not carried
+forward.
 
-| # | Mutation | Result @ baseline `29 passed` |
+| # | Mutation | Result @ baseline `35 passed` |
 |---|---|---|
-| M1 | the marked anchor loses authority and merely ratchets | KILLED `2 failed, 27 passed` |
-| M2 | EVERY `peak_update` assigns — the 36.7 regression | KILLED `8 failed, 21 passed` |
-| M3 | `anchor` truthiness instead of `is True` | KILLED `4 failed, 25 passed` |
-| M4 | `_apply_authoritative_peak` assigns unguarded | KILLED `13 failed, 16 passed` |
-| M5 | the writer stops marking the anchor | KILLED `2 failed, 27 passed` |
-| M6 | `peak_reset` bypasses the guard (36.15's defect restored) | KILLED `6 failed, 23 passed` |
-| **M8** *(the cycle-1 SAFETY REGRESSION)* | stamp authority even when the replay was incomplete | KILLED `1 failed, 28 passed` |
-| **M9** *(rewritten — the first attempt was inert)* | the replay claims a complete history unconditionally | KILLED `1 failed, 28 passed` |
-| M7 | one housekeeping script drops the archive declaration (disk) | KILLED `1 failed, 28 passed`; sha256 restored `516478006960` |
-| **MXL** *(cycle-3 root cause)* | stat the archive dir instead of listing it | KILLED `1 failed, 31 passed` |
-| **MX4** *(cycle-2 survivor)* | per-file read failure not recorded as incomplete | KILLED `1 failed, 31 passed` |
-| **MX3** *(cycle-2 survivor)* | `_history_complete` class default flipped to True | KILLED `1 failed, 31 passed` |
-| **MX2** *(cycle-2 survivor)* | drop `prior_peak=None` from the anchor row | KILLED `2 failed, 30 passed` |
+| M1 | the marked anchor loses authority and merely ratchets | KILLED `2 failed, 33 passed` |
+| M2 | EVERY `peak_update` assigns — the 36.7 regression | KILLED `9 failed, 26 passed` |
+| M3 | `anchor` truthiness instead of `is True` | KILLED `4 failed, 31 passed` |
+| M4 | `_apply_authoritative_peak` assigns unguarded | KILLED `13 failed, 22 passed` |
+| M5 | the writer stops marking the anchor | KILLED `2 failed, 33 passed` |
+| M6 | `peak_reset` bypasses the guard | KILLED `6 failed, 29 passed` |
+| M8 | stamp authority even when the replay was incomplete *(cycle-1 regression)* | KILLED `2 failed, 33 passed` |
+| M9 | the replay claims a complete history unconditionally | KILLED `6 failed, 29 passed` |
+| MXL | stat the archive dir instead of listing it *(cycle-2 route)* | KILLED `1 failed, 34 passed` |
+| MX4 | per-file read failure not recorded as incomplete | KILLED `1 failed, 34 passed` |
+| MX3 | `_history_complete` class default flipped to True | KILLED `1 failed, 34 passed` |
+| MX2 | drop `prior_peak=None` from the anchor row | KILLED `2 failed, 33 passed` |
+| **MXP** | **a parse failure drops history silently *(cycle-3 route)*** | KILLED `3 failed, 32 passed` |
+| M7 | one housekeeping script drops the archive declaration (disk) | KILLED `1 failed, 34 passed` |
 
-M2 is criterion 2's guard and M1 is criterion 1's — the two directions of the same boundary. M3
-exists because `is True` is a deliberate identity check and a truthiness mutant would otherwise
-survive: a future schema change or a hand-edited row carrying `anchor: "yes"` must not acquire the
-power to lower the high-water mark.
+Disk mutants restore their file with sha256 re-verified. `M8`, `M17`/`MXL`, `MX4` and `MXP` are the
+four routes the completeness gate has had to close — see the table below.
 
-**Ceiling, stated:** "0 survivors" licenses only *"these 7 mutations were killed"* — it is not a
-claim that no vacuous guard remains. This step's own history is the argument for saying so: 36.12's
-neighbouring call site produced a survivor in five consecutive cycles, each after closure was
-declared.
+**Ceiling, stated plainly:** this licenses *"these 14 mutations were killed at this baseline"*. It is
+a lower bound on the guard set, never a claim about the code. Independent passes found survivors in
+my set twice; assume a fifth route until someone has looked for it.
+
+### FOUR routes to the same regression, each found by an evaluator after I declared closure
+
+| # | Route | Why the previous gate missed it |
+|---|---|---|
+| 1 | anchor stamped on the `_peak_nav is None` accident | no gate at all — authority was unconditional |
+| 2 | archive dir absent / unreadable | gate existed but keyed on the wrong signal |
+| 3 | archive dir **unlistable** (`chmod 000`) | `is_dir()` True and `Path.glob` returns empty **without raising** |
+| 4 | archive file **unparseable** | per-*file* failures recorded; per-*line* failures dropped silently |
+
+The invariant was correct from cycle 2 onward — *complete is False whenever this replay may be
+missing history it cannot see* — and I under-applied it three times running. Each fix was right and
+each left a neighbouring hole, which is the same shape as 36.12's five-position call site.
 
 ## Cycle-2 follow-up (post-Q/A-1 FAIL) — I shipped a safety regression and it caught it
 
@@ -250,6 +262,27 @@ ever a lower bound on the guard set, never a statement about the code.
 
 **Also owed and now done:** `live_check_36.8.md` was stale cycle-1 evidence carrying three numbers
 that no longer reproduce; it is refreshed from measurements taken this cycle.
+
+## Cycle-4 follow-up (post-Q/A-3 FAIL) — the FOURTH route
+
+Cycle 3 confirmed the chmod-000 route is closed (its own probe: boot C = 24666.57, row unmarked) and
+refuted one of my suspicions with measurement (`os.listdir` and `Path.glob` agree on membership
+across dir modes `0o444/0o555/0o111/0o644`). Then it found route 4.
+
+**Parse failures were invisible to the completeness gate.** `_read_audit_rows` recorded a per-FILE
+read failure but its per-LINE handlers — `except Exception: continue` and
+`if not isinstance(row, dict): continue` — dropped history silently with `complete` left True. A file
+that opens as UTF-8 but holds unparseable lines therefore looked *empty* rather than *unreadable*,
+the anchor claimed authority, and once the file became parseable again the restore returned 18000.0
+over the true 24666.57. Executed by the Q/A, not inferred.
+
+Both handlers now record the skip. Guarded by three new tests (unparseable lines, non-dict rows, and
+the end-to-end differential), and mutant **MXP** reverts it and dies `3 failed, 32 passed`.
+
+**Its two WARNs are also closed:** the verification block was stale (it printed `29`/`123` against a
+measured `32`/`126` — the same class flagged in `live_check` a cycle earlier, in the other file this
+time), and the matrix's "one batch at the final baseline" provenance was false for 9 of 13 rows. Both
+fixed by regenerating from a single batch at the true final baseline rather than editing numbers.
 
 ## Scope honesty
 
