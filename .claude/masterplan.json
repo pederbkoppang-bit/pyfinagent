@@ -12072,7 +12072,7 @@
         },
         {
           "id": "36.9",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "name": "[P0 -- THREE MORE WAYS THE KILL SWITCH REPORTS armed:true WHILE A LEG CANNOT FIRE] Found by adversarial verification of step 36.7 (2026-07-26), three related gaps in backend/services/kill_switch.py::evaluate_breach. (1) STALE sod_date NEVER CHECKED: evaluate_breach never compares the restored snapshot's `sod_date` to today, even though the snapshot carries it. Measured: a restore on 2026-07-26 yields sod_date='2026-07-24' with armed:true, and at nav=22884.66 this computes daily_loss_pct=4.0 exactly -- a TWO-DAY price move misread as a same-day 4% loss. The destructive cycle path re-anchors before evaluating (paper_trader.py:1080/1089) and is unaffected; the three paths that do NOT re-anchor are GET /api/paper-trading/kill-switch (the UI badge), POST /resume, and the MCP risk_server tool -- exposure window after any restart is up to ~24h. (2) nav_invalid RETURNS armed:true: evaluate_breach computes `armed` BEFORE the nav_invalid early return, so an invalid current NAV (e.g. a 5s BigQuery timeout -> portfolio None -> nav 0.0) yields any_breached:False AND armed:true simultaneously -- the cockpit's KillSwitchPanel then renders emerald ACTIVE next to two 0.00% readouts, exactly the failure mode that panel's own comment claims to eliminate. POST /resume can then succeed against an unmeasured NAV reading. (3) sod_nav=0.0 WEDGES RESUME WITH A FALSE REMEDIATION MESSAGE: update_sod_nav writes float(nav) with no positivity guard, so nav=0.0 latches a real sod_nav=0.0/sod_date=today snapshot. evaluate_breach then reports daily_baseline_missing=True (armed:False, correctly disarmed) and the new 409-on-resume fires -- but paper_trader.py's re-anchor check tests `sod_nav is None` (not <=0), so the very re-anchor step the 409 response promises ('the next cycle re-anchors both baselines') never runs. Wedged paused for up to 24h with an operator-facing message that is false.",
@@ -12302,6 +12302,44 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "36.20",
+          "name": "[P1 -- COCKPIT BADGE READS DISARMED ON A HEALTHY BOOK EVERY MORNING] Found by Q/A verification of step 36.9 (2026-07-26). 36.9 made `evaluate_breach.armed` mean \"this leg can fire RIGHT NOW\", which correctly includes a daily anchor whose `sod_date` is not today. The two frontend consumers were NOT updated: KillSwitchPanel.tsx:137 and OpsStatusBar.tsx:318 both derive `disarmed = breach.armed === false` and are the ONLY frontend reads of the breach dict (grep-verified). CONSEQUENCE: on a perfectly healthy funded book the cockpit renders the DISARMED badge with alarm styling AND disables the Resume button (KillSwitchPanel.tsx:219, OpsStatusBar.tsx:368) every day from 00:00 UTC until that day's first autonomous cycle rolls the anchor (paper_trader.py:1177). That is a recurring daily alarm for a self-repairing condition, i.e. alarm fatigue, and it re-creates in the UI exactly the conflation 36.9 removed on the money path: \"we LOST the baselines\" (durable fault, operator must act) vs \"the anchor is yesterday's\" (clears itself in one cycle, no action needed). 36.9 already ships the discriminator -- `daily_baseline_stale` is present in BOTH return shapes of evaluate_breach -- and NO frontend reads it. FIX DIRECTION: render a THIRD, visually distinct, non-alarm state for stale-but-present (e.g. 'RE-ANCHORING' / muted amber) that does not disable Resume for a condition the next cycle clears, and keep DISARMED for genuine absence (daily_baseline_missing / trailing_baseline_missing). DO NOT invert the existing `=== false` checks or encode a third state as `armed: undefined` -- both backend gates use `.get(\"armed\", True)` and would then fail OPEN. Backend precedent for the same split is `baselines_present` (kill_switch.py) and the staleness-specific 409 branch (paper_trading.py); mirror that naming. NOTE the operator's :8000 does not yet run 36.9 code, so the badge will not show this until the backend is restarted -- verify against the isolated skip-auth :3100 rig with its own PLAYWRIGHT_DIST_DIR, NEVER by driving :3000.",
+          "status": "pending",
+          "retry_count": 0,
+          "max_retries": 3,
+          "verification": {
+            "command": "cd frontend && npx tsc --noEmit",
+            "success_criteria": [
+              "A stale-but-present daily anchor (daily_baseline_stale=true, daily_baseline_missing=false, trailing_baseline_missing=false) renders a visually distinct NON-alarm state in BOTH KillSwitchPanel and OpsStatusBar -- not the DISARMED badge",
+              "Genuine absence (daily_baseline_missing or trailing_baseline_missing true) still renders DISARMED with alarm styling -- a test proves the two states are distinguishable and FAILS if they are collapsed",
+              "The Resume button is NOT disabled for the stale-only state, and IS still disabled for genuine absence",
+              "No consumer encodes the third state as `armed: undefined`; both backend `.get(\"armed\", True)` gates keep their fail-OPEN behaviour unchanged",
+              "MUTATION-TEST: collapsing the new state back into `armed === false` must fail the new test"
+            ],
+            "live_check": "A Playwright capture from the isolated skip-auth :3100 rig showing the stale-anchor state rendering as the new non-alarm badge with Resume enabled, plus a second capture of genuine absence still rendering DISARMED with Resume disabled."
+          },
+          "priority": "P1"
+        },
+        {
+          "id": "36.21",
+          "name": "[P1 -- THE TEST SUITE WRITES REAL ROWS INTO LIVE KILL-SWITCH SAFETY STATE] Found while verifying step 36.9 (2026-07-26). `handoff/kill_switch_audit.jsonl` is git-tracked LIVE safety state: it is the kill switch's ONLY persistence, and `_load_from_audit` replays it (plus the handoff/audit/ archives) to restore sod_nav/peak_nav/paused at every process start. Running `python -m pytest backend/tests/ -q -k \"paper_trading or resume\"` appends FOUR REAL ROWS to it -- two pause/resume pairs with trigger=manual -- reproduced twice, deterministically, md5 ce8fb93348bb9a3bbe26f2d91b1bc05e -> a different digest both times. MEASURED SCOPE, do not assume wider: running each individual file under backend/tests/ that mentions resume_trading/.resume()/.pause() ALONE does NOT write (12 files checked one at a time, md5 unchanged after every one), so this is an ORDERING or STATE-POLLUTION effect that only appears in the combined selector -- most likely one module leaving kill_switch._state or _AUDIT_PATH attached to the real path after another module's fixture has torn its redirect down. The executor must FIND the writer, not guess: bisect the selector (pytest -p no:randomly, then --deselect halves) or monkeypatch _AUDIT_PATH.write_text/open at session scope to raise and read the traceback. WHY IT MATTERS: fabricated pause/resume rows are indistinguishable from real operator actions in an audit trail that exists precisely so a human can reconstruct why the book stopped trading; `test_phase_23_2_4_audit_log_clean_transitions` pins the allowed trigger set and must NOT be widened to accommodate test junk. PRIOR ART IN-REPO: test_phase_36_7_kill_switch_rotation_rearm.py's `isolated_state` fixture and test_phase_36_12_...py's autouse `_live_audit_file_is_write_protected` already solve this correctly for their own modules -- generalise that protection to a session-scoped autouse conftest fixture so no module can opt out by omission. DO NOT 'fix' this by gitignoring the file or by relaxing the trigger allowlist.",
+          "status": "pending",
+          "retry_count": 0,
+          "max_retries": 3,
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k kill_switch",
+            "success_criteria": [
+              "The exact reproduction `pytest backend/tests/ -q -k \"paper_trading or resume\"` leaves handoff/kill_switch_audit.jsonl byte-identical -- md5 asserted before and after in the same command",
+              "The specific test(s) that write are IDENTIFIED by name in the results, with the mechanism (which fixture/global leaks) stated -- not merely suppressed by a blanket guard",
+              "A session-scoped protection makes the live audit path unwritable from any test, so a NEW module cannot regress this by simply not opting in -- a test proves the protection itself fires",
+              "test_phase_23_2_4_audit_log_clean_transitions still passes with its trigger allowlist byte-unchanged",
+              "MUTATION-TEST: removing the protection must fail the new test"
+            ],
+            "live_check": "Terminal capture showing md5 of handoff/kill_switch_audit.jsonl before and after the full backend/tests/ suite run, identical, plus the named writing test(s) and the traceback that located them."
+          },
+          "priority": "P1"
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."

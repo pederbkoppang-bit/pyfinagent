@@ -63,6 +63,31 @@ def _fx_usd_to_local(market: Optional[str], date: Optional[str] = None) -> Optio
     return fx_rates.get_fx_rate("USD", ccy, date)
 
 
+def sod_anchor_needs_reroll(snap: dict, today: str) -> bool:
+    """phase-36.9 F3: does the start-of-day anchor need re-anchoring for `today`?
+
+    Extracted so the decision is a CALLABLE rather than a line of inline logic. It
+    was inline, and a test that asserted a hand-copied duplicate of it would keep
+    passing while the real predicate drifted -- confirmed by mutation: reverting
+    the inline form to `is None` left the whole 36.9 module green. A guard that
+    cannot fail is not a guard.
+
+    `is None` alone was the wedge. `update_sod_nav` used to latch a non-positive
+    NAV, so `sod_nav=0.0` with today's date read as "anchored" here: 0.0 is not
+    None and the date matched. `evaluate_breach` then reported the daily leg
+    missing and POST /resume 409'd promising "the next cycle re-anchors both
+    baselines" -- a promise this predicate refused to keep, for up to 24h. The
+    root cause is fixed in `kill_switch.update_sod_nav` (a non-positive anchor is
+    now refused outright, so `sod_nav` stays None); treating `<= 0` as absent here
+    is defense in depth for a 0.0 already latched in a live process that has not
+    restarted yet.
+    """
+    sod = snap.get("sod_nav")
+    if sod is None or sod <= 0:
+        return True
+    return snap.get("sod_date") != today
+
+
 class PaperTrader:
     """Virtual trade execution engine backed by BigQuery."""
 
@@ -1098,7 +1123,17 @@ class PaperTrader:
             daily_loss_limit_pct=self.settings.paper_daily_loss_limit_pct,
             trailing_dd_limit_pct=self.settings.paper_trailing_dd_limit_pct,
         )
-        pre_armed = bool(pre["armed"])  # direct index: same-process, key always present
+        # phase-36.9: read `baselines_present`, NOT `armed`. This gate asks "did we
+        # LOSE our baselines?" -- a durable fault only an operator can repair. Since
+        # 36.9, `armed` also answers "can the leg fire RIGHT NOW?", which is False for
+        # an anchor that is merely from yesterday. Because this pre-measurement runs
+        # BEFORE the daily roll below (36.12's deliberate ordering), reading `armed`
+        # here made the ordinary first cycle of every UTC day look like lost history:
+        # measured, a healthy book got blocked=True, a P1 page and a fabricated
+        # lost_history_anchor row. `baselines_present` is the pre-36.9 meaning of
+        # `armed` exactly, so this gate's behaviour is unchanged in every case it was
+        # built for. `.get` with an `armed` fallback keeps a pre-36.9 dict working.
+        pre_armed = bool(pre.get("baselines_present", pre.get("armed", True)))
         prior_snap = state.snapshot()
         # A genuinely NEW book is indistinguishable from a lost-history book by
         # `armed` alone (both are sod_nav=None, peak_nav=None), so blocking on
@@ -1139,7 +1174,7 @@ class PaperTrader:
         # cycle after a mid-day restart sees the morning's SOD and skips.
         snap = state.snapshot()
         today = datetime.now(timezone.utc).date().isoformat()
-        if snap.get("sod_nav") is None or snap.get("sod_date") != today:
+        if sod_anchor_needs_reroll(snap, today):
             state.update_sod_nav(nav, date=today)
 
         # phase-36.12: the BREACH decision stays on the POST-roll state, and that is

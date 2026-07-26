@@ -29654,3 +29654,87 @@ limits, stops, sector caps, DSR and PBO byte-untouched; no peak reset. **NOT LIV
 not on the operator's `:8000`; like 36.12 it needs a restart the operator has not authorized.
 
 Immutable: `138 passed, 1 skipped, 2126 deselected` (exit 0). HEAD dbcd8926.
+
+## Cycle 176 -- 2026-07-26 -- phase=36.9 result=PASS
+
+**[P0] Three ways the kill switch reported `armed:true` while a leg could not fire.** Closed on the
+third Q/A cycle: C1 FAIL (a real money-path regression I had shipped), C2 CONDITIONAL, C3 PASS.
+
+**F1 was LIVE, not hypothetical.** Before any code changed, a GET on the operator's `:8000` returned
+`sod_date: "2026-07-24"` with `armed: true` on 2026-07-26, and `23838.19 x 0.96 = 22884.66`
+reproduced the masterplan's measured 4% point exactly -- a two-day move one cycle away from being
+reported as a same-day 4% loss. The same capture re-verified the standing precondition (trailing leg
+still fires at 22199.91) before touching kill-switch code.
+
+**The three fixes.** A stale daily anchor no longer produces a percentage and reports
+`daily_baseline_stale` + `armed:false` (per-leg -- the trailing mark is date-independent and still
+fires, so protection is not reduced). An unmeasurable NAV no longer returns `armed:true` beside
+`any_breached:false`. A non-positive/non-finite start-of-day NAV is refused outright rather than
+latched, and the daily-roll predicate -- now the shared callable `sod_anchor_needs_reroll` -- treats
+`0.0` as absent, so the /resume 409's promise is kept at the root. IEC 61511 Cl. 16.2.4 framing from
+the research gate: the old behaviour was a bypass with no exit.
+
+**THE CYCLE-1 FAIL WAS THE MOST VALUABLE EVENT IN THIS STEP.** Folding staleness into `armed` broke a
+consumer the contract never considered: `paper_trader.check_and_enforce_kill_switch` reads the flag
+BEFORE the daily roll, by 36.12's deliberate ordering, so a pre-roll anchor is yesterday's *by
+construction*. Measured end-to-end: an ordinary healthy book returned `blocked=True`,
+`kill_switch_disarmed_lost_history`, a P1 page and a fabricated `lost_history_anchor` row into the
+live audit trail -- **every morning**. My write-up had asserted the opposite, and the contract
+compounded it by naming 36.12's order block as the compensating measure for exactly the state that
+would trip it. Fixed by splitting the two questions that had been conflated: `baselines_present`
+(did we LOSE the baselines -- a durable fault) for the order gate, `armed` (can it fire NOW) for the
+read surfaces. `baselines_present` is byte-identical to the pre-36.9 `armed` expression, so 36.12
+behaves identically in every case it was built for.
+
+**The sharpest part of that critique was not the bug.** It was that NO mutation of my suite could
+have caught it: all 13 mutants lived inside a module that never executed the order path, so a
+15/15-green matrix coexisted with a live regression. A clean matrix licenses "these N died at this
+baseline" and says nothing about a consumer no test touches. Four tests now drive the real cycle with
+the pager CAPTURED (so they can assert no P1 fires); matrix 15/15 at baseline 29.
+
+**C2's two operator-facing residuals, dispositioned differently and both disclosed.** The /resume 409
+was refusing on staleness while emitting the ABSENCE text -- "the loss baselines could not be
+restored" printed directly above `daily_baseline_missing=False` -- a message its own diagnostics
+refute. Fixed here (in scope: criterion 3 requires the 409 to be true), mutation-proved from both
+sides by C3, which additionally proved genuine lost history still reaches the absence path. The
+cockpit badge issue -- `armed === false` in `KillSwitchPanel:137` / `OpsStatusBar:318`, neither
+reading `daily_baseline_stale`, so a healthy book shows DISARMED with Resume disabled from 00:00 UTC
+until the first cycle -- is QUEUED as **36.20**, not fixed: it needs `:3100` UI evidence and is
+outside this step's authorized scope. C3 was explicitly invited to FAIL that call and ruled it
+legitimate, on the grounds the failure mode is FAIL-SAFE (an over-alarming badge cannot cause trading
+on unknown baselines; the inverse is what this step removed).
+
+**An existing P0 guard caught me mid-fix and I did not weaken it.** My first 409 wording contained
+`next cycle re-anchors`, banned by
+`test_phase_36_12_no_operator_string_still_promises_an_automatic_re_anchor` because for LOST HISTORY
+that automatic anchor WAS the defect. My case is the legitimate daily roll, but the phrase is
+ambiguous to a reader, so I reworded message and comment rather than narrow the guard to fit.
+
+**Live safety state was dirtied and restored, twice, deliberately.** `pytest backend/tests/ -q -k
+"paper_trading or resume"` appends four real `pause`/`resume` rows to the git-tracked audit file.
+Restored from `git show HEAD:` both times with md5 re-verified. NOT caused by this step (12 candidate
+files leave the digest unchanged run individually), so it is queued as **36.21** with the exact
+repro rather than described in prose.
+
+**Claim corrections made this step:** "the autonomous cycle is unaffected because it re-anchors
+first" -- withdrawn IN PLACE, measured false. "12 `_sod_date` assignments across 3 files" -- corrected
+to 11 across 2; the 12th grep hit is docstring prose. My first re-derivation of that census was also
+wrong (`git grep -E` with `\s`, undefined in POSIX ERE, silently matched 1 of 12) and would have
+"confirmed" any number. A grep finds candidates; it does not certify the members satisfy the
+predicate in the sentence you write about them.
+
+**Accepted NOTE-level residuals from C3, recorded not swept:** (1) 36.20/36.21 announce "[P1 --" in
+their names but carried `priority: null` -- fixed in the same edit as this step's status flip, and
+disclosed here rather than done silently. (2) `experiment_results_36.9.md:66-67` quotes the criterion
+text "the next cycle re-anchors both baselines" as if it were the 409's wording; that sentence is
+provably not in the source (the 36.12 guard bans it and passes). Left UNEDITED: post-verdict changes
+to graded artifacts render a verdict inadmissible (phase-75.20.1).
+
+**Do-no-harm:** `:8000` GET-only, never restarted or POSTed to; `:3000` never driven; kill-switch
+limits, stops, sector caps, DSR and PBO byte-untouched (no threshold literal appears in the diff);
+no peak reset; `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` and git-clean
+at close.
+
+**NOT LIVE:** like 36.12 and 36.8, this needs a backend restart the operator has not authorized.
+
+Immutable: `167 passed, 1 skipped, 2126 deselected` (exit 0).

@@ -78,6 +78,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,15 @@ CATASTROPHIC_NAV = 11919.08  # a 50% drawdown from LIVE_NAV
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
+
+
+# phase-36.9: COMPUTED, never hardcoded. `evaluate_breach` now treats a `sod_date`
+# older than today (UTC) as an unevaluable daily leg, so a literal date string here
+# would pass on the day it was written and fail every day after. Tests that want the
+# daily leg to FIRE must anchor to today; tests that want staleness say so explicitly
+# via STALE_SOD_DATE.
+TODAY_UTC = datetime.now(timezone.utc).date().isoformat()
+STALE_SOD_DATE = "2026-05-22"  # deliberately old: used where staleness is the subject
 
 
 def _row(event: str, ts: str, **fields: Any) -> str:
@@ -243,7 +253,7 @@ def test_phase_36_7_kill_switch_disarmed_marker_is_per_leg_not_wholesale(
     """
     ks, st = isolated_state
     st._sod_nav = LIVE_SOD
-    st._sod_date = "2026-07-24"
+    st._sod_date = TODAY_UTC
     st._peak_nav = None  # exactly what -v4-alone restores
 
     r = ks.evaluate_breach(CATASTROPHIC_NAV, 4.0, 10.0)
@@ -267,7 +277,7 @@ def test_phase_36_7_kill_switch_disarmed_discriminates_on_presence_not_value(
     discriminate on presence, never on value)."""
     ks, st = isolated_state
     st._sod_nav = 10000.0
-    st._sod_date = "2026-07-26"
+    st._sod_date = TODAY_UTC
     st._peak_nav = 10000.0
 
     r = ks.evaluate_breach(10000.0, 4.0, 10.0)
@@ -337,6 +347,19 @@ def test_phase_36_7_kill_switch_baseline_restored_from_rotated_v4_file(ks_tmp_au
     assert snap["paused"] is False
 
     # ... and with the baseline back, the switch FIRES.
+    #
+    # phase-36.9 AMENDED, and the amendment is the point of that step. This row is
+    # dated 2026-07-24, so what it restores is a REAL but STALE daily anchor. Until
+    # 36.9 this asserted `armed is True` -- which is exactly the live defect 36.9
+    # was filed for: measured on :8000 on 2026-07-26, the operator's badge endpoint
+    # served sod_date=2026-07-24 with armed:true, and the daily leg's 4% point sat
+    # at 22884.66, i.e. a TWO-DAY move reported as a same-day loss. The daily leg is
+    # now unevaluable on a stale anchor and says so.
+    #
+    # 36.7's OWN guarantee is preserved and still asserted here: restoration works,
+    # and the switch still PROTECTS -- the trailing leg is a high-water mark, not
+    # date-scoped, so it fires on the catastrophic NAV exactly as before. What
+    # changed is only that a stale daily anchor no longer claims it can fire.
     import backend.services.kill_switch as ks_mod
     orig = ks_mod._state
     try:
@@ -344,10 +367,33 @@ def test_phase_36_7_kill_switch_baseline_restored_from_rotated_v4_file(ks_tmp_au
         r = ks_mod.evaluate_breach(CATASTROPHIC_NAV, 4.0, 10.0)
     finally:
         ks_mod._state = orig
-    assert r["armed"] is True
-    assert r["any_breached"] is True
-    assert r["daily_loss_breached"] is True
+    assert r["daily_baseline_stale"] is True, (
+        "phase-36.9: a 2026-07-24 anchor evaluated today is stale and must say so"
+    )
+    assert r["armed"] is False, (
+        "phase-36.9 REGRESSION: a stale daily anchor must not report armed:true -- "
+        "that is the live 2026-07-26 defect this step closes"
+    )
+    assert r["daily_loss_breached"] is False, (
+        "phase-36.9: a percentage must never be computed from a stale anchor"
+    )
+    assert r["daily_loss_pct"] == 0.0
+    # PROTECTION IS NOT LOST -- the date-independent leg still fires.
     assert r["trailing_dd_breached"] is True
+    assert r["any_breached"] is True
+
+    # And with the SAME restore carrying a FRESH date, 36.7's original guarantee
+    # holds unchanged: both legs evaluate and both fire.
+    st._sod_date = TODAY_UTC
+    try:
+        ks_mod._state = st
+        r2 = ks_mod.evaluate_breach(CATASTROPHIC_NAV, 4.0, 10.0)
+    finally:
+        ks_mod._state = orig
+    assert r2["armed"] is True
+    assert r2["any_breached"] is True
+    assert r2["daily_loss_breached"] is True
+    assert r2["trailing_dd_breached"] is True
 
 
 def test_phase_36_7_kill_switch_restore_survives_a_future_v5_rotation(ks_tmp_audit):
@@ -585,7 +631,7 @@ def test_phase_36_7_kill_switch_healthy_path_arithmetic_unchanged(
     the boundary without failing here."""
     ks, st = isolated_state
     st._sod_nav = sod
-    st._sod_date = "2026-07-26" if sod is not None else None
+    st._sod_date = TODAY_UTC if sod is not None else None
     st._peak_nav = peak
 
     r = ks.evaluate_breach(nav, 4.0, 10.0)
@@ -619,7 +665,7 @@ def test_phase_36_7_kill_switch_zero_sod_no_div_zero_and_flagged(isolated_state)
     silently skipping the leg."""
     ks, st = isolated_state
     st._sod_nav = 0.0
-    st._sod_date = "2026-07-26"
+    st._sod_date = TODAY_UTC
     st._peak_nav = 10000.0
     r = ks.evaluate_breach(10000.0, 4.0, 10.0)
     assert r["daily_loss_breached"] is False
@@ -789,7 +835,7 @@ def test_phase_36_7_kill_switch_resume_endpoint_409s_when_disarmed(
     # Control: with the baseline restored, the SAME call succeeds -- the gate is
     # about the disarmed state, not a blanket refusal.
     st._sod_nav = LIVE_SOD
-    st._sod_date = "2026-07-26"
+    st._sod_date = TODAY_UTC
     st._peak_nav = LIVE_PEAK_TRUE_MAX
     out = asyncio.run(pt.resume_trading(req))
     assert out["status"] == "resumed"
@@ -823,7 +869,7 @@ def test_phase_36_7_kill_switch_auto_resume_refuses_while_disarmed(
     # Control: armed + genuinely healthy -> the T+2h resume still fires, so this
     # guard did not disable phase-38.1's hysteresis.
     st._sod_nav = 10000.0
-    st._sod_date = "2026-07-26"
+    st._sod_date = TODAY_UTC
     st._peak_nav = 10000.0
     out2 = ks.check_auto_resume(10000.0, 4.0, 10.0, enabled=True)
     assert out2["action"] == "resume", out2
@@ -852,7 +898,7 @@ def test_phase_36_7_kill_switch_breach_dict_shape_contract(isolated_state):
     """
     ks, st = isolated_state
     st._sod_nav = 10000.0
-    st._sod_date = "2026-07-26"
+    st._sod_date = TODAY_UTC
     st._peak_nav = 10000.0
 
     normal = ks.evaluate_breach(9900.0, 4.0, 10.0)

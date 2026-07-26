@@ -1,0 +1,43 @@
+
+==============================================================================
+PRE-FIX REPRODUCTION -- F1  stale sod_date
+==============================================================================
+>       assert r["daily_baseline_stale"] is True
+E       assert False is True
+FAILED backend/tests/test_phase_36_9_kill_switch_armed_liveness.py::test_phase_36_9_the_live_2026_07_26_shape_no_longer_reports_armed
+1 failed, 23 deselected in 0.03s
+
+==============================================================================
+PRE-FIX REPRODUCTION -- F2  nav_invalid reports armed:true
+==============================================================================
+>       assert r["armed"] is False, (
+E       AssertionError: a leg that cannot measure cannot fire -- unknown is not healthy
+E       assert True is False
+>       assert r["armed"] is False, (
+E       AssertionError: a leg that cannot measure cannot fire -- unknown is not healthy
+E       assert True is False
+>       assert r["armed"] is False, (
+E       AssertionError: a leg that cannot measure cannot fire -- unknown is not healthy
+E       assert True is False
+FAILED backend/tests/test_phase_36_9_kill_switch_armed_liveness.py::test_phase_36_9_nav_invalid_must_not_report_armed[0.0]
+FAILED backend/tests/test_phase_36_9_kill_switch_armed_liveness.py::test_phase_36_9_nav_invalid_must_not_report_armed[None]
+FAILED backend/tests/test_phase_36_9_kill_switch_armed_liveness.py::test_phase_36_9_nav_invalid_must_not_report_armed[-1.0]
+3 failed, 21 deselected in 0.03s
+
+==============================================================================
+PRE-FIX REPRODUCTION -- F3  sod_nav=0.0 latches
+==============================================================================
+>       assert snap["sod_nav"] is None, f"{bad!r} must not latch as a baseline"
+E       AssertionError: 0.0 must not latch as a baseline
+E       assert 0.0 is None
+>       assert snap["sod_nav"] is None, f"{bad!r} must not latch as a baseline"
+E       AssertionError: -1.0 must not latch as a baseline
+E       assert -1.0 is None
+>       assert snap["sod_nav"] is None, f"{bad!r} must not latch as a baseline"
+E       AssertionError: nan must not latch as a baseline
+E       assert nan is None
+>       assert snap["sod_nav"] is None, f"{bad!r} must not latch as a baseline"
+E       AssertionError: inf must not latch as a baseline
+E       assert inf is None
+FAILED backend/tests/test_phase_36_9_kill_switch_armed_liveness.py::test_phase_36_9_update_sod_nav_refuses_a_non_positive_anchor[0.0]
+FAILED backend/tests/test_phase_36_9_kill_switch_armed_liveness.py::test_phase_36_9_update_sod_nav_refuses_a_non_positive_anchor[-1.0]

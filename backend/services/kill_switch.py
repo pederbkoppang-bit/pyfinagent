@@ -37,7 +37,9 @@ import os
 from backend.utils import json_io
 import logging
 import threading
-from datetime import datetime, timezone
+# phase-36.9: `date` is aliased because `update_sod_nav(self, nav, date=None)` has a
+# parameter of that name -- an unaliased import would be shadowed inside that method.
+from datetime import date as _date, datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -521,8 +523,29 @@ class KillSwitchState:
         """
         if date is None:
             date = datetime.now(timezone.utc).date().isoformat()
+        # phase-36.9 F3: REFUSE a non-positive anchor instead of latching it.
+        # `float(nav)` used to accept 0.0 (a BQ timeout's `or 0.0` fallback), which
+        # wrote a REAL sod_snapshot row: sod_nav=0.0 with sod_date=today. That is a
+        # semipredicate -- present enough to satisfy the re-anchor check's
+        # `is None`, useless to the division that needs it. `evaluate_breach` then
+        # correctly reported the leg missing and /resume correctly 409'd with a
+        # message promising "the next cycle re-anchors both baselines" -- but the
+        # re-anchor never ran, because 0.0 is not None and the date WAS today. The
+        # book sat paused up to 24h behind an operator-facing message that was
+        # false: a bypass with no exit (IEC 61511 Cl. 16.2.4). Refusing here leaves
+        # sod_nav None, which the existing predicate already re-anchors, so the
+        # promise becomes true at the root rather than being patched downstream.
+        coerced = _coerce_nav(nav)
+        if coerced is None:
+            logger.error(
+                "kill_switch: REFUSING a non-positive start-of-day anchor "
+                "(nav=%r, date=%s). sod_nav stays %r so the next cycle re-anchors; "
+                "latching this would disarm the daily leg AND block its own repair.",
+                nav, date, self._sod_nav,
+            )
+            return
         with self._lock:
-            self._sod_nav = float(nav)
+            self._sod_nav = coerced
             self._sod_date = date
             self._append_audit("sod_snapshot", nav=self._sod_nav, date=self._sod_date)
 
@@ -744,9 +767,37 @@ def evaluate_breach(
     # A leg is evaluable iff its baseline is present AND positive.
     daily_baseline_missing = not (sod is not None and sod > 0)
     trailing_baseline_missing = not (peak is not None and peak > 0)
-    armed = not (daily_baseline_missing or trailing_baseline_missing)
+    # phase-36.9 F1: presence is not freshness. A daily-loss limit is BY DEFINITION
+    # measured from today's open, so a `sod_date` older than today makes the daily
+    # leg unevaluable even though its baseline is present and positive. Measured on
+    # the live book 2026-07-26: the badge endpoint served sod_date=2026-07-24 with
+    # armed:true, and (23838.19 - nav)/23838.19 hit 4.0% at 22884.66 -- a TWO-DAY
+    # move reported as a same-day loss. That is the worst of both directions at once:
+    # it loses same-day coverage AND biases toward a spurious flatten (a nuisance
+    # trip and a diagnostic failure together). Per-leg, per this function's existing
+    # doctrine -- the trailing leg is a high-water mark, not date-scoped, so it is
+    # untouched and keeps firing.
+    daily_baseline_stale = _sod_date_is_stale(s.get("sod_date"), sod)
+    daily_leg_unevaluable = daily_baseline_missing or daily_baseline_stale
+    armed = not (daily_leg_unevaluable or trailing_baseline_missing)
+    # phase-36.9: `armed` and "we still have our baselines" are DIFFERENT QUESTIONS,
+    # and conflating them broke the money path. `baselines_present` is exactly the
+    # pre-36.9 meaning of `armed` -- presence only, no freshness, no NAV validity.
+    #
+    # WHY IT EXISTS: paper_trader's 36.12 gate measures `armed` BEFORE the daily roll
+    # (by design -- "MEASURE THE ARMED STATE BEFORE MUTATING THE BASELINES"), so on
+    # the FIRST CYCLE OF EVERY UTC DAY the pre-roll anchor is yesterday's and is stale
+    # by construction. Folding staleness into the flag that gate reads made an
+    # ordinary overnight cycle look like LOST HISTORY: measured end-to-end, a healthy
+    # book returned blocked=True, block_reason=kill_switch_disarmed_lost_history, a P1
+    # page and a fabricated `lost_history_anchor` row into the live audit trail --
+    # every morning. Lost history is a durable fault an operator must repair; an
+    # overnight anchor is repaired by the very next line of the same function.
+    # Read surfaces (badge / resume / MCP) keep the strict `armed`; the order-placing
+    # gate reads `baselines_present`.
+    baselines_present = not (daily_baseline_missing or trailing_baseline_missing)
     if not armed:
-        _log_disarmed_once(sod, peak)
+        _log_disarmed_once(sod, peak, s.get("sod_date"), daily_baseline_stale)
 
     if current_nav is None or current_nav <= 0:
         return {
@@ -755,17 +806,28 @@ def evaluate_breach(
             "trailing_dd_breached": False, "trailing_dd_pct": 0.0,
             "trailing_dd_limit_pct": float(trailing_dd_limit_pct),
             "any_breached": False, "nav_invalid": True,
+            # phase-36.9 F2: `armed` used to be computed from BASELINE presence
+            # alone and returned unchanged here, so an unmeasurable NAV yielded
+            # any_breached:False AND armed:true simultaneously -- the cockpit
+            # rendered an emerald ACTIVE badge beside two 0.00% readouts, exactly
+            # the failure mode that panel's own comment claims to eliminate, and
+            # POST /resume could succeed against a NAV nobody had measured. A leg
+            # that cannot measure cannot fire, so it must not claim it can:
+            # unknown is not healthy.
+            "daily_baseline_stale": bool(daily_baseline_stale),
+            "nav_invalid_disarmed": True,
             # phase-36.7: present in BOTH return shapes so no consumer has to
             # branch on which one it got. `nav_invalid` stays absent from the
             # normal return (its established optional-key discipline).
             "daily_baseline_missing": bool(daily_baseline_missing),
             "trailing_baseline_missing": bool(trailing_baseline_missing),
-            "armed": bool(armed),
+            "baselines_present": bool(baselines_present),
+            "armed": False,
         }
 
     daily_loss_breached = False
     daily_loss_pct = 0.0
-    if not daily_baseline_missing:
+    if not daily_leg_unevaluable:
         daily_loss_pct = (sod - current_nav) / sod * 100.0
         daily_loss_breached = daily_loss_pct >= daily_loss_limit_pct
 
@@ -784,12 +846,43 @@ def evaluate_breach(
         "trailing_dd_limit_pct": float(trailing_dd_limit_pct),
         "any_breached": bool(daily_loss_breached or trailing_dd_breached),
         "daily_baseline_missing": bool(daily_baseline_missing),
+        "daily_baseline_stale": bool(daily_baseline_stale),
         "trailing_baseline_missing": bool(trailing_baseline_missing),
+        "baselines_present": bool(baselines_present),
         "armed": bool(armed),
     }
 
 
-def _log_disarmed_once(sod: Optional[float], peak: Optional[float]) -> None:
+def _sod_date_is_stale(sod_date: Any, sod_nav: Optional[float]) -> bool:
+    """phase-36.9 F1: is the daily anchor from a day other than today (UTC)?
+
+    Returns True only when there IS a daily baseline to judge -- when `sod_nav`
+    is absent the leg is already unevaluable via `daily_baseline_missing`, and
+    reporting it as *stale* on top would be a second name for the same absence.
+
+    An UNPARSEABLE or MISSING date on a PRESENT baseline counts as stale. That is
+    the conservative reading and it is deliberate: freshness is a claim that must
+    be provable, and a baseline that cannot prove its day cannot be measured
+    against as today's open. Erring the other way would let exactly the defect
+    this fixes back in through a malformed audit row.
+
+    Compared as ISO date strings via `date.fromisoformat` so a same-day string
+    with different formatting still parses; anything non-string or non-ISO is
+    stale rather than raising, because this sits on the read path of a polled GET.
+    """
+    if sod_nav is None or sod_nav <= 0:
+        return False
+    if not isinstance(sod_date, str) or not sod_date:
+        return True
+    try:
+        anchored = _date.fromisoformat(sod_date)
+    except (ValueError, TypeError):
+        return True
+    return anchored != datetime.now(timezone.utc).date()
+
+
+def _log_disarmed_once(sod: Optional[float], peak: Optional[float],
+                      sod_date: Any = None, stale: bool = False) -> None:
     """One-shot-per-process ERROR log for a disarmed kill switch.
 
     `evaluate_breach` is called by a polled GET, so this must not log on every
@@ -803,10 +896,18 @@ def _log_disarmed_once(sod: Optional[float], peak: Optional[float]) -> None:
     if _disarmed_logged:
         return
     _disarmed_logged = True
+    # phase-36.9: name the ACTUAL cause. A stale anchor is present and positive, so
+    # the old fixed "baseline missing (sod_nav=23838.19 ...)" line reported a number
+    # it had just called missing -- an operator reading it would go looking for an
+    # absent baseline that is sitting right there with the wrong date on it.
+    cause = "baseline missing"
+    if stale:
+        cause = ("daily anchor STALE" if sod is not None and sod > 0
+                 else "baseline missing + daily anchor stale")
     logger.error(
-        "kill_switch DISARMED: baseline missing (sod_nav=%r peak_nav=%r) -- "
-        "breach legs without a baseline cannot fire. Sources replayed: %s",
-        sod, peak, [str(p) for p in _audit_source_paths()],
+        "kill_switch DISARMED: %s (sod_nav=%r sod_date=%r peak_nav=%r) -- "
+        "an unevaluable leg cannot fire. Sources replayed: %s",
+        cause, sod, sod_date, peak, [str(p) for p in _audit_source_paths()],
     )
 
 

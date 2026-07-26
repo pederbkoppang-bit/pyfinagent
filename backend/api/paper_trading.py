@@ -595,6 +595,38 @@ async def resume_trading(req: KillSwitchActionRequest):
     # regardless of the real drawdown, because both legs were skipped and
     # `any_breached` was hardcoded-False by absence. Refuse instead.
     # `.get("armed", True)` fails OPEN on a dict that predates the key.
+    # phase-36.9: staleness and absence are DIFFERENT refusals and must not share
+    # one message. On a merely-stale anchor the baselines WERE restored, both
+    # `*_missing` fields print False, and the lost-history remediation below does
+    # NOT apply -- the daily start-of-day roll sets today's anchor at the top of the
+    # next cycle, with no operator action at all. Note the wording constraint: 36.12
+    # BANS telling an operator to wait for an automatic re-anchor, because for LOST
+    # HISTORY that silent anchor WAS the defect (it forgives the real drawdown). A
+    # merely-stale anchor is the opposite case -- the daily roll is the correct,
+    # designed behaviour -- but the phrasing is ambiguous to a reader, so this text
+    # avoids the banned phrases rather than weakening 36.12's guard to fit it.
+    # Sending the absence text here would assert a cause
+    # its own printed diagnostics refute, which is the same defect this step fixed
+    # in the disarm log. Verified: a PAUSED book still reaches the roll, so this
+    # refusal self-clears within one cycle and cannot wedge.
+    if (breach.get("daily_baseline_stale")
+            and not breach.get("daily_baseline_missing")
+            and not breach.get("trailing_baseline_missing")):
+        _snap = _get_ks_state().snapshot()
+        raise HTTPException(
+            409,
+            "Cannot resume: the daily-loss anchor is STALE -- it is from "
+            f"{_snap.get('sod_date')!r}, not today (UTC), so the "
+            "daily-loss leg cannot be verified healthy against today's open. "
+            "The baselines themselves are intact "
+            f"(sod_nav={_snap.get('sod_nav')}, "
+            f"peak_nav={_snap.get('peak_nav')}); the trailing leg is "
+            "date-independent and still armed. NO operator action is required: "
+            "the daily start-of-day roll stamps today's anchor at the top of the "
+            "next paper-trading cycle and this refusal clears itself. Retry the "
+            "resume after "
+            "that cycle."
+        )
     if not breach.get("armed", True):
         raise HTTPException(
             409,

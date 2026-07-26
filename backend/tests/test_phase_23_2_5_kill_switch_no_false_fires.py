@@ -26,6 +26,7 @@ This test file enforces:
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 import os
 import subprocess
 from pathlib import Path
@@ -48,6 +49,15 @@ ALLOWED_POST_FIX_TRIGGERS = {
 }
 
 FIX_DATE = "2026-05-06"  # Day after the 2026-05-05 false-fires
+
+
+# phase-36.9: COMPUTED, never hardcoded. `evaluate_breach` now treats a `sod_date`
+# older than today (UTC) as an unevaluable daily leg, so a literal date string here
+# would pass on the day it was written and fail every day after. Tests that want the
+# daily leg to FIRE must anchor to today; tests that want staleness say so explicitly
+# via STALE_SOD_DATE.
+TODAY_UTC = datetime.now(timezone.utc).date().isoformat()
+STALE_SOD_DATE = "2026-05-22"  # deliberately old: used where staleness is the subject
 
 
 def test_phase_23_2_5_no_unexpected_auto_pauses_post_fix():
@@ -127,7 +137,7 @@ def test_phase_23_2_5_evaluate_breach_profit_does_not_breach(isolated_kill_switc
     daily_loss_pct=-2.5 (i.e. profit) yet triggered an auto-pause."""
     ks = isolated_kill_switch_state
     ks._state._sod_nav = 10000.0
-    ks._state._sod_date = "2026-05-22"
+    ks._state._sod_date = TODAY_UTC
     # peak_nav remains None (no trailing-dd factor)
     r = ks.evaluate_breach(
         current_nav=10250.0,
@@ -149,7 +159,7 @@ def test_phase_23_2_5_evaluate_breach_real_breach_at_limit():
     # snapshot
     _orig = (ks._state._sod_nav, ks._state._sod_date, ks._state._peak_nav)
     ks._state._sod_nav = 10000.0
-    ks._state._sod_date = "2026-05-22"
+    ks._state._sod_date = TODAY_UTC
     ks._state._peak_nav = None
     try:
         # 4% loss exactly = breach
@@ -171,7 +181,7 @@ def test_phase_23_2_5_evaluate_breach_just_under_limit_no_breach():
     # snapshot
     _orig = (ks._state._sod_nav, ks._state._sod_date, ks._state._peak_nav)
     ks._state._sod_nav = 10000.0
-    ks._state._sod_date = "2026-05-22"
+    ks._state._sod_date = TODAY_UTC
     ks._state._peak_nav = None
     try:
         r = ks.evaluate_breach(
@@ -245,7 +255,7 @@ def test_phase_23_2_5_evaluate_breach_zero_sod_does_not_div_zero():
     import backend.services.kill_switch as ks
     _orig = (ks._state._sod_nav, ks._state._sod_date, ks._state._peak_nav)
     ks._state._sod_nav = 0.0
-    ks._state._sod_date = "2026-05-22"
+    ks._state._sod_date = TODAY_UTC
     try:
         r = ks.evaluate_breach(
             current_nav=10000.0,

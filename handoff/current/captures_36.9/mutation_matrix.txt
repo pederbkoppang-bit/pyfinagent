@@ -1,0 +1,20 @@
+MUTANT                                           RESULT    DETAIL
+------------------------------------------------------------------------------------------------
+baseline                                         BASELINE  29 passed, 1 warning in 2.44s
+F1_REVERT_no_staleness_concept                   KILLED    11 failed, 18 passed, 1 warning in 2.08s
+F1_armed_ignores_staleness                       KILLED    9 failed, 20 passed, 1 warning in 2.08s
+F1_math_still_uses_a_stale_anchor                KILLED    1 failed, 28 passed, 1 warning in 2.04s
+F1_unprovable_date_treated_as_FRESH              KILLED    4 failed, 25 passed, 1 warning in 2.07s
+F1_malformed_date_treated_as_FRESH               KILLED    2 failed, 27 passed, 1 warning in 2.05s
+F1_stale_becomes_a_second_name_for_absent        KILLED    1 failed, 28 passed, 1 warning in 2.06s
+F1_compares_to_a_fixed_date_not_today            KILLED    5 failed, 24 passed, 1 warning in 2.07s
+F2_REVERT_nav_invalid_reports_armed              KILLED    4 failed, 25 passed, 1 warning in 2.09s
+F3_REVERT_root_latches_zero_again                KILLED    5 failed, 24 passed, 1 warning in 2.10s
+F3_refusal_stamps_the_date_on_its_way_out        KILLED    4 failed, 25 passed, 1 warning in 2.09s
+C2_baselines_present_refolds_staleness           KILLED    2 failed, 27 passed, 1 warning in 2.08s
+LOG_reverts_to_claiming_absence                  KILLED    1 failed, 28 passed, 1 warning in 2.08s
+F3_REVERT_consumer_predicate_is_None_only        KILLED    1 failed, 28 passed, 1 warning in 2.08s
+C2_order_gate_reads_armed_again                  KILLED    1 failed, 28 passed, 1 warning in 2.07s
+F3_consumer_predicate_always_rerolls             KILLED    1 failed, 28 passed, 1 warning in 2.09s
+------------------------------------------------------------------------------------------------
+15 killed, 0 survived, of 15 mutants
