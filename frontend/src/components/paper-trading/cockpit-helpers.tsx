@@ -186,7 +186,11 @@ export function SummaryHero({
 }) {
   const navDisplay = liveNav ?? status?.portfolio.nav ?? null;
   const pnlDisplay = liveTotalPnlPct ?? status?.portfolio.pnl_pct ?? null;
-  const bench = status?.portfolio.benchmark_return_pct ?? 0;
+  // phase-80.36: `?? 0` made an unreachable backend render "vs SPY +0,00 %" in
+  // POSITIVE-GREEN -- a measured-looking, reassuring number from no data. Absence
+  // now propagates so the row falls back to the same em-dash the NAV/Cash/P&L/
+  // Sharpe cells beside it already use.
+  const bench = status?.portfolio.benchmark_return_pct ?? null;
 
   const isAll = !activeMarket || activeMarket === "ALL";
   const filtered = isAll
@@ -194,7 +198,9 @@ export function SummaryHero({
     : positions.filter(
         (p) => resolveMarket({ market: p.market, ticker: p.ticker }) === activeMarket,
       );
-  const positionCount = isAll ? (status?.position_count ?? 0) : filtered.length;
+  // Unknown is not zero: with `status` absent this asserted a flat book while two
+  // positions (PANW, AMD) were actually held.
+  const positionCount = isAll ? (status?.position_count ?? null) : filtered.length;
 
   // phase-56.1 (55.1 F-12): the card VALUE for a non-US market is that market's
   // holdings return, NOT an index excess (the per-market index is not fetched) --
@@ -214,7 +220,8 @@ export function SummaryHero({
   let vsValue: number | null;
   let vsTitle: string | undefined;
   if (isAll || activeMarket === "US") {
-    vsValue = (pnlDisplay ?? 0) - bench;
+    // Both operands must be known -- `(null ?? 0) - 0` silently produced 0.
+    vsValue = pnlDisplay != null && bench != null ? pnlDisplay - bench : null;
   } else {
     let pnl = 0;
     let cost = 0;
@@ -240,7 +247,9 @@ export function SummaryHero({
       </MetricCard>
       <MetricCard label="Sharpe"><SharpeValue value={perf?.sharpe_ratio} /></MetricCard>
       <MetricCard label="Positions">
-        <span className="text-slate-100">{positionCount}</span>
+        {/* null renders as EMPTY in JSX -- a blank cell reads as a value, not as
+            "unknown". Match the em-dash the NAV/Cash/P&L cells already use. */}
+        <span className="text-slate-100">{positionCount ?? "—"}</span>
       </MetricCard>
     </div>
   );
@@ -295,6 +304,57 @@ export function PaperVsBacktestCard({
   );
 }
 
+
+// phase-80.36: UNKNOWN is a first-class state, distinct from NOMINAL.
+//
+// With the backend unreachable the Risk Monitor rendered "Kill switch (-15%) SAFE"
+// in emerald, because `perf?.max_drawdown_pct ?? 0` turned ABSENCE into the most
+// reassuring possible observation and `0 > -10` is true. That is the most
+// trust-bearing pixel on the cockpit, and it compounds with step 36.7, where the
+// kill switch currently cannot fire at all.
+//
+// TWO RULES THIS ENCODES, both of which a naive fix gets wrong:
+//
+//  1. DISCRIMINATE ON PRESENCE, NEVER ON VALUE. `max_drawdown_pct === 0` is a
+//     legitimate healthy reading (a fund at its high-water mark). Any `if (!maxDd)`
+//     or `maxDd === 0` check would flip a genuine SAFE to UNKNOWN and change the
+//     healthy path. Note also `Math.abs(null) === 0` in JS, so a half-fix leaves
+//     the progress bar silently rendering a nominal width.
+//
+//  2. RESOLVE PER ROW, NEVER PER CARD. A card-level `if (!perf) return <Unknown/>`
+//     would HIDE A LIVE BREACH: `Position size` and `Sector concentration` never
+//     read `perf` at all -- they read `positions` + `portfolio` -- and
+//     getPaperPerformance() carries its own `.catch(() => null)` (layout.tsx:193),
+//     so "perf null, portfolio healthy" is a REAL state. Bailing at card level
+//     would suppress a genuine `HIGH (>20%)`.
+//
+// Mirrors the repo's existing FreshnessBand `"green"|"amber"|"red"|"unknown"` idiom
+// and StaleDataState's isUnknown branch -- navy/slate tokens per frontend.md, whose
+// palette rule already assigns GRAY to error/unavailable.
+type RiskVerdict =
+  | { state: "unknown" }
+  | { state: "ok" | "warn" | "breach"; label: string };
+
+const UNKNOWN_LABEL = "NO DATA";
+const UNKNOWN_CLASS = "bg-slate-500/10 text-slate-400";
+
+function verdictClass(v: RiskVerdict): string {
+  switch (v.state) {
+    case "unknown": return UNKNOWN_CLASS;
+    case "ok":      return "bg-emerald-500/10 text-emerald-400";
+    case "warn":    return "bg-amber-500/10 text-amber-400";
+    case "breach":  return "bg-rose-500/10 text-rose-400";
+    default: {
+      const _exhaustive: never = v;
+      return _exhaustive;
+    }
+  }
+}
+
+function verdictLabel(v: RiskVerdict): string {
+  return v.state === "unknown" ? UNKNOWN_LABEL : v.label;
+}
+
 export function RiskMonitorCard({
   perf,
   positions,
@@ -306,15 +366,39 @@ export function RiskMonitorCard({
   portfolio: PaperPortfolio | null;
   tickerMeta: Record<string, { sector?: string }>;
 }) {
-  const maxDd = perf?.max_drawdown_pct ?? 0;
-  const navDenom = portfolio?.total_nav ?? 10000;
+  // PRESENCE, not value: `perf` absent (or the field absent) means unknown; a
+  // numeric 0 is a real high-water-mark reading and must still render SAFE.
+  const ddKnown = perf != null && perf.max_drawdown_pct != null;
+  const maxDd = ddKnown ? (perf!.max_drawdown_pct as number) : 0;
+  const killSwitch: RiskVerdict = !ddKnown
+    ? { state: "unknown" }
+    : maxDd > -10
+      ? { state: "ok", label: "SAFE" }
+      : maxDd > -13
+        ? { state: "warn", label: "WARNING" }
+        : { state: "breach", label: "DANGER" };
+
+  // phase-80.36: `?? 10000` fabricated a $10,000 fund, so every Max-position
+  // percentage would be computed against an invented denominator. Reachable only
+  // via a backend response carrying portfolio:null with non-empty positions
+  // (layout.tsx:188-198 sets both from ONE response), but indefensible as a
+  // default -- absence now propagates instead of being papered over.
+  const navDenom = portfolio?.total_nav ?? null;
   // phase-56.1 (55.1 F-1): qty x local current_price treated KRW as USD
   // ("Max position 1527.8%"); use the shared FX-safe USD value instead.
-  const concentrations = positions.map(
-    (p) => (positionMarketValueUsd(p) / navDenom) * 100,
-  );
+  const concentrations =
+    navDenom != null && navDenom > 0
+      ? positions.map((p) => (positionMarketValueUsd(p) / navDenom) * 100)
+      : [];
   const maxPos = concentrations.length > 0 ? Math.max(...concentrations) : null;
-  const concentrationHigh = maxPos != null && maxPos > 20;
+  // Per rule 2 above this keys off portfolio, NOT perf -- so a genuine HIGH stays
+  // visible even when the performance fetch alone has failed.
+  const sizeVerdict: RiskVerdict =
+    portfolio == null
+      ? { state: "unknown" }
+      : maxPos != null && maxPos > 20
+        ? { state: "warn", label: "HIGH (>20%)" }
+        : { state: "ok", label: "OK" };
 
   const sectorCounts: Record<string, number> = {};
   for (const p of positions) {
@@ -332,9 +416,15 @@ export function RiskMonitorCard({
   }
   const sectorConcentrationHigh =
     positions.length >= 3 && maxSectorCount / positions.length > 0.5;
-  const sectorConcentrationLabel = sectorConcentrationHigh
-    ? `HIGH (${maxSectorCount}/${positions.length} ${maxSectorName})`
-    : "OK";
+  // Keys off portfolio (presence of the fetch), not off perf -- same reasoning as
+  // sizeVerdict. An empty `positions` with a healthy portfolio is a genuinely flat
+  // book and legitimately renders OK; it must NOT be reported as unknown.
+  const sectorVerdict: RiskVerdict =
+    portfolio == null
+      ? { state: "unknown" }
+      : sectorConcentrationHigh
+        ? { state: "warn", label: `HIGH (${maxSectorCount}/${positions.length} ${maxSectorName})` }
+        : { state: "ok", label: "OK" };
   return (
     <div className="rounded-xl border border-navy-700 bg-navy-800/70 p-4">
       <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
@@ -343,17 +433,8 @@ export function RiskMonitorCard({
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between">
           <span className="text-slate-400">Kill switch (-15%)</span>
-          <span
-            className={clsx(
-              "rounded px-2 py-0.5 text-xs font-medium",
-              maxDd > -10
-                ? "bg-emerald-500/10 text-emerald-400"
-                : maxDd > -13
-                  ? "bg-amber-500/10 text-amber-400"
-                  : "bg-rose-500/10 text-rose-400",
-            )}
-          >
-            {maxDd > -10 ? "SAFE" : maxDd > -13 ? "WARNING" : "DANGER"}
+          <span className={clsx("rounded px-2 py-0.5 text-xs font-medium", verdictClass(killSwitch))}>
+            {verdictLabel(killSwitch)}
           </span>
         </div>
         <div className="flex justify-between">
@@ -364,42 +445,36 @@ export function RiskMonitorCard({
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Position size</span>
-          <span
-            className={clsx(
-              "rounded px-2 py-0.5 text-xs font-medium",
-              concentrationHigh
-                ? "bg-amber-500/10 text-amber-400"
-                : "bg-emerald-500/10 text-emerald-400",
-            )}
-          >
-            {concentrationHigh ? `HIGH (>20%)` : "OK"}
+          <span className={clsx("rounded px-2 py-0.5 text-xs font-medium", verdictClass(sizeVerdict))}>
+            {verdictLabel(sizeVerdict)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Sector concentration</span>
-          <span
-            className={clsx(
-              "rounded px-2 py-0.5 text-xs font-medium",
-              sectorConcentrationHigh
-                ? "bg-amber-500/10 text-amber-400"
-                : "bg-emerald-500/10 text-emerald-400",
-            )}
-          >
-            {sectorConcentrationLabel}
+          <span className={clsx("rounded px-2 py-0.5 text-xs font-medium", verdictClass(sectorVerdict))}>
+            {verdictLabel(sectorVerdict)}
           </span>
         </div>
         <div className="mt-2">
           <div className="mb-1 flex justify-between text-xs text-slate-500">
             <span>Drawdown</span>
-            <span>{perf?.max_drawdown_pct?.toFixed(1) ?? "0"}% / -15%</span>
+            <span>{ddKnown ? `${maxDd.toFixed(1)}%` : "—"} / -15%</span>
           </div>
           <div className="h-2 rounded-full bg-navy-700">
             <div
               className={clsx(
                 "h-2 rounded-full",
-                maxDd > -10 ? "bg-emerald-500" : maxDd > -13 ? "bg-amber-500" : "bg-rose-500",
+                !ddKnown
+                  ? "bg-slate-600"
+                  : maxDd > -10
+                    ? "bg-emerald-500"
+                    : maxDd > -13
+                      ? "bg-amber-500"
+                      : "bg-rose-500",
               )}
-              style={{ width: `${Math.min(100, (Math.abs(maxDd) / 15) * 100)}%` }}
+              // Math.abs(null) === 0, so an unknown drawdown would otherwise render
+              // a zero-width bar that reads as "no drawdown" rather than "no data".
+              style={{ width: ddKnown ? `${Math.min(100, (Math.abs(maxDd) / 15) * 100)}%` : "100%" }}
             />
           </div>
         </div>

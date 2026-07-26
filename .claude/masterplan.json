@@ -20483,6 +20483,67 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "80.37",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- SECTOR CONCENTRATION READS 'OK' FOR A 100%-SINGLE-SECTOR BOOK] frontend/src/components/paper-trading/cockpit-helpers.tsx gates the sector-concentration warning on `positions.length >= 3 && maxSectorCount / positions.length > 0.5`. The `>= 3` floor means a book of ONE or TWO positions in the SAME sector renders a green **OK** -- WITH A COMPLETELY HEALTHY BACKEND. This is not a no-data bug (that was 80.36); it is a live logic hole on real data. The current book is exactly this shape: 2 positions, PANW + AMD, both Technology. FOUND by the phase-80.36 research gate 2026-07-26 (research_brief_80.36.md section D2) while auditing the same component; queued separately rather than folded in, because 80.36's criterion 5 requires its healthy path to stay byte-for-byte unchanged and this DELIBERATELY changes a healthy render. CONSIDER: the >= 3 floor may have been intended to avoid crying wolf on a tiny book -- decide whether concentration should be reported by COUNT or by NAV WEIGHT (the sector cap elsewhere in the app is 30% of NAV, not a position count), and reconcile the two. Whatever you choose, a 2-position single-sector book must not read as a green OK.",
+          "verification": {
+            "command": "cd frontend && npm test -- cockpit-helpers && npx tsc --noEmit -p tsconfig.json",
+            "success_criteria": [
+              "A 2-position book with both positions in the same sector does NOT render a green 'OK' for sector concentration -- proven by a test that FAILS against the current `>= 3` gate, with the failing output recorded verbatim",
+              "The concentration basis is stated explicitly (position count vs NAV weight) and reconciled with the 30%-of-NAV sector cap used elsewhere in the app; if they differ, say why in a code comment",
+              "A genuinely diversified book still renders OK -- assert against a fixed fixture so the fix cannot simply make everything warn",
+              "phase-80.36's unknown-vs-nominal behaviour is preserved: portfolio == null still renders NO DATA, and a healthy flat book still renders OK",
+              "MUTATION-TEST: reverting the gate must make the new test fail"
+            ],
+            "live_check": "Playwright capture of /paper-trading/positions on the :3100 rig showing the sector-concentration row for the real 2-position PANW+AMD Technology book, plus the pre-fix capture for comparison."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "80.38",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- PaperVsBacktestCard: THE NUMBER SAYS '—' WHILE THE COLOUR SAYS HEALTHY] frontend/src/components/paper-trading/cockpit-helpers.tsx:265-266 repeats the phase-80.36 defect on a DIFFERENT route (/paper-trading/reality-gap): `const sharpe = perf?.sharpe_ratio ?? 0;` and `const maxDd = perf?.max_drawdown_pct ?? 0;`. The rendering is subtler and arguably worse than the Risk Monitor's was -- around :282 the NUMBER correctly falls back to an em-dash while the COLOUR is still computed from the fabricated 0 and resolves to `text-emerald-400` (because `0 > -15`). So the cell reads '—' in HEALTHY GREEN: it admits it has no value and simultaneously asserts that value is fine. FOUND by the phase-80.36 research gate 2026-07-26 (research_brief_80.36.md section D2). Queued separately because it is a different component and a different route, and 80.36's criterion 5 pins that step's healthy path. APPLY THE SAME TWO RULES 80.36 ESTABLISHED, they are not optional here either: discriminate on PRESENCE not VALUE (sharpe/max_drawdown of 0 are legitimate healthy readings), and resolve PER ROW not per card. Reuse the RiskVerdict discriminated union and the verdictClass/verdictLabel helpers 80.36 added to this same file rather than inventing a second vocabulary.",
+          "verification": {
+            "command": "cd frontend && npm test -- cockpit-helpers && npx tsc --noEmit -p tsconfig.json",
+            "success_criteria": [
+              "With perf == null the PaperVsBacktestCard cell renders neither a green colour nor a nominal value -- the colour must not be emerald when there is no data; proven by a test that FAILS against the current code",
+              "A genuine sharpe of 0 and a genuine max_drawdown of 0 STILL render their healthy treatment (presence, not value)",
+              "The RiskVerdict union added in 80.36 is reused rather than a parallel vocabulary introduced",
+              "phase-80.36's RiskMonitorCard tests all still pass unchanged",
+              "MUTATION-TEST: reinstating `?? 0` must make the new test fail"
+            ],
+            "live_check": "Playwright capture of /paper-trading/reality-gap with the backend stopped, showing no green-on-no-data cell, plus a healthy-backend capture proving the normal render is unchanged."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "80.39",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "[P1 -- ONE UNCAUGHT FETCH SILENTLY FREEZES THE WHOLE COCKPIT AT STALE VALUES] frontend/src/app/paper-trading/layout.tsx:188-208 runs five fetches under a single `Promise.all`, and FOUR of them carry their own `.catch(() => null)` -- but `getPaperTradingStatus()` does NOT. So when the status call fails, the ENTIRE Promise.all rejects, none of the setters run, and every previously fetched value stays on screen with NO age disclosure and NO error state. The operator sees a fully populated, confident cockpit rendering data of unknown age. This is Grafana's 'Keep Last State' without the label, which Grafana's own alerting docs explicitly warn against for strict monitoring. COMPOUNDING FACTOR, same file: `:215  const isInitialized = status?.status !== \"not_initialized\"` is TRUE when `status` is null -- which is WHY the cockpit renders at all beside its own error banner rather than falling back to an uninitialised state. FOUND by the phase-80.36 research gate 2026-07-26. Distinct from 80.36 (which fixed widgets fabricating from ABSENT data); this is the path where data is PRESENT BUT ARBITRARILY OLD and nothing says so. FIX SHAPE: give status the same `.catch` as its four siblings so partial failure degrades per-source instead of freezing everything, decide explicitly what `isInitialized` should be when status is null, and surface a last-updated age on the cockpit so stale is visibly stale.",
+          "verification": {
+            "command": "cd frontend && npm test -- paper-trading && npx tsc --noEmit -p tsconfig.json",
+            "success_criteria": [
+              "A failing getPaperTradingStatus() no longer prevents the other four fetches' results from being applied -- proven by a test that FAILS against the current code",
+              "The cockpit discloses the age of the data it is showing when any source is stale, rather than rendering it as current",
+              "`isInitialized` behaviour when status is null is decided EXPLICITLY and documented in a comment -- state which behaviour was chosen and why; do not leave it as an accident of `?.` short-circuiting",
+              "A fully healthy load is byte-for-byte unchanged (assert against fixed fixtures)",
+              "No polling loop is left without the frontend.md stop-after-5-consecutive-failures budget",
+              "MUTATION-TEST: removing the new .catch must make the new test fail"
+            ],
+            "live_check": "Playwright capture on the :3100 rig with ONLY the status endpoint failing (leave the others healthy), showing the cockpit degrades per-source and discloses staleness rather than freezing at confident stale values."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
