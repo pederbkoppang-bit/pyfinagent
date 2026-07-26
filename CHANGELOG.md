@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `25205078` | fix(80.36): live captures -- and the fix revealed the kill-switch row NEVER had data |
 | 2026-07-26 | `65ba2d43` | fix(80.36): the Risk Monitor no longer claims SAFE when it has no data |
 | 2026-07-26 | `839ef5ed` | docs(80.36): verify the navDenom 'latent' claim at source rather than assert it |
 | 2026-07-26 | `425d8e1e` | docs(80.36): pin the fabrication mechanism at source -- all four are one shape |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `01ea9383` | chore(autoresearch): record background-rail failure artifacts (NOT phase-80.4) |
 | 2026-07-26 | `4bcd60ad` | wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4 FAILS, step stays open |
 | 2026-07-26 | `468bf023` | phase-80.3: [P0 -- WHOLE PAGE NON-FUNCTIONAL] /agent-map (Agent Topology) renders ZERO edges and ... |
-| 2026-07-25 | `6c7fe4f3` | phase-80.31: [P2 -- MISALIGNED PRICE/VOLUME ARRAYS IN THE ANOMALY DETECTOR] backend/tools/anomaly... |
 
 ---
 
+### v6.69.22 — fix(80.36): live captures -- and the fix revealed the kill-switch row... (2026-07-26)
+
+- **fix(80.36): live captures -- and the fix revealed the kill-switch row NEVER had data**
 ### v6.69.21 — fix(80.36): the Risk Monitor no longer claims SAFE when it has no data (2026-07-26)
 
 - **fix(80.36): the Risk Monitor no longer claims SAFE when it has no data**
