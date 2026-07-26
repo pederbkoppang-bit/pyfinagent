@@ -79,15 +79,15 @@ rows: {"event": "peak_update", "nav": 18000.0}
 
 ```
 $ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block.py -q
-24 passed
+25 passed
 
 $ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader'      # IMMUTABLE
-115 passed, 1 skipped, 2104 deselected
+116 passed, 1 skipped, 2104 deselected
 ```
 
 *Re-measured at every cycle, because the suite keeps growing and a stale count is a claim that no
 longer re-derives (the cycle-3 Q/A caught this section carrying cycle-2 numbers). Cycle 1:
-`13 passed` / `104 passed, 1 skipped`. Cycle 2: `17 passed` / `108 passed, 1 skipped`. Cycle 3: `22 passed` / `113 passed, 1 skipped`. Cycle 4: `24 passed` / `115 passed, 1 skipped`.*
+`13 passed` / `104 passed, 1 skipped`. Cycle 2: `17 passed` / `108 passed, 1 skipped`. Cycle 3: `22 passed` / `113 passed, 1 skipped`. Cycle 4: `24 passed` / `115 passed, 1 skipped`. Cycle 5: `25 passed` / `116 passed, 1 skipped`.*
 
 ## §D. The required curl — rig `:8002`, AFTER the simulated post-rotation cycle
 
@@ -135,7 +135,7 @@ The order-blocking half of the demonstration is not visible on this GET at all �
 | 4 | trading-path behaviour on `armed:false` decided explicitly | **MET** — BLOCK; documented in the contract and at the code site |
 | 5 | no route to `reset_peak` | **MET** — zero rows + monkeypatched raiser |
 | 6 | per-leg independence preserved | **MET** — `evaluate_breach` byte-untouched; 2 tests |
-| 7 | mutation-test every new guard | **MET** — **19 mutations, 19 killed, every one re-measured at the current 23-test baseline in cycle 4** (the previous revision said "18 killed on the 23-test suite" when only one row had actually been measured there — caught by the cycle-4 Q/A). Re-measuring was not cosmetic: it caught **M8 surviving**, a mutant that killed at an earlier baseline, because the AST guard constrains the call's shape but not its ARGUMENTS — so an already-PAUSED book would have kept trading. Closed by `test_phase_36_12_an_already_paused_cycle_still_halts`. `QA-Z1` (delete `return summary` from the halt body) dies at `1 failed, 22 passed` against `test_phase_36_12_a_blocked_cycle_really_places_no_orders`, which drives the REAL `run_daily_cycle`; the cycle-4 Q/A reproduced that kill independently and named the killing assertion. |
+| 7 | mutation-test every new guard | **MET** — 19 distinct mutations, all killed: 18 in one batch at the FINAL baseline plus the M9 fixture mutant on its own harness. The batch is run AFTER the last test lands, because three earlier revisions re-measured and then added a test, invalidating the numbers they had just written. The `cycle_halt_reason` slot produced a survivor in FIVE consecutive cycles (inline literal, predicate result, branch body, arguments-False, arguments-True); what closed it was executing BOTH directions end-to-end, not a better structural guard. "0 survivors" licenses only "these 19 were killed", never "no vacuous guard remains". |
 | 8 | all three operator strings revised in the same change | **MET.** All three revised, plus a 4th site the step did not list (`kill_switch.py:527-528`); the grep guard is paired with a behavioural 409 assertion, and two vitest DOM assertions on the rendered `title` attributes were proven falsifiable against HEAD's old strings by an independent evaluator. On the §1c capture: measured — `grep -rn 'KillSwitchPanel' frontend/src/` returns the component's own file and **one COMMENT**, so the component is **never mounted** and a live capture of those two tooltips is impossible *by construction*, not merely inconvenient. Only ONE of the step's "three shipped operator-facing strings" (`paper_trading.py:600`) was ever operator-visible; the dead-code question is filed as `36.16`. |
 
 ## §F. NOT LIVE — the operator's backend still serves pre-36.12 code, deliberately

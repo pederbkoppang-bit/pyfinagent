@@ -367,6 +367,73 @@ def test_phase_36_12_an_already_paused_cycle_still_halts(ks_isolated, monkeypatc
     assert trader.execute_sell.called is False
 
 
+def test_phase_36_12_a_quiet_cycle_actually_proceeds_and_trades(ks_isolated, monkeypatch):
+    """THE PROCEED DIRECTION, executed. A healthy, unpaused, unblocked cycle must run
+    decide/execute -- not just "not halt".
+
+    Found in cycle 5 as QA-P2, the FIFTH hole in this one piece of wiring: forcing
+    `cycle_halt_reason(ks_check, True)` makes EVERY cycle halt, and nothing in the
+    repo failed. Both existing behavioural composition tests assert the HALT
+    direction only, and the older `run_daily_cycle` suites never reach Step 5.5, so
+    they are blind to it. Direction is fail-safe (over-halt, no orders) and loud, but
+    an unguarded permanent halt is exactly the engine-stop failure mode phase-69.1
+    exists to prevent.
+
+    This also guards criterion 3 at the level where a first-ever-boot deadlock would
+    actually manifest: the unit test proves the boot ANCHORS, this proves a quiet
+    cycle TRADES.
+    """
+    import backend.services.autonomous_loop as al
+    import backend.services.cycle_health as cycle_health
+    from backend.config.settings import Settings
+
+    ks, state, _live = ks_isolated
+    assert state.is_paused() is False, "precondition: the state must be unpaused"
+
+    ks_quiet = {
+        "triggered": False, "blocked": False, "pre_armed": True,
+        "breach": {"any_breached": False, "armed": True},
+        "auto_resume": {"action": "no_op"},
+    }
+    portfolio = {"total_nav": 18_000.0, "starting_capital": 20_000.0, "current_cash": 18_000.0}
+    trader = MagicMock()
+    trader.check_and_enforce_kill_switch.return_value = ks_quiet
+    trader.mark_to_market.return_value = {"nav": 18_000.0, "positions": []}
+    trader.get_or_create_portfolio.return_value = portfolio
+    trader.check_stop_losses.return_value = []
+    bq = MagicMock()
+    bq.get_paper_positions.return_value = []
+    bq.get_paper_portfolio.return_value = portfolio
+
+    settings = Settings()
+    settings.news_screen_enabled = False
+    monkeypatch.setattr(al, "BigQueryClient", lambda *a, **k: bq)
+    monkeypatch.setattr(al, "PaperTrader", lambda *a, **k: trader)
+    monkeypatch.setattr(al, "screen_universe", lambda *a, **k: [])
+    monkeypatch.setattr(al, "rank_candidates", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_sp500_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_russell1000_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "_log_cycle_signals_to_bq", lambda *a, **k: 0)
+    monkeypatch.setattr(al, "AnalysisOrchestrator", MagicMock())
+    decide = MagicMock(return_value=[])
+    monkeypatch.setattr(al, "decide_trades", decide)
+    monkeypatch.setattr(al, "_running", False)
+    fake_log = MagicMock()
+    fake_log.record_cycle_start.return_value = "2026-01-01T00:00:00+00:00"
+    monkeypatch.setattr(cycle_health, "get_log", lambda *a, **k: fake_log)
+
+    summary = asyncio.run(al.run_daily_cycle(settings=settings))
+
+    assert not summary.get("halted"), (
+        f"a healthy unpaused cycle must NOT halt -- steps={summary.get('steps')}"
+    )
+    assert "kill_switch_halted" not in summary.get("steps", [])
+    assert decide.called is True, (
+        "a healthy cycle must reach decide_trades -- if this fails the engine is "
+        "permanently halted and no order will ever be placed"
+    )
+
+
 def test_phase_36_12_halt_precedence_is_breach_then_block_then_paused():
     """The reason is what the operator reads in the log line, so precedence is part
     of the contract: a real breach must not be reported as a lost-history block."""
