@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `3464e946` | docs: measure the done-definition evidence -- items 1-3 are restart-gated, and it is now proven |
 | 2026-07-26 | `314b02ad` | docs: close two goal deliverables -- per-step tier ledger + count re-derivation |
 | 2026-07-26 | `c3f809c8` | fix(36.7): queue the kill-switch-cannot-fire P0 -- the claim that it was queued was false |
 | 2026-07-26 | `fee8ce7e` | phase-80.4: CLOSE-OUT -- status done after Q/A PASS on cycle 4 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `fe5476f2` | fix(78.1): restore the house system prompt the rewire silently dropped + kill my own vacuous guard |
 | 2026-07-25 | `d72d9b3d` | phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeClient onto make_client |
 | 2026-07-25 | `78d794c5` | phase-79.2: [OPERATOR ACTION -- not an executor task] BACKEND RESTART — 15 product modules shippe. |
-| 2026-07-25 | `380c998e` | docs: correct commit 09fe323c -- two command names were eaten by shell substitution |
 
 ---
 
