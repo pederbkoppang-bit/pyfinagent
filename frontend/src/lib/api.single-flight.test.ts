@@ -140,4 +140,46 @@ describe("getAuthToken single-flight (phase-80.11)", () => {
       "the in-flight probe resurrected a token that a 401 had just invalidated",
     ).toBe(afterPoison + 1);
   });
+
+  it("issues ZERO session probes when the auth cookie is present", async () => {
+    // The residual probe. When the token cookie exists, the token IS the cookie
+    // value and the fetched session object is never read -- the request was pure
+    // overhead on every TTL lapse for a logged-in operator.
+    //
+    // This is not a weakened auth check: the cookie is the credential the backend
+    // validates, and a stale one is still caught by the 401 path.
+    const { calls } = installFetchSpy();
+    Object.defineProperty(document, "cookie", {
+      value: "authjs.session-token=abc123; other=x",
+      configurable: true,
+      writable: true,
+    });
+    const api = await import("./api");
+    api.__resetSessionTokenCacheForTests();
+
+    await Promise.all(Array.from({ length: 11 }, () => api.getPaperPortfolio().catch(() => null)));
+
+    expect(
+      calls.filter((u) => u.includes(SESSION_URL)).length,
+      "a cookie was present, so no session probe should have been needed",
+    ).toBe(0);
+  });
+
+  it("still probes when NO auth cookie is present", async () => {
+    // The other half -- the skip-auth rig and the logged-out case. Without this the
+    // optimisation above could silently disable authentication discovery entirely.
+    const { calls } = installFetchSpy();
+    Object.defineProperty(document, "cookie", {
+      value: "", configurable: true, writable: true,
+    });
+    const api = await import("./api");
+    api.__resetSessionTokenCacheForTests();
+
+    await Promise.all(Array.from({ length: 5 }, () => api.getPaperPortfolio().catch(() => null)));
+
+    expect(
+      calls.filter((u) => u.includes(SESSION_URL)).length,
+      "no cookie means the probe is the only way to discover a session",
+    ).toBe(1);
+  });
 });

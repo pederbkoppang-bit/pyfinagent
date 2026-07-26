@@ -118,11 +118,38 @@ async function getAuthToken(): Promise<string | null> {
   // A probe is already running -- join it instead of starting a second.
   if (sessionTokenInflight) return sessionTokenInflight;
 
+  // phase-80.11: the network probe is only needed when there is NO token cookie.
+  //
+  // Read the flow below: when `tokenCookie` exists, the token is the cookie value
+  // and the fetched `session` object is NEVER USED. The probe exists solely for the
+  // `session?.user -> "session-active"` fallback when no cookie is present. So for a
+  // logged-in operator -- the normal case -- the request was pure overhead on every
+  // TTL lapse.
+  //
+  // This is NOT a weakening of the auth check: the cookie IS the credential the
+  // backend validates, and a stale cookie is still caught by the 401 path below,
+  // which invalidates and redirects. We are skipping a redundant question, not a
+  // security gate.
+  const cookieToken = readSessionCookie();
+  if (cookieToken) {
+    sessionTokenCache = { value: cookieToken, ts: now };
+    return cookieToken;
+  }
+
   const myEpoch = sessionEpoch;
   sessionTokenInflight = probeSessionToken(now, myEpoch).finally(() => {
     sessionTokenInflight = null;
   });
   return sessionTokenInflight;
+}
+
+function readSessionCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const cookies = document.cookie.split(";").map((c) => c.trim());
+  const tokenCookie = cookies.find(
+    (c) => c.startsWith("__Secure-authjs.session-token=") || c.startsWith("authjs.session-token="),
+  );
+  return tokenCookie ? tokenCookie.split("=").slice(1).join("=") : null;
 }
 
 async function probeSessionToken(now: number, myEpoch: number): Promise<string | null> {
@@ -135,17 +162,9 @@ async function probeSessionToken(now: number, myEpoch: number): Promise<string |
       return null;
     }
     const session = await res.json();
-    // NextAuth JWT — the session cookie itself is the token
-    // For backend auth, we pass the raw session token cookie
-    const cookies = document.cookie.split(";").map((c) => c.trim());
-    const tokenCookie = cookies.find(
-      (c) => c.startsWith("__Secure-authjs.session-token=") || c.startsWith("authjs.session-token=")
-    );
-    const token = tokenCookie
-      ? tokenCookie.split("=").slice(1).join("=")
-      : session?.user
-        ? "session-active"
-        : null;
+    // NextAuth JWT — the session cookie itself is the token. Re-read it here
+    // because it may have been set by the very response we just awaited.
+    const token = readSessionCookie() ?? (session?.user ? "session-active" : null);
     // Only write if no 401 invalidated us mid-flight.
     if (sessionEpoch === myEpoch) sessionTokenCache = { value: token, ts: now };
     return token;
