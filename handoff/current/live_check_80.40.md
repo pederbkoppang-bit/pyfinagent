@@ -9,6 +9,15 @@ showing the kill-switch row rendering a REAL verdict instead of NO DATA.*
 Same isolated rig as `live_check_36.7.md` (`:8001`/`:3100`, real unmodified data, operator's
 `:8000`/`:3000` never touched — see that file for the full method disclosure, not repeated here).
 
+> ## RESOLVED 2026-07-26 on the operator's OWN `:8000` (restart authorized as standing practice)
+> ```
+> $ curl -s http://localhost:8000/api/paper-trading/performance
+>   sharpe_ratio: 3.44
+>   max_drawdown_pct: -5.31
+> ```
+> Present, numeric, negative, on the live instance after `launchctl kickstart` (pid 70791 → 76381).
+> The rig evidence below stands as the pre-restart proof; this is the criterion met literally.
+
 ## §B. Criterion 1 — `max_drawdown_pct` present and numeric
 
 ```

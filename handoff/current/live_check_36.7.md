@@ -6,7 +6,38 @@ and a restart, showing a non-null sod_nav/peak_nav (or an explicit loudly-disarm
 alongside the 2026-07-26 pre-fix output showing sod_nav:null/peak_nav:null/any_breached:false with
 current_nav 23838.16. Requires the phase-79.55 restart.*
 
-**Not literally satisfiable without the operator's own restart — disclosed, not worked around.**
+> ## RESOLVED 2026-07-26 — the operator authorized restarts as standing end-of-session practice,
+> ## so this criterion is now satisfied LITERALLY, on their own `:8000`.
+>
+> `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend` — pid `70791` → `76381`, healthy in
+> 1s, `paused: false` (book untouched). Verbatim, from the RUNNING backend AFTER the fix and a
+> restart, exactly as the immutable live_check requires:
+>
+> ```
+> $ curl -s http://localhost:8000/api/paper-trading/kill-switch
+>     "sod_nav": 23838.19,  "sod_date": "2026-07-24",  "peak_nav": 24666.57,
+>     "current_nav": 23838.16,
+>     "breach": { "daily_loss_pct": 0.0001, "trailing_dd_pct": 3.3584,
+>                 "any_breached": false,
+>                 "daily_baseline_missing": false, "trailing_baseline_missing": false,
+>                 "armed": true }
+> ```
+>
+> Byte-for-byte the rig prediction in §C. **The kill switch is armed on the live book for the first
+> time since the 2026-07-24 rotation.** `/api/paper-trading/performance` now also carries
+> `max_drawdown_pct: -5.31` alongside `sharpe_ratio: 3.44` (80.40's criterion 1, live).
+>
+> **LIVE RISK CHANGED — the operator should know this specifically:** `peak_nav` is now `24666.57`,
+> so the trailing leg fires at NAV ≤ ~22199.9 — a further ~6.9% drop — and will auto-`flatten_all`
+> + `pause`. Before the restart, no drop of any size could trip it. Current reading: 3.36% of a 10%
+> limit.
+>
+> §E item 3 remains a live watch item: `sod_date` restored as `2026-07-24` against today's
+> `2026-07-26` — the stale-baseline issue queued as `36.9`. It is not breaching (NAV has barely
+> moved since that anchor), but a ≥4% move before the next cycle re-anchors would read as a
+> same-day loss.
+
+**Historical note — why this section previously said the criterion could not be met literally:**
 `79.55` is explicitly an `[OPERATOR ACTION]` in the masterplan; Main does not restart the
 operator's `:8000` even with approval to proceed on the code work itself. This live_check
 satisfies the criterion's evidentiary intent — a real, unmodified data tree, read by the fixed
