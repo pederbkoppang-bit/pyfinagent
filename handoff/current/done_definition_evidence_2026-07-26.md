@@ -39,15 +39,46 @@ fixes; they are simply not in memory. `phase-79.55` (RESTART BLOCKER) gates the 
 | 3 | A raising route 500s with CORS + `nosniff` + a `PerfTracker` row | **BLOCKED — restart** | Live 500 above carries **neither** header. Verified on the `80.2` rig via `/api/__force_500_probe` at close of that step. |
 | 4 | `/agent-map` draws edges, **zero** React Flow console warnings at 1440×900 | **not re-measured this session** | `80.3` closed with a Playwright BEFORE/AFTER capture. The zero-warnings clause was not independently re-measured today. |
 | 5 | Donut hover → **zero** layout shift (identical bounding boxes) | **IN PROGRESS** | This is step `80.5`. Research gate running. |
-| 6 | One cockpit page view issues **≤2** `/api/auth/session` requests over 20s | **not attempted** | No step in this drain targeted it. |
+| 6 | One cockpit page view issues **≤2** `/api/auth/session` requests over 20s | **MEASURED — FAILS (11)** | See below. Owned by pending step `80.11`. |
 | 7 | Backend stopped → no page fabricates a fact | **not attempted** | Requires driving a rig with its backend killed; not run. |
 | 8 | Per-step tier ledger exists | **DONE** | `handoff/current/tier_ledger_2026-07-26.md`. Records that Fable was authorized and **never used** — zero T4 invocations. |
+
+## Item 6, measured — 11 session probes in 20s
+
+From the archived raw network log of a clean single page view of `/paper-trading/positions`
+over 20s (`captures_ui_audit_2026-07-25/audit-net-positions-20s.txt`):
+
+```
+/api/auth/session            11     <- criterion allows <= 2
+/api/paper-trading/*          2 each
+trades, performance, health   1 each
+```
+
+**Criterion 6 FAILS today: 11 vs a ceiling of 2.**
+
+Root cause, re-derived independently before reading the step text: `getAuthToken()`
+(`api.ts:58-86`) memoises the *resolved* value with a 60s TTL but writes the cache only
+**after** `await fetch("/api/auth/session")` returns (`:82`). There is no **in-flight
+promise** deduplication, so when a page mounts and issues N concurrent `apiFetch` calls —
+which the project's own frontend convention encourages via `Promise.all()` — all N observe
+an empty cache and each fires its own probe. A cache stampede.
+
+The `SessionProvider` is **not** the culprit: there is exactly one (`AuthProvider.tsx:7`)
+at `refetchInterval={15 * 60}`, and a 15-minute interval cannot fire twice in 20s. Exactly
+one `useSession()` call site exists (`Sidebar.tsx`), and no `getSession()` anywhere.
+
+**Honest framing:** step `80.11` (P1, pending) **already records this entire diagnosis** —
+in-flight promise dedup, the single-flight fix, the same line numbers, and the same
+SessionProvider exclusion. This analysis *reproduced* a recorded finding; it did not
+discover a new one. That is still worth something (it independently confirms the step is
+correctly specified and ready to execute), but it is not a new defect.
 
 ## Honest reading
 
 **The done-definition is NOT satisfied.** 5 of 8 evidence items are unmet: two blocked on
-the operator's restart, one on an operator flag token, and three (4, 6, 7) simply were not
-attempted in this drain.
+the operator's restart, one on an operator flag token, one (item 6) now **measured and
+failing** with its fix already specified in pending step `80.11`, and two (items 4 and 7)
+still not attempted.
 
 Nor is the primary clause met — *"every open P0 PASS or deferred-with-reason"*. Measured
 today: **22 open P0s**, of which 5 were closed this session. The remainder are dominated by

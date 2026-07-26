@@ -20439,6 +20439,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "80.35",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- WCAG 2.2 SC 1.4.13 HOVERABLE UNMET ON THE ALLOCATION DONUT] frontend/src/components/PortfolioAllocationDonut.tsx unmounts its tooltip SYNCHRONOUSLY on mouseleave, so a pointer can never travel from a slice onto the tooltip. W3C SC 1.4.13 HOVERABLE requires that 'the pointer can be moved directly from the trigger onto the new content' -- so this fails. PRE-EXISTING, NOT INTRODUCED: HEAD already used `onMouseLeave={() => setHoverIdx(null)}` on both the arc (:237) and the legend (:282). HISTORY -- READ BEFORE STARTING, THIS IS A RECORDED DEAD END: phase-80.5 cycles 1-3 attempted exactly this fix (a ~200ms grace-timer close cancelled by the tooltip's own onMouseEnter, later plus a hoverIdx/focusIdx state split) and it was REMOVED at the end of cycle 3. Three independent Q/A cycles each found the remediation introduced a NEW defect of the same class: (c1) onFocus did not cancel a pending close, so focus-opened tooltips were wiped ~200ms later; (c2) the same diff added onMouseLeave={scheduleClose} to the TOOLTIP itself, killing it while focus was held; (c3) after the state split, cancelClose() inside focusAt froze a stale hoverIdx, so blur resurrected a GHOST tooltip for a slice that was neither hovered nor focused, AND `focusIdx ?? hoverIdx` made the chart pointer-inert while any slice held focus. The root cause of the first two was one state conflating hover and focus; the third was introduced BY that fix. None of phase-80.5's five criteria depended on the machinery, so it was removed rather than patched a fourth time -- restoring HEAD's behaviour, not regressing it. WHAT SHIPPED AND MUST NOT BE BROKEN: the tooltip is now an out-of-flow overlay (`absolute inset-x-0 bottom-0 z-10` in a `relative` chart row) giving a hover-invariant card height, and a document-level Escape listener supplies SC 1.4.13 DISMISSIBLE -- which the overlay genuinely requires, because obscuring content loses the 'does not obscure or replace other content' exception. Any Hoverable work MUST keep the zero-layout-shift invariant and the Dismissible handler intact. NOTE `pointer-events: none` on the tooltip is NOT a valid approach -- it breaks Hoverable by construction.",
+          "verification": {
+            "command": "cd frontend && npm test -- PortfolioAllocationDonut && npx tsc --noEmit -p tsconfig.json",
+            "success_criteria": [
+              "A pointer can move from a slice (and from a legend row) onto the tooltip without it unmounting -- proven by a test that is RED against the current synchronous-unmount implementation, with the failing output recorded verbatim before the fix",
+              "NO new path exists where a pointer gesture clears state that keyboard focus holds, or a focus gesture preserves stale pointer state. Enumerate the gesture matrix explicitly (hover-only, focus-only, hover-then-focus, focus-then-hover, blur-while-hovered, unhover-while-focused, pointer-through-tooltip-while-focused) and assert each -- the three prior attempts each failed a cell they had not enumerated",
+              "NO ghost tooltip: after any gesture sequence ends with nothing hovered and nothing focused, no tooltip is mounted (assert directly; this is the exact c3 regression)",
+              "The chart is NOT pointer-inert while a slice holds focus -- moving the pointer to a different slice updates the tooltip (the c3 WARN)",
+              "phase-80.5's zero-layout-shift invariant still holds: the card-root direct-child count is unchanged across hover, and the tooltip's parent still carries an unconditional `relative` (classList.contains, not a substring match)",
+              "The document-level Escape (DISMISSIBLE) handler still works, with a test",
+              "MUTATION-TEST every guard, and verify each mutation targets the intended line -- phase-80.5 cycle 3 found two matrix rows were MIS-ATTRIBUTED KILLS because a replace-first-occurrence script hit the arc handler instead of the tooltip handler. Assert the mutated line number or the exact surrounding context."
+            ],
+            "live_check": "Playwright capture on the skip-auth :3100 rig showing the pointer moving from a slice onto the tooltip with the tooltip still open, plus the box measurements proving the zero-layout-shift invariant from 80.5 still holds."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

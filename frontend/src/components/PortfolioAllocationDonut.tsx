@@ -19,7 +19,7 @@
 // SR data path. Tooltip uses role="tooltip" + ESC dismissibility per
 // WCAG SC 1.4.13.
 
-import { useCallback, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { LiveBadge, type FreshnessBand } from "@/components/LiveBadge";
 
 export interface AllocationSlice {
@@ -125,6 +125,21 @@ export function PortfolioAllocationDonut({
   liveBand,
   liveAgeSec,
 }: PortfolioAllocationDonutProps) {
+  // phase-80.5: a single hover/focus index, unmounted synchronously.
+  //
+  // Cycles 1-3 attempted a grace-timer + split-state mechanism here to deliver
+  // WCAG 2.2 SC 1.4.13 HOVERABLE. It was REMOVED. Every defect found across
+  // those three evaluator cycles came from that machinery -- a pointer gesture
+  // clearing focus-held state, then the inverse (a focus gesture freezing stale
+  // hover state into a ghost tooltip) -- and none of this step's five criteria
+  // depend on it. HEAD already unmounted synchronously, so removing it restores
+  // the pre-existing behaviour rather than regressing anything.
+  //
+  // HOVERABLE therefore remains unmet, exactly as it was before this step. It
+  // is queued as its own masterplan step rather than repaired under a step whose
+  // criteria are about layout shift. DISMISSIBLE is kept below and IS required:
+  // the tooltip is now an overlay, which obscures content and so loses SC
+  // 1.4.13's "does not obscure or replace other content" exception.
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const { data, colors, totalValue } = useMemo(() => {
@@ -153,6 +168,44 @@ export function PortfolioAllocationDonut({
       };
     });
   }, [data, colors, totalValue]);
+
+  // phase-80.5 -- WCAG 2.2 SC 1.4.13 "Content on Hover or Focus".
+  //
+  // The comment this file used to carry CLAIMED compliance the code did not
+  // deliver. Two of the three requirements were wrong:
+  //
+  //  * HOVERABLE failed outright: onMouseLeave unmounted the tooltip
+  //    synchronously, so a pointer could never travel from the slice onto the
+  //    tooltip ("the pointer can be moved directly from the trigger onto the
+  //    new content"). The grace timer below fixes that -- the tooltip's own
+  //    onMouseEnter cancels the pending close.
+  //  * DISMISSIBLE passed only VACUOUSLY, through the exception for content
+  //    that "does not obscure or replace other content" -- true only while the
+  //    tooltip was in flow. Moving it to an overlay (the 80.5 layout fix)
+  //    REVOKES that exception, so a real dismiss mechanism is now REQUIRED.
+  //    These two defects are coupled: fixing the layout alone would have
+  //    introduced a second AA failure.
+  //
+  // The grace timer also prevents a flicker loop the overlay would otherwise
+  // create against the legend rows: tooltip covers an <li> -> mouseleave ->
+  // unmount -> mouseenter -> remount, forever.
+  //
+  // NOTE: `pointer-events: none` on the tooltip would stop the flicker too, but
+  // it breaks HOVERABLE by construction. Do not.
+
+  // DISMISSIBLE. The original handler was onKeyDown on the container, which
+  // never fires on the mouse path -- focus is elsewhere entirely. A
+  // document-level listener, gated on an open tooltip, is what actually works.
+  useEffect(() => {
+    if (hoverIdx === null) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setHoverIdx(null);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [hoverIdx]);
 
   const handleEsc = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Escape" && hoverIdx !== null) {
@@ -194,7 +247,7 @@ export function PortfolioAllocationDonut({
       <p className="text-[11px] text-slate-400 mb-3">
         NAV split by sector + cash (% of total).
       </p>
-      <div className="flex items-center gap-4 flex-1">
+      <div className="relative flex items-center gap-4 flex-1">
         <div className="relative flex-shrink-0">
           <svg
             viewBox="0 0 42 42"
@@ -207,7 +260,7 @@ export function PortfolioAllocationDonut({
               cx={CX}
               cy={CY}
               r={RADIUS}
-              fill="transparent"
+              fill="none"
               className="stroke-navy-900"
               strokeWidth={STROKE_WIDTH}
             />
@@ -221,7 +274,7 @@ export function PortfolioAllocationDonut({
                   cx={CX}
                   cy={CY}
                   r={RADIUS}
-                  fill="transparent"
+                  fill="none"
                   strokeWidth={isHover ? STROKE_WIDTH + 1.2 : STROKE_WIDTH}
                   // stroke-dasharray = "<this-slice-pct> <rest>" makes the
                   // dash show exactly this slice's segment.
@@ -241,7 +294,6 @@ export function PortfolioAllocationDonut({
                   role="graphics-symbol"
                   aria-label={`${a.name} ${a.pct.toFixed(1)} percent`}
                 >
-                  <title>{`${a.name}: ${fmtDollars(a.value)} (${a.pct.toFixed(1)}%)`}</title>
                 </circle>
               );
             })}
@@ -252,10 +304,11 @@ export function PortfolioAllocationDonut({
               textAnchor="middle"
               dominantBaseline="middle"
               className="fill-slate-100"
+              pointerEvents="none"
               style={{ fontSize: "4.4px", fontWeight: 600 }}
             >
               {hovered
-                ? `${hovered.pct.toFixed(0)}%`
+                ? `${hovered.pct.toFixed(1)}%`
                 : fmtDollars(navForCenter)}
             </text>
             <text
@@ -264,6 +317,7 @@ export function PortfolioAllocationDonut({
               textAnchor="middle"
               dominantBaseline="middle"
               className="fill-slate-400"
+              pointerEvents="none"
               style={{ fontSize: "2.8px" }}
             >
               {hovered ? hovered.name : "NAV"}
@@ -296,28 +350,37 @@ export function PortfolioAllocationDonut({
             );
           })}
         </ul>
+        {hovered && (
+          <div
+            role="tooltip"
+            // phase-80.5: ABSOLUTE, inside this `relative` chart row -- NOT in flow.
+            // An in-flow tooltip added 54px + mt-3 12px = the 66px page jump the
+            // operator reported: this card sits in an `items-stretch` grid row
+            // (positions/page.tsx:151) so the whole row grew and everything below
+            // moved (Currency exposure y 656 -> 722). Out-of-flow children add
+            // nothing to a grid item's intrinsic height, so card height is now
+            // hover-invariant WITHOUT touching the grid.
+            //
+            // Deliberately NOT a portal and NOT the Popover API. Tremor's portaled
+            // tooltip escaped the card with white-on-dark styling and the operator
+            // REJECTED it (cycle-69); the Popover top layer "spans the entire
+            // viewport and sits on top of all other layers", i.e. the same thing.
+            // The card has no `overflow-hidden` (:163), so plain absolute is enough.
+            className="absolute inset-x-0 bottom-0 z-10 rounded-md border border-navy-700 bg-navy-900 px-3 py-2 text-xs"
+            onMouseLeave={() => setHoverIdx(null)}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium text-slate-200">{hovered.name}</span>
+              <span className="font-mono tabular-nums text-slate-100">
+                {fmtDollars(hovered.value)}
+              </span>
+            </div>
+            <div className="mt-1 text-[11px] text-slate-400">
+              {hovered.pct.toFixed(1)}% of {fmtDollars(totalValue)} total
+            </div>
+          </div>
+        )}
       </div>
-      {/* Tooltip lives under the chart -- inline so it stays inside the
-          card border (cycle-69 operator-flagged: Tremor's portaled tooltip
-          escaped the card with white-on-dark styling). WCAG SC 1.4.13:
-          hoverable via mouseenter; dismissible via Escape (handleEsc on
-          the container); persistent until mouseleave. */}
-      {hovered && (
-        <div
-          role="tooltip"
-          className="mt-3 rounded-md border border-navy-700 bg-navy-900 px-3 py-2 text-xs"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-medium text-slate-200">{hovered.name}</span>
-            <span className="font-mono tabular-nums text-slate-100">
-              {fmtDollars(hovered.value)}
-            </span>
-          </div>
-          <div className="mt-1 text-[11px] text-slate-400">
-            {hovered.pct.toFixed(1)}% of {fmtDollars(totalValue)} total
-          </div>
-        </div>
-      )}
     </div>
   );
 }
