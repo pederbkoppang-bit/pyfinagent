@@ -362,8 +362,38 @@ live environment late in a long session.
 
 Capture of the failed state, kept as honest evidence of the attempt (it shows the rig unreachable,
 NOT the tooltip): `handoff/current/captures_36.12/36.12_capture_attempt_rig_unreachable.png`.
-**The §1c capture remains OWED.** The next session inherits a working proxy and a named next step:
-the preflight succeeds, so the failure is now in the actual GET, not the CORS handshake.
+
+### Capture attempt #3 — the rig WORKS, and it found why the capture was never possible
+
+The remaining CORS fault was precise: `Access-Control-Allow-Headers: *` is taken **literally** on a
+credentialed request, so a preflight asking for `authorization` fails against it. Echoing the exact
+requested headers (plus forwarding `authorization`/`cookie` upstream) fixed it, and the cockpit then
+rendered **fully against real data** through the proxy — NAV `23 830,15`, 2 positions, Sharpe 3.44,
+`Max drawdown (-15%) SAFE`, `Drawdown -5.3% / -15%`. Capture:
+`handoff/current/captures_36.12/36.12_cockpit_live_via_readonly_proxy.png`. Operator's `:3000/login`
+stayed **200** throughout and at teardown; `PLAYWRIGHT_DIST_DIR` isolation held.
+
+**And then the actual answer, which three cycles had misdiagnosed:**
+`grep -rn 'KillSwitchPanel' frontend/src/` returns the component's own file and **exactly one other
+hit — a COMMENT** at `cockpit-helpers.tsx:382`. No import. No `dynamic()`. No route.
+**`KillSwitchPanel` is never mounted.** The two strings this step revised at `:172` and `:221` are in
+dead code.
+
+So the §1c capture for them was impossible *by construction*, and every cycle's stated reason ("the
+live book is armed, so the disarmed branch cannot render") was the WRONG reason — the component
+would not render on a disarmed book either. That misdiagnosis cost cycles and two failed rig builds,
+and it was only found by building a rig good enough to prove the component's absence.
+
+**This corrects a premise in this step's own criterion 8.** It calls its three strings "THREE SHIPPED
+OPERATOR-FACING STRINGS"; measured, only **one** is shipped — the 409 body at
+`backend/api/paper_trading.py:600`. Revising the other two was still correct (they would have been
+wrong the moment anyone mounted the component) but it changed nothing an operator can see.
+
+Filed as **36.16 (P1)**, with a P0 escalation trigger: on the rig, `OpsStatusBar`'s Kill segment
+*also* rendered its `!kill` em-dash branch despite the browser receiving `HTTP 200` with a
+well-formed disarmed body (proxy access log shows the GET twice). If that reproduces, the operator
+has **no working disarmed indicator on any mounted surface** — which is P0, not P1, and 36.16's
+first criterion is to measure that before anything else.
 
 ## Mutation matrix — RE-RUN on the shipped suite; 17 mutations, 17 killed, 0 survivors
 
