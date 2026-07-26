@@ -29594,3 +29594,63 @@ delivers the fix, and it is the operator's to authorize.**
 across all six cycles.
 
 **Next**: `36.13` (P0, `execute_buy` ungated), `36.15`, `36.16`, `36.17`, `36.8`/`36.9`, `36.14`.
+
+## Cycle 175 -- 2026-07-26 -- phase=36.8 result=PASS
+
+**[P0] Archive-merge authority: a stale archived peak could permanently flatten and pause a legitimately re-anchored book.**
+Closed on the NINTH Q/A cycle -- 4 FAILs, 2 CONDITIONALs, 1 FAIL, 1 empty return, then PASS.
+
+**The fix (cycle-5 redesign, unchanged since).** The boot replay merges rotated archives with the
+live file and `max()`es across the stream -- correct for finding a true high-water mark, wrong when a
+book legitimately re-anchors LOWER. Patching route-by-route failed four times; each patch left a new
+route open and each was caught by an independent Q/A finding a REAL safety regression. The redesign
+replaced patching with positive authority: **a row may lower the peak only if it NAMES the peak it
+supersedes** (`anchor is True` AND a coercible `prior_peak`). All five historical routes become
+unreachable by construction rather than individually blocked. Three independent passes (C5, C6, C7)
+then attacked it and none found a sixth route.
+
+**Criteria:** 5/5 MET. C9 independently reproduced the corpus census (897 rows / 5 files; 20
+`peak_update` rows, all unmarked; true peak 24666.57 in the OLDEST file), which is why criterion 3
+REFUSES a cap -- an oldest-first prune would delete the row the kill switch depends on. Archives are
+declared do-not-prune in both housekeeping scripts, pinned by an AST test. `reset_peak` stays DARK.
+C7 ran its own 20 mutants (0 real survivors); the step's 13-mutant matrix stands at baseline `44 passed`.
+
+**What actually cost seven cycles: the record, not the code.** The code has been correct since cycle 5.
+C5, C6 and C7 each failed the step on the same class -- *a claim about a SET whose membership was never
+enumerated*. C5 named two artifacts carrying a stale capture; one was regenerated and one was not, and
+the half-fix was reported as complete. C6 found the same stale claim surviving in production source
+after the artifact was corrected. C7 found a `live_check` block demonstrating "a fresh marked anchor
+now wins" with a row shape that at HEAD returns the STALE peak -- byte-identical to the outcome the
+same block labelled PRE-FIX, so it discriminated nothing -- plus a docstring calling one helper "the
+ONE guarded path for every ASSIGNMENT to `_peak_nav`" (measured: 5 sites, 1 in the helper) and a test
+path this step's own rename had broken in both housekeeping scripts. All closed by deriving each
+member list mechanically (`grep`, `ls`, executing both row shapes) and closing it member-by-member.
+
+**A five-file breach, found and closed.** C7 found that NO `evaluator_critique_36.8*.md` existed after
+six cycles on a P0 kill-switch step -- six verdicts unauditable except through my own spawn prompts,
+i.e. the author's account of the evaluator. Now persisted: C7 and C9 transcribed VERBATIM, C1-C6
+labelled RECONSTRUCTED rather than passed off as transcripts.
+
+**Launch-path lesson (measured, not inferred).** Cycle 8 returned EMPTY -- no `StructuredOutput` call,
+46 tool calls, 165k tokens, nothing recoverable = NO VERDICT. Cause was the prompt: it was the longest
+of the session. Every empty-emit measured to date sits at 40+ calls / ~160k+ tokens. Cycle 9 used a
+lean prompt with an explicit ~25-call budget and an emit-first rule and returned in 12 calls / 110k
+tokens. **The lever is the prompt, not the rail** -- switching launch paths treats the symptom.
+
+**Judgement calls, both UPHELD by C9:** `retry_count` left at 0 (tripping `certified_fallback` would
+recommend reverting a sound P0 fix on a step that CONVERGED); the real-corpus test's skip-if-empty
+hatch left alone (all 5 corpus files are git-tracked and criterion 2 has unconditional synthetic
+coverage).
+
+**Note-level residuals, recorded not swept:** the artifact's line-number census cites PRE-fix positions
+(`:345,:398,:550,:572,:636`); at HEAD they are `345,407,559,581,645`, a uniform +9 shift from the
+docstring's own growth. Accurate as a record of the finding, stale as a reproduction recipe. Left
+UNEDITED deliberately -- post-verdict tree changes to graded artifacts render a verdict inadmissible
+(phase-75.20.1).
+
+**Do-no-harm:** `:8000` never restarted or POSTed to; `:3000` never driven;
+`handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` throughout; kill-switch
+limits, stops, sector caps, DSR and PBO byte-untouched; no peak reset. **NOT LIVE** -- this code is
+not on the operator's `:8000`; like 36.12 it needs a restart the operator has not authorized.
+
+Immutable: `138 passed, 1 skipped, 2126 deselected` (exit 0). HEAD dbcd8926.
