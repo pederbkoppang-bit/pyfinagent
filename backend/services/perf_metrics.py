@@ -142,7 +142,8 @@ def compute_max_drawdown_from_snapshots(
     written here.
 
     SIGN CONVENTION: NEGATIVE PERCENT (-5.31 means a 5.31% peak-to-trough
-    decline); 0.0 means the series never fell below its running high-water mark.
+    decline); 0.0 means the series never fell below its running high-water mark
+    TO 2 DECIMAL PLACES -- see "PRECISION FLOOR" below, which qualifies that claim.
     This is deliberate and load-bearing in three ways:
       1. It matches what the backtest side already publishes --
          backtest_engine._max_drawdown -> analytics.compute_max_drawdown ->
@@ -240,6 +241,21 @@ def compute_max_drawdown_from_snapshots(
     dd_pct = compute_max_drawdown(np.array(navs, dtype=float))
     if not math.isfinite(dd_pct):
         return None
+    # PRECISION FLOOR (phase-80.45, disposition (a): ACCEPT AND DOCUMENT).
+    # Rounding to 2dp means any real decline shallower than 0.005% collapses to
+    # -0.0 and is then normalized to 0.0 below -- so a published 0.0 asserts
+    # "never fell below the high-water mark TO 2DP", NOT "never fell at all".
+    # Measured on the real book: a 19-cent dip on a $23,838 NAV is
+    # -0.0006711927430634515 and publishes as 0.0.
+    #
+    # Accepted deliberately rather than fixed. 2dp is the display precision the
+    # cockpit renders and the backtest side publishes, so widening it here would
+    # split the paper/backtest comparability that this function exists to
+    # preserve; and the practical difference between a 0.0007% drawdown and none
+    # is nil for every risk decision downstream (the cockpit bands are -10/-13).
+    # The defect was the CLAIM over-reaching, not the arithmetic -- so the claim
+    # is narrowed instead. Pinned by test_phase_80_45_precision_floor_is_documented
+    # so this comment and the code cannot drift apart.
     rounded = round(float(dd_pct), 2)
     # Normalize -0.0 -> 0.0 so the payload never carries a negative zero.
     # NOT a clamp: a positive result would mean the sign convention broke and

@@ -394,3 +394,45 @@ def test_the_cockpit_row_no_longer_claims_to_be_the_kill_switch():
     ).read_text(encoding="utf-8")
     assert '<span className="text-slate-400">Max drawdown (-15%)</span>' in src
     assert '<span className="text-slate-400">Kill switch (-15%)</span>' not in src
+
+
+def test_phase_80_45_precision_floor_is_documented_and_holds():
+    """phase-80.45 disposition (a): ACCEPT the 2dp floor, narrow the CLAIM.
+
+    A real decline shallower than 0.005% rounds to -0.0 and publishes as 0.0, so
+    a published 0.0 cannot mean "never fell at all". Rather than widen the payload
+    precision -- which would split paper/backtest comparability, the thing this
+    function exists to preserve -- the docstring now says "to 2 decimal places".
+
+    This test exists so the DOCSTRING AND THE CODE CANNOT DRIFT APART: it asserts
+    both the documented qualifier and the behaviour it describes. Criterion 3.
+    """
+    from backend.services import perf_metrics
+
+    # (1) The claim is qualified in the docstring.
+    doc = perf_metrics.compute_max_drawdown_from_snapshots.__doc__ or ""
+    assert "TO 2 DECIMAL PLACES" in doc, (
+        "the 0.0-means-never claim must be qualified; a bare 0.0 over-claims"
+    )
+
+    # (2) The behaviour that qualifier describes, using the REAL measured dip:
+    #     19 cents on a $23,838.19 NAV -> -0.00067...% -> publishes as 0.0.
+    snaps = [
+        {"snapshot_date": "2026-07-24", "total_nav": 23838.19},
+        {"snapshot_date": "2026-07-25", "total_nav": 23838.00},
+    ]
+    got = perf_metrics.compute_max_drawdown_from_snapshots(snaps)
+    assert got == 0.0, f"sub-precision dip should floor to 0.0, got {got!r}"
+
+    # (3) ...and it is a TRUE zero, never a negative zero (the -0.0 normalization
+    #     this step was forbidden to remove).
+    import math
+    assert not math.copysign(1, got) < 0, "a negative zero must never reach the payload"
+
+    # (4) A decline ABOVE the floor still reports, so the floor is a floor and not
+    #     a clamp that swallows real drawdowns.
+    real = perf_metrics.compute_max_drawdown_from_snapshots([
+        {"snapshot_date": "2026-07-24", "total_nav": 23838.19},
+        {"snapshot_date": "2026-07-25", "total_nav": 23000.00},
+    ])
+    assert real is not None and real < -3.0, f"a real 3.5% decline must report, got {real!r}"
