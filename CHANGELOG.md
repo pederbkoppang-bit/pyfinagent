@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `c3a800bc` | docs: re-measure done-definition items 1-3 -- they were never operator-blocked, and item 1's heartbe |
 | 2026-07-26 | `65586491` | fix(80.36): measure the last two done-definition items -- the Risk Monitor claims SAFE on a dead bac |
 | 2026-07-26 | `94fc0858` | wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED and re-queued as 80.35 |
 | 2026-07-26 | `3464e946` | docs: measure the done-definition evidence -- items 1-3 are restart-gated, and it is now proven |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `a75c209f` | phase-78.2: CLOSE-OUT -- rail runs the requested model, log reports what actually ran |
 | 2026-07-25 | `5e51f4a9` | phase-78.2 (verified, flip HELD): thread explicit --model through every CC-rail call site |
 | 2026-07-25 | `a5ba0958` | phase-78.16: 78.1 blocker -- make_client DROPS enable_prompt_caching, so the documented one-flag ... |
-| 2026-07-25 | `fe5476f2` | fix(78.1): restore the house system prompt the rewire silently dropped + kill my own vacuous guard |
 
 ---
 
