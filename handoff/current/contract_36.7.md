@@ -78,6 +78,9 @@ Paper only. Kill-switch edits authorized for this work only, direction must stay
 
 See `handoff/current/experiment_results_36.7.md` for what shipped, the four-lens adversarial
 verification result, and the corrected record of implementation claims. See
-`handoff/current/live_check_36.7.md` for the capture. Six follow-up defects the adversarial
-verification found are queued as `36.8` (P0), `36.9` (P0), `36.10` (P1), `36.11` (P2) — full
-detail in those step texts, not repeated here.
+`handoff/current/live_check_36.7.md` for the capture. Follow-up defects the adversarial
+verification found are queued as `36.8` (P0), `36.9` (P0), `36.10` (P1), `36.11` (P2), `80.43`
+(P2) and `80.45` (P3) — see `experiment_results_36.7.md`'s per-label disposition table for the
+R-finding → step mapping. An earlier revision of this line said "Six follow-up defects", a
+hand-counted figure that matched neither the eight queued findings nor the six steps they map to;
+the table is the authority.

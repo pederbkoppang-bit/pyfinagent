@@ -39,12 +39,30 @@ guard against it recurring. Both now carry `HANDOFF_ROOT_KEEP={'kill_switch_audi
 identically (confirmed by grep — the two allowlists agree), and `verify_handoff_layout.py` no
 longer flags the live state file.
 
+**`backend/api/paper_trading.py`** — a NEW 409-on-disarmed gate on `POST /resume` (`:593-602`),
+guarded by `test_phase_36_7_kill_switch_resume_endpoint_409s_when_disarmed`. This is a
+**behaviour-changing refusal on a P0 path**, not plumbing: the resume precondition is "both limits
+read HEALTHY", and a disarmed switch does not read healthy — it reads *nothing*. Between the
+2026-07-26 rotation and this fix, **every resume passed the pre-existing check regardless of the
+real drawdown**, because both legs were skipped and `any_breached` was False-by-absence. Note the
+gate deliberately fails OPEN on a payload predating the `armed` key (`.get("armed", True)`) for
+backward compatibility — that choice is untested on the backend side and is queued as `36.11`.
+
+**`frontend/src/components/OpsStatusBar.tsx`** (45 changed lines) — the amber DISARMED badge,
+per-leg em-dash placeholders replacing fabricated `0.00%` readouts, and the Resume-button disable.
+This is the always-visible operator status bar, so it is the surface most likely to be *glanced at*
+rather than read.
+
 **`backend/tests/test_phase_23_2_5_kill_switch_no_false_fires.py`** — a pre-existing regression
 lock (the 2026-05-05 nine-false-fire incident) retargeted at the new restore path. This
 **strengthens** the existing guard; it does not weaken it.
 
-> **Disclosure correction:** an earlier revision of this section listed only
-> `backend/services/kill_switch.py` and the new test file. It omitted the four files above.
+> **Disclosure correction (two rounds, both Q/A-found).** An earlier revision of this section
+> listed only `backend/services/kill_switch.py` and the new test file, omitting four files. A
+> second Q/A pass then found that even with all files *named*, two shipped safety *changes* were
+> still undescribed: the 409-on-disarmed resume gate and `OpsStatusBar.tsx`'s DISARMED badge —
+> `paper_trading.py` had been named only in passing for an unrelated citation, and `OpsStatusBar`
+> only inside an `R7` mutation description. File-level disclosure is not change-level disclosure.
 > Caught by adversarial Q/A cross-referencing `git diff --stat` against every artifact's file
 > list — none of the four appeared in any of them, which would have let them ship under this
 > step's name without being named anywhere. The code in all four was independently re-verified
@@ -82,9 +100,36 @@ Main's additions).
 
 ## Main's own follow-up fixes (beyond the workflow's implementation)
 
-The adversarial verification found 15 issues (`R1`–`R15`). Three were cheap, high-severity, and
-fixed in this cycle rather than deferred — each independently reproduced by Main, not taken on
-the workflow's word:
+The adversarial verification found 15 issues (`R1`–`R15`). **FOUR** were cheap, high-severity, and
+fixed in this cycle rather than deferred — each independently reproduced by Main, not taken on the
+workflow's word. Every one of the fifteen now has an explicit disposition; the table below is
+derived from the label list rather than counted by hand, because two earlier revisions of this
+section stated counts ("Three" fixed, "Six" queued) that **failed to re-derive from their own
+enumerations** — caught by adversarial Q/A, and the third such count failure in this session.
+
+| # | Disposition | What |
+|---|---|---|
+| R1 | **FIXED (Main)** | no `math.isfinite` guard in `_coerce_nav` |
+| R2 | QUEUED `36.8` (P0) | archive merge can override a fresh re-anchor → permanent lockout |
+| R3 | QUEUED `36.9` (P0) | stale `sod_date` published as `armed: true` |
+| R4 | QUEUED `36.9` (P0) | `nav_invalid` returns `armed: true` |
+| R5 | QUEUED `36.9` (P0) | `sod_nav=0.0` latches; the 409's remediation promise is false |
+| R6 | **FIXED (Main)** | un-isolated `reset_peak` test would write to the live trail |
+| R7 | **FIXED (Main)** | two vacuous tests (`-0.0` fixture; container-wide em-dash) |
+| R8 | QUEUED `36.11` (P2) | both resume gates fail-open on `armed`, untested |
+| R9 | QUEUED `36.10` (P1) | nothing outside UI/API reads `armed` — away-ops blind |
+| R10 | QUEUED `80.43` (P2) | unvalidated `snapshot_date` sort key → phantom DD reachable |
+| R11 | **FIXED (Main)** | `types.ts` did not admit the `null` the API emits |
+| R12 | QUEUED `36.11` (P2) | cross-tab threshold conflict on the identical field |
+| R13 | QUEUED `80.45` (P3) | `round()`-to-`0.0` can publish a genuine tiny DD as "never fell" — **filed only after Q/A found it was the one finding with no disposition anywhere** |
+| R14 | DISCLOSED — `experiment_results_80.40.md` correction #2 | `PaperVsBacktestCard`'s data path did change |
+| R15 | DISCLOSED — `80.40` correction #1, owned by existing `80.38` | backtest side hardcoded as `-12.0%` |
+
+**Derived totals:** 15 labels = **4 fixed** + **8 queued** (across **5** distinct steps: `36.8`,
+`36.9`, `36.10`, `36.11`, `80.43`, plus `80.45` filed this pass = 6) + **2** disclosed-only.
+A 16th finding — the new `36.12` — came from the research gate, not this list.
+
+The four fixed:
 
 ### R6 — a test would corrupt the live audit trail the day KS-PEAK-RESET is approved
 
@@ -165,14 +210,35 @@ Main independently)
 3. **OVERSTATED:** "FAIL LOUD ... four operator-visible surfaces" holds only when a baseline is
    genuinely absent. The `nav_invalid` path (`R4`, queued as `36.9`) still reports `armed: true`.
 
+## A shipped inconsistency this step knowingly leaves in place
+
+Three operator-facing strings shipped by this step advise waiting for the next cycle to re-anchor
+the baselines:
+
+- `backend/api/paper_trading.py:600` — the 409 response: *"The next paper-trading cycle re-anchors
+  both baselines; retry after it runs"*
+- `frontend/src/components/KillSwitchPanel.tsx:172` — tooltip: *"Resume is blocked until the next
+  cycle re-anchors them."*
+- `frontend/src/components/KillSwitchPanel.tsx:221` — button title: *"The next cycle re-anchors
+  them."*
+
+`36.12`, filed this same cycle, establishes that **that re-anchor is the defect** — an un-tokened,
+audit-indistinguishable silent forgiveness of the entire drawdown on the order-placing path.
+
+**Left in place deliberately, and this is the reasoning:** the strings are *currently accurate*.
+The re-anchor genuinely does happen today. Revising them now would make them describe behaviour
+that does not yet exist. Fixing `36.12` is what turns them false, so all three are written into
+`36.12`'s scope as an explicit success criterion, to be revised in the same change as the
+behaviour. Flagged here rather than silently shipped, because an executor picking up `36.12`
+without this note would fix the code path and leave three messages recommending the bug — which is
+exactly what the adversarial Q/A predicted would happen.
+
 ## Scope honesty
 
-- Six defects found by adversarial verification are **queued, not fixed here**: `R2` (archive
-  merge overrides a fresh re-anchor, `36.8`), `R3`+`R4`+`R5` (stale `sod_date`, `nav_invalid`
-  armed:true, `sod_nav=0.0` wedge, `36.9`), `R9`+the never-resetting disarmed-log flag (`36.10`),
-  `R8`+`R12` (fail-open resume gates, cross-tab threshold conflict, `36.11`). Each is a genuine
-  design question (especially `R2`, the archive-authority policy) that deserves its own research
-  gate rather than a rushed fix appended to an already-large change.
+- **Eight** adversarial findings are **queued, not fixed here**, across **six** distinct steps —
+  see the disposition table above for the per-label mapping rather than a hand-counted total.
+  Each is a genuine design question (especially `R2`, the archive-authority policy) that deserves
+  its own research gate rather than a rushed fix appended to an already-large change.
 - Operator's `:8000` never restarted; `:3000` never driven. Rig verified against real,
   unmodified production data files; md5-identical before and after every run.
 
