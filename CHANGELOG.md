@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `f30a4a2e` | fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake |
 | 2026-07-26 | `d5a6d392` | fix(80.45): narrow the drawdown claim instead of widening the precision |
 | 2026-07-26 | `5513f4ee` | docs(80.32): correct a CLAUDE.md rule that would have misdirected model pinning |
 | 2026-07-26 | `3f3edd96` | fix(80.44): stop the collection-count canary re-baselining treadmill |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `9ec84b7f` | docs(36.8): cycle-4 FAIL -- route FIVE, and the fix must be a redesign not a sixth patch |
 | 2026-07-26 | `d9ea01b7` | fix(36.8): FOURTH route -- a parse failure dropped history silently |
 | 2026-07-26 | `cffe25bd` | fix(36.8): the regression had a THIRD route -- glob() hides an unlistable archive dir |
-| 2026-07-26 | `6fed95e9` | docs(36.8): correct the matrix table to the measured 29-test baseline |
 
 ---
 
+### v6.72.4 — fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake (2026-07-26)
+
+- **fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake**
 ### v6.72.3 — fix(80.45): narrow the drawdown claim instead of widening the precision (2026-07-26)
 
 - **fix(80.45): narrow the drawdown claim instead of widening the precision**
