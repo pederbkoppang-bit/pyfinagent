@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `cfb56572` | feat(36.12): block orders when the kill-switch baselines were lost, instead of silently re-anchoring |
 | 2026-07-26 | `eaa42c1f` | docs(36.7,80.40): live_check RESOLVED on the operator's own :8000 after an authorized restart |
 | 2026-07-26 | `a3785bd1` | wip(36.7,80.40): remediate cycle-2 CONDITIONAL -- STILL NO PASS, steps remain pending |
 | 2026-07-26 | `b0abb061` | wip(36.7,80.40): kill switch fixed at both ends -- NO Q/A VERDICT YET (3x API 529) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `94fc0858` | wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED and re-queued as 80.35 |
 | 2026-07-26 | `3464e946` | docs: measure the done-definition evidence -- items 1-3 are restart-gated, and it is now proven |
 | 2026-07-26 | `314b02ad` | docs: close two goal deliverables -- per-step tier ledger + count re-derivation |
-| 2026-07-26 | `c3f809c8` | fix(36.7): queue the kill-switch-cannot-fire P0 -- the claim that it was queued was false |
 
 ---
 
+### v6.70.0 — feat(36.12): block orders when the kill-switch baselines were lost, i... (2026-07-26)
+
+- **feat(36.12): block orders when the kill-switch baselines were lost, instead of silently re-anchoring**
 ### v6.69.24 — wip(36.7,80.40): remediate cycle-2 CONDITIONAL -- STILL NO PASS, step... (2026-07-26)
 
 - **wip(36.7,80.40): remediate cycle-2 CONDITIONAL -- STILL NO PASS, steps remain pending**
