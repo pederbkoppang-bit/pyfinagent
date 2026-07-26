@@ -29463,3 +29463,66 @@ false` is recorded alongside the PASS.
 `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` unchanged throughout.
 
 **Next**: `36.12` (cycle 3 pending), then `36.7` (cycle 5 pending).
+
+## Cycle 173 -- 2026-07-26 -- phase=36.7 result=PASS (cycle 6; 3 CONDITIONAL, 1 FAIL, 1 INADMISSIBLE before it)
+
+**Step**: `36.7` (P0) -- *The kill switch cannot fire on a live book.* After an audit-log rotation
+both baselines replayed as `None`, and `evaluate_breach` gated each leg behind `if sod and sod > 0:`
+/ `if peak and peak > 0:` -- so BOTH legs were skipped and `any_breached` was False for ANY
+`current_nav`. A 50% drawdown could not have tripped it.
+
+**Research**: `research_brief_36.7_80.40.md`, tier complex, `gate_passed: true`, 12 sources read in
+full, 34 URLs, recency scan. Commissioned AFTER GENERATE -- disclosed in the contract, and covered
+by the scoped ruling recorded in Cycle 172.
+
+**Plan**: `contract_36.7.md`. Direction constrained to more-conservative only; no peak reset (that
+is the owed `KS-PEAK-RESET` token, 79.6); thresholds byte-untouched.
+
+**Generate** (`b0abb061`): rotation-aware restore merging the live file with all four archives, with
+`peak_update` replay changed from bare assignment to a `max()` ratchet so the TRUE high-water mark
+is recovered (`24666.57`, where naive assignment-replay yields `24124.77`); an explicit
+`armed` / `daily_baseline_missing` / `trailing_baseline_missing` state; a 409-on-disarmed `/resume`
+gate; DISARMED badges in `KillSwitchPanel` + `OpsStatusBar`; and the root-cause fix in the
+housekeeping scripts that rotated the file in the first place.
+
+**Evaluate**: six cycles. C1/C2 CONDITIONAL, **C3 FAIL** (record only -- its own words: *"THE CODE IS
+CORRECT AND I VERIFIED IT MYSELF ... FAIL is issued on the RECORD, not the code"*), **C4
+CONDITIONAL** (which blocked the flip on a non-quiesced tree -- Main was running 36.12's GENERATE
+concurrently and it watched this step's own gate go red at 13:36 and green at 13:37), **C5
+INADMISSIBLE**, **C6 PASS**.
+
+- **C5 was ruled INADMISSIBLE by Main**, not overruled on reasoning: mid-run its mutation harness
+  appended **54 `peak_reset` rows** to the tracked live `handoff/kill_switch_audit.jsonl` (its
+  mutated source built the module-level `KillSwitchState` singleton at import, before any fixture
+  could redirect `_AUDIT_PATH`). It self-reported accurately and immediately. Main verified before
+  trusting it (54 additions / 0 removals, all `trigger=MUT`), restored from HEAD, and re-verified:
+  md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e`, 8 lines, and a read-only restart simulation back to
+  `peak_nav 24666.57 / armed true`. The running backend was never affected.
+- **C6 supplied stronger evidence than the record on three criteria.** It found criterion 4 credited
+  to a *surviving* mutant and replaced it with three positive kills plus an 8-fixture pre-vs-post
+  differential at just-under / at / just-over both thresholds; it proved criterion 5b's literal
+  mutant is a semantics-preserving no-op NUMERICALLY over 14 inputs (empty mismatch set) rather than
+  by reading source; and it proved criterion 6 with a reachability-verified on-path mutation, naming
+  the killing test rather than crediting the suite. It decomposed the immutable command's count by
+  collection (`92 passed, 1 skipped`; exactly `69 passed, 1 skipped` excluding 36.12's committed
+  sibling -- the artifact's figure reproduces precisely).
+
+**Ruling recorded** (asked for explicitly): an **inherently unobtainable** live capture -- the
+DISARMED badge cannot render on a correctly-armed book -- does **NOT** cap the verdict. qa.md §1c's
+cap attaches to a *missing or stale* capture; this step's is neither, and the evaluator graded the
+existing live capture against the live API it curled itself (`0.0% / 3.4%` vs `daily_loss_pct
+0.0001` / `trailing_dd_pct 3.3584`). The "taken BY YOU" clause is a disclosure duty, not a cap, when
+the evaluator's path has a cold Playwright server -- which it measured (`:3100` = 0 listeners).
+`harness_compliance_ok: false` is reported alongside the PASS so the limitation stays visible.
+
+**Decision**: PASS. The kill switch is armed on the live book for the first time since the
+2026-07-24 rotation -- and it has been live since this morning's authorized restart (launchd pid
+`76381`): `sod_nav 23838.19`, `peak_nav 24666.57`, `trailing_dd 3.36%`. **The trailing leg now
+fires** at NAV <= ~22199.9.
+
+**Do-no-harm**: `:8000` GET-only and never restarted by this cycle; `:3000` never driven;
+`kill_switch_audit.jsonl` md5 unchanged at all seven of C6's measurement points; production tree
+empty vs HEAD at close.
+
+**Next**: `36.12` (cycle-3 FAIL remediated, QA-Z1 closed, still owes the §1c capture), then `36.13`
+(P0, `execute_buy` ungated), `36.15` (P1), `36.8`/`36.9`, `36.14`.
