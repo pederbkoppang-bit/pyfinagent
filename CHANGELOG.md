@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `902887f9` | docs: correct the mangled 36.9 commit message (1657e25a) |
 | 2026-07-26 | `1657e25a` | phase-36.9: armed:true must mean the leg can actually fire NOW -- three ways it didn't |
 | 2026-07-26 | `edb67997` | phase-36.8: archive-merge authority -- a stale archived peak can no longer permanently flatten and p |
 | 2026-07-26 | `dbcd8926` | fix(36.8): close the C7 findings -- regenerate live_check (b), correct the production docstring, rep |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `f245e6cc` | docs(36.12): resolve the 1c question -- impossible by construction, per the 36.7 cycle-6 precedent |
 | 2026-07-26 | `03d923a1` | docs(36.16): APPLY the de-escalation -- the previous commit's message described a change it did not  |
 | 2026-07-26 | `57672514` | docs(36.16): measure the P0 trigger -- it does NOT fire; the step is dead-code only |
-| 2026-07-26 | `ce060f66` | docs(36.12): the owed §1c capture was impossible -- KillSwitchPanel is never mounted (files 36.16) |
 
 ---
 
