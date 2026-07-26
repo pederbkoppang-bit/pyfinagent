@@ -12378,6 +12378,45 @@
             ],
             "live_check": "The drill's own output before and after, plus md5 of handoff/kill_switch_audit.jsonl asserted identical across a drill run."
           }
+        },
+        {
+          "id": "36.24",
+          "status": "pending",
+          "priority": "P1",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P1 -- THE ORCHESTRATOR'S SEMANTIC-MEMORY TIER HAS BEEN READING A FOUR-MONTH-STALE FILE] Found by the agent-memory research gate, 2026-07-26, and re-verified at source. THERE ARE TWO DIFFERENT FILES NAMED MEMORY.md. backend/agents/harness_memory.py:39 sets `_MEMORY_MD = _WORKSPACE_ROOT / \"MEMORY.md\"` -> /Users/ford/.openclaw/workspace/MEMORY.md, MEASURED at 3725 bytes last modified 31 MARCH 2026. The LIVE Claude auto-memory index is a different file at ~/.claude/projects/-Users-ford--openclaw-workspace-pyfinagent/memory/MEMORY.md, MEASURED at 15635 bytes modified 2026-07-26. harness_memory.py is wired live into the running orchestrator at backend/agents/multi_agent_orchestrator.py:216, so its CoALA 'semantic memory' tier has been serving a snapshot four months out of date -- every lesson recorded since March is invisible to it. DO NOT ASSUME which file is canonical: the executor must first determine whether the workspace MEMORY.md is a deliberate separate artifact (a project-level doc) or a stale copy of the auto-memory index, by reading both and checking git history. Only then choose: (a) re-point _MEMORY_MD at the live auto-memory index, (b) keep both and document the split explicitly, or (c) merge. NOTE the auto-memory dir lives under ~/.claude/ and may NOT be in this repo -- verify whether it is version-controlled before making code depend on it, because an un-versioned dependency of the live orchestrator is its own risk. scripts/housekeeping/audit_memory.py cannot catch this: it audits one directory and knows nothing about the second consumer.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'memory or harness_memory'",
+            "success_criteria": [
+              "The two files are characterised from evidence (content + git history), and which is canonical is DECIDED and justified -- not assumed",
+              "A test asserts the orchestrator's semantic tier reads a file that is actually current -- it must FAIL against a stale-by-N-days fixture",
+              "If the auto-memory dir is not version-controlled, that is stated explicitly and the risk of the live orchestrator depending on it is addressed",
+              "audit_memory.py is extended to detect a SECOND consumer pointing at a different MEMORY.md, so this cannot recur silently",
+              "MUTATION-TEST: re-pointing the constant back at the stale path must fail the new test"
+            ],
+            "live_check": "Verbatim output showing both paths, their sizes and mtimes, before and after; plus the orchestrator loading the current file."
+          }
+        },
+        {
+          "id": "36.25",
+          "status": "pending",
+          "priority": "P2",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- MEMORY HYGIENE: NO STALENESS SIGNAL, AN INDEX 3x OVER BUDGET, AND A 624 KB DERIVED MIRROR] Found by the agent-memory research gate 2026-07-26; every number below re-verified at source, but the executor must re-derive rather than trust them. THREE MEASURED DEFECTS. (1) NO STALENESS SIGNAL: no memory carries a timestamp or `last_verified`, and the store has already held a WRONG memory for weeks (the 'Workflow rail is stall-immune' claim, disproved when prompt length turned out to be the cause). Current practice per the 2026 agent-memory survey is INVALIDATE WITH A TIMESTAMP, DO NOT DELETE, plus source attribution (an operator statement outranks an agent inference). Note `metadata.originSessionId` already exists and is unused for this. Cheapest sufficient fix is a `last_verified:` frontmatter line. (2) INDEX BLOAT: MEMORY.md is the ONLY part loaded at session start and its spec budgets ~150 chars per pointer; MEASURED 49 of 52 lines exceed it (longest 594, mean ~300). Index entries are doing the job of memory bodies, which is exactly how a list-then-read design degrades into preload-everything. Trimming to budget buys headroom to ~150-200 files with no retrieval layer. (3) A DERIVED MIRROR: masterplan_state.md is 624,228 BYTES -- ~17% of all lines in the store -- and duplicates `.claude/masterplan.json`, which is already read directly every session. DO NOT BUILD A RETRIEVAL LAYER: Anthropic's context-engineering guidance explicitly blesses the hybrid we run (index up front + just-in-time reads), and the retrieval work it would imitate (Park et al.) was motivated by memories not fitting the context window, which is not our situation at 4k tokens in 1M. Fix the index budget instead. ALSO measured: frontmatter schema has drifted (40 files nest `metadata:/type:`, 12 use a top-level `type:`, and audit_memory.py passes BOTH), and of four declared types there are ZERO `user` and ZERO `reference` memories.",
+          "verification": {
+            "command": "source .venv/bin/activate && python scripts/housekeeping/audit_memory.py",
+            "success_criteria": [
+              "Every index line is re-counted by command (not by hand) and brought within the stated budget, with the budget written down somewhere enforceable",
+              "audit_memory.py gains checks for index-line length and frontmatter-schema drift, and FAILS against the current tree before the fix",
+              "A staleness signal exists on memories and the auditor can flag memories never re-verified after N days -- a test proves the flag fires",
+              "masterplan_state.md is either removed as a derived mirror or justified in writing against reading .claude/masterplan.json directly",
+              "NO retrieval/embedding layer is added -- if the executor believes one is needed, that is a separate research-gated step with evidence",
+              "MUTATION-TEST: each new auditor check must fail when its defect is reintroduced"
+            ],
+            "live_check": "audit_memory.py output before and after, plus the re-derived index-line census."
+          }
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."
