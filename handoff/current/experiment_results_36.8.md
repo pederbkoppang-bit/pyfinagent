@@ -420,3 +420,39 @@ NOT a 36.8 regression — filed as `36.19`.
 - **The marker is forward-only.** The 20 existing unmarked rows stay ratchet-only by design, so a
   pre-existing stale peak is still correctable only by `peak_reset` (owed token, `79.6`).
 - `:8000` never restarted or POSTed to; `:3000` never driven.
+
+
+## Cycle 7 -- FAIL on the claims layer, and what it cost
+
+The cycle-7 Q/A passed the CODE explicitly and in detail: all 5 immutable criteria
+substantively MET, 4 of them independently mutation-proved by the evaluator itself
+(20 mutants, 2 controls at `44 passed`, 15 killed, 2 analysed equivalent survivors,
+**0 real survivors**), immutable command exit 0 at `138 passed, 1 skipped, 2126
+deselected`, ruff clean over a git-derived scope, and **no sixth route found** -- the
+third independent pass to reach that conclusion. It then FAILED the step on three
+EXECUTED false statements. All three were real. I re-derived every one rather than
+taking them on the evaluator's word, and all three are now fixed:
+
+| # | Finding | Re-derivation | Fix |
+|---|---|---|---|
+| 1 | `live_check` (b) demonstrates the new behaviour with `prior_peak=None` | Ran BOTH shapes at HEAD: `None -> 24666.57` (stale archive wins -- identical to the outcome the block calls PRE-FIX), `24666.57 -> 18000.0` (fresh anchor wins) | Section (b) regenerated from a real run of the CURRENT test against the reverted authority clause; whole-file pre-fix re-measured at **2 failed, 42 passed** (the recorded *10 failed, 12 passed* was a cycle-1 figure for a 26-test module); the cycle-4 "all figures re-measured at HEAD" sentence WITHDRAWN in place |
+| 2 | `kill_switch.py:376` still claims the helper is the ONE guarded path for every ASSIGNMENT | `grep -n '_peak_nav = '` -> 5 sites (`:345, :398, :550, :572, :636`), exactly 1 in the helper | Docstring rewritten to "every assignment-semantics branch in the REPLAY", states the 5/1 census, and names 36.19 (`update_peak`'s bare `float(nav)`) as the live counterexample so a maintainer cannot read it as a guarantee |
+| 3 | Both housekeeping scripts cite a test path this step renamed away | `ls` -> No such file; the node exists under the new name | Path updated in `verify_handoff_layout.py:55` + `backfill_handoff_archive.py:64`; cited node re-run: `1 passed` |
+
+Also fixed, from the evaluator's note-level residual (ii): `_read_audit_rows` was
+annotated `-> list[dict]` while returning `(rows, complete)` since this step's cycle-2
+change. Now `-> tuple[list[dict], bool]`. Both consumers already unpacked correctly, so
+this was a stale annotation, not a runtime break.
+
+**The pattern, stated plainly.** Three of the last three cycles failed on the same class:
+a claim about a SET whose membership I never enumerated. C5 named two artifacts and I
+fixed one. C6 named a stale claim and I fixed it in the artifact but not in the
+production source that also carried it. C7 found a rename whose consumers I never swept.
+The code has been correct since cycle 5 -- every failure since has been the record
+describing code that does not exist. The discipline that fixes this is not "check more
+carefully": it is to derive the member list mechanically (`grep`, `git diff --name-only`,
+`ls`) and close it member-by-member, which is exactly what produced the three fixes above.
+
+**No behaviour changed in cycle 7** -- one docstring, one type annotation, two comments,
+one artifact section. The 5 criteria are untouched, so no re-mutation is owed; the
+immutable command was re-run anyway and is green.

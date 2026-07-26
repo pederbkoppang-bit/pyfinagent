@@ -61,7 +61,7 @@ HANDOFF_ROOT_KEEP = {
 
 # phase-36.8: the audit ARCHIVES are safety-relevant and MUST NOT be pruned.
 # Keep this set byte-identical between the two housekeeping scripts; the test
-# backend/tests/test_phase_36_8_archive_merge_authority.py::
+# backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py::
 # test_phase_36_8_both_housekeeping_scripts_protect_the_audit_archives parses
 # both by AST and fails if they drift.
 #

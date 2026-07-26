@@ -186,7 +186,7 @@ class KillSwitchState:
         self._load_from_audit()
 
     @staticmethod
-    def _read_audit_rows() -> list[dict]:
+    def _read_audit_rows() -> tuple[list[dict], bool]:
         """Merge every audit source (rotated archives + the live file) into one
         `ts`-ordered row list.
 
@@ -372,10 +372,19 @@ class KillSwitchState:
             logger.warning(f"kill_switch: audit load failed: {e}")
 
     def _apply_authoritative_peak(self, raw: Any, source: str) -> None:
-        """phase-36.8: the ONE guarded path for every ASSIGNMENT to `_peak_nav`.
+        """phase-36.8: the guarded path for every assignment-semantics branch in the
+        REPLAY -- NOT for every assignment to `_peak_nav`.
 
-        Both assignment-semantics branches route here -- `peak_reset` (phase-69.1's
-        token-gated downward move) and 36.8's marked anchor. An assignment can LOWER
+        Measured: there are 5 assignment sites in this module and exactly one is
+        inside this helper. The replay's own ratchet, `update_peak` (2 sites) and
+        `reset_peak` assign directly. `update_peak` coerces with a bare `float(nav)`,
+        so a non-finite NAV reaches `_peak_nav` in memory by that route -- filed as
+        masterplan step 36.19, whose reachability the executor must MEASURE rather
+        than assume. Do not read this docstring as a claim that that route is guarded.
+
+        Both assignment-semantics branches of the REPLAY route here -- `peak_reset`
+        (phase-69.1's token-gated downward move) and 36.8's marked anchor. Such an
+        assignment can LOWER
         the peak, so a value that cannot be a baseline must be ignored rather than
         applied: assigning `None` disarms the trailing leg on the next restart, and a
         subsequent ratchet then re-anchors from whatever row comes next, which is

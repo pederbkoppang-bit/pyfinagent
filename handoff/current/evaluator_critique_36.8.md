@@ -1,0 +1,100 @@
+# Evaluator critique -- masterplan step 36.8
+
+**This file should have existed six cycles ago.** The cycle-7 Q/A found that no
+`evaluator_critique_36.8*.md` existed anywhere under `handoff/`, while every sibling
+step (36.7, 36.12, 80.x) had one -- so six verdicts on a P0 kill-switch step were never
+persisted, and the only record of them was my own spawn prompts, i.e. the author's
+account of what the evaluator said. That is a five-file-protocol breach and it made the
+cycle history unauditable by anyone but me. Fixed here: the cycle-7 verdict is
+transcribed VERBATIM below (machine copy: `evaluator_critique_36.8.json`), and the
+prior six are summarised as what they are -- a reconstruction, not a transcript.
+
+## Cycle history (C1-C6 RECONSTRUCTED from spawn prompts, not transcripts)
+
+| Cycle | Verdict | What it found |
+|---|---|---|
+| 1 | FAIL | authority stamped without checking the replay saw every source |
+| 2 | FAIL | 3 surviving mutants (per-file failure, class default, dropped field) |
+| 3 | FAIL | unlistable archive reported a COMPLETE history it never read |
+| 4 | FAIL | 4th route: a parse failure dropped history silently |
+| 5 | CONDITIONAL | carried-forward "verbatim" captures in **both** artifacts |
+| 6 | CONDITIONAL | 4 record defects incl. a stale claim in production source |
+| 7 | **FAIL** | verbatim below -- code passes, claims layer does not |
+
+Cycle 5 named a SET of two artifacts. `experiment_results_36.8.md` was regenerated;
+`live_check_36.8.md` was not. The half-applied fix was reported as complete, and a
+cycle-4 blanket sentence ("all figures above are re-measured at HEAD") then concealed
+the missed member for two further cycles. C7 is the cost of closing a remediation list
+by count instead of member-by-member.
+
+## Cycle-7 verdict -- VERBATIM (transcribed, not authored, not edited)
+
+**verdict:** `FAIL`   **ok:** `False`   **certified_fallback:** `False`   **harness_compliance_ok:** `True`
+
+### reason
+
+> The CODE passes: all 5 immutable criteria are substantively MET and I independently mutation-proved 4 of them (20 mutants, 2 controls at `44 passed`, 15 killed, 2 equivalent survivors, 0 real survivors); immutable cmd exit=0 `138 passed, 1 skipped, 2126 deselected`; ruff clean over a git-derived scope; no sixth route found. FAIL is on the CLAIMS layer, on three EXECUTED false statements this step owns, all of the same class C5/C6 flagged: (1) `live_check_36.8.md:29-44` -- the operator-facing gate artifact required by `verification.live_check` part (b) -- demonstrates "the new behaviour: a fresh marked anchor now wins" with a row shape (`prior_peak=None`) that AT HEAD returns 24666.57, i.e. identical to what the same block labels the PRE-FIX failure; the new behaviour requires `prior_peak=24666.57` (verified -> 18000.0). C5 raised this against "both artifacts"; experiment_results was regenerated, live_check was not, and line 89 still asserts "All figures above are re-measured at HEAD". (2) `kill_switch.py:376` docstring still claims `_apply_authoritative_peak` is "the ONE guarded path for every ASSIGNMENT to `_peak_nav`" -- measured 5 assignment sites (:345,:398,:550,:572,:636), exactly 1 in the helper; the artifact cell was corrected for this exact overclaim and the code site was not, and the 36.19 residual (`update_peak(inf)`) is its direct counterexample. (3) criterion 3's own deliverable cites a nonexistent enforcement test in BOTH housekeeping scripts (`verify_handoff_layout.py:55`, `backfill_handoff_archive.py:64` -> `test_phase_36_8_archive_merge_authority.py`, `ls` = No such file), broken by this step's own cycle-2 rename. Per qa.md 4b a "verbatim" capture that does not reproduce is Invalid_Precondition and prefers FAIL; per the 3rd-CONDITIONAL rule this CONDITIONAL-shaped, third-consecutive recurrence converts to FAIL.
+
+### violated_criteria
+
+1. verification.live_check part (b) -- the required new-behaviour demonstration does not demonstrate it at HEAD
+2. claim-audit: a capture labelled PRE-FIX/verbatim does not reproduce as a pre/post discriminator (qa.md 4b)
+3. documentation overclaim survives in production source (kill_switch.py:376) after the identical claim was corrected in the artifact
+4. consumer-contract-break: criterion-3 deliverable cites a test path this step renamed away, in both housekeeping scripts
+5. 3rd-CONDITIONAL escalation: a CONDITIONAL-shaped recurrence of the class flagged in C5 and C6
+
+### violation_details
+
+**1. Invalid_Precondition**
+
+- *action:* Executed live_check_36.8.md's section (b) scenario against HEAD: archive row peak_update nav=24666.57; live row peak_update nav=18000.0, anchor=True, prior_peak=None; KillSwitchState().snapshot()['peak_nav']
+- *state:* HEAD returns 24666.57 -- byte-identical to the outcome the same block presents as the PRE-FIX failure (`E assert 24666.57 == 18000.0`). The new behaviour is only produced by prior_peak=24666.57 (verified -> 18000.0). The block is headed '## (b) The new behaviour: a fresh marked anchor now wins' and the capture is labelled 'PRE-FIX, verbatim (recorded before any code changed)'; line 89 asserts 'All figures above are re-measured at HEAD'; line 70 cites it as criterion 1's MET evidence. The cycle-5 Q/A raised this exact defect against BOTH artifacts and experiment_results_36.8.md:29-66 was correctly regenerated -- live_check was not, and experiment_results' own remediation note reads as if both were.
+- *constraint:* masterplan 36.8 verification.live_check: 'A test log showing: (a) the original 36.7 restore-true-peak behavior still works, (b) the new re-anchor-respects-fresh-live-data behavior now works, both against real archived file shapes' + qa.md 4b: 'A verbatim capture must be regenerated, never edited... Prefer FAIL when a number in a verbatim artifact does not reproduce.'
+
+**2. Contradiction**
+
+- *action:* grep -n '_peak_nav = ' backend/services/kill_switch.py and read the docstring at :376
+- *state:* Docstring first line: 'phase-36.8: the ONE guarded path for every ASSIGNMENT to `_peak_nav`.' Measured: 5 assignment sites -- :345 (replay ratchet), :398 (inside the helper), :550 and :572 (update_peak, `float(nav)` direct), :636 (reset_peak) -- exactly ONE inside the helper. experiment_results_36.8.md:76 corrects precisely this wording ('not every assignment to `_peak_nav`, which was an overclaim: measured, there are 5 assignment sites and only one is inside the helper') while the code site retains it. Not cosmetic: the residual Main filed as 36.19 -- update_peak(inf) setting a non-finite peak in memory -- is a live counterexample at :550/:572 that this docstring tells a maintainer is already guarded.
+- *constraint:* Cycle-6 finding (3), which this cycle's commit 54f3a18d claims to have corrected; and the C6 headline lesson it cites verbatim -- 'the SAME stale claim had survived in PRODUCTION SOURCE'.
+
+**3. Contradiction**
+
+- *action:* ls backend/tests/test_phase_36_8_archive_merge_authority.py; grep -rn 'test_phase_36_8_archive_merge_authority' scripts/housekeeping/
+- *state:* 'ls: No such file or directory'. Both criterion-3 deliverables -- scripts/housekeeping/verify_handoff_layout.py:55 and scripts/housekeeping/backfill_handoff_archive.py:64 -- cite `backend/tests/test_phase_36_8_archive_merge_authority.py::test_phase_36_8_both_housekeeping_scripts_protect_the_audit_archives` as the AST test that 'fails if they drift'. That file was renamed to test_phase_36_8_kill_switch_archive_merge_authority.py by this step's own cycle-2 BLOCK-2 fix; the comments were not updated. The enforcement test DOES exist under the new name and passes, so this is a dangling reference, not a missing guard.
+- *constraint:* consumer-contract-break (code-review skill Dim 3): a rename shipped without every consumer of the old symbol/path verified in the same diff; and criterion 3's own requirement that the do-not-prune policy be documented accurately.
+
+### checks_run
+
+- `harness_compliance_audit_5_item`
+- `immutable_verification_command_exit0`
+- `python_lint_gate_ruff_F821_F401_F811_git_derived_scope`
+- `backend_runtime_import_smoke`
+- `ast_syntax_all_changed_files`
+- `git_status_unintended_change_scan`
+- `ast_equivalence_vs_cycle5_redesign_commit`
+- `mutation_matrix_12_production_mutants`
+- `mutation_matrix_5_additional_production_mutants`
+- `mutation_matrix_6_fixture_and_harness_mutants`
+- `control_runs_both_matrices`
+- `claim_audit_corpus_numerics_re_derived`
+- `claim_audit_test_collection_counts`
+- `claim_audit_assignment_site_census`
+- `live_check_scenario_executed_at_head`
+- `guard_vacuity_check_per_criterion`
+- `code_review_heuristics`
+- `live_audit_file_md5_invariant`
+- `existing_results_check`
+
+### notes
+
+> HARNESS COMPLIANCE (5/5 pass). Research gate: research_brief_36.8.md 17:18, gate_passed=true, 8 sources read in full (floor 5), 30 URLs, recency scan performed. Order: research 17:18 < contract 17:21 < test/code 18:31 < experiment_results 19:03. experiment_results present. Log-last respected: ZERO `## Cycle ... phase=36.8` entries in harness_log.md and masterplan status still `pending`. Not verdict-shopping: evidence CHANGED since C6 (commit 54f3a18d touched kill_switch.py + experiment_results). TWO CAVEATS worth recording: (a) no `evaluator_critique_36.8*.md` exists anywhere in handoff/ after six Q/A cycles, and harness_log has zero 36.8 entries -- so the prior six verdicts are not persisted in the handoff tree and I took the cycle history from Main's spawn prompt, i.e. from the author; every sibling step (36.7, 36.12, 80.x) has an `evaluator_critique_<id>.md`; (b) masterplan `retry_count` is still 0 after six cycles (max_retries 3), so certified_fallback does not fire -- but the counter is not tracking reality.
+> 
+> WHAT PASSED, EXPLICITLY -- the next cycle must not redesign anything. Immutable cmd exit=0, `138 passed, 1 skipped, 2126 deselected`, reproducing both artifacts exactly. 44 collected in the module and 44 selected by `-k kill_switch` (cycle-1's BLOCK-2 stays fixed). ruff F821/F401/F811 clean over a scope DERIVED with `git diff --name-only 09125a81^ HEAD -- '*.py'` (4 files; non-empty asserted before reading the exit code, per the zsh word-split trap). `import backend.services.kill_switch` OK. kill_switch.py is AST-identical to cycle-5's `d760f48e` with docstrings+comments stripped -- confirming Main's "no behaviour changed since C5". git status shows only handoff/audit/pre_tool_use_audit.jsonl (my own hook appends): no unintended production change.
+> 
+> MY MUTATION WORK (sys.modules injection + a vendored test copy in tmp; ZERO repo writes, live-file md5 ce8fb93348bb9a3bbe26f2d91b1bc05e re-checked after EVERY mutant and never moved). Two CONTROLs both `44 passed`. Production mutants KILLED: REVERT_AUTHORITY (revert to the pre-36.8 unconditional max()-merge) -> `2 failed` including the criterion-1 test with `assert 24666.57 == 18000.0` (criteria 1 and 5 proven by me, not read); MSTRUCT (drop the naming clause) `8 failed`; M3_TRUTHY `4 failed`; M2_ASSIGN (36.7 regression) `17 failed` (criterion 2); M_DARK_GATE_REMOVED `1 failed` (criterion 4 is a REAL guard, not vacuous); M4_UNGUARD_HELPER `13 failed`; QA_WRITER_STAMPS_AUTHORITY (mine: the writer starts stamping anchor+prior_peak again) `5 failed` -- the tripwire test is live; QA_NO_ARCHIVE_MERGE `33 failed`; QA_ALLOW_NONFINITE `3 failed`; QA_NO_TS_SORT `1 failed`; QA_PERLINE_COMPLETE_REMOVED `2 failed`; QA_STAT_ONLY_NOT_LISTDIR `1 failed`; QA_PRIOR_PEAK_MERE_PRESENCE `7 failed`; QA_FILE_READ_COMPLETE_REMOVED `1 failed`. FIXTURE mutants (qa.md 4c requires mutating the harness, not only the code): FIX_ROW_DROPS_PRIOR_PEAK `2 failed` and FIX_ROW_DROPS_ANCHOR `2 failed` -- criterion 1's assertion genuinely depends on both payload fields, so it is NOT vacuous (C6's ruling independently confirmed by execution). TWO SURVIVORS, both analysed rather than counted: QA_LIVE_FILE_FIRST (append->insert(0) in _audit_source_paths) is EQUIVALENT -- the docstring states source order is only a tie-break, the ts sort plus max() ratchet leave no behavioural differential except for identical-ts rows on the marked-anchor branch, which no production writer emits; FIX_DETACHED_ALWAYS_COMPLETE survives because the cycle-5 redesign deliberately removed `_history_complete` from the authority decision -- that survival is evidence FOR the redesign's structural claim, and the flag itself is still pinned by two tests that do not use `_detached`. One mutant (QA_COMPLETE_ALWAYS_TRUE) did not apply on first pointing; re-pointed and killed -- a mutant that does not apply is no evidence.
+> 
+> CLAIM AUDIT -- every quantified claim RE-DERIVED, and all of these reproduce EXACTLY: 897 rows across 5 files; 20 peak_update rows, 0 carrying `anchor`, 0 carrying `prior_peak` ("all 20 real rows are unmarked"); 0 `peak_reset` rows ever; true peak 24666.57 in handoff/audit/kill_switch_audit.jsonl, the OLDEST by mtime; the LIVE file holds 8 rows and ZERO peak_update rows, so "100% of today's live baselines come from the ARCHIVES" is exact; "5 assignment sites and only one is inside the helper" is exact; 44 collected / 44 selected; boot 0.89 ms / 0.99 us per row vs the claimed 0.95 ms / 1.06 us (run-to-run timing variance, not a finding). The claimed single skip under the immutable selector is the pre-existing 23.2.5 quarantine, NOT 36.8's real-corpus test -- I checked, because a silent skip there would have made criterion 2's real-corpus evidence vacuous.
+> 
+> TWO NOTE-LEVEL RESIDUALS (do not block, do not need their own cycle): (i) `test_phase_36_8_the_real_corpus_still_restores_the_true_peak` degrades to `pytest.skip` if the corpus is ever emptied -- I executed this (43 passed, 1 skipped against an empty corpus). It does not fire today and criterion 2 has unconditional synthetic coverage, but the escape hatch sits on exactly the risk criterion 3 is about. (ii) `_read_audit_rows` is annotated `-> list[dict]` at :189 while returning `rows, complete` at :250; both consumers (:254, :671) unpack correctly so there is no runtime break, but the annotation was made stale by this step's cycle-2 change.
+> 
+> THE FIX LIST IS SMALL AND BOUNDED -- regenerate, do not edit: (1) re-run the criterion-1 test against the reverted authority branch and paste that output into live_check_36.8.md section (b), replacing the prior_peak=None block, and correct the "recorded before any code changed" label plus line 89's re-measured claim; while there, re-derive "Whole file pre-fix: 10 failed, 12 passed" or drop it. (2) Rewrite the first sentence of `_apply_authoritative_peak`'s docstring at kill_switch.py:376 to the wording already agreed in the artifact ("every assignment-semantics branch in the REPLAY", 5 sites / 1 in the helper) and cross-reference 36.19. (3) Update the test path in verify_handoff_layout.py:55 and backfill_handoff_archive.py:64 to test_phase_36_8_kill_switch_archive_merge_authority.py. NO code behaviour change is required, so no re-mutation is required -- but per the operator's standing rule, run the proving check in the same turn you write each claim, and re-derive the PRIOR cycle's remediation list member-by-member rather than by count: this FAIL exists because C5's finding named a SET of two artifacts and only one member was fixed.

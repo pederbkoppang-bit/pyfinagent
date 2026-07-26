@@ -28,20 +28,35 @@ $ python -m pytest backend/tests/ -q -k kill_switch          # IMMUTABLE
 
 ## (b) The new behaviour: a fresh marked anchor now wins
 
-PRE-FIX, verbatim (recorded before any code changed):
+**Regenerated in cycle 7, and the reason is the whole point of this section.** This block had
+carried a cycle-1 row shape — `prior_peak=None` — through the cycle-5 redesign, which INVERTED
+that shape's meaning: an anchor that names no superseded peak is now deliberately *non*-authoritative.
+Executed at HEAD, the recorded shape returns `24666.57` — byte-identical to the outcome the block
+presents as the PRE-FIX failure. It therefore demonstrated nothing: a row that fails the same way
+before and after the fix cannot be a pre/post discriminator. Measured both ways at HEAD this turn:
 
 ```
-        _write(archive / "kill_switch_audit-v3.jsonl",
-               _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
-        _write(live,
-               _row("2026-07-26T10:00:00+00:00", "peak_update", nav=18000.0,
-                    anchor=True, prior_peak=None))
+prior_peak = None        -> restored peak_nav = 24666.57   (stale archive wins)
+prior_peak = 24666.57    -> restored peak_nav = 18000.0    (fresh anchor wins)
+```
 
+Below is the CURRENT criterion-1 test run against the authority clause reverted to the pre-36.8
+unconditional `max()` merge (in-memory; no repo write) — the real pre-fix signature:
+
+```
 >       assert ks.KillSwitchState().snapshot()["peak_nav"] == 18000.0
 E       assert 24666.57 == 18000.0
+
+backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py:103: AssertionError
+FAILED backend/tests/..._archive_merge_authority.py::test_phase_36_8_a_fresh_marked_anchor_beats_a_higher_archived_peak
+1 failed, 43 deselected in 0.03s
 ```
 
-Whole file pre-fix: **10 failed, 12 passed**. POST-FIX: **44 passed** (re-measured cycle 4; c1 26, c2 29, c3 32 — the module grew as each Q/A found a gap).
+with the fixture rows `nav=24666.57` archived and `nav=18000.0, anchor=True, prior_peak=24666.57` live.
+
+Whole file against that same reverted clause: **2 failed, 42 passed** (measured this turn; the
+previously recorded *"10 failed, 12 passed"* was a cycle-1 figure describing a 26-test module and a
+different revert). POST-FIX: **44 passed** (c1 26, c2 29, c3 32 — the module grew as each Q/A found a gap).
 
 The boundary behaves like a boundary, not a freeze — three further assertions pin it:
 later rows ratchet UP from the anchor (`18000 → 19000`, a subsequent `18500` ignored); an anchor
@@ -67,7 +82,7 @@ pinned by an AST test that fails if the two declarations drift.
 
 | # | Criterion | Status |
 |---|---|---|
-| 1 | reproduce the failure first, verbatim | **MET** — `assert 24666.57 == 18000.0`, recorded pre-fix |
+| 1 | reproduce the failure first, verbatim | **MET** — `assert 24666.57 == 18000.0`, regenerated cycle 7 by running the CURRENT test against the reverted authority clause (see (b)) |
 | 2 | 36.7's defect stays fixed | **MET** — synthetic + real-corpus assertions + 36.7's module green under the immutable selector |
 | 3 | archive growth documented or capped | **MET** — cap REFUSED on measurement; do-not-prune declared in both scripts; boot cost measured |
 | 4 | `reset_peak` stays DARK | **MET** — gate byte-untouched; a test asserts the call returns `None` and writes no row |
@@ -84,6 +99,18 @@ stops, sector caps, DSR and PBO byte-untouched. No peak reset performed.
 it is owed only after Q/A passes.
 
 
-## Cycle-4 refresh
+## Cycle-4 refresh, and the cycle-7 correction to it
 
-This file carried cycle-1 numbers through two fix rounds; the cycle-2 Q/A flagged three that no longer reproduced. All figures above are re-measured at HEAD: module **44 passed**, immutable `-k kill_switch` **138 passed, 1 skipped**, and all 44 of this module's tests are inside that selector (cycle 1 shipped with **zero**).
+This file carried cycle-1 numbers through two fix rounds; the cycle-2 Q/A flagged three that no longer
+reproduced. Cycle-4 re-measured the counts — module **44 passed**, immutable `-k kill_switch`
+**138 passed, 1 skipped**, all 44 inside that selector (cycle 1 shipped with **zero**) — and then
+asserted *"all figures above are re-measured at HEAD"*. **That claim was false and is withdrawn.**
+Section (b)'s capture was NOT re-measured; it stayed on a cycle-1 row shape that the cycle-5 redesign
+had since inverted, and the whole-file pre-fix figure stayed on a 26-test-module number. The cycle-5
+Q/A named a SET of two artifacts carrying this defect; `experiment_results_36.8.md` was regenerated
+and this file was not, so a fix that was reported as complete was half-applied — and the cycle-4
+blanket sentence then concealed the remaining half for two more cycles.
+
+The lesson is the one this step keeps paying for: **a remediation list is closed member-by-member, not
+by count**, and a sweeping "everything above is current" line is an unmeasurable claim that hides the
+member you missed. Section (b) is regenerated above from commands run in cycle 7.
