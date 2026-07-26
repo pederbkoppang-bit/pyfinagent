@@ -138,8 +138,9 @@ forward.
 | **MXP** | **a parse failure drops history silently *(cycle-3 route)*** | KILLED `3 failed, 32 passed` |
 | M7 | one housekeeping script drops the archive declaration (disk) | KILLED `1 failed, 34 passed` |
 
-Disk mutants restore their file with sha256 re-verified. `M8`, `M17`/`MXL`, `MX4` and `MXP` are the
-four routes the completeness gate has had to close — see the table below.
+Disk mutants restore their file with sha256 re-verified. `M8`, `MXL`, `MX4` and `MXP` are the four routes the completeness gate has had to close (an earlier
+revision of this line cited a mutant `M17`, which does not exist in this step's matrix — that label
+belongs to phase-36.12's) — see the table below.
 
 **Ceiling, stated plainly:** this licenses *"these 14 mutations were killed at this baseline"*. It is
 a lower bound on the guard set, never a claim about the code. Independent passes found survivors in
@@ -283,6 +284,60 @@ the end-to-end differential), and mutant **MXP** reverts it and dies `3 failed, 
 measured `32`/`126` — the same class flagged in `live_check` a cycle earlier, in the other file this
 time), and the matrix's "one batch at the final baseline" provenance was false for 9 of 13 rows. Both
 fixed by regenerating from a single batch at the true final baseline rather than editing numbers.
+
+## Cycle-5 status — FAIL, and the right response is NOT a sixth patch
+
+The cycle-4 Q/A found **route five**, measured end-to-end in four sub-cases, all with the identical
+destroyed peak (`bootC = 18000.0` where a pure ratchet over the same end-state rows gives
+`24666.57`):
+
+| | source that is **present-but-silent** |
+|---|---|
+| (a) | an archive file **truncated to 0 bytes**, then restored from git — the recoverability backstop this artifact itself cites |
+| (b) | the **LIVE file absent** — `_audit_source_paths` appends it only `if _AUDIT_PATH.exists()`, so its absence never sets `complete=False`, while an absent archive *dir* does. A literal asymmetry against my own rule |
+| (c) | an archive file whose name misses the glob (`…jsonl.bak`) |
+| (d) | archive rows in a nested `handoff/audit/2026-06/` subdir |
+
+Production relevance is not hypothetical: `handoff/audit/kill_switch_audit.jsonl` is the OLDEST
+archive and the **only** holder of the live book's true peak `24666.57` (the live file has **zero**
+`peak_update` rows). Truncate or misplace it, boot once, and the anchor is stamped at that day's
+lower NAV; restore it and the true mark is outranked forever.
+
+### The architectural conclusion, which is the actual deliverable of this cycle
+
+The Q/A said it better than I would have: *"closing hole #5 by hand is the same move that produced
+holes #2–#5."* Five routes, five hand-closed enumerations of "ways a source can fail". The gate is
+**negatively derived** — it starts at `True` and drops to `False` on each failure mode I remembered
+— so it is only ever as good as my imagination, and five independent passes have each beaten it.
+
+**The next cycle must change the design, not add a sixth `complete = False`.** The shape that kills
+all five routes at once: **an anchor may claim authority only if it names what it superseded** —
+i.e. `prior_peak` must be a real value the writer actually observed, never `None`. Every one of the
+five routes produces an anchor from `None`, so none of them could ever be authoritative. It also
+matches the research's own finding that the authorized re-anchor is `peak_reset` (token-gated) and
+that **no production path writes an intentional lower anchor at all** — which means 36.8's marker
+should probably be production-dead by construction, and criterion 1's test (which builds the row
+directly) is what exercises it.
+
+I am **not** implementing that here. It is a redesign of a P0 safety path, it deserves its own
+research-informed pass with a fresh Q/A, and shipping it at the end of a long session is exactly how
+routes 2–5 got made.
+
+### Two record defects it also found, both fixed
+
+- `live_check_36.8.md:74` contradicted itself inside one sentence (14 killed vs "licenses these 13";
+  "four the cycle-2 Q/A found" vs "found three survivors"). Corrected, **with the attribution fixed**:
+  cycle 2 found three (MX4/MX3/MX2), MXP came from cycle 3.
+- `experiment_results` cited a mutant `M17` that appears nowhere in this step's matrix — that label
+  belongs to 36.12's. Removed.
+
+### And it refuted my own bet, which is worth recording
+
+I predicted `baseline_history_exists` (36.12) would misfire on an incomplete replay. It **measured
+otherwise**: the tuple is unpacked correctly, nothing raises, and the probe returns `True` against
+the real corpus. It did find a genuine latent issue there — the probe discards the completeness
+signal while its docstring promises a fail-closed reading — but confirmed it is **pre-existing, not a
+36.8 regression**, so it is filed as its own step rather than absorbed.
 
 ## Scope honesty
 

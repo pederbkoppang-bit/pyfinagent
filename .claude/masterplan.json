@@ -12259,6 +12259,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "36.18",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- baseline_history_exists DISCARDS the completeness signal its own docstring promises to honour] Found by the phase-36.8 cycle-4 Q/A (2026-07-26) and confirmed by it as PRE-EXISTING, NOT a 36.8 regression -- do not mis-attribute it. MECHANISM: `backend/services/kill_switch.py::baseline_history_exists()` reads `rows, _complete = KillSwitchState._read_audit_rows()` and throws the completeness flag away, then returns True only if it SAW a sod_snapshot/peak_update/peak_reset row. Its own docstring promises the opposite reading: 'On a probe failure this returns True -- assume history exists resolves the ambiguity toward blocking, which is the conservative direction.' An INCOMPLETE replay is a probe failure by that rule, but the function returns FALSE when the unreadable/absent/unparseable source was the only holder of baseline rows. CONSUMER AND CONSEQUENCE: `backend/services/paper_trader.py::check_and_enforce_kill_switch` computes `first_ever_boot = untraded and not baseline_history_exists()` (phase-36.12). So a book whose history is merely UNREADABLE can be classified as a FIRST-EVER BOOT, which bypasses 36.12's order block -- the exact under-conservative direction 36.12 exists to close, reached through the probe instead of through the NAV fallback 36.12 already hardened. MEASURED SAFE TODAY, and the executor should re-measure rather than trust this: `baseline_history_exists()` returns True against the real corpus, because the archives are readable and hold 20 peak_update rows. The exposure needs BOTH an unreadable/misplaced baseline source AND `nav == starting_capital`. WHY IT IS ONLY P2: 36.12's D2 half (a MEASURED total_nav equal to starting_capital) must also hold, and the live book is nowhere near that. Raise the priority if the D2 half is ever loosened. THE FIX IS ONE LINE BUT THE DECISION IS NOT: `_read_audit_rows` now returns `(rows, complete)`; the probe can honour it (`if not complete: return True`). Decide explicitly whether that is right -- it makes an unreadable audit tree BLOCK trading on a genuinely new book, which is conservative but is a behaviour change on the order-placing path, so it needs its own reproduce-first evidence and a fresh Q/A. RELATED: 36.12 (the consumer), 36.8 (which surfaced it and whose `complete` flag makes the fix available).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader'",
+            "success_criteria": [
+              "RE-MEASURE the premise first and record it verbatim: does `baseline_history_exists()` return True against the real corpus today, and does it return False when the only baseline-row source is made unreadable? Do not trust this step's text",
+              "A test reproduces the consequence end-to-end BEFORE any fix: an unreadable baseline source plus nav == starting_capital classifies as first_ever_boot and the 36.12 order block is bypassed -- record the failing-intent output",
+              "The decision is stated explicitly: honour the completeness flag (and accept that an unreadable audit tree blocks a genuinely new book) or keep today's behaviour and correct the docstring so it stops promising a guarantee it does not provide. No silent third option",
+              "If the flag is honoured: a genuinely new book with a READABLE empty audit tree still trades -- assert it, or the fix deadlocks every new book, which is 36.12 criterion 3's failure mode",
+              "36.12's existing tests stay green and its D1/D2 discriminator semantics are not silently altered -- run its module and say so",
+              "MUTATION-TEST both directions of whatever guard is added"
+            ],
+            "live_check": "Verbatim before/after for the reproduce test, plus a READ-ONLY `baseline_history_exists()` reading against the real corpus with handoff/kill_switch_audit.jsonl md5 stated unchanged."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."
