@@ -34,6 +34,11 @@ type KillSwitchState = {
     daily_loss_limit_pct: number;
     trailing_dd_pct: number;
     trailing_dd_limit_pct: number;
+    // phase-36.7: a missing loss baseline means the breach legs CANNOT fire.
+    // Optional so an older backend (no key) keeps rendering as today.
+    armed?: boolean;
+    daily_baseline_missing?: boolean;
+    trailing_baseline_missing?: boolean;
   };
 };
 
@@ -307,34 +312,60 @@ function KillSegment({
       </div>
     );
   }
-  const alarm = kill.paused || kill.breach.any_breached;
+  // phase-36.7: DISARMED is a first-class state, distinct from ACTIVE. An
+  // explicit `=== false` so an older backend without the key keeps today's
+  // behaviour (discriminate on presence, never on value -- phase-80.36).
+  const disarmed = kill.breach.armed === false;
+  const alarm = kill.paused || kill.breach.any_breached || disarmed;
+  const dailyTxt = kill.breach.daily_baseline_missing
+    ? "—"
+    : `${kill.breach.daily_loss_pct.toFixed(1)}%`;
+  const trailTxt = kill.breach.trailing_baseline_missing
+    ? "—"
+    : `${kill.breach.trailing_dd_pct.toFixed(1)}%`;
   return (
     <div className="flex items-center gap-2">
       <SegmentLabel>Kill</SegmentLabel>
       <IconWarning
         size={14}
         weight={alarm ? "fill" : "regular"}
-        className={alarm ? "text-rose-400" : "text-slate-500"}
+        className={
+          kill.paused || kill.breach.any_breached
+            ? "text-rose-400"
+            : disarmed
+              ? "text-amber-400"
+              : "text-slate-500"
+        }
       />
       <span
         className={clsx(
           "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-          kill.paused ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300",
+          kill.paused
+            ? "bg-rose-500/15 text-rose-300"
+            : disarmed
+              ? "bg-amber-500/15 text-amber-300"
+              : "bg-emerald-500/15 text-emerald-300",
         )}
+        title={
+          disarmed
+            ? "DISARMED: loss baselines unrestorable, so neither breach leg can fire"
+            : undefined
+        }
       >
-        {kill.paused ? "PAUSED" : "ACTIVE"}
+        {kill.paused ? "PAUSED" : disarmed ? "DISARMED" : "ACTIVE"}
       </span>
       <span
         className="font-mono text-[10px] text-slate-500"
-        title={`Daily: ${kill.breach.daily_loss_pct.toFixed(2)}% of ${kill.breach.daily_loss_limit_pct}% | Trailing: ${kill.breach.trailing_dd_pct.toFixed(2)}% of ${kill.breach.trailing_dd_limit_pct}%`}
+        title={`Daily: ${dailyTxt} of ${kill.breach.daily_loss_limit_pct}% | Trailing: ${trailTxt} of ${kill.breach.trailing_dd_limit_pct}%`}
       >
-        {kill.breach.daily_loss_pct.toFixed(1)}% / {kill.breach.trailing_dd_pct.toFixed(1)}%
+        {dailyTxt} / {trailTxt}
       </span>
       {kill.paused ? (
         <button
           type="button"
           onClick={() => onAction("RESUME")}
-          disabled={busy !== null || kill.breach.any_breached}
+          // phase-36.7: mirrors the server-side 409 on a disarmed switch.
+          disabled={busy !== null || kill.breach.any_breached || disarmed}
           aria-label="Resume paper trading"
           className="rounded-md border border-emerald-500/30 px-2 py-1 text-[10px] font-medium text-emerald-300 hover:bg-emerald-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-not-allowed disabled:opacity-40 min-h-[24px] min-w-[24px]"
         >

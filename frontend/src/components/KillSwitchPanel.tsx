@@ -20,6 +20,11 @@ interface KillSwitchState {
     trailing_dd_pct: number;
     trailing_dd_limit_pct: number;
     any_breached: boolean;
+    // phase-36.7: a missing loss baseline means the breach legs CANNOT fire.
+    // Optional so an older backend (no key) keeps rendering as today.
+    armed?: boolean;
+    daily_baseline_missing?: boolean;
+    trailing_baseline_missing?: boolean;
   };
   thresholds: {
     daily_loss_limit_pct: number;
@@ -120,14 +125,28 @@ export function KillSwitchPanel() {
 
   const paused = state.paused;
   const breach = state.breach;
-  const alarm = paused || breach.any_breached;
+  // phase-36.7: DISARMED is a first-class state, distinct from ACTIVE.
+  //
+  // Between the 2026-07-26 audit-log rotation and the phase-36.7 fix this panel
+  // rendered an emerald "ACTIVE" badge next to "daily 0.00% / 4%  trail 0.00% /
+  // 10%" while NO drawdown of any size could pause trading -- absence rendered
+  // as the most reassuring possible reading. Same rule as phase-80.36 on the
+  // cockpit: DISCRIMINATE ON PRESENCE, NEVER ON VALUE. `armed === false` is the
+  // signal; `armed === undefined` (an older backend) must keep today's
+  // behaviour, so the check is an explicit `=== false`, never `!breach.armed`.
+  const disarmed = breach.armed === false;
+  const alarm = paused || breach.any_breached || disarmed;
 
   return (
     <>
       <div
         className={clsx(
           "rounded-xl border p-3",
-          alarm ? "border-rose-500/40 bg-rose-950/30" : "border-navy-700 bg-navy-800/60",
+          disarmed && !paused && !breach.any_breached
+            ? "border-amber-500/40 bg-amber-950/30"
+            : alarm
+              ? "border-rose-500/40 bg-rose-950/30"
+              : "border-navy-700 bg-navy-800/60",
         )}
       >
         <div className="flex items-center gap-2">
@@ -142,18 +161,38 @@ export function KillSwitchPanel() {
           <span
             className={clsx(
               "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-              paused ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300",
+              paused
+                ? "bg-rose-500/20 text-rose-300"
+                : disarmed
+                  ? "bg-amber-500/20 text-amber-300"
+                  : "bg-emerald-500/20 text-emerald-300",
             )}
+            title={
+              disarmed
+                ? "DISARMED: the loss baselines could not be restored, so neither breach leg can fire. Resume is blocked until the next cycle re-anchors them."
+                : undefined
+            }
           >
-            {paused ? "PAUSED" : "ACTIVE"}
+            {paused ? "PAUSED" : disarmed ? "DISARMED" : "ACTIVE"}
           </span>
           {paused && state.pause_reason && (
             <span className="text-[10px] text-slate-500">({state.pause_reason})</span>
           )}
           <span className="ml-auto font-mono text-[10px] text-slate-500">
-            daily {breach.daily_loss_pct.toFixed(2)}% / {state.thresholds.daily_loss_limit_pct}%
+            {/* phase-36.7: an em-dash, never "0.00%", when the leg has no
+                baseline -- 0.00% is a legitimate healthy reading and must not
+                be shown for a leg that cannot be measured. */}
+            daily{" "}
+            {breach.daily_baseline_missing
+              ? "—"
+              : `${breach.daily_loss_pct.toFixed(2)}%`}{" "}
+            / {state.thresholds.daily_loss_limit_pct}%
             {"   "}
-            trail {breach.trailing_dd_pct.toFixed(2)}% / {state.thresholds.trailing_dd_limit_pct}%
+            trail{" "}
+            {breach.trailing_baseline_missing
+              ? "—"
+              : `${breach.trailing_dd_pct.toFixed(2)}%`}{" "}
+            / {state.thresholds.trailing_dd_limit_pct}%
           </span>
         </div>
 
@@ -172,11 +211,15 @@ export function KillSwitchPanel() {
             <button
               type="button"
               onClick={() => setPendingAction("RESUME")}
-              disabled={busy || breach.any_breached}
+              // phase-36.7: mirrors the server-side 409 -- a disarmed switch
+              // cannot verify "both limits read healthy", so resume is blocked.
+              disabled={busy || breach.any_breached || disarmed}
               title={
                 breach.any_breached
                   ? "Cannot resume while a limit is still breached"
-                  : "Resume paper-trading cycle"
+                  : disarmed
+                    ? "Cannot resume: kill switch DISARMED (loss baselines unrestorable). The next cycle re-anchors them."
+                    : "Resume paper-trading cycle"
               }
               className="rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-900/50 disabled:cursor-not-allowed disabled:opacity-50"
             >

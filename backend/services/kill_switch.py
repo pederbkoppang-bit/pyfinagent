@@ -18,11 +18,20 @@ Breach semantics (FINRA Rule 15c3-5 "hard block" pattern):
 Audit trail (mandatory per 3forge / ESMA Supervisory Briefing 2026):
   Every state transition appends a JSON line to handoff/kill_switch_audit.jsonl
   with {timestamp, event, trigger, details}.
+
+  phase-36.7: that file is also this module's ONLY persistence -- the loss
+  baselines (`sod_snapshot` / `peak_update`) are replayed from it at every
+  process start. Writes still go to the single live file; READS now merge the
+  live file with any rotated copies in handoff/audit/ (`kill_switch_audit*.jsonl`)
+  in row-`ts` order, because a housekeeping sweep that relocated the live file
+  left the switch DISARMED after every restart. Do NOT move
+  handoff/kill_switch_audit.jsonl -- both housekeeping scripts allowlist it.
 """
 
 from __future__ import annotations
 
 import json
+import math
 
 from backend.utils import json_io
 import logging
@@ -36,11 +45,108 @@ logger = logging.getLogger(__name__)
 _AUDIT_PATH = Path(__file__).resolve().parents[2] / "handoff" / "kill_switch_audit.jsonl"
 _AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+# phase-36.7: ROTATION-AWARE BASELINE RESTORE.
+#
+# `_load_from_audit` used to read ONLY `_AUDIT_PATH`. The housekeeping sweep
+# (scripts/housekeeping/backfill_handoff_archive.py) classifies that LIVE STATE
+# FILE as layout dirt and `shutil.move`s it into `handoff/audit/` with a `-vN`
+# suffix, so every rotation left the loader with a file holding nothing but
+# pause/resume rows -- zero `sod_snapshot`, zero `peak_update`. Measured on
+# 2026-07-26: sod_nav=None / peak_nav=None, and a 50% drawdown returned
+# any_breached=False. Git shows the rotation already happened twice
+# (fa9aaf8e -> -v3, 77bc7db5 -> -v4).
+#
+# The fix reads the rotated files too. Two traps a naive version falls into:
+#   1. FILE ORDER IS NOT TIME ORDER. `-vN` reflects discovery order in
+#      `_safe_target`, not chronology. Rows are merged and sorted by `ts`.
+#   2. HARDCODING `-v4` EXPIRES AT `-v5`. We glob.
+# The root cause itself is fixed in the two housekeeping scripts, which now
+# allowlist this file; reading the archives is the belt to that braces, and
+# recovers the baselines the two historical rotations already stranded.
+# DERIVED from _AUDIT_PATH, never a second independent constant: the sweep moves
+# the live file into `<its own dir>/audit/`, and a caller that monkeypatches
+# `_AUDIT_PATH` to a tmp file (backend/tests/test_dod4_tier1_coverage_investment.py
+# does exactly this) must get FULL isolation, not a tmp live file silently merged
+# with the real production archives.
+_AUDIT_ARCHIVE_SUBDIR = "audit"
+_AUDIT_ARCHIVE_GLOB = "kill_switch_audit*.jsonl"
+
+# One-shot-per-process guard for the disarmed-baseline ERROR log so a polled
+# GET (/api/paper-trading/kill-switch) cannot spam the log file.
+#
+# DELIBERATELY LOCK-FREE. A racing check-and-set can emit the line twice, which
+# is entirely benign, and this is the one module in the codebase with a
+# documented non-reentrant-lock deadlock (phase-23.1.22, found via a
+# faulthandler SIGUSR1 dump on a hung backend) -- adding a fourth lock here to
+# de-duplicate a log line is not a trade worth making. It also keeps the
+# phase-23.2.14 `threading.Lock()` roster regression-lock byte-untouched.
+_disarmed_logged = False
+
+
+def _audit_archive_dir() -> Path:
+    """Where the housekeeping sweep relocates the live state file."""
+    return _AUDIT_PATH.parent / _AUDIT_ARCHIVE_SUBDIR
+
+
+def _audit_source_paths() -> list[Path]:
+    """Every file `_load_from_audit` replays, live file LAST.
+
+    Reads `_AUDIT_PATH` at call time (not import time) so a test that
+    monkeypatches it gets the archive dir moved with it. Ordering here is only a
+    stable tie-break -- the authoritative ordering is the row `ts` sort in
+    `_load_from_audit`.
+    """
+    paths: list[Path] = []
+    archive = _audit_archive_dir()
+    try:
+        if archive.is_dir():
+            paths.extend(sorted(archive.glob(_AUDIT_ARCHIVE_GLOB)))
+    except Exception as e:  # unreadable dir must never break boot
+        logger.warning(f"kill_switch: audit archive scan failed: {e}")
+    if _AUDIT_PATH.exists() and _AUDIT_PATH not in paths:
+        paths.append(_AUDIT_PATH)
+    return paths
+
+
+def _coerce_nav(value: Any) -> Optional[float]:
+    """Parse a NAV field from an audit row. Returns None when the value is
+    absent, unparseable, or non-positive.
+
+    Replaces the `float(x or 0.0) or None` idiom, which mapped a legitimate
+    0.0 to None by accident and let a negative NAV through as a usable
+    baseline. A funded paper book's NAV is never <=0, so None (which now
+    raises the loud disarmed state) is the conservative reading.
+    """
+    if value is None:
+        return None
+    try:
+        nav = float(value)
+    except (TypeError, ValueError):
+        return None
+    # phase-36.7 hardening: `inf > 0` is True in Python, so a non-finite NAV
+    # (inf/-inf/nan) previously passed as a "valid" baseline. json.dumps/loads
+    # round-trip a bare `Infinity` token, so a corrupted upstream NAV reaching
+    # _append_audit would be replayed as a permanent baseline on every future
+    # boot -- and the new max()-ratchet in update_peak makes an inf PEAK
+    # irreversible (the prior assignment-replay healed on the next sane row;
+    # max() cannot heal downward). With peak_nav=inf, trailing_dd_pct is nan
+    # and every `nan >= limit` comparison is False, so the trailing leg goes
+    # silently, permanently dead while `armed` still reports True. Reject
+    # non-finite here so it is treated as an absent baseline instead.
+    if not math.isfinite(nav):
+        return None
+    return nav if nav > 0 else None
+
 
 class KillSwitchState:
     """Module-level thread-safe state. Persisted across process restarts via
     the audit log: the most recent `pause` or `resume` line sets the resume
-    state; if it's `pause` the system re-enters paused on restart."""
+    state; if it's `pause` the system re-enters paused on restart.
+
+    phase-36.7: the replay reads the live audit file AND its rotated copies,
+    merged in row-`ts` order -- see `_read_audit_rows`. `peak_update` rows
+    RATCHET (max), matching `update_peak`'s own invariant; `peak_reset` rows
+    remain an authoritative downward move."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -58,55 +164,95 @@ class KillSwitchState:
         self._auto_resume_alerted_at: Optional[str] = None
         self._load_from_audit()
 
+    @staticmethod
+    def _read_audit_rows() -> list[dict]:
+        """Merge every audit source (rotated archives + the live file) into one
+        `ts`-ordered row list.
+
+        Sort key is `(ts, source_index, line_index)`: `ts` is ISO-8601 UTC so it
+        sorts lexicographically, and the two positional components make the sort
+        stable/deterministic for rows sharing a timestamp. Rows with no `ts`
+        collate FIRST (empty string) so a timestamp-less row can never override a
+        genuinely later one.
+        """
+        rows: list[dict] = []
+        keyed: list[tuple[str, int, int, dict]] = []
+        for src_idx, path in enumerate(_audit_source_paths()):
+            try:
+                with path.open(encoding="utf-8") as f:
+                    for line_idx, line in enumerate(f):
+                        try:
+                            row = json_io.parse_json_line(line)
+                        except Exception:
+                            continue
+                        if not isinstance(row, dict):
+                            continue
+                        keyed.append((str(row.get("ts") or ""), src_idx, line_idx, row))
+            except Exception as e:
+                # One unreadable/rotated-away file must not lose the others.
+                logger.warning(f"kill_switch: audit read failed for {path}: {e}")
+        keyed.sort(key=lambda t: (t[0], t[1], t[2]))
+        rows = [t[3] for t in keyed]
+        return rows
+
     def _load_from_audit(self) -> None:
-        if not _AUDIT_PATH.exists():
-            return
         try:
-            with _AUDIT_PATH.open(encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        row = json_io.parse_json_line(line)
-                    except Exception:
-                        continue
-                    if row.get("event") == "pause":
-                        self._paused = True
-                        self._pause_reason = row.get("trigger")
-                        # phase-38.1: capture the pause ts for hysteresis.
-                        self._paused_at = row.get("ts")
-                        self._auto_resume_alerted_at = None
-                    elif row.get("event") == "resume":
-                        self._paused = False
-                        self._pause_reason = None
-                        self._paused_at = None
-                        self._auto_resume_alerted_at = None
-                    elif row.get("event") == "auto_resume_alert":
-                        # phase-38.1: T+1h pager alert went out -- record so
-                        # we don't re-fire on the next cycle within the same
-                        # pause window.
-                        self._auto_resume_alerted_at = row.get("ts")
-                    elif row.get("event") == "sod_snapshot":
-                        self._sod_nav = float(row.get("nav") or 0.0) or None
-                        # phase-23.2.19: prefer explicit `date` (rows written
-                        # post-fix); fall back to parsing `ts` for legacy
-                        # rows that pre-date the schema bump.
-                        sod_date = row.get("date")
-                        if not sod_date:
-                            ts = row.get("ts")
-                            if ts:
-                                try:
-                                    sod_date = datetime.fromisoformat(
-                                        str(ts).replace("Z", "+00:00")
-                                    ).astimezone(timezone.utc).date().isoformat()
-                                except Exception:
-                                    sod_date = None
-                        self._sod_date = sod_date
-                    elif row.get("event") == "peak_update":
-                        self._peak_nav = float(row.get("nav") or 0.0) or None
-                    elif row.get("event") == "peak_reset":
-                        # phase-69.1 (audit item 2): audited peak reset (flatten /
-                        # operator-resume). Restart-replayable + idempotent -- the
-                        # reset value wins over prior peak_update rows in stream order.
-                        self._peak_nav = float(row.get("new_peak") or 0.0) or None
+            for row in self._read_audit_rows():
+                event = row.get("event")
+                if event == "pause":
+                    self._paused = True
+                    self._pause_reason = row.get("trigger")
+                    # phase-38.1: capture the pause ts for hysteresis.
+                    self._paused_at = row.get("ts")
+                    self._auto_resume_alerted_at = None
+                elif event == "resume":
+                    self._paused = False
+                    self._pause_reason = None
+                    self._paused_at = None
+                    self._auto_resume_alerted_at = None
+                elif event == "auto_resume_alert":
+                    # phase-38.1: T+1h pager alert went out -- record so
+                    # we don't re-fire on the next cycle within the same
+                    # pause window.
+                    self._auto_resume_alerted_at = row.get("ts")
+                elif event == "sod_snapshot":
+                    self._sod_nav = _coerce_nav(row.get("nav"))
+                    # phase-23.2.19: prefer explicit `date` (rows written
+                    # post-fix); fall back to parsing `ts` for legacy
+                    # rows that pre-date the schema bump.
+                    sod_date = row.get("date")
+                    if not sod_date:
+                        ts = row.get("ts")
+                        if ts:
+                            try:
+                                sod_date = datetime.fromisoformat(
+                                    str(ts).replace("Z", "+00:00")
+                                ).astimezone(timezone.utc).date().isoformat()
+                            except Exception:
+                                sod_date = None
+                    self._sod_date = sod_date
+                elif event == "peak_update":
+                    # phase-36.7: RATCHET, don't assign. `update_peak` (the
+                    # writer) enforces "never moves down", but this replay used
+                    # a bare assignment -- so the last row in stream order won
+                    # even when an EARLIER row held a higher mark. Measured
+                    # across the live archives: assignment yields 24124.77
+                    # (2026-06-22) while the true high-water mark is 24666.57
+                    # (2026-06-03) -- the restore itself destroyed 541.80 of
+                    # peak = 2.17pp of trailing-DD headroom. max() makes the
+                    # replay agree with the writer's own invariant.
+                    nav = _coerce_nav(row.get("nav"))
+                    if nav is not None and (self._peak_nav is None or nav > self._peak_nav):
+                        self._peak_nav = nav
+                elif event == "peak_reset":
+                    # phase-69.1 (audit item 2): audited peak reset (flatten /
+                    # operator-resume). Restart-replayable + idempotent -- the
+                    # reset value wins over prior peak_update rows in stream order.
+                    # phase-36.7: still an AUTHORITATIVE downward move (assignment,
+                    # not max) -- it must be able to lower the peak, and later
+                    # peak_update rows ratchet up from the reset value because the
+                    # rows are replayed in `ts` order.
+                    self._peak_nav = _coerce_nav(row.get("new_peak"))
         except Exception as e:
             logger.warning(f"kill_switch: audit load failed: {e}")
 
@@ -287,6 +433,34 @@ def evaluate_breach(
     Check both limits against the current NAV. Returns a dict with booleans
     and diagnostic context. Does NOT flip state -- callers (see PaperTrader
     below) decide whether to flatten+pause based on the returned flags.
+
+    phase-36.7 FAIL-LOUD CONTRACT. A missing baseline used to be indistinguishable
+    from a healthy reading: both legs were skipped, both percentages stayed at
+    their 0.0 initialisers, and `any_breached` was False for ANY current_nav. The
+    return now carries three keys so absence can never be read as health:
+
+      * `daily_baseline_missing`   -- the daily-loss leg could not be evaluated
+      * `trailing_baseline_missing`-- the trailing-DD leg could not be evaluated
+      * `armed`                    -- False iff either leg is unevaluable
+
+    THREE THINGS THIS DELIBERATELY DOES NOT DO:
+
+      1. It does NOT set `any_breached=True` on a missing baseline.
+         `paper_trader.check_and_enforce_kill_switch:1097` would immediately
+         `flatten_all()` a healthy book on what is merely a housekeeping file
+         move -- a new destructive behaviour, not a conservative one. The loud
+         signal is the marker; the refusals live on the resume paths.
+      2. It does NOT early-return when a baseline is missing. A present-sod /
+         absent-peak state still evaluates the daily leg today (measured: the
+         `-v4` archive alone, peak_nav=None, correctly fires via the daily leg at
+         a 50% drawdown). A wholesale `if not sod or not peak: return disarmed`
+         would disable a leg that still works -- strictly LESS likely to pause.
+         The markers are therefore PER LEG.
+      3. It does NOT discriminate on VALUE. A leg is missing when its baseline
+         cannot produce a percentage (None / <=0), never because the resulting
+         percentage happens to be 0.0 -- a book sitting exactly at its
+         high-water mark is a legitimate healthy reading (the phase-80.36
+         "discriminate on presence, never on value" rule).
     """
     # phase-69.1 (audit item 2, kill_switch:246): guard against invalid NAV.
     # A caller's BQ-timeout `or 0.0` fallback yields current_nav<=0, which the
@@ -294,6 +468,16 @@ def evaluate_breach(
     # trailing breach -- flattening the whole book on a transient 5s timeout.
     # A funded paper book's NAV is never <=0, so treat it as no-data (fail-safe:
     # no breach) rather than a real breach. Thresholds are untouched.
+    s = _state.snapshot()
+    sod = s.get("sod_nav")
+    peak = s.get("peak_nav")
+    # A leg is evaluable iff its baseline is present AND positive.
+    daily_baseline_missing = not (sod is not None and sod > 0)
+    trailing_baseline_missing = not (peak is not None and peak > 0)
+    armed = not (daily_baseline_missing or trailing_baseline_missing)
+    if not armed:
+        _log_disarmed_once(sod, peak)
+
     if current_nav is None or current_nav <= 0:
         return {
             "daily_loss_breached": False, "daily_loss_pct": 0.0,
@@ -301,20 +485,23 @@ def evaluate_breach(
             "trailing_dd_breached": False, "trailing_dd_pct": 0.0,
             "trailing_dd_limit_pct": float(trailing_dd_limit_pct),
             "any_breached": False, "nav_invalid": True,
+            # phase-36.7: present in BOTH return shapes so no consumer has to
+            # branch on which one it got. `nav_invalid` stays absent from the
+            # normal return (its established optional-key discipline).
+            "daily_baseline_missing": bool(daily_baseline_missing),
+            "trailing_baseline_missing": bool(trailing_baseline_missing),
+            "armed": bool(armed),
         }
-    s = _state.snapshot()
-    sod = s.get("sod_nav")
-    peak = s.get("peak_nav")
 
     daily_loss_breached = False
     daily_loss_pct = 0.0
-    if sod and sod > 0:
+    if not daily_baseline_missing:
         daily_loss_pct = (sod - current_nav) / sod * 100.0
         daily_loss_breached = daily_loss_pct >= daily_loss_limit_pct
 
     trailing_dd_breached = False
     trailing_dd_pct = 0.0
-    if peak and peak > 0:
+    if not trailing_baseline_missing:
         trailing_dd_pct = (peak - current_nav) / peak * 100.0
         trailing_dd_breached = trailing_dd_pct >= trailing_dd_limit_pct
 
@@ -326,7 +513,29 @@ def evaluate_breach(
         "trailing_dd_pct": round(trailing_dd_pct, 4),
         "trailing_dd_limit_pct": float(trailing_dd_limit_pct),
         "any_breached": bool(daily_loss_breached or trailing_dd_breached),
+        "daily_baseline_missing": bool(daily_baseline_missing),
+        "trailing_baseline_missing": bool(trailing_baseline_missing),
+        "armed": bool(armed),
     }
+
+
+def _log_disarmed_once(sod: Optional[float], peak: Optional[float]) -> None:
+    """One-shot-per-process ERROR log for a disarmed kill switch.
+
+    `evaluate_breach` is called by a polled GET, so this must not log on every
+    request. Kept free of any network dispatch for the same reason -- the
+    operator-visible surfaces are the `armed` flag on the API response, the
+    UNKNOWN badge in the UI, the /resume 409, and this log line.
+    """
+    global _disarmed_logged
+    if _disarmed_logged:
+        return
+    _disarmed_logged = True
+    logger.error(
+        "kill_switch DISARMED: baseline missing (sod_nav=%r peak_nav=%r) -- "
+        "breach legs without a baseline cannot fire. Sources replayed: %s",
+        sod, peak, [str(p) for p in _audit_source_paths()],
+    )
 
 
 # phase-38.1 (OPEN-10): kill-switch auto-resume hysteresis.
@@ -380,6 +589,19 @@ def check_auto_resume(
         return {
             "action": "no_op",
             "reason": "breach_still_active",
+            "seconds_paused": round(seconds_paused, 1),
+            "breach": breach,
+        }
+    # phase-36.7: a DISARMED switch's `any_breached=False` is not evidence of
+    # health -- it only means we could not measure. Auto-resuming on it would
+    # un-pause a book out of a real drawdown (and would violate
+    # docs/runbooks/away-ops-rules.md rail 5, "kill-switch stays paused after
+    # any breach"). Fail-open on a missing key so an older/partial dict cannot
+    # wedge the hysteresis path.
+    if not breach.get("armed", True):
+        return {
+            "action": "no_op",
+            "reason": "kill_switch_disarmed_baseline_missing",
             "seconds_paused": round(seconds_paused, 1),
             "breach": breach,
         }

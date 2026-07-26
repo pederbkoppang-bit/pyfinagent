@@ -12049,6 +12049,106 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "36.8",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "[P0 -- ARCHIVE MERGE + DARK reset_peak = PERMANENT FLATTEN/PAUSE LOCKOUT ON A LEGITIMATELY RE-ANCHORED BOOK] Found by adversarial verification of step 36.7 (2026-07-26). backend/services/kill_switch.py:98-107 `_audit_source_paths` extends with `archive.glob(...)` ON EVERY BOOT with no check that the live file is intact -- it is an unconditional MERGE, not a fallback. The boot replay then `max()`es across the merged stream (36.7's own fix, correctly ratcheting the peak so it never silently drops on a normal replay) -- so a FROZEN ARCHIVED peak can beat a valid, fresh, lower LIVE peak. CONCRETE FAILURE: a book legitimately re-anchors lower (post-withdrawal; the live file holds a fresh valid peak_update at the new, correct level) -- on the next boot the merge restores the OLD higher peak from an archive file, `trailing_dd_pct` computes against that stale high-water mark, `any_breached` fires, and `flatten_all` + `pause` trip on the FIRST cycle after restart. `reset_peak` is DARK by default (`kill_switch_peak_reset_enabled=False`) and `update_peak` only ratchets UP, so NOTHING can lower the restored peak and BOTH resume paths refuse PERMANENTLY -- this is the exact engine-stop failure mode phase-69.1 was built to close, re-opened by the archive merge. STRUCTURAL COMPOUND: 36.7 correctly allowlists the live file so it will never rotate again -- which makes 4 frozen, write-once archive files (kill_switch_audit{,-v2,-v3,-v4}.jsonl, ~889 rows measured 2026-07-26) PERMANENT DETERMINANTS OF A LIVE SAFETY THRESHOLD, sitting in a directory (handoff/audit/) whose documented purpose invites pruning. No cap, no pruning policy, no test asserts the archives are advisory rather than authoritative. DO NOT fix by making the archive read-once-then-discard -- the whole point of 36.7 was restoring the TRUE high-water mark from archived history after rotation; the fix must distinguish 'replay history to find the true peak' from 'let stale history override a fresh, intentional re-anchor'. Consider: a live-file freshness/authority marker, an explicit re-anchor audit event that the merge must respect as authoritative from that point forward, or scoping the archive merge to boot-time-only with a live-file-took-precedence invariant enforced afterward.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k kill_switch",
+            "success_criteria": [
+              "A test reproduces the exact failure: fresh peak_update in the live file at a LOWER value than an archived peak, then a boot restore, and asserts the RESTORED peak reflects the fresh live value, not the stale archived one -- this test must FAIL against the current unconditional max()-merge (record the failing output verbatim)",
+              "36.7's original defect stays fixed: a genuinely OLDER live peak plus a genuinely HIGHER true historical peak in the archives still restores the higher true peak (do not regress the fix this step depends on)",
+              "No cap-less unbounded archive growth is left undocumented -- either a pruning/cap policy is added, or the boot-cost-scales-with-archive-count risk is explicitly accepted and measured",
+              "reset_peak's DARK-by-default behavior is untouched (still gated on kill_switch_peak_reset_enabled)",
+              "MUTATION-TEST: reverting the freshness/precedence fix must fail the new test"
+            ],
+            "live_check": "A test log showing: (a) the original 36.7 restore-true-peak behavior still works, (b) the new re-anchor-respects-fresh-live-data behavior now works, both against real archived file shapes."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "36.9",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "[P0 -- THREE MORE WAYS THE KILL SWITCH REPORTS armed:true WHILE A LEG CANNOT FIRE] Found by adversarial verification of step 36.7 (2026-07-26), three related gaps in backend/services/kill_switch.py::evaluate_breach. (1) STALE sod_date NEVER CHECKED: evaluate_breach never compares the restored snapshot's `sod_date` to today, even though the snapshot carries it. Measured: a restore on 2026-07-26 yields sod_date='2026-07-24' with armed:true, and at nav=22884.66 this computes daily_loss_pct=4.0 exactly -- a TWO-DAY price move misread as a same-day 4% loss. The destructive cycle path re-anchors before evaluating (paper_trader.py:1080/1089) and is unaffected; the three paths that do NOT re-anchor are GET /api/paper-trading/kill-switch (the UI badge), POST /resume, and the MCP risk_server tool -- exposure window after any restart is up to ~24h. (2) nav_invalid RETURNS armed:true: evaluate_breach computes `armed` BEFORE the nav_invalid early return, so an invalid current NAV (e.g. a 5s BigQuery timeout -> portfolio None -> nav 0.0) yields any_breached:False AND armed:true simultaneously -- the cockpit's KillSwitchPanel then renders emerald ACTIVE next to two 0.00% readouts, exactly the failure mode that panel's own comment claims to eliminate. POST /resume can then succeed against an unmeasured NAV reading. (3) sod_nav=0.0 WEDGES RESUME WITH A FALSE REMEDIATION MESSAGE: update_sod_nav writes float(nav) with no positivity guard, so nav=0.0 latches a real sod_nav=0.0/sod_date=today snapshot. evaluate_breach then reports daily_baseline_missing=True (armed:False, correctly disarmed) and the new 409-on-resume fires -- but paper_trader.py's re-anchor check tests `sod_nav is None` (not <=0), so the very re-anchor step the 409 response promises ('the next cycle re-anchors both baselines') never runs. Wedged paused for up to 24h with an operator-facing message that is false.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k kill_switch",
+            "success_criteria": [
+              "evaluate_breach compares a restored sod_date to the current UTC date and does not report armed:true / a daily breach based on a stale multi-day-old snapshot on GET /kill-switch, POST /resume, and the MCP risk_server tool -- a test proves this and FAILS against the current code",
+              "nav_invalid returns armed consistent with any_breached (an invalid NAV must not report armed:true) -- a test proves this and FAILS against the current code",
+              "sod_nav=0.0 either does not latch as a valid baseline, or the re-anchor check is corrected to treat 0.0 the same as None -- a test proves the wedge is closed and the 409 remediation message is now true",
+              "The healthy path (valid, fresh sod_date, valid NAV, sod_nav > 0) is byte-for-byte unchanged -- assert against fixed fixtures",
+              "MUTATION-TEST all three fixes independently"
+            ],
+            "live_check": "Three test logs (one per finding) each showing the pre-fix failure reproduced, then the post-fix behavior, against the real archived audit shapes measured 2026-07-26."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "36.10",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "[P1 -- NOTHING OUTSIDE THE UI/API READS THE armed FLAG; A DISARMED SWITCH IS SILENT ON AN AWAY RUN] Found by adversarial verification of step 36.7 (2026-07-26). `grep -rn armed scripts/away_ops/*.sh scripts/ops/send_confirmation_digest.py backend/slack_bot/scheduler.py` returns ZERO hits. `healthcheck.sh` and `sentinel.sh` extract only `paused` from the kill-switch payload. So a switch that is DISARMED (baselines unrestorable) but not PAUSED pages nobody during an unattended away window -- the operator's away-ops safety net has no visibility into the exact failure mode 36.7 was built to detect. Also: `paper_trading.py`'s own second, independent copy of the audit path constant was NOT made rotation-aware by 36.7 and still reads the live file alone. ADDITIONALLY: kill_switch.py's `_disarmed_logged` one-shot flag never resets, so a SECOND, DIFFERENT disarm event within the same backend process is silent (no new ERROR log) even though the FIRST alert fired correctly.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or away_ops or sentinel'",
+            "success_criteria": [
+              "At least one away-ops surface (healthcheck.sh, sentinel.sh, or the Slack digest) reads and pages on `armed:false`, not only `paused` -- a test or a documented manual verification proves this",
+              "The second, independent audit-path constant in paper_trading.py is reconciled with kill_switch.py's rotation-aware path (single source of truth, or an explicit comment explaining why two exist)",
+              "`_disarmed_logged` resets so a second distinct disarm event in the same process logs again -- a test proves this and fails against the current one-shot-forever flag",
+              "MUTATION-TEST the reset logic"
+            ],
+            "live_check": "Evidence that a simulated disarm event during an away-ops dry run actually surfaces on the paging surface, not only in the API/UI."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "36.11",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- BOTH NEW /resume GATES FAIL-OPEN ON armed, UNTESTED, AND ONE CROSS-TAB SIGN CONFLICT] Found by adversarial verification of steps 36.7/80.40 (2026-07-26). (1) `backend/api/paper_trading.py`'s resume-gate and `kill_switch.py`'s corresponding check both use `breach.get('armed', True)` -- if the `armed` key is ever absent (an older cached response, a partial payload), BOTH gates fail OPEN (treat as armed=true=safe-to-resume) with zero test coverage asserting the fail-CLOSED direction. The frontend's KillSwitchPanel DOES pin this correctly (a LEGACY_NO_MARKER test asserts fail-open is INTENTIONAL there for backward compat with an older backend) -- the backend has no equivalent test either way, so this is an unverified assumption, not a verified design decision. (2) frontend/src/components/paper-trading/cockpit-helpers.tsx colors the SAME `max_drawdown_pct` field differently on two tabs: `:291` (PaperVsBacktestCard, /reality-gap) uses `maxDd > -15`; `:403/:405` (RiskMonitorCard, /positions) uses `maxDd > -10 / > -13`. A value of -14.0 therefore renders DANGER on /positions and healthy emerald on /reality-gap SIMULTANEOUSLY, for the identical underlying number. Neither threshold traces to a named constant in the repo; `-13` in particular matches nothing else in the codebase's threshold ladders.",
+          "verification": {
+            "command": "cd frontend && npm test -- cockpit-helpers && source ../.venv/bin/activate && python -m pytest backend/tests/ -q -k kill_switch",
+            "success_criteria": [
+              "The backend resume gates' fail-open-on-absent-armed behavior is EXPLICITLY tested in both directions and the choice (fail-open vs fail-closed) is a documented decision, not an assumption",
+              "The two tabs agree on which threshold applies to a given max_drawdown_pct value, OR the divergence is explicitly justified in a code comment naming why /reality-gap and /positions legitimately use different bands",
+              "Every threshold value used traces to a named constant, not a bare literal repeated with drift (-13 in particular)",
+              "MUTATION-TEST both the gate tests and any threshold-reconciliation guard"
+            ],
+            "live_check": "A side-by-side capture of /positions and /reality-gap for the SAME underlying max_drawdown_pct value on the :3100 rig, showing consistent (or explicitly justified divergent) verdicts."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "36.12",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "[P0 -- THE ORDER-PLACING PATH SILENTLY FORGIVES A DRAWDOWN INSTEAD OF SURFACING armed:false] Found by the phase-36.7/80.40 research gate (2026-07-26, handoff/current/research_brief_36.7_80.40.md), then verified at source by Main. NOT a duplicate of 36.8 or 36.9 -- verified: 36.9 cites paper_trader.py:1080/1089 only to note the re-anchor makes the cycle path UNAFFECTED by the stale-sod_date issue (true for that issue), and 36.8 cites update_peak for the OPPOSITE failure (an archived peak too HIGH causing permanent lockout). This is the under-conservative direction: a MISSING baseline silently re-anchored, forgiving real losses. MECHANISM, read at source: `backend/services/paper_trader.py::check_and_enforce_kill_switch` (:1069-1116) is the gate that runs before every trading decision. It (a) calls `state.update_peak(nav)` at :1080 and `state.update_sod_nav(nav, date=today)` at :1089-1090 -- i.e. MUTATES THE BASELINES -- BEFORE calling `evaluate_breach` at :1092, and (b) at :1097 branches ONLY on `breach['any_breached']`, never on `breach['armed']`. `update_peak` (kill_switch.py:376-381) is `if self._peak_nav is None or nav > self._peak_nav: self._peak_nav = float(nav)` -- so a None peak is re-anchored to TODAY'S NAV. `update_sod_nav` fires on the same `sod_nav is None` condition. NET EFFECT on a post-rotation cycle with unrecoverable history: both baselines are silently re-anchored to today, the ENTIRE real drawdown is forgiven, `any_breached` is False, `armed` becomes true (the baselines now exist!), and the switch reports ARMED AND HEALTHY. This is the same harm phase-36.7 exists to prevent, reached by a quieter route -- and 36.7's stated goal ('a missing baseline surfaces armed:false instead of silently reporting any_breached:False') is therefore achieved on the resume/auto-resume/UI paths but NOT on the path that actually places orders. POLICY ASYMMETRY WORTH FIXING EXPLICITLY: the DELIBERATE version of this act (`reset_peak`, kill_switch.py:383-414) is DARK behind the owed `KS-PEAK-RESET: APPROVED` operator token (step 79.6) precisely because re-anchoring a peak is a risk decision -- while this ACCIDENTAL version is un-tokened and indistinguishable in the audit trail from a legitimate ratchet (it writes a plain `peak_update` row). SEVERITY IS BOUNDED, state it honestly: `evaluate_breach` is per-leg independent (kill_switch.py:455/475-476 -- a good design decision), so losing ONE baseline leaves the other leg still enforcing; only losing BOTH leaves the book unprotected. FIX SHAPE: measure BEFORE mutating (evaluate, then re-anchor), and/or have the trading path refuse to place orders when `armed` is false rather than re-anchoring its way to a healthy-looking state. Decide explicitly whether a first-ever-boot legitimately needs the None->today re-anchor (it probably does) and distinguish that from a post-rotation loss of history (it must not be silent). DO NOT fix by making the trading path call reset_peak -- that would route around the operator token.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader'",
+            "success_criteria": [
+              "A test reproduces the defect FIRST: with both baselines unrecoverable and a NAV materially below the true historical peak, the current check_and_enforce_kill_switch re-anchors and reports any_breached=False with no armed=false surfaced -- record that failing-intent output verbatim before fixing",
+              "After the fix, that same scenario does NOT silently forgive the drawdown: either the breach is measured against the pre-mutation state, or the trading path declines to place orders while armed is false. State which was chosen and why",
+              "A FIRST-EVER-BOOT (legitimately no prior history) still anchors its baselines and trades normally -- assert this explicitly so the fix does not deadlock a genuinely new book",
+              "The trading path's behaviour when armed is false is decided EXPLICITLY and documented: either it blocks, or `armed` is formally advisory there and the artifacts say so. No silent third option.",
+              "No route to reset_peak is introduced from the trading path (that would bypass the owed KS-PEAK-RESET token, step 79.6) -- assert the fix writes no peak_reset row",
+              "The per-leg independence of evaluate_breach is preserved: losing one baseline must still leave the other leg enforcing",
+              "MUTATION-TEST every new guard; reverting the measure-before-mutate ordering must fail the new test"
+            ],
+            "live_check": "Verbatim test output for the reproduce-then-fix pair, plus a curl of /api/paper-trading/kill-switch on a rig you own showing the state after a simulated post-rotation cycle -- demonstrating it no longer reports ARMED-and-healthy with a forgiven drawdown."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."
@@ -20603,6 +20703,42 @@
               "The settings.py description is updated to reflect the measured post-fix cost, and the 'Sequence the bad-bar repair BEFORE enabling this' sentence is either satisfied or corrected"
             ],
             "live_check": "Measured round-trip count per cycle with the flag ON, from a rig you own (never :8000), alongside the pre-fix count -- plus evidence of no HTTP 429 across a full cycle."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "80.43",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- UNVALIDATED snapshot_date SORT KEY LEAVES THE PHANTOM-DRAWDOWN CLASS REACHABLE] Found by adversarial verification of step 80.40 (2026-07-26). backend/services/perf_metrics.py's compute_max_drawdown_from_snapshots sorts ASC via `sorted(snapshots, key=lambda s: str(s.get(snapshot_date_key) or \"\"))` specifically to avoid re-reading a DESC-ordered BQ series backwards (the exact phase-47.4 / phase-66.2 phantom-drawdown class this function's own docstring cites as prior incidents). `total_nav` is validated hard (dropped if non-finite or <=0); `snapshot_date` is NOT validated at all -- missing/None/empty-string all coerce to the sort key \"\" and collate FIRST regardless of actual chronology. If ALL rows lack the date key, the ASC sort becomes a no-op and the caller's original DESC order survives untouched -- a rising book would then read a phantom NEGATIVE drawdown, silently, with zero test covering a missing-date scenario.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'perf_metrics or drawdown'",
+            "success_criteria": [
+              "A test with ALL snapshot_date keys missing/None/empty proves the current behavior (DESC order silently preserved, phantom drawdown) and FAILS against the unfixed function -- record the failing output verbatim",
+              "The fix either validates snapshot_date is present and parseable before trusting the sort, or falls back to a documented safe behavior (e.g. return None) when it cannot establish chronological order -- NEVER silently trust an unvalidated collation",
+              "The existing valid-date-series behavior is byte-for-byte unchanged",
+              "MUTATION-TEST the validation"
+            ],
+            "live_check": "Verbatim pytest output for the new missing-date test, before and after the fix."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "80.44",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "[P3 -- test_phase_75_ci_gates.py's TEST-COLLECTION-COUNT PIN IS STALE] MEASURED 2026-07-26, corrected from an earlier unmeasured draft of this step (which quoted 1563/1579 -> 2194 without re-deriving it -- caught by adversarial Q/A, self-correcting under this step's own criterion 1 'measured fresh, not copied'): the test asserts the literal string '1563/1579 tests collected (16 deselected)' is a substring of the real pytest summary; the ACTUAL current collection is 2180/2196 tests collected (16 deselected) under the -m 'not requires_live' filter the gate itself uses (2196 unfiltered). The gate ALREADY FAILS TODAY, confirmed by running it: `AssertionError: assert '1563/1579 tests collected (16 deselected)' in '2180/2196 tests collected (16 deselected) in 6.47s'`. This predates phase-36.7/80.40 -- both confirmed to add 61 tests on top of an already-stale baseline (2196-2135=61 unfiltered; 2180-2119=61 filtered), not to have caused the staleness. The CI gate this test enforces has been silently non-authoritative for some time.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_75_ci_gates.py -q",
+            "success_criteria": [
+              "The collection-count pin is re-baselined against the ACTUAL current count, measured fresh, not copied from a prior cycle's number",
+              "A brief note in the test or a comment states the count is a point-in-time snapshot expected to need periodic re-baselining, so the next drift is diagnosed quickly rather than re-discovered as a mystery"
+            ],
+            "live_check": "Verbatim pytest collection count before and after the re-baseline."
           },
           "retry_count": 0,
           "max_retries": 3

@@ -35,6 +35,22 @@ ROLLING_KEEP = {
 
 STEP_ID_RE = re.compile(r"^(?:phase-)?([0-9]+(?:\.[0-9]+)*)[-.].*\.md$")
 
+# phase-36.7: LIVE PRODUCTION STATE FILES that merely LOOK like audit output.
+#
+# This verifier used to print
+#   "handoff/kill_switch_audit.jsonl is audit output; move to handoff/audit/"
+# for the kill switch's ONLY persistence file. An operator/agent obeying that
+# instruction (via backfill_handoff_archive.py) left the switch DISARMED on the
+# next restart -- `_load_from_audit` replays that exact path to restore
+# sod_nav/peak_nav, so after the move a 50% drawdown returned any_breached=False
+# (measured 2026-07-26). The verifier DEMANDING the move is what made the defect
+# self-perpetuating rather than a one-off, so the allowlist has to live here too.
+#
+# Keep byte-identical to `backfill_handoff_archive.py::HANDOFF_ROOT_KEEP`.
+HANDOFF_ROOT_KEEP = {
+    "kill_switch_audit.jsonl",
+}
+
 
 def _statuses() -> dict[str, str]:
     with MASTERPLAN.open() as f:
@@ -78,6 +94,9 @@ def main() -> int:
     if HANDOFF.exists():
         for p in HANDOFF.iterdir():
             if p.is_dir():
+                continue
+            if p.name in HANDOFF_ROOT_KEEP:
+                # phase-36.7: live state file, not layout dirt. Do not flag.
                 continue
             if p.name.endswith(".log"):
                 failures.append(

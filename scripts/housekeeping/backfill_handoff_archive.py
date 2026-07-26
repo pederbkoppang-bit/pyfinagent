@@ -43,6 +43,23 @@ ROLLING_KEEP = {
 
 STEP_ID_RE = re.compile(r"^(?:phase-)?([0-9]+(?:\.[0-9]+)*)[-.].*\.md$")
 
+# phase-36.7: LIVE PRODUCTION STATE FILES that merely LOOK like audit output.
+#
+# `kill_switch_audit.jsonl` is not a log -- it is the kill switch's only
+# persistence. `backend/services/kill_switch.py::_load_from_audit` replays it at
+# every process start to restore `sod_nav` / `peak_nav`. Sweeping it into
+# handoff/audit/ with a `-vN` suffix left the switch DISARMED after every
+# restart: a 50% drawdown returned any_breached=False (measured 2026-07-26).
+# Git shows this shipped twice already (fa9aaf8e -> -v3, 77bc7db5 -> -v4), so
+# it is a recurring, self-perpetuating defect, not a one-off.
+#
+# Keep this set byte-identical to `verify_handoff_layout.py::HANDOFF_ROOT_KEEP`
+# -- if the verifier still demands the move, the next housekeeping run undoes
+# this exclusion.
+HANDOFF_ROOT_KEEP = {
+    "kill_switch_audit.jsonl",
+}
+
 
 def _step_statuses() -> dict[str, str]:
     with MASTERPLAN.open() as f:
@@ -122,22 +139,35 @@ def main(dry_run: bool) -> int:
 
     audit_moved = 0
     log_moved = 0
+    kept = 0
     for p in sorted(HANDOFF.iterdir()):
         if p.is_dir():
             continue
         name = p.name
+        # phase-36.7: never sweep a live production state file (see
+        # HANDOFF_ROOT_KEEP). Print it so the exclusion is visible, not implicit.
+        if name in HANDOFF_ROOT_KEEP:
+            print(f"[root] KEEP (live state file, phase-36.7): {name}")
+            kept += 1
+            continue
         if name.endswith(".log"):
-            _move(p, LOGS, dry_run)
+            # phase-36.7: this loop moved files SILENTLY -- unlike the
+            # `current/` loop above it printed nothing, so not even --dry-run
+            # named the kill-switch state file it was about to relocate. An
+            # operator could not see it. Print every root move.
+            verb, dest = _move(p, LOGS, dry_run)
+            print(f"[root] {verb}: {name} -> {dest.relative_to(REPO)}")
             log_moved += 1
         elif name.endswith("_audit.json") or name.endswith("_audit.jsonl"):
-            _move(p, AUDIT, dry_run)
+            verb, dest = _move(p, AUDIT, dry_run)
+            print(f"[root] {verb}: {name} -> {dest.relative_to(REPO)}")
             audit_moved += 1
 
     print()
     print(
         f"Summary: done-moved={done_moved} misc-moved={misc_moved} "
         f"audit-moved={audit_moved} log-moved={log_moved} "
-        f"ambiguous={len(ambiguous)}"
+        f"root-kept={kept} ambiguous={len(ambiguous)}"
     )
     if ambiguous:
         print("Ambiguous (left in current/ for manual review):")

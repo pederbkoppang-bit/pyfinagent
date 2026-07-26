@@ -370,7 +370,35 @@ export function RiskMonitorCard({
   // numeric 0 is a real high-water-mark reading and must still render SAFE.
   const ddKnown = perf != null && perf.max_drawdown_pct != null;
   const maxDd = ddKnown ? (perf!.max_drawdown_pct as number) : 0;
-  const killSwitch: RiskVerdict = !ddKnown
+  // phase-80.40: THIS ROW WAS MISLABELLED "Kill switch (-15%)". There are TWO
+  // independent drawdown ladders in this system and they legitimately differ --
+  // the row renders ladder B's thresholds under ladder A's name:
+  //
+  //   LADDER A -- KILL SWITCH (HALTS TRADING). backend/services/kill_switch.py
+  //     :315-319, limits from backend/config/settings.py:536-537:
+  //     paper_daily_loss_limit_pct=4.0 and paper_trailing_dd_limit_pct=10.0.
+  //     POSITIVE magnitude, measured on CURRENT trailing drawdown from a
+  //     PERSISTED peak_nav. Sourced to prop-firm consensus (FTMO / FXIFY /
+  //     Alpha Capital / FundedNext). Surfaced by KillSwitchPanel.tsx, not here.
+  //
+  //   LADDER B -- MCP RISK CONSTRAINTS (BLOCKS / DERISKS NEW BUYS).
+  //     backend/agents/mcp_servers/signals_server.py:1370-1379:
+  //     max_drawdown_pct=-15.0 (block), drawdown_derisk_pct=-10.0 (halve new
+  //     sizes), drawdown_warning_pct=-5.0 (log-only). NEGATIVE convention.
+  //     These are the -15 / -10 numbers this row renders.
+  //
+  // 10% is authoritative for HALTING; -15% is authoritative for BLOCKING BUYS.
+  // Both values are CORRECT and byte-pinned (settings.py + the boundary test
+  // backend/tests/test_phase_75_mcp_truth.py::test_thresholds_are_unchanged), so
+  // 80.40 fixes the LABEL and changes NO threshold. Also note the field is
+  // ALL-TIME MAX drawdown, a historical extreme that never recovers -- it is not
+  // the CURRENT trailing figure the kill switch trips on, which is a second
+  // reason this row must not claim to be the kill switch.
+  //
+  // UNSOURCED: the -13 WARNING tier below matches no constant in the repo
+  // (ladder B's middle tier is -10). Left byte-untouched by 80.40 -- flagged,
+  // not blessed, and queued as its own step rather than quietly changed here.
+  const drawdownVerdict: RiskVerdict = !ddKnown
     ? { state: "unknown" }
     : maxDd > -10
       ? { state: "ok", label: "SAFE" }
@@ -432,9 +460,9 @@ export function RiskMonitorCard({
       </h3>
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-slate-400">Kill switch (-15%)</span>
-          <span className={clsx("rounded px-2 py-0.5 text-xs font-medium", verdictClass(killSwitch))}>
-            {verdictLabel(killSwitch)}
+          <span className="text-slate-400">Max drawdown (-15%)</span>
+          <span className={clsx("rounded px-2 py-0.5 text-xs font-medium", verdictClass(drawdownVerdict))}>
+            {verdictLabel(drawdownVerdict)}
           </span>
         </div>
         <div className="flex justify-between">

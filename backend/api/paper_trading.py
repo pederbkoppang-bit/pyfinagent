@@ -28,7 +28,11 @@ from backend.services.paper_go_live_gate import compute_gate
 from backend.services.reconciliation import compute_reconciliation
 from backend.services.signal_attribution import group_signals_for_drawer, redact_pii
 from backend.services.paper_trader import PaperTrader
-from backend.services.perf_metrics import compute_sharpe_from_snapshots, compute_alpha
+from backend.services.perf_metrics import (
+    compute_sharpe_from_snapshots,
+    compute_alpha,
+    compute_max_drawdown_from_snapshots,
+)
 from backend.utils.asyncio_tasks import track_task
 
 logger = logging.getLogger(__name__)
@@ -320,6 +324,17 @@ async def get_performance():
     # Sharpe from NAV snapshots — delegates to canonical risk-free-adjusted formula
     sharpe = compute_sharpe_from_snapshots(snapshots)
 
+    # phase-80.40: max_drawdown_pct was ABSENT from this payload since the
+    # endpoint was written, so the cockpit's drawdown row had never measured
+    # anything (pre-80.36 `?? 0` rendered it as an emerald SAFE; 80.36's
+    # presence check exposed it as NO DATA). Reuses the `snapshots` list already
+    # fetched above — deliberately NOT a second get_paper_snapshots round trip
+    # (~1.2s) — and needs no asyncio.to_thread: it is pure numpy over <=365
+    # floats (0.0365 ms measured). NEGATIVE percent, or None when it cannot be
+    # measured; the arithmetic and every guard live in perf_metrics per the
+    # backend-services single-source-of-truth rule.
+    max_dd = compute_max_drawdown_from_snapshots(snapshots)
+
     pnl_pct = portfolio.get("total_pnl_pct", 0) or 0
     bench_pct = portfolio.get("benchmark_return_pct", 0) or 0
 
@@ -337,6 +352,11 @@ async def get_performance():
         "benchmark_return_pct": bench_pct,
         "alpha_pct": compute_alpha(pnl_pct, bench_pct),
         "sharpe_ratio": sharpe,
+        # ALL-TIME max peak-to-trough decline, NEGATIVE percent, or None when
+        # fewer than 2 usable NAV rows exist. None (not 0.0) is required: the
+        # cockpit discriminates on PRESENCE, so 0.0 would read as a measured
+        # high-water mark. See perf_metrics.compute_max_drawdown_from_snapshots.
+        "max_drawdown_pct": max_dd,
         "total_sell_trades": total_trades,
         "total_buy_trades": len(buy_trades),
         "total_analysis_cost": round(total_cost, 2),
@@ -563,6 +583,23 @@ async def resume_trading(req: KillSwitchActionRequest):
             f"Cannot resume: limit still breached. "
             f"daily_loss={breach['daily_loss_pct']:.2f}% (limit {breach['daily_loss_limit_pct']}%), "
             f"trailing_dd={breach['trailing_dd_pct']:.2f}% (limit {breach['trailing_dd_limit_pct']}%)"
+        )
+    # phase-36.7: the resume precondition is "both limits read HEALTHY", and a
+    # disarmed switch cannot read healthy -- it reads NOTHING. Between the
+    # 2026-07-26 audit-log rotation and this fix every resume passed this gate
+    # regardless of the real drawdown, because both legs were skipped and
+    # `any_breached` was hardcoded-False by absence. Refuse instead.
+    # `.get("armed", True)` fails OPEN on a dict that predates the key.
+    if not breach.get("armed", True):
+        raise HTTPException(
+            409,
+            "Cannot resume: kill switch is DISARMED -- the loss baselines could "
+            "not be restored, so neither limit can be verified healthy "
+            f"(daily_baseline_missing={breach.get('daily_baseline_missing')}, "
+            f"trailing_baseline_missing={breach.get('trailing_baseline_missing')}). "
+            "The next paper-trading cycle re-anchors both baselines; retry after "
+            "it runs, or check handoff/kill_switch_audit.jsonl for sod_snapshot/"
+            "peak_update rows."
         )
     get_api_cache().invalidate("paper:*")
     state = _get_ks_state().resume(trigger="manual")

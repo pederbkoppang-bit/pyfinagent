@@ -741,7 +741,15 @@ export interface PaperPerformance {
   total_buy_trades: number;
   total_analysis_cost: number;
   days_active: number;
-  max_drawdown_pct?: number;
+  // phase-80.40 adversarial-verify (R11): the API emits explicit `null` when
+  // fewer than 2 usable NAV rows exist (perf_metrics.compute_max_drawdown_
+  // from_snapshots), not merely "field absent". `?: number` only admits
+  // undefined, so a `=== undefined` narrowing (see RiskDashboard.tsx:419 for
+  // the pattern) would treat a real `null` as a `number` and let `null > -10`
+  // (true in JS) read as a healthy drawdown. Every CURRENT consumer happens to
+  // use a null-safe idiom (`?? 0` / `!= null`), so this was latent, not yet
+  // exploited -- but the type should reflect what the API actually sends.
+  max_drawdown_pct?: number | null;
   round_trip_summary?: PaperRoundTripSummary;
 }
 

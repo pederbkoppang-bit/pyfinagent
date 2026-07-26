@@ -124,6 +124,129 @@ def compute_sharpe_from_snapshots(
     return round(sharpe, 2)
 
 
+def compute_max_drawdown_from_snapshots(
+    snapshots: Sequence[dict],
+    nav_key: str = "total_nav",
+    snapshot_date_key: str = "snapshot_date",
+) -> Optional[float]:
+    """phase-80.40: canonical MAX peak-to-trough drawdown over a NAV-snapshot
+    series, as a NEGATIVE percent. Returns None when it cannot be measured.
+
+    Structural twin of compute_sharpe_from_snapshots above: takes the
+    ALREADY-FETCHED snapshot list (never a bq client -- see "no extra query"
+    below), normalizes it, and delegates the arithmetic to the single canonical
+    primitive `analytics.compute_max_drawdown` (imported at module top). This
+    module is the documented single source of truth for drawdown
+    (`.claude/rules/backend-services.md`: "Never compute Sharpe, drawdown, or
+    alpha outside perf_metrics.py -- import from there"), and NO new formula is
+    written here.
+
+    SIGN CONVENTION: NEGATIVE PERCENT (-5.31 means a 5.31% peak-to-trough
+    decline); 0.0 means the series never fell below its running high-water mark.
+    This is deliberate and load-bearing in three ways:
+      1. It matches what the backtest side already publishes --
+         backtest_engine._max_drawdown -> analytics.compute_max_drawdown ->
+         api/backtest.py "max_drawdown_pct" -- so the paper number and the
+         backtest number are directly comparable on the reality-gap card.
+      2. The cockpit consumes it as `maxDd > -10 ? SAFE : maxDd > -13 ?
+         WARNING : DANGER` (cockpit-helpers.tsx). A POSITIVE-magnitude value
+         would satisfy `> -10` at EVERY depth, rendering emerald SAFE forever
+         -- i.e. it would INVERT a safety verdict, silently.
+      3. The split is real but narrower than "genuinely split" implied (corrected
+         2026-07-26 per a research-gate finding): R's PerformanceAnalytics::
+         maxDrawdown does ship `invert=TRUE` by default (positive magnitude,
+         verified), but Python's empyrical, pyfolio, and quantstats are
+         UNANIMOUSLY negative -- the divide is across the R/Python ecosystem
+         boundary, not evenly split within either. Reason 2 above is decisive
+         regardless of that framing; the sign is pinned by an assertion in
+         backend/tests/test_phase_80_40_perf_metrics_drawdown.py, not by this
+         docstring.
+    DO NOT delegate to backend/services/paper_go_live_gate.py::_snapshot_max_dd_pct
+    -- it is the same measurement with the OPPOSITE sign (positive magnitude).
+
+    None, NEVER 0.0, ON EVERY DEGRADED PATH. `analytics.compute_max_drawdown`
+    returns 0.0 for an empty series, for a single element AND for a monotonic
+    rise -- three states that are indistinguishable in a JSON payload. Under
+    phase-80.36's deliberate presence-not-value contract a numeric 0 renders a
+    real emerald SAFE, so a 0.0 fallback would reintroduce the exact fabrication
+    this step exists to kill, one layer deeper. Absence propagates instead.
+
+    NON-FINITE IS AN OUTAGE, NOT A COSMETIC LEAK. compute_max_drawdown returns
+    nan for an all-zero series or any series containing a nan, and FastAPI
+    REFUSES to serialize nan ("Out of range float values are not JSON
+    compliant"), which would 500 the WHOLE /performance payload -- taking nav,
+    sharpe_ratio and round_trip_summary down with it (the phase-80.27 NaN class).
+    Non-finite NAVs are dropped and a non-finite result returns None.
+
+    ORDER: sorted ASC internally, never trusting the caller.
+    `bq.get_paper_snapshots` is `ORDER BY snapshot_date DESC`, and walking a NAV
+    series backwards reads growth as a crash. That has already caused TWO
+    production incidents on THIS series: a 60.08% phantom drawdown (phase-47.4,
+    paper_go_live_gate.py:47-68) and a phantom -61.51% P1 page against a book UP
+    20% (phase-66.2, drawdown_alarm.py:58-108).
+
+    WINDOW: whatever the caller passes -- there is no internal slice. The
+    /performance caller passes its full limit=365 series (64 rows today), so the
+    published figure is ALL-TIME max drawdown. Contrast paper_go_live_gate.py:139
+    which measures the same book over a 30-row window (1.19% vs 5.31% -- a 4.5x
+    difference from the window choice alone).
+
+    MAX, NOT CURRENT: this is a historical extreme that never recovers.
+    backend/services/kill_switch.py:315-319 trips on CURRENT trailing drawdown
+    from a persisted peak (positive magnitude, 10% limit). The two legitimately
+    differ; see the "two drawdown ladders" note in
+    frontend/src/components/paper-trading/cockpit-helpers.tsx.
+
+    FLOW-BLIND (raw NAV), deliberately scoped: an external deposit/withdrawal
+    moves NAV without being a return. On the live series (one +$5,000 deposit on
+    2026-05-13) raw NAV gives -5.31% vs -5.73% flow-adjusted. Raw matches the
+    kill-switch mechanism and paper_go_live_gate's existing realized-DD number.
+    Pending step 72.2.4 owns routing NAV->returns through the canonical GIPS
+    helper paper_metrics_v2._nav_to_returns for compute_sharpe_from_snapshots;
+    when it lands, this helper is the second leg of that same fix. NOTE a future
+    WITHDRAWAL would fabricate a drawdown here until then.
+
+    NO EXTRA QUERY / NO EVENT-LOOP RISK: pure numpy over <=365 floats
+    (measured 0.0365 ms per call on a 384-row series), so it needs no
+    asyncio.to_thread wrapper -- a thread handoff would cost more than the work.
+    Callers MUST pass a list they already hold rather than triggering a second
+    get_paper_snapshots round trip (measured ~1.2s).
+    """
+    if not snapshots:
+        return None
+
+    try:
+        ordered = sorted(snapshots, key=lambda s: str(s.get(snapshot_date_key) or ""))
+    except Exception:  # pragma: no cover - defensive; snapshots are plain dicts
+        ordered = list(snapshots)
+
+    navs: list[float] = []
+    for snap in ordered:
+        raw = snap.get(nav_key)
+        if raw is None:
+            continue
+        try:
+            nav = float(raw)
+        except (TypeError, ValueError):
+            continue
+        # `nav > 0` also drops nan (nan > 0 is False); isfinite additionally
+        # drops +inf, which would otherwise yield a spurious -100.0.
+        if nav > 0 and math.isfinite(nav):
+            navs.append(nav)
+
+    if len(navs) < 2:
+        return None
+
+    dd_pct = compute_max_drawdown(np.array(navs, dtype=float))
+    if not math.isfinite(dd_pct):
+        return None
+    rounded = round(float(dd_pct), 2)
+    # Normalize -0.0 -> 0.0 so the payload never carries a negative zero.
+    # NOT a clamp: a positive result would mean the sign convention broke and
+    # must surface to the test, not be silently absorbed.
+    return 0.0 if rounded == 0.0 else rounded
+
+
 def compute_paper_sharpe_window(
     bq: Any,
     *,

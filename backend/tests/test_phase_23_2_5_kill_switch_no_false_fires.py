@@ -202,11 +202,26 @@ def test_phase_23_2_5_evaluate_breach_trailing_dd_at_limit():
         ks._state._sod_nav, ks._state._sod_date, ks._state._peak_nav = _orig
 
 
-def test_phase_23_2_5_evaluate_breach_no_state_returns_no_breach():
+def test_phase_23_2_5_evaluate_breach_no_state_returns_no_breach(
+    isolated_kill_switch_state,
+):
     """When sod + peak are both None (e.g. cold start), evaluate_breach
-    must return any_breached=False (defensive)."""
-    import backend.services.kill_switch as ks
-    # Clear state
+    must return any_breached=False (defensive).
+
+    phase-36.7 RETARGET (not a deletion). This assertion is the only guard that
+    a cold start does not false-fire -- it encodes the real 2026-05-05
+    nine-false-fire incident, so removing it would trade one silent failure mode
+    for another. But on its own it also asserted the phase-36.7 defect AS A
+    REQUIREMENT: `any_breached=False` with no baseline was indistinguishable
+    from a healthy reading, and between the 2026-07-26 audit-log rotation and
+    the phase-36.7 fix that meant NO drawdown of any size could pause trading.
+
+    So the no-false-fire guarantee is KEPT and the honesty requirement is ADDED:
+    the same call must now also report `armed=False`. See
+    `backend/tests/test_phase_36_7_kill_switch_rotation_rearm.py`.
+    """
+    ks = isolated_kill_switch_state
+    # Clear state (the fixture already did; explicit for readability)
     ks._state._sod_nav = None
     ks._state._peak_nav = None
     ks._state._sod_date = None
@@ -216,6 +231,12 @@ def test_phase_23_2_5_evaluate_breach_no_state_returns_no_breach():
         trailing_dd_limit_pct=10.0,
     )
     assert r["any_breached"] is False, "cold-start must not auto-breach"
+    assert r["armed"] is False, (
+        "phase-36.7: a cold start must not auto-breach AND must not report "
+        "itself armed -- silent any_breached=False is what disarmed the switch"
+    )
+    assert r["daily_baseline_missing"] is True
+    assert r["trailing_baseline_missing"] is True
 
 
 def test_phase_23_2_5_evaluate_breach_zero_sod_does_not_div_zero():
