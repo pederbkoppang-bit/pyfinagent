@@ -24,6 +24,14 @@ interface KillSwitchState {
     // Optional so an older backend (no key) keeps rendering as today.
     armed?: boolean;
     daily_baseline_missing?: boolean;
+    // phase-36.20: OPTIONAL, and that is deliberate -- an older backend that
+    // predates phase-36.9/36.13 simply omits them, and the `=== true` / `!== true`
+    // checks at the use sites then keep today's behaviour rather than flipping a
+    // badge on `undefined`.
+    daily_baseline_stale?: boolean;
+    nav_invalid?: boolean;
+    nav_invalid_disarmed?: boolean;
+    baselines_present?: boolean;
     trailing_baseline_missing?: boolean;
   };
   thresholds: {
@@ -135,18 +143,55 @@ export function KillSwitchPanel() {
   // signal; `armed === undefined` (an older backend) must keep today's
   // behaviour, so the check is an explicit `=== false`, never `!breach.armed`.
   const disarmed = breach.armed === false;
-  const alarm = paused || breach.any_breached || disarmed;
+  // phase-36.20: SPLIT THE ALARM FROM THE STATUS.
+  //
+  // phase-36.9 made `armed` mean "can this leg fire RIGHT NOW", which is false for
+  // a daily anchor that is merely from yesterday. Reading `armed === false` alone
+  // therefore painted the DISARMED alarm on a HEALTHY book every day from 00:00 UTC
+  // until the first cycle rolled the anchor -- a recurring alarm for a condition
+  // that repairs itself and needs no operator action. ISA-18.2 defines an alarm as
+  // an abnormal condition REQUIRING A RESPONSE and prescribes reclassification
+  // otherwise; the clinical literature (AHRQ) is what happens when you don't.
+  //
+  // `nav_invalid` MUST be excluded. `evaluate_breach`'s nav_invalid early return
+  // passes `daily_baseline_stale` through while both *_missing stay false, and the
+  // endpoint falls back to `... or 0.0` on a 5s BQ timeout -- so without this guard
+  // a "we cannot measure the book at all" state would render as the friendly badge.
+  //
+  // Derived CLIENT-SIDE on purpose: `armed` stays a strict boolean because both
+  // backend gates use `.get("armed", True)` and fail OPEN, so a third value there
+  // would silently allow. Same `=== false` / `=== true` discipline as above so an
+  // older backend without these keys keeps today's behaviour.
+  const reanchoring =
+    disarmed &&
+    breach.daily_baseline_stale === true &&
+    breach.daily_baseline_missing === false &&
+    breach.trailing_baseline_missing === false &&
+    breach.nav_invalid !== true &&
+    breach.nav_invalid_disarmed !== true;
+  // A leg that cannot be evaluated must never print a number (phase-36.7's rule,
+  // extended to staleness): 0.00% is a legitimate healthy reading and the `0.0`
+  // initialiser is indistinguishable from it.
+  const dailyUnevaluable =
+    breach.daily_baseline_missing === true || breach.daily_baseline_stale === true;
+  // RE-ANCHORING is status, not alarm -- it must not tint the card or the icon.
+  const alarm = paused || breach.any_breached || (disarmed && !reanchoring);
 
   return (
     <>
       <div
         className={clsx(
           "rounded-xl border p-3",
-          disarmed && !paused && !breach.any_breached
-            ? "border-amber-500/40 bg-amber-950/30"
-            : alarm
-              ? "border-rose-500/40 bg-rose-950/30"
-              : "border-navy-700 bg-navy-800/60",
+          reanchoring && !paused && !breach.any_breached
+            ? // phase-36.20: SKY, and deliberately NOT amber -- amber is DISARMED's
+              // token and this project's degraded colour. A self-clearing status must
+              // not borrow the durable-fault tint.
+              "border-sky-500/40 bg-sky-950/30"
+            : disarmed && !paused && !breach.any_breached
+              ? "border-amber-500/40 bg-amber-950/30"
+              : alarm
+                ? "border-rose-500/40 bg-rose-950/30"
+                : "border-navy-700 bg-navy-800/60",
         )}
       >
         <div className="flex items-center gap-2">
@@ -168,15 +213,28 @@ export function KillSwitchPanel() {
                   : "bg-emerald-500/20 text-emerald-300",
             )}
             title={
-              disarmed
-                ? // phase-36.12: the old text told the operator to wait for the next
-                  // cycle to fix it -- but that cycle's silent anchor WAS the defect.
-                  // It now blocks new orders and records the anchor instead.
-                  "DISARMED: the loss baselines could not be restored, so neither breach leg can fire. The next cycle blocks new orders and writes an audited baseline_anchor_on_lost_history row instead of trading on unknown baselines."
-                : undefined
+              reanchoring
+                ? // phase-36.20: the baselines are INTACT; only the daily anchor is
+                  // from an earlier day. This matches the server's own staleness 409
+                  // (paper_trading.py), which says the same thing in the same words.
+                  "RE-ANCHORING: the loss baselines are intact, but the daily anchor is from an earlier UTC day, so the daily-loss leg cannot be measured against today's open yet. The trailing leg is date-independent and still armed. No operator action is required -- the next cycle stamps today's anchor."
+                : disarmed
+                  ? // phase-36.12: the old text told the operator to wait for the next
+                    // cycle to fix it -- but that cycle's silent anchor WAS the defect.
+                    // It now blocks new orders and records the anchor instead.
+                    "DISARMED: the loss baselines could not be restored, so neither breach leg can fire. The next cycle blocks new orders and writes an audited baseline_anchor_on_lost_history row instead of trading on unknown baselines."
+                  : undefined
             }
           >
-            {paused ? "PAUSED" : disarmed ? "DISARMED" : "ACTIVE"}
+            {/* phase-36.20 + WCAG 1.4.1: the state is carried by TEXT, not by colour
+                alone -- a colour-blind or monochrome operator reads the same word. */}
+            {paused
+              ? "PAUSED"
+              : reanchoring
+                ? "RE-ANCHORING"
+                : disarmed
+                  ? "DISARMED"
+                  : "ACTIVE"}
           </span>
           {paused && state.pause_reason && (
             <span className="text-[10px] text-slate-500">({state.pause_reason})</span>
@@ -186,9 +244,12 @@ export function KillSwitchPanel() {
                 baseline -- 0.00% is a legitimate healthy reading and must not
                 be shown for a leg that cannot be measured. */}
             daily{" "}
-            {breach.daily_baseline_missing
-              ? "—"
-              : `${breach.daily_loss_pct.toFixed(2)}%`}{" "}
+            {/* phase-36.20: branch on UNEVALUABLE (missing OR stale), not on missing
+                alone. `daily_loss_pct` keeps its 0.0 initialiser whenever the leg is
+                skipped, so a stale anchor was printing a fabricated "0.00%" for a leg
+                that cannot fire -- erring REASSURING, the direction phase-36.7 exists
+                to prevent. */}
+            {dailyUnevaluable ? "—" : `${breach.daily_loss_pct.toFixed(2)}%`}{" "}
             / {state.thresholds.daily_loss_limit_pct}%
             {"   "}
             trail{" "}
@@ -220,9 +281,17 @@ export function KillSwitchPanel() {
               title={
                 breach.any_breached
                   ? "Cannot resume while a limit is still breached"
-                  : disarmed
-                    ? "Cannot resume: kill switch DISARMED (loss baselines unrestorable). The next cycle blocks new orders and audits the anchor; restoring the true baselines is the fix, not resuming."
-                    : "Resume paper-trading cycle"
+                  : reanchoring
+                    ? // phase-36.20: STILL DISABLED, and that is correct -- the server
+                      // 409s on exactly this state (the staleness branch added in
+                      // 36.13), so enabling the button would turn a misleading badge
+                      // into a click that always fails. Only the REASON was wrong: it
+                      // asserted the baselines were unrestorable, which the server's
+                      // own 409 explicitly refutes.
+                      "Cannot resume yet: the daily anchor is from an earlier UTC day, so the daily-loss leg cannot be verified against today's open. The baselines are intact and no operator action is required -- the next cycle stamps today's anchor, then resume will succeed."
+                    : disarmed
+                      ? "Cannot resume: kill switch DISARMED (loss baselines unrestorable). The next cycle blocks new orders and audits the anchor; restoring the true baselines is the fix, not resuming."
+                      : "Resume paper-trading cycle"
               }
               className="rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-900/50 disabled:cursor-not-allowed disabled:opacity-50"
             >

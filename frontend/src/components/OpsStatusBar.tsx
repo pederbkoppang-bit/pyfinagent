@@ -38,6 +38,14 @@ type KillSwitchState = {
     // Optional so an older backend (no key) keeps rendering as today.
     armed?: boolean;
     daily_baseline_missing?: boolean;
+    // phase-36.20: OPTIONAL, and that is deliberate -- an older backend that
+    // predates phase-36.9/36.13 simply omits them, and the `=== true` / `!== true`
+    // checks at the use sites then keep today's behaviour rather than flipping a
+    // badge on `undefined`.
+    daily_baseline_stale?: boolean;
+    nav_invalid?: boolean;
+    nav_invalid_disarmed?: boolean;
+    baselines_present?: boolean;
     trailing_baseline_missing?: boolean;
   };
 };
@@ -316,10 +324,32 @@ function KillSegment({
   // explicit `=== false` so an older backend without the key keeps today's
   // behaviour (discriminate on presence, never on value -- phase-80.36).
   const disarmed = kill.breach.armed === false;
-  const alarm = kill.paused || kill.breach.any_breached || disarmed;
-  const dailyTxt = kill.breach.daily_baseline_missing
-    ? "—"
-    : `${kill.breach.daily_loss_pct.toFixed(1)}%`;
+  // phase-36.20: RE-ANCHORING is status, not alarm. phase-36.9 made `armed` false
+  // for a daily anchor merely from yesterday, so `armed === false` alone lit the
+  // DISARMED alarm on a healthy book every morning until the first cycle rolled the
+  // anchor. ISA-18.2: an alarm is a condition REQUIRING A RESPONSE; this one repairs
+  // itself. `nav_invalid` is excluded because the nav_invalid early return passes
+  // staleness through while both *_missing stay false -- without that guard a
+  // "cannot measure the book" state would render as the friendly badge. Derived
+  // client-side; `armed` stays a strict boolean because the backend gates
+  // `.get("armed", True)` fail OPEN.
+  const reanchoring =
+    disarmed &&
+    kill.breach.daily_baseline_stale === true &&
+    kill.breach.daily_baseline_missing === false &&
+    kill.breach.trailing_baseline_missing === false &&
+    kill.breach.nav_invalid !== true &&
+    kill.breach.nav_invalid_disarmed !== true;
+  const alarm =
+    kill.paused || kill.breach.any_breached || (disarmed && !reanchoring);
+  // Branch on UNEVALUABLE (missing OR stale): `daily_loss_pct` keeps its 0.0
+  // initialiser when the leg is skipped, so a stale anchor printed a fabricated
+  // "0.0%" for a leg that cannot fire.
+  const dailyTxt =
+    kill.breach.daily_baseline_missing === true ||
+    kill.breach.daily_baseline_stale === true
+      ? "—"
+      : `${kill.breach.daily_loss_pct.toFixed(1)}%`;
   const trailTxt = kill.breach.trailing_baseline_missing
     ? "—"
     : `${kill.breach.trailing_dd_pct.toFixed(1)}%`;
@@ -342,17 +372,32 @@ function KillSegment({
           "rounded-full px-2 py-0.5 text-[10px] font-semibold",
           kill.paused
             ? "bg-rose-500/15 text-rose-300"
-            : disarmed
-              ? "bg-amber-500/15 text-amber-300"
-              : "bg-emerald-500/15 text-emerald-300",
+            : reanchoring
+              ? // phase-36.20: SKY, not amber. Amber is already DISARMED's token AND
+                // this project's degraded colour, so reusing it would defeat the
+                // visual distinction. Colour is a secondary cue only -- the badge
+                // text carries the state (WCAG 1.4.1).
+                "bg-sky-500/15 text-sky-300"
+              : disarmed
+                ? "bg-amber-500/15 text-amber-300"
+                : "bg-emerald-500/15 text-emerald-300",
         )}
         title={
-          disarmed
-            ? "DISARMED: loss baselines unrestorable, so neither breach leg can fire"
-            : undefined
+          reanchoring
+            ? "RE-ANCHORING: baselines intact; the daily anchor is from an earlier UTC day so the daily leg cannot be measured against today's open yet. The trailing leg is still armed. No operator action required."
+            : disarmed
+              ? "DISARMED: loss baselines unrestorable, so neither breach leg can fire"
+              : undefined
         }
       >
-        {kill.paused ? "PAUSED" : disarmed ? "DISARMED" : "ACTIVE"}
+        {/* phase-36.20 + WCAG 1.4.1: distinguished by TEXT, not colour alone. */}
+        {kill.paused
+          ? "PAUSED"
+          : reanchoring
+            ? "RE-ANCHORING"
+            : disarmed
+              ? "DISARMED"
+              : "ACTIVE"}
       </span>
       <span
         className="font-mono text-[10px] text-slate-500"
