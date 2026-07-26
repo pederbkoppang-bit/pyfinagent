@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `94fc0858` | wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED and re-queued as 80.35 |
 | 2026-07-26 | `3464e946` | docs: measure the done-definition evidence -- items 1-3 are restart-gated, and it is now proven |
 | 2026-07-26 | `314b02ad` | docs: close two goal deliverables -- per-step tier ledger + count re-derivation |
 | 2026-07-26 | `c3f809c8` | fix(36.7): queue the kill-switch-cannot-fire P0 -- the claim that it was queued was false |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `a5ba0958` | phase-78.16: 78.1 blocker -- make_client DROPS enable_prompt_caching, so the documented one-flag ... |
 | 2026-07-25 | `fe5476f2` | fix(78.1): restore the house system prompt the rewire silently dropped + kill my own vacuous guard |
 | 2026-07-25 | `d72d9b3d` | phase-78.1 (WIP): rewire all six signal overlays off direct ClaudeClient onto make_client |
-| 2026-07-25 | `78d794c5` | phase-79.2: [OPERATOR ACTION -- not an executor task] BACKEND RESTART — 15 product modules shippe. |
 
 ---
 
+### v6.69.17 — wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED an... (2026-07-26)
+
+- **wip(80.5): donut defects fixed; WCAG grace-timer machinery REMOVED and re-queued as 80.35**
 ### v6.69.16 — fix(36.7): queue the kill-switch-cannot-fire P0 -- the claim that it... (2026-07-26)
 
 - **fix(36.7): queue the kill-switch-cannot-fire P0 -- the claim that it was queued was false**
