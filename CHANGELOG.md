@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `631b1673` | docs(36.12): cycle-3 FAIL transcribed; step stays OPEN with two named blockers |
 | 2026-07-26 | `a0c50af8` | phase-80.40: kill-switch indicator finally has data -- max_drawdown_pct on /performance (Q/A PASS, c |
 | 2026-07-26 | `43d36747` | docs(36.7): cycle-3 FAIL + cycle-4 CONDITIONAL transcribed; queue 36.13 + 36.14 |
 | 2026-07-26 | `e4efdc23` | docs(80.40): cycle-3 FAIL + cycle-4/5 verdicts transcribed; criterion-3 mutation run firsthand |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `5d26feef` | wip(80.11): single-flight the session probe -- 11 concurrent probes collapse to 1 |
 | 2026-07-26 | `058a6b64` | docs(80.11,80.34): settle the reactStrictMode question from Next's source -- it is ON |
 | 2026-07-26 | `c3a800bc` | docs: re-measure done-definition items 1-3 -- they were never operator-blocked, and item 1's heartbe |
-| 2026-07-26 | `65586491` | fix(80.36): measure the last two done-definition items -- the Risk Monitor claims SAFE on a dead bac |
 
 ---
 
