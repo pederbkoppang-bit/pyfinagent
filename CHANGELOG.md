@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `09125a81` | feat(36.8): an in-stream authority boundary, so a fresh anchor outranks stale archived history |
 | 2026-07-26 | `c5f48cec` | phase-36.12: the order-placing path can no longer forgive a drawdown it cannot measure (Q/A PASS, cy |
 | 2026-07-26 | `4a88fe25` | fix(36.12): close QA-P2, the FIFTH hole in the halt wiring -- the PROCEED direction was untested |
 | 2026-07-26 | `1198f0b2` | fix(36.12): re-measuring the matrix honestly found M8 -- a paused book would have kept trading |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `eaa42c1f` | docs(36.7,80.40): live_check RESOLVED on the operator's own :8000 after an authorized restart |
 | 2026-07-26 | `a3785bd1` | wip(36.7,80.40): remediate cycle-2 CONDITIONAL -- STILL NO PASS, steps remain pending |
 | 2026-07-26 | `b0abb061` | wip(36.7,80.40): kill switch fixed at both ends -- NO Q/A VERDICT YET (3x API 529) |
-| 2026-07-26 | `e19dd00e` | chore: subagent memory + hook-appended audit logs (NOT the step work) |
 
 ---
 
+### v6.71.0 — feat(36.8): an in-stream authority boundary, so a fresh anchor outran... (2026-07-26)
+
+- **feat(36.8): an in-stream authority boundary, so a fresh anchor outranks stale archived history**
 ### v6.70.6 — phase-36.12: the order-placing path can no longer forgive a drawdown... (2026-07-26)
 
 - **phase-36.12: the order-placing path can no longer forgive a drawdown it cannot measure (Q/A PASS, cy**
