@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `5d26feef` | wip(80.11): single-flight the session probe -- 11 concurrent probes collapse to 1 |
 | 2026-07-26 | `058a6b64` | docs(80.11,80.34): settle the reactStrictMode question from Next's source -- it is ON |
 | 2026-07-26 | `c3a800bc` | docs: re-measure done-definition items 1-3 -- they were never operator-blocked, and item 1's heartbe |
 | 2026-07-26 | `65586491` | fix(80.36): measure the last two done-definition items -- the Risk Monitor claims SAFE on a dead bac |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-25 | `0c569eb6` | chore(handoff): track the phase-80 UI-audit evidence base + archive phase-78.2 |
 | 2026-07-25 | `acf89271` | docs(78.2): correct four stale references caught by a post-close claim audit |
 | 2026-07-25 | `a75c209f` | phase-78.2: CLOSE-OUT -- rail runs the requested model, log reports what actually ran |
-| 2026-07-25 | `5e51f4a9` | phase-78.2 (verified, flip HELD): thread explicit --model through every CC-rail call site |
 
 ---
 
+### v6.69.19 — wip(80.11): single-flight the session probe -- 11 concurrent probes c... (2026-07-26)
+
+- **wip(80.11): single-flight the session probe -- 11 concurrent probes collapse to 1**
 ### v6.69.18 — fix(80.36): measure the last two done-definition items -- the Risk Mo... (2026-07-26)
 
 - **fix(80.36): measure the last two done-definition items -- the Risk Monitor claims SAFE on a dead bac**
