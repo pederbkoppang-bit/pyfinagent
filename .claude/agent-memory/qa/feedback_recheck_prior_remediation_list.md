@@ -39,6 +39,17 @@ the one it flagged. Cardinality matched, membership did not. **When a follow-up 
 your count, diff the MEMBERS, not the number** (qa.md §4b symmetric-difference rule) — an
 `ls`/`grep` over the file list you named, run yourself, settles it in one command.
 
+**Fourth instance — the UNION DOUBLE-COUNT (phase-80.4 cycle 3, 2026-07-26).** The
+remediation ADDED the evaluator's four independently-authored mutations to the matrix and
+re-totalled `9/9 -> 13/13, measured`. But three of the added rows (delete `onopen`; reset
+the failure budget in `onopen`; `onopen` sets the wrong status) were the SAME mutations
+cycle 1 had already run as F1/F2/F3, so `7 (c1) + 6 (c2)` counted them twice — 10 distinct,
+not 13. The same summary line also relabelled cycle 1's 7 as "7 backend" when its own
+itemisation two lines above read "Backend (c1, 4) / Frontend (c1, 3)". **When a re-total
+appears, recover the PRIOR total's itemisation from git (`git show <wip-commit>:<artifact>`)
+and set-difference it against the new rows before accepting the sum** — re-running a
+mutation is re-verification, not a new mutation.
+
 **How to apply:** before grading a cycle-N≥2 handoff, grep the critique for the prior
 cycle's numbered remediation section, list every item AND every file:line it names, and
 mark each closed/open by execution. State the open ones by number in your verdict so the

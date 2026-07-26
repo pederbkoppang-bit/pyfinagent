@@ -29342,3 +29342,70 @@ md5s; `AgentMap.tsx` restored to `33c8be8e` after the BEFORE capture.
 
 **Tier ledger:** RESEARCH T3 (Opus 5/max) -- GENERATE T3 (Opus 5/xhigh) -- EVALUATE T3 x7
 (Opus 5/max). Fable not spent: frontend-only, no money path.
+
+## Cycle 171 -- 2026-07-26 -- phase=80.4 result=PASS
+
+**`/agents` reported "Disconnected" over a working SSE endpoint.** Closed on the 4th
+evaluator pass. Product code is cycle 1's WIP commee `4bcd60ad`, **unchanged** --
+`git diff 4bcd60ad -- backend/api/mas_events.py frontend/src/lib/hooks/useEventSource.ts`
+is empty at close. Everything cycles 2-4 changed was evidence and claims.
+
+**The substantive finding: cycle 1's criterion-4 FAIL was a MEASUREMENT ERROR, not a code
+defect.** Cycle 1 stopped the rig with SIGTERM. Uvicorn's graceful shutdown closes the
+*listening socket* but waits forever on *established* connections
+(`timeout_graceful_shutdown` defaults to `None`), and an SSE generator never completes --
+so the process stayed alive serving the open stream and the green indicator was CORRECT.
+`curl -> 000` proves only that the listener is gone; it is **not a death oracle for an
+already-open stream**. Measured by Main and reproduced independently by two evaluators:
+
+```
+kill -TERM  uvicorn ALIVE, new conns 000, open stream GREW 21->37->69 bytes
+kill -9     uvicorn dead, curl EOF (rc=18), byte count FROZEN
+```
+
+Under `kill -9` the page reads **"Disconnected"** with the budget exhausting at exactly 5.
+The masterplan word is **"Killing"**, so `kill -9` is the literal reading -- the question
+"is that gaming the criterion?" only ever existed because Main had paraphrased it as
+"Stopping".
+
+**Every defect found in this step was a CLAIM defect. The code was right every time.**
+
+| cycle | verdict | blocker |
+|---|---|---|
+| 1 | (no Q/A -- Main self-assessed) | Main wrongly self-reported criterion 4 FAIL; step left open, nothing certified |
+| 2 | CONDITIONAL | criteria block mislabelled "verbatim" (was a paraphrase dropping 3 sub-clauses of c4); "queued" asserted with no masterplan step behind it |
+| 3 | CONDITIONAL | mutation total "13/13" double-counted re-runs as new mutations -- **introduced BY the cycle-2 remediation** |
+| 4 | **PASS** | -- (2 non-blocking WARNs, both inherited from cycle 1, both corrected anyway) |
+
+**Mutation coverage: 10 distinct, all killed** (4 backend + 6 frontend) --
+`{B1,B2,B3,B4,F1,F2,F3,M1,M2,M5}`. M3/M4/M6 were re-runs of F1/F2/F3, not new mutations;
+a re-run is re-verification. **Every one of the 10 has now been reproduced from scratch by
+an independent evaluator** (cycle-3 Q/A re-ran 8; cycle-4 Q/A deliberately took M2 and M5,
+the two no prior evaluator had touched). Criterion 4's "both directions" clause is met by
+F1/F3 (must go green when healthy) and M1/M2/F2/M5 (must leave green when dead).
+
+**Test gap closed:** the suite pinned only the END state (disconnected once the budget
+spent), leaving the ~15s pre-exhaustion window unguarded. Added "stops being green on the
+FIRST error". M1 and M2 leave all four pre-existing tests passing and are caught only by
+it -- proof the gap was real.
+
+**NOT live for the operator.** Measured read-only on `:8000`: SSE returns zero bytes in 6s,
+`/api/mas/events/stats` = `{"total_events":0,"buffer_size":0,"subscribers":0}`. pid 70791
+predates the fix; the restart is blocked by the open **phase-79.55 RESTART BLOCKER**. That
+same reading positively confirms a premise previously only asserted: the MAS bus really has
+published 0 events since process start.
+
+**Queued, not disclosed in prose:** `80.33` (discarded reconnect `setTimeout` handle,
+`useEventSource.ts:162`) and `80.34` (impure `setFailures` updater, `:157-167`). Neither
+can cause a false green -- both err toward more failures sooner. `80.34` carries an
+explicit criterion to MEASURE `reactStrictMode` rather than inherit this step's unverified
+assertion about it.
+
+**Protocol breach, disclosed not backdated:** cycle 1 wrote no `contract_80.4.md` and no
+`experiment_results_80.4.md`. Both authored in cycle 2 with the gap recorded in the
+contract. Cycle 1 never appended here and never flipped the step, so nothing was certified
+on the missing artifacts.
+
+**Rig discipline:** operator's `:8000` never restarted, `:3000` never driven (200/302/200,
+pid 70791 unchanged at close); `:3100` used an isolated `distDir`; `tsconfig.json` +
+`next-env.d.ts` restored from HEAD. **Owed:** `rm -rf frontend/.next-audit-3100`.

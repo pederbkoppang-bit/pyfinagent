@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [MAS SSE facts 80.4](project_mas_sse_80_4.md) — bus is idle BY DESIGN (only multi_agent_orchestrator emits, trading cycle never does); onopen fires on HEADERS not first byte (spec-only fact, MDN silent) so the frontend fix needs no heartbeat; **SIGTERM does NOT close an established SSE stream (uvicorn timeout_graceful_shutdown default None) — `curl→000` is the wrong death oracle, use `kill -9`**; named heartbeat events are filtered from a "message" listener by spec (no string filter needed); Starlette 1.0.0 disconnect handling gated on uvicorn spec_version (0.42.0 = 2.3 = safe); immutable grep forces `es.onopen =` property form; jsdom 29 has no EventSource
+
 - [NaN trading verdict 80.27](project_nan_trading_verdict_80_27.md) — yfinance NaN tail row is PERMANENT + universal (measured Saturday, markets closed) NOT a forming-session artifact; quant_model missing from _SOURCE_CRITICALITY (11 keys vs 12); ERROR path proven crash-free (zero field derefs outside tools) but burns ~500-900 retry calls/cycle; 4 NaN-suppressed risk controls found
 
 - [CC rail vs ClaudeClient (78.1)](project_cc_rail_vs_claudeclient_78_1.md) — rail `--json-schema` is POST-HOC validated + re-prompted (NOT constrained decoding); no temperature/max-tokens flag exists; `--bare` will become the `-p` default (kills OAuth rail); cwd=repo ⇒ CLAUDE.md+8 MCP servers loaded per call; bare `cc_rail` tag unless `_role` passed; no caller sets config["system"] so `_HOUSE_INSTRUCTIONS` is absent rail-wide
