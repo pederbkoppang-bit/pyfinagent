@@ -12150,6 +12150,50 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "36.13",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "[P0 -- execute_buy HAS NO KILL-SWITCH GATE, SO THE MCP SIGNALS PATH PLACES ORDERS WHILE THE SWITCH IS PAUSED OR DISARMED] Found during the phase-36.12 research gate (handoff/current/research_brief_36.12.md, section 'Scope-adjacent defect'), then re-verified at source by Main on 2026-07-26 by grep, not by hand-count. MEASURED: `grep -rn '\\.execute_buy(' --include=*.py backend scripts | grep -v /tests/` returns FOUR non-test call sites -- backend/agents/mcp_servers/signals_server.py:444, backend/services/autonomous_loop.py:207, scripts/smoketest_stages_5_through_13.py:188, scripts/go_live_drills/zero_orders_drill.py:94. `grep -rn 'is_paused()' --include=*.py backend scripts | grep -v /tests/` returns exactly TWO consumers repo-wide: backend/services/paper_trader.py:1097 (inside check_and_enforce_kill_switch) and backend/services/autonomous_loop.py:1287 (the cycle halt branch). `backend/services/paper_trader.py::execute_buy` (:123, body read through :260) contains NO reference to kill_switch, is_paused, or paused. NET: the kill switch is enforced ONLY on the autonomous-cycle path. An order placed through the MCP publish_signal path (signals_server.py:444) bypasses it entirely -- while PAUSED after a real breach-triggered flatten, and while DISARMED with unknown baselines. This is a textbook CWE-424 alternate path: the deliberate, audited control is present on one route and absent on another that reaches the same effect. It also means phase-36.12's block, which lands in check_and_enforce_kill_switch + the loop's halt branch, is INCOMPLETE for that route -- 36.12 states this in its own scope-honesty section rather than silently covering it. THE FIX IS NOT OBVIOUS AND MUST BE RESEARCHED, not assumed: gating inside execute_buy is the tempting shape, but execute_buy is also the function the drills and smoketests call deliberately, and a naive `if is_paused(): return None` would silently break scripts/go_live_drills/zero_orders_drill.py (whose whole purpose is to place a probe order) and the stage smoketest. Decide explicitly between (a) a gate inside execute_buy with a narrow, audited, explicitly-named bypass for drills, (b) a gate at every caller, or (c) a separate guarded entry point that production callers must use. State which and why. DO NOT change kill-switch thresholds, and do not make the gate fail OPEN on an unreadable state -- a missing or unknown kill-switch state must block, matching 36.12's direction. RELATED: 36.12 (the cycle-path block this completes), 36.7 (the armed flag), 79.6 (the owed KS-PEAK-RESET token).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or signals_server'",
+            "success_criteria": [
+              "A test reproduces the bypass FIRST: with the kill switch PAUSED, the signals_server publish_signal BUY path still places a paper trade -- record that failing-intent output verbatim before fixing",
+              "A second test reproduces it for the DISARMED case (baselines unrestorable, armed False) -- also recorded before fixing",
+              "After the fix, both paths refuse, and the refusal is audited/observable rather than a silent no-op return",
+              "The call-site inventory is RE-DERIVED in the artifacts by the exact grep commands (not hand-counted), and every non-test caller is dispositioned explicitly as gated / deliberately-bypassing / out-of-scope",
+              "scripts/go_live_drills/zero_orders_drill.py and scripts/smoketest_stages_5_through_13.py still work as designed -- assert this explicitly; a drill that can no longer place its probe order is a regression, not a fix",
+              "The gate FAILS CLOSED: an unreadable or unknown kill-switch state blocks the order rather than allowing it -- a test proves it",
+              "Kill-switch thresholds, limits and the pause/resume API surface are byte-untouched -- diff must show no change to limit values",
+              "MUTATION-TEST every new guard, including the drill bypass if one is added (removing the bypass must fail the drill test; removing the gate must fail the bypass test)"
+            ],
+            "live_check": "Verbatim test output for the reproduce-then-fix pair on BOTH the paused and the disarmed case, plus the re-derived call-site grep output showing every non-test execute_buy caller and its disposition."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "36.14",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- THE TEST SUITE PAGES THE OPERATOR: 17 FALSE P1 SLACK ALERTS MEASURED IN ONE SESSION] Found while building phase-36.12 on 2026-07-26. MEASURED, not estimated: a Slack search of #ford-approvals for 'Kill-switch DISARMED at cycle start' on:2026-07-26 returned SEVENTEEN bot messages between 13:36:45 and 13:47:25 CEST, every one reading '[P1] Kill-switch DISARMED at cycle start -- new orders BLOCKED -- kill_switch: prior_sod_nav=None | prior_peak_nav=None | anchored_nav=18000.00'. All 17 were emitted by pytest and by an isolated dev rig; anchored_nav=18000.00 is a synthetic fixture value and no real book was involved. MECHANISM: backend/services/observability/alerting.py::raise_cron_alert -> _bot_token_fallback posts directly to Slack chat.postMessage (alerting.py:167) using the real SLACK_BOT_TOKEN from backend/.env, which pytest loads like any other process. There is NO test/CI/env guard anywhere on that path. AlertDeduper (alerting.py:63) is an in-process singleton, so its 1-hour repeat window suppresses nothing across processes -- every fresh pytest invocation fires again. THE CLASS IS PRE-EXISTING AND WIDER THAN THE STEP THAT FOUND IT: KillSwitchState.pause() alerts on ANY non-manual trigger (kill_switch.py:318-330), and existing test modules call it with trigger='limit_breach' (e.g. backend/tests/test_dod4_tier1_coverage_investment.py:968) -- so this predates phase-36.12, which merely added another dispatcher and made it visible. phase-36.12 stubbed its OWN module with an autouse capture fixture (which also ASSERTS the P1 fires, so the pager stays tested rather than merely silenced); it did not fix the class. WHY THIS MATTERS BEYOND NOISE: an operator who learns that P1 kill-switch alerts are usually test noise will stop reading them, which disarms the human half of the safety system -- and away-ops paging (steps 36.10, 62.x) is being built on this same channel. FIX DIRECTION, to be researched not assumed: a process-level guard is the obvious shape (detect pytest via PYTEST_CURRENT_TEST / an explicit ALERTS_ENABLED setting) but it must FAIL SAFE -- an env-detection bug that silences production alerts is far worse than test noise, so the guard must be positively asserted by a test that proves production dispatch still happens. Consider also a session-scoped conftest autouse fixture as defence in depth. DO NOT weaken or remove any alert in production code paths.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'alerting or kill_switch or observability'",
+            "success_criteria": [
+              "A test reproduces the defect FIRST: running a kill-switch pause/disarmed path under pytest attempts a real Slack dispatch -- prove it by asserting the outbound call is attempted (patch at the HTTP boundary, never by actually posting), and record that output verbatim before fixing",
+              "After the fix, no test in the whole suite can reach the real Slack HTTP call -- prove it with a suite-wide guard (e.g. a conftest autouse fixture patching the HTTP boundary that FAILS the run if a real dispatch is attempted), not per-module stubs",
+              "PRODUCTION DISPATCH STILL WORKS: a test proves the alert path still fires outside the test-detection condition. A guard that silences production alerts is a worse defect than the one being fixed -- this criterion is the point of the step",
+              "The full inventory of alert-emitting code paths reachable from tests is RE-DERIVED by grep (not hand-counted) and recorded, so the fix's scope is measured rather than assumed",
+              "The 17 measured alerts are re-counted at fix time from Slack (or a stated, reproducible query) so the before/after is evidence, not narrative",
+              "MUTATION-TEST: removing the test-time guard must fail the suite-wide no-dispatch test, and forcing the guard permanently on must fail the production-dispatch test"
+            ],
+            "live_check": "The Slack search output (query + count) before and after, plus verbatim test output showing the suite-wide guard failing a deliberately-dispatching test and passing otherwise."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."

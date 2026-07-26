@@ -125,9 +125,30 @@ enumerations** — caught by adversarial Q/A, and the third such count failure i
 | R14 | DISCLOSED — `experiment_results_80.40.md` correction #2 | `PaperVsBacktestCard`'s data path did change |
 | R15 | DISCLOSED — `80.40` correction #1, owned by existing `80.38` | backtest side hardcoded as `-12.0%` |
 
-**Derived totals:** 15 labels = **4 fixed** + **8 queued** (across **5** distinct steps: `36.8`,
-`36.9`, `36.10`, `36.11`, `80.43`, plus `80.45` filed this pass = 6) + **2** disclosed-only.
+**Derived totals — CORRECTED in cycle 3, and this time the derivation command is printed so the
+figure can be re-run instead of trusted:**
+
+```
+$ python3 -c "regex over the 15 '| Rn | disposition |' rows above, bucketed by disposition verb"
+FIXED:     n=4 -> ['R1', 'R6', 'R7', 'R11']
+QUEUED:    n=9 -> ['R2', 'R3', 'R4', 'R5', 'R8', 'R9', 'R10', 'R12', 'R13']
+DISCLOSED: n=2 -> ['R14', 'R15']
+TOTAL rows: 15
+distinct queued steps: 6 ['36.10', '36.11', '36.8', '36.9', '80.43', '80.45']
+```
+
+15 labels = **4 fixed** + **9 queued** (across **6** distinct steps) + **2** disclosed-only.
 A 16th finding — the new `36.12` — came from the research gate, not this list.
+
+> **Correction, cycle 3.** The previous revision of this line read "**8 queued** (across **5**
+> distinct steps ... plus `80.45` filed this pass = 6)" — wrong by one on the queued count, and
+> its own arithmetic (`4 + 8 + 2 = 14`) contradicted the 15 labels it claimed to enumerate in the
+> same sentence. Caught by the cycle-3 Q/A's mechanical re-derivation and independently re-derived
+> by Main before correcting. This is the **fourth** count failure on this step-id and the second
+> to survive its own remediation: the paragraph was itself written in cycle 2 to fix two prior
+> non-re-deriving counts, and it asserted the provenance "derived from the label list rather than
+> counted by hand" while in fact still being hand-counted. Printing the derivation output above,
+> rather than asserting the provenance, is what actually closes it.
 
 The four fixed:
 
@@ -188,8 +209,24 @@ element. Mutation-killed: deleting the em-dash fallback in `OpsStatusBar.tsx` no
 
 | # | Mutation | Result |
 |---|---|---|
-| revert rotation-aware restore | criterion 5a | KILLED (workflow-reported, reproduced) |
-| restore bare truthiness gate | criterion 5b | KILLED (workflow-reported, reproduced) |
+| revert rotation-aware restore | criterion 5a | KILLED (workflow-reported; independently reproduced by the cycle-3 Q/A as its M3, `7 failed`) |
+| **criterion 5b — the mutation that actually kills:** force the disarmed MARKERS off (`daily_baseline_missing`/`trailing_baseline_missing` → `False`, `armed` → `True`) **together with** the bare `if sod and sod > 0:` / `if peak and peak > 0:` gate expressions | criterion 5b | KILLED — Main measured `6 failed, 27 passed` (rc=1); the cycle-3 Q/A's differently-constructed variant of the same mutant measured `10 failed` |
+| hardcode `armed = True` alone (markers still computed) | criterion 5b, minimal form | KILLED — Main measured `6 failed, 27 passed` (rc=1) |
+| **SURVIVOR, recorded deliberately:** swap ONLY the two gate expressions to `if sod and sod > 0:` / `if peak and peak > 0:`, leaving the markers computed | — | **SURVIVES** — Main measured `33 passed` (rc=0), matching the Q/A's M12 |
+
+> **Correction, cycle 3 — the criterion-5b row above previously mis-attributed its own kill.** It
+> read "restore bare truthiness gate | criterion 5b | KILLED", which does not reproduce: swapping
+> only the gate *expressions* is a semantics-preserving refactor (`x and x > 0` and
+> `not (not (x is not None and x > 0))` agree for every float), so that mutant is green by
+> construction and can never kill anything. Found by the cycle-3 Q/A (its M12) and independently
+> reproduced by Main with its own in-memory mutation harness — `compile()` + `sys.modules`
+> injection, so `backend/services/kill_switch.py` is never written (`git diff --stat` on it empty,
+> `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after all
+> four runs). **Criterion 5b's intent is met** — the disarmed-state test genuinely dies when the
+> marker mechanism is removed — but the row now names the mutation that does the killing.
+> The survivor is kept in the table rather than deleted: it is simultaneously the strongest
+> available evidence for **criterion 4** (healthy-path arithmetic byte-identical to the pre-fix
+> shape), which is exactly why it cannot kill.
 | **R6 mutation:** remove `ks_tmp_audit` isolation | Main | KILLED — proved by triggering the real write, see above |
 | **R1 mutation:** remove `isfinite` guard | Main | KILLED — `assert inf is None` fails |
 | **R7 mutation:** remove `OpsStatusBar` em-dash fallback | Main | KILLED — `1 failed \| 10 passed` |
@@ -235,8 +272,10 @@ exactly what the adversarial Q/A predicted would happen.
 
 ## Scope honesty
 
-- **Eight** adversarial findings are **queued, not fixed here**, across **six** distinct steps —
-  see the disposition table above for the per-label mapping rather than a hand-counted total.
+- **Nine** adversarial findings are **queued, not fixed here** (`R2, R3, R4, R5, R8, R9, R10, R12,
+  R13`), across **six** distinct steps (`36.8, 36.9, 36.10, 36.11, 80.43, 80.45`) — both figures
+  re-derived by the printed command under the disposition table, not hand-counted. (Cycle-3
+  correction: this line previously said "Eight".)
   Each is a genuine design question (especially `R2`, the archive-authority policy) that deserves
   its own research gate rather than a rushed fix appended to an already-large change.
 - Operator's `:8000` never restarted; `:3000` never driven. Rig verified against real,
@@ -290,6 +329,80 @@ Knight Capital order (the most relevant primary postmortem, cited by this repo a
 no conclusion depends on it. And no public postmortem of a NaN silently disabling a production
 trading risk control exists in the literature — the researcher declined to cite an unsourced
 anecdote rather than pad the brief.
+
+## Cycle-3 follow-up (post-Q/A-2) — what CHANGED in the evidence
+
+This section exists so the cycle-3 Q/A can apply the no-verdict-shopping test (did the files
+change since the prior verdict?) without taking Main's word for it. Three things changed:
+
+1. **The live_check is now satisfied LITERALLY, not by rig substitution.** The operator authorized
+   restarts as standing end-of-session practice and the backend was restarted
+   (`launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`, pid `70791` → `76381`). The
+   immutable live_check's own words — *"from the RUNNING backend AFTER the fix and a restart"* — are
+   now met on the operator's own `:8000`. Recorded in `live_check_36.7.md` (commit `eaa42c1f`), and
+   re-measured by Main at the start of this cycle:
+   ```
+   $ curl -s http://localhost:8000/api/paper-trading/kill-switch
+   "sod_nav": 23838.19, "sod_date": "2026-07-24", "peak_nav": 24666.57, "current_nav": 23838.16,
+   "breach": {"daily_loss_pct": 0.0001, "trailing_dd_pct": 3.3584, "any_breached": false,
+              "daily_baseline_missing": false, "trailing_baseline_missing": false, "armed": true}
+   ```
+   Cycles 1 and 2 were graded against an isolated `:8001` rig only.
+
+2. **Both immutable commands re-run post-restart, this cycle, by Main:**
+   ```
+   $ python -m pytest backend/tests/ -q -k kill_switch
+   69 passed, 1 skipped, 2126 deselected, 1 warning in 11.44s
+   $ python -c "import ast; ast.parse(open('backend/services/kill_switch.py').read())"   # exit 0
+   ```
+   `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before AND after the
+   run — unchanged, no `peak_reset` row written.
+
+3. **PROTOCOL GAP, DISCLOSED — no `evaluator_critique` file was ever written for this step.**
+   Measured, not assumed: `handoff/current/evaluator_critique_36.7.md` does not exist, and
+   `git log --all --diff-filter=A -- 'handoff/current/evaluator_critique_36.7*'` returns nothing —
+   it never existed in history either. The cycle-1 and cycle-2 verdicts (both CONDITIONAL, per the
+   commit subject of `a3785bd1`, *"remediate cycle-2 CONDITIONAL -- STILL NO PASS"*) were acted on
+   but never transcribed to disk, so the five-file protocol's EVALUATE artifact is missing for this
+   step. Likewise `handoff/harness_log.md` contains **zero** entries for `phase=36.7` (grepped),
+   which means the Q/A's own 3rd-CONDITIONAL counting procedure — grep the log for prior
+   `result=CONDITIONAL` rows — would read **0** and understate the true count of **2**. Main is
+   disclosing this to the cycle-3 Q/A in the spawn evidence rather than letting the counter silently
+   reset, because the honest reading RAISES the bar: **a third CONDITIONAL on this step-id is an
+   auto-FAIL.** This cycle writes the missing critique file from the returned verdict.
+
+## Cycle-4 follow-up (post-Q/A-3 FAIL) — what changed, and the claim sweep it triggered
+
+Cycle 3's Q/A returned **FAIL** (transcribed verbatim in `handoff/current/evaluator_critique_36.7.md`
++ `.json`). Its own words: *"THE CODE IS CORRECT AND I VERIFIED IT MYSELF ... FAIL is issued on the
+RECORD, not the code ... REMEDIATION IS DOCUMENTATION-ONLY ... Do not touch the shipped code."*
+Both findings were independently reproduced by Main before being acted on. **No production file
+was edited in this cycle** — `git diff --stat` on `backend/`, `frontend/` and `scripts/` is empty
+relative to `HEAD`.
+
+1. **F1 (blocking) — the derived totals did not re-derive.** Fixed at both sites, and the
+   derivation *output* is now printed inline instead of the derivation being *asserted*. See the
+   corrected block under the disposition table and the corrected "Scope honesty" bullet.
+2. **F2 (warn) — the criterion-5b matrix row mis-attributed its kill.** Fixed; the matrix now
+   carries four rows (two killing mutants, one deliberate survivor, plus 5a) with Main's own
+   measured `pytest` counts. Method note: Main's harness mutates a source *string* in memory and
+   installs it into `sys.modules`, so the repo file is never written; every mutation asserts its
+   pattern matched **exactly once** before applying, so a silently-inert mutation cannot be
+   mistaken for a survivor.
+3. **Claim sweep (fixing the class, not the instance).** Because this was the fourth count failure
+   on this step-id, Main re-derived *every* remaining numeric claim in this artifact rather than
+   only the one the Q/A named:
+
+   | Claim in this file | Re-derived value | Verdict |
+   |---|---|---|
+   | live audit file "8 lines, 0 `peak_reset` rows" | 8 lines, events `{pause: 4, resume: 4}` | holds |
+   | un-suffixed archive "45,162 bytes — the largest" | 45162 vs -v2 4787, -v3 37910, -v4 107 | holds |
+   | research brief "12 sources read in full ... 34 URLs ... `gate_passed: true`" | envelope reports exactly those | holds |
+   | new 36.7 test file "33 tests" | baseline in-memory run: `33 passed` | holds |
+   | "15 issues (`R1`–`R15`)" / "FOUR were ... fixed in this cycle" | 15 table rows; FIXED bucket n=4 | holds |
+   | immutable command "69 passed, 1 skipped" | re-run this cycle: `69 passed, 1 skipped` | holds |
+
+   No further discrepancy found. The two the Q/A named were the only ones.
 
 ## Research-gate timeline (history, resolved above)
 

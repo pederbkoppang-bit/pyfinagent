@@ -59,7 +59,18 @@ output from the RUNNING backend AFTER the fix and a restart, showing a non-null 
 sod_nav:null/peak_nav:null/any_breached:false with current_nav 23838.16. Requires the phase-79.55
 restart.*
 
-> **Disclosure on the live_check.** The operator's `:8000` has **not** been restarted — restarting
+> **RESOLVED 2026-07-26 (commit `eaa42c1f`) — read this before the paragraph below it.** The
+> operator authorized restarts as standing end-of-session practice and the backend WAS restarted:
+> `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend`, pid `70791` → `76381`. The
+> immutable live_check is therefore satisfied **literally**, on the operator's own `:8000` — the
+> cycle-4 Q/A curled it independently and measured `sod_nav 23838.19 / sod_date 2026-07-24 /
+> peak_nav 24666.57 / current_nav 23838.16 / armed true / daily_loss_pct 0.0001 /
+> trailing_dd_pct 3.3584`. Nothing is "still owed" on this criterion. The paragraph below is the
+> PLAN-TIME position, preserved rather than rewritten; it was true when written and is superseded
+> now. (Left uncorrected until cycle 4 — an operator reading the archived contract would have
+> concluded a satisfied live_check was outstanding.)
+>
+> **Disclosure on the live_check (PLAN-TIME, SUPERSEDED).** The operator's `:8000` has **not** been restarted — restarting
 > it is an operator action (`79.55` is explicitly labelled `[OPERATOR ACTION]`), not something Main
 > performs even with the operator's approval to proceed on the code work. `live_check_36.7.md`
 > satisfies this criterion against an isolated rig running the identical fixed code over the
@@ -71,8 +82,16 @@ restart.*
 ## Do-no-harm
 
 Paper only. Kill-switch edits authorized for this work only, direction must stay
-**more-conservative**. No peak-reset performed. No threshold value changed. Operator's `:8000`
-(pid 70791) never restarted or driven by Main; `:3000` never driven.
+**more-conservative**. No peak-reset performed. No threshold value changed. `:3000` never driven.
+
+**Correction, cycle 4:** this line previously read "Operator's `:8000` (pid 70791) never restarted
+or driven by Main". That was true through cycles 1–3 and became false at commit `eaa42c1f`, when
+the operator's standing authorization was applied and Main restarted the backend
+(`70791` → `76381`). Stated accurately: **the restart was operator-authorized and performed by
+Main**, the book was untouched across it (`paused: false` before and after), and it is what turned
+the live_check from rig-substituted into literal. Corrected here rather than left standing,
+because a false statement about Main's own conduct is exactly the class the project's
+`feedback_verify_own_completed_action_claims` rule exists to stop.
 
 ## References
 
@@ -81,6 +100,15 @@ verification result, and the corrected record of implementation claims. See
 `handoff/current/live_check_36.7.md` for the capture. Follow-up defects the adversarial
 verification found are queued as `36.8` (P0), `36.9` (P0), `36.10` (P1), `36.11` (P2), `80.43`
 (P2) and `80.45` (P3) — see `experiment_results_36.7.md`'s per-label disposition table for the
-R-finding → step mapping. An earlier revision of this line said "Six follow-up defects", a
-hand-counted figure that matched neither the eight queued findings nor the six steps they map to;
-the table is the authority.
+R-finding → step mapping. The re-derived figures are **nine** queued findings
+(`R2, R3, R4, R5, R8, R9, R10, R12, R13`) across **six** distinct steps; the printed derivation
+command under that table is the authority, not any number typed here.
+
+> **Correction, cycle 4.** Two earlier revisions of this line were wrong: it first said "Six
+> follow-up defects", then "the eight queued findings". The cycle-3 Q/A caught the count in
+> `experiment_results_36.7.md`; Main fixed it there and claimed to have fixed "the class, not the
+> instance" — but scoped that sweep to a single filename **typed by hand** rather than derived, so
+> this file kept the wrong number and the cycle-4 Q/A found it. Fifth count failure on this
+> step-id, third to survive its own remediation. The sweep has now been re-run over the DERIVED
+> artifact set (`ls handoff/current/ | grep 36\.7` → contract, experiment_results, live_check,
+> evaluator_critique, research_brief, captures dir); this line was the only surviving offender.
