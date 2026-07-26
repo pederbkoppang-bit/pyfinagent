@@ -256,9 +256,19 @@ class KillSwitchState:
                     # (2026-06-03) -- the restore itself destroyed 541.80 of
                     # peak = 2.17pp of trailing-DD headroom. max() makes the
                     # replay agree with the writer's own invariant.
-                    nav = _coerce_nav(row.get("nav"))
-                    if nav is not None and (self._peak_nav is None or nav > self._peak_nav):
-                        self._peak_nav = nav
+                    # phase-36.8: a MARKED anchor row is an authority boundary -- it
+                    # ASSIGNS, superseding everything before it in `ts` order, and
+                    # later rows ratchet up FROM it. Unmarked rows (every row written
+                    # before 36.8, all 20 of them) keep the pure ratchet above, so
+                    # 36.7's true-peak restore is byte-preserved. `is True` and not a
+                    # truthiness test: an older row carrying some other `anchor` value
+                    # must not accidentally acquire authority.
+                    if row.get("anchor") is True:
+                        self._apply_authoritative_peak(row.get("nav"), "peak_update:anchor")
+                    else:
+                        nav = _coerce_nav(row.get("nav"))
+                        if nav is not None and (self._peak_nav is None or nav > self._peak_nav):
+                            self._peak_nav = nav
                 elif event == "peak_reset":
                     # phase-69.1 (audit item 2): audited peak reset (flatten /
                     # operator-resume). Restart-replayable + idempotent -- the
@@ -267,7 +277,12 @@ class KillSwitchState:
                     # not max) -- it must be able to lower the peak, and later
                     # peak_update rows ratchet up from the reset value because the
                     # rows are replayed in `ts` order.
-                    self._peak_nav = _coerce_nav(row.get("new_peak"))
+                    # phase-36.8: routed through the SAME guard as the new anchor
+                    # branch. Previously this assigned `_coerce_nav(...)` unguarded, so
+                    # one malformed row nulled the peak -- and a later ratchet then
+                    # healed it DOWNWARD to whatever came next, silently discarding the
+                    # true high-water mark while `armed` stayed true (measured).
+                    self._apply_authoritative_peak(row.get("new_peak"), "peak_reset")
                     # phase-36.12: a deliberate, token-gated operator re-anchor
                     # supersedes a lost-history anchor -- the operator has now
                     # chosen the mark, so the baselines are no longer a fiction
@@ -281,6 +296,32 @@ class KillSwitchState:
                     self._baseline_provenance = "lost_history_anchor"
         except Exception as e:
             logger.warning(f"kill_switch: audit load failed: {e}")
+
+    def _apply_authoritative_peak(self, raw: Any, source: str) -> None:
+        """phase-36.8: the ONE guarded path for every ASSIGNMENT to `_peak_nav`.
+
+        Both assignment-semantics branches route here -- `peak_reset` (phase-69.1's
+        token-gated downward move) and 36.8's marked anchor. An assignment can LOWER
+        the peak, so a value that cannot be a baseline must be ignored rather than
+        applied: assigning `None` disarms the trailing leg on the next restart, and a
+        subsequent ratchet then re-anchors from whatever row comes next, which is
+        lower than the true mark and silently under-measures every future drawdown.
+
+        Ignoring is the conservative direction here precisely because the alternative
+        is a silent downward move. It logs at ERROR because a malformed row on a
+        safety stream is an operator-visible event, not a debug detail.
+        """
+        value = _coerce_nav(raw)
+        if value is None:
+            logger.error(
+                "kill_switch: IGNORING an authoritative peak assignment from %s -- "
+                "value %r does not coerce to a positive finite NAV. The prior peak "
+                "(%s) is retained; assigning this would have lowered or nulled the "
+                "trailing high-water mark.",
+                source, raw, self._peak_nav,
+            )
+            return
+        self._peak_nav = value
 
     @staticmethod
     def _append_audit(event: str, **fields: Any) -> None:
@@ -403,9 +444,30 @@ class KillSwitchState:
             self._append_audit("sod_snapshot", nav=self._sod_nav, date=self._sod_date)
 
     def update_peak(self, nav: float) -> None:
-        """Ratchet the trailing high-water mark upward. Never moves down."""
+        """Ratchet the trailing high-water mark upward. Never moves down.
+
+        phase-36.8: an anchor-from-`None` is STAMPED on the row (`anchor: true`,
+        `prior_peak: null`) while an ordinary ratchet is not. This is the ONLY place
+        the two cases are still distinguishable -- once the row is written, `{nav}`
+        alone cannot tell "the peak rose to X" from "the peak was absent and got
+        anchored at X". The replay needs that distinction because the archive merge is
+        unconditional: without it, a stale archived peak outranks a fresh anchor
+        forever (`reset_peak` is DARK and this method only ratchets up), which
+        flattens and pauses a healthy book against a phantom high-water mark.
+
+        The marker is an IN-STREAM AUTHORITY BOUNDARY, the shape every reference
+        implementation uses for this (Kafka leader epochs, PostgreSQL timelines,
+        Fowler's rejected-events). It is deliberately NOT file recency: PostgreSQL
+        prefers the archive over the live directory, so "the live file is fresher"
+        is not a sound rule. See handoff/current/research_brief_36.8.md.
+        """
         with self._lock:
-            if self._peak_nav is None or nav > self._peak_nav:
+            if self._peak_nav is None:
+                self._peak_nav = float(nav)
+                self._append_audit(
+                    "peak_update", nav=self._peak_nav, anchor=True, prior_peak=None,
+                )
+            elif nav > self._peak_nav:
                 self._peak_nav = float(nav)
                 self._append_audit("peak_update", nav=self._peak_nav)
 

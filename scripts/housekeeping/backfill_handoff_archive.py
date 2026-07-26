@@ -59,6 +59,24 @@ HANDOFF_ROOT_KEEP = {
     "kill_switch_audit.jsonl",
 }
 
+# phase-36.8: the audit ARCHIVES are safety-relevant and MUST NOT be pruned.
+# Keep this set byte-identical between the two housekeeping scripts; the test
+# backend/tests/test_phase_36_8_archive_merge_authority.py::
+# test_phase_36_8_both_housekeeping_scripts_protect_the_audit_archives parses
+# both by AST and fails if they drift.
+#
+# WHY NO CAP / NO OLDEST-FIRST PRUNING (criterion 3, decided on measurement):
+# `kill_switch._load_from_audit` merges these files on every boot to restore the
+# trailing high-water mark, and 100% of the live book's baselines come from them
+# today. The TRUE peak (24666.57) lives in the OLDEST file, so an
+# oldest-first cap would delete the row the kill switch depends on. Measured
+# 2026-07-26: 897 rows across 5 files, boot cost 0.95 ms total (1.06 us/row) --
+# so growth is accepted as a bounded cost rather than capped. All five files are
+# git-tracked, which is the recoverability backstop.
+AUDIT_KEEP_GLOBS = (
+    "kill_switch_audit*.jsonl",
+)
+
 
 def _step_statuses() -> dict[str, str]:
     with MASTERPLAN.open() as f:
