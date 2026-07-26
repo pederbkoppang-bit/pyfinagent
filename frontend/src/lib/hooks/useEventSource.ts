@@ -84,11 +84,24 @@ export function useEventSource<T = unknown>(
 
   const sourceRef = useRef<EventSource | null>(null);
   const backoffRef = useRef(1000); // start at 1s
+  // phase-80.33: the pending reconnect handle, so effect cleanup can cancel it.
+  const reconnectTimerRef = useRef<number | null>(null);
+  // phase-80.34: mirrors `failures` so the next count is computed OUTSIDE the
+  // setState updater, keeping that updater pure under Strict Mode's double-invoke.
+  const failuresRef = useRef(0);
 
   const cleanup = useCallback(() => {
     if (sourceRef.current) {
       sourceRef.current.close();
       sourceRef.current = null;
+    }
+    // phase-80.33: cancel any reconnect still pending in the backoff window.
+    // Without this the effect cleanup closed only the CURRENT EventSource, and a
+    // timer scheduled up to 30s earlier would later construct a new one against
+    // an unmounted component.
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
     }
   }, []);
 
@@ -109,6 +122,11 @@ export function useEventSource<T = unknown>(
       const onMessage = (event: MessageEvent) => {
         setStatus("connected");
         setFailures(0);
+        // phase-80.34: the mirror MUST be reset everywhere `failures` is, or it
+        // drifts above the real count and the backoff keeps escalating after a
+        // successful event -- the failure budget is only cleared by a real event
+        // arriving, so this is the one place that clears it on the happy path.
+        failuresRef.current = 0;
         backoffRef.current = 1000;
         setLastEventAt(Date.now());
         try {
@@ -154,17 +172,39 @@ export function useEventSource<T = unknown>(
       es.onerror = () => {
         setStatus("error");
         cleanup();
-        setFailures((prev) => {
-          const next = prev + 1;
-          if (next < maxFailures) {
-            const delay = Math.min(backoffRef.current, 30_000);
-            backoffRef.current = Math.min(backoffRef.current * 2, 30_000);
-            window.setTimeout(connect, delay);
-          } else {
-            setStatus("disconnected");
+        // phase-80.33 + 80.34: these two filed defects were ONE mistake -- side
+        // effects living inside a setState updater, which also meant nobody owned
+        // the reconnect timer.
+        //
+        // 80.34: React requires updater functions to be PURE, and Strict Mode
+        // deliberately invokes them TWICE to surface impurity. The old updater
+        // scheduled a timeout, mutated backoffRef and called setStatus, so under
+        // Strict Mode every onerror scheduled TWO reconnects and advanced the
+        // backoff twice -- the real cadence was not the intended 1/2/4/8s.
+        //
+        // 80.33: `window.setTimeout(connect, delay)` DISCARDED its handle, so the
+        // effect cleanup could not cancel a pending reconnect. A component that
+        // unmounted inside the backoff window (~15s on /agents) still ran connect()
+        // afterwards, building a NEW EventSource against a dead component.
+        //
+        // Fix: compute the next count OUTSIDE the updater, keep the updater pure,
+        // and store the timer in a ref that cleanup clears.
+        const next = failuresRef.current + 1;
+        failuresRef.current = next;
+        setFailures(next);
+        if (next < maxFailures) {
+          const delay = Math.min(backoffRef.current, 30_000);
+          backoffRef.current = Math.min(backoffRef.current * 2, 30_000);
+          if (reconnectTimerRef.current !== null) {
+            window.clearTimeout(reconnectTimerRef.current);
           }
-          return next;
-        });
+          reconnectTimerRef.current = window.setTimeout(() => {
+            reconnectTimerRef.current = null;
+            connect();
+          }, delay);
+        } else {
+          setStatus("disconnected");
+        }
       };
     } catch (err) {
       setStatus("error");
@@ -184,6 +224,7 @@ export function useEventSource<T = unknown>(
 
   const reconnect = useCallback(() => {
     setFailures(0);
+    failuresRef.current = 0; // phase-80.34: keep the mirror in step with state
     backoffRef.current = 1000;
     connect();
   }, [connect]);
