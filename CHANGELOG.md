@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `aabfcd23` | docs: agent-memory research gate -- found the orchestrator reading a 4-month-stale MEMORY.md |
 | 2026-07-26 | `d14d4b2c` | chore: audit the memory tree -- found a LOST operator lesson, add a re-runnable auditor |
 | 2026-07-26 | `04617d63` | fix(80.19): add the missing favicon -- /favicon.ico 404'd on every page load |
 | 2026-07-26 | `bcaaa6f7` | feat(36.20): RE-ANCHORING badge + kill the fabricated 0.00% -- WIP, NOT Q/A-verified |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `d03a40f1` | fix(36.8): cycle-1 FAIL was right -- the marker granted authority to an ACCIDENT |
 | 2026-07-26 | `09125a81` | feat(36.8): an in-stream authority boundary, so a fresh anchor outranks stale archived history |
 | 2026-07-26 | `c5f48cec` | phase-36.12: the order-placing path can no longer forgive a drawdown it cannot measure (Q/A PASS, cy |
-| 2026-07-26 | `4a88fe25` | fix(36.12): close QA-P2, the FIFTH hole in the halt wiring -- the PROCEED direction was untested |
 
 ---
 
