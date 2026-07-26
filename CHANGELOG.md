@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `eaa42c1f` | docs(36.7,80.40): live_check RESOLVED on the operator's own :8000 after an authorized restart |
 | 2026-07-26 | `a3785bd1` | wip(36.7,80.40): remediate cycle-2 CONDITIONAL -- STILL NO PASS, steps remain pending |
 | 2026-07-26 | `b0abb061` | wip(36.7,80.40): kill switch fixed at both ends -- NO Q/A VERDICT YET (3x API 529) |
 | 2026-07-26 | `e19dd00e` | chore: subagent memory + hook-appended audit logs (NOT the step work) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `3464e946` | docs: measure the done-definition evidence -- items 1-3 are restart-gated, and it is now proven |
 | 2026-07-26 | `314b02ad` | docs: close two goal deliverables -- per-step tier ledger + count re-derivation |
 | 2026-07-26 | `c3f809c8` | fix(36.7): queue the kill-switch-cannot-fire P0 -- the claim that it was queued was false |
-| 2026-07-26 | `fee8ce7e` | phase-80.4: CLOSE-OUT -- status done after Q/A PASS on cycle 4 |
 
 ---
 
