@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `6fed95e9` | docs(36.8): correct the matrix table to the measured 29-test baseline |
 | 2026-07-26 | `d03a40f1` | fix(36.8): cycle-1 FAIL was right -- the marker granted authority to an ACCIDENT |
 | 2026-07-26 | `09125a81` | feat(36.8): an in-stream authority boundary, so a fresh anchor outranks stale archived history |
 | 2026-07-26 | `c5f48cec` | phase-36.12: the order-placing path can no longer forgive a drawdown it cannot measure (Q/A PASS, cy |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `e4efdc23` | docs(80.40): cycle-3 FAIL + cycle-4/5 verdicts transcribed; criterion-3 mutation run firsthand |
 | 2026-07-26 | `cfb56572` | feat(36.12): block orders when the kill-switch baselines were lost, instead of silently re-anchoring |
 | 2026-07-26 | `eaa42c1f` | docs(36.7,80.40): live_check RESOLVED on the operator's own :8000 after an authorized restart |
-| 2026-07-26 | `a3785bd1` | wip(36.7,80.40): remediate cycle-2 CONDITIONAL -- STILL NO PASS, steps remain pending |
 
 ---
 
