@@ -308,7 +308,25 @@ class KillSwitchState:
                     # 36.7's true-peak restore is byte-preserved. `is True` and not a
                     # truthiness test: an older row carrying some other `anchor` value
                     # must not accidentally acquire authority.
-                    if row.get("anchor") is True:
+                    # phase-36.8 (cycle-5 REDESIGN): authority requires the row to
+                    # NAME WHAT IT SUPERSEDED. `prior_peak` must coerce to a real
+                    # positive finite NAV -- a value the writer actually observed.
+                    #
+                    # WHY THIS SHAPE. Five independent Q/A passes each found a new way
+                    # for a lost-history anchor to claim authority (no gate; gate on
+                    # the wrong signal; chmod-000 dir where glob returns empty without
+                    # raising; unparseable lines; present-but-silent sources incl. a
+                    # 0-byte file and an absent LIVE file). Every one of those closed a
+                    # remembered failure mode, and the sixth would too -- the flag was
+                    # NEGATIVELY derived, so it was only ever as good as the author's
+                    # imagination. This rule is POSITIVE: all five routes produce an
+                    # anchor over a peak of `None`, which by construction cannot name a
+                    # prior, so none of them can ever be authoritative. It also matches
+                    # the research: the authorized re-anchor is `peak_reset`
+                    # (token-gated), and no production path writes an intentional lower
+                    # anchor -- so this branch is deliberately production-dead today.
+                    if (row.get("anchor") is True
+                            and _coerce_nav(row.get("prior_peak")) is not None):
                         self._apply_authoritative_peak(row.get("nav"), "peak_update:anchor")
                     else:
                         nav = _coerce_nav(row.get("nav"))
@@ -516,17 +534,19 @@ class KillSwitchState:
                 # permanently destroy the true high-water mark in the UNSAFE
                 # direction. Unmarked => ratchet, so a later complete boot
                 # restores the real peak.
-                if self._history_complete:
-                    self._append_audit(
-                        "peak_update", nav=self._peak_nav, anchor=True, prior_peak=None,
-                    )
-                else:
+                # phase-36.8 (cycle-5 REDESIGN): an anchor-from-None CANNOT name what
+                # it superseded, because there was nothing to observe. It is therefore
+                # never authoritative, regardless of `_history_complete`. That flag is
+                # retained as a diagnostic (and is still asserted by tests) but it is no
+                # longer what decides authority -- deriving authority from "no failure I
+                # remembered to check for" is what produced five successive holes.
+                if not self._history_complete:
                     logger.warning(
-                        "kill_switch: anchoring peak at %.2f WITHOUT authority -- the "
-                        "audit replay was incomplete, so this row must not be allowed to "
-                        "outrank archived history on a later boot.", self._peak_nav,
+                        "kill_switch: anchoring peak at %.2f over an INCOMPLETE audit "
+                        "replay -- history may exist that this boot could not read.",
+                        self._peak_nav,
                     )
-                    self._append_audit("peak_update", nav=self._peak_nav)
+                self._append_audit("peak_update", nav=self._peak_nav)
             elif nav > self._peak_nav:
                 self._peak_nav = float(nav)
                 self._append_audit("peak_update", nav=self._peak_nav)

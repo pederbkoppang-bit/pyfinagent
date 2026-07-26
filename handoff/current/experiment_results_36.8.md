@@ -113,40 +113,38 @@ of them selected; measured `pytest -k kill_switch --collect-only | grep -c test_
 `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after every run;
 `git status` clean on both live audit files throughout.
 
-## Mutation matrix — 14 mutations, 14 killed, at ONE baseline (`35 passed`)
+## Mutation matrix — 13 mutations, 13 killed, one batch at baseline `44 passed`
 
-**Every row below was re-run in a single batch AFTER the last test landed.** The cycle-3 Q/A caught
-the previous version claiming "one batch run at the final baseline" while 9 of 13 rows had actually
-been measured at an earlier baseline — a provenance claim that was false even though the kills held.
-This table is regenerated from one batch; the counts are derived from its output, not carried
-forward.
-
-| # | Mutation | Result @ baseline `35 passed` |
+| # | Mutation | Result |
 |---|---|---|
-| M1 | the marked anchor loses authority and merely ratchets | KILLED `2 failed, 33 passed` |
-| M2 | EVERY `peak_update` assigns — the 36.7 regression | KILLED `9 failed, 26 passed` |
-| M3 | `anchor` truthiness instead of `is True` | KILLED `4 failed, 31 passed` |
-| M4 | `_apply_authoritative_peak` assigns unguarded | KILLED `13 failed, 22 passed` |
-| M5 | the writer stops marking the anchor | KILLED `2 failed, 33 passed` |
-| M6 | `peak_reset` bypasses the guard | KILLED `6 failed, 29 passed` |
-| M8 | stamp authority even when the replay was incomplete *(cycle-1 regression)* | KILLED `2 failed, 33 passed` |
-| M9 | the replay claims a complete history unconditionally | KILLED `6 failed, 29 passed` |
-| MXL | stat the archive dir instead of listing it *(cycle-2 route)* | KILLED `1 failed, 34 passed` |
-| MX4 | per-file read failure not recorded as incomplete | KILLED `1 failed, 34 passed` |
-| MX3 | `_history_complete` class default flipped to True | KILLED `1 failed, 34 passed` |
-| MX2 | drop `prior_peak=None` from the anchor row | KILLED `2 failed, 33 passed` |
-| **MXP** | **a parse failure drops history silently *(cycle-3 route)*** | KILLED `3 failed, 32 passed` |
-| M7 | one housekeeping script drops the archive declaration (disk) | KILLED `1 failed, 34 passed` |
+| **MSTRUCT** | **drop the "must name what it superseded" clause — the redesign itself** | KILLED `8 failed, 36 passed` |
+| **MWRITER** | **the writer stamps authority on an anchor-from-`None` again** | KILLED `5 failed, 39 passed` |
+| M1 | the marked anchor loses authority and merely ratchets | KILLED `2 failed, 42 passed` |
+| M2 | EVERY `peak_update` assigns — the 36.7 regression | KILLED `17 failed, 27 passed` |
+| M3 | `anchor` truthiness instead of `is True` | KILLED `4 failed, 40 passed` |
+| M4 | `_apply_authoritative_peak` assigns unguarded | KILLED `13 failed, 31 passed` |
+| M6 | `peak_reset` bypasses the guard | KILLED `6 failed, 38 passed` |
+| M9 | the replay claims a complete history unconditionally | KILLED `5 failed, 39 passed` |
+| MXL | stat the archive dir instead of listing it | KILLED `1 failed, 43 passed` |
+| MX4 | per-file read failure not recorded | KILLED `1 failed, 43 passed` |
+| MX3 | `_history_complete` class default flipped to True | KILLED `1 failed, 43 passed` |
+| MXP | a parse failure drops history silently | KILLED `2 failed, 42 passed` |
+| M7 | one housekeeping script drops the archive declaration (disk) | KILLED `1 failed, 43 passed` |
 
-Disk mutants restore their file with sha256 re-verified. `M8`, `MXL`, `MX4` and `MXP` are the four routes the completeness gate has had to close (an earlier
-revision of this line cited a mutant `M17`, which does not exist in this step's matrix — that label
-belongs to phase-36.12's) — see the table below.
+**Re-running the matrix against the redesign found two of my own gaps**, which is the whole point of
+re-running rather than carrying results forward:
 
-**Ceiling, stated plainly:** this licenses *"these 14 mutations were killed at this baseline"*. It is
-a lower bound on the guard set, never a claim about the code. Independent passes found survivors in
-my set twice; assume a fifth route until someone has looked for it.
+- **`M3` SURVIVED at first.** The redesign masked its own guard: the identity-check test wrote rows
+  with no `prior_peak`, so the new naming clause rejected them and `is True` was never exercised.
+  The test now supplies a VALID `prior_peak`, so only the identity clause can reject — and M3 dies.
+- **`MWRITER` produced no result**, because after the redesign its pattern matched two sites and the
+  harness's exactly-once assertion fired. A mutant that does not apply is not a passing mutant; it is
+  no evidence at all. Re-pointed, and it dies.
 
-### FOUR routes to the same regression, each found by an evaluator after I declared closure
+**Ceiling:** this licenses *"these 13 were killed at baseline 44"*. Five independent passes each beat
+my previous guard sets; assume a sixth reader will find something and write for that reader.
+
+### FIVE routes to one regression — and why the fix is now structural
 
 | # | Route | Why the previous gate missed it |
 |---|---|---|
@@ -154,10 +152,24 @@ my set twice; assume a fifth route until someone has looked for it.
 | 2 | archive dir absent / unreadable | gate existed but keyed on the wrong signal |
 | 3 | archive dir **unlistable** (`chmod 000`) | `is_dir()` True and `Path.glob` returns empty **without raising** |
 | 4 | archive file **unparseable** | per-*file* failures recorded; per-*line* failures dropped silently |
+| 5 | source **present-but-silent** (0-byte, absent LIVE file, unglobbed name, nested subdir) | the flag only ever fired on sources that ERROR |
 
-The invariant was correct from cycle 2 onward — *complete is False whenever this replay may be
-missing history it cannot see* — and I under-applied it three times running. Each fix was right and
-each left a neighbouring hole, which is the same shape as 36.12's five-position call site.
+**The cycle-5 redesign stops enumerating.** Authority is no longer derived from the ABSENCE of a
+failure someone remembered to check for — a negatively-derived flag that is only ever as good as its
+author's imagination, and which five independent passes each defeated. It is now derived POSITIVELY:
+**a row may lower the high-water mark only if it NAMES what it superseded** (`prior_peak` must coerce
+to a real positive finite NAV). Every one of the five routes produces an anchor over a peak of
+`None` — nothing observed, so nothing nameable — so all five are unreachable by construction rather
+than by enumeration. `MSTRUCT` removes that clause and dies at `8 failed`.
+
+The honest consequence, asserted rather than implied: `update_peak` only ever anchors FROM `None`, so
+**no production writer can emit an authoritative anchor at all**. The authorized re-anchor stays
+`peak_reset` — token-gated and DARK — exactly what the research found industry practice to be. The
+replay honours the marked form so an operator-authored or future token-gated writer can use it, and
+`..._no_production_path_can_write_an_authoritative_anchor` pins that.
+
+`_history_complete` is retained as a diagnostic (and still asserted by its tests) but is no longer
+what decides authority.
 
 ## Cycle-2 follow-up (post-Q/A-1 FAIL) — I shipped a safety regression and it caught it
 

@@ -98,7 +98,7 @@ def test_phase_36_8_a_fresh_marked_anchor_beats_a_higher_archived_peak(ks_tmp_au
            _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
     _write(live,
            _row("2026-07-26T10:00:00+00:00", "peak_update", nav=18000.0,
-                anchor=True, prior_peak=None))
+                anchor=True, prior_peak=24666.57))
 
     assert ks.KillSwitchState().snapshot()["peak_nav"] == 18000.0
 
@@ -110,7 +110,7 @@ def test_phase_36_8_rows_after_a_marked_anchor_ratchet_up_from_it(ks_tmp_audit):
            _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
     _write(live,
            _row("2026-07-26T10:00:00+00:00", "peak_update", nav=18000.0,
-                anchor=True, prior_peak=None),
+                anchor=True, prior_peak=24666.57),
            _row("2026-07-26T11:00:00+00:00", "peak_update", nav=19000.0),
            _row("2026-07-26T12:00:00+00:00", "peak_update", nav=18500.0))
 
@@ -125,7 +125,7 @@ def test_phase_36_8_a_marked_anchor_does_not_apply_retroactively(ks_tmp_audit):
            _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
     _write(live,
            _row("2026-05-01T10:00:00+00:00", "peak_update", nav=9000.0,
-                anchor=True, prior_peak=None))
+                anchor=True, prior_peak=24666.57))
 
     # The anchor is OLDER than the archived ratchet, so the archived row wins.
     assert ks.KillSwitchState().snapshot()["peak_nav"] == 24666.57
@@ -143,10 +143,69 @@ def test_phase_36_8_only_a_literal_true_grants_authority(ks_tmp_audit, truthy):
     ks, live, archive = ks_tmp_audit
     _write(archive / "kill_switch_audit-v3.jsonl",
            _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
+    # A VALID prior_peak, so the ONLY thing that can reject this row is the `is True`
+    # identity check. Without it the cycle-5 redesign masked this guard: the rows had
+    # no prior_peak, so the naming clause rejected them and the identity clause was
+    # never exercised (mutant M3 SURVIVED -- caught by re-running the matrix).
     _write(live,
-           _row("2026-07-26T10:00:00+00:00", "peak_update", nav=18000.0, anchor=truthy))
+           _row("2026-07-26T10:00:00+00:00", "peak_update", nav=18000.0,
+                anchor=truthy, prior_peak=24666.57))
 
     assert ks.KillSwitchState().snapshot()["peak_nav"] == 24666.57
+
+
+@pytest.mark.parametrize(
+    "prior", [None, 0, 0.0, -1.0, "n/a", float("inf"), float("nan"), "__absent__"],
+    ids=["null", "zero-int", "zero-float", "negative", "unparseable", "inf", "nan", "key-absent"],
+)
+def test_phase_36_8_an_anchor_that_NAMES_NOTHING_has_no_authority(ks_tmp_audit, prior):
+    """THE STRUCTURAL GUARD -- this is what closes all five routes at once.
+
+    Five independent Q/A passes each found a new way for a lost-history anchor to
+    claim authority: no gate at all; a gate keyed on the wrong signal; a chmod-000
+    dir where `glob` returns empty WITHOUT raising; unparseable lines; and
+    present-but-silent sources (a 0-byte file, an ABSENT LIVE FILE, an unglobbed
+    name, a nested subdir). Each fix closed one remembered failure mode, and the
+    cycle-4 Q/A named the real problem: *"closing hole #5 by hand is the same move
+    that produced holes #2-#5."*
+
+    So authority is no longer derived from the ABSENCE of a failure anyone thought
+    to check for. It is derived POSITIVELY: a row may lower the high-water mark only
+    if it NAMES what it superseded. Every one of the five routes produces an anchor
+    over a peak of `None` -- there was nothing to observe, so nothing can be named,
+    so none of them can ever be authoritative, no matter how the source failed.
+    """
+    ks, live, archive = ks_tmp_audit
+    _write(archive / "kill_switch_audit-v3.jsonl",
+           _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
+    fields = {"nav": 18000.0, "anchor": True}
+    if prior != "__absent__":
+        fields["prior_peak"] = prior
+    _write(live, _row("2026-07-26T10:00:00+00:00", "peak_update", **fields))
+
+    assert ks.KillSwitchState().snapshot()["peak_nav"] == 24666.57, (
+        "an anchor that cannot name what it superseded must never lower the peak"
+    )
+
+
+def test_phase_36_8_no_production_path_can_write_an_authoritative_anchor(ks_tmp_audit):
+    """The honest consequence, asserted rather than left implicit: with authority
+    requiring a named prior, and `update_peak` only ever anchoring FROM `None`, no
+    production writer can emit an authoritative anchor at all. The authorized
+    re-anchor is `peak_reset`, which is token-gated and DARK -- exactly what the
+    research found industry practice to be. This branch is deliberately
+    production-dead today; the replay honours it so an operator-authored or
+    future token-gated writer can use it."""
+    ks, live, _archive = ks_tmp_audit
+    for complete in (True, False):
+        state = _detached(ks, complete=complete)
+        state.update_peak(18000.0)
+    rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert rows, "the writer wrote nothing"
+    assert not any(r.get("anchor") is True for r in rows), (
+        "update_peak must never emit an authoritative anchor -- it anchors only from "
+        "None, which by construction supersedes nothing"
+    )
 
 
 # ── criterion 2: 36.7's true-peak restore is byte-preserved ─────────────────
@@ -213,7 +272,7 @@ def test_phase_36_8_a_malformed_marked_anchor_is_ignored_not_applied(ks_tmp_audi
            _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
     _write(live,
            _row("2026-07-26T10:00:00+00:00", "peak_update", nav=bad,
-                anchor=True, prior_peak=None))
+                anchor=True, prior_peak=24666.57))
 
     assert ks.KillSwitchState().snapshot()["peak_nav"] == 24666.57
 
@@ -268,10 +327,13 @@ def test_phase_36_8_update_peak_marks_an_anchor_but_not_a_ratchet(ks_tmp_audit):
     rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
     peaks = [r for r in rows if r.get("event") == "peak_update"]
     assert len(peaks) == 2, f"expected 2 rows (anchor + ratchet), got {peaks}"
-    assert peaks[0].get("anchor") is True
-    # `in` before `is None`: dict.get() returns None for a MISSING key, so the
-    # original assertion passed with the field deleted (cycle-2 mutant MX2).
-    assert "prior_peak" in peaks[0] and peaks[0]["prior_peak"] is None
+    # CYCLE-5 REDESIGN: an anchor-from-None cannot NAME what it superseded (there was
+    # nothing to observe), so the writer never stamps authority on it -- not even after
+    # a complete replay. Five Q/A passes each found a new way for such an anchor to
+    # claim authority; this removes the capability instead of the routes.
+    assert peaks[0].get("anchor") is not True, (
+        "an anchor over a peak of None must never be authoritative"
+    )
     assert peaks[0]["nav"] == 18000.0
     assert peaks[1].get("anchor") is not True, "a ratchet must NOT be marked as an anchor"
     assert peaks[1]["nav"] == 19000.0
@@ -423,18 +485,19 @@ def test_phase_36_8_the_class_default_for_history_complete_is_conservative():
     assert detached._history_complete is False
 
 
-def test_phase_36_8_an_anchor_after_a_COMPLETE_replay_does_claim_authority(ks_tmp_audit):
-    """The other direction, so the gate is not simply 'never mark'. When the replay
-    saw every source and genuinely found no peak, the anchor IS intentional and its
-    row carries authority -- which is what criterion 1 requires."""
+def test_phase_36_8_an_anchor_after_a_COMPLETE_replay_still_claims_NO_authority(ks_tmp_audit):
+    """CYCLE-5 REDESIGN. Previously a complete replay was enough to stamp authority.
+    It is not: an anchor from `None` supersedes nothing, so it can name nothing, so it
+    gets nothing. Authority now comes only from a row that NAMES a real prior peak."""
     ks, live, archive = ks_tmp_audit
     complete = _detached(ks, complete=True)
     complete.update_peak(18000.0)
 
     rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
     written = [r for r in rows if r.get("event") == "peak_update"]
-    assert written[-1].get("anchor") is True
-    assert "prior_peak" in written[-1] and written[-1]["prior_peak"] is None
+    # Even on a COMPLETE replay: nothing was superseded, so nothing is named, so no
+    # authority. The completeness flag is now a diagnostic, not the authority gate.
+    assert written[-1].get("anchor") is not True
 
 
 def test_phase_36_8_a_real_replay_sets_history_complete_both_ways(ks_tmp_audit):
