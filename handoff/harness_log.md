@@ -29409,3 +29409,57 @@ on the missing artifacts.
 **Rig discipline:** operator's `:8000` never restarted, `:3000` never driven (200/302/200,
 pid 70791 unchanged at close); `:3100` used an isolated `distDir`; `tsconfig.json` +
 `next-env.d.ts` restored from HEAD. **Owed:** `rm -rf frontend/.next-audit-3100`.
+
+## Cycle 172 -- 2026-07-26 -- phase=80.40 result=PASS (cycle 5; 2 CONDITIONAL, 1 FAIL, 1 CONDITIONAL before it)
+
+**Step**: `80.40` (P0) -- *The kill-switch indicator has never had data, on any backend state.*
+`GET /api/paper-trading/performance` never returned `max_drawdown_pct`, so the cockpit's
+kill-switch row rendered a fabricated verdict since it was written -- pre-80.36 a green SAFE via
+`?? 0`, because `0 > -10`.
+
+**Research**: `research_brief_36.7_80.40.md`, tier complex, `gate_passed: true`, 12 sources read in
+full (floor 5), 34 URLs, recency scan performed. **Commissioned AFTER GENERATE** -- see the
+compliance ruling below.
+
+**Plan**: `contract_80.40.md`. Criterion 4 decided as a label-only fix (`"Kill switch (-15%)"` ->
+`"Max drawdown (-15%)"`): two real ladders exist -- A halts trading (settings.py 4.0/10.0), B blocks
+new BUYs (signals_server -15/-10/-5) -- and the row was rendering B's numbers under A's name. No
+threshold value changed anywhere.
+
+**Generate**: `compute_max_drawdown_from_snapshots` in `perf_metrics.py` (the single-source-of-truth
+rule), wired into `/performance`; `None` never `0.0` on every degraded path; label rename. Code
+shipped in `b0abb061`; this session's only source change was the ladder comment (`e4efdc23`).
+
+**Evaluate**: five cycles, and the last three are the story.
+- **C3 = FAIL.** The Workflow launch returned NO VERDICT (`subagent completed without calling
+  StructuredOutput`); the Agent-tool fallback then **stalled on its end-flush**. Its complete verdict
+  was recovered from the transcript and transcribed with that provenance stated. Acting on a
+  *recovered FAIL* is conservative -- it can only add work, never launder a stall into a PASS. Its
+  blocker was fair: criterion 3 says "record that failing output verbatim" and the artifact said only
+  `KILLED (workflow-reported, reproduced)`.
+- **C4 = CONDITIONAL.** Main ran the 0-stub mutation firsthand
+  (`AssertionError: assert 0.0 == -30.0`; `20 failed, 8 passed` file-wide) -- and the fix section
+  written to cure a prose defect introduced two more (a control number scoped to a selection that
+  produced neither recorded count; a guard named twice under two labels). The recurring pattern,
+  caught again.
+- **C5 = PASS** (`wf_644add80-bb5`, `ok: true`). It re-ran the mutation itself and diffed Main's
+  recorded block line-by-line against its own output -- identical -- and reproduced all six cells of
+  the corrected control table.
+
+**Compliance ruling worth keeping** (C5, asked for explicitly because it decided whether this step
+could ever close): a research-gate ordering breach that is **(a)** self-disclosed before any verdict,
+**(b)** whose substantive floor is subsequently cleared in full, and **(c)** whose late findings are
+verifiably incorporated with counterfactual harm measured, is a **permanent NOTE and does NOT cap the
+verdict** -- now or in future cycles for this step-id. Grounds: `harness_compliance_ok` is a separate
+schema field from `verdict`; the only available "fix" is backdating, which would convert an honest
+disclosure into a falsified record; and a permanent cap makes the harness a logger rather than a
+corrector. It explicitly does NOT license planning steps out of order. `harness_compliance_ok:
+false` is recorded alongside the PASS.
+
+**Decision**: PASS. Live on the operator's own `:8000` (launchd pid `76381`):
+`max_drawdown_pct: -5.31` alongside `sharpe_ratio: 3.44`.
+
+**Do-no-harm**: `:8000` GET-only, never restarted by this cycle; `:3000` not driven for this step;
+`handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` unchanged throughout.
+
+**Next**: `36.12` (cycle 3 pending), then `36.7` (cycle 5 pending).
