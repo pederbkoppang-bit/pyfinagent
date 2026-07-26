@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `1198f0b2` | fix(36.12): re-measuring the matrix honestly found M8 -- a paused book would have kept trading |
 | 2026-07-26 | `f245e6cc` | docs(36.12): resolve the 1c question -- impossible by construction, per the 36.7 cycle-6 precedent |
 | 2026-07-26 | `03d923a1` | docs(36.16): APPLY the de-escalation -- the previous commit's message described a change it did not  |
 | 2026-07-26 | `57672514` | docs(36.16): measure the P0 trigger -- it does NOT fire; the step is dead-code only |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `e19dd00e` | chore: subagent memory + hook-appended audit logs (NOT the step work) |
 | 2026-07-26 | `3d22ad9b` | docs: new drain goal + execute the operator-approved 80.5 disposition; HOLD the flag flip |
 | 2026-07-26 | `25205078` | fix(80.36): live captures -- and the fix revealed the kill-switch row NEVER had data |
-| 2026-07-26 | `65ba2d43` | fix(80.36): the Risk Monitor no longer claims SAFE when it has no data |
 
 ---
 
+### v6.70.4 — fix(36.12): re-measuring the matrix honestly found M8 -- a paused boo... (2026-07-26)
+
+- **fix(36.12): re-measuring the matrix honestly found M8 -- a paused book would have kept trading**
 ### v6.70.3 — phase-36.7: the kill switch can fire again -- rotation-aware restore... (2026-07-26)
 
 - **phase-36.7: the kill switch can fire again -- rotation-aware restore + loud disarmed state (Q/A PASS**
