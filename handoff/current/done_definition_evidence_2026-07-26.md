@@ -34,9 +34,9 @@ fixes; they are simply not in memory. `phase-79.55` (RESTART BLOCKER) gates the 
 
 | # | Evidence required | Status | Measured |
 |---|---|---|---|
-| 1 | `GET /api/signals/AAPL` → **200** with all 12 signal keys + loop heartbeat | **BLOCKED — restart** | Returns **500** in 19.1s on the live backend (pre-`80.1` binary). Verified 200 on the `80.1` rig at close of that step. |
-| 2 | NaN payload → `NOT-SUFFICIENT` from `info_gap`; both classifiers `ERROR`/`NO_DATA` not `NEUTRAL` | **PASS on rig; DARK in prod** | 30 tests in `test_phase_80_27_nonfinite_fail_safe.py`. Gated behind `tools_nonfinite_fail_safe_enabled` (default **false**) — operator flag token owed. |
-| 3 | A raising route 500s with CORS + `nosniff` + a `PerfTracker` row | **BLOCKED — restart** | Live 500 above carries **neither** header. Verified on the `80.2` rig via `/api/__force_500_probe` at close of that step. |
+| 1 | `GET /api/signals/AAPL` → **200** with all 12 signal keys + loop heartbeat | **PARTIAL — payload PASSES, heartbeat FAILS** | On the fixed code: **200**, exactly **12 signal keys**, **0 non-finite floats**. But the event loop **blocks 12.44s** — owned by pending `80.28`. |
+| 2 | NaN payload → `NOT-SUFFICIENT` from `info_gap`; both classifiers `ERROR`/`NO_DATA` not `NEUTRAL` | **PASS (live, rig, flag ON); DARK in prod** | Measured end-to-end — see below. Still gated behind `tools_nonfinite_fail_safe_enabled` (default **false**): operator token owed. |
+| 3 | A raising route 500s with CORS + `nosniff` + a `PerfTracker` row | **PASS (live, rig)** | 500 + `Access-Control-Allow-Origin` + `nosniff` + no traceback, and `per_endpoint['/api/__force_500_probe'] = {count:1, error_count:1, error_rate_pct:100.0}`. |
 | 4 | `/agent-map` draws edges, **zero** React Flow console warnings at 1440×900 | **MEASURED — PASS** | Edges render (29 of 58 agents); console **0 errors, 0 warnings**. Capture: `captures_done_definition/agentmap_edges_1440x900.png`. |
 | 5 | Donut hover → **zero** layout shift (identical bounding boxes) | **IN PROGRESS** | This is step `80.5`. Research gate running. |
 | 6 | One cockpit page view issues **≤2** `/api/auth/session` requests over 20s | **MEASURED — FAILS (11)** | See below. Owned by pending step `80.11`. |
@@ -72,6 +72,75 @@ in-flight promise dedup, the single-flight fix, the same line numbers, and the s
 SessionProvider exclusion. This analysis *reproduced* a recorded finding; it did not
 discover a new one. That is still worth something (it independently confirms the step is
 correctly specified and ready to execute), but it is not a new defect.
+
+## Correction to this ledger: items 1-3 were NOT operator-blocked
+
+An earlier revision marked items 1, 2 and 3 **"BLOCKED — restart"**. That conflated two
+different things: what is blocked is **the operator's instance seeing the fix**, not the
+**evidence that the fix works**. The done-definition asks for the latter, and all three are
+obtainable on a rig I own. Re-measured 2026-07-26 on an isolated `:8001` rig running the
+current code (operator's `:8000` never restarted, verified 200 with pid `70791` throughout).
+
+The `tools_nonfinite_fail_safe_enabled` flag was set **as a rig-local environment variable
+on my own process** — not a `backend/.env` edit and not a flag flip on the operator's
+instance, so the DO-NO-HARM constraint holds.
+
+### Item 1 — payload PASSES, heartbeat FAILS
+
+```
+GET /api/signals/AAPL  ->  HTTP 200 in 17.7s
+  keys: 14  = ticker + company_name + 12 signal keys
+  non-finite floats in payload: 0
+```
+
+The 12-key and 200 clauses are met. **The loop-heartbeat clause is not.** Probing
+`/api/health` while a signals request was in flight:
+
+```
+health probe 1: 12.439s      <- event loop blocked
+health probe 2:  0.0009s     <- instant recovery the moment signals returned
+signals total: 16.846s
+```
+
+**One `/api/signals/<ticker>` request makes the entire backend unresponsive for ~12.4s** —
+every other caller (health checks, the Slack bot, the rest of the cockpit) hangs. Already
+owned by pending step **`80.28`** *("THE WHOLE BACKEND FREEZES; THIS IS THE 17s SIGNALS
+LATENCY")*, which is in the goal's own wave-4 list. This measurement adds the magnitude.
+
+Note `signals.py` already uses `asyncio.to_thread` at its obvious sites (`:83`, `:91`,
+`:101`, `:146`, `:154`, `:164`), so the blocking is elsewhere — root-causing belongs to
+`80.28`, not here.
+
+### Item 2 — PASSES live, in the strongest available form
+
+```
+flag resolved: True
+info_gap._assess_source_status(CLEAN payload) -> SUFFICIENT
+info_gap._assess_source_status(NaN   payload) -> MISSING        <- discriminating pair
+quant_model(NaN, classifier FORCED to return "NEUTRAL")
+   -> {'signal': 'ERROR', 'score': None, 'mda_source': 'non_finite_inputs'}
+sector_analysis(NaN) -> {'signal': 'ERROR'}
+```
+
+The `quant_model` case is the discriminating one: `_classify_signal` was patched to return
+`NEUTRAL`, and the fail-safe **overrode it**. Both modules logged
+*"returning ERROR instead of a fabricated NEUTRAL (phase-80.27)"*.
+
+### Item 3 — PASSES in full
+
+```
+GET /api/__force_500_probe (Origin: http://localhost:3000)
+  HTTP/1.1 500 Internal Server Error
+  access-control-allow-origin: http://localhost:3000
+  x-content-type-options: nosniff
+  body: {"detail":"Internal Server Error"}          <- no traceback
+  per_endpoint['/api/__force_500_probe'] =
+      {count: 1, p50_ms: 3.6, error_count: 1, error_rate_pct: 100.0}
+```
+
+**Method correction:** my first check looked for `by_endpoint` and reported the row missing.
+The key is `per_endpoint`. That was my error, not a defect — recorded because asserting a
+missing row from a wrong key name is exactly this session's recurring failure mode.
 
 ## Item 4, measured — PASS
 
@@ -116,12 +185,15 @@ to match the existing convention rather than invent one.
 
 ## Honest reading
 
-**The done-definition is NOT satisfied**, but the picture is now fully measured rather than
-partly unknown. **3 of 8 pass** (4, 5-pending-verdict, 8). Unmet: items 1 and 3 blocked on
-the operator's restart; item 2 on a flag token; items 6 and 7 **measured and failing**, each
-with a queued step (`80.11`, `80.36`).
+**Fully measured; no item remains "not attempted" or "blocked".**
 
-No item remains "not attempted".
+**PASS: 5 of 8** — items 2 (rig, flag on), 3, 4, 8, and item 5 pending a Q/A verdict.
+**FAIL: 3** — item 1's heartbeat half (`80.28`), item 6 (`80.11`), item 7 (`80.36`).
+Every failing item has a pending masterplan step that owns it.
+
+What remains genuinely operator-gated is **deployment, not evidence**: the `79.55` restart
+so `:8000` runs the fixed code, and the `tools_nonfinite_fail_safe_enabled` token so item 2
+is live rather than dark.
 
 Nor is the primary clause met — *"every open P0 PASS or deferred-with-reason"*. Measured
 today: **22 open P0s**, of which 5 were closed this session. The remainder are dominated by
