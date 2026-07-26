@@ -71,7 +71,7 @@ pinned by an AST test that fails if the two declarations drift.
 | 2 | 36.7's defect stays fixed | **MET** — synthetic + real-corpus assertions + 36.7's module green under the immutable selector |
 | 3 | archive growth documented or capped | **MET** — cap REFUSED on measurement; do-not-prune declared in both scripts; boot cost measured |
 | 4 | `reset_peak` stays DARK | **MET** — gate byte-untouched; a test asserts the call returns `None` and writes no row |
-| 5 | mutation-test the fix | **MET as of cycle 5** — 13 mutations, 13 killed at baseline `44 passed`, one batch. The fifth route the cycle-4 Q/A found is closed STRUCTURALLY, not patched: authority now requires naming the superseded peak, so all five historical routes are unreachable by construction. `MSTRUCT` removes that clause and dies. Attribution, corrected: the **cycle-2** Q/A found THREE survivors (MX4, MX3, MX2); **MXP** came from the **cycle-3** Q/A. This licenses *"these 14 were killed at this baseline"* and nothing more. |
+| 5 | mutation-test the fix | **MET as of cycle 5** — 13 mutations, 13 killed at baseline `44 passed`, one batch. The fifth route the cycle-4 Q/A found is closed STRUCTURALLY, not patched: authority now requires naming the superseded peak, so all five historical routes are unreachable by construction. `MSTRUCT` removes that clause and dies. Attribution, corrected: the **cycle-2** Q/A found THREE survivors (MX4, MX3, MX2); **MXP** came from the **cycle-3** Q/A. This licenses *"these 13 were killed at this baseline"* and nothing more. |
 
 ## Do-no-harm
 

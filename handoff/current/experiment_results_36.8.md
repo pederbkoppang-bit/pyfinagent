@@ -24,27 +24,50 @@ again with them readable → the old high peak returns and cannot be lowered. Cr
 row shapes directly, which is what the test builds; this paragraph exists so nobody reads the test as
 proof that `update_peak` provides the route.
 
-## Criterion 1 — the defect, recorded BEFORE the fix
+## Criterion 1 — the defect, captured from the CURRENT test against the reverted branch
 
-Whole file against unfixed code: **10 failed, 12 passed**. The headline failure, verbatim:
+**Regenerated in cycle 5, and the reason matters.** Both artifacts had carried a cycle-1 capture
+showing a row shape (`prior_peak=None`) and test source that no longer exist — the cycle-5 redesign
+INVERTED that shape's meaning, from authoritative to deliberately non-authoritative. The cycle-5
+Q/A executed the recorded scenario at HEAD and found it *still fails*, so it could not have been the
+pre-fix signature of a test HEAD passes. A carried-forward "verbatim" capture is not verbatim.
+
+This is the CURRENT test run against the authority branch reverted to the pre-36.8 unconditional
+`max()`-merge (in-memory; no repo write):
 
 ```
+F                                                                        [100%]
+=================================== FAILURES ===================================
 ______ test_phase_36_8_a_fresh_marked_anchor_beats_a_higher_archived_peak ______
+
+ks_tmp_audit = (<module 'backend.services.kill_switch' from '/Users/ford/.openclaw/workspace/pyfinagent/backend/services/kill_switch..../folders/n4/9khkbgzj593cmjc28m9chntm0000gn/T/pytest-of-ford/pytest-960/test_phase_36_8_a_fresh_marked0/handoff/audit'))
+
+    def test_phase_36_8_a_fresh_marked_anchor_beats_a_higher_archived_peak(ks_tmp_audit):
+        """THE DEFECT. Archive holds 24666.57; the live file then anchors fresh at
+        18000.0 with the anchor MARKED. The restore must honour the marked anchor.
+    
+        Pre-fix this returned 24666.57 -- the stale archived peak -- and the book would
+        have been flattened and paused permanently against a phantom high-water mark.
+        """
+        ks, live, archive = ks_tmp_audit
         _write(archive / "kill_switch_audit-v3.jsonl",
                _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
         _write(live,
                _row("2026-07-26T10:00:00+00:00", "peak_update", nav=18000.0,
-                    anchor=True, prior_peak=None))
-
+                    anchor=True, prior_peak=24666.57))
+    
 >       assert ks.KillSwitchState().snapshot()["peak_nav"] == 18000.0
 E       assert 24666.57 == 18000.0
 
-backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py:87: AssertionError
+backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py:103: AssertionError
+=========================== short test summary info ============================
+FAILED backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py::test_phase_36_8_a_fresh_marked_anchor_beats_a_higher_archived_peak
+1 failed, 43 deselected in 0.03s
 ```
 
-`24666.57` is the stale archived peak winning over a fresh, marked anchor. With `reset_peak` DARK and
-`update_peak` ratchet-only, that phantom high-water mark could never be lowered — `flatten_all` +
-`pause` on the first cycle after restart, permanently.
+`24666.57` is the stale archived peak outranking a fresh anchor that explicitly names it as
+superseded. With `reset_peak` DARK and `update_peak` ratchet-only, that phantom high-water mark
+could never be lowered — `flatten_all` + `pause` on the first cycle after restart, permanently.
 
 ## What shipped
 
@@ -52,7 +75,7 @@ backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py:87: Asserti
 |---|---|
 | `backend/services/kill_switch.py` | `update_peak` STAMPS the anchor-from-`None` case (`anchor: true`, `prior_peak: null`); an ordinary ratchet stays unmarked. `_load_from_audit`'s `peak_update` branch ASSIGNS at a row where `anchor is True` and RATCHETS otherwise. New `_apply_authoritative_peak(raw, source)` — the single guarded path for **every** assignment to `_peak_nav` — routes both the new anchor branch and the pre-existing `peak_reset` branch. `reset_peak`'s DARK gate byte-untouched. |
 | `scripts/housekeeping/{verify_handoff_layout,backfill_handoff_archive}.py` | new `AUDIT_KEEP_GLOBS = ("kill_switch_audit*.jsonl",)` in BOTH, with the measurement that justifies refusing a cap written into the comment. |
-| `backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py` | new, **35 collected** (`pytest --collect-only`); autouse live-file write-protect fixture ported from the 36.7 module. |
+| `backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py` | new, **44 collected** (`pytest --collect-only`); autouse live-file write-protect fixture ported from the 36.7 module. |
 
 ### Why a FIELD on `peak_update` and not a new event name
 
@@ -94,24 +117,26 @@ git-tracked — the existing recoverability backstop.
 - At suite level: the immutable `-k kill_switch` selector includes 36.7's entire module and it is
   green.
 
-## Verification
+## Verification — measured at HEAD this cycle
 
 ```
 $ python -m pytest backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py -q
-35 passed
+44 passed
 
 $ python -m pytest backend/tests/ -q -k kill_switch            # IMMUTABLE
-129 passed, 1 skipped, 2126 deselected
+138 passed, 1 skipped, 2126 deselected
 ```
 
-All **35** of this module's tests are now INSIDE that selector (cycle 1 shipped with **zero**
-of them selected; measured `pytest -k kill_switch --collect-only | grep -c test_phase_36_8`).
+All **44** of this module's tests are inside that selector (cycle 1 shipped with **zero**).
 
-```
-```
+*Cycle-5 correction: this block reported `35 / 35 / 129` — short by exactly 9 — while `live_check`
+and this step's own commit message both carried the correct figures. Two artifacts of one step
+reported different output for the same immutable command, and a leftover empty fenced block gave it
+away as hand-edited rather than regenerated. Regenerated above from commands run this turn. Third
+consecutive cycle this class appeared in this step: the discipline that works is
+measure-last-write-once, and editing digits is what keeps failing.*
 
-`handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after every run;
-`git status` clean on both live audit files throughout.
+`handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after every run.
 
 ## Mutation matrix — 13 mutations, 13 killed, one batch at baseline `44 passed`
 
