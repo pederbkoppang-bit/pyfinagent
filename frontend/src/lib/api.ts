@@ -55,16 +55,83 @@ interface SessionTokenCache {
 let sessionTokenCache: SessionTokenCache | null = null;
 const SESSION_TOKEN_TTL_MS = 60_000;
 
+// phase-80.11: SINGLE-FLIGHT. Memoising the RESOLVED value (phase-75.12) cut the
+// steady-state idle rate but not the MOUNT BURST: the cache is written only after
+// `await fetch(...)` returns, so N concurrent apiFetch calls all observe an empty
+// cache and each fires its own probe. Measured on one 20s view of
+// /paper-trading/positions: ELEVEN /api/auth/session requests, against 1-2 for every
+// backend endpoint. A cache stampede.
+//
+// Holding the in-flight PROMISE (not the value) collapses those to one. Canonical
+// pattern -- Go's x/sync/singleflight: "only one execution is in-flight for a given
+// key at a time; the duplicate caller waits for the original and receives the same
+// results". Every waiter shares one settlement.
+//
+// NOTE the rejected-promise-cache hazard that dominates the literature does NOT
+// apply here: getAuthToken try/catches to `null` and never rejects, so a plain
+// `.finally()` clear is sufficient. There is also no `.finally()` race -- JS is
+// single-threaded and the TTL write happens inside the async body, i.e. BEFORE the
+// finally microtask, so a caller arriving at the boundary hits the warm cache.
+// Do not invert that ordering.
+let sessionTokenInflight: Promise<string | null> | null = null;
+
+// phase-80.11: the 401 path must not be undone by a probe that was already in
+// flight. Sequence: TTL expires -> probe P starts -> an earlier request's 401 nulls
+// the cache -> P resolves and writes the just-invalidated token back with a fresh
+// 60s ts. The invalidation is silently reverted. Normally the /login redirect cuts
+// this short, but that redirect is deliberately skipped when already ON /login, so
+// there it is unbounded. Bumping an epoch FIRST lets a stale probe detect that it
+// was invalidated mid-flight and decline to write. Same idiom as the `cancelled`
+// flags in useLivePrices.ts.
+let sessionEpoch = 0;
+
+// phase-80.11: the probe had NO timeout -- the 30s AbortController below guards only
+// the backend fetch. That was survivable when each caller had its own probe; under
+// single-flight a stalled probe would block EVERY apiFetch. This hazard is created
+// by the fix above, so it is fixed in the same change.
+const SESSION_PROBE_TIMEOUT_MS = 10_000;
+
+export function __invalidateSessionTokenForTests(): void {
+  invalidateSessionToken();
+}
+
+export function __resetSessionTokenCacheForTests(): void {
+  sessionTokenCache = null;
+  sessionTokenInflight = null;
+  sessionEpoch = 0;
+}
+
+function invalidateSessionToken(): void {
+  // Order matters: bump the epoch BEFORE clearing, so any probe already in flight
+  // fails its epoch check and cannot resurrect the token it is about to resolve.
+  sessionEpoch += 1;
+  sessionTokenCache = null;
+  sessionTokenInflight = null;
+}
+
 async function getAuthToken(): Promise<string | null> {
   if (typeof window === "undefined") return null;
   const now = Date.now();
   if (sessionTokenCache && now - sessionTokenCache.ts < SESSION_TOKEN_TTL_MS) {
     return sessionTokenCache.value;
   }
+  // A probe is already running -- join it instead of starting a second.
+  if (sessionTokenInflight) return sessionTokenInflight;
+
+  const myEpoch = sessionEpoch;
+  sessionTokenInflight = probeSessionToken(now, myEpoch).finally(() => {
+    sessionTokenInflight = null;
+  });
+  return sessionTokenInflight;
+}
+
+async function probeSessionToken(now: number, myEpoch: number): Promise<string | null> {
   try {
-    const res = await fetch("/api/auth/session");
+    const res = await fetch("/api/auth/session", {
+      signal: AbortSignal.timeout(SESSION_PROBE_TIMEOUT_MS),
+    });
     if (!res.ok) {
-      sessionTokenCache = { value: null, ts: now };
+      if (sessionEpoch === myEpoch) sessionTokenCache = { value: null, ts: now };
       return null;
     }
     const session = await res.json();
@@ -79,10 +146,11 @@ async function getAuthToken(): Promise<string | null> {
       : session?.user
         ? "session-active"
         : null;
-    sessionTokenCache = { value: token, ts: now };
+    // Only write if no 401 invalidated us mid-flight.
+    if (sessionEpoch === myEpoch) sessionTokenCache = { value: token, ts: now };
     return token;
   } catch {
-    sessionTokenCache = { value: null, ts: now };
+    if (sessionEpoch === myEpoch) sessionTokenCache = { value: null, ts: now };
     return null;
   }
 }
@@ -163,7 +231,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     if (res.status === 401) {
       // Invalidate the memoized session probe so a genuine re-login is
       // never masked by a stale cached sentinel (phase-75.12 frontend-09).
-      sessionTokenCache = null;
+      // phase-80.11: clears the in-flight promise and bumps the epoch too --
+      // nulling the cache alone is NOT sufficient once probes are shared.
+      invalidateSessionToken();
       // phase-75.12 (frontend-02): skip the redirect when already on
       // /login -- this fires as a side effect of apiFetch regardless of
       // caller error handling, which is why the root-mounted
