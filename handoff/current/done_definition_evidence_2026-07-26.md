@@ -37,10 +37,10 @@ fixes; they are simply not in memory. `phase-79.55` (RESTART BLOCKER) gates the 
 | 1 | `GET /api/signals/AAPL` → **200** with all 12 signal keys + loop heartbeat | **BLOCKED — restart** | Returns **500** in 19.1s on the live backend (pre-`80.1` binary). Verified 200 on the `80.1` rig at close of that step. |
 | 2 | NaN payload → `NOT-SUFFICIENT` from `info_gap`; both classifiers `ERROR`/`NO_DATA` not `NEUTRAL` | **PASS on rig; DARK in prod** | 30 tests in `test_phase_80_27_nonfinite_fail_safe.py`. Gated behind `tools_nonfinite_fail_safe_enabled` (default **false**) — operator flag token owed. |
 | 3 | A raising route 500s with CORS + `nosniff` + a `PerfTracker` row | **BLOCKED — restart** | Live 500 above carries **neither** header. Verified on the `80.2` rig via `/api/__force_500_probe` at close of that step. |
-| 4 | `/agent-map` draws edges, **zero** React Flow console warnings at 1440×900 | **not re-measured this session** | `80.3` closed with a Playwright BEFORE/AFTER capture. The zero-warnings clause was not independently re-measured today. |
+| 4 | `/agent-map` draws edges, **zero** React Flow console warnings at 1440×900 | **MEASURED — PASS** | Edges render (29 of 58 agents); console **0 errors, 0 warnings**. Capture: `captures_done_definition/agentmap_edges_1440x900.png`. |
 | 5 | Donut hover → **zero** layout shift (identical bounding boxes) | **IN PROGRESS** | This is step `80.5`. Research gate running. |
 | 6 | One cockpit page view issues **≤2** `/api/auth/session` requests over 20s | **MEASURED — FAILS (11)** | See below. Owned by pending step `80.11`. |
-| 7 | Backend stopped → no page fabricates a fact | **not attempted** | Requires driving a rig with its backend killed; not run. |
+| 7 | Backend stopped → no page fabricates a fact | **MEASURED — FAILS** | See below. Queued as new step `80.36` (P1). |
 | 8 | Per-step tier ledger exists | **DONE** | `handoff/current/tier_ledger_2026-07-26.md`. Records that Fable was authorized and **never used** — zero T4 invocations. |
 
 ## Item 6, measured — 11 session probes in 20s
@@ -73,12 +73,55 @@ SessionProvider exclusion. This analysis *reproduced* a recorded finding; it did
 discover a new one. That is still worth something (it independently confirms the step is
 correctly specified and ready to execute), but it is not a new defect.
 
+## Item 4, measured — PASS
+
+`/agent-map` at 1440×900 on the rig: edges are drawn between nodes (visible in
+`captures_done_definition/agentmap_edges_1440x900.png`, "29 of 58 agents"), and
+`browser_console_messages` reports **3 messages total: 0 errors, 0 warnings** — the three
+are a React DevTools notice and two Fast Refresh logs. **Criterion 4 PASSES**, which
+independently validates `80.3`'s fix.
+
+Method note: the a11y snapshot cannot confirm edges — React Flow draws them as SVG paths,
+which never enter the accessibility tree. The screenshot is the only valid evidence, and is
+what was used.
+
+## Item 7, measured — FAILS, and a safety surface is the worst offender
+
+Rig backend SIGKILLed; the operator's `:8000` untouched. Capture:
+`captures_done_definition/backend_dead_positions.png`.
+
+**Correct (the in-repo pattern):** the error banner renders — *"Cannot reach backend at
+http://localhost:8001"* — and NAV, Cash, Total P&L and Sharpe all render as `—`. Sector
+concentration says *"No positions yet."*, Allocation *"No allocation data yet."*, Currency
+exposure *"No holdings yet."*
+
+**Fabricated, with zero backend data:**
+
+| surface | renders | truth |
+|---|---|---|
+| **Risk Monitor — Kill switch (-15%)** | **`SAFE`** | unknown |
+| Risk Monitor — Position size | `OK` | unknown |
+| Risk Monitor — Sector concentration | `OK` | unknown |
+| Risk Monitor — Drawdown | `0% / -15%` | unknown |
+| KPI — vs SPY | `+0,00 %` **in positive-green** | unknown |
+| KPI — Positions | `0` | actually **2** (PANW, AMD) |
+
+**Unknown is not zero, and unknown is not SAFE.** A green `SAFE` on a kill-switch row is the
+most trust-bearing pixel on the cockpit — and it compounds directly with step `36.7`, where
+the kill switch *cannot currently fire at all*. Today both the mechanism and its display can
+report a safety that does not exist.
+
+Queued as **`80.36`** (P1). The neighbouring cards already do this correctly, so the fix is
+to match the existing convention rather than invent one.
+
 ## Honest reading
 
-**The done-definition is NOT satisfied.** 5 of 8 evidence items are unmet: two blocked on
-the operator's restart, one on an operator flag token, one (item 6) now **measured and
-failing** with its fix already specified in pending step `80.11`, and two (items 4 and 7)
-still not attempted.
+**The done-definition is NOT satisfied**, but the picture is now fully measured rather than
+partly unknown. **3 of 8 pass** (4, 5-pending-verdict, 8). Unmet: items 1 and 3 blocked on
+the operator's restart; item 2 on a flag token; items 6 and 7 **measured and failing**, each
+with a queued step (`80.11`, `80.36`).
+
+No item remains "not attempted".
 
 Nor is the primary clause met — *"every open P0 PASS or deferred-with-reason"*. Measured
 today: **22 open P0s**, of which 5 were closed this session. The remainder are dominated by

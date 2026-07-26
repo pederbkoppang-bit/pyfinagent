@@ -20461,6 +20461,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "80.36",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "[P1 -- THE RISK MONITOR CLAIMS 'SAFE' WHEN THE BACKEND IS DEAD] With the backend unreachable, /paper-trading/positions correctly shows an error banner and renders NAV, Cash, Total P&L and Sharpe as an em-dash -- but several surfaces ASSERT FACTS THEY CANNOT KNOW, and the worst of them is the safety panel. MEASURED 2026-07-26 on the isolated :3100 rig with its own :8001 backend SIGKILLed (capture: handoff/current/captures_done_definition/backend_dead_positions.png; the operator's :8000 was never touched). With zero backend data the page renders: RISK MONITOR -> 'Kill switch (-15%) SAFE', 'Position size OK', 'Sector concentration OK', 'Drawdown 0% / -15%'; KPI row -> 'VS SPY +0,00 %' styled GREEN as a positive result, and 'POSITIONS 0' when two positions (PANW, AMD) are actually held. UNKNOWN IS NOT ZERO AND UNKNOWN IS NOT SAFE. The neighbouring cards get this RIGHT and are the in-repo pattern to copy -- Sector concentration renders 'No positions yet.', Allocation 'No allocation data yet.', Currency exposure 'No holdings yet.' -- so the fix is to make the risk/KPI surfaces behave like their neighbours, not to invent a new convention. WHY THIS IS MORE THAN COSMETIC: a green 'SAFE' on a kill-switch row is the single most trust-bearing pixel on the cockpit, and it is exactly the assertion an operator would check before walking away. It is also directly compounding with masterplan step 36.7 (the kill switch cannot currently fire at all because sod_nav/peak_nav are null after audit-log rotation) -- so today BOTH the mechanism and its display can report safety that does not exist. AUDIT BASIS: done-definition evidence item 7 of the /goal masterplan drain ('with the backend stopped, no page fabricates a fact'), measured 2026-07-26. Ledger: handoff/current/done_definition_evidence_2026-07-26.md. NOTE the error banner itself is correct and must be preserved -- this step is about the widgets BELOW it.",
+          "verification": {
+            "command": "cd frontend && npm test -- RiskMonitor 2>&1 | tail -30",
+            "success_criteria": [
+              "With no backend data, the Risk Monitor renders NO status verdict -- 'SAFE'/'OK' must not appear for kill switch, position size, or sector concentration; they show an explicit unknown/no-data state matching the neighbouring cards' convention ('No positions yet.' / 'No allocation data yet.')",
+              "With no backend data, 'Drawdown 0% / -15%' does not render a 0% measurement; the numerator is an explicit unknown",
+              "With no backend data, 'VS SPY' does not render '+0,00 %' in positive-green styling; it renders the same em-dash treatment already used by NAV/Cash/Total P&L/Sharpe on that row",
+              "With no backend data, the Positions count does not assert '0' when the count is simply unknown",
+              "The HEALTHY path is byte-for-byte unchanged: with data present every one of these surfaces renders exactly as it does today (assert against fixed fixtures, not snapshots of the broken state)",
+              "The existing backend-unreachable error banner still renders and is not weakened",
+              "MUTATION-TEST each guard: reverting any one of the no-data branches must make its test fail. A guard that cannot fail does not count."
+            ],
+            "live_check": "Playwright capture on the skip-auth :3100 rig with ITS OWN backend killed (never the operator's :8000), showing the Risk Monitor and KPI row with no fabricated verdicts, alongside the 2026-07-26 pre-fix capture backend_dead_positions.png for comparison."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
