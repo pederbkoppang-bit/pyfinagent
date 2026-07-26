@@ -29526,3 +29526,71 @@ empty vs HEAD at close.
 
 **Next**: `36.12` (cycle-3 FAIL remediated, QA-Z1 closed, still owes the §1c capture), then `36.13`
 (P0, `execute_buy` ungated), `36.15` (P1), `36.8`/`36.9`, `36.14`.
+
+## Cycle 174 -- 2026-07-26 -- phase=36.12 result=PASS (cycle 6; 4 CONDITIONAL, 1 FAIL, 2 NO-VERDICT before it)
+
+**Step**: `36.12` (P0) -- *the order-placing path silently forgives a drawdown instead of surfacing
+`armed: false`.* `check_and_enforce_kill_switch` mutated both baselines BEFORE `evaluate_breach` and
+branched only on `any_breached`, so `armed` was **structurally always True** on the one path that
+places orders: a post-rotation cycle anchored the peak to today's NAV, forgave the entire real
+drawdown, and reported ARMED AND HEALTHY.
+
+**Research**: `research_brief_36.12.md`, tier moderate, `gate_passed: true`, 10 sources read in full,
+34 URLs, recency scan. Spawned BEFORE the contract; contract written BEFORE any code (mtimes verified
+by three separate Q/A cycles).
+
+**Plan**: `contract_36.12.md`. Named the rejected alternatives explicitly, which mattered: a blanket
+"measure before mutate" would have evaluated the daily leg against yesterday's SOD, and `36.9`
+measured that on this book at **exactly 4.0%** -- a false `flatten_all` on the first cycle after any
+restart.
+
+**Generate**: pre-mutation measurement of `armed` only; the breach decision deliberately left on the
+post-roll state; a per-cycle **BLOCK** (not `pause()`, which latches and would wedge against the
+`/resume` 409); a `D1 ∧ D2` first-boot discriminator so a genuinely new book still trades; a
+`baseline_anchor_on_lost_history` audit event plus a `baseline_provenance` key so the post-anchor
+payload is no longer indistinguishable from a healthy book; `cycle_halt_reason()` extracted so the
+loop's halt is testable; and the operator strings revised. 25 tests.
+
+**Evaluate**: six cycles, and the story is one call site.
+
+- **`cycle_halt_reason` produced a mutation survivor in FIVE consecutive cycles**, each found by an
+  evaluator *after* Main declared the previous one closed: the inline literal (QA-X6), the predicate's
+  result (QA-Y1), the branch BODY (QA-Z1), the arguments as `False` (M8), the arguments as `True`
+  (QA-P2). The first four fixes were **structural** and each relocated the hole. What finally closed
+  it was **both directions executed end-to-end** -- halt when it must, proceed when it must. **A
+  one-directional behavioural test is a half-guard**; that is the transferable lesson, not the count.
+- **M8 was found by refusing an easy fix.** Cycle 4 flagged a stale scope qualifier on the matrix;
+  re-running every mutant instead of re-wording it surfaced a live money-path hole (a PAUSED book
+  would have kept trading). Cycle 5 then found QA-P2 because Main's spawn told it to distrust Main's
+  own closure claim.
+- **Cycle 6 earned its empty hunt**: it mutated the two positions nobody had ever touched (`arg1`
+  wholesale, and `arg1` with only the new `blocked` key stripped) and both die.
+- **Two NO-VERDICT runs** (Workflow, ~190K tokens each, cut off before the structured output).
+  Earlier today the Agent-tool path stalled the same way on `80.40`. **Neither launch path is
+  reliable at this workload** -- the failure mode is the SIZE of the evaluation, not the mechanism.
+  What worked: a leaner prompt plus an explicit budget instruction. Recorded because the next heavy
+  step will hit it.
+
+**Three WARNs closed BEFORE the flip** (a PASS does not license shipping a known-false count):
+survivor `NEW-C` (the publish line had no test, so a halt could be reported with no reason), a stale
+"13 tests" count replaced by its derivation commands, and two ordering consequences disclosed.
+
+**Decision**: PASS. `harness_compliance_ok: false` rides along for the disclosed §1c limitation:
+`KillSwitchPanel` is **never mounted** (grep re-derived by the evaluator), so a live capture of its
+two tooltips is impossible by construction. Only ONE of this step's "three shipped operator-facing
+strings" was ever operator-visible -- the 409 body. Filed as `36.16`.
+
+**Filed this cycle**: `36.17` (P1) -- a halted cycle returns at `:1334`, before Step 5.6 stop-loss
+enforcement at `:1336`, so protective stops stop being enforced exactly when the book is judged
+unsafe. **Pre-existing**: the breach and paused paths always returned there; 36.12 added a third
+route. The fix must serve all three halt reasons and is a risk-policy decision, so it is its own step.
+
+**NOT LIVE**: the operator's `:8000` still serves pre-36.12 code (absent `baseline_provenance` proves
+it). Deliberate -- no restart onto an un-passed change. **Now that it has passed, the restart is what
+delivers the fix, and it is the operator's to authorize.**
+
+**Do-no-harm**: `:8000` GET-only, never restarted by this step; `:3000` never driven;
+`kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` unchanged at every measurement
+across all six cycles.
+
+**Next**: `36.13` (P0, `execute_buy` ungated), `36.15`, `36.16`, `36.17`, `36.8`/`36.9`, `36.14`.

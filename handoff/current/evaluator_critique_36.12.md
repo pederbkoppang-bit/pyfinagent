@@ -12,6 +12,7 @@ transcribed with no edits.
 | 3 | Workflow `wf_dccb0567-c71` | **FAIL** | this file (§Cycle 3) + `.json` |
 | 4 | Workflow `wf_27ed0d86-b42` | **CONDITIONAL** — all 8 criteria MET; 3 record-accuracy findings | this file (§Cycle 4) + `.json` |
 | 5 | Workflow `wf_4c320a2e-61d` → **NO VERDICT** (cut off mid-Bash, nothing recoverable); Agent-tool fallback `qa-36-12-cycle5` | **CONDITIONAL** — found the FIFTH wiring hole | this file (§Cycle 5) + `.json` |
+| 6 | Workflow `wf_7721c963-bea` → **NO VERDICT** (2nd consecutive); Agent-tool fallback `qa-36-12-cycle6` with a leaner prompt | **PASS** (`ok: true`, zero violated criteria) | this file (§Cycle 6) + `.json` |
 
 **Post-verdict cleanliness (phase-75.20.1):** `git status --short` after the return showed only
 Main's own work plus the hook-appended `handoff/audit/*.jsonl` streams; no production file was
@@ -454,3 +455,47 @@ suites never reach Step 5.5, so nothing was watching the PROCEED direction.
    carries one number per mutant at one stated baseline.
 4. **Its ceiling caveat is adopted into the artifact**, not just acknowledged: "0 survivors"
    licenses only "these 19 were killed", never "no vacuous guard remains".
+
+
+## Cycle 6 — verdict (VERBATIM) — **PASS**
+
+**Launch note, and it is a finding in its own right.** The Workflow path returned NO VERDICT for
+the SECOND consecutive time on this step — both runs burned ~190K subagent tokens and were cut
+off before the structured-output call, with nothing recoverable. Earlier today the Agent-tool
+path stalled the same way on `80.40` cycle 3. So at this workload **neither launch path is
+reliable**, and the failure mode is not the mechanism but the SIZE of the evaluation. The fix
+that worked was to shrink the work, not switch rails: a materially leaner prompt plus an
+explicit budget instruction ("prioritise these four checks, emit early-ish, do not gold-plate").
+That run emitted in 78 transcript lines against 115 and 109 for the two that died.
+
+**The sixth-position hunt came up empty, and it earned that conclusion.** It mutated the two
+positions nobody had ever touched — `arg1` as a whole (`->{}`) and `arg1` with ONLY the new
+`blocked` key stripped — and both die against
+`..._a_blocked_cycle_really_places_no_orders`. Five cycles had mutated the literal, the result,
+the body, and `arg2` twice; `arg1` had never been tested and is closed.
+
+It also **re-derived the load-bearing §1c claim itself** rather than accepting Main's: the grep
+returns only the component's own file, its vitest file, and one comment — the component is
+genuinely unmounted, so the capture is impossible by construction, not missing.
+
+```json
+{"ok": true, "verdict": "PASS", "reason": "All 8 immutable criteria are met with guards I independently executed, and the sixth-hole hunt at the cycle_halt_reason slot came up empty after mutating the two positions nobody had ever mutated. Deterministic: immutable command reproduces EXACTLY Main's figure (116 passed, 1 skipped, 2104 deselected, exit 0); the new file's baseline reproduces (25 collected / 25 passed); frontend tsc --noEmit exit 0; eslint on the two changed frontend files exit 0 (1 pre-existing react-hooks warning, warnings do not fail the gate). SIX disk mutations by me, whole-test-file selector, restored with sha256 verified back to ad10e4c4 and handoff/kill_switch_audit.jsonl md5 ce8fb93348bb9a3bbe26f2d91b1bc05e unchanged after every single run: QA-P2 (arg2->True) KILLED 1 failed/24 passed by ..._a_quiet_cycle_actually_proceeds_and_trades; M8 (arg2->False) KILLED 1 failed by ..._an_already_paused_cycle_still_halts; QA-Z1 (delete `return summary`) KILLED 2 failed; and TWO NEVER-BEFORE-MUTATED positions -- NEW-A arg1->{} KILLED 1 failed, NEW-B arg1->{'triggered': ks_check.get('triggered')} (strips ONLY the new `blocked` key) KILLED 1 failed, both by ..._a_blocked_cycle_really_places_no_orders. The five prior cycles had mutated the literal, the result, the body and arg2 twice; arg1 had never been touched and it is closed. One survivor exists but it is not the halt: NEW-C, `summary[\"kill_switch\"] = ks_check` -> `{'triggered': ...}`, 25 passed. Differential is real (the returned cycle summary / _last_result stops carrying blocked/block_reason/pre_armed) but it is a PRE-EXISTING publish line, not a new guard, the halt itself uses the local ks_check, and the block is still surfaced three other ways that ARE asserted: the WARNING log line carrying halt_reason, the P1 pager (asserted, captured_alerts), and GET /kill-switch baseline_provenance (test at :752). WARN, not blocking. I also re-derived the load-bearing §1c claim myself rather than accepting it: `grep -rn KillSwitchPanel frontend/src` returns only its own file, its vitest file, and one comment at cockpit-helpers.tsx:382 -- the component is genuinely unmounted, so a live capture of those two tooltips is impossible by construction, not missing; and a repo-wide grep for all three OLD_PROMISE phrases plus 'next cycle'/'re-anchor' across frontend/src, kill_switch.py and paper_trading.py finds no surviving operator-facing auto-re-anchor promise (only code comments), so criterion 8 holds with both the python grep guard and the vitest DOM guard. Criteria 3/5/6 have named dedicated tests (first_ever_boot_still_anchors_and_trades, block_path_writes_no_peak_reset_row_and_never_calls_reset_peak asserting zero peak_reset rows, and two per-leg tests with evaluate_breach byte-untouched). 3rd-CONDITIONAL rule respected: this is a decided PASS, not a stacked CONDITIONAL.", "violated_criteria": [], "violation_details": [], "certified_fallback": false, "checks_run": ["immutable_verification_command", "whole_test_file_baseline", "disk_mutation_QA-P2", "disk_mutation_M8", "disk_mutation_QA-Z1", "disk_mutation_NEW-A_first_argument", "disk_mutation_NEW-B_first_argument_strips_blocked", "disk_mutation_NEW-C_summary_surfacing", "sixth_hole_position_enumeration", "sha256_restore_verification", "live_audit_md5_guard", "frontend_tsc_noEmit", "frontend_eslint_changed_files", "criterion_8_repo_wide_recall_grep", "unmounted_component_claim_rederived", "test_count_rederivation", "mutation_matrix_row_count_rederivation", "artifact_read_all_five"], "harness_compliance_ok": false, "notes": "harness_compliance_ok=false ONLY for the disclosed §1c limitation, which the live_check itself asks to keep on the record: no live Playwright capture of the two KillSwitchPanel tooltips exists or can exist (component unmounted -- I verified that myself, I did not take or rely on any Main-produced capture for it), so the UI half of criterion 8 rests on source + vitest DOM assertions. Three WARN-level findings Main should fix or disclose, none of which defeats a criterion's guard: (1) MUTATION SURVIVOR NEW-C, described in `reason` -- the adjacent publish line has no test; cheapest close is one assertion in ..._a_blocked_cycle_really_places_no_orders that summary['kill_switch']['block_reason'] survives into the returned summary. (2) FALSE COUNT: experiment_results_36.12.md:123 still calls the new test file '13 tests'; measured 20 module-level `def test_` and 25 collected/25 passed. Same claim class the artifact boasts of avoiding 290 lines later (':416 Counts are DERIVED from the batch output, not typed') -- the load-bearing counts (25 baseline, 116 immutable, 18 scripted + M9 = 19 rows) all DO reproduce exactly, which is why this is WARN and not a Contradiction that caps the step; it is a stale cycle-1 figure that should be corrected before the flip. (3) TWO UNDISCLOSED ORDERING CONSEQUENCES of choosing BLOCK for criterion 4: Step 5.4 scale-out (autonomous_loop.py:1295) can place partial-close SELLs BEFORE Step 5.5 evaluates the block, so on a blocked cycle those orders precede the refusal (flag-gated OFF by default via paper_scale_out_enabled, and risk-reducing in direction); and the halt returns at :1334 before Step 5.6, so a blocked cycle also skips backfill_missing_stops + check_stop_losses, i.e. protective stop SELLs are suppressed while the book sits unguarded (inherits the pre-existing `paused` shape, non-latching, P1-paged). Criterion 2 is independently satisfied through its FIRST disjunct (pre-mutation measurement, M1 killed 12 failed), so neither residual breaches a criterion -- but criterion 4's 'no silent third option' wording deserves one paragraph naming both. TREE CHANGES I CAUSED: backend/services/autonomous_loop.py was mutated and restored 6x, final sha256 ad10e4c49dfa94eb84304f9bdf85921e45350d56fd4558e842758fb16a3c87e2 == baseline; git status shows only the hook-appended handoff/audit/*.jsonl (also dirty before I started); kill_switch_audit.jsonl md5 unchanged; :8000 never POSTed or restarted, :3000 never driven, no second next dev started. Driver script kept in scratchpad at /private/tmp/claude-501/-Users-ford--openclaw-workspace-pyfinagent/7e1aed9c-94fd-48fc-bd72-126a4b31c9ea/scratchpad/mut_c6.py. Per Goodenough-Gerhart this PASS licenses only 'these positions were killed', never 'no vacuous guard remains'."}
+```
+
+## Main's remediation of the three WARNs — all closed BEFORE the flip
+
+A PASS does not license shipping a known-false count, so all three were fixed first:
+
+1. **Survivor NEW-C** (the adjacent publish line `summary["kill_switch"] = ks_check` had no
+   test — stripping the block keys left the suite green, so an operator would read a halt with
+   no stated reason). Closed by two assertions inside
+   `..._a_blocked_cycle_really_places_no_orders`; the mutant now dies `1 failed, 24 passed`.
+2. **The false "13 tests" count** at `experiment_results:123` — a stale cycle-1 figure, and the
+   exact claim class the artifact boasts of avoiding 290 lines later. Replaced with the two
+   derivation commands and their measured output (20 `def test_` → 25 collected).
+3. **The two undisclosed ordering consequences** of choosing BLOCK, both verified at source and
+   now disclosed in `experiment_results`. The serious one is filed as **`36.17` (P1)**: the halt
+   returns at `:1334` and Step 5.6 stop-loss enforcement begins at `:1336`, so a halted cycle
+   stops enforcing protective stops. **Pre-existing** — the breach and paused paths always
+   returned there; 36.12 added a third route to the same return. The fix has to serve all three
+   halt reasons and is a risk-policy decision, so it is its own step rather than absorbed here.

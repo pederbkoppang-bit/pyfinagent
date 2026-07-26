@@ -302,6 +302,16 @@ def test_phase_36_12_a_blocked_cycle_really_places_no_orders(ks_isolated, monkey
     assert decide.called is False, "decide_trades ran on a halted cycle"
     assert trader.execute_buy.called is False, "a BUY was placed on a halted cycle"
     assert trader.execute_sell.called is False, "a SELL was placed on a halted cycle"
+    # The block must also SURVIVE into the returned summary, which is what the API's
+    # cycle-status surface and `_last_result` publish. Cycle-6 Q/A found the adjacent
+    # publish line (`summary["kill_switch"] = ks_check`) had no test: stripping the
+    # `blocked`/`block_reason` keys from it left the whole suite green, so an operator
+    # reading the cycle result would see a halt with no stated reason.
+    published = summary.get("kill_switch") or {}
+    assert published.get("blocked") is True, (
+        "the cycle summary must publish the block, not just act on it"
+    )
+    assert published.get("block_reason") == "kill_switch_disarmed_lost_history"
 
 
 def test_phase_36_12_an_already_paused_cycle_still_halts(ks_isolated, monkeypatch):

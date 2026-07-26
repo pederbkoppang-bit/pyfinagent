@@ -120,7 +120,7 @@ path that just refused to run). The refusal is per-cycle, non-latching, position
 | `backend/services/autonomous_loop.py` | `:1287` halt branch also honours `blocked` (the only production caller — enumerated by grep, not assumed). |
 | `backend/api/paper_trading.py` | `GET /kill-switch` now carries `baseline_provenance`; the `POST /resume` 409 body rewritten (criterion 8). |
 | `frontend/src/components/KillSwitchPanel.tsx` | the two operator titles rewritten (criterion 8). |
-| `backend/tests/test_phase_36_12_kill_switch_trading_path_block.py` | new, 13 tests, autouse live-audit write-protect fixture **ported** + autouse alert-capture fixture. |
+| `backend/tests/test_phase_36_12_kill_switch_trading_path_block.py` | new. **20 module-level `def test_` → 25 collected** (parametrization accounts for the difference), both derived: `grep -c '^def test_' <file>` and `pytest --collect-only`. Carries the autouse live-audit write-protect fixture (**ported** from the 36.7 module) + an autouse alert-capture fixture. *(Cycle-6 correction: this cell said "13 tests", a stale cycle-1 figure — the exact claim class this artifact boasts of avoiding 290 lines later. Caught by the cycle-6 Q/A. Counts here are now derived by the two commands named above, not typed.)* |
 
 ### A gap the rig exposed, and the scope it added — disclosed, not quietly absorbed
 
@@ -465,6 +465,28 @@ Positions 1–4 were each declared closed and each had a neighbour. What finally
 not a better guard but **both directions executed end-to-end**: halt when it must halt (QA-Z1, M8)
 and proceed when it must proceed (QA-P2). A one-directional behavioural test is a half-guard, and
 that is the transferable lesson, not the count.
+
+## Two ordering consequences of choosing BLOCK — disclosed, both verified at source
+
+The cycle-6 Q/A found these undisclosed. Both are real, both verified by Main at source, and the
+second is the more serious:
+
+1. **Step 5.4 scale-out runs BEFORE the block.** `autonomous_loop.py:1284-1306` fires
+   `check_scale_out_fires` before Step 5.5 evaluates at `:1309`, so on a blocked cycle any
+   partial-close SELLs are placed *before* the refusal. Bounded: `paper_scale_out_enabled` defaults
+   **False** (`settings.py:35`), and the direction is risk-REDUCING (it closes exposure). Disclosed,
+   not fixed — reordering profit-taking against the kill switch is a behaviour decision outside this
+   step's authorization.
+
+2. **A halted cycle SKIPS Step 5.6 stop-loss enforcement.** The halt returns at `:1334`; Step 5.6 is
+   at `:1336`. So `backfill_missing_stops` and `check_stop_losses` never run on a halted cycle —
+   protective stop SELLs are suppressed exactly while the book is judged unsafe to trade.
+   **This is PRE-EXISTING**, not introduced here: the `triggered` (breach) and `paused` halt paths
+   have always returned at that same line. What 36.12 did was add a **third** way to reach it, which
+   widens an existing hazard rather than creating one. That distinction matters for severity, and it
+   is why this is disclosed here **and filed as its own step** rather than fixed inside 36.12 — the
+   fix has to serve all three halt reasons, and "flatten/pause but keep enforcing stops" is a
+   risk-policy decision the operator owns.
 
 ## Scope honesty
 
