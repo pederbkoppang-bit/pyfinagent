@@ -20544,6 +20544,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "80.40",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "[P0 -- THE KILL-SWITCH INDICATOR HAS NEVER HAD DATA, ON ANY BACKEND STATE] The paper-trading performance endpoint DOES NOT RETURN `max_drawdown_pct` AT ALL, so the cockpit's kill-switch row has been rendering a fabricated verdict since it was written -- not only when the backend is down. MEASURED 2026-07-26 against a HEALTHY backend: `curl /api/paper-trading/performance` returns keys [nav, starting_capital, pnl_pct, benchmark_return_pct, alpha_pct, sharpe_ratio, total_sell_trades, total_buy_trades, total_analysis_cost, days_active, round_trip_summary] -- `max_drawdown_pct` is ABSENT. `sharpe_ratio` IS present (3.44), so this is not a null-perf case: the object arrives, that one field never does. `grep -rn max_drawdown backend/api/paper_trading.py` -> NOTHING; nothing in backend/services/perf_metrics.py either (the documented single source of truth for Sharpe/drawdown/alpha); the ONLY api module exposing max_drawdown_pct is backend/api/backtest.py. The frontend type at frontend/src/lib/types.ts:744 already declares it OPTIONAL (`max_drawdown_pct?: number`), so nothing ever flagged the gap. HOW IT SURFACED: phase-80.36 replaced `perf?.max_drawdown_pct ?? 0` with a presence check, and the HEALTHY-backend capture then showed 'Kill switch (-15%) NO DATA' (handoff/current/captures_80.36/80.36_HEALTHY_killswitch_NO_DATA.png). That is 80.36 working correctly -- it did not break the row, it revealed the row never had data. Pre-80.36 the same absence rendered a green SAFE via `?? 0`, because `0 > -10`. WHY P0: combined with step 36.7 (sod_nav/peak_nav null after audit-log rotation, so the switch cannot fire), the kill switch is non-functional at BOTH ends -- the mechanism cannot trip AND its indicator has never measured anything. The operator has had no working drawdown-protection signal. SCOPE: compute max_drawdown_pct in backend/services/perf_metrics.py (per the backend-services rule 'Never compute Sharpe, drawdown, or alpha outside perf_metrics.py -- import from there') and expose it on the paper-trading performance payload. DO NOT satisfy this by making the frontend invent a value; the frontend is now correct. DO NOT change kill-switch THRESHOLDS as a side effect -- but note the row is labelled -15% while backend/services/kill_switch.py uses a 10% trailing-DD limit; reconcile that discrepancy explicitly rather than silently picking one.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -c \"import ast; ast.parse(open('backend/services/perf_metrics.py').read())\" && python -m pytest backend/tests/ -q -k 'perf_metrics or drawdown'",
+            "success_criteria": [
+              "GET /api/paper-trading/performance returns a numeric max_drawdown_pct on a healthy backend -- verbatim curl output recorded showing the key present alongside sharpe_ratio",
+              "The value is computed in backend/services/perf_metrics.py, not inline in the API layer, per the backend-services single-source-of-truth rule",
+              "A test pins the computation against a fixed NAV series with a KNOWN drawdown, and it must FAIL against a stub returning 0 -- record that failing output verbatim",
+              "The -15% label on the cockpit row and the 10% trailing-DD limit in backend/services/kill_switch.py are reconciled EXPLICITLY: state which is authoritative and make them agree, or document why they legitimately differ",
+              "phase-80.36's frontend behaviour is UNCHANGED: with the field present the row renders a real verdict, with perf absent it still renders NO DATA. Assert both.",
+              "MUTATION-TEST: reverting the perf_metrics computation must fail the new test"
+            ],
+            "live_check": "Verbatim curl of /api/paper-trading/performance showing max_drawdown_pct present and numeric, plus a Playwright capture of /paper-trading/positions showing the kill-switch row rendering a REAL verdict instead of NO DATA."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
