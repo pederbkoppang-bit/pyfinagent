@@ -39,7 +39,7 @@ ______ test_phase_36_8_a_fresh_marked_anchor_beats_a_higher_archived_peak ______
 >       assert ks.KillSwitchState().snapshot()["peak_nav"] == 18000.0
 E       assert 24666.57 == 18000.0
 
-backend/tests/test_phase_36_8_archive_merge_authority.py:87: AssertionError
+backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py:87: AssertionError
 ```
 
 `24666.57` is the stale archived peak winning over a fresh, marked anchor. With `reset_peak` DARK and
@@ -52,7 +52,7 @@ backend/tests/test_phase_36_8_archive_merge_authority.py:87: AssertionError
 |---|---|
 | `backend/services/kill_switch.py` | `update_peak` STAMPS the anchor-from-`None` case (`anchor: true`, `prior_peak: null`); an ordinary ratchet stays unmarked. `_load_from_audit`'s `peak_update` branch ASSIGNS at a row where `anchor is True` and RATCHETS otherwise. New `_apply_authoritative_peak(raw, source)` — the single guarded path for **every** assignment to `_peak_nav` — routes both the new anchor branch and the pre-existing `peak_reset` branch. `reset_peak`'s DARK gate byte-untouched. |
 | `scripts/housekeeping/{verify_handoff_layout,backfill_handoff_archive}.py` | new `AUDIT_KEEP_GLOBS = ("kill_switch_audit*.jsonl",)` in BOTH, with the measurement that justifies refusing a cap written into the comment. |
-| `backend/tests/test_phase_36_8_archive_merge_authority.py` | new, **26 collected** (`pytest --collect-only`); autouse live-file write-protect fixture ported from the 36.7 module. |
+| `backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py` | new, **29 collected** (`pytest --collect-only`); autouse live-file write-protect fixture ported from the 36.7 module. |
 
 ### Why a FIELD on `peak_update` and not a new event name
 
@@ -97,14 +97,17 @@ git-tracked — the existing recoverability backstop.
 ## Verification
 
 ```
-$ python -m pytest backend/tests/test_phase_36_8_archive_merge_authority.py -q
-26 passed
+$ python -m pytest backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py -q
+29 passed
 
 $ python -m pytest backend/tests/ -q -k kill_switch            # IMMUTABLE
-94 passed, 1 skipped, 2148 deselected
+123 passed, 1 skipped, 2126 deselected
+```
 
-$ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader'   # wider net
-116 passed, 1 skipped, 2126 deselected
+All 26 → **29** of this module's tests are now INSIDE that selector (cycle 1 shipped with **zero**
+of them selected; measured `pytest -k kill_switch --collect-only | grep -c test_phase_36_8`).
+
+```
 ```
 
 `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after every run;
@@ -117,15 +120,17 @@ exactly once and that the source changed; `kill_switch.py` is mutated **in memor
 `_AUDIT_PATH` redirected to tmp **before** the module is built (that is how an evaluator wrote 54 rows
 into live safety state today); the housekeeping mutant is on disk with sha256 restore-verified.
 
-| # | Mutation | Result |
+| # | Mutation | Result @ baseline `29 passed` |
 |---|---|---|
-| M1 | the marked anchor loses authority and merely ratchets | KILLED `2 failed, 24 passed` |
-| M2 | EVERY `peak_update` assigns — the 36.7 regression | KILLED `7 failed, 19 passed` |
-| M3 | `anchor` truthiness instead of `is True` | KILLED `4 failed, 22 passed` |
-| M4 | `_apply_authoritative_peak` assigns unguarded | KILLED `13 failed, 13 passed` |
-| M5 | the writer stops marking the anchor | KILLED `1 failed, 25 passed` |
-| M6 | `peak_reset` bypasses the guard (36.15's defect restored) | KILLED `6 failed, 20 passed` |
-| M7 | one housekeeping script drops the archive protection (disk) | KILLED `1 failed, 25 passed`; sha256 restored `516478006960` |
+| M1 | the marked anchor loses authority and merely ratchets | KILLED `2 failed, 27 passed` |
+| M2 | EVERY `peak_update` assigns — the 36.7 regression | KILLED `8 failed, 21 passed` |
+| M3 | `anchor` truthiness instead of `is True` | KILLED `4 failed, 25 passed` |
+| M4 | `_apply_authoritative_peak` assigns unguarded | KILLED `13 failed, 16 passed` |
+| M5 | the writer stops marking the anchor | KILLED `2 failed, 27 passed` |
+| M6 | `peak_reset` bypasses the guard (36.15's defect restored) | KILLED `6 failed, 23 passed` |
+| **M8** *(the cycle-1 SAFETY REGRESSION)* | stamp authority even when the replay was incomplete | KILLED `1 failed, 28 passed` |
+| **M9** *(rewritten — the first attempt was inert)* | the replay claims a complete history unconditionally | KILLED `1 failed, 28 passed` |
+| M7 | one housekeeping script drops the archive declaration (disk) | KILLED `1 failed, 28 passed`; sha256 restored `516478006960` |
 
 M2 is criterion 2's guard and M1 is criterion 1's — the two directions of the same boundary. M3
 exists because `is True` is a deliberate identity check and a truthiness mutant would otherwise
