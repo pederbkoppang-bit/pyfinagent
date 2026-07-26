@@ -110,7 +110,7 @@ $ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader'   # wider 
 `handoff/kill_switch_audit.jsonl` md5 `ce8fb93348bb9a3bbe26f2d91b1bc05e` before and after every run;
 `git status` clean on both live audit files throughout.
 
-## Mutation matrix — 7 mutations, 7 killed, 0 survivors (baseline `26 passed`)
+## Mutation matrix — 9 mutations, 9 killed, 0 survivors (baseline `29 passed`, all re-run in one batch after the last test landed)
 
 Counts DERIVED from one batch run at the final baseline. Each mutant asserts its pattern matched
 exactly once and that the source changed; `kill_switch.py` is mutated **in memory** with
@@ -136,6 +136,70 @@ power to lower the high-water mark.
 claim that no vacuous guard remains. This step's own history is the argument for saying so: 36.12's
 neighbouring call site produced a survivor in five consecutive cycles, each after closure was
 declared.
+
+## Cycle-2 follow-up (post-Q/A-1 FAIL) — I shipped a safety regression and it caught it
+
+Cycle 1 returned **FAIL** on two BLOCKs. Both were mine, and the first was serious.
+
+### BLOCK 1 — the marker granted authority to an ACCIDENT
+
+The Q/A executed this against the REAL corpus:
+
+```
+boot A (archives readable)       -> peak 24666.57
+boot B (archive scan FAILS)      -> peak None; the cycle calls update_peak(18000.0),
+                                    which stamped {"anchor": true, "prior_peak": null}
+boot C (archives readable again) -> peak 18000.0     <-- the true mark, destroyed
+```
+
+Permanently: `reset_peak` is DARK and `update_peak` only ratchets up. **In the UNSAFE direction** —
+a lower peak shrinks `trailing_dd_pct`, i.e. less protection. Pre-36.8 code returns `24666.57` for
+the identical sequence.
+
+**The self-contradiction is the part worth recording.** This contract REJECTED consuming 36.12's
+`baseline_anchor_on_lost_history` on the grounds that *"that event marks an ACCIDENT ... granting it
+authority to lower a real high-water mark is the under-conservative direction"* — and then stamped a
+marker on **the same `_peak_nav is None` trigger** and gave it exactly that authority. In production
+no path writes an *intentional* lower anchor (the authorized one is `peak_reset`, DARK), so the new
+authority could only ever have been produced by the accident.
+
+**Fix: authority is gated on whether the replay actually saw everything.** `_read_audit_rows` now
+returns `(rows, complete)`; `complete` is False if any source failed to read **or** the archive
+directory is absent (a brand-new install and a lost mount are indistinguishable from there, and only
+one is safe). `_load_from_audit` records it, and `update_peak` stamps `anchor: true` **only when the
+replay was complete** — otherwise it writes an unmarked row and logs loudly, so a later complete boot
+restores the true peak. `_history_complete` defaults to **False** at class level: a state built
+without a replay has verified nothing. That default immediately caught one of my own earlier tests
+constructing a state implicitly, which is the guard working.
+
+Guarded by `..._a_transient_archive_failure_cannot_destroy_the_true_peak` (the Q/A's exact sequence),
+its `COMPLETE` counterpart, and `..._a_real_replay_sets_history_complete_both_ways`. Mutant **M8**
+restores the regression and dies.
+
+### BLOCK 2 — the immutable gate selected ZERO of my tests
+
+Measured: `pytest -k kill_switch --collect-only | grep -c test_phase_36_8` → **0**, while 36.7's 33
+were selected. Neither the filename nor any test name contained `kill_switch`, breaking the
+convention both sibling modules follow — so every guard and the whole mutation kill-signal sat
+outside this step's own regression gate. Renamed to
+`test_phase_36_8_kill_switch_archive_merge_authority.py`; now **26 of 26 selected**, immutable
+command **123 passed, 1 skipped**.
+
+### The WARNs
+
+- **`AUDIT_KEEP_GLOBS` is a declaration, not an enforcement** — the Q/A is right that nothing
+  consumes it and neither script has a prune path over `handoff/audit/`. It is a tripwire against a
+  future one, and M7 proves only that the two declarations agree. Stated plainly rather than left to
+  read as protection.
+- **An archive-resident `anchor: true` row can lower a live peak.** True, and now deliberate: with
+  the completeness gate, such a row can only have been written by a boot that saw every source, and
+  `ts` order decides. Disclosed rather than left as an undocumented capability.
+
+### And a bad mutant of my own, disclosed
+
+My first `M9` inserted `_unused = None` — semantically **inert**, so its "survival" carried zero
+information. A mutant that cannot change behaviour is not evidence. Rewritten to make the replay
+claim completeness unconditionally; it dies `1 failed, 28 passed`.
 
 ## Scope honesty
 

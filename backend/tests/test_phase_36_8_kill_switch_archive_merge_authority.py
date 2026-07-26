@@ -67,6 +67,21 @@ def _write(path: Path, *lines: str) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _detached(ks, complete: bool):
+    state = object.__new__(ks.KillSwitchState)
+    state._lock = threading.Lock()
+    state._paused = False
+    state._pause_reason = None
+    state._sod_nav = None
+    state._sod_date = None
+    state._peak_nav = None
+    state._paused_at = None
+    state._auto_resume_alerted_at = None
+    state._history_complete = complete
+    return state
+
+
+
 # ── criterion 1: a fresh MARKED anchor outranks a higher archived peak ──────
 
 
@@ -239,15 +254,11 @@ def test_phase_36_8_a_VALID_peak_reset_still_assigns_downward(ks_tmp_audit):
 def test_phase_36_8_update_peak_marks_an_anchor_but_not_a_ratchet(ks_tmp_audit):
     """The writer is the only place the two cases are distinguishable."""
     ks, live, _archive = ks_tmp_audit
-    state = object.__new__(ks.KillSwitchState)
-    state._lock = threading.Lock()
-    state._paused = False
-    state._pause_reason = None
-    state._sod_nav = None
-    state._sod_date = None
-    state._peak_nav = None
-    state._paused_at = None
-    state._auto_resume_alerted_at = None
+    # `complete=True` states the premise explicitly: a replay that saw every source
+    # and still found no peak. The class default is False on purpose -- a state built
+    # without declaring completeness must NOT stamp authority, and that default is
+    # what caught this test constructing one implicitly.
+    state = _detached(ks, complete=True)
 
     state.update_peak(18000.0)   # anchor-from-None
     state.update_peak(19000.0)   # ordinary ratchet
@@ -260,6 +271,72 @@ def test_phase_36_8_update_peak_marks_an_anchor_but_not_a_ratchet(ks_tmp_audit):
     assert peaks[0]["nav"] == 18000.0
     assert peaks[1].get("anchor") is not True, "a ratchet must NOT be marked as an anchor"
     assert peaks[1]["nav"] == 19000.0
+
+
+# ── the WRITER→REPLAY round trip: the route that had zero coverage ─────────
+
+
+def test_phase_36_8_a_transient_archive_failure_cannot_destroy_the_true_peak(ks_tmp_audit):
+    """THE CYCLE-1 SAFETY REGRESSION, now guarded.
+
+    The cycle-1 Q/A executed this exact sequence against the REAL corpus and watched
+    the true 24666.57 be destroyed permanently:
+
+      boot A (archives readable)      -> peak 24666.57
+      boot B (archive scan FAILS)     -> peak None, cycle calls update_peak(18000.0)
+      boot C (archives readable again)-> peak 18000.0   <-- WRONG, and unrecoverable
+
+    A LOWER peak means LESS protection, `reset_peak` is DARK and `update_peak` only
+    ratchets up, so nothing could restore it. The marker was being stamped on the
+    same `_peak_nav is None` trigger that fires 36.12's ACCIDENT marker -- which is
+    verbatim the reason this step's own contract refused to let 36.12's event carry
+    authority. The fix gates the stamp on `_history_complete`.
+    """
+    ks, live, archive = ks_tmp_audit
+    _write(archive / "kill_switch_audit-v3.jsonl",
+           _row("2026-06-03T10:00:00+00:00", "peak_update", nav=24666.57))
+
+    # boot B: the replay could NOT see the archives, so any anchor it writes is over
+    # history it merely failed to read.
+    incomplete = _detached(ks, complete=False)
+    incomplete.update_peak(18000.0)
+
+    rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
+    written = [r for r in rows if r.get("event") == "peak_update"]
+    assert written and written[-1].get("anchor") is not True, (
+        "an anchor written while the replay was INCOMPLETE must not claim authority"
+    )
+
+    # boot C: archives readable again -> the true mark must come back.
+    assert ks.KillSwitchState().snapshot()["peak_nav"] == 24666.57
+
+
+def test_phase_36_8_an_anchor_after_a_COMPLETE_replay_does_claim_authority(ks_tmp_audit):
+    """The other direction, so the gate is not simply 'never mark'. When the replay
+    saw every source and genuinely found no peak, the anchor IS intentional and its
+    row carries authority -- which is what criterion 1 requires."""
+    ks, live, archive = ks_tmp_audit
+    complete = _detached(ks, complete=True)
+    complete.update_peak(18000.0)
+
+    rows = [json.loads(l) for l in live.read_text(encoding="utf-8").splitlines() if l.strip()]
+    written = [r for r in rows if r.get("event") == "peak_update"]
+    assert written[-1].get("anchor") is True
+    assert written[-1].get("prior_peak") is None
+
+
+def test_phase_36_8_a_real_replay_sets_history_complete_both_ways(ks_tmp_audit):
+    """`_history_complete` must be DERIVED by the replay, not assumed. With the
+    archive dir present it is True; with it absent -- indistinguishable from a lost
+    mount -- it is False, the conservative reading."""
+    ks, live, archive = ks_tmp_audit
+    _write(live, _row("2026-07-01T10:00:00+00:00", "peak_update", nav=1000.0))
+    assert ks.KillSwitchState()._history_complete is True
+
+    for f in archive.iterdir():
+        f.unlink()
+    archive.rmdir()
+    assert ks.KillSwitchState()._history_complete is False
 
 
 # ── criterion 4: reset_peak stays DARK ─────────────────────────────────────

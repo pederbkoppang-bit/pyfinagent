@@ -156,6 +156,11 @@ class KillSwitchState:
     # in the snapshot contract.
     _baseline_provenance: Optional[str] = None
 
+    # phase-36.8: False until a replay proves it saw every source. Conservative
+    # default: an instance built without a replay has NOT verified its history, so
+    # it must not stamp an authoritative anchor.
+    _history_complete: bool = False
+
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._paused = False
@@ -192,6 +197,18 @@ class KillSwitchState:
         """
         rows: list[dict] = []
         keyed: list[tuple[str, int, int, dict]] = []
+        # phase-36.8: `complete` is False whenever this replay may be missing history
+        # it cannot see. It is NOT a health flag -- it gates whether a later
+        # anchor-from-None may claim AUTHORITY to lower the high-water mark. An
+        # absent archive dir counts as incomplete because a brand-new install and a
+        # lost mount are indistinguishable from here, and only one of them is safe.
+        complete = True
+        archive = _audit_archive_dir()
+        try:
+            if not archive.is_dir():
+                complete = False
+        except Exception:
+            complete = False
         for src_idx, path in enumerate(_audit_source_paths()):
             try:
                 with path.open(encoding="utf-8") as f:
@@ -204,15 +221,23 @@ class KillSwitchState:
                             continue
                         keyed.append((str(row.get("ts") or ""), src_idx, line_idx, row))
             except Exception as e:
-                # One unreadable/rotated-away file must not lose the others.
+                # One unreadable/rotated-away file must not lose the others -- but it
+                # DOES mean the restore is partial, so record that.
                 logger.warning(f"kill_switch: audit read failed for {path}: {e}")
+                complete = False
         keyed.sort(key=lambda t: (t[0], t[1], t[2]))
         rows = [t[3] for t in keyed]
-        return rows
+        return rows, complete
 
     def _load_from_audit(self) -> None:
         try:
-            for row in self._read_audit_rows():
+            rows, complete = self._read_audit_rows()
+            # phase-36.8: remembered so `update_peak` knows whether an
+            # anchor-from-None is a GENUINE absence (the replay saw everything
+            # and there was nothing) or merely an UNSEEN one (a source was
+            # unreadable). Only the first may claim authority to lower the peak.
+            self._history_complete = complete
+            for row in rows:
                 event = row.get("event")
                 if event == "pause":
                     self._paused = True
@@ -464,9 +489,24 @@ class KillSwitchState:
         with self._lock:
             if self._peak_nav is None:
                 self._peak_nav = float(nav)
-                self._append_audit(
-                    "peak_update", nav=self._peak_nav, anchor=True, prior_peak=None,
-                )
+                # phase-36.8 (cycle-2 SAFETY FIX): stamp AUTHORITY only when the
+                # replay saw every source. Otherwise this is an anchor over
+                # history we merely could not read -- exactly 36.12's accident --
+                # and marking it would let one transient archive-scan failure
+                # permanently destroy the true high-water mark in the UNSAFE
+                # direction. Unmarked => ratchet, so a later complete boot
+                # restores the real peak.
+                if self._history_complete:
+                    self._append_audit(
+                        "peak_update", nav=self._peak_nav, anchor=True, prior_peak=None,
+                    )
+                else:
+                    logger.warning(
+                        "kill_switch: anchoring peak at %.2f WITHOUT authority -- the "
+                        "audit replay was incomplete, so this row must not be allowed to "
+                        "outrank archived history on a later boot.", self._peak_nav,
+                    )
+                    self._append_audit("peak_update", nav=self._peak_nav)
             elif nav > self._peak_nav:
                 self._peak_nav = float(nav)
                 self._append_audit("peak_update", nav=self._peak_nav)
@@ -567,7 +607,8 @@ def baseline_history_exists() -> bool:
     ambiguity toward blocking, which is the conservative direction.
     """
     try:
-        for row in KillSwitchState._read_audit_rows():
+        rows, _complete = KillSwitchState._read_audit_rows()
+        for row in rows:
             if row.get("event") in _BASELINE_EVENTS:
                 return True
     except Exception as e:  # unreadable audit tree must not silently unblock trading
