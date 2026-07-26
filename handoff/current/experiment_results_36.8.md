@@ -73,7 +73,7 @@ could never be lowered — `flatten_all` + `pause` on the first cycle after rest
 
 | File | Change |
 |---|---|
-| `backend/services/kill_switch.py` | `update_peak` STAMPS the anchor-from-`None` case (`anchor: true`, `prior_peak: null`); an ordinary ratchet stays unmarked. `_load_from_audit`'s `peak_update` branch ASSIGNS at a row where `anchor is True` and RATCHETS otherwise. New `_apply_authoritative_peak(raw, source)` — the single guarded path for **every** assignment to `_peak_nav` — routes both the new anchor branch and the pre-existing `peak_reset` branch. `reset_peak`'s DARK gate byte-untouched. |
+| `backend/services/kill_switch.py` | **As shipped at HEAD** (this cell described the cycle-4 code until cycle 6 caught it — `git log -L` showed it byte-identical to its cycle-1 original, so the redesign commit never touched the sentence describing it): `update_peak` writes a PLAIN `peak_update` row in **both** branches and never stamps `anchor`/`prior_peak`. `_load_from_audit`'s `peak_update` branch ASSIGNS only where `anchor is True` **AND `prior_peak` coerces to a positive finite NAV** — the naming clause is the entire cycle-5 deliverable and was missing from this description. `_apply_authoritative_peak(raw, source)` guards **every assignment-semantics branch in the REPLAY** (the anchor branch and the pre-existing `peak_reset` branch) — *not* every assignment to `_peak_nav`, which was an overclaim: measured, there are 5 assignment sites and only one is inside the helper. `reset_peak`'s DARK gate byte-untouched. |
 | `scripts/housekeeping/{verify_handoff_layout,backfill_handoff_archive}.py` | new `AUDIT_KEEP_GLOBS = ("kill_switch_audit*.jsonl",)` in BOTH, with the measurement that justifies refusing a cap written into the comment. |
 | `backend/tests/test_phase_36_8_kill_switch_archive_merge_authority.py` | new, **44 collected** (`pytest --collect-only`); autouse live-file write-protect fixture ported from the 36.7 module. |
 
@@ -375,6 +375,37 @@ otherwise**: the tuple is unpacked correctly, nothing raises, and the probe retu
 the real corpus. It did find a genuine latent issue there — the probe discards the completeness
 signal while its docstring promises a fail-closed reading — but confirmed it is **pre-existing, not a
 36.8 regression**, so it is filed as its own step rather than absorbed.
+
+## Cycle-6 status — CONDITIONAL, and C5's conclusion held under a second attack
+
+Cycle 6 re-ran all 8 sub-cases of the five historical routes at HEAD (`bootC = 24666.57`,
+`authoritative_rows = 0` in every one), dynamically exercised **every public production writer**
+(7 rows across 6 event types — zero carrying `anchor`, zero carrying `prior_peak`), ran 6 mutants of
+its own with **0 survivors**, and **found no sixth route and no hole**. It also ruled the two
+judgement calls I asked for:
+
+- **The provenance boundary is SOUND, not a relabelled hole.** The check validates *coercibility*,
+  not truth — it confirmed that six forged `prior_peak` values (including `true`, which floats to
+  `1.0`) would be honoured — but no production writer emits the field at all, and
+  `..._no_production_path_can_write_an_authoritative_anchor` is a live tripwire that goes red the
+  moment one starts. The rule's wording is corrected at the code site to claim only what the check
+  enforces.
+- **Criterion 1 is not vacuous** despite the branch being production-dead: a hand-built row is the
+  correct way to exercise a token-gated future writer.
+
+Its four findings were all record defects, and the sharpest one is uncomfortable: **the "What
+shipped" table still described the cycle-4 code**, and `git log -L` proved that cell byte-identical
+to its cycle-1 original — the redesign commit changed the test count in the row *below* it and left
+the sentence describing the code untouched. The **same stale claim had survived in production
+source**, where `update_peak`'s docstring asserted an `anchor: true` stamp the function 37 lines
+below does not write. Both corrected. A maintainer reading that docstring would have believed the
+audit trail distinguishes a lost-history anchor from a genuine ratchet — which is exactly the
+forensic ambiguity `36.12` exists to flag.
+
+**A pre-existing residual it surfaced, filed not absorbed:** `update_peak` assigns `float(nav)`
+straight from the caller at the anchor site, so `update_peak(float('inf'))` sets an `inf` peak
+**in memory** without passing `_coerce_nav`'s non-finite rejection. 36.7 tested only the replay side.
+NOT a 36.8 regression — filed as `36.19`.
 
 ## Scope honesty
 

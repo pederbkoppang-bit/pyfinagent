@@ -12280,6 +12280,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "36.19",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- update_peak ACCEPTS A NON-FINITE NAV IN MEMORY; only the REPLAY side rejects it] Found by the phase-36.8 cycle-6 Q/A (2026-07-26) and confirmed PRE-EXISTING, NOT a 36.8 regression -- do not mis-attribute it. MECHANISM: `backend/services/kill_switch.py::update_peak` assigns `self._peak_nav = float(nav)` directly from the caller in BOTH branches. `_coerce_nav` -- which rejects non-finite and non-positive values, and which phase-36.7 added precisely because `inf > 0` is True in Python and json round-trips a bare `Infinity` token -- guards only the REPLAY path (`_load_from_audit`) and the assignment helper. So an in-process `update_peak(float('inf'))` sets peak_nav = inf in memory, `trailing_dd_pct` becomes nan, and every `nan >= limit` comparison is False: the trailing leg goes silently dead while `armed` still reports True. 36.7's own docstring at kill_switch.py describes exactly this hazard for the replay side and its test covers only that side (test_phase_36_7_...:496). REACHABILITY, measure it before deciding severity: the only production caller is `paper_trader.check_and_enforce_kill_switch`, which passes `nav` derived from `portfolio.get('total_nav')` via a `float(... or ...)` chain -- so the question is whether BigQuery can ever deliver a non-finite total_nav (a NaN aggregate, an inf from a division, a JSON Infinity token). Answer that with a measurement, not an assumption; if unreachable, the fix is still cheap and the step is about closing the asymmetry. FIX SHAPE: route update_peak's assignment through the same coercion the replay uses, and decide explicitly what a non-finite input should DO -- reject and log loudly (consistent with _apply_authoritative_peak) or raise. Do NOT silently coerce to a passing value. RELATED: 36.7 (added _coerce_nav, replay-side only), 36.8 (added _apply_authoritative_peak and surfaced this), 36.15 (the peak_reset None-check, same family).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k kill_switch",
+            "success_criteria": [
+              "A test reproduces the defect FIRST and records it verbatim: update_peak(float('inf')) leaves peak_nav non-finite in memory, and evaluate_breach then reports trailing_dd_breached False with armed True at any NAV",
+              "The same is asserted for nan and for a non-positive value, so the fix closes the class rather than the one input",
+              "REACHABILITY is MEASURED and stated: can total_nav from BigQuery ever be non-finite? Record the query/inspection, and if it cannot, say so plainly rather than implying the defect was exploitable",
+              "After the fix a non-finite input is rejected LOUDLY (logged, peak unchanged) or raises -- state which and why; it must not be silently coerced to a passing value",
+              "The healthy path is byte-unchanged: ordinary ratchets and anchors still behave identically -- assert against fixed fixtures",
+              "36.7's replay-side rejection and 36.8's authority rules stay green -- run both modules and say so",
+              "MUTATION-TEST the new guard in both directions"
+            ],
+            "live_check": "Verbatim reproduce-then-fix output plus the measured reachability finding for total_nav. handoff/kill_switch_audit.jsonl md5 stated unchanged."
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."

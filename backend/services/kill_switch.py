@@ -309,8 +309,19 @@ class KillSwitchState:
                     # truthiness test: an older row carrying some other `anchor` value
                     # must not accidentally acquire authority.
                     # phase-36.8 (cycle-5 REDESIGN): authority requires the row to
-                    # NAME WHAT IT SUPERSEDED. `prior_peak` must coerce to a real
-                    # positive finite NAV -- a value the writer actually observed.
+                    # NAME WHAT IT SUPERSEDED -- `prior_peak` must coerce to a positive
+                    # finite NAV.
+                    #
+                    # STATED PRECISELY, because an earlier wording overclaimed: this
+                    # validates COERCIBILITY, not TRUTH. The replay cannot verify that
+                    # the named prior was ever observed, and a hand-forged row carrying
+                    # any positive finite token (even `true`, which floats to 1.0) would
+                    # be honoured. That is a SOUND boundary rather than a hole only
+                    # because no production writer emits the field at all -- verified
+                    # dynamically across every public writer -- and because the tripwire
+                    # test above goes red the moment one starts. Tightening it to
+                    # compare against the peak observed so far in the replay is the
+                    # obvious hardening if a writer is ever added.
                     #
                     # WHY THIS SHAPE. Five independent Q/A passes each found a new way
                     # for a lost-history anchor to claim authority (no gate; gate on
@@ -509,20 +520,30 @@ class KillSwitchState:
     def update_peak(self, nav: float) -> None:
         """Ratchet the trailing high-water mark upward. Never moves down.
 
-        phase-36.8: an anchor-from-`None` is STAMPED on the row (`anchor: true`,
-        `prior_peak: null`) while an ordinary ratchet is not. This is the ONLY place
-        the two cases are still distinguishable -- once the row is written, `{nav}`
-        alone cannot tell "the peak rose to X" from "the peak was absent and got
-        anchored at X". The replay needs that distinction because the archive merge is
-        unconditional: without it, a stale archived peak outranks a fresh anchor
-        forever (`reset_peak` is DARK and this method only ratchets up), which
-        flattens and pauses a healthy book against a phantom high-water mark.
+        phase-36.8 (as shipped after the cycle-5 redesign): this method writes a PLAIN
+        `peak_update` row in BOTH branches -- it never stamps `anchor`/`prior_peak`.
 
-        The marker is an IN-STREAM AUTHORITY BOUNDARY, the shape every reference
-        implementation uses for this (Kafka leader epochs, PostgreSQL timelines,
-        Fowler's rejected-events). It is deliberately NOT file recency: PostgreSQL
-        prefers the archive over the live directory, so "the live file is fresher"
-        is not a sound rule. See handoff/current/research_brief_36.8.md.
+        An earlier revision of this docstring claimed it stamped an anchor marker on
+        the anchor-from-`None` case. It did, briefly, and that was a live SAFETY
+        REGRESSION: five independent review passes each found a new way for a
+        lost-history anchor to acquire authority and permanently destroy the true
+        high-water mark (no gate; a gate on the wrong signal; a chmod-000 dir where
+        `glob` returns empty without raising; unparseable lines; and present-but-silent
+        sources such as a 0-byte file or an absent live file). The docstring outlived
+        the code by one cycle and is corrected here.
+
+        THE RULE NOW: the replay grants authority only to a row that NAMES what it
+        superseded (`prior_peak` coercing to a positive finite NAV). An
+        anchor-from-`None` supersedes nothing, so it can name nothing, so it is never
+        authoritative -- which makes all five routes unreachable by construction rather
+        than by enumeration. Consequently NO production writer emits an authoritative
+        anchor at all; the authorized re-anchor is `reset_peak`, token-gated and DARK.
+        `test_phase_36_8_no_production_path_can_write_an_authoritative_anchor` is the
+        live tripwire that goes red if that ever changes.
+
+        See handoff/current/research_brief_36.8.md for why an in-stream boundary (Kafka
+        leader epochs, PostgreSQL timelines, Fowler's rejected-events) and NOT file
+        recency -- PostgreSQL prefers the archive over the live directory.
         """
         with self._lock:
             if self._peak_nav is None:
