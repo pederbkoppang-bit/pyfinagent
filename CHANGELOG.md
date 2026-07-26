@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `d14d4b2c` | chore: audit the memory tree -- found a LOST operator lesson, add a re-runnable auditor |
 | 2026-07-26 | `04617d63` | fix(80.19): add the missing favicon -- /favicon.ico 404'd on every page load |
 | 2026-07-26 | `bcaaa6f7` | feat(36.20): RE-ANCHORING badge + kill the fabricated 0.00% -- WIP, NOT Q/A-verified |
 | 2026-07-26 | `3227347a` | phase-36.13: gate the ACT OF BUYING, not just the cycle -- close the CWE-424 alternate path |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `09125a81` | feat(36.8): an in-stream authority boundary, so a fresh anchor outranks stale archived history |
 | 2026-07-26 | `c5f48cec` | phase-36.12: the order-placing path can no longer forgive a drawdown it cannot measure (Q/A PASS, cy |
 | 2026-07-26 | `4a88fe25` | fix(36.12): close QA-P2, the FIFTH hole in the halt wiring -- the PROCEED direction was untested |
-| 2026-07-26 | `1198f0b2` | fix(36.12): re-measuring the matrix honestly found M8 -- a paused book would have kept trading |
 
 ---
 
