@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-26 | `e19dd00e` | chore: subagent memory + hook-appended audit logs (NOT the step work) |
 | 2026-07-26 | `3d22ad9b` | docs: new drain goal + execute the operator-approved 80.5 disposition; HOLD the flag flip |
 | 2026-07-26 | `25205078` | fix(80.36): live captures -- and the fix revealed the kill-switch row NEVER had data |
 | 2026-07-26 | `65ba2d43` | fix(80.36): the Risk Monitor no longer claims SAFE when it has no data |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `fee8ce7e` | phase-80.4: CLOSE-OUT -- status done after Q/A PASS on cycle 4 |
 | 2026-07-26 | `96ffdbab` | fix(80.4): close SSE Disconnected-over-healthy-endpoint -- criterion 4 was a measurement error, not  |
 | 2026-07-26 | `01ea9383` | chore(autoresearch): record background-rail failure artifacts (NOT phase-80.4) |
-| 2026-07-26 | `4bcd60ad` | wip(80.4): SSE heartbeat + onopen -- 4 of 5 criteria met, CRITERION 4 FAILS, step stays open |
 
 ---
 
