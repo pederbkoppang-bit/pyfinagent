@@ -79,15 +79,15 @@ rows: {"event": "peak_update", "nav": 18000.0}
 
 ```
 $ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block.py -q
-23 passed
+24 passed
 
 $ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader'      # IMMUTABLE
-114 passed, 1 skipped, 2104 deselected
+115 passed, 1 skipped, 2104 deselected
 ```
 
 *Re-measured at every cycle, because the suite keeps growing and a stale count is a claim that no
 longer re-derives (the cycle-3 Q/A caught this section carrying cycle-2 numbers). Cycle 1:
-`13 passed` / `104 passed, 1 skipped`. Cycle 2: `17 passed` / `108 passed, 1 skipped`. Cycle 3: `22 passed` / `113 passed, 1 skipped`. Cycle 4: `23 passed` / `114 passed, 1 skipped`.*
+`13 passed` / `104 passed, 1 skipped`. Cycle 2: `17 passed` / `108 passed, 1 skipped`. Cycle 3: `22 passed` / `113 passed, 1 skipped`. Cycle 4: `24 passed` / `115 passed, 1 skipped`.*
 
 ## §D. The required curl — rig `:8002`, AFTER the simulated post-rotation cycle
 
@@ -135,10 +135,27 @@ The order-blocking half of the demonstration is not visible on this GET at all �
 | 4 | trading-path behaviour on `armed:false` decided explicitly | **MET** — BLOCK; documented in the contract and at the code site |
 | 5 | no route to `reset_peak` | **MET** — zero rows + monkeypatched raiser |
 | 6 | per-leg independence preserved | **MET** — `evaluate_breach` byte-untouched; 2 tests |
-| 7 | mutation-test every new guard | **MET as of cycle 4** — 18 mutations, 18 killed on the 23-test suite. `QA-Z1` (the cycle-3 blocker: delete `return summary` from the halt block) is now KILLED `1 failed, 22 passed` by `test_phase_36_12_a_blocked_cycle_really_places_no_orders`, which drives the REAL `run_daily_cycle` and asserts nothing was decided or traded. The three-cycle relocation pattern is retired by executing the composition rather than guarding its shape again. |
+| 7 | mutation-test every new guard | **MET** — **19 mutations, 19 killed, every one re-measured at the current 23-test baseline in cycle 4** (the previous revision said "18 killed on the 23-test suite" when only one row had actually been measured there — caught by the cycle-4 Q/A). Re-measuring was not cosmetic: it caught **M8 surviving**, a mutant that killed at an earlier baseline, because the AST guard constrains the call's shape but not its ARGUMENTS — so an already-PAUSED book would have kept trading. Closed by `test_phase_36_12_an_already_paused_cycle_still_halts`. `QA-Z1` (delete `return summary` from the halt body) dies at `1 failed, 22 passed` against `test_phase_36_12_a_blocked_cycle_really_places_no_orders`, which drives the REAL `run_daily_cycle`; the cycle-4 Q/A reproduced that kill independently and named the killing assertion. |
 | 8 | all three operator strings revised in the same change | **MET.** All three revised, plus a 4th site the step did not list (`kill_switch.py:527-528`); the grep guard is paired with a behavioural 409 assertion, and two vitest DOM assertions on the rendered `title` attributes were proven falsifiable against HEAD's old strings by an independent evaluator. On the §1c capture: measured — `grep -rn 'KillSwitchPanel' frontend/src/` returns the component's own file and **one COMMENT**, so the component is **never mounted** and a live capture of those two tooltips is impossible *by construction*, not merely inconvenient. Only ONE of the step's "three shipped operator-facing strings" (`paper_trading.py:600`) was ever operator-visible; the dead-code question is filed as `36.16`. |
 
-## §F. The §1c question, resolved
+## §F. NOT LIVE — the operator's backend still serves pre-36.12 code, deliberately
+
+Stated because the cycle-4 Q/A noted no artifact said it. `GET /api/paper-trading/kill-switch` on
+the operator's `:8000` (launchd pid `76381`) returns **no `baseline_provenance` key** — the positive
+proof that this step's code is not loaded. The backend was last restarted this morning, before
+36.12 existed.
+
+**That is the intended state and it should not be "fixed" by restarting.** 36.12's code is committed
+(`cfb56572`, `fa853f9c`) but has not passed Q/A, and restarting would put an un-passed change on the
+order-placing path. **Consequence, stated plainly: the defect this step fixes is STILL LIVE.** If the
+audit history became unrecoverable before the next restart, today's cycle would still silently
+re-anchor and report ARMED-and-healthy. The mitigating facts, measured: the switch is currently armed
+with valid baselines (`sod_nav 23838.19`, `peak_nav 24666.57`), and `36.7`'s rotation-aware restore —
+which IS live — is what makes a repeat of the 2026-07-24 loss far less likely in the first place.
+
+The restart is owed **after** this step passes, not before.
+
+## §G. The §1c question, resolved
 
 Three cycles asked for a live capture of the two `KillSwitchPanel` tooltips and each gave the same
 reason for its absence — "the live book is armed, so the disarmed branch cannot render". **That

@@ -304,6 +304,69 @@ def test_phase_36_12_a_blocked_cycle_really_places_no_orders(ks_isolated, monkey
     assert trader.execute_sell.called is False, "a SELL was placed on a halted cycle"
 
 
+def test_phase_36_12_an_already_paused_cycle_still_halts(ks_isolated, monkeypatch):
+    """The `is_paused` ARGUMENT must be wired to the live state, not a constant.
+
+    Found in cycle 4 by re-measuring the whole matrix at the current baseline: mutant
+    M8 (`cycle_halt_reason(ks_check, _ks_state().is_paused())` ->
+    `cycle_halt_reason(ks_check, False)`) had started SURVIVING. The AST guard
+    constrains the call's SHAPE and the branch that follows it, but never its
+    ARGUMENTS -- so a paused book would have gone on trading, and nothing anywhere
+    would have failed. Same relocation family as QA-X6/QA-Y1/QA-Z1, one level
+    sideways: the arguments rather than the body.
+
+    This is the pre-36.12 halt term, so the test also pins that 36.12 did not weaken
+    it while adding `blocked`.
+    """
+    import backend.services.autonomous_loop as al
+    import backend.services.cycle_health as cycle_health
+    from backend.config.settings import Settings
+
+    ks, state, _live = ks_isolated
+    state.pause(trigger="test")  # isolated audit path; alert captured by the fixture
+    assert state.is_paused() is True
+
+    # Not triggered and NOT blocked -- `paused` is the only thing that can halt it.
+    ks_quiet = {
+        "triggered": False, "blocked": False, "pre_armed": True,
+        "breach": {"any_breached": False, "armed": True},
+        "auto_resume": {"action": "no_op"},
+    }
+    portfolio = {"total_nav": 18_000.0, "starting_capital": 20_000.0, "current_cash": 18_000.0}
+    trader = MagicMock()
+    trader.check_and_enforce_kill_switch.return_value = ks_quiet
+    trader.mark_to_market.return_value = {"nav": 18_000.0, "positions": []}
+    trader.get_or_create_portfolio.return_value = portfolio
+    bq = MagicMock()
+    bq.get_paper_positions.return_value = []
+    bq.get_paper_portfolio.return_value = portfolio
+
+    settings = Settings()
+    settings.news_screen_enabled = False
+    monkeypatch.setattr(al, "BigQueryClient", lambda *a, **k: bq)
+    monkeypatch.setattr(al, "PaperTrader", lambda *a, **k: trader)
+    monkeypatch.setattr(al, "screen_universe", lambda *a, **k: [])
+    monkeypatch.setattr(al, "rank_candidates", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_sp500_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_russell1000_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "_log_cycle_signals_to_bq", lambda *a, **k: 0)
+    monkeypatch.setattr(al, "AnalysisOrchestrator", MagicMock())
+    decide = MagicMock(return_value=[])
+    monkeypatch.setattr(al, "decide_trades", decide)
+    monkeypatch.setattr(al, "_running", False)
+    fake_log = MagicMock()
+    fake_log.record_cycle_start.return_value = "2026-01-01T00:00:00+00:00"
+    monkeypatch.setattr(cycle_health, "get_log", lambda *a, **k: fake_log)
+
+    summary = asyncio.run(al.run_daily_cycle(settings=settings))
+
+    assert summary["halted"] is True, "an already-paused book must not trade"
+    assert summary["steps"][-1] == "kill_switch_halted"
+    assert decide.called is False
+    assert trader.execute_buy.called is False
+    assert trader.execute_sell.called is False
+
+
 def test_phase_36_12_halt_precedence_is_breach_then_block_then_paused():
     """The reason is what the operator reads in the log line, so precedence is part
     of the contract: a real breach must not be reported as a lost-history block."""
@@ -328,9 +391,19 @@ def test_phase_36_12_the_loop_actually_calls_the_halt_predicate():
     the `if` to be the STATEMENT IMMEDIATELY FOLLOWING the assignment closes that: any
     intervening statement, and any rebinding of the name, is now visible.
 
-    A full behavioural test of the composition would mean driving `run_daily_cycle`,
-    which needs the entire cycle's I/O surface mocked; that is queued rather than
-    faked, and this guard is honest about being structural in the meantime.
+    THE COMPOSITION IS ALSO TESTED BEHAVIOURALLY, 95 lines above, by
+    `test_phase_36_12_a_blocked_cycle_really_places_no_orders` -- it drives the real
+    `run_daily_cycle` and asserts no order is placed. This AST guard is the cheap,
+    fast belt on the branch's SHAPE; that test is the brace on its BEHAVIOUR. Keep
+    both: the AST guard catches an edit in milliseconds without mocking the cycle's
+    whole I/O surface, and it fails on shapes the behavioural test would also catch
+    but more slowly.
+
+    (Cycle-4 correction: this docstring used to say a behavioural test "is queued
+    rather than faked". The cycle-3 Q/A named that claim as false in TWO places;
+    only the artifact was fixed and this one survived -- and it had since become
+    false a second way, because the test it called deferred already exists in this
+    file. Found by the cycle-4 Q/A.)
     """
     import ast
 

@@ -294,7 +294,14 @@ Suite baseline is now **23 passed**.
    harm as the 36.7 evaluator's audit-file incident, and it would have shipped inside the very step
    that exists to stop silent state mutation.
 
-**AND THE STRUCTURAL GUARD WAS NOT ENOUGH — cycle 3 proved it.** `QA-Z1`: delete `return summary`
+### Why the structural guard was not enough — the cycle-3 finding, kept for the record
+
+*(Historical. This paragraph describes the state BEFORE the behavioural test above existed. Its
+closing line used to read "Not done. The step stays open." — which contradicted this section's own
+heading once QA-Z1 was closed. Corrected in cycle 4 after the cycle-4 Q/A caught the contradiction;
+the finding is preserved because the reasoning is why the fix took the shape it did.)*
+
+**QA-Z1, as cycle 3 found it:** `QA-Z1`: delete `return summary`
 from the halt block and every suite stays green (36.12 `22 passed`; the three other
 `run_daily_cycle` suites at their pre-existing `3 failed, 40 passed`), while control falls straight
 through into Step 5.6 and then decide/execute — a halted cycle **trades**. Nothing after the halt
@@ -303,7 +310,9 @@ BODY, so this is the third relocation of one hole (cycle 1: inline literal scan;
 predicate; cycle 3: the branch body). Extending the AST guard a fourth time would move it again.
 The fix is to stop guarding shape and execute the composition once — drive `run_daily_cycle` with
 `check_and_enforce_kill_switch` stubbed to `{"triggered": False, "blocked": True, ...}` and assert
-`summary["halted"] is True` and that decide/execute never ran. **Not done. The step stays open.**
+`summary["halted"] is True` and that decide/execute never ran. **That is exactly what was built —
+see the Cycle-4 section above; QA-Z1 is dead and the cycle-4 Q/A reproduced the kill under its own
+operator, naming the killing assertion (`summary["steps"][-1] == "kill_switch_halted"`, line 298).**
 
 ### The live UI capture (qa.md 1c) — attempted, NOT obtained, and I broke `:3000` doing it
 
@@ -395,7 +404,21 @@ well-formed disarmed body (proxy access log shows the GET twice). If that reprod
 has **no working disarmed indicator on any mounted surface** — which is P0, not P1, and 36.16's
 first criterion is to measure that before anything else.
 
-## Mutation matrix — RE-RUN on the shipped suite; 17 mutations, 17 killed, 0 survivors
+## Mutation matrix — 19 mutations, 19 killed, 0 survivors (ALL re-measured at the 23-test baseline)
+
+**Every row below was re-run in one batch against the CURRENT suite in cycle 4.** That re-measurement
+was not cosmetic: it caught **M8 SURVIVING**, a mutant that had killed at an earlier baseline. The
+cycle-4 Q/A flagged that the previous table's "on the 23-test suite" qualifier was true for only one
+of its rows; re-running everything is the fix, and it found a real hole while doing it.
+
+**M8's survival was a genuine money-path gap.** `cycle_halt_reason(ks_check, _ks_state().is_paused())`
+→ `cycle_halt_reason(ks_check, False)` passed the AST guard, because that guard constrains the call's
+SHAPE and the branch after it but never its ARGUMENTS — so an already-PAUSED book would have gone on
+trading and nothing would have failed. Same relocation family as QA-X6/QA-Y1/QA-Z1, one level
+sideways. Closed by `test_phase_36_12_an_already_paused_cycle_still_halts`, which drives the real
+cycle with a paused state and asserts nothing is decided or traded; M8 now dies at
+`1 failed, 23 passed`.
+
 
 In-memory for the module-level ones (`compile()` + `sys.modules` injection; the repo file is never
 written, and every mutation asserts its pattern matched **exactly once** so a silently-inert mutant
@@ -408,26 +431,32 @@ cannot be mistaken for a survivor; the module is registered in `sys.modules` **b
 (the dataclass trap that produced a false `AttributeError` on the 80.40 harness).
 `git diff --stat -- backend/services/` after the batch shows only this step's intended edits.
 
-| # | Mutation | Result |
+| # | Mutation | Result @ 23-test baseline |
 |---|---|---|
-| baseline | none | `17 passed` |
-| M1 | revert the measure-before-mutate ordering (anchor before `pre`) | KILLED `7 failed, 10 passed` |
-| M2 | `first_ever_boot = True` always | KILLED `7 failed, 10 passed` |
-| M3 | `first_ever_boot = False` always | KILLED `1 failed, 16 passed` (the new-book deadlock) |
-| M4 | drop the `record_lost_history_anchor` call | KILLED `2 failed, 15 passed` |
-| M5 | let the disarmed state suppress a real breach (`and pre_armed`) | KILLED `1 failed, 16 passed` |
-| M6 | `baseline_history_exists` always False | KILLED `2 failed, 15 passed` |
-| M7 | make the new event replay-authoritative (set peak) | KILLED `1 failed, 16 passed` |
-| **M11** *(cycle-1 survivor, now killed)* | invert the probe's fail-safe: `return True` → `return False` | KILLED `1 failed, 16 passed` |
-| **M12** *(cycle-1 survivor, now killed)* | keep the `blocked` literal but neuter it (`and False`) — the Q/A's own QA-X6 | KILLED `2 failed, 15 passed` |
-| **M13** *(regression mutant for the cycle-1 code defect)* | derive `untraded` from the fallback-contaminated `nav` again | KILLED `1 failed, 16 passed` |
-| **M14** | invert halt precedence (a real breach reported as a block) | KILLED `1 failed, 16 passed` |
-| M8 | the loop stops calling `cycle_halt_reason` with the live paused state (disk) | KILLED `1 failed`; `autonomous_loop.py` sha256 restored `ad10e4c49dfa` |
-| M10 | an old promise phrase creeps back into the 409 (disk) | KILLED `2 failed, 15 passed`; `paper_trading.py` sha256 restored `73204bc62bfd` |
-| **M9 (FIXTURE)** | point the autouse write-protect guard at a tmp tree, then write to it | **KILLED** — the guard raised `"a test in this module wrote to the LIVE audit trail"`; real file md5 unchanged before and after. The guard is contract-tested, not decorative. |
-| **M15** *(cycle-2 survivor, now killed)* | drop the `> 0` clause — a zero-valued `total_nav` reads as measured | KILLED `4 failed, 18 passed` |
-| **M16** *(cycle-2 survivor, now killed)* | invert the unparseable-NAV fail-safe to `True` | KILLED `2 failed, 20 passed` |
-| **M17** *(cycle-2 survivor, now killed)* | keep both wiring literals, null the predicate's result between them (disk) | KILLED `1 failed`; `autonomous_loop.py` sha256 restored `ad10e4c49dfa`. **Must be run on disk** — in-memory it reads `22 passed`, a harness artefact, because the AST guard parses the file from disk |
+| baseline | none | `23 passed` |
+| M1 | revert the measure-before-mutate ordering | KILLED `12 failed, 11 passed` |
+| M2 | `first_ever_boot = True` always | KILLED `12 failed, 11 passed` |
+| M3 | `first_ever_boot = False` always | KILLED `1 failed, 22 passed` |
+| M4 | drop the `record_lost_history_anchor` call | KILLED `2 failed, 21 passed` |
+| M5 | disarmed state suppresses a real breach | KILLED `1 failed, 22 passed` |
+| M6 | `baseline_history_exists` always False | KILLED `2 failed, 21 passed` |
+| M7 | new event becomes replay-authoritative | KILLED `1 failed, 22 passed` |
+| M11 | invert the probe's fail-safe | KILLED `1 failed, 22 passed` |
+| M12 | neuter the `blocked` branch (`and False`) | KILLED `3 failed, 20 passed` |
+| M13 | derive `untraded` from the fallback `nav` | KILLED `6 failed, 17 passed` |
+| M14 | invert halt precedence | KILLED `1 failed, 22 passed` |
+| M15 | drop the `> 0` positivity clause | KILLED `4 failed, 19 passed` |
+| M16 | invert the unparseable-NAV fail-safe | KILLED `2 failed, 21 passed` |
+| **M8** *(SURVIVED at this baseline until cycle 4 closed it)* | stop passing the live paused state (disk) | KILLED `1 failed, 23 passed`; sha256 restored `ad10e4c49dfa` |
+| M17 | keep both wiring literals, null the result (disk) | KILLED `1 failed`; sha256 restored `ad10e4c49dfa` |
+| M10 | an old promise phrase returns to the 409 (disk) | KILLED `2 failed, 21 passed`; sha256 restored `73204bc62bfd` |
+| **QA-Z1** *(the cycle-3 blocker)* | delete `return summary` from the halt body (disk) | KILLED `1 failed, 22 passed`; sha256 restored `ad10e4c49dfa`. Independently reproduced by the cycle-4 Q/A, which named the killing assertion (`summary["steps"][-1]`, line 298) |
+| **M9 (FIXTURE)** | point the autouse write-protect guard at a tmp tree, then write to it | KILLED — the guard raised `"a test in this module wrote to the LIVE audit trail"`; real file md5 unchanged |
+
+M17 and M8 must be run as DISK mutations: the AST guard parses the file from disk, so an in-memory
+mutant cannot reach it and reads as a false survivor. M2/M3 are the two-directional discriminator
+mutation; M11/M12/M13 close the cycle-1 survivors; M15/M16 the cycle-2 survivors; QA-Z1 and M8 the
+cycle-3/4 ones.
 
 **Baseline after the cycle-3 additions: `22 passed`.** The earlier rows' counts were measured at the
 17-test baseline and are left as measured rather than re-stated; where a mutant was re-run at 22
