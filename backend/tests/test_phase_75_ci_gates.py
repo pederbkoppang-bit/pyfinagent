@@ -113,6 +113,29 @@ def test_phase_75_15_newly_marked_tests_carry_requires_live():
 EXPECTED_REQUIRES_LIVE_DESELECTED = 16
 
 
+# phase-80.46: SUBPROCESS TIMEOUT POLICY -- LOOSE, DERIVED FROM A MEASUREMENT.
+#
+# A 60s budget at :NNN over a subprocess measured at 8.8s (8.6x headroom) was
+# REPRODUCED timing out under 30x CPU oversubscription on a 10-core machine
+# (handoff/current/captures_80.46/reproduction.txt). Tight timeouts are themselves
+# a flakiness source: SAP HANA 2026 (n=559) measured 18% timeout-flakiness for
+# tests calibrated close to average execution time versus 7% under one loose
+# global timeout.
+#
+# RULE: every subprocess timeout here is >= 20x its measured quiet-machine cost.
+# Re-derive the cost before changing a value; do NOT tune it closer. The collection
+# these subprocesses drive grows monotonically (2307 -> 2310 in a single day), so a
+# budget that merely looks generous today is the same defect class as the exact
+# count pin removed in 80.44 -- a constant that assumes a static suite.
+#
+# MEASURED, quiet machine (2026-07-27):
+#   :120 collection            8.8s  -> 300s budget (34x)
+#   :164 coverage_tier_check   ~1s   ->  60s budget (>=60x)
+#   :187/:224/:255 tier checks ~1s   ->  30s budget (>=30x)
+# The last four already cleared 20x at their old values; they are raised anyway so
+# one rule covers the file rather than four ad-hoc numbers.
+
+
 def test_backend_not_requires_live_collection_count_is_stable():
     """Pin the exact collected/deselected counts under `-m "not
     requires_live"` (M3 catches un-marking one of the 3 newly-marked
@@ -120,7 +143,7 @@ def test_backend_not_requires_live_collection_count_is_stable():
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "backend/tests/", "-q",
          "-m", "not requires_live", "--collect-only"],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=60,
+        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=300,  # phase-80.46: was 60s
     )
     assert result.returncode == 0, f"collection failed:\n{result.stdout}\n{result.stderr}"
     tail = result.stdout.strip().splitlines()[-1]
@@ -165,7 +188,7 @@ def test_lock_count_guard_collected_under_not_requires_live():
         [sys.executable, "-m", "pytest",
          "backend/tests/test_phase_23_2_14_no_reentrant_locks.py",
          "-q", "-m", "not requires_live", "--collect-only"],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=30,
+        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=120,  # phase-80.46: was 30s
     )
     assert result.returncode == 0
     assert "5 tests collected" in result.stdout, (
@@ -188,7 +211,7 @@ def test_coverage_tier_check_errors_on_missing_coverage_json(tmp_path):
     result = subprocess.run(
         [sys.executable, "scripts/qa/coverage_tier_check.py",
          "--coverage-json", str(missing)],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=15,
+        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=30,  # phase-80.46: was 15s
     )
     assert result.returncode == 2, (
         f"expected exit 2 on missing coverage json; got {result.returncode}\n{result.stderr}"
@@ -225,7 +248,7 @@ def test_coverage_tier_check_fails_when_bar_exceeds_measurement(tmp_path):
     result = subprocess.run(
         [sys.executable, "scripts/qa/coverage_tier_check.py",
          "--doc", str(mutated_doc), "--coverage-json", str(coverage_json)],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=15,
+        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=30,  # phase-80.46: was 15s
     )
     assert result.returncode == 1, (
         f"expected exit 1 when EXTENDED bar (99%) exceeds measured coverage; "
@@ -256,7 +279,7 @@ def test_coverage_tier_check_passes_at_real_measurements():
         result = subprocess.run(
             [sys.executable, "scripts/qa/coverage_tier_check.py",
              "--coverage-json", str(coverage_json)],
-            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=15,
+            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=30,  # phase-80.46: was 15s
         )
         assert result.returncode == 0, f"expected exit 0; got {result.returncode}\n{result.stdout}\n{result.stderr}"
 
@@ -354,3 +377,68 @@ def test_wrong_workflow_path_hard_fails_not_skips():
     assert not wrong_path.exists()
     with pytest.raises(FileNotFoundError):
         wrong_path.read_text(encoding="utf-8")
+
+
+def test_phase_80_46_no_subprocess_timeout_is_tuned_tight():
+    """phase-80.46: pin the LOOSE-timeout policy so it cannot be tuned back tight.
+
+    A 60s budget over a subprocess measured at 8.8s was REPRODUCED timing out under
+    30x CPU oversubscription. Tight timeouts are themselves a flakiness source (SAP
+    HANA 2026, n=559: 18% timeout-flakiness when calibrated near average execution
+    time vs 7% under one loose global timeout).
+
+    THE FIRST VERSION OF THIS GUARD WAS BROKEN and mutation caught it: a single
+    global floor of 30s PASSED a `timeout=60` -- i.e. it would not have caught a
+    regression to the exact value that was reproduced failing. The calls have very
+    different costs, so one floor cannot serve them; the rule is per-call and
+    derived from the measurement.
+    """
+    import ast
+    import pathlib
+
+    # Measured quiet-machine cost, 10-core, 2026-07-27. Re-derive before editing.
+    # The RULE is >= 20x measured cost (see the policy banner above).
+    MEASURED_COST_S = {
+        "collect_only": 8.8,   # the :120 collection -- the expensive one
+        "tier_check": 1.0,     # coverage_tier_check.py invocations
+    }
+    MULTIPLIER = 20
+    # The collection call is identified by its own cost; every other subprocess in
+    # this file is a tier check.
+    FLOOR_COLLECT = MEASURED_COST_S["collect_only"] * MULTIPLIER   # 176s
+    FLOOR_OTHER = MEASURED_COST_S["tier_check"] * MULTIPLIER       # 20s
+
+    src = pathlib.Path(__file__).read_text(encoding="utf-8")
+    tree = ast.parse(src)
+
+    offenders = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr == "run"
+                and isinstance(func.value, ast.Name) and func.value.id == "subprocess"):
+            continue
+        # Which floor applies is decided by the SCOPE of the work, not by the
+        # presence of "--collect-only": this file has TWO collect-only calls and
+        # they differ by ~9x. The expensive one walks the whole `backend/tests/`
+        # tree (8.8s measured); the other collects a SINGLE FILE (~1s). Keying on
+        # the flag lumped them together and tripped the guard on clean code --
+        # caught because the guard was run against an unmutated tree before being
+        # trusted.
+        argv = ast.dump(node)
+        collects_whole_tree = '"backend/tests/"' in argv or "'backend/tests/'" in argv
+        floor = FLOOR_COLLECT if collects_whole_tree else FLOOR_OTHER
+        for kw in node.keywords:
+            if kw.arg == "timeout" and isinstance(kw.value, ast.Constant):
+                if kw.value.value < floor:
+                    offenders.append(
+                        f"line {node.lineno}: timeout={kw.value.value} < {floor:.0f} "
+                        f"({MULTIPLIER}x measured cost)"
+                    )
+
+    assert offenders == [], (
+        f"subprocess timeouts tuned below {MULTIPLIER}x their measured cost: "
+        f"{offenders}. A budget close to the measured cost is a flake under CI "
+        "contention -- re-derive the cost and keep the multiple, do not tune closer."
+    )
