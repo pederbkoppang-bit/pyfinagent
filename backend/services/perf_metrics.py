@@ -216,6 +216,37 @@ def compute_max_drawdown_from_snapshots(
     if not snapshots:
         return None
 
+    # phase-80.43: VALIDATE THE SORT KEY BEFORE TRUSTING THE SORT.
+    #
+    # This ASC sort exists precisely to stop a DESC-ordered BQ series being read
+    # backwards -- the phantom-drawdown class this function's docstring cites
+    # (phase-47.4 / phase-66.2). But `str(s.get(key) or "")` mapped missing, None
+    # and "" all to the empty string, which collates FIRST regardless of real
+    # chronology. If EVERY row lacked the key the sort became a NO-OP and the
+    # caller's original DESC order survived untouched -- so a RISING book would
+    # publish a phantom NEGATIVE drawdown, silently. `total_nav` was validated
+    # hard here while the key that establishes ORDER was not validated at all.
+    #
+    # A series whose chronology cannot be established is UNMEASURABLE, not zero
+    # and not a computed number: returning None matches this module's existing
+    # presence-not-value contract (None = could not be measured, a numeric =
+    # measured) and makes the cockpit show "unmeasurable" instead of a fabricated
+    # decline. Deliberately strict -- ALL rows must carry a usable key, because a
+    # partially-dated series mis-orders exactly as badly as an undated one: the
+    # undated rows silently collate to the front and become the "peak".
+    missing_dates = [
+        s for s in snapshots
+        if not str(s.get(snapshot_date_key) or "").strip()
+    ]
+    if missing_dates:
+        logger.warning(
+            "perf_metrics: %d of %d snapshots lack a usable %r -- chronology "
+            "cannot be established, so max-drawdown is UNMEASURABLE (returning "
+            "None) rather than computed from an unknown ordering.",
+            len(missing_dates), len(snapshots), snapshot_date_key,
+        )
+        return None
+
     try:
         ordered = sorted(snapshots, key=lambda s: str(s.get(snapshot_date_key) or ""))
     except Exception:  # pragma: no cover - defensive; snapshots are plain dicts

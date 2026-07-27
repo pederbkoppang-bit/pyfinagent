@@ -436,3 +436,65 @@ def test_phase_80_45_precision_floor_is_documented_and_holds():
         {"snapshot_date": "2026-07-25", "total_nav": 23000.00},
     ])
     assert real is not None and real < -3.0, f"a real 3.5% decline must report, got {real!r}"
+
+
+def test_phase_80_43_undated_series_is_unmeasurable_not_a_phantom_drawdown():
+    """phase-80.43: an unvalidated sort key left the phantom-drawdown class open.
+
+    The ASC sort exists to stop a DESC-ordered BQ series being read backwards.
+    But missing/None/"" all mapped to the empty sort key, so a series with NO
+    dates sorted to a NO-OP and kept the caller's DESC order -- and a RISING book
+    then published a phantom NEGATIVE drawdown.
+
+    THE FIXTURE IS THE DEFECT: navs DESCEND in list order (24000 -> 23000 -> 22000)
+    while the book actually ROSE over time. Read in the given order that is a
+    ~8.3% decline; correctly ordered there is no decline at all. With no dates the
+    function cannot know which, so the only honest answer is None.
+    """
+    from backend.services import perf_metrics
+
+    rising_book_in_desc_order = [
+        {"total_nav": 24000.0},
+        {"total_nav": 23000.0},
+        {"total_nav": 22000.0},
+    ]
+    got = perf_metrics.compute_max_drawdown_from_snapshots(rising_book_in_desc_order)
+    assert got is None, (
+        f"an undated series must be UNMEASURABLE, got {got!r} -- a number here is "
+        "computed from an ordering the function cannot verify"
+    )
+
+    # Same for explicit None and empty-string dates, the other two spellings of
+    # 'no usable key' that the old `or ""` coalesced together.
+    for bad in (None, "", "   "):
+        rows = [{"snapshot_date": bad, "total_nav": v} for v in (24000.0, 23000.0, 22000.0)]
+        assert perf_metrics.compute_max_drawdown_from_snapshots(rows) is None, (
+            f"snapshot_date={bad!r} must be treated as unusable"
+        )
+
+    # PARTIAL dating is just as unsafe: the undated row collates to the front and
+    # becomes the "peak", so it must not be silently tolerated either.
+    partial = [
+        {"snapshot_date": "2026-07-24", "total_nav": 22000.0},
+        {"total_nav": 24000.0},
+        {"snapshot_date": "2026-07-26", "total_nav": 23000.0},
+    ]
+    assert perf_metrics.compute_max_drawdown_from_snapshots(partial) is None
+
+
+def test_phase_80_43_a_properly_dated_series_is_byte_for_byte_unchanged():
+    """Criterion 3: the validation must not disturb the working path.
+
+    Fixed fixture, exact expected value -- if the validation ever starts dropping
+    or reordering valid rows, this moves.
+    """
+    from backend.services import perf_metrics
+
+    dated = [
+        {"snapshot_date": "2026-07-26", "total_nav": 23000.0},  # deliberately DESC
+        {"snapshot_date": "2026-07-25", "total_nav": 22000.0},  # in list order, to
+        {"snapshot_date": "2026-07-24", "total_nav": 24000.0},  # prove the sort runs
+    ]
+    got = perf_metrics.compute_max_drawdown_from_snapshots(dated)
+    # Chronologically: 24000 -> 22000 -> 23000. Trough 22000 vs peak 24000 = -8.33%.
+    assert got == pytest.approx(-8.33, abs=0.01), f"expected -8.33, got {got!r}"
