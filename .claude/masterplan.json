@@ -21051,6 +21051,25 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "80.46",
+          "status": "pending",
+          "priority": "P2",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- A FLAKY CI GATE: FIXED SUBPROCESS TIMEOUTS ON A COLLECTION THAT KEEPS GROWING] OBSERVED ONCE, NOT REPRODUCED -- and the executor must treat that as the first problem to solve, not a detail. EVIDENCE: on 2026-07-26 a run of `pytest backend/tests/ -q -k 'drawdown or perf_metrics or kill_switch'` reported `249 passed, 1 skipped, 2060 deselected, 1 warning, 1 ERROR in 95.89s`. FIVE subsequent runs were clean at 15-19s. The error was never identified because it did not recur. HYPOTHESIS, untested: test_phase_75_ci_gates.py:123 shells out to `pytest --collect-only` with a hard `timeout=60`; a subprocess.TimeoutExpired surfaces in pytest as an ERROR (not a failure), which matches the observed shape. MEASURED: that subprocess takes 6.3s wall normally (9.5x headroom), but the 95.89s run happened while THREE mutation-matrix pytest subprocesses AND the frontend vitest suite were competing for CPU -- a measured ~6x overall slowdown. The same file carries four more fixed timeouts (:168 timeout=30, :191/:228/:259 timeout=15) over subprocesses whose cost grows with the suite, and the suite grew 2307 -> 2310 collected tests on 2026-07-27 alone. FIRST TASK IS REPRODUCTION, not a fix: run the selector under deliberate CPU oversubscription (e.g. N parallel pytest jobs) until the error recurs, and CAPTURE IT -- an error that cannot be reproduced cannot be proven fixed, and a timeout bump applied without a reproduction is indistinguishable from doing nothing. If the hypothesis is REFUTED, say so and record what the error actually was; do not force the timeout theory to fit. IF CONFIRMED, the fix is not simply a bigger number -- a fixed wall-clock budget over a workload that grows monotonically will fail again; consider scaling the timeout to the measured baseline, or removing the subprocess round-trip where the same fact can be obtained in-process. NOTE the exact-count pin in this same file was removed on 2026-07-27 (step 80.44) precisely because it went stale on every test addition -- this is the same class of defect (a constant that assumes a static suite) in a different variable.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_75_ci_gates.py -q",
+            "success_criteria": [
+              "The error is REPRODUCED under controlled contention and captured verbatim, OR the hypothesis is explicitly refuted with evidence and the real cause named -- state which",
+              "If confirmed: the fix does not rely on a larger fixed constant; it scales with the measured workload or removes the subprocess round-trip, and the reasoning is stated",
+              "The gate still fails when it should -- the phase-80.44 requires_live-deselection invariant is asserted unchanged",
+              "All five fixed timeouts in the file are dispositioned explicitly (hardened or justified as safe), not just the one that fired",
+              "MUTATION-TEST whichever guard is added"
+            ],
+            "live_check": "Verbatim capture of the reproduced error under contention, plus the post-fix run under the SAME contention showing it gone."
+          }
         }
       ]
     }
