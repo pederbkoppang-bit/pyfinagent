@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-27 | `d092fb6c` | fix(80.46) cycle 2: the immutable command was RED as shipped, and 'filed separately' was false |
 | 2026-07-27 | `531c2825` | fix(80.46): harden five subprocess timeouts to 20x measured cost; hypothesis REFUTED |
 | 2026-07-27 | `5c489d92` | test(80.46): reproduce the timeout fragility, REFUTE it as the observed cause |
 | 2026-07-27 | `b4df03e4` | chore(80.46): file the unreproducible CI-gate error instead of faking a fix |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `edb67997` | phase-36.8: archive-merge authority -- a stale archived peak can no longer permanently flatten and p |
 | 2026-07-26 | `dbcd8926` | fix(36.8): close the C7 findings -- regenerate live_check (b), correct the production docstring, rep |
 | 2026-07-26 | `54f3a18d` | docs(36.8): correct the What-shipped table and update_peak's docstring -- both described cycle-4 cod |
-| 2026-07-26 | `18e81f57` | docs(36.8): regenerate all three record defects -- the redesign itself passed cycle 5 |
 
 ---
 
+### v6.72.7 — fix(80.46) cycle 2: the immutable command was RED as shipped, and 'fi... (2026-07-27)
+
+- **fix(80.46) cycle 2: the immutable command was RED as shipped, and 'filed separately' was false**
 ### v6.72.6 — fix(80.46): harden five subprocess timeouts to 20x measured cost; hyp... (2026-07-27)
 
 - **fix(80.46): harden five subprocess timeouts to 20x measured cost; hypothesis REFUTED**
