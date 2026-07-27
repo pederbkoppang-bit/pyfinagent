@@ -127,14 +127,15 @@ EXPECTED_REQUIRES_LIVE_DESELECTED = 16
 # budget that merely looks generous today is the same defect class as the exact
 # count pin removed in 80.44 -- a constant that assumes a static suite.
 #
-# CALL SITES, DERIVED BY AST (not typed -- the first version of this banner carried
-# stale line numbers and quoted a 60s budget that existed at no call site, which a
-# Q/A caught; on a step about stale constants that was the worst possible defect):
-#   :143  whole-tree collection      timeout=300s
-#   :187  single-file / tier check   timeout=120s
-#   :211  single-file / tier check   timeout=30s
-#   :248  single-file / tier check   timeout=30s
-#   :279  single-file / tier check   timeout=30s
+# CALL SITES, KEYED BY FUNCTION NAME -- not line number. Cycle 2 regenerated this
+# banner from an AST walk and then INSERTED the banner, which shifted every line it
+# had just named by 7-8. A Q/A caught that: the fix for stale line numbers produced
+# stale line numbers. Function names do not move when text is inserted above them.
+#   test_backend_not_requires_live_collection_count_is_stable() -> timeout=300s
+#   test_coverage_tier_check_errors_on_missing_coverage_json() -> timeout=30s
+#   test_coverage_tier_check_fails_when_bar_exceeds_measurement() -> timeout=30s
+#   test_coverage_tier_check_passes_at_real_measurements() -> timeout=30s
+#   test_lock_count_guard_collected_under_not_requires_live() -> timeout=120s
 #
 # Only the whole-tree collection is expensive (~8.8s measured); the rest are ~1s.
 # The guard test at the bottom of this file enforces the 20x rule per call site.
@@ -447,16 +448,40 @@ def test_phase_80_46_no_subprocess_timeout_is_tuned_tight():
         # the flag lumped them together and tripped the guard on clean code --
         # caught because the guard was run against an unmutated tree before being
         # trusted.
-        argv = ast.dump(node)
-        collects_whole_tree = '"backend/tests/"' in argv or "'backend/tests/'" in argv
+        # phase-80.46 cycle 3: classify by what the argv actually TARGETS, after
+        # normalising, not by a literal string match. A Q/A defeated the previous
+        # version by DELETING ONE CHARACTER -- "backend/tests/" -> "backend/tests"
+        # made this False, dropped the floor 176s -> 20s, and re-admitted the exact
+        # 60s budget that was reproduced timing out. Both spellings collect
+        # identically (2295/2311), so the escape was invisible in review.
+        targets = [a.value.rstrip("/") for a in node.args[0].elts
+                   if isinstance(a, ast.Constant) and isinstance(a.value, str)] \
+            if node.args and isinstance(node.args[0], (ast.List, ast.Tuple)) else []
+        # A whole-tree collection targets a DIRECTORY; the cheap ones target a
+        # single .py file. That distinction is semantic, not textual.
+        collects_whole_tree = any(
+            t == "backend/tests" or (t.startswith("backend/tests") and not t.endswith(".py"))
+            for t in targets
+        )
         floor = FLOOR_COLLECT if collects_whole_tree else FLOOR_OTHER
         for kw in node.keywords:
-            if kw.arg == "timeout" and isinstance(kw.value, ast.Constant):
-                if kw.value.value < floor:
-                    offenders.append(
-                        f"line {node.lineno}: timeout={kw.value.value} < {floor:.0f} "
-                        f"({MULTIPLIER}x measured cost)"
-                    )
+            if kw.arg != "timeout":
+                continue
+            if not isinstance(kw.value, ast.Constant):
+                # phase-80.46 cycle 3: FAIL CLOSED. A non-literal timeout
+                # (timeout=_SOME_CONST) was previously SKIPPED, which is a silent
+                # bypass of the whole policy. An unresolvable budget is not a
+                # compliant one.
+                offenders.append(
+                    f"line {node.lineno}: timeout is not a literal -- the policy "
+                    "cannot be checked, so it is treated as a violation"
+                )
+                continue
+            if kw.value.value < floor:
+                offenders.append(
+                    f"line {node.lineno}: timeout={kw.value.value} < {floor:.0f} "
+                    f"({MULTIPLIER}x measured cost)"
+                )
 
     assert offenders == [], (
         f"subprocess timeouts tuned below {MULTIPLIER}x their measured cost: "

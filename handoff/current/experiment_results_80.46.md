@@ -39,7 +39,7 @@ AFTER : same 30x contention  ->  284.6s, SURVIVED at 300s
 | `:187` single-file collection | 30s | 120s | ~1s | >=120x |
 | `:211` / `:248` / `:279` tier checks | 15s | 30s | ~1s | >=30x |
 
-Line numbers **derived by AST**, not typed — cycle 1's banner carried stale numbers and quoted a 60s
+Call sites **keyed by function name** (see cycle 3) — cycle 1's banner carried stale numbers and quoted a 60s
 budget that existed at no call site. On a step whose thesis is "a constant that assumes a static
 suite", that was the worst possible defect, and the Q/A caught it.
 
@@ -92,3 +92,59 @@ verification claim** — the pyc is removed and the command now passes twice con
 
 Test infrastructure only. No production code, no thresholds, no kill-switch state. Live book
 untouched: `paused: false`, `armed: true`, peak `24666.57`.
+
+
+## Cycle 3 — two more findings, and the first one is the same defect twice
+
+**The banner's line numbers were stale AGAIN, inside the fix for the stale line numbers.**
+Cycle 2 derived them by AST and *then inserted the 7-line banner*, which shifted every site it had
+just named by 7-8 (`143→150`, `211→218`, `248→255`, `279→286`). And the artifact claimed "derived by
+AST, not typed" — a claim that did not reproduce.
+
+The root cause is **derive-then-edit ordering**, so the class fix is not "derive again": it is to
+key on something that does not move. The banner now lists **function names**, which are immune to
+insertions above them:
+
+```
+test_backend_not_requires_live_collection_count_is_stable() -> timeout=300s
+test_lock_count_guard_collected_under_not_requires_live()   -> timeout=120s
+test_coverage_tier_check_*()                                -> timeout=30s  (x3)
+```
+
+**The Q/A found an escape I did not disclose, and it was the binding one.** I disclosed the
+non-literal-timeout residual and argued it was acceptable. The Q/A executed a *second* escape:
+deleting **one character** — `"backend/tests/"` → `"backend/tests"` — flips the discriminator,
+drops the floor `176s → 20s`, and re-admits the exact 60s budget reproduced timing out. Both
+spellings collect **byte-identically** (`2295/2311`), so the escape is invisible in review. My
+"acceptable residual" reasoning didn't survive contact with the escape I hadn't looked for.
+
+Both closed, both one-liners as the Q/A specified:
+- The discriminator now classifies by what the argv **targets** after `rstrip("/")` — a directory
+  versus a `.py` file — a semantic distinction, not a textual one.
+- A non-literal timeout is now an **offender**, not a skip: an unresolvable budget is not a
+  compliant one. **Fail closed.**
+
+### Mutation, cycle 3 — run OUT OF TREE
+
+| mutant | result |
+|---|---|
+| CONTROL (unmutated) | green |
+| QA_B one-char path edit + `timeout=60` **(the escape I missed)** | **KILLED** |
+| QA_A non-literal `timeout=_TIGHT` | **KILLED** |
+| M5 coordinated (`timeout→60` AND `cost→1.0`) | **KILLED** |
+| M1 plain `timeout→60` | **KILLED** |
+
+Run on scratch copies with `PYTHONDONTWRITEBYTECODE=1` and the repo file's sha verified unchanged —
+because the **in-tree** mutation habit is exactly what produced cycle 1's stale-`.pyc` defect, where
+the immutable command passed in my shell and failed on a clean checkout.
+
+### The guard's full history: six attempts
+
+1. Global 30s floor — passed a `timeout=60`, blind to the regression it existed for.
+2. Keyed on the `--collect-only` flag — tripped on clean code.
+3. Keyed on collection scope — green, but calibration constants unpinned.
+4. Calibration pinned — defeated by a one-character path edit.
+5. Targets normalised + fail-closed on non-literals — 4/4 kills.
+6. Banner re-keyed to function names so it cannot go stale on insertion.
+
+Every one of those failures was found by **executing** something, never by reading it.
