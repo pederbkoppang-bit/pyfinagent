@@ -1,0 +1,33 @@
+=== pytest summary for an uncaught subprocess.TimeoutExpired ===
+=========================== short test summary info ============================
+FAILED ../../../../../var/folders/n4/9khkbgzj593cmjc28m9chntm0000gn/T/tmpqd9l9_ga/test_probe.py::test_subprocess_timeout_bucket
+1 failed in 1.08s
+
+BUCKET: reported as 1 failed
+
+================================================================================
+VERDICT ON THE HYPOTHESIS -- HALF CONFIRMED, HALF REFUTED
+================================================================================
+
+CONFIRMED (mechanism is real):
+  baseline (quiet, 10 cpus)  : 8.8s
+  under 30x contention       : TIMED OUT at 60s
+  -> test_phase_75_ci_gates.py:123's `timeout=60` over a subprocess measured at
+     8.8s IS reachable under load. A genuine latent flake.
+
+REFUTED (it is not what was observed):
+  An uncaught subprocess.TimeoutExpired inside a test body reports as
+  "1 failed", NOT "1 error". Proved with a minimal probe (1s budget on a 5s
+  sleep) -> "1 failed in 1.08s".
+  -> The observed symptom was "1 error". pytest reserves ERROR for COLLECTION
+     failures and FIXTURE setup/teardown failures, not test-body exceptions.
+     So the timeout cannot be the cause of what I saw.
+
+THEREFORE:
+  1. The timeout fragility is real, reproduced, and worth fixing on its own merit.
+  2. The CAUSE OF THE OBSERVED "1 error" REMAINS UNKNOWN and must not be claimed
+     as fixed by any timeout change. Most likely a fixture setup/teardown failure
+     under contention -- unproven.
+
+This is the outcome the step explicitly required ("if the hypothesis is REFUTED,
+say so ... do not force the timeout theory to fit"). Recorded rather than bent.
