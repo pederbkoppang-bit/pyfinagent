@@ -12417,6 +12417,26 @@
             ],
             "live_check": "audit_memory.py output before and after, plus the re-derived index-line census."
           }
+        },
+        {
+          "id": "36.26",
+          "status": "pending",
+          "priority": "P1",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P1 -- AN OPERATOR CANNOT UNDO THEIR OWN MANUAL PAUSE WHILE THE DAILY ANCHOR IS STALE] Hit LIVE by the operator on 2026-07-27, not theorised. They pressed PAUSE manually (audit row: event=pause trigger=manual, 06:15:57Z), then could not resume: the cockpit Resume button was disabled and POST /api/paper-trading/resume returned 409 'the daily-loss anchor is STALE'. NO BREACH was involved -- any_breached=false, trailing_dd 3.36% against a 10% limit. CAUSE, and it is ours: phase-36.9 made `armed` mean 'can this leg fire RIGHT NOW', which is false when sod_date != today; phase-36.9-cycle-3 then added a staleness-specific 409 to the resume gate; and both cockpit components disable Resume on `armed === false`. Before 36.9 a stale anchor did not affect `armed`, so this resume would have worked. The phase-36.9 Q/A DID ask whether this wedges a paused book and correctly answered 'no, the daily roll clears it within one cycle' -- true, but useless to an operator who wants to undo their own action NOW, and the operator had to be manually unblocked (anchor rolled + backend restarted). THE DISTINCTION THE CODE IS MISSING: a BREACH-pause must not be resumable while limits cannot be verified -- that is the phase-36.7 guarantee and it must not be weakened. A MANUAL pause is a different thing: it is an operator action, and an operator must be able to reverse their own action. `pause_reason` already distinguishes them ('manual' vs a breach trigger) and is already in the snapshot, so the signal exists and is unused. FIX DIRECTION, decide explicitly: (a) allow resume when pause_reason == 'manual' AND any_breached is false, even on a stale anchor, since the trailing leg is date-independent and still armed; (b) add an explicit operator-token override; or (c) roll the anchor as part of the resume path. Prefer (a) -- it uses a signal that already exists -- but the executor must verify pause_reason is trustworthy (grep every writer) before keying safety behaviour on it. DO NOT weaken the breach-pause path, do not touch thresholds, and do NOT reset the peak (that is the owed KS-PEAK-RESET token, step 79.6). RELATED: 36.9 (armed semantics), 36.20 (the badge that renders this state), 36.13.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or resume or paper_trading'",
+            "success_criteria": [
+              "A test reproduces the LIVE failure first: manual pause + stale anchor + no breach -> resume refused; record the verbatim 409 before changing anything",
+              "After the fix a MANUAL pause with no breach can be resumed on a stale anchor -- a test proves it and FAILS against current code",
+              "A BREACH pause is still NOT resumable while any_breached is true or the baselines are missing -- the phase-36.7 guarantee is asserted unchanged, in the same test file",
+              "pause_reason is verified trustworthy before safety behaviour keys on it: every writer of pause_reason is enumerated by grep in the artifacts, with the command shown",
+              "The cockpit Resume button is enabled for exactly the states the server will accept -- no button that 409s, no disabled button the server would have allowed",
+              "MUTATION-TEST: collapsing manual and breach pauses back into one path must fail the new test"
+            ],
+            "live_check": "Verbatim 409 before, and a successful resume after, on a manually-paused book with a stale anchor; plus proof a breach-pause still refuses."
+          }
         }
       ],
       "phase_status_audit": "phase-status reconciliation 2026-06-12 (goal-away-ops hygiene): no pending steps remain -- 1 done, 5 deferred per the operator's verbatim 'Confirm disposition (Recommended)' (2026-06-12). Phase-level deferred = no active scheduled work; step-level statuses are the durable record. Status-only edit; no verification fields touched."
