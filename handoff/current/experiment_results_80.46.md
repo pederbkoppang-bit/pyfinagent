@@ -148,3 +148,55 @@ the immutable command passed in my shell and failed on a clean checkout.
 6. Banner re-keyed to function names so it cannot go stale on insertion.
 
 Every one of those failures was found by **executing** something, never by reading it.
+
+
+## Cycle 4 — stop scanning, mediate. The FAIL was right.
+
+Cycle 3 returned **FAIL** and found not one seventh escape but four, all executed, all
+behaviour-identical (`"./backend/tests/"`, `"backend//tests/"`, hoisting the argv to a module
+constant, and `from subprocess import run`). It also proved my cycle-3 claim — that the
+discriminator was *"a semantic distinction, not a textual one"* — **does not reproduce**: it was
+still a textual prefix match with one `rstrip("/")`. I asserted a property I had not tested.
+
+**The conclusion I drew is that the instrument was wrong, not the tuning.** Six versions of a
+source-SCANNING guard lost to six different spellings, because a scan over a language with
+unlimited spellings cannot enumerate them. So the policy moved to the one place a subprocess can
+actually be launched — the same remedy phase-36.13 applied to the kill switch, for the reason
+CWE-638 gives: *"create and use a single interface that performs the access checks."*
+
+- All five call sites now go through `_run_gated(argv)`. **No call site carries a timeout at all**,
+  so the entire class of "lower the number" mutations no longer has a number to lower.
+- The budget is **derived at call time** from the measured cost, and scope is decided by asking the
+  **filesystem** whether the target resolves to a directory — which is why `"backend/tests/"`,
+  `"backend/tests"`, `"./backend/tests/"` and `"backend//tests/"` are now identical here, as they
+  already were to pytest.
+- The guard asserts complete mediation by matching the call **name** (`run`, `Popen`,
+  `check_output`, `call`, `check_call`) rather than the access path, so `from subprocess import run`
+  is caught.
+
+### Two failures of my own, both caught by measurement
+
+**My first matrix was INVALID and I nearly reported it.** It showed 9/9 killed — with a **red
+control**. The new guard resolves `REPO_ROOT` from `__file__`, so an out-of-tree copy cannot find
+`backend/tests/`; the previous scanning guard only read text and was copy-portable. A matrix whose
+control fails proves nothing, and every "kill" in it was noise. Re-run with the probe placed
+**inside** `backend/tests/` (bytecode disabled, probe deleted in a `finally`, repo sha verified).
+
+**Then the valid matrix found a real survivor**: replacing the derivation with a hardcoded
+`kwargs["timeout"] = 60` passed everything. My assertions proved call sites *used* the helper and
+that the constants *existed* — never that the helper **consulted** them. Closed with a
+**behavioural** check that intercepts the launch and reads the budget actually computed.
+
+### Final matrix — 8 killed / 0 survived, control green
+
+| mutant | result |
+|---|---|
+| helper hardcodes 60 (the survivor) | KILLED |
+| helper ignores scope (always cheap) | KILLED |
+| `"backend/tests"` / `"./backend/tests/"` | KILLED |
+| `from subprocess import run` | KILLED |
+| `Popen` instead of `run` | KILLED |
+| calibration cost lowered / multiplier lowered | KILLED |
+
+Evading the policy now requires deleting or bypassing the helper — a visible structural change, not
+a one-character edit.

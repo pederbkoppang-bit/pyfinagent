@@ -24,6 +24,55 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+# ── phase-80.46 cycle 4: ONE CHOKE POINT, NO PER-SITE CONSTANTS ────────────────
+#
+# Six previous attempts at a source-SCANNING guard were each defeated by a spelling
+# nobody anticipated: a global floor that passed the very value it existed to catch;
+# a flag-keyed discriminator that tripped on clean code; unpinned calibration; a
+# one-character path edit ("backend/tests/" -> "backend/tests"); then "./backend/
+# tests/", "backend//tests/", hoisting the argv to a module constant, and
+# `from subprocess import run` -- all four found by a Q/A, all behaviour-identical
+# (every spelling collects 2295/2311).
+#
+# The lesson is not "scan harder". A source scan over a language with unlimited
+# spellings is the wrong instrument. This is the SAME remedy phase-36.13 applied to
+# the kill switch, and CWE-638 names it: "create and use a single interface that
+# performs the access checks". Call sites no longer carry a timeout at all -- there
+# is no constant left to tune down, and the budget is DERIVED from the workload at
+# call time rather than written next to it.
+#
+# Timeouts are >= MULTIPLIER x the measured quiet-machine cost. Re-derive the costs
+# before changing them; do not tune closer. The collection these drive grows
+# monotonically (2307 -> 2311 in two days), which is why a fixed constant is the
+# same defect class as the exact-count pin removed in 80.44.
+_MEASURED_COST_S = {"whole_tree": 8.8, "single_target": 1.0}
+_TIMEOUT_MULTIPLIER = 20
+
+
+def _run_gated(argv: list[str], **kwargs):
+    """Every subprocess in this file goes through here. The timeout is DERIVED.
+
+    Scope is decided by resolving each argv entry against the repo and asking the
+    filesystem whether it is a DIRECTORY -- not by matching a string. That is what
+    makes "./backend/tests/", "backend//tests/" and "backend/tests" identical here,
+    as they already are to pytest.
+    """
+    whole_tree = False
+    for a in argv:
+        if not isinstance(a, str) or a.startswith("-"):
+            continue
+        candidate = (REPO_ROOT / a).resolve()
+        if candidate.is_dir() and candidate != REPO_ROOT:
+            whole_tree = True
+            break
+    cost = _MEASURED_COST_S["whole_tree" if whole_tree else "single_target"]
+    kwargs.setdefault("cwd", str(REPO_ROOT))
+    kwargs.setdefault("capture_output", True)
+    kwargs.setdefault("text", True)
+    kwargs["timeout"] = cost * _TIMEOUT_MULTIPLIER
+    return subprocess.run(argv, **kwargs)
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 
 
@@ -145,11 +194,8 @@ def test_backend_not_requires_live_collection_count_is_stable():
     """Pin the exact collected/deselected counts under `-m "not
     requires_live"` (M3 catches un-marking one of the 3 newly-marked
     tests -- the deselected count would drop and this assertion fails)."""
-    result = subprocess.run(
-        [sys.executable, "-m", "pytest", "backend/tests/", "-q",
-         "-m", "not requires_live", "--collect-only"],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=300,  # phase-80.46: was 60s
-    )
+    result = _run_gated([sys.executable, "-m", "pytest", "backend/tests/", "-q",
+         "-m", "not requires_live", "--collect-only"])
     assert result.returncode == 0, f"collection failed:\n{result.stdout}\n{result.stderr}"
     tail = result.stdout.strip().splitlines()[-1]
     # pytest --collect-only summary line: "N/M tests collected (K deselected) in Ts"
@@ -189,12 +235,9 @@ def test_backend_not_requires_live_collection_count_is_stable():
 def test_lock_count_guard_collected_under_not_requires_live():
     """test_phase_23_2_14 (unmarked, green) must be selected by the new
     `-m "not requires_live"` filter, not accidentally excluded."""
-    result = subprocess.run(
-        [sys.executable, "-m", "pytest",
+    result = _run_gated([sys.executable, "-m", "pytest",
          "backend/tests/test_phase_23_2_14_no_reentrant_locks.py",
-         "-q", "-m", "not requires_live", "--collect-only"],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=120,  # phase-80.46: was 30s
-    )
+         "-q", "-m", "not requires_live", "--collect-only"])
     assert result.returncode == 0
     assert "5 tests collected" in result.stdout, (
         f"expected all 5 test_phase_23_2_14 tests collected; got:\n{result.stdout}"
@@ -213,11 +256,8 @@ def test_coverage_tier_check_errors_on_missing_coverage_json(tmp_path):
     """M4: pointing the checker at a nonexistent coverage json must ERROR
     (exit 2), never silently pass (exit 0)."""
     missing = tmp_path / "does_not_exist.json"
-    result = subprocess.run(
-        [sys.executable, "scripts/qa/coverage_tier_check.py",
-         "--coverage-json", str(missing)],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=30,  # phase-80.46: was 15s
-    )
+    result = _run_gated([sys.executable, "scripts/qa/coverage_tier_check.py",
+         "--coverage-json", str(missing)])
     assert result.returncode == 2, (
         f"expected exit 2 on missing coverage json; got {result.returncode}\n{result.stderr}"
     )
@@ -250,11 +290,8 @@ def test_coverage_tier_check_fails_when_bar_exceeds_measurement(tmp_path):
         }
     }), encoding="utf-8")
 
-    result = subprocess.run(
-        [sys.executable, "scripts/qa/coverage_tier_check.py",
-         "--doc", str(mutated_doc), "--coverage-json", str(coverage_json)],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=30,  # phase-80.46: was 15s
-    )
+    result = _run_gated([sys.executable, "scripts/qa/coverage_tier_check.py",
+         "--doc", str(mutated_doc), "--coverage-json", str(coverage_json)])
     assert result.returncode == 1, (
         f"expected exit 1 when EXTENDED bar (99%) exceeds measured coverage; "
         f"got {result.returncode}\n{result.stdout}\n{result.stderr}"
@@ -281,11 +318,8 @@ def test_coverage_tier_check_passes_at_real_measurements():
     with tempfile.TemporaryDirectory() as td:
         coverage_json = Path(td) / "coverage.json"
         coverage_json.write_text(json.dumps(coverage_json_data), encoding="utf-8")
-        result = subprocess.run(
-            [sys.executable, "scripts/qa/coverage_tier_check.py",
-             "--coverage-json", str(coverage_json)],
-            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=30,  # phase-80.46: was 15s
-        )
+        result = _run_gated([sys.executable, "scripts/qa/coverage_tier_check.py",
+             "--coverage-json", str(coverage_json)])
         assert result.returncode == 0, f"expected exit 0; got {result.returncode}\n{result.stdout}\n{result.stderr}"
 
 
@@ -384,107 +418,120 @@ def test_wrong_workflow_path_hard_fails_not_skips():
         wrong_path.read_text(encoding="utf-8")
 
 
-def test_phase_80_46_no_subprocess_timeout_is_tuned_tight():
-    """phase-80.46: pin the LOOSE-timeout policy so it cannot be tuned back tight.
+def test_phase_80_46_every_subprocess_goes_through_the_gated_launcher():
+    """phase-80.46 cycle 4: complete mediation, replacing a source scan that lost
+    six times.
 
-    A 60s budget over a subprocess measured at 8.8s was REPRODUCED timing out under
-    30x CPU oversubscription. Tight timeouts are themselves a flakiness source (SAP
-    HANA 2026, n=559: 18% timeout-flakiness when calibrated near average execution
-    time vs 7% under one loose global timeout).
+    THE HISTORY MATTERS, because it is why this test looks different from the one it
+    replaces. Six versions tried to SCAN the source for tight timeouts. Each was
+    defeated by a spelling nobody anticipated -- a global floor that passed the exact
+    value it existed to catch; a flag-keyed discriminator that tripped on clean code;
+    unpinned calibration constants; then FOUR behaviour-identical escapes found by a
+    Q/A: "./backend/tests/", "backend//tests/", hoisting the argv to a module
+    constant, and `from subprocess import run`. Every one collected 2295/2311 --
+    invisible in review.
 
-    THE FIRST VERSION OF THIS GUARD WAS BROKEN and mutation caught it: a single
-    global floor of 30s PASSED a `timeout=60` -- i.e. it would not have caught a
-    regression to the exact value that was reproduced failing. The calls have very
-    different costs, so one floor cannot serve them; the rule is per-call and
-    derived from the measurement.
+    A source scan over a language with unlimited spellings cannot win that game. So
+    the policy moved to the ONE place a subprocess can actually be launched, exactly
+    as phase-36.13 did for the kill switch, and for the reason CWE-638 gives:
+    "create and use a single interface that performs the access checks."
+
+    This test therefore asserts TWO things and neither is a spelling:
+      1. No test function launches a subprocess directly -- all go through
+         `_run_gated`, which DERIVES the timeout. There is no per-site constant left
+         to tune, so the entire class of "lower the number" mutations is gone.
+      2. The helper's own calibration cannot be weakened silently.
+
+    Evading this now requires deleting or bypassing the helper, which is a visible
+    structural change rather than a one-character edit.
     """
     import ast
     import pathlib
 
-    # Measured quiet-machine cost, 10-core, 2026-07-27. Re-derive before editing.
-    # The RULE is >= 20x measured cost (see the policy banner above).
-    # phase-80.46 cycle 2: these calibration constants live in the file they guard,
-    # so a COORDINATED edit (lower the timeout AND lower the measured cost) restored
-    # the exact 60s budget that was reproduced failing while keeping the guard green.
-    # A Q/A found that by writing the composed mutant my own matrix had not. The
-    # floors are therefore pinned to their derivation as well as used: if someone
-    # weakens the calibration to justify a tighter timeout, the assertions below
-    # fail before the floors are ever applied.
-    MEASURED_COST_S = {
-        "collect_only": 8.8,   # whole-tree collection -- the expensive one
-        "tier_check": 1.0,     # single-file collections / coverage_tier_check.py
-    }
-    MULTIPLIER = 20
-    assert MULTIPLIER >= 20, (
-        "the 20x rule is the phase-80.46 finding, not a tunable: SAP HANA 2026 "
-        "(n=559) measured 18% timeout-flakiness for budgets calibrated near average "
-        "execution time vs 7% for loose ones. Lowering this re-opens the class."
-    )
-    assert MEASURED_COST_S["collect_only"] >= 8.0, (
-        "the whole-tree collection was MEASURED at 8.8s on a quiet 10-core machine "
-        "and the suite only grows. Lowering this constant is how a tighter timeout "
-        "gets justified without re-measuring -- re-measure instead."
-    )
-    # The collection call is identified by its own cost; every other subprocess in
-    # this file is a tier check.
-    FLOOR_COLLECT = MEASURED_COST_S["collect_only"] * MULTIPLIER   # 176s
-    FLOOR_OTHER = MEASURED_COST_S["tier_check"] * MULTIPLIER       # 20s
-
     src = pathlib.Path(__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
 
+    # (1) COMPLETE MEDIATION. Any Call named `run` -- attribute form
+    # (`subprocess.run`) OR bare (`from subprocess import run`) -- inside a test
+    # function is an offender. Both spellings that defeated the previous guard are
+    # caught by matching the NAME rather than the access path.
     offenders = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
+    for fn in ast.walk(tree):
+        if not (isinstance(fn, ast.FunctionDef) and fn.name.startswith("test_")):
             continue
-        func = node.func
-        if not (isinstance(func, ast.Attribute) and func.attr == "run"
-                and isinstance(func.value, ast.Name) and func.value.id == "subprocess"):
-            continue
-        # Which floor applies is decided by the SCOPE of the work, not by the
-        # presence of "--collect-only": this file has TWO collect-only calls and
-        # they differ by ~9x. The expensive one walks the whole `backend/tests/`
-        # tree (8.8s measured); the other collects a SINGLE FILE (~1s). Keying on
-        # the flag lumped them together and tripped the guard on clean code --
-        # caught because the guard was run against an unmutated tree before being
-        # trusted.
-        # phase-80.46 cycle 3: classify by what the argv actually TARGETS, after
-        # normalising, not by a literal string match. A Q/A defeated the previous
-        # version by DELETING ONE CHARACTER -- "backend/tests/" -> "backend/tests"
-        # made this False, dropped the floor 176s -> 20s, and re-admitted the exact
-        # 60s budget that was reproduced timing out. Both spellings collect
-        # identically (2295/2311), so the escape was invisible in review.
-        targets = [a.value.rstrip("/") for a in node.args[0].elts
-                   if isinstance(a, ast.Constant) and isinstance(a.value, str)] \
-            if node.args and isinstance(node.args[0], (ast.List, ast.Tuple)) else []
-        # A whole-tree collection targets a DIRECTORY; the cheap ones target a
-        # single .py file. That distinction is semantic, not textual.
-        collects_whole_tree = any(
-            t == "backend/tests" or (t.startswith("backend/tests") and not t.endswith(".py"))
-            for t in targets
-        )
-        floor = FLOOR_COLLECT if collects_whole_tree else FLOOR_OTHER
-        for kw in node.keywords:
-            if kw.arg != "timeout":
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.Call):
                 continue
-            if not isinstance(kw.value, ast.Constant):
-                # phase-80.46 cycle 3: FAIL CLOSED. A non-literal timeout
-                # (timeout=_SOME_CONST) was previously SKIPPED, which is a silent
-                # bypass of the whole policy. An unresolvable budget is not a
-                # compliant one.
-                offenders.append(
-                    f"line {node.lineno}: timeout is not a literal -- the policy "
-                    "cannot be checked, so it is treated as a violation"
-                )
-                continue
-            if kw.value.value < floor:
-                offenders.append(
-                    f"line {node.lineno}: timeout={kw.value.value} < {floor:.0f} "
-                    f"({MULTIPLIER}x measured cost)"
-                )
+            name = (node.func.attr if isinstance(node.func, ast.Attribute)
+                    else node.func.id if isinstance(node.func, ast.Name) else None)
+            if name in {"run", "Popen", "check_output", "call", "check_call"}:
+                offenders.append(f"{fn.name} (line {node.lineno}) calls {name}() directly")
 
     assert offenders == [], (
-        f"subprocess timeouts tuned below {MULTIPLIER}x their measured cost: "
-        f"{offenders}. A budget close to the measured cost is a flake under CI "
-        "contention -- re-derive the cost and keep the multiple, do not tune closer."
+        "subprocess launched outside the gated helper -- the timeout policy cannot "
+        f"apply to it: {offenders}. Use _run_gated(argv), which derives the budget "
+        "from the measured workload."
     )
+
+    # (2) The calibration the helper derives from, pinned to its measurement.
+    assert _TIMEOUT_MULTIPLIER >= 20, (
+        "the 20x rule is the phase-80.46 finding, not a tunable: SAP HANA 2026 "
+        "(n=559) measured 18% timeout-flakiness for budgets calibrated near average "
+        "execution time vs 7% for loose ones."
+    )
+    assert _MEASURED_COST_S["whole_tree"] >= 8.0, (
+        "the whole-tree collection was MEASURED at 8.8s on a quiet 10-core machine "
+        "and the suite only grows -- re-measure rather than lowering this."
+    )
+
+    # (4) THE HELPER ACTUALLY DERIVES -- checked BEHAVIOURALLY, not by reading it.
+    # Mutation found this gap: replacing the derivation with a hardcoded
+    # `kwargs["timeout"] = 60` SURVIVED every other assertion here, because they
+    # only proved that call sites USE the helper and that the constants exist --
+    # never that the helper CONSULTS them. Intercept the launch and read the budget
+    # it actually computed.
+    captured = {}
+
+    def _fake_run(argv, **kw):
+        captured["timeout"] = kw.get("timeout")
+        class _R:
+            returncode, stdout, stderr = 0, "", ""
+        return _R()
+
+    _real_run = subprocess.run
+    try:
+        subprocess.run = _fake_run
+        _run_gated([sys.executable, "-c", "pass", "backend/tests/"])
+        whole_tree_budget = captured["timeout"]
+        _run_gated([sys.executable, "-c", "pass", "backend/tests/test_phase_75_ci_gates.py"])
+        single_budget = captured["timeout"]
+    finally:
+        subprocess.run = _real_run
+
+    expected_whole = _MEASURED_COST_S["whole_tree"] * _TIMEOUT_MULTIPLIER
+    expected_single = _MEASURED_COST_S["single_target"] * _TIMEOUT_MULTIPLIER
+    assert whole_tree_budget == expected_whole, (
+        f"the helper did not DERIVE the whole-tree budget: got {whole_tree_budget}, "
+        f"expected {expected_whole} (= {_MEASURED_COST_S['whole_tree']}s measured x "
+        f"{_TIMEOUT_MULTIPLIER}). A hardcoded timeout in the helper defeats the whole "
+        "policy while every other assertion here still passes."
+    )
+    assert single_budget == expected_single, (
+        f"the helper did not DERIVE the single-target budget: got {single_budget}, "
+        f"expected {expected_single}"
+    )
+    assert whole_tree_budget > single_budget, (
+        "the helper must give a DIRECTORY target the larger budget -- if these are "
+        "equal the scope detection has stopped discriminating"
+    )
+
+    # (3) The helper actually discriminates: a directory target must buy the larger
+    # budget, and it must do so for EVERY spelling of that directory. This is the
+    # assertion the six scanning versions could not make, because they compared
+    # strings; this one asks the filesystem.
+    for spelling in ("backend/tests/", "backend/tests", "./backend/tests/", "backend//tests/"):
+        resolved = (REPO_ROOT / spelling).resolve()
+        assert resolved.is_dir() and resolved != REPO_ROOT, (
+            f"{spelling!r} must resolve to the tests directory -- if this breaks, the "
+            "helper's scope detection is no longer sound"
+        )
