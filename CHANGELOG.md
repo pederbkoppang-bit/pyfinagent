@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-27 | `fa10fefa` | fix(80.43): validate the sort key -- an undated series is UNMEASURABLE, not zero |
 | 2026-07-26 | `f30a4a2e` | fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake |
 | 2026-07-26 | `d5a6d392` | fix(80.45): narrow the drawdown claim instead of widening the precision |
 | 2026-07-26 | `5513f4ee` | docs(80.32): correct a CLAUDE.md rule that would have misdirected model pinning |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `ed5c990d` | docs: next-session goal prompt |
 | 2026-07-26 | `9ec84b7f` | docs(36.8): cycle-4 FAIL -- route FIVE, and the fix must be a redesign not a sixth patch |
 | 2026-07-26 | `d9ea01b7` | fix(36.8): FOURTH route -- a parse failure dropped history silently |
-| 2026-07-26 | `cffe25bd` | fix(36.8): the regression had a THIRD route -- glob() hides an unlistable archive dir |
 
 ---
 
+### v6.72.5 — fix(80.43): validate the sort key -- an undated series is UNMEASURABL... (2026-07-27)
+
+- **fix(80.43): validate the sort key -- an undated series is UNMEASURABLE, not zero**
 ### v6.72.4 — fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake (2026-07-26)
 
 - **fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake**
