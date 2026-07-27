@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-27 | `b4df03e4` | chore(80.46): file the unreproducible CI-gate error instead of faking a fix |
 | 2026-07-27 | `810f6265` | chore(36.26): file the manual-pause/manual-resume gap the operator hit live |
 | 2026-07-27 | `fa10fefa` | fix(80.43): validate the sort key -- an undated series is UNMEASURABLE, not zero |
 | 2026-07-26 | `f30a4a2e` | fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `18e81f57` | docs(36.8): regenerate all three record defects -- the redesign itself passed cycle 5 |
 | 2026-07-26 | `d760f48e` | fix(36.8): REDESIGN -- authority requires naming what it superseded, killing all five routes at once |
 | 2026-07-26 | `ed5c990d` | docs: next-session goal prompt |
-| 2026-07-26 | `9ec84b7f` | docs(36.8): cycle-4 FAIL -- route FIVE, and the fix must be a redesign not a sixth patch |
 
 ---
 
