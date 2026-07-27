@@ -21070,6 +21070,25 @@
             ],
             "live_check": "Verbatim capture of the reproduced error under contention, plus the post-fix run under the SAME contention showing it gone."
           }
+        },
+        {
+          "id": "80.47",
+          "status": "pending",
+          "priority": "P2",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- AN UNEXPLAINED TEARDOWN ERROR IN THE BACKEND SUITE, CAUSE STILL UNKNOWN] Split out of step 80.46 on 2026-07-27 because 80.46 REFUTED its own hypothesis and must not be read as having fixed this. OBSERVED ONCE: `pytest backend/tests/ -q -k 'drawdown or perf_metrics or kill_switch'` printed `249 passed, 1 skipped, 2060 deselected, 1 warning, 1 ERROR in 95.89s` against a normal ~16s. Never reproduced across 5+ subsequent runs. WHAT 80.46 RULED OUT, with evidence the executor should re-derive rather than trust: (a) NOT a subprocess timeout -- a TimeoutExpired in a test body reports as `1 failed`, proved with a 1s-budget-on-5s-sleep probe giving `1 failed in 1.08s`, and the observed line had ZERO failed; (b) NOT a collection error -- pytest.ini carries no `--continue-on-collection-errors`, so a collection error runs ZERO tests, not 249; (c) NOT test_phase_76_9_2_max_bridge.py's live_bridge fixture (a research gate proposed it) -- that file matches the `-k` expression 0 times and was deselected. WHAT THE ARITHMETIC PINS: `--collect-only` on that selector gives 250/2310 (2060 deselected), and 249 passed + 1 skipped = 250, so every SELECTED item is accounted for. pytest reports ERROR for setup/teardown/collection, and setup+collection are excluded above -- therefore the error attached to a test that PASSED, i.e. a TEARDOWN error, inside the 250 selected kill_switch/perf_metrics/drawdown tests. FIRST TASK IS REPRODUCTION: re-run that selector under deliberate CPU oversubscription with `-ra`, whose `short test summary info` prints `ERROR <nodeid> - at teardown of ...` and NAMES the fixture. Candidates worth checking first (unverified): the autouse `_live_audit_file_is_write_protected` fixture in test_phase_36_12_kill_switch_trading_path_block.py chmods the live audit file and restores in teardown, and several 36.x fixtures use tmp dirs + monkeypatch. DO NOT guess a fix: an intermittent teardown error that is 'fixed' without a reproduction is indistinguishable from one that simply did not recur. If it cannot be reproduced after a bounded effort, say so and close as NOT-REPRODUCIBLE with the evidence -- that is an honest outcome; a speculative fix is not.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'drawdown or perf_metrics or kill_switch' -ra",
+            "success_criteria": [
+              "The error is REPRODUCED and the offending fixture NAMED from `-ra` output, OR the step closes as NOT-REPRODUCIBLE with the bounded effort documented -- state which",
+              "If reproduced: the teardown is made robust and a test proves the failure mode, failing against the current code",
+              "The three exclusions from 80.46 (timeout / collection / max_bridge) are re-derived rather than inherited on trust",
+              "No speculative fix is shipped without a reproduction",
+              "MUTATION-TEST any guard added"
+            ],
+            "live_check": "Verbatim `-ra` output naming the errored fixture under contention, or the documented failure to reproduce."
+          }
         }
       ]
     }

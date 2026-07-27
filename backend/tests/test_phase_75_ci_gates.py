@@ -115,12 +115,11 @@ EXPECTED_REQUIRES_LIVE_DESELECTED = 16
 
 # phase-80.46: SUBPROCESS TIMEOUT POLICY -- LOOSE, DERIVED FROM A MEASUREMENT.
 #
-# A 60s budget at :NNN over a subprocess measured at 8.8s (8.6x headroom) was
-# REPRODUCED timing out under 30x CPU oversubscription on a 10-core machine
-# (handoff/current/captures_80.46/reproduction.txt). Tight timeouts are themselves
-# a flakiness source: SAP HANA 2026 (n=559) measured 18% timeout-flakiness for
-# tests calibrated close to average execution time versus 7% under one loose
-# global timeout.
+# A 60s budget over a subprocess measured at 8.8s was REPRODUCED timing out under
+# 30x CPU oversubscription on 10 cores (captures_80.46/reproduction.txt). Tight
+# timeouts are themselves a flakiness source: SAP HANA 2026 (n=559) measured 18%
+# timeout-flakiness for tests calibrated close to average execution time versus 7%
+# under one loose global timeout.
 #
 # RULE: every subprocess timeout here is >= 20x its measured quiet-machine cost.
 # Re-derive the cost before changing a value; do NOT tune it closer. The collection
@@ -128,12 +127,17 @@ EXPECTED_REQUIRES_LIVE_DESELECTED = 16
 # budget that merely looks generous today is the same defect class as the exact
 # count pin removed in 80.44 -- a constant that assumes a static suite.
 #
-# MEASURED, quiet machine (2026-07-27):
-#   :120 collection            8.8s  -> 300s budget (34x)
-#   :164 coverage_tier_check   ~1s   ->  60s budget (>=60x)
-#   :187/:224/:255 tier checks ~1s   ->  30s budget (>=30x)
-# The last four already cleared 20x at their old values; they are raised anyway so
-# one rule covers the file rather than four ad-hoc numbers.
+# CALL SITES, DERIVED BY AST (not typed -- the first version of this banner carried
+# stale line numbers and quoted a 60s budget that existed at no call site, which a
+# Q/A caught; on a step about stale constants that was the worst possible defect):
+#   :143  whole-tree collection      timeout=300s
+#   :187  single-file / tier check   timeout=120s
+#   :211  single-file / tier check   timeout=30s
+#   :248  single-file / tier check   timeout=30s
+#   :279  single-file / tier check   timeout=30s
+#
+# Only the whole-tree collection is expensive (~8.8s measured); the rest are ~1s.
+# The guard test at the bottom of this file enforces the 20x rule per call site.
 
 
 def test_backend_not_requires_live_collection_count_is_stable():
@@ -398,11 +402,28 @@ def test_phase_80_46_no_subprocess_timeout_is_tuned_tight():
 
     # Measured quiet-machine cost, 10-core, 2026-07-27. Re-derive before editing.
     # The RULE is >= 20x measured cost (see the policy banner above).
+    # phase-80.46 cycle 2: these calibration constants live in the file they guard,
+    # so a COORDINATED edit (lower the timeout AND lower the measured cost) restored
+    # the exact 60s budget that was reproduced failing while keeping the guard green.
+    # A Q/A found that by writing the composed mutant my own matrix had not. The
+    # floors are therefore pinned to their derivation as well as used: if someone
+    # weakens the calibration to justify a tighter timeout, the assertions below
+    # fail before the floors are ever applied.
     MEASURED_COST_S = {
-        "collect_only": 8.8,   # the :120 collection -- the expensive one
-        "tier_check": 1.0,     # coverage_tier_check.py invocations
+        "collect_only": 8.8,   # whole-tree collection -- the expensive one
+        "tier_check": 1.0,     # single-file collections / coverage_tier_check.py
     }
     MULTIPLIER = 20
+    assert MULTIPLIER >= 20, (
+        "the 20x rule is the phase-80.46 finding, not a tunable: SAP HANA 2026 "
+        "(n=559) measured 18% timeout-flakiness for budgets calibrated near average "
+        "execution time vs 7% for loose ones. Lowering this re-opens the class."
+    )
+    assert MEASURED_COST_S["collect_only"] >= 8.0, (
+        "the whole-tree collection was MEASURED at 8.8s on a quiet 10-core machine "
+        "and the suite only grows. Lowering this constant is how a tighter timeout "
+        "gets justified without re-measuring -- re-measure instead."
+    )
     # The collection call is identified by its own cost; every other subprocess in
     # this file is a tier check.
     FLOOR_COLLECT = MEASURED_COST_S["collect_only"] * MULTIPLIER   # 176s
