@@ -183,6 +183,15 @@ if [ -f "$HARNESS_LOG_GATE_HELPER" ]; then
         passed)
             log "INFO: harness_log gate satisfied for $STEP_ID"
             ;;
+        warn)
+            # phase-81.0: the missing middle state. Audible, but does NOT hold
+            # the push -- see harness_log_gate.py's docstring for why a gate
+            # that could only ever HOLD was a gate nobody could afford to turn
+            # on. Reaching this arm at all means someone set
+            # HARNESS_LOG_GATE_ENABLED=true; the gate ships disabled.
+            log "WARN: harness_log gate -- handoff/harness_log.md has no 'phase=$STEP_ID' token in its tail. The step is closing WITHOUT a cycle-block append (log-is-last doctrine). Push NOT held (warn mode); set HARNESS_LOG_GATE_MODE=block to make this blocking."
+            printf '{"systemMessage":"harness_log gate: step %s is closing with no cycle-block append in handoff/harness_log.md (warn mode -- push proceeded)."}\n' "$STEP_ID"
+            ;;
         proceed|*)
             # Gate disabled OR step-id missing -> proceed as today.
             ;;
@@ -197,9 +206,38 @@ fi
 # explicit non-PASS verdict (CONDITIONAL/FAIL or ok false). Missing /
 # unreadable / stale / PASS -> proceed. Never blocks the masterplan Write.
 VERDICT_GATE_HELPER="$PROJECT_ROOT/.claude/hooks/lib/verdict_gate.py"
-VERDICT_JSON="$PROJECT_ROOT/handoff/current/evaluator_critique.json"
+# phase-81.0: resolve the PER-STEP filename first, rolling name as fallback.
+# Measured 2026-07-31: handoff/current/ holds six evaluator_critique_<id>.json
+# files written 2026-07-26 -- i.e. AFTER the 2026-07-24 housekeeping sweep that
+# moved the rolling evaluator_critique.json to handoff/archive/misc/. Main's
+# write convention drifted rolling -> per-step and this hook was never updated,
+# so it had been reading a path nothing writes. Restoring only the rolling name
+# would have fixed exactly one cycle and gone dark again.
+# phase-81.2: the helper now owns resolution and searches an ordered chain
+# (current per-step -> current rolling -> archive/phase-<sid>/ -> archive/misc/),
+# so a housekeeping sweep can no longer disarm this gate by relocating its input.
+# Line 1 of the output is the decision token; line 2 is the source that answered.
 if [ -f "$VERDICT_GATE_HELPER" ]; then
-    VG_DECISION=$(python3 "$VERDICT_GATE_HELPER" "$VERDICT_JSON" "$STEP_ID" 2>/dev/null || echo "proceed")
+    VG_RAW=$(python3 "$VERDICT_GATE_HELPER" --resolve "$STEP_ID" "$PROJECT_ROOT/handoff" 2>/dev/null || printf 'proceed\nnone\n')
+    VG_DECISION=$(printf '%s\n' "$VG_RAW" | sed -n '1p')
+    VG_SOURCE=$(printf '%s\n' "$VG_RAW" | sed -n '2p')
+    [ -n "$VG_DECISION" ] || VG_DECISION="proceed"
+    [ -n "$VG_SOURCE" ] || VG_SOURCE="none"
+    # A verdict answered from the archive is a DIFFERENT situation from one
+    # answered out of handoff/current/ -- it means this step's evidence has
+    # already been swept. Surface it rather than letting both read as a pass.
+    case "$VG_SOURCE" in
+        archive:*)
+            log "NOTE: verdict gate for $STEP_ID resolved from '$VG_SOURCE' -- the step's verdict JSON is no longer in handoff/current/. The gate still fired (that is phase-81.2 working), but the artifact has been archived away from where it was written."
+            # phase-81.2 cycle 2 (Q/A observation a): auto-push.log is gitignored
+            # (.gitignore:76) and PostToolUse stdout is not shown in transcript, so a
+            # log-only NOTE is silent to the operator -- exactly the failure class this
+            # phase exists to kill. The no_input arm already emits a systemMessage; this
+            # arm needs one too, or the operator-visible channel goes quiet precisely
+            # when a step gates on a swept verdict.
+            printf '{"systemMessage":"verdict gate: step %s gated on a verdict resolved from %s -- its evidence is no longer in handoff/current/. The gate fired correctly; the artifact has been archived away from where it was written."}\n' "$STEP_ID" "$VG_SOURCE"
+            ;;
+    esac
     case "$VG_DECISION" in
         hold)
             log "WARN: verdict gate -- evaluator_critique.json for $STEP_ID is not a clean PASS (verdict!=PASS or ok=false) -- auto-push held. Resolve the Q/A blockers + re-run a fresh Q/A to PASS, then re-trigger by re-editing the masterplan, OR run \`git push origin main\` manually if appropriate."
@@ -208,8 +246,20 @@ if [ -f "$VERDICT_GATE_HELPER" ]; then
         passed)
             log "INFO: verdict gate satisfied for $STEP_ID (evaluator_critique.json verdict=PASS)"
             ;;
+        no_input)
+            # phase-81.0: FAIL-OPEN (we continue), but no longer SILENT. Until
+            # 81.0 this case was folded into `proceed`, which is how the gate
+            # sat dark for 13 consecutive step closes after 2026-07-20 with no
+            # trace. Note the log file itself is gitignored (.gitignore:76) and
+            # PostToolUse stdout is not shown in the transcript, so the
+            # operator-visible signal is the systemMessage below -- without it
+            # this warning would be as silent as the bug it reports.
+            log "WARN: verdict gate had NO INPUT for $STEP_ID -- neither handoff/current/evaluator_critique_${STEP_ID}.json nor the rolling evaluator_critique.json exists. The step closed WITHOUT a machine-readable Q/A verdict; nothing verified this push."
+            printf '{"systemMessage":"verdict gate: NO INPUT for step %s -- closed without a machine-readable Q/A verdict (fail-open, push proceeded). Write handoff/current/evaluator_critique_%s.json to arm it."}\n' "$STEP_ID" "$STEP_ID"
+            ;;
         proceed|*)
-            # No JSON / stale / mismatched step-id -> proceed as today (fail-open).
+            # File exists but cannot gate (unreadable / stale / mismatched
+            # step-id / no verdict field) -> proceed as today (fail-open).
             ;;
     esac
 fi

@@ -38,7 +38,28 @@ ROLLING_KEEP = {
     "research.md",
     "research_plan.md",
     "harness_log.md",
+    # phase-81.0: the MACHINE-READABLE verdict, not just the prose critique.
+    # `.claude/hooks/auto-commit-and-push.sh` reads this file by literal path
+    # to decide whether a CONDITIONAL/FAIL verdict should hold a push. It was
+    # absent from this allowlist, so the 2026-07-24 run swept it to
+    # archive/misc/ and the verdict gate went dark for 13 consecutive step
+    # closes. This script is documented idempotent and safe to re-run, so
+    # without this entry any restoration is undone on the next invocation.
+    "evaluator_critique.json",
 }
+
+# phase-81.0: per-step verdict JSONs are the CURRENT convention (six were
+# written 2026-07-26). STEP_ID_RE only matches `.md`, so these never took the
+# step-move path -- they fall through to the misc bucket and get swept away
+# from the one directory the hook reads. Keep them in place by prefix.
+ROLLING_KEEP_PREFIXES = ("evaluator_critique_",)
+
+
+def _is_rolling_keep(name: str) -> bool:
+    """True if `name` must stay in handoff/current/ (a live hook reads it)."""
+    if name in ROLLING_KEEP:
+        return True
+    return name.startswith(ROLLING_KEEP_PREFIXES) and name.endswith(".json")
 
 STEP_ID_RE = re.compile(r"^(?:phase-)?([0-9]+(?:\.[0-9]+)*)[-.].*\.md$")
 
@@ -128,7 +149,7 @@ def main(dry_run: bool) -> int:
         if p.is_dir():
             continue
         name = p.name
-        if name in ROLLING_KEEP or name.startswith("."):
+        if _is_rolling_keep(name) or name.startswith("."):
             continue
         m = STEP_ID_RE.match(name)
         sid = m.group(1) if m else None

@@ -53,8 +53,15 @@ The researcher subagent has `maxTurns: 15`. Deep research with many web fetches 
 
 ## Reading order for new sessions
 
-1. Last 3 session logs in `.claude/context/sessions/`
-2. This file (`.claude/context/known-blockers.md`)
-3. `.claude/masterplan.json` — authoritative step state
-4. `CLAUDE.md` — critical rules
-5. `.claude/context/*.md` — project knowledge
+1. This file (`.claude/context/known-blockers.md`)
+2. `.claude/masterplan.json` — authoritative step state
+3. `CLAUDE.md` — critical rules
+4. `.claude/context/*.md` — project knowledge
+5. `handoff/harness_log.md` (tail only) — the most recent cycle blocks
+
+Note (phase-81.0, 2026-07-31): the former first entry pointed at
+`.claude/context/sessions/`, a directory of 23 session logs whose newest file
+dated to 2026-04-15. It was deleted in phase-81.0 -- it had no operational
+consumer, yet this list told every new session to read it at startup, so a cold
+session was being directed to reconstruct its bearings from April state. The
+durable per-step record lives in `handoff/` and `handoff/harness_log.md`.

@@ -34,11 +34,47 @@ import sys
 from pathlib import Path
 
 
-def gate_decision(harness_log_path: str, step_id: str, enabled: bool) -> str:
-    """Return one of: 'proceed', 'passed', 'skip'.
+# phase-81.0: how many trailing lines of the log to search. Measured
+# 2026-07-31: handoff/harness_log.md is 29,823 lines / 2.5 MB and its last 200
+# lines contain only TWO `## Cycle` headers (~84 lines per cycle block). Any
+# flow that appends the log and then appends more before the status flip pushed
+# the step's `phase=` token out of a 200-line window, producing a FALSE 'skip'
+# -- and a 'skip' exits before `git add -A`, so it would have skipped the
+# commit, the changelog AND the push. ~24 cycle blocks of headroom instead.
+TAIL_LINES = 2000
+
+
+def gate_decision(
+    harness_log_path: str,
+    step_id: str,
+    enabled: bool,
+    warn_only: bool = False,
+) -> str:
+    """Return one of: 'proceed', 'passed', 'warn', 'skip'.
 
     Fail-open to 'proceed' on any read / parse / I/O error, matching the
     hook's existing fail-open discipline.
+
+    phase-81.0 -- `warn_only` is the missing middle state. Before
+    81.0 this helper had no way to say "the log append is missing, and you
+    should know, but I am not going to hold your push": enabling the gate at all
+    jumped straight to 'skip', which blocks commit + changelog + push. That made
+    the gate too risky to ever turn on, which is why it sat built, wired,
+    unit-tested and permanently OFF. Warn-first lets the doctrine be observed
+    for real cycles before anyone grants it teeth.
+
+    `warn_only` defaults to **False** so that the three-positional-argument call
+    `gate_decision(path, step_id, enabled=True)` keeps returning 'skip' exactly
+    as masterplan step 38.4 pinned it -- that step is `done` and its immutable
+    verification command runs backend/tests/test_phase_38_4_hook_gate.py. The
+    new token is strictly ADDITIVE: no existing caller's behaviour changes.
+    The safe default lives one layer up, in main()'s env handling, where it
+    affects the shipped CLI without redefining a pinned contract.
+
+    NOTE the gate remains DISABLED overall: HARNESS_LOG_GATE_ENABLED is not set
+    anywhere in the repo or in settings.json `env`. Enabling it is gated on the
+    operator approval required by masterplan step 38.4's immutable criteria and
+    is deliberately NOT part of phase-81.0.
     """
     if not enabled:
         return "proceed"
@@ -48,9 +84,8 @@ def gate_decision(harness_log_path: str, step_id: str, enabled: bool) -> str:
         path = Path(harness_log_path)
         if not path.exists():
             return "proceed"  # no log file yet -> first cycle; don't block
-        # Tail-read last ~200 lines (sufficient for any recent cycle).
         text = path.read_text(encoding="utf-8")
-        tail = "\n".join(text.splitlines()[-200:])
+        tail = "\n".join(text.splitlines()[-TAIL_LINES:])
     except Exception:
         return "proceed"
     # Match `phase=<step_id>` as a whole token (avoid 38.6 matching 38.6.1).
@@ -59,18 +94,24 @@ def gate_decision(harness_log_path: str, step_id: str, enabled: bool) -> str:
     pattern = re.compile(rf"phase={re.escape(step_id)}(?=\s|$)", re.MULTILINE)
     if pattern.search(tail):
         return "passed"
-    return "skip"
+    return "warn" if warn_only else "skip"
 
 
 def main() -> int:
     # Usage: harness_log_gate.py <harness_log_path> <step_id>
     # ENV: HARNESS_LOG_GATE_ENABLED=true to actually gate (default OFF).
+    # ENV: HARNESS_LOG_GATE_MODE=block to hold the push on a missing append.
+    #      Default is "warn" -- phase-81.0 deliberately makes the SAFE mode the
+    #      default, so that a future operator who sets ENABLED=true without
+    #      reading this file gets an audible warning rather than a held
+    #      commit+changelog+push on the first false positive.
     if len(sys.argv) != 3:
         print("proceed")
         return 0
     harness_log_path, step_id = sys.argv[1:3]
     enabled = os.environ.get("HARNESS_LOG_GATE_ENABLED", "").lower() == "true"
-    print(gate_decision(harness_log_path, step_id, enabled))
+    warn_only = os.environ.get("HARNESS_LOG_GATE_MODE", "warn").lower() != "block"
+    print(gate_decision(harness_log_path, step_id, enabled, warn_only))
     return 0
 
 

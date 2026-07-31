@@ -14,10 +14,11 @@ maxTurns: 30
 # SEPARATE system from Layer-2 EFFORT_DEFAULTS (model_tiers.py) -- do not conflate.
 # maxTurns 30 (phase-59.1): the old 12 cap caused mid-evaluation stalls (20-26
 # tool-uses per evaluation); 30 gives headroom.
-# The 2026-07 free-Fable window is EXPIRED and the pin was reverted to opus in
-# masterplan 67.4 (no `FABLE PERMANENT: AUTHORIZE` was recorded); the expired
-# window narration is pruned here (phase-71.5) -- the model/effort VALUES are
-# unchanged. RESTART CAVEAT: the Agent-tool roster snapshots at session start --
+# Fable 5 is now a STANDING part of the Max plan (verified 2026-07-31); the
+# free-window + scheduled-revert doctrine is RETIRED. `model: opus` here is a
+# steady-state default, NOT a revert obligation -- a Fable repin is a normal
+# reversible config change (see CLAUDE.md "Fable 5 policy" for the budget rule
+# that replaced it). RESTART CAVEAT: the Agent-tool roster snapshots at session start --
 # an edit here takes effect next session; run scripts/qa/verify_qa_roster_live.sh.
 # The Workflow qa-verdict.js path reads this file from disk live.
 # See CLAUDE.md "Effort policy (Layer-3 harness MAS)" + "Fable 5 policy".

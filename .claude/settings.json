@@ -168,7 +168,6 @@
       "Bash",
       "Read",
       "Write",
-      "Write(.claude/context/sessions/**)",
       "Edit",
       "Glob",
       "Grep",

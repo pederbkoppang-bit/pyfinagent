@@ -47,18 +47,39 @@ if [ "$result" != "passed" ]; then
 fi
 echo "PASS: case 2 -- gate enabled + token present returns passed"
 
-# Case 3: gate ENABLED + token MISSING -> skip.
+# Case 3: gate ENABLED + token MISSING + MODE=block -> skip.
+# phase-81.0: the blocking contract step 38.4 pinned is preserved EXACTLY --
+# it is now reached by asking for it explicitly. The CLI's default changed to
+# the safe mode (warn), so this case states the mode rather than relying on it.
 LOG="$TMP/no_token.log"
 cat > "$LOG" << 'EOF'
 ## Cycle 99 -- 2026-05-25 -- phase=99.9 result=PASS
 - Different step
 EOF
-result=$(python3 "$HELPER" "$LOG" "12.3")
+result=$(HARNESS_LOG_GATE_MODE=block python3 "$HELPER" "$LOG" "12.3")
 if [ "$result" != "skip" ]; then
-    echo "FAIL: case 3 expected 'skip', got '$result'" >&2
+    echo "FAIL: case 3 expected 'skip' (MODE=block), got '$result'" >&2
     exit 1
 fi
-echo "PASS: case 3 -- gate enabled + token missing returns skip"
+echo "PASS: case 3 -- gate enabled + token missing + MODE=block returns skip"
+
+# Case 3b (phase-81.0): the NEW middle state. Same inputs as case 3, default
+# mode -> warn. This is the token that makes the gate safe to arm: audible,
+# but it does not hold commit+changelog+push on a false positive.
+result=$(python3 "$HELPER" "$LOG" "12.3")
+if [ "$result" != "warn" ]; then
+    echo "FAIL: case 3b expected 'warn' (default mode), got '$result'" >&2
+    exit 1
+fi
+echo "PASS: case 3b -- gate enabled + token missing + default mode returns warn"
+
+# Case 3c (phase-81.0): MUTATION -- warn must be DISTINCT from skip, or the
+# whole point is lost. If a future edit collapses them this goes red.
+if [ "$(HARNESS_LOG_GATE_MODE=block python3 "$HELPER" "$LOG" "12.3")" = "$(python3 "$HELPER" "$LOG" "12.3")" ]; then
+    echo "FAIL: case 3c -- block mode and warn mode returned the SAME token" >&2
+    exit 1
+fi
+echo "PASS: case 3c -- warn and skip are distinguishable"
 
 # Case 4: gate ENABLED + log file MISSING -> proceed (fail-open).
 result=$(python3 "$HELPER" "$TMP/nonexistent.log" "12.3")
@@ -73,7 +94,10 @@ LOG="$TMP/prefix.log"
 cat > "$LOG" << 'EOF'
 ## Cycle 99 -- 2026-05-25 -- phase=38.6.1 result=PASS
 EOF
-result=$(python3 "$HELPER" "$LOG" "38.6")
+# phase-81.0: MODE=block stated explicitly so this case keeps testing the
+# PREFIX GUARD rather than accidentally testing the default mode. The guard
+# itself (38.6 must not match phase=38.6.1) is unchanged.
+result=$(HARNESS_LOG_GATE_MODE=block python3 "$HELPER" "$LOG" "38.6")
 if [ "$result" != "skip" ]; then
     echo "FAIL: case 5 (prefix-match guard) expected 'skip', got '$result'" >&2
     exit 1

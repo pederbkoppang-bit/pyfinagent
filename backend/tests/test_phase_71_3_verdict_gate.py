@@ -43,8 +43,37 @@ def test_pass_but_ok_false_holds(tmp_path):
     assert verdict_gate.gate_decision(p, "71.3") == "hold"
 
 
-def test_missing_json_fails_open_proceed(tmp_path):
-    assert verdict_gate.gate_decision(str(tmp_path / "nope.json"), "71.3") == "proceed"
+def test_missing_json_returns_no_input(tmp_path):
+    """phase-81.0 -- DELIBERATE CONTRACT CHANGE, not a regression.
+
+    Until 81.0 this asserted 'proceed', which made "no gate input existed"
+    indistinguishable from "the gate ran and passed" in auto-push.log. That
+    ambiguity is exactly why the gate went dark for 13 consecutive step
+    closes after 2026-07-20 with nobody noticing. The file-absent case now
+    returns its own token so the caller can log it.
+
+    Still FAIL-OPEN: the token is not 'hold'. The hook continues; only the
+    log line changes. See the module docstring in verdict_gate.py.
+    """
+    decision = verdict_gate.gate_decision(str(tmp_path / "nope.json"), "71.3")
+    assert decision == "no_input"
+    assert decision != "hold", "the absent-input case must never block a push"
+
+
+def test_no_input_is_distinguishable_from_every_other_token(tmp_path):
+    """The whole point: 'nothing checked' must not collide with any other state."""
+    absent = verdict_gate.gate_decision(str(tmp_path / "nope.json"), "71.3")
+    unreadable_path = tmp_path / "bad.json"
+    unreadable_path.write_text("{not valid json", encoding="utf-8")
+    unreadable = verdict_gate.gate_decision(str(unreadable_path), "71.3")
+    passed = verdict_gate.gate_decision(
+        _write(tmp_path, {"step_id": "71.3", "ok": True, "verdict": "PASS"}), "71.3"
+    )
+    assert absent == "no_input"
+    # A file that exists but cannot gate is a DIFFERENT situation from no file
+    # at all, and must keep its original token.
+    assert unreadable == "proceed"
+    assert len({absent, unreadable, passed}) == 3
 
 
 def test_mismatched_step_fails_open_proceed(tmp_path):

@@ -2,7 +2,7 @@
   "$schema": "masterplan-v1",
   "project": "pyfinagent",
   "goal": "Ship an Intelligence Engine trading system that maximizes Net System Alpha = Profit - (Risk Exposure + Compute Burn) by dynamically shifting capital to the highest-earning strategy, recursively self-improving under hard risk caps, within a 15-slot daily Claude-routine budget.",
-  "updated_at": "2026-07-25",
+  "updated_at": "2026-07-31T14:59:51.619061+00:00",
   "phases": [
     {
       "id": "phase-0",
@@ -21109,6 +21109,109 @@
             ],
             "live_check": "Verbatim `-ra` output naming the errored fixture under contention, or the documented failure to reproduce."
           }
+        }
+      ]
+    },
+    {
+      "id": "phase-81",
+      "status": "pending",
+      "name": "Harness continuity repair -- make gate silence AUDIBLE and the boot path HONEST. Research-gated (handoff/current/research_brief_81.0.md, gate_passed=true, 9 sources read in full, 20 internal files). The 2026-07-30 26-agent audit found FIVE harness gates that cannot fail; this step fixes the two whose silence is load-bearing, plus the boot command every cold session runs. Operator decisions recorded 2026-07-31 via AskUserQuestion: (a) harness_log gate gets a REAL warn token and ships OFF -- no owner-gated enable in this step, so step 38.4's owner_approval criterion is NOT touched; (b) verdict_gate gains a 4th no_input token and pending step 75.5.9 INHERITS the 4-token contract (its 'identical to verdict_gate.py' criterion is satisfied by the new shape). Scope guard: does NOT touch live_check_gate.py (owned by pending 75.5.10) and does NOT enable HARNESS_LOG_GATE_ENABLED.",
+      "steps": [
+        {
+          "id": "81.0",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "Gate audibility + boot-path honesty. FOUR changes, each carrying a research blocker fix.\n\nA1 verdict-gate audibility (blockers B1/B2/B3/B4/B5): (1) verdict_gate.py returns a NEW 'no_input' token for the file-absent case ONLY -- every other current 'proceed' path stays 'proceed' (unreadable, non-dict, step mismatch, no verdict field); (2) auto-commit-and-push.sh gains a matching 'no_input)' arm BEFORE the proceed|* catch-all -- WITHOUT it the new token is swallowed unlogged (researcher PROVED this by executing the case block with 6 tokens); (3) the hook resolves BOTH handoff/current/evaluator_critique_<step_id>.json AND the rolling evaluator_critique.json -- per-step is the CURRENT convention (six such files written 2026-07-26, AFTER the 07-24 sweep), so restoring only the rolling name fixes one cycle and dies again; (4) '.json' variants added to ROLLING_KEEP in BOTH scripts/housekeeping/backfill_handoff_archive.py AND verify_handoff_layout.py, else the documented-idempotent backfill re-sweeps the file; (5) the WARN also emits a systemMessage so it is visible -- handoff/logs/ is gitignored (.gitignore:76) and PostToolUse stdout is not shown in transcript.\n\nA4 harness_log warn mode (blockers B6/B7/B8): add a REAL 'warn' token to harness_log_gate.py plus a matching shell arm that logs and CONTINUES; widen the 200-line tail (measured: last 200 lines hold only 2 cycle blocks of a 29,823-line file). Ship DISABLED -- do NOT set HARNESS_LOG_GATE_ENABLED. Step 38.4's owner-gated criterion is untouched because the gate is not enabled here.\n\nA2 boot-path honesty (blocker B9): .claude/skills/masterplan/SKILL.md -- partition statuses EXHAUSTIVELY (ACTIVE = complement of DONE) rather than special-casing 'deferred'. Measured leak is three phases, not one: phase-5 (deferred, 11 open), phase-36 (deferred, 16 open), phase-77 (status key ABSENT -> None, 3 open). Never name a next-actionable step from a phase the render suppressed; print per-phase open/shown denominators and a global not-shown count; strike both retired TaskCompleted references.\n\nA3 dead-context removal (blocker B10): delete .claude/context/push-credential-diagnosis.md (verified ZERO consumers). Delete .claude/context/sessions/ (23 files, newest 2026-04-15) AND in the SAME change fix the boot directive at .claude/context/known-blockers.md:56 that points at it -- preserving the '## RESOLVED' / '## STILL ACTIVE' heading structure parsed by scripts/go_live_drills/incident_log_p0_test.py (constructed path) and introducing no new P0-mention string, or that drill's S2/S5 checks break.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_71_3_verdict_gate.py backend/tests/test_phase_38_4_hook_gate.py -q && bash .claude/hooks/lib/harness_log_gate_test.sh && python3 scripts/go_live_drills/incident_log_p0_test.py && python3 scripts/housekeeping/verify_handoff_layout.py",
+            "criteria": [
+              "verdict_gate.gate_decision returns 'no_input' when the JSON is ABSENT, and still returns 'proceed' for unreadable / non-dict / step-mismatch / no-verdict-field, and 'hold' for a step-matched non-PASS",
+              "auto-commit-and-push.sh contains a 'no_input)' case arm positioned BEFORE the 'proceed|*)' catch-all in the verdict-gate dispatch, and a 'warn)' arm before the catch-all in the harness_log dispatch",
+              "the verdict-gate dispatch resolves a per-step handoff/current/evaluator_critique_<step_id>.json when present, falling back to the rolling evaluator_critique.json",
+              "both scripts/housekeeping/backfill_handoff_archive.py and scripts/housekeeping/verify_handoff_layout.py list the evaluator_critique .json name in ROLLING_KEEP",
+              "harness_log_gate.gate_decision can return a 'warn' token and HARNESS_LOG_GATE_ENABLED remains unset in .claude/settings.json env",
+              "the /masterplan render names no next-actionable step from a phase it did not print, and emits an explicit count of open steps not shown",
+              "phase-77 (status key absent) and phase-36 (deferred) are both accounted for by the render's status partition -- not silently dropped",
+              ".claude/context/sessions/ and .claude/context/push-credential-diagnosis.md are gone, known-blockers.md carries no dangling reference to the deleted session-log path, and incident_log_p0_test.py still reports 6/6",
+              "MUTATION EVIDENCE: for each new token, a fixture with the defect PRESENT is shown going red, and reverting the fix is shown restoring the old silent behaviour"
+            ],
+            "live_check": "verbatim terminal output showing (a) the pytest+drill+layout command exit 0, (b) a fixture run where the verdict JSON is absent producing a NO-INPUT log line, and (c) the /masterplan render's new denominator + next-actionable lines"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "81.1",
+          "status": "dropped",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "Handoff artifact naming-convention reconciliation -- THE root cause of the dead verdict gate. MEASURED 2026-07-31: STEP_ID_RE ('^(?:phase-)?([0-9]+(\\\\.[0-9]+)*)[-.].*\\\\.md$') matches ZERO of the 127 .md files in handoff/current/. It expects the LEGACY '<sid>-name.md' form; every artifact written since ~phase-75 uses the INVERSE 'name_<sid>.md'. CONFIRMED CHAIN: regex misses -> backfill_handoff_archive.py:154-158 sets sid=None -> _move(p, MISC) -> commit fa9aaf8e (2026-07-24) swept 315 files to handoff/archive/misc/ -> handoff/current/evaluator_critique.json went with them -> the verdict gate lost its input and ran dark for 13 consecutive step closes. The same miss also produces verify_handoff_layout.py's 126 false 'no step-id prefix' strays and archive-handoff.sh:160's per-step glob matching nothing (~21 stranded contract_*.md). ONE regex, three reported defects. FIX: widen the parser to accept BOTH conventions (legacy '<sid>-name.md' / 'phase-<sid>-name.md' AND current 'name_<sid>.md' incl. a trailing-suffix form), cover .json, and -- new safety property -- VALIDATE the parsed id against masterplan.json so an id that is not a real step stays misc rather than being mis-filed (measured: without validation, 5 of 135 mis-attribute, e.g. census_78.md -> '78' which is a PHASE not a step; date strings like 2026-07-26 correctly do not parse). BLAST-RADIUS GUARD IS MANDATORY: widening the regex makes backfill classify 113 files it previously called unclassifiable, so it must NOT relocate them as a side effect of this step -- the archive-relocation policy belongs to pending step 75.11.4, which this step must not pre-empt.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_81_1_handoff_naming.py backend/tests/test_phase_71_3_verdict_gate.py backend/tests/test_phase_38_4_hook_gate.py -q && bash .claude/hooks/lib/harness_log_gate_test.sh && python3 scripts/go_live_drills/incident_log_p0_test.py",
+            "criteria": [
+              "the shared parser resolves BOTH 'contract_81.0.md' (current convention) and '4.5.9-contract.md' / 'phase-4.5.9-contract.md' (legacy) to their step id, and resolves 'evaluator_critique_80.3.json'",
+              "a filename whose parsed id is NOT a step in masterplan.json is classified UNRESOLVED (stays misc) -- asserted specifically for census_78.md, whose '78' is a phase id and not a step id",
+              "date-like strings do NOT parse as step ids -- asserted for count_reconciliation_2026-07-26.md and p0_triage_2026-07-26.md",
+              "measured over the live handoff/current/ tree, the parser resolves >=110 artifacts to real step ids (baseline before this step: 0)",
+              "verify_handoff_layout.py reports ZERO 'no step-id prefix' violations (baseline: 126); any remaining violations are of a different class and are enumerated in experiment_results",
+              "backfill_handoff_archive.py --dry-run relocates NO file out of handoff/current/ that it would not also have relocated before this change -- the widened regex must not trigger a mass move; 75.11.4 owns archive relocation policy",
+              "archive-handoff.sh's per-step glob matches the in-use 'name_<sid>.md' convention, demonstrated on a fixture",
+              "MUTATION: reverting the widened pattern restores the 0-match / 126-violation baseline, demonstrated by executed output rather than argued",
+              "the two existing gate suites (71.3, 38.4) and the incident-log drill remain green -- no pinned contract is redefined by this step"
+            ],
+            "live_check": "verbatim terminal output showing the parser match-count before vs after, the verify_handoff_layout.py violation delta, and the backfill --dry-run no-mass-move proof"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "dropped_rationale": "DROPPED 2026-07-31 BEFORE ANY WORK, on its own research gate's finding (handoff/current/research_brief_81.1.md, gate_passed=true, 8 sources read in full, 24 internal files, audit-class coverage dry after 2 dry rounds). Two independent reasons. (1) DUPLICATE: pending P1 step 75.11.4 already owns the housekeeping half by name, with the same anchors and the same preferred remedy ('teach both the hook and the verifier the *_<sid>.(md|json) suffix form (preferred)'). Shipping 81.1 would have put two steps in scripts/housekeeping/** with divergent immutable criteria. (2) DANGEROUS: widening archive-handoff.sh's MOVE glob to the suffix form would move live_check_<sid>.md out of handoff/current/ while live_check_gate.py:71 is looking for it there -> 'skip' -> auto-commit-and-push.sh exit 0 BEFORE `git add -A` -> the step's commit, changelog AND push are silently dropped. It is a RACE, not a sequence: archive-handoff.sh and auto-commit-and-push.sh are both PostToolUse under the same Write/Edit matchers, and Anthropic's hooks doc states 'All matching hooks run in parallel' -- contradicting auto-commit-and-push.sh:264's comment that archive-handoff 'runs ahead of us in the chain'. It would have passed one manual test and failed intermittently later. SUPERSEDED BY 81.2, which takes the research's own recommended mitigation (ii): make the gates ORDER-INDEPENDENT so they stop caring where housekeeping put the file. The naming-convention reconciliation stays with 75.11.4."
+        },
+        {
+          "id": "81.2",
+          "status": "done",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "Gate input resolution hardening -- make the verdict gate ORDER-INDEPENDENT so it cannot be disarmed by a file move. ROOT CAUSE (measured 2026-07-31, confirmed end-to-end): STEP_ID_RE matches 0 of 127 handoff/current/*.md -> backfill_handoff_archive.py:154-158 sets sid=None -> _move(p, MISC) -> commit fa9aaf8e (2026-07-24) swept 315 files to handoff/archive/misc/ -> handoff/current/evaluator_critique.json went with them -> the verdict gate lost its input and ran dark for 13 consecutive step closes. Every prior framing of this treated it as 'the file is in the wrong place'. It is not: the GATE is brittle. It resolves exactly one literal path and calls a miss fail-open, so ANY housekeeping run, archive sweep, or hook race disarms it silently and permanently. THIS STEP FIXES THE GATE, NOT THE FILENAME. verdict_gate.py gains an ordered resolution chain -- handoff/current/evaluator_critique_<sid>.json, then the rolling handoff/current/evaluator_critique.json, then handoff/archive/phase-<sid>/, then handoff/archive/misc/evaluator_critique_<sid>.json -- and reports WHICH source answered, so a step closing on an archived verdict is visible rather than silent. DELIBERATELY OUT OF SCOPE, with reasons: the naming-convention reconciliation across scripts/housekeeping/** (owned by pending 75.11.4 -- do not duplicate); widening archive-handoff.sh's move glob (research blocker B1: races live_check_gate.py and drops commit+changelog+push); live_check_gate.py content hardening (owned by pending 75.5.10). This step touches ONE helper plus its tests, and cannot move any file.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_81_2_verdict_resolution.py backend/tests/test_phase_71_3_verdict_gate.py backend/tests/test_phase_38_4_hook_gate.py -q && bash .claude/hooks/lib/harness_log_gate_test.sh && python3 scripts/go_live_drills/incident_log_p0_test.py",
+            "criteria": [
+              "verdict_gate resolves a verdict from handoff/archive/phase-<sid>/ when handoff/current/ holds nothing for that step -- i.e. a step whose artifacts were archived still gates",
+              "resolution order is asserted: per-step current beats rolling current, rolling current beats archive; the first hit wins and later sources are not consulted",
+              "the resolved SOURCE is reported alongside the decision, so a verdict answered from the archive is distinguishable in the log from one answered from handoff/current/",
+              "a CONDITIONAL/FAIL verdict found ONLY in the archive still returns 'hold' -- the disarm-by-move failure mode is closed, demonstrated by a fixture that reproduces the 2026-07-24 sweep",
+              "no-input-anywhere still returns 'no_input' and still fails open (never 'hold')",
+              "gate_decision remains callable with its existing 2-argument signature and every phase-71.3 assertion still passes unchanged -- the new capability is strictly additive",
+              "the helper performs NO writes and NO moves: asserted by a fixture that snapshots the tree before and after a resolution call",
+              "MUTATION: removing the archive branch makes the archived-verdict fixture go red, and removing the ordering makes the precedence fixture go red -- both demonstrated by executed output, not argued",
+              "the two existing gate suites (71.3, 38.4) and the incident-log drill remain green"
+            ],
+            "live_check": "verbatim terminal output showing the archived-CONDITIONAL fixture returning hold, the resolution-order assertions, and both mutations going red"
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "completed_at": "2026-07-31T14:59:51.618921+00:00"
+        },
+        {
+          "id": "81.3",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "Cover the verdict-gate CLI/shell seam -- the LAST silent-disarm path in the gate. Filed from Q/A finding F1 on step 81.2 (WARN), which neither Main nor the cycle-1 Q/A had tested. MEASURED by the cycle-2 Q/A: two mutations to verdict_gate.py's main() -- (M10) swapping the two print statements in --resolve mode, and (M11) disabling the --resolve branch so it falls through to the fail-open print('proceed') -- BOTH leave 18/18 unit tests GREEN while silently disarming the production gate. The mechanism: auto-commit-and-push.sh reads VG_DECISION from LINE 1, so a swapped output sets VG_DECISION='current:per-step', which the `proceed|*` catch-all swallows -> the gate never holds again. main() is the ONLY path by which the hook consumes the resolution capability, and it has zero automated coverage: every existing test calls the Python functions directly and never crosses the subprocess boundary. This is the same silent-disarm class phase-81 exists to kill, one layer down. FIX: a subprocess-level test that invokes the helper as the hook actually invokes it and asserts the OUTPUT CONTRACT -- line 1 is a member of {no_input, proceed, passed, hold}, line 2 is the source label, ordering is not swappable, and every argv shape (2-arg legacy, 3-arg --resolve, wrong-argc, bad flag) yields a parseable single token on line 1. Include the M10/M11 mutations in the matrix: the new test must go RED for both, or it has not closed the gap.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_81_3_verdict_cli_contract.py backend/tests/test_phase_81_2_verdict_resolution.py backend/tests/test_phase_71_3_verdict_gate.py -q",
+            "criteria": [
+              "a subprocess-level test invokes .claude/hooks/lib/verdict_gate.py the way auto-commit-and-push.sh does and asserts line 1 is in {no_input, proceed, passed, hold}",
+              "the test asserts line 2 is the source label and that line 1 is NOT a source label -- i.e. the ordering is pinned, not incidental",
+              "every argv shape is covered: 2-arg legacy, 3-arg --resolve, wrong-argc, unknown flag; each yields a parseable decision token on line 1",
+              "MUTATION M10 (swap the two print statements in --resolve mode) turns the new test RED -- demonstrated by executed output",
+              "MUTATION M11 (disable the --resolve branch so it falls through to print('proceed')) turns the new test RED -- demonstrated by executed output",
+              "both mutations are confirmed to leave the pre-existing unit suites GREEN, proving the new test closes a gap those suites cannot see",
+              "the existing 81.2 and 71.3 suites remain green"
+            ],
+            "live_check": "verbatim output of the new subprocess test passing, plus both M10 and M11 turning it red while the pre-existing suites stay green"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

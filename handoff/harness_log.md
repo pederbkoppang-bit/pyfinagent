@@ -29821,3 +29821,51 @@ insertions / 3 deletions); no peak reset; the drills ran against their own stubb
 **NOT LIVE:** like 36.12, 36.8 and 36.9, this needs a backend restart the operator has not authorized.
 
 Immutable: `203 passed, 1 skipped, 2103 deselected` (exit 0).
+
+## Cycle 178 -- 2026-07-31 -- phase=81.2 result=PASS
+
+**Gate input resolution hardening -- the dead verdict gate, root-caused and closed.**
+
+ROOT CAUSE (measured, chain confirmed end to end): `STEP_ID_RE` in both housekeeping scripts matches
+**0 of 127** `.md` files in `handoff/current/` -- it expects the legacy `<sid>-name.md` form while
+every artifact written since ~phase-75 uses the inverse `name_<sid>.md`. So
+`backfill_handoff_archive.py:154-158` sets `sid=None` for every step artifact and calls
+`_move(p, MISC)`. Commit `fa9aaf8e` (2026-07-24, "archive 315 misc ... out of handoff/current")
+executed that sweep, `handoff/current/evaluator_critique.json` went to `handoff/archive/misc/`, the
+verdict gate's single literal path stopped resolving, and a miss fails open -- so the gate ran dark
+for 13 consecutive step closes with no signal. One regex explains the dead gate, the 126 false
+layout strays, and the stranded contracts.
+
+FIX SHIPPED: `verdict_gate.py` gains an ordered resolution chain (current per-step -> current rolling
+-> `archive/phase-<sid>/` -> `archive/misc/`) and reports WHICH source answered; the hook logs a NOTE
+plus a `systemMessage` when a step gates on a swept verdict. **The gate no longer depends on any one
+location.** It does NOT fix the regex -- that is 75.11.4's, deliberately.
+
+RE-SCOPED BY ITS OWN RESEARCH GATE. Step 81.1 (widen the regex + the archive-handoff glob) was
+**dropped before any work**: research found it duplicated pending P1 **75.11.4** AND would race
+`live_check_gate.py` into silently dropping commit+changelog+push (both are PostToolUse hooks under
+the same matcher; Anthropic's docs say matching hooks run in **parallel**, contradicting
+`auto-commit-and-push.sh:264`'s "runs ahead of us in the chain"). Rationale recorded in the masterplan.
+
+Q/A: cycle 1 **CONDITIONAL** -- all 9 criteria met, but two false SCOPE claims in my prose
+("Nothing else / scripts/housekeeping untouched" vs a 37-path `git add -A`; "71.3 untouched" vs an
+unstated post-81.0 baseline). Both are the `feedback_audit_the_commit_not_the_diff` and
+`feedback_verify_own_completed_action_claims` classes. Remediated by DERIVING the scope from git
+rather than rewording, plus adopting Q/A's observation (a) as code (a `systemMessage` on the
+`archive:*` arm -- it was logging only to a gitignored file). Cycle 2 **PASS**, `violated_criteria: []`,
+14-mutant matrix with 10 killed, live-file md5 identical before/after.
+
+DOGFOOD: with the cycle-1 CONDITIONAL persisted, the repaired gate correctly **held** its own step;
+with the cycle-2 PASS persisted it reads `passed`/`current:per-step`. The gate is armed again.
+
+COMMIT SCOPE, DISCLOSED: `git add -A` ships **39 paths** plus 24 already-staged deletions under this
+step's subject -- sibling step **81.0** (GENERATE-complete, cannot close: I put
+`verify_handoff_layout.py` in its immutable criteria and that script is red for 128 pre-existing
+reasons), this session's Fable-policy correction (`CLAUDE.md` + both agent files + the tripwire), the
+masterplan, and runtime JSONLs. Enumerated in `experiment_results_81.2.md` section 1.
+
+QUEUED, NOT ABSORBED: Q/A F1 (WARN) -- the CLI/shell seam has **zero** automated coverage; swapping
+the two `print` lines in `--resolve` mode leaves 18/18 tests green while silently disarming the
+production gate. Same class this phase exists to kill. Also: `harness_state_reader.py` None-guard,
+the third and fourth naming conventions, the `archive-handoff.sh` `${sid}`/`short_sid` bug, and the
+75.11.4-vs-`live_check_gate` criteria conflict needing operator resolution.

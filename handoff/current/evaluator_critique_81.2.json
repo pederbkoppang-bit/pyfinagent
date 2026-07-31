@@ -1,0 +1,24 @@
+{
+  "step_id": "81.2",
+  "cycle_num": 2,
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 9 immutable criteria MET on independently reproduced, executed evidence, and BOTH cycle-1 blockers are genuinely remediated rather than reworded. Q/A re-derived the scope itself (24 staged deletions corroborated by three derivations; all 16 non-handoff code/config paths named), EXECUTED the HEAD-baseline claim (8 passed / 1 failed, the red being 81.0's deliberate inversion, not an 81.2 regression), graded the new archive:* systemMessage arm via a 6-label x 4-token dispatch matrix, and ran a 14-mutant in-memory matrix killing 10 including both criterion-8 mutations and a fixture mutation proving criterion 7 is non-vacuous. Live file md5 identical before and after. Verification command exit 0 reproduced verbatim.",
+  "violated_criteria": [],
+  "certified_fallback": false,
+  "harness_compliance_ok": true,
+  "cycle_1_verdict": "CONDITIONAL",
+  "cycle_1_blockers_remediated": [
+    "scope_honesty -- experiment_results section 1 rewritten with git-DERIVED tree state",
+    "criterion_6_evidence -- post-81.0 baseline stated explicitly in section 4 row 6"
+  ],
+  "non_blocking_findings": [
+    "F1 WARN: the CLI/shell seam has ZERO automated coverage -- swapping the two print lines in --resolve mode, or disabling the --resolve branch, silently disarms the production gate while 18/18 tests stay green. Queued as a follow-up step.",
+    "F2 NOTE: _snapshot() walks files only, so a directory-shaped side effect would survive criterion 7's guard.",
+    "F3 NOTE: the archive branch has zero live-tree hits today; go-forward coverage is sound but the historical handoff/archive/misc/evaluator_critique.json (step 75.7, rolling name) is not recovered by the chain.",
+    "F4 NOTE: scope prose names 30 of 39 paths; the 9 unnamed are all under handoff/. State a measurement time rather than a bare count.",
+    "F5 NOTE: archive:* + no_input would co-emit two systemMessage objects; unreachable in production.",
+    "F6 NOTE: the 99-insertion figure reproduces but there are also 8 deletions, which are 81.0's."
+  ],
+  "notes": "Transcribed verbatim by Main from the qa-verdict Workflow return value. Main records the verdict, never authors it. Cycle 2 was a legitimate re-grade on CHANGED evidence (results rewritten, new hook code), not verdict shopping -- Q/A independently confirmed the evidence diff."
+}

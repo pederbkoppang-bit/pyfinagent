@@ -1,26 +1,27 @@
 #!/usr/bin/env bash
-# phase-67.5: SessionStart tripwire for the masterplan 67.4 Fable revert.
+# phase-67.5, REPURPOSED 2026-07-31: SessionStart advisory for a Fable pin.
 #
-# Purpose: make the Sunday 2026-07-12 revert SELF-ENFORCING. Any session
-# starting on/after that date with `model: fable` still pinned in either
-# Layer-3 agent file gets a loud injected warning naming 67.4 as top P0.
+# HISTORY: this hook was originally the self-enforcing tripwire for the
+# masterplan 67.4 revert -- it fired on/after 2026-07-12 (the end of the
+# temporary free-Fable window) and named 67.4 as the session's top P0.
+# That premise is DEAD. Fable 5 is now a standing part of the Max plan
+# (verified 2026-07-31 against support.claude.com article 15424964), so
+# there is no window to expire and no revert to enforce. Left unchanged,
+# this hook would have injected a FALSE P0 ordering a revert of a pin that
+# is now legitimate.
+#
+# CURRENT PURPOSE: a Fable pin is still worth surfacing, for a BUDGET
+# reason rather than a calendar one -- Fable draws the same weekly Max
+# budget as every other model and burns it faster, and past 50% of the
+# weekly limit it transitions to metered usage credits, which violates the
+# standing away-ops $0-metered constraint. So: advisory only, no P0, no
+# revert instruction, and NO date gate.
 #
 # Fail-open by design: every error path exits 0 silently (SessionStart
-# cannot block startup; a broken tripwire must never break a session).
-# Dry-run knob: TRIPWIRE_FAKE_TODAY=YYYY-MM-DD overrides the date.
+# cannot block startup; a broken advisory must never break a session).
 set -u
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-TODAY="${TRIPWIRE_FAKE_TODAY:-}"
-if [ -z "$TODAY" ]; then
-  TODAY="$(date +%F 2>/dev/null)" || exit 0
-fi
-[ -n "$TODAY" ] || exit 0
-
-# ISO dates compare lexicographically; warn only on/after the window end.
-if [[ "$TODAY" < "2026-07-12" ]]; then
-  exit 0
-fi
 
 PINNED=""
 for f in "$ROOT/.claude/agents/researcher.md" "$ROOT/.claude/agents/qa.md"; do
@@ -30,7 +31,7 @@ for f in "$ROOT/.claude/agents/researcher.md" "$ROOT/.claude/agents/qa.md"; do
 done
 [ -n "$PINNED" ] || exit 0
 
-WARN="TRIPWIRE (phase-67.5): today is $TODAY -- the free Fable 5 window ended 2026-07-12 and 'model: fable' is STILL pinned in:$PINNED. Masterplan step 67.4 (revert to model: opus, KEEP every artifact improvement) is the TOP P0 for this session, unless the operator has recorded 'FABLE PERMANENT: AUTHORIZE' in handoff/harness_log.md. Every Fable turn may now draw Max usage credits."
+WARN="FABLE BUDGET ADVISORY: 'model: fable' is pinned in:$PINNED. This is a legitimate pin -- Fable 5 is a standing part of the Max plan, and the old free-window/scheduled-revert doctrine is retired (CLAUDE.md 'Fable 5 policy'). It is flagged only because Fable shares ONE weekly Max budget with the main session, the harness subagents, and every Workflow fan-out, and burns it faster than Opus; past 50% of the weekly limit it transitions to METERED usage credits, which breaks the standing \$0-metered away-ops constraint. Prefer Fable selectively on hard gate evaluations and keep bulk fan-out on Opus. No action required."
 
 # Single-line JSON additionalContext (v2.1.163+ shape). If a future schema
 # drifts, plain stdout also becomes session context per the hooks docs, so

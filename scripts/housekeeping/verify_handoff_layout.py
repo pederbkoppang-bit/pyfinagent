@@ -30,7 +30,23 @@ ROLLING_KEEP = {
     "research.md",
     "research_plan.md",
     "harness_log.md",
+    # phase-81.0 -- MUST stay in sync with the identically-named set in
+    # scripts/housekeeping/backfill_handoff_archive.py. The machine-readable
+    # verdict is read by auto-commit-and-push.sh by literal path; omitting it
+    # here is what let the 2026-07-24 sweep disarm the verdict gate.
+    "evaluator_critique.json",
 }
+
+# phase-81.0: mirrors backfill_handoff_archive.py. Per-step verdict JSONs are
+# the current convention and must not be reported as strays.
+ROLLING_KEEP_PREFIXES = ("evaluator_critique_",)
+
+
+def _is_rolling_keep(name: str) -> bool:
+    """True if `name` legitimately lives in handoff/current/ (a hook reads it)."""
+    if name in ROLLING_KEEP:
+        return True
+    return name.startswith(ROLLING_KEEP_PREFIXES) and name.endswith(".json")
 
 STEP_ID_RE = re.compile(r"^(?:phase-)?([0-9]+(?:\.[0-9]+)*)[-.].*\.md$")
 
@@ -89,7 +105,7 @@ def main() -> int:
         for p in CURRENT.iterdir():
             if p.is_dir():
                 continue
-            if p.name in ROLLING_KEEP or p.name.startswith("."):
+            if _is_rolling_keep(p.name) or p.name.startswith("."):
                 continue
             m = STEP_ID_RE.match(p.name)
             if not m:
