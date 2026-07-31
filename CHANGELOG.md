@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-07-31 | `c3286524` | fix(81.2): make the verdict gate order-independent -- the dead gate, root-caused and closed |
 | 2026-07-27 | `d5bdbba4` | fix(80.46) cycle 4: stop scanning the source, mediate the launch |
 | 2026-07-27 | `5c6fdc3e` | fix(80.46) cycle 3: stale line numbers INSIDE the stale-line-number fix, and a one-char escape |
 | 2026-07-27 | `d092fb6c` | fix(80.46) cycle 2: the immutable command was RED as shipped, and 'filed separately' was false |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `3227347a` | phase-36.13: gate the ACT OF BUYING, not just the cycle -- close the CWE-424 alternate path |
 | 2026-07-26 | `902887f9` | docs: correct the mangled 36.9 commit message (1657e25a) |
 | 2026-07-26 | `1657e25a` | phase-36.9: armed:true must mean the leg can actually fire NOW -- three ways it didn't |
-| 2026-07-26 | `edb67997` | phase-36.8: archive-merge authority -- a stale archived peak can no longer permanently flatten and p |
 
 ---
 
+### v6.72.10 — fix(81.2): make the verdict gate order-independent -- the dead gate,... (2026-07-31)
+
+- **fix(81.2): make the verdict gate order-independent -- the dead gate, root-caused and closed**
 ### v6.72.9 — fix(80.46) cycle 4: stop scanning the source, mediate the launch (2026-07-27)
 
 - **fix(80.46) cycle 4: stop scanning the source, mediate the launch**
