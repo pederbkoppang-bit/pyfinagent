@@ -30002,3 +30002,51 @@ for its executor: label methods are `(self, ticker, entry_date) -> int | None` (
 reach the engine caches via `self`), and `_compute_mean_reversion_label` is a TWO-STAGE CONJUNCTION
 with thresholds in raw percent rather than volatility units -- the likely degeneracy mechanism, to
 be MEASURED not asserted.
+
+---
+
+## Cycle 181 -- 2026-08-03 -- phase=82.2 result=PASS
+
+**Step**: 82.2 (P1) -- three overpriced-market candidate strategies added to `STRATEGY_REGISTRY`
+(goal deliverable 2). Research-gated (`research_brief_82.2.md`, gate_passed=true, 6 read in full,
+21 URLs). **Additive to `backend/backtest/backtest_engine.py` only (+239 lines, 0 deletions); zero
+edits to backend/services, backend/tools, backend/agents -- live funnel untouched.**
+
+**Shipped**: `stretch_regime` (lens a + the lens-d cash-timing overlay FOLDED IN -- as market
+turbulence rises the up-barrier widens and the down-barrier tightens, so fewer +1 labels and the
+model holds cash by being harder to convince), `qarp` (lens b, long-only, non-candidates return
+None), `reversion_sigma` (lens c, sigma-units instead of fixed fractions, None-on-no-signal).
+All three FORWARD-LOOKING, cost-adjusted and sigma-scaled.
+
+**MEASURED on a committed seeded BQ-free fixture (10 tickers x 88 dates = 880 rows):**
+`stretch_regime` 880 labelled / top class 35.8%; `qarp` 528 / 46.2%; `reversion_sigma` 409 / 47.9%;
+**`mean_reversion` (incumbent) 880 / 95.0%**. The "~all-neutral" report is CONFIRMED at 836/880 and
+the mechanism is visible in the row counts -- the old label emits 0 rather than None on no-signal,
+so the neutral class is flooded by rows that were never candidates. CORRECTION to Main's earlier
+hypothesis: `sma_50_distance` IS a fraction, so -0.05/+0.10 are internally consistent -- there is no
+unit bug; the surviving critique is only that a fixed fraction is not volatility-scaled.
+
+**82.16 CONFIRMED BY EXECUTION.** Destroying the post-entry price path and re-labelling the whole
+registry: `quality_momentum` 0/880 rows changed and `factor_model` 0/880 -- they carry NO forward
+information. All three candidates change. The Q/A reproduced this with its OWN mutation shape.
+
+**Q/A**: PASS cycle 1, 0 violated criteria. It re-derived every number (exact match), re-seeded 5x
+AND widened the grid to 4400 rows (candidates 35.8-53.6%), and verified the overlay end-to-end with
+the UNPATCHED proxy: stretch spans 0.763-2.490 and the +1 rate falls 40.3% -> 17.0% from the calmest
+to the most turbulent third. It classified the 32 full-tree failures as PRE-EXISTING by re-running
+them in a HEAD-equivalent process. Five advisories: A1/A2/A3 were SURVIVING MUTANTS (constant
+regime proxy, zeroed cost adjustment, qarp returning 0) -- all three now guarded and re-proven to
+kill their mutants; A4 (knife-edge `>= 0.95` on an exact 836/880 tie) had already been fixed by Main
+independently from the same seed sweep; A5 queued as **82.17**.
+
+**Register**: 82.17 (`IMPLEMENTED_STRATEGY_IDS` in `archetype_library.py:31` is a hand-maintained
+"mirror" of STRATEGY_REGISTRY that has drifted BOTH ways -- lists `blend` which is not in the
+registry, omits all three candidates; the durable fix is to DERIVE it, not correct the literal).
+
+**Operator decision recorded 2026-08-03 via AskUserQuestion**: the Figma plan is a View seat on
+Starter = **6 MCP tool calls per MONTH**, so deliverable 5 lands as MERMAID flow diagrams in the
+design pack (zero quota, in-repo, git-diffable), prepared so they can be pushed to FigJam later on
+the operator's word. This validates keeping Figma out of 82.4's verification criteria.
+
+**Next**: 82.15 (P0) is the critical path -- the `realtime_start` vintage column still has zero
+consumers, so 82.3's backtests would carry ~120d look-ahead. 82.3 depends_on [82.0, 82.15, 82.2].

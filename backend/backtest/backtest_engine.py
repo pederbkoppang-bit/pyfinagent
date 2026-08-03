@@ -35,6 +35,15 @@ STRATEGY_REGISTRY: dict[str, str] = {
     "mean_reversion": "_compute_mean_reversion_label",
     "factor_model": "_compute_factor_label",
     "meta_label": "_compute_triple_barrier_label",  # uses TB labels; meta-labeling applied in _run_window
+    # ── phase-82.2 candidates (overpriced-market lenses) ──────────
+    # All three are FORWARD-LOOKING, cost-adjusted and sigma-scaled.
+    # Forward-looking is not optional: `quality_momentum` and `factor_model`
+    # classify on features AT entry_date and never read a forward price, so a
+    # model trained on them learns a deterministic function of its own inputs
+    # and their Sharpe/DSR say nothing about the future (see step 82.16).
+    "stretch_regime": "_compute_stretch_regime_label",
+    "qarp": "_compute_qarp_label",
+    "reversion_sigma": "_compute_reversion_sigma_label",
 }
 
 # Numeric features used for ML training (excludes categorical: ticker, date, sector, industry)
@@ -1283,6 +1292,236 @@ class BacktestEngine:
         if composite < 0.3:
             return -1
         return 0
+
+    # ── phase-82.2: overpriced-market candidate labels ───────────
+    #
+    # Three properties every method below holds, and the reasons they are not
+    # negotiable:
+    #
+    # FORWARD-LOOKING. Each walks prices AFTER entry_date. `quality_momentum`
+    # and `factor_model` above do not -- they classify on features at
+    # entry_date, so a model trained on them reproduces a threshold rule over
+    # its own inputs and any Sharpe/DSR derived from them is not evidence about
+    # the future (step 82.16).
+    #
+    # SIGMA-SCALED. Barriers are set in units of the name's own volatility, not
+    # in raw fractions. A fixed 8% barrier is sub-1-day noise for a high-beta
+    # semiconductor and a large move for a utility, so a fixed fraction silently
+    # means different things across the cross-section.
+    #
+    # COST-ADJUSTED. Barriers are shifted by the round-trip cost exactly as
+    # `_compute_triple_barrier_label` does. The existing `mean_reversion` label
+    # has NO cost adjustment, so it can label a reversion a winner when the
+    # round trip loses money after friction.
+    #
+    # NONE-ON-NO-SIGNAL. A row with no signal returns None (excluded from
+    # training) rather than 0. Returning 0 is a principal degeneracy driver in
+    # the existing `mean_reversion`, where two of three exit paths yield 0 and
+    # the neutral class swamps the label set.
+
+    def _sigma_barriers(self, fv: dict, horizon_days: int) -> tuple[float, float] | None:
+        """Per-name barrier half-width in FRACTIONAL terms, scaled to horizon.
+
+        `annualized_volatility` is a percentage (e.g. 35.0 for 35%/yr). Convert
+        to a fraction, de-annualise by sqrt(252) and re-scale by sqrt(horizon).
+        Returns (sigma_h, round_trip_cost_pct) or None when vol is unusable.
+        """
+        vol_ann = fv.get("annualized_volatility")
+        if vol_ann is None:
+            return None
+        try:
+            vol_ann = float(vol_ann)
+        except (TypeError, ValueError):
+            return None
+        if not np.isfinite(vol_ann) or vol_ann <= 0:
+            return None
+        sigma_daily = (vol_ann / 100.0) / np.sqrt(252.0)
+        sigma_h = float(sigma_daily * np.sqrt(max(1, int(horizon_days))))
+        if not np.isfinite(sigma_h) or sigma_h <= 0:
+            return None
+        round_trip_cost_pct = 2 * self.trader.transaction_cost_pct / 100
+        return sigma_h, round_trip_cost_pct
+
+    def _market_stretch(self, entry_date: str) -> float | None:
+        """Market turbulence proxy in [0, inf): trailing SPY realised vol over
+        its own longer-run average. 1.0 = normal, >1 = turbulent.
+
+        Deliberately uses SPY rather than `compute_turbulence_index`
+        (`historical_data.py`), which needs the universe cross-section -- that
+        list is not reachable from a label method, and stashing it would mean
+        editing `_run_window`. SPY is always preloaded alongside the universe
+        (see `.claude/rules/backend-backtest.md`), so this costs nothing.
+
+        Keyed on the research finding that crowded MOMENTUM carries LOWER crash
+        probability while crowding predicts crashes rather than means
+        (arXiv:2512.11913) -- so the regime must key on turbulence/co-movement,
+        NOT on "momentum has run".
+
+        Strictly backward-looking: the window ends at entry_date.
+        """
+        long_win, short_win = 252, 21
+        start = (pd.Timestamp(entry_date) - timedelta(days=int(long_win * 1.7))).strftime("%Y-%m-%d")
+        px = cache.cached_prices("SPY", start, entry_date)
+        if px is None or px.empty or len(px) < long_win // 2:
+            return None
+        close = px["close"].astype(float)
+        rets = close.pct_change().dropna()
+        if len(rets) < short_win + 20:
+            return None
+        short_vol = float(rets.tail(short_win).std())
+        long_vol = float(rets.tail(long_win).std())
+        if not np.isfinite(short_vol) or not np.isfinite(long_vol) or long_vol <= 0:
+            return None
+        return short_vol / long_vol
+
+    def _walk_barriers(self, ticker: str, entry_date: str, horizon_days: int,
+                       up: float, down: float) -> int | None:
+        """Walk forward from entry_date; +1 if `up` hit first, -1 if `down`
+        first, 0 if the horizon expires. `up`/`down` are FRACTIONAL returns."""
+        end_date = (pd.Timestamp(entry_date) + timedelta(days=int(horizon_days * 1.6))).strftime("%Y-%m-%d")
+        prices = cache.cached_prices(ticker, entry_date, end_date)
+        if prices is None or prices.empty or len(prices) < 2:
+            return None
+        entry_price = float(prices["close"].iloc[0])
+        if not np.isfinite(entry_price) or entry_price <= 0:
+            return None
+        up_price = entry_price * (1.0 + up)
+        down_price = entry_price * (1.0 - down)
+        for idx in range(1, len(prices)):
+            price = float(prices["close"].iloc[idx])
+            if price >= up_price:
+                return 1
+            if price <= down_price:
+                return -1
+            if idx >= horizon_days:
+                return 0
+        return 0
+
+    def _compute_stretch_regime_label(self, ticker: str, entry_date: str) -> int | None:
+        """Lens (a) valuation/market-stretch REGIME GATE, with lens (d) the
+        cash-timing overlay folded in.
+
+        Symmetric sigma barriers, MODULATED by market turbulence. As stretch
+        rises the up-barrier widens and the down-barrier tightens, so fewer
+        rows earn +1 and the trained model buys less -- the model holds cash by
+        being harder to convince, rather than by a bolted-on timing rule. That
+        is the (d) overlay: an exposure decision expressed inside the label.
+
+        Returns None when volatility or the market proxy is unavailable, so
+        rows we cannot regime-classify are EXCLUDED rather than labelled 0.
+        """
+        fv = self.data_provider.build_feature_vector(ticker, entry_date)
+        if not fv or fv.get("price_at_analysis") is None:
+            return None
+        bars = self._sigma_barriers(fv, self.holding_days)
+        if bars is None:
+            return None
+        sigma_h, cost = bars
+
+        stretch = self._market_stretch(entry_date)
+        if stretch is None:
+            return None
+        # Clamp so one turbulent week cannot make the label unreachable.
+        stretch = float(min(max(stretch, 0.5), 2.5))
+
+        base_k = 1.0
+        up = base_k * sigma_h * stretch + cost      # harder to earn +1 when turbulent
+        down = base_k * sigma_h / stretch + cost    # easier to earn -1 when turbulent
+        return self._walk_barriers(ticker, entry_date, self.holding_days, up, down)
+
+    def _compute_qarp_label(self, ticker: str, entry_date: str) -> int | None:
+        """Lens (b) quality-at-a-reasonable-price defensive tilt. LONG-ONLY.
+
+        Gate on fundamentals at entry_date -- cheap, profitable, low leverage --
+        then label the forward move with a sigma barrier. A name that fails the
+        gate returns None so it never enters training; that is what keeps the
+        label set from being swamped by non-candidates.
+
+        Deliberately does NOT reuse `quality_score`: its payout leg is the
+        weakest QMJ dimension (Asness/Frazzini/Pedersen) and it rests on an
+        `fcf_yield` computed with capex = 0. The individual fundamentals are
+        used directly instead.
+        """
+        fv = self.data_provider.build_feature_vector(ticker, entry_date)
+        if not fv or fv.get("price_at_analysis") is None:
+            return None
+
+        pe = fv.get("pe_ratio")
+        roe = fv.get("roe")
+        de = fv.get("debt_equity")
+        margin = fv.get("profit_margin")
+        # Require the full QARP triple. A partial view is not a QARP candidate.
+        if pe is None or roe is None or de is None:
+            return None
+        try:
+            pe, roe, de = float(pe), float(roe), float(de)
+        except (TypeError, ValueError):
+            return None
+
+        cheap = 0 < pe <= 25.0            # positive earnings AND not expensive
+        quality = roe >= 0.10             # 10% return on equity
+        low_debt = 0 <= de <= 1.5
+        profitable = margin is None or float(margin) > 0
+
+        if not (cheap and quality and low_debt and profitable):
+            return None  # not a QARP candidate -- excluded, not neutral
+
+        bars = self._sigma_barriers(fv, self.holding_days)
+        if bars is None:
+            return None
+        sigma_h, cost = bars
+        # Defensive asymmetry: take profit sooner, cut losses later, so the
+        # tilt is expressed in the barrier geometry and not only in the screen.
+        up = 1.0 * sigma_h + cost
+        down = 1.5 * sigma_h + cost
+        return self._walk_barriers(ticker, entry_date, self.holding_days, up, down)
+
+    def _compute_reversion_sigma_label(self, ticker: str, entry_date: str) -> int | None:
+        """Lens (c) mean-reversion on overextension, in SIGMA units.
+
+        Two changes from `_compute_mean_reversion_label`:
+          1. The stretch gate is `sma_50_distance / sigma_daily` -- a z-score --
+             rather than the fixed fractions -0.05 / +0.10. Those fractions are
+             internally consistent (`sma_50_distance` IS a fraction) but they
+             are not volatility-scaled, so they mean different things for a
+             high-beta semiconductor and a utility.
+          2. No-signal returns **None**, not 0. The existing label returns 0 on
+             two of three paths, which is a principal reason its neutral class
+             dominates.
+        Cost-adjusted, which the existing mean-reversion label is not.
+        """
+        fv = self.data_provider.build_feature_vector(ticker, entry_date)
+        if not fv or fv.get("price_at_analysis") is None:
+            return None
+
+        sma_dist = fv.get("sma_50_distance")
+        if sma_dist is None:
+            return None
+        bars = self._sigma_barriers(fv, self.mr_holding_days)
+        if bars is None:
+            return None
+        sigma_h, cost = bars
+
+        try:
+            stretch_z = float(sma_dist) / sigma_h
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
+        if not np.isfinite(stretch_z):
+            return None
+
+        Z = 1.0  # overextension threshold, in sigma
+        if stretch_z <= -Z:
+            # Oversold: expect reversion UP by half the gap, net of costs.
+            target = abs(float(sma_dist)) / 2.0 + cost
+            stop = 1.5 * sigma_h + cost
+            return self._walk_barriers(ticker, entry_date, self.mr_holding_days, target, stop)
+        if stretch_z >= Z:
+            # Overbought: expect reversion DOWN. -1 is the informative outcome.
+            target = abs(float(sma_dist)) / 2.0 + cost
+            stop = 1.5 * sigma_h + cost
+            res = self._walk_barriers(ticker, entry_date, self.mr_holding_days, stop, target)
+            return res
+        return None  # no overextension -- excluded, NOT neutral
 
     # ── Auto-Ingest ──────────────────────────────────────────────
 

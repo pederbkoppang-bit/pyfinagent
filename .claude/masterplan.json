@@ -21261,7 +21261,7 @@
         },
         {
           "id": "82.2",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "Three candidate strategies added to STRATEGY_REGISTRY as real label methods (deliverable 2), covering four overpriced-market lenses: (a) valuation-stretch REGIME GATE (index P/E vs history, ERP, breadth) as a state input that switches strategy/sizing; (b) quality-at-reasonable-price defensive tilt (cheap vs fundamentals, high quality, low debt), long-only; (c) mean-reversion on overextension -- the existing mean_reversion is reported to label ~all-neutral and trade 0, so PROVE that with a measurement or FIX it; (d) hedged / cash-timing exposure overlay driven by the stretch measure, folded onto one of the three. Each label method must return non-degenerate labels on a named fixture -- a strategy that registers but labels all-neutral is the exact failure mode already present in mean_reversion and does not count as delivered.",
@@ -21513,6 +21513,41 @@
               "the same exclusion holds on BOTH the preloaded fast path and the per-cutoff BQ fallback, asserted separately so fixing one and not the other cannot pass",
               "a fixture with NULL realtime_start (pre-migration rows) resolves per the documented decision rather than being silently dropped or silently included, and the chosen behaviour is stated in the test name",
               "a regression fixture asserts the pre-fix behaviour differed: the same query returns a row under the old date-only filter and does not under the new one, so the guard cannot pass vacuously"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.16",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "DEFECT surfaced by the 82.2 research gate and INDEPENDENTLY CONFIRMED by Main: two of the five STRATEGY_REGISTRY strategies are NOT LABELS -- they carry zero forward information, so a backtest of them measures nothing about future returns. `_compute_quality_momentum_label` (backend/backtest/backtest_engine.py:1124) builds the feature vector AT entry_date and classifies on `momentum_6m` and `quality_score`, both of which are features AT entry_date; it never fetches a forward price. `_compute_factor_label` (:1208) is the same shape -- no `cached_prices(ticker, entry_date, end_date)` call, no forward window. CONTRAST: `_compute_triple_barrier_label` (:742) computes `end_date = entry_date + holding_days*1.5` and fetches forward prices; `_compute_mean_reversion_label` (:1145) likewise has a forward validation stage. CONSEQUENCE: for `quality_momentum` and `factor_model` the GradientBoostingClassifier is trained to reproduce a deterministic threshold rule over its OWN input features (`momentum_6m`, `quality_score` are both in `_NUMERIC_FEATURES`). Its in-sample accuracy is near-tautological and any Sharpe/DSR computed from it is not evidence about the future. This is a silent research-validity defect, not a crash: the strategies run, produce numbers, and those numbers have appeared in optimizer comparisons. Decide per strategy: make the label forward-looking (a horizon-scoped forward return, mirroring the triple-barrier pattern), or REMOVE the strategy from STRATEGY_REGISTRY and mark it non-comparable. Do NOT leave a non-forward label registered alongside forward-looking ones, because the optimizer rotates over them as if they were comparable. Audit `meta_label` too -- it maps to the triple-barrier method but applies meta-labelling in `_run_window`.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_16_label_forward_information.py -q",
+            "criteria": [
+              "a test asserts, for EVERY name in STRATEGY_REGISTRY, that its label method consults data strictly after entry_date -- implemented by invoking the method with a price series whose post-entry values are mutated and asserting the returned label changes for at least one fixture row",
+              "any strategy whose label does not change under post-entry price mutation is either fixed to be forward-looking or removed from STRATEGY_REGISTRY, and the test enumerates the registry rather than a hand-written list so a newly added strategy cannot skip the check",
+              "the enumeration is asserted non-empty, so the guard cannot pass vacuously on an empty registry",
+              "a fixture confirms the guard can fail: a deliberately non-forward stub label registered in a temporary copy of the registry is detected"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.17",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DEFECT surfaced by the 82.2 Q/A (advisory A5) and confirmed by Main: `IMPLEMENTED_STRATEGY_IDS` (backend/meta_evolution/archetype_library.py:31) is documented as a 'mirror of STRATEGY_REGISTRY' but is a HAND-MAINTAINED frozenset, and it has drifted in BOTH directions. It lists `blend`, which is NOT in STRATEGY_REGISTRY (pre-existing drift), and it omits the three phase-82.2 candidates `stretch_regime`, `qarp` and `reversion_sigma`. No behaviour changes today because the validator only fires for archetypes declaring `is_implemented=True`, but an archetype naming any of the three candidates would raise spuriously, and the mirror is now wrong by 4 entries. A restated constant cannot stay in sync with the thing it restates -- the durable fix is to DERIVE the set from STRATEGY_REGISTRY at import time (or assert equality in a test) rather than to correct the literal and leave the same trap for the next strategy added. Note the import direction: archetype_library must not create a cycle with backtest_engine; if a direct import is unsafe, a test asserting set-equality is the acceptable fallback and must fail on drift in either direction.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_17_registry_mirror.py -q",
+            "criteria": [
+              "IMPLEMENTED_STRATEGY_IDS equals the key set of STRATEGY_REGISTRY, asserted by a test that fails on drift in EITHER direction (an extra entry or a missing one)",
+              "the test derives both sides from their modules rather than restating either as a literal, so adding a strategy cannot silently re-open the drift",
+              "a fixture demonstrates the guard can fail: a temporarily injected extra registry key is detected"
             ]
           },
           "retry_count": 0,
