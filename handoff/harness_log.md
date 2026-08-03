@@ -30050,3 +30050,69 @@ the operator's word. This validates keeping Figma out of 82.4's verification cri
 
 **Next**: 82.15 (P0) is the critical path -- the `realtime_start` vintage column still has zero
 consumers, so 82.3's backtests would carry ~120d look-ahead. 82.3 depends_on [82.0, 82.15, 82.2].
+
+---
+
+## Cycle 182 -- 2026-08-03 -- phase=82.15 result=PASS
+
+**Step**: 82.15 (P0) -- point-in-time macro reads. The `realtime_start` vintage column 82.0 added
+had **ZERO CONSUMERS**, so every macro-conditioned backtest still read values that did not exist at
+the cutoff. **A scope gap Main owned from 82.0**: the column landed so the fix would be POSSIBLE,
+but the read side was never wired and 82.0's artifacts did not flag it. Research-gated
+(`research_brief_82.15.md`, gate_passed=true, 7 sources read in full, 24 URLs). Research lane only;
+zero edits to backend/services, backend/tools, backend/agents.
+
+**THE NAIVE FIX WOULD HAVE DESTROYED THE SAMPLE.** A strict `realtime_start <= cutoff` returns
+**0 of 4729 rows** at cutoffs 2020-01-01, 2023-01-01 AND 2025-06-01, because 82.0 backfilled our
+WRITE date (2026-03-22..25). That would blank all six macro features across the entire 2018-2025
+window -- silently, since `historical_data.py` guards on `if macro:` and never sets the keys.
+So availability is `MIN(realtime_start, obs_date + MACRO_PUBLICATION_LAG_DAYS[series])`.
+
+**MEASURED effect: 23 of 28 series x cutoff lookups changed**, each a value previously read before
+it existed. Worst: GDP at cutoff 2023-01-03 was reading an observation not published for another
+**184 days**. All 7 series still resolve at every historical cutoff -- the sample survives.
+
+**FOUR code sites, not the two Main assumed** (research finding): the preload SELECT did not fetch
+the column; the row builder did not store it; the fast-path loop `break`s on the first DATE match
+(a vintage predicate bolted onto that shape would DROP the series instead of falling back to an
+older KNOWN row); and the fallback WHERE needed `DATE(@cutoff)` because `date` is STRING while
+`realtime_start` is DATE.
+
+**Q/A: CONDITIONAL -> CONDITIONAL -> PASS.** Cycle 1 confirmed the production code was already
+correct on BOTH paths -- it dry-ran the generated SQL against live BigQuery and got agreement with
+the fast path on all 7 series -- then blocked on GUARD quality: criterion 2's fallback half was
+covered only by two SQL substring scans, and it proved the point by executing an inverted-predicate
+mutant against live BQ, which returned exactly the 184-day look-ahead rows. Cycle 2 found the
+production flag read was exercised by ZERO tests and the caller's fail-closed branch was uncovered.
+Cycle 3 PASSED and contributed three mutants of its own, including `min -> max`, whose kill proves
+the STAMP (not merely the lag) is behaviourally load-bearing -- closing the cycle-1 attribution
+worry on criterion 1. Seven mutants now die (M1/M2/M3/M5/M6/M10/M11); suite 11 -> 13 -> 15.
+
+**A CLAIM MAIN HAD BACKWARDS, in four places including a test docstring**: "whichever is EARLIER
+wins, so the rule can only ever be conservative". MIN picks the earlier availability date, making a
+row visible SOONER -- **anti**-conservative for look-ahead. The rule is still right (a true vintage
+should govern; discarding a far-future backfill stamp is what keeps the sample alive) but it is
+conservative only where the lag upper-bounds the real release delay. Counter-case from the Q/A: the
+Oct-2013 shutdown pushed the Employment Situation to ~52 days against a UNRATE lag of 40.
+
+**FOUR unverified counts in this phase, the last one INSIDE the text correcting the previous one**
+(49 carried forward, then 52 computed mentally, measured 53). The rule that actually works, now
+recorded: run the command, paste its output, never add the columns yourself. Code was correct every
+cycle; only prose failed.
+
+**LIMITS -- 82.15 is NOT "look-ahead fixed"** and `cache.py` instructs the next reader not to say
+so. It addresses PUBLICATION LAG only. Ingest dedupes on `(series_id, date)`, so a revised value
+can never sit beside its original -- revisions are structurally uncapturable. Queued as **82.18**
+(ALFRED backfill of true per-observation vintages). Sharpe on macro-conditioned strategies WILL
+fall (sources bracket 100-500bp); that is the point.
+
+**Flag**: `macro_point_in_time_enabled`, default **True** -- against this project's default-OFF
+convention, which is kept for the MONEY path. This is the research lane, and defaulting OFF would
+ship known look-ahead into the evidence 82.3 exists to produce. ALL of 82.3 must run in ONE flag
+state.
+
+**Next**: 82.3 is now UNBLOCKED. Operator chose the wide PBO trial set (~3 configs x 4 strategies,
+N=12) so CSCV means what the promotion gate assumes. NOTE for its executor: the engine has NEVER
+computed PBO or turnover -- `compute_pbo` exists at `analytics.py:184` with no caller, and result
+JSONs carry neither field. `PBO <= 0.5` is half the documented promotion gate and one of its two
+terms was never calculated.

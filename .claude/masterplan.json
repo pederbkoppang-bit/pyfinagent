@@ -21502,7 +21502,7 @@
         },
         {
           "id": "82.15",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "name": "LOOK-AHEAD BIAS, and a scope gap Main owns from 82.0: the `realtime_start` vintage column has ZERO CONSUMERS. 82.0 added the column to financial_reports.historical_macro and populated it (4729/4729 non-null) precisely so point-in-time joins would become possible, and correctly argued the column had to land WITH the backfill because a row's vintage can never be reconstructed afterwards. But it never wired the READ side, and 82.0's artifacts did not flag that loudly. MEASURED 2026-08-03: `grep -n realtime_start backend/backtest/*.py backend/services/*.py` returns NOTHING. backend/backtest/cache.py::cached_macro still selects on `date <= @cutoff` alone (BQ fallback) and the preloaded fast path compares only `str(entry['date']) <= cutoff_date` (:484). CONSEQUENCE: every macro-conditioned backtest still reads values that did not exist at the cutoff. Measured magnitude on live data: a GDP row dated 2026-04-01 was not published by FRED until 2026-07-30 -- roughly 120 days of look-ahead. Six of the ~49 features come from this path (backend/backtest/historical_data.py), so a regime/macro-conditioned strategy inherits it directly. THIS IS A HARD PRECONDITION FOR 82.3: candidate (a) is a valuation/regime gate built on macro, and its DSR/PBO would be silently inflated by look-ahead. Do not run 82.3 for any macro-conditioned candidate until this lands. Fix the read path to filter `date <= cutoff AND (realtime_start IS NULL OR realtime_start <= cutoff)`, and decide explicitly how to treat the NULL-vintage pre-migration rows (they carry the conservative DATE(ingested_at) backfill, so they are provably not-earlier-than-truth and cannot manufacture look-ahead, but they are also not the true publication date).",
@@ -21548,6 +21548,24 @@
               "IMPLEMENTED_STRATEGY_IDS equals the key set of STRATEGY_REGISTRY, asserted by a test that fails on drift in EITHER direction (an extra entry or a missing one)",
               "the test derives both sides from their modules rather than restating either as a literal, so adding a strategy cannot silently re-open the drift",
               "a fixture demonstrates the guard can fail: a temporarily injected extra registry key is detected"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.18",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "ALFRED vintage backfill -- the COMPLETE fix that 82.15 deliberately did not attempt. 82.15 removes PUBLICATION-LAG look-ahead using a conservative per-series estimate (MIN(realtime_start, date + MACRO_PUBLICATION_LAG_DAYS)), because the 82.0 backfill stamped every historical row with our WRITE date and a strict filter on that returns 0/4729 rows at every cutoff before 2026-03-22. Two things remain unfixed and BOTH need ALFRED. (1) REVISIONS: `backend/backtest/data_ingestion.py` dedupes on (series_id, date), so a revised value can never be stored beside its original -- a backtest reading GDP for 2020-Q1 gets today's revised figure, not the advance estimate that was actually published. This is structurally uncapturable with the current schema and is NOT addressed by 82.15. (2) TRUE VINTAGES: the per-series lag table is an estimate from release-calendar practice, not per-observation truth. FRED's ALFRED API serves real realtime_start/realtime_end per observation and the pattern is already used in this repo at backend/tools/fred_releases.py:55-56; the existing free FRED key works. Scope: backfill true vintages for the existing 4729 rows, and decide whether to widen the schema so revisions can coexist (this changes the dedupe key and is the larger half). Until this lands, no artifact may describe macro look-ahead as 'fixed' -- only publication lag is handled.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_18_alfred_vintages.py -q",
+            "criteria": [
+              "historical_macro rows carry an ALFRED-sourced realtime_start that differs from the 82.0 write-date backfill for at least one named series, asserted against the live table",
+              "a test asserts the ingest can store two rows with the same (series_id, date) and different vintages, or records an explicit decision not to support revisions with the reason",
+              "cached_macro returns the vintage that was current as of the cutoff on a fixture containing an original and a revised value for the same observation date",
+              "a fixture demonstrates the guard can fail: a revised-only row set is detected as missing its original"
             ]
           },
           "retry_count": 0,

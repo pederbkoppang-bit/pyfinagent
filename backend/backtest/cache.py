@@ -8,6 +8,7 @@ all data is US. Phase 5 will filter by market column in BQ tables).
 """
 
 import logging
+from datetime import date as _DateT
 from typing import Optional
 
 import pandas as pd
@@ -61,6 +62,98 @@ MACRO_SERIES_MAX_AGE_DAYS: dict[str, int] = {
     "CPIAUCSL": 80,   # monthly, longer release lag
     "GDP": 225,       # quarterly, dated to quarter start
 }
+
+# phase-82.15: per-series PUBLICATION LAG, in days after the observation date,
+# used to derive a defensible point-in-time availability date.
+#
+# WHY THIS EXISTS. 82.0 added a `realtime_start` vintage column, but backfilled
+# pre-existing rows with DATE(ingested_at) -- our WRITE date (2026-03-22..25),
+# which says nothing about when a 2019 observation became public. Filtering
+# strictly on that column returns ZERO rows for every cutoff before 2026-03-22
+# (measured: 0/4729 at 2020-01-01, 2023-01-01 and 2025-06-01), which would blank
+# all six macro features across the entire 2018-2025 backtest window -- silently,
+# because `historical_data.py` guards on `if macro:` and simply never sets the
+# keys.
+#
+# So availability is derived as MIN(realtime_start, date + lag).
+#
+# BE PRECISE ABOUT WHAT THIS BUYS, because an earlier draft of this comment got
+# it backwards. MIN selects the EARLIER availability date, which makes a row
+# visible SOONER -- that is anti-conservative with respect to look-ahead, not
+# conservative. It is still the right rule:
+#   * where `realtime_start` is a TRUE vintage it governs, and the data really
+#     was available then -- using the lag instead would withhold data we had;
+#   * where the stamp is an 82.0 backfill artifact (our write date, which is
+#     far in the future relative to a 2019 observation) MIN discards it and the
+#     lag governs, which is what keeps the sample from being blanked.
+# The residual hole: where the lag UNDERESTIMATES a delayed release (e.g. the
+# Oct-2013 shutdown pushed the Employment Situation to ~52 days against a
+# UNRATE lag of 40) a row is admitted early. Only an ALFRED backfill of true
+# per-observation vintages closes that -- see step 82.18.
+#
+# LIMITS, stated here because this is where the next reader will look:
+# this addresses PUBLICATION LAG only, NOT REVISIONS. Ingest dedupes on
+# (series_id, date), so a revised value can never sit beside its original --
+# revisions are structurally uncapturable without an ALFRED backfill. Do not
+# describe this as "look-ahead fixed".
+MACRO_PUBLICATION_LAG_DAYS: dict[str, int] = {
+    "DGS10": 1,       # daily H.15 series, next business day
+    "T10Y2Y": 1,      # daily, derived from H.15
+    "FEDFUNDS": 35,   # monthly avg, dated to month start, released early next month
+    "UMCSENT": 35,    # monthly, final release end of the reference month
+    "UNRATE": 40,     # monthly, Employment Situation, first Friday after month end
+    "CPIAUCSL": 50,   # monthly, released mid-following-month
+    "GDP": 125,       # quarterly, dated to quarter start; advance estimate ~1 month after quarter END
+}
+_DEFAULT_PUBLICATION_LAG_DAYS = 60
+
+
+def _pit_enabled() -> bool:
+    """phase-82.15 point-in-time filter, gated by `macro_point_in_time_enabled`.
+
+    DEFAULT TRUE. This project defaults behaviour changes OFF, and that
+    convention is kept for the MONEY path -- but this touches the research lane
+    only (backtest feature construction), and defaulting OFF would mean
+    knowingly shipping look-ahead into the very evidence step 82.3 exists to
+    produce. The flag exists so the effect can be measured ON vs OFF and
+    reverted without a code change.
+    """
+    try:
+        from backend.config.settings import get_settings
+        return bool(getattr(get_settings(), "macro_point_in_time_enabled", True))
+    except Exception:
+        return True
+
+
+def _effective_vintage(series_id: str, obs_date, realtime_start) -> Optional[_DateT]:
+    """The date on which this observation may be assumed KNOWN.
+
+    MIN(realtime_start, obs_date + lag). Returns None when the observation date
+    cannot be parsed, which callers treat as "not usable" (fail-closed).
+    """
+    from datetime import date as _date, datetime as _dt, timedelta as _td
+
+    def _coerce(v):
+        if isinstance(v, _dt):
+            return v.date()
+        if isinstance(v, _date):
+            return v
+        if isinstance(v, str):
+            try:
+                return _date.fromisoformat(v[:10])
+            except ValueError:
+                return None
+        return None
+
+    obs = _coerce(obs_date)
+    if obs is None:
+        return None
+    lag = MACRO_PUBLICATION_LAG_DAYS.get(series_id, _DEFAULT_PUBLICATION_LAG_DAYS)
+    derived = obs + _td(days=lag)
+    rt = _coerce(realtime_start)
+    # NULL/unparseable vintage -> fall back to the derived availability date.
+    # This is the documented treatment of the pre-migration population.
+    return derived if rt is None else min(rt, derived)
 
 # ── Preloaded full-range data (keyed by ticker only, sliced on read) ─
 _prices_full: dict[str, pd.DataFrame] = {}
@@ -252,7 +345,7 @@ def preload_macro() -> int:
         return total
 
     query = f"""
-        SELECT series_id, value, date
+        SELECT series_id, value, date, realtime_start
         FROM `{_table("historical_macro")}`
         ORDER BY series_id, date DESC
     """
@@ -352,7 +445,12 @@ def preload_macro() -> int:
                 _macro_full[current_series] = current_list
             current_series = s
             current_list = []
-        current_list.append({"value": row["value"], "date": row["date"]})
+        # phase-82.15: carry the vintage so the fast path can filter on it.
+        current_list.append({
+            "value": row["value"],
+            "date": row["date"],
+            "realtime_start": row.get("realtime_start"),
+        })
     if current_series is not None:
         _macro_full[current_series] = current_list
 
@@ -479,17 +577,44 @@ def cached_macro(cutoff_date: str) -> dict:
         _cache_stats["hits"] += 1
         result = {}
         for series_id, entries in _macro_full.items():
-            # entries sorted by date DESC — find first entry <= cutoff_date
+            # entries sorted by date DESC -- find the newest entry that is both
+            # DATED on/before the cutoff AND was KNOWN by the cutoff.
+            #
+            # phase-82.15: the pre-fix loop broke on the first date match. Adding
+            # a vintage predicate to that shape would SKIP the series entirely
+            # whenever the newest dated row was not yet published, instead of
+            # falling through to the older row that WAS -- the predicate is not
+            # monotone in the same direction as the sort, so the break must test
+            # both conditions.
             for entry in entries:
-                if str(entry["date"]) <= cutoff_date:
-                    result[series_id] = entry
-                    break
+                if str(entry["date"]) > cutoff_date:
+                    continue
+                if _pit_enabled():
+                    vintage = _effective_vintage(
+                        series_id, entry["date"], entry.get("realtime_start")
+                    )
+                    if vintage is None or vintage.isoformat() > cutoff_date:
+                        continue  # dated in time but not yet KNOWN -- keep looking
+                result[series_id] = entry
+                break
         _macro_cache[cutoff_date] = result
         return result
 
     # 2. Fall back to individual BQ query (with timeout)
     _cache_stats["misses"] += 1
     logger.debug("BQ fallback: macro (cutoff %s)", cutoff_date)
+    # phase-82.15: `date` is a STRING column but `realtime_start` is a DATE, so
+    # the STRING-bound @cutoff must be wrapped in DATE() on the vintage side.
+    # The lag term mirrors _effective_vintage: MIN(realtime_start, date + lag).
+    _lag_case = " ".join(
+        f"WHEN '{sid}' THEN {lag}" for sid, lag in MACRO_PUBLICATION_LAG_DAYS.items()
+    )
+    _pit_sql = ("" if not _pit_enabled() else f"""
+              AND LEAST(
+                    IFNULL(realtime_start, DATE '9999-12-31'),
+                    DATE_ADD(DATE(date), INTERVAL (CASE series_id {_lag_case}
+                        ELSE {_DEFAULT_PUBLICATION_LAG_DAYS} END) DAY)
+                  ) <= DATE(@cutoff)""")
     query = f"""
         SELECT series_id, value, date
         FROM (
@@ -497,6 +622,7 @@ def cached_macro(cutoff_date: str) -> dict:
                    ROW_NUMBER() OVER (PARTITION BY series_id ORDER BY date DESC) as rn
             FROM `{_table("historical_macro")}`
             WHERE date <= @cutoff
+              {_pit_sql}
         )
         WHERE rn = 1
     """

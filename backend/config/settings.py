@@ -249,6 +249,7 @@ class Settings(BaseSettings):
     # rows while reporting success. Empty string = "up to today", which is what a
     # live macro feed needs. Set a date only to pin a reproducible backfill.
     macro_ingest_end_date: str = Field("", description="phase-82.0: FRED observation_end for macro ingestion. Empty = today (correct for a live feed). Deliberately decoupled from backtest_end_date -- see the comment above and handoff/archive/phase-82.0/research_brief_82.0.md.")
+    macro_point_in_time_enabled: bool = Field(True, description="phase-82.15: when True, cached_macro only returns observations that were KNOWN by the cutoff, using MIN(realtime_start, date + MACRO_PUBLICATION_LAG_DAYS[series]). Removes PUBLICATION-LAG look-ahead from macro-conditioned backtests (measured: a GDP row dated 2026-04-01 was not published until 2026-07-30, ~120 days). DEFAULT TRUE -- unlike money-path flags, because this is the research lane and defaulting OFF would ship known look-ahead into the evidence 82.3 produces. NOTE it does NOT fix REVISIONS: ingest dedupes on (series_id, date) so a revised value cannot sit beside its original; that needs an ALFRED backfill. Set False to measure the ON-vs-OFF effect or to reproduce a pre-82.15 figure.")
     backtest_train_window_months: int = Field(12, description="Initial training window in months (expanding)")
     backtest_test_window_months: int = Field(3, description="Test window in months")
     backtest_embargo_days: int = Field(5, description="Embargo gap between train/test (trading days)")
