@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-03 | `de91f32e` | fix(82.0): macro ingestion was never scheduled -- and its staleness guard never fired |
 | 2026-07-31 | `c3286524` | fix(81.2): make the verdict gate order-independent -- the dead gate, root-caused and closed |
 | 2026-07-27 | `d5bdbba4` | fix(80.46) cycle 4: stop scanning the source, mediate the launch |
 | 2026-07-27 | `5c6fdc3e` | fix(80.46) cycle 3: stale line numbers INSIDE the stale-line-number fix, and a one-char escape |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `bcaaa6f7` | feat(36.20): RE-ANCHORING badge + kill the fabricated 0.00% -- WIP, NOT Q/A-verified |
 | 2026-07-26 | `3227347a` | phase-36.13: gate the ACT OF BUYING, not just the cycle -- close the CWE-424 alternate path |
 | 2026-07-26 | `902887f9` | docs: correct the mangled 36.9 commit message (1657e25a) |
-| 2026-07-26 | `1657e25a` | phase-36.9: armed:true must mean the leg can actually fire NOW -- three ways it didn't |
 
 ---
 
+### v6.72.11 — fix(82.0): macro ingestion was never scheduled -- and its staleness g... (2026-08-03)
+
+- **fix(82.0): macro ingestion was never scheduled -- and its staleness guard never fired**
 ### v6.72.10 — fix(81.2): make the verdict gate order-independent -- the dead gate,... (2026-07-31)
 
 - **fix(81.2): make the verdict gate order-independent -- the dead gate, root-caused and closed**
