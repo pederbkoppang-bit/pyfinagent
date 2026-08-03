@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-03 | `ba60e703` | phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (deliverables 1 and 4). Write ... |
 | 2026-08-03 | `de91f32e` | fix(82.0): macro ingestion was never scheduled -- and its staleness guard never fired |
 | 2026-07-31 | `c3286524` | fix(81.2): make the verdict gate order-independent -- the dead gate, root-caused and closed |
 | 2026-07-27 | `d5bdbba4` | fix(80.46) cycle 4: stop scanning the source, mediate the launch |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `04617d63` | fix(80.19): add the missing favicon -- /favicon.ico 404'd on every page load |
 | 2026-07-26 | `bcaaa6f7` | feat(36.20): RE-ANCHORING badge + kill the fabricated 0.00% -- WIP, NOT Q/A-verified |
 | 2026-07-26 | `3227347a` | phase-36.13: gate the ACT OF BUYING, not just the cycle -- close the CWE-424 alternate path |
-| 2026-07-26 | `902887f9` | docs: correct the mangled 36.9 commit message (1657e25a) |
 
 ---
 
+### v6.72.12 — phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (d... (2026-08-03)
+
+- **phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (deliverables 1 and 4). Write ...**
 ### v6.72.11 — fix(82.0): macro ingestion was never scheduled -- and its staleness g... (2026-08-03)
 
 - **fix(82.0): macro ingestion was never scheduled -- and its staleness guard never fired**
