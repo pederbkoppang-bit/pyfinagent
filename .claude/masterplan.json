@@ -21570,6 +21570,58 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "82.19",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DEFECT from the 82.3 research gate: the purge horizon is STRATEGY-BLIND. `backend/backtest/backtest_engine.py:665` computes `horizon_days = int(self.holding_days * 1.5)` and uses it for the purge regardless of which label method is active. `_compute_mean_reversion_label` and the phase-82.2 `reversion_sigma` both label on `mr_holding_days` (default 15), so with `holding_days=90` they receive a 135-day purge against a 15-day label horizon -- roughly a 9x OVER-purge that strips ~9-10 extra biweekly training samples per window. The direction is CONSERVATIVE on leakage (it purges more than needed, so it cannot create look-ahead), which is why 82.3 proceeds rather than blocking. But it STARVES short-horizon candidates of training data, so a short-horizon strategy's LOSS is confounded while its WIN is clean. Fix: derive the purge horizon from the ACTIVE label method's own horizon (holding_days for triple_barrier/quality_momentum/factor_model/stretch_regime/qarp; mr_holding_days for mean_reversion/reversion_sigma), keeping the uniform-longest-embargo option available for cross-strategy comparisons where a common purge is wanted. Note arXiv:2603.13252 section 3.3 applies a single uniform LONGEST-horizon embargo across tau in {20,60,90}, so uniformity is defensible as a deliberate choice -- what is not defensible is arriving at it by accident from an unrelated parameter.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_19_purge_horizon.py -q",
+            "criteria": [
+              "the purge horizon used for a run is derived from the active strategy's own label horizon, asserted for at least one long-horizon and one short-horizon strategy",
+              "a test asserts the short-horizon strategy receives a materially smaller purge than the pre-fix strategy-blind value on the same params",
+              "a test asserts the purge never SHRINKS below the active label horizon, so the fix cannot introduce leakage in the direction the strategy-blind version was accidentally protecting against"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.20",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "DOC DEFECT measured during the 82.3 research gate: `.claude/rules/backend-backtest.md` states that a warm cache drops per-experiment time to '<30s'. MEASURED reality is 20.3 +/- 0.3 MINUTES per walk-forward run on the 2018-2025 US sample with a warm cache -- derived from ten consecutive optimizer TSV inter-row gaps on run 60617e0b (2026-07-24, 20m03s-20m30s), corroborated by run 0083971f (2026-04-21) and by results/*.json mtimes. That is a ~40x understatement, and it is load-bearing: anyone planning a multi-run experiment against the documented figure will budget minutes and hit hours (32 runs = ~10.8h, not ~16min). Correct the rule file with the measured figure and its provenance, and state the measurement method so the next reader can re-derive it rather than trust it.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_20_runtime_doc.py -q",
+            "criteria": [
+              "`.claude/rules/backend-backtest.md` no longer states a sub-minute per-experiment warm-cache runtime, asserted by a test that greps the file",
+              "the replacement figure is accompanied by its measurement method and source run ids, asserted by the same test",
+              "the test fails if the sub-minute claim is reintroduced"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.21",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "DATA DEFECT measured during 82.3: `financial_reports.historical_fundamentals` contains 4798 rows across 503 tickers, and EVERY row is dated 2024-06-30 or later -- `COUNTIF(report_date < '2024-06-30')` = 0. The walk-forward backtest window is 2018-01-01..2025-12-31, so **81.2% of the sample has NO fundamentals at all** (549 of 2921 days covered). The derived ratios at backend/backtest/historical_data.py:158-167 (pe_ratio, debt_equity, roe, profit_margin) are therefore None for four-fifths of every backtest ever run here, and `quality_score` with them. CONSEQUENCE: `factor_model` and `quality_momentum` -- both already shown by 82.16 to carry NO forward information -- have additionally been training on absent inputs; and the phase-82.2 `qarp` candidate cannot train at all (measured: 0 samples, 0 trades on a 2022-2023 smoke run). ROOT CAUSE IS THE SOURCE, NOT A MISSED BACKFILL: `ingest_fundamentals` (data_ingestion.py:215) pulls `yf.Ticker(t).quarterly_financials` / `.quarterly_balance_sheet`, and yfinance serves only ~5-7 recent quarters (measured live on AAPL 2026-08-03: quarterly_financials 5 columns 2025-06-30..2026-06-30; quarterly_balance_sheet 7 columns 2024-12-31..2026-06-30; annual financials 5 columns 2021-09-30..2025-09-30). The table starting at 2024-06-30 is the provider's whole window accumulated forward since ingestion began -- a re-run CANNOT deepen it. DECISION REQUIRED (operator, cost-bearing): accept that fundamentals-dependent strategies are only evaluable from 2024-07 onward; OR adopt a source with real history (SEC EDGAR XBRL company-facts is FREE but needs a parser and a mapping to these 7 raw fields; Sharadar/FMP are PAID and collide with the standing $0-metered constraint). Until decided, no artifact may present a fundamentals-dependent backtest over a pre-2024-07 window as evidence.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_21_fundamentals_coverage.py -q",
+            "criteria": [
+              "a test asserts the measured earliest report_date in historical_fundamentals and fails if a later claim about coverage is made without re-measuring",
+              "the feature builder reports fundamentals-derived features as EXPLICITLY unavailable for a cutoff before the coverage start, rather than silently returning None indistinguishable from a genuine null",
+              "a backtest whose active strategy depends on fundamentals refuses to run, or records an explicit coverage warning in its result, when the requested window starts before the coverage start -- asserted on a fixture",
+              "the operator's source decision is recorded verbatim in the step artifact"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

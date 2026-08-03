@@ -1,0 +1,45 @@
+{
+  "step": "82.3",
+  "generated_at": "2026-08-03T17:53:08.862433+00:00",
+  "macro_point_in_time_enabled": true,
+  "sample": {
+    "start": "2018-01-01",
+    "end": "2025-12-31",
+    "market": "US"
+  },
+  "K_per_strategy": 1,
+  "grid": "max_depth x min_samples_leaf x learning_rate (2x2x2)",
+  "smoke": true,
+  "elapsed_total_s": 166.8,
+  "per_strategy": {
+    "qarp": {
+      "runs": [
+        {
+          "strategy": "qarp",
+          "config": "qarp[d3_l10_r0.05]",
+          "max_depth": 3,
+          "min_samples_leaf": 10,
+          "learning_rate": 0.05,
+          "sharpe": 0.0,
+          "dsr": 0.0,
+          "net_of_cost_return_pct": 0.0,
+          "turnover_rate": null,
+          "total_commission": null,
+          "n_trades": 0,
+          "max_drawdown": 0.0,
+          "n_daily_returns": 0,
+          "elapsed_s": 166.8
+        }
+      ],
+      "pbo": null,
+      "pbo_note": "only 0 usable column(s); compute_pbo needs N>=2 and returns 0.0 SILENTLY below that, which would false-pass the gate"
+    }
+  },
+  "notes": [
+    "total_return_pct is ALREADY net of commission (backtest_trader deducts on every fill); not re-subtracted",
+    "turnover_rate comes from trade_statistics (trader volume), NOT from result.all_trades which is capped at 500",
+    "PBO uses DAILY NAV returns; per-window returns give T~27 < S*2 and compute_pbo would return 0.0 silently, which PASSES the gate",
+    "one PBO matrix per strategy (columns = configs of the same model), per Bailey et al. Algorithm 2.3",
+    "reversion_sigma is purged at holding_days*1.5=135d against a 15d label horizon (backtest_engine.py:665 is strategy-blind, queued as 82.19) -- a WIN is clean, a LOSS is CONFOUNDED"
+  ]
+}

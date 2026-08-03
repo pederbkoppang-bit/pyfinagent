@@ -1,84 +1,102 @@
-# Contract -- step 82.15
+# Contract -- step 82.4
 
-**Step id:** 82.15 (phase-82) | **Priority:** P0 | PLAN phase, before GENERATE.
+**Step id:** 82.4 | **Priority:** P2 | depends_on: ['82.1', '82.3']
+PLAN phase. **Written BEFORE the 82.3 numbers exist -- deliberately.**
 
 ## Research gate
 
-`handoff/current/research_brief_82.15.md` -- **gate_passed: true** (moderate,
-7 sources read in full, 24+ URLs, recency scan performed).
+`handoff/current/research_brief_82.4.md` -- **gate_passed: true**
+(6 sources read in full, 29 URLs, recency scan, 8 internal files).
 
-Main re-verified the load-bearing claims:
+## THE RANKING PROCEDURE, PRE-REGISTERED
 
-| claim | verified |
-|---|---|
-| a naive strict filter returns ZERO rows historically | **CONFIRMED by measurement.** `realtime_start` MIN is 2026-03-22; `realtime_start <= cutoff` yields 0/4729 rows at 2020-01-01, 2023-01-01 AND 2025-06-01. The backtest window is 2018-01-01..2025-12-31, so the naive fix blanks all six macro features across the ENTIRE sample |
-| 0 NULL `realtime_start` | CONFIRMED (migration completed) -- so there is no live NULL population, though criterion 3 still requires the NULL branch be decided and tested on a FIXTURE |
-| four code sites, not two | CONFIRMED: `cache.py:255` (preload SELECT omits `realtime_start`), `:351` (stores only value/date), `:481-485` (the DESC-list `break` fires on the first DATE match and would skip a row failing the vintage test), `:494-515` (fallback WHERE; `date` is STRING but `realtime_start` is DATE, so the bound STRING `@cutoff` needs `DATE(@cutoff)`) |
-| `sortino.py:108` targets a table that 404s | CONFIRMED -- Main hit exactly this 404 independently at the start of the session. Dead code; **do not** "fix" the vintage there believing it runs. Belongs to 82.8 |
+The 82.3 backtests are RUNNING as this is written (pass A launched
+2026-08-03T18:19:28Z). No result exists yet. The ranking rule and the tie-break
+ORDER are fixed here, before any number is visible, because a rule chosen after
+seeing the results is not a rule -- it is a rationalisation.
 
-## Hypothesis
+**Stage 1 -- GATES (binary, un-tradeable).** `DSR >= 0.95`, `PBO <= 0.5`,
+net-of-cost return `> 0`. A strategy failing any gate is REPORTED AS FAILED and
+is not ranked. Gates are not weighted against each other.
 
-Publication-lag look-ahead can be removed WITHOUT destroying the sample by
-using an effective vintage that is conservative ONLY WHERE the per-series lag
-upper-bounds the real release delay (see the correction below -- an earlier
-draft claimed unconditional conservatism, which is false):
+**Stage 2 -- PARETO frontier** over (net-of-cost return, PBO, turnover) among
+gate-passers. Dominated strategies are listed as dominated, not scored.
 
-```
-effective_vintage(series, obs_date, realtime_start)
-    = MIN(realtime_start, obs_date + MACRO_PUBLICATION_LAG_DAYS[series])
-```
+**Stage 3 -- LEXICOGRAPHIC tie-break, in this declared order:**
+`PBO (lower better)` -> `net-of-cost return (higher)` -> `turnover (lower)`.
 
-For pre-migration rows `realtime_start` is our write date (2026-03-22..25),
-which carries no information about 2018-2025; the lag term supplies a
-defensible per-series availability date instead. For rows ingested from now on,
-MIN never blanks the sample. Where `realtime_start` is a TRUE vintage it governs and the row is correctly visible from its real publication date. Where the stamp is an 82.0 backfill artifact (our write date) the rule degrades to the lag estimate, which is conservative ONLY IF that lag upper-bounds the real release delay -- where it underestimates a delayed release the row is admitted early (see LIMITS).
+**NO weighted composite.** arXiv:2508.00129 documents rank reversal and
+transitivity violation as fundamental to weighted MCDA, and a composite would
+hide the precise DSR-vs-PBO conflict the pack exists to expose. The repo's own
+`rotation_log.jsonl` already encodes gate-then-rank
+(`reason: "no_candidate_passed_gate"`, `ranked: []`); this matches that
+vocabulary rather than inventing one. Note `candidate_selector.py:95` IS a
+weighted composite but it ranks TICKERS in the screen, not strategies -- not a
+precedent.
 
-## Costs, stated up front (the research brief's, carried verbatim in intent)
+## Mermaid shape (research-determined)
 
-1. **This fixes PUBLICATION LAG ONLY, not REVISIONS.** The ingest dedupes on
-   `(series_id, date)` (`data_ingestion.py`), so a revised value can never be
-   stored beside its original -- revisions are structurally uncapturable.
-   **82.15 must NOT be reported as "look-ahead fixed".**
-2. **Sharpe will fall** on macro-conditioned strategies (sources bracket
-   100-500bp of return / 15-25% of Sharpe for GDP-dependent strategies).
-3. **Comparability.** Any figure produced before this step is not comparable
-   with one produced after. 82.3 has NOT been run, so nothing existing breaks --
-   but ALL of 82.3 (incumbent AND candidates) must run in ONE flag state.
-4. The complete fix is a one-off ALFRED backfill of true vintages
-   (`realtime_start`/`realtime_end`, the pattern already used at
-   `backend/tools/fred_releases.py:55-56`). Queue as its own step.
+One `flowchart LR` parent, four sibling `subgraph` blocks each `direction TB`,
+**ONE** nesting level, and **ZERO cross-subgraph edges**. Per the Mermaid docs:
+"If any of a subgraph's nodes are linked to the outside, subgraph direction will
+be ignored." So a shared node (e.g. `_sigma_barriers`) must be REPEATED per
+column, never linked -- one linking edge flattens all four columns into the
+parent's LR direction. Equal node count per column is what aligns the rows;
+`classDef` colours only the differing nodes. GENERATE must RENDER-VERIFY
+(`npx -y @mermaid-js/mermaid-cli`); documented fallback is four separate blocks,
+NOT adding a linking node. Zero mermaid blocks exist in the repo today.
 
-## Flag decision (Main's call, disclosed)
+## MANDATORY caveats (Bailey et al. + GIPS, both read in full)
 
-Ships behind `macro_point_in_time_enabled`, **default True**. This project's
-convention is default-OFF for behaviour changes, and that convention is kept
-for the MONEY path -- but this touches the research lane only (backtest feature
-construction), and defaulting OFF would mean knowingly shipping look-ahead into
-the very evidence 82.3 exists to produce. The flag exists so the effect can be
-measured ON vs OFF and reverted without a code change.
+1. **Declare the trial count.** N is NOT 4 and NOT 8 -- it includes the
+   phase-82.2 label-design iterations. Under-declaring N inflates DSR.
+2. **GIPS prohibits** presenting back-tested results "linked to actual
+   performance results". The 82.3 figures must NEVER be spliced into, or placed
+   adjacent-as-continuation with, the live paper-trading record (+18.86% /
+   Sharpe 3.32). Separate sections, explicit labels.
+3. `qarp` is **NOT EVALUABLE** on the full sample: `historical_fundamentals` has
+   ZERO rows before 2024-06-30 (81.2% of the window blind) and yfinance serves
+   only ~5-7 recent quarters, so no backfill is possible from the current
+   source. Queued as 82.21.
+4. `reversion_sigma` is purged at `holding_days*1.5 = 135d` against a 15-day
+   label horizon (`backtest_engine.py:665` is strategy-blind; queued as 82.19).
+   **A win is clean; a LOSS is CONFOUNDED** and must be reported as such.
+5. Two passes with DIFFERENT evidential weight must be presented as two
+   SEPARATE tables and never merged: full-sample (2018-2025, 3 strategies) and
+   short-window (2024-07..2025-12, 4 strategies, ~6 walk-forward windows).
+
+## THE FINDING THAT SHAPES THE RECOMMENDATION
+
+The four columns are **not peers**. Column 1 is the LIVE funnel; columns 2-4 are
+backtest LABEL METHODS. A bake-off winner changes NOTHING live while
+`paper_analyze_top_n = 5` (`autonomous_loop.py:1035`) stands and no
+registry-to-live bridge exists (`autonomous_loop.py:1649` consumes `strategy` as
+a heartbeat label only). **So the top queued action the evidence can support is
+the BRIDGE (82.6), not a strategy swap** -- whatever wins. The diagram must
+label the lanes, mirroring `incumbent_live_strategy_spec.md` section 0.
 
 ## Immutable success criteria (verbatim from .claude/masterplan.json)
 
-1. cached_macro excludes rows whose realtime_start is after the requested cutoff, asserted on a fixture containing a row dated before the cutoff but stamped with a vintage after it
-2. the same exclusion holds on BOTH the preloaded fast path and the per-cutoff BQ fallback, asserted separately so fixing one and not the other cannot pass
-3. a fixture with NULL realtime_start (pre-migration rows) resolves per the documented decision rather than being silently dropped or silently included, and the chosen behaviour is stated in the test name
-4. a regression fixture asserts the pre-fix behaviour differed: the same query returns a row under the old date-only filter and does not under the new one, so the guard cannot pass vacuously
+1. docs/ contains a design pack with one section per strategy (incumbent + 3) and a ranked recommendation with stated ranking criteria
+2. every code claim in the design pack carries a file:line reference that resolves in the current tree
+3. the design pack records the endogeneity caveat that holding-period-vs-outcome comparisons are tautological because a stopped-out trade has a short holding period by construction
+4. one masterplan step is queued per recommended implementation action, each carrying its own verification criteria
 
-**Verification command:** `source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_15_macro_point_in_time.py -q`
+**Verification command:** `source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_4_design_pack.py -q`
 
 ## Plan
 
-1. `MACRO_PUBLICATION_LAG_DAYS` beside `MACRO_SERIES_MAX_AGE_DAYS`
-   (`cache.py:23-52`), with each lag justified per series.
-2. `_effective_vintage()` helper.
-3. Fix ALL FOUR sites: fetch `realtime_start` in the preload SELECT, carry it
-   into `_macro_full`, restructure the fast-path loop so it does not `break` on
-   a date-only match, and add the predicate to the fallback WHERE with
-   `DATE(@cutoff)`.
-4. Tests incl. the NULL-vintage fixture branch and a pre-fix regression pin.
-5. Fresh Q/A.
+1. Write `docs/strategy/phase82_design_pack.md`: four mermaid columns, the
+   pre-registered ranking above, the caveat block, and the two separated result
+   tables (left EMPTY until 82.3 lands, then filled from the artifacts).
+2. Render-verify the mermaid.
+3. Fill the tables from `results/*_phase_82_3_*.json` -- transcribed, not
+   retyped.
+4. Apply the ranking MECHANICALLY to whatever the numbers say.
+5. Queue one masterplan step per recommended action.
+6. Fresh Q/A.
 
 ## Out of scope
 
-The ALFRED backfill (own step). `sortino.py` (82.8, dead code). No live-funnel
-change.
+No live-funnel change. No FigJam (operator decision: View seat on Starter = 6
+MCP calls/MONTH). No re-running of 82.3.
