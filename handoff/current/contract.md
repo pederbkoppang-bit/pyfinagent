@@ -1,112 +1,80 @@
-# Contract -- step 82.0
+# Contract -- step 82.1
 
-**Step id:** 82.0 (phase-82)
-**Priority:** P0
-**Written:** 2026-07-31 (PLAN phase, before GENERATE)
+**Step id:** 82.1 (phase-82) | **Priority:** P1 | PLAN phase, before GENERATE.
 
 ## Research gate
 
-`handoff/current/research_brief_82.0.md` -- **gate_passed: true**
+`handoff/current/research_brief_82.1.md` -- **gate_passed: true**
+(tier=moderate, audit_class=false, external_sources_read_in_full=6,
+snippet_only=24, urls_collected=30, recency_scan_performed=true,
+internal_files_inspected=11).
 
-```json
-{"tier":"moderate","external_sources_read_in_full":8,"snippet_only_sources":14,
- "urls_collected":22,"recency_scan_performed":true,"internal_files_inspected":19,
- "coverage":{"audit_class":false,"rounds":1,"dry_rounds":0,"K_required":2,
- "new_findings_last_round":0,"dry":false},"gate_passed":true}
-```
+**Main independently re-verified every load-bearing claim. THREE were WRONG and
+are NOT carried into the spec:**
 
-Audit-class is false, so `coverage.dry` is informational and does not gate.
+| brief claim | measured reality |
+|---|---|
+| "once **10** positions are held, every buy is skipped" | `paper_max_positions` = **30** (`risk_overrides.get_effective` returns 30; settings default 30). Book holds 1. Not binding. |
+| "`paper_max_per_sector = 2` should have bounded semis at 2" | effective value is **5**. Book holds 1. Not binding. |
+| "a disarmed kill switch refuses every BUY at `paper_trader.py:275-286`" | REFUTED at `paper_trader.py:175-216`: `_kill_switch_refusal_for_buy` reads `is_paused()` and `baselines_present_in()` and its docstring states it reads baselines "**NEVER `armed`**" -- gating on `armed` is the exact money-path regression phase-36.9's evaluator caught. Live: `paused=false`, `baselines_present=true`. |
 
-Main independently re-verified the two load-bearing claims before acting on
-them (not taken at face value):
+Claims that DID verify and are carried: the live book has no take-profit and no
+time barrier (`paper_scale_out_enabled=False`) and stops at 8%
+(`paper_default_stop_loss_pct`) rather than the optimizer's `sl_pct=12.92`;
+concentration is generated at RANKING (`rank_candidates` defaults to
+`strategy="momentum"`, screener scores momentum/RSI/SMA only) with all five
+diversity levers OFF; overlays RANK rather than veto; and the silent-attrition
+defect at `portfolio_manager.py:188-189` (confirmed by Main; queued as 82.14).
 
-- `grep -rn "ingest_macro"` over the repo excluding `.venv` and
-  `handoff/archive` returns exactly the definition (`data_ingestion.py:297`)
-  and one call site (`:373`). No scheduler.
-- `settings.py:244` pins `backtest_end_date = "2025-12-31"`, and
-  `data_ingestion.py:313` interpolates the passed `end_date` into the FRED
-  `&observation_end=` parameter. Confirmed.
-- `macro_regime.py:23` imports `get_macro_indicators` from
-  `backend/tools/fred_data.py`, which calls the FRED HTTP API directly ->
-  **live trading does not read the frozen table.** This REFUTES Main's
-  earlier statement that the dead feed degrades live signal quality.
-- `_get_existing_macro` (`data_ingestion.py:288-295`) catches bare
-  `Exception` and returns `set()` (fail-OPEN); `_get_existing_price_dates`
-  (`:98-103`) logs and re-raises (fail-CLOSED). Asymmetry confirmed.
+Its most valuable contribution is from the recency scan and is NOT a code fact:
+the 2025-2026 literature names AI/memory/semis/Korea as **the** crowded trade of
+the period, and the book's holdings are that list. So the concentration is the
+ranker faithfully expressing a crowded factor rather than a ranker bug -- a
+different and worse problem. MSCI (tested 1999-2024) and Resonanz both prescribe
+crowding-score caps / dynamic sizing over hard sector-neutrality, agreeing with
+this repo's own measured -0.166 Sharpe for hard sector-neutral on a long-only
+book (`autonomous_loop.py:588-593`).
 
 ## Hypothesis
 
-The macro "freeze" is not a broken job. It is (a) a job that was never
-scheduled, and (b) an end-date constant that caps every ingest at
-2025-12-31. Therefore the repair is not "re-run the ingest" -- that inserts
-zero rows and reports success. The repair is: sever the macro end-date from
-`backtest_end_date`, create the scheduled caller that never existed, make
-the staleness guard per-series (a global MAX cannot see a dead GDP behind a
-live DGS10), record a run-receipt (append+dedupe makes a healthy no-op
-indistinguishable from a dead job), harden the dedupe to fail closed before
-running a large backfill, and land the vintage column WITH the backfill
-because rows written without it can never be retro-attributed.
+The live funnel is not a valuation-aware strategy that chose cash. It is a
+momentum screener with a hard THROUGHPUT cap. Of ~583 names, `paper_screen_top_n
+= 10` then `paper_analyze_top_n = 5` (`autonomous_loop.py:1034`) decide that
+five names per cycle receive the 28-agent analysis -- so five are the only names
+that can produce a BUY. ~1 BUY/cycle reproduces the 33 lifetime BUYs and the
+~1-2 trades/week rate. The same slice, ranked momentum-only with every
+diversity lever off, produces the single-sector book. Cash is an ARTEFACT OF
+THROUGHPUT, not a view on valuation.
 
-Predicted post-fix observable: `cache.preload_macro()` returns > 0 where it
-returns 0 today.
-
-> **ANNOTATION 2026-08-03 -- the prediction above was based on a FALSE
-> premise.** `preload_macro` did not return 0: `historical_macro.date` is a
-> STRING column and the staleness gate tested `isinstance(rd, datetime.date)`,
-> so the refusal branch never ran. Pre-step it returned **4412**; post-fix
-> **4729**. Nothing was hanging -- backtests were silently fed 212-day-old
-> macro. Annotated, not rewritten: this is the dated PLAN-phase record.
-> The `live_check` quoted below is IMMUTABLE and carries the same false
-> premise; it is overturned in `handoff/current/live_check_82.0.md` rather
-> than edited.
+Falsifiable predictions: (a) no kill-switch refusal appears on the BUY path;
+(b) the go-live gate cannot block a paper BUY at all; (c) position and sector
+caps are slack (1 held vs 30/5).
 
 ## Immutable success criteria (verbatim from .claude/masterplan.json)
 
-1. macro ingestion end-date is severed from settings.backtest_end_date: a test that pins backtest_end_date to a past constant asserts the FRED observation_end used by ingest_macro is strictly later than that constant
-2. a scheduled caller for macro ingestion is registered and a test asserts the registration exists by job id (the pre-fix repo has zero scheduled callers, so this test must fail against unmodified code)
-3. _get_existing_macro fails CLOSED: a test injecting a BQ query exception asserts the exception propagates rather than returning an empty set
-4. macro freshness is evaluated PER SERIES against a per-series SLA table rather than a single global MAX(date): a fixture with fresh DGS10/T10Y2Y and a stale GDP is reported UNHEALTHY (the pre-fix global-max logic reports it healthy, so this test must fail against unmodified code)
-5. an ingestion run-receipt records each attempt and its outcome so a healthy zero-insert run is distinguishable from a job that never ran; a test asserts a receipt is written on a zero-row run
-6. rows written by the backfill carry a populated vintage/realtime_start value; a test asserts newly-built macro rows include it
+1. docs/ contains an incumbent strategy specification naming universe, signal, ranking, sizing, entry gates and exit rule, each claim carrying a file:line reference that resolves in the current tree
+2. the specification states the measured trade counts (BUY, SELL, open positions) and reconciles them against the operator screenshot's trade count
+3. a diagnosis names the binding constraint on turnover and quotes the live query output it rests on verbatim
+4. a test asserts every file:line citation in the spec resolves to an existing file with at least that many lines
 
-**Verification command:** `source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_0_macro_ingestion.py -q`
-
-**live_check:** verbatim terminal output of a python -c call to backend.backtest.cache.preload_macro() against the live historical_macro table showing a return value > 0 (it returns 0 today), plus the BQ row showing MAX(date) advanced past 2025-12-31
+**Verification command:** `source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_1_incumbent_spec.py -q`
 
 ## Plan
 
-1. Add a macro-specific end date decoupled from `backtest_end_date`;
-   default to today. Leave `backtest_end_date` itself untouched (backtests
-   read it).
-2. Harden `_get_existing_macro` to fail closed, mirroring
-   `_get_existing_price_dates:98-103`. Do this BEFORE any backfill runs.
-3. Add the vintage/`realtime_start` column and populate it on write.
-4. Replace the global-max staleness gate with a per-series SLA table
-   (DGS10/T10Y2Y 5d, FEDFUNDS/UMCSENT 70d, UNRATE 75d, CPIAUCSL 80d,
-   GDP 225d -- per the brief; FRED dates monthly to month-START and
-   quarterly to quarter-START).
-5. Add an ingestion run-receipt so a zero-insert healthy run is
-   distinguishable from a job that never ran.
-6. Register a scheduled caller.
-7. Run the backfill; capture the live_check evidence.
-8. Spawn a fresh Q/A on the Workflow rail.
+1. Write the incumbent spec to `docs/` -- universe, signal, ranking, sizing,
+   entry gates, exit rule -- each claim carrying a file:line that resolves.
+2. State the measured trade counts and reconcile them to the operator
+   screenshot (32 BUY + 32 SELL = the "Trades (64)" tile; the 33rd BUY landed
+   after the capture).
+3. Name the ONE binding constraint (`paper_analyze_top_n`) and quote the live
+   query output it rests on verbatim, including the refutations.
+4. Ship the citation-resolver test.
+5. Fresh Q/A. NO code changes to the live funnel -- spec and diagnosis only.
 
-## Out of scope (queue as their own steps)
+## Out of scope
 
-- `sortino.py:108` queries `pyfinagent_data.historical_macro` (wrong
-  dataset -- the table is in `financial_reports`) for `DGS3MO`/`DTB3`
-  (not in `FRED_SERIES`); its tier-1 lookup has always been dead,
-  independent of staleness.
-- `data_server.py:185` serves 7-month-old rows stamped `as_of: today`.
-- The browser-driven alarm: `compute_freshness` is only reachable from HTTP
-  handlers the frontend calls, so nothing pages when the feed dies.
-
-## References
-
-- `handoff/current/research_brief_82.0.md` (8 sources read in full)
-- CLAUDE.md -- "Always call `cache.preload_macro()` or backtests hang"
-- `backend/backtest/cache.py:26,203,232-251,380,387,399-417`
-- `backend/backtest/data_ingestion.py:21-22,288-295,297,313,373`
-- `backend/config/settings.py:244`
-- `backend/services/cycle_health.py:51,507,565`
-- `backend/services/macro_regime.py:23`; `backend/tools/fred_data.py:13`
+Fixing the throttle or the concentration. Note for the record that raising
+`paper_analyze_top_n` costs LLM spend (28 agents per name, against the standing
+$0-metered constraint and the $25/day cap) whereas
+`paper_min_k_sectors_analyzed > 0` re-allocates the SAME five slots and is free.
+They are separable and must not be bundled.

@@ -21243,7 +21243,7 @@
         },
         {
           "id": "82.1",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "Incumbent strategy spec + turnover/flat-book diagnosis (deliverables 1 and 4). Write the LIVE LLM-conviction funnel down AS a strategy -- universe, signal, ranking, sizing, entry gates, exit rule -- with file:line per claim. PREMISE CORRECTION (measured 2026-07-31): the book is NOT stuck at zero. paper_trades = 33 BUY / 32 SELL, paper_positions = 1 open (NTAP 5.347 @ 177.85, stop 164.62). The operator screenshot (Trades (64), 0 positions) caught a genuinely flat book -- 32 BUY + 32 SELL = 64 -- and a 33rd BUY landed 2026-07-31 18:47 UTC AFTER the capture. So the question is NOT 'why does it hold nothing' but 'why is turnover ~1-2 trades/week and the book near-flat'. Answer THAT, with evidence from live tables rather than reasoning. Also characterise the measured concentration: the funnel is a semiconductor/AI-hardware momentum book (AMD, MU, SNDK, 000660.KS, NTAP, WDC, INTC, STX, 005930.KS), live-confirming the phase-70 monosector finding. NO FIXES in this step.",
@@ -21299,6 +21299,7 @@
           "max_retries": 3,
           "depends_on": [
             "82.0",
+            "82.15",
             "82.2"
           ]
         },
@@ -21477,6 +21478,41 @@
               "the run result records whether macro features were available, so a macro-free run cannot be mistaken for a normal one when its numbers are read later",
               "every preload_* call site is enumerated from the source and each is classified as handling or discarding its return value, with file:line, and the enumeration is asserted non-empty",
               "a fixture in which preload_macro succeeds is unaffected, so the guard cannot pass by always aborting"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.14",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "OBSERVABILITY DEFECT surfaced by the 82.1 research gate and independently CONFIRMED by Main: the funnel's attrition between 'analyzed' and 'attempted' is INVISIBLE. backend/services/portfolio_manager.py:188-189 drops any candidate whose recommendation is not in _BUY_RECS with a bare `continue` and no record. The `buy_rejections` list lives on the trader (backend/services/paper_trader.py:134) and is only appended inside execute_buy, so a candidate that never reaches execute_buy leaves no trace at all. CONSEQUENCE: a cycle can deep-analyze 5 names, buy 0, and report zero rejections -- which is exactly what the recent 0-trade cycles look like in handoff/cycle_history.jsonl (funnel telemetry records universe/screened/candidates/new_to_analyze but nothing about WHY the analyzed names did not convert). This is the same class as 82.10/82.11 (a system that cannot tell the operator why it did nothing), and it directly blocked the 82.1 diagnosis: the binding constraint had to be derived from settings + code reading rather than read off telemetry. Record per-candidate disposition for every analyzed name -- recommendation value, whether it entered execute_buy, and the rejection reason if it did -- so a 0-trade cycle is self-explaining. Counting only: do NOT change any gate, threshold or trading behaviour.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_14_funnel_attrition.py -q",
+            "criteria": [
+              "every deep-analyzed candidate in a cycle appears in the cycle summary with a disposition, asserted on a fixture where some candidates are non-BUY and never reach execute_buy",
+              "a fixture cycle that analyzes N names and buys 0 reports a non-empty attrition breakdown whose dispositions sum to N",
+              "a test asserts no trading behaviour changed: the set of tickers that reach execute_buy is identical before and after the instrumentation on the same fixture"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.15",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "LOOK-AHEAD BIAS, and a scope gap Main owns from 82.0: the `realtime_start` vintage column has ZERO CONSUMERS. 82.0 added the column to financial_reports.historical_macro and populated it (4729/4729 non-null) precisely so point-in-time joins would become possible, and correctly argued the column had to land WITH the backfill because a row's vintage can never be reconstructed afterwards. But it never wired the READ side, and 82.0's artifacts did not flag that loudly. MEASURED 2026-08-03: `grep -n realtime_start backend/backtest/*.py backend/services/*.py` returns NOTHING. backend/backtest/cache.py::cached_macro still selects on `date <= @cutoff` alone (BQ fallback) and the preloaded fast path compares only `str(entry['date']) <= cutoff_date` (:484). CONSEQUENCE: every macro-conditioned backtest still reads values that did not exist at the cutoff. Measured magnitude on live data: a GDP row dated 2026-04-01 was not published by FRED until 2026-07-30 -- roughly 120 days of look-ahead. Six of the ~49 features come from this path (backend/backtest/historical_data.py), so a regime/macro-conditioned strategy inherits it directly. THIS IS A HARD PRECONDITION FOR 82.3: candidate (a) is a valuation/regime gate built on macro, and its DSR/PBO would be silently inflated by look-ahead. Do not run 82.3 for any macro-conditioned candidate until this lands. Fix the read path to filter `date <= cutoff AND (realtime_start IS NULL OR realtime_start <= cutoff)`, and decide explicitly how to treat the NULL-vintage pre-migration rows (they carry the conservative DATE(ingested_at) backfill, so they are provably not-earlier-than-truth and cannot manufacture look-ahead, but they are also not the true publication date).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_15_macro_point_in_time.py -q",
+            "criteria": [
+              "cached_macro excludes rows whose realtime_start is after the requested cutoff, asserted on a fixture containing a row dated before the cutoff but stamped with a vintage after it",
+              "the same exclusion holds on BOTH the preloaded fast path and the per-cutoff BQ fallback, asserted separately so fixing one and not the other cannot pass",
+              "a fixture with NULL realtime_start (pre-migration rows) resolves per the documented decision rather than being silently dropped or silently included, and the chosen behaviour is stated in the test name",
+              "a regression fixture asserts the pre-fix behaviour differed: the same query returns a row under the old date-only filter and does not under the new one, so the guard cannot pass vacuously"
             ]
           },
           "retry_count": 0,

@@ -29936,3 +29936,69 @@ reach the operator.
 
 **Next**: 82.1 (incumbent strategy spec + turnover diagnosis) -- the operator's actual goal. The
 book is NOT stuck: 33 BUY/32 SELL/1 open; the screenshot caught it genuinely flat.
+
+---
+
+## Cycle 180 -- 2026-08-03 -- phase=82.1 result=PASS
+
+**Step**: 82.1 (P1) -- the incumbent live strategy written down AS a strategy, plus the turnover
+diagnosis (goal deliverables 1 and 4). Research-gated (`research_brief_82.1.md`, gate_passed=true,
+6 sources read in full, 30 URLs, 11 internal files). **Specification and measurement only -- ZERO
+edits to backend/services, backend/tools or backend/agents.** Deliverable:
+`docs/strategy/incumbent_live_strategy_spec.md`, guarded by
+`backend/tests/test_phase_82_1_incumbent_spec.py` (14 passed).
+
+**HEADLINE -- the live strategy is not the backtested strategy.** `optimizer_best.json`
+(`triple_barrier`, tp 10%, sl 12.92%, 90d) reaches the live cycle at `autonomous_loop.py:431` and
+is used for THREE display purposes only, ending in a heartbeat label at `:1649` where
+`decided_strategy == prior_strategy` every cycle. The live exit is a stop ONLY: 8% initial + 8%
+trailing, **no take-profit** (scale-out OFF) and **no time barrier**. So "the backtest says Sharpe
+1.17" is not a statement about the live book -- they have different exits. This constrains what
+82.3's comparison may claim.
+
+**THE BINDING CONSTRAINT on turnover is `paper_analyze_top_n = 5`** (`autonomous_loop.py:1035`).
+Of ~583 universe names, 5 per cycle receive the 28-agent analysis, so 5 are the only names that
+can produce a BUY -> ~1 BUY/cycle -> 33 lifetime BUYs, ~1-2 trades/week. The book is THROTTLED,
+not blocked, and the throttle is a COST control, not a risk control. Every competing explanation
+refuted by measurement: kill switch (`trailing_dd 3.63%` vs 10% limit, not paused; and a DISARMED
+switch does not refuse -- `paper_trader.py:183` reads baselines "NEVER `armed`", the phase-36.9
+money-path lesson), the "2/5 gate" (that is the paper->REAL-MONEY promotion gate, not on the order
+path -- a category error), and capacity (30 allowed, 1 held).
+
+**CONCENTRATION** is generated at ranking: `rank_candidates` defaults to `strategy="momentum"`
+(`screener.py:252`) over momentum/RSI/SMA only, with all five diversity levers OFF. The recency
+scan reframes it -- the 2025-26 literature names AI/memory/semis/Korea as THE crowded trade of the
+period and the book's holdings ARE that list, so this is the ranker faithfully expressing a crowded
+factor, not a ranker bug. Hard sector-neutrality is NOT the answer: measured **-0.166 Sharpe** on
+this long-only book (`autonomous_loop.py:597`).
+
+**Q/A**: PASS cycle 1, 0 violated criteria, 3 advisories. It reproduced everything against the LIVE
+API rather than reading the handoff (BUY 33 / SELL 32 / open 1; kill-switch field-for-field; the
+funnel row 8x verbatim), printed all 33 citations, and killed 10 in-memory mutants. Advisories all
+fixed this cycle: (a) the C2 guard was VACUOUS -- "33"/"32"/"64" also occur inside line-number
+citations, so deleting the counts left it green; now pinned per table row and mutation-proven to
+kill both M9 and M10; (b) three citations were off-by-one, including `portfolio_manager.py:390`
+landing on `else:` -- the SAME shape I had reported fixing at 1034->1035; repointed to :391/:276/:183
+and each re-verified by printing the line; (c) "last four cycles, stable" overstated -- reworded to
+the measured invariant (`new_to_analyze:5` across 21 cycles; `universe_size` ranged 543-583).
+
+**Register -- 3 more defects queued, one P0.** **82.15 (P0): the `realtime_start` vintage column
+82.0 added has ZERO CONSUMERS.** `grep realtime_start backend/backtest backend/services` returns
+nothing; `cached_macro` still filters on `date <= cutoff` alone on BOTH paths. So the ~120-day
+publication-lag look-ahead is fully intact (a GDP row dated 2026-04-01 was published 2026-07-30),
+and 6 of ~49 features come through that path. **This is a scope gap Main owns from 82.0** -- the
+column landed so the fix would be POSSIBLE, but the read side was never wired and 82.0's artifacts
+did not flag it. Wired as a HARD dependency: `82.3.depends_on = [82.0, 82.15, 82.2]`, because
+candidate (a) is macro-conditioned and its DSR/PBO would be silently inflated by look-ahead.
+Also queued: 82.14 (funnel attrition invisible -- `portfolio_manager.py:188` drops non-BUY with a
+bare `continue`, so a cycle can analyse 5, buy 0 and report ZERO rejections).
+
+**Also learned**: the Q/A emitted cleanly in **16 tool calls** on a deliberately COMPACT prompt,
+after step 82.0 cycle 5 died empty at 36 calls / 163k tokens on a long one. The lever is prompt
+size, not the rail -- recorded in `feedback_workflow_qa_when_subagents_stall`.
+
+**Next**: 82.2 (three candidate strategies in STRATEGY_REGISTRY) -- research gate in flight. Note
+for its executor: label methods are `(self, ticker, entry_date) -> int | None` (per-row, but they
+reach the engine caches via `self`), and `_compute_mean_reversion_label` is a TWO-STAGE CONJUNCTION
+with thresholds in raw percent rather than volatility units -- the likely degeneracy mechanism, to
+be MEASURED not asserted.
