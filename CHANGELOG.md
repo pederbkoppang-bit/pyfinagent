@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-03 | `07ee03fc` | fix(82.15): wire the point-in-time macro read -- the vintage column had zero consumers |
 | 2026-08-03 | `df5cc559` | feat(82.2): three overpriced-market candidate strategies in STRATEGY_REGISTRY |
 | 2026-08-03 | `98fca544` | feat(82.1): specify the incumbent live strategy -- it never forms a valuation view |
 | 2026-08-03 | `ba60e703` | phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (deliverables 1 and 4). Write ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `3f3edd96` | fix(80.44): stop the collection-count canary re-baselining treadmill |
 | 2026-07-26 | `aabfcd23` | docs: agent-memory research gate -- found the orchestrator reading a 4-month-stale MEMORY.md |
 | 2026-07-26 | `d14d4b2c` | chore: audit the memory tree -- found a LOST operator lesson, add a re-runnable auditor |
-| 2026-07-26 | `04617d63` | fix(80.19): add the missing favicon -- /favicon.ico 404'd on every page load |
 
 ---
 
+### v6.74.1 — fix(82.15): wire the point-in-time macro read -- the vintage column h... (2026-08-03)
+
+- **fix(82.15): wire the point-in-time macro read -- the vintage column had zero consumers**
 ### v6.74.0 — feat(82.2): three overpriced-market candidate strategies in STRATEGY_... (2026-08-03)
 
 - **feat(82.2): three overpriced-market candidate strategies in STRATEGY_REGISTRY**
