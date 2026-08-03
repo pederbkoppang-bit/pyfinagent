@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-03 | `98fca544` | feat(82.1): specify the incumbent live strategy -- it never forms a valuation view |
 | 2026-08-03 | `ba60e703` | phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (deliverables 1 and 4). Write ... |
 | 2026-08-03 | `de91f32e` | fix(82.0): macro ingestion was never scheduled -- and its staleness guard never fired |
 | 2026-07-31 | `c3286524` | fix(81.2): make the verdict gate order-independent -- the dead gate, root-caused and closed |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `d14d4b2c` | chore: audit the memory tree -- found a LOST operator lesson, add a re-runnable auditor |
 | 2026-07-26 | `04617d63` | fix(80.19): add the missing favicon -- /favicon.ico 404'd on every page load |
 | 2026-07-26 | `bcaaa6f7` | feat(36.20): RE-ANCHORING badge + kill the fabricated 0.00% -- WIP, NOT Q/A-verified |
-| 2026-07-26 | `3227347a` | phase-36.13: gate the ACT OF BUYING, not just the cycle -- close the CWE-424 alternate path |
 
 ---
 
+### v6.73.0 — feat(82.1): specify the incumbent live strategy -- it never forms a v... (2026-08-03)
+
+- **feat(82.1): specify the incumbent live strategy -- it never forms a valuation view**
 ### v6.72.12 — phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (d... (2026-08-03)
 
 - **phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (deliverables 1 and 4). Write ...**
