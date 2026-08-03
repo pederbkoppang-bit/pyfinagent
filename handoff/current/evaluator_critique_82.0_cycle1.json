@@ -1,0 +1,71 @@
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "Criterion 4 is NOT met in production. `historical_macro.date` is a STRING column (BQ schema: `('date','STRING','REQUIRED')`, declared at scripts/migrations/migrate_backtest_data.py:68; live rows return `type(date)=str`), but the new per-series gate at backend/backtest/cache.py only records a series when `isinstance(rd, _date)` — so `per_series_max` is EMPTY for every real row, `stale` is always empty, and preload_macro NEVER refuses. Executed witness (mine, both directions, same rows): date as `datetime.date` (the unit-test fixture type) -> preload_macro()=0, guard fires; date as `str` (the PRODUCTION type) -> preload_macro()=3, it cached a GDP series 3000 days (~8 years) dead. This is guard-vacuity shape #5 (qa.md §4c): a fixture that cannot represent the production failure, and it is the SOLE coverage of criterion 4, so it is BLOCKING. The same execution refutes the headline claim: replaying HEAD's pre-fix preload_macro against the actual pre-step rows (4412 rows, MAX(date)=2025-12-31, fetched from BQ by vintage) returns 4412, NOT 0 — the pre-fix gate was already dead for the identical isinstance reason, so \"returned 0 before / that was the freeze\" and \"the old global-max gate would have passed a dead one; both failure directions are now closed\" do not reproduce. Deterministic lint gate is also red: `uvx ruff check --select F821,F401,F811` over the git-derived 7-file scope exits 1 with 2 findings, BOTH introduced by this diff (cache.py:11 `typing.Optional` now unused because the diff deleted its only use at HEAD:233 — ruff on HEAD's cache.py passes; test_phase_82_0_macro_ingestion.py:235 unused `di` import). Criteria 1, 2, 3, 5, 6 ARE genuinely met with mutation-killable guards, and harness compliance is clean.",
+  "violated_criteria": [
+    "criterion_4_per_series_freshness_sla",
+    "illusory-guard",
+    "consumer-contract-break",
+    "python_lint_gate_F401"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "preload_macro() per-series SLA gate: `if isinstance(rd, _date): per_series_max[sid] = rd` (backend/backtest/cache.py, phase-82.0 block replacing :251-291)",
+      "state": "EXECUTED WITNESS, identical rows, only the date type varies -- date as datetime.date (unit-test fixture type) -> preload_macro()=0, log 'refusing to cache -- 1 of 3 series past their per-series SLA: GDP(newest=2018-05-17 age=3000d limit=225d)'; date as str (PRODUCTION type) -> preload_macro()=3, cached_series=['DGS10','GDP','T10Y2Y'], no warning. BQ schema is ('date','STRING','REQUIRED') (client.get_table) and live rows return type(date)=str, so per_series_max is empty on every real query and `stale` can never be non-empty.",
+      "constraint": "Criterion 4: 'macro freshness is evaluated PER SERIES against a per-series SLA table ... a fixture with fresh DGS10/T10Y2Y and a stale GDP is reported UNHEALTHY'. The delivered gate reports UNHEALTHY only for a date-typed fixture the production query never produces."
+    },
+    {
+      "violation_type": "Circular_Reasoning",
+      "action": "test_per_series_sla_catches_dead_gdp_behind_a_live_daily_series (backend/tests/test_phase_82_0_macro_ingestion.py:171-191) via _macro_row(sid, d) at :167-168, which passes `today - timedelta(days=N)` (a datetime.date)",
+      "state": "Sole coverage of criterion 4. The fixture supplies datetime.date; production supplies str. The test is green for every possible production state, including a fully dead table. Main's mutation matrix (revert to global-max -> 'assert 3 == 0') only proves discrimination within the date-typed fixture space, so the kill mechanism is mis-scoped (shape #11) as well as fixture-vacuous (shape #5).",
+      "constraint": "qa.md §4c: 'a guard that cannot fail when its subject is broken does not count'; sole-coverage vacuity on a behavioral criterion is BLOCKING. skill heuristic #17(c) illusory-guard [BLOCK when sole coverage]."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "Re-derivation of the pre-fix baseline: loaded HEAD's cache.py as a module (no tree write), stubbed _bq_client with the 4412 rows whose realtime_start <= 2026-03-25 (i.e. the exact pre-step table), called preload_macro()",
+      "state": "PRE-FIX preload_macro() on the PRE-STEP table -> 4412 (it cached), not 0. HEAD's preload_macro has `assert _bq_client is not None` and `if not rows: return 0`, and the pre-step table had 4412 rows, so no code path returns 0. Independent BQ probe corroborates the pre-state itself: total=4729, null_vint=0, pre_step_rows(vintage<=2026-03-25)=4412, rows_written_today(vintage=2026-08-03)=317, pre_step_max_date='2025-12-31', max_date='2026-07-31'.",
+      "constraint": "live_check_82.0.md §1 'It returned 0 before this step (that was the freeze)'; experiment_results.md 'returned 0 before this step and returns 4729 after'; and the same causal story shipped into production comments at backend/main.py:325-327 ('preload_macro() refused to cache') and backend/backtest/macro_cron.py:14-16. The honest, reproducible delta is 4412 -> 4729 (+317 rows). qa.md §4b: a number in a 'verbatim' artifact that does not reproduce is a Contradiction finding."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "live_check_82.0.md §2 conclusion",
+      "state": "'This validates the SLA design against real data ... the old global-max gate would have passed a dead one. Both failure directions are now closed.' The per-series ages quoted (CPIAUCSL 63<=80 etc.) were computed by an ad-hoc SQL query Main ran, NOT by preload_macro, which evaluated zero series. The dead-series-passes direction is wide open in production, as executed above.",
+      "constraint": "qa.md §4b: a claim must be reproduced by the code path it claims to describe; scope-honesty lens of the §4a worst-of-N-lenses verdict."
+    },
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "FILES=$( git diff --name-only HEAD -- '*.py'; git ls-files --others --exclude-standard -- '*.py' ) | sort -u  (7 files, non-empty asserted); xargs uvx ruff check --select F821,F401,F811 < $FILES",
+      "state": "ruff_exit=1, Found 2 errors. VERBATIM: \"F401 [*] `typing.Optional` imported but unused --> backend/backtest/cache.py:11:20\" and \"F401 [*] `backend.backtest.data_ingestion` imported but unused --> backend/tests/test_phase_82_0_macro_ingestion.py:235:47\". Both are NEW: `uvx ruff check` on HEAD's cache.py prints 'All checks passed!' (exit 0) because HEAD used Optional at cache.py:233 (`max_date: Optional[_date] = None`), the line this diff deleted.",
+      "constraint": "qa.md §1a Python lint gate: 'Non-zero exit = FAIL (quote the finding verbatim)'. Neither experiment_results.md nor live_check_82.0.md records any lint run."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope",
+    "mtime_ordering_research_before_contract_before_generate",
+    "log_last_not_prematurely_appended",
+    "no_verdict_shopping_first_qa_on_82.0",
+    "masterplan_criteria_erosion_semantic_diff_vs_HEAD",
+    "contract_criteria_verbatim_match",
+    "verification_command_exit_code",
+    "python_lint_gate_ruff_F821_F401_F811_derived_scope",
+    "backend_runtime_smoke_imports",
+    "live_api_health_and_jobs_status",
+    "live_bq_schema_and_row_type_inspection",
+    "independent_bq_state_reproduction",
+    "pre_fix_code_replay_against_pre_step_rows",
+    "mutation_witness_fixture_type_vs_production_type",
+    "real_apscheduler_registration_probe",
+    "replace_existing_idempotency_probe",
+    "migration_idempotency_review",
+    "vintage_lookahead_direction_analysis",
+    "consumer_grep_historical_macro",
+    "code_review_heuristics",
+    "contract_completeness_mapping",
+    "adversarial_worst_of_N_lenses"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS COMPLIANCE (all 5 clean, verified not asserted): (1) research_brief_82.0.md exists, envelope gate_passed=true / 8 sources read in full / recency_scan_performed=true; (2) mtime chain research 07-31 23:02:33 < contract 07-31 23:06:30 < generated artifacts 08-03 08:59-09:03; (3) experiment_results.md present, its verbatim block reproduces exactly (I re-ran the immutable command: `13 passed in 0.81s`, EXIT=0); (4) log-last honored -- `grep -F \"82.0\" handoff/harness_log.md` returns ZERO hits and masterplan 82.0 status is still \"pending\" (retry_count=0, max_retries=3, so certified_fallback=false); (5) first Q/A on 82.0, so no verdict-shopping and no 3rd-CONDITIONAL trigger. Semantic diff of every step in .claude/masterplan.json vs HEAD: 0 criteria changed on pre-existing steps, 0 status changes, 11 phase-82 steps added; all six 82.0 criteria appear verbatim in contract.md. No unintended production change -- the 7 .py files in the git-derived scope are exactly the contract's scope.\n\nEVIDENCE PROVENANCE: every probe in this verdict was executed BY ME (read-only), not read from Main's artifacts -- the BQ schema/row-type inspection, the pre/post state query, the HEAD-code replay, the fixture-type witness, and the real-APScheduler registration. No tree writes, no restores needed (HEAD's cache.py was copied to the session scratchpad and imported via importlib). §1c live UI capture gate is N/A: this step makes no UI claims.\n\nWHAT PASSED (do not re-litigate these on the next cycle): Criterion 1 MET -- `_resolve_macro_end_date` returns today, asserted strictly > the pinned backtest_end_date, plus an end-to-end guard on run_full_ingestion's call site and a URL assertion; kill mutation exists for each. Criterion 2 MET -- I registered against a REAL apscheduler 3.11.2 BackgroundScheduler (not the test's permissive stub): job.id='macro_ingest_daily', trigger=CronTrigger(day_of_week='mon-fri', hour='8', minute='10', timezone='America/New_York'), next_run_time 2026-08-03 08:10-04:00. The apparent n_jobs=2 on double-registration is a STOPPED-scheduler artifact, NOT a replace_existing defect: starting paused collapses it to 1 and a third register on the running scheduler keeps it at 1. Criterion 3 MET (fail-closed re-raise, killable). Criterion 5 MET on its literal wording (removing the `_write_macro_receipt` call from the no-key branch turns the test red, so it is a spy, not a tautology; the on-disk JSONL shape is covered separately). Criterion 6 MET (realtime_start stamped and asserted on built rows). Concern (b) CLEARS: the migration is genuinely idempotent (`ADD COLUMN IF NOT EXISTS` + `UPDATE ... WHERE realtime_start IS NULL`) and `DATE(ingested_at)` is >= the true FRED publication date by construction, so it withholds data rather than manufacturing look-ahead. Concern (d) CLEARS: macro_regime.py:23 imports get_macro_indicators from backend/tools/fred_data.py (direct FRED HTTP), and the only historical_macro readers are cache.py, sortino.py, cycle_health.py, data_ingestion.py -- the live buy funnel is untouched.\n\nNAMED FIX FOR THE BLOCKER: parse the string date in preload_macro (e.g. `_date.fromisoformat(rd)` when `isinstance(rd, str)`) so the SLA actually evaluates, AND re-point the criterion-4 fixture at the PRODUCTION type -- `_macro_row` must emit `d.isoformat()`. Keep a date-typed case too. Add a schema contract test pinning `historical_macro.date` to STRING so the fixture cannot silently drift from the table again. Note the identical isinstance bug exists in HEAD, so this also closes a pre-existing dead phase-25.D7 gate; the honest framing of the whole step becomes \"the staleness guard was dead in BOTH directions and is now live\", which is a stronger result than the one claimed.\n\nWARN-level findings to fix in the same cycle (non-blocking on their own): (a) the macro cron registration sits inside `if settings.paper_trading_enabled:` (backend/main.py:303, default False) -- satisfied in the operator's env (live /api/jobs/status shows the paper-trading scheduler running) but undisclosed, and test_app_startup_registers_the_macro_cron is a source scan that cannot see this coupling; (b) test_receipt_is_valid_jsonl accepts tmp_path but never uses it and monkeypatches `di.Path` to `pathlib.Path` (a no-op), so it writes into the REAL repo file -- confirmed, handoff/logs/macro_ingest_receipts.jsonl carries test rows at 07:04:54 alongside the genuine 317-row run at 07:01:46; (c) criterion 5's test covers the no-API-key path, not the healthy-dedupe zero-insert path that motivates the criterion; (d) dead `class _P(type(tmp_path))` at test lines 239-240.\n\nNOTE (out of scope, worth its own research-gated step per feedback_queue_discovered_defects_in_masterplan): a SECOND scheduled FRED ingestion already exists and is running -- `weekly_fred_refresh` (backend/slack_bot/scheduler.py:1167, last_run 2026-08-02, next 2026-08-09) writes `pyfinagent_data.fred_observations` via fredapi. It does NOT write historical_macro, so criterion 2's \"zero scheduled callers\" premise survives for ingest_macro, but the repo now has two FRED feeds, two tables, and one SLA table. The research brief has ZERO mentions of it (grep count 0), so \"the feed was never on a cadence\" is narrower than the brief and the shipped comments imply. Also unaddressed: the security defect Main self-disclosed (FRED api_key in the httpx INFO request URL) still needs its own step and a key rotation."
+}

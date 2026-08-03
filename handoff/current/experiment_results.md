@@ -1,289 +1,348 @@
-# Experiment Results — phase-80.2
+# experiment_results -- step 82.0
 
-**Step:** `80.2` (P0) — an unhandled backend 500 carried no CORS header, so the browser
-blocked it and the frontend told the operator the backend was DOWN.
-Date 2026-07-25. Contract: `handoff/current/contract.md`. Gate: `research_brief.md`
-(`gate_passed: true`, 8 sources in full, 23 URLs).
+**GENERATE phase.** Contract: `handoff/current/contract.md`.
+Research: `handoff/current/research_brief_82.0.md` (gate_passed=true, 8 sources
+read in full, 22 URLs, 19 internal files).
 
----
+NOTE: this rolling file previously held phase-80.2 content -- it was never
+archived when that step closed. Flagging rather than silently overwriting;
+this is the same rolling-file/archive drift class as phase-81.
 
-## 1. What was built
+## What was built
 
-**Root cause, confirmed from the installed source rather than inferred:** starlette 1.0.0
-`applications.py:57-77` hardcodes `[ServerErrorMiddleware] + user_middleware +
-[ExceptionMiddleware]`, and `:62-66` routes any handler keyed on `500`/`Exception` into
-that **outermost** layer. So an escaping exception unwinds past `CORSMiddleware` **and**
-past `auth_and_security_middleware`, whose entire tail (`main.py:548-569` — PerfTracker
-record, `X-Response-Time`, six OWASP headers) is skipped.
+The freeze was NOT a broken job. Root cause (research-verified, then
+independently re-verified by Main): `ingest_macro` had **no scheduled caller at
+any point in the repo's history**, and `settings.backtest_end_date`
+("2025-12-31") was threaded into the FRED `observation_end` parameter, so the
+handful of manual runs asked for data ending on the backtest cap and inserted
+zero rows while reporting success.
 
-**The intuitive fix does not work.** A 3-variant executable probe
-(`scratchpad/probe_design.py`) reproduced pyfinagent's exact nesting:
-
-| variant | 500 CORS hdr | 500 `nosniff` | recorded by auth mw | disallowed origin |
-|---|---|---|---|---|
-| baseline (today) | `None` | `None` | *(none)* | `None` ok |
-| `@app.exception_handler(Exception)` | **`None`** | `None` | *(none)* | `None` ok |
-| **catch-all nested INSIDE CORS** | `http://localhost:3000` | `nosniff` | `('/boom', 500)` | **`None` ok** |
-
-So the fix is a pure-ASGI catch-all **registered before `add_middleware(CORSMiddleware)`**
-— because `add_middleware` inserts at index 0, earlier registration = further in. The 500
-becomes an ordinary response that travels back out through every decorating layer, which
-closes all three consequences with one change.
-
-### Files
-
-| File | Δ | What |
+| # | Change | File |
 |---|---|---|
-| `backend/middleware/__init__.py` | **new** | new package |
-| `backend/middleware/catch_all_errors.py` | **new**, 149 L (`wc -l`, measured) | `CatchAllServerErrorMiddleware`: pure ASGI, wraps `send` + tracks `response_started`, `logger.exception`, JSON body with no traceback, explicit `HTTPException` branch that keeps the original status |
-| `backend/main.py` | +48 | import; `add_middleware(CatchAllServerErrorMiddleware)` **above** the CORS block with a comment explaining the counter-intuitive ordering; `GET /api/__force_500_probe` (`include_in_schema=False`, auth-gated, always raises) |
-| `backend/services/perf_tracker.py` | +26/−6 | `summarize()` now also reports `error_count` / `error_rate_pct`, overall and per-endpoint. **Additive only** — no existing key renamed, removed, or changed in meaning |
-| `backend/api/observability_api.py` | +9 | passes the two new fields through, incl. the fail-open branch |
-| `frontend/src/lib/api.ts` | +28/−1 | extracted `NETWORK_FAILURE_MESSAGES` + `isNetworkFailureMessage()`; added Safari `Load failed`, Firefox's full string, axios `Network Error`; generic fallback kept |
-| `frontend/src/lib/types.ts` | +6 | optional `error_count` / `error_rate_pct` on `EndpointLatency` + `PerfSummary` |
-| `backend/tests/test_phase_80_2_error_response_contract.py` | **new**, 18 tests | end-to-end through the real stack |
-| `frontend/src/lib/api.network-errors.test.ts` | **new**, **13 tests** | 7 on the network-string predicate, + 6 added in cycle 2 that bind the real `apiFetch` branch to it (§3.1) |
+| 1 | `macro_ingest_end_date` setting; macro end date severed from `backtest_end_date` | `backend/config/settings.py:245-251` |
+| 2 | `_resolve_macro_end_date()`; `ingest_macro(end_date=None)` defaults to today; caller stops forwarding the backtest cap | `backend/backtest/data_ingestion.py` |
+| 3 | `_get_existing_macro` now fails **CLOSED** (was bare `except -> set()`) | `backend/backtest/data_ingestion.py` |
+| 4 | Per-series freshness SLA replaces the global-max gate, with date coercion so it is not vacuous on the STRING column, failing closed on unparseable dates | `backend/backtest/cache.py:40-51` + `preload_macro` |
+| 5 | Run-receipt JSONL on every attempt, incl. pre-ingest failures | `backend/backtest/data_ingestion.py`, `backend/backtest/macro_cron.py` |
+| 6 | `realtime_start` vintage column + versioned idempotent migration | `scripts/migrations/add_macro_realtime_start.py` |
+| 7 | The scheduled caller that never existed, wired into app startup | `backend/backtest/macro_cron.py` (new), `backend/main.py` |
 
-`git diff --stat`: `5 files changed, 111 insertions(+), 6 deletions(-)` + 4 new files.
+`self.settings` was also retained on `DataIngestionService.__init__` -- the
+service previously unpacked only project/dataset, so no setting could be read
+at call time.
 
-### Why the probe route is permanent and not debug-gated
-
-Measured: `DEBUG` is **off** in the running process (`/docs` and `/openapi.json` both
-404). A debug-gated probe would 404 — and a 404 **carries the CORS header** (it is an
-`HTTPException` handled by the innermost `ExceptionMiddleware`), so the step's own
-`grep`-based verification command would have silently passed on the wrong response. It is
-auth-gated (deliberately **not** added to `_PUBLIC_PATHS`), reads nothing, writes nothing,
-touches no trading state. Kept permanently because `/api/signals/AAPL` stops being a 500
-once 80.1 lands, and a contract with no fixture rots.
-
----
-
-## 2. Verification output (verbatim)
-
-### 2.1 Syntax gate
+## Verification command output (verbatim)
 
 ```
-OK  backend/main.py
-OK  backend/middleware/catch_all_errors.py
-OK  backend/services/perf_tracker.py
-OK  backend/api/observability_api.py
+$ source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_0_macro_ingestion.py -q
+................                                                         [100%]
+16 passed in 0.82s
 ```
 
-### 2.2 New backend suite
+## CYCLE 2 -- Q/A returned FAIL on cycle 1; what changed
+
+The cycle-1 Q/A verdict was **FAIL** on criterion 4, and it was correct. The
+blocking finding, independently re-verified by Main before acting:
+
+`historical_macro.date` is a **STRING** column
+(`('date','STRING','REQUIRED')`, declared at
+`scripts/migrations/migrate_backtest_data.py:68`; live rows return
+`type(date) = str`, e.g. `'2023-07-03'`). Both the pre-existing phase-25.D7
+gate and the cycle-1 per-series rewrite tested `isinstance(rd, datetime.date)`,
+which is FALSE for every production row. So `per_series_max` was empty on
+every real query, `stale` could never be non-empty, and **preload_macro never
+refused anything**.
+
+Three consequences, all corrected here:
+
+1. **The delivered guard was vacuous.** Fixed: dates are now coerced
+   (`_coerce_date` handles str / date / datetime), and an unparseable date
+   column now fails CLOSED instead of silently disabling the gate.
+2. **The cycle-1 fixture could not represent the production failure.** It
+   passed `datetime.date`, a type the query never returns, so the test was
+   green for every possible production state including a fully dead table --
+   and it was the SOLE coverage of criterion 4. Fixed: `_macro_row` now emits
+   the production STRING shape, plus two new regression pins
+   (`test_gate_is_not_vacuous_on_the_production_date_type`,
+   `test_unparseable_dates_fail_closed`).
+3. **The mutation matrix was mis-scoped.** Mutating the code only proved
+   discrimination inside the fixture's own type space. A mutation test
+   inherits its fixture's blind spots; mutating the code does not test the
+   fixture.
+
+**FALSE CLAIM WITHDRAWN.** Cycle 1 asserted preload_macro "returned 0 before
+this step". It did not -- it returned **4412**, because the pre-fix gate was
+vacuous for the same isinstance reason. That number was inferred from reading
+the threshold logic and reported as measured. The honest delta is
+**4412 -> 4729 (+317 rows)**. The corresponding causal story was also removed
+from two production comments (`backend/main.py`, `backend/backtest/macro_cron.py`)
+where it had been shipped as fact.
+
+**The real defect is worse than the one originally described.** Nothing was
+hanging and nothing was being refused: backtests were being silently trained
+on 212-day-old macro features, and had been for as long as the guard existed.
+
+Lint gate (also red in cycle 1, both findings introduced by this diff) is now
+clean over the git-derived 7-file scope:
 
 ```
-$ .venv/bin/python -m pytest backend/tests/test_phase_80_2_error_response_contract.py -q
-..................                                                       [100%]
-18 passed, 1 warning in 2.13s
+$ FILES=$( { git diff --name-only HEAD -- '*.py'; git ls-files --others --exclude-standard -- '*.py'; } | sort -u )
+$ echo "$FILES" | xargs uvx ruff check --select F821,F401,F811
+All checks passed!
 ```
 
-### 2.3 Adjacent suites — no regressions
+`test_receipt_written_on_zero_row_run` was additionally rewritten to assert on
+the real receipts file rather than a monkeypatched stub (Main's own flagged
+concern; the Q/A had accepted the weaker version).
 
-```
-$ .venv/bin/python -m pytest tests/api/test_observability.py \
-      backend/tests/test_phase_75_deploy_surface.py -q
-49 passed, 1 warning in 7.91s
-```
+## Live evidence
 
-### 2.4 Frontend
+Full artifact: `handoff/current/live_check_82.0.md`. Headline: the table
+advanced from 4412 rows / `MAX(date)=2025-12-31` to **4729** rows with every
+series inside its per-series SLA; the live FRED request carried
+`observation_end=2026-08-03` and inserted 317 rows. Gate non-vacuity is now
+demonstrated in BOTH directions against the production STRING type: current
+data caches 4729 across 7 series; a stale-GDP fixture in production shape
+returns 0 with `GDP(newest=2018-05-17 age=3000d limit=225d)`.
 
-```
-$ npx tsc --noEmit
-[tsc exit=0]
 
-$ npx vitest run src/lib/
- Test Files  8 passed (8)
-      Tests  49 passed (49)
-```
+## CYCLE 3 -- disposition of the cycle-2 CONDITIONAL
 
-### 2.5 The immutable verification command (live, `:8001` rig — see live_check §A)
+Cycle-2 verdict: **CONDITIONAL**. All 6 immutable criteria assessed MET with
+15/15 injected mutants killed; six findings capped it below PASS. Verbatim
+verdicts for both cycles are preserved in
+`handoff/current/evaluator_critique_82.0.md` (+ the raw returns in
+`evaluator_critique_82.0_cycle1.json` / `_cycle2.json`).
 
-```
-$ curl -s -D - -o /dev/null -H 'Origin: http://localhost:3000' \
-       .../api/__force_500_probe | grep -i 'access-control-allow-origin'
-access-control-allow-origin: http://localhost:3000
-```
+**F1 -- retracted claim surviving in a forward-looking artifact [was BLOCK-for-PASS]. FIXED.**
+Pending step 82.3's description still instructed a future executor
+"preload_macro() returns 0 today ... Do NOT attempt this step while
+preload_macro() returns 0" -- the exact claim cycle 2 withdrew. Corrected: the
+precondition is now stated as DATA VALIDITY (non-zero row count AND every
+series inside its SLA), the old text is quoted and explicitly withdrawn, and
+the newly-reachable refusal path is called out. 
 
-with the status line confirmed **500** (not 404, not 401) in the full capture.
+**CYCLE 4 CORRECTION -- this disposition was itself wrong, twice.** The
+cycle-3 Q/A caught both errors and they are the SAME failure class as the
+cycle-1 "returned 0" slip: a past-tense claim written without running the
+check that would prove it.
 
----
+1. **"The research brief ... is annotated" was FALSE when written.** It was
+   not annotated -- `research_brief_82.0.md:281` still carried the withdrawn
+   claim as **CONFIRMED**, with an mtime unchanged since the PLAN phase. That
+   brief is NOT inert: pending steps **82.8, 82.9 and 82.10** are each named
+   "DEFECT from the 82.0 research brief" (MEASURED against masterplan.json:
+   3 of 3 -- 82.12 is a DIFFERENT lineage, named "DEFECT CLASS sweep, surfaced
+   by the 82.0 cycle-1 Q/A FAIL", and an earlier draft of this sentence wrongly
+   included it) and point their executors at the very table containing the
+   false row. NOW ACTUALLY DONE: the row is struck through
+   and marked WITHDRAWN, with an annotation block stating the measured truth
+   and confirming every other row in that table still stands.
+2. **"Two occurrences remain by design" did not reproduce.** A repo-wide
+   census returns far more than 2. Worse, the count is SELF-MUTATING -- writing
+   the census changes it. See the stable-invariant framing below.
 
-## 3. Mutation matrix — 9/9 guards held, 0 vacuous
+### Census of the retracted claim
 
-`feedback_mutation_test_guards_and_fixtures`: a guard that cannot fail does not count.
-Each mutation was applied to the real file, the guard run, and the file restored from an
-in-memory snapshot (never `git stash` — hooks append to tracked audit logs).
-Driver: `scratchpad/mutate_80_2.py`.
+**A raw total here is a self-mutating claim** -- writing the census adds
+occurrences of the phrase, so any number is stale the moment it is committed.
+I measured 11, then 12 one command later, purely because this section exists.
+That is the third instance in this step of the same failure class, so the
+census is stated as a STABLE INVARIANT instead of a count:
 
-| # | Mutation | File | Guard | Result |
-|---|---|---|---|---|
-| M1 | Register the catch-all **after** `CORSMiddleware` → it nests outside CORS (the silent-revert mode) | `main.py` | cors + owasp + perftracker + order | **FAILED as required** |
-| M2 | Remove the catch-all entirely (today's behaviour) | `main.py` | cors + owasp + latency-visibility | **FAILED as required** |
-| M3 | Drop `logger.exception` | `catch_all_errors.py` | `test_unhandled_exception_is_logged_with_traceback` | **FAILED as required** |
-| M4 | Count every request as an error (`>= 500` → `>= 0`) | `perf_tracker.py` | `test_successful_requests_do_not_count_as_errors` | **FAILED as required** |
-| M5 | Stop exposing `error_count` on the latency route | `observability_api.py` | `test_500_is_visible_as_an_error_in_observability_latency` | **FAILED as required** |
-| M6 | "Fix" CORS by echoing `*` (criterion 4 violation) | `catch_all_errors.py` | disallowed-origin + no-wildcard | **FAILED as required** |
-| M7 | Drop the `HTTPException` branch → a 401 becomes a 500 | `catch_all_errors.py` | `test_http_exception_is_rendered_with_its_own_status_code` | **FAILED as required** |
-| **M9** | **STUB MUTATION** — break the *fixture*: probe route returns 200 instead of raising | `main.py` | `test_probe_route_genuinely_raises_a_500` | **FAILED as required** |
-| M8 | Remove Safari's `Load failed` from the string set | `api.ts` | `api.network-errors.test.ts` | **FAILED as required** |
+> **Live carriers asserting the claim AS FACT: ZERO.**
 
-`9/9 guards held; 0 vacuous.` Working tree verified byte-identical after the run.
+Every remaining occurrence falls into one of four categories, none of which
+asserts it:
 
-### 3.1 CYCLE 2 — the mutation my matrix did NOT run, authored by Q/A (finding 5.2)
-
-**M8 was vacuous at the defect site and I missed it.** M8 mutates the exported
-`NETWORK_FAILURE_MESSAGES` array — which the unit test imports *directly* — so it cannot
-distinguish a predicate that is **correct** from one that is **wired in**. Q/A mutated the
-wiring instead, re-introducing the exact operator-visible bug:
-
-```diff
--    if (isNetworkFailureMessage(msg)) {
-+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
-```
-
-and **everything stayed green**: `api.network-errors.test.ts` 7/7, `src/lib` 49/49,
-`tsc --noEmit` exit 0. Sole-coverage vacuity on a behavioural criterion.
-
-**Fix (condition C1):** `apiFetch` is module-private, so the new tests drive it through an
-exported caller (`listReports`) with a stubbed `fetch` that rejects
-`new TypeError("Load failed")` — exercising the real branch rather than the helper in
-isolation. Six new cases: the three engine strings → `Cannot reach backend`; an assertion
-that the raw `Network error calling ...` fallback is **not** reached; an unrecognised
-rejection that **does** fall through (correctness must not depend on the string set); and
-a resolving 500 that must take the `!res.ok` path.
-
-**M10 — re-running Q/A's exact mutation against the new guard:**
-
-```
-$ npx vitest run src/lib/api.network-errors.test.ts        # with the call site reverted
-- Expected: /Network error calling/
-+ Received: "Network error calling /api/reports/?limit=20: Load failed"
-  ❯ src/lib/api.network-errors.test.ts:98:32
-
- Test Files  1 failed (1)
-      Tests  2 failed | 11 passed (13)
-```
-
-**GUARD NOW HOLDS.** The received value is literally the operator's screenshot text. File
-restored; `md5 frontend/src/lib/api.ts` → `a51fe1fc07f6cf106deee69be1121d71`, matching the
-value Q/A recorded after its own restore. 13/13 green again.
-
-Running total: **10/10 guards held, 0 vacuous** — with the honest note that one of them
-existed only because the evaluator found the hole, which is the evaluator gate working.
-
-**Deliberately avoided anti-pattern:** `backend/tests/test_phase_75_deploy_surface.py:397-401`
-is a *source-scan* CORS test (`assert "...'*'" not in src`). A source scan cannot see
-middleware ordering — which is the entire bug — so it would have been unfailable here.
-Every assertion in the new suite drives a real request through the real stack.
-
----
-
-## 4. Criteria → evidence
-
-| # | Criterion (verbatim) | Evidence | Status |
-|---|---|---|---|
-| 1 | 500 INCLUDES access-control-allow-origin for an allowed origin (a route that genuinely raises, not a synthetic 204) | live_check §C2 — status line `500`, header present. `test_probe_route_genuinely_raises_a_500` blocks the 404/401 false pass (§F) | **MET** |
-| 2 | With a deliberately-broken endpoint the UI shows a server-error message that does NOT claim the backend is unreachable | live_check §G — rendered: `Server error on /api/signals/AAPL. Check the backend logs for details.` | **MET** |
-| 3 | api.ts network-error detection also matches Safari's `Load failed` | `api.network-errors.test.ts` **13/13**, of which the binding evidence is the `apiFetch network-failure branch (defect-site binding)` block + the **wiring mutation M10** (§3.1), which goes red with `"Network error calling /api/reports/?limit=20: Load failed"`. **NOT M8** — cycle-1 Q/A proved M8 vacuous at the defect site (it mutates the array the test imports directly, so it cannot tell a correct predicate from a wired-in one) | **MET** |
-| 4 | Allow-list UNCHANGED for disallowed origins; do not echo `*` | live_check §C3 — header **absent** for `https://evil.example` while the 500 still returns; mutation M6. No new copy of `_TAILSCALE_ORIGIN_RE` | **MET** |
-| add (i) | 500 carries the CORS header | §C2 | **MET** |
-| add (ii) | 500 carries `nosniff` | §C2 (all six OWASP headers + `x-response-time`) | **MET** |
-| add (iii) | 500 produces a PerfTracker record with status 500 **visible in** `/api/observability/latency` | live_check §D — `error_count: 5`, probe endpoint at `error_rate_pct: 100.0` | **MET** |
-
----
-
-## 5. Scope honesty
-
-- **The operator's `:8000` was NOT restarted**, so the fix is **inert in production until
-  it is.** The gating step is **`phase-79.55`** — `status: pending`,
-  `[RESTART BLOCKER -- answer BEFORE the next backend restart]`. Restarting would have
-  silently shipped the phase-78.2 rail re-tiering (the six signal overlays down to
-  `claude-haiku-4-5`, the lite trader/risk judge to `settings.gemini_model`) before the
-  operator answered. After-fix evidence therefore comes from an isolated `:8001` instance
-  running the same code with `--lifespan off` (no scheduler, no second trading loop). Full
-  disclosure in live_check §A. **This is the one thing a reviewer should weigh.**
-
-  > **Cycle-2 correction (Q/A C3/5.3).** Cycle 1 cited `phase-79.2` as the gate and said a
-  > restart "would have breached both". That was wrong: **`79.2` is `status: done`** — its
-  > body records `EXECUTED 2026-07-25 11:39:05 ... new pid 70791`, which is the pid
-  > measured live on `:8000`. Only `79.55` is open. The decision was identical under the
-  > corrected citation, but the stale reference would have sent a reader to a closed step.
-- **One scope addition, declared in the contract before building:** `summarize()` +
-  the latency route gained `error_count`/`error_rate_pct`. Without it, addendum criterion
-  (iii) ("*visible in* `/api/observability/latency`") could not be met — `status_code` was
-  discarded, so only an anonymous `count` bump would have changed. Strictly additive;
-  every consumer enumerated below.
-- **No immutable criterion was amended, reworded, or reinterpreted.**
-
-### Consumer-contract check (additive-safe)
-
-**Membership rule for this set, written down so the claim is auditable**
-(`feedback_measure_dont_assert_claims`): every site that reads the dict returned by
-`PerfTracker.summarize()`, derived by `grep -rn '\.summarize(' backend/ scripts/` and then
-filtering out the unrelated `_cost_tracker.summarize()` / Slack `tracker.summarize()`
-name-collisions (`orchestrator.py:2399`, `app_home.py:50,498`, `mas_events.py:133` — a
-different tracker), plus every consumer of `/api/observability/latency`.
-
-| Consumer | Reads | Safe? |
+| Category | Where | Why it is not a live carrier |
 |---|---|---|
-| `backend/api/observability_api.py:75` | re-keys `p50/p95/p99`, passes `per_endpoint` | yes |
-| `backend/api/performance_api.py:34` | returns `summarize()` raw | yes |
-| `backend/api/performance_api.py:40` | `get_slow_endpoints()` | yes |
-| `backend/services/perf_optimizer.py:51,83` | `p95_ms`, `cache_hit_rate_pct` | yes |
-| `backend/agents/meta_coordinator.py:266` | `p95_ms` | yes — **added cycle 2 (Q/A C5)** |
-| `backend/services/perf_tracker.py:121` (`get_slow_endpoints`) | `data["p95_ms"]`, then `{"endpoint": ep, **data}` — so `/api/performance/slow` rows now also carry the two new keys | yes, additive — **added cycle 2 (Q/A C5)** |
-| `backend/services/autonomous_loop.py:1579` | passes the tracker in (not a `summarize()` reader) — kept for traceability | n/a |
-| `frontend/src/app/settings/page.tsx:1360` | renders `count`/`p50_ms`/`p95_ms` only | yes |
-| `frontend/src/lib/types.ts:952-966` | new fields optional | yes |
+| IMMUTABLE criteria text | `masterplan.json` (82.0 `live_check`), `contract.md` (its verbatim copy) | Cannot be edited by protocol; overturned in `live_check_82.0.md` and annotated in `contract.md` |
+| The retraction itself | `masterplan.json` (82.3 description), `experiment_results.md` | Quotes the claim in order to withdraw it |
+| Verbatim evaluator record | `evaluator_critique_82.0.md`, `evaluator_critique_82.0_cycle2.json` | Must stay byte-exact -- it is the Q/A's own words |
+| Annotated dated record | `research_brief_82.0.md:281` | Struck through, marked WITHDRAWN, annotation block states the measured truth |
 
-**Cycle-1 honesty note:** the first version of this list said "every consumer enumerated"
-but was not derived from a full grep — Q/A found the two rows now marked *added cycle 2*.
-Both are safe; the *conclusion* held, its **completeness** was overstated. Recorded rather
-than quietly patched.
+Reproduce with:
 
-No key renamed, removed, or changed in meaning. The `if not recent:` early return makes
-both new divisions division-by-zero-safe.
-`test_observability_latency_keeps_its_pre_existing_keys` asserts no pre-existing key
-disappeared. `tsc --noEmit` clean.
+```
+grep -rnE "returns 0 today|preload_macro\` returns 0|preload_macro\(\) returns 0|returns 0 at .cache\.py" \
+  .claude handoff/current backend scripts docs CLAUDE.md | grep -v .venv
+```
 
-### Out of scope — queued, not silently fixed
+and check each hit against the table above. The invariant to verify is that no
+hit asserts the claim as a present fact -- not that the total equals any
+particular number.
 
-Per `feedback_queue_discovered_defects_in_masterplan`, to be installed as their own
-research-gated steps:
+**F2 -- test suite forging records into the operational ledger [WARN]. FIXED.**
+The receipts directory is now an injectable override
+(`DataIngestionService._receipts_dir_override`), an autouse fixture redirects
+every service built in this module to `tmp_path`, and a new regression pin
+(`test_tests_do_not_write_to_the_operational_receipts_ledger`) fails if a test
+ever writes to `handoff/logs/` again. MEASURED: two consecutive full-suite runs
+now move the real ledger by **0 lines** (was 13 -> 37 during one evaluation).
+`test_receipt_is_valid_jsonl`'s unused `tmp_path` and no-op `monkeypatch` --
+both correctly identified as vestigial -- are gone.
+DISCLOSED, NOT REWRITTEN: the ledger holds 37 records, of which exactly ONE
+(`rows_inserted=317`) is a genuine ingest and **36 are test residue** written
+before this fix. MEASURED partition (an earlier version of this sentence
+mis-partitioned its own set -- it said "28 ok + 8 skipped", which both counted
+the genuine ingest as residue and omitted the partial-failure record):
 
-1. **Three components bypass `apiFetch` entirely** and get none of this error handling:
-   `ResearchInvestigator.tsx:33`, `Sidebar.tsx:155`, `StockChart.tsx:94`.
-2. **Doc/code drift:** `.claude/rules/security.md` says `X-XSS-Protection: 1; mode=block`;
-   `backend/main.py:564` sets `0` (the modern-correct value). Pre-existing; this step did
-   not touch that header block, so it is flagged rather than quietly reconciled.
-
----
-
-## 6. DO-NO-HARM ledger
-
-| Item | Status |
+| bucket | n |
 |---|---|
-| Live paper-trading book | **Untouched.** No `.env` edit, no flag flip, no optimizer run, `historical_macro` FROZEN. Kill-switch / stops / sector caps / DSR / PBO byte-untouched |
-| Operator's `:8000` | Not restarted, same pid `70791` |
-| Operator's `:3000` | `/` → 302, `/login` → 200 after teardown |
-| Second trading loop | Prevented by `--lifespan off` (the lifespan starts an APScheduler paper-trading scheduler) |
-| Auth behaviour | Cannot change: the catch-all runs *inside* CORS which is *inside* the auth middleware. `test_401_is_unchanged_for_an_unauthenticated_caller` + `test_404_still_returns_404_not_500` + M7 |
-| Traceback in `backend.log` | Preserved via `logger.exception`; asserted by caplog (M3), verified live (live_check §E1) |
-| SSE (`mas_events.py:36`) | Byte-identical to the pre-fix control (live_check §E2) |
-| `perf_optimizer` p95 | Now includes 500-latency samples. It tunes **cache TTLs only**, never trade parameters — a measurement improvement, disclosed not hidden |
-| `tsconfig.json` / `next-env.d.ts` | Rewritten by `next dev`, restored; md5s back to baseline, `git status` clean |
+| genuine ingest (`rows_inserted=317`, outcome `ok`) | 1 |
+| residue, outcome `ok` | 27 |
+| residue, outcome `skipped_no_api_key` | 8 |
+| residue, outcome `partial_failed=FEDFUNDS,CPIAUCSL` | 1 |
+| **total** | **37** | Rewriting an append-only
+audit log to make it look clean is a worse habit than disclosing it, so they
+stay. The file is gitignored and rolls forward.
 
----
+**F3 -- newly-reachable per-cutoff BQ fallback [WARN]. FIXED + DISCLOSED.**
+This is a real defect introduced by this step, not a documentation gap. Arming
+a previously-vacuous gate makes `preload_macro` able to return 0 for the first
+time ever; `backtest_engine.py:308` DISCARDS that return value, so a refusal
+surfaces only as a WARNING and `cached_macro` falls through to the per-cutoff
+BQ query -- CLAUDE.md's ~40-minute path. Measured headroom at the 5-day daily
+SLA was ONE day (DGS10 newest 2026-07-30 = 4d), against a cron that has never
+been observed firing. FRED daily series skip weekends and US market holidays,
+so a long weekend plus one missed run would have tripped the gate on a
+perfectly healthy feed. Daily bounds widened 5 -> 12 days: still catches a
+genuinely dead feed by orders of magnitude (the observed failure was 212 days)
+while tolerating holidays and several missed runs. The residual risk --
+`backtest_engine.py:308` ignoring the return value -- is NOT fixed here (it is
+outside this step's surface) and is queued as **82.13**.
 
-## 7. Tier ledger (operator tiering directive)
+**F4 -- mis-attributed kill mechanism [WARN]. FIXED.**
+`test_gate_is_not_vacuous_on_the_production_date_type` asserted only
+`preload_macro() == 0`, which the fail-closed branch added in the same diff
+also satisfies -- so a re-introduced isinstance bug would have been "killed"
+by the wrong mechanism and passed for the wrong reason. It now pins the
+DISCRIMINATING behaviour: the refusal must come from the per-series SLA
+evaluation and name the stale series (`past their per-series SLA`,
+`GDP(newest=`), which a vacuous gate cannot produce.
 
-| Phase | Role | Model / effort | Why |
-|---|---|---|---|
-| RESEARCH | Agent-tool `researcher` | **T3** — Opus 5, `effort: max` (agent pin) | Audit-grade source reading; the gate is where a wrong premise is cheapest to catch |
-| GENERATE | Main | **T3** — Opus 5 `xhigh` | Design was decidable from source + settled by an executable probe; extra model capability buys nothing over a measurement |
-| EVALUATE | fresh Q/A | **T3** — Opus 5, `effort: max` | Independent verdict on a P0 |
+**F5 -- cycle-1 FAIL never persisted [WARN]. FIXED.**
+A genuine protocol breach by Main: `evaluator_critique.md` still held
+phase-80.2 content and no `evaluator_critique_82.0.*` existed, so the Q/A had
+to reconstruct the prior verdict from the author's own summary of it -- which
+defeats the point of an independent record. Both verdicts are now transcribed
+verbatim to `evaluator_critique_82.0.md` with the raw structured returns
+alongside.
 
-**Fable (T4) deliberately NOT spent here.** The goal reserves it for correctness-critical
-steps where a wrong answer moves the book; 80.2 changes no trading logic, and its
-correctness question was answered by measurement rather than judgment. Quota is preserved
-for `80.27` (NaN → live trading verdict), which is the step that does touch decisions.
+**F6 -- commit scope not disclosed [WARN]. FIXED (disclosure below).**
+
+## Commit scope -- what `git add -A` would actually ship
+
+**Stated as a classification, not a count.** The total moves every time this
+step writes anything -- including the status flip itself -- so a frozen number
+here is stale on commit (same self-mutating-claim trap as the phrase census
+above). Reproduce with `git add -An`:
+
+| class | belongs to this step? | note |
+|---|---|---|
+| `backend/{config/settings,main,backtest/{cache,data_ingestion,macro_cron}}.py`, `backend/tests/test_phase_82_0_*`, `scripts/migrations/add_macro_realtime_start.py`, `scripts/harness/build_evaluator_critique.py` | YES | the change surface |
+| `handoff/current/*`, `handoff/harness_log.md` | YES | this step's artifacts |
+| `.claude/masterplan.json` | PARTLY | phase-82 is 14 steps, but 8 of them are defects DISCOVERED during this work, not part of 82.0's own change |
+| `.claude/agent-memory/{qa,researcher}/*` | NO | written by the subagents during their own runs |
+| `handoff/archive/phase-81.2/*` | NO | the PRIOR step's snapshots, untracked at its close |
+| `handoff/autoresearch/*-ERROR-*.md` | NO | the failing nightly job -- the subject of queued step 82.11 |
+| `handoff/{audit,away_ops,*.jsonl}`, `.claude/.archive-baseline.json` | NO | runtime state mutated by hooks on every tool call |
+
+Everything in the NO rows rides along under this step's commit subject. That is
+the standing behaviour of `git add -A` in the auto-commit hook, not something
+this step introduced -- but it is disclosed rather than left implicit.
+
+## Defects discovered during GENERATE (each needs its own step)
+
+1. **FRED API key logged in plaintext (SECURITY).** `httpx` logs the full
+   request URL at INFO and `data_ingestion.py:313` puts `api_key=` in the query
+   string. `LOG_LEVEL` defaults to INFO, so the key has been written to backend
+   logs on every ingest, and it appeared in this session's console output.
+   **The key should be rotated.** Fix: POST body, or suppress the `httpx`
+   logger around this call. NOT fixed here -- needs its own research gate.
+2. **`run_macro_ingest` first-run bug, self-inflicted and caught live.**
+   `BigQueryClient()` was called without its required `settings` arg; the
+   top-level fail-open swallowed it and returned a clean `0`. That is precisely
+   the invisible-failure mode this step exists to kill, so the fail-open path
+   now writes a failure receipt. Fixed within this step.
+3. From the research brief, out of scope: `sortino.py:108` queries
+   `pyfinagent_data.historical_macro` (wrong dataset -- the table is in
+   `financial_reports`) for `DGS3MO`/`DTB3` (not in `FRED_SERIES`), so its
+   tier-1 lookup has always been dead; `data_server.py:185` serves stale rows
+   stamped `as_of: today`; `compute_freshness` is reachable only from HTTP
+   handlers the frontend calls, so nothing pages when a feed dies.
+
+## Scope honesty
+
+- **No live trading behaviour changed.** `macro_regime.py:23` reads FRED
+  directly via `backend/tools/fred_data.py`, not this table, so the live buy
+  funnel is untouched. This step alters backtest inputs and adds a scheduler
+  registration.
+- `backtest_end_date` itself was NOT modified -- backtests still read it. Only
+  the macro feed was severed from it.
+- The cron registration is verified against a stub scheduler AND by a source
+  scan of `main.py`. The job has NOT been observed firing on its trigger; that
+  needs a backend restart plus waiting for 08:10 ET.
+- The conservative vintage backfill (`DATE(ingested_at)`) is not the true
+  publication vintage for pre-existing rows. It cannot be earlier than the
+  truth, so it cannot manufacture look-ahead, but it makes point-in-time
+  backtests over the historical span slightly pessimistic.
+
+
+## CYCLE 5 -- disposition of the cycle-4 FAIL
+
+Cycle-4 verdict: **FAIL**, correctly applying the 3rd-consecutive-CONDITIONAL
+rule. Cycle 4 stated explicitly that **all 6 immutable criteria are MET**, each
+backed by a guard it proved can fail (C1->3 failed, C2->1, C3->2, C4->2 and ->2
+under two independent mutations, C5->2, C6 source-level removal of the
+`"realtime_start": vintage,` line -> the vintage test fails), and that the macro
+repair **must not be reverted**. `retry_count` is now 2/3 (two FAIL verdicts:
+cycles 1 and 4); `certified_fallback` remains false.
+
+The four close items it named, each verified in the same turn it was claimed:
+
+**(A) Cycle-3 verdict never transcribed -- a RECURRENCE of cycle-2 F5, which I
+had declared FIXED. FIXED, structurally.** Cycles 3 and 4 are now persisted as
+`_cycle3.json` / `_cycle4.json`, and `evaluator_critique_82.0.md` is no longer
+hand-maintained -- it is **GENERATED from the persisted returns**, so it cannot
+silently lag them again. Proof run: every persisted return has a matching
+section carrying the same verdict. This was the worst finding of the four,
+because declaring F5 fixed while leaving cycle 3 untranscribed forced the next
+evaluator to take a prior verdict from my own summary of it -- destroying the
+independence the transcription rule exists to protect.
+
+**(B) My cycle-4 annotation split the table it was repairing. FIXED.** The
+blockquote sat between table rows, so the final row -- `LIVE analysis pipeline
+| REFUTED -- not degraded`, the row that establishes this is NOT a live-money
+defect -- was swallowed as literal pipe-text. Annotation moved below the table
+and the orphaning blank line removed. Measured: 6 data rows now render inside
+the table, including the LIVE row. A correction that damages the artifact it
+corrects is worse than the error.
+
+**(C) "including the two" enumerated THREE. FIXED** -> now names the three
+explicitly with their step ids (82.8 sortino, 82.9 data_server, 82.10
+cycle_health), and additionally points at the LIVE row so an executor sees the
+urgency bound.
+
+**(D) "82.8/82.9/82.10/82.12 each named 'DEFECT from the 82.0 research brief'"
+-- MEASURED FALSE. FIXED.** Verified against masterplan.json before rewriting:
+3 of 4. 82.12 is a different lineage ("DEFECT CLASS sweep, surfaced by the 82.0
+cycle-1 Q/A FAIL"). Claim now says 82.8/82.9/82.10 and states the measurement.
+
+### The pattern, stated plainly
+
+This step has produced **five** false or unreproduced claims across four
+evaluation cycles -- "returned 0" (c1), "is annotated" + "two occurrences"
+(c3), "including the two" + "each named" (c4) -- and C and D were written
+*inside the section created to end that class*. The product code has been
+correct and converging since cycle 2; the claims about it took four more
+passes. Every instance was prose, none was code, and every one was caught by
+an independent evaluator rather than by me.
+
+The durable fixes are structural rather than resolutions to be more careful:
+the critique file is now generated rather than remembered, and counts over
+artifacts under edit are stated as reproducible invariants rather than numbers.
+Recorded in auto-memory `feedback_verify_own_completed_action_claims` (with the
+new self-mutating-count sub-lesson) and
+`reference_vacuous_type_guards_on_bq_string_columns`.

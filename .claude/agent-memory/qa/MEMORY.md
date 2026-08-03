@@ -1,5 +1,7 @@
 # Q/A Agent Memory Index
 
+- [structural-fix-needs-a-mechanism](feedback_structural_fix_needs_a_mechanism.md) — "it is GENERATED so it cannot lag again" had NO generator in the tree (82.0 c6); grade the produced-state and the mechanism separately; a newer input the output omits is the cheapest proof
+- [verdict-gate-ignores-per-cycle-json](project_verdict_gate_ignores_per_cycle_json.md) — the 81.2 resolver matches evaluator_critique_<sid>.json / the rolling file, NOT _cycleN.json; 82.0 reached the flip at ('no_input','none') fail-open
 - [committed-criterion-gitignore-check](project_committed_criterion_gitignore_check.md) — "file committed" criteria need git check-ignore + ls-files; *.log gitignore silently defeated 3 cycles (phase-17.4)
 - [scheduled-job-fix-evidence](project_scheduled_job_fix_evidence.md) — cron-fix streaks need POST-FIX scheduled nights, not manual runs (39.1 burned 2x); grep|head cmds are vacuous exit gates
 - [verbatim-paste-drift-arithmetic](project_verbatim_paste_drift_arithmetic.md) — wrong "verbatim" test counts: cross-suite total arithmetic separates stale transcription (NOTE) from untested change (escalate); count def test_ in the COMMIT (66.3; recurred in 66.1-closing tasking prompt)

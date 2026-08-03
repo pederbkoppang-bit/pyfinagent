@@ -3,8 +3,10 @@ Data ingestion service — downloads historical data from yfinance/FRED
 and stores it permanently in BigQuery. Run once, replay forever.
 """
 
+import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
@@ -33,6 +35,10 @@ class DataIngestionService:
         self.client = bq_client
         self.project = settings.gcp_project_id
         self.dataset = settings.bq_dataset_reports
+        # phase-82.0: retain the settings object. `_resolve_macro_end_date`
+        # needs `macro_ingest_end_date`; previously only project/dataset were
+        # unpacked here, so there was no way to read a setting at call time.
+        self.settings = settings
 
     def _table(self, name: str) -> str:
         return f"{self.project}.{self.dataset}.{name}"
@@ -286,24 +292,77 @@ class DataIngestionService:
     # ── Macro ────────────────────────────────────────────────────
 
     def _get_existing_macro(self) -> set[tuple[str, str]]:
+        """Dedupe key set for historical_macro.
+
+        phase-82.0: FAIL-CLOSED. This previously caught bare Exception and
+        returned an empty set, which is the worst possible failure mode for a
+        dedupe check: an empty set makes EVERY fetched observation look new, so
+        a transient BQ error during a backfill silently duplicates the whole
+        table. Mirrors the fail-closed contract already used by
+        `_get_existing_price_dates` (see that method) -- log at ERROR and
+        re-raise so the caller aborts the batch instead of double-writing.
+        """
         table = self._table("historical_macro")
         query = f"SELECT DISTINCT series_id, date FROM `{table}`"
         try:
-            rows = self.client.query(query).result()
+            rows = self.client.query(query).result(timeout=30)
             return {(r["series_id"], r["date"]) for r in rows}
-        except Exception:
-            return set()
+        except Exception as e:
+            logger.error(
+                f"Dedup check failed for historical_macro "
+                f"(fail-closed, aborting batch): {e}"
+            )
+            raise
 
-    def ingest_macro(self, start_date: str, end_date: str, fred_api_key: str) -> int:
-        """Download FRED macro series and store in BQ."""
+    def _resolve_macro_end_date(self, today: Optional[str] = None) -> str:
+        """FRED `observation_end` for macro ingestion.
+
+        phase-82.0 ROOT CAUSE: this used to be `settings.backtest_end_date`
+        ("2025-12-31"), threaded in from api/backtest.py. That constant IS the
+        value that historical_macro froze at -- every ingest dutifully asked
+        FRED for observations ending on the backtest cap, inserted zero rows,
+        and returned success. A macro feed's end date must track wall-clock,
+        never the backtest window. `macro_ingest_end_date` overrides only when
+        an operator wants a pinned, reproducible backfill.
+        """
+        pinned = (getattr(self.settings, "macro_ingest_end_date", "") or "").strip()
+        if pinned:
+            return pinned
+        return today or datetime.now(timezone.utc).date().isoformat()
+
+    def ingest_macro(
+        self,
+        start_date: str,
+        end_date: Optional[str] = None,
+        fred_api_key: str = "",
+    ) -> int:
+        """Download FRED macro series and store in BQ.
+
+        phase-82.0: `end_date` is now OPTIONAL and defaults to today via
+        `_resolve_macro_end_date`. Callers must NOT pass
+        `settings.backtest_end_date` -- see `_resolve_macro_end_date` for why
+        that coupling froze the table at 2025-12-31.
+
+        Every row is stamped with `realtime_start` (the vintage: the date on
+        which this observation became visible to us). Without it the table is
+        an un-attributable mosaic and macro-conditioned backtests inherit a
+        publication-lag look-ahead -- e.g. a GDP row dated 2026-04-01 that FRED
+        did not publish until 2026-07-30 is otherwise indistinguishable from
+        one known on its observation date.
+        """
         if not fred_api_key:
             logger.warning("FRED API key not configured, skipping macro ingestion")
+            self._write_macro_receipt(0, "skipped_no_api_key", end_date or "")
             return 0
 
+        end_date = self._resolve_macro_end_date(end_date)
         table = self._table("historical_macro")
         now = datetime.now(timezone.utc).isoformat()
+        # Vintage stamp: the date we first observed these values.
+        vintage = datetime.now(timezone.utc).date().isoformat()
         existing = self._get_existing_macro()
         total_inserted = 0
+        failed_series: list[str] = []
 
         for series_id in FRED_SERIES:
             try:
@@ -333,6 +392,8 @@ class DataIngestionService:
                         "date": date_str,
                         "value": float(val),
                         "ingested_at": now,
+                        # phase-82.0 vintage: when this value became visible.
+                        "realtime_start": vintage,
                     })
 
                 if rows:
@@ -346,9 +407,58 @@ class DataIngestionService:
 
             except Exception as e:
                 logger.warning(f"Failed FRED series {series_id}: {e}")
+                failed_series.append(series_id)
 
-        logger.info(f"Ingested {total_inserted} macro rows")
+        # phase-82.0 run-receipt. `MAX(ingested_at)` only advances when rows are
+        # actually inserted, so append+dedupe makes a HEALTHY no-op run (nothing
+        # new published yet) byte-indistinguishable from a job that never ran at
+        # all. That ambiguity is precisely why a never-scheduled feed sat
+        # unnoticed for months. The receipt records the attempt itself.
+        outcome = "ok" if not failed_series else f"partial_failed={','.join(failed_series)}"
+        self._write_macro_receipt(total_inserted, outcome, end_date)
+
+        logger.info(
+            f"Ingested {total_inserted} macro rows "
+            f"(observation_end={end_date}, outcome={outcome})"
+        )
         return total_inserted
+
+    # phase-82.0 cycle-3 (Q/A CONDITIONAL finding 2): the receipts path is a
+    # module-level override point so tests can redirect it. Previously the
+    # suite appended to the REAL operational ledger -- the Q/A measured it
+    # growing 13 -> 37 lines during one evaluation, including forged
+    # {"outcome":"ok","rows_inserted":1} records byte-shaped like a genuine
+    # ingest. That erodes the exact distinguishability criterion 5 exists to
+    # create: a ledger any pytest run can write "ok" into is not evidence.
+    _receipts_dir_override: Optional[Path] = None
+
+    def _receipts_dir(self) -> Path:
+        if self._receipts_dir_override is not None:
+            return Path(self._receipts_dir_override)
+        return Path(__file__).resolve().parents[2] / "handoff" / "logs"
+
+    def _write_macro_receipt(self, inserted: int, outcome: str, end_date: str) -> None:
+        """Append a macro-ingestion run receipt. Fail-OPEN by design.
+
+        Deliberately fail-open: a receipt is observability, and losing one must
+        never abort a successful ingest. This is the opposite call from
+        `_get_existing_macro` (fail-CLOSED) because the blast radii differ --
+        a lost receipt costs visibility, a lost dedupe set corrupts the table.
+        """
+        try:
+            path = self._receipts_dir()
+            path.mkdir(parents=True, exist_ok=True)
+            rec = {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "job": "macro_ingest",
+                "rows_inserted": inserted,
+                "outcome": outcome,
+                "observation_end": end_date,
+            }
+            with open(path / "macro_ingest_receipts.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+        except Exception as exc:  # pragma: no cover - observability only
+            logger.warning("macro run-receipt write fail-open: %r", exc)
 
     # ── Orchestrator ─────────────────────────────────────────────
 
@@ -370,7 +480,12 @@ class DataIngestionService:
 
         prices = self.ingest_prices(tickers, start_date, end_date)
         fundamentals = self.ingest_fundamentals(tickers)
-        macro = self.ingest_macro(start_date, end_date, fred_api_key)
+        # phase-82.0: deliberately does NOT forward `end_date` here. That param
+        # carries settings.backtest_end_date ("2025-12-31"), and passing it made
+        # every macro ingest a silent zero-row no-op. Passing None lets
+        # _resolve_macro_end_date track wall-clock. Prices/fundamentals keep the
+        # backtest window; only the macro feed is severed from it.
+        macro = self.ingest_macro(start_date, None, fred_api_key)
 
         result = {
             "prices_inserted": prices,

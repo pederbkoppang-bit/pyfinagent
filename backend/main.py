@@ -321,6 +321,21 @@ async def lifespan(app: FastAPI):
                     logging.warning(
                         "harness self-audit cron registration fail-open: %r", _e
                     )
+            # phase-82.0: FRED macro ingestion had NO scheduled caller at all --
+            # the feed was never on a cadence, so historical_macro sat 128 days
+            # stale. NOTE (corrected in cycle-2 after a Q/A FAIL): the staleness
+            # guard in cache.preload_macro did NOT refuse that data -- it tested
+            # isinstance(date, datetime.date) against a STRING column, so it was
+            # vacuous and silently CACHED the stale macro. Backtests were being
+            # fed 212-day-old macro features, which is worse than refusing.
+            # Fail-open inside register_*; free (FRED key, no metered spend).
+            try:
+                from backend.backtest.macro_cron import register_macro_ingest_cron
+                register_macro_ingest_cron(scheduler)
+            except Exception as _e:  # never break startup
+                logging.warning(
+                    "macro ingest cron registration fail-open: %r", _e
+                )
             logging.info("Paper trading scheduler started")
         except ImportError:
             logging.warning("APScheduler not installed, paper trading scheduler disabled")

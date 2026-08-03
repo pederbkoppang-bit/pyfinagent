@@ -1,0 +1,12 @@
+{
+  "cycle": 5,
+  "outcome": "ERRORED -- NO VERDICT",
+  "error": "agent({schema}): subagent completed without calling StructuredOutput (after in-conversation nudge)",
+  "run_id": "wf_7b2f1664-6b5",
+  "agents_empty_result": 1,
+  "subagent_tokens": 163105,
+  "tool_uses": 36,
+  "duration_ms": 429778,
+  "disposition": "Per CLAUDE.md: 'An errored/empty return is NO VERDICT, never PASS -> fall back to the Agent-tool path.' This run is NOT counted as a verdict and does NOT advance the CONDITIONAL counter or retry_count. Step 82.0 remains OPEN. Re-evaluated via the Agent-tool `qa` subagent (the documented fallback).",
+  "note": "Inverse of auto-memory feedback_workflow_qa_when_subagents_stall: there the Agent-tool end-flush stalled and the Workflow rail was the fix. Here the Workflow rail itself failed to emit structured output after 36 tool calls and ~430s of real work. Neither rail is universally reliable; the invariant that matters is that an errored return is never read as a pass."
+}

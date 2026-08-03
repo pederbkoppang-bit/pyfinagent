@@ -23,7 +23,44 @@ _DEFAULT_MARKET = "US"
 # after month end) with grace. Older than this and `preload_macro`
 # refuses to cache + emits a WARNING -- prevents silently powering
 # backtests with stale macro factors. Closes audit bucket 24.7 F-5.
+#
+# phase-82.0: RETAINED as the fallback for any series absent from
+# MACRO_SERIES_MAX_AGE_DAYS below, but it is NO LONGER the gate. Two
+# independent defects made the flat global threshold unfit:
+#   (a) it was applied to a GLOBAL max across all series, so daily DGS10 /
+#       T10Y2Y masked a completely dead GDP -- the guard could not detect
+#       the very failure it was written for; and
+#   (b) FRED dates monthly series to the month START and quarterly series
+#       to the quarter START, so a perfectly HEALTHY GDP newest row is
+#       routinely ~211 days old and a healthy CPIAUCSL ~72 days. A flat
+#       35-day bound is therefore unsatisfiable per-series -- it would
+#       condemn a fully current table.
 MACRO_MAX_AGE_DAYS = 35
+
+# phase-82.0: per-series freshness SLA, in days, measured against the
+# series' own newest observation DATE (not ingested_at). Values account for
+# FRED's start-of-period dating plus real publication lag.
+#
+# phase-82.0 cycle-3 (Q/A finding 3): the daily bounds were widened 5 -> 12.
+# Arming this gate makes `return 0` REACHABLE FOR THE FIRST TIME -- the guard
+# was vacuous before, so preload_macro always cached. At 5 days the measured
+# live headroom was ONE day (DGS10 newest 2026-07-30 = 4d), and FRED daily
+# series do not publish on weekends or US market holidays. A long weekend plus
+# a single missed cron run would have tripped the gate on a perfectly healthy
+# feed, and because backtest_engine.py:308 DISCARDS preload_macro's return
+# value, the only symptom would be a silent fall-through to the per-cutoff BQ
+# query in cached_macro -- CLAUDE.md's ~40-minute path. 12 days spans a
+# holiday weekend plus several missed runs while still catching a genuinely
+# dead feed by three orders of magnitude (the observed failure was 212 days).
+MACRO_SERIES_MAX_AGE_DAYS: dict[str, int] = {
+    "DGS10": 12,      # daily (business days only; holiday-tolerant)
+    "T10Y2Y": 12,     # daily
+    "FEDFUNDS": 70,   # monthly, dated to month start
+    "UMCSENT": 70,    # monthly
+    "UNRATE": 75,     # monthly
+    "CPIAUCSL": 80,   # monthly, longer release lag
+    "GDP": 225,       # quarterly, dated to quarter start
+}
 
 # ── Preloaded full-range data (keyed by ticker only, sliced on read) ─
 _prices_full: dict[str, pd.DataFrame] = {}
@@ -226,29 +263,83 @@ def preload_macro() -> int:
         return 0
 
     # phase-25.D7: refuse to cache stale macro -- prevents silent backtest
-    # corruption when FRED ingestion stalls. Compare the most recent row
-    # date across all series with today - MACRO_MAX_AGE_DAYS.
+    # corruption when FRED ingestion stalls.
+    # phase-82.0: evaluated PER SERIES. The previous implementation took a
+    # single global max across every series, which meant one live daily series
+    # (DGS10 updates every business day) satisfied the gate on behalf of a
+    # series that had been dead for years. Any stale series now fails the gate.
+    #
+    # phase-82.0 cycle-2 (Q/A FAIL): `historical_macro.date` is a **STRING**
+    # column, not DATE -- BQ schema ('date','STRING','REQUIRED'), declared at
+    # scripts/migrations/migrate_backtest_data.py:68, and live rows come back as
+    # e.g. '2023-07-03' (type str). The pre-existing phase-25.D7 gate tested
+    # `isinstance(rd, date)`, which is FALSE for every production row, so
+    # `max_date` stayed None, the staleness branch was skipped entirely, and
+    # preload_macro cached whatever it was given. **That guard has never fired
+    # in production since the day it was written.** It did not "refuse stale
+    # macro"; it silently served it, which is the worse failure. The cycle-1
+    # per-series rewrite inherited the same isinstance bug and was equally
+    # vacuous. Dates are now COERCED before comparison, so the gate works on
+    # the type the query actually returns.
     from datetime import date as _date, datetime as _dt
+
+    def _coerce_date(v) -> Optional[_date]:
+        """BQ returns this column as str; tests and other callers may pass
+        date/datetime. Accept all three; anything unparseable is skipped."""
+        if isinstance(v, _dt):
+            return v.date()
+        if isinstance(v, _date):
+            return v
+        if isinstance(v, str):
+            try:
+                return _date.fromisoformat(v[:10])
+            except ValueError:
+                return None
+        return None
+
     today = _date.today()
-    max_date: Optional[_date] = None
+    per_series_max: dict[str, _date] = {}
+    unparsed = 0
     for r in rows:
-        rd = r.get("date") if hasattr(r, "get") else r["date"]
-        if isinstance(rd, _dt):
-            rd = rd.date()
-        if isinstance(rd, _date):
-            if max_date is None or rd > max_date:
-                max_date = rd
-    if max_date is not None:
-        age_days = (today - max_date).days
-        if age_days > MACRO_MAX_AGE_DAYS:
-            logger.warning(
-                "preload_macro: stale data, refusing to cache "
-                "(max_date=%s age=%d days threshold=%d days)",
-                max_date.isoformat(),
-                age_days,
-                MACRO_MAX_AGE_DAYS,
-            )
-            return 0
+        row = r if isinstance(r, dict) else dict(r)
+        sid = row.get("series_id", "")
+        rd = _coerce_date(row.get("date"))
+        if rd is None:
+            unparsed += 1
+            continue
+        cur = per_series_max.get(sid)
+        if cur is None or rd > cur:
+            per_series_max[sid] = rd
+
+    # Fail CLOSED on a table we cannot evaluate. Previously an unreadable date
+    # column silently disabled the entire gate; refusing is the safe direction
+    # because the caller treats 0 as "no macro cached" and surfaces it.
+    if not per_series_max and rows:
+        logger.warning(
+            "preload_macro: refusing to cache -- could not parse a usable date "
+            "from any of %d rows (%d unparsed); the freshness gate cannot be "
+            "evaluated, so the data is not trusted",
+            len(rows),
+            unparsed,
+        )
+        return 0
+
+    stale: list[str] = []
+    for sid, newest in sorted(per_series_max.items()):
+        limit = MACRO_SERIES_MAX_AGE_DAYS.get(sid, MACRO_MAX_AGE_DAYS)
+        age_days = (today - newest).days
+        if age_days > limit:
+            stale.append(f"{sid}(newest={newest.isoformat()} age={age_days}d limit={limit}d)")
+
+    if stale:
+        logger.warning(
+            "preload_macro: stale data, refusing to cache -- %d of %d series "
+            "past their per-series SLA: %s",
+            len(stale),
+            len(per_series_max),
+            "; ".join(stale),
+        )
+        return 0
 
     total_rows = len(rows)
     current_series: str | None = None

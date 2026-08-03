@@ -242,6 +242,13 @@ class Settings(BaseSettings):
     # --- Backtest ---
     backtest_start_date: str = Field("2018-01-01", description="Walk-forward backtest start date")
     backtest_end_date: str = Field("2025-12-31", description="Walk-forward backtest end date")
+    # phase-82.0: macro ingestion MUST NOT inherit backtest_end_date. That coupling
+    # (api/backtest.py:262 -> run_full_ingestion -> ingest_macro -> the FRED
+    # &observation_end= param) is why historical_macro froze at exactly 2025-12-31:
+    # every ingest asked FRED for data ending on the backtest cap and inserted zero
+    # rows while reporting success. Empty string = "up to today", which is what a
+    # live macro feed needs. Set a date only to pin a reproducible backfill.
+    macro_ingest_end_date: str = Field("", description="phase-82.0: FRED observation_end for macro ingestion. Empty = today (correct for a live feed). Deliberately decoupled from backtest_end_date -- see the comment above and handoff/archive/phase-82.0/research_brief_82.0.md.")
     backtest_train_window_months: int = Field(12, description="Initial training window in months (expanding)")
     backtest_test_window_months: int = Field(3, description="Test window in months")
     backtest_embargo_days: int = Field(5, description="Embargo gap between train/test (trading days)")

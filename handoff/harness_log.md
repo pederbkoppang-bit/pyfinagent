@@ -29869,3 +29869,70 @@ the two `print` lines in `--resolve` mode leaves 18/18 tests green while silentl
 production gate. Same class this phase exists to kill. Also: `harness_state_reader.py` None-guard,
 the third and fourth naming conventions, the `archive-handoff.sh` `${sid}`/`short_sid` bug, and the
 75.11.4-vs-`live_check_gate` criteria conflict needing operator resolution.
+
+---
+
+## Cycle 179 -- 2026-08-03 -- phase=82.0 result=PASS
+
+**Step**: 82.0 (P0) -- macro ingestion durable repair + un-freeze. Opens phase-82 (the operator's
+`/goal`: what we buy now, and what we should buy in an overpriced market). Research-gated
+(`research_brief_82.0.md`, gate_passed=true, 8 sources read in full, 22 URLs, 19 internal files).
+Backtest inputs + a scheduler registration only; **no live trading behaviour changed** --
+`macro_regime.py:23` reads FRED directly via `backend/tools/fred_data.py`, not this table.
+
+**Root cause was ABSENCE, not breakage.** `ingest_macro` had no scheduled caller at any point in
+the repo's history (one caller, `run_full_ingestion`; its three call sites are a dead cold-start
+guard, a manual API task, and a one-shot migration; `git log -S` shows none was ever removed).
+Compounding it, `settings.backtest_end_date="2025-12-31"` was threaded into the FRED
+`observation_end` param, so every manual run asked for data ending on the backtest cap and inserted
+ZERO rows while reporting success.
+
+**THE BIGGER FINDING -- a guard that never fired.** `historical_macro.date` is a **STRING** column.
+The phase-25.D7 staleness gate tested `isinstance(rd, datetime.date)` -- false for every production
+row -- so the refusal branch never executed **from the day it was written**. It did not refuse stale
+macro; it silently served it. Backtests have been trained on 212-day-old macro features for as long
+as that guard existed. Main's cycle-1 claim that `preload_macro` "returned 0" was FALSE (it returned
+4412); caught by the Q/A and withdrawn everywhere, incl. two production comments that had shipped
+the wrong causal story as fact. Defect class queued as 82.12.
+
+**Shipped**: end-date severed from `backtest_end_date`; `_get_existing_macro` fails CLOSED (was
+`except -> set()`, a table-duplication hazard ahead of a backfill); per-series freshness SLA with
+date coercion replacing the global-max gate; run-receipt on every attempt incl. pre-ingest failures;
+`realtime_start` vintage column via a versioned idempotent migration; the scheduled caller, wired
+into startup. LIVE: 4412 -> **4729** rows, `MAX(date)` past 2025-12-31, every series inside its SLA,
+`preload_macro()` 4412 -> 4729, gate proven non-vacuous in BOTH directions on the production type.
+
+**Verdict history**: C1 **FAIL** (vacuous guard + false headline) -> C2 CONDITIONAL -> C3
+CONDITIONAL -> C4 **FAIL** (3rd-CONDITIONAL rule, applied correctly) -> C5 **ERRORED, no verdict**
+(Workflow empty-emit at 36 calls/163k tokens) -> C6 **PASS** via the Agent-tool fallback.
+`retry_count` 2/3; `certified_fallback` false. C6 ran its own 8/8 mutation matrix (tree md5
+unchanged), re-executed the live evidence, and confirmed **0 pre-existing masterplan criteria
+changed** across all 1061 verification blocks.
+
+**THE HONEST PART -- the code was right from cycle 2; my PROSE took four more passes.** Six false or
+unreproduced claims: "returned 0" (C1), "is annotated" + "two occurrences" (C3), "including the two"
++ "each named" (C4), "GENERATED ... cannot lag" (C6). Two were written *inside* the section created
+to end that class, and one correction split the blast-radius table so the row proving this is NOT a
+live-money defect fell out of it. Structural fixes, not resolutions to be careful:
+`scripts/harness/build_evaluator_critique.py` now GENERATES the critique record from the raw returns
+with a `--check` staleness gate (mutation-proven to fail), and counts over artifacts under edit are
+stated as reproducible invariants instead of numbers. Memory: `feedback_verify_own_completed_action_claims`
+(+self-mutating-count), `reference_vacuous_type_guards_on_bq_string_columns`,
+`feedback_workflow_qa_when_subagents_stall` (+4th empty-emit; the lever is PROMPT SIZE, not the rail
+-- I switched rails instead of shortening, against this file's own advice).
+
+**GATE DOGFOOD**: C6 caught that the phase-81.2 verdict gate had **no input** for this step -- the
+resolver matches `evaluator_critique_82.0.json`, not `_cycleN.json`. Persisted; the CLI the hook
+actually runs now returns `passed` / `current:per-step`.
+
+**Register**: 8 defects queued from this one step -- 82.7 (P0, FRED API key logged in PLAINTEXT via
+httpx URL logging at INFO; **OPERATOR MUST ROTATE THE KEY**), 82.8 (sortino MAR wrong dataset AND
+wrong series -- always dead), 82.9 (data_server stamps stale rows `as_of: today`), 82.10 (freshness
+alarm is browser-driven; correctly red for 128 days into an empty room), 82.11 (autoresearch failed
+10 consecutive days on Anthropic credit exhaustion, silently), 82.12 (vacuous-type-guard sweep),
+82.13 (`backtest_engine.py:308` discards `preload_macro`'s return -- arming the gate made that
+newly reachable). Three of these are the same systemic pattern: a monitor that works and cannot
+reach the operator.
+
+**Next**: 82.1 (incumbent strategy spec + turnover diagnosis) -- the operator's actual goal. The
+book is NOT stuck: 33 BUY/32 SELL/1 open; the screenshot caught it genuinely flat.
