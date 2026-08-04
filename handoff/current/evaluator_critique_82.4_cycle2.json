@@ -1,0 +1,70 @@
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "All 4 immutable criteria for 82.4 are MET on independent verification (immutable cmd exit=0, 15 passed; 13/13 citations resolve AND I printed every cited line to confirm it supports its claim; caveat 8 states the endogeneity MECHANISM substantively, not keywords; all 7 cited masterplan steps exist with non-empty criteria + command), harness compliance is clean on all 5 items, and no unintended production change occurred (zero files under backend/services|tools|agents -- Main's \"no live-funnel change\" claim reproduces). CONDITIONAL is capped by one non-advisory gap: handoff/current/live_check_82.4.md is ABSENT while 82.4's own verification.live_check demands \"the FigJam diagram URLs, plus a note recording whether the Figma MCP was reachable at capture time\", and the pack itself contains ZERO occurrences of figjam/figma/mcp even though the step name instructs that both be recorded IN the design pack -- the substitution rationale lives only in experiment_results.md. Per CLAUDE.md the live_check hold exits before `git add -A`, so this mechanically blocks commit+changelog+push. Plus one reproducible Contradiction: pack line 332 labels **82.6** as P1 while masterplan records priority P2, which also mis-orders the table titled \"in evidence-supported priority order\".",
+  "violated_criteria": [
+    "Missing_Assumption: live_check_82.4.md absent + Figma-MCP availability and FigJam-substitution note missing from the design pack (BLOCK-for-close)",
+    "Contradiction: pack labels 82.6 as P1; masterplan records P2, mis-ordering the priority table (WARN)",
+    "Overgeneralization: endogeneity guard is keyword-satisfiable -- mutant M2 survived (WARN)",
+    "Missing_Assumption: citation guard regex cannot see bare file.py:NNN refs; a few code claims uncited (WARN)",
+    "Missing_Assumption: live-book measurements in caveats 2 and 8 carry no reproducing command (advisory)"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "test -f handoff/current/live_check_82.4.md; grep -ciE 'figjam|figma|mcp' docs/strategy/phase82_design_pack.md",
+      "state": "live_check_82.4.md ABSENT; grep count in the pack = 0. The mermaid-for-FigJam substitution rationale (operator decision: Starter View seat = 6 MCP calls/MONTH) appears only in handoff/current/experiment_results.md:63-64, never in the deliverable itself.",
+      "constraint": "SEVERITY BLOCK-for-close. masterplan 82.4 verification.live_check = 'the FigJam diagram URLs, plus a note recording whether the Figma MCP was reachable at capture time'; step name = 'Record the FigJam URLs in the design pack and disclose the capture-time MCP availability'. CLAUDE.md live_check gate: the hold exit 0s at auto-commit-and-push.sh:155/:181/:206, BEFORE git add -A at :239, so commit+changelog+push are all skipped. Not one of the 4 immutable criteria, so it cannot force FAIL -- but it blocks the close."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "grep -n '82\\.6\\*\\* | P' docs/strategy/phase82_design_pack.md vs priority lookup in .claude/masterplan.json",
+      "state": "pack:332 = '| **82.6** | P1 | Design the registry->live bridge |'; masterplan phase-82 step 82.6 priority = 'P2'. 82.21 is the genuine P1 and is listed BELOW 82.6.",
+      "constraint": "SEVERITY WARN. Section 6.3 is titled 'Queued actions, in evidence-supported priority order'; a priority label in the deliverable must reproduce from the masterplan it cites (qa.md 4b: every label claim must re-derive, not be retyped)."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "mutation M2 -- replaced caveat 8 with a 2-sentence stub retaining only the four grepped tokens ('outcome, not a treatment', 'tautological', 'by construction', '0.5pp', 'sigma'), ran all 15 tests via monkeypatched mod.PACK against a scratchpad copy",
+      "state": "M2 SURVIVED (all 15 green). test_pack_records_the_endogeneity_caveat is keyword-satisfiable -- vacuity shape #3, literal-kept/substance-stripped. NOT the basis of my C3 finding: I read pack:180-199 directly and it IS substantive (states the causal direction 'the stop caused the short hold, and the short hold did not cause the loss', names the live-book 92%/33% comparison as nearly information-free, and gives the actionable counterpart).",
+      "constraint": "SEVERITY WARN, not BLOCK. qa.md 4c -- a guard that cannot fail when its subject is broken does not count. WARN rather than BLOCK because the criterion is a documentation criterion whose subject IS text, and 10 of my 11 mutants were killed. Named fix: assert the causal sentence ('the stop caused the short hold') or a minimum caveat-8 length."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "python re-scan of the pack for bare file:line refs the guard regex structurally cannot see",
+      "state": "_CITE requires a 'backend|frontend|scripts|handoff|docs/' prefix, so `backtest_engine.py:665` (caveat 4) is INVISIBLE to test_every_citation_resolves. I resolved it manually: backend/backtest/backtest_engine.py:665 = 'horizon_days = int(self.holding_days * 1.5)' -- the claim is CORRECT, so no live defect, but the guard's population is narrower than the criterion's.",
+      "constraint": "SEVERITY WARN. criterion 82.4(2) 'every code claim ... carries a file:line reference that resolves in the current tree'. Also uncited-but-locatable: caveat 6 '`total_return_pct` already deducts commission on every fill'; caveat 8 `trade_statistics`/`avg_holding_days_win|loss`; sec 2 `rotation_log.jsonl`. (The `generate_report` and `STRATEGY_REGISTRY` items are absence claims where a line number is arguably not meaningful.) Every claim naming a code LOCATION does carry a resolving reference, which is why C2 is graded MET."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "qa.md 4b claim audit -- searched pack + experiment_results for the reproducing command behind the live-book measurements",
+      "state": "Caveat 8's '32 closed round-trips: 13 long holds, 92% win, +29.52% mean; 15 short holds, 33% win, -2.75% mean' and '10 of 32 round-trips exited within 0.5pp of their worst point', plus caveat 2's '+18.86%, Sharpe 3.32', carry NO reproducing query or script in either artifact.",
+      "constraint": "SEVERITY advisory. Every numeric claim must carry, or permit re-derivation of, the exact command that produces it. These specific numbers carry the pack's ONLY actionable non-tautological recommendation (stop placement -> sigma-unit barriers), so they are load-bearing and should cite their source query."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_5_item",
+    "research_gate_envelope",
+    "mtime_ordering_contract_before_generate",
+    "log_last_and_criteria_erosion_diff",
+    "no_verdict_shopping_evidence_delta",
+    "immutable_verification_command",
+    "ruff_F821_F401_F811_derived_scope",
+    "ruff_scope_non_vacuity_control",
+    "citation_resolution_all_13_printed",
+    "bare_citation_manual_resolution",
+    "masterplan_step_existence_criteria_command",
+    "mutation_matrix_11_mutants",
+    "headline_number_reproduction",
+    "compute_pbo_T_lt_32_source_verification",
+    "scope_honesty_live_funnel_untouched",
+    "claim_audit_4b",
+    "guard_vacuity_4c",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS COMPLIANCE (5/5 CLEAN). (1) Research gate: handoff/current/research_brief_82.4.md, envelope gate_passed=true, external_sources_read_in_full=6 (>=5 floor), urls_collected=29, recency_scan_performed=true; contract.md:6-8 cites it. (2) mtime order CORRECT: brief 2026-08-03T19:59:48 < contract 20:20:57 < pack 2026-08-04T08:38:44 < guard test 08:39:31. (3) experiment_results.md present (08:39:19). (4) Log-last: `grep -cF 'phase=82.4' handoff/harness_log.md` = 0; masterplan 82.4 status=pending; 82.3 AND 82.4 criteria+command BYTE-IDENTICAL to HEAD; 0 deletion lines in the masterplan diff -- no criteria erosion. (5) No verdict-shopping: cycle-1 = FAIL and evidence CHANGED materially (pack modified, experiment_results rewritten with a CYCLE 2 section, and BOTH guard test files newly created -- they did not exist at cycle 1 per F3). Legitimate cycle-2 respawn. 3rd-CONDITIONAL rule does NOT bind: zero prior harness_log entries for 82.4.\n\nDETERMINISTIC. Immutable cmd `source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_4_design_pack.py -q` -> \"15 passed in 0.02s\", exit=0. The artifact's verbatim block shows 15 progress dots over \"15 passed\" (and 14 over 14 for 82.3) -- internally consistent, not spliced. Ruff F821/F401/F811 over the GIT-DERIVED .py scope (3 files, non-empty asserted) -> \"All checks passed!\", exit=0; NON-VACUITY CONTROL: the identical file list under --select E501 returns \"Found 22 errors\", proving ruff actually parsed all three (guards against the zsh word-split / empty-set false pass). No frontend diff -> 1b not triggered. Deliverable is a markdown/mermaid doc, not a running-app UI claim -> 1c not triggered. Tracked diff scope: .claude/masterplan.json (+61, ADDITIONS ONLY -- the 82.22/82.23/82.24 queue), quant_results.tsv (+7), scripts/harness/run_82_3_candidate_backtests.py (+22), mda_cache.json (regenerated cache). ZERO files under backend/services|tools|agents -- Main's \"no live-funnel change\" claim reproduces independently.\n\nCRITERION-BY-CRITERION. C1 MET -- docs/strategy/phase82_design_pack.md; four titled per-strategy flows each covering universe->signal->regime gate->sizing->exit side by side, plus a cross-strategy stage table, per-strategy rows in sec 4/5 and per-strategy prose; sec 6 \"Ranked recommendation\" with sec 2 stating the rule (gates -> Pareto -> lexicographic, declared order, PRE-REGISTERED, no weighted composite justified by arXiv:2508.00129). C2 MET (with the two WARNs above) -- 13 matched citations, 12 unique, ALL resolve; I printed EVERY cited line, not a sample: autonomous_loop.py:1644 reproduces the quoted comment \"# strategy router (deferred to phase-31)\" VERBATIM; :1649 = `current_strategy = (best_params.get(\"strategy\", \"unknown\")`; backtest_engine.py:1322 = `def _sigma_barriers(...)` -- the off-by-one Main reports fixing (:1296 -> :1322) is CORRECT now; analytics.py:184 = `def compute_pbo(pnl_matrix, S: int = 16)`, and I separately verified caveat 9 from :205 `if N < 2 or T < S * 2:` (S=16 => T<32), so \"returns 0.0 silently when T<32\" is TRUE; screener.py:252, portfolio_manager.py:391, paper_trader.py:296/:778/:797, data_ingestion.py:215 all support their claims. C3 MET SUBSTANTIVELY -- pack:180-199 is a mechanism statement, not keyword-stuffing: it heads with \"HOLDING PERIOD IS AN OUTCOME, NOT A TREATMENT\", gives the by-construction case (day-1 stop-out => one-day hold), states the causal direction explicitly (\"the stop caused the short hold, and the short hold did not cause the loss\"), names the live-book 92%/33% comparison as carrying \"almost no information about what to *do*\", extends the trap to avg_holding_days_win/loss, and supplies the non-tautological counterpart (stop PLACEMENT -> sigma-unit barriers). C4 MET -- all 7 bolded steps (82.6, 82.7, 82.19, 82.21, 82.22, 82.23, 82.24) exist in phase-82, all status=pending, all harness_required, each carrying 3-4 non-empty criteria AND a verification command.\n\nMUTATION MATRIX (11 mutants + control; scratchpad copies via monkeypatched mod.PACK -- the repo was never written). KILLED 10: M1 caveat-8 deleted (killed by 2 tests), M3 line->999999, M3b path->nonexistent, M4 \"No weighted composite\" removed, M5 PBO 0.7486->0.7000, M5b return->99.99, M6 cite nonexistent 82.99, M7 \"no winner\" removed, M8 PRE-REGISTERED de-capitalised, M9 strategy renamed. Control M0 all-green. ONE SURVIVOR: M2 (see violation_details) -- the inherent limit of a text guard on a prose deliverable; my C3 finding rests on my own reading, not on that test.\n\nRECOMMENDATION JUDGED (Main's question 5): \"no promotion, repair the gate first\" is SUPPORTED, NOT an over-reach from a 0/3 result. The elimination does not rest on PBO at all -- all three full-sample strategies fail the DSR>=0.95 term outright (0.5353-0.6117). The stronger \"repair BEFORE any promotion\" claim rests on two independently verifiable facts: compute_pbo exists at analytics.py:184 but generate_report never calls it (so the gate's PBO term was never evaluated for anything ever promoted), and optimizer_best.json's DSR 0.9526 is attributed to a run whose own artifacts show 0.006-0.639 (82.22). A gate with one term uncomputed and one mis-attributed cannot certify. The pack correctly refuses to rank a least-bad option, correctly declares pass B non-evidence (column corr 0.967-0.979; stretch_regime PBO flips 0.196->0.689), and pre-empts its own strongest over-reach in 6.2(iv) (\"robustly mediocre ... not an endorsement\"). DSR is disclosed as UNDEFLATED (num_trials=1), i.e. the OPTIMISTIC bound -- which makes the 0/3 elimination CONSERVATIVE, since proper deflation only lowers DSR. No over-reach found.\n\nTO REACH PASS (all fixable, none require re-running the science): (a) write handoff/current/live_check_82.4.md AND add a short note to the pack recording that the Figma MCP was not usable at capture time (Starter View seat = 6 MCP calls/month, operator decision) and that mermaid substitutes for FigJam, so the deliverable itself -- not just experiment_results -- carries the disclosure the step name requires; (b) correct 82.6 to P2 in the sec 6.3 table and re-check the row order against masterplan priorities; (c) optionally widen _CITE to catch bare `file.py:NNN` refs and strengthen the caveat-8 assertion against M2. Items (b)/(c) are WARN-level; (a) is what mechanically blocks the close.",
+  "step_id": "82.4",
+  "cycle_num": 2
+}

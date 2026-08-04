@@ -1,0 +1,62 @@
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "All THREE immutable criteria for 82.3 are MET and independently reproduced by me: (1) two result artifacts under backend/backtest/experiments/results/ cover every candidate (pass A: triple_barrier/stretch_regime/reversion_sigma; pass B: +qarp) and 7 rows are appended to quant_results.tsv (git diff --numstat = 7 0, grep -c \"82.3-pass\" = 7); (2) every row carries DSR + PBO + turnover_rate + net_of_cost_return_pct against the triple_barrier incumbent on ONE shared window per pass (re-derived: pass A 2018-01-01..2025-12-31 all three strategies, pass B 2024-07-01..2025-12-31 all four, macro_point_in_time_enabled True on both, PBO matrix T=1661/1535/1661 on pass A so no silent T<32 zero); (3) backend/tests/test_phase_82_3_candidate_backtests.py asserts existence, parse and all four metrics finite-numeric -- the immutable command reproduces EXACTLY at \"16 passed in 0.03s\", exit 0, matching the regenerated capture. The four cycle-3 findings: F1 CLOSED (capture reproduces 16/16/32 measured by me), F2 CLOSED AND BEHAVIORAL (collection shows 2 parametrized instances; in a scratchpad sandbox I mutated pass B's sample.end to 2025-11-30 and got \"1 failed, 1 passed\" with the pass-B instance dying at :170 -- pass A survived, exactly the differential expected), F3 CLOSED and an honest discharge (every live_check figure re-derives exactly from the artifacts, quoted JSONL lines exist, run_fail=0; transcribing instead of re-running 10h of backtests is honest because the re-derivation command is included). F4 IS NOT CLOSED, and it is claimed closed. experiment_results.md:3 still reads verbatim \"**GENERATE complete for both.** Contract: `handoff/current/contract.md`.\" while :345-349 asserts \"F4 -- the header pointed at the wrong contract. FIXED ... Now names both contracts explicitly\"; grep -n contract shows contract_82.3.md appears ONLY at :204 and :311 (narrative), never in the header. That is a NEW false past-tense remediation claim entered by the cycle-4 prose -- the second time in this step a \"FIXED\" declaration did not survive checking (cycle-4 F1 documents the first, when cycle-2's F5 \"FIXED\" went stale) -- and the pointer it fails to fix is the exact mechanism that produced this step's cycle-1 criteria-erosion breach. Two residuals: :326 still asserts \"the numbers are current: 16 / 16 / 31\" when combined measures 32 (the bottom note sweeps only the other block -- a corrected number surviving 30 lines above its own correction), and live_check_82.3.md:36-55 labels its block \"Verbatim from handoff/logs/82_3_progress.jsonl\" while the quoted run_ok lines silently drop max_depth/min_samples_leaf/learning_rate mid-line and re-wrap one JSONL line across three (values shown ARE faithful and reproduce; the label is not). None of these is a criterion miss, so the natural verdict is CONDITIONAL with three one-edit fixes -- but I verified the counter myself (evaluator_critique_82.3_cycle1.json = FAIL, cycle2.json = CONDITIONAL, and cycle 3 = CONDITIONAL per this artifact's own \"CYCLE 4 (82.3) -- disposition of the cycle-3 CONDITIONAL\" heading), so this would be the THIRD consecutive CONDITIONAL and qa.md + CLAUDE.md + runbook section 4 mandate FAIL instead (Unjustified_Inference: stacking a third CONDITIONAL means the harness is logging, not correcting). I am applying that rule as written and not softening it. THE SCIENCE IS NOT IN QUESTION AND MUST NOT BE RE-RUN: cycle 5 is three text edits plus a scribe action -- (a) actually edit experiment_results.md:3 to name contract_82.3.md, (b) sweep :326's 31 to 32, (c) regenerate live_check section 2 unelided from the JSONL or relabel it \"transcribed (elided)\", (d) persist the cycle-3 and cycle-4 verdicts to evaluator_critique_82.3_cycle{3,4}.json and refresh the rolling evaluator_critique_82.3.json, which is currently byte-identical to cycle 2 and would feed the 81.2 verdict gate a stale CONDITIONAL at flip time.",
+  "violated_criteria": [
+    "claim_integrity: experiment_results.md:345-349 declares F4 FIXED while :3 still points at the rolling contract.md (false past-tense remediation claim)",
+    "claim_integrity: experiment_results.md:326 states combined 31; measured 32",
+    "verbatim_capture: live_check_82.3.md:36-55 labels an edited/elided JSONL transcription as Verbatim",
+    "harness_protocol: cycle-3 verdict never transcribed to disk; rolling evaluator_critique_82.3.json is byte-identical to cycle 2 (stale by one cycle)",
+    "3rd-CONDITIONAL auto-FAIL (qa.md, CLAUDE.md, runbook section 4): cycle2 CONDITIONAL + cycle3 CONDITIONAL means a third CONDITIONAL must be returned as FAIL"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Contradiction",
+      "action": "grep -n contract handoff/current/experiment_results.md",
+      "state": "line 3 reads verbatim '**GENERATE complete for both.** Contract: `handoff/current/contract.md`.' -- one contract named, and it is the rolling file the same artifact says holds 82.4's content (:199, :207). contract_82.3.md occurs only at :204 and :311, both narrative. Meanwhile :345-349 asserts 'F4 -- the header pointed at the wrong contract. FIXED. Line 3 read \"Contract: handoff/current/contract.md\" ... Now names both contracts explicitly.'",
+      "constraint": "A remediation claim in the handoff must be true of the file it describes (qa.md section 4b claim auditing; feedback_verify_own_completed_action_claims). Second false/stale FIXED declaration in this step's own history."
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "python -m pytest backend/tests/test_phase_82_3_candidate_backtests.py backend/tests/test_phase_82_4_design_pack.py -q",
+      "state": "measured '32 passed in 0.04s'; experiment_results.md:326 asserts 'so the numbers are current: 16 / 16 / 31'. The correction note at :359-363 sweeps only the 'Regenerated captures' block, leaving the retired figure alive in the paragraph that announces the regeneration discipline.",
+      "constraint": "Every numeric claim must reproduce under the command that produces it (qa.md section 4b); a corrected number must be swept everywhere it appears, not only at the point of correction."
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "grep -F 'triple_barrier[d3_l10_r0.05]' handoff/logs/82_3_progress.jsonl",
+      "state": "actual log line: {\"event\": \"run_ok\", \"strategy\": \"triple_barrier\", \"config\": \"triple_barrier[d3_l10_r0.05]\", \"max_depth\": 3, \"min_samples_leaf\": 10, \"learning_rate\": 0.05, \"sharpe\": 0.6089710704932563, \"dsr\": 0.629867...}. live_check_82.3.md:43-45 presents the same line under the heading 'Verbatim from handoff/logs/82_3_progress.jsonl' with max_depth/min_samples_leaf/learning_rate removed and the single line re-wrapped across three. Values shown are faithful; the label is not.",
+      "constraint": "A capture labelled verbatim must be regenerated, never edited (qa.md section 4b). Fix is one word ('transcribed, elided') or an unedited paste."
+    },
+    {
+      "violation_type": "Unjustified_Inference",
+      "action": "jq verdict handoff/current/evaluator_critique_82.3_cycle1.json cycle2.json evaluator_critique_82.3.json; ls handoff/current | grep -F 82.3",
+      "state": "cycle1=FAIL, cycle2=CONDITIONAL, cycle3=CONDITIONAL (attested by experiment_results.md:308 'CYCLE 4 (82.3) -- disposition of the cycle-3 CONDITIONAL'; no cycle3 json exists on disk and the rolling evaluator_critique_82.3.json is byte-identical to cycle2, 14080 bytes both). handoff/harness_log.md carries no 'phase=82.3 result=' header at all, so the log-based counter reads zero and cannot be relied on.",
+      "constraint": "3rd-CONDITIONAL auto-FAIL (qa.md Constraints; CLAUDE.md Failure discipline F1; docs/runbooks/per-step-protocol.md section 4 EVALUATE). Also: Main must transcribe every verdict to disk -- cycle 3's absence repeats the very finding cycle 3 declared FIXED ('All verdicts are now on disk'), and leaves the 81.2 verdict-gate resolver reading a stale CONDITIONAL from the rolling json."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "qa_md_read_at_runtime",
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command_exit_and_output",
+    "sibling_suite_and_combined_count_reproduction",
+    "pytest_collection_count_parametrize",
+    "sandboxed_mutation_test_pass_B_sample_end",
+    "artifact_figure_re_derivation_all_7_rows",
+    "quant_results_tsv_append_numstat_and_row_content",
+    "jsonl_console_claim_reproduction_and_run_fail_census",
+    "python_lint_gate_ruff_F821_F401_F811_git_derived_scope",
+    "git_status_unintended_change_scan",
+    "research_gate_envelope",
+    "prior_verdict_counter_verification",
+    "claim_auditing_section_4b",
+    "guard_vacuity_section_4c",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": false,
+  "notes": "CREDIT WHERE DUE -- three of four cycle-3 findings are genuinely and verifiably closed, and I confirmed each by execution rather than by reading the claim: (F1) the immutable command produces \"16 passed in 0.03s\" byte-for-byte matching the capture; (F2) the parametrize is real -- collection lists both [*_phase_82_3_full_sample_3strat.json] and [*_phase_82_3_short_window_4strat.json], and my mutation killed ONLY the pass-B instance, which is the correct differential and proves the guard is behavioral rather than merely collected; (F3) the live_check discharges the masterplan's live_check honestly. Main also self-disclosed the 31-vs-32 arithmetic error rather than quietly fixing it, which is the right behaviour and I am not penalising it -- the finding is that the retired 31 still stands at :326.\n\nMUTATION METHOD (no repo file touched): I copied the test file, both result artifacts and quant_results.tsv into the session scratchpad, where the module's REPO = Path(__file__).parents[2] resolves to the sandbox, ran a CONTROL first (2 passed, 14 deselected), then mutated only the sandbox copy of pass B's sample.end. Repo tree verified unchanged.\n\nADVISORY, no verdict effect: handoff/logs/82_3_progress.jsonl contains 3 start / 3 done / 57 run_ok events, not the 2 passes / 56 runs the artifacts describe -- one extra qarp[d3_l10_r0.05] run_ok from a third start/done pair, most plausibly an aborted or preliminary pass. The headline claims survive this (both artifacts record exactly 8 runs per strategy, the tests pin that, and run_fail = 0 across the WHOLE file), but a reader taking live_check section 2 as the complete log would not know a third boundary exists.\n\nSCOPE: git status shows masterplan.json, quant_results.tsv (+7/-0), mda_cache.json, phase82_design_pack.md, run_82_3_candidate_backtests.py, the two new result artifacts, the two new test files and handoff artifacts -- all within contract scope. backend/services, backend/tools and backend/agents are untouched, confirming the artifact's no-live-funnel-change claim. No secrets, no execution-path change, no risk-guard surface touched; no trading-domain heuristic fired.\n\nGATES NOT APPLICABLE: section 1c live UI capture (no UI claim in the contract, criteria or diff -- no frontend/** file changed, so no Playwright capture was required or taken) and section 1b frontend lint (no frontend/** in the diff). Section 1d backend runtime smoke is satisfied by the artifacts themselves: the changed backend file is a test module and the runner script under scripts/harness, both exercised by the 16-test run.\n\nCONTRACT ORDER: contract_82.3.md (08:49) postdates the pass-A artifact (04:53) and is explicitly labelled RETROSPECTIVE. That deviation was disclosed in cycle 3 and adjudicated by the cycle-3 and cycle-4-prior evaluators (pre-registration of the RANKING was verified by mtime arithmetic against the rolling contract.md, written 89s after pass A launched). I am not re-opening it and it is not part of this FAIL.\n\nFOR MAIN: this FAIL is a documentation-integrity escalation forced by the 3rd-CONDITIONAL rule, not a scientific rejection. Do NOT re-run the 56 backtests and do NOT touch the test file. The cycle-5 fix is four actions, all textual, listed at the end of the reason field. After they land, the evidence will have CHANGED, so a fresh Q/A spawn is the documented cycle-2 flow and not verdict-shopping.",
+  "step_id": "82.3",
+  "cycle_num": 4
+}

@@ -30116,3 +30116,126 @@ N=12) so CSCV means what the promotion gate assumes. NOTE for its executor: the 
 computed PBO or turnover -- `compute_pbo` exists at `analytics.py:184` with no caller, and result
 JSONs carry neither field. `PBO <= 0.5` is half the documented promotion gate and one of its two
 terms was never calculated.
+
+---
+
+## Cycle 183 -- 2026-08-04 -- phase=82.4 result=PASS
+
+**Step**: 82.4 (P2) -- the phase-82 DESIGN PACK: four side-by-side decision flows, the
+pre-registered ranking procedure, and the ranked recommendation (goal deliverables 5 and 6).
+Research-gated (`research_brief_82.4.md`, gate_passed=true, 6 sources read in full, 29 URLs).
+Documentation only; zero edits to backend/services, backend/tools, backend/agents.
+
+**DIAGRAMS SHIPPED AS MERMAID, NOT FIGJAM -- operator decision.** The Figma MCP WAS reachable
+(`whoami` succeeded 2026-08-03) but returned a **View seat on Starter = 6 MCP tool calls per
+MONTH** per Figma's own rate-limit doc. A four-column board would have consumed most of a
+month's quota, and a write on a read-only seat risks spending calls for nothing. Recorded in
+`live_check_82.4.md` with the `whoami` return and the quoted doc line, so a reader can audit the
+claim rather than only its conclusion. Render-verified: 4 subgraphs, 5 nodes each, `direction TB`
+preserved on all four, **ZERO cross-subgraph edges** (one linking edge silently flattens every
+column, with no error), 38KB SVG.
+
+**RANKING PRE-REGISTERED before any number existed.** Gates (DSR>=0.95, PBO<=0.5, net>0) ->
+Pareto -> lexicographic (PBO -> net return -> turnover). No weighted composite: it would hide the
+DSR-vs-PBO conflict the pack exists to expose. The Q/A verified pre-registration by MTIME
+ARITHMETIC -- `contract.md` was written 89 seconds AFTER pass A launched and ~17 minutes BEFORE
+run 1 finished.
+
+**THE RECOMMENDATION: no promotion.** 0 of 3 strategies pass the gates on the evidential sample.
+The incumbent's **PBO = 0.7486** (veto is 0.5) means the in-sample-best config lands below the OOS
+median ~three-quarters of the time -- an anti-predictive search. Ordering INVERTS on the honest
+metric: stretch_regime 0.1960, reversion_sigma 0.3968, triple_barrier 0.7486, while the incumbent
+LEADS on raw return (+82.75%). The evidence supports repairing the gate (82.22 provenance + 82.23
+PBO wiring), not swapping strategies -- and per section 0, no backtest winner could change live
+behaviour while `paper_analyze_top_n=5` stands and no registry->live bridge exists.
+
+**Q/A: FAIL -> CONDITIONAL -> CONDITIONAL -> PASS (4 cycles).** Cycle 1 was a JOINT 82.3+82.4
+spawn against a **NARROWED criteria set -- MAIN'S BREACH**: I handed the evaluator 4 of the 7
+masterplan criteria and substituted a verification command from two already-CLOSED steps. The
+three omitted were exactly the three that failed. Root cause found in cycle 2: **82.3 had no
+contract** (the rolling `contract.md` held 82.4's content), so I summarised criteria from memory
+because there was nothing to read. Fixed at the cause -- `contract_82.3.md` created, and criteria
+are now COPIED PROGRAMMATICALLY into every spawn.
+
+**TWO GUARDS WHOSE POPULATION I CHOSE, then described as universal** -- the transferable lesson:
+(a) the citation regex required a directory prefix, so it saw 12 of 13 citations and the one it
+structurally could not see was the ONLY broken one; (b) the TSV cross-check used a default
+argument instead of `@parametrize`, covering pass A while my prose claimed "every TSV row".
+Neither was vacuous -- each had real members that would kill it -- which is worse, because it
+reads as verified. Both fixed at the population level, plus a recall cross-check that fails loudly
+if the regex narrows again. Q/A mutation-verified all of it independently.
+
+**SIX COUNT ERRORS in this phase**, the last one INSIDE the correction retiring the previous one
+(quoted `31`, measured `32`), and it propagated into a Q/A spawn prompt. Rule unchanged and
+repeatedly violated in the same place: **run the command, paste its output, never carry a number
+forward or add columns yourself.**
+
+**Register**: 7 steps queued from the pack's recommendation, ordered by their MASTERPLAN priority
+(I had invented P1 for 82.6; it is P2, and the table is now built by reading the masterplan):
+82.22/82.23/82.7 (P0), 82.21 (P1), 82.19/82.24/82.6 (P2).
+
+**Next**: 82.3's cycle-4 Q/A is in flight. Then the phase-82 P0s -- and the operator still owes
+three decisions: rotate FRED_API_KEY, choose a fundamentals source, review the unpushed commits.
+
+---
+
+## Cycle 184 -- 2026-08-04 -- phase=82.3 result=PASS
+
+**Step**: 82.3 (P1) -- backtest evidence for the three phase-82.2 candidates against the
+`triple_barrier` incumbent (goal deliverable 3). Research-gated (`research_brief_82.3.md`,
+gate_passed=true, 7 sources read in full, 28 URLs). **56 walk-forward runs, ZERO failures**;
+no live-funnel code touched.
+
+**THE RESULT: 0 of 3 strategies pass the gates on the evidential sample.**
+
+```
+pass A  2018-01-01..2025-12-31   24 runs, 8h34m, macro_point_in_time_enabled=true
+strategy           DSR(med)      PBO   turnover   net ret%   gates
+triple_barrier       0.6117   0.7486       8.75     +82.75     0/3
+stretch_regime       0.5353   0.1960       9.50     +56.33     0/3
+reversion_sigma      0.6061   0.3968      10.03     +77.86     0/3
+```
+
+The pre-registered ranking eliminated everything at stage 1; stages 2-3 were never reached, so
+**no winner was declared**. `qarp` is absent from pass A because `historical_fundamentals` has
+zero rows before 2024-06-30 -- caught by a **2.8-minute smoke run** before an ~11h sweep that
+would have returned zeros for a quarter of its output.
+
+**THE HEADLINE: the incumbent's PBO is 0.7486**, far above the 0.5 veto -- the in-sample-best
+config lands below the OOS median ~three-quarters of the time. An anti-predictive search. **This
+number had never been computed in this system**: `compute_pbo` exists at `analytics.py:184` with
+real callers, but `generate_report` never calls it and no `results/*.json` before today carried a
+`pbo` field. The missing term REVERSES the ordering raw return implies. Queued as 82.23 (P0).
+
+**THE TRAP AVOIDED:** `compute_pbo` returns **0.0 silently** when `T < S*2` (=32), and 0.0
+**PASSES** a `<=0.5` gate. Per-window returns give T~27 -- the natural construction would have
+fabricated a clean pass for every strategy. The T-axis is DAILY NAV returns (T=1661/1535/1661),
+and the runner refuses to emit a PBO rather than emit a silent zero.
+
+**Q/A: FAIL -> CONDITIONAL -> CONDITIONAL -> FAIL -> PASS (5 cycles).** The three criteria were
+met from cycle 2; every later cycle was artifact honesty. Cycle 4's FAIL was the
+3rd-consecutive-CONDITIONAL rule firing correctly -- the harness refusing to keep logging instead
+of correcting.
+
+**MAIN'S DEFECTS, named because the pattern is the lesson.** (1) A **narrowed criteria set** in
+the cycle-1 spawn: 4 of 7 handed to the evaluator, and the 3 omitted were exactly the 3 that
+failed. Root cause found in cycle 2: **82.3 had no contract** -- the rolling `contract.md` held
+82.4's content -- so I summarised from memory because there was nothing to read. (2) **A declared
+fix that never happened**: `str.replace()` whose target string was absent silently no-op'd, and I
+wrote "FIXED" without reading the line back. (3) **Two guards whose population I chose** then
+described as universal -- a citation regex blind to the one broken member, and a default arg where
+`@parametrize` was meant. (4) A **mislabelled "verbatim"** block, hand-trimmed. (5) **Six count
+errors**, the last inside the correction retiring the previous one.
+
+**THE GENERALISED RULE, now in auto-memory `feedback_operations_that_cannot_fail_loudly`:** an
+operation that cannot fail loudly will eventually fail silently. Assert the target exists before
+replacing; read the changed region back; derive a guard's population independently of the guard;
+regenerate captures, never edit them.
+
+**Register**: PBO now computed for the first time (82.23 wires it into the gate); 82.22 (P0)
+`optimizer_best.json` attributes run `52eb3ffe`'s DSR 0.9526 to run `60617e0b`, which kept
+nothing; 82.24 re-runs this comparison post-repair with today's artifacts as the pre-repair
+baseline.
+
+**Next**: phase-82 P0s -- 82.22, 82.23, 82.7. Operator still owes: rotate FRED_API_KEY, choose a
+fundamentals source, review the unpushed commits.

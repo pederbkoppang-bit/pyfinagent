@@ -206,6 +206,28 @@ def main() -> int:
             summary[strat]["pbo"] = float(compute_pbo(matrix, S=16))
             summary[strat]["pbo_matrix_shape"] = [int(T), int(matrix.shape[1])]
 
+            # TRIAL-DIVERSITY DIAGNOSTIC. CSCV ranks the columns against each
+            # other across time subsets, so near-identical columns make the
+            # ranking noise-driven and PBO correspondingly weak -- regardless of
+            # how large N is. Measured live during pass A: two triple_barrier
+            # configs differing only in learning_rate produced IDENTICAL trade
+            # counts (1004) and a Sharpe delta of 5e-05. Reporting PBO without
+            # this number would make it look more informative than it is.
+            try:
+                C = np.corrcoef(matrix, rowvar=False)
+                iu = np.triu_indices_from(C, k=1)
+                pair = C[iu]
+                pair = pair[np.isfinite(pair)]
+                summary[strat]["column_corr_mean"] = float(np.mean(pair)) if pair.size else None
+                summary[strat]["column_corr_min"] = float(np.min(pair)) if pair.size else None
+                summary[strat]["trial_diversity_note"] = (
+                    "mean pairwise correlation of the K config columns; >0.99 means the "
+                    "hyperparameter grid barely moved the strategy, so PBO is measuring a "
+                    "near-degenerate search and must be read as weak evidence")
+            except Exception as exc:
+                summary[strat]["column_corr_mean"] = None
+                summary[strat]["trial_diversity_error"] = f"{type(exc).__name__}: {exc}"
+
         out = {
             "step": "82.3",
             "pass_label": args.label,

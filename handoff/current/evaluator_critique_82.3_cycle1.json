@@ -1,0 +1,78 @@
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "3 of 7 immutable criteria NOT MET, and BOTH immutable verification commands are unrunnable. (1) 82.3(c) requires \"a test asserts each candidate's result file exists, parses, and carries all four metrics as numbers rather than nulls\" -- backend/tests/test_phase_82_3_candidate_backtests.py DOES NOT EXIST, so 82.3's verification command `pytest backend/tests/test_phase_82_3_candidate_backtests.py -q` cannot execute; backend/tests/test_phase_82_4_design_pack.py likewise absent. (2) 82.3(a) requires results \"and is appended to quant_results.tsv\" -- git status shows quant_results.tsv UNMODIFIED, `grep -cF '82.3'`=0 and `grep -E '82_3|stretch_regime|reversion_sigma'`=0 hits; zero rows appended (also breaches the CLAUDE.md Critical Rule \"Every backtest result -> save to results/ + append to quant_results.tsv\"). (3) 82.4(c) requires the pack record \"the endogeneity caveat that holding-period-vs-outcome comparisons are tautological because a stopped-out trade has a short holding period by construction\" -- grep -i for endogen|tautolog|holding.period|stopped.out|\"by construction\" over docs/strategy/phase82_design_pack.md returns ZERO matches. Separately, handoff/current/experiment_results.md contains ZERO fenced code blocks and never names either pytest command, so the five-file protocol's \"verbatim verification command output\" is absent. THE SCIENCE ITSELF IS SOUND AND SHOULD NOT BE REDONE: I independently re-derived every headline number from the two result JSONs and all reproduce exactly (DSR medians 0.6117/0.5353/0.6061; PBO 0.7486/0.1960/0.3968; net-of-cost returns 82.7497/56.3302/77.8622; Pass B DSR 0.7562/0.7414/0.7703/0.7460, PBO 0.2415/0.6889/0.2674/0.4368, column corr 0.9740/0.9707/0.9789/0.9670). The PBO construction survives adversarial attack: run_82_3_candidate_backtests.py:198-207 builds ONE matrix per strategy from DAILY NAV returns (T=1661/1535/1661 pass A, 119/55 pass B -- all above S*2=32) with K=8 columns, right-aligned via `s[-T:]`, and carries an explicit T<32 guard at :200-205 that sets pbo=None with a note; no reported PBO is a silent zero, so the headline does not collapse. \"No winner declared\" is HONEST, not a hidden result: I verified pre-registration by mtime+elapsed arithmetic rather than trusting the pack -- contract.md mtime 2026-08-03 20:20:57 local = 18:20:57 UTC, which is 89 seconds AFTER pass A launched (generated_at 02:53:19Z minus elapsed_total_s 30830.3 = 2026-08-03 18:19:28Z) and ~17 minutes BEFORE run 1 finished (~18:38:21Z), so the gates were fixed before any number existed. All three strategies fail DSR>=0.95 mechanically. Pass B's \"not evidence\" label is adequately justified by three reasons I reproduced (column corr 0.967-0.979, Sharpe inflation 0.54-0.59 -> 1.00-1.75, stretch_regime PBO instability 0.196->0.689), and the pack explicitly surfaces that qarp posts the best short-window numbers rather than burying them -- the dismissal cuts against the author's own narrative, which is evidence of honesty not convenience. Criteria 82.4(a), 82.4(b) and 82.4(d) are MET. Harness compliance is otherwise clean (research gate passed: 82.3 = 7 sources, 82.4 = 6 sources, both recency scans, both gate_passed true; contract precedes generation; 0 harness_log entries for phase=82.3/82.4; both steps still `pending`; first spawn so no verdict-shopping). Scope is clean: derived-scope ruff F821/F401/F811 over the single changed .py (scripts/harness/run_82_3_candidate_backtests.py) exits 0, and git diff --name-only HEAD confirms NO backend/services, backend/tools or backend/agents change -- no live-funnel touch.",
+  "violated_criteria": [
+    "82.3(c) a test asserts each candidate's result file exists, parses, and carries all four metrics as numbers rather than nulls",
+    "82.3(a) one backtest result row per candidate ... and is appended to quant_results.tsv",
+    "82.4(c) the design pack records the endogeneity caveat that holding-period-vs-outcome comparisons are tautological",
+    "five-file protocol: experiment_results.md must contain verbatim verification command output",
+    "criteria-erosion (Dim-5 LLM-evaluator anti-pattern): spawn prompt presented a narrowed criteria set and a substituted verification command"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "ls -la backend/tests/test_phase_82_3_candidate_backtests.py backend/tests/test_phase_82_4_design_pack.py",
+      "state": "ls: backend/tests/test_phase_82_3_candidate_backtests.py: No such file or directory; ls: backend/tests/test_phase_82_4_design_pack.py: No such file or directory. Both immutable verification commands from .claude/masterplan.json ('pytest backend/tests/test_phase_82_3_candidate_backtests.py -q' and 'pytest backend/tests/test_phase_82_4_design_pack.py -q') are therefore unrunnable, and criterion 82.3(c) has zero covering evidence.",
+      "constraint": "82.3 criterion 3: 'a test asserts each candidate's result file exists, parses, and carries all four metrics as numbers rather than nulls'; qa.md section 1: run the immutable verification command from masterplan.json and record its exit code"
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "git status --short backend/backtest/experiments/quant_results.tsv ; grep -cF '82.3' backend/backtest/experiments/quant_results.tsv ; grep -E '82_3|stretch_regime|reversion_sigma' backend/backtest/experiments/quant_results.tsv",
+      "state": "git status returns EMPTY (file unmodified); grep -cF '82.3' returns 0; the -E grep returns no lines; tail of the file shows the newest rows dated 2026-07-24 with strategy=triple_barrier only. Zero of the 56 runs were appended.",
+      "constraint": "82.3 criterion 1: 'one backtest result row per candidate exists under backend/backtest/experiments/results/ AND IS APPENDED TO quant_results.tsv'; CLAUDE.md Critical Rule: 'Every backtest result -> save to backend/backtest/experiments/results/ + append to quant_results.tsv'"
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "grep -n -i 'endogen\\|tautolog\\|holding.period\\|stopped.out\\|by construction' docs/strategy/phase82_design_pack.md",
+      "state": "ZERO matches. The pack's section 3 carries 8 caveats (trial count, GIPS, qarp non-evaluability, reversion_sigma purge confound, two-pass weighting, commission-only costs, trial diversity, PBO-per-strategy) -- none of which is the required endogeneity caveat.",
+      "constraint": "82.4 criterion 3: 'the design pack records the endogeneity caveat that holding-period-vs-outcome comparisons are tautological because a stopped-out trade has a short holding period by construction'"
+    },
+    {
+      "violation_type": "Invalid_Precondition",
+      "action": "grep -n '```' handoff/current/experiment_results.md ; grep -n -i 'pytest|verification command|exit|quant_results|tsv' handoff/current/experiment_results.md",
+      "state": "experiment_results.md (108 lines) contains ZERO fenced code blocks and zero mentions of pytest, either verification command, an exit code, or quant_results.tsv. No verbatim command output is present anywhere in the GENERATE artifact.",
+      "constraint": "CLAUDE.md five-file protocol: 'GENERATE | experiment_results.md | What was built/changed + file list + VERBATIM VERIFICATION COMMAND OUTPUT + artifact shape'"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "diff the spawn-prompt criteria list and verification_command against jq '.phases[].steps[] | select(.id==\"82.3\" or .id==\"82.4\") | .verification' .claude/masterplan.json",
+      "state": "The spawn prompt supplied 4 criteria and the command 'pytest backend/tests/test_phase_82_2_candidate_strategies.py backend/tests/test_phase_82_15_macro_point_in_time.py -q' (which I ran: 37 passed, but those are the CLOSED steps 82.2/82.15, not 82.3/82.4). masterplan.json holds 7 criteria across the two steps and two DIFFERENT commands. The three criteria omitted from the spawn prompt were exactly: the quant_results.tsv append, the 82.3 test-file requirement, and the endogeneity caveat -- i.e. all three failing criteria were absent from the list handed to the evaluator. Evaluated against masterplan.json per qa.md.",
+      "constraint": "CLAUDE.md: 'Never edit verification criteria in masterplan.json -- they are immutable'; qa.md section 1: the immutable verification command and criteria come from .claude/masterplan.json; code-review skill Dim-5 'criteria-erosion' [WARN]"
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "python: read n_daily_returns and pbo_matrix_shape for every run in results/20260804T025319Z_phase_82_3_full_sample_3strat.json ; grep -i 'truncat|1535|1661|shorter|n_daily' docs/strategy/phase82_design_pack.md",
+      "state": "stretch_regime's 8 runs have n_daily_returns in {1535, 1537, 1599} and a PBO matrix of [1535, 8], while triple_barrier and reversion_sigma are uniformly 1661 with [1661, 8]. Because the runner right-aligns via s[-T:], stretch_regime's PBO silently EXCLUDES ~126 early trading days (~6 months of 2018) that the incumbent's PBO includes. The design pack discloses none of this (zero grep matches), and its caveat 8 asserts 'Daily NAV returns are used (T ~= 1,900)' -- a numeric claim that does not reproduce against the measured 1661/1535/1661. This is WARN-severity, not the cause of the FAIL: the comparison is still directionally sound and the pack's headline survives, but the sample-window equality that criterion 82.3(b) demands is not exactly satisfied for the strategy carrying the most favourable PBO.",
+      "constraint": "82.3 criterion 2: 'each result row reports DSR, PBO, turnover and net-of-cost return against the triple_barrier incumbent COMPUTED ON THE SAME SAMPLE WINDOW'; qa.md section 4b: every numeric claim must reproduce"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope_verification",
+    "contract_pre_registration_mtime_and_elapsed_arithmetic",
+    "immutable_verification_command_existence",
+    "spawn_prompt_verification_command_executed_37_passed",
+    "independent_re_derivation_of_all_pass_A_medians",
+    "independent_re_derivation_of_all_pass_B_medians",
+    "pbo_construction_source_audit",
+    "pbo_silent_zero_guard_check",
+    "pbo_matrix_shape_and_sample_length_audit",
+    "quant_results_tsv_append_check",
+    "design_pack_criterion_by_criterion_grep",
+    "endogeneity_caveat_grep",
+    "file_line_citation_resolution_all_6",
+    "queued_masterplan_step_verification_criteria_walk",
+    "ruff_F821_F401_F811_derived_scope",
+    "live_funnel_scope_check",
+    "experiment_results_verbatim_output_check",
+    "code_review_heuristics",
+    "adversarial_worst_of_N_lenses"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS COMPLIANCE (5-item) = CLEAN, which is why harness_compliance_ok is true even though the verdict is FAIL: (1) research gate ran before the contract -- research_brief_82.3.md (7 sources read in full, recency_scan_performed true, gate_passed true) and research_brief_82.4.md (6 sources, recency scan, gate_passed true), both clearing the >=5 floor; (2) contract precedes generation -- mtime chain research_82.3 08-03 15:15 -> research_82.4 19:59 -> contract 20:20 -> pack 08-04 08:28 -> experiment_results 08:29; (3) experiment_results.md present (though missing verbatim output, logged as a violation); (4) log-last respected -- grep -c 'phase=82.3' and 'phase=82.4' in handoff/harness_log.md both return 0 and both masterplan steps are still status=pending, so nothing was flipped ahead of this verdict; (5) no verdict-shopping -- this is the first Q/A spawn for 82.3+82.4, retry_count=0 on both, so the 3rd-CONDITIONAL rule does not bind (FAIL is on merits, not escalation).\n\nWHAT I WOULD FIX, IN ORDER (all four are additive; none requires re-running the 8.5 hours of backtests): (a) write backend/tests/test_phase_82_3_candidate_backtests.py asserting each of the 3+4 per-strategy blocks parses and carries dsr / pbo / turnover_rate / net_of_cost_return_pct as numbers rather than nulls -- note the guard must assert numeric-not-null, because pbo is legitimately set to None by the runner's T<32 branch, and a test that merely asserts the key EXISTS would be vacuous against exactly the silent-zero failure the runner was built to prevent; (b) write backend/tests/test_phase_82_4_design_pack.py; (c) append the 56 runs to quant_results.tsv; (d) add the endogeneity caveat to the design pack as caveat 9. Item (a) is the one that matters most -- criterion 82.3(c) exists precisely to make the PBO plumbing regression-proof, and it is currently the only criterion with no artifact at all.\n\nADVISORY (do not block, but worth correcting while the pack is open): (i) the pack cites a BARE filename 'autonomous_loop.py:431/:1035/:1644/:1649' and TWO such files exist -- backend/autonomous_loop.py (620 lines) and backend/services/autonomous_loop.py (3228 lines). Against the shorter one, 3 of 4 citations are out of range; against backend/services/ all four resolve AND support their claims verbatim (:1644 is literally '# strategy router (deferred to phase-31)', :1649 is 'current_strategy = (best_params.get(\"strategy\", \"unknown\")' with decided_strategy==prior_strategy at :1654-1655, :1035 is '_analyze_cands = new_candidates[:settings.paper_analyze_top_n]'). Criterion 82.4(b) is judged MET, but qualify the paths. One nuance: :431 is 'best_params = load_promoted_params(bq)', which reads BQ first and falls back to optimizer_best.json at :68 -- the pack's phrasing 'loads optimizer_best.json' describes the fallback, not the primary path. (ii) Caveat 8's 'T ~= 1,900' should read 1,661 / 1,535 / 1,661, and the stretch_regime truncation should be disclosed. (iii) I checked and did NOT flag two things that looked like findings: the DSR range 0.391-0.810 vs Sharpe range 0.391-0.825 for stretch_regime is a genuine near-coincidence (DSR is a monotone transform of Sharpe at num_trials=1), and the right-alignment s[-T:] correctly preserves calendar contemporaneity across columns sharing an end date, so the PBO rows are NOT misaligned.\n\nCREDIT WHERE DUE (this should survive into the next cycle rather than being re-litigated): the pre-registration is real and I verified it arithmetically rather than taking the pack's word; the mid-run correction in caveat 7 -- where the author's first two characterisations of trial diversity were falsified by later runs and were left VISIBLE in the artifact instead of being quietly rewritten -- is exactly the discipline qa.md section 4b was written to reward; and the 'Scope honesty' section's claims (no live-funnel change, DSR undeflated, pass A carries no column_corr_mean) all independently reproduce. The failure here is deliverable completeness and evidence plumbing, not analytical integrity.",
+  "step_id": "82.3",
+  "cycle_num": 1,
+  "_provenance": "cycle-1 was a JOINT 82.3+82.4 spawn against a NARROWED criteria set (Main breach). Transcribed verbatim to both step files."
+}

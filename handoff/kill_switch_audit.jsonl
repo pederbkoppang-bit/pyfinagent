@@ -16,3 +16,4 @@
 {"ts": "2026-08-03T09:03:17.159034+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-08-03T09:05:25.114693+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-08-03T09:09:15.322426+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-08-03T19:29:34.433705+00:00", "event": "sod_snapshot", "nav": 23803.94, "date": "2026-08-03"}

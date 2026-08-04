@@ -1,0 +1,61 @@
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "Cycle-3 fixes all reproduce and the cycle-2 blocker plus both WARNs are genuinely closed; one NEW finding I derived independently caps the verdict. DETERMINISTIC: `python -m pytest backend/tests/test_phase_82_4_design_pack.py -q` -> 15 passed, exit=0 (measured bare, not piped). No production code changed beyond contract scope: `git diff --name-only HEAD` = masterplan.json, docs/strategy/phase82_design_pack.md, scripts/harness/run_82_3_candidate_backtests.py, experiment_results.md + append-only audit/telemetry streams; zero *.py under backend/ or frontend/ in the diff, so the ruff/eslint/tsc/runtime-smoke gates do not bind (the two new test files are untracked additions, both green). No UI claim is made about the running app (the diagrams are mermaid in-repo, not frontend), so the 1c Playwright gate does not bind. HARNESS COMPLIANCE CLEAN (5/5): research_brief_82.4.md gate_passed=true, 6 sources read in full, recency scan true, 29 URLs; mtime chain ordered research 08-03 19:59 < contract 08-03 20:20 < pack/test 08-04 08:50 < experiment_results 08-04 08:50:53; experiment_results present; log-last intact (`grep -cE 'phase=82\\.4' handoff/harness_log.md` = 0, masterplan status still \"pending\"); no verdict-shopping (pack mtime 08:50:26 postdates the cycle-2 critique at 08:49, evidence CHANGED). 3rd-CONDITIONAL rule does NOT bind, verified independently: evaluator_critique_82.4_cycle1.json verdict=FAIL, cycle2.json verdict=CONDITIONAL -> only 1 consecutive CONDITIONAL; the FAIL reset the counter. CRITERIA: (1) MET -- four strategy columns (triple_barrier, stretch_regime, qarp, reversion_sigma) plus \"## 6. Ranked recommendation\" and a PRE-REGISTERED section-2 rule stating DSR/PBO/turnover/Pareto/lexicographic with an explicit no-weighted-composite prohibition. (2) NOT MET -- see violation 1. (3) MET and mutation-verified by me against a scratchpad copy (repo untouched, PACK constant monkeypatched): CONTROL passes; M2 (your cycle-2 keyword-only stub) now FAILS, killed by the causal-sentence assertion at test:100 -- NOT by the length floor, which I separated with M2b (causal sentence + short body -> dies at 163 chars on test:106). I also ran M3, INVERTING the causal direction to \"the short hold caused the loss, and the stop was incidental\": M3 FAILS. That answers the question you asked -- the pin is a genuine substance check, not a longer keyword, because the pinned string is the minimal proposition that ENTAILS the caveat and a semantic inversion cannot satisfy it. Residual: M2c (causal sentence + 900 chars of lorem-ipsum filler) SURVIVES test_pack_records_the_endogeneity_caveat, i.e. the length floor alone is defeatable by padding -- but M2c is killed by the paired test_pack_gives_the_non_tautological_counterpart, so criterion 3's coverage as a whole is non-vacuous. Advisory only. (4) MET -- I re-derived every priority from masterplan.json with jq rather than reading the table: 82.22 P0, 82.23 P0, 82.7 P0, 82.21 P1, 82.19 P2, 82.24 P2, 82.6 P2 -- all 7 match the pack's section-6.3 table exactly and the table is correctly sorted; the invented P1 on 82.6 is gone. All 7 cited steps exist in phase-82 and each carries a verification command plus at least 3 criteria. Recall-tested section 6.2: items (i)/(iii)/(iv)/(v) are non-actions and (ii) maps to 82.22+82.23, so no recommended action lacks a queued step. FIGMA (your item 2): honest discharge, not evasion. The pack's \"Why these are mermaid and not FigJam\" section states affirmatively that the MCP WAS reachable at capture time 2026-08-03, names the blocking constraint (View seat on Starter, 6 MCP calls/month), records the operator AskUserQuestion decision, and states \"FigJam URLs: none -- no board was created\" as a deliberate substitution. That satisfies the live_check's second half verbatim, and disclosing a negative in the deliverable is the opposite of concealment. NOTE: the seat/quota facts are author-supplied and unverifiable by me (the Figma connector is session-scoped and absent from my surface); I accept them as disclosed, not as reproduced. NO NEW FALSE CLAIM entered via cycle-3 prose (your item 5): I re-derived the \"13 citations\" claim at experiment_results:181 and it reproduces exactly -- and it is that very claim that exposes violation 1. One stale count noted in notes.",
+  "violated_criteria": [
+    "criterion_2_every_citation_resolves",
+    "live_check_82.4_artifact_absent"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "Independent citation recall test [WARN]: re-ran the resolver with a BROADER regex than the author's (any path-like token + :NNN, backticked or not, any top-level dir), then stat'ed every hit against the repo root.",
+      "state": "13 file:line citations exist in the pack (matching experiment_results.md:181 \"Now 13\"). The author's resolver regex at backend/tests/test_phase_82_4_design_pack.py:21 requires a `backend|frontend|scripts|handoff|docs` path prefix and matches only 12. The 13th -- `backtest_engine.py:665` at docs/strategy/phase82_design_pack.md:168 (caveat 4) -- is a BARE filename and does NOT resolve from the repo root (`ls backtest_engine.py` -> No such file or directory). The underlying claim is TRUE: `horizon_days = int(self.holding_days * 1.5)` is at backend/backtest/backtest_engine.py:665, verified by reading lines 660-670. So this is an unresolvable REFERENCE, not a false claim. Fix: write the full path `backend/backtest/backtest_engine.py:665` (the pack already uses that full form at line 224 for :1322).",
+      "constraint": "Immutable criterion 2: \"every code claim in the design pack carries a file:line reference that resolves in the current tree\". 12 of 13 resolve."
+    },
+    {
+      "violation_type": "Overgeneralization",
+      "action": "Guard-recall audit [WARN] per qa.md 4b (COMPLETENESS claims require a known-member recall test) and 4c shapes #2/#10.",
+      "state": "test_every_citation_resolves cannot fail on the one citation that is actually broken, because its population is defined by an author-scoped prefix whitelist (_CITE at test:21). The guard is NOT vacuous -- it genuinely resolves 12 members and any of them would kill it -- but its RECALL is incomplete, demonstrated by a known member the author themselves counted (13) that the guard never sees (12). test_pack_has_a_meaningful_number_of_citations asserts n >= 8 against the same narrowed regex, so it cannot detect the shortfall either. Fix: broaden _CITE to catch bare-filename and dot-prefixed citations, and assert the regex's own count equals an independently derived count.",
+      "constraint": "qa.md 4b: \"A scan that cannot locate its own already-known members is a FAILED gate, not a partial pass.\" A guard whose population is chosen by the author cannot certify \"every\"."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "test -f handoff/current/live_check_82.4.md [WARN]",
+      "state": "ABSENT. Answering your item 4 plainly: the separate artifact IS required, and the disclosure-in-the-deliverable does not substitute for it. The masterplan step sets verification.live_check, and .claude/hooks/lib/live_check_gate.py keys on the FILE handoff/current/live_check_<step_id>.md, not on content anywhere else; per CLAUDE.md the hold exit 0s at auto-commit-and-push.sh:155/181/206, all BEFORE `git add -A` at :239, so its absence skips the commit AND changelog AND push for this step. The CONTENT requirement is already satisfied by docs/strategy/phase82_design_pack.md:79-110 (MCP reachability at capture time + the no-URLs disposition); the GATE requirement is a one-file pointer. Create handoff/current/live_check_82.4.md quoting that section and stating \"FigJam URLs: none, no board created\" plus the MCP reachability note.",
+      "constraint": "masterplan 82.4 verification.live_check: \"the FigJam diagram URLs, plus a note recording whether the Figma MCP was reachable at capture time\"; qa.md section 1c artifact requirement."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "immutable_verification_command_exit_0",
+    "pytest_15_passed_82_4",
+    "pytest_30_passed_combined_82_3_and_82_4",
+    "collect_only_count_reconciliation",
+    "git_status_unintended_change_scan",
+    "git_diff_name_only_scope_derivation",
+    "mutation_control_run",
+    "mutation_test_M2_keyword_stub_KILLED",
+    "mutation_test_M2b_causal_short_KILLED",
+    "mutation_test_M2c_causal_plus_filler_SURVIVES_single_KILLED_by_pair",
+    "mutation_test_M3_inverted_causality_KILLED",
+    "mutation_test_M4_strip_counterpart_KILLED",
+    "independent_citation_recall_test_broad_regex",
+    "citation_claim_verified_at_source_line",
+    "priority_table_rederived_from_masterplan_jq",
+    "criterion_4_queued_step_recall_test",
+    "research_gate_envelope_check",
+    "mtime_chain_contract_before_generate",
+    "log_last_zero_entries_verified",
+    "consecutive_conditional_count_from_cycle_json",
+    "live_check_artifact_existence",
+    "experiment_results_claim_audit",
+    "code_review_heuristics",
+    "evaluator_critique"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "MUTATION METHOD DISCLOSURE: all mutants were run against a COPY of the pack in the session scratchpad with the test module's PACK constant monkeypatched in-memory; the repo tree was never written to and needed no restore. CONTROL passed first, so the harness itself is valid. KILL MECHANISM ATTRIBUTED (qa.md 4c shape #11): M2 dies on `assert \"the stop caused the short hold\" in flat` (test:100), NOT on the length floor -- proven by separating them with M2b, which passes the causal assertion and dies on `len(body) > 900` (test:106) at 163 chars. Real caveat-8 body measures 2521 chars. ADVISORY NOTE (not a violation, and outside 82.4's scope): experiment_results.md:161 states test_phase_82_3_candidate_backtests.py has \"14 tests\"; measured, the combined run collects 30 and 82.4 alone collects 15, so 82.3 collects 15, not 14. Reads as a stale count written before a test was added rather than an untested change -- worth correcting in the shared artifact. SECOND ADVISORY: the Figma seat/quota facts (View seat on Starter, 6 MCP calls/month) are author-supplied; I have no Figma connector on my surface and could not reproduce them. I did not take or rely on any Main-produced browser capture -- none was needed, since 82.4 makes no claim about the running app. TO REACH PASS: (a) change `backtest_engine.py:665` to `backend/backtest/backtest_engine.py:665` at docs/strategy/phase82_design_pack.md:168; (b) broaden _CITE at backend/tests/test_phase_82_4_design_pack.py:21 so the resolver's population is not narrower than the pack's actual citation set; (c) create handoff/current/live_check_82.4.md. All three are mechanical and none disturbs the science. I return this verdict and STOP -- I do not re-grade my own fix; Main owns the fix and spawns a fresh Q/A on the changed evidence.",
+  "step_id": "82.4",
+  "cycle_num": 3
+}

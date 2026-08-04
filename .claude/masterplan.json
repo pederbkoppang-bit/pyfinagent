@@ -21282,7 +21282,7 @@
         },
         {
           "id": "82.3",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "Backtest evidence per candidate vs the triple_barrier incumbent (deliverable 3). OOS with purge + embargo, DSR, PBO, turnover, realistic costs, same sample as the incumbent. GATING PRECONDITION -- CORRECTED 2026-08-03 after the 82.0 cycle-1 Q/A FAIL. The earlier text here said 'preload_macro() returns 0 today (cache.py:251), which forces the per-cutoff BQ fallback and produces CLAUDE.md's documented ~40min hang. Do NOT attempt this step while preload_macro() returns 0.' THAT WAS FALSE and is withdrawn: historical_macro.date is a STRING column, both the phase-25.D7 gate and the 82.0 cycle-1 rewrite tested isinstance(rd, datetime.date), so the staleness branch never executed and preload_macro returned 4412 (it CACHED the stale table). Nothing was hanging; backtests were being silently trained on 212-day-old macro features, which is worse. The real precondition is therefore about DATA VALIDITY, not a hang: do not run this step unless cache.preload_macro() returns a non-zero row count AND every series is inside its per-series SLA (cache.MACRO_SERIES_MAX_AGE_DAYS) at the time of the run -- otherwise the macro features are stale or the gate has refused, and the resulting DSR/PBO numbers are not evidence. NOTE the gate is now ARMED and can return 0 for the first time; backtest_engine.py:308 discards preload_macro's return value, so a refusal surfaces only as a WARNING log. Check the log, not just the exit code.",
@@ -21305,7 +21305,7 @@
         },
         {
           "id": "82.4",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "harness_required": true,
           "name": "FigJam decision-flow diagrams + design pack + ranked recommendation (deliverables 5 and 6). One FigJam flow per strategy (incumbent + 3), side by side: universe -> signal -> regime gate -> sizing -> exit. The Figma MCP is a claude.ai SESSION CONNECTOR, absent in headless/cron runs -- it is a REQUIRED DELIVERABLE but is deliberately NOT named in any criterion below, because a criterion that depends on it would make this step uncloseable in a headless session (the phase-81.0 uncloseable-criteria failure). Record the FigJam URLs in the design pack and disclose the capture-time MCP availability.",
@@ -21622,6 +21622,67 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "82.22",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "PROVENANCE DEFECT in optimizer_best.json -- the file the LIVE cycle reads (backend/services/autonomous_loop.py:431) attributes another run's metrics to a run that never produced them. MEASURED 2026-08-03: optimizer_best.json records run_id=60617e0b, saved_at=2026-07-24, sharpe=1.1704633657934074, dsr=0.9525811126193078, kept=0, discarded=10. Run 60617e0b saved TEN experiment artifacts under backend/backtest/experiments/results/ and NONE matches those figures -- that run produced sharpe 0.5384..0.6506 and deflated_sharpe 0.0060..0.6387. The exact sharpe 1.1704633657934074 with dsr 0.9525811126193078 belongs to `20260328T072722Z_52eb3ffe-exp10.json`, run_id 52eb3ffe-exp10, dated 2026-03-28 -- FOUR MONTHS EARLIER. The dual-source warm-start in quant_optimizer._load_previous_best carried the prior best forward and it was persisted under the CURRENT run's identity, so the headline that appears to certify the live strategy is not from the run it names, and the named run accepted nothing (kept=0). TWO CONSEQUENCES: (1) any reader -- human or agent -- who checks 'what is our DSR' gets 0.9526 attributed to a July run, when July's actual deflated values were 0.006-0.639; (2) the promotion gate's DSR>=0.95 term is satisfied by a figure no current run produced, while its PBO<=0.5 term is never computed at all (compute_pbo exists at analytics.py:184 but generate_report never calls it and no results/*.json carries a pbo field). BOTH HALVES OF THE GATE ARE THEREFORE COMPROMISED. Note the deflation math itself is CORRECT and should not be 'fixed': within run 60617e0b DSR falls monotonically 0.6387 (num_trials=2) -> 0.0088 (num_trials=11), which is proper Bailey deflation. The defect is provenance and persistence, not the statistic. Fix: optimizer_best.json must record the run that actually produced its metrics (or carry BOTH the warm-start source id and the current run id as distinct fields), and a warm-started best must never be written under a run_id that did not generate it. Add a consistency check that fails when the recorded sharpe/dsr match no saved artifact of the recorded run_id.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_22_optimizer_best_provenance.py -q",
+            "criteria": [
+              "a check asserts the sharpe/dsr recorded in optimizer_best.json are reproducible from a saved result artifact whose run_id matches the recorded run_id, and FAILS on the current on-disk state",
+              "when the best is warm-started from a prior run, the source run id is persisted as a distinct field from the current run id, asserted on a fixture",
+              "a fixture where kept=0 asserts the file cannot claim a best that no experiment in that run produced",
+              "the deflation math is asserted UNCHANGED: a fixture reproduces monotonically decreasing DSR as num_trials rises, so a fix to provenance cannot silently alter the statistic"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.23",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "THE PROMOTION GATE'S PBO TERM IS NEVER COMPUTED -- wire it and enforce it. MEASURED 2026-08-04 by step 82.3: `compute_pbo` exists at backend/backtest/analytics.py:184 and is called by backend/autoresearch/strategy_backtest_adapter.py:247 and backend/agents/mcp_servers/risk_server.py:143, but `generate_report` NEVER calls it, so no `backend/backtest/experiments/results/*.json` written before 2026-08-04 carries a `pbo` field and `quant_results.tsv` has no PBO column. The documented promotion gate is `DSR >= 0.95 AND PBO <= 0.5`; one of its two terms has therefore never been evaluated for any candidate this system has ever promoted. When 82.3 computed it explicitly, the INCUMBENT `triple_barrier` scored **PBO = 0.7486** on the 2018-2025 sample (24 runs, K=8 per strategy, daily-NAV T-axis, T=1661) -- far above the 0.5 veto. PBO ~0.75 means the config selected as best in-sample lands BELOW the OOS median about three-quarters of the time: an anti-predictive search. By contrast stretch_regime scored 0.1960 and reversion_sigma 0.3968, so the gate's missing term REVERSES the ordering that raw return implies. TWO LOAD-BEARING IMPLEMENTATION FACTS from the 82.3 research gate, both of which will silently fabricate a PASS if ignored: (1) `compute_pbo` returns 0.0 SILENTLY when N<2 or T < S*2 (=32 at S=16), and 0.0 PASSES a `<=0.5` gate -- so a per-window PnL matrix (T~27 on this sample) produces a fabricated pass; the T-axis MUST be daily NAV returns. (2) The matrix must be ONE PER STRATEGY with columns = K configs of the SAME model (Bailey/Borwein/Lopez de Prado/Zhu Algorithm 2.3); a pooled cross-strategy matrix answers a different question and must not be used as the gate number. Also report a trial-diversity diagnostic (mean pairwise column correlation) beside every PBO: 82.3 measured 0.967-0.979 on the short window, where CSCV is ranking near-identical columns and the resulting PBO is weak however large N is. Depends on 82.22 (the same file's provenance defect).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_23_pbo_in_gate.py -q",
+            "criteria": [
+              "generate_report emits a pbo field for a run whose daily NAV series and K>=2 configurations are available, asserted on a fixture",
+              "a fixture whose T is below S*2 causes the reported pbo to be ABSENT or explicitly flagged, never the silent 0.0 that would pass the <=0.5 gate -- asserted by a test that fails if 0.0 is emitted for an under-length matrix",
+              "the promotion gate refuses a candidate whose pbo exceeds the threshold, asserted on a fixture carrying the measured incumbent value 0.7486",
+              "a trial-diversity number (mean pairwise column correlation) accompanies every reported pbo, asserted present on the same fixture"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.22"
+          ]
+        },
+        {
+          "id": "82.24",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "RE-RUN the phase-82.3 four-way strategy comparison AFTER the promotion gate is repaired (82.22 provenance + 82.23 PBO wiring). Today's 56-run result is the PRE-REPAIR BASELINE and must be preserved for comparison, not overwritten: `results/20260804T025319Z_phase_82_3_full_sample_3strat.json` (24 runs, 2018-2025, macro_point_in_time_enabled=true) and `results/20260804T041628Z_phase_82_3_short_window_4strat.json` (32 runs, 2024-07..2025-12). Re-run because three things that materially affect the numbers change underneath them: (a) DSR in the baseline is UNDEFLATED (num_trials=1) -- the optimistic bound; a repaired gate must declare a real trial count, which the 82.4 research gate notes includes the 82.2 label-design iterations and is therefore NOT 8; (b) PBO becomes a first-class reported metric rather than a bolted-on computation; (c) if 82.19 lands, `reversion_sigma` stops being purged at 135 days against a 15-day label horizon, which removes the confound that makes its LOSSES inconclusive today. Re-use `scripts/harness/run_82_3_candidate_backtests.py` (measured 20.3 min/run warm; 24 runs ~ 8h, 32 runs ~ 1.4h on the short window). ALL runs must share ONE `macro_point_in_time_enabled` state or the results are not comparable. Report the delta against the preserved baseline explicitly -- a strategy whose numbers move materially once the gate is honest is itself a finding.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_24_rerun_comparison.py -q",
+            "criteria": [
+              "a post-repair result artifact exists for the full 2018-2025 sample carrying DSR, PBO, turnover and net-of-cost return per strategy, with the trial count declared",
+              "the pre-repair baseline artifacts are still present and referenced by filename in the new artifact, so the comparison is auditable",
+              "a written delta names every strategy whose gate outcome CHANGED between the baseline and the re-run, or states explicitly that none did",
+              "all runs in the re-run share one macro_point_in_time_enabled value, asserted from the artifact"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.22",
+            "82.23"
+          ]
         }
       ]
     }
