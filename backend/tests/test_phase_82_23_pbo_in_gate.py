@@ -144,6 +144,24 @@ def test_generate_report_still_does_not_emit_a_pbo():
 
     from backend.backtest import analytics
 
+    # Q/A cycle-1 [WARN]: a source scan here is defeatable by an indirect call
+    # (getattr(analytics, "compu"+"te_pbo")). Assert on the SIGNATURE instead --
+    # the structural reason PBO cannot live here is that the function receives
+    # ONE result, so N is always 1.
+    sig = inspect.signature(analytics.generate_report)
+    params = list(sig.parameters)
+    assert params and params[0] == "result", (
+        f"generate_report's first parameter is {params[:1]}, expected a single "
+        "`result` -- if it now takes a collection, PBO could legitimately live here"
+    )
+    # NOTE `num_trials` is legitimately present -- it is the DSR deflation
+    # COUNT (a scalar), not a collection of configurations. The structural
+    # question is whether the function can SEE N series; a plural results/
+    # matrix parameter would mean it can.
+    assert not any(p in ("results", "pnl_matrix", "matrix", "runs") for p in params), (
+        f"generate_report now accepts {params}; if it can see N configurations "
+        "the criterion-1 reasoning must be revisited"
+    )
     src = inspect.getsource(analytics.generate_report)
     assert "compute_pbo" not in src, (
         "generate_report now computes PBO, but it sees a single run: N=1 makes "
@@ -181,14 +199,52 @@ def test_diversity_number_discriminates_independent_from_duplicate_columns():
     )
 
 
-def test_adapter_forwards_the_diversity_number_to_the_gate():
-    """The value must reach the consumer, not merely exist in the helper."""
-    import inspect
+def test_adapter_forwards_the_diversity_number_to_the_gate(monkeypatch):
+    """The value must reach the consumer, not merely exist in the helper.
 
+    Q/A cycle-1 [WARN]: the first version asserted the TOKEN appeared in
+    `inspect.getsource(ad)` -- satisfiable by a comment or docstring, and it was
+    the ONLY coverage of the forwarding hop. This EXECUTES the adapter's
+    backtest_fn and inspects the dict it actually emits.
+
+    `generate_report` is stubbed rather than fed a hand-built BacktestResult:
+    the hop under test is the adapter's own emission, and constructing a real
+    result would test the report builder instead.
+    """
     from backend.autoresearch import strategy_backtest_adapter as ad
 
-    src = inspect.getsource(ad)
-    assert "pbo_column_corr_mean" in src, (
-        "the adapter computes diversity but never emits it, so the gate cannot see it"
+    monkeypatch.setattr(ad, "generate_report",
+                        lambda *a, **k: {"analytics": {"deflated_sharpe": 0.4, "sharpe": 0.9}})
+
+    class _Result:
+        def __init__(self, seed):
+            rng = np.random.default_rng(seed)
+            navs = 100_000 * np.cumprod(1 + rng.normal(0.0005, 0.01, 400))
+            self.nav_history = [{"nav": float(v)} for v in navs]
+            self.windows = []
+
+    n = {"i": 0}
+
+    def _factory(variant):
+        n["i"] += 1
+        seed = n["i"]
+
+        class _E:
+            def run_backtest(self, skip_cache_clear=False):
+                return _Result(seed)
+        return _E()
+
+    fn = ad.make_engine_backtest_fn(
+        engine_factory=_factory,
+        num_param_variants=12,
+        clear_cache_fn=lambda: None,
     )
-    assert "pbo_columns_diverse" in src
+    out = fn({"strategy": "triple_barrier"})
+
+    assert "pbo" in out, f"adapter emitted no pbo: {sorted(out)}"
+    assert "pbo_column_corr_mean" in out, (
+        f"the adapter emitted a pbo WITHOUT its diversity number: {sorted(out)}"
+    )
+    assert "pbo_columns_diverse" in out
+    assert out["pbo_n_trials"] >= 2
+    assert isinstance(out["pbo_column_corr_mean"], float)
