@@ -21743,6 +21743,48 @@
           "depends_on": [
             "82.22"
           ]
+        },
+        {
+          "id": "82.28",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "COVERAGE GAP found by the 82.22 cycle-3 Q/A [N2]: no test EXECUTES the load-side provenance capture. Every criterion-2/3 guard in test_phase_82_22_optimizer_best_provenance.py hand-sets `_warm_started_from_run_id` on a bypassed-__init__ object, so a mutant that makes `QuantStrategyOptimizer._load_previous_best` FORGET the source (`self._warm_started_from_run_id = None`) leaves the suite 15/15 GREEN. The Q/A ran the behavioural differential rather than asserting a finding and proved the mutant is FAIL-SAFE -- baseline writes metrics_run_id='60617e0b', the mutant writes None, and check_optimizer_best_provenance.py returns ok=False/mis_attributed in BOTH cases, so it degrades to UNDECLARED and never fabricates a self-attribution. It is therefore NOT a criterion miss (criterion 2 says 'asserted on a fixture', which is satisfied) and NOT a live defect -- it is missing coverage that would let a future regression pass unnoticed. The Q/A verified the real path works today by executing _load_previous_best -> _save_best_params on three shapes: v1 legacy/kept=0 -> 60617e0b; v1/kept=2 -> NEWRUN; v2 already-warm-started -> 52eb3ffe-exp10 propagates, so an intermediate writer cannot launder a mis-attribution forward. Fix: add one round-trip test that EXECUTES _load_previous_best against a temp experiments dir instead of hand-setting its outputs. This also permanently closes guard-vacuity shape 5 (a fixture that cannot represent the failure). Both methods take only `self`, so a tmp_path + monkeypatched experiments dir is sufficient -- no network, no BQ.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_28_provenance_round_trip.py -q",
+            "criteria": [
+              "a test EXECUTES QuantStrategyOptimizer._load_previous_best (not a hand-set attribute) against a temp experiments directory and then executes _save_best_params, asserting the written metrics_run_id equals the SOURCE run id for a warm-started kept=0 run",
+              "the same round-trip is asserted for a run that improved (kept>0), where the written metrics_run_id must equal the CURRENT run id",
+              "a v2 source that itself carries a metrics_run_id propagates that id rather than the intermediate writer's run_id, asserted on a fixture, so a mis-attribution cannot be laundered forward one generation",
+              "mutation-verified: neutralising the load-side capture (_warm_started_from_run_id = None inside _load_previous_best) makes at least one of these tests FAIL, and the experiment_results matrix records the measured CONTROL count re-derived in the same run"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.22"
+          ]
+        },
+        {
+          "id": "82.29",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DESIGN TENSION flagged by the 82.22 cycle-3 Q/A [N3]: test_checker_fails_on_the_live_mis_attributed_file asserts ok is False against the repo's REAL backend/backtest/experiments/optimizer_best.json. Immutable criterion 1 of 82.22 demanded exactly that ('and FAILS on the current on-disk state'), and 82.22 correctly disclosed that the live file is not rewritten. The consequence is a time bomb: the moment an optimizer run finally writes a correct v2 file, this test GOES RED for the right reason, and the tempting fix will be to delete the assertion. Making it tolerant (assert ok is False OR verified) is the OR-escape-hatch anti-pattern and must NOT be done. Correct remedy: make the assertion STATE-AWARE and deterministic in both branches -- read the live file's schema_version (currently absent = v1 legacy, measured 2026-08-04) and assert mis_attributed for v1, verified for v2, with BOTH branches independently covered by fixtures so neither can rot unexercised. The test must still FAIL if a v2 file is present AND mis-attributed, which is the condition the whole step exists to detect. Note this step does NOT require an optimizer run to close: the live branch is whichever the file is, and both branches are fixture-covered. Depends on 82.22 (done).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_29_live_provenance_state_aware.py -q",
+            "criteria": [
+              "the live-file assertion is state-aware: it reads optimizer_best.json's schema_version and asserts mis_attributed when the file is v1/legacy and verified when it is v2, with no OR-style tolerance in a single assertion",
+              "both branches are covered by fixtures independently of whichever state the live file happens to be in, so the branch not currently exercised by the live file cannot rot",
+              "a fixture proves the test still FAILS for a v2 file whose recorded sharpe/dsr do not reproduce from its named run -- the condition the check exists to detect",
+              "mutation-verified: replacing the state-aware assertion with an unconditional pass makes at least one test FAIL, and the measured CONTROL count is re-derived in the same run"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.22"
+          ]
         }
       ]
     },
