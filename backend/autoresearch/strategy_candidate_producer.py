@@ -107,20 +107,51 @@ def build_per_strategy_candidates(
         if dsr is None or pbo is None:
             logger.warning(
                 "[candidate_producer] strategy '%s' metrics missing/invalid dsr|pbo "
-                "(dsr=%r pbo=%r); skipping so the gate cannot silently drop it",
+                "(dsr=%r pbo=%r); skipping so the gate cannot silently drop it. "
+                "producer refusal reason: %s",
                 sid, metrics.get("dsr"), metrics.get("pbo"),
+                # phase-82.27: say WHY. A skip logged without the producer's own
+                # refusal reason is indistinguishable from a crash or a missing
+                # field, and this is the line an operator reads when a strategy
+                # silently stops being considered.
+                metrics.get("pbo_refused") or "(none reported)",
             )
             continue
         sharpe = _coerce_float(metrics.get("sharpe"))
-        candidates.append(
-            {
-                "strategy": sid,
-                "dsr": dsr,
-                "pbo": pbo,
-                "params": params,
-                "sharpe": sharpe if sharpe is not None else 0.0,
-            }
-        )
+        candidate = {
+            "strategy": sid,
+            "dsr": dsr,
+            "pbo": pbo,
+            "params": params,
+            "sharpe": sharpe if sharpe is not None else 0.0,
+        }
+        # phase-82.27: PBO PROVENANCE MUST SURVIVE THE HOP.
+        #
+        # This dict used to be a hardcoded 5-key whitelist, so `pbo` reached
+        # PromotionGate.evaluate but the fields describing HOW it was computed
+        # did not. The gate's phase-82.23 `min_pbo_trials` floor reads
+        # `pbo_n_trials`, so dropping that key made the floor unreachable:
+        # measured on the real modules, a candidate with pbo_n_trials=3 was
+        # promoted True without this passthrough and refused with
+        # 'pbo_trials_below_min:3<10' once it was restored. A bare PBO float
+        # cannot be told apart from a gate-grade one -- that is the whole point
+        # of computing the trial count and the column diversity beside it.
+        #
+        # Forwarded rather than recomputed: this module never sees the PnL
+        # matrix, so it cannot re-derive these and must not invent them. A
+        # producer that omits a key leaves it absent, which the gate treats as
+        # the legacy no-N case (unchanged behaviour), NOT as a passing value.
+        for key in (
+            "pbo_n_trials",
+            "pbo_n_obs",
+            "pbo_gate_grade",
+            "pbo_column_corr_mean",
+            "pbo_columns_diverse",
+            "pbo_dropped_columns",
+        ):
+            if key in metrics:
+                candidate[key] = metrics[key]
+        candidates.append(candidate)
     return candidates
 
 

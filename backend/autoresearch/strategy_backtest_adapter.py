@@ -234,6 +234,14 @@ def make_engine_backtest_fn(
         dsr, sharpe = _extract_dsr_sharpe(results[0], n)
         n_windows = len(getattr(results[0], "windows", []) or [])
 
+        # phase-82.27: REPORT THE FILE-DRAWER. A variant that raises above drops
+        # its column silently, and Bailey/Borwein/Lopez de Prado/Zhu warn
+        # "Hiding trials will lead to an underestimation of the overfit" -- the
+        # failures are disproportionately the bad configurations, so dropping
+        # them biases PBO DOWN, i.e. toward promoting. Emitting the count does
+        # not correct the bias; it makes it visible to whoever reads the PBO.
+        dropped_columns = len(grid) - len(results)
+
         matrix = _assemble_pbo_matrix(results, min_pbo_rows)
         if matrix is None:
             _log.warning(
@@ -242,7 +250,12 @@ def make_engine_backtest_fn(
                 "so the producer SKIPS (not a false-good 0.0)",
                 strategy, int(min_pbo_rows), len(results),
             )
-            return {"dsr": dsr, "sharpe": sharpe, "n_variants": len(results), "n_windows": n_windows}
+            return {"dsr": dsr, "sharpe": sharpe, "n_variants": len(results),
+                    "n_windows": n_windows, "pbo_dropped_columns": dropped_columns,
+                    "pbo_refused": (
+                        f"matrix undersized/degenerate: need >=2 columns and "
+                        f">={int(min_pbo_rows)} rows; got {len(results)} usable variant(s)"
+                    )}
 
         # phase-82.23: go through the REFUSING wrapper. compute_pbo returns a
         # false-good 0.0 on an undersized matrix and 0.0 passes every ceiling;
@@ -260,7 +273,8 @@ def make_engine_backtest_fn(
                 strategy, checked["refused"],
             )
             return {"dsr": dsr, "sharpe": sharpe, "n_variants": len(results),
-                    "n_windows": n_windows}
+                    "n_windows": n_windows, "pbo_dropped_columns": dropped_columns,
+                    "pbo_refused": checked["refused"]}
         return {
             "dsr": dsr,
             "pbo": checked["pbo"],
@@ -275,6 +289,9 @@ def make_engine_backtest_fn(
             "sharpe": sharpe,
             "n_variants": len(results),
             "n_windows": n_windows,
+            # phase-82.27: how many configurations were tried but never made it
+            # into the matrix. Non-zero means the reported PBO is optimistic.
+            "pbo_dropped_columns": dropped_columns,
         }
 
     return backtest_fn

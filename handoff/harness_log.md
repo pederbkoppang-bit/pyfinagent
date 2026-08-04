@@ -30313,3 +30313,164 @@ until an optimizer run regenerates it.
 
 **Next**: 82.27 (P0), then 82.7 (P0). Operator still owes: rotate `FRED_API_KEY`, choose a
 fundamentals source, review the unpushed commits.
+
+## Cycle 1137 -- 2026-08-04 -- phase=83 result=DESCOPE
+
+**Not a step close.** This cycle ran the phase-83 research gate and applied an
+**operator-sanctioned PRE-START revision** of phase-83's step set and immutable
+criteria. Recording it here because editing verification criteria is an exception
+to the never-edit-criteria rule; it is defensible only because all 8 original
+steps were `status: pending`, none had begun, and the operator explicitly
+commissioned the research and the resulting step changes.
+
+**Method**: 12-agent max-effort Workflow (`wf0gkz44z`) -- 8 research lenses
+(theme representation, beneficiary mapping, timing/crowding, cost/turnover,
+$0-source feasibility, lookahead defence, adversarial negative-evidence, internal
+codebase audit) -> 3 adversarial auditors (citation/number verification,
+our-constraints feasibility, completeness critic) -> synthesis. 2,316,731 subagent
+tokens, 603 tool calls, 46 min, 12/12 returned, 0 errors. Raw artifacts preserved
+at `handoff/current/phase83_research_raw/{research,verdicts,synthesis}.json`.
+
+**Verdict: DESCOPE** (not `proceed`, not `do_not_build`). Phase-83 goes 8 -> 14
+steps: 6 revised, 6 added, 0 dropped, 97 immutable criteria total.
+
+**Five corrections that rewrote the plan** -- each re-verified by Main against the
+live repo, not accepted from the corpus:
+
+1. **The gate is PBO <= 0.20, not 0.50.** `backend/autoresearch/gate.py:21-30`
+   (`min_dsr=0.95, max_pbo=0.20, min_pbo_trials=10`). The 0.50 figure is
+   `backend/services/promotion_gate.py:37` -- a different, live-allocation-staging,
+   PSR-based decision. All 8 lenses were briefed with 0.50, so every pre-correction
+   feasibility estimate used a ceiling 2.5x too permissive. Cycle 1136's own
+   register line ("PBO 0.7486 vs a 0.20 live ceiling") corroborates 0.20.
+   **CLAUDE.md and the `project_system_goal` memory both state 0.5 and are wrong** --
+   memory corrected this cycle; CLAUDE.md left for an operator-reviewed edit.
+2. **Overlays cannot be gated at all.** `grep -rn 'from backend.tools.screener'
+   backend/backtest/` returns NOTHING; backtest ranking is an independent formula at
+   `candidate_selector.py:186-206`. All 14 `apply_*_to_score` overlays are LIVE-ONLY
+   and invisible to `run_backtest`, so a 15th theme overlay can never produce a DSR
+   or PBO. The original 83.5/83.6 were unactionable independent of any alpha
+   question. New **83.1.2** is the prerequisite.
+3. **`_NUMERIC_FEATURES` is a filter, not a registration** -- used only at
+   `backtest_engine.py:712`; values come solely from
+   `historical_data.build_feature_vector`, no extension hook. The original 83.4
+   criterion was satisfiable by a list append that yields no data: a silent no-op.
+4. **The P0 data source is blocked.** Alpha Vantage ToS is "personal,
+   non-commercial use" and NAMES "investment analysis, research, testing" as
+   commercial; measured 25 req/day; and the pre-2026 archive is a sparse retroactive
+   backfill (AAPL 53 articles Jan-2025 vs >=1000 Jan-2026, >=19x discontinuity), so
+   it cannot reproduce what a live subscriber saw. Replaced by GDELT
+   `gkg_partitioned` (licence: "unlimited and unrestricted use for any academic,
+   commercial, or governmental use of any kind without fee") for AGGREGATE intensity
+   only + GPR + SEC EDGAR for firm level.
+5. **Beneficiary selection by naming is a published NULL** -- and it was the
+   original 83.3 kill test. Coverage-selected narrative portfolios show no abnormal
+   return; only return-BETA-selected ones earn 6.96%/yr (t=2.53). GPT-5 zero-shot
+   scores accuracy 0.555 / F 0.189 on a balanced supply-link benchmark -- a coin
+   flip. Select by return beta; use co-mention/VTNIC/ETF-overlap only as a filter.
+
+**A near-miss worth recording**: the pre-research 83.4 mandated the LAP lookahead
+test as an immutable criterion. LAP needs first-token log-probabilities, which the
+Anthropic and Gemini rails do not expose -- it would have made 83.4 **permanently
+uncloseable**, the exact phase-81.0 failure mode, in a step I wrote while citing
+that lesson. Replaced with a vintage-difference decomposition needing no
+log-probs.
+
+**Three live defects filed as their own steps** (standing discovered-defect rule),
+money-positive standalone even if the theme programme is abandoned:
+**83.0.1** `news/fetcher.py:99` stamps `published_at` with the current wall clock
+when a source omits it, so a backfill would date 2022 articles 2026 with no error;
+**83.0.2** `data_ingestion.py:229` writes today's yfinance sector onto every
+historical row (survivorship/lookahead already live);
+**83.0.3** `risk_server.py:142-143` calls raw `compute_pbo`, which returns **0.0 --
+the best possible value, clearing every ceiling** -- when T < 32, while
+`compute_pbo_checked` exists at `analytics.py:208` for exactly this case and is not
+wired in. The risk MCP is `alwaysLoad:true`, so a short-sample candidate gets a
+silent false PASS through the obvious tool.
+
+**Honest expectation, recorded so it cannot be relitigated**: sample adequacy is
+**NO**, and not for reasons a longer archive fixes (~12 independent label spans at
+the live 135-day purge horizon; DSR hurdle driven by trial count, independent of T;
+CSCV needs >=10 diverse configurations and a single theme design supplies one).
+83.5 is expected to FAIL. The standing kill criterion holds.
+
+**Next**: 83.0.3 and 83.1.1 are the cheap P0s that decide whether the rest is worth
+building. Operator owes: the GDELT BigQuery spend decision (the ~1.58 TB one-time
+backfill shares the 1 TiB/month free tier with production, so "$0" is an assumption
+nobody measured), and a ruling on whether CLAUDE.md's PBO<=0.5 line gets corrected.
+
+
+## Cycle 1138 -- 2026-08-04 -- phase=82.27 result=PASS
+
+**Step**: RE-SPEC of 82.23 criterion 1 -- anchor PBO on the SWEEP-LEVEL producer, not
+`generate_report`. 82.23 was structurally uncloseable (its criterion required a PBO from
+a function that sees ONE run, where `compute_pbo` returns a false-good 0.0 that PASSES
+the <=0.20 ceiling); the operator chose re-spec, and 82.23 stays permanently `pending`,
+superseded in place with criteria untouched.
+
+**THE RESEARCH GATE FOUND A DEFECT I HAD SHIPPED ONE STEP EARLIER.** The
+`min_pbo_trials = 10` floor added in 82.22/82.23 was DEAD on the live path:
+`strategy_candidate_producer` rebuilt every candidate from a hardcoded 5-key whitelist
+that discarded `pbo_n_trials`, the floor's only input. Measured on the real modules --
+`promoted: True` without the key, `pbo_trials_below_min:3<10` with it. A gate term whose
+input never arrives cannot fail.
+
+**Shipped**: six provenance keys forwarded through the candidate hop (forwarded, never
+recomputed -- that module cannot see the PnL matrix); `risk_server.pbo_check` moved to
+`compute_pbo_checked` so the MCP surface stops re-exposing the false-good 0.0; the
+composite `evaluate_candidate` now reads `ok` before `vetoed`; `pbo_dropped_columns` and
+`pbo_refused` emitted on every producer return path. New suite, 19 tests, every guard
+executing real code.
+
+**Q/A**: three cycles on the Workflow rail, all raw returns archived under
+`handoff/current/qa_returns/`. `wusnhzw5a` CONDITIONAL, `wak7i2sd0` CONDITIONAL,
+`wvigpeszi` **PASS**. Cycle 3 independently CONSTRUCTED a valid ast.parse-checked mutant
+for each of the 10 matrix rows and reproduced every row's exact kill set. The
+3rd-CONDITIONAL auto-FAIL rule was live -- I armed it explicitly in the spawn and told
+it to count the critique file rather than harness_log, because log-last means prior
+CONDITIONALs are not logged yet. It did not engage: the rule converts CONDITIONAL to
+FAIL and has no PASS->FAIL branch.
+
+**MAIN'S DEFECTS -- one is a repeat-of-a-repeat and that is the lesson.**
+(1) **I fixed a defect class only where it was pointed at, three times running.**
+Cycle 1 flagged a missing mutant for criterion 2's guard; I added it for criterion 2.
+Cycle 2 flagged the same shape (#11, mis-attributed kill mechanism) on criterion 1's
+guard -- M1/M2 were labelled "[criterion 1 wiring]" but kill only the candidate-producer
+hop tests. Only then did I re-measure ALL ten rows with `pytest -rf` and capture the
+actual failing test names. The code was right every cycle; the ARTIFACT kept claiming
+the wrong reason. Patching the named instance instead of sweeping the class is the
+generalisable failure.
+(2) **I tested criterion 3's clause on the wrong object via the wrong branch** --
+`risk_server` (which my own contract calls a CONSUMER) at T=40/N=1, the N<2 branch, not
+the under-length branch the criterion names. The producer returned no reason key at all;
+the reason existed only as a log line no consumer or test can see.
+(3) **I wrote a disclosure that read as diligence while never checking.** Section 6 named
+the MCP contract-change risk generically; the cycle-1 Q/A found that such a consumer
+EXISTS -- `evaluate_candidate`, same file, thirty lines below -- and read a refusal as
+`passed_all_gates`. I asked it to look, which is the only reason it was found.
+(4) **A mutation matrix row that never compiled.** My first M7/M8 spliced on `)}` which
+matched inside `{len(results)}`, producing a syntactically broken file reported as "8
+failed" -- which would have read as a strong kill. The harness now `ast.parse`s every
+mutant and prints SYNTAX-BROKEN instead of a count.
+
+**Scope honesty, unchanged and load-bearing**: NOTHING SCHEDULES the rotation path --
+the weekly CRON is still deferred and `grep` across `backend/services`, `backend/main.py`
+and `backend/slack_bot` returns zero hits. This is a pre-emptive repair, not an outage
+fix. And `_DEFAULT_K = 8` sits BELOW the `min_pbo_trials = 10` floor, so every strategy
+at default K is now REFUSED where it previously promoted. I did not raise K to make the
+gate pass -- that is tuning the test to the answer. Choosing K is 82.26.
+
+**Queued from the residuals**: 82.31 (a forwarded provenance value can be replaced by a
+plausible constant and survive -- reporting-only; gate.py reads only dsr/pbo/n_trials).
+Left open deliberately rather than fixed post-PASS, so the graded tree is the shipped tree.
+
+**Register**: PBO is now computed, carried with its trial count and diversity, and
+ENFORCEABLE at the gate for the first time. Incumbent `triple_barrier` PBO 0.7486 vs a
+0.20 ceiling. 0 of 3 strategies pass.
+
+**Next**: 82.7 (P0, credential logging). Investigation already done read-only: the
+`SecretRedactionFilter` EXISTS and its regex catches the FRED shape, but `setup_logging()`
+is called only from `backend/main.py:151`, so every standalone script path runs with no
+filter -- which is how the 2026-08-03 backfill leaked. Seven credential-in-URL sites, not
+one. Operator still owes: rotate `FRED_API_KEY` (treat as disclosed), choose a
+fundamentals source.

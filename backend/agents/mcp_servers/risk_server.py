@@ -15,9 +15,7 @@ Tools exposed:
 """
 from __future__ import annotations
 
-import json
 import logging
-import math
 import time
 from typing import Any
 
@@ -138,21 +136,50 @@ def create_risk_server():
         PBO > threshold. Canonical reference: Bailey, Borwein, Lopez de
         Prado, Zhu (2016) -- SSRN 2326253.
         """
+        # phase-82.27: use the CHECKED wrapper, not raw compute_pbo.
+        #
+        # `compute_pbo` returns 0.0 -- the BEST possible value -- when N<2 or
+        # T < S*2. On a `pbo > threshold` veto that sentinel does not merely
+        # fail to inform, it manufactures a PASS: an undersized matrix
+        # arriving over the MCP surface would clear the veto every time.
+        # `compute_pbo_checked` refuses instead, and a refusal here is
+        # reported as ok=False so the caller cannot read it as "within
+        # bounds". Fail-CLOSED on refusal is deliberate: this is a risk veto.
         try:
-            from backend.backtest.analytics import compute_pbo
-            pbo = float(compute_pbo(pnl_matrix, S=S))
+            from backend.backtest.analytics import compute_pbo_checked
+            checked = compute_pbo_checked(pnl_matrix, S=S)
         except Exception as e:
             return {
                 "ok": False,
                 "vetoed": False,
                 "reason": f"pbo_compute_error:{type(e).__name__}:{e}",
             }
+        if checked.get("pbo") is None:
+            return {
+                "ok": False,
+                "vetoed": False,
+                "pbo": None,
+                "threshold": threshold,
+                "n_trials": checked.get("n_trials"),
+                "n_obs": checked.get("n_obs"),
+                "reason": f"pbo_refused:{checked.get('refused')}",
+                "isError": True,
+            }
+        pbo = float(checked["pbo"])
         vetoed = pbo > threshold
         return {
             "ok": True,
             "pbo": pbo,
             "threshold": threshold,
             "vetoed": vetoed,
+            # Trial count and diversity travel WITH the value: a PBO computed
+            # over few or near-identical configurations is not gate-grade
+            # however good the number looks (Bailey et al. Sec 5.2).
+            "n_trials": checked.get("n_trials"),
+            "n_obs": checked.get("n_obs"),
+            "gate_grade": checked.get("gate_grade"),
+            "column_corr_mean": checked.get("column_corr_mean"),
+            "columns_diverse": checked.get("columns_diverse"),
             "reason": "pbo_exceeds_threshold" if vetoed else "pbo_within_bounds",
             "isError": vetoed,  # MCP-native veto signal
         }
@@ -188,7 +215,20 @@ def create_risk_server():
             pbo_result = pbo_check(pnl_matrix=candidate["pnl_matrix"],
                                     threshold=pbo_threshold)
             gates["pbo"] = pbo_result
-            if pbo_result.get("vetoed"):
+            # phase-82.27 Q/A cycle-1 [BLOCK]: this branch read ONLY `vetoed`,
+            # so a REFUSAL (ok=False, pbo=None) fell through as a clean pass --
+            # the composite verdict came back 'passed_all_gates'. That made the
+            # fail-closed property claimed for pbo_check false at the only
+            # in-repo consumer, thirty lines below its own definition.
+            #
+            # Not a regression: before the checked wrapper, an undersized matrix
+            # returned a false-good 0.0, which also produced vetoed=False. But
+            # "no worse than before" is not the property this gate advertises.
+            # A refusal means the overfitting term COULD NOT BE EVALUATED, and
+            # on a risk veto that must block, not wave through.
+            if not pbo_result.get("ok"):
+                reason = f"pbo_unevaluable:{pbo_result.get('reason')}"
+            elif pbo_result.get("vetoed"):
                 reason = "pbo_exceeds_threshold"
         elif pbo_val is not None:
             vetoed = bool(pbo_val > pbo_threshold)

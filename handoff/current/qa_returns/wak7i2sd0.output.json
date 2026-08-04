@@ -1,0 +1,83 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "Criteria 1, 2 and 3 are MET and I mutation-killed each one myself with my own ast.parse-validated production mutants; both cycle-1 code blockers reproduce as fixed (producer now returns pbo_refused on the under-length branch with pbo=None, and the composite gate now vetoes an unevaluable PBO with reason='pbo_unevaluable:...'), the lint gate is green on the git-derived 4-file scope, and the immutable command reproduces exit=0 / 40 passed. Criterion 4 is NOT met: no row of mutation matrix v2 names a production mutation that kills criterion 1's own guard. M1 and M2 are labelled '[criterion 1 wiring]' but I measured them -- they kill ONLY test_pbo_provenance_survives_the_candidate_producer_hop and test_the_trials_floor_actually_fires_on_the_producer_path, never test_sweep_producer_emits_pbo_with_its_trial_count_and_diversity (:95). That is qa.md vacuity shape #11 (mis-attributed kill mechanism) and it is the SAME class as cycle-1's B2 finding, which was fixed for criterion 2 only. The guard itself is sound -- I supplied the two missing mutants and both kill.",
+    "violated_criteria": [
+      "criterion_4_no_named_mutation_for_criterion_1s_guard",
+      "criterion_4_M1_M2_mis_attributed_to_criterion_1"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Map every row of mutation matrix v2 (experiment_results_82.27.md section 7) to the test it kills, by EXECUTING each mutant in-memory (source loaded from disk, mutated, ast.parse-checked, injected into sys.modules; tree never written) and reading pytest -rf output",
+        "state": "MEASURED: M1 (revert the 6-key provenance passthrough in strategy_candidate_producer) -> 2 failed 17 passed, FAILED = test_pbo_provenance_survives_the_candidate_producer_hop + test_the_trials_floor_actually_fires_on_the_producer_path. M2 (drop only \"pbo_n_trials\" from that same passthrough) -> identical 2 failures. Neither touches criterion 1's guard test_sweep_producer_emits_pbo_with_its_trial_count_and_diversity (:95), which is the ONLY test that executes the sweep-level producer and inspects its returned mapping for pbo + pbo_n_trials + pbo_column_corr_mean. Both rows are nonetheless labelled '[criterion 1 wiring]' in the matrix. I then supplied the two missing mutants myself, both ast.parse-valid: S4 = delete '\"pbo_column_corr_mean\": checked[\"column_corr_mean\"],' from strategy_backtest_adapter.py:287 -> 1 failed 18 passed, AssertionError at :102 'pbo emitted WITHOUT pbo_column_corr_mean'; S6 = delete '\"pbo_n_trials\": checked[\"n_trials\"],' from :281 -> 2 failed 17 passed, AssertionError at :102 plus KeyError at :290. So criterion 1's guard IS mutation-killable and sound; the ARTIFACT simply does not name a mutation for it, and mis-credits two rows that kill a different assertion.",
+        "constraint": "immutable criterion 4: 'every criterion above is mutation-verified: the experiment_results mutation matrix names, FOR EACH GUARD, a concrete production mutation that makes it fail, and records the measured CONTROL count re-derived from the tree in the same run'"
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "immutable_verification_command_exit_code",
+      "per_suite_test_counts_and_arithmetic_consistency",
+      "python_lint_gate_derived_scope_xargs_nonempty_asserted",
+      "backend_runtime_import_smoke",
+      "live_execution_of_the_sweep_producer_both_branches",
+      "live_execution_of_the_composite_gate_7_probes",
+      "gate_ordering_attack_refusal_plus_dd_breach",
+      "kill_switch_read_path_and_real_state_before_after",
+      "independent_mutation_battery_12_mutants_all_ast_parse_validated",
+      "fixture_mutation_shape_5_probe",
+      "guard_vacuity_check_per_criterion",
+      "mutation_matrix_row_to_test_attribution_remeasured",
+      "claim_auditing_numeric_reproduction",
+      "consumer_grep_pbo_check_and_make_engine_backtest_fn",
+      "git_state_measured_independently_add_dry_run",
+      "masterplan_criteria_immutability_HEAD_vs_worktree",
+      "contract_criteria_verbatim_match",
+      "mtime_ordering_research_contract_generate",
+      "log_last_and_status_pending",
+      "third_conditional_counter",
+      "research_gate_envelope",
+      "evidence_changed_between_cycles_no_verdict_shopping",
+      "code_review_heuristics",
+      "adversarial_worst_of_3_lenses"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "HARNESS COMPLIANCE 5/5 CLEAN. Research gate: envelope gate_passed=true, external_sources_read_in_full=6 (>=5 floor), snippet_only=22, urls_collected=28 (>=10), recency_scan_performed=true, internal_files_inspected=13; contract section 1 cites the researcher and its four corrections. mtime order: brief 11:46:06 < contract 11:49:54 < test 12:07:09 < prod files 12:08:38/12:08:47/12:09:22 < experiment_results 12:10:19 -- contract precedes generate. LOG-LAST: grep -cE \"phase=82\\.27\" handoff/harness_log.md = 0 and masterplan 82.27.status=\"pending\", retry_count=0/max_retries=3 -- so certified_fallback=false and the 3rd-CONDITIONAL rule is NOT engaged (0 logged CONDITIONALs for this step-id; this is at most the 2nd). NO VERDICT-SHOPPING: evidence measurably changed -- 14 -> 19 tests in the 82.27 suite, three production files edited (pbo_refused added on BOTH producer refusal paths, evaluate_candidate now reads ok before vetoed, 2 dead imports removed), experiment_results gained section 7.\n\nGIT MEASURED MYSELF, NOT TAKEN ON YOUR WORD. Nothing is staged right now (git diff --cached --name-only = empty); the index you saw at cycle 1 has been reset. `git add -An` = 25 paths (was 23): 4 are 82.27 code/test, 6 are 82.27 handoff artifacts, and 15 belong to another session's phase-83 work + the phase-82.22 archive + hook JSONLs. Your deliberate-`git add` plan is sound with ONE unavoidable caveat: .claude/masterplan.json MUST be staged for the status flip and it carries the phase-83 8->14 re-plan, so that re-plan WILL ride under 82.27's subject unless it is committed separately first. 82.27's and 82.23's masterplan entries are byte-identical to HEAD (jq-normalised compare) -- criteria untouched -- and all four criteria plus the verification command are verbatim-present in contract_82.27.md (5/5 programmatic substring check True).\n\nNUMBERS -- ALL RE-DERIVED, ALL REPRODUCE. Immutable command exit=0, \"40 passed in 7.80s\". 82.27 suite alone 19 passed; 82.23 suite alone 21 passed; 21+19=40 and cycle-1's 21+14=35 both reconcile exactly, so nothing was spliced. CONTROL 19 confirmed twice (pytest run and direct-call run). Lint gate: scope DERIVED (3 tracked via `git diff --name-only HEAD -- '*.py'` + 1 untracked via `git ls-files --others`), non-empty asserted (COUNT=4), piped through `xargs -0` so no zsh word-split -- \"All checks passed!\" ruff_exit=0. All three changed backend modules import cleanly in the venv.\n\n(B1) VERIFIED INDEPENDENTLY. _run_sweep(n_obs=20) returns keys ['dsr','n_variants','n_windows','pbo_dropped_columns','pbo_refused','sharpe'], pbo=None, pbo_refused='matrix undersized/degenerate: need >=2 columns and >=32 rows; got 12 usable variant(s)'. A well-sized sweep (n_obs=400) returns pbo=0.4609168609168609, pbo_n_trials=12, pbo_column_corr_mean=0.012704615520047856, pbo_refused=None. Your discriminating guard is real: my S7 mutant (emit a refusal reason on the SUCCESS path too) is killed by test_a_successful_sweep_reports_no_refusal_reason.\n\n(B4) VERIFIED, AND THE ORDINARY PATHS SURVIVE. My own probes with the kill switch read-patched: P1 under-length T=10 -> vetoed=True reason='pbo_unevaluable:pbo_refused:T=10 < S*2=32; compute_pbo would return a false-good 0.0 that PASSES the ceiling', isError=True. P2 good candidate -> vetoed=False 'passed_all_gates'. P3 pbo=0.86 -> vetoed=True 'pbo_exceeds_threshold'. P6 DD breach alone -> 'projected_dd_over_cap'. ORDERING ATTACK P4 (refusal AND a 900% projected DD simultaneously) -> vetoed=True with reason='pbo_unevaluable:...'; the DD veto is NOT masked -- gates.projected_dd.vetoed stays True in the returned structure, and P5 shows the identical first-reason-wins precedence already existed at HEAD for pbo_exceeds_threshold (risk_server.py:252 `if vetoed_dd and reason is None`). The change is MONOTONE: it can only ADD vetoes, never convert a veto into a pass, which is the correct direction for a risk gate. Bonus improvement I found: P7, a garbage pnl_matrix, now also vetoes ('pbo_unevaluable:pbo_compute_error:ValueError') where at HEAD that branch left reason=None.\n\n(a) YOUR SYNTAX-BROKEN CONCERN, ANSWERED ON MY OWN HARNESS. Your M7/M8 mutant TEXT is not preserved in the tree, so I could not audit your exact strings -- instead I built an independent harness that asserts the target substring occurs the expected number of times, ast.parse-checks the mutant, and ABORTS with SYNTAX-BROKEN rather than reporting a count. All 12 of my mutants compiled; none aborted. The criterion-3 reason clause is genuinely killable by valid Python: S2 (rename the pbo_refused key) -> 1 failed at :190; S3 (replace the f-string with 'the producer declined to compute a value') -> 1 failed at :193 on the undersized|rows assert. Your added ast.parse check is the right fix and I reproduce honest 1-test kills for that class.\n\n(b) KILL-SWITCH PATCH IS SAFE AND HIDES NO ORDERING BUG. Real state paused=True reason='manual' BEFORE and AFTER my whole probe run -- unchanged. risk_server.py:71 does a CALL-TIME `from backend.services.kill_switch import get_state`, so mock.patch.object on the module attribute is a pure READ-path patch; grep for set_paused|pause(|resume(|.write|json.dump in the test file returns ZERO hits. It does not hide an ordering bug: in production a paused switch returns 'kill_switch_paused' -- itself a veto -- at gate 1, so pbo_unevaluable is only reachable when the switch is LIVE/unpaused, which is exactly the normal operating state the patch simulates. This machine being paused is local operator state, not the production invariant.\n\nFULL INDEPENDENT MUTATION BATTERY (12 mutants, tree never written -- source mutated in memory and injected via sys.modules). KILLED: S1 composite-reads-only-vetoed -> 1 failed ('reason=passed_all_gates', proving B4 is load-bearing); S2 reason-key-renamed -> 1; S3 placeholder-reason -> 1; S4 drop corr_mean from producer -> 1; S6 drop n_trials from producer -> 2; S7 always-report-a-reason -> 1; S8 dropped-count-hardcoded-0 -> 2; S9 MCP refusal reported as ok/no-isError -> 1; C2 generate_report injects analytics['pbo']=0.0 -> killed at :136 (criterion 2 re-confirmed independently); M1/M2 -> 2 each, on the hop tests only. FIXTURE MUTATION (qa.md 4c requires mutating the stub, not only the code): blanket-0.0 _Result.__getattr__ turns 8 of 19 red, so the type-aware fallback is load-bearing and this is not vacuity shape #5.\n\nONE SURVIVOR, RECORDED AS A NOTE NOT A VIOLATION (survivor-needs-a-behavioural-differential). S5 = replace strategy_backtest_adapter.py:287 with a CONSTANT '\"pbo_column_corr_mean\": 0.0,' -> 19 passed, SURVIVED. The mutant is NOT behaviourally equivalent (0.0 vs the real 0.0127), so it is a genuine survivor: criterion 1's diversity clause is guarded on presence (S4 kills) and type (isinstance float) but not on VALUE at the forwarding site. I did not raise it to a violation because (i) criterion 1's text requires EMISSION, not value-correctness, (ii) the diversity computation itself IS value-tested in the paired 82.23 suite, which runs in the same immutable command (test_phase_82_23_pbo_in_gate.py:194-197 asserts independent corr_mean < 0.1 and near-duplicate corr_mean > 0.99), and (iii) grep shows gate.py reads only dsr, pbo and pbo_n_trials -- nothing reads pbo_column_corr_mean, so the blast radius is reporting-only. NAMED FIX if you want it closed: assert the forwarded value differs between an independent-column and a near-duplicate sweep, or assert it equals compute_pbo_checked's value for the same matrix.\n\nCONSUMER GREP (heuristic #16 does NOT fire). pbo_check's only in-repo consumer of the return SHAPE is evaluate_candidate:215 -- now fixed; scripts/harness/mcp_ab_test.py:336 only names the tool string. make_engine_backtest_fn's consumers are rotation_runner.py:271 and scripts/run_rotation_smoke.py:47, and the return change is purely ADDITIVE (pbo_refused, pbo_dropped_columns), so no existing contract narrows.\n\nSECTION 1b CORRECTION: verified corrected IN PLACE, not contradicted below. The false clause 'so a caller cannot read it as within bounds' now appears in the file ONLY inside the explicit CORRECTION paragraph at line 43 that quotes and retracts it; the assertion at line 38 no longer carries it.\n\nDOCUMENTATION-HYGIENE NOTE (not a violation, but fix it while you are in the file): section 3 is still headed \"Verbatim verification output\" and shows the cycle-1 '35 passed' with 35 dots, which does not reproduce on the delivered tree (40). Likewise sections 1d/2 say \"14 tests\" and section 4's matrix records CONTROL 14. All are honest cycle-1 records superseded by section 7, and the arithmetic reconciles exactly -- but nothing in the section-3 header says so, and a reader who stops there reads a stale number as current.\n\nMINIMAL PATH TO PASS -- artifact-side only, no code change, and I have already MEASURED both kills so you do not need to re-derive them: (1) add two rows to matrix v2 -- \"M9 drop pbo_column_corr_mean from the adapter's success return -> 1 failed 18 passed [criterion 1]\" and \"M10 drop pbo_n_trials from the adapter's success return -> 2 failed 17 passed [criterion 1]\" -- and re-run them once to record the numbers in your own harness; (2) re-label M1/M2 from '[criterion 1 wiring]' to '[candidate-producer hop]' since they measurably kill only the two hop tests; (3) optionally mark sections 3/4 as CYCLE-1 SUPERSEDED. WORST-OF-3 LENSES: correctness PASS-grade (code correct, 11 of 12 mutants killed, both cycle-1 blockers genuinely closed, no regression on the ordinary gate paths); does-it-reproduce PASS-grade (every number and every behavioural claim reproduced on my clean runs); scope-honesty CONDITIONAL (matrix rows credited to a criterion whose guard they do not kill, plus stale cycle-1 numbers presented without a superseded marker); min = CONDITIONAL."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:82.27",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a357d71ef9631d312",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1785838245821,
+      "queuedAt": 1785838245811,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 82.27, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-…",
+      "lastProgressAt": 1785838894511,
+      "tokens": 170501,
+      "toolCalls": 32,
+      "durationMs": 648690,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"Criteria 1, 2 and 3 are MET and I mutation-killed each one myself with my own ast.parse-validated production mutants; both cycle-1 code blockers reproduce as fixed (producer now returns pbo_refused on the under-length branch with pbo=None, and the composite gate now vetoes an unevaluable PBO with reason='pbo_unevaluable:...'), the lint gate is green on…"
+    }
+  ],
+  "totalTokens": 170501,
+  "totalToolCalls": 32
+}

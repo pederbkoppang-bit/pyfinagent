@@ -1,0 +1,70 @@
+{
+  "summary": "Layer-3 Research Gate for masterplan step 82.27 as a structured-output task -- the brief is written to disk by the agent and the gate envelope is the captured return value. Reads .claude/agents/researcher.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "gate_passed": true,
+    "tier": "moderate",
+    "external_sources_read_in_full": 6,
+    "snippet_only_sources": 22,
+    "urls_collected": 28,
+    "recency_scan_performed": true,
+    "internal_files_inspected": 13,
+    "brief_path": "handoff/current/research_brief_82.27.md",
+    "adapter_pbo_reaches_gate": true,
+    "generate_report_call_sites": 15,
+    "recommended_anchor": "backend/autoresearch/strategy_backtest_adapter.py:167 `make_engine_backtest_fn`. It is the ONLY sweep-level PBO producer that is (a) library code rather than a one-shot script, so a criterion written against it stays true; (b) on a path that actually reaches PromotionGate.evaluate (rotation_runner.py:271/:278 -> strategy_candidate_producer.py:148 -> strategy_selector.py:94); (c) already emitting the 82.23 provenance fields (:264-278); and (d) enforcing Bailey Algorithm 2.3's same-model-different-configuration rule at :94-108 with a hard ValueError on an unknown strategy so the engine cannot silently fall back to triple_barrier. scripts/harness/run_82_3_candidate_backtests.py:143 is a genuine second sweep producer but is a one-shot evidence script that never calls the gate -- name it as the OFFLINE evidence producer, not the anchor. quant_optimizer.py is disqualified twice over: it retains no per-iteration return series (only scalars, :610) and it is a guided search, whose intermediate steps Bailey Sec 5.2 explicitly forbids as CSCV columns.",
+    "key_findings": [
+      "Q1 SETTLED verbatim from the paper (read in full, 34pp via curl+pdfplumber, https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf): Algorithm 2.3 -- 'each column n = 1,...,N represents a vector of profits and losses over t = 1,...,T observations associated with a particular model configuration tried by the researcher. M is therefore a real-valued matrix of order (T x N)', with conditions (i) synchronous rows across the N trials and (ii) the metric estimable on subsamples; 'If different model configurations trade with different frequencies, observations should be aggregated to match a common index'.",
+      "Guided-search exclusion is EXPLICIT (paper Sec 5.2): 'the columns of matrix M should be the final outcome of each guided search (i.e., after it has converged to a solution), and not the intermediate steps.' This disqualifies backend/backtest/quant_optimizer.py:302 as a column source independently of its lack of series retention.",
+      "Requirements on N and T, verbatim: 'if the investor is sensitive to values of phi < 1/10 ... N >> 10 is required'; 'T should be chosen to be double of the number of observations used by the investor to choose a model configuration'. S=16 is justified as producing 12,780 logits with sigma[f(lambda)] < 0.0045 on ~4 years of daily data.",
+      "Q2 -- UNANIMOUS architectural convention across every implementation found: the (T x N) matrix is owned by the object that RAN THE SWEEP. CRAN `pbo` takes a user-assembled data frame and its own example uses N <- 200 (https://cran.r-project.org/web/packages/pbo/readme/README.html); the reference Python walk-through builds `R_mat = pd.DataFrame(R).T  # shape: (n_configs, n_combinations)` AFTER the sweeps complete; mlfinlab's cross_validation/combinatorial.py generates N backtest paths but does NOT compute PBO at all (statistics live in a separate module). No implementation computes PBO inside a single-run report object -- external corroboration that 82.23's criterion was unsatisfiable.",
+      "Q3 -- 'return 0.0 on N<2' is NOT a documented trap anywhere. CRAN pbo, mlfinlab and the reference Python implementation ALL document zero small-N behaviour; the paper gives only a magnitude rule (N >> 10), not a branch. So backend/backtest/analytics.py:297-298 is a pyfinagent-LOCAL invention, and the chosen sentinel is the best possible value on a ceiling gate. Do not cite a precedent that does not exist.",
+      "MEASURED WIRING DEFECT (the highest-value finding): the adapter's `pbo` DOES reach PromotionGate.evaluate, but `pbo_n_trials` does NOT. backend/autoresearch/strategy_candidate_producer.py:115-123 rebuilds the candidate from a hardcoded 5-key whitelist (strategy, dsr, pbo, params, sharpe), discarding pbo_n_trials/pbo_n_obs/pbo_gate_grade/pbo_column_corr_mean/pbo_columns_diverse. Ran live against the real modules: with pbo_n_trials=3 the gate returns {'promoted': True}; with the key restored it returns {'promoted': False, 'reason': 'pbo_trials_below_min:3<10'}. The 82.23 min_pbo_trials=10 floor (gate.py:43-53) is therefore DEAD on the only live producer path, and _DEFAULT_K=8 (adapter :70) sits below it. 82.27 NEEDS A WIRING CHANGE, not only tests.",
+      "Hop trace for I4: scripts/run_rotation_smoke.py:58 -> rotation_runner.run_rotation_bakeoff:241 -> make_engine_backtest_fn (:271) -> run_strategy_bakeoff (:278) -> strategy_candidate_producer.py:148 build_per_strategy_candidates -> strategy_selector.py:150 select_best_strategy -> g.evaluate(c) at strategy_selector.py:94. Real and closed -- but NOTHING SCHEDULES IT: rotation_runner.py:36 and strategy_candidate_producer.py:33 both still list 'The weekly rotation CRON' as DEFERRED, and no rotation scheduling exists in backend/services, backend/main.py or backend/slack_bot.",
+      "I3 -- backend/agents/mcp_servers/risk_server.py:133-158 is a CONSUMER, not a third producer: `pnl_matrix` arrives as a tool ARGUMENT; the server never assembles a matrix or runs a backtest. It does re-expose the false-good, however, because it calls raw compute_pbo at :142-143 -- a one-line swap to compute_pbo_checked. Consumer fix, optional for 82.27; must not be described as a producer.",
+      "I5 -- backend/backtest/experiments/quant_results.tsv has NO pbo column (header: timestamp run_id param_changed metric_before metric_after delta status dsr top5_mda params_json parent_run_id; 539 rows). The 7 'pbo' matches are inside the params_json blob on rows 533-539 only (the 82.3-passA/passB rows). Of 437 files in backend/backtest/experiments/results/, exactly 3 contain a \"pbo\" key -- all phase-82.3 outputs (20260803T175308Z_phase_82_3_candidate_comparison.json, 20260804T025319Z_phase_82_3_full_sample_3strat.json, 20260804T041628Z_phase_82_3_short_window_4strat.json).",
+      "Literature backing for the existing columns_diverse field: the paper's own Sec 5.2 limitation 4 states 'it is entirely possible that all the N strategies have high but similar Sharpe ratios. Since none of the strategies is clearly better than the rest, PBO will be high.' The measured 82.3 column correlation of 0.967-0.979 puts the incumbent's 0.7486 squarely in that documented benign regime -- report it as 'not gate-grade evidence', NOT as 'the incumbent is overfit'.",
+      "Paper also forbids PBO as an optimisation objective (Sec 5.2 limitation 5, citing Strathern): 'CSCV can be employed to evaluate the quality of a strategy selection process, but PBO should not be the objective function on which such selection relies.' Keep PBO out of quant_optimizer's search objective; the promotion gate is the correct home.",
+      "Recency scan (2024-2026) performed with three query variants: 2 relevant findings, NEITHER supersedes CSCV. (1) Arian, Norouzi M. & Seco (2024), Knowledge-Based Systems S0950705124011110 / SSRN 4778909 -- CPCV beats K-Fold/Purged K-Fold/Walk-Forward, MEASURED BY lower PBO and higher DSR, plus new Bagged/Adaptive CPCV variants; it changes how columns are GENERATED, not what they are or who owns them. (2) arXiv:2512.12924v1 (Dec 2025, read in full) -- cites CSCV as the reference method and Arian 2024, notes 'walk-forward remains the industry standard', and explicitly declines to apply deflation to its own results. No 2026 work on PBO/CSCV surfaced.",
+      "File-drawer pitfall now mapped to code: backend/autoresearch/strategy_backtest_adapter.py:212-216 silently DROPS a failed variant's column. The paper warns 'Hiding trials will lead to an underestimation of the overfit' -- systematically dropping losers biases PBO DOWN. Worth emitting a dropped-column count alongside pbo."
+    ],
+    "corrections_to_main": [
+      "'all 16 repo call sites pass a single run' -- the SUBSTANCE is confirmed (every invocation passes one BacktestResult), but the COUNT is 15, not 16. Measured: grep 'generate_report(' across *.py excluding .venv/node_modules and the def yields 15 invocations (api/backtest.py:1058; strategy_backtest_adapter.py:162; quant_optimizer.py:205,:267; scripts/ablation/run_ablation.py:170; scripts/harness/run_82_3_candidate_backtests.py:162, run_experiment.py:118, run_harness.py:134,:143, run_optimizer.py:77, run_quick_test.py:59, run_seed_stability.py:57, run_subperiod_test.py:55, run_validation.py:88; tests/autoresearch/test_phase_48_2_backtest_adapter.py:98). The 16th reference counted by 82.22 is backend/tests/test_phase_82_23_pbo_in_gate.py:216 `monkeypatch.setattr(ad, \"generate_report\", ...)` -- a symbol SUBSTITUTION, not an invocation. If 82.27's criteria name a number, say '15 invocations (16 non-def references)' and bound the grep, or better, express it as a PROPERTY ('no invocation receives more than one BacktestResult') so it cannot drift when a script is added.",
+      "'82.27 needs only tests OR a wiring change -- you decide' -- MEASURED ANSWER: it needs a WIRING CHANGE. The adapter's pbo reaches PromotionGate.evaluate, but pbo_n_trials does not survive strategy_candidate_producer.py:115-123's 5-key whitelist, so the 82.23 min_pbo_trials floor cannot fire on the live path. Verified by running the real modules: {'promoted': True} without the key vs {'promoted': False, 'reason': 'pbo_trials_below_min:3<10'} with it.",
+      "The prompt lists 'backend/backtest/quant_optimizer.py' as a POSSIBLE third sweep-level producer. It is not, and should be explicitly excluded rather than left open: measured over all 855 lines, it retains only scalars (_log_experiment :610) and a mutating self.best_params (:302) -- no per-iteration return series exists to stack. Independently, it is a guided search, and Bailey Sec 5.2 bans guided-search intermediate steps as CSCV columns. Two independent disqualifications.",
+      "Minor: the prompt cites compute_pbo at analytics.py:184. In the current file compute_pbo is defined at analytics.py:276; line 184 is the start of the phase-82.23 threshold-reconciliation comment block, and compute_pbo_checked is at :208. The N<2 / T<S*2 -> 0.0 branch is at :297-298. Worth re-deriving before writing any of these into immutable criteria -- they have already moved once in this phase."
+    ]
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Research"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "research:82.27",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "ad980271ebad776f3",
+      "agentType": "researcher",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1785836182317,
+      "queuedAt": 1785836182309,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "moderate",
+      "promptPreview": "You are the pyfinagent Layer-3 Researcher for masterplan step 82.27, RESEARCH phase.\n\nSTEP 0 (binding): Read .claude/agents/researcher.md IN FULL and follow it as your operating instructions --\nit is the single source of truth for the role (the >=5-sources-read-in-full floor, the 3-variant search-query\ndiscipline, the mandatory last-2-year recency scan, the source-quality hierarchy, the arXiv HTML…",
+      "lastProgressAt": 1785836868286,
+      "tokens": 190440,
+      "toolCalls": 55,
+      "durationMs": 685968,
+      "resultPreview": "{\"gate_passed\":true,\"tier\":\"moderate\",\"external_sources_read_in_full\":6,\"snippet_only_sources\":22,\"urls_collected\":28,\"recency_scan_performed\":true,\"internal_files_inspected\":13,\"brief_path\":\"handoff/current/research_brief_82.27.md\",\"adapter_pbo_reaches_gate\":true,\"generate_report_call_sites\":15,\"recommended_anchor\":\"backend/autoresearch/strategy_backtest_adapter.py:167 `make_engine_backtest_fn`. …"
+    }
+  ],
+  "totalTokens": 190440,
+  "totalToolCalls": 55
+}
