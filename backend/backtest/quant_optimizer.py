@@ -132,6 +132,10 @@ class QuantStrategyOptimizer:
         self.best_dsr: float | None = None
         self.num_trials = 0
         self._warm_started = False
+        # phase-82.22: provenance of any warm-started metrics. Set by
+        # _load_previous_best; None means "these metrics are this run's own".
+        self._warm_started_from_run_id: str | None = None
+        self._warm_started_from_artifact: str | None = None
         self._load_previous_best()  # Warm-start from disk if available
         self.kept = 0
         self.discarded = 0
@@ -718,8 +722,35 @@ class QuantStrategyOptimizer:
             logger.debug(f"Git commit skipped: {e}")
 
     def _save_best_params(self):
-        """Persist best_params + metrics to JSON for warm-start."""
+        """Persist best_params + metrics to JSON for warm-start.
+
+        phase-82.22 PROVENANCE. This used to write `"run_id": self._run_id`
+        beside `self.best_sharpe` / `self.best_dsr` unconditionally -- but those
+        metrics may have been INHERITED from an earlier run by
+        `_load_previous_best`, and nothing recorded where they came from. When a
+        run beat nothing (`kept == 0`), the previous run's numbers were
+        re-stamped with the current run's identity.
+
+        That is not hypothetical: `optimizer_best.json` carried
+        `run_id=60617e0b, sharpe=1.1704633657934074, dsr=0.9525811126193078,
+        kept=0` while run 60617e0b's own ten artifacts produced sharpe
+        0.5384..0.6506 -- six of them at exactly 0.6455483636. The persisted
+        pair belongs to `52eb3ffe-exp10`, four months earlier.
+
+        `run_id` keeps its original meaning (the run that WROTE the file) so no
+        consumer changes. `metrics_run_id` says which run actually PRODUCED the
+        metrics. Every added key is additive: all 15 readers are `dict.get`
+        based.
+        """
         try:
+            # Which run actually produced the persisted metrics? If this run
+            # never improved on the warm-started value, they are not ours.
+            metrics_run_id = self._run_id
+            metrics_source = None
+            if getattr(self, "_warm_started", False) and self.kept == 0:
+                metrics_run_id = getattr(self, "_warm_started_from_run_id", None)
+                metrics_source = getattr(self, "_warm_started_from_artifact", None)
+
             payload = {
                 "params": self.best_params,
                 "sharpe": self.best_sharpe,
@@ -728,6 +759,19 @@ class QuantStrategyOptimizer:
                 "kept": self.kept,
                 "discarded": self.discarded,
                 "saved_at": datetime.now(timezone.utc).isoformat(),
+                # ── phase-82.22 provenance (additive) ──────────────────
+                "schema_version": 2,
+                # The run whose experiment actually produced sharpe/dsr above.
+                # None => unknown provenance. ABSENCE MUST NOT READ AS FRESH:
+                # a consumer seeing no `metrics_run_id` must treat the metrics
+                # as unattributed, never as self-produced by `run_id`.
+                "metrics_run_id": metrics_run_id,
+                "metrics_source_artifact": metrics_source,
+                "warm_started_from": getattr(self, "_warm_started_from_run_id", None),
+                # Trials searched, for DSR deflation. Reset-on-warm-start is a
+                # separate defect (step 82.25); recorded here so that fix has an
+                # input to carry forward.
+                "num_trials": getattr(self, "num_trials", None),
             }
             _BEST_PARAMS_PATH.write_text(json.dumps(payload, default=str, indent=2), encoding="utf-8")
             logger.info("Saved optimizer best params to %s", _BEST_PARAMS_PATH.name)
@@ -758,6 +802,18 @@ class QuantStrategyOptimizer:
                         self.best_dsr = float(prev_dsr) if prev_dsr is not None else 0.0
                         self.num_trials = 1
                         self._warm_started = True
+                        # phase-82.22: remember WHOSE metrics these are. Prefer
+                        # the file's own metrics_run_id (schema v2) over its
+                        # run_id -- if the source was itself warm-started, its
+                        # run_id is the writer, not the producer, and copying
+                        # that forward would propagate the mis-attribution one
+                        # generation further.
+                        self._warm_started_from_run_id = (
+                            data.get("metrics_run_id") or data.get("run_id")
+                        )
+                        self._warm_started_from_artifact = data.get(
+                            "metrics_source_artifact"
+                        ) or "optimizer_best.json"
                     logger.info(
                         "Warm-started optimizer from optimizer_best.json (Sharpe=%.4f, run=%s)",
                         data.get("best_sharpe", data.get("sharpe", 0)), data.get("run_id", "?"),
@@ -788,6 +844,9 @@ class QuantStrategyOptimizer:
                 self.best_dsr = float(prev_dsr) if prev_dsr is not None else 0.0
                 self.num_trials = 1
                 self._warm_started = True
+                # phase-82.22: same provenance capture for the standalone path.
+                self._warm_started_from_run_id = latest.get("run_id")
+                self._warm_started_from_artifact = latest.get("_source_file") or "result_store.load_latest()"
             logger.info(
                 "Warm-started optimizer from standalone backtest (Sharpe=%.4f, run=%s)",
                 prev_sharpe or 0, latest.get("run_id", "?"),

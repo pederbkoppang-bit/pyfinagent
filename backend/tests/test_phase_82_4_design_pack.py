@@ -121,8 +121,12 @@ def test_pack_records_the_endogeneity_caveat():
         "the caveat names the tautology but never states the causal direction; "
         "a keyword-only stub would satisfy the assertions above"
     )
+    # Bounded by the NEXT numbered caveat, found by pattern rather than by a
+    # hardcoded number -- inserting a caveat above renumbers the rest, and a
+    # literal "9. **PBO" boundary breaks on a renumber rather than on substance.
     body = t[t.index("HOLDING PERIOD IS AN OUTCOME"):]
-    body = body[:body.index("9. **PBO is per strategy")]
+    nxt = re.search(r"\n\d+\. \*\*", body[1:])
+    body = body[:nxt.start() + 1] if nxt else body
     assert len(body) > 900, (
         f"caveat 8 is only {len(body)} chars -- too short to carry the "
         "mechanism, the live-book counter-example and the actionable counterpart"

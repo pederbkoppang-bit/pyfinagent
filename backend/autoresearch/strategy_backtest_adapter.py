@@ -59,7 +59,7 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
-from backend.backtest.analytics import compute_pbo, generate_report
+from backend.backtest.analytics import generate_report
 from backend.backtest.backtest_engine import STRATEGY_REGISTRY
 
 logger = logging.getLogger(__name__)
@@ -244,10 +244,34 @@ def make_engine_backtest_fn(
             )
             return {"dsr": dsr, "sharpe": sharpe, "n_variants": len(results), "n_windows": n_windows}
 
-        pbo = float(compute_pbo(matrix, S=pbo_S))
+        # phase-82.23: go through the REFUSING wrapper. compute_pbo returns a
+        # false-good 0.0 on an undersized matrix and 0.0 passes every ceiling;
+        # `compute_pbo_checked` returns pbo=None instead, which the gate treats
+        # fail-closed. It also returns the trial count, so `pbo_n_trials` can
+        # travel WITH the value -- a bare PBO cannot be told apart from a
+        # gate-grade one, and N=8 is not gate-grade (step 82.26).
+        from backend.backtest.analytics import compute_pbo_checked
+
+        checked = compute_pbo_checked(matrix, S=pbo_S)
+        if checked["pbo"] is None:
+            _log.warning(
+                "[adapter] strategy '%s': PBO refused (%s); emitting NO pbo so the "
+                "producer SKIPS rather than promoting on a false-good 0.0",
+                strategy, checked["refused"],
+            )
+            return {"dsr": dsr, "sharpe": sharpe, "n_variants": len(results),
+                    "n_windows": n_windows}
         return {
             "dsr": dsr,
-            "pbo": pbo,
+            "pbo": checked["pbo"],
+            "pbo_n_trials": checked["n_trials"],
+            "pbo_n_obs": checked["n_obs"],
+            "pbo_gate_grade": checked["gate_grade"],
+            # phase-82.23 criterion 4: trial diversity travels WITH the value.
+            # CSCV ranks the columns against each other, so correlated columns
+            # make PBO noise-driven however large N is.
+            "pbo_column_corr_mean": checked["column_corr_mean"],
+            "pbo_columns_diverse": checked["columns_diverse"],
             "sharpe": sharpe,
             "n_variants": len(results),
             "n_windows": n_windows,

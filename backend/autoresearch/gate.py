@@ -20,13 +20,37 @@ from typing import Any
 class PromotionGate:
     min_dsr: float = 0.95
     max_pbo: float = 0.20
+    # phase-82.23: a PBO computed from too few independent trials is
+    # DIRECTIONAL, not gate-grade. Bailey/Borwein/Lopez de Prado/Zhu: "if the
+    # investor is sensitive to values of [phi] < 1/10 ... N >> 10 is required";
+    # the R reference implementation uses N=100. A trial carrying `pbo_n_trials`
+    # below this is refused rather than promoted on a coarse statistic. A trial
+    # that does not report N at all is UNCHANGED in behaviour (see below), so
+    # this is additive for every existing producer.
+    min_pbo_trials: int = 10
 
     def evaluate(self, trial: dict[str, Any]) -> dict[str, Any]:
         """Pure: read trial, return verdict dict. Never mutates trial or anything else."""
         dsr = trial.get("dsr")
         pbo = trial.get("pbo")
         if dsr is None or pbo is None:
+            # Already fail-CLOSED: a missing PBO has never silently promoted
+            # anything, it has silently BLOCKED promotion. Retained verbatim.
             return {"promoted": False, "reason": "missing_dsr_or_pbo", "trial_id": trial.get("trial_id")}
+        # phase-82.23: when the producer DOES report its trial count, refuse an
+        # undersized one. Absent => unchanged legacy behaviour, so no existing
+        # producer starts failing on a field it never emitted.
+        n_trials = trial.get("pbo_n_trials")
+        if n_trials is not None:
+            try:
+                n_int = int(n_trials)
+            except (TypeError, ValueError):
+                return {"promoted": False, "reason": f"non_numeric_pbo_n_trials:{n_trials!r}",
+                        "trial_id": trial.get("trial_id")}
+            if n_int < self.min_pbo_trials:
+                return {"promoted": False,
+                        "reason": f"pbo_trials_below_min:{n_int}<{self.min_pbo_trials}",
+                        "trial_id": trial.get("trial_id")}
         try:
             dsr_f = float(dsr)
             pbo_f = float(pbo)

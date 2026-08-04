@@ -21683,6 +21683,45 @@
             "82.22",
             "82.23"
           ]
+        },
+        {
+          "id": "82.25",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "DEFECT from the 82.22/82.23 research gate: `_load_previous_best` RESETS THE DSR TRIAL COUNT ON EVERY WARM START. `backend/backtest/quant_optimizer.py:759` and `:789` both set `self.num_trials = 1` when warm-starting (from optimizer_best.json and from result_store respectively). DSR is deflated by the number of trials searched (Bailey/Lopez de Prado); resetting to 1 means a carried-forward DSR is deflated as though the strategy had been found on the first attempt, when in truth it survived a search of unknown depth. MEASURED consequence visible in run 60617e0b's own artifacts: DSR falls monotonically 0.6387 (num_trials=2) -> 0.0088 (num_trials=11) WITHIN one run, so the trial count dominates the statistic -- and a warm start silently returns it to 1. Bailey/Lopez de Prado call the undisclosed trial count the single most important missing field in a backtest report. Fix: carry the cumulative trial count across warm starts (persist it in optimizer_best.json -- 82.22 adds the `num_trials` field for exactly this) and deflate against the cumulative figure, or state explicitly why a reset is defensible. Note this INTERACTS with 82.22: the provenance fix records num_trials, and this step makes it load-bearing.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_25_trial_count_reset.py -q",
+            "criteria": [
+              "a warm-started optimizer carries a cumulative trial count rather than resetting to 1, asserted on a fixture whose source file records a prior count",
+              "the DSR reported after a warm start is deflated against the cumulative count, asserted by comparing against the same run deflated at num_trials=1",
+              "a fixture with no recorded prior count resolves per a documented decision rather than silently defaulting to 1",
+              "a test fails against the current reset-to-1 behaviour, so the guard cannot pass vacuously"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.22"
+          ]
+        },
+        {
+          "id": "82.26",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DEFECT from the 82.22/82.23 research gate: the PBO trial floor is far below what CSCV needs. `backend/autoresearch/strategy_backtest_adapter.py:70` sets `_DEFAULT_K = 8`, and the phase-82.3 comparison used K=8 per strategy (measured matrix shapes (1661,8), (1535,8), (1661,8)). Bailey/Borwein/Lopez de Prado/Zhu state that 'if the investor is sensitive to values of phi < 1/10 ... N >> 10 is required'; the R `pbo` package reference example uses N=100. At N=8 the omega statistic has an 8-atom support and PBO is coarsely quantised against a 0.20 or 0.50 threshold. CONSEQUENCE FOR EXISTING EVIDENCE: phase-82.3's headline PBO figures (triple_barrier 0.7486, stretch_regime 0.1960, reversion_sigma 0.3968) order the strategies credibly but are NOT promotion-grade, and the design pack now discloses this as caveat 9. Raise the default K, and make any PBO consumer receive the N alongside the value so a low-N figure cannot be read as gate-grade. NOTE the cost is linear in K: phase-82.3 measured 20.3 min per walk-forward run, so K=32 per strategy is ~10.8h for one strategy alone -- the fix must state the compute budget it implies rather than silently prescribing N=100.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_26_pbo_trial_floor.py -q",
+            "criteria": [
+              "every emitted PBO value is accompanied by the N it was computed from, asserted on a fixture",
+              "a PBO computed below a documented N floor is flagged as not-gate-grade rather than returned bare, asserted by a test that fails if a low-N value is emitted unmarked",
+              "the raised default K is recorded together with its measured compute cost",
+              "a test asserts the phase-82.3 artifacts are correctly marked as N=8 and therefore not gate-grade"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }

@@ -181,6 +181,98 @@ def compute_information_ratio(active_returns: np.ndarray) -> float:
     return float((active_returns.mean() / std) * np.sqrt(252))
 
 
+# ── phase-82.23: canonical PBO thresholds and a refusing wrapper ─────
+#
+# THREE DIFFERENT PBO CEILINGS existed in this repo before this step, which is
+# how a "PBO gate" can be simultaneously present and unenforceable:
+#   * backend/autoresearch/gate.py:22   max_pbo = 0.20   <- THE LIVE ONE
+#   * backend/services/promotion_gate.py PBO_CEILING = 0.5 (evaluate_promotion
+#     has ZERO callers -- dead code, and it defaults a missing pbo to 0.0,
+#     which PASSES)
+#   * the compute_pbo docstring below cites 0.5 as "the canonical gate"
+# The live gate is the strict one and it is FAIL-CLOSED (a candidate missing
+# `pbo` is dropped as "missing_dsr_or_pbo"), so a missing PBO never promoted
+# anything -- it blocked promotion. These constants exist so a future reader
+# finds the reconciliation rather than three numbers and no explanation.
+PBO_CEILING_LIVE = 0.20      # backend/autoresearch/gate.py, enforced weekly
+PBO_CEILING_CANONICAL = 0.50  # Bailey/Borwein/Lopez de Prado/Zhu, SSRN 2326253
+
+# Below this many independent trials a PBO is DIRECTIONAL, not gate-grade.
+# The paper: "if the investor is sensitive to values of [phi] < 1/10 ...
+# N >> 10 is required"; the R reference implementation uses N=100. Raising the
+# producer's default K is step 82.26; this constant lets a CONSUMER tell an
+# undersized figure from a sound one instead of receiving a bare float.
+PBO_MIN_TRIALS_GATE_GRADE = 10
+
+
+def compute_pbo_checked(pnl_matrix, S: int = 16) -> dict:
+    """PBO that REFUSES rather than returning a false-good 0.0.
+
+    `compute_pbo` returns **0.0 -- the best possible value -- when N < 2 or
+    T < S*2**, and 0.0 passes every ceiling above. So an undersized matrix does
+    not merely fail to inform; it manufactures a PASS. That is the single most
+    dangerous line in the PBO path, and it is why this wrapper exists.
+
+    Returns a dict, never a bare float, so a consumer cannot receive a PBO
+    without also receiving the N it was computed from:
+
+        {"pbo": float|None, "n_trials": int, "n_obs": int,
+         "gate_grade": bool, "refused": str|None}
+
+    `pbo is None` means REFUSED -- the caller must treat that as "no
+    measurement", which the live gate already handles fail-closed.
+    """
+    import numpy as _np
+
+    arr = _np.asarray(pnl_matrix, dtype=float)
+    if arr.ndim != 2:
+        return {"pbo": None, "n_trials": 0, "n_obs": 0, "gate_grade": False,
+                "refused": "pnl_matrix must be 2-D (T, N)"}
+    T, N = arr.shape
+    if N < 2:
+        return {"pbo": None, "n_trials": int(N), "n_obs": int(T), "gate_grade": False,
+                "refused": f"N={N} < 2; compute_pbo would return a false-good 0.0"}
+    if T < S * 2:
+        return {"pbo": None, "n_trials": int(N), "n_obs": int(T), "gate_grade": False,
+                "refused": (f"T={T} < S*2={S * 2}; compute_pbo would return a "
+                            "false-good 0.0 that PASSES the ceiling")}
+
+    value = float(compute_pbo(arr, S=S))
+
+    # TRIAL DIVERSITY. CSCV ranks the N columns against each other across time
+    # subsets, so near-identical columns make that ranking noise-driven and the
+    # resulting PBO weak HOWEVER LARGE N IS. Measured live in phase-82.3: on the
+    # short window the K=8 columns correlated 0.967-0.979, and PBO there is not
+    # informative. A PBO without this number cannot be told apart from one
+    # computed over a genuinely diverse configuration set.
+    corr_mean = None
+    corr_max = None
+    try:
+        C = _np.corrcoef(arr, rowvar=False)
+        iu = _np.triu_indices_from(C, k=1)
+        pair = C[iu]
+        pair = pair[_np.isfinite(pair)]
+        if pair.size:
+            corr_mean = float(_np.mean(pair))
+            corr_max = float(_np.max(pair))
+    except Exception:  # diagnostics must never break the measurement
+        pass
+
+    return {
+        "pbo": value,
+        "n_trials": int(N),
+        "n_obs": int(T),
+        # A sound number computed from too few trials is still not gate-grade.
+        "gate_grade": bool(N >= PBO_MIN_TRIALS_GATE_GRADE),
+        "column_corr_mean": corr_mean,
+        "column_corr_max": corr_max,
+        # Diverse enough for the column ranking to mean something. 0.99 is the
+        # near-degenerate boundary; phase-82.3's short window sat at 0.967-0.979.
+        "columns_diverse": (corr_mean is not None and corr_mean < 0.99),
+        "refused": None,
+    }
+
+
 def compute_pbo(pnl_matrix, S: int = 16) -> float:
     """Probability of Backtest Overfitting (CSCV).
 

@@ -245,7 +245,25 @@ gate-then-rank vocabulary already in `rotation_log.jsonl`.
    2026-07-31 dashboard capture, reproduced live from
    `GET /api/paper-trading/portfolio` and `/api/paper-trading/metrics`.
 
-9. **PBO is per strategy**, columns = K=8 configs of the same model (Bailey
+9. **THE PBO FIGURES ARE N=8 — SUGGESTIVE, NOT GATE-GRADE.** Each PBO above is
+   computed from a matrix of shape (T, N) = (1661, **8**) — eight configurations
+   per strategy. Bailey/Borwein/López de Prado/Zhu state that "if the investor
+   is sensitive to values of φ < 1/10 ... **N >> 10 is required**"; the R
+   reference implementation uses N=100. So these numbers order the strategies
+   credibly but should NOT be read as a promotion-grade measurement.
+
+   What they ARE compliant on: Algorithm 2.3 warns that for a **guided search**
+   the columns must be "the final outcome of each guided search ... and not the
+   intermediate steps". These columns come from a **fixed 2×2×2 factorial**
+   (`scripts/harness/run_82_3_candidate_backtests.py:71`) with
+   `trader.full_reset()` per run, so each column is an independent
+   configuration run to completion — not an adaptive trajectory. Stacking the
+   optimizer's own greedy iterations would NOT satisfy this, which is why
+   `QuantOptimizer`'s ten trials cannot be reused as a PBO matrix.
+
+   Raising the trial floor is queued as its own step.
+
+10. **PBO is per strategy**, columns = K=8 configs of the same model (Bailey
    Algorithm 2.3). A PBO computed from per-window returns would be meaningless:
    `compute_pbo` returns **0.0 silently when T < 32**, and 0.0 **passes** the
    ≤0.5 gate. Daily NAV returns are used (T ≈ 1,900).
@@ -349,10 +367,35 @@ candidates. On the full sample none reaches `DSR ≥ 0.95`, and the incumbent's
 `PBO = 0.7486` is an active red flag rather than a near-miss.
 
 **(ii) The promotion gate must be repaired before any promotion decision.** Both
-of its terms were compromised: `PBO ≤ 0.5` was never computed at all, and
-`DSR ≥ 0.95` was being satisfied by a figure belonging to a different run
-(82.22, P0). A gate with one term absent and one mis-attributed cannot certify
-anything.
+of its terms were compromised — **though a correction is owed on the first, and
+it is recorded here rather than quietly amended.**
+
+**What I asserted earlier and what is actually true.** I wrote that
+`PBO ≤ 0.5` "was never computed, so the gate ran on one term", implying it
+silently promoted. That overstates it. Measured:
+
+| gate | threshold | missing-PBO behaviour | live? |
+|---|---|---|---|
+| `backend/autoresearch/gate.py:22` `PromotionGate` | `max_pbo = **0.20**` | **fail-CLOSED** — returns `promoted: False, reason: "missing_dsr_or_pbo"` | **YES**, via `backend/autoresearch/friday_promotion.py:59` |
+| `backend/services/promotion_gate.py:37` | `PBO_CEILING = 0.5` | fail-OPEN — `challenger.get("pbo", 0.0)`, and 0.0 passes | **NO — `evaluate_promotion` has zero callers** |
+| `backend/backtest/analytics.py:198` docstring | "PBO > 0.5 is the canonical gate" | n/a | doc only |
+
+So the LIVE gate is **fail-closed and stricter than I said** (0.20, not 0.5), and
+`backend/autoresearch/friday_promotion.py:108` defaults a missing PBO to **1.0** — the worst
+value — which is also conservative. A missing PBO never silently promoted
+anything; it silently *blocked* promotion.
+
+**What survives, and is the real gap:** `generate_report` still never computes
+PBO (`backend/backtest/analytics.py:184` `compute_pbo` has callers, but not from the report
+path), so no `results/*.json` carries one. Anything flowing from the backtest
+lane into the gate is therefore dropped as `missing_dsr_or_pbo` — the gate is
+sound, but it is starved. And a **third** finding surfaced while checking:
+three different PBO thresholds exist (0.20 live, 0.5 dead, 0.5 documented), one
+of them in dead code with a fail-open default.
+
+**The conclusion is unchanged and in fact stronger:** the incumbent's measured
+**PBO 0.7486 fails every one of those thresholds.** And `DSR ≥ 0.95` was still
+being satisfied by a figure belonging to a different run (82.22, P0).
 
 **(iii) A strategy swap could not change live behaviour anyway.** Per §0, the
 registry does not drive live selection and `paper_analyze_top_n = 5` caps
