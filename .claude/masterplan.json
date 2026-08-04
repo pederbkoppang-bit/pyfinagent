@@ -21328,7 +21328,7 @@
         },
         {
           "id": "82.5",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DEFECT (own step per standing rule): BOTH Exit-quality tiles are single-outlier division blowups. MEASURED 2026-07-31 from the 32 closed round-trips: avg capture mean = -42.08 (UI renders '-4208%') vs MEDIAN excluding degenerate rows = 0.63; edge ratio mean = 86.92 -- which reproduces the UI tile EXACTLY, proving the defect is in the metric definition and not a divergent frontend calculation -- vs MEDIAN 0.81. Drivers: capture_ratio = realized_pnl/MFE blows up as MFE->0 (000660.KS: pnl -0.13, mfe 0.0001 -> capture -1269.57), and 8 of 32 rows have mfe == 0 exactly, a domain on which capture ratio is undefined yet which is included in the mean; edge_ratio = MFE/|MAE| blows up identically (INTC: mfe 53.845 / mae 0.036 -> 1483.34) and 6 of 32 rows have mae == 0 and are silently dropped. Aggregation lives at backend/api/paper_trading.py:996-1032. Investigate SEPARATELY whether the frontend also double-scales a ratio as a fraction (-42.08 shown as -4208%); do not assume both defects without reading the formatter.",
@@ -21341,7 +21341,7 @@
               "a test pins the pre-fix behaviour by asserting the OLD mean formula would have returned a value with magnitude greater than 40 on the committed real-data fixture, so the guard cannot silently regress"
             ]
           },
-          "retry_count": 0,
+          "retry_count": 2,
           "max_retries": 3
         },
         {
@@ -21865,6 +21865,26 @@
           "max_retries": 3,
           "depends_on": [
             "82.7"
+          ]
+        },
+        {
+          "id": "82.34",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "TEST-QUALITY RESIDUALS from the 82.5 cycle-3 PASS. None is a live defect. (W-1, and this is the SECOND instance of the disclosure-completeness class inside one step) contract_82.5.md section 4 named backend/tests/test_paper_trading_v2.py:235-243 as a change site; it was neither changed nor mentioned in experiment_results. That test asserts only KEY PRESENCE ('edge_ratio','avg_capture_ratio','n_points','n_leakers' in body['summary']) on the very endpoint 82.5 rewrote, so it cannot fail on any VALUE -- it would stay green if the endpoint returned -4208% forever. Fix: assert the summary's aggregation=='median', that avg_capture_ratio is None-or-within-[-3,3], and that the new provenance keys are present, so the test can observe the change the endpoint underwent. (W-2) test_one_extreme_outlier_moves_each_headline_by_under_20_percent -- the VERBATIM criterion-3 test -- survives all 14 of the Q/A's code mutants and is therefore a guard that cannot fail. This is NOT Main's error and must not be 'fixed' by editing the criterion: the poison is specified BY the immutable criterion (mfe/mae=1e-4), and it is inert for two independent reasons the Q/A measured -- excluded by the 1.0pp floor on the capture leg, and admitted-but-ordinary on the edge leg (1e-4/1e-4 = exactly 1.0 against a base range 2.500..3.718). The criterion's INTENT is covered by two supplementary tests that DO die under mutation. Fix: keep the verbatim test as a criterion-compliance record, add a docstring stating it cannot fail and naming the two tests that carry the real coverage, so a future reader does not mistake it for a guard. (W-3) test_performance_and_scatter_surfaces_share_one_definition (INV5) is a literal source scan for 'realized_pnl_pct / mfe' -- defeated by whitespace or by an indirect call. The Q/A proved the PROPERTY by executing all three surfaces (/performance, /mfe-mae-scatter, /round-trips all return 0.6304 / 0.6446 / n 20-12 / floor 1.0); the TEST does not. Fix: execute the aggregate paths and compare their outputs instead of grepping.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_5_exit_quality_metrics.py backend/tests/test_paper_trading_v2.py -q",
+            "criteria": [
+              "test_paper_trading_v2's mfe-mae-scatter test asserts VALUES and the new provenance keys, not key presence alone, and a mutation that reverts the endpoint headline to a mean makes it FAIL",
+              "the verbatim criterion-3 test carries a docstring stating it cannot be made red and naming the two supplementary tests that provide the real robustness coverage",
+              "INV5 is proven by EXECUTING the aggregate paths and comparing their emitted values, with no source-text scan doing load-bearing work; a mutation that makes one surface diverge from another makes it FAIL"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.5"
           ]
         }
       ]

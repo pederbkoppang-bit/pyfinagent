@@ -15,6 +15,8 @@ Research basis:
 
 from __future__ import annotations
 
+import statistics
+
 import json
 import logging
 import math
@@ -806,3 +808,169 @@ def compute_rolling_sharpe_bootstrap_ci(
     low = float(np.quantile(samples, alpha))
     high = float(np.quantile(samples, 1.0 - alpha))
     return point, low, high
+
+
+# ─────────────────────────────────────────────────────────────────────
+# phase-82.5: exit quality (capture ratio / edge ratio)
+#
+# THE MEAN OF THESE RATIOS DOES NOT EXIST. Both are ratios whose
+# denominator can reach zero, which makes the per-trade distribution
+# Cauchy-like; Franz (arXiv:0710.2024) proves "neither the expected
+# value nor the variance exist", and that the mean of N such variables
+# follows the SAME distribution as one of them. So the shipped
+# `avg_capture_ratio` of -42.08 was not a bad estimate of a true value
+# -- there is no true value, and more trades would never make it
+# converge. That also rules out winsorizing or clipping: those produce
+# a finite number that estimates no population parameter. The ESTIMATOR
+# has to change, not the tails.
+#
+# The two degeneracies need OPPOSITE treatment, which is why there is
+# no single uniform rule here:
+#   * mae == 0 means the trade never traded against us -- a real,
+#     desirable property. Dropping those rows (as the endpoint did)
+#     deletes the BEST trades: survivorship bias with the sign pointing
+#     the wrong way. Keep them, ranked at +inf.
+#   * mfe == 0 means there was no exit decision to grade -- the ENTRY
+#     failed. Scoring it 0.0 blames the exit for an entry failure.
+#     Exclude it.
+# A median is defined over the extended reals, so +inf can be RANKED
+# rather than deleted; a mean cannot, which is the only reason the
+# `if mae_abs > 0` filter existed.
+# ─────────────────────────────────────────────────────────────────────
+
+# Below this MFE there was no economically meaningful move to capture:
+# the round-trip cost is charged twice, so the "available move" sits
+# inside the cost+noise band and the ratio's denominator is noise. Every
+# published interpretive threshold (0.40 / 0.60 / 0.75) is a fraction of
+# a meaningful move, so grading against a sub-1pp denominator compares
+# against a different scale. This one floor subsumes both pathologies:
+# it removes the exact mfe==0 rows AND the near-zero ones (the real
+# 000660.KS row had mfe=0.0001 -> capture -1269.57).
+MIN_MFE_PCT = 1.0
+
+
+def compute_capture_ratio(
+    realized_pnl_pct: float,
+    mfe_pct: float,
+    min_mfe_pct: float = MIN_MFE_PCT,
+) -> Optional[float]:
+    """Fraction of the favourable excursion actually realised, or None.
+
+    Returns None -- NOT 0.0 -- when the trade never offered a gradeable
+    move. 0.0 is a real, distinguishable outcome ("captured nothing of a
+    real move"); conflating it with "undefined" is what let 8 fabricated
+    zeros into a 32-row average.
+    """
+    try:
+        mfe = float(mfe_pct)
+        # `mfe > 0` is UNCONDITIONAL; the floor is an ADDITIONAL constraint on
+        # top of it, never a way to admit zero. Written as one combined
+        # comparison this reads fine and is wrong: at min_mfe_pct=0.0 a zero MFE
+        # satisfies `mfe < 0.0 == False` and falls straight through to a
+        # ZeroDivisionError. That is the same shape as the bug being fixed here
+        # -- a guard whose threshold does not actually cover its domain -- so it
+        # is spelled out rather than folded together.
+        if not math.isfinite(mfe) or mfe <= 0.0:
+            return None
+        if mfe < float(min_mfe_pct):
+            return None
+        pnl = float(realized_pnl_pct)
+        if not math.isfinite(pnl):
+            return None
+        return pnl / mfe
+    except (TypeError, ValueError):
+        return None
+
+
+def compute_edge_ratio(mfe_pct: float, mae_pct: float) -> Optional[float]:
+    """MFE / |MAE| over the EXTENDED reals: +inf when there was no adverse
+    excursion at all, None only when neither excursion happened.
+
+    +inf is the mathematically honest value for a trade that never went
+    against us, and it RANKS correctly in a median. Returning None (or
+    dropping the row) would delete the best trades.
+    """
+    try:
+        mfe = float(mfe_pct)
+        mae_abs = abs(float(mae_pct))
+        if not (math.isfinite(mfe) and math.isfinite(mae_abs)):
+            return None
+        if mae_abs == 0.0:
+            return math.inf if mfe > 0 else None
+        return mfe / mae_abs
+    except (TypeError, ValueError):
+        return None
+
+
+def _median_or_none(values: Sequence[float]) -> Optional[float]:
+    """Median that refuses to report a non-finite headline.
+
+    With >=50% degenerate rows the median can itself land on +inf. That is
+    a real answer, but it is not renderable and must not reach a tile as
+    `Infinity` -- report None and let the caller disclose.
+    """
+    vals = sorted(v for v in values if v is not None)
+    if not vals:
+        return None
+    med = float(statistics.median(vals))
+    return med if math.isfinite(med) else None
+
+
+def aggregate_exit_quality(
+    rows: Sequence[dict],
+    min_mfe_pct: float = MIN_MFE_PCT,
+) -> dict:
+    """Canonical exit-quality aggregate. THE single definition.
+
+    Before phase-82.5 this arithmetic was duplicated at three sites
+    (paper_round_trips, paper_trading endpoint, paper_trader), so the
+    /performance and /mfe-mae-scatter surfaces could disagree about the
+    same trades. All of them now call this.
+
+    Each `row` needs `mfe_pct`, `mae_pct`, `realized_pnl_pct`.
+    """
+    captures: list[float] = []
+    n_undefined = 0
+    pnl_sum = 0.0
+    mfe_sum_defined = 0.0
+    edges: list[float] = []
+    edge_undefined = 0
+    mfe_sum_all = 0.0
+    mae_abs_sum_all = 0.0
+
+    for r in rows or []:
+        mfe = float(r.get("mfe_pct") or 0.0)
+        mae_abs = abs(float(r.get("mae_pct") or 0.0))
+        pnl = float(r.get("realized_pnl_pct") or 0.0)
+
+        cap = compute_capture_ratio(pnl, mfe, min_mfe_pct)
+        if cap is None:
+            n_undefined += 1
+        else:
+            captures.append(cap)
+            pnl_sum += pnl
+            mfe_sum_defined += mfe
+
+        edge = compute_edge_ratio(mfe, mae_abs)
+        if edge is None:
+            edge_undefined += 1
+        else:
+            edges.append(edge)
+        mfe_sum_all += mfe
+        mae_abs_sum_all += mae_abs
+
+    return {
+        # headline: a median over the DEFINED subset
+        "capture_median": _median_or_none(captures),
+        # secondary: avoids the per-trade division entirely
+        "capture_ratio_of_sums": (pnl_sum / mfe_sum_defined) if mfe_sum_defined > 0 else None,
+        "capture_n_defined": len(captures),
+        "capture_n_undefined": n_undefined,
+        "edge_median": _median_or_none(edges),
+        "edge_ratio_of_sums": (mfe_sum_all / mae_abs_sum_all) if mae_abs_sum_all > 0 else None,
+        "edge_n_defined": len(edges),
+        "edge_n_undefined": edge_undefined,
+        "edge_n_infinite": sum(1 for e in edges if math.isinf(e)),
+        "n_points": len(rows or []),
+        "min_mfe_pct": float(min_mfe_pct),
+    }

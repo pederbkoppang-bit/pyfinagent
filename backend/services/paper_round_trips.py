@@ -27,6 +27,11 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
+from backend.services.perf_metrics import (  # noqa: E402
+    aggregate_exit_quality,
+    compute_capture_ratio,
+)
+
 
 def _parse_ts(s: Any) -> Optional[datetime]:
     if s is None:
@@ -94,7 +99,13 @@ def pair_round_trips(trades: list[dict]) -> list[dict]:
             )
             mfe = float(t.get("mfe_pct") or 0.0)
             mae = float(t.get("mae_pct") or 0.0)
-            capture = realized_pnl_pct / mfe if mfe > 0 else 0.0
+            # phase-82.5: None, NOT 0.0. `mfe > 0` only excluded EXACT zeros --
+            # the real 000660.KS row had mfe=0.0001 and produced capture
+            # -1269.57, which sailed through this guard. And substituting 0.0
+            # for "undefined" is a second defect: 0.0 is a real outcome
+            # ("captured nothing of a real move"), so the fabricated zeros were
+            # indistinguishable from genuine ones inside the average.
+            capture = compute_capture_ratio(realized_pnl_pct, mfe)
 
             round_trips.append({
                 "ticker": ticker,
@@ -110,7 +121,7 @@ def pair_round_trips(trades: list[dict]) -> list[dict]:
                 "holding_days": holding_days,
                 "mfe_pct": round(mfe, 4),
                 "mae_pct": round(mae, 4),
-                "capture_ratio": round(capture, 4),
+                "capture_ratio": (round(capture, 4) if capture is not None else None),
                 "exit_reason": t.get("reason", ""),
             })
 
@@ -138,7 +149,10 @@ def summarize(round_trips: list[dict]) -> dict:
             "median_holding_days": 0,
             "avg_mfe_pct": 0.0,
             "avg_mae_pct": 0.0,
-            "avg_capture_ratio": 0.0,
+            "avg_capture_ratio": None,
+            "capture_n_defined": 0,
+            "capture_n_undefined": 0,
+            "capture_ratio_of_sums": None,
         }
 
     wins = [rt for rt in round_trips if rt["realized_pnl_pct"] > 0]
@@ -154,7 +168,11 @@ def summarize(round_trips: list[dict]) -> dict:
     median_h = holding[n // 2] if n % 2 == 1 else (holding[n // 2 - 1] + holding[n // 2]) // 2
     avg_mfe = sum(rt["mfe_pct"] for rt in round_trips) / n
     avg_mae = sum(rt["mae_pct"] for rt in round_trips) / n
-    avg_capture = sum(rt["capture_ratio"] for rt in round_trips) / n
+    # phase-82.5: the mean of this ratio DOES NOT EXIST (Cauchy-like; the
+    # denominator can reach zero). This was the second, independent copy of the
+    # same broken arithmetic -- fixing only the /mfe-mae-scatter endpoint would
+    # have left /performance still reporting -42.08 for the same trades.
+    _eq = aggregate_exit_quality(round_trips)
 
     return {
         "n_round_trips": n,
@@ -166,7 +184,16 @@ def summarize(round_trips: list[dict]) -> dict:
         "median_holding_days": int(median_h),
         "avg_mfe_pct": round(avg_mfe, 4),
         "avg_mae_pct": round(avg_mae, 4),
-        "avg_capture_ratio": round(avg_capture, 4),
+        # Retained key, honest value: a MEDIAN over the gradeable subset.
+        # None (not 0.0) when nothing is gradeable, so a caller cannot read
+        # "no data" as "captured nothing".
+        "avg_capture_ratio": (round(_eq["capture_median"], 4)
+                              if _eq["capture_median"] is not None else None),
+        "capture_n_defined": _eq["capture_n_defined"],
+        "capture_n_undefined": _eq["capture_n_undefined"],
+        "capture_ratio_of_sums": (round(_eq["capture_ratio_of_sums"], 4)
+                                  if _eq["capture_ratio_of_sums"] is not None else None),
+        "min_mfe_pct": _eq["min_mfe_pct"],
     }
 
 

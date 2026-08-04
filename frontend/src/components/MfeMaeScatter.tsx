@@ -21,7 +21,10 @@ interface ScatterPoint {
   mfe_pct: number;
   mae_pct: number;
   mae_abs_pct: number;
-  capture_ratio: number;
+  // phase-82.5: null when the trade offered no gradeable move (MFE below the
+  // 1pp floor). Previously a fabricated 0.0, indistinguishable from a real
+  // "captured nothing".
+  capture_ratio: number | null;
   realized_pnl_pct: number;
   holding_days: number;
   leakage_flag: boolean;
@@ -30,8 +33,16 @@ interface ScatterPoint {
 interface Response {
   points: ScatterPoint[];
   summary: {
-    edge_ratio: number;
-    avg_capture_ratio: number;
+    // Both headlines are MEDIANS as of phase-82.5, and both are nullable.
+    edge_ratio: number | null;
+    avg_capture_ratio: number | null;
+    capture_ratio_of_sums?: number | null;
+    edge_ratio_of_sums?: number | null;
+    capture_n_defined?: number;
+    capture_n_undefined?: number;
+    edge_n_infinite?: number;
+    min_mfe_pct?: number;
+    aggregation?: string;
     mfe_p75: number | null;
     leakage_threshold_capture: number;
     n_points: number;
@@ -108,11 +119,29 @@ export function MfeMaeScatter() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Edge ratio" value={data.summary.edge_ratio.toFixed(2)} hint="mean(MFE / |MAE|)" />
+        {/* phase-82.5: both tiles are MEDIANS now, not means -- the mean of these
+            ratios does not exist (the denominator can reach zero, making the
+            per-trade distribution Cauchy-like). null renders "n/a", never "0%",
+            so "nothing gradeable" cannot be misread as "captured nothing".
+            The x100 on capture is CORRECT and must stay: capture_ratio is
+            pnl_pct/mfe_pct, i.e. dimensionless. */}
+        <StatCard
+          label="Edge ratio"
+          value={data.summary.edge_ratio === null ? "n/a" : data.summary.edge_ratio.toFixed(2)}
+          hint="median(MFE / |MAE|)"
+        />
         <StatCard
           label="Avg capture"
-          value={`${(data.summary.avg_capture_ratio * 100).toFixed(0)}%`}
-          hint="realized_pnl / MFE"
+          value={
+            data.summary.avg_capture_ratio === null
+              ? "n/a"
+              : `${(data.summary.avg_capture_ratio * 100).toFixed(0)}%`
+          }
+          hint={
+            data.summary.capture_n_defined !== undefined
+              ? `median(realized_pnl / MFE), n=${data.summary.capture_n_defined}`
+              : "median(realized_pnl / MFE)"
+          }
         />
         <StatCard label="Round-trips" value={String(data.summary.n_points)} hint="closed only" />
         <StatCard
@@ -165,7 +194,7 @@ export function MfeMaeScatter() {
                       MFE {p.mfe_pct.toFixed(2)}% &nbsp; |MAE| {p.mae_abs_pct.toFixed(2)}%
                     </p>
                     <p className="text-slate-400">
-                      Capture {(p.capture_ratio * 100).toFixed(0)}% &nbsp; PnL {p.realized_pnl_pct.toFixed(2)}%
+                      Capture {p.capture_ratio === null ? "n/a" : `${(p.capture_ratio * 100).toFixed(0)}%`} &nbsp; PnL {p.realized_pnl_pct.toFixed(2)}%
                     </p>
                     <p className="text-slate-500">holding {p.holding_days}d</p>
                     {p.leakage_flag && (

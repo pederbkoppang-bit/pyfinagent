@@ -21,11 +21,8 @@ mirroring the test_phase_36_1_scale_out.py pattern.
 from __future__ import annotations
 
 import json
-import threading
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 # ---- Fixtures -------------------------------------------------------
@@ -233,9 +230,18 @@ def test_paper_trader_execute_sell_quantity_clamped_to_position_size():
     assert result["quantity"] == 10.0  # clamped
 
 
-def test_paper_trader_execute_sell_capture_ratio_zero_when_no_gain():
+def test_paper_trader_execute_sell_capture_ratio_none_when_no_gain():
+    """phase-82.5: MFE == 0 now yields None, NOT 0.0.
+
+    This test previously asserted 0.0 and passed -- it ENCODED the defect. 0.0 is a
+    real, meaningful outcome ("captured nothing of a move that existed"), so using it
+    for "there was no move to grade" made the two indistinguishable. Eight of the 32
+    real round-trips took that path and were averaged as observations, which is part
+    of how the tile reached -4208%. The original intent -- no NaN, no
+    ZeroDivisionError -- is preserved and still asserted below.
+    """
     trader, bq, _ = _make_trader()
-    # MFE = 0 -> capture_ratio should be 0.0 (not NaN / divide-by-zero)
+    # MFE = 0 -> capture_ratio is None (undefined), and must not raise.
     bq.get_paper_position.return_value = _pos(qty=10.0, entry=200.0, current=190.0, mfe=0.0, mae=-5.0)
     bq.get_paper_portfolio.return_value = {
         "current_cash": 50_000.0,
@@ -247,7 +253,10 @@ def test_paper_trader_execute_sell_capture_ratio_zero_when_no_gain():
         router_mock.submit_order.return_value = MagicMock(fill_price=190.0, source="bq_sim")
         Router.return_value = router_mock
         result = trader.execute_sell(ticker="AAPL", price=190.0, reason="stop_loss")
-    assert result["capture_ratio"] == 0.0
+    assert result["capture_ratio"] is None, (
+        "MFE==0 means there was no exit decision to grade; reporting 0.0 blames the "
+        "exit for an entry failure"
+    )
 
 
 def test_paper_trader_execute_sell_realized_pnl_pct_computed():

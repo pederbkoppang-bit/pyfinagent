@@ -1,0 +1,226 @@
+[
+ {
+  "ticker": "TER",
+  "mfe_pct": 0.0,
+  "mae_pct": -26.5117,
+  "realized_pnl_pct": -14.4625,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "AMD",
+  "mfe_pct": 2.1286,
+  "mae_pct": -11.3645,
+  "realized_pnl_pct": -11.316,
+  "capture_ratio_legacy": -5.3162
+ },
+ {
+  "ticker": "PANW",
+  "mfe_pct": 0.0,
+  "mae_pct": -10.8216,
+  "realized_pnl_pct": -10.9368,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "GEV",
+  "mfe_pct": 3.1497,
+  "mae_pct": -10.3698,
+  "realized_pnl_pct": -10.3278,
+  "capture_ratio_legacy": -3.279
+ },
+ {
+  "ticker": "000660.KS",
+  "mfe_pct": 0.0,
+  "mae_pct": -11.4992,
+  "realized_pnl_pct": -9.9217,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "066570.KS",
+  "mfe_pct": 0.0,
+  "mae_pct": -9.233,
+  "realized_pnl_pct": -9.6774,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "MU",
+  "mfe_pct": 0.0,
+  "mae_pct": -7.2803,
+  "realized_pnl_pct": -7.2643,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "005930.KS",
+  "mfe_pct": 0.0,
+  "mae_pct": -8.0403,
+  "realized_pnl_pct": -6.4011,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "MU",
+  "mfe_pct": 0.0,
+  "mae_pct": -6.2716,
+  "realized_pnl_pct": -6.2716,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "AMD",
+  "mfe_pct": 0.0397,
+  "mae_pct": -3.056,
+  "realized_pnl_pct": -3.056,
+  "capture_ratio_legacy": -76.9781
+ },
+ {
+  "ticker": "SNDK",
+  "mfe_pct": 0.0,
+  "mae_pct": -0.4124,
+  "realized_pnl_pct": -0.4125,
+  "capture_ratio_legacy": 0.0
+ },
+ {
+  "ticker": "HPE",
+  "mfe_pct": 0.0717,
+  "mae_pct": -0.3324,
+  "realized_pnl_pct": -0.3324,
+  "capture_ratio_legacy": -4.6356
+ },
+ {
+  "ticker": "000660.KS",
+  "mfe_pct": 0.0001,
+  "mae_pct": -0.3659,
+  "realized_pnl_pct": -0.127,
+  "capture_ratio_legacy": -1269.5726
+ },
+ {
+  "ticker": "DELL",
+  "mfe_pct": 0.2192,
+  "mae_pct": 0.0,
+  "realized_pnl_pct": 0.2193,
+  "capture_ratio_legacy": 1.0003
+ },
+ {
+  "ticker": "DELL",
+  "mfe_pct": 1.5609,
+  "mae_pct": -0.0305,
+  "realized_pnl_pct": 1.5609,
+  "capture_ratio_legacy": 1.0
+ },
+ {
+  "ticker": "DELL",
+  "mfe_pct": 2.0596,
+  "mae_pct": -0.0283,
+  "realized_pnl_pct": 2.0596,
+  "capture_ratio_legacy": 1.0
+ },
+ {
+  "ticker": "KEYS",
+  "mfe_pct": 11.4659,
+  "mae_pct": 0.0,
+  "realized_pnl_pct": 2.706,
+  "capture_ratio_legacy": 0.236
+ },
+ {
+  "ticker": "STX",
+  "mfe_pct": 3.0397,
+  "mae_pct": 0.0,
+  "realized_pnl_pct": 3.0397,
+  "capture_ratio_legacy": 1.0
+ },
+ {
+  "ticker": "STX",
+  "mfe_pct": 6.2518,
+  "mae_pct": -1.4539,
+  "realized_pnl_pct": 6.2517,
+  "capture_ratio_legacy": 1.0
+ },
+ {
+  "ticker": "CIEN",
+  "mfe_pct": 12.5595,
+  "mae_pct": -9.2569,
+  "realized_pnl_pct": 6.4631,
+  "capture_ratio_legacy": 0.5146
+ },
+ {
+  "ticker": "FIX",
+  "mfe_pct": 9.4914,
+  "mae_pct": -0.0672,
+  "realized_pnl_pct": 6.7454,
+  "capture_ratio_legacy": 0.7107
+ },
+ {
+  "ticker": "GLW",
+  "mfe_pct": 19.0517,
+  "mae_pct": -14.5005,
+  "realized_pnl_pct": 8.1471,
+  "capture_ratio_legacy": 0.4276
+ },
+ {
+  "ticker": "LITE",
+  "mfe_pct": 19.5023,
+  "mae_pct": -10.3734,
+  "realized_pnl_pct": 9.539,
+  "capture_ratio_legacy": 0.4891
+ },
+ {
+  "ticker": "COHR",
+  "mfe_pct": 28.3553,
+  "mae_pct": -6.0921,
+  "realized_pnl_pct": 17.8898,
+  "capture_ratio_legacy": 0.6309
+ },
+ {
+  "ticker": "SNDK",
+  "mfe_pct": 40.4772,
+  "mae_pct": 0.0,
+  "realized_pnl_pct": 18.1493,
+  "capture_ratio_legacy": 0.4484
+ },
+ {
+  "ticker": "000660.KS",
+  "mfe_pct": 29.2238,
+  "mae_pct": 0.0,
+  "realized_pnl_pct": 18.4082,
+  "capture_ratio_legacy": 0.6299
+ },
+ {
+  "ticker": "ON",
+  "mfe_pct": 35.437,
+  "mae_pct": -5.1728,
+  "realized_pnl_pct": 22.1646,
+  "capture_ratio_legacy": 0.6255
+ },
+ {
+  "ticker": "WDC",
+  "mfe_pct": 46.1445,
+  "mae_pct": -3.0607,
+  "realized_pnl_pct": 29.5396,
+  "capture_ratio_legacy": 0.6402
+ },
+ {
+  "ticker": "INTC",
+  "mfe_pct": 53.8452,
+  "mae_pct": -0.0363,
+  "realized_pnl_pct": 30.6891,
+  "capture_ratio_legacy": 0.57
+ },
+ {
+  "ticker": "SNDK",
+  "mfe_pct": 84.5201,
+  "mae_pct": 0.0,
+  "realized_pnl_pct": 56.9467,
+  "capture_ratio_legacy": 0.6738
+ },
+ {
+  "ticker": "MU",
+  "mfe_pct": 111.651,
+  "mae_pct": -0.2477,
+  "realized_pnl_pct": 75.1308,
+  "capture_ratio_legacy": 0.6729
+ },
+ {
+  "ticker": "DELL",
+  "mfe_pct": 116.4029,
+  "mae_pct": -4.7457,
+  "realized_pnl_pct": 116.4029,
+  "capture_ratio_legacy": 1.0
+ }
+]

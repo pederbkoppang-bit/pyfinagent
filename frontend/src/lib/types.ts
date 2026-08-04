@@ -763,7 +763,14 @@ export interface PaperRoundTripSummary {
   median_holding_days: number;
   avg_mfe_pct: number;
   avg_mae_pct: number;
-  avg_capture_ratio: number;
+  // phase-82.5: nullable. The backend now returns null when no round-trip
+  // offered a gradeable move, instead of a fabricated 0.0 that renders as "0%"
+  // and is indistinguishable from "captured nothing of a real move".
+  avg_capture_ratio: number | null;
+  capture_n_defined?: number;
+  capture_n_undefined?: number;
+  capture_ratio_of_sums?: number | null;
+  min_mfe_pct?: number;
 }
 
 export interface PaperMetricsV2 {

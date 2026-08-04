@@ -20,6 +20,7 @@ from backend.services.api_cache import ENDPOINT_TTLS, get_api_cache
 from backend.services import risk_overrides
 from backend.services.autonomous_loop import run_daily_cycle, get_loop_status
 from backend.services.paper_metrics_v2 import compute_metrics_v2, persist_metrics_v2
+from backend.services.perf_metrics import aggregate_exit_quality
 from backend.services.paper_round_trips import compute_round_trips_response
 from backend.services.live_prices import get_live_cache
 from backend.services.cycle_health import compute_freshness, get_log as _get_cycle_log
@@ -993,14 +994,17 @@ async def get_mfe_mae_scatter():
 
     # Per-trade edge_ratio + leakage computation.
     points = []
-    edge_ratios: list[float] = []
     mfes: list[float] = []
     for rt in rts:
         mfe = float(rt.get("mfe_pct") or 0.0)
         mae_abs = abs(float(rt.get("mae_pct") or 0.0))
-        capture = float(rt.get("capture_ratio") or 0.0)
-        if mae_abs > 0:
-            edge_ratios.append(mfe / mae_abs)
+        # phase-82.5: `or 0.0` COLLAPSES None to a real-looking 0.0, which is
+        # exactly the fabrication this step removes upstream. Read it as None.
+        _cap_raw = rt.get("capture_ratio")
+        capture = None if _cap_raw is None else float(_cap_raw)
+        # The `if mae_abs > 0` filter used to live here. It DELETED the 6 rows
+        # that never traded against us -- i.e. the best trades -- because a mean
+        # cannot absorb +inf. A median can rank it, so nothing is dropped now.
         mfes.append(mfe)
         points.append({
             "ticker": rt.get("ticker"),
@@ -1009,7 +1013,7 @@ async def get_mfe_mae_scatter():
             "mfe_pct": round(mfe, 4),
             "mae_pct": round(float(rt.get("mae_pct") or 0.0), 4),
             "mae_abs_pct": round(mae_abs, 4),
-            "capture_ratio": round(capture, 4),
+            "capture_ratio": (round(capture, 4) if capture is not None else None),
             "realized_pnl_pct": float(rt.get("realized_pnl_pct") or 0.0),
             "holding_days": int(rt.get("holding_days") or 0),
             "leakage_flag": False,  # filled below once P75 is known
@@ -1024,18 +1028,35 @@ async def get_mfe_mae_scatter():
         idx = max(0, int(round(0.75 * (n - 1))))
         mfe_p75 = sorted_mfe[idx]
         for p in points:
-            if p["capture_ratio"] < 0.4 and p["mfe_pct"] > mfe_p75:
+            # phase-82.5: an UNDEFINED capture is not a leak. Previously the
+            # fabricated 0.0 satisfied `< 0.4`, so trades with no gradeable
+            # exit could be flagged as leaking exits.
+            if (p["capture_ratio"] is not None
+                    and p["capture_ratio"] < 0.4
+                    and p["mfe_pct"] > mfe_p75):
                 p["leakage_flag"] = True
                 n_leakers += 1
 
-    edge_ratio = (sum(edge_ratios) / len(edge_ratios)) if edge_ratios else 0.0
-    avg_capture = (sum(p["capture_ratio"] for p in points) / n) if n else 0.0
+    # phase-82.5: ONE canonical definition, shared with /performance so the two
+    # surfaces cannot disagree about the same trades.
+    _eq = aggregate_exit_quality(rts)
 
     result = {
         "points": points,
         "summary": {
-            "edge_ratio": round(edge_ratio, 4),
-            "avg_capture_ratio": round(avg_capture, 4),
+            "edge_ratio": (round(_eq["edge_median"], 4)
+                           if _eq["edge_median"] is not None else None),
+            "avg_capture_ratio": (round(_eq["capture_median"], 4)
+                                  if _eq["capture_median"] is not None else None),
+            "capture_ratio_of_sums": (round(_eq["capture_ratio_of_sums"], 4)
+                                      if _eq["capture_ratio_of_sums"] is not None else None),
+            "edge_ratio_of_sums": (round(_eq["edge_ratio_of_sums"], 4)
+                                   if _eq["edge_ratio_of_sums"] is not None else None),
+            "capture_n_defined": _eq["capture_n_defined"],
+            "capture_n_undefined": _eq["capture_n_undefined"],
+            "edge_n_infinite": _eq["edge_n_infinite"],
+            "min_mfe_pct": _eq["min_mfe_pct"],
+            "aggregation": "median",
             "mfe_p75": round(mfe_p75, 4) if mfe_p75 is not None else None,
             "leakage_threshold_capture": 0.4,
             "n_points": n,

@@ -28,6 +28,8 @@ def _parse_iso_date(s: str) -> Optional[datetime]:
 
 logger = logging.getLogger(__name__)
 
+from backend.services.perf_metrics import compute_capture_ratio  # noqa: E402
+
 
 def _fx_local_to_usd(market: Optional[str], date: Optional[str] = None) -> Optional[float]:
     """phase-50.2: FX rate to convert 1 unit of the market's local currency into USD.
@@ -588,7 +590,11 @@ class PaperTrader:
         mae_pct = float(position.get("mae_pct") or 0.0)
         # Capture ratio = realized / MFE (how much of the max favorable excursion we kept).
         # Undefined when MFE <= 0 (never printed a gain); use 0.0 for that edge.
-        capture_ratio = realized_pnl_pct / mfe_pct if mfe_pct > 0 else 0.0
+        # phase-82.5: the THIRD copy of this formula. None, not 0.0 --
+        # `mfe_pct > 0` admits mfe=0.0001, which produced capture -1269.57 on a
+        # real row, and 0.0 is a genuine outcome that must stay distinguishable
+        # from "no gradeable move". See perf_metrics.compute_capture_ratio.
+        capture_ratio = compute_capture_ratio(realized_pnl_pct, mfe_pct)
         round_trip_id = position.get("position_id") or str(uuid.uuid4())
 
         # Record trade
@@ -611,7 +617,7 @@ class PaperTrader:
             "realized_pnl_pct": round(realized_pnl_pct, 4),
             "mfe_pct": round(mfe_pct, 4),
             "mae_pct": round(mae_pct, 4),
-            "capture_ratio": round(capture_ratio, 4),
+            "capture_ratio": (round(capture_ratio, 4) if capture_ratio is not None else None),
             "signals": json.dumps(signals or []),
         }
         self._safe_save_trade(trade)
@@ -632,7 +638,7 @@ class PaperTrader:
             "holding_days": holding_days,
             "mfe_pct": round(mfe_pct, 4),
             "mae_pct": round(mae_pct, 4),
-            "capture_ratio": round(capture_ratio, 4),
+            "capture_ratio": (round(capture_ratio, 4) if capture_ratio is not None else None),
             "exit_reason": reason,
         }
         self._safe_save_round_trip(rt_row)

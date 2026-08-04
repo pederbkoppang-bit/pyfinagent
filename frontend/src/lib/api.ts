@@ -521,7 +521,16 @@ export function getPaperRoundTrips(): Promise<{
   median_holding_days: number;
   avg_mfe_pct: number;
   avg_mae_pct: number;
-  avg_capture_ratio: number;
+  // phase-82.5: nullable. summarize() returns null when no round-trip offered a
+  // gradeable move (MFE below the 1pp floor) instead of a fabricated 0.0. The
+  // 82.5 Q/A caught this declaration still saying `number` after the backend
+  // began returning null -- latent only because getPaperRoundTrips currently has
+  // no callers, which is a reason to fix it now rather than a reason to skip it.
+  avg_capture_ratio: number | null;
+  capture_n_defined?: number;
+  capture_n_undefined?: number;
+  capture_ratio_of_sums?: number | null;
+  min_mfe_pct?: number;
   round_trips: Array<{
     ticker: string;
     entry_date: string | null;
@@ -534,7 +543,8 @@ export function getPaperRoundTrips(): Promise<{
     holding_days: number;
     mfe_pct: number;
     mae_pct: number;
-    capture_ratio: number;
+    // null when MFE was below the floor -- see above.
+    capture_ratio: number | null;
     exit_reason: string;
   }>;
   computed_at: string;
