@@ -225,9 +225,14 @@ def test_dsr_still_falls_monotonically_as_trials_rise():
     dsrs = [compute_deflated_sharpe(num_trials=n, **common) for n in (2, 5, 11, 50)]
 
     assert all(0.0 <= d <= 1.0 for d in dsrs), dsrs
-    assert dsrs == sorted(dsrs, reverse=True), (
-        f"DSR must fall as trials rise; got {dsrs}. If this reversed, the "
-        "deflation math changed and every recorded DSR means something new."
+    # STRICTLY descending, pairwise. Cycle-2 Q/A kill-attribution finding: with
+    # deflation fully neutralised all four values COLLAPSE TO ONE NUMBER, and
+    # `[x, x, x, x] == sorted([x, x, x, x], reverse=True)` is True -- so the
+    # sorted() form passes under the very mutation it advertises catching. The
+    # pairwise `<` is what makes this assert bite on its own.
+    assert all(a > b for a, b in zip(dsrs, dsrs[1:])), (
+        f"DSR must fall STRICTLY as trials rise; got {dsrs}. Equal values mean "
+        "deflation is not varying with num_trials at all."
     )
     # MATERIAL, not a crumb: the gradient must be large enough that switching
     # deflation off would break this.
@@ -242,8 +247,28 @@ def test_dsr_still_falls_monotonically_as_trials_rise():
 
 
 def test_the_live_files_own_artifacts_show_the_deflation_gradient():
-    """The same property, measured on the REAL artifacts rather than a fixture
-    -- so a fixture that drifts from production cannot hide a change."""
+    """A HISTORICAL-DATA SANITY CHECK -- explicitly NOT a guard on the math.
+
+    Cycle-2 Q/A [W3, Overgeneralization]: this test SURVIVES a mutant that
+    neutralises `compute_deflated_sharpe` entirely (num_trials forced to 1). It
+    reads num_trials/deflated_sharpe pairs already recorded in run 60617e0b's
+    JSON on disk; no production code executes, so by construction no change to
+    the deflation math can make it fail. Its previous docstring claimed it
+    existed "so a fixture that drifts from production cannot hide a change" --
+    that was an overclaim about a property it cannot observe.
+
+    Recomputation was considered and is NOT possible: the artifacts persist only
+    sharpe / num_trials / deflated_sharpe, while production (analytics.py:766)
+    also passes variance_of_srs, skewness, kurtosis and T, none of which are
+    recorded. Recomputing from defaults reproduces 0 of 10 recorded values, so
+    an equality assert against production would be false, not stronger.
+
+    What it DOES certify, which is worth keeping: the deflation gradient is real
+    in live recorded output, not just in a synthetic fixture -- the same run's
+    DSR falls 0.6387 (num_trials=2) to 0.0088 (num_trials=11). The guard on the
+    math itself is test_dsr_still_falls_monotonically_as_trials_rise, which
+    executes production code and dies under that mutant.
+    """
     import glob as _glob
 
     files = sorted(_glob.glob(

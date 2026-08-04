@@ -1,0 +1,88 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "Criteria 2/3/4 are MET with mutation-verified behavioral guards, and criterion 1's \"FAILS on the current on-disk state\" half is MET (checker exit=1, MIS_ATTRIBUTED, origin located as 20260328T072722Z_52eb3ffe-exp10.json). Two blockers cap the verdict: (B1) criterion 1 says the \"sharpe/dsr\" recorded must be reproducible from the named run's artifact, but check_optimizer_best_provenance.py compares sharpe ONLY -- my PROBE A (best dsr=0.99 vs the matching artifact's deflated_sharpe=0.05, sharpe identical) returns status=verified/ok=True, and PROBE B (dsr key absent entirely) also returns verified. DSR is the money-path statistic the checker's own docstring cites (rotation_runner incumbent-DSR bar); the function reads deflated_sharpe into `observed` at scripts/qa/check_optimizer_best_provenance.py:89 and then discards it. (B2) The declared evidence does not reproduce: handoff/current/experiment_results.md's \"verbatim\" block records `10 passed` for this suite and `CONTROL -> 28 passed`; the tree reproduces `12 passed` and 30. The suite was edited DURING this evaluation (mtime 10:22:40) -- my first run of the immutable command returned exit=1, `1 failed, 11 passed`, `TypeError: compute_deflated_sharpe() got an unexpected keyword argument 'n_obs'` in test_dsr_still_falls_monotonically_as_trials_rise; the re-run after the edit returned exit=0, `12 passed`. So the criterion-4 tests that now satisfy the author's own stated doubt post-date the artifact that disclaims them and shipped briefly red.",
+    "violated_criteria": [
+      "criterion_1_dsr_half_unimplemented",
+      "evidence_artifact_does_not_reproduce",
+      "commit_scope_sweeps_unverdicted_82.23"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Threshold_Not_Met",
+        "action": "scripts/qa/check_optimizer_best_provenance.py::check() -- PROBE A: optimizer_best.json {sharpe:0.6455483636, dsr:0.99, metrics_run_id:'goodrun'} against artifact {sharpe:0.6455483636, deflated_sharpe:0.05}",
+        "state": "status='verified', ok=True. PROBE B (dsr key absent entirely) also status='verified', ok=True. The match loop at :81-91 compares only `sharpe`; `deflated_sharpe` is appended to `observed` at :89 and never compared. `dsr` appears in the output dict at :63 as a passthrough only.",
+        "constraint": "[BLOCK] criterion 1: 'a check asserts the sharpe/dsr recorded in optimizer_best.json are reproducible from a saved result artifact whose run_id matches the recorded run_id'. Half the conjunction is unimplemented, and it is the half the promotion gate (DSR>=0.95) and the rotation incumbent bar consume. Fix: compare dsr against the matching artifact's deflated_sharpe within TOL, add a fixture asserting a fabricated dsr is rejected."
+      },
+      {
+        "violation_type": "Contradiction",
+        "action": "re-derive experiment_results.md's verbatim verification block: `python -m pytest backend/tests/test_phase_82_22_optimizer_best_provenance.py -q`",
+        "state": "artifact records `10 passed` and mutation-matrix `CONTROL -> 28 passed`; tree reproduces `12 passed` (and 30 with the 18-test 82.23 suite). File mtimes: experiment_results.md 10:21:48, test file 10:22:40 -- the artifact predates the criterion-4 tests. The spawn prompt itself states 'my suite does NOT contain such a test' and '(10 tests)'. First run of the immutable command in this evaluation: exit=1, `1 failed, 11 passed`, TypeError on an `n_obs` kwarg that compute_deflated_sharpe (backend/backtest/analytics.py:359-367) does not accept; re-run after the 10:22:40 edit: exit=0, `12 passed`.",
+        "constraint": "[BLOCK] qa.md section 4b -- a 'verbatim' capture must be regenerated, never edited, and every numeric claim must reproduce. Direction is favourable (the tree is strictly better than the artifact claims) so this is stale transcription rather than overclaim, but the evidence base is internally inconsistent and must be regenerated before the flip. Fix: re-run both suites + the mutation matrix and paste the current output, and state that criterion 4 is covered by test_dsr_still_falls_monotonically_as_trials_rise + test_the_live_files_own_artifacts_show_the_deflation_gradient."
+      },
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "git status --short / git diff --stat HEAD -- backend/ scripts/ docs/",
+        "state": "The tree carries un-verdicted phase-82.23 production code -- backend/backtest/analytics.py (+67, compute_pbo_checked + 3 ceiling constants), backend/autoresearch/gate.py (+24), backend/autoresearch/strategy_backtest_adapter.py (+25), new backend/tests/test_phase_82_23_pbo_in_gate.py -- plus uncommitted phase-82.3/82.4 diffs (test_phase_82_4_design_pack.py, docs/strategy/phase82_design_pack.md) and untracked handoff/archive/phase-82.3, phase-82.4.",
+        "constraint": "[WARN] Flipping 82.22 to done fires auto-commit-and-push.sh `git add -A` at :239, committing all of the above under 82.22's name before 82.23 has its own Q/A verdict (the audit-the-commit-not-the-diff class). Disclosed honestly in the joint experiment_results.md scope section, so this is a sequencing hazard, not concealment. Fix: obtain the 82.23 verdict before the 82.22 flip, or run `git add -An` and stage deliberately."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "research_gate_envelope",
+      "artifact_mtime_ordering",
+      "verification_command_exit_code",
+      "verification_command_rerun_after_midflight_edit",
+      "provenance_checker_live_exit_code",
+      "python_lint_gate_ruff_F821_F401_F811_git_derived_scope",
+      "pre_existing_lint_claim_reproduced_against_HEAD",
+      "backend_runtime_import_smoke",
+      "mutation_matrix_in_memory_injection_M1_M2_M3_plus_CONTROL",
+      "checker_vacuity_probes_A_B_C_D",
+      "live_optimizer_best_json_unmodified",
+      "schema_additivity",
+      "claim_auditing_section_4b",
+      "guard_vacuity_section_4c",
+      "code_review_heuristics",
+      "contract_completeness_criterion_mapping"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "HARNESS COMPLIANCE (5/5 CLEAN): research_brief_82.22_82.23.md carries gate_passed=true, external_sources_read_in_full=8, urls_collected=33, recency_scan_performed=true, internal_files_inspected=14; contract_82.22.md cites it. mtime order is correct: research 10:11:37 < contract 10:13:42 < test 10:15:57 < quant_optimizer.py 10:16:27 < checker 10:20:58 < experiment_results 10:21:48. experiment_results.md present. LOG-LAST intact: `grep -cF 'phase=82.22' handoff/harness_log.md` = 0 and masterplan 82.22 status=pending. Not a re-spawn (0 prior entries), so the 3rd-CONDITIONAL auto-FAIL rule does not apply and CONDITIONAL is permissible.\n\nCRITERION-BY-CRITERION.\n1. PARTIAL. Red-on-live half MET: `python scripts/qa/check_optimizer_best_provenance.py` exits 1, status MIS_ATTRIBUTED, \"claims sharpe=1.1704633657934074 for run '60617e0b', but none of that run's 10 saved artifacts produced it. The value appears in: 20260328T072722Z_52eb3ffe-exp10.json ... That run's own observed sharpes: [0.538354, 0.541559, 0.57473, 0.645548, 0.65056].\" Origin located by search, not by being told, as test_checker_names_the_true_origin_artifact demands. The dsr half is NOT implemented -- see PROBE A/B in violation_details. The mirror guard test_checker_passes_when_metrics_reproduce_from_the_named_run cannot catch this because its fixture sets dsr==deflated_sharpe==0.5.\n2. MET, mutation-verified. `run_id` keeps its writer meaning; `metrics_run_id` / `metrics_source_artifact` / `warm_started_from` are new. _load_previous_best captures provenance on BOTH paths and prefers the source file's own metrics_run_id over its run_id, which correctly stops a mis-attribution propagating a generation forward (quant_optimizer.py:805-813).\n3. MET. test_kept_zero_with_warm_start_never_self_attributes asserts kept==0 AND metrics_run_id != run_id; killed by M1.\n4. MET ON THE CURRENT TREE, but see B2. test_dsr_still_falls_monotonically_as_trials_rise imports and executes the PRODUCTION compute_deflated_sharpe over num_trials in (2,5,11,50) and asserts strictly descending plus [0,1] bounds -- a genuine behavioral pin, not a re-implemented copy (vacuity shape 7 avoided). test_the_live_files_own_artifacts_show_the_deflation_gradient measures the same property on run 60617e0b's real artifacts with a skip guard. Answering the author's explicit doubt: criterion 4 IS now genuinely covered -- but it was NOT at the moment the evidence was declared, and the first version on disk was red.\n\nMUTATION MATRIX (my own, injected in memory onto QuantStrategyOptimizer._save_best_params -- the repo tree was never written; the qa-write-guard hook blocked even scratchpad files, so mutants were applied via a python heredoc):\n  CONTROL                             rc=0  12 passed\n  M1 unconditional self-attribution   rc=1  2 failed\n  M2 always disclaim                  rc=1  2 failed\n  M3 drop num_trials from schema      rc=1  3 failed\nThe author's claim #3 reproduces exactly. The symmetry is REAL, not decorative: M1 kills test_warm_started_best_records_the_source_run_not_the_current_run + test_kept_zero_with_warm_start_never_self_attributes, while M2 kills test_a_run_that_improved_claims_its_own_metrics + test_a_cold_run_attributes_metrics_to_itself. Passing by always disclaiming is genuinely blocked, so criterion 2's guard is not vacuous under any of the 11 shapes.\n\nCHECKER PROBES: A (dsr 0.99 vs artifact 0.05) -> verified/ok=True [FINDING]. B (no dsr key) -> verified/ok=True [FINDING]. C (metrics_run_id names a run with zero artifacts) -> mis_attributed/ok=False [correct]. D (prefix-collision addressing, `run_id.split(\"-\")[0]` substring match) -> mis_attributed/ok=False [correct].\n\nSCHEMA ADDITIVITY (spawn-prompt item 4): CONFIRMED. Every pre-existing key (params, sharpe, dsr, run_id, kept, discarded, saved_at) is retained with unchanged meaning; five keys are added. test_schema_is_purely_additive enumerates the retained keys and M3 proves the enumeration bites. run_id deliberately still names the WRITER, so no dict.get consumer changes behaviour.\n\nLIVE FILE (spawn-prompt item 5): CONFIRMED UNTOUCHED. backend/backtest/experiments/optimizer_best.json is absent from `git status --short`. The checker therefore stays red until an optimizer run regenerates it, which experiment_results.md discloses as out of scope and gated on historical_macro. That is the honest state and I do not treat the persistent red as a defect.\n\nLINT / SMOKE: ruff F821,F401,F811 over a git-derived, non-empty 8-file scope (`git ls-files -mo --exclude-standard -- '*.py'`, piped through xargs so zsh word-splitting cannot silently lint zero files) exits 1 with 3x F401 in quant_optimizer.py (os:18, compute_deflated_sharpe:25, GeminiClient:450). I independently reproduced all three against `git show HEAD:` -- identical three names -- so the author's pre-existing claim audits clean and this is a NOTE, not a blocker. `import backend.backtest.quant_optimizer` succeeds.\n\nCODE-REVIEW HEURISTICS: no BLOCK. No secrets, no execution-path change, no perf_metrics bypass, no broad-except added in a risk path, no consumer-contract break (purely additive keys). illusory-guard: not triggered -- every criterion has at least one guard that a concrete mutation kills, and I executed those mutations rather than reasoning about them.\n\nWHAT TO FIX FOR A PASS: (1) make the checker compare dsr against the matching artifact's deflated_sharpe and add a fixture where a fabricated dsr is rejected; (2) regenerate experiment_results.md's verification block and mutation matrix from the current tree (12 / 30) and state criterion-4 coverage explicitly; (3) sequence the 82.23 verdict before the 82.22 status flip, or stage deliberately, so `git add -A` does not ship un-verdicted 82.23 production code under 82.22's name."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:82.22",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "aa5d0c20efbe05976",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1785831725204,
+      "queuedAt": 1785831725194,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 82.22, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-…",
+      "lastProgressAt": 1785832091728,
+      "tokens": 128777,
+      "toolCalls": 19,
+      "durationMs": 366524,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"Criteria 2/3/4 are MET with mutation-verified behavioral guards, and criterion 1's \\\"FAILS on the current on-disk state\\\" half is MET (checker exit=1, MIS_ATTRIBUTED, origin located as 20260328T072722Z_52eb3ffe-exp10.json). Two blockers cap the verdict: (B1) criterion 1 says the \\\"sharpe/dsr\\\" recorded must be reproducible from the named run's artifact…"
+    }
+  ],
+  "totalTokens": 128777,
+  "totalToolCalls": 19
+}
