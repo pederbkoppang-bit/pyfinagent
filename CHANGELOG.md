@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-04 | `a0ae11e5` | fix(82.23): replace two source-scan guards with behavioural ones |
 | 2026-08-04 | `be04da12` | wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER STEP FLIPPED |
 | 2026-08-04 | `14ef109a` | feat(82.3+82.4): backtest evidence and design pack -- no strategy passes the gate |
 | 2026-08-03 | `97c33037` | feat(82.4): design pack with render-verified 4-column flows + pre-registered ranking |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-27 | `fa10fefa` | fix(80.43): validate the sort key -- an undated series is UNMEASURABLE, not zero |
 | 2026-07-26 | `f30a4a2e` | fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake |
 | 2026-07-26 | `d5a6d392` | fix(80.45): narrow the drawdown claim instead of widening the precision |
-| 2026-07-26 | `5513f4ee` | docs(80.32): correct a CLAUDE.md rule that would have misdirected model pinning |
 
 ---
 
+### v6.76.2 — fix(82.23): replace two source-scan guards with behavioural ones (2026-08-04)
+
+- **fix(82.23): replace two source-scan guards with behavioural ones**
 ### v6.76.1 — wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER... (2026-08-04)
 
 - **wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER STEP FLIPPED**
