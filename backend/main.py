@@ -109,10 +109,14 @@ def setup_logging():
     # away week left 2,101 plaintext api_key= lines in backend.log via the
     # httpx library logger. Logger-level filters do NOT see descendant-logger
     # records (Python logging docs); the handler sees everything it emits.
-    from backend.services.observability.log_redaction import SecretRedactionFilter
-    handler.addFilter(SecretRedactionFilter())
+    # phase-82.7: delegate to the shared installer so there is ONE attach path.
+    # Behaviour here is unchanged (this handler gets the filter either way);
+    # the point is that scripts can now reach the same code without calling
+    # this destructive, single-call-only function.
+    from backend.services.observability.log_redaction import install_secret_redaction
 
     root.addHandler(handler)
+    install_secret_redaction(root)
 
     # Prevent uvicorn from adding its own cp1252 handlers on Windows
     # and suppress polling endpoint noise in access logs

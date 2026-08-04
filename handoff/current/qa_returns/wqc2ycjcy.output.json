@@ -1,0 +1,94 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE for 82.7 with WRITE-FIRST persistence: the agent writes its verdict JSON to disk BEFORE returning it, so a StructuredOutput failure cannot destroy the evaluation. Reads .claude/agents/qa.md from disk at runtime.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "FAIL",
+    "reason": "P0 security step does not hold its security property. Criterion 3 (\"a test asserts the fixed set produces no credential-bearing log records\") is falsified: I reproduced credential-bearing log records at default INFO from two modules IN the fixed set (backend/tools/fred_data.py:100 and backend/services/fx_rates.py:172) after their import-time install ran, in the real script shape -- an ordering already present in the checked-in scripts/migrations/extend_historical_data.py:39-41. Root cause: _EMITTING_LIBRARY_LOGGERS names PARENT loggers (urllib3, httpcore) while the emitters are DESCENDANTS (urllib3.connectionpool, httpcore.http11), contradicting the module's own docstring rule at log_redaction.py:6-8, and backend.* module loggers that re-emit the credential-bearing transport exception are covered only by the pre-82.7 handler leg. The covering guard is vacuous: test_every_swept_site_is_covered_by_import drives httpx for all 8 sites, but 3 of them use requests (fx_rates.py:158, fred_releases.py:20, finnhub_earnings.py:24), so it cannot represent their failure; test_install_survives_a_later_basicConfig is a no-op because basicConfig does nothing when the capture fixture has already added a root handler (measured before=1 after=1). Criterion 1 IS met and its suite is reachability-sensitive (my own MU-A killed 9 tests). Criterion 2's sweep is met for URL-construction sites but missed the exception-re-emission shape. Immutable command reproduces (exit=0, 32 passed) -- it is simply not sufficient to detect this. Research-gate irregularity judged ACCEPTABLE. Harness compliance clean.",
+    "violated_criteria": [
+      "every hit found by that sweep is either fixed or has its own queued follow-up step; a test asserts the fixed set produces no credential-bearing log records"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Contradiction",
+        "action": "install_secret_redaction() attaches SecretRedactionFilter to _EMITTING_LIBRARY_LOGGERS = ('httpx','httpcore','urllib3','requests'), then a real requests.get / a backend.* logger.warning re-emits the credential",
+        "state": "Measured at INFO after import-time install: urllib3.connectionpool leaked=True, httpcore.http11 leaked=True, urllib3.util.retry leaked=True; REAL_LEAK_VIA_REQUESTS=True (imported backend.econ_calendar.sources.finnhub_earnings, real requests.get against a real local socket); LEAK_VIA_BACKEND_MODULE_LOGGER=True (backend/tools/fred_data.py:100); LEAK_VIA_REQUESTS_EXCEPTION_AT_INFO=True (backend/services/fx_rates.py:172). httpx was correctly redacted to api_key=***REDACTED*** in the SAME run, so the fix works on the one channel it covers and silently misses the adjacent one.",
+        "constraint": "criterion 3: a test asserts the fixed set produces no credential-bearing log records. log_redaction.py:6-8 states logger-level filters do NOT apply to records emitted by descendant loggers, yet the implementation attaches to parents and relies on descendants inheriting."
+      },
+      {
+        "violation_type": "Circular_Reasoning",
+        "action": "test_every_swept_site_is_covered_by_import issues an httpx request for all 8 parametrized leak sites",
+        "state": "3 of the 8 use requests, not httpx (backend/services/fx_rates.py:158, backend/econ_calendar/sources/fred_releases.py:20, backend/econ_calendar/sources/finnhub_earnings.py:24). For those the test exercises a transport the module never uses, so it passes independently of whether the module's real channel leaks -- and the real channel does leak. qa.md 4c vacuity shape #5 (fixture that cannot represent the failure).",
+        "constraint": "qa.md 4c: a guard that cannot fail when its subject is broken does not count; sole-coverage vacuity on a behavioural criterion is BLOCKING."
+      },
+      {
+        "violation_type": "Circular_Reasoning",
+        "action": "test_install_survives_a_later_basicConfig calls logging.basicConfig(level=logging.INFO) to create what its comment calls 'a new root handler, unfiltered'",
+        "state": "Measured: root handlers before=1, after=1. logging.basicConfig is a documented no-op when the root logger already has handlers, and the `capture` fixture adds one before the test body runs. The unfiltered handler whose survival the test claims to prove is never created; the install had already filtered the capture handler via the handler leg. qa.md 4c vacuity shape #4 (true by construction).",
+        "constraint": "qa.md 4c: for each criterion name the concrete mutation that makes its guard fail; a guard true by construction is a finding, never a pass."
+      },
+      {
+        "violation_type": "Overgeneralization",
+        "action": "experiment_results_82.7.md:145 asserts 'All 8 are FIXED with respect to logging and each is regression-tested by test_every_swept_site_is_covered_by_import'",
+        "state": "Does not reproduce. Two of the eight emit the credential at default INFO after their import-time install ran, and the cited regression test cannot observe the failure for 3 of the 8. This is the single sentence that discharges criterion 3.",
+        "constraint": "qa.md 4b: every set-membership claim must be re-derivable by the evaluator; prefer FAIL when a number/claim in a verbatim artifact does not reproduce."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "immutable_verification_command",
+      "ruff_F821_F401_F811_on_derived_scope",
+      "pre_existence_proof_of_lint_finding",
+      "mutation_MU_A_prefix_reachability",
+      "logger_leg_isolation_probe",
+      "end_to_end_real_requests_leak",
+      "end_to_end_backend_logger_exception_leak",
+      "basicConfig_noop_vacuity_measurement",
+      "ninth_leak_site_sweep",
+      "secret_leak_regression_harness",
+      "full_backend_test_suite",
+      "full_backend_suite_control_run_82_7_neutered",
+      "basicConfig_census_ast_rederivation",
+      "verbatim_criteria_containment_check",
+      "harness_compliance_audit",
+      "research_gate_envelope_review",
+      "git_state_measurement"
+    ],
+    "harness_compliance_ok": true,
+    "ninth_leak_site": "backend/tools/fred_data.py:100 (same shape at backend/services/fx_rates.py:172, backend/econ_calendar/sources/fred_releases.py:77, backend/econ_calendar/sources/finnhub_earnings.py:97, backend/news/sources/finnhub.py:118, backend/tools/alphavantage.py:75, backend/tools/social_sentiment.py:146)",
+    "notes": "FULL CRITIQUE: handoff/current/evaluator_critique_82.7.md (393 lines, ends with the verdict as a single fenced json block; credential-clean -- no real key value read or written, backend/.env never opened).\n\nATTACK-BY-ATTACK.\nA (criterion-1 vacuity): NOT vacuous. My own MU-A (install_secret_redaction replaced in-process with a pre-82.7 reconstruction: root HANDLERS only, no library-logger leg, patched before collection so the 8 import-time calls bind to it) killed 9 tests. Main's MU1 row reproduces exactly, including which tests died -- the attribution is measured, not labelled. WARN: the headline criterion-1 test and all 8 covered-by-import cases SURVIVED MU-A, because the `capture` fixture attaches its handler to root BEFORE the test body calls install, so the handler leg scrubs. That fixture ordering is also what hides the blocker.\nB (coverage-by-construction): BROKEN, and this is the FAIL. New query shape neither Main nor the researcher used -- sweep for re-emission of the TRANSPORT EXCEPTION (whose str()/repr() reconstructs the credential-bearing URL) rather than for URL construction. Found it in all 8 modules. Live-reachable from a checked-in script: scripts/migrations/extend_historical_data.py imports a leak site at :39 (root has 0 handlers -> 0 filtered) then calls basicConfig at :41 (fresh UNFILTERED handler). Also found 3 of 8 use `requests`, whose only URL channel is urllib3.connectionpool -- a DESCENDANT the parent-name filter never reaches.\nC (import-time side effects): CLEAN. Full suite 31 failed / 2458 passed / 148.89s; re-ran the failures with 82.7 neutered -> 29 failed, identical set. Nothing is caused by 82.7 -- no cycle, no deadlock, no caplog corruption (notable given the filter mutates record.msg in place). Scope bound disclosed: I piped the first run through tail so my capture held 29 of the 31; the tree also carries another session's phase-83 work.\nD (fail-open except): The exc_text approach is sound and I could not defeat it; the non-vacuity guard (assert blob) is real; Main's disclosure of the earlier type(exc)(cleaned) failure is accurate. Residual WARN only: the bare `except Exception: pass` at log_redaction.py:75-76 remains a silent-failure surface for any future edit -- the same mechanism that hid the first G3 attempt.\nE (research gate): ACCEPTABLE, not a blocker. The envelope is on disk as the brief's final section (gate_passed true, 10 read in full, 43 URLs, recency scan done, coverage.audit_class true, dry_rounds 3 >= K 2, 16 query shapes). The write-first rule exists precisely so a brief survives a failed end-flush -- the TRANSPORT failed, not the gate, and the gate demonstrably worked (it caught the 8th site fx_rates.py:147 that Main's own grep missed and corrected the masterplan's stale :313 to :371). Contract discloses all of it. I would block only if the brief were absent/partial/gate_passed false.\n\nHARNESS COMPLIANCE (5/5 clean): researcher ran before contract; contract pre-GENERATE with all 3 criteria byte-verbatim (checked by string containment against masterplan.json); experiment_results present and internally consistent; LOG-LAST respected (no phase=82.7 cycle header in harness_log.md, masterplan status still `pending` -- nothing flipped ahead of this verdict); no verdict-shopping (retry_count=0, zero prior CONDITIONALs, this is cycle 1, so the 3rd-CONDITIONAL rule does not apply). Follow-up step 82.32 EXISTS and is pending, so the deferral half of criterion 3 is satisfied; the failure is on the test half.\n\nCLAIMS THAT DID REPRODUCE (reported symmetrically): \"54 basicConfig in 54 files\" reproduces EXACTLY under an AST walk excluding tests -- a naive grep gives 57/56 inflated by docstring mentions, so Main's figure is the more careful one and the researcher's \"40 files\" is the wrong one; immutable command 32 passed; secret_leak_regression 11/11 exit 0; MU1 kill count and named tests.\n\nLINT: ruff F821/F401/F811 over the DERIVED 12-file scope exits 1 on one F401 (CalendarSource unused, finnhub_earnings.py:26). PRE-EXISTING -- proven, not asserted: I linted the HEAD blob in isolation and got the same finding, and git diff shows the 82.7 hunk does not touch line 26. NOTE, not a blocker. Process warning for whoever re-runs this gate: my first ruff invocation hit qa.md vacuity shape #9 -- the shell here is zsh, which does not word-split an unquoted $FILES, so ruff got all 12 paths as ONE filename and printed \"All checks passed!\" with exit 0. Split explicitly.\n\nOUT-OF-CRITERIA, worth queueing: backend/tools/fred_data.py:101 stores the same credential-bearing exception string in the RETURN VALUE (results[series_id] = {\"error\": str(e)}), so the key travels beyond logging into whatever consumes that dict.\n\nSection 8 of the critique lists the four concrete changes that would make this PASS, including the trap that adding \"backend\" to _EMITTING_LIBRARY_LOGGERS would NOT work (same descendant rule).",
+    "wrote_verdict_file": true
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa:82.7",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a07a14ac86e396707",
+      "agentType": "general-purpose",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1785842110774,
+      "queuedAt": 1785842110764,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "FAIL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator for masterplan step 82.7 (a P0 SECURITY step), EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it -- it is the single source of truth for the\nrole: verification order, deterministic-first discipline, the lint + runtime-smoke gates, the 5-item\nharness-compliance audit, guard-vacuity section 4c, claim-auditing 4b, the no-au…",
+      "lastProgressAt": 1785842800103,
+      "tokens": 152537,
+      "toolCalls": 55,
+      "durationMs": 689329,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"FAIL\",\"reason\":\"P0 security step does not hold its security property. Criterion 3 (\\\"a test asserts the fixed set produces no credential-bearing log records\\\") is falsified: I reproduced credential-bearing log records at default INFO from two modules IN the fixed set (backend/tools/fred_data.py:100 and backend/services/fx_rates.py:172) after their import-time install ran, in…"
+    }
+  ],
+  "totalTokens": 152537,
+  "totalToolCalls": 55
+}

@@ -21363,7 +21363,7 @@
         },
         {
           "id": "82.7",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "name": "SECURITY DEFECT discovered during 82.0 GENERATE: the FRED API key is written to logs in PLAINTEXT. backend/backtest/data_ingestion.py:313 puts `api_key={fred_api_key}` in the FRED query string, and httpx logs the full request URL at INFO level. LOG_LEVEL defaults to INFO (backend/main.py setup_logging), so every macro ingest has written the live key into the backend log, and it appeared verbatim in an operator-visible console during the 2026-08-03 backfill. OPERATOR ACTION OWED: rotate FRED_API_KEY -- the current value must be treated as disclosed. Fix direction: either move the key out of the query string, or suppress/filter the httpx logger around this call, or redact query params in the log formatter. Audit the SAME PATTERN across every other outbound API call that puts a credential in a URL (alphavantage, api-ninjas, finnhub, benzinga were not checked) -- a per-call fix that leaves siblings leaking is not a fix. Do NOT print the key value in any artifact produced by this step.",
@@ -21375,7 +21375,7 @@
               "every hit found by that sweep is either fixed or has its own queued follow-up step; a test asserts the fixed set produces no credential-bearing log records"
             ]
           },
-          "retry_count": 0,
+          "retry_count": 1,
           "max_retries": 3
         },
         {
@@ -21823,6 +21823,48 @@
           "max_retries": 3,
           "depends_on": [
             "82.27"
+          ]
+        },
+        {
+          "id": "82.32",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DEFENCE IN DEPTH after 82.7: move the credential OUT of the URL where the provider supports a header. 82.7 closed the LOGGING exposure for all 8 credential-in-URL sites by making the existing SecretRedactionFilter reachable (import-time install + library-logger attachment), and every site is regression-tested. But the credential is still IN the URL, so it can still reach places redaction does not govern: proxy access logs, TLS-terminating middleboxes, browser/tool Referer headers, and any third-party APM that captures request URLs. OWASP treats query-string credentials as the defect; redaction is a mitigation, not a cure. PER-PROVIDER STATE, measured by the 82.7 research gate: (a) FINNHUB (2 sites -- backend/news/sources/finnhub.py:71, backend/econ_calendar/sources/finnhub_earnings.py:53) supports the X-Finnhub-Token header with NO endpoint change; the repo ALREADY uses header auth in a sibling module, backend/news/sources/benzinga.py:66-68, so there is an in-package precedent to copy. (b) FRED (4 sites -- data_ingestion.py:371, tools/fred_data.py:40, services/fx_rates.py:147, econ_calendar/sources/fred_releases.py:53) supports Authorization: Bearer only on the API v2 endpoints (launched 2025-11-04), so it needs an endpoint migration, not just a header swap. (c) ALPHA VANTAGE (2 sites -- tools/alphavantage.py:44, tools/social_sentiment.py:44) supports NO header auth at all; those two depend permanently on 82.7's redaction and must be documented as accepted residual risk, not silently left. RESEARCH-INCOMPLETE WARNING, carried verbatim from the 82.7 brief and NOT to be skipped: fred.stlouisfed.org AND finnhub.io/docs both returned HTTP 403 to WebFetch and outbound curl is sandbox-blocked, so BOTH header formats are second-hand (press announcement + client-library docs + an upstream GitHub issue), not read from the vendor pages. Changing live outbound auth on second-hand information can silently break ingest -- an operator or a network-enabled session MUST open the vendor auth pages and confirm the exact header name, value format and base path BEFORE any code change. That verification is the first task of this step, and if it cannot be done the step stays blocked rather than guessing. ALSO FOLD IN (82.7 cycle-2 [NOTE-3], measured): _SECRET_PARAM_RE's alternation omits bare `key` and `password` -- `?key=<32ch>` and `?password=<32ch>` both measured redacted=False, while api_key/apikey/api-key/token/X-Api-Key all redact True. A sweep of backend/ scripts/ functions/ for `[?&](key|apiKey|password|passwd|pwd|sig|signature)=` returned ZERO hits, so there is NO current exposure -- this is pre-emptive hardening for a future vendor that uses a bare `key=` parameter, not a live defect. Add the alternatives and assert the innocuous short-value case (`?key=1`) still passes through unredacted, or the logs become unreadable.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_7_credential_logging.py backend/tests/test_phase_82_32_header_auth.py -q",
+            "criteria": [
+              "the vendor auth documentation is read directly for each provider whose call sites are changed, and the exact header name and value format are quoted with the URL in the handoff -- a step that cannot reach the vendor page changes no code for that provider",
+              "for every site migrated to header auth, a test asserts the credential does NOT appear in the request URL and DOES appear in the request headers, executed against a stubbed transport rather than asserted from source",
+              "the sites that cannot migrate (Alpha Vantage) are recorded as accepted residual risk with the reason, and a test asserts they remain covered by the 82.7 redaction so the residual is bounded rather than forgotten",
+              "the 82.7 redaction suite still passes unchanged, proving the header migration did not regress the logging protection that currently covers all 8 sites"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.7"
+          ]
+        },
+        {
+          "id": "82.33",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "TEST-QUALITY RESIDUALS from the 82.7 cycle-2 PASS. None is a live leak; all three are guards that cannot see what they claim to. (WARN-1, measured twice -- by the Q/A and independently by Main) backend/tests/test_phase_82_7_credential_logging.py::test_descendant_loggers_are_covered_not_just_the_named_parents SURVIVES a mutant that removes the addHandler hook, i.e. restores the cycle-1 design that leaked: all 10 parameters pass. Cause is fixture ordering -- the `capture` fixture attaches its handler to root BEFORE the test body calls install_secret_redaction(), so the plain handler leg (present since phase-60.4) scrubs the record and the test cannot distinguish the two designs. Its docstring has been corrected to say so; the FIX is to attach the capture handler AFTER install (or assert handler.filters == [] first) so it observes the leg it names. The blocker itself IS pinned by three other tests (11 kills), so this is a vacuous guard beside genuine ones, never a coverage hole. (WARN-2) 8 of the 11 kills come from test_every_swept_site_installs_redaction_at_import, which asserts the module-state flag lr._HOOK_INSTALLED rather than an absence-of-credential behaviour -- criterion 3's per-site breadth leans on a state flag; convert at least one site to a behavioural assertion. (WARN-3, carried unchanged from cycle 1) backend/services/observability/log_redaction.py has TWO bare `except Exception: pass` blocks on a SECURITY filter. By construction they cannot fail loudly -- and that is the exact mechanism that hid Main's first G3 attempt, where type(exc)(cleaned) raised for exceptions with required kwargs and silently left the credential intact. Add a counter or a raiseExceptions-style breadcrumb so a future regression is visible without changing the fail-open behaviour, which must be preserved: a redaction bug must never take down logging. (NOTE-1) one pre-existing F401 at backend/econ_calendar/sources/finnhub_earnings.py:26 (CalendarSource imported but unused), proven pre-existing against the HEAD blob by both cycles; it sits two lines from a hunk 82.7 added, so clean it up here.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_7_credential_logging.py -q",
+            "criteria": [
+              "test_descendant_loggers_are_covered_not_just_the_named_parents FAILS when the addHandler hook is removed, proven by a recorded mutation run naming the killed parameters -- it must observe the leg its name describes",
+              "at least one per-site guard asserts an absence-of-credential behaviour rather than the module-state flag lr._HOOK_INSTALLED, and a mutation shows it failing when that site's coverage is removed",
+              "the two bare except blocks in log_redaction.py record that they swallowed something (counter or breadcrumb) while still not raising, asserted by a test that triggers an internal error and observes the record without logging breaking",
+              "ruff --select F401 exits 0 on backend/econ_calendar/sources/finnhub_earnings.py"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.7"
           ]
         }
       ]

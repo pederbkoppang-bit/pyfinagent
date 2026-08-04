@@ -30474,3 +30474,65 @@ is called only from `backend/main.py:151`, so every standalone script path runs 
 filter -- which is how the 2026-08-03 backfill leaked. Seven credential-in-URL sites, not
 one. Operator still owes: rotate `FRED_API_KEY` (treat as disclosed), choose a
 fundamentals source.
+
+
+## Cycle 1139 -- 2026-08-04 -- phase=82.7 result=PASS (cycle 2; cycle 1 FAILed)
+
+**Step**: P0 SECURITY -- the FRED API key written to logs in plaintext via URL query
+strings, visible on an operator console during the 2026-08-03 macro backfill.
+
+**Root cause was REACHABILITY, not absence.** `SecretRedactionFilter` has existed since
+phase-60.4 with a correct regex; it was attached only inside `backend.main.setup_logging`,
+whose sole non-test call site is the FastAPI lifespan, leaving 54 `basicConfig()`
+bootstraps unprotected. The research gate confirmed it and corrected me: the daily macro
+CRON runs inside the lifespan and WAS protected -- the leak came from a manual CLI path.
+
+**CYCLE 1 FAILED, correctly, and the finding was real.** My fix attached filters to
+PARENT loggers (`urllib3`, `httpcore`) while the emitters are DESCENDANTS
+(`urllib3.connectionpool`, `httpcore.http11`) -- contradicting the rule stated in the
+docstring of the very file I was editing. The Q/A reproduced live credential leaks from
+two modules in my "fixed" set using a real `requests.get` against a real socket. A P0
+security step that did not hold its security property, shipped with 32 green tests.
+
+**Why 32 green tests missed it -- both guards RAN and PASSED and could not see the
+defect.** One drove httpx for all 8 sites when 3 use `requests`, so it exercised a
+transport those modules never touch. The other called `basicConfig()` to make "a new
+unfiltered handler", but `basicConfig` no-ops when root already has handlers and the
+fixture had added one -- measured before=1, after=1. New auto-memory:
+`feedback_a_green_suite_can_be_blind`.
+
+**The repair**: hook `logging.Logger.addHandler`. Handlers see every record that
+propagates from any logger at any depth, so they cover descendants that named-logger
+filters cannot; the only hole was a handler added AFTER install, which is exactly the
+order in the checked-in `extend_historical_data.py`. Verified closed for every named
+logger, for `a.brand.new.logger.nobody.enumerated`, and in a real subprocess.
+
+**Because it is a process-wide monkeypatch, the full suite was run BOTH ways**: 31 failed
+with, 32 without, symmetric difference EMPTY -- zero introduced. One pre-existing red test
+is repaired (`test_c6_redaction_survives_json_branch`), which was failing precisely
+because redaction never reached.
+
+**A surviving mutant I found in my own matrix and closed**: MU8 (drop the hook's
+idempotency guard) left everything green, because my idempotency test counted filters on
+one logger and could not see `addHandler` being re-wrapped ten deep.
+
+**The habit this phase keeps exposing**: three times now I have written which guard
+catches what without measuring it. The code was right each time; the attribution was
+wrong. Run the mutant, read the killed test NAMES, then write the sentence.
+
+**Also this cycle**: the Workflow structured-output rail dropped TWO returns in a row
+(the 82.7 researcher and the first 82.7 Q/A, ~165K tokens each). The researcher's work
+survived only because write-first put its brief on disk; the Q/A's was lost entirely. I
+added write-first to the Q/A rail -- and it immediately earned it, preserving a 393-line
+cycle-1 FAIL critique. New auto-memory:
+`feedback_write_first_applies_to_the_qa_rail_too`.
+
+**Queued from residuals**: 82.33 (vacuous descendant guard, state-flag assertions, two
+bare `except Exception: pass` on a security filter, one pre-existing F401), and NOTE-3
+folded into 82.32 (regex omits bare `key`/`password`; ZERO current call sites, so
+pre-emptive).
+
+**OPERATOR ACTION STILL OWED: rotate `FRED_API_KEY`.** This step closes the logging
+channel; it does not un-disclose an already-leaked value.
+
+**Next**: 82.5 (P1, exit-quality metric blowup), 82.10/82.11/82.12/82.13 (P1).

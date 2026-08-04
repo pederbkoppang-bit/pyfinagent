@@ -41,6 +41,19 @@ from backend.services.observability import (
 
 logger = logging.getLogger(__name__)
 
+# phase-82.7 (SECURITY): this module builds an outbound URL carrying a credential,
+# and httpx/requests log the full URL at INFO. Installing the redaction filter at
+# import time makes coverage automatic BY CONSTRUCTION -- a leak is only possible
+# if this module is imported, so the filter is guaranteed present on any path that
+# can leak. That is what the previous design lacked: the filter existed but was
+# attached only inside backend.main.setup_logging, whose sole non-test call site is
+# the FastAPI lifespan, leaving all 54 script/CLI logging bootstraps unprotected.
+# Idempotent and dependency-free (logging + re only), so it cannot cycle on import.
+from backend.services.observability.log_redaction import install_secret_redaction
+
+install_secret_redaction()
+
+
 _ENDPOINT = "https://finnhub.io/api/v1/news"
 _CATEGORY = "general"
 _TIMEOUT_SEC = 30.0

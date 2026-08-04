@@ -1,0 +1,70 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE for 82.7 with WRITE-FIRST persistence: the agent writes its verdict JSON to disk BEFORE returning it, so a StructuredOutput failure cannot destroy the evaluation. Reads .claude/agents/qa.md from disk at runtime.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": true,
+    "verdict": "PASS",
+    "reason": "All 3 immutable criteria MET, verified independently rather than inherited. NOTE FIRST: this was CYCLE 2, not cycle 1 — a cycle-1 FAIL already existed on disk (13:25) and Main had fixed it; measured mtimes (critique 13:25 < tests 13:30 < log_redaction.py 13:38 < experiment_results 13:39) show evidence changed after the FAIL, so this is the documented changed-evidence flow, not verdict-shopping. I appended rather than overwrote, so the cycle-1 FAIL is preserved. The cycle-1 blocker is genuinely repaired: I reproduced the exact leak scenario myself — a fresh subprocess in the losing order checked in at scripts/migrations/extend_historical_data.py:39-41, issuing a REAL requests.get against a REAL local socket so urllib3.connectionpool emits a genuine record, plus the backend.tools.fred_data exception re-emission channel — and measured LEAKED_CREDENTIAL=False with URL_WAS_LOGGED=True and REDACTION_MARKER_PRESENT=True, so the result is provably non-vacuous. My own mutant MU-Q1 (neuter _install_addhandler_hook before collection, reconstructing the cycle-1 design) kills 11 tests, so the suite is sensitive to the cycle-1 blocker. Deterministic gates: immutable command exit=0 / 45 passed; secret_leak_regression exit=0; full backend suite 31 failed / 2471 passed, and a control with 82.7 neutered re-running those exact 31 node-ids leaves all 31 still failing (symmetric difference empty -> ZERO regressions introduced by a process-wide addHandler monkeypatch) while test_phase_75_sre_ops::test_c6_redaction_survives_json_branch flips fail->pass, confirming 82.7 repairs a previously-red redaction test. My independent 9th-site sweep used two query shapes neither Main nor the researcher used and found NO ninth URL-query-string leak site; the hook-bypass hunt found no production propagate=False, no dictConfig/fileConfig, and both basicConfig(handlers=[...]) sites route through root.addHandler so the hook covers them. Harness compliance clean: LOG-LAST respected (0 'phase=82.7' entries in harness_log.md, masterplan status still pending), all 3 criteria verbatim in the contract, researcher before contract. Research-gate envelope irregularity judged ACCEPTABLE on independent review. FOUR WARN / FIVE NOTE findings recorded, none criterion-violating. No real credential VALUE appears in any artifact. OPERATOR ACTION STILL OWED: rotate FRED_API_KEY — this step closes the logging channel, it does not un-disclose the already-leaked value.",
+    "violated_criteria": [],
+    "violation_details": [],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "immutable_verification_command",
+      "ruff_F821_F401_F811_on_derived_scope",
+      "independent_pre_existence_proof_of_lint_finding",
+      "mutation_MU_Q1_own_mutant_cycle1_design_restored",
+      "end_to_end_subprocess_real_socket_real_requests_losing_order",
+      "backend_module_logger_exception_reemission_probe",
+      "independent_ninth_leak_site_sweep_two_novel_shapes",
+      "addhandler_hook_bypass_hunt",
+      "regex_param_coverage_probe",
+      "secret_leak_regression_harness",
+      "full_backend_test_suite",
+      "full_suite_control_run_symmetric_difference",
+      "claim_audit_re_derivation",
+      "criteria_verbatim_containment_check",
+      "log_last_ordering_check",
+      "cycle2_changed_evidence_mtime_check",
+      "research_gate_envelope_review",
+      "git_state_measurement",
+      "worst_of_n_lenses"
+    ],
+    "harness_compliance_ok": true,
+    "ninth_leak_site": "none found",
+    "wrote_verdict_file": true,
+    "notes": "WARN-1 (qa.md 4c shape #11, mis-attributed kill mechanism): backend/tests/test_phase_82_7_credential_logging.py:176 test_descendant_loggers_are_covered_not_just_the_named_parents carries the docstring \"THE CYCLE-1 BLOCKER, pinned\" but SURVIVED my MU-Q1 — it is absent from the 11 failures. Cause: the `capture` fixture attaches its handler to root BEFORE the test body calls install_secret_redaction(), so the plain HANDLER leg (which existed in cycle 1 and in phase-60.4) scrubs the record; the test cannot distinguish the cycle-1 design from the cycle-2 design. The blocker IS genuinely pinned, by test_install_survives_a_later_basicConfig and test_a_handler_added_after_install_is_filtered, so this is a vacuous guard alongside two genuine behavioural ones — WARN, not blocking, per qa.md 4c verdict wiring. Named fix: attach the capture handler AFTER install (or assert h.filters == []) so the test observes the leg it names.\nWARN-2 (proxy assertion): 8 of my 11 MU-Q1 kills come from test_every_swept_site_installs_redaction_at_import, which asserts the module-state flag lr._HOOK_INSTALLED rather than an absence-of-credential behaviour. Adequate in combination, but criterion 3's per-site breadth leans on a state flag.\nWARN-3 (carried from cycle 1, unchanged): backend/services/observability/log_redaction.py:75-76 and :159-161 are both bare `except Exception: pass` on a SECURITY filter — by construction they cannot fail loudly, which is the exact mechanism that hid Main's first type(exc)(cleaned) attempt. A counter or logging.raiseExceptions-style breadcrumb would make a future regression visible.\nWARN-4 (evaluator self-catch, methodology): my own first bypass sweep used unquoted --include=*.py, which zsh glob-expanded so grep returned \"no matches\" for every shape — a false CLEAN, vacuity shape #9 reproducing on the evaluator. All sweeps were re-run quoted; anyone re-running these gates on this machine must quote the include pattern.\nNOTE-1: ruff exit=1 on one F401, `backend.econ_calendar.registry.CalendarSource imported but unused` at backend/econ_calendar/sources/finnhub_earnings.py:26. I proved pre-existence independently rather than inheriting cycle 1's proof — extracted the HEAD blob via `git show HEAD:...` and linted it in isolation, same \"Found 1 error\". The 82.7 hunk on that file adds only the redaction import + call near line 28 and does not touch line 26. Gate scope is what the CHANGE defines, so NOTE not blocker — but it sits two lines from a hunk this step added and is a one-token cleanup.\nNOTE-2: Main's mutation-matrix row \"MU6 addHandler hook removed -> 10 failed\" vs my independent MU-Q1 -> 11 failed. Not a contradiction (different mutant shapes; mine also stops _HOOK_INSTALLED ever flipping), but the row should name the mutant precisely.\nNOTE-3 (measured latent gap, NOT a live leak): _SECRET_PARAM_RE's alternation omits bare `key` and `password` — measured `?key=<32ch>` redacted=False, `?password=<32ch>` redacted=False, while api_key/apikey/api-key/token/X-Api-Key all redact True. I then swept backend/ scripts/ functions/ for `[?&](key|apiKey|password|passwd|pwd|sig|signature)=` and got ZERO hits, so there is no current exposure. Recommend queueing onto the existing 82.32.\nNOTE-4: the researcher's structured return dropped, which is now the second such drop this session. The transport defect is worth its own queued step; the gate itself is fine (brief on disk, envelope complete as its final section, gate_passed true, and the gate demonstrably worked — it caught the 8th site fx_rates.py that Main's own grep missed).\nNOTE-5: masterplan `82.7 retry_count` is still 0 despite a genuine cycle-1 FAIL. The F1 discipline uses that counter for certified_fallback escalation, so leaving it at 0 understates consecutive fails. Bookkeeping only.\nSPAWN-PROMPT DRIFT: my spawn prompt described cycle-1 state (\"32 passed\", a fix with no addHandler hook, \"create the critique file\") and listed attacks A-E against the cycle-1 design. All of that was stale. I evaluated the CURRENT tree, not the prompt's description of it. Attack A/B/C/D/E were all still run, but re-aimed at the cycle-2 design.\nCREDENTIAL HYGIENE: no credential VALUE appears in the critique file or in this return; keys named by ENV VAR NAME only. I did not read backend/.env and did not grep any log for a key value. No real credential value was found in any artifact of this step.\nVERDICT FILE: appended to handoff/current/evaluator_critique_82.7.md as a new \"# CYCLE 2\" section; the cycle-1 FAIL (sections 0-8 + its fenced json) is preserved byte-for-byte above it, and the file now opens with a pointer saying the LAST fenced json block is the verdict of record. This is the only file I wrote; all production code, tests and other handoff files were read-only."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa:82.7",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a02a20a21ffd61a84",
+      "agentType": "general-purpose",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1785843582374,
+      "queuedAt": 1785843582364,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "PASS",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator for masterplan step 82.7 (a P0 SECURITY step), EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it -- it is the single source of truth for the\nrole: verification order, deterministic-first discipline, the lint + runtime-smoke gates, the 5-item\nharness-compliance audit, guard-vacuity section 4c, claim-auditing 4b, the no-au…",
+      "lastProgressAt": 1785844159865,
+      "tokens": 148570,
+      "toolCalls": 29,
+      "durationMs": 577490,
+      "resultPreview": "{\"ok\":true,\"verdict\":\"PASS\",\"reason\":\"All 3 immutable criteria MET, verified independently rather than inherited. NOTE FIRST: this was CYCLE 2, not cycle 1 — a cycle-1 FAIL already existed on disk (13:25) and Main had fixed it; measured mtimes (critique 13:25 < tests 13:30 < log_redaction.py 13:38 < experiment_results 13:39) show evidence changed after the FAIL, so this is the documented changed-e…"
+    }
+  ],
+  "totalTokens": 148570,
+  "totalToolCalls": 29
+}

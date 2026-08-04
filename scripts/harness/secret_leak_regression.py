@@ -162,6 +162,50 @@ def _test_token_ttl_honored() -> dict:
     }
 
 
+def _test_credential_url_redacted_at_the_logger() -> dict:
+    """phase-82.7: a credential in a request URL must not survive to a handler.
+
+    This deliberately does NOT call redact_secrets() directly. The phase-82.7 defect
+    was REACHABILITY -- the filter existed and worked, but was attached only inside
+    backend.main.setup_logging (FastAPI lifespan only), so all 54 script/CLI logging
+    bootstraps ran unprotected. A test that exercised the function alone would have
+    passed against the broken tree. This installs redaction the way a script must,
+    emits through the REAL httpx logger, and inspects what a handler receives.
+    """
+    import logging as _logging
+
+    from backend.services.observability.log_redaction import install_secret_redaction
+
+    fake = "SYNTHETIC0000NOTAREALKEY0000000A"   # obviously not a credential
+    seen: list[str] = []
+
+    class _Sink(_logging.Handler):
+        def emit(self, record):
+            seen.append(record.getMessage())
+
+    install_secret_redaction()
+    lg = _logging.getLogger("httpx")
+    sink = _Sink()
+    lg.addHandler(sink)
+    lg.setLevel(_logging.INFO)
+    try:
+        for provider, param in (("FRED", "api_key"), ("AlphaVantage", "apikey"),
+                                ("Finnhub", "token")):
+            lg.info("HTTP Request: GET https://%s.invalid/q?%s=%s \"HTTP/1.1 200 OK\"",
+                    provider, param, fake)
+    finally:
+        lg.removeHandler(sink)
+
+    leaked = [m for m in seen if fake in m]
+    return {
+        "test": "credential_url_redacted_at_the_logger",
+        "emitted": len(seen),
+        "leaked": len(leaked),
+        "redaction_markers": sum("***REDACTED***" in m for m in seen),
+        "pass": len(seen) == 3 and not leaked and all("***REDACTED***" in m for m in seen),
+    }
+
+
 def main() -> int:
     tests = [
         _test_unsigned_request_rejected(),
@@ -174,6 +218,7 @@ def main() -> int:
         _test_clean_args_passthrough(),
         _test_role_scope_map(),
         _test_token_ttl_honored(),
+        _test_credential_url_redacted_at_the_logger(),
     ]
     all_pass = all(t["pass"] for t in tests)
     result = {
