@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-04 | `14ef109a` | feat(82.3+82.4): backtest evidence and design pack -- no strategy passes the gate |
 | 2026-08-03 | `97c33037` | feat(82.4): design pack with render-verified 4-column flows + pre-registered ranking |
 | 2026-08-03 | `07ee03fc` | fix(82.15): wire the point-in-time macro read -- the vintage column had zero consumers |
 | 2026-08-03 | `df5cc559` | feat(82.2): three overpriced-market candidate strategies in STRATEGY_REGISTRY |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-26 | `d5a6d392` | fix(80.45): narrow the drawdown claim instead of widening the precision |
 | 2026-07-26 | `5513f4ee` | docs(80.32): correct a CLAUDE.md rule that would have misdirected model pinning |
 | 2026-07-26 | `3f3edd96` | fix(80.44): stop the collection-count canary re-baselining treadmill |
-| 2026-07-26 | `aabfcd23` | docs: agent-memory research gate -- found the orchestrator reading a 4-month-stale MEMORY.md |
 
 ---
 
+### v6.76.0 — feat(82.3+82.4): backtest evidence and design pack -- no strategy pas... (2026-08-04)
+
+- **feat(82.3+82.4): backtest evidence and design pack -- no strategy passes the gate**
 ### v6.75.0 — feat(82.4): design pack with render-verified 4-column flows + pre-reg... (2026-08-03)
 
 - **feat(82.4): design pack with render-verified 4-column flows + pre-registered ranking**
