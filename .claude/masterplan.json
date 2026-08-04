@@ -21722,6 +21722,216 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "82.27",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "name": "RE-SPEC of 82.23 criterion 1 -- name the SWEEP-LEVEL producer, not generate_report. 82.23 is structurally uncloseable and stays permanently pending: its immutable criterion 1 requires `generate_report` to emit a pbo field, but generate_report (backend/backtest/analytics.py:741) receives ONE BacktestResult and all 16 repo call sites pass a single run. `compute_pbo` returns a false-good 0.0 at N<2 (analytics.py:184), and 0.0 passes the live <=0.20 ceiling -- so satisfying criterion 1 literally would emit an UNCONDITIONAL PASS on every report, i.e. ship the exact defect 82.23 exists to prevent. This was verified independently by the 82.23 Q/A (verdict CONDITIONAL, handoff/current/evaluator_critique_82.23.md, task wgn08733b, raw return archived at handoff/current/qa_returns/wgn08733b.output.json), which ruled: 'criteria are immutable and a Q/A cannot waive one, so this CANNOT be flipped done against criterion 1 as written; it needs an operator decision plus a re-spec in a NEW step.' Operator chose re-spec on 2026-08-04. SAME CLASS AS phase-81.0 (see auto-memory feedback_immutable_criteria_must_be_green_able): I wrote a verification criterion naming a function whose shape I had not checked. THE WORK IS ALREADY BUILT AND MUTATION-VERIFIED under 82.23 -- `compute_pbo_checked` (refuses instead of returning the false-good 0.0; reports n_trials, n_obs, gate_grade, column_corr_mean/max, columns_diverse), the PromotionGate `min_pbo_trials` floor, and the strategy_backtest_adapter forwarding hop, with 21 passing tests that killed all 6 of the Q/A's independent mutants. THIS STEP DOES NOT REBUILD ANY OF IT. Its job is to (a) identify the correct sweep-level producer -- the K-config driver that already holds N series, i.e. backend/autoresearch/strategy_backtest_adapter.py::make_engine_backtest_fn and scripts/harness/run_82_3_candidate_backtests.py -- and assert PBO is emitted THERE with its trial count and diversity number attached; (b) assert that the single-run report path still does NOT emit a pbo, so the false-good 0.0 can never reach the gate; and (c) carry 82.23's remaining evidence to closure. Do NOT re-word or amend 82.23's criteria -- they are immutable; 82.23 is superseded-in-place and its code ships under this step.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_23_pbo_in_gate.py backend/tests/test_phase_82_27_pbo_sweep_producer.py -q",
+            "criteria": [
+              "the SWEEP-LEVEL producer (a function that receives or builds N>=2 configuration series, NOT generate_report) emits a pbo together with its n_trials and its mean pairwise column correlation, asserted by a test that EXECUTES that producer against a stub engine and inspects the returned mapping -- an inspect.getsource token scan does not satisfy this",
+              "the single-run report path is asserted to emit NO pbo, with the test stating the reason (N=1 makes compute_pbo return a false-good 0.0 that passes the <=0.20 live ceiling), so the criterion-1 defect of 82.23 cannot be reintroduced",
+              "a fixture drives the producer with an under-length matrix (T < S*2) and asserts the emitted pbo is None/absent rather than 0.0, and that the refusal reason is reported",
+              "every criterion above is mutation-verified: the experiment_results mutation matrix names, for each guard, a concrete production mutation that makes it fail, and records the measured CONTROL count re-derived from the tree in the same run"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3,
+          "depends_on": [
+            "82.22"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase-83",
+      "status": "pending",
+      "name": "Market-news thematic engine -- convert news into a DURABLE, CROSS-SECTOR theme signal that clears the promotion gates and adds NET, COST-ADJUSTED P&L. Operator goal set 2026-08-04. MOTIVATING CASES (operator's own words): COVID lifting medical names; the AI rush lifting datacenter and therefore memory/AI names; the Ukraine war lifting weapons makers; the Iran/US conflict lifting crude and the oil complex. All four are slow, cross-sector, months-long themes -- NOT headline scalps. OPERATOR DECISIONS recorded 2026-08-04 via AskUserQuestion: (a) target the SLOW thematic channel, fast headline drift explicitly OUT OF SCOPE because its turnover is cost-negative for us; (b) STRICTLY $0 free data sources; (c) the live news defect gets its own P0 blocking step; (d) full chain to a gated feature. MONEY THESIS: commit 14ef109a closed phase-82 with 'no strategy passes the gate' -- we have been re-combining the same price/fundamental/macro inputs. News-derived themes are the first genuinely ORTHOGONAL information source on the table. The chain, stated so it can be attacked: durable theme forms -> second-order beneficiaries reprice SLOWLY under limited attention (Cohen-Frazzini, >6%/yr cross-momentum) -> we identify them from free text before full repricing -> we tilt for weeks-to-months -> LOW TURNOVER, so the edge survives costs. The low-turnover property, not any alpha number, is the money argument (phase-61 finding: churn is the cost). MEASURED BASELINE 2026-08-04 (all verified live, not asserted): (1) backend/news/bq_writer.py:36-37 targets news_articles + news_sentiment, but a live BQ listing of pyfinagent_data returns ONLY calendar_events, and the writer is fail-open/never-raise, so writes silently no-op -- NO corpus exists; (2) _NUMERIC_FEATURES at backend/backtest/backtest_engine.py:49-62 holds 37 features and ZERO news-derived ones (consumer_sentiment there is FRED UMCSENT, a macro series, not news), while NEWS_SCREEN_ENABLED=true in backend/.env and screener.py:334 applies news to live candidate scores -- so an un-gated input moves the real book and is un-gate-able by construction; (3) a grep for supply_chain|beneficiar|second_order|theme_map|value_chain across backend/services + backend/tools returns NOTHING -- the AI->memory hop has no representation, and peer_leadlag_screen.py is explicitly intra-sector; (4) defense_signal.py calls itself a 'reference-case signal' -- one hard-coded theme, no registry, no intensity series, no membership set. Also measured: FINNHUB and BENZINGA keys are ABSENT from backend/.env, so two of the three coded news sources are dead code; ALPHAVANTAGE_API_KEY is SET and Alpha Vantage NEWS_SENTIMENT was confirmed live returning 2022-02-24 Ukraine-week articles with per-ticker relevance AND sentiment. KILL CRITERIA, stated before we are invested: if 83.5 fails the gate we STOP and do NOT tune to pass -- a FAIL that prevents deploying a losing strategy is a money-positive outcome and is logged as a result. If 83.3 cannot reach memory names from an AI-datacenter theme, the cross-sector premise is dead and 83.4-83.6 are CANCELLED. NON-SCOPE: do not implement fast headline-drift trading; do not add any paid data source; do not modify the live buy funnel, meta_scorer, kill-switch, or any existing overlay except via 83.6's new default-OFF flag; no hysteresis (still banned). REFERENCES: research prompt at handoff/current/research_prompt_market_news.md; plan of record at ~/.claude/plans/i-would-like-you-compressed-newell.md.",
+      "steps": [
+        {
+          "id": "83.0",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "DEFECT (own step per standing rule), BLOCKS ALL OF phase-83: news influences live trades but NO news corpus is persisted, so no news signal can ever be backtested or gated. MEASURED 2026-08-04: backend/news/bq_writer.py:36-37 declares _NEWS_ARTICLES_TABLE = 'news_articles' and _NEWS_SENTIMENT_TABLE = 'news_sentiment' resolved against settings.bq_dataset_observability ('pyfinagent_data'), but a live BigQuery table listing of pyfinagent_data returns ONLY calendar_events -- neither table exists. The module docstring and _insert_rows are explicitly fail-open / never-raise, so every write silently no-ops: a textbook operation-that-cannot-fail-loudly (see auto-memory feedback_operations_that_cannot_fail_loudly). Meanwhile NEWS_SCREEN_ENABLED=true in backend/.env and backend/tools/screener.py:334 calls apply_news_to_score on live candidates -- an un-audited, un-gated input is moving the real book. SCOPE: (a) create news_articles + news_sentiment via a re-runnable migration under scripts/migrations/ (NOT ad-hoc MCP DDL, per the BigQuery rules); schema MUST carry BOTH published_at and ingested_at as distinct timestamps -- the point-in-time discipline every later step depends on collapses if only one is stored. (b) Make the fail-open writer OBSERVABLE: keep it never-raising (that discipline is correct) but emit a counter/log so a silent no-op is detectable by an operator; a swallowed write must no longer be indistinguishable from success. (c) Backfill from Alpha Vantage through backend/tools/alphavantage.py using the LOCAL ALPHAVANTAGE_API_KEY -- NOT the claude.ai session connector, which is absent headless/in cron and must never be load-bearing. (d) File as a disclosure the measured fact that FINNHUB and BENZINGA keys are absent from backend/.env, making backend/news/sources/finnhub.py and benzinga.py unreachable dead code; do NOT delete them in this step. MONEY CONTRIBUTION: loss-prevention now (an un-gated input on the live book becomes auditable), and the hard prerequisite for every P&L claim in 83.2-83.6 -- without a corpus nothing downstream can face DSR/PBO.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_0_news_corpus_persistence.py -q",
+            "criteria": [
+              "a test asserts the migration creates both news_articles and news_sentiment with distinct published_at AND ingested_at timestamp columns, and fails if either timestamp column is missing",
+              "a test injects a write failure into the fail-open insert path and asserts the failure is surfaced through an observable counter or log record, so a silent no-op is distinguishable from a successful write",
+              "the observability guard is mutation-tested: removing the counter/log emission makes the test FAIL rather than pass vacuously",
+              "a test asserts the backfill path reads the local ALPHAVANTAGE_API_KEY via backend/tools/alphavantage.py and does not depend on any claude.ai session-connector MCP tool",
+              "the writer still never raises on error, asserted by a test that a failing insert returns normally rather than propagating an exception"
+            ],
+            "live_check": "verbatim BigQuery output showing row counts greater than zero for both pyfinagent_data.news_articles and pyfinagent_data.news_sentiment, with published_at and ingested_at populated and differing on at least one row, plus the observability log line produced by a deliberately failed write"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.1",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "83.0"
+          ],
+          "name": "Research gate + design pack for the market-news thematic engine. Spawn the researcher with the prompt already authored at handoff/current/research_prompt_market_news.md (tier=complex, coverage.audit_class=true, loop-until-dry K=2). Launch via the Workflow rail per the standing operator rule that BOTH dev-MAS agents run through Workflows; the Agent-tool researcher subagent is the documented fallback. DESIGN ONLY -- this step changes no live behaviour and writes no signal code. The brief must answer all seven questions in the prompt: theme representation, beneficiary mapping without paid supply-chain data, timing/crowding, cost-and-turnover, free-source feasibility ($0 hard constraint), lookahead defence, and a MANDATORY negative-evidence section. It must also carry the internal audit of defense_signal.py, call_transcript_gpr.py (whose own docstring reports contemporaneous-only, NO forward return predictability -- the exact failure mode this phase must not repeat), peer_leadlag_screen.py, backend/news/*, _NUMERIC_FEATURES, and overlay_math.sign_safe_mult. The design pack must PRE-REGISTER the ranking criteria for 83.5 before any backtest is run, so the gate cannot be tuned to pass after the fact. MONEY CONTRIBUTION: the cheapest possible place to kill a cost-negative design -- before any code exists. A candidate design that only works gross of costs must be recorded as REJECTED here, not carried forward.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_1_design_pack.py -q",
+            "criteria": [
+              "handoff/current/research_brief_phase83.md exists and ends with a JSON envelope whose gate_passed is true, external_sources_read_in_full is at least 5, recency_scan_performed is true, and coverage.dry is true",
+              "the brief contains a non-empty negative-evidence section naming at least one documented failure mode of news-driven thematic trading",
+              "the brief contains a walkthrough for each of the four reference cases (COVID/pharma, AI-datacenter/memory, Ukraine/defense, Iran-US/oil) that states what would have been bought and what it would have COST to hold",
+              "the design pack records a pre-registered ranking for 83.5, and a test asserts that ranking is fixed before any backtest artifact for phase-83 exists",
+              "the brief explicitly classifies each candidate design as surviving or not surviving our transaction costs, with no candidate left unclassified"
+            ],
+            "live_check": "the researcher spawn's returned JSON envelope transcribed verbatim, plus the path and first-and-last 20 lines of the produced research_brief_phase83.md"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.2",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "83.1"
+          ],
+          "name": "THEME_REGISTRY + point-in-time theme-intensity series, built strictly from $0 sources. Generalises backend/services/defense_signal.py -- which its own docstring calls a 'reference-case signal', i.e. ONE hard-coded theme gated on GPR-Acts AND XAR 5-day momentum, default OFF -- into N data-driven themes. A theme becomes a first-class point-in-time object: an intensity time series, a membership set, and birth/death dates, per the representation chosen in the 83.1 design pack (Bybee/Kelly/Manela/Xiu topic-attention is the leading candidate; the brief decides). REGRESSION ANCHOR: the existing defense case MUST reproduce as registry entry #1 -- the registry, run over a fixture spanning the Ukraine invasion window, must surface the defense theme and its trigger consistent with defense_signal's GPR-Acts-AND-XAR gate. That reproduction is the proof the machinery finds real moves rather than fitting noise. Do NOT delete or rewire defense_signal.py in this step -- it stays as the independent oracle the registry is checked against. The intensity series MUST be as-of correct: a value dated T may only use articles with published_at <= T, sourced from the 83.0 corpus. COST RAIL: theme extraction is CYCLE-LEVEL, not per-ticker -- the same design that keeps defense_signal cheap. Any implementation whose per-cycle LLM cost exceeds the existing news_screen budget must be redesigned, not approved. MONEY CONTRIBUTION: turns one hand-built theme into a repeatable, auditable source of candidates, which is the only way this generalises beyond the single case we already had.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_2_theme_registry.py -q",
+            "criteria": [
+              "a theme is represented as a point-in-time object carrying an intensity series, a membership set, and birth/death dates, asserted by a test over a committed fixture",
+              "the defense reference case reproduces as a registry entry: over a fixture spanning the 2022 Ukraine-invasion window the registry surfaces the defense theme, and the test fails if it does not",
+              "as-of correctness is enforced and mutation-tested: a theme-intensity value dated T computed from an article with published_at greater than T causes the test to FAIL, and removing the as-of filter makes that test fail rather than pass vacuously",
+              "a test asserts theme extraction is invoked at most once per cycle rather than once per ticker, so the cost profile matches the cycle-level design",
+              "backend/services/defense_signal.py is unmodified by this step, asserted by the test or by a committed diff showing no change to that file"
+            ],
+            "live_check": "verbatim console output of the registry run over the Ukraine-window fixture showing the defense theme detected with its intensity series, plus the measured per-cycle LLM call count and cost"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.3",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "83.2"
+          ],
+          "name": "Cross-sector beneficiary map including SECOND-ORDER links -- the AI-datacenter-to-memory hop. MEASURED GAP: a grep for supply_chain|beneficiar|second_order|theme_map|value_chain across backend/services and backend/tools returns NOTHING; backend/agents/skills/supply_chain_agent.md exists only as LLM narrative prose and never as a scored linkage; and backend/services/peer_leadlag_screen.py is explicitly intra-sector ('Group by SECTOR'), so it cannot express a hop from an Information-Technology theme to Semiconductors/memory or to Utilities/power. Build a SCORED linkage (not prose, not boolean) from a theme to its beneficiaries, distinguishing FIRST-order (named directly in the news, priced fast) from SECOND-order (reached via an economic link, priced slowly). Free proxies only, per the 83.1 evaluation: candidates include 10-K text similarity (Hoberg-Phillips), news co-mention graphs built from the 83.0 corpus, revenue-segment disclosure, and ETF-holdings overlap. NO paid supply-chain dataset. EVIDENCE BASIS: Cohen-Frazzini economic-links predictability (>6%/yr cross-momentum) and arXiv 2606.29290 (network-augmented text embeddings: SR 0.86, FF5 alpha 7.27%/yr, t=2.30). Both are academic, gross of our costs, on a different universe -- they justify the mechanism, NOT a forecast. PHASE KILL POINT: if the map cannot reach memory names from an AI-datacenter theme, the cross-sector premise is dead and 83.4-83.6 are CANCELLED rather than reworked. MONEY CONTRIBUTION: this is where the edge actually lives -- first-order names are priced fast, and the published, cost-surviving edge is in the slow second-order hop.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_3_beneficiary_map.py -q",
+            "criteria": [
+              "given an AI-datacenter theme fixture the map reaches at least one memory or semiconductor-memory ticker as a SECOND-order beneficiary, and the test fails if the result set is empty",
+              "links carry a numeric strength score rather than a boolean, and first-order versus second-order is an explicit recorded attribute of each link, asserted by a test",
+              "the map reaches cross-sector, proven by a test asserting at least one produced link connects two different GICS sectors -- a result reachable by peer_leadlag_screen.py's intra-sector grouping would not satisfy this",
+              "no paid data dependency is introduced, asserted by a test that the module imports no client requiring a credential absent from the $0 source list",
+              "recall is measured on all four reference cases and the measured number is recorded, rather than asserted, in the step artifacts"
+            ],
+            "live_check": "verbatim output of the beneficiary map for an AI-datacenter theme showing the second-order memory names with their link scores and the sector of each, plus the measured recall figure across the four reference cases"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.4",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "83.3"
+          ],
+          "name": "Make the theme signal BACKTESTABLE: add theme-derived numeric features to _NUMERIC_FEATURES at backend/backtest/backtest_engine.py:49-62 (today 37 features, ZERO news-derived), with purge/embargo and as-of discipline, plus an explicit lookahead defence. POINT-IN-TIME RULE: features must be computed from published_at, never ingested_at -- using ingestion time leaks our own collection schedule into history. The 83.0 corpus stores both precisely so this is checkable. LOOKAHEAD DEFENCE (acceptance criteria, not optional hygiene): implement the LAP (Lookahead Propensity) interaction test from arXiv 2512.23847 -- build a date-only recall signal, then regress the outcome on LLM signal, LAP, and their interaction; a significant positive interaction coefficient indicates memorisation contamination. Additionally restrict the primary evaluation window to a period strictly after the scoring model's knowledge cutoff, which eliminates the bias by construction. Context from arXiv 2502.21206v3: chronologically-consistent models scored SR 4.80-4.92 versus Llama-3.1's 4.90, so contamination in this setting is modest and we do NOT need to train a custom model -- cutoff-aware windows plus the LAP test suffice. MONEY CONTRIBUTION: makes the edge measurable and prevents deploying a fake one. Until a theme feature exists here it can never face DSR/PBO, and therefore can never be trusted with capital.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_4_theme_features.py -q",
+            "criteria": [
+              "at least one theme-derived feature is present in _NUMERIC_FEATURES and is populated for a fixture ticker-date, asserted by a test that fails if the feature list is unchanged",
+              "features are computed from published_at and not ingested_at, asserted by a fixture in which the two timestamps differ and would yield different feature values",
+              "the embargo guard is mutation-tested: a leakage test FAILS when the embargo is removed, so the guard cannot pass vacuously",
+              "the LAP interaction test is implemented and its coefficient and t-statistic are reported on the evaluation window, with the reported value recorded rather than asserted",
+              "the primary evaluation window is documented as starting strictly after the scoring model's knowledge cutoff, and a test asserts the configured window start is later than the recorded cutoff date"
+            ],
+            "live_check": "verbatim output of the feature computation for a fixture ticker-date, the LAP interaction coefficient and t-statistic on the evaluation window, and the leakage test failing with the embargo removed then passing with it restored"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.5",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "83.4"
+          ],
+          "name": "THE DECISION POINT: run the theme feature through the existing promotion gates and record the verdict honestly. Gate: DSR >= 0.95, PBO <= 0.5, beat the incumbent OOS, and clear costs. Reuse backend/backtest/gauntlet/ and the existing optimizer path -- do NOT build a parallel evaluation harness. Include a feature-importance ablation versus the incumbent so we can see whether the theme features carry independent weight or merely proxy existing momentum features. PRE-REGISTRATION IS BINDING: the ranking criteria fixed in the 83.1 design pack govern. Do not adjust thresholds, windows, universe, or cost assumptions after seeing results. A FAIL IS A VALID AND EXPECTED OUTCOME. Per the operator's standing kill criterion, if this step fails the gate the phase STOPS: 83.6 and 83.7 are cancelled, the negative result is written up in the harness log, and no tuning-to-pass is attempted. Phase-82 closed with 'no strategy passes the gate' (commit 14ef109a) and that was the correct outcome to record. Note the honest prior: the published figures motivating this phase are academic, gross of our costs, and on a different universe; our realistic expectation is materially smaller and this step exists to find out what it actually is. MONEY CONTRIBUTION: deploy only if it beats the incumbent NET of costs. A FAIL here is money-positive because it prevents allocating capital to a losing strategy.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_5_gate_evidence.py -q",
+            "criteria": [
+              "the gate run reports DSR, PBO, turnover, and net-of-cost return for the theme-augmented model and for the incumbent, with every figure recorded rather than asserted",
+              "a test asserts the ranking criteria used match the ranking pre-registered in the 83.1 design pack, and fails if any threshold, window, universe, or cost assumption differs",
+              "a feature-importance ablation is reported showing the marginal contribution of the theme features over the incumbent feature set",
+              "the verdict is recorded as PASS or FAIL against the immutable gate thresholds, and a FAIL is written up as a completed result rather than triggering threshold changes",
+              "the evaluation is run on the cutoff-aware out-of-sample window established in 83.4, asserted by a test comparing the configured window against the recorded cutoff"
+            ],
+            "live_check": "verbatim gauntlet/optimizer console output showing the sample window and the DSR/PBO/turnover/net-of-cost figures for both the theme-augmented model and the incumbent, plus the ablation table"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.6",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [
+            "83.5"
+          ],
+          "name": "Wire the theme signal into the live path as the 15th overlay -- apply_theme_to_score in a new backend/services/theme_screen.py -- routed through backend/services/overlay_math.py::sign_safe_mult, matching the 14 existing apply_*_to_score overlays. SHIPS DARK: a new default-OFF settings flag, byte-identical behaviour when OFF. GATED ON 83.5 PASSING. If 83.5 returned FAIL this step is cancelled, not softened. SECTOR-CAP INTERACTION MUST BE RESOLVED EXPLICITLY, not discovered later. A thematic tilt concentrates the book into the theme's sectors -- precisely what the per-sector count and NAV-pct caps exist to prevent, and precisely the known monosector-funnel risk. Determine and document whether the tilt is applied before or after cap enforcement, and demonstrate that the tilt remains beneficial NET of the cap's effect. A tilt that only helps by breaching the caps is trading alpha for drawdown and must not ship. Use sign_safe_mult correctly: note that settings.sign_safe_overlays currently defaults OFF, so legacy base*mult semantics apply today and INVERT on negative composites. State which regime the new overlay is validated under. MONEY CONTRIBUTION: converts a gate-proven signal into actual P&L with the concentration risk netted out rather than ignored.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_6_theme_overlay.py -q",
+            "criteria": [
+              "the new overlay routes its multiplier through overlay_math.sign_safe_mult rather than applying a raw multiplication, asserted by a test",
+              "the feature flag defaults to OFF and behaviour with the flag OFF is byte-identical to the pre-change scoring path, asserted by a test comparing scores across a fixture candidate set",
+              "the sector-cap interaction is covered by a test showing the tilt's effect on a fixture portfolio both before and after cap enforcement, with the net-of-cap outcome recorded",
+              "a test asserts the overlay is not applied when the phase-83.5 gate verdict artifact records a FAIL, so a failed gate cannot silently reach the live path",
+              "the sign regime the overlay is validated under is pinned by a test that fails if settings.sign_safe_overlays changes the overlay's direction unexpectedly"
+            ],
+            "live_check": "ON-versus-OFF comparison against the running app showing the flag defaults OFF and scores are byte-identical when OFF, plus the sector exposure of a fixture portfolio with the tilt applied before and after cap enforcement"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.7",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "depends_on": [
+            "83.6"
+          ],
+          "name": "OPTIONAL, LOWEST PRIORITY, CUT IF 83.5 FAILS: surface active themes and their beneficiaries in the frontend so the operator can see the theme engine misfiring early. HONEST FRAMING: this step has NO alpha claim. Its money case is loss-prevention and observability only, which is why it is P3 and sequenced last -- it is meant to be easy to drop. Do not let it consume budget ahead of 83.0-83.5. Follow the frontend rules: read .claude/rules/frontend.md and frontend-layout.md first; Phosphor icons imported from @/lib/icons.ts only, NEVER @phosphor-icons/react directly; NO emojis anywhere in the UI; Recharts only for charts on the dark theme; scrollbar-thin on scrollable containers; error, loading and empty states are all required. Note the standing hazard: editing frontend components rebuilds :3000 and can break the operator's open session with a ChunkLoadError -- kickstart the frontend via launchctl and expect a hard refresh; that is not a code defect.",
+          "verification": {
+            "command": "cd frontend && npm run build",
+            "criteria": [
+              "the build completes without type errors",
+              "the new component renders distinct error, loading, and empty states, asserted by their presence in the component source",
+              "all icons are imported from @/lib/icons.ts and no import references @phosphor-icons/react directly in the new files",
+              "no emoji characters appear in any file added or modified by this step",
+              "the theme view reads from the persisted theme artifacts rather than recomputing themes client-side"
+            ],
+            "live_check": "Playwright capture of the theme view behind the NextAuth wall on the running app at :3000, showing populated, empty, and error states, plus a browser console capture free of errors"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
