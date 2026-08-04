@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-04 | `fc45d9fe` | chore(82.22): queue 82.28 + 82.29 from the cycle-3 Q/A residuals |
 | 2026-08-04 | `a0ae11e5` | fix(82.23): replace two source-scan guards with behavioural ones |
 | 2026-08-04 | `be04da12` | wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER STEP FLIPPED |
 | 2026-08-04 | `14ef109a` | feat(82.3+82.4): backtest evidence and design pack -- no strategy passes the gate |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-27 | `810f6265` | chore(36.26): file the manual-pause/manual-resume gap the operator hit live |
 | 2026-07-27 | `fa10fefa` | fix(80.43): validate the sort key -- an undated series is UNMEASURABLE, not zero |
 | 2026-07-26 | `f30a4a2e` | fix(80.33,80.34): the SSE hook's two filed defects were ONE mistake |
-| 2026-07-26 | `d5a6d392` | fix(80.45): narrow the drawdown claim instead of widening the precision |
 
 ---
 
