@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-04 | `2e040941` | fix(82.7): make credential redaction reachable from every entry point |
 | 2026-08-04 | `13cd9b86` | chore(82.27): flip to done; queue 82.31 |
 | 2026-08-04 | `e5bb9f25` | fix(82.27): anchor PBO on the sweep-level producer; revive the dead trials floor |
 | 2026-08-04 | `22f14890` | chore(36.27): raise researcher-workflow-rail to P1; queue 82.30 criteria-key split |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-27 | `5c6fdc3e` | fix(80.46) cycle 3: stale line numbers INSIDE the stale-line-number fix, and a one-char escape |
 | 2026-07-27 | `d092fb6c` | fix(80.46) cycle 2: the immutable command was RED as shipped, and 'filed separately' was false |
 | 2026-07-27 | `531c2825` | fix(80.46): harden five subprocess timeouts to 20x measured cost; hypothesis REFUTED |
-| 2026-07-27 | `5c489d92` | test(80.46): reproduce the timeout fragility, REFUTE it as the observed cause |
 
 ---
 
+### v6.76.5 — fix(82.7): make credential redaction reachable from every entry point (2026-08-04)
+
+- **fix(82.7): make credential redaction reachable from every entry point**
 ### v6.76.4 — fix(82.27): anchor PBO on the sweep-level producer; revive the dead t... (2026-08-04)
 
 - **fix(82.27): anchor PBO on the sweep-level producer; revive the dead trials floor**
