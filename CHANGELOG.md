@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-04 | `22f14890` | chore(36.27): raise researcher-workflow-rail to P1; queue 82.30 criteria-key split |
 | 2026-08-04 | `3620764f` | fix(82.22): optimizer_best.json records the run that actually produced its metrics |
 | 2026-08-04 | `fc45d9fe` | chore(82.22): queue 82.28 + 82.29 from the cycle-3 Q/A residuals |
 | 2026-08-04 | `a0ae11e5` | fix(82.23): replace two source-scan guards with behavioural ones |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-27 | `5c489d92` | test(80.46): reproduce the timeout fragility, REFUTE it as the observed cause |
 | 2026-07-27 | `b4df03e4` | chore(80.46): file the unreproducible CI-gate error instead of faking a fix |
 | 2026-07-27 | `810f6265` | chore(36.26): file the manual-pause/manual-resume gap the operator hit live |
-| 2026-07-27 | `fa10fefa` | fix(80.43): validate the sort key -- an undated series is UNMEASURABLE, not zero |
 
 ---
 
