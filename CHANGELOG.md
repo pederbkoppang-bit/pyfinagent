@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-05 | `a2bec245` | fix(82.25): carry the DSR trial count across warm starts instead of resetting to 1 |
 | 2026-08-05 | `5c1f3f8f` | fix(82.16): demote two strategies whose labels carry no forward information |
 | 2026-08-05 | `3944f71a` | fix(82.13): act on a macro refusal instead of degrading into the slow path |
 | 2026-08-05 | `dba2c82a` | feat(82.12): build the BigQuery schema oracle; the vacuous-guard sweep finds zero |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-03 | `df5cc559` | feat(82.2): three overpriced-market candidate strategies in STRATEGY_REGISTRY |
 | 2026-08-03 | `98fca544` | feat(82.1): specify the incumbent live strategy -- it never forms a valuation view |
 | 2026-08-03 | `ba60e703` | phase-82.1: Incumbent strategy spec + turnover/flat-book diagnosis (deliverables 1 and 4). Write ... |
-| 2026-08-03 | `de91f32e` | fix(82.0): macro ingestion was never scheduled -- and its staleness guard never fired |
 
 ---
 
+### v6.78.3 — fix(82.25): carry the DSR trial count across warm starts instead of r... (2026-08-05)
+
+- **fix(82.25): carry the DSR trial count across warm starts instead of resetting to 1**
 ### v6.78.2 — fix(82.16): demote two strategies whose labels carry no forward infor... (2026-08-05)
 
 - **fix(82.16): demote two strategies whose labels carry no forward information**
