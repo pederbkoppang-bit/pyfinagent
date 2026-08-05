@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-05 | `b7c69bb9` | feat(82.10): give the freshness alarm a trigger -- it was browser-driven for 128 days |
 | 2026-08-04 | `c47be8e9` | fix(82.5): exit-quality tiles use a median -- the mean of these ratios does not exist |
 | 2026-08-04 | `2e040941` | fix(82.7): make credential redaction reachable from every entry point |
 | 2026-08-04 | `13cd9b86` | chore(82.27): flip to done; queue 82.31 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-07-31 | `c3286524` | fix(81.2): make the verdict gate order-independent -- the dead gate, root-caused and closed |
 | 2026-07-27 | `d5bdbba4` | fix(80.46) cycle 4: stop scanning the source, mediate the launch |
 | 2026-07-27 | `5c6fdc3e` | fix(80.46) cycle 3: stale line numbers INSIDE the stale-line-number fix, and a one-char escape |
-| 2026-07-27 | `d092fb6c` | fix(80.46) cycle 2: the immutable command was RED as shipped, and 'filed separately' was false |
 
 ---
 
+### v6.77.0 — feat(82.10): give the freshness alarm a trigger -- it was browser-dri... (2026-08-05)
+
+- **feat(82.10): give the freshness alarm a trigger -- it was browser-driven for 128 days**
 ### v6.76.6 — fix(82.5): exit-quality tiles use a median -- the mean of these ratio... (2026-08-04)
 
 - **fix(82.5): exit-quality tiles use a median -- the mean of these ratios does not exist**
