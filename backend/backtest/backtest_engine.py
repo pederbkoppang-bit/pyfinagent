@@ -29,11 +29,45 @@ logger = logging.getLogger(__name__)
 # ── Strategy Registry ────────────────────────────────────────────
 # Maps strategy name → label computation method name on BacktestEngine.
 # QuantOptimizer rotates among these as a categorical parameter.
+# phase-82.16: `quality_momentum` and `factor_model` were DEMOTED out of the
+# selection pool. Both classify purely on features AT entry_date and never fetch a
+# post-entry price, so the GradientBoostingClassifier is trained to reproduce a
+# deterministic threshold rule over its OWN inputs (`momentum_6m` and `quality_score`
+# are both in _NUMERIC_FEATURES). Their in-sample accuracy is near-tautological and
+# any Sharpe/DSR computed from them is not evidence about the future.
+#
+# MEASURED on the committed 82.2 fixture (880 rows): quality_momentum produced 880
+# labels and ZERO changed when the entire post-entry price path was destroyed;
+# factor_model produced 0 labels at all. This is CIRCULAR ANALYSIS (Kriegeskorte et
+# al. 2009), not look-ahead bias -- note that a shuffled-label permutation test, the
+# reflex check, would PASS both of them.
+#
+# DEMOTED rather than rewritten, deliberately: giving them a forward-looking label
+# would be a NEW strategy under an old name, silently changing what every historical
+# `quality_momentum` row in quant_results.tsv means. And quality_momentum would stay
+# untrainable regardless -- step 82.21 measured zero `historical_fundamentals` rows
+# before 2024-06-30, ~81% of the standard window. Bailey & Lopez de Prado require a
+# non-comparable candidate to be REMOVED from the trial pool, not caveated.
+#
+# The methods are KEPT so the demotion is reversible and nothing referencing them by
+# name breaks.
+NON_COMPARABLE_STRATEGIES: dict[str, str] = {
+    "quality_momentum": (
+        "no forward information: classifies on momentum_6m + quality_score at "
+        "entry_date, never reads a post-entry price (measured 880 labelled / 0 "
+        "changed under post-entry mutation). Also fundamentals-dependent, and "
+        "historical_fundamentals has no rows before 2024-06-30 (step 82.21)."
+    ),
+    "factor_model": (
+        "no forward information: same shape as quality_momentum, no forward window "
+        "(measured 0 labelled / 0 changed -- the zero-change result is VACUOUS "
+        "because it returns None everywhere on that fixture)."
+    ),
+}
+
 STRATEGY_REGISTRY: dict[str, str] = {
     "triple_barrier": "_compute_triple_barrier_label",
-    "quality_momentum": "_compute_quality_momentum_label",
     "mean_reversion": "_compute_mean_reversion_label",
-    "factor_model": "_compute_factor_label",
     "meta_label": "_compute_triple_barrier_label",  # uses TB labels; meta-labeling applied in _run_window
     # ── phase-82.2 candidates (overpriced-market lenses) ──────────
     # All three are FORWARD-LOOKING, cost-adjusted and sigma-scaled.
@@ -45,6 +79,46 @@ STRATEGY_REGISTRY: dict[str, str] = {
     "qarp": "_compute_qarp_label",
     "reversion_sigma": "_compute_reversion_sigma_label",
 }
+
+def resolve_strategy(name: str) -> tuple[str, bool]:
+    """Resolve a requested strategy to the one that will actually RUN.
+
+    Returns `(effective_name, was_demoted)`. Extracted as a module-level function so
+    the demotion path is drivable without constructing a BacktestEngine (whose
+    __init__ reaches for BigQuery) -- it is the engine's real decision, not a copy.
+
+    phase-82.16: the engine has always coerced an unknown strategy to triple_barrier.
+    That was harmless while every name was registered; demoting quality_momentum and
+    factor_model makes it REACHABLE, and a run reported as quality_momentum that
+    actually ran triple_barrier is worse than the tautological label it replaced --
+    the provenance is wrong too. A caller really can ask:
+    meta_evolution/archetype_library.py still lists both names in its own
+    IMPLEMENTED_STRATEGY_IDS.
+    """
+    was_demoted = name in NON_COMPARABLE_STRATEGIES
+    if not was_demoted and name not in STRATEGY_REGISTRY:
+        # phase-82.16 cycle 2: the demoted names are not the only way to reach the
+        # silent coercion. ANY unregistered name -- including "blend", which the
+        # optimizer still offers and which has no implementation here -- was
+        # coerced to triple_barrier with no signal at all, and then SCORED under
+        # the requested name. Warn on the whole class, not just the two names this
+        # step demoted.
+        logger.warning(
+            "backtest: strategy %r is not in STRATEGY_REGISTRY -- falling back to "
+            "triple_barrier. Results are triple_barrier's, NOT %r's; do not record "
+            "them under the requested name.",
+            name, name,
+        )
+    if was_demoted:
+        logger.warning(
+            "backtest: strategy %r is NON-COMPARABLE and was demoted from "
+            "STRATEGY_REGISTRY -- falling back to triple_barrier. Reason: %s. "
+            "Results are triple_barrier's, NOT %r's; do not record them under the "
+            "requested name.",
+            name, NON_COMPARABLE_STRATEGIES[name], name,
+        )
+    return (name if name in STRATEGY_REGISTRY else "triple_barrier"), was_demoted
+
 
 # Numeric features used for ML training (excludes categorical: ticker, date, sector, industry)
 _NUMERIC_FEATURES = [
@@ -208,7 +282,16 @@ class BacktestEngine:
         self.sl_pct = sl_pct
         self.frac_diff_d = frac_diff_d
         self.top_n_candidates = top_n_candidates
-        self.strategy = strategy if strategy in STRATEGY_REGISTRY else "triple_barrier"
+        # phase-82.16: an unknown strategy silently becomes triple_barrier here. That
+        # was harmless while every name was registered; the 82.16 demotion makes it
+        # reachable, and a run REPORTED as quality_momentum that actually ran
+        # triple_barrier is worse than the tautological label it replaced -- the
+        # provenance is now wrong too. Requesting a demoted strategy is still
+        # non-fatal (a backtest tool should not crash on a stale config) but it can
+        # no longer be silent. NOTE meta_evolution/archetype_library.py still lists
+        # both names in its own IMPLEMENTED_STRATEGY_IDS, so a caller really can ask.
+        self.requested_strategy = strategy
+        self.strategy, self.strategy_was_demoted = resolve_strategy(strategy)
         self.model_trained_at: str = ""  # ISO timestamp of last model training
 
         # Store BQ refs for auto-ingest check

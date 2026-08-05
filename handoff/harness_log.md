@@ -30790,3 +30790,60 @@ macro features; distinct causes from a refusal), 82.44 (stale cross-file line ci
 82.45 (the Q/A's four residuals).
 
 **Next**: 82.16, 82.25, 82.39 (P1), then the P2/P3 tail.
+
+## Cycle 152 -- 2026-08-05 -- phase=82.16 result=PASS
+
+**Step**: Two STRATEGY_REGISTRY strategies were not LABELS at all -- they carried zero
+forward information, so any backtest of them measured nothing about the future.
+
+**MEASURED** on the committed 82.2 fixture (880 rows, post-entry closes collapsed):
+`quality_momentum` 880 labelled / **0 changed**; `factor_model` **0 labelled** / 0
+changed. Every input to both is itself a training feature, so the classifier was learning
+a deterministic function of its own inputs.
+
+**THE TRAP THE GATE CAUGHT.** `factor_model`'s "0 changed" is EVIDENTIALLY EMPTY -- it
+returns None on all 880 rows. A mutation test alone would have passed it for free. Hence
+the coverage precondition: every strategy must produce >=1 non-None label BEFORE its
+mutation result counts. That is the load-bearing addition, not the mutation check.
+
+**Named correctly**: this is CIRCULAR ANALYSIS (Kriegeskorte 2009), not look-ahead bias
+-- and **a shuffled-label permutation test would PASS it**, because a tautological label
+produces a genuine, hugely significant dependency. The reflex check does not work here.
+
+**DEMOTED rather than rewritten.** A forward rewrite would be a new strategy under an old
+name, silently re-interpreting 11 historical `quant_results.tsv` rows; `quality_momentum`
+would stay untrainable anyway (82.21: no fundamentals before 2024-06-30); and Bailey/LdP
+require removing a non-comparable candidate from the trial pool. Methods KEPT, so it is
+reversible. Live book unaffected -- `optimizer_best.json` is `triple_barrier`.
+
+**A CONSEQUENCE I CREATED AND HAD TO FIX.** Demoting a name made the engine's pre-existing
+silent coercion REACHABLE: a run requested as `quality_momentum` would be REPORTED as
+such while actually running `triple_barrier` -- worse than the tautological label, because
+now the provenance is wrong too. Fixed with a `resolve_strategy` seam.
+
+**THREE Q/A FINDINGS, all mine, all fair:**
+1. My criterion-4 test's **docstring claimed a mechanism the body never implemented** --
+   it said "registers a stub in a temporary copy of the registry" and never touched the
+   registry. The Q/A proved weakening the real guard to `changed >= 0` would have left it
+   GREEN.
+2. `blend` -- offered by the optimizer, no implementation -- still resolved to
+   triple_barrier **silently**, contradicting a comment I had written claiming the fix
+   removed "exactly the silent wrongness 82.16 exists to remove".
+3. **I analysed only one side of a two-sided change.** Deriving `AVAILABLE_STRATEGIES`
+   also ENLARGED the pool (+qarp, +reversion_sigma, +stretch_regime, because the old
+   literal had drifted). The trial pool is a direct DSR input, so the Bailey/LdP argument
+   applies symmetrically to ADDITIONS -- and I had framed it purely as a drift fix.
+
+**The cycle-2 Q/A put the losing side of its own judgement on the record** before ruling
+the enlargement adequate-to-pin-and-queue: a strictly smaller fix existed, and enlarging
+a trial pool without measuring DSR/PBO is close to the defect class this step exists to
+fix. It ruled for shipping because there is no "unchanged" option (the drift was itself an
+invisible unanalysed state), the direction is fail-safe (more trials = more deflation =
+higher bar), and no optimizer run is scheduled. It also ran two mutants I had not
+(neutering the fixture, and removing the accept-mirror) to prove kill ATTRIBUTION rather
+than just kill counts.
+
+**Queued**: 82.46 (P1 -- decide the optimizer trial-pool composition deliberately, MEASURE
+the DSR/PBO impact, resolve `blend`; sequenced before 82.24 and 82.26).
+
+**Next**: 82.25, 82.39 (P1), then the P2/P3 tail.

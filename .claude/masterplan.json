@@ -21520,7 +21520,7 @@
         },
         {
           "id": "82.16",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DEFECT surfaced by the 82.2 research gate and INDEPENDENTLY CONFIRMED by Main: two of the five STRATEGY_REGISTRY strategies are NOT LABELS -- they carry zero forward information, so a backtest of them measures nothing about future returns. `_compute_quality_momentum_label` (backend/backtest/backtest_engine.py:1124) builds the feature vector AT entry_date and classifies on `momentum_6m` and `quality_score`, both of which are features AT entry_date; it never fetches a forward price. `_compute_factor_label` (:1208) is the same shape -- no `cached_prices(ticker, entry_date, end_date)` call, no forward window. CONTRAST: `_compute_triple_barrier_label` (:742) computes `end_date = entry_date + holding_days*1.5` and fetches forward prices; `_compute_mean_reversion_label` (:1145) likewise has a forward validation stage. CONSEQUENCE: for `quality_momentum` and `factor_model` the GradientBoostingClassifier is trained to reproduce a deterministic threshold rule over its OWN input features (`momentum_6m`, `quality_score` are both in `_NUMERIC_FEATURES`). Its in-sample accuracy is near-tautological and any Sharpe/DSR computed from it is not evidence about the future. This is a silent research-validity defect, not a crash: the strategies run, produce numbers, and those numbers have appeared in optimizer comparisons. Decide per strategy: make the label forward-looking (a horizon-scoped forward return, mirroring the triple-barrier pattern), or REMOVE the strategy from STRATEGY_REGISTRY and mark it non-comparable. Do NOT leave a non-forward label registered alongside forward-looking ones, because the optimizer rotates over them as if they were comparable. Audit `meta_label` too -- it maps to the triple-barrier method but applies meta-labelling in `_run_window`.",
@@ -22080,6 +22080,24 @@
               "the process-global vs per-instance decision for the macro-suppression flag is recorded in the step artifact with its rationale, and a test pins whichever shape is chosen",
               "a same-process refusal-then-success sequence is shown to yield correct macro data rather than the poisoned empty cache entries, or the pre-existing limitation is pinned by a test that documents it as pre-existing",
               "a test constructs a BacktestResult through run_backtest itself and asserts data_availability reflects the actual macro outcome, closing the AST-only coverage bound"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.46",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "OPTIMIZER TRIAL-POOL COMPOSITION -- decide it deliberately, because 82.16 changed it as a side effect and only PINNED the change rather than justifying it. TWO measured facts. (a) `backend/backtest/quant_optimizer.py` AVAILABLE_STRATEGIES was a hand-written literal that had DRIFTED: it listed triple_barrier / quality_momentum / mean_reversion / factor_model / meta_label / blend and omitted all three phase-82.2 candidates, so qarp, reversion_sigma and stretch_regime could NEVER be selected by the optimizer despite being built for exactly that. 82.16 replaced the literal with a derivation from STRATEGY_REGISTRY, which removes the two demoted names AND makes those three newly selectable. THE ENLARGEMENT IS UNJUSTIFIED SO FAR: the trial pool is a DIRECT input to Deflated Sharpe (Bailey & Lopez de Prado deflate by the number and variance of trials), so the same argument 82.16 used to REMOVE a non-comparable candidate applies symmetrically to ADDING three. Nobody has analysed what adding them does to DSR/PBO on this sample. (b) `blend` is offered by the optimizer but is NOT a STRATEGY_REGISTRY key and has NO implementation in backend/backtest/backtest_engine.py -- it resolves to triple_barrier. 82.16 made that resolution LOUD (see resolve_strategy) but deliberately did not change whether it is offered. So the optimizer can still select a name that runs as triple_barrier and is then SCORED under the requested name, which corrupts both the trial count and the per-name attribution. SCOPE: decide, with evidence, which strategies belong in the optimizer's categorical pool; if `blend` is meant to be a real strategy, implement or remove it, do not leave it as a name that silently aliases the incumbent. RE-RUN the DSR/PBO numbers under the chosen pool and compare against the pre-change pool -- do not assert the effect is small, MEASURE it. Cross-reference 82.24 (re-run the four-way comparison after the promotion gate is repaired) and 82.26 (PBO trial floor) -- this step decides the pool those two will measure over, so sequence it before them.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_46_trial_pool_composition.py -q",
+            "criteria": [
+              "the optimizer's selectable strategy set is derived from an explicit, documented decision rather than a side effect, and a test pins the exact set with its rationale recorded in the step artifact",
+              "the DSR and PBO impact of the pool change is MEASURED on the same sample before and after, and both numbers are recorded in the step artifact rather than asserted to be negligible",
+              "`blend` is either implemented as a real strategy or removed from the selectable set, and a test asserts no selectable name resolves to a different strategy than the one requested",
+              "a guard fails if a strategy is added to or removed from the pool without the recorded decision being updated"
             ]
           },
           "retry_count": 0,

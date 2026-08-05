@@ -64,8 +64,26 @@ def write_plateau_lock(run_id: str, consecutive_discards: int) -> None:
         consecutive_discards, run_id,
     )
 
-# All available strategies (categorical param)
-AVAILABLE_STRATEGIES = ["triple_barrier", "quality_momentum", "mean_reversion", "factor_model", "meta_label", "blend"]
+# All available strategies (categorical param).
+# phase-82.16: DERIVED from STRATEGY_REGISTRY rather than restated. A hardcoded list
+# would let the optimizer select a strategy that has been demoted out of the registry
+# -- it would log and score a candidate that never actually ran.
+#
+# TWO HONEST CAVEATS, both raised by the 82.16 cycle-1 Q/A:
+#   * "blend" is NOT a registry key and has no implementation in backtest_engine.py.
+#     It is still offered here (pre-existing behaviour, not introduced by 82.16) and
+#     still resolves to triple_barrier -- now at least LOUDLY, see resolve_strategy.
+#     Deciding its fate is queued as its own step, not silently changed here.
+#   * Deriving this list ENLARGES the selectable set: the old hand-written literal
+#     had drifted and omitted qarp / reversion_sigma / stretch_regime, so those three
+#     become newly selectable. That is a real change to the optimizer's trial pool,
+#     and the trial pool is a direct input to DSR deflation (Bailey & Lopez de Prado)
+#     -- the same argument this step uses for REMOVING a candidate applies
+#     symmetrically to ADDING one. Pinned by a test so the enlargement is visible and
+#     intentional rather than incidental; the pool-composition decision is queued.
+from backend.backtest.backtest_engine import STRATEGY_REGISTRY as _STRATEGY_REGISTRY
+
+AVAILABLE_STRATEGIES = list(_STRATEGY_REGISTRY.keys()) + ["blend"]
 
 # Strategy param bounds (min, max)
 _PARAM_BOUNDS = {
