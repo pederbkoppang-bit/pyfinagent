@@ -835,6 +835,15 @@ def generate_report(
     round_trips = compute_round_trips(all_trades) if all_trades else []
     avg_nav = float(np.mean([n["nav"] for n in result.nav_history])) if result.nav_history else result.strategy_params.get("starting_capital", 100_000)
     trade_stats = compute_trade_statistics(round_trips, avg_nav) if round_trips else {}
+    # phase-82.13 (criterion 2): surface data availability BOTH at top level AND
+    # inside ["analytics"]. Two known consumers -- strategy_backtest_adapter and
+    # strategy_candidate_producer -- read ONLY report["analytics"], so a top-level
+    # key alone would leave a macro-free run looking normal to exactly the code that
+    # compares candidates against each other.
+    _availability = dict(getattr(result, "data_availability", None) or {"macro": True})
+    report["data_availability"] = _availability
+    report["analytics"]["macro_available"] = bool(_availability.get("macro", True))
+
     report["trades"] = round_trips
     report["trade_statistics"] = trade_stats
 

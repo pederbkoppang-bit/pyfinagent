@@ -313,7 +313,7 @@ CLASSIFICATION: dict[tuple[str, str], dict] = {
     },
     ("backend/backtest/cache.py", "report_date"): {
         "verdict": "CORRECT",
-        "line": 530,
+        "line": 612,
         "why": (
             "`str(r.get(\"report_date\", \"\")) <= cutoff_date` -- an EXPLICIT str() "
             "coercion followed by a lexical comparison against an ISO-8601 cutoff. "
@@ -324,7 +324,7 @@ CLASSIFICATION: dict[tuple[str, str], dict] = {
     },
     ("backend/backtest/cache.py", "date"): {
         "verdict": "CORRECT",
-        "line": 590,
+        "line": 672,
         "why": (
             "`str(entry[\"date\"]) > cutoff_date` -- same explicit-str() + lexical-ISO "
             "pattern on historical_prices.date (declared STRING). Note this is the "

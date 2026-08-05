@@ -330,11 +330,78 @@ def preload_fundamentals(tickers: list[str], market: str = _DEFAULT_MARKET) -> i
     return total_rows
 
 
+# phase-82.13: `preload_macro` returns an int, and 0 is AMBIGUOUS -- it means "table
+# was empty" on one path and "I REFUSED to cache this" on two others, while the
+# already-warm path returns a POSITIVE cached total having loaded nothing. So no
+# caller can act on the return value alone: `if not preload_macro(): abort` cannot
+# tell a refusal from an empty table and misfires on the warm path. Until 82.0 armed
+# the staleness gate the refusal branches were unreachable, so the discarded return
+# never mattered; they are reachable now and the engine has to know WHICH happened.
+#
+# The outcome is therefore recorded out-of-band, leaving the int contract untouched so
+# none of the other preload_* call sites have to change.
+_MACRO_OUTCOMES = frozenset({
+    "warm", "empty", "refused_unparseable", "refused_stale", "loaded", "unknown",
+})
+_REFUSAL_OUTCOMES = frozenset({"refused_unparseable", "refused_stale"})
+_macro_status: dict = {"outcome": "unknown", "detail": "", "rows": 0}
+
+# When macro is refused, the caller puts the cache into MACRO-FREE mode. This is
+# load-bearing, not bookkeeping: a "degraded mode" that leaves the per-cutoff fallback
+# armed does NOT fix the consequence -- `cached_macro` would still issue one
+# 30s-timeout BQ query per distinct cutoff date, which is the actual harm -- it would
+# merely be labelled about it. This flag makes a macro-free run genuinely macro-free.
+_macro_unavailable: bool = False
+
+
+def macro_load_status() -> dict:
+    """Outcome of the most recent `preload_macro()` call."""
+    return dict(_macro_status)
+
+
+def macro_was_refused() -> bool:
+    """True iff the last preload_macro REFUSED (not merely found an empty table)."""
+    return _macro_status.get("outcome") in _REFUSAL_OUTCOMES
+
+
+def macro_is_loaded() -> bool:
+    """The one predicate that holds across all five return paths."""
+    return bool(_macro_full)
+
+
+def set_macro_unavailable(flag: bool = True) -> None:
+    """Suppress the per-cutoff macro fallback for an explicitly macro-free run."""
+    global _macro_unavailable
+    _macro_unavailable = flag
+
+
+def macro_is_unavailable() -> bool:
+    return _macro_unavailable
+
+
+def reset_macro_status() -> None:
+    """Test seam."""
+    global _macro_status, _macro_unavailable
+    _macro_status = {"outcome": "unknown", "detail": "", "rows": 0}
+    _macro_unavailable = False
+
+
+def _set_macro_status(outcome: str, detail: str = "", rows: int = 0) -> None:
+    assert outcome in _MACRO_OUTCOMES, f"unknown macro outcome {outcome!r}"
+    _macro_status.update({"outcome": outcome, "detail": detail, "rows": rows})
+
+
 def preload_macro() -> int:
     """Bulk-load all macro data in a single BQ query.
 
     Stores per-series lists (sorted by date DESC) in _macro_full.
-    Returns the total number of rows loaded.
+    Returns an int that is NOT a simple row count -- and callers must not treat it
+    as one. phase-82.13 enumerated the five paths: a POSITIVE cached total when
+    already warm (nothing loaded this call), 0 for an empty table, 0 for EITHER of
+    two REFUSALS, and the rows loaded on success. Because 0 conflates "no data" with
+    "I refused", the int cannot drive a decision. Use `macro_load_status()` /
+    `macro_was_refused()` for that, and `_macro_full` non-empty for "is macro
+    available".
     """
     assert _bq_client is not None, "Cache not initialized — call init_cache() first"
 
@@ -342,6 +409,7 @@ def preload_macro() -> int:
     if _macro_full:
         total = sum(len(v) for v in _macro_full.values())
         logger.info("Macro already preloaded (%d series, %d rows), skipping BQ query", len(_macro_full), total)
+        _set_macro_status("warm", "already preloaded", total)
         return total
 
     query = f"""
@@ -353,6 +421,7 @@ def preload_macro() -> int:
 
     if not rows:
         logger.warning("preload_macro: 0 rows returned")
+        _set_macro_status("empty", "query returned 0 rows", 0)
         return 0
 
     # phase-25.D7: refuse to cache stale macro -- prevents silent backtest
@@ -415,6 +484,12 @@ def preload_macro() -> int:
             len(rows),
             unparsed,
         )
+        _set_macro_status(
+            "refused_unparseable",
+            f"could not parse a usable date from any of {len(rows)} rows "
+            f"({unparsed} unparsed)",
+            0,
+        )
         return 0
 
     stale: list[str] = []
@@ -431,6 +506,12 @@ def preload_macro() -> int:
             len(stale),
             len(per_series_max),
             "; ".join(stale),
+        )
+        _set_macro_status(
+            "refused_stale",
+            f"{len(stale)} of {len(per_series_max)} series past their SLA: "
+            + "; ".join(stale),
+            0,
         )
         return 0
 
@@ -458,6 +539,7 @@ def preload_macro() -> int:
         "Preloaded macro for %d series (%s rows) in single BQ query",
         len(_macro_full), f"{total_rows:,}",
     )
+    _set_macro_status("loaded", f"{len(_macro_full)} series", total_rows)
     return total_rows
 
 
@@ -599,6 +681,14 @@ def cached_macro(cutoff_date: str) -> dict:
                 break
         _macro_cache[cutoff_date] = result
         return result
+
+    # phase-82.13: an explicitly macro-free run must NOT fall through to the
+    # per-cutoff query. Without this the "degraded mode" still issues one
+    # 30s-timeout BQ query per distinct cutoff -- the actual harm this step exists
+    # to remove -- while merely being labelled about it.
+    if _macro_unavailable:
+        _macro_cache[cutoff_date] = {}
+        return {}
 
     # 2. Fall back to individual BQ query (with timeout)
     _cache_stats["misses"] += 1

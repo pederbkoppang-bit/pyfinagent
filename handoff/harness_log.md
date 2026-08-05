@@ -30738,3 +30738,55 @@ diagnostics -- an inert checker that looks like a passing gate), 82.42 (an envel
 whose assertion cannot distinguish its own two cases).
 
 **Next**: 82.13, 82.16, 82.25 (P1), then the P2/P3 tail.
+
+## Cycle 151 -- 2026-08-05 -- phase=82.13 result=PASS
+
+**Step**: `backtest_engine` discarded `preload_macro`'s return, and 82.0 made the refusal
+branch reachable for the first time.
+
+**THE RESEARCH GATE KILLED THE OBVIOUS FIX.** `preload_macro` has FIVE return paths and
+`0` is AMBIGUOUS -- it means "empty table" on one path and "I REFUSED" on two others,
+while the already-warm path returns a POSITIVE total having loaded nothing (and fires on
+every optimizer iteration under `skip_cache_clear=True`). So `if not preload_macro():
+abort` is a trap twice over. The fix is a STATUS accessor, never the int.
+
+**The gate also demolished a number I would have quoted.** CLAUDE.md's "~40-minute
+backtest hang" is **unsourced folklore** -- no benchmark, test or timing artefact exists
+anywhere in the repo. The artifact refuses to repeat it and substitutes the observable
+claim: one 30s-timeout BQ round-trip per distinct cutoff date, where zero were intended.
+
+**Shipped**: status stamped on all five paths + accessors; `cached_macro` suppression so
+a macro-free run is genuinely macro-free rather than merely labelled about being slow;
+`BacktestResult.data_availability`; the report surfaces it BOTH top-level and inside
+`["analytics"]` (two candidate comparators read only that sub-dict, so a top-level key
+alone would leave a degraded run looking normal to exactly the code that compares
+candidates). The `int` contract is unchanged, so no other call site moved.
+
+**Chose labelled macro-free mode over the brief's recommended fail-fast.** Its argument
+was that the degraded path is "an unbounded sequence of 30s round-trips" -- true only if
+the fallback stays armed. Suppressing it removes that, leaving a fast macro-blind run,
+and the model-cards literature says label such a run rather than refuse it.
+
+**FOUR MUTANTS SURVIVED MY FIRST SUITE, one root cause: every guard stopped at the CACHE
+boundary and never drove the ENGINE** -- which is what the criteria are actually about.
+Fixed by extracting `_preload_macro_and_record` (the engine's real path, not a test-only
+copy) and adding four engine-level guards. **M3 survived for a sharper reason: my guard
+raised `AssertionError` from a fake `query()`, and `cached_macro`'s `except Exception`
+SWALLOWED it** -- the guard could not observe its own defect. Counting is visible through
+the except. Final: 8/8 real mutants killed; M9 proven EQUIVALENT across all reachable
+paths rather than reported as a survivor.
+
+**A guard from a previous step earned its keep**: growing `cache.py` moved the lines in
+82.12's classification table and `test_classified_line_numbers_still_point_at_a_row_read`
+went red. Anchors re-derived (530->612, 590->672); the guard was not loosened.
+
+**Where the Q/A exceeded me**: it re-ran the matrix in TWO independent forms, hit a false
+survivor caused by its own harness (a guard that reads from disk) and resolved it with a
+second mutant form rather than reporting it, and extended my M9 equivalence check from 3
+paths to all 5.
+
+**Queued**: 82.43 (P1 -- `historical_data.py`'s bare `if macro:` silently drops all six
+macro features; distinct causes from a refusal), 82.44 (stale cross-file line citation),
+82.45 (the Q/A's four residuals).
+
+**Next**: 82.16, 82.25, 82.39 (P1), then the P2/P3 tail.

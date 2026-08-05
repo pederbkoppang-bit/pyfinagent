@@ -130,6 +130,9 @@ class BacktestResult:
     nav_history: list[dict] = field(default_factory=list)
     strategy_params: dict = field(default_factory=dict)
     all_trades: list[dict] = field(default_factory=list)
+    # phase-82.13: a run whose macro features were refused must not be readable as a
+    # normal one. Defaulted, so every existing construction site is unaffected.
+    data_availability: dict = field(default_factory=lambda: {"macro": True})
 
 
 class BacktestEngine:
@@ -272,6 +275,53 @@ class BacktestEngine:
         """Return ISO timestamp of last model training. Empty string if never trained."""
         return self.model_trained_at
 
+    def _preload_macro_and_record(self) -> dict:
+        """Load macro, act on a REFUSAL, and return the availability record.
+
+        phase-82.13. `preload_macro`'s int return is a DIAGNOSTIC, not a decision:
+        0 means BOTH "empty table" and "I refused", and the already-warm path
+        returns a positive total having loaded nothing. So this branches on the
+        status accessor, never on the int.
+
+        Extracted as its own method so the refusal path is drivable by a test. It
+        is the engine's real code path, not a test-only copy -- a guard that
+        re-implements the logic it checks proves nothing.
+        """
+        macro_rows = cache.preload_macro()
+        status = cache.macro_load_status()
+
+        if cache.macro_was_refused():
+            # Do NOT proceed silently. Before 82.0 armed the staleness gate this
+            # branch was unreachable, so the discarded return never mattered. Now a
+            # refusal would otherwise leave _macro_full empty and send cached_macro
+            # into one BQ round-trip per distinct cutoff date.
+            cache.set_macro_unavailable(True)
+            logger.warning(
+                "backtest: running MACRO-FREE -- preload_macro refused (%s: %s). "
+                "The per-cutoff fallback is suppressed, so this run is fast but "
+                "macro-blind, and its result is labelled data_availability."
+                "macro=False. Do not compare it against a macro-complete run.",
+                status.get("outcome"), status.get("detail"),
+            )
+            try:
+                self._report_progress(
+                    "preloading", "macro REFUSED -- running macro-free",
+                    macro_available=False, macro_outcome=status.get("outcome"),
+                )
+            except Exception:  # observability must never break a run
+                pass
+            available = False
+        else:
+            cache.set_macro_unavailable(False)
+            available = cache.macro_is_loaded()
+
+        return {
+            "macro": available,
+            "macro_outcome": status.get("outcome"),
+            "macro_detail": status.get("detail"),
+            "macro_rows": macro_rows,
+        }
+
     def run_backtest(
         self,
         universe_tickers: list[str] | None = None,
@@ -314,9 +364,16 @@ class BacktestEngine:
         _benchmark = get_market_config(self.market).get("benchmark", "SPY")
         cache.preload_prices(universe_tickers + [_benchmark], global_start, global_end)
         cache.preload_fundamentals(universe_tickers)
-        cache.preload_macro()
+        _availability = self._preload_macro_and_record()
+        _macro_available = _availability["macro"]
 
-        result = BacktestResult(strategy_params=self._strategy_params)
+        result = BacktestResult(
+            strategy_params=self._strategy_params,
+            # phase-82.13 (criterion 2): label the run at construction, so a
+            # macro-free run cannot be mistaken for a normal one when its numbers
+            # are read later -- including on an early return.
+            data_availability=dict(_availability),
+        )
         all_mdi = {}
         all_mda = {}
 

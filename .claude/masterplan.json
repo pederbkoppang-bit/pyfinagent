@@ -21467,7 +21467,7 @@
         },
         {
           "id": "82.13",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DEFECT surfaced by the 82.0 cycle-2 Q/A (finding 3), residual after 82.0: backend/backtest/backtest_engine.py:308 calls cache.preload_macro() and DISCARDS the return value. Until 82.0 the phase-25.D7 staleness gate was vacuous (isinstance on a STRING date column), so _macro_full was ALWAYS populated and preload_macro's 0-return was unreachable -- meaning the discarded return value never mattered. 82.0 ARMED that gate, so `return 0` is now reachable for the first time. When it fires, the engine proceeds anyway, _macro_full is empty, and cached_macro (backend/backtest/cache.py) falls through to its per-cutoff-date BQ query -- one query per distinct cutoff -- which is CLAUDE.md's documented ~40-minute backtest hang. The only signal is a WARNING log. 82.0 mitigated the LIKELIHOOD by widening the daily-series SLA from 5 to 12 days (measured headroom had been ONE day: DGS10 newest 2026-07-30 = 4d) but did NOT fix the CONSEQUENCE, which is outside 82.0's surface. Fix the consequence: the engine must handle a macro refusal explicitly -- abort with a clear error, or run in an explicitly macro-free mode that is recorded in the result metadata -- rather than silently degrading into the slow path. Audit every other preload_* call site for the same discarded-return pattern.",
@@ -22026,6 +22026,60 @@
               "the opposite mutation (extending suppression to isinstance) still turns the bind_through_call_then_isinstance row RED, so hardening one direction does not disarm the other",
               "the population of parametrized test tables whose assertion is coarser than their row data is derived from the source, asserted non-empty, and each member classified",
               "the overstated 'asserted envelope' wording in experiment_results_82.12.md section 19 is corrected in place rather than deleted, so the record shows what was claimed and what was true"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.43",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "SECOND SILENT-DEGRADATION SITE on the same path, found by the 82.13 research gate and explicitly NOT covered by 82.13's criteria. `backend/backtest/historical_data.py` guards the macro block with a bare `if macro:` (around line 269 as of 2026-08-05 -- RE-DERIVE, it moves), so when `cache.cached_macro(cutoff)` returns an empty dict the feature builder SILENTLY DROPS ALL SIX macro features from the feature vector and returns a shorter vector with no signal to the caller. 82.13 fixed the layer ABOVE this (the engine now detects a macro REFUSAL, records data_availability on the result, and suppresses the per-cutoff fallback), but that fix deliberately did not reach into the feature builder. THE GAP THAT REMAINS: an empty macro dict can arise for reasons OTHER than a refusal -- a cutoff earlier than any macro row, a series missing at that vintage under the point-in-time predicate, or the 30s BQ fallback timing out (measured: that except clause sets rows=[] and returns {}). In every one of those the model trains on a silently narrower feature set and nothing records it. CONSEQUENCE TO MEASURE, NOT ASSERT: determine whether a shorter feature vector actually reaches the GradientBoosting fit, or whether a downstream step re-pads it -- if it reaches the model, feature-count drift between windows is a training defect, not just an observability one. Measure it before claiming it. SCOPE: make the absence explicit -- either emit the six macro features as explicit nulls/sentinels so the vector shape is stable, or record per-window macro coverage in the result alongside 82.13's data_availability. DO NOT simply widen 82.13's refusal flag to cover this: the causes are different and a refusal-shaped flag would mislabel a legitimate early-cutoff window.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_43_macro_feature_absence.py -q",
+            "criteria": [
+              "a fixture in which cached_macro returns an empty dict produces a feature vector whose shape matches the macro-complete case, or records the absence explicitly, asserted by a test that fails against the current bare `if macro:` behaviour",
+              "the feature-count reaching the model is measured for both the macro-present and macro-absent fixtures and the two numbers are recorded in the step artifact",
+              "a macro-present fixture is unaffected, so the fix cannot pass by always emitting sentinels",
+              "the distinct causes of an empty macro dict (refusal, early cutoff, vintage miss, BQ timeout) are enumerated from the source with file:line and each classified as expected or defective"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.44",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "DOC/ANCHOR DRIFT in backend/backtest/cache.py, found by the 82.13 research gate. The comment near the top of the macro section cites `backtest_engine.py:308` as the site that discards preload_macro's return value; the actual call site was at :317 when measured 2026-08-05 and has since moved again (82.13 refactored it into BacktestEngine._preload_macro_and_record). A comment that points at the wrong line is worse than no comment: it is confidently wrong, and this repo has now been burned twice in one session by stale anchors (82.10 cited a moved line; the 82.12 suite caught its own classification table going stale the moment cache.py grew). NOTE the 82.13 fix already corrected the OTHER half of this defect -- preload_macro's docstring, which claimed 'Returns the total number of rows loaded' and was false on 3 of its 5 paths. Only the cross-file line citation is left. SCOPE: sweep the CLASS rather than fixing the one comment -- enumerate comments and docstrings that cite a `file.py:NNN` anchor in another file, derive that population from the source (a regex over comment text is acceptable HERE because the population is literally textual citations, but the VERIFICATION that each anchor still points at what it claims must resolve the target file and check it), assert the population non-empty, and classify each as accurate or drifted. Prefer replacing a line citation with a symbol name, which does not rot.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_44_stale_anchors.py -q",
+            "criteria": [
+              "the population of cross-file file:line citations in comments and docstrings is derived from the source, asserted non-empty, and each is resolved against the target file",
+              "each citation is classified accurate or drifted with its own file:line, and the cache.py citation of the preload_macro discard site is shown to be drifted before the fix",
+              "every drifted citation is either corrected or has its own queued follow-up step",
+              "a guard fails if a citation is corrected to a line that does not contain what the comment claims, so the fix cannot be a blind renumbering"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.45",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "RESIDUALS from the 82.13 cycle-1 PASS -- the Q/A's four non-blocking notes, queued rather than applied because the tree was frozen for EVALUATE. None is a live defect. (1) `clear_cache()` in backend/backtest/cache.py clears `_macro_full` and `_macro_cache` but does NOT reset the module global `_macro_unavailable` that 82.13 introduced, despite its docstring saying 'Clear all caches between backtest runs'. Not live today because `BacktestEngine._preload_macro_and_record` re-derives the flag on every non-refusal path and run_backtest always calls it before any cached_macro use -- but a docstring that overstates what a function clears is exactly the shape that bites later. Fix: reset it in clear_cache, and add a guard that FAILS if a new module-global cache flag is added without being reset there (derive the set of module globals from the source, do not hand-list them). (2) BLAST RADIUS: `cached_macro` has a consumer outside the backtest engine (backend/agents/mcp_servers/data_server.py, around :185 -- RE-DERIVE) and the suppression flag is PROCESS-GLOBAL. Mitigated today by MCP stdio process isolation, but that mitigation is incidental, not designed. Decide deliberately whether the flag should be per-engine-instance rather than module-level, and record the decision. (3) In a same-process refusal-then-success sequence the poisoned `_macro_cache[cutoff] = {}` entries would SURVIVE, because cached_macro checks `_macro_cache` before anything else. The Q/A was explicit that 'stale _macro_cache survives a later preload' is PRE-EXISTING and that 82.13 only changed what gets cached there -- so scope this as the pre-existing defect it is, and do not attribute it to 82.13. (4) COVERAGE BOUND: no test executes `run_backtest` end-to-end; the record-to-result wiring is covered by an AST assertion plus behavioural coverage of `_preload_macro_and_record`. The Q/A declined to call this illusory (it executed two distinct mutations of that guard's subject and both killed it) but named the residual false-negative: keeping `data_availability=dict(_availability)` while making `_availability` itself a literal. Close it with a test that drives run_backtest far enough to construct a result.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_45_macro_flag_residuals.py -q",
+            "criteria": [
+              "clear_cache resets every module-global cache flag, asserted by a test that derives the set of such globals from the source rather than a hand-written list and asserts it non-empty",
+              "the process-global vs per-instance decision for the macro-suppression flag is recorded in the step artifact with its rationale, and a test pins whichever shape is chosen",
+              "a same-process refusal-then-success sequence is shown to yield correct macro data rather than the poisoned empty cache entries, or the pre-existing limitation is pinned by a test that documents it as pre-existing",
+              "a test constructs a BacktestResult through run_backtest itself and asserts data_availability reflects the actual macro outcome, closing the AST-only coverage bound"
             ]
           },
           "retry_count": 0,
