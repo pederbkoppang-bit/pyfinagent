@@ -22120,6 +22120,24 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "82.48",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "THE WRITE SIDE of nightly_outcome_rebuild is broken too, and 82.39's immutable criteria DO NOT COVER IT. Found by the 82.39 research gate 2026-08-05. Queued separately and deliberately: 82.39's criterion 2 asks only that the repaired QUERY 'returns rows ... actually selects data', so 82.39 can be closed GREEN while the job still writes ZERO rows and produces nothing. Do not let that happen -- read this step before closing 82.39. MEASURED: `make_outcome_write_fn` (backend/slack_bot/jobs/_production_fns.py around :237-261 -- RE-DERIVE) emits rows shaped {trade_id, ticker, pnl, outcome, recorded_at} into `financial_reports.outcome_tracking`, whose REAL 9 columns are {ticker, analysis_date*, recommendation*, price_at_recommendation, current_price, return_pct, holding_days, beat_benchmark, evaluated_at} (* = REQUIRED). ONLY `ticker` overlaps, and the two REQUIRED columns are never supplied. The function's own docstring documents a schema that NEVER EXISTED. WHY IT IS SILENT: `insert_rows_json` RETURNS an error list rather than raising, and the code swallows the return exactly as the fetch swallows its exception -- so the write fails as quietly as the read did. Destination table has 0 rows (measured); dead since the file's first commit 2301b977 (2026-05-11) = 86 days. NOTE there is NO dry-run equivalent for the streaming insertAll path, so validate the write differently: compare the emitted record keys against `client.get_table(...).schema` (cheap, and can run offline against backend/db/_schema_snapshot.json from step 82.12), AND do one real insert in a fixture. Alternatively switch the write to a query job so `schema_oracle.dry_run()` covers it too -- decide deliberately and record the reason. SEMANTIC DECISION REQUIRED, do not guess: the destination has `return_pct`, and the source has `realized_pnl_pct` (a PERCENT, range measured -14.4625..+116.4029, populated ONLY on SELL legs -- 32/32 SELLs, 0/33 BUYs). Prefer mapping percent to `return_pct` over inventing a notional amount; a notional derivation would first require PROVING how realized_pnl_pct is defined at its WRITER, which the 82.39 brief did not verify. ALSO FIX (same file, same job, found by the same gate): `_compute_outcomes` (backend/slack_bot/jobs/nightly_outcome_rebuild.py around :37-47) CRASHES on a NULL pnl -- `.get(\"pnl\", 0.0)` returns the default only when the KEY is absent, not when the VALUE is None, giving TypeError on the `> 0` comparison -- and it is called at :27, OUTSIDE the try at :28, so the crash is not caught.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_48_outcome_write_schema.py -q",
+            "criteria": [
+              "the keys the write function emits are validated against the destination table's real schema, asserted by a test that FAILS against the current emitted shape and names the missing REQUIRED columns",
+              "a fixture drives the write path end to end and asserts a row is actually persisted, so a repair cannot pass on shape agreement alone",
+              "a write that is rejected by BigQuery emits an operator-visible signal rather than being swallowed, asserted by a test capturing the emitted signal -- note insert_rows_json RETURNS errors rather than raising",
+              "_compute_outcomes is shown to handle a NULL pnl without raising, asserted by a fixture containing a row whose pnl value is None"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },
