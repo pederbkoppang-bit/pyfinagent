@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "verdict": "PASS",
+  "reason": "All 3 immutable criteria MET and independently re-verified by EXECUTED mutation, not by reading Main's matrix. (1) test_the_job_the_scheduler_received_actually_reaches_compute_freshness pulls the callable the stub scheduler was handed and runs it, no HTTP layer; killed by my R1 trigger->'date', R2 hours->99999, R6 replace_existing->False. (2) test_breaching_source_pages_through_the_real_notification_path drives the un-injected raise_cron_alert_sync; killed by my R5 P1->P2 and R7 band-blind; its `overall_band == \"red\"` precondition proved load-bearing by killing my broken-BQ fixture mutant. (3) all-green fixture measured to genuinely produce overall_band='green' with 0 alerts. Immutable command re-run UNPIPED twice: 16 passed, BARE_EXIT=0. All THREE cycle-3 survivors now DIE (D1 **{\"hours\":99999}, D2 positional 99999, D3 register_freshness_cron(None)) - verified by running the real unmodified guard against an in-memory-mutated main.py, with CONTROL and POST-RESTORE both green and main.py byte-identical (md5) afterwards. Main's twice-wrong census is CORRECT on the third derivation: my independent AST instrument reproduces FIVE-of-9 and FOUR-of-9 at MEMBER level, symmetric difference between two operationalizations EMPTY, known-member recall 0 missed / 0 extra; 82.37's description carries no stale figure as a live claim, its member lists match mine exactly, its 70_5 :44 citation is verbatim-correct, and its \"seven production jobs\" claim measures 7. Harness compliance 5/5 clean; ruff F821/F401/F811 over a derived non-empty 4-file scope exit 0; regression 51 passed + verify_phase_25_A7 11/11; production diff is exactly the two contracted hunks; another session's phase83_research_raw untouched. Reversal from cycle-3 FAIL is the documented cycle-2 flow on CHANGED evidence verified by execution, not sycophancy under rebuttal.",
+  "violated_criteria": [],
+  "violation_details": [],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "verification_command_unpiped_x2",
+    "python_lint_gate_ruff_F821_F401_F811_derived_scope",
+    "backend_runtime_smoke_import",
+    "live_capture_taken_by_evaluator_api_jobs_all",
+    "independent_ast_census_symmetric_difference",
+    "known_member_recall_test",
+    "masterplan_82_37_description_audit",
+    "seven_jobs_claim_remeasured",
+    "mutation_call_shape_13_mutants_in_memory",
+    "mutation_runtime_freshness_cron_8_mutants_in_memory",
+    "mutation_fixture_precondition_probe",
+    "no_op_control_mutant",
+    "control_and_post_restore_byte_identical",
+    "regression_sweep_51_tests",
+    "verify_phase_25_A7",
+    "scope_check_git_status_porcelain",
+    "evaluator_critique_prior_verdicts",
+    "verdict_counter_check",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "PROPORTIONALITY (explicitly requested). The step's actual deliverable is now adequately guarded and I judge a fifth cycle counter-productive. Reasoning: the two defect classes that drove cycles 1-3 are BOTH closed and I verified each by execution rather than by reading Main's claims - (a) every cycle-3 survivor dies, (b) the census is correct at member level on the third attempt, which is the first derivation Main has produced that survives an independent instrument. Of my 12 new call-shape mutants, 4 survived; I required a behavioural differential before calling any of them a finding, and only 2 have one. E2 `mod.register_freshness_cron(scheduler)` is an EQUIVALENT mutant (same function, same argument, identical registration) and E11 `hours=13` is an ALLOWED value inside the semantic band (0, 13.0] the guard encodes - neither is a defect. The two real survivors, E4 `if False:` and E10 call-after-`return`, are one class: the AST guard proves the call is WRITTEN, not REACHED. Static reachability is undecidable in general, so no AST guard can close this; it is diminishing returns for 82.10. It is also not uncovered - the live GET /api/jobs/all capture (which I took MYSELF this cycle, so the verdict does not rest on author-supplied evidence) observes actual runtime registration, and the realistic instance of the class, the call being nested inside `if settings.paper_trading_enabled:`, is already queued as 82.35 whose first criterion literally drives the startup path with that flag false. NOTE 1 (PASS-with-flag, one-word fix, not blocking): criterion-3's precondition at test line 423 asserts `overall_band != \"red\"`, which admits `unknown`; my broken-fixture mutant (every BQ query returns no rows) SURVIVED that guard, while criterion-2's `== \"red\"` precondition correctly KILLED the same mutant. This is NOT the illusory-guard heuristic - mutating the code under test to always emit does make the guard fail, so it can fail when its subject breaks - it is latent rather than active vacuity, and I measured the shipped fixture genuinely producing 'green'. Suggested hardening: `!= \"red\"` -> `== \"green\"`, mirroring the criterion-2 precondition. NOTE 2: I did not verify Main's \"production code byte-identical since cycle 1\" claim directly, because freshness_cron.py is untracked and has no git baseline; I made the claim unnecessary instead by re-taking the live capture myself (same next_run 23:38:38, so the process has not restarted) and by confirming the tracked production diff is exactly the two contracted hunks. Method note: the qa-write-guard hook correctly blocked my scratch-file writes, so every mutation ran in memory (Path.read_text interception for the AST guard, module re-exec for the runtime mutants) with a no-op control mutant to prove the harness was not manufacturing kills; nothing on disk changed."
+}

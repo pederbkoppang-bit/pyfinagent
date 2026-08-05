@@ -21414,7 +21414,7 @@
         },
         {
           "id": "82.10",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DEFECT from the 82.0 research brief: the data-freshness alarm is BROWSER-DRIVEN and therefore cannot page. backend/services/cycle_health.py::compute_freshness is correctly implemented and its P1 threshold was genuinely red for months (ratio 3.66 vs CRITICAL_RATIO 2.0 on historical_macro), but the function is only reachable from HTTP handlers (observability_api.py:36/:55, paper_trading.py:25) that ONLY the frontend calls. Nothing polls them. So a correct alarm fired into an empty room for 128 days and the operator learned about the dead feed from a manual investigation. An alarm that only fires when a human happens to open a browser tab is not a monitor. Give freshness an active evaluator that runs on the scheduler and emits through a channel the operator actually receives (the existing Slack/away-ops path), independent of any browser session.",
@@ -21886,6 +21886,78 @@
           "depends_on": [
             "82.5"
           ]
+        },
+        {
+          "id": "82.35",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DEFECT found while building 82.10 and named in that step's contract as out of scope: THE FRESHNESS MONITOR IS DISABLED BY THE SAME SWITCH THAT DISABLES WHAT IT MONITORS. `backend/main.py:307` opens `if settings.paper_trading_enabled:` and the ENTIRE APScheduler block lives inside it -- the scheduler is constructed at :310, started at :312, and every register_*_cron call (paper trading via init_scheduler, harness_self_audit, macro_ingest at :336-342, and the new freshness_evaluator at :353-355) is nested in that branch. So setting paper_trading_enabled=false silently kills the data-freshness evaluator, the FRED macro ingestion cron and the weekly harness self-audit -- three jobs that have nothing to do with whether the book is trading. The freshness case is the sharpest: historical_prices / historical_fundamentals / historical_macro feed BACKTESTS, which matter regardless of paper trading, and 82.10 exists precisely because that monitor was silent for 128 days. Turning paper trading off would restore exactly the blind spot 82.10 just closed, with no warning. SCOPE: separate the scheduler's LIFECYCLE from the paper-trading FEATURE FLAG -- construct and start the AsyncIOScheduler unconditionally, and keep only the paper-trading job itself behind the flag. Re-derive every line number before editing; main.py moves constantly. Do NOT change what any job does, only which flag decides whether it is registered. NOTE the ordering trap: `init_scheduler(scheduler)` (main.py:311) is the paper-trading registrar and must stay flag-gated, while `_register_cron_scheduler(\"main\", scheduler)` (:314) is the /api/jobs/all introspection hook and must run whenever the scheduler exists, or the Jobs tab goes blind. Verify against the LIVE service: the backend does not auto-reload, so restart with `launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend` and re-read GET /api/jobs/all before claiming any job is or is not registered.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_35_scheduler_flag_coupling.py -q",
+            "criteria": [
+              "a test drives the startup registration path with paper_trading_enabled=false and asserts the freshness evaluator, the macro ingest cron and the harness self-audit job ARE still registered, failing against the current nested-in-the-flag behaviour",
+              "a test with paper_trading_enabled=false asserts the paper-trading job itself is NOT registered, so the fix does not simply turn trading on",
+              "a test with paper_trading_enabled=true asserts the full job set is unchanged from today, enumerated rather than spot-checked, so the refactor cannot silently drop a job",
+              "the job-introspection registration (/api/jobs/all) is asserted to still see the scheduler in both flag states"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.36",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "TEST DEFECT measured during the 82.10 regression sweep: a UNIT test reads the LIVE kill-switch state and therefore fails whenever the operator has the book paused. `backend/tests/test_dod4_tier1_coverage_investment.py::test_paper_trader_execute_buy_average_up_recomputes_avg_entry` fails at that file's line 627 with `assert None is not None`, because `backend/services/paper_trader.py` refuses the BUY: 'kill_switch: REFUSING BUY AAPL ($600.00) -- the kill switch is PAUSED (pause_reason=\"manual\")'. PROVEN PRE-EXISTING AND UNRELATED TO 82.10: reproduced in a detached git worktree at HEAD 9b722a97 with backend/.env copied in, identical assertion, identical line, identical cause. THE DEFECT IS THE COUPLING, NOT THE PAUSE: the operator pausing the book is correct behaviour, and the kill-switch enforcement in paper_trader is a phase-69.1 safety property that must NOT be weakened. What is wrong is that a unit test's outcome depends on ambient live operator state, so the suite is red-or-green depending on something no committer controls -- which trains readers to ignore a red suite (see auto-memory a_green_suite_can_be_blind for the inverse failure). FIX DIRECTION: the test must control the kill-switch state it runs under, injecting or monkeypatching an explicitly-RUNNING switch rather than inheriting the process-wide one. DO NOT fix it by disabling the kill-switch check in production code, and DO NOT fix it by flipping the live switch. SWEEP THE CLASS, do not spot-fix: enumerate every test that reads live kill-switch / paused state or any other ambient runtime file, assert the derived set is non-empty, and classify each as controlled or ambient.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_36_ambient_state_tests.py -q",
+            "criteria": [
+              "the previously-failing test passes with the live kill switch PAUSED and also passes with it RUNNING, asserted by a test that drives both states explicitly rather than inheriting the ambient one",
+              "the sweep enumerates every test that reads ambient kill-switch or paused state, derived from the source rather than a hand-written list, and the derived set is asserted non-empty",
+              "each enumerated hit is classified controlled / ambient with file:line, and every ambient hit is either fixed or has its own queued follow-up step",
+              "a guard asserts the production kill-switch enforcement in backend/services/paper_trader.py was NOT weakened -- a fixture with the switch paused must still refuse the order"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.37",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DEFECT CLASS surfaced by the 82.10 cycle-2 Q/A and CONFIRMED by a corrected derivation: APScheduler registration tests that pin a job's IDENTITY but not the kwargs that decide WHETHER IT EVER RUNS AGAIN. A job registered with trigger='date' fires once at process start and is then dead for the life of the process; a job with an absurd interval is scheduled in name only. Both ship with a fully green suite if the test only asserts id/name/replace_existing. THIS IS NOT HYPOTHETICAL: exactly this gap was found twice in one step -- 82.10's own registration test let trigger='date' and hours=99999 through (cycle-1 Q/A), and its main.py wiring guard then let register_freshness_cron(scheduler, hours=99999 | hours=0 | replace_existing=False) through (cycle-2 Q/A), because asserting that an ast.Call EXISTS says nothing about its arguments. IMPORTANT PROVENANCE NOTE, because it is the reason this step exists: 82.10 cycle 2 CLAIMED there was no repo-wide gap, on an AUTHOR-CHOSEN population of 2 files. The DERIVED population is NINE. Measured 2026-08-05 with `grep -rln \"add_job\" backend/tests/ tests/`: backend/tests/test_phase_70_5_reschedule.py, test_phase_71_6_self_audit_cron.py, test_phase_82_0_macro_ingestion.py, test_phase_82_10_freshness_paging.py, tests/scheduler/test_meta_cron.py, tests/services/test_phase9_registration.py, tests/slack_bot/test_phase9_production_wiring.py, tests/slack_bot/test_scheduler_phase9.py, tests/verify_phase_23_3_1.py. THE COUNT IN THIS STEP WAS ITSELF WRONG TWICE BEFORE IT WAS DERIVED PROPERLY, and the executor must not repeat either mistake. First attempt: an author-chosen 2-file population concluded 'no repo-wide gap'. Second attempt: `grep -c '\"trigger\"'` reported THREE -- but that counts the LITERAL string, which also matches a stub scheduler's own recording dict (tests/slack_bot/test_scheduler_phase9.py:21 and tests/slack_bot/test_phase9_production_wiring.py:37 both do `{... \"trigger\": trigger ...}` inside their fake add_job) and matches prose in a failure message (test_phase9_production_wiring.py:214 `assert posts == [], \"empty drifts should not trigger a Slack post\"`). A grep over source text cannot distinguish an ASSERTION from FIXTURE PLUMBING. THE DERIVED ANSWER, measured 2026-08-05 with an AST census over `ast.Assert.test` only (never `.msg`), with string literals stripped and subscript keys re-admitted so `kw['trigger']` still counts: FIVE of the nine files assert nothing about the job's TRIGGER -- backend/tests/test_phase_70_5_reschedule.py, tests/services/test_phase9_registration.py, tests/slack_bot/test_phase9_production_wiring.py, tests/slack_bot/test_scheduler_phase9.py, tests/verify_phase_23_3_1.py; and FOUR of the nine assert nothing about the schedule AT ALL (the same five minus test_phase_70_5_reschedule.py, which asserts kw['hour'] == 18 and kw['replace_existing'] at :44 but never the trigger -- so trigger='date' with hour=18 would still pass there, and that file guards the PAPER TRADING daily job, meaning a trigger regression stops the book trading). Report BOTH numbers; they answer different questions and quoting one alone misstates the class. Note the three phase-9 files share the subject `register_phase9_jobs`, which registers seven production jobs including daily_price_refresh and cost_budget_watcher. SCOPE: derive the population from the source (do NOT hand-pick -- that is the mistake this step records), assert it non-empty, classify each file, and add recurrence assertions where missing. Prove each added assertion can fail by mutating the corresponding production registration and naming the test actually killed with `pytest -rf`. Do NOT change any job's real cadence -- this step adds guards, it does not retune schedules; if a guard and the shipped cadence disagree, the guard is wrong and must be written to the shipped value. Prefer a SEMANTIC bound over a restated constant where an SLA exists to derive one from (see backend/tests/test_phase_82_10_freshness_paging.py::test_registered_cadence_is_tight_enough_to_catch_the_tightest_sla for the pattern).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_37_cron_recurrence_guards.py -q",
+            "criteria": [
+              "the population of scheduler-registration test files is DERIVED from the source rather than hand-written, the derivation is asserted non-empty, and every file in it is classified as asserting or not asserting the job's recurrence with file:line",
+              "each file classified as missing a recurrence assertion is either fixed in this step or has its own queued follow-up step",
+              "for every recurrence assertion added, a mutation of the corresponding PRODUCTION registration (trigger changed to a non-recurring one, or the interval made absurd) is shown to make that assertion fail, naming the test actually killed",
+              "a guard asserts no job's shipped cadence was altered by this step, so adding coverage cannot silently retune a live schedule"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.38",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "TEST-QUALITY RESIDUAL from the 82.10 cycle-4 PASS (NOTE 1 in that verdict). Not a live defect and not a blocker -- the Q/A shipped it as a named one-word hardening, and it is queued rather than applied because the tree was frozen for EVALUATE when it was found. `backend/tests/test_phase_82_10_freshness_paging.py::test_all_healthy_emits_no_alert` asserts the precondition `out[\"overall_band\"] != \"red\"`, which ADMITS the band `\"unknown\"`. MEASURED by the cycle-4 Q/A: a broken-fixture mutant in which every BQ query returns no rows (so every source resolves to band 'unknown' and no alert can possibly fire) SURVIVES that precondition, while criterion-2's `== \"red\"` precondition correctly KILLS the same mutant. So the criterion-3 guard can currently pass on a fixture that proves nothing -- a zero-alert count produced by a dead fixture reads identically to a zero produced by genuinely healthy data. The Q/A was explicit that this is NOT the illusory-guard case: mutating the code under test to always emit DOES make the guard fail, so it can fail when its subject breaks; this is LATENT rather than ACTIVE vacuity, and the shipped fixture was measured genuinely producing 'green'. FIX: change the precondition to `== \"green\"`, mirroring criterion-2's positive precondition. SWEEP THE CLASS rather than spot-fixing: a negative precondition (`!= <bad>`) admits every OTHER value including the degenerate ones, so enumerate the repo's fixture preconditions of the form `assert x != <something>` where a POSITIVE assertion was available, derive that population from the source, assert it non-empty, and classify each. Prove the fix by re-running the broken-fixture mutant (make the fake BQ return no rows for every table) and showing the hardened precondition now fails where the old one passed.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_38_positive_preconditions.py backend/tests/test_phase_82_10_freshness_paging.py -q",
+            "criteria": [
+              "the criterion-3 precondition in test_phase_82_10_freshness_paging.py asserts a POSITIVE band value rather than a negative one, and a broken-fixture mutant (every BQ query returns no rows) is shown to fail it where the previous form passed",
+              "the population of fixture preconditions expressed as a negation where a positive assertion was available is DERIVED from the source, asserted non-empty, and each member classified as hardened or justified-as-is with file:line",
+              "every member classified as needing hardening is either fixed in this step or has its own queued follow-up step",
+              "the existing 82.10 suite still passes unchanged, so hardening a precondition does not weaken any guard it sits in front of"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },

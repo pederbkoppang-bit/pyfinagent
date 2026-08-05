@@ -30600,3 +30600,72 @@ on any value; the verbatim criterion-3 test being an unfailable guard -- NOT to 
 by editing an immutable criterion; INV5 still a source scan).
 
 **Next**: 82.10-82.13 (P1). Operator still owes: rotate `FRED_API_KEY`, fundamentals source.
+
+## Cycle 149 -- 2026-08-05 -- phase=82.10 result=PASS
+
+**Step**: The data-freshness alarm was browser-driven -- a correct P1 alarm that fired
+into an empty room for 128 days.
+
+**THE RESEARCH GATE HALVED THE STEP AND SAVED A PAGE STORM.** The step description said
+the alarm "cannot page". Half wrong: `_fire_freshness_alarm` already existed and already
+paged P1, and `compute_freshness` already called it. Only the TRIGGER was missing. The
+brief's headline trap, which I re-measured before adopting: **`AlertDeduper` does NOT
+suppress steady state.** A P1 bypasses the consecutive threshold but not the repeat
+window, so it re-fires every hour forever -- `[True, False, False, False, False]`, then
+`True` again after rewinding `last_fired_at` by 1h1m. A bare timer on the red table would
+have paged ~4x/day for 128 days (~512 pages). So the deliverable was a trigger **plus a
+state-transition gate**, not a new alerting channel.
+
+**Shipped**: `backend/services/freshness_cron.py` (6h interval, fires only on
+`newly_red = red_now - red_prior`, keyed on the SET of red names), `emit_alarm=True`
+keyword-only on `compute_freshness` so the three HTTP call sites are byte-identical and
+the cron owns gating, registration in `main.py`. **Live-verified**: restarted the backend
+(pid 62664 -> 60478) and `GET /api/jobs/all` shows `freshness_evaluator` on
+`main_apscheduler`, `next_run 23:38:38`, ~6h after the restart.
+
+**FOUR CYCLES: CONDITIONAL -> CONDITIONAL -> FAIL -> PASS.** The production code was
+judged correct in every single cycle. **Every failure was mine, and all of one kind: I
+kept making claims about sets I had not derived.**
+
+- **Cycle 1** killed my `main.py` guard -- a substring scan for `register_freshness_cron`
+  that the *import line* satisfied, so deleting the call shipped green.
+- **Cycle 2** killed my registration test: it pinned identity but not recurrence, so
+  `trigger="date"` and `hours=99999` both passed. It also caught my claim that the sibling
+  crons had no such gap -- based on an **author-chosen 2-file population**.
+- **Cycle 3** FAILed via the 3rd-CONDITIONAL rule. It caught that my *corrected* census
+  was ALSO wrong: `grep -c '"trigger"'` counts the literal string, which matches a stub
+  scheduler's own recording dict and prose in a failure message. I made a false claim
+  about a derived set **inside the retraction of a false claim about a derived set.**
+  It also defeated the keyword-only guard three ways -- `**{"hours":99999}` (kw.arg is
+  None), a positional arg (TypeError -> fail-open -> **zero jobs**), and
+  `register_freshness_cron(None)` (**zero jobs**).
+- **Cycle 4** PASS. Census redone with an AST instrument over `ast.Assert.test` only,
+  reporting BOTH derived numbers (5 of 9 assert no trigger; 4 of 9 assert nothing about
+  the schedule). The Q/A reproduced both at member level with an empty symmetric
+  difference. 19 mutants, zero survivors.
+
+**The lesson, stated for the next cycle**: a grep over source text cannot tell an
+ASSERTION from FIXTURE PLUMBING. I "verified by reading" only the files my count had
+already flagged, so the reading discipline never touched the membership rule. Derive the
+set with an instrument that understands structure, then report what the instrument says.
+
+**Where the Q/A was better than me**: it required a behavioural differential before
+calling any mutant a finding -- of its 12 new call-shape mutants, 4 survived and it ruled
+2 non-defects (an equivalent mutant, and `hours=13` being a legal value inside the band
+the guard encodes) rather than reporting them. It also judged proportionality explicitly
+when asked: the two surviving mutants (`if False:` and call-after-`return`) are one class
+-- an AST guard proves a call is WRITTEN, not REACHED -- and static reachability is
+undecidable, so it called that diminishing returns rather than holding out.
+
+**Queued**: 82.35 (the scheduler block is gated by `paper_trading_enabled`, so the monitor
+dies with the thing it monitors), 82.36 (a unit test that reads the LIVE kill-switch and
+fails whenever the book is paused), 82.37 (5-of-9 cron tests assert no trigger -- incl.
+the paper-trading daily job), 82.38 (criterion-3's `!= "red"` precondition admits
+`unknown`; a dead fixture survives it).
+
+**Still not proven**: that a Slack page reaches the operator. No source is red, and I did
+not manufacture one on the live system.
+
+**Next**: 82.12 (research gate already PASSED and on disk -- it found a live P1:
+`_production_fns.py` selects `paper_trades.timestamp`/`.realized_pnl`, which do not
+exist, swallowed fail-open, so `nightly_outcome_rebuild` has been running on zero trades).

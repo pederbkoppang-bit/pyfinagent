@@ -340,6 +340,23 @@ async def lifespan(app: FastAPI):
                 logging.warning(
                     "macro ingest cron registration fail-open: %r", _e
                 )
+            # phase-82.10: compute_freshness was correct and its P1 pager was
+            # live, but EVERY production caller was an HTTP handler only the
+            # frontend hits. Nothing polled them, so a red table alarmed only
+            # while a browser tab happened to be open -- 128 days of stale
+            # historical_macro produced no operator signal. This registers the
+            # active evaluator. It must live on THIS scheduler (not the
+            # slack_bot one) so it shares the AlertDeduper singleton with the
+            # HTTP handlers; a second process would double the pages.
+            try:
+                from backend.services.freshness_cron import (
+                    register_freshness_cron,
+                )
+                register_freshness_cron(scheduler)
+            except Exception as _e:  # never break startup
+                logging.warning(
+                    "freshness evaluator cron registration fail-open: %r", _e
+                )
             logging.info("Paper trading scheduler started")
         except ImportError:
             logging.warning("APScheduler not installed, paper trading scheduler disabled")

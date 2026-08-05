@@ -486,12 +486,28 @@ def _bq_max_event_age(bq: Any, table_logical: str, time_col: str) -> Optional[fl
         return None
 
 
-def compute_freshness(bq: Any, cycle_interval_sec: float) -> dict:
+def compute_freshness(
+    bq: Any, cycle_interval_sec: float, *, emit_alarm: bool = True
+) -> dict:
     """
     Build the freshness strip payload. Reads:
       - data plane: per-source MAX(time_col) via BQ
       - control plane: .cycle_heartbeat.json age
       - BQ ingest lag: age of the most recent trade row (proxy)
+
+    phase-82.10: `emit_alarm` is keyword-only and defaults to True, so the
+    three HTTP call sites (paper_trading.py, observability_api.py x2) are
+    behaviourally unchanged. The scheduled evaluator in
+    `backend/services/freshness_cron.py` passes `emit_alarm=False` because it
+    owns a STATE-TRANSITION gate that the level-triggered `_fire_freshness_alarm`
+    path does not have. Without this opt-out a cron tick would page twice for
+    the same red table (once from here, once from the gate), and -- worse --
+    the inner path would page on EVERY tick for a permanently-red source: a
+    P1 bypasses AlertDeduper's consecutive threshold but NOT its repeat
+    window, so it re-fires every `alert_repeat_hours` forever. Measured
+    2026-08-05: five back-to-back P1 should_fire calls give
+    [True, False, False, False, False], but rewinding last_fired_at by 1h1m
+    returns True again.
     """
     heartbeat = _log.read_heartbeat() or {}
     hb_updated = _parse_iso(heartbeat.get("updated_at"))
@@ -561,7 +577,8 @@ def compute_freshness(bq: Any, cycle_interval_sec: float) -> dict:
     overall_band = _worst_band([v.get("band", "unknown") for v in sources.values()])
 
     # Fire a P1 Slack alert per table in critical band (dedup via AlertDeduper).
-    if overall_band == "red":
+    # phase-82.10: suppressible -- see the `emit_alarm` note in the docstring.
+    if emit_alarm and overall_band == "red":
         _fire_freshness_alarm(sources)
 
     return {
