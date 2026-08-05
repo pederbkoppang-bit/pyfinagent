@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-05 | `1a72fec4` | docs(82.48): queue the write-side defect 82.39's criteria cannot see |
 | 2026-08-05 | `2fcf03b5` | docs(82.39): research gate -- the defect is larger than the step describes |
 | 2026-08-05 | `a2bec245` | fix(82.25): carry the DSR trial count across warm starts instead of resetting to 1 |
 | 2026-08-05 | `5c1f3f8f` | fix(82.16): demote two strategies whose labels carry no forward information |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-03 | `97c33037` | feat(82.4): design pack with render-verified 4-column flows + pre-registered ranking |
 | 2026-08-03 | `07ee03fc` | fix(82.15): wire the point-in-time macro read -- the vintage column had zero consumers |
 | 2026-08-03 | `df5cc559` | feat(82.2): three overpriced-market candidate strategies in STRATEGY_REGISTRY |
-| 2026-08-03 | `98fca544` | feat(82.1): specify the incumbent live strategy -- it never forms a valuation view |
 
 ---
 
