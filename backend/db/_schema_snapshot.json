@@ -1,0 +1,1985 @@
+{
+  "datasets": [
+    "financial_reports",
+    "pyfinagent_data",
+    "pyfinagent_pms",
+    "pyfinagent_hdw"
+  ],
+  "project": "sunny-might-477607-p8",
+  "tables": {
+    "financial_reports.agent_memories": {
+      "agent_type": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "created_at": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "lesson": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "situation": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "financial_reports.analysis_results": {
+      "aggressive_analyst_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "alt_data_momentum_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "alt_data_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "analysis_date": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "annualized_volatility": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "anomaly_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "anomaly_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "bear_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "bear_thesis": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "bias_adjusted_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "bias_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "bias_flags": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "bull_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "bull_thesis": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "company_name": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "conflict_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "conservative_analyst_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "consumer_sentiment": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "contradiction_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "cpi_yoy": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "critic_review": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "da_confidence_adjustment": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "data_quality_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "debate_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "debate_consensus": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "debate_rounds_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "debt_equity": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "decision_trace_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "deep_think_calls": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "deep_think_model": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "devils_advocate_challenges": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "dissent_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "earnings_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "enrichment_signals_summary": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "expected_shortfall_6m": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "fed_funds_rate": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "final_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "full_report_json": {
+        "mode": "NULLABLE",
+        "type": "JSON"
+      },
+      "grounded_calls": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "groupthink_flag": {
+        "mode": "NULLABLE",
+        "type": "BOOLEAN"
+      },
+      "industry": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "info_gap_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "info_gap_resolved_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "insider_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "key_risks": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "market_cap": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "momentum_6m": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "monte_carlo_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "neutral_analyst_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "nlp_sentiment_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "nlp_sentiment_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "options_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "overall_reliability": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "patent_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "pe_ratio": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "peg_ratio": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "pillar_1_corporate": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "pillar_2_industry": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "pillar_3_valuation": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "pillar_4_sentiment": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "pillar_5_governance": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "price_at_analysis": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "prob_positive_6m": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "quality_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "quant_model_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "quant_model_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "recommendation": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "recommendation_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "recommendation_justification": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "recommended_position_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "revenue_growth_yoy": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "risk_adjusted_confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "risk_debate_rounds_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "risk_judge_decision": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "risk_level": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "rsi_14": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "sector": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "sector_signal": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "social_sentiment_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "social_sentiment_velocity": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "standard_model": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "summary": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "synthesis_iterations": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "ticker": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "total_cost_usd": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "total_tokens": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "unemployment_rate": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "var_95_6m": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "var_99_6m": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "yield_curve_spread": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      }
+    },
+    "financial_reports.historical_fundamentals": {
+      "currency": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "dividends_per_share": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "filing_date": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "industry": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ingested_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "market": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "net_income": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "operating_cash_flow": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "report_date": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "sector": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "shares_outstanding": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "total_assets": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "total_debt": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "total_equity": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "total_revenue": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      }
+    },
+    "financial_reports.historical_fx_rates": {
+      "date": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "pair": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "rate": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "source": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    },
+    "financial_reports.historical_macro": {
+      "base_currency": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "date": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "ingested_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "market": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "realtime_start": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "series_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "value": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      }
+    },
+    "financial_reports.historical_prices": {
+      "close": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "currency": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "date": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "high": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "ingested_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "low": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "market": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "open": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "volume": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      }
+    },
+    "financial_reports.outcome_tracking": {
+      "analysis_date": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "beat_benchmark": {
+        "mode": "NULLABLE",
+        "type": "BOOLEAN"
+      },
+      "current_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "evaluated_at": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "holding_days": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "price_at_recommendation": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "recommendation": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "return_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "financial_reports.paper_metrics_v2": {
+      "calmar": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "computed_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "dsr": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "n_strategies_tested": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "nav": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "psr": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "rolling_sharpe": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "rolling_sharpe_ci_high": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "rolling_sharpe_ci_low": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "snapshot_date": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "sortino": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "trades_to_date": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      }
+    },
+    "financial_reports.paper_portfolio": {
+      "base_currency": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "benchmark_return_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "current_cash": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "inception_date": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "market": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "portfolio_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "starting_capital": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "total_nav": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "total_pnl_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "updated_at": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    },
+    "financial_reports.paper_portfolio_snapshots": {
+      "alpha_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "analysis_cost_today": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "benchmark_pnl_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "cash": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "cumulative_pnl_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "daily_pnl_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "external_flow_today": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "position_count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "positions_value": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "snapshot_date": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "total_nav": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "trades_today": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      }
+    },
+    "financial_reports.paper_positions": {
+      "avg_entry_price": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "base_currency": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "company_name": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "cost_basis": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "current_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "entry_date": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "entry_strategy": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "last_analysis_date": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "mae_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "market": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "market_value": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "mfe_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "position_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "quantity": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "recommendation": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "risk_judge_position_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "sector": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "stop_advanced_at_R": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "stop_loss_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "unrealized_pnl": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "unrealized_pnl_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      }
+    },
+    "financial_reports.paper_round_trips": {
+      "buy_trade_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "capture_ratio": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "entry_date": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "entry_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "exit_date": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "exit_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "exit_reason": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "holding_days": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "mae_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "mfe_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "quantity": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "realized_pnl_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "realized_pnl_usd": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "round_trip_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "sell_trade_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "financial_reports.paper_trades": {
+      "action": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "analysis_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "capture_ratio": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "created_at": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "holding_days": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "mae_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "mfe_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "price": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "quantity": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "realized_pnl_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "reason": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "risk_judge_decision": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "round_trip_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "signals": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "total_value": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "trade_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "transaction_cost": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      }
+    },
+    "financial_reports.signals_log": {
+      "confidence": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "created_at": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "entry_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "event_kind": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "exit_date": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "exit_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "factors_json": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "forward_return_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "hit": {
+        "mode": "NULLABLE",
+        "type": "BOOLEAN"
+      },
+      "holding_days": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "outcome": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "recorded_at": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "scored": {
+        "mode": "NULLABLE",
+        "type": "BOOLEAN"
+      },
+      "signal_date": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "signal_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "signal_type": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_data.alt_13f_holdings": {
+      "accession_number": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "as_of_date": {
+        "mode": "REQUIRED",
+        "type": "DATE"
+      },
+      "cik": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "cusip": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "filed_on": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "filer_name": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "holding_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "investmentDiscretion": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "nameOfIssuer": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "period_of_report": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "putCall": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "raw_payload": {
+        "mode": "NULLABLE",
+        "type": "JSON"
+      },
+      "sshPrnamt": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "sshPrnamtType": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "titleOfClass": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "value_usd_thousands": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "votingAuthority_none": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "votingAuthority_shared": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "votingAuthority_sole": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      }
+    },
+    "pyfinagent_data.alt_congress_trades": {
+      "amount_max": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "amount_min": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "as_of_date": {
+        "mode": "REQUIRED",
+        "type": "DATE"
+      },
+      "chamber": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "disclosure_date": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "disclosure_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "party": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "raw_payload": {
+        "mode": "NULLABLE",
+        "type": "JSON"
+      },
+      "senator_or_rep": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "source": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "transaction_date": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "transaction_type": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_data.alt_finra_short_volume": {
+      "as_of_date": {
+        "mode": "REQUIRED",
+        "type": "DATE"
+      },
+      "market": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "raw_row": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "short_exempt_volume": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "short_volume": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "source": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "symbol": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "total_volume": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "trade_date": {
+        "mode": "REQUIRED",
+        "type": "DATE"
+      }
+    },
+    "pyfinagent_data.calendar_events": {
+      "blackout_end": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "blackout_start": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "confidence": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "eps_estimate": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "event_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "event_type": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "fetched_at": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "fiscal_period_end": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "metadata": {
+        "mode": "NULLABLE",
+        "type": "JSON"
+      },
+      "revenue_estimate": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "scheduled_at": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "source": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "window": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_data.llm_call_log": {
+      "agent": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "cache_creation_tok": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "cache_read_tok": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "cycle_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "input_tok": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "latency_ms": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "model": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "ok": {
+        "mode": "REQUIRED",
+        "type": "BOOLEAN"
+      },
+      "output_tok": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "provider": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "request_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "session_cost_usd": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "ticker": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ts": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "ttft_ms": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      }
+    },
+    "pyfinagent_data.risk_intervention_log": {
+      "agent_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "approved_size": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "event_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "log_timestamp": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "proposed_size": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "reasons": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "status": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_data.scraper_audit_log": {
+      "bytes_returned": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "error": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ip_hash": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "latency_ms": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "method": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "request_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "source": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "status_code": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "ts": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "url": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "user_agent": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_data.sla_alerts": {
+      "action": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "detected_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "event": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "stale_seconds": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "worker_pid": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      }
+    },
+    "pyfinagent_data.strategy_decisions": {
+      "cycle_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "decay_attribution": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "decay_signal": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "decided_strategy": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "prior_strategy": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "rationale": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "trigger": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "ts": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      }
+    },
+    "pyfinagent_data.unified_sar_log": {
+      "action": {
+        "mode": "NULLABLE",
+        "type": "RECORD"
+      },
+      "agent_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "event_timestamp": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "reward": {
+        "mode": "NULLABLE",
+        "type": "RECORD"
+      },
+      "state": {
+        "mode": "NULLABLE",
+        "type": "RECORD"
+      },
+      "step_id": {
+        "mode": "REQUIRED",
+        "type": "INTEGER"
+      },
+      "terminal": {
+        "mode": "REQUIRED",
+        "type": "BOOLEAN"
+      },
+      "ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "trajectory_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_hdw.Fundamental_PIT_Data": {
+      "Announcement_Timestamp_UTC": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "Debt_to_Equity": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Dividend_Yield": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "EPS": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "EPS_Growth_YoY": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Fiscal_Period_End_Date": {
+        "mode": "REQUIRED",
+        "type": "DATE"
+      },
+      "Free_Cash_Flow": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "GICS_Industry": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "GICS_Sector": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "Market_Cap": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "Next_Earnings_Announcement_Date": {
+        "mode": "NULLABLE",
+        "type": "DATE"
+      },
+      "PB_Ratio": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "PE_Ratio_TTM": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "ROE": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_hdw.Market_L1_Snapshots": {
+      "Asset_Class": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "Close_Ask": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Close_Bid": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Close_Trade": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Context_Credit_Spread_HY": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Context_Treasury_10Y_Yield": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Context_USD_Index_DXY": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Context_VIX_Close": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Data_Source": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "Dividend_Adjustment": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "High_Ask": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "High_Bid": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "High_Trade": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Low_Ask": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Low_Bid": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Low_Trade": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Open_Ask": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Open_Bid": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Open_Trade": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Split_Factor": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Ticker": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "Timestamp_UTC": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "Trade_Count": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "VWAP": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "Volume_Traded": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      }
+    },
+    "pyfinagent_pms.active_holdings_view": {
+      "account_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "asset_class": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "avg_entry_price": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "cost_basis_base_ccy": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "quantity": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "sector": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "strategy_tag": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "user_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_pms.alpha_velocity_samples": {
+      "alpha_velocity_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "components_json": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "computed_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "macro_regime": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "n_obs": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "sharpe_end": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "sharpe_start": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "strategy_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "window_days": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "window_end": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "window_start": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      }
+    },
+    "pyfinagent_pms.directive_versions": {
+      "applied_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "components_json": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "diff_size_bytes": {
+        "mode": "NULLABLE",
+        "type": "INTEGER"
+      },
+      "diff_summary": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "judge_score": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "parent_version_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "proposed_at": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "proposed_text": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "proposer": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "version_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_pms.portfolio_status_snapshot": {
+      "account_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "cash_balance": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "current_drawdown": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "daily_pnl": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "gross_exposure": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "net_exposure": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "peak_equity": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "snapshot_timestamp": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "total_equity": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "user_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_pms.portfolio_transactions": {
+      "account_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "agent_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "asset_class": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "base_currency": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "entry_rationale": {
+        "mode": "NULLABLE",
+        "type": "JSON"
+      },
+      "fees_base_ccy": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "fx_rate": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "gross_value_base_ccy": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "net_cash_flow_base_ccy": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "price_per_unit": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "quantity": {
+        "mode": "REQUIRED",
+        "type": "FLOAT"
+      },
+      "sector": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "strategy_tag": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "ticker": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "transaction_currency": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "transaction_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "transaction_timestamp": {
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP"
+      },
+      "transaction_type": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      },
+      "user_id": {
+        "mode": "REQUIRED",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_pms.strategy_deployments": {
+      "allocation_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "deployed_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "dsr": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "max_dd": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "notes": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "pbo": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "sharpe": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "status": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "strategy_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    },
+    "pyfinagent_pms.strategy_deployments_log": {
+      "allocation_pct": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "deployed_at": {
+        "mode": "NULLABLE",
+        "type": "TIMESTAMP"
+      },
+      "dsr": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "max_dd": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "notes": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "pbo": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "sharpe": {
+        "mode": "NULLABLE",
+        "type": "FLOAT"
+      },
+      "status": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      },
+      "strategy_id": {
+        "mode": "NULLABLE",
+        "type": "STRING"
+      }
+    }
+  }
+}

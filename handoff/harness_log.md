@@ -30669,3 +30669,72 @@ not manufacture one on the live system.
 **Next**: 82.12 (research gate already PASSED and on disk -- it found a live P1:
 `_production_fns.py` selects `paper_trades.timestamp`/`.realized_pnl`, which do not
 exist, swallowed fail-open, so `nightly_outcome_rebuild` has been running on zero trades).
+
+## Cycle 150 -- 2026-08-05 -- phase=82.12 result=PASS
+
+**Step**: Sweep the defect class "type guards that are VACUOUS because the BQ column is
+STRING, not the type the code tests for."
+
+**THE SWEEP FINDS ZERO OF WHAT IT WAS SENT TO FIND.** 82.0 closed the only vacuous
+date/isinstance guard; `_STRING_DATE_TIMESTAMP_COLS` is 6/6 correct. That is a dangerous
+step shape -- "find more of the same" when there is no more invites either an empty report
+that reads as a wasted cycle, or padded false positives. Re-framed per the research gate:
+**build the schema ORACLE the codebase never had, prove the surface clean BY
+CONSTRUCTION, and leave a standing check.** "Zero" becomes a measured result.
+
+**Shipped**: `backend/db/schema_oracle.py` + a checked-in 33-table / 477-column snapshot
+(so guards run without ADC) + 30 tests. Two-sided derivation -- candidates come from
+DECLARED TYPES, never a name regex, because a name regex is itself a hand-written list
+and measurably under-covers.
+
+**The sweep found a live P1 of the same root cause, different symptom.**
+`_production_fns.py` selects `paper_trades.timestamp` and `.realized_pnl`. **Neither
+column exists** (verified against the live schema; BQ 400s, reproduced by $0 dry run), an
+`except Exception` swallows it, and `nightly_outcome_rebuild` has been running on **zero
+trades**. A type-only oracle would have missed it -- which is why the oracle checks NAMES
+too. Queued as 82.39.
+
+**THREE CYCLES: CONDITIONAL -> CONDITIONAL -> PASS**, and the Q/A was right every time.
+
+- **Cycle 1** caught my headline "there are no remaining vacuous guards" as an
+  Overgeneralization: it ran 8 shapes of the class and the instrument saw **1**. I had
+  disclosed the SQL-side limit prominently and the Python-side recall -- *the half I
+  called load-bearing* -- nowhere. It also proved my anti-cry-wolf test ILLUSORY: it
+  returned `[]` for the correct coercing form by the same mechanism it returned `[]` for a
+  vacuous one. Blindness to both, not discrimination.
+- **Cycle 2** caught a DEAD OR-CLAUSE *in the guard I had just added to fix that*:
+  `A or B` where A is a strict subset of B. And it found the envelope still omitted the
+  two-statement bind-through-call shape -- **the exact shape all four real coercers use**.
+- **Cycle 3** PASS, after the Q/A re-killed all three findings with its own mutants.
+
+**THE LESSON, and it is a design lesson not a discipline one.** Fixing recall by resolving
+row values through calls took the scope **5 -> 18 sites**, and all 13 new ones were
+FALSE POSITIVES. Binding through a call is **directional**:
+
+> For `isinstance`, a call between the row read and the guard is the **DEFECT** shape --
+> a non-coercing helper leaves a `str` and the guard is vacuous.
+> For arithmetic/ordering, the same call is the **FIX** shape -- a coercer's job is to
+> change the type.
+
+The asymmetry is semantically right: `isinstance(str, date)` fails **silently** (the 82.0
+class), while a `str` reaching `-` or `/` raises TypeError **loudly**.
+
+**Where the Q/A exceeded me**: it read all 13 suppressed sites itself (I was asked for 2),
+confirmed none hides a real defect, and ran a SECOND, differently-operationalized census
+-- every `isinstance(<x>, date|datetime)` site across all 294 backend files -- to
+establish independently that zero vacuous guards remain. That is better evidence for my
+headline than anything I produced.
+
+**RAIL FAILURE WORTH RECORDING**: the Workflow Q/A rail dropped TWO consecutive returns on
+this step (~40 tool calls / ~180K tokens each), with **no assistant text in either
+transcript**, so nothing was recoverable -- and the qa-write-guard hook blocks the Q/A
+from writing a sidecar, so write-first is structurally unavailable on that rail. A LEAN,
+budget-capped prompt returned cleanly in 11 tool calls. **On this rail, prompt length
+drives the drop.**
+
+**Queued**: 82.39 (the live P1), 82.40 (`preload_prices`/`preload_fundamentals` have no
+staleness gate at all), 82.41 (pyrightconfig pins a non-existent `.venv312`, measured 0
+diagnostics -- an inert checker that looks like a passing gate), 82.42 (an envelope row
+whose assertion cannot distinguish its own two cases).
+
+**Next**: 82.13, 82.16, 82.25 (P1), then the P2/P3 tail.

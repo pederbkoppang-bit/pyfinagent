@@ -21449,7 +21449,7 @@
         },
         {
           "id": "82.12",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DEFECT CLASS sweep, surfaced by the 82.0 cycle-1 Q/A FAIL: type-assumption guards that are VACUOUS because the BQ column is STRING, not the type the code tests for. The confirmed instance (fixed in 82.0): backend/backtest/cache.py preload_macro tested `isinstance(rd, datetime.date)` against `historical_macro.date`, which is ('date','STRING','REQUIRED') per scripts/migrations/migrate_backtest_data.py:68. The staleness branch therefore never executed from the day phase-25.D7 introduced it -- it did not refuse stale macro, it silently served it. The codebase ALREADY KNOWS several date/timestamp columns are STRING-typed: backend/services/cycle_health.py maintains `_STRING_DATE_TIMESTAMP_COLS` precisely because SAFE.TIMESTAMP is required for STRING/DATE columns and breaks on native TIMESTAMP ones (phase-43.0 cycle-14). That existing workaround is evidence the schema is mixed and that other call sites may carry the same wrong assumption. SWEEP, do not spot-fix: enumerate every BQ column whose declared type is STRING but which is consumed as a date/datetime/number, and every isinstance/comparison guard applied to a value read from BQ. For each hit decide vacuous / correct / needs-coercion. A guard that silently disables itself is worse than no guard, because it reads as protection in review. Derive the scope from the schema, not from memory, and assert the derived scope is non-empty before reporting a clean result.",
@@ -21954,6 +21954,78 @@
               "the population of fixture preconditions expressed as a negation where a positive assertion was available is DERIVED from the source, asserted non-empty, and each member classified as hardened or justified-as-is with file:line",
               "every member classified as needing hardening is either fixed in this step or has its own queued follow-up step",
               "the existing 82.10 suite still passes unchanged, so hardening a precondition does not weaken any guard it sits in front of"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.39",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "LIVE DEFECT found by the 82.12 schema sweep -- same root cause as 82.0 (an unverified assumption about a BigQuery column, swallowed fail-open) but the NAME variant rather than the TYPE variant, which is why the type-only framing of 82.12 would have missed it. `backend/slack_bot/jobs/_production_fns.py` around line 218-227 builds the `nightly_outcome_rebuild` fetch closure and SELECTs `timestamp` and `realized_pnl` from `sunny-might-477607-p8.financial_reports.paper_trades`. NEITHER COLUMN EXISTS. MEASURED 2026-08-05 against the live schema: paper_trades has 18 columns; `timestamp` present=False, `realized_pnl` present=False, while the real columns are `created_at` (STRING) and `realized_pnl_pct` (FLOAT). The query also filters `WHERE TIMESTAMP_TRUNC(timestamp, DAY) >= ...` and `AND realized_pnl IS NOT NULL`, so both the projection and the predicate reference phantom columns. BigQuery returns 400 Unrecognized name (reproduced live via a $0 dry run), and the `except Exception` at the bottom of `_fetch` logs a warning and returns [] -- so **nightly_outcome_rebuild has been running on ZERO trades**, producing an outcome rebuild over an empty set that looks like a successful no-op. CONSEQUENCE TO CONFIRM BEFORE FIXING: outcome tracking feeds agent memories (BM25) and the learning loop, so a long-dead rebuild may mean the reflection corpus has been frozen; MEASURE how long by checking the job's own receipts/logs and the freshest row in whatever table it writes -- do NOT assert a duration you have not measured. SCOPE: repair the query against the live schema (created_at is a STRING column, so the TIMESTAMP_TRUNC predicate needs the SAFE.TIMESTAMP treatment or a lexical ISO comparison -- see backend/services/cycle_health.py `_STRING_DATE_TIMESTAMP_COLS` for why SAFE.TIMESTAMP is REQUIRED on STRING/DATE columns and BREAKS on native TIMESTAMP ones), and decide deliberately whether `realized_pnl_pct` is the right substitute for the intended `realized_pnl` or whether a notional P&L must be derived. DO NOT simply delete the fail-open except -- a nightly job must not crash the scheduler -- but the failure MUST become audible (see 82.10's freshness evaluator and 82.11 for the paging pattern). SWEEP THE CLASS: backend/db/schema_oracle.py::derive_scope already returns an `unknown_columns` list; run it, assert the derived set non-empty, and fix or queue every member.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_39_outcome_rebuild_query.py -q",
+            "criteria": [
+              "the nightly_outcome_rebuild query is validated against the live schema by a BigQuery dry run (which is not billed) and reported valid, asserted by a test that fails on the current query",
+              "a fixture proves the repaired query returns rows for a period where paper_trades demonstrably has trades, so the fix is not merely syntactically valid but actually selects data",
+              "a run in which the BQ fetch fails emits an operator-visible signal rather than only a warning log and an empty list, asserted by a test capturing the emitted signal",
+              "the unknown-column sweep over the repo is re-run, its derived scope asserted non-empty, and every remaining member is fixed or has its own queued follow-up step"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.40",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "GAP found by the 82.12 sweep, adjacent to 82.0 but NOT the same defect: `preload_prices` and `preload_fundamentals` in backend/backtest/cache.py have NO STALENESS GATE AT ALL. This is a MISSING guard, not a vacuous one, which is why 82.0 and 82.12 both stepped past it: 82.0 repaired `preload_macro`'s per-series freshness gate (MACRO_SERIES_MAX_AGE_DAYS, fail-closed on unparseable dates, refuse-and-return-0 when any series is past its SLA), and its two siblings never had an equivalent. So a backtest will silently train on arbitrarily stale price or fundamentals data with no refusal and no warning, while the macro feed beside it is now strictly gated -- an inconsistency that reads as 'prices are fine' when nothing has checked. RELATED AND LOAD-BEARING: step 82.21 measured that `historical_fundamentals` holds 4798 rows all dated 2024-06-30 or later, so ~81% of the standard 2018-2025 backtest window has NO fundamentals at all -- a staleness gate on that table must be designed knowing the table is structurally sparse, or it will refuse every historical run. Read 82.21 before choosing thresholds, and do not set an SLA that makes the existing backtest suite unrunnable. SCOPE: give both preloads an explicit freshness decision -- either a gate mirroring preload_macro's shape, or a documented, tested decision that no gate is appropriate with the reason recorded in code. An unexamined absence is the thing to remove. Re-derive every file:line; cache.py has moved repeatedly.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_40_preload_staleness_gates.py -q",
+            "criteria": [
+              "each of preload_prices and preload_fundamentals either refuses stale data on a fixture or carries an in-code recorded decision that no gate applies, asserted by a test that enumerates the preload_* functions from the source rather than a hand-written list",
+              "the enumeration is asserted non-empty so the check cannot pass on an empty set",
+              "a fresh-data fixture is unaffected for each function, so a gate cannot pass by always refusing",
+              "a fixture representing the measured historical_fundamentals coverage (all rows 2024-06-30 or later) does not cause a normal backtest window to be refused, or the refusal is explicit and recorded in the run result"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.41",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "TOOLING DRIFT measured during the 82.12 sweep: `pyrightconfig.json` at the repo root pins a `.venv312` interpreter and Python 3.12, while this project runs Python 3.14 out of `.venv` (see CLAUDE.md Stack). It also sets no `typeCheckingMode`, so pyright runs at its default and was measured producing ZERO diagnostics over the backend -- i.e. the type checker is configured but effectively inert. This matters specifically because 82.12 established that static analysis CANNOT catch the BQ column-type defect class (a BigQuery row is an untyped dict; the decisive fact lives in the schema, so the schema oracle is the oracle, not pyright) -- but a checker that reports zero because it is pointed at a non-existent interpreter is a different and worse failure, because it looks like a passing gate. SCOPE: point the config at the real interpreter, choose a typeCheckingMode deliberately, and MEASURE the diagnostic count before and after. EXPECT THE COUNT TO JUMP and do NOT treat that as a regression to be suppressed -- report it, and if the number is large, fix nothing here and queue a separate burn-down step rather than bulk-adding ignores. Do NOT add pyright to any commit hook or CI gate in this step; making an inert checker loud and making it blocking are two decisions and the second one is the operator's.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_41_pyright_config.py -q",
+            "criteria": [
+              "a test asserts the interpreter/venv path named in pyrightconfig.json actually exists on disk, failing against the current .venv312 pin",
+              "the configured Python version matches the version the project actually runs, derived from the environment rather than hardcoded in the test",
+              "the diagnostic count is measured before and after the change and both numbers are recorded in the step artifact",
+              "a guard asserts no blanket ignore/suppression was added to make the count look clean"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.42",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "TEST-QUALITY RESIDUAL from the 82.12 cycle-3 PASS (the verdict's single NOTE-level finding). Not a live defect; queued rather than applied because the tree was frozen for EVALUATE when it was found. In backend/tests/test_phase_82_12_string_column_guards.py, the recall-envelope table `_RECALL_SHAPES` has a row `bind_through_call_then_arith` whose expected value is False, but the envelope's assertion is `seen = any(k == 'date' and c == 'isinstance_date' ...)` -- and an ARITH hit emits context 'arith', never 'isinstance_date'. So `seen is False` holds BY CONSTRUCTION for that row regardless of whether the arith-suppression behaviour it claims to pin actually works. PROVEN by the cycle-3 Q/A: mutant Q5 (never populate `call_bound`, i.e. break the arith suppression outright) left that envelope row GREEN. It is NOT sole coverage -- Q5 is killed by test_every_derived_scope_member_is_classified (13 unclassified sites appear) and the opposite mutant Q6 (extend suppression to isinstance too) is killed by the bind_through_call_then_isinstance row -- so both halves of the directional principle ARE guarded, just not by the row that experiment_results section 19 credits. TWO THINGS TO FIX: (a) make the arith row assert what it claims -- give the envelope a per-shape EXPECTED CONTEXT rather than a single boolean, so a row expecting 'arith'/'no-hit' is checked against the context actually emitted; (b) correct the sentence at handoff/current/experiment_results_82.12.md section 19, 'Both shapes are now rows in the asserted envelope' -- true of 'rows', overstated on 'asserted'. Do not repeat that wording elsewhere. SWEEP THE CLASS: a table-driven parametrized test whose assertion cannot distinguish two of its own rows is a general shape -- enumerate other parametrized tables in backend/tests where the assertion is coarser than the row data, derive that population from the source, assert it non-empty, and classify each.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_42_envelope_row_assertions.py backend/tests/test_phase_82_12_string_column_guards.py -q",
+            "criteria": [
+              "the bind_through_call_then_arith envelope row asserts the CONTEXT actually emitted, and a mutation that breaks the arith suppression is shown to turn that row RED where it previously stayed green",
+              "the opposite mutation (extending suppression to isinstance) still turns the bind_through_call_then_isinstance row RED, so hardening one direction does not disarm the other",
+              "the population of parametrized test tables whose assertion is coarser than their row data is derived from the source, asserted non-empty, and each member classified",
+              "the overstated 'asserted envelope' wording in experiment_results_82.12.md section 19 is corrected in place rather than deleted, so the record shows what was claimed and what was true"
             ]
           },
           "retry_count": 0,
