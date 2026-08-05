@@ -790,11 +790,98 @@ class QuantStrategyOptimizer:
                 # separate defect (step 82.25); recorded here so that fix has an
                 # input to carry forward.
                 "num_trials": getattr(self, "num_trials", None),
+                # phase-82.25: whether the count above is a full cumulative depth or
+                # only this session's. False means the DSR is an UPPER BOUND.
+                "prior_trials_known": getattr(self, "prior_trials_known", None),
             }
             _BEST_PARAMS_PATH.write_text(json.dumps(payload, default=str, indent=2), encoding="utf-8")
             logger.info("Saved optimizer best params to %s", _BEST_PARAMS_PATH.name)
         except Exception as e:
             logger.warning("Failed to save best params: %s", e)
+
+    # phase-82.25: the FLOOR used when a warm-start source records no trial depth.
+    # Deliberately NOT 0: see the inline note in _resolve_prior_trials -- 0 makes the
+    # DSR gate easier than the defect did. Deliberately not large either: inventing a
+    # depth would be fabrication.
+    _UNKNOWN_PRIOR_FLOOR = 1
+
+    def _resolve_prior_trials(self, source: dict) -> None:
+        """phase-82.25: set the trial counter from a warm-start source, HONESTLY.
+
+        Both warm-start paths used to do `self.num_trials = 1`. DSR is deflated BY the
+        number of trials searched, and N is scoped to the RESEARCH PROCESS that produced
+        the discovery, not to one session (Bailey & Lopez de Prado 2014; Lopez de Prado
+        & Lewis 2018). So resetting to 1 reported a carried-forward DSR as though the
+        strategy had been found on the first attempt. The effect is not marginal: in run
+        60617e0b, exp01 and exp10 share Sharpe 0.6455483635957818 and differ 72x in DSR
+        on trial count alone.
+
+        THE UNKNOWN-PRIOR DECISION (this is a decision, not a default). Today's live
+        optimizer_best.json is schema v1 and carries no `num_trials` -- 82.22 changed
+        only the writer -- so the unknown branch is the PRODUCTION path. We do not
+        fabricate a number:
+          * assuming 1 is the single most OPTIMISTIC assumption available, and is
+            exactly the defect being fixed;
+          * inventing a large number would be fabrication -- the true depth is
+            unrecorded;
+          * DSR Appendix 3 shows M >= N overstates E[max SR] and LOWERS the DSR, so
+            erring HIGH is safe and erring LOW is dangerous.
+        Therefore an unrecorded prior is marked UNKNOWN and the resulting DSR is an
+        UPPER BOUND (under-deflated). `prior_trials_known` is persisted so the next
+        warm start inherits the honesty flag instead of laundering unknown into known.
+
+        NOTE the hard boundary: this changes only FUTURE deflation. A persisted `dsr`
+        is never recomputed -- the live file clears the 0.95 go-live gate by 0.0026, and
+        re-deflating an inherited number computed at an unrecorded N would be
+        fabrication as well as a gate closure.
+        """
+        # The two warm-start sources nest the count differently: optimizer_best.json
+        # has it at the top level (written by _save_best_params), while a result_store
+        # report carries it inside its "analytics" block. Reading only the top level
+        # would silently miss the result_store path -- i.e. keep half the defect.
+        prior = source.get("num_trials")
+        if prior is None:
+            prior = (source.get("analytics") or {}).get("num_trials")
+        # phase-82.25 cycle 2 (F1): READ the honesty flag, do not just write it. The
+        # first version persisted `prior_trials_known` and never read it back, so a
+        # source whose own depth was unknown warm-started as KNOWN one generation
+        # later -- reproducing, one field over, the exact write-without-read root
+        # cause this step exists to fix. Unknown is STICKY.
+        source_known = source.get("prior_trials_known")
+        if isinstance(prior, int) and not isinstance(prior, bool) and prior > 0:
+            self.num_trials = prior
+            self.prior_trials_known = source_known is not False
+            logger.info(
+                "warm start: carrying cumulative trial count %d forward for DSR "
+                "deflation", prior,
+            )
+        else:
+            # phase-82.25 cycle 2 -- I HAD THIS BACKWARDS. The first version set 0
+            # here, and because `self.num_trials += 1` runs BEFORE
+            # `generate_report(..., num_trials=self.num_trials)`, session trial k
+            # then reported N=k where the DEFECT reported N=k+1. So on the only
+            # currently reachable path (the live file is schema v1) the "fix"
+            # deflated LESS than the bug it replaced and made the 0.95 KEEP gate
+            # EASIER -- measured at Sharpe 0.6455483635957818, k=2 gave DSR 0.999970
+            # post-"fix" vs 0.730465 pre-fix, i.e. it KEEPS what the defect
+            # DISCARDED. That inverts this step's whole purpose and contradicts the
+            # "erring HIGH is safe" principle stated below.
+            #
+            # _UNKNOWN_PRIOR_FLOOR is a FLOOR, not an estimate. The warm-start source
+            # exists only because a prior run produced it, so at least one prior trial
+            # is certain; and the floor guarantees this fix can never deflate less than
+            # the behaviour it replaces. The true depth stays unknown -- that is what
+            # prior_trials_known records, and why the DSR is labelled an upper bound.
+            self.num_trials = self._UNKNOWN_PRIOR_FLOOR
+            self.prior_trials_known = False
+            logger.warning(
+                "warm start: the source records NO trial count, so the prior search "
+                "depth is UNKNOWN. Using the floor of %d -- the minimum defensible "
+                "value, never below what the pre-fix code used. The DSR reported from "
+                "this run is an UPPER BOUND: it is under-deflated by however deep the "
+                "unrecorded prior search actually was.",
+                self._UNKNOWN_PRIOR_FLOOR,
+            )
 
     def _load_previous_best(self):
         """Load previous best params from disk if available (warm-start).
@@ -818,7 +905,7 @@ class QuantStrategyOptimizer:
                     if prev_sharpe is not None:
                         self.best_sharpe = float(prev_sharpe)
                         self.best_dsr = float(prev_dsr) if prev_dsr is not None else 0.0
-                        self.num_trials = 1
+                        self._resolve_prior_trials(data)
                         self._warm_started = True
                         # phase-82.22: remember WHOSE metrics these are. Prefer
                         # the file's own metrics_run_id (schema v2) over its
@@ -860,7 +947,7 @@ class QuantStrategyOptimizer:
             if prev_sharpe is not None:
                 self.best_sharpe = float(prev_sharpe)
                 self.best_dsr = float(prev_dsr) if prev_dsr is not None else 0.0
-                self.num_trials = 1
+                self._resolve_prior_trials(latest)
                 self._warm_started = True
                 # phase-82.22: same provenance capture for the standalone path.
                 self._warm_started_from_run_id = latest.get("run_id")

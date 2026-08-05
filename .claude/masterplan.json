@@ -21686,7 +21686,7 @@
         },
         {
           "id": "82.25",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DEFECT from the 82.22/82.23 research gate: `_load_previous_best` RESETS THE DSR TRIAL COUNT ON EVERY WARM START. `backend/backtest/quant_optimizer.py:759` and `:789` both set `self.num_trials = 1` when warm-starting (from optimizer_best.json and from result_store respectively). DSR is deflated by the number of trials searched (Bailey/Lopez de Prado); resetting to 1 means a carried-forward DSR is deflated as though the strategy had been found on the first attempt, when in truth it survived a search of unknown depth. MEASURED consequence visible in run 60617e0b's own artifacts: DSR falls monotonically 0.6387 (num_trials=2) -> 0.0088 (num_trials=11) WITHIN one run, so the trial count dominates the statistic -- and a warm start silently returns it to 1. Bailey/Lopez de Prado call the undisclosed trial count the single most important missing field in a backtest report. Fix: carry the cumulative trial count across warm starts (persist it in optimizer_best.json -- 82.22 adds the `num_trials` field for exactly this) and deflate against the cumulative figure, or state explicitly why a reset is defensible. Note this INTERACTS with 82.22: the provenance fix records num_trials, and this step makes it load-bearing.",
@@ -22098,6 +22098,24 @@
               "the DSR and PBO impact of the pool change is MEASURED on the same sample before and after, and both numbers are recorded in the step artifact rather than asserted to be negligible",
               "`blend` is either implemented as a real strategy or removed from the selectable set, and a test asserts no selectable name resolves to a different strategy than the one requested",
               "a guard fails if a strategy is added to or removed from the pool without the recorded decision being updated"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.47",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "TWO NOTES from the 82.25 cycle-4 PASS, queued rather than absorbed. (N1) ONE SEAM FURTHER THAN 82.25's GUARD IS UNCOVERED, and the cycle-4 Q/A demonstrated it: mutating `backend/backtest/analytics.py` where generate_report forwards `compute_deflated_sharpe(num_trials=max(num_trials, 1), ...)` to a hardcoded `num_trials=1` leaves the ENTIRE 82.25 suite 27/27 green (rc=0), because 82.25's executed probe fakes generate_report and its direct-comparison test calls compute_deflated_sharpe itself. The behavioural differential is real -- every reported DSR would be computed at N=1, i.e. no trial deflation anywhere, cold runs included. The Q/A ruled it NON-BLOCKING for 82.25 because analytics.py is not in that step's diff and the blast radius is different (global, not warm-start-specific), but it is a genuine coverage hole in its own right. FIX: an executed guard that drives generate_report for real and asserts the num_trials it receives is the num_trials that reaches compute_deflated_sharpe -- re-derive the line, it moves. (N2) THE REPO IS LINT-RED on a touched file: `ruff check --select F821,F401,F811 backend/backtest/quant_optimizer.py` exits 1 with THREE F401 unused imports (around :18 `os`, :25 `compute_deflated_sharpe`, :468 `GeminiClient` -- RE-DERIVE). The Q/A classified rather than assumed: piping `git show HEAD:backend/backtest/quant_optimizer.py` through the identical invocation reproduces all three, so ZERO were introduced by 82.25. Failing a step for pre-existing lint would repeat the phase-81.0 structurally-uncloseable trap, so it was correctly not held against that step -- but it is a real repo-red. SWEEP THE CLASS: derive the set of F401/F811/F821 findings across backend/, assert non-empty, classify each as genuinely-unused vs re-export vs import-for-side-effect, and fix or queue. Do NOT bulk-add noqa comments to make the count look clean.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_47_dsr_forwarding_and_lint.py -q",
+            "criteria": [
+              "a test drives generate_report for real and asserts the num_trials it receives is the value that reaches compute_deflated_sharpe, failing against a mutation that hardcodes the forwarded count to 1",
+              "the F401/F811/F821 population across backend/ is derived from the tool rather than hand-listed, asserted non-empty, and each finding classified genuinely-unused / re-export / side-effect with file:line",
+              "every finding classified genuinely-unused is removed, and any left in place has its reason recorded in code, with a guard asserting no blanket noqa was added to suppress the count",
+              "the before and after finding counts are both recorded in the step artifact"
             ]
           },
           "retry_count": 0,

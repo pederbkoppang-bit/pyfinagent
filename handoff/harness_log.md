@@ -30847,3 +30847,62 @@ than just kill counts.
 the DSR/PBO impact, resolve `blend`; sequenced before 82.24 and 82.26).
 
 **Next**: 82.25, 82.39 (P1), then the P2/P3 tail.
+
+## Cycle 153 -- 2026-08-05 -- phase=82.25 result=PASS
+
+**Step**: `_load_previous_best` reset the DSR trial count to 1 on every warm start.
+
+**MEASURED, and stronger than the step claimed**: run `60617e0b`'s `exp01` and `exp10`
+share the IDENTICAL Sharpe `0.6455483635957818` and differ **72x in DSR** on trial count
+alone. Bailey/LdP scope N to the RESEARCH PROCESS ("the counter of trials cannot be
+turned back"), so cumulative is correct. Over-counting is the SAFE direction, which is
+why a plain counter suffices with no clustering machinery.
+
+**The live file is schema v1 with no `num_trials`** -- 82.22 changed the WRITER only -- so
+criterion 3's "unknown prior" branch is the PRODUCTION path, not an edge case. And the
+defect was worse than "written but not read": write and read were never connected at all.
+
+**GO-LIVE BOUNDARY HELD**: the live `dsr = 0.9525811126193078` clears the 0.95 gate by
+0.0026. It is never recomputed -- re-deflating an inherited number computed at an
+unrecorded N would close the gate AND fabricate a statistic. Pinned and mutation-verified.
+
+**FOUR CYCLES: FAIL -> CONDITIONAL -> CONDITIONAL -> PASS.** The worst step of the
+session, and every finding was mine.
+
+- **Cycle 1 FAIL, and the central finding is the one to remember: MY FIX DEFLATED LESS
+  THAN THE DEFECT.** I set the unknown branch to 0; because the counter increments before
+  it is reported, session trial k then reported N=k where the BUG reported N=k+1. Measured
+  at k=2: DSR 0.999970 post-"fix" vs 0.730465 pre-fix -- it **KEEPS what the defect
+  DISCARDED**. I had written "erring HIGH is safe" in the same docstring and then chose a
+  value more optimistic than the bug. Fixed with a FLOOR of 1. Two of my own tests had
+  asserted `num_trials != 1`, encoding the wrong belief; corrected in place with the
+  reason recorded.
+- **Cycle 1 also**: `prior_trials_known` was written and never read -- reproducing, one
+  field over, the exact write-without-read root cause the step exists to fix.
+- **Cycle 2**: my reporting-site guard was a source scan; the Q/A defeated it by
+  REWORDING -- `min(self.num_trials, 1)` and an aliased variable both satisfied a
+  "mentions num_trials and self" predicate while forcing N=1.
+- **Cycle 3**: my replacement executed probe had a `pytest.skip` trapdoor I added myself.
+  The Q/A showed that renaming a parameter made the guard **delete itself silently** --
+  `26 passed, 1 skipped`, **exit 0** -- and that rename plus the min() evasion fully
+  reinstated the defect **with the immutable verification command reporting success**.
+  A guard with a trapdoor is worse than one that observes the wrong thing.
+- **Cycle 4 PASS.** The Q/A ran 12 of its own mutants, invented `ALIAS_FREEZE` (call site
+  textually identical, value frozen through an alias -- invisible to any source scan) and
+  confirmed the executed probe kills it.
+
+**THE PATTERN, and it is the session's lesson in one line**: my guard stopped one seam
+short of the thing the criterion names -- helper instead of call site, source text
+instead of behaviour, and finally a trapdoor instead of an assertion. The production code
+was wrong once (the `0` floor); everything else was coverage that could not observe its
+own subject.
+
+**Also retracted**: "Zero survivors" was an author-chosen scope claim. A matrix licenses
+only "these N mutants were killed" -- and the cycle-2 and cycle-3 Q/As each produced
+survivors I had not constructed.
+
+**Queued**: 82.47 (one seam further -- mutating the `generate_report ->
+compute_deflated_sharpe` forwarding to a hardcoded N=1 leaves the whole 82.25 suite green;
+plus 3 pre-existing F401s on the touched file, classified as NOT introduced by this step).
+
+**Next**: 82.39 (P1), then the P2/P3 tail.
