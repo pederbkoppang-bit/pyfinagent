@@ -112,12 +112,26 @@ def _record_degradation(exc: BaseException) -> None:
         try:  # fail-open: alerting must never break the money path
             from backend.services.observability.alerting import raise_cron_alert_sync
 
+            # phase-82.58: BOTH of these were wrong, and either alone delivers
+            # nothing.
+            #   `detail=` -> TypeError against the `details` signature
+            #   (alerting.py:253-259), swallowed at DEBUG below since 2026-07-23.
+            #   `severity="P2"` -> suppressed by AlertDeduper.should_fire
+            #   (alerting.py:201-202), which runs BEFORE the webhook is read and
+            #   needs 3 hits in 5 minutes on the non-critical path -- while the
+            #   `_ALERTED` latch above fires this exactly ONCE per process. So a
+            #   P2 here can never be delivered, webhook configured or not.
+            # P1 takes the critical branch (alerting.py:83-93, fires when
+            # last_fired_at is None) and routes to the bot-token fallback (:217)
+            # while slack_webhook_url is empty. This is the ONLY signal an
+            # operator gets that the $25/day ceiling stopped enforcing --
+            # spend_guard_status() has no callers.
             raise_cron_alert_sync(
                 source="cost_budget_guard",
                 error_type="spend_fetch_degraded",
-                severity="P2",
+                severity="P1",
                 title="Cost-budget spend fetch degraded -- guard is fail-open",
-                detail=(
+                details=(
                     f"fetch_spend() fail-open: {exc!r}. Callers receive (0.0, 0.0), so "
                     f"the daily/monthly budget hard-block cannot trip while this "
                     f"persists."

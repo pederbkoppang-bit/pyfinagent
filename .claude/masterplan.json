@@ -22308,7 +22308,7 @@
         },
         {
           "id": "82.58",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "AN ALERT THAT GUARDS THE COST-BUDGET HARD-BLOCK HAS NEVER FIRED -- it raises TypeError into its own swallowing except. Found by the 82.54 research gate 2026-08-06 and confirmed by Main by reading both sides. MEASURED: backend/services/observability/spend.py around :115 (RE-DERIVE) calls `raise_cron_alert_sync(source=..., error_type='spend_fetch_degraded', severity='P2', title=..., detail=(...))`. The parameter is named `detail`. The signature at backend/services/observability/alerting.py around :253-259 is `raise_cron_alert_sync(source, error_type, severity, title, details)` -- `detailS`. So every invocation raises `TypeError: unexpected keyword argument 'detail'`, which is caught by the surrounding `except Exception -> logger.debug` a few lines below, at DEBUG level. The alert has therefore never been delivered, and its failure has never even been visible in the logs at INFO. This was the ONLY malformed call site of 15 audited repo-wide. WHY IT MATTERS MORE THAN A TYPO: the message it fails to send says the cost-budget spend fetch is degraded and 'callers receive (0.0, 0.0), so the daily/monthly budget hard-block cannot trip while this persists'. That is the guard on LLM spend. It is exactly the alert an operator needs when the budget ceiling silently stops enforcing, and it cannot fire. COMPOUNDED, and do NOT fix only the kwarg: the call is `severity='P2'`, and only _CRITICAL_SEVERITIES (alerting.py around :54, measured as {P0, P1, critical, CRITICAL}) reach `_bot_token_fallback` while `slack_webhook_url` is EMPTY on this machine -- so a kwarg-only fix produces an alert that is constructed correctly and then logged and dropped. Both must change. REUSE the pattern phases 82.11/82.39/82.48/82.54 established: raise_cron_alert_sync at P0/P1, imported FUNCTION-LOCALLY so the guard patches backend.services.observability.alerting.raise_cron_alert_sync (there is no module-scope name to patch), with a NEGATIVE CONTROL so the guard cannot pass by always firing. THE GUARD MUST ASSERT DELIVERY, NOT BRANCH ENTRY: a test that only proves the `if should_alert:` branch was reached would have passed against this defect for its entire lifetime. SWEEP THE CLASS: the gate audited 15 call sites and found this one, but derive that set again structurally (AST over calls to raise_cron_alert_sync, comparing bound kwargs against the live signature via inspect.signature) rather than trusting the count -- and assert the derived set non-empty.",
@@ -22319,6 +22319,61 @@
               "the emitted severity is one that actually reaches the operator while slack_webhook_url is empty, asserted against the live _CRITICAL_SEVERITIES set rather than a hardcoded string",
               "a healthy spend fetch emits NO alert, so the guard cannot pass by always firing",
               "every raise_cron_alert_sync call site in the repo is derived structurally and its bound keyword arguments checked against inspect.signature, the derived set asserted non-empty, and any further mismatch fixed or queued"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.59",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "TWO LIVE SLACK-HANDLER SIGNATURE MISMATCHES OF THE 82.58 CLASS, IN PRODUCTION-WIRED CODE. Found by the 82.58 research gate 2026-08-06 and CONFIRMED by Main via runtime inspect.signature().bind() (re-derive; do not trust these line numbers). MEASURED: backend/slack_bot/assistant_lifecycle.py around :181 calls handler.handle_thread_started(body={}, client=app.client, say=say, set_status=<lambda>, logger=logger) but the real signature is (self, body, say, set_suggested_prompts, logger) -- so the call is MISSING the required `set_suggested_prompts` AND passes two parameters that do not exist (`client`, `set_status`). Bind error verbatim: \"missing a required argument: 'set_suggested_prompts'\". Around :188, handle_context_changed(body=..., client=..., say=..., set_status=..., logger=...) against a real signature of (self, body, logger) -- verbatim: \"got an unexpected keyword argument 'client'\". THIS IS PRODUCTION CODE, not a test: register_assistant_lifecycle is imported at backend/slack_bot/app.py:18 and invoked at :33, so both handlers are registered on the live Slack app. Every invocation raises TypeError. DETERMINE THE BLAST RADIUS FIRST -- Slack Bolt may swallow handler exceptions into its own logger, which would make this silent rather than user-visible; establish which, because it decides whether the assistant thread UI is degraded for the operator today or merely logging. DO NOT assume the fix is to change the call: check whether the HANDLER signature is what drifted (git log the handler and its callers) and fix whichever side is wrong. The 82.58 lesson applies directly: a guard that asserts the branch was entered would have passed against this for its whole lifetime -- assert the handler actually RUNS TO COMPLETION on a realistic Bolt payload.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_59_assistant_lifecycle_binding.py -q",
+            "criteria": [
+              "both call sites are bound against the live handler signatures via inspect.signature().bind(), asserted by a test that FAILS against the current code and names each offending parameter",
+              "a fixture drives each registered Bolt handler with a realistic payload and asserts it completes without raising, rather than asserting that the handler was merely invoked",
+              "whether Slack Bolt swallows the TypeError is determined and recorded, so the operator-visible impact is stated rather than assumed",
+              "every handler registered by register_assistant_lifecycle is enumerated structurally and bound against its target, the derived set asserted non-empty, and any further mismatch fixed or queued"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.60",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "NINE ALREADY-RED TESTS IN tests/autoresearch/test_slot_usage_wiring.py -- same kwarg-binding class as 82.58/82.59. MEASURED by Main 2026-08-06: `python -m pytest tests/autoresearch/test_slot_usage_wiring.py -q` -> 9 failed in 0.07s, every one raising `TypeError: trigger_thursday_batch() got an unexpected keyword argument 'log_fn'` (first at tests/autoresearch/test_slot_usage_wiring.py:61 -- re-derive). The sub-second runtime means they fail at the call, not in logic. NOTE THIS FILE LIVES IN REPO-ROOT tests/, NOT backend/tests/ -- it is outside the path most of this project's verification commands sweep, which is plausibly why nine red tests went unnoticed; check whether repo-root tests/ runs in ANY routine gate at all and say so. DECIDE, do not guess: either the production signature dropped `log_fn` (then the tests encode a real regression and production is wrong) or the tests were written against a signature that never shipped (then the tests are wrong). Read git log on trigger_thursday_batch before touching either side. Do NOT 'fix' this by deleting the tests or by adding a **kwargs sink that swallows the argument -- either would convert a loud failure into the silent kind this whole defect family is about.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest tests/autoresearch/test_slot_usage_wiring.py -q",
+            "criteria": [
+              "all nine tests pass, and the fix is justified by reading which side drifted rather than by making the error disappear",
+              "the chosen side is defended in the artifact against the git history of trigger_thursday_batch",
+              "whether repo-root tests/ is covered by any routine verification gate is measured and stated, with the measurement shown",
+              "no **kwargs sink or test deletion is used to resolve the mismatch"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.61",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "TRIAGE THE ALERT SITES WHOSE SEVERITY CANNOT BE DELIVERED ON THIS MACHINE. Found while closing 82.58. MEASURED by Main 2026-08-06 via an AST sweep binding every raise_cron_alert/raise_cron_alert_sync call against inspect.signature: 33 call sites repo-wide (28 under backend/, 5 under repo-root tests/) -- RE-DERIVE, do not trust the count. Of the ~27 production sites, TWELVE pass a severity of P2 or P3: econ_calendar/sources/finnhub_earnings.py:98, meta_evolution/cron.py:159, news/sources/alpaca.py:98 and :111, news/sources/benzinga.py:91 and :103, news/sources/finnhub.py:107 and :119, services/autonomous_loop.py:1001 and :1820, services/kill_switch.py:1029, and services/observability/spend.py:115 (that last one is FIXED by 82.58 -- exclude it and expect ELEVEN). backend/services/drawdown_alarm.py:154 passes a NON-LITERAL severity and must be resolved at runtime, not by AST. WHY THIS IS NOT SIMPLY A BUG: slack_webhook_url is EMPTY on this machine, and alerting.py around :210-224 deliberately drops non-critical severities in that state ('no spam channel'), with the phase-66 alert storm recorded at alerting.py:46-53 as the reason. So P2/P3 is CORRECT for genuinely ticket-class feed noise and WRONG for anything guarding money or a safety control. THE JOB IS THE TRIAGE, NOT A BLANKET RAISE: classify each of the eleven as (a) correctly ticket-class, or (b) guarding a money/safety control and therefore mis-severitied like spend.py was. services/kill_switch.py:1029 is the one to look at hardest -- a kill switch is a safety control. Do NOT make P2 globally deliverable; 82.58's gate measured that it would page for eight deliberately ticket-class feed sites.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_61_alert_severity_triage.py -q",
+            "criteria": [
+              "the set of production alert sites whose severity is undeliverable while slack_webhook_url is empty is derived structurally at test time, asserted non-empty, and not hardcoded to a list copied from this step",
+              "each site in the derived set is classified as ticket-class or safety-class, and the classification is asserted by a test rather than only written in prose",
+              "any site reclassified to a deliverable severity has a guard proving DELIVERY on the empty-webhook path, in the shape 82.58 established",
+              "drawdown_alarm.py's non-literal severity is resolved at runtime and shown to be deliverable for every tier it can emit",
+              "no change makes P2 globally deliverable"
             ]
           },
           "retry_count": 0,
@@ -23017,6 +23072,28 @@
               "The existing 22 tests of test_phase_4000_2_cc_rail_smoke.py all still pass unmodified except where the E4 verdict shape gained the new field -- any fixture edit is enumerated in the handoff with its reason.",
               "git diff scope: scripts/qa/, backend/tests/, handoff/ only -- no backend production code."
             ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.10",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "Fix the pre-LLM quant-step crash that kills every full analysis -- discovered LIVE by the 4000.3 smoke window, queued per feedback_queue_discovered_defects_in_masterplan. MEASURED EVIDENCE (2026-08-06 window, archived in handoff/archive/phase-4000.3/live_check_4000.3.md; re-derive before trusting): a manual POST /api/analysis/ for AAPL died with `[RuntimeError] Step 'quant': ERROR: QuantAgent failed for AAPL: 'NoneType' object has no attribute 'get'` raised from run_quant_agent (backend/agents/orchestrator.py:1792, the _sec_covered branch of Step 2) BEFORE the first LLM-bearing step -- the window recorded ZERO llm_call_log rows of any class. The same defect CLASS was fixed once before at a sibling site: orchestrator.py:1809-1811 (phase-27.6.2) documents that `dict.get(k, {})` returns None when the key EXISTS with value None, and the next `.get` raises -- the crash site is almost certainly a sibling unguarded chain inside run_quant_agent or a data tool it calls; find the exact line by reproducing, not by pattern-matching this hint. WHY P1: the crash is pre-LLM, so it kills EVERY full deep-pipeline analysis on this path; the newest successful AAPL analysis_results row is 2026-03-07 -- FIVE MONTHS old -- which makes this defect a direct suspect for the phase's throughput drought (0.75 closed round-trips/week vs the operator's 100-round-trip validation target). Whether the autonomous cycle's paths hit the same crash must be MEASURED in this step, not assumed either way. WHAT TO DO: (a) reproduce the crash (a POST /api/analysis/ for AAPL, or a direct run_quant_agent invocation under pytest with the real data tools mocked at the failing seam once identified); (b) fix with the narrowest possible guard consistent with the 27.6.2 pattern (`or {}` on the None-valued chain), NOT a broad try/except that would hide the data-quality signal; (c) determine and report WHICH data source returned None and why (transient API failure vs schema drift vs permanent), because a guard that silently degrades a permanently-broken source is the a-green-suite-can-be-blind trap; (d) LIVE_CHECK: re-run the 4000.3 smoke window (scripts/qa/smoke_cc_rail_e2e.py --live, ONE ticker, <=30-call cap, under a FRESH operator window token recorded in handoff/harness_log.md before the window -- the 2026-08-06 authorization covered one window and is spent) and capture the completed analysis with the E1-E6 verdicts; this is ALSO where the phase's per-analysis rail-call count and the E6 quota figures get measured for the first time, and where E4 leg 4 (the persisted analysis_results row) finally gets its live positive evidence. NON-SCOPE: no model-tier changes; no smoke-script changes beyond what a completed window exposes as broken; no autonomous-cycle changes (if the cycle shares the crash, queue THAT as its own step with the measurement attached).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_4000_10_quant_crash.py -q",
+            "criteria": [
+              "backend/tests/test_phase_4000_10_quant_crash.py reproduces the crash shape against the pre-fix code path (a fixture that makes the identified seam return the None-valued shape observed live) and proves the fix: pre-fix the test would raise AttributeError, post-fix the analysis step completes or degrades LOUDLY with a named skipped-stage entry -- both directions demonstrated, the pre-fix direction via mutation (reverting the guard) with verbatim output in the handoff.",
+              "The fix is a narrow None-guard at the identified seam(s), cited file:line in the handoff with the 27.6.2 sibling pattern referenced; no broad try/except is introduced (asserted by the test file inspecting the diff scope, or by the Q/A diff review).",
+              "The root cause of the None (which data source, transient vs structural) is stated in the handoff with the evidence that established it; if structural, the degradation is visible in the analysis output (skipped_stages or equivalent), not silent.",
+              "live_check_4000.10.md contains a COMPLETED smoke window: fresh operator token in harness_log dated before the window; the full E1-E6 machine verdicts with E4 green including a persisted analysis_results row for the window's ticker (E4 leg 4 live positive evidence); the measured per-analysis rail-call count from the smoke's own counter; and the E6 figures (percent-of-weekly-pool proxy and percent-of-monthly-credit) as explicit numbers.",
+              "Whether the autonomous cycle's analysis paths share the crash is MEASURED (trace or targeted test over rank_candidates/lite paths) and the answer recorded; if shared, a follow-up step id is queued and named.",
+              "git diff scope: the identified backend seam file(s), backend/tests/, scripts/qa/ (only if the window exposed a smoke defect), handoff/ -- enumerated in the handoff."
+            ],
+            "live_check": "completed smoke window output with all six E-verdicts, the persisted analysis_results row capture, the measured per-analysis rail-call count, and the fresh operator window token reference"
           },
           "retry_count": 0,
           "max_retries": 3

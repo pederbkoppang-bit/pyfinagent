@@ -31446,3 +31446,127 @@ exactly two: implement it, or disclose it AT THE EMISSION POINT and queue it.
 
 **Next:** 4000.3 -- OPERATOR-GATED live window (flag token + pre-stated
 keep-ON/restore decision rule owed before it opens).
+
+## Operator action -- 2026-08-06 -- 4000.3 LIVE-WINDOW AUTHORIZATION (precondition 2 of 3)
+
+The operator (Peder) authorized the 4000.3 live smoke window via
+AskUserQuestion in the interactive session of 2026-08-06. Selected option,
+verbatim: "Authorize (Recommended)" -- described as: "Open the window now with
+the pre-stated rule: all-checks-pass = rail stays ON (no change); any FAIL =
+rail STAYS ON but the failing evidence is queued as defect steps and you
+decide any OFF-flip yourself. Cap trip = loud stop + report, no retry."
+
+END-STATE DECISION RULE, stated IN ADVANCE per the 4000.3 criteria: the
+pre-window flag value is True (78.1 steady state), the smoke runs WITHOUT
+--keep-on so its ExitStack restore returns the flag to its pre-window value
+(True) on every path -- pass, fail, cap trip, or crash. No outcome of this
+window flips the rail OFF; an OFF-flip is a separate operator decision on the
+evidence. The <=30-rail-call cap stands; --expected-calls-per-analysis will be
+passed as 30 (the maximum the pre-start gate permits) with the disclosure that
+the static bound for a full analysis is ~25-33, so a legitimate loud cap trip
+is an anticipated outcome that closes the window and reports.
+
+In the same exchange the operator chose "Hold for now" on the P2 defect tail
+(4000.6-4000.9): those steps stay queued for a future session with fresh
+weekly-pool budget.
+
+Precondition 1 (RAIL TIERS: AS CONFIGURED) is recorded above at :31182.
+Precondition 3 (single-writer window) is evidenced by git add -An captures
+bracketing the window, recorded in live_check_4000.3.md when it runs.
+
+## Cycle 162 -- 2026-08-06 -- phase=4000.3 result=PASS (cycle 3; two CONDITIONALs fixed; auto-FAIL rule in force; flip gated on tree quiet)
+
+**4000.3 -- the operator-gated live smoke window (AAPL). The smoke returned an
+HONEST FAIL and that is the step's success.**
+
+The window (14:24-14:26Z, one ticker, cap armed at 30) found a REAL production
+kill: the analysis died at Step-2 data-fetch -- `[RuntimeError] Step 'quant':
+QuantAgent failed for AAPL: 'NoneType' object has no attribute 'get'`
+(run_quant_agent, orchestrator.py:1792) -- BEFORE the first LLM call. ZERO
+llm_call_log rows of any class (re-derived by Q/A at 15:07Z, query cache
+disabled). E4 red; E1/E2 red via the positive-control design (a zero without a
+rail-row control is a FAIL, never fabricated darkness); E3/E5/E6 legs green.
+Newest successful AAPL analysis_results row: 2026-03-07 -- FIVE MONTHS old.
+The quant crash is now the prime suspect for the throughput drought and is
+queued as 4000.10 (P1; its live_check = a re-run window under a fresh operator
+token, where the per-analysis rail-call count and E6 finally get measured).
+Rail state per the operator's pre-stated rule: stayed ON on every path.
+
+Q/A: cycle 1 CONDITIONAL (end-state marker vacuous; STALE pid claim -- the
+backend had restarted 11:46:15Z, caught because I carried 4000.1's pid forward
+unverified; brackets as prose; 4000.10 not yet queued). Cycle 2 CONDITIONAL
+(bracket captures still counts-not-captures with an unreconcilable delta;
+flip sentinel watched ONE file while the concurrent session moved into
+backend/services/observability/spend.py -- a gate signalling safe while its
+subject was unsafe; single-writer leg grepped from the wrong file). Cycle 3
+PASS 8/8 -- the evaluator ran a 10-mutant battery, an authenticity mtime
+cross-check on the POST bracket residue, and EXECUTED the new flip gate three
+times, confirming it correctly BLOCKS while 82.58's backend edits are
+uncommitted.
+
+**Lessons this step earns:** (1) re-derive EVERY environmental fact at use
+time -- a pid carried forward from a two-hour-old baseline was false; (2) a
+concurrency sentinel must watch the FULL derived foreign set, not the one file
+that was moving when you wrote it; (3) captures you did not retain are not
+captures -- say so and rest the claim on a gate that runs at act time.
+
+**FLIP DISCIPLINE:** 4000.3 flips ONLY through the live_check's cycle-3 flip
+protocol: two identical `git add -An` captures >=3 min apart with ZERO foreign
+backend/frontend/settings paths (currently RED: spend.py + conftest.py +
+test_phase_82_58_* are the 82.58 session's uncommitted work); the passing
+capture is pasted into the live_check first.
+
+**Next:** flip 4000.3 when the gate clears; then 4000.4 (promotion branch,
+operator keep-ON already the live state) and 4000.5 (>=7-day observation
+readout vs the E8 baseline). Held P2 tail: 4000.6-4000.10, led by 4000.10.
+
+## Cycle 163 -- 2026-08-06 -- phase=82.58 result=PASS
+
+**An alert guarding the LLM cost-budget hard-block had never fired.**
+`spend.py::_record_degradation` called the emitter with `detail=` against a
+`details=` signature, raising TypeError into a swallowing `except ->
+logger.debug` since 2026-07-23. It was also `severity="P2"`.
+
+**Three blockers, not the two the step described.** The step named the kwarg and
+the empty-webhook drop. The third is earliest in the chain and nobody had seen
+it: `AlertDeduper.should_fire` is consulted at `alerting.py:201-202`, BEFORE the
+webhook is read at `:209`, and its non-critical path needs 3 hits in 5 minutes
+-- while `_ALERTED` latches the call to exactly ONCE per process. So a P2 here
+could never be delivered, webhook configured or not. The research gate confirmed
+it by measurement: with a kwarg-only fix, neither `urlopen` nor
+`_bot_token_fallback` is entered. Both halves had to change.
+
+**Why P1 and not a typo.** `llm_client.py:452` computes
+`tripped = daily >= daily_cap`; the fail-open value is `(0.0, 0.0)` and nothing
+coerces it, so while the fetch is degraded the ceiling silently stops enforcing.
+The gate found the fact that settles it: `spend_guard_status()` has ZERO
+non-test callers -- this alert was the only way an operator could ever find out.
+
+**A hazard the fix creates, landed FIRST.** Repairing `spend.py` arms a real
+Slack POST inside the existing suite (`.env` carries a live `xoxb-` token,
+`conftest.py` had no network guard). The egress guard went in BEFORE the fix and
+was proven to block Slack and to pass other hosts. No real page was sent.
+
+**Cycle 1 CONDITIONAL -> cycle 2 PASS**, both WARN-level, both mine:
+- I under-described the masterplan change, and had myself re-serialized the
+  whole file with `ensure_ascii=True` (155 lines of em-dash churn). Re-encoded:
+  `+231/-154` -> `+77/-0`, additions only.
+- **I wrote an unfalsifiable guard while auditing for unfalsifiable guards.**
+  `assert severity in live` cannot fail given a captured POST, because the
+  routing only delivers already-critical severities. Fixed by ADDING an
+  AST-based guard that checks the severity literal with no POST involved.
+
+Also caught by my own matrix: M_D survived the first run -- the once-per-process
+test was crediting the `_ALERTED` latch for suppression the deduper was doing.
+
+Counts corrected: the step claimed "15 audited"; the real denominator is **33**
+(28 `backend/` + 5 root `tests/`), derived twice. Numerator right: exactly 1
+mismatch. Caps corrected: 25/300, not the unreachable 5/50 `getattr` fallbacks.
+
+**Q/A: PASS, `violated_criteria: []`, 18 checks.** It reproduced the matrix by
+module redirection (repo md5 unchanged) and invented three vacuity escapes I had
+not tried; all three trip the non-empty assertion.
+
+Queued: **82.59** (two live signature mismatches in production-wired Slack
+handlers), **82.60** (9 red tests, same kwarg class), **82.61** (triage the 11
+production alert sites whose severity cannot deliver).

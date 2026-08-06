@@ -1,226 +1,144 @@
-# Evaluator Critique -- phase-82.54
+# Evaluator Critique -- phase-82.58
 
-**Step:** 82.54. **Cycle:** 1. **Date:** 2026-08-06.
-**Launch:** Workflow rail, run `wf_0b4d28f2-610`.
-**Verdict:** CONDITIONAL.
+**Step:** 82.58 (P1) -- the cost-budget hard-block's only alarm has never fired.
+**Date:** 2026-08-06.
+**Evaluator:** Layer-3 Q/A via the Workflow structured-output rail
+(`.claude/workflows/qa-verdict.js`), model `claude-opus-5[1m]`, effort max.
+**Launch:** 19 tool calls, 164,761 tokens, 974s.
 
-Transcribed VERBATIM; raw at `qa_returns/82.54_cycle1.output.json`.
+Main records the verdict; Main never authors it. The block below is the
+captured return value, transcribed verbatim from the rail's output file.
 
 ---
 
-## Cycle 1 (verbatim)
+## Cycle 1 -- verdict: CONDITIONAL
 
 ```json
 {
   "ok": false,
   "verdict": "CONDITIONAL",
-  "reason": "All 4 immutable criteria are MET with genuinely mutation-resistant guards (I killed 5 mutants against a passing control, independently), harness compliance is clean, and no unintended production change -- but three disclosure/delivery gaps I derived myself cap this at CONDITIONAL. DETERMINISTIC: immutable cmd `pytest backend/tests/test_phase_82_54_cost_budget_columns.py -q` = 12 passed, exit 0; scoped selection reproduces Main's claim EXACTLY (95 passed, 2681 deselected, 1 xfailed); ruff F821/F401/F811 clean; `import backend.api.cost_budget_api` OK; git status shows only the 3 contracted paths, masterplan diff is +18/-0 adding ONLY 82.58; the WHERE clause is byte-identical in the diff (`-`/`+` both `WHERE DATE(ts) = CURRENT_DATE()`), as claimed. CLAIMS RE-DERIVED BY ME, NOT READ: my own independent SQL on 2026-08-05 returns calls=154, naive=353,896, with-cache=9,159,745, ratio 25.88x -- both of Main's headline numbers reproduce to the digit, and 353,896+3,543,384+5,262,465=9,159,745 is exact, so the four counters are disjoint and the sum does NOT double-count (input_tok 353,896 is far SMALLER than cache_read_tok 5,262,465, which is inconsistent with cache being folded into input). The 4-column decision is CORRECT for a field named `llm_tokens_today`; cost weighting rightly stays in spend.py. VACUITY CLAIM VERIFIED, NOT ACCEPTED ON TRUST: driving the PRODUCTION constant over 1999-01-01 and over today both return calls=0, tokens=0, is_null=False -- criterion 2 as written genuinely cannot fail, and Main disclosed this rather than exploiting it; his guard (POSITIVE total, `calls > 0` precondition, FIXED BUSY_DAY, plus `tokens > naive` pinning the cache pair) legitimately exceeds the criterion rather than dodging it. CRITERION 3 DERIVATION DRIVEN BY ME ON BOTH QUERIES: production -> exactly {input_tok, output_tok, cache_creation_tok, cache_read_tok}; PRE_FIX -> includes input_tokens/output_tokens, so the derivation now SEES a phantom read where the name is both a read and an alias -- the blindness Main's own recall test caught is really fixed; two further probes I invented (a phantom in an ordinary slot, and a phantom whose name equals its own alias) are both SEEN. GUARD MUTATION (in-memory, no tree writes): M3 f-string -> extract_sql_literals drops 1->0 and the AST node becomes JoinedStr, killing BOTH sweep asserts; M4 delete alert -> call_count=0 KILLED; M5 P1->P2 KILLED; M6 details->detail (the 82.58 shape) KILLED via TypeError into the fail-open; M0 control PASSES, so no kills are construction artifacts. Sweep literals for this file are 1 (was 0) with the FQ table present -- verified by me. SCOPE HONESTY VERIFIED: `llm_tokens_today` has 0 consumers repo-wide outside the file and its test (frontend/src 0 hits), so refutation 1 holds and no operator was shown a false $0; spend.py:120 really passes `detail=` against alerting.py:258 `details: dict | str`, and 82.58 exists (status=pending, 4 non-empty criteria, name contains both 'spend.py' and 'detail' so the guard's owner-match resolves) and owns it. HARNESS COMPLIANCE (5/5): research_brief_82.54.md gate_passed=true, 8 sources read in full, 24 URLs, recency_scan=true, audit_class=true, dry=true; mtimes strictly ordered research 13:02:34 < contract 13:05:27 < masterplan 13:07:35 < test 13:08:08 < api 13:09:59 < experiment_results 13:11:22, so contract-before-generate holds; harness_log has ZERO `phase=82.54` verdict lines (log-last intact, and this is cycle 1 so the 3rd-CONDITIONAL rule is not triggered); masterplan 82.54 still status=pending, retry 0/3. THE THREE GAPS: (1) [Missing_Assumption, blocking this cycle] qa.md 1d live exercise FAILS to show the repair -- `curl :8000/api/cost-budget/today` returns HTTP 200 with `\"llm_tokens_today\":null`, but today has 0 calls and the repaired query returns tokens=0 (measured twice), so null is the pre-fix fail-open path. Proof it is not a cache artifact: I waited out the 60s TTL and re-curled; daily_usd moved 0.0009->0.0010 and monthly 4.3814->4.3815 (fresh compute) with llm_tokens_today STILL null. Root cause: uvicorn pid 60478 started 2026-08-05 17:38:35 -- BEFORE the 13:09:59 edit -- with `--reload` absent (grep -c = 0), so the running process holds the pre-fix module. Neither contract_82.54.md nor experiment_results_82.54.md discloses that a backend restart is required or that the live endpoint still serves the defect. Operator impact is nil (zero consumers), which is why this is CONDITIONAL and not FAIL -- but criterion 4's operator-visible alert is likewise not emitting on the live server, and this is exactly the green-tests/live-wrong class 1d exists to catch. (2) [Contradiction] \"expose the breakdown\" is NOT true at the API surface. cost_budget_api.py:157 returns only `(r[\"tokens\"], r[\"calls\"])`, discarding the four component columns, and `CostBudgetToday` (:59-68) has no breakdown fields -- so the shipped response is still exactly one conflated number. That contradicts experiment_results \u00a73 (\"sum all four token columns and expose the breakdown\"), contract \u00a73, and the production docstring at cost_budget_api.py:92-93 (\"The components are exposed so a future consumer is not forced to guess which definition a single number used\"). This is load-bearing, not pedantic: \"returning one conflated number with no components is what let a 26x error hide\" is the stated rationale for the definitional change, and the delivered artifact still returns one conflated number with no components. Fix is either adding the 4 optional fields to CostBudgetToday or correcting all three claims to \"the breakdown is computed and pinned by test, not exposed to consumers\". (3) [Overgeneralization, WARN] Main's ruff gate scope structurally excluded the NEW test file: `git diff --name-only HEAD -- '*.py'` cannot see untracked paths, so \"All checks passed! (exit 0, git-derived asserted-non-empty scope)\" covered 1 of the 2 changed .py files (289 of them unlinted). I re-derived with `git ls-files --others --exclude-standard` unioned in, got both files, and it still exits 0 -- so there is no latent lint defect, but the gate as RUN was narrower than the artifact claims. This is the phase-75.5 instance-#2 shape recurring inside the very tool that exists to prevent it. RESIDUAL I FOUND (NOTE, no action required this cycle): `_selected_identifiers`' regex `[a-z_][a-z0-9_]{2,}` requires >=3 characters, so it is blind to any column name of <=2 chars -- and `ok` and `ts` are BOTH real columns of this exact table (I drove the derivation on `SELECT COALESCE(SUM(ok),0) AS total, SUM(ts)` and it returned the empty set). No such identifier is in the current SELECT list, so criterion 3 is satisfied as written, and criterion 1's dry run would catch a short phantom anyway -- but the docstring's universal claim (\"Column identifiers a query SELECTS\") over-reaches by exactly one character class. COMMIT-SCOPE NOTE: `git add -An` shows the status flip would also sweep another session's `handoff/current/research_brief_4000.2.md` plus the rolling `contract.md`/`experiment_results.md` under 82.54's subject. WORST-OF-N LENSES: correctness=PASS, does-it-reproduce=PASS, scope-honesty=CONDITIONAL -> min = CONDITIONAL. Credit where due, since a calibrated verdict requires it: Main refuted two premises he had written into this step himself, disclosed criterion 2's vacuity instead of exploiting it, disclosed a recall defect his own test caught, and queued the third defect rather than smuggling the fix -- every one of which I verified independently and every one of which held.",
+  "reason": "All 4 immutable criteria are MET on evidence I executed myself, not on the author's claims: I re-ran the immutable command (9 passed, 86.44s, matching the claimed capture), and independently reproduced the whole mutation matrix by sys.modules injection with an identity control first (control 7 passed / harness inert; M_A details=->detail= 4 failed; M_B P1->P2 4 failed; M_C P1->P3 4 failed; M_D latch->if True 1 failed; M_E always-fires killed the negative control). Criterion 4's census reproduces EXACTLY -- 33 = 28 backend + 5 tests -- with an EMPTY symmetric difference in both directions against an independent bare-name derivation (members, not just counts), and a planted new mismatch is caught (newsite.py:2 -> \"missing a required argument: 'details'\"). Two WARN-level findings cap this at CONDITIONAL, both cheap to fix and neither a correctness defect: (1) experiment_results.md §1 presents the changed-file table as complete but the parsed masterplan delta shows .claude/masterplan.json also gained 4000.10 (another step's queue entry) and was re-serialized whole-file with ensure_ascii=True (155 removed lines of em-dash/>= re-encoding), undisclosed -- plus ~20 untracked phase-4000.3 artifacts sit in the tree that a `git add -A` auto-commit would ship under 82.58's message; (2) §3's matrix credits M_C to \"criterion 2 is bound to the live critical set\", but that assertion (test file:167 `assert severity in live`) CANNOT fail given a delivered post -- with slack_webhook_url empty, alerting.py:210-224 routes ONLY critical severities to _bot_token_fallback, so M_C actually dies at :159 `assert captured_posts`. Mis-attributed kill mechanism (qa.md §4c shape #11) alongside a genuine behavioral guard = WARN, not BLOCK. Verified clean: masterplan 82.58 `verification` block byte-identical to HEAD (criteria not amended); status still pending and no result= entry in harness_log (log-last respected, cycle 1, so no CONDITIONAL stacking); research(16:43:39) < contract(16:46:36) < spend.py(16:52:25) < test(16:52:27) < results(16:57:22); gate_passed true with 9 sources / 53 URLs / recency scan / audit_class dry.",
   "violated_criteria": [
-    "scope_honesty: live API path still serves the pre-fix module (qa.md 1d), undisclosed",
-    "contradiction: 'expose the breakdown' is not true at the API surface",
-    "lint-gate scope excluded the untracked new test file (1 of 2 changed .py linted)"
+    "scope-honesty [WARN]: undisclosed co-shipped masterplan.json changes (4000.10 + whole-file ensure_ascii re-serialization) and untracked phase-4000.3 artifacts in the commit surface",
+    "illusory-guard [WARN]: criterion-2's severity assertion is unfalsifiable given delivery; §3 mis-attributes M_C's kill mechanism"
   ],
   "violation_details": [
-    {
-      "violation_type": "Missing_Assumption",
-      "action": "curl -s http://127.0.0.1:8000/api/cost-budget/today (twice, 65s apart to clear the 60s TTL)",
-      "state": "HTTP=200, {\"daily_usd\":0.001,\"monthly_usd\":4.3815,...,\"llm_tokens_today\":null}. Fresh compute proven by daily_usd 0.0009->0.0010 and monthly 4.3814->4.3815 across the two calls. Today has calls=0 and the repaired query returns tokens=0 (measured on 1999-01-01 and 2026-08-06), so null is the pre-fix fail-open path. uvicorn pid 60478 started 2026-08-05 17:38:35, before the 2026-08-06 13:09:59 edit to backend/api/cost_budget_api.py, and `ps | grep -c -- --reload` = 0. SEVERITY: WARN (forces CONDITIONAL, not BLOCK).",
-      "constraint": "qa.md 1d backend runtime smoke: 'When the diff touches a live API or service path, exercise it for real... An import error or a dead endpoint = FAIL regardless of green unit tests.' The endpoint is alive but the repaired behaviour is NOT live, and neither contract_82.54.md nor experiment_results_82.54.md discloses that a backend restart is required. Criterion 4's operator-visible alert is equally inert on the running server. Not escalated to FAIL because llm_tokens_today has zero consumers (verified 0 hits repo-wide) so no operator sees a wrong value, and no money path is touched."
-    },
-    {
-      "violation_type": "Contradiction",
-      "action": "read backend/api/cost_budget_api.py:138-161 and the CostBudgetToday model at :59-68",
-      "state": "_fetch_llm_tokens_today returns only `int(r['tokens'] or 0), int(r['calls'] or 0)` at :157 -- the four component columns projected at :101-104 are computed and then DISCARDED. CostBudgetToday exposes only llm_tokens_today + cost_per_llm_call_usd; it has no input/output/cache_creation/cache_read fields. So the shipped API response is still exactly one conflated number with no components. SEVERITY: WARN (forces CONDITIONAL).",
-      "constraint": "experiment_results_82.54.md section 3 ('sum all four token columns and expose the breakdown'), contract_82.54.md section 3 ('the components are exposed alongside the total'), and the production docstring at cost_budget_api.py:92-93 ('The components are exposed so a future consumer is not forced to guess which definition a single number used') are all false at the consumer boundary they name. This is the load-bearing justification for the definitional change ('returning one conflated number with no components is what let a 26x error hide'), so it is substantive, not cosmetic. Fix: add the four optional fields to CostBudgetToday, or correct all three claims to 'computed and pinned by test, not exposed to consumers'."
-    },
     {
       "violation_type": "Overgeneralization",
-      "action": "FILES=$(git diff --name-only HEAD -- '*.py'); echo \"$FILES\" | xargs uvx ruff check --select F821,F401,F811",
-      "state": "The derived scope resolved ONE file (backend/api/cost_budget_api.py). backend/tests/test_phase_82_54_cost_budget_columns.py is UNTRACKED ('?? ' in git status), and `git diff --name-only HEAD` structurally cannot list untracked paths, so 289 new lines were never linted while the artifact reports 'All checks passed! (exit 0, git-derived asserted-non-empty scope)'. I re-derived with `{ git diff --name-only HEAD -- '*.py'; git ls-files --others --exclude-standard -- '*.py'; } | sort -u`, got both files, and ruff still exits 0 -- so no latent lint defect exists. SEVERITY: WARN.",
-      "constraint": "qa.md 1a: 'git diff --name-only HEAD is the authority on changed files' -- but on a step whose diff ADDS a file, that command alone is not the authority; the union with `git ls-files --others --exclude-standard` is. A gate that reports success over a scope narrower than the change is the phase-75.5 instance-#2 shape recurring inside the tool built to prevent it. No verdict escalation because I re-ran the wider scope myself and it is clean."
-    }
-  ],
-  "certified_fallback": false,
-  "checks_run": [
-    "harness_compliance_audit_5_items",
-    "research_gate_envelope",
-    "mtime_ordering_research_lt_contract_lt_artifact",
-    "log_last_no_prior_verdict",
-    "third_conditional_counter",
-    "verification_command_exit_0",
-    "syntax_import_smoke",
-    "ruff_F821_F401_F811_git_derived_scope",
-    "ruff_rerun_on_wider_scope_incl_untracked",
-    "scoped_pytest_95_reproduced",
-    "backend_runtime_smoke_1d_live_endpoint",
-    "uvicorn_process_age_vs_file_mtime",
-    "cache_ttl_busted_recurl",
-    "independent_bq_reproduction_of_353896_and_9159745",
-    "disjointness_arithmetic_no_double_count",
-    "vacuity_probe_zero_row_day_via_production_constant",
-    "criterion3_derivation_driven_on_both_queries",
-    "recall_probes_phantom_ordinary_and_name_equals_alias",
-    "recall_probe_short_column_names",
-    "mutation_M3_fstring_kills_sweep_guard",
-    "mutation_M4_delete_alert_killed",
-    "mutation_M5_P1_to_P2_killed",
-    "mutation_M6_details_to_detail_killed",
-    "mutation_M0_control_passes",
-    "sweep_literal_count_0_to_1",
-    "git_diff_where_clause_byte_identical",
-    "consumer_grep_llm_tokens_today_zero_hits",
-    "spend_py_detail_vs_details_signature",
-    "masterplan_82_58_exists_with_criteria",
-    "commit_scope_git_add_dry_run",
-    "code_review_heuristics"
-  ],
-  "harness_compliance_ok": true,
-  "notes": "BUDGET/SKIPPED (named per instruction): 11 tool calls spent. I did NOT run the full backend/tests/ suite -- I ran the immutable command plus the 95-test scoped selection Main claimed, which reproduced exactly. I did NOT run frontend eslint/tsc: qa.md 1b binds only when the diff touches frontend/** or .claude/agents/qa.md, and this diff touches neither. I did NOT take a Playwright capture: qa.md 1c binds on UI claims, and I verified this step has NO UI surface (llm_tokens_today has zero references in frontend/src), so there is nothing to capture. I did not re-audit the research brief's 8 sources individually beyond the gate envelope and the two refutations, both of which I verified against the repo. No Main-produced evidence was relied on for any finding: every number, mutation, and live probe in this verdict was produced by me. All mutations were done in memory (exec of a modified source string) or against a scratchpad copy -- the repository tree was never written to. code_review_heuristics evaluated across all 5 dimensions: no BLOCK findings; anti-rubber-stamp Dim-4 is clean (the guards are behavioral, payload-capturing, and carry a negative control at test:245-252); illusory-guard #17 checked against all 11 vacuity shapes and none apply -- shapes 1/2 do not fire because the sweep assert is paired with a live dry run and a behavioral fetch test, shape 4 does not fire because `assert literals` dies on the real f-string mutant, shapes 5/6 do not fire because the alert guard drives the production function with a real exception and captures the real kwargs, shape 11 does not fire because I named the killing assertion for each mutant. To clear this CONDITIONAL, the next cycle needs: (a) a restart-disclosure line in experiment_results (and ideally a post-restart curl showing llm_tokens_today: 0 rather than null), (b) either the breakdown fields on CostBudgetToday or a correction to the three \"expose the breakdown\" claims including the production docstring at cost_budget_api.py:92-93, (c) a one-line correction that the ruff gate covered the tracked file only, or a re-run over the union scope. None of the three requires touching the query, the tests, or the 82.58 queue entry."
-}
-```
-
----
-
-## Follow-up (Main, cycle 1 -> 2)
-
-Three findings; two correct, one refuted by measurement.
-
-- **F1 (correct, and the important one)** the live endpoint was still serving the
-  PRE-FIX module -- uvicorn started before my edit, no `--reload`. I ran 12 green
-  tests and never touched the running system. Restarted and re-curled. **The
-  restart then exposed a 500 my green tests had not caught**: a SECOND unpack
-  site my `str.replace(..., 1)` never touched. Caught by the live curl and by an
-  assertion I had written to fail if the replace matched nothing.
-- **F2 (correct, and load-bearing)** 'expose the breakdown' was FALSE at the API
-  surface. My whole rationale for summing four columns is that a conflated number
-  is what hid a 26x undercount -- and I shipped a conflated number while claiming
-  otherwise. Now genuinely exposed and pinned.
-- **F3 (refuted)** my ruff scope DID union untracked files; the artifact just
-  rendered the derivation abbreviated. Fixed by showing it, not by changing the
-  gate.
-
-A fresh Q/A was spawned on the changed evidence.
-
----
-
-## Cycle 2 -- Q/A return value (verbatim)
-
-Run `wf_cf98fce9-223`. **Verdict: CONDITIONAL.** Raw at `qa_returns/82.54_cycle2.output.json`.
-
-```json
-{
-  "ok": false,
-  "verdict": "CONDITIONAL",
-  "reason": "All 4 immutable criteria remain MET and I re-proved criteria 1/4 with my OWN mutations (M_F phantom-column reintroduction KILLED; M_D delete-alert KILLED; M_E P1->P2 KILLED) rather than trusting Main's matrix. Verification command reproduces: 13 passed, exit 0, 13 dots / 0 skips. Ruff F821,F401,F811 exit 0 over a git-derived asserted-non-empty 4-file scope that DOES include the untracked test file. F1 CONFIRMED live and independently: launchctl pid 79058 STARTED 2026-08-06 13:24:49, which postdates the last edit to cost_budget_api.py (mtime 13:24:34) by 15s; curl :8000/api/cost-budget/today returns llm_tokens_today:0 as a NUMBER plus all four breakdown fields at 0. F1's byproduct verified by AST: exactly ONE unpack of _fetch_llm_tokens_today (line 229, 3 targets) and zero duplicate kwargs at the response construction (line 234, 12 distinct kwargs). CONDITIONAL, not PASS, on three findings. (1) The guard Main added specifically to close F2 does not cover the seam it names: M_C -- keep llm_cache_read_tokens_today on the model but stop populating it -- SURVIVES all 13 tests, because test_the_breakdown_reaches_the_RESPONSE_MODEL_not_just_the_query asserts only membership in CostBudgetToday.model_fields, a class-level schema fact, never a response VALUE. qa.md 4c shape #3, literal-kept-behaviour-stripped. (2) Answering the question put to me plainly: the 500 class remains LIVE-CHECK-ONLY. M_B (regress to the 2-target unpack) survives all 13 tests, and grep proves this is not a near-miss -- ZERO tests repo-wide reference get_cost_budget_today, get_cost_budget_status, cost-budget/today, or TestClient. The entire endpoint function, including the parts->kwargs wiring, has no automated coverage at all. One test that calls get_cost_budget_today() with _fetch_llm_tokens_today patched and asserts the four response VALUES kills M_B and M_C together. (3) Section 5, titled \"Verbatim verification output\", does not reproduce against the graded state: it reports \"12 passed in 9.14s\" (12 dots) where the command now yields 13 passed, and \"95 passed, 2681 deselected\" where the scoped run now yields 96 passed, 2694 deselected. The arithmetic exonerates the substance -- +1 here plus 13 from a foreign session's untracked test file -- so this is stale transcription, not an untested change, but section 5 contradicts section 7 (\"13 tests\", which I verified: 321 lines, 13 test_ defs) inside the same artifact, and cycle 2 was the cycle to regenerate it. Section 5 also still renders the abbreviated ruff line without the derivation, so F3's own stated remedy (\"SHOW the derivation\") was applied additively in section 10 and never to the offending block.",
-  "violated_criteria": [
-    "illusory-guard [WARN]: F2 breakdown guard asserts model-schema membership, not value flow -- M_C survives",
-    "test-coverage-delta [WARN]: zero tests exercise get_cost_budget_today -- M_B (the shipped 500) survives; class remains live-check-only",
-    "Contradiction [WARN]: experiment_results section 5 'Verbatim verification output' does not reproduce (12 vs 13 passed; 95 vs 96 passed)",
-    "Missing_Assumption [NOTE]: 5 of 13 tests are env-conditional on PYFIN_SKIP_LIVE_BQ and the artifact never discloses it"
-  ],
-  "violation_details": [
-    {
-      "violation_type": "Circular_Reasoning",
-      "action": "Mutation M_C via in-process module injection: keep `llm_cache_read_tokens_today` on CostBudgetToday but replace its population `llm_cache_read_tokens_today=(parts or {}).get(\"cache_read\")` with `=None` at backend/api/cost_budget_api.py:~243",
-      "state": "13 passed, exit 0 -- SURVIVED. The guard Main added to close F2, test_the_breakdown_reaches_the_RESPONSE_MODEL_not_just_the_query (test file :267-284), asserts only `f in set(CostBudgetToday.model_fields)`. That is a class-level schema fact true for every possible response instance. Control run (unmutated injection) = 13 passed, and M_A (delete the field outright) = KILLED at :282, so the harness is valid and the guard covers only the field-existence shape. The one genuinely behavioural breakdown assertion, `tokens == sum(parts.values())` at test :261, sits at the _fetch_llm_tokens_today level and is additionally behind the live-BQ skipif at :249.",
-      "constraint": "qa.md section 4c shape #3 (literal-kept-behaviour-stripped) + skill heuristic #17 illusory-guard [WARN when a genuine behavioural guard coexists]. Named fix: assert the four VALUES on a constructed response, not the four names on the model."
+      "action": "experiment_results.md §1 'What changed' table lists `.claude/masterplan.json | queued 82.59 / 82.60 / 82.61`",
+      "state": "SEVERITY=WARN. Parsed HEAD-vs-worktree delta: added ids = ['4000.10','82.59','82.60','82.61']; changed ids = ['phase-4000','phase-82']; removed = none. The raw diff carries 155 removed lines that are purely em-dash/>= -> \\uXXXX re-encoding (semantically identity-preserving -- I confirmed every pre-existing id parses identical). git status also shows ~20 untracked phase-4000.3 artifacts (contract_4000.3.md, experiment_results_4000.3.md, live_check_4000.3.md, evaluator_critique_4000.3.md, research_brief_4000.3.md, scripts/qa/verify_phase_4000_3_live_smoke.sh, 3 researcher memory files).",
+      "constraint": "qa.md §4b 'Scopes must be DERIVED, not typed' + the changed-file table must describe what actually changed. Fix: add one line to §1/§6 disclosing 4000.10 + the ensure_ascii re-serialization (and that it is JSON-identity-preserving), and commit 82.58 with an explicit pathspec rather than relying on `git add -A` so phase-4000.3's tree does not ship under 82.58's commit message."
     },
     {
-      "violation_type": "Missing_Assumption",
-      "action": "Mutation M_B: revert line 229 to the pre-fix `tokens, calls = await asyncio.to_thread(_fetch_llm_tokens_today)` -- byte-for-byte the regression that produced the live HTTP 500",
-      "state": "13 passed, exit 0 -- SURVIVED. grep over backend/tests/ returns ZERO hits for get_cost_budget_today, get_cost_budget_status, 'cost-budget/today', TestClient, httpx or asyncio.run: no test anywhere constructs or calls the endpoint. Main's disclosure ('Two things caught it and neither was a test') is accurate and honest; the measured extent is stronger than disclosed -- the endpoint function has no coverage of any kind, so unpack arity, kwarg wiring and breakdown population are all live-check-only.",
-      "constraint": "qa.md section 4c -- name the concrete mutation that makes the guard fail; none exists. Named fix: one async test calling get_cost_budget_today() with _fetch_llm_tokens_today patched to return (7, 2, {'input':1,'output':2,'cache_creation':3,'cache_read':1}) and asserting all five response fields -- kills M_B and M_C together."
-    },
-    {
-      "violation_type": "Contradiction",
-      "action": "Re-ran both commands quoted in experiment_results_82.54.md section 5 ('Verbatim verification output')",
-      "state": "Artifact says `12 passed in 9.14s` over 12 progress dots; actual `13 passed in 9.16s` over 13 dots. Artifact says `95 passed, 2681 deselected`; actual `96 passed, 2694 deselected`. Section 7 of the SAME artifact says '13 tests' and I verified 321 lines / 13 test_ defs, so the artifact contradicts itself. Delta arithmetic (+1 here, +13 from the untracked foreign-session file backend/tests/test_phase_4000_2_cc_rail_smoke.py) confirms stale cycle-1 transcription rather than an untested change.",
-      "constraint": "qa.md section 4b -- a 'verbatim' capture must be REGENERATED, never carried forward; every numeric claim must reproduce. Named fix: re-run both commands and paste the cycle-2 output into section 5, and replace section 5's abbreviated ruff line with the derivation shown in section 10."
-    },
-    {
-      "violation_type": "Invalid_Precondition",
-      "action": "grep skipif in backend/tests/test_phase_82_54_cost_budget_columns.py",
-      "state": "5 of 13 tests carry @pytest.mark.skipif(not _LIVE, reason='operator opt-out via PYFIN_SKIP_LIVE_BQ=1') at :77, :86, :130, :157, :249 -- covering BOTH criterion-1 dry-run tests, BOTH criterion-2 fixtures, and the test holding the only total==sum assertion. With PYFIN_SKIP_LIVE_BQ=1 the immutable verification command exits 0 with criteria 1 and 2 never executed. NOT set in the graded environment (0 skips, 13 dots), so the criteria are genuinely demonstrated today; but the artifact never discloses that 5 of 13 tests are env-conditional.",
-      "constraint": "Scope-honesty lens + the project's known 'pytest.skip trapdoor that deleted the guard while the verification command exited 0' class. Named fix: disclose the opt-out in experiment_results, and/or assert _LIVE is true in a non-skippable test so the trapdoor cannot silently empty the gate."
+      "violation_type": "Unjustified_Inference",
+      "action": "experiment_results.md §3 labels `M_C severity -> P3   DIED   (criterion 2 is bound to the live critical set)`",
+      "state": "SEVERITY=WARN. backend/tests/test_phase_82_58_spend_alert_delivery.py:167 `assert severity in live` cannot fail whenever a post exists: with slack_webhook_url empty, alerting.py:210-224 invokes _bot_token_fallback ONLY when `severity in _CRITICAL_SEVERITIES`, so any captured POST necessarily carries a critical severity. I reproduced M_C (4 failed) and the failing assertion is :159 `assert captured_posts`, the delivery guard -- not :167. Same for M_B. The literal contract wording ('asserted against the live _CRITICAL_SEVERITIES set rather than a hardcoded string') IS satisfied at :165-167, and a genuine behavioral guard (delivery) coexists and does die, so this is WARN not BLOCK.",
+      "constraint": "qa.md §4c shape #11 (mis-attributed kill mechanism) -- 'a matrix result licenses only these N mutations were killed... name WHICH assertion killed'. Fix: re-label the M_C row to credit :159, or add a guard that can actually fail on severity alone -- e.g. read the severity literal out of the call site and assert its membership/routing decision independently of whether a POST was produced."
     }
   ],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_audit_5_item",
-    "immutable_verification_command",
-    "ruff_F821_F401_F811_over_git_derived_scope",
-    "git_status_unintended_change_scan",
-    "backend_runtime_smoke_live_curl",
-    "launchctl_pid_and_process_start_time_vs_file_mtime",
-    "ast_unpack_arity_and_duplicate_kwarg_scan",
-    "independent_mutation_matrix_6_mutants_with_control",
-    "endpoint_test_coverage_grep",
-    "numeric_claim_reproduction_section5",
-    "skipif_trapdoor_scan",
+    "verification_command_reproduced",
+    "python_lint_ruff_F821_F401_F811_derived_scope",
+    "ruff_BLE001_head_vs_current_stdin",
+    "backend_runtime_smoke_import",
+    "mutation_test_production_code_sys_modules_injection",
+    "mutation_test_identity_control",
+    "mutation_test_instrument_criterion4_planted_mismatch",
+    "symmetric_difference_call_site_census",
+    "claim_audit_experiment_results_numeric",
+    "masterplan_parsed_delta_and_criteria_immutability",
+    "egress_guard_behavioral_probe",
+    "head_vs_current_egress_differential",
+    "regression_suite_264_tests",
     "code_review_heuristics",
-    "evaluator_critique",
-    "3rd_conditional_counter"
+    "harness_log_prior_verdict_count"
   ],
   "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE (5/5 clean): research_brief_82.54.md exists, gate_passed true, audit_class, dry after 8 rounds; mtime chain research 13:02 < contract 13:05 < tests 13:22 < code 13:24 < results 13:25 (contract-before-generate holds); experiment_results present; LOG-LAST intact -- `grep -nF \\\"82.54\\\" handoff/harness_log.md` finds no `result=` entry and masterplan status is still \\\"pending\\\"; no verdict-shopping -- evidence materially CHANGED between cycles (4 new model fields, a 13th test, a backend restart, section 10). 3rd-CONDITIONAL COUNTER: 0 logged CONDITIONALs for 82.54 in harness_log (fixed-string grep, dot escaped), so this is at most the 2nd by cycle count and CONDITIONAL is permitted -- a THIRD must be FAIL.\n\nF3 ADJUDICATION -- Main is RIGHT on the substance, and I am closing my cycle-1 finding. I re-derived the scope myself, `{ git diff --name-only HEAD -- '*.py'; git ls-files --others --exclude-standard -- '*.py'; } | sort -u`, asserted non-empty (4 files), and ran ruff bare with xargs -0: the untracked backend/tests/test_phase_82_54_cost_budget_columns.py IS in scope and `All checks passed!`, exit 0. So the gate is green on the correct scope. One honest qualification, not a re-litigation: the supporting claim -- 'my command unions ls-files and the artifact merely rendered it abbreviated' -- is a statement about an UNRECORDED execution that neither of us can now verify, and the artifact was the only record. The right resolution is 'the gate is green on the independently re-derived scope' (which I have now established by execution), not 'the evaluator was wrong about what the artifact showed'. His remedy -- show the derivation -- is correct, but it was added in section 10 while section 5 still carries the abbreviated line.\n\nCREDIT WHERE DUE: sections 1, 4 and the 'defect my own recall test caught' are genuinely costly self-disclosures -- refuting two premises Main himself wrote into the queued step, declaring criterion 2 vacuous as written and exceeding it, and reporting that his identifier derivation was blind to the very phantom it existed to find. The 26x cache-token finding (353,896 vs 9,159,745) is the substantive win here; a rename would have shipped a plausible-looking order-of-magnitude undercount. None of that is diminished by the findings above.\n\nOPERATIONAL WARNING FOR MAIN (not a verdict input): git status shows five untracked artifacts from a PARALLEL session's step 4000.2 -- backend/tests/test_phase_4000_2_cc_rail_smoke.py, scripts/qa/smoke_cc_rail_e2e.py, handoff/current/contract_4000.2.md, handoff/current/research_brief_4000.2.md, .claude/agent-memory/researcher/project_cc_rail_e2e_smoke_4000_2.md -- plus modified rolling handoff/current/{contract,experiment_results,evaluator_critique}.md. The auto-commit hook stages `git add -A`, so flipping 82.54 to done will commit a foreign step's files under 82.54's subject. Run `git add -An` before the flip.\n\nBUDGET / WHAT I SKIPPED (9 tool calls): no frontend eslint/tsc (diff touches no frontend/**, correctly out of scope); no Playwright capture (no UI claims -- section 1 states llm_tokens_today has zero frontend consumers; I did not independently re-verify that census this cycle, it was covered in cycle 1); I did not re-verify section 8's 82.58 masterplan queue entry, section 9's '25 f-string-invisible sites / 10 flagged / 9 false positives' census, or section 2's raw BQ figures (154 calls / 353,896 / 9,159,745) -- all three are unreproduced claims carried over from cycle 1 and outside this cycle's four questions.\n\nPATH DISCLOSURE: Workflow structured-output launch; qa.md read from disk at runtime. All mutations were performed by ME via in-process sys.modules injection compiled from a heredoc -- the repo tree was never written to (the qa-write-guard hook correctly blocked my one Write attempt to the scratchpad harness, so I moved it to stdin). A CONTROL run preceded the matrix and returned 13 passed, confirming the injection harness itself is not the source of any kill or survival."
+  "notes": "CRITERION-BY-CRITERION (all MET, each on executed evidence):\n\nC1 DELIVERED-not-branch-entry, fails against detail=/P2 -- MET. Guards capture the POST at urllib.request.urlopen and assert on the payload (url, body.text, body.channel). I injected the shipped defect two ways without touching the tree: M_A (details= -> detail=) -> 4 failed; M_B (P1 -> P2) -> 4 failed. Identity-injection control passed 7/7, so the harness itself is inert. The emitter is NOT mocked -- the real raise_cron_alert_sync -> raise_cron_alert -> _bot_token_fallback -> _post chain runs, so the documented MagicMock false-PASS trap is genuinely avoided.\n\nC2 severity deliverable, asserted against live _CRITICAL_SEVERITIES -- MET (with the WARN above). Live set measured: ['CRITICAL','P0','P1','critical']; the test imports it at :165 rather than hardcoding. Behavioral kill exists (M_C P3 -> 4 failed), but it lands on the delivery assertion at :159, not on :167 -- see violation_details.\n\nC3 healthy fetch emits NO alert -- MET, and not vacuous. M_E (wrap fetch_spend to always call _record_degradation) turned test_healthy_spend_fetch_emits_no_alert RED. The negative control can fail.\n\nC4 structural derivation + inspect.signature bind + non-empty assert + further mismatches fixed/queued -- MET. My re-derivation: 33 total, {'backend': 28, 'tests': 5}. Independent bare-name AST derivation over the same population: 33, with symmetric difference EMPTY in BOTH directions -- so the two operationalizations agree on MEMBERS, not merely cardinality (qa.md §4b). Instrument mutation: a planted mismatch in a throwaway population was caught. 82.59/82.60/82.61 are all present and pending in the masterplan.\n\nCHALLENGES YOU RAISED -- all three of your claims hold:\n(a) conftest Slack-egress guard: REAL and correctly scoped. slack.com -> RuntimeError raised; http://127.0.0.1:9 -> reached the real urlopen (URLError), so non-Slack hosts are NOT wrongly blocked. No bypass surface either: zero `from urllib.request import ...` hits in backend/ or scripts/, so nothing binds urlopen before the guard installs.\n(b) 3 BLE001 pre-existing: TRUE, measured not asserted. Current derived scope = 3 BLE001, all in spend.py (:126, :166, :248). HEAD's spend.py piped through `ruff --stdin-filename` = the same 3 at the same lines; HEAD's conftest.py = 0. Your two new files contribute zero.\n(c) test_the_alert_fires_once_per_process: NO LONGER CONFOUNDED. M_D (`if not _ALERTED:` -> `if True:`) produced exactly 1 failure -- that test. The deduper reset inside the loop is doing the work you claim it does.\n\n§6 and §7 CLAIM AUDIT (you asked me not to trust these): both reproduce.\n- 33 = 28 + 5: exact, with member-level agreement (above).\n- caps 25/300 not 5/50: settings.py:392-393 -> cost_budget_daily_usd=25.0, cost_budget_monthly_usd=300.0; llm_client.py's getattr fallbacks (5.0/50.0) are indeed unreachable because those settings attributes exist. `tripped = daily >= daily_cap` with `daily = float(daily_usd or 0.0)` confirms 0.0 >= 25.0 is False, so the step's premise holds.\n\nA FINDING I HUNTED AND THEN REFUTED BY MEASUREMENT (recording it so nobody re-raises it): §4's hazard population is derived only over backend/tests, and backend/tests/conftest.py is the repo's ONLY conftest -- the root tests/ tree is unguarded, and running tests/slack_bot/test_scheduler_wiring_phase991.py does attempt https://slack.com/api/chat.postMessage. That looked like a fix-created hole. It is NOT. I ran the identical recording probe over the derived 8-file root-tests population with HEAD's spend.py injected vs the current one: n_egress=1 under BOTH. The egress comes from cost_budget_watcher's own alert path, which was already armed before this step. 82.58 creates no new Slack egress outside backend/tests, and your §4 mitigation is correct for the population the fix actually arms. The pre-existing unguarded exposure in root tests/ is worth queueing on its own merits but must NOT be attributed to 82.58.\n\nOTHER DETERMINISTIC RESULTS: ruff F821/F401/F811 over a git-DERIVED 3-file scope (note: `git diff --name-only HEAD` alone would have MISSED the new untracked test file -- I used `git ls-files -m -o --exclude-standard`) -> \"All checks passed!\", exit 0, non-empty set asserted. Runtime smoke: `import backend.services.observability.spend` OK. Regression: 264 passed, 1 xfailed, 0 failed across `-k \"spend or alert or slack or cron or budget or llm_rail\"` (a superset of your 81).\n\nNO LIVE SLACK MESSAGE WAS SENT at any point in this evaluation -- every probe blocked-and-recorded rather than delivering.\n\nTO REACH PASS: (1) add the §1/§6 disclosure of 4000.10 + the ensure_ascii re-serialization and commit with an explicit pathspec; (2) fix the M_C attribution in §3. Both are edits to experiment_results.md plus a commit-hygiene choice; no code change is required, and re-spawning a fresh Q/A on those CHANGED files is the documented cycle-2 flow, not verdict-shopping."
 }
 ```
 
 ---
 
-## Follow-up (Main, cycle 2 -> cycle 3)
+## Follow-up (Main) -- what changed before the fresh Q/A
 
-Four findings, all correct.
+Both findings were WARN-level and neither was a correctness defect; all four
+immutable criteria were already MET on evidence the Q/A executed itself. Both
+are fixed.
 
-- **The guard I added to close cycle-1's F2 was ITSELF illusory** -- it asserted
-  schema membership, not value flow, so 'keep the field, stop populating it'
-  survived. A fix for a stop-one-seam-short finding that stopped one seam short.
-- **The shipped HTTP 500 had ZERO test coverage** -- no test anywhere called the
-  endpoint, so unpack arity and kwarg wiring were live-check-only.
-- Both closed by ONE endpoint test asserting response VALUES. Re-measured: M_B,
-  M_C and M_D all now die where two previously survived.
-- Section 5 'Verbatim' was stale (12 vs 13 passed); regenerated WITH the ruff
-  derivation, which cycle 2 had added additively elsewhere but never here.
-- The PYFIN_SKIP_LIVE_BQ trapdoor is now disclosed AND enforced by a
-  non-skippable guard, so the gate cannot silently empty.
+**1. scope-honesty -- undisclosed co-shipped masterplan changes.** Fixed in
+`experiment_results.md` §1 with a dedicated disclosure block. Two parts:
+- The concurrent session's step `4000.10` shares the file; git cannot stage
+  part of a file, so it necessarily rides along. Parsed delta: added
+  `['4000.10','82.59','82.60','82.61']`, removed none.
+- **My own damage, which I had not noticed:** I re-serialized the file with
+  `ensure_ascii=True`, escaping every em-dash across all 1141 steps -- 155
+  lines of encoding churn. Re-written with `ensure_ascii=False`; the diff went
+  from `+231/-154` to `+77/-0`, additions only.
+- The ~20 untracked `phase-4000.3` artifacts are not mine and are excluded:
+  this step commits with an explicit pathspec, never `git add -A`.
 
-**Escalation:** two consecutive CONDITIONALs stand, so the next verdict must be
-PASS or FAIL.
+**2. illusory-guard -- criterion 2's severity assertion was unfalsifiable.**
+The Q/A is right, and this is the finding worth keeping. `assert severity in
+live` cannot fail given a captured POST, because `alerting.py:210-224` routes
+to `_bot_token_fallback` only for severities already in that set -- the guard
+read a value the routing had already filtered. M_C's kill really landed on
+`assert captured_posts`.
+
+Fixed by ADDING a guard rather than by re-labelling the row: the new
+`test_the_call_sites_severity_literal_is_deliverable_independently_of_delivery`
+AST-reads the severity literal from the production call site and checks it
+against the live set with no POST involved. M_C (P3) and the new M_C2 (P2) are
+now run under a `-k` selector matching only that test, so the attribution is
+structural rather than asserted. §3's row is relabelled to match.
+
+**Evidence changed since cycle 1:** `backend/tests/test_phase_82_58_spend_alert_delivery.py`
+(9 -> 10 tests), `handoff/current/experiment_results.md` (§1 disclosure, §2
+output, §3 matrix 6 -> 7 mutants + new subsection), `.claude/masterplan.json`
+(re-encoded). Verification command re-run: **10 passed**. Mutation matrix
+re-run: **7 died, 0 survived**.
+
+Per the cycle-2 flow, a FRESH Q/A grades this changed evidence.
+
 
 ---
 
-## Cycle 3 -- Q/A return value (verbatim)
+## Cycle 2 -- verdict: PASS
 
-Run `wf_cd0df479-60d`, under the 3rd-CONDITIONAL escalation rule (PASS or FAIL only).
-**Verdict: PASS**, `violated_criteria: []`. Raw at `qa_returns/82.54_cycle3.output.json`.
+Fresh Q/A on changed evidence (the documented cycle-2 flow). 16 tool calls,
+127,707 tokens, 459s. Transcribed verbatim from the rail's output file.
 
 ```json
 {
   "ok": true,
   "verdict": "PASS",
-  "reason": "All 4 immutable criteria MET with execution-grounded evidence; the two cycle-2 survivors (M_B 2-target unpack, M_C populate-with-None) plus a new mutant of my own (M_E value swap) were re-run by me via in-memory module injection against a GREEN control and ALL THREE now die at test_the_ENDPOINT_returns_the_breakdown_VALUES; verification command exit=0 (14 passed), ruff green over a git-derived non-empty 4-file scope, every \u00a75 numeric claim reproduces exactly (14 passed / 97 passed, 2694 deselected, 1 xfailed / 107-16 numstat / 368 lines / 14 test_ funcs), immutable criteria byte-identical to HEAD, harness compliance clean, and no unintended production change.",
+  "reason": "Both cycle-1 WARNs are cured on evidence I executed myself, not on the author's claims. WARN-2 (the unfalsifiable severity guard) was fixed by ADDING a guard rather than re-labelling a row, and I mutation-tested that new guard SEVEN ways by redirecting its module-global REPO at a scratchpad copy -- the repo tree was never written (spend.py md5 5e2a162148e0abcb986d1f246dac2193 identical before and after). Identity CONTROL passes (harness inert); P1->P3 and P1->P2 both DIE on the severity guard itself with no POST in the picture, so the kill is attributed by construction rather than by assertion. I then attacked the guard's own vacuity with three escapes the author never tried: dropping the severity kwarg, making it non-literal (severity=_QA_SEV), and renaming the called fn to blind the sweep -- all three trip 'no literal severity found at any alert call site in spend.py', proving the non-empty assertion is real and not decorative. A planted SECOND undeliverable call site at line 276, with the P1 site untouched, also dies -- it is a for-all check, not first-match. WARN-1 reproduces exactly on my own parse: ADDED ['4000.10','82.59','82.60','82.61'], REMOVED [], every unchanged id JSON-identical, and git diff --numstat on the masterplan = 77/0 (additions only), confirming the ensure_ascii churn is gone. Criteria 1/3 did not regress: exec'ing mutated source into the live module (disk untouched), CONTROL 3 passed, details=->detail= 2 failed, P1->P2 2 failed, healthy-fetch negative control correctly green under both. Immutable command reproduces (10 passed, 86.26s). Ruff F821/F401/F811 over a git-DERIVED 3-file scope, non-empty asserted and xargs-piped so zsh cannot word-split it to zero files: All checks passed!, exit 0. Runtime smoke OK; live signature is details: dict|str and live _CRITICAL_SEVERITIES = ['CRITICAL','P0','P1','critical']. spend.py's full diff is exactly the comment block + P2->P1 + detail=->details= with no mutant residue. Harness compliance clean: research(16:43:39) < contract(16:46:36) < conftest(16:47:11) < spend.py(17:15:02, byte-restore) < test(17:15:05) < results(17:17:22); gate_passed true with 9 sources / 53 URLs / recency scan / audit-class dry; 82.58's verification block byte-identical to HEAD; status still pending; harness_log's +73 block is phase=4000.3, not 82.58. Verdict reversal is the documented cycle-2 flow, not sycophancy: the test file went 9->10 tests with a function I executed independently, and I re-derived every number rather than reading it. Two NOTE-level observations recorded in notes, neither degrading the verdict.",
   "violated_criteria": [],
   "violation_details": [],
   "certified_fallback": false,
   "checks_run": [
     "harness_compliance_audit_5_item",
-    "verification_command",
-    "python_lint_ruff_F821_F401_F811_git_derived_scope",
-    "scoped_test_suite",
-    "mutation_control_green",
-    "mutation_M_B_revert_2target_unpack",
-    "mutation_M_C_field_kept_unpopulated",
-    "mutation_M_E_value_swap_new_by_qa",
-    "env_mutation_PYFIN_SKIP_LIVE_BQ_trapdoor",
-    "immutable_criteria_tamper_check_vs_HEAD",
-    "claim_reproduction_all_numerics",
-    "independent_ast_sql_derivation",
-    "backend_runtime_smoke_live_curl_qa_taken",
-    "guard_vacuity_check_4c",
+    "verification_command_reproduced_10_passed",
+    "python_lint_ruff_F821_F401_F811_derived_scope_xargs",
+    "backend_runtime_smoke_import_and_live_signature",
+    "mutation_test_new_severity_guard_repo_redirection_7_mutants",
+    "mutation_test_identity_control",
+    "mutation_test_vacuity_escapes_drop_kwarg_nonliteral_blind_sweep",
+    "mutation_test_planted_second_call_site_forall_check",
+    "mutation_test_criterion1_delivery_regression_exec_injection",
+    "mutant_residue_scan_full_spend_py_diff_and_md5",
+    "masterplan_parsed_delta_added_removed_changed",
+    "masterplan_criteria_immutability_byte_compare_vs_HEAD",
+    "claim_audit_experiment_results_numeric",
+    "harness_log_prior_verdict_count_and_log_last",
+    "artifact_mtime_ordering_chain",
+    "research_gate_envelope_and_contract_citation",
     "code_review_heuristics",
-    "evaluator_critique_prior_verdicts"
+    "evaluator_critique_cycle1_prior_verdict"
   ],
   "harness_compliance_ok": true,
-  "notes": "HARNESS COMPLIANCE (5/5 clean). Research gate: research_brief_82.54.md envelope tier=moderate, external_sources_read_in_full=8 (>=5), urls_collected=24 (>=10), recency_scan_performed=true, internal_files_inspected=13, coverage.audit_class=true rounds=8 dry_rounds=2; cited in contract \u00a78. Order by mtime: research 13:02:34 < contract 13:05:27 < test 13:35:01 < api 13:36:17 < experiment_results 13:37:52 < evaluator_critique 13:38:08 -- contract precedes generation. experiment_results_82.54.md present with \u00a75/\u00a710/\u00a711. Log-last: grep -nE \"phase=82\\.54\" on harness_log.md returns NOTHING (the only two \"82.54\" hits are queue references from other steps) and masterplan status is still \"pending\". No verdict-shopping: evidence materially CHANGED (an illusory model_fields guard was REPLACED by the endpoint test, a non-skippable trapdoor guard was added, \u00a75 regenerated, ruff derivation shown; 13 -> 14 tests reconciles as -1+1+1).\n\nCRITERION MAPPING (all MET). C1: test_production_sql_dry_runs_valid dry-runs the PRODUCTION constant (valid, bytes=0) and test_the_PRE_FIX_projection_dry_runs_INVALID asserts BigQuery rejects it with \"Unrecognized name\"/\"input_tokens\". PRE_FIX_SQL is DERIVED from the production constant by substitution, so it cannot drift, and a no-op replace would make the \"must be REJECTED\" assert fail loudly rather than pass falsely -- the str.replace-matched-nothing class is closed by construction. C2: test_repaired_query_returns_a_POSITIVE_total_on_a_day_with_traffic uses FIXED BUSY_DAY 2026-08-05 with a calls>0 precondition, asserts tokens>naive (the 26x pin) and the exact sum identity, and asserts the window substitution is not a no-op; the companion zero-day test pins WHY the criterion's own \"non-null\" wording is vacuous. C3: verified by my OWN AST walk, not the author's claim -- exactly one SELECT string constant (line 112), ZERO f-strings containing SELECT, exactly one .query() site (line 164) consuming LLM_TOKENS_TODAY_SQL, so \"every column identifier this file selects\" is genuinely complete; the derived set is asserted non-empty and checked against the live schema with its own \"assert live\" non-vacuity guard; test_the_derivation_excludes_aliases_a_RECALL_TEST is a true known-member recall test in BOTH directions (and the author discloses it FAILED first, forcing a real fix). C4: test_failed_fetch_emits_an_operator_alert drives the production _fetch_llm_tokens_today with bigquery.Client raising, asserts call_count==1, severity==\"P1\" (P2 would be logged and dropped while slack_webhook_url is empty), source, error_type and the details[\"error\"] content -- that last assertion also guards this call site against the exact detail=/details= defect queued as 82.58; test_a_successful_fetch_emits_NO_alert is the negative control preventing an always-fires pass.\n\nGUARD-VACUITY (\u00a74c), executed not reasoned. test_the_ENDPOINT_returns_the_breakdown_VALUES imports and runs the REAL api.get_cost_budget_today() (not a copy -- rules out shape #7), asserts distinct VALUES 11/22/33/44 (rules out #1 and #4), and covers the fail-open None shape. The 60s cache seam is proven behaviorally, not by inspection: a stale cached response would have kept M_B/M_C/M_E green; all three go red. The trapdoor guard was proven by executing the env mutation (RED at :329), closing shapes #8/#9. WARN-level-only observation, non-degrading: test_the_phantom_identifiers_are_gone_and_all_four_real_ones_present is a regex/source scan (#1/#2), but it is supplementary, not sole coverage -- the dry-run pair and the live-schema derivation cover the same criterion behaviorally, so \u00a74c wiring puts this at most at WARN.\n\nTWO NOTES FOR MAIN (neither degrades the verdict, both actionable at the flip). (1) The live uvicorn (pid 79058, started 2026-08-06 13:24:49) PREDATES the file mtime 13:36:17, so the running process is not byte-current with the tree -- the same class as cycle-1 F1. It is not a criterion miss: none of the four criteria depend on the running process, and my own independent curl of /api/cost-budget/today returns http=200 with {llm_tokens_today: 0, llm_input_tokens_today: 0, llm_output_tokens_today: 0, llm_cache_creation_tokens_today: 0, llm_cache_read_tokens_today: 0}, reproducing \u00a710's LIVE PROOF block exactly (the pre-fix module returned null and had no breakdown fields at all). A kickstart before the flip is nonetheless advisable. (2) The tree carries a parallel session's untracked artifacts (backend/tests/test_phase_4000_2_cc_rail_smoke.py, scripts/qa/smoke_cc_rail_e2e.py, handoff/current/*4000.2*) that `git add -A` would sweep under 82.54's commit subject -- run `git add -An` before the flip.\n\nWHAT I DID NOT DO (named, per budget). I did not re-run the author's M1/M3/M4/M5 -- I re-ran the two mutants that SURVIVED my cycle-2 measurement plus one new mutant of my own design, which is the load-bearing set. I could not independently verify Main's \"production changed by one line since cycle 2\": no commit boundary exists between cycles, so no snapshot to diff against. I therefore anchored on current state instead -- I read the ENTIRE HEAD->working diff of the only changed production file (+107/-16) and re-executed every guard against the tree as it stands, which is the stronger anchor. No frontend gate (\u00a71b/\u00a71c) was owed: the diff touches no frontend/**, and the contract's refutation #1 establishes llm_tokens_today has ZERO frontend consumers, so the step makes no UI claim."
+  "notes": "CRITERION-BY-CRITERION (all MET on executed evidence):\\n\\nC1 DELIVERED-not-branch-entry, fails against detail=/P2 -- MET, re-verified this cycle. I exec'd mutated spend.py source into the live module object (in-memory; disk md5 unchanged) and re-ran the delivery selection: CONTROL 3 passed; M_A details=->detail= 2 failed (test_degraded_spend_fetch_delivers_an_alert_payload + test_delivery_is_not_merely_a_constructed_call); M_B P1->P2 2 failed. The emitter is not mocked -- the real raise_cron_alert_sync -> _bot_token_fallback -> urlopen chain runs and the payload is captured at the socket seam.\\n\\nC2 severity deliverable, asserted against the live _CRITICAL_SEVERITIES -- MET, and the cycle-1 WARN is CURED. Main took the stronger of the two remedies I was offered: instead of re-labelling the M_C row, a new guard test_the_call_sites_severity_literal_is_deliverable_independently_of_delivery AST-reads the severity literal out of the production call site and checks it against alerting._CRITICAL_SEVERITIES with no POST involved. My independent matrix, calling ONLY that function (so attribution is structural): CONTROL PASS; P1->P3 FAIL at [(129,'P3')]; P1->P2 FAIL at [(129,'P2')]; drop-severity-kwarg FAIL; non-literal severity FAIL; renamed-fn/blinded-sweep FAIL; planted second P3 site FAIL at [(276,'P3')] with the P1 site untouched. 7/7. The delivery-side assertion at :167 is still logically unfalsifiable given a captured POST -- that has not changed and cannot -- but it is no longer the sole coverage for C2, so per qa.md 4c verdict wiring this is a coexisting-guard situation, not a blocking vacuity.\\n\\nC3 healthy fetch emits NO alert -- MET, unchanged from cycle 1 (M_E always-fire killed it there). Confirmed still present and still green, and correctly NOT killed by the two delivery mutants above (a negative control should survive a delivery defect).\\n\\nC4 structural derivation + inspect.signature bind + non-empty assert + further mismatches fixed/queued -- MET, unchanged. The sweep code (_import_resolved_alert_calls, the recall test, the bind test) is byte-identical to what cycle 1 verified with an EMPTY symmetric difference against an independent bare-name derivation and a planted-mismatch instrument test; all three tests green in the 10-passed run. 82.59/82.60/82.61 are all present in my own parsed masterplan delta.\\n\\nTEST-COUNT INTEGRITY: 10 = the 9 cycle-1 tests, all still present and unweakened, + 1 new. grep -c '^def test_' = 10, matching the 10 passed. Adding a test cannot weaken existing ones, and I re-executed the C1 guards anyway rather than reasoning about it.\\n\\nTWO NOTE-LEVEL OBSERVATIONS (flagged, verdict NOT degraded):\\n(1) experiment_results.md section 1 gives the new test file as '415' lines; wc -l says 418. The row's other figure (10 tests) does reproduce, and the section says these came from wc -l 'run as the last action' -- so this is stale-by-3 drift on a byproduct metric that is load-bearing for no criterion. Worth a one-character fix, not a blocker.\\n(2) handoff/harness_log.md is ALREADY +73 carrying the concurrent session's '## Cycle 162 -- 2026-08-06 -- phase=4000.3 result=PASS'. When 82.58's own log-last append lands, an explicit pathspec on that file will still co-ship 4000.3's block, because git cannot stage part of a file -- the same constraint section 1 correctly discloses for masterplan.json. Also outside section 1's table but unavoidable: hook-appended streams (handoff/audit/*.jsonl, handoff/away_ops/health.jsonl) and .claude/agent-memory/researcher/MEMORY.md +4. The stated 'explicit pathspec, never git add -A' discipline covers the ~20 untracked phase-4000.3 artifacts by construction, which was the substance of the cycle-1 finding.\\n\\nWHY THIS IS NOT SYCOPHANCY (qa.md Dimension 5 self-check): the evidence CHANGED between cycles -- the test file gained a function whose bytes I read and whose behaviour I executed under 7 mutants, section 1 gained a disclosure block whose every number I re-derived rather than read, and the masterplan went from a claimed +231/-154 to a measured +77/-0. I reproduced the fix rather than accepting it, and I invented three escape hypotheses the author never tested. Per the code-review skill's negation list, verdict reversal after the code actually changed is the documented cycle-2 flow.\\n\\nHARNESS COMPLIANCE (5/5): research_brief_82.58.md gate_passed true, 9 sources read in full (floor 5), 53 URLs (floor 10), recency_scan_performed true, audit-class coverage.dry true; contract cites the brief twice; mtime chain research 16:43:39 < contract 16:46:36 < conftest 16:47:11 < spend.py 17:15:02 < test 17:15:05 < results 17:17:22 < critique 17:17:56 (spend.py's 17:15:02 is the matrix byte-restore, and its diff vs HEAD is exactly the intended +16/-2 with no residue); experiment_results present and updated; log-last respected -- masterplan 82.58 status still 'pending', verification block byte-identical to HEAD so criteria were not amended, and zero 'phase=82.58 result=' entries exist so the 3rd-CONDITIONAL counter does not bind; no verdict-shopping.\\n\\ncertified_fallback false: retry_count 0 < max_retries 3.\\n\\nGATES NOT APPLICABLE: 1b frontend lint/typecheck (diff touches no frontend/**), 1c live UI capture (no UI claims in the contract, criteria, or diff).\\n\\nNO LIVE SLACK MESSAGE WAS SENT at any point in this evaluation. The severity probe touched no network at all; the delivery probe ran under backend/tests/conftest.py's egress guard with a dummy token and a monkeypatched urlopen."
 }
 ```

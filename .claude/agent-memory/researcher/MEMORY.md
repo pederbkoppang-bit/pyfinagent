@@ -1,5 +1,9 @@
 # Researcher Agent Memory Index
 
+- [Dead cost-budget alert 82.58](project_dead_alert_82_58.md) — THREE stacked blockers (deduper fires FIRST, one seam before the webhook); "15 call sites" is really 33; the fix ARMS a live Slack POST in the existing suite; 2 more live instances in assistant_lifecycle
+- [Autoresearch Max-rail 85.1](project_autoresearch_max_rail_85_1.md) — 2 premises REFUTED: migration already shipped (default ON, commit 08:36) vs the ERROR file it cites (02:00 SAME day); rail never ran under launchd; `--bare` default flip is a scheduled kill
+
+- [CC-rail live window 4000.3](project_cc_rail_live_window_4000_3.md) — flag was ALREADY True (no flip); rail forces supports_grounding=False so 4 "grounded" steps run ungrounded; manual analysis CANNOT reach decide_trades; CLI costUSD is a local list-rate estimate
 - [CC-rail E2E smoke 4000.2](project_cc_rail_e2e_smoke_4000_2.md) — CLAUDE_CODE_BINARY LOSES to PATH + captured at import (false stub hook); llm_call_log BUFFERED so a zero is not evidence; PUT /api/settings writes .env durably; rail-guard has NO out-of-process reader
 - [CC-rail E2E 4000.1](project_cc_rail_e2e_4000_1.md) — flat-fee `claude -p` is a PAUSED policy (Max 5x $100 credit), not a fact; `--bare` becoming the -p default is rail-fatal; modelUsage canonicalModel COLLAPSE; rail marker = 3 shapes; PUT /api/settings writes .env
 - [Outcome write 82.48](project_outcome_write_82_48.md) — return_pct mapping ALREADY decided (47.7) + correct writer exists; 5 consumers not 0; NULL-pnl unreachable; insertAll rejects WHOLE batch
