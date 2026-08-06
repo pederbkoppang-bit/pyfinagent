@@ -91,3 +91,9 @@ handoff/.away-session.lock
 *.tsbuildinfo
 frontend/tsconfig.tsbuildinfo
 handoff/.autonomous_loop.lock
+
+# cwd-derived Claude Code agent-memory forks (phase-84 audit 2026-08-06):
+# sessions started from a subdir create empty <subdir>/.claude/agent-memory roots
+# that the real index at .claude/agent-memory/ never sees. Root corpus stays tracked.
+/frontend/.claude/
+/backend/.claude/

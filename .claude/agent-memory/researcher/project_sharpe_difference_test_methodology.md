@@ -45,5 +45,5 @@ require the bootstrap CI lower bound for delta > 0 with margin.
 (element 2 "cited research basis"); the DSR-only instinct was wrong for an improvement delta.
 **How to apply:** any future "config B beats baseline by +X Sharpe, enable it?" decision --
 gate on paired LW bootstrap p<0.05 + positive CI lower bound (primary), DSR>=0.95 at clustered
-N_eff + PBO<=0.5 (corroborating). See [[project_pbo_single_strategy_cpcv]] (CSCV needs N>=2
+N_eff + PBO<=0.20 (corroborating; 0.20 per autoresearch/gate.py:21-30 — an earlier revision of this line said 0.5, which is promotion_gate.py's separate staging ceiling, corrected 2026-08-06). See [[project_pbo_single_strategy_cpcv]] (CSCV needs N>=2
 competing configs) and [[project_strategy_rotation_seed_set]] (deflate by N_eff not raw N).
