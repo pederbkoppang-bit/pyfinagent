@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `107b0841` | fix(82.58): repair the only alarm guarding the cost-budget hard-block |
 | 2026-08-06 | `95f5aeea` | docs(85): record operator decisions -- usage credits OFF, PAT revocation declined |
 | 2026-08-06 | `d28c8cd9` | phase-4000.2: Build the repeatable E2E smoke script -- and prove its checks CAN FAIL before they ... |
 | 2026-08-06 | `11932230` | fix(82.54): repair the LLM token query -- and it was not a rename |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-05 | `2fcf03b5` | docs(82.39): research gate -- the defect is larger than the step describes |
 | 2026-08-05 | `a2bec245` | fix(82.25): carry the DSR trial count across warm starts instead of resetting to 1 |
 | 2026-08-05 | `5c1f3f8f` | fix(82.16): demote two strategies whose labels carry no forward information |
-| 2026-08-05 | `3944f71a` | fix(82.13): act on a macro refusal instead of degrading into the slow path |
 
 ---
 
+### v6.81.8 — fix(82.58): repair the only alarm guarding the cost-budget hard-block (2026-08-06)
+
+- **fix(82.58): repair the only alarm guarding the cost-budget hard-block**
 ### v6.81.7 — phase-4000.2: Build the repeatable E2E smoke script -- and prove its... (2026-08-06)
 
 - **phase-4000.2: Build the repeatable E2E smoke script -- and prove its checks CAN FAIL before they ...**
