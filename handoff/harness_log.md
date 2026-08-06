@@ -31039,3 +31039,74 @@ worth funding, the honest form of that choice is "fundamentals-dependent strateg
 retired", not "evaluable from 2024-07". Dropping 82.50 leaves this step's code unchanged.
 
 **Next:** 82.39 (P1) / 82.43 (P1).
+
+## Cycle 156 -- 2026-08-06 -- phase=82.39 result=PASS
+
+**THREE CYCLES: CONDITIONAL -> CONDITIONAL -> PASS.** The production code was right
+from cycle 1. Every blocker across all three cycles was a claim I made about something
+I had not derived.
+
+**What shipped.** `nightly_outcome_rebuild`'s fetch SELECTed `timestamp` and
+`realized_pnl` from `paper_trades`; neither exists (18 cols; the real ones are
+`created_at` STRING and `realized_pnl_pct` FLOAT). BigQuery 400'd, a fail-open `except`
+returned [], and the job produced an outcome rebuild over an empty set that looked like a
+successful no-op -- since the file's FIRST commit (2026-05-11). Repaired with
+`SAFE.TIMESTAMP(created_at)` + `realized_pnl_pct`, extracted into a real seam
+(`build_ledger_fetch_sql`) so the dry run validates what production ISSUES rather than a
+copy, and the swallow now emits P1 through the canonical operator channel.
+
+**Live proof:** OLD dry-runs 400 `Unrecognized name: timestamp at [5:27]`; NEW dry-runs
+VALID; the fixed window 2026-06-01..2026-07-01 returns 20 rows. The fixture is FIXED and
+not rolling because the rolling window returns 3 today and 0 after 2026-08-26 -- it would
+have passed today and rotted silently.
+
+**Criterion 4 was nearly uncloseable, and the fix is what saved it.** "derived scope
+asserted non-empty" measured `[]` on the pre-fix tree -- the 81.0 shape. It is green
+because the repair applies `SAFE.TIMESTAMP` to `created_at`, a STRING column, which is
+exactly what puts a member in `scope`. Measured 0 -> 1.
+
+**A near-miss I caused: extracting the seam almost blinded the sweep this step depends
+on.** My first builder was an f-string; `extract_sql_literals` reassembles only CONSTANT
+parts, so interpolating the table dropped `tables_resolved` 1 -> 0 and interpolating the
+predicate emptied `scope`. The fix for the defect would have hidden the file from the
+instrument that found it, while every other guard stayed green. The SQL is now a plain
+literal, pinned structurally as `ast.Constant`.
+
+**Cycle 1 CONDITIONAL -- three findings, all mine.** (a) I wrote the `A or B` ESCAPE
+HATCH the operator explicitly warns about: `assert not re.search(timestamp) or
+"SAFE.TIMESTAMP" in sql` -- the right side unconditionally true, so restoring the phantom
+column left it PASSING. (b) My claim "deleting the query cannot satisfy it" was measurably
+FALSE: the guard scanned raw file text and MY OWN DOCSTRINGS carry `created_at` x7 and
+`realized_pnl_pct` x1, so deleting the whole query still passed. (c) A test wrote a probe
+into `backend/db/`, a shipped package.
+
+**Cycle 2 CONDITIONAL -- one finding, the same class one level up.** My cycle-2 edits
+added ~21 lines and I left the `git diff --numstat` block the artifact LABELS AS ITS OWN
+SOURCE reading `60 11` while the command returned `81 11`.
+
+**THE FIX THAT REMOVES A CLASS RATHER THAN AN INSTANCE:** every figure in the artifact is
+now REGENERATED from live command output as the final action before freezing, asserted
+non-empty and round-tripped. Doing that immediately caught a SECOND stale figure the Q/A
+had not flagged (`wc -l` 410 vs 423) -- one I would certainly have missed by hand.
+
+**THE PATTERN, and it is the day's lesson in one line:** the code was correct in every
+cycle of every step today; every blocker was a claim about a population I never derived --
+a line count, a diff stat, a set membership, a "queued" step, a lint gate, a docstring
+promise, a stale capture. Guards that assert over the WRONG TEXT (a disjunction that
+cannot fail; prose I had just authored) are the same failure wearing a different hat.
+
+**Corrections to the step's own text:** the "froze the learning loop" claim is FALSE
+(`outcome_tracker.py` has 0 references to `outcome_tracking`; the real writer is gated
+off), and 87 days is a LOWER BOUND, not a run count -- there is no durable receipt.
+
+**Queued:** 82.54 (P1, a SECOND live phantom-column defect at `cost_budget_api.py`:
+`input_tokens` vs `input_tok`, 5519 rows -- and `derive_scope` CANNOT SEE IT), 82.55 (P2,
+the sweep resolves 1 table of 33, so a clean criterion-4 report is false assurance).
+
+**Post-PASS, documentation only:** two cycle-3 NOTE corrections -- a plural that
+over-credited the evaluator, and an unverifiable self-credit about the 410 figure.
+
+**READ BEFORE ASSUMING THE JOB WORKS: the WRITE half is still broken.**
+`outcome_tracking` has 0 rows and will still get 0 -- that is 82.48, open with 4 criteria.
+
+**Next:** 82.43 (P1), 82.46 (P1), 82.48 (P1).

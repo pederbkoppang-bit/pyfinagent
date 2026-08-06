@@ -414,12 +414,46 @@ def test_query_selecting_nonexistent_columns_is_detected():
         "the real columns are gone -- re-derive before trusting this test"
     )
 
+    # phase-82.39 REPAIRED this query, so the live defect is gone and asserting
+    # it is still flagged would now fail. The guard's INTENT -- "the checker can
+    # SEE this defect class" -- is preserved by driving a synthetic instance
+    # instead, which is strictly stronger: it survives the live defect being
+    # fixed, and it would catch a checker that silently stopped detecting.
     found = so.derive_scope(ORACLE)["unknown_columns"]
     flagged = {(u["identifier"], u["file"]) for u in found}
-    assert ("timestamp", "backend/slack_bot/jobs/_production_fns.py") in flagged, (
-        f"the unknown-column checker missed the live defect; it found {flagged!r}"
+    assert ("timestamp", "backend/slack_bot/jobs/_production_fns.py") not in flagged, (
+        f"phase-82.39 repaired this query; it must no longer be flagged: {flagged!r}"
     )
-    assert ("realized_pnl", "backend/slack_bot/jobs/_production_fns.py") in flagged
+    assert ("realized_pnl", "backend/slack_bot/jobs/_production_fns.py") not in flagged
+
+    # RECALL TEST of the instrument itself: a checker that finds nothing and a
+    # checker that sees nothing are indistinguishable without this.
+    # The probe MUST live inside the repo -- derive_scope does
+    # `path.relative_to(_REPO_ROOT)` and raises on anything outside it, so a
+    # pytest tmp_path cannot be used. It must NOT live in a shipped package:
+    # a hard kill that bypasses `finally` would leave a file selecting phantom
+    # columns inside backend/db/, where the sweep would flag it forever as a
+    # self-inflicted defect and an `git add -A` hook would commit it.
+    # handoff/logs/ is gitignored (.gitignore:76) and is not importable code.
+    probe_dir = Path(__file__).resolve().parents[2] / "handoff" / "logs"
+    probe_dir.mkdir(parents=True, exist_ok=True)
+    probe = probe_dir / "_recall_probe_82_12.py"
+    probe.write_text(
+        'SQL = """\n'
+        "    SELECT trade_id, timestamp, realized_pnl\n"
+        "    FROM `sunny-might-477607-p8.financial_reports.paper_trades`\n"
+        '"""\n',
+        encoding="utf-8",
+    )
+    try:
+        probe_hits = so.derive_scope(ORACLE, files=[probe])["unknown_columns"]
+    finally:
+        probe.unlink()
+    probe_flagged = {u["identifier"] for u in probe_hits}
+    assert {"timestamp", "realized_pnl"} <= probe_flagged, (
+        "the unknown-column checker can no longer detect this defect class at "
+        f"all; on a synthetic instance it found {probe_flagged!r}"
+    )
 
 
 def test_the_nonexistent_column_defect_is_queued_as_its_own_step():
@@ -446,14 +480,50 @@ def test_the_nonexistent_column_defect_is_queued_as_its_own_step():
         if s.get("status") not in {"done", "dropped", "superseded"}
         and all(tok in s.get("name", "") for tok in signature)
     ]
-    assert matches, (
-        "no OPEN masterplan step names the full defect signature "
-        f"{signature}; a queued step must let an executor with no memory of this "
-        "sweep find the exact query and columns"
-    )
-    assert any(s.get("verification", {}).get("criteria") for s in matches), (
-        "the queued step has no verification criteria, so it could never be closed"
-    )
+
+    # phase-82.39 update. The original assertion required an OPEN step forever,
+    # which becomes unsatisfiable the moment the defect is actually FIXED -- the
+    # guard would have punished the repair it existed to demand. The intent is
+    # "queued, not absorbed"; the honest form of that is the disjunction the
+    # 82.39 criteria themselves use: FIXED **or** QUEUED. These two states are
+    # disjoint (one is a property of the source, the other of the masterplan),
+    # so this is not the `A or B` escape hatch where A is a subset of B.
+    live = so.derive_scope(ORACLE)["unknown_columns"]
+    still_present = {
+        (u["identifier"], u["file"]) for u in live
+        if u["file"] == "backend/slack_bot/jobs/_production_fns.py"
+        and u["identifier"] in {"timestamp", "realized_pnl"}
+    }
+    if still_present:
+        assert matches, (
+            "the defect is STILL LIVE and no OPEN masterplan step names the full "
+            f"signature {signature}; a queued step must let an executor with no "
+            "memory of this sweep find the exact query and columns"
+        )
+        assert any(s.get("verification", {}).get("criteria") for s in matches), (
+            "the queued step has no verification criteria, so it could never be closed"
+        )
+    else:
+        # FIXED. Assert the repair is real rather than merely that the flag is
+        # gone -- deleting the query would also clear the flag.
+        # Scan the PARSED SQL LITERALS, not the raw file text. Measured by the
+        # 82.39 Q/A: deleting the entire query body still leaves `created_at`
+        # on 7 lines and `realized_pnl_pct` on 1 -- all of them PROSE inside the
+        # docstrings that step authored. A raw-text scan is therefore satisfied
+        # by a source containing no query at all (the comment-token trap).
+        pf = (Path(__file__).resolve().parents[1]
+              / "slack_bot" / "jobs" / "_production_fns.py")
+        literals = [text for _ln, text in so.extract_sql_literals(pf)]
+        assert literals, (
+            "no SQL literal found in _production_fns.py -- the query was removed "
+            "rather than repaired, or it became an f-string invisible to the sweep"
+        )
+        ledger = [q for q in literals if "paper_trades" in q]
+        assert ledger, "the paper_trades query is gone entirely"
+        assert any("created_at" in q and "realized_pnl_pct" in q for q in ledger), (
+            "the flag cleared but the real columns are absent from the QUERY "
+            "itself -- prose in a docstring does not count"
+        )
 
 
 def test_alias_is_not_reported_as_a_missing_column():

@@ -25,7 +25,6 @@ import json
 import logging
 import os
 from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:  # pragma: no cover -- type-only import
@@ -206,32 +205,153 @@ def make_fred_write_fn() -> Callable[[dict[str, Any]], int]:
 # ── nightly_outcome_rebuild ────────────────────────────────────
 
 
+#: phase-82.39. The window the production closure uses. Named so the test can
+#: drive the SAME builder over a FIXED window instead of the rolling one -- a
+#: fixture pinned to "last 30 days" would pass today and silently return zero
+#: rows after 2026-08-26 (measured: SELLs with a P&L are 2026-05 x8, 2026-06 x20,
+#: 2026-07 x4, and the rolling window already returns only 3).
+LEDGER_FETCH_WINDOW_DAYS = 30
+
+LEDGER_TABLE = "sunny-might-477607-p8.financial_reports.paper_trades"
+
+#: The production query, as a FULLY PLAIN string literal. Nothing here is
+#: interpolated, and that is load-bearing rather than stylistic:
+#: `schema_oracle.extract_sql_literals` reassembles an f-string from its CONSTANT
+#: parts only, so anything interpolated is invisible to the unknown-column sweep.
+#: Measured while building this step -- interpolating the table name dropped
+#: `tables_resolved` from 1 to 0, and interpolating the WHERE predicate erased the
+#: `SAFE.TIMESTAMP(created_at)` date semantics, emptying `scope`. Writing the
+#: query as an f-string would therefore have made this file INVISIBLE to the very
+#: instrument that found its defect. That is the same f-string recall hole step
+#: 82.55 exists to close, and this step must not widen it while fixing the bug
+#: the sweep caught. `test_the_production_sql_stays_visible_to_the_sweep` pins it.
+LEDGER_FETCH_SQL = """
+                SELECT trade_id, ticker, action, price, quantity, created_at,
+                       SAFE_CAST(realized_pnl_pct AS FLOAT64) AS pnl
+                FROM `sunny-might-477607-p8.financial_reports.paper_trades`
+                WHERE SAFE.TIMESTAMP(created_at) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+                  AND realized_pnl_pct IS NOT NULL
+                LIMIT 1000
+            """
+
+#: The substring the fixed-window variant swaps out. Kept separate so the swap
+#: has an assertable target rather than being a silent no-op if the SQL drifts.
+_ROLLING_PREDICATE = (
+    "SAFE.TIMESTAMP(created_at) >= "
+    "TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)"
+)
+
+
+def build_ledger_fetch_sql(
+    *,
+    window_days: int = LEDGER_FETCH_WINDOW_DAYS,
+    start: str | None = None,
+    end: str | None = None,
+) -> str:
+    """phase-82.39: the nightly_outcome_rebuild fetch SQL, as a real seam.
+
+    THE DEFECT THIS REPLACES. The query used to SELECT `timestamp` and
+    `realized_pnl` from `financial_reports.paper_trades` and to filter on
+    `TIMESTAMP_TRUNC(timestamp, DAY)` and `realized_pnl IS NOT NULL`. NEITHER
+    COLUMN EXISTS -- measured against the live schema 2026-08-06: the table has
+    18 columns, `timestamp` present=False, `realized_pnl` present=False, and the
+    real columns are `created_at` (STRING, REQUIRED) and `realized_pnl_pct`
+    (FLOAT, NULLABLE). BigQuery answered 400 `Unrecognized name: timestamp`, the
+    fail-open `except` below returned [], and the job produced an outcome
+    rebuild over an empty set that looked like a successful no-op. Dead since
+    this file's first commit (2301b977, 2026-05-11).
+
+    WHY THIS IS A FUNCTION AND NOT AN INLINE STRING. Inline, the only way a test
+    could reach the SQL was to copy it -- and a copied string proves nothing
+    about what production issues. Extracted, criterion 1's dry run validates the
+    exact text `_fetch` sends.
+
+    WHY `SAFE.TIMESTAMP` AND NOT `TIMESTAMP_TRUNC`. `created_at` is a STRING
+    column holding ISO timestamps, so it must be parsed before it can be
+    compared as a timestamp; `backend/services/cycle_health.py` already lists
+    `('paper_trades', 'created_at')` for exactly this reason. NOTE the idiom is
+    per-column and NOT portable: `SAFE.TIMESTAMP` applied to a column that is
+    already a native TIMESTAMP returns 400 "SAFE with function timestamp is not
+    supported" (31 such columns exist in this project's oracle).
+
+    `start` / `end` (ISO dates) override the rolling window. Production never
+    passes them; the guards do, so criterion 2 can assert a row count that does
+    not rot with the calendar.
+    """
+    if not (start and end):
+        return LEDGER_FETCH_SQL
+    replacement = (
+        f"SAFE.TIMESTAMP(created_at) >= TIMESTAMP('{start}')\n"
+        f"                  AND SAFE.TIMESTAMP(created_at) < TIMESTAMP('{end}')"
+    )
+    # Assert the target exists before replacing: a `str.replace` that matches
+    # nothing is indistinguishable from success, and would silently hand back the
+    # rolling window while the caller believed it had a fixed one.
+    if _ROLLING_PREDICATE not in LEDGER_FETCH_SQL:
+        raise AssertionError(
+            "the rolling predicate is no longer present verbatim in "
+            "LEDGER_FETCH_SQL; the windowed variant would silently be a no-op"
+        )
+    return LEDGER_FETCH_SQL.replace(_ROLLING_PREDICATE, replacement, 1)
+
+
 def make_ledger_fetch_fn() -> Callable[[], list[dict]]:
     """Return a sync closure that fetches recent paper trades from BQ.
 
     Reads `financial_reports.paper_trades` (per CLAUDE.md BigQuery dataset
     map) for the last 30 days. Outcome computation lives in the job module
     (`_compute_outcomes`); we only fetch.
+
+    phase-82.39: the fetch stays FAIL-OPEN -- a nightly job must never crash the
+    scheduler -- but it is no longer fail-SILENT. The failure branch dispatches a
+    P1 through the canonical operator channel. P1 and not P2: with
+    `slack_webhook_url` empty on this machine a P2 is logged and dropped
+    (`alerting.py`), which is the same invisibility this step exists to remove.
     """
 
     def _fetch() -> list[dict]:
         try:
             client = _bq_client()
-            sql = """
-                SELECT trade_id, ticker, action, price, quantity, timestamp,
-                       SAFE_CAST(realized_pnl AS FLOAT64) AS pnl
-                FROM `sunny-might-477607-p8.financial_reports.paper_trades`
-                WHERE TIMESTAMP_TRUNC(timestamp, DAY) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-                  AND realized_pnl IS NOT NULL
-                LIMIT 1000
-            """
+            sql = build_ledger_fetch_sql()
             rows = list(client.query(sql, location="us-central1").result(timeout=30))
             return [dict(r) for r in rows]
         except Exception as exc:
             logger.warning("nightly_outcome_rebuild: BQ fetch fail-open: %r", exc)
+            _alert_fetch_failure(exc)
             return []
 
     return _fetch
+
+
+def _alert_fetch_failure(exc: BaseException) -> None:
+    """phase-82.39: make the swallowed fetch failure operator-visible.
+
+    Function-local import of the emitter, matching the 82.10/82.11 convention --
+    which also means a test MUST patch
+    `backend.services.observability.alerting.raise_cron_alert_sync` and not a
+    module-scope name here, because there is no module-scope name to patch.
+
+    Fail-open squared: a notification problem must not turn a tolerated fetch
+    failure into an exception escaping into the scheduler.
+    """
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+
+        raise_cron_alert_sync(
+            source="nightly_outcome_rebuild",
+            error_type="ledger_fetch_failed",
+            severity="P1",
+            title="nightly_outcome_rebuild: BigQuery ledger fetch failed",
+            details={
+                "table": LEDGER_TABLE,
+                "error": f"{type(exc).__name__}: {exc}"[:600],
+                "consequence": "outcome rebuild ran over ZERO trades this night",
+            },
+        )
+    except Exception as alert_exc:  # noqa: BLE001 -- never break the job
+        logger.warning(
+            "nightly_outcome_rebuild: alert dispatch fail-open: %r", alert_exc
+        )
 
 
 def make_outcome_write_fn() -> Callable[[list[dict]], int]:

@@ -21961,7 +21961,7 @@
         },
         {
           "id": "82.39",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "LIVE DEFECT found by the 82.12 schema sweep -- same root cause as 82.0 (an unverified assumption about a BigQuery column, swallowed fail-open) but the NAME variant rather than the TYPE variant, which is why the type-only framing of 82.12 would have missed it. `backend/slack_bot/jobs/_production_fns.py` around line 218-227 builds the `nightly_outcome_rebuild` fetch closure and SELECTs `timestamp` and `realized_pnl` from `sunny-might-477607-p8.financial_reports.paper_trades`. NEITHER COLUMN EXISTS. MEASURED 2026-08-05 against the live schema: paper_trades has 18 columns; `timestamp` present=False, `realized_pnl` present=False, while the real columns are `created_at` (STRING) and `realized_pnl_pct` (FLOAT). The query also filters `WHERE TIMESTAMP_TRUNC(timestamp, DAY) >= ...` and `AND realized_pnl IS NOT NULL`, so both the projection and the predicate reference phantom columns. BigQuery returns 400 Unrecognized name (reproduced live via a $0 dry run), and the `except Exception` at the bottom of `_fetch` logs a warning and returns [] -- so **nightly_outcome_rebuild has been running on ZERO trades**, producing an outcome rebuild over an empty set that looks like a successful no-op. CONSEQUENCE TO CONFIRM BEFORE FIXING: outcome tracking feeds agent memories (BM25) and the learning loop, so a long-dead rebuild may mean the reflection corpus has been frozen; MEASURE how long by checking the job's own receipts/logs and the freshest row in whatever table it writes -- do NOT assert a duration you have not measured. SCOPE: repair the query against the live schema (created_at is a STRING column, so the TIMESTAMP_TRUNC predicate needs the SAFE.TIMESTAMP treatment or a lexical ISO comparison -- see backend/services/cycle_health.py `_STRING_DATE_TIMESTAMP_COLS` for why SAFE.TIMESTAMP is REQUIRED on STRING/DATE columns and BREAKS on native TIMESTAMP ones), and decide deliberately whether `realized_pnl_pct` is the right substitute for the intended `realized_pnl` or whether a notional P&L must be derived. DO NOT simply delete the fail-open except -- a nightly job must not crash the scheduler -- but the failure MUST become audible (see 82.10's freshness evaluator and 82.11 for the paging pattern). SWEEP THE CLASS: backend/db/schema_oracle.py::derive_scope already returns an `unknown_columns` list; run it, assert the derived set non-empty, and fix or queue every member.",
@@ -22228,6 +22228,43 @@
               "a straddling fixture distinguishes IMPUTED columns from DROPPED ones, since the two have different consequences and the current code produces the former on the default window",
               "the measured feature counts for the uncovered and straddling cases are recorded in the step artifact with the commands that produced them",
               "the record is surfaced both at the top level and inside report['analytics'], asserted by driving generate_report"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.54",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "SECOND LIVE PHANTOM-COLUMN DEFECT, same root cause as 82.39 but in a different file, and the 82.39 sweep CANNOT SEE IT. Found in audit round 8 of the 82.39 research gate and confirmed by Main against live BigQuery 2026-08-06. MEASURED: backend/api/cost_budget_api.py around :80-86 -- RE-DERIVE, it moves -- builds `SELECT COALESCE(SUM(input_tokens) + SUM(output_tokens), 0) AS tokens, COUNT(*) AS calls FROM `<project>.pyfinagent_data.llm_call_log` WHERE DATE(ts) = CURRENT_DATE()`. NEITHER `input_tokens` NOR `output_tokens` EXISTS. The live table has 5519 rows and 15 columns; input_tokens present=False, output_tokens present=False, and the REAL columns are `input_tok` and `output_tok` (BigQuery's own error even suggests it: 'Did you mean input_tok?'). The query 400s every call, and the broad `except Exception` immediately below logs a warning and returns (None, None), so the endpoint's llm_tokens_today tile has been PERMANENTLY NULL rather than wrong -- which reads to an operator as 'no LLM spend measured yet', not as 'this is broken'. WHY THIS IS ITS OWN STEP AND NOT PART OF 82.39: 82.39's criteria name the nightly_outcome_rebuild fetch on paper_trades and nothing else, and its unknown-column sweep instrument (backend/db/schema_oracle.py::derive_scope) provably CANNOT see this defect -- measured, it resolves 1 table of 33 because the table reference here is built by an f-string, which the SQL-literal extractor cannot resolve. So closing 82.39 green leaves this live. SCOPE: repair the projection against the live schema, and decide deliberately whether the fail-open (None, None) should stay silent -- 82.39 established the pattern for making a swallowed BQ failure audible via backend/services/observability/alerting.py::raise_cron_alert_sync at P0/P1 (never P2, which is logged and dropped while slack_webhook_url is empty). VALIDATE WITH A DRY RUN: it is free (Google: 'Dry runs don't use query slots, and you are not charged') and it does catch unrecognised column names. CHECK THE WHOLE FILE, not just this query -- derive every column identifier it selects from every table and compare against the live schema before assuming this is the only one.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_54_cost_budget_columns.py -q",
+            "criteria": [
+              "the repaired query is validated by a BigQuery dry run and reported valid, asserted by a test that FAILS against the current input_tokens/output_tokens projection",
+              "a fixture proves the repaired query returns a non-null token total for a period where llm_call_log demonstrably has rows, so the fix is not merely syntactically valid",
+              "every column identifier this file selects is derived from the source and checked against the live schema, the derived set asserted non-empty, and any further mismatch fixed or queued",
+              "a run in which the BQ call fails emits an operator-visible signal rather than only a warning log and a null tile, asserted by a test capturing the emitted signal"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.55",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "THE UNKNOWN-COLUMN SWEEP HAS NARROW RECALL AND ITS CLEAN REPORT IS FALSE ASSURANCE. Measured during 82.39 (2026-08-06), whose criterion 4 depends on this instrument. backend/db/schema_oracle.py::derive_scope over the real repo reports files_scanned=296, sql_literals=13, tables_resolved=1 OF 33 TABLES IN THE ORACLE, columns_in_oracle=477. So it examined 296 files and resolved exactly ONE table. The proof that this matters is not theoretical: step 82.54 records a live phantom-column defect (cost_budget_api.py selecting input_tokens/output_tokens from llm_call_log, whose real columns are input_tok/output_tok) that this sweep does NOT flag. TWO MEASURED CAUSES, and there may be more -- do not assume these are exhaustive: (a) extract_sql_literals only sees plain string literals, so the ~20 backend files that build a table reference with an f-string (e.g. f'`{project}.pyfinagent_data.llm_call_log`') yield a literal whose table name cannot be resolved against the oracle; (b) iter_python_files never scans scripts/, which contains migrations and ad-hoc BQ jobs. CONSEQUENCE: any step that satisfies a criterion by running this sweep and finding nothing has proven only that the sweep sees nothing, which is the found-nothing-versus-sees-nothing failure this project keeps re-learning. SCOPE: widen recall and MEASURE the improvement -- report tables_resolved before and after against the same oracle, and assert the after-count strictly greater. Handle f-string table references (an AST-based JoinedStr reconstruction that substitutes known project constants is one approach; decide deliberately and record why). Decide whether scripts/ should be in scope and record the reason either way. DO NOT simply add a broad regex that raises the count while adding false positives: the current instrument has ZERO false positives (measured: 2 of 2 unknown_columns are real defects), and trading precision for recall silently would be a regression -- assert the false-positive count stays at zero on the known fixtures, including the alias case (`SAFE_CAST(x AS FLOAT64) AS pnl` invents `pnl`) that backend/tests/test_phase_82_12_string_column_guards.py already pins.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_55_sweep_recall.py -q",
+            "criteria": [
+              "tables_resolved is measured before and after the change against the same oracle, both numbers recorded in the step artifact, and a test asserts the after-count is strictly greater",
+              "a fixture containing an f-string table reference with a known phantom column is flagged, asserted by a test that FAILS against the current extractor",
+              "the live cost_budget_api.py defect (or a fixture reproducing its exact shape) is flagged by the widened sweep, asserted directly",
+              "the false-positive count on the existing pinned fixtures remains zero, including the alias case, so recall is not bought with precision",
+              "whether scripts/ is in scope is decided explicitly and the reason recorded in the step artifact"
             ]
           },
           "retry_count": 0,
