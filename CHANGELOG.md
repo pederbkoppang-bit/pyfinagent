@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `d28c8cd9` | phase-4000.2: Build the repeatable E2E smoke script -- and prove its checks CAN FAIL before they ... |
 | 2026-08-06 | `11932230` | fix(82.54): repair the LLM token query -- and it was not a rename |
 | 2026-08-06 | `5857bc3c` | phase-79.55: [OPERATOR ACTION -- not an executor task] [RESTART BLOCKER -- answer BEFORE the next... |
 | 2026-08-06 | `771640ce` | phase-4000.1: Research gate + measured baselines for the Max-rail E2E smoke. NO PRODUCTION CODE I... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-05 | `5c1f3f8f` | fix(82.16): demote two strategies whose labels carry no forward information |
 | 2026-08-05 | `3944f71a` | fix(82.13): act on a macro refusal instead of degrading into the slow path |
 | 2026-08-05 | `dba2c82a` | feat(82.12): build the BigQuery schema oracle; the vacuous-guard sweep finds zero |
-| 2026-08-05 | `b7c69bb9` | feat(82.10): give the freshness alarm a trigger -- it was browser-driven for 128 days |
 
 ---
 
+### v6.81.7 — phase-4000.2: Build the repeatable E2E smoke script -- and prove its... (2026-08-06)
+
+- **phase-4000.2: Build the repeatable E2E smoke script -- and prove its checks CAN FAIL before they ...**
 ### v6.81.6 — fix(82.54): repair the LLM token query -- and it was not a rename (2026-08-06)
 
 - **fix(82.54): repair the LLM token query -- and it was not a rename**
