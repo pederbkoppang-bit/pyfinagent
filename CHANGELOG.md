@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `e9a38f15` | chore: ignore cwd-derived .claude forks; fix stale PBO figure in researcher recipe |
 | 2026-08-06 | `d1b12c8f` | chore(masterplan): queue phase-84 memory-graph integrity steps (84.1-84.4) |
 | 2026-08-06 | `7b90620a` | fix(82.43): make macro degradation legible -- a count, not a boolean |
 | 2026-08-06 | `d10188ef` | fix(82.39): repair the nightly_outcome_rebuild fetch and make its failure audible |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-04 | `e5bb9f25` | fix(82.27): anchor PBO on the sweep-level producer; revive the dead trials floor |
 | 2026-08-04 | `22f14890` | chore(36.27): raise researcher-workflow-rail to P1; queue 82.30 criteria-key split |
 | 2026-08-04 | `3620764f` | fix(82.22): optimizer_best.json records the run that actually produced its metrics |
-| 2026-08-04 | `fc45d9fe` | chore(82.22): queue 82.28 + 82.29 from the cycle-3 Q/A residuals |
 
 ---
 
