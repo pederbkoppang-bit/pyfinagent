@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `2858bc7b` | docs(82.6): design the registry-to-live selection bridge -- and refute the step |
 | 2026-08-06 | `18659bc3` | fix(82.59): repair two Slack listeners that had raised TypeError since April |
 | 2026-08-06 | `e910667c` | fix(82.51): embargo fundamentals by publication lag -- 15% of Sharpe was look-ahead |
 | 2026-08-06 | `74686de3` | phase-4000.3: Operator gate, then the LIVE smoke window. THIS STEP DOES NOT START WITHOUT THREE R... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-06 | `5a70de8c` | feat(82.21): make absent fundamentals visible, and record the source decision |
 | 2026-08-06 | `816378e6` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
 | 2026-08-06 | `92cadebb` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
-| 2026-08-05 | `1a72fec4` | docs(82.48): queue the write-side defect 82.39's criteria cannot see |
 
 ---
 
