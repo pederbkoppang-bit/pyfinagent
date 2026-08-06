@@ -23,6 +23,7 @@ from backend.backtest.candidate_selector import CandidateSelector
 from backend.backtest.walk_forward import WalkForwardScheduler, WalkForwardWindow
 from backend.backtest.backtest_trader import BacktestTrader
 from backend.backtest import cache
+from backend.backtest.historical_data import _MACRO_SERIES
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,38 @@ _NUMERIC_FEATURES = [
 ]
 
 # Non-stationary features that need fractional differentiation
+def compute_matrix_coverage(df: "pd.DataFrame", X: "pd.DataFrame") -> dict:
+    """phase-82.43: what the training matrix ACTUALLY received, per window.
+
+    Extracted as a module-level function on purpose. The first version of this
+    lived inline in `_build_training_data`, and the only guard that could reach
+    it was a source scan for token names -- which a mutation run defeated twice:
+    replacing `int(X.shape[1])` with a literal survived (the scan checked the
+    key, not the value), and deleting the `macro_series_min` entry survived
+    because that same string still appeared in a logger call below. A guard that
+    reads source text cannot see either. This function is EXECUTABLE, so the
+    guard asserts values instead of spelling.
+
+    `macro_series_count` is a per-row 0-6 integer from
+    `historical_data.build_feature_vector`. The MINIMUM and the degraded-row
+    count are what distinguish a partially-covered window from a clean one; a
+    boolean or a mean would not -- on the real biweekly grid
+    2018-01-01..2019-12-31 (n=53) there were 1 empty, 3 partial and 49 full
+    cutoffs, and the partial rows are silently median-imputed downstream.
+    """
+    counts = (
+        [int(c) for c in df["macro_series_count"].fillna(0).tolist()]
+        if "macro_series_count" in df.columns else []
+    )
+    return {
+        "n_features": int(X.shape[1]),
+        "n_samples": int(X.shape[0]),
+        "macro_series_min": min(counts) if counts else None,
+        "macro_series_max": max(counts) if counts else None,
+        "macro_rows_degraded": sum(1 for c in counts if c < len(_MACRO_SERIES)),
+    }
+
+
 _NON_STATIONARY = {"price_at_analysis", "market_cap", "total_revenue", "total_debt", "total_equity"}
 
 # ── MDA Cache ────────────────────────────────────────────────────
@@ -521,6 +554,9 @@ class BacktestEngine:
         # label-fundamentals-dependent strategy on an uncovered window -- before
         # any window runs, so the refusal is cheap and unambiguous.
         _availability.update(self._preload_fundamentals_and_record())
+        # phase-82.43: seeded here so the key always exists; refreshed after the
+        # windows run, below, with what the matrix actually received.
+        _availability["macro_coverage"] = {}
 
         result = BacktestResult(
             strategy_params=self._strategy_params,
@@ -595,6 +631,28 @@ class BacktestEngine:
             }
             for t in self.trader.trades[:500]
         ]
+        # phase-82.43: carry the LAST window's matrix coverage onto the result,
+        # so a run whose model trained on a narrower or median-imputed feature
+        # set cannot be read as a normal one. Mirrors how 82.13/82.21 label the
+        # run at the same object. Fail-open: a reporting problem must never take
+        # down a completed backtest.
+        try:
+            result.data_availability["macro_coverage"] = dict(
+                self._last_matrix_coverage
+            )
+            _mc = self._last_matrix_coverage
+            if _mc.get("macro_rows_degraded"):
+                logger.warning(
+                    "backtest: %d of %d training rows had incomplete macro "
+                    "coverage (min %s of %d series); those cells were "
+                    "median-imputed. Recorded as data_availability."
+                    "macro_coverage -- do not compare against a macro-complete run.",
+                    _mc.get("macro_rows_degraded"), _mc.get("n_samples"),
+                    _mc.get("macro_series_min"), len(_MACRO_SERIES),
+                )
+        except Exception as exc:  # noqa: BLE001 -- observability is never fatal
+            logger.warning("backtest: macro_coverage record fail-open: %r", exc)
+
         logger.info(f"Backtest complete: {len(self.trader.trades)} actual trades recorded, {result.total_trades} signals processed")
 
         self._report_progress(
@@ -836,6 +894,12 @@ class BacktestEngine:
             X_test = X_test.fillna(pd.Series(tm))  # identical to train imputation
         return X_test.fillna(0)
 
+    #: phase-82.43: per-window matrix coverage, refreshed by
+    #: `_build_training_data`. Class-level default so a caller that reads it
+    #: before any window has run gets an explicit empty record rather than an
+    #: AttributeError.
+    _last_matrix_coverage: dict = {}
+
     def _build_training_data(
         self,
         tickers: list[str],
@@ -923,6 +987,24 @@ class BacktestEngine:
         df = pd.DataFrame(features_list)
         feature_cols = [c for c in _NUMERIC_FEATURES if c in df.columns]
         X = df[feature_cols].copy()
+
+        # phase-82.43: record what the matrix ACTUALLY got, per window.
+        #
+        # Two different silent degradations meet at this line and neither left a
+        # trace before. (a) When NO row carries the macro keys, `feature_cols`
+        # never creates those columns -- `pd.DataFrame(features_list)` above
+        # cannot invent a column no row has -- so the model trains on a narrower
+        # matrix (measured on the 82.43 fixtures: 12 vs 18) and nothing said
+        # so. (b) When only SOME
+        # rows carry them the columns DO survive, and the missing cells are
+        # median-imputed further down, fabricating a value with no trace. Case
+        # (b) is the live one: on the real biweekly grid 2018-01-01..2019-12-31
+        # (n=53) there were 1 empty, 3 partial and 49 full cutoffs.
+        #
+        # `macro_series_count` is a per-row 0-6 integer set by
+        # `historical_data.build_feature_vector`. Recording its MINIMUM is what
+        # distinguishes (b) from a clean window -- a boolean or a mean would not.
+        self._last_matrix_coverage = compute_matrix_coverage(df, X)
 
         # Ablation mask: zero out any feature requested by an ablation
         # run so the model trains as if the feature were uninformative

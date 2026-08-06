@@ -15,6 +15,23 @@ from backend.backtest import cache
 
 logger = logging.getLogger(__name__)
 
+#: phase-82.43. The six FRED series the macro block below reads, and the
+#: denominator of `macro_series_count`. Order matches the feature assignments.
+#:
+#: A guard in the 82.43 test module DERIVES this set from the macro block's own
+#: source (the `_macro.get("<SERIES>")` calls) and asserts the two agree, so
+#: adding a seventh feature without extending this tuple -- which would make the
+#: count silently under-report coverage -- fails the suite rather than shipping.
+_MACRO_SERIES: tuple[str, ...] = (
+    "FEDFUNDS", "CPIAUCSL", "UNRATE", "T10Y2Y", "UMCSENT", "DGS10",
+)
+
+#: The feature keys those series produce. Same derivation, same guard.
+_MACRO_FEATURES: tuple[str, ...] = (
+    "fed_funds_rate", "cpi_yoy", "unemployment_rate",
+    "yield_curve_spread", "consumer_sentiment", "treasury_10y",
+)
+
 # Features that require fractional differentiation (non-stationary)
 _NON_STATIONARY_FEATURES = {"price_at_analysis", "market_cap", "total_revenue", "total_debt", "total_equity"}
 
@@ -71,6 +88,11 @@ class HistoricalDataProvider:
             "ticker": ticker,
             "date": cutoff_date,
             "fundamentals_available": False,
+            # phase-82.43: seeded here for the same reason as the flag above --
+            # so it exists on EVERY return path, including the short-price early
+            # return below. An absent count would be a third state and would
+            # reintroduce the ambiguity it exists to remove.
+            "macro_series_count": 0,
         }
 
         # ── Price-derived features ───────────────────────────────
@@ -296,13 +318,52 @@ class HistoricalDataProvider:
             features["industry"] = fundamentals.get("industry", "")
 
         # ── Macro ────────────────────────────────────────────────
-        if macro:
-            features["fed_funds_rate"] = macro.get("FEDFUNDS", {}).get("value")
-            features["cpi_yoy"] = macro.get("CPIAUCSL", {}).get("value")
-            features["unemployment_rate"] = macro.get("UNRATE", {}).get("value")
-            features["yield_curve_spread"] = macro.get("T10Y2Y", {}).get("value")
-            features["consumer_sentiment"] = macro.get("UMCSENT", {}).get("value")
-            features["treasury_10y"] = macro.get("DGS10", {}).get("value")
+        # phase-82.43. The bare `if macro:` that used to guard this block
+        # conflated THREE states that must be distinguishable:
+        #   all six series present / SOME present / none present.
+        #
+        # WHY A COUNT AND NOT A BOOLEAN (this is where the 82.21 template
+        # deliberately does NOT carry over). `cache.cached_macro` resolves each
+        # series INDEPENDENTLY, so `if macro:` is TRUE while individual series
+        # are missing. Measured on the real biweekly grid 2018-01-01..2019-12-31
+        # (n=53 cutoffs): 1 empty, 3 PARTIAL (2 of 6 series), 49 full -- driven
+        # by publication lags (DGS10/T10Y2Y ~1 day vs CPIAUCSL ~50 days) under
+        # the phase-82.15 point-in-time predicate. A boolean `macro_available`
+        # would read True on exactly those degraded cutoffs. Fundamentals is one
+        # row and is all-or-nothing; macro is six independent series.
+        #
+        # WHY THE SIX KEYS ARE STILL CONDITIONAL, i.e. why this does NOT emit
+        # explicit nulls to keep the vector width stable. Measured: an all-NaN
+        # column SURVIVES the `feature_cols` filter in
+        # `backtest_engine._build_training_data`, `X.median()` is NaN,
+        # `fillna(train_medians)` is a no-op, and the trailing `fillna(0)` turns
+        # it into a CONSTANT 0.0 -- which is in-range for `yield_curve_spread`
+        # (a flat curve) and `cpi_yoy`. That converts a VISIBLE width change into
+        # an invisible fabricated constant. Explicit nulls are strictly worse
+        # here; the count is what makes the absence legible.
+        #
+        # Measured widths through the production `_NUMERIC_FEATURES` filter
+        # (len 37) on the 82.43 fixtures: macro-present 18, macro-absent 12,
+        # delta exactly the six macro features. NOTE macro-PARTIAL is also 18 --
+        # identical to full -- because the six keys are still assigned (as None)
+        # when any series resolves. That is precisely why width alone cannot
+        # detect the partial case and the count is required.
+        #
+        # DO NOT add "macro_series_count" to backtest_engine._NUMERIC_FEATURES.
+        # Macro coverage is a step function at ~2018-02-20, so as a model input
+        # it is an even more degenerate regime dummy than the 82.21 flag was.
+        # A guard in the 82.43 test module asserts it stays out.
+        _macro = macro or {}
+        features["macro_series_count"] = sum(
+            1 for _sid in _MACRO_SERIES if _macro.get(_sid)
+        )
+        if _macro:
+            features["fed_funds_rate"] = _macro.get("FEDFUNDS", {}).get("value")
+            features["cpi_yoy"] = _macro.get("CPIAUCSL", {}).get("value")
+            features["unemployment_rate"] = _macro.get("UNRATE", {}).get("value")
+            features["yield_curve_spread"] = _macro.get("T10Y2Y", {}).get("value")
+            features["consumer_sentiment"] = _macro.get("UMCSENT", {}).get("value")
+            features["treasury_10y"] = _macro.get("DGS10", {}).get("value")
 
         return features
 

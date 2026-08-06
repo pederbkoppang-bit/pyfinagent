@@ -851,6 +851,13 @@ def generate_report(
     report["analytics"]["fundamentals_available"] = bool(
         _availability.get("fundamentals", True)
     )
+    # phase-82.43: same double-write, same reason. `macro_available` above is a
+    # BOOLEAN and reads True on a PARTIALLY-covered window, which is precisely
+    # the degraded case -- so the coverage record is surfaced beside it rather
+    # than folded into it.
+    report["analytics"]["macro_coverage"] = dict(
+        _availability.get("macro_coverage") or {}
+    )
 
     report["trades"] = round_trips
     report["trade_statistics"] = trade_stats

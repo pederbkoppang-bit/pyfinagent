@@ -31110,3 +31110,69 @@ over-credited the evaluator, and an unverifiable self-credit about the 410 figur
 `outcome_tracking` has 0 rows and will still get 0 -- that is 82.48, open with 4 criteria.
 
 **Next:** 82.43 (P1), 82.46 (P1), 82.48 (P1).
+
+## Cycle 157 -- 2026-08-06 -- phase=82.43 result=PASS
+
+**THREE CYCLES: CONDITIONAL -> CONDITIONAL -> PASS.** The production behaviour was
+correct from cycle 1. Every finding across all three cycles was a claim of mine about
+numbers, sites or captures I had not derived.
+
+**The gate reframed the step, and that is the substantive win.** The step describes an
+EMPTY macro dict dropping six features. The live defect is PARTIAL macro: `cached_macro`
+resolves each series INDEPENDENTLY, so `if macro:` is TRUE while individual series are
+missing. Measured on the real biweekly grid 2018-01-01..2019-12-31 (n=53): 1 empty, 3
+PARTIAL (2 of 6), 49 full. On a partial cutoff the columns SURVIVE and the gaps are
+median-imputed -- silent fabrication with no trace. So this had to be a COUNT, not a
+boolean, and that is exactly where 82.21's template does NOT carry over: a boolean reads
+True on precisely the degraded cutoffs.
+
+**Criterion 1 is a disjunction and the FIRST branch is a regression.** "Emit explicit
+nulls so the shape is stable" -- measured: an all-NaN column survives `feature_cols`, its
+median is NaN, `fillna(train_medians)` no-ops, and `fillna(0)` leaves a CONSTANT 0.0,
+in-range for `yield_curve_spread`. It converts a visible narrowing into invisible
+fabrication. Took the second branch and said why.
+
+**Criterion 2 measured:** macro-present 18, macro-absent 12, len(_NUMERIC_FEATURES) 37.
+**And the number worth more than the fix: macro-PARTIAL is also 18** -- identical to
+full, because the six keys are still assigned (as None) whenever any series resolves.
+WIDTH CANNOT SEE THE DEGRADED CASE. That is the strongest single argument for the count,
+and I only measured it because the Q/A refuted my original pair.
+
+**Cycle 1 CONDITIONAL -- and this is the one to remember. I recorded 35/29 as MEASURED.
+I never measured it: I carried it from the RESEARCH BRIEF and propagated it into
+PRODUCTION SOURCE and a test docstring.** Every prior instance of this class today was a
+claim about my own work. This one was a number from a subagent that acquired false
+authority by arriving inside a rigorous-looking brief. The delta (6) was always right, so
+the argument stood; the pair was fabricated by inheritance.
+
+**Cycle 2 CONDITIONAL -- THE DEFECT REPRODUCED ITSELF.** My fix said "Fixed at all four
+sites". I TYPED that site set instead of deriving it. The retracted pair was still live
+at two more places, one of them production source ADDED BY THE SAME CYCLE and labelled
+"measured". The retraction of an underived number was itself scoped by an underived set.
+
+**Cycle 3 PASS**, with one NOTE also fixed rather than inherited: a fenced block showed 5
+output lines under a 4-`print()` command -- I had spliced the delta line in. Fixed by
+making the command EMIT it, then re-running and asserting the round trip.
+
+**THE RULE THIS STEP EARNS, and it generalises past today:** a remediation SET is a
+population like any other -- derive it (grep), never type it. And a number that arrives
+from a subagent is not measured just because the subagent measured other things well.
+
+**Also self-caught this cycle, before the Q/A:** two of my own mutants survived because
+my engine guard was a SOURCE SCAN -- one checked a key not a value, the other survived
+because the token still appeared in a LOGGER CALL. Fixed by extracting
+`compute_matrix_coverage` to module level so the guard EXECUTES it. And my
+`_MACRO_SERIES` derivation regex matched NOTHING (the calls carry a default arg); the
+`assert read, "would be vacuous"` precondition caught it, which is why that assertion
+exists.
+
+**Queued out of scope:** `"empty"` is not in `_REFUSAL_OUTCOMES`, so a 0-row macro table
+never arms `set_macro_unavailable`; and `_build_training_data`'s `except Exception:
+continue` drops a whole training sample silently.
+
+**Consequence, stated at honest strength:** a real silent-fabrication and comparability
+defect with a small measured blast radius (4 of 53 cutoffs), NOT an invalid backtest.
+Josse's consistency condition IS violated here (train has macro, predict fabricates the
+train median), which is why it is not merely cosmetic.
+
+**Next:** 82.46 (P1), 82.48 (P1).
