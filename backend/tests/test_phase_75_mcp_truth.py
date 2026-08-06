@@ -307,8 +307,14 @@ def test_prices_and_fundamentals_use_today_derived_cutoffs(monkeypatch):
             return None
 
         @staticmethod
-        def cached_fundamentals(ticker, cutoff):
+        def cached_fundamentals(ticker, cutoff, apply_embargo=True):
+            # phase-82.51 added `apply_embargo`. The double must accept the
+            # real call shape: `data_server.get_fundamentals` wraps the call in
+            # a broad `except`, so a signature mismatch here does NOT raise --
+            # it is swallowed into a logged error dict and this test fails
+            # later with a confusing KeyError instead.
             seen["fund_cutoff"] = cutoff
+            seen["fund_apply_embargo"] = apply_embargo
             return None
 
     monkeypatch.setattr(ds, "_CACHE_AVAILABLE", True)

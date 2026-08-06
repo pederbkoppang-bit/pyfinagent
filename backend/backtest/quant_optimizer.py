@@ -168,12 +168,21 @@ def selectable_strategies_for_window(
     worse than none because it reads as coverage.
     """
     from backend.backtest.fundamentals_coverage import (
+        effective_coverage_start,
         label_fundamentals_dependent_strategies,
         window_is_covered,
     )
 
     pool = _selectable_strategies()
-    if window_is_covered(window_start):
+    # phase-82.51: judge against the EFFECTIVE start, exactly as
+    # `BacktestEngine._preload_fundamentals_and_record` does. Without the
+    # explicit `start=`, this call would use the RAW start (2024-06-30) while
+    # the engine uses the embargoed one (2024-08-29) -- so for any window
+    # beginning in that 60-day gap the optimizer would keep a
+    # fundamentals-dependent strategy in the pool as COVERED and the engine
+    # would then raise `backtest REFUSED`. The two must not drift; this
+    # function's docstring promises they share the engine's predicate.
+    if window_is_covered(window_start, start=effective_coverage_start()):
         return pool
     # `dependent_fn` is injectable ONLY so a guard can drive this derivation with
     # a synthetic answer. Without that seam a mutant hardcoding {"qarp"} survives

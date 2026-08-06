@@ -22179,7 +22179,7 @@
         },
         {
           "id": "82.51",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "PUBLICATION-LAG LOOK-AHEAD on EVERY fundamentals read, including the covered window. Found by the 82.21 research gate and explicitly OUT of that step's scope (82.21 was about making absence VISIBLE; this changes what every backtest actually reads, which is a different and riskier change). MEASURED: backend/backtest/cache.py around :612 and :631 -- RE-DERIVE, they move -- filter fundamentals with `report_date <= cutoff`. But report_date is the PERIOD END, not the date the figure became public. A company's Q2 ending 2025-06-30 is not filed until weeks later, so a backtest cutoff of 2025-07-05 currently reads a number no market participant could have seen. Measured lag on the live table: mean 66 days, median 60, p90 90. CONSEQUENCE: every fundamentals-derived feature (pe_ratio, roe, debt_equity, profit_margin, quality_score and the rest of the 17 keys assigned inside the `if fundamentals:` block of historical_data.py) carries forward-looking information, which inflates any Sharpe computed over them and is exactly the leakage class this project's walk-forward design exists to prevent. THIS IS INDEPENDENT OF THE SOURCE DECISION: it is wrong for the current yfinance table and it would still be wrong after 82.50 lands, though 82.50 gives a TRUE filing date that makes the correct fix available (filter on filed <= cutoff instead of an embargo approximation). SCOPE: decide deliberately between (a) a fixed N-day embargo on report_date, and (b) filtering on a real filing date where one exists, falling back to the embargo where it does not -- and record which, with the reason. MEASURE THE IMPACT, do not assert it is small: re-run at least one backtest before and after and record both Sharpe and trade-count deltas in the step artifact. NOTE the change makes strictly LESS data visible at each cutoff, so a window that currently trains may stop training -- that is a correct outcome, not a regression, but it must be measured and stated. Cross-reference 82.21, which recorded data_availability.fundamentals; this step should extend that record rather than invent a parallel signal.",
@@ -22374,6 +22374,24 @@
               "any site reclassified to a deliverable severity has a guard proving DELIVERY on the empty-webhook path, in the shape 82.58 established",
               "drawdown_alarm.py's non-literal severity is resolved at runtime and shown to be deliverable for every tier it can emit",
               "no change makes P2 globally deliverable"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.62",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "A CALL-SHAPE ERROR ON THE LIVE MCP FUNDAMENTALS PATH DEGRADES SILENTLY. Found while closing 82.51 2026-08-06 and confirmed by the Q/A. MEASURED: backend/agents/mcp_servers/data_server.py get_fundamentals (around :155, RE-DERIVE) calls cache.cached_fundamentals(...) inside a broad `except Exception` that converts ANY failure into a logged error dict and returns normally. When 82.51 added the `apply_embargo` keyword, a stale test double raised `TypeError: cached_fundamentals() got an unexpected keyword argument 'apply_embargo'` -- and the except swallowed it, so the failure surfaced only as a downstream KeyError in an unrelated assertion. THE POINT IS NOT THE KEYWORD, WHICH IS FIXED: it is that a TypeError from a signature mismatch is indistinguishable, at this seam, from 'this ticker has no fundamentals'. The live agent pipeline would receive an empty metrics list and proceed to trade on it. VERIFY THE BLAST RADIUS FIRST, do not assume: enumerate every tool in data_server.py wrapping a data fetch in a broad except and classify each as (a) legitimately fail-soft for a missing-data case, or (b) masking a programming error that should be loud. Derive that set structurally (AST over the module's handlers), assert non-empty, and do NOT trust a count from this description. THE FIX IS NOT 'remove the except' -- a live MCP tool that raises on one bad ticker may take down a whole analysis run; the fix is to DISTINGUISH the cases, e.g. let TypeError/AttributeError (programming errors) propagate or page while genuine data-absence keeps returning the empty result. Reuse the alerting seam phases 82.11/82.39/82.48/82.54/82.58 established: raise_cron_alert_sync at P0/P1, imported function-locally, with a NEGATIVE CONTROL so the guard cannot pass by always firing, and assert DELIVERY rather than branch entry. Cross-reference 82.9, which is a DIFFERENT data_server defect (the `as_of: today` macro stamping) -- do not conflate them.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_62_data_server_error_masking.py -q",
+            "criteria": [
+              "a fixture in which the underlying cache call raises TypeError causes an operator-visible signal or a propagated error rather than an empty result silently returned to the caller, asserted by a test that FAILS against the current broad-except implementation",
+              "a fixture representing genuine data absence still returns the empty result without alerting, so the fix does not convert every missing ticker into a page",
+              "every broad exception handler in data_server.py is derived structurally, the derived set asserted non-empty, and each one classified as fail-soft-by-design or error-masking with the classification asserted by a test rather than only written in prose",
+              "any handler reclassified as error-masking is either fixed or queued, and the choice recorded"
             ]
           },
           "retry_count": 0,

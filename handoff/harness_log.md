@@ -31570,3 +31570,56 @@ not tried; all three trip the non-empty assertion.
 Queued: **82.59** (two live signature mismatches in production-wired Slack
 handlers), **82.60** (9 red tests, same kwarg class), **82.61** (triage the 11
 production alert sites whose severity cannot deliver).
+
+## Cycle 164 -- 2026-08-06 -- phase=82.51 result=PASS
+
+**Every fundamentals read was look-ahead biased.** `cache.py` filtered on
+`report_date <= cutoff`, but `report_date` is the PERIOD END, not the
+publication date -- so a backtest at 2025-07-05 read a Q2 ending 2025-06-30 that
+no filer could have published yet.
+
+**The step's own escape hatch is a trap.** It offered "filter on a real filing
+date where one exists". `filing_date` exists and is NOT NULL on all 4798 rows --
+and is a **verbatim copy of `report_date`** (`data_ingestion.py:278`: yfinance
+has no true filing date). Measured lag: mean/p50/p90/p99/min/max all **0**.
+Filtering on it would give a byte-identical backtest and a Sharpe delta of
+exactly 0.0000, reading as "the leakage was immaterial". Shipped a tripwire so
+nobody walks into it. The step's "measured 66d mean" was also misattributed --
+traced to a COI-disclosed vendor blog measuring EDGAR, whose own **large-cap**
+subsample says 43d/61d. Our universe is 503 S&P 500 tickers.
+
+**Decision: fixed 60-day embargo.** The FY-end cohort (744 rows / 443 tickers,
+the largest) is 10-K-governed at a 60-day large-accelerated deadline; 45 would
+under-cover it by 15 days on exactly the biggest cohort. Recorded as an
+approximation, not a proof -- the real fix is 82.50's filing date.
+
+**MEASURED (criterion 4), the headline:** Sharpe **4.4201 -> 3.7449**
+(-0.6752, **-15.3%**), DSR 0.9377 -> 0.8959, trades 40 -> 40. Pre-registered
+before running: down-or-flat, and a 0.0000 delta would be an ALARM. **About 15%
+of this strategy's measured Sharpe was look-ahead.** One walk-forward window /
+40 samples -- direction meaningful, magnitude one observation.
+
+**THREE Q/A cycles, and the pattern is the story.** Every blocker was a consumer
+I did not sweep or a figure I did not re-derive; the production logic was right
+each time.
+- C1 CONDITIONAL: `quant_optimizer.py` left on the raw start (optimizer said
+  COVERED where the engine RAISES); my refusal guard asserted a kwarg's NAME not
+  its VALUE (the Q/A defeated it by substitution); and `data_server.py` is a LIVE
+  consumer my change would have made hide the latest quarter for 60 days.
+- C2 CONDITIONAL: **the same unswept-consumer defect recurred INSIDE the fix for
+  it** -- adding `apply_embargo=` broke a test double on the old call shape. And
+  the 82.12 line numbers went stale a second time because I re-derived them
+  mid-change instead of last.
+- C3 **PASS**, `violated_criteria: []`. The Q/A reproduced my full-suite numbers
+  (31 failed / 2780 passed) and proved the partition structurally: zero
+  import-intersection between the 21 failing test files and my 5 changed modules.
+
+**Zero code regressions: 31 failures = 29 pre-existing + 2 environment** (they
+read gitignored `handoff/logs` and pass vacuously when absent -- my own worktree
+baseline nearly fooled me for that reason).
+
+`mda_cache.json` (+30/-30) rides this commit as a side effect of the two
+required backtests, not a code change.
+
+Queued: **82.62** -- a call-shape TypeError on the live MCP fundamentals path is
+swallowed by a broad except and is indistinguishable from "no fundamentals".

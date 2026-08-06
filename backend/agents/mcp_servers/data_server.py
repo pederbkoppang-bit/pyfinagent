@@ -146,7 +146,13 @@ class DataServer:
 
             # phase-75.3 (gap4-08): cutoff was a hardcoded end-of-2025 literal.
             cutoff = date.today().isoformat()
-            metrics = cache.cached_fundamentals(ticker, cutoff)
+            # phase-82.51: NO embargo on the live path. The publication-lag
+            # embargo reconstructs "what could I have known at a past cutoff";
+            # this call asks "what is true now", and every row already in the
+            # table has been published. Embargoing here would hide the most
+            # recent reported quarter from the live agent pipeline for 60 days
+            # -- suppressing real data, not preventing look-ahead.
+            metrics = cache.cached_fundamentals(ticker, cutoff, apply_embargo=False)
 
             if not metrics:
                 return {"ticker": ticker, "market": market, "metrics": [],

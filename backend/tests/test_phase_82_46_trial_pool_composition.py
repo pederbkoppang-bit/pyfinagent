@@ -322,7 +322,25 @@ def test_unrunnable_members_are_excluded_by_a_DERIVED_rule():
         "if these are equal the exclusion did nothing and the guard is vacuous")
 
     # The boundary is the MEASURED coverage start, not a typed date.
-    assert selectable_strategies_for_window(FUNDAMENTALS_COVERAGE_START) == covered
+    #
+    # phase-82.51 MOVED that boundary. `FUNDAMENTALS_COVERAGE_START` is the
+    # earliest `report_date` in the table, but the publication-lag embargo means
+    # no row is VISIBLE until 60 days later -- so at the raw start the engine now
+    # raises `REFUSED`, and the optimizer must agree with it. The intent of this
+    # assertion is unchanged (a DERIVED boundary, never a typed date); only which
+    # derived value is the boundary has changed.
+    from backend.backtest.fundamentals_coverage import effective_coverage_start
+
+    assert selectable_strategies_for_window(effective_coverage_start()) == covered
+
+    # And the raw start is now INSIDE the embargo gap, so the dependent members
+    # must drop out there. Pinning both sides keeps this from silently reverting
+    # to the pre-82.51 boundary.
+    at_raw_start = selectable_strategies_for_window(FUNDAMENTALS_COVERAGE_START)
+    assert set(AVAILABLE_STRATEGIES) - set(at_raw_start) == (
+        dependent & set(AVAILABLE_STRATEGIES)), (
+        "at the RAW coverage start nothing is visible yet (82.51 embargo), so "
+        "the fundamentals-dependent members must be excluded there too")
 
 
 def test_the_window_exclusion_is_derived_not_a_literal():

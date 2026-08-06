@@ -313,18 +313,31 @@ CLASSIFICATION: dict[tuple[str, str], dict] = {
     },
     ("backend/backtest/cache.py", "report_date"): {
         "verdict": "CORRECT",
-        "line": 612,
+        # phase-82.51 moved this read from 612 to 658, in two steps: the
+        # `_embargoed_cutoff` seam, then the `apply_embargo` docstring. Both
+        # values here were re-derived FROM SOURCE by script after the final
+        # edit -- deriving once mid-change left them stale a second time, which
+        # is the failure this table's docstring warns about:
+        # "file:line claims rot. Re-derive rather than trusting the table."
+        "line": 658,
         "why": (
             "`str(r.get(\"report_date\", \"\")) <= cutoff_date` -- an EXPLICIT str() "
             "coercion followed by a lexical comparison against an ISO-8601 cutoff. "
             "historical_fundamentals.report_date is declared STRING, both operands "
             "are zero-padded YYYY-MM-DD, so lexical ordering is chronological "
-            "ordering. Correct by construction."
+            "ordering. Correct by construction. phase-82.51: `cutoff_date` is now "
+            "the EMBARGOED cutoff (`_embargoed_cutoff()` subtracts the "
+            "publication-lag days before either read path runs), which changes "
+            "the VALUE compared but not the type-correctness of the comparison."
         ),
     },
     ("backend/backtest/cache.py", "date"): {
         "verdict": "CORRECT",
-        "line": 672,
+        # phase-82.51: shifted 672 -> 718 by the `_embargoed_cutoff` seam plus
+        # the `apply_embargo` docstring above it. This read is in `cached_macro`
+        # and its SEMANTICS are untouched -- the embargo applies to fundamentals
+        # only. Re-derived from source by script, never by arithmetic.
+        "line": 718,
         "why": (
             "`str(entry[\"date\"]) > cutoff_date` -- same explicit-str() + lexical-ISO "
             "pattern on historical_prices.date (declared STRING). Note this is the "

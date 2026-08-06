@@ -1,10 +1,10 @@
-# Experiment Results -- phase-82.58
+# Experiment Results -- phase-82.51
 
-**Step:** 82.58 (P1) -- the cost-budget hard-block's only alarm has never fired.
-**Date:** 2026-08-06. **Cycle:** 2 (cycle-1 Q/A returned CONDITIONAL; both WARNs cured -- see §3 and §1).
-**Contract:** `handoff/current/contract_82.58.md`
-**Research brief:** `handoff/current/research_brief_82.58.md` (`gate_passed: true`,
-audit-class, dry after 6 rounds / 2 dry, 9 sources read in full, 53 URLs, 20 files)
+**Step:** 82.51 (P1) -- publication-lag look-ahead on every fundamentals read.
+**Date:** 2026-08-06. **Cycle:** 2 (cycle-1 Q/A returned CONDITIONAL on three WARNs; all three fixed -- see §11).
+**Contract:** `handoff/current/contract_82.51.md`
+**Research brief:** `handoff/current/research_brief_82.51.md` (`gate_passed: true`,
+audit-class, dry after 6 rounds / 2 dry, 8 sources read in full, 37 URLs, 12 files)
 
 ---
 
@@ -12,221 +12,401 @@ audit-class, dry after 6 rounds / 2 dry, 9 sources read in full, 53 URLs, 20 fil
 
 | File | Change | Lines |
 |------|--------|-------|
-| `backend/services/observability/spend.py` | `detail=` -> `details=`, `severity="P2"` -> `"P1"`, with the three-blocker rationale in-code | +16 / -2 |
-| `backend/tests/conftest.py` | Slack-egress guard installed at import time (see §4) | +40 / -0 |
-| `backend/tests/test_phase_82_58_spend_alert_delivery.py` | new -- 10 tests | 418 (new) |
-| `.claude/masterplan.json` | queued 82.59 / 82.60 / 82.61 -- **and see the disclosure below** | +77 / -0 |
+| `backend/backtest/cache.py` | `_embargoed_cutoff()` seam; both read paths share one rule; `apply_embargo` param | +47 / -1 |
+| `backend/backtest/fundamentals_coverage.py` | `FUNDAMENTALS_EMBARGO_DAYS = 60`, derived `effective_coverage_start()` | +47 / -0 |
+| `backend/backtest/backtest_engine.py` | refusal judged against the effective start; availability record extended | +30 / -9 |
+| `backend/backtest/quant_optimizer.py` | **cycle 2** -- the consumer left on the raw start (§11) | +10 / -1 |
+| `backend/agents/mcp_servers/data_server.py` | **cycle 2** -- the LIVE path opts out of the embargo (§11) | +7 / -1 |
+| `backend/tests/test_phase_82_12_string_column_guards.py` | two classified line numbers re-derived (see §9) | +14 / -3 |
+| `backend/tests/test_phase_82_51_fundamentals_embargo.py` | new -- 18 tests | 485 (new) |
+| `scripts/backtest/run_82_51_embargo_ab.py` | new -- the criterion-4 A/B runner | 100 (new) |
+| `backend/backtest/experiments/mda_cache.json` | **side effect of the required backtests**, not an intentional edit | +30 / -30 |
 
 Figures from `git diff --numstat` and `wc -l`, run as the last action before
-writing this file -- not carried from an earlier draft.
-
-### Disclosure: `.claude/masterplan.json` is shared, and I churned it
-
-The Q/A caught that my table above described this file as only my three steps.
-Two things were undisclosed, and one of them was my own damage:
-
-1. **A concurrent session's step `4000.10` is in the same file.** Git cannot
-   stage part of a file, so committing my three steps necessarily commits
-   theirs. Parsed delta: added `['4000.10','82.59','82.60','82.61']`,
-   **removed: none**.
-2. **I re-serialized the whole file with `ensure_ascii=True`**, escaping every
-   em-dash to `\uXXXX` across all 1141 steps -- 155 lines of pure encoding
-   churn that had nothing to do with this step. **Fixed**: re-written with
-   `ensure_ascii=False`, which took the diff from `+231/-154` to `+77/-0`.
-   The remainder is additions only.
-
-The ~20 untracked `phase-4000.3` artifacts also sitting in the tree are **not**
-mine and are NOT committed here -- this step commits with an explicit pathspec,
-never `git add -A`.
+writing this file.
 
 ## 2. Verbatim output of the immutable verification command
 
 ```
-$ source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_58_spend_alert_delivery.py -q
-..........                                                               [100%]
-10 passed, 8 warnings in 85.76s (0:01:25)
+$ source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_51_fundamentals_embargo.py -q
+warnings.warn(
+..................                                                       [100%]
+18 passed in 1.76s
 ```
 
-*(The 8 warnings are `SyntaxWarning: invalid escape sequence` raised while the
-call-site sweep `ast.parse`s unrelated repo files. They are properties of the
-files being scanned, not of this suite.)*
+## 3. Criterion 4 -- the real before/after backtest
 
-## 3. Mutation matrix -- 7 mutants, all killed
-
-Every mutant targets the **production** call site or the **production** latch,
-never a test helper. Restores write back captured bytes rather than
-`git checkout`, so a concurrent session's edits cannot be clobbered.
+Two runs, the embargo the **only** variable. Commands verbatim:
 
 ```
-baseline (unmutated):
-  rc=0 GREEN
-
-M_A revert details= -> detail=                 DIED  (criterion 1 dies on the original TypeError defect)
-M_B revert P1 -> P2                            DIED  (criterion 1+2 die on the deduper/webhook drop)
-M_C severity -> P3 (severity-only guard)       DIED  (criterion 2 dies on the severity literal alone,
-                                                      independent of delivery)
-M_C2 severity -> P2 (severity-only guard)      DIED  (the original P2 defect dies on it too)
-M_D break the once-per-process latch           DIED  (the alert-fatigue latch is actually asserted)
-M_E alert on the HEALTHY path too              DIED  (the negative control catches an always-firing guard)
-M_F blind the sweep                            DIED  (the recall test catches an instrument that sees nothing)
-
-=== 7 mutants died, 0 survived ===
+$ source .venv/bin/activate && FUNDAMENTALS_EMBARGO_DAYS=0  python scripts/backtest/run_82_51_embargo_ab.py
+$ source .venv/bin/activate && FUNDAMENTALS_EMBARGO_DAYS=60 python scripts/backtest/run_82_51_embargo_ab.py
 ```
 
-This licenses exactly "these 7 mutants died". It does not license "no
-survivors" in general.
+`strategy=qarp`, `2025-06-30 .. 2026-02-28`, `train_window_months=6`,
+`test_window_months=2`.
 
-M_C and M_C2 are run under a `-k` selector that matches **only** the
-severity-only guard, so their kills are attributed by construction rather than
-by my assertion about which line failed.
+| metric | embargo 0 (before) | embargo 60 (after) | delta |
+|--------|--------------------|--------------------|-------|
+| **sharpe** | **4.4201** | **3.7449** | **-0.6752 (-15.3%)** |
+| deflated_sharpe | 0.9377 | 0.8959 | -0.0418 |
+| **n_trades** | **40** | **40** | **0** |
+| total_return_pct | 7.4197 | 5.3583 | -2.0614 |
+| max_drawdown | -1.6710 | -1.3994 | +0.2716 |
+| training samples | 40 | 36 | -4 |
+| elapsed | 116s | 113s | -- |
 
-### M_D survived the first run, and that was a real defect in my own guard
-
-On the first matrix run **M_D SURVIVED**. `test_the_alert_fires_once_per_process`
-drove three degradations and asserted one POST -- but with the `_ALERTED` latch
-mutated to `if True:`, the **deduper** still suppressed calls 2 and 3 on its own
-(P1 takes the critical branch, which re-fires only after `repeat_hours`). The
-test passed either way. It was asserting a property the deduper guarantees while
-its docstring credited the latch: a guard that could not fail.
-
-Fixed by resetting the deduper between degradations, which removes the confound
-and leaves the latch as the only thing that can suppress. M_D then died. The
-reason is recorded in the test's own docstring so the reset is not mistaken for
-noise and removed later.
-
-### Cycle 2: I wrote an unfalsifiable guard while auditing for unfalsifiable guards
-
-The cycle-1 Q/A returned **CONDITIONAL** on this (WARN, not BLOCK -- all four
-criteria were already MET). It is worth stating plainly because it is the same
-shape as M_D, one layer up.
-
-My matrix credited M_C's kill to *"criterion 2 is bound to the live critical
-set"*, pointing at `assert severity in live`. **That assertion cannot fail.**
-With `slack_webhook_url` empty, `alerting.py:210-224` routes to
-`_bot_token_fallback` **only** when the severity is already critical -- so any
-POST the fixture captures necessarily carries a deliverable severity. The
-severity check was reading a value that had already been filtered by the very
-property it claimed to test. M_C really died on `assert captured_posts`, the
-delivery guard.
-
-The criterion's literal wording was satisfied either way, which is exactly why
-this was easy to miss: the guard was *correct*, *green*, and *load-bearing for
-nothing*.
-
-Fixed by adding `test_the_call_sites_severity_literal_is_deliverable_independently_of_delivery`,
-which AST-reads the severity literal out of the production call site and checks
-it against the live set **with no POST in the picture** -- so it fails on a
-severity regression even if delivery broke for an unrelated reason. M_C and
-M_C2 now die on that guard alone.
-
-## 4. A hazard the fix creates -- guard landed FIRST
-
-Repairing `spend.py` **arms a live Slack POST inside the existing test suite**.
-`test_phase_75_5_1_spend_metric.py:294` and `test_phase_75_llm_rail.py:582`
-already drive `_record_degradation` for real; measured:
-`SLACK_BOT_TOKEN present: True | starts xoxb: True | len: 59`, webhook length 0.
-Post-fix the P1 alert routes to `_bot_token_fallback` and posts to the
-operator's real channel from a routine `pytest` run.
-
-So the guard went in **before** the `spend.py` edit, and the suite was not run
-against a repaired `spend.py` until it was in place. Proven to work, both
-directions, before proceeding:
+`data_availability` from the after-run, showing the extended record:
 
 ```
-OK blocked: phase-82.58 test guard: refusing a live Slack POST from the test suite (url='htt ...
-OK non-slack host reached the real urlopen (network error is fine): URLError
+'fundamentals': True, 'fundamentals_coverage_start': '2024-06-30',
+'fundamentals_embargo_days': 60,
+'fundamentals_effective_coverage_start': '2024-08-29',
+'fundamentals_window_start': '2025-06-30', 'fundamentals_label_dependent': ['qarp']
 ```
 
-Scoped to `slack.com` only -- it is not a general network jail.
+**The pre-registered expectation held.** The contract committed in advance to
+"Sharpe DOWN or flat, `n_trades` DOWN or flat, and **a delta of exactly 0.0000
+is an ALARM**". Sharpe fell 0.6752, trades were flat, and the delta is not zero
+-- so the embargo was genuinely applied rather than wired through the §4 decoy.
 
-**No real page was sent.** Delivery is asserted at the socket seam with a dummy
-token. Sending an actual message to the operator's channel would be an
-outward-facing side effect that this step does not have authorisation for.
+**Read plainly: about 15% of this strategy's measured Sharpe was look-ahead.**
+It was reading fundamentals that had not been published as of the cutoff.
 
-## 5. Regression + lint
+**Honest limits of this measurement, stated rather than buried:**
+- The window yields **one** walk-forward window and 40 training samples. That is
+  a small sample; the direction is meaningful, the magnitude is one observation,
+  not an estimate with an error bar.
+- `n_trades` is flat because `max_positions` / `top_n_candidates` bound the
+  trade count here, not label availability. The step anticipated a trade-count
+  drop; on this window there is none, and I am not presenting the flat number as
+  a confirmation of anything.
+- The window starts 2025-06-30 deliberately: the gate measured that at a
+  2025-03-31 cutoff a 60-day embargo takes 5-quarter feature coverage from 41.7%
+  of the universe to 0.0%, so an earlier start would have measured the coverage
+  hole rather than the embargo.
 
-```
-$ python -m pytest backend/tests/test_phase_75_5_1_spend_metric.py \
-    backend/tests/test_phase_75_llm_rail.py \
-    backend/tests/test_phase_82_54_cost_budget_columns.py -q
-81 passed, 1 warning in 21.22s
-```
+## 4. The step's central premise is REFUTED, and the refutation is a trap
 
-The 82.54 guard (`:344-368`) watches this exact defect and requires an open step
-naming `spend.py` + `detail` while the code is broken. It has
-`if not still_broken: return`, so it degrades to a clean no-op now the fix has
-landed -- confirmed green above.
-
-**Lint:** `ruff check` reports 3 `BLE001` in `spend.py`. All three are
-**pre-existing** and are the deliberate fail-open excepts. Measured rather than
-asserted -- same rule set against the HEAD versions of the same files:
-
-```
-HEAD versions, BLE/F/E9 errors: 3
-CURRENT versions, same rules: 3
-```
-
-My two new files contribute zero.
-
-## 6. Criterion 4 -- the sweep, and the count the step got wrong
-
-The step asserts "the ONLY malformed call site of **15** audited repo-wide".
-**The denominator is wrong.** Derived twice, independently:
+The step offers "(b) filtering on a real filing date where one exists".
+**`filing_date` exists and is worthless.** Measured by me, then independently by
+the gate:
 
 ```
-by area: {'backend': 28, 'tests/tests': 5}
-TOTAL: 33
+n_rows 4798 | n_filing_missing 0 | n_filing_unparseable 0
+lag (filing_date - report_date): mean 0.0  p50 0  p90 0  p99 0  min 0  max 0
 ```
 
-My sweep found **28** under `backend/`; the research gate found **33**
-repo-wide; the difference is exactly the **5** sites in repo-root `tests/`.
-Both are right for their scope. **The numerator is correct: exactly 1
-signature mismatch**, which this step fixes.
+The producer, found by the gate at `backend/backtest/data_ingestion.py:278`:
 
-The in-test sweep is **import-resolved**, not bare-name. The gate measured that
-matching on the bare attribute name yields 65 candidates for 3 real hits
-(colliding with `csv.writer`, `yfinance.history`, `json.loads`,
-`numpy.percentile`). The derived set is asserted non-empty **and** recall-tested
-against three known-present anchors, because "found no mismatches" and "the
-sweep is broken" are indistinguishable from the outside.
+```python
+"filing_date": report_date,  # Approximation; true filing date not available from yfinance
+```
 
-**Further mismatches -- queued, each verified by me before queueing:**
+Switching the filter to `filing_date` would produce a **byte-identical result
+set and a byte-identical backtest** while looking like the correct fix, and would
+report a Sharpe delta of exactly `0.0000` -- which reads as "the leakage was
+immaterial". `test_filing_date_is_still_a_decoy_and_must_not_be_filtered_on`
+turns that latent trap into a tripwire.
 
-| Step | Finding | How I verified it |
-|------|---------|-------------------|
-| **82.59** (P1) | `assistant_lifecycle.py:181` missing required `set_suggested_prompts` + passes non-existent `client`/`set_status`; `:188` unexpected `client`. Production-wired at `app.py:33`. | runtime `inspect.signature().bind()`, verbatim errors captured |
-| **82.60** (P2) | 9 red tests, `TypeError: trigger_thursday_batch() got an unexpected keyword argument 'log_fn'` | ran them: `9 failed in 0.07s` |
-| **82.61** (P2) | 11 remaining production sites carry a severity undeliverable while the webhook is empty; `drawdown_alarm.py:154` is non-literal | the AST sweep above; classified, not blanket-raised |
+`ingested_at` is also unusable: all 4798 rows were bulk-backfilled over two weeks
+in 2026-03/04 (3374 on a single day) against `report_date`s spanning
+2024-06-30..2026-02-28. It records when *we* fetched, not when the market saw it.
 
-## 7. Corrections I owe from earlier in this session
+**Also refuted: the step's "measured lag on the live table: mean 66 / median 60 /
+p90 90".** It cannot have been measured on this table, where the lag is
+identically 0. The gate traced it to a tier-4 vendor blog with a disclosed
+commercial COI, measuring SEC EDGAR across 5,194 companies -- **whose own
+large-cap subsample says 43d mean / 61d max.** Our universe is 503 S&P 500
+tickers, all large accelerated filers, so 66d was the wrong calibration target.
 
-**The budget caps are 25.0 / 300.0, not 5.0 / 50.0.** I read 5.0/50.0 from the
-`getattr` fallbacks at `llm_client.py:437-438` and stated them as the live caps.
-Those fallbacks are unreachable -- the settings attributes exist, so the real
-values come from `settings.py:392-393`. The conclusion is unchanged
-(`0.0 >= 25.0` is still False, so the block still cannot trip on the fail-open
-value) but a fixture pinning 5.0/50.0 would have exercised a dead branch.
+## 5. Criterion 5 -- the decision, and why 60
 
-**The research gate's first run researched the wrong step.** I passed `args` as
-a JSON string instead of an object; the rail script's `catch (_e) { a = {} }`
-swallowed the parse failure and the agent received `step UNSPECIFIED`, so it
-derived its own objective and researched phase-85.1 (~168K tokens). That script
-now throws instead of defaulting. The brief was not discarded -- 85.1 is a real
-pending P1 step, so it is preserved at
-`handoff/current/research_brief_85.1.md` for whoever works it. The irony is
-recorded because it is the point: **a silently swallowed exception in my own
-tooling, which is the exact defect class this step exists to fix.**
+**Fixed 60-calendar-day embargo on `report_date`.** Option (b) is unavailable
+(§4), so this is not a preference between two live options -- it is the only
+implementable choice, and that is recorded as the reason.
 
-## 8. What I did NOT do
+**Why 60 and not 45:** the largest cohort in the table is the fiscal-year-end
+quarter -- **744 rows / 443 tickers** -- governed by the **10-K**, whose
+large-accelerated deadline is **60 days**. The other quarters are 10-Qs at 40. A
+45-day embargo covers the 10-Q deadline but **under-covers the 10-K by 15 days**,
+leaking on precisely the biggest cohort. Measured cost on this table: 45 -> 60
+costs 5.5pp of visible row-days but **zero** 5-quarter tickers at either the
+2025-06-30 or 2025-12-31 cutoff; 60 -> 90 costs another 8.7pp for no additional
+legal coverage on a large-cap universe.
 
-- **No live page sent** (§4).
-- **No live-system re-curl**, because there is no live surface: `spend.py`'s
-  degradation state is exposed only by `spend_guard_status()`, which the gate
-  measured has **ZERO non-test callers** repo-wide -- no endpoint, no frontend
-  tile, no cron. That absence is precisely why this alert matters.
-- **No change to the deduper, `_CRITICAL_SEVERITIES`, or any other call site.**
-  P2 -> P1 at this call site only; making P2 globally deliverable would page for
-  8 deliberately ticket-class feed sites and re-create the storm recorded at
-  `alerting.py:46-53`.
-- **The 3 pre-existing `BLE001`s are left alone** -- they are the intended
-  fail-open behaviour, not this step's business.
+**Recorded as an approximation, not a correctness proof.** A fixed lag is wrong
+at both tails -- OpenSourceAP's analogous rule still has >50,000 violating
+observations (open issue). The correct fix is a real filing date from **82.50**.
+The constant's docstring says exactly this, so the next reader inherits the
+caveat and not just the number.
+
+## 6. This fix would otherwise have RE-CREATED the defect 82.21 closed
+
+Without the refusal-site change, a window starting 2024-07-01 would pass
+`window_is_covered()`, be recorded `fundamentals: True`, and yet have **every**
+`cached_fundamentals()` call return `[]` -- because nothing is visible until
+2024-08-29. **43 business days in the measured grid have zero visible rows at
+N=60.** That is "records coverage it does not have", reintroduced by this step's
+own fix.
+
+`FUNDAMENTALS_COVERAGE_START` is left at `2024-06-30` (it is the raw measurement,
+and `_fundamentals_coverage.json` was NOT edited); `effective_coverage_start()`
+is **derived**, never a second literal. The embargo is applied at the refusal
+site rather than inside `window_is_covered`, which is what keeps 82.21's
+semantics intact and its boundary test green.
+
+## 7. Mutation matrix -- 9 mutants, all killed
+
+Production code only; restores write back captured bytes rather than
+`git checkout`, so a concurrent session cannot be clobbered.
+
+```
+baseline: rc=0 GREEN
+
+M_A embargo becomes a no-op                          DIED  (the whole fix reverts to report_date <= cutoff)
+M_B embargo in branch 1 ONLY (one seam short)        DIED  (a fix covering the preload path but not the SQL path)
+M_C refusal judged against RAW start (kwarg deleted) DIED  (the 82.21 false-pass this fix would re-create)
+M_C2 refusal start= raw VALUE  [cycle 2]             DIED  (the Q/A's defeat of my original guard)
+M_G optimizer left on the raw start  [cycle 2]       DIED  (the consumer cycle 1 missed)
+M_H live data server embargoes after all  [cycle 2]  DIED  (the undisclosed live-path change)
+M_D embargo 60 -> 45                                 DIED  (the recorded decision is pinned, not decorative)
+M_E availability record drops the embargo key        DIED  (82.21's record is genuinely extended)
+M_F effective start hardcoded not derived            DIED  (a literal that would drift silently)
+
+=== 9 died, 0 survived ===
+```
+
+Licenses exactly "these 9 mutants died", not "no survivors". **M_B is the one
+that matters**: it applies the embargo to the preload path only, leaving the SQL
+fallback on the raw cutoff -- the stop-one-seam-short shape that has been my
+recurring failure. Its killers, named rather than counted (kill counts are
+construction-dependent): `test_both_read_paths_agree_on_the_same_fixture` and
+`test_the_sql_path_binds_the_embargoed_cutoff_as_its_parameter`.
+
+**M_B silently went SKIP on the first cycle-2 run** -- its anchor no longer
+matched after the `apply_embargo` edit, and the harness reported
+`SKIP -- anchor not found` rather than a kill. A skipped mutant is not a killed
+one, and had the harness printed nothing I would have carried "9 died" while my
+most important mutant never ran. Re-anchored and re-run; it dies.
+
+## 8. Regression, lint, and one failure that is NOT mine
+
+```
+$ python -m pytest backend/tests/ -q -k "backtest or fundamental or coverage or cache or macro or string_column"
+1 failed, 274 passed, 2548 deselected, 1 warning in 17.11s
+```
+
+The failure is
+`test_dod4_tier1_coverage_investment.py::test_paper_trader_execute_buy_average_up_recomputes_avg_entry`.
+**Proven pre-existing rather than asserted:** I ran it in a `git worktree` at
+HEAD. The first attempt failed for an unrelated environment reason (no `.env` ->
+pydantic ValidationError), which would have been a false confirmation, so I
+symlinked the env and re-ran. At HEAD, with the same environment, it fails with
+the **identical** assertion `assert None is not None`. It exercises
+`paper_trader`, which none of my changed modules import.
+
+**Lint:** `All checks passed!` on a derived file scope (`ruff --select F,E9`). The scope is derived as `git diff --name-only HEAD -- '*.py'` union the untracked `*.py` set, and asserted non-empty; the cycle-1 artifact called it "5-file" by typing rather than counting -- it is 8 after the cycle-2 edits.
+One `F541` was introduced by me in the new A/B script and is fixed.
+
+## 9. Guards that broke, and were fixed deliberately
+
+The gate predicted `test_phase_82_12_string_column_guards.py` would break because
+it pins classified `file:line` claims, and it did. **Fixing the first entry
+revealed a second** -- inserting the seam shifted every subsequent `cache.py`
+entry by +35 -- so rather than chase failures one at a time I re-derived **all
+four** classified lines from source the same way the test does:
+
+```
+OK    backend/services/outcome_tracker.py:  100 analysis_date  actual=[101]
+OK    backend/backtest/cache.py:  647 report_date    actual=[647]
+STALE backend/backtest/cache.py:  672 date           actual=[707]
+OK    backend/tools/sec_insider.py:  226 date           actual=[226, 240]
+```
+
+Both `cache.py` entries updated with the reason recorded inline. That table's own
+docstring says *"file:line claims rot. Re-derive rather than trusting the
+table."* -- so this is its designed maintenance path, not a weakened guard. The
+`cache.py:date` read is in `cached_macro`; its semantics are untouched and only
+its position moved.
+
+`_fundamentals_coverage.json` was deliberately **not** edited -- it is a raw
+measurement and `snapshot_drift()` depends on it.
+
+## 10. What I did NOT do
+
+- **No new data source.** 82.50 owns SEC EDGAR; this step only makes its absence
+  loud.
+- **No change to `window_is_covered` semantics**, and no change to
+  `data_ingestion.py:278`. Fixing the producer requires a real filing date, which
+  is 82.50's job.
+- **No second backtest strategy.** The gate noted `triple_barrier` would also
+  move (every strategy is feature-dependent via `_NUMERIC_FEATURES`), which
+  contradicts the step's claim that non-fundamentals strategies would show a zero
+  delta. I ran only `qarp`, whose delta is directly interpretable. A
+  `triple_barrier` run would be evidence about the whole engine and is worth
+  doing, but it is not what criterion 4 asks for.
+- **No live positions touched.** These are historical backtests.
+
+## 11. Cycle 2 -- three findings from the Q/A, all real, all mine
+
+The cycle-1 Q/A returned **CONDITIONAL** with all five criteria MET and three
+WARN findings *outside* the criteria. It proved criteria 1/2/3 by running its own
+7-mutant matrix -- including the branch-1-only mutant I asked it to attack, and
+one I had not written (`embargo = 100000d`, to check criterion 2 cannot pass by
+excluding everything). All three findings are fixed.
+
+### 11.1 A consumer I changed the meaning of, and never grepped
+
+`backtest_engine.py` now judges coverage against the **effective** start
+(2024-08-29), but `quant_optimizer.py:176` still called
+`window_is_covered(window_start)` -- the **raw** start (2024-06-30). For any
+window beginning in that 60-day gap the optimizer would keep `qarp` in the
+selectable pool as COVERED, and the engine would then raise
+`backtest REFUSED`. **Pre-82.51 the two agreed; my diff made them disagree** --
+and that function's own docstring promises it uses "the same 82.21 predicate the
+engine uses", which my change had quietly falsified.
+
+This is the stop-one-seam-short shape again, one level up: not a helper vs a call
+site, but **one call site of a shared predicate vs the others.** Fixed, and the
+new `test_every_window_is_covered_consumer_judges_against_the_effective_start`
+derives its own consumer file set, asserts it non-empty, and checks the bound
+VALUE at every site -- so the next person to change this predicate's meaning
+cannot miss a consumer the way I did.
+
+### 11.2 A guard that asserted a keyword's NAME, not its VALUE
+
+My `test_the_refusal_site_judges_against_the_effective_start` asserted only that
+a `start=` kwarg was present. The Q/A defeated it by substituting
+`start=FUNDAMENTALS_COVERAGE_START` -- **semantically the exact bug, and the
+guard stayed GREEN.** It ran my own AST predicate against the mutated text to
+prove it. So my "M_C DIED" was true only for the kwarg-*deletion* construction I
+happened to pick.
+
+Replaced with a **behavioural** guard: build an engine at `window_start =
+2024-07-01` (inside the gap) and assert `ValueError: REFUSED`. A behaviour cannot
+be reworded around. M_C2 -- the Q/A's own mutant -- now dies.
+
+### 11.3 A live consumer, under a section claiming no live change
+
+`cached_fundamentals` has a consumer outside the backtest tree:
+`backend/agents/mcp_servers/data_server.py:149`, calling it with
+`cutoff = date.today()`. My change would have hidden the most recently reported
+quarter from the **live agent pipeline** for 60 days -- while §10 of this artifact
+said "No live positions touched. These are historical backtests."
+
+**Decision, recorded:** the embargo is **wrong** on that path and is now scoped
+out of it. The embargo reconstructs *"what could I have known at a past cutoff"*;
+a live as-of-today query asks *"what is true now"*, and every row already in the
+table has been published -- the ingester only fetches reported figures. Embargoing
+there would suppress real data, not prevent look-ahead.
+
+Implemented as `cached_fundamentals(..., apply_embargo: bool = True)`, with the
+live call site passing `False` and a comment saying why. **The default is True**
+so a future caller who does not think about leakage gets the protected path;
+opting out has to be deliberate. Two guards pin both halves.
+
+### 11.4 The measurement was re-verified, not assumed
+
+These fixes changed `cached_fundamentals`' signature after the criterion-4 runs,
+so the numbers were re-measured rather than carried forward. The embargo=60 arm
+re-run verbatim:
+
+```
+embargo_days=60
+sharpe=3.7449
+deflated_sharpe=0.8959
+n_trades=40
+total_return_pct=5.3583
+```
+
+Identical to §3. The cycle-2 changes did not move the result -- as expected,
+since the backtest path (`historical_data.py:61`) uses the default
+`apply_embargo=True`.
+
+### 11.5 Two NOTE-level corrections the Q/A raised
+
+- §8 said lint ran on a "derived 5-file scope". The derivation yields **6** files
+  (8 after cycle 2). I typed the number instead of counting it; the outcome
+  (`All checks passed!`, exit 0) does reproduce. Corrected in §8.
+- §7 said M_B "dies on three separate tests"; the Q/A measured 2 under its own
+  construction. Kill counts are construction-dependent, so the killers are now
+  **named** rather than counted.
+
+## 12. Cycle 3 -- the same defect recurred INSIDE the fix for it
+
+The cycle-2 Q/A returned CONDITIONAL again. All five criteria stayed MET and all
+three cycle-2 WARNs were confirmed cured (it proved WARN-2 by running its own
+`start=FUNDAMENTALS_COVERAGE_START` substitution and watching it die; it endorsed
+WARN-3's reasoning explicitly: *"you did not silence my finding, you scoped it
+correctly"*). It blocked on **two red tests my cycle-2 edits introduced**.
+
+### 12.1 The finding that matters: I repeated WARN-1 while fixing WARN-1
+
+Adding `apply_embargo=` to `cached_fundamentals` broke
+`test_phase_75_mcp_truth.py`, whose `_FakeCache` double takes the OLD call shape.
+**That is the identical unswept-consumer defect the cycle-1 Q/A raised -- recurring
+inside the fix for it.** I swept the consumers of `window_is_covered` because I
+was told to, and did not sweep the consumers of the function whose signature I
+was changing in the same edit.
+
+Aggravating, and worth more than the test fix: `data_server.get_fundamentals`
+wraps that call in a broad `except`, so the `TypeError` never surfaced -- it was
+swallowed into a logged error dict. **On the live MCP path a call-shape mismatch
+degrades silently.** The double now accepts the real shape and records it.
+
+### 12.2 The line numbers went stale a second time, for the same reason
+
+§9 said all four classified lines were "re-derived from source". They were --
+**at cycle-1 state.** My cycle-2 `apply_embargo` docstring added 11 lines above
+them, so 647/707 became 658/718 and the guard went red again. Fixed by
+re-deriving **programmatically as the last action on `cache.py`**, with the
+script asserting each rewrite is not a no-op. Not by adding 11.
+
+### 12.3 One real regression, found only by running the WHOLE suite
+
+A `-k` subset is what let both failures through, so this cycle ran
+`pytest backend/tests/` entire: **32 failures**. Rather than guess which were
+mine, I diffed against a `git worktree` at HEAD -- 29 also failed there.
+
+Of the remaining 3, **exactly one is a real consequence of this change**:
+`test_phase_82_46_trial_pool_composition::test_unrunnable_members_are_excluded_by_a_DERIVED_rule`
+asserted `selectable_strategies_for_window(FUNDAMENTALS_COVERAGE_START) ==
+covered`. Post-embargo the raw start is *inside* the gap, so the dependent
+strategies correctly drop out there. The assertion's stated intent -- "the
+boundary is the MEASURED coverage start, not a typed date" -- is preserved; the
+boundary moved to `effective_coverage_start()`, and the raw start is now pinned
+on the other side so this cannot silently revert.
+
+**The other two are environment, not code, and my own baseline nearly fooled me.**
+`test_phase_23_2_10_watchdog...` and `test_phase_23_2_6_sector_cap_emit` read
+`handoff/logs/*.log` with a 24h freshness window. They "passed" at HEAD only
+because `handoff/logs` is gitignored and the worktree had **0 log files vs 46**
+-- they pass vacuously when the logs are absent. In the real tree they fail
+because the watchdog log is 46.5h stale and no `Skipping BUY` line exists. A
+worktree diff is only valid when the environment matches, which is the same trap
+that produced a false confirmation in §8.
+
+**Final state: 31 failures = 29 pre-existing + 2 environment-dependent. Zero code
+regressions from this diff.**
+
+### 12.4 Also strengthened: the consumer sweep the Q/A blinded twice
+
+It defeated my sweep two ways: a variable merely *named* `effective_start`
+holding the raw constant, and aliasing the import so the file dropped out of a
+text-derived file set. Both fixed -- the file set is now derived from **imports**
+of the symbol under any alias, and the bound value is **resolved through local
+assignments** rather than substring-matched. Its `>= 2 consumers` floor asserts
+the set is not under-derived.
+
+More importantly, the sweep is no longer sole coverage for that consumer:
+`test_the_optimizer_drops_a_dependent_strategy_inside_the_embargo_gap` now drives
+`selectable_strategies_for_window` **behaviourally**, which is the Q/A's named
+fix and cannot be reworded around.
+
+### 12.5 Corrected figures
+
+`git ls-files -m -o --exclude-standard -- '*.py'` yields **10** files; lint over
+all of them: `All checks passed!`. The §8 regression capture (`1 failed, 274
+passed`) was from the cycle-1 tree and no longer reproduces -- §12.3's whole-suite
+numbers supersede it.

@@ -9,6 +9,7 @@ all data is US. Phase 5 will filter by market column in BQ tables).
 
 import logging
 from datetime import date as _DateT
+from datetime import timedelta as _timedelta
 from typing import Optional
 
 import pandas as pd
@@ -599,12 +600,57 @@ def cached_prices(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     return df
 
 
-def cached_fundamentals(ticker: str, cutoff_date: str) -> list[dict]:
+def _embargoed_cutoff(cutoff_date: str) -> str:
+    """phase-82.51 -- the as-of date a market participant could actually use.
+
+    `report_date` is the PERIOD END, not the publication date, so filtering on
+    `report_date <= cutoff` reads figures nobody could have seen yet. The two
+    read paths below cannot share a filter directly -- one is a Python list
+    comprehension, the other a BigQuery predicate -- but they can share this,
+    because of an exact identity:
+
+        report_date + N <= cutoff   <=>   report_date <= cutoff - N
+
+    So shift the CUTOFF once here rather than every row, and both paths read
+    from one rule. Mutating this function must change BOTH branches; that is
+    what makes it a real seam rather than one-seam-short.
+
+    The import is function-local so the embargo is re-read per call, which is
+    what lets the A/B backtest and the tests vary it.
+    """
+    from backend.backtest.fundamentals_coverage import FUNDAMENTALS_EMBARGO_DAYS
+
+    if not FUNDAMENTALS_EMBARGO_DAYS:
+        return cutoff_date
+    return (
+        _DateT.fromisoformat(str(cutoff_date))
+        - _timedelta(days=FUNDAMENTALS_EMBARGO_DAYS)
+    ).isoformat()
+
+
+def cached_fundamentals(
+    ticker: str, cutoff_date: str, apply_embargo: bool = True
+) -> list[dict]:
     """Get up to 5 most recent quarterly fundamentals as-of cutoff_date.
 
     Returns a list ordered by report_date DESC (index 0 = most recent).
     Multiple quarters are needed for YoY revenue growth computation.
+
+    phase-82.51: the cutoff is embargoed before use, so a row whose period has
+    ended but which had not yet been filed is NOT visible.
+
+    `apply_embargo=False` is for callers asking "what is true NOW", not
+    "what could I have known at a past cutoff". At a live as-of-today cutoff
+    every row in the table has already been published -- the ingester only ever
+    fetches reported figures -- so embargoing there would hide real data from
+    the live pipeline rather than prevent look-ahead. The default is True
+    because the leakage-sensitive callers are the backtest ones, and a new
+    caller that forgets to think about this should get the safe behaviour.
     """
+    # phase-82.51: ONE rule, applied before either branch reads.
+    if apply_embargo:
+        cutoff_date = _embargoed_cutoff(cutoff_date)
+
     # 1. Try preloaded full data
     if ticker in _fundamentals_full:
         _cache_stats["hits"] += 1

@@ -468,25 +468,41 @@ class BacktestEngine:
         """
         from backend.backtest.fundamentals_coverage import (
             FUNDAMENTALS_COVERAGE_START,
+            FUNDAMENTALS_EMBARGO_DAYS,
+            effective_coverage_start,
             label_fundamentals_dependent_strategies,
             window_is_covered,
         )
 
         window_start = self.scheduler.start_date.isoformat()
-        covered = window_is_covered(window_start)
+        # phase-82.51: `window_is_covered` answers "is the window inside the RAW
+        # data", which stays true and separately useful. But the publication-lag
+        # embargo means no row is actually VISIBLE until the raw start plus the
+        # embargo, so coverage must be judged against the effective start --
+        # otherwise a window starting 2024-07-01 passes the gate, is recorded
+        # `fundamentals: True`, and every cached_fundamentals() call returns [].
+        # That is the exact "records coverage it does not have" defect 82.21
+        # closed, which the embargo would otherwise re-create. Applying it HERE
+        # rather than inside window_is_covered is what keeps this an extension
+        # of 82.21's record rather than a redefinition of it.
+        effective_start = effective_coverage_start()
+        covered = window_is_covered(window_start, start=effective_start)
         dependent = label_fundamentals_dependent_strategies()
 
         if not covered and self.strategy in dependent:
             raise ValueError(
                 f"backtest REFUSED: strategy '{self.strategy}' cannot be labelled "
                 f"without fundamentals, and the requested window starts "
-                f"{window_start} which is before the measured coverage start "
-                f"{FUNDAMENTALS_COVERAGE_START}. historical_fundamentals has no row "
-                f"before that date (measured; see "
-                f"backend/backtest/_fundamentals_coverage.json). Running would "
-                f"produce labels from absent inputs, not a backtest. Re-run with a "
-                f"window starting on or after {FUNDAMENTALS_COVERAGE_START}, or "
-                f"choose a strategy that does not read fundamentals."
+                f"{window_start} which is before the EFFECTIVE coverage start "
+                f"{effective_start}. historical_fundamentals has no row before "
+                f"{FUNDAMENTALS_COVERAGE_START} (measured; see "
+                f"backend/backtest/_fundamentals_coverage.json), and phase-82.51's "
+                f"{FUNDAMENTALS_EMBARGO_DAYS}-day publication-lag embargo means no "
+                f"row is VISIBLE until {effective_start} -- a figure's period can "
+                f"end without it having been filed yet. Running would produce "
+                f"labels from absent inputs, not a backtest. Re-run with a window "
+                f"starting on or after {effective_start}, or choose a strategy that "
+                f"does not read fundamentals."
             )
 
         if not covered:
@@ -496,12 +512,17 @@ class BacktestEngine:
                 "to label, but the shared feature matrix does: uncovered rows are "
                 "median-imputed. This result is labelled data_availability."
                 "fundamentals=False. Do not compare it against a covered run.",
-                window_start, FUNDAMENTALS_COVERAGE_START, self.strategy,
+                window_start, effective_start, self.strategy,
             )
 
         return {
             "fundamentals": covered,
             "fundamentals_coverage_start": FUNDAMENTALS_COVERAGE_START,
+            # phase-82.51: EXTENDS 82.21's record rather than replacing it. The
+            # raw start stays (it is the measurement); these say what is
+            # actually visible once the publication-lag embargo applies.
+            "fundamentals_embargo_days": FUNDAMENTALS_EMBARGO_DAYS,
+            "fundamentals_effective_coverage_start": effective_start,
             "fundamentals_window_start": window_start,
             "fundamentals_label_dependent": sorted(dependent),
         }

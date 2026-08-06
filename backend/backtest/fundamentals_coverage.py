@@ -31,7 +31,10 @@ from __future__ import annotations
 import ast
 import json
 import logging
+import os
 import re
+from datetime import date as _date
+from datetime import timedelta as _timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -48,6 +51,50 @@ _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 #: against the checked-in snapshot, so editing one without re-measuring the
 #: other fails the suite. Re-measure with `measure_live_coverage()`.
 FUNDAMENTALS_COVERAGE_START = "2024-06-30"
+
+#: phase-82.51 -- publication-lag embargo, in CALENDAR days.
+#:
+#: `report_date` is the PERIOD END, not the date the figure became public, so
+#: `report_date <= cutoff` lets a backtest read numbers no market participant
+#: could have seen. This is the correction.
+#:
+#: WHY 60 AND NOT 45: the largest cohort in the table is the fiscal-year-end
+#: quarter (744 rows / 443 tickers), governed by the 10-K, whose
+#: large-accelerated deadline is 60 days. The other quarters are 10-Qs at 40.
+#: A 45-day embargo would cover the 10-Q deadline but under-cover the 10-K by
+#: 15 days -- leaking on precisely the biggest cohort. 60 is the smallest
+#: embargo that dominates every legally binding deadline for an S&P-500
+#: universe (all large accelerated filers by index definition).
+#:
+#: THIS IS AN APPROXIMATION, NOT A CORRECTNESS PROOF. The table's `filing_date`
+#: column is a verbatim COPY of `report_date` on 100% of 4798 rows
+#: (`data_ingestion.py:278` sets it that way because yfinance has no true
+#: filing date), so the real lag is UNMEASURABLE here and a fixed embargo is
+#: the only option available. A real per-row filing date is phase-82.50's job;
+#: when it lands, filter on it instead of this.
+#:
+#: Overridable by env ONLY so the 82.51 A/B backtest can run the same code at
+#: 0 and 60. Production never sets it.
+FUNDAMENTALS_EMBARGO_DAYS = int(os.getenv("FUNDAMENTALS_EMBARGO_DAYS", "60"))
+
+
+def effective_coverage_start(path: Path | None = None) -> str:
+    """The first date on which ANY fundamentals row is actually visible.
+
+    DERIVED from the raw measured start plus the embargo -- never a second
+    hardcoded literal, which would drift the moment either input changes.
+
+    This exists because the embargo would otherwise re-create the exact defect
+    82.21 closed: a window starting 2024-07-01 passes `window_is_covered()` and
+    is recorded `fundamentals: True`, while every `cached_fundamentals()` call
+    returns `[]` -- coverage recorded that the run does not have.
+    """
+    raw = str(load_snapshot(path)["min_report_date"]) if path is not None \
+        else FUNDAMENTALS_COVERAGE_START
+    return (
+        _date.fromisoformat(raw) + _timedelta(days=FUNDAMENTALS_EMBARGO_DAYS)
+    ).isoformat()
+
 
 _TABLE = "sunny-might-477607-p8.financial_reports.historical_fundamentals"
 
