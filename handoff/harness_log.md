@@ -31254,3 +31254,60 @@ window-aware + wired, three pre-existing F401s cleared, the false DSR comment re
 and the phase-82.16 guard updated preserving intent. Status stays `pending`.
 
 **Next:** 82.48 (P1).
+
+## Cycle 159 -- 2026-08-06 -- phase=82.48 result=PASS
+
+**TWO CYCLES: CONDITIONAL -> PASS.** The write path emitted a schema that never
+existed: `outcome_tracking` has 9 columns and 3 REQUIRED, the writer emitted 5 keys of
+which only `ticker` overlapped, BigQuery rejected the whole batch, and
+`insert_rows_json`'s RETURNED errors were swallowed. Table had 0 rows.
+
+**A CORRECTION I OWED, and it is the day's sharpest lesson about briefs.** 82.39's brief
+claimed `outcome_tracking` has ZERO consumers and I republished that in 82.39's artifact
+and log AS A CORRECTION TO THE STEP. It is wrong: the table has FOUR live readers via
+`get_performance_stats` (outcome_tracker, meta_coordinator, skill_optimizer, perf_metrics),
+and `skill_optimizer` documents that it degrades to NEUTRAL SCORES because the table is
+empty. `outcome_tracker.py` never names the table -- it reads it through a method call, so
+A NAME GREP CANNOT SEE IT, and a name grep is what produced the claim. I talked a reader
+out of a real consequence.
+
+**Nothing in the semantic mapping was guessed:** `return_pct := realized_pnl_pct` is
+already settled in-repo (paper_trader defines it as percent-of-entry x100;
+autonomous_loop already maps it, its comment being an explicit retraction of the opposite
+mapping). `price_at_recommendation` is left NULL rather than back-derived.
+
+**A defect the fix would have INTRODUCED, handled not queued:** rolling 30-day fetch +
+append-only write = one SELL landing ~30 times. Dedup read-back added, bounded and
+parameterised.
+
+**My own guard caught a defect mid-build:** my fallback chain ended at `or ""`, and
+BigQuery's REQUIRED mode REJECTS NULL but ACCEPTS an empty string -- so it would have
+inserted outcomes with no identity into the table those four consumers read. Changed to
+SKIP-and-log rather than fabricate.
+
+**Cycle 1 CONDITIONAL, four findings, and F2 is the recurring one:** my live BigQuery
+round trip never drove `make_outcome_write_fn()._write` -- every test that DID drive the
+production closure used a MagicMock accepting any shape. GUARDS STOPPED ONE SEAM SHORT
+AGAIN. Closing that seam IMMEDIATELY caught a real defect: `_drop_already_written`
+queried a HARDCODED table while the insert used `OUTCOME_TABLE`, so the mock-based dedup
+test had been passing for a reason that does not survive a real client. Latent in
+production (same table), invisible without a real round trip. The Q/A reproduced the kill
+by mutation.
+
+Also fixed: an "offline" schema fallback that looked the table up at the wrong nesting
+level and returned {} always (fail-loud, but the docstring's claim was false); a dedup
+that computed its bound `keys` and then discarded it, scanning the whole table nightly
+against CLAUDE.md's bounded-query rule; and a loop with one no-op iteration, which the
+Q/A PROBED rather than reasoned about.
+
+**Queued:** 82.57 -- the SAME swallowed-insert defect one layer down at
+`bigquery_client.save_outcome`, the very writer this step delegates its row shape to,
+plus a NaN-graded-as-loss adjacency.
+
+**COMMIT DISCLOSURE:** `.claude/masterplan.json` is shared state and its diff carries
+ANOTHER SESSION's entire phase-85 (85.1/85.2/85.3) alongside my 82.57. Git cannot stage
+part of a file, and rewriting it would destroy their in-flight work, so it is committed
+whole and disclosed rather than swept in silently. Every other path was staged
+deliberately.
+
+**Next:** the P2/P3 tail.

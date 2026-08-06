@@ -35,16 +35,60 @@ def run(
 
 
 def _compute_outcomes(trades: list[dict]) -> list[dict]:
-    """Per-trade outcome: pnl > 0 -> win, <= 0 -> loss."""
-    return [
-        {
+    """Per-trade outcome: pnl > 0 -> win, <= 0 -> loss.
+
+    phase-82.48 NULL-SAFETY. `t.get("pnl", 0.0)` returns the default only when
+    the KEY IS ABSENT -- for a key present with value `None` it returns `None`,
+    and `None > 0` raises TypeError. This function is called OUTSIDE the `try`
+    that wraps the write, so the raise escapes into `heartbeat`.
+
+    HONEST SCOPE, because the fix should not be read as a live-bug repair: this
+    was NOT reachable in production. The fetch keeps NULLs out with
+    `realized_pnl_pct IS NOT NULL`, and `heartbeat` is a @contextmanager whose
+    `except` does not re-raise, so contextlib would have suppressed it anyway.
+    It was latent, guarded only by an un-asserted SQL predicate.
+
+    ADJACENT AND NOT FIXED HERE: a FLOAT `NaN` passes `IS NOT NULL`, and
+    `nan > 0` is False, so a NaN is silently graded "loss".
+
+    Also carries through the fields the 9-column destination needs; the write
+    function owns the schema mapping.
+    """
+    out: list[dict] = []
+    for t in (trades or []):
+        pnl = t.get("pnl")
+        if pnl is None:
+            pnl = 0.0
+        # `analysis_date` and `recommendation` are REQUIRED at the destination,
+        # so neither may fall through as None: analysis_id is the recommendation
+        # identity and created_at is the SELL timestamp; risk_judge_decision is
+        # the decision that was acted on, and the trade action is the fallback.
+        analysis_date = t.get("analysis_id") or t.get("created_at")
+        recommendation = t.get("risk_judge_decision") or t.get("action")
+        if not analysis_date or not recommendation:
+            # SKIP rather than fabricate. BigQuery's REQUIRED mode rejects NULL
+            # but ACCEPTS an empty string, so a `or ""` fallback would happily
+            # insert an outcome with no identity -- polluting the table that
+            # get_performance_stats serves to four consumers. Caught by this
+            # step's own guard (test_required_columns_are_never_None); the first
+            # draft did exactly that.
+            logger.warning(
+                "outcome_rebuild: skipping trade %r -- no usable %s",
+                t.get("trade_id"),
+                "analysis anchor" if not analysis_date else "recommendation",
+            )
+            continue
+        out.append({
             "trade_id": t.get("trade_id"),
             "ticker": t.get("ticker"),
-            "pnl": t.get("pnl", 0.0),
-            "outcome": "win" if t.get("pnl", 0.0) > 0 else "loss",
-        }
-        for t in (trades or [])
-    ]
+            "pnl": pnl,
+            "outcome": "win" if pnl > 0 else "loss",
+            "analysis_date": str(analysis_date),
+            "recommendation": str(recommendation),
+            "price": t.get("price"),
+            "holding_days": t.get("holding_days"),
+        })
+    return out
 
 
 def _default_fetch() -> list[dict]:

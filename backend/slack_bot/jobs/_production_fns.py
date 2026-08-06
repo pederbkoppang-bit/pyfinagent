@@ -227,6 +227,7 @@ LEDGER_TABLE = "sunny-might-477607-p8.financial_reports.paper_trades"
 #: the sweep caught. `test_the_production_sql_stays_visible_to_the_sweep` pins it.
 LEDGER_FETCH_SQL = """
                 SELECT trade_id, ticker, action, price, quantity, created_at,
+                       analysis_id, risk_judge_decision, holding_days,
                        SAFE_CAST(realized_pnl_pct AS FLOAT64) AS pnl
                 FROM `sunny-might-477607-p8.financial_reports.paper_trades`
                 WHERE SAFE.TIMESTAMP(created_at) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
@@ -354,31 +355,187 @@ def _alert_fetch_failure(exc: BaseException) -> None:
         )
 
 
-def make_outcome_write_fn() -> Callable[[list[dict]], int]:
-    """Return a sync closure that writes outcomes to BQ.
+#: phase-82.48. The destination's real columns, measured 2026-08-06 against the
+#: live table: 9 columns, 3 REQUIRED. The pre-82.48 writer emitted
+#: {trade_id, ticker, pnl, outcome, recorded_at} -- only `ticker` overlaps, and
+#: BOTH required columns were unsupplied, so BigQuery rejected the entire batch
+#: and `insert_rows_json`'s RETURNED errors were swallowed. The table has 0 rows.
+OUTCOME_TABLE = "sunny-might-477607-p8.financial_reports.outcome_tracking"
+OUTCOME_REQUIRED_COLUMNS = ("ticker", "analysis_date", "recommendation")
+#: The dedup query, as a PLAIN literal so the schema sweep can resolve its table
+#: (82.39: an f-string hides the table name from `extract_sql_literals`).
+#: BOUNDED by parameters -- an unbounded full-table scan every night is what
+#: CLAUDE.md's "always bound queries" rule exists to prevent.
+_OUTCOME_TABLE_DEFAULT = "sunny-might-477607-p8.financial_reports.outcome_tracking"
+OUTCOME_DEDUP_SQL = """
+            SELECT ticker, analysis_date
+            FROM `sunny-might-477607-p8.financial_reports.outcome_tracking`
+            WHERE ticker IN UNNEST(@tickers)
+              AND analysis_date IN UNNEST(@analysis_dates)
+        """
+OUTCOME_COLUMNS = (
+    "ticker", "analysis_date", "recommendation", "price_at_recommendation",
+    "current_price", "return_pct", "holding_days", "beat_benchmark",
+    "evaluated_at",
+)
 
-    Schema: `financial_reports.outcome_tracking(trade_id STRING, ticker STRING,
-    pnl FLOAT, outcome STRING, recorded_at TIMESTAMP)`.
+
+def build_outcome_row(outcome: dict, *, evaluated_at: str) -> dict:
+    """phase-82.48: one outcome -> one `outcome_tracking` row.
+
+    THE SEMANTIC MAPPING IS NOT A JUDGMENT CALL -- it is already settled in this
+    repo and is reused rather than re-derived. `paper_trader` defines
+    `realized_pnl_pct` as `((price - entry_price) / entry_price) * 100`: percent
+    of the per-share average entry price, ALREADY x100, and populated only on
+    SELL legs. `autonomous_loop` already maps that same column to
+    `outcome_tracking.return_pct`, and its phase-47.7 comment is an explicit
+    retraction of the opposite mapping. So `return_pct := pnl` is correct.
+
+    `price_at_recommendation` is left NULL: `paper_trades` carries no entry price
+    on the SELL leg, and back-deriving one from `price` and `return_pct` would be
+    inventing a number. Stated rather than silently done.
+    """
+    return {
+        "ticker": outcome.get("ticker"),
+        # REQUIRED. `analysis_id` is the recommendation's identity; `created_at`
+        # is the SELL timestamp, which is the closest available analysis anchor
+        # when analysis_id is absent.
+        "analysis_date": outcome.get("analysis_date"),
+        # REQUIRED. The risk judge's decision is the recommendation that was
+        # acted on; fall back to the trade action, never to None.
+        "recommendation": outcome.get("recommendation"),
+        "price_at_recommendation": None,
+        "current_price": outcome.get("price"),
+        "return_pct": outcome.get("pnl"),
+        "holding_days": outcome.get("holding_days"),
+        "beat_benchmark": None,
+        "evaluated_at": evaluated_at,
+    }
+
+
+def _alert_write_rejected(errors: Any, n_rows: int) -> None:
+    """phase-82.48: make a REJECTED write operator-visible.
+
+    `insert_rows_json` RETURNS a list of per-row errors and never raises, so the
+    pre-82.48 code's `if errors: log; return 0` was indistinguishable from a
+    quiet no-op. On a schema mismatch BigQuery rejects the ENTIRE batch, tagging
+    otherwise-valid rows `stopped` -- so a non-empty return is always a real
+    failure, never a partial success worth ignoring.
+
+    Function-local import, matching the 82.10/82.11/82.39 convention: a test MUST
+    patch `backend.services.observability.alerting.raise_cron_alert_sync`,
+    because there is no module-scope name here to patch.
+    """
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+
+        raise_cron_alert_sync(
+            source="nightly_outcome_rebuild",
+            error_type="outcome_write_rejected",
+            severity="P1",
+            title="nightly_outcome_rebuild: BigQuery REJECTED the outcome write",
+            details={
+                "table": OUTCOME_TABLE,
+                "rows_attempted": n_rows,
+                "errors": str(errors)[:600],
+                "consequence": (
+                    "outcome_tracking received nothing; get_performance_stats "
+                    "consumers degrade to neutral scores"
+                ),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 -- never break the job
+        logger.warning("nightly_outcome_rebuild: alert dispatch fail-open: %r", exc)
+
+
+def make_outcome_write_fn() -> Callable[[list[dict]], int]:
+    """Return a sync closure that writes outcomes to `outcome_tracking`.
+
+    phase-82.48 rebuilt this against the table's REAL 9-column schema. The
+    previous docstring documented a schema that never existed.
+
+    DEDUP IS PART OF THE FIX, NOT AN EXTRA. The fetch reads a ROLLING 30-day
+    window every night and this writer APPENDS -- the job's daily idempotency key
+    stops a second run on one day, not a re-write of the same 30 days tomorrow.
+    Without the read-back below, one SELL would land ~30 times.
     """
 
     def _write(outcomes: list[dict]) -> int:
         if not outcomes:
             return 0
         now_iso = datetime.now(timezone.utc).isoformat()
-        records = [{**o, "recorded_at": now_iso} for o in outcomes]
+        records = [build_outcome_row(o, evaluated_at=now_iso) for o in outcomes]
         try:
             client = _bq_client()
-            table_id = f"{client.project}.financial_reports.outcome_tracking"
-            errors = client.insert_rows_json(table_id, records)
+            records = _drop_already_written(client, records)
+            if not records:
+                return 0
+            errors = client.insert_rows_json(OUTCOME_TABLE, records)
             if errors:
-                logger.warning("nightly_outcome_rebuild: BQ insert errors: %r", errors)
+                logger.warning(
+                    "nightly_outcome_rebuild: BQ insert REJECTED %d row(s): %r",
+                    len(errors), errors,
+                )
+                _alert_write_rejected(errors, len(records))
                 return 0
             return len(records)
         except Exception as exc:
             logger.warning("nightly_outcome_rebuild: BQ write fail-open: %r", exc)
+            _alert_write_rejected(exc, len(records))
             return 0
 
     return _write
+
+
+def _drop_already_written(client: Any, records: list[dict]) -> list[dict]:
+    """Filter out rows already in `outcome_tracking` for the same
+    (ticker, analysis_date). Fail-OPEN: on any error return the records
+    unchanged -- a duplicate is a lesser evil than dropping every outcome."""
+    try:
+        from google.cloud import bigquery
+
+        keys = {(r["ticker"], r["analysis_date"]) for r in records}
+        # BOUNDED, per CLAUDE.md ("Always bound queries ... or costs balloon
+        # fast"). The first version computed `keys` and then scanned the whole
+        # table anyway -- ruff F841 flagged the unused bound, which is exactly
+        # the signal that the query was unbounded. Parameterised rather than
+        # interpolated so a ticker can never be injected into the SQL.
+        sql = OUTCOME_DEDUP_SQL
+        if OUTCOME_TABLE != _OUTCOME_TABLE_DEFAULT:
+            # The dedup SQL carries the table as a PLAIN literal so
+            # schema_oracle's SQL-literal extractor can still see it (the 82.39
+            # lesson: an f-string hides the table from the sweep). That means the
+            # literal must be rewritten when OUTCOME_TABLE is redirected, or the
+            # dedup would read a DIFFERENT table than the insert writes to --
+            # which is exactly what a real-BigQuery guard caught here. Assert the
+            # target exists so the rewrite can never be a silent no-op.
+            if _OUTCOME_TABLE_DEFAULT not in sql:
+                raise AssertionError(
+                    "OUTCOME_DEDUP_SQL no longer names the default table; the "
+                    "redirect would silently read the wrong table"
+                )
+            sql = sql.replace(_OUTCOME_TABLE_DEFAULT, OUTCOME_TABLE)
+        job_config = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ArrayQueryParameter(
+                "tickers", "STRING", sorted({k[0] for k in keys})),
+            bigquery.ArrayQueryParameter(
+                "analysis_dates", "STRING", sorted({k[1] for k in keys})),
+        ])
+        seen = {(r["ticker"], r["analysis_date"])
+                for r in client.query(sql, job_config=job_config).result(timeout=30)}
+        if not seen:
+            return records
+        kept = [r for r in records
+                if (r["ticker"], r["analysis_date"]) not in seen]
+        if len(kept) != len(records):
+            logger.info(
+                "nightly_outcome_rebuild: skipped %d outcome(s) already written",
+                len(records) - len(kept),
+            )
+        return kept
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("nightly_outcome_rebuild: dedup fail-open: %r", exc)
+        return records
 
 
 # ── alert_fn factories (sync→async Slack post bridge) ──────────
