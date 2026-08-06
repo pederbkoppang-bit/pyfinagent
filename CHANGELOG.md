@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `816378e6` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
 | 2026-08-06 | `92cadebb` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
 | 2026-08-05 | `1a72fec4` | docs(82.48): queue the write-side defect 82.39's criteria cannot see |
 | 2026-08-05 | `2fcf03b5` | docs(82.39): research gate -- the defect is larger than the step describes |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-04 | `be04da12` | wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER STEP FLIPPED |
 | 2026-08-04 | `14ef109a` | feat(82.3+82.4): backtest evidence and design pack -- no strategy passes the gate |
 | 2026-08-03 | `97c33037` | feat(82.4): design pack with render-verified 4-column flows + pre-registered ranking |
-| 2026-08-03 | `07ee03fc` | fix(82.15): wire the point-in-time macro read -- the vintage column had zero consumers |
 
 ---
 
+### v6.80.0 — feat(82.11): move autoresearch off the metered rail and make its fail... (2026-08-06)
+
+- **feat(82.11): move autoresearch off the metered rail and make its failures audible**
 ### v6.79.0 — feat(82.11): move autoresearch off the metered rail and make its fail... (2026-08-06)
 
 - **feat(82.11): move autoresearch off the metered rail and make its failures audible**
