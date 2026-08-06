@@ -31176,3 +31176,27 @@ Josse's consistency condition IS violated here (train has macro, predict fabrica
 train median), which is why it is not merely cosmetic.
 
 **Next:** 82.46 (P1), 82.48 (P1).
+
+## Operator action -- 2026-08-06 -- masterplan 79.55 RAIL-MODEL TIER CONFIRMATION
+
+RAIL TIERS: AS CONFIGURED
+
+The operator (Peder) answered option (a) of 79.55 in the interactive session of
+2026-08-06 (AskUserQuestion, recorded verbatim by Main): keep the configured tiers
+now that phase-78.2's explicit `--model` takes effect -- the six signal overlays on
+claude-haiku-4-5, the lite trader and lite risk judge per settings.gemini_model /
+claude-sonnet-4-6 (autonomous_loop.py:2392 region), the ticket queue per
+agent_model_map. Rationale: unblock backend restarts and the phase-4000 live smoke
+now; revisit tier upgrades WITH the 4000.3 E6 quota-burn data instead of guessing.
+On the flat-fee Max rail an upgrade is a quota/latency trade, not dollars, so the
+decision is better made with the measured burn number in hand.
+
+NOTE ON THE STATUS FLIP: the 79.55 flip to done is deliberately HELD. At the time
+of this entry another Claude Code session is mid-cycle on phase-82 (git add -An
+dry-run: 61 paths in flight, including backend/backtest/quant_optimizer.py and a
+live handoff/current/contract.md), and a done-flip's auto-commit `git add -A`
+would sweep that in-flight work under 79.55's name (auto-memory
+feedback_audit_the_commit_not_the_diff). Whichever session next holds a quiet
+tree closes 79.55; its verification grep for 'RAIL TIERS' is satisfied by this
+entry, and the restart landmine it guarded against is disarmed as of this line --
+a restart now ships the OPERATOR-CONFIRMED tiers, not a silent re-tiering.

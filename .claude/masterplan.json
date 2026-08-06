@@ -22750,6 +22750,140 @@
           "max_retries": 3
         }
       ]
+    },
+    {
+      "id": "phase-4000",
+      "name": "Claude-Code Max-rail E2E promotion -- prove the app's Claude-role LLM traffic runs on the Max-plan rail with the metered API key dark, then promote the rail to operator-confirmed steady state. OPERATOR INTENT (2026-08-06): the binding problem is TRADE THROUGHPUT, not just cost. The app trades ~1-2 times/week; ~100 round-trip trades are needed to call it tested and ready for live production; available cash is plentiful. Phase-72's money recon already pinned the throughput root cause: Anthropic API credits dead since 2026-05-17 killed the Claude-role signal paths (six overlays + lite trader + lite risk judge), leaving ~97% cash. The Max plan is flat-fee and already paid for; Gemini is metered; no credit top-up is planned. NORTH-STAR METRIC: round-trip trade cadence, measured against a pre-registered baseline, on the path toward the 100-round-trip validation sample. HONESTY CLAUSE: the dead rail is the prime throughput suspect, not proven sufficient -- known co-suspects are paper_analyze_top_n=5 binding (phase-82 finding), the phase-70 S3 silent BUY-gates and the monosector funnel; if cadence does not recover, 4000.5 files them as their own steps rather than stretching this phase. GROUND TRUTH -- the route ALREADY EXISTS, this phase proves and promotes it, it builds nothing new: backend/agents/claude_code_client.py (claude_code_invoke at :297, ClaudeCodeClient at :571; Max-subscription auth from ~/.claude/; launchd-safe binary resolution; phase-66.1 rail guard = per-cycle probe gate + circuit breaker at claude_rail_breaker_threshold=20 + exactly-one P1 page; explicit --model per call since phase-78.2), gated by settings.paper_use_claude_code_route (backend/config/settings.py:176, default False, runtime-flippable via /api/settings PUT), routing seam at backend/agents/llm_client.py:2108-2150 with routing-breach guards, flat-fee rows excluded from the metered-spend metric per the note at llm_client.py:432. All existing tests mock the subprocess; NONE exercises the real CLI against the real running app -- that gap is this phase. Full engineered brief with evidence definitions E1-E8: handoff/current/goal_4000_cc_rail_e2e_smoke_DRAFT.md (snapshot into the 4000.1 archive so it survives). HARD PRECONDITION for any live-rail step: masterplan 79.55 (rail-tier confirmation, P0 restart blocker) must be ANSWERED -- evidence is a 'RAIL TIERS' line in handoff/harness_log.md -- because the smoke runs whatever tiers are configured and running it unconfirmed would ship the silent re-tiering 79.55 exists to prevent. BUDGET RAIL (non-negotiable): the Max weekly pool is SHARED with the dev harness and every Workflow fan-out; the live smoke is bounded to <=2 tickers and <=30 rail calls in one window; past the weekly ceiling usage silently goes metered, which breaks the standing $0-metered constraint. CONCURRENCY RAIL: another Claude Code session may be draining this masterplan in parallel; every status flip in this phase requires a git add -An dry-run first (the auto-commit hook stages the WHOLE tree -- a flip ships the other session's in-flight work under this step's name, auto-memory feedback_audit_the_commit_not_the_diff), and the live smoke window (4000.3) requires a single-writer window with no other session mid-cycle. NON-SCOPE for the whole phase: migrating the 28-agent Gemini pipeline onto the rail (separate future decision; Google Search Grounding is Gemini-only and degrades on Claude; the E6 quota math from 4000.3 is the INPUT to that decision); re-testing the phase-76.9.2 SDK bridge (different mechanism, already E2E-tested); real_capital_enabled changes beyond amending the flag description text; any model-tier re-pinning (that is 79.55, an operator judgment).",
+      "status": "pending",
+      "depends_on": [],
+      "gate": null,
+      "steps": [
+        {
+          "id": "4000.1",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "Research gate + measured baselines for the Max-rail E2E smoke. NO PRODUCTION CODE IN THIS STEP. Everything later in the phase is judged against numbers this step writes down BEFORE any flag is flipped, because a post-hoc baseline is narrative, not evidence. WHAT TO MEASURE, each as a verbatim fenced capture in handoff/current/cc_rail_baseline_4000_1.md: (a) the LIVE value of paper_use_claude_code_route from GET /api/settings on the running backend -- measure, don't assume the settings.py default; (b) the running backend process start time (launchctl/ps) compared against the phase-78.2 commit timestamp, stating explicitly whether the running process predates the explicit --model change -- if it does, the smoke would exercise pre-78.2 behavior and 4000.3 must sequence a restart AFTER the 79.55 answer; (c) the CC-rail row marker in pyfinagent_data.llm_call_log derived from CODE with file:line (how a rail row differs from an Anthropic-direct row: provider/model/cost fields), stated as a row-selection RULE a later query can apply verbatim; (d) trailing-4-week trade cadence from financial_reports.paper_trades (the paper-trading tables live in financial_reports, NOT pyfinagent_pms, per bigquery_client.py _pt_table): trades/week AND round-trips/week with the date filter and the round-trip pairing rule stated -- both halves under ONE stated rule per auto-memory feedback_normalization_rule_must_be_stated_with_the_ratio -- this is evidence item E8, the baseline 4000.5 is judged against; (e) the cheapest bounded entrypoint on the running backend that exercises the rail call sites (lite path vs single-ticker analysis endpoint), chosen from code with the reason; (f) pre-registered definitions of checks E1-E7 (rail-used, metered-dark, model-truth via the CLI envelope's modelUsage MAP -- iterate ALL keys, never take the first, that is the phase-78 defect class; output integrity; guard health; quota math; UI n/a) each with its selection rule and expected pass shape, copied or refined from handoff/current/goal_4000_cc_rail_e2e_smoke_DRAFT.md. RESEARCH GATE per protocol (tier moderate): >=5 sources read in full including the current Anthropic Claude Code headless/CLI docs (print mode, --output-format json envelope shape, modelUsage semantics, Max-plan usage limits) -- the envelope shape is Anthropic-owned and may have changed since phase-78 measured it; brief at handoff/current/research_brief_4000.1.md with the JSON envelope. NON-SCOPE: no code changes outside scripts/qa/ (the check script only); no flag flips; no rail calls beyond at most ONE probe invocation of the claude CLI to capture a current envelope shape sample.",
+          "verification": {
+            "command": "bash scripts/qa/verify_phase_4000_1_baseline.sh",
+            "criteria": [
+              "scripts/qa/verify_phase_4000_1_baseline.sh exists and inspects the baseline artifact for the six required sections (a)-(f) by content markers, not mere file existence; it accepts the artifact at handoff/current/cc_rail_baseline_4000_1.md OR handoff/archive/phase-4000.1/cc_rail_baseline_4000_1.md so the gate stays green after the archive hook rotates the step.",
+              "Section (a) contains a verbatim fenced GET /api/settings capture showing the live paper_use_claude_code_route value with a timestamp.",
+              "Section (b) states the running backend process start time and the phase-78.2 commit timestamp side by side, with an explicit YES/NO conclusion on whether the running process predates the --model change.",
+              "Section (c) states the CC-rail row-selection rule with the deriving file:line citations from backend code; the rule must be executable as a WHERE clause a later step can apply verbatim.",
+              "Section (d) states the trailing-4-week trades/week and round-trips/week with the date filter and the round-trip pairing rule written out; both counts are computed under that one stated rule and the query text is included verbatim.",
+              "Section (f) pre-registers every check E1-E7 with a selection rule and an expected pass shape, and the artifact's git timestamp precedes any 4000.3 flag flip.",
+              "The research brief exists with gate_passed true in its JSON envelope and >=5 sources read in full including current Anthropic headless/CLI documentation.",
+              "MUTATION COVERAGE: deleting any single required section from a copy of the baseline artifact makes the check script exit non-zero, proving it inspects content rather than existence; the executor demonstrates this once and records the observed exit codes in the handoff.",
+              "git diff scope for this step touches only handoff/ and scripts/qa/ -- no backend/, frontend/, or settings changes."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.2",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "4000.1"
+          ],
+          "name": "Build the repeatable E2E smoke script -- and prove its checks CAN FAIL before they are ever trusted to pass. WHAT TO BUILD: scripts/qa/smoke_cc_rail_e2e.py with two modes. --dry: NO flag change, no settings mutation; reports the current rail state honestly (including the expected 'rail OFF' verdict while paper_use_claude_code_route is False) and runs every preflight. --live: the full window -- preflight, flag flip via PUT /api/settings (NEVER by editing .env; the E2E claim is that the operator's runtime path works), a bounded real analysis on the entrypoint chosen in 4000.1(e), the E1-E6 checks from the 4000.1 pre-registered definitions, then flag restore-or-keep per an explicit --keep-on argument, with restore in a finally block so a crashed run cannot leave the flag flipped by accident. HARD BUDGET IN CODE: <=2 tickers and <=30 rail subprocess invocations per run, enforced by a counter that aborts loudly when exceeded -- not by convention. PREFLIGHT: backend :8000 health; claude binary resolved via the SAME resolution logic production uses (import _resolve_claude_binary from backend/agents/claude_code_client.py, do not reimplement); a single Max-auth probe call asserting the envelope SHAPE (modelUsage present and MAP-typed) rather than exit-0; pre-run capture of the flag value. CHECKS, each emitting a machine-readable per-check verdict with overall exit non-zero if any fails: E1 every Claude-role llm_call_log row in the window matches the 4000.1(c) rule, reported as N-of-N under the stated rule; E2 metered-spend delta over the window == 0 (remember session_cost_usd is a GAUGE -- never SUM it; use the metric the code actually excludes flat-fee rows from, cite llm_client.py:432 behavior); E3 for >=1 sampled call, the envelope model (iterating ALL modelUsage keys) == the configured tier == the llm_call_log row's model; E4 the analysis output is schema-compliant, non-degraded (no synthetic 0.0/HOLD, no final_synthesis.error) and was consumed by the decision path; E5 rail-guard probe passed, breaker not tripped, consecutive_failures == 0 at window end; E6 per-call tokens + would-be costUSD extrapolated to a 13-ticker cycle at current cadence, expressed as percent-of-weekly-Max-pool per day. TESTS (this step's verification): backend/tests/test_phase_4000_2_cc_rail_smoke.py drives the script via subprocess.run asserting on .returncode, against a STUBBED claude binary (a tmp_path shell script emitting canned envelopes) and stubbed backend endpoints -- unit tests make ZERO live rail calls and ZERO live flag flips. Auto-memory feedback_executor_sees_mutation_transients applies: the mutation matrix below is part of THIS step, run by this executor, so pre-explain it in the handoff. NON-SCOPE: no live --live run (that is 4000.3, behind the operator gate); no changes to claude_code_client.py or llm_client.py routing.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_4000_2_cc_rail_smoke.py -q",
+            "criteria": [
+              "scripts/qa/smoke_cc_rail_e2e.py exists with --dry and --live modes; --dry performs no settings mutation of any kind, proven by a test asserting zero PUT requests against the stubbed settings endpoint during a dry run.",
+              "The <=30-rail-call and <=2-ticker budgets are enforced in code: a fixture that would drive 31 calls aborts with a distinct non-zero exit and a message naming the cap, asserted by test.",
+              "The preflight resolves the claude binary through backend/agents/claude_code_client.py's own resolution logic (imported, not reimplemented), asserted by test through the stub search path.",
+              "Each check E1-E6 emits a machine-readable per-check verdict; the overall exit code is non-zero iff any check fails, proven in both directions by fixtures (an all-pass canned window exits 0; each single-check-fail fixture exits non-zero).",
+              "E3 iterates ALL keys of the envelope's modelUsage map: a fixture whose envelope carries two models -- the configured tier first and a foreign model second -- must FAIL E3, proving the check cannot be satisfied by reading only the first key.",
+              "Flag restoration lives in a finally block: a fixture that crashes the analysis mid-window still issues the restore PUT, asserted by test against the stub.",
+              "Tests drive the script via subprocess.run([...]) asserting on .returncode -- never on an imported function's return value -- so neutering the script's exit plumbing turns the suite red.",
+              "MUTATION COVERAGE, named in a test-file comment: (m1) breaking the E1 row-selection rule so it matches zero rows must turn the E1 fixture red; (m2) neutering the E2 delta check to always-zero must turn the E2 fixture red; the executor runs the matrix once, records verbatim output in the handoff, and restores.",
+              "A --dry run against the REAL running backend in its CURRENT flag state completes, reports the honest rail state, makes zero flag changes; its verbatim output is recorded in experiment_results.md.",
+              "git diff scope: scripts/qa/, backend/tests/, handoff/ only."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.3",
+          "status": "pending",
+          "priority": "P0",
+          "harness_required": true,
+          "depends_on": [
+            "4000.1",
+            "4000.2"
+          ],
+          "name": "Operator gate, then the LIVE smoke window. THIS STEP DOES NOT START WITHOUT THREE RECORDED PRECONDITIONS, all in handoff/harness_log.md before the window opens: (1) the 79.55 answer -- a 'RAIL TIERS' line (either 'RAIL TIERS: AS CONFIGURED' or the named re-pins, which must then already be applied and restarted); (2) an explicit operator token authorizing the paper_use_claude_code_route flip for the smoke window AND stating in advance the end-state decision rule (keep-ON if all checks pass and E6 is under the ceiling, else restore-OFF); (3) a single-writer window confirmation -- no other Claude Code session mid-cycle -- evidenced by git add -An dry-run captures taken immediately before and after the window showing no foreign in-flight changes were swept (the auto-commit hook stages the whole tree on any flip; see the phase CONCURRENCY RAIL). IF the 4000.1(b) baseline concluded the running backend predates phase-78.2's --model change, a backend restart (parent AND child workers -- zombie prevention rule) happens INSIDE this step, strictly after precondition (1), so the smoke exercises post-78.2 routing. THE WINDOW: run scripts/qa/smoke_cc_rail_e2e.py --live per its 4000.2 contract (<=2 tickers, <=30 rail calls, one invocation). No retry-loops against the live rail: a probe failure or breaker trip is a FAIL that closes the window -- fix and reopen only with a fresh operator note. EVIDENCE into handoff/current/live_check_4000.3.md, all verbatim: the full machine-readable per-check E1-E6 output; the llm_call_log window rows under the 4000.1(c) rule; ONE complete CLI envelope showing the modelUsage map; the guard-state capture; the E6 arithmetic with the percent-of-weekly-pool-per-day figure stated as a number; E7 as 'no UI claims' unless a UI claim was made, in which case a Playwright capture behind the NextAuth wall. END STATE: apply the pre-stated decision rule -- E6 above 30 percent of the weekly pool per day means keep-ON is NOT applied by default even on all-green checks; it then requires a fresh operator token citing the E6 number. On ANY fail: restore the flag, capture the restoration, queue each defect as its own research-gated masterplan step written for an executor with no memory of this window. KILL CRITERIA, pre-registered: E3 mismatch (envelope model != logged model) is a truth defect, never a flake -- FAIL and queue; any metered increment is FAIL regardless of other checks.",
+          "verification": {
+            "command": "bash scripts/qa/verify_phase_4000_3_live_smoke.sh",
+            "criteria": [
+              "scripts/qa/verify_phase_4000_3_live_smoke.sh exists, is bounded to this step's own artifacts, and accepts them at handoff/current/ OR handoff/archive/phase-4000.3/ paths so it stays green after archival.",
+              "handoff/harness_log.md contains, dated before the window: a 'RAIL TIERS' line; an operator flag-flip token that states the end-state decision rule in advance; and the single-writer confirmation. The check script greps all three.",
+              "live_check_4000.3.md contains the machine-readable per-check E1-E6 verdicts, at least one complete CLI envelope with a modelUsage map, the llm_call_log window rows with the 4000.1(c) rule restated inline, and the E6 percent-of-weekly-pool-per-day figure as an explicit number. The check script asserts each by content marker.",
+              "The rail-call counter from the smoke's own output shows <=30 calls and <=2 tickers for the window.",
+              "The end state of paper_use_claude_code_route is recorded with a verbatim GET /api/settings capture taken after the window, and it matches the pre-stated decision rule applied to the observed check results; if any check failed, a restoration capture is present. Silence on the end state fails the step.",
+              "The two git add -An captures bracketing the window are present in the live_check and show no foreign in-flight changes were staged into this step's commits.",
+              "If a backend restart occurred inside this step, the live_check shows it happened after the 'RAIL TIERS' line's timestamp and that parent and child workers were both cycled.",
+              "Every FAILed check (if any) has a corresponding queued masterplan step id named in the live_check, per auto-memory feedback_queue_discovered_defects_in_masterplan."
+            ],
+            "live_check": "verbatim smoke --live output with per-check E1-E6 verdicts, one full claude CLI JSON envelope showing the modelUsage map, the llm_call_log window rows under the pre-registered selection rule, the post-window GET /api/settings capture, and the two git add -An captures bracketing the window"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.4",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "4000.3"
+          ],
+          "name": "Promote the rail to documented steady state -- or record the documented no-op. BRANCH ON THE 4000.3 END STATE. IF the operator's decision rule landed on keep-ON: (a) amend the paper_use_claude_code_route field description in backend/config/settings.py -- it currently reads 'Testing-phase only; flip to False before flipping real_capital_enabled to True' -- to state the operator-confirmed steady state with the date, the 4000.3 live_check as the evidence pointer, and an explicit statement of what the real_capital_enabled interplay decision now is (the operator must answer whether the testing-only doctrine still applies to real capital; record their answer verbatim, do not infer it); (b) add a short standing note to CLAUDE.md's Critical Rules pointing at the rail steady state and the shared-weekly-pool budget caveat, so future sessions do not re-litigate the route; (c) verify the phase-66.1 guard is live on the now-permanent path -- probe gate, breaker threshold, and the exactly-one-P1 page wiring -- by a targeted check against the running backend, not by reading source alone (auto-memory feedback_a_green_suite_can_be_blind: assert the guard drives the REAL channel). IF the end state was restore-OFF: this step closes as a documented no-op quoting the operator's restore decision and the failing evidence, and the settings description is NOT amended -- a doctrine text may only change on a passing smoke. Either branch is a valid close; SILENCE on which branch was taken is the only invalid close. NON-SCOPE: no routing-code changes in llm_client.py or claude_code_client.py; no model-tier changes; no real_capital_enabled flip (recording the operator's answer about the interplay is not flipping the flag).",
+          "verification": {
+            "command": "bash scripts/qa/verify_phase_4000_4_promotion.sh",
+            "criteria": [
+              "scripts/qa/verify_phase_4000_4_promotion.sh exists and first determines the 4000.3 end state from that step's archived live_check, then asserts the matching branch: keep-ON requires the amended settings description AND the CLAUDE.md note AND the guard-liveness evidence; restore-OFF requires the documented no-op record with the operator decision quoted and the settings description byte-unchanged from its pre-phase text.",
+              "On the keep-ON branch: the settings.py description no longer contains the unqualified 'Testing-phase only' clause, names the date and the live_check evidence pointer, and records the operator's real_capital_enabled interplay answer verbatim.",
+              "On the keep-ON branch: the guard-liveness evidence shows the 66.1 probe and breaker observed against the RUNNING backend (a captured probe result and a captured guard-state readout), not a source citation.",
+              "On either branch: git diff scope is backend/config/settings.py (keep-ON only), CLAUDE.md (keep-ON only), scripts/qa/, and handoff/ -- nothing else.",
+              "MUTATION COVERAGE: on the taken branch, reverting the branch's key artifact (the amended description, or the no-op record) makes the check script exit non-zero; demonstrated once with exit codes recorded in the handoff.",
+              "handoff/harness_log.md records which branch was taken and why, before the status flip."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.5",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "4000.3"
+          ],
+          "name": "Observation-window readout: did the rail revival actually move trade cadence toward the 100-round-trip validation target? OPENS NO EARLIER THAN 7 DAYS after the 4000.3 window closes, with the rail in whatever end state 4000.3 recorded -- this step observes, it does not iterate. WHAT TO PRODUCE, in handoff/current/cc_rail_observation_4000_5.md: (a) round-trips/week and trades/week over the observation window from financial_reports.paper_trades, computed under the SAME date-filter and pairing rule pre-registered in 4000.1(d) -- restate the rule inline and show both halves under it (auto-memory feedback_normalization_rule_must_be_stated_with_the_ratio); (b) the comparison against the E8 baseline as a measured delta; (c) projected weeks-to-100-round-trips at the observed cadence, arithmetic shown; (d) observed Max-pool burn attributable to the rail over the window versus the E6 estimate from 4000.3, with the estimation basis stated (the pool is shared -- attribute honestly, do not claim precision the data cannot support, and never SUM session_cost_usd which is a gauge); (e) a verdict line: CADENCE RECOVERED / CADENCE FLAT / RAIL OFF (if 4000.3 restored the flag, the readout says so and the cadence comparison is explicitly labeled as a no-treatment control, not evidence about the rail). IF CADENCE IS FLAT with the rail ON: the honesty clause binds -- file each co-suspect as its own research-gated masterplan step (paper_analyze_top_n=5 binding from the phase-82 finding; the phase-70 S3 silent BUY-gates; the monosector funnel), each written for an executor with no memory of this phase and each carrying the measured evidence from this readout. Filing zero co-suspect steps while reporting CADENCE FLAT fails the step. NON-SCOPE: no code changes anywhere (git diff scope: handoff/ and scripts/qa/ only); no flag changes; no threshold tuning -- a discovered lever becomes a queued step, never an inline tweak.",
+          "verification": {
+            "command": "bash scripts/qa/verify_phase_4000_5_observation.sh",
+            "criteria": [
+              "scripts/qa/verify_phase_4000_5_observation.sh exists, bounded to this step's artifacts, accepting handoff/current/ or handoff/archive/phase-4000.5/ paths.",
+              "The readout's observation window opens >=7 days after the 4000.3 window close date as recorded in the archived live_check_4000.3.md; the check script compares the two dates.",
+              "Sections (a)-(e) are present by content marker; the pairing rule is restated inline and both cadence figures are computed under it with the query text shown verbatim.",
+              "The baseline comparison in (b) uses the E8 figures from the archived 4000.1 baseline artifact, cited by path, not re-derived from memory.",
+              "The verdict line is exactly one of CADENCE RECOVERED / CADENCE FLAT / RAIL OFF; if CADENCE FLAT, the check script asserts at least one co-suspect masterplan step id is named in the readout and exists in .claude/masterplan.json.",
+              "git diff scope for this step is handoff/ and scripts/qa/ only -- observation, not iteration.",
+              "MUTATION COVERAGE: removing the verdict line or the co-suspect step ids from a copy of the readout makes the check script exit non-zero; demonstrated once, exit codes recorded."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        }
+      ]
     }
   ]
 }
