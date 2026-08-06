@@ -307,8 +307,15 @@ def _run_nightly(root: Path) -> subprocess.CompletedProcess:
 
 
 def test_nightly_flag_off_is_inert(tmp_path):
+    # phase-82.11: the flag is now set EXPLICITLY to 0 here. Before 82.11 this
+    # fixture omitted the flag and leaned on the script default being 0, so it
+    # was silently doing double duty as a default-pin -- and 82.11 flipped that
+    # default to 1 (operator instruction, see run_nightly.sh:71-92). Setting it
+    # explicitly restores this guard to what its name claims: "flag OFF is
+    # inert". The default itself stays pinned, by
+    # test_nightly_default_documented_on below.
     root = tmp_path / "repo"
-    _make_nightly_fixture(root, "SOME_KEY=1\n")
+    _make_nightly_fixture(root, "SOME_KEY=1\nAUTORESEARCH_USE_MAX_RAIL=0\n")
     r = _run_nightly(root)
     assert r.returncode == 0, r.stderr
     observed = json.loads((root / "observed_env.json").read_text())
@@ -356,9 +363,26 @@ def test_nightly_flag_on_healthy_bridge_exports_routing(tmp_path):
         health.shutdown()
 
 
-def test_nightly_default_documented_off():
+def test_nightly_default_documented_on():
+    """phase-76.9.2 guard, repinned by phase-82.11.
+
+    ORIGINAL INTENT (unchanged): the max-rail default must be an EXPLICIT,
+    pinned value that cannot drift silently, and the loud-fail behaviour must
+    live in executed code rather than in a comment.
+
+    WHAT CHANGED AND WHY: the pinned value moved 0 -> 1. The metered direct API
+    had exhausted its credit balance and failed the nightly run on 12
+    consecutive dates; the operator's standing instruction (recorded verbatim
+    in handoff/current/contract_82.11.md) is "$0-metered stands -> move
+    autoresearch OFF it or disable it. Do NOT buy credits." Defaulting the rail
+    ON is that move, in tracked code. This is a deliberate supersession of the
+    76.9.2 default-OFF decision, not a silent edit.
+    """
     text = NIGHTLY.read_text(encoding="utf-8")
-    assert 'AUTORESEARCH_USE_MAX_RAIL:-0' in text, "default must be OFF"
+    assert 'AUTORESEARCH_USE_MAX_RAIL:-1' in text, (
+        "default must be ON (max rail) -- phase-82.11 operator decision")
+    assert 'AUTORESEARCH_USE_MAX_RAIL:-0' not in text, (
+        "the old metered-by-default value must not linger anywhere in the file")
 
     # phase-76.9.2 (76.9.2 Q/A finding): this assertion used to accept
     #   "NEVER silently fall" in text  OR  "NOT falling back to metered" in text

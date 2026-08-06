@@ -151,6 +151,37 @@ def write_memo(topic: str, idx: int, body: str) -> Path:
     return path
 
 
+def _report_outcome(failed: bool, exc: BaseException | None, topic: str) -> None:
+    """phase-82.11: emit an operator-visible, escalating alert for the nightly
+    run's outcome through the canonical Python seam
+    (`backend.services.observability.alerting.raise_cron_alert_sync`).
+
+    THIS IS THE AUDIBILITY FIX. Before this call existed, the only failure
+    signal was the bash curl at `run_nightly.sh:63-66`, which ends
+    `>/dev/null 2>&1 || true` -- so its delivery was unobservable, it had no
+    escalation ladder, and no pytest could capture it. The bash seam is
+    deliberately LEFT IN PLACE for now so there is never a window with no
+    paging at all; retiring it is a queued follow-up.
+
+    Fail-open and function-local by design: a notification problem must never
+    change this job's exit code, and the import must not run at module import
+    time (the script is imported by several tests, and `sys.path` only gains
+    REPO inside `main()`).
+    """
+    try:
+        if str(REPO) not in sys.path:
+            sys.path.insert(0, str(REPO))
+        from backend.services.autoresearch_health import report_run_outcome
+
+        report_run_outcome(
+            failed=failed, exc=exc, memo_dir=MEMO_DIR,
+            today=dt.date.today(), topic=topic,
+        )
+    except Exception as report_exc:  # noqa: BLE001 -- never break the run
+        print(f"[autoresearch] outcome report fail-open: {report_exc!r}",
+              file=sys.stderr, flush=True)
+
+
 async def _main_async(args: argparse.Namespace) -> int:
     topics = load_topics()
     if args.topic:
@@ -187,10 +218,14 @@ async def _main_async(args: argparse.Namespace) -> int:
             encoding="utf-8",
         )
         print(f"[autoresearch] FAILED -- wrote {err_path}", flush=True)
+        # phase-82.11: AFTER the ERROR file is written, so the consecutive
+        # count that drives the escalation ladder includes tonight.
+        _report_outcome(True, e, topic)
         return 1
 
     path = write_memo(topic, idx, body)
     print(f"[autoresearch] wrote {path} ({len(body)} chars)", flush=True)
+    _report_outcome(False, None, topic)
     return 0
 
 

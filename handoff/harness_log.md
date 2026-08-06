@@ -30906,3 +30906,71 @@ compute_deflated_sharpe` forwarding to a hardcoded N=1 leaves the whole 82.25 su
 plus 3 pre-existing F401s on the touched file, classified as NOT introduced by this step).
 
 **Next**: 82.39 (P1), then the P2/P3 tail.
+
+## Cycle 154 -- 2026-08-06 -- phase=82.11 result=PASS
+
+**TWO CYCLES: CONDITIONAL -> PASS. The code was right in cycle 1; every blocker was a
+sentence I typed instead of derived.**
+
+**What shipped.** Two independent deliverables. (1) The RAIL: `run_nightly.sh`'s
+`AUTORESEARCH_USE_MAX_RAIL` default flipped `0 -> 1`, implementing the operator's
+recorded instruction ("$0-metered stands -> move autoresearch OFF it or disable it. Do
+NOT buy credits") in TRACKED code -- `backend/.env` is gitignored, so an `.env` flip
+would have been unauditable. Live-proven: the real script with no env flag logged
+`max-rail ON -- routing via http://127.0.0.1:18797` and overrode the real key with
+`max-rail-dummy-key`. (2) The AUDIBILITY: new `backend/services/autoresearch_health.py`
+emits through the canonical `raise_cron_alert_sync` at P1/P0 with a directory-derived
+consecutive count and an edge-triggered two-tier ladder -- config-class failures page at
+n=1 (a dead credit balance never self-heals), generic at n=3, both escalate at n=7 with a
+distinct `error_type`, steady state silent, 7-day reminder net.
+
+**I corrected the step's own premise.** "59 failures produced zero operator signal" is
+half wrong: a bash paging seam exists and DID fire last night. What is broken is that its
+curl ends `>/dev/null 2>&1 || true`, Slack returns HTTP 200 on `{"ok":false}`, it never
+escalates, and no pytest can capture it.
+
+**I corrected the research brief.** Its "30 consecutive ERROR dates" contradicts the rule
+the brief itself recommends. Re-derived structurally: **12** (2026-07-26..08-06), stopping
+at 07-25, which carries BOTH an ERROR file and a success memo.
+
+**I retracted my own claim mid-GENERATE.** I had written that the edge trigger was
+"gap-safe". It is not -- the counter walks failing DATES and stops at the first
+non-failing one, so a missed night RESETS rather than jumps. Retracted in contract and
+docstring, and the limitation is now PINNED by a test instead of papered over.
+
+**The survivor I found myself.** M4 (make the emitter unconditional) survived the first
+matrix: my criterion-3 guard was passing because the count is 0 after a success, not
+because the success branch short-circuits. Added a guard whose fixture sits ON a tier
+crossing, with a positive control. 13/13 mutants then died -- which licenses "these 13
+died", not "no survivors exist". The Q/A independently reproduced that exact kill and
+confirmed the attribution.
+
+**Cycle 1 CONDITIONAL -- three blockers, one class.** "349 lines" (measured 387);
+`+30/-11` reported for TWO different files (measured 22/8 and 27/3 -- `30` was
+`--stat`'s total-changed column and `11` the repo-wide deletion total, mis-applied per
+file); and "gets its own research-gated masterplan step" when no such step existed. I
+swept the class rather than patching three instances, and the sweep found a **fourth**
+the Q/A had not reached: my own edit added 35 lines above `_main_async`, so
+`run_memo.py:NNN` anchors I had cited went stale the moment the code landed.
+
+**THE PATTERN, and it is the same one as 82.10/82.13/82.16/82.25**: the production code
+was correct every cycle; only my claims about it failed. Every blocker was a number or a
+set I asserted instead of deriving. The fix that generalises is the one now in the
+artifact -- the files-changed table is transcribed from `wc -l` / `git diff --numstat` /
+an AST walk, and a "queued" claim is not written until the step exists.
+
+**Queued:** 82.49 (P2) -- the dead-man's-switch hole. `run_memo.py` has three paths that
+return 0 with no memo and no alert, and a missed night rewinds the ladder. Unreachable by
+82.11's criteria; written for an executor with no memory of the discovery.
+
+**Post-PASS, documentation only, disclosed:** two Q/A NOTE-level flags applied after the
+verdict -- my "untracked noise" disclaimer named a glob and was wrong (several members are
+tracked-modified), now replaced by a `git status --short`-derived set; and 82.49's
+re-derive caveat covered only the first of three stale anchors. Neither touches code, a
+test, or a criterion.
+
+**Owed by the operator (informational, not blocking):** the Max rail is $0 METERED but
+draws the shared weekly Max pool. The constraint was specifically `$0 metered`, which this
+satisfies.
+
+**Next:** 82.21 (P1).

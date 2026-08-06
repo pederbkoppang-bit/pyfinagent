@@ -21431,7 +21431,7 @@
         },
         {
           "id": "82.11",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DEFECT found while auditing the 82.0 commit surface (not part of 82.0's change): the nightly autoresearch loop is failing every day and nobody is paged. MEASURED 2026-08-03 in handoff/autoresearch/: 62 files total, 59 of them *-ERROR-*. Anthropic CREDIT-EXHAUSTION errors ('Your credit balance is too low to access the Anthropic API') on 2026-07-11, 07-12, then UNBROKEN DAILY from 2026-07-25 through 2026-08-03 -- 10 consecutive days. A different failure mode (HTTPError) ran 2026-07-15..07-22. Last non-ERROR output was 2026-07-25. This corroborates the phase-72 finding that DIRECT-API Anthropic credits have been dead (the Claude Code Max rail is unaffected; autoresearch uses the metered direct API) and shows it is still unresolved and silently burning the daily research loop. TWO separate problems, and the second is the durable one: (a) the credit balance itself -- OPERATOR ACTION, and note the standing away-ops $0-metered constraint means the honest fix may be to move autoresearch off the metered rail or disable it rather than to buy credits; (b) the loop writes a failure file and exits silently, so 59 failures produced zero operator signal -- the SAME never-paged pattern as 82.10. Fix (b) regardless of how the operator decides (a): a job that has failed 10 days running must be audible.",
@@ -22134,6 +22134,25 @@
               "a fixture drives the write path end to end and asserts a row is actually persisted, so a repair cannot pass on shape agreement alone",
               "a write that is rejected by BigQuery emits an operator-visible signal rather than being swallowed, asserted by a test capturing the emitted signal -- note insert_rows_json RETURNS errors rather than raising",
               "_compute_outcomes is shown to handle a NULL pnl without raising, asserted by a fixture containing a row whose pnl value is None"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.49",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "DEAD-MAN'S-SWITCH HOLE in the nightly autoresearch loop: a night that produces NO OUTPUT AT ALL is invisible to every alarm, including the one 82.11 just built. Found by the 82.11 research gate (the 2025-2026 recency scan) and named in that step's contract as explicit non-scope, because none of 82.11's four criteria can reach it. TWO INDEPENDENT MECHANISMS, both measured 2026-08-06. (a) scripts/autoresearch/run_memo.py has THREE paths that return 0 having written no memo and emitted no alert: the phase-76.9 network-weather WARN branch (around :168-182 -- RE-DERIVE, 82.11 inserted a helper above it and the line numbers moved), _embedding_preflight's phase-51.4 soft-skip (around :306-309 -- RE-DERIVE, same reason), and --preflight-only (around :313-316 -- RE-DERIVE, same reason). ALL THREE anchors above are PRE-82.11 positions and are known stale: 82.11 inserted a 35-line helper above _main_async, so the measured current positions are :204, :341 and :348 -- and those will move again. Derive them, do not copy them. handoff/autoresearch/root_cause.md around :128-141 records a REAL multi-night window in which the embedding soft-skip produced no memo and nobody was told. (b) backend/services/autoresearch_health.py::count_consecutive_failures derives its count by walking backwards over FAILING DATES and stopping at the first non-failing date, so a night on which launchd did not fire at all leaves no ERROR file, is not a failing date, and RESETS the escalation ladder to zero -- pinned deliberately by test_a_missed_night_resets_the_counter_and_the_ladder in backend/tests/test_phase_82_11_autoresearch_failure_paging.py, which documents the limitation rather than hiding it. NET EFFECT: the loop is only audible when it fails LOUDLY; it is silent when it fails QUIETLY or does not run, which the cron-monitoring literature identifies as the more common and more damaging mode ('the real killer is when a job doesn't run at all'). THE FIX SHAPE, per that literature: invert the predicate -- alert on the ABSENCE OF A SUCCESS ARTIFACT (no non-ERROR, non-WARN memo dated today) rather than on the presence of an error. Do NOT import a SaaS heartbeat service: this deployment is local-only and $0 (see .claude/context and the standing away-ops constraint); import the inversion, not the architecture. MEASURE BEFORE FIXING, do not assert: count how many dates in handoff/autoresearch/ since the directory's first entry have NEITHER a memo NOR an ERROR file NOR a WARN file, and record that number with the command that produced it -- that is the true size of the blind spot and nobody has measured it. REUSE, do not rebuild: the emitter is backend/services/observability/alerting.py::raise_cron_alert_sync at severity P0/P1 only (a P2 is logged and dropped while slack_webhook_url is empty), and the module shape plus the anti-vacuity test idiom already exist in backend/services/autoresearch_health.py and its test file. BEWARE THE OBVIOUS TRAP: a naive 'no memo today' check fires every morning before the 02:00 run has happened, and fires forever if the operator intentionally disables the job -- so the check needs a grace period and an explicit disabled state, both of which must be asserted.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_49_autoresearch_deadmans_switch.py -q",
+            "criteria": [
+              "a fixture in which the nightly run exits 0 having written no memo of any kind emits an operator-visible alert, asserted by a test capturing the emitted alert, and the test fails against the pre-fix tree",
+              "each of the three silent exit-0 paths in run_memo.py is enumerated from the source with a re-derived file:line and classified as either covered by the new check or deliberately exempt with a stated reason",
+              "a night on which a success memo IS present emits no alert, and a fixture asserts the grace period so the check cannot fire merely because it ran before the scheduled time",
+              "the measured number of dates in handoff/autoresearch/ carrying no memo, no ERROR file and no WARN file is recorded in the step artifact together with the command that produced it",
+              "an explicit operator-disabled state suppresses the alert without suppressing it for any other reason, asserted by a test that also proves the alert still fires when the job is enabled"
             ]
           },
           "retry_count": 0,

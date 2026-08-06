@@ -68,14 +68,28 @@ _record_fail_and_page() {
     fi
 }
 
-# ── phase-76.9.2: Anthropic Max-rail routing (default OFF -- flag lands here
-# from backend/.env via the sanitized set -a sourcing above). When ON, every
-# LLM call in run_memo routes bridge (127.0.0.1:18797) -> claude-code-proxy
-# (:18796) -> `claude -p` on the Max plan at $0 metered. LOUD FAIL doctrine:
-# if the bridge is down we page + exit non-zero -- NEVER silently fall
-# through to the metered direct API (that silent fallback is the exact spend
-# this flag exists to kill). Operator revert = one .env change (flag off).
-if [ "${AUTORESEARCH_USE_MAX_RAIL:-0}" = "1" ]; then
+# ── phase-76.9.2: Anthropic Max-rail routing. When ON, every LLM call in
+# run_memo routes bridge (127.0.0.1:18797) -> claude-code-proxy (:18796) ->
+# `claude -p` on the Max plan at $0 metered. LOUD FAIL doctrine: if the bridge
+# is down we page + exit non-zero -- NEVER silently fall through to the metered
+# direct API (that silent fallback is the exact spend this flag exists to kill).
+#
+# phase-82.11 (2026-08-06): DEFAULT FLIPPED 0 -> 1. This supersedes the
+# phase-76.9.2 default-OFF choice deliberately, on the operator's standing
+# instruction, recorded verbatim in handoff/current/contract_82.11.md:
+#   "82.11 metered rail: $0-metered stands -> move autoresearch OFF it or
+#    disable it. Do NOT buy credits."
+# The metered direct API had exhausted its credit balance and failed the
+# nightly run on 12 consecutive dates (2026-07-26..2026-08-06, measured from
+# handoff/autoresearch/). The bridge was measured live the same day:
+# GET 127.0.0.1:18797/health -> {"ok":true,"proxy":"claude-code-cli"} and a
+# real POST /v1/messages round-tripped. The default lives HERE rather than in
+# backend/.env because .env is gitignored (.gitignore:5), so an .env flip would
+# be unauditable.
+# OPERATOR REVERT: add `AUTORESEARCH_USE_MAX_RAIL=0` to backend/.env -- the env
+# var still wins over this default, and no restart is needed (this script
+# re-sources .env every invocation, :22-30).
+if [ "${AUTORESEARCH_USE_MAX_RAIL:-1}" = "1" ]; then
     MAX_RAIL_URL="${AUTORESEARCH_MAX_RAIL_URL:-http://127.0.0.1:18797}"
     if curl -sf -m 10 "$MAX_RAIL_URL/health" >/dev/null 2>&1; then
         export ANTHROPIC_API_URL="$MAX_RAIL_URL"
