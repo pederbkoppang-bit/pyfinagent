@@ -66,9 +66,89 @@ class CostBudgetToday(BaseModel):
     # phase-15.10 cost-per-call rollup (optional; best-effort from BQ).
     llm_tokens_today: Optional[int] = None
     cost_per_llm_call_usd: Optional[float] = None
+    # phase-82.54: the COMPONENTS behind llm_tokens_today, actually exposed.
+    #
+    # An earlier revision of this step claimed the breakdown was exposed while
+    # the endpoint still returned one conflated number -- caught by the 82.54
+    # Q/A. That claim was load-bearing, not decorative: the stated reason for
+    # summing all four token columns is that a single conflated number is
+    # exactly what let a 26x undercount hide (measured 2026-08-05: input+output
+    # 353,896 vs all four 9,159,745). Shipping the same conflation while saying
+    # otherwise would have reproduced the defect and the excuse together.
+    llm_input_tokens_today: Optional[int] = None
+    llm_output_tokens_today: Optional[int] = None
+    llm_cache_creation_tokens_today: Optional[int] = None
+    llm_cache_read_tokens_today: Optional[int] = None
 
 
-def _fetch_llm_tokens_today() -> tuple[Optional[int], Optional[int]]:
+#: phase-82.54. A PLAIN string literal, deliberately -- NOT an f-string.
+#:
+#: The pre-82.54 query interpolated the project id, and
+#: `schema_oracle.extract_sql_literals` reassembles an f-string from its CONSTANT
+#: parts only: `FROM \`{project}.pyfinagent_data.llm_call_log\`` collapses to
+#: `FROM \`.pyfinagent_data.llm_call_log\``, whose empty project group cannot
+#: match `_FQ_TABLE_RE`. So this file resolved ZERO SQL literals and the
+#: unknown-column sweep was structurally blind to it -- which is exactly how a
+#: live phantom-column defect survived here while 82.39's twin was caught.
+#:
+#: THE COLUMN NAMES WERE WRONG: it selected `input_tokens` / `output_tokens`,
+#: which do not exist. BigQuery answered "Unrecognized name: input_tokens; Did
+#: you mean input_tok?" on every call, and the fail-open `except` below returned
+#: (None, None).
+#:
+#: AND THE FIX IS NOT A RENAME. `llm_call_log` carries FOUR token columns, and
+#: the cache pair dominates: measured 2026-08-05, input+output = 353,896 while
+#: all four = 9,159,745, a 25.9x difference. Renaming the two would have shipped
+#: a number that under-reports by an order of magnitude and looks plausible.
+#: This is a TOKEN count, not a billed-cost figure -- cost weighting (cache reads
+#: are ~10x cheaper) lives in `observability/spend.py::fetch_llm_spend`, which is
+#: correct and untouched. The components are exposed so a future consumer is not
+#: forced to guess which definition a single number used.
+#:
+#: `ts` is TIMESTAMP and the table is day-partitioned on it, so
+#: `DATE(ts) = CURRENT_DATE()` prunes to 0 bytes. Unlike `paper_trades.created_at`
+#: (82.39) and `historical_fundamentals.report_date` (82.21), there is no
+#: STRING-date trap here -- do not "fix" this predicate.
+LLM_TOKENS_TODAY_SQL = """
+          SELECT
+            COALESCE(SUM(input_tok), 0) AS input_tokens,
+            COALESCE(SUM(output_tok), 0) AS output_tokens,
+            COALESCE(SUM(cache_creation_tok), 0) AS cache_creation_tokens,
+            COALESCE(SUM(cache_read_tok), 0) AS cache_read_tokens,
+            COALESCE(SUM(input_tok) + SUM(output_tok)
+                     + SUM(cache_creation_tok) + SUM(cache_read_tok), 0) AS tokens,
+            COUNT(*) AS calls
+          FROM `sunny-might-477607-p8.pyfinagent_data.llm_call_log`
+          WHERE DATE(ts) = CURRENT_DATE()
+        """
+
+
+def _alert_llm_tokens_failed(exc: Exception) -> None:
+    """phase-82.54: make the swallowed BQ failure operator-visible.
+
+    P1, never P2: only `_CRITICAL_SEVERITIES` reach `_bot_token_fallback` while
+    `slack_webhook_url` is empty, so a P2 would be logged and dropped -- the same
+    invisibility this step removes. Function-local import, so a test MUST patch
+    `backend.services.observability.alerting.raise_cron_alert_sync`.
+    """
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+
+        raise_cron_alert_sync(
+            source="cost_budget_api",
+            error_type="llm_tokens_fetch_failed",
+            severity="P1",
+            title="cost_budget_api: llm_call_log token fetch failed",
+            details={
+                "error": f"{type(exc).__name__}: {exc}"[:600],
+                "consequence": "llm_tokens_today reports null rather than a count",
+            },
+        )
+    except Exception as alert_exc:  # noqa: BLE001 -- never break the endpoint
+        logger.warning("cost_budget_api: alert dispatch fail-open: %r", alert_exc)
+
+
+def _fetch_llm_tokens_today() -> tuple[Optional[int], Optional[int], Optional[dict]]:
     """Return (tokens_today, calls_today) from pyfinagent_data.llm_call_log.
 
     Fail-open to (None, None) -- the column rolls up into CostBudgetToday
@@ -77,23 +157,30 @@ def _fetch_llm_tokens_today() -> tuple[Optional[int], Optional[int]]:
     """
     try:
         from google.cloud import bigquery
-        project = os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
-        client = bigquery.Client(project=project)
-        sql = f"""
-          SELECT
-            COALESCE(SUM(input_tokens) + SUM(output_tokens), 0) AS tokens,
-            COUNT(*) AS calls
-          FROM `{project}.pyfinagent_data.llm_call_log`
-          WHERE DATE(ts) = CURRENT_DATE()
-        """
-        rows = list(client.query(sql, timeout=30).result())
-        if not rows:
-            return None, None
+
+        client = bigquery.Client(
+            project=os.getenv("GCP_PROJECT_ID", "sunny-might-477607-p8")
+        )
+        rows = list(client.query(LLM_TOKENS_TODAY_SQL, timeout=30).result())
+        # NOTE: this is an aggregate with no GROUP BY, so it ALWAYS returns
+        # exactly one row and COALESCE makes it non-NULL -- `if not rows` here
+        # would be dead code, and "the total is non-null" is not evidence the
+        # query works. Measured: a day with ZERO calls returns tokens=0/calls=0.
         r = rows[0]
-        return int(r["tokens"] or 0), int(r["calls"] or 0)
+        return (
+            int(r["tokens"] or 0),
+            int(r["calls"] or 0),
+            {
+                "input": int(r["input_tokens"] or 0),
+                "output": int(r["output_tokens"] or 0),
+                "cache_creation": int(r["cache_creation_tokens"] or 0),
+                "cache_read": int(r["cache_read_tokens"] or 0),
+            },
+        )
     except Exception as exc:
         logger.warning("cost_budget_api: llm_tokens fetch fail-open: %r", exc)
-        return None, None
+        _alert_llm_tokens_failed(exc)
+        return None, None, None
 
 
 @router.get("/status", response_model=CostBudgetToday)
@@ -139,7 +226,7 @@ async def get_cost_budget_today() -> CostBudgetToday:
     else:
         reason = None
 
-    tokens, calls = await asyncio.to_thread(_fetch_llm_tokens_today)
+    tokens, calls, parts = await asyncio.to_thread(_fetch_llm_tokens_today)
     cost_per_call = (
         round(daily / calls, 6) if (calls and calls > 0 and daily > 0) else None
     )
@@ -152,6 +239,10 @@ async def get_cost_budget_today() -> CostBudgetToday:
         tripped=tripped,
         reason=reason,
         llm_tokens_today=tokens,
+        llm_input_tokens_today=(parts or {}).get("input"),
+        llm_output_tokens_today=(parts or {}).get("output"),
+        llm_cache_creation_tokens_today=(parts or {}).get("cache_creation"),
+        llm_cache_read_tokens_today=(parts or {}).get("cache_read"),
         cost_per_llm_call_usd=cost_per_call,
     )
     cache.set(_CACHE_KEY, result, _CACHE_TTL)

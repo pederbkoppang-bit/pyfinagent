@@ -31349,3 +31349,57 @@ phase83_research_raw, hook-churn logs -- enumerated via git add -An before the
 flip and disclosed here rather than swept silently.
 
 **Next:** 4000.2 (smoke script + fixtures proving every check can fail).
+
+## Cycle 160 -- 2026-08-06 -- phase=82.54 result=PASS
+
+**THREE CYCLES: CONDITIONAL -> CONDITIONAL -> PASS.**
+
+**TWO PREMISES I MYSELF WROTE INTO THIS STEP WERE FALSE.** When I queued 82.54 earlier
+today I asserted the null tile "reads to an operator as no LLM spend" and that it might be
+the phase-75.5.1 $25/day metric. Both refuted: `llm_tokens_today` has ZERO consumers (the
+tile was removed; an existing route audit already said so) and the $25/day metric is a
+different function that dry-runs clean. The defect was real; the consequences were
+invented. **This is the week's failure mode moved one layer earlier -- an underived claim
+planted in a QUEUED STEP, where a future executor inherits it as established.**
+
+**The fix was not a rename.** `llm_call_log` has FOUR token columns and the cache pair is
+26x the naive sum (353,896 vs 9,159,745 on 2026-08-05). Renaming the two would have
+shipped a number under-reporting by an order of magnitude and looking plausible.
+
+**Criterion 2 is vacuous as written** -- no GROUP BY + COALESCE means it always returns
+one non-null row; today has zero calls and still returns 0. Disclosed rather than
+exploited; the guard asserts a POSITIVE total over a FIXED day with a calls>0 precondition.
+
+**THE THREE FAILURES THAT MATTER, all mine:**
+
+1. **The live endpoint was still serving the PRE-FIX module and I never checked.** uvicorn
+   started before my edit, no --reload. 12 green tests, `curl` returning null. CLAUDE.md
+   says plainly that a claim about the running system needs a restart plus a re-curl.
+2. **The restart exposed an HTTP 500 the tests could not see** -- a SECOND unpack site my
+   `str.replace(..., 1)` missed. Caught by the live curl and by an assertion I had written
+   to fail if the replace matched nothing. A later regex pass produced a duplicate-kwarg
+   SyntaxError, caught by a count assertion, at which point I stopped regex-editing and
+   read the region.
+3. **The guard I added to close cycle-1's finding was ITSELF illusory** -- it asserted
+   field membership in `model_fields`, a class-level schema fact, so "keep the field, stop
+   populating it" survived. **A fix for a stop-one-seam-short finding that stopped one seam
+   short.** And the 500 class had ZERO coverage: no test anywhere called the endpoint.
+
+Both closed by ONE test driving the real endpoint and asserting response VALUES; M_B, M_C
+and M_D all die where two previously survived.
+
+**Also fixed:** a stale "Verbatim" block (12 vs 13 passed) regenerated WITH the ruff
+derivation -- cycle 2 had applied that remedy additively elsewhere but never to the
+offending block; and the PYFIN_SKIP_LIVE_BQ trapdoor, which would let criteria 1 and 2
+never execute while the command exits 0, now disclosed AND enforced by a non-skippable
+guard.
+
+**Queued:** 82.58 (P1) -- `spend.py` passes `detail=` against a `details=` signature, so
+the alert saying "the budget hard-block cannot trip" raises TypeError into its own
+swallowing except and has NEVER fired. Compounded by P2 + empty webhook, so a kwarg-only
+fix would still not deliver.
+
+**LIVE PROOF after kickstart (pid 89530):** `llm_tokens_today: 0` plus all four breakdown
+fields, where the pre-fix module returned `null` and no breakdown at all.
+
+**Next:** the P2/P3 tail.

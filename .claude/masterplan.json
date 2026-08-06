@@ -22235,7 +22235,7 @@
         },
         {
           "id": "82.54",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "SECOND LIVE PHANTOM-COLUMN DEFECT, same root cause as 82.39 but in a different file, and the 82.39 sweep CANNOT SEE IT. Found in audit round 8 of the 82.39 research gate and confirmed by Main against live BigQuery 2026-08-06. MEASURED: backend/api/cost_budget_api.py around :80-86 -- RE-DERIVE, it moves -- builds `SELECT COALESCE(SUM(input_tokens) + SUM(output_tokens), 0) AS tokens, COUNT(*) AS calls FROM `<project>.pyfinagent_data.llm_call_log` WHERE DATE(ts) = CURRENT_DATE()`. NEITHER `input_tokens` NOR `output_tokens` EXISTS. The live table has 5519 rows and 15 columns; input_tokens present=False, output_tokens present=False, and the REAL columns are `input_tok` and `output_tok` (BigQuery's own error even suggests it: 'Did you mean input_tok?'). The query 400s every call, and the broad `except Exception` immediately below logs a warning and returns (None, None), so the endpoint's llm_tokens_today tile has been PERMANENTLY NULL rather than wrong -- which reads to an operator as 'no LLM spend measured yet', not as 'this is broken'. WHY THIS IS ITS OWN STEP AND NOT PART OF 82.39: 82.39's criteria name the nightly_outcome_rebuild fetch on paper_trades and nothing else, and its unknown-column sweep instrument (backend/db/schema_oracle.py::derive_scope) provably CANNOT see this defect -- measured, it resolves 1 table of 33 because the table reference here is built by an f-string, which the SQL-literal extractor cannot resolve. So closing 82.39 green leaves this live. SCOPE: repair the projection against the live schema, and decide deliberately whether the fail-open (None, None) should stay silent -- 82.39 established the pattern for making a swallowed BQ failure audible via backend/services/observability/alerting.py::raise_cron_alert_sync at P0/P1 (never P2, which is logged and dropped while slack_webhook_url is empty). VALIDATE WITH A DRY RUN: it is free (Google: 'Dry runs don't use query slots, and you are not charged') and it does catch unrecognised column names. CHECK THE WHOLE FILE, not just this query -- derive every column identifier it selects from every table and compare against the live schema before assuming this is the only one.",
@@ -22301,6 +22301,24 @@
               "a successful insert emits NO signal, so the guard cannot pass by always firing",
               "save_outcome's return value or an equivalent seam lets its callers distinguish a written row from a rejected one, asserted by driving at least one real caller",
               "whether any NaN exists in paper_trades.realized_pnl_pct is MEASURED and the query recorded in the step artifact, and the chosen NaN handling is implemented with its reason recorded"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.58",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "AN ALERT THAT GUARDS THE COST-BUDGET HARD-BLOCK HAS NEVER FIRED -- it raises TypeError into its own swallowing except. Found by the 82.54 research gate 2026-08-06 and confirmed by Main by reading both sides. MEASURED: backend/services/observability/spend.py around :115 (RE-DERIVE) calls `raise_cron_alert_sync(source=..., error_type='spend_fetch_degraded', severity='P2', title=..., detail=(...))`. The parameter is named `detail`. The signature at backend/services/observability/alerting.py around :253-259 is `raise_cron_alert_sync(source, error_type, severity, title, details)` -- `detailS`. So every invocation raises `TypeError: unexpected keyword argument 'detail'`, which is caught by the surrounding `except Exception -> logger.debug` a few lines below, at DEBUG level. The alert has therefore never been delivered, and its failure has never even been visible in the logs at INFO. This was the ONLY malformed call site of 15 audited repo-wide. WHY IT MATTERS MORE THAN A TYPO: the message it fails to send says the cost-budget spend fetch is degraded and 'callers receive (0.0, 0.0), so the daily/monthly budget hard-block cannot trip while this persists'. That is the guard on LLM spend. It is exactly the alert an operator needs when the budget ceiling silently stops enforcing, and it cannot fire. COMPOUNDED, and do NOT fix only the kwarg: the call is `severity='P2'`, and only _CRITICAL_SEVERITIES (alerting.py around :54, measured as {P0, P1, critical, CRITICAL}) reach `_bot_token_fallback` while `slack_webhook_url` is EMPTY on this machine -- so a kwarg-only fix produces an alert that is constructed correctly and then logged and dropped. Both must change. REUSE the pattern phases 82.11/82.39/82.48/82.54 established: raise_cron_alert_sync at P0/P1, imported FUNCTION-LOCALLY so the guard patches backend.services.observability.alerting.raise_cron_alert_sync (there is no module-scope name to patch), with a NEGATIVE CONTROL so the guard cannot pass by always firing. THE GUARD MUST ASSERT DELIVERY, NOT BRANCH ENTRY: a test that only proves the `if should_alert:` branch was reached would have passed against this defect for its entire lifetime. SWEEP THE CLASS: the gate audited 15 call sites and found this one, but derive that set again structurally (AST over calls to raise_cron_alert_sync, comparing bound kwargs against the live signature via inspect.signature) rather than trusting the count -- and assert the derived set non-empty.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_58_spend_alert_delivery.py -q",
+            "criteria": [
+              "a fixture in which the spend fetch degrades causes an alert to be DELIVERED to the operator channel, asserted by capturing the emitted payload rather than by observing that a branch was entered, and failing against the current detail=/P2 implementation",
+              "the emitted severity is one that actually reaches the operator while slack_webhook_url is empty, asserted against the live _CRITICAL_SEVERITIES set rather than a hardcoded string",
+              "a healthy spend fetch emits NO alert, so the guard cannot pass by always firing",
+              "every raise_cron_alert_sync call site in the repo is derived structurally and its bound keyword arguments checked against inspect.signature, the derived set asserted non-empty, and any further mismatch fixed or queued"
             ]
           },
           "retry_count": 0,

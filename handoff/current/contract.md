@@ -1,139 +1,144 @@
-# Contract -- phase-82.48
+# Contract -- phase-82.54
 
-**Step:** 82.48 (P1) -- the WRITE side of `nightly_outcome_rebuild` is broken.
+**Step:** 82.54 (P1) -- a second live phantom-column defect the schema sweep
+cannot see.
 **Date:** 2026-08-06. **Cycle:** 1.
-**Research gate:** PASSED -- `handoff/current/research_brief_82.48.md`,
-`gate_passed: true`, 6 sources read in full, 29 URLs, recency scan, 16 internal
-files.
+**Research gate:** PASSED -- `handoff/current/research_brief_82.54.md`,
+`gate_passed: true`, **audit_class** with `dry: true` after 8 rounds / 2 dry,
+8 sources read in full, 24 URLs, 13 internal files.
 
 ---
 
-## 1. A CORRECTION I OWE FIRST, because I published the error today
+## 1. TWO PREMISES I WROTE INTO THIS STEP ARE REFUTED
 
-82.39's brief claimed `outcome_tracking` has **zero** consumers, and I repeated
-that in 82.39's artifact and harness-log entry as a *correction to the step*.
-**It is wrong.** Re-derived here:
+I queued 82.54 yesterday-in-session with claims I had not derived. The gate
+refuted two of them, and I verified both refutations myself.
+
+1. **"the tile has been permanently NULL... reads to an operator as no LLM
+   spend"** -- FALSE. `llm_tokens_today` has **ZERO consumers**: no reference
+   anywhere in `frontend/src`, no `getCostBudgetToday` in `api.ts`, no
+   `CostBudgetToday` in `types.ts`. The phase-15.1 tile was removed, and
+   `docs/architecture/api-route-audit-2026-04-26.md` already says "Zero callers
+   anywhere". **Nothing coerces `None` to `0`, so no operator was ever shown a
+   false $0.** The defect is real; the consequence I asserted is not.
+2. **"this may be the phase-75.5.1 $25/day metric"** -- FALSE. That metric is
+   `spend.py::fetch_llm_spend`, a different function that dry-runs CLEAN and
+   uses the correct columns. It reads dark because
+   `settings.cost_budget_use_llm_spend_enabled` defaults OFF, not because of
+   this bug.
+
+This is the same failure mode as the rest of the week, one layer earlier: **I
+put an underived consequence into a queued step, where a future executor would
+have inherited it as established.**
+
+## 2. What IS true, measured by me
 
 ```
-bigquery_client.py:481   def get_performance_stats(...)   <- reads outcome_tracking
-callers:
-  backend/services/outcome_tracker.py:201
-  backend/agents/meta_coordinator.py:258
-  backend/agents/skill_optimizer.py:331
-  backend/services/perf_metrics.py:635
+token columns: ['input_tok', 'output_tok', 'cache_creation_tok', 'cache_read_tok']
+ts type: TIMESTAMP
+2026-08-05 -> {'calls': 154, 'naive': 353896, 'with_cache': 9159745}
+today      -> {'calls': 0, 'naive': None, 'with_cache': None}
 ```
 
-`outcome_tracker.py` has no *literal* mention of the table -- it reads it through
-`self.bq.get_performance_stats()`. A name grep cannot see that, and a name grep
-is what produced the claim. **Same class as every other failure this week: a set
-derived by matching a string instead of by following the code.** And
-`skill_optimizer.py` documents that it currently degrades to neutral scores
-*because the table is empty* -- so the broken write has a real, live consequence
-that my "correction" talked the reader out of.
+- The defect is confirmed at `$0` by dry run: *"Unrecognized name: input_tokens;
+  Did you mean input_tok?"*
+- **The blindness is proven first-hand:** `extract_sql_literals` returns **0**
+  literals for this file. The `JoinedStr` branch keeps only `Constant` parts, so
+  `FROM \`{project}.pyfinagent_data.llm_call_log\`` reassembles as
+  `FROM \`.pyfinagent_data.llm_call_log\``, and `_FQ_TABLE_RE` requires a
+  non-empty project group -- so `tables_in_sql` returns `[]` and `derive_scope`'s
+  loop never runs.
+- **`ts` is TIMESTAMP, day-partitioned, and the predicate prunes to 0 bytes.**
+  Unlike 82.39's `created_at` and 82.21's `report_date`, there is no date trap
+  here. **Do NOT rewrite the WHERE clause.**
 
-Corrected in 82.39's record as part of this step.
+## 3. THE FIX IS NOT A RENAME
 
-## 2. What is actually broken, measured
+Cache tokens are ~82.2M of the table's ~90.2M. Measured on 2026-08-05, the
+naive `input_tok + output_tok` sum is **353,896** while including cache columns
+gives **9,159,745** -- a **25.9x** difference. Renaming the two columns would
+ship a number that under-reports by an order of magnitude and looks plausible.
 
-- `outcome_tracking`: 0 rows, 9 columns, 3 REQUIRED (`ticker`,
-  `analysis_date`, `recommendation`).
-- `make_outcome_write_fn` emits `{trade_id, ticker, pnl, outcome, recorded_at}`.
-  Only `ticker` overlaps; both REQUIRED columns are unsupplied. Its docstring
-  documents a schema that never existed.
-- `insert_rows_json` **returns** `[{index, errors}]` per rejected row and never
-  raises. Measured against installed `google-cloud-bigquery 3.40.1`. On a schema
-  mismatch Google rejects the **entire batch**, tagging innocent rows `stopped`.
-  The code swallows the return.
-
-## 3. Decisions, and none of them is a guess
-
-1. **`return_pct := realized_pnl_pct` is already settled in-repo, not a judgment
-   call I get to make.** `paper_trader.py:583-585` defines it as
-   `((price - entry_price) / entry_price) * 100` -- percent of per-share average
-   entry price, already x100, SELL legs only. `autonomous_loop.py:3063-3082`
-   already maps it to `return_pct`, and its phase-47.7 comment is an explicit
-   retraction of the opposite mapping. The step forbade inventing a notional
-   derivation; none is invented.
-2. **Delegate the row shape to the existing correct writer.**
-   `bigquery_client.save_outcome` (:400-417) already builds the right 9 columns.
-   Reuse it rather than author a second shape -- but its own error handling
-   swallows the return, which §2 shows is the defect, so this step supplies a
-   write that INSPECTS the return.
-3. **The fetch must be extended.** `analysis_date` and `recommendation` are
-   REQUIRED and are not in 82.39's `LEDGER_FETCH_SQL`; their sources are
-   `created_at` / `analysis_id` and `risk_judge_decision`, plus `holding_days`.
-   So this step necessarily edits the query 82.39 shipped.
-   `price_at_recommendation` has **no source on `paper_trades`** -- left NULL
-   rather than back-derived, and that is stated rather than silently done.
-4. **A defect the fix would INTRODUCE, so it is handled here, not queued:** the
-   fetch reads a rolling 30-day window nightly and the writer APPENDS. The daily
-   idempotency key prevents a double-run on one day, not re-writes across 30
-   days -- the same SELL would land ~30 times. The write therefore skips rows
-   already present, by reading back the existing `(ticker, analysis_date)` pairs.
-5. **The NULL-pnl crash is real but NOT reachable in production.**
-   `.get("pnl", 0.0)` returns `None` for a present-but-`None` key, and the call
-   is outside the `try` -- but `LEDGER_FETCH_SQL` keeps NULLs out, and
-   `heartbeat` is a `@contextmanager` whose `except` does not re-raise, so
-   `contextlib` suppresses it anyway. Fixed regardless (criterion 4 requires
-   it), and the unreachability is stated so nobody reads the fix as a live-bug
-   repair. Adjacent and worth knowing: a FLOAT `NaN` passes `IS NOT NULL`, and
-   `nan > 0` is False, so it would be silently graded `"loss"`.
+**DECISION: sum all four token columns, and expose the breakdown.**
+Rationale: the field is named `llm_tokens_today` -- it is a TOKEN count, not a
+billed-cost figure, and cache-read/creation tokens are real tokens the provider
+counted. Cost *weighting* (where cache reads are ~10x cheaper) already lives in
+`spend.py::fetch_llm_spend`, which is correct and untouched by this step.
+Returning one conflated number with no breakdown is what let a 26x error hide,
+so the components are exposed alongside the total.
 
 ## 4. Immutable success criteria (verbatim)
 
-1. "the keys the write function emits are validated against the destination
-   table's real schema, asserted by a test that FAILS against the current
-   emitted shape and names the missing REQUIRED columns"
-2. "a fixture drives the write path end to end and asserts a row is actually
-   persisted, so a repair cannot pass on shape agreement alone"
-3. "a write that is rejected by BigQuery emits an operator-visible signal rather
-   than being swallowed, asserted by a test capturing the emitted signal -- note
-   insert_rows_json RETURNS errors rather than raising"
-4. "_compute_outcomes is shown to handle a NULL pnl without raising, asserted by
-   a fixture containing a row whose pnl value is None"
+1. "the repaired query is validated by a BigQuery dry run and reported valid,
+   asserted by a test that FAILS against the current input_tokens/output_tokens
+   projection"
+2. "a fixture proves the repaired query returns a non-null token total for a
+   period where llm_call_log demonstrably has rows, so the fix is not merely
+   syntactically valid"
+3. "every column identifier this file selects is derived from the source and
+   checked against the live schema, the derived set asserted non-empty, and any
+   further mismatch fixed or queued"
+4. "a run in which the BQ call fails emits an operator-visible signal rather
+   than only a warning log and a null tile, asserted by a test capturing the
+   emitted signal"
 
 **Verification command (immutable):**
-`source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_48_outcome_write_schema.py -q`
+`source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_54_cost_budget_columns.py -q`
 
-**Criterion 2 means a REAL insert, and it cannot be production.** Streaming
-insertAll has no dry-run (no `dryRun` field in the REST body;
-`schema_oracle.dry_run` is a query-job config and structurally cannot cover it),
-and DML against the streaming buffer is blocked for up to 90 minutes -- so a
-streamed test row could not be cleaned up and would pollute
-`get_performance_stats` for the four consumers in §1. The fixture therefore
-creates a **throwaway table** from the real schema, inserts, reads back, and
-drops it in teardown.
+### Criterion 2 is VACUOUS AS WRITTEN, and the guard must exceed it
 
-## 5. Guard traps this step must avoid (named in advance)
+The query is an aggregate with **no GROUP BY**, so it always returns exactly one
+row, and `COALESCE(..., 0)` makes that row always non-NULL. Proven: **today has
+ZERO rows and the repaired query still returns `tokens=0, calls=0` -- non-NULL.**
+So "returns a non-null token total" cannot fail.
 
-- A key-vs-schema check that passes because it reads a **stale snapshot**: the
-  resolved column set is asserted non-empty and to contain the 3 REQUIRED names.
-- An end-to-end fixture that "persists" into a **mock**: a `MagicMock` returning
-  `[]` makes "N rows persisted" pass TODAY against the broken writer.
-  Persistence is a real read-back.
-- An alert guard that **fires on every call**: negative control plus
-  `severity == "P1"` pinned (a P2 is dropped while `slack_webhook_url` is empty),
-  patched at `backend.services.observability.alerting.raise_cron_alert_sync`
-  because `_production_fns` has no module-scope name.
-- A NULL-pnl fixture that uses `0.0` or **omits the key**: `.get("pnl", 0.0)`
-  legitimately returns `0.0` when absent, so such a fixture proves nothing. And
-  `pytest.raises` around `run()` will never fire, because `heartbeat` suppresses.
+The guard therefore asserts a **POSITIVE** total over a **FIXED** window with a
+`calls > 0` precondition, so it cannot pass on an empty day. Not pinned to
+"yesterday" -- the gate measured that 2026-07-26 has 1 call and 0 tokens.
 
-## 6. Non-scope
+*(The same aggregate shape also makes `if not rows: return None, None` dead code.)*
 
-`bigquery_client.py:416-417` swallows `insert_rows_json`'s return on the very
-writer this step delegates to -- a second instance of the same class. Queued, not
-fixed here. No change to `paper_learn_loop_enabled`. No live positions.
+## 5. Plan
 
-## 7. References
+- **D1** -- extract the SQL to a **plain string literal** constant so the sweep
+  can resolve the table (the 82.39 lesson), with the correct four-column
+  projection and the breakdown exposed.
+- **D2** -- alert on failure via `raise_cron_alert_sync` at **P1**, imported
+  function-locally, reusing the 82.39/82.48 seam.
+- **D3** -- criterion 3's derivation: enumerate every column identifier the file
+  selects, structurally, assert the set non-empty, and recall-test it against a
+  known alias (`tokens`, `calls`) since the gate measured that aliases are the
+  classic false positive -- its own regex sweep produced **9 false positives out
+  of 10** hits.
+- **D4** -- queue the third live defect (§6).
 
-- `handoff/current/research_brief_82.48.md`
-- Google Cloud: streaming insertAll error semantics; streaming-buffer DML limits
-- `googleapis/python-bigquery#151` (why NOT `insert_rows()`)
-- Internal: `backend/slack_bot/jobs/_production_fns.py`,
-  `backend/slack_bot/jobs/nightly_outcome_rebuild.py`,
-  `backend/db/bigquery_client.py:400-417,481-489`,
-  `backend/services/paper_trader.py:583-585`,
-  `backend/services/autonomous_loop.py:3063-3082`,
-  `backend/db/_schema_snapshot.json`,
+## 6. A THIRD live defect, found by the gate and queued not fixed
+
+`backend/services/observability/spend.py:115` calls
+`raise_cron_alert_sync(..., detail=...)` but the signature is **`details`**.
+Verified by reading both. That raises `TypeError`, which is swallowed by the
+surrounding `except -> logger.debug`, so **that alert has never fired**.
+Compounded: it is `severity="P2"`, and only `_CRITICAL_SEVERITIES` reach the
+bot-token fallback while `slack_webhook_url` is empty -- so even with the kwarg
+fixed it would not deliver. It is the only malformed site of 15 audited
+repo-wide. **This guards the cost-budget hard-block being fail-open**, which is
+why it is P1-class and gets its own step rather than a fix smuggled in here.
+
+## 7. Non-scope
+
+No change to the WHERE clause (`ts` is TIMESTAMP and already prunes to 0 bytes).
+No change to `spend.py` (§6). No change to
+`cost_budget_use_llm_spend_enabled`. The audit found 25 f-string-invisible
+sites; the dry run proves exactly **one** is a real defect -- the rest are
+recorded in the brief, and widening the sweep is 82.55's job. No live positions.
+
+## 8. References
+
+- `handoff/current/research_brief_82.54.md` (audit-class, dry after 2 rounds)
+- Gould, Su, Devanbu, ICSE 2004 -- dynamically-generated queries fail only at runtime
+- Google Cloud: dry-run validation, cost best practices
+- Internal: `backend/api/cost_budget_api.py`,
+  `backend/db/schema_oracle.py:63,199-208,477,550-566`,
+  `backend/services/observability/spend.py:108-127`,
+  `backend/services/observability/alerting.py:54,253-259`,
   `backend/tests/test_phase_82_39_outcome_rebuild_query.py`
