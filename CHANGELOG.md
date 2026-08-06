@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `5857bc3c` | phase-79.55: [OPERATOR ACTION -- not an executor task] [RESTART BLOCKER -- answer BEFORE the next... |
 | 2026-08-06 | `771640ce` | phase-4000.1: Research gate + measured baselines for the Max-rail E2E smoke. NO PRODUCTION CODE I... |
 | 2026-08-06 | `bb41eb96` | fix(82.48): repair the outcome write -- it emitted a schema that never existed |
 | 2026-08-06 | `785f5b0d` | refactor(82.46): decide the optimizer trial pool -- step NOT closed, Q/A returned FAIL |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-05 | `dba2c82a` | feat(82.12): build the BigQuery schema oracle; the vacuous-guard sweep finds zero |
 | 2026-08-05 | `b7c69bb9` | feat(82.10): give the freshness alarm a trigger -- it was browser-driven for 128 days |
 | 2026-08-04 | `c47be8e9` | fix(82.5): exit-quality tiles use a median -- the mean of these ratios does not exist |
-| 2026-08-04 | `2e040941` | fix(82.7): make credential redaction reachable from every entry point |
 
 ---
 
+### v6.81.5 — phase-79.55: [OPERATOR ACTION -- not an executor task] [RESTART BLOCK... (2026-08-06)
+
+- **phase-79.55: [OPERATOR ACTION -- not an executor task] [RESTART BLOCKER -- answer BEFORE the next...**
 ### v6.81.4 — phase-4000.1: Research gate + measured baselines for the Max-rail E2E... (2026-08-06)
 
 - **phase-4000.1: Research gate + measured baselines for the Max-rail E2E smoke. NO PRODUCTION CODE I...**
