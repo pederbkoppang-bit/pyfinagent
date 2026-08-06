@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `bb41eb96` | fix(82.48): repair the outcome write -- it emitted a schema that never existed |
 | 2026-08-06 | `785f5b0d` | refactor(82.46): decide the optimizer trial pool -- step NOT closed, Q/A returned FAIL |
 | 2026-08-06 | `992238b5` | chore(masterplan): queue phase-4000 Max-rail E2E smoke steps (4000.1-4000.5) + record 79.55 RAIL TIE |
 | 2026-08-06 | `e9a38f15` | chore: ignore cwd-derived .claude forks; fix stale PBO figure in researcher recipe |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-04 | `c47be8e9` | fix(82.5): exit-quality tiles use a median -- the mean of these ratios does not exist |
 | 2026-08-04 | `2e040941` | fix(82.7): make credential redaction reachable from every entry point |
 | 2026-08-04 | `13cd9b86` | chore(82.27): flip to done; queue 82.31 |
-| 2026-08-04 | `e5bb9f25` | fix(82.27): anchor PBO on the sweep-level producer; revive the dead trials floor |
 
 ---
 
+### v6.81.3 — fix(82.48): repair the outcome write -- it emitted a schema that neve... (2026-08-06)
+
+- **fix(82.48): repair the outcome write -- it emitted a schema that never existed**
 ### v6.81.2 — fix(82.43): make macro degradation legible -- a count, not a boolean (2026-08-06)
 
 - **fix(82.43): make macro degradation legible -- a count, not a boolean**
