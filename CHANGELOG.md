@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `5a70de8c` | feat(82.21): make absent fundamentals visible, and record the source decision |
 | 2026-08-06 | `816378e6` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
 | 2026-08-06 | `92cadebb` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
 | 2026-08-05 | `1a72fec4` | docs(82.48): queue the write-side defect 82.39's criteria cannot see |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-04 | `a0ae11e5` | fix(82.23): replace two source-scan guards with behavioural ones |
 | 2026-08-04 | `be04da12` | wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER STEP FLIPPED |
 | 2026-08-04 | `14ef109a` | feat(82.3+82.4): backtest evidence and design pack -- no strategy passes the gate |
-| 2026-08-03 | `97c33037` | feat(82.4): design pack with render-verified 4-column flows + pre-registered ranking |
 
 ---
 
+### v6.81.0 — feat(82.21): make absent fundamentals visible, and record the source... (2026-08-06)
+
+- **feat(82.21): make absent fundamentals visible, and record the source decision**
 ### v6.80.0 — feat(82.11): move autoresearch off the metered rail and make its fail... (2026-08-06)
 
 - **feat(82.11): move autoresearch off the metered rail and make its failures audible**
