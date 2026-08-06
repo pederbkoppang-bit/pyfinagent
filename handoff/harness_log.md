@@ -31623,3 +31623,51 @@ required backtests, not a code change.
 
 Queued: **82.62** -- a call-shape TypeError on the live MCP fundamentals path is
 swallowed by a broad except and is indistinguishable from "no fundamentals".
+
+## Cycle 165 -- 2026-08-06 -- phase=82.59 result=PASS
+
+**Two production-wired Slack listeners had been raising TypeError since April,
+and Bolt hid it.** `register_assistant_lifecycle` passed
+`(body, client, say, set_status, logger)` to all three inner calls -- a kwarg set
+that is **exactly `handle_user_message`'s correct signature**, copy-pasted onto
+two handlers it does not fit.
+
+**Blast radius, read from the installed package rather than the docs:** Bolt's
+`AsyncioListenerRunner` catches `Exception` (`asyncio_runner.py:70,:119`) into a
+handler whose whole body is `logger.exception()`, and **ack fires BEFORE the
+listener** (`:104-106`). So Slack always saw 200 and the only symptom was a
+**blank assistant panel** -- no welcome message, no suggested prompts -- plus one
+stderr line. Bolt could not have caught it either: it never validates listener
+kwargs at registration, and at invocation it silently turns an unknown kwarg into
+`None`.
+
+**Which side drifted, from blame not assumption:** handler signatures
+`0da5a907` (2026-04-05), never edited; registration `cb77f065` (2026-04-06).
+Fix is call-site only, and a test pins the handler signatures so nobody "fixes"
+a future instance by growing `**kwargs` -- which would absorb any wrong call
+forever.
+
+**A second defect the step missed:** `body={}` was hardcoded and the listener
+never declared `body`, so `channel_id`/`thread_ts` were `None` even when the call
+bound. This is why "completes without raising" is not sufficient, and the guards
+assert the handler received the real payload.
+
+**Q/A cycle 1 CONDITIONAL -- one blocker, and it was mine.** My third-listener
+guard patched the subject with `mock.AsyncMock()`, which absorbs any kwarg, so
+its mutant `bogus_kwarg=1` stayed green -- while its docstring claimed "a
+regression cannot break it silently". **I applied the strict reading of criterion
+2 to two listeners and the loose one to the third**, the site that already
+worked, and did not disclose it. Fixed by driving the REAL handler with the seam
+patched one level deeper at `streaming_integration`.
+
+**Cycle 2 PASS, `violated_criteria: []`.** The Q/A re-ran its own M_G (now dies)
+and attacked the replacement five more ways -- all die on DISTINCT lines, so no
+kill is mis-attributed. M_S4 (production stops using the patched import path)
+proves the guard is bound to the real production seam, not a relocated mock.
+
+7-mutant matrix, 0 survivors. Full suite: 31 failures before and after, zero new
+(set comparison, not a count match); 2780 -> 2788 passed = the 8 tests added.
+All 11 pre-existing ruff findings verified as an identical SET against HEAD.
+
+Queued: **82.63** -- `slack-bolt` is pinned as a FLOOR (`>=1.18.0`), and 1.28.0
+added the very `set_suggested_prompts` helper this fix binds against.

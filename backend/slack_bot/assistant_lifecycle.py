@@ -176,19 +176,32 @@ def register_assistant_lifecycle(app):
     handler = AssistantLifecycleHandler(app.client)
     assistant = AsyncAssistant()
 
+    # phase-82.59: these two inner calls were copy-pasted from the
+    # `on_user_message` kwarg set -- (body, client, say, set_status, logger),
+    # which is correct for `handle_user_message` and WRONG for both of these.
+    # Every invocation raised TypeError, and Bolt swallowed it: the listener
+    # runner catches Exception into `logger.exception` and acks BEFORE running
+    # the listener, so Slack always saw 200 and the only symptom was a blank
+    # assistant panel. The handler signatures are untouched since 0da5a907 and
+    # are correct; the registration drifted in cb77f065. Fix the call sites.
     @assistant.thread_started
-    async def on_thread_started(say, set_suggested_prompts, get_thread_context, logger):
+    async def on_thread_started(body, say, set_suggested_prompts, get_thread_context, logger):
+        # `body` is declared here on purpose. It used to be hardcoded `body={}`
+        # below, so `channel_id` / `thread_ts` resolved to None even when the
+        # call bound -- a second defect that a completes-without-raising
+        # assertion would not have caught.
         await handler.handle_thread_started(
-            body={}, client=app.client, say=say,
-            set_status=lambda *a, **kw: None, logger=logger,
+            body=body, say=say,
+            set_suggested_prompts=set_suggested_prompts, logger=logger,
         )
 
     @assistant.thread_context_changed
     async def on_context_changed(body, logger):
-        await handler.handle_context_changed(
-            body=body, client=app.client, say=lambda *a, **kw: None,
-            set_status=lambda *a, **kw: None, logger=logger,
-        )
+        # Registering this listener SUPPRESSES Bolt's built-in
+        # `default_thread_context_changed` (async_assistant.py:255-256). Our
+        # handler does real work -- it tracks the new channel context for the
+        # message handler -- so the registration stays.
+        await handler.handle_context_changed(body=body, logger=logger)
 
     @assistant.user_message
     async def on_user_message(body, client, say, set_status, logger):

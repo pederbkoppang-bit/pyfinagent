@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Slack handler binding 82.59](project_slack_handler_binding_82_59.md) — Bolt SWALLOWS listener exceptions so every Slack handler defect is SILENT; status==200 is vacuous; inspect.bind() and a real call report DIFFERENT errors; name-based AST resolution was 0/10 real
+
 - [Dead cost-budget alert 82.58](project_dead_alert_82_58.md) — THREE stacked blockers (deduper fires FIRST, one seam before the webhook); "15 call sites" is really 33; the fix ARMS a live Slack POST in the existing suite; 2 more live instances in assistant_lifecycle
 - [Autoresearch Max-rail 85.1](project_autoresearch_max_rail_85_1.md) — 2 premises REFUTED: migration already shipped (default ON, commit 08:36) vs the ERROR file it cites (02:00 SAME day); rail never ran under launchd; `--bare` default flip is a scheduled kill
 

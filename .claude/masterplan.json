@@ -22326,7 +22326,7 @@
         },
         {
           "id": "82.59",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "TWO LIVE SLACK-HANDLER SIGNATURE MISMATCHES OF THE 82.58 CLASS, IN PRODUCTION-WIRED CODE. Found by the 82.58 research gate 2026-08-06 and CONFIRMED by Main via runtime inspect.signature().bind() (re-derive; do not trust these line numbers). MEASURED: backend/slack_bot/assistant_lifecycle.py around :181 calls handler.handle_thread_started(body={}, client=app.client, say=say, set_status=<lambda>, logger=logger) but the real signature is (self, body, say, set_suggested_prompts, logger) -- so the call is MISSING the required `set_suggested_prompts` AND passes two parameters that do not exist (`client`, `set_status`). Bind error verbatim: \"missing a required argument: 'set_suggested_prompts'\". Around :188, handle_context_changed(body=..., client=..., say=..., set_status=..., logger=...) against a real signature of (self, body, logger) -- verbatim: \"got an unexpected keyword argument 'client'\". THIS IS PRODUCTION CODE, not a test: register_assistant_lifecycle is imported at backend/slack_bot/app.py:18 and invoked at :33, so both handlers are registered on the live Slack app. Every invocation raises TypeError. DETERMINE THE BLAST RADIUS FIRST -- Slack Bolt may swallow handler exceptions into its own logger, which would make this silent rather than user-visible; establish which, because it decides whether the assistant thread UI is degraded for the operator today or merely logging. DO NOT assume the fix is to change the call: check whether the HANDLER signature is what drifted (git log the handler and its callers) and fix whichever side is wrong. The 82.58 lesson applies directly: a guard that asserts the branch was entered would have passed against this for its whole lifetime -- assert the handler actually RUNS TO COMPLETION on a realistic Bolt payload.",
@@ -22392,6 +22392,24 @@
               "a fixture representing genuine data absence still returns the empty result without alerting, so the fix does not convert every missing ticker into a page",
               "every broad exception handler in data_server.py is derived structurally, the derived set asserted non-empty, and each one classified as fail-soft-by-design or error-masking with the classification asserted by a test rather than only written in prose",
               "any handler reclassified as error-masking is either fixed or queued, and the choice recorded"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.63",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "slack-bolt IS PINNED AS A FLOOR, NOT A PIN -- and the assistant surface depends on version-specific behaviour. Found by the 82.59 research gate 2026-08-06. MEASURED: backend/requirements.txt around :55 (RE-DERIVE) reads `slack-bolt[async]>=1.18.0`, which is a lower bound; the installed version is 1.27.0 and the currently published version is 1.30.0. WHY IT MATTERS HERE SPECIFICALLY: 1.28.0 ADDED the set_suggested_prompts helper and 1.30.0 WIDENED its scope -- i.e. the exact API 82.59's fix binds against changed twice in versions the floor permits. A pip install on a fresh machine resolves to 1.30.0 and gets different listener-argument injection than the code was verified against. 82.59's fix is version-robust as written (verified against 1.27.0), so this is HARDENING, not a live break -- do not describe it as one. SCOPE: decide deliberately between (a) pinning to the installed/tested version, (b) a compatible-release constraint (~=), or (c) leaving the floor and adding a guard that asserts the installed version is within a tested range. DO NOT bulk-pin the whole requirements file as a side effect -- audit whether OTHER dependencies carry bare floors too, report that count structurally (parse requirements.txt, do not eyeball it), and if the answer is 'most of them' then say so and scope this step to the slack-bolt decision plus a queued follow-up rather than silently expanding. Any pin change must be followed by a real install into the venv and a re-run of backend/tests/test_phase_82_59_assistant_lifecycle_binding.py, because that suite reads slack_bolt's INSTALLED source.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_63_dependency_pinning.py -q",
+            "criteria": [
+              "the set of requirements entries carrying a bare lower-bound constraint is derived by parsing requirements.txt structurally, asserted non-empty, and reported with its count rather than characterised in prose",
+              "the chosen approach for slack-bolt (pin / compatible-release / range guard) is recorded with its reason in the step artifact",
+              "if a constraint is changed, the resulting install is exercised and backend/tests/test_phase_82_59_assistant_lifecycle_binding.py is re-run green, with the output captured",
+              "a guard asserts the installed slack_bolt version is inside whatever range the step decides is tested, and FAILS against a version outside it"
             ]
           },
           "retry_count": 0,
