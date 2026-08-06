@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `d10188ef` | fix(82.39): repair the nightly_outcome_rebuild fetch and make its failure audible |
 | 2026-08-06 | `5a70de8c` | feat(82.21): make absent fundamentals visible, and record the source decision |
 | 2026-08-06 | `816378e6` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
 | 2026-08-06 | `92cadebb` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-04 | `fc45d9fe` | chore(82.22): queue 82.28 + 82.29 from the cycle-3 Q/A residuals |
 | 2026-08-04 | `a0ae11e5` | fix(82.23): replace two source-scan guards with behavioural ones |
 | 2026-08-04 | `be04da12` | wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER STEP FLIPPED |
-| 2026-08-04 | `14ef109a` | feat(82.3+82.4): backtest evidence and design pack -- no strategy passes the gate |
 
 ---
 
+### v6.81.1 — fix(82.39): repair the nightly_outcome_rebuild fetch and make its fai... (2026-08-06)
+
+- **fix(82.39): repair the nightly_outcome_rebuild fetch and make its failure audible**
 ### v6.81.0 — feat(82.21): make absent fundamentals visible, and record the source... (2026-08-06)
 
 - **feat(82.21): make absent fundamentals visible, and record the source decision**
