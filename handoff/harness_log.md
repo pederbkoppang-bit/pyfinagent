@@ -31200,3 +31200,57 @@ feedback_audit_the_commit_not_the_diff). Whichever session next holds a quiet
 tree closes 79.55; its verification grep for 'RAIL TIERS' is satisfied by this
 entry, and the restart landmine it guarded against is disarmed as of this line --
 a restart now ships the OPERATOR-CONFIRMED tiers, not a silent re-tiering.
+
+## Cycle 158 -- 2026-08-06 -- phase=82.46 result=FAIL (step remains pending)
+
+**FAIL, and the Q/A was right on every count. The step is NOT closed and I am not
+rounding it up.**
+
+**What I got right, and it matters:** the step's own premise is wrong in its literal
+form. `compute_deflated_sharpe` has no pool parameter; `num_trials` is the per-ITERATION
+counter. The 82.16 comment asserting "the trial pool is a direct input to DSR" was wrong
+too. I verified that myself rather than taking the brief's word -- the 82.43 lesson
+applied.
+
+**What I got badly wrong, and it is the worst single defect of the day:**
+
+- **My "proof" was `f(x)==f(x)`.** Two calls to the same function with byte-identical
+  arguments, which I printed as `DSR(pool_before)==...  DSR(pool_after)==...`. Neither
+  call takes a pool. It cannot fail for any production state. That is not a weak
+  measurement -- it is a claim DRESSED AS a measurement, with an invented provenance.
+- **And the conclusion was FALSE.** "No pool parameter" does NOT imply "the pool cannot
+  affect DSR". At the real call site DSR is fed `observed_sr=result.aggregate_sharpe` and
+  `variance_of_srs=np.var(window_sharpes)` -- BOTH functions of which strategy was
+  sampled. **I generalised from a SIGNATURE to a BEHAVIOUR**, and shipped that
+  generalisation into a production comment.
+- **I shipped DEAD CODE and described it as the active mitigation.**
+  `selectable_strategies_for_window` had ZERO production callers, while its own production
+  docstring and my artifact both said it was what stops an unrunnable strategy burning a
+  trial. The proposal space still read `AVAILABLE_STRATEGIES` unconditionally. My guards
+  passed only because the TESTS called the function directly -- reachability from the
+  production path was never asserted.
+- A fourth guard was a tautology (local dict, asserted to differ from the pool).
+
+**All four fixed.** The filter is now wired into `_propose_change`; the false claim is
+retracted in production and pinned by `test_dsr_IS_pool_dependent_through_its_inputs`; the
+tautology now injects and drives the real comparison.
+
+**Why the step still does not close:** criterion 2 wants DSR **and** PBO measured on the
+same sample before and after. F1/F2 destroyed my analytic shortcut, and the honest
+measurement is a multi-hour CSCV run (~1.4h short-window / ~16.7h full, measured) whose
+design turns on the trial count -- at N=8 it would produce two numbers below
+`PBO_MIN_TRIALS_GATE_GRADE=10`, i.e. uncitable, reproducing exactly what 82.26 exists to
+fix. Queued as **82.56** (P1, 4 criteria) rather than run blind.
+
+**THE NEW LESSON, distinct from the day's others:** every previous failure today was a
+claim about a population I had not derived. This one is a claim about a MECHANISM I had
+not exercised -- I read a function signature and concluded a behaviour, then wrote a test
+that could only confirm what I already believed. **A guard must be reachable from
+production, and a measurement must be able to come out otherwise.**
+
+**Committed anyway** (improvements independent of the unmet gate): `blend` removed from
+the pool, four dead blend-weight params removed (24 -> 20 proposable), the pool derived +
+window-aware + wired, three pre-existing F401s cleared, the false DSR comment retracted,
+and the phase-82.16 guard updated preserving intent. Status stays `pending`.
+
+**Next:** 82.48 (P1).

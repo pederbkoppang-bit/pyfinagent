@@ -223,7 +223,10 @@ def test_optimizer_list_is_derived_from_the_registry_not_restated():
             f"registry strategy {name} is not offered to the optimizer -- the list "
             "has drifted from the registry"
         )
-    extra = set(AVAILABLE_STRATEGIES) - set(STRATEGY_REGISTRY) - {"blend"}
+    # phase-82.46 dropped the `- {"blend"}` carve-out: blend is no longer offered,
+    # so the exemption was a dead escape hatch that would have silently tolerated
+    # a future non-registry name of the same shape.
+    extra = set(AVAILABLE_STRATEGIES) - set(STRATEGY_REGISTRY)
     assert not extra, (
         f"optimizer offers strategies that are not in the registry: {sorted(extra)}"
     )
@@ -368,10 +371,16 @@ def test_optimizer_trial_pool_composition_is_pinned():
 
     The old hand-written literal had drifted and omitted the three 82.2 candidates,
     so deriving from the registry makes qarp / reversion_sigma / stretch_regime newly
-    selectable. The trial pool is a direct input to DSR deflation (Bailey & Lopez de
-    Prado), so the same argument this step uses for REMOVING a candidate applies
-    symmetrically to ADDING one. Pinned here so the enlargement is visible and
-    intentional; the pool-composition decision itself is queued as its own step.
+    selectable. Pinned here so the change to the offered set is visible and
+    intentional rather than incidental.
+
+    phase-82.46 CORRECTION. This docstring used to justify the pin by saying "the
+    trial pool is a direct input to DSR deflation (Bailey & Lopez de Prado)".
+    THAT IS FALSE: `compute_deflated_sharpe` has no pool parameter and
+    `num_trials` increments once per ITERATION. The pin is still worth having --
+    a silent change to what the optimizer may select is worth catching -- but the
+    reason is attribution and wasted iterations, not pool-size deflation. See
+    `test_phase_82_46_trial_pool_composition.py::test_pool_size_does_not_enter_dsr`.
     """
     from backend.backtest.quant_optimizer import AVAILABLE_STRATEGIES
 
@@ -385,7 +394,12 @@ def test_optimizer_trial_pool_composition_is_pinned():
         f"the optimizer's newly-selectable set changed unexpectedly: "
         f"{sorted(now - previously_offered)}"
     )
-    assert previously_offered - now == {"quality_momentum", "factor_model"}, (
-        f"the optimizer lost strategies other than the two demoted ones: "
-        f"{sorted(previously_offered - now)}"
+    # phase-82.46 removed `blend` as well, deliberately: it was never a registry
+    # key, had no implementation, and resolved to triple_barrier while being
+    # SCORED under the requested name. The intent of this assertion is unchanged
+    # -- the offered set must not lose anything unexplained -- so the expected
+    # removals are widened by exactly that one decided name, not loosened.
+    assert previously_offered - now == {"quality_momentum", "factor_model", "blend"}, (
+        f"the optimizer lost strategies other than the two demoted ones plus the "
+        f"82.46-removed `blend`: {sorted(previously_offered - now)}"
     )

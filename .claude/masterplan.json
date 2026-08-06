@@ -22269,6 +22269,24 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "82.56",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "MEASURE THE DSR AND PBO IMPACT OF THE 82.46 TRIAL-POOL CHANGE, EMPIRICALLY. This is the half of 82.46's criterion 2 that 82.46 could not satisfy, and 82.46 is BLOCKED on it -- read this step before attempting to close 82.46. WHAT 82.46 ESTABLISHED (do not redo): the pool has no separate term in compute_deflated_sharpe -- `num_trials` is the per-ITERATION counter, not the pool size -- so the step's original framing ('the trial pool is a DIRECT input to DSR') is wrong in its literal form. BUT DO NOT INHERIT THE OVERCORRECTION EITHER: at the real call site (backend/backtest/analytics.py::generate_report, around :766-772 -- RE-DERIVE) DSR is fed observed_sr=result.aggregate_sharpe and variance_of_srs=np.var(window_sharpes), BOTH of which depend on WHICH strategy was sampled. So the pool DOES move DSR, through its inputs. Only an empirical before/after can say by how much. WHAT CHANGED, i.e. the two states to compare: BEFORE = the pool as of commit 7b90620a's parent (6 registry strategies PLUS `blend`, and 24 proposable params including the four dead blend weights tb_/qm_/mr_/fm_weight); AFTER = 82.46's pool (6 registry strategies, no `blend`, 20 params, and a window-aware filter that drops label-fundamentals-dependent strategies on a window starting before the measured fundamentals coverage start). MEASURED COST, so nobody starts this blind: a full-sample CSCV is ~16.7h (3x8 = 30830s measured) and a short-window one is ~1.4h (4x8 = 4988s, ~156s/config). DO NOT run the full-sample variant without an explicit operator decision. THE TRIAL-COUNT TRAP, and it is why this cannot be done cheaply: every existing PBO figure in this repo is N=8, BELOW PBO_MIN_TRIALS_GATE_GRADE=10, so it is DIRECTIONAL and not gate-grade -- see step 82.26, which exists precisely because the PBO trial floor is far below what CSCV needs. A before/after run at N=8 would reproduce that defect and produce two numbers neither of which may be cited as evidence. Design the experiment to clear the gate-grade floor or state explicitly that it does not and why. ALSO NOTE the 82.3 artifacts persist only pbo_matrix_shape and NOT the matrices themselves, so a pool-level CSCV cannot be recombined from existing files -- fresh runs are unavoidable. HOLD EVERYTHING ELSE FIXED: same window, same seed, same iteration budget, same warm cache; the only difference between the two arms must be the pool.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_56_pool_dsr_pbo_impact.py -q",
+            "criteria": [
+              "a DSR figure is measured for the BEFORE pool and for the AFTER pool on the same sample with everything else held fixed, and both numbers plus the commands that produced them are recorded in the step artifact",
+              "a PBO figure is measured for both pools on the same sample, and the trial count used is stated together with whether it clears PBO_MIN_TRIALS_GATE_GRADE -- a figure below the floor must be labelled DIRECTIONAL and must not be cited as gate evidence",
+              "the two arms are shown to differ ONLY in the pool, asserted by a test that fails if any other optimizer input differs between them",
+              "if the measured DSR difference is within run-to-run noise, that noise is itself measured by repeating one arm, rather than asserted"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },

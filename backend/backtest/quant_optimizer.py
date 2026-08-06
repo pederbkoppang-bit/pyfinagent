@@ -15,14 +15,13 @@ import copy
 import hashlib
 import json
 import logging
-import os
 import random
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
-from backend.backtest.analytics import compute_deflated_sharpe, generate_report
+from backend.backtest.analytics import generate_report
 from backend.backtest import cache as bq_cache
 
 logger = logging.getLogger(__name__)
@@ -69,21 +68,119 @@ def write_plateau_lock(run_id: str, consecutive_discards: int) -> None:
 # would let the optimizer select a strategy that has been demoted out of the registry
 # -- it would log and score a candidate that never actually ran.
 #
-# TWO HONEST CAVEATS, both raised by the 82.16 cycle-1 Q/A:
-#   * "blend" is NOT a registry key and has no implementation in backtest_engine.py.
-#     It is still offered here (pre-existing behaviour, not introduced by 82.16) and
-#     still resolves to triple_barrier -- now at least LOUDLY, see resolve_strategy.
-#     Deciding its fate is queued as its own step, not silently changed here.
-#   * Deriving this list ENLARGES the selectable set: the old hand-written literal
-#     had drifted and omitted qarp / reversion_sigma / stretch_regime, so those three
-#     become newly selectable. That is a real change to the optimizer's trial pool,
-#     and the trial pool is a direct input to DSR deflation (Bailey & Lopez de Prado)
-#     -- the same argument this step uses for REMOVING a candidate applies
-#     symmetrically to ADDING one. Pinned by a test so the enlargement is visible and
-#     intentional rather than incidental; the pool-composition decision is queued.
-from backend.backtest.backtest_engine import STRATEGY_REGISTRY as _STRATEGY_REGISTRY
+# phase-82.46 RESOLVED both caveats 82.16 left open, and CORRECTED one of them.
+#
+# THE CORRECTION, twice over -- and the second correction is mine, forced by the
+# 82.46 Q/A. The 82.16 comment here used to say "the trial pool is a direct input
+# to DSR deflation". That is wrong in its literal form: `compute_deflated_sharpe`
+# has NO pool parameter, and `num_trials` is `self.num_trials += 1` PER ITERATION.
+# Both primaries agree that a trial is a configuration ACTUALLY TRIED, so a longer
+# menu costs nothing unless sampled.
+#
+# BUT DO NOT CONCLUDE "the pool cannot affect DSR". I did, and it is an
+# over-generalisation from a SIGNATURE to a BEHAVIOUR. At the real call site
+# (`analytics.generate_report`) DSR is fed `observed_sr=result.aggregate_sharpe`
+# and `variance_of_srs=np.var(window_sharpes)` -- BOTH of which depend on WHICH
+# strategy was sampled. So the pool does move DSR, through its inputs rather
+# than through a trial-count term.
+#
+# WHAT IS TRUE, and it is sharper: N is steep (DSR 1.0000 at N<=10, 0.7963 at
+# N=26, 0.1164 at N=50, 0.0008 at N=100 for a fixed SR=1.5), and the N increment
+# happens BEFORE the try/except that wraps run_backtest -- so an experiment that
+# CRASHES still costs a trial. The pool therefore affects DSR through WASTED
+# ITERATIONS, not through its size. That is why the two removals below are worth
+# making and why enlarging the pool with runnable strategies is not a concern.
+#
+# THE DECISION (phase-82.46; rationale per member in POOL_DECISION below):
+#   * "blend" is REMOVED. It is not a registry key, has no implementation, and
+#     resolved to triple_barrier while being SCORED under the requested name --
+#     corrupting attribution and burning a trial. Re-implementing it was
+#     rejected: the deleted _compute_blend_label voted over quality_momentum and
+#     factor_model, which 82.16 demoted for carrying no forward information.
+#   * The registry-derived members stay. The membership RULE is what is pinned,
+#     not the list, so adding a strategy to the registry adds it here on purpose.
+from backend.backtest.backtest_engine import (
+    NON_COMPARABLE_STRATEGIES as _NON_COMPARABLE,
+    STRATEGY_REGISTRY as _STRATEGY_REGISTRY,
+)
 
-AVAILABLE_STRATEGIES = list(_STRATEGY_REGISTRY.keys()) + ["blend"]
+#: The membership rule, executable. A strategy is selectable iff it is a
+#: registry key AND has not been demoted. Derived so it cannot drift from the
+#: registry the way the pre-82.16 hand-written literal did.
+def _selectable_strategies() -> list[str]:
+    return [s for s in _STRATEGY_REGISTRY if s not in _NON_COMPARABLE]
+
+
+AVAILABLE_STRATEGIES = _selectable_strategies()
+
+#: phase-82.46 criterion 4: the decision record. Machine-readable on purpose --
+#: a guard compares its keys against AVAILABLE_STRATEGIES, so adding or removing
+#: a pool member without recording WHY fails the suite. A test that merely
+#: restated the list would be a tautology; this one requires a rationale to
+#: exist for every member and forbids a rationale for a non-member.
+POOL_DECISION: dict[str, str] = {
+    "triple_barrier": (
+        "incumbent; forward-looking (Lopez de Prado Ch.3), trains and trades on "
+        "the configured sample"
+    ),
+    "mean_reversion": (
+        "forward-looking and CAN train; performs badly on this sample. Kept: "
+        "poor performance is what the optimizer is for, and excluding a "
+        "runnable strategy costs nothing under the corrected DSR premise above"
+    ),
+    "meta_label": (
+        "shares triple_barrier's label fn, so its PBO column is near-collinear "
+        "with the incumbent's -- noted as a comparability caveat, not a reason "
+        "to exclude a runnable member"
+    ),
+    "stretch_regime": (
+        "phase-82.2 candidate; forward-looking, price/vol only (no fundamentals "
+        "dependency per the 82.21 derivation), and the strongest measured "
+        "PBO on the full sample"
+    ),
+    "qarp": (
+        "phase-82.2 candidate; LABEL-fundamentals-dependent per 82.21, so it "
+        "cannot be labelled on a window starting before the measured "
+        "fundamentals coverage start and the engine now REFUSES there. Kept in "
+        "the pool because the constraint is about the WINDOW, not the strategy; "
+        "see selectable_strategies_for_window()"
+    ),
+    "reversion_sigma": (
+        "phase-82.2 candidate; forward-looking, sigma-scaled, price-only"
+    ),
+}
+
+
+def selectable_strategies_for_window(
+    window_start: str, dependent_fn=None
+) -> list[str]:
+    """phase-82.46: the pool MINUS members that cannot run on this window.
+
+    82.21 made the engine RAISE for a label-fundamentals-dependent strategy when
+    the window starts before the measured fundamentals coverage start. The
+    optimizer catches that (the experiment is logged as a crash) -- but the
+    trial counter has ALREADY incremented, so an unrunnable member silently
+    costs Deflated Sharpe on every iteration that selects it.
+
+    The exclusion is DERIVED from the same 82.21 predicate the engine uses, not
+    a hardcoded {"qarp"}: a name list would go stale the moment another
+    fundamentals-dependent strategy is registered, and a stale exclusion is
+    worse than none because it reads as coverage.
+    """
+    from backend.backtest.fundamentals_coverage import (
+        label_fundamentals_dependent_strategies,
+        window_is_covered,
+    )
+
+    pool = _selectable_strategies()
+    if window_is_covered(window_start):
+        return pool
+    # `dependent_fn` is injectable ONLY so a guard can drive this derivation with
+    # a synthetic answer. Without that seam a mutant hardcoding {"qarp"} survives
+    # -- qarp happens to BE today's answer, so no assertion over live data can
+    # tell a derivation from a literal.
+    dependent = set((dependent_fn or label_fundamentals_dependent_strategies)())
+    return [s for s in pool if s not in dependent]
 
 # Strategy param bounds (min, max)
 _PARAM_BOUNDS = {
@@ -106,11 +203,13 @@ _PARAM_BOUNDS = {
     # Volatility-adjusted barriers (AFML Ch. 3): 0 = use fixed tp_pct/sl_pct,
     # >0 = barriers = daily_vol × multiplier. Typical range 1.0-5.0.
     "vol_barrier_multiplier": (0.0, 5.0),
-    # Strategy blend weights (Dietterich 2000): active when strategy="blend"
-    "tb_weight": (0.0, 1.0),
-    "qm_weight": (0.0, 1.0),
-    "mr_weight": (0.0, 1.0),
-    "fm_weight": (0.0, 1.0),
+    # phase-82.46: the four blend-weight params (tb_/qm_/mr_/fm_weight) were
+    # REMOVED. `_compute_blend_label`, their only consumer, was deleted by
+    # 9fbd9cd6 -- a revert whose diff never touched this file -- so the setter
+    # below wrote them into engine._strategy_params where NOTHING read them.
+    # rotation_runner._DEAD_KEYS already documented them as dead. They were 4 of
+    # 24 proposable params, so roughly 1 proposal in 6 spent a full walk-forward
+    # run AND a DSR-costing num_trials increment on a parameter with no reader.
     # Volatility targeting: scale positions to match target annual vol (0 = disabled)
     "target_annual_vol": (0.05, 0.25),  # ENABLED: Phase 1.5 improvement (+0.2 to +0.4 Sharpe)
     # Trailing stop: ENABLED Phase 1.5 improvement (+0.1 to +0.2 Sharpe)
@@ -133,6 +232,25 @@ class QuantStrategyOptimizer:
     Fast inner optimization loop for quant strategy parameters.
     Mirrors SkillOptimizer pattern: baseline → modify → measure → keep/discard → log.
     """
+
+    def _window_selectable_strategies(self) -> list[str]:
+        """phase-82.46: the pool minus members that cannot run on THIS window.
+
+        Reads the engine's configured start date rather than a constant, and
+        fails OPEN (returns the full pool) if the window cannot be determined --
+        narrowing the search space is an optimisation, and silently emptying it
+        would be far worse than an occasional wasted trial.
+        """
+        try:
+            start = self.engine.scheduler.start_date.isoformat()
+        except Exception:  # noqa: BLE001 -- never break proposal on introspection
+            return list(AVAILABLE_STRATEGIES)
+        try:
+            return selectable_strategies_for_window(start)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "QuantOptimizer: window-aware strategy filter fail-open: %r", exc)
+            return list(AVAILABLE_STRATEGIES)
 
     def __init__(
         self,
@@ -435,6 +553,18 @@ class QuantStrategyOptimizer:
         # Categorical param (strategy)
         if param in _CATEGORICAL_PARAMS:
             choices = _CATEGORICAL_PARAMS[param]
+            # phase-82.46: for the STRATEGY dimension, narrow the choices to what
+            # can actually run on THIS optimizer's window.
+            #
+            # This wiring is the whole point and it was missing in cycle 1: the
+            # filter existed but nothing called it, so the artifact and the
+            # function's own docstring described a mitigation that never ran.
+            # Caught by the 82.46 Q/A. Without it, 82.21 makes the engine RAISE
+            # for a label-fundamentals-dependent strategy on a pre-coverage
+            # window, the optimizer catches the crash -- and `num_trials` has
+            # ALREADY incremented, so the wasted trial still deflates DSR.
+            if param == "strategy":
+                choices = self._window_selectable_strategies() or choices
             current = self.best_params.get(param, choices[0])
             # Pick a different value
             alternatives = [c for c in choices if c != current]
@@ -465,7 +595,7 @@ class QuantStrategyOptimizer:
         """
         try:
             from backend.config.settings import get_settings
-            from backend.agents.llm_client import GeminiClient, GeminiModelBundle, make_client
+            from backend.agents.llm_client import GeminiModelBundle, make_client
 
             settings = get_settings()
 
@@ -585,10 +715,9 @@ class QuantStrategyOptimizer:
             if key in params:
                 engine._strategy_params[key] = params[key]
 
-        # Blend weights (read from _strategy_params by _compute_blend_label)
-        for key in ("tb_weight", "qm_weight", "mr_weight", "fm_weight"):
-            if key in params:
-                engine._strategy_params[key] = params[key]
+        # phase-82.46: the blend-weight setter was removed with the params. The
+        # comment here used to claim they were "read from _strategy_params by
+        # _compute_blend_label" -- that function has not existed since 9fbd9cd6.
 
     # ── Feature caching ────────────────────────────────────────────
 
