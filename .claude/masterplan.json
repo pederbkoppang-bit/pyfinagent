@@ -22796,7 +22796,7 @@
       "steps": [
         {
           "id": "4000.1",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "depends_on": [],
@@ -22914,6 +22914,49 @@
               "The verdict line is exactly one of CADENCE RECOVERED / CADENCE FLAT / RAIL OFF; if CADENCE FLAT, the check script asserts at least one co-suspect masterplan step id is named in the readout and exists in .claude/masterplan.json.",
               "git diff scope for this step is handoff/ and scripts/qa/ only -- observation, not iteration.",
               "MUTATION COVERAGE: removing the verdict line or the co-suspect step ids from a copy of the readout makes the check script exit non-zero; demonstrated once, exit codes recorded."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.6",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "Restore role attribution on CC-rail llm_call_log rows -- discovered by 4000.1, queued per feedback_queue_discovered_defects_in_masterplan. MEASURED EVIDENCE (2026-08-06, re-derive before trusting): in the trailing 7 days, ALL 605 overlay-seam rail rows in pyfinagent_data.llm_call_log carry the BARE agent value 'cc_rail' -- zero rows carry the 'cc_rail:<role>' form the writer supports. Root cause, pinned to source: backend/agents/claude_code_client.py:659 falls back to bare 'cc_rail' when the caller passes no agent name (`agent=f'cc_rail:{agent}' if agent else 'cc_rail'`), and the production call sites do not thread the role through. CONSEQUENCE, why this matters beyond tidiness: 4000.1 measured a 27% rail-call failure rate with timeout-shaped latencies (by model: sonnet-4-6 105 of 482 failed, opus-4-8 50 of 115, haiku-4-5 11 of 18), and with every row logged under one bare label it is IMPOSSIBLE to say WHICH overlay or caller is burning those failures -- per-role health, per-role quota burn (4000.3 E6) and the 79.55 tier decisions are all blind. WHAT TO DO: find every production caller that reaches claude_code_invoke / ClaudeCodeClient (derive the set by grep, do not assume the six-overlay list from 79.55 -- the sonnet-dominant traffic mix suggests callers beyond the six overlays) and thread a stable role identifier through to the writer at claude_code_client.py:603+; verify by a bounded BQ query that NEW rows carry cc_rail:<role>. The E1 selection rule in the 4000.1 baseline (agent = 'cc_rail' OR agent LIKE 'cc_rail:%') already covers both forms, so this change CANNOT break the spend-breaker exclusion (spend.py:228-230 excludes both) -- state this in the contract and prove it with the existing spend tests. NON-SCOPE: no change to spend.py's exclusion clauses; no change to which calls route to the rail; no model-tier changes.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_4000_6_rail_role_attribution.py -q",
+            "criteria": [
+              "backend/tests/test_phase_4000_6_rail_role_attribution.py exists and drives the _log_cc_call seam (or its extracted equivalent) with a role-carrying caller, asserting the written row's agent field equals 'cc_rail:<role>' -- via the row dict actually passed to log_llm_call (mock at that seam), not by reading source text.",
+              "The production caller set is DERIVED by grep in the step's handoff artifact (command + full match list shown verbatim, asserted non-empty) and every caller in that derived set threads a non-empty role identifier; the test enumerates the same set and fails if a caller passes none.",
+              "A test proves the bare-'cc_rail' fallback still works when a role is genuinely absent (backward compatibility for any caller outside the derived set), so old rows and new rows both satisfy the 4000.1 E1 selection rule.",
+              "MUTATION COVERAGE: reverting any single production call site to pass no role turns at least one named test red; demonstrated once with verbatim pytest output in the handoff, then restored.",
+              "The spend-breaker exclusion tests (existing) still pass, cited by test file and run output, proving the attribution change cannot leak rail rows into the metered spend metric.",
+              "live-evidence: after the change is deployed to the running backend, a bounded BQ query over rows with ts after the deploy shows >=1 row with agent LIKE 'cc_rail:%' and the query + result are captured in live_check_4000.6.md."
+            ],
+            "live_check": "bounded BQ query output showing post-deploy llm_call_log rows carrying cc_rail:<role> agent values, plus the verbatim grep-derived caller list"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.7",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "Fix the modelUsage duplicate-canonicalModel cost collapse in resolve_rail_model consumers -- discovered by the 4000.1 research gate (probe findings P1/P2), queued per feedback_queue_discovered_defects_in_masterplan. MEASURED EVIDENCE (2026-08-06, live probe on claude CLI v2.1.223, re-derive before trusting): a single `claude --print --output-format json` call can return a modelUsage MAP whose keys SHARE one canonicalModel -- the probe returned both 'claude-haiku-4-5' and 'claude-haiku-4-5-20251001', both with canonicalModel 'claude-haiku-4-5', costUSD 0.091379 and 0.0623501 respectively, and top-level total_cost_usd equal to their SUM (0.15372910). The dict build in resolve_rail_model at backend/agents/claude_code_client.py:274-277 keys by canonicalModel and therefore COLLAPSES such entries last-wins BEFORE the max(..., key=_weight) selection at :291 runs. The RESOLVED LABEL survives correct (the collapse cannot change which canonicalModel wins when duplicates share one), but ANY consumer that totals tokens or cost from the collapsed dict UNDER-COUNTS -- the probe's collapsed read yields 59% of the true cost. The 4000.3 E6 quota math and any future burn accounting depend on raw-map sums. ALSO IN SCOPE (same file, one line, found in the same audit): spend.py:30's comment cites claude_code_client.py:504 for the agent-ternary that now lives at :659 -- fix the stale line reference while the file is open. WHAT TO DO: either make resolve_rail_model preserve per-entry usage (list, not last-wins dict) or add a sibling helper that returns the RAW-map aggregate (sum of costUSD / input / output / cache tokens across ALL entries), and route every consumer that totals usage through the raw aggregate. The free self-checking assertion from probe P2 MUST become a test: abs(total_cost_usd - sum(costUSD over ALL modelUsage entries)) < 1e-6 on a fixture with duplicate canonicalModel keys. NON-SCOPE: no change to the resolved-label semantics (78.2's log-what-ran contract); no change to which calls route to the rail; no envelope schema assumptions beyond additive drift (the 4000.1 brief measured 21 top-level keys, 7 undocumented).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_4000_7_modelusage_collapse.py -q",
+            "criteria": [
+              "backend/tests/test_phase_4000_7_modelusage_collapse.py exists with a fixture envelope carrying TWO modelUsage keys sharing one canonicalModel (mirroring the measured probe: distinct costUSD values whose sum equals total_cost_usd), and asserts the aggregate helper returns the SUM across ALL entries, not the last-wins single entry.",
+              "A test asserts the resolved LABEL is unchanged by the fix on the same fixture (78.2 log-what-ran contract preserved), so label resolution and usage aggregation are proven independent.",
+              "The P2 self-check is a test: abs(total_cost_usd - sum(costUSD over ALL modelUsage entries)) < 1e-6 on the duplicate-key fixture; a mutated aggregate that reads only the first (or only the last) entry turns it red -- both mutations demonstrated once with verbatim pytest output in the handoff, then restored.",
+              "Every consumer that totals usage from the envelope is enumerated by grep in the handoff (command + matches verbatim, asserted non-empty) and routed through the raw aggregate; the collapsed dict is either removed from totalling paths or its totalling use is proven absent.",
+              "spend.py:30's stale ':504' reference is corrected to the current line of the agent ternary, shown as a one-line diff in the handoff.",
+              "No behavior change to rail routing or label logging: existing claude_code_client tests still pass, cited by run output."
             ]
           },
           "retry_count": 0,

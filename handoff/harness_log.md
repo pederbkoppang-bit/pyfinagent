@@ -31311,3 +31311,41 @@ whole and disclosed rather than swept in silently. Every other path was staged
 deliberately.
 
 **Next:** the P2/P3 tail.
+
+## Cycle 160 -- 2026-08-06 -- phase=4000.1 result=PASS (cycle 2; cycle-1 CONDITIONAL fixed)
+
+**4000.1 -- research gate + measured baselines for the Max-rail E2E smoke.**
+
+Researcher (Workflow rail, wf_5d34fa5e-635): gate PASSED, 6 sources in full, 29
+URLs, brief write-first. Q/A cycle 1 (wf_7e817466-c1c): CONDITIONAL -- three
+findings (projection labelled verbatim without its producing command; produced-
+file set missing the researcher auto-memory file; check-script markers file-wide
+with 4 measured vacuity survivors). All fixed; Q/A cycle 2 (wf_a609409e-aaa,
+fresh evaluator, changed evidence): PASS 9/9, compliance 5/5, diff-proven no
+silent number edits.
+
+**The baseline that reframes the phase:** paper_use_claude_code_route is ALREADY
+True (78.1 steady state); the metered path is ALREADY dark (0 anthropic-direct
+vs 615 cc_rail rows in 7d); the rail FAILS 27% of calls with timeout-shaped
+latencies (opus 43%, haiku 61% fail; ~116-150s vs the 150s ceiling); E8 cadence
+baseline 0.75 closed round-trips/week (32 all-time, member-level reconciled) --
+~90 weeks to the operator's 100-RT validation sample at this rate. 4000.3 is
+verify-and-characterize, not flip-and-revive. Research: `claude -p` without
+--bare reloads the repo context EVERY rail call (45,580 cache-creation tokens on
+a 9-token probe) -- prime timeout suspect; modelUsage duplicate-key collapse
+under-counts cost; flat-fee `-p` policy is paused-not-stable (watch items W1/W2
+for 4000.4).
+
+**Queued out of this step:** 4000.6 (rail role-attribution loss: 605/605 rows
+bare 'cc_rail') and 4000.7 (resolve_rail_model duplicate-canonicalModel cost
+collapse + spend.py:30 stale cite), added in the same masterplan edit as this flip.
+
+**Flip sweep disclosure (audit-the-commit):** at flip time the tree carried NO
+foreign code and NO foreign masterplan edits (82.48 committed by the other
+session); the auto-commit sweeps benign residue -- closed-82.x archive
+snapshots + researcher topic memories, autoresearch ERROR files,
+research_brief_82.54.md (other session's in-flight brief, append-only),
+phase83_research_raw, hook-churn logs -- enumerated via git add -An before the
+flip and disclosed here rather than swept silently.
+
+**Next:** 4000.2 (smoke script + fixtures proving every check can fail).
