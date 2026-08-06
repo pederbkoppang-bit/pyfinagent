@@ -21346,7 +21346,7 @@
         },
         {
           "id": "82.6",
-          "status": "pending",
+          "status": "done",
           "priority": "P2",
           "harness_required": true,
           "name": "Design (NOT build) the registry-to-live selection bridge. Explicit NON-SCOPE carve-out from the phase-82 goal, filed as its own step per the standing discovered-defect rule. MEASURED: autonomous_loop.py:431 loads optimizer_best.json, but only three things cross into the live cycle -- sharpe as a display field (:433), tp_pct/sl_pct/holding_days into the cycle summary dict (:434-437), and strategy as a LABEL ONLY (:1649), written to strategy_decisions with decided_strategy == prior_strategy every cycle. The in-code comment at :1644 reads 'strategy router (deferred to phase-31)'. No STRATEGY_REGISTRY label method executes in the live path. Accurate framing: the registry's EXIT PARAMS cross over; its SELECTION LOGIC does not. Design only -- do not wire selection in this step; the live book is working (+18.86%) and a selection-path change is the highest-regression-risk edit in the system.",
@@ -22410,6 +22410,60 @@
               "the chosen approach for slack-bolt (pin / compatible-release / range guard) is recorded with its reason in the step artifact",
               "if a constraint is changed, the resulting install is exercised and backend/tests/test_phase_82_59_assistant_lifecycle_binding.py is re-run green, with the output captured",
               "a guard asserts the installed slack_bolt version is inside whatever range the step decides is tested, and FAILS against a version outside it"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.64",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "A MISSING PBO IS RECORDED AS A PERFECT 0.0 ON THE PROMOTED-STRATEGY ROW. Found by the 82.6 research gate 2026-08-06 and CONFIRMED by Main by reading both sides. MEASURED: backend/autoresearch/promoter.py around :134 (RE-DERIVE) builds the promoted_strategies row with `\"pbo\": float(trial.get(\"pbo\") or 0.0)`. When a trial carries no pbo -- and MEASURED, backend/backtest/experiments/optimizer_best.json has NO pbo key at all -- the row records 0.0, i.e. a PERFECT probability-of-backtest-overfitting. BE PRECISE ABOUT WHAT IS AND IS NOT BROKEN, because the obvious overstatement is wrong: the GATE itself (backend/autoresearch/gate.py PromotionGate, min_dsr 0.95 / max_pbo 0.20 / min_pbo_trials 10) is FAIL-CLOSED on a missing pbo and does not promote on absent data. The defect is in the RECORD written afterwards: any downstream consumer of promoted_strategies.pbo reads a fabricated pass, including backend/services/promotion_gate.py's PBO_CEILING 0.5 staging check. Also note `or 0.0` swallows a legitimate pbo of 0.0 identically to a missing one, so the two are indistinguishable after the write. DERIVE THE CONSUMER SET STRUCTURALLY (every reader of promoted_strategies.pbo, AST/import-resolved, asserted non-empty) before choosing a fix -- if nothing reads it, the honest fix is to stop writing a fabricated value rather than to invent a consumer. Do NOT 'fix' this by making the gate stricter; the gate is already correct. Sibling coercions on the same row (dsr, sortino_monthly) use the same `or 0.0` idiom -- classify each rather than assuming they share the defect.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_64_promoted_pbo_coercion.py -q",
+            "criteria": [
+              "a fixture promoting a trial with NO pbo key is shown to produce a row whose pbo is not a fabricated pass, asserted by a test that FAILS against the current `or 0.0` coercion",
+              "a trial carrying a genuine pbo of 0.0 remains distinguishable from a trial carrying none, asserted by a test",
+              "every reader of promoted_strategies.pbo is derived structurally, the derived set asserted non-empty, and the chosen fix justified against what that set actually does with the value",
+              "the sibling `or 0.0` coercions on the same row are each classified as correct or defective, with the classification asserted by a test rather than only written in prose"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.65",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "THE strategy_decisions PER-CYCLE HEARTBEAT HAS BEEN SILENT FOR ~6 DAYS AND THE WRITE IS SWALLOWED. Found by the 82.6 research gate 2026-08-06. MEASURED live in BigQuery: strategy_decisions holds 51 rows, the newest written 2026-07-31 -- roughly 6 days stale at discovery -- while the writer at backend/services/autonomous_loop.py around :1649-1668 (RE-DERIVE) is supposed to append one row EVERY cycle as a dead-man's-switch heartbeat, and the paper cycle has been running. The write is wrapped in a try/except that logs and continues (fail-open by design, so the cycle cannot be broken by a BQ error) -- which is correct for the cycle but means a persistently failing heartbeat is invisible. THE POINT OF A DEAD-MAN'S-SWITCH IS THAT ITS SILENCE IS ALARMING; this one goes quiet without alarming anyone, which is the same class as 82.58 (an alert that could never fire) and 82.49. FIRST ESTABLISH WHETHER THE CYCLE ACTUALLY RAN in that window -- if the paper cycle itself was down, the heartbeat is correctly absent and the defect is only the missing alarm, not a broken writer. Check handoff/.cycle_heartbeat.json, the launchd job state, and paper_trades/paper_portfolio for activity in the same window before concluding. Then fix whichever is true. Reuse the alerting seam phases 82.11/82.39/82.48/82.54/82.58 established: raise_cron_alert_sync at P0/P1 imported function-locally, with a NEGATIVE CONTROL, asserting DELIVERY rather than branch entry. NOTE the 50-of-51 rows carry decided_strategy == prior_strategy, but that is true BY CONSTRUCTION (the writer assigns the same variable to both), not an empirical finding -- do not write a test that asserts it of every row, because one row (a reduce_position via decay_signal) legitimately differs.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_65_strategy_decisions_heartbeat.py -q",
+            "criteria": [
+              "whether the paper cycle actually ran during the silent window is established from evidence and recorded, so the fix addresses the true cause rather than the assumed one",
+              "a fixture in which the heartbeat write fails emits an operator-visible signal rather than only a swallowed log line, asserted by capturing the emitted payload",
+              "a healthy cycle emits NO alert, so the guard cannot pass by always firing",
+              "any assertion about decided_strategy and prior_strategy is scoped to the rows where the equality is structural, and does not fail on the legitimately differing row"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.66",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "RECORDS THAT DESCRIBE A SYSTEM STATE THAT IS NOT TRUE -- three stale enumerations plus two dead configs, all around the strategy/promotion path. Found by the 82.6 research gate 2026-08-06. (1) STRATEGY_REGISTRY (backend/backtest/backtest_engine.py around :69, RE-DERIVE) has SIX keys -- mean_reversion, meta_label, qarp, reversion_sigma, stretch_regime, triple_barrier -- but backend/autoresearch/archetype_library.py around :31 and .claude/rules/backend-backtest.md both say 'five strategies' and list a DIFFERENT set. A reader picking a strategy name from either doc can name one that does not exist. NOTE the registry has 6 keys but only 5 DISTINCT label methods (meta_label shares triple_barrier's), so 'five' may be a half-remembered version of that -- say which, do not just bump the number. (2) backend/backtest/experiments/optimizer_best.json carries four parameters nothing reads; their readers were reverted in commit 9fbd9cd6 -- confirm by reading that commit before deciding whether to delete the keys or restore a reader. (3) run_friday_promotion has no SCHEDULED caller -- MEASURED 2026-08-06 over `git ls-files '*.py'` (987 files): 25 invocations exist, 12 in tests/autoresearch/test_friday_promotion.py, 7 in scripts/harness/phase10_friday_promotion_test.py, 4 in tests/autoresearch/test_slot_usage_wiring.py, 2 in tests/verify_phase_25_A3.py -- all tests/harness, none a scheduler. DELETING OR REWIRING THIS FUNCTION BREAKS 25 CALL SITES ACROSS FOUR FILES; two earlier drafts of this step said 'no caller anywhere' and then '7, all in one file', both false, so RE-DERIVE over the whole tracked repo rather than over backend/ and scripts/. Determine whether it is intended to run and is simply unwired, or is superseded; do not schedule it as a side effect of this step, since it touches the promotion path. DERIVE EACH ENUMERATION STRUCTURALLY from the registry rather than hand-editing the prose to match, and add a guard that fails when they drift again -- a hand-fixed list rots the same way this one did.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_66_registry_enumerations.py -q",
+            "criteria": [
+              "every prose enumeration of the strategy registry is located structurally, the derived set of locations asserted non-empty, and each checked against the live STRATEGY_REGISTRY by a test that FAILS against the current stale text",
+              "the six-keys / five-distinct-label-methods distinction is stated explicitly wherever a count appears, so a future reader cannot repeat the same off-by-one",
+              "whether optimizer_best.json's unread parameters should be deleted or given back a reader is decided against commit 9fbd9cd6 and recorded with its reason",
+              "whether run_friday_promotion should be scheduled is decided and recorded, and this step does not schedule it"
             ]
           },
           "retry_count": 0,

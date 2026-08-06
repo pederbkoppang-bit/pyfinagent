@@ -31671,3 +31671,64 @@ All 11 pre-existing ruff findings verified as an identical SET against HEAD.
 
 Queued: **82.63** -- `slack-bolt` is pinned as a FLOOR (`>=1.18.0`), and 1.28.0
 added the very `set_suggested_prompts` helper this fix binds against.
+
+## Cycle 166 -- 2026-08-06 -- phase=82.6 result=PASS
+
+**DESIGN ONLY -- no production code touched.** Ships
+`docs/design/registry-to-live-selection-bridge.md` plus a 12-test guard that the
+live selection path is unchanged.
+
+**BOTH halves of the step's premise are refuted.** It says "the registry's EXIT
+PARAMS cross over; its SELECTION LOGIC does not". The exit params do not cross
+over either: `summary["strategy_params"]` has **zero readers repo-wide**, and
+live exits come from `settings.paper_default_stop_loss_pct` + the Risk Judge. So
+**nothing the optimizer produces changes live trading today** -- one display
+number and one audit label. Provenance of the error: the source spec said "as
+display fields"; the masterplan step dropped the qualifier, and the qualifier was
+the whole meaning.
+
+**The hazard, and a correction to the research gate.** The gate reported that
+`paper_trader.py` "silently disarms a risk control". I read the branch and that
+overstates it -- the skip is deliberate, cited (Kaminski-Lo Prop. 2), and its
+default is fail-safe. **The real hazard is sequencing:** `entry_strategy` is NULL
+on every row so the branch is unreachable, while the phase-32.2 migration already
+names that column as the bridge's intended wire. Populating it activates a live
+risk-behaviour change as a SIDE EFFECT of a selection change. The design requires
+that to be separately flagged and separately reviewed.
+
+**The bridge was already designed.** `strategy_selector.py` (phase-47.6) is
+complete, tested and dark. **This is a deployment problem, not a design problem.**
+82.23 + 82.26 are hard build-time blockers -- `optimizer_best.json` has no `pbo`
+key and `PromotionGate` is fail-closed on a missing one.
+
+**FOUR Q/A cycles: CONDITIONAL, CONDITIONAL, FAIL, PASS.** The three criteria
+were MET in cycle 1 and every cycle after; no production code was ever touched.
+Every blocker was a claim about a population, and one claim -- a count of call
+sites -- was wrong three times in three different ways:
+- cycle 1: "no caller anywhere", inherited from the gate and never re-derived;
+  the gate's grep had been glob-eaten by an unquoted `--include=*.py`.
+- cycle 2: "Four call sites", typed not measured -- **and that edit never applied
+  at all**, because my `str.replace` targeted a single-line form of a
+  line-wrapped sentence and I reported success without re-reading.
+- cycle 3: "7, all in one file" -- measured, but over a scope I chose
+  (`backend scripts`) that structurally cannot see `tests/`. **FAIL, correctly.**
+  Derived over `git ls-files`: **25**, with 18 in three tracked test files.
+
+Cycle 4 PASSed after the Q/A refused my scope entirely and re-derived over the
+whole workspace. Two NOTE residuals accepted rather than fixed, on the Q/A's
+explicit instruction not to open a fifth cycle: 24 of the 25 are calls (one is a
+docstring line), and the denominator is 986 not 987. Both recorded for 82.66's
+executor, who is already told to re-derive.
+
+Also caught by my own guard while writing: **`autonomous_loop.py` is ambiguous --
+there are two** (`backend/` is the phase-3.3 planner harness; `backend/services/`
+is the live cycle). The doc now uses full paths.
+
+12 tests, 12 mutation kills / 0 survivors -- including the five indirection
+shapes the Q/A demonstrated (submodule import, importlib, key dispatch, f-string
+`getattr`, subscript read), each verified to die.
+
+Queued: **82.64** (a missing PBO is recorded as a perfect 0.0 on the promoted
+row -- the GATE is fail-closed, only the RECORD is fabricated), **82.65**
+(`strategy_decisions` heartbeat ~6 days silent, write swallowed), **82.66** (three
+stale registry enumerations + two dead configs).
