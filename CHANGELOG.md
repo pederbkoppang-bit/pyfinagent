@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-06 | `7b90620a` | fix(82.43): make macro degradation legible -- a count, not a boolean |
 | 2026-08-06 | `d10188ef` | fix(82.39): repair the nightly_outcome_rebuild fetch and make its failure audible |
 | 2026-08-06 | `5a70de8c` | feat(82.21): make absent fundamentals visible, and record the source decision |
 | 2026-08-06 | `816378e6` | feat(82.11): move autoresearch off the metered rail and make its failures audible |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-04 | `3620764f` | fix(82.22): optimizer_best.json records the run that actually produced its metrics |
 | 2026-08-04 | `fc45d9fe` | chore(82.22): queue 82.28 + 82.29 from the cycle-3 Q/A residuals |
 | 2026-08-04 | `a0ae11e5` | fix(82.23): replace two source-scan guards with behavioural ones |
-| 2026-08-04 | `be04da12` | wip(82.22+82.23): provenance fix + PBO wired into the gate -- NEITHER STEP FLIPPED |
 
 ---
 
+### v6.81.2 — fix(82.43): make macro degradation legible -- a count, not a boolean (2026-08-06)
+
+- **fix(82.43): make macro degradation legible -- a count, not a boolean**
 ### v6.81.1 — fix(82.39): repair the nightly_outcome_rebuild fetch and make its fai... (2026-08-06)
 
 - **fix(82.39): repair the nightly_outcome_rebuild fetch and make its failure audible**
