@@ -31403,3 +31403,46 @@ fix would still not deliver.
 fields, where the pre-fix module returned `null` and no breakdown at all.
 
 **Next:** the P2/P3 tail.
+
+## Cycle 161 -- 2026-08-06 -- phase=4000.2 result=PASS (cycle 3; two CONDITIONALs fixed; auto-FAIL rule was in force)
+
+**4000.2 -- the CC-rail E2E smoke script, with fixtures proving every check can fail.**
+(Numbering note: 'Cycle 160' was used twice -- 4000.1 here and 82.54 by the
+concurrent session; this entry resumes at 161.)
+
+Researcher (wf_706ab423-79f, tier simple, 7 sources): corrected two premises
+before they became bugs -- CLAUDE_CODE_BINARY is NOT a safe test hook
+(which() wins first), and the rail-call counter cannot be in-process (the
+BACKEND spawns the subprocesses; llm_call_log is buffered 100rows/60s with no
+flush endpoint; no cancel endpoint). Bound: under live pins
+(gemini_model=claude-sonnet-4-6, deep_think=claude-opus-4-8) a FULL analysis
+is ~25-33 rail calls -- one ticker can trip the <=30 cap legitimately.
+rail-guard state has NO out-of-process surface (E5 surrogates; gap -> 4000.8).
+
+Built: scripts/qa/smoke_cc_rail_e2e.py (--dry/--live, E1-E6 machine verdicts,
+exits 0/1/2/3/4, ExitStack restore-always-via-PUT, pre-start + watcher +
+POST-WINDOW-authoritative cap gates) + 22-test suite, all scenarios via
+subprocess.run returncode against a stdlib-socket stub backend + stub claude.
+
+Q/A: cycle 1 CONDITIONAL (E2 spend-conjunct dropped undisclosed; 6 mutation
+survivors incl. positive controls; 2 claim defects) -> fixed. Cycle 2
+CONDITIONAL (E4 reduced to 2-of-4 frozen legs undisclosed -- the same class I
+had just fixed on E2; E3a cost-sum unfixtured) -> fixed: E4 legs 1-3
+implemented (synthetic-0.0/HOLD check incl. both recommendation forms), leg 4
+disclosed in the EMITTED verdict + R10 + queued as 4000.9; BAD_SUM_ENVELOPE
+makes the cost-sum conjunct the only failure path. Cycle 3 PASS 10/10 --
+evaluator's own 22-mutant matrix: every named mutant (m1/m2a/m2b/mP/mS/mZ1)
+dies on exactly its named fixture; 3 survivors verified defensive-branch
+NOTE-level; stub-recorder mutation turns 16 tests red (fixtures can represent
+failure); real-backend --dry reproduced with backend/.env md5 identical.
+
+**The lesson this step earns (same class, three instances):** a frozen
+pre-registered baseline is a CONTRACT on check SEMANTICS, not a vibe -- every
+conjunct you silently drop is a finding, and the acceptable alternatives are
+exactly two: implement it, or disclose it AT THE EMISSION POINT and queue it.
+
+**Queued at this flip:** 4000.8 (rail-guard observability endpoint), 4000.9
+(E4 persisted-row leg via a persistence seam).
+
+**Next:** 4000.3 -- OPERATOR-GATED live window (flag token + pre-stated
+keep-ON/restore decision rule owed before it opens).

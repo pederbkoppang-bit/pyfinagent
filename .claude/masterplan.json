@@ -22838,7 +22838,7 @@
         },
         {
           "id": "4000.2",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "depends_on": [
@@ -22975,6 +22975,47 @@
               "Every consumer that totals usage from the envelope is enumerated by grep in the handoff (command + matches verbatim, asserted non-empty) and routed through the raw aggregate; the collapsed dict is either removed from totalling paths or its totalling use is proven absent.",
               "spend.py:30's stale ':504' reference is corrected to the current line of the agent ternary, shown as a one-line diff in the handoff.",
               "No behavior change to rail routing or label logging: existing claude_code_client tests still pass, cited by run output."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.8",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "Expose rail-guard state on a read-only observability endpoint -- discovered by the 4000.2 research gate, queued per feedback_queue_discovered_defects_in_masterplan. MEASURED EVIDENCE (2026-08-06, research_brief_4000.2.md 'e5_guard_state_surface', re-derive before trusting): rail_guard_status() at backend/agents/claude_code_client.py:137-147 reads the module-global _RAIL_GUARD under a lock -- PROCESS-LOCAL state with NO API endpoint, NO log line carrying the full struct, and NO BQ surface. Its ONLY production reader is backend/services/autonomous_loop.py:1739-1747, which copies rail_skipped/breaker_tripped/skipped_calls into the cycle summary -- a path that fires only on the autonomous CYCLE. CONSEQUENCE: the 4000.2 smoke's E5 check had to be built on surrogates (ok=false rail rows + 'rail_guard_skipped:' markers) because asserting consecutive_failures==0 from outside the process would have been a fabricated-SAFE check; the frozen 4000.1 baseline's E5 rule is therefore not fully measurable until this lands. WHAT TO BUILD: a read-only GET endpoint (e.g. /api/paper-trading/rail-guard, or an /api/health extension -- pick with the router conventions of backend/api/) returning the rail_guard_status() dict verbatim plus a served_at timestamp; no auth beyond the standing middleware; NO mutation path of any kind. Then extend scripts/qa/smoke_cc_rail_e2e.py's E5 to read it when reachable, keeping the surrogate legs as fallback (the endpoint proves the guard's own view; the surrogates prove observable behavior -- both stay). NON-SCOPE: no change to guard behavior, thresholds, breaker semantics, or the P1 page path; no new dependency; the endpoint must be side-effect-free (a test proves two consecutive GETs return without mutating the struct).",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_4000_8_rail_guard_endpoint.py -q",
+            "criteria": [
+              "backend/tests/test_phase_4000_8_rail_guard_endpoint.py drives the endpoint through the FastAPI test client (or the running app) and asserts the response carries every field of rail_guard_status()'s return -- field set derived from the function's source at test time, not hardcoded, so a guard-struct change cannot silently desync the endpoint.",
+              "The endpoint is read-only and side-effect-free: a test captures the guard struct, issues two GETs, and asserts the struct is unchanged (bytes-equal repr) and that no setter/reset function was invoked (asserted via monkeypatched spies on rail_guard_reset and the breaker mutators).",
+              "The smoke's E5 gains the endpoint leg behind a reachability probe, with the surrogate legs retained as fallback; a fixture with the endpoint returning breaker-open turns E5 red, and a fixture with the endpoint absent (404) falls back to surrogates without crashing -- both asserted via the 4000.2 stub-backend harness.",
+              "MUTATION COVERAGE: making the endpoint return a hardcoded healthy struct while the real guard reports breaker-open turns the breaker-open fixture red; demonstrated once with verbatim output in the handoff, then restored.",
+              "git diff scope: backend/api/ (the new route), backend/main.py (registration if needed), scripts/qa/smoke_cc_rail_e2e.py, backend/tests/, handoff/ -- and the route addition to any auth-skip list is either absent or justified inline per .claude/rules/security.md's _PUBLIC_PATHS discipline."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "4000.9",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "Implement frozen-baseline E4 leg 4 -- prove the analyzed result actually PERSISTED -- discovered by Q/A 4000.2 cycle-2 (finding 1), queued per feedback_queue_discovered_defects_in_masterplan. MEASURED EVIDENCE (2026-08-06, re-derive before trusting): GET /api/analysis/{id} in sync mode reads the in-memory _tasks dict (backend/api/analysis.py:392), so a 'completed' poll is NOT evidence that anything was persisted -- the 4000.2 smoke's E4 discloses this at its emission point (the persisted_row_leg field of the E4 verdict) and implements only legs 1-3 of the frozen 4000.1 baseline section (f) E4 rule ('the persisted analysis row exists' is leg 4). WHAT TO DO: (a) derive from code where a completed single-ticker analysis persists its result (candidate surfaces: the signals/strategy_decisions writers in backend/db/bigquery_client.py and the orchestrator's persistence step -- enumerate by grep, cite file:line, and state which surface is authoritative for the /api/analysis/ path specifically; do NOT assume the autonomous-loop's persistence applies); (b) add a --persistence-source seam to scripts/qa/smoke_cc_rail_e2e.py (default: the authoritative surface via a bounded, date-filtered query; http URL for the cross-process test seam, mirroring --llm-log-source) and extend E4 with leg 4: after a completed analysis, >=1 persisted row exists for that ticker in the window, reported with the row's key fields; (c) if the analysis path genuinely does NOT persist (a possible finding -- measure, don't assume), E4 leg 4 reports that as a FAIL with the evidence, and the missing persistence becomes its own queued defect step rather than a silently-passed check. NON-SCOPE: no changes to the persistence writers themselves; no BQ writes from the smoke; no masterplan edits beyond this step's own flip artifacts.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_4000_2_cc_rail_smoke.py -q",
+            "criteria": [
+              "The authoritative persistence surface for the /api/analysis/ path is derived by grep with the command and full match list shown verbatim in the handoff, asserted non-empty, and the chosen surface is justified against at least one rejected alternative.",
+              "scripts/qa/smoke_cc_rail_e2e.py's E4 gains leg 4 behind the --persistence-source seam; the emitted E4 verdict's persisted_row_leg field now reports the measured result instead of NOT-PROVABLE, and the disclosure text is updated to match reality.",
+              "A fixture where the persistence source returns zero rows for the analyzed ticker turns E4 red; a fixture returning >=1 matching row keeps it green; both run through the 4000.2 subprocess harness and are named in the test file's mutation-coverage comment.",
+              "MUTATION COVERAGE: neutering leg 4 (its condition replaced with a constant) turns exactly the zero-rows fixture red; demonstrated once with verbatim output in the handoff, then restored.",
+              "The existing 22 tests of test_phase_4000_2_cc_rail_smoke.py all still pass unmodified except where the E4 verdict shape gained the new field -- any fixture edit is enumerated in the handoff with its reason.",
+              "git diff scope: scripts/qa/, backend/tests/, handoff/ only -- no backend production code."
             ]
           },
           "retry_count": 0,

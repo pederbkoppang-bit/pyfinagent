@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [CC-rail E2E smoke 4000.2](project_cc_rail_e2e_smoke_4000_2.md) — CLAUDE_CODE_BINARY LOSES to PATH + captured at import (false stub hook); llm_call_log BUFFERED so a zero is not evidence; PUT /api/settings writes .env durably; rail-guard has NO out-of-process reader
 - [CC-rail E2E 4000.1](project_cc_rail_e2e_4000_1.md) — flat-fee `claude -p` is a PAUSED policy (Max 5x $100 credit), not a fact; `--bare` becoming the -p default is rail-fatal; modelUsage canonicalModel COLLAPSE; rail marker = 3 shapes; PUT /api/settings writes .env
 - [Outcome write 82.48](project_outcome_write_82_48.md) — return_pct mapping ALREADY decided (47.7) + correct writer exists; 5 consumers not 0; NULL-pnl unreachable; insertAll rejects WHOLE batch
 - [Trial-pool composition 82.46](project_trial_pool_composition_82_46.md) — PREMISE FALSE: DSR's N is the iteration count, not pool size ⇒ +3 strategies moves DSR by ZERO; `blend` is a revert orphan
