@@ -1,0 +1,13 @@
+{
+  "_comment": "phase-82.21 coverage snapshot. Re-measure with backend.backtest.fundamentals_coverage.measure_live_coverage() and update FUNDAMENTALS_COVERAGE_START in the same commit -- the guard compares them.",
+  "table": "sunny-might-477607-p8.financial_reports.historical_fundamentals",
+  "min_report_date": "2024-06-30",
+  "max_report_date": "2026-02-28",
+  "n_rows": 4798,
+  "n_tickers": 503,
+  "date_format": "%Y-%m-%d",
+  "report_date_bq_type": "STRING",
+  "rows_with_non_iso_report_date": 0,
+  "measured_at": "2026-08-06",
+  "measured_by": "phase-82.21 GENERATE, live BigQuery"
+}

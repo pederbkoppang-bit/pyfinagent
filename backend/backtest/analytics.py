@@ -840,9 +840,17 @@ def generate_report(
     # strategy_candidate_producer -- read ONLY report["analytics"], so a top-level
     # key alone would leave a macro-free run looking normal to exactly the code that
     # compares candidates against each other.
-    _availability = dict(getattr(result, "data_availability", None) or {"macro": True})
+    # phase-82.21 extends the same double-write to fundamentals coverage, for the
+    # identical reason: those two consumers compare candidates against each other,
+    # and an uncovered run must not look normal to exactly that code.
+    _availability = dict(
+        getattr(result, "data_availability", None) or {"macro": True, "fundamentals": True}
+    )
     report["data_availability"] = _availability
     report["analytics"]["macro_available"] = bool(_availability.get("macro", True))
+    report["analytics"]["fundamentals_available"] = bool(
+        _availability.get("fundamentals", True)
+    )
 
     report["trades"] = round_trips
     report["trade_statistics"] = trade_stats

@@ -206,7 +206,12 @@ class BacktestResult:
     all_trades: list[dict] = field(default_factory=list)
     # phase-82.13: a run whose macro features were refused must not be readable as a
     # normal one. Defaulted, so every existing construction site is unaffected.
-    data_availability: dict = field(default_factory=lambda: {"macro": True})
+    # phase-82.21 extends the same record with "fundamentals" -- `historical_fundamentals`
+    # has no row before 2024-06-30, so a run over an earlier window trains on a
+    # silently narrower feature set. Same defaulting technique, same reason.
+    data_availability: dict = field(
+        default_factory=lambda: {"macro": True, "fundamentals": True}
+    )
 
 
 class BacktestEngine:
@@ -405,6 +410,69 @@ class BacktestEngine:
             "macro_rows": macro_rows,
         }
 
+    def _preload_fundamentals_and_record(self) -> dict:
+        """phase-82.21. Decide whether this run's window is inside fundamentals
+        coverage, REFUSE if the active strategy cannot be labelled without them,
+        and return the availability record.
+
+        Deliberately mirrors `_preload_macro_and_record` above, for the same
+        reason: extracted as its own method so the refusal path is drivable by a
+        test against the engine's REAL code path, not a test-only copy.
+
+        The refusal set is DERIVED (`label_fundamentals_dependent_strategies`
+        applies a written-down AST rule), never a hardcoded `{"qarp"}` -- a
+        literal would go stale the next time a strategy is added, and a stale
+        gate is worse than none because it reads as coverage.
+
+        Two outcomes, and the difference matters:
+          * REFUSE -- raise, for a strategy whose LABEL function cannot be
+            computed at all without fundamentals. Producing zero labels and
+            calling it a backtest is the failure this prevents.
+          * RECORD -- for everyone else. Every strategy is FEATURE-dependent via
+            `_NUMERIC_FEATURES`, so an uncovered window silently drops 15 of 37
+            columns (:852) or imputes a fabricated median company (:881-882).
+            That is not fatal, but it must not read as a normal run.
+        """
+        from backend.backtest.fundamentals_coverage import (
+            FUNDAMENTALS_COVERAGE_START,
+            label_fundamentals_dependent_strategies,
+            window_is_covered,
+        )
+
+        window_start = self.scheduler.start_date.isoformat()
+        covered = window_is_covered(window_start)
+        dependent = label_fundamentals_dependent_strategies()
+
+        if not covered and self.strategy in dependent:
+            raise ValueError(
+                f"backtest REFUSED: strategy '{self.strategy}' cannot be labelled "
+                f"without fundamentals, and the requested window starts "
+                f"{window_start} which is before the measured coverage start "
+                f"{FUNDAMENTALS_COVERAGE_START}. historical_fundamentals has no row "
+                f"before that date (measured; see "
+                f"backend/backtest/_fundamentals_coverage.json). Running would "
+                f"produce labels from absent inputs, not a backtest. Re-run with a "
+                f"window starting on or after {FUNDAMENTALS_COVERAGE_START}, or "
+                f"choose a strategy that does not read fundamentals."
+            )
+
+        if not covered:
+            logger.warning(
+                "backtest: running FUNDAMENTALS-INCOMPLETE -- window starts %s, "
+                "coverage starts %s. The strategy '%s' does not need fundamentals "
+                "to label, but the shared feature matrix does: uncovered rows are "
+                "median-imputed. This result is labelled data_availability."
+                "fundamentals=False. Do not compare it against a covered run.",
+                window_start, FUNDAMENTALS_COVERAGE_START, self.strategy,
+            )
+
+        return {
+            "fundamentals": covered,
+            "fundamentals_coverage_start": FUNDAMENTALS_COVERAGE_START,
+            "fundamentals_window_start": window_start,
+            "fundamentals_label_dependent": sorted(dependent),
+        }
+
     def run_backtest(
         self,
         universe_tickers: list[str] | None = None,
@@ -449,6 +517,10 @@ class BacktestEngine:
         cache.preload_fundamentals(universe_tickers)
         _availability = self._preload_macro_and_record()
         _macro_available = _availability["macro"]
+        # phase-82.21: same shape, same record. This RAISES for a
+        # label-fundamentals-dependent strategy on an uncovered window -- before
+        # any window runs, so the refusal is cheap and unambiguous.
+        _availability.update(self._preload_fundamentals_and_record())
 
         result = BacktestResult(
             strategy_params=self._strategy_params,

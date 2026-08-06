@@ -61,7 +61,17 @@ class HistoricalDataProvider:
         fundamentals = fundamentals_list[0] if fundamentals_list else {}
         macro = self.get_point_in_time_macro(cutoff_date)
 
-        features: dict = {"ticker": ticker, "date": cutoff_date}
+        # phase-82.21: seed the availability flag HERE, not only at the
+        # fundamentals block below, so it is present on EVERY return path
+        # including the short-price early return at the end of this block.
+        # Otherwise `fv.get("fundamentals_available")` has three possible
+        # results (True / False / absent), and "absent" would reintroduce the
+        # exact ambiguity this flag exists to remove.
+        features: dict = {
+            "ticker": ticker,
+            "date": cutoff_date,
+            "fundamentals_available": False,
+        }
 
         # ── Price-derived features ───────────────────────────────
         if prices.empty or len(prices) < 20:
@@ -137,6 +147,26 @@ class HistoricalDataProvider:
         features["amihud_illiquidity"] = self._compute_amihud_illiquidity(prices)
 
         # ── Fundamentals ─────────────────────────────────────────
+        # phase-82.21: record availability EXPLICITLY on both branches.
+        #
+        # Before this, an absent fundamentals row and a present-but-null field
+        # were byte-identical to every consumer: the 17 keys below were simply
+        # never assigned, and `backtest_engine._build_matrix` turns both a
+        # missing key and a `None` into the same `np.nan` one line later
+        # (`fv.get(f, np.nan)`). So "we have no data for 2018-2023" and "this
+        # company lost money, so it has no P/E" were indistinguishable.
+        #
+        # With this flag the discriminating predicate exists:
+        #   pe_ratio is None AND fundamentals_available is True  -> GENUINE null
+        #       (pe_ratio is only assigned when net_income > 0, see below)
+        #   pe_ratio is None AND fundamentals_available is False -> STRUCTURAL
+        #
+        # DO NOT add "fundamentals_available" to backtest_engine._NUMERIC_FEATURES.
+        # `historical_fundamentals` starts at 2024-06-30, so the flag is a perfect
+        # proxy for `date >= 2024-07`; as a model input it is a regime dummy and
+        # the classifier would learn the coverage boundary instead of the
+        # economics. A guard in the 82.21 test module asserts it stays out.
+        features["fundamentals_available"] = bool(fundamentals)
         if fundamentals:
             shares = fundamentals.get("shares_outstanding")
             revenue = fundamentals.get("total_revenue")

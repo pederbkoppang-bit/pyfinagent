@@ -21607,7 +21607,7 @@
         },
         {
           "id": "82.21",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "name": "DATA DEFECT measured during 82.3: `financial_reports.historical_fundamentals` contains 4798 rows across 503 tickers, and EVERY row is dated 2024-06-30 or later -- `COUNTIF(report_date < '2024-06-30')` = 0. The walk-forward backtest window is 2018-01-01..2025-12-31, so **81.2% of the sample has NO fundamentals at all** (549 of 2921 days covered). The derived ratios at backend/backtest/historical_data.py:158-167 (pe_ratio, debt_equity, roe, profit_margin) are therefore None for four-fifths of every backtest ever run here, and `quality_score` with them. CONSEQUENCE: `factor_model` and `quality_momentum` -- both already shown by 82.16 to carry NO forward information -- have additionally been training on absent inputs; and the phase-82.2 `qarp` candidate cannot train at all (measured: 0 samples, 0 trades on a 2022-2023 smoke run). ROOT CAUSE IS THE SOURCE, NOT A MISSED BACKFILL: `ingest_fundamentals` (data_ingestion.py:215) pulls `yf.Ticker(t).quarterly_financials` / `.quarterly_balance_sheet`, and yfinance serves only ~5-7 recent quarters (measured live on AAPL 2026-08-03: quarterly_financials 5 columns 2025-06-30..2026-06-30; quarterly_balance_sheet 7 columns 2024-12-31..2026-06-30; annual financials 5 columns 2021-09-30..2025-09-30). The table starting at 2024-06-30 is the provider's whole window accumulated forward since ingestion began -- a re-run CANNOT deepen it. DECISION REQUIRED (operator, cost-bearing): accept that fundamentals-dependent strategies are only evaluable from 2024-07 onward; OR adopt a source with real history (SEC EDGAR XBRL company-facts is FREE but needs a parser and a mapping to these 7 raw fields; Sharadar/FMP are PAID and collide with the standing $0-metered constraint). Until decided, no artifact may present a fundamentals-dependent backtest over a pre-2024-07 window as evidence.",
@@ -22153,6 +22153,81 @@
               "a night on which a success memo IS present emits no alert, and a fixture asserts the grace period so the check cannot fire merely because it ran before the scheduled time",
               "the measured number of dates in handoff/autoresearch/ carrying no memo, no ERROR file and no WARN file is recorded in the step artifact together with the command that produced it",
               "an explicit operator-disabled state suppresses the alert without suppressing it for any other reason, asserted by a test that also proves the alert still fires when the job is enabled"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.50",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "BUILD THE SEC EDGAR XBRL FUNDAMENTALS INGESTER -- the operator's recorded decision on step 82.21. VERBATIM OPERATOR INSTRUCTION (82.21 contract section 2): '82.21 fundamentals source: free only -> either accept that fundamentals-dependent strategies are evaluable from 2024-07 on, or build SEC EDGAR XBRL. Do NOT adopt a paid source.' Main chose EDGAR because the OTHER branch's premise is FALSIFIED, and an executor must understand why before starting: (a) financial_reports.historical_fundamentals holds 4798 rows / 503 tickers with min(report_date)='2024-06-30' and ZERO rows before it (measured live 2026-08-06, snapshot checked in at backend/backtest/_fundamentals_coverage.json); (b) the yfinance source CANNOT be deepened -- quarterly_financials serves only ~5-7 recent quarters, so re-running the ingester adds nothing; (c) worse, the existing rows are NOT point-in-time: data_ingestion.py around :278 writes 'filing_date': report_date with the comment 'true filing date not available from yfinance', so even the covered window leaks a MEASURED 66-day mean publication lag (median 60, p90 90); (d) MinBTL (Bailey/Borwein/Lopez de Prado/Zhu, Notices of the AMS 61(5) 2014, Thm 2) admits only ~2.3 independent trial configurations at 1.67 years, so the 2024-07..2026-02 window cannot clear this project's own DSR>=0.95 / PBO<=0.5 promotion gates at any parameter count the optimizer actually uses. MEASURED FEASIBILITY of the EDGAR branch, do not re-derive from scratch: https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json returns every reported fact with BOTH `filed` and `accn`, which is what makes point-in-time reconstruction possible at all -- verified live on AAPL, where Assets@2008-09-27 was first reported $39.572B (10-Q filed 2009-07-22) and later restated to $36.171B (10-K/A filed 2010-01-25), and 18 of 70 end-dates carry multiple vintages. THE COST IS NOT BANDWIDTH (~504 requests, minutes) BUT TAG NORMALISATION, budget 3-5 days plus an ANNUALLY RECURRING taxonomy obligation (us-gaap versions each year; EDGAR Release 26.1 shipped 2026-03-16). Known traps, each of which has bitten published implementations: `total_debt` has NO single us-gaap tag and must be composed (e.g. LongTermDebtNoncurrent + LongTermDebtCurrent + CommercialPaper, whose start dates differ); revenue drifts across at least three tags for a SINGLE filer across the ASC 606 transition; duration facts of 3/6/9/12 months share the same `end` value, so a naive read mixes quarterly and annual magnitudes (~4x error); only about half of facts carry `frame`; amended filings and IFRS filers need explicit handling. OPERATIONAL: sec.gov returns HTTP 403 to a default user agent -- a declared 'User-Agent: <name> <email>' returns 200 (the repo already knows this, see .claude/rules/security.md). SCOPE: ingest AS-FILED facts with their filing vintage into a table that can answer 'what was known about ticker T on date D', covering the 7 fields the existing pipeline consumes (shares_outstanding, total_revenue, net_income, total_debt, total_equity, total_assets, operating_cash_flow) back to at least 2018 for the S&P universe. Do NOT silently replace historical_fundamentals -- land it alongside and switch readers deliberately, because backend/backtest/cache.py:283-292 projects filing_date OUT of preload_fundamentals while the per-cutoff fallback around :626-634 does not, so a vintage-aware reader must widen BOTH or the bulk and fallback paths will silently disagree. Independent supporting evidence that as-filed beats standardized: Du/Huddart/Jiang (2021) find accruals computed from as-filed XBRL predict returns while the same accruals from a standardizing aggregator do not.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_50_edgar_xbrl_ingest.py -q",
+            "criteria": [
+              "a fixture containing a real companyfacts payload with two vintages of the same (tag, end) produces the FIRST-REPORTED value for a cutoff before the amendment and the restated value for a cutoff after it, asserted by a test that fails if the reader ignores `filed`",
+              "each of the 7 consumed fields is mapped to its us-gaap tag or composition rule, the mapping is asserted non-empty, and a field with no clean single tag is composed explicitly rather than silently omitted",
+              "a fixture in which the same `end` carries 3-month and 12-month duration facts selects the intended duration, asserted by a test that fails if the two are conflated",
+              "the ingester declares a compliant User-Agent, asserted by a test that inspects the outgoing request rather than the source text",
+              "measured coverage of the resulting table is recorded in the step artifact with the query that produced it, and compared against the 2024-06-30 baseline in backend/backtest/_fundamentals_coverage.json"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.51",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "name": "PUBLICATION-LAG LOOK-AHEAD on EVERY fundamentals read, including the covered window. Found by the 82.21 research gate and explicitly OUT of that step's scope (82.21 was about making absence VISIBLE; this changes what every backtest actually reads, which is a different and riskier change). MEASURED: backend/backtest/cache.py around :612 and :631 -- RE-DERIVE, they move -- filter fundamentals with `report_date <= cutoff`. But report_date is the PERIOD END, not the date the figure became public. A company's Q2 ending 2025-06-30 is not filed until weeks later, so a backtest cutoff of 2025-07-05 currently reads a number no market participant could have seen. Measured lag on the live table: mean 66 days, median 60, p90 90. CONSEQUENCE: every fundamentals-derived feature (pe_ratio, roe, debt_equity, profit_margin, quality_score and the rest of the 17 keys assigned inside the `if fundamentals:` block of historical_data.py) carries forward-looking information, which inflates any Sharpe computed over them and is exactly the leakage class this project's walk-forward design exists to prevent. THIS IS INDEPENDENT OF THE SOURCE DECISION: it is wrong for the current yfinance table and it would still be wrong after 82.50 lands, though 82.50 gives a TRUE filing date that makes the correct fix available (filter on filed <= cutoff instead of an embargo approximation). SCOPE: decide deliberately between (a) a fixed N-day embargo on report_date, and (b) filtering on a real filing date where one exists, falling back to the embargo where it does not -- and record which, with the reason. MEASURE THE IMPACT, do not assert it is small: re-run at least one backtest before and after and record both Sharpe and trade-count deltas in the step artifact. NOTE the change makes strictly LESS data visible at each cutoff, so a window that currently trains may stop training -- that is a correct outcome, not a regression, but it must be measured and stated. Cross-reference 82.21, which recorded data_availability.fundamentals; this step should extend that record rather than invent a parallel signal.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_51_fundamentals_embargo.py -q",
+            "criteria": [
+              "a fixture whose fundamentals row has a period end before the cutoff but a publication date after it is EXCLUDED, asserted by a test that fails against the current `report_date <= cutoff` filter",
+              "a fixture whose row was demonstrably public before the cutoff is still INCLUDED, so the fix cannot pass by excluding everything",
+              "both the bulk preload path and the per-cutoff fallback path apply the same rule, asserted by driving each independently and comparing their outputs on the same fixture",
+              "the before/after Sharpe and trade-count deltas from at least one real backtest are recorded in the step artifact with the commands that produced them",
+              "the chosen approach (fixed embargo vs real filing date) is recorded with its reason in the step artifact"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.52",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "A STRUCTURALLY BEARISH LABEL MANUFACTURED FROM MISSING DATA. Found by the 82.21 research gate; out of 82.21's scope because that step's criteria concern the feature builder and the result record, not label functions. MEASURED: backend/backtest/backtest_engine.py, `_compute_quality_momentum_label` around :1283 -- RE-DERIVE -- reads `quality_score = fv.get('quality_score', 0) or 0`. `quality_score` is one of the 17 keys assigned ONLY inside the `if fundamentals:` block of historical_data.build_feature_vector, and historical_fundamentals has NO row before 2024-06-30. So on the pre-2024-07 four-fifths of the standard 2018-2025 window the value is 0, which makes the `quality_score > 0.3` arm UNREACHABLE and the `quality_score < 0.1` arm ALWAYS TRUE: the function cannot emit +1 and emits -1 on any negative momentum. It does not fail; it produces confident bearish labels out of absent inputs. Note the `or 0` also converts a GENUINE null (a real company with an unavailable quality score) into the same 0, so the defect is not limited to the uncovered window. WHY THIS IS NOT DEAD CODE: quality_momentum is currently demoted via NON_COMPARABLE_STRATEGIES (backtest_engine.py around :52-67) for an unrelated 82.16 reason, and the comment there states 'The methods are KEPT so the demotion is reversible and nothing referencing them by name breaks.' So this is a live landmine for whoever re-registers it. `factor_model` (around :1357-1397) reads pb_ratio / pe_ratio / quality_score / dividend_yield and is demoted for the same reason -- CHECK IT FOR THE SAME PATTERN rather than assuming it differs; it does at least have an explicit `if pb is None and pe is None: return None` guard, which is the shape quality_momentum lacks. SCOPE: make absent inputs produce NO LABEL rather than a default-valued one, for every label function that reads a key in the fundamentals-only set. Derive that key set with backend.backtest.fundamentals_coverage.fundamentals_only_feature_keys() (phase-82.21, returns 17 keys) rather than listing them by hand, and use label_fundamentals_dependent_strategies() to derive WHICH functions to audit.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_52_missing_input_labels.py -q",
+            "criteria": [
+              "a feature vector with no fundamentals yields NO label (None) from every label function that reads a fundamentals-only key, asserted by a test that fails against the current `or 0` fallback",
+              "a feature vector WITH fundamentals still yields labels across the full range including +1, so the fix cannot pass by always returning None",
+              "a feature vector whose quality_score is a genuine null (fundamentals present, that field absent) is handled identically to the structural-absence case, asserted separately",
+              "the set of label functions audited is DERIVED from fundamentals_only_feature_keys() rather than hardcoded, asserted non-empty, and a test fails if a newly added label function reads a fundamentals-only key without a guard"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "82.53",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "A BACKTEST CAN TRAIN ON 22 OF 37 FEATURES AND LEAVE NO RECORD OF IT. Found by the 82.21 research gate; 82.21 recorded WHETHER fundamentals were covered but not WHAT the model actually trained on, which is a different fact. MEASURED: backend/backtest/backtest_engine.py around :852 -- RE-DERIVE -- builds `feature_cols = [c for c in _NUMERIC_FEATURES if c in df.columns]`. _NUMERIC_FEATURES (around :124-136) lists 37 names, 15 of which are fundamentals-derived. On a window entirely before 2024-06-30 no row carries those keys, so the columns are absent and are SILENTLY DROPPED: the model trains on 22 features and every downstream artifact -- feature importance, DSR, the optimizer's comparison between runs -- is computed over a different feature space than a covered run, with nothing recording the difference. STRICTLY WORSE ON A STRADDLING WINDOW (e.g. the standard 2018-2025): the columns DO exist because post-2024-07 rows supply them, so the pre-coverage rows are NaN and the code at around :881-882 does `X.fillna(train_medians)` then `.fillna(0)`, fabricating a median company for four-fifths of the sample. That is the current behaviour on the default window and it is not visible anywhere. SCOPE: record what was actually trained on -- at minimum the feature count and the names dropped or imputed -- on the run result, and surface it the way 82.13/82.21 surfaced data_availability (top level AND inside report['analytics'], because strategy_backtest_adapter and strategy_candidate_producer read only the latter). DECIDE DELIBERATELY whether median-imputing a structurally absent feature should remain the default at all, and record the reason either way; do NOT change the imputation silently as a side effect of adding the record. MEASURE the actual numbers on both a fully-uncovered and a straddling window rather than asserting 22 and 37 from this description.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_53_feature_set_record.py -q",
+            "criteria": [
+              "a fully-uncovered fixture records the reduced feature count and the dropped names on the result, asserted by a test that fails against the current silent behaviour",
+              "a covered fixture records the full feature set, so the record cannot pass by always reporting a reduction",
+              "a straddling fixture distinguishes IMPUTED columns from DROPPED ones, since the two have different consequences and the current code produces the former on the default window",
+              "the measured feature counts for the uncovered and straddling cases are recorded in the step artifact with the commands that produced them",
+              "the record is surfaced both at the top level and inside report['analytics'], asserted by driving generate_report"
             ]
           },
           "retry_count": 0,

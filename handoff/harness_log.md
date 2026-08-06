@@ -30974,3 +30974,68 @@ draws the shared weekly Max pool. The constraint was specifically `$0 metered`, 
 satisfies.
 
 **Next:** 82.21 (P1).
+
+## Cycle 155 -- 2026-08-06 -- phase=82.21 result=PASS
+
+**TWO CYCLES: CONDITIONAL -> PASS.** The code was right both cycles; both blockers were
+mine, and the second was a gate that could only ever fail silently.
+
+**The decision, and it is not the one the step offered.** The operator gave two free
+branches. Branch A -- "accept that fundamentals-dependent strategies are evaluable from
+2024-07 on" -- has a **falsified premise**: `data_ingestion.py:278` writes
+`filing_date = report_date` ("true filing date not available from yfinance") and the
+cutoff filter is `report_date <= cutoff`, so the COVERED window leaks a measured 66-day
+mean publication lag; and MinBTL admits ~2.3 independent trials at 1.67 years against
+gates of DSR >= 0.95 / PBO <= 0.5. Branch A is not a shorter window, it is **no
+evaluation**. **DECISION: build SEC EDGAR XBRL** (free; the only path to real history AND
+a true `filed` vintage -- verified live on AAPL, Assets@2008-09-27 first reported
+$39.572B, restated $36.171B by a later 10-K/A). Queued as 82.50; not built here.
+
+**Shipped.** Coverage pinned against a live-measured snapshot (4798/503/2024-06-30, 0
+non-ISO rows -- so the lexicographic MIN over the STRING column is valid);
+`fundamentals_available` on EVERY return path of the feature builder, including the
+short-price early return, so the flag is never absent; a DERIVED refusal set (`{qarp}`)
+with `data_availability.fundamentals` recorded for everyone else, double-written into
+`report["analytics"]` because two consumers read only that.
+
+**Cycle 1 CONDITIONAL -- two blockers.** (1) The required Python lint gate was RED on a
+file this step created (`F401 SNAPSHOT_PATH imported but unused`). I never ran it; the
+Q/A did. (2) **The one that matters:** my derivation excluded every callee named
+`_compute*` from the transitive hop while its docstring promised transitivity. EVERY
+label function in `STRATEGY_REGISTRY` is named `_compute_*`, so the exclusion matched the
+module's dominant convention exactly and could only produce FALSE NEGATIVES -- silently
+letting a fundamentals-dependent strategy run on an uncovered window, the precise failure
+the gate exists to prevent. No trade-off behind it; simply wrong.
+
+**Why my own 16-mutant matrix could not see it: NO GUARD DROVE A TRANSITIVE HOP AT ALL.**
+The whole branch was uncovered, so no mutation of it could fail. A matrix only proves the
+mutants you thought to write, and I had written none for behaviour the docstring
+promised. This is the same shape as 82.25/82.10/82.16: **the guard stops one seam short of
+what the code CLAIMS**. The new rule to carry: when a docstring promises a behaviour,
+that promise is a criterion -- drive it or delete the sentence.
+
+**Also found by a mutant, not by reading:** M16 exposed that `outside` was computed as
+`assigned(fn) - inside`, misclassifying a key assigned in BOTH places as
+fundamentals-only. Latent, not active.
+
+**Both fixes changed NO live answer** -- F is 17 keys and the set is `{qarp}` before and
+after, which the cycle-2 Q/A verified independently by re-deriving with full recursion and
+comparing by symmetric difference (`mine ^ production` = []). 18/18 mutants killed after
+adding M17/M18; ruff exits 0 over a git-derived non-empty scope.
+
+**A prior step's test I deliberately changed:**
+`test_phase_82_13_...::test_result_carries_data_availability_by_default` asserted the
+default dict by EXACT equality, which also pinned its size. Its intent is preserved and
+strengthened (no key may default to a degraded value, for any key present now or later);
+82.13's own design note says the field is defaulted precisely so it can be extended.
+
+**Queued:** 82.50 (EDGAR XBRL ingester), 82.51 (the 90-day publication-lag embargo -- the
+leak above, independent of the branch choice), 82.52 (`quality_momentum` manufactures a
+structurally bearish label from missing data via `or 0`), 82.53 (a run can train on 22 of
+37 features with no record).
+
+**Owed by the operator:** Branch A as worded is not available. If the EDGAR work is not
+worth funding, the honest form of that choice is "fundamentals-dependent strategies are
+retired", not "evaluable from 2024-07". Dropping 82.50 leaves this step's code unchanged.
+
+**Next:** 82.39 (P1) / 82.43 (P1).

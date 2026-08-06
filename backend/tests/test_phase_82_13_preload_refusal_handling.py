@@ -182,12 +182,30 @@ def test_fallback_still_fires_when_macro_is_available():
 # ---------------------------------------------------------------------------
 
 def test_result_carries_data_availability_by_default():
+    """phase-82.13 guard; the assertion was widened by phase-82.21.
+
+    ORIGINAL INTENT, unchanged and still enforced: a default result must claim
+    availability, so ONLY an explicit refusal marks a run degraded.
+
+    WHAT CHANGED: this used to assert `== {"macro": True}` by exact equality,
+    which also pinned the dict's SIZE. That was incidental over-specification --
+    82.13's own design note says the field is defaulted precisely so it can be
+    extended without disturbing existing construction sites. phase-82.21 adds
+    `"fundamentals"` on exactly that basis. The rewrite below is strictly
+    STRONGER on the intent (it now requires that NO key defaults to False, for
+    any key present now or later) while no longer breaking when the record
+    legitimately grows.
+    """
     from backend.backtest.backtest_engine import BacktestResult
 
     r = BacktestResult()
-    assert r.data_availability == {"macro": True}, (
+    assert r.data_availability.get("macro") is True, (
         "a default result must claim macro availability, so only an explicit "
         "refusal marks a run degraded"
+    )
+    assert r.data_availability, "the record must not default to empty"
+    assert all(v is True for v in r.data_availability.values()), (
+        f"no availability key may default to a degraded value: {r.data_availability}"
     )
 
 
