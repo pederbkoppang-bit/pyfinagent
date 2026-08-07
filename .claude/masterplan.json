@@ -22610,6 +22610,23 @@
           }
         },
         {
+          "id": "36.30",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "ENV-FLAG TEST-LEAKAGE CLASS DEFECT (own step per standing rule), discovered during the 72.0.2 cycle 2026-08-07: tests that construct Settings(**overrides) inherit every UNSPECIFIED field from the operator's live backend/.env, so an operator flag promotion silently flips test premises. MEASURED instance: the operator has promoted paper_risk_judge_reject_binding to TRUE in backend/.env (source default at settings.py:324 is False; get_settings().paper_risk_judge_reject_binding == True measured 2026-08-07) -- the 57.1 binding-REJECT gate is therefore LIVE, and THREE tests in backend/tests/test_phase_57_1_reject_binding.py went red because their _make_settings() flag-OFF fixtures resolve the flag from the env: test_reject_binding_main_path_off_emits_on_blocks, test_reject_binding_swap_path_off_emits_on_blocks, test_off_identity_prompts_are_verbatim_constants. This is the same CLASS as 36.28's kill-switch/pause-state leakage (live operator state reaching uninjected tests) with a different mechanism (.env field resolution vs BQ state). WHAT TO BUILD: (a) make the 57.1 fixtures pin every flag their assertions depend on explicitly (the minimal fix: _make_settings sets paper_risk_judge_reject_binding=False in base); (b) sweep backend/tests for the class -- every test asserting a FLAG DEFAULT (is False / is True on a Field default) while constructing Settings through the env, and pin or bypass (_env_file=None) as appropriate; derive the sweep population with a stated membership rule, do not assert a count; (c) do NOT weaken any test that deliberately measures the live env. NON-SCOPE: no behavior change to settings.py resolution order; no re-litigation of the operator's 57.1 promotion (it is the operator's call, recorded in memory).",
+          "verification": {
+            "command": ".venv/bin/python -m pytest backend/tests/test_phase_57_1_reject_binding.py -q",
+            "criteria": [
+              "The three named 57.1 tests pass with the operator's live backend/.env exactly as-is (no .env edit), because every flag their assertions depend on is pinned in the fixture.",
+              "Mutation-proven: un-pinning the flag in the fixture (reverting the fix) turns at least one named test red under the live env.",
+              "The class sweep's membership rule is stated in experiment_results and the resulting population enumerated (per-item, not a bare count); every member is either fixed, or recorded as deliberately env-reading with a one-line justification.",
+              "backend/.env is not modified; no settings.py Field default changes."
+            ]
+          }
+        },
+        {
           "id": "84.1.1",
           "status": "pending",
           "priority": "P3",
