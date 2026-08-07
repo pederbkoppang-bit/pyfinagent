@@ -1,0 +1,41 @@
+{
+  "kill_rule": "phase-83 market-news thematic engine -- pre-registered stop conditions",
+  "written_at_step": "83.1.1",
+  "written_on": "2026-08-07",
+  "write_once": "any later edit pushes this file's mtime past the result artifacts and turns the criterion-6 ordering test red BY DESIGN -- the kill rule cannot be tuned after results exist",
+  "binds": "the STOP decision for phase-83; the ranking is bound separately by preregistration_phase83_ranking.json (step 83.1)",
+  "clauses": [
+    {
+      "id": "K1",
+      "recorded_quantity": "required_annualized_sr at N=45 (the pre-registered trial cap), T=2883 (GDELT XNYS sessions), V=0.008169 (measured full-sample pooled n=24)",
+      "comparison": ">",
+      "threshold": 0.8246,
+      "threshold_source": "the best full-sample annualized Sharpe the repo has ever produced on an actually-run trial (82.3 stretch_regime, results/20260804T025319Z_phase_82_3_full_sample_3strat.json)",
+      "consequence": "STOP the phase: the gate demands a Sharpe better than anything this system has ever measured, so no amount of building reaches it"
+    },
+    {
+      "id": "K2",
+      "recorded_quantity": "independent_label_spans at the pre-registered 126-trading-day horizon, per candidate source",
+      "comparison": "<",
+      "threshold": 16,
+      "threshold_source": "compute_pbo S=16 temporally-ordered subsets (analytics.py) -- fewer independent spans than CSCV subsets makes the PBO leg structurally uninformative",
+      "consequence": "STOP for that source: it cannot carry a gate-grade evaluation at the pre-registered horizon"
+    },
+    {
+      "id": "K3",
+      "recorded_quantity": "compute_pbo_checked outcome on the phase-83 gate evaluation matrix",
+      "comparison": "refused == true OR gate_grade == false OR pbo > PromotionGate.max_pbo (read at runtime from backend/autoresearch/gate.py)",
+      "threshold": "PromotionGate.max_pbo (0.20 at registration)",
+      "threshold_source": "backend/autoresearch/gate.py:22, the live research-promotion ceiling (NOT the 0.50 staging constant)",
+      "consequence": "STOP: the theme feature does not clear the immutable promotion gate"
+    },
+    {
+      "id": "K4",
+      "recorded_quantity": "actual trial count consumed by the phase-83 search",
+      "comparison": ">",
+      "threshold": 45,
+      "threshold_source": "preregistration_phase83_ranking.json ranking_criteria.trial_budget_cap",
+      "consequence": "STOP: exceeding the pre-registered trial budget invalidates the deflation arithmetic the gate depends on"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": true,
+    "verdict": "PASS",
+    "reason": "All 7 immutable criteria MET, every load-bearing claim independently re-derived by me, and the cycle-3 blocker is closed at root across a population I derived myself rather than took from the author. Deterministic: immutable command `11 passed in 1.38s` bare exit=0 (11 dots over an 11-passed summary, internally consistent); lint clean on a git-DERIVED non-empty scope (git diff is EMPTY here because all step files are untracked, so I unioned `git ls-files --others --exclude-standard -- '*.py'` = 2 files, asserted non-empty BEFORE reading the exit code, passed via xargs) -> `All checks passed!` exit=0; runtime smoke imports clean and live-reproduces horizon=126, V=0.008169/n=24, 0.6886/0.4572/0.6288; 83.1.1's `verification` object byte-IDENTICAL to `git show HEAD:.claude/masterplan.json` and all 7 criteria verbatim in the contract; masterplan delta is exactly ADDED ['83.1.4','83.1.5'] with zero removals or edits; no unintended tracked production change. CYCLE-3 BLOCKER CLOSED: I recomputed the lever pair from scratch by my own bisection over analytics.compute_deflated_sharpe without importing gate_feasibility -- at the measured V=0.008169 the pair is -33.60% history / -8.68% trials (ratio 3.87 = the claimed ~3.9x) and the retired -11.23%/-22.63% pair reproduces UNIQUELY at the un-measured V=0.5, exactly as the correction states; my own grep sweep finds every 83.1.1-owned site corrected (experiment_results:40, contract:13, brief:264-268 and the :469-474 envelope header cover which also retires the prototype PBO ranges), and the 83.1-owned deferral is VERIFIED not merely asserted -- both named sites genuinely carry the claim (prereg trial_budget_rationale; research_brief_phase83.md:74 \"trial count dominates (N 45->10 moves the floor more than 4.4y->41y of history)\"), 83.1 status==\"done\", and test_phase_83_1_design_pack.py::test_c5_ranking_file_hash_and_ordering re-hashes the prereg file, so a mid-step edit would have turned a CLOSED step's suite red. THE THREE NEW GUARDS ARE REAL: my own matrix (control green first) killed qa15 by c1b, qa14 by c5c (c5b stayed green -- mechanism correctly attributed), qa6 by c3+c3b, qa6b by c3b, plus three mutants I invented -- drop-the-max-trial, 5bp single-trial perturbation, and an appended favourable 6th noise seed -- all KILLED. Freeze verified before and after my work: kill rule 13:25:01/2545B/md5 89d711f9d1a3f847c3aa976ae8afe809, results 14:32:53/8783B, exactly the frozen capture, with criterion 6 additionally corroborated by BIRTHTIME (13:25:01 < 13:26:54), which os.utime cannot set. One NOTE-level claim does not reproduce and should be corrected in the follow-up rather than blocking: the \"50x the tolerance\" headroom label is measured 5.00x (see notes).",
+    "violated_criteria": [],
+    "violation_details": [],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5of5",
+      "verification_command",
+      "syntax_ast_parse",
+      "python_lint_gate_F821_F401_F811_derived_scope",
+      "backend_runtime_smoke_import_and_live_reproduce",
+      "criteria_immutability_bytediff_vs_HEAD",
+      "masterplan_delta_enumeration",
+      "unintended_production_change_check",
+      "independent_rederivation_lever_pair_measured_and_default_V",
+      "derived_population_sweep_retired_figures",
+      "deferral_boundary_verification_hash_test_and_site_existence",
+      "mutation_matrix_qa15_qa14_qa6_qa6b",
+      "novel_mutants_dropmax_perturb_addseed_swapT_nonspotcell",
+      "guard_vacuity_check_4c",
+      "claim_audit_4b_numeric_reproduction",
+      "freeze_verification_mtime_size_md5_birthtime",
+      "scoped_regression_and_preexisting_failure_classification",
+      "evaluator_critique_history",
+      "verdict_shopping_check",
+      "third_conditional_rule_check",
+      "code_review_heuristics"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "HARNESS COMPLIANCE 5/5. (1) Research gate: research_brief_83.1.1.md envelope gate_passed=true, external_sources_read_in_full=7 (>=5), urls_collected=27 (>=10), snippet_only=20, recency_scan_performed=true, internal_files_inspected=14; contract cites it. (2) Contract-before-generate: research_brief BIRTHTIME 13:17:47 is the earliest artifact of the step and killrule birth 13:25:01 < results birth 13:26:54. CAVEAT I am recording rather than glossing: the cycle-4 annotations REWROTE contract_83.1.1.md wholesale (birth==mtime==14:30:54), so the contract's original 13:24:39 creation is no longer recoverable from the filesystem; the ordering rests on the three prior Q/A instances (wf_f3d90599-f10, wf_a5e6e718-48d, wf_48465ea7-38e) each having independently stat'd research 13:22:29 < contract 13:24:39 < killrule 13:25:01 at the time, which is adequate but is attestation, not a live stat. The rewrite was mandated by my predecessor's fix directive, so it is not an author-chosen evasion. (3) experiment_results present. (4) Log-last honoured: `grep -cE \"phase=83\\.1\\.1 +result=\"` on harness_log.md returns 0 (only forward references at :30397/:31801); masterplan status still \"pending\"; retry_count 0/3 -> certified_fallback=false. (5) No verdict-shopping: evidence demonstrably CHANGED since cycle 3 -- test file rewritten 13:50:09 -> 14:32:38 gaining three new tests (8 -> 11), results regenerated 13:51:56 -> 14:32:53, experiment_results/live_check gained cycle-4 follow-ups and a new final capture, contract and research brief annotated, researcher memory corrected, masterplan +83.1.5. 3rd-CONDITIONAL RULE: verdict history is FAIL -> CONDITIONAL -> CONDITIONAL (streak 2), so CONDITIONAL was unavailable to me; I confirmed the streak from evaluator_critique_83.1.1.md (harness_log is 0 by design mid-cycle). PASS resets the counter. 1b N/A (no frontend/** in the diff); 1c N/A (zero UI claims in contract, criteria, diff or artifacts). No secrets; no kill-switch/stop-loss/paper-trader/perf-metrics path touched (pure measurement module); criterion 2 forces routing through the repo deflation and I proved the seam is behavioral.\n\nCRITERIA -- ALL 7 MET. C1: 60 cells = 3 V x 4 T x 5 N; N grid {1,2,10,45,100} superset of the required {1,10,45,100}; four T windows (GDELT 2883 / EDGAR 6434 / GPR 10477 free, control 2011 correctly labelled free:false) exceeds the required two; periods_per_year=252 matched to daily T; my own bisection reproduced 0.6886/0.4572/0.6288 and the V=0.5 row 2.0692/1.8368/1.6009 exactly; tests assert shape/type only, no value against a target. C2: function-scoped analytics attribute lookup; the spy fires and asserts periods_per_year==252. C3: V=0.008169 over n=24 re-derived from the source artifact (24 pooled runs, ddof=1, raw variance 0.008169454618656894). C4: horizon 126 read at runtime from the tracked preregistration; engine horizon derived live from inspect.signature(BacktestEngine.__init__).holding_days x1.5=135; all four quotients exact. C5: intended shape {2883,45,16}, 8 payloads with refused/gate_grade/columns_diverse; measured_ranges and reading_note derived from the payloads. C6: killrule st_mtime 13:25:01 < results 14:32:53 AND birthtime 13:25:01 < 13:26:54 (os.utime cannot set birthtime). C7: test_c7 mutates the REAL tracked file forward and calls the SAME helper test_c6 calls (extraction-for-testability, not a re-implemented copy), restores in finally with restoration proven by assert -- and my own before/after md5+st_mtime_ns comparison confirms the restore is exact in a second environment.\n\nTHE ONE CLAIM THAT DOES NOT REPRODUCE (NOTE-level; correct it in the next touch, do not rework anything else). experiment_results_83.1.1.md:87 and the test docstring at backend/tests/test_phase_83_1_1_gate_feasibility.py:194 both state the c3b headroom as \"one dropped trial moves it 1e-5, 50x the tolerance\". MEASURED BY ME over all 24 single-drop variants: the MINIMUM delta is exactly 1.0000e-05 against the 2e-6 tolerance = 5.00x, not 50x (max single-drop delta 2.6230e-03). The two underlying measurements DO reproduce exactly -- the raw 4dp-rounding gap is 1.3565e-07 (\"1.4e-7\" correct) and the min single-drop delta is 1.0000e-05 (\"1e-5\" correct); only the derived ratio label is overstated, by 10x, and in the self-flattering direction on a guard the author added in direct response to my predecessor's finding. I did not treat that as blocking because I attacked the guard first per qa.md 4c and it is NOT vacuous: qa6, qa6b, my drop-the-max-trial mutant (worst case for the tolerance) and my 5bp single-trial perturbation were ALL killed by c3b; the figure is decision-irrelevant to the gate arithmetic; and it sits in prose/docstring, not in a fenced verbatim capture. Under the committed-measurement rule (the measurements reproduce; the arithmetic label on top of them does not) this is NOTE, not a criterion miss.\n\nRESIDUAL MUTANTS THAT SURVIVED MY MATRIX (none is sole coverage of any criterion; queue or disclose). (a) new-D: falsifying a T-window's session count WITH consistent span arithmetic SURVIVES -- the session-count SET is unpinned, which extends the carried r7 \"unpinned source set\" residual from the source names to the counts themselves; c4 only checks internal quotient consistency, so a wrong XNYS census would pass. (b) qa15b: falsifying a NON-spot grid cell SURVIVES -- test_c1b pins 3 of 60 cells; since criterion 1 forbids threshold assertions, equality-to-recomputation over all 60 is the natural and cheap extension. (c) cycle-2's r3 (decoy-numbers note with an inverted conclusion) and r4 (internally-consistent wholesale falsification) remain open and are now absent from the Disclosures section for a fourth consecutive cycle -- with r7 that is three residuals carried undisclosed; the standing rule is that these get queued as their own step, not left in a verdict.\n\nCARRIED-FORWARD HOUSEKEEPING (NOTE). (i) The pre-existing 83.0 failure is still unmentioned in experiment_results: my scoped run `-k \"gate_feasibility or phase_83 or analytic or pbo or dsr or deflat\"` = 1 failed / 121 passed, and I classified it MYSELF rather than accepting the prior classification -- backend/tests/test_phase_83_0_news_corpus_persistence.py::test_c5_no_alphavantage_import_chain PASSES in isolation (1 passed in 2.45s) and FAILS IDENTICALLY with 83.1.1 deselected (1 failed / 109 passed), so it is a sys.modules pollution-order weakness in the 83.0 suite and not attributable to this step. (ii) THREE untracked handoff/current/qa_returns/*.output.json files (wajb6v4at, wdyslyfmm, wspwwqze8) are absent from \"Files changed\" and will ride the step commit under `git add -A` -- cycle 3 flagged two, there are now three. (iii) The \"Mutation matrix\" table at experiment_results:24-33 still reads \"4/4 KILLED\" and lists only m1/m2/m3/m5+m4; the cycle-4 kills (qa15/qa14/qa6/qa6b) appear only in the follow-up prose, so the table understates the current coverage. (iv) v_short_window 0.167921/n=32 is still hardcoded in run_all rather than measured at runtime -- correct today, but it can silently drift from its source (carried from cycle 3).\n\nEVIDENCE PROVENANCE. Every measurement in this verdict is mine. I re-ran the immutable command, re-derived the lever pair by independent bisection without importing the step's module, ran my own grep-derived population sweep instead of checking the author's list, ran a 10-mutant matrix (control first) including three mutants of my own construction, and re-stat'd the freeze twice -- before and after all of the above. I wrote NOTHING to the repo: every mutant lived in a tempfile with the test module's _RESULTS rebound in memory, and I verified afterwards that the results artifact's md5 and st_mtime_ns and the kill rule's md5 (89d711f9d1a3f847c3aa976ae8afe809) and st_mtime_ns are byte-identical to their pre-matrix values. No browser capture was needed or taken (no UI surface in this step)."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:83.1.1",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "aa0e1f48a1c4bfe66",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786106055090,
+      "queuedAt": 1786106055080,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "PASS",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 83.1.1, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto…",
+      "lastProgressAt": 1786106564654,
+      "tokens": 159157,
+      "toolCalls": 33,
+      "durationMs": 509564,
+      "resultPreview": "{\"ok\":true,\"verdict\":\"PASS\",\"reason\":\"All 7 immutable criteria MET, every load-bearing claim independently re-derived by me, and the cycle-3 blocker is closed at root across a population I derived myself rather than took from the author. Deterministic: immutable command `11 passed in 1.38s` bare exit=0 (11 dots over an 11-passed summary, internally consistent); lint clean on a git-DERIVED non-empt…"
+    }
+  ],
+  "totalTokens": 159157,
+  "totalToolCalls": 33
+}

@@ -1,0 +1,271 @@
+{
+ "step": "83.1.1",
+ "produced_on": "2026-08-07",
+ "dsr_target": 0.95,
+ "n_grid": [
+  1,
+  2,
+  10,
+  45,
+  100
+ ],
+ "n1_collapse_note": "analytics.compute_deflated_sharpe clamps max(num_trials, 2): every N=1 cell is byte-identical to its N=2 cell by construction",
+ "v_measurement": {
+  "v_measured": 0.008169,
+  "n_trials_measured_over": 24,
+  "trial_sharpes": [
+   0.609,
+   0.609,
+   0.5376,
+   0.6127,
+   0.6127,
+   0.5662,
+   0.5615,
+   0.5663,
+   0.6858,
+   0.3909,
+   0.8246,
+   0.6685,
+   0.4522,
+   0.4604,
+   0.4751,
+   0.6077,
+   0.6781,
+   0.5828,
+   0.5597,
+   0.5597,
+   0.5359,
+   0.5997,
+   0.5206,
+   0.4837
+  ],
+  "mean_sr": 0.5733,
+  "min_sr": 0.3909,
+  "max_sr": 0.8246,
+  "source_artifact": "20260804T025319Z_phase_82_3_full_sample_3strat.json",
+  "caveat": "K=8 configs of three EXISTING strategy families over 2018-2025 -- a measured prior for V, not the phase-83 trial dispersion itself"
+ },
+ "v_short_window": {
+  "v_measured": 0.167921,
+  "n_trials_measured_over": 32,
+  "source_artifact": "20260804T041628Z_phase_82_3_short_window_4strat.json",
+  "note": "short-window pooled set, recorded per contract D4 -- the 20x gap vs the full-sample V is estimation noise on a short sample; recorded both, never averaged"
+ },
+ "required_annualized_sr_grid": {
+  "V=measured_full_sample|T=gdelt(2883)|N=1": 0.5334,
+  "V=measured_full_sample|T=gdelt(2883)|N=2": 0.5334,
+  "V=measured_full_sample|T=gdelt(2883)|N=10": 0.6288,
+  "V=measured_full_sample|T=gdelt(2883)|N=45": 0.6886,
+  "V=measured_full_sample|T=gdelt(2883)|N=100": 0.7153,
+  "V=measured_full_sample|T=edgar(6434)|N=1": 0.3725,
+  "V=measured_full_sample|T=edgar(6434)|N=2": 0.3725,
+  "V=measured_full_sample|T=edgar(6434)|N=10": 0.4679,
+  "V=measured_full_sample|T=edgar(6434)|N=45": 0.5277,
+  "V=measured_full_sample|T=edgar(6434)|N=100": 0.5543,
+  "V=measured_full_sample|T=gpr(10477)|N=1": 0.3021,
+  "V=measured_full_sample|T=gpr(10477)|N=2": 0.3021,
+  "V=measured_full_sample|T=gpr(10477)|N=10": 0.3975,
+  "V=measured_full_sample|T=gpr(10477)|N=45": 0.4572,
+  "V=measured_full_sample|T=gpr(10477)|N=100": 0.4839,
+  "V=measured_full_sample|T=control_82_3(2011)|N=1": 0.6295,
+  "V=measured_full_sample|T=control_82_3(2011)|N=2": 0.6295,
+  "V=measured_full_sample|T=control_82_3(2011)|N=10": 0.7249,
+  "V=measured_full_sample|T=control_82_3(2011)|N=45": 0.7847,
+  "V=measured_full_sample|T=control_82_3(2011)|N=100": 0.8114,
+  "V=measured_short_window|T=gdelt(2883)|N=1": 0.6995,
+  "V=measured_short_window|T=gdelt(2883)|N=2": 0.6995,
+  "V=measured_short_window|T=gdelt(2883)|N=10": 1.1322,
+  "V=measured_short_window|T=gdelt(2883)|N=45": 1.4034,
+  "V=measured_short_window|T=gdelt(2883)|N=100": 1.5244,
+  "V=measured_short_window|T=edgar(6434)|N=1": 0.5386,
+  "V=measured_short_window|T=edgar(6434)|N=2": 0.5386,
+  "V=measured_short_window|T=edgar(6434)|N=10": 0.9711,
+  "V=measured_short_window|T=edgar(6434)|N=45": 1.2421,
+  "V=measured_short_window|T=edgar(6434)|N=100": 1.3631,
+  "V=measured_short_window|T=gpr(10477)|N=1": 0.4681,
+  "V=measured_short_window|T=gpr(10477)|N=2": 0.4681,
+  "V=measured_short_window|T=gpr(10477)|N=10": 0.9005,
+  "V=measured_short_window|T=gpr(10477)|N=45": 1.1716,
+  "V=measured_short_window|T=gpr(10477)|N=100": 1.2925,
+  "V=measured_short_window|T=control_82_3(2011)|N=1": 0.7956,
+  "V=measured_short_window|T=control_82_3(2011)|N=2": 0.7956,
+  "V=measured_short_window|T=control_82_3(2011)|N=10": 1.2284,
+  "V=measured_short_window|T=control_82_3(2011)|N=45": 1.4997,
+  "V=measured_short_window|T=control_82_3(2011)|N=100": 1.6208,
+  "V=module_default_NOT_MEASURED|T=gdelt(2883)|N=1": 0.8542,
+  "V=module_default_NOT_MEASURED|T=gdelt(2883)|N=2": 0.8542,
+  "V=module_default_NOT_MEASURED|T=gdelt(2883)|N=10": 1.6009,
+  "V=module_default_NOT_MEASURED|T=gdelt(2883)|N=45": 2.0692,
+  "V=module_default_NOT_MEASURED|T=gdelt(2883)|N=100": 2.2782,
+  "V=module_default_NOT_MEASURED|T=edgar(6434)|N=1": 0.6932,
+  "V=module_default_NOT_MEASURED|T=edgar(6434)|N=2": 0.6932,
+  "V=module_default_NOT_MEASURED|T=edgar(6434)|N=10": 1.4396,
+  "V=module_default_NOT_MEASURED|T=edgar(6434)|N=45": 1.9075,
+  "V=module_default_NOT_MEASURED|T=edgar(6434)|N=100": 2.1164,
+  "V=module_default_NOT_MEASURED|T=gpr(10477)|N=1": 0.6227,
+  "V=module_default_NOT_MEASURED|T=gpr(10477)|N=2": 0.6227,
+  "V=module_default_NOT_MEASURED|T=gpr(10477)|N=10": 1.369,
+  "V=module_default_NOT_MEASURED|T=gpr(10477)|N=45": 1.8368,
+  "V=module_default_NOT_MEASURED|T=gpr(10477)|N=100": 2.0456,
+  "V=module_default_NOT_MEASURED|T=control_82_3(2011)|N=1": 0.9503,
+  "V=module_default_NOT_MEASURED|T=control_82_3(2011)|N=2": 0.9503,
+  "V=module_default_NOT_MEASURED|T=control_82_3(2011)|N=10": 1.6973,
+  "V=module_default_NOT_MEASURED|T=control_82_3(2011)|N=45": 2.1658,
+  "V=module_default_NOT_MEASURED|T=control_82_3(2011)|N=100": 2.3749
+ },
+ "span_counts": {
+  "horizon_trading_days": 126,
+  "horizon_source": "preregistration_phase83_ranking.json::label_horizon.trading_days",
+  "engine_purge_horizon_days_NOT_used": 135,
+  "per_source": {
+   "gdelt": {
+    "sessions": 2883,
+    "window": "2015-02-17..2026-08-04",
+    "free": true,
+    "independent_spans": 22.88
+   },
+   "edgar": {
+    "sessions": 6434,
+    "window": "2001-01-01..2026-08-04",
+    "free": true,
+    "independent_spans": 51.06
+   },
+   "gpr": {
+    "sessions": 10477,
+    "window": "1985-01-01..2026-08-04",
+    "free": true,
+    "independent_spans": 83.15
+   },
+   "control_82_3": {
+    "sessions": 2011,
+    "window": "2018-01-01..2025-12-31",
+    "free": false,
+    "independent_spans": 15.96
+   }
+  },
+  "unit_note": "numerators are XNYS TRADING sessions; calendar-day numerators overstate GDELT spans by +45%"
+ },
+ "pbo_feasibility": {
+  "intended_shape": {
+   "T": 2883,
+   "N": 45,
+   "S": 16
+  },
+  "pure_noise_multi_seed": [
+   {
+    "seed": 1,
+    "payload": {
+     "pbo": 0.47233877233877236,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": -0.00016336776105686126,
+     "column_corr_max": 0.06103452971078957,
+     "columns_diverse": true,
+     "refused": null
+    }
+   },
+   {
+    "seed": 2,
+    "payload": {
+     "pbo": 0.6524475524475525,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": 0.0009179681936749216,
+     "column_corr_max": 0.07067996629430502,
+     "columns_diverse": true,
+     "refused": null
+    }
+   },
+   {
+    "seed": 3,
+    "payload": {
+     "pbo": 0.41414141414141414,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": -0.00036540789883481343,
+     "column_corr_max": 0.06508076116034928,
+     "columns_diverse": true,
+     "refused": null
+    }
+   },
+   {
+    "seed": 4,
+    "payload": {
+     "pbo": 0.20271950271950273,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": -0.0005545781156188125,
+     "column_corr_max": 0.06710252573664735,
+     "columns_diverse": true,
+     "refused": null
+    }
+   },
+   {
+    "seed": 5,
+    "payload": {
+     "pbo": 0.4289044289044289,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": -0.0001867638666845739,
+     "column_corr_max": 0.06591927514151555,
+     "columns_diverse": true,
+     "refused": null
+    }
+   }
+  ],
+  "one_real_edge_multi_seed": [
+   {
+    "seed": 7,
+    "payload": {
+     "pbo": 0.4303807303807304,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": 0.0013588081207113949,
+     "column_corr_max": 0.06350361619506951,
+     "columns_diverse": true,
+     "refused": null
+    }
+   },
+   {
+    "seed": 8,
+    "payload": {
+     "pbo": 0.30248640248640246,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": 0.0006098938573438524,
+     "column_corr_max": 0.06199837471062205,
+     "columns_diverse": true,
+     "refused": null
+    }
+   },
+   {
+    "seed": 9,
+    "payload": {
+     "pbo": 0.8094794094794094,
+     "n_trials": 45,
+     "n_obs": 2883,
+     "gate_grade": true,
+     "column_corr_mean": -0.0003572539896600273,
+     "column_corr_max": 0.05811758780128986,
+     "columns_diverse": true,
+     "refused": null
+    }
+   }
+  ],
+  "measured_ranges": {
+   "pure_noise_min": 0.2027,
+   "pure_noise_max": 0.6524,
+   "one_real_edge_min": 0.3025,
+   "one_real_edge_max": 0.8095
+  },
+  "reading_note": "PBO -- not DSR -- is the binding gate at this shape: pure noise spans 0.2027-0.6524 across 5 seeds and one real edge among 44 noise columns spans 0.3025-0.8095 against the 0.20 ceiling -- in these seeds the edge case NEVER clears the ceiling and the noise floor lands essentially at it. A single-seed PBO is not a statistic; columns_diverse passed a 0.918-correlated matrix in research and is weak alone."
+ },
+ "kill_rule_file": "killrule_phase83.json"
+}

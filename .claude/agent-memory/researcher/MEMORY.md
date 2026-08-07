@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Gate feasibility 83.1.1](project_gate_feasibility_83_1_1.md) — V measured 20x apart on two windows (0.0082 vs 0.1679) so required-SR swings 0.69→2.07 and flips the verdict; PBO not DSR is the binding gate (measured noise 0.20-0.65, edge 0.30-0.81 -- no edge seed clears the 0.20 ceiling; corrected 2026-08-07); `max(N,2)` collapses N=1; a WebFetch PDF summary FABRICATED the opposite of the paper
 - [Phase-83 design pack 83.1](project_phase83_design_pack_83_1.md) — a naive `*83*` glob is a criteria-killer (71 of 438 result files already match, all older); mtime guards have ZERO prior art + git resets mtimes; `backtest_engine.py:665` is the WRONG purge anchor (real: :962); `coverage.dry` was never recorded
 - [PBO MCP proof 83.0.3](project_pbo_mcp_proof_83_0_3.md) — fix ALREADY shipped (proof step, not fix step); FastMCP 3.2.4 tools are closures (`get_tool().fn`; `_tool_manager` is None); payload `isError` != protocol `is_error`; near-identical columns give a HIGH PBO
 - [News timestamp PIT 83.0.1](project_news_timestamp_pit_83_0_1.md) — BQ DOES allow a NULLABLE partition column (`__NULL__` partition); step premise INCOMPLETE — 3 more wall-clock fabrications in the adapters make fetcher.py's fallback DEAD CODE on the live path; RuleA = first session strictly after the pub UTC date

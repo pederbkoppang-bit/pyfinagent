@@ -22709,7 +22709,7 @@
         },
         {
           "id": "83.1.1",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "depends_on": [
@@ -22728,6 +22728,44 @@
               "the ordering guard is mutation-tested: touching the kill-rule file so its mtime follows the results makes the criterion-6 test FAIL"
             ],
             "live_check": "verbatim console table of required annualized Sharpe by (T, N) with the function call that produced it; the measured V printed alongside the trial count it was measured over; the independent-label-span count per candidate source with the horizon used; the verbatim compute_pbo_checked payload for the intended matrix shape; and an `ls -la` with full timestamps showing the kill-rule file predates every result artifact"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.1.4",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "DEFECT (own step per standing rule), discovered by the 83.1.1 research gate 2026-08-07: the LIVE deflated-Sharpe computation measures the WRONG dispersion. MEASURED: backend/backtest/analytics.py:752-754 feeds compute_deflated_sharpe a variance_of_srs = np.var(window_sharpes) -- the dispersion of walk-forward WINDOW Sharpes inside ONE run -- with a silent fallback to the 0.5 module default when fewer than 2 windows exist. Bailey/Lopez de Prado's V is the cross-TRIAL dispersion (variance of the Sharpes across the N configurations searched), a different quantity: window dispersion measures regime nonstationarity within one strategy, trial dispersion measures the selection pressure the deflation exists to correct. Consequence: every live DSR the optimizer gates on (the DSR>=0.95 keep rule) is deflated by the wrong V, and 83.1.1 measured the true cross-trial V at 0.008169 (n=24) vs the 0.5 fallback -- a factor-60 difference in the deflation floor. SCOPE: (a) derive what the optimizer ACTUALLY passes today (call-site census of compute_deflated_sharpe in production, with the value flowing at each site); (b) route the live computation to a cross-trial V where a trial set exists (the optimizer run's own experiment history is exactly such a set), with the window-V retained only as a labelled diagnostic; (c) make the below-2-windows fallback LOUD (logged + flagged in the result), never silent; (d) mutation-test the routing. Do NOT change the DSR>=0.95 threshold itself -- immutable.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_1_4_live_dsr_variance.py -q",
+            "criteria": [
+              "the production call-site census of compute_deflated_sharpe is recorded with the variance source flowing at each site (measured, not asserted)",
+              "where a trial set exists, the live computation passes a cross-TRIAL variance and a test proves it with a fixture trial history, mutation-tested by reverting to the window variance",
+              "the fewer-than-2-windows fallback emits a log record and a result flag, asserted in one test with a negative control",
+              "the DSR threshold and compute_deflated_sharpe's signature are byte-unchanged, asserted by diff over the function"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.1.5",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": ["83.1.1"],
+          "name": "CORRECTION against the 83.1 pre-registration and pack, discovered by 83.1.1's measurement (cycle-3 Q/A wf_48465ea7-38e): the 'trial budget beats archive depth' lever ordering is V-CONDITIONAL and REVERSES at the measured V. MEASURED 2026-08-07 from the recorded 60-cell grid: at V=0.008169 (the measured full-sample trial dispersion), +263% history (GDELT 2883 -> GPR 10477 sessions, N=45) cuts the required annualized SR by -33.6% (0.6886 -> 0.4572) while cutting N 45->10 cuts it only -8.7% (0.6886 -> 0.6288) -- archive depth buys ~3.9x more than trial frugality. The -11%/-23% pair that grounded the opposite ordering reproduces UNIQUELY at the un-measured V=0.5 default. Sites carrying the unconditional claim: backend/backtest/experiments/preregistration_phase83_ranking.json ranking_criteria.trial_budget_rationale (hash-committed -- correcting it requires an append-only amendment + hash re-record in research_brief_phase83.md, the amendment policy's second exercise) and handoff/current/research_brief_phase83.md section 7 item (2) (quoting the corpus's synthesis, attributed -- needs an annotation, not a rewrite). The 83.1.1-owned artifacts were corrected in that step's cycle 4; this step closes the 83.1-owned pair. NOTE: the trial_budget_cap=45 itself stays -- the cap is justified by deflation arithmetic regardless of which lever dominates; only the RATIONALE sentence's ordering claim is wrong.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_1_design_pack.py backend/tests/test_phase_83_1_1_gate_feasibility.py -q",
+            "criteria": [
+              "the preregistration's trial_budget_rationale is corrected via an append-only amendment (amendments[] entry with date and reason; globs and thresholds byte-unchanged) and the recomputed SHA-256 is re-recorded in research_brief_phase83.md in the same commit, with both design-pack tests still green",
+              "research_brief_phase83.md section 7 carries an annotation stating the lever ordering is V-conditional with the measured -33.6%/-8.7% pair, without rewriting the attributed corpus quote",
+              "a test or committed check proves the recomputed hash matches the amended file (the existing test_c5_ranking_file_hash_and_ordering suffices if re-run green)",
+              "the amendment does not alter label_horizon, trial_budget_cap, artifact_population_rule globs/content_rule, or any threshold -- asserted by a JSON-level diff committed in the step artifact"
+            ]
           },
           "retry_count": 0,
           "max_retries": 3
