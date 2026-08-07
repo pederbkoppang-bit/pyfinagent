@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `0386dc49` | chore(away-ops): recovery sweep -- audit streams + cycle state + 68.1 researcher memory |
 | 2026-08-07 | `8bdc0ccb` | fix(85.5): file P0 -- a live cycle's lock is judged stale, and the stale path defeats its flock |
 | 2026-08-07 | `5d44abdb` | fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross-link the malformed-token suspe |
 | 2026-08-07 | `df12eb48` | fix(85.4): file P0 -- the autonomous cycle has not COMPLETED since 2026-07-31 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `2e1fb9ca` | phase-83.1: Design pack and pre-registration for the market-news thematic engine, written up from... |
 | 2026-08-07 | `95dabea9` | phase-83.0.1: DEFECT (own step per standing rule): the news ingest path silently fabricates times... |
 | 2026-08-07 | `946b760f` | phase-83.0.3: DEFECT (own step per standing rule), BLOCKS THE EVIDENCE PATH FOR 83.5: the exposed... |
-| 2026-08-07 | `06911cb5` | phase-83.0: DEFECT (own step per standing rule), BLOCKS ALL OF phase-83: news influences live tra... |
 
 ---
 
