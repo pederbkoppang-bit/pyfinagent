@@ -202,6 +202,37 @@ def test_startup_is_silent_when_mode_is_bq_sim(caplog):
     assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
 
 
+@pytest.mark.parametrize("present,missing", [
+    ("ALPACA_API_KEY_ID", "ALPACA_API_SECRET_KEY"),
+    ("ALPACA_API_SECRET_KEY", "ALPACA_API_KEY_ID"),
+])
+def test_startup_error_fires_when_only_ONE_credential_is_present(
+    monkeypatch, caplog, present, missing
+):
+    """A PARTIAL credential set is still a broken configuration, and the message
+    must name only what is actually absent.
+
+    This closes a hole the cycle-2 Q/A found by mutation: with only the both-missing
+    and both-present cases covered, flipping the guard's `and` to `or`
+    (`not (A and B)` -> `not (A or B)`) SURVIVED -- that mutant fires only when BOTH
+    keys are absent, so a half-configured setup would have gone silent again and no
+    test would have noticed.
+    """
+    monkeypatch.setenv("EXECUTION_BACKEND", "alpaca_paper")
+    monkeypatch.setenv(present, "PKTESTVALUE")
+    monkeypatch.delenv(missing, raising=False)
+    with caplog.at_level(logging.ERROR, logger=er.logger.name):
+        er.log_resolved_execution_mode()
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(errors) == 1, f"a half-configured alpaca_paper must still be LOUD; got {len(errors)}"
+    msg = errors[0].getMessage()
+    assert missing in msg, f"the error must name the absent variable {missing}"
+    assert present not in msg, (
+        f"the error must NOT name {present}, which is set -- a fixed string would "
+        f"misreport which credential is actually missing"
+    )
+
+
 def test_startup_is_silent_when_alpaca_creds_are_present(monkeypatch, caplog):
     monkeypatch.setenv("EXECUTION_BACKEND", "alpaca_paper")
     monkeypatch.setenv("ALPACA_API_KEY_ID", "PKTESTKEY")
