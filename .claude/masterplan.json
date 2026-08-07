@@ -16518,7 +16518,7 @@
         },
         {
           "id": "72.0.1",
-          "status": "pending",
+          "status": "superseded",
           "name": "Restoration R1 -- meta-scorer rail decoupling [executor: sonnet-4.6/high]. Surface B fix: backend/services/meta_scorer.py:220-225 constructs ClaudeClient with anthropic_api_key directly, bypassing make_client()/paper_use_claude_code_route, so the conviction overlay is credit-dead even when the cc_rail is healthy (collapses to flat conviction=10, erasing ranking). Route the meta-scorer LLM leg through make_client()/the claude-code route OR repin meta_scorer_model to a Vertex-Gemini id. Ship FLAG-GATED DARK (default OFF, do-no-harm) per away-ops rail 1; preserve the honest-null degraded fallback exactly.",
           "harness_required": true,
           "priority": "P0",
@@ -16533,7 +16533,9 @@
             "live_check": "handoff/current/live_check_72.0.1.md: a post-activation cycle log line showing the meta-scorer LLM leg ACTIVE (no 'Meta-scorer ran ENTIRELY on the no-LLM fallback' for that cycle) with the flag ON in a live cycle"
           },
           "retry_count": 0,
-          "max_retries": 3
+          "max_retries": 3,
+          "superseded_by": "78.1+78.16",
+          "superseded_reason": "Surface-B substance shipped under phase-78.1 (make_client routing at meta_scorer.py:242; no direct ClaudeClient construction remains) + 78.16 (caching-intent restoration), gated by the EXISTING paper_use_claude_code_route rail flag rather than the new flag the immutable criteria name -- unmeetable as written, satisfied in substance. Verified 2026-08-07 by the 61.2 research gate and by Main. See harness_log Cycle 174."
         },
         {
           "id": "72.0.2",

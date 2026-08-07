@@ -31818,3 +31818,14 @@ executed under this id -- the executed work ran 82.27's own full cycle.
 - **Q/A findings closed post-verdict (all Q/A-directed):** population claim corrected (9 kill-switch-coupled failures, not 15 -- my count was unclassified reds); the "could not reproduce the lite split" disclosure REFUTED and corrected (`$._path`: 14/156, 8.2%); step 36.28 scope corrected same-day (the mis-classified stub-signature failure is now explicitly in scope so its command is green-able); lint gate run and cleaned.
 - **Queued/updated:** 36.28 (suite greenness decoupled from the live pause state -- 13 files); 72.0.1's dead premise recorded for disposition (phase-78.1 already shipped its fix).
 - **Immutable command VERBATIM GREEN: 71 passed** (was 4-failed for out-of-step reasons at cycle start).
+
+## Cycle 174 -- 2026-08-07 -- phase=72.0.1 result=SUPERSEDED (bookkeeping close, no cycle run)
+
+**Disposition flip only.** 72.0.1 (P0, "meta-scorer rail decoupling, ship FLAG-GATED DARK") is closed `superseded` by **phase-78.1 + 78.16** (commits incl. a5ba0958), which shipped its Surface-B substance under different-and-better flag semantics. Measured basis (verified twice: the 61.2 research gate wf_eca34f10-377, and Main reading the file this cycle):
+
+- `backend/services/meta_scorer.py:242` routes through `make_client(...)` -- NO direct `ClaudeClient` construction remains anywhere in the file (the defect the step exists to fix).
+- The routing is governed by the EXISTING `paper_use_claude_code_route` rail flag rather than a new per-service flag -- one flag governs the rail everywhere (78.1's D-KEY design), and the rewire is DARK today because that flag's live flip is the operator-held 79.55/4000.4 decision (ask #9). The step's "new flag, default OFF" criterion is therefore unmeetable AS WRITTEN, while its do-no-harm intent is satisfied.
+- The honest-null degraded fallback is preserved verbatim (meta_scorer.py:211-218 short-circuit; no fabricated scores), and 78.16 additionally restored the pre-rewire `enable_prompt_caching=False` intent the naive rewire had dropped.
+- 72.0.1's live_check (meta-scorer LLM leg ACTIVE in a live cycle) folds into the rail-activation evidence of ask #9 -- it cannot exist until that operator decision regardless of this step's status.
+
+Why `superseded`, not `done`: criteria are immutable and reference a flag that deliberately never existed; the work ran under 78.1/78.16's own full cycles. Precedent: 82.23 -> 82.27 (Cycle 167). NOTE: 72.0.2 (standard-tier fail-forward) is ORTHOGONAL and remains pending -- the 61.2 research gate confirmed it composes with, and is not subsumed by, any of this.
