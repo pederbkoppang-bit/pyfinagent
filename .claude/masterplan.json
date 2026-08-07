@@ -22668,7 +22668,7 @@
         },
         {
           "id": "83.1",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "depends_on": [],
@@ -22685,6 +22685,24 @@
               "every candidate design enumerated in the brief carries an explicit survives-costs classification drawn from a closed vocabulary recorded in the brief, and a test asserts the count of candidates with no classification is exactly zero"
             ],
             "live_check": "the JSON envelope from handoff/current/research_brief_phase83.md transcribed verbatim; the SHA-256 of the pre-registration file printed alongside the value recorded in the brief; and an `ls -la` listing with full timestamps of the pre-registration file and every phase-83 backtest artifact, demonstrating the ordering"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.1.3",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "depends_on": ["83.1"],
+          "name": "RESIDUALS from the 83.1 PASS verdict (wf_78c498f5-713, 2026-08-07) -- two WARNs + three NOTEs queued per the standing rule, none a criterion miss. WARN-1: the researcher agent-memory file .claude/agent-memory/researcher/project_phase83_design_pack_83_1.md:57 carries the retired '85 unique source_urls' figure unannotated under a heading 'Corpus inventory (so it needn't be re-derived)' -- the most forward-looking consumer of the wrong number; Main annotating another agent's memory is cross-agent tampering, so the fix is a RESEARCHER-DIRECTED correction: the next researcher spawn touching phase-83 must be instructed to correct its own memory to 79 (http-only-distinct rule; 63 full-read + 16 snippet-only). WARN-2: test_phase_83_1_design_pack.py::_recorded uses re.search (first match), so a decoy-first mutant survives (correct decoy early + authoritative line at 0.50 passes) -- harden to re.findall with every occurrence asserted equal to the runtime PromotionGate attribute, and add the decoy-first mutant to the matrix. NOTEs for the 83.5 producer contract: (a) C7 censuses table rows only -- a candidate enumerated in prose escapes; 83.5's contract must bind new candidates to the table; (b) _phase83_artifacts() is non-recursive -- 83.5 must write FLAT into results/ (result_store already does); (c) the content-rule scan skips unparseable JSON silently -- bounded because the glob branch catches phase-83-NAMED files regardless; 83.5 must both name AND tag. Also: the stale '(re-derived after the final edit)' heading over the cycle-1 verification block in experiment_results_83.1.md is superseded by the Follow-ups (append-only practice).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_1_design_pack.py -q",
+            "criteria": [
+              "the researcher's phase-83 memory no longer asserts the retired 85 (corrected by a researcher spawn, not by Main), verified by grep output committed in the step artifact",
+              "the C2 threshold scan asserts EVERY occurrence of each threshold token equals the runtime PromotionGate attribute, and the decoy-first mutant (correct value early, wrong authoritative value) is added to the matrix and KILLED",
+              "the three 83.5 producer-contract notes are carried into 83.5's contract when that step is contracted, verified by reference"
+            ]
           },
           "retry_count": 0,
           "max_retries": 3

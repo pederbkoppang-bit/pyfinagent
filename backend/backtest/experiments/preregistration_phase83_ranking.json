@@ -1,0 +1,42 @@
+{
+  "preregistration": "phase-83 market-news thematic engine -- gate-step ranking",
+  "registered_at_step": "83.1",
+  "registered_on": "2026-08-07",
+  "consumed_by": ["83.1.1", "83.5"],
+  "amendment_policy": "append-only: any amendment is appended to amendments[] with its date and reason, and the SHA-256 recorded in handoff/current/research_brief_phase83.md is recomputed and re-recorded in the same commit. Silent in-place edits are a protocol breach (JOP: original AND revised analyses both reported).",
+  "amendments": [
+    {
+      "date": "2026-08-07",
+      "reason": "Q/A cycle-1 finding (wf_e69008fa-faa): the repo's canonical persistence path backend/backtest/result_store.py:36 names artifacts f'{ts}_{safe_id}.json' -- a shape with NO phase marker that matches neither glob, so a canonical-named phase-83 artifact would escape the ordering guard. Executed proof: a backdated canonical-named artifact left criterion 5 GREEN while the phase-tag shape turned it RED.",
+      "change": "added artifact_population_rule.content_rule and binding_requirement_on_phase83_producers; globs unchanged"
+    }
+  ],
+  "artifact_population_rule": {
+    "globs": [
+      "backend/backtest/experiments/results/*_phase_83_*.json",
+      "backend/backtest/experiments/results/phase83*.json"
+    ],
+    "content_rule": "ADDITIONALLY, any backend/backtest/experiments/results/*.json whose top-level JSON object carries phase_tag == 'phase_83' is a phase-83 backtest artifact regardless of filename -- the binding backstop for canonical result_store naming",
+    "binding_requirement_on_phase83_producers": "every phase-83 backtest run (83.5 and any successor) MUST write top-level phase_tag='phase_83' into its result JSON AND SHOULD use the phase-tag filename shape; an artifact lacking the tag is a protocol breach of this preregistration, not an exemption from it",
+    "rejected_rule": "glob('*83*') -- measured 2026-08-07: matches 71 pre-existing unrelated files in results/ (experiment ordinals -exp83/-exp183, run-id hash prefixes like 0083971f, timestamps), all with mtimes older than this file, which would make the ordering criterion permanently red",
+    "population_measured_at_registration": 0
+  },
+  "ranking_criteria": {
+    "primary_metric": "deflated Sharpe ratio computed by backend/backtest/analytics.py::compute_deflated_sharpe with variance_of_srs MEASURED from the realized dispersion of trial Sharpes -- NOTE the parameter is a VARIANCE (math.sqrt applied at analytics.py:429); the module default 0.5 is a default, not a measurement, and reading it as a standard deviation is off by sqrt(2)",
+    "gate": "DSR >= min_dsr AND PBO <= max_pbo with min_pbo_trials enforced -- all three read at runtime from backend/autoresearch/gate.py::PromotionGate (registered-at values: 0.95 / 0.20 / 10), never hardcoded; PBO from compute_pbo_checked ONLY (a refusal is not a pass) and every producer ALWAYS emits pbo_n_trials (the gate.py:43-45 legacy bypass makes the trials floor inert for producers that omit it -- step 83.0.3 disclosure)",
+    "tie_breakers": [
+      "higher gate-grade trial count N",
+      "lower mean pairwise column correlation (trial diversity)",
+      "lower derived annual cost at the repo 10bp one-way assumption"
+    ],
+    "trial_budget_cap": 45,
+    "trial_budget_rationale": "SR* = sqrt(V) x E[max over N trials] is independent of sample length T; trial count dominates the DSR hurdle -- cutting N from 45 to 10 moves the floor far more than extending history from 4.4y to 41y (synthesis.design_decision.expected_sample_adequacy)"
+  },
+  "label_horizon": {
+    "trading_days": 126,
+    "basis": "6-month hold calibrated by synthesis.design_decision.entry_exit_timing ('EXIT ON A CLOCK, NOT ON THE SIGNAL ... Hard exit at 6 months', 'MINIMUM HOLDING PERIOD >= 8 WEEKS, TIME-BASED'); explicitly DISTINCT from the engine's holding-days-derived 1.5x purge horizon (135 calendar days: backtest_engine.py:274 holding_days=90 x :962 horizon_days=1.5x -- the :665 anchor circulating in step texts is wrong, it is macro-coverage logging)"
+  },
+  "entry_rule_preregistered": "enter on ACCELERATION: positive and rising 6-month attention-intensity difference; never on theme birth (news novelty forecasts -2.821%/yr per sd, negative cross-sectional risk premium) and never on confirmation (thematic-ETF launch marks the valuation peak, -0.50%/mo FFC4 for 60 months following)",
+  "kill_rule_pointer": "step 83.1.1 writes the kill rule to its own file BEFORE any result artifact exists; this preregistration binds the RANKING, the kill rule binds the STOP decision -- neither may be tuned after results",
+  "expected_outcome_preregistered": "synthesis.go_no_go = 'descope'. The honest pre-registered expectation is that 83.5 FAILS the gate on free data at gate-grade trial counts; a null result is planned-for and informative (JOP practice: editorial decisions not based on final empirical results)."
+}

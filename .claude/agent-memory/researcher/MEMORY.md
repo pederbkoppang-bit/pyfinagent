@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Phase-83 design pack 83.1](project_phase83_design_pack_83_1.md) — a naive `*83*` glob is a criteria-killer (71 of 438 result files already match, all older); mtime guards have ZERO prior art + git resets mtimes; `backtest_engine.py:665` is the WRONG purge anchor (real: :962); `coverage.dry` was never recorded
 - [PBO MCP proof 83.0.3](project_pbo_mcp_proof_83_0_3.md) — fix ALREADY shipped (proof step, not fix step); FastMCP 3.2.4 tools are closures (`get_tool().fn`; `_tool_manager` is None); payload `isError` != protocol `is_error`; near-identical columns give a HIGH PBO
 - [News timestamp PIT 83.0.1](project_news_timestamp_pit_83_0_1.md) — BQ DOES allow a NULLABLE partition column (`__NULL__` partition); step premise INCOMPLETE — 3 more wall-clock fabrications in the adapters make fetcher.py's fallback DEAD CODE on the live path; RuleA = first session strictly after the pub UTC date
 - [News corpus persistence 83.0](project_news_corpus_persistence_83_0.md) — BQ CANNOT add a REQUIRED column to an existing table (absent table = perishable one-shot window); insert_rows_json is STRICT by default so a bad column kills the WHOLE batch; live news path is DISJOINT from backend/news/; `fetched_at` rename has a live-table (calendar_events) trap

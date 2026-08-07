@@ -31790,3 +31790,12 @@ executed under this id -- the executed work ran 82.27's own full cycle.
 - **D5:** 83.0's byte-unchanged test retired with a tombstone (criterion discharged at commit 06911cb5; a living version would forbid this step's authorized repair).
 - **Queued:** 83.0.8 (dedup.py cross-batch window is NULL-blind -- Q/A finding F2, dormant). Priced concession recorded: the embargo forecloses fast numeric-surprise strategies (Martineau/Christensen) -- deliberate for the weeks-to-months channel.
 - **Pollution ledger:** +2 source='fixture' rows (this live_check) folded into the 83.0.7 purge; ask #8 updated.
+
+## Cycle 171 -- 2026-08-07 -- phase=83.1 result=PASS
+
+**Design pack + pre-registration for the market-news thematic engine -- PASS cycle 3** (cycle-2 had a dropped-return spawn recorded as NO VERDICT; verdicts verbatim in `evaluator_critique_83.1.md`).
+
+- **Shipped:** `research_brief_phase83.md` (the auditable pack: gate thresholds READ FROM SOURCE with the 0.50-vs-0.20 provenance quoted; 7-candidate closed-vocabulary cost table, 0 unclassified; 7 numbered negative-evidence modes; 4-row reference-case table with DERIVED-labelled costs; corpus limits incl. the materially_flawed completeness verdict; anchor corrections: purge horizon :274 x :962 not :665, variance_of_srs 0.5 is a VARIANCE) + `preregistration_phase83_ranking.json` (hash-committed 7b346492...; label horizon 126 trading days; trial cap 45; artifact-population rule PRE-REGISTERED with a content-rule backstop for canonical result_store naming; append-only amendment policy EXERCISED once, hash re-recorded) + 8 criteria tests incl. two ordering-guard mutations with negative controls.
+- **Verdict path:** CONDITIONAL (4 WARNs: guard blind to canonical naming; urls_collected 85 not reproducing; C7 unnumbered-row escape; label drift) -> [dropped return, NO VERDICT] -> CONDITIONAL (the 85 correction swept NAMED instances, not the DERIVED population -- my own sweep then found a FIFTH site no Q/A named) -> **PASS** (cycle-3 evaluator: 19 own mutants incl. boundary shapes; recall battery on live-sampled filenames; flip justified by changed evidence).
+- **Residuals queued as 83.1.3** (P3): researcher-memory stale 85 (researcher-directed fix -- cross-agent tampering avoided), C2 decoy-first regex hardening, three 83.5 producer-contract notes (table-bound candidates, flat results/, name AND tag).
+- **Unblocks P0 83.1.1** (go/no-go arithmetic), which consumes the ranking file + the V-is-a-variance correction.

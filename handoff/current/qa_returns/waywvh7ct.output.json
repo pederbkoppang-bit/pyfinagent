@@ -1,0 +1,92 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "All 7 immutable criteria are MET and all four cycle-1 WARNs genuinely closed under independent execution: (1) the content-rule amendment is REAL -- my own recall battery, using a filename SAMPLED FROM THE LIVE results/ DIRECTORY (not the author's chosen shape) plus a top-level phase_tag, was caught by _phase83_artifacts() and turned the ordering guard RED, with untagged/nested/list-form/newer-mtime negative controls all correctly excluded (no over-matching, no false positive); (2) urls_collected=79 reproduces EXACTLY on my own derivation -- distinct http(s) source_url = 79, read_in_full=true = 63, read_in_full=false = 16, 63+16=79 with zero overlap and zero residue, so the \"16 vs 22\" repair is arithmetically correct and 87 = the sum of the 8 lens self-reports (16+13+8+7+8+9+16+10); (3) the C7 widening kills the exact cycle-1 escape -- an UNNUMBERED row with a blank classification now FAILS (it passed in cycle 1), as do the unnumbered off-vocabulary and numbered-blank variants, and the widened filter sees exactly the 7 shipped rows; (4) negative-evidence entries 1-2 now match corpus kf[1]/kf[2] verbatim (\"-3.1%/yr risk-adjusted after fees\", \"Cohen-Frazzini economic-link VW 1.30->0.62%/mo, t=1.54\"). Deterministic gates reproduce: immutable command exit=0 (8 passed in 3.10s), ruff F821/F401/F811 exit=0 \"All checks passed!\" over a git-DERIVED non-empty scope (tracked-changed UNION untracked, 1 .py file), ast+runtime import OK, PromotionGate() returns 0.95/0.20/10 matching the pack, SHA-256 computed == recorded (7b346492...), and the population claims re-derive exactly (naive *83* = 71, pre-registered globs = 0, content rule = 0). I ran 13 author-independent mutations and 8 recall cases; every criterion guard was killed by at least one mutation and C3 bites at exactly the criterion's floor of 3. Harness compliance is clean and no production code changed. CONDITIONAL rests on ONE finding, not four: fix #2's correction sweep was scoped to the two locations the cycle-1 Q/A happened to NAME rather than to a DERIVED population, so the retired figure survives uncorrected in 4 of the 6 correctable places -- including contract_83.1.md:36, which still states \"urls_collected = 85 (re-derived unique source_url values)\" while the deliverable it governs now records 79, and research_brief_83.1.md:340, which asserts 85 is \"independently re-derivable from the JSON\" one line below its own [MAIN CORRECTION] -- plus a self-contradiction inside the cycle-2 evidence artifact itself (experiment_results_83.1.md:36 says the pack states an alternative rule giving 22; line 26 of the same file says both rules agree at 16 and the pack no longer states any such alternative). No criterion is falsified and no consumer-facing deliverable is affected -- research_brief_phase83.md and preregistration_phase83_ranking.json, the files 83.1.1 and 83.5 actually consume, are clean at 79 -- so this is an append-only 4-line annotation away from PASS.",
+    "violated_criteria": [
+      "retired_figure_85_survives_uncorrected_in_contract_and_research_brief",
+      "experiment_results_honesty_ledger_contradicts_its_own_followup"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Contradiction",
+        "action": "Derived (not typed) the complete population of retired-figure occurrences with a grep across all six 83.1 artifacts, then re-derived the figure itself from handoff/current/phase83_research_raw/research.json by recursive source_url extraction.",
+        "state": "Measured: distinct http(s) source_url = 79; read_in_full=true = 63; read_in_full=false = 16; 63+16=79, overlap 0, residue 0; distinct-all (incl. non-http) = 100. NO derivation yields 85. Occurrence census: research_brief_83.1.md:333 ANNOTATED, :335 ANNOTATED, live_check_83.1.md:12 correctly preserved-and-superseded -- but research_brief_83.1.md:340 still reads \"urls_collected: 85 (independently re-derivable from the JSON)\", research_brief_83.1.md:690 (the researcher envelope summary) still reads \"85 unique URLs\", and contract_83.1.md:36 (design decision D3) still reads \"snippet_only_sources = 16 (rule: ...; the alternative rule giving 22 is stated); urls_collected = 85 (re-derived unique source_url values)\". The contract therefore now DISAGREES with the deliverable it governs (pack records 79), and :340 asserts re-derivability that no variant reproduces.",
+        "constraint": "SEVERITY=WARN. qa.md 4b: every numeric claim must reproduce under its own stated rule, and scopes must be DERIVED, not typed. The cycle-2 follow-up claim \"The origin figure in research_brief_83.1.md SS A9 is annotated with a [MAIN CORRECTION]\" is true but describes a scope narrower than the population -- the fix corrected the two places the prior Q/A named instead of deriving where the number lived. No immutable criterion is falsified (criterion 1 constrains only that the key be REPORTED, plus >=5 full reads and recency true, all verified and reproducing) and the two files 83.1.1/83.5 consume are clean. Fix: append the same [MAIN CORRECTION] annotation to research_brief_83.1.md:340 and :690 and to contract_83.1.md:36 (append-only, do not rewrite a dated artifact)."
+      },
+      {
+        "violation_type": "Contradiction",
+        "action": "Read experiment_results_83.1.md end-to-end and cross-checked its honesty ledger against its own cycle-2 Follow-up section and against the current text of research_brief_phase83.md.",
+        "state": "experiment_results_83.1.md:36 states \"snippet_only_sources = 16 under the stated rule (the alternative rule giving 22 is also stated)\". Line 26 of the SAME file states \"the '16 vs 22' alternative-rule disagreement is repaired: both rules agree at 16; the 22 was arithmetic on the wrong 85\". Grep of research_brief_phase83.md confirms the pack states no alternative rule giving 22 -- line 96 says the two candidate snippet rules AGREE at 16. The ledger line is a cycle-1 leftover that the cycle-2 fix did not sweep.",
+        "constraint": "SEVERITY=WARN. qa.md 4b: a claim inside the current evidence artifact that does not reproduce is a Contradiction finding; the honesty ledger is the section whose entire purpose is to state what the corpus does NOT close, so a stale entry there is the highest-cost place for this drift. Not a criterion miss. Fix: update experiment_results_83.1.md:36 to record that both rules agree at 16 under the corrected 79."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "qa_md_read_from_disk_step0",
+      "harness_compliance_audit_5_item",
+      "research_gate_envelope_6_sources_recency_true_gate_passed",
+      "contract_criteria_verbatim_match_masterplan_7of7",
+      "mtime_ordering_with_cycle2_annotation_accounted",
+      "verification_command_exit0_8_passed",
+      "python_lint_gate_ruff_F821_F401_F811_derived_scope_tracked_union_untracked_nonempty_asserted",
+      "ruff_default_ruleset_note_only",
+      "syntax_ast_parse",
+      "backend_runtime_import_smoke_promotiongate_attrs",
+      "prereg_json_schema_validity",
+      "sha256_recomputation_7b346492",
+      "independent_corpus_rederivation_79_63_16_87",
+      "negative_evidence_corpus_verbatim_kf1_kf2",
+      "source_anchor_verification_gate_py_21_22_30_61",
+      "source_anchor_verification_promotion_gate_py_37_56_57",
+      "result_store_top_level_write_shape_verified",
+      "artifact_population_rederivation_71_0_0",
+      "independent_mutation_matrix_13_mutants",
+      "known_member_recall_battery_8_cases_author_independent",
+      "guard_vacuity_check_4c_all_7_criteria",
+      "claim_audit_4b_derived_occurrence_census",
+      "third_conditional_counter_harness_log_grep_fixed_string",
+      "no_verdict_shop_evidence_changed_check",
+      "unintended_production_change_scan",
+      "mutation_residue_tree_clean_scan",
+      "code_review_heuristics",
+      "adversarial_worst_of_lenses"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "CRITERION-BY-CRITERION (each guard mutated by ME, not read): C1 MET -- envelope is the file's last content, all 8 keys incl. coverage.dry present; killed recency->false and 87->4. coverage.dry=null with a stated reason is honest (no coverage object exists in any raw JSON). C2 MET -- pack records min_dsr=0.95/max_pbo=0.20/min_pbo_trials=10; PromotionGate() returns 0.95/0.2/10 at runtime; killed max_pbo->0.50, the exact 2.5x error this step exists to prevent. The promotion_gate.py:37 PBO_CEILING=0.5 contrast (PSR parity :56, strict < :57) vs gate.py rejecting on > verified in source. C3 MET -- 7 entries; guard bites at EXACTLY the criterion floor (numbers stripped from 4 of 7 -> PASS with 3 left; 5 of 7 -> KILLED \"only 2 failure modes carry a numeric figure\"). C4 MET -- 4 rows, all four cases, blanking the Iran-US free-data cell KILLED the test; GDELT's measured 2015-02-17..2026-08-04 window semantically contains all four cases. C5 MET -- computed==recorded, single-hex-char flip KILLED. C6 MET -- and this is where the cycle-1 finding really closed: removing content_rule from the pre-registration turns BOTH c6 and c6b red (the presence assert is live), and my recall battery over shapes the AUTHOR DID NOT CHOOSE gave R1 (real filename sampled from the live results/ dir + top-level tag, backdated) = SEEN, guard RED; R5/R6 (glob shapes) = SEEN, RED; R2 (nested tag), R3 (untagged), R4 (list top level), R7 (corrupt JSON) = correctly NOT seen; R8 (tagged, newer mtime) = guard GREEN, no false positive. result_store.py:39 writes json.dumps(report) with the report dict at TOP level, so a conforming phase-83 producer's tag lands exactly where the content rule looks -- the amendment is implementable through the canonical path, not just on paper. C7 MET -- widened filter sees exactly the 7 shipped rows; killed unnumbered+blank (the cycle-1 escape), unnumbered+off-vocabulary, numbered+blank, and silent vocabulary widening. NOTE-LEVEL, deliberately NOT folded into the verdict: (a) the test reads the GLOBS from the pre-registration but HARDCODES the content rule as phase_tag=='phase_83' -- I reworded the file's content_rule to phase_84 and c6/c6b stayed green, so the file-vs-test drift-proofing the docstring claims holds for globs only; mitigated because the same edit turns C5 RED on the hash, making the drift reachable only through a policy-compliant hash-recomputing amendment; (b) the `except Exception: continue` at test_phase_83_1_design_pack.py:52-53 silently skips unparseable results/*.json, so a CORRUPT canonically-named phase-83 artifact escapes the content rule (R7) -- bounded by the glob shape and by binding_requirement_on_phase83_producers, and the narrower idiom already exists two files over at result_store.py:52/:60 (`except (json.JSONDecodeError, OSError)`); (c) that same line is the sole source of ruff's DEFAULT-ruleset findings (S112, BLE001, exit 1) -- the qa.md-mandated gate is --select F821,F401,F811 and it is exit 0 \"All checks passed!\", and experiment_results claims only that gate, so the claim is accurate as written; (d) the pack's \"the pack's own 63\" is self-referential (63 appears nowhere else in the pack) though it does reproduce; (e) the pack's section-4 note \"#2-#4 ... at c=10bp clear only the strongest-anomaly assumption\" still overgeneralizes lens-4 kf[8], as cycle 1 flagged at NOTE level. HARNESS COMPLIANCE: research gate ran and passed (research_brief_83.1.md envelope: 6 external sources read in full >= the 5 floor, recency_scan_performed true, gate_passed true, tier simple, audit_class false so coverage.dry does not bind) and the contract cites it in a dedicated Research-gate summary; all 7 immutable criteria appear VERBATIM in contract_83.1.md (string-matched against .claude/masterplan.json); experiment_results present with a cycle-2 Follow-up; log-last respected -- zero result lines for phase=83.1 in harness_log.md (fixed-string grep, dot escaped) and masterplan status is still \"pending\"; NOT a verdict-shop -- the ranking file was amended (hash changed a22cb12f->7b346492), the pack corrected, the test file gained test_c6b and the widened C7 filter, and live_check/experiment_results gained superseding cycle-2 sections, so the evidence changed materially, and the prior cycle-2 spawn wf_87c3c3f6-1ba returned NO VERDICT (a dropped return is not a CONDITIONAL). 3rd-CONDITIONAL RULE DOES NOT BIND: harness_log carries 0 result=CONDITIONAL entries for phase=83.1 (log-last means cycle 1's CONDITIONAL is unlogged), and factually this is CONDITIONAL #2, not #3. retry_count=0 / max_retries=3 so certified_fallback is false. qa.md 1b and 1c do not apply -- zero frontend files in the derived scope and the step is DESIGN ONLY with no UI claim, so no live Playwright capture is required or relied upon. NO UNINTENDED PRODUCTION CHANGE: git diff --name-only HEAD is only hook-written audit/health JSONL plus the researcher's agent-memory index; the untracked set is exactly the step's deliverables. I mutated ONLY scratchpad copies (module globals _REPO/PACK/RANKING/_RESULTS_DIR rebound to a fake repo) -- zero repo writes, and I re-verified backend/backtest/experiments/results/ carries no MUTATION residue after every run. WORST-OF-LENSES (P1 step): correctness PASS, does-it-reproduce PASS, scope-honesty CONDITIONAL (an undelivered correction sweep over a population that was never derived) -> min = CONDITIONAL. TO REACH PASS ON CYCLE 3, four append-only annotations and nothing else: research_brief_83.1.md:340 and :690, contract_83.1.md:36, experiment_results_83.1.md:36. Key paths: /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/research_brief_phase83.md, /Users/ford/.openclaw/workspace/pyfinagent/backend/backtest/experiments/preregistration_phase83_ranking.json, /Users/ford/.openclaw/workspace/pyfinagent/backend/tests/test_phase_83_1_design_pack.py, /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/contract_83.1.md, /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/experiment_results_83.1.md, /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/research_brief_83.1.md."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:83.1",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "aab928da235848294",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786099476993,
+      "queuedAt": 1786099476983,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 83.1, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786100023599,
+      "tokens": 166714,
+      "toolCalls": 27,
+      "durationMs": 546606,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"All 7 immutable criteria are MET and all four cycle-1 WARNs genuinely closed under independent execution: (1) the content-rule amendment is REAL -- my own recall battery, using a filename SAMPLED FROM THE LIVE results/ DIRECTORY (not the author's chosen shape) plus a top-level phase_tag, was caught by _phase83_artifacts() and turned the ordering guard …"
+    }
+  ],
+  "totalTokens": 166714,
+  "totalToolCalls": 27
+}

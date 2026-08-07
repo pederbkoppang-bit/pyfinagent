@@ -1,0 +1,96 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": true,
+    "verdict": "PASS",
+    "reason": "All 7 immutable criteria are MET under my own execution, and the single cycle-2 finding is closed in full. The cycle-2 Q/A's explicit remediation list (\"four append-only annotations and nothing else: research_brief_83.1.md:340 and :690, contract_83.1.md:36, experiment_results_83.1.md:36\") is complete, and my independent repo-wide grep confirms Main's over-delivery: a fifth site (research_brief_83.1.md:636) that no Q/A named is annotated, and the gate brief's JSON envelope summary is covered by a header at :674 that leaves the fence PARSEABLE (verified: 1 fence, json.loads OK). Deterministic gates all reproduce EXACTLY: immutable command exit=0, \"8 passed in 3.08s\" matching Main's claim character-for-character; ruff --select F821,F401,F811 exit=0 \"All checks passed!\" over a git-DERIVED non-empty scope (tracked-changed UNION untracked = 1 .py file, via xargs, with a control proving ruff exits 0 on a nonexistent path so the non-empty assert was load-bearing); ast+runtime import OK; SHA-256 recomputes to 7b34649297c7f21c... == recorded, before and after my battery; PromotionGate() returns 0.95/0.2/10 matching the pack's recorded values; population claims re-derive exactly (naive *83* = 71, results/ total = 438, pre-registered globs = 0, phase_tag=phase_83 = 0). I ran 19 author-independent mutants against a scratchpad mirror (module globals _REPO/PACK/RANKING/_RESULTS_DIR rebound; ZERO repo writes, control-first, tree verified clean after) and killed 15, including four shapes neither prior cycle ran: coverage present with 'dry' deleted, the >=5 source floor at its exact boundary (4 FAIL / 5 PASS), min_pbo_trials 10->5, and a whitespace-only (not blank) cost cell. The ordering guard genuinely bites -- a glob-named backdated artifact turns C5 RED, and emptying the globs + deleting content_rule turns C5/C6/C6b all RED, so an empty population cannot be vacuously green. Harness compliance is clean (research gate passed with 6 sources >= the 5 floor and a recency-scan section; all 7 criteria string-match VERBATIM from masterplan.json into the contract; status still \"pending\" with 0 harness_log entries for phase=83.1 and no archive dir, so log-last holds; evidence materially CHANGED between cycle 2 and 3 -- five annotation sites, mtimes 12:54 vs deliverables at 12:30-12:32 -- so the flip is the documented cycle-3 flow, not sycophancy under rebuttal). No unintended production change: git diff --name-only HEAD is only hook-written audit/health JSONL plus the researcher's memory index, and the untracked set is exactly this step's deliverables. Four mutants survived and two claims are imprecise; NONE falsifies a criterion, all are recorded below as WARN/NOTE for follow-up steps rather than as criterion misses. Worst-of-lenses (P1, design-only, no money path): correctness PASS, does-it-reproduce PASS, scope-honesty PASS-with-WARN -> min = PASS.",
+    "violated_criteria": [],
+    "violation_details": [
+      {
+        "violation_type": "Overgeneralization",
+        "action": "grep -rn 'urls_collected' handoff/current/ .claude/agent-memory/ | grep 85",
+        "state": "SEVERITY=WARN (no criterion falsified; queue as its own step, do not fix inside this step). experiment_results_83.1.md:34 claims the cycle-3 sweep 'applied literally' the lesson 'grep the whole repo for the claim', but the executed scope was six hand-chosen 83.1 artifacts. My repo-wide derivation found a SIXTH site outside that scope: .claude/agent-memory/researcher/project_phase83_design_pack_83_1.md:57 states '85 unique `source_url`s, 63 flagged read_in_full: true' unannotated, under a heading reading 'Corpus inventory (so it needn't be re-derived)' -- i.e. the single most forward-looking consumer in the tree, and part of this step's own untracked change set (git ls-files --others confirms). A future researcher spawn for 83.1.1/83.5 will re-emit 85 after the handoff artifacts are archived. MITIGATION that keeps this at WARN: the file is the RESEARCHER's persistent memory, outside the five-file protocol set and outside all 7 criteria, and Main annotating another agent's memory would be cross-agent tampering -- the correct remediation is a queued step or a researcher-directed note, not a fourth annotation cycle.",
+        "constraint": "qa.md 4b: 'Scopes must be DERIVED, not typed... never a hand-assembled list the author could narrow.' The claim 'the population was derived by grep' is true only of a hand-chosen six-file scope."
+      },
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Mutation M-D: insert a correct decoy 'max_pbo = 0.20' early in the pack AND set the authoritative line (section 2) to 'max_pbo = 0.50'; run test_c2_recorded_thresholds_equal_promotion_gate_at_runtime",
+        "state": "SEVERITY=WARN (guard is NOT vacuous today; queue the hardening). Result: SURVIVED -- test PASSED with the authoritative threshold reading 0.50, the exact 2.5x calibration error this step exists to prevent. Cause: _recorded() at test_phase_83_1_design_pack.py:104 uses re.search (FIRST match) over the whole pack. Neither cycle 1 (M3/M3b) nor cycle 2 ran a decoy-first mutant; both mutated only the authoritative line, which dies correctly. WHY THIS IS NOT A CRITERION MISS: I measured occurrence counts in the shipped pack -- min_dsr 1, max_pbo 1, min_pbo_trials 1 -- so exactly one value is recorded for each, it equals the runtime PromotionGate attribute, and the guard genuinely bites (M-C, min_pbo_trials 10->5, KILLED). The gap is robustness against a future edit that adds a second occurrence. Named fix: use re.findall and assert every occurrence matches, or anchor the regex to the section-2 bullet.",
+        "constraint": "qa.md 4c vacuity shape #2 (source-scan defeated by adding/moving the scanned text). Criterion 2 requires the test to fail 'if the brief hardcodes a value that module does not carry' -- it does so only for the first occurrence."
+      },
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Mutations M-K (8th candidate in PROSE only, no table row), M-L (backdated phase_tag artifact in results/nested/), M-M (backdated canonical-named artifact with corrupt JSON)",
+        "state": "SEVERITY=NOTE (no present miss; recorded for the 83.5 producer contract). All three SURVIVED. M-K: C7 censuses table rows only, so a candidate enumerated in prose escapes -- shipped pack has all 7 candidates in the table with 0 unclassified, and the pack's own section-4 note already binds future candidates to the vocabulary. M-L: _phase83_artifacts() is non-recursive (_RESULTS_DIR.glob('*.json') and results/*.json globs), so a subdirectory artifact escapes -- I measured ZERO subdirectories in results/ today and result_store.py writes flat, and the cycle-2 Q/A explicitly scored nested-not-seen as CORRECT scoping (its R2 case). M-M: 'except Exception: continue' at :52-53 silently skips unparseable JSON -- already disclosed by the cycle-2 Q/A at NOTE level, bounded because the glob branch catches phase-83-NAMED files regardless of JSON validity; the narrower idiom exists at result_store.py:52/:60.",
+        "constraint": "qa.md 4c: name the mutation that makes each guard fail. These three shapes have no killing mutation, but each is outside the criterion's operative population as measured today."
+      },
+      {
+        "violation_type": "Contradiction",
+        "action": "Read experiment_results_83.1.md sections in order; compare heading claim to superseding Follow-ups",
+        "state": "SEVERITY=NOTE. The section headed '## Verification (verbatim, re-derived after the final edit)' still carries the CYCLE-1 values '7 passed in 0.02s' (:16) and 'computed == recorded: a22cb12f...' (:19). The final edit was in cycle 3; the current values are 8 passed and 7b346492..., both stated correctly in the cycle-2 and cycle-3 Follow-ups. The values were true when written and the supersession is explicit, matching the append-only shape the cycle-2 Q/A accepted for live_check_83.1.md:12 -- only the heading's 'after the final edit' claim is now stale. Also NOTE: full-default `uvx ruff check` exits 1 on the new file (S112 + BLE001 at :52), but this is a PRE-EXISTING repo class (I measured 22 such errors across backend/tests -- 20 BLE001, 2 S112 -- and the convention-source test_phase_82_6_bridge_design.py itself has 3), the qa.md-mandated gate is --select F821,F401,F811 which is exit 0, and Main's experiment_results claims only that gate, so Main's claim is accurate as written. The cycle-1 Q/A's stronger 'full ruff All checks passed!' claim does NOT reproduce in my environment -- that is a prior-evaluator artifact, already corrected by the cycle-2 Q/A, not a Main claim.",
+        "constraint": "qa.md 4b: a section labelled 'verbatim, re-derived after the final edit' should carry post-final-edit values or a cycle label."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "verification_command_immutable",
+      "python_lint_gate_ruff_F821_F401_F811_derived_scope",
+      "lint_gate_nonvacuity_control",
+      "ruff_full_default_preexisting_classification",
+      "ast_parse",
+      "runtime_import_smoke",
+      "promotion_gate_runtime_attribute_comparison",
+      "sha256_recompute_before_and_after",
+      "artifact_population_rederivation_71_438_0",
+      "retired_figure_85_repo_wide_recall_test",
+      "cycle2_named_remediation_list_recall",
+      "json_fence_parseability_after_header_cover",
+      "mutation_battery_19_mutants_15_killed",
+      "decoy_first_order_dependence_probe",
+      "boundary_probes_c1_floor_c3_floor_c4_rowcount",
+      "anti_vacuity_dead_population_rule",
+      "criteria_verbatim_string_match_vs_masterplan",
+      "log_last_status_and_harness_log",
+      "verdict_shop_evidence_change_check",
+      "unintended_production_change_check",
+      "code_review_heuristics",
+      "evaluator_critique"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "CRITERION-BY-CRITERION (each guard mutated by ME on a scratchpad mirror, not read): C1 MET -- pack exists, 1 json fence at EOF, all 7 required keys + coverage.dry present; killed 'dry' key deleted (cycle 1 only deleted the whole coverage object), recency true->false, esrif=4 at the exact floor (esrif=5 correctly PASSES), and the whole envelope buried in <!-- --> (82.6 stub trap). C2 MET -- pack records min_dsr=0.95/max_pbo=0.20/min_pbo_trials=10, PromotionGate() returns 0.95/0.2/10 at runtime; killed min_pbo_trials 10->5, a shape neither prior cycle mutated. C3 MET -- 7 numbered modes each with source+figure; guard bites at exactly the criterion floor (reduced to 2 -> \"only 2 failure modes carry a numeric figure\"). C4 MET -- exactly 4 rows, all four cases present; killed a FIFTH row (\"expected exactly 4 case rows, found 5\") and a WHITESPACE-ONLY cost cell (probes .strip(), not just a blank). C5 MET -- computed==recorded exactly, twice; killed a duplicate stale-hash-first line and a dead population rule (\"population rule missing\"). C6 MET -- the positive control (glob-named backdated artifact) turns C5 RED, and deleting content_rule turns C5/C6/C6b ALL red, so the anti-vacuity assert is live. C7 MET -- 7 rows, 0 unclassified; killed an 8th row with an off-vocabulary classification.\n\nHARNESS COMPLIANCE (5 items, all clean): (1) research gate -- research_brief_83.1.md envelope parses with gate_passed=true, external_sources_read_in_full=6 (>= the 5 floor), recency_scan_performed=true with a dedicated \"B4. Recency scan (last 2 years)\" section at :410, tier simple / audit_class false so coverage.dry does not bind; the contract cites it in a dedicated research-gate summary at :9 and :53. (2) contract-before-generate -- ALL 7 criteria string-match VERBATIM from .claude/masterplan.json into contract_83.1.md (0 misses). EVIDENCE LIMITATION, disclosed: the cycle-3 annotation pass rewrote contract/research_brief/experiment_results mtimes to 12:54, so I could NOT re-derive the original ordering myself; I relied on the cycle-1 Q/A's contemporaneous pre-annotation record (research 12:09 < contract 12:12 < prereg 12:13 < pack 12:15 < test 12:15 < live_check 12:16 < results 12:16), corroborated by the surviving deliverable mtimes (ranking 12:30:43 < test 12:31:13 < pack 12:31:40 < live_check 12:32:07), which are mutually consistent and all predate the 12:54 pass -- this also independently confirms Main's \"byte-unchanged in cycle 3\" claim for the two consumer-facing deliverables. (3) experiment_results present with Follow-ups for cycles 2 AND 3. (4) log-last respected -- 0 result lines for phase=83.1 in harness_log.md, no handoff/archive/phase-83.1 dir, masterplan status still \"pending\". (5) NOT a verdict-shop -- five annotation sites changed between cycle 2 and 3 (mtimes 12:54 vs the 12:30-12:32 deliverables), so the verdict reflects the fix, not a second opinion on unchanged evidence.\n\n3rd-CONDITIONAL RULE ENGAGED AND APPLIED. The harness_log grep returns 0 for phase=83.1 by design (log-last), so I established the precondition from evidence instead: evaluator_critique_83.1.md carries two completed CONDITIONALs (wf_e69008fa-faa at :9, wf_f30208e5-6c7 at :89) plus the dropped-return record for wf_87c3c3f6-1ba (NO VERDICT, correctly not counted). A third CONDITIONAL is therefore unavailable. I did NOT default to PASS because of that: FAIL is reserved for a criterion miss, and there is none -- every one of the 7 is MET under execution, every deterministic gate reproduces exactly, and the cycle-2 Q/A's own named remediation list was completed plus over-delivered. The rule's stated purpose (\"stacking a third CONDITIONAL means the harness is logging, not correcting\") is satisfied on the correcting side. The four residual findings are recorded as WARN/NOTE, none inside the criteria; per the standing rule that discovered out-of-scope defects get their own research-gated step, W1 (agent-memory stale 85) and W2 (first-match C2 guard hardening) should be QUEUED, not patched into this step -- and W2 in particular should be, since it protects the exact 2.5x max_pbo error 83.1 exists to prevent.\n\nSECTIONS NOT APPLICABLE: qa.md 1b (frontend lint/typecheck) -- zero frontend files in the derived scope. qa.md 1c (live UI capture) -- the step is DESIGN ONLY and makes no UI claim; no Playwright capture was taken or relied upon, so no degraded-evidence disclosure is owed. qa.md 1d partially applies and was run: ast parse + module import + runtime PromotionGate attribute read, all OK; no live API path is touched. Code-review heuristics evaluated across all 5 dimensions with no BLOCK: no secrets, no execution path, no LLM-to-execution wiring, no perf_metrics bypass, no financial-logic change (design artifacts + their tests only); the single broad-except at :52 is WARN-class and pre-existing repo idiom, recorded above at NOTE.\n\nMETHOD DISCLOSURE: all 19 mutants ran against a scratchpad mirror with the test module's globals _REPO/PACK/RANKING/_RESULTS_DIR rebound to a fake repo tree -- ZERO repo writes. A CONTROL run on the unmutated mirror passed all 8 first, so a green result cannot be an artifact of a broken harness. The scope for the lint gate was derived as `git diff --name-only HEAD -- '*.py'` UNION `git ls-files --others --exclude-standard -- '*.py'` (the tracked-diff alone is EMPTY here because every step file is new, which would have aborted the gate), piped through xargs from a file rather than an unquoted variable, with the non-empty assert checked before reading the exit code. Repo tree verified clean of MUTATION residue after the battery, and the immutable command plus the SHA-256 were both re-run afterwards and still green. retry_count=0 / max_retries=3, so certified_fallback is false.\n\nKEY PATHS: /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/research_brief_phase83.md, /Users/ford/.openclaw/workspace/pyfinagent/backend/backtest/experiments/preregistration_phase83_ranking.json, /Users/ford/.openclaw/workspace/pyfinagent/backend/tests/test_phase_83_1_design_pack.py, /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/contract_83.1.md, /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/experiment_results_83.1.md, /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/research_brief_83.1.md, /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/live_check_83.1.md, /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/researcher/project_phase83_design_pack_83_1.md."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:83.1",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a0a119d2586e4265c",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786100116591,
+      "queuedAt": 1786100116582,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "PASS",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 83.1, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786100786397,
+      "tokens": 181675,
+      "toolCalls": 27,
+      "durationMs": 669806,
+      "resultPreview": "{\"ok\":true,\"verdict\":\"PASS\",\"reason\":\"All 7 immutable criteria are MET under my own execution, and the single cycle-2 finding is closed in full. The cycle-2 Q/A's explicit remediation list (\\\"four append-only annotations and nothing else: research_brief_83.1.md:340 and :690, contract_83.1.md:36, experiment_results_83.1.md:36\\\") is complete, and my independent repo-wide grep confirms Main's over-de…"
+    }
+  ],
+  "totalTokens": 181675,
+  "totalToolCalls": 27
+}

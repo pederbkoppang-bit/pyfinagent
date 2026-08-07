@@ -1,0 +1,106 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "All 7 immutable criteria are MET and every deterministic gate reproduces: immutable command exit=0 (7 passed in 0.02s), ruff F821/F401/F811 + full ruff \"All checks passed!\" over a git-DERIVED non-empty scope (tracked-changed UNION untracked = backend/tests/test_phase_83_1_design_pack.py), ast+runtime import OK, SHA-256 recomputes to a22cb12f... exactly, naive-*83* 71 / pre-registered-glob 0 / results-dir 438 all reproduce, the live_check ls capture reproduces byte-for-byte including zsh's single NOMATCH line, harness compliance clean (research 12:09 < contract 12:12 < prereg 12:13 < pack 12:15 < test 12:15 < live_check 12:16 < results 12:16; step still status=pending, no harness_log entry, cycle 1 so no verdict-shop), and no production code changed. I ran 22 author-independent mutations against scratchpad copies (zero repo writes): 20 killed including max_pbo=0.50 -- the exact 2.5x error this step exists to prevent -- plus hash-flip, post-hash ranking edit, 16-char truncation, HTML-comment burial, dead/empty globs, blank and off-vocabulary cells; the one C3 survivor is equivalent (M4b confirms the guard bites at exactly the criterion's floor of 3). CONDITIONAL rests on four evidence-quality findings, none of which falsifies a criterion today: (1) the ordering guard is blind to the repo's canonical backtest-artifact naming -- I executed a backdated artifact named per backend/backtest/result_store.py:36 f\"{ts}_{safe_id}.json\" and C5 stayed GREEN while the author's hand-named phase-tag shape turns it RED, so the anti-tuning guarantee holds only for a naming convention nothing binds 83.5 to; (2) urls_collected=85 does not reproduce under its own stated rule -- 12 variants swept, the internally consistent rule that yields the pack's own 63 and 16 yields 79, which also collapses the disclosed \"16 vs 22\" disagreement into agreement at 16; (3) criterion 7's guard silently drops any candidate row lacking a leading ordinal, so an unclassified candidate can hide by omitting its number (numbered version killed); (4) negative-evidence label drift on entries 1-2 (numbers reproduce, labels do not). All four are cheap, append-only-compatible fixes.",
+    "violated_criteria": [
+      "ordering_guard_blind_to_canonical_result_store_naming",
+      "urls_collected_85_does_not_reproduce",
+      "c7_unnumbered_candidate_row_escape",
+      "negative_evidence_label_drift"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Executed a backdated phase-83 backtest artifact named per the repo's canonical persistence path and re-ran test_c5_ranking_file_hash_and_ordering against it (scratchpad-redirected module globals, no repo writes).",
+        "state": "20260810T120000Z_a1b2c3d4.json, mtime 60s OLDER than the ranking file: _phase83_artifacts() returned [] and C5 PASSED. Control 20260810T120000Z_phase_83_5_gate.json with identical backdating: seen by the globs and C5 FAILED ('predates the pre-registration'). backend/backtest/result_store.py:36 builds filename = f\"{ts}_{safe_id}.json\" where safe_id is a sanitized run_id -- that shape matches NEITHER pre-registered glob (*_phase_83_*.json, phase83*.json). The three existing *_phase_82_3_* files in results/ are hand-named; no code producer emits the phase-tag shape. Neither preregistration_phase83_ranking.json, research_brief_phase83.md nor live_check_83.1.md discloses this, and nothing instructs 83.5 to tag its artifacts.",
+        "constraint": "SEVERITY=WARN. Criterion 5's ordering guard is the step's headline anti-tuning mechanism ('so the gate cannot be tuned to pass after the fact'). Criterion 6's mutation proves only that the glob sees a member the AUTHOR named to fit it -- qa.md 4b requires the recall test to find members the author did not choose. Criterion 5 is TRUE today (the real phase-83 artifact population is genuinely zero), so this is a forward-looking coverage gap, not a criterion miss. Fix (append-only, per the file's own amendment_policy): add a glob or content rule covering result_store output, or pre-register that 83.5 MUST phase-tag its artifacts."
+      },
+      {
+        "violation_type": "Contradiction",
+        "action": "Re-derived the pack envelope's three source counts from handoff/current/phase83_research_raw/research.json under 12 rule variants (all-objects / ex-lens-8 / http-only, each x raw / fragment-stripped / normalized dedup), plus a cross-file sweep over all three raw JSONs.",
+        "state": "external_sources_read_in_full=87 reproduces EXACTLY (sum of the 8 lenses' sources_read_in_full_count = 16+13+8+7+8+9+16+10). Under the http-only-distinct rule, read_in_full=true distinct URLs = 63 (matches the pack) and read_in_full=false distinct URLs = 16 (matches the pack) -- but unique source_url under that same rule = 79, not 85. No variant produced 85 (all=100, nofrag=96, hard=95, ex_lens8=82, http_only=79, cross-file=79). Consequence: the pack's honesty-ledger line 'an alternative rule -- 85 unique URLs minus 63 distinct full-read URLs -- gives 22' is arithmetic on a wrong input; under the internally consistent rule it is 79-63=16, i.e. the two rules AGREE and the disclosed 16-vs-22 disagreement is an artifact. The same 85 is carried upstream by handoff/current/research_brief_83.1.md section A9.",
+        "constraint": "SEVERITY=WARN. research_brief_phase83.md line 96 states the rule explicitly: 'urls_collected = re-derived unique source_url count'. qa.md 4b: every numeric claim must reproduce under the command that produces it. Criterion 1 constrains only that the key be REPORTED (and asserts >=5 full-reads + recency true, both verified true and both reproducing), so this is not a criterion miss -- but it is a non-reproducing number inside the artifact whose stated value is that every figure carries a reproducible derivation rule. Fix: 85 -> 79 and delete/repair the 22 alternative."
+      },
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Appended an unclassified candidate row to the pack's section-4 table WITHOUT a leading ordinal and re-ran test_c7_every_candidate_classified_from_closed_vocabulary; then repeated with the ordinal present.",
+        "state": "'| Price-mediated commodity variant | 5.0 | 50 |  |' (blank classification cell) -> C7 PASSED. The identical row numbered '| 8 | ... |  |' -> C7 FAILED ('candidates without a valid classification'). Cause: the row filter at test_phase_83_1_design_pack.py:207 is re.match(r\"\\s*\\d+\\s*\\|\", r), so the graded candidate population is defined by a formatting convention the author controls. The researcher anticipated exactly this seam (research_brief_83.1.md C3: added candidates 'must never be left blank').",
+        "constraint": "SEVERITY=WARN. Criterion 7: 'a test asserts the count of candidates with no classification is exactly zero'. The guard kills every natural mutation on conforming rows (blank cell, off-vocabulary token, silently widened vocabulary -- all three executed and killed), and all 7 shipped candidates are numbered and validly classified, so criterion 7 is MET today. But the count is taken over an author-definable population, which is the qa.md 4c shape-2/shape-10 pattern. Fix: match any table row inside section 4 that is not the header/separator, or assert the row count equals a pre-registered candidate count."
+      },
+      {
+        "violation_type": "Contradiction",
+        "action": "Compared each numbered entry in the pack's section 5 against its corpus source (research.json lens 7 key_findings).",
+        "state": "Entry 1: pack says '-3.1%/yr RAW, -3.24%/yr FFC4-adjusted over the first 5 years post-launch'; kf[1].numbers says 'risk-adjusted return -3.1%/yr AFTER FEES; about -6% annually in the first five years after inception; FFC4 alpha -3.24%/yr vs -0.24%/yr'. The -3.1% figure is risk-adjusted, not raw (opposite meaning), and the corpus's five-year figure is -6%/yr, not the two annual figures the pack scopes to five years. Entry 2: pack heads it 'Media-attention selection decays out of sample ... attention portfolios ... post-publication'; kf[2] is Cohen-Frazzini ECONOMIC-LINK (customer-supplier) predictability on a SUB-PERIOD split 1978-2004 vs 2005-2018, not media attention and not a post-publication split -- the numbers themselves (VW 1.30%/mo -> 0.62%/mo, t=1.54) reproduce exactly. Entries 3-7 verified faithful (+20.73%/-1.04%, 80.58%/45.70%, +23.67%/-1.73%/-11.47%, three-fourths shuttered + 1 in 10, 4.9pp vs 0.5pp, 65%/82%/96%). The parenthetical 'two additional Lens-7 counter-evidence findings are read_in_full=false' is exact (kf[14], kf[15], and only those two).",
+        "constraint": "SEVERITY=WARN. Criterion 3 requires >=3 failure modes each with source AND number -- MET (7 present, guard verified to bite at exactly 3 via M4b). This is a fidelity finding, not a criterion miss: the pack is the design input to 83.1.1/83.5 and relabelling a risk-adjusted figure as 'raw' materially changes what it licenses. Fix: restore the corpus's own qualifiers on entries 1 and 2."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "qa_md_read_from_disk",
+      "harness_compliance_audit_5_item",
+      "mtime_ordering_research_contract_generate",
+      "syntax_ast_parse",
+      "verification_command_exit0_7passed",
+      "python_lint_gate_ruff_F821_F401_F811_derived_scope_nonempty_asserted",
+      "python_lint_gate_ruff_all_rules",
+      "backend_runtime_import_smoke",
+      "json_schema_validity_preregistration",
+      "sha256_recomputation",
+      "source_anchor_verification_gate_py_21_22_30_61",
+      "source_anchor_verification_promotion_gate_py_37_56_57",
+      "source_anchor_verification_backtest_engine_274_962_665",
+      "source_anchor_verification_analytics_429_387",
+      "artifact_population_rederivation_71_0_438",
+      "corpus_claim_reproduction_87_63_16_85_sweep_12_variants",
+      "corpus_claim_reproduction_candidate_cost_table_lens4_kf7_kf8",
+      "corpus_claim_reproduction_negative_evidence_lens7",
+      "corpus_claim_reproduction_gdelt_verdicts_synthesis",
+      "coverage_object_absence_grep_verified",
+      "independent_mutation_matrix_22_mutants_20_killed",
+      "guard_vacuity_check_4c_all_7_criteria",
+      "claim_audit_4b_prose_instrument",
+      "live_check_capture_reproduction_byte_for_byte",
+      "third_conditional_counter_cycle1",
+      "unintended_production_change_scan",
+      "code_review_heuristics",
+      "adversarial_worst_of_lenses"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "CRITERION-BY-CRITERION: C1 MET -- pack is the file's last content (exactly 1 ```json fence, EOF at the closing fence), all 8 required keys present incl. coverage.dry; killed M1 (recency false), M2 (coverage removed), M2b (87->3). coverage.dry=null with a stated reason is verified honest: grep for \"coverage\"/\"dry\"/\"audit_class\"/dry_round/K_required across all three raw JSONs returns nothing. C2 MET -- pack records 0.95/0.20/10, PromotionGate() returns min_dsr=0.95 max_pbo=0.2 min_pbo_trials=10; killed M3 (0.94), M3b (0.50 -- the 2.5x error the step exists to prevent), M3c (line deleted). C3 MET -- 7 modes, guard bites at exactly 3 (M4b -> \"only 2 failure modes carry a numeric figure\"); killed M5 (body emptied) and M6 (body buried in <!-- -->, the 82.6 stub trap). C4 MET -- killed M7/M8 (blank source/cost cells) and M9 (row deleted). C5 MET -- hash reproduces; killed M13 (hex flip), M14 (post-hash ranking edit), M15 (16-char truncation), M17 (empty globs), M26 (file absent). C6 MET -- M25 reproduces the criterion behaviourally; the glob-liveness assert fires under M16 (globs narrowed to phase_84) and M17, so an empty population cannot be vacuously green. C7 MET -- killed M10/M11/M12. ANCHOR CORRECTIONS ALL VERIFIED EXACT, and they matter because they overturn the step texts and auto-memory: backtest_engine.py:274 is holding_days: int = 90; :962 is horizon_days = int(self.holding_days * 1.5); :665 is macro-coverage logging (the circulating anchor is indeed wrong); analytics.py:429 is e_max_sr = math.sqrt(var_srs) * (...) so variance_of_srs (default 0.5 at :387) is a VARIANCE; promotion_gate.py:37 PBO_CEILING=0.5 with PSR parity at :56 and strict < at :57 vs gate.py:61 rejecting on >. Candidate table reproduces cell-for-cell from lens-4 key_findings[7]; GDELT 4,169 partitions / 2015-02-17..2026-08-04 / ~99.6% / the verbatim licence string all present in synthesis.design_decision.data_sources; verdicts[2] is materially_flawed with exactly 10 missing_coverage; verdicts[0] states 13 primary sources verified. NOTE-level, not folded into the verdict: (a) the pack's section-4 note \"#2-#4 ... at c=10bp clear only the strongest-anomaly assumption\" overgeneralizes lens-4 kf[8], which says that of the LIVE monthly design at T=13.3 -- candidate #2 at T=8.0 also clears the 120bps assumption (Tmax 12.0 at c=10bp); (b) the researcher's recommended second glob root handoff/current/phase83_*/**/*.json was dropped without disclosure, and dropping it was outcome-determinative (the three 2026-08-04 raw research JSONs predate the ranking file) -- excluding them is semantically correct since they are not backtest artifacts, but under this step's own pre-registration doctrine a dropped population root belongs in the rejected_rule record alongside the *83* rejection; (c) backend/backtest/experiments/results/ is NOT gitignored (438 tracked files), so a C6 run killed between write and the finally-unlink would leave 20260101T000000Z_phase_83_1_MUTATION.json for the next git add -A -- I confirmed the tree is clean after my run. NO UNINTENDED PRODUCTION CHANGE: git diff --name-only HEAD is only hook-written audit/health JSONL plus the researcher's agent-memory index; the step's own untracked set is the 5 handoff files + the preregistration JSON + the test file + one researcher memory note. Sections 1b and 1c of qa.md do not apply -- zero frontend files in the derived scope and the step makes no UI claim (DESIGN ONLY). retry_count=0 / max_retries=3 so certified_fallback is false. This is cycle 1 for 83.1 (no evaluator_critique_83.1.md, no phase-83.1 archive, no harness_log result line), so the 3rd-CONDITIONAL auto-FAIL rule does not bind. Worst-of-lenses: correctness PASS-with-findings, does-it-reproduce CONDITIONAL (85), scope-honesty CONDITIONAL (undisclosed guard blind spot) -> min = CONDITIONAL. To reach PASS on cycle 2: amend the population rule append-only (recomputing and re-recording the SHA-256 in the same commit, per the file's own policy) so the guard sees result_store output or 83.5 is bound to phase-tagging; correct urls_collected to 79 and repair the 16-vs-22 line; widen the C7 row matcher; restore the corpus qualifiers on negative-evidence entries 1-2. Key paths: /Users/ford/.openclaw/workspace/pyfinagent/handoff/current/research_brief_phase83.md, /Users/ford/.openclaw/workspace/pyfinagent/backend/backtest/experiments/preregistration_phase83_ranking.json, /Users/ford/.openclaw/workspace/pyfinagent/backend/tests/test_phase_83_1_design_pack.py, /Users/ford/.openclaw/workspace/pyfinagent/backend/backtest/result_store.py."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:83.1",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a382b8ec3fa384bce",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786097840093,
+      "queuedAt": 1786097840084,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 83.1, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786098573822,
+      "tokens": 202934,
+      "toolCalls": 35,
+      "durationMs": 733729,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"All 7 immutable criteria are MET and every deterministic gate reproduces: immutable command exit=0 (7 passed in 0.02s), ruff F821/F401/F811 + full ruff \\\"All checks passed!\\\" over a git-DERIVED non-empty scope (tracked-changed UNION untracked = backend/tests/test_phase_83_1_design_pack.py), ast+runtime import OK, SHA-256 recomputes to a22cb12f... exact…"
+    }
+  ],
+  "totalTokens": 202934,
+  "totalToolCalls": 35
+}
