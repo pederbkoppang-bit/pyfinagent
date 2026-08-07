@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `946b760f` | phase-83.0.3: DEFECT (own step per standing rule), BLOCKS THE EVIDENCE PATH FOR 83.5: the exposed... |
 | 2026-08-07 | `06911cb5` | phase-83.0: DEFECT (own step per standing rule), BLOCKS ALL OF phase-83: news influences live tra... |
 | 2026-08-07 | `cb4b3c52` | chore(82.23): close as superseded by 82.27 -- bookkeeping flip, code shipped under e5bb9f25 |
 | 2026-08-06 | `2858bc7b` | docs(82.6): design the registry-to-live selection bridge -- and refute the step |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-06 | `d1b12c8f` | chore(masterplan): queue phase-84 memory-graph integrity steps (84.1-84.4) |
 | 2026-08-06 | `7b90620a` | fix(82.43): make macro degradation legible -- a count, not a boolean |
 | 2026-08-06 | `d10188ef` | fix(82.39): repair the nightly_outcome_rebuild fetch and make its failure audible |
-| 2026-08-06 | `5a70de8c` | feat(82.21): make absent fundamentals visible, and record the source decision |
 
 ---
 
+### v6.83.0 — phase-83.0.3: DEFECT (own step per standing rule), BLOCKS THE EVIDENC... (2026-08-07)
+
+- **phase-83.0.3: DEFECT (own step per standing rule), BLOCKS THE EVIDENCE PATH FOR 83.5: the exposed...**
 ### v6.82.0 — phase-83.0: DEFECT (own step per standing rule), BLOCKS ALL OF phase-... (2026-08-07)
 
 - **phase-83.0: DEFECT (own step per standing rule), BLOCKS ALL OF phase-83: news influences live tra...**
