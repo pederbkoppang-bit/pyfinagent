@@ -31732,3 +31732,30 @@ Queued: **82.64** (a missing PBO is recorded as a perfect 0.0 on the promoted
 row -- the GATE is fail-closed, only the RECORD is fabricated), **82.65**
 (`strategy_decisions` heartbeat ~6 days silent, write swallowed), **82.66** (three
 stale registry enumerations + two dead configs).
+
+## Cycle 167 -- 2026-08-07 -- phase=82.23 result=SUPERSEDED (bookkeeping close, no cycle run)
+
+**Disposition flip only -- no code produced under this step id.** 82.23
+(pending P0) is closed as `superseded` by **82.27** (status done, commit
+`e5bb9f25 fix(82.27): anchor PBO on the sweep-level producer; revive the dead
+trials floor`). Basis, all previously recorded:
+
+- 82.27's own immutable text: *"82.23 is structurally uncloseable ... its
+  immutable criterion 1 requires `generate_report` to emit a pbo field, but
+  generate_report receives ONE BacktestResult ... satisfying criterion 1
+  literally would emit an UNCONDITIONAL PASS on every report"* and
+  *"Operator chose re-spec on 2026-08-04 ... 82.23 is superseded-in-place and
+  its code ships under this step."*
+- The 82.23 Q/A verdict (CONDITIONAL, `evaluator_critique_82.23.md`, task
+  wgn08733b) independently ruled it cannot be flipped done as written.
+- The work itself is live and green: `compute_pbo_checked` (refusal instead of
+  false-good 0.0, gate_grade, columns_diverse), the PromotionGate
+  `min_pbo_trials` floor, the sweep-level producer emission. Measured
+  2026-08-07: `pytest backend/tests/test_phase_82_23_pbo_in_gate.py
+  backend/tests/test_phase_82_27_pbo_sweep_producer.py -q` -> **40 passed**.
+
+Why `superseded`, not `done` and not left pending: criteria are immutable and
+unmeetable-as-written (no waiver implied); leaving it `pending` pollutes every
+future P0 count (it consumed wave-1 attention in today's drain goal). Precedent:
+4 existing `superseded` steps. No research gate was run because no work was
+executed under this id -- the executed work ran 82.27's own full cycle.
