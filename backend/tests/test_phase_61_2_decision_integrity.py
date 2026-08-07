@@ -15,15 +15,12 @@ Criterion map:
 """
 
 import asyncio
-import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import backend.services.autonomous_loop as al
 import backend.services.meta_scorer as ms
-from backend.services.portfolio_manager import TradeOrder, decide_trades
+from backend.services.portfolio_manager import decide_trades
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
@@ -182,13 +179,36 @@ class TestDegradedPersistence:
         assert kw["final_score"] == 7.5 and kw["recommendation"] == "BUY"
 
     def test_degraded_marker_never_enters_analyses(self):
-        # The marker's consumer contract: _run_and_persist_one returns None
-        # for _degraded dicts. Source-contract assertion (the wiring lives
-        # inside the cycle closure and is not directly invocable).
+        """cycle-173 replacement: the prior source-scan form was proven
+        VACUOUS by the cycle-2 Q/A (a comment-only module satisfied it).
+        Now (a) BEHAVIOURAL on the extracted seam, and (b) an AST call-node
+        assertion that the _run_and_persist_one closure actually invokes the
+        seam -- parsed code, not text, so a comment cannot satisfy it and
+        deleting the call-site invocation turns it red."""
+        # (a) behavioural: a _degraded dict yields None into decide_trades
+        assert al._fold_degraded_for_trading(
+            {"_degraded": True, "ticker": "TST", "final_score": None}
+        ) is None
+        healthy = {"ticker": "TST", "recommendation": "BUY", "final_score": 7.0}
+        assert al._fold_degraded_for_trading(healthy) is healthy
+        assert al._fold_degraded_for_trading(None) is None
+
+        # (b) call-site: an ast.Call to the seam exists INSIDE the
+        # _run_and_persist_one function body
+        import ast as _ast
         import inspect
-        src = inspect.getsource(al)
-        assert 'if analysis.get("_degraded"):' in src
-        assert '"lite", "full", "degraded"' in src
+        tree = _ast.parse(inspect.getsource(al))
+        called_inside = False
+        for node in _ast.walk(tree):
+            if isinstance(node, _ast.AsyncFunctionDef) and node.name == "_run_and_persist_one":
+                for sub in _ast.walk(node):
+                    if (isinstance(sub, _ast.Call)
+                            and getattr(sub.func, "id", None) == "_fold_degraded_for_trading"):
+                        called_inside = True
+        assert called_inside, (
+            "_run_and_persist_one no longer routes its return through "
+            "_fold_degraded_for_trading -- the degraded filter is bypassed"
+        )
 
 
 # ── criterion 1 supporting leg: retry-on-empty ─────────────────────────────
@@ -415,6 +435,22 @@ class TestSignalDowngrade:
                           _settings(paper_position_recommendation_fix_enabled=True))
         assert any("interaction hazard" in r.message for r in caplog.records)
 
+    class _HealthyKillSwitch:
+        """phase-61.2 cycle-173 repair: the phase-36.13 BUY gate consults the
+        REAL on-disk kill-switch audit when no state is injected, so these
+        tests' outcomes depended on whether the operator's live book happened
+        to be paused (it was: paused=True, reason='manual'). Injection via the
+        documented drill/test seam (PaperTrader.__init__ kill_switch_state)
+        makes them state-independent; the paused-flip mutation below proves
+        the injection is live, not decorative."""
+
+        def is_paused(self):
+            return False
+
+        def snapshot(self):
+            return {"paused": False, "pause_reason": None,
+                    "sod_nav": 10000.0, "peak_nav": 10000.0}
+
     def _execute_buy(self, settings):
         from backend.services.paper_trader import PaperTrader
         bq = MagicMock()
@@ -426,7 +462,7 @@ class TestSignalDowngrade:
         }
         bq.get_paper_positions.return_value = []
         bq.get_paper_trades_for_ticker_since.return_value = []
-        t = PaperTrader(settings, bq)
+        t = PaperTrader(settings, bq, kill_switch_state=self._HealthyKillSwitch())
         trade = t.execute_buy(
             ticker="BBB", amount_usd=500.0, price=50.0,
             reason="new_buy_signal", analysis_recommendation="BUY",

@@ -1,0 +1,128 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "CONDITIONAL #2 of 3 (prior count 1; auto-FAIL not triggered). Immutable command reproduced GREEN by me verbatim (71 passed, 2829 deselected, exit 0; test -f live_check_61.2.md exit 0) and zero production files changed (diff = 3 test files + masterplan + handoff only). C2 MET live/ungated, C3 MET with its BQ evidence reproduced EXACTLY by my own independent query, C5 mutation-proven dark by my own 5-case matrix (CONTROL pass; paused-flip kills both; production revert of paper_trader.py `_pos_rec = analysis_recommendation` kills only the flag-on test; blanked-fixture kills both; injection-removed kills both against a live singleton I verified is genuinely is_paused()=True/'manual'). C1, C4 and C6 have no live half and CANNOT until the operator promotes `paper_synthesis_integrity_enabled` — that single decision is the SOLE blocker to PASS, and the stake is now measured precisely: 142 of 170 rows in 40d (83.5%) are fabricated 0.00/HOLD, 0 of those 142 are lite-path, last 2026-08-06 19:20:56Z. Four fixable evidence-hygiene findings do not change the direction: (1) the three disclosed source-scan guards are PROVEN vacuous by execution (a comment-only module satisfies them), leaving C1's \"trade-decision input not silently neutralized\" clause with no non-vacuous coverage; (2) \"15 failures across 5 files\" does NOT reproduce — my pre-repair simulation over the same 5 files yields 9, and \"the remaining 13\" is a FILE count stated as a failure count (the remaining files carry 5); (3) one member of that population is mis-classified — test_adjust_cash_and_mtm still fails with every kill switch forced healthy (TypeError on `external_flow_today`), so queued step 36.28 is not closeable by its own stated remedy; (4) the live_check §B claim that the researcher's 156-full/14-lite split \"could not be reproduced against this schema\" is FALSE — it reproduces in one query using `$._path` instead of `$.lite_mode`, which is exactly the AWS REL05-BP01 fallback-share number the promotion ask turns on (lite = 8.2% today, up to 91.8% post-promotion). Python lint gate is red (3x pre-existing F401) and was never run or recorded anywhere in the handoff. Harness compliance clean on all 5 items.",
+    "violated_criteria": [
+      "criterion_1_no_live_evidence_blocked_on_flag_promotion",
+      "criterion_4_live_half_blocked_on_flag_promotion",
+      "criterion_6_live_half_blocked_on_flag_promotion",
+      "illusory-guard (3 source-scan tests proven vacuous by execution)",
+      "derived_population_count_does_not_reproduce (15 vs measured 9)",
+      "mis_classified_population_member (test_adjust_cash_and_mtm is not the kill-switch class)",
+      "irreproducibility_disclosure_refuted (lite split IS reproducible via $._path)",
+      "python_lint_gate_red_and_never_run"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Grade criterion 1 ('never persisted as 0.0 final_score with default HOLD ... regression test simulates the timeout and asserts no 0.0/HOLD row is written and the same-cycle trade-decision input is not silently neutralized') against live evidence",
+        "state": "Fix is BUILT and correct but DARK: settings.py paper_synthesis_integrity_enabled default False. Routing tests ARE behavioral (test_flag_on_error_synthesis_routes_to_lite executes al._run_single_analysis with an error-synthesis stub; test_flag_off_legacy_fabrication_unchanged is the control that reproduces the live HOLD/0.0 defect). Live half impossible: I re-derived 142/170 fabricated rows (83.5%), 0 of 142 lite-path, last 2026-08-06 19:20:56.402576Z, error string 'Failed to parse final report.' -- all still accruing. Additionally the criterion's 'trade-decision input is not silently neutralized' clause is covered ONLY by test_degraded_marker_never_enters_analyses, which I proved vacuous.",
+        "constraint": "SOLE BLOCKER TO PASS: operator promotion of paper_synthesis_integrity_enabled + backend restart + >=1 scheduled full-path cycle. Secondary named fix: replace the source scan with a test that executes _run_and_persist_one (or an extracted seam) and asserts a _degraded dict yields None into decide_trades."
+      },
+      {
+        "violation_type": "Circular_Reasoning",
+        "action": "Q/A executed the vacuity probe of the three disclosed source-scan guards (qa.md 4c shapes #1/#8) by loading a module whose body is ONLY comments carrying the scanned tokens",
+        "state": "VERBATIM RESULT -- [COMMENT-ONLY module, zero behaviour] degraded-guard -> PASS | streak-guard -> PASS. So test_degraded_marker_never_enters_analyses (asserts 'if analysis.get(\"_degraded\"):' in inspect.getsource(al)), test_streak_warn_wired_at_two (asserts '_streak >= 2' in src) and test_ctx_gate_references_both_flags (same construction) cannot fail when their subject is broken. The underlying production code IS present and correct (autonomous_loop.py:1154 branch; :999-1013 streak WARN; :1045-1052 ctx gate) -- the guards, not the code, are the defect.",
+        "constraint": "qa.md 4c: a guard that cannot fail when its subject is broken does not count. Executor DISCLOSED all three as registered test-debt (contract D4) and the Cycle-74 Q/A logged them as NOTEs, so this is a named-fix WARN, not a dishonesty finding -- but it is now proven by execution rather than suspected, and for criterion 1 it is sole coverage on a money path."
+      },
+      {
+        "violation_type": "Contradiction",
+        "action": "Re-derive experiment_results claim 'The FULL derived population (grep census + a 14-file run with the live book paused): 15 failures across 5 files -- the remaining 13 queued as step 36.28'",
+        "state": "My pre-repair simulation (pytest plugin forcing every PaperTrader to ignore the injected state, i.e. read the real paused singleton) over the SAME 5 named files produced 9 failed, 44 passed: test_phase_61_2 (2), test_phase_50_2 (2), test_64_3_currency_path (3), test_trade_idempotency (1), test_adjust_cash_and_mtm (1). Not 15. Separately 'the remaining 13' is a FILE count (3 failing + 10 currently-green enumerated in the masterplan 36.28 entry) stated in the same clause as a failure count; the remaining files carry 5 failures, of which only 4 are the claimed class. Kill-switch audit md5 unchanged d88fa2be2f7107d41e8de1250d44158a before and after every run.",
+        "constraint": "qa.md 4b: every numeric/set-membership claim must reproduce under a stated derivation. Fix: restate as '9 kill-switch-coupled failures across 5 files; 4 remaining in 2 files; 13 remaining FILES to convert', or publish the 14-file command that produced 15."
+      },
+      {
+        "violation_type": "Overgeneralization",
+        "action": "Classify each member of step 36.28's population by forcing a HEALTHY kill switch into every PaperTrader and re-running the 3 remaining named files",
+        "state": "test_64_3_currency_path (3) and test_trade_idempotency (1) go GREEN -- they ARE the kill-switch class. tests/services/test_adjust_cash_and_mtm.py::test_adjust_cash_and_mtm_calls_each_step STILL FAILS: 'TypeError: test_adjust_cash_and_mtm_calls_each_step.<locals>.<lambda>() got an unexpected keyword argument external_flow_today' at backend/services/paper_trader.py:1194. It is a stale test-stub signature, not kill-switch coupling.",
+        "constraint": "Step 36.28's verification command includes tests/services/test_adjust_cash_and_mtm.py, so 36.28 as written is NOT closeable by its own stated remedy ('inject a healthy state at every construction site') -- the auto-memory feedback_immutable_criteria_must_be_green_able failure mode, caught BEFORE the criteria are frozen. Fix 36.28's scope now: either add the lambda-signature repair explicitly or drop that file from the command."
+      },
+      {
+        "violation_type": "Invalid_Precondition",
+        "action": "Re-derive the live_check Section B disclosure: 'my $.lite_mode JSON probe returned 0 lite rows -- the research brief's 156-full/14-lite split used a lite predicate I could not reproduce against this schema'",
+        "state": "REFUTED in one query: COUNTIF(JSON_EXTRACT_SCALAR(full_report_json,'$._path')='lite') = 14 over the same 40-day window, and 170-14 = 156 -- exactly the researcher's split. The key is $._path, not $.lite_mode. The executor's own 142/170 and last-fired timestamp reproduce EXACTLY, so this is an under-derivation reported as an irreproducibility, not a fabricated number.",
+        "constraint": "This is the AWS REL05-BP01 fallback-share figure the promotion ask depends on. Measured precisely: the lite fallback carries 14/170 = 8.2% of traffic TODAY and would carry up to 156/170 = 91.8% post-promotion (0 of the 142 fabricated rows are lite-path, so the pathology is purely full-path). live_check Section C's '~0-9% toward the majority' should be replaced with these measured endpoints so the operator decides on the exact number."
+      },
+      {
+        "violation_type": "Threshold_Not_Met",
+        "action": "qa.md 1a Python lint gate over the git-derived scope (git diff --name-only HEAD + git ls-files --others, xargs-quoted, non-empty set asserted)",
+        "state": "uvx ruff check --select F821,F401,F811 -> exit=1, Found 3 errors, all in backend/tests/test_phase_61_2_decision_integrity.py: F401 'json' unused (:18:8), F401 'pytest' unused (:22:8), F401 'backend.services.portfolio_manager.TradeOrder' unused (:26:48). I confirmed all 3 are PRE-EXISTING at HEAD (identical findings on the HEAD copy, exit=1), so this is not a regression from this cycle's edits. But the handoff contains ZERO lint evidence -- grep for 'ruff|lint|F401' across experiment_results_61.2.md and live_check_61.2.md returns nothing.",
+        "constraint": "qa.md 1a requires the lint gate whenever the diff touches any *.py. WARN, not a blocker: no F821 (the runtime-bug class the gate exists for) and no new findings. Fix: drop the 3 dead imports while the file is already open, and record the gate output in experiment_results."
+      },
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Grade criteria 4 and 6 live",
+        "state": "C4: _rank_normalized_convictions (meta_scorer.py:170-177, :296-300 over head+tail) and the >=2-consecutive-cycle P2 WARN (autonomous_loop.py:999-1013) both exist and the streak counter has genuinely behavioral tests (increments/resets/corrupt-file via monkeypatched _CONVICTION_STREAK_PATH) -- but BOTH sit behind paper_synthesis_integrity_enabled, so the live fallback still emits the legacy saturated clamp. The root-cause clause IS met and documented (credit-dead direct rail since 2026-05-17 + pre-78.1 direct ClaudeClient construction; I verified the bypass is gone -- meta_scorer.py:242 now calls make_client). C6: autonomous_loop.py:1045-1052 builds ctx under `paper_risk_judge_reject_binding OR paper_synthesis_integrity_enabled`; both OFF today so the judge receives '' -- the criterion's 'regardless of paper_risk_judge_reject_binding' holds only once the integrity flag is promoted.",
+        "constraint": "Both live halves ride the SAME promotion decision as criterion 1. No separate operator action required."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_5_item_audit",
+      "research_gate_envelope (gate_passed=true, 7 sources read in full >=5, 38 URLs >=10, recency_scan=true)",
+      "mtime_chain (brief 14:54 < contract 14:58 < test edit 15:00 < live_check 15:06 < results 15:07)",
+      "log_last (masterplan 61.2 status=pending, retry_count=0; no cycle entry yet)",
+      "no_verdict_shopping (evidence changed vs Cycle 74: 3 test files, new brief/contract/live_check/results, +36.28)",
+      "3rd_conditional_counter (grep -cE '^## Cycle .*phase=61\\.2 .*result=CONDITIONAL' = 1; PASS/FAIL = 0 -> this is #2, auto-FAIL not triggered)",
+      "immutable_verification_command (71 passed, 2829 deselected, exit 0)",
+      "test_f_live_check (exit 0)",
+      "python_lint_gate_F821_F401_F811 (exit=1, 3 findings, all proven pre-existing at HEAD)",
+      "zero_production_code_change (git diff --name-only HEAD)",
+      "per_module_test_counts (61.2=33, 50.2=10, 83.0=10 -- all reproduced)",
+      "mutation_matrix_criterion_5 (CONTROL / paused-flip / production-revert / blanked-fixture / injection-removed -- 5 cases, repo untouched, verified by empty git diff --stat)",
+      "live_kill_switch_state_probe (is_paused=True, pause_reason='manual', sod_nav=23830.46, peak_nav=24666.57)",
+      "guard_vacuity_probe_qa_4c (comment-only module satisfies both source-scan guards)",
+      "bq_rederivation_criterion_3 (company_name NULLs by day, 27 days, 21 post-fix days at zero -- exact match)",
+      "bq_rederivation_section_B (total_n=170, fabricated_n=142, 83.5%, last 2026-08-06T19:20:56.402576Z -- exact match)",
+      "bq_null_reconciliation (40 nulls = 12 on 06-29/06-30 + 28 on 07-01..07-08; none post-07-09)",
+      "bq_lite_split_refutation ($._path='lite' = 14 -> 156/14 IS reproducible; 0 of 142 fabricated are lite-path)",
+      "population_rederivation_36_28 (pre-repair simulation: 9 failures, not 15)",
+      "population_member_classification (forced-healthy run isolates test_adjust_cash_and_mtm as a different defect class)",
+      "code_review_heuristics",
+      "criterion_2_wiring_trace (settings.py:186 Field(150,ge=60,le=600) -> llm_client.py:2127 -> claude_code_client.py:593/:600; env CLAUDE_CODE_TIMEOUT_S)",
+      "criterion_3_code_half (autonomous_loop.py:2926-2934 market_data.name or quant.company_name, ungated)",
+      "criterion_4_root_cause_verification (meta_scorer.py:242 make_client -- bypass confirmed gone)",
+      "criterion_6_gate_read (autonomous_loop.py:1045-1052, both flags OFF -> ctx='')",
+      "operator_ask_10_present",
+      "kill_switch_audit_integrity (md5 d88fa2be2f7107d41e8de1250d44158a unchanged across all runs)",
+      "frontend_gate_not_applicable (0 frontend files in diff)"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "SOLE BLOCKER TO PASS, stated for the operator: promote `paper_synthesis_integrity_enabled` (settings.py:198, default False) + backend restart + >=1 scheduled full-path cycle. That one flag unblocks the live halves of criteria 1, 4 AND 6 simultaneously (C6's RiskJudge context rides the same OR-gate). Measured stake, independently reproduced by me: 142 of 170 analysis_results rows in the last 40 days (83.5%) are fabricated final_score=0.0 + HOLD masking 'Failed to parse final report.', still firing as of 2026-08-06 19:20:56Z. Measured RISK, now precise where the handoff was approximate: 0 of those 142 are lite-path, so promotion moves the lite fallback from 14/170 = 8.2% of traffic to as much as 156/170 = 91.8% -- the AWS REL05-BP01 untested-fallback-becomes-primary hazard, correctly raised in operator_ask #10 and worth restating with these endpoints. Declining promotion leaves 61.2 at CONDITIONAL #2 of 3.\n\nWHY THIS IS NOT A PASS: three of six criteria have no live evidence and cannot until promotion. WHY THIS IS NOT A FAIL: harness_log carries exactly one prior CONDITIONAL for phase=61.2 (Cycle 74, 2026-07-08) and no PASS/FAIL, so the 3rd-CONDITIONAL auto-FAIL rule does not trigger; and the executor's work is genuinely complete for a dark step.\n\nWORST-OF-N-LENSES (P0 money path): correctness = CONDITIONAL (code correct everywhere I probed; C1/C4/C6 dark). does-it-reproduce = CONDITIONAL (immutable command, all criterion-3 and Section-B BQ figures, both author-named mutations and all per-module test counts reproduce exactly; the 36.28 population count does not, and one member is mis-classified). scope-honesty = CONDITIONAL (unusually strong -- contract D2 pre-declared the honest CONDITIONAL before the work, D4 registered the test-debt rather than quietly fixing it, and the researcher's split was cited to the researcher rather than appropriated; offset by the wrong irreproducibility disclosure and a lint gate never run). min = CONDITIONAL.\n\nCREDIT WHERE DUE, verified by execution not by reading: both contract-named mutations reproduce under my own independently-built harness. Reverting paper_trader.py's `_pos_rec = analysis_recommendation` to `reason` kills ONLY test_pos_row_stores_verdict_flag_on while the flag-off test stays green -- the kill is correctly attributed to the criterion-5 assertion, not to the kill switch (qa.md 4c shape #11 checked and cleared). I added two mutations the author did not run: blanking the fixture's snapshot() and removing the injection entirely -- both turn the suite red, so the _HealthyKillSwitch stub is neither a wrong-type nor an inert fixture (shapes #5/#6 cleared). The live singleton genuinely reads is_paused=True/'manual', so the test repair is load-bearing today, not decorative.\n\nqa.md 1c (live UI capture): NOT APPLICABLE this cycle and correctly deferred. None of the six immutable criteria makes a UI claim; the degraded-row badge in reports-columns.tsx cannot render until a degraded row exists, which requires promotion. I took no Playwright capture because there is nothing renderable to capture -- disclosed here rather than left implicit. The Cycle-74 Q/A's blocker #3 folds into the same promotion decision.\n\nqa.md 1d (backend runtime smoke): the diff touches backend/tests/** only, zero production modules. All three changed modules were imported and executed by the pytest runs above; no production import surface changed.\n\nREAD-ONLY DISCIPLINE: no repo file was written. Mutations ran via sys.modules injection of mutated in-memory copies and pytest plugin objects; I verified `git diff --stat` stays empty on backend/services/paper_trader.py and backend/services/autonomous_loop.py after every mutation, and the live kill-switch audit md5 is unchanged (d88fa2be2f7107d41e8de1250d44158a, 38 lines) across all test runs -- I deliberately did NOT run test_phase_38_1_kill_switch_auto_resume.py to avoid writing rows into the live safety file. All BQ queries were bounded SELECTs with use_query_cache=False.\n\nFIX LIST IF MAIN WANTS TO CONVERT THIS TO A PASS-SHAPED CYCLE 3 (none of these substitute for promotion): (1) correct experiment_results to '9 kill-switch-coupled failures across 5 files; 4 remaining in 2 files; 13 remaining FILES', or publish the 14-file command that produced 15; (2) fix step 36.28's scope so it is closeable -- test_adjust_cash_and_mtm's TypeError is a stale lambda signature, not the kill-switch class; (3) replace live_check Section B's irreproducibility disclosure with the reproduced $._path derivation and put 8.2% -> 91.8% into Section C and operator_ask #10; (4) run the ruff gate, drop the 3 dead imports, record the output; (5) convert at least test_degraded_marker_never_enters_analyses from a source scan to an executing test, since it is criterion 1's only coverage of the trade-decision-neutralization clause."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:61.2",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a2e48c0a6adcd6097",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786108084358,
+      "queuedAt": 1786108084349,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 61.2, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786108754963,
+      "tokens": 176544,
+      "toolCalls": 41,
+      "durationMs": 670605,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"CONDITIONAL #2 of 3 (prior count 1; auto-FAIL not triggered). Immutable command reproduced GREEN by me verbatim (71 passed, 2829 deselected, exit 0; test -f live_check_61.2.md exit 0) and zero production files changed (diff = 3 test files + masterplan + handoff only). C2 MET live/ungated, C3 MET with its BQ evidence reproduced EXACTLY by my own indepen…"
+    }
+  ],
+  "totalTokens": 176544,
+  "totalToolCalls": 41
+}

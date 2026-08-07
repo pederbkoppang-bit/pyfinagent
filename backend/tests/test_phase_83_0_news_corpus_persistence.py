@@ -332,14 +332,29 @@ def test_c5_two_distinct_adapters_flow_through_writer(_isolated_registry):
 
 
 def test_c5_no_alphavantage_import_chain(monkeypatch):
+    """phase-61.2 cycle-173 isolation repair: this test previously scanned the
+    GLOBAL sys.modules, so any earlier-run test whose import chain touched
+    backend.tools.alphavantage (e.g. the 61.2 module via meta_scorer) made it
+    fail order-dependently. The assertion's subject is what THE TWO TARGET
+    IMPORTS pull in -- so pre-existing alphavantage entries are snapshotted
+    and removed first, the targets force-reimported, the delta asserted, and
+    the snapshot restored."""
     monkeypatch.delenv("ALPHAVANTAGE_API_KEY", raising=False)
+    saved = {
+        name: sys.modules.pop(name)
+        for name in list(sys.modules)
+        if "alphavantage" in name.lower() or "alpha_vantage" in name.lower()
+    }
     for name in list(sys.modules):
-        if name.startswith("scripts.migrations.add_news_sentiment_schema"):
+        if name.startswith("scripts.migrations.add_news_sentiment_schema") or name == "backend.news.bq_writer":
             sys.modules.pop(name, None)
-    importlib.import_module("backend.news.bq_writer")
-    importlib.import_module("scripts.migrations.add_news_sentiment_schema")
-    reached = {m for m in sys.modules if "alphavantage" in m.lower() or "alpha_vantage" in m.lower()}
-    assert not reached, f"alphavantage module pulled in by migration/writer: {reached}"
+    try:
+        importlib.import_module("backend.news.bq_writer")
+        importlib.import_module("scripts.migrations.add_news_sentiment_schema")
+        reached = {m for m in sys.modules if "alphavantage" in m.lower() or "alpha_vantage" in m.lower()}
+        assert not reached, f"alphavantage module pulled in by migration/writer: {reached}"
+    finally:
+        sys.modules.update(saved)
 
 
 # ── C6: finnhub.py / benzinga.py byte-unchanged ──────────────────────

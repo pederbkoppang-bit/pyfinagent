@@ -104,6 +104,21 @@ class _FakeFill:
         self.source = "bq_sim"
 
 
+class _HealthyKillSwitch:
+    """phase-61.2 cycle-173 blast-radius repair: the phase-36.13 BUY gate
+    consults the REAL on-disk kill-switch audit when no state is injected, so
+    these tests failed whenever the operator's live book was paused. Injection
+    via the documented seam makes them state-independent. The remaining 13
+    same-class tests across 4 other files are queued as step 36.28."""
+
+    def is_paused(self):
+        return False
+
+    def snapshot(self):
+        return {"paused": False, "pause_reason": None,
+                "sod_nav": 10_000.0, "peak_nav": 10_000.0}
+
+
 def _mk_trader(cash=10_000.0, position=None):
     """PaperTrader with a fully-mocked BQ client (no network)."""
     from backend.config.settings import get_settings
@@ -117,7 +132,8 @@ def _mk_trader(cash=10_000.0, position=None):
     bq.get_paper_positions.return_value = [position] if position else []
     bq.get_paper_position.return_value = position
     bq.get_paper_trades_for_ticker_since.return_value = []
-    trader = pt.PaperTrader(get_settings(), bq)
+    trader = pt.PaperTrader(get_settings(), bq,
+                            kill_switch_state=_HealthyKillSwitch())
     trader._maybe_notify_trade = lambda trade: None
     return trader, bq
 

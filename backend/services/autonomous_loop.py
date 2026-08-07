@@ -1151,14 +1151,7 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                             logger.warning(
                                 f"Persist failed for {kind} {ticker} (non-fatal): {exc}"
                             )
-                    if analysis.get("_degraded"):
-                        # phase-61.2: the degraded marker exists ONLY to leave
-                        # an honest BQ row; it must never be folded into
-                        # candidate/holding analyses (a NULL recommendation
-                        # would crash decide_trades at portfolio_manager:114,
-                        # and a fabricated value is the bug being fixed).
-                        return None
-                    return analysis
+                    return _fold_degraded_for_trading(analysis)
 
             # Dispatch new candidates concurrently.
             candidate_results = await asyncio.gather(
@@ -2218,6 +2211,19 @@ def _select_lite_analyzer(model_name):
     if name.startswith("gemini-"):
         return _run_gemini_analysis
     return _run_claude_analysis
+
+
+def _fold_degraded_for_trading(analysis: dict | None) -> dict | None:
+    """phase-61.2 (cycle-173 seam extraction): a _degraded analysis leaves its
+    honest BQ row but must NEVER enter the trade-decision inputs -- a NULL
+    recommendation would crash decide_trades at portfolio_manager:114, and a
+    fabricated value is the bug 61.2 exists to fix. Extracted from the
+    _run_and_persist_one closure so the guard is BEHAVIOURALLY testable (the
+    prior source-scan test was proven vacuous by the cycle-2 Q/A: a
+    comment-only module satisfied it)."""
+    if analysis and analysis.get("_degraded"):
+        return None
+    return analysis
 
 
 def _degraded_scoring_check(analyses: list[dict]) -> tuple[bool, int, int]:
