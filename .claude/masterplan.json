@@ -23758,6 +23758,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "85.5",
+          "name": "P0 SAFETY: a LIVE autonomous cycle's lock is judged stale after 90min, and the stale path unlink+recreates the lockfile -- which defeats the flock the live cycle holds. Two cycles can then run concurrently on the money path.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "audit_basis": "Discovered and PROVEN 2026-08-07 (cycle 180) while waiting on a live cycle before an unrelated restart. Two independent measurements, both reproducible. (1) THE PREDICATE IS WRONG ON A LIVE CYCLE: backend/services/cycle_lock.py defines is_stale = (age_sec > _LOCK_TTL_SEC) or (not pid_alive). Measured against the RUNNING cycle at 21:30 local: age_sec=5440, pid=89530, pid_alive=True, IS_STALE=True -- i.e. a cycle that was actively writing to backend.go and progressing through tickers was judged stale purely on age, with its liveness ignored because the conditions are OR'd. (2) THE STALE PATH DEFEATS THE FLOCK: acquire() on BlockingIOError checks is_stale and, if true, calls clean_stale_lock() -> unlink -> reopen O_CREAT -> flock again. Unlinking and recreating yields a NEW INODE, and an flock on a new inode has no contention with the one the live process still holds. Demonstrated directly (scratch script, macOS, same Python/venv): process A takes flock; B is correctly refused with BlockingIOError; after unlink+recreate B ACQUIRES, and fstat shows same-inode=False -- so both A and B simultaneously believe they hold the cycle lock. On a trading loop that is a double-order hazard, not merely a bookkeeping one. WHY IT IS REACHABLE NOW (this is the link to 85.4, do not treat them as duplicates): _LOCK_TTL_SEC = 5400 carries the in-code comment '1.5x paper_cycle_max_seconds (1800s)', but the cycle timeout actually in force is 7200s (the 2026-08-06 failure recorded 'cycle exceeded 7200s'). So the TTL is ~0.75x the real cycle budget, not 1.5x, and EVERY cycle that runs past 90 minutes spends its final ~30 minutes advertising a stale lock while alive. 85.4 established that long cycles are now routine, which is exactly what converts this latent bug into a live one. RE-DERIVE ALL OF THE ABOVE before acting -- the TTL, the real cycle timeout, and the is_stale predicate may all have moved. WHAT WAS NOT DONE: nothing was changed; no cycle was interrupted; the observation came from read-only inspection plus a scratch-dir flock experiment that touched no project file.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests -k \"cycle_lock or 85_5\" -q --timeout=120'",
+            "success_criteria": [
+              "a live process's lock is NEVER judged stale: the predicate treats pid_alive (and holding the flock) as vetoing staleness, so age alone cannot condemn a running cycle; a test drives the exact measured condition (age > TTL, pid alive) and asserts is_stale is False",
+              "the unlink+recreate bypass is closed: a second acquirer cannot obtain the lock while the first process is alive and holds the flock, proven by a test that spawns a real second process (not a mocked one) and asserts it is refused -- the fixture must first demonstrate the OLD code path acquiring, so the test cannot pass vacuously",
+              "the TTL and the cycle timeout are reconciled and the relationship is asserted in code (e.g. TTL derived from the cycle budget rather than a hardcoded constant whose comment cites a value no longer in force), with a test that fails if a future edit makes TTL < cycle timeout again",
+              "a genuinely dead holder is still recoverable: a lock whose pid is dead is cleaned as before, proven by a test that kills a real child process mid-hold -- the fix must not trade a double-run hazard for a permanent deadlock",
+              "no change to order/sizing/risk logic; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_85.5.md with the re-measured inspect_lock() output on a live cycle showing is_stale False, the two-real-process acquisition test transcript (refused while alive, granted after death), and the reconciled TTL-vs-cycle-timeout values"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
