@@ -13,7 +13,7 @@ doing it. Items accumulate during the day; recommendations are the executor's.
 | 6 | Alpha Vantage archive: point-in-time INVALID for backtests (19x density discontinuity) + non-commercial ToS. Use anyway for any purpose? | 83.0 scope (c) | Recommend NO for backtest corpus; GDELT/EDGAR are measured-clean. Corpus writer ships source-agnostic so this decision stays open without rework |
 | 7 | Remaining phase-79 operator-only steps (53 pending, harness_required:false) | phase-79 | Reviewed in batch at next at-machine session; none executor-actionable |
 
-| 8 | Qualified DELETE of smoke-test pollution: 9 `source='stub'` rows in `pyfinagent_data.news_articles` + 9 matching rows in `news_sentiment` (written 2026-08-07 by phase6_e2e runs; $0 spent, 6 rows are scorer error records). Purge queued as step 83.0.7 with WHERE-qualified predicates after the streaming buffer drains. | 83.0.7 | Approve the qualified DELETE (never unqualified); executor runs it under 83.0.7's live_check |
+| 8 | Qualified DELETE of test pollution in `pyfinagent_data.news_articles`: 9 `source='stub'` rows (phase6_e2e runs) + 2 `source='fixture'` rows (83.0.1 live_check: the 2022 backfill row + the quarantined NULL row), plus 9 matching `news_sentiment` rows ($0 spent, 6 are scorer error records). Purge queued as step 83.0.7 with WHERE-qualified predicates (`source IN ('stub','fixture')`) after the streaming buffer drains. | 83.0.7 | Approve the qualified DELETE (never unqualified); executor runs it under 83.0.7's live_check |
 
 ## Recorded during the day
 

@@ -1,6 +1,7 @@
 # Researcher Agent Memory Index
 
 - [PBO MCP proof 83.0.3](project_pbo_mcp_proof_83_0_3.md) — fix ALREADY shipped (proof step, not fix step); FastMCP 3.2.4 tools are closures (`get_tool().fn`; `_tool_manager` is None); payload `isError` != protocol `is_error`; near-identical columns give a HIGH PBO
+- [News timestamp PIT 83.0.1](project_news_timestamp_pit_83_0_1.md) — BQ DOES allow a NULLABLE partition column (`__NULL__` partition); step premise INCOMPLETE — 3 more wall-clock fabrications in the adapters make fetcher.py's fallback DEAD CODE on the live path; RuleA = first session strictly after the pub UTC date
 - [News corpus persistence 83.0](project_news_corpus_persistence_83_0.md) — BQ CANNOT add a REQUIRED column to an existing table (absent table = perishable one-shot window); insert_rows_json is STRICT by default so a bad column kills the WHOLE batch; live news path is DISJOINT from backend/news/; `fetched_at` rename has a live-table (calendar_events) trap
 - [Registry->live bridge 82.6](project_registry_live_bridge_82_6.md) — BOTH step premises REFUTED; the headline was in an unnamed file (paper_trader:1427 skips the trailing stop on a strategy NAME) and inert only because the COLUMN is NULL; selector already built + dark
 - [Slack handler binding 82.59](project_slack_handler_binding_82_59.md) — Bolt SWALLOWS listener exceptions so every Slack handler defect is SILENT; status==200 is vacuous; inspect.bind() and a real call report DIFFERENT errors; name-based AST resolution was 0/10 real

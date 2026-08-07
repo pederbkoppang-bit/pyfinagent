@@ -5,8 +5,14 @@ Two tables in `pyfinagent_data` (configurable via
 
 `news_articles` -- append-only raw fact table:
     article_id STRING NOT NULL       -- uuid4 surrogate
-    published_at TIMESTAMP NOT NULL  -- source-asserted timestamp
+    published_at TIMESTAMP           -- source-asserted timestamp; phase-83.0.1: NULLABLE --
+                                     -- a missing/unparseable publication time is stored as
+                                     -- NULL and quarantined, NEVER wall-clock-fabricated.
+                                     -- NULL rows land in the __NULL__ partition.
     ingested_at TIMESTAMP NOT NULL   -- our ingestion time (phase-83.0: renamed from fetched_at)
+    effective_trade_date DATE        -- phase-83.0.1: first session STRICTLY AFTER the
+                                     -- publication UTC date (one-session embargo); NULL
+                                     -- when quarantined or calendar unresolvable (fail-CLOSED)
     provenance STRING NOT NULL       -- phase-83.0: {live, backfill}; REQUIRED can only be
                                      -- created WITH the table (BQ forbids adding REQUIRED
                                      -- to an existing schema), hence the one-shot DDL here
@@ -69,9 +75,10 @@ from backend.config.settings import get_settings
 DDL_NEWS_ARTICLES = """
 CREATE TABLE IF NOT EXISTS `{project}.{dataset}.news_articles` (
   article_id STRING NOT NULL,
-  published_at TIMESTAMP NOT NULL,
+  published_at TIMESTAMP,
   ingested_at TIMESTAMP NOT NULL,
   provenance STRING NOT NULL,
+  effective_trade_date DATE,
   source STRING NOT NULL,
   ticker STRING,
   title STRING,
@@ -121,9 +128,12 @@ OPTIONS (
 # printing "OK: ... ready." over a table it never touched.
 REQUIRED_MODES: dict[str, dict[str, str]] = {
     "news_articles": {
-        "published_at": "REQUIRED",
+        # phase-83.0.1: published_at relaxed to NULLABLE (quarantine rows store
+        # NULL, never a wall-clock fabrication). Relaxation is one-way in BQ.
+        "published_at": "NULLABLE",
         "ingested_at": "REQUIRED",
         "provenance": "REQUIRED",
+        "effective_trade_date": "NULLABLE",
     },
     "news_sentiment": {
         "scored_at": "REQUIRED",

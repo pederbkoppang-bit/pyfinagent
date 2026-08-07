@@ -142,7 +142,9 @@ class FinnhubSource:
             if isinstance(ts, (int, float)) and ts > 0:
                 published_at = datetime.fromtimestamp(int(ts), tz=timezone.utc).isoformat()
             else:
-                published_at = datetime.now(timezone.utc).isoformat()
+                # phase-83.0.1: no wall-clock substitution -- an empty value
+                # reaches the fetcher chokepoint, which stores NULL + quarantines.
+                published_at = ""
             yield RawArticle(
                 source="finnhub",
                 title=str(row.get("headline") or ""),

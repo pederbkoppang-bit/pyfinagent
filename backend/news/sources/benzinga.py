@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
 from typing import Iterable
 
 import httpx
@@ -143,10 +142,9 @@ class BenzingaSource:
                 authors.append(str(author))
 
             body = str(row.get("body") or row.get("teaser") or "")
-            published_at = (
-                str(row.get("created") or row.get("updated") or "")
-                or datetime.now(timezone.utc).isoformat()
-            )
+            # phase-83.0.1: no wall-clock substitution -- empty/malformed values
+            # reach the fetcher chokepoint (NULL + quarantine).
+            published_at = str(row.get("created") or row.get("updated") or "")
 
             yield RawArticle(
                 source="benzinga",

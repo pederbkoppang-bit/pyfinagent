@@ -1,0 +1,18 @@
+{
+  "_doc": "phase-83.0.1 committed point-in-time fixture corpus. Cases: missing/empty/None/malformed publication timestamps (quarantine), a 2022-dated backfill article, and intraday-weekday/Friday/Saturday/Sunday/holiday articles that make the one-session-embargo minimum non-vacuous. Holidays: 2022-01-17 MLK, 2022-07-04 Independence Day, 2022-12-25 Christmas (Sunday; observed Mon 12-26).",
+  "articles": [
+    {"case": "no_published_at_key", "source": "fixture", "title": "Missing timestamp entirely", "body": "b1", "url": "https://fix.example.com/1"},
+    {"case": "empty_published_at", "source": "fixture", "title": "Empty-string timestamp", "body": "b2", "url": "https://fix.example.com/2", "published_at": ""},
+    {"case": "null_published_at", "source": "fixture", "title": "Null timestamp", "body": "b3", "url": "https://fix.example.com/3", "published_at": null},
+    {"case": "malformed_published_at", "source": "fixture", "title": "Malformed non-empty timestamp", "body": "b4", "url": "https://fix.example.com/4", "published_at": "n/a"},
+    {"case": "backfill_2022", "source": "fixture", "title": "Historical 2022 article for backfill", "body": "b5", "url": "https://fix.example.com/5", "published_at": "2022-03-15T14:30:00+00:00", "ticker": "AAPL"},
+    {"case": "intraday_weekday", "source": "fixture", "title": "Intraday Wednesday", "body": "b6", "url": "https://fix.example.com/6", "published_at": "2022-06-08T15:45:00+00:00", "ticker": "MSFT"},
+    {"case": "friday", "source": "fixture", "title": "Friday afternoon", "body": "b7", "url": "https://fix.example.com/7", "published_at": "2022-06-10T20:30:00+00:00", "ticker": "NVDA"},
+    {"case": "saturday", "source": "fixture", "title": "Saturday news", "body": "b8", "url": "https://fix.example.com/8", "published_at": "2022-06-11T12:00:00+00:00", "ticker": "AMZN"},
+    {"case": "sunday", "source": "fixture", "title": "Sunday news", "body": "b9", "url": "https://fix.example.com/9", "published_at": "2022-06-12T18:00:00+00:00", "ticker": "GOOG"},
+    {"case": "mlk_holiday", "source": "fixture", "title": "MLK Monday holiday", "body": "b10", "url": "https://fix.example.com/10", "published_at": "2022-01-17T13:00:00+00:00", "ticker": "TSLA"},
+    {"case": "july4_holiday", "source": "fixture", "title": "Independence Day", "body": "b11", "url": "https://fix.example.com/11", "published_at": "2022-07-04T16:00:00+00:00", "ticker": "META"},
+    {"case": "christmas", "source": "fixture", "title": "Christmas Sunday", "body": "b12", "url": "https://fix.example.com/12", "published_at": "2022-12-25T09:00:00+00:00", "ticker": "AAPL"},
+    {"case": "no_ticker_macro", "source": "fixture", "title": "Macro news without ticker", "body": "b13", "url": "https://fix.example.com/13", "published_at": "2022-09-21T18:00:00+00:00"}
+  ]
+}

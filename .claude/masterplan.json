@@ -22502,7 +22502,7 @@
         },
         {
           "id": "83.0.1",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "depends_on": [
@@ -22643,6 +22643,25 @@
               "a live_check captures the post-purge table state showing zero source='stub' rows in news_articles and zero stub-article sentiment rows"
             ],
             "live_check": "verbatim query output: pre-purge stub row counts, the qualified DELETE statements, and post-purge zero counts for both tables"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.0.8",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": ["83.0.1"],
+          "name": "DEFECT (own step per standing rule), discovered by the 83.0.1 Q/A (finding F2, verdict wf_5fd1a654-84e 2026-08-07): the cross-batch dedup window silently excludes quarantined NULL-published rows, so a persistently-broken vendor feed would re-insert every quarantined article on every run. MEASURED: backend/news/dedup.py:98 filters `WHERE published_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)` -- for a NULL published_at the comparison is NULL and the row falls outside the window, the exact __NULL__-partition trap the 83.0.1 contract documents for its own live_check query, now present in production SQL. canonical_url/body_hash ARE still computed for quarantined rows, so the dedup anchors exist; only the window predicate is blind. DORMANT TODAY: the only call site is dedup.py:159 in the module's own _smoke() with bq_client=None; the Q/A's grep found no production caller. SCOPE: make the cross-batch window include NULL-published rows (e.g. OR published_at IS NULL, or window on ingested_at which is REQUIRED and always truthful post-83.0.1), with a test proving a quarantined duplicate is caught across batches; mutation-test the predicate; record the dormancy census (call sites of the cross-batch dedup) before and after.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_0_8_dedup_null_window.py -q",
+            "criteria": [
+              "a test proves a quarantined (published_at NULL) article already present in the table is caught as a cross-batch duplicate by its canonical_url or body_hash, using a faked BQ client seam",
+              "the window guard is mutation-tested: reverting the predicate to the published_at-only window makes the criterion-1 test FAIL",
+              "the dormancy census (production call sites of the cross-batch dedup) is recorded as measured before/after output, not asserted",
+              "the chosen predicate is justified in the artifact against the ingested_at-window alternative (ingested_at is REQUIRED and never NULL post-83.0.1)"
+            ]
           },
           "retry_count": 0,
           "max_retries": 3

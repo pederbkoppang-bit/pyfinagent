@@ -173,6 +173,8 @@ def _serialize_article(article: Mapping[str, Any]) -> dict[str, Any]:
         # tests rather than emitting an unknown column (strict insert).
         "ingested_at": article.get("ingested_at") or article.get("fetched_at"),
         "provenance": provenance,
+        # phase-83.0.1: NULL for quarantined rows (fail-closed derivation).
+        "effective_trade_date": article.get("effective_trade_date"),
         "source": article.get("source") or "",
         "ticker": article.get("ticker"),
         "title": article.get("title") or "",

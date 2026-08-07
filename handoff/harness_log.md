@@ -31780,3 +31780,13 @@ executed under this id -- the executed work ran 82.27's own full cycle.
 - **Verdict path:** CONDITIONAL (impostor probe: an inline-refusal wrapper over raw compute_pbo passed all behavioural tests -- "proven behaviourally" was a misattribution) -> CONDITIONAL (my own cycle-2 fix staled the cycle-1 census block: :86->:112, grep 50->51) -> **PASS** (all five evidence fixes re-derived by the evaluator; its new wrapper-side M_T mutation proved the routed dependency live; survivor M_N shown killed by 82.23's suite, a scope artifact not a hole).
 - **Lessons banked to memory:** the cycle-N fix is an edit that stales cycle-(N-1)'s measured blocks -- re-derive every fenced measurement after the FINAL edit (appended to `feedback_measure_dont_assert_claims`).
 - **Step-text corrections recorded:** the :142-143 anchors described the pre-82.27 tree (now comment prose); premise executed as PROOF per contract D1.
+
+## Cycle 170 -- 2026-08-07 -- phase=83.0.1 result=PASS
+
+**News timestamp point-in-time integrity -- PASS cycle 1.** Verdict verbatim in `evaluator_critique_83.0.1.md` (13 mutants total: 5 author + 8 independent Q/A, all criterion-relevant ones killed; live rows re-derived by the evaluator).
+
+- **Built:** published_at relaxed REQUIRED->NULLABLE **on the partition column** (vendor-verified one-way ALTER, run while the streaming buffer was empty) + effective_trade_date DATE added; parse-based NULL+quarantine at the _normalize chokepoint (per-reason counters, WARNING logs); **all FOUR wall-clock fabrication sites removed** (the step named one -- the research found the other three upstream in finnhub/benzinga/alpaca, with alpaca the LIVE site and the named line dead code); RuleA one-session embargo (`date_to_session(pub+1d, "next")`, exactness ==1 asserted so over-embargo fails too), fail-CLOSED into quarantine; ingested_at = truthful run moment for backfills; committed 13-article fixture corpus spanning weekend/holiday shapes; per-adapter REAL-fetch() seam tests.
+- **Live evidence:** backfill row (published 2022-03-15, ingested 2026-08-07, effective_trade_date 2022-03-16) + a persisted quarantined row in the __NULL__ partition, both re-queried independently by the Q/A.
+- **D5:** 83.0's byte-unchanged test retired with a tombstone (criterion discharged at commit 06911cb5; a living version would forbid this step's authorized repair).
+- **Queued:** 83.0.8 (dedup.py cross-batch window is NULL-blind -- Q/A finding F2, dormant). Priced concession recorded: the embargo forecloses fast numeric-surprise strategies (Martineau/Christensen) -- deliberate for the weeks-to-months channel.
+- **Pollution ledger:** +2 source='fixture' rows (this live_check) folded into the 83.0.7 purge; ask #8 updated.

@@ -27,7 +27,9 @@ from backend.news.bq_writer import (
 # phase-83.0: fetched_at -> ingested_at + REQUIRED provenance on both news
 # tables. calendar_events (below) keeps fetched_at -- that table exists live.
 _NEWS_ARTICLES_FIELDS = {
-    "article_id", "published_at", "ingested_at", "provenance", "source",
+    "article_id", "published_at", "ingested_at", "provenance",
+    "effective_trade_date",  # phase-83.0.1
+    "source",
     "ticker", "title", "body", "url", "canonical_url", "body_hash", "language",
     "authors", "categories", "raw_payload",
 }

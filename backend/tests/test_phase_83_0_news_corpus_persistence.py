@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import importlib
 import logging
-import subprocess
 import sys
 from unittest.mock import patch
 
@@ -36,9 +35,13 @@ from backend.news.registry import clear_registry, register
 # captured 2026-08-07 post-migration (see handoff live_check_83.0.md).
 _SNAPSHOT_NEWS_ARTICLES = {
     "article_id": ("STRING", "REQUIRED"),
-    "published_at": ("TIMESTAMP", "REQUIRED"),
+    # phase-83.0.1: relaxed REQUIRED -> NULLABLE (quarantined rows store NULL);
+    # effective_trade_date added. Snapshot re-captured from the live schema
+    # after the 83.0.1 ALTER.
+    "published_at": ("TIMESTAMP", "NULLABLE"),
     "ingested_at": ("TIMESTAMP", "REQUIRED"),
     "provenance": ("STRING", "REQUIRED"),
+    "effective_trade_date": ("DATE", "NULLABLE"),
     "source": ("STRING", "REQUIRED"),
     "ticker": ("STRING", "NULLABLE"),
     "title": ("STRING", "NULLABLE"),
@@ -340,19 +343,12 @@ def test_c5_no_alphavantage_import_chain(monkeypatch):
 
 
 # ── C6: finnhub.py / benzinga.py byte-unchanged ──────────────────────
-
-
-def test_c6_finnhub_benzinga_byte_unchanged():
-    out = subprocess.run(
-        [
-            "git", "diff", "HEAD", "--name-only", "--",
-            "backend/news/sources/finnhub.py",
-            "backend/news/sources/benzinga.py",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,  # git absent/failing must FAIL the test, never skip
-    )
-    assert out.stdout.strip() == "", (
-        f"finnhub.py/benzinga.py modified in working tree: {out.stdout!r}"
-    )
+# TOMBSTONE (phase-83.0.1, contract D5): test_c6_finnhub_benzinga_byte_unchanged
+# is RETIRED. Its criterion belonged to step 83.0 ("byte-unchanged ... asserted
+# by a committed diff over exactly those two paths") and was DISCHARGED at the
+# 83.0 close (commit 06911cb5 carries the empty diff). As a living test it
+# asserted `git diff HEAD` emptiness forever, which would forbid every future
+# legitimate edit to those files -- including 83.0.1's authorized removal of
+# the adapters' wall-clock fabrication sites (the step 83.0's research had
+# already flagged as upstream dead-code coupling). Retired, not weakened: no
+# replacement assertion pretends to cover what it covered.
