@@ -157,6 +157,19 @@ async def lifespan(app: FastAPI):
     logging.info(f"PyFinAgent backend starting (project={settings.gcp_project_id})")
     _warn_if_allowlist_empty(settings)
 
+    # phase-68.1: log the resolved order-execution backend AND where the value
+    # came from. Without this line there is no way to tell, from outside the
+    # process, whether the running service is on bq_sim because that was intended
+    # or because a configured value was silently dropped -- which is exactly what
+    # was happening: the router read only os.environ, while backend/.env is loaded
+    # into Settings and never exported. Fail-open: observability must never take
+    # startup down.
+    try:
+        from backend.services.execution_router import log_resolved_execution_mode
+        log_resolved_execution_mode()
+    except Exception as _e:  # never break startup
+        logging.warning("phase-68.1: could not resolve execution backend for logging: %s", _e)
+
     # phase-31.1: misnamed `settings.gemini_model` field can silently route
     # to Anthropic when set to "claude-*" -> the orchestrator hits the in-app
     # Anthropic SDK (NOT covered by Max plan) and fails on credit-balance

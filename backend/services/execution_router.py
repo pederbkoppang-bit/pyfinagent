@@ -1,18 +1,29 @@
 """Execution router (phase-3.7 step 3.7.5).
 
-Routes paper-trading orders to one of three backends selected at
-import time by the EXECUTION_BACKEND env-var (Fowler "ops toggle"
-pattern -- https://martinfowler.com/articles/feature-toggles.html):
+Routes paper-trading orders to one of three backends selected PER
+ExecutionRouter CONSTRUCTION by `resolve_execution_mode()` (Fowler "ops
+toggle" pattern -- https://martinfowler.com/articles/feature-toggles.html).
+(phase-68.1 correction: this docstring used to say "selected at import
+time", which was never true -- `__init__` resolves the mode on every
+construction, so a mid-process env change affects the next router built.)
 
 - `bq_sim` (default): synthetic fill at the last close from the
   bigquery_client cache. Same write path as before
   (paper_trader._safe_save_trade).
 - `alpaca_paper`: uses alpaca-py TradingClient(paper=True). Requires
-  ALPACA_API_KEY_ID + ALPACA_API_SECRET_KEY env. Triple-enforced
-  paper-only: (1) .mcp.json pins ALPACA_PAPER_TRADE=true, (2) this
-  router refuses PKLIVE-prefix keys, (3) SDK paper=True.
-  When keys are missing, falls back to deterministic mock fills so
-  the A/B harness can exercise the code path in CI.
+  ALPACA_API_KEY_ID + ALPACA_API_SECRET_KEY env. Paper-only enforcement,
+  in order of how much work each part actually does:
+    (1) SDK `paper=True` -> base URL pinned to paper-api.alpaca.markets.
+        THIS IS THE LOAD-BEARING GUARD -- the paper and live environments
+        are separated by DOMAIN.
+    (2) ALPACA_PAPER_TRADE=false is refused outright.
+    (3) a live-marked key-prefix filter. phase-68.1 correction: Alpaca does
+        NOT document any prefix difference between paper and live keys, so
+        this is a cheap extra filter, NOT the guarantee the previous wording
+        ("triple-enforced ... refuses PKLIVE-prefix keys") implied.
+  When keys are missing, falls back to deterministic mock fills so the A/B
+  harness can exercise the code path in CI -- and since phase-68.1 says so
+  LOUDLY at ERROR instead of silently.
 - `shadow`: runs BOTH paths per order and returns their paired fills
   for drift measurement. Position state is still owned by bq_sim;
   the alpaca path is read-only in shadow mode.
@@ -62,21 +73,98 @@ class FillResult:
 ADV_PARTIAL_FILL_THRESHOLD = 0.05  # orders >= 5% of ADV get partial fills
 
 
+def resolve_execution_mode() -> tuple[BackendMode, str]:
+    """Resolve the execution backend AND report where the value came from.
+
+    phase-68.1. The provenance is the point, not a nicety: before this existed,
+    `EXECUTION_BACKEND` was read only from `os.environ`, while the project's
+    configuration channel is `backend/.env` loaded by pydantic-settings -- which
+    populates `Settings` but does NOT export to `os.environ`. A value set in .env
+    was therefore invisible here, and the router used the default forever with
+    nothing in the logs to say so. "bq_sim" logged without its source cannot
+    distinguish "deliberately configured" from "your setting was silently dropped".
+
+    Precedence (first hit wins), each reported as `source`:
+      "env"     -- os.environ, i.e. the launchd plist or a shell export
+      "dotenv"  -- backend/.env via Settings.execution_backend
+      "default" -- neither set anything; DEFAULT_MODE
+
+    An unrecognised value from EITHER channel falls back to DEFAULT_MODE with
+    source "invalid:<channel>" -- it never escalates and never raises, because a
+    typo in a config file must not take the order path down.
+    """
+    raw_env = os.getenv("EXECUTION_BACKEND")
+    if raw_env is not None and raw_env.strip():
+        candidate = raw_env.strip().lower()
+        if candidate in VALID_MODES:
+            return candidate, "env"  # type: ignore[return-value]
+        logger.warning("unknown EXECUTION_BACKEND=%r from env; falling back to %s",
+                       raw_env, DEFAULT_MODE)
+        return DEFAULT_MODE, "invalid:env"
+
+    try:
+        from backend.config.settings import get_settings
+        candidate = str(getattr(get_settings(), "execution_backend", "") or "").strip().lower()
+    except Exception:  # pragma: no cover - settings must never break the order path
+        candidate = ""
+    if candidate:
+        if candidate in VALID_MODES:
+            return candidate, "dotenv"  # type: ignore[return-value]
+        logger.warning("unknown execution_backend=%r from .env/settings; falling back to %s",
+                       candidate, DEFAULT_MODE)
+        return DEFAULT_MODE, "invalid:dotenv"
+
+    return DEFAULT_MODE, "default"
+
+
+def log_resolved_execution_mode() -> tuple[BackendMode, str]:
+    """Emit the startup provenance line and return what it reported.
+
+    Called once from the FastAPI startup path so the line lands in the real
+    launchd process's log -- the only place that can prove what the running
+    service actually resolved (there is no endpoint, and the mode is resolved
+    per-construction, not at import).
+    """
+    mode, source = resolve_execution_mode()
+    logger.info(
+        "phase-68.1 execution backend: mode=%s source=%s (paper-only enforced; "
+        "default=%s)", mode, source, DEFAULT_MODE,
+    )
+    return mode, source
+
+
 def _current_mode() -> BackendMode:
-    raw = (os.getenv("EXECUTION_BACKEND") or DEFAULT_MODE).strip().lower()
-    if raw not in VALID_MODES:
-        logger.warning("unknown EXECUTION_BACKEND=%r; falling back to %s",
-                        raw, DEFAULT_MODE)
-        return DEFAULT_MODE
-    return raw  # type: ignore[return-value]
+    mode, _source = resolve_execution_mode()
+    return mode
+
+
+# phase-68.1: prefixes that must never reach the order path.
+#
+# HONESTY NOTE, and do not delete it: "PKLIVE" is NOT an Alpaca-documented format.
+# The 68.1 research gate read three official Alpaca sources in full and found NO
+# prefix or format difference between paper and live API keys -- the environments
+# are separated by DOMAIN (paper-api.alpaca.markets vs api.alpaca.markets), not by
+# key shape. So this prefix check is a cheap belt-and-braces filter that can catch
+# an obviously-mislabelled key, and it is NOT what makes the system paper-only.
+# The load-bearing guards are the paper base-URL pin (SDK paper=True) and the
+# ALPACA_PAPER_TRADE refusal below. Treating this prefix as the real guard would be
+# a false sense of safety.
+_LIVE_KEY_PREFIXES = ("PKLIVE", "AKLIVE")
 
 
 def _refuse_live_keys() -> None:
     key = os.getenv("ALPACA_API_KEY_ID", "")
-    if key.startswith("PKLIVE") or os.getenv("ALPACA_PAPER_TRADE", "true").lower() == "false":
+    if key.upper().startswith(_LIVE_KEY_PREFIXES):
         raise RuntimeError(
-            "refusing to run: live Alpaca keys or ALPACA_PAPER_TRADE=false "
-            "detected. phase-3.7.5 is paper-only."
+            f"refusing to run: Alpaca key begins with a live-marked prefix "
+            f"{_LIVE_KEY_PREFIXES}. phase-3.7.5 is paper-only. (Note: Alpaca does "
+            f"not actually distinguish paper/live keys by prefix -- the real "
+            f"guard is the paper base URL; see _LIVE_KEY_PREFIXES.)"
+        )
+    if os.getenv("ALPACA_PAPER_TRADE", "true").strip().lower() == "false":
+        raise RuntimeError(
+            "refusing to run: ALPACA_PAPER_TRADE=false detected. "
+            "phase-3.7.5 is paper-only."
         )
 
 
@@ -123,6 +211,43 @@ def _bq_sim_fill(symbol: str, qty: float, side: str,
         latency_ms=round(latency, 3),
         child_fills=child_fills,
     )
+
+
+_MISSING_CREDS_WARNED = False
+
+
+def _warn_missing_alpaca_creds() -> None:
+    """phase-68.1 (criterion 3): say it out loud, once, and name the keys.
+
+    Before this, `mode=alpaca_paper` with no credentials fell through to
+    `_alpaca_mock_fill` in SILENCE -- that function has no logging of any kind. An
+    operator who set the mode expecting real paper orders got synthetic fills with a
+    fixed 0.3% slippage and nothing anywhere to say the credentials never arrived.
+    The fills even carry `source="mock_alpaca"`, so the ledger was honest while the
+    logs were mute.
+
+    ERROR, not WARNING: the running configuration does not do what it says. Latched
+    so an order-rate loop cannot flood the log -- the point is to be unmissable
+    once, not to be noisy.
+    """
+    global _MISSING_CREDS_WARNED
+    if _MISSING_CREDS_WARNED:
+        return
+    _MISSING_CREDS_WARNED = True
+    missing = [n for n in ("ALPACA_API_KEY_ID", "ALPACA_API_SECRET_KEY") if not os.getenv(n)]
+    logger.error(
+        "phase-68.1: EXECUTION_BACKEND=alpaca_paper but Alpaca credentials are "
+        "MISSING (%s). Falling back to deterministic MOCK fills (source=mock_alpaca, "
+        "fixed 30bps slippage) -- these are NOT real Alpaca paper orders. Set the "
+        "named variables or set EXECUTION_BACKEND=bq_sim to make the intent explicit.",
+        ", ".join(missing) or "none-detected",
+    )
+
+
+def _reset_missing_creds_warning() -> None:
+    """Test seam for the latch above. Not called by production code."""
+    global _MISSING_CREDS_WARNED
+    _MISSING_CREDS_WARNED = False
 
 
 def _alpaca_mock_fill(symbol: str, qty: float, side: str,
@@ -276,6 +401,7 @@ class ExecutionRouter:
         if self.mode == "alpaca_paper":
             if os.getenv("ALPACA_API_KEY_ID") and os.getenv("ALPACA_API_SECRET_KEY"):
                 return _alpaca_real_fill(symbol, qty, side, client_order_id)
+            _warn_missing_alpaca_creds()
             return _alpaca_mock_fill(symbol, qty, side, client_order_id,
                                        close_price)
         if self.mode == "shadow":

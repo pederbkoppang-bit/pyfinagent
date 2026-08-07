@@ -222,6 +222,20 @@ class Settings(BaseSettings):
     # --- Execution Mode ---
     use_celery: bool = Field(False, description="Use Celery+Redis for async tasks. When False, runs analysis synchronously.")
 
+    # phase-68.1: the order-execution backend. Until now this existed ONLY as an
+    # os.getenv read inside execution_router, so a value set in backend/.env was
+    # loaded into Settings by pydantic but never exported to os.environ -- the
+    # router could not see it and silently used the default forever. Declaring the
+    # field here gives the .env channel a home; execution_router.resolve_execution_mode
+    # reads os.environ FIRST (so the launchd plist and a shell export still win) and
+    # falls back to this. Default is unchanged: bq_sim.
+    # Default is None, NOT "bq_sim", and that is deliberate: a concrete default here
+    # would make "nobody configured this" indistinguishable from "somebody configured
+    # bq_sim", which destroys the provenance the startup line exists to report. None
+    # means unset; execution_router falls back to its own DEFAULT_MODE (bq_sim), so
+    # behaviour is unchanged either way.
+    execution_backend: str | None = Field(None, description="Order execution backend: unset => bq_sim (synthetic fills) | alpaca_paper | shadow. Paper-only regardless of value; see execution_router._refuse_live_keys.")
+
     # --- Redis / Celery ---
     redis_url: str = Field("redis://localhost:6379/0", description="Redis connection URL")
     celery_broker_url: str = Field("redis://localhost:6379/0", description="Celery broker URL")
