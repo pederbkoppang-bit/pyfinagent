@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `1625b507` | phase-84.1: Reconcile the two memory-link conventions so the repo's own memory auditor stops repo... |
 | 2026-08-07 | `f0b3acac` | phase-85.3: unstick the away-ops auth alarm -- latch freshness seam + reachable clear (PASS) |
 | 2026-08-07 | `ebb7abf2` | chore(72.0.1): close as superseded by 78.1+78.16 -- bookkeeping flip, substance shipped under a5ba09 |
 | 2026-08-07 | `c6c25b9f` | phase-61.2: decision-input integrity -- evidence cycle (CONDITIONAL #2, deferred on promotion ask #1 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-06 | `11932230` | fix(82.54): repair the LLM token query -- and it was not a rename |
 | 2026-08-06 | `5857bc3c` | phase-79.55: [OPERATOR ACTION -- not an executor task] [RESTART BLOCKER -- answer BEFORE the next... |
 | 2026-08-06 | `771640ce` | phase-4000.1: Research gate + measured baselines for the Max-rail E2E smoke. NO PRODUCTION CODE I... |
-| 2026-08-06 | `bb41eb96` | fix(82.48): repair the outcome write -- it emitted a schema that never existed |
 
 ---
 
+### v6.84.5 — phase-84.1: Reconcile the two memory-link conventions so the repo's o... (2026-08-07)
+
+- **phase-84.1: Reconcile the two memory-link conventions so the repo's own memory auditor stops repo...**
 ### v6.84.4 — phase-85.3: unstick the away-ops auth alarm -- latch freshness seam +... (2026-08-07)
 
 - **phase-85.3: unstick the away-ops auth alarm -- latch freshness seam + reachable clear (PASS)**
