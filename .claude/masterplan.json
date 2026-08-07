@@ -15264,7 +15264,7 @@
         {
           "id": "62.1",
           "name": "Slack bot under launchd + restart on current code -- com.pyfinagent.slack-bot.plist (KeepAlive=true, mirrors backend plist PATH/venv shape); kill stale manual PID (running 2026-06-05 code).",
-          "status": "pending",
+          "status": "done",
           "harness_required": true,
           "priority": "P0",
           "depends_on_step": "62.0",
