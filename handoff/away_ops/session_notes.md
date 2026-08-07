@@ -658,3 +658,51 @@ goal-loop Stop hook), `TEST-TOKEN-62.2`, `METERED-BREACH-RECURRING`, `ENV-LINE-8
 masterplan step is 66.2 (`pending`; 66.1 `done`). Expected residual after this commit: a
 self-referential `pre_tool_use_audit.jsonl` line from the post-commit git calls plus the
 0-byte `session_pm_20260709T200006Z.json` artifact -- both swept by the next session.
+
+## Recovery -- 2026-08-07 (PM)
+
+**Nothing died mid-step.** The dirty tree is pure benign accumulation on a clean base
+(`ahead 1` of origin -- only `89b62c61`, the auto-changelog hook companion to the
+already-pushed `8bdc0ccb`; NOT an operator-held commit). Remote IS reachable
+(`git ls-remote` returned `refs/heads/main`); the wrapper's "git pull failed" was purely
+the rebase-over-unstaged-changes block, not a network outage. No masterplan step was in
+flight -- the last committed step is `df24fdc2 phase-68.1` (DARK, live_check held on an
+in-flight cycle), already pushed. The PM sentinel logged a `cc_rail` failure storm
+(`rail_failures_today=31 >= 20`) but `ok:true` / `metered_llm_usd_today=$0.0193` -- the
+storm is the known claude-auth/breaker symptom (66.1 threshold), NOT a rail-4 metered
+breach; recorded, not over-claiming causation. (The `metered=$99.0` lines earlier in
+session.log are the `SENTINEL_TEST_METERED_USD` test-override preflight, not real spend.)
+
+**Classification (9 dirty paths, all benign -- no code, `.env`, masterplan, or
+trading-behavior file):**
+| Path | Disposition |
+|---|---|
+| `handoff/audit/config_change_audit.jsonl` (M, +1, 0 del) | append-only hook stream -> committed |
+| `handoff/audit/instructions_loaded_audit.jsonl` (M, +372, 0 del) | append-only hook stream -> committed |
+| `handoff/audit/pre_tool_use_audit.jsonl` (M, +2912, 0 del) | append-only hook stream -> committed |
+| `handoff/away_ops/health.jsonl` (M, +8, 0 del) | away-ops health stream, every row `ok:true` -> committed |
+| `handoff/cycle_history.jsonl` (M, +2, 0 del) | cycle `0c2ffd64` started 18:00, `timeout` at 20:00 (0 trades) -- append-only -> committed |
+| `handoff/.cycle_heartbeat.json` (M, in-place) | single-object state file, bumped to cycle `0c2ffd64` -> committed |
+| `.claude/agent-memory/researcher/MEMORY.md` (M, +2, 0 del) | researcher memory index, adds the 68.1 pointer -> committed |
+| `.claude/agent-memory/researcher/project_execution_backend_wiring_68_1.md` (??) | researcher gate memory for phase-68.1 (findings, no code); the step's code is already committed as `df24fdc2` -> committed |
+| `handoff/away_ops/session_pm_20260807T200011Z.json` (??, 0 B) | THIS session's own live output artifact (ts matches the 20:00:11 PM start) -> **left untracked** (committing an empty artifact re-dirties the next session; same call as every prior recovery) |
+
+**Classification verdict.** No category-(a) half-built step and no category-(b)
+unexpected/unattributable file -- every path is under `handoff/` durable-state / audit /
+session-artifacts or researcher agent-memory tied to the already-committed `df24fdc2`
+phase-68.1 step. Nothing to revert; no `chore(away-wip)` checkpoint needed.
+`pending_tokens.json` NOT modified -- no new operator ask warranted.
+
+**What was done.** Staged the 8 benign paths (explicit pathspecs, NOT `git add -A`) +
+this note in one `chore(away-ops)` recovery commit, then pushed (the pre-existing
+`89b62c61` changelog commit + this one flushed to `origin/main`). **No git
+checkout/restore/stash** (rail 3). Main-only, no force-push, no history rewrite (rail 3).
+$0 metered -- git/cat/wc/grep only, LLM-free (rail 4). No `.env`/code/masterplan/
+trading-behavior touch (rails 2/6). launchctl untouched (rail 9). No subagents (recovery is
+Main-only). No `HALT-DEV` seen; no new `operator_tokens.jsonl` line.
+
+**What remains (regular cadence / operator, NOT recovery).** Tree is clean; this session
+does NOT start a masterplan step -- the next AM session resumes the calendar. Expected
+residual after this commit: a self-referential `pre_tool_use_audit.jsonl` line from the
+post-commit git calls plus the 0-byte `session_pm_20260807T200011Z.json` artifact -- both
+swept by the next session.
