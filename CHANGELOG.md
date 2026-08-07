@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `df24fdc2` | phase-68.1: make EXECUTION_BACKEND reachable and its provenance visible (DARK; live_check held on an |
 | 2026-08-07 | `1ab0b59b` | phase-62.1: restart the Slack bot onto current code (research gate + contract; digest evidence pendi |
 | 2026-08-07 | `7414c271` | phase-61.3: prove the KR add-on stop, resolve LOCAL columns market-first, label a stale mark (Q/A CO |
 | 2026-08-07 | `abcadfb8` | docs(harness): install the next-session drain goal with measured 2026-08-07 end-of-day state (11 cyc |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `cb4b3c52` | chore(82.23): close as superseded by 82.27 -- bookkeeping flip, code shipped under e5bb9f25 |
 | 2026-08-06 | `2858bc7b` | docs(82.6): design the registry-to-live selection bridge -- and refute the step |
 | 2026-08-06 | `18659bc3` | fix(82.59): repair two Slack listeners that had raised TypeError since April |
-| 2026-08-06 | `e910667c` | fix(82.51): embargo fundamentals by publication lag -- 15% of Sharpe was look-ahead |
 
 ---
 
+### v6.85.3 — phase-68.1: make EXECUTION_BACKEND reachable and its provenance visib... (2026-08-07)
+
+- **phase-68.1: make EXECUTION_BACKEND reachable and its provenance visible (DARK; live_check held on an**
 ### v6.85.2 — phase-62.1: restart the Slack bot onto current code (research gate +... (2026-08-07)
 
 - **phase-62.1: restart the Slack bot onto current code (research gate + contract; digest evidence pendi**
