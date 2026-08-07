@@ -176,6 +176,41 @@ def test_missing_creds_in_alpaca_mode_logs_loudly_and_names_both_keys(caplog):
     assert fill.paper is True
 
 
+def test_missing_creds_error_fires_at_STARTUP_not_only_at_first_order(monkeypatch, caplog):
+    """Criterion 3's timing clause: the error must be a STARTUP error.
+
+    Cycle-1 Q/A measured this and found zero ERRORs at startup -- the warning only
+    fired from the fill path, so an operator who mis-set the mode learned about it at
+    the first trade rather than at configuration time. This test pins the timing, not
+    just the existence, of the message.
+    """
+    monkeypatch.setenv("EXECUTION_BACKEND", "alpaca_paper")
+    with caplog.at_level(logging.ERROR, logger=er.logger.name):
+        mode, source = er.log_resolved_execution_mode()
+    assert (mode, source) == ("alpaca_paper", "env")
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(errors) == 1, f"expected ONE startup ERROR, got {len(errors)}"
+    msg = errors[0].getMessage()
+    assert "ALPACA_API_KEY_ID" in msg and "ALPACA_API_SECRET_KEY" in msg
+
+
+def test_startup_is_silent_when_mode_is_bq_sim(caplog):
+    """The mutation guard for the test above: without this, an unconditional startup
+    error would pass it while spamming every ordinary boot."""
+    with caplog.at_level(logging.ERROR, logger=er.logger.name):
+        er.log_resolved_execution_mode()
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+
+
+def test_startup_is_silent_when_alpaca_creds_are_present(monkeypatch, caplog):
+    monkeypatch.setenv("EXECUTION_BACKEND", "alpaca_paper")
+    monkeypatch.setenv("ALPACA_API_KEY_ID", "PKTESTKEY")
+    monkeypatch.setenv("ALPACA_API_SECRET_KEY", "secret")
+    with caplog.at_level(logging.ERROR, logger=er.logger.name):
+        er.log_resolved_execution_mode()
+    assert [r for r in caplog.records if r.levelno >= logging.ERROR] == []
+
+
 def test_no_error_is_logged_when_creds_are_present(monkeypatch, caplog):
     """Mutation guard: without this, the test above could pass on a log that
     always fires -- which would be noise, not a signal."""

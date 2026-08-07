@@ -130,6 +130,20 @@ def log_resolved_execution_mode() -> tuple[BackendMode, str]:
         "phase-68.1 execution backend: mode=%s source=%s (paper-only enforced; "
         "default=%s)", mode, source, DEFAULT_MODE,
     )
+    # phase-68.1 (criterion 3, cycle-2 fix): the missing-credentials error must fire
+    # at STARTUP, not at the first order. The first version only warned from the fill
+    # path, so an operator who set alpaca_paper without credentials learned about it
+    # when the first trade of the day silently became a mock fill -- hours after the
+    # misconfiguration, and only if they were reading logs at that moment. Checking
+    # here means they learn at configuration time. Fail-open: observability must never
+    # take startup down.
+    if mode == "alpaca_paper" and not (
+        os.getenv("ALPACA_API_KEY_ID") and os.getenv("ALPACA_API_SECRET_KEY")
+    ):
+        try:
+            _warn_missing_alpaca_creds()
+        except Exception:  # pragma: no cover - never break startup
+            logger.warning("phase-68.1: missing-creds check failed (fail-open)")
     return mode, source
 
 

@@ -79,6 +79,19 @@ docstring.
 Fail-open (`except Exception` → warn, never break startup), consistent with the
 neighbouring startup hooks.
 
+### Cycle-2 fix (after the CONDITIONAL): the error now fires at STARTUP
+
+The cycle-1 Q/A executed the startup path instead of reading it and measured
+**"ERRORS AT STARTUP: 0"** — my warning only fired from the fill path, so criterion 3's
+`startup` clause was unmet. I had disclosed the criterion-4b deviation at length and
+missed this one entirely; it is a fair catch.
+
+`log_resolved_execution_mode()` now invokes `_warn_missing_alpaca_creds()` when the
+resolved mode is `alpaca_paper` and either credential is absent, fail-open. Three new
+tests pin the *timing*, not just the message, and two new mutants confirm it can neither
+vanish nor become boot-spam (E8 removes the check → 1 test red; E9 fires unconditionally
+→ 2 tests red). Suite: **44 passed**. Verbatim output in `live_check_68.1.md` §7–§8.
+
 ### Criterion 3 — the LOUD missing-creds path
 
 `_alpaca_mock_fill` has **zero logger calls** (verified literally). So `mode=alpaca_paper`
