@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `42771fa6` | phase-62.1: Slack bot under launchd + restart on current code -- com.pyfinagent.slack-bot.plist (... |
 | 2026-08-07 | `2b96b561` | phase-62.1 + 68.1: capture both live_checks; correct a false premise in 85.4 |
 | 2026-08-07 | `0386dc49` | chore(away-ops): recovery sweep -- audit streams + cycle state + 68.1 researcher memory |
 | 2026-08-07 | `8bdc0ccb` | fix(85.5): file P0 -- a live cycle's lock is judged stale, and the stale path defeats its flock |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `c6c25b9f` | phase-61.2: decision-input integrity -- evidence cycle (CONDITIONAL #2, deferred on promotion ask #1 |
 | 2026-08-07 | `9d8ae48a` | phase-83.1.1: THE GO/NO-GO: measure the gate arithmetic BEFORE building anything, using the repo'... |
 | 2026-08-07 | `2e1fb9ca` | phase-83.1: Design pack and pre-registration for the market-news thematic engine, written up from... |
-| 2026-08-07 | `95dabea9` | phase-83.0.1: DEFECT (own step per standing rule): the news ingest path silently fabricates times... |
 
 ---
 
+### v6.85.8 — phase-62.1: Slack bot under launchd + restart on current code -- com.... (2026-08-07)
+
+- **phase-62.1: Slack bot under launchd + restart on current code -- com.pyfinagent.slack-bot.plist (...**
 ### v6.85.7 — phase-62.1 + 68.1: capture both live_checks; correct a false premise... (2026-08-07)
 
 - **phase-62.1 + 68.1: capture both live_checks; correct a false premise in 85.4**
