@@ -1,5 +1,7 @@
 # Q/A Agent Memory Index
 
+- [derived-scope-misses-untracked-files](feedback_derived_scope_misses_untracked_files.md) — new-file steps make `git diff --name-only HEAD` EMPTY so the empty-set guard aborts the lint gate; union `git ls-files --others`; same file: the 3rd-CONDITIONAL harness_log grep is 0 mid-cycle by design (83.0.3)
+- [self-referential-counts-cannot-reproduce](feedback_self_referential_counts_cannot_reproduce.md) — a grep over handoff/** grows from writing the artifact that states it; NOTE not WARN if the COMMITTED measurement reproduces; cap only when the number POINTS AT evidence (83.0.3 c3: 297→303)
 - [oracle-with-silent-fallback-survives-absent-subject](feedback_oracle_with_silent_fallback_survives_absent_subject.md) — "live if reachable else snapshot" passes when the subject is ABSENT; mutate the live read to RAISE (not to empty), blank the snapshot, and corrupt the live result — run all three (83.0 c3)
 - [neutralize-the-write-chokepoint-probe](feedback_neutralize_the_write_chokepoint_probe.md) — to grade a "kwarg is now threaded" fix, stub the ONE writer chokepoint and run the real pipeline; 83.0 c2 articles='backfill' but sentiment='live' one seam over
 - [structural-fix-needs-a-mechanism](feedback_structural_fix_needs_a_mechanism.md) — "it is GENERATED so it cannot lag again" had NO generator in the tree (82.0 c6); grade the produced-state and the mechanism separately; a newer input the output omits is the cheapest proof

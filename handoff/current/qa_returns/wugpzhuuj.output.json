@@ -1,0 +1,74 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "All 6 immutable criteria are MET and harness compliance is clean, but one scope-honesty defect caps the verdict. Deterministic: immutable command `pytest backend/tests/test_phase_83_0_3_pbo_false_pass.py -q` -> 5 passed in 2.48s, bare exit=0 (re-run twice); regression 45 passed in 8.62s (reproduces the claimed 45/8.72s; 45 progress dots, internally consistent); ruff F821,F401,F811 over a git-DERIVED non-empty scope (1 file, xargs -0) -> \"All checks passed!\" exit=0; runtime smoke `import backend.agents.mcp_servers.risk_server, backend.backtest.analytics` -> OK; secret scan clean; NO unintended production change (git diff --name-only HEAD = only handoff/audit/*.jsonl hook streams; production code byte-unchanged as contract D1 claims). I ran an INDEPENDENT 9-mutant matrix in-memory (zero writes; md5 of both mutation targets unchanged after): CONTROL green; M1 drop T<S*2 refusal -> 2 failed at _assert_refusal L69 `r[\"ok\"] is False`; M2 columns_diverse=always-True -> L145; M3 always-False -> mirror guard L157; M4 drop gate_grade key -> L149+L161; M5 loosen 0.99->0.9999 -> L145; H1 reword routing kwarg->positional -> L105 anchor `assert n == 1`; H2 degrade C4 fixture eps 0.0005->0.002 -> fails as a FIXTURE at the L139 precondition (assert 0.95465 > 0.99), exactly as designed. All killed, including the fixture/harness-side shapes. THE FINDING (impostor probe): contract D1 and the test docstring claim criterion 1 is \"proven BEHAVIOURALLY (refusal on undersized input, which raw compute_pbo cannot produce)\". I measured that false by construction -- I built a pbo_check doing its OWN inline T<S*2 refusal and calling RAW compute_pbo, never touching compute_pbo_checked, and ALL FOUR behavioural tests PASSED; only test_c3's literal source anchor (L104-108) caught it. Criterion 1 is therefore met, but by a mechanism the artifacts misattribute (qa.md 4c vacuity shape #11). The anchor is NOT itself vacuous -- I checked the dangerous direction: it cannot go green while routing is broken (reword -> count 0 -> red; a pathological docstring copy leaves the real call intact so L118 `r_mut[\"ok\"] is True` goes red), and it is not comment-satisfiable (requires the 12-space-indented assignment). Forward risk is concrete: a maintainer reading D1 would judge the anchor redundant and delete it, silently zeroing criterion 1's only routing coverage. WARN -> CONDITIONAL per severity dispatch, not FAIL. Cycle 1 for 83.0.3 (no prior verdicts), so the 3rd-CONDITIONAL auto-FAIL rule is not triggered.",
+    "violated_criteria": [
+      "Unjustified_Inference [WARN]: contract D1 / test-docstring C1 misattribute criterion 1's coverage to the behavioural refusal, which an inline-refusal impostor passes; the actual discriminator is the test_c3 source anchor"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Unjustified_Inference",
+        "action": "Built an in-memory pbo_check impostor performing its own inline `if _N < 2 or _T < S*2` refusal and calling RAW compute_pbo (plus inline gate_grade/column_corr_mean/columns_diverse), never invoking compute_pbo_checked, then ran the full 83.0.3 suite against it",
+        "state": "IMPOSTOR rc=1: 1 failed, 4 passed. The 4 PASSING tests are test_c1_c2_undersized_matrix_refuses_not_passes, test_c4_near_identical_columns_reported_not_diverse, test_c4_mirror_independent_columns_reported_diverse, test_refusal_survives_client_round_trip -- i.e. every behavioural guard. The ONLY kill was test_c3 at L106: 'AssertionError: mutation anchor count=0, want exactly 1'. Corroborated by mutant H1 (routing text reworded kwarg->positional): same single kill at L105. So the claim in contract_83.0.3.md D1 ('Criterion-1 is proven BEHAVIOURALLY (refusal on undersized input, which raw compute_pbo cannot produce)') and the identical claim in the test docstring C1 (lines 8-11) are false as stated: raw compute_pbo CAN produce a refusal when wrapped inline, so refusal-observed does not entail routed-through-compute_pbo_checked.",
+        "constraint": "SEVERITY WARN (a genuine behavioural guard coexists, so this forces CONDITIONAL rather than FAIL per the severity-dispatch table). Rule: qa.md 4c guard-vacuity / vacuity shape #11 (mis-attributed kill mechanism -- 'name WHICH assertion killed') plus 4b claim-auditing (every scope claim in the handoff is an assertion to be REPRODUCED, not read). Criterion 1 ('pbo_check routes through compute_pbo_checked rather than compute_pbo, asserted by a test') IS satisfied -- test_c3 L104-108 `assert src.count(_ORIG) == 1` is a genuine, non-vacuous routing guard that fires -- but the artifacts credit the wrong mechanism. NAMED FIX: (a) correct D1 and the test docstring to credit the test_c3 anchor as criterion 1's routing discriminator and state that the behavioural refusal is necessary-but-not-sufficient (an inline-refusal impostor passes all four behavioural tests); (b) add a 'do not delete: this is criterion 1's only routing guard' comment at L104-108; (c) optionally add a direct routing spy (monkeypatch backend.backtest.analytics.compute_pbo_checked and assert it was called) so routing becomes behaviourally observable rather than text-anchored."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "immutable_verification_command_exit_0",
+      "regression_suite_45_passed_reproduced",
+      "ruff_lint_F821_F401_F811_derived_scope",
+      "backend_runtime_smoke_import",
+      "unintended_production_change_check_git_diff",
+      "independent_ast_census_criterion_5",
+      "grep_census_reproduction_criterion_5",
+      "gate_py_verbatim_byte_identical_criterion_6",
+      "live_check_payload_reproduction",
+      "mutation_matrix_9_mutants_code_and_fixture_side",
+      "impostor_probe_criterion_1_routing",
+      "equivalent_mutant_non_vacuity_probe",
+      "tree_integrity_md5_after_mutations",
+      "code_review_heuristics",
+      "secret_scan",
+      "contract_completeness_mapping"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "HARNESS COMPLIANCE (5/5 clean). (1) Research gate before contract: research_brief_83.0.3.md gate_passed=true, external_sources_read_in_full=7 (>=5 floor), urls_collected=27 -- I independently counted 27 unique URLs, exact match; \"Read in full (7; counts toward the gate)\" at :297; \"Recency scan (2024-2026) -- PERFORMED\" at :336; 3-variant search-query section at :289. (2) Contract before generate: mtime chain strictly ordered -- research 09:45:42 < contract 10:38:05 < test file 10:39:00 < live_check 10:41:33 < experiment_results 10:42:11. (3) experiment_results_83.0.3.md present. (4) Log-last preserved: NO `## Cycle ... phase=83.0.3` header in harness_log.md (the 2 grep hits are phase-83 planning prose), masterplan status still \"pending\". (5) No verdict-shopping: cycle 1 -- no evaluator_critique_83.0.3.*, no handoff/archive/phase-83.0.3/, zero prior results for this step-id; 3rd-CONDITIONAL rule not triggered.\n\nCRITERION-BY-CRITERION. C1 MET (with the WARN above) -- carried by test_c3 L104-108 anchor, verified to fire under both H1 and the impostor. C2 MET -- test_c1_c2 supplies T=10/N=4/S=16 and inspects the refusal field-by-field via _assert_refusal (ok False, pbo None, reason startswith \"pbo_refused:\", isError True, vetoed False); killed by M1; live payload reproduced BYTE-FOR-BYTE against risk_server.py:157-167. C3 MET -- mutant anchored on the real source with count asserted ==1, ast.parse-validated, exec'd in memory, never written to disk (md5 of risk_server.py unchanged after my runs); non-equivalence pinned at L118 ({ok True, pbo 0.0, vetoed False} = the original false PASS); graded by the SAME _assert_refusal set via pytest.raises. I probed that raises for vacuity: _assert_refusal PASSES on a real refusal, so an equivalent mutant would trigger DID NOT RAISE -- non-vacuous. C4 MET -- gate_grade+columns_diverse presence at L144; fixture precondition (min pairwise corr > 0.99) asserted FIRST at L137-139 and confirmed to fail as a FIXTURE under H2; mirror guard kills the always-False degenerate (M3); killed by M2/M3/M4/M5. The disclosure that gate_grade does NOT discriminate diversity at N=8 is correct -- PBO_MIN_TRIALS_GATE_GRADE=10 verified live. C5 MET -- my independent AST census used a BROADER rule than the author's (func.id OR func.attr) and reproduced the same 5 sites with EMPTY symmetric difference: analytics.py:240 (wrapper delegation), test_phase_82_23:37, test_phase_83_0_3:86 (new), run_82_3_candidate_backtests.py:206, tests/autoresearch/test_phase_48_2:106. HEAD-state=4 confirmed. C6 MET -- I programmatically diffed the quoted block against gate.py lines 43-53: BYTE-IDENTICAL: True; the \"Absent => unchanged legacy behaviour\" comment is at :41 as cited.\n\nNOTE-level, non-capping. N1 The grep command as literally written in experiment_results:37 does not reproduce its own number: `grep -rnP '\\bcompute_pbo\\b(?!_checked)'` against `.` returns 286, not 50. With `--include='*.py'` it returns EXACTLY 50. The number is right, the transcription drops the qualifier; since criterion 5 names \"committed grep output\", commit the qualified form. Bounded impact -- the artifact designates the AST census authoritative and that reproduced exactly. N2 Guard line-numbers off by ~6: experiment_results:33 says run_82_3_candidate_backtests.py:206 is \"guarded at :195/:203\"; the actual guard conditions are `if len(series) < 2:` at :192 and `if T < 32:` at :200 (:195/:203 are note-string lines inside those blocks). The substantive claim -- the call site is guarded on both N>=2 and T>=32 -- is verified TRUE. N3 live_check column_corr_mean differs in the 7th decimal (artifact 0.9967753036869336, my local reproduction 0.9967751388680227) while EVERY other field including the 16-digit PBO 0.8514374514374514 is byte-identical and the stated min pairwise corr 0.99557 reproduces exactly. A rank-based statistic staying identical while a mean-of-correlations shifts at 1e-7 is the signature of the matrix crossing a JSON boundary on the real MCP call -- this is evidence the AFTER capture was genuinely taken over the live surface rather than copied from the local run. Add a one-line serialization note; not a finding against. N4 Brief envelope says snippet_only_sources=20 while its section header says \"(18)\"; all gate-determining fields reproduce.\n\nCREDIT WHERE DUE: this is a strong test file -- a real in-memory mutant of the actual source with an anchor-count guard, a precondition-asserted fixture so seed drift fails as a fixture rather than a false verdict, a mandatory mirror guard against an always-False diagnostic, an honest disclosure that gate_grade does not discriminate at N=8, honest labelling of the BEFORE capture as a mutant reproduction (a genuinely impossible historical capture), and the discovered isError/is_error divergence correctly queued out-of-scope as 83.0.6 (verified pending in masterplan). Gates 1b (frontend lint/typecheck) and 1c (live UI capture) are N/A -- no frontend/** in the diff and the criteria make no UI claims; the live_check here is an MCP tool response, which I reproduced myself rather than relying on Main's capture. Worst-of-N lenses: correctness PASS, does-it-reproduce PASS-with-notes, scope-honesty CONDITIONAL -> min = CONDITIONAL. Clearing N1/N2/N3 and the D1 misattribution fix should make cycle 2 a clean PASS on changed evidence."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:83.0.3",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a3eabe493f59dc288",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786092151307,
+      "queuedAt": 1786092151298,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 83.0.3, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto…",
+      "lastProgressAt": 1786092739696,
+      "tokens": 149218,
+      "toolCalls": 35,
+      "durationMs": 588389,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"All 6 immutable criteria are MET and harness compliance is clean, but one scope-honesty defect caps the verdict. Deterministic: immutable command `pytest backend/tests/test_phase_83_0_3_pbo_false_pass.py -q` -> 5 passed in 2.48s, bare exit=0 (re-run twice); regression 45 passed in 8.62s (reproduces the claimed 45/8.72s; 45 progress dots, internally con…"
+    }
+  ],
+  "totalTokens": 149218,
+  "totalToolCalls": 35
+}
