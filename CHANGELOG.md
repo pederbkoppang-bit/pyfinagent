@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `56e797f8` | chore(masterplan): queue 36.29 (archive-snapshot mislabeling, 13 dirs measured) + 84.1.1 (auditor N- |
 | 2026-08-07 | `1625b507` | phase-84.1: Reconcile the two memory-link conventions so the repo's own memory auditor stops repo... |
 | 2026-08-07 | `f0b3acac` | phase-85.3: unstick the away-ops auth alarm -- latch freshness seam + reachable clear (PASS) |
 | 2026-08-07 | `ebb7abf2` | chore(72.0.1): close as superseded by 78.1+78.16 -- bookkeeping flip, substance shipped under a5ba09 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-06 | `d28c8cd9` | phase-4000.2: Build the repeatable E2E smoke script -- and prove its checks CAN FAIL before they ... |
 | 2026-08-06 | `11932230` | fix(82.54): repair the LLM token query -- and it was not a rename |
 | 2026-08-06 | `5857bc3c` | phase-79.55: [OPERATOR ACTION -- not an executor task] [RESTART BLOCKER -- answer BEFORE the next... |
-| 2026-08-06 | `771640ce` | phase-4000.1: Research gate + measured baselines for the Max-rail E2E smoke. NO PRODUCTION CODE I... |
 
 ---
 
