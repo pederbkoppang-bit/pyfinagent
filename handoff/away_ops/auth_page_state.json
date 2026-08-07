@@ -1,1 +1,1 @@
-{"incident_open": true, "opened_at": "2026-07-10T05:30:11.289372+00:00", "detail": "401 in session_am_20260710T053005Z.json", "paged": true}
+{"incident_open": false, "cleared_at": "2026-08-07T14:09:27.735860+00:00", "cleared_by": "healthcheck_healthy"}

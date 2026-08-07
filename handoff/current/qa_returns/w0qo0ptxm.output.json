@@ -1,0 +1,68 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": true,
+    "verdict": "PASS",
+    "reason": "All 9 immutable criteria MET, each independently reproduced rather than read. DETERMINISTIC: immutable command `13 passed`, exit=0 (re-run twice); ruff F821/F401/F811 over a GIT-DERIVED union scope (git diff HEAD + git ls-files --others, because both .py files are UNTRACKED and a diff-only scope would have linted ZERO files) = \"All checks passed!\"; `bash -n` clean; 85.3's verification.criteria byte-identical to HEAD (diff = IDENTICAL, criteria not amended); no unintended production change (only healthcheck.sh, credential-expiry-monitoring.md, the 2 new files, masterplan +5 ids, and the intended live away_ops state). RUNTIME SMOKE nobody had run: the plist invokes /bin/bash healthcheck.sh whose `python3` resolves under launchd's minimal PATH to /usr/bin/python3 **3.9.6** (venv is 3.14) — seam executes correctly there (`true stale_401_ignored_...`, exit 0), safe only because `from __future__ import annotations` covers the `tuple[str,str]` hints. INDEPENDENT MUTATION MATRIX (mine, 9 mutants on a scratchpad copy tree, repo never written; control + restore both 13 passed): 7 KILLED. MQ-1 (criterion 7's exact mutation, `fresh = True`) reproduced the required pattern precisely — `3 failed, 10 passed` with test_c3_stale_401 and test_c4_regression RED and test_c3_fresh_401 GREEN. Fixture-side mutants MQ-F1 (drop os.utime) and MQ-F3 (401 payload carrying no 401) both KILLED, so the fixtures are load-bearing, not pseudo-tests. Two survivors, both characterized as NON-findings by executed differentials: MQ-6 (fail-open→raise on the session read) yields ok→`unknown probe_error` at exit 0, never `false`, so criterion 6's no-manufactured-P1 guarantee holds in both arms; MQ-F2 (drop the `_run` returncode assert) is equivalent under the current seam. All three cycle-1 findings genuinely closed, each proven by execution not by reading the claim: (1) BLOCK lint — `sys` gone, gate clean over the derived scope; (2) WARN DD-5 — my MQ-2 (guard relaxed to `if auth_ok == \"false\"`) is KILLED by the new test_c5_dd5_apply_transition_guard_driven_directly; (3) WARN drill isolation — verified BEHAVIOURALLY by evaluating healthcheck.sh's exact lines 105-106 in real bash with a shadowing stub: normal run passes `--apply` (APPLIED), drill run withholds it (WITHHELD), so the 62.5 contract holds by construction, not by comment. MQ-C also closed (my MQ-3 KILLED by test_after_clear_suppresses_repage_for_pre_clear_401). LIVE CLAIMS ALL RE-DERIVED BY ME AND EXACT: 474 consecutive ok:false over 9.87 days (2026-07-28T17:09:48Z..2026-08-07T14:05:18Z), auth the sole failing leg in all 474 (0 records with a non-auth failing leg), 34 ok:true of 510 pre-fix parseable, 1 unparseable line (DD-2); the criterion-8 record is present byte-for-byte (grep -cF = 1). CRITERION 8 CLOSED ON BOTH PATHS: during this evaluation the naturally-scheduled 30-min tick fired (pid 18126) and appended `2026-08-07T14:35:20Z ok=true auth_ok=true detail=ok`, and `launchctl list` flipped away-watchdog's last-exit-status from **1 to 0** — the live_check's prediction verified in-flight by me, not by the author. Criterion 9 satisfied: cause recorded AND 85.3.1 filed (P1) with its id in all three artifacts; 85.3.2/85.3.3 also queued with executor-ready scope. Harness compliance clean: research gate (7 sources read in full ≥5, 34 URLs ≥10, recency scan true, gate_passed true) precedes the contract by mtime; log-last honoured (no harness_log entry for 85.3, masterplan still `pending`); NOT verdict-shopping — the evidence materially CHANGED between cycles (11→13 tests, F401 removed, APPLY_FLAG drill gate added, the clear relocated into the seam), all verified by diff and execution, so the improved verdict is the documented cycle-2 flow, not sycophancy under rebuttal.",
+    "violated_criteria": [],
+    "violation_details": [],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "immutable_verification_command_exit_0",
+      "ruff_lint_gate_F821_F401_F811_derived_union_scope",
+      "bash_syntax_check",
+      "criteria_immutability_diff_vs_HEAD",
+      "unintended_change_scan",
+      "backend_runtime_smoke_under_launchd_interpreter_py396",
+      "independent_mutation_matrix_9_mutants_7_killed",
+      "fixture_side_mutation_MQ_F1_MQ_F3",
+      "survivor_behavioural_differentials_MQ6_MQF2",
+      "source_scan_evasion_test",
+      "drill_isolation_behavioural_test_real_bash",
+      "live_health_jsonl_figure_rederivation_474_9.87_34_of_510",
+      "criterion8_record_byte_for_byte_grep",
+      "scheduled_tick_observed_launchctl_1_to_0",
+      "queued_defect_steps_85.3.1_2_3",
+      "research_gate_envelope",
+      "code_review_heuristics",
+      "evaluator_critique_cycle1_findings_closure",
+      "3rd_conditional_counter_check"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "Verdict #2 for 85.3 (prior CONDITIONAL wf_9bdd4eb6-03d); harness_log carries 0 result=CONDITIONAL entries for this step-id, so the 3rd-CONDITIONAL rule is not engaged — and PASS is returned on merit, not to avoid it. Four NOTE-level findings, none criterion-violating, each with a named fix; recorded so the next cycle can tidy them:\n\nN1 (NOTE, transcription hygiene) — experiment_results_85.3.md's block headed \"## Verification (verbatim, re-derived after the final edit)\" still shows `11 passed` over 11 progress dots. That is the CYCLE-1 suite; the current tree yields `13 passed`. The block is internally consistent (11 dots / 11 passed), so it is a genuine un-regenerated capture, NOT a spliced or edited one — the §4b Invalid_Precondition shape does not apply. It is superseded 40 lines later (\"Suite after cycle 2: 13 passed in 0.43s\") and in live_check line 63. FIX: re-run and paste, or label the block \"cycle 1\".\n\nN2 (NOTE, same class) — criterion 7's \"its verbatim output shape: `3 failed, 8 passed`\" re-derives as `3 failed, 10 passed`. Cross-suite arithmetic proves stale transcription rather than an untested change: 3+8=11 (cycle-1 suite) vs 3+10=13 (current), the delta being exactly the two cycle-2 tests. The load-bearing content — WHICH tests go red vs green, which is all criterion 7 actually constrains — is byte-correct and I reproduced it independently under my own MQ-1. FIX: restate as `3 failed, 10 passed`.\n\nN3 (NOTE, protocol form) — contract_85.3.md does NOT copy the 9 criteria verbatim; it compresses them to C1-C9 one-liners under a heading reading \"all 9 copied verbatim into the step record\" and points at masterplan.json with a read-date. CLAUDE.md's five-file protocol asks for the criteria verbatim IN the contract. No erosion actually occurred — I verified the criteria byte-identical to HEAD and evaluated all 9 against masterplan.json directly, and every C1-C9 summary is faithful. FIX: paste the criteria verbatim in the next contract.\n\nN4 (RETIRED during evaluation) — live_check line 65's heading \"Naturally-scheduled tick evidence\" was ahead of its evidence at write time: both post-fix records (14:09:24Z, 14:09:40Z) were hand-runs, and the spawn prompt's framing that health.jsonl \"keeps gaining ok:true records from the real scheduled watchdog\" did NOT reproduce when I first checked (exactly 2 records, both manual). The artifact itself was honest about this at line 53 (disclosing launchctl still at 1 and predicting the ≈14:35Z flip). I then observed the scheduled tick land at 14:35:20Z with ok:true and launchctl flip 1→0, so the claim is now true and independently confirmed. Note for future cycles: my first read of `stat` mtimes was LOCAL CEST (16:0x) against UTC record timestamps (14:0x), which briefly looked like a 2-hour scheduling outage — I checked `date -u` before asserting, and the 30.1-min cadence was intact throughout.\n\nAdditional evaluator-side result worth carrying forward: I attempted to file the source-scan half of test_seam_reads_only_the_given_paths as a vacuity finding and DISPROVED it — an evasive repo-path fallback built from `os.path.join(_R, \"handoff\", \"away\" + \"_ops\")`, which never contains the scanned literal, still turned that test RED because its behavioural half (empty tmp ops dir must yield (\"true\",\"ok\")) picked up the real 27-day-old 401. The scan is redundant defence-in-depth, not sole coverage. Two lessons banked to .claude/agent-memory/qa/ (production-interpreter smoke; evade-before-filing-vacuity).\n\nScope/authority notes: I was READ-ONLY on the repo — all mutations ran against a scratchpad copy tree (`scratchpad/mut<ts>/{scripts,backend}`) whose parents[2] resolution makes the test target my copy; control and restore both reproduced 13 passed, and I re-verified the repo seam still carries `fresh = age_s <= window_s`, `after_clear = cleared_at is None or mt > cleared_at`, and `if auth_ok != \"true\":` with git status showing only the 4 intended paths. I did NOT run healthcheck.sh myself (it appends to live health.jsonl and can page); the drill-isolation test evaluated only its extracted lines 105-106 with a shadowing stub. No UI claims in this step, so §1c does not apply. `set -e` is absent from healthcheck.sh, so the new `APPLY_FLAG=... && APPLY_FLAG=\"\"` compound returning exit 1 in normal mode cannot abort the script — checked, because under `set -e` it would have. masterplan.json also gained 85.2.1/85.2.2 from the sibling 85.2 cycle; experiment_results' \"+3 pending steps\" claim is correct for 85.3's own additions."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:85.3",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "abe835b46f2ca0711",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786112794883,
+      "queuedAt": 1786112794874,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "PASS",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 85.3, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786113456697,
+      "tokens": 161731,
+      "toolCalls": 33,
+      "durationMs": 661813,
+      "resultPreview": "{\"ok\":true,\"verdict\":\"PASS\",\"reason\":\"All 9 immutable criteria MET, each independently reproduced rather than read. DETERMINISTIC: immutable command `13 passed`, exit=0 (re-run twice); ruff F821/F401/F811 over a GIT-DERIVED union scope (git diff HEAD + git ls-files --others, because both .py files are UNTRACKED and a diff-only scope would have linted ZERO files) = \\\"All checks passed!\\\"; `bash -n`…"
+    }
+  ],
+  "totalTokens": 161731,
+  "totalToolCalls": 33
+}

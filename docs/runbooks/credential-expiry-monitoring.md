@@ -70,5 +70,5 @@ decision. Filed as a pending_tokens ask (SETUP-TOKEN).
 1. On the host: `claude auth status`; if dead, `claude /login` (interactive).
 2. Verify: `python -c "from backend.agents.claude_code_client import
    claude_code_health_probe; print(claude_code_health_probe())"` -> `(True, 'ok')`.
-3. Nothing else to do: the next session slot's probe clears the latch automatically;
+3. Nothing else to do: the healthcheck itself clears the latch on the next 30-minute tick once `claude auth status` succeeds and no FRESH 401 (<36h) stands (phase-85.3: the clear lives in scripts/away_ops/auth_state.py --apply, strict-healthy only). [Historical note: this line previously promised the SESSION probe would clear it -- false while probe rc was never 0 (see step 85.3.1); the healthcheck-side clear is the real path.] Previously:
    the cc_rail guard resets per cycle (66.1).

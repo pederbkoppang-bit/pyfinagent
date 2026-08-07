@@ -23435,8 +23435,46 @@
           "max_retries": 3
         },
         {
-          "id": "85.3",
+          "id": "85.2.1",
           "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "DEFECT (own step per standing rule), discovered by the 85.2 research gate 2026-08-07: a TRACKED ops artifact decides CI's test verdict. MEASURED: handoff/kill_switch_audit.jsonl is version-controlled, so a fresh clone -- and therefore the credential-free CI lane -- inherits whatever kill-switch state the operator last committed; with the committed state paused (pause_reason='manual'), 8 test_paper_trading_v2 tests fail in CI with 'kill_switch: REFUSING BUY ... PAUSED'. This composes with step 36.28 (uninjected PaperTrader tests) but is a DISTINCT mechanism: even an injected-healthy suite would flip whenever the committed audit changes. SCOPE: decide and implement ONE of (a) the test conftest neutralizes on-disk kill-switch state for the whole suite (a session fixture pointing the audit path at a tmp file), or (b) the audit file stops being tracked (gitignore + a committed empty-state bootstrap), with the trade-offs recorded; mutation-test the chosen guard; measure the CI-red delta before/after.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_85_2_1_ci_kill_switch_isolation.py -q",
+            "criteria": [
+              "a test proves the suite's kill-switch state is hermetic: with a committed-paused audit fixture on disk, the paper-trading tests still run against the neutralized state, asserted without editing the real audit file",
+              "the isolation guard is mutation-tested: disabling the neutralization makes the fixture-paused run fail the same 8-test class",
+              "the choice (conftest neutralization vs untracking) is recorded with trade-offs, and the real handoff/kill_switch_audit.jsonl is byte-unchanged by this step",
+              "the CI-red delta is measured: the 8 kill-switch-refusal failures from the 85.2 secretless baseline are absent in an equivalent post-fix run"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "85.2.2",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "DEFECT (own step per standing rule), discovered by the 85.2 research gate 2026-08-07: live-BQ/ADC-dependent tests are unmarked, so a secretless run fails on credentials from tests that were never meant to run credential-free. MEASURED (bare worktree at 55df9006, env -i, HOME away from gcloud ADC, four settings vars injected): 46 failed + 4 errors across 23 files in the full suite, dominated by DefaultCredentialsError reached from tests unrelated to credentials; only 16 tests carry the existing requires_live marker. SCOPE: derive the full population of ADC/BQ-touching tests (by running the secretless simulation, not by grep alone), mark them with the existing requires_live marker (or a new requires_adc marker registered in pytest config), wire the CI lane to deselect them, and record the before/after secretless pass/fail delta. Do NOT weaken any test's assertions -- marking is scoping, not skipping-on-failure (no pytest.skip trapdoors inside test bodies per feedback_mutation_test_guards_and_fixtures).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_85_2_2_secretless_marking.py -q",
+            "criteria": [
+              "the marked population is DERIVED from a recorded secretless simulation and enumerated in the step artifact, not asserted from grep",
+              "a test asserts every test that failed the secretless baseline on DefaultCredentialsError now carries the marker, by comparing the recorded baseline list to collected markers",
+              "the marker gate is mutation-tested: removing the marker from one enumerated test makes the criterion-2 test FAIL",
+              "a full secretless run with the marker deselection records its verbatim tail, and the delta vs the 46-failed baseline is stated with the derivation rule"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "85.3",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "depends_on": [],
@@ -23453,6 +23491,65 @@
               "MUTATION COVERAGE: removing the freshness bound from the extracted seam must turn the stale-401 case and the regression fixture red, while leaving the fresh-401 case green. The executor performs this mutation once, records the observed pytest output verbatim in the handoff, and restores the fix.",
               "After the fix is in place, a real invocation of the watchdog is performed and the resulting handoff/away_ops/health.jsonl record is quoted verbatim in the handoff artifact showing ok:true with auth_ok:true. A green unit test with the live watchdog still reporting ok:false does not close this step.",
               "The investigation into why session_*.json stopped on 2026-07-10 is recorded: either the cause is fixed within this step and named, or a separate masterplan step is filed and its id appears in the handoff. Silence on this point fails the step."
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "85.3.1",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [
+            "85.3"
+          ],
+          "name": "DEFECT DD-1 (own step per standing rule), discovered by the 85.3 research gate 2026-08-07 and ANSWERING 85.3 criterion 9: the away-session auth probe conflates 'the CLI exited nonzero' with 'the credential is dead', which is what kept sessions skipped for 28 days and WILL reproduce the outage on the next real 401 (the 85.3 fix cleared the latch, but run_away_session.sh:150 still gates recovery on probe_rc -eq 0 AND no-401). MEASURED: auth_probe_last.json 2026-08-07 07:30 contains NO 401 and no api_error_status field -- the credential authenticated and billed 50,373 cache-creation tokens on claude-opus-4-8/firstParty -- yet the probe exited rc=1 (subtype error_max_turns: 'printf ping' + --max-turns 1 makes the model reach for a tool, stop_reason=tool_use, num_turns=2) or rc=124 (gtimeout 20s vs the 50K-token cache rebuild); session.log:2003-2207 shows rc=1/rc=124 every slot for 6 days, NEVER rc=0 in 28 days. SCOPE: make the probe's health predicate MEAN credential health -- e.g. accept subtype in {success, error_max_turns} as authenticated, or probe with `claude auth status` (rc-meaningful, cheap, no token spend) instead of a model turn; raise the gtimeout or drop the model-call probe entirely; mutation-test the predicate (a 401-carrying probe must STILL read dead); record the token cost delta (the current probe burns ~50K cache tokens twice daily for a boolean).",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_85_3_1_session_probe_predicate.py -q",
+            "criteria": [
+              "the probe predicate is extracted or drivable and a test proves an authenticated-but-rc-nonzero probe result (error_max_turns / timeout with no 401) reads HEALTHY",
+              "a 401-carrying probe result still reads DEAD, mutation-tested by inverting the predicate",
+              "the recovery gate in run_away_session.sh consumes the new predicate, quoted at its call site",
+              "the probe's token cost is measured before/after and recorded (the current shape burns ~50K cache-creation tokens per slot for a boolean)"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "85.3.2",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "DEFECTS DD-2 + DD-3 (own step per standing rule), discovered by the 85.3 research gate 2026-08-07: the Slack digest's health section silently dies on malformed input and always prints '?' for cycle age. MEASURED: (DD-2) handoff/away_ops/health.jsonl line 37 is structurally INVALID JSON (`\"api_health\":000000` -- curl prints 000 AND the `|| echo 000` fallback fires, concatenating), and backend/slack_bot/scheduler.py:513 does json.loads(lines[-1]) inside a bare except:pass, so one malformed LAST line silently deletes the entire health section from the digest; (DD-3) backend/slack_bot/formatters.py:121 reads `last_cycle_age_h` but healthcheck.sh:266 emits `cycle_age_h`, so the digest prints '?' for cycle age on EVERY run. SCOPE: fix the healthcheck emitter's api_health quoting so the invalid-JSON shape cannot recur; make the scheduler's parse fail LOUD into the digest ('health record unparseable') instead of vanishing; reconcile the key name (pick the emitter's, fix the reader); regression tests for all three with the real line-37 payload as a fixture.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_85_3_2_digest_health_integrity.py -q",
+            "criteria": [
+              "a fixture reproducing the real invalid line ('\\\"api_health\\\":000000') no longer silently removes the digest health section -- the digest states the record is unparseable, asserted",
+              "the emitter can no longer produce that shape, mutation-tested against the curl-000-plus-fallback condition",
+              "the cycle-age key mismatch is reconciled and a test asserts the digest renders a numeric age from a healthcheck-emitted record",
+              "the scheduler's bare except is narrowed or instrumented so a parse failure is observable, with a negative control"
+            ]
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "85.3.3",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "SECURITY DEFECT DD-4 (own step per standing rule), discovered by the 85.3 research gate 2026-08-07: the away-watchdog launchd plist embeds a LITERAL CLAUDE_CODE_OAUTH_TOKEN value on disk outside the secrets store. SCOPE: move the token out of the plist (source it from backend/.env or the keychain at runtime), verify the plist on disk carries no secret material afterwards, check git history for whether the plist (with token) was ever committed (if yes: the token must be rotated -- an operator action to file in the ask list with the evidence), and sweep the other away-ops plists for the same pattern. Do NOT restart/modify the watchdog plist without recording it (away-ops-rules.md governs); coordinate the reload with the operator if the rules require.",
+          "verification": {
+            "command": "bash -c 'test -f scripts/away_ops/verify_plist_no_secrets.sh && bash scripts/away_ops/verify_plist_no_secrets.sh'",
+            "criteria": [
+              "the plist on disk carries no literal token, verified by a committed checker script whose output is recorded",
+              "the watchdog still authenticates after the change (a real run's auth leg passes), recorded verbatim",
+              "the git-history exposure check is recorded with its verbatim command and result; if the token was ever committed, a rotation ask is filed",
+              "all away-ops plists are swept for the same pattern with the derived population recorded"
             ]
           },
           "retry_count": 0,
