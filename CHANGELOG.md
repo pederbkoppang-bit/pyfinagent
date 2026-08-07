@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `ebb7abf2` | chore(72.0.1): close as superseded by 78.1+78.16 -- bookkeeping flip, substance shipped under a5ba09 |
 | 2026-08-07 | `c6c25b9f` | phase-61.2: decision-input integrity -- evidence cycle (CONDITIONAL #2, deferred on promotion ask #1 |
 | 2026-08-07 | `9d8ae48a` | phase-83.1.1: THE GO/NO-GO: measure the gate arithmetic BEFORE building anything, using the repo'... |
 | 2026-08-07 | `2e1fb9ca` | phase-83.1: Design pack and pre-registration for the market-news thematic engine, written up from... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-06 | `771640ce` | phase-4000.1: Research gate + measured baselines for the Max-rail E2E smoke. NO PRODUCTION CODE I... |
 | 2026-08-06 | `bb41eb96` | fix(82.48): repair the outcome write -- it emitted a schema that never existed |
 | 2026-08-06 | `785f5b0d` | refactor(82.46): decide the optimizer trial pool -- step NOT closed, Q/A returned FAIL |
-| 2026-08-06 | `992238b5` | chore(masterplan): queue phase-4000 Max-rail E2E smoke steps (4000.1-4000.5) + record 79.55 RAIL TIE |
 
 ---
 
