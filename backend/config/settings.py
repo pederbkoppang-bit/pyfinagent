@@ -8,7 +8,7 @@ from typing import Annotated
 from pydantic_settings import BaseSettings, NoDecode
 from pydantic import Field, SecretStr, field_validator
 from functools import lru_cache
-from backend.config.model_tiers import GEMINI_DEEP_THINK  # phase-75.5 (llmeng-06)
+from backend.config.model_tiers import GEMINI_DEEP_THINK, GEMINI_WORKHORSE  # phase-75.5 (llmeng-06); phase-72.0.2 adds GEMINI_WORKHORSE
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
@@ -194,6 +194,14 @@ class Settings(BaseSettings):
         ge=0,
         le=5,
         description="phase-61.2: max EXTRA attempts when a cc_rail call returns an errored-empty LLMResponse (thoughts prefix 'errored:'). Effective only when paper_synthesis_integrity_enabled is True. rail_guard_skipped empties are NEVER retried (open breaker / probe-dead -- Fowler: no calls through an open breaker). Total attempts = 1 + this value; default 3 total matches the Google SRE per-request budget and Anthropic's own SDK retry default (2).",
+    )
+    paper_rail_failforward_enabled: bool = Field(
+        False,
+        description="phase-72.0.2 (DARK until operator promotion): standard-tier fail-forward on rail-dead. ON = when the cc_rail is dead for the cycle (probe-dead rail_skipped OR breaker_tripped, read from rail_guard_status()) a standard-tier claude-* make_client call routes to the Vertex-Gemini workhorse (paper_failforward_model) over an in-seam ADC bundle, and the lite analyzer dispatches to the Gemini path under a deterministic quality floor (structural gate + degenerate-signature rejection; floor-fail = honest _degraded row, never a fabricated score). OFF = byte-identical legacy fail-closed behavior (rail_guard_skipped empties -> lite->HOLD, $0 book). COST: Vertex calls are METERED -- promotion is an operator decision recorded in live_check_72.0.2.md with the expected per-cycle cost derived from llm_call_log (never during an unattended away window, and never during a 4000.x rail-measurement window). The fail-forward READS rail state only; it never mutates the breaker, the probe, or their alerting (claude_rail_breaker_threshold semantics unchanged).",
+    )
+    paper_failforward_model: str = Field(
+        GEMINI_WORKHORSE,
+        description="phase-72.0.2: the fail-forward substitute model. Defaults to model_tiers.GEMINI_WORKHORSE (single source of truth + 2.5-family retirement tripwire, EOL 2026-10-16 -- never a literal here). Must be a gemini-* model; any other value disables the fail-forward fail-open (the rail path serves as today).",
     )
     paper_synthesis_integrity_enabled: bool = Field(
         False,

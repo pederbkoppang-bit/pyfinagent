@@ -2041,6 +2041,30 @@ class BatchClient:
         return results
 
 
+def _build_vertex_bundle(model_name: str) -> "GeminiModelBundle | None":
+    """phase-72.0.2: construct a Vertex GeminiModelBundle from ADC in-seam.
+
+    Every non-orchestrator caller passes vertex_model=None, so the rail-dead
+    fail-forward cannot rely on the caller's bundle (GeminiClient(model=None)
+    fails at generate-time -- the same $0 outcome with extra steps). Mirrors
+    orchestrator.py's get_genai_client() + GeminiModelBundle construction.
+    Decode config pinned to temperature=0.0/top_k=1: determinism, not model
+    size, is the finance-relevant substitution axis (arXiv:2511.07585).
+    Returns None fail-open when no genai client is available from ADC.
+    """
+    from backend.agents._genai_client import get_genai_client
+
+    client = get_genai_client()
+    if client is None:
+        return None
+    return GeminiModelBundle(
+        client=client,
+        model_name=model_name,
+        tools=[],
+        base_config={"temperature": 0.0, "top_k": 1},
+    )
+
+
 def make_client(
     model_name: str,
     vertex_model,
@@ -2115,6 +2139,46 @@ def make_client(
         model_name.startswith("claude-")
         and getattr(settings, "paper_use_claude_code_route", False)
     ):
+        # phase-72.0.2 (DARK, flag default False): rail-dead fail-forward.
+        # When the cc_rail is dead for the cycle, serving a ClaudeCodeClient
+        # yields only rail_guard_skipped empties -> fabricated HOLDs -> $0
+        # book (fail-closed). With the flag ON, substitute the Vertex-Gemini
+        # workhorse instead. Strict READER of rail_guard_status() -- a Gemini
+        # failure must never feed the Claude breaker (Azure resource-
+        # differentiation doctrine, research_brief_72.0.2.md #4/#9). Every
+        # miss on this path falls through to the rail exactly as today.
+        if getattr(settings, "paper_rail_failforward_enabled", False):
+            try:
+                from backend.agents.claude_code_client import rail_guard_status
+                _rg = rail_guard_status()
+                if _rg.get("rail_skipped") or _rg.get("breaker_tripped"):
+                    _ff_model = str(
+                        getattr(settings, "paper_failforward_model", "") or ""
+                    ).strip()
+                    if _ff_model.startswith("gemini-"):
+                        _ff_bundle = _build_vertex_bundle(_ff_model)
+                        if _ff_bundle is not None:
+                            logger.warning(
+                                "[LLMClient] FAIL-FORWARD %s -> %s (Vertex AI; rail dead: %s)",
+                                model_name,
+                                _ff_model,
+                                _rg.get("disabled_reason")
+                                or _rg.get("last_error")
+                                or "breaker open",
+                            )
+                            return GeminiClient(model=_ff_bundle, model_name=_ff_model)
+                        logger.warning(
+                            "[LLMClient] fail-forward unavailable (no genai client from ADC); serving the rail path"
+                        )
+                    else:
+                        logger.warning(
+                            "[LLMClient] fail-forward disabled: paper_failforward_model=%r is not gemini-*",
+                            _ff_model,
+                        )
+            except Exception as exc:
+                logger.warning(
+                    "[LLMClient] fail-forward check failed (%r); serving the rail path", exc
+                )
         try:
             from backend.agents.claude_code_client import ClaudeCodeClient  # type: ignore[attr-defined]
             logger.info(

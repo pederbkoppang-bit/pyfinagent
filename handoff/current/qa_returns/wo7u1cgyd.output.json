@@ -1,0 +1,68 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": true,
+    "verdict": "PASS",
+    "reason": "All three immutable criteria MET and all three cycle-1 findings closed with execution-grounded proof, not prose. C1: the live transport probe I ran myself settles it -- al._build_failforward_client('gemini-2.5-flash') in the LIVE config where gemini_api_key IS set (the exact condition that produced the cycle-1 defect) returns a GeminiClient whose bundle carries vertexai=True, project=sunny-might-477607-p8, location=us-central1, api_key=None, base_config={'temperature':0.0,'top_k':1}; backend/agents/_genai_client.py::_build_client is Vertex-only (genai.Client(vertexai=True, project, location)) with no API-key leg, so 'Vertex-Gemini' is now literally true and key-independent on BOTH seams. Flag-OFF byte-identity holds including the one residual I checked independently: the Gemini-only raise moved ahead of _fetch_yf_market_data, but grep of every production caller shows _run_gemini_analysis is reached only via _select_lite_analyzer (guaranteed gemini-*) and _run_failforward_analysis:2341 (pre-validates gemini-*), so the reordered raise is unreachable on all legacy paths; model_override/client_override both default None. C2: MET -- claude_code_client.py absent from the diff (0 hits), zero retry/while True/attempt/backoff constructs added anywhere in the backend diff, no rail_guard mutator in production, both seams read only the public rail_guard_status(). C3: MET -- ask #13 states a measured, rate-cited expected per-cycle cost (~$0.3 typical / <=$1.4 worst case) AND now names the corrected billing surface, which my live probe independently corroborates. F2 vacuity is genuinely closed: my own MUT-1 (drop client_override in transit -- NOT in the author's M1-M12 matrix) turns test_seam_b_full_path_uses_injected_client RED at 'assert len(rec.calls) == 2', with the captured log printing the exact defect signature '[GeminiClient] no google-genai client; returning empty LLMResponse'. Harness compliance clean, deterministic tier reproduces every number, no unintended production change.",
+    "violated_criteria": [],
+    "violation_details": [],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "research_gate_envelope",
+      "contract_before_generate_mtime_ordering",
+      "log_last_and_masterplan_status",
+      "no_verdict_shopping_evidence_diff",
+      "immutable_verification_command",
+      "git_derived_scope_diff_review",
+      "python_lint_gate_ruff_F821_F401_F811",
+      "backend_runtime_smoke_module_imports",
+      "scoped_test_suite_37_tests",
+      "scoped_regression_433_tests",
+      "live_vertex_transport_probe",
+      "independent_mutation_MUT1_client_override_dropped",
+      "independent_fixture_mutation_FM2_nonempty_api_key",
+      "fixture_type_fidelity_check",
+      "consumer_grep_select_lite_analyzer",
+      "guard_vacuity_check_4c",
+      "claim_auditing_4b",
+      "code_review_heuristics",
+      "worst_of_N_lenses"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "BINDING HOLD (carry forward): this PASS grades the three immutable criteria on the evidence obtainable WITHOUT metered spend. It does NOT license the status flip. handoff/current/live_check_72.0.2.md is ABSENT (verified) and the masterplan still reads status=pending, retry_count=0 -- the flip must stay HELD until the operator runs the induced capture per ask #13. The flag is confirmed DARK in the live env (paper_rail_failforward_enabled=False, paper_failforward_model=gemini-2.5-flash).\n\nDETERMINISTIC REPRODUCTION (all re-run by me, in my shell): immutable command exit=0. Lint scope DERIVED not typed -- `git diff --name-only HEAD -- '*.py'` UNION `git ls-files --others --exclude-standard -- '*.py'` = exactly 6 files, COUNT asserted >0 BEFORE reading the exit code, piped via xargs (no zsh word-split) -> \"All checks passed!\" exit=0. `python -m pytest backend/tests/test_phase_72_0_2_rail_failforward.py -q` -> \"37 passed, 1 warning in 1.95s\" (artifact claims 1.94s -- same count). Scoped regression (72.0.2+61.2+75.5.2+66.1+78.1+78.16) -> \"433 passed, 1 warning in 3.79s\", reproducing the claimed 433. Internal consistency: 25 test defs, one a 13-case parametrize => 25-1+13 = 37, matches. Runtime smoke: backend.config.settings, backend.agents.llm_client, backend.services.autonomous_loop all import clean.\n\nF1 CLOSED (independent live probe, constructor-only, $0, no metered call): al._build_failforward_client('gemini-2.5-flash') -> GeminiClient; bundle non-None; model_name=gemini-2.5-flash; base_config={'temperature':0.0,'top_k':1}; bundle.client._api_client vertexai=True, project=sunny-might-477607-p8, location=us-central1, api_key=None -- taken with gemini_api_key SET in the live config, i.e. under the exact condition that made the cycle-1 defect fire. I also read /Users/ford/.openclaw/workspace/pyfinagent/backend/agents/_genai_client.py::_build_client and confirmed it has NO API-key leg (kwargs = {'vertexai': True, 'project', 'location'}, optional explicit SA creds else ADC), so the F3 attribution 'Vertex AI on the GCP project via ADC' is TRUE and not a second misattribution.\n\nF2 CLOSED -- guard-vacuity per qa.md 4c. Named mutation per criterion: C1 SeamA transport -> None-trap, killed by test:93-106 (bundle non-None + bundle.client is the ADC stub + decode pins); C1 SeamB transport -> MY MUT-1; C1 flag-OFF identity -> M1a/M1b flag-OFF tests (type + timeout_s kwarg); C2 -> M3, killed by the deep-equal rail-status snapshot test. TWO INDEPENDENT MUTATIONS I ran (neither in the author's M1-M12; executed in-process via pytest.main plugins, repo tree NEVER written, nothing to restore): (1) MUT-1 -- force client_override=None in transit so the built Vertex client never reaches the transport (the F1 regression re-inserted one seam BELOW where the author mutated) -> \"1 failed, 36 passed\", the single red being test_seam_b_full_path_uses_injected_client; KILL MECHANISM NAMED (vacuity shape #11): the `assert len(rec.calls) == 2` recorder assertion, and the captured log printed the exact defect signature \"[GeminiClient] no google-genai client; returning empty LLMResponse\" -- i.e. the new guard demonstrably catches the precise cycle-1 $0-book failure. This also independently corroborates the author's M12 claim of \"exactly the full-path test red\". (2) FM-2 -- FIXTURE mutation (the shape qa.md says the author's own matrix misses): _S.gemini_api_key at test:37 is pinned to \"\" with the comment \"forces the Vertex leg, never AI Studio\"; I set it to a non-empty realistic key -> 37 STILL PASS, proving the guards are key-independent and represent production rather than an artificially key-zeroed environment (closes vacuity shapes #5/#9 on the very dimension the cycle-1 finding lived on).\n\nFIXTURE TYPE FIDELITY (vacuity shape #5, checked not assumed): real GeminiClient.generate_content(self, prompt, generation_config=None); production calls it POSITIONALLY (autonomous_loop trader + risk-judge legs both pass the config dict as arg 2), and _RecordingClient.generate_content(self, prompt, config=None) binds identically, returning an object with .text/.thoughts matching LLMResponse. The fake is call-compatible -- NOT a wrong-type stub.\n\nCONSUMER GREP (I ran it, did not trust the prose): _select_lite_analyzer(model_name, settings=None) and _run_gemini_analysis(..., model_override=None, client_override=None) are purely ADDITIVE with defaults. All call sites: autonomous_loop:1882 and :1983 (both updated), test_phase_61_2:113 stub (updated to the new signature), scripts/add_phase_27.py:198-199 (1-arg, still valid under the default). No unverified consumer -> no consumer-contract-break.\n\nHARNESS COMPLIANCE (5 items, all clean): (a) research gate -- research_brief_72.0.2.md gate_passed=true, external_sources_read_in_full=7 (>=5), urls_collected=33 (>=10), recency_scan_performed=true; (b) contract-before-generate mtimes -- research 15:35:55 < contract 17:51:29 < llm_client 18:01:10 < test file 18:22:45 < autonomous_loop 18:23:52 < experiment_results 18:24:36; (c) experiment_results present with the cycle-2 Follow-up; (d) log-last -- `grep -F \"72.0.2\" handoff/harness_log.md` yields 0 result= entries (the 2 raw hits are prose inside other steps' blocks; last logged cycle is 176/phase-84.1) and masterplan status=pending, so nothing was flipped or logged ahead of this verdict; (e) NO verdict-shopping -- the evidence CHANGED materially between cycles: autonomous_loop.py gained _build_failforward_client + client_override plumb, the suite went 32->37, ask #13 was rewritten, experiment_results gained the Follow-up. Per the simultaneous-presentation rule I read the new results, the new critique, the prior verdict and the diff in one pass before judging; this reversal follows a real code change, which is the documented cycle-2 flow and explicitly on the sycophancy negation list. 3rd-CONDITIONAL rule does not trigger (0 logged CONDITIONALs; this is verdict #2).\n\nSCOPE-HONESTY LENS: the cycle-1 capture block is annotated \"SUPERSEDED\" at experiment_results:13 with the body left intact and the new capture APPENDED at :73-84 -- no edited block masquerading as verbatim (4b satisfied). Disclosures cover the two updated regression suites, the two out-of-scope red-test families committed under their own attributions, and the deferral recorded UP FRONT in the contract rather than retrofitted. No mutation residue in the tree: git status shows only the 6 intended code files plus handoff artifacts; the mutation runner lives outside the repo.\n\nTHREE NOTE-LEVEL ITEMS (no verdict effect, none blocking): (1) the Follow-up says \"four new tests\" but 5 were added (32->37; the unnamed fifth is test_failforward_wires_built_client_into_gemini_path at test:417) -- an UNDERCOUNT of the author's own coverage, conservative rather than an overclaim; worth correcting for precision. (2) _rail_dead_reason's `except Exception: pass` swallows silently with no log line, unlike Seam A's equivalent which logs a warning -- fail-open in the CONSERVATIVE direction (an error reads as rail-healthy so the legacy path serves), so not the broad-except-silences-risk-guard BLOCK shape, but a one-line logger.warning would make a misconfigured rail reader visible. (3) _RecordingClient's second parameter is named `config` where the real client names it `generation_config` -- harmless today because production passes positionally, but a future refactor to keyword-passing would break the fake before the production path. (4) SCOPE BOUND ON MY OWN VERIFICATION: I did not re-fetch the Vertex pricing page (no web access in my tool surface), so the $0.30/M-in / $2.50/M-out rate is accepted on the artifact's citation + access date; the cycle-1 Q/A verified the rates and I independently confirmed the SURFACE those rates are applied to is now correct, which was the actual F3 defect."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:72.0.2",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a25087170588665aa",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786119898217,
+      "queuedAt": 1786119898207,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "PASS",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 72.0.2, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto…",
+      "lastProgressAt": 1786120357497,
+      "tokens": 149747,
+      "toolCalls": 36,
+      "durationMs": 459280,
+      "resultPreview": "{\"ok\":true,\"verdict\":\"PASS\",\"reason\":\"All three immutable criteria MET and all three cycle-1 findings closed with execution-grounded proof, not prose. C1: the live transport probe I ran myself settles it -- al._build_failforward_client('gemini-2.5-flash') in the LIVE config where gemini_api_key IS set (the exact condition that produced the cycle-1 defect) returns a GeminiClient whose bundle carrie…"
+    }
+  ],
+  "totalTokens": 149747,
+  "totalToolCalls": 36
+}

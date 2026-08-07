@@ -110,7 +110,7 @@ class TestSynthesisIntegrity:
             return settings
         _fresh.cache_clear = lambda: None
         with patch.object(al, "AnalysisOrchestrator", _StubOrch), \
-             patch.object(al, "_select_lite_analyzer", lambda model: lite), \
+             patch.object(al, "_select_lite_analyzer", lambda model, settings=None: lite), \
              patch("backend.config.settings.get_settings", _fresh):
             return asyncio.run(al._run_single_analysis("TST", settings))
 

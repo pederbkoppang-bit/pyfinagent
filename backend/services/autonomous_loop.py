@@ -1879,7 +1879,7 @@ async def _run_single_analysis(
             # phase-27.3 (C2): dispatch by configured standard model. Was hardcoded
             # to _run_claude_analysis which refused non-Claude models, leaving
             # gemini-* selections with no lite fallback.
-            return await _select_lite_analyzer(settings.gemini_model)(
+            return await _select_lite_analyzer(settings.gemini_model, settings)(
                 ticker, settings, portfolio_context=portfolio_context or "",
             )
         except Exception as e:
@@ -1980,7 +1980,7 @@ async def _run_single_analysis(
     # Last-resort fallback: try lite path so the cycle still produces a decision.
     # phase-27.3 (C2): provider-aware via _select_lite_analyzer.
     try:
-        _lite = await _select_lite_analyzer(settings.gemini_model)(
+        _lite = await _select_lite_analyzer(settings.gemini_model, settings)(
             ticker, settings, portfolio_context=portfolio_context or "",
         )
         # phase-60.1 (AW-4): tag the INTENDED-full-but-landed-lite analyses.
@@ -2193,7 +2193,7 @@ def _build_portfolio_sector_context(positions: list[dict]) -> str:
     return "invested-book sector weights: " + "; ".join(parts)
 
 
-def _select_lite_analyzer(model_name):
+def _select_lite_analyzer(model_name, settings=None):
     """Factory: pick the lite-analyzer coroutine for the configured standard model.
 
     phase-27.3 (C2): the lite fallback was hardcoded to Claude only, so
@@ -2204,13 +2204,158 @@ def _select_lite_analyzer(model_name):
       - `gemini-*` -> `_run_gemini_analysis` (direct AI Studio API key)
       - anything else (default `claude-*`) -> `_run_claude_analysis`
 
+    phase-72.0.2 (DARK): with `settings.paper_rail_failforward_enabled` ON, a
+    `claude-*` standard model whose cc_rail is dead for the cycle dispatches to
+    `_run_failforward_analysis` (Gemini substitute under the quality floor)
+    instead of a `_run_claude_analysis` that can only return rail_guard_skipped
+    empties. `settings=None` (the pre-72.0.2 signature) keeps today's routing.
+
     Returns the coroutine FUNCTION (uncalled). Callers do
     `await _select_lite_analyzer(name)(ticker, settings)`.
     """
     name = (model_name or "").strip().lower()
     if name.startswith("gemini-"):
         return _run_gemini_analysis
+    if (
+        name.startswith("claude-")
+        and settings is not None
+        and getattr(settings, "paper_rail_failforward_enabled", False)
+        and _rail_dead_reason() is not None
+    ):
+        return _run_failforward_analysis
     return _run_claude_analysis
+
+
+def _rail_dead_reason():
+    """phase-72.0.2: the reason the cc_rail is dead this cycle, else None.
+
+    Strict READER of the public rail_guard_status() -- never touches the
+    mutators, so a fail-forward decision can never feed the Claude breaker
+    (criterion 2 / Azure resource-differentiation). Fail-open: any error
+    reads as rail-healthy so the legacy path serves.
+    """
+    try:
+        from backend.agents.claude_code_client import rail_guard_status
+
+        _rg = rail_guard_status()
+        if _rg.get("rail_skipped"):
+            return str(_rg.get("disabled_reason") or "probe gate")
+        if _rg.get("breaker_tripped"):
+            return str(_rg.get("last_error") or "breaker open")
+    except Exception:
+        pass
+    return None
+
+
+def _failforward_floor_ok(analysis) -> bool:
+    """phase-72.0.2 quality floor over the inner trader-analysis dict.
+
+    Two deterministic $0 stages (research_brief_72.0.2.md section 3.4 --
+    schema-validity is NOT quality, arXiv:2604.25359, so parse-success alone
+    never clears the floor):
+      1. structural gate -- dict; action in {BUY,SELL,HOLD}; confidence
+         numeric in [0,100] and not None; score numeric in [1,10]; non-empty
+         reason (the "hardening rule": a payload missing structure carries no
+         semantic score).
+      2. degenerate-signature rejection -- the `_parse_failed` marker or
+         confidence == 0 (the fabricated-HOLD tell, mirrored from
+         _degraded_scoring_check) means this is NOT a real score.
+    Floor-fail hands the result to the honest-degraded path; it is never
+    fabricated into a tradeable value.
+    """
+    if not isinstance(analysis, dict):
+        return False
+    if analysis.get("_parse_failed"):
+        return False
+    if analysis.get("action") not in ("BUY", "SELL", "HOLD"):
+        return False
+    conf_raw = analysis.get("confidence")
+    score_raw = analysis.get("score")
+    if conf_raw is None or score_raw is None:
+        return False
+    try:
+        conf = float(conf_raw)
+        score = float(score_raw)
+    except (TypeError, ValueError):
+        return False
+    if not (0.0 <= conf <= 100.0 and 1.0 <= score <= 10.0):
+        return False
+    if not str(analysis.get("reason") or "").strip():
+        return False
+    if conf == 0.0:
+        return False
+    return True
+
+
+def _build_failforward_client(ff_model):
+    """phase-72.0.2 cycle-2 (Q/A F1): the fail-forward's VERTEX-only transport.
+
+    Criterion 1 names Vertex-Gemini. Routing the substitute through
+    make_client's normal priority serves the AI-Studio key branch when
+    GEMINI_API_KEY is set and GeminiClient(model=None) -- the None-trap --
+    when it is not, making the real-score property silently depend on a key
+    the contract never named. Build the same in-seam ADC bundle Seam A uses
+    instead; the transport is now caller- and key-independent.
+    Returns None fail-open when no ADC genai client is available.
+    """
+    from backend.agents.llm_client import GeminiClient, _build_vertex_bundle
+
+    bundle = _build_vertex_bundle(ff_model)
+    if bundle is None:
+        return None
+    return GeminiClient(model=bundle, model_name=ff_model)
+
+
+async def _run_failforward_analysis(ticker, settings, portfolio_context=""):
+    """phase-72.0.2 (DARK): rail-dead fail-forward for the lite path.
+
+    Serves the lite analysis from the Gemini substitute model under the
+    deterministic quality floor, stamping fail-forward provenance so a
+    substituted answer is auditable and can never masquerade as a rail-served
+    one (the repo-local gen_ai.fallback.* analogue). Floor-fail marks the
+    result `_degraded` -- the honest 61.2 path (`_fold_degraded_for_trading`
+    drops it from decide_trades under the integrity flag) -- never fabricates.
+    Transport is Vertex-only via `_build_failforward_client` (Q/A F1).
+    """
+    ff_model = str(getattr(settings, "paper_failforward_model", "") or "").strip()
+    reason = _rail_dead_reason() or "rail dead"
+    if not ff_model.startswith("gemini-"):
+        # Misconfigured substitute: fail-open to the legacy claude path,
+        # which serves exactly what it serves today on a dead rail.
+        logger.warning(
+            "phase-72.0.2: paper_failforward_model=%r is not gemini-*; "
+            "falling back to the legacy lite path for %s", ff_model, ticker,
+        )
+        return await _run_claude_analysis(
+            ticker, settings, portfolio_context=portfolio_context,
+        )
+    client = _build_failforward_client(ff_model)
+    if client is None:
+        logger.warning(
+            "phase-72.0.2: no ADC genai client for the fail-forward Vertex "
+            "bundle; falling back to the legacy lite path for %s", ticker,
+        )
+        return await _run_claude_analysis(
+            ticker, settings, portfolio_context=portfolio_context,
+        )
+    result = await _run_gemini_analysis(
+        ticker, settings, portfolio_context=portfolio_context,
+        model_override=ff_model, client_override=client,
+    )
+    inner = (result.get("full_report") or {}).get("analysis") if isinstance(result, dict) else None
+    if isinstance(result, dict):
+        result["_failforward"] = True
+        result["_failforward_provider"] = ff_model
+        result["_failforward_reason"] = str(reason)[:500]
+        if not _failforward_floor_ok(inner):
+            result["_degraded"] = True
+            result["_failforward_reason"] = f"floor_reject: {str(reason)[:480]}"
+            logger.warning(
+                "phase-72.0.2: fail-forward result for %s REJECTED by the "
+                "quality floor -- honest degraded row, not a fabricated score",
+                ticker,
+            )
+    return result
 
 
 def _fold_degraded_for_trading(analysis: dict | None) -> dict | None:
@@ -2688,22 +2833,56 @@ Respond in this exact JSON format:
     }
 
 
+def _resolve_lite_gemini_model(settings, model_override=None) -> str:
+    """phase-72.0.2: resolve + validate the lite-Gemini model name.
+
+    Extracted from the body of `_run_gemini_analysis` so the override plumb is
+    behaviourally testable without any I/O, and so a misconfigured model fails
+    BEFORE market-data fetching. `model_override` (the fail-forward substitute)
+    wins over `settings.gemini_model`; the Gemini-only guard is preserved
+    verbatim from the phase-27.3 seam.
+    """
+    from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5.2
+
+    model_name = str(
+        (model_override or settings.gemini_model) or GEMINI_WORKHORSE
+    ).strip()
+    if not model_name.startswith("gemini-"):
+        raise ValueError(
+            f"standard model '{model_name}' is not a Gemini model; "
+            "_run_gemini_analysis is Gemini-only. _select_lite_analyzer should "
+            "have routed claude-* to _run_claude_analysis instead."
+        )
+    return model_name
+
+
 async def _run_gemini_analysis(
     ticker: str, settings: Settings, portfolio_context: str = "",
+    model_override: str | None = None, client_override=None,
 ) -> dict:
     """Lightweight Gemini-based analysis for paper trading decisions.
 
     phase-27.3 (C2): mirror of `_run_claude_analysis` for non-Claude standard
     models. Output dict shape IDENTICAL — same keys, `_path: "lite"` marker,
     so `_persist_analysis` and downstream readers don't branch by provider.
-    Routes through `make_client` (post-27.1 priority order) which dispatches
-    `gemini-*` to a direct AI Studio API key (no Vertex / GCP creds).
+    By default routes through `make_client` (post-27.1 priority order) which
+    dispatches `gemini-*` to a direct AI Studio API key (no Vertex / GCP
+    creds).
+
+    phase-72.0.2: `model_override` (default None = today's behaviour) lets the
+    rail-dead fail-forward substitute its own model without touching
+    `settings.gemini_model`; resolution + the Gemini-only guard live in
+    `_resolve_lite_gemini_model` and run before any I/O. `client_override`
+    (cycle-2, Q/A F1) lets the fail-forward inject its Vertex-only ADC client
+    so the substitute never depends on GEMINI_API_KEY and never hits the
+    None-trap; both defaults preserve the legacy path byte-identically.
 
     Two-LLM-call pattern preserved: trader prompt + independent risk-judge.
     """
     import re as _re
     from backend.agents.llm_client import make_client, safe_text
-    from backend.config.model_tiers import GEMINI_WORKHORSE  # phase-75.5.2
+
+    model_name = _resolve_lite_gemini_model(settings, model_override)
 
     logger.info(f"Gemini analysis: analyzing {ticker}")
 
@@ -2737,7 +2916,9 @@ async def _run_gemini_analysis(
     _di_enabled = bool(getattr(settings, "paper_data_integrity_enabled", False))
     _di_norm = normalize_market_values(ticker, info)
     _di_flags = check_data_integrity(ticker, info, _di_norm)
-    _model_for_block = (settings.gemini_model or GEMINI_WORKHORSE).strip()
+    # phase-72.0.2: stamp the model that actually serves (the override when
+    # the fail-forward is active), resolved once at the function top.
+    _model_for_block = model_name
     if _di_enabled and any(f.get("blocking") for f in _di_flags):
         return _data_integrity_blocked_analysis(
             ticker, name, sector, industry, _model_for_block, current_price,
@@ -2752,16 +2933,17 @@ async def _run_gemini_analysis(
         else (market_cap or 0) / 1e9
     )
 
-    model_name = (settings.gemini_model or GEMINI_WORKHORSE).strip()
-    if not model_name.startswith("gemini-"):
-        raise ValueError(
-            f"standard model '{model_name}' is not a Gemini model; "
-            "_run_gemini_analysis is Gemini-only. _select_lite_analyzer should "
-            "have routed claude-* to _run_claude_analysis instead."
-        )
+    # phase-72.0.2: model resolution + the Gemini-only guard moved to
+    # _resolve_lite_gemini_model at the function top (before any I/O).
 
     # Build a single Gemini client and reuse for trader + risk-judge calls.
-    client = make_client(model_name, vertex_model=None, settings=settings)
+    # phase-72.0.2 cycle-2 (Q/A F1): the fail-forward injects its Vertex-only
+    # client via client_override; the default (None) path is byte-identical.
+    client = (
+        client_override
+        if client_override is not None
+        else make_client(model_name, vertex_model=None, settings=settings)
+    )
 
     trader_prompt = f"""Analyze {ticker} ({name}) for a paper trading portfolio. Be concise.
 

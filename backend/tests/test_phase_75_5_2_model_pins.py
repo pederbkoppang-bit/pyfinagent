@@ -273,28 +273,52 @@ def _assign_rhs_names(func_node: ast.AST, target_name: str) -> list[set[str]]:
     return hits
 
 
-@pytest.mark.parametrize("target", ["_model_for_block", "model_name"])
-def test_autonomous_loop_gemini_fallback_sites_reference_workhorse_not_deep_think(target):
-    """AST-based Name-reference check, scoped to `_run_gemini_analysis` by
-    FUNCTION identity (not line number -- the same variable names are also
-    assigned, with a *different* Claude fallback, inside the sibling
-    `_run_claude_analysis`). Doubles as the MISROUTE guard (mutation M4):
-    proves the site references GEMINI_WORKHORSE specifically, not
-    GEMINI_DEEP_THINK -- independent of criterion 1's plain-substring scan."""
+def test_autonomous_loop_gemini_fallback_sites_reference_workhorse_not_deep_think():
+    """AST-based Name-reference check. Doubles as the MISROUTE guard (mutation
+    M4): proves the lite-Gemini model default references GEMINI_WORKHORSE
+    specifically, not GEMINI_DEEP_THINK -- independent of criterion 1's
+    plain-substring scan.
+
+    phase-72.0.2 UPDATE (intent preserved, scope moved): the resolution +
+    workhorse default were extracted from `_run_gemini_analysis`'s body into
+    `_resolve_lite_gemini_model` (so the fail-forward override is testable
+    without I/O). The guarded property -- the fallback default is the
+    WORKHORSE, never deep-think -- now lives in the helper's `model_name`
+    assignment; `_model_for_block` inside `_run_gemini_analysis` must derive
+    from that resolved `model_name` (so it inherits the same guarantee) and
+    must not reference GEMINI_DEEP_THINK itself."""
     tree = ast.parse(
         (REPO / "backend/services/autonomous_loop.py").read_text(encoding="utf-8")
     )
-    func = _function_node(tree, "_run_gemini_analysis")
-    assert func is not None, "could not locate _run_gemini_analysis in autonomous_loop.py"
 
-    hits = _assign_rhs_names(func, target)
-    assert hits, f"no assignment to {target!r} found inside _run_gemini_analysis"
+    helper = _function_node(tree, "_resolve_lite_gemini_model")
+    assert helper is not None, (
+        "could not locate _resolve_lite_gemini_model in autonomous_loop.py"
+    )
+    hits = _assign_rhs_names(helper, "model_name")
+    assert hits, "no assignment to 'model_name' found inside _resolve_lite_gemini_model"
     for names in hits:
         assert "GEMINI_WORKHORSE" in names, (
-            f"{target} inside _run_gemini_analysis no longer references GEMINI_WORKHORSE"
+            "model_name inside _resolve_lite_gemini_model no longer references "
+            "GEMINI_WORKHORSE"
         )
         assert "GEMINI_DEEP_THINK" not in names, (
-            f"{target} inside _run_gemini_analysis MISROUTED to GEMINI_DEEP_THINK"
+            "model_name inside _resolve_lite_gemini_model MISROUTED to GEMINI_DEEP_THINK"
+        )
+
+    func = _function_node(tree, "_run_gemini_analysis")
+    assert func is not None, "could not locate _run_gemini_analysis in autonomous_loop.py"
+    block_hits = _assign_rhs_names(func, "_model_for_block")
+    assert block_hits, (
+        "no assignment to '_model_for_block' found inside _run_gemini_analysis"
+    )
+    for names in block_hits:
+        assert "model_name" in names, (
+            "_model_for_block must derive from the resolved model_name "
+            "(the workhorse-guarded resolution)"
+        )
+        assert "GEMINI_DEEP_THINK" not in names, (
+            "_model_for_block inside _run_gemini_analysis MISROUTED to GEMINI_DEEP_THINK"
         )
 
 
