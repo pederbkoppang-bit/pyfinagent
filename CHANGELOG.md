@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `2b96b561` | phase-62.1 + 68.1: capture both live_checks; correct a false premise in 85.4 |
 | 2026-08-07 | `0386dc49` | chore(away-ops): recovery sweep -- audit streams + cycle state + 68.1 researcher memory |
 | 2026-08-07 | `8bdc0ccb` | fix(85.5): file P0 -- a live cycle's lock is judged stale, and the stale path defeats its flock |
 | 2026-08-07 | `5d44abdb` | fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross-link the malformed-token suspe |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `9d8ae48a` | phase-83.1.1: THE GO/NO-GO: measure the gate arithmetic BEFORE building anything, using the repo'... |
 | 2026-08-07 | `2e1fb9ca` | phase-83.1: Design pack and pre-registration for the market-news thematic engine, written up from... |
 | 2026-08-07 | `95dabea9` | phase-83.0.1: DEFECT (own step per standing rule): the news ingest path silently fabricates times... |
-| 2026-08-07 | `946b760f` | phase-83.0.3: DEFECT (own step per standing rule), BLOCKS THE EVIDENCE PATH FOR 83.5: the exposed... |
 
 ---
 
+### v6.85.7 — phase-62.1 + 68.1: capture both live_checks; correct a false premise... (2026-08-07)
+
+- **phase-62.1 + 68.1: capture both live_checks; correct a false premise in 85.4**
 ### v6.85.6 — fix(85.5): file P0 -- a live cycle's lock is judged stale, and the st... (2026-08-07)
 
 - **fix(85.5): file P0 -- a live cycle's lock is judged stale, and the stale path defeats its flock**
