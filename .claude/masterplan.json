@@ -22592,6 +22592,40 @@
           "max_retries": 3
         },
         {
+          "id": "36.29",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "ARCHIVE-SNAPSHOT DEFECT (own step per standing rule), discovered at the 84.1 close 2026-08-07: the archive-handoff hook snapshots the ROLLING generic filenames (handoff/current/contract.md, experiment_results.md, evaluator_critique.md, research_brief.md) into handoff/archive/phase-<sid>/ on every status flip, but sessions moved to PER-STEP artifact names (contract_<sid>.md etc.) around phase-82.5x -- so the rolling files froze at phase-82.54 (mtime 2026-08-06) and every archive dir created since is a mislabeled duplicate of 82.54's artifacts. MEASURED 2026-08-07 (re-derive before trusting): grep -l 'phase-82.54' handoff/archive/phase-*/contract.md matches 14 dirs; excluding phase-82.54 itself the mislabeled set is 13: 4000.2, 4000.3, 82.51, 82.58, 82.59, 82.6, 83.0, 83.0.1, 83.0.3, 83.1, 83.1.1, 84.1, 85.3. NOTHING IS LOST: every affected step's true artifacts are committed under handoff/current/ with per-step names. WHY IT MATTERS: a future reader (or the Q/A harness-compliance audit) opening handoff/archive/phase-84.1/ reads 82.54 content believing it is 84.1 -- actively misleading, the exact failure the archive exists to prevent. WHAT TO BUILD: (a) extend .claude/hooks/archive-handoff.sh to prefer per-step-named files (contract_<sid>.md et al.) when they exist, falling back to the rolling names; (b) repair the 13 mislabeled dirs by copying the correct per-step artifacts over the wrong snapshots (the wrong snapshots are duplicates of phase-82.54/, which stays canonical -- no information is destroyed); (c) extend scripts/housekeeping/verify_handoff_layout.py with a dirname-vs-content invariant so recurrence is caught at the next run. NON-SCOPE: do not change the five-file protocol or the per-step naming convention itself.",
+          "verification": {
+            "command": ".venv/bin/python scripts/housekeeping/verify_handoff_layout.py",
+            "criteria": [
+              "grep -l 'phase-82.54' handoff/archive/phase-*/contract.md matches EXACTLY one directory: handoff/archive/phase-82.54 itself.",
+              "For each of the 13 repaired dirs, the archived contract.md's step id matches its directory name (spot-proven for at least 84.1, 85.3 and 83.1.1 by quoting the first heading line).",
+              ".claude/hooks/archive-handoff.sh prefers contract_<sid>.md / experiment_results_<sid>.md / evaluator_critique_<sid>.md / research_brief_<sid>.md when present, falling back to the rolling generic names, and the preference is proven by a dry-run or fixture invocation captured in experiment_results, not asserted.",
+              "scripts/housekeeping/verify_handoff_layout.py gains a dirname-vs-content check that FAILS on a synthetic mislabeled archive dir (fixture-proven both directions: mislabeled fails, correct passes).",
+              "No file under handoff/archive/phase-82.54/ is modified or deleted."
+            ]
+          }
+        },
+        {
+          "id": "84.1.1",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "Auditor robustness follow-ups from the 84.1 cycle-3 Q/A notes (N-1, N-2), queued per the discovered-defects rule 2026-08-07. N-1: scripts/housekeeping/audit_memory.py's module docstring states the normalization rule but does not enumerate the full type-prefix set {feedback_, project_, reference_, user_} that criterion 84.1-C1 lists -- a reader can reproduce the mechanism but not the exact membership without reading _TYPE_PREFIXES (one line below). N-2 (latent robustness asymmetry, Q/A-measured): _index_corpus() guards read_text with try/except while audit() reads the SAME files UNGUARDED at audit_memory.py:138, so a non-UTF8 memory file would crash the auditor -- contradicting the docstring's own 'crashing on the live corpus is worse than a mis-file' rationale. The Q/A scanned all 205 memory files across the three corpora and found ZERO non-UTF8 today, so this is latent, not live. WHAT TO BUILD: enumerate the prefix set in the docstring; guard the audit() read path the same way as _index_corpus (skip-and-report, never crash); one fixture with a non-UTF8 .md file proving the auditor reports it and completes. Line numbers were true at close 2026-08-07 -- re-derive before citing.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent && .venv/bin/python -m pytest backend/tests/test_phase_84_1_memory_link_resolution.py -q",
+            "criteria": [
+              "The module docstring enumerates all four type prefixes verbatim.",
+              "A fixture corpus containing one non-UTF8 .md file runs to completion (no Traceback), reports the unreadable file in a named class, and the pre-existing 17 tests still pass.",
+              "The unreadable-file guard is mutation-proven: reverting the audit()-path guard turns the new fixture red."
+            ]
+          }
+        },
+        {
           "id": "83.0.4",
           "status": "pending",
           "priority": "P1",
