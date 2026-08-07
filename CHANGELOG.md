@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `7414c271` | phase-61.3: prove the KR add-on stop, resolve LOCAL columns market-first, label a stale mark (Q/A CO |
 | 2026-08-07 | `abcadfb8` | docs(harness): install the next-session drain goal with measured 2026-08-07 end-of-day state (11 cyc |
 | 2026-08-07 | `4b1a5449` | phase-72.0.2: standard-tier fail-forward on rail-dead, FLAG-GATED DARK (Q/A PASS; flip HELD on live_ |
 | 2026-08-07 | `d5583a72` | chore(masterplan): queue 36.30 -- env-flag test leakage (57.1 binding gate promoted live by operator |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-06 | `18659bc3` | fix(82.59): repair two Slack listeners that had raised TypeError since April |
 | 2026-08-06 | `e910667c` | fix(82.51): embargo fundamentals by publication lag -- 15% of Sharpe was look-ahead |
 | 2026-08-06 | `74686de3` | phase-4000.3: Operator gate, then the LIVE smoke window. THIS STEP DOES NOT START WITHOUT THREE R... |
-| 2026-08-06 | `107b0841` | fix(82.58): repair the only alarm guarding the cost-budget hard-block |
 
 ---
 
+### v6.85.1 — phase-61.3: prove the KR add-on stop, resolve LOCAL columns market-fi... (2026-08-07)
+
+- **phase-61.3: prove the KR add-on stop, resolve LOCAL columns market-first, label a stale mark (Q/A CO**
 ### v6.85.0 — phase-72.0.2: standard-tier fail-forward on rail-dead, FLAG-GATED DAR... (2026-08-07)
 
 - **phase-72.0.2: standard-tier fail-forward on rail-dead, FLAG-GATED DARK (Q/A PASS; flip HELD on live_**
