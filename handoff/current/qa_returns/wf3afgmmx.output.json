@@ -1,0 +1,92 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "Cycle 2. Both cycle-1 WARNs are genuinely FIXED and I reproduced both fixes myself; all 6 immutable criteria remain MET on independently re-derived evidence; harness compliance clean; no unintended production change. CAPPED AT CONDITIONAL by two NEW findings I derived by execution, not by reading. (1) SENTIMENT SEAM: contract_83.0.md decision D1 states verbatim \"scoring during a backfill run carries provenance='backfill'\" -- that is FALSE. Non-mutating behavioural probe (I replaced bq_writer._insert_rows, the single chokepoint for all three writers, with a recorder -> ZERO BQ writes, then ran the real _run_pipeline(sources=['stub'], dry_run=True, backfill=True, days_forward=1)): news_articles n=3 provenance=['backfill'] (the cycle-2 fix is behaviourally real, not just source text) but news_sentiment n=3 provenance=['live']. Root cause chain: ScorerResult (sentiment.py:104-116) has no provenance field; score_ladder (sentiment.py:915-920) takes no such kwarg; phase6_e2e.py:175 calls write_news_sentiment(sentiment_results) with nothing; _serialize_sentiment (bq_writer.py:210-212) defaults to \"live\" AND coerces any non-{live,backfill} value to \"live\". So news_sentiment.provenance is a CONSTANT 'live' on every reachable path -- a REQUIRED audit column that can only ever assert one value, on the table this step created in the one-shot REQUIRED window, which is the exact harm the masterplan rationale names (\"a backfilled row is indistinguishable from a live-captured one\"). Live corroboration: all 9 prod news_sentiment rows read provenance='live'. Identical defect class to cycle-1 WARN-1, one seam over; none of the four queued steps (83.0.4/.5/.6/.7 subjects re-read by me) covers it. Not a criterion miss -- criterion 2's \"fetch path\" is the article path and test_c2 covers it behaviourally (my enum_drop_backfill mutant KILLED it) -- hence WARN, not FAIL. (2) THE CYCLE-2 FIX IS UNGUARDED: `grep -rln phase6_e2e backend/tests tests` returns NOTHING, so no test imports or exercises that module; deleting provenance=\"backfill\" if backfill else \"live\" at phase6_e2e.py:114-118 restores the cycle-1 defect with the whole suite green (qa.md 4c: name the mutation that makes the guard fail -- none exists). Not disclosed in experiment_results. DETERMINISTIC (all mine): immutable command exit=0, 9 passed in 5.12s; adjacent suite 20 passed in 6.60s; lint gate 1a over the git-DERIVED 6-file scope (git diff --name-only HEAD + ls-files --others, non-empty asserted, xargs -0 quoted) = \"All checks passed!\" exit=0 -- WARN-2 fixed and reproduces; runtime smoke 1d: bq_writer/fetcher/migration/phase6_e2e all import OK. LIVE BQ read by me: news_articles = published_at TIMESTAMP REQUIRED + distinct ingested_at TIMESTAMP REQUIRED + provenance STRING REQUIRED, no fetched_at; news_sentiment = ingested_at + provenance REQUIRED; both created 2026-08-07 07:48:46/47 UTC. Incident numbers reproduce EXACTLY: 9 stub articles, 9 sentiment (6 claude-haiku-4-5 + 3 finbert), SUM(cost_usd)=0.0 -- and independently corroborated by handoff/audit/phase6_smoketest.jsonl gaining exactly 3 lines (3 runs x 3 stub articles = 9). Masterplan drift: 0 criteria, 0 command, 0 status changes across 997 pre-existing verification-bearing ids; +4 pending steps only. Fix path to PASS: thread provenance to the sentiment seam (or queue it as its own research-gated step per the standing rule) AND correct D1's false claim, plus disclose or guard the phase6_e2e threading.",
+    "violated_criteria": [
+      "WARN(scope-honesty / contract-claim): contract D1 asserts backfill-run sentiment rows carry provenance='backfill'; news_sentiment.provenance is a constant 'live' on every reachable path",
+      "WARN(guard-vacuity qa.md 4c): the cycle-2 WARN-1 remediation at phase6_e2e.py:114-118 has ZERO test coverage -- no mutation of it can turn any test red"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Contradiction",
+        "action": "Neutralised bq_writer._insert_rows in-process (recorder returning len(rows); zero BQ writes, zero repo writes) and ran the real scripts/smoketest/phase6_e2e.py::_run_pipeline(sources=['stub'], dry_run=True, backfill=True, days_forward=1)",
+        "state": "Captured rows: table=news_articles n=3 provenance=['backfill'] (cycle-2 fix works); table=news_sentiment n=3 provenance=['live'] cost=[0.0]. Chain: backend/news/sentiment.py:104-116 ScorerResult has no provenance field; sentiment.py:915-920 score_ladder takes no provenance kwarg; scripts/smoketest/phase6_e2e.py:175 write_news_sentiment(sentiment_results) passes nothing; backend/news/bq_writer.py:210-212 provenance = d.get('provenance') or 'live' AND coerces any non-{live,backfill} value to 'live'. `grep -rn provenance --include=*.py backend scripts` shows no news-sentiment producer. Live prod census: all 9 news_sentiment rows provenance='live'. Queued steps 83.0.4/.5/.6/.7 re-read -- none covers this. SEVERITY: WARN (forces CONDITIONAL, not FAIL).",
+        "constraint": "contract_83.0.md decision D1, verbatim: 'For sentiment rows both values are truthful at scoring time (ingested_at = the actual write moment of the score row; scoring during a backfill run carries provenance=backfill).' Unreachable as implemented. Masterplan 83.0 rationale, verbatim: 'without provenance a backfilled row is indistinguishable from a live-captured one and every later point-in-time claim collapses.' Criterion 2 is MET at the article/run_once seam (my enum_drop_backfill mutant killed test_c2), so this is a scope-honesty and half-delivery gap on the second table, not a criterion miss -- but a REQUIRED audit column that can only ever assert one value is the same failure the cycle-1 WARN-1 named, one seam over, and the standing rule feedback_queue_discovered_defects_in_masterplan was not applied to it."
+      },
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "grep -rln \"phase6_e2e\" backend/tests tests  -> no output (grep exit=1); reviewed the full test tree for any importer of scripts.smoketest.phase6_e2e",
+        "state": "No test in the repository imports or exercises scripts/smoketest/phase6_e2e.py. Therefore deleting `provenance=\"backfill\" if backfill else \"live\"` at phase6_e2e.py:114-118 -- the entire cycle-2 WARN-1 remediation -- leaves the immutable command at 9 passed and the adjacent suite at 20 passed. No mutation of the fix can turn any test red. experiment_results_83.0.md 'Follow-up -- cycle 2' verifies the fix only by `grep -n 'provenance=' scripts/smoketest/phase6_e2e.py` (a source scan, vacuity shape #1/#2) and does not disclose the absence of coverage. SEVERITY: WARN (forces CONDITIONAL, not FAIL) -- the fix IS behaviourally correct; I proved it by execution.",
+        "constraint": "qa.md section 4c: 'For EACH immutable criterion, name the CONCRETE MUTATION that would make its guard fail. If no such mutation exists, that is a FINDING, never a pass.' Applied here to the remediation rather than to a criterion, hence WARN not BLOCK: criterion 2 keeps a genuine behavioural guard at the run_once seam. Remedy: one test asserting the provenance kwarg phase6_e2e passes under --backfill (patch the fetch seam and assert the captured kwarg), or an explicit disclosure that the fix is unguarded."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "qa_md_read_in_full_at_runtime",
+      "harness_compliance_audit_5_item",
+      "research_gate_envelope (gate_passed=true, 8 sources read in full, 35 URLs, recency_scan section at brief:287, 16 internal files)",
+      "mtime_chain_research_09:43:57 < contract_09:46:08 < first_code_edit_09:47:00 < experiment_results_10:12:33",
+      "log_last_check (grep -F 'phase=83.0' handoff/harness_log.md = 0 entries; masterplan 83.0 status=pending, retry_count=0)",
+      "no_verdict_shopping (evidence CHANGED after cycle-1 critique 10:08:15: fetcher.py 10:08:36, phase6_e2e.py 10:10:20, masterplan 10:12:08, experiment_results 10:12:33)",
+      "third_conditional_rule (0 logged CONDITIONALs for 83.0; this is the 2nd by evidence, auto-FAIL not triggered)",
+      "criteria_verbatim_in_contract (6/6 byte-match against masterplan)",
+      "masterplan_immutability_diff_vs_HEAD (997 pre-existing verification-bearing ids: 0 criteria drift, 0 command drift, 0 status flips; +4 pending 83.0.4/.5/.6/.7)",
+      "verification_command (exit=0, 9 passed in 5.12s)",
+      "adjacent_suite (20 passed in 6.60s -- author count reproduces)",
+      "derived_changed_file_scope (git diff --name-only HEAD + git ls-files --others = 6 .py files, non-empty guard asserted)",
+      "python_lint_gate_ruff_F821_F401_F811 (xargs -0 quoted, exit=0, 'All checks passed!' -- cycle-1 WARN-2 fixed and reproduced)",
+      "backend_runtime_smoke_1d (bq_writer, fetcher, add_news_sentiment_schema, phase6_e2e all import OK in the venv)",
+      "independent_live_bq_schema_read (both tables, all columns + modes re-derived by the evaluator; created 2026-08-07 07:48:46/47 UTC)",
+      "independent_bq_row_census (9 articles provenance=live source=stub; 9 sentiment 6 haiku + 3 finbert; SUM(cost_usd)=0.0 -- author incident numbers reproduce exactly)",
+      "incident_count_corroboration (handoff/audit/phase6_smoketest.jsonl +3 lines = 3 runs x 3 stub articles = 9)",
+      "behavioural_backfill_probe_with_write_chokepoint_neutralised (news_articles=backfill, news_sentiment=live -- zero BQ writes, zero repo writes)",
+      "independent_mutation_matrix_with_control (control 9 passed; enum_drop_backfill KILLED; counter_wrong_key KILLED)",
+      "guard_vacuity_check_4c (per-criterion mutation named; phase6_e2e remediation found unguarded)",
+      "criterion_6_independent_git_diff_over_two_adapter_paths + discrimination probe (same command on a known-modified path returns non-empty)",
+      "D3_calendar_freeze_verification (git diff over backend/econ_calendar/ + add_calendar_events_schema.py is empty)",
+      "fetched_at_census_re_derived (exactly the 7 protected calendar sites)",
+      "consumer_contract_break_grep (removed imports NewsSource/clear_registry: backend/news/__init__.py takes both from backend.news.registry; zero `from backend.news.fetcher import NewsSource|clear_registry`; zero `time.` uses in phase6_e2e)",
+      "unintended_change_review (tracked diff = 5 scoped code files + masterplan + hook-appended audit logs + archive-baseline + researcher memory)",
+      "claim_auditing_4b",
+      "code_review_heuristics",
+      "evaluator_critique (cycle-1 verdict read first, per the simultaneous-presentation rule)"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "Per-criterion: C1 MET (live BQ read by me: published_at TIMESTAMP REQUIRED + ingested_at TIMESTAMP REQUIRED, distinct, fetched_at absent). C2 MET (provenance STRING REQUIRED in BOTH tables live; test_c2 drives real run_once + real _serialize_article, and my enum_drop_backfill mutant -- dropping \"backfill\" from _VALID_PROVENANCE so the coercion fires -- KILLED it, proving the enum membership is load-bearing). C3 MET (all three asserts in one test). C4 MET (after == before + 1 strict increase; my counter_wrong_key mutant, re-keying _record_failure to a constant, KILLED it, so the counter is keyed on the right table, not merely present). C5 MET (two-adapter registry flow + import-chain scan; predecessor's known-member recall test stands). C6 MET (git diff over exactly the two adapter paths empty, git status clean in backend/news/sources/, and the same command on a known-modified path returns non-empty, so the assertion shape discriminates).\n\nCYCLE-1 REMEDIATION AUDIT (I re-derived both, per feedback_recheck_prior_remediation_list): WARN-1 FIXED and behaviourally proven, not just source-scanned -- but only at the article seam (see violation 1). WARN-2 FIXED -- lint over the git-derived 6-file scope now exits 0 with \"All checks passed!\", the three removed imports (NewsSource, clear_registry, time) have no consumer anywhere, and the recorded command reproduces byte-for-byte in my shell (executor-environment reproducibility, vacuity shape #9, checked).\n\nNOTE-level, non-blocking, and all three are predecessor NOTEs left uncorrected in cycle 2: (a) the block labelled \"Verification (verbatim)\" still elides the timing suffix and the RequestsDependencyWarning line -- not spliced (9 dots = 9 passed) and every number reproduces, but a verbatim block should be regenerated, not trimmed; (b) the fetched_at enumeration at experiment_results:30 still omits backend/tests/test_phase_83_0_news_corpus_persistence.py:97, though the headline claim (exactly 7 protected calendar sites) reproduces exactly; (c) _serialize_article/_serialize_sentiment coerce an invalid provenance to \"live\" -- the more dangerous of the two values -- and that coercion is precisely what makes violation 1 silent rather than loud; \"unknown\" or a recorded failure would be safer given BQ has no CHECK constraints. NEW note: the 9 stub rows now in prod carry provenance='live', which is itself untrue (a smoke stub is neither live nor backfill); 83.0.7 covers their removal, but the two-value enum has no slot for synthetic rows.\n\nQueued-defect quality: 83.0.7 is well written for an executor with no memory -- it names the file, the :108-111 comment, the measured 9/9 rows, the $0 cost derivation, the streaming-buffer DML caveat, and four mutation-tested criteria. 83.0.4/.5/.6 likewise. The standing rule was applied correctly to those four; it was NOT applied to the sentiment-provenance gap.\n\nTrading-domain heuristics: no BLOCK. No kill_switch / stop-loss / perf_metrics / position-sizing path touched; no secret in the diff; bq-schema-migration-safety does NOT fire (no ALTER or DROP on a live table -- both tables were created fresh, proven by the 07:48:46/47 UTC creation timestamps and by REQUIRED provenance being present at all); the pre-existing fail-open `except Exception` in _insert_rows is now instrumented with a counter + WARNING, a strict improvement on the swallowed-warning baseline; run_once/_normalize gained a defaulted kwarg, which is purely additive.\n\nEvidence provenance disclosure: every piece of live evidence in this verdict was captured BY ME -- the BQ schema reads, the row census, the pytest runs, the ruff run, the mutation injections, the pipeline probe, and every grep -- not read from Main's artifacts. No UI claims in this step, so qa.md section 1c does not apply and no Playwright capture was required. All mutations ran in-process via attribute/sys.modules injection and the pipeline probe neutralised bq_writer._insert_rows, so there were ZERO repo writes and ZERO BigQuery writes from my evaluation -- nothing to restore. I deliberately did NOT re-run scripts/smoketest/phase6_e2e.py as a script, because doing so writes to production BigQuery (that is exactly the 83.0.7 incident).\n\n3rd-CONDITIONAL accounting: grep -F \"phase=83.0\" handoff/harness_log.md returns 0 entries (log-last discipline means cycle-1's CONDITIONAL was never logged), so the letter of the rule counts 0 prior CONDITIONALs. By evidence this is the 2nd; auto-FAIL does not trigger. Explicit warning for the next cycle: a THIRD CONDITIONAL on step-id 83.0 MUST be returned as FAIL.\n\nPath to PASS on cycle 3: (1) either thread provenance to the sentiment seam (add the field to ScorerResult / accept it in score_ladder, or pass it explicitly at scripts/smoketest/phase6_e2e.py:175) or queue it as its own research-gated masterplan step per the standing rule -- and in the SAME edit correct contract D1, which currently asserts a behaviour the code cannot produce; (2) add one test that exercises the phase6_e2e fetch-stage provenance threading (patch the fetch seam, assert the captured kwarg under --backfill), or explicitly disclose that the cycle-2 fix carries no regression guard. Then re-spawn a fresh Q/A on the CHANGED evidence -- the documented cycle-2 flow, not verdict-shopping."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:83.0",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a3bec4c01795b9424",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786090382978,
+      "queuedAt": 1786090382969,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 83.0, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786090909064,
+      "tokens": 167727,
+      "toolCalls": 40,
+      "durationMs": 526085,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"Cycle 2. Both cycle-1 WARNs are genuinely FIXED and I reproduced both fixes myself; all 6 immutable criteria remain MET on independently re-derived evidence; harness compliance clean; no unintended production change. CAPPED AT CONDITIONAL by two NEW findings I derived by execution, not by reading. (1) SENTIMENT SEAM: contract_83.0.md decision D1 states…"
+    }
+  ],
+  "totalTokens": 167727,
+  "totalToolCalls": 40
+}

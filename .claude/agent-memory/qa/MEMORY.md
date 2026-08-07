@@ -1,5 +1,7 @@
 # Q/A Agent Memory Index
 
+- [oracle-with-silent-fallback-survives-absent-subject](feedback_oracle_with_silent_fallback_survives_absent_subject.md) — "live if reachable else snapshot" passes when the subject is ABSENT; mutate the live read to RAISE (not to empty), blank the snapshot, and corrupt the live result — run all three (83.0 c3)
+- [neutralize-the-write-chokepoint-probe](feedback_neutralize_the_write_chokepoint_probe.md) — to grade a "kwarg is now threaded" fix, stub the ONE writer chokepoint and run the real pipeline; 83.0 c2 articles='backfill' but sentiment='live' one seam over
 - [structural-fix-needs-a-mechanism](feedback_structural_fix_needs_a_mechanism.md) — "it is GENERATED so it cannot lag again" had NO generator in the tree (82.0 c6); grade the produced-state and the mechanism separately; a newer input the output omits is the cheapest proof
 - [verdict-gate-ignores-per-cycle-json](project_verdict_gate_ignores_per_cycle_json.md) — the 81.2 resolver matches evaluator_critique_<sid>.json / the rolling file, NOT _cycleN.json; 82.0 reached the flip at ('no_input','none') fail-open
 - [committed-criterion-gitignore-check](project_committed_criterion_gitignore_check.md) — "file committed" criteria need git check-ignore + ls-files; *.log gitignore silently defeated 3 cycles (phase-17.4)

@@ -36,7 +36,6 @@ import argparse
 import json
 import logging
 import sys
-import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -109,7 +108,14 @@ def _run_pipeline(
         # in the smoketest's dry-run mode we still exercise the fetch path
         # with dry_run=True (no BQ write in run_once itself) and then rely
         # on bq_writer for an explicit write attempt.
-        fetch_report = fetch_news(source_names=sources, dry_run=True)
+        # phase-83.0 cycle-2 (Q/A WARN-1): a --backfill run must never stamp
+        # rows provenance='live' -- a REQUIRED audit column asserting a
+        # falsehood is worse than a null.
+        fetch_report = fetch_news(
+            source_names=sources,
+            dry_run=True,
+            provenance="backfill" if backfill else "live",
+        )
         stages["news_fetch"] = {
             "ok": True,
             "n_articles": fetch_report.n_articles,
@@ -166,7 +172,13 @@ def _run_pipeline(
     try:
         from backend.news.bq_writer import write_news_sentiment
 
-        inserted = write_news_sentiment(sentiment_results)
+        # phase-83.0 cycle-3 (Q/A WARN-1): sentiment rows carry no provenance
+        # of their own, so the write seam stamps them; a backfill run must
+        # never produce rows indistinguishable from live captures.
+        inserted = write_news_sentiment(
+            sentiment_results,
+            provenance="backfill" if backfill else "live",
+        )
         stages["news_sentiment_insert"] = {"ok": True, "rows_inserted": inserted}
     except Exception as exc:
         stages["news_sentiment_insert"] = {"ok": False, "error": repr(exc)}

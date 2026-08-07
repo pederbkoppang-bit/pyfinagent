@@ -30,3 +30,9 @@
 {"ts": "2026-08-04T18:09:26.860210+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-08-04T18:32:44.333914+00:00", "event": "pause", "trigger": "manual", "details": {}}
 {"ts": "2026-08-05T19:34:47.386888+00:00", "event": "sod_snapshot", "nav": 23830.46, "date": "2026-08-05"}
+{"ts": "2026-08-06T16:28:49.897385+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-08-06T16:35:22.289008+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-08-06T16:39:38.085153+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-08-06T16:42:14.026271+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-08-06T16:49:43.529665+00:00", "event": "pause", "trigger": "manual", "details": {}}
+{"ts": "2026-08-06T17:18:10.951302+00:00", "event": "pause", "trigger": "manual", "details": {}}

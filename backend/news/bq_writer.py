@@ -20,18 +20,64 @@ Row shapes map 1:1 to the migrations:
 - calendar_events: `scripts/migrations/add_calendar_events_schema.py:36-57`
 
 NormalizedArticle / ScorerResult / CalendarEvent are TypedDicts or
-dataclasses; we convert via `dict(..)` / `asdict(..)` and let BQ
-ignore unknown keys (BQ streaming inserts warn on unknown columns in
-strict mode; tolerated on permissive).
+dataclasses; we convert via `dict(..)` / `asdict(..)`.
+
+phase-83.0 CORRECTION (research-verified against the installed SDK +
+tabledata.insertAll REST reference): `insert_rows_json` is STRICT by
+default -- `ignore_unknown_values=False` and `skip_invalid_rows=False`
+unless explicitly passed, and this module passes neither. An unknown
+column is a per-row error and an invalid row fails the WHOLE batch.
+The previous claim here that BQ "ignores unknown keys" was false; the
+failures were merely swallowed by the fail-open discipline below.
+
+phase-83.0 observability: the fail-open discipline (never raise) is
+kept, but every swallowed failure now increments a per-table module
+counter AND emits a WARNING, so a swallowed write is distinguishable
+from success. Accessors: `write_failure_count()` /
+`reset_write_failures_for_test()` (idiom mirrors
+`backend/services/observability/api_call_log.py`).
 """
 from __future__ import annotations
 
 import json
 import logging
+import threading
 from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping, Sequence
 
 logger = logging.getLogger(__name__)
+
+# ── phase-83.0: swallowed-write observability ────────────────────────
+_WRITE_FAILURES: dict[str, int] = {}  # table -> swallowed-failure count
+_write_lock = threading.Lock()
+
+# BigQuery has no CHECK constraints; the enum is enforced writer-side.
+_VALID_PROVENANCE = frozenset({"live", "backfill"})
+
+
+def write_failure_count(table: str | None = None) -> int:
+    """Swallowed-write count for `table`, or the total when None."""
+    with _write_lock:
+        if table is None:
+            return sum(_WRITE_FAILURES.values())
+        return _WRITE_FAILURES.get(table, 0)
+
+
+def reset_write_failures_for_test() -> None:
+    """Test-only helper: zero all counters."""
+    with _write_lock:
+        _WRITE_FAILURES.clear()
+
+
+def _record_failure(table: str, reason: str, detail: str) -> None:
+    """Count + log one swallowed write failure. Never raises."""
+    with _write_lock:
+        _WRITE_FAILURES[table] = _WRITE_FAILURES.get(table, 0) + 1
+        n = _WRITE_FAILURES[table]
+    logger.warning(
+        "bq_writer write FAILED table=%s reason=%s failures=%d detail=%s",
+        table, reason, n, detail,
+    )
 
 _NEWS_ARTICLES_TABLE = "news_articles"
 _NEWS_SENTIMENT_TABLE = "news_sentiment"
@@ -80,19 +126,22 @@ def _insert_rows(
     Never raises.
     """
     if not rows:
+        # Nothing to write is NOT a failure -- do not count it, or the
+        # counter re-creates the very ambiguity it exists to remove.
         return 0
     client = _get_client(project)
     if client is None:
+        _record_failure(table, "client_absent", "no BQ client (dep/auth missing)")
         return 0
     try:
         table_ref = f"{project}.{dataset}.{table}" if project else f"{dataset}.{table}"
         errors = client.insert_rows_json(table_ref, list(rows))
         if errors:
-            logger.warning("bq_writer %s insert errors: %s", table, errors)
+            _record_failure(table, "insert_errors", str(errors)[:500])
             return 0
         return len(rows)
     except Exception as exc:
-        logger.warning("bq_writer %s insert fail-open: %r", table, exc)
+        _record_failure(table, "exception", repr(exc)[:500])
         return 0
 
 
@@ -111,10 +160,19 @@ def _serialize_article(article: Mapping[str, Any]) -> dict[str, Any]:
         )
     except Exception:
         raw_payload_json = "{}"
+    provenance = article.get("provenance") or "live"
+    if provenance not in _VALID_PROVENANCE:
+        # No CHECK constraints in BQ; a typo'd provenance would otherwise
+        # poison the live/backfill discrimination silently.
+        provenance = "live"
     return {
         "article_id": article.get("article_id") or "",
         "published_at": article.get("published_at"),
-        "fetched_at": article.get("fetched_at"),
+        # phase-83.0: schema column renamed fetched_at -> ingested_at; accept
+        # rows still carrying the old key so a stale producer fails loudly in
+        # tests rather than emitting an unknown column (strict insert).
+        "ingested_at": article.get("ingested_at") or article.get("fetched_at"),
+        "provenance": provenance,
         "source": article.get("source") or "",
         "ticker": article.get("ticker"),
         "title": article.get("title") or "",
@@ -141,19 +199,39 @@ def write_news_articles(
     return _insert_rows(proj, ds, _NEWS_ARTICLES_TABLE, rows)
 
 
-def _serialize_sentiment(result: Any) -> dict[str, Any]:
-    """ScorerResult dataclass -> news_sentiment row shape."""
+def _serialize_sentiment(
+    result: Any, default_provenance: str | None = None
+) -> dict[str, Any]:
+    """ScorerResult dataclass -> news_sentiment row shape.
+
+    phase-83.0 cycle-3: ScorerResult carries no provenance field, so the
+    write seam is the ONLY place a backfill scoring run can stamp its rows.
+    Precedence: explicit row value (if valid) > default_provenance (if
+    valid) > "live".
+    """
     if is_dataclass(result):
         d = asdict(result)
     elif isinstance(result, Mapping):
         d = dict(result)
     else:  # pragma: no cover -- defensive
         d = {}
+    provenance = d.get("provenance")
+    if provenance not in _VALID_PROVENANCE:
+        provenance = (
+            default_provenance if default_provenance in _VALID_PROVENANCE else "live"
+        )
+    from datetime import datetime, timezone
     return {
         "article_id": d.get("article_id") or "",
         "scorer_model": d.get("scorer_model") or "",
         "scorer_version": d.get("scorer_version"),
         "scored_at": d.get("scored_at"),
+        # phase-83.0: ingested_at on a sentiment row is the score-row write
+        # moment -- a real wall-clock event at serialization time, unlike the
+        # article case (83.0.1) where a wall-clock substitute would fabricate.
+        "ingested_at": d.get("ingested_at")
+        or datetime.now(timezone.utc).isoformat(),
+        "provenance": provenance,
         "sentiment_score": d.get("sentiment_score"),
         "sentiment_label": d.get("sentiment_label"),
         "confidence": d.get("confidence"),
@@ -168,10 +246,16 @@ def write_news_sentiment(
     *,
     project: str | None = None,
     dataset: str | None = None,
+    provenance: str | None = None,
 ) -> int:
-    """Insert ScorerResult rows into `news_sentiment`. Returns rows inserted."""
+    """Insert ScorerResult rows into `news_sentiment`. Returns rows inserted.
+
+    `provenance` stamps rows whose ScorerResult carries none (phase-83.0
+    cycle-3) -- backfill scoring runs MUST pass "backfill" or the REQUIRED
+    audit column asserts a falsehood.
+    """
     proj, ds = _resolve_target(project, dataset)
-    rows = [_serialize_sentiment(r) for r in results]
+    rows = [_serialize_sentiment(r, default_provenance=provenance) for r in results]
     return _insert_rows(proj, ds, _NEWS_SENTIMENT_TABLE, rows)
 
 

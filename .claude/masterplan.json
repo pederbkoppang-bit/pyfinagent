@@ -22480,7 +22480,7 @@
       "steps": [
         {
           "id": "83.0",
-          "status": "pending",
+          "status": "done",
           "priority": "P0",
           "harness_required": true,
           "depends_on": [],
@@ -22563,6 +22563,86 @@
               "the backend/autoresearch/gate.py minimum-trials bypass is recorded as a disclosure with the verbatim source lines showing that a trial omitting pbo_n_trials skips the refusal, so 83.5 can be written to always emit that key"
             ],
             "live_check": "verbatim mcp__pyfinagent-risk__pbo_check response for an undersized matrix (T=10, S=16) captured BEFORE the fix showing pbo 0.0 with no veto, and AFTER the fix showing the explicit refusal; plus the verbatim response for an 8-column near-identical matrix showing columns_diverse false"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.0.4",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "depends_on": ["83.0"],
+          "name": "DEFECT (own step per standing rule), discovered by the 83.0 research gate 2026-08-07: the LIVE news path persists nothing into the 83.0 corpus -- the tables exist but the headlines that actually move the book never reach them. MEASURED: backend/services/news_screen.py fetches RSS feeds (_parse_rss, _fetch_all_feeds), classifies with an LLM (news_screen_model = claude-haiku-4-5, settings.py:410), caches to a LOCAL FILE (_cache_path/_load_cache/_save_cache), and feeds backend/tools/screener.py:334 apply_news_to_score via autonomous_loop.py:476 -- it never imports backend.news, never calls bq_writer, and writes NOTHING to BigQuery. The backend/news/ corpus path's only consumers are two test files and scripts/smoketest/phase6_e2e.py; it is not scheduled and not called by autonomous_loop. SCOPE: persist every article news_screen actually scores into pyfinagent_data.news_articles (provenance='live', via the 83.0 source-agnostic writer -- register a news_screen adapter or call write_news_articles at the classification boundary) and every LLM verdict into news_sentiment, WITHOUT changing which articles are fetched, how they are scored, or the scores applied to candidates (capture-only, zero behaviour change on the trading path). The local-file cache stays -- it is the read path; BQ is the audit/backtest corpus. Do NOT backfill in this step.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_0_4_news_screen_corpus_capture.py -q",
+            "criteria": [
+              "a test proves the news_screen scoring path calls the corpus writer with the articles it scored, asserted by patching the writer seam and asserting the rows carry provenance='live' and the same canonical URLs the scorer saw",
+              "a test proves the trading behaviour is unchanged: with the corpus write patched to fail, apply_news_to_score receives byte-identical news_signals versus a control run -- capture must be fail-open on the trading path",
+              "the capture guard is mutation-tested: deleting the writer call makes the criterion-1 test FAIL",
+              "a live_check shows at least one real row in pyfinagent_data.news_articles with provenance='live' and source naming the news_screen adapter after one live news_screen cycle, plus the row count before and after"
+            ],
+            "live_check": "verbatim BQ query output showing row count and a sample row (article_id, published_at, ingested_at, provenance, source) from pyfinagent_data.news_articles written by the news_screen capture path after one live cycle"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.0.5",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": [],
+          "name": "DEFECT (own step per standing rule), discovered by the 83.0 research gate 2026-08-07: the api_call_log observability table does not exist, so the telemetry meant to audit the news adapters (and every other log_api_call caller) is silently discarded. MEASURED: a live list_tables('pyfinagent_data') returns 10 tables and api_call_log is NOT among them, while backend/services/observability/api_call_log.py:148 writes to {project}.{dataset}.api_call_log and swallows the insert failure at :150-153 into return 0 + a WARNING (identical fail-open class to the 83.0 bq_writer defect). backend/news/sources/finnhub.py:129 calls log_api_call(...) on every fetch. SCOPE: locate or author the migration that creates api_call_log (check scripts/migrations/ first -- if a DDL exists it may simply never have been run), run it, and give the writer the same swallowed-write observability treatment as 83.0's bq_writer (counter + log accessor) OR record with measured evidence why the existing warn-once latch suffices. Do not assert the table's schema from memory -- derive it from the writer's row shape at api_call_log.py.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_0_5_api_call_log_table.py -q",
+            "criteria": [
+              "the api_call_log table exists live with a schema matching every field the writer emits, asserted by a test whose oracle is read from the live table with a checked-in snapshot fallback that is asserted non-empty",
+              "a test injects an insert failure and asserts it is observable (counter or equivalent accessor strictly increases) while the writer still returns normally",
+              "the observability guard is mutation-tested: deleting the failure-path instrumentation makes the criterion-2 test FAIL",
+              "a live_check captures the table listing before and after the migration run, plus one real inserted row or the verbatim fail-open capture explaining why none was written"
+            ],
+            "live_check": "verbatim list_tables output for pyfinagent_data BEFORE (api_call_log absent) and AFTER (present) plus bq show --schema for the created table"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.0.6",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": ["83.0.3"],
+          "name": "DEFECT (own step per standing rule), discovered by the 83.0.3 research gate 2026-08-07: the pbo_check payload's isError field is NOT the MCP protocol isError -- an agent branching on the protocol flag reads a PBO refusal or veto as a SUCCESSFUL call. MEASURED over a real in-memory fastmcp Client: result.is_error is False while structured_content carries \"isError\": true; FastMCP sets the protocol-level flag only when the handler RAISES, and risk_server.py's comment calling the payload field the 'MCP-native veto signal' is therefore wrong. SCOPE: decide and implement ONE of (a) raise a ToolError (or equivalent) on veto/refusal so the protocol flag is set, with measured evidence that existing consumers (grep the callers of pbo_check / evaluate_candidate) tolerate the raise, or (b) rename/document the payload field so it cannot be mistaken for the protocol flag and fix the comment, with the protocol-vs-payload distinction recorded in the tool docstring. Whichever branch, the choice must be justified against how the Layer-2/Layer-3 agents actually consume this tool -- derive the consumer list, do not assert it.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_0_6_mcp_iserror_semantics.py -q",
+            "criteria": [
+              "a test over a real in-memory MCP client records the protocol-level is_error AND the payload field for three cases -- clean pass, veto, undersized refusal -- and asserts the implemented semantics match the documented choice for all three",
+              "the consumer census (every call site of pbo_check and evaluate_candidate outside tests) is recorded with the grep/AST output committed, and the chosen semantics are justified against it in the step artifact",
+              "the semantics guard is mutation-tested: reverting the chosen fix (the raise, or the rename/doc) makes the criterion-1 test FAIL",
+              "risk_server.py no longer carries a comment claiming the payload field is the MCP-native signal unless that is made true, asserted by a test on the source or by the behaviour test"
+            ],
+            "live_check": "verbatim in-memory MCP client output for the three cases showing protocol is_error and payload field together"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "83.0.7",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "depends_on": ["83.0"],
+          "name": "DEFECT (own step per standing rule), discovered during 83.0 cycle-2 2026-08-07: the phase6_e2e smoketest's --dry-run is NOT dry for the BQ writer stages, so every smoke invocation pollutes the production news corpus now that the 83.0 tables exist. MEASURED: scripts/smoketest/phase6_e2e.py passes dry_run=True to run_once (fetch stage only) but then performs EXPLICIT write attempts via bq_writer for news_articles/news_sentiment/calendar_events regardless of the flag (per its own :108-111 comment); while the tables were absent every write silently no-opped (the exact 83.0 defect), so the behaviour was invisible. Three smoke runs on 2026-08-07 wrote 9 source='stub' rows into pyfinagent_data.news_articles and 9 rows into news_sentiment (6 of them scorer error records 'anthropic client not initialized', cost_usd 0.0 -- no metered spend occurred, verified by SUM(cost_usd)=0). SCOPE: (a) make --dry-run actually dry for ALL write stages (or route smoke writes to a dataset override, e.g. pyfinagent_staging), asserted by a test; (b) purge the measured stub pollution with a qualified DELETE (WHERE source='stub' / matching article_ids) AFTER the streaming buffer drains -- DML on streamed rows fails for ~30-90min, so the purge must verify buffer age first; the DELETE is operator-notified per CLAUDE.md BQ rule 4 (qualified, enumerated rows, counts recorded before/after); (c) the smoke keeps exercising the real writer path in a non-prod target so the 83.0 observability counter remains testable end-to-end.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests/test_phase_83_0_7_smoke_dry_run_honesty.py -q",
+            "criteria": [
+              "a test asserts that phase6_e2e in dry-run mode performs ZERO production-dataset write attempts across all stages, by patching the writer seam and asserting the captured dataset targets",
+              "the dry-run guard is mutation-tested: reverting the write-stage gating makes the criterion-1 test FAIL",
+              "the stub pollution purge is executed and recorded with before/after row counts from committed query output (before counts asserted equal to the measured 9/9 or re-measured at execution time), and the DELETE predicate is qualified by source/article_id, never unqualified",
+              "a live_check captures the post-purge table state showing zero source='stub' rows in news_articles and zero stub-article sentiment rows"
+            ],
+            "live_check": "verbatim query output: pre-purge stub row counts, the qualified DELETE statements, and post-purge zero counts for both tables"
           },
           "retry_count": 0,
           "max_retries": 3

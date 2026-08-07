@@ -31759,3 +31759,15 @@ unmeetable-as-written (no waiver implied); leaving it `pending` pollutes every
 future P0 count (it consumed wave-1 attention in today's drain goal). Precedent:
 4 existing `superseded` steps. No research gate was run because no work was
 executed under this id -- the executed work ran 82.27's own full cycle.
+
+## Cycle 168 -- 2026-08-07 -- phase=83.0 result=PASS
+
+**News corpus persistence: tables created (one-shot REQUIRED window), writer observable, source-agnostic.** Three Q/A cycles on the Workflow rail, verdicts transcribed verbatim in `evaluator_critique_83.0.md` (raw returns archived in `qa_returns/`).
+
+- **Built:** migration amended (`ingested_at` rename + `provenance STRING NOT NULL` on BOTH tables + post-condition verifier that fails LOUD on drift) and RUN LIVE; `bq_writer` swallowed-write counter + WARNING at the three real failure branches (never the empty-input return) + strict-insert docstring correction; provenance threaded `run_once` -> `_normalize` -> serializers, and (cycle 3) through the sentiment WRITE SEAM (`write_news_sentiment(provenance=)`) after the cycle-2 Q/A proved the column was a constant `'live'` on every reachable path.
+- **Verdict path:** CONDITIONAL (2 WARNs: --backfill provenance falsehood; unrecorded pre-existing lint) -> CONDITIONAL (2 NEW: sentiment seam constant; unguarded remediation) -> **PASS** under the 3rd-CONDITIONAL-auto-FAIL regime. Cycle-3 Q/A proved closure by composition probe on the real pipeline + its own 11-mutant matrix with control; author matrix 9/9 killed.
+- **Honesty ledger:** contract D1's false sentiment claim preserved + corrected in an appended section; a "12 passed" draft claim corrected to the measured 11; the m6 mutant's survived-then-rewritten history disclosed.
+- **Incident ($0):** phase6_e2e's --dry-run performs real BQ writes; 3 runs wrote 9 stub article rows + 9 sentiment rows (6 = `anthropic client not initialized` ERROR records, SUM(cost_usd)=0.0). Queued as 83.0.7 with a qualified-DELETE purge plan; operator ask #8.
+- **Queued discovered defects (all pending, research-gated):** 83.0.4 live news_screen path persists nothing (the corpus/live disjointness scope finding); 83.0.5 api_call_log table absent; 83.0.6 MCP payload isError != protocol is_error; 83.0.7 smoke dry-run honesty + stub purge.
+- **NOTE-level residuals from the PASS verdict (not criterion misses):** q3 value-aliasing of published_at/ingested_at is outside criterion-1's schema-level wording and entangled with queued 83.0.1; q4 credential-less runners degrade the schema oracle to snapshot self-attestation (complementary q7/q10 prove both oracle branches load-bearing on this rig).
+- **Researcher rail:** 83.0 researcher return DROPPED (StructuredOutput never called) -- write-first brief on disk was the authoritative envelope (gate_passed true, 8 sources in full, 35 URLs). Same pattern as feedback_write_first_applies_to_the_qa_rail_too; the researcher side held.

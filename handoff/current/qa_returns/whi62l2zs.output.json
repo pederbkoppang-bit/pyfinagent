@@ -1,0 +1,88 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "All 6 immutable criteria MET and independently re-derived (not read from the author's artifacts): I read the live BQ schema myself -- news_articles = published_at TIMESTAMP REQUIRED + distinct ingested_at TIMESTAMP REQUIRED + provenance STRING REQUIRED, no fetched_at; news_sentiment = ingested_at + provenance REQUIRED (C1/C2 schema halves). Deductive proof of the BEFORE state without trusting the capture: provenance is REQUIRED and BQ forbids adding REQUIRED to an existing table, so both tables must have been created by this DDL. Immutable command exit=0, 9 passed in 4.96s; adjacent suite 20 passed in 6.77s -- both author numbers reproduce exactly. I built and ran 9 of my own mutants via sys.modules injection with a CONTROL first (control=9 passed, harness sound): c3_no_record, c3_wrong_key (counter under a wrong table key), c3_log_debug (record exists but not WARNING), c3_raise (fail-open broken), c2_drop_prov, c2_force_live, c2_fetcher_drop, and P3 (live schema wrong) ALL KILLED -- the C3/C4 guard is behavioral and strictly-increasing, and the C1/C2 live oracle is load-bearing on this rig. Known-member recall test on C5: pre-importing the real backend/tools/alphavantage.py makes test_c5_no_alphavantage_import_chain FAIL naming that exact module, so the scan is live, not name-vacuous; alphavantage_api_key defaults to \"\" (settings.py:122) so neither module requires the key present. C6 verified independently: git diff HEAD over exactly the two adapter paths is empty, git status clean in backend/news/sources/, and the key-presence check re-runs to False/False. Harness compliance clean: gate_passed true with 8 sources / 35 URLs / recency scan; mtime chain strictly ordered (research 09:43:57 < contract 09:46:08 < first code edit 09:47:00 < experiment_results 09:54:48); 6/6 criteria verbatim in the contract; 0 harness_log entries and status=pending (log-last intact); 0 criteria/command/status drift across all 1280 pre-existing masterplan ids, +3 pending steps only. CAPPED AT CONDITIONAL by two WARN findings, neither a criterion miss: (1) scripts/smoketest/phase6_e2e.py:112 calls fetch_news(source_names=sources, dry_run=True) with no provenance= while the same script exposes --backfill (:260, :288), and grep 'provenance=' across backend/+scripts/ returns ZERO non-test callers -- so a --backfill run stamps rows provenance='live', worse than null in a REQUIRED audit column, undisclosed in Scope disclosures and unqueued despite the author correctly queueing 83.0.4/83.0.5 under the same standing rule; (2) the qa.md 1a lint gate exits 1 on the derived changed-file set (2x F401 at backend/news/fetcher.py:39), which I classified PRE-EXISTING by running ruff against git show HEAD:backend/news/fetcher.py -- zero regression, but experiment_results records no lint run at all. Fix = queue the --backfill provenance gap as its own step (or thread the kwarg) and disclose the lint state; no code in the graded diff needs to change for the criteria.",
+    "violated_criteria": [
+      "WARN(scope-honesty): --backfill entry point emits provenance='live'; gap undisclosed and unqueued",
+      "WARN(python-lint-gate qa.md 1a): ruff exit=1 on the derived changed-file set (proven pre-existing at HEAD)"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Overgeneralization",
+        "action": "scripts/smoketest/phase6_e2e.py:112 -- `fetch_report = fetch_news(source_names=sources, dry_run=True)` where `fetch_news` is `run_once` (imported :106), in the ONLY entry point carrying a --backfill flag (argparse :260, threaded :288, documented :13-14 'backfill: use live sources')",
+        "state": "`grep -rn 'provenance=' --include=*.py backend scripts` excluding bq_writer.py/fetcher.py/the new test returns ZERO hits -- no production caller threads the new kwarg. run_once defaults provenance='live', so `python scripts/smoketest/phase6_e2e.py --backfill --sources finnhub,benzinga,alpaca` writes news_articles rows stamped provenance='live'. experiment_results_83.0.md 'Scope disclosures' lists 4 items and omits this one; no masterplan step was queued for it. SEVERITY: WARN (forces CONDITIONAL, not FAIL).",
+        "constraint": "masterplan 83.0 rationale, verbatim: 'without provenance a backfilled row is indistinguishable from a live-captured one and every later point-in-time claim collapses'. Criterion 2 is MET at the run_once seam (c2_drop_prov / c2_force_live / c2_fetcher_drop all killed), so this is a scope-honesty + completeness gap, not a criterion miss -- but the standing rule feedback_queue_discovered_defects_in_masterplan ('every out-of-scope defect gets its OWN research-gated step, never just a prose disclosure'), which the author DID apply to 83.0.4 and 83.0.5, was not applied here. A REQUIRED audit column asserting a falsehood is worse than a null."
+      },
+      {
+        "violation_type": "Threshold_Not_Met",
+        "action": "FILES=$( { git diff --name-only HEAD -- '*.py'; git ls-files --others --exclude-standard -- '*.py'; } ); echo \"$FILES\" | tr '\\n' '\\0' | xargs -0 uvx ruff check --select F821,F401,F811   [5 files derived from git, non-empty guard asserted, xargs-quoted per feedback_derived_scope_lint_use_xargs]",
+        "state": "exit=1. Verbatim: \"F401 [*] `backend.news.registry.NewsSource` imported but unused --> backend/news/fetcher.py:39:35\" and \"F401 [*] `backend.news.registry.clear_registry` imported but unused --> backend/news/fetcher.py:39:47\"; \"Found 2 errors.\" CLASSIFIED PRE-EXISTING: running the same ruff selection against the HEAD blob (`git show HEAD:backend/news/fetcher.py`) produces byte-identical findings at the same line/columns -- line 39 is untouched by this diff, zero regression introduced. experiment_results_83.0.md records no lint run of any kind. SEVERITY: WARN (forces CONDITIONAL, not FAIL).",
+        "constraint": "qa.md section 1a: the Python lint gate is REQUIRED whenever the diff touches any *.py and a non-zero exit is a finding to quote verbatim. Not escalated to FAIL because the finding is provably pre-existing on an untouched line of a touched file -- exactly the class my memory records as repeatedly hidden by hand-typed scopes. Remedy: either clean the two dead imports or disclose the pre-existing lint state in the artifact."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "qa_md_read_in_full_at_runtime",
+      "harness_compliance_audit_5_item",
+      "research_gate_envelope (gate_passed=true, 8 sources read in full, 35 URLs, recency_scan=true, 16 internal files)",
+      "mtime_chain_research_before_contract_before_generate",
+      "log_last_check (0 harness_log entries for phase=83.0; masterplan 83.0 status=pending)",
+      "no_verdict_shopping (first Q/A cycle for 83.0; 3rd-CONDITIONAL rule not triggered)",
+      "criteria_verbatim_in_contract (6/6)",
+      "masterplan_criteria_immutability (0 drift across 1280 pre-existing ids; +3 pending steps, 0 status flips)",
+      "verification_command (exit=0, 9 passed in 4.96s)",
+      "adjacent_suite (20 passed in 6.77s -- author claim reproduces exactly)",
+      "derived_changed_file_scope (git diff + ls-files-others = 5 .py files, matches claimed list)",
+      "python_lint_gate_ruff_F821_F401_F811 (exit=1, classified pre-existing by re-running against the HEAD blob)",
+      "backend_runtime_smoke_1d (bq_writer + fetcher import OK; fetcher inline smoke n_articles=3; migration --dry-run exit 0, no BQ write, verify correctly skipped)",
+      "independent_live_bq_schema_read (both tables, all columns + modes re-derived by the evaluator)",
+      "before_state_deductive_proof (REQUIRED provenance cannot be added to an existing table => tables were created by this DDL)",
+      "independent_mutation_matrix_9_mutants_with_control (control 9 passed; c3_no_record/c3_wrong_key/c3_log_debug/c3_raise/c2_drop_prov/c2_force_live/c2_fetcher_drop/P3_wrong_live_schema ALL KILLED; P1_offline_real_snapshot SURVIVED -- documented degradation)",
+      "guard_vacuity_check_4c (schema oracle probed both directions: P2 offline+broken snapshot KILLED, P3 online+wrong live schema KILLED)",
+      "known_member_recall_test_C5 (pre-import backend/tools/alphavantage.py => test FAILS naming it)",
+      "claim_auditing_4b (pytest counts, adjacent-suite count, fetched_at grep set, key-presence check all re-derived)",
+      "consumer_contract_break_grep (all callers of write_news_articles/_serialize_article/run_once/NormalizedArticle enumerated)",
+      "D3_calendar_freeze_verification (0 changes to calendar files; exactly the 7 protected fetched_at sites survive)",
+      "criterion_6_independent_git_diff_over_two_adapter_paths",
+      "code_review_heuristics",
+      "evaluator_critique"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "Per-criterion: C1 MET (live read by me: published_at TIMESTAMP REQUIRED + ingested_at TIMESTAMP REQUIRED, distinct, fetched_at gone; P3 mutant proves the live oracle drives the verdict). C2 MET (provenance STRING REQUIRED in BOTH tables live; 3 independent mutants killed on the live-vs-backfill discrimination). C3 MET (all three asserts in one test; c3_no_record, c3_log_debug and c3_raise each killed it separately). C4 MET (`after == before + 1` strict increase; c3_wrong_key killed it, so the counter is keyed on the right table -- not merely attribute existence). C5 MET (two-adapter registry flow + a scan proven live by the known-member recall test). C6 MET (git diff over exactly the two paths empty; key check reproduces False/False).\n\nNOTE-level, non-blocking: (a) OFFLINE DEGRADATION -- forcing the live BQ read to fail makes C1/C2 pass on the checked-in snapshot (P1: 9 passed), so in a no-network CI the oracle degrades to a constant the author wrote. On this rig the live read succeeds and is load-bearing (P3 fails 2 tests), and I confirmed the live schema independently, so it is not vacuous here; the author partially disclosed this shape in the honest m6-rewrite note. Worth a `pytest.fail` instead of a silent fallback when BQ is unreachable, or an explicit skip marker. (b) The block labelled \"Verification (verbatim)\" in experiment_results_83.0.md elides the `in 4.96s` suffix and the RequestsDependencyWarning line; the 9 progress dots match \"9 passed\" so it is not spliced and every number reproduces exactly, but a block labelled verbatim should be regenerated, not trimmed (the live_check DOES disclose its bq-CLI warning elision -- apply the same discipline here). (c) The fetched_at grep claim (\"ONLY the 7 protected calendar_events sites plus comments and the compat lookup\") reproduces exactly on the 7 calendar sites, but the enumeration omits one hit: backend/tests/test_phase_83_0_news_corpus_persistence.py:97, the new negative assertion. Benign, but the set was described as complete. (d) `_serialize_article` silently coerces an invalid provenance to \"live\" (bq_writer.py:163-168) -- the coercion default is the more dangerous of the two values; \"unknown\" or a recorded failure would be safer given there are no BQ CHECK constraints.\n\nTrading-domain heuristics: no kill_switch / stop-loss / perf_metrics / position-sizing path touched; no secret in the diff; bq-schema-migration-safety does NOT fire because no live table was altered or dropped (both were created fresh -- proven by REQUIRED provenance being present); the pre-existing `except Exception` fail-open in _insert_rows is now instrumented, which is a strict improvement over the swallowed-warning baseline it replaces. The refuted \"BQ ignores unknown keys\" docstring correction (D2) is a genuine and well-cited fix.\n\nEvidence provenance disclosure: all live evidence in this verdict was captured BY ME (BQ reads, pytest runs, ruff runs, mutation injections, greps), not read from Main's artifacts. No UI claims in this step, so section 1c does not apply and no Playwright capture was required. Mutations were run entirely in-process via sys.modules injection -- zero repo writes, nothing to restore; the qa-write-guard hook correctly blocked my one attempt to stage a plugin file in scratchpad.\n\nPath to PASS on cycle 2: queue the --backfill provenance gap as its own pending masterplan step (per the standing rule) or thread `provenance=\"backfill\"` at scripts/smoketest/phase6_e2e.py:112, add the gap to the Scope disclosures, and record the pre-existing ruff F401 state (or clean the two dead imports at backend/news/fetcher.py:39). Then re-spawn a fresh Q/A on the CHANGED evidence -- that is the documented cycle-2 flow, not verdict-shopping."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:83.0",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "affbb52b6f6fb43e8",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786089378723,
+      "queuedAt": 1786089378713,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 83.0, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786090069385,
+      "tokens": 161647,
+      "toolCalls": 39,
+      "durationMs": 690662,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"All 6 immutable criteria MET and independently re-derived (not read from the author's artifacts): I read the live BQ schema myself -- news_articles = published_at TIMESTAMP REQUIRED + distinct ingested_at TIMESTAMP REQUIRED + provenance STRING REQUIRED, no fetched_at; news_sentiment = ingested_at + provenance REQUIRED (C1/C2 schema halves). Deductive p…"
+    }
+  ],
+  "totalTokens": 161647,
+  "totalToolCalls": 39
+}

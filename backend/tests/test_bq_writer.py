@@ -24,13 +24,16 @@ from backend.news.bq_writer import (
 )
 
 
+# phase-83.0: fetched_at -> ingested_at + REQUIRED provenance on both news
+# tables. calendar_events (below) keeps fetched_at -- that table exists live.
 _NEWS_ARTICLES_FIELDS = {
-    "article_id", "published_at", "fetched_at", "source", "ticker",
-    "title", "body", "url", "canonical_url", "body_hash", "language",
+    "article_id", "published_at", "ingested_at", "provenance", "source",
+    "ticker", "title", "body", "url", "canonical_url", "body_hash", "language",
     "authors", "categories", "raw_payload",
 }
 _NEWS_SENTIMENT_FIELDS = {
     "article_id", "scorer_model", "scorer_version", "scored_at",
+    "ingested_at", "provenance",
     "sentiment_score", "sentiment_label", "confidence",
     "latency_ms", "cost_usd", "raw_output",
 }
@@ -62,7 +65,8 @@ def test_write_news_articles_fail_open_no_bq_auth():
         {
             "article_id": "a1",
             "published_at": "2026-04-19T00:00:00+00:00",
-            "fetched_at": "2026-04-19T00:00:01+00:00",
+            "ingested_at": "2026-04-19T00:00:01+00:00",
+            "provenance": "live",
             "source": "stub",
             "ticker": "AAPL",
             "title": "Test",
@@ -88,7 +92,8 @@ def test_serialize_article_produces_expected_fields():
     article = {
         "article_id": "a1",
         "published_at": "2026-04-19T00:00:00+00:00",
-        "fetched_at": "2026-04-19T00:00:01+00:00",
+        "ingested_at": "2026-04-19T00:00:01+00:00",
+        "provenance": "live",
         "source": "finnhub",
         "ticker": "AAPL",
         "title": "Test headline",

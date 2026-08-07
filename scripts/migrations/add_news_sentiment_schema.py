@@ -6,7 +6,10 @@ Two tables in `pyfinagent_data` (configurable via
 `news_articles` -- append-only raw fact table:
     article_id STRING NOT NULL       -- uuid4 surrogate
     published_at TIMESTAMP NOT NULL  -- source-asserted timestamp
-    fetched_at TIMESTAMP NOT NULL    -- our ingestion time
+    ingested_at TIMESTAMP NOT NULL   -- our ingestion time (phase-83.0: renamed from fetched_at)
+    provenance STRING NOT NULL       -- phase-83.0: {live, backfill}; REQUIRED can only be
+                                     -- created WITH the table (BQ forbids adding REQUIRED
+                                     -- to an existing schema), hence the one-shot DDL here
     source STRING NOT NULL           -- finnhub | benzinga | alpaca | manual
     ticker STRING                    -- optional primary ticker
     title STRING
@@ -26,6 +29,8 @@ Two tables in `pyfinagent_data` (configurable via
     scorer_model STRING NOT NULL     -- gemini-2.0-flash | claude-haiku-4-5 | finbert | vader
     scorer_version STRING
     scored_at TIMESTAMP NOT NULL
+    ingested_at TIMESTAMP NOT NULL   -- phase-83.0: when the score row was written
+    provenance STRING NOT NULL       -- phase-83.0: {live, backfill}
     sentiment_score FLOAT64          -- normalised to [-1, +1]
     sentiment_label STRING           -- bullish | bearish | neutral | mixed
     confidence FLOAT64               -- [0, 1]
@@ -65,7 +70,8 @@ DDL_NEWS_ARTICLES = """
 CREATE TABLE IF NOT EXISTS `{project}.{dataset}.news_articles` (
   article_id STRING NOT NULL,
   published_at TIMESTAMP NOT NULL,
-  fetched_at TIMESTAMP NOT NULL,
+  ingested_at TIMESTAMP NOT NULL,
+  provenance STRING NOT NULL,
   source STRING NOT NULL,
   ticker STRING,
   title STRING,
@@ -92,6 +98,8 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.news_sentiment` (
   scorer_model STRING NOT NULL,
   scorer_version STRING,
   scored_at TIMESTAMP NOT NULL,
+  ingested_at TIMESTAMP NOT NULL,
+  provenance STRING NOT NULL,
   sentiment_score FLOAT64,
   sentiment_label STRING,
   confidence FLOAT64,
@@ -105,6 +113,47 @@ OPTIONS (
   description = "phase-6.1 news-sentiment scorer output (re-scorable)"
 )
 """
+
+
+# phase-83.0: post-condition map per table. CREATE TABLE IF NOT EXISTS is a
+# NO-OP on an existing table, so the DDL's exit code proves nothing on re-run;
+# the migration reads the schema back and fails LOUD on drift instead of
+# printing "OK: ... ready." over a table it never touched.
+REQUIRED_MODES: dict[str, dict[str, str]] = {
+    "news_articles": {
+        "published_at": "REQUIRED",
+        "ingested_at": "REQUIRED",
+        "provenance": "REQUIRED",
+    },
+    "news_sentiment": {
+        "scored_at": "REQUIRED",
+        "ingested_at": "REQUIRED",
+        "provenance": "REQUIRED",
+    },
+}
+
+
+def verify_post_condition(client, fq_table: str, required: dict[str, str]) -> None:
+    """Read the live schema back and assert the required column modes.
+
+    A REQUIRED column cannot be added to an existing table (BQ docs), so a
+    failure here is not retryable by re-running: the table must be dropped
+    and recreated, which needs owner approval per CLAUDE.md BQ rule 4.
+    """
+    schema = {f.name: f.mode for f in client.get_table(fq_table).schema}
+    if not schema:
+        raise SystemExit(f"MIGRATION POST-CONDITION FAILED {fq_table}: empty schema read")
+    for col, mode in required.items():
+        got = schema.get(col)
+        if got != mode:
+            raise SystemExit(
+                f"MIGRATION POST-CONDITION FAILED {fq_table}.{col}: "
+                f"want mode={mode}, got {got!r}. "
+                "CREATE TABLE IF NOT EXISTS is a NO-OP on an existing table and "
+                "a REQUIRED column cannot be added afterwards -- the table must "
+                "be dropped and recreated (owner approval required)."
+            )
+    print(f"post-condition OK: {fq_table} carries {sorted(required)} as required")
 
 
 def main(dry_run: bool) -> int:
@@ -137,6 +186,8 @@ def main(dry_run: bool) -> int:
         job = client.query(sql)
         job.result(timeout=60)
         print(f"OK: {project}.{dataset}.{table} ready.")
+    for table in REQUIRED_MODES:
+        verify_post_condition(client, f"{project}.{dataset}.{table}", REQUIRED_MODES[table])
     return 0
 
 

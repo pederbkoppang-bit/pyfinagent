@@ -36,7 +36,7 @@ if __package__ in (None, ""):
         sys.path.insert(0, str(_REPO))
 
 from backend.news.normalize import body_hash, canonical_url
-from backend.news.registry import NewsSource, clear_registry, get_sources, register
+from backend.news.registry import get_sources, register
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +56,11 @@ class RawArticle(TypedDict, total=False):
 
 
 class NormalizedArticle(TypedDict, total=False):
-    """Row shape that maps 1:1 to the phase-6.1 news_articles schema."""
+    """Row shape that maps 1:1 to the news_articles schema (phase-83.0)."""
     article_id: str
     published_at: str
-    fetched_at: str
+    ingested_at: str
+    provenance: str
     source: str
     ticker: str | None
     title: str
@@ -91,13 +92,18 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _normalize(raw: RawArticle, source_name: str) -> NormalizedArticle:
+def _normalize(
+    raw: RawArticle, source_name: str, provenance: str = "live"
+) -> NormalizedArticle:
     url = str(raw.get("url") or "")
     body = str(raw.get("body") or "")
     return NormalizedArticle(
         article_id=str(uuid.uuid4()),
         published_at=str(raw.get("published_at") or _now_iso()),
-        fetched_at=_now_iso(),
+        # phase-83.0: renamed from fetched_at. NOTE the published_at wall-clock
+        # fallback above is 83.0.1's scope (NULL + quarantine) -- unchanged here.
+        ingested_at=_now_iso(),
+        provenance=provenance,
         source=source_name,
         ticker=raw.get("ticker"),
         title=str(raw.get("title") or "")[:2000],
@@ -133,6 +139,7 @@ def run_once(
     source_names: list[str] | None = None,
     dry_run: bool = False,
     dedup: bool = True,
+    provenance: str = "live",
 ) -> FetchReport:
     """Run one fetcher pass across registered sources.
 
@@ -141,6 +148,9 @@ def run_once(
         dry_run: if True, skip the BQ write.
         dedup: if True (default), apply phase-6.4 intra-batch dedup
           on `canonical_url` / `body_hash` before the BQ-write guard.
+        provenance: "live" (default) or "backfill" -- stamped onto every
+          row (phase-83.0) so a backfilled row is never indistinguishable
+          from a live-captured one.
     """
     sources = get_sources(source_names)
     report = FetchReport(
@@ -152,7 +162,9 @@ def run_once(
         count = 0
         try:
             for raw in src.fetch():
-                report.articles.append(_normalize(raw, source_name=name))
+                report.articles.append(
+                    _normalize(raw, source_name=name, provenance=provenance)
+                )
                 count += 1
         except Exception as e:
             report.errors.append({"source": name, "error": f"{type(e).__name__}: {e}"})
@@ -252,7 +264,8 @@ def _smoke() -> int:
         assert a["article_id"]
         assert a["canonical_url"]
         assert a["body_hash"]
-        assert a["fetched_at"]
+        assert a["ingested_at"]
+        assert a["provenance"] == "live"
         assert a["source"] == "stub"
     # UTM stripped from first article URL.
     assert "utm_source" not in report.articles[0]["canonical_url"]
