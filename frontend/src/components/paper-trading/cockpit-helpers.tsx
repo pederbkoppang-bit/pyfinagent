@@ -94,7 +94,11 @@ export function Dollar({
             }
           : numberFlowFormat(cur)
       }
-      locales={isUsd ? undefined : numberFlowLocale(cur)}
+      // phase-61.3: never omit `locales` -- NumberFlow falls back to the browser
+      // default when it is undefined, so the USD branch rendered in whatever locale
+      // the operator's browser had. numberFlowLocale("USD") === "en-US". This one
+      // edit pins both tables' USD aggregate columns (Market Value + Total Value).
+      locales={numberFlowLocale(cur)}
       transformTiming={{ duration: 900 }}
       willChange
       aria-live="off"

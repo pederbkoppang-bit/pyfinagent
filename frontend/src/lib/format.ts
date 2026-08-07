@@ -170,6 +170,26 @@ export function resolveCurrency(opts: {
   return MARKET_CURRENCY[mkt] ?? "USD";
 }
 
+// phase-61.3: the currency of a LOCAL price column (entry / current / stop / trade
+// price). Market-first BY CONTRACT -- it deliberately ignores `base_currency`.
+//
+// `base_currency` describes the USD-denominated columns (cost_basis, market_value,
+// unrealized_pnl) per the PaperPosition contract in types.ts, and the backend hardcodes
+// it to "USD" on every row (backend/services/paper_trader.py, both the add-on and the
+// new-position row). Feeding it to resolveCurrency -- which is explicit-first -- made a
+// KRW price render as "$70,000.00": a dollar sign on a won magnitude, the exact
+// ambiguity the W3C warns about ("$" is used in 28 countries).
+//
+// Use resolveCurrency for genuinely-explicit surfaces (a row that carries the currency
+// of the number it is showing). Use this one for the LOCAL price columns.
+export function resolveLocalCurrency(opts: {
+  market?: string | null;
+  ticker?: string | null;
+}): string {
+  const mkt = resolveMarket({ market: opts.market, ticker: opts.ticker });
+  return MARKET_CURRENCY[mkt] ?? "USD";
+}
+
 function localeForCurrency(currency: string): string {
   return CURRENCY_LOCALE[currency.toUpperCase()] ?? "en-US";
 }

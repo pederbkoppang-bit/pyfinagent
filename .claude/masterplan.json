@@ -15163,6 +15163,71 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "61.3.1",
+          "name": "Post-KRX-close mark job (~07:00 UTC) -- close the stale-KR-stop-check gap that 61.3 explicitly DEFERRED; must be built inside _add_scheduler_job so phase-70.5's reschedule_paper_job re-adds it, gated on is_trading_day(KR-local date, 'KR'), and flag-gated DARK because mark_to_market advances stops.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "61.3",
+          "audit_basis": "Filed by 61.3 cycle 178 (2026-08-07) as the recorded deferral its criterion 5 permits ('closing OR explicitly deferring ... with rationale'); rationale + measurements in handoff/current/experiment_results_61.3.md section C5 and handoff/current/research_brief_61.3_reval.md section 5. MEASURED FACTS (re-derive before building, do not trust these): KRX closes 15:30 KST = 06:30 UTC, no DST; the live cycle runs at settings.paper_trading_hour=14 ET (read from the running settings object 2026-08-07, NOT the settings.py default of 10) = 18:00/19:00 UTC; so the whole KR session 00:00-06:30 UTC completes BEFORE the next cycle and KR stops are checked against marks a full session old. XETRA (15:30/16:30 UTC close) is adequately served by the existing cycle. WHY IT WAS NOT BUILT IN 61.3: mark_to_market calls _advance_stop (paper_trader.py:728) and writes stop_loss_price/stop_advanced_at_R (:740-746), so a new scheduled mark MOVES STOPS -- trading-behaviour-adjacent, which the unattended-night rules forbid; and with no non-US position in the book a dark job could not be exercised. NEW CONSTRAINT since the original 2026-07-08 design: phase-70.5's reschedule_paper_job (api/paper_trading.py:1426-1449) re-adds the cron on a settings PUT, so a second job added anywhere OTHER than inside _add_scheduler_job (:1400-1423) silently vanishes on the first settings change. SCOPE BOUNDARY: a mark-only job refreshes marks + MFE + stop-advancement but does NOT execute stops -- that sell loop lives inline in autonomous_loop.py, not in a reusable method; extracting it is a separate decision, not part of this step.",
+          "verification": {
+            "command": "source .venv/bin/activate && python -m pytest backend/tests -k 'kr_close_mark or 61_3_1' -q",
+            "success_criteria": [
+              "a second APScheduler job is registered INSIDE _add_scheduler_job (so reschedule_paper_job re-adds it) with its own job id, timezone=UTC, misfire_grace_time=3600 and coalesce=True copied from the existing cron's rationale; a test asserts the job survives a simulated settings PUT that changes paper_trading_hour",
+              "the job is gated on a new settings flag defaulting False, and with the flag OFF the registered job set is byte-identical to today's (test-asserted)",
+              "the job body runs mark_to_market only and is gated on is_trading_day(<KR-local date>, 'KR') per the phase-50.4 is_session fix; a test asserts it does NOT fire on a KR holiday and DOES fire on a KR trading day",
+              "the step does NOT execute stops and does not modify _advance_stop or the autonomous_loop sell path (diff-asserted)",
+              "fresh Q/A PASS; the flag is NOT promoted by this step (promotion is an operator decision with its own ask row)"
+            ],
+            "live_check": "live_check_61.3.1.md showing the registered job list from the RUNNING backend (both flag states) plus one flag-ON mark run against a non-US position proving marks refreshed and stops advanced only as the existing engine already would"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "61.3.2",
+          "name": "Repo-wide USD locale-consistency sweep -- route the remaining hardcoded $-templates and undefined-locale toLocaleString sites through the shared formatUsd/formatCurrency helpers, and add a lint-style regression guard so new offenders cannot land.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "61.3",
+          "audit_basis": "Filed by 61.3 cycle 178 (2026-08-07) as its declared out-of-scope remainder (contract_61.3.md section 5). 61.3 fixed only the paper-trading MONEY-CORRECTNESS surfaces (positions-columns.tsx, cockpit-helpers.tsx, trades-columns.tsx, format.ts): those are the cells where a wrong currency symbol misstates a position. COUNTS ARE FROM THE 2026-07-08 BRIEF AND MUST BE RE-MEASURED, NOT TRUSTED: it reported 41 hardcoded backtick-$-template sites and 9 toLocaleString(undefined, ...) sites across frontend/src (named examples: page.tsx, backtest/page.tsx, ReportHeader.tsx, CostDashboard, AltDataPanel, ComputeCostBreakdown, GlassBoxCards, LatestTransactionsBox, performance, agents, manage). 61.3 removed 4 of the $-template sites, so the remainder is SMALLER than 41 -- derive the current set with a grep before writing any criterion that asserts a count. All remaining sites are genuinely-USD dashboard surfaces (LLM cost, backtest equity, filings market cap), which is why this is a consistency sweep and not a correctness fix. WHY IT MATTERS ANYWAY: an undefined locale means the runtime default (NumberFlow docs; MDN), so the operator's nb-NO browser renders those cells in a different shape from their en-US siblings. TEST-BRITTLENESS WARNING carried from the 61.3 research: vercel/next.js#79397 (upstream nodejs/node#48120) documents the SAME explicit locale producing different grouping across Node builds, so assert regexes/absences/props, never exact Intl output strings.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npx vitest run src/lib/format.locale-sweep.test.ts && npx tsc --noEmit",
+            "success_criteria": [
+              "the remaining offender set is DERIVED by a grep recorded verbatim in experiment_results (both the pre-sweep and post-sweep counts, under one stated matching rule), not carried over from the 2026-07-08 numbers",
+              "every remaining in-scope $-template and undefined-locale site routes through formatUsd/formatCurrency or passes an explicit locale; any site deliberately left alone is listed with its reason",
+              "a regression guard test fails when a new hardcoded $-template or a toLocaleString(undefined, ...) is introduced under frontend/src (guard proven by a mutant that adds one)",
+              "no behavioural change to any non-USD surface and no change to the paper-trading surfaces 61.3 already fixed (diff-asserted)",
+              "fresh Q/A PASS"
+            ],
+            "live_check": "live_check_61.3.2.md with a Playwright capture of two previously-inconsistent dashboard surfaces rendering consistent USD formatting"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "61.3.3",
+          "name": "eslint ignores build-artifact directories -- stale .next-* build dirs are linted as source, burying any real src/ finding in webpack-runtime noise.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P3",
+          "depends_on_step": "61.3",
+          "audit_basis": "Filed by 61.3 cycle 178 (2026-08-07) from the Q/A's own evidence-completeness note (i), verbatim in handoff/current/evaluator_critique_61.3.md. The evaluator ran eslint over the repo and found errors whose per-file grouping put ALL of them in pre-existing build-artifact directories (named: .next-audit-36-12 and .next-functional, webpack runtime chunks) with ZERO in src/ and ZERO in any 61.3-changed file. RE-MEASURE BEFORE WRITING CRITERIA -- the evaluator reported 26 errors at that moment, but the count depends on which throwaway .next-* dirs happen to exist in the working tree (61.3 itself created and removed one, .next-verify-61-3), so the number is not stable and must not be asserted from this record. The defect is that a lint run cannot distinguish a real src/ regression from generated-artifact noise, which makes eslint useless as a gate. NOTE .gitignore:25 already ignores .next-*/ for git, so this is purely an eslint-config gap. Related but SEPARATE: 61.3.2 is the source-level locale sweep and adds its own lint-style guard; do not merge the two.",
+          "verification": {
+            "command": "cd /Users/ford/.openclaw/workspace/pyfinagent/frontend && npx eslint . -f json -o /tmp/eslint_61_3_3.json ; python3 -c \"import json;d=json.load(open('/tmp/eslint_61_3_3.json'));bad=[f for f in d if f['errorCount'] and '/.next' in f['filePath']];print('artifact-dir files with errors:',len(bad));raise SystemExit(1 if bad else 0)\"",
+            "success_criteria": [
+              "eslint no longer lints any .next* build-artifact directory (config-level ignore, not a per-run flag); the pre-change and post-change error counts are both MEASURED and recorded, under one stated counting rule, rather than carried from the 61.3 record",
+              "the ignore is scoped to generated artifacts only -- a deliberately-introduced lint error inside frontend/src is still reported (mutant-proven), so the change cannot silence real findings",
+              "no source file is modified to make the gate pass",
+              "fresh Q/A PASS"
+            ],
+            "live_check": "not required -- config-only change with no runtime or UI surface"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },

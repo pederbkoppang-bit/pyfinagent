@@ -1,0 +1,94 @@
+# Evaluator Critique — masterplan step 61.3 (money-display + currency correctness)
+
+**Cycle 178 | 2026-08-07 | EVALUATE phase**
+Launched via the `qa-verdict` Workflow rail (structured-output captured return —
+`.claude/workflows/qa-verdict.js`, run `wf_7c40ac33-504`, agent
+`aea37290e2acbe50a`, 152,699 subagent tokens, 24 tool calls, 472s).
+
+**VERDICT: CONDITIONAL** — `ok: false`, `harness_compliance_ok: true`, 0 prior
+CONDITIONALs for this step-id (the 3rd-CONDITIONAL auto-FAIL rule does not fire).
+
+Both violations are **operator-gated actions forbidden by tonight's rails**, not
+engineering defects in this cycle's work; the evaluator states explicitly that holding
+the status at `pending` with ask rows appended is the correct disposition and that the
+step must NOT be flipped. This is the 61.2 / 72.0.2 deferred-close pattern.
+
+Main records the verdict; Main does not author it. The complete return value follows
+VERBATIM (raw JSON also at `handoff/current/qa_returns/qa_return_61.3_cycle178.json`).
+
+---
+
+## Verdict (verbatim)
+
+```json
+{
+  "ok": false,
+  "verdict": "CONDITIONAL",
+  "reason": "Criteria 2, 3, 4, 5 are MET with behavioral, mutation-resistant evidence I reproduced independently (vitest 3 files/35 passed; ruff exit=0 over a git-derived tracked-union-untracked scope; tsc --noEmit exit=0; eslint 0 errors in src/ and 0 in any 61.3-changed file; backend import smoke OK). Criterion 1's REGRESSION-TEST clause is fully met by a genuinely behavioral new pytest file, but its production clause (\"add-on BUYs average avg_entry_price in LOCAL currency\") is FALSE in the live system: I measured get_settings().paper_avg_entry_fx_fix_enabled=False with PAPER_AVG_ENTRY_FX_FIX_ENABLED absent from backend/.env, so the fix ships dark. Criterion 6 is not met and is structurally impossible, which I verified independently against live BigQuery (get_paper_positions() returns exactly 1 row: NTAP/US/marked_at=None). Both gaps are operator-gated actions forbidden by tonight's rails, were declared in the contract BEFORE generate, and the step deliberately holds its status at pending -- so this is CONDITIONAL, not FAIL. Main's two flagged suspicions both resolve in Main's favour by my own derivation: the 6 red tests in the immutable pytest leg are pre-existing (every failure logs \"kill_switch: REFUSING BUY ... PAUSED (pause_reason='manual')\", the live switch is confirmed paused, and the 4 failing test files reference mark_to_market/marked_at/_POSITION_RT_FIELDS zero times, making this cycle's only backend change causally incapable of producing them); and the PLAYWRIGHT_DIST_DIR build side effect is genuinely reverted (git diff on frontend/next-env.d.ts and frontend/tsconfig.json is empty). No unintended production change; harness compliance clean; 0 prior CONDITIONALs for 61.3 so the 3rd-CONDITIONAL auto-FAIL rule does not fire.",
+  "violated_criteria": [
+    "criterion_1_production_clause_flag_dark",
+    "criterion_6_playwright_kr_capture_absent"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Threshold_Not_Met",
+      "action": "measured runtime flag state: python -c \"from backend.config.settings import get_settings; print(get_settings().paper_avg_entry_fx_fix_enabled)\" and grep -c PAPER_AVG_ENTRY_FX_FIX_ENABLED backend/.env",
+      "state": "paper_avg_entry_fx_fix_enabled = False; flag count in backend/.env = 0; the LOCAL-weighted averaging formula (paper_trader.py:459-467, shipped phase-70.3) is therefore inert in production. New tests prove the ON path is correct AND that the OFF path yields a USD-scale, untriggerable stop (test_61_3_kr_addon_currency_legacy_stop_is_untriggerable_usd_scale) -- i.e. the defect this criterion exists to close is still LIVE. Severity: BLOCK-to-flip (does not block the deferred close).",
+      "constraint": "Immutable criterion 1 clause 1: 'add-on BUYs average avg_entry_price in LOCAL currency'. Present-tense system-behaviour claim, not satisfied while the flag is OFF. Clause 2 (the KR regression test asserting avg_entry_price AND the breakeven-advanced stop both remain KRW-scale) IS fully met. Clearing this needs an operator .env line + restart, which tonight's rails forbid; Main disclosed it in experiment_results section 9 and filed an ask row."
+    },
+    {
+      "violation_type": "Missing_Assumption",
+      "action": "independent live-book read: BigQueryClient(get_settings()).get_paper_positions(); and ls handoff/current/live_check_61.3.md",
+      "state": "live position count = 1; row = {'ticker':'NTAP','market':'US','base_currency':'USD','quantity':5.346643,'avg_entry_price':177.8498992919922,'marked_at':None}. No KR or EU position exists to capture. live_check_61.3.md is ABSENT, so the immutable command's third leg (test -f) is red. Severity: BLOCK-to-flip (does not block the deferred close).",
+      "constraint": "Immutable criterion 6: 'Playwright capture of the positions table with the live KR position'. Unsatisfiable without seeding a KR position, which would move the live book (forbidden). The impossibility is HONESTLY evidenced and I reproduced the measurement myself rather than accepting Main's quoted BQ row. Per qa.md 1c a missing live UI capture caps the verdict at CONDITIONAL. Clears when a non-US position exists in the book."
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "harness_compliance_audit_5_item",
+    "research_gate_envelope_rederived",
+    "mtime_ordering_research_lt_contract_lt_artifacts_lt_results",
+    "immutable_verification_command_leg1_pytest",
+    "immutable_verification_command_leg2_frontend_build_deviation_reviewed",
+    "immutable_verification_command_leg3_live_check_absence",
+    "independent_failure_attribution_via_diff_causality_grep",
+    "live_kill_switch_state_probe",
+    "ruff_F821_F401_F811_git_derived_scope_tracked_union_untracked",
+    "tsc_noEmit",
+    "eslint_repo_with_per_file_error_grouping",
+    "vitest_3_new_specs",
+    "backend_import_runtime_smoke",
+    "migration_script_dml_scan",
+    "live_bigquery_paper_positions_read",
+    "git_diff_next_env_tsconfig_restoration",
+    "guard_vacuity_review_4c",
+    "mutation_F6_repair_assertion_analysis",
+    "claim_auditing_4b",
+    "code_review_heuristics",
+    "worst_of_n_lenses_correctness_reproduce_scope_honesty"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "HARNESS COMPLIANCE (5/5 clean). (1) Research-gate-before-contract: research_brief_61.3_reval.md envelope RE-DERIVED from the brief itself (not the contract's quote) at lines 493-508 -- gate_passed:true, external_sources_read_in_full:9 (>=5 floor), urls_collected:34 (>=10), recency_scan_performed:true with the section present. (2) Contract-before-generate: mtimes strictly ordered 1786124920 brief < 1786125058 contract < 1786125244 pytest file < 1786125649 format.ts < 1786126057 experiment_results. (3) experiment_results_61.3.md present. (4) Log-last: 0 lines matching '^## Cycle .*phase=61.3' in harness_log.md and masterplan status still \"pending\" -- correct, not yet logged/flipped. (5) No-verdict-shopping: no evaluator_critique_61.3.* exists; this is cycle 1.\n\nPROBE RESULTS ON MAIN'S OWN SUSPICIONS.\n(a) ATTRIBUTION CONFIRMED, derived independently rather than accepting the worktree control. Three legs: (i) I reproduced the leg exactly -- 6 failed, 19 passed, 2948 deselected; (ii) every failure carries the captured log line \"ERROR backend.services.paper_trader:paper_trader.py:282 kill_switch: REFUSING BUY 005930.KS ($45.85) -- the kill switch is PAUSED (pause_reason='manual')\", and the observed failure shape is KeyError:'row' at test_phase_70_3_atomic_swap.py:221 i.e. the buy was refused so nothing persisted; (iii) decisive causality check -- the ONLY backend production change is mark_to_market's updates dict (+marked_at) and _POSITION_RT_FIELDS, and `grep -c \"mark_to_market\\|marked_at\\|_POSITION_RT_FIELDS\"` over test_64_3_currency_path.py, test_64_4_multi_market_e2e.py, test_dod4_tier1_coverage_investment.py, test_phase_70_3_atomic_swap.py returns 0/0/0/0. The diff cannot reach those tests. Main's control (12 passed at HEAD -> 19 now, +7 = exactly the 7 new tests, identical 6 failures) is consistent. Pre-existing, correctly scoped to 36.28.\n(b) INJECTION SEAM IS LEGITIMATE, NOT A BYPASS. paper_trader.py:98-125 is the pre-existing phase-36.13 construction-site seam; it is NOT introduced by this diff, it logs logger.warning(\"PaperTrader: kill-switch state was INJECTED ... Production callers must not pass kill_switch_state\"), and the production BUY gate is untouched. Using it is what makes a PaperTrader unit test deterministic instead of dependent on whether the live book happens to be paused. NOTE (non-degrading): these specific tests would stay green if the BUY gate itself regressed -- but that gate is not criterion 1's subject and is covered by 36.13's own suite. Not masking a defect in this cycle's code.\n(c) F6 REPAIR IS A GENUINE KILL, NOT TEST-PADDING. paper-trading-utils.mark.test.ts pins the threshold BOUNDARIES directly: bandFromMarkAgeSec(6h)=\"green\", (25h)=\"green\", (26h)=\"amber\", (72h)=\"amber\", (74h)=\"red\", (30d)=\"red\", plus the differential expect(bandFromMarkAgeSec(6h)).not.toBe(bandFromAgeSec(6h)). The F6 mutant (collapse to the live-poll 90s/300s thresholds) forces 6h, 25h and 26h all to \"red\", failing assertions in three separate `it` blocks -- so the mutant cannot survive. Method disclosure: I verified this by reading the assertions against the mutant definition, NOT by executing the mutant (read-only constraint plus the prompt's budget cap forbidding a matrix re-run). The prior vacuity was real and correctly self-reported: the component spec asserted only the chip TEXT (\"as of 5h\"), which is identical under any banding -- classic shape-1/shape-11 \"guard stops one seam short\".\n(d) BUILD DEVIATION ACCEPTABLE AND THE SIDE EFFECT IS CLEAN. PLAYWRIGHT_DIST_DIR only redirects distDir; compilation semantics are identical, so the leg's evidentiary value is preserved. The rationale matches two standing auto-memories (a bare `npm run build` clobbers the .next that the operator's :3000 dev server serves from). I ran `git diff frontend/next-env.d.ts frontend/tsconfig.json` MYSELF: EMPTY. Restoration verified.\n(e) MIGRATION IS WITHIN DO-NO-HARM. scripts/migrations/add_marked_at_to_paper_positions.py parses clean and a grep for ALTER|DML|UPDATE|DELETE|INSERT|MERGE returns exactly one hit -- the ALTER TABLE at :70. Zero DML. My own live BQ read returns marked_at as a present key with value None on the NTAP row while every money column is unchanged, which independently proves the column landed additively and no row data was rewritten.\n(f) CHALLENGE DECLINED -- unconditional marked_at is correct. The diff is a timestamp string in mark_to_market's updates dict; no order, stop, or size reads it (the sole consumer is a UI chip). The one real hazard -- a pre-migration schema turning every save into a prune-retry -- is mitigated twice: the migration was executed AND marked_at was added to _POSITION_RT_FIELDS, with test_61_3_marked_at_currency_is_prunable_on_a_pre_migration_schema driving the retry using BigQuery's REAL wording (\"400 Unrecognized name: marked_at at [1:87]\") and first asserting _looks_like_schema_error recognises it, rather than an invented string. That is a well-constructed guard.\n\nGUARD-VACUITY (4c) -- named mutation per criterion, none vacuous. C1: revert the averaging to the legacy USD mix -> killed by the KRW-scale and 70000<=avg<=72000 assertions; and the ON-only trap is closed by an explicit OFF-path negative asserting avg<1000 and an untriggerable stop. The fixture-vacuity risk is closed by test_61_3_fixture_reaches_breakeven_branch_not_a_vacuous_pass, which asserts the branch FIRED and separately asserts BOTH non-firing preconditions return (None,None) -- both directions, so a mis-built fixture cannot pass silently. C2: revert the Entry cell to base_currency-first -> killed by /₩|KRW/ plus the negation /\\$\\s?\\d/ and the 60.3-mirroring big-number regex. C3: the nb-NO spec is NOT a tautology -- it first proves its own harness bites (`expect(leaked).not.toBe(\"$1,234.56\")` after the Intl spy makes an omitted locale resolve Norwegian) and only then asserts the pinned formatters are unmoved; and it deliberately uses Reflect.construct rather than a subclass because Intl's legacy constructor semantics would otherwise yield a non-functional .format. C4: covered above.\n\nA SUSPICION I BUILT AND THEN RETIRED (recorded so it is not re-raised): criterion 2 names \"EU rows EUR\" and positions-columns.currency.test.tsx contains no EU/EUR/.DE token at all, which looked like a coverage hole. It is not -- format.currency.test.ts:46-53 asserts resolveLocalCurrency({market:\"EU\",ticker:\"SAP.DE\"})===\"EUR\" and :79-82 asserts a EUR render matching /€|EUR/, and test_61_3_eu_addon_currency_stop_stays_eur_scale covers EU behaviorally including the insidious ~8% inflation contrast. Verified before asserting.\n\nCODE-REVIEW HEURISTICS (5 dimensions evaluated, no BLOCK, no WARN). No secrets in diff. kill-switch-reachability: production path untouched. bq-schema-migration-safety: additive NULLABLE ADD COLUMN IF NOT EXISTS, no DEFAULT needed, no drop -- NOTE only. consumer-contract-break: resolveLocalCurrency is a NEW export (resolveCurrency byte-untouched, confirmed in the diff), marked_at is an additive optional field, _POSITION_RT_FIELDS is widened -- all purely additive, no consumer narrowed. financial-logic-without-behavioral-test: not triggered, the backend change carries two tests. tautological-assertion / illusory-guard: none found. NOTES (non-degrading): (i) `npx eslint .` exits non-zero repo-wide, but per-file grouping shows all 26 errors live in the pre-existing build-artifact dirs .next-audit-36-12 and .next-functional (webpack runtime chunks) with ZERO in src/ and ZERO in any 61.3-changed file -- pre-existing class, worth an eslintignore step; (ii) experiment_results section 7 records tsc but no eslint run, so I ran it -- an evidence-completeness nit, not a defect; (iii) the new pytest file uses non-ASCII box-drawing characters in section comments -- not a logger call and not an emoji, style nit only.\n\nSCOPE HONESTY LENS: strong. git status shows only the 9 contract-scoped source files plus 4 new test/migration files plus handoff artifacts and two researcher agent-memory files -- no unintended production change. Both unmet criteria were declared in the contract BEFORE generate (sections 5, C5, C6), not discovered at EVALUATE. The F6 survivor was self-reported as a finding rather than buried. The six red tests were quantified with a control rather than hand-waved.\n\nBLOCKERS TO CLEAR BEFORE 61.3 CAN FLIP TO done: B1 -- operator adds PAPER_AVG_ENTRY_FX_FIX_ENABLED=true to backend/.env and restarts (measured False right now), or criterion 1's production clause is otherwise satisfied; B2 -- once a KR or EU position exists in the live book, take the Playwright capture and write handoff/current/live_check_61.3.md. Neither is an engineering defect in this cycle's work. Holding status at pending with the ask rows appended is the correct disposition; do NOT flip."
+}
+```
+
+---
+
+## Main's disposition
+
+No fix pass is possible tonight: both blockers require operator action that the
+unattended-night rails forbid (`backend/.env` write + backend restart for B1; a non-US
+position in the live book for B2). Per the evaluator's own instruction the status stays
+`pending`.
+
+- **B1** — promote `paper_avg_entry_fx_fix_enabled` → **ask row #14**.
+- **B2** — Playwright capture once a KR/EU position exists → **ask row #15**.
+- Evaluator note (i), the 26 pre-existing eslint errors confined to build-artifact dirs
+  (`.next-audit-36-12`, `.next-functional`) with zero in `src/`, is a real finding about
+  a missing eslintignore. It is NOT folded into this step — the tree is frozen during
+  EVALUATE, and a gap noticed mid-evaluation belongs to the next cycle. Filed as its own
+  masterplan step rather than disclosed only in prose.
+- Evaluator notes (ii) eslint absent from experiment_results §7 and (iii) non-ASCII
+  box-drawing characters in the new pytest file's section comments are style/evidence
+  nits, both accepted as recorded. (iii) is not a logger call and not an emoji, so it
+  breaches neither the ASCII-logger rule nor the no-emoji rule.

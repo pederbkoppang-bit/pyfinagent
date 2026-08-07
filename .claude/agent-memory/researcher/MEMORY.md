@@ -87,7 +87,7 @@
 - [Fee table + turnover 61.5](project_fee_table_61_5.md) — TAF in the criterion is STALE (steps annually); dated-config mandate; plug points :189/:388
 - [Pre-pay audit 61.4](project_learnings_61_4.md) — STRING-column-never-coerces root cause; 2nd broken swallowed reader; ARRAY_AGG IGNORE NULLS + DESC-reverse
 - [GCloud docs WebFetch nav-only](feedback_gcloud_docs_fetch.md) — cloud.google.com reference pages are JS-rendered; use curl + tag-strip (counts as read-in-full)
-- [Currency-display 61.3](project_currency_display_61_3.md) — avg bug = USD/qty treated as LOCAL (EU +8% silent); base_currency hardcode defeats resolveCurrency; NO mark ts exists
+- [Currency-display 61.3](project_currency_display_61_3.md) — reval: crit-1 HALF built (18 -k tests assert avg_entry ONLY; the 2 _advance_stop files are US-only AND deselected); anchors all MOVED; `npm run build` shares the operator's .next; pinning a locale leaves ICU-version drift
 - [Real-Fill Runway 68.0](project_real_fill_runway_68_0.md) — the AMD/MU "defect" is FALSE (real 2026-07 prices; stale-knowledge anchor); 422 dup client_order_id
 - [NaN/JSON leak 80.1](project_nan_json_leak_80_1.md) — starlette allow_nan=False + jsonable_encoder passes np.float64; response_model does NOT fix it; yfinance keepna mask is .all(axis=1)
 - [Frontend test env 80.5](project_frontend_test_env_and_ui_specs_80_5.md) — jsdom 29: all rects 0, no elementFromPoint, but getComputedStyle resolves injected <style>; SVG fill=transparent IS hit-testable

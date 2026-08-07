@@ -12,7 +12,13 @@ import NumberFlow from "@number-flow/react";
 import type { PaperPosition } from "@/lib/types";
 import { LiveBadge } from "@/components/LiveBadge";
 import type { LivePriceEntry, TickerMeta } from "@/lib/paper-trading-context";
-import { bandFromAgeSec } from "@/lib/paper-trading-utils";
+import { clsx } from "clsx";
+import {
+  ageSecFromIso,
+  bandFromAgeSec,
+  bandFromMarkAgeSec,
+  type FreshnessBand,
+} from "@/lib/paper-trading-utils";
 import { Dollar, MarketChip, PnlBadge } from "./cockpit-helpers";
 // goal-multimarket-ux: per-share ENTRY/CURRENT/STOP are LOCAL currency; MARKET-VALUE
 // and P&L% stay USD/backend (no client-side FX). resolveMarket==='US' is both the
@@ -21,7 +27,7 @@ import {
   formatCurrency,
   numberFlowFormat,
   numberFlowLocale,
-  resolveCurrency,
+  resolveLocalCurrency,
   resolveMarket,
 } from "@/lib/format";
 // phase-76 (2026-05-26): trend tracker for the data-pyfa-trend host
@@ -30,6 +36,26 @@ import {
 // the lib's React wrapper renders <number-flow-react>, not
 // <number-flow> -- cycle 76 had the wrong element name in the CSS.)
 import { useTrend } from "@/lib/use-trend";
+
+// phase-61.3: the as-of chip on a non-live P&L. Static class strings (Tailwind JIT
+// cannot see interpolated names), same palette as LiveBadge so the two freshness
+// signals read as one system.
+const MARK_BAND_CLASS: Record<FreshnessBand, string> = {
+  green: "bg-slate-800 text-slate-400",
+  amber: "bg-amber-950 text-amber-400",
+  red: "bg-rose-950 text-rose-400",
+  unknown: "bg-slate-800 text-slate-500",
+};
+
+// Compact age for the chip: "2h", "3d". Marks are cycle-scale, so minutes are noise
+// and anything under an hour reads as "just marked".
+export function formatMarkAge(ageSec: number | null): string {
+  if (ageSec == null) return "as of ?";
+  const hours = ageSec / 3600;
+  if (hours < 1) return "as of now";
+  if (hours < 48) return `as of ${Math.floor(hours)}h`;
+  return `as of ${Math.floor(hours / 24)}d`;
+}
 
 // phase-75 (2026-05-26): Google-Finance digit-flip via NumberFlow. Per-row
 // Current cell stays its own component so React's render path is clean
@@ -50,6 +76,14 @@ function CurrentPriceCell({
   const trend = useTrend(shown);
   const cur = (currency || "USD").toUpperCase();
   const isUsd = cur === "USD";
+  // phase-61.3: `locales` must ALWAYS be explicit. NumberFlow's own docs: "When
+  // omitted, the component will use the browser's default locale" -- so the USD
+  // branch used to render in the operator's nb-NO locale ("70 000,00 USD") right
+  // beside an en-US "$70000.00" from the sibling cells. numberFlowLocale("USD")
+  // returns "en-US", so this is the same output on an en-US browser and a FIX on
+  // any other. The USD format object keeps minimumFractionDigits:2 (a USD-only
+  // convention -- generalising it would render "₩1,234,567.00").
+  const locales = numberFlowLocale(cur);
   return (
     <span
       aria-live="off"
@@ -71,7 +105,7 @@ function CurrentPriceCell({
                 }
               : numberFlowFormat(cur)
           }
-          locales={isUsd ? undefined : numberFlowLocale(cur)}
+          locales={locales}
           transformTiming={{ duration: 900 }}
           willChange
           data-pyfa-trend={trend}
@@ -141,16 +175,15 @@ export function positionsColumns(
       accessorKey: "avg_entry_price",
       header: "Entry",
       cell: ({ row }) => {
-        const cur = resolveCurrency({
-          baseCurrency: row.original.base_currency,
+        // phase-61.3: avg_entry_price is LOCAL, so the currency comes from the
+        // market -- never from base_currency, which describes the USD columns.
+        const cur = resolveLocalCurrency({
           market: row.original.market,
           ticker: row.original.ticker,
         });
         return (
           <span className="text-slate-100">
-            {cur === "USD"
-              ? `$${row.original.avg_entry_price.toFixed(2)}`
-              : formatCurrency(row.original.avg_entry_price, cur)}
+            {formatCurrency(row.original.avg_entry_price, cur)}
           </span>
         );
       },
@@ -165,9 +198,9 @@ export function positionsColumns(
         const live = livePrices[pos.ticker];
         const shown = live?.price ?? pos.current_price;
         const band = bandFromAgeSec(live?.age_sec ?? null);
-        // Live price + stored current_price are LOCAL currency (phase-50.2).
-        const cur = resolveCurrency({
-          baseCurrency: pos.base_currency,
+        // Live price + stored current_price are LOCAL currency (phase-50.2), so
+        // phase-61.3 resolves them market-first rather than from base_currency.
+        const cur = resolveLocalCurrency({
           market: pos.market,
           ticker: pos.ticker,
         });
@@ -236,11 +269,33 @@ export function positionsColumns(
           pos.cost_basis != null && pos.cost_basis > 0
             ? pos.cost_basis
             : pos.avg_entry_price * pos.quantity;
-        const livePnlPct =
-          isUs && livePrice != null && liveCostBasis > 0
-            ? ((livePrice * pos.quantity - liveCostBasis) / liveCostBasis) * 100
-            : pos.unrealized_pnl_pct;
-        return <PnlBadge value={livePnlPct} />;
+        const isLive = isUs && livePrice != null && liveCostBasis > 0;
+        const livePnlPct = isLive
+          ? ((livePrice! * pos.quantity - liveCostBasis) / liveCostBasis) * 100
+          : pos.unrealized_pnl_pct;
+        // phase-61.3: when the number is NOT live-recomputed it is the stored mark,
+        // which is as old as the last mark_to_market run -- label it with that time
+        // instead of letting it sit next to a live price implying it is current.
+        const markAgeSec = ageSecFromIso(pos.marked_at);
+        return (
+          <span className="inline-flex items-center justify-end gap-2">
+            <PnlBadge value={livePnlPct} />
+            {!isLive && pos.marked_at ? (
+              <span
+                title={`Marked ${new Date(pos.marked_at).toLocaleString("en-US", {
+                  timeZone: "UTC",
+                  timeZoneName: "short",
+                })} — P&L is as of that mark, not live`}
+                className={clsx(
+                  "rounded px-1 text-[10px] font-medium uppercase tracking-wide",
+                  MARK_BAND_CLASS[bandFromMarkAgeSec(markAgeSec)],
+                )}
+              >
+                {formatMarkAge(markAgeSec)}
+              </span>
+            ) : null}
+          </span>
+        );
       },
       meta: { align: "right", className: "tabular-nums" },
     },
@@ -251,15 +306,14 @@ export function positionsColumns(
       cell: ({ row }) => {
         const sl = row.original.stop_loss_price;
         if (sl == null) return <span className="text-slate-300">—</span>;
-        const cur = resolveCurrency({
-          baseCurrency: row.original.base_currency,
+        // phase-61.3: the stop is compared against a LOCAL price by
+        // paper_trader.check_stop_losses, so it must render in the LOCAL currency.
+        const cur = resolveLocalCurrency({
           market: row.original.market,
           ticker: row.original.ticker,
         });
         return (
-          <span className="text-slate-300">
-            {cur === "USD" ? `$${sl.toFixed(2)}` : formatCurrency(sl, cur)}
-          </span>
+          <span className="text-slate-300">{formatCurrency(sl, cur)}</span>
         );
       },
       meta: { align: "right", className: "tabular-nums" },

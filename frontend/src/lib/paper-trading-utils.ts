@@ -38,3 +38,30 @@ export function bandFromAgeSec(ageSec: number | null | undefined): FreshnessBand
   if (ageSec < 300) return "amber";
   return "red";
 }
+
+// phase-61.3: freshness band for a MARK (`paper_positions.marked_at`), not for a live
+// price. Deliberately NOT bandFromAgeSec: marks are written once per scheduled cycle,
+// so the 90s/300s live-poll thresholds would paint every healthy mark red within five
+// minutes and the signal would carry no information. Green = within one cycle (26h
+// allows for DST drift and a late run), amber = up to three days (a Friday mark read on
+// Monday morning is expected, not broken), red beyond that = the mark job is not
+// running.
+export function bandFromMarkAgeSec(ageSec: number | null | undefined): FreshnessBand {
+  if (ageSec == null) return "unknown";
+  if (ageSec < 26 * 3600) return "green";
+  if (ageSec < 74 * 3600) return "amber";
+  return "red";
+}
+
+// Age in seconds of an ISO-8601 timestamp, or null when absent/unparseable. Never
+// throws inside a table cell, and never returns a negative age (a clock skew that puts
+// the mark in the future reads as "just marked", not as an error state).
+export function ageSecFromIso(
+  iso: string | null | undefined,
+  now: number = Date.now(),
+): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return null;
+  return Math.max(0, (now - t) / 1000);
+}

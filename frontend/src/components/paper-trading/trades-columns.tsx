@@ -13,7 +13,7 @@ import { Dollar, MarketChip } from "./cockpit-helpers";
 // by pre-56.1 code held LOCAL (KRW) magnitudes in those two fields; they were restated
 // to USD on 2026-06-11 via the operator-approved migration
 // scripts/migrations/backfill_56_1_kr_trade_values.py (what/when/why in its docstring).
-import { formatCurrency, resolveCurrency, resolveMarket } from "@/lib/format";
+import { formatCurrency, formatUsd, resolveLocalCurrency, resolveMarket } from "@/lib/format";
 
 export function tradesColumns(
   tickerMeta: Record<string, TickerMeta>,
@@ -91,16 +91,16 @@ export function tradesColumns(
       accessorKey: "price",
       header: "Price",
       cell: ({ row }) => {
-        const cur = resolveCurrency({
-          currency: row.original.currency,
+        // phase-61.3: the trade price is LOCAL (types.ts contract), so it resolves
+        // market-first like the positions LOCAL columns. paper_trades carries no
+        // market column, so this normally falls through to the ticker suffix.
+        const cur = resolveLocalCurrency({
           market: row.original.market,
           ticker: row.original.ticker,
         });
         return (
           <span className="text-slate-100">
-            {cur === "USD"
-              ? `$${row.original.price.toFixed(2)}`
-              : formatCurrency(row.original.price, cur)}
+            {formatCurrency(row.original.price, cur)}
           </span>
         );
       },
@@ -119,9 +119,9 @@ export function tradesColumns(
       header: "Fee",
       cell: ({ row }) => (
         <span className="text-slate-400">
-          {row.original.transaction_cost != null
-            ? `$${row.original.transaction_cost.toFixed(2)}`
-            : "—"}
+          {/* phase-61.3: fees are USD (paper_trades.transaction_cost); route them
+              through the shared formatter instead of a hand-rolled $-template. */}
+          {formatUsd(row.original.transaction_cost)}
         </span>
       ),
       meta: { align: "right", className: "tabular-nums" },

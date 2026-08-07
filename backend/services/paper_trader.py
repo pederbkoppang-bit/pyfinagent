@@ -736,6 +736,13 @@ class PaperTrader:
                 "unrealized_pnl_pct": round(pnl_pct, 2),
                 "mfe_pct": round(new_mfe, 4),
                 "mae_pct": round(new_mae, 4),
+                # phase-61.3: as-of indicator. unrealized_pnl/_pct above are frozen
+                # here until the next mark, while the UI renders a LIVE local price
+                # beside them -- for a non-US row that gap is up to ~24h (weekend
+                # ~72h). Stamping the mark time is what lets the UI label the P&L
+                # instead of implying it is current. Observability only: no order,
+                # stop, or size depends on it.
+                "marked_at": datetime.now(timezone.utc).isoformat(),
             }
             if new_stop is not None:
                 updates["stop_loss_price"] = new_stop
@@ -1467,7 +1474,7 @@ class PaperTrader:
         "round_trip_id", "holding_days", "realized_pnl_pct",
         "mfe_pct", "mae_pct", "capture_ratio", "signals",
     }
-    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R", "entry_strategy", "company_name"}
+    _POSITION_RT_FIELDS = {"mfe_pct", "mae_pct", "stop_advanced_at_R", "entry_strategy", "company_name", "marked_at"}
 
     def _safe_save_trade(self, row: dict) -> None:
         try:

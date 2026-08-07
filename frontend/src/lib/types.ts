@@ -662,6 +662,14 @@ export interface PaperPosition {
    */
   market?: string | null;
   base_currency?: string | null;
+  /**
+   * phase-61.3: ISO-8601 UTC timestamp of the `mark_to_market` run that last wrote
+   * `unrealized_pnl` / `unrealized_pnl_pct` / `market_value`. Those are refreshed once
+   * per scheduled cycle while `current_price` can be live, so a non-US row would
+   * otherwise show a live local price beside a P&L up to ~24h (weekend ~72h) old with
+   * nothing saying so. Optional: NULL on rows not marked since the migration.
+   */
+  marked_at?: string | null;
 }
 
 export interface PaperTrade {
