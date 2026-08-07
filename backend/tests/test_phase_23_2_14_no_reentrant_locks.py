@@ -19,7 +19,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "backend"
-EXPECTED_LOCK_COUNT = 18
+EXPECTED_LOCK_COUNT = 20  # phase-83.0/83.0.1 re-audit 2026-08-07: +2 counter
+# locks (news/bq_writer.py `_write_lock`, news/fetcher.py `_quarantine_lock`).
+# Both guard plain dict counters, acquire nothing while held, and call no
+# function under the lock -- no re-entrancy surface.
 # phase-75.10 RE-AUDIT (2026-07-23). One new lock:
 #
 #   18th -- `self._remote_worker_lock`, backend/agents/mas_events.py:108.
