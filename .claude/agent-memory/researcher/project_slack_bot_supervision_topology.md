@@ -25,7 +25,24 @@ scheduler.py:196 → digests + 11 crons DOUBLE-FIRE) remains TRUE as a hazard
 class — it is why the monitor script now defers to launchd instead of
 nohup-spawning. If you ever see double digests, check for a stray non-launchd
 bot process (`ps aux | grep slack_bot.app` should show exactly one, parented
-to launchd).
+to launchd). (Anchor corrected 2026-08-07: the `AsyncIOScheduler()` construction
+is `scheduler.py:224`, not :196.)
+
+**Restarting it on new code (phase-62.1, measured 2026-08-07):**
+`launchctl kickstart -k gui/$(id -u)/com.pyfinagent.slack-bot`. `-k` is REQUIRED
+when the bot is up (bare `kickstart`, as in `slack_bot_monitor.sh:28`, only
+covers the already-down case). `pkill` on `slack_bot` and `launchctl
+bootout|unload|remove|disable` on any `com.pyfinagent.*` label are BOTH blocked
+by `.claude/hooks/pre-tool-use-danger.sh` (:107-110 and :176-177). No reload is
+needed for a code-only change — the plist re-execs the interpreter. Do the
+import smoke test FIRST (`.venv/bin/python -c "import backend.slack_bot.app"`):
+`KeepAlive=true` + `ThrottleInterval=5` turns a bad HEAD into a crash-loop.
+Restart is cheap (~5-20s) and re-fires exactly one thing on purpose:
+`daily_price_refresh_catchup` (`scheduler.py:330-337`, one-shot at now+20s,
+idempotent by `(ticker, date)`). Note `KeepAlive=<true/>` is the SAFE form —
+the anthropic-bridge's `KeepAlive=<dict>{SuccessfulExit:false}` measurably
+failed to restart after `kill -9` on this Darwin 25 machine
+(`.claude/masterplan.json:19419`).
 
 Mac still does not system-sleep: backend plist wraps uvicorn in
 `caffeinate -i -s` (AC power only).

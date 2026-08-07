@@ -15420,6 +15420,72 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "62.1.1",
+          "name": "SECURITY: plaintext CLAUDE_CODE_OAUTH_TOKEN stored in ~/Library/LaunchAgents/com.pyfinagent.backend.plist EnvironmentVariables -- move it out of the plist into the secrets store, and check whether the plist was ever committed (rotation decision if so).",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "62.1",
+          "audit_basis": "Found by the 62.1 research gate 2026-08-07 (handoff/current/research_brief_62.1.md section 10 item 1) while reading both launchd plists in full to check criterion 1's 'mirrors the backend plist environment shape' clause. A live Anthropic OAuth credential sits in cleartext in a launchd plist under ~/Library/LaunchAgents/. The researcher deliberately did NOT reproduce the value in the brief; do not paste it into any artifact when fixing this either. SAME CLASS AS 85.3.3 (the away-watchdog plist embedding a literal CLAUDE_CODE_OAUTH_TOKEN, operator ask #12) -- check whether these are the SAME token before treating them as two findings, and whether one fix covers both. NOTE the plist is outside the repo, so .gitignore gives no protection and a git-history check must cover any path the file was ever copied to inside the repo (scripts/, docs/, handoff/ backups, the *.bak siblings in ~/Library/LaunchAgents/). ROTATION IS AN OPERATOR DECISION, not an executor action -- if the history check comes back positive, file an ask row rather than rotating.",
+          "verification": {
+            "command": "bash -c 'grep -c CLAUDE_CODE_OAUTH_TOKEN ~/Library/LaunchAgents/com.pyfinagent.backend.plist; echo \"---\"; git log --all --oneline -S CLAUDE_CODE_OAUTH_TOKEN -- . | head -20'",
+            "success_criteria": [
+              "the literal token no longer appears in any file under ~/Library/LaunchAgents/ (including the *.bak siblings); the backend agent still starts and reaches the same authenticated state, proven by a post-change launchctl print + a live health probe",
+              "a git-history search for the credential across all refs is run and its result recorded verbatim; if the token was ever committed, an operator ask row for rotation is filed rather than the executor rotating it",
+              "the relationship to 85.3.3 is resolved explicitly: same token or different, one fix or two, stated with evidence",
+              "no credential value appears in any handoff artifact, commit message, or log line produced by this step",
+              "fresh Q/A PASS"
+            ],
+            "live_check": "live_check_62.1.1.md with the post-change plist grep (count 0), the backend agent's state after a restart, and the verbatim git-history search result"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "62.1.2",
+          "name": "SECURITY: plaintext SLACK_BOT_TOKEN exported inline by the */2 * * * * slack_mention_checker.sh crontab entry -- visible to crontab -l and in the spawned shell's command string every 2 minutes.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "depends_on_step": "62.1",
+          "audit_basis": "Found by the 62.1 research gate 2026-08-07 (handoff/current/research_brief_62.1.md section 10 item 2). The user crontab line for scripts/.../slack_mention_checker.sh exports the Slack bot token inline, so it is readable via `crontab -l` and appears in the command string of the process spawned every 2 minutes (i.e. in `ps` output for any local user). RE-MEASURE the exact crontab line before changing it -- do not trust this description's wording. The repo already has an established secrets path (backend/.env, loaded by pydantic settings) and the launchd agents read env from their plists; pick whichever mechanism the checker script can use without a privilege change. DO NOT paste the token value into any artifact. Rotation, if the token was ever exposed beyond this machine, is an OPERATOR decision -- file an ask row.",
+          "verification": {
+            "command": "bash -c 'crontab -l | grep -c \"SLACK_BOT_TOKEN=xox\" ; echo \"---\"; crontab -l | grep slack_mention_checker'",
+            "success_criteria": [
+              "no credential literal remains in the crontab (grep count 0); the checker still runs on its schedule and still authenticates, proven by a post-change run logged with a success line",
+              "the token is sourced from the project's existing secrets mechanism rather than a new one, and the script fails LOUDLY (non-zero exit + a log line) if the secret is absent, instead of silently running unauthenticated",
+              "a check for the same inline-export pattern across the whole crontab and scripts/ is run and its result recorded -- this step fixes the class, not just the one line",
+              "no credential value appears in any handoff artifact, commit message, or log line produced by this step",
+              "fresh Q/A PASS"
+            ],
+            "live_check": "live_check_62.1.2.md with the post-change crontab excerpt (credential absent), one successful checker run from the log, and the class-wide grep result"
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "62.1.3",
+          "name": "OPERATOR-ACTION steps carry MEASURED STATE blocks that silently go stale -- 79.15's block claims pid 83982 / 13 June / '42 days' while reality was pid 658 / 28 July / 9 days; add a re-measure discipline so nobody writes a live_check against a stale premise.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "depends_on_step": "62.1",
+          "audit_basis": "Found by the 62.1 research gate 2026-08-07 (handoff/current/research_brief_62.1.md section 10 item 3). .claude/masterplan.json step 79.15 embeds a 'MEASURED STATE 2026-07-25' block stating pid 83982, lstart 'lor. 13 jun. 07.46.26 2026', and '42 days' of unloaded code. Measured 2026-08-07 during cycle 179: pid was 658, lstart 2026-07-28 18:39, 9 days -- the machine had rebooted since. The block does carry a parenthetical 're-measure before acting; state drifts', which is exactly the right instinct, but nothing enforces it and the stale numbers read as current fact. RISK: an executor or operator who acts on the block without re-measuring writes a live_check containing numbers that were never true at capture time -- a fabricated measurement, the VERIFICATION_DEFECT class the live_check gate exists to prevent. THE FIX IS A DISCIPLINE, NOT A ONE-OFF EDIT: 79.15 is one instance; derive the full population of steps carrying embedded measured-state blocks (grep for 'MEASURED STATE' / 'MEASURED:' in the masterplan) and state the count, rather than fixing only the one this gate happened to surface. Candidate mechanisms: stamp each block with a measured_at and have the live_check gate warn when it is older than N days, or move volatile state out of step prose entirely and have the step name the COMMAND that produces it.",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import json,re;mp=json.load(open(\\\".claude/masterplan.json\\\"));s=json.dumps(mp);print(\\\"blocks:\\\", len(re.findall(r\\\"MEASURED STATE|MEASURED:\\\", s)))\"'",
+            "success_criteria": [
+              "the population of masterplan steps carrying embedded measured-state prose is DERIVED and reported as a count with the matching rule stated, not sampled",
+              "79.15's stale block specifically is corrected or removed, with the correct 2026-08-07 state (pid 658 -> restarted to 75468, lstart 2026-08-07 20:30:28) recorded",
+              "a mechanism exists that makes staleness VISIBLE rather than relying on a reader noticing a parenthetical -- either a measured_at stamp the live_check gate can warn on, or the block replaced by the command that regenerates it; whichever is chosen, a test or hook proves it fires on a deliberately-stale fixture",
+              "no immutable verification criteria are edited on any step touched",
+              "fresh Q/A PASS"
+            ],
+            "live_check": "live_check_62.1.3.md showing the derived population count and the staleness mechanism firing on a deliberately-stale fixture"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     },

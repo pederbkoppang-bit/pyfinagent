@@ -74,7 +74,7 @@
 - [Market-calendar gating 50.4](project_market_calendar_gating.md) — LATENT BUG markets.is_trading_day:149 uses cal.days (gone in xcals 4.13.2) ⇒ always True; use cal.is_session
 - [Benchmark/FX change site 50.5](project_multimarket_benchmark_fx_changesite.md) — benchmark return+alpha live in analytics.py + api/backtest.py, NOT backtest_engine.py
 - [Sector-neutral wiring 51.2](project_sector_neutral_wiring.md) — wired but NO-OP: screen_universe omits sector_lookup ⇒ all _UNKNOWN_ ⇒ identity; prefer a SOFT tilt
-- [Slack digest calendar guard 51.3](project_slack_digest_calendar_guard.md) — gate at scheduler.py:319/:345 before try:; half-day is_session=True; slack-bot has NO launchd label ⇒ pkill
+- [Slack digest calendar guard 51.3](project_slack_digest_calendar_guard.md) — half-day is_session=True; digests fire 14:00/23:00 CEST + log "digest sent"; digest_test.py POSTS (not a dry run); restart = kickstart -k, pkill is hook-BLOCKED (the old "NO launchd label ⇒ pkill" line was false since 2026-06-12)
 - [Cron maintenance jobs 51.4/62.6](project_cron_maintenance_jobs.md) — autoresearch preflight-skip LIVE; ablation exit=1 is STALE; scripts/autoresearch != backend/autoresearch
 - [52wh-tilt live wiring 52.2](project_52wh_tilt_live_wiring.md) — insert the gated post-pass at screener.py:473; byte-identity = flag-absent==flag-False; default-OFF dark launch
 - [Data-quality gate 50.5](project_multimarket_dataquality_gate.md) — yfinance intl 11%-dev/identical-OHLC defect; NO shared cleaning point ⇒ guard 3 doors; two-tier FLAG/DROP
