@@ -1,5 +1,12 @@
 # Researcher Agent Memory Index
 
+- [Auth latch 85.3](project_auth_latch_85_3.md) — the clear path EXISTED but was unreachable via if/elif ordering (2nd `cleared_at` writer at healthcheck.sh:164); recovery probe gated on `probe_rc==0` while a HEALTHY credential exits 1/124; "every record ok:false" was 34/509 wrong across a rotation gap
+
+- [Credential-free CI lane 85.2](project_credential_free_ci_lane_85_2.md) — step named 1 of 2 blockers (slack-bolt 1.30.0 dropped the `[async]` extra, pip WARNS + exits 0); clearing collection still leaves 46 red; pydantic defaults are the LOWEST-precedence source so prod is byte-identical; tracked kill_switch_audit.jsonl couples CI to committed operator state
+
+- [Rail fail-forward 72.0.2](project_rail_failforward_72_0_2.md) — BOTH premises refuted: cited seam range is BatchClient (make_client is :2044), and the lite path that emits the HOLD bypasses make_client entirely (:2478 builds anthropic.Anthropic direct); rail-dead never raises; Vertex leg has a None-trap
+- [Decision-input integrity 61.2](project_decision_input_integrity_61_2.md) — the "stale P0" was ALREADY BUILT + dark (6186784c) and HAS 6 immutable criteria; 72.0.1's premise died at 78.1; phase-36.13's live-kill-switch gate turned 61.2's tests red; BQ proved 142/156 rows fabricated AND company_name already fixed
+
 - [Gate feasibility 83.1.1](project_gate_feasibility_83_1_1.md) — V measured 20x apart on two windows (0.0082 vs 0.1679) so required-SR swings 0.69→2.07 and flips the verdict; PBO not DSR is the binding gate (measured noise 0.20-0.65, edge 0.30-0.81 -- no edge seed clears the 0.20 ceiling; corrected 2026-08-07); `max(N,2)` collapses N=1; a WebFetch PDF summary FABRICATED the opposite of the paper
 - [Phase-83 design pack 83.1](project_phase83_design_pack_83_1.md) — a naive `*83*` glob is a criteria-killer (71 of 438 result files already match, all older); mtime guards have ZERO prior art + git resets mtimes; `backtest_engine.py:665` is the WRONG purge anchor (real: :962); `coverage.dry` was never recorded
 - [PBO MCP proof 83.0.3](project_pbo_mcp_proof_83_0_3.md) — fix ALREADY shipped (proof step, not fix step); FastMCP 3.2.4 tools are closures (`get_tool().fn`; `_tool_manager` is None); payload `isError` != protocol `is_error`; near-identical columns give a HIGH PBO

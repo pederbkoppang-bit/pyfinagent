@@ -1,0 +1,80 @@
+{
+  "summary": "Layer-3 Q/A EVALUATE as a structured-output task -- the verdict IS the captured return value (immune to the Agent-tool end-flush stall). Reads .claude/agents/qa.md from disk at runtime as the single source of truth.",
+  "agentCount": 1,
+  "logs": [],
+  "result": {
+    "ok": false,
+    "verdict": "CONDITIONAL",
+    "reason": "All 9 immutable criteria MET and harness compliance clean; the product code and tests are genuinely sound (my independent 15-mutant matrix killed 14, reproducing the author's m1->6-failed and m2->1-failed exactly, and the live-corpora census reproduces byte-for-byte). CONDITIONAL, not PASS, for two clearable defects: (B1) this step's own m5 write-mutant leaked three 1-byte audit_marker.tmp files into ALL THREE live memory corpora at 17:02:47 (test_c6_real_corpora_structural runs against the REAL corpora with no tmp_path isolation), they are still on disk, and experiment_results_84.1.md:40 asserts the contrary via a `git status` citation that cannot see the main-corpus marker at all -- a claim that does not reproduce, plus imminent junk-commit exposure via the auto-commit hook's `git add -A`; (B2) criterion 1's named \"folds letter case\" leg has no guard -- deleting `.casefold()` leaves all 15 tests green (verified equivalent on today's data: 0 of 406 live links contain an uppercase char, so coverage gap, not functional bug).",
+    "violated_criteria": [
+      "Contradiction: experiment_results scope-honesty disclosure (criterion 9 area) does not reproduce",
+      "Missing_Assumption: criterion-1 case-folding leg has no failing guard"
+    ],
+    "violation_details": [
+      {
+        "violation_type": "Contradiction",
+        "action": "git status --short over the three memory corpora + stat on all non-.md corpus files + scratchpad reproduction of an m5-shaped write-mutant",
+        "state": "audit_marker.tmp (1 byte, content 'x') exists in ALL THREE live corpora -- ~/.claude/projects/-Users-ford--openclaw-workspace-pyfinagent/memory/, .claude/agent-memory/qa/, .claude/agent-memory/researcher/ -- all mtime 2026-08-07 17:02:47, i.e. ONE SECOND before audit_memory.py's final mtime 17:02:48, inside the mutation window. 'audit_marker' appears nowhere in repo source (grep over *.py/*.md/*.sh = 0 hits); the markers exist in exactly the three directories test_c6_real_corpora_structural iterates and nowhere else; mechanism reproduced in the scratchpad (a write-mutant auditor creates audit_marker.tmp in whatever --dir it is given). Meanwhile experiment_results_84.1.md:40 states: 'ZERO memory files were modified/created/deleted by this step (tooling + tests only; `git status` over the three corpus dirs shows only pre-existing drift by other agents sessions today)'. git status --short in fact shows '?? .claude/agent-memory/qa/audit_marker.tmp' and '?? .claude/agent-memory/researcher/audit_marker.tmp' -- this step's residue, NOT other agents' drift -- and the third marker lies outside git entirely, so the cited command structurally cannot support the claim it is offered for.",
+        "constraint": "qa.md 4b claim auditing: every scope/set-membership claim must reproduce under the command that produces it; a claim whose output does not reproduce is a Contradiction. NOTE: I do NOT score this as a criterion-9 miss -- C9's subject is 'memory file' and a 1-byte .tmp is not one (the auditor globs *.md only); 205 .md files scanned, none authored by this step. Consequence that makes it blocking anyway: the auto-commit hook runs `git add -A`, so the next status flip commits two junk files into the repo under this step's name. FIX: delete the three markers, correct the disclosure sentence, and deselect test_c6 when running write-mutants (-k 'not real_corpora')."
+      },
+      {
+        "violation_type": "Missing_Assumption",
+        "action": "Independent mutant X4: 's = s.strip().casefold().replace(\"-\", \"_\")' -> 's = s.strip().replace(\"-\", \"_\")' in audit_memory.py::_norm, then full suite",
+        "state": "X4 SURVIVED: 15 passed. No fixture in test_phase_84_1_memory_link_resolution.py exercises case folding. Behavioural differential run before calling it a defect: derived over all three live corpora, links containing an uppercase character = 0, links whose resolution REQUIRES casefold = 0 -- an equivalent mutant on today's data with zero live impact. Contrast: the other two normalization legs ARE guarded -- X3 (drop the '-'->'_' fold) killed by 6 tests, X1 (drop prefix-stripping) killed by 3 tests, X2 (drop the frontmatter alias) killed by 1.",
+        "constraint": "Criterion 1 names three normalization legs: 'folds letter case, treats - and _ as equivalent, and optionally strips one leading type prefix'. qa.md 4c: a guard that cannot fail when its subject is broken does not count -- the case-folding leg has no such guard. WARN-level (a genuine behavioral guard coexists for the criterion as a whole; tooling, not money-path). FIX: one fixture with a case-differing link, e.g. [[Feedback-Beta]] -> feedback_beta.md."
+      }
+    ],
+    "certified_fallback": false,
+    "checks_run": [
+      "harness_compliance_audit_5_item",
+      "immutable_verification_command",
+      "python_lint_gate_ruff_F821_F401_F811_derived_scope",
+      "syntax_ast_parse",
+      "unintended_production_change_scan",
+      "independent_mutation_matrix_15_mutants",
+      "mutant_behavioural_differential",
+      "fixture_confound_isolation_test",
+      "live_corpora_claim_reproduction",
+      "artifact_claim_auditing",
+      "guard_vacuity_check",
+      "contract_completeness_mapping",
+      "3rd_conditional_check",
+      "code_review_heuristics",
+      "research_gate_envelope_check",
+      "repo_tree_integrity_md5"
+    ],
+    "harness_compliance_ok": true,
+    "notes": "HARNESS COMPLIANCE (5/5 clean): research_brief_84.1.md 16:48:10 < contract_84.1.md 17:00:47 < audit_memory.py 17:02:48 / test file 17:03:00 < experiment_results_84.1.md 17:03:41; gate_passed:true with 9 sources read in full (>=5), 35 URLs (>=10), recency scan performed; experiment_results present; log-last honoured (0 `phase=84.1` entries in harness_log.md, masterplan status still `pending`) -- note the naive grep `84.1` false-matches an unrelated 'RSI 84.1' line, so I used the escaped form per prior lesson; cycle 1, no prior verdicts, so no verdict-shopping and the 3rd-CONDITIONAL rule does not fire (0 prior CONDITIONALs).\n\nCRITERION MAP (all 9 MET): C1 MET -- _norm():77-82 + _index_corpus():95-112 index both _norm(stem) and _norm(frontmatter name); guarded by X1/X2/X3 kills (see B2 for the casefold leg). C2 MET -- ordered ladder :143-179 with `continue` after each class so exactly one class per link; cross-corpus line embeds {s_root} :175-176 (X6 omitting the directory was KILLED by test_c5_cross_corpus_match; X15 removing cross lookup KILLED by 2). The AMBIGUOUS line (contract D4) is a rendering variant, not a fourth class -- census still increments normalized/cross, verified at :151/:169. C3 MET-as-interpreted (see N2). C4 MET -- _run():38-45 is exactly subprocess.run([sys.executable, AUDITOR, '--dir', str(corpus)]) and every test asserts .returncode. C5 MET -- all six cases present at :51/:63/:74/:84/:96/:105 (see N1). C6 MET and proven non-vacuous -- X9 (header text changed) and X10 (auditor raises) both KILLED by test_c6_real_corpora_structural. C7 MET and independently reproduced -- X5 (whole fold dropped, exact-only) -> 6 failed including 2 NAMED C5 cases (test_c5_hyphen_underscore_same_directory, test_c5_cross_corpus_match) with test_c5_exact_same_directory_match GREEN, matching the criterion's exact requirement; X2 (alias dropped) -> exactly 1 failed (test_c5_frontmatter_name_alias). Both reproduce the author's m1/m2 counts exactly. C8 MET and doubly proven -- X11 (auditor writes) KILLED and X12 (auditor touches mtime only, bytes unchanged) KILLED, so the st_mtime_ns leg is independently live, not just the bytes leg. C9 MET on its literal subject (no .md memory file authored by this step) -- see B1 for the .tmp residue and N3 for the ambient hook.\n\nN1 [NOTE -- mis-attributed kill mechanism, qa.md 4c vacuity shape #11]: test_c5_leading_type_prefix_match, the fixture NAMED for criterion 5's 'differing only by a leading type prefix' case, still PASSES when prefix-stripping is removed (verified by execution: rc=0). It sets name='beta-thing' on the target, so it resolves via the alias path and duplicates test_c5_frontmatter_name_alias in mechanism. NOT a coverage hole -- X1 (drop prefix-strip) is KILLED by test_c3_direction_a_findings_alone_pass, test_c5_cross_corpus_match and test_d4_ambiguous_link_reports_all_candidates_and_passes. Named fix VERIFIED by execution: drop the `name=\"beta-thing\"` kwarg at test file :77 -- the fixture then goes RED under prefix-strip removal (rc=1, 1 failed).\n\nN2 [NOTE -- disclosed criterion-3 interpretation, accepted]: DANGLING POINTER and MALFORMED FRONTMATTER keep failing, which a literal 'if and only if' reading of criterion 3 would forbid. I accept it: the criterion names neither class, the literal reading would DISARM the founding 2026-07-26 check the tool exists for, every criterion-3 fixture carries zero of both so BOTH readings agree on expected exit, and the dangling check has its own regression test (test_d5_dangling_pointer_still_exits_1). The author surfaced this prominently in contract D5, experiment_results and the module docstring rather than absorbing it silently -- that is the correct behaviour. Flagged only so the operator sees the deviation from criterion wording.\n\nN3 [NOTE -- ambient, not scored]: masterplan_state.md (main corpus) has an in-window mtime 17:03:41, the same second as the experiment_results Write. Mechanism: the PostToolUse masterplan-memory-sync.sh hook is registered on matcher `Write`/`Edit` (NOT scoped to masterplan.json despite its header comment, settings.json:80/:106), so writing the harness-mandated handoff file regenerates it. Content-neutral (no masterplan change this cycle) and unavoidable for ANY step that writes a handoff file. I do NOT score it against C9 -- but note that C9 as literally worded is unsatisfiable by any step in this repo.\n\nN4 [NOTE]: `except Exception: fm = None` at audit_memory.py:106 is a broad except, but deliberate, documented (yaml-hostile frontmatter; crashing on the live corpus is worse than a mis-file) and in non-risk-path housekeeping tooling -- not the broad-except-silences-risk-guard BLOCK class. Code-review heuristics otherwise clean: no secrets, no trading-domain paths, no LLM-to-execution path, subprocess used only in tests with list args and shell=False.\n\nUNINTENDED-CHANGE SCAN: the only production file changed is scripts/housekeeping/audit_memory.py (in scope). Everything else in `git diff --name-only HEAD` is hook/daemon append-only telemetry (handoff/audit/*.jsonl, handoff/kill_switch_audit.jsonl, handoff/away_ops/health.jsonl, .claude/.archive-baseline.json) or corpus drift by other agents' sessions (qa/MEMORY.md +2 lines citing phase-85.3 QA lessons, researcher/MEMORY.md +7). Confirmed pre-existing, not this step's writes.\n\nMETHOD DISCLOSURE: all mutation work was done on scratchpad COPIES of the auditor and the test file (never the repo tree); repo integrity re-verified after the matrix (audit_memory.py md5 70052207c9e95e174b71ab03792d5577 = pre-mutation hash, immutable command re-run green). Two self-corrections worth recording: (i) my first live-corpora measurement was contaminated because the scratchpad copy derives _REPO from __file__, so its sibling defaults pointed at a non-existent tree and turned main's 1 cross-corpus into a 4th unresolvable -- re-measured with the real script, at which point all three corpora reproduced the artifact exactly; (ii) my first confound driver ran under system python3 (no pytest) and returned uninterpretable rc=1, re-run under .venv/bin/python. This Q/A is READ-ONLY: I did not delete the three audit_marker.tmp files -- Main owns that cleanup."
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "QA"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "qa-verdict:84.1",
+      "phaseIndex": 1,
+      "phaseTitle": "QA",
+      "agentId": "a7a16902bc0fe0700",
+      "agentType": "qa",
+      "model": "claude-opus-5[1m]",
+      "state": "done",
+      "startedAt": 1786115049161,
+      "queuedAt": 1786115049152,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "CONDITIONAL",
+      "promptPreview": "You are the pyfinagent Layer-3 Q/A evaluator (merged qa-evaluator + harness-verifier) for masterplan step 84.1, EVALUATE phase.\n\nSTEP 0 (binding): Read .claude/agents/qa.md IN FULL and follow it as your operating instructions -- it is the\nsingle source of truth for the Q/A role (verification order, the deterministic-first discipline, the lint +\nruntime-smoke gates, the output schema, the no-auto-P…",
+      "lastProgressAt": 1786115657989,
+      "tokens": 154804,
+      "toolCalls": 36,
+      "durationMs": 608827,
+      "resultPreview": "{\"ok\":false,\"verdict\":\"CONDITIONAL\",\"reason\":\"All 9 immutable criteria MET and harness compliance clean; the product code and tests are genuinely sound (my independent 15-mutant matrix killed 14, reproducing the author's m1->6-failed and m2->1-failed exactly, and the live-corpora census reproduces byte-for-byte). CONDITIONAL, not PASS, for two clearable defects: (B1) this step's own m5 write-mutan…"
+    }
+  ],
+  "totalTokens": 154804,
+  "totalToolCalls": 36
+}
