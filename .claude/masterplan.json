@@ -23736,6 +23736,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "85.4",
+          "name": "P0 ENGINE HEALTH: the autonomous cycle has not COMPLETED since 2026-07-31 -- four consecutive non-completions, no trade in 7 days, stale-data P1 alarms firing. Root-cause the timeout and make a non-completing cycle impossible to miss.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "audit_basis": "Discovered 2026-08-07 cycle 179/180 while checking for in-flight work before a backend restart (the check itself is the lesson: handoff/.autonomous_loop.lock, not the status endpoint's last_result, is what tells you a cycle is live). MEASURED FROM handoff/cycle_history.jsonl (155 rows; RE-DERIVE, do not trust these numbers): all-time terminal statuses completed=74 timeout=12 error=2, but since 2026-07-20 it is completed=10 timeout=3, and the LAST COMPLETED CYCLE IS 2026-07-31T18:00:00 (also the last cycle with n_trades>0, 1 trade). 2026-08-04 timeout, 2026-08-05 started/running with NO terminal row, 2026-08-06 timeout, 2026-08-07 in flight at 60min when observed. CORROBORATING LIVE SIGNALS (Slack #ford-approvals C0ANTGNNK8D, read-only): [P1] paper_trades last_tick_age_sec=604309 (6.99d) band=red; [P1] paper_portfolio_snapshots last_tick_age_sec=239968 (2.78d) band=red -- both consistent with cycles dying BEFORE the snapshot/mark steps. The 2026-08-06 failure recorded error='cycle exceeded 7200s' with steps=['screening','analyzing'], and the 2026-08-07 run was still in 'analyzing' (per-ticker orchestrator agents on the cc_rail, 1069 claude_code_invoke lines) an hour in -- so the hang is in the ANALYSIS phase, not screening. NOT CAUSED BY THE KILL SWITCH: it was paused manually 2026-08-07T13:43Z, which postdates the 08-04 and 08-06 timeouts. WHY THIS IS P0: a cycle that never completes writes no mark, no snapshot and no trade, so the book silently stops working while every dashboard still renders yesterday's numbers -- the failure is invisible unless someone reads cycle_history.jsonl. SCOPE WARNING: do NOT 'fix' this by raising the 7200s timeout until the analysis-phase cost is measured; a longer timeout on a genuinely-hung cycle just moves the silence.",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import json,collections;rows=[json.loads(l) for l in open(\\\"handoff/cycle_history.jsonl\\\") if l.strip()];term=[r for r in rows if r.get(\\\"status\\\") in (\\\"completed\\\",\\\"timeout\\\",\\\"error\\\")];print(collections.Counter(r[\\\"status\\\"] for r in term[-10:]))\"'",
+            "success_criteria": [
+              "the analysis-phase duration is MEASURED per cycle (tickers analysed x per-ticker wall-clock, from the orchestrator's own logs) and the timeout is judged against that measurement -- the step states whether 7200s is too short for the current ticker count or whether the phase genuinely hangs, with the evidence either way",
+              "the root cause of the non-completion is identified to file:line with a reproduction, distinguishing (a) legitimate slowness vs (b) a hang/deadlock vs (c) an unhandled per-ticker failure that stalls the gather",
+              "a non-completing cycle becomes LOUD: a terminal row is always written to cycle_history.jsonl (including on timeout/crash) AND an alert fires naming the phase it died in -- proven by a fault-injected cycle that dies mid-analysis, not by inspection",
+              "the last-completed-cycle age is exposed as a health signal the existing watchdog can page on, so 'no completed cycle in N days' cannot again be discoverable only by hand-reading a jsonl",
+              "no change to order/sizing/risk logic; any behavioural change is flag-gated dark and the flag is NOT promoted by this step",
+              "fresh Q/A PASS"
+            ],
+            "live_check": "live_check_85.4.md with the re-derived cycle_history terminal-status counts, the measured analysis-phase duration, the fault-injected proof that a mid-analysis death produces both a terminal row and an alert, and a BQ read showing whether paper_portfolio_snapshots resumed"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
