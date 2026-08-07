@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `5d44abdb` | fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross-link the malformed-token suspe |
 | 2026-08-07 | `df12eb48` | fix(85.4): file P0 -- the autonomous cycle has not COMPLETED since 2026-07-31 |
 | 2026-08-07 | `df24fdc2` | phase-68.1: make EXECUTION_BACKEND reachable and its provenance visible (DARK; live_check held on an |
 | 2026-08-07 | `1ab0b59b` | phase-62.1: restart the Slack bot onto current code (research gate + contract; digest evidence pendi |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `946b760f` | phase-83.0.3: DEFECT (own step per standing rule), BLOCKS THE EVIDENCE PATH FOR 83.5: the exposed... |
 | 2026-08-07 | `06911cb5` | phase-83.0: DEFECT (own step per standing rule), BLOCKS ALL OF phase-83: news influences live tra... |
 | 2026-08-07 | `cb4b3c52` | chore(82.23): close as superseded by 82.27 -- bookkeeping flip, code shipped under e5bb9f25 |
-| 2026-08-06 | `2858bc7b` | docs(82.6): design the registry-to-live selection bridge -- and refute the step |
 
 ---
 
+### v6.85.5 — fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross... (2026-08-07)
+
+- **fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross-link the malformed-token suspe**
 ### v6.85.4 — fix(85.4): file P0 -- the autonomous cycle has not COMPLETED since 20... (2026-08-07)
 
 - **fix(85.4): file P0 -- the autonomous cycle has not COMPLETED since 2026-07-31**
