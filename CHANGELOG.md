@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-07 | `c6c25b9f` | phase-61.2: decision-input integrity -- evidence cycle (CONDITIONAL #2, deferred on promotion ask #1 |
 | 2026-08-07 | `9d8ae48a` | phase-83.1.1: THE GO/NO-GO: measure the gate arithmetic BEFORE building anything, using the repo'... |
 | 2026-08-07 | `2e1fb9ca` | phase-83.1: Design pack and pre-registration for the market-news thematic engine, written up from... |
 | 2026-08-07 | `95dabea9` | phase-83.0.1: DEFECT (own step per standing rule): the news ingest path silently fabricates times... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-06 | `bb41eb96` | fix(82.48): repair the outcome write -- it emitted a schema that never existed |
 | 2026-08-06 | `785f5b0d` | refactor(82.46): decide the optimizer trial pool -- step NOT closed, Q/A returned FAIL |
 | 2026-08-06 | `992238b5` | chore(masterplan): queue phase-4000 Max-rail E2E smoke steps (4000.1-4000.5) + record 79.55 RAIL TIE |
-| 2026-08-06 | `e9a38f15` | chore: ignore cwd-derived .claude forks; fix stale PBO figure in researcher recipe |
 
 ---
 
+### v6.84.3 — phase-61.2: decision-input integrity -- evidence cycle (CONDITIONAL #... (2026-08-07)
+
+- **phase-61.2: decision-input integrity -- evidence cycle (CONDITIONAL #2, deferred on promotion ask #1**
 ### v6.84.2 — phase-83.1.1: THE GO/NO-GO: measure the gate arithmetic BEFORE buildi... (2026-08-07)
 
 - **phase-83.1.1: THE GO/NO-GO: measure the gate arithmetic BEFORE building anything, using the repo'...**
