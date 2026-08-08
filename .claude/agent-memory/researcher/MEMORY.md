@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Cycle never completes 85.4](project_cycle_never_completes_85_4.md) — BOTH premises refuted (terminal rows DO exist; the P1 pages were `delivered=True` all 3 days — it was alert FATIGUE at ~24 hourly freshness P1s); real gap = heartbeat alarm skips only `started` so a timeout row resets age to 0; success max 145s vs a 150s cap ⇒ 26% truncation waste; kill switch latched PAUSED since 08-04
 - [cycle_lock split-brain 85.5](project_cycle_lock_split_brain_85_5.md) — a THIRD defect (unlink at :153 BEFORE LOCK_UN at :157) double-acquires on the NORMAL release path; `-k "cycle_lock or 85_5"` misses the 8-test 38.6 suite and matches a false-friend parametrize id; macOS `spawn` sends a child test at the REAL lockfile; TTL source `settings.py:33` is runtime-mutable
 
 - [EXECUTION_BACKEND wiring 68.1](project_execution_backend_wiring_68_1.md) — PKLIVE is FOLKLORE (Alpaca splits paper/live by DOMAIN, no key prefix); paper URL IS offline-assertable via `client._base_url`; restart MEASURED 2.455s + watchdog can't trip, but 23:00 CEST digest P1-pages on conn-refused; `kickstart -k` does NOT re-read plist edits; settings.py:222 "Execution Mode" is a Celery false-friend
