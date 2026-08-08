@@ -23782,8 +23782,8 @@
         },
         {
           "id": "85.5.1",
-          "name": "P1 BOOK SAFETY: a kill-switch test asserting that a real 20% breach still fires is RED -- the daily-anchor staleness guard disarms the switch when sod_date is absent. Determine whether production can reach that state.",
-          "status": "pending",
+          "name": "P1 BOOK SAFETY: a kill-switch test asserting that a real 20% breach still fires is RED -- the daily-anchor staleness guard disarms the switch when sod_date is absent. Determine whether production can reach that state. CLOSED cycle 185 (2026-08-09): the GUARD was never broken -- the FIXTURE was. The 2-key mock omitted sod_date, so evaluate_breach was handed a state whose daily leg is provably unevaluable and then asserted it fires. Production CAN reach a None/stale anchor (the UTC rollover, every day, no fault required), exposure bounded to [4%,10%) because the trailing leg is date-independent. 15 passed / 0 failed, no assertion weakened, no production file changed. Four defects queued as 86.1-86.4.",
+          "status": "done",
           "harness_required": true,
           "priority": "P1",
           "audit_basis": "Discovered 2026-08-08 (cycle 181) while establishing a regression baseline for 85.5; NOT caused by that step -- proven by running the test in a detached worktree at cf4d22d8 with backend/.env symlinked, where it fails identically. MEASURED, RE-DERIVE ALL OF IT: (1) `backend/tests/test_book_safety_69.py::test_valid_nav_still_breaches` fails at HEAD; the file is 1 failed / 13 passed. (2) The failure is not an assertion mismatch but a DISARM: `kill_switch DISARMED: daily anchor STALE (sod_nav=100.0 sod_date=None peak_nav=100.0) -- an unevaluable leg cannot fire`, emitted from backend/services/kill_switch.py:~927. (3) The guard originates in phase-36.9 (commit 1657e25a, 'armed:true must mean the leg can actually fire NOW'); the test originates in phase-69.1 (commit 36e4c288). I did NOT determine when the test began failing -- measuring that is the first thing the executor should do, because 'a book-safety test that silently went red' and 'a test that was never green' are different problems. (4) The test monkeypatches `st.snapshot` to return only {'sod_nav': 100.0, 'peak_nav': 100.0}; the REAL `_snapshot_locked()` returns sod_date as well (kill_switch.py:444). There is exactly ONE snapshot mock in the entire backend/tests tree (test_book_safety_69.py:80) -- counted, not estimated. THE LOAD-BEARING QUESTION IS NOT THE MOCK: the surface reading is 'incomplete fixture, correct the mock'. Do not stop there. The guard disarms the kill switch whenever the daily anchor is absent or stale, so the question that decides the severity is whether `sod_date` can be None or stale in PRODUCTION -- for example at backend startup before the first daily anchor is written, or after a date rollover but before the anchor refreshes. If it can, then a real drawdown arriving in that window does not fire the kill switch, and this is a money-path defect wearing a test-fixture costume. If it provably cannot, the fix is the mock and the severity is low. Answer that question with a measurement before changing either side. WHAT WAS NOT DONE: nothing was changed; the failing test was left failing; no kill-switch state was touched and nothing was unpaused.",
@@ -23822,6 +23822,90 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "status": "pending",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "id": "86.1",
+          "priority": "P1",
+          "name": "P1 LIVE-STATE LANDMINE: test_peak_reset_dark_by_default calls reset_peak on the REAL kill-switch singleton, and is safe only because an operator flag is currently OFF.",
+          "audit_basis": "Found by the phase-85.5.1 research gate 2026-08-09, RE-DERIVE ALL OF IT. backend/tests/test_book_safety_69.py:86-92 calls st.reset_peak(12345.0, trigger='flatten') on ks.get_state() -- the REAL module singleton -- with NO _AUDIT_PATH redirect. It passes today ONLY because settings.kill_switch_peak_reset_enabled is measured False, so reset_peak returns None at kill_switch.py:~694 BEFORE taking the lock or appending a row. THE DAY THE KS-PEAK-RESET OPERATOR TOKEN IS APPROVED (an owed decision, see the ask list), this test writes a real peak_reset row into handoff/kill_switch_audit.jsonl and drops the LIVE trailing high-water mark from ~24666 to 12345 -- and peak_reset is in _BASELINE_EVENTS (kill_switch.py:709), so it is replayed on every boot and is authoritative. A lower peak means the trailing-DD leg fires LATER: a real loosening of the switch, introduced by running the test suite. This is a latent defect armed by an unrelated operator decision, which is why it must be fixed BEFORE that token is granted. ALSO IN SCOPE (a PASS-with-flag the 85.5.1 pass-2 Q/A deliberately deferred to 'the next touch of that file'): the docstring at backend/tests/test_book_safety_69.py:~99 still says the old mock 'already omitted three' keys; _snapshot_locked returns NINE keys so it omitted SEVEN. Correct it while you are in the file.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_book_safety_69.py -q --timeout=120'",
+            "success_criteria": [
+              "the test no longer touches the real singleton: it redirects _AUDIT_PATH (and _audit_archive_dir) to tmp BEFORE constructing state, and a precondition asserts _audit_source_paths() contains no live file",
+              "a MUTATION proves it: force kill_switch_peak_reset_enabled True in the test's own settings and show that the pre-fix form WOULD have written a peak_reset row to the live journal while the fixed form writes only to tmp -- demonstrated, not argued",
+              "the live handoff/kill_switch_audit.jsonl is byte-identical before and after the whole file runs, asserted by the test run itself rather than checked by hand",
+              "the stale 'omitted three' docstring figure is corrected to seven",
+              "no assertion is weakened and no other test changes status; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_86.1.md with the before/after line count and sha256 of handoff/kill_switch_audit.jsonl across a full run of test_book_safety_69.py, plus the verbatim mutation transcript showing the pre-fix form writing a peak_reset row under a forced-ON flag"
+          }
+        },
+        {
+          "status": "pending",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "id": "86.2",
+          "priority": "P1",
+          "name": "P1 TOTAL DISARM: one oversized JSON int aborts the entire kill-switch audit replay and strands BOTH protective legs.",
+          "audit_basis": "MEASURED 2026-08-09 by scripts/diagnostics/measure_sod_date_reachability.py (case E), RE-DERIVE IT. kill_switch.py:~131 _coerce_nav catches only (TypeError, ValueError). A JSON integer too large for a float raises OverflowError, which is NOT caught there and is swallowed by the broad handler at :~394 -- so _load_from_audit aborts and EVERY ROW AFTER the malformed one is never applied. Observed log line: 'kill_switch: audit load failed: int too large to convert to float'. Verbatim measured result with the malformed row FIRST: sod_nav=None sod_date=None peak_nav=None, armed=False, daily_loss_breached=False, trailing_dd_breached=False, any_breached=FALSE on a 20% drawdown. This is the ONLY measured path to a TOTAL disarm -- every other reachable degraded state leaves the date-independent trailing leg firing, which is what bounds 85.5.1's exposure to [4%,10%). Here nothing fires and only the phase-36.13 BUY gate remains. NOTE THE ORDERING SUBTLETY, it cost the 85.5.1 author a wrong claim: with the malformed row LAST the earlier rows have already applied and nothing is stranded, so a reproduction MUST place it first in ts order.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python scripts/diagnostics/measure_sod_date_reachability.py'",
+            "success_criteria": [
+              "the failure mode is reproduced FIRST as a red test (malformed row first in ts order -> both legs stranded -> any_breached False on a real breach), so the fix has something to turn green",
+              "_coerce_nav no longer lets a malformed value abort the replay: a bad row is skipped and logged, and every WELL-FORMED row before AND after it still applies -- proven by a test with rows on both sides",
+              "the replay's fail-safe direction is stated and tested: whatever a malformed row does, it must never leave a leg reporting armed=True on a baseline it did not actually load",
+              "a mutation reverting the widened except makes the reproduction test fail again",
+              "no threshold changed, no leg re-armed on an unloadable baseline; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_86.2.md with the verbatim before/after output of measure_sod_date_reachability.py case E, and the verbatim mutation transcript"
+          }
+        },
+        {
+          "status": "pending",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "id": "86.3",
+          "priority": "P1",
+          "name": "P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full backend/tests run POSTs a real pause/resume cycle to localhost:8000, and worktree isolation does not contain it.",
+          "audit_basis": "MEASURED 2026-08-09 during phase-85.5.1's own criterion-5 baseline, and found by the pass-1 Q/A in the author's evidence -- RE-DERIVE IT. backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py:42 sets BACKEND_URL='http://localhost:8000' and runs a real pause->resume->pause cycle whenever a backend is listening. The author ran two full-suite arms in a DETACHED GIT WORKTREE and asserted isolation -- correctly, for files: all four polluting constants (kill_switch._AUDIT_PATH, cycle_health._HISTORY_PATH, cycle_health._HEARTBEAT_PATH, cycle_lock._LOCK_PATH) derive from Path(__file__).parents[N] and did relocate. BUT A TEST THAT REACHES THE BACKEND OVER TCP DOES NOT CARE WHERE ITS SOURCE FILE LIVES. Measured consequence: 8 rows appended to the LIVE handoff/kill_switch_audit.jsonl (54 -> 62), 4 pause/resume pairs at 2026-08-08T22:29:41-43Z and 22:36:59-22:37:01Z, one cluster per arm, each window ~1s. The operator's live ARMED book was paused four times by a test run. Damage was bounded -- all 8 rows are pause/resume with trigger=manual, and _BASELINE_EVENTS (kill_switch.py:709) means those cannot move sod_nav/sod_date/peak_nav -- but the audit trail is corrupted and the book was briefly halted. THIS IS THE FOURTH INSTANCE OF THE PHASE-36.28 CLASS FOUND IN ONE NIGHT AND THE MOST SERIOUS, because it MUTATES the safety switch rather than writing a log. ANY WIDENING OF 36.28 MUST COVER THE HTTP CHANNEL, NOT ONLY FILE PATHS -- coordinate with 36.28 rather than fixing the two in isolation.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py -q --timeout=120'",
+            "success_criteria": [
+              "running the whole backend/tests suite with a live backend listening appends ZERO rows to handoff/kill_switch_audit.jsonl -- measured as line count AND sha256 before/after, not asserted",
+              "the test still provides its original value (it exists to prove pause/resume does not deadlock) -- it must run against an isolated target (a test app / ephemeral port / injected client), not be deleted or blanket-skipped to obtain the zero",
+              "a mutation proves the guard bites: point the test back at the live URL and show the row count rising again",
+              "the fix is stated in terms of the CHANNEL, not the file: enumerate every test that reaches a live host and say which are now contained and which are not",
+              "no other test changes status vs a measured baseline; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_86.3.md with the line count and sha256 of handoff/kill_switch_audit.jsonl before and after a full backend/tests run with the backend up, plus the enumeration of live-host-reaching tests"
+          }
+        },
+        {
+          "status": "pending",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "id": "86.4",
+          "priority": "P3",
+          "name": "P3 UNBOUNDED BYPASS: nothing limits how long the daily-loss leg may sit disarmed, contrary to IEC 61511 Cl. 16.2.3.",
+          "audit_basis": "Found by the phase-85.5.1 research gate 2026-08-09. The kill switch's per-leg bypass is deliberate and correct (IEC 61511 selective bypass: bypass the single unevaluable channel, not the trip logic; kill_switch.py:774-785, per-leg gating :859/:865, OR at :876). What is MISSING is the other half the standard requires: Cl. 16.2.3 calls for associated operation limits INCLUDING DURATION on any bypass. Today the daily leg can sit disarmed indefinitely with no alarm escalation -- and phase-85.6 showed exactly that happening for days when the anchor could not roll. Note phase-85.6 narrowed the normal window (the Step-0 roll now re-anchors before screening), so this is about the RESIDUAL: how long may it stay bypassed before the operator is told, and what should happen then. SCOPE WARNING: do NOT implement this by re-arming an unevaluable leg -- that is the phase-36.9 F1 defect. The output is escalation/visibility, not silent re-arming.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_book_safety_69.py backend/tests/test_phase_36_9_kill_switch_armed_liveness.py -q --timeout=120'",
+            "success_criteria": [
+              "a maximum bypass duration is chosen and JUSTIFIED against the cycle cadence and the IEC 61511 Cl. 16.2.3 requirement, not picked round",
+              "exceeding it escalates to the operator (a P1 on the existing alerting path), and a test drives the escalation rather than inspecting the constant",
+              "the leg is NEVER silently re-armed on an unevaluable baseline -- a mutation that re-arms it must fail a test",
+              "the alarm is weekday/hours-aware enough not to cry wolf over a normal weekend, with the boundary asserted on both sides",
+              "no threshold changed; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_86.4.md with the verbatim alarm payload produced by a bypass that exceeds the limit, and the verbatim quiet result for one that does not"
+          }
         }
       ]
     }
