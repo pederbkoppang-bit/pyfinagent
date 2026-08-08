@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `c3e42edf` | fix(85.4): cycle-2 remediation of the Q/A CONDITIONAL |
 | 2026-08-08 | `e0287161` | feat(85.4): make a non-completing cycle loud and measure why it never completes |
 | 2026-08-08 | `e4b3bcba` | docs(goal): overnight unattended drain goal for 2026-08-08/09 |
 | 2026-08-08 | `a33ca231` | docs(goal): regenerate the drain goal after cycles 181-182 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `da98af6b` | test(cycle-lock): phase-85.5 strengthen two guards the mutation matrix caught |
 | 2026-08-08 | `1911499b` | fix(cycle-lock): phase-85.5 close the cycle-lock split-brain (P0 SAFETY) |
 | 2026-08-08 | `f576b834` | fix(hooks): serialize auto-commit across concurrent Claude sessions |
-| 2026-08-08 | `bf0e2b6c` | docs(harness): install the 2026-08-08 drain goal -- the money engine leads |
 
 ---
 
+### v6.86.1 — fix(85.4): cycle-2 remediation of the Q/A CONDITIONAL (2026-08-08)
+
+- **fix(85.4): cycle-2 remediation of the Q/A CONDITIONAL**
 ### v6.86.0 — feat(85.4): make a non-completing cycle loud and measure why it never... (2026-08-08)
 
 - **feat(85.4): make a non-completing cycle loud and measure why it never completes**
