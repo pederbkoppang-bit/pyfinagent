@@ -6,6 +6,7 @@ breach on a bad NAV), the Slack 'clear queue' pkill SIGKILL, and the lock strand
 Thresholds (4/10/8/30) are asserted byte-untouched via the constants + a real breach.
 """
 
+from datetime import datetime, timedelta, timezone
 import json
 import pathlib
 from unittest.mock import MagicMock
@@ -74,12 +75,111 @@ def test_current_nav_negative_no_phantom_breach():
     assert r["any_breached"] is False and r.get("nav_invalid") is True
 
 
-def test_valid_nav_still_breaches(monkeypatch):
-    # do-no-harm: the guard must NOT suppress a REAL breach on a valid NAV.
-    st = ks.get_state()
-    monkeypatch.setattr(st, "snapshot", lambda: {"sod_nav": 100.0, "peak_nav": 100.0})
+def test_valid_nav_still_breaches(monkeypatch, tmp_path):
+    """do-no-harm: the guard must NOT suppress a REAL breach on a valid NAV.
+
+    phase-85.5.1: this drove a MOCK of `st.snapshot` returning only
+    `{"sod_nav", "peak_nav"}`. The real `_snapshot_locked()` emits `sod_date`
+    (and, since phase-85.6, `sod_provisional`) as well, so the mock handed
+    `evaluate_breach` a state with `sod_date=None` -- which the phase-36.9
+    liveness guard correctly reads as an unevaluable daily leg and disarms. The
+    test was asserting that a leg fires while feeding it a state in which it
+    provably cannot. It was the FIXTURE that was wrong, not the guard.
+
+    Measured, not assumed -- `scripts/diagnostics/measure_sod_date_reachability.py`
+    walks every production path to a None/stale anchor and shows the guard behaving
+    correctly in each. The guard is deliberate selective bypass: the trailing leg
+    is date-independent and still fires, so `any_breached` was True even in the
+    old failing run. Only the daily leg was suppressed.
+
+    So the fix is entirely input-side: build a REAL `KillSwitchState` against a
+    redirected audit path -- the idiom at
+    `test_phase_36_9_kill_switch_armed_liveness.py:63-88` -- and anchor it TODAY.
+    A real state is drift-proof: it cannot omit a contract key the way a
+    hand-written dict can, and this one already omitted three.
+
+    NOT ONE ASSERTION IS WEAKENED. All four still demand a 20% drawdown against
+    both sod and peak produce daily True, trailing True, any True, no nav_invalid.
+    """
+    # Redirect BEFORE anything can append: `update_sod_nav` writes a real
+    # `sod_snapshot` row, and handoff/kill_switch_audit.jsonl is git-tracked LIVE
+    # safety state.
+    monkeypatch.setattr(ks, "_AUDIT_PATH", tmp_path / "kill_switch_audit.jsonl")
+    monkeypatch.setattr(ks, "_audit_archive_dir", lambda: tmp_path / "audit")
+    assert all(
+        str(pth).startswith(str(tmp_path)) for pth in ks._audit_source_paths()
+    ) or not ks._audit_source_paths(), "ISOLATION FAILED -- a live journal is in the replay"
+
+    st = ks.KillSwitchState()
+    monkeypatch.setattr(ks, "_state", st)
+    monkeypatch.setattr(ks, "_disarmed_logged", False)
+
+    # TODAY computed, never hardcoded -- a literal date would rot at midnight and
+    # start disarming the very leg this test exists to prove fires.
+    today = datetime.now(timezone.utc).date().isoformat()
+    st.update_sod_nav(100.0, date=today)
+    st.update_peak(100.0)
+
+    snap = st.snapshot()
+    assert snap["sod_nav"] == 100.0 and snap["sod_date"] == today, (
+        f"PRECONDITION: the anchor must be today's, else the daily leg is "
+        f"legitimately unevaluable and this test proves nothing -- {snap}"
+    )
+
     r = ks.evaluate_breach(80.0, 4.0, 10.0)  # 20% down vs sod AND peak
     assert r["daily_loss_breached"] is True and r["trailing_dd_breached"] is True
+    assert r["any_breached"] is True and not r.get("nav_invalid")
+
+
+def test_stale_anchor_disarms_the_daily_leg_but_the_trailing_leg_still_fires(
+    monkeypatch, tmp_path
+):
+    """phase-85.5.1: the OTHER half of the contract, and it was missing.
+
+    `test_valid_nav_still_breaches` proves the switch FIRES when it can evaluate.
+    Nothing in this file proved it correctly DISARMS when it cannot -- mutation
+    M4 (`_sod_date_is_stale` hardcoded to return False, i.e. the phase-36.9 F1
+    regression) survived the whole file. A suite that cannot tell a working
+    liveness guard from a disabled one is not a book-safety suite.
+
+    This pins the guard's designed behaviour, which the phase-85.5.1 research
+    gate identified as textbook IEC 61511 SELECTIVE BYPASS: bypass the single
+    unevaluable channel, never the whole trip logic, and make the bypass visible.
+    So on a stale anchor:
+
+      * the daily leg is suppressed  -- it genuinely cannot be evaluated
+      * `armed` is False             -- and says so, rather than claiming health
+      * the TRAILING leg still fires -- it is date-independent
+      * `any_breached` is still True -- the book is still protected
+
+    That last line is why the original RED failure was bounded: exposure was only
+    ever drawdowns in [daily_limit, trailing_limit).
+    """
+    monkeypatch.setattr(ks, "_AUDIT_PATH", tmp_path / "kill_switch_audit.jsonl")
+    monkeypatch.setattr(ks, "_audit_archive_dir", lambda: tmp_path / "audit")
+    st = ks.KillSwitchState()
+    monkeypatch.setattr(ks, "_state", st)
+    monkeypatch.setattr(ks, "_disarmed_logged", False)
+
+    yesterday = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
+    st.update_sod_nav(100.0, date=yesterday)
+    st.update_peak(100.0)
+    assert st.snapshot()["sod_date"] == yesterday, "PRECONDITION: anchor must be stale"
+
+    r = ks.evaluate_breach(80.0, 4.0, 10.0)      # 20% down vs BOTH baselines
+
+    assert r["daily_baseline_stale"] is True, (
+        "the guard failed to notice a stale anchor -- phase-36.9 F1 regression"
+    )
+    assert r["armed"] is False, "an unevaluable leg must not report itself armed"
+    assert r["daily_loss_breached"] is False, (
+        "the daily leg fired on an anchor it cannot evaluate"
+    )
+    # ...and the book is STILL protected, which is the whole point of bypassing
+    # one channel rather than the trip logic.
+    assert r["trailing_dd_breached"] is True, (
+        "SAFETY HOLE: the date-independent trailing leg stopped firing"
+    )
     assert r["any_breached"] is True and not r.get("nav_invalid")
 
 
