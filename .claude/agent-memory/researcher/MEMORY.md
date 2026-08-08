@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [cycle_lock split-brain 85.5](project_cycle_lock_split_brain_85_5.md) — a THIRD defect (unlink at :153 BEFORE LOCK_UN at :157) double-acquires on the NORMAL release path; `-k "cycle_lock or 85_5"` misses the 8-test 38.6 suite and matches a false-friend parametrize id; macOS `spawn` sends a child test at the REAL lockfile; TTL source `settings.py:33` is runtime-mutable
+
 - [EXECUTION_BACKEND wiring 68.1](project_execution_backend_wiring_68_1.md) — PKLIVE is FOLKLORE (Alpaca splits paper/live by DOMAIN, no key prefix); paper URL IS offline-assertable via `client._base_url`; restart MEASURED 2.455s + watchdog can't trip, but 23:00 CEST digest P1-pages on conn-refused; `kickstart -k` does NOT re-read plist edits; settings.py:222 "Execution Mode" is a Celery false-friend
 
 - [Auth latch 85.3](project_auth_latch_85_3.md) — the clear path EXISTED but was unreachable via if/elif ordering (2nd `cleared_at` writer at healthcheck.sh:164); recovery probe gated on `probe_rc==0` while a HEALTHY credential exits 1/124; "every record ok:false" was 34/509 wrong across a rotation gap
