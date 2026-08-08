@@ -706,3 +706,47 @@ does NOT start a masterplan step -- the next AM session resumes the calendar. Ex
 residual after this commit: a self-referential `pre_tool_use_audit.jsonl` line from the
 post-commit git calls plus the 0-byte `session_pm_20260807T200011Z.json` artifact -- both
 swept by the next session.
+
+## Recovery -- 2026-08-08 (AM)
+
+**What was found.** Wrapper selected the recovery prompt again
+(`session.log 2026-08-08T05:30:09Z [am] dirty tree detected (non-evidence paths)`).
+The 2026-08-07 PM recovery committed rc0 at 20:04, but the away-watchdog heartbeat +
+the two hook audit streams have appended continuously since (health.jsonl rows every
+~30 min through `2026-08-08T05:06:50Z`, all `ok:true`), so the tree re-dirtied -- the
+same continuous-append pattern every recovery sees, NOT crashed step work. Last
+committed step remains `df135cde phase-68.1 cycle-2 close` (already pushed). NOTE: the
+`metered_llm_usd_today=$99.0 gates_failed=['metered_budget']` line at
+`2026-08-07T13:44:11Z` is the `SENTINEL_TEST_METERED_USD` test-override preflight
+(warning string says so; it exited before sync/claude), NOT real spend -- today's AM
+sentinel read `metered_llm_usd_today=0.0 ok:true`. The PM sentinel's
+`rail_failures_today=31` is the known cc_rail/breaker symptom (66.1 threshold),
+recorded not over-claimed.
+
+**Classification (5 dirty paths, all benign -- no code, `.env`, masterplan, or
+trading-behavior file):**
+| Path | Disposition |
+|---|---|
+| `handoff/audit/instructions_loaded_audit.jsonl` (M, +3, 0 del) | append-only hook stream -> committed |
+| `handoff/audit/pre_tool_use_audit.jsonl` (M, +75, 0 del) | append-only hook stream -> committed |
+| `handoff/away_ops/health.jsonl` (M, +16, 0 del) | away-ops health stream, every row `ok:true` -> committed |
+| `handoff/autoresearch/2026-08-08-topic10-...retrieval-augme.md` (??) | nightly autoresearch memo (AUTORESEARCH-SPEND=RESUME, operator 2026-07-07); complete detailed_report, no code -> committed |
+| `handoff/away_ops/session_am_20260808T053009Z.json` (??, 0 B) | THIS session's own live output artifact (ts matches the 05:30:09 AM start) -> **left untracked** (committing an empty artifact re-dirties the next session; same call as every prior recovery) |
+
+**Classification verdict.** No category-(a) half-built step and no category-(b)
+unexpected/unattributable file -- every path is `handoff/` durable-state / audit /
+session-artifact. Nothing to revert; no `chore(away-wip)` checkpoint needed.
+`pending_tokens.json` NOT modified -- no new operator ask warranted.
+
+**What was done.** Staged the 4 benign paths (explicit pathspecs, NOT `git add -A`) +
+this note in one `chore(away-ops)` recovery commit, then pushed. **No git
+checkout/restore/stash** (rail 3). Main-only, no force-push, no history rewrite (rail 3).
+$0 metered -- git/cat/wc/grep only, LLM-free (rail 4). No `.env`/code/masterplan/
+trading-behavior touch (rails 2/6). launchctl untouched (rail 9). No subagents (recovery
+is Main-only). No `HALT-DEV` seen; no new `operator_tokens.jsonl` line.
+
+**What remains (regular cadence / operator, NOT recovery).** Tree is clean; this session
+does NOT start a masterplan step -- the next AM session resumes the calendar. Expected
+residual after this commit: a self-referential `pre_tool_use_audit.jsonl` line from the
+post-commit git calls plus the 0-byte `session_am_20260808T053009Z.json` artifact -- both
+swept by the next session.
