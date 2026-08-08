@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `8ca368da` | docs(85.5.1): pass-2 PASS + harness log cycle 185 |
 | 2026-08-09 | `ec84b380` | fix(85.5.1): correct a false live-state claim the Q/A caught |
 | 2026-08-09 | `8431aef8` | docs(85.5.1): experiment results + live_check |
 | 2026-08-09 | `ebc1e172` | fix(85.5.1): drive a real KillSwitchState instead of a 2-key mock |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `5826487d` | docs(85.4): EVALUATE pass 2 PASS, harness log, corrected lint counts |
 | 2026-08-08 | `c3e42edf` | fix(85.4): cycle-2 remediation of the Q/A CONDITIONAL |
 | 2026-08-08 | `e0287161` | feat(85.4): make a non-completing cycle loud and measure why it never completes |
-| 2026-08-08 | `e4b3bcba` | docs(goal): overnight unattended drain goal for 2026-08-08/09 |
 
 ---
 
