@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 LOOP = ROOT / "backend/services/autonomous_loop.py"
 TRADER = ROOT / "backend/services/paper_trader.py"
 API = ROOT / "backend/api/paper_trading.py"
+KS = ROOT / "backend/services/kill_switch.py"
 T = "backend/tests/test_phase_85_6_anchor_deadlock.py"
 
 MUTATIONS: list[tuple[str, Path, str, str, list[str]]] = [
@@ -89,10 +90,8 @@ MUTATIONS: list[tuple[str, Path, str, str, list[str]]] = [
     (
         "M6 the roller un-pauses / mutates the peak (scope creep into risk state)",
         TRADER,
-        "            self._sod_anchor_provisional = True\n            post = state.snapshot()",
-        "            self._sod_anchor_provisional = True\n"
-        "            state.update_peak(0.01)\n"
-        "            post = state.snapshot()",
+        "            post = state.snapshot()\n            rolled =",
+        "            state.update_peak(0.01)\n            post = state.snapshot()\n            rolled =",
         [
             f"{T}::test_c5_the_roller_changes_no_threshold_and_disarms_nothing",
             f"{T}::test_c1_the_roll_runs_before_screening_not_after_analysis",
@@ -124,16 +123,15 @@ MUTATIONS: list[tuple[str, Path, str, str, list[str]]] = [
     (
         "M10 the provisional anchor is never upgraded (Q/A pass-1 hazard restored)",
         TRADER,
-        "        elif self._sod_anchor_provisional and snap.get(\"sod_date\") == today:",
+        "        elif snap.get(\"sod_provisional\") and snap.get(\"sod_date\") == today:",
         "        elif False:",
         [f"{T}::test_c5_a_multi_session_stale_anchor_does_not_become_a_same_day_loss"],
     ),
     (
         "M11 Step 0 stops flagging its anchor provisional",
         TRADER,
-        "            self._sod_anchor_provisional = True\n"
-        "            post = state.snapshot()",
-        "            post = state.snapshot()",
+        "state.update_sod_nav(nav, date=today, provisional=True)",
+        "state.update_sod_nav(nav, date=today, provisional=False)",
         [
             f"{T}::test_c5_the_provisional_flag_is_set_by_step0_and_cleared_by_the_upgrade",
             f"{T}::test_c5_a_multi_session_stale_anchor_does_not_become_a_same_day_loss",
@@ -147,9 +145,26 @@ MUTATIONS: list[tuple[str, Path, str, str, list[str]]] = [
         ' or "anchor_already_current"),',
         [f"{T}::test_c5_a_same_day_noop_roll_does_not_flag_provisional"],
     ),
+    (
+        "M13 the provisional marker is not PERSISTED (pass-2 cross-cycle hazard)",
+        KS,
+        "            self._sod_provisional = bool(provisional)",
+        "            self._sod_provisional = False",
+        [
+            f"{T}::test_c5_the_provisional_marker_is_PERSISTED_by_the_real_state",
+            f"{T}::test_c5_the_provisional_marker_is_REPLAYED_after_a_restart",
+        ],
+    ),
+    (
+        "M14 the marker is not REPLAYED from the audit row (restart loses it)",
+        KS,
+        '                    self._sod_provisional = bool(row.get("provisional", False))',
+        "                    pass",
+        [f"{T}::test_c5_the_provisional_marker_is_REPLAYED_after_a_restart"],
+    ),
 ]
 
-ALL_FILES = {LOOP, TRADER, API, ROOT / T}
+ALL_FILES = {LOOP, TRADER, API, KS, ROOT / T}
 
 
 def run_tests(node_ids: list[str]) -> tuple[int, str]:

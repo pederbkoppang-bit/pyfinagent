@@ -159,6 +159,15 @@ class KillSwitchState:
     # in the snapshot contract.
     _baseline_provenance: Optional[str] = None
 
+    # phase-85.6 cycle-3: is the current start-of-day anchor PROVISIONAL -- written
+    # by the cycle's Step-0 roll from the last stored mark, which may be several
+    # sessions old? CLASS-LEVEL for exactly the reason stated above: fixtures build
+    # detached states via `object.__new__`, and an instance-only attribute
+    # AttributeErrors inside `_snapshot_locked` for every one of them (34 tests,
+    # measured). Conservative default False -> the upgrade path stays inert and
+    # behaviour is pre-85.6 for any state that never saw a provisional roll.
+    _sod_provisional: bool = False
+
     # phase-36.8: False until a replay proves it saw every source. Conservative
     # default: an instance built without a replay has NOT verified its history, so
     # it must not stamp an authoritative anchor.
@@ -185,6 +194,15 @@ class KillSwitchState:
         # Latches until a deliberate operator `peak_reset` supersedes it. Display /
         # audit only -- it gates nothing and changes no threshold.
         self._baseline_provenance: Optional[str] = None
+        # phase-85.6 cycle-3: is the current start-of-day anchor PROVISIONAL --
+        # i.e. written by the cycle's Step-0 roll from the last stored mark,
+        # which may be several sessions old? Durable because it is replayed from
+        # the `sod_snapshot` audit row: an in-memory flag on PaperTrader did not
+        # survive, since autonomous_loop.py rebuilds the trader every cycle, so a
+        # cycle that died before the upgrade left a stale value armed with
+        # today's date for the rest of the UTC day (measured by the pass-2 Q/A:
+        # anchor 23830.46 vs a 22600 mark -> 5.16% -> flatten_all + pause).
+        self._sod_provisional: bool = False
         self._load_from_audit()
 
     @staticmethod
@@ -293,6 +311,9 @@ class KillSwitchState:
                             except Exception:
                                 sod_date = None
                     self._sod_date = sod_date
+                    # phase-85.6: absent on every legacy row -> False -> the
+                    # upgrade path stays inert and behaviour is pre-85.6.
+                    self._sod_provisional = bool(row.get("provisional", False))
                 elif event == "peak_update":
                     # phase-36.7: RATCHET, don't assign. `update_peak` (the
                     # writer) enforces "never moves down", but this replay used
@@ -448,6 +469,7 @@ class KillSwitchState:
             # phase-36.12: None normally; "lost_history_anchor" when the current
             # baselines were anchored because their history was unrecoverable.
             "baseline_provenance": self._baseline_provenance,
+            "sod_provisional": self._sod_provisional,
         }
 
     def snapshot(self) -> dict:
@@ -512,7 +534,8 @@ class KillSwitchState:
                 snap = rp
         return snap
 
-    def update_sod_nav(self, nav: float, date: Optional[str] = None) -> None:
+    def update_sod_nav(self, nav: float, date: Optional[str] = None,
+                       provisional: bool = False) -> None:
         """Record start-of-day NAV for daily-loss calculation.
 
         phase-23.2.19: now stamps the UTC `date` alongside `nav`. Caller
@@ -547,7 +570,13 @@ class KillSwitchState:
         with self._lock:
             self._sod_nav = coerced
             self._sod_date = date
-            self._append_audit("sod_snapshot", nav=self._sod_nav, date=self._sod_date)
+            # phase-85.6: `provisional` records that this anchor came from the
+            # last stored mark rather than today's open, so the post-mark path
+            # knows to upgrade it. Persisted in the audit row (not just in
+            # memory) because the trader is rebuilt every cycle.
+            self._sod_provisional = bool(provisional)
+            self._append_audit("sod_snapshot", nav=self._sod_nav, date=self._sod_date,
+                               provisional=self._sod_provisional)
 
     def update_peak(self, nav: float) -> None:
         """Ratchet the trailing high-water mark upward. Never moves down.

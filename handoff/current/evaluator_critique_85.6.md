@@ -120,3 +120,137 @@ uvx ruff check --select F821,F401,F811 (3-file derived scope)   All checks passe
 **M10 was LIVE on its first run** — my hazard test performed the upgrade itself
 instead of calling `check_and_enforce_kill_switch`. Corrected to drive the real
 seam; it now dies under M10.
+
+---
+
+# EVALUATE pass 2 — verdict **CONDITIONAL**
+
+`ok: False` · `harness_compliance_ok: True`
+Run `wf_4b1efa12-c58`, commit `e369b1de`. Verbatim below. Machine copy:
+`evaluator_critique_85.6_pass2.json`.
+
+## reason
+
+Criteria 1, 2, 3, 4 and 6 are MET and I reproduced them independently (immutable verification command exit=0: {'paused': False, 'sod_date': '2026-08-08'} {'armed': True, 'daily_baseline_stale': False}; ruff F821/F401/F811 exit=0 over a git-DERIVED non-empty 5-file scope; 19 passed in 13.95s; mutation matrix 12/12 killed with the tree verified byte-clean afterwards; imports of all three changed backend modules OK). The C5 fix is REAL on the path it was built for: driving the PRODUCTION check_and_enforce_kill_switch, the provisional 23830.46 anchor is upgraded to today's 22600 mark before the breach and triggered=False (pass-1 case (i) closed), and the risen-book case (ii) now behaves exactly as pre-85.6 (cycle-1 upgrade sets 110, the second same-day evaluation at nav=104 reports 5.4545% and FIRES, matching the pre-85.6 number) -- so case (ii) is closed too, not merely mitigated. Criterion 5 is still NOT MET because the mechanism is an in-memory flag on the PaperTrader instance and autonomous_loop.py:407 constructs a NEW PaperTrader inside every run_daily_cycle, so the flag does not survive the CYCLE, not merely "the process". Measured through the production path, not reasoned: cycle 1 rolls the provisional anchor at Step 0 and dies in `analyzing`; the next same-day cycle's Step 0 returns "anchor_already_current" and does not re-flag (provisional=False on the new trader), so the elif upgrade branch is unreachable and Step 5.5 evaluates the breach against the 3-session-stale 23830.46 -> daily_loss_pct 5.1634 -> any_breached True -> flatten_all + pause, i.e. the exact spurious-flatten hazard pass 1 blocked on, still live on the dying-cycle path this step exists for. The mirror direction is also live: with anchor 100 left provisional and today's open 110, a real 9.0909% same-day drawdown reports daily_loss 0.00% and does NOT fire (trailing 9.0909% < 10% does not cover it), where pre-85.6 fires -- a literal loosening of the daily-loss leg. Both disclosures of the residual are therefore materially false: paper_trader.py:1431-1437 says "The next cycle re-rolls at Step 0 and upgrades here, so the window is one cycle" (it does not re-roll and cannot upgrade) and experiment_results_85.6.md sec 12 repeats "nothing is judged against it in the meantime" (the next completing cycle DOES judge against it, and in my measurement it flattens the book). FAIL was considered and rejected: the tree is strictly safer than pass 1's (the hazard moved from every completing cycle to only a same-day cycle following a died cycle -- 10 of 76 days ever had >1 distinct cycle_id, only 2026-07-28 in the last three weeks), the fix's mechanism is sound and mutation-covered, and one bounded change closes it. harness_log holds ZERO phase=85.6 rows so this is verdict 2 of a possible 3 and the 3rd-CONDITIONAL auto-FAIL rule does not bind; a third CONDITIONAL must be FAIL.
+
+## violated_criteria
+
+- C5: no loosening of the kill switch's protective behaviour -- the provisional-anchor upgrade cannot fire after a cycle dies before Step 5.5, because the flag lives on a PaperTrader that autonomous_loop.py:407 rebuilds every cycle; both the spurious-flatten and the loosening direction remain live on that path [BLOCKING for PASS]
+- Contradiction: the residual's stated bound is measurably false in BOTH artifacts -- paper_trader.py:1431-1437 'the next cycle re-rolls at Step 0 and upgrades here, so the window is one cycle' and experiment_results_85.6.md sec 12 'nothing is judged against it in the meantime' [WARN]
+- illusory-guard (residual): test_c2's new self-validation is behind `if pre.returncode == 0 and pre.stdout:` -- a silent fail-open oracle that degrades to the un-validated form in any checkout where `git show 81f81750^` fails [WARN, not sole coverage]
+
+## violation_details
+
+### 1. Invalid_Precondition
+
+**action**
+
+```
+PaperTrader.roll_daily_anchor() sets self._sod_anchor_provisional = True (paper_trader.py:1296); check_and_enforce_kill_switch upgrades only `elif self._sod_anchor_provisional and snap.get("sod_date") == today` (paper_trader.py:1415). autonomous_loop.py:407 constructs `trader = PaperTrader(settings, bq)` INSIDE run_daily_cycle, so the flag is per-cycle, not per-process.
+```
+
+**state**
+
+Measured with the production check_and_enforce_kill_switch + evaluate_breach (control verified biting: anchor 23830.46 vs nav 22600 -> 5.1634% breached True; anchor 22600 vs nav 22600 -> 0.0% breached False). PROBE 1 (normal path, cycle completes): Step 0 anchor 23830.46/2026-08-08 provisional=True -> after Step 5.5 anchor=22600.0, triggered=False -- FIX CONFIRMED. PROBE 2 (residual path): cycle 1 Step 0 anchors 23830.46 provisional=True, cycle dies; a NEW PaperTrader (as at :407) runs Step 0 -> reason='anchor_already_current', provisional=False; Step 5.5 -> anchor still 23830.46, TRIGGERED=True, paused_with='limit_breach', daily_loss_pct=5.1634 (trailing 8.378% < 10% did not cause it). Pre-85.6 in the same state re-anchors to 22600 and reports 0.00%, so this is a NEW spurious flatten_all+pause path. PROBE 4b (mirror direction, coherent peak=110): cycle 1 anchors 100 and dies; cycleA at nav 110 no breach; cycleB at nav 100 -> anchor still 100, daily 0.0%, trailing 9.0909% -> TRIGGERED=False, while pre-85.6 (anchor 110) reports daily 9.0909% breached=True -- a real same-day drawdown goes uncaught.
+
+**constraint**
+
+masterplan 85.6 success_criteria[5]: 'no loosening of the kill switch's protective behaviour: arming a stale leg must not weaken any breach threshold'. Also kill_switch.py phase-36.9 F1 ('a TWO-DAY move reported as a same-day loss ... biases toward a spurious flatten') and paper_trader.py:1446-1454's phase-36.12 invariant, whose stated PURPOSE is that the value the breach is judged against be today's open.
+
+### 2. Contradiction
+
+**action**
+
+```
+experiment_results_85.6.md sec 12 'Residual, disclosed rather than hidden' and the identical prose at paper_trader.py:1431-1437 bound the exposure to one cycle and assert nothing is judged against the provisional anchor.
+```
+
+**state**
+
+Re-derived: the next cycle's Step 0 hits `if not sod_anchor_needs_reroll(snap, today)` (sod_nav=23830.46>0, sod_date==today) and returns early with reason='anchor_already_current' WITHOUT setting the flag, so the upgrade branch at :1415 is unreachable for the remainder of that UTC day; PROBE 2 shows the next completing cycle judging the breach against the provisional anchor and flattening. The exposure window is the rest of the UTC day, and the claim 'the flag does not survive the process' understates it -- it does not survive the CYCLE (fresh PaperTrader at autonomous_loop.py:407).
+
+**constraint**
+
+qa.md sec 4b: every scope/quantified claim in the handoff must reproduce when re-derived; a claim whose reproducing derivation contradicts it is a Contradiction finding. Scope honesty is a graded dimension of the LLM-judgment leg.
+
+### 3. Missing_Assumption
+
+**action**
+
+```
+test_c2_the_409_no_longer_makes_the_two_false_promises wraps its new vacuity self-validation in `if pre.returncode == 0 and pre.stdout:` before asserting each BANNED phrase is present in `git show 81f81750^:backend/api/paper_trading.py`.
+```
+
+**state**
+
+In MY environment the self-validation executed and passed (19 passed, and M7/M8 killed by the matrix), so BANNED[2] is demonstrably non-vacuous here -- the pass-1 illusory-guard finding is genuinely repaired. But any checkout where that git object is unreachable (shallow clone, worktree-isolation CI path, or after a history rewrite) silently skips the self-validation and reverts the guard to the un-validated form the Q/A flagged.
+
+**constraint**
+
+qa.md sec 4c vacuity shape 8/9 (an oracle with a silent fallback survives an absent subject; executor-environment non-reproducibility). Fix is one character class: `assert pre.returncode == 0 and pre.stdout, 'pre-fix blob unavailable -- the vacuity self-check did not run'`. WARN, not BLOCK: two live banned-phrase guards plus the verbatim live 409 body coexist.
+
+## checks_run
+
+- harness_compliance_audit_5_item
+- research_gate_envelope_verified (tier=complex, external_sources_read_in_full=7, urls_collected=22, recency_scan_performed=true, gate_passed=true; contract_85.6.md cites research_brief_85.6 twice)
+- contract_before_generate_mtime_chain (brief 22:40:13 < contract 22:43:29 < code commits 5932ac27 22:56:34 / e369b1de 23:27:01; commit order 81f81750 -> 5932ac27 -> b5f63525 -> e369b1de corroborates)
+- log_last_and_status (grep -cE 'phase=85\.6' handoff/harness_log.md = 0; masterplan status=pending, retry_count=0/3)
+- no_verdict_shopping (evidence CHANGED: pass 1 graded b5f63525, this pass grades e369b1de -- paper_trader.py +51, tests +150, matrix +30)
+- git_derived_scope (81f81750^..HEAD UNION worktree UNION untracked, non-empty guard asserted BEFORE reading exit code: 5 .py files)
+- ruff_F821_F401_F811 (exit=0, 'All checks passed!', xargs-fed derived scope -- no unquoted-variable word-split)
+- ast_parse_all_5_changed_py_files (exit=0)
+- immutable_verification_command (exit=0, output reproduced verbatim)
+- pytest_backend_tests_test_phase_85_6_anchor_deadlock (19 passed / 19 progress dots / 13.95s -- internally consistent)
+- mutation_matrix_85_6 (12/12 killed on my own run incl. M10/M11/M12; tree restoration verified: git status --porcelain backend/ scripts/ empty)
+- independent_production_path_probe_probe1_normal_path (C5 fix CONFIRMED: 23830.46 -> 22600 upgrade, triggered=False)
+- independent_production_path_probe_probe2_residual (spurious flatten REPRODUCED after a died cycle: 5.1634% -> triggered=True, paused_with=limit_breach)
+- independent_production_path_probe_probe3_risen_book (pass-1 case (ii) CLOSED on the completing path: 2nd same-day eval fires at 5.4545%, matching pre-85.6)
+- independent_production_path_probe_probe4b_loosening (residual admits an uncaught 9.0909% same-day drawdown; pre-85.6 fires)
+- midday_reanchor_regression_check (spawn question c: upgrade cannot fire twice -- flag set only inside the rolled branch, cleared on use, fresh trader per cycle; probe 3 cycle 2 kept anchor 110 and fired; M12 killed)
+- reachability_measurement (distinct cycle_ids per UTC day from handoff/cycle_history.jsonl: 1/day is the norm; 10 of 76 days had >1, last was 2026-07-28 -- my first row-count of '2 per day' was WRONG and is corrected here)
+- backend_runtime_smoke (imports of paper_trader / autonomous_loop / api.paper_trading OK; live :8000 GET /api/paper-trading/kill-switch 200)
+- live_process_vs_commit_check (uvicorn pid 23676 started 22:57:25, BEFORE the C5 fix commit at 23:27:01 -- the fix is NOT in force in the running backend)
+- production_diff_review (no unintended production change: only the 5 scoped .py files + handoff docs; worktree dirt is hook-written audit JSONL and researcher agent-memory)
+- code_review_heuristics (kill-switch reachability, sod-nav-anchor WARN, no secrets/eval/exec/shell=True, no threshold literal moved, no order/sizing change)
+- 3rd_conditional_counter (0 logged CONDITIONALs for 85.6 -- this is verdict 2 of 3; CONDITIONAL permitted, a third must be FAIL)
+
+## notes
+
+SPAWN QUESTIONS ANSWERED. (a)(i) YES, the fix is real on the completing path -- I re-ran the multi-session-stale counterexample through the PRODUCTION check_and_enforce_kill_switch (not Main's arrangement) and the 23830.46 anchor was upgraded to 22600 before the breach, triggered=False. (a)(ii) The risen-book / second-same-day-evaluation case is ALSO closed on that path: after the cycle-1 upgrade the anchor is 110 and the second same-day evaluation at nav=104 reports 5.4545% and FIRES -- byte-identical to pre-85.6. I looked for a survivor there and did not find one. (b) THE RESIDUAL IS MIS-BOUNDED, and this is the blocker. The argument "such a cycle never reaches the breach decision either" is true of the DYING cycle and irrelevant to the one that matters: the NEXT same-day cycle, which does reach it. Two corrections to the disclosure text: (1) the flag does not survive the CYCLE, not the process -- autonomous_loop.py:407 builds a fresh PaperTrader inside every run_daily_cycle; (2) "the next cycle re-rolls at Step 0 and upgrades here" is false -- Step 0 short-circuits on `anchor_already_current` and never re-flags, so the upgrade branch is dead for the rest of that UTC day. Measured consequence in PROBE 2: flatten_all + pause at 5.1634% against a 3-session-old anchor, where pre-85.6 measured 0.00%. (c) CLEAN -- the upgrade cannot fire twice. The flag is set only inside roll_daily_anchor's post-needs_reroll branch, cleared immediately after the upgrade, and each cycle gets a fresh trader; probe 3's second same-day cycle kept the 110 anchor and fired the breach, so phase-36.9's mid-day re-anchor defect is NOT re-introduced (M12 independently killed on my run). (d) STATED EXPLICITLY: `grep -cE 'phase=85\.6' handoff/harness_log.md` returns 0 -- there is no logged verdict for this step, pass 1's CONDITIONAL is the only prior, so this is verdict 2 of a possible 3 and the 3rd-CONDITIONAL auto-FAIL rule does not bind. A third CONDITIONAL on 85.6 MUST be FAIL. NAMED FIXES FOR CYCLE 3 -- any ONE of (1) or (2) closes C5. (1) Make the provisional marker DURABLE instead of instance-local: record it in the kill-switch state / sod_snapshot row (e.g. `provisional: true` plus the `updated_at` of the NAV used) and have Step 5.5 upgrade on that stored fact, so it survives a died cycle and a restart. (2) Make the upgrade STATE-DERIVED rather than flag-derived: at Step 5.5, upgrade whenever the stored anchor's underlying mark predates today's UTC date, regardless of any in-memory flag -- same shape, no durability requirement, and it also self-heals a mark that went stale for any other reason. (3) Regardless of which: correct the two false sentences (paper_trader.py:1431-1437 and experiment_results_85.6.md sec 12) to say the exposure lasts the REST OF THE UTC DAY and that a subsequent completing cycle DOES judge the breach against the provisional anchor -- and add the test that drives died-cycle -> NEW PaperTrader -> completing cycle, which is the shape neither the suite nor the matrix currently covers (M10 deletes the branch but every test that would notice runs on ONE trader instance). (4) Tighten test_c2's self-validation from `if pre.returncode == 0` to an assert. OPERATIONAL FINDING, outside the criteria but material: uvicorn pid 23676 started 2026-08-08 22:57:25, BEFORE the C5 fix commit at 23:27:01 -- the running backend is executing the CYCLE-1 code, in which the hazard is live on EVERY completing cycle, and the book is now UNPAUSED. Restart the backend before the next cycle, or record that the next cycle runs pre-fix code. Reachability, measured and self-corrected: my first count read cycle_history rows and reported "2 cycles/day"; the rows are `started` + terminal for the SAME cycle_id, so the true figure is 1 distinct cycle per UTC day, with >1 on only 10 of 76 days (last: 2026-07-28). The residual therefore needs an operator-triggered or extra same-day cycle -- uncommon, but it is exactly what the new 409 body tells the operator to do ("trigger a cycle") and what Main did tonight, and it also needs a >4% multi-session move (tonight's was -0.0146%). POSITIVE, unclaimed by the handoff: the cycle-2 upgrade restores the pre-85.6 breach VALUE while keeping the anchor present from t+2s, so C1's unblock and C5's arithmetic are no longer in tension on the completing path -- that is the right design, it just needs to survive a cycle boundary. SAFETY: I triggered no cycle, restarted no service, never paused or resumed the switch, and never called the real flatten_all (stubbed in every probe); all probes ran in my own process against injected fake state, so handoff/kill_switch_audit.jsonl grew by 0 rows; the mutation matrix restored the tree byte-for-byte (verified clean).
+
+---
+
+## Follow-up — Main's cycle-3 remediation (written by Main, NOT by the Q/A)
+
+| Finding | Severity | Action |
+|---|---|---|
+| C5 BLOCKING: the provisional flag lived on a `PaperTrader` that `autonomous_loop.py:407` rebuilds every cycle, so after a died cycle the upgrade branch was unreachable for the rest of the UTC day — spurious flatten AND the mirror loosening both live | BLOCKING | **Fixed by making the marker DURABLE.** `sod_provisional` is now state on `KillSwitchState`, written into the `sod_snapshot` audit row and replayed on boot, so it survives a dead cycle, a new trader, and a restart. The upgrade condition reads `snap["sod_provisional"]`, not an instance flag. |
+| Contradiction: the residual's stated bound was measurably FALSE in both the code comment and §12 | WARN | **Fixed.** Both texts replaced with the measured truth, including the Q/A's own numbers (5.1634% on a 4% limit). |
+| Illusory guard (residual): the vacuity self-check was behind `if pre.returncode == 0`, a silent fail-open | WARN | **Fixed.** It is now an `assert`, so an unreachable pre-fix blob fails the test instead of skipping the check. |
+
+Re-verified:
+
+```
+pytest test_phase_85_6_anchor_deadlock.py                      25 passed (was 19)
+all kill-switch + book-safety suites + 85.6                   202 passed, 1 failed
+    (the 1 failure is test_book_safety_69::test_valid_nav_still_breaches --
+     PRE-EXISTING, one of the known 26, and the subject of step 85.5.1)
+scripts/qa/mutation_matrix_85_6.py                            14/14 killed (was 12/12)
+uvx ruff check --select F821,F401,F811 (5-file derived scope)  exit 0
+```
+
+**M13 and M14 were LIVE on their first run**, for the reason auto-memory warns
+about: my tests used `FakeKillSwitchState`, which mirrors the marker itself, so
+mutating the REAL persistence/replay changed nothing they could see. Four new
+tests now drive the real `KillSwitchState` with its audit journal redirected to
+tmp — persistence, replay-after-restart, clearing, and legacy-row compatibility.
+
+**One pre-existing test was deliberately changed, and it is disclosed here
+rather than buried:** `test_phase_36_9_kill_switch_armed_liveness.py::
+test_phase_36_9_the_resume_409_names_staleness_not_absence` asserted the 409
+message *contains* `"NO operator action is required"` — the exact phrase 85.6
+criterion 2 requires REMOVED, because it was measured false and the book sat
+unresumable for six days behind it. The assertion is inverted with the
+supersession explained inline, and the original INTENT (the message must
+describe the daily roll that actually clears the refusal, not the lost-history
+block) is preserved and still enforced. No other pre-existing test was touched.

@@ -474,8 +474,28 @@ def test_phase_36_9_the_resume_409_names_staleness_not_absence(isolated_state, m
     assert "could not be restored" not in detail, (
         "the absence text asserts a cause this state's own diagnostics refute"
     )
-    assert "NO operator action is required" in detail, (
-        "the remediation must describe the daily roll that actually clears it, "
-        "not the lost-history block that does not fire for a stale anchor"
+    # phase-85.6 SUPERSEDES the original form of this assertion, which required
+    # the literal phrase "NO operator action is required". That phrase was
+    # MEASURED FALSE: the roll it promised runs at paper_trader.py inside
+    # check_and_enforce_kill_switch, which the cycle reached only at Step 5.5,
+    # BEHIND the analysis phase -- and the 2026-08-06/08-07 cycles both timed out
+    # in `analyzing` and never reached it. The book sat unresumable from
+    # 2026-08-03 to 2026-08-08 behind a message telling the operator to wait for
+    # a self-heal that could not happen. masterplan 85.6 criterion 2 requires
+    # that phrase REMOVED.
+    #
+    # The INTENT of the 36.9 assertion is preserved and still enforced below: the
+    # remediation must describe the daily roll that actually clears the refusal,
+    # not the lost-history block (which does not fire for a merely-stale anchor).
+    # Only the wording that made the promise unconditional is gone.
+    assert "NO operator action is required" not in detail, (
+        "phase-85.6 criterion 2: this promise was false and cost six days"
+    )
+    assert "roll" in detail, (
+        "the remediation must still describe the daily roll that actually clears "
+        "it, not the lost-history block that does not fire for a stale anchor"
+    )
+    assert "UNBLOCK CONDITION" in detail, (
+        "the refusal must state the concrete precondition, not a promise"
     )
     assert YESTERDAY_UTC in detail, "name the offending date so it is actionable"

@@ -1281,7 +1281,7 @@ class PaperTrader:
                     "sod_nav": snap.get("sod_nav"),
                 }
             prior_date = snap.get("sod_date")
-            state.update_sod_nav(nav, date=today)
+            state.update_sod_nav(nav, date=today, provisional=True)
             # PROVISIONAL. `nav` here is the LAST STORED mark, and if cycles have
             # been failing that mark may be several sessions old. Stamping today's
             # date on it makes `armed` True and hands `evaluate_breach` a
@@ -1296,7 +1296,7 @@ class PaperTrader:
             # So the Step-0 anchor exists to UNBLOCK RESUME, not to be the value
             # the breach is judged against. Flag it; the post-mark path replaces
             # it with today's real mark before any breach decision is made.
-            self._sod_anchor_provisional = True
+            self._sod_anchor_provisional = True   # kept for in-cycle diagnostics
             post = state.snapshot()
             rolled = post.get("sod_date") == today and (post.get("sod_nav") or 0) > 0
             if rolled:
@@ -1412,7 +1412,7 @@ class PaperTrader:
         today = datetime.now(timezone.utc).date().isoformat()
         if sod_anchor_needs_reroll(snap, today):
             state.update_sod_nav(nav, date=today)
-        elif self._sod_anchor_provisional and snap.get("sod_date") == today:
+        elif snap.get("sod_provisional") and snap.get("sod_date") == today:
             # phase-85.6 cycle-2 (Q/A pass-1 finding): UPGRADE A PROVISIONAL ANCHOR.
             #
             # Step 0 anchored from the last stored mark so that /resume could
@@ -1428,19 +1428,24 @@ class PaperTrader:
             # breach was judged against, so this path is byte-equivalent to the
             # old behaviour at decision time while keeping 85.6's unblock.
             #
-            # RESIDUAL, disclosed rather than hidden: a cycle that dies BEFORE
-            # this line leaves the provisional anchor in place for the rest of
-            # that UTC day, and the flag does not survive the process. The next
-            # cycle re-rolls at Step 0 and upgrades here, so the window is one
-            # cycle -- and a cycle that dies before Step 5.5 never reaches the
-            # breach decision either, so nothing is judged against it in the
-            # meantime.
+            # phase-85.6 cycle-3: the marker is read from the STATE, not from a
+            # flag on this trader. The pass-2 Q/A measured why that matters:
+            # autonomous_loop.py builds a NEW PaperTrader every cycle, so an
+            # instance flag did not survive the CYCLE. A cycle that died before
+            # this line left a multi-session-old value armed with today's date,
+            # the next cycle's Step 0 returned "anchor_already_current" without
+            # re-flagging, and the upgrade branch became unreachable for the rest
+            # of the UTC day -- the next completing cycle then judged the breach
+            # against it and flattened the book (5.1634% on a 4% limit).
+            # `sod_provisional` is persisted in the sod_snapshot audit row and
+            # replayed on boot, so the upgrade survives both a dead cycle and a
+            # restart. Legacy rows have no such field -> False -> pre-85.6.
             logger.info(
                 "phase-85.6: upgrading PROVISIONAL start-of-day anchor %r -> %.2f "
                 "(today's mark) before the breach decision",
                 snap.get("sod_nav"), nav,
             )
-            state.update_sod_nav(nav, date=today)
+            state.update_sod_nav(nav, date=today, provisional=False)
             self._sod_anchor_provisional = False
 
         # phase-36.12: the BREACH decision stays on the POST-roll state, and that is

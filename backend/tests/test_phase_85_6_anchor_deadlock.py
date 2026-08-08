@@ -48,6 +48,7 @@ class FakeKillSwitchState:
         self._sod_date = sod_date
         self._peak_nav = peak_nav
         self._paused = paused
+        self._sod_provisional = False
         self.roll_calls: list[tuple[float, str]] = []
         # Every method name the subject invokes, in order. Lets a test pin the
         # roller's INTERACTION SURFACE rather than only its visible effects.
@@ -60,9 +61,11 @@ class FakeKillSwitchState:
             "sod_date": self._sod_date,
             "peak_nav": self._peak_nav,
             "paused": self._paused,
+            "sod_provisional": self._sod_provisional,
         }
 
-    def update_sod_nav(self, nav: float, date: str | None = None) -> None:
+    def update_sod_nav(self, nav: float, date: str | None = None,
+                       provisional: bool = False) -> None:
         self.calls.append("update_sod_nav")
         date = date or _today()
         # Mirror the phase-36.9 F3 production refusal: a non-positive anchor is
@@ -72,6 +75,10 @@ class FakeKillSwitchState:
             return
         self._sod_nav = float(nav)
         self._sod_date = date
+        # phase-85.6 cycle-3: mirror the DURABLE marker. If the fake did not
+        # persist it, every test would pass against a per-instance flag and the
+        # cross-cycle residual the pass-2 Q/A measured would stay invisible.
+        self._sod_provisional = bool(provisional)
 
     def update_peak(self, nav: float) -> None:
         self.calls.append("update_peak")
@@ -488,13 +495,17 @@ def test_c2_the_409_no_longer_makes_the_two_false_promises():
         ["git", "show", "81f81750^:backend/api/paper_trading.py"],
         capture_output=True, text=True, cwd=__import__("pathlib").Path(__file__).resolve().parents[2],
     )
-    if pre.returncode == 0 and pre.stdout:
-        pre_norm = _normalize(pre.stdout)
-        for phrase in BANNED:
-            assert _normalize(phrase) in pre_norm, (
-                f"VACUOUS GUARD: {phrase!r} was never in the pre-fix source, so "
-                f"asserting its absence proves nothing"
-            )
+    assert pre.returncode == 0 and pre.stdout, (
+        "the pre-fix blob is unavailable, so the vacuity self-check did NOT run. "
+        "A silent skip here would quietly restore the un-validated guard the "
+        "cycle-1 Q/A flagged -- fail loudly instead."
+    )
+    pre_norm = _normalize(pre.stdout)
+    for phrase in BANNED:
+        assert _normalize(phrase) in pre_norm, (
+            f"VACUOUS GUARD: {phrase!r} was never in the pre-fix source, so "
+            f"asserting its absence proves nothing"
+        )
 
 
 def test_c2_the_409_names_the_actual_unblock_mechanism():
@@ -632,3 +643,168 @@ def test_c5_a_same_day_noop_roll_does_not_flag_provisional():
     t = _trader(ks, total_nav=8_000.0)
     t.roll_daily_anchor()
     assert t._sod_anchor_provisional is False
+
+
+def test_c5_the_provisional_marker_survives_a_dead_cycle_and_a_new_trader():
+    """THE PASS-2 Q/A FINDING, closed.
+
+    The marker used to live on the PaperTrader instance, and
+    `autonomous_loop.py` builds a NEW PaperTrader every cycle. So: cycle 1 rolls
+    a provisional anchor at Step 0 and dies in `analyzing`; cycle 2's Step 0 sees
+    today's date, returns "anchor_already_current" WITHOUT re-flagging, and the
+    upgrade branch becomes unreachable for the rest of the UTC day. The next
+    completing cycle then judged the breach against a 3-session-old value and
+    flattened the book (5.1634% against a 4% limit).
+
+    The marker is now persisted in the state (and in the sod_snapshot audit row),
+    so a brand-new trader still sees it.
+    """
+    import unittest.mock as _m
+
+    import backend.services.kill_switch as ks_mod
+
+    stale_anchor, todays_mark = 23_830.46, 22_600.0
+    ks = FakeKillSwitchState(sod_nav=stale_anchor, sod_date="2026-08-05",
+                             peak_nav=24_666.57)
+
+    # --- cycle 1: Step 0 rolls provisionally, then the cycle DIES ---
+    t1 = _trader(ks, total_nav=stale_anchor)
+    assert t1.roll_daily_anchor()["rolled"] is True
+    assert ks.snapshot()["sod_provisional"] is True, (
+        "the marker must be recorded in the STATE, not only on the trader"
+    )
+
+    # --- cycle 2: a BRAND NEW trader, exactly as autonomous_loop builds it ---
+    t2 = _trader(ks, total_nav=todays_mark)
+    assert t2._sod_anchor_provisional is False, "precondition: fresh trader, flag clear"
+    step0 = t2.roll_daily_anchor()
+    assert step0["rolled"] is False, "same UTC day -- Step 0 must not re-anchor"
+
+    with _m.patch.object(ks_mod, "get_state", lambda: ks), \
+         _m.patch.object(ks_mod, "_state", ks, create=True), \
+         _m.patch.object(ks_mod, "baseline_history_exists", lambda: True), \
+         _m.patch.object(ks_mod, "check_auto_resume",
+                         lambda *a, **k: {"action": "none", "reason": "test"}):
+        verdict = t2.check_and_enforce_kill_switch()
+
+    assert ks.snapshot()["sod_nav"] == todays_mark, (
+        "SPURIOUS FLATTEN PATH STILL LIVE: the new trader did not upgrade the "
+        f"provisional anchor; it is still {ks.snapshot()['sod_nav']}"
+    )
+    assert ks.snapshot()["sod_provisional"] is False, "the upgrade must clear the marker"
+    assert not verdict.get("triggered"), f"the book was flattened: {verdict}"
+
+
+def test_c5_a_legacy_anchor_without_the_marker_is_never_upgraded():
+    """Backward compatibility: rows written before phase-85.6 have no
+    `provisional` field. They must behave exactly as pre-85.6 -- no upgrade, no
+    mid-day re-anchor."""
+    import unittest.mock as _m
+
+    import backend.services.kill_switch as ks_mod
+
+    # Peak chosen so the TRAILING leg cannot fire (8900 vs 9100 = 2.2% < 10%);
+    # otherwise this test would go red on an unrelated breach and prove nothing
+    # about the marker. Daily leg: 8900 vs a 9000 anchor = 1.1% < 4%.
+    ks = FakeKillSwitchState(sod_nav=9_000.0, sod_date=_today(), peak_nav=9_100.0)
+    ks._sod_provisional = False          # a legacy row: marker absent -> False
+    t = _trader(ks, total_nav=8_900.0)
+
+    with _m.patch.object(ks_mod, "get_state", lambda: ks), \
+         _m.patch.object(ks_mod, "_state", ks, create=True), \
+         _m.patch.object(ks_mod, "baseline_history_exists", lambda: True), \
+         _m.patch.object(ks_mod, "check_auto_resume",
+                         lambda *a, **k: {"action": "none", "reason": "test"}):
+        t.check_and_enforce_kill_switch()
+
+    assert ks.snapshot()["sod_nav"] == 9_000.0, (
+        "a legacy same-day anchor was re-anchored mid-day -- that is the "
+        "phase-36.9 defect"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The DURABILITY of the marker, against the REAL KillSwitchState.
+# The tests above use FakeKillSwitchState, which mirrors the marker itself -- so
+# they cannot detect a marker that production fails to persist or replay
+# (mutations M13/M14 survived them). These drive the real class.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def real_ks(monkeypatch, tmp_path):
+    """A real KillSwitchState with its audit journal redirected to tmp.
+
+    The redirect happens BEFORE anything can append, so the operator's live
+    handoff/kill_switch_audit.jsonl is never touched (phase-36.28 class).
+    """
+    import backend.services.kill_switch as ks
+
+    monkeypatch.setattr(ks, "_AUDIT_PATH", tmp_path / "kill_switch_audit.jsonl")
+    return ks
+
+
+def test_c5_the_provisional_marker_is_PERSISTED_by_the_real_state(real_ks):
+    ks = real_ks
+    st = ks.KillSwitchState()
+    st.update_sod_nav(23_830.46, date="2026-08-08", provisional=True)
+
+    assert st.snapshot()["sod_provisional"] is True, (
+        "the real state did not record the provisional marker"
+    )
+    rows = [
+        __import__("json").loads(l)
+        for l in ks._AUDIT_PATH.read_text(encoding="utf-8").splitlines()
+        if l.strip()
+    ]
+    sod_rows = [r for r in rows if r.get("event") == "sod_snapshot"]
+    assert sod_rows, "no sod_snapshot row was written"
+    assert sod_rows[-1].get("provisional") is True, (
+        f"the marker is not in the audit row, so it cannot survive a restart: "
+        f"{sod_rows[-1]}"
+    )
+
+
+def test_c5_the_provisional_marker_is_REPLAYED_after_a_restart(real_ks):
+    """A restart must not launder a provisional anchor into a confirmed one --
+    that is how the pass-2 spurious-flatten path came back."""
+    ks = real_ks
+    st = ks.KillSwitchState()
+    st.update_sod_nav(23_830.46, date="2026-08-08", provisional=True)
+
+    reborn = ks.KillSwitchState()          # a fresh process would replay the journal
+    assert reborn.snapshot()["sod_provisional"] is True, (
+        "the marker was lost on replay -- a restart would silently confirm a "
+        "provisional anchor"
+    )
+    assert reborn.snapshot()["sod_nav"] == 23_830.46
+
+
+def test_c5_a_confirmed_roll_clears_the_marker_in_the_real_state(real_ks):
+    ks = real_ks
+    st = ks.KillSwitchState()
+    st.update_sod_nav(23_830.46, date="2026-08-08", provisional=True)
+    st.update_sod_nav(22_600.0, date="2026-08-08", provisional=False)
+
+    assert st.snapshot()["sod_provisional"] is False
+    assert st.snapshot()["sod_nav"] == 22_600.0
+    assert ks.KillSwitchState().snapshot()["sod_provisional"] is False, (
+        "the cleared marker must also survive a replay"
+    )
+
+
+def test_c5_a_legacy_sod_row_without_the_field_replays_as_not_provisional(real_ks):
+    """Backward compatibility, measured: rows written before phase-85.6 have no
+    `provisional` key, and must replay as False so the upgrade path stays inert
+    and behaviour is exactly pre-85.6."""
+    import json
+
+    ks = real_ks
+    ks._AUDIT_PATH.write_text(
+        json.dumps({"ts": "2026-08-08T00:00:00+00:00", "event": "sod_snapshot",
+                    "nav": 23830.46, "date": "2026-08-08"}) + "\n",
+        encoding="utf-8",
+    )
+    st = ks.KillSwitchState()
+    assert st.snapshot()["sod_nav"] == 23_830.46, "PRECONDITION: the row must replay"
+    assert st.snapshot()["sod_provisional"] is False
