@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `a4f62546` | docs: overnight report 2026-08-09 -- Monday answer is NO, and why |
 | 2026-08-09 | `cb34a7c0` | phase-85.6: P0 DEADLOCK: the book cannot be un-paused. Resume requires a fresh daily anchor; the ... |
 | 2026-08-09 | `b4731d83` | docs(85.6): harness log cycle 184 + ask #26 (the analysis rail is dead) |
 | 2026-08-09 | `1952bcca` | docs(85.6): pass-3 PASS; address the four Q/A notes |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `16116e4a` | phase-85.6: file the P0 kill-switch resume deadlock; record pre-Monday actions |
 | 2026-08-08 | `e3b7f8b3` | phase-85.4: research gate + contract (GENERATE not started); regenerate drain goal |
 | 2026-08-08 | `1ffb340d` | docs(away-ops): ask #21 -- my test runs overwrote live kill-switch pause provenance |
-| 2026-08-08 | `5fc3ca7f` | docs(away-ops): ask #20 -- backend OAuth token is malformed and shared with the watchdog plist |
 
 ---
 
