@@ -164,3 +164,36 @@ revert does not take. This is the same zsh trap that produced the earlier
 
 Q/A cycle 3 is spawned on the Agent-tool `qa` rail (CLAUDE.md's documented
 fallback when the Workflow rail errors), with a leaner prompt.
+
+---
+
+## Q/A cycle 3 — NO VERDICT (Agent-tool rail drop)
+
+Spawned on the Agent-tool `qa` rail (CLAUDE.md's documented fallback after the
+cycle-2 Workflow error) with a deliberately leaner prompt. It emitted an idle
+notification, then left the roster **without any verdict reaching Main** — no
+subagent transcript and no task output were produced. I queried the idle agent
+directly via `SendMessage`, explicitly telling it that "I did not finish" was
+an acceptable answer, because an unfinished evaluation reported as a verdict is
+worse than none. It had already terminated; no reply arrived.
+
+Recorded as **NO VERDICT**, not a CONDITIONAL and emphatically not a PASS.
+This is the Agent-tool end-flush stall (auto-memory
+`feedback_workflow_qa_when_subagents_stall`).
+
+**Running tally for 85.5 — this matters for the 3rd-CONDITIONAL rule:**
+
+| Cycle | Rail | Outcome |
+|---|---|---|
+| 1 | Workflow | **CONDITIONAL** (a real verdict; 5 findings, all remediated) |
+| 2 | Workflow | rail error at 193K tokens — NO VERDICT |
+| 3 | Agent-tool | end-flush drop — NO VERDICT |
+| 4 | Workflow, budget-capped | in flight |
+
+**One CONDITIONAL stands against this step, not three.** Cycles 2 and 3
+produced no judgement of the work at all, so counting them toward the
+3rd-CONDITIONAL auto-FAIL would be recording an infrastructure failure as an
+evaluation of the code.
+
+Cycle 4 is run with an explicit tool-call budget and a prioritised check list,
+since context weight is the one factor common to both drops.
