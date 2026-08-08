@@ -23800,6 +23800,28 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "85.6",
+          "name": "P0 DEADLOCK: the book cannot be un-paused. Resume requires a fresh daily anchor; the anchor only rolls in a cycle phase that 85.4's timeouts never reach -- and the refusal message tells the operator no action is required.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P0",
+          "audit_basis": "Discovered and PROVEN 2026-08-08 (cycle 182) while executing the operator's owed pre-Monday actions. RE-DERIVE ALL OF IT. MEASURED CHAIN, four links, each independently checked: (1) The kill switch is latched paused and DISARMED. Live read of GET /api/paper-trading/kill-switch after a clean backend restart: paused=true, pause_reason=manual, sod_date='2026-08-05', daily_baseline_stale=true, armed=FALSE, sod_nav=23830.46, peak_nav=24666.57, any_breached=false. (2) RESUME IS REFUSED, reproducibly. POST /api/paper-trading/resume {confirmation:'RESUME'} -> HTTP 409: 'Cannot resume: the daily-loss anchor is STALE -- it is from 2026-08-05, not today (UTC) ... NO operator action is required: the daily start-of-day roll stamps today's anchor at the top of the next paper-trading cycle and this refusal clears itself. Retry the resume after that cycle.' State was unchanged by the attempt (a refused resume is inert). (3) THE MESSAGE IS WRONG TWICE. The roll is `state.update_sod_nav(nav, date=today)` at backend/services/paper_trader.py:1298, inside check_and_enforce_kill_switch() which begins at :1214. In backend/services/autonomous_loop.py the phase order is screening (:449), analyzing (:1091), mark_to_market (:1271-1275), snapshot (:1586) -- so the roll runs in the MARK/TRADE region, NOT 'at the top of the cycle'. And it does not 'clear itself': the 08-06 and 08-07 cycles both started at 18:00Z and TIMED OUT in `analyzing`, and the kill_switch audit's last sod_snapshot row is 2026-08-05T19:34:47Z -- i.e. neither timing-out cycle ever reached the roll. 61 sod_snapshot rows exist all-time, so the path is real; it is simply unreachable while 85.4 holds. (4) THE LOOP CLOSES: a cycle dies in analyzing -> the anchor never rolls -> the anchor stays stale -> the switch stays disarmed -> resume is refused -> the switch stays paused -> even a cycle that DID complete logs 'kill-switch active (paused) -- skipping decide/execute' and trades nothing (observed 2026-08-05, the one day all six tickers finished). WHY THIS IS P0 AND SEPARATE FROM 85.4: 85.4 makes cycles COMPLETE; this step makes the book TRADABLE. Fixing 85.4 alone probably clears this as a side effect (a completing cycle reaches :1298), but that is an assumption to TEST, not to rely on -- and the misleading refusal message is a defect in its own right: an operator who reads 'NO operator action is required ... this refusal clears itself' will wait indefinitely for a self-heal that cannot happen. NOT DONE, DELIBERATELY: I did not hand-write a sod_snapshot row into handoff/kill_switch_audit.jsonl to force the anchor. That would mask the defect, and writing to a live safety journal by hand is the exact anti-pattern recorded in operator ask #21. The unblock must come from code, not from a poke. ALSO NOTE the live paused_at is unreliable: it reads 2026-08-08T08:35:16Z because a test run overwrote it (ask #21); the real operator pause latched 2026-08-04T11:43:31Z.",
+          "verification": {
+            "command": "bash -c 'curl -s --max-time 15 http://127.0.0.1:8000/api/paper-trading/kill-switch | python3 -c \"import sys,json;d=json.load(sys.stdin);b=d.get(\\\"breach\\\",{});print({k:d.get(k) for k in (\\\"paused\\\",\\\"sod_date\\\")}, {k:b.get(k) for k in (\\\"armed\\\",\\\"daily_baseline_stale\\\")})\"'",
+            "success_criteria": [
+              "the deadlock is broken at the CODE level, not by hand-writing an audit row: a cycle that dies in `analyzing` must still leave the daily anchor rollable, OR the roll must move to a point every cycle reaches regardless of where it dies -- whichever is chosen, a test drives a cycle that dies mid-analysis and asserts the anchor is fresh afterwards",
+              "the 409 refusal message is corrected so it no longer tells the operator 'NO operator action is required ... this refusal clears itself' when that is false; the message must state the ACTUAL unblock condition, and a test asserts the message text matches the real mechanism (it currently claims the roll happens 'at the top of the next cycle' while it runs at paper_trader.py:1298 in the mark/trade region)",
+              "the interaction with 85.4 is stated with evidence rather than assumed: either demonstrate that fixing 85.4 alone clears this (a completing cycle reaches the roll and resume then succeeds), or demonstrate that it does not and that this step's own fix is required",
+              "resume succeeds end-to-end at least once, proven by a live POST returning 200 and a follow-up kill-switch read showing paused=false and armed=true -- not by inspection",
+              "no loosening of the kill switch's protective behaviour: arming a stale leg must not weaken any breach threshold, and a mutation that disables the daily-loss leg still fails a test",
+              "no change to order/sizing/risk logic; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_85.6.md with the verbatim pre-fix 409 refusal, the verbatim post-fix kill-switch read showing paused=false/armed=true, the sod_snapshot audit row proving the anchor rolled from a real cycle (not a hand-written row), and the cycle_history row for the cycle that produced it"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
