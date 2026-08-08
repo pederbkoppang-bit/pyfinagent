@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `4c17f06a` | phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale after 90min, and the stale ... |
 | 2026-08-08 | `aa564adf` | fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet in force |
 | 2026-08-08 | `fa5dedff` | docs(85.5): record Q/A cycle 3 as NO VERDICT (Agent-tool rail drop) |
 | 2026-08-08 | `89ed942f` | docs(85.5): close the scheduler.py gap in the regression replay |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `2b96b561` | phase-62.1 + 68.1: capture both live_checks; correct a false premise in 85.4 |
 | 2026-08-07 | `0386dc49` | chore(away-ops): recovery sweep -- audit streams + cycle state + 68.1 researcher memory |
 | 2026-08-07 | `8bdc0ccb` | fix(85.5): file P0 -- a live cycle's lock is judged stale, and the stale path defeats its flock |
-| 2026-08-07 | `5d44abdb` | fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross-link the malformed-token suspe |
 
 ---
 
+### v6.85.15 — phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale... (2026-08-08)
+
+- **phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale after 90min, and the stale ...**
 ### v6.85.14 — fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet... (2026-08-08)
 
 - **fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet in force**
