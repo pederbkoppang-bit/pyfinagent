@@ -1,5 +1,7 @@
 # Researcher Agent Memory Index
 
+- [Kill-switch deadlock 85.6](project_kill_switch_deadlock_85_6.md) — TWO `autonomous_loop.py` files (the 620-line one is the HARNESS loop); the SOD roll has ONE trigger (paper_trader:1298 ← services/autonomous_loop:1375, Step 5.5 of 10); every pause row resets `_paused_at` so the 2h auto-resume clock never matures; replay the audit JSONL, don't trust a snapshot endpoint
+- [Circuit-breaker recovery prior art](reference_circuit_breaker_recovery_prior_art.md) — resilience4j `automaticTransitionFromOpenToHalfOpenEnabled=false` names the "latch clears only if a call is made" bug as a DEFAULT; Azure mandates a manual reset + a health-check probe; daily-loss anchors must be DATE-keyed not event-keyed; sec.gov 403s WebFetch (use curl+tag-strip)
 - [Cycle never completes 85.4](project_cycle_never_completes_85_4.md) — BOTH premises refuted (terminal rows DO exist; the P1 pages were `delivered=True` all 3 days — it was alert FATIGUE at ~24 hourly freshness P1s); real gap = heartbeat alarm skips only `started` so a timeout row resets age to 0; success max 145s vs a 150s cap ⇒ 26% truncation waste; kill switch latched PAUSED since 08-04
 - [cycle_lock split-brain 85.5](project_cycle_lock_split_brain_85_5.md) — a THIRD defect (unlink at :153 BEFORE LOCK_UN at :157) double-acquires on the NORMAL release path; `-k "cycle_lock or 85_5"` misses the 8-test 38.6 suite and matches a false-friend parametrize id; macOS `spawn` sends a child test at the REAL lockfile; TTL source `settings.py:33` is runtime-mutable
 
