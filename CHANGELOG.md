@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `a126126b` | docs(85.6): record the cycle-3 remediation and the false residual claim |
 | 2026-08-08 | `0f9e92c0` | fix(85.6): cycle-3 -- make the provisional-anchor marker DURABLE |
 | 2026-08-08 | `e369b1de` | fix(85.6): cycle-2 -- the Step-0 anchor is provisional and upgraded before any breach |
 | 2026-08-08 | `b5f63525` | docs(85.6): experiment results + live_check (resume returned HTTP 200) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `4c17f06a` | phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale after 90min, and the stale ... |
 | 2026-08-08 | `aa564adf` | fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet in force |
 | 2026-08-08 | `fa5dedff` | docs(85.5): record Q/A cycle 3 as NO VERDICT (Agent-tool rail drop) |
-| 2026-08-08 | `89ed942f` | docs(85.5): close the scheduler.py gap in the regression replay |
 
 ---
 
