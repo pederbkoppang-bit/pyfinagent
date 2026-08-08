@@ -142,15 +142,27 @@ files**, and several tests read them directly:
 
 ### The valid method: same environment, only the code varies
 
-Injected the **pre-change** `backend/services/cycle_lock.py`
-(`git show 1911499b~1:…`, old predicate confirmed present at its line 79) into
-the **real repo** and replayed exactly the 26 HEAD failures:
+Reverted **all three production files this step touches** —
+`backend/services/cycle_lock.py`, `backend/slack_bot/scheduler.py`,
+`backend/services/autonomous_loop.py` — to `1911499b~1` in the **real repo**
+and replayed exactly the 26 HEAD failures. The revert is verified by marker
+count, not assumed:
 
 ```
-OLD CODE: 26 failed, 1 warning in 5.19s
-=== all 26 reproduce under OLD code, same environment? ===
-  IDENTICAL -- all 26 failures are independent of my change
+=== reverted: phase-85.5 markers must now be 0 in all three ===
+  backend/services/cycle_lock.py: 0
+  backend/slack_bot/scheduler.py: 0
+  backend/services/autonomous_loop.py: 0
+  ALL-3 REVERTED: 26 failed, 1 warning in 5.18s
+
+=== all 26 reproduce with ALL THREE production files reverted? ===
+  IDENTICAL -- none of the 26 is attributable to ANY production change I made
 ```
+
+**Why all three, not just `cycle_lock.py`:** the first version of this replay
+reverted only `cycle_lock.py`, which cannot exonerate the `scheduler.py`
+change. That gap was identified by Q/A cycle 2 before it errored, and is
+closed here rather than left for a later reviewer to find.
 
 File restored byte-exact afterwards (`cmp` verified; explicit backup/restore,
 not `git checkout --`, which this repo's PreToolUse danger hook blocks —

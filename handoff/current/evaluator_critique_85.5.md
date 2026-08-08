@@ -125,3 +125,42 @@ did not notice.
 
 Evidence has changed on every blocker, so a FRESH Q/A is spawned per the
 canonical cycle-2 flow (CLAUDE.md: fix → update handoff files → fresh Q/A).
+
+---
+
+## Q/A cycle 2 — NO VERDICT (rail error), and what it still contributed
+
+Workflow run `wf_7e809394-ae8` **errored**: *"subagent completed without
+calling StructuredOutput (after in-conversation nudge)"* at 193,263 subagent
+tokens / 40 tool calls. Per CLAUDE.md an errored or empty return is **NO
+VERDICT, never PASS**. It is NOT recorded as a CONDITIONAL either, so it does
+not count toward the 3rd-CONDITIONAL auto-FAIL rule. This matches the known
+rail failure mode (auto-memory `feedback_qa_rail_drops_on_long_prompts`).
+
+Its transcript (459KB, 9 assistant text blocks) shows it never reached a
+verdict. But its final recorded thought identified a **real gap in my
+evidence**, which I have closed rather than discarded:
+
+> "Reconstructing the failure set from cache is unreliable (stale entries).
+> Instead I'll close the gap the author's replay method leaves open — it
+> reverts only `cycle_lock.py`, so it cannot exonerate the `scheduler.py`
+> change."
+
+Correct. The regression replay now reverts **all three** production files the
+step touches (`cycle_lock.py`, `scheduler.py`, `autonomous_loop.py`), with the
+revert verified by phase-85.5 marker count (0/0/0) rather than assumed, and
+all 26 failures still reproduce identically. See `experiment_results_85.5.md`
+§5 and `live_check_85.5.md` §G.
+
+**A second self-inflicted measurement failure, recorded:** my first attempt at
+this all-three replay used `for f in $FILES` in zsh, which does not word-split
+unquoted parameter expansions — so the loop treated the whole string as one
+filename, no revert occurred, and the run reported "IDENTICAL" from comparing
+current code against itself. I caught it, verified the tree was uncorrupted
+(all three files clean vs HEAD, 14 passed), discarded the result, and re-ran
+with a proper array plus a marker-count assertion that fails loudly if the
+revert does not take. This is the same zsh trap that produced the earlier
+"0 failures" non-run; both are now guarded.
+
+Q/A cycle 3 is spawned on the Agent-tool `qa` rail (CLAUDE.md's documented
+fallback when the Workflow rail errors), with a leaner prompt.

@@ -159,13 +159,20 @@ gitignored live-system files, and tests read them. `backend.log` is
 failed at HEAD — a purely environmental "regression". Skip counts corroborate:
 12 at HEAD vs 22 in the worktree.
 
-Valid method — inject the pre-change `cycle_lock.py` into the **real** repo
-and replay exactly the 26 HEAD failures:
+Valid method — revert **all three** production files this step touches
+(`cycle_lock.py`, `scheduler.py`, `autonomous_loop.py`) to `1911499b~1` in the
+**real** repo and replay exactly the 26 HEAD failures. Revert verified by
+marker count rather than assumed:
 
 ```
-OLD CODE: 26 failed, 1 warning in 5.19s
-IDENTICAL -- all 26 failures are independent of my change
+phase-85.5 markers after revert:  cycle_lock.py: 0  scheduler.py: 0  autonomous_loop.py: 0
+ALL-3 REVERTED: 26 failed, 1 warning in 5.18s
+IDENTICAL -- none of the 26 is attributable to ANY production change I made
 ```
+
+Reverting only `cycle_lock.py` (the first version of this replay) could not
+exonerate the `scheduler.py` change — a gap Q/A cycle 2 spotted before it
+errored, closed here.
 
 Restored byte-exact via explicit backup (`cmp` verified), not
 `git checkout --` — the PreToolUse danger hook blocks that, correctly, since
