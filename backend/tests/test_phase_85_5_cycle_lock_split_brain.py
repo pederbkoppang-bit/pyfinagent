@@ -198,19 +198,73 @@ def test_85_5_c2_second_real_process_refused_while_holder_alive(tmp_path, monkey
     )
 
 
-def test_85_5_c2_acquire_verifies_inode_after_locking(tmp_path, monkeypatch):
-    """Defence in depth (portalocker #115): if the lockfile is swapped under
-    us between open and flock, acquire must not settle for the orphan."""
+def test_85_5_c2_live_flock_holder_wins_even_when_payload_says_released(
+    tmp_path, monkeypatch
+):
+    """The FLOCK is the authority, never the on-disk metadata.
+
+    This is not contrived: release writes the `released` payload BEFORE
+    LOCK_UN, so there is a genuine window in which the metadata reads
+    collectable while the holder still owns the flock. Anything that consults
+    is_stale and then unlinks+recreates would split the lock right there.
+
+    MUTATION NOTE: this test exists because re-adding the stale
+    unlink+recreate branch SURVIVED the test above -- with the fixed
+    predicate a live holder is never is_stale, so that branch was unreachable
+    in that scenario and the assertion could not distinguish the two. Here
+    is_stale is forced True while the flock is genuinely held, which is the
+    only state in which the deleted branch would fire.
+    """
     lock = _point_lock_at(monkeypatch, tmp_path / ".autonomous_loop.lock")
+    with cl.acquire("holder-cycle"):
+        data = json.loads(lock.read_text())
+        data["state"] = "released"          # forge the pre-LOCK_UN window
+        lock.write_text(json.dumps(data))   # same inode: truncate, never unlink
+        assert cl.inspect_lock()["is_stale"] is True, "fixture must look collectable"
+        out = _run_child(_CHILD_NEW, lock)
+    assert out == "NEW_REFUSED", (
+        f"a contender took the lock from a LIVE flock holder because the "
+        f"metadata said released -- the flock must outrank the payload. "
+        f"child said: {out!r}"
+    )
+
+
+def test_85_5_c2_acquire_reverifies_inode_after_locking(tmp_path, monkeypatch):
+    """Defence in depth (portalocker 4.0.0 / issue #115).
+
+    If the lockfile is swapped between our open and our flock, our fd names an
+    orphaned inode and our lock excludes nobody. acquire must detect that and
+    retry against the current file rather than settle for the orphan.
+
+    Driven by swapping the file from inside flock() itself, so the race is
+    deterministic rather than timing-dependent.
+    """
+    lock = _point_lock_at(monkeypatch, tmp_path / ".autonomous_loop.lock")
+    real_flock = cl.fcntl.flock
+    calls = {"n": 0}
+
+    def sneaky_flock(fd, op):
+        result = real_flock(fd, op)
+        calls["n"] += 1
+        if calls["n"] == 1:
+            # Someone replaces the lockfile the instant we lock it.
+            lock.unlink(missing_ok=True)
+            lock.write_text("{}")
+        return result
+
+    monkeypatch.setattr(cl.fcntl, "flock", sneaky_flock)
+
     with cl.acquire("verified-cycle"):
-        held_ino = lock.stat().st_ino
-        # Someone replaces the file under the live holder.
-        lock.unlink()
-        lock.write_text(json.dumps({"pid": 1, "state": "held"}))
-        assert lock.stat().st_ino != held_ino
-        # The holder can now detect its fd no longer names the path.
-        state = cl.inspect_lock()
-        assert state is not None
+        # Our payload must be visible AT THE PATH -- if we had settled for the
+        # orphan, the file here would still be the placeholder "{}".
+        held = json.loads(lock.read_text())
+        assert held["cycle_id"] == "verified-cycle", (
+            "acquire settled for an orphaned inode -- its lock excludes nobody"
+        )
+    assert calls["n"] >= 2, (
+        "acquire must have re-attempted after detecting the inode swap; "
+        f"flock was called {calls['n']}x"
+    )
 
 
 # ── criterion 3 ──────────────────────────────────────────────────────────

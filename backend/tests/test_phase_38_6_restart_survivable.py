@@ -15,14 +15,11 @@ import json
 import os
 import time
 from pathlib import Path
-from unittest.mock import patch
-
 import pytest
 
 from backend.services import cycle_lock
 from backend.services.cycle_lock import (
     CycleLockError,
-    _LOCK_PATH,
     acquire,
     clean_stale_lock,
     inspect_lock,
