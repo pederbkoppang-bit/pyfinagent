@@ -3,9 +3,12 @@
 **Verdict: CONDITIONAL** · `ok: false` · `certified_fallback: false` · `harness_compliance_ok: true`
 
 Launch: Workflow `qa-verdict` rail, run `wf_09336268-c19`, agent `a85d73b1772e38517`.
+Machine copy of THIS pass: `evaluator_critique_85.4_pass1.json`. (The
+unsuffixed `evaluator_critique_85.4.json` carries the step's FINAL verdict —
+pass 2, PASS — because that is the file `.claude/hooks/lib/verdict_gate.py`
+reads. Both passes are preserved on disk and verbatim in this document.)
 Evaluated commit `e0287161`. Transcribed VERBATIM from the Q/A's returned
-structured output — Main records the verdict, never authors it. Machine copy:
-`handoff/current/evaluator_critique_85.4.json`.
+structured output — Main records the verdict, never authors it.
 
 ---
 
