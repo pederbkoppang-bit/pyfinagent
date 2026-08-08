@@ -277,10 +277,81 @@ if [ "${#SUBJECT}" -gt 100 ]; then
     SUBJECT="${SUBJECT:0:97}..."
 fi
 
+# --- Single-writer lock (concurrent-session safety) ---
+# Two Claude Code sessions can both be open on this repo and both flip
+# masterplan steps. Because the stage step below is `git add -A`, an
+# unserialized second invocation races .git/index.lock and can interleave
+# two steps into one commit. Serialize stage -> commit -> push.
+#
+# Primitive choice: macOS has NO flock(1). /usr/bin/shlock exists but was
+# MEASURED (2026-08-08) NOT to break a stale lock even when the recorded
+# holder pid is genuinely dead and written in shlock's own format -- so a
+# crashed session would leave a permanent lock and silently stop every
+# future auto-commit. `mkdir` is atomic on POSIX and lets us own the
+# staleness policy explicitly, so we break the lock when the holder pid is
+# dead OR the lock is older than LOCK_STALE_SECS.
+#
+# The lock lives under .git/ so `git add -A` can never stage it.
+#
+# Fail-open: on timeout we proceed UNLOCKED, because this hook must never
+# break the masterplan Write that triggered it. Proceeding unlocked is
+# exactly the pre-existing behaviour, so this is never worse than before.
+LOCK_DIR="$PROJECT_ROOT/.git/pyfinagent-auto-commit.lock.d"
+LOCK_WAIT_SECS=20      # stay well inside the ~60s PostToolUse hook budget
+LOCK_STALE_SECS=120    # > 2x the hook budget => definitely orphaned
+lock_held=0
+lock_waited=0
+
+release_lock() { rm -f "$LOCK_DIR/pid" 2>/dev/null; rmdir "$LOCK_DIR" 2>/dev/null; }
+
+while :; do
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "$$" > "$LOCK_DIR/pid" 2>/dev/null
+        lock_held=1
+        trap 'release_lock; exit 0' EXIT
+        break
+    fi
+
+    # Lock is held. Decide whether it is legitimate or orphaned.
+    holder=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+    if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
+        log "breaking auto-commit lock held by DEAD pid $holder"
+        release_lock
+        continue
+    fi
+
+    lock_mtime=$(stat -f %m "$LOCK_DIR" 2>/dev/null || echo 0)
+    now_epoch=$(date +%s)
+    if [ "$lock_mtime" -gt 0 ] && [ $((now_epoch - lock_mtime)) -gt "$LOCK_STALE_SECS" ]; then
+        log "breaking auto-commit lock older than ${LOCK_STALE_SECS}s (holder pid=${holder:-unknown})"
+        release_lock
+        continue
+    fi
+
+    if [ "$lock_waited" -ge "$LOCK_WAIT_SECS" ]; then
+        break
+    fi
+    sleep 2
+    lock_waited=$((lock_waited + 2))
+done
+
+if [ "$lock_held" -eq 1 ]; then
+    if [ "$lock_waited" -gt 0 ]; then
+        log "acquired single-writer lock after ${lock_waited}s (a peer session was committing)"
+    fi
+else
+    log "WARN: single-writer lock still held by live pid ${holder:-unknown} after ${lock_waited}s -- proceeding UNLOCKED (fail-open). A concurrent session may be mid-commit; check for interleaved work in $STEP_ID's commit."
+    printf '{"systemMessage":"auto-commit: another Claude session held the commit lock for %ss; step %s was committed WITHOUT serialization. Verify the commit contents."}\n' "$lock_waited" "$STEP_ID"
+fi
+
 # --- Stage everything ---
 # Broad capture; the pre-commit pre-tool-use-danger guard + gitignore for
 # .env files cover safety. git add -A also picks up untracked archive
 # snapshots from archive-handoff.sh (which runs ahead of us in the chain).
+# NOTE: `git add -A` is tree-wide, so it will also stage a PEER session's
+# in-flight files under THIS step's commit subject. The lock above prevents
+# interleaving and index races; it does NOT prevent that cross-attribution.
+# Commit your own work with an explicit pathspec before a peer flips a step.
 # Retry once: when the PostToolUse hook chain runs all 4 hooks back-to-back,
 # the sibling masterplan-memory-sync.sh + archive-handoff.sh occasionally
 # leave .git/index.lock or a transient FS state that makes the first
@@ -326,10 +397,34 @@ if [ -x "$CHANGELOG_HOOK" ] || [ -f "$CHANGELOG_HOOK" ]; then
 fi
 
 # --- Push ---
+# A push can be rejected non-fast-forward when a peer session (or the
+# operator) pushed first. Previously that logged a WARN and exited 0, so the
+# commit sat local and INVISIBLE until someone read auto-push.log. Attempt a
+# bounded rebase recovery, but only from a clean tree on main, and abort back
+# to the pre-rebase state on any conflict -- never leave the repo mid-rebase.
 if git push origin main >> "$LOG_FILE" 2>&1; then
     log "step $STEP_ID pushed to origin/main"
 else
-    log "WARN: git push failed for step $STEP_ID -- commits remain local; retry manually"
+    log "push rejected for step $STEP_ID -- attempting rebase recovery"
+    CUR_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    if [ "$CUR_BRANCH" != "main" ]; then
+        log "WARN: on branch '$CUR_BRANCH', not main -- no rebase attempted; commits remain local"
+        printf '{"systemMessage":"auto-commit: push failed for step %s and HEAD is on '\''%s'\'', not main. Commits are LOCAL ONLY."}\n' "$STEP_ID" "$CUR_BRANCH"
+    elif ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+        log "WARN: working tree dirty after commit (peer session writing?) -- no rebase attempted; commits remain local"
+        printf '{"systemMessage":"auto-commit: push failed for step %s and the tree was dirty, so no rebase was attempted. Commits are LOCAL ONLY -- run: git pull --rebase origin main && git push origin main"}\n' "$STEP_ID"
+    elif git pull --rebase origin main >> "$LOG_FILE" 2>&1; then
+        if git push origin main >> "$LOG_FILE" 2>&1; then
+            log "step $STEP_ID pushed to origin/main after rebase recovery"
+        else
+            log "WARN: push failed again after successful rebase for step $STEP_ID -- commits remain local"
+            printf '{"systemMessage":"auto-commit: push for step %s failed even after a clean rebase. Commits are LOCAL ONLY."}\n' "$STEP_ID"
+        fi
+    else
+        git rebase --abort >> "$LOG_FILE" 2>&1 || true
+        log "WARN: rebase conflicted for step $STEP_ID -- aborted back to pre-rebase state; commits remain local, resolve manually"
+        printf '{"systemMessage":"auto-commit: push for step %s hit a diverged origin/main and the rebase CONFLICTED (aborted cleanly). Commits are LOCAL ONLY -- resolve manually."}\n' "$STEP_ID"
+    fi
 fi
 
 exit 0
