@@ -83,7 +83,7 @@ Fixed by moving the roll to **Step 0**, before anything that can fail.
 
 ## Where I was wrong, and who caught it
 
-The Q/A returned **CONDITIONAL three times across the two steps, and was right
+The Q/A returned **CONDITIONAL five times across the three steps, and was right
 every time.** These are the findings I would want read first.
 
 1. **85.4 — I never ran a required gate.** `ruff` was RED on a dead import in a
