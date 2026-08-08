@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `a33ca231` | docs(goal): regenerate the drain goal after cycles 181-182 |
 | 2026-08-08 | `16116e4a` | phase-85.6: file the P0 kill-switch resume deadlock; record pre-Monday actions |
 | 2026-08-08 | `e3b7f8b3` | phase-85.4: research gate + contract (GENERATE not started); regenerate drain goal |
 | 2026-08-08 | `1ffb340d` | docs(away-ops): ask #21 -- my test runs overwrote live kill-switch pause provenance |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `bf0e2b6c` | docs(harness): install the 2026-08-08 drain goal -- the money engine leads |
 | 2026-08-08 | `a28f6b81` | chore(away-ops): 2026-08-08 AM recovery -- commit benign heartbeat/audit + nightly autoresearch memo |
 | 2026-08-07 | `df135cde` | phase-68.1 cycle-2 close: kill the surviving mutant; DEFER the process breach to the operator (statu |
-| 2026-08-07 | `e9ffd16c` | phase-68.1 cycle-2: fire the missing-creds error at STARTUP, not at the first order |
 
 ---
 
