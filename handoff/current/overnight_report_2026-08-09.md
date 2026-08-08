@@ -33,6 +33,10 @@ only lengths, counts and a truncated hash.
 |---|---|---|
 | **85.4** — P0 engine health: the cycle never completes | **PASS**, pushed `8aa3f52e` | 183, 2 EVALUATE passes |
 | **85.6** — P0 deadlock: the book cannot be un-paused | **PASS**, pushed `cb34a7c0` | 184, 3 EVALUATE passes |
+| **85.5.1** — P1 book safety: a RED breach test | **PASS**, pushed `bb88239b` | 185, 2 EVALUATE passes |
+
+**Seven Q/A evaluations across three steps. Five came back CONDITIONAL, and every
+one of them was right.** Details in "Where I was wrong" below.
 
 ### 85.4 — why cycles never completed
 
@@ -92,7 +96,12 @@ every time.** These are the findings I would want read first.
    old code read 0.00%. It was live-reachable that night — the cycle passed by
    **margin (−0.0146%), not by design**. My contract had disclosed that direction
    and argued it away with no test and no bound.
-3. **85.6 pass 2 — my fix was one seam short.** I made the marker an in-memory
+3. **85.5.1 — I claimed an isolation I did not have.** The worktree relocated
+   every file path and I wrote "the live journal was never touched". It had grown
+   by eight rows, and the writer was my own measurement run reaching the backend
+   over HTTP. **An isolation claim has to cover every channel the suite can
+   reach, not just the one you thought of.**
+4. **85.6 pass 2 — my fix was one seam short.** I made the marker an in-memory
    flag on `PaperTrader`, and the loop rebuilds that every cycle, so it did not
    survive the *cycle* — not merely the process, as I had written. **Both of my
    residual disclosures were materially false.** Fixed by persisting the marker
@@ -163,28 +172,62 @@ two durability guards blind because my fakes mirrored the thing under test. The
 
 ---
 
+## 85.5.1 — and the thing it found in my own evidence
+
+The RED test was a **broken fixture, not a broken kill switch**. Its mock returned
+2 of the 9 keys the real snapshot emits, omitting `sod_date` — so it handed
+`evaluate_breach` a state whose daily leg is provably unevaluable and then
+asserted that leg fires. 1 failed / 13 passed → **15 passed, 0 failed**, no
+assertion weakened, **no production file changed**.
+
+Criterion 1 demanded a measurement, so there is a re-runnable one
+(`scripts/diagnostics/measure_sod_date_reachability.py`). Production **can** reach
+a None/stale anchor, and the driver is not the exotic case — it is the **UTC
+rollover, every single day, no fault required**. Exposure is bounded to drawdowns
+in **[4%, 10%)** because the trailing leg is date-independent.
+
+**The most serious thing I learned tonight came out of this step's own evidence.**
+I ran the criterion-5 baseline in a detached git worktree and asserted isolation.
+The Q/A re-measured and found the live kill-switch journal had grown 54 → 62:
+`test_phase_23_2_4_pause_resume_no_deadlock_live.py` POSTs to
+`http://localhost:8000`, and **a worktree relocates file paths but not a TCP
+connection**. I paused and resumed your live, armed book four times while
+asserting I had isolated it. Every cluster ends in `resume`, no baseline moved
+(structurally impossible for pause/resume rows), and the book is verified healthy
+— but the claim was false and the audit trail carries eight test-authored rows.
+
+## Queued rather than absorbed — five new steps
+
+| Step | Why it matters |
+|---|---|
+| **86.1** (P1) | `test_peak_reset_dark_by_default` calls `reset_peak` on the **real singleton**. Safe *only* because a flag is OFF — **the day you approve KS-PEAK-RESET, running the suite drops the live trailing peak from ~24666 to 12345**, replayed on every boot. A landmine armed by an unrelated decision of yours. |
+| **86.2** (P1) | One oversized JSON int raises `OverflowError`, aborts the whole audit replay and strands **both** legs — `any_breached=False` on a 20% drawdown. The only measured path to a *total* disarm. |
+| **86.3** (P1) | The suite pauses your live book (above). **This is the sibling the goal asked for on 36.28** — and it shows the widening must cover the **HTTP channel**, not just file paths, which 36.28 as written does not. |
+| **86.4** (P3) | No duration limit on the per-leg bypass (IEC 61511 Cl. 16.2.3). |
+| **86.5** (P2) | The 26-failure triage, carrying all 26 node ids and the baseline so the next executor need not re-run the suite — and must not casually, because of 86.3. |
+
 ## Not done, and why
 
-The goal's defect list had five items. Two closed; three remain, all still open
-and none blocked:
+- **The 26-failure triage itself** is filed (86.5), not performed. Doing it
+  properly means re-measuring the suite, which is the very defect 86.3 describes;
+  doing it at 03:30 from memory would produce wrong steps for someone else to
+  execute. The node ids and baseline are preserved so it starts from evidence.
+- **36.28 was not edited.** 86.3 is the sibling the goal permitted
+  ("widen it *or file a sibling*"), and it is filed with measurements rather than
+  a prose note. They must be resolved together — 86.5 says so explicitly.
 
-- **85.5.1** (P1 book safety, the RED `test_valid_nav_still_breaches`). The 85.6
-  research gate answered its central question as a side effect and I recorded the
-  scope boundary in `contract_85.6.md` §7: the RED test *is* a fixture defect
-  (the mock omits `sod_date`), **but** `sod_date=None` with a positive `sod_nav`
-  **is** production-reachable via `_load_from_audit:285-295`, and the trailing leg
-  still fires — so exposure is bounded to drawdowns in
-  `[daily_limit, trailing_limit)`. It self-heals except inside 85.6's deadlock,
-  which is now fixed. **The next session starts here; the analysis is already done.**
-- **Widening 36.28** (tests write to the live kill-switch journal and heartbeat).
-  Two fresh instances observed tonight, both recorded.
-- **Triaging the 26 failures** into research-gated steps.
-
-I stopped short of these because two P0s consumed the night at five EVALUATE
-passes, and because starting a third step at 01:00 after three CONDITIONALs on
-safety-critical code is how the defects I spent the night fixing get written.
+Three steps closed, seven evaluations, five CONDITIONALs corrected. I stopped
+here rather than opening a fourth step near 04:00, because rushing safety-critical
+code at that hour is precisely how the defects I spent tonight fixing were
+written.
 
 ## State of the tree
 
-Committed and pushed clean. `origin/main` at `129c3eda`. Both masterplan steps
-flipped to `done` by the hook, which pushed each after its verdict gate passed.
+Committed and pushed clean. `origin/main` at **`a7911f2e`**. 85.4 and 85.6 were
+flipped and pushed by the auto-commit hook after its verdict gate passed; 85.5.1
+and the new 86.x steps were committed and pushed **manually**, because a
+masterplan edited via a script rather than the Edit tool does not fire that hook.
+
+**The book is live right now:** `paused: False`, `armed: True`,
+`sod_date: 2026-08-08`, `sod_nav: 23830.46`, `peak_nav: 24666.57`. It will not
+trade until the token in ask #26 is replaced.
