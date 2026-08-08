@@ -41,3 +41,38 @@ doing it. Items accumulate during the day; recommendations are the executor's.
 
 - 82.23 closed as `superseded` by 82.27 (no decision needed — operator already
   chose the re-spec 2026-08-04; listed for visibility). Commit cb4b3c52.
+
+## Recorded 2026-08-08 (cycle 181)
+
+- **Ask #18 (85.5) is addressed in code.** The concurrency hazard you were
+  warned about before anything starts a cycle manually is closed: liveness
+  (plus an explicitly recorded `released` state) is now the sole authority
+  over staleness, the stale-reacquire branch is deleted, acquire re-verifies
+  `(st_dev, st_ino)` after locking, release no longer unlinks, and the TTL is
+  derived at call time from `paper_cycle_max_seconds` instead of a constant
+  frozen at 0.75x the real budget. Commits `1911499b`, `da98af6b`, `7508c8ec`,
+  `def96b21`, `f3078453`. **No decision needed from you.**
+
+  The research gate found a **third** defect the finding did not name: the
+  release path unlinked *before* `LOCK_UN`, splitting the lock across two
+  inodes on the NORMAL release path with no TTL involved. Also fixed.
+
+- **Two follow-ups are owed but need nothing from you now:**
+  1. `backend/slack_bot/scheduler.py` is changed in code (the watchdog line no
+     longer reads "STALE lock" after every normal cycle) but **the running bot
+     process has not been restarted**, so it still prints the old wording. The
+     line is appended to alerts and never suppresses one, so this is cosmetic.
+     Restart was deliberately not performed inside another step's evidence
+     window.
+  2. No production trading cycle has exercised the new lock under contention.
+     **Monday's scheduled cycle is the first real test.**
+
+- **New step queued: 85.5.1 (P1 BOOK SAFETY).** Found while baselining 85.5,
+  proven pre-existing. `test_book_safety_69.py::test_valid_nav_still_breaches`
+  is RED at HEAD: the kill switch DISARMS because the daily anchor is stale
+  (`sod_date=None`) rather than firing on a real 20% breach. The surface
+  reading is an incomplete test mock, and the step deliberately forbids
+  stopping there — the question that sets the severity is whether `sod_date`
+  can be `None` in **production** (at startup before the first anchor, or
+  across a date rollover), because then a real drawdown in that window does
+  not fire the switch. No decision needed; queued for its own research gate.
