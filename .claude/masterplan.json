@@ -23779,6 +23779,27 @@
           },
           "retry_count": 0,
           "max_retries": 3
+        },
+        {
+          "id": "85.5.1",
+          "name": "P1 BOOK SAFETY: a kill-switch test asserting that a real 20% breach still fires is RED -- the daily-anchor staleness guard disarms the switch when sod_date is absent. Determine whether production can reach that state.",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P1",
+          "audit_basis": "Discovered 2026-08-08 (cycle 181) while establishing a regression baseline for 85.5; NOT caused by that step -- proven by running the test in a detached worktree at cf4d22d8 with backend/.env symlinked, where it fails identically. MEASURED, RE-DERIVE ALL OF IT: (1) `backend/tests/test_book_safety_69.py::test_valid_nav_still_breaches` fails at HEAD; the file is 1 failed / 13 passed. (2) The failure is not an assertion mismatch but a DISARM: `kill_switch DISARMED: daily anchor STALE (sod_nav=100.0 sod_date=None peak_nav=100.0) -- an unevaluable leg cannot fire`, emitted from backend/services/kill_switch.py:~927. (3) The guard originates in phase-36.9 (commit 1657e25a, 'armed:true must mean the leg can actually fire NOW'); the test originates in phase-69.1 (commit 36e4c288). I did NOT determine when the test began failing -- measuring that is the first thing the executor should do, because 'a book-safety test that silently went red' and 'a test that was never green' are different problems. (4) The test monkeypatches `st.snapshot` to return only {'sod_nav': 100.0, 'peak_nav': 100.0}; the REAL `_snapshot_locked()` returns sod_date as well (kill_switch.py:444). There is exactly ONE snapshot mock in the entire backend/tests tree (test_book_safety_69.py:80) -- counted, not estimated. THE LOAD-BEARING QUESTION IS NOT THE MOCK: the surface reading is 'incomplete fixture, correct the mock'. Do not stop there. The guard disarms the kill switch whenever the daily anchor is absent or stale, so the question that decides the severity is whether `sod_date` can be None or stale in PRODUCTION -- for example at backend startup before the first daily anchor is written, or after a date rollover but before the anchor refreshes. If it can, then a real drawdown arriving in that window does not fire the kill switch, and this is a money-path defect wearing a test-fixture costume. If it provably cannot, the fix is the mock and the severity is low. Answer that question with a measurement before changing either side. WHAT WAS NOT DONE: nothing was changed; the failing test was left failing; no kill-switch state was touched and nothing was unpaused.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_book_safety_69.py -q --timeout=120'",
+            "success_criteria": [
+              "the question 'can sod_date be None or stale in PRODUCTION, not merely in a test mock' is answered with a measurement (e.g. the observed value of the daily anchor at backend startup before the first anchor write, and across a date rollover), and that measurement is recorded verbatim in the step evidence rather than reasoned about",
+              "the fix follows the answer: if production cannot reach a None/stale anchor, the mock is corrected to the real _snapshot_locked() contract (kill_switch.py:444 includes sod_date); if production CAN reach it, the GUARD is fixed so an evaluable breach still fires, and a test drives the production path that reaches the disarm rather than a mock of it",
+              "no book-safety assertion is weakened to obtain green: test_valid_nav_still_breaches must still assert that a 20% drawdown against both sod and peak yields daily_loss_breached True, trailing_dd_breached True, any_breached True and a falsy nav_invalid",
+              "a mutation proves the guard bites -- reverting the fix makes the test fail again, demonstrated in the evidence",
+              "backend/tests/test_book_safety_69.py is fully green (0 failed) and no other test changes status vs the pre-change baseline, which is measured and recorded; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_85.5.1.md carrying the verbatim measurement that answers criterion 1 (the production reachability of a None/stale daily anchor), the before/after output of the verification command, and the mutation transcript from criterion 4"
+          },
+          "retry_count": 0,
+          "max_retries": 3
         }
       ]
     }
