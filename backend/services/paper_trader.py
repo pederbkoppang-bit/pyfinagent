@@ -115,6 +115,12 @@ class PaperTrader:
         # reading the real singleton would fail its probe order ONLY on days the
         # book happens to be paused -- an intermittent, schedule-dependent break.
         self._injected_ks_state = kill_switch_state
+        # phase-85.6 cycle-2: set True by roll_daily_anchor() when Step 0 anchored
+        # from the LAST STORED mark, which may be several sessions old. The
+        # post-mark path upgrades it to today's real mark and clears this. See
+        # roll_daily_anchor's "PROVISIONAL" note for why the upgrade is required
+        # and not merely tidy.
+        self._sod_anchor_provisional = False
         if kill_switch_state is not None:
             # The counter-argument to injection is that it is a SILENT bypass,
             # visible only here. Make it audible.
@@ -1276,6 +1282,21 @@ class PaperTrader:
                 }
             prior_date = snap.get("sod_date")
             state.update_sod_nav(nav, date=today)
+            # PROVISIONAL. `nav` here is the LAST STORED mark, and if cycles have
+            # been failing that mark may be several sessions old. Stamping today's
+            # date on it makes `armed` True and hands `evaluate_breach` a
+            # multi-session move to report as a same-day loss -- the exact hazard
+            # kill_switch.py's phase-36.9 F1 comment records as measured on this
+            # book on 2026-07-26 ("a TWO-DAY move reported as a same-day loss ...
+            # biases toward a spurious flatten"). Found by the phase-85.6 cycle-1
+            # Q/A, which measured it with the production evaluate_breach: a
+            # 23830.46 anchor against a 22600 mark reports 5.16% and would
+            # flatten_all + pause, where the pre-85.6 code reported 0.00%.
+            #
+            # So the Step-0 anchor exists to UNBLOCK RESUME, not to be the value
+            # the breach is judged against. Flag it; the post-mark path replaces
+            # it with today's real mark before any breach decision is made.
+            self._sod_anchor_provisional = True
             post = state.snapshot()
             rolled = post.get("sod_date") == today and (post.get("sod_nav") or 0) > 0
             if rolled:
@@ -1391,6 +1412,36 @@ class PaperTrader:
         today = datetime.now(timezone.utc).date().isoformat()
         if sod_anchor_needs_reroll(snap, today):
             state.update_sod_nav(nav, date=today)
+        elif self._sod_anchor_provisional and snap.get("sod_date") == today:
+            # phase-85.6 cycle-2 (Q/A pass-1 finding): UPGRADE A PROVISIONAL ANCHOR.
+            #
+            # Step 0 anchored from the last stored mark so that /resume could
+            # succeed without waiting for a cycle to finish. That value is not
+            # necessarily today's open -- if cycles have been failing it can be
+            # several sessions old, and `sod_anchor_needs_reroll` would then keep
+            # it for the rest of the UTC day because its DATE is today's.
+            # `evaluate_breach` would read the whole multi-session move as a
+            # same-day loss and could spuriously flatten the book.
+            #
+            # `nav` here IS today's freshly-marked NAV (mark_to_market ran at
+            # Step 5). Re-anchoring to it restores exactly the pre-85.6 value the
+            # breach was judged against, so this path is byte-equivalent to the
+            # old behaviour at decision time while keeping 85.6's unblock.
+            #
+            # RESIDUAL, disclosed rather than hidden: a cycle that dies BEFORE
+            # this line leaves the provisional anchor in place for the rest of
+            # that UTC day, and the flag does not survive the process. The next
+            # cycle re-rolls at Step 0 and upgrades here, so the window is one
+            # cycle -- and a cycle that dies before Step 5.5 never reaches the
+            # breach decision either, so nothing is judged against it in the
+            # meantime.
+            logger.info(
+                "phase-85.6: upgrading PROVISIONAL start-of-day anchor %r -> %.2f "
+                "(today's mark) before the breach decision",
+                snap.get("sod_nav"), nav,
+            )
+            state.update_sod_nav(nav, date=today)
+            self._sod_anchor_provisional = False
 
         # phase-36.12: the BREACH decision stays on the POST-roll state, and that is
         # deliberate, not an oversight. The SOD daily roll above is a LEGITIMATE

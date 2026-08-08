@@ -206,8 +206,8 @@ applied without needing the Q/A to teach it twice.
 ## 9. Test totals
 
 ```
-backend/tests/test_phase_85_6_anchor_deadlock.py   16 passed in 13.88s
-scripts/qa/mutation_matrix_85_6.py                 9/9 mutations killed
+backend/tests/test_phase_85_6_anchor_deadlock.py   19 passed in 14.01s   (16 + 3 from cycle-2)
+scripts/qa/mutation_matrix_85_6.py                 12/12 mutations killed (9 + 3 from cycle-2)
 ```
 
 ## 10. Disclosed: a test wrote to the live cycle lockfile, and one run reached the real rail
@@ -242,3 +242,75 @@ scripts/qa/mutation_matrix_85_6.py                 9/9 mutations killed
   established the scope boundary: that RED test is a fixture defect, but
   `sod_date=None` IS production-reachable via `_load_from_audit:285-295`, and the
   trailing leg still fires, bounding exposure to `[daily_limit, trailing_limit)`.
+
+
+---
+
+## 12. Cycle-2 — what changed after the Q/A CONDITIONAL (EVALUATE pass 1)
+
+Verdict verbatim in `handoff/current/evaluator_critique_85.6.md`. The Q/A found
+criteria 1, 2, 3, 4 and 6 MET and reproduced them independently. It blocked PASS
+on **criterion 5**, and it was right — I had the safety argument half-wrong.
+
+### The finding: my "strictly more protective" claim was true in one direction only
+
+Step 0 anchors from the last stored mark and stamps **today's date** on it. If
+cycles have been failing, that value can be several sessions old. The Q/A
+measured the consequence with the **production `evaluate_breach`**, not by
+reasoning:
+
+- anchor `23830.46` (the 2026-08-05 mark) against a `22600` mark →
+  `daily_loss = 5.16%` → `any_breached = True` → **flatten_all + pause**
+- the pre-85.6 code, on the same book, measured **0.00%**
+- with an *honest* stale date, phase-36.9's designed disarm fires instead
+  (`armed=False`, `daily_baseline_stale=True`, no breach)
+
+So I had converted a **designed disarm** into a **spurious flatten** — the exact
+hazard `kill_switch.py`'s own phase-36.9 F1 comment records as measured on this
+book on 2026-07-26 (*"a TWO-DAY move reported as a same-day loss … biases toward
+a spurious flatten"*).
+
+**It was live-reachable tonight.** Cycle `c67b3b15` reached Step 5.5 and
+evaluated the daily leg against an anchor whose value was the 2026-08-05 mark.
+It did not flatten only because the 3-session move happened to be −0.0146% —
+**by margin, not by design.** My contract disclosed the risen-book direction and
+then argued it away with no test and no bound. That was the error.
+
+### The fix: the Step-0 anchor is PROVISIONAL and is upgraded before any breach
+
+- `roll_daily_anchor` sets `self._sod_anchor_provisional = True` when it anchors.
+- The post-mark path (`check_and_enforce_kill_switch`) upgrades that anchor to
+  **today's freshly-marked NAV** before the breach is evaluated, and clears the
+  flag.
+- Net effect: the value the breach is judged against is **byte-equivalent to
+  pre-85.6**, while the anchor still exists from t+2s so `/resume` works. The
+  deadlock fix is kept; the loosening is removed.
+
+**Residual, disclosed rather than hidden:** a cycle that dies *before* Step 5.5
+leaves the provisional anchor for the rest of that UTC day, and the flag does not
+survive the process. The window is one cycle — and a cycle that dies before Step
+5.5 never reaches the breach decision either, so nothing is judged against it in
+the meantime.
+
+### Also fixed: an illusory guard the Q/A caught
+
+`BANNED[2]` (`"at the top of the next paper-trading cycle"`) **could never
+fail** — in the pre-fix source that phrase was split across two adjacent string
+literals, so the substring check was already satisfied by the code it was written
+to forbid. The check now normalises literal concatenation and whitespace, **and
+self-validates**: it asserts every banned phrase IS present in the real pre-fix
+blob (`git show 81f81750^:backend/api/paper_trading.py`), so a vacuous guard
+fails loudly.
+
+### New mutations
+
+- **M10** deletes the upgrade branch → the hazard test dies.
+- **M11** stops Step 0 flagging provisional → two tests die.
+- **M12** flags provisional on a same-day no-op → the mid-day-re-anchor guard dies.
+
+**M10 was LIVE on its first run**, and for an instructive reason: my hazard test
+performed the upgrade *itself* in test code instead of calling
+`check_and_enforce_kill_switch`. A guard that re-implements the thing it guards
+proves nothing. It now drives the real production method.
+
+Matrix: **12/12**. Suite: **19 passed**. Lint gate: `ruff_exit=0`.

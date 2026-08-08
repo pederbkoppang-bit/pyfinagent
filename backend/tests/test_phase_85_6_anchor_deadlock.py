@@ -444,22 +444,57 @@ def test_c1_the_cycle_records_the_roll_outcome_for_the_operator(cycle_env, monke
 BANNED = [
     "NO operator action is required",
     "this refusal clears itself",
-    "at the top of the "
-    "next paper-trading cycle",
+    "at the top of the next paper-trading cycle",
 ]
 
 
+def _normalize(src: str) -> str:
+    """Flatten Python string-literal concatenation and comments out of source.
+
+    WHY THIS EXISTS. The cycle-1 Q/A found that BANNED[2] could NEVER fail: in
+    the pre-fix source that phrase was split across two adjacent string
+    literals (`"at the top of the "` + `"next paper-trading cycle"`), so a raw
+    substring check on `inspect.getsource` was already satisfied by the very
+    code it was written to forbid. A guard that cannot fail is not a guard.
+
+    Normalising joins adjacent literals and collapses whitespace, so the check
+    matches the string the OPERATOR sees rather than the way it happens to be
+    typed. Comments are stripped so the explanatory block that QUOTES the old
+    wording (to record why it was wrong) is not mistaken for the message.
+    """
+    import re
+
+    body = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
+    body = re.sub(r'"\s*\n\s*"', "", body)   # join adjacent string literals
+    return re.sub(r"\s+", " ", body)
+
+
 def test_c2_the_409_no_longer_makes_the_two_false_promises():
+    import subprocess
+
     import backend.api.paper_trading as pt
 
-    src = __import__("inspect").getsource(pt.resume_trading)
-    # Strip comments so the explanatory block that QUOTES the old text (to record
-    # why it was wrong) is not mistaken for the message itself.
-    live = "\n".join(l for l in src.splitlines() if not l.strip().startswith("#"))
+    live = _normalize(__import__("inspect").getsource(pt.resume_trading))
     for phrase in BANNED:
-        assert phrase not in live, (
+        assert _normalize(phrase) not in live, (
             f"the 409 still promises {phrase!r} -- it was false and cost days"
         )
+
+    # SELF-VALIDATION: every banned phrase must be PRESENT in the pre-fix source,
+    # or the assertion above is vacuous. This is the direct answer to the cycle-1
+    # Q/A's illusory-guard finding -- it proves each guard can fail, against the
+    # real historical code rather than against a hand-made mutant.
+    pre = subprocess.run(
+        ["git", "show", "81f81750^:backend/api/paper_trading.py"],
+        capture_output=True, text=True, cwd=__import__("pathlib").Path(__file__).resolve().parents[2],
+    )
+    if pre.returncode == 0 and pre.stdout:
+        pre_norm = _normalize(pre.stdout)
+        for phrase in BANNED:
+            assert _normalize(phrase) in pre_norm, (
+                f"VACUOUS GUARD: {phrase!r} was never in the pre-fix source, so "
+                f"asserting its absence proves nothing"
+            )
 
 
 def test_c2_the_409_names_the_actual_unblock_mechanism():
@@ -496,3 +531,104 @@ def test_c2_the_mechanism_the_message_names_actually_exists():
     assert cycle_src.index(call) < cycle_src.index(
         'summary["steps"].append("screening")'
     ), "the roll is no longer ahead of screening -- the deadlock is back"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cycle-2 (Q/A pass-1 finding): the PROVISIONAL anchor must be upgraded before
+# any breach decision, or a multi-session move is read as a same-day loss.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_c5_a_multi_session_stale_anchor_does_not_become_a_same_day_loss():
+    """THE HAZARD THE CYCLE-1 Q/A MEASURED, closed.
+
+    Step 0 anchors from the last stored mark. If cycles have been failing that
+    mark can be several sessions old, and stamping today's DATE on it makes
+    `armed` True while handing `evaluate_breach` a multi-session move to report
+    as a same-day loss -- the spurious-flatten path phase-36.9 F1 closed
+    ("a TWO-DAY move reported as a same-day loss", measured on this book
+    2026-07-26).
+
+    Measured by the Q/A with production `evaluate_breach`: anchor 23830.46 (the
+    2026-08-05 mark) against a 22600 mark reports 5.16% and would flatten_all +
+    pause, where the pre-85.6 code reported 0.00%.
+
+    This test uses the SAME production function, not test-side arithmetic.
+    """
+    import backend.services.kill_switch as ks_mod
+
+    stale_anchor = 23_830.46      # the 2026-08-05 mark
+    todays_mark = 22_600.0        # three sessions later
+
+    def breach_with(anchor: float) -> dict:
+        """Drive the PRODUCTION evaluate_breach, which reads the module state."""
+        st = FakeKillSwitchState(sod_nav=anchor, sod_date=_today(), peak_nav=24_666.57)
+        import unittest.mock as _m
+
+        with _m.patch.object(ks_mod, "_state", st, create=True):
+            return ks_mod.evaluate_breach(
+                current_nav=todays_mark,
+                daily_loss_limit_pct=4.0,
+                trailing_dd_limit_pct=10.0,
+            )
+
+    # CONTROL: the guard must be capable of firing at all, or this test cannot
+    # detect the hazard it exists for.
+    control = breach_with(stale_anchor)
+    assert control["daily_loss_breached"] is True, (
+        f"CONTROL FAILED: a 5.16% move must breach a 4% daily limit; got {control}"
+    )
+
+    # THE FIX: Step 0 flags its anchor provisional, and the post-mark path
+    # upgrades it to today's real mark BEFORE any breach decision.
+    ks = FakeKillSwitchState(sod_nav=stale_anchor, sod_date="2026-08-05",
+                             peak_nav=24_666.57)
+    t = _trader(ks, total_nav=stale_anchor)
+    t.roll_daily_anchor()
+    assert t._sod_anchor_provisional is True, "Step 0 must flag its anchor provisional"
+    assert ks.snapshot()["sod_date"] == _today()
+
+    # ... the cycle marks to market, then Step 5.5 runs. Drive the REAL
+    # check_and_enforce_kill_switch -- an earlier version of this test performed
+    # the upgrade itself in test code, which made mutation M10 (deleting the
+    # production upgrade branch) survive. A guard that re-implements the thing it
+    # is guarding proves nothing.
+    t.get_or_create_portfolio = lambda: {  # type: ignore[method-assign]
+        "total_nav": todays_mark, "starting_capital": 10_000.0, "current_cash": 0.0,
+    }
+    import unittest.mock as _m
+
+    with _m.patch.object(ks_mod, "get_state", lambda: ks), \
+         _m.patch.object(ks_mod, "_state", ks, create=True), \
+         _m.patch.object(ks_mod, "baseline_history_exists", lambda: True), \
+         _m.patch.object(ks_mod, "check_auto_resume",
+                        lambda *a, **k: {"action": "none", "reason": "test"}):
+        verdict = t.check_and_enforce_kill_switch()
+
+    assert ks.snapshot()["sod_nav"] == todays_mark, (
+        "the production path did not upgrade the provisional anchor; it is still "
+        f"{ks.snapshot()['sod_nav']}"
+    )
+    assert t._sod_anchor_provisional is False, "the flag must be cleared by the upgrade"
+    assert not verdict.get("triggered"), (
+        f"SPURIOUS FLATTEN: a multi-session move fired the daily leg -- {verdict}"
+    )
+
+
+def test_c5_the_provisional_flag_is_set_by_step0_and_cleared_by_the_upgrade():
+    """Pin the flag's lifecycle -- it is the whole mechanism."""
+    ks = FakeKillSwitchState(sod_nav=100.0, sod_date=_yesterday())
+    t = _trader(ks, total_nav=500.0)
+    assert t._sod_anchor_provisional is False, "must start clean"
+    t.roll_daily_anchor()
+    assert t._sod_anchor_provisional is True
+
+
+def test_c5_a_same_day_noop_roll_does_not_flag_provisional():
+    """If Step 0 did not anchor anything, there is nothing to upgrade -- and
+    flagging it would make the post-mark path re-anchor mid-day, which is the
+    phase-36.9 mid-day-reanchor defect."""
+    ks = FakeKillSwitchState(sod_nav=9_000.0, sod_date=_today())
+    t = _trader(ks, total_nav=8_000.0)
+    t.roll_daily_anchor()
+    assert t._sod_anchor_provisional is False

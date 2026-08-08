@@ -89,8 +89,8 @@ MUTATIONS: list[tuple[str, Path, str, str, list[str]]] = [
     (
         "M6 the roller un-pauses / mutates the peak (scope creep into risk state)",
         TRADER,
-        "            state.update_sod_nav(nav, date=today)\n            post = state.snapshot()",
-        "            state.update_sod_nav(nav, date=today)\n"
+        "            self._sod_anchor_provisional = True\n            post = state.snapshot()",
+        "            self._sod_anchor_provisional = True\n"
         "            state.update_peak(0.01)\n"
         "            post = state.snapshot()",
         [
@@ -120,6 +120,32 @@ MUTATIONS: list[tuple[str, Path, str, str, list[str]]] = [
         "        if nav is None or float(nav) <= 0:\n            return",
         "        if False:\n            return",
         [f"{T}::test_roll_refuses_a_non_positive_nav_and_says_so"],
+    ),
+    (
+        "M10 the provisional anchor is never upgraded (Q/A pass-1 hazard restored)",
+        TRADER,
+        "        elif self._sod_anchor_provisional and snap.get(\"sod_date\") == today:",
+        "        elif False:",
+        [f"{T}::test_c5_a_multi_session_stale_anchor_does_not_become_a_same_day_loss"],
+    ),
+    (
+        "M11 Step 0 stops flagging its anchor provisional",
+        TRADER,
+        "            self._sod_anchor_provisional = True\n"
+        "            post = state.snapshot()",
+        "            post = state.snapshot()",
+        [
+            f"{T}::test_c5_the_provisional_flag_is_set_by_step0_and_cleared_by_the_upgrade",
+            f"{T}::test_c5_a_multi_session_stale_anchor_does_not_become_a_same_day_loss",
+        ],
+    ),
+    (
+        "M12 a same-day no-op roll wrongly flags provisional (mid-day re-anchor)",
+        TRADER,
+        '                    "reason": "anchor_already_current",',
+        '                    "reason": (setattr(self, "_sod_anchor_provisional", True)'
+        ' or "anchor_already_current"),',
+        [f"{T}::test_c5_a_same_day_noop_roll_does_not_flag_provisional"],
     ),
 ]
 
