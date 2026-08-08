@@ -112,6 +112,14 @@ _watchdog_last_was_healthy: bool | None = None
 # (65h 34m gap 2026-05-17 -> 2026-05-19 with no operator alert path).
 _cycle_heartbeat_last_was_stale: bool | None = None
 
+# phase-85.4 (criterion 4): state-transition gate for the SECOND cycle clock --
+# "no cycle has COMPLETED in N days". Separate global from the heartbeat gate
+# above because the two alarms must be able to fire independently: a cycle that
+# times out every day keeps the heartbeat FRESH while the completed-age goes
+# unbounded (measured 2026-07-31 -> 2026-08-08, 7 days with no completion and
+# no page). Same None/True/False transition semantics as the heartbeat gate.
+_cycle_completed_stale_last_was_stale: bool | None = None
+
 # phase-60.4 (criterion 2): state-transition gate for the inbound-ingestion
 # silence alarm (the 6-week tickets.db outage class). None = unknown baseline.
 _ingestion_silence_last_was_stale: bool | None = None
@@ -770,10 +778,29 @@ async def _watchdog_health_check(app: AsyncApp):
     # 2026-05-17 -> 2026-05-19, backend up, cron skipped). Fully
     # fail-open: any exception is logged and swallowed so it cannot
     # take down the watchdog cron.
-    global _cycle_heartbeat_last_was_stale
+    check_cycle_health_alarms()
+
+
+def check_cycle_health_alarms() -> dict:
+    """phase-30.1 + phase-85.4: the two cycle-staleness alarms.
+
+    Extracted from `_watchdog_health_check` in phase-85.4 for the same reason
+    `cycle_halt_reason` was extracted in phase-36.12: the only available guard
+    on the wiring was a source scan, and a source scan cannot tell a live
+    branch from a neutered one (`if False and ...` keeps every symbol the scan
+    looks for). This function is CALLABLE, so a test can drive the real
+    transition gate instead of grepping for it.
+
+    Returns the verdict dict (for tests and for callers that want to log it);
+    the cron ignores the return value. Fully fail-open: any exception is
+    logged and swallowed so it cannot take down the watchdog cron.
+    """
+    global _cycle_heartbeat_last_was_stale, _cycle_completed_stale_last_was_stale
+    verdict: dict = {}
     try:
         from backend.services.cycle_health import (
             cycle_heartbeat_alarm,
+            fire_cycle_completed_stale_alarm,
             fire_cycle_heartbeat_alarm,
         )
         verdict = cycle_heartbeat_alarm()
@@ -803,8 +830,29 @@ async def _watchdog_health_check(app: AsyncApp):
                 verdict.get("age_sec"),
                 verdict.get("is_weekday_et"),
             )
+
+        # phase-85.4 (criterion 4): the second clock, gated independently.
+        # Reuses the SAME verdict dict -- one file read, two decisions.
+        success_stale_now = bool(verdict.get("should_alarm_success"))
+        prior_success_stale = _cycle_completed_stale_last_was_stale
+        _cycle_completed_stale_last_was_stale = success_stale_now
+        if success_stale_now and prior_success_stale is not True:
+            fire_cycle_completed_stale_alarm(verdict)
+            logger.warning(
+                "cycle_completed_stale alarm fired P1 -- success_age_sec=%s "
+                "last_success=%s last_terminal_status=%s",
+                verdict.get("success_age_sec"),
+                verdict.get("last_success_at"),
+                verdict.get("last_terminal_status"),
+            )
+        elif (not success_stale_now) and prior_success_stale is True:
+            logger.info(
+                "cycle_completed_stale recovery -- last_success=%s",
+                verdict.get("last_success_at"),
+            )
     except Exception as exc:
         logger.warning("cycle_heartbeat_alarm watchdog fail-open: %r", exc)
+    return verdict
 
 
 def pause_signals(app: "AsyncApp | None" = None) -> bool:

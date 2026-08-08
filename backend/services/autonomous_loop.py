@@ -278,6 +278,73 @@ def _execute_swap_pair(trader, sell_order, buy_order) -> dict:
     return {"sold": True, "bought": True, "reason": "ok"}
 
 
+async def dispatch_analyses(
+    runner,
+    new_tickers: list[str],
+    reeval_tickers: list[str],
+    *,
+    merged: bool = False,
+) -> tuple[list, list]:
+    """phase-85.4 (criterion 2): the per-ticker analysis fan-out, as a seam.
+
+    `runner` is an `async (ticker, kind) -> result | None` callable; in
+    production it is the `_run_and_persist_one` closure, which acquires the
+    shared per-provider `asyncio.Semaphore` itself.
+
+    Returns `(candidate_results, holding_results)`, each positionally aligned
+    with its input list, exceptions captured in place (`return_exceptions=True`)
+    exactly as the two original gathers did.
+
+    THE DEFECT THIS SEAM EXISTS TO EXPOSE (`merged=False`, the legacy path):
+    the two gathers share ONE semaphore but are awaited in sequence, so the
+    second batch cannot begin until the first has fully drained. A slot freed
+    by an early-finishing new-candidate therefore sits idle for the remainder
+    of the first batch instead of picking up a re-eval.
+
+    Measured on the 2026-08-07 cycle (6 tickers, semaphore=3, from
+    backend.log via scripts/diagnostics/measure_analysis_phase.py):
+
+        20:09:16  dispatch DELL, PANW, CRWD          (3 of 3 slots busy)
+        20:45:35  CRWD done  -> dispatch HPE
+        20:50:24  DELL done  -> dispatch HUM
+        20:52:30  PANW done  -> *** slot idle, NTAP not dispatched ***
+        21:24:33  HUM done   -> dispatch NTAP        (batch 1 finally drained)
+        22:00:01  cycle TIMED OUT, NTAP never analysed
+
+    The slot idled 1923s and NTAP started 4517s into the analysis phase. With
+    `merged=True` NTAP would have been dispatched at 20:52:30 -- 1923s earlier,
+    against a cycle that overran its 7200s budget by 1329s.
+
+    `merged=True` is BEHAVIOURAL and therefore DARK by default
+    (`settings.paper_merged_analysis_dispatch_enabled`, phase-85.4 criterion 5).
+    It changes nothing about order/sizing/risk logic; it changes only WHEN a
+    ticker's analysis starts, and -- as a consequence -- which tickers are
+    skipped if a cost cap trips mid-fan-out.
+    """
+    if not merged:
+        candidate_results = await asyncio.gather(
+            *[runner(t, "new") for t in new_tickers],
+            return_exceptions=True,
+        )
+        # ── Step 4: Re-evaluate holdings ─────────────────────────────
+        holding_results = await asyncio.gather(
+            *[runner(t, "reeval") for t in reeval_tickers],
+            return_exceptions=True,
+        )
+        return list(candidate_results), list(holding_results)
+
+    # Merged: one gather, one drain. gather() preserves input order, so the
+    # split below restores the exact (candidates, holdings) partition the
+    # legacy path produced -- same elements, same positions, same types.
+    n_new = len(new_tickers)
+    combined = await asyncio.gather(
+        *[runner(t, "new") for t in new_tickers],
+        *[runner(t, "reeval") for t in reeval_tickers],
+        return_exceptions=True,
+    )
+    return list(combined[:n_new]), list(combined[n_new:])
+
+
 async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = False) -> dict:
     """
     Execute one full paper trading cycle:
@@ -1153,18 +1220,19 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                             )
                     return _fold_degraded_for_trading(analysis)
 
-            # Dispatch new candidates concurrently.
-            candidate_results = await asyncio.gather(
-                *[_run_and_persist_one(t, "new") for t in analyze_tickers],
-                return_exceptions=True,
+            # ── Step 3 + Step 4 dispatch (phase-85.4) ────────────────
+            # Extracted to a module-level seam so the two-gather barrier can be
+            # measured and mutation-tested against the production call site
+            # rather than against a copy of it. See dispatch_analyses().
+            candidate_results, holding_results = await dispatch_analyses(
+                _run_and_persist_one,
+                analyze_tickers,
+                reeval_tickers,
+                merged=bool(
+                    getattr(settings, "paper_merged_analysis_dispatch_enabled", False)
+                ),
             )
             candidate_analyses = [r for r in candidate_results if isinstance(r, dict)]
-
-            # ── Step 4: Re-evaluate holdings ─────────────────────────
-            holding_results = await asyncio.gather(
-                *[_run_and_persist_one(t, "reeval") for t in reeval_tickers],
-                return_exceptions=True,
-            )
             holding_analyses = [r for r in holding_results if isinstance(r, dict)]
 
             # phase-70.4 (G1-B): detect a swallowed session-budget breach in the raw
@@ -1314,6 +1382,23 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 )
                 summary["steps"].append("kill_switch_halted")
                 summary["halted"] = True
+                # phase-85.4 (criterion 3): STATUS FIDELITY. This early return
+                # used to leave summary["status"] at the ":362" initializer's
+                # placeholder "running", so the finally block wrote a terminal
+                # cycle_history row with status="running" and raised a P1
+                # titled "Autonomous trading cycle running" -- a terminal row
+                # that claims the cycle is still going, and an alert whose
+                # title names no failure. Measured on the 2026-08-05 cycle,
+                # the ONE day all six tickers finished: it halted here, logged
+                # status "running", and traded nothing.
+                #
+                # "halted_kill_switch" is a real terminal status: it is not in
+                # the finally block's ("completed", "skipped") quiet-list, so
+                # the P1 still fires -- but now it names the reason, and the
+                # completed-age clock in cycle_health correctly counts this
+                # cycle as a NON-completion.
+                summary["status"] = "halted_kill_switch"
+                summary["halt_reason"] = halt_reason
                 ks_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 _log_cycle_signals_to_bq(bq, [], ks_today)
                 final_state = await asyncio.to_thread(trader.mark_to_market)
@@ -1779,17 +1864,29 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         if _final_status not in ("completed", "skipped"):
             try:
                 from backend.services.observability.alerting import raise_cron_alert_sync
+                # phase-85.4 (criterion 3): NAME THE PHASE IT DIED IN, in the
+                # TITLE. `steps_completed` already carried the trailing steps
+                # in the details body, but the Slack channel renders ~24 hourly
+                # freshness P1s a day and the operator triages on titles -- the
+                # 08-04/08-06/08-07 timeout P1s were all delivered=True and all
+                # went unread because "Autonomous trading cycle timeout" says
+                # nothing about WHERE. The last appended step IS the phase the
+                # cycle was in when it died, because every phase appends its
+                # name to summary["steps"] on entry.
+                _steps = summary.get("steps", []) or []
+                _died_in = _steps[-1] if _steps else "before_first_step"
                 raise_cron_alert_sync(
                     source="autonomous_loop",
                     error_type=f"cycle_{_final_status}",
                     severity="P1",
-                    title=f"Autonomous trading cycle {_final_status}",
+                    title=f"Autonomous trading cycle {_final_status} in phase '{_died_in}'",
                     details={
                         "cycle_id": summary.get("cycle_id", "?"),
                         "started_at": summary.get("started_at", "?"),
                         "status": _final_status,
+                        "died_in_phase": _died_in,
                         "error": str(summary.get("error", ""))[:300],
-                        "steps_completed": ",".join(summary.get("steps", [])[-5:]),
+                        "steps_completed": ",".join(_steps[-5:]),
                         "trades_executed": summary.get("trades_executed", 0),
                     },
                 )

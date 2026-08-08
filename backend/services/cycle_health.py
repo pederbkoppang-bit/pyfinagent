@@ -61,6 +61,29 @@ _TABLE_MAX_AGE_SEC: dict[str, float] = {
 _CYCLE_HEARTBEAT_STALE_SEC: float = 93_600.0  # 26h
 _NYSE_TZ = ZoneInfo("America/New_York")
 
+# phase-85.4 (criterion 4): the SECOND staleness clock -- age since the last
+# cycle that actually reached status "completed".
+#
+# Why a second clock is needed. `_CYCLE_HEARTBEAT_STALE_SEC` above is measured
+# against the last TERMINAL row of any status. `record_cycle_end` stamps
+# `completed_at` on every terminal row, including `timeout` and `error`, so a
+# cycle that times out every single day resets the heartbeat age to ~0 daily
+# and `cycle_heartbeat_alarm` never goes stale. That is exactly what happened
+# between 2026-07-31 and 2026-08-08: the last COMPLETED cycle was 7 days old,
+# the loop was writing fresh `timeout` rows the whole time, and the only way
+# to discover it was to hand-read handoff/cycle_history.jsonl.
+#
+# Threshold rationale. The cron fires Mon-Fri, so the largest legitimate gap
+# between consecutive COMPLETED cycles is Fri -> Mon = 72h. 96h (4 days) sits
+# one full weekday beyond that: a single failed Monday does not page, a second
+# consecutive failed weekday does. Weekday-gated like the heartbeat alarm.
+_CYCLE_COMPLETED_STALE_SEC: float = 345_600.0  # 96h = 4 days
+
+# Statuses that mean "the cycle ran the whole way through". Everything else --
+# timeout, error, budget_breach, halted_kill_switch, running -- is a
+# non-completion for the purposes of the completed-age clock.
+_COMPLETED_STATUSES: frozenset[str] = frozenset({"completed"})
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -143,12 +166,30 @@ def _now_utc() -> datetime:
 
 def cycle_heartbeat_alarm(
     threshold_sec: float = _CYCLE_HEARTBEAT_STALE_SEC,
+    completed_threshold_sec: float = _CYCLE_COMPLETED_STALE_SEC,
 ) -> dict:
     """phase-30.1: out-of-band autonomous-cycle staleness check.
 
     Reads the most recent `cycle_history.jsonl` row and returns
     `{"stale": bool, "age_sec": float|None, "should_alarm": bool,
       "is_weekday_et": bool, "last_completed_at": str|None}`.
+
+    phase-85.4 (criterion 4) adds a SECOND, independent clock to the same
+    verdict dict -- `last_success_at`, `success_age_sec`, `success_stale`,
+    `should_alarm_success`, `last_terminal_status` -- measuring the age of
+    the last row whose status is a real completion.
+
+    The two clocks answer different questions and the difference is the whole
+    point of the phase-85.4 defect:
+
+      age_sec         -- "when did a cycle last END?"    (any terminal status)
+      success_age_sec -- "when did a cycle last WORK?"   (status == completed)
+
+    A cycle that times out daily keeps `age_sec` near zero forever while
+    `success_age_sec` grows without bound. Between 2026-07-31 and 2026-08-08
+    the first clock read ~24h every day and the second read 7 days, and only
+    the second was true. Existing keys are unchanged and existing callers are
+    unaffected; the success leg is purely additive.
 
     The function is pure: it returns a verdict dict and does NOT post
     to Slack. The caller (watchdog cron in `slack_bot/scheduler.py`)
@@ -178,6 +219,13 @@ def cycle_heartbeat_alarm(
         "should_alarm": False,
         "is_weekday_et": False,
         "last_completed_at": None,
+        # phase-85.4 (criterion 4): the completed-age leg. Always present so
+        # callers never have to .get() defensively.
+        "last_success_at": None,
+        "success_age_sec": None,
+        "success_stale": False,
+        "should_alarm_success": False,
+        "last_terminal_status": None,
     }
     try:
         if not _HISTORY_PATH.exists():
@@ -187,7 +235,11 @@ def cycle_heartbeat_alarm(
         # phase-38.2: skip "started" rows -- they have completed_at=null and
         # would otherwise short-circuit to sentinel, suppressing the alarm
         # on a halted cycle (the exact lost-cycle-3a failure mode).
+        #
+        # phase-85.4: the SAME reverse scan now also finds the most recent row
+        # whose status is a real completion. Two independent clocks, one pass.
         last_row: Optional[dict] = None
+        last_success_row: Optional[dict] = None
         for line in reversed(lines):
             line = line.strip()
             if not line:
@@ -198,17 +250,45 @@ def cycle_heartbeat_alarm(
                 continue
             if parsed.get("status") == "started":
                 continue
-            last_row = parsed
-            break
+            if last_row is None:
+                last_row = parsed
+            if last_success_row is None and parsed.get("status") in _COMPLETED_STATUSES:
+                last_success_row = parsed
+            if last_row is not None and last_success_row is not None:
+                break
         if not last_row:
             return sentinel
+        now = _now_utc()
+        is_weekday_et = now.astimezone(_NYSE_TZ).weekday() < 5
+
+        # ── Leg 2 (phase-85.4): age since the last COMPLETED cycle ──────────
+        # Computed first so it survives the early return below when the latest
+        # terminal row has an unparseable completed_at.
+        success_at = (last_success_row or {}).get("completed_at")
+        success_dt = _parse_iso(success_at)
+        success_age_sec: Optional[float] = None
+        success_stale = False
+        if success_dt is not None:
+            success_age_sec = (now - success_dt).total_seconds()
+            success_stale = success_age_sec > completed_threshold_sec
+        elif last_success_row is None and lines:
+            # There ARE terminal rows but NONE of them completed. That is the
+            # worst case, not the benign first-boot case -- treat it as stale
+            # so a ledger of nothing-but-timeouts pages instead of going quiet.
+            success_stale = last_row is not None
+        success_leg = {
+            "last_success_at": success_at,
+            "success_age_sec": success_age_sec,
+            "success_stale": success_stale,
+            "should_alarm_success": success_stale and is_weekday_et,
+            "last_terminal_status": last_row.get("status"),
+        }
+
         completed_at = last_row.get("completed_at")
         completed_dt = _parse_iso(completed_at)
         if completed_dt is None:
-            return sentinel
-        now = _now_utc()
+            return {**sentinel, **success_leg, "is_weekday_et": is_weekday_et}
         age_sec = (now - completed_dt).total_seconds()
-        is_weekday_et = now.astimezone(_NYSE_TZ).weekday() < 5
         stale = age_sec > threshold_sec
         return {
             "stale": stale,
@@ -216,6 +296,7 @@ def cycle_heartbeat_alarm(
             "should_alarm": stale and is_weekday_et,
             "is_weekday_et": is_weekday_et,
             "last_completed_at": completed_at,
+            **success_leg,
         }
     except Exception as exc:
         logger.warning("cycle_heartbeat_alarm fail-open: %r", exc)
@@ -253,6 +334,50 @@ def fire_cycle_heartbeat_alarm(verdict: dict) -> None:
         )
     except Exception as exc:
         logger.warning("cycle_heartbeat_alarm: dispatch fail-open: %r", exc)
+
+
+def fire_cycle_completed_stale_alarm(verdict: dict) -> None:
+    """phase-85.4 (criterion 4): dispatch the P1 for "no cycle has COMPLETED
+    in N days", as distinct from "no cycle has ENDED in N hours".
+
+    Called by the watchdog cron AFTER its own state-transition gating, exactly
+    like `fire_cycle_heartbeat_alarm`. Distinct `error_type` so the two alarms
+    never collide in the alert dedup layer -- they can and should be able to
+    fire independently (daily timeouts = heartbeat quiet, completed-age loud).
+
+    Identical fail-open pattern: a Slack failure must NEVER break the cron.
+    """
+    try:
+        from backend.services.observability.alerting import raise_cron_alert_sync
+    except Exception as exc:
+        logger.warning("cycle_completed_stale_alarm: import fail-open: %r", exc)
+        return
+    try:
+        age_sec = verdict.get("success_age_sec")
+        if isinstance(age_sec, (int, float)):
+            age_str = f"{(age_sec / 86400):.1f}d"
+        else:
+            age_str = "never (no completed cycle in the ledger)"
+        raise_cron_alert_sync(
+            source="cycle_health",
+            error_type="cycle_completed_stale_weekday",
+            severity="P1",
+            title="Autonomous cycle has not COMPLETED -- book is not trading",
+            details={
+                "last_completed_cycle_at": str(verdict.get("last_success_at")),
+                "age_since_last_completion": age_str,
+                "age_sec": str(age_sec),
+                "threshold_sec": str(_CYCLE_COMPLETED_STALE_SEC),
+                "last_terminal_status": str(verdict.get("last_terminal_status")),
+                "note": (
+                    "Cycles may still be ENDING on schedule -- this alarm measures "
+                    "the age of the last cycle that ended in status 'completed'. "
+                    "A cycle that times out daily keeps the heartbeat alarm quiet."
+                ),
+            },
+        )
+    except Exception as exc:
+        logger.warning("cycle_completed_stale_alarm: dispatch fail-open: %r", exc)
 
 
 class CycleHealthLog:
