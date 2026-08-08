@@ -6,6 +6,7 @@ breach on a bad NAV), the Slack 'clear queue' pkill SIGKILL, and the lock strand
 Thresholds (4/10/8/30) are asserted byte-untouched via the constants + a real breach.
 """
 
+import json
 import pathlib
 from unittest.mock import MagicMock
 
@@ -169,5 +170,13 @@ def test_cycle_lock_failed_acquire_keeps_live_pidfile(monkeypatch, tmp_path):
         # RED (pre-fix): the failed acquire's finally unlinked the live pidfile.
         # GREEN: the live holder's pidfile survives the failed acquire.
         assert lock_path.exists()
-    # after the holder exits, its own cleanup removes the pidfile.
-    assert not lock_path.exists()
+    # phase-85.5 CHANGED THE LINE BELOW. It previously asserted the holder
+    # UNLINKED its pidfile on exit. That unlink ran BEFORE LOCK_UN, so between
+    # the two the holder was alive and still holding the flock while the path
+    # was free -- a second acquirer then created a NEW INODE and both believed
+    # they held the cycle lock, on the normal release path. Release now marks
+    # the payload `released` in place and never unlinks. The item-4 guard this
+    # test exists for (above: a FAILED acquire must not unlink a live holder's
+    # pidfile) is unchanged and still asserted.
+    assert lock_path.exists(), "phase-85.5: release must not unlink"
+    assert json.loads(lock_path.read_text())["state"] == "released"

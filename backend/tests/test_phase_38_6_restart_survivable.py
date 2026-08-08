@@ -23,10 +23,10 @@ from backend.services import cycle_lock
 from backend.services.cycle_lock import (
     CycleLockError,
     _LOCK_PATH,
-    _LOCK_TTL_SEC,
     acquire,
     clean_stale_lock,
     inspect_lock,
+    lock_ttl_sec,  # phase-85.5: replaces the frozen _LOCK_TTL_SEC constant
 )
 
 
@@ -42,8 +42,18 @@ def _isolated_lock(tmp_path, monkeypatch):
         fake_lock.unlink()
 
 
-def test_phase_38_6_acquire_writes_pid_and_cycle_id_then_unlinks(_isolated_lock):
-    """Happy path: acquire writes {pid, cycle_id, started_at} + unlinks on exit."""
+def test_phase_38_6_acquire_writes_pid_and_cycle_id_then_releases(_isolated_lock):
+    """Happy path: acquire writes {pid, cycle_id, started_at} and marks the
+    pidfile `released` on exit.
+
+    phase-85.5 CHANGED THIS TEST. It previously asserted the lockfile was
+    UNLINKED on exit. That unlink happened BEFORE LOCK_UN, so between the two
+    the process was alive and still holding the flock while the path was free
+    -- a second acquirer created a new inode and both believed they held the
+    cycle lock, on the normal release path. Release now rewrites the payload
+    in place and never unlinks; `state == "released"` is what marks the lock
+    as collectable.
+    """
     fake_lock = _isolated_lock
     with acquire("test-cycle-123"):
         assert fake_lock.exists(), "lockfile must exist while held"
@@ -51,8 +61,12 @@ def test_phase_38_6_acquire_writes_pid_and_cycle_id_then_unlinks(_isolated_lock)
         assert data["pid"] == os.getpid()
         assert data["cycle_id"] == "test-cycle-123"
         assert "started_at" in data
-    # After exit, file unlinked
-    assert not fake_lock.exists(), "lockfile must be unlinked after exit"
+        assert data["state"] == "held"
+    # After exit the file REMAINS, marked released (never unlinked).
+    assert fake_lock.exists(), "phase-85.5: release must NOT unlink the lockfile"
+    released = json.loads(fake_lock.read_text())
+    assert released["state"] == "released"
+    assert inspect_lock()["is_stale"] is True, "a released lock is collectable"
 
 
 def test_phase_38_6_second_acquire_in_same_process_raises(_isolated_lock):
@@ -79,15 +93,15 @@ def test_phase_38_6_simulated_kill_then_startup_cleans(_isolated_lock):
         "cycle_id": "killed-cycle-456",
         "started_at": "2026-05-22T00:00:00+00:00",
     }))
-    old_ts = time.time() - (_LOCK_TTL_SEC + 600)
+    old_ts = time.time() - (lock_ttl_sec() + 600)
     os.utime(fake_lock, (old_ts, old_ts))
 
-    # inspect: should report is_stale=True
+    # inspect: should report is_stale=True -- on the DEAD PID, not the age.
     state = inspect_lock()
     assert state is not None
     assert state["is_stale"] is True
     assert state["pid_alive"] is False
-    assert state["age_sec"] > _LOCK_TTL_SEC
+    assert state["age_sec"] > lock_ttl_sec()
 
     # clean_stale_lock should unlink + return the cleaned state
     cleaned = clean_stale_lock(reason="test_simulated_kill")
@@ -145,12 +159,18 @@ def test_phase_38_6_no_lock_file_returns_none(_isolated_lock):
     assert clean_stale_lock() is None
 
 
-def test_phase_38_6_ttl_constant_is_90_minutes():
-    """The TTL must be 90 minutes per researcher recommendation
-    (1.5x paper_cycle_max_seconds = 1800s)."""
-    assert _LOCK_TTL_SEC == 90 * 60, (
-        f"phase-38.6: _LOCK_TTL_SEC must be 5400 (90 min); got {_LOCK_TTL_SEC}"
-    )
+# phase-85.5 REMOVED `test_phase_38_6_ttl_constant_is_90_minutes`, which
+# asserted the literal `_LOCK_TTL_SEC == 5400`. That literal IS the bug: the
+# constant froze at 5400s while settings.paper_cycle_max_seconds moved to
+# 7200s, leaving the TTL at 0.75x the budget so every cycle past 90 minutes
+# advertised a stale lock while alive. It is replaced by a strictly stronger,
+# mutation-resistant relationship test that moves the budget and asserts the
+# derived TTL follows it and never falls below it:
+#   backend/tests/test_phase_85_5_cycle_lock_split_brain.py
+#     ::test_85_5_c3_ttl_tracks_cycle_budget_and_never_falls_below_it
+# That file is named so the immutable verification command's
+# `-k "cycle_lock or 85_5"` actually collects it; this module's name matches
+# neither keyword, which is why the replacement does not live here.
 
 
 def test_phase_38_6_lock_path_uses_handoff_dot_autonomous_loop_dot_lock():

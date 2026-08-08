@@ -130,11 +130,23 @@ def _cycle_state_line() -> str:
         lock = inspect_lock()
         if lock is None:
             return "Cycle state: no cycle running (lockfile absent) -- backend looks DOWN, not busy."
+        # phase-85.5: release no longer unlinks the pidfile (unlink-then-unlock
+        # was a split-brain window), so a `released` lock is the normal steady
+        # state BETWEEN cycles -- a completed cycle, not a fault.
+        if lock.get("state") == "released":
+            return (
+                "Cycle state: no cycle running (last cycle released its lock) "
+                "-- backend looks DOWN, not busy."
+            )
         if lock.get("is_stale"):
-            return "Cycle state: STALE lock (age > TTL or pid dead) -- backend looks DOWN, not busy."
+            return "Cycle state: STALE lock (holder pid dead) -- backend looks DOWN, not busy."
         started = lock.get("started_at") or lock.get("ts") or "?"
+        # phase-85.5: budget overrun is now reported WITHOUT condemning the
+        # lock -- "this cycle is over budget" is useful and true; "this lock is
+        # stale" was neither.
+        overrun = " [OVER BUDGET]" if lock.get("age_exceeds_budget") else ""
         return (
-            f"Cycle state: cycle IN PROGRESS (started {started}, age {lock.get('age_sec', 0):.0f}s, "
+            f"Cycle state: cycle IN PROGRESS{overrun} (started {started}, age {lock.get('age_sec', 0):.0f}s, "
             f"pid alive) -- likely BUSY, not down; the away week's ReadTimeouts were this class."
         )
     except Exception as exc:
