@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `b5f63525` | docs(85.6): experiment results + live_check (resume returned HTTP 200) |
 | 2026-08-08 | `5932ac27` | feat(85.6): break the un-pause deadlock by rolling the anchor at Step 0 |
 | 2026-08-08 | `81f81750` | phase-85.6: research gate + contract (GENERATE not started) |
 | 2026-08-08 | `8aa3f52e` | phase-85.4: P0 ENGINE HEALTH: the autonomous cycle has not COMPLETED since 2026-07-31 -- four con... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `89ed942f` | docs(85.5): close the scheduler.py gap in the regression replay |
 | 2026-08-08 | `20891ea8` | docs(away-ops): record cycle-181 state on the operator ask list |
 | 2026-08-08 | `f3078453` | docs(85.5): remediate Q/A cycle-1 findings B2/B3/B4 in the artifacts |
-| 2026-08-08 | `def96b21` | fix(85.5): Q/A cycle-1 remediation -- test the flock gate, correct stale docstrings |
 
 ---
 
