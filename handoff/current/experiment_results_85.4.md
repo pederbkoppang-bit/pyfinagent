@@ -388,6 +388,15 @@ Found 225 errors.
 ruff_default_exit=1
 ```
 
+**Number correction (EVALUATE pass 2).** The Q/A re-derived **223**, not 225,
+and **21**, not 23, for the step-created files. Both of my figures were captured
+BEFORE the `chmod 0755` described at the end of this section, which cleared the
+two `EXE001` findings. The Q/A confirmed the deltas reconcile exactly against
+that fix. Current true values: **223** total, **21** on step-created files.
+
+```
+```
+
 **The repository has no ruff configuration** — no `ruff.toml`, no `.ruff.toml`,
 no `[tool.ruff]` in `pyproject.toml` (there is no `pyproject.toml`). So a bare
 `ruff check` runs ruff's entire default rule set, which this codebase has never
@@ -403,7 +412,7 @@ been held to. Per-file counts make that plain:
 | `scripts/qa/mutation_matrix_85_4.py` | 5 | **yes** |
 | the 3 new test files | 5 total | **yes** |
 
-The 5 files this step created carry **23** of the 225. Their rule codes:
+The 5 files this step created carry **21** of the 223 (see the correction above). Their rule codes:
 `UP045` x7 (`Optional[X]` -> `X | None`, a style preference the surrounding
 modules do not follow), `PLR0402` x3, `ISC004` x3, `I001` x2 (import sorting),
 `BLE001` x2 (deliberate fail-open `except Exception`), `S112` (deliberate
