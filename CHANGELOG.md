@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `e3b7f8b3` | phase-85.4: research gate + contract (GENERATE not started); regenerate drain goal |
 | 2026-08-08 | `1ffb340d` | docs(away-ops): ask #21 -- my test runs overwrote live kill-switch pause provenance |
 | 2026-08-08 | `5fc3ca7f` | docs(away-ops): ask #20 -- backend OAuth token is malformed and shared with the watchdog plist |
 | 2026-08-08 | `4c17f06a` | phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale after 90min, and the stale ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `df135cde` | phase-68.1 cycle-2 close: kill the surviving mutant; DEFER the process breach to the operator (statu |
 | 2026-08-07 | `e9ffd16c` | phase-68.1 cycle-2: fire the missing-creds error at STARTUP, not at the first order |
 | 2026-08-07 | `42771fa6` | phase-62.1: Slack bot under launchd + restart on current code -- com.pyfinagent.slack-bot.plist (... |
-| 2026-08-07 | `2b96b561` | phase-62.1 + 68.1: capture both live_checks; correct a false premise in 85.4 |
 
 ---
 
+### v6.85.16 — phase-85.4: research gate + contract (GENERATE not started); regenera... (2026-08-08)
+
+- **phase-85.4: research gate + contract (GENERATE not started); regenerate drain goal**
 ### v6.85.15 — phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale... (2026-08-08)
 
 - **phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale after 90min, and the stale ...**
