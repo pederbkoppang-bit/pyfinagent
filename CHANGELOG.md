@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `ebc1e172` | fix(85.5.1): drive a real KillSwitchState instead of a 2-key mock |
 | 2026-08-09 | `2901ae63` | phase-85.5.1: research gate + contract (GENERATE not started) |
 | 2026-08-09 | `a4f62546` | docs: overnight report 2026-08-09 -- Monday answer is NO, and why |
 | 2026-08-09 | `cb34a7c0` | phase-85.6: P0 DEADLOCK: the book cannot be un-paused. Resume requires a fresh daily anchor; the ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `e4b3bcba` | docs(goal): overnight unattended drain goal for 2026-08-08/09 |
 | 2026-08-08 | `a33ca231` | docs(goal): regenerate the drain goal after cycles 181-182 |
 | 2026-08-08 | `16116e4a` | phase-85.6: file the P0 kill-switch resume deadlock; record pre-Monday actions |
-| 2026-08-08 | `e3b7f8b3` | phase-85.4: research gate + contract (GENERATE not started); regenerate drain goal |
 
 ---
 
+### v6.87.5 — fix(85.5.1): drive a real KillSwitchState instead of a 2-key mock (2026-08-09)
+
+- **fix(85.5.1): drive a real KillSwitchState instead of a 2-key mock**
 ### v6.87.4 — phase-85.5.1: research gate + contract (GENERATE not started) (2026-08-09)
 
 - **phase-85.5.1: research gate + contract (GENERATE not started)**
