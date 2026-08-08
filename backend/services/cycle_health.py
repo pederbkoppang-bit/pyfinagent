@@ -271,6 +271,18 @@ def cycle_heartbeat_alarm(
         if success_dt is not None:
             success_age_sec = (now - success_dt).total_seconds()
             success_stale = success_age_sec > completed_threshold_sec
+        elif last_success_row is not None:
+            # phase-85.4 cycle-2 (Q/A finding, EVALUATE pass 1): a completed row
+            # EXISTS but its completed_at will not parse. The first cut left
+            # success_stale False here, which is a fail-OPEN hole in an alarm
+            # whose entire job is loudness -- one corrupt timestamp and the
+            # "book is not trading" P1 goes silent indefinitely.
+            #
+            # An unevaluable clock is not a healthy clock. Age stays None
+            # (honest: it is unknown), but staleness is TRUE so the operator is
+            # told, and the P1 renders the age as "never" rather than a number
+            # it cannot support.
+            success_stale = True
         elif last_success_row is None and lines:
             # There ARE terminal rows but NONE of them completed. That is the
             # worst case, not the benign first-boot case -- treat it as stale

@@ -329,3 +329,69 @@ def test_watchdog_p1_payload_names_the_last_completion_and_the_last_status(
     assert a["details"]["last_completed_cycle_at"].startswith("2026-07-29")
     assert a["details"]["last_terminal_status"] == "timeout"
     assert "7.0d" in a["details"]["age_since_last_completion"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cycle-2 (Q/A finding, EVALUATE pass 1): fail-open on a corrupt timestamp
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_unparseable_success_timestamp_pages_instead_of_going_silent(
+    _isolate_history, frozen_now
+):
+    """An unevaluable clock is not a healthy clock.
+
+    The first cut of the success leg left `success_stale=False` when a
+    `completed` row existed but its `completed_at` would not parse -- one
+    corrupt timestamp and the "book is not trading" P1 goes silent forever.
+    That is a fail-OPEN hole in an alarm whose whole purpose is loudness.
+    """
+    _write(
+        _isolate_history,
+        [
+            _row("completed", frozen_now - timedelta(days=9), "ancient"),
+            {
+                "cycle_id": "corrupt",
+                "started_at": frozen_now.isoformat(),
+                "completed_at": "not-a-timestamp",
+                "status": "completed",
+            },
+        ],
+    )
+    v = cycle_health.cycle_heartbeat_alarm()
+    assert v["last_success_at"] == "not-a-timestamp"
+    assert v["success_age_sec"] is None, "an unknown age must be reported as unknown"
+    assert v["success_stale"] is True, (
+        "FAIL-OPEN: a completed row with an unparseable timestamp silenced the alarm"
+    )
+    assert v["should_alarm_success"] is True, v
+
+
+def test_unparseable_success_timestamp_still_renders_a_sendable_p1(
+    _isolate_history, frozen_now, monkeypatch
+):
+    """...and the P1 it produces must not print a number it cannot support."""
+    raised: list[dict] = []
+    import backend.services.observability.alerting as alerting
+
+    monkeypatch.setattr(
+        alerting, "raise_cron_alert_sync", lambda **kw: raised.append(kw) or True
+    )
+    _write(
+        _isolate_history,
+        [
+            {
+                "cycle_id": "corrupt",
+                "started_at": frozen_now.isoformat(),
+                "completed_at": "not-a-timestamp",
+                "status": "completed",
+            }
+        ],
+    )
+    v = cycle_health.cycle_heartbeat_alarm()
+    cycle_health.fire_cycle_completed_stale_alarm(v)
+
+    assert raised, "the alarm did not reach the alerting layer"
+    d = raised[-1]["details"]
+    assert d["age_since_last_completion"].startswith("never"), d
+    assert "None" not in d["age_since_last_completion"]

@@ -131,6 +131,16 @@ MUTATIONS: list[tuple[str, Path, str, str, list[str]]] = [
             f"{T_LOUD}::test_c3_halted_status_is_not_counted_as_a_completion",
         ],
     ),
+    (
+        "M10 unparseable success timestamp fails OPEN again (Q/A pass-1 finding)",
+        HEALTH,
+        "        elif last_success_row is not None:",
+        "        elif last_success_row is not None and False:",
+        [
+            f"{T_AGE}::test_unparseable_success_timestamp_pages_instead_of_going_silent",
+            f"{T_AGE}::test_unparseable_success_timestamp_still_renders_a_sendable_p1",
+        ],
+    ),
 ]
 
 ALL_FILES = {LOOP, HEALTH, SCHED, ROOT / T_LOUD}

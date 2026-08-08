@@ -331,14 +331,105 @@ Note the counter is unchanged from the contract's baseline because **no cycle
 has run since** — the cron is weekday-only and this work was done overnight
 into a Sunday. No new cycle was triggered.
 
+## 8b. Python lint gate (qa.md §1a) — added in cycle-2 after the Q/A CONDITIONAL
+
+**This gate was NOT run in EVALUATE pass 1. That omission was the blocking
+finding, and it was a real one:** it let a dead `import types` into a file this
+step created. Recorded here so it is measured, not assumed.
+
+Scope is DERIVED from git — never hand-listed — with a non-empty guard, and
+built into a bash **array** (zsh does not word-split an unquoted `$VAR`, which
+has previously produced runs that executed nothing and printed success):
+
+```
+$ FILES=()
+$ while IFS= read -r f; do [ -n "$f" ] && [[ "$f" == *.py ]] && [ -f "$f" ] && FILES+=("$f"); done < <(
+    { git show --name-only --pretty=format: e0287161; git diff --name-only HEAD; git ls-files --others --exclude-standard; } | sort -u )
+DERIVED SCOPE: 9 python file(s)
+  backend/config/settings.py
+  backend/services/autonomous_loop.py
+  backend/services/cycle_health.py
+  backend/slack_bot/scheduler.py
+  backend/tests/test_phase_85_4_completed_age_alarm.py
+  backend/tests/test_phase_85_4_cycle_loudness.py
+  backend/tests/test_phase_85_4_dispatch_barrier.py
+  scripts/diagnostics/measure_analysis_phase.py
+  scripts/qa/mutation_matrix_85_4.py
+
+$ uvx ruff check --select F821,F401,F811 "${FILES[@]}"
+All checks passed!
+ruff_exit=0
+```
+
+### Proof the gate is LIVE, not vacuously green
+
+A green gate is worth nothing unless it can go red on this exact scope. The
+dead import is re-injected through `--stdin-filename`, so the tree is never
+touched:
+
+```
+$ python3 -c "<re-insert 'import types'>" | uvx ruff check --select F821,F401,F811       --stdin-filename backend/tests/test_phase_85_4_cycle_loudness.py -
+F401 [*] `types` imported but unused
+  --> backend/tests/test_phase_85_4_cycle_loudness.py:36:8
+help: Remove unused import: `types`
+Found 1 error.
+ruff_mutated_exit=1
+
+$ uvx ruff check --select F821,F401,F811 backend/tests/test_phase_85_4_cycle_loudness.py
+All checks passed!
+ruff_tree_exit=0
+```
+
+### The broader default rule set — measured, and why it is not the gate
+
+```
+$ uvx ruff check "${FILES[@]}"
+Found 225 errors.
+ruff_default_exit=1
+```
+
+**The repository has no ruff configuration** — no `ruff.toml`, no `.ruff.toml`,
+no `[tool.ruff]` in `pyproject.toml` (there is no `pyproject.toml`). So a bare
+`ruff check` runs ruff's entire default rule set, which this codebase has never
+been held to. Per-file counts make that plain:
+
+| file | default-ruff findings | authored by this step? |
+|---|---|---|
+| `backend/services/autonomous_loop.py` | 109 | no — pre-existing file |
+| `backend/slack_bot/scheduler.py` | 57 | no |
+| `backend/services/cycle_health.py` | 34 | no |
+| `backend/config/settings.py` | 2 | no |
+| `scripts/diagnostics/measure_analysis_phase.py` | 13 | **yes** |
+| `scripts/qa/mutation_matrix_85_4.py` | 5 | **yes** |
+| the 3 new test files | 5 total | **yes** |
+
+The 5 files this step created carry **23** of the 225. Their rule codes:
+`UP045` x7 (`Optional[X]` -> `X | None`, a style preference the surrounding
+modules do not follow), `PLR0402` x3, `ISC004` x3, `I001` x2 (import sorting),
+`BLE001` x2 (deliberate fail-open `except Exception`), `S112` (deliberate
+skip-unparseable-log-line), `PLW1510` (`subprocess.run` without `check=` —
+deliberate; the mutation matrix WANTS a non-zero exit), `DTZ007` (naive
+`strptime` — deliberate; `backend.log` timestamps are naive local time),
+`RUF046`. **None is a correctness-class finding**, and none is in the
+`F821/F401/F811` family the qa.md gate names.
+
+Two `EXE001` findings (shebang present, file not executable) WERE a real
+inconsistency introduced by this step, and are fixed: both new scripts are now
+`0755`. Re-checked — `EXE001` cleared.
+
+Bringing the repository as a whole onto the default rule set is a separate
+piece of work, not something to smuggle into a P0 engine-health cycle-2 fix.
+
 ## 9. Test totals
 
 ```
 backend/tests/test_phase_85_4_cycle_loudness.py        4 passed
-backend/tests/test_phase_85_4_completed_age_alarm.py  12 passed
+backend/tests/test_phase_85_4_completed_age_alarm.py  14 passed   (12 + 2 from cycle-2)
 backend/tests/test_phase_85_4_dispatch_barrier.py     16 passed
-                                                      32 passed
+                                                      34 passed
 ```
+
+Mutation matrix: **10/10 killed** (9 + M10 from cycle-2).
 
 Full-suite regression vs the pre-existing 26 failures: see
 `handoff/current/live_check_85.4.md`.
@@ -355,3 +446,65 @@ Full-suite regression vs the pre-existing 26 failures: see
   is what criterion 4 asked for; wiring `orphan_rows` is a separate concern.
 
 Each is queued rather than mentioned in prose only.
+
+
+---
+
+## 11. Cycle-2 — what changed after the Q/A CONDITIONAL (EVALUATE pass 1)
+
+Verdict transcribed verbatim in `handoff/current/evaluator_critique_85.4.md`
+(machine copy: `evaluator_critique_85.4.json`). Q/A found criteria 1-5 MET and
+independently re-derived them — it re-ran the C1 measurement script to
+byte-identical numbers and constructed **four mutations of its own**, all
+killed. It blocked PASS on one deterministic gate and flagged one code gap.
+
+### Blocker 1 — qa.md §1a lint gate RED, and never run by the author
+
+> `F401 [*] `types` imported but unused --> backend/tests/test_phase_85_4_cycle_loudness.py:36:8 ... Found 1 error.`
+
+**Fixed.** The import was genuinely dead — `grep -nE '\btypes\b'` on that file
+now returns zero lines. `types` is used in the *age-alarm* file, not this one;
+it was copied into the wrong header.
+
+**Root cause of the miss, stated plainly:** I ran pytest and a mutation matrix
+and treated those as "the gates". qa.md §1a makes lint REQUIRED on any
+`*.py`-touching diff and I never ran it. An author-side gate that was never run
+is an unmeasured claim, not a passed one. §8b now records the gate, its derived
+scope, its exit code, **and a proof it can still go red**.
+
+### Blocker 2 — no lint evidence anywhere in the handoff
+
+**Fixed** by §8b, which additionally quantifies the broader default rule set and
+says why it is not the project's standard rather than quietly ignoring it.
+
+### WARN — fail-open in the completed-age alarm
+
+Q/A found: if the newest `status == "completed"` row exists but its
+`completed_at` fails `_parse_iso`, `success_dt` is None **and** the
+no-completion fallback does not fire, so `success_stale` stayed False. One
+corrupt timestamp would silence the "book is not trading" P1 indefinitely — a
+fail-OPEN hole in an alarm whose entire purpose is loudness.
+
+**Fixed** at `cycle_health.py` with an explicit `elif last_success_row is not
+None: success_stale = True`. An unevaluable clock is not a healthy clock: the
+age stays `None` (honest — it is unknown) and the P1 renders it as `never`
+rather than printing a number it cannot support.
+
+Two new tests
+(`test_unparseable_success_timestamp_pages_instead_of_going_silent`,
+`test_unparseable_success_timestamp_still_renders_a_sendable_p1`) plus mutation
+**M10**, which re-opens the hole and is killed.
+
+### NOTE accepted, not actioned
+
+Q/A observed that the `_died_in` comment asserts every phase appends its name on
+entry, which it verified for all five phases it checked but which is not
+asserted in general. Recorded as a known limit rather than fixed — asserting it
+would need a static check over every `summary["steps"].append` site, which is
+its own piece of work.
+
+### Not done during EVALUATE, deliberately
+
+36.28 was **not** widened despite this step surfacing a second instance of its
+defect class (the live `.cycle_heartbeat.json` overwrite). A gap noticed
+mid-evaluation goes in the NEXT cycle, not into the tree being graded.
