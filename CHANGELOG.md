@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `1911499b` | fix(cycle-lock): phase-85.5 close the cycle-lock split-brain (P0 SAFETY) |
 | 2026-08-08 | `f576b834` | fix(hooks): serialize auto-commit across concurrent Claude sessions |
 | 2026-08-08 | `bf0e2b6c` | docs(harness): install the 2026-08-08 drain goal -- the money engine leads |
 | 2026-08-08 | `a28f6b81` | chore(away-ops): 2026-08-08 AM recovery -- commit benign heartbeat/audit + nightly autoresearch memo |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `d5583a72` | chore(masterplan): queue 36.30 -- env-flag test leakage (57.1 binding gate promoted live by operator |
 | 2026-08-07 | `b14d741d` | fix(83.0): bump the phase-23.2.14 lock roster 18->20 for the two news-module counter locks |
 | 2026-08-07 | `56e797f8` | chore(masterplan): queue 36.29 (archive-snapshot mislabeling, 13 dirs measured) + 84.1.1 (auditor N- |
-| 2026-08-07 | `1625b507` | phase-84.1: Reconcile the two memory-link conventions so the repo's own memory auditor stops repo... |
 
 ---
 
+### v6.85.12 — fix(cycle-lock): phase-85.5 close the cycle-lock split-brain (P0 SAFETY) (2026-08-08)
+
+- **fix(cycle-lock): phase-85.5 close the cycle-lock split-brain (P0 SAFETY)**
 ### v6.85.11 — fix(hooks): serialize auto-commit across concurrent Claude sessions (2026-08-08)
 
 - **fix(hooks): serialize auto-commit across concurrent Claude sessions**
