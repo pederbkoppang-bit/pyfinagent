@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `f3078453` | docs(85.5): remediate Q/A cycle-1 findings B2/B3/B4 in the artifacts |
 | 2026-08-08 | `def96b21` | fix(85.5): Q/A cycle-1 remediation -- test the flock gate, correct stale docstrings |
 | 2026-08-08 | `99622050` | chore(masterplan): queue 85.5.1 -- kill-switch daily-anchor disarm makes a book-safety test red |
 | 2026-08-08 | `7508c8ec` | docs(85.5): experiment results + live_check evidence, and guard the new steady state |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `df24fdc2` | phase-68.1: make EXECUTION_BACKEND reachable and its provenance visible (DARK; live_check held on an |
 | 2026-08-07 | `1ab0b59b` | phase-62.1: restart the Slack bot onto current code (research gate + contract; digest evidence pendi |
 | 2026-08-07 | `7414c271` | phase-61.3: prove the KR add-on stop, resolve LOCAL columns market-first, label a stale mark (Q/A CO |
-| 2026-08-07 | `abcadfb8` | docs(harness): install the next-session drain goal with measured 2026-08-07 end-of-day state (11 cyc |
 
 ---
 
