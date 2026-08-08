@@ -23906,6 +23906,28 @@
             ],
             "live_check": "live_check_86.4.md with the verbatim alarm payload produced by a bypass that exceeds the limit, and the verbatim quiet result for one that does not"
           }
+        },
+        {
+          "id": "86.5",
+          "status": "pending",
+          "harness_required": true,
+          "priority": "P2",
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "TRIAGE the 26 pre-existing backend/tests failures into per-root-cause research-gated steps. This step's DELIVERABLE IS THE STEPS, not the fixes.",
+          "audit_basis": "Carried over from the 2026-08-08/09 overnight goal, which asked for the 26 failures to be grouped by root cause and each cause filed as its own research-gated step. The overnight session closed 85.4, 85.6 and 85.5.1 and ran out of night before this. THE NODE IDS ARE ALREADY RECORDED so you do NOT need to re-run the suite to start -- and you MUST NOT casually re-run it: doing so POSTs a real pause/resume cycle to the live trading book (see step 86.3, measured 2026-08-09). Use a detached git worktree AND contain the HTTP channel, or fix 86.3 first. \n\nBASELINE (live tree, 2026-08-08, recorded verbatim in handoff/current/live_check_85.4.md section 5): 26 failed, 3017 passed, 12 skipped, 5 xfailed, 1 xpassed. Note a detached worktree gives a DIFFERENT shape (19-20 failed) because it lacks gitignored files, most importantly the 32.5MB backend.log -- so compare worktree-to-worktree or live-to-live, never across. phase-85.5 already lost time reading that difference as a regression.\n\nGROUPING BY FILE (a starting point, NOT the answer -- the goal asks for root cause, and one file can hold two causes while two files can share one): test_64_3_currency_path.py (3); test_phase_57_1_reject_binding.py (3); test_price_tolerance_gate.py (3); test_phase_70_4_gate_observability.py (2); test_phase_75_17_verification_paths.py (2); test_64_4_multi_market_e2e.py (1); test_book_safety_69.py (1); test_dod4_tier1_coverage_investment.py (1); test_phase_23_2_15_verify_23_1_smoke.py (1); test_phase_23_2_4_pause_resume_no_deadlock_live.py (1); test_phase_23_2_6_sector_cap_emit.py (1); test_phase_40_2_claude_code_v2_1_140_features.py (1); test_phase_60_3_data_integrity.py (1); test_phase_70_3_atomic_swap.py (1); test_phase_75_prompt_contracts.py (1); test_phase_75_sre_ops.py (1); test_phase_82_39_outcome_rebuild_query.py (1); test_portfolio_swap.py (1).\n\nWHAT IS ALREADY KNOWN, so you do not rediscover it: test_book_safety_69.py::test_valid_nav_still_breaches was one of the 26 and is now FIXED by step 85.5.1 -- so the live-tree baseline should now be 25, and confirming that is a cheap first check that your measurement environment is sound. Several of the remaining files (test_64_3_currency_path, test_64_4_multi_market_e2e, test_dod4_tier1_coverage_investment, test_phase_70_3_atomic_swap, test_price_tolerance_gate, test_phase_70_4_gate_observability) are named in step 36.28's audit basis as coupled to the operator's LIVE kill-switch pause state -- so a chunk of the 26 may share ONE root cause with 36.28 and 86.3 rather than being independent. Establish that before filing separate steps for them.\n\nSCOPE DISCIPLINE: do NOT mass-edit tests to green them. Fix ONLY what is money-path or safety-relevant in this step; everything else leaves as a filed step. A green suite bought by weakening assertions is worse than 26 honest failures.",
+          "verification": {
+            "command": "bash -c 'python3 -c \"import json;d=json.load(open(\\\".claude/masterplan.json\\\"));ids=[];\\nwalk=lambda o:[walk(v) for v in (o.values() if isinstance(o,dict) else o)] if isinstance(o,(dict,list)) else None;\\nprint(\\\"see success_criteria -- this command only proves the masterplan parses\\\")\"'",
+            "success_criteria": [
+              "every one of the 26 recorded node ids is accounted for: assigned to a named root-cause group, or shown to be already fixed, or shown to be an environment artifact -- with NONE left unclassified, and the accounting is a table an auditor can check line by line",
+              "each root cause is filed as its OWN masterplan step with harness_required true, an audit_basis written for an executor with no memory of this triage, and green-able immutable verification criteria (run the proposed verification command BEFORE freezing it -- a criterion that is already red for unrelated reasons is structurally uncloseable)",
+              "the grouping is justified by a MEASURED signature (the assertion/exception each test actually produces), not by filename similarity -- record the signature per test",
+              "the overlap with 36.28 and 86.3 is resolved explicitly: state which of the 26 are instances of the live-kill-switch-coupling class and therefore must NOT get duplicate steps",
+              "the re-measured live-tree baseline is recorded, and the measurement did NOT write to handoff/kill_switch_audit.jsonl -- proven by line count and sha256 before/after",
+              "no test is edited to obtain green in this step; fresh Q/A PASS"
+            ],
+            "live_check": "live_check_86.5.md with the full 26-row accounting table (node id -> measured signature -> root-cause group -> filed step id or disposition), the re-measured baseline, and the before/after sha256 of handoff/kill_switch_audit.jsonl proving the measurement did not touch live state"
+          }
         }
       ]
     }
