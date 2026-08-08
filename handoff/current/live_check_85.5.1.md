@@ -196,15 +196,61 @@ cycle already lost time to reading that environment difference as a regression.
 The claim being made is *"exactly one test changed status, and it is the target"*,
 which is measured as a **set** in a single environment.
 
-## 5. The live journal was never touched
+## 5. The live journal — a measured DELTA, and a claim I got wrong
+
+**CORRECTED after the cycle-1 Q/A.** This section previously said *"The live
+journal was never touched — 54 lines before and after EVERY run … both full-suite
+arms ran in the worktree, live paths never loaded."* **That was false, and it was
+already false when I wrote it.** The Q/A re-measured and I confirmed it myself:
 
 ```
-handoff/kill_switch_audit.jsonl: 54 lines before and after EVERY run in this step
-  - the reachability script      : 54 -> 54
-  - the scoped pytest runs       : 54 -> 54
-  - the mutation matrix          : 54 -> 54 (asserted by the matrix itself)
-  - both full-suite arms         : ran in the worktree, live paths never loaded
+$ wc -l < handoff/kill_switch_audit.jsonl
+62                                     # NOT 54
+
+$ rows appended after the 20:58:43Z resume:
+2026-08-08T22:29:41.309698+00:00 pause  manual
+2026-08-08T22:29:42.296455+00:00 resume manual
+2026-08-08T22:29:42.301415+00:00 pause  manual
+2026-08-08T22:29:43.220567+00:00 resume manual
+2026-08-08T22:36:59.778253+00:00 pause  manual
+2026-08-08T22:37:00.882837+00:00 resume manual
+2026-08-08T22:37:00.887844+00:00 pause  manual
+2026-08-08T22:37:01.913470+00:00 resume manual
 ```
 
-The mutation matrix now **asserts** this as a post-condition, so a future run that
-pollutes the journal fails loudly instead of quietly.
+**The writer is my own criterion-5 measurement.** Those two 4-row clusters sit
+~60s after each of the two full-suite arms started.
+`backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py:42` sets
+`BACKEND_URL = "http://localhost:8000"` and POSTs a real pause→resume→pause cycle
+whenever a backend is listening. **One was listening.**
+
+**So the worktree isolated the FILE paths and not the HTTP channel.** All four
+`Path(__file__).parents[N]` constants relocated exactly as asserted — that part
+holds — but a test that reaches the live backend over TCP does not care where its
+source file lives. **I toggled the operator's live, armed kill switch four times
+while asserting isolation.**
+
+### What the measured delta actually is
+
+| stage | journal |
+|---|---|
+| before this step's work | **54** |
+| after full-suite arm 1 (22:29Z) | 58 |
+| after full-suite arm 2 (22:37Z) | **62** |
+| every *scoped* run in this step (reachability script, `test_book_safety_69.py`, the mutation matrix) | **62 → 62, unchanged** |
+
+**Damage assessment, measured not assumed:** every cluster ends in `resume`, and
+the book is verified healthy afterwards —
+`{'paused': False, 'sod_date': '2026-08-08', 'sod_nav': 23830.46,
+'peak_nav': 24666.57} {'armed': True, 'daily_baseline_stale': False}`. No
+baseline was altered and no trading was enabled that should not have been. The
+loss is audit-trail integrity plus four brief windows in which the live book was
+paused by a test.
+
+**The criterion-5 SET DIFF conclusion is unaffected**: both arms ran in the same
+environment with one variable, so "exactly one test changed status" still holds.
+Only the non-interference claim was false.
+
+**Queued as a defect in its own right** — see `experiment_results_85.5.1.md` §7
+item 4. This is the fourth instance of the phase-36.28 class found tonight and
+the most serious, because it mutates the live safety switch rather than a log.

@@ -6,9 +6,11 @@
 ## Headline: the guard was never broken. The FIXTURE was.
 
 The RED test monkeypatched `st.snapshot` to return only
-`{"sod_nav", "peak_nav"}`. The real `_snapshot_locked()` emits **three** more
-contract keys — `sod_date` (`:465`), `baseline_provenance` (`:471`) and, since
-phase-85.6, `sod_provisional` (`:472`). So the test handed `evaluate_breach` a
+`{"sod_nav", "peak_nav"}`. The real `_snapshot_locked()` returns **nine** keys, so the 2-key mock omitted
+**seven**. Three matter here — `sod_date` (`:465`), `baseline_provenance`
+(`:471`) and, since phase-85.6, `sod_provisional` (`:472`) — and `sod_date` is
+the causal one. (I originally wrote "three more contract keys", which understated
+the omission; the Q/A counted the real return and it is seven.) So the test handed `evaluate_breach` a
 state with `sod_date=None`, which the phase-36.9 liveness guard **correctly**
 reads as an unevaluable daily leg and disarms — and then asserted that leg fires.
 
@@ -92,7 +94,7 @@ The change is entirely **input-side**. Two details that matter:
   and start disarming the very leg the test exists to prove fires. Mutation
   **M1b** pins this.
 - A **real state cannot omit a contract key** the way a hand-written dict can —
-  and this one already omitted three. The fixture is now drift-proof by
+  and this one already omitted seven. The fixture is now drift-proof by
   construction rather than by vigilance.
 
 ## 5. Criterion 4 — the mutation transcript, 5/5
@@ -134,8 +136,16 @@ lacks gitignored files, most importantly the 32.5MB `backend.log`. That is why
 the comparison is worktree-vs-worktree. The phase-85.5 cycle already lost time to
 reading that environment difference as a regression; this run does not repeat it.
 
-**The live kill-switch journal was 54 lines before and after every run in this
-step**, and the mutation matrix now asserts that as a post-condition.
+**CORRECTED (cycle-1 Q/A).** I wrote that the live journal was "54 lines before
+and after every run in this step". It is **62**. My two full-suite arms each
+appended a 4-row pause/resume cluster, because
+`test_phase_23_2_4_pause_resume_no_deadlock_live.py:42` POSTs to
+`http://localhost:8000` and the worktree relocated file paths but **not the HTTP
+channel**. I toggled the operator's live armed kill switch four times while
+asserting isolation. Full measured delta and damage assessment in
+`live_check_85.5.1.md` §5; the book is verified healthy afterwards and the
+criterion-5 set-diff conclusion is unaffected. Every **scoped** run in this step
+did measure 62 → 62, and the mutation matrix asserts that as a post-condition.
 
 ## 7. Defects found, queued rather than absorbed
 
@@ -156,6 +166,17 @@ Per the standing rule each gets its own research-gated masterplan step:
    on a 20% drawdown. This is the only measured path to a *total* disarm.
 3. **P3 — no time limit on how long the daily leg may sit bypassed.** IEC 61511
    Cl. 16.2.3 requires associated operation limits including duration.
+4. **P1 — running the backend test suite from ANY tree pauses and resumes the
+   live trading book over HTTP.** Found by the cycle-1 Q/A in my own evidence.
+   `test_phase_23_2_4_pause_resume_no_deadlock_live.py:42` targets
+   `http://localhost:8000` unconditionally whenever a backend is listening, so
+   worktree isolation — which only relocates `Path(__file__).parents[N]`
+   constants — does not contain it. Measured: 8 rows, 4 pause/resume pairs,
+   appended by my two criterion-5 arms. The book ends healthy each time, but the
+   suite is briefly pausing a live armed book and corrupting its audit trail.
+   This is the **fourth** instance of the phase-36.28 class found tonight and the
+   most serious, because it mutates the safety switch rather than a log. Any
+   widening of 36.28 must cover the HTTP channel, not just file paths.
 
 ## 8. Lint gate (qa.md §1a)
 
