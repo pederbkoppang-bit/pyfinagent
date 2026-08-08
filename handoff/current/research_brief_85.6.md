@@ -3,7 +3,10 @@
 Tier: **complex**. Audit-class: **false**. Started 2026-08-08. Write-first: created
 before any reading, appended incrementally.
 
-Status: COMPLETE. `gate_passed: true` (6 sources read in full, 22 URLs, recency
+Status: COMPLETE. `gate_passed: true` (**7** sources read in full -- the prose
+here originally said 6, which contradicted this brief's own JSON envelope
+(`external_sources_read_in_full: 7`); corrected after the phase-85.6 pass-3
+Q/A flagged the inconsistency. Both figures clear the >=5 floor. 22 URLs, recency
 scan performed, three-variant query discipline visible below).
 
 ## Scope

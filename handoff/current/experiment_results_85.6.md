@@ -157,7 +157,7 @@ Full transcript in `handoff/current/live_check_85.6.md`. Summary:
 - `test_roll_refuses_a_non_positive_nav_and_says_so` keeps the phase-36.9 F3
   refusal intact — a 0.0 anchor is a semipredicate that blocks its own repair.
 
-## 7. Mutation matrix — 9/9
+## 7. Mutation matrix — 9/9 at cycle-1 (SUPERSEDED: see §12 for 12/12 and §13 for the final 14/14)
 
 ```
 $ source .venv/bin/activate && python scripts/qa/mutation_matrix_85_6.py
@@ -380,7 +380,18 @@ upgrade path stays inert and behaviour is exactly pre-85.6.
   failure. That is the "mutate the stub too" lesson arriving for the third time
   this session.
 
-Matrix **14/14**. Suite **25 passed**. All kill-switch + book-safety suites:
+Matrix **14/14**. Suite **25 passed**. All kill-switch + book-safety suites — **command recorded so the number
+reproduces** (the pass-3 Q/A could not reproduce a bare "202" and was right to
+say so; scope shape changes the count, the finding does not):
+
+```
+$ FILES=(); while IFS= read -r f; do FILES+=("backend/tests/$f"); done \
+      < <(ls backend/tests/ | grep -iE "kill_switch|book_safety")
+$ FILES+=(backend/tests/test_phase_85_6_anchor_deadlock.py)   # 10 files
+$ python -m pytest "${FILES[@]}" -q --timeout=60
+1 failed, 202 passed, 1 skipped
+```
+
 **202 passed, 1 failed** — the single failure is
 `test_book_safety_69::test_valid_nav_still_breaches`, **pre-existing**, one of the
 known 26, and the subject of step 85.5.1.
@@ -394,3 +405,41 @@ the book sat unresumable for six days behind it. The assertion is inverted with
 the supersession explained inline, and the original intent (the message must
 describe the daily roll that actually clears the refusal, not the lost-history
 block) is preserved and still asserted. **No other pre-existing test was touched.**
+
+### NOTE (1) from the pass-3 Q/A — a LIVE-state residual, recorded because it is real
+
+The `sod_snapshot` row written by tonight's verification cycle
+(`ts 2026-08-08T20:58:29.379594Z`) has **no `provisional` key** — it was written
+by backend pid 23676, which predates the durable marker. So the current live
+anchor (`23830.46`, stamped `2026-08-08`) is provisional **in fact** but replays
+as **confirmed**, and a cycle running before the UTC rollover would judge the
+breach against it without upgrading.
+
+Measured exposure, rather than asserted:
+
+- the stored mark at roll time **was** `23830.46` and current NAV is `23833.94`,
+  so the move it would measure is **≈0%** — nowhere near the 4% daily limit;
+- the cron is **weekday-only** and it is the weekend, so no scheduled cycle runs
+  before the rollover;
+- the failure direction is **over-protective** (a spurious flatten), never
+  permissive;
+- it **self-clears at the UTC rollover**, when Step 0 re-rolls and stamps the
+  marker.
+
+**Action taken:** the backend was restarted so the durable marker is in force
+for Monday — a committed marker in a process that predates it is not a marker
+(`feedback_committed_is_not_in_force`). Verified after the restart that the
+kill-switch read is unchanged and the book is still resumed.
+
+**Restart verified.** Backend pid **36970**, started **2026-08-09 00:03:29**,
+after the cycle-3 commit `0f9e92c0` (2026-08-08 23:48:48). `launchctl` owns the
+pid, health 200, no `EADDRINUSE`. The immutable verification command still reads
+`{'paused': False, 'sod_date': '2026-08-08'} {'armed': True,
+'daily_baseline_stale': False}` — the book is still resumed.
+
+**Stated precisely, so it is not over-claimed:** `GET /api/paper-trading/kill-switch`
+does **not** expose `sod_provisional` (it builds its payload from selected
+fields, and phase-85.6 did not change that shape). So what is verified live is
+that the process now runs post-marker code and the endpoint contract is
+unbroken. The marker's persistence and replay are proven by the four tests that
+drive the real `KillSwitchState`, not by the HTTP surface.

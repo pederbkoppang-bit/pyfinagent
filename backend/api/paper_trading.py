@@ -599,8 +599,15 @@ async def resume_trading(req: KillSwitchActionRequest):
     # phase-36.9: staleness and absence are DIFFERENT refusals and must not share
     # one message. On a merely-stale anchor the baselines WERE restored, both
     # `*_missing` fields print False, and the lost-history remediation below does
-    # NOT apply -- the daily start-of-day roll sets today's anchor at the top of the
-    # next cycle, with no operator action at all. Note the wording constraint: 36.12
+    # NOT apply. phase-85.6 CORRECTION: this comment used to continue "-- the daily
+    # start-of-day roll sets today's anchor at the top of the next cycle, with no
+    # operator action at all", and the last line of this block claimed "Verified: a
+    # PAUSED book still reaches the roll, so this refusal self-clears within one
+    # cycle and cannot wedge." The pausedness half was right; the reachability half
+    # was not. The roll ran BEHIND the analysis phase, every cycle from 2026-08-06
+    # timed out in `analyzing`, and the book sat unresumable 2026-08-03 -> 08-08. The
+    # roll now runs at Step 0, but the message below still states a PRECONDITION
+    # rather than a promise. Note the wording constraint: 36.12
     # BANS telling an operator to wait for an automatic re-anchor, because for LOST
     # HISTORY that silent anchor WAS the defect (it forgives the real drawdown). A
     # merely-stale anchor is the opposite case -- the daily roll is the correct,
@@ -608,8 +615,8 @@ async def resume_trading(req: KillSwitchActionRequest):
     # avoids the banned phrases rather than weakening 36.12's guard to fit it.
     # Sending the absence text here would assert a cause
     # its own printed diagnostics refute, which is the same defect this step fixed
-    # in the disarm log. Verified: a PAUSED book still reaches the roll, so this
-    # refusal self-clears within one cycle and cannot wedge.
+    # in the disarm log. (The "Verified: ... cannot wedge" claim that used to close
+    # this block is retired -- see the phase-85.6 CORRECTION above. It wedged.)
     if (breach.get("daily_baseline_stale")
             and not breach.get("daily_baseline_missing")
             and not breach.get("trailing_baseline_missing")):

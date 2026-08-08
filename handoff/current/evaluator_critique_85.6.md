@@ -254,3 +254,52 @@ unresumable for six days behind it. The assertion is inverted with the
 supersession explained inline, and the original INTENT (the message must
 describe the daily roll that actually clears the refusal, not the lost-history
 block) is preserved and still enforced. No other pre-existing test was touched.
+
+---
+
+# EVALUATE pass 3 — verdict **PASS**
+
+`ok: True` · `harness_compliance_ok: True` ·
+violated_criteria: **none**
+
+Run `wf_c1ca165d-04e`, commit `a126126b`. Spawned under the 3rd-CONDITIONAL rule
+with an explicit instruction to return PASS or FAIL, never a third CONDITIONAL.
+Verbatim below. Machine copy: `evaluator_critique_85.6_pass3.json`.
+
+## reason
+
+All 6 immutable criteria MET, verified by independent execution rather than inspection. C1: the roll moved to Step 0 (backend/services/autonomous_loop.py:536, 3 non-comment lines) and a real triggered cycle rolled the anchor at t+2s (live_check §3, log line 20:58:29Z); mutations M1 (Step-0 roll deleted) and M2 (roll drifts back behind screening) both KILLED in my own run of scripts/qa/mutation_matrix_85_6.py. C2: I captured the live post-fix 409 and the phrase "NO operator action is required" is absent, "UNBLOCK CONDITION" present and it names the real mechanism (roll_daily_anchor -> update_sod_nav) INCLUDING the honest weekend/no-cycle-scheduled case; M7/M8 KILLED. C3: argued from three evidence items, the load-bearing one being the measured 2026-08-05 completing cycle that traded nothing because the switch was paused - so "85.4 alone clears it" is refuted, not assumed. C4: I re-ran the immutable verification command myself: exit=0, {'paused': False, 'sod_date': '2026-08-08'} {'armed': True, 'daily_baseline_stale': False}. C5 (the criterion that blocked passes 1 and 2): CLOSED, and I proved it with my own probes against the REAL KillSwitchState + REAL PaperTrader, journal redirected to tmp. PROBE 2 re-run: cycle 1 rolls provisional (sod_provisional=true, 23830.46 stamped today) and dies; a BRAND-NEW trader's Step 0 returns "anchor_already_current" and Step 5.5 now upgrades -> sod_nav 22600.0, provisional false, triggered false, daily_pct 0.0, no flatten. Same result across a simulated PROCESS RESTART (state rebuilt by journal replay). CONTROL (marker force-cleared to simulate the pass-2 defect) reproduces the spurious flatten exactly - triggered true, flatten_all called, daily_loss_pct 5.1634 - so my probe is capable of failing and the author's cited number reproduces under my independent construction. PROBE 4b mirror direction: a real same-day 6% drawdown against a confirmed anchor still fires (daily_loss_breached true, flatten+pause, paused true). A legacy sod_snapshot row with no `provisional` key replays as False and is never upgraded mid-day. C6: the whole-step diff contains zero matches for execute_buy/execute_sell/position_size/max_positions/stop_loss/daily_loss_limit_pct/trailing_dd_limit_pct. Deterministic tier: ruff F821/F401/F811 over a git-DERIVED 7-file scope (git diff 81f81750..HEAD union untracked union working tree) exit=0, non-empty set asserted; 25/25 on backend/tests/test_phase_85_6_anchor_deadlock.py; regression 1 failed / 206 passed / 1 skipped over the explicit kill-switch+book-safety file list and 1 failed / 194 passed under an independent -k selection - the single failure is test_book_safety_69::test_valid_nav_still_breaches and I verified the pre-existing attribution independently (evaluate_breach appears 0 times in the entire 85.6 kill_switch.py diff, and masterplan 85.5.1 records the same failure reproduced at cf4d22d8 in a detached worktree); mutation matrix 14/14 KILLED with git status --short over backend/ scripts/ frontend/ empty afterwards (tree restored). Harness compliance clean: research gate passed (7 read in full, 22 URLs, recency scan present, contract cites it 3x), contract precedes GENERATE by commit order (81f81750 "research gate + contract (GENERATE not started)" -> 5932ac27), experiment_results present, log-last respected (0 "phase=85.6" entries in harness_log), and the evidence CHANGED since the tree pass 2 graded (0f9e92c0 + a126126b after e369b1de) so this is the documented fresh-respawn, not verdict-shopping. On the specific scrutiny asked: the inverted pre-existing 36.9 assertion is a LEGITIMATE criterion-mandated supersession, not a test edited to go green - criterion 2 requires the exact phrase removed, the replacement is strictly stronger (negative assertion + mechanism assertion), it was disclosed prominently, and M7 "the false 409 promise comes back" is KILLED. The class-level default is the right call: it mirrors the documented _baseline_provenance precedent in the same file, production always runs __init__, and the default is conservative (False = pre-85.6 inert). No new hazard from persisting the marker: only Step 0 sets provisional=True and only on a stale date, the upgrade clears it, and a second/third same-day cycle does not re-anchor (measured: anchor held at 10000.0 while the book fell to 9400, daily_pct 6.0 computed against the held anchor).
+
+## checks_run
+
+- qa_md_read_from_disk
+- harness_compliance_audit_5_item
+- research_gate_envelope
+- contract_before_generate_commit_order
+- log_last_not_yet_logged
+- no_verdict_shopping_evidence_changed
+- python_lint_gate_1a_derived_scope
+- syntax
+- verification_command
+- scoped_pytest_85_6_suite
+- regression_pytest_killswitch_booksafety_two_independent_scopes
+- pre_existing_failure_attribution_reverified
+- author_mutation_matrix_14_of_14
+- tree_restored_after_mutation_matrix
+- independent_probe_cross_cycle_real_state
+- independent_probe_cross_restart_replay
+- independent_probe_CONTROL_defect_reproduces
+- independent_probe_real_drawdown_still_fires
+- independent_probe_legacy_row_backward_compat
+- independent_probe_no_mid_day_reanchor
+- backend_runtime_smoke_live_endpoint
+- live_check_artifact_review
+- claim_audit_4b
+- guard_vacuity_4c
+- adversarial_three_lenses
+- code_review_heuristics
+- evaluator_critique
+
+## notes
+
+Four NOTE-level findings, none blocking, all recorded rather than waived. (1) UNDISCLOSED LIVE-STATE RESIDUAL, found by me: the live sod_snapshot row written by the verification cycle (handoff/kill_switch_audit.jsonl, ts 2026-08-08T20:58:29.379594Z) has NO `provisional` key, because the live proof ran on the cycle-1 backend (pid 23676) that predates the marker. So the CURRENT live anchor (23830.46 stamped 2026-08-08) is provisional in fact but replays as confirmed, and a cycle running before 00:00Z on 08-08 would judge the breach against it without upgrading. Exposure is near-nil (weekday-only cron, Saturday, the stored mark IS 23830.46 so the measured move is ~0%, and the failure direction is over-protective not permissive) and it self-clears at the UTC rollover, but it belongs in experiment_results §13 rather than only in this critique. (2) CLAIM HYGIENE: "All kill-switch + book-safety suites: 202 passed, 1 failed" (experiment_results_85.6.md:384) does not reproduce - I measured 1 failed/206 passed/1 skipped over the explicit 10-file list and 1 failed/194 passed under `-k "kill_switch or book_safety"`. No reproducing command was recorded, so the figure is unreproducible by construction rather than contradicted; the load-bearing half (exactly one failure, pre-existing, book_safety_69) reproduced under BOTH independent scopes. Record the exact pytest invocation next to the number. (3) A stale PRE-EXISTING comment survives directly above the corrected 409 in backend/api/paper_trading.py (~:596-612): "the daily start-of-day roll sets today's anchor at the top of the next cycle, with no operator action at all" and "this refusal self-clears within one cycle and cannot wedge". 85.6 did not author it and criterion 2 governs the MESSAGE, which is correct - but the comment now contradicts the message's own weekend disclosure and is the exact prose class this step exists to kill. (4) Minor internal inconsistencies in the handoff: research_brief_85.6.md:6 says "6 sources read in full" while its own envelope says 7 (both clear the >=5 floor), and experiment_results §7 is still headed "Mutation matrix - 9/9" with §12/§13 superseding it to 14/14. Weak-but-not-sole guard: `assert "roll" in detail` in the superseded 36.9 test is satisfiable by substrings such as "controlled"; it is backed by the "UNBLOCK CONDITION" assertion and by mutation M8, so it is not sole coverage. DISCLOSURE ABOUT MY OWN RUN: my CONTROL probe drove the production breach path on an INJECTED state and therefore emitted a real Slack alert at ~2026-08-08T21:5xZ titled "Kill-switch AUTO-PAUSED trading (trigger=limit_breach)" - that alert is a Q/A artifact, not a live event; no live book state changed. My probes wrote only to a tmp journal (verified: the only 2 uncommitted lines in handoff/kill_switch_audit.jsonl are timestamped 20:58Z and predate my run), I started/killed no server, triggered no cycle, and touched no production file; the mutation matrix restored the tree byte-for-byte (git status --short over backend/ scripts/ frontend/ empty). All UI gates N/A (no frontend/** in the diff, no UI claims).
