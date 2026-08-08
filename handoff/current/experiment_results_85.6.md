@@ -314,3 +314,83 @@ performed the upgrade *itself* in test code instead of calling
 proves nothing. It now drives the real production method.
 
 Matrix: **12/12**. Suite: **19 passed**. Lint gate: `ruff_exit=0`.
+
+
+---
+
+## 13. Cycle-3 — the pass-2 CONDITIONAL, and why my own residual claim was false
+
+Pass 2 confirmed criteria 1, 2, 3, 4 and 6 MET, and confirmed both of pass 1's
+counterexamples were closed by the cycle-2 fix. It blocked on criterion 5 again,
+for a reason I had asserted away rather than measured.
+
+### The finding
+
+The provisional marker lived on the `PaperTrader` **instance**, and
+`autonomous_loop.py` constructs a **new** `PaperTrader` inside every
+`run_daily_cycle`. So the flag did not survive the **cycle** — not merely "the
+process", which is what I wrote. Measured through the production path:
+
+1. cycle 1 rolls a provisional anchor at Step 0 and dies in `analyzing`
+2. the next same-day cycle's Step 0 returns `anchor_already_current` and does
+   **not** re-flag (fresh trader, flag clear)
+3. the upgrade branch is therefore unreachable for the rest of the UTC day
+4. that cycle's Step 5.5 judges the breach against the 3-session-stale anchor →
+   `daily_loss_pct 5.1634` → `any_breached True` → **flatten_all + pause**
+
+The mirror direction was live too: with a provisional anchor of 100 and today's
+open at 110, a real **9.09% same-day drawdown reports 0.00% and does not fire**
+(trailing 9.09% < 10% does not cover it), where pre-85.6 fires. That is a literal
+loosening of the daily-loss leg.
+
+### My disclosure was materially false, in both places
+
+`paper_trader.py` said *"The next cycle re-rolls at Step 0 and upgrades here, so
+the window is one cycle"* — it does not re-roll and cannot upgrade. §12 said
+*"nothing is judged against it in the meantime"* — the next completing cycle
+**does** judge against it, and in the Q/A's measurement it flattens the book.
+Both texts are now replaced with the measured behaviour. This is the second time
+this session that a residual I *reasoned* about turned out to be wrong when
+*measured*; the lesson is banked.
+
+### The fix: the marker is durable, not in-memory
+
+`sod_provisional` is now state on `KillSwitchState`, written into the
+`sod_snapshot` audit row and replayed on boot. It survives a dead cycle, a fresh
+`PaperTrader`, and a process restart. The upgrade condition reads
+`snap["sod_provisional"]`, never an instance attribute.
+
+Declared **class-level**, because the file already documents the trap: fixtures
+build detached states via `object.__new__`, so an instance-only attribute
+`AttributeError`s inside `_snapshot_locked`. That was not theoretical — it broke
+**34 tests**, measured, before the class default was added.
+
+Legacy `sod_snapshot` rows have no `provisional` field → replays as `False` → the
+upgrade path stays inert and behaviour is exactly pre-85.6.
+
+### New tests and mutations
+
+- 4 tests drive the **real** `KillSwitchState` with its journal redirected to
+  tmp: persistence, replay-after-restart, clearing, legacy-row compatibility.
+- 1 test drives the cross-cycle path with a **new** trader, which is the exact
+  residual pass 2 measured.
+- **M13** (marker not persisted) and **M14** (marker not replayed) both **LIVE on
+  their first run** — because my existing tests used `FakeKillSwitchState`, which
+  mirrors the marker itself and therefore cannot see a production persistence
+  failure. That is the "mutate the stub too" lesson arriving for the third time
+  this session.
+
+Matrix **14/14**. Suite **25 passed**. All kill-switch + book-safety suites:
+**202 passed, 1 failed** — the single failure is
+`test_book_safety_69::test_valid_nav_still_breaches`, **pre-existing**, one of the
+known 26, and the subject of step 85.5.1.
+
+### One pre-existing test was deliberately changed — disclosed, not buried
+
+`test_phase_36_9_kill_switch_armed_liveness.py::test_phase_36_9_the_resume_409_names_staleness_not_absence`
+asserted the 409 message **contains** `"NO operator action is required"` — the
+exact phrase criterion 2 requires **removed**, because it was measured false and
+the book sat unresumable for six days behind it. The assertion is inverted with
+the supersession explained inline, and the original intent (the message must
+describe the daily roll that actually clears the refusal, not the lost-history
+block) is preserved and still asserted. **No other pre-existing test was touched.**
