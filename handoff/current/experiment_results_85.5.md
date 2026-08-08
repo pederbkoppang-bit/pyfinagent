@@ -35,7 +35,7 @@ appearance and false in fact.
 ```
 backend/services/cycle_lock.py                            (rewritten authority model)
 backend/slack_bot/scheduler.py                            (_cycle_state_line only)
-backend/tests/test_phase_85_5_cycle_lock_split_brain.py   (NEW, 9 tests)
+backend/tests/test_phase_85_5_cycle_lock_split_brain.py   (NEW, 11 tests at HEAD)
 backend/tests/test_phase_38_6_restart_survivable.py       (2 tests updated, 1 replaced)
 backend/tests/test_book_safety_69.py                      (1 trailing assertion updated)
 ```
@@ -44,14 +44,17 @@ backend/tests/test_book_safety_69.py                      (1 trailing assertion 
 
 ```
 $ bash -c 'source .venv/bin/activate && python -m pytest backend/tests -k "cycle_lock or 85_5" -q --timeout=120'
-13 passed, 3015 deselected, 1 warning in 5.86s
+14 passed, 3015 deselected, 1 warning in 6.14s
 ```
 
-Baseline before the change was `3 passed`. The new module is named so
+Baseline before the change was `3 passed`. 14 = 11 new tests in the 85.5
+module + 3 pre-existing hits. (Regenerated after Q/A cycle 1: the earlier
+capture said 13 and was measured before the flock-gate guard was added —
+a carried-forward number rather than a regenerated one.) The new module is named so
 `-k "cycle_lock or 85_5"` actually collects it — the phase-38.6 module matches
 neither keyword, which is why the criterion-3 replacement lives in the new file.
 
-## 4. Mutation matrix — every guard proven to bite
+## 4. Mutation matrix — one mutant per change in the §1 table
 
 Reverts each fix **in the production file**, runs the test meant to catch it,
 asserts that test FAILS, restores via `git checkout --` and asserts byte-equality.
@@ -64,8 +67,25 @@ CAUGHT   M2 acquire re-adds the stale unlink+recreate branch
 CAUGHT   M3 TTL frozen back to a constant below the budget
 CAUGHT   M4 release unlinks again (the third, unnamed defect)
 CAUGHT   M5 verify-after-lock removed
-All 5 mutants caught.
+CAUGHT   M6 clean_stale_lock unlinks on the predicate alone (flock gate removed)
+All 6 mutants caught.
 ```
+
+Six mutants for the six changes in the §1 table. **M6 exists because Q/A
+cycle 1 caught me shipping an untested guard:** change #5
+(`clean_stale_lock` gated on winning the flock) had no mutant, and the Q/A's
+own equivalent mutant **survived my entire suite**. It is not an equivalent
+mutant — ungated, `clean_stale_lock` deletes a live holder's lockfile, after
+which a second acquirer `O_CREAT`s a new inode and its flock contends with
+nobody. It is production-reachable from `backend/main.py:265`
+(`reason="startup_recovery"`) — a backend restarting while a cycle runs, which
+is exactly this step's threat model. Both of my existing tests exited at the
+`not is_stale` early return and never reached the gate.
+
+The guard added for it drives `is_stale` True while the flock is genuinely
+held, by **both** routes: a forged `released` payload, and the
+`_write_payload` truncate window in which a live holder momentarily reads as
+malformed.
 
 **The first run had 2 of 5 SURVIVE, and that is the most useful thing in this
 document:**
@@ -81,33 +101,73 @@ document:**
   from inside `flock()` and asserts the payload lands at the **path**, not on
   the orphan.
 
-## 5. Regression — measured against a pristine baseline, not asserted
+## 5. Regression — full suite, exact command, environment held constant
 
-The broad sweep shows 6 failures. **All 6 fail identically at `cf4d22d8`, the
-commit before mine**, measured in a detached worktree with `backend/.env`
-symlinked (the first baseline attempt was invalid — 4 pydantic collection
-errors because the worktree lacked the gitignored env):
+**This section was rewritten after Q/A cycle 1.** The original version said
+"the broad sweep shows 6 failures … zero regressions introduced" over a
+`-k`-filtered slice of ~336 of ~3029 tests (~11%), disclosed no command, and
+so could not be reproduced. Calling an 11% slice "broad" was overclaiming.
+The corrected evidence follows.
 
-```
-                                          baseline(cf4d22d8)   with my change
-passed                                           330                338
-failed                                             6                  6
-```
-
-`338 − 330 = +8` = 9 new tests minus the 1 TTL-literal test replaced. **Zero
-regressions introduced.** The 6 pre-existing failures:
+**Command (both runs, verbatim):**
 
 ```
-test_book_safety_69.py::test_valid_nav_still_breaches
-test_phase_23_2_4_pause_resume_no_deadlock_live.py::...pause_cycle_under_5s
-test_phase_57_1_reject_binding.py::test_reject_binding_main_path_off_emits_on_blocks
-test_phase_57_1_reject_binding.py::test_reject_binding_swap_path_off_emits_on_blocks
-test_phase_70_4_gate_observability.py::test_price_tolerance_rejection_is_accumulated
-test_phase_70_4_gate_observability.py::test_price_tolerance_accumulator_empty_when_within_tolerance
+python -m pytest backend/tests -q --timeout=120 --tb=no
 ```
 
-These are **not** disclosed as prose and left there — `test_valid_nav_still_breaches`
-is queued as its own research-gated masterplan step (see §7).
+**Full suite at HEAD (`990e409d`):**
+
+```
+26 failed, 2985 passed, 12 skipped, 5 xfailed, 1 xpassed, 48 warnings in 288.54s
+```
+
+### The worktree baseline is INVALID — and here is why, rather than a quiet drop
+
+Running the same command in a detached worktree at `cf4d22d8` gives
+`30 failed, 2958 passed, 22 skipped, 4 errors`, with **1 failure unique to
+HEAD** and **5 unique to the baseline**. None of those six are code
+differences. A worktree does not contain the repo's **gitignored live-system
+files**, and several tests read them directly:
+
+- `test_phase_23_2_6_backend_log_has_skipping_buy_evidence` reads the
+  repo-root `backend.log` (**32,565,172 bytes** in the real repo, **absent**
+  in the worktree). It therefore *skipped* in the baseline and *ran and
+  failed* at HEAD — appearing as a regression that is purely environmental.
+  Its own docstring says so: *"Fails locally because it IS
+  live-system-dependent … genuine live-system state, not a code defect."*
+- The 5 baseline-only failures read `.claude/masterplan.json` and `handoff/`
+  state, which differ in a detached checkout.
+- Skip counts corroborate exactly: **12 skipped at HEAD vs 22 in the
+  worktree** — ten extra skips for absent live files.
+
+### The valid method: same environment, only the code varies
+
+Injected the **pre-change** `backend/services/cycle_lock.py`
+(`git show 1911499b~1:…`, old predicate confirmed present at its line 79) into
+the **real repo** and replayed exactly the 26 HEAD failures:
+
+```
+OLD CODE: 26 failed, 1 warning in 5.19s
+=== all 26 reproduce under OLD code, same environment? ===
+  IDENTICAL -- all 26 failures are independent of my change
+```
+
+File restored byte-exact afterwards (`cmp` verified; explicit backup/restore,
+not `git checkout --`, which this repo's PreToolUse danger hook blocks —
+correctly, since that command silently discarded uncommitted work earlier in
+this very cycle).
+
+**Conclusion: zero regressions introduced — demonstrated, not asserted.**
+
+One of the 26, `test_book_safety_69.py::test_valid_nav_still_breaches`, is
+**not** left as prose: it is queued as its own research-gated masterplan step
+(see §7).
+
+**A failed measurement that looked like success:** the first corrected re-run
+printed "0 failures" for both sweeps. zsh does not word-split unquoted
+parameter expansions, so `-m $SWEEP` passed the whole string as a module name
+and pytest never ran. Those numbers were discarded, not published, and the
+harness now refuses to report unless a real pytest summary line is present.
 
 Lint gate (ruff F821,F401,F811, git-derived scope, all 5 changed files):
 `All checks passed!` — this also cleared two **pre-existing** F401s in the 38.6

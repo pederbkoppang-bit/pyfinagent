@@ -117,10 +117,10 @@ closes. Permanently guarded by
 
 ```
 $ bash -c 'source .venv/bin/activate && python -m pytest backend/tests -k "cycle_lock or 85_5" -q --timeout=120'
-13 passed, 3015 deselected, 1 warning in 5.86s
+14 passed, 3015 deselected, 1 warning in 6.14s
 ```
 
-Baseline before the change: `3 passed`.
+Baseline before the change: `3 passed`. 14 = 11 new tests + 3 pre-existing hits.
 
 ## F. Mutation matrix — verbatim
 
@@ -130,23 +130,48 @@ CAUGHT   M2 acquire re-adds the stale unlink+recreate branch
 CAUGHT   M3 TTL frozen back to a constant below the budget
 CAUGHT   M4 release unlinks again (the third, unnamed defect)
 CAUGHT   M5 verify-after-lock removed
-All 5 mutants caught.
+CAUGHT   M6 clean_stale_lock unlinks on the predicate alone (flock gate removed)
+All 6 mutants caught.
 ```
 
-First run had M2 and M5 **survive**; both guards were strengthened until they
-bit. Detail in `experiment_results_85.5.md` §4.
+Six mutants for the six changes in the §1 change table. M2 and M5 **survived**
+the first run and were strengthened until they bit; **M6 was added after Q/A
+cycle 1**, which proved change #5's flock gate had no guard at all and that a
+mutant reverting it survived the whole suite. Detail in
+`experiment_results_85.5.md` §4.
 
-## G. Regression baseline — verbatim
+## G. Regression — full suite, exact command, environment held constant
 
-Detached worktree at `cf4d22d8` (the commit before mine), `backend/.env`
-symlinked so Settings can construct:
+**Rewritten after Q/A cycle 1.** The original claimed "zero regressions" from
+a `-k`-filtered slice of ~336 of ~3029 tests with no command disclosed. That
+was overclaiming and could not be reproduced.
+
+Command (verbatim): `python -m pytest backend/tests -q --timeout=120 --tb=no`
 
 ```
-baseline (cf4d22d8):   6 failed, 330 passed
-with my change:        6 failed, 338 passed
+HEAD (990e409d):  26 failed, 2985 passed, 12 skipped, 5 xfailed, 1 xpassed in 288.54s
 ```
 
-Identical failure set; `+8` = 9 new tests minus 1 replaced. Zero regressions.
+A detached-worktree baseline is **invalid** here: a worktree lacks the repo's
+gitignored live-system files, and tests read them. `backend.log` is
+32,565,172 bytes in the real repo and **absent** in the worktree, so
+`test_phase_23_2_6_backend_log_has_skipping_buy_evidence` skipped there and
+failed at HEAD — a purely environmental "regression". Skip counts corroborate:
+12 at HEAD vs 22 in the worktree.
+
+Valid method — inject the pre-change `cycle_lock.py` into the **real** repo
+and replay exactly the 26 HEAD failures:
+
+```
+OLD CODE: 26 failed, 1 warning in 5.19s
+IDENTICAL -- all 26 failures are independent of my change
+```
+
+Restored byte-exact via explicit backup (`cmp` verified), not
+`git checkout --` — the PreToolUse danger hook blocks that, correctly, since
+it silently discarded uncommitted work earlier in this cycle.
+
+**Zero regressions introduced — demonstrated, not asserted.**
 
 ## H. What is NOT yet confirmed live
 
