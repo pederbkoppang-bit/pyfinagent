@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `e369b1de` | fix(85.6): cycle-2 -- the Step-0 anchor is provisional and upgraded before any breach |
 | 2026-08-08 | `b5f63525` | docs(85.6): experiment results + live_check (resume returned HTTP 200) |
 | 2026-08-08 | `5932ac27` | feat(85.6): break the un-pause deadlock by rolling the anchor at Step 0 |
 | 2026-08-08 | `81f81750` | phase-85.6: research gate + contract (GENERATE not started) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `fa5dedff` | docs(85.5): record Q/A cycle 3 as NO VERDICT (Agent-tool rail drop) |
 | 2026-08-08 | `89ed942f` | docs(85.5): close the scheduler.py gap in the regression replay |
 | 2026-08-08 | `20891ea8` | docs(away-ops): record cycle-181 state on the operator ask list |
-| 2026-08-08 | `f3078453` | docs(85.5): remediate Q/A cycle-1 findings B2/B3/B4 in the artifacts |
 
 ---
 
+### v6.87.1 — fix(85.6): cycle-2 -- the Step-0 anchor is provisional and upgraded b... (2026-08-08)
+
+- **fix(85.6): cycle-2 -- the Step-0 anchor is provisional and upgraded before any breach**
 ### v6.87.0 — feat(85.6): break the un-pause deadlock by rolling the anchor at Step 0 (2026-08-08)
 
 - **feat(85.6): break the un-pause deadlock by rolling the anchor at Step 0**
