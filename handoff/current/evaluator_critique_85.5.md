@@ -197,3 +197,60 @@ evaluation of the code.
 
 Cycle 4 is run with an explicit tool-call budget and a prioritised check list,
 since context weight is the one factor common to both drops.
+
+---
+
+## Q/A cycle 3 — CONDITIONAL (recovered), and the remediation
+
+Cycle 3's full verbatim verdict is in a sibling file:
+**`handoff/current/evaluator_critique_85.5_cycle3.md`**.
+
+It did NOT arrive through the normal completion path — the agent went idle and
+left the roster with no transcript and no task output. Recovered by querying
+the idle agent directly via `SendMessage`, explicitly offering "I did not
+finish" as an acceptable answer. It returned a complete verdict.
+
+**Verdict: CONDITIONAL — the SECOND for this step.** All 5 immutable criteria
+MET; the fix judged correct, mutation-resistant and regression-free. Cycle-1's
+B1 blocker independently confirmed closed: the evaluator re-ran the exact
+survivor mutant AND a second, differently-constructed revert of the same gate,
+and both die at the new guard's named assertion — two independent constructions
+killed by one assertion is what separates a real kill from a construction
+artifact. Cycle-1's B2 full-suite figure reproduced EXACTLY
+(26 failed / 2985 passed / 12 skipped / 5 xfailed / 1 xpassed).
+
+**One new blocker, accepted in full, no code change required:**
+
+> the running backend predates the fix, so the P0 is NOT in force, and the
+> artifacts' honest-limits sections say the opposite.
+
+I re-measured before accepting rather than taking it at face value: uvicorn
+pid 20004 started 2026-08-07 23:01:51, ~10h before `1911499b` (09:24:12) and
+`def96b21` (10:00:36). `main.py:265` puts `cycle_lock` in that process's
+`sys.modules` at startup; `autonomous_loop.py:307`'s function-level import
+resolves from that cache. Confirmed: **the running money-path process holds the
+pre-fix module.**
+
+This is the sharper form of something I half-saw and mis-framed —
+`experiment_results` §8 already noted I had edited `cycle_lock.py` while a live
+backend ran, but framed it as a risk *to my edit* rather than as the fix *not
+being in force*, which is the part that matters on a money path.
+
+**Remediation (all three prescribed items):**
+
+| Item | Done |
+|---|---|
+| (a) disclose that the running backend predates the fix and holds the pre-fix module | `experiment_results_85.5.md` §8 (now the headline limit) and `live_check_85.5.md` §H (retitled "THE FIX IS COMMITTED BUT NOT YET IN FORCE") |
+| (b) correct "Monday is the first real test" to be conditional on a restart | done in both artifacts; the old sentence is explicitly marked false-as-written |
+| (c) raise the backend restart as an explicit operator action item sequenced before the next scheduled cycle | `operator_ask_2026-08-07.md`, as a **correction** to my own earlier entry which had wrongly said no action was needed |
+
+No production code changed. Cycle 4 (a budget-capped Workflow run spawned while
+cycle 3 was believed lost) was **stopped** once cycle 3 was recovered — it was
+evaluating evidence that predates this remediation.
+
+**3rd-CONDITIONAL counter: 85.5 now stands at TWO CONDITIONALs** (cycles 1 and
+3; cycles 2 and the dropped rail attempts are NO VERDICT and are not counted —
+the evaluator independently reached the same count). **The next verdict must be
+PASS or FAIL, not CONDITIONAL.** The remediation above is pure disclosure and
+is the evaluator's own stated "what would make this a PASS", so a fresh Q/A on
+this changed evidence is the correct next step.

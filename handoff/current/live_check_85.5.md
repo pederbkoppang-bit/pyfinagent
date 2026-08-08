@@ -180,12 +180,48 @@ it silently discarded uncommitted work earlier in this cycle.
 
 **Zero regressions introduced — demonstrated, not asserted.**
 
-## H. What is NOT yet confirmed live
+## H. THE FIX IS COMMITTED BUT NOT YET IN FORCE — read this before Monday
 
-- No production trading cycle has exercised `acquire()` under contention since
-  the change. Monday's scheduled cycle is the first real test.
-- `backend/slack_bot/scheduler.py` is changed in code but the running bot
-  process picks it up only on its next restart. No restart performed this
-  cycle. Until then the watchdog wording degrades to the pre-fix string, which
-  is cosmetically wrong but safe — that line is appended to alerts and never
-  suppresses one (`scheduler.py:125`).
+**The running backend predates the fix and holds the PRE-FIX module.** This
+section previously said "Monday's scheduled cycle is the first real test",
+which was **false as written**. Corrected after Q/A cycle 3, which found it.
+
+Measured:
+
+```
+20004 fre.  7 aug. 23.01.51 2026   .../uvicorn backend.main:app --host 0.0.0.0
+
+  1911499b 2026-08-08T09:24:12+02:00 fix(cycle-lock): phase-85.5 ...
+  def96b21 2026-08-08T10:00:36+02:00 fix(85.5): Q/A cycle-1 remediation
+```
+
+uvicorn **pid 20004 started ~10 hours before both fix commits**.
+`backend/main.py:265` imports `backend.services.cycle_lock` at startup, so that
+module entered the process's `sys.modules` at 23:01:51.
+`backend/services/autonomous_loop.py:307` does a *function-level*
+`from backend.services.cycle_lock import acquire`, which resolves from that
+cache, and `run_daily_cycle` executes in-process
+(`backend/api/paper_trading.py:1380/:1456`).
+
+**Consequence: until the backend is restarted, the next scheduled cycle runs
+the OLD split-brain `acquire`/`release`.** The P0 is closed in the repository
+and NOT closed on the money path. No new hazard is introduced — the exposure
+is exactly the pre-existing defect — but "committed" and "in force" must not be
+conflated in the artifact an operator acts on.
+
+**OPERATOR ACTION ITEM — sequence a backend restart before the next scheduled
+cycle.** Per the standing rule, read `handoff/.autonomous_loop.lock` (not
+`last_result`) to confirm no cycle is in flight before restarting. Not
+performed by this step: a restart is a live-system action and Saturday is
+outside the safe sequencing window.
+
+Corrected statement: **Monday's scheduled cycle is the first real test *only
+if* the backend is restarted first.** Otherwise Monday exercises the pre-fix
+code and tests nothing about this step.
+
+Also still outstanding, and separately harmless:
+`backend/slack_bot/scheduler.py` is changed in code but the running bot process
+picks it up only on its next restart. Until then the watchdog wording degrades
+to the pre-fix string — cosmetic only, since that line is appended to alerts
+and never suppresses one (`scheduler.py:125`, independently re-derived by Q/A
+cycle 3 as the sole `is_stale` consumer).

@@ -57,15 +57,32 @@ doing it. Items accumulate during the day; recommendations are the executor's.
   release path unlinked *before* `LOCK_UN`, splitting the lock across two
   inodes on the NORMAL release path with no TTL involved. Also fixed.
 
-- **Two follow-ups are owed but need nothing from you now:**
-  1. `backend/slack_bot/scheduler.py` is changed in code (the watchdog line no
-     longer reads "STALE lock" after every normal cycle) but **the running bot
-     process has not been restarted**, so it still prints the old wording. The
-     line is appended to alerts and never suppresses one, so this is cosmetic.
-     Restart was deliberately not performed inside another step's evidence
-     window.
-  2. No production trading cycle has exercised the new lock under contention.
-     **Monday's scheduled cycle is the first real test.**
+- **CORRECTION to the paragraph above — one action IS needed from you, before
+  Monday.** My first version of this entry said the follow-ups needed nothing
+  from you. That was wrong, and Q/A cycle 3 caught it.
+
+  **The fix is committed but NOT IN FORCE.** The running backend predates it:
+  uvicorn **pid 20004 started 2026-08-07 23:01:51**, ~10 hours before the fix
+  commits (`1911499b` 09:24, `def96b21` 10:00 on 08-08). `backend/main.py:265`
+  imports `cycle_lock` at startup, so that process holds the **pre-fix** module
+  in `sys.modules`, and `autonomous_loop.py:307`'s function-level import
+  resolves from that cache. **Until the backend is restarted, Monday's cycle
+  runs the OLD split-brain lock.**
+
+  No new hazard — the exposure is the pre-existing defect — but do not read
+  "85.5 is done" as "the book is protected on Monday".
+
+  **ACTION: restart the backend before the next scheduled cycle.** Read
+  `handoff/.autonomous_loop.lock` (not `last_result`) first to confirm no cycle
+  is in flight. I did not do it: a restart is a live-system action and Saturday
+  is outside the safe sequencing window.
+
+- **Still owed, cosmetic, no action needed:**
+  `backend/slack_bot/scheduler.py` is changed in code (the watchdog line no
+  longer reads "STALE lock" after every normal cycle) but the running bot
+  process has not been restarted, so it still prints the old wording. That line
+  is appended to alerts and never suppresses one — independently re-derived by
+  Q/A cycle 3 as the sole `is_stale` consumer.
 
 - **New step queued: 85.5.1 (P1 BOOK SAFETY).** Found while baselining 85.5,
   proven pre-existing. `test_book_safety_69.py::test_valid_nav_still_breaches`

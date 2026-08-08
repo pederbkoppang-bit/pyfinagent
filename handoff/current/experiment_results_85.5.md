@@ -217,18 +217,44 @@ as its own research-gated masterplan step rather than mentioned in prose.
 
 ## 8. Honest limits
 
+**THE HEADLINE LIMIT: this P0 is committed but NOT IN FORCE on the money
+path.** Found by Q/A cycle 3; independently re-measured before accepting.
+
+The running backend **predates the fix**: uvicorn pid 20004 started
+`2026-08-07 23:01:51`, ~10 hours before both fix commits (`1911499b`
+2026-08-08T09:24:12, `def96b21` 10:00:36). `backend/main.py:265` imports
+`cycle_lock` at startup, so that process's `sys.modules` holds the **pre-fix**
+module; `autonomous_loop.py:307`'s function-level
+`from backend.services.cycle_lock import acquire` resolves from that cache, and
+`run_daily_cycle` runs in-process (`paper_trading.py:1380/:1456`). **Until the
+backend restarts, the next scheduled cycle executes the OLD split-brain
+acquire/release.**
+
+No new hazard is introduced — the exposure is exactly the pre-existing defect —
+but "the fix is committed" and "the fix is in force" must never be conflated in
+the artifact an operator acts on, least of all on a P0 money-path step.
+**Operator action item: sequence a backend restart before the next scheduled
+cycle**, reading `handoff/.autonomous_loop.lock` (not `last_result`) first to
+confirm nothing is in flight. Not performed here: a restart is a live-system
+action and Saturday is outside the safe sequencing window.
+
+This is the sharper form of the third bullet I originally wrote below. I had
+noticed the live backend but framed it as a risk *to my edit*, not as the fix
+*not being in force* — which is the part that actually matters.
+
+Remaining limits:
+
 - The live evidence uses a **real second process**, not a production trading
-  cycle mid-analysis. No production cycle is running (Saturday; next scheduled
-  Monday), so the criteria — which say "a test drives the exact measured
-  condition" — are met, while the live_check's literal "on a live cycle"
-  wording is satisfied by a genuine flock holder rather than a trading cycle.
-  Production confirmation lands with Monday's cycle.
+  cycle mid-analysis. The criteria — which say "a test drives the exact
+  measured condition" — are met; Q/A cycle 3 explicitly judged that this does
+  not cap the verdict, since a trading cycle would confirm integration rather
+  than the predicate.
+- Production confirmation lands with Monday's cycle **only if the backend is
+  restarted first** (see above). Otherwise Monday tests nothing about this step.
 - `backend/slack_bot/scheduler.py` is changed in code but the **running bot
-  process will not pick it up until its next restart**. No service was
-  restarted this cycle (goal rule: sequence restarts clear of other steps'
-  evidence windows). Until then the watchdog degrades to the old wording,
-  which is cosmetically wrong but safe — the line is appended to alerts and
-  never suppresses one.
+  process will not pick it up until its next restart**. Cosmetic only — the
+  line is appended to alerts and never suppresses one, independently
+  re-derived by Q/A cycle 3 as the sole `is_stale` consumer.
 - I edited `cycle_lock.py` while a backend capable of importing it was live.
   Nothing was harmed (the real cycle released cleanly), but the safer sequence
   would have been to confirm no scheduled cycle could fire first.
