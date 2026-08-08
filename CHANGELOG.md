@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `99622050` | chore(masterplan): queue 85.5.1 -- kill-switch daily-anchor disarm makes a book-safety test red |
 | 2026-08-08 | `7508c8ec` | docs(85.5): experiment results + live_check evidence, and guard the new steady state |
 | 2026-08-08 | `da98af6b` | test(cycle-lock): phase-85.5 strengthen two guards the mutation matrix caught |
 | 2026-08-08 | `1911499b` | fix(cycle-lock): phase-85.5 close the cycle-lock split-brain (P0 SAFETY) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `7414c271` | phase-61.3: prove the KR add-on stop, resolve LOCAL columns market-first, label a stale mark (Q/A CO |
 | 2026-08-07 | `abcadfb8` | docs(harness): install the next-session drain goal with measured 2026-08-07 end-of-day state (11 cyc |
 | 2026-08-07 | `4b1a5449` | phase-72.0.2: standard-tier fail-forward on rail-dead, FLAG-GATED DARK (Q/A PASS; flip HELD on live_ |
-| 2026-08-07 | `d5583a72` | chore(masterplan): queue 36.30 -- env-flag test leakage (57.1 binding gate promoted live by operator |
 
 ---
 
