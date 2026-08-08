@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `a28f6b81` | chore(away-ops): 2026-08-08 AM recovery -- commit benign heartbeat/audit + nightly autoresearch memo |
 | 2026-08-07 | `df135cde` | phase-68.1 cycle-2 close: kill the surviving mutant; DEFER the process breach to the operator (statu |
 | 2026-08-07 | `e9ffd16c` | phase-68.1 cycle-2: fire the missing-creds error at STARTUP, not at the first order |
 | 2026-08-07 | `42771fa6` | phase-62.1: Slack bot under launchd + restart on current code -- com.pyfinagent.slack-bot.plist (... |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `1625b507` | phase-84.1: Reconcile the two memory-link conventions so the repo's own memory auditor stops repo... |
 | 2026-08-07 | `f0b3acac` | phase-85.3: unstick the away-ops auth alarm -- latch freshness seam + reachable clear (PASS) |
 | 2026-08-07 | `ebb7abf2` | chore(72.0.1): close as superseded by 78.1+78.16 -- bookkeeping flip, substance shipped under a5ba09 |
-| 2026-08-07 | `c6c25b9f` | phase-61.2: decision-input integrity -- evidence cycle (CONDITIONAL #2, deferred on promotion ask #1 |
 
 ---
 
