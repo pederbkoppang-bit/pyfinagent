@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `89ed942f` | docs(85.5): close the scheduler.py gap in the regression replay |
 | 2026-08-08 | `20891ea8` | docs(away-ops): record cycle-181 state on the operator ask list |
 | 2026-08-08 | `f3078453` | docs(85.5): remediate Q/A cycle-1 findings B2/B3/B4 in the artifacts |
 | 2026-08-08 | `def96b21` | fix(85.5): Q/A cycle-1 remediation -- test the flock gate, correct stale docstrings |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `5d44abdb` | fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross-link the malformed-token suspe |
 | 2026-08-07 | `df12eb48` | fix(85.4): file P0 -- the autonomous cycle has not COMPLETED since 2026-07-31 |
 | 2026-08-07 | `df24fdc2` | phase-68.1: make EXECUTION_BACKEND reachable and its provenance visible (DARK; live_check held on an |
-| 2026-08-07 | `1ab0b59b` | phase-62.1: restart the Slack bot onto current code (research gate + contract; digest evidence pendi |
 
 ---
 
