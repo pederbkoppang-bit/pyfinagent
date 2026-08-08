@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `b4731d83` | docs(85.6): harness log cycle 184 + ask #26 (the analysis rail is dead) |
 | 2026-08-09 | `1952bcca` | docs(85.6): pass-3 PASS; address the four Q/A notes |
 | 2026-08-08 | `a126126b` | docs(85.6): record the cycle-3 remediation and the false residual claim |
 | 2026-08-08 | `0f9e92c0` | fix(85.6): cycle-3 -- make the provisional-anchor marker DURABLE |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `1ffb340d` | docs(away-ops): ask #21 -- my test runs overwrote live kill-switch pause provenance |
 | 2026-08-08 | `5fc3ca7f` | docs(away-ops): ask #20 -- backend OAuth token is malformed and shared with the watchdog plist |
 | 2026-08-08 | `4c17f06a` | phase-85.5: P0 SAFETY: a LIVE autonomous cycle's lock is judged stale after 90min, and the stale ... |
-| 2026-08-08 | `aa564adf` | fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet in force |
 
 ---
 
