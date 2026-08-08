@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `aa564adf` | fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet in force |
 | 2026-08-08 | `fa5dedff` | docs(85.5): record Q/A cycle 3 as NO VERDICT (Agent-tool rail drop) |
 | 2026-08-08 | `89ed942f` | docs(85.5): close the scheduler.py gap in the regression replay |
 | 2026-08-08 | `20891ea8` | docs(away-ops): record cycle-181 state on the operator ask list |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-07 | `0386dc49` | chore(away-ops): recovery sweep -- audit streams + cycle state + 68.1 researcher memory |
 | 2026-08-07 | `8bdc0ccb` | fix(85.5): file P0 -- a live cycle's lock is judged stale, and the stale path defeats its flock |
 | 2026-08-07 | `5d44abdb` | fix(85.4,62.1.1): add the measured cc_rail latency evidence and cross-link the malformed-token suspe |
-| 2026-08-07 | `df12eb48` | fix(85.4): file P0 -- the autonomous cycle has not COMPLETED since 2026-07-31 |
 
 ---
 
+### v6.85.14 — fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet... (2026-08-08)
+
+- **fix(85.5): Q/A cycle-3 CONDITIONAL -- disclose that the P0 is NOT yet in force**
 ### v6.85.13 — fix(85.5): Q/A cycle-1 remediation -- test the flock gate, correct st... (2026-08-08)
 
 - **fix(85.5): Q/A cycle-1 remediation -- test the flock gate, correct stale docstrings**
