@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `bb88239b` | phase-85.5.1: flip to done; queue 86.1-86.4 from the gate's findings |
 | 2026-08-09 | `8ca368da` | docs(85.5.1): pass-2 PASS + harness log cycle 185 |
 | 2026-08-09 | `ec84b380` | fix(85.5.1): correct a false live-state claim the Q/A caught |
 | 2026-08-09 | `8431aef8` | docs(85.5.1): experiment results + live_check |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `7432526d` | fix(85.4): put the FINAL verdict where the verdict gate reads it |
 | 2026-08-08 | `5826487d` | docs(85.4): EVALUATE pass 2 PASS, harness log, corrected lint counts |
 | 2026-08-08 | `c3e42edf` | fix(85.4): cycle-2 remediation of the Q/A CONDITIONAL |
-| 2026-08-08 | `e0287161` | feat(85.4): make a non-completing cycle loud and measure why it never completes |
 
 ---
 
+### v6.87.7 — phase-85.5.1: flip to done; queue 86.1-86.4 from the gate's findings (2026-08-09)
+
+- **phase-85.5.1: flip to done; queue 86.1-86.4 from the gate's findings**
 ### v6.87.6 — fix(85.5.1): correct a false live-state claim the Q/A caught (2026-08-09)
 
 - **fix(85.5.1): correct a false live-state claim the Q/A caught**
