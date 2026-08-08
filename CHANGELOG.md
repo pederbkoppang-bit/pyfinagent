@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `2901ae63` | phase-85.5.1: research gate + contract (GENERATE not started) |
 | 2026-08-09 | `a4f62546` | docs: overnight report 2026-08-09 -- Monday answer is NO, and why |
 | 2026-08-09 | `cb34a7c0` | phase-85.6: P0 DEADLOCK: the book cannot be un-paused. Resume requires a fresh daily anchor; the ... |
 | 2026-08-09 | `b4731d83` | docs(85.6): harness log cycle 184 + ask #26 (the analysis rail is dead) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `a33ca231` | docs(goal): regenerate the drain goal after cycles 181-182 |
 | 2026-08-08 | `16116e4a` | phase-85.6: file the P0 kill-switch resume deadlock; record pre-Monday actions |
 | 2026-08-08 | `e3b7f8b3` | phase-85.4: research gate + contract (GENERATE not started); regenerate drain goal |
-| 2026-08-08 | `1ffb340d` | docs(away-ops): ask #21 -- my test runs overwrote live kill-switch pause provenance |
 
 ---
 
+### v6.87.4 — phase-85.5.1: research gate + contract (GENERATE not started) (2026-08-09)
+
+- **phase-85.5.1: research gate + contract (GENERATE not started)**
 ### v6.87.3 — phase-85.6: P0 DEADLOCK: the book cannot be un-paused. Resume require... (2026-08-09)
 
 - **phase-85.6: P0 DEADLOCK: the book cannot be un-paused. Resume requires a fresh daily anchor; the ...**
