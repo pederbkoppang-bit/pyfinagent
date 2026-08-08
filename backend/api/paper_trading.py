@@ -622,11 +622,37 @@ async def resume_trading(req: KillSwitchActionRequest):
             "The baselines themselves are intact "
             f"(sod_nav={_snap.get('sod_nav')}, "
             f"peak_nav={_snap.get('peak_nav')}); the trailing leg is "
-            "date-independent and still armed. NO operator action is required: "
-            "the daily start-of-day roll stamps today's anchor at the top of the "
-            "next paper-trading cycle and this refusal clears itself. Retry the "
-            "resume after "
-            "that cycle."
+            "date-independent and still armed. "
+            # phase-85.6 criterion 2: this text used to read "NO operator action
+            # is required ... this refusal clears itself. Retry the resume after
+            # that cycle." Both halves were FALSE, and the falsehood cost days.
+            # The roll does not run "at the top of the cycle" -- it ran at
+            # paper_trader.py:1298, inside check_and_enforce_kill_switch, which
+            # the cycle reaches only at Step 5.5, BEHIND the analysis phase. Every
+            # cycle from 2026-08-06 died in `analyzing`, so it never self-cleared,
+            # and an operator reading this message would have waited indefinitely
+            # for a self-heal that could not happen.
+            #
+            # phase-85.6 moved the roll to Step 0 of the cycle, so it now genuinely
+            # does run before anything that can fail. The wording below still names
+            # a CONCRETE PRECONDITION (a cycle must actually start) rather than
+            # promising an automatic fix, because phase-36.12 bans telling an
+            # operator to wait for an automatic re-anchor -- for LOST HISTORY that
+            # silent anchor WAS the defect. State the condition; do not promise.
+            "UNBLOCK CONDITION: a paper-trading cycle must START and run its "
+            "start-of-day roll (Step 0, backend/services/autonomous_loop.py, "
+            "PaperTrader.roll_daily_anchor -> kill_switch.update_sod_nav). That "
+            "roll now runs FIRST in the cycle, before screening and analysis, so "
+            "it no longer depends on the cycle finishing. "
+            "If a cycle is scheduled before you need to trade, retry the resume "
+            "after it starts. If none is scheduled -- the cron is weekday-only, so "
+            "this includes all weekend -- no cycle will run and this refusal will "
+            "NOT clear on its own; trigger a cycle, or leave the book paused. "
+            "Verify with GET /api/paper-trading/kill-switch: resume succeeds once "
+            "sod_date is today's UTC date and breach.armed is true. "
+            "Do NOT hand-write a sod_snapshot row into "
+            "handoff/kill_switch_audit.jsonl to force this -- that forges the "
+            "evidence the daily leg is measured against."
         )
     if not breach.get("armed", True):
         raise HTTPException(

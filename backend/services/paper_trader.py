@@ -1211,6 +1211,101 @@ class PaperTrader:
             "post_nav": mtm.get("nav"),
         }
 
+    def roll_daily_anchor(self) -> dict:
+        """phase-85.6: roll the start-of-day daily-loss anchor, on its own.
+
+        THE DEADLOCK THIS EXISTS TO BREAK. `update_sod_nav` had exactly ONE
+        production call site (`:1298` below), inside `check_and_enforce_kill_switch`,
+        which had exactly ONE production caller --
+        `backend/services/autonomous_loop.py:1375`, Step 5.5 of 10, behind the
+        analysis phase at `:1148`. A cycle that dies in `analyzing` therefore never
+        rolls the anchor. The anchor goes stale, the daily leg disarms,
+        `POST /api/paper-trading/resume` 409s, the switch stays paused, and the next
+        cycle skips decide/execute -- so the book cannot be un-paused by any
+        sequence of cycles. Measured: paused since 2026-08-03T09:03:17Z with the
+        last `sod_snapshot` at 2026-08-05T19:34:47Z.
+
+        This is the resilience4j bug shipped as a default:
+        `automaticTransitionFromOpenToHalfOpenEnabled=false` means "the transition
+        to HALF_OPEN only happens if a call is made" -- a breaker whose recovery
+        path is reachable only through the thing it is blocking. The documented
+        remedy is an out-of-band transition, NOT a change to the thresholds. This
+        method changes no threshold and disarms nothing.
+
+        SAME NAV SOURCE, SAME GUARD, DIFFERENT MOMENT. It reads NAV from
+        `get_or_create_portfolio()["total_nav"]` and gates on
+        `sod_anchor_needs_reroll` -- byte-identical to `:1294-1298`. The only
+        difference is WHEN it runs. Called early in the cycle it sees the previous
+        close's marked NAV rather than today's freshly-marked NAV, and that is the
+        safer direction, not a relaxation:
+
+          * book has FALLEN since the last mark -> previous-close NAV is HIGHER ->
+            measured daily loss is LARGER -> the switch fires EARLIER.
+          * book has RISEN -> anchoring at the previous close means an overnight
+            gain is not handed back before the daily-loss clock starts, which is
+            the standard definition of a daily loss limit.
+          * the dangerous direction -- anchoring LOWER during a drawdown, which
+            forgives the loss -- is unreachable: on a falling book this anchors
+            higher. Asserted by test, not left as prose.
+
+        Idempotent by the existing date guard, so the `:1298` roll still runs and
+        simply becomes a same-day no-op. The phase-36.12 invariant that the BREACH
+        decision reads a POST-roll state is preserved: by the time
+        `check_and_enforce_kill_switch` runs, the anchor is already today's.
+
+        Returns a dict describing what happened; never raises. A roll failure must
+        not break a cycle -- a stale anchor DISARMS the daily leg (fail-safe: it
+        refuses to trade), so failing open here cannot enable trading.
+        """
+        from backend.services.kill_switch import get_state
+
+        try:
+            portfolio = self.get_or_create_portfolio()
+            nav = float(
+                portfolio.get("total_nav") or portfolio.get("starting_capital") or 0.0
+            )
+            state = self._injected_ks_state or get_state()
+            snap = state.snapshot()
+            today = datetime.now(timezone.utc).date().isoformat()
+            if not sod_anchor_needs_reroll(snap, today):
+                return {
+                    "rolled": False,
+                    "reason": "anchor_already_current",
+                    "sod_date": snap.get("sod_date"),
+                    "sod_nav": snap.get("sod_nav"),
+                }
+            prior_date = snap.get("sod_date")
+            state.update_sod_nav(nav, date=today)
+            post = state.snapshot()
+            rolled = post.get("sod_date") == today and (post.get("sod_nav") or 0) > 0
+            if rolled:
+                logger.info(
+                    "phase-85.6: start-of-day anchor rolled %r -> %s (nav=%.2f) "
+                    "at cycle start, independently of the mark/trade region",
+                    prior_date, today, nav,
+                )
+            else:
+                # update_sod_nav REFUSES a non-positive anchor (phase-36.9 F3) and
+                # leaves sod_nav None so a later call can retry. Surface it.
+                logger.warning(
+                    "phase-85.6: start-of-day anchor roll REFUSED (nav=%r) -- the "
+                    "daily leg stays disarmed and resume will still 409",
+                    nav,
+                )
+            return {
+                "rolled": rolled,
+                "reason": "rolled" if rolled else "refused_non_positive_nav",
+                "prior_sod_date": prior_date,
+                "sod_date": post.get("sod_date"),
+                "sod_nav": post.get("sod_nav"),
+                "nav_used": nav,
+            }
+        except Exception as exc:
+            logger.warning(
+                "phase-85.6: start-of-day anchor roll failed (non-fatal): %r", exc
+            )
+            return {"rolled": False, "reason": f"error: {type(exc).__name__}"}
+
     def check_and_enforce_kill_switch(self) -> dict:
         """
         Evaluate daily-loss + trailing-DD limits. If either breached, auto-

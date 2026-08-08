@@ -511,6 +511,31 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         # indefinitely. On TimeoutError, status is recorded and the
         # operator is alerted in the post-finally block.
         async with asyncio.timeout(_cycle_timeout):
+            # ── Step 0: Roll the start-of-day anchor (phase-85.6) ────
+            # THIS MUST STAY FIRST. The daily-loss anchor used to roll only at
+            # paper_trader.py:1298, inside check_and_enforce_kill_switch, which
+            # this cycle reaches only at Step 5.5 -- BEHIND the analysis phase.
+            # Cycles were dying in `analyzing`, so the roll never ran, the anchor
+            # went stale, the daily leg disarmed, POST /resume 409'd, and the book
+            # could not be un-paused by any sequence of cycles. Measured: paused
+            # since 2026-08-03T09:03:17Z, last sod_snapshot 2026-08-05T19:34:47Z.
+            #
+            # Step 0 is the point every cycle reaches regardless of where it later
+            # dies, which is exactly what criterion 1 of phase-85.6 asks for.
+            #
+            # It changes no threshold and disarms nothing -- see
+            # PaperTrader.roll_daily_anchor for the safety argument on the NAV
+            # source. The :1298 roll is unchanged and becomes a same-day no-op via
+            # the existing sod_anchor_needs_reroll date guard, so the phase-36.12
+            # invariant (the BREACH decision reads a POST-roll state) still holds.
+            #
+            # Fail-open is safe here and only here: a roll that does not happen
+            # leaves the anchor stale, which DISARMS the daily leg and REFUSES to
+            # trade. Failing open cannot enable trading.
+            summary["steps"].append("sod_anchor_roll")
+            _anchor = await asyncio.to_thread(trader.roll_daily_anchor)
+            summary["sod_anchor_roll"] = _anchor
+
             # ── Step 1: Screen universe (free) ───────────────────────
             logger.info("Paper trading: Step 1 -- Screening universe")
             summary["steps"].append("screening")
