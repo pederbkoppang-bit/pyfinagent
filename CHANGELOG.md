@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-08 | `8aa3f52e` | phase-85.4: P0 ENGINE HEALTH: the autonomous cycle has not COMPLETED since 2026-07-31 -- four con... |
 | 2026-08-08 | `7432526d` | fix(85.4): put the FINAL verdict where the verdict gate reads it |
 | 2026-08-08 | `5826487d` | docs(85.4): EVALUATE pass 2 PASS, harness log, corrected lint counts |
 | 2026-08-08 | `c3e42edf` | fix(85.4): cycle-2 remediation of the Q/A CONDITIONAL |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `def96b21` | fix(85.5): Q/A cycle-1 remediation -- test the flock gate, correct stale docstrings |
 | 2026-08-08 | `99622050` | chore(masterplan): queue 85.5.1 -- kill-switch daily-anchor disarm makes a book-safety test red |
 | 2026-08-08 | `7508c8ec` | docs(85.5): experiment results + live_check evidence, and guard the new steady state |
-| 2026-08-08 | `da98af6b` | test(cycle-lock): phase-85.5 strengthen two guards the mutation matrix caught |
 
 ---
 
+### v6.86.3 — phase-85.4: P0 ENGINE HEALTH: the autonomous cycle has not COMPLETED... (2026-08-08)
+
+- **phase-85.4: P0 ENGINE HEALTH: the autonomous cycle has not COMPLETED since 2026-07-31 -- four con...**
 ### v6.86.2 — fix(85.4): put the FINAL verdict where the verdict gate reads it (2026-08-08)
 
 - **fix(85.4): put the FINAL verdict where the verdict gate reads it**
