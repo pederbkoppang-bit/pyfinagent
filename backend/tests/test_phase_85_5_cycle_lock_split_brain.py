@@ -267,6 +267,34 @@ def test_85_5_c2_acquire_reverifies_inode_after_locking(tmp_path, monkeypatch):
     )
 
 
+def test_85_5_c2_acquire_works_over_a_leftover_released_lockfile(tmp_path, monkeypatch):
+    """The NEW steady state: release no longer unlinks, so every cycle leaves a
+    `released` pidfile behind and the NEXT cycle must acquire over it.
+
+    Regression guard for the obvious way this fix could deadlock the engine.
+    Observed for real: a leftover
+    {"pid": <dead>, "cycle_id": "cycle-...", "state": "released"} was left in
+    handoff/ by an existing live test during this step's own verification.
+    """
+    lock = _point_lock_at(monkeypatch, tmp_path / ".autonomous_loop.lock")
+    lock.write_text(json.dumps({
+        "pid": 53798,                     # dead holder from a previous cycle
+        "cycle_id": "cycle-1786174058",
+        "released_at": "2026-08-08T07:27:40+00:00",
+        "state": "released",
+    }))
+    ino_before = lock.stat().st_ino
+
+    with cl.acquire("next-real-cycle"):
+        data = json.loads(lock.read_text())
+        assert data["cycle_id"] == "next-real-cycle"
+        assert data["state"] == "held"
+        assert lock.stat().st_ino == ino_before, (
+            "acquire must REUSE the existing inode, never unlink+recreate -- "
+            "recreating is the split-brain this step exists to close"
+        )
+
+
 # ── criterion 3 ──────────────────────────────────────────────────────────
 
 class _FakeSettings:
