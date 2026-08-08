@@ -7,8 +7,8 @@ leaving stale BQ state + risk of double-fire on next scheduled cron.
 
 Fix: OS-level fcntl.flock + JSON pidfile at handoff/.autonomous_loop.lock.
 - Kernel auto-releases the advisory lock on process death (all FDs closed).
-- On-disk pidfile is cleaned by next startup via `clean_stale_lock` if
-  mtime > TTL OR the recorded pid is dead.
+- On-disk pidfile is cleaned by next startup via `clean_stale_lock`.
+  (phase-85.5 changed WHEN: the "mtime > TTL" term is gone -- see below.)
 
 Per researcher (handoff/current/research_brief_phase_38_6.md, 6 sources read
 in full: flock(2) man page, Python fcntl docs, py-filelock, trbs/pid,
@@ -162,9 +162,24 @@ def inspect_lock() -> Optional[dict]:
 
 
 def clean_stale_lock(reason: str = "stale_on_startup") -> Optional[dict]:
-    """Unlink the lockfile if it's stale (mtime > TTL OR pid dead).
-    Returns the inspected state (so caller can log/alert), or None if no
-    lock or live."""
+    """Remove a collectable lockfile. The ONLY unlink site in this module.
+
+    phase-85.5: "collectable" no longer means "mtime > TTL OR pid dead" -- age
+    is not a term at all. A lock is collectable when its holder pid is dead or
+    the holder explicitly recorded `state == "released"`.
+
+    Two independent conditions must hold before anything is removed:
+      1. `is_stale` says the lock is collectable, AND
+      2. WE win the flock -- proving no live process holds it.
+
+    (2) is what makes this race-free. `is_stale` alone is not sufficient: a
+    live holder is briefly indistinguishable from a malformed lock while
+    `_write_payload` has the file truncated, and unlinking there would destroy
+    a live holder's lockfile and split the lock across two inodes.
+
+    Returns the inspected state (so the caller can log/alert), or None when
+    there is no lock, the lock is live, or a live process holds the flock.
+    """
     state = inspect_lock()
     if not state or not state.get("is_stale"):
         return None
@@ -215,15 +230,28 @@ def clean_stale_lock(reason: str = "stale_on_startup") -> Optional[dict]:
 
 @contextmanager
 def acquire(cycle_id: str) -> Iterator[None]:
-    """Race-free acquire: O_RDWR|O_CREAT, then flock LOCK_EX|LOCK_NB.
+    """Race-free acquire: O_RDWR|O_CREAT, flock LOCK_EX|LOCK_NB, then VERIFY.
 
-    Yields after writing {pid, cycle_id, started_at} to the pidfile.
-    On exit (normal OR exception), unlinks the file + releases the flock.
+    Yields after writing {pid, cycle_id, started_at, state: "held"}.
 
-    On SIGKILL / crash mid-cycle: the flock is auto-released by the kernel
-    when the process dies (all FDs closed). The pidfile remains on disk
-    with a now-dead pid, which the next startup's `clean_stale_lock` will
-    detect and unlink.
+    phase-85.5: on exit this NO LONGER unlinks. It rewrites the payload in
+    place as {state: "released"} and then releases the flock. The old order
+    (unlink, then LOCK_UN) left a window in which this process was alive and
+    still holding the flock while the path was free, so a second acquirer
+    created a new inode and both believed they held the cycle lock.
+
+    Contention raises CycleLockError -- there is no "stale, so take it"
+    branch. A live flock holder is live by kernel guarantee, and a dead
+    holder cannot be holding a flock, so that branch's premise was empty.
+
+    After locking, the fd's (st_dev, st_ino) is compared against the path's;
+    a mismatch means the file was swapped under us and our lock excludes
+    nobody, so we retry (bounded by _ACQUIRE_MAX_ATTEMPTS).
+
+    On SIGKILL / crash mid-cycle the kernel auto-releases the flock when the
+    process dies. The pidfile remains with a now-dead pid; the next startup's
+    `clean_stale_lock` collects it. A leftover `released` pidfile does not
+    block a later acquire -- it is reopened and reused, same inode.
     """
     _HANDOFF.mkdir(parents=True, exist_ok=True)
 

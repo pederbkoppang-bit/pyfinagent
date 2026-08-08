@@ -295,6 +295,60 @@ def test_85_5_c2_acquire_works_over_a_leftover_released_lockfile(tmp_path, monke
         )
 
 
+def test_85_5_c2_clean_stale_lock_refuses_while_a_real_process_holds_the_flock(
+    tmp_path, monkeypatch
+):
+    """clean_stale_lock must never unlink a lock a LIVE process still holds.
+
+    Added after Q/A cycle 1: the flock gate on clean_stale_lock had NO test,
+    and a Q/A mutant that reverted it (unlink on the is_stale predicate alone)
+    SURVIVED the entire suite. It is not an equivalent mutant -- the reverted
+    form destroys a live holder's lockfile, after which a second acquirer
+    O_CREATs a NEW INODE and its flock contends with nobody: the exact split
+    brain this step closes. It is production-reachable from backend/main.py:265
+    (`clean_stale_lock(reason="startup_recovery")`) -- i.e. a backend
+    restarting while a cycle runs, which IS this step's threat model.
+
+    The two existing tests could not catch it: both exit at the `not is_stale`
+    early return and never reach the gate. This one forces is_stale True while
+    the flock is genuinely held, which is the only state in which the gate is
+    load-bearing.
+    """
+    lock = _point_lock_at(monkeypatch, tmp_path / ".autonomous_loop.lock")
+    child = subprocess.Popen(
+        [sys.executable, "-c", _CHILD_HOLDER, str(lock)],
+        cwd=str(_REPO), stdout=subprocess.PIPE, text=True,
+    )
+    try:
+        _wait_for_held(lock)
+
+        # Route 1: forged `released` payload -- is_stale True, flock still held.
+        data = json.loads(lock.read_text())
+        data["state"] = "released"
+        lock.write_text(json.dumps(data))       # same inode: truncate, no unlink
+        assert cl.inspect_lock()["is_stale"] is True, "fixture must look collectable"
+
+        assert cl.clean_stale_lock(reason="test_gate_forged_released") is None, (
+            "clean_stale_lock removed a lock a LIVE process still holds"
+        )
+        assert lock.exists(), "a live holder's lockfile must survive"
+
+        # Route 2: the _write_payload truncate window -- a live holder is
+        # briefly indistinguishable from a malformed lock (json parse fails ->
+        # is_stale True). The flock is what tells them apart.
+        lock.write_text("")
+        assert cl.inspect_lock()["is_stale"] is True, "empty file must read stale"
+
+        assert cl.clean_stale_lock(reason="test_gate_truncate_window") is None, (
+            "clean_stale_lock removed a live holder's lock during the "
+            "_write_payload truncate window"
+        )
+        assert lock.exists(), "a live holder's lockfile must survive truncation"
+    finally:
+        child.kill()
+        child.wait(timeout=10)
+
+
 # ── criterion 3 ──────────────────────────────────────────────────────────
 
 class _FakeSettings:

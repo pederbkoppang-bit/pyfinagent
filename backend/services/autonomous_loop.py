@@ -1709,8 +1709,10 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
         return summary
     finally:
         _running = False
-        # phase-38.6.1: release the file-based cycle_lock (unlinks pidfile
-        # + releases flock). Idempotent: if already exited, _lock_cm is unset.
+        # phase-38.6.1: release the file-based cycle_lock. phase-85.5: this
+        # marks the pidfile {state: "released"} in place and THEN releases the
+        # flock -- it no longer unlinks (unlink-before-LOCK_UN split the lock
+        # across two inodes). Idempotent: if already exited, _lock_cm is unset.
         try:
             _lock_cm.__exit__(None, None, None)  # type: ignore[name-defined]
         except (NameError, AttributeError):
