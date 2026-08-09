@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `ea716698` | fix(36.17): cycle-5 -- close two surviving MONEY-PATH mutants |
 | 2026-08-09 | `d929e698` | docs: evening day report 2026-08-09b -- engine completes, trades nothing |
 | 2026-08-09 | `a4068de1` | fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier recall honestly |
 | 2026-08-09 | `8d736735` | docs(86.19): file the duplicate step ids -- id lookups resolve to the wrong node |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `3007bb53` | docs: file 86.13 -- the cost guard fires on every analysis and only warns |
 | 2026-08-09 | `dae021e4` | docs(86.13): queue the auto-commit cross-attribution fix as its own step |
 | 2026-08-09 | `04e490ba` | docs: ask #29 resolved -- RELEASE-61.2: APPROVED, 61.2 un-gated |
-| 2026-08-09 | `469788d5` | docs(61.2): today's evidence supersedes the timeout trigger; raise ask #29 |
 
 ---
 
+### v6.91.9 — fix(36.17): cycle-5 -- close two surviving MONEY-PATH mutants (2026-08-09)
+
+- **fix(36.17): cycle-5 -- close two surviving MONEY-PATH mutants**
 ### v6.91.8 — fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier re... (2026-08-09)
 
 - **fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier recall honestly**
