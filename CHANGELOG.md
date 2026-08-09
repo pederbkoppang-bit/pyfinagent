@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `d762fe2a` | phase-86.2: live_check + experiment_results |
 | 2026-08-09 | `481be943` | phase-86.2: one malformed audit row no longer strands the whole kill switch |
 | 2026-08-09 | `8bf8e31b` | phase-86.2: contract + research gate PASSED (enforced) |
 | 2026-08-09 | `ba154918` | phase-86.1: P1 LIVE-STATE LANDMINE: test_peak_reset_dark_by_default calls reset_peak on the REAL ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `39e7aeb3` | phase-86.3 cycle-2: fix the three blockers the pass-1 Q/A found |
 | 2026-08-09 | `4f10b024` | fix(86.3): the TestClient context manager crashed the full suite at 13% |
 | 2026-08-09 | `c4ff90fa` | phase-86.3: stop the test suite POSTing pause/resume to the live trading book |
-| 2026-08-09 | `d5e758bc` | docs: reconcile the 36.x/86.x kill-switch cluster — 36.21 superseded by 86.3 |
 
 ---
 
+### v6.87.22 — phase-86.2: live_check + experiment_results (2026-08-09)
+
+- **phase-86.2: live_check + experiment_results**
 ### v6.87.21 — phase-86.2: one malformed audit row no longer strands the whole kill... (2026-08-09)
 
 - **phase-86.2: one malformed audit row no longer strands the whole kill switch**
