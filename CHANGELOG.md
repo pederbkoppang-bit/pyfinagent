@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `025102e0` | phase-86.2 cycle-2: my criterion-3 guard was vacuous; the Q/A proved it |
 | 2026-08-09 | `d762fe2a` | phase-86.2: live_check + experiment_results |
 | 2026-08-09 | `481be943` | phase-86.2: one malformed audit row no longer strands the whole kill switch |
 | 2026-08-09 | `8bf8e31b` | phase-86.2: contract + research gate PASSED (enforced) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `721eb5ac` | docs(86.3): harness_log cycle 186 -- CONDITIONAL, criterion 5 not literally met |
 | 2026-08-09 | `39e7aeb3` | phase-86.3 cycle-2: fix the three blockers the pass-1 Q/A found |
 | 2026-08-09 | `4f10b024` | fix(86.3): the TestClient context manager crashed the full suite at 13% |
-| 2026-08-09 | `c4ff90fa` | phase-86.3: stop the test suite POSTing pause/resume to the live trading book |
 
 ---
 
+### v6.87.23 — phase-86.2 cycle-2: my criterion-3 guard was vacuous; the Q/A proved it (2026-08-09)
+
+- **phase-86.2 cycle-2: my criterion-3 guard was vacuous; the Q/A proved it**
 ### v6.87.22 — phase-86.2: live_check + experiment_results (2026-08-09)
 
 - **phase-86.2: live_check + experiment_results**
