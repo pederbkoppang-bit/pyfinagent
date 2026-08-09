@@ -25,9 +25,14 @@ backend/tests/test_phase_86_20_portfolio_manager_recommendation_vocabulary.py::t
 ======================= 2 passed, 54 deselected in 0.27s =======================
 ```
 
-These still pass with the fix on disk **because the flag is OFF** -- which is the
-evidence that the OFF path is byte-identical legacy behaviour, not a claim that
-it is.
+These still pass with the fix on disk **because the flag is OFF**. That is
+consistent with the OFF path being legacy but does not establish it -- cycle 1
+claimed exactly that from these two cases and was wrong. The property is
+established separately by a legacy-parity oracle (see
+`experiment_results_86.20.md` §11), which compares the resolver against the
+pre-86.20 expression `(raw or default).upper()` over a value table covering
+padded, whitespace-only, empty, None and falsy-non-str inputs at both default
+sites, including the AttributeError failure mode.
 
 ### 1b. FIX -- with `paper_recommendation_vocab_fix_enabled` ARMED
 

@@ -26,8 +26,10 @@ destroyed the HIGHEST-conviction spelling while letting the medium one through.
 deliberate and is the most important design decision here:
 
 - `paper_recommendation_vocab_fix_enabled` defaults **False**, read via
-  `getattr(settings, ..., False)` so flag-absent is byte-identical to flag-OFF.
-  Arming it changes what the book does, so it is an operator decision.
+  `getattr(settings, ..., False)` so flag-absent is identical to flag-OFF.
+  Arming it changes what the book does, so it is an operator decision. With the
+  flag OFF `_resolve_rec` returns the **literal** pre-86.20 expression
+  `(raw or default).upper()` -- see §11 for why that is written so carefully.
 - The two WARNING paths ship **live in both states**, because they change no
   decision. With the fix DARK, `"Strong Buy"` is still dropped -- but it is no
   longer dropped **silently**. That is what converts this defect from invisible
@@ -93,8 +95,10 @@ _DOWNGRADE_RECS = ['HOLD', 'SELL', 'STRONG_SELL']
 ```
 
 **The reproduce tests still pass with the fix ON DISK**, because the flag is
-OFF -- which is the evidence that OFF is byte-identical legacy behaviour rather
-than a claim about it.
+OFF. **That is consistent with the OFF path being legacy, but two passing cases
+cannot establish it** -- cycle 1 made exactly that overgeneralisation and was
+wrong. The property is established by the legacy-parity oracle in §11, which
+compares the resolver against the pre-86.20 expression over a value table.
 
 ## 4. Criterion 2 -- the population, RE-DERIVED
 
@@ -201,60 +205,64 @@ baseline must be GREEN first, and a restored run closes the transcript.
 ```
 phase-86.20 criterion 7 -- mutation matrix (in-memory; repo never written)
   backend/services/recommendation_vocab.py  md5 ba5efe75d056d0dde15d6c7584ac01a5
-  backend/services/portfolio_manager.py  md5 b43237b0855de5c1785cb32f637ac720
+  backend/services/portfolio_manager.py  md5 22e903026a4a4cc52358d913e5407781
 
-[baseline] un-mutated tree: 56 passed in 0.53s
+[baseline] un-mutated tree: 107 passed in 1.04s
   KILLED  | M1 [recommendation_vocab.py]: revert the separator fold (case-only, i.e. pre-86.20 behaviour)
            proves: criterion 3 + the whole fix -- the separator gap must reopen
            tests : test_already_working_spellings_are_unchanged[Strong, test_armed_downgrade_from_a_spaced_prior_recommendation_exits, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[STRONG-BUY], test_armed_every_strong_buy_spelling_reaches_the_buy_stage[Strong (+9 more)
-           result: 14 failed, 42 passed in 0.59s
+           result: 14 failed, 93 passed in 1.12s
   KILLED  | M2 [recommendation_vocab.py]: drop the closed-scale check (return whatever was folded)
            proves: criterion 5 anti-widening -- UNKNOWN must not become a token
            tests : test_an_unrecognised_recommendation_is_logged_distinctly, test_unrecognised_values_are_never_guessed_into_an_intent[, test_unrecognised_values_are_never_guessed_into_an_intent[Accumulate], test_unrecognised_values_are_never_guessed_into_an_intent[BUYING] (+7 more)
-           result: 11 failed, 45 passed in 0.59s
+           result: 11 failed, 96 passed in 1.12s
   KILLED  | M3 [recommendation_vocab.py]: match by SUBSTRING instead of by exact membership
            proves: criterion 5 -- 'NOT A BUY' and 'BUYING' must never be a BUY
            tests : test_unrecognised_values_are_never_guessed_into_an_intent[BUYING], test_unrecognised_values_are_never_guessed_into_an_intent[NOT, test_unrecognised_values_are_never_guessed_into_an_intent[Strong
-           result: 3 failed, 53 passed in 0.56s
+           result: 3 failed, 104 passed in 1.09s
   KILLED  | M4 [recommendation_vocab.py]: also strip non-separator punctuation (widen the fold)
            proves: criterion 5 -- 'Strong Buy!' must stay UNRECOGNISED, not be guessed
            tests : test_unrecognised_values_are_never_guessed_into_an_intent[Strong
-           result: 1 failed, 55 passed in 0.58s
+           result: 1 failed, 106 passed in 1.09s
   KILLED  | M5 [recommendation_vocab.py]: accept non-strings by str()-ing them
            proves: a dict or enum reaching the gate is a caller bug, not a token
            tests : test_unrecognised_values_are_never_guessed_into_an_intent[123], test_unrecognised_values_are_never_guessed_into_an_intent[value12], test_unrecognised_values_are_never_guessed_into_an_intent[value13]
-           result: 3 failed, 53 passed in 0.57s
+           result: 3 failed, 104 passed in 1.10s
   KILLED  | M6 [portfolio_manager.py]: ignore the flag -- always use the canonical resolution
            proves: the change is genuinely DARK; OFF must stay byte-identical
-           tests : test_REPRODUCE_producer_strong_buy_yields_no_buy_while_gate_buy_does, test_REPRODUCE_producer_strong_sell_is_not_sold_at_all, test_armed_the_same_downgrade_does_NOT_fire_with_the_flag_off, test_the_live_defect_is_loud_even_with_the_flag_OFF
-           result: 4 failed, 52 passed in 0.36s
+           tests : test_REPRODUCE_producer_strong_buy_yields_no_buy_while_gate_buy_does, test_REPRODUCE_producer_strong_sell_is_not_sold_at_all, test_armed_the_same_downgrade_does_NOT_fire_with_the_flag_off, test_flag_OFF_is_byte_identical_to_the_legacy_expression[- (+19 more)
+           result: 29 failed, 78 passed in 0.90s
   KILLED  | M7 [portfolio_manager.py]: ignore the flag the other way -- always legacy (fix never applies)
            proves: the armed path is really wired to the flag
-           tests : test_armed_downgrade_from_a_spaced_prior_recommendation_exits, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[STRONG-BUY], test_armed_every_strong_buy_spelling_reaches_the_buy_stage[Strong, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[strong (+3 more)
-           result: 7 failed, 49 passed in 0.37s
+           tests : test_armed_downgrade_from_a_spaced_prior_recommendation_exits, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[STRONG-BUY], test_armed_every_strong_buy_spelling_reaches_the_buy_stage[Strong, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[strong (+6 more)
+           result: 10 failed, 97 passed in 0.88s
   KILLED  | M8 [portfolio_manager.py]: resolve UNRECOGNISED to HOLD instead of a non-matching sentinel
            proves: HOLD is in _DOWNGRADE_RECS -- this would SELL on a parse failure
            tests : test_armed_an_unrecognised_holding_is_not_sold_either[Accumulate], test_armed_an_unrecognised_holding_is_not_sold_either[N/A], test_armed_an_unrecognised_holding_is_not_sold_either[Overweight]
-           result: 3 failed, 53 passed in 0.35s
+           result: 3 failed, 104 passed in 0.88s
   KILLED  | M9 [portfolio_manager.py]: drop the UNRECOGNISED warning (silent again)
            proves: criterion 6 -- an unparseable recommendation must be loud
            tests : test_an_unrecognised_recommendation_is_logged_distinctly
-           result: 1 failed, 55 passed in 0.34s
+           result: 1 failed, 106 passed in 0.88s
   KILLED  | M10 [portfolio_manager.py]: drop the VOCABULARY MISMATCH warning (the live defect goes silent)
            proves: criterion 6 -- with the fix DARK, the drop must still be visible
            tests : test_the_live_defect_is_loud_even_with_the_flag_OFF
-           result: 1 failed, 55 passed in 0.34s
+           result: 1 failed, 106 passed in 0.87s
   KILLED  | M11 [portfolio_manager.py]: fire the mismatch warning on EVERY value (alarm becomes noise)
            proves: an alarm that fires on every HOLD is one an operator trains away
            tests : test_a_recognised_non_buy_is_NOT_logged_as_unrecognised
-           result: 1 failed, 55 passed in 0.35s
+           result: 1 failed, 106 passed in 0.88s
+  KILLED  | M13 [portfolio_manager.py]: restore the CYCLE-1 BUG: strip + re-base the default BEFORE the flag
+           proves: the legacy-parity oracle -- a DARK flag must not change an order. This exact code shipped in cycle 1 and the Q/A caught it; the cell exists so it cannot come back unnoticed.
+           tests : test_flag_OFF_a_blank_recommendation_does_NOT_sell_a_held_position, test_flag_OFF_a_falsy_non_str_still_downgrades_exactly_as_legacy_did, test_flag_OFF_is_byte_identical_to_the_legacy_expression[-, test_flag_OFF_is_byte_identical_to_the_legacy_expression[-BUY (+13 more)
+           result: 21 failed, 86 passed in 0.89s
   KILLED  | M12 [portfolio_manager.py]: remove the quiet path for a genuinely absent recommendation
            proves: legacy position rows carry none; alarming on them is noise
            tests : test_an_absent_recommendation_on_a_legacy_position_row_is_quiet
-           result: 1 failed, 55 passed in 0.36s
-[restored] un-mutated tree: 56 passed in 0.54s
+           result: 1 failed, 106 passed in 0.88s
+[restored] un-mutated tree: 107 passed in 1.07s
 [integrity] both targets' md5 unchanged: True
-ALL 12 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
+ALL 13 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
 ```
 
 M1 is the "revert the normalisation" cell criterion 7 names explicitly. M6 and
@@ -267,18 +275,18 @@ failure**, because `HOLD` is in `_DOWNGRADE_RECS`.
 
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q -k "portfolio_manager or decide_trades"
-70 passed, 3106 deselected, 1 warning in 6.20s
+121 passed, 3106 deselected, 1 warning in 7.87s
 ```
 
-exit **0**. It collected **14** before this step's tests existed; the 56 new
+exit **0**. It collected **14** before this step's tests existed; the new
 tests are inside the frozen selector (see §2).
 
 Wider regression over everything that imports `portfolio_manager`:
 `-k "portfolio_manager or decide_trades or autonomous_loop or paper_trader or
-kill_switch"` -> **294 passed, 1 skipped, exit 0**.
+kill_switch"` -> **345 passed, 1 skipped, exit 0**.
 
 Lint gate (`qa.md` §1a) on a git-DERIVED file set, not a hand-typed one --
-`ruff check --select F821,F401,F811` over the 6 changed `.py` files:
+`ruff check --select F821,F401,F811` over the changed `.py` files:
 `All checks passed!`, exit 0.
 
 Runtime smoke: `import backend.services.portfolio_manager,
@@ -313,3 +321,70 @@ pending rather than claimed as done.
   is the durable fix and is deferred to its own step.
 - **Seven other consumers of this column remain broken**, in both directions --
   filed as **86.22** with the measured enumeration, not fixed here.
+
+---
+
+## 11. Cycle 2 -- the Q/A found a real defect in my fix, and it was mine
+
+**Cycle-1 verdict: CONDITIONAL (`wf_080ec07a-af2`)**, transcribed verbatim in
+`handoff/current/evaluator_critique_86.20.md`. Criteria 1-6 were judged MET and
+every reproducible number reproduced exactly, including the population table
+byte-for-byte against the Q/A's own independent BigQuery query. Both of my
+corrections to the step text were independently confirmed TRUE.
+
+**The blocker was not evidence quality. It was a live defect I introduced.**
+
+`_resolve_rec` computed `str(raw).strip()` and re-based the `or default`
+fallback on the STRIPPED value **before** reading the flag. The strip therefore
+applied unconditionally, so the normalisation leaked past the dark flag onto the
+money path. The Q/A measured 18 input shapes that resolved differently from the
+pre-86.20 expression with the flag OFF, **three of which changed a real order**:
+
+| Input (flag OFF) | Pre-86.20 | Cycle-1 code | Why it matters |
+|---|---|---|---|
+| `' BUY '`, `'BUY \n'`, `'\tBUY'` | no order | **BUY placed** | a dark flag placed a BUY the previous code never placed |
+| `'   '` | no order | **SELL placed** | whitespace re-based onto the `HOLD` default, and `HOLD` is in `_DOWNGRADE_RECS`, so a held position was liquidated |
+| `0`, `False`, `[]`, `{}` | SELL | no order | the converse: an exit legacy WOULD have made was suppressed |
+
+**And it was unguarded.** The Q/A proved that by restoring true legacy parity in
+the OFF branch only -- keeping all logging -- and finding **all 56 tests still
+green**. The suite had no legacy oracle, so the 12-cell matrix structurally
+could not detect this class: M6 and M7 only varied the ARMED side.
+
+### What changed in cycle 2
+
+1. **The strip moved inside the armed branch.** With the flag OFF the function
+   now returns the LITERAL `(raw or default).upper()` -- including its failure
+   mode, since that expression genuinely raised `AttributeError` on a truthy
+   non-str and reproducing that exactly is what byte-identity means.
+2. **A legacy-parity ORACLE** now compares `_resolve_rec` against that
+   expression across a 23-value table at BOTH default sites (`"HOLD"` and
+   `""`), comparing **outcomes including raised exceptions**. Plus three
+   order-level tests pinning the exact leaks above.
+3. **Mutation cell M13** restores the cycle-1 bug verbatim. It is killed by 21
+   tests. The oracle is therefore proven able to fail, which is the only thing
+   that makes it a guard rather than decoration.
+4. **The false claim was corrected everywhere it shipped**, including
+   `backend/config/settings.py`'s flag description and the `_resolve_rec`
+   docstring -- operator-facing text is what someone reads when deciding to
+   arm, so a wrong claim there is worse than a wrong claim in a handoff file.
+
+### The honest summary of this cycle
+
+I wrote a dark flag that was not dark, asserted it was byte-identical without an
+oracle, and shipped that assertion into production text. The Q/A caught it by
+constructing the mutant I had not. The defect was **latent** -- the Q/A measured
+`LENGTH <> LENGTH(TRIM)` as zero across every row of `analysis_results`, so no
+padded value exists in the corpus today -- but latent is not the same as safe,
+and "no such row exists yet" is not a property the code enforced.
+
+### Not changed, and disclosed
+
+- The Q/A noted that `experiment_results` §3 says the reproduce output was "run
+  against the un-fixed tree", but the test file's mtime postdates the production
+  edits, so the chronology is not corroborable from the artifacts alone. That is
+  accurate: the reproduce tests were written and run before the fix, then the
+  file was appended to afterwards, which moves its mtime. The substitute
+  evidence is mutation cell M2/M7, which turn the reproduce pair RED, and M13.
+- The self-disclosed gap from cycle 1 stands: the control assertions inside the
+  reproduce tests are not separately mutation-covered.

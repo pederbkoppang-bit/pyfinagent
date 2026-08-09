@@ -413,3 +413,112 @@ def test_an_absent_recommendation_on_a_legacy_position_row_is_quiet(caplog):
         )
     joined = " ".join(r.getMessage() for r in caplog.records)
     assert "UNRECOGNISED recommendation" not in joined
+
+
+# ── legacy-parity ORACLE (cycle-2; the guard whose absence the Q/A proved) ───
+#
+# Cycle 1 claimed "OFF is byte-identical legacy behaviour" and shipped that
+# claim into operator-facing text. It was FALSE: `_resolve_rec` stripped the
+# value and re-based `or default` BEFORE reading the flag, so with the fix DARK
+# `' BUY '` placed a BUY the pre-change code never placed, `'   '` resolved to
+# HOLD (which is in _DOWNGRADE_RECS) and SOLD a held position, and falsy
+# non-str values SUPPRESSED a downgrade SELL legacy would have made.
+#
+# The Q/A proved the claim was unguarded by restoring true legacy parity in the
+# OFF branch and finding all 56 tests still green -- there was no oracle. This
+# is that oracle. It compares OUTCOMES, including raised exceptions, because
+# the legacy expression genuinely raised AttributeError on a truthy non-str and
+# byte-identity means reproducing that too.
+
+# Values chosen to span every way `or` and `.upper()` can disagree with a
+# canonicalising resolver: padding, internal whitespace, blank-but-truthy,
+# empty, None, and falsy non-str.
+_PARITY_VALUES = [
+    "BUY", "Buy", "buy", "Strong Buy", "STRONG_BUY", "HOLD", "Sell", "N/A",
+    " BUY ", "BUY \n", "\tBUY", "  Strong Buy  ", "   ", "\t\n", "",
+    None, 0, False, [], {},
+    "Accumulate", "Strong Buy!", "NOT A BUY",
+]
+
+
+def _legacy_expr(value, default):
+    """The pre-86.20 expression, verbatim: `(value or default).upper()`."""
+    return (value or default).upper()
+
+
+def _outcome(fn):
+    """Compare behaviour INCLUDING failure mode, not just return values."""
+    try:
+        return ("returned", fn())
+    except Exception as exc:  # noqa: BLE001 -- the failure mode is the subject
+        return ("raised", type(exc).__name__)
+
+
+@pytest.mark.parametrize("value", _PARITY_VALUES)
+@pytest.mark.parametrize("default", ["HOLD", ""])
+def test_flag_OFF_is_byte_identical_to_the_legacy_expression(value, default):
+    """With the flag OFF, resolution must equal `(value or default).upper()`.
+
+    Both default sites are covered: 'HOLD' (holding re-eval and buy candidate)
+    and '' (the held-position row).
+    """
+    from backend.services import portfolio_manager as pm
+
+    settings = _settings(False)
+    got = _outcome(lambda: pm._resolve_rec(
+        value, settings=settings, default=default, ticker="AAA", site="parity"))
+    want = _outcome(lambda: _legacy_expr(value, default))
+    assert got == want, (
+        f"flag-OFF resolution diverged from legacy for {value!r} "
+        f"(default={default!r}): got {got!r}, legacy {want!r}"
+    )
+
+
+@pytest.mark.parametrize("padded,bare", [(" BUY ", "BUY"), ("BUY \n", "BUY"), ("\tBUY", "BUY")])
+def test_flag_OFF_padding_does_NOT_place_an_order_but_ARMED_it_does(padded, bare):
+    """The specific order-level leak the Q/A found, pinned end-to-end.
+
+    Padded values must behave exactly like the pre-change code when DARK (no
+    order at all), and be normalised only once the operator arms the flag.
+    """
+    dark = _decide(candidate_analyses=[_candidate("AAA", padded)], settings=_settings(False))
+    assert not _buys(dark), f"{padded!r} placed a BUY with the fix DARK"
+
+    armed = _decide(candidate_analyses=[_candidate("AAA", padded)], settings=_settings(True))
+    assert _buys(armed), f"{padded!r} did not reach the buy stage when ARMED"
+
+    control = _decide(candidate_analyses=[_candidate("AAA", bare)], settings=_settings(False))
+    assert _buys(control), "control failed: the bare spelling must buy even when DARK"
+
+
+def test_flag_OFF_a_blank_recommendation_does_NOT_sell_a_held_position():
+    """The risk-bearing half of the same leak.
+
+    Whitespace-only is truthy, so legacy resolved it to '   ' -- in none of the
+    three sets. Re-basing it onto the 'HOLD' default put it in _DOWNGRADE_RECS
+    and liquidated the position while the operator believed the change was dark.
+    """
+    orders = _decide(
+        current_positions=[_held_position("BBB", recommendation="BUY")],
+        holding_analyses=[_holding_analysis("BBB", "   ")],
+        settings=_settings(False),
+    )
+    assert not _sells(orders), "a blank recommendation SOLD a held position with the fix DARK"
+
+
+def test_flag_OFF_a_falsy_non_str_still_downgrades_exactly_as_legacy_did():
+    """The converse direction: the leak also SUPPRESSED sells.
+
+    Legacy mapped a falsy non-str onto the 'HOLD' default, which IS in
+    _DOWNGRADE_RECS, so it sold. Coercing it to '0'/'FALSE' instead silently
+    removed that exit.
+    """
+    orders = _decide(
+        current_positions=[_held_position("BBB", recommendation="BUY")],
+        holding_analyses=[_holding_analysis("BBB", 0)],
+        settings=_settings(False),
+    )
+    sells = _sells(orders)
+    assert sells and sells[0].reason == "signal_downgrade", (
+        "a falsy non-str no longer downgrades -- legacy resolved it to HOLD and sold"
+    )

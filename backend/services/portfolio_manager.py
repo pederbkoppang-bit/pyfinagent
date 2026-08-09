@@ -92,8 +92,15 @@ def _resolve_rec(
 
     * The RESOLUTION is flag-gated (`paper_recommendation_vocab_fix_enabled`),
       because changing it ARMS orders that do not happen today -- new BUYs on
-      one side and new SELL/downgrade exits on the other. OFF returns exactly
-      what the legacy expression returned, so the path is byte-identical.
+      one side and new SELL/downgrade exits on the other. With the flag OFF
+      this returns the LITERAL pre-86.20 expression `(raw or default).upper()`.
+      That is not a claim to be taken on trust: a legacy-parity ORACLE test
+      compares this function against that expression over a value table
+      covering padded, whitespace-only, empty, None and falsy-non-str inputs at
+      BOTH default sites, and a mutation cell reverts the fix to prove the
+      oracle can fail. Cycle 1 shipped a version where the strip ran BEFORE the
+      flag was read, which leaked three order-changing shapes past the dark
+      flag; the oracle exists because that got through.
     * The OBSERVABILITY is UNCONDITIONAL, because it changes no decision. With
       the flag OFF this is what makes the live defect visible instead of
       silent, and it is the drift alarm the next vocabulary change will trip.
@@ -103,16 +110,19 @@ def _resolve_rec(
       VOCABULARY MISMATCH -- a recognised intent whose legacy spelling the
                              gates reject. That is this defect, counted.
     """
-    raw_str = "" if raw is None else str(raw).strip()
-    source = raw_str or default
-    if not source:
-        # A genuinely absent recommendation (legacy position rows carry none).
-        # Not a drift signal, so it stays quiet.
+    flag_on = getattr(settings, "paper_recommendation_vocab_fix_enabled", False)
+
+    # `probe` mirrors the legacy `or` EXACTLY, so what we report is what the
+    # gate is actually deciding on. Used for observability and, when armed, for
+    # canonicalisation. It is never used to alter the OFF path.
+    probe = raw if raw else default
+
+    if not probe:
+        # Genuinely absent (legacy position rows carry none). Legacy-exact:
+        # ("" ).upper() == "". Not a drift signal, so it stays quiet.
         return ""
 
-    legacy = source.upper()
-    canon = canonical_recommendation(source)
-    flag_on = getattr(settings, "paper_recommendation_vocab_fix_enabled", False)
+    canon = canonical_recommendation(probe)
     where = f"{site} ticker={ticker}" if ticker else site
 
     if canon is None:
@@ -120,18 +130,32 @@ def _resolve_rec(
             "phase-86.20: UNRECOGNISED recommendation %r (%s) -- treated as "
             "neither buy nor sell nor downgrade. A producer vocabulary drift "
             "is the usual cause.",
-            source, where,
+            probe, where,
         )
-    elif canon != legacy:
+    elif canon != probe.upper():  # canon is not None => probe is a str
         logger.warning(
             "phase-86.20: recommendation VOCABULARY MISMATCH %r -- canonical "
             "%s, but the legacy gate sees %r (%s). vocab_fix_enabled=%s",
-            source, canon, legacy, where, flag_on,
+            probe, canon, probe.upper(), where, flag_on,
         )
 
-    if flag_on:
-        return canon if canon is not None else _UNRECOGNISED_REC
-    return legacy
+    if not flag_on:
+        # LITERALLY the pre-86.20 expression -- including its failure mode: a
+        # truthy non-str raised AttributeError before this change and still
+        # does. Reproducing that exactly is the point.
+        #
+        # CYCLE-2 CORRECTION, and this is why it is written this way. The first
+        # revision computed `str(raw).strip()` and re-based `or default` on the
+        # STRIPPED value BEFORE reading the flag, so the normalisation leaked
+        # past the dark flag onto the money path. The Q/A measured three input
+        # shapes that changed a real order with the flag OFF: `' BUY '` placed
+        # a BUY the pre-change code did not place; `'   '` resolved to HOLD --
+        # which is in _DOWNGRADE_RECS -- and SOLD a held position; and falsy
+        # non-str values suppressed a downgrade SELL legacy would have made.
+        # A DARK flag must not arm an order. The strip now lives ONLY below.
+        return (raw or default).upper()
+
+    return canon if canon is not None else _UNRECOGNISED_REC
 
 
 def decide_trades(
