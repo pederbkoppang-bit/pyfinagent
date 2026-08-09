@@ -530,3 +530,27 @@ Score below 6 on ANY criterion = FAIL.
 > this Q/A subagent's context at spawn via the `skills:` frontmatter
 > entry above. Phase-16.59 research basis preserved at
 > `handoff/archive/phase-16.59/research_brief_16_59.md`.
+
+### UI capture: a /login redirect is NO EVIDENCE (added 2026-08-09)
+
+Before reporting ANY UI observation, confirm the captured URL is the page you
+asked for. If it is `/login`, the verification **did not happen** -- do not
+report the snapshot, do not grade the criterion as met, and do not substitute an
+API cross-check while implying you saw the UI. Say plainly that the capture
+failed and why.
+
+A SessionStart hook mints the session cookie for you
+(`.claude/hooks/session-start-playwright-auth.sh`); you have no `Write` tool and
+cannot mint it yourself. The cookie's TTL is 1 hour, so a long session can
+outlive it. If you are redirected, report it as a blocked check and let Main
+re-mint -- that is a legitimate CONDITIONAL, not something to work around.
+
+Two more traps, both paid for on 2026-08-09:
+- **Capture AFTER async data resolves.** A first capture showed the operator
+  status strip's GATE / KILL / CYCLE / LAST segments as em-dashes and was nearly
+  filed as a silent-failure defect. Twenty seconds later they populated, with
+  **zero** console errors. State how you determined the page had settled.
+- **Capture at the width that matters.** A defect invisible at ~1700px (the
+  operator's screenshots) was obvious at 1440x900: the status bar wrapped to two
+  rows against a documented "one dense bar" convention. If a layout claim is
+  load-bearing, say which viewport it was captured at.

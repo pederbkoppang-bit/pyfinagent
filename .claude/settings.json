@@ -12,6 +12,11 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/session-start-fable-tripwire.sh\"",
             "statusMessage": "phase-67.5 tripwire: warn if the Fable window pin outlives 2026-07-12 (masterplan 67.4). fallbackModel note: the chain above covers OVERLOAD-class failures only -- rate/usage-limit cutoffs never switch models (v2.1.199 partial-work retention covers those)."
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/session-start-playwright-auth.sh\"",
+            "statusMessage": "phase-86.11 prep: mint the Playwright storage-state cookie so UI verification can authenticate. The Q/A subagent has no Write tool and cannot mint its own; the previous :3100 skip-auth path was abandoned because a second `next dev` breaks the operator's :3000. Fail-open: a failure warns and exits 0, and a resulting /login redirect is NO EVIDENCE per qa.md 1c, never a passing capture."
           }
         ]
       }

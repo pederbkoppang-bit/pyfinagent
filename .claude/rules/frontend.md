@@ -70,7 +70,26 @@ This project is dark-mode-only. The `tailwind.config.js` sets `darkMode: "select
 - `auth.config.ts` = Edge-compatible (used by middleware), `auth.ts` = full config (PrismaAdapter + WebAuthn)
 - Session refetched every 15 minutes via `AuthProvider.tsx`
 
-## Live-UI verification (Playwright MCP + skip-auth :3100) — phase-59.2
+## Live-UI verification (Playwright MCP + skip-auth :3100) — phase-59.2 — **SUPERSEDED 2026-08-09, DO NOT FOLLOW**
+
+> **STOP. This section is HISTORY, not instructions.** Step 1 below tells you to
+> start a SECOND `next dev` on :3100. **Do not.** A second dev server breaks the
+> operator's running :3000 instance (auto-memory
+> `feedback_second_next_dev_breaks_operator_3000`: ChunkLoadError + an Auth.js
+> cookie error on the operator's open tab). That is why this workflow was
+> quietly abandoned -- and because nothing replaced it, **live-UI verification
+> silently stopped working**, and every UI claim degraded to an API
+> cross-check without anyone noticing.
+>
+> **Use "Playwright behind the NextAuth wall" at the bottom of this file
+> instead.** It drives the operator's own :3000 with a real minted session
+> cookie -- no second server, no skip-auth flag, and the middleware runs its
+> true decrypt + allowlist path.
+>
+> Kept for provenance only: the capture/disclosure discipline in steps 2, 4 and
+> 5 below still applies verbatim to the new path.
+
+### (superseded) original text
 
 UI claims are verified against the RUNNING app, never inferred from code
 (CLAUDE.md Critical-Rules Playwright bullet; binding Q/A gate in
@@ -172,3 +191,21 @@ under this cookie is a page an authorised operator really sees.
 secret already on the machine. It is written only under `.playwright-mcp/`,
 which is gitignored, and the script **refuses to run** if that stops being true
 -- so a session token cannot be committed. Mode `600`.
+
+### Automation (added 2026-08-09) — it is armed for you
+
+A **SessionStart hook** (`.claude/hooks/session-start-playwright-auth.sh`) mints
+the storage state at the start of every session, so a Q/A subagent spawned at
+any point finds a valid cookie already on disk. This matters because **the Q/A
+subagent has no `Write` tool** -- it carries only
+`browser_navigate / browser_snapshot / browser_take_screenshot /
+browser_console_messages` -- and therefore cannot mint its own cookie. Without
+the hook it would land on `/login` and have no way to recover.
+
+The hook is **fail-open**: a failure warns and exits 0, never blocking the
+session. The cookie's TTL is **1 hour**, so a long session can outlive it --
+re-run the minter by hand and reconnect if a capture starts redirecting.
+
+**The rule that makes this safe: a `/login` capture is NO EVIDENCE.** Not a
+partial pass, not "the page didn't load" -- it means the verification did not
+happen. Re-mint, reconnect via `/mcp`, and capture again.
