@@ -184,3 +184,174 @@ except (ImportError, AttributeError) as _exc:
     # The stdlib urllib guard above is the load-bearing one for this defect and
     # stands regardless; this block is defence in depth for `requests`.
     _log.debug("phase-86.3: urllib3 guard not installed: %s", _exc)
+
+
+# ==========================================================================
+# phase-86.6 -- THE FILESYSTEM CHANNEL: from DETECTED to PREVENTED
+# ==========================================================================
+# The module docstring above declares this gap explicitly: "The FILESYSTEM
+# channel is NOT covered ... it is queued as its own research-gated step."
+# This is that step.
+#
+# WHY A `BaseException`, AND WHY THAT IS THE WHOLE POINT
+# ------------------------------------------------------
+# MEASURED in the project venv (pytest 9.0.3):
+#     Failed MRO: ['Failed', 'OutcomeException', 'BaseException', 'object']
+#     kill_switch shape: logger.warning swallowed: RuntimeError
+#     kill_switch shape: logger.warning swallowed: PermissionError
+# `kill_switch._append_audit` wraps its write in `except Exception:` and logs a
+# warning. BOTH existing guards in this repo raise `RuntimeError`, which IS an
+# `Exception`. So a filesystem refusal built to the established in-repo pattern
+# would be SILENTLY ABSORBED: the write is blocked, the test goes GREEN, and
+# nobody learns anything. `assert` fails the same way -- `AssertionError` is an
+# `Exception`. The refusal below therefore derives from `BaseException`, which
+# is the opposite of what this repo's own precedent would suggest.
+#
+# WHY `sys.addaudithook` (PEP 578)
+# --------------------------------
+# It is the only seam that sees `open`, `subprocess.Popen`, `socket.connect`
+# and `urllib.Request` at once, and it fires BEFORE the operation. Measured
+# overhead ~1.05x. Two honest limits, stated rather than sold around:
+#   * PEP 578 says plainly it "is not sandboxing" -- this stops ACCIDENTS, not
+#     a determined caller who could remove the predicate.
+#   * Audit hooks "cannot be removed or replaced" once installed. That is why
+#     the mode is read from the environment at CALL time, not baked in at
+#     install time: an installed hook that could never be quietened would be a
+#     worse trade than the defect.
+#
+# READS ARE ALWAYS ALLOWED. `test_phase_23_2_4_audit_log_clean_transitions`
+# reads the LIVE journal deliberately and must keep doing so; criterion 4 of
+# this step calls a blanket redirect an explicit failure, not a trade-off.
+# --------------------------------------------------------------------------
+import os as _os
+import sys as _sys
+from pathlib import Path as _Path
+
+
+class LiveStateWriteRefused(BaseException):
+    """A test tried to WRITE live operator state.
+
+    Derives from `BaseException` DELIBERATELY -- see the note above. If this
+    ever becomes an `Exception` subclass, `kill_switch._append_audit`'s
+    `except Exception` will swallow it and the guard becomes decorative.
+    """
+
+
+#: The live-state tree. Everything the operator's running system reads or writes
+#: lives under here, including UNTRACKED files -- `handoff/.autonomous_loop.lock`
+#: is gitignored, which is exactly why a git-tracked digest sweep missed it.
+_LIVE_STATE_ROOT = _Path(__file__).resolve().parent / "handoff"
+
+#: BLOCKED set -- the kill-switch safety journal and its DERIVED archive dir.
+#: Scoped deliberately, and the scope is MEASURED rather than guessed. Running
+#: the full backend/tests/ tree with the whole `handoff/` tree blocking turned
+#: 21 tests RED, and NONE of them was a kill-switch write: they write
+#: `handoff/.autonomous_loop.lock` (the cycle lock), `handoff/.cycle_heartbeat.json`
+#: and one probe file under `handoff/logs/`. Those are real live-state writes and
+#: they are REPORTED below -- but blocking them is a behaviour change to 21
+#: tests, which is its own step, not something to land at the end of a night
+#: inside a step whose criteria are specifically about the kill-switch journal.
+#: The archive dir is DERIVED from the journal path, mirroring
+#: `kill_switch._audit_archive_dir()`, so a rotation cannot slip past.
+_BLOCKED_PATHS = (
+    _LIVE_STATE_ROOT / "kill_switch_audit.jsonl",
+    _LIVE_STATE_ROOT / "audit",
+)
+
+#: Write intent, by open() mode string and by os.open() flags.
+_WRITE_MODE_CHARS = frozenset("wax+")
+_WRITE_FLAGS = (
+    _os.O_WRONLY | _os.O_RDWR | _os.O_APPEND | _os.O_CREAT | _os.O_TRUNC
+)
+
+#: block (default) | report | off. Read at CALL time -- see the note above.
+_GUARD_ENV = "PYFINAGENT_LIVE_STATE_GUARD"
+
+
+def _guard_mode() -> str:
+    return (_os.environ.get(_GUARD_ENV) or "block").strip().lower()
+
+
+def _is_write_intent(mode, flags) -> bool:
+    if isinstance(mode, str) and (set(mode) & _WRITE_MODE_CHARS):
+        return True
+    if isinstance(flags, int) and (flags & _WRITE_FLAGS):
+        return True
+    return False
+
+
+def _classify(path):
+    """Return "block" | "report" | None for a write-intent path.
+
+    Two tiers on purpose. `block` is the kill-switch journal, which is what
+    this step's criteria are about and where a stray write silently loosens a
+    safety limit. `report` is the rest of the live-state tree: real writes,
+    surfaced loudly, but turning them into failures is a 21-test behaviour
+    change that belongs to its own step rather than to this one.
+    """
+    try:
+        p = _Path(_os.fsdecode(path)).resolve()
+    except (TypeError, ValueError, OSError):
+        return None
+    for blocked in _BLOCKED_PATHS:
+        if p == blocked or blocked in p.parents:
+            return "block"
+    try:
+        p.relative_to(_LIVE_STATE_ROOT)
+        return "report"
+    except ValueError:
+        return None
+
+
+def _current_test() -> str:
+    return _os.environ.get("PYTEST_CURRENT_TEST", "(outside a test)")
+
+
+def _live_state_audit_hook(event: str, args) -> None:
+    if event != "open":
+        return
+    mode = args[1] if len(args) > 1 else None
+    flags = args[2] if len(args) > 2 else None
+    if not _is_write_intent(mode, flags):
+        return                      # reads always pass
+    path = args[0] if args else None
+    tier = _classify(path)
+    if tier is None:
+        return
+    m = _guard_mode()
+    if m == "off":
+        return
+    if tier == "report":
+        # DELIBERATELY A NO-OP, and this is a correction rather than laziness.
+        # The first revision wrote a line to stderr here. MEASURED: a full
+        # backend/tests run emitted ZERO visible lines, because pytest captures
+        # stderr per test and discards it for PASSING tests -- which is every
+        # test that merely writes live state without failing. A "report" tier
+        # that reports nothing is the same silent-failure class this step
+        # exists to close, so it is removed rather than left looking useful.
+        #
+        # The finding it was meant to carry is MEASURED and RECORDED instead:
+        # blocking the whole `handoff/` tree turns +7 tests RED (14 -> 21
+        # against a 14-failure pre-existing baseline), writing
+        # `handoff/.autonomous_loop.lock`, `handoff/.cycle_heartbeat.json` and
+        # one probe file under `handoff/logs/`. Closing those is a behaviour
+        # change to real tests and is filed as its own step.
+        return
+    msg = (
+        f"phase-86.6: REFUSED a WRITE to live operator state.\n"
+        f"  path : {path}\n"
+        f"  test : {_current_test()}\n"
+        f"  mode : {mode!r} flags={flags!r}\n"
+        "Redirect the module-level path to tmp_path (e.g. "
+        "monkeypatch.setattr(ks, '_AUDIT_PATH', tmp_path / '...')), or set "
+        f"{_GUARD_ENV}=off for a run that genuinely must touch live state.\n"
+        "This refusal derives from BaseException on purpose: an Exception "
+        "would be swallowed by kill_switch._append_audit's `except Exception`."
+    )
+    if m == "report":
+        _sys.stderr.write("[86.6 REPORT-ONLY] " + msg + "\n")
+        return
+    raise LiveStateWriteRefused(msg)
+
+
+_sys.addaudithook(_live_state_audit_hook)
