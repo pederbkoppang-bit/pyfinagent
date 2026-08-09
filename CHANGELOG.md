@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `6209b7cd` | docs(36.17): cycle-6 -- slim the artifacts to evidence, close the 9-vs-11 contradiction |
 | 2026-08-09 | `d68f69e5` | fix(36.17): cycle-6 -- re-runnable mutation matrix + close the live cycle-lock leak |
 | 2026-08-09 | `8405e86e` | docs: overnight unattended drain goal (2026-08-09 -> 08-10) |
 | 2026-08-09 | `1d1fc498` | docs: day report -- correct my BUY-rate over-generalization, add 86.20/86.21/86.18 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `e98ca260` | fix(36.17): enforce pre-existing stop-losses on a halted cycle (exit-only pass) |
 | 2026-08-09 | `80d43aaa` | fix(86.17): file the Layer-3 args-boundary defect -- a blind gate can return gate_passed:true |
 | 2026-08-09 | `a0b4e4f2` | docs(86.16): file the stale scheduled_tasks.lock investigation as its own step |
-| 2026-08-09 | `062a66b6` | docs: record the stale scheduled_tasks.lock finding (dead pid, held 2d) for later investigation |
 
 ---
 
