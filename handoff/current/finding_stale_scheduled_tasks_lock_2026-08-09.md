@@ -2,7 +2,10 @@
 
 - **Found:** 2026-08-09 16:56 CEST, session `pyfinagent-06`
 - **Action taken:** lock file REMOVED (see "What I did" below)
-- **Status:** NOT investigated. Needs its own research-gated masterplan step.
+- **Status:** NOT investigated. **Filed as masterplan step 86.16** (P3,
+  `pending`, `harness_required: true`) on 2026-08-09 17:0x once the peer
+  session went quiet. The step carries the full evidence; this note is
+  the discovery record.
 - **Why this file and not a masterplan step:** the operator instructed
   "leave the masterplan alone" while peer session `pyfinagent-43` was
   actively writing `.claude/masterplan.json` (last write 16:46, commits
@@ -91,19 +94,36 @@ owning subsystem will simply re-acquire it with a live pid.
 3. Were any scheduled routines expected to run in the 08-07..08-09
    window, and did they? Answer from run evidence, not from `CronList`.
 4. Should the repo carry a **staleness sweeper** for dead-pid locks?
-   Note `handoff/locks/optimizer_plateau.lock` has sat with
-   `"cleared_at": null` since **2026-07-24** -- a second, unrelated lock
-   in the same never-released shape. Enumerate the whole lock population
-   before designing a sweeper; do not fix these two instances and call
-   the class closed.
+   Enumerate the whole lock population before designing one; do not fix
+   one instance and call the class closed.
+
+   **CORRECTION (same session, after checking the code).** An earlier
+   revision of this line called `handoff/locks/optimizer_plateau.lock`
+   "a second, unrelated lock in the same never-released shape" because
+   it has carried `"cleared_at": null` since **2026-07-24**. That
+   framing is **wrong and would have caused real damage** if an executor
+   had acted on it. That lock is **BY DESIGN**:
+   `backend/api/backtest.py:338-343` makes `start_optimizer` raise HTTP
+   409 `PlateauLockPresent` while the file exists, the comment at `:304`
+   states operators clear it via `DELETE /api/backtest/optimize/lock`,
+   and that route is implemented as `clear_plateau_lock` at `:403`. It
+   is an intentional operator circuit-breaker. **Do not sweep, delete or
+   "fix" it.** The only open question about it is whether a 16-day hold
+   produces any operator signal -- and note the confound before claiming
+   it cost anything: `historical_macro` is frozen and the optimizer is
+   intentionally not being run, so the 409 may have had zero practical
+   effect.
 5. `.claude/cron_budget.yaml` (15 runs/day self-imposed cap, phase-10.7)
    references this subsystem -- confirm whether the cap accounting and
    this lock are the same mechanism or two unconnected things.
 
 ## Cross-references
 
-- `handoff/locks/optimizer_plateau.lock` -- sibling never-released lock,
-  created 2026-07-24T11:04:50Z, `cleared_at: null`.
+- `handoff/locks/optimizer_plateau.lock` -- created 2026-07-24T11:04:50Z,
+  `cleared_at: null`. **By-design operator circuit-breaker, not a stale
+  lock** -- see the CORRECTION under item 4 above.
+- `backend/api/backtest.py:304,338-343,403` -- the plateau-lock guard,
+  its 409, and the operator DELETE escape.
 - `.claude/cron_budget.yaml` -- cron budget allocator, phase-10.7.
 - `handoff/audit/phase-4.11/claude_code_core.md:158` -- classifies the
   lock as Claude Code core.
