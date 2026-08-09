@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -45,8 +46,8 @@ TRANSITION_BUDGET_S = 5.0
 
 def _backend_is_up(timeout_s: float = 2.0) -> bool:
     """Probe /api/health; True if 200 OK + ok status."""
-    import urllib.request
     import urllib.error
+    import urllib.request
     try:
         with urllib.request.urlopen(f"{BACKEND_URL}/api/health", timeout=timeout_s) as r:
             return r.status == 200
@@ -109,56 +110,174 @@ def test_phase_23_2_4_existing_regression_files_reference_phase_23_1_22():
     )
 
 
-@pytest.mark.skipif(not _backend_is_up(), reason="backend not listening on :8000")
-def test_phase_23_2_4_live_pause_resume_pause_cycle_under_5s():
-    """LIVE verification: backend reachable, so we run the canonical
-    pause-resume-pause cycle. Assert:
-      1. Each transition completes within TRANSITION_BUDGET_S (5.0s).
-      2. State changes match the requested transition.
-      3. State is restored at the end (we leave the backend in the
-         same pre-cycle paused state -- non-mutating from the
-         operator's perspective).
+@pytest.fixture
+def _isolated_app_client(tmp_path, monkeypatch):
+    """An IN-PROCESS client over the real app, with the kill switch detached.
+
+    phase-86.3: this test used to POST pause -> resume -> pause (plus a 4th
+    restore resume) to http://localhost:8000, i.e. to the OPERATOR'S LIVE
+    TRADING BOOK. Measured 2026-08-09: 8 rows appended to the live
+    handoff/kill_switch_audit.jsonl across two full-suite runs, and the live
+    armed book was paused four times by a test run.
+
+    The subject under test is a RE-ENTRANT LOCK DEADLOCK INSIDE THE APP
+    PROCESS (pause/resume held `self._lock`, then called `snapshot()`, which
+    re-acquired it -- fixed in 0ed72940 by extracting `_snapshot_locked()`).
+    That is an in-process property and it reproduces in-process, so the
+    regression value is preserved in full while the live book is untouched.
+
+    Isolation mirrors `test_phase_36_7_kill_switch_rotation_rearm.py::
+    isolated_state`, and BOTH halves are required:
+      * `_AUDIT_PATH` -> tmp, because pause()/resume() append to it; and
+      * the module-global `_state` -> a detached instance, because
+        `evaluate_breach` reads `_state` DIRECTLY. Patching the
+        `_get_ks_state` accessor alone would NOT isolate the breach check.
+
+    The test process's kill-switch singleton is not the running backend's --
+    they are separate processes -- so with the file redirected there is no
+    durable channel left to the live book.
     """
-    pre_state = _get_paused_state()
+    import threading
+    from datetime import datetime, timezone
 
-    # STEP 1: pause
-    resp_1, elapsed_1 = _post_state_transition(
-        "/api/paper-trading/pause", "PAUSE"
-    )
-    assert elapsed_1 < TRANSITION_BUDGET_S, (
-        f"pause exceeded {TRANSITION_BUDGET_S}s budget: {elapsed_1:.3f}s"
-    )
-    # Either "paused" (was unpaused) or "already_paused" (was paused) -- both OK
-    assert resp_1.get("status") in ("paused", "already_paused"), (
-        f"pause response unexpected: {resp_1}"
+    import backend.services.kill_switch as ks
+    from backend.tests.auth_helper import authed_test_client
+
+    monkeypatch.setattr(ks, "_AUDIT_PATH", tmp_path / "kill_switch_audit.jsonl")
+
+    fresh = object.__new__(ks.KillSwitchState)
+    fresh._lock = threading.Lock()
+    fresh._paused = False
+    fresh._pause_reason = None
+    fresh._sod_nav = 10_000.0
+    # Anchored to TODAY, so the daily leg is armed and `/resume` is not refused
+    # by the staleness gate (that refusal is its own defect -- step 36.26).
+    fresh._sod_date = datetime.now(timezone.utc).date().isoformat()
+    fresh._peak_nav = 10_000.0
+    fresh._paused_at = None
+    fresh._auto_resume_alerted_at = None
+    monkeypatch.setattr(ks, "_state", fresh)
+    monkeypatch.setattr(ks, "_disarmed_logged", False)
+
+    # A flat, healthy book: 0% daily loss, 0% trailing drawdown -> resume is
+    # allowed on the merits rather than by a weakened gate.
+    from backend.api import paper_trading as pt
+    monkeypatch.setattr(
+        pt, "get_bq_client",
+        lambda: SimpleNamespace(
+            get_paper_portfolio=lambda _pid="default": {
+                "total_nav": 10_000.0, "starting_capital": 10_000.0
+            }
+        ),
     )
 
-    # STEP 2: resume
-    resp_2, elapsed_2 = _post_state_transition(
-        "/api/paper-trading/resume", "RESUME"
+    from backend.main import app
+    with authed_test_client(app, raise_server_exceptions=False) as client:
+        yield client, tmp_path / "kill_switch_audit.jsonl"
+
+
+def test_phase_23_2_4_live_pause_resume_pause_cycle_under_5s(_isolated_app_client):
+    """The canonical pause-resume-pause cycle, driven IN-PROCESS. Assert:
+      1. Each transition completes within TRANSITION_BUDGET_S (5.0s) -- a
+         deadlock manifests as a transition that never returns.
+      2. State changes match the requested transition.
+      3. The audit delta is exactly 3 rows -- (pause, resume, pause), all
+         trigger=manual.
+
+    Assertion 3 was in the original docstring but could only ever be checked
+    against the shared live journal, where a concurrent writer made it
+    unreliable. Against an isolated journal it is now exact, so this rewrite
+    STRENGTHENS the test rather than trading coverage for safety.
+    """
+    client, audit = _isolated_app_client
+
+    transitions = [
+        ("/api/paper-trading/pause", "PAUSE", ("paused", "already_paused")),
+        ("/api/paper-trading/resume", "RESUME", ("resumed", "already_unpaused", "degraded")),
+        ("/api/paper-trading/pause", "PAUSE", ("paused", "already_paused")),
+    ]
+    for endpoint, confirmation, allowed in transitions:
+        t0 = time.perf_counter()
+        resp = client.post(endpoint, json={"confirmation": confirmation})
+        elapsed = time.perf_counter() - t0
+        assert elapsed < TRANSITION_BUDGET_S, (
+            f"{endpoint} exceeded {TRANSITION_BUDGET_S}s budget: {elapsed:.3f}s "
+            "-- a re-entrant lock deadlock is the regression this pins"
+        )
+        assert resp.status_code == 200, f"{endpoint} -> {resp.status_code}: {resp.text}"
+        assert resp.json().get("status") in allowed, (
+            f"{endpoint} response unexpected: {resp.json()}"
+        )
+
+    rows = [json.loads(l) for l in audit.read_text().splitlines() if l.strip()]
+    assert [r["event"] for r in rows] == ["pause", "resume", "pause"], (
+        f"audit delta must be exactly (pause, resume, pause); got {rows}"
     )
-    assert elapsed_2 < TRANSITION_BUDGET_S, (
-        f"resume exceeded {TRANSITION_BUDGET_S}s budget: {elapsed_2:.3f}s"
-    )
-    # Either "resumed" (was paused) or "already_unpaused" or 503-degraded
-    assert resp_2.get("status") in ("resumed", "already_unpaused", "degraded"), (
-        f"resume response unexpected: {resp_2}"
+    assert all(r.get("trigger") == "manual" for r in rows), rows
+
+
+def test_phase_86_3_mutation_the_audit_redirect_is_load_bearing(tmp_path, monkeypatch):
+    """MUTATION LOCK for the isolation above, proven WITHOUT touching the live
+    journal.
+
+    Running the real mutation -- deleting the `_AUDIT_PATH` redirect and letting
+    the cycle write to the operator's journal -- would be committing the very
+    defect this step repairs, and would break 86.3 criterion 1 in the act. So
+    the proof is split into the two facts whose CONJUNCTION is the claim:
+
+      (a) the module default `_AUDIT_PATH` really is the live production file
+          -- so an un-redirected write lands there, not somewhere harmless; and
+      (b) writes follow `_AUDIT_PATH` wherever it points -- demonstrated
+          against a byte-identical COPY of the live journal in tmp.
+
+    (a) AND (b) => removing the redirect writes to the live journal. Disclosed
+    in contract_86.3.md rather than claimed as a full end-to-end mutation.
+    """
+    import backend.services.kill_switch as ks
+
+    # (a) the un-patched default is the real file.
+    assert ks._AUDIT_PATH == AUDIT_LOG, (
+        "the module default no longer points at the live journal; this test's "
+        f"reasoning is stale. default={ks._AUDIT_PATH} live={AUDIT_LOG}"
     )
 
-    # STEP 3: pause again
-    resp_3, elapsed_3 = _post_state_transition(
-        "/api/paper-trading/pause", "PAUSE"
-    )
-    assert elapsed_3 < TRANSITION_BUDGET_S, (
-        f"second pause exceeded {TRANSITION_BUDGET_S}s budget: {elapsed_3:.3f}s"
-    )
+    # (b) writes follow the pointer -- against a copy, never the original.
+    decoy = tmp_path / "kill_switch_audit.jsonl"
+    decoy.write_bytes(AUDIT_LOG.read_bytes())
+    before_live = AUDIT_LOG.read_bytes()
+    before_decoy = len(decoy.read_text().splitlines())
 
-    # CLEANUP: restore pre-cycle state
-    if not pre_state:  # was unpaused, restore unpaused
-        _post_state_transition("/api/paper-trading/resume", "RESUME")
-    final_state = _get_paused_state()
-    assert final_state == pre_state, (
-        f"failed to restore pre-cycle state: pre={pre_state}, post={final_state}"
+    monkeypatch.setattr(ks, "_AUDIT_PATH", decoy)
+    ks.KillSwitchState._append_audit("pause", trigger="manual", details={})
+
+    assert len(decoy.read_text().splitlines()) == before_decoy + 1, (
+        "an append did not follow _AUDIT_PATH -- (b) does not hold"
+    )
+    assert AUDIT_LOG.read_bytes() == before_live, "the mutation touched the live journal"
+
+
+@pytest.fixture(autouse=True)
+def _no_test_in_this_module_writes_to_the_live_journal():
+    """phase-86.3 regression lock, measured as a DELTA rather than asserted as
+    'never touched'. Byte-compares the LIVE journal around EVERY test here.
+
+    FUNCTION-scoped and autouse, mirroring
+    `test_phase_36_12_...::_live_audit_file_is_write_protected`, so a violation
+    names the offending test instead of the module. This is the file that
+    caused the incident; it carries its own lock.
+
+    Honest limit: this is a DETECTOR, not a preventer -- the bytes are already
+    on disk when it fires. The PREVENTER for the HTTP channel is the repo-root
+    conftest guard; the preventer for the in-process filesystem channel is not
+    built (see contract_86.3.md SS5.2, queued as its own step).
+    """
+    before = AUDIT_LOG.read_bytes() if AUDIT_LOG.exists() else None
+    yield
+    after = AUDIT_LOG.read_bytes() if AUDIT_LOG.exists() else None
+    assert after == before, (
+        "a test in this module wrote to the LIVE kill-switch journal: "
+        f"{0 if before is None else len(before.splitlines())} -> "
+        f"{0 if after is None else len(after.splitlines())} lines"
     )
 
 
