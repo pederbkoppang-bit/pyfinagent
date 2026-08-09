@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `4d7d6a04` | docs: ask #27 -- operator call on closing 86.3 against an unsatisfiable criterion 5 |
 | 2026-08-09 | `721eb5ac` | docs(86.3): harness_log cycle 186 -- CONDITIONAL, criterion 5 not literally met |
 | 2026-08-09 | `39e7aeb3` | phase-86.3 cycle-2: fix the three blockers the pass-1 Q/A found |
 | 2026-08-09 | `4f10b024` | fix(86.3): the TestClient context manager crashed the full suite at 13% |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `2901ae63` | phase-85.5.1: research gate + contract (GENERATE not started) |
 | 2026-08-09 | `a4f62546` | docs: overnight report 2026-08-09 -- Monday answer is NO, and why |
 | 2026-08-09 | `cb34a7c0` | phase-85.6: P0 DEADLOCK: the book cannot be un-paused. Resume requires a fresh daily anchor; the ... |
-| 2026-08-09 | `b4731d83` | docs(85.6): harness log cycle 184 + ask #26 (the analysis rail is dead) |
 
 ---
 
