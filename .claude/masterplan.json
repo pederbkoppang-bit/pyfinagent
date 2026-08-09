@@ -23866,7 +23866,8 @@
           }
         },
         {
-          "status": "pending",
+          "status": "done",
+          "closed_by": "operator decision 2026-08-09 (ask #27, reply CLOSE-86.3: APPROVED) -- NOT a criterion-5 pass. Criterion 5 is unmet and structurally unsatisfiable: the baseline was captured while the book was PAUSED, so 11 of 14 failing->passing flips are step 36.28's live-pause coupling (measured), and the criterion embeds 'fresh Q/A PASS', making it circular. Both Q/A verdicts were CONDITIONAL and stand verbatim in evaluator_critique_86.3.md. Read as 'closed with a known disclosed unmet criterion', never as a clean pass.",
           "harness_required": true,
           "retry_count": 0,
           "max_retries": 3,
