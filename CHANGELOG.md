@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `1d1fc498` | docs: day report -- correct my BUY-rate over-generalization, add 86.20/86.21/86.18 |
 | 2026-08-09 | `4c80bcc4` | feat: file 86.20 (P1 recommendation-vocabulary mismatch) + 86.21 (P2 counter blindness) |
 | 2026-08-09 | `31a06591` | docs: day report -- drop the two claims cycle 5 invalidated |
 | 2026-08-09 | `7c47a8a4` | docs: day report -- cycle 5 found two surviving money-path mutants |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `062a66b6` | docs: record the stale scheduled_tasks.lock finding (dead pid, held 2d) for later investigation |
 | 2026-08-09 | `66d466b0` | docs: day report 2026-08-09 + goal regenerated for 08-10 |
 | 2026-08-09 | `440a3ff0` | docs(61.2): RETRACT my critic attribution -- the gate refuted it and I re-verified |
-| 2026-08-09 | `9b72cb3b` | fix(86.15): renumber my step off a duplicated 86.13 id |
 
 ---
 
