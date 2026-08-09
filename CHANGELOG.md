@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `4f10b024` | fix(86.3): the TestClient context manager crashed the full suite at 13% |
 | 2026-08-09 | `c4ff90fa` | phase-86.3: stop the test suite POSTing pause/resume to the live trading book |
 | 2026-08-09 | `d5e758bc` | docs: reconcile the 36.x/86.x kill-switch cluster — 36.21 superseded by 86.3 |
 | 2026-08-09 | `70893e5b` | docs: compress the full-day goal prompt to 3973 chars (under the 4000 limit) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `b4731d83` | docs(85.6): harness log cycle 184 + ask #26 (the analysis rail is dead) |
 | 2026-08-09 | `1952bcca` | docs(85.6): pass-3 PASS; address the four Q/A notes |
 | 2026-08-08 | `a126126b` | docs(85.6): record the cycle-3 remediation and the false residual claim |
-| 2026-08-08 | `0f9e92c0` | fix(85.6): cycle-3 -- make the provisional-anchor marker DURABLE |
 
 ---
 
+### v6.87.10 — fix(86.3): the TestClient context manager crashed the full suite at 13% (2026-08-09)
+
+- **fix(86.3): the TestClient context manager crashed the full suite at 13%**
 ### v6.87.9 — phase-86.3: stop the test suite POSTing pause/resume to the live trad... (2026-08-09)
 
 - **phase-86.3: stop the test suite POSTing pause/resume to the live trading book**
