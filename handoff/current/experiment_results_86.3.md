@@ -161,6 +161,45 @@ passed.
 
 ---
 
+## 5b. My rewrite crashed the entire suite, and passing in isolation hid it
+
+The first full-suite run after the rewrite **died at 13%**:
+
+```
+backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py ..E
+object type name: ValueError
+object repr     : ValueError('I/O operation on closed file.')
+lost sys.stderr
+```
+
+**The crash was in my own file**, on the third test — the rewritten cycle. It
+had passed every time I ran it alone (`4 passed`), alongside four adjacent
+kill-switch files (`87 passed`), and with the guard file (`17 passed`).
+
+**Cause:** I built the client as
+
+```python
+with authed_test_client(app, raise_server_exceptions=False) as client:
+```
+
+Entering `TestClient` as a **context manager runs the app LIFESPAN** — schedulers,
+logging handlers, background threads — in the middle of a pytest session, and
+their teardown collided with pytest's capture teardown. The in-repo model,
+`test_phase_80_2_error_response_contract.py:38`, constructs the client
+**without** the context manager for exactly this reason; I had copied the
+pattern but not that detail.
+
+**Fix:** drop the `with`. Requests still route through the full ASGI stack; only
+startup/shutdown events are skipped, and this test asserts nothing about them.
+
+**Why this is recorded rather than quietly fixed:** it is a clean instance of
+"green in isolation, fatal in the suite". Every single-file run I did was
+green, and each one would have been offered as evidence. Only the criterion-1
+whole-suite run could see it — which is precisely why criterion 1 is written
+the way it is, and why I did not treat the file-scoped greens as sufficient.
+
+---
+
 ## 6. Criterion 3 — how it was proven, and what was NOT done
 
 Criterion 3: *"point the test back at the live URL and show the row count rising
@@ -260,10 +299,59 @@ one in the queue.
 
 ---
 
-## 9. Honest limits
+## 10. Criteria 1, 5 and 7 — the whole-suite measurement
 
-- **Criterion 1's full-suite measurement is in §10** — see that section for the
-  measured result and for anything it does not cover.
+Full detail and verbatim captures: `handoff/current/live_check_86.3.md`.
+
+**Criterion 1 — GREEN.** Full `backend/tests`, backend confirmed up
+(`api/health=200`):
+
+```
+BEFORE  62 lines  90e0303130fc546df82e33fe1ebb7c782efd75d74e3b7877e16f76fcdbddf653
+        12 failed, 3072 passed, 12 skipped, 5 xfailed, 1 xpassed in 332.58s
+AFTER   62 lines  90e0303130fc546df82e33fe1ebb7c782efd75d74e3b7877e16f76fcdbddf653
+```
+
+**Delta = 0 rows.** The same suite appended **8 rows** on 2026-08-08.
+
+**Criterion 7 — GREEN, proven by hash** rather than by eye:
+
+```
+$ git show c4ff90fa~1:...test_phase_23_2_4_....py | awk '/def test_..._audit_log_clean_transitions/,0' | shasum -a 256
+80fcd6a7ae6340ab0b48d9e28d3625a0459c5df3f6c3c67b720a4352cc1da721
+$ awk '/def test_..._audit_log_clean_transitions/,0' backend/tests/test_phase_23_2_4_....py | shasum -a 256
+80fcd6a7ae6340ab0b48d9e28d3625a0459c5df3f6c3c67b720a4352cc1da721
+```
+
+Byte-identical. It still reads the **live** journal and passes in the run above.
+
+**Criterion 5 — NOT a clean pass, and I am not reporting it as one.**
+
+- **New failures: ZERO.** The current 12 are a strict subset of the baseline 26.
+- **But 14 tests went failing → passing, and I claim exactly ONE of them.**
+  - **11** — `test_64_3_currency_path` ×3, `test_64_4_multi_market_e2e`,
+    `test_dod4_tier1_coverage_investment`, `test_phase_70_3_atomic_swap`,
+    `test_phase_70_4_gate_observability` ×2, `test_price_tolerance_gate` ×3 —
+    are **step 36.28's live-pause coupling**. The 2026-08-08 baseline was taken
+    while the book was PAUSED (ask #21); it is unpaused today. **Measured, not
+    argued:** forcing the singleton back to `paused=True` (throwaway plugin,
+    `_AUDIT_PATH` redirected to tmp so it wrote nothing) makes all 11 fail
+    again, node-for-node — `11 failed, 95 passed in 2.98s`.
+  - **1** — `test_book_safety_69::test_valid_nav_still_breaches` — fixed by
+    **85.5.1**, documented in 86.5's audit basis.
+  - **1** — `test_phase_23_2_15_known_pass_scripts_still_pass` — passes in
+    **both** conditions today, so its 08-08 failure had another live-system
+    cause. **Not root-caused, and not claimed.**
+  - **1** — this step's own rewritten cycle test.
+
+**The baseline is confounded.** It was captured under a different live
+kill-switch state — which is precisely the coupling 36.28 exists to remove. A
+future comparison should either re-baseline under a known pause state or land
+36.28 first.
+
+---
+
+## 9. Honest limits
 - The guard protects the **live backend origin only**. It is not a network
   jail, by design (§3.2), and `tests/`-tree scripts named `verify_phase_*.py`
   are not collected by pytest at all, so they are outside every claim here.

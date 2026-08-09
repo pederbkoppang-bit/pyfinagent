@@ -172,8 +172,22 @@ def _isolated_app_client(tmp_path, monkeypatch):
     )
 
     from backend.main import app
-    with authed_test_client(app, raise_server_exceptions=False) as client:
-        yield client, tmp_path / "kill_switch_audit.jsonl"
+
+    # NOT `with authed_test_client(...) as client:` -- entering TestClient as a
+    # context manager runs the app LIFESPAN (schedulers, logging handlers,
+    # background threads). Doing that mid-suite crashed the whole run:
+    #
+    #   backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py ..E
+    #   ValueError('I/O operation on closed file.')  /  lost sys.stderr
+    #
+    # It passed when this file ran alone, and killed the interpreter at 13% of
+    # the full suite -- the classic "green in isolation" trap. The in-repo model
+    # (test_phase_80_2_error_response_contract.py:38) constructs the client
+    # WITHOUT the context manager for exactly this reason. Requests still route
+    # through the full ASGI stack; only startup/shutdown events are skipped,
+    # and this test asserts nothing about them.
+    client = authed_test_client(app, raise_server_exceptions=False)
+    yield client, tmp_path / "kill_switch_audit.jsonl"
 
 
 def test_phase_23_2_4_live_pause_resume_pause_cycle_under_5s(_isolated_app_client):
