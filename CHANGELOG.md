@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `9490c2f1` | docs(86.20): cycle-3 artifact -- 14-cell matrix, refreshed counts, section 12 |
 | 2026-08-09 | `7145f566` | fix(86.20): cycle-3 -- make the oracle's exception arm reachable, and stop claiming it was |
 | 2026-08-09 | `688ac349` | fix(86.20): cycle-2 -- the dark flag was not dark; close the leak and add the oracle |
 | 2026-08-09 | `ad9a7d02` | phase-86.20: canonicalise the recommendation vocabulary at the trade gate (DARK) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `d929e698` | docs: evening day report 2026-08-09b -- engine completes, trades nothing |
 | 2026-08-09 | `a4068de1` | fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier recall honestly |
 | 2026-08-09 | `8d736735` | docs(86.19): file the duplicate step ids -- id lookups resolve to the wrong node |
-| 2026-08-09 | `63bd6940` | docs(86.18): file the whole-file masterplan rewrite as its own step |
 
 ---
 
