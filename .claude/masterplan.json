@@ -24178,7 +24178,7 @@
         },
         {
           "id": "86.17",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "harness_required": true,
           "retry_count": 0,
@@ -24307,6 +24307,27 @@
               "MUTATION-TEST every new guard, including reverting the normalisation at each fixed site individually, and confirm each mutant is killed by the assertion that names it -- a guard whose mutant survives does not count"
             ],
             "live_check": "live_check_86.22.md with: verbatim reproduce-then-fix output for BOTH directions (a title-case consumer missing 'BUY' and an UPPER_SNAKE consumer missing 'Strong Buy'); the derived call-site population with the outcome_tracker:57 and bias_detector:119 false-negative check shown; the re-derived per-value matched/missed table per consumer; and the before/after directionally_correct delta."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "86.23",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "[P3 -- TWO VACUITY-SHAPED GAPS IN THE phase-86.17 ARGS-BOUNDARY CHECKER, both raised as NON-BLOCKING notes by the 86.17 cycle-2 Q/A (wf_4dc64bbb-039) and deliberately NOT fixed in the graded tree] Filed per the standing rule that a gap noticed after EVALUATE belongs to the NEXT cycle rather than to the tree being graded. NEITHER IS A LIVE DEFECT TODAY; both are about whether the guard could still fail tomorrow. RE-DERIVE BEFORE FIXING. (A) ASYMMETRIC CONTROL. scripts/qa/verify_workflow_args_boundary.mjs section [5] proves a blind run spawns ZERO agents for BOTH .claude/workflows/qa-verdict.js and .claude/workflows/research-gate.js, but its positive CONTROL cell (the one labelled `[5] CONTROL: a usable launch DOES spawn`) reads SCRIPTS[qa-verdict.js] ONLY. So research-gate zero-spawn assertion has no control-side proof, INSIDE THE CHECKER, that the harness can distinguish spawn from no-spawn for that script -- and a zero-spawn assertion passes trivially against a harness that can never observe a spawn at all. The cycle-2 Q/A closed the gap by its own measurement (a usable research-gate launch spawns 2: research-gate:<id> plus brief-verify:<id>) and its M4 mutant supplies the discrimination independently, but neither of those lives in the re-runnable checker. ALSO CORRECT THE ARTIFACT: handoff/current/experiment_results_86.17.md section 9a says the section carries a CONTROL (a usable launch must still spawn 1) without disclosing that it covers one of the two scripts, and the count differs per script (1 for qa-verdict, 2 for research-gate). (B) OR-ESCAPE-HATCH (qa.md section 4c vacuity shape #8). The section-[5] kill cells assert spawns.length > 0 OR threw !== null. MEASURED, and state it this way rather than overstating: both mutants kill on the STRONG left disjunct today (qa-verdict spawns 1, research-gate spawns 2, threw === null in both), so the cell is NOT vacuous as it stands. The hazard is future -- a mutant that merely THROWS would be scored a kill without ever demonstrating a spawn, which is not what the cell claims to prove. NON-SCOPE: do not change the args classification, the throw messages, or either workflow script behaviour. This step is confined to the checker and one artifact paragraph.",
+          "verification": {
+            "command": "bash -c 'node scripts/qa/verify_research_gate_workflow.mjs && node scripts/qa/verify_workflow_args_boundary.mjs'",
+            "success_criteria": [
+              "A research-gate CONTROL cell exists in section [5] and asserts the MEASURED usable-launch spawn count for that script -- re-derive the number rather than copying qa-verdict figure of 1",
+              "The gap is REPRODUCED FIRST: show that BEFORE the fix, neutering the section-[5] spawn-observation mechanism for research-gate leaves its zero-spawn cell GREEN, and that AFTER the fix the same neutering turns it RED",
+              "The kill cells no longer accept a bare throw as a kill: assert spawns > 0, and report any throw as its own separately named outcome. Prove the change matters by constructing a mutant that ONLY throws and showing it is no longer scored as a kill",
+              "No behaviour change to either workflow script -- assert the diff touches only scripts/qa/verify_workflow_args_boundary.mjs and handoff artifacts, and that both .claude/workflows/*.js are byte-identical to their pre-step blobs",
+              "experiment_results_86.17.md section 9a is corrected so the CONTROL claim states which scripts it covers and the per-script spawn counts; a claim that outruns the test is the defect class this step exists to close",
+              "No regression: the pre-existing verify_research_gate_workflow.mjs is still 40 passed / 0 failed (delta 0), and the new checker total is stated as a measured DELTA against 87, not as a bare all-green"
+            ],
+            "live_check": "live_check_86.23.md carrying: the verbatim before/after for the neutered-spawn-observation reproduction on research-gate; the verbatim output of the only-throws mutant showing it is NOT scored as a kill; and the verbatim totals for both checkers proving delta 0 on the pre-existing one."
           },
           "retry_count": 0,
           "max_retries": 3
