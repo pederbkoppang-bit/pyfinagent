@@ -61,21 +61,47 @@ $ git show "7145f566:handoff/current/evaluator_critique_86.20.md" | grep -c '^##
 masterplan status at both commits: **pending**. So: two recorded verdicts, step
 still open, and the counter the rule prescribes returns **zero**.
 
-## 3. The four statuses, exercised
+## 3. The statuses, exercised (SIX after cycle 2, not four)
 
 ```
 SELF-TEST -- the counter must distinguish absence from corruption
 
    (i)   36.17 real history -> consecutive=2 (expect 2), armed=True
+   (i-b) one CONDITIONAL -> consecutive=1 (expect 1), armed=False (expect False)
+   (i-c) zero CONDITIONALs -> consecutive=0 (expect 0), armed=False (expect False)
    (ii)  reset on PASS_WITH_FINDINGS -> consecutive=1 (expect 1)
    (iii) corrupt ledger -> status=unparseable, consecutive=None (expect None, NOT 0)
+   (iii-b) blank verdict field -> status=unparseable (expect unparseable, NOT a silent skip)
+   (iii-c) ZERO-BYTE ledger -> status=ledger_empty, consecutive=None (expect ledger_empty, None)
+   (iii-d) exact step match -> 86.2 sees ['PASS'] (expect ['PASS'], NOT 86.20/86.21's rows)
+   (iii-e) lowercase verdicts -> consecutive=2 (expect 2, i.e. normalised)
    (iv)  missing ledger -> status=ledger_missing (expect ledger_missing)
    (v)   unknown step -> status=no_rows_for_step, consecutive=0 (expect no_rows_for_step, 0)
 
 SELF-TEST PASSED
 ```
 
-## 4. Scope of this evidence
+## 4. The empty-ledger path, through the real entry point (cycle 2)
+
+Criterion 6 names "corrupt **or empty**". Cycle 1 tested only corrupt, and an
+empty ledger silently reported zero. Now:
+
+```
+status          : ledger_empty
+detail          : verdict_ledger.jsonl exists but is EMPTY (0 bytes) -- that is a
+                  truncation signal, NOT evidence that this step has no verdicts.
+                  The count is NOT KNOWABLE.
+verdicts        : (none)
+
+NOTE: the ledger file exists but is EMPTY. Treat this as a
+TRUNCATED source, not as an ungraded step -- the two are
+indistinguishable from here, so the rule is treated as ARMED.
+```
+
+Measured by truncating the real ledger, running the real CLI, and restoring it
+(11 rows before and after).
+
+## 5. Scope of this evidence
 
 The ledger was seeded BY HAND with tonight's 11 real verdicts (36.17 x6,
 86.20 x3, 86.17 x2), each carrying its real `run_id`. **No automatic writer

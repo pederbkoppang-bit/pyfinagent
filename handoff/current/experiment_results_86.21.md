@@ -135,8 +135,14 @@ exact fail-open shape this step exists to remove (RFC 9413 §5.1).
 SELF-TEST -- the counter must distinguish absence from corruption
 
    (i)   36.17 real history -> consecutive=2 (expect 2), armed=True
+   (i-b) one CONDITIONAL -> consecutive=1 (expect 1), armed=False (expect False)
+   (i-c) zero CONDITIONALs -> consecutive=0 (expect 0), armed=False (expect False)
    (ii)  reset on PASS_WITH_FINDINGS -> consecutive=1 (expect 1)
    (iii) corrupt ledger -> status=unparseable, consecutive=None (expect None, NOT 0)
+   (iii-b) blank verdict field -> status=unparseable (expect unparseable, NOT a silent skip)
+   (iii-c) ZERO-BYTE ledger -> status=ledger_empty, consecutive=None (expect ledger_empty, None)
+   (iii-d) exact step match -> 86.2 sees ['PASS'] (expect ['PASS'], NOT 86.20/86.21's rows)
+   (iii-e) lowercase verdicts -> consecutive=2 (expect 2, i.e. normalised)
    (iv)  missing ledger -> status=ledger_missing (expect ledger_missing)
    (v)   unknown step -> status=no_rows_for_step, consecutive=0 (expect no_rows_for_step, 0)
 
@@ -153,18 +159,26 @@ not a guard.
 ```
 phase-86.21 criterion 6 -- mutation matrix (in-memory; repo never written)
 target : verdict_history_86_21.py
-md5    : 96f91ffb50a0a5a3fb68ab6df69c105a
+md5    : 765c871137741b10d7e41d3459305993
 
 [control] un-mutated self-test rc=0 (0 = PASSED)
-  KILLED  | M1: unparseable reports 0 instead of None (the silent zero returns)
+  KILLED  | M1: unparseable/empty report 0 instead of None (the silent zero returns)
             self-test rc=1
   KILLED  | M2: reset becomes == 'PASS' (misses PASS_WITH_FINDINGS / PASS_AFTER_RETRY)
             self-test rc=1
   KILLED  | M3: corrupt rows are ignored instead of counted (fail-open restored)
             self-test rc=1
+  KILLED  | M4: arming threshold drops to one CONDITIONAL (one-sided guard, Q/A's Q1)
+            self-test rc=1
+  KILLED  | M5: a present-but-EMPTY ledger reports a silent zero again (Q/A's finding 1)
+            self-test rc=1
+  KILLED  | M6: step matching becomes a PREFIX match (86.2 would swallow 86.20/86.21)
+            self-test rc=1
+  KILLED  | M7: verdict tokens stop being case-normalised (Q/A's Q3)
+            self-test rc=1
 
 [integrity] target md5 unchanged: True
-ALL 3 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
+ALL 7 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
 ```
 
 M2 is the one worth reading twice: rewriting the reset as `== 'PASS'` looks
@@ -200,3 +214,62 @@ passed** (it caught an unused `sys` import first, which is fixed).
 - **The ledger's history before tonight is absent.** Steps closed before
   2026-08-09 have no rows, so the counter reports `no_rows_for_step` for them --
   correctly, but that is not the same as knowing their real history.
+
+---
+
+## 9. Cycle 2 -- the Q/A found a silent zero I had left in, and a one-sided guard
+
+**Cycle-1 verdict: CONDITIONAL (`wf_cb85c901-472`)**, verbatim in
+`evaluator_critique_86.21.md`. Criteria 1-5 were MET and every one of them
+re-derived independently -- including rebuilding the git reproduction,
+reproducing the zsh `:h` trap under zsh 5.9 to confirm my disclosure, verifying
+36.17's six-verdict history from `harness_log.md` (a source I did not supply),
+and re-measuring every number in the artifact. All reproduced exactly.
+
+It also **ruled for me on the six-vs-five question**, saying it would have
+flagged the opposite choice -- trimming the closing PASS row to match the
+criterion's wording would have been a fabricated measurement.
+
+**Three findings, and the first is a genuine behavioural gap in a step whose
+entire subject is "do not report a silent zero":**
+
+1. **A present-but-ZERO-BYTE ledger reported `consecutive=0` at exit 0**, with
+   the detail "it has genuinely not been graded yet" -- a confident and FALSE
+   claim. Criterion 6 names "corrupt **or empty**" by word, and I had tested
+   only corrupt. **This is the defect of the step, committed inside the fix for
+   the defect of the step.**
+2. **The arming threshold was one-sided.** `c >= 2` -> `c >= 1` SURVIVED: I
+   asserted `would_auto_fail` is True at c=2 and never that it is False at c=1
+   or c=0. The Q/A noted that its Q1 and Q2 mutate the SAME line in opposite
+   directions and only one died -- which is the signature of a one-sided guard,
+   and a better diagnostic than the finding itself.
+3. **A blank/non-string `verdict` field was silently skipped** rather than
+   counted malformed -- the field-level analogue of the line-level case I HAD
+   guarded.
+
+### What changed in cycle 2
+
+- **New `ledger_empty` status.** A present-but-empty ledger now returns `None`,
+  prints a truncation caution, and exits non-zero. It fails CLOSED, because a
+  truncated ledger and an ungraded step are indistinguishable from the inside.
+- **Threshold pinned from BELOW**: new self-test cases assert
+  `would_auto_fail is False` at consecutive 1 and 0.
+- **Blank verdict fields counted as malformed**, with a case that proves it.
+- **Two more cases** the Q/A's other surviving mutants earned: exact step
+  matching (86.2 must not swallow 86.20/86.21 -- these ids genuinely collide
+  under a prefix rule) and case-normalisation of verdict tokens.
+- **The matrix grew from 3 cells to 7**, and the four new ones are exactly the
+  mutants the Q/A wrote that survived my cycle-1 matrix. They cannot survive
+  again.
+
+Adding the `ledger_empty` branch also broke M1's anchor. The harness reported
+`anchor matched 0 time(s)` and refused to run the cell, rather than silently
+mutating nothing -- the no-match-replace defence doing its job for the second
+time tonight.
+
+### The honest summary
+
+My cycle-1 matrix mutated the three shapes I was already thinking about. The
+Q/A's mutants were the ones I wasn't, and half of them lived. The step is about
+a counter that must never report a silent zero, and I shipped one -- on the
+exact input word the criterion names.

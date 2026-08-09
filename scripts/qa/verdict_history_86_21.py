@@ -68,6 +68,7 @@ CONDITIONAL = "CONDITIONAL"
 #: "the source is there but I could not read it" must never collapse into 0.
 OK = "ok"
 LEDGER_MISSING = "ledger_missing"
+LEDGER_EMPTY = "ledger_empty"
 NO_ROWS_FOR_STEP = "no_rows_for_step"
 UNPARSEABLE = "unparseable"
 
@@ -88,7 +89,7 @@ class VerdictHistory:
         as 0 has reintroduced the defect; the CLI below refuses to print a bare
         number in that case.
         """
-        if self.status == UNPARSEABLE:
+        if self.status in (UNPARSEABLE, LEDGER_EMPTY):
             return None
         n = 0
         for v in reversed(self.verdicts):
@@ -112,6 +113,20 @@ def read_ledger(step_id: str, path: Path = LEDGER) -> VerdictHistory:
             LEDGER_MISSING, [],
             f"{path} does not exist -- no cycle has been recorded yet by any step")
 
+    # CYCLE-2 FIX. A present-but-ZERO-BYTE ledger used to fall through to
+    # NO_ROWS_FOR_STEP, returning 0 at exit 0 with the detail "it has genuinely
+    # not been graded yet" -- a confident and FALSE claim, and a silent zero on
+    # one of the two failure modes criterion 6 names BY WORD ("corrupt or
+    # empty"). A file that exists but holds nothing is a TRUNCATION signal, not
+    # evidence of an ungraded step, and the two are not distinguishable from the
+    # inside. Fails CLOSED.
+    if path.stat().st_size == 0:
+        return VerdictHistory(
+            LEDGER_EMPTY, [],
+            f"{path.name} exists but is EMPTY (0 bytes) -- that is a truncation "
+            "signal, NOT evidence that this step has no verdicts. The count is "
+            "NOT KNOWABLE.")
+
     verdicts: list[str] = []
     bad = 0
     seen_step = False
@@ -132,6 +147,9 @@ def read_ledger(step_id: str, path: Path = LEDGER) -> VerdictHistory:
         seen_step = True
         v = row.get("verdict")
         if not isinstance(v, str) or not v.strip():
+            # CYCLE-2: counted as malformed, never silently skipped. This is the
+            # malformed-FIELD analogue of the malformed-LINE case above; the Q/A
+            # found the field path unguarded while the line path was guarded.
             bad += 1
             continue
         verdicts.append(v.strip().upper())
@@ -165,6 +183,10 @@ def _report(step_id: str, h: VerdictHistory) -> int:
     print(f"status          : {h.status}")
     print(f"detail          : {h.detail}")
     print(f"verdicts        : {' -> '.join(h.verdicts) if h.verdicts else '(none)'}")
+    if h.status == LEDGER_EMPTY:
+        print("\nNOTE: the ledger file exists but is EMPTY. Treat this as a")
+        print("TRUNCATED source, not as an ungraded step -- the two are")
+        print("indistinguishable from here, so the rule is treated as ARMED.")
     if h.status == LEDGER_MISSING:
         print("\nNOTE: the ledger does not exist at all. That is the BOOTSTRAP state,")
         print("not evidence that this step has no prior verdicts. Until a ledger")
@@ -195,7 +217,7 @@ def _report(step_id: str, h: VerdictHistory) -> int:
             print("  CLAUDE.md specifies consecutive-with-reset; qa.md specifies the")
             print("  cumulative grep while calling it consecutive. Until those two are")
             print("  reconciled the escalation is ambiguous regardless of the source.")
-    return 0 if h.status in (OK, NO_ROWS_FOR_STEP) else 1
+    return 0 if h.status in (OK, NO_ROWS_FOR_STEP) else 1  # empty/missing/corrupt -> 1
 
 
 def self_test() -> int:
@@ -223,6 +245,24 @@ def self_test() -> int:
               f"armed={h.would_auto_fail}")
         ok &= (h.status == OK and got == 2 and h.would_auto_fail is True)
 
+        # (i-b) THE THRESHOLD MUST BE PINNED FROM BELOW TOO. Cycle 1 asserted
+        # only that would_auto_fail is True at c=2; a mutant changing `c >= 2`
+        # to `c >= 1` therefore SURVIVED, arming the auto-FAIL after a SINGLE
+        # CONDITIONAL. A one-sided threshold is not a guard.
+        p1b = tmp / "l1b.jsonl"
+        p1b.write_text(rows(("T", "PASS"), ("T", "CONDITIONAL")))
+        h1b = read_ledger("T", p1b)
+        print(f"   (i-b) one CONDITIONAL -> consecutive={h1b.consecutive_conditionals} "
+              f"(expect 1), armed={h1b.would_auto_fail} (expect False)")
+        ok &= (h1b.consecutive_conditionals == 1 and h1b.would_auto_fail is False)
+
+        p1c = tmp / "l1c.jsonl"
+        p1c.write_text(rows(("U", "PASS")))
+        h1c = read_ledger("U", p1c)
+        print(f"   (i-c) zero CONDITIONALs -> consecutive={h1c.consecutive_conditionals} "
+              f"(expect 0), armed={h1c.would_auto_fail} (expect False)")
+        ok &= (h1c.consecutive_conditionals == 0 and h1c.would_auto_fail is False)
+
         # (ii) the reset must fire on a NON-'PASS' pass token.
         p2 = tmp / "l2.jsonl"
         p2.write_text(rows(("X", "CONDITIONAL"), ("X", "CONDITIONAL"),
@@ -239,6 +279,42 @@ def self_test() -> int:
         print(f"   (iii) corrupt ledger -> status={h3.status}, "
               f"consecutive={h3.consecutive_conditionals} (expect None, NOT 0)")
         ok &= (h3.status == UNPARSEABLE and h3.consecutive_conditionals is None)
+
+        # (iii-b) a BLANK verdict FIELD is malformed, not skippable.
+        p3b = tmp / "l3b.jsonl"
+        p3b.write_text('{"step_id": "W", "verdict": "CONDITIONAL"}\n'
+                       '{"step_id": "W", "verdict": ""}\n')
+        h3b = read_ledger("W", p3b)
+        print(f"   (iii-b) blank verdict field -> status={h3b.status} "
+              f"(expect unparseable, NOT a silent skip)")
+        ok &= (h3b.status == UNPARSEABLE)
+
+        # (iii-c) an EMPTY ledger is not an ungraded step. Criterion 6 names it.
+        p3c = tmp / "l3c.jsonl"
+        p3c.write_text("")
+        h3c = read_ledger("V", p3c)
+        print(f"   (iii-c) ZERO-BYTE ledger -> status={h3c.status}, "
+              f"consecutive={h3c.consecutive_conditionals} (expect ledger_empty, None)")
+        ok &= (h3c.status == LEDGER_EMPTY and h3c.consecutive_conditionals is None)
+
+        # (iii-d) STEP MATCHING IS EXACT. Real ids collide under a prefix rule:
+        # 86.2 vs 86.20/86.21, and 36.1 vs 36.17. The shipped code is correct,
+        # but nothing asserted it, so a prefix mutant survived the cycle-1 matrix.
+        p3d = tmp / "l3d.jsonl"
+        p3d.write_text(rows(("86.2", "PASS"), ("86.20", "CONDITIONAL"),
+                            ("86.21", "CONDITIONAL")))
+        h3d = read_ledger("86.2", p3d)
+        print(f"   (iii-d) exact step match -> 86.2 sees {h3d.verdicts} "
+              f"(expect ['PASS'], NOT 86.20/86.21's rows)")
+        ok &= (h3d.verdicts == ["PASS"])
+
+        # (iii-e) verdict tokens are CASE-NORMALISED before comparison.
+        p3e = tmp / "l3e.jsonl"
+        p3e.write_text(rows(("S", "conditional"), ("S", "Conditional")))
+        h3e = read_ledger("S", p3e)
+        print(f"   (iii-e) lowercase verdicts -> consecutive="
+              f"{h3e.consecutive_conditionals} (expect 2, i.e. normalised)")
+        ok &= (h3e.consecutive_conditionals == 2)
 
         # (iv) a MISSING ledger is distinct from an unparseable one.
         h4 = read_ledger("Z", tmp / "does_not_exist.jsonl")

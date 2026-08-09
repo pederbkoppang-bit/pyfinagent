@@ -25,8 +25,8 @@ import tempfile
 TARGET = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "qa" / "verdict_history_86_21.py"
 
 MUTANTS = [
-    ("M1", "unparseable reports 0 instead of None (the silent zero returns)",
-     "        if self.status == UNPARSEABLE:\n            return None",
+    ("M1", "unparseable/empty report 0 instead of None (the silent zero returns)",
+     "        if self.status in (UNPARSEABLE, LEDGER_EMPTY):\n            return None",
      "        if False:\n            return None"),
     ("M2", "reset becomes == 'PASS' (misses PASS_WITH_FINDINGS / PASS_AFTER_RETRY)",
      "            if v == CONDITIONAL:\n                n += 1\n            else:\n                break",
@@ -34,6 +34,20 @@ MUTANTS = [
     ("M3", "corrupt rows are ignored instead of counted (fail-open restored)",
      "        except json.JSONDecodeError:\n            bad += 1",
      "        except json.JSONDecodeError:\n            bad += 0"),
+    # ---- cells added in cycle 2, each one a mutant the Q/A built that SURVIVED
+    # ---- the cycle-1 matrix. They are here so they cannot survive again.
+    ("M4", "arming threshold drops to one CONDITIONAL (one-sided guard, Q/A's Q1)",
+     "        return c >= 2                     # a THIRD would be the auto-FAIL",
+     "        return c >= 1                     # MUTANT M4"),
+    ("M5", "a present-but-EMPTY ledger reports a silent zero again (Q/A's finding 1)",
+     "    if path.stat().st_size == 0:",
+     "    if False:"),
+    ("M6", "step matching becomes a PREFIX match (86.2 would swallow 86.20/86.21)",
+     '        if str(row.get("step_id", "")) != step_id:',
+     '        if not str(row.get("step_id", "")).startswith(step_id):'),
+    ("M7", "verdict tokens stop being case-normalised (Q/A's Q3)",
+     '        verdicts.append(v.strip().upper())',
+     '        verdicts.append(v.strip())'),
 ]
 
 
