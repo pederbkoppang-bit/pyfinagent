@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `afba23a2` | docs(76.4): bump P2 -> P1 and fold in the empty-report-body case |
 | 2026-08-09 | `524b9402` | fix(hooks): Stop gate read a masterplan path that never existed |
 | 2026-08-09 | `6baddb98` | docs: file 86.12 -- is the kill switch evaluating drawdown against a STALE nav? |
 | 2026-08-09 | `6381b000` | feat(qa): make Playwright verification survive future sessions, and kill the dangerous path that rep |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `5d83f366` | phase-86.2: P1 TOTAL DISARM: one oversized JSON int aborts the entire kill-switch audit replay an... |
 | 2026-08-09 | `ddfea563` | docs(86.2): harness_log cycle 189 -- PASS |
 | 2026-08-09 | `025102e0` | phase-86.2 cycle-2: my criterion-3 guard was vacuous; the Q/A proved it |
-| 2026-08-09 | `d762fe2a` | phase-86.2: live_check + experiment_results |
 
 ---
 
