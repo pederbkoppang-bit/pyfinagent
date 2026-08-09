@@ -124,7 +124,22 @@ def _coerce_nav(value: Any) -> Optional[float]:
         return None
     try:
         nav = float(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, ArithmeticError):
+        # phase-86.2: `ArithmeticError` is NOT decoration. `(TypeError,
+        # ValueError)` is a folk tuple that cannot reach `OverflowError` --
+        # measured: OverflowError's MRO is (OverflowError, ArithmeticError,
+        # Exception, ...), a SIBLING branch, so
+        # `isinstance(OverflowError(), (TypeError, ValueError))` is False.
+        # `float(a JSON integer of 310..4300 decimal digits)` raises exactly
+        # that, escaped this handler, and was swallowed by the broad handler
+        # around the replay loop -- aborting it and stranding EVERY row after
+        # the bad one. Measured consequence: sod_nav/sod_date/peak_nav all None
+        # and `any_breached: False` on a 20% drawdown, the only known path to a
+        # TOTAL disarm. `ArithmeticError` also covers `decimal.InvalidOperation`
+        # (issubclass(DecimalException, ArithmeticError) is True), so this is
+        # the class rather than the one instance that bit us.
+        # The exposure is bounded ABOVE too: past 4300 digits `json.loads`
+        # itself raises ValueError and the per-line handler already caught it.
         return None
     # phase-36.7 hardening: `inf > 0` is True in Python, so a non-finite NAV
     # (inf/-inf/nan) previously passed as a "valid" baseline. json.dumps/loads
@@ -277,123 +292,164 @@ class KillSwitchState:
             # and there was nothing) or merely an UNSEEN one (a source was
             # unreadable). Only the first may claim authority to lower the peak.
             self._history_complete = complete
-            for row in rows:
-                event = row.get("event")
-                if event == "pause":
-                    self._paused = True
-                    self._pause_reason = row.get("trigger")
-                    # phase-38.1: capture the pause ts for hysteresis.
-                    self._paused_at = row.get("ts")
-                    self._auto_resume_alerted_at = None
-                elif event == "resume":
-                    self._paused = False
-                    self._pause_reason = None
-                    self._paused_at = None
-                    self._auto_resume_alerted_at = None
-                elif event == "auto_resume_alert":
-                    # phase-38.1: T+1h pager alert went out -- record so
-                    # we don't re-fire on the next cycle within the same
-                    # pause window.
-                    self._auto_resume_alerted_at = row.get("ts")
-                elif event == "sod_snapshot":
-                    self._sod_nav = _coerce_nav(row.get("nav"))
-                    # phase-23.2.19: prefer explicit `date` (rows written
-                    # post-fix); fall back to parsing `ts` for legacy
-                    # rows that pre-date the schema bump.
-                    sod_date = row.get("date")
-                    if not sod_date:
-                        ts = row.get("ts")
-                        if ts:
-                            try:
-                                sod_date = datetime.fromisoformat(
-                                    str(ts).replace("Z", "+00:00")
-                                ).astimezone(timezone.utc).date().isoformat()
-                            except Exception:
-                                sod_date = None
-                    self._sod_date = sod_date
-                    # phase-85.6: absent on every legacy row -> False -> the
-                    # upgrade path stays inert and behaviour is pre-85.6.
-                    self._sod_provisional = bool(row.get("provisional", False))
-                elif event == "peak_update":
-                    # phase-36.7: RATCHET, don't assign. `update_peak` (the
-                    # writer) enforces "never moves down", but this replay used
-                    # a bare assignment -- so the last row in stream order won
-                    # even when an EARLIER row held a higher mark. Measured
-                    # across the live archives: assignment yields 24124.77
-                    # (2026-06-22) while the true high-water mark is 24666.57
-                    # (2026-06-03) -- the restore itself destroyed 541.80 of
-                    # peak = 2.17pp of trailing-DD headroom. max() makes the
-                    # replay agree with the writer's own invariant.
-                    # phase-36.8: a MARKED anchor row is an authority boundary -- it
-                    # ASSIGNS, superseding everything before it in `ts` order, and
-                    # later rows ratchet up FROM it. Unmarked rows (every row written
-                    # before 36.8, all 20 of them) keep the pure ratchet above, so
-                    # 36.7's true-peak restore is byte-preserved. `is True` and not a
-                    # truthiness test: an older row carrying some other `anchor` value
-                    # must not accidentally acquire authority.
-                    # phase-36.8 (cycle-5 REDESIGN): authority requires the row to
-                    # NAME WHAT IT SUPERSEDED -- `prior_peak` must coerce to a positive
-                    # finite NAV.
-                    #
-                    # STATED PRECISELY, because an earlier wording overclaimed: this
-                    # validates COERCIBILITY, not TRUTH. The replay cannot verify that
-                    # the named prior was ever observed, and a hand-forged row carrying
-                    # any positive finite token (even `true`, which floats to 1.0) would
-                    # be honoured. That is a SOUND boundary rather than a hole only
-                    # because no production writer emits the field at all -- verified
-                    # dynamically across every public writer -- and because the tripwire
-                    # test above goes red the moment one starts. Tightening it to
-                    # compare against the peak observed so far in the replay is the
-                    # obvious hardening if a writer is ever added.
-                    #
-                    # WHY THIS SHAPE. Five independent Q/A passes each found a new way
-                    # for a lost-history anchor to claim authority (no gate; gate on
-                    # the wrong signal; chmod-000 dir where glob returns empty without
-                    # raising; unparseable lines; present-but-silent sources incl. a
-                    # 0-byte file and an absent LIVE file). Every one of those closed a
-                    # remembered failure mode, and the sixth would too -- the flag was
-                    # NEGATIVELY derived, so it was only ever as good as the author's
-                    # imagination. This rule is POSITIVE: all five routes produce an
-                    # anchor over a peak of `None`, which by construction cannot name a
-                    # prior, so none of them can ever be authoritative. It also matches
-                    # the research: the authorized re-anchor is `peak_reset`
-                    # (token-gated), and no production path writes an intentional lower
-                    # anchor -- so this branch is deliberately production-dead today.
-                    if (row.get("anchor") is True
-                            and _coerce_nav(row.get("prior_peak")) is not None):
-                        self._apply_authoritative_peak(row.get("nav"), "peak_update:anchor")
-                    else:
-                        nav = _coerce_nav(row.get("nav"))
-                        if nav is not None and (self._peak_nav is None or nav > self._peak_nav):
-                            self._peak_nav = nav
-                elif event == "peak_reset":
-                    # phase-69.1 (audit item 2): audited peak reset (flatten /
-                    # operator-resume). Restart-replayable + idempotent -- the
-                    # reset value wins over prior peak_update rows in stream order.
-                    # phase-36.7: still an AUTHORITATIVE downward move (assignment,
-                    # not max) -- it must be able to lower the peak, and later
-                    # peak_update rows ratchet up from the reset value because the
-                    # rows are replayed in `ts` order.
-                    # phase-36.8: routed through the SAME guard as the new anchor
-                    # branch. Previously this assigned `_coerce_nav(...)` unguarded, so
-                    # one malformed row nulled the peak -- and a later ratchet then
-                    # healed it DOWNWARD to whatever came next, silently discarding the
-                    # true high-water mark while `armed` stayed true (measured).
-                    self._apply_authoritative_peak(row.get("new_peak"), "peak_reset")
-                    # phase-36.12: a deliberate, token-gated operator re-anchor
-                    # supersedes a lost-history anchor -- the operator has now
-                    # chosen the mark, so the baselines are no longer a fiction
-                    # nobody signed off on.
-                    self._baseline_provenance = None
-                elif event == "baseline_anchor_on_lost_history":
-                    # phase-36.12: DOES NOT set any baseline -- `peak_reset` stays
-                    # the only assignment-semantics event. It restores the
-                    # PROVENANCE flag so a restart cannot launder a lost-history
-                    # anchor into a clean-looking ACTIVE badge.
-                    self._baseline_provenance = "lost_history_anchor"
-        except Exception as e:
-            logger.warning(f"kill_switch: audit load failed: {e}")
+            for row_idx, row in enumerate(rows):
+                # phase-86.2: PER-ROW isolation. Before this, one bad row aborted
+                # the WHOLE apply loop via the broad handler below and every
+                # later row was silently lost -- "abort halfway, then return
+                # normally", a state no reviewed practice permits (PostgreSQL
+                # redo PANICs; Kafka Connect defaults errors.tolerance=none).
+                # This mirrors what the PARSE layer already does per line at
+                # `_read_audit_rows` -- including, and this half is the
+                # load-bearing one, setting `complete = False`. A skip WITHOUT
+                # that bookkeeping would let a lost-history anchor claim
+                # authority again, reopening the hole phase-36.8 closed.
+                try:
+                    self._apply_audit_row(row)
+                except Exception as e:
+                    self._history_complete = False
+                    logger.error(
+                        "kill_switch: SKIPPED an unapplicable audit row and marked "
+                        "history INCOMPLETE -- row_idx=%s event=%r err=%s: %s. The "
+                        "replay CONTINUES; no leg may claim authority on a baseline "
+                        "it did not load.",
+                        row_idx, row.get("event"), type(e).__name__, e,
+                    )
 
+        except Exception as e:
+            # phase-86.2: raised WARNING -> ERROR. This handler reports a replay
+            # that did not complete, i.e. a potentially TOTAL disarm; the
+            # single-value handler in `_apply_authoritative_peak` already logs a
+            # strictly lesser fault at ERROR. The severities were inverted.
+            # It is now a LAST-RESORT net: per-row faults are handled above, so
+            # reaching here means the failure was outside any single row.
+            self._history_complete = False
+            logger.error(
+                "kill_switch: audit load FAILED OUTSIDE any single row -- history "
+                "marked INCOMPLETE, baselines may be partial: %s: %s",
+                type(e).__name__, e,
+            )
+
+
+    def _apply_audit_row(self, row: dict) -> None:
+        """Apply ONE replayed audit row.
+
+        phase-86.2: extracted so a fault in one row cannot span the others. The
+        body is byte-for-byte the previous inline loop body, only dedented --
+        no branch was added, removed or reordered.
+        """
+        event = row.get("event")
+        if event == "pause":
+            self._paused = True
+            self._pause_reason = row.get("trigger")
+            # phase-38.1: capture the pause ts for hysteresis.
+            self._paused_at = row.get("ts")
+            self._auto_resume_alerted_at = None
+        elif event == "resume":
+            self._paused = False
+            self._pause_reason = None
+            self._paused_at = None
+            self._auto_resume_alerted_at = None
+        elif event == "auto_resume_alert":
+            # phase-38.1: T+1h pager alert went out -- record so
+            # we don't re-fire on the next cycle within the same
+            # pause window.
+            self._auto_resume_alerted_at = row.get("ts")
+        elif event == "sod_snapshot":
+            self._sod_nav = _coerce_nav(row.get("nav"))
+            # phase-23.2.19: prefer explicit `date` (rows written
+            # post-fix); fall back to parsing `ts` for legacy
+            # rows that pre-date the schema bump.
+            sod_date = row.get("date")
+            if not sod_date:
+                ts = row.get("ts")
+                if ts:
+                    try:
+                        sod_date = datetime.fromisoformat(
+                            str(ts).replace("Z", "+00:00")
+                        ).astimezone(timezone.utc).date().isoformat()
+                    except Exception:
+                        sod_date = None
+            self._sod_date = sod_date
+            # phase-85.6: absent on every legacy row -> False -> the
+            # upgrade path stays inert and behaviour is pre-85.6.
+            self._sod_provisional = bool(row.get("provisional", False))
+        elif event == "peak_update":
+            # phase-36.7: RATCHET, don't assign. `update_peak` (the
+            # writer) enforces "never moves down", but this replay used
+            # a bare assignment -- so the last row in stream order won
+            # even when an EARLIER row held a higher mark. Measured
+            # across the live archives: assignment yields 24124.77
+            # (2026-06-22) while the true high-water mark is 24666.57
+            # (2026-06-03) -- the restore itself destroyed 541.80 of
+            # peak = 2.17pp of trailing-DD headroom. max() makes the
+            # replay agree with the writer's own invariant.
+            # phase-36.8: a MARKED anchor row is an authority boundary -- it
+            # ASSIGNS, superseding everything before it in `ts` order, and
+            # later rows ratchet up FROM it. Unmarked rows (every row written
+            # before 36.8, all 20 of them) keep the pure ratchet above, so
+            # 36.7's true-peak restore is byte-preserved. `is True` and not a
+            # truthiness test: an older row carrying some other `anchor` value
+            # must not accidentally acquire authority.
+            # phase-36.8 (cycle-5 REDESIGN): authority requires the row to
+            # NAME WHAT IT SUPERSEDED -- `prior_peak` must coerce to a positive
+            # finite NAV.
+            #
+            # STATED PRECISELY, because an earlier wording overclaimed: this
+            # validates COERCIBILITY, not TRUTH. The replay cannot verify that
+            # the named prior was ever observed, and a hand-forged row carrying
+            # any positive finite token (even `true`, which floats to 1.0) would
+            # be honoured. That is a SOUND boundary rather than a hole only
+            # because no production writer emits the field at all -- verified
+            # dynamically across every public writer -- and because the tripwire
+            # test above goes red the moment one starts. Tightening it to
+            # compare against the peak observed so far in the replay is the
+            # obvious hardening if a writer is ever added.
+            #
+            # WHY THIS SHAPE. Five independent Q/A passes each found a new way
+            # for a lost-history anchor to claim authority (no gate; gate on
+            # the wrong signal; chmod-000 dir where glob returns empty without
+            # raising; unparseable lines; present-but-silent sources incl. a
+            # 0-byte file and an absent LIVE file). Every one of those closed a
+            # remembered failure mode, and the sixth would too -- the flag was
+            # NEGATIVELY derived, so it was only ever as good as the author's
+            # imagination. This rule is POSITIVE: all five routes produce an
+            # anchor over a peak of `None`, which by construction cannot name a
+            # prior, so none of them can ever be authoritative. It also matches
+            # the research: the authorized re-anchor is `peak_reset`
+            # (token-gated), and no production path writes an intentional lower
+            # anchor -- so this branch is deliberately production-dead today.
+            if (row.get("anchor") is True
+                    and _coerce_nav(row.get("prior_peak")) is not None):
+                self._apply_authoritative_peak(row.get("nav"), "peak_update:anchor")
+            else:
+                nav = _coerce_nav(row.get("nav"))
+                if nav is not None and (self._peak_nav is None or nav > self._peak_nav):
+                    self._peak_nav = nav
+        elif event == "peak_reset":
+            # phase-69.1 (audit item 2): audited peak reset (flatten /
+            # operator-resume). Restart-replayable + idempotent -- the
+            # reset value wins over prior peak_update rows in stream order.
+            # phase-36.7: still an AUTHORITATIVE downward move (assignment,
+            # not max) -- it must be able to lower the peak, and later
+            # peak_update rows ratchet up from the reset value because the
+            # rows are replayed in `ts` order.
+            # phase-36.8: routed through the SAME guard as the new anchor
+            # branch. Previously this assigned `_coerce_nav(...)` unguarded, so
+            # one malformed row nulled the peak -- and a later ratchet then
+            # healed it DOWNWARD to whatever came next, silently discarding the
+            # true high-water mark while `armed` stayed true (measured).
+            self._apply_authoritative_peak(row.get("new_peak"), "peak_reset")
+            # phase-36.12: a deliberate, token-gated operator re-anchor
+            # supersedes a lost-history anchor -- the operator has now
+            # chosen the mark, so the baselines are no longer a fiction
+            # nobody signed off on.
+            self._baseline_provenance = None
+        elif event == "baseline_anchor_on_lost_history":
+            # phase-36.12: DOES NOT set any baseline -- `peak_reset` stays
+            # the only assignment-semantics event. It restores the
+            # PROVENANCE flag so a restart cannot launder a lost-history
+            # anchor into a clean-looking ACTIVE badge.
+            self._baseline_provenance = "lost_history_anchor"
     def _apply_authoritative_peak(self, raw: Any, source: str) -> None:
         """phase-36.8: the guarded path for every assignment-semantics branch in the
         REPLAY -- NOT for every assignment to `_peak_nav`.
