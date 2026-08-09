@@ -96,7 +96,7 @@ BLOCK_RE = re.compile(r"```\n\$ ([^\n]+)\n(.*?)```", re.S)
 #      that manufactures false regressions is worse than one with a known gap.
 # pytest blocks are therefore REPORTED as not-re-executed, so the gap is VISIBLE
 # to a reader instead of silent -- which was the cycle-4 Q/A's actual complaint.
-RUNNABLE = ("grep ", "git diff --stat", "md5 -q")
+RUNNABLE = ("grep ", "git diff --stat", "git log ", "md5 -q")
 
 # NEVER re-execute a command that invokes THIS script. The artifacts legitimately
 # quote `$ python scripts/qa/verify_36_17_anchors.py`, and re-running it from

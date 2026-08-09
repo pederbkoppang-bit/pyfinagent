@@ -95,6 +95,60 @@ def captured_alerts(monkeypatch):
     return calls
 
 
+@pytest.fixture(autouse=True)
+def _cycle_lock_is_redirected(tmp_path, monkeypatch):
+    """Point the cycle lock at tmp_path -- these tests take the REAL one otherwise.
+
+    MEASURED, not suspected (cycle 6): these tests drive the REAL
+    `run_daily_cycle`, which acquires the REAL file lock at
+    `handoff/.autonomous_loop.lock` (`autonomous_loop.py` imports
+    `cycle_lock.acquire` and calls it before any cycle work). Running ONLY this
+    module rewrote that live file twice in a row, leaving `"pid": <the pytest
+    process>` and a synthetic `cycle_id` behind after the run.
+
+    Two consequences, both real and neither hypothetical:
+      1. It pollutes the operator's live-state forensics. A dead pid with a
+         ~2s lifetime in that file is what made an earlier session misread
+         "is a cycle running?".
+      2. While a test holds the lock, a scheduled cycle that tries to START
+         raises `CycleLockError` and is skipped. It CANNOT go the other way --
+         phase-85.5 removed the stale-reacquire branch, so a test can never
+         steal a live cycle's lock -- but a test can still cost a cycle.
+
+    The redirect is the established pattern in this repo
+    (`test_phase_85_4_cycle_loudness.py`, `test_phase_85_5_cycle_lock_split_brain.py`);
+    this module simply had not adopted it. `_LOCK_PATH` is read as a module
+    global at every call site in `cycle_lock.py`, so setattr is sufficient.
+
+    SCOPE: this closes the leak for THIS module only. Whether other modules
+    take the live lock is phase-86.6's sweep, and is NOT claimed here.
+    """
+    import backend.services.cycle_lock as cycle_lock
+
+    monkeypatch.setattr(cycle_lock, "_LOCK_PATH", tmp_path / ".autonomous_loop.lock")
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _live_cycle_lock_is_write_protected():
+    """Byte-compare the LIVE cycle lock, the same way the audit trail is guarded.
+
+    The redirect above is the fix; this is the guard that proves the fix is
+    still in force. Without it, deleting the redirect is a silent regression --
+    the tests stay green and the live file quietly moves again. Proven able to
+    fail: with the redirect removed this assertion fires (recorded verbatim in
+    `handoff/current/experiment_results_36.17.md`).
+    """
+    live = REPO_ROOT / "handoff" / ".autonomous_loop.lock"
+    before = live.read_bytes() if live.exists() else None
+    yield
+    after = live.read_bytes() if live.exists() else None
+    assert after == before, (
+        f"phase-36.17: a test in this module wrote to the LIVE cycle lock {live}. "
+        "Redirect cycle_lock._LOCK_PATH to tmp_path."
+    )
+
+
 def _detached_state(ks):
     """A KillSwitchState with no boot replay and no baselines."""
     fresh = object.__new__(ks.KillSwitchState)
