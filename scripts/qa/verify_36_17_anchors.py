@@ -75,7 +75,46 @@ SYMBOL_HINTS = {
     "_get_live_price": "_get_live_price",
 }
 
-BLOCK_RE = re.compile(r"```\n\$ (grep [^\n]+)\n(.*?)```", re.S)
+# ANY `$ <cmd>` block, not just grep. Cycle-4 Q/A proved the grep-only filter
+# was a blind spot that EXACTLY coincided with the two evidence defects it
+# shipped: a stale `$ python -m pytest` capture, and a mutation-matrix block
+# with no `$` prompt at all. Both were invisible to a grep-only check.
+BLOCK_RE = re.compile(r"```\n\$ ([^\n]+)\n(.*?)```", re.S)
+
+# Commands safe to re-execute. Anything else is REPORTED as unverifiable rather
+# than silently skipped -- a skip is how the previous blind spot hid.
+# Only CHEAP, IDEMPOTENT, SIDE-EFFECT-FREE commands are re-executed.
+#
+# pytest is deliberately NOT in this list. Re-running the suite from inside the
+# verifier was tried and REVERTED for two measured reasons:
+#   1. It takes minutes, and
+#   2. it is UNSAFE CONCURRENTLY. The test module's autouse
+#      `_live_audit_file_is_write_protected` fixture byte-compares a live file;
+#      a second pytest running at the same time mutates that file and turns the
+#      first run RED. Measured: a foreground run reported "3 failed / 6 failed"
+#      purely because the verifier was running pytest in the background. A guard
+#      that manufactures false regressions is worse than one with a known gap.
+# pytest blocks are therefore REPORTED as not-re-executed, so the gap is VISIBLE
+# to a reader instead of silent -- which was the cycle-4 Q/A's actual complaint.
+RUNNABLE = ("grep ", "git diff --stat", "md5 -q")
+
+# NEVER re-execute a command that invokes THIS script. The artifacts legitimately
+# quote `$ python scripts/qa/verify_36_17_anchors.py`, and re-running it from
+# inside itself recurses forever -- measured the hard way, it had to be killed.
+# Reported as unverifiable rather than skipped silently.
+SELF_INVOCATION = "verify_36_17_anchors"
+
+# pytest prints a wall-clock duration that can never match on re-run, and
+# `-q` progress dots vary with ordering. Normalise both sides before comparing
+# so the check tests the COUNTS, which are the load-bearing part.
+DURATION_RE = re.compile(r" in \d+\.\d+s")
+
+
+def normalise(text: str) -> str:
+    out = DURATION_RE.sub(" in <t>", text)
+    out = "\n".join(l for l in out.splitlines()
+                    if l.strip() and not set(l.strip()) <= set(".sFEx%[]0123456789 "))
+    return out.strip()
 
 
 def sh(cmd: str, cwd: Path) -> str:
@@ -87,6 +126,7 @@ def sh(cmd: str, cwd: Path) -> str:
 def check_command_blocks(artifacts, cwd: Path) -> list[str]:
     """A. Re-run every `$ grep ...` block and require an EXACT match."""
     fails: list[str] = []
+    unverifiable: list[str] = []
     n = 0
     for art in artifacts:
         if not art.exists():
@@ -105,17 +145,26 @@ def check_command_blocks(artifacts, cwd: Path) -> list[str]:
                     pairs[-1][1].append(line)
             for c, body_lines in pairs:
                 body = "\n".join(body_lines).strip("\n")
-                if not c.startswith("grep"):
+                if SELF_INVOCATION in c:
+                    unverifiable.append(
+                        f"{art.name}: `{c[:55]}` invokes this script -- not re-executed "
+                        "(would recurse); --self-test covers it")
+                    continue
+                if not any(c.startswith(r) or r in c for r in RUNNABLE):
+                    unverifiable.append(f"{art.name}: `{c[:60]}` not re-executable")
                     continue
                 n += 1
                 live = sh(c, cwd)
-                if body.strip("\n") != live:
+                if normalise(body) != normalise(live):
                     fails.append(
-                        f"{art.name}: recorded output of `{c}` does not match live output.\n"
-                        f"      recorded: {body.strip()[:160]!r}\n"
-                        f"      live    : {live[:160]!r}"
+                        f"{art.name}: recorded output of `{c[:70]}` does not match live.\n"
+                        f"      recorded: {normalise(body)[:200]!r}\n"
+                        f"      live    : {normalise(live)[:200]!r}"
                     )
-    print(f"  {'ok  ' if not fails else 'FAIL'} A. command-block fidelity: {n} block(s) re-executed")
+    print(f"  {'ok  ' if not fails else 'FAIL'} A. command-block fidelity: {n} block(s) RE-EXECUTED"
+          + (f"; {len(unverifiable)} not re-executable (reported, not skipped silently)" if unverifiable else ""))
+    for u in unverifiable:
+        print(f"       note: {u}")
     return fails
 
 

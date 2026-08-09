@@ -209,28 +209,51 @@ Harness asserts each target substring matches **exactly once** before mutating
 baseline to be GREEN first (else "killed" proves nothing), and restores + digest-
 verifies the file after every mutant.
 
-Final matrix (M1 added in cycle 2 -- see §11):
+Regenerated as a SINGLE run's stdout (cycle 4 finding: the previous block
+was a spliced composite -- a `[baseline] 4 passed` from the retired 4-test
+tree with the three cycle-3 cells hand-inserted, and a trailer line no run
+ever printed):
 
 ```
-[baseline] un-mutated tree: 4 passed, 1 warning in 10.50s
-
+phase-36.17 criterion 7 -- mutation matrix
+[baseline] un-mutated tree: 6 passed, 1 warning in 13.94s
   KILLED  | M-D: `if sl_trade:` -> `if True:` (record an exit that never happened)
+           proves: Q/A cycle-3 survivor -- summary must not claim a stop it did not take
+           tests : test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced
+           result: 1 failed, 5 deselected, 1 warning in 5.47s
   KILLED  | M-E: drop summary['halt_stop_loss_error'] (silent swallow)
+           proves: Q/A cycle-3 survivor -- a stop-loss failure must not be swallowed silently
+           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
+           result: 1 failed, 5 deselected, 1 warning in 5.33s
   KILLED  | M-F: logger.exception -> logger.debug (downgrade the loudness)
-  KILLED  | M1: delete the halt's `return summary` (falls through to decide/execute)
-           result: 2 failed, 2 deselected, 1 warning in 7.17s
+           proves: Q/A cycle-3 survivor -- paired with M-E; the error record is the assertable half
+           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
+           result: 1 failed, 5 deselected, 1 warning in 5.58s
+  KILLED  | M1: delete the halt's `return summary` (cycle falls through to decide/execute)
+           proves: criterion 4 no-BUY -- added after Q/A cycle 1; kills on execute_buy.called
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.42s
   KILLED  | remove the breach-path exclusion (pass runs on EVERY halt reason)
-           result: 1 failed, 3 deselected, 1 warning in 5.43s
+           proves: criterion 5 -- the `triggered` path must stay observably unchanged
+           tests : test_phase_36_17_triggered_path_is_unchanged
+           result: 1 failed, 5 deselected, 1 warning in 5.52s
   KILLED  | ORDERING REVERTED: disable the exit-only pass entirely (pre-fix behaviour)
-           result: 2 failed, 2 deselected, 1 warning in 9.60s
+           proves: criteria 1+2+7 -- moving the enforcement back must break the reproduce pair
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.77s
   KILLED  | reintroduce backfill_missing_stops into the halt pass
-           result: 2 failed, 2 deselected, 1 warning in 7.16s
+           proves: Q3 -- synthesizing a stop during a halt is a NEW risk decision
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.10s
   KILLED  | append to summary["steps"] inside the halt branch
-           result: 1 failed, 3 deselected, 1 warning in 5.55s
+           proves: measured collision with test_phase_36_12...:298 and :374
+           tests : test_phase_36_17_halt_summary_shape_is_preserved
+           result: 1 failed, 5 deselected, 1 warning in 5.46s
   KILLED  | drop the recorded ticker (silent enforcement, no audit surface)
-           result: 2 failed, 2 deselected, 1 warning in 6.95s
-
-[restored] un-mutated tree: 4 passed, 1 warning in 10.07s
+           proves: the exit must be reported in the summary, not just performed
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.06s
+[restored] un-mutated tree: 6 passed, 1 warning in 14.05s
 ALL 9 MUTANTS KILLED. Every new guard can fail.
 ```
 
@@ -241,7 +264,7 @@ reverting the enforcement to pre-fix behaviour turns the reproduce pair RED.
 
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or autonomous_loop'
-224 passed, 1 skipped, 2890 deselected, 1 warning in 20.24s
+224 passed, 1 skipped, 2892 deselected, 1 warning in 16.27s
 ```
 
 The phase-36.12 module the brief flagged as a collision risk, run alone:
@@ -428,13 +451,31 @@ I also reported it to the Q/A as "mutation-proven". That was true of its two
 STRUCTURAL checks and false of the anchor check -- a claim narrower than it
 sounded, which is the failure mode this project's own memory warns about.
 
-**v2 replaces it and is proven to fail.** It now (A) re-executes **every** fenced
-`$ grep ...` block in the artifacts and requires an EXACT match against live
-stdout -- which kills the stale-number and the curated-output defects together;
-(B) asserts the ordering relation and the call-site count with no numbers; and
-(C) checks each prose anchor by CONTENT, with a cross-file guard and
-nearest-symbol resolution to avoid the false positives that would train a reader
-to ignore it. `--self-test` runs it against a wrong-but-in-bounds artifact and a
+**v2 replaces it and is proven to fail.** It (A) re-executes fenced `$ <cmd>`
+blocks and requires a match against live stdout; (B) asserts the ordering
+relation and the call-site count with no numbers; and (C) checks prose anchors by
+CONTENT, with a cross-file guard and nearest-symbol resolution to avoid false
+positives that would train a reader to ignore it.
+
+**Its coverage is PARTIAL, and the number is stated rather than implied**
+(cycle-4 Q/A: my earlier wording "checks each prose anchor by CONTENT" was an
+overgeneralization). **Measured: 3 of 44 three/four-digit anchors across the
+three artifacts are content-checked -- 7% recall.** The other 41 are skipped by
+design: cross-file anchors, anchors carrying a staleness marker, and anchors
+about symbols outside the 6-entry `SYMBOL_HINTS`. What v2 does guarantee is
+narrower and worth stating exactly: **it rejects the two shapes that actually
+shipped defects here** -- a wrong-but-in-bounds prose anchor, and a curated /
+re-ordered command block -- and `--self-test` proves both rejections.
+
+**Known gaps, REPORTED by the tool rather than hidden.** Every block it cannot
+re-execute is printed as a `note:` line, so a reader sees the hole. pytest blocks
+are deliberately NOT re-executed: it is slow, and it is **unsafe concurrently** --
+the module's autouse `_live_audit_file_is_write_protected` fixture byte-compares
+a live file, so a second pytest run turns the first RED. Measured during cycle 4:
+a foreground run reported `3 failed` / `6 failed` purely because the verifier was
+running pytest in the background. A guard that manufactures false regressions is
+worse than one with a declared gap. Blocks invoking the verifier itself are also
+not re-executed -- that recursed and had to be killed. `--self-test` runs it against a wrong-but-in-bounds artifact and a
 curated block and requires REJECTION of both, plus ACCEPTANCE of a correct block:
 
 ```
@@ -525,3 +566,36 @@ deliberately killing a run mid-matrix:
 $ git status --porcelain backend/services/autonomous_loop.py     # (empty)
 58bbf24bde4c5161ac05f26f70fb264e
 ```
+
+---
+
+## 13. Cycle 4 -- CONDITIONAL, and what it corrected
+
+Cycle-4 verdict: **CONDITIONAL** (`wf_fcd27ea5-48c`), verbatim in
+`evaluator_critique_36.17.md`. **All 7 immutable criteria substantively MET**,
+re-derived by execution; the criterion-6 stale-anchor defect that caused two FAILs
+is **CLOSED** and was verified three independent ways; and the v2 verifier was
+confirmed **NOT illusory** (self-test passes, live run exits 0, and it rejects
+both historical defect shapes after 5 adversarial defeat attempts).
+
+Three findings remained, all evidence PRESENTATION, none touching the fix:
+
+1. **Stale immutable-command capture.** Recorded `2890 deselected`; live gives
+   `2892` -- stale by exactly the two tests cycle 3 added. The artifact set even
+   contradicted itself (live_check §7b already had `2892`). **Regenerated from a
+   real run in both artifacts.**
+2. **The mutation-matrix block was a spliced composite, not a transcript.** It
+   carried `[baseline] 4 passed` from the retired 4-test tree with the three
+   cycle-3 cells hand-inserted and a trailer line no run ever printed; live_check
+   showed `[baseline] 4 passed` and `[restored] 6 passed` inside one fence, which
+   is impossible for a single run. **Both blocks replaced with one real run's
+   stdout** -- baseline 6 passed, 9 cells each with its own result line and
+   deselect counts consistent with a 6-test tree, restored 6 passed.
+3. **Overgeneralized coverage claim.** Corrected in §12b with the measured 3-of-44
+   (7%) recall and an explicit list of what the verifier does and does not cover.
+
+The Q/A's sharpest observation: the guard's blind spot and the shipped evidence
+defects **coincided exactly** -- neither a `$ python -m pytest` block nor a block
+with no `$` prompt was ever re-executed. v2 now re-executes any `$ <cmd>` block
+it can run safely and **prints a `note:` for every one it cannot**, so the gap is
+visible instead of silent.

@@ -59,7 +59,7 @@ temporary REPRODUCE tests were then deleted.
 
 ```
 $ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py -q -p no:randomly
-4 passed, 1 warning in 10.29s
+6 passed, 1 warning in 13.73s
 ```
 
 ### 1d. Immutable verification command
@@ -67,14 +67,14 @@ $ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py 
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q \
     -k 'kill_switch or paper_trader or autonomous_loop'
-224 passed, 1 skipped, 2890 deselected, 1 warning in 20.24s
+224 passed, 1 skipped, 2892 deselected, 1 warning in 16.27s
 ```
 
 The module the research brief flagged as a collision risk, run alone:
 
 ```
 $ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block.py -q -p no:randomly
-25 passed, 1 warning in 8.95s
+25 passed, 1 warning in 9.12s
 ```
 
 ## 2. Re-derived ordering of Step 5.5's return and Step 5.6
@@ -102,15 +102,46 @@ step text says `:1334/:1336`; the pre-fix tree was `:1437/:1439`.
 ## 3. Mutation matrix (criterion 7)
 
 ```
-[baseline] un-mutated tree: 4 passed, 1 warning in 10.50s
-  KILLED  | M1: delete the halt's `return summary`      -> 2 failed, 2 deselected
-  KILLED  | remove the breach-path exclusion            -> 1 failed, 3 deselected
-  KILLED  | ORDERING REVERTED: disable the pass         -> 2 failed, 2 deselected
-  KILLED  | reintroduce backfill_missing_stops          -> 2 failed, 2 deselected
-  KILLED  | append to summary["steps"]                  -> 1 failed, 3 deselected
-  KILLED  | drop the recorded ticker                    -> 2 failed, 2 deselected
-[restored] un-mutated tree: 6 passed, 1 warning in 14.03s
-ALL 9 MUTANTS KILLED.
+phase-36.17 criterion 7 -- mutation matrix
+[baseline] un-mutated tree: 6 passed, 1 warning in 13.94s
+  KILLED  | M-D: `if sl_trade:` -> `if True:` (record an exit that never happened)
+           proves: Q/A cycle-3 survivor -- summary must not claim a stop it did not take
+           tests : test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced
+           result: 1 failed, 5 deselected, 1 warning in 5.47s
+  KILLED  | M-E: drop summary['halt_stop_loss_error'] (silent swallow)
+           proves: Q/A cycle-3 survivor -- a stop-loss failure must not be swallowed silently
+           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
+           result: 1 failed, 5 deselected, 1 warning in 5.33s
+  KILLED  | M-F: logger.exception -> logger.debug (downgrade the loudness)
+           proves: Q/A cycle-3 survivor -- paired with M-E; the error record is the assertable half
+           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
+           result: 1 failed, 5 deselected, 1 warning in 5.58s
+  KILLED  | M1: delete the halt's `return summary` (cycle falls through to decide/execute)
+           proves: criterion 4 no-BUY -- added after Q/A cycle 1; kills on execute_buy.called
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.42s
+  KILLED  | remove the breach-path exclusion (pass runs on EVERY halt reason)
+           proves: criterion 5 -- the `triggered` path must stay observably unchanged
+           tests : test_phase_36_17_triggered_path_is_unchanged
+           result: 1 failed, 5 deselected, 1 warning in 5.52s
+  KILLED  | ORDERING REVERTED: disable the exit-only pass entirely (pre-fix behaviour)
+           proves: criteria 1+2+7 -- moving the enforcement back must break the reproduce pair
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.77s
+  KILLED  | reintroduce backfill_missing_stops into the halt pass
+           proves: Q3 -- synthesizing a stop during a halt is a NEW risk decision
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.10s
+  KILLED  | append to summary["steps"] inside the halt branch
+           proves: measured collision with test_phase_36_12...:298 and :374
+           tests : test_phase_36_17_halt_summary_shape_is_preserved
+           result: 1 failed, 5 deselected, 1 warning in 5.46s
+  KILLED  | drop the recorded ticker (silent enforcement, no audit surface)
+           proves: the exit must be reported in the summary, not just performed
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
+           result: 2 failed, 4 deselected, 1 warning in 7.06s
+[restored] un-mutated tree: 6 passed, 1 warning in 14.05s
+ALL 9 MUTANTS KILLED. Every new guard can fail.
 ```
 
 Cycle 3 added M-D / M-E / M-F after the Q/A found them SURVIVING the 6-cell
