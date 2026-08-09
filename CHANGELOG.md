@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `cabfa812` | feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26) |
 | 2026-08-09 | `5d83f366` | phase-86.2: P1 TOTAL DISARM: one oversized JSON int aborts the entire kill-switch audit replay an... |
 | 2026-08-09 | `ddfea563` | docs(86.2): harness_log cycle 189 -- PASS |
 | 2026-08-09 | `025102e0` | phase-86.2 cycle-2: my criterion-3 guard was vacuous; the Q/A proved it |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `4e582e58` | fix(36.27): the Workflow runtime rejects Node imports AND trailing export lists |
 | 2026-08-09 | `22582714` | phase-36.27: put the Researcher gate on the Workflow rail |
 | 2026-08-09 | `4d7d6a04` | docs: ask #27 -- operator call on closing 86.3 against an unsatisfiable criterion 5 |
-| 2026-08-09 | `721eb5ac` | docs(86.3): harness_log cycle 186 -- CONDITIONAL, criterion 5 not literally met |
 
 ---
 
+### v6.88.0 — feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26) (2026-08-09)
+
+- **feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26)**
 ### v6.87.24 — phase-86.2: P1 TOTAL DISARM: one oversized JSON int aborts the entire... (2026-08-09)
 
 - **phase-86.2: P1 TOTAL DISARM: one oversized JSON int aborts the entire kill-switch audit replay an...**
