@@ -32131,3 +32131,56 @@ cycle 6:
    correct since cycle 2 (md5 58bbf24bde4c5161ac05f26f70fb264e, verified
    identical by four separate Q/A passes), it is IN FORCE, and every remaining
    finding has been about the quality of my evidence rather than the code.
+
+## Cycle 195 -- 2026-08-09 -- phase=36.17 result=PASS
+
+Q/A `wf_14a53ddc-cce` (Workflow structured-output rail, opus, 20 tool calls).
+**PASS on all 7 immutable criteria, zero violated_criteria.** Sixth cycle; the
+five before it were CONDITIONAL, FAIL, FAIL, CONDITIONAL, CONDITIONAL, and the
+3rd-CONDITIONAL auto-FAIL rule was ARMED going in. The Q/A verified the counts
+itself and states plainly it did not soften a CONDITIONAL to avoid the
+escalation.
+
+**The production code did not change this cycle** -- it has been byte-identical
+since cycle 2 (md5 `58bbf24bde4c5161ac05f26f70fb264e`, independently re-verified)
+and is IN FORCE (content last changed at `6ca17793` 17:54:37; backend pid 6644
+started 18:56:00). Every prior CONDITIONAL was about EVIDENCE, and this cycle
+fixed the evidence rather than re-arguing it:
+
+1. **Criterion 7 is now RE-RUNNABLE.** Cycles 1-5 used a scratch mutation
+   harness that was never committed, so the transcript could not be regenerated
+   by anyone. `scripts/qa/mutation_matrix_36_17.py` replaces it and **never
+   writes to the repo** -- each mutant is injected into `sys.modules` inside a
+   throwaway subprocess, and the target md5 is asserted unchanged across the
+   run. That structurally removes the disclosed hazard of mutating a live
+   production file under an armed backend.
+2. **A real contradiction the slim exposed.** `experiment_results` §7 AND
+   `live_check` §3 both carried a **9-cell** matrix while §14a claimed **11
+   cells**, and no 11-cell transcript existed anywhere in the repo. Now one real
+   run, in one place. The Q/A re-ran it independently: 11/11 killed, per-cell
+   killing-test lists matching member-for-member.
+3. **An isolation leak I found in my own module and disclosed.** These tests
+   drive the real `run_daily_cycle`, which takes the real cycle lock, so running
+   the module rewrote the untracked live `handoff/.autonomous_loop.lock` with
+   the pytest pid. The previous isolation claim covered only three GIT-TRACKED
+   files -- true, but narrower than it sounded. Redirected to `tmp_path` with an
+   autouse guard proven able to fail. The Q/A did not take that on faith: it ran
+   a **positive control** showing eight tmp lock files (one per test, each with a
+   fresh pid), proving the guard is green because the write was REDIRECTED, not
+   because nothing writes.
+4. Artifacts slimmed 713 -> 462 and 294 -> 144 lines; the cycle narrative moved
+   here and to `evaluator_critique_36.17.md`.
+
+**Carried forward, NOT fixed here:**
+- **86.6 gains a second reproducible instance.** During the Q/A's own run of the
+  immutable command the live lock was rewritten at 20:52:57 by pid 27104 -- not
+  the backend -- i.e. a **different** test module also takes the live lock. This
+  step fixed its own module only, and said so.
+- NOTE, cosmetic: the 36.12 collision figure lost its `$` fence in the slim, so
+  the anchor verifier no longer re-executes it. Not criterion-load-bearing.
+
+**What is still NOT verified, stated plainly:** no live halted cycle with a real
+breached position has exercised this path. All evidence is in-process against the
+real `run_daily_cycle` with a mocked `PaperTrader`; producing live evidence means
+deliberately halting the book, which is an operator action and was not taken.
+
