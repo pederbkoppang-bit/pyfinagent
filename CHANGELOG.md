@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `7c47a8a4` | docs: day report -- cycle 5 found two surviving money-path mutants |
 | 2026-08-09 | `a1b92d14` | docs(36.17): log cycles 190-194 -- the counter could not see this step at all |
 | 2026-08-09 | `ea716698` | fix(36.17): cycle-5 -- close two surviving MONEY-PATH mutants |
 | 2026-08-09 | `d929e698` | docs: evening day report 2026-08-09b -- engine completes, trades nothing |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `9b72cb3b` | fix(86.15): renumber my step off a duplicated 86.13 id |
 | 2026-08-09 | `6f4f5303` | docs: file 86.14 -- live cycle-status page, so the operator stops having to ask |
 | 2026-08-09 | `3007bb53` | docs: file 86.13 -- the cost guard fires on every analysis and only warns |
-| 2026-08-09 | `dae021e4` | docs(86.13): queue the auto-commit cross-attribution fix as its own step |
 
 ---
 
