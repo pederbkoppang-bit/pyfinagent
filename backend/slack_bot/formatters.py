@@ -6,6 +6,14 @@ Slack block text limit: 3000 chars per section.
 import math
 from datetime import datetime
 
+from backend.services.recommendation_vocab import (  # phase-86.22
+    BUY,
+    SELL,
+    STRONG_BUY,
+    STRONG_SELL,
+    canonical_recommendation,
+)
+
 
 def _truncate(text: str, max_len: int = 2800) -> str:
     return text[:max_len] + "..." if len(text) > max_len else text
@@ -165,12 +173,25 @@ def _score_emoji(score: float) -> str:
 
 
 def _rec_color(action: str) -> str:
-    action_upper = action.upper() if action else ""
-    if "STRONG_BUY" in action_upper or "STRONG BUY" in action_upper:
+    """Block Kit colour for an analyst RECOMMENDATION.
+
+    phase-86.22: this was a hand-rolled second canonicaliser -- it spelled out
+    `"STRONG_BUY" in action_upper or "STRONG BUY" in action_upper` precisely
+    because the two dialects were never reconciled. Behaviour is preserved for
+    every canonical value; only junk input moves, and it moves the safe way
+    (`"BUYOUT"` used to render as a buy, and now falls to the neutral colour).
+
+    NOTE it currently has no callers -- verified repo-wide at fix time. It is
+    canonicalised rather than deleted because removing it is a separate
+    judgement call, and leaving a second vocabulary in the tree for the next
+    caller to find is exactly the landmine this step exists to clear.
+    """
+    canon = canonical_recommendation(action)
+    if canon == STRONG_BUY:
         return "#22c55e"
-    if "BUY" in action_upper:
+    if canon == BUY:
         return "#4ade80"
-    if "SELL" in action_upper:
+    if canon in (SELL, STRONG_SELL):
         return "#ef4444"
     return "#f59e0b"
 

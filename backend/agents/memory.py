@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from rank_bm25 import BM25Okapi
+from backend.services.recommendation_vocab import is_buy_intent, is_sell_intent  # phase-86.22
 
 logger = logging.getLogger(__name__)
 
@@ -225,9 +226,15 @@ def generate_reflection(
     This is called by the outcome tracker AFTER evaluating actual returns.
     The LLM reflects on what went right/wrong and produces a concise lesson.
     """
+    # phase-86.22: same defect as outcome_tracker, and this one is the durable
+    # half -- the value below is rendered into the reflection prompt as
+    # "Directionally correct: YES/NO" and the resulting lesson is persisted to
+    # agent_memories, where no schema check could ever detect a wrong label in
+    # free-text prose. MEASURED at fix time: agent_memories rows=0, so nothing
+    # wrong has been written yet; this lands BEFORE the writer's first row.
     direction_correct = (
-        (original_recommendation in ("Strong Buy", "Buy") and actual_return_pct > 0)
-        or (original_recommendation in ("Strong Sell", "Sell") and actual_return_pct < 0)
+        (is_buy_intent(original_recommendation) and actual_return_pct > 0)
+        or (is_sell_intent(original_recommendation) and actual_return_pct < 0)
     )
 
     prompt = (

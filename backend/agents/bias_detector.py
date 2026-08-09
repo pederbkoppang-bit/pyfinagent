@@ -13,6 +13,7 @@ import json
 import logging
 from dataclasses import asdict, dataclass, field
 from typing import Optional
+from backend.services.recommendation_vocab import is_buy_intent, is_sell_intent  # phase-86.22
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,10 @@ def _check_tech_bias(ticker: str, recommendation: str, score: float, quant_data:
 
     is_large_cap = market_cap > LARGE_CAP_THRESHOLD
 
-    if is_tech and recommendation.upper() in ("STRONG_BUY", "BUY") and score >= 7.5:
+    # phase-86.22: `.upper()` misses the separator, so these bias checks never
+    # fired on the producer's own "Strong Buy" -- the highest-conviction calls
+    # were exactly the ones going unchecked for tech/large-cap bias.
+    if is_tech and is_buy_intent(recommendation) and score >= 7.5:
         flags.append(BiasFlag(
             bias_type="tech_bias",
             severity="MEDIUM",
@@ -125,7 +129,7 @@ def _check_tech_bias(ticker: str, recommendation: str, score: float, quant_data:
             adjustment_suggestion="Cross-check with sector-neutral valuation metrics. Compare score against non-tech peers.",
         ))
 
-    if is_large_cap and not is_tech and recommendation.upper() in ("STRONG_BUY", "BUY") and score >= 8.0:
+    if is_large_cap and not is_tech and is_buy_intent(recommendation) and score >= 8.0:
         flags.append(BiasFlag(
             bias_type="tech_bias",
             severity="LOW",
@@ -150,9 +154,9 @@ def _check_confirmation_bias(recommendation: str, signals: dict, debate: dict) -
         elif "BEAR" in s or "DECLIN" in s or "RISK" in s or "LAGGING" in s:
             bearish += 1
 
-    rec = recommendation.upper()
-    is_bullish_rec = rec in ("STRONG_BUY", "BUY")
-    is_bearish_rec = rec in ("STRONG_SELL", "SELL")
+    # phase-86.22: canonical membership, not `.upper()` against one dialect.
+    is_bullish_rec = is_buy_intent(recommendation)
+    is_bearish_rec = is_sell_intent(recommendation)
 
     # Bullish recommendation despite significant bearish signals
     if is_bullish_rec and bearish >= 3:

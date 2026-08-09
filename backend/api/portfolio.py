@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.services.perf_metrics import compute_position_pnl
+from backend.services.recommendation_vocab import is_buy_intent, is_directional  # phase-86.22
 from backend.tools import yfinance_tool
 
 logger = logging.getLogger(__name__)
@@ -135,11 +136,15 @@ async def get_portfolio_performance():
         })
 
         # Recommendation accuracy: BUY/STRONG_BUY with positive return = correct
-        rec = (enriched.get("recommendation") or "").upper()
+        # phase-86.22: `.upper()` folds case but not the separator, so the
+        # producer's own "Strong Buy" became "STRONG BUY" and was excluded from
+        # the accuracy DENOMINATOR entirely -- an analytics lie from the same
+        # root as the trade-gate defect, silently under-counting the sample.
+        rec = enriched.get("recommendation")
         pnl = enriched.get("unrealized_pnl", 0) or 0
-        if rec in ("BUY", "STRONG_BUY", "SELL", "STRONG_SELL"):
+        if is_directional(rec):
             total_recs += 1
-            is_buy = rec in ("BUY", "STRONG_BUY")
+            is_buy = is_buy_intent(rec)
             if (is_buy and pnl > 0) or (not is_buy and pnl < 0):
                 correct_recs += 1
 

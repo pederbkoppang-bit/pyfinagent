@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from backend.config.settings import Settings
+from backend.services.recommendation_vocab import is_buy_intent, is_sell_intent  # phase-86.22
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.perf_metrics import compute_return_pct, compute_benchmark_return, beat_benchmark as _beat_benchmark
 from backend.tools.yfinance_tool import get_comprehensive_financials
@@ -53,9 +54,16 @@ class OutcomeTracker:
         # Geometric benchmark comparison (canonical formula)
         beat_benchmark_flag = _beat_benchmark(return_pct, holding_days)
 
-        # Determine if recommendation was directionally correct
-        is_buy = recommendation in ("Strong Buy", "Buy")
-        is_sell = recommendation in ("Strong Sell", "Sell")
+        # phase-86.22: was `recommendation in ("Strong Buy","Buy")` -- an EXACT,
+        # case-SENSITIVE match against one of the two dialects this column
+        # actually carries. Measured 2026-08-09/10 over the same table this
+        # function reads: 91 rows spell it "BUY" and every one of them matched
+        # NEITHER is_buy NOR is_sell, so directionally_correct was False for all
+        # 91 regardless of the actual return -- roughly two thirds of all
+        # buy-intent rows, silently mislabelled. Not dropped: MISLABELLED, which
+        # is worse for a learning signal than an absence.
+        is_buy = is_buy_intent(recommendation)
+        is_sell = is_sell_intent(recommendation)
         directionally_correct = (is_buy and return_pct > 0) or (is_sell and return_pct < 0)
 
         outcome = {

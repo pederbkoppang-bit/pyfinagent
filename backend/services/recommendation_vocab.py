@@ -89,3 +89,49 @@ def canonical_recommendation(value: object) -> str | None:
 def is_recognised(value: object) -> bool:
     """True iff `value` maps onto the closed scale."""
     return canonical_recommendation(value) is not None
+
+
+# ── phase-86.22: SHARED INTENT PREDICATES ───────────────────────────────────
+# phase-86.20 gave the repo one canonicaliser but left every consumer to decide
+# for itself what counts as a buy. Measured then: FIVE consumers, TWO mutually
+# incompatible dialects, and the sets written out by hand at each site --
+# `("Strong Buy","Buy")` in one file, `("BUY","STRONG_BUY")` in another, and a
+# SUBSTRING test in a third. Re-deriving membership per call site is how the two
+# dialects drifted apart in the first place, so the sets live HERE, once.
+#
+# These are DELIBERATELY not "does this token appear in some tuple" helpers for
+# callers to re-implement: they take the RAW value, canonicalise it, and answer
+# the question. A caller that unwraps them back into a literal set has undone the
+# point.
+#
+# HOLD is in NEITHER. It is a recognised recommendation and a real decision --
+# it is simply not a directional call, and collapsing it into "not a buy" is
+# what makes an unparseable value indistinguishable from a considered hold.
+
+BUY_INTENT: frozenset[str] = frozenset({STRONG_BUY, BUY})
+SELL_INTENT: frozenset[str] = frozenset({STRONG_SELL, SELL})
+
+
+def is_buy_intent(value: object) -> bool:
+    """True iff `value` canonicalises to a BUY or STRONG_BUY.
+
+    Unrecognised values are False -- never guessed into an intent. On a money
+    path an over-permissive gate is worse than a narrow one, and on a learning
+    path a wrong label is worse than an absent one.
+    """
+    return canonical_recommendation(value) in BUY_INTENT
+
+
+def is_sell_intent(value: object) -> bool:
+    """True iff `value` canonicalises to a SELL or STRONG_SELL."""
+    return canonical_recommendation(value) in SELL_INTENT
+
+
+def is_directional(value: object) -> bool:
+    """True iff `value` expresses a direction at all (buy or sell).
+
+    Exists so a caller can tell "this was a HOLD" apart from "this could not be
+    parsed" -- the distinction `directionally_correct` silently destroyed by
+    reporting False for both.
+    """
+    return is_buy_intent(value) or is_sell_intent(value)

@@ -300,11 +300,17 @@ def test_ordering_comparison_and_numeric_arithmetic_are_in_scope(tmp_path):
 CLASSIFICATION: dict[tuple[str, str], dict] = {
     ("backend/services/outcome_tracker.py", "analysis_date"): {
         "verdict": "CORRECT",
-        "line": 100,
+        # phase-86.22 shifted this file (the shared-vocabulary migration and
+        # its comment block at :57). Every number below is RE-DERIVED from the
+        # file, not offset arithmetic: `so._row_key_reads` reports the read at
+        # :109, and the two branch lines are :110 and :112. A uniform +9 was
+        # my first guess and it was wrong for the second one -- the shift is
+        # not uniform, which is exactly why this table says re-derive.
+        "line": 109,
         "why": (
             "Reads `analysis_results.analysis_date`, which the oracle declares "
             "TIMESTAMP -- so the isinstance(datetime) branch DOES execute. The code "
-            "handles both shapes explicitly (:101 datetime passthrough, :104 "
+            "handles both shapes explicitly (:110 datetime passthrough, :112 "
             "fromisoformat(str(...))). It surfaced in the scope only because the same "
             "column NAME is STRING on financial_reports.outcome_tracking; the Python "
             "side matches on column name across tables, which is a disclosed "

@@ -9,6 +9,7 @@ import json
 import logging
 from dataclasses import asdict, dataclass, field
 from typing import Optional
+from backend.services.recommendation_vocab import canonical_recommendation, STRONG_BUY, BUY, SELL  # phase-86.22
 
 logger = logging.getLogger(__name__)
 
@@ -111,14 +112,23 @@ def _check_score_consistency(report: dict) -> list[KnowledgeConflict]:
 def _check_recommendation_alignment(report: dict) -> list[KnowledgeConflict]:
     conflicts = []
     rec = report.get("recommendation", {})
-    rec_label = (rec.get("recommendation", "") or rec.get("label", "")).upper()
+    # phase-86.22: was `.upper()` feeding a chain of SUBSTRING tests below.
+    # Two independent defects in one line: the separator gap meant the
+    # producer's "Strong Buy" never matched "STRONG_BUY"; and because the chain
+    # then fell through to `elif "BUY" in rec_label`, a missed STRONG BUY was
+    # graded at the WEAKER 5.5 threshold instead of 7.0 -- so the strictest
+    # check silently became the loosest. Substring matching is its own hazard
+    # here regardless: "STRONG_SELL" contains "SELL".
+    rec_canonical = canonical_recommendation(
+        rec.get("recommendation", "") or rec.get("label", ""))
+    rec_label = rec_canonical or ""
     score = report.get("final_weighted_score", 0) or 0
 
     if not rec_label or not score:
         return conflicts
 
     # Strong Buy with low score
-    if "STRONG_BUY" in rec_label and score < 7.0:
+    if rec_canonical == STRONG_BUY and score < 7.0:
         conflicts.append(KnowledgeConflict(
             field="recommendation",
             llm_belief=f"STRONG_BUY recommendation",
@@ -128,7 +138,7 @@ def _check_recommendation_alignment(report: dict) -> list[KnowledgeConflict]:
             explanation=f"STRONG_BUY typically requires score ≥ 7.0, but weighted score is {score}. "
                         "The model's recommendation conflicts with its own scoring.",
         ))
-    elif "BUY" in rec_label and score < 5.5:
+    elif rec_canonical == BUY and score < 5.5:
         conflicts.append(KnowledgeConflict(
             field="recommendation",
             llm_belief=f"BUY recommendation",
@@ -137,7 +147,7 @@ def _check_recommendation_alignment(report: dict) -> list[KnowledgeConflict]:
             category="fundamentals",
             explanation=f"BUY recommendation with weighted score {score} (< 5.5) indicates internal inconsistency.",
         ))
-    elif "SELL" in rec_label and score > 6.0:
+    elif rec_canonical == SELL and score > 6.0:
         conflicts.append(KnowledgeConflict(
             field="recommendation",
             llm_belief=f"SELL recommendation",
