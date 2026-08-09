@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `6ca17793` | fix(36.17): cycle-2 -- correct stale anchors and make the no-BUY assertion falsifiable |
 | 2026-08-09 | `e98ca260` | fix(36.17): enforce pre-existing stop-losses on a halted cycle (exit-only pass) |
 | 2026-08-09 | `80d43aaa` | fix(86.17): file the Layer-3 args-boundary defect -- a blind gate can return gate_passed:true |
 | 2026-08-09 | `a0b4e4f2` | docs(86.16): file the stale scheduled_tasks.lock investigation as its own step |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `a716a89b` | docs: file 86.11 -- audit-class UI quality sweep, now that Playwright can authenticate |
 | 2026-08-09 | `4f2729d4` | docs: file 86.10 -- tab navigation does not reset scroll, hiding the safety strip |
 | 2026-08-09 | `98771ba8` | docs: pending-restart list for session end (PAPER_CYCLE_MAX_SECONDS not yet in force) |
-| 2026-08-09 | `5d27dc5f` | docs: batch backend restarts to session end (operator instruction 2026-08-09) |
 
 ---
 
+### v6.91.5 — fix(36.17): cycle-2 -- correct stale anchors and make the no-BUY asse... (2026-08-09)
+
+- **fix(36.17): cycle-2 -- correct stale anchors and make the no-BUY assertion falsifiable**
 ### v6.91.4 — fix(36.17): enforce pre-existing stop-losses on a halted cycle (exit-... (2026-08-09)
 
 - **fix(36.17): enforce pre-existing stop-losses on a halted cycle (exit-only pass)**
