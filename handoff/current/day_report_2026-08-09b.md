@@ -5,9 +5,17 @@
 > the session that wrote `day_report_2026-08-09.md`. This file is the `b`
 > report for that day, not a report for the 10th.
 
-## Can the book trade? **Yes — the engine works. It just isn't finding trades.**
+## Can the book trade? **Yes. The engine works, and it does buy — 21% of the time.**
 
 This is a different answer from this morning's, and it is better.
+
+**I initially got the follow-up wrong and am correcting it here.** Seeing 0 of 6
+analyses rated BUY today, I told the operator the engine "rates nothing a buy."
+Then I measured the full corpus: over 90 days the BUY/STRONG_BUY rate is
+**21.1% (103 of 489)**. Zero out of six is ordinary variance at that rate
+(~24% likely), **not** a broken selector. I generalised from n=6 — the same
+sample-size error I was warned about this morning. The selection question is
+still worth asking, but it is not the emergency I implied.
 
 **The autonomous cycle COMPLETED — the first completion since 2026-07-31.**
 Measured from `handoff/cycle_history.jsonl`:
@@ -227,6 +235,44 @@ leaves `args` genuinely **unbound** — so this bites production too. It also fo
 successfully**, which no catch-hardening would cover.
 
 **86.17 is fully researched and specified; implementation not started.**
+
+## The two defects tonight's measurement actually found
+
+**86.20 (P1) — the trade gate and the analyzer speak different vocabularies.**
+`portfolio_manager.py:182` does `rec = (...).upper()` and `:188` gates on
+`_BUY_RECS = {"BUY","STRONG_BUY"}`. `.upper()` closes the **case** gap — `"Buy"`
+→ `"BUY"` is safe — but not the **separator** gap: the analyzer emits
+`'Strong Buy'`, which upper-cases to `'STRONG BUY'` (space) and never matches
+`'STRONG_BUY'` (underscore). The candidate is dropped by `continue` with no log
+line and no counter.
+
+Measured across the whole `analysis_results` table: **5 `'Strong Buy'` rows, 1
+genuine (score > 0) — scoring 8.36, higher than any row that did match** (max
+matching BUY = 8.0). The highest-conviction buy signal in the corpus never
+reached the buy-candidate stage.
+
+**Stated without inflation:** that is one signal across the full table, and
+reaching *candidate* is not the same as trading — Risk Judge, sector caps and
+cash all sit downstream. No lost-trade or lost-P&L claim is made.
+`_SELL_RECS`/`_DOWNGRADE_RECS` carry identical exposure, so the step forbids a
+BUY-only fix as a guard against the instance rather than the class.
+
+**86.21 (P2) — the 3rd-CONDITIONAL counter is blind to any step in flight.**
+It reads `harness_log.md`, which is written at step *close*, so a step mid-loop
+has zero rows and the counter reads zero however many cycles have run. Measured:
+across all five 36.17 cycles the prescribed grep returned **zero** every time,
+and each Q/A had to be hand-fed its history **by the very party the rule
+constrains**. It fails open, silently, exactly when it is needed.
+
+## A defect I caused and am disclosing
+
+The peer session filed **86.18** — "a one-step masterplan edit produced a
+24,200-line whole-file rewrite." **That was me.** My 86.17 filing used
+`json.dump(indent=2)`, which re-serialised the entire file:
+`24,200 insertions / 24,178 deletions`, against 23 and 24 lines for the peer's
+filings. On a repo with two live sessions that is a real lost-update hazard, not
+a cosmetic one. Tonight's 86.20/86.21 filing used a **textual splice** instead —
+**43 insertions** — and I verified the diff size before committing.
 
 ## Numbered asks
 
