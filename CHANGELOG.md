@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `3a7789d2` | phase-36.27 cycle-3: regenerate the verbatim envelope block programmatically |
 | 2026-08-09 | `e0cd5a1d` | phase-36.27 cycle-2: fix both WARN findings from the pass-1 Q/A |
 | 2026-08-09 | `3d1f7a3f` | phase-36.27: live spawn proves the rail end-to-end (criterion 2) |
 | 2026-08-09 | `4e582e58` | fix(36.27): the Workflow runtime rejects Node imports AND trailing export lists |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `bb88239b` | phase-85.5.1: flip to done; queue 86.1-86.4 from the gate's findings |
 | 2026-08-09 | `8ca368da` | docs(85.5.1): pass-2 PASS + harness log cycle 185 |
 | 2026-08-09 | `ec84b380` | fix(85.5.1): correct a false live-state claim the Q/A caught |
-| 2026-08-09 | `8431aef8` | docs(85.5.1): experiment results + live_check |
 
 ---
 
+### v6.87.16 — phase-36.27 cycle-3: regenerate the verbatim envelope block programma... (2026-08-09)
+
+- **phase-36.27 cycle-3: regenerate the verbatim envelope block programmatically**
 ### v6.87.15 — phase-36.27 cycle-2: fix both WARN findings from the pass-1 Q/A (2026-08-09)
 
 - **phase-36.27 cycle-2: fix both WARN findings from the pass-1 Q/A**
