@@ -138,3 +138,23 @@ revert and neither touches order, sizing or risk logic.
 ## Added 2026-08-09 (cycle 186) — ask #27
 
 | 27 | **86.3 is finished work sitting on a criterion that cannot be satisfied. I need your call on whether to close it.** The fix is done, measured and pushed: a full `backend/tests` run with the backend up now appends **ZERO** rows to `handoff/kill_switch_audit.jsonl` (62 lines → 62, `sha256 90e0303130fc…` identical, across `12 failed, 3072 passed`). The same suite appended **8 rows** on 08-08 and paused your live armed book four times. Six of the seven immutable criteria are MET and were independently reproduced by two Q/A passes. **Criterion 5 — "no other test changes status vs a measured baseline; fresh Q/A PASS" — is literally NOT met and no code change can fix it.** 13 other tests changed status (26 failures → 12, **zero new failures**; the current 12 are a strict node-for-node subset of the baseline 26). Fourteen went failing→passing and **I claim exactly one**: eleven are step 36.28's live-pause coupling, **measured** by forcing the kill-switch singleton back to `paused=True`, which makes all eleven fail again node-for-node (`11 failed, 95 passed`); one was fixed by 85.5.1; one (`test_phase_23_2_15`) passes under both conditions today and I did **not** root-cause it and do **not** claim it. **The reason it is unsatisfiable:** the baseline was captured on 08-08 while your book was PAUSED and re-measured today while it is UNPAUSED — that is exactly the coupling step 36.28 exists to remove — and the criterion additionally embeds "fresh Q/A PASS", so a Q/A that correctly refuses to call it met can never issue the PASS the criterion requires. Circular. Q/A pass 2 judged it **NON-BLOCKING**, said accept-and-disclose is the right disposition, and warned that a third Q/A cycle "would add ZERO information and would itself be the logging-not-correcting anti-pattern". **I did not flip the step anyway** — closing my own work on a CONDITIONAL by overruling an immutable criterion is self-absolution, and that is your decision, not mine. Everything is committed and pushed (`c4ff90fa`, `4f10b024`, `39e7aeb3`, `721eb5ac`); leaving 86.3 `pending` costs nothing but a masterplan row. | 86.3, 36.28 | **Reply `CLOSE-86.3: APPROVED`** to flip it to `done` (recommended — the safety fix is real and in force regardless). Or **`CLOSE-86.3: REBASELINE`** to require a fresh baseline captured under a known pause state first, which in practice means landing 36.28 before 86.3 can close. Either way the guard is already live in the tree |
+
+### Ask #27 — RESOLVED 2026-08-09
+
+**Operator reply: `CLOSE-86.3: APPROVED`** (in-session, 2026-08-09).
+
+86.3 flipped to `done` on that authorization. Recorded plainly: criterion 5
+("no other test changes status vs a measured baseline; fresh Q/A PASS") was
+**NOT** met and is structurally unsatisfiable — the baseline was captured while
+the book was PAUSED, so 11 tests flipped for reasons unrelated to this change
+(measured: forcing the singleton back to `paused=True` makes all 11 fail again
+node-for-node), and the criterion additionally embeds "fresh Q/A PASS", which a
+Q/A correctly refusing to call it met can never issue.
+
+**The step is closed by OPERATOR DECISION, not by the criterion being met.**
+Both Q/A verdicts were CONDITIONAL and both remain verbatim in
+`evaluator_critique_86.3.md`. Q/A pass 2 judged the criterion non-blocking and
+advised against a third cycle. Anyone auditing this later should read it as
+"closed with a known, disclosed, unmet criterion", never as a clean pass.
+
+The confounded baseline is itself an argument for landing **36.28**.

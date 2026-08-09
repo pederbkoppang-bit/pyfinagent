@@ -32021,3 +32021,20 @@ Why `superseded`, not `done`: criteria are immutable and reference a flag that d
 - **The Q/A rail DROPPED once** (`wf_e3b47062-abd`, 42 tool uses / 175K tokens, no `StructuredOutput` call). Treated as **NO VERDICT, never PASS**; transcript held no recoverable verdict. Cause was mine -- an overweight prompt. Re-run lean returned in 19 tool uses. This is `feedback_qa_rail_drops_on_long_prompts` recurring.
 - **Extraction proven behaviour-preserving:** the event-branch set is order-identical to HEAD (7 branches). Production byte-identical between passes 1 and 2. Thresholds untouched. 8 passed; 172 across six adjacent kill-switch files; live journal `90e0303130fc...` **unchanged all day**.
 - **Out of scope by explicit decision** (contract SS5): `update_peak:611/633` and `reset_peak:697` still coerce with a bare `float(nav)`, so the same `OverflowError` is reachable from the **in-memory** path. That is step **36.19**, which exists and is pending.
+
+### Cycle 186 addendum -- 2026-08-09 -- phase=86.3 CLOSED BY OPERATOR DECISION
+
+Operator replied **`CLOSE-86.3: APPROVED`** to ask #27. Status flipped `pending -> done`.
+
+**This is NOT a retroactive PASS.** Both verdicts were CONDITIONAL and stand
+unaltered. Criterion 5 remains **unmet and structurally unsatisfiable**: the
+2026-08-08 baseline was captured while the book was PAUSED, so 11 of the 14
+failing->passing flips are step 36.28's live-pause coupling (measured by forcing
+the singleton back to `paused=True`, which reproduces all 11 node-for-node), one
+is 85.5.1's, one is this step's own test, and one was never root-caused. The
+criterion also embeds "fresh Q/A PASS", making it circular.
+
+Closed on the operator's authority because the safety fix is real and in force
+regardless: a full `backend/tests` run with the backend up appends **ZERO** rows
+to the live journal (62 -> 62, sha256 unchanged) where the same suite appended
+**8 rows** and paused the operator's armed book four times on 2026-08-08.
