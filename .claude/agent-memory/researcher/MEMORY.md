@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Replay-abort total disarm 86.2](project_replay_abort_total_disarm_86_2.md) — the verification command EXITS 0 with the defect present; OverflowError window BOUNDED 310..4300 digits; the per-row skip idiom already exists one layer up
 - [Flag-accident landmine 86.1](project_flag_accident_landmine_86_1.md) — the flag-ON arm was isolated and the OFF arm wasn't; `get_state()` patch vacuous BY IDENTITY; the 24666 peak lives only in the ARCHIVES
 - [Stale-anchor disarm 85.5.1](project_stale_anchor_disarm_85_5_1.md) — the GUARD was already right (per-leg degradation); "disarmed" meant ONE leg; missing≠stale; OverflowError aborts the whole replay
 - [Kill-switch deadlock 85.6](project_kill_switch_deadlock_85_6.md) — TWO `autonomous_loop.py` files; the SOD roll had ONE trigger behind the analysis phase; every pause row resets `_paused_at`
