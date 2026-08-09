@@ -26,6 +26,27 @@ will be built on.
 
 ### The returned envelope, verbatim
 
+> **REGENERATED after EVALUATE pass 2.** The first version of this block was
+> hand-transcribed and silently dropped `envelope.summary` (1,193 chars) with
+> no elision marker. The Q/A caught it with a leaf-path symmetric difference
+> against the journal: zero value mismatches and zero invented fields, so
+> nothing gate-bearing was hidden -- but an edited capture inside a block
+> labelled *verbatim* is a defect regardless of whether the omission mattered,
+> and the masterplan's `live_check` uses the word *verbatim* as its contract.
+> This block is now emitted PROGRAMMATICALLY from the run's stored result via
+> `json.dumps(..., indent=2)` -- not retyped -- so it cannot drift again.
+>
+> **Round-trip proven, against the right file.** The block below is byte-equal
+> to the workflow's stored return value:
+> `EXACT MATCH against workflows/wf_9880694c-d30.json: True`.
+> Note the source distinction, which cost me one wrong comparison:
+> `subagents/workflows/<run>/journal.jsonl` holds the **per-agent** returns
+> (stage 1 and stage 2 separately), while the **script's** return value -- the
+> object this block reproduces -- lives in `workflows/<run>.json`. Comparing
+> against the journal reports a spurious mismatch because it is a different
+> object, not a differing one. (`envelope.summary` measures 1,191 chars here;
+> the verdict said 1,193 -- a counting-method difference, not a content one.)
+
 ```json
 {
   "step_id": "86.1",
@@ -44,8 +65,12 @@ will be built on.
   ],
   "brief_path": "handoff/current/research_brief_86.1.md",
   "brief_verification": {
-    "brief_exists": true, "brief_non_empty": true, "char_count": 36790,
-    "urls_checked": 8, "urls_present": 8, "urls_missing": []
+    "brief_exists": true,
+    "brief_non_empty": true,
+    "char_count": 36790,
+    "urls_checked": 8,
+    "urls_present": 8,
+    "urls_missing": []
   },
   "envelope": {
     "tier": "moderate",
@@ -64,9 +89,16 @@ will be built on.
     "urls_collected": 44,
     "recency_scan_performed": true,
     "internal_files_inspected": 9,
-    "coverage": {"audit_class": false, "rounds": 1, "dry_rounds": 0,
-                 "K_required": 2, "new_findings_last_round": 0, "dry": false},
+    "coverage": {
+      "audit_class": false,
+      "rounds": 1,
+      "dry_rounds": 0,
+      "K_required": 2,
+      "new_findings_last_round": 0,
+      "dry": false
+    },
     "brief_path": "handoff/current/research_brief_86.1.md",
+    "summary": "Premise CONFIRMED and sharpened. RE-DERIVED: reset_peak at kill_switch.py:670 (DARK return :693-694, assign :697, audit :698-700), _AUDIT_PATH :48, _BASELINE_EVENTS :709, _append_audit :432-443, _apply_authoritative_peak :397-430, settings.py:39. MEASURED: the LIVE journal holds ZERO peak rows (62: 44 pause/10 resume/8 sod); all 20 peak_update rows and the 24666.57 max live in handoff/audit/ archives, peak_reset never fired -- so a row written today wins the ts merge-sort outright and destroys 24666.57 permanently (trip point 22199.9 to 11110.5). FOUR non-obvious findings: (1) the isolation asymmetry is INVERTED -- the flag-ON arm (:195-207) IS isolated, the OFF arm is not; (2) a SECOND landmine -- with the flag ON, `assert out is None` at :191 goes RED, so greenness is coupled to operator config; (3) the get_state patch at :188 is vacuous BY IDENTITY (st bound at :187) and module fns read _state directly (:793/:995/:1033/:1047/:1053); (4) redirect-only is a HALF fix -- :697 corrupts the in-memory singleton too. _audit_archive_dir is derived (:89-91). __init__ replays, so redirect BEFORE construction. Verbatim command + 5 criteria + the 86.1/86.6 boundary are in the brief.",
     "gate_passed": true
   }
 }
