@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `b9e4962c` | docs(86.17): cycle-2 Q/A returns PASS -- verdict verbatim + harness log |
 | 2026-08-09 | `a212dfe9` | fix(86.17): cycle-2 -- my checker sliced away the guard it was checking |
 | 2026-08-09 | `98b5eee9` | phase-86.17: close the args boundary on BOTH Layer-3 Workflow scripts |
 | 2026-08-09 | `178a6a59` | phase-86.17: contract (written BEFORE any code) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `1d1fc498` | docs: day report -- correct my BUY-rate over-generalization, add 86.20/86.21/86.18 |
 | 2026-08-09 | `4c80bcc4` | feat: file 86.20 (P1 recommendation-vocabulary mismatch) + 86.21 (P2 counter blindness) |
 | 2026-08-09 | `31a06591` | docs: day report -- drop the two claims cycle 5 invalidated |
-| 2026-08-09 | `7c47a8a4` | docs: day report -- cycle 5 found two surviving money-path mutants |
 
 ---
 
