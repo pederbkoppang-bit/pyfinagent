@@ -32038,3 +32038,17 @@ Closed on the operator's authority because the safety fix is real and in force
 regardless: a full `backend/tests` run with the backend up appends **ZERO** rows
 to the live journal (62 -> 62, sha256 unchanged) where the same suite appended
 **8 rows** and paused the operator's armed book four times on 2026-08-08.
+
+### Cycle 190 -- 2026-08-09 -- VERIFICATION CYCLE SPENT (authorized) -- result: rail still dead, 401
+
+Operator replaced the token and reported MATCH. The one remaining authorized verification cycle was spent on `cycle-1786280622` (13:03:42Z -> 15:09:06Z). **Two results, opposite in sign.**
+
+**WON: phase-85.6's Step-0 roll is LIVE-PROVEN, the first time.** All day the anchor sat stale (`sod_date=2026-08-08`, `armed=false`) because no cycle runs at the weekend, so there was nothing to observe. Two seconds after the trigger the roll fired and wrote the row itself:
+`{"ts": "2026-08-09T13:03:44.126943+00:00", "event": "sod_snapshot", "nav": 23833.94, "date": "2026-08-09", "provisional": true}`
+`sod_date 2026-08-08 -> 2026-08-09`, `armed false -> TRUE`, `daily_baseline_stale true -> false`. **The daily leg is armed again**, and the journal's only delta all day is that one legitimate row (62 -> 63).
+
+**LOST: the rail is still dead, and the reason CHANGED.** The malformed-token diagnosis (ask #26) is resolved -- the plist is correct and, after `bootout`+`bootstrap`, the running process env matches it byte-for-byte. The failure is now **`401 OAuth access token is invalid`**, reproduced BY HAND outside the backend with the same token. `duration_api_ms: 0`; the CLI never reaches the API. Rail breaker OPEN after 20 consecutive failures; `Degraded-scoring guard fired: 6/6 analyses scored 0/degraded`; `trades=0`. Filed as **ask #28**.
+
+**A defect in my own operator tooling, found because the operator followed it exactly.** `scripts/ops/reissue_cc_oauth_token.sh` used `launchctl kickstart -k`, which restarts the PROCESS but makes launchd reuse the job definition it cached at bootstrap -- it never re-reads `EnvironmentVariables`. The backend came up one second after the plist write still holding a stale token (`len=96, prefixes=2`, neither the old 123-char value nor the new 79-char one), and **my script printed `/api/health = 200` as if the job were done**. A success message over a stale environment -- the exact class of defect this project spent the day finding in its own guards. Fixed: the reload is now an explicit operator step (away-ops rail 9 reserves `bootout` for the operator, since a successful bootout followed by a failed bootstrap leaves trading UNLOADED rather than stopped), plus a `--verify` mode that compares the RUNNING process env against the plist and exits non-zero on mismatch. Verified it reports MISMATCH on the stale state and MATCH after the correct reload.
+
+**Spend: the authorized cycle is now USED.** Cost line: `cost=$0.6000`, matching the prior measurement. No further cycle may be triggered without a new authorization.
