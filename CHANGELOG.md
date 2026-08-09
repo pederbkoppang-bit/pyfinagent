@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `d3c37c45` | docs: pasteable full-day goal prompt for 2026-08-09 |
 | 2026-08-09 | `82b74f4d` | docs: full-day masterplan drain goal for 2026-08-09 |
 | 2026-08-09 | `53539a61` | docs: regenerate the goal from measured state; correct a count in the report |
 | 2026-08-09 | `f048afeb` | docs: update the overnight report -- 85.5.1 closed, 86.1-86.5 queued |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `e369b1de` | fix(85.6): cycle-2 -- the Step-0 anchor is provisional and upgraded before any breach |
 | 2026-08-08 | `b5f63525` | docs(85.6): experiment results + live_check (resume returned HTTP 200) |
 | 2026-08-08 | `5932ac27` | feat(85.6): break the un-pause deadlock by rolling the anchor at Step 0 |
-| 2026-08-08 | `81f81750` | phase-85.6: research gate + contract (GENERATE not started) |
 
 ---
 
