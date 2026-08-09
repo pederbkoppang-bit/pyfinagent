@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `d5e758bc` | docs: reconcile the 36.x/86.x kill-switch cluster — 36.21 superseded by 86.3 |
 | 2026-08-09 | `70893e5b` | docs: compress the full-day goal prompt to 3973 chars (under the 4000 limit) |
 | 2026-08-09 | `d3c37c45` | docs: pasteable full-day goal prompt for 2026-08-09 |
 | 2026-08-09 | `82b74f4d` | docs: full-day masterplan drain goal for 2026-08-09 |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-08 | `a126126b` | docs(85.6): record the cycle-3 remediation and the false residual claim |
 | 2026-08-08 | `0f9e92c0` | fix(85.6): cycle-3 -- make the provisional-anchor marker DURABLE |
 | 2026-08-08 | `e369b1de` | fix(85.6): cycle-2 -- the Step-0 anchor is provisional and upgraded before any breach |
-| 2026-08-08 | `b5f63525` | docs(85.6): experiment results + live_check (resume returned HTTP 200) |
 
 ---
 
