@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `9b72cb3b` | fix(86.15): renumber my step off a duplicated 86.13 id |
 | 2026-08-09 | `6f4f5303` | docs: file 86.14 -- live cycle-status page, so the operator stops having to ask |
 | 2026-08-09 | `3007bb53` | docs: file 86.13 -- the cost guard fires on every analysis and only warns |
 | 2026-08-09 | `dae021e4` | docs(86.13): queue the auto-commit cross-attribution fix as its own step |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `3afc561c` | live_check: the rail is ALIVE -- fixed by REMOVING the OAuth token, not replacing it |
 | 2026-08-09 | `3848cae2` | docs: verification cycle spent -- 85.6 Step-0 roll LIVE-PROVEN, rail 401s (ask #28) |
 | 2026-08-09 | `785ab075` | fix(ops): kickstart does NOT re-read the plist -- my token script reported success on a stale env |
-| 2026-08-09 | `10baa300` | phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full backend/tests run POSTs a real p... |
 
 ---
 
+### v6.91.2 — fix(86.15): renumber my step off a duplicated 86.13 id (2026-08-09)
+
+- **fix(86.15): renumber my step off a duplicated 86.13 id**
 ### v6.91.1 — fix(hooks): Stop gate read a masterplan path that never existed (2026-08-09)
 
 - **fix(hooks): Stop gate read a masterplan path that never existed**
