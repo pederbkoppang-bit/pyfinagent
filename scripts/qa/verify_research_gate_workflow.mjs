@@ -251,9 +251,23 @@ console.log('\n[8] structural -- no stripped schema keywords, no forbidden runti
   check('no `minItems:` in the schema (capped at 1 on the wire)', !/\bminItems\s*:/.test(schemaRegion))
   check('gate_passed is NOT const:true (honest failure must be representable)', !/gate_passed[\s\S]{0,160}const\s*:\s*true/.test(schemaRegion))
   check('additionalProperties:false on the envelope', /additionalProperties:\s*false/.test(schemaRegion))
-  // The runtime forbids Node APIs. A static import here makes the script
-  // unlaunchable while `node --check` still reports green -- measured.
-  check('NO static node: imports (the Workflow runtime has no fs/path)', !/^\s*import\s+\w+\s+from\s+'node:/m.test(src))
+  // The runtime forbids Node APIs, and its error text -- "import call expects
+  // one or two arguments" -- says only the DYNAMIC import() expression parses.
+  // So the assertion is ZERO static imports of any form, not "no node: imports".
+  //
+  // The first version of this guard was /^\s*import\s+\w+\s+from\s+'node:/ and
+  // had 1-of-6 recall against the known-member set: it caught only the
+  // single-quoted DEFAULT form -- the one instance I had actually measured --
+  // and missed the double-quoted form of that IDENTICAL construct, plus named,
+  // namespace, side-effect-only and bare-specifier imports. Found by the Q/A's
+  // recall test, reproduced here before fixing:
+  //     default single-quote  CAUGHT | default DOUBLE-quote MISSED
+  //     named  MISSED | namespace MISSED | side-effect MISSED | bare MISSED
+  // A guard built from the single instance you happened to hit is not a guard
+  // against the class.
+  const staticImports = (src.match(/^\s*import\b/gm) || [])
+  check(`NO static imports of ANY form (found ${staticImports.length}) -- the Workflow runtime parses only dynamic import()`,
+    staticImports.length === 0, staticImports.join(' | '))
   check("agentType is 'researcher' (needs Write for write-first)", /agentType:\s*'researcher'/.test(src))
   check("model is 'opus' (rider-trap R4)", /model:\s*'opus'/.test(src))
   check('no Monitor/watchdog (rider-trap R11)', !/Monitor\(/.test(src))
