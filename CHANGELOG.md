@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `a212dfe9` | fix(86.17): cycle-2 -- my checker sliced away the guard it was checking |
 | 2026-08-09 | `98b5eee9` | phase-86.17: close the args boundary on BOTH Layer-3 Workflow scripts |
 | 2026-08-09 | `178a6a59` | phase-86.17: contract (written BEFORE any code) |
 | 2026-08-09 | `6763f10f` | phase-86.20: [P1 -- THE TRADE GATE AND THE ANALYZER SPEAK DIFFERENT RECOMMENDATION VOCABULARIES, ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `4c80bcc4` | feat: file 86.20 (P1 recommendation-vocabulary mismatch) + 86.21 (P2 counter blindness) |
 | 2026-08-09 | `31a06591` | docs: day report -- drop the two claims cycle 5 invalidated |
 | 2026-08-09 | `7c47a8a4` | docs: day report -- cycle 5 found two surviving money-path mutants |
-| 2026-08-09 | `a1b92d14` | docs(36.17): log cycles 190-194 -- the counter could not see this step at all |
 
 ---
 
+### v6.93.8 — fix(86.17): cycle-2 -- my checker sliced away the guard it was checking (2026-08-09)
+
+- **fix(86.17): cycle-2 -- my checker sliced away the guard it was checking**
 ### v6.93.7 — phase-86.17: close the args boundary on BOTH Layer-3 Workflow scripts (2026-08-09)
 
 - **phase-86.17: close the args boundary on BOTH Layer-3 Workflow scripts**
