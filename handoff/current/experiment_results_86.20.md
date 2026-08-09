@@ -205,64 +205,68 @@ baseline must be GREEN first, and a restored run closes the transcript.
 ```
 phase-86.20 criterion 7 -- mutation matrix (in-memory; repo never written)
   backend/services/recommendation_vocab.py  md5 ba5efe75d056d0dde15d6c7584ac01a5
-  backend/services/portfolio_manager.py  md5 22e903026a4a4cc52358d913e5407781
+  backend/services/portfolio_manager.py  md5 5b98331f5aaa80d34a5a5005a4d28103
 
-[baseline] un-mutated tree: 107 passed in 1.04s
+[baseline] un-mutated tree: 119 passed in 1.17s
   KILLED  | M1 [recommendation_vocab.py]: revert the separator fold (case-only, i.e. pre-86.20 behaviour)
            proves: criterion 3 + the whole fix -- the separator gap must reopen
            tests : test_already_working_spellings_are_unchanged[Strong, test_armed_downgrade_from_a_spaced_prior_recommendation_exits, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[STRONG-BUY], test_armed_every_strong_buy_spelling_reaches_the_buy_stage[Strong (+9 more)
-           result: 14 failed, 93 passed in 1.12s
+           result: 14 failed, 105 passed in 1.25s
   KILLED  | M2 [recommendation_vocab.py]: drop the closed-scale check (return whatever was folded)
            proves: criterion 5 anti-widening -- UNKNOWN must not become a token
            tests : test_an_unrecognised_recommendation_is_logged_distinctly, test_unrecognised_values_are_never_guessed_into_an_intent[, test_unrecognised_values_are_never_guessed_into_an_intent[Accumulate], test_unrecognised_values_are_never_guessed_into_an_intent[BUYING] (+7 more)
-           result: 11 failed, 96 passed in 1.12s
+           result: 11 failed, 108 passed in 1.23s
   KILLED  | M3 [recommendation_vocab.py]: match by SUBSTRING instead of by exact membership
            proves: criterion 5 -- 'NOT A BUY' and 'BUYING' must never be a BUY
            tests : test_unrecognised_values_are_never_guessed_into_an_intent[BUYING], test_unrecognised_values_are_never_guessed_into_an_intent[NOT, test_unrecognised_values_are_never_guessed_into_an_intent[Strong
-           result: 3 failed, 104 passed in 1.09s
+           result: 3 failed, 116 passed in 1.22s
   KILLED  | M4 [recommendation_vocab.py]: also strip non-separator punctuation (widen the fold)
            proves: criterion 5 -- 'Strong Buy!' must stay UNRECOGNISED, not be guessed
            tests : test_unrecognised_values_are_never_guessed_into_an_intent[Strong
-           result: 1 failed, 106 passed in 1.09s
+           result: 1 failed, 118 passed in 1.21s
   KILLED  | M5 [recommendation_vocab.py]: accept non-strings by str()-ing them
            proves: a dict or enum reaching the gate is a caller bug, not a token
            tests : test_unrecognised_values_are_never_guessed_into_an_intent[123], test_unrecognised_values_are_never_guessed_into_an_intent[value12], test_unrecognised_values_are_never_guessed_into_an_intent[value13]
-           result: 3 failed, 104 passed in 1.10s
+           result: 3 failed, 116 passed in 1.21s
   KILLED  | M6 [portfolio_manager.py]: ignore the flag -- always use the canonical resolution
            proves: the change is genuinely DARK; OFF must stay byte-identical
-           tests : test_REPRODUCE_producer_strong_buy_yields_no_buy_while_gate_buy_does, test_REPRODUCE_producer_strong_sell_is_not_sold_at_all, test_armed_the_same_downgrade_does_NOT_fire_with_the_flag_off, test_flag_OFF_is_byte_identical_to_the_legacy_expression[- (+19 more)
-           result: 29 failed, 78 passed in 0.90s
+           tests : test_REPRODUCE_producer_strong_buy_yields_no_buy_while_gate_buy_does, test_REPRODUCE_producer_strong_sell_is_not_sold_at_all, test_armed_the_same_downgrade_does_NOT_fire_with_the_flag_off, test_flag_OFF_is_byte_identical_to_the_legacy_expression[- (+31 more)
+           result: 41 failed, 78 passed in 1.06s
   KILLED  | M7 [portfolio_manager.py]: ignore the flag the other way -- always legacy (fix never applies)
            proves: the armed path is really wired to the flag
            tests : test_armed_downgrade_from_a_spaced_prior_recommendation_exits, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[STRONG-BUY], test_armed_every_strong_buy_spelling_reaches_the_buy_stage[Strong, test_armed_every_strong_buy_spelling_reaches_the_buy_stage[strong (+6 more)
-           result: 10 failed, 97 passed in 0.88s
+           result: 10 failed, 109 passed in 1.00s
   KILLED  | M8 [portfolio_manager.py]: resolve UNRECOGNISED to HOLD instead of a non-matching sentinel
            proves: HOLD is in _DOWNGRADE_RECS -- this would SELL on a parse failure
            tests : test_armed_an_unrecognised_holding_is_not_sold_either[Accumulate], test_armed_an_unrecognised_holding_is_not_sold_either[N/A], test_armed_an_unrecognised_holding_is_not_sold_either[Overweight]
-           result: 3 failed, 104 passed in 0.88s
+           result: 3 failed, 116 passed in 1.03s
   KILLED  | M9 [portfolio_manager.py]: drop the UNRECOGNISED warning (silent again)
            proves: criterion 6 -- an unparseable recommendation must be loud
            tests : test_an_unrecognised_recommendation_is_logged_distinctly
-           result: 1 failed, 106 passed in 0.88s
+           result: 1 failed, 118 passed in 0.99s
   KILLED  | M10 [portfolio_manager.py]: drop the VOCABULARY MISMATCH warning (the live defect goes silent)
            proves: criterion 6 -- with the fix DARK, the drop must still be visible
            tests : test_the_live_defect_is_loud_even_with_the_flag_OFF
-           result: 1 failed, 106 passed in 0.87s
+           result: 1 failed, 118 passed in 0.98s
   KILLED  | M11 [portfolio_manager.py]: fire the mismatch warning on EVERY value (alarm becomes noise)
            proves: an alarm that fires on every HOLD is one an operator trains away
            tests : test_a_recognised_non_buy_is_NOT_logged_as_unrecognised
-           result: 1 failed, 106 passed in 0.88s
+           result: 1 failed, 118 passed in 1.00s
   KILLED  | M13 [portfolio_manager.py]: restore the CYCLE-1 BUG: strip + re-base the default BEFORE the flag
            proves: the legacy-parity oracle -- a DARK flag must not change an order. This exact code shipped in cycle 1 and the Q/A caught it; the cell exists so it cannot come back unnoticed.
-           tests : test_flag_OFF_a_blank_recommendation_does_NOT_sell_a_held_position, test_flag_OFF_a_falsy_non_str_still_downgrades_exactly_as_legacy_did, test_flag_OFF_is_byte_identical_to_the_legacy_expression[-, test_flag_OFF_is_byte_identical_to_the_legacy_expression[-BUY (+13 more)
-           result: 21 failed, 86 passed in 0.89s
+           tests : test_flag_OFF_a_blank_recommendation_does_NOT_sell_a_held_position, test_flag_OFF_a_falsy_non_str_still_downgrades_exactly_as_legacy_did, test_flag_OFF_is_byte_identical_to_the_legacy_expression[-, test_flag_OFF_is_byte_identical_to_the_legacy_expression[-123] (+25 more)
+           result: 33 failed, 86 passed in 1.04s
+  KILLED  | M14 [portfolio_manager.py]: swallow the legacy AttributeError in the OFF branch (return "")
+           proves: the oracle's EXCEPTION arm is reachable. Cycle 2 shipped a parity table with zero truthy non-strings, so 0 of 46 cases raised and this exact mutant SURVIVED all 107 tests -- an illusory arm inside the guard added to fix cycle 1. This cell is why it cannot recur.
+           tests : test_flag_OFF_is_byte_identical_to_the_legacy_expression[-123], test_flag_OFF_is_byte_identical_to_the_legacy_expression[-3.14], test_flag_OFF_is_byte_identical_to_the_legacy_expression[-True], test_flag_OFF_is_byte_identical_to_the_legacy_expression[-value26] (+8 more)
+           result: 12 failed, 107 passed in 1.04s
   KILLED  | M12 [portfolio_manager.py]: remove the quiet path for a genuinely absent recommendation
            proves: legacy position rows carry none; alarming on them is noise
            tests : test_an_absent_recommendation_on_a_legacy_position_row_is_quiet
-           result: 1 failed, 106 passed in 0.88s
-[restored] un-mutated tree: 107 passed in 1.07s
+           result: 1 failed, 118 passed in 1.00s
+[restored] un-mutated tree: 119 passed in 1.20s
 [integrity] both targets' md5 unchanged: True
-ALL 13 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
+ALL 14 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
 ```
 
 M1 is the "revert the normalisation" cell criterion 7 names explicitly. M6 and
@@ -275,7 +279,7 @@ failure**, because `HOLD` is in `_DOWNGRADE_RECS`.
 
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q -k "portfolio_manager or decide_trades"
-121 passed, 3106 deselected, 1 warning in 7.87s
+133 passed, 3106 deselected, 1 warning in 7.49s
 ```
 
 exit **0**. It collected **14** before this step's tests existed; the new
@@ -283,7 +287,7 @@ tests are inside the frozen selector (see §2).
 
 Wider regression over everything that imports `portfolio_manager`:
 `-k "portfolio_manager or decide_trades or autonomous_loop or paper_trader or
-kill_switch"` -> **345 passed, 1 skipped, exit 0**.
+kill_switch"` -> **357 passed, 1 skipped, exit 0**.
 
 Lint gate (`qa.md` §1a) on a git-DERIVED file set, not a hand-typed one --
 `ruff check --select F821,F401,F811` over the changed `.py` files:
@@ -388,3 +392,48 @@ and "no such row exists yet" is not a property the code enforced.
   evidence is mutation cell M2/M7, which turn the reproduce pair RED, and M13.
 - The self-disclosed gap from cycle 1 stands: the control assertions inside the
   reproduce tests are not separately mutation-covered.
+
+---
+
+## 12. Cycle 3 -- the guard I added in cycle 2 had an illusory arm
+
+**Cycle-2 verdict: CONDITIONAL (`wf_779f844d-cb7`)**, verbatim in
+`evaluator_critique_86.20.md`. The cycle-1 blocker was confirmed **CLOSED**: the
+Q/A re-ran its own legacy-parity mutant and it died, a narrower rstrip-only
+variant died too, and it found **0 divergences across 38 additional input
+shapes** my table does not contain. Criteria 1-6 MET.
+
+**The new finding was inside the fix for the last one, which is the part worth
+sitting with.** The oracle compares outcomes via a helper that catches
+exceptions -- but `_PARITY_VALUES` contained **zero truthy non-strings**, so
+**0 of 46 cases raised** and the `("raised", ...)` arm never fired. The Q/A
+proved the consequence by execution rather than by argument: a mutant swallowing
+the legacy `AttributeError` in the OFF branch **SURVIVED all 107 tests**, with a
+control mutant confirming the harness can report survival.
+
+I reproduced both facts independently before changing anything: truthy non-str
+members `[]`, cases that raise `0 of 46`, and M14 **SURVIVED** on the cycle-2
+tree.
+
+**And I had asserted that coverage in `backend/config/settings.py`'s flag
+description** -- the operator-facing text someone reads when deciding to arm.
+That is the same shape of false claim, in the same class of file, that §11 item
+4 had just corrected. Writing "verified by an oracle including its
+AttributeError failure mode" while the table could not reach that arm is exactly
+the illusory-guard pattern, one level up.
+
+### What changed in cycle 3
+
+1. **Six truthy non-strings added to the parity table** (`123`, `3.14`, `True`,
+   a dict, a list, a bare `object()`). Cases that raise: **12 of 58**, so the
+   exception arm is now reachable and exercised.
+2. **Mutation cell M14** swallows the `AttributeError` in the OFF branch. It
+   SURVIVED on the cycle-2 tree and is now **killed by exactly those 12 cases**
+   -- so the arm is proven able to fail, not merely present.
+3. **The coverage clause corrected** in `settings.py` and in the `_resolve_rec`
+   docstring: it now names truthy-non-str explicitly, names BOTH mutation cells,
+   and states plainly that cycle 2 shipped the same sentence over a dead arm.
+
+The underlying behaviour was correct throughout -- the Q/A verified the OFF path
+raises identically to legacy on every non-str it tried. What was wrong was the
+**claim about test coverage**, and only in cycle 3 does that claim become true.
