@@ -100,7 +100,17 @@ consecutive FAIL, so no `certified_fallback` escalation.
   rows are scored `directionally_correct=False` regardless of return — roughly
   two thirds of all buy-intent rows — and `memory.py` writes that verdict into a
   reflection persisted to agent memory. Deliberately not claimed: no lost trade,
-  no lost P&L; whether wrong reflections were already persisted is unmeasured.
+  no lost P&L.
+
+  **UPDATE, measured after this report was first written** (86.22's research gate
+  then re-verified by me): **`agent_memories` has rows=0** and
+  `directionally_correct` is **never persisted at all** -- `save_outcome` does not
+  carry it and the table has no such column, so `outcome_tracking` is clean. The
+  writer IS wired (`autonomous_loop.py:3392` passes a model) and fires only
+  `if self._model:`, so the path is live-CAPABLE while the corpus is empty.
+  **So there is nothing to backfill: the fix must land before the writer produces
+  its first row.** That lowers the urgency and sharpens the deliverable; the
+  defect itself is unchanged. 86.22 is now research-gated and contracted.
 - **86.23 (P3)** — two vacuity-shaped gaps in 86.17's args-boundary checker,
   both raised as non-blocking notes by its cycle-2 Q/A.
 
@@ -140,7 +150,7 @@ nothing, and it caught dead code I had created without noticing.
 | # | Ask | Recommendation |
 |---|---|---|
 | **34** | **Arm `paper_recommendation_vocab_fix_enabled`?** Built, dark, mutation-hardened, Q/A-PASSed. Arming changes behaviour on both sides, and **the two sides have opposite risk polarity**: the sell half is risk-*reducing* (it revives exits that currently do not happen); the buy half spends cash. | Arm it. Consider the sell half the safer half. |
-| **35** | **86.22 is a P1 I filed but did not build.** The learn-loop is being fed a systematically false signal on ~2/3 of buy recommendations. | Prioritise it above the remaining 36.x P1s. |
+| **35** | **86.22 is a P1 I filed, gated and contracted but did not build.** The learn-loop label is wrong on ~2/3 of buy recommendations -- but the corpus it would poison is measured EMPTY, so this is "fix before the writer fires", not "clean up a mess". | Build it next; the expensive research and contract are done. |
 | **36** | **86.21 carries a FAIL by escalation, not by defect.** Three named bounded fixes remain; none touches the counter's arithmetic. | Decide: resume with the three fixes, or accept the counter as-is and close on a fresh cycle. |
 | **37** | **86.6's conftest guard is ACTIVE but UNGRADED.** Measured delta 0 over 3221 tests, but no Q/A has seen it, and `sys.addaudithook` cannot be uninstalled once installed (PEP 578 also says it "is not sandboxing"). `PYFINAGENT_LIVE_STATE_GUARD=off` disables it. | Keep it; grade it when 86.6 resumes. |
 | **38** | **SECURITY: the user crontab contains a plaintext Slack bot token** (seen while ruling out an external scheduler; value not reproduced here or anywhere in the repo). | Rotate the token and move it out of the crontab line. |
@@ -168,8 +178,11 @@ Still open from before: **#10, #13, #14, #19, #24, #30–#33**.
   to it. It is the money question and it outranks the remaining 36.x P1s.
 - **86.6's Part B is untouched** — I have not shown the subprocess channel can be
   closed at all, only that the filesystem one can.
-- **86.22's blast radius on already-persisted reflections is unmeasured.** I
-  measured the scoring defect; I did not measure what it has already written.
+- ~~86.22's blast radius on already-persisted reflections is unmeasured.~~
+  **NOW MEASURED:** `agent_memories` rows=0, and `directionally_correct` is never
+  persisted anywhere. Nothing has been written. What I still cannot verify is
+  *why* the table is empty when the writer is wired -- the standing dead-rail
+  finding is the likely cause but I did not confirm it.
 - **The historical scheduled-cycle firings logged at ~22:00 local do not
   obviously match the current `paper_trading_hour=14` ET.** The running
   backend's `next_run` is authoritative and I did not chase the discrepancy; the
