@@ -175,3 +175,33 @@ The confounded baseline is itself an argument for landing **36.28**.
 closes on its own criteria — the release authorises an executor to START it, it
 does not close it. Its six immutable criteria are unchanged; only the audit
 basis was extended with today's evidence.
+
+### Ask #29 — CORRECTED 2026-08-09 (same day)
+
+**My diagnosis in ask #29 was WRONG and is retracted.** I attributed the
+synthetic `0.0/HOLD` writes to the CRITIC (`Critic returned unparseable JSON…`).
+The 61.2 research gate refuted it and I re-verified against the same rows:
+
+- PANW `0.0 HOLD` carries **`final_synthesis.error = "Failed to parse final report."`**
+- DELL / CRWD / HPE / HUM all have **`synth_err = None`** and real scores
+- Over 40 days: **153 of 185** synthetic rows carry that same synthesis error;
+  `critic_degraded` is **orthogonal** — true on 45 rows, 3 of which scored > 0.
+  The CRWD **5.75** row *is* `critic_degraded=true`; the PANW **0.0** row is
+  `critic_degraded=FALSE`.
+
+**The emitter is the SYNTHESIS draft parse failure (`orchestrator.py:1681-1688`),
+not the critic.** My correlation was timestamp coincidence — three critic
+warnings happened to bracket PANW's save. A critic-scoped fix would have broken
+the working path and missed all 153 rows.
+
+**Also: 61.2 is already largely BUILT and DARK.** Criteria 1/4/6 sit behind
+`paper_synthesis_integrity_enabled=False`, criterion 5 behind
+`paper_position_recommendation_fix_enabled=False`; criteria 2 and 3 already
+shipped ungated. So `RELEASE-61.2: APPROVED` does **not** unblock an
+implementation — the remaining work is an **operator decision to flip two
+guard-behaviour flags**, plus a genuinely unbuilt residue
+(`tasks/analysis.py:210-214`, `api/analysis.py:210-214` fabricate ungated, and
+6 downstream `or 0` / `or "HOLD"` coercions).
+
+**No new decision is requested right now.** This corrects the record so the flag
+decision, when it comes, rests on the right diagnosis.
