@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `4e582e58` | fix(36.27): the Workflow runtime rejects Node imports AND trailing export lists |
 | 2026-08-09 | `22582714` | phase-36.27: put the Researcher gate on the Workflow rail |
 | 2026-08-09 | `4d7d6a04` | docs: ask #27 -- operator call on closing 86.3 against an unsatisfiable criterion 5 |
 | 2026-08-09 | `721eb5ac` | docs(86.3): harness_log cycle 186 -- CONDITIONAL, criterion 5 not literally met |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `8431aef8` | docs(85.5.1): experiment results + live_check |
 | 2026-08-09 | `ebc1e172` | fix(85.5.1): drive a real KillSwitchState instead of a 2-key mock |
 | 2026-08-09 | `2901ae63` | phase-85.5.1: research gate + contract (GENERATE not started) |
-| 2026-08-09 | `a4f62546` | docs: overnight report 2026-08-09 -- Monday answer is NO, and why |
 
 ---
 
+### v6.87.13 — fix(36.27): the Workflow runtime rejects Node imports AND trailing ex... (2026-08-09)
+
+- **fix(36.27): the Workflow runtime rejects Node imports AND trailing export lists**
 ### v6.87.12 — phase-36.27: put the Researcher gate on the Workflow rail (2026-08-09)
 
 - **phase-36.27: put the Researcher gate on the Workflow rail**
