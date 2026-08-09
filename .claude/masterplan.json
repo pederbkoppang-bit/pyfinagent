@@ -24244,6 +24244,49 @@
             ],
             "live_check": "live_check_86.19.md containing: the re-derived duplicate enumeration, the verbatim BEFORE and AFTER output of the verification command showing find_step('5.2') moving from the archived twin to the live step, the consumer table from criterion 4, and the mutation-test output from criterion 5"
           }
+        },
+        {
+          "id": "86.20",
+          "status": "pending",
+          "priority": "P1",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P1 -- THE TRADE GATE AND THE ANALYZER SPEAK DIFFERENT RECOMMENDATION VOCABULARIES, AND THE HIGHEST-CONVICTION SIGNAL IN THE CORPUS WAS SILENTLY DROPPED] FOUND 2026-08-09 while measuring the recommendation distribution to diagnose why a healthy COMPLETED cycle placed zero trades. REPRODUCE BEFORE FIXING. MECHANISM, read at source: backend/services/portfolio_manager.py:63 defines _BUY_RECS = {\"BUY\", \"STRONG_BUY\"} (also _SELL_RECS :61, _DOWNGRADE_RECS :62). The buy gate at :188 is `if rec not in _BUY_RECS: continue`, where :182 sets `rec = (analysis.get(\"recommendation\") or \"HOLD\").upper()` (same shape at :140/:141 for the downgrade-SELL rule). .upper() closes the CASE gap but NOT the SEPARATOR gap: the analyzer emits 'Strong Buy', which upper-cases to 'STRONG BUY' (SPACE) and never matches 'STRONG_BUY' (UNDERSCORE). The candidate is skipped by `continue` with no log line and no counter. MEASURED over the whole of financial_reports.analysis_results (RE-DERIVE; do not trust these): 'HOLD' n=275, 'Hold' n=115, 'BUY' n=91, 'Buy' n=39, 'Sell' n=16, 'Strong Buy' n=5, 'N/A' n=2. 'Buy' is SAFE (.upper() maps it to 'BUY'). 'Strong Buy' is NOT: 5 rows, 1 of them genuine (final_score > 0) scoring 8.36 -- HIGHER THAN ANY ROW THAT DID MATCH (max BUY score 8.0). The single highest-conviction buy signal in the corpus never reached the buy-candidate stage. STATE THE BLAST RADIUS HONESTLY AND DO NOT INFLATE IT: that is ONE genuine signal across the full table, and reaching the buy-CANDIDATE stage is not the same as trading -- Risk Judge sizing, sector caps and cash all sit downstream. Do NOT claim a lost trade or lost P&L. SAME CLASS, ALSO IN SCOPE: _SELL_RECS and _DOWNGRADE_RECS carry the identical exposure, so a 'Strong Sell' would be dropped the same way. A BUY-only fix is a guard against the instance, not the class. 'N/A' (n=2) is outside every set and falls through to no-action -- correct today, but indistinguishable from a parse failure. DO NOT simply add 'STRONG BUY' to the set -- that is the instance fix. Normalise the separator, and decide WITH EVIDENCE whether to normalise at the read boundary or constrain what the analyzer emits. DO NOT widen the vocabulary to admit anything that is not already a buy intent: a gate that accepts more strings than it should is worse than one that accepts too few, because it moves money.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q -k \"portfolio_manager or decide_trades\"'",
+            "success_criteria": [
+              "The defect is REPRODUCED FIRST and recorded verbatim: drive decide_trades with a candidate whose recommendation is the literal 'Strong Buy' and assert that under CURRENT code it yields NO buy order, while an otherwise identical candidate with 'BUY' DOES -- isolating the difference to the vocabulary and not to any other gate",
+              "The recommendation population is RE-DERIVED at fix time from analysis_results (do not copy this step's counts) and recorded: every distinct value, its count, and how many are genuine (final_score > 0), with which values match the gate after .upper() and which do not",
+              "The fix normalises the SEPARATOR rather than adding the observed literal to the set. A test proves at least three spacing/punctuation variants of one intent reach the same decision, and that 'Buy' (safe today) is unchanged",
+              "SELL and DOWNGRADE are covered too, not only BUY -- assert the Strong-Sell equivalent is handled, since _SELL_RECS/_DOWNGRADE_RECS have identical exposure",
+              "NO STRING THAT IS NOT A BUY INTENT BECOMES A BUY. Assert explicitly that 'HOLD', 'Hold', 'Sell', 'N/A', '' and None still produce no buy order",
+              "The silent skip becomes observable: a candidate rejected for an UNRECOGNISED recommendation (as distinct from a recognised non-buy like HOLD) is logged or counted, so the next vocabulary drift is loud",
+              "MUTATION-TEST every new guard, including reverting the normalisation, and confirm each mutant is killed by the assertion that names it"
+            ],
+            "live_check": "Verbatim test output for the reproduce-then-fix pair on 'Strong Buy'; the re-derived recommendation-distribution output showing every distinct value with count and genuine count; and verbatim negative-case output proving HOLD/Sell/N/A/empty/None still produce no buy."
+          }
+        },
+        {
+          "id": "86.21",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "retry_count": 0,
+          "max_retries": 3,
+          "name": "[P2 -- THE 3rd-CONDITIONAL COUNTER IS STRUCTURALLY BLIND TO ANY STEP STILL IN FLIGHT, AND FAILS OPEN SILENTLY] FOUND 2026-08-09 during phase-36.17, which needed FIVE Q/A cycles. MECHANISM: CLAUDE.md's failure-discipline rule has the Q/A count prior CONDITIONAL verdicts for a step-id by reading handoff/harness_log.md. But that file is written at step CLOSE -- the protocol's LOG phase runs after a PASS and before the status flip -- so a step that has NOT closed has ZERO rows, and the counter reads zero no matter how many cycles have run. MEASURED: across all five 36.17 cycles, `grep -nE '^## Cycle.*phase=36\\.17' handoff/harness_log.md` returned ZERO rows every time, and each Q/A had to be hand-fed its verdict history in the spawn prompt (c1 CONDITIONAL, c2 FAIL, c3 FAIL, c4 CONDITIONAL, c5 CONDITIONAL). Two Q/A passes independently noted the counter could not see the step. WHY IT MATTERS: the rule exists to stop the harness LOGGING instead of CORRECTING. Its input is empty exactly when it is needed -- during a long remediation loop -- so it fails OPEN and silently. On 36.17 it only worked because Main volunteered the history each cycle; an executor who omitted or mis-stated it would have had the counter silently agree. INDEPENDENCE PROBLEM, decide it explicitly: a spawn-prompt-supplied count is authored by MAIN, and Main is the party the rule constrains. A counter whose input comes from the audited party is not independent. DESIGN CONSTRAINT: do NOT fix this by writing harness_log rows mid-step. That file feeds the Harness tab and the next cycle's resume detection, and LOG-is-last is deliberate. Prefer a source that already accumulates per cycle -- handoff/current/evaluator_critique_<id>.md gains one verbatim verdict block per cycle -- or a small append-only per-step verdict ledger written when each verdict is transcribed.",
+          "verification": {
+            "command": "bash -c 'grep -c \"^## Cycle\" handoff/harness_log.md && ls handoff/current/evaluator_critique_*.md | head -3'",
+            "success_criteria": [
+              "The blindness is REPRODUCED FIRST and recorded verbatim: for a step with N>1 recorded verdicts but status still pending, show the log-grep the rule prescribes returning zero rows",
+              "A counting source is chosen that does NOT require writing harness_log rows mid-step, and the reason is stated; LOG-is-last ordering is preserved",
+              "The counter returns the CORRECT count for a step mid-flight, proven against 36.17's real five-verdict history (CONDITIONAL, FAIL, FAIL, CONDITIONAL, CONDITIONAL) -- which also exercises the reset-on-FAIL path",
+              "The independence question is answered explicitly: state whether a Main-supplied count is advisory or authoritative, given Main is the audited party",
+              "Fail-safe direction is asserted and TESTED: if the counting source is missing or unreadable, say plainly whether it fails open or closed and why that is right here",
+              "MUTATION-TEST the counter: corrupt or empty the source and assert it NOTICES rather than silently reporting zero -- silently reporting zero is the defect being fixed"
+            ],
+            "live_check": "Verbatim counter output against 36.17's real verdict history showing 5 verdicts and the correct consecutive-CONDITIONAL count, side by side with the verbatim zero-row output of the log-grep the rule currently prescribes."
+          }
         }
       ]
     }
