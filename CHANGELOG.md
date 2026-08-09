@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `8d736735` | docs(86.19): file the duplicate step ids -- id lookups resolve to the wrong node |
 | 2026-08-09 | `63bd6940` | docs(86.18): file the whole-file masterplan rewrite as its own step |
 | 2026-08-09 | `2fc107ea` | docs(36.17): restart done in-session -- fix is IN FORCE, verified on the running process |
 | 2026-08-09 | `f1ea7c5c` | fix(36.17): cycle-3 -- replace an illusory guard, close 3 surviving mutants |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `469788d5` | docs(61.2): today's evidence supersedes the timeout trigger; raise ask #29 |
 | 2026-08-09 | `afba23a2` | docs(76.4): bump P2 -> P1 and fold in the empty-report-body case |
 | 2026-08-09 | `524b9402` | fix(hooks): Stop gate read a masterplan path that never existed |
-| 2026-08-09 | `6baddb98` | docs: file 86.12 -- is the kill switch evaluating drawdown against a STALE nav? |
 
 ---
 
