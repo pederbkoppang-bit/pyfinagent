@@ -1427,6 +1427,76 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 ks_today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 _log_cycle_signals_to_bq(bq, [], ks_today)
                 final_state = await asyncio.to_thread(trader.mark_to_market)
+
+                # ── phase-36.17: EXIT-ONLY pass on a halted cycle ────────
+                # A halt stops NEW ENTRIES; it must not stop PROTECTIVE EXITS.
+                # The `paused` and `blocked` paths do NOT flatten -- kill_switch.py
+                # line 14: "Pause = halt new entries; existing positions kept" --
+                # so without this the book holds full exposure with its stop-losses
+                # unenforced, every cycle until the halt clears. `blocked` is
+                # NON-LATCHING, so it can recur indefinitely with no operator
+                # resume. check_stop_losses has exactly ONE production caller (the
+                # Step 5.6 block below), so there is no second enforcement layer.
+                #
+                # This is the standard "liquidation-only" state: NYSE Pillar Risk
+                # Controls v4.7 ships "Block only -- accept cancels"; ESMA's
+                # Supervisory Briefing on Algorithmic Trading (2026-02) para 93
+                # makes cancel/withdraw/kill three distinct rungs; MiFID II RTS 6
+                # Art. 12 scopes "kill" to UNEXECUTED orders. Operator decision
+                # 2026-08-09 = option (b). Runs AFTER mark_to_market so the stop
+                # comparison sees fresh prices, and BEFORE save_daily_snapshot so
+                # the snapshot reflects any exit.
+                #
+                # THREE THINGS THIS DELIBERATELY DOES NOT DO:
+                #  1. It does NOT run on the `triggered` (breach) path --
+                #     check_and_enforce_kill_switch already called flatten_all, so
+                #     a second pass would duplicate exits, fee events and
+                #     learn-loop rows over positions that no longer exist.
+                #  2. It does NOT call backfill_missing_stops. SYNTHESIZING a stop
+                #     level is a NEW risk decision (ESMA para 11(5)); the
+                #     synthesized price can land ABOVE the current mark, turning
+                #     "this position has no stop" into "sell it at market now" --
+                #     a flatten by side effect on exactly the branches that
+                #     deliberately do not flatten.
+                #  3. It does NOT append to summary["steps"]: two phase-36.12
+                #     tests assert summary["steps"][-1] == "kill_switch_halted".
+                #
+                # SELL-only, and no BUY can leak: execute_buy refuses when paused
+                # (paper_trader.py:282-294, fail-closed at :225-233), and on the
+                # `blocked` path BUY suppression comes ONLY from the `return
+                # summary` below -- so that return MUST stay last.
+                if not ks_check.get("triggered"):
+                    summary["halt_stop_loss_triggered"] = []
+                    try:
+                        halt_stops = await asyncio.to_thread(trader.check_stop_losses)
+                        for sl_ticker in halt_stops or []:
+                            sl_trade = await asyncio.to_thread(
+                                trader.execute_sell,
+                                ticker=sl_ticker,
+                                quantity=None,
+                                price=None,
+                                reason="stop_loss_trigger",
+                                signals=None,
+                            )
+                            if sl_trade:
+                                summary["halt_stop_loss_triggered"].append(sl_ticker)
+                                logger.warning(
+                                    "phase-36.17: stop-loss enforced on a HALTED "
+                                    "cycle (%s) -- sold %s at %s",
+                                    halt_reason, sl_ticker, sl_trade.get("price"),
+                                )
+                    except Exception as halt_sl_exc:
+                        # The halt itself must still complete and report: the
+                        # phase-85.4 loudness guards depend on the terminal
+                        # status set above. Loud, but never at that cost.
+                        summary["halt_stop_loss_error"] = repr(halt_sl_exc)
+                        logger.exception(
+                            "phase-36.17: exit-only stop-loss pass FAILED on a "
+                            "halted cycle (%s) -- positions may be holding "
+                            "exposure with unenforced stops: %s",
+                            halt_reason, halt_sl_exc,
+                        )
+
                 await asyncio.to_thread(
                     trader.save_daily_snapshot,
                     trades_today=0,
