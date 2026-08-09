@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `440a3ff0` | docs(61.2): RETRACT my critic attribution -- the gate refuted it and I re-verified |
 | 2026-08-09 | `9b72cb3b` | fix(86.15): renumber my step off a duplicated 86.13 id |
 | 2026-08-09 | `6f4f5303` | docs: file 86.14 -- live cycle-status page, so the operator stops having to ask |
 | 2026-08-09 | `3007bb53` | docs: file 86.13 -- the cost guard fires on every analysis and only warns |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `05cde616` | docs: file 86.7 (keychain-only rail auth + broken setup-token) and 86.8 (crossSessionInbound + SendM |
 | 2026-08-09 | `3afc561c` | live_check: the rail is ALIVE -- fixed by REMOVING the OAuth token, not replacing it |
 | 2026-08-09 | `3848cae2` | docs: verification cycle spent -- 85.6 Step-0 roll LIVE-PROVEN, rail 401s (ask #28) |
-| 2026-08-09 | `785ab075` | fix(ops): kickstart does NOT re-read the plist -- my token script reported success on a stale env |
 
 ---
 
