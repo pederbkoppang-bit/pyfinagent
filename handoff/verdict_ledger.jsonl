@@ -9,3 +9,6 @@
 {"step_id": "86.20", "cycle": 196, "verdict": "PASS", "run_id": "wf_024cb2c9-8ea", "recorded_by": "main", "date": "2026-08-09/10"}
 {"step_id": "86.17", "cycle": 197, "verdict": "CONDITIONAL", "run_id": "wf_2c6036e2-5b7", "recorded_by": "main", "date": "2026-08-09/10"}
 {"step_id": "86.17", "cycle": 197, "verdict": "PASS", "run_id": "wf_4dc64bbb-039", "recorded_by": "main", "date": "2026-08-09/10"}
+{"step_id": "86.21", "cycle": 199, "verdict": "CONDITIONAL", "run_id": "wf_cb85c901-472", "recorded_by": "main", "date": "2026-08-10"}
+{"step_id": "86.21", "cycle": 199, "verdict": "CONDITIONAL", "run_id": "wf_8b188711-509", "recorded_by": "main", "date": "2026-08-10"}
+{"step_id": "86.21", "cycle": 199, "verdict": "FAIL", "run_id": "wf_1266efe8-19b", "recorded_by": "main", "date": "2026-08-10"}

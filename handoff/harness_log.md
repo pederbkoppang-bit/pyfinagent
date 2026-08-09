@@ -32306,3 +32306,74 @@ scripts, and the kill cells carry an `|| threw !== null` escape hatch that
 passes on the strong disjunct today. Both are the Q/A's non-blocking notes;
 neither is fixed in the graded tree.
 
+
+## Cycle 198 -- 2026-08-10 -- phase=86.6 result=PARKED
+
+No Q/A was spawned. Parked mid-step under the overnight goal's rule against
+spending the night on one step: **Part B (the subprocess channel) is entirely
+unstarted**, and criteria 5, 6 and 9 are not done. Status stays `pending`.
+
+What DID land, measured: the research gate PASSED (18 sources, 44 URLs,
+audit-class dry after 10 rounds) after a FIRST attempt dropped its return without
+calling StructuredOutput -- write-first meant a 615-line brief was already on
+disk, and the gate was re-run lean to complete it. The derivation for criterion 1
+works and its RECALL is validated against the named probe. And a filesystem
+preventer is installed at conftest import via `sys.addaudithook`, raising a
+`BaseException`-derived refusal.
+
+**The finding that would have made the obvious fix vacuous:** `Failed`'s MRO
+reaches `BaseException`, but `kill_switch._append_audit` catches `Exception` and
+both existing in-repo guards raise `RuntimeError`. A refusal built to the house
+pattern is SILENTLY ABSORBED -- write blocked, test GREEN. Proven against the
+production shape: `SWALLOWED=None ESCAPED=LiveStateWriteRefused`.
+
+**No regression, measured as a delta over the full tree:** baseline guard-off
+14 failed / 3207 passed; scoped guard 14 failed / 3207 passed; **delta 0**.
+
+Two things corrected rather than shipped: I first read "21 failed" as the guard
+breaking 21 tests -- against the 14-failure baseline the true cost is +7, none of
+them a kill-switch write, so blocking was narrowed to the kill-switch journal;
+and a "report, don't block" tier emitted ZERO visible lines because pytest
+discards captured stderr for passing tests, so it was removed rather than left
+looking useful. Details in `handoff/current/progress_86.6_PARKED.md`.
+
+## Cycle 199 -- 2026-08-10 -- phase=86.21 result=FAIL
+
+Q/A `wf_1266efe8-19b`. **FAIL by the 3rd-CONDITIONAL escalation rule, not by a
+criterion miss** -- the Q/A states that explicitly and records that all six
+immutable criteria are MET. Prior: cycle 1 CONDITIONAL (`wf_cb85c901-472`),
+cycle 2 CONDITIONAL (`wf_8b188711-509`).
+
+**The way it reached the FAIL is the step's own premise proving itself.** It
+counted prior verdicts from `evaluator_critique_86.21.md` (2) and refused to use
+the log-grep's 0, writing: *"escaping the rule by citing that zero would be
+committing the defect under repair."* The rule's prescribed source is blind to
+in-flight steps -- which is precisely what 86.21 exists to fix -- and the Q/A
+declined to be granted a pass by that blindness.
+
+**Built:** an append-only per-cycle verdict ledger (`harness_log.md` untouched --
+LOG-is-last preserved), a counter that returns a STATUS as well as a count and
+never a silent zero, and a mutation harness that mutates the counter itself.
+Five statuses; `unparseable`, `ledger_empty` and `ledger_missing` all return
+`None` and fail CLOSED. Self-test 15 cases, matrix 11 cells, all killed.
+
+**Three cycles, and each one the Q/A found the same defect class in my fix for
+it:** cycle 1 the `verdict` field; cycle 2 `step_id`, the sibling field at the
+SAME call site; cycle 3 `_report` -- where I covered the exit codes and not one
+character of the OUTPUT, for a function whose entire product is printed text.
+Changing `print(f"consecutive : {c}")` to a hard `0` leaves all 15 cases and all
+11 cells green while the shipped CLI reports a silent zero forever. **That is the
+defect the step abolishes, alive on the human-facing path.**
+
+Also found and NOT fixed: my crash-scoring change is unsound (three
+guard-IRRELEVANT mutants -- SyntaxError, ModuleNotFoundError, IndentationError --
+were all scored KILLED, because the `try` wraps `_load()` as well as
+`self_test()`); and "Self-test 9 cases -> 15" does not reproduce (measured
+5/11/15; the true delta is 11 -> 15).
+
+**STATUS: 86.21 stays `pending`.** Not reverted -- the Q/A judged the counter's
+arithmetic correct and the remediation real each cycle, so reverting would
+discard correct work over coverage gaps. This is 1 consecutive FAIL, so no
+certified_fallback escalation. Three named, bounded fixes are in the disposition;
+none touches the counter's arithmetic.
+
