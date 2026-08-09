@@ -13,6 +13,26 @@ CLAUDE.md, `.claude/rules/research-gate.md`, auto-memory MEMORY.md,
 
 ---
 
+## 0. FIRST ACTION: the owed backend restart
+
+`PAPER_CYCLE_MAX_SECONDS 7200 -> 10800` is written to `backend/.env:70` but **NOT
+IN FORCE** — `autonomous_loop.py:506` reads it at cycle start, and the 08-09
+cycle was still running when the session ended, so the restart was correctly
+deferred (never restart into a live cycle).
+
+Once `handoff/.autonomous_loop.lock` shows `state: released`, run the two-line
+reload from `.claude/rules/frontend.md` / the 08-09 day report — **with a
+`sleep 8` between them**, which is the fix for the race that left the backend
+down ~4 minutes on 08-09 (`bootout` is asynchronous; `bootstrap` raced it and
+failed with `Input/output error`). Then:
+
+```
+bash scripts/ops/reissue_cc_oauth_token.sh --verify     # expect MATCH
+```
+
+and confirm the **RUNNING** process reports `10800.0` — not a fresh interpreter,
+which is the easy lie here.
+
 ## 1. Measured state
 
 | | measured 2026-08-09 ~13:10 CEST |
@@ -34,7 +54,42 @@ weekend, so there is nothing new to observe until Monday.
 
 ---
 
-## 2. START HERE: `86.1` — its research gate is ALREADY PASSED
+## 2. START HERE: `36.17` — the last untouched item, and a real money-path hole
+
+**`86.1`, `86.2`, `86.3` and `36.27` CLOSED 2026-08-09. Do not re-run them.**
+
+Start at **36.17**: a halted cycle `return`s at Step 5.5 **before** Step 5.6, so
+`backfill_missing_stops()` and `check_stop_losses()` never run — **stop-losses
+stop being enforced exactly when the book is judged unsafe.** On the `paused` and
+`blocked` paths there is no flatten, so positions keep their exposure with
+enforcement switched off, every cycle until the block clears. Pre-existing;
+phase-36.12 **widened** it with a third halt reason rather than creating it. The
+fix is a RISK-POLICY choice the operator owns — research it and present options
+(a)/(b)/(c), do not pick one silently. RE-DERIVE the line numbers:
+`grep -n 'Step 5.6' backend/services/autonomous_loop.py`.
+
+Then **`86.6`** (the filesystem + subprocess channels a conftest guard cannot
+reach — proven live on 08-09 when a test run wrote real cycle-lock state), then
+the UI work (`86.10`, `86.11`, `86.14`), which is now fully specified and has a
+**subagent-proven** Playwright capture path.
+
+**NOT `61.2` first**, despite the operator releasing it. It is already **BUILT
+AND DARK** — criteria 1/4/6 behind `paper_synthesis_integrity_enabled=False`,
+criterion 5 behind `paper_position_recommendation_fix_enabled=False`; 2 and 3
+shipped ungated. What remains is an **operator flag decision on a live book**
+plus an unbuilt residue (`tasks/analysis.py:210-214`,
+`api/analysis.py:210-214`, and 6 downstream `or 0` / `or "HOLD"` coercions).
+**And its `harness_log` Cycle 173 is CONDITIONAL #2**, so the next Q/A on
+UNCHANGED evidence must auto-FAIL — evidence must materially change first.
+
+**61.2's trigger was MIS-DIAGNOSED on 08-09 and corrected the same day.** It is
+NOT the critic. `critic_degraded` is orthogonal (true on 45 rows, 3 with real
+scores > 0; CRWD 5.75 IS `critic_degraded=true`, PANW 0.0 is FALSE). The emitter
+is the **synthesis draft parse failure at `orchestrator.py:1681-1688`** —
+153 of 185 synthetic rows carry `final_synthesis.error="Failed to parse final
+report."`. A critic-scoped fix breaks the working path and misses all 153.
+
+## 2b. (superseded) 86.1 — CLOSED 2026-08-09
 
 **Do not re-run the gate.** `handoff/current/research_brief_86.1.md` is on disk
 (36,998 bytes) and cleared the enforced rail (8 sources, 44 URLs, 8/8

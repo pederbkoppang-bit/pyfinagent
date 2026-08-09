@@ -1,247 +1,202 @@
 # Day report — 2026-08-09
 
-## Can the book trade on Monday? **No.**
+## Can the book trade on Monday? **Not reliably — but the reason changed today.**
 
-**Exactly one thing blocks it, and it is unchanged from last night: the
-`CLAUDE_CODE_OAUTH_TOKEN` is still malformed.** Re-measured at end of day,
-without printing the value:
+**The analysis rail is ALIVE.** It had been dead since at least 08-08. Today it
+ran **140 calls with zero failures** and produced real analyses:
 
 ```
-com.pyfinagent.backend.plist   len 123   sha256[:12] 9f8c63a185d8
+DELL 6.15 Hold   CRWD 5.75 Hold   HPE 5.58 Hold   HUM 4.78 Sell
+PANW 0.0  HOLD   <-- FABRICATED
 ```
 
-Byte-identical across all four plists, plist mtime **2026-07-08**. That is the
-same fingerprint recorded in ask #26 last night, so **the operator has not
-replaced it yet.** With the analysis rail dead, a cycle that completes still
-produces 6/6 degraded analyses and **zero trades**. No engineering done today
-changes that, and none could.
+**What now blocks it: masterplan 61.2 (P0) fabricates `final_score=0.0` +
+`recommendation='HOLD'` when synthesis-parse fails, and that value is
+indistinguishable downstream from a genuine worst-possible verdict.** It hit
+**1 of 5** analyses this cycle. Over 40 days it is **153 of 185 rows**.
+`final_score` feeds the meta-scorer and trade selection, so a silent analysis
+failure reads as a confident maximally-bearish opinion.
 
-**The one action that unblocks Monday is still: re-issue the token, set it once
-for both plists, restart the backend.** It needs the correct value, which only
-you have. I did not guess by slicing the malformed one.
+**Trades this cycle: not yet known** — the cycle was still running at 84 min when
+this was written (budget 7200s; it may time out, which is what the owed restart
+fixes).
 
 ---
 
-## What I could NOT verify, stated first
+## THE MOST IMPORTANT THING IN THIS REPORT: I got a P0 diagnosis WRONG
 
-- **The verification cycle was NOT spent.** One authorized cycle remained. With
-  the token unfixed it would have re-measured "6/6 degraded, 0 trades", which is
-  already established. Deferred with that reason on the record.
-- **85.6's Step-0 roll — already proven, but LAST night, not today.** The goal
-  asked me to watch for the first live confirmation. Searching `backend.log`
-  finds exactly **one** occurrence, and it predates today:
-  ```
-  2026-08-08 22:58:29,380 INFO paper_trader  phase-85.6: start-of-day anchor
-  rolled '2026-08-05' -> 2026-08-08 (nav=23830.46) at cycle start, independently
-  of the mark/trade region
-  ```
-  So the fix **is** live-proven — during the 85.6 cycle itself. **No cycle ran
-  today** (cron is weekday-only), so there was no fresh instance to observe, and
-  the anchor is correctly stale again after the UTC rollover.
-- **`test_phase_23_2_15`'s baseline failure was never root-caused.** It passes
-  under both paused and unpaused conditions today. Not claimed as fixed.
-- **I cannot prove the absence of in-process writers to the live journal.** My
-  own census produced a false negative on a defect I already knew about.
-
----
-
-## End-of-day measured state
+I told the operator, and wrote into 61.2's audit basis **and** the ask list, that
+the fabricated scores came from the **critic**
+(`Critic returned unparseable JSON after retry`). **That was wrong.** The 61.2
+research gate refuted it and I re-verified against the same rows:
 
 | | |
 |---|---|
-| masterplan | **333 pending** (18 P0, 84 P1, 154 P2, 58 P3, 8 P4), 814 done, 7 superseded |
-| kill switch | `paused: false`, `sod_date: 2026-08-08`, `armed: false`, `daily_baseline_stale: true`, trailing DD **3.3755% / 10%**, NAV 23833.94 |
-| `kill_switch_audit.jsonl` | **62 lines, `sha256 90e0303130fc…` — unchanged all day** |
-| token (ask #26) | **unchanged**, `9f8c63a185d8` |
-| commits | 16, all pushed; working tree clean on every production path |
+| PANW `0.0 HOLD` | `final_synthesis.error = "Failed to parse final report."` |
+| DELL / CRWD / HPE / HUM | `synth_err = None`, real scores |
+| 40-day census | **153 of 185** synthetic rows carry that synthesis error; **zero** are `0.0 + 'Hold'` |
+| `critic_degraded` | **orthogonal** — true on 45 rows, 3 of which scored > 0 |
 
-`armed: false` is **case C** and was left alone: the UTC date rolled past
-`sod_date`, so the daily leg is correctly unevaluable while the date-independent
-trailing leg keeps firing.
+Decisively, in the very cycle I cited: **CRWD 5.75 IS `critic_degraded=true`**
+and **PANW 0.0 is `critic_degraded=FALSE`** — exactly backwards from my claim.
+My correlation was timestamp coincidence: three critic warnings happened to
+bracket PANW's save, and I treated adjacency as causation.
+
+**The real emitter is the synthesis draft parse failure at
+`orchestrator.py:1681-1688`.** Acting on my version would have produced a
+critic-scoped fix that **broke the working path and missed all 153 rows.**
+
+Retracted in the masterplan and the ask list the same day.
 
 ---
 
-## What closed
+## What I could NOT verify
 
-| Step | Result | Cycle |
+- **Trades this cycle** — still running at report time.
+- **NTAP** — appeared in the early ticker list, produced no analysis row and no
+  agent lines. Not traced. **Not asserted as dropped.**
+- **The owed backend restart** — the cycle was still held, and restarting into a
+  running cycle is forbidden. Carried to the next session (see §Owed).
+- **86.10's scroll fix** — diagnosed at source, not reproduced with a measured
+  `scrollTop`. Filed, not fixed.
+
+---
+
+## Closed today
+
+| Step | Result |
+|---|---|
+| **36.27** | Researcher on the Workflow rail — **PASS**, 3 EVALUATE passes |
+| **86.1** | `peak_reset` live-state landmine — **PASS**, first pass |
+| **86.2** | Oversized JSON int stranded both kill-switch legs — **PASS** |
+| **86.3** | Test suite paused the live book — closed on **operator decision** (ask #27), criterion 5 unsatisfiable |
+| — | Kill-switch cluster reconciliation; `36.21` superseded |
+
+**Nine Q/A evaluations. One dropped without a verdict (treated as NO VERDICT).
+Six came back CONDITIONAL, and every one was right.**
+
+### The safety results, measured
+
+- **The suite no longer pauses your live book.** Full `backend/tests` with the
+  backend up: `62 → 62` lines, sha256 unchanged. The same suite appended **8
+  rows** and paused the armed book four times on 08-08.
+- **The peak landmine is defused.** Proven by firing it: production `reset_peak`
+  under a forced-ON flag wrote `old_peak 24666.57 → new_peak 12345.0`, replayed
+  authoritative, **trip point 22199.9 → 11110.5** — on a byte-identical copy,
+  never your journal. **79.6 is now safe to apply.**
+- **The total disarm is closed.** Case E went from `armed=False`, both legs
+  0.0%, `any_breached=FALSE` on a 20% drawdown → `armed=True`, both legs 20.0%,
+  `any_breached=TRUE`.
+- **85.6's Step-0 roll is live-proven** — `sod_date 2026-08-08 → 2026-08-09`,
+  `armed false → TRUE`, two seconds after a cycle start.
+
+---
+
+## The rail fix — and why it took two attempts
+
+**The token was not merely invalid; its PRESENCE overrode a working credential.**
+A/B on the same binary, same shell, only that variable differing:
+
+```
+WITH env token   : is_error=True  status=401 api_ms=0
+WITHOUT env token: is_error=False           api_ms=53566
+```
+
+Two separately-minted tokens both returned `401 OAuth access token is invalid`.
+`claude setup-token` is producing tokens this account will not authenticate.
+Fixed by **removing** `CLAUDE_CODE_OAUTH_TOKEN` from all four plists.
+
+**A defect in my own operator tooling, found because the operator followed it
+exactly.** My first script used `launchctl kickstart -k`, which restarts the
+process but makes launchd reuse its **cached** job definition — it never re-reads
+the plist. The backend came up one second after the write still holding a stale
+token, and **my script printed `/api/health = 200` as if done**. A success
+message over a stale environment. Fixed: the reload is now an explicit operator
+step, plus a `--verify` that compares the RUNNING process against the plist.
+
+**Incident:** `bootout` succeeded, `bootstrap` raced it and failed with
+`Input/output error`. **The backend was down ~4 minutes.** Recovered. The
+`sleep 8` between the commands is the fix and is now in the runbook.
+
+---
+
+## Playwright verification: restored, and it had been silently dead
+
+UI verification is *binding* in this project, and it was **structurally
+impossible** — every protected route redirected to `/login`, so UI claims quietly
+degraded to API cross-checks with no error. Root cause: the documented procedure
+was a second dev server on `:3100`, abandoned because it breaks the operator's
+`:3000`, and **nothing replaced it**.
+
+Now: a SessionStart hook mints a real NextAuth JWE; `.mcp.json` carries
+`--storage-state`; `qa.md` gained a binding gate that **a `/login` capture is NO
+EVIDENCE**. **Proven end-to-end by a Q/A subagent**, which navigated behind the
+wall, captured real operator data, and cross-checked the strip against the live
+API — and returned four findings including one against itself.
+
+---
+
+## Filed today (11 new steps + 2 re-scoped)
+
+`86.6` channels a conftest guard can't reach (filesystem + subprocess) ·
+`86.7` rail auth now keychain-only, no fallback · `86.8` crossSessionInbound +
+SendMessage · `86.9` validate the cycle-budget raise · `86.10` tab nav doesn't
+reset scroll, hiding the safety strip · `86.11` audit-class UI sweep ·
+`86.12` is the kill switch evaluating drawdown against a STALE nav ·
+`86.13` cost guard fires on every analysis · `86.14` live cycle-status page ·
+`76.4` **P2 → P1** + empty-report-body folded in · `61.2` corrected twice.
+
+---
+
+## Owed at session end — NOT DONE, and why
+
+**One backend restart**, for `PAPER_CYCLE_MAX_SECONDS 7200 → 10800`
+(`backend/.env:70`, backed up). **Measured: NOT in force** — the running backend
+holds 7200 because `autonomous_loop.py:506` reads it at cycle start.
+
+**It was not done because the cycle was still running at 84 min**, and
+restarting into a live cycle is forbidden. **Next session, once
+`handoff/.autonomous_loop.lock` shows `state: released`:**
+
+```
+launchctl bootout gui/$(id -u)/com.pyfinagent.backend
+sleep 8
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pyfinagent.backend.plist
+bash scripts/ops/reissue_cc_oauth_token.sh --verify   # expect MATCH
+```
+
+Then confirm the RUNNING process reports `10800.0` — not a fresh interpreter,
+which is the easy lie here.
+
+---
+
+## Decisions owed
+
+| # | Ask | State |
 |---|---|---|
-| **36.27** — Researcher gate has no Workflow rail | **PASS**, flipped + pushed `97f7881d` | 187, 3 EVALUATE passes |
-| **86.3** — the test suite pauses the live book | fix live and measured; **step held on ask #27** | 186, 2 EVALUATE passes |
-| kill-switch cluster reconciliation | delivered; `36.21` superseded | — |
+| 26 | The token | **Resolved** — removed, rail alive |
+| 27 | Close 86.3 | **Resolved** — APPROVED |
+| 29 | Release 61.2 | **Resolved** — APPROVED, but see the correction: 61.2 is built-and-DARK; what remains is a **flag decision**, not an implementation |
+| 23/24/25 | cycle budget / rail timeout / merged dispatch | #23 applied; **#24 and #25 still open and both reduce cost rather than raise a ceiling** |
+| 79.6 | KS-PEAK-RESET | **Now safe to apply** — 86.1 removed the landmine |
 
-**Five Q/A evaluations across two steps. Four came back CONDITIONAL, and every
-one of them was right.**
-
-### The headline safety result
-
-**The test suite no longer pauses the operator's live trading book.** Measured
-as a delta, not asserted:
-
-```
-BEFORE  62 lines  90e0303130fc…      full backend/tests, backend up (api/health=200)
-        12 failed, 3072 passed, 12 skipped, 5 xfailed, 1 xpassed in 332.58s
-AFTER   62 lines  90e0303130fc…      delta = 0 rows
-```
-
-The same suite appended **8 rows** on 2026-08-08 and paused the live armed book
-four times.
+**Procedural blocker on 61.2:** `harness_log` Cycle 173 is CONDITIONAL #2, so the
+next Q/A on **unchanged** evidence must auto-FAIL. Evidence must materially
+change before another EVALUATE.
 
 ---
 
-## Where I was wrong, and who caught it
+## Recommendation for the next session
 
-**1. `36.21`'s stated mechanism was refuted — and its own search was why.** It
-blamed "an ORDERING or STATE-POLLUTION effect". The writer is a plain HTTP POST.
-Its file census grepped `resume_trading|\.resume\(\)|\.pause\(\)`, and the
-offending file calls none of them. **It was invisible to the search meant to
-find it**, which is why running files one at a time never reproduced the write.
+**Start with `36.17`** — the last untouched item from today's original plan and a
+real money-path hole: a halted cycle returns before Step 5.6, so **stop-losses
+stop being enforced exactly when the book is judged unsafe.** It outranks
+everything filed today.
 
-**2. I made the same class of error twice in one day.** I wrote *"a worktree
-relocates file paths but not a socket"* into the 86.3 artifacts — and then
-shipped a conftest guard that covers the parent process but **not a child**. The
-Q/A found `test_phase_4000_2_cc_rail_smoke.py:202` shelling out via
-`subprocess.run`, where the guard is structurally absent and the target script
-defaults to `localhost:8000` and **PUTs live settings**. I wrote down the
-transport-boundary lesson and then committed the process-boundary version of it.
+Then **86.6** (I proved that class live by corrupting the cycle-lock myself),
+then the UI work, which is now properly specified and has a proven capture path.
 
-**3. My guard had 1-of-6 recall.** The `NO static node: imports` check caught
-`import fs from 'node:fs'` and missed `import fs from "node:fs"` — same
-construct, different quote. I built a guard from *the instance I happened to
-hit* rather than from the class. Same failure mode as (2), same day.
+**Not 61.2 first** — it needs an unhurried flag decision on a live book.
 
-**4. My rewrite crashed the whole suite, and every isolated run was green.**
-`ValueError('I/O operation on closed file.')` at 13%, caused by entering
-`TestClient` as a context manager (which runs the app lifespan mid-session). It
-passed at 4, 17 and 87 tests in isolation. **Only the criterion-1 whole-suite
-run could see it.**
-
-**5. A block I labelled "verbatim" had been hand-trimmed.** I dropped
-`envelope.summary` with no elision marker. Nothing gate-bearing was hidden, but
-the label was false. Fixed by *re-emitting programmatically*, not by pasting the
-field back — hand-editing is what caused it.
-
-**6. My first proof of that fix was itself wrong.** I compared against
-`journal.jsonl` and got `EXACT MATCH: False`. My comparison, not the content:
-the journal holds **per-agent** returns; the **script's** return lives in
-`workflows/<run>.json`.
-
----
-
-## Disclosure against interest: I corrupted live cycle-lock state today
-
-Found while writing this report, by investigating a lockfile that had appeared:
-
-```
-{"pid": 79336, "cycle_id": "cycle-1786267675",
- "released_at": "2026-08-09T09:27:57.604716+00:00", "state": "released"}
-```
-
-`cycle-1786267675` decodes to **09:27:55Z**, released **09:27:57Z** — a
-**two-second** lifetime. That is a test, not a trading cycle, and pid 79336 was
-already dead. **My own full-suite run wrote it.** Six `backend/tests` files
-reference `cycle_lock` / `_LOCK_PATH` / `autonomous_loop.lock`.
-
-**Why this matters beyond the incident:** it briefly looked like a real
-autonomous cycle had run on a Sunday, when the cron is weekday-only. That is
-precisely how this defect class wastes an operator's time.
-
-**And it narrows a claim I made.** 86.3's criterion 1 measured
-`handoff/kill_switch_audit.jsonl` **only**, and that file was genuinely
-byte-identical. True, but **narrow** — the live-state surface a test run can
-corrupt is larger than one journal. Folded into **86.6** with the instruction to
-measure a before/after sha256 over the whole set
-(`kill_switch_audit.jsonl`, `.autonomous_loop.lock`, `.cycle_heartbeat.json`,
-the cycle_health paths), and to state the set explicitly.
-
-This is the filesystem channel I deliberately scoped **out** of 86.3 — so it is
-evidence the deferral was real, and evidence the queued step is necessary.
-
----
-
-## Kill-switch cluster reconciliation — three of the goal's own hypotheses were wrong
-
-`handoff/current/killswitch_cluster_reconciliation_2026-08-09.md`.
-
-- **`36.21` ≡ `86.3`** — confirmed, merged, `36.21` → `superseded`, its two extra
-  criteria and its bans inherited by 86.3.
-- **`36.26` is NOT closed by 85.6.** The staleness 409 still ignores
-  `pause_reason` entirely. **Live-reachable right now** — and 85.6's own new
-  message says so: *"the cron is weekday-only, so this includes all weekend — no
-  cycle will run and this refusal will NOT clear on its own."* 85.6 replaced a
-  false promise with an honest one; it did not give you your resume back.
-- **`36.15`'s mechanism is stale.** phase-36.8 (`09125a81`) already routed
-  `peak_reset` through `_apply_authoritative_peak`, which guards `None`. An
-  executor following its current text would hunt a defect that no longer exists.
-  Needs re-scoping to the residual (missing test + an undecided write-side
-  question) before anyone picks it up.
-- **`36.26` must precede `36.20`** — 36.20's criterion "the Resume button is
-  enabled for exactly the states the server will accept" cannot be satisfied
-  until 36.26 decides what the server accepts.
-- **`36.10` confirmed by grep:** `armed` has **zero** hits across all five
-  away-ops surfaces, while the book is `armed: false` today.
-
----
-
-## New capability: the Researcher is on the Workflow rail (36.27)
-
-The 2026-07-27 operator instruction had been implemented for Q/A and
-**unimplementable** for the Researcher since July. Now shipped, and its **first
-live run was step 86.1's real research gate**, not a rehearsal.
-
-**Why it is not just plumbing.** Anthropic structured outputs **strips
-`minimum`/`maximum`/`minLength`**, so the `≥5 sources` / `≥10 URLs` floors are
-**not schema-enforceable**. And schema conformance is *structural only*: it can
-force `external_sources_read_in_full` to be an integer, it cannot make it
-**true**. *The Constraint Tax* measured wrong-but-schema-valid output rising
-**49.5% → 88.9%** under constrained decoding; **EviBound** measured **100%**
-false completion claims from self-reflection alone, falling to **0%** only with
-a post-hoc gate that queries the artifact store. So the rail **recomputes
-`gate_passed`** and an independent second agent reads the brief and reports which
-claimed URLs are actually in it.
-
-**`node --check` reported green on two scripts that could not run at all** — a
-forbidden `import fs`, and a trailing `export` list. Only the live-spawn
-criterion catches that. Both failures improved the design: no filesystem access
-forced the artifact check out to an independent verifier; no export list forced
-`enforceGate` to be pure, which is why it is mutation-testable (40 checks, 6/6
-mutants killed).
-
-**Known gap:** a newly added workflow is **not dispatchable by name until
-session restart** — `{scriptPath:}` works in-session. The next session must
-verify the name resolves.
-
----
-
-## Decisions owed by you
-
-| # | Ask | Recommended |
-|---|---|---|
-| **26** | **The token.** Still malformed, unchanged. **This is the only thing standing between the engine and trading.** | Re-issue, set once for both plists, restart backend |
-| **27** | **Close 86.3?** Six of seven criteria met and reproduced twice. Criterion 5 is literally unmet *and structurally unsatisfiable* — the baseline was captured while the book was paused, and the criterion embeds "fresh Q/A PASS", making it circular. Q/A judged it non-blocking; I would not close my own work by overruling an immutable criterion. | `CLOSE-86.3: APPROVED` — the guard is live either way |
-
-Older open asks (#20–#25) are unchanged and still listed in
-`operator_ask_2026-08-07.md`. **79.6 (KS-PEAK-RESET) is APPROVED but not
-applied — do not apply it until 86.1 lands**, or running the test suite will
-drop the live trailing peak from ~24666 to 12345.
-
----
-
-## Next session starts here
-
-**`86.1` is teed up: its research gate is already PASSED** (through the new
-rail), and the brief found four things the step text did not know:
-
-1. **The isolation asymmetry is INVERTED** — the flag-**ON** arm is isolated;
-   the **OFF** arm is not.
-2. **A second landmine** — with the flag on, `assert out is None` goes RED, so
-   suite greenness is coupled to operator config.
-3. **The `get_state` patch is vacuous by identity** (`st` is bound first), and
-   module functions read `_state` directly.
-4. **Redirect-only is a HALF fix** — the in-memory singleton is corrupted too.
-
-Measured severity: the live journal holds **zero** peak rows, so a `peak_reset`
-written today wins the `ts` merge-sort outright and destroys 24666.57
-permanently — **trip point 22199.9 → 11110.5.**
-
-Then `86.2` → `36.17` → `86.5`, per
-`handoff/current/goal_full_day_2026-08-10.md`.
+Be honest about what you could not verify. Today's most expensive error was not
+a bug; it was **a correlation I reported as a cause.**
