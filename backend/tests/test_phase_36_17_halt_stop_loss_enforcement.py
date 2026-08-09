@@ -4,14 +4,19 @@
 `trader.backfill_missing_stops()` then `trader.check_stop_losses()` -- begins AFTER
 that return. So on any halted cycle the protective-exit machinery never runs.
 
-LINE ANCHORS MOVE. Do not trust the numbers below; re-derive them with
-`grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py`.
-  * masterplan step text  : :1334/:1336  -- STALE, two generations old
-  * pre-fix tree          : :1437/:1439
-  * post-fix (this change adds +70 lines above Step 5.6): :1507/:1509
-The first revision of this docstring reproduced the pre-fix pair while claiming to be
-"re-derived", which the Q/A caught -- the same class of defect this step's own
-criterion 6 exists to prevent.
+LINE ANCHORS MOVE, SO THIS DOCSTRING DELIBERATELY CITES NO CURRENT ONES.
+Re-derive with:
+    grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py
+    grep -n "return summary" backend/services/autonomous_loop.py | head -1
+The halt's `return summary` immediately precedes the Step 5.6 header; that RELATION
+is the invariant, and it is asserted behaviourally by the tests below rather than by
+any number.
+
+Historical anchors, kept only to show how far they have drifted -- all STALE:
+the masterplan step text says :1334/:1336; the pre-fix tree was :1437/:1439.
+Two successive Q/A cycles FAILED this module's artifacts on exactly this defect --
+numbers derived before the final edit and shipped without re-derivation. Hence the
+rule now applied here: cite the command, never the number.
 
 On the `breach` path that is nearly moot: `check_and_enforce_kill_switch` has already
 called `flatten_all`, so there is little left to stop out. On the `paused` and
@@ -24,7 +29,7 @@ SEVERITY: BEFORE this change `check_stop_losses` had exactly ONE production call
 the Step 5.6 block. No API route, no scheduler job, no MCP tool; the cycle was the sole
 means of stop enforcement, so a halted cycle meant none at all. THIS FIX ADDS THE SECOND
 CALLER, so the count is now two. Re-derive rather than trusting this line:
-`grep -rn check_stop_losses backend --include="*.py" | grep -v /tests/`.
+    grep -rn "trader.check_stop_losses" backend --include="*.py" | grep -v /tests/
 
 OPERATOR DECISION (2026-08-09): option (b) -- a stop-loss-only, SELL-only pass inside
 the halt branch, scoped to `paused` and `blocked`, EXCLUDING `backfill_missing_stops`,

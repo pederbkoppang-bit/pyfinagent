@@ -27,18 +27,23 @@ criterion 6 exists to prevent precisely that. Re-derived 2026-08-09, verbatim:
 ```
 $ grep -n "final_state" backend/services/autonomous_loop.py
 1429:                final_state = await asyncio.to_thread(trader.mark_to_market)
-1767:            final_state = await asyncio.to_thread(trader.mark_to_market)
-1846:                "nav": final_state["nav"],
-1847:                "pnl_pct": final_state["pnl_pct"],
-1862:            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
-1863:                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
+1770:            final_state = await asyncio.to_thread(trader.mark_to_market)
+1849:                "nav": final_state["nav"],
+1850:                "pnl_pct": final_state["pnl_pct"],
+1865:            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
+1866:                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
 ```
 
-The halt-path assignment is `:1429`; every **read** (`:1846`, `:1847`, `:1862`,
-`:1863`) sits below the healthy-path re-assignment at `:1767` and therefore
-below the halt's `return summary` at `:1507`. The engineering claim stands --
-the Q/A independently confirmed it -- but its evidence was wrong and is now
-corrected.
+Reading that output: the **first** assignment is the halt-path one; the
+**second** is the healthy-path re-assignment; and every **read** (`"nav"`,
+`"pnl_pct"`, and the two `logger.info` lines) sits below that second assignment,
+hence below the halt's `return summary`. So the halt-path value is never read.
+The engineering claim stands -- the Q/A independently confirmed it -- but its
+evidence was wrong and is now regenerated from live command output.
+
+**This paragraph deliberately states the RELATION (first / second / below)
+rather than repeating the numbers**, because the numbers are what broke twice.
+The relation is stable under any edit above it; the numbers are not.
 
 **Second correction (same class).** Both this artifact's predecessor and the
 test-module docstring claimed `check_stop_losses` has "exactly ONE production
@@ -46,11 +51,18 @@ caller". **That is now false, and this change is what made it false.**
 Re-derived:
 
 ```
-$ grep -rn check_stop_losses backend --include="*.py" | grep -v /tests/
-backend/services/autonomous_loop.py:1471:   halt_stops = await asyncio.to_thread(trader.check_stop_losses)      <- THIS FIX
-backend/services/autonomous_loop.py:1541:   triggered_stops = await asyncio.to_thread(trader.check_stop_losses)  <- Step 5.6
-backend/services/paper_trader.py:797:       def check_stop_losses(self) -> list[str]:                            <- the definition
+$ grep -rn "trader.check_stop_losses" backend --include="*.py" | grep -v /tests/
+backend/services/autonomous_loop.py:1474:                        halt_stops = await asyncio.to_thread(trader.check_stop_losses)
+backend/services/autonomous_loop.py:1544:            triggered_stops = await asyncio.to_thread(trader.check_stop_losses)
 ```
+
+The command is narrowed to `trader.check_stop_losses` deliberately: the bare
+`check_stop_losses` pattern also matches the method DEFINITION in
+`paper_trader.py` and eight comment lines, so it does not answer "how many
+call sites". The cycle-2 Q/A flagged the earlier version of this block as
+**curated output presented under a `$` prompt** -- it showed 3 hand-picked,
+re-ordered lines with editorial arrows appended, out of 11 real ones. The
+block above is the unedited stdout of the command shown.
 
 **Two** call sites. The correct statement is "BEFORE this change there was
 exactly one caller, so a halted cycle had no enforcement layer at all." The
@@ -170,9 +182,9 @@ not a reasoned claim.
 
 ```
 $ grep -n "return summary" backend/services/autonomous_loop.py | head -1
-1507:                return summary
+1510:                return summary
 $ grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py
-1509:            # ── Step 5.6: Stop-loss enforcement (phase-25.1) ─────────
+1512:            # ── Step 5.6: Stop-loss enforcement (phase-25.1) ─────────
 ```
 
 The halt's `return summary` is at **:1507** and Step 5.6 begins at **:1509** --
@@ -296,10 +308,18 @@ and my first attempt at that FAILED, which I measured rather than assumed:**
 
 1. First attempt: stub `decide_trades` with a **dict**-shaped order. Re-ran the
    M1 mutation (delete the halt's `return summary`). Result: `execute_buy.called
-   is False` **still passed**; `decide.called is False` was still the killer. The
-   cause, read at source: `autonomous_loop.py:1711` accesses `order.action` as an
-   **attribute**, so a dict is skipped by `continue` before reaching
-   `execute_buy`. A dict stub does not restore falsifiability.
+   is False` **still passed**; `decide.called is False` was still the killer. A
+   dict stub does not restore falsifiability.
+
+   **MECHANISM CORRECTED (cycle-2 Q/A, NOTE).** My first write-up said the dict
+   "is skipped by `continue`". That is wrong, and the Q/A measured it: the buy
+   loop reads `order.action` as an **attribute**, so a dict raises
+   `AttributeError: 'dict' object has no attribute 'action'`, which is absorbed
+   by an outer handler that **aborts the remainder of the cycle**. The dict never
+   reaches the `continue` at all. The observed outcome and the conclusion are
+   unchanged -- and the corrected mechanism is a *stronger* argument for using
+   the real dataclass, because the dict path does not merely skip the order, it
+   kills the rest of the cycle.
 2. Second attempt: a real `TradeOrder` dataclass from
    `backend.services.portfolio_manager`, plus a monkeypatch of
    `backend.services.paper_trader._get_live_price` (required -- `:1713` does a

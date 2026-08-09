@@ -81,10 +81,10 @@ $ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block
 
 ```
 $ grep -n "return summary" backend/services/autonomous_loop.py | head -1
-1507:                return summary
+1510:                return summary
 
 $ grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py
-1509:            # ── Step 5.6: Stop-loss enforcement (phase-25.1) ─────────
+1512:            # ── Step 5.6: Stop-loss enforcement (phase-25.1) ─────────
 ```
 
 **The ordering is deliberately UNCHANGED**: the halt still returns at `:1507`,
@@ -152,20 +152,19 @@ output:
 ```
 $ grep -n "final_state" backend/services/autonomous_loop.py
 1429:                final_state = await asyncio.to_thread(trader.mark_to_market)
-1767:            final_state = await asyncio.to_thread(trader.mark_to_market)
-1846:                "nav": final_state["nav"],
-1847:                "pnl_pct": final_state["pnl_pct"],
-1862:            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
-1863:                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
+1770:            final_state = await asyncio.to_thread(trader.mark_to_market)
+1849:                "nav": final_state["nav"],
+1850:                "pnl_pct": final_state["pnl_pct"],
+1865:            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
+1866:                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
 ```
 
 And the caller count, which this change itself made stale:
 
 ```
-$ grep -rn check_stop_losses backend --include="*.py" | grep -v /tests/
-backend/services/autonomous_loop.py:1471:  ... trader.check_stop_losses)   <- THIS FIX
-backend/services/autonomous_loop.py:1541:  ... trader.check_stop_losses)   <- Step 5.6
-backend/services/paper_trader.py:797:      def check_stop_losses(...)      <- definition
+$ grep -rn "trader.check_stop_losses" backend --include="*.py" | grep -v /tests/
+backend/services/autonomous_loop.py:1474:                        halt_stops = await asyncio.to_thread(trader.check_stop_losses)
+backend/services/autonomous_loop.py:1544:            triggered_stops = await asyncio.to_thread(trader.check_stop_losses)
 ```
 
 TWO call sites, not one. Corrected in `autonomous_loop.py:1438`, the test-module

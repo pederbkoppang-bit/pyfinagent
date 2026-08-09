@@ -1,43 +1,57 @@
-# Pending backend restart — end of session 2026-08-09
+# Pending backend restart -- 2026-08-09
 
-Operator instruction 2026-08-09: **backend restarts are batched to the very end
-of a goal session, before the next one starts.** Recorded in CLAUDE.md Critical
-Rules and in auto-memory `feedback_restart_backend_at_session_end`.
+Per CLAUDE.md, restarts are batched to SESSION END. Everything below is
+**COMMITTED BUT NOT IN FORCE**: the running process imported these modules
+before the change landed.
 
-## Owed at session end
+## Running process, measured
 
-| Change | Where | In force NOW? |
+```
+$ ps -p 84494 -o lstart=
+søn.  9 aug. 17.08.05 2026        (= 15:08:05Z)
+```
+
+## Owed by this session
+
+| Change | Commit | Commit time | In force? |
+|---|---|---|---|
+| **36.17** exit-only stop-loss pass in the halt branch (`autonomous_loop.py`, +73) | `e98ca260` | 17:31:45 | **NO** -- 23 min after the process started |
+| 36.17 cycle-2 comment corrections (comment-only, no behaviour) | `6ca17793` | 17:47 | NO (irrelevant -- comments only) |
+
+**Consequence while un-restarted, stated plainly:** a `paused` or `blocked`
+cycle running under pid 84494 still returns before Step 5.6 and still does NOT
+enforce stop-losses. The defect 36.17 fixes is live until the restart.
+
+Mitigating fact: the kill switch currently reads `paused: false`, so the halt
+path is not being taken right now. The exposure is conditional on a halt
+occurring before the restart.
+
+## Already done this session (do NOT repeat)
+
+| Change | Action taken | Verified |
 |---|---|---|
-| `PAPER_CYCLE_MAX_SECONDS` 7200.0 → **10800.0** | `backend/.env:70` (backed up `backend/.env.bak.*`) | **NO** |
+| `PAPER_CYCLE_MAX_SECONDS 7200 -> 10800` (`backend/.env`) | `launchctl kickstart -k` at 15:08Z | YES -- `/api/settings/` on the RUNNING backend returns `10800.0` |
 
-**Measured, not assumed:**
+## Restart procedure
+
+`.env`-only changes need `kickstart -k` (it restarts the process, which re-reads
+`.env`). Only a **plist `EnvironmentVariables`** change needs `bootout`+`bootstrap`
+-- and `bootout` is blocked by the 62.0 guard (away-ops rail 9, operator-reserved).
 
 ```
-a fresh python process resolves : 10800.0
-running backend pid 24708       : started 2026-08-09 15:20:45  -> holds 7200.0
-autonomous_loop.py:506          : reads paper_cycle_max_seconds at CYCLE START
+# 1. NEVER restart into a live cycle -- read the LOCK, never last_result:
+cat handoff/.autonomous_loop.lock        # require "state": "released"
+
+# 2. Restart:
+launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend
+
+# 3. Prove it took effect on the RUNNING process, not a fresh interpreter:
+launchctl list | grep com.pyfinagent.backend    # new pid
+curl -s localhost:8000/api/health
 ```
 
-So the in-flight cycle (`started 13:25:27Z`) runs on the **old** 7200s budget,
-and the raise lands on the first cycle after the restart. Validation is
-masterplan step **86.9**, whose criteria require the value be read from the
-RUNNING process — not from a fresh interpreter, which is the easy lie here.
+## Post-restart check specific to 36.17
 
-## Already in force (no restart owed)
-
-- `CLAUDE_CODE_OAUTH_TOKEN` **removed** from all four plists — the running
-  backend (pid 24708) has no such variable, verified; the rail is alive and has
-  run 60+ calls with 0 failures since.
-- `.mcp.json` `--storage-state` for Playwright — takes effect at the next
-  **Claude Code** session start, not a backend restart.
-
-## Do this at session end
-
-1. Wait for the cycle to finish (**do not restart into a running cycle** —
-   check `handoff/.autonomous_loop.lock`, never `last_result`).
-2. Restart, and **mind the race that cost ~4 minutes of downtime today**:
-   `bootout`, then `sleep 8`, then `bootstrap`. `kickstart -k` does NOT re-read
-   a plist, though it is sufficient for a `.env` change.
-3. Verify: new pid, start time AFTER the edit, `/api/health` 200,
-   `launchctl list` shows the pid, and the setting read from the RUNNING
-   process reports **10800.0**.
+The fix is only exercised on a halted cycle, so a normal restart proves only
+that it imports. To prove it is IN FORCE, compare the running process's start
+time against `git log -1 --format=%cd e98ca260` -- start time must be LATER.
