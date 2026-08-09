@@ -1,5 +1,8 @@
 # Researcher Agent Memory Index
 
+- [Args-boundary 86.17](project_args_boundary_86_17.md) — the empty catch is LOAD-BEARING for the checker's own import; double-encoded JSON defeats try/catch; a 3rd in-repo variant already fails loud; EviBound 0% needs BOTH gates
+
+- [Halt freezes stops 36.17](project_halt_freezes_stops_36_17.md) — execute_sell is DELIBERATELY ungated (flatten runs through it); backfill synthesizes a stop = a NEW risk decision; the Step 5.6 suite never drives run_daily_cycle; `steps[-1]` is a measured collision
 - [Replay-abort total disarm 86.2](project_replay_abort_total_disarm_86_2.md) — the verification command EXITS 0 with the defect present; OverflowError window BOUNDED 310..4300 digits; the per-row skip idiom already exists one layer up
 - [Flag-accident landmine 86.1](project_flag_accident_landmine_86_1.md) — the flag-ON arm was isolated and the OFF arm wasn't; `get_state()` patch vacuous BY IDENTITY; the 24666 peak lives only in the ARCHIVES
 - [Stale-anchor disarm 85.5.1](project_stale_anchor_disarm_85_5_1.md) — the GUARD was already right (per-leg degradation); "disarmed" meant ONE leg; missing≠stale; OverflowError aborts the whole replay
@@ -11,7 +14,7 @@
 - [Auth latch 85.3](project_auth_latch_85_3.md) — the clear path existed but was unreachable via if/elif ordering; recovery probe gated on `rc==0` while a HEALTHY credential exits 1/124
 - [Credential-free CI lane 85.2](project_credential_free_ci_lane_85_2.md) — slack-bolt 1.30.0 dropped `[async]` (pip WARNS, exits 0); pydantic defaults are LOWEST precedence so prod is byte-identical
 - [Rail fail-forward 72.0.2](project_rail_failforward_72_0_2.md) — both premises refuted; the lite path emitting the HOLD bypasses make_client entirely; rail-dead never raises
-- [Decision-input integrity 61.2](project_decision_input_integrity_61_2.md) — the "stale P0" was ALREADY built + dark with 6 immutable criteria; BQ proved 142/156 rows fabricated
+- [Decision-input integrity 61.2](project_decision_input_integrity_61_2.md) — the step blamed the CRITIC; BQ refutes it (153/153 rows carry the SYNTHESIS parse error, critic_degraded is orthogonal); already built + DARK; 2 ungated fabrication sites left
 - [Gate feasibility 83.1.1](project_gate_feasibility_83_1_1.md) — V measured 20x apart on two windows so required-SR swings 0.69→2.07; PBO not DSR is the binding gate; a WebFetch PDF summary FABRICATED the paper
 - [Phase-83 design pack 83.1](project_phase83_design_pack_83_1.md) — a naive `*83*` glob is a criteria-killer (71 of 438 already match); mtime guards have ZERO prior art; git resets mtimes
 - [PBO MCP proof 83.0.3](project_pbo_mcp_proof_83_0_3.md) — fix ALREADY shipped; FastMCP 3.2.4 tools are closures (`get_tool().fn`); payload `isError` != protocol `is_error`

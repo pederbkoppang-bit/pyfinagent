@@ -1,66 +1,72 @@
 ---
 name: decision-input-integrity-61-2
-description: Step 61.2 triage -- the step was ALREADY BUILT and dark, has 6 immutable criteria (not zero), 72.0.1's premise is dead, and a later step's live-state gate turned its tests red
+description: Step 61.2 research (2026-08-09) — the step's stated trigger (the critic) is REFUTED by BQ; the real emitter is the synthesis-draft parse failure; 61.2 is already BUILT and DARK behind two flags
 metadata:
   type: project
 ---
 
-Triage of masterplan step 61.2 (decision-input integrity), 2026-08-07.
+Step 61.2 ("never persist synthetic 0.00/HOLD"). Research gate run 2026-08-09.
+Three findings that change how the step must be planned.
 
-**Before triaging any "old P0" step, check whether it was already built.**
-61.2 read like an un-started 2-month-old defect list. It was fully
-implemented on 2026-07-08 in commit `6186784c` (20 source files + a 459-line
-test module) and is `status: pending` only because Q/A returned CONDITIONAL
-on *live* evidence that could not exist yet. `git log --grep="<step-id>"`
-answers this in one call and reframes the whole contract from "rescope or
-drop" to "what stands between the dark build and a close".
+**1. The step mis-attributes its own trigger — twice.** It first blamed a
+claude_code timeout, then (2026-08-09 update) blamed the critic:
+`"Critic returned unparseable JSON after retry -- proceeding with the UNREVIEWED
+draft"`. BigQuery refutes both. Over 40 days: 185 rows, **153 are
+`final_score=0.0` + `recommendation='HOLD'`, and all 153 carry
+`$.final_synthesis.error = "Failed to parse final report."`** — a 153/153 exact
+match. `critic_degraded=true` appears on 45 rows, of which **3 carry a real
+score > 0**. So critic degradation is ORTHOGONAL: the CRWD row the step cites as
+"real" (5.75) is itself `critic_degraded=true`, and the PANW 0.0 row it cites as
+"caused by the critic" has `critic_degraded=false`. The real emitter is
+`backend/agents/orchestrator.py:1681-1688` — the SYNTHESIS draft failing
+`_parse_json_with_fallback`, not the critic. A critic-scoped fix would break the
+working path and miss all 153 rows.
 
-**Why:** the drain-goal framing ("2 months old, rescope-or-drop where
-stale") primes you to look for staleness, not for completion. Two of the six
-sub-items were already LIVE in production, and the settings.py field
-descriptions literally cite "phase-61.2 (criterion 2)" -- the evidence was
-one grep away.
+**Why:** the step's evidence update reasoned from co-occurring log lines
+(3 critic warnings bracketing a save) instead of from the row's own JSON.
+The discriminating column was one `JSON_VALUE(..., '$.final_synthesis.error')`
+away.
 
-**How to apply:** on any step whose name reads as a defect list, run
-`git log --oneline --all --grep="<step-id>"` and
-`grep -rn "phase-<step-id>" backend/` BEFORE the liveness audit. Field/flag
-descriptions in `backend/config/settings.py` are the highest-signal place a
-prior build leaves its fingerprints.
+**How to apply:** for any "which failure path fired" question on
+`financial_reports.analysis_results`, query
+`JSON_VALUE(full_report_json,'$.final_synthesis.error')` and
+`'$.final_synthesis.critic_degraded'` together and CROSS-TABULATE them against
+`final_score`. Log-line adjacency is not attribution. Note the column is
+`final_score` (not `overall_score`/`score`) and the dataset is
+`financial_reports` in **us-central1**.
 
-**A step's `verification.success_criteria` can be non-empty even when the
-caller says it is empty.** Always dump the masterplan entry yourself. 61.2
-carries six immutable criteria, one per sub-item. Inventing "proposed
-criteria" for it would have been an amendment of immutable criteria -- a
-protocol breach dressed as diligence. Related: [[feedback_immutable_criteria_must_be_green_able]].
+**2. 61.2 is already built and DARK.** Criteria 1/4/6 sit behind
+`paper_synthesis_integrity_enabled=False`, criterion 5 behind
+`paper_position_recommendation_fix_enabled=False`; criteria 2 and 3 already
+shipped ungated (`claude_code_timeout_s=150`, company_name non-NULL since
+07-09). 495-line test file + `live_check_61.2.md` already exist; the
+verification command collects 72 tests and its `test -f` leg passes today.
+`harness_log.md` Cycle 173 records **CONDITIONAL #2** — a third Q/A on unchanged
+blocker evidence MUST auto-FAIL per CLAUDE.md. The step is an operator
+promotion decision plus a small residue, not a build.
 
-**Flag-dark builds need a THREE-way liveness verdict, not two.** Each
-sub-item is one of: ungated-and-live, built-but-flag-dark (defect still
-firing in prod), or already-fixed-and-live-proven. Only BQ separates the
-last two. Here: `null_name` went 5/day -> exactly 0/day from 2026-07-09
-onward, proving an ungated fix deployed and held for a month.
+**3. The residue that is genuinely NOT built:** `backend/tasks/analysis.py:210-214`
+and `backend/api/analysis.py:210-214` fabricate unconditionally
+(`final_score=synthesis.get("final_weighted_score", 0)`,
+`recommendation=rec_obj.get("action","N/A")`) — outside every flag. Plus SIX
+downstream `or 0` / `or "HOLD"` coercions re-create the fabrication even if the
+persist path is fixed (`conflict_detector.py:87,115`, `formatters.py:180`,
+`scheduler.py:1069`, `portfolio_manager.py:140,182`).
 
-**A later step can silently turn an older step's tests red.** phase-36.13
-(`3227347a`, 2026-07-26) added a kill-switch gate to `execute_buy` that
-falls back to the module singleton, which replays the REAL on-disk audit
-log. Any test calling `execute_buy` without injecting `_injected_ks_state`
-now passes or fails depending on whether the operator's book happens to be
-paused. Two 61.2 tests written 2026-07-08 flipped red this way.
-**Why it matters:** the failure looks like a 61.2 regression and is not.
-**How to apply:** when an old step's tests fail, `git log -S` the assertion's
-*production* gate, not the test -- the breaking change is usually in a
-newer, unrelated step. Related: [[feedback_a_green_suite_can_be_blind]].
+**The casing tell is a formatting accident.** `'HOLD'` uppercase comes from the
+literal default in `rec.get("action", "HOLD")` at `autonomous_loop.py:2065`;
+genuine rows write `'Hold'`. It is 153/153 accurate today and 0 false positives
+over 40 days, but any prompt/model change breaks it silently — never build a
+consumer on it.
 
-**Queued "sharper" steps go stale too -- verify their premise before
-deferring work to them.** 72.0.1 exists to fix "meta_scorer.py:220-225
-constructs ClaudeClient with anthropic_api_key directly". phase-78.1 already
-rewired that call through `make_client`; there is no ClaudeClient
-construction left in the file. Deferring 61.2's meta-scorer leg to 72.0.1
-would have deferred it to a step whose premise no longer holds.
+**Free columns for an explicit degraded marker** (measured NULL/empty on 179/179
+rows since 2026-07-01): `data_quality_score` (FLOAT), `critic_review` (STRING),
+`bias_flags`, `synthesis_iterations`, `groupthink_flag` (the table's ONLY
+BOOLEAN), `recommendation_justification`. `overall_reliability` and `risk_level`
+are occupied. There is no dedicated status column.
 
-**A masterplan `audit_note` is evidence, not truth.** The phase-76 note on
-61.2 asserted the 0.00/HOLD rows would survive the fix because the manual
-`save_report` sites lack a guard. Measured: all 142 rows carry
-`recommendation='HOLD'` upper-case, which ONLY `autonomous_loop.py:1942`
-emits (the manual sites emit `'N/A'`). The manual-path gap is real but
-LATENT -- it is not the writer of the observed population. Related:
-[[feedback_measure_dont_assert_claims]].
+Related: [[project_decision_input_integrity_61_2]] supersedes the stale
+2026-06-11 anchors in the masterplan node — `_BUY_RECS` is at
+`portfolio_manager.py:63` (not :50), the signal_downgrade rule at `:154-157`
+(not :127), `paper_trader` rec-selection at `:447-457` (not :305).
+See also [[project_learnings_61_4]], [[feedback_measure_dont_assert_claims]].
