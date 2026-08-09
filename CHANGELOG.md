@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `ba154918` | phase-86.1: P1 LIVE-STATE LANDMINE: test_peak_reset_dark_by_default calls reset_peak on the REAL ... |
 | 2026-08-09 | `9ad446f5` | docs(86.6): inherit 86.1's surviving mutant -- a dark-path guard cannot be mutation-tested through b |
 | 2026-08-09 | `53c30043` | docs(86.1): harness_log cycle 188 -- PASS |
 | 2026-08-09 | `a117dbb6` | phase-86.1: stop the test suite arming a live-peak landmine |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `d5e758bc` | docs: reconcile the 36.x/86.x kill-switch cluster — 36.21 superseded by 86.3 |
 | 2026-08-09 | `70893e5b` | docs: compress the full-day goal prompt to 3973 chars (under the 4000 limit) |
 | 2026-08-09 | `d3c37c45` | docs: pasteable full-day goal prompt for 2026-08-09 |
-| 2026-08-09 | `82b74f4d` | docs: full-day masterplan drain goal for 2026-08-09 |
 
 ---
 
+### v6.87.19 — phase-86.1: P1 LIVE-STATE LANDMINE: test_peak_reset_dark_by_default c... (2026-08-09)
+
+- **phase-86.1: P1 LIVE-STATE LANDMINE: test_peak_reset_dark_by_default calls reset_peak on the REAL ...**
 ### v6.87.18 — phase-86.1: stop the test suite arming a live-peak landmine (2026-08-09)
 
 - **phase-86.1: stop the test suite arming a live-peak landmine**
