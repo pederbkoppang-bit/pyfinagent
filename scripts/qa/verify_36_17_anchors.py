@@ -1,130 +1,266 @@
 #!/usr/bin/env python3
-"""phase-36.17 -- verify every line anchor cited in this step's artifacts.
+"""phase-36.17 -- verify every anchor and every quoted command block in the
+step's artifacts actually reproduces against the live tree.
 
-TWO Q/A cycles failed this step on the SAME defect: anchors derived before the
-final edit and shipped without re-derivation (cycle 1: -70 lines; cycle 2: -3
-lines). Human care demonstrably does not catch it, so this makes it mechanical.
+WHY THIS EXISTS, AND WHY v1 WAS WORTHLESS
+-----------------------------------------
+THREE consecutive Q/A cycles failed this step on the same defect: line anchors
+derived before the final edit and shipped without re-derivation (-70, then -3,
+then -3 again). v1 of this script was written to stop that and DID NOT:
 
-For every `path:NNNN` reference in the step's artifacts and test module, assert
-that the cited line EXISTS and that its content still matches what the artifact
-says it is. Anchors inside an explicitly-marked historical block are exempt and
-must be listed in HISTORICAL below, so an exemption is a deliberate, visible act
-rather than a silent skip.
+  * it left `CHECKED = {}`, so its only per-anchor assertion was `n > nlines`
+    -- a BOUNDS check. Every one of the three real defects was IN BOUNDS, so v1
+    could never have caught any of them.
+  * it hard-coded the two wrong numbers (1507/1509) into its HISTORICAL
+    exemption set, i.e. it exempted precisely the defect it was written for.
+  * its docstring claimed it verified "content still matches what the artifact
+    says it is", which the code never did.
 
-Run it in the SAME turn the artifacts are written:
+The Q/A executed v1 against a synthetic artifact whose every anchor was
+wrong-but-in-bounds and it printed "ALL ANCHOR CHECKS PASSED", rc=0. That is an
+illusory guard, and shipping one is worse than shipping none.
+
+WHAT v2 ACTUALLY CHECKS
+-----------------------
+A. COMMAND-BLOCK FIDELITY (the strong check). Every fenced block in the
+   artifacts that opens with `$ <grep ...>` is re-executed and its recorded body
+   must match the live stdout EXACTLY. This kills BOTH historical defects at
+   once: a stale number no longer matches, and a hand-curated/re-ordered block
+   no longer matches either.
+B. STRUCTURAL RELATIONS, asserted without numbers: the halt's `return summary`
+   must immediately precede the Step 5.6 header, and `trader.check_stop_losses`
+   must have exactly two production call sites.
+C. LOOSE ANCHOR CONTENT. Any `autonomous_loop.py:NNNN` cited in prose must
+   either carry a staleness marker nearby, or the cited line must still contain
+   the symbol the prose associates with it.
+
+`--self-test` proves A and C can FAIL, by running them against synthetic
+artifacts with wrong-but-in-bounds anchors and a curated block. A guard that
+cannot fail does not count.
+
+Usage:
     python scripts/qa/verify_36_17_anchors.py
-Exit 0 = every cited anchor reproduces.
+    python scripts/qa/verify_36_17_anchors.py --self-test
 """
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+TARGET = ROOT / "backend/services/autonomous_loop.py"
 
 ARTIFACTS = [
     ROOT / "handoff/current/experiment_results_36.17.md",
     ROOT / "handoff/current/live_check_36.17.md",
     ROOT / "backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py",
-    ROOT / "backend/services/autonomous_loop.py",
 ]
 
-# Anchors that are DELIBERATELY stale -- pre-fix or pre-cycle-2 values kept to
-# show drift. Each must be accompanied in the text by a staleness marker.
-HISTORICAL = {
-    1334, 1336,          # masterplan step text, two generations old
-    1437, 1439,          # pre-fix tree
-    1471, 1541,          # cycle-1 tree (check_stop_losses call sites)
-    1507, 1509,          # cycle-1 tree (return summary / Step 5.6)
-    1697, 1767, 1776, 1792, 1846, 1847, 1862, 1863,  # cycle-1/2 final_state
-    1404,                # log line quoted from a pre-fix captured run
-    298, 374,            # phase-36.12 assertions (a DIFFERENT file)
-    248, 289, 203, 225, 233, 282, 294, 804, 797, 13, 14, 11, 5, 8, 12,
-    167, 70, 77, 44, 61, 1188, 392, 703, 93, 6, 9,   # cross-file / doc refs
+STALENESS_MARKERS = (
+    "stale", "STALE", "superseded", "pre-fix", "historical", "Historical",
+    "cycle-1", "cycle 1", "drifted", "two generations", "predecessor",
+    "does not reproduce", "do not reproduce", "70 lines low", "+3 low",
+)
+
+# Symbols the prose associates with an anchor -> the substring that line must hold.
+SYMBOL_HINTS = {
+    "final_state": "final_state",
+    "check_stop_losses": "check_stop_losses",
+    "return summary": "return summary",
+    "Step 5.6": "Step 5.6",
+    "order.action": "order.action",
+    "_get_live_price": "_get_live_price",
 }
 
-# path -> (regex the cited line must match) for anchors we DO check.
-CHECKED: dict[str, list[tuple[int, str]]] = {}
-
-ANCHOR_RE = re.compile(r"autonomous_loop\.py[:\s]*(\d{3,4})|^(\d{3,4}):", re.M)
+BLOCK_RE = re.compile(r"```\n\$ (grep [^\n]+)\n(.*?)```", re.S)
 
 
-def cited_anchors(text: str) -> set[int]:
-    found: set[int] = set()
-    for m in ANCHOR_RE.finditer(text):
-        n = m.group(1) or m.group(2)
-        if n:
-            found.add(int(n))
-    return found
+def sh(cmd: str, cwd: Path) -> str:
+    return subprocess.run(
+        cmd, shell=True, cwd=cwd, capture_output=True, text=True
+    ).stdout.rstrip("\n")
 
 
-def main() -> int:
-    src = (ROOT / "backend/services/autonomous_loop.py").read_text().splitlines()
-    nlines = len(src)
-    failures: list[str] = []
-    checked = 0
-
-    for art in ARTIFACTS:
+def check_command_blocks(artifacts, cwd: Path) -> list[str]:
+    """A. Re-run every `$ grep ...` block and require an EXACT match."""
+    fails: list[str] = []
+    n = 0
+    for art in artifacts:
         if not art.exists():
-            failures.append(f"MISSING ARTIFACT: {art}")
+            fails.append(f"MISSING ARTIFACT: {art}")
             continue
         text = art.read_text()
-        for n in sorted(cited_anchors(text)):
-            if n in HISTORICAL:
-                continue
-            checked += 1
-            if n > nlines:
-                failures.append(
-                    f"{art.name}: cites autonomous_loop.py:{n} but the file has "
-                    f"only {nlines} lines"
-                )
+        for cmd, recorded in BLOCK_RE.findall(text):
+            # A block may record several commands. Walk it line by line: a line
+            # starting with "$ " opens a new command; everything until the next
+            # such line is that command's recorded output.
+            pairs: list[tuple[str, list[str]]] = [(cmd, [])]
+            for line in recorded.split("\n"):
+                if line.startswith("$ "):
+                    pairs.append((line[2:].strip(), []))
+                else:
+                    pairs[-1][1].append(line)
+            for c, body_lines in pairs:
+                body = "\n".join(body_lines).strip("\n")
+                if not c.startswith("grep"):
+                    continue
+                n += 1
+                live = sh(c, cwd)
+                if body.strip("\n") != live:
+                    fails.append(
+                        f"{art.name}: recorded output of `{c}` does not match live output.\n"
+                        f"      recorded: {body.strip()[:160]!r}\n"
+                        f"      live    : {live[:160]!r}"
+                    )
+    print(f"  {'ok  ' if not fails else 'FAIL'} A. command-block fidelity: {n} block(s) re-executed")
+    return fails
 
-    # The load-bearing RELATION, asserted structurally rather than by number.
+
+def check_relations(cwd: Path) -> list[str]:
+    """B. Structural invariants, asserted without any line number."""
+    fails: list[str] = []
+    src = (cwd / "backend/services/autonomous_loop.py").read_text().splitlines()
     ret = [i + 1 for i, l in enumerate(src) if l.strip() == "return summary"]
     hdr = [i + 1 for i, l in enumerate(src) if "Step 5.6: Stop-loss enforcement" in l]
     if not ret or not hdr:
-        failures.append("could not locate `return summary` or the Step 5.6 header")
+        return ["could not locate `return summary` or the Step 5.6 header"]
+    halt_ret, s56 = ret[0], hdr[0]
+    if not (halt_ret < s56):
+        fails.append(f"ORDERING BROKEN: halt return :{halt_ret} not before Step 5.6 :{s56}")
+    elif s56 - halt_ret > 4:
+        fails.append(
+            f"halt return :{halt_ret} and Step 5.6 :{s56} are {s56 - halt_ret} lines "
+            "apart -- something was inserted between them"
+        )
     else:
-        halt_ret, s56 = ret[0], hdr[0]
-        if not (halt_ret < s56):
-            failures.append(
-                f"ORDERING BROKEN: halt `return summary` at :{halt_ret} is not "
-                f"before Step 5.6 at :{s56}"
-            )
-        if s56 - halt_ret > 4:
-            failures.append(
-                f"halt return :{halt_ret} and Step 5.6 :{s56} are {s56-halt_ret} "
-                "lines apart -- something was inserted between them"
-            )
-        print(f"  ok  halt `return summary` :{halt_ret} immediately precedes "
-              f"Step 5.6 :{s56}")
+        print(f"  ok   B. halt `return summary` :{halt_ret} immediately precedes Step 5.6 :{s56}")
 
-    # check_stop_losses must have exactly TWO production call sites.
     calls = [
-        f"{p.relative_to(ROOT)}:{i+1}"
-        for p in (ROOT / "backend").rglob("*.py")
+        f"{p.relative_to(cwd)}:{i + 1}"
+        for p in (cwd / "backend").rglob("*.py")
         if "/tests/" not in str(p)
-        for i, l in enumerate(p.read_text().splitlines())
+        for i, l in enumerate(p.read_text(errors="ignore").splitlines())
         if "trader.check_stop_losses" in l
     ]
     if len(calls) != 2:
-        failures.append(
-            f"expected exactly 2 production call sites for check_stop_losses "
-            f"(the halt pass + Step 5.6), found {len(calls)}: {calls}"
-        )
+        fails.append(f"expected exactly 2 production call sites, found {len(calls)}: {calls}")
     else:
-        print(f"  ok  check_stop_losses has exactly 2 production call sites: {calls}")
+        print(f"  ok   B. check_stop_losses has exactly 2 production call sites")
+    return fails
 
-    print(f"  ok  {checked} non-historical anchor(s) within file bounds "
-          f"({nlines} lines)")
 
-    if failures:
+def check_loose_anchors(artifacts, cwd: Path) -> list[str]:
+    """C. Prose anchors: content must match, unless marked stale."""
+    fails: list[str] = []
+    src = (cwd / "backend/services/autonomous_loop.py").read_text().splitlines()
+    checked = 0
+    for art in artifacts:
+        if not art.exists():
+            continue
+        text = art.read_text()
+        for m in re.finditer(r":(\d{3,4})\b", text):
+            ln = int(m.group(1))
+            ctx = text[max(0, m.start() - 320): m.end() + 320]
+            if any(mk in ctx for mk in STALENESS_MARKERS):
+                continue
+            # CROSS-FILE GUARD: an anchor is only about autonomous_loop.py if no
+            # OTHER .py file is named nearby. Without this the checker reports
+            # phase-36.12 test-file and paper_trader.py anchors as stale
+            # autonomous_loop ones -- false positives that would train a reader
+            # to ignore it, which is how a guard dies.
+            near = text[max(0, m.start() - 200): m.end() + 200]
+            others = {f for f in re.findall(r"([A-Za-z0-9_]+\.py)", near)
+                      if f != "autonomous_loop.py"}
+            # Artifacts also name other files with an ellipsis ("test_phase_36_12...:298")
+            # which the .py regex misses. Treat these module stems as cross-file too.
+            CROSS = ("test_phase_", "paper_trader", "kill_switch.py", "settings.py",
+                     "portfolio_manager", "cycle_health", "formatters", "alerting")
+            if others or any(c in near for c in CROSS):
+                continue
+            # NEAREST-SYMBOL: several hint symbols can appear in one window, so
+            # pick the one whose occurrence is closest to the anchor rather than
+            # whichever happens to come first in dict order.
+            best, best_d = None, 10**9
+            for k, v in SYMBOL_HINTS.items():
+                for hm in re.finditer(re.escape(k), ctx):
+                    d = abs(hm.start() - (m.start() - max(0, m.start() - 320)))
+                    if d < best_d:
+                        best, best_d = v, d
+            sym = best
+            if sym is None:
+                continue
+            checked += 1
+            if ln > len(src):
+                fails.append(f"{art.name}: cites :{ln}, file has {len(src)} lines")
+            elif sym not in src[ln - 1]:
+                fails.append(
+                    f"{art.name}: cites :{ln} in a context about {sym!r}, but that "
+                    f"line is {src[ln - 1].strip()[:70]!r}"
+                )
+    print(f"  {'ok  ' if not fails else 'FAIL'} C. loose prose anchors: {checked} checked by CONTENT")
+    return fails
+
+
+def self_test() -> int:
+    """Prove A and C can FAIL. A guard that cannot fail does not count."""
+    print("SELF-TEST -- the checks must REJECT known-bad artifacts\n")
+    ok = True
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        # (i) wrong-but-IN-BOUNDS anchor in prose -- the exact shape v1 passed.
+        bad = tmp / "bad_anchor.md"
+        # 4-digit and IN BOUNDS -- the exact shape that defeated v1. (v1's only
+        # per-anchor test was `n > nlines`, which these pass.)
+        bad.write_text(
+            "The halt's `return summary` is at :1507 and Step 5.6 begins at :1509.\n"
+        )
+        f = check_loose_anchors([bad], ROOT)
+        print(f"   (i)  wrong-but-in-bounds prose anchor -> {'REJECTED' if f else 'ACCEPTED (BAD)'}")
+        ok &= bool(f)
+
+        # (ii) curated / re-ordered command block.
+        bad2 = tmp / "bad_block.md"
+        bad2.write_text(
+            "```\n$ grep -n \"Step 5.6: Stop-loss enforcement\" "
+            "backend/services/autonomous_loop.py\n"
+            "9999:            # hand-written line that is not the real output\n```\n"
+        )
+        f2 = check_command_blocks([bad2], ROOT)
+        print(f"   (ii) curated command block          -> {'REJECTED' if f2 else 'ACCEPTED (BAD)'}")
+        ok &= bool(f2)
+
+        # (iii) a CORRECT block must still pass, or the check is useless noise.
+        live = sh('grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py', ROOT)
+        good = tmp / "good_block.md"
+        good.write_text(
+            "```\n$ grep -n \"Step 5.6: Stop-loss enforcement\" "
+            f"backend/services/autonomous_loop.py\n{live}\n```\n"
+        )
+        f3 = check_command_blocks([good], ROOT)
+        print(f"   (iii) correct command block          -> {'ACCEPTED' if not f3 else 'REJECTED (BAD)'}")
+        ok &= not f3
+    print("\nSELF-TEST", "PASSED" if ok else "FAILED")
+    return 0 if ok else 1
+
+
+def main() -> int:
+    if "--self-test" in sys.argv:
+        return self_test()
+    print("phase-36.17 anchor + command-block verification\n")
+    fails = (
+        check_command_blocks(ARTIFACTS, ROOT)
+        + check_relations(ROOT)
+        + check_loose_anchors(ARTIFACTS, ROOT)
+    )
+    if fails:
         print("\nFAIL:")
-        for f in failures:
+        for f in fails:
             print(f"  - {f}")
         return 1
-    print("\nALL ANCHOR CHECKS PASSED.")
+    print("\nALL CHECKS PASSED.")
     return 0
 
 

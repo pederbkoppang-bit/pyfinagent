@@ -390,3 +390,156 @@ def test_phase_36_17_halt_summary_shape_is_preserved(ks_isolated, monkeypatch):
     )
     assert "stop_loss_enforcement" not in summary["steps"]
     assert summary["status"] == "halted_kill_switch"  # phase-85.4 depends on this
+
+
+# ── criterion 7 gaps found by Q/A cycle 3 -- three mutants SURVIVED the ──────
+# author's 6-cell matrix. These close them. Each was written by taking the
+# surviving mutant and asking "what assertion would have killed this?".
+
+
+def test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced(ks_isolated, monkeypatch):
+    """Mutant M-D: `if sl_trade:` -> `if True:` SURVIVED with 4 passed.
+
+    `execute_sell` returns None when the position is already gone (it is naturally
+    idempotent). Without this test, a mutant that drops the truthiness check records
+    the ticker in `halt_stop_loss_triggered` even though NO sell happened -- i.e. the
+    cycle summary would claim a stop was enforced when the book still holds the
+    exposure. That is the worst possible lie for this particular defect to tell.
+    """
+    ks, state, _live = ks_isolated
+
+    import backend.services.autonomous_loop as al
+    import backend.services.cycle_health as cycle_health
+    from backend.config.settings import Settings
+    from backend.services.portfolio_manager import TradeOrder
+    import backend.services.paper_trader as _pt
+
+    state._paused = True
+    state._pause_reason = "manual"
+    portfolio = {"total_nav": 18_000.0, "starting_capital": 20_000.0, "current_cash": 18_000.0}
+
+    trader = MagicMock()
+    trader.check_and_enforce_kill_switch.return_value = KS_QUIET
+    trader.mark_to_market.return_value = {"nav": 18_000.0, "positions": []}
+    trader.get_or_create_portfolio.return_value = portfolio
+    trader.check_stop_losses.return_value = [BREACHED_TICKER]
+    trader.execute_sell.return_value = None          # <-- the position was already gone
+
+    bq = MagicMock()
+    bq.get_paper_positions.return_value = []
+    bq.get_paper_portfolio.return_value = portfolio
+
+    settings = Settings()
+    settings.news_screen_enabled = False
+    monkeypatch.setattr(_pt, "_get_live_price", lambda *a, **k: 100.0)
+    monkeypatch.setattr(al, "BigQueryClient", lambda *a, **k: bq)
+    monkeypatch.setattr(al, "PaperTrader", lambda *a, **k: trader)
+    monkeypatch.setattr(al, "screen_universe", lambda *a, **k: [])
+    monkeypatch.setattr(al, "rank_candidates", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_sp500_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_russell1000_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "_log_cycle_signals_to_bq", lambda *a, **k: 0)
+    monkeypatch.setattr(al, "AnalysisOrchestrator", MagicMock())
+    monkeypatch.setattr(al, "decide_trades", MagicMock(return_value=[
+        TradeOrder(ticker="NVDA", action="BUY", amount_usd=1_000.0,
+                   reason="probe", price=100.0, price_at_analysis=100.0)]))
+    monkeypatch.setattr(al, "_running", False)
+    fake_log = MagicMock()
+    fake_log.record_cycle_start.return_value = "2026-01-01T00:00:00+00:00"
+    monkeypatch.setattr(cycle_health, "get_log", lambda *a, **k: fake_log)
+
+    summary = asyncio.run(al.run_daily_cycle(settings=settings))
+
+    assert summary["halted"] is True
+    assert trader.check_stop_losses.called is True
+    assert trader.execute_sell.called is True, "the exit was never attempted"
+    # THE POINT: attempted != enforced. A sell that returned nothing must NOT be
+    # reported as a stop-out.
+    assert summary.get("halt_stop_loss_triggered") == [], (
+        "a stop was recorded as ENFORCED although execute_sell returned None -- "
+        "the summary claims an exit that did not happen (phase-36.17, mutant M-D)"
+    )
+
+
+def test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts(
+    ks_isolated, monkeypatch, caplog
+):
+    """Mutants M-E and M-F: dropping `summary["halt_stop_loss_error"]` and
+    downgrading `logger.exception` -> `logger.debug` both SURVIVED with 4 passed,
+    because NO test drove check_stop_losses to raise.
+
+    The 'Failure handling' paragraph of experiment_results §1 positively claims the
+    pass is fail-safe AND loud. Until this test existed that claim had zero covering
+    assertion, so a regression to a silent swallow in a STOP-LOSS path would not have
+    been noticed.
+    """
+    ks, state, _live = ks_isolated
+
+    import backend.services.autonomous_loop as al
+    import backend.services.cycle_health as cycle_health
+    from backend.config.settings import Settings
+    import backend.services.paper_trader as _pt
+
+    portfolio = {"total_nav": 18_000.0, "starting_capital": 20_000.0, "current_cash": 18_000.0}
+    boom = RuntimeError("BQ unavailable during halt")
+
+    trader = MagicMock()
+    trader.check_and_enforce_kill_switch.return_value = KS_BLOCKED
+    trader.mark_to_market.return_value = {"nav": 18_000.0, "positions": []}
+    trader.get_or_create_portfolio.return_value = portfolio
+    trader.check_stop_losses.side_effect = boom     # <-- the pass explodes
+
+    bq = MagicMock()
+    bq.get_paper_positions.return_value = []
+    bq.get_paper_portfolio.return_value = portfolio
+
+    settings = Settings()
+    settings.news_screen_enabled = False
+    monkeypatch.setattr(_pt, "_get_live_price", lambda *a, **k: 100.0)
+    monkeypatch.setattr(al, "BigQueryClient", lambda *a, **k: bq)
+    monkeypatch.setattr(al, "PaperTrader", lambda *a, **k: trader)
+    monkeypatch.setattr(al, "screen_universe", lambda *a, **k: [])
+    monkeypatch.setattr(al, "rank_candidates", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_sp500_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "get_russell1000_tickers", lambda *a, **k: [])
+    monkeypatch.setattr(al, "_log_cycle_signals_to_bq", lambda *a, **k: 0)
+    monkeypatch.setattr(al, "AnalysisOrchestrator", MagicMock())
+    decide = MagicMock(return_value=[])
+    monkeypatch.setattr(al, "decide_trades", decide)
+    monkeypatch.setattr(al, "_running", False)
+    fake_log = MagicMock()
+    fake_log.record_cycle_start.return_value = "2026-01-01T00:00:00+00:00"
+    monkeypatch.setattr(cycle_health, "get_log", lambda *a, **k: fake_log)
+
+    import logging
+
+    caplog.set_level(logging.DEBUG, logger="backend.services.autonomous_loop")
+    summary = asyncio.run(al.run_daily_cycle(settings=settings))
+
+    # FAIL-SAFE: the halt still completes and keeps the terminal status that the
+    # phase-85.4 loudness guards depend on.
+    assert summary["halted"] is True
+    assert summary["status"] == "halted_kill_switch"
+    assert summary["halt_reason"] == "kill_switch_disarmed_lost_history"
+    assert decide.called is False, "a raising stop pass let the cycle fall through"
+    # LOUD: the failure is recorded where an operator can see it. A silent swallow
+    # in a stop-loss path is exactly what must not happen.
+    assert "halt_stop_loss_error" in summary, (
+        "the exit-only pass raised and recorded NOTHING -- a stop-loss failure was "
+        "swallowed silently (phase-36.17, mutants M-E/M-F)"
+    )
+    assert repr(boom) == summary["halt_stop_loss_error"]
+    # ...and LOUD AT ERROR LEVEL, not quietly at debug. Mutant M-F
+    # (`logger.exception` -> `logger.debug`) SURVIVED until this assertion existed:
+    # the summary key alone cannot distinguish a logged failure from a whispered
+    # one, and "stay loud" is a claim the artifacts make positively.
+    loud = [
+        r for r in caplog.records
+        if r.levelno >= logging.ERROR
+        and "exit-only stop-loss pass FAILED" in r.getMessage()
+    ]
+    assert loud, (
+        "the exit-only pass failed but nothing was logged at ERROR+ -- a stop-loss "
+        "failure was downgraded to a whisper (phase-36.17, mutant M-F). "
+        f"records seen: {[(r.levelname, r.getMessage()[:60]) for r in caplog.records]}"
+    )

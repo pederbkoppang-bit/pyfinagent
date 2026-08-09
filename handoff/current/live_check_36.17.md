@@ -87,8 +87,10 @@ $ grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py
 1512:            # ── Step 5.6: Stop-loss enforcement (phase-25.1) ─────────
 ```
 
-**The ordering is deliberately UNCHANGED**: the halt still returns at `:1507`,
-before Step 5.6 at `:1509`. Option (b) adds enforcement *inside* the halt branch
+**The ordering is deliberately UNCHANGED**: the halt's `return summary` is still
+the line IMMEDIATELY BEFORE the Step 5.6 header -- see the live output above, and
+note the claim is stated as a RELATION because three Q/A cycles caught this
+artifact shipping stale numbers here. Option (b) adds enforcement *inside* the halt branch
 rather than moving Step 5.6 above the halt (option (a), rejected). Keeping the
 `return summary` last is load-bearing: on the `blocked` path the switch is not
 paused, so `execute_buy`'s own gate returns None and that return is the only
@@ -107,9 +109,14 @@ step text says `:1334/:1336`; the pre-fix tree was `:1437/:1439`.
   KILLED  | reintroduce backfill_missing_stops          -> 2 failed, 2 deselected
   KILLED  | append to summary["steps"]                  -> 1 failed, 3 deselected
   KILLED  | drop the recorded ticker                    -> 2 failed, 2 deselected
-[restored] un-mutated tree: 4 passed, 1 warning in 10.07s
-ALL 6 MUTANTS KILLED.
+[restored] un-mutated tree: 6 passed, 1 warning in 14.03s
+ALL 9 MUTANTS KILLED.
 ```
+
+Cycle 3 added M-D / M-E / M-F after the Q/A found them SURVIVING the 6-cell
+matrix. M-D is the one that mattered: `if sl_trade:` -> `if True:` made the
+summary record a stop as ENFORCED when `execute_sell` returned None, i.e. an
+exit that never happened.
 
 M1 was added in cycle 2 after the Q/A proved the no-BUY assertion was vacuous.
 It kills on `assert trader.execute_buy.called is False`, verbatim:
@@ -199,3 +206,52 @@ $ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py 
 `8319fc52d0f8a8cbb9959828e498d308`. **The live backend writes that file** (pid
 84494, restarted 15:08Z). Measured before/after WITHIN the cycle-2 run, all
 three files are byte-identical, so the suite still wrote nothing.
+
+---
+
+## 7. Cycle-3 evidence (Q/A `wf_4bf499e6-0e4` returned FAIL)
+
+### 7a. Anchor + command-block verification, mechanical
+
+```
+$ python scripts/qa/verify_36_17_anchors.py --self-test
+   (i)  wrong-but-in-bounds prose anchor -> REJECTED
+   (ii) curated command block            -> REJECTED
+   (iii) correct command block           -> ACCEPTED
+SELF-TEST PASSED
+
+$ python scripts/qa/verify_36_17_anchors.py
+  ok   A. command-block fidelity: 8 block(s) re-executed
+  ok   B. halt `return summary` :1510 immediately precedes Step 5.6 :1512
+  ok   B. check_stop_losses has exactly 2 production call sites
+  ok   C. loose prose anchors: 3 checked by CONTENT
+ALL CHECKS PASSED.
+```
+
+The v1 verifier was an ILLUSORY GUARD -- bounds-only, and it exempted the very
+numbers that were wrong. v2 re-executes every quoted command block and checks
+prose anchors by content. The self-test is what makes that claim auditable.
+
+### 7b. Final test state
+
+```
+$ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py -q
+6 passed, 1 warning in 13.41s
+
+$ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or autonomous_loop'
+224 passed, 1 skipped, 2892 deselected, 1 warning in 16.11s
+```
+
+### 7c. Production file integrity
+
+```
+$ git status --porcelain backend/services/autonomous_loop.py     # (empty)
+$ md5 -q backend/services/autonomous_loop.py
+58bbf24bde4c5161ac05f26f70fb264e
+```
+
+Byte-identical to commit `d057f127`, and the same digest the cycle-3 Q/A
+independently reported across cycle 2, cycle 3 and the worktree. See
+`experiment_results_36.17.md` §12f for a disclosed incident in which a timeout
+briefly left a mutant in this file, how it was caught, and the signal-handler
+hardening that prevents a recurrence.

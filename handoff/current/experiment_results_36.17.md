@@ -99,14 +99,22 @@ switch is not paused, so `execute_buy`'s own gate returns None).
 
 ## 2. Files changed
 
+Measured with `git diff --stat e98ca260^ -- backend/ scripts/`:
+
+```
+ backend/services/autonomous_loop.py                |  73 +++
+ .../test_phase_36_17_halt_stop_loss_enforcement.py | 545 +++++++++++++++++++++
+ scripts/qa/verify_36_17_anchors.py                 | 268 ++++++++++
+ 3 files changed, 886 insertions(+)
+```
+
 | File | Change |
 |---|---|
-| `backend/services/autonomous_loop.py` | +70 lines: the exit-only pass inside the Step 5.5 halt branch. No other hunk. |
-| `backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py` | NEW -- 4 tests + 3 isolation fixtures. |
+| `backend/services/autonomous_loop.py` | **the only production change** -- +73 lines, the exit-only pass inside the Step 5.5 halt branch. No other hunk, no other file. |
+| `backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py` | NEW -- 6 tests + 3 isolation fixtures. |
+| `scripts/qa/verify_36_17_anchors.py` | NEW (cycle 3) -- re-executes every quoted command block and checks every prose anchor by content. Carries `--self-test`. |
 | `handoff/current/contract_36.17.md` | NEW -- contract, incl. the recorded operator decision. |
 | `handoff/current/research_brief_36.17.md` | NEW -- research gate artifact. |
-
-`git diff --stat backend/services/autonomous_loop.py` -> `1 file changed, 70 insertions(+)`.
 
 ## 3. Criterion 1 + 2 -- REPRODUCE FIRST, recorded verbatim
 
@@ -187,9 +195,11 @@ $ grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py
 1512:            # ── Step 5.6: Stop-loss enforcement (phase-25.1) ─────────
 ```
 
-The halt's `return summary` is at **:1507** and Step 5.6 begins at **:1509** --
-the ordering is unchanged; the fix adds enforcement *inside* the halt branch
-rather than moving Step 5.6. The masterplan step text's `:1334/:1336` and the
+**Read the RELATION, not the numbers:** the halt's `return summary` is the line
+IMMEDIATELY BEFORE the Step 5.6 header in the block above. The ordering is
+unchanged; the fix adds enforcement *inside* the halt branch rather than moving
+Step 5.6. That relation is what `scripts/qa/verify_36_17_anchors.py` asserts
+structurally, and it is the only form of this claim that cannot go stale. The masterplan step text's `:1334/:1336` and the
 pre-fix `:1437/:1439` are both superseded.
 
 ## 7. Criterion 7 -- MUTATION TEST, both directions
@@ -204,6 +214,9 @@ Final matrix (M1 added in cycle 2 -- see §11):
 ```
 [baseline] un-mutated tree: 4 passed, 1 warning in 10.50s
 
+  KILLED  | M-D: `if sl_trade:` -> `if True:` (record an exit that never happened)
+  KILLED  | M-E: drop summary['halt_stop_loss_error'] (silent swallow)
+  KILLED  | M-F: logger.exception -> logger.debug (downgrade the loudness)
   KILLED  | M1: delete the halt's `return summary` (falls through to decide/execute)
            result: 2 failed, 2 deselected, 1 warning in 7.17s
   KILLED  | remove the breach-path exclusion (pass runs on EVERY halt reason)
@@ -218,7 +231,7 @@ Final matrix (M1 added in cycle 2 -- see §11):
            result: 2 failed, 2 deselected, 1 warning in 6.95s
 
 [restored] un-mutated tree: 4 passed, 1 warning in 10.07s
-ALL 6 MUTANTS KILLED. Every new guard can fail.
+ALL 9 MUTANTS KILLED. Every new guard can fail.
 ```
 
 The "ORDERING REVERTED" mutant is the "**both directions**" half of criterion 7:
@@ -372,3 +385,143 @@ No production behaviour. The only `autonomous_loop.py` change is a corrected
 comment (5 insertions, 2 deletions, all comment lines). The exit-only pass, its
 scope guard, the backfill exclusion and the summary key are byte-identical to
 what the Q/A graded.
+
+---
+
+## 12. Cycle 3 -- the guard I shipped was illusory, and three mutants survived
+
+Cycle-2 verdict: **FAIL** (`wf_73b4ae3d-73b`), verbatim in
+`evaluator_critique_36.17.md`. Criteria 1-5 and 7 were re-verified as MET; the
+FAIL was criterion 6 for the second consecutive cycle. Cycle 3 then FAILED again
+(`wf_4bf499e6-0e4`) on the same criterion plus two more findings. What follows is
+what each found and what changed.
+
+### 12a. Criterion 6, third occurrence -- and I had regenerated the blocks
+
+Cycle 3 measured that `experiment_results` §6 and `live_check` §2 still asserted,
+**in the present tense**, the now-STALE cycle-1 pair `:1507` / `:1509` (both
+superseded; they do not reproduce) -- sitting two-to-four lines BELOW the
+correctly regenerated grep block that said `1510`/`1512`. I had regenerated the
+*blocks* and left the *prose*.
+
+**Fix:** both sites now state the RELATION -- "the halt's `return summary` is the
+line immediately before the Step 5.6 header" -- and cite no number at all. That
+claim cannot go stale, and it is the form
+`scripts/qa/verify_36_17_anchors.py` asserts structurally.
+
+### 12b. The anchor verifier was an ILLUSORY GUARD -- the most serious finding
+
+Cycle 3 executed my v1 verifier against a synthetic artifact whose every anchor
+was wrong-but-in-bounds. It printed **"ALL ANCHOR CHECKS PASSED", rc=0**. Three
+independent defects in one script:
+
+1. `CHECKED` was left `{}`, so the only per-anchor assertion was `n > nlines` --
+   a BOUNDS check. All three real defects (-70, -3, -3) were **in bounds**, so
+   v1 could never have caught any of them.
+2. It hard-coded `1507`/`1509` into its `HISTORICAL` exemption set -- it exempted
+   precisely the numbers that were wrong, instead of correcting the prose that
+   asserted them as live.
+3. Its docstring claimed it verified "content still matches what the artifact
+   says it is". The code never did that.
+
+I also reported it to the Q/A as "mutation-proven". That was true of its two
+STRUCTURAL checks and false of the anchor check -- a claim narrower than it
+sounded, which is the failure mode this project's own memory warns about.
+
+**v2 replaces it and is proven to fail.** It now (A) re-executes **every** fenced
+`$ grep ...` block in the artifacts and requires an EXACT match against live
+stdout -- which kills the stale-number and the curated-output defects together;
+(B) asserts the ordering relation and the call-site count with no numbers; and
+(C) checks each prose anchor by CONTENT, with a cross-file guard and
+nearest-symbol resolution to avoid the false positives that would train a reader
+to ignore it. `--self-test` runs it against a wrong-but-in-bounds artifact and a
+curated block and requires REJECTION of both, plus ACCEPTANCE of a correct block:
+
+```
+$ python scripts/qa/verify_36_17_anchors.py --self-test
+   (i)  wrong-but-in-bounds prose anchor -> REJECTED
+   (ii) curated command block            -> REJECTED
+   (iii) correct command block           -> ACCEPTED
+SELF-TEST PASSED
+```
+
+### 12c. Criterion 7 -- three mutants survived my 6-cell matrix
+
+Cycle 3 ran its own matrix and found three survivors, all reported as `4 passed`:
+
+| Mutant | Why it mattered |
+|---|---|
+| **M-D** `if sl_trade:` -> `if True:` | `execute_sell` returns None when the position is already gone, so the mutant records a stop as **ENFORCED in the summary when no sell occurred**. For this defect specifically, that is the worst possible lie. |
+| **M-E** drop `summary["halt_stop_loss_error"]` | a stop-loss failure swallowed silently |
+| **M-F** `logger.exception` -> `logger.debug` | the failure downgraded to a whisper |
+
+Root cause: **no test drove `check_stop_losses` to raise**, so the entire
+fail-safe/loudness path that §1 "Failure handling" positively claims had zero
+covering assertion.
+
+Two new tests close all three:
+
+- `test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced` -- `execute_sell`
+  returns `None`; asserts the exit was ATTEMPTED but `halt_stop_loss_triggered`
+  stays empty. Attempted != enforced.
+- `test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts` --
+  `check_stop_losses` raises; asserts the halt still completes with
+  `status="halted_kill_switch"`, that `decide_trades` never ran, that
+  `halt_stop_loss_error` carries the exception, **and** that something was logged
+  at ERROR or above (the `caplog` assertion is what kills M-F; the summary key
+  alone cannot distinguish a logged failure from a whispered one).
+
+Matrix is now **9 cells, 9 killed**.
+
+### 12d. Re-verification after cycle 3
+
+```
+$ python scripts/qa/verify_36_17_anchors.py --self-test    -> SELF-TEST PASSED
+$ python scripts/qa/verify_36_17_anchors.py                -> ALL CHECKS PASSED
+```
+
+### 12e. What cycle 3 did NOT change
+
+**No production behaviour.** `backend/services/autonomous_loop.py` is
+byte-identical to commit `d057f127`. Everything in cycle 3 is tests, the
+verifier, and prose.
+
+### 12f. DISCLOSURE -- I left a mutant in the production file for ~4 minutes
+
+Self-reported; no automated check would have surfaced this, and the tree is
+clean now, so it is recorded rather than left silent.
+
+During cycle 3 a 2-minute tool timeout sent SIGTERM to the mutation harness
+**mid-mutation**. The harness restores inside its loop, but that never runs if
+the process is killed between the write and the restore, so
+`backend/services/autonomous_loop.py` was left carrying the
+`summary["steps"].append("stop_loss_enforcement")` mutant.
+
+**How it was caught:** the new anchor verifier started reporting anchor
+mismatches (`:1544` resolving to `)`) because the injected line shifted every
+anchor below it by one. It was detecting a live tree/artifact inconsistency --
+which is what it is for -- and that is what led me to `git status`.
+
+**Blast radius, measured:** the mutant existed only in the working tree, was
+never committed (`git diff --stat d057f127` showed `1 insertion`), and the
+backend running as pid 84494 loaded this module at 15:08Z and has not reloaded,
+so no running process ever executed it.
+
+**Restored precisely, not with a blanket checkout:** the single line was removed
+and the result asserted **byte-identical to the committed blob**
+(`git show d057f127:backend/services/autonomous_loop.py`), md5
+`58bbf24bde4c5161ac05f26f70fb264e` -- the same digest the cycle-3 Q/A
+independently reported for this file across cycle 2, cycle 3 and the worktree.
+(A `git checkout --` was attempted first and correctly BLOCKED by the 62.0
+PreToolUse guard, which refuses file-level checkouts that silently discard
+working-tree edits.)
+
+**Fixed so it cannot recur:** the harness now registers `atexit` plus
+`SIGTERM`/`SIGINT`/`SIGHUP` handlers that restore before exiting. Proven by
+deliberately killing a run mid-matrix:
+
+```
+!! signal 15 received -- production file RESTORED before exit
+$ git status --porcelain backend/services/autonomous_loop.py     # (empty)
+58bbf24bde4c5161ac05f26f70fb264e
+```
