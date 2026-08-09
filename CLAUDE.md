@@ -40,6 +40,7 @@ python -c "import ast; ast.parse(open('path/to/file.py').read())"
   verify against the RUNNING app via the Playwright MCP (browser_navigate +
   browser_snapshot / browser_take_screenshot) behind the NextAuth wall. Code reading
   alone is not UI evidence. Every UI-touching live_check includes a Playwright capture.
+- **Backend restarts are batched to SESSION END (operator instruction 2026-08-09).** When a change needs a restart to take effect -- a `backend/.env` edit, a plist change, production code the running process already imported -- do **NOT** restart when you make it. Record it as **NOT YET IN FORCE** with the running pid and its start time, add it to a pending-restart list in the day report, and do **one** restart at the end of the session. Rationale: a mid-session restart interrupts the book, and on 2026-08-09 a `bootout`+`bootstrap` race left the backend **down ~4 minutes**. **The trap this creates:** between edit and restart the change is committed but NOT active -- never claim a config is live because the file says so; read the value from the RUNNING process. Note `launchctl kickstart -k` does **not** re-read a plist's `EnvironmentVariables` (measured 2026-08-09); only `bootout`+`bootstrap` does, and away-ops rail 9 reserves that verb for the operator.
 - **Always read `.claude/masterplan.json`** before starting work — it's the machine-readable task tracker
 - **Use `/masterplan`** to see current state and next actionable step
 - **Never edit verification criteria** in masterplan.json — they are immutable
