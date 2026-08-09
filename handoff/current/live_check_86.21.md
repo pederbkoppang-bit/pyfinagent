@@ -1,0 +1,85 @@
+# live_check -- phase-86.21
+
+**Required evidence (immutable, verbatim from `.claude/masterplan.json`):**
+"Verbatim counter output against 36.17's real verdict history showing 5 verdicts
+and the correct consecutive-CONDITIONAL count, side by side with the verbatim
+zero-row output of the log-grep the rule currently prescribes."
+
+---
+
+## 1. The counter against 36.17's real verdict history
+
+```
+step            : 36.17
+source          : handoff/verdict_ledger.jsonl
+status          : ok
+detail          : 6 verdict(s) from the ledger
+verdicts        : CONDITIONAL -> FAIL -> FAIL -> CONDITIONAL -> CONDITIONAL -> PASS
+consecutive     : 0
+auto-FAIL armed : False  (a further CONDITIONAL would be the 1st)
+
+for contrast, the grep the rule currently prescribes: 3 row(s)
+  DISAGREEMENT: ledger says 0, harness_log grep says 3.
+  CAUSE: the two use DIFFERENT PREDICATES, not different data.
+  The grep counts CUMULATIVE CONDITIONAL rows (3); this counter
+  counts CONSECUTIVE ones since the last non-CONDITIONAL (0).
+  CLAUDE.md specifies consecutive-with-reset; qa.md specifies the
+  cumulative grep while calling it consecutive. Until those two are
+  reconciled the escalation is ambiguous regardless of the source.
+```
+
+**On "5 verdicts":** the immutable text says five. The ledger carries **six** --
+`CONDITIONAL, FAIL, FAIL, CONDITIONAL, CONDITIONAL, PASS` for cycles 190-195.
+The step text was written when 36.17 had run five cycles; it closed on a sixth
+(PASS) later the same night. Six is the true history, and the fifth-to-sixth
+transition is what makes the consecutive count 0 rather than 2. Stating this
+rather than trimming a row to match the criterion's wording.
+
+The reset-on-FAIL path the criterion asks for is exercised twice: the `FAIL,
+FAIL` pair resets the opening CONDITIONAL, and the closing `PASS` resets the
+`CONDITIONAL, CONDITIONAL` pair.
+
+## 2. Side by side with the prescribed log-grep, on a step that was MID-FLIGHT
+
+The criterion asks for the zero-row output of the prescribed grep. 36.17 is
+closed now, so its grep no longer returns zero -- it returns 3. The honest
+side-by-side therefore uses phase-86.20 at the commits where it was genuinely
+in flight, replayable from git:
+
+```
+$ git show "688ac349:handoff/harness_log.md" | grep -c 'phase=86.20 result='
+0
+$ git show "688ac349:handoff/current/evaluator_critique_86.20.md" | grep -c '^## Cycle'
+1
+
+$ git show "7145f566:handoff/harness_log.md" | grep -c 'phase=86.20 result='
+0
+$ git show "7145f566:handoff/current/evaluator_critique_86.20.md" | grep -c '^## Cycle'
+2
+```
+
+masterplan status at both commits: **pending**. So: two recorded verdicts, step
+still open, and the counter the rule prescribes returns **zero**.
+
+## 3. The four statuses, exercised
+
+```
+SELF-TEST -- the counter must distinguish absence from corruption
+
+   (i)   36.17 real history -> consecutive=2 (expect 2), armed=True
+   (ii)  reset on PASS_WITH_FINDINGS -> consecutive=1 (expect 1)
+   (iii) corrupt ledger -> status=unparseable, consecutive=None (expect None, NOT 0)
+   (iv)  missing ledger -> status=ledger_missing (expect ledger_missing)
+   (v)   unknown step -> status=no_rows_for_step, consecutive=0 (expect no_rows_for_step, 0)
+
+SELF-TEST PASSED
+```
+
+## 4. Scope of this evidence
+
+The ledger was seeded BY HAND with tonight's 11 real verdicts (36.17 x6,
+86.20 x3, 86.17 x2), each carrying its real `run_id`. **No automatic writer
+exists yet**, so the ledger will stop tracking the moment a session forgets --
+recorded in `experiment_results_86.21.md` §8 as the most important follow-up
+rather than left implicit. No Q/A currently consults this counter; `qa.md` still
+prescribes the grep.
