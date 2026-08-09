@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `a4068de1` | fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier recall honestly |
 | 2026-08-09 | `8d736735` | docs(86.19): file the duplicate step ids -- id lookups resolve to the wrong node |
 | 2026-08-09 | `63bd6940` | docs(86.18): file the whole-file masterplan rewrite as its own step |
 | 2026-08-09 | `2fc107ea` | docs(36.17): restart done in-session -- fix is IN FORCE, verified on the running process |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `04e490ba` | docs: ask #29 resolved -- RELEASE-61.2: APPROVED, 61.2 un-gated |
 | 2026-08-09 | `469788d5` | docs(61.2): today's evidence supersedes the timeout trigger; raise ask #29 |
 | 2026-08-09 | `afba23a2` | docs(76.4): bump P2 -> P1 and fold in the empty-report-body case |
-| 2026-08-09 | `524b9402` | fix(hooks): Stop gate read a masterplan path that never existed |
 
 ---
 
+### v6.91.8 — fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier re... (2026-08-09)
+
+- **fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier recall honestly**
 ### v6.91.7 — fix(36.17): cycle-3 -- replace an illusory guard, close 3 surviving m... (2026-08-09)
 
 - **fix(36.17): cycle-3 -- replace an illusory guard, close 3 surviving mutants**
