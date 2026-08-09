@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `4c80bcc4` | feat: file 86.20 (P1 recommendation-vocabulary mismatch) + 86.21 (P2 counter blindness) |
 | 2026-08-09 | `31a06591` | docs: day report -- drop the two claims cycle 5 invalidated |
 | 2026-08-09 | `7c47a8a4` | docs: day report -- cycle 5 found two surviving money-path mutants |
 | 2026-08-09 | `a1b92d14` | docs(36.17): log cycles 190-194 -- the counter could not see this step at all |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `66d466b0` | docs: day report 2026-08-09 + goal regenerated for 08-10 |
 | 2026-08-09 | `440a3ff0` | docs(61.2): RETRACT my critic attribution -- the gate refuted it and I re-verified |
 | 2026-08-09 | `9b72cb3b` | fix(86.15): renumber my step off a duplicated 86.13 id |
-| 2026-08-09 | `6f4f5303` | docs: file 86.14 -- live cycle-status page, so the operator stops having to ask |
 
 ---
 
+### v6.92.0 — file 86.20 (P1 recommendation-vocabulary mismatch) + 86.21 (P2 counte... (2026-08-09)
+
+- **file 86.20 (P1 recommendation-vocabulary mismatch) + 86.21 (P2 counter blindness)**
 ### v6.91.9 — fix(36.17): cycle-5 -- close two surviving MONEY-PATH mutants (2026-08-09)
 
 - **fix(36.17): cycle-5 -- close two surviving MONEY-PATH mutants**
