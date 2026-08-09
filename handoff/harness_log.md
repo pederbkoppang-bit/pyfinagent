@@ -32184,3 +32184,65 @@ breached position has exercised this path. All evidence is in-process against th
 real `run_daily_cycle` with a mocked `PaperTrader`; producing live evidence means
 deliberately halting the book, which is an operator action and was not taken.
 
+
+## Cycle 196 -- 2026-08-10 -- phase=86.20 result=PASS
+
+Q/A `wf_024cb2c9-8ea` (Workflow rail, opus). **PASS on all 7 immutable criteria,
+zero violated_criteria**, after CONDITIONAL on cycles 1 and 2. The
+3rd-CONDITIONAL auto-FAIL rule was ARMED for this cycle.
+
+**The defect:** `.upper()` folds CASE but never the SEPARATOR, so the
+full-pipeline producer's `"Strong Buy"` became `"STRONG BUY"` and matched none of
+the three membership sets -- dropped by `continue` with no log line. Plain
+`"Buy"` worked by accident, so the mismatch destroyed the highest-conviction
+spelling while letting the medium one through.
+
+**What the research found that the step text did not**, and it reframed the
+work: the SELL side is FAIL-DANGEROUS. `"Strong Sell"` matches neither
+`_SELL_RECS` nor `_DOWNGRADE_RECS`, so such a position is not exited by either
+branch and only the stop-loss can close it. The buy half costs opportunity; the
+sell half costs protection. The same mismatch also silently defeats phase-61.2:
+`paper_trader` persists the recommendation verbatim, so the `signal_downgrade`
+rule 61.2 exists to revive could never match full-path rows even with its own
+flag ON.
+
+**Shipped:** `backend/services/recommendation_vocab.py` maps any spelling onto
+the closed scale or to UNKNOWN -- a finite mapping in the I/B/E/S style, not a
+pattern match. The RESOLUTION is flag-gated
+(`paper_recommendation_vocab_fix_enabled`, default False); the OBSERVABILITY is
+NOT, so with the fix dark the drop still happens but is no longer silent.
+
+**TWO REAL DEFECTS IN MY OWN FIX, both found by the Q/A, both mine:**
+
+1. **Cycle 1 -- the dark flag was not dark.** I put `.strip()` and the re-based
+   `or default` ABOVE the flag check, so the normalisation applied
+   unconditionally. Three input shapes changed a real order with the flag OFF:
+   `' BUY '` placed a BUY the pre-change code never placed; `'   '` re-based
+   onto the HOLD default and, because HOLD is in `_DOWNGRADE_RECS`, SOLD a held
+   position; falsy non-str values suppressed a downgrade SELL. Unguarded: a
+   legacy-parity mutant left all 56 tests green.
+2. **Cycle 2 -- the guard I added to fix that had an illusory arm.** The oracle
+   compares outcomes including exceptions, but the table had ZERO truthy
+   non-strings, so 0 of 46 cases raised and the exception arm was dead code. A
+   mutant swallowing the `AttributeError` SURVIVED all 107 tests. **And I had
+   asserted that coverage in `settings.py`'s operator-facing flag description**
+   -- the same shape of false claim I had just corrected one cycle earlier.
+
+Both are closed and pinned by mutation cells M13 and M14. Final state: **14/14
+mutants killed** across both files with digests unchanged, module 119 passed,
+immutable command **133 passed exit 0**, wider regression 357 passed.
+
+**Corrections to the step text, measured not inherited:** the claimed "higher
+than any row that did match" is FALSE -- `Buy` also matches after `.upper()` and
+reaches 8.80 genuine vs `Strong Buy`'s 8.36; and `Strong Sell` has ZERO rows in
+the corpus, so the fail-dangerous half is LATENT, not live.
+
+**NOT verified:** no live cycle has exercised this path; the change is NOT IN
+FORCE (pid 6644 imported the module first), so even the observability awaits a
+restart; the sell half is fixture-only; whether arming would have changed any
+actual trade is unknown and unclaimed; and the producer remains unconstrained.
+
+**Filed, not fixed:** **86.22** (P1) -- seven other consumers of this column are
+broken in BOTH directions, including `outcome_tracker`, where all 91 literal
+`BUY` rows are scored `directionally_correct=False` regardless of return.
+
