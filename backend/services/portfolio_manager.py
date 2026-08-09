@@ -13,6 +13,7 @@ from backend.config.settings import Settings
 from backend.services import risk_overrides
 from backend.backtest import markets  # phase-50.3: derive market from ticker suffix
 from backend.services.signal_attribution import extract_signals_from_analysis, extract_all_signals
+from backend.services.recommendation_vocab import canonical_recommendation  # phase-86.20
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,76 @@ _SELL_RECS = {"SELL", "STRONG_SELL"}
 _DOWNGRADE_RECS = {"HOLD", "SELL", "STRONG_SELL"}
 # Recommendations that trigger buying
 _BUY_RECS = {"BUY", "STRONG_BUY"}
+
+# phase-86.20: a token guaranteed to be in NONE of the three sets above, used
+# when the canonicaliser cannot place a value on the closed scale. UNKNOWN must
+# be neither a buy, nor a sell, nor a downgrade -- and must stay distinct from
+# HOLD, because "the analyst said hold" and "we could not parse this" are
+# different facts.
+_UNRECOGNISED_REC = "__UNRECOGNISED__"
+
+
+def _resolve_rec(
+    raw: object,
+    *,
+    settings: Settings,
+    default: str,
+    ticker: str = "",
+    site: str = "",
+) -> str:
+    """Resolve a raw recommendation to the token the membership gates test.
+
+    phase-86.20. `.upper()` folds CASE but never the SEPARATOR, so the
+    full-pipeline producer's `"Strong Buy"` became `"STRONG BUY"` and matched
+    none of the three sets -- silently, via `continue`, with no log line. On the
+    sell side the same gap is FAIL-DANGEROUS: `"Strong Sell"` matched neither
+    `_SELL_RECS` nor `_DOWNGRADE_RECS`, so a held position was not exited by
+    either branch and only the stop-loss could still close it.
+
+    TWO THINGS ARE DELIBERATELY SPLIT HERE:
+
+    * The RESOLUTION is flag-gated (`paper_recommendation_vocab_fix_enabled`),
+      because changing it ARMS orders that do not happen today -- new BUYs on
+      one side and new SELL/downgrade exits on the other. OFF returns exactly
+      what the legacy expression returned, so the path is byte-identical.
+    * The OBSERVABILITY is UNCONDITIONAL, because it changes no decision. With
+      the flag OFF this is what makes the live defect visible instead of
+      silent, and it is the drift alarm the next vocabulary change will trip.
+
+    Two loud cases, and they are different facts:
+      UNRECOGNISED      -- outside the closed scale entirely (e.g. "N/A").
+      VOCABULARY MISMATCH -- a recognised intent whose legacy spelling the
+                             gates reject. That is this defect, counted.
+    """
+    raw_str = "" if raw is None else str(raw).strip()
+    source = raw_str or default
+    if not source:
+        # A genuinely absent recommendation (legacy position rows carry none).
+        # Not a drift signal, so it stays quiet.
+        return ""
+
+    legacy = source.upper()
+    canon = canonical_recommendation(source)
+    flag_on = getattr(settings, "paper_recommendation_vocab_fix_enabled", False)
+    where = f"{site} ticker={ticker}" if ticker else site
+
+    if canon is None:
+        logger.warning(
+            "phase-86.20: UNRECOGNISED recommendation %r (%s) -- treated as "
+            "neither buy nor sell nor downgrade. A producer vocabulary drift "
+            "is the usual cause.",
+            source, where,
+        )
+    elif canon != legacy:
+        logger.warning(
+            "phase-86.20: recommendation VOCABULARY MISMATCH %r -- canonical "
+            "%s, but the legacy gate sees %r (%s). vocab_fix_enabled=%s",
+            source, canon, legacy, where, flag_on,
+        )
+
+    if flag_on:
+        return canon if canon is not None else _UNRECOGNISED_REC
+    return legacy
 
 
 def decide_trades(
@@ -137,8 +208,20 @@ def decide_trades(
 
         # If we have a fresh re-evaluation
         if analysis:
-            rec = (analysis.get("recommendation") or "HOLD").upper()  # phase-66.2 review C1: None-safe (lite fallback can return recommendation=None -> None.upper() crashed decide_trades)
-            old_rec = (pos.get("recommendation") or "").upper()
+            # phase-86.20: was `(... or "HOLD").upper()`. The 66.2 review-C1
+            # None-safety is preserved -- _resolve_rec is None-safe by
+            # construction -- and the separator gap is closed when the flag is
+            # ON. See _resolve_rec for why resolution is gated but loudness is not.
+            rec = _resolve_rec(
+                analysis.get("recommendation"),
+                settings=settings, default="HOLD",
+                ticker=ticker, site="holding re-eval",
+            )
+            old_rec = _resolve_rec(
+                pos.get("recommendation"),
+                settings=settings, default="",
+                ticker=ticker, site="held position row",
+            )
 
             # Explicit sell signal
             if rec in _SELL_RECS:
@@ -179,7 +262,13 @@ def decide_trades(
     buy_candidates = []
     for analysis in candidate_analyses:
         ticker = analysis.get("ticker", "")
-        rec = (analysis.get("recommendation") or "HOLD").upper()  # phase-66.2 review C1: None-safe (lite fallback can return recommendation=None -> None.upper() crashed decide_trades)
+        # phase-86.20: see the holding-side note above. This is the site where
+        # 'Strong Buy' was dropped by `continue` with no log line at all.
+        rec = _resolve_rec(
+            analysis.get("recommendation"),
+            settings=settings, default="HOLD",
+            ticker=ticker, site="buy candidate",
+        )
 
         # Skip if already held (and not being sold)
         if ticker in held_tickers and ticker not in selling_tickers:
