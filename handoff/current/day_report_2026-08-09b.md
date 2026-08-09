@@ -103,8 +103,8 @@ Research prevented two mistakes I would have made:
 - **Not appending to `summary["steps"]`** — measured to turn two phase-36.12
   tests red.
 
-State: **9/9 mutants killed, 224 passed on the immutable command, fix IN FORCE.**
-Masterplan row still `pending` pending the final Q/A verdict.
+State: **11/11 mutants killed, 224 passed on the immutable command, fix IN
+FORCE.** Masterplan row deliberately left **`pending`** -- see below.
 
 ## The uncomfortable part: 5 Q/A cycles, and 3 were my own artifact defects
 
@@ -134,6 +134,46 @@ Three real coverage gaps also came out of it, one worth having independently:
 `if sl_trade:` → `if True:` survived, meaning the cycle summary could record a
 stop-out as **enforced when no sell occurred**.
 
+## Why 36.17 is NOT flipped, and what the last cycle found
+
+Five Q/A cycles: **CONDITIONAL, FAIL, FAIL, CONDITIONAL, CONDITIONAL.** The fix
+has been correct and byte-identical since cycle 2 (md5 `58bbf24b…`, verified
+identical by four separate passes) and is now in force. It is not flipped because
+it has not earned a PASS, and I will not close my own work on a CONDITIONAL.
+
+**Cycle 5 earned its keep and was not about prose.** It executed two mutants I
+had not tried, and both SURVIVED:
+
+- **`quantity=None` → `quantity=1`.** `paper_trader.py:548` does
+  `sell_qty = quantity or position["quantity"]`, so a mutant selling **one share**
+  still returns a truthy trade record and is **still recorded as an enforced
+  stop** — the book keeps essentially full exposure while the summary says the
+  stop fired. That is the same lie-shape as an earlier finding whose guard could
+  not see a partial fill.
+- **Deleting the halt-path `mark_to_market`.** `check_stop_losses` compares
+  `current_price`, which that call refreshes, so stops would run against **stale
+  marks**. My §1 claimed freshness as a load-bearing property with zero covering
+  assertion.
+
+**My first guard for the second one also failed, and I measured that rather than
+assuming it.** There are two `mark_to_market` calls in the cycle (indices 2 and
+5); `.index()` returns the first, so the assertion passed even with the halt-path
+call deleted. Corrected to assert the immediate predecessor. Both mutants now die;
+matrix is 11 cells, 11 killed.
+
+**One more correction worth stating:** my in-force proof originally rested on
+`file mtime < process start`. My own later mutation runs rewrote the file with
+identical content and pushed mtime past process start, so that line now reads
+**backwards**. The conclusion is unchanged and the Q/A confirmed it independently,
+but it now rests on content-last-changed (`6ca17793`, 17:54:37) < process start
+(18:56:00) plus a clean tree — evidence that stays true.
+
+**Next session:** one Q/A on the current tree, then flip. Do not re-do the
+research or the fix. **The 3rd-CONDITIONAL rule is now armed** (cycles 193 and 194
+are both CONDITIONAL and are finally recorded in `harness_log.md`, which had zero
+36.17 rows all day). If cycle 6 also returns CONDITIONAL, the honest move is an
+operator disposition rather than a seventh attempt.
+
 ## Disclosures (self-reported; no automated check would have surfaced these)
 
 1. **A pytest run wrote the LIVE `handoff/.autonomous_loop.lock`** — 1.7s
@@ -149,7 +189,14 @@ stop-out as **enforced when no sell occurred**.
    `git show`, not a blanket `git checkout` — which the 62.0 guard correctly
    blocked). The harness now restores on `atexit`/SIGTERM/SIGINT/SIGHUP, proven
    by killing a run mid-matrix.
-3. **I nearly reported a false regression.** A foreground pytest run showed
+3. **I ran mutations against the live production file while an ARMED backend was
+   running** — eleven times, after the restart. No harm occurred, and the reason
+   is mechanism not luck: CPython serves an imported module from `sys.modules` and
+   never re-reads the file. But a restart during any of those windows would have
+   imported a mutant into an armed trading process. The rule recorded for next
+   time: mutate a copy, or use in-memory `sys.modules` injection, never the live
+   file under an armed process.
+4. **I nearly reported a false regression.** A foreground pytest run showed
    `3 failed / 6 failed`; it was a *concurrency artifact* of my own verifier
    running pytest in the background and tripping the autouse live-audit fixture.
    A clean re-run was 6 passed. I reverted pytest re-execution from the verifier
