@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `a87add72` | fix(vocab): phase-86.22 -- one recommendation vocabulary across six consumers |
 | 2026-08-10 | `f21129e5` | phase-86.22: research gate PASSED + contract; day report corrected with the measured corpus state |
 | 2026-08-10 | `73398c5a` | docs: regenerate the goal from measured state (cycles resume at 200) |
 | 2026-08-10 | `802a8535` | docs: day report 2026-08-10 -- the book CAN trade, next cycle 14:00 ET today |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `e7fd7e51` | docs(86.20): cycle-3 Q/A returns PASS -- verdict verbatim + harness log |
 | 2026-08-09 | `9490c2f1` | docs(86.20): cycle-3 artifact -- 14-cell matrix, refreshed counts, section 12 |
 | 2026-08-09 | `7145f566` | fix(86.20): cycle-3 -- make the oracle's exception arm reachable, and stop claiming it was |
-| 2026-08-09 | `688ac349` | fix(86.20): cycle-2 -- the dark flag was not dark; close the leak and add the oracle |
 
 ---
 
+### v6.93.17 — fix(vocab): phase-86.22 -- one recommendation vocabulary across six c... (2026-08-10)
+
+- **fix(vocab): phase-86.22 -- one recommendation vocabulary across six consumers**
 ### v6.93.16 — phase-86.22: research gate PASSED + contract; day report corrected wi... (2026-08-10)
 
 - **phase-86.22: research gate PASSED + contract; day report corrected with the measured corpus state**
