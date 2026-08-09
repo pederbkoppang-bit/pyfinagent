@@ -137,11 +137,31 @@ phase-86.17 -- Workflow args-boundary verification
   ok   [4] drop-step_id-requirement: KILLED -- reverting it changes the outcome for object-without-step_id
   ok   [4] qa-restore-silent-catch: CONTROL -- the guard owns its diagnosis
   ok   [4] qa-restore-silent-catch: KILLED -- reverting it changes the outcome for malformed-json-string
+  ok   [4] qa-drop-post-parse-plain-object-check: CONTROL -- the guard owns its diagnosis
+  ok   [4] qa-drop-post-parse-plain-object-check: KILLED -- reverting it changes the outcome for double-encoded-json
+  ok   [4] drop-empty-string-guard: CONTROL -- the guard owns its diagnosis
+  ok   [4] drop-empty-string-guard: KILLED -- reverting it changes the outcome for empty-string
+  ok   [4] qa-drop-empty-string-guard: CONTROL -- the guard owns its diagnosis
+  ok   [4] qa-drop-empty-string-guard: KILLED -- reverting it changes the outcome for empty-string
   ok   [4] qa-drop-step_id-requirement: CONTROL -- the guard owns its diagnosis
   ok   [4] qa-drop-step_id-requirement: KILLED -- reverting it changes the outcome for object-without-step_id
   ok   [4] drop-blind-violation: KILLED (a blind run would pass without it)
 
-ALL GREEN: 70 passed, 0 failed
+[5] FULL DRIVER -- blind runs must spawn NOTHING (criteria 3, 4, 6)
+
+  ok   [5] qa-verdict.js: a blind run spawns ZERO agents
+  ok   [5] qa-verdict.js: a blind run cannot pass and is marked dry_run
+  ok   [5] qa-verdict.js: the blind run is LOGGED
+  ok   [5] qa-verdict.js: no prompt mentioning research_brief_UNSPECIFIED is ever sent
+  ok   [5] research-gate.js: a blind run spawns ZERO agents
+  ok   [5] research-gate.js: a blind run cannot pass and is marked dry_run
+  ok   [5] research-gate.js: the blind run is LOGGED
+  ok   [5] research-gate.js: no prompt mentioning research_brief_UNSPECIFIED is ever sent
+  ok   [5] CONTROL: a usable launch DOES spawn
+  ok   [5] qa-verdict.js: KILLED -- removing the blind early-return makes it spawn
+  ok   [5] research-gate.js: KILLED -- removing the blind early-return makes it spawn
+
+ALL GREEN: 87 passed, 0 failed
 ```
 
 ## 2. Verbatim thrown message, one malformed-args case per script
@@ -175,7 +195,7 @@ $ node scripts/qa/verify_research_gate_workflow.mjs
 ALL GREEN: 40 passed, 0 failed
 ```
 
-**Delta: 0.** The combined immutable command exits 0 with 40 + 70 = 110 passed.
+**Delta: 0.** The combined immutable command exits 0 with 40 + 87 = 127 passed.
 
 This is the check that matters most for this particular fix: the checker imports
 the workflow slice with `args` UNBOUND, so a bare `args === undefined` would
@@ -199,10 +219,30 @@ result: {"dry_run": true, "verdict": null, "ok": false,
 It did NOT throw, and it CANNOT pass. Both halves of criterion 4, observed on
 the real runtime at zero cost.
 
-## 5. Scope of this evidence
+## 5. Live-runtime proof for the OTHER script (cycle 2)
 
-In-module evidence across 10 shapes on both scripts, plus one live class-A
-launch. **No live class-B or class-C launch was made** -- proving a throw that
-way costs a real launch and the in-module coverage is per-shape and exhaustive.
-`research-gate.js`'s live dry run was not separately launched; it shares the
-identical `classifyArgs` body with the one that was.
+Cycle 1 covered only `qa-verdict.js` live and justified the gap by inference
+from a shared helper. The cycle-1 Q/A rejected that inference -- correctly, since
+the two scripts diverge immediately after the helper -- so `research-gate.js`'s
+dry run is now launched too (`wf_a5de9d05-c78`, **0 agents, 0 tokens**):
+
+```
+{"step_id": null, "gate_passed": false, "dry_run": true,
+ "input_health": {"status": "dry_run", "blind": true},
+ "violations": ["dry_run_no_step_id: args were ABSENT, so there is no step,
+                 topic or scope to certify -- a blind run may never pass"],
+ "brief_path": null, "envelope": null,
+ "reason": "BLIND RUN: args were absent, so no step was identified. No
+            researcher was spawned and no brief was written."}
+```
+
+No researcher spawned means no brief can be written under an UNSPECIFIED
+identity -- criterion 3's second sentence, closed by construction rather than by
+argument.
+
+## 6. Scope of this evidence
+
+In-module evidence across 10 shapes on both scripts, full-driver evidence for
+both blind paths, and TWO live class-A launches (one per script). **No live
+class-B or class-C launch was made** -- proving a throw that way costs a real
+launch, and the in-module coverage is per-shape and exhaustive.

@@ -377,6 +377,41 @@ function enforceGate(env, verification, opts) {
 // mutation-tested cheaply.
 
 phase('Research')
+
+// phase-86.17 (cycle-2 correction, criterion 3 second sentence): REFUSE TO
+// SPAWN on a blind run. Cycle 1 marked the run blind and forced gate_passed
+// false -- correct, and criterion 4 held -- but it still spawned a max-effort
+// researcher whose prompt names handoff/current/research_brief_UNSPECIFIED.md
+// and tells it "write-first is non-negotiable". That is the EXACT artifact this
+// step's own defect narrative calls the harm: a brief written under an identity
+// that collides across every step reaching this path. qa-verdict.js already
+// refused to spawn for the same reason; the reasoning simply had not been
+// applied here, and the asymmetry was not disclosed. Measured by the cycle-1
+// Q/A driving the full driver with args unbound.
+//
+// Returning here keeps BOTH halves of criterion 4: it does not throw (the dry
+// run stays legal) and it cannot pass (gate_passed is false, and no brief can
+// be written because no researcher exists to write one).
+if (inputHealth.blind) {
+  log('research-gate: WARNING -- BLIND RUN. args were ABSENT, so there is no step, topic or '
+      + 'scope to research. Returning a FAILED gate and spawning nothing -- no brief may be '
+      + 'written under an UNSPECIFIED identity.')
+  return {
+    step_id: null,
+    gate_passed: false,
+    dry_run: true,
+    input_health: { status: inputHealth.status, blind: true },
+    violations: ['dry_run_no_step_id: args were ABSENT, so there is no step, topic or scope to certify -- a blind run may never pass'],
+    checks: [],
+    brief_path: null,
+    brief_verification: null,
+    envelope: null,
+    agent_self_reported_gate_passed: null,
+    self_report_disagreed: false,
+    reason: 'BLIND RUN: args were absent, so no step was identified. No researcher was spawned and no brief was written.',
+  }
+}
+
 const envelope = await agent(PROMPT, {
   label: 'research-gate:' + stepId,
   phase: 'Research',
@@ -438,13 +473,11 @@ if (enforcement.violations.length) {
 } else {
   log('research-gate ' + stepId + ': gate passed (' + enforcement.checks.length + ' checks)')
 }
-// phase-86.17: surface the blind state in the LOG as well as the return value
-// and the thrown error. Mirrors the self_report_disagreed WARNING idiom below.
-// enforceGate itself stays PURE -- the driver logs, never the gate.
-if (inputHealth.blind) {
-  log('research-gate: WARNING -- BLIND RUN. args were ABSENT, so this is a dry run with no step, '
-      + 'topic or scope. gate_passed is FORCED false: there is nothing to certify.')
-}
+// phase-86.17 note: the blind-run WARNING is emitted at the early return above,
+// not here. A second `if (inputHealth.blind)` block at this point would be DEAD
+// CODE -- the early return fires before any agent is spawned, so control cannot
+// reach this line while blind. Cycle 1 had exactly that duplicate; the checker's
+// anchor-uniqueness assertion is what surfaced it.
 
 if (enforcement.self_report_disagreed) {
   log('research-gate ' + stepId + ': WARNING -- the agent self-reported gate_passed='

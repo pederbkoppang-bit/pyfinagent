@@ -153,7 +153,17 @@ const VERDICT_SCHEMA = {
   },
 }
 
-// phase-86.17 (criterion 4): a BLIND run must not throw -- the dry run stays
+phase('QA')
+
+// phase-86.17 (criterion 4): a BLIND run must not throw.
+// PLACED BELOW phase('QA') DELIBERATELY (cycle-2 correction). Checkers
+// import this file by slicing at the phase() driver boundary, and a
+// top-level `return` is legal only inside the Workflow runtime's async
+// wrapper -- above the boundary it would be a SyntaxError in the sliced
+// module. Keeping it here also means a checker that slices at phase()
+// CANNOT see this block, which is why it needs full-driver coverage
+// (verify_workflow_args_boundary.mjs section [5]) rather than the
+// module-slice coverage that silently missed it in cycle 1. -- the dry run stays
 // legal -- but it must also be incapable of producing a PASS. Returning early
 // is stronger than returning a verdict object with verdict:null, because it
 // means no max-effort Q/A session is spent evaluating a step that was never
@@ -170,8 +180,6 @@ if (inputHealth.blind) {
       + 'do not transcribe it into evaluator_critique. Re-launch with args={step_id, criteria, ...}.',
   }
 }
-
-phase('QA')
 // phase-75.20: agentType 'qa' (was 'general-purpose') so the primary path is
 // CONSTRAINED BY CONFIGURATION, not prose: the probe (wf_9277ada4-390) showed
 // general-purpose carries Edit/Write/Bash + 7 loaded MCP tools + the full

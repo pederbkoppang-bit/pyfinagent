@@ -73,7 +73,13 @@ async function drive(source, shape, tag) {
   // phase() call and contains a top-level `return`, which is legal inside the
   // Workflow runtime's async wrapper but a SyntaxError in a plain module -- so
   // it must be cut too.
-  const marks = ["if (inputHealth.blind)", "phase('Research')", "phase('QA')"]
+  // Both scripts' blind early-returns now sit BELOW their phase() call, so the
+  // phase boundary alone is the cut. That is not a tidy-up: in cycle 1 this
+  // list ALSO contained "if (inputHealth.blind)", so deleting that block simply
+  // moved the cut and the mutant survived with every assertion green. A slicing
+  // checker structurally CANNOT cover code it slices away -- section [5] exists
+  // for exactly that reason.
+  const marks = ["phase('Research')", "phase('QA')"]
     .map(m => source.indexOf(m)).filter(i => i !== -1)
   if (!marks.length) throw new Error('no driver boundary found')
   const body = source.slice(0, Math.min(...marks))
@@ -235,6 +241,30 @@ const MUTANTS = [
     owns: 'not parseable as JSON',
   },
   {
+    id: 'qa-drop-post-parse-plain-object-check',
+    script: 'qa-verdict.js',
+    from: "  if (typeof v !== 'object' || v === null || Array.isArray(v)) fail('did not reduce to a plain object', raw)",
+    to: "  if (false) fail('did not reduce to a plain object', raw)",
+    shape: SHAPES.find(s => s.id === 'double-encoded-json'),
+    owns: 'did not reduce to a plain object',
+  },
+  {
+    id: 'drop-empty-string-guard',
+    script: 'research-gate.js',
+    from: "    if (!v.trim()) fail('are PRESENT but an empty/blank string', raw)",
+    to: "    if (false) fail('are PRESENT but an empty/blank string', raw)",
+    shape: SHAPES.find(s => s.id === 'empty-string'),
+    owns: 'an empty/blank string',
+  },
+  {
+    id: 'qa-drop-empty-string-guard',
+    script: 'qa-verdict.js',
+    from: "    if (!v.trim()) fail('are PRESENT but an empty/blank string', raw)",
+    to: "    if (false) fail('are PRESENT but an empty/blank string', raw)",
+    shape: SHAPES.find(s => s.id === 'empty-string'),
+    owns: 'an empty/blank string',
+  },
+  {
     id: 'qa-drop-step_id-requirement',
     script: 'qa-verdict.js',
     from: "  if (!v.step_id && !v.stepId) fail('are a plain object with NO step_id', raw)",
@@ -290,6 +320,96 @@ for (const m of MUTANTS) {
     const blind = enforceGate(env, verification, { inputHealth: { status: 'dry_run', blind: true } })
     check('[4] drop-blind-violation: KILLED (a blind run would pass without it)', blind.gate_passed === true)
   }
+}
+
+// ── [5] FULL DRIVER -- the coverage a slicing checker structurally cannot give
+//
+// WHY THIS SECTION EXISTS. Cycle 1 shipped the blind early-return with ZERO
+// re-runnable coverage: the Q/A deleted qa-verdict's entire
+// `if (inputHealth.blind) { ... }` block and this checker stayed ALL GREEN,
+// because drive() sliced that block away before importing. The behavioural
+// differential was real -- 0 spawns became 1 max-effort spawn labelled
+// `qa-verdict:UNSPECIFIED` returning a PASS-shaped object. A guard that cannot
+// fail when its subject is broken does not count.
+//
+// So this section runs the WHOLE script, with the Workflow runtime primitives
+// stubbed, and observes what a slice cannot: how many agents get spawned and
+// what the driver RETURNS. `args` is left genuinely undeclared for class A, so
+// `typeof args === 'undefined'` is exercised the way the real runtime does it.
+console.log('\n[5] FULL DRIVER -- blind runs must spawn NOTHING (criteria 3, 4, 6)\n')
+
+async function runDriver(source, { argsLiteral = null } = {}) {
+  const spawns = []
+  const logs = []
+  // Strip the `export` keyword: an export is illegal inside the async wrapper.
+  let body = source.replace(/^export const meta =/m, 'const meta =')
+  const prelude =
+    'const __spawns = [];\nconst __logs = [];\n'
+    + 'let __call = 0;\n'
+    + 'const agent = async (prompt, opts) => { __spawns.push({ label: opts && opts.label, prompt }); '
+    + '  __call++; '
+    + '  if (__call === 1) return { gate_passed: true, external_sources_read_in_full: 9, urls_collected: 40, '
+    + '    recency_scan_performed: true, sources_read_in_full: Array.from({length: 9}, (_, i) => "https://x/" + i), '
+    + '    brief_path: "handoff/current/research_brief_UNSPECIFIED.md", coverage: { audit_class: false }, '
+    + '    verdict: "PASS", ok: true }; '
+    + '  return { brief_exists: true, brief_non_empty: true, char_count: 9000, urls_checked: 9, urls_present: 9, urls_missing: [] }; };\n'
+    + 'const phase = () => {};\n'
+    + 'const log = (m) => { __logs.push(m); };\n'
+    + (argsLiteral === null ? '' : `const args = ${argsLiteral};\n`)
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'argsb-drv-'))
+  const tmp = path.join(dir, 'drv.mjs')
+  fs.writeFileSync(tmp,
+    prelude
+    + 'export default async function __run() {\n' + body + '\n}\n'
+    + 'export { __spawns, __logs }\n')
+  const mod = await import(pathToFileURL(tmp).href)
+  let result, threw = null
+  try { result = await mod.default() } catch (e) { threw = String(e && e.message ? e.message : e) }
+  spawns.push(...mod.__spawns)
+  logs.push(...mod.__logs)
+  return { result, threw, spawns, logs }
+}
+
+const DRIVER_CASES = [
+  { name: 'qa-verdict.js', noVerdict: r => r.result && r.result.verdict === null && r.result.dry_run === true },
+  { name: 'research-gate.js', noVerdict: r => r.result && r.result.gate_passed === false && r.result.dry_run === true },
+]
+
+for (const c of DRIVER_CASES) {
+  const src = fs.readFileSync(SCRIPTS[c.name], 'utf8')
+  const r = await runDriver(src)
+  check(`[5] ${c.name}: a blind run spawns ZERO agents`, r.spawns.length === 0,
+        `spawned ${r.spawns.length}: ${r.spawns.map(s => s.label).join(', ')}`)
+  check(`[5] ${c.name}: a blind run cannot pass and is marked dry_run`, !r.threw && c.noVerdict(r),
+        r.threw ? `threw: ${r.threw}` : JSON.stringify(r.result).slice(0, 140))
+  check(`[5] ${c.name}: the blind run is LOGGED`, r.logs.some(l => /BLIND RUN/.test(l)),
+        JSON.stringify(r.logs).slice(0, 120))
+  // No artifact may be named under an UNSPECIFIED identity (criterion 3, 2nd sentence).
+  check(`[5] ${c.name}: no prompt mentioning research_brief_UNSPECIFIED is ever sent`,
+        !r.spawns.some(s => /UNSPECIFIED/.test(String(s.prompt))), 'a spawn carried an UNSPECIFIED identity')
+}
+
+// Control: a USABLE launch must still spawn, or the checks above would pass
+// trivially on a script that never spawns at all.
+{
+  const src = fs.readFileSync(SCRIPTS['qa-verdict.js'], 'utf8')
+  const r = await runDriver(src, { argsLiteral: '{ step_id: "86.17", criteria: ["c"] }' })
+  check('[5] CONTROL: a usable launch DOES spawn', r.spawns.length === 1,
+        `spawned ${r.spawns.length}`)
+}
+
+// MUTATION: delete each blind early-return and require the differential.
+for (const c of DRIVER_CASES) {
+  const src = fs.readFileSync(SCRIPTS[c.name], 'utf8')
+  const marker = 'if (inputHealth.blind) {'
+  const n = src.split(marker).length - 1
+  if (n !== 1) { check(`[5] ${c.name} mutate-blind-return: anchor unique`, false, `found ${n}`); continue }
+  const mutated = src.replace(marker, 'if (false) {')
+  const r = await runDriver(mutated)
+  check(`[5] ${c.name}: KILLED -- removing the blind early-return makes it spawn`,
+        r.spawns.length > 0 || r.threw !== null,
+        'mutant still spawned nothing -- this guard is not the one doing the work')
 }
 
 console.log('')
