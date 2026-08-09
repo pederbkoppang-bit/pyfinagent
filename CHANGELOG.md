@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `6763f10f` | phase-86.20: [P1 -- THE TRADE GATE AND THE ANALYZER SPEAK DIFFERENT RECOMMENDATION VOCABULARIES, ... |
 | 2026-08-09 | `e7fd7e51` | docs(86.20): cycle-3 Q/A returns PASS -- verdict verbatim + harness log |
 | 2026-08-09 | `9490c2f1` | docs(86.20): cycle-3 artifact -- 14-cell matrix, refreshed counts, section 12 |
 | 2026-08-09 | `7145f566` | fix(86.20): cycle-3 -- make the oracle's exception arm reachable, and stop claiming it was |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `a1b92d14` | docs(36.17): log cycles 190-194 -- the counter could not see this step at all |
 | 2026-08-09 | `ea716698` | fix(36.17): cycle-5 -- close two surviving MONEY-PATH mutants |
 | 2026-08-09 | `d929e698` | docs: evening day report 2026-08-09b -- engine completes, trades nothing |
-| 2026-08-09 | `a4068de1` | fix(36.17): cycle-4 -- regenerate spliced evidence, state verifier recall honestly |
 
 ---
 
+### v6.93.5 — phase-86.20: [P1 -- THE TRADE GATE AND THE ANALYZER SPEAK DIFFERENT R... (2026-08-09)
+
+- **phase-86.20: [P1 -- THE TRADE GATE AND THE ANALYZER SPEAK DIFFERENT RECOMMENDATION VOCABULARIES, ...**
 ### v6.93.4 — fix(86.20): cycle-3 -- make the oracle's exception arm reachable, and... (2026-08-09)
 
 - **fix(86.20): cycle-3 -- make the oracle's exception arm reachable, and stop claiming it was**
