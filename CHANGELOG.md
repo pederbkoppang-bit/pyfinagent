@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `15680dd7` | docs(36.27): harness_log cycle 187 -- PASS |
 | 2026-08-09 | `3a7789d2` | phase-36.27 cycle-3: regenerate the verbatim envelope block programmatically |
 | 2026-08-09 | `e0cd5a1d` | phase-36.27 cycle-2: fix both WARN findings from the pass-1 Q/A |
 | 2026-08-09 | `3d1f7a3f` | phase-36.27: live spawn proves the rail end-to-end (criterion 2) |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `a7911f2e` | phase-86.5: queue the 26-failure triage with the node ids preserved |
 | 2026-08-09 | `bb88239b` | phase-85.5.1: flip to done; queue 86.1-86.4 from the gate's findings |
 | 2026-08-09 | `8ca368da` | docs(85.5.1): pass-2 PASS + harness log cycle 185 |
-| 2026-08-09 | `ec84b380` | fix(85.5.1): correct a false live-state claim the Q/A caught |
 
 ---
 
