@@ -24042,6 +24042,28 @@
       ],
       "live_check": "live_check_86.10.md with the measured scrollTop before/after for every tab transition and one Playwright screenshot per tab showing the status strip in view"
      }
+    },
+    {
+     "id": "86.11",
+     "status": "pending",
+     "priority": "P2",
+     "harness_required": true,
+     "retry_count": 0,
+     "max_retries": 3,
+     "name": "AUDIT-CLASS: systematic UI quality sweep of every route at multiple viewports, now that Playwright can authenticate. DELIVERABLE IS A RANKED DEFECT LIST + ONE STEP PER ROOT CAUSE -- not fixes.",
+     "audit_basis": "Operator mandate 2026-08-09: 'i would like world class UI for our app'. THIS IS NEWLY POSSIBLE AND THAT IS THE POINT: until phase-36.27's sibling work today, `browser_navigate` to any protected route redirected to /login, so UI claims could not be verified at all and silently degraded to API cross-checks. scripts/qa/mint_playwright_storage_state.py + `--storage-state` in .mcp.json fixed that; a capture at 1440x900 on /paper-trading/trades rendered real data as pytest@localhost. So a systematic sweep is achievable for the first time. TWO DEFECTS ALREADY FOUND BY ONE CAPTURE, which is the argument for the sweep: (1) step 86.10 -- tab navigation does not reset the inner scroll container, hiding the GATE/KILL/CYCLE safety strip; (2) NEW, filed here as the seed finding -- at 1440x900 the OpsStatusBar WRAPS ONTO TWO ROWS with a large empty band, ~90px tall against the documented '~48-60px, ONE dense bar, not stacked cards' convention in .claude/rules/frontend.md. The operator's own screenshots at ~1700px show it fitting on one line, so this is a NARROW-VIEWPORT regression that nobody had seen because nobody had ever captured the app at a laptop width. METHOD, and the discipline matters more than the list: sweep EVERY route in frontend/src/app (10 routes + the paper-trading sub-tabs) at a minimum of 1440x900 and 1920x1080, capture per route per viewport, and grade against the WRITTEN conventions already in .claude/rules/frontend.md and frontend-layout.md -- the navy/slate palette (never zinc), Phosphor icons and NO emojis, scrollbar-thin on every scroll container, error/loading/empty states present, the WCAG 2.2 AAA contrast targets, the no-equal-height-rows rule, and the one-dense-status-bar rule. Do NOT invent a new design language: grade against what is already documented, and where the docs are silent SAY SO rather than substituting taste. THREE TRAPS, each already paid for today: (a) capture AFTER async data resolves -- a first capture showed GATE/KILL/CYCLE/LAST all as em-dashes and was nearly filed as a silent-failure defect; 20s later they populated and there were ZERO console errors, so it was loading state, not a bug; (b) a snapshot of /login is NOT evidence -- confirm the URL after every navigate; (c) the storage-state cookie has a 1h TTL and .mcp.json edits do not respawn a connected stdio server -- re-mint and reconnect via /mcp, and disclose capture-time state.",
+     "verification": {
+      "command": "bash -c 'test -f scripts/qa/mint_playwright_storage_state.py && cd frontend && npx tsc --noEmit'",
+      "success_criteria": [
+       "every route under frontend/src/app is captured at BOTH 1440x900 and 1920x1080 behind the auth wall, with the URL confirmed non-/login for each -- the route list is DERIVED from the filesystem and asserted non-empty, not hand-typed",
+       "each capture is taken AFTER async data resolves, and the artifacts say how that was determined (a fixed wait is acceptable if stated; an unstated one is not) -- the em-dash false positive of 2026-08-09 is the reason this criterion exists",
+       "every finding is graded against a WRITTEN convention in .claude/rules/frontend.md or frontend-layout.md and cites it; findings with no documented basis are listed SEPARATELY as taste, not defects",
+       "the deliverable is a RANKED list plus ONE masterplan step per ROOT CAUSE -- not a bundle of fixes, and not one step per symptom; the OpsStatusBar narrow-viewport wrap is included as a seed finding",
+       "console errors and warnings are captured per route and reported, including ZERO-error routes, so a silent failure cannot hide behind a screenshot that merely looks fine",
+       "no UI code is changed by this step -- it is an audit; any fix lands in the step it files"
+      ],
+      "live_check": "live_check_86.11.md with the derived route list, per-route/per-viewport captures moved into handoff/current/captures_86.11/, the console summary, and the ranked findings table citing a convention per row"
+     }
     }
    ]
   }
