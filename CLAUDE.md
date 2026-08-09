@@ -240,10 +240,34 @@ Returns `{ok, verdict, violated_criteria, violation_details,
 certified_fallback, checks_run}`.
 
 **Launch — Workflow structured-output is FIRST-CLASS; Agent-tool is the
-fallback (phase-71.1).** The primary unattended launch for Q/A (and the
-Researcher gate) is the checked-in `.claude/workflows/qa-verdict.js`
-Workflow script, run via the Workflow tool with `args={step_id,
-criteria[], verification_command, evidence}`. It runs the role as
+fallback (phase-71.1).** Both Layer-3 roles have a checked-in Workflow
+script, run via the Workflow tool:
+
+| Role | Script | `args` |
+|---|---|---|
+| **Q/A** (EVALUATE) | `.claude/workflows/qa-verdict.js` | `{step_id, criteria[], verification_command, evidence, extra}` |
+| **Researcher** (RESEARCH gate) | `.claude/workflows/research-gate.js` *(phase-36.27)* | `{step_id, topic, tier, internal_scope, audit_class, brief_path}` |
+
+**`research-gate.js` differs from `qa-verdict.js` in one load-bearing
+way, and it is not a stylistic choice.** Anthropic structured outputs
+**strips `minimum`/`maximum`/`minLength`** from the wire schema and caps
+`minItems` at 1, so the research floors (**≥5 sources read in full, ≥10
+URLs**) are **NOT schema-enforceable** — they are asserted in JS by the
+script's exported `enforceGate()`. And because schema conformance is
+*structural only* (a schema can force `external_sources_read_in_full` to
+be an integer; it cannot make it **true**), the script **RECOMPUTES
+`gate_passed` and never trusts the agent's own value**, cross-checking
+the self-report against the brief actually on disk: every URL claimed in
+`sources_read_in_full` must appear in that file. A disagreement between
+the self-report and the enforced result is reported, and **the enforced
+value governs.** `gate_passed` is deliberately a plain boolean, never
+`const: true` — that would make honest failure unrepresentable.
+`agentType:'researcher'` (not the Q/A's restricted surface) because the
+researcher legitimately needs `Write`: write-first is non-negotiable.
+Floors live in `.claude/rules/research-gate.md`; **do not weaken one to
+simplify the schema.** Re-runnable checker (the immutable `node --check`
+command reaches criterion 1 only):
+`node scripts/qa/verify_research_gate_workflow.mjs`. It runs the role as
 `agent(prompt, {schema, agentType:'general-purpose', model:'opus',
 effort:'max'})` and **the verdict is the captured return value** —
 structured-outputs GA (constrained decoding) guarantees the shape, so it

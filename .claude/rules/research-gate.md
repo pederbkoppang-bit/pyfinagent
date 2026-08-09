@@ -190,6 +190,41 @@ hard-threshold-or-fail loop. The enforced envelope spec + gate logic
 live in `.claude/agents/researcher.md` ("Adaptive coverage (audit-class
 steps)"); do not duplicate the field list here.
 
+## Launch: the Workflow rail is FIRST-CLASS (phase-36.27)
+
+Per the operator instruction of 2026-07-27, **both** Layer-3 agents launch
+via the Workflow structured-output rail. For this gate that is
+`.claude/workflows/research-gate.js`, invoked with
+`args={step_id, topic, tier, internal_scope, audit_class, brief_path}`.
+The Agent-tool `researcher` subagent remains the documented **fallback**
+(and the worktree/CI path).
+
+**The floors below are enforced by the SCRIPT, not by the schema, and
+that is deliberate.** Anthropic structured outputs strips
+`minimum`/`maximum`/`minLength` from the wire schema and caps `minItems`
+at 1, so `>=5` and `>=10` are not expressible as schema constraints.
+More importantly, schema conformance is *structural only* — it can force
+`external_sources_read_in_full` to be an integer but cannot make it
+true. So `research-gate.js`:
+
+- **recomputes `gate_passed`** and never trusts the agent's own value;
+- **cross-checks the self-report against the brief on disk** — the file
+  must exist and be non-empty, and every URL in `sources_read_in_full`
+  must actually appear in it;
+- rejects an **over-claim** (a claimed count longer than the URL list);
+- treats an **empty/errored return as a FAILED gate**, never as
+  `gate_passed`;
+- reports any disagreement between the self-report and the enforced
+  result, with **the enforced result governing**.
+
+A researcher returning `gate_passed: false` honestly is a **normal,
+correct outcome** and is strictly better than a claim the artifact
+cannot corroborate.
+
+Re-runnable checker (the step's immutable `node --check` command proves
+only that the file parses):
+`node scripts/qa/verify_research_gate_workflow.mjs`.
+
 ## JSON envelope (always emit)
 
 Every brief ends with this envelope, even when the caller does not
