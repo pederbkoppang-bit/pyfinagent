@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `80d43aaa` | fix(86.17): file the Layer-3 args-boundary defect -- a blind gate can return gate_passed:true |
 | 2026-08-09 | `a0b4e4f2` | docs(86.16): file the stale scheduled_tasks.lock investigation as its own step |
 | 2026-08-09 | `062a66b6` | docs: record the stale scheduled_tasks.lock finding (dead pid, held 2d) for later investigation |
 | 2026-08-09 | `66d466b0` | docs: day report 2026-08-09 + goal regenerated for 08-10 |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `98771ba8` | docs: pending-restart list for session end (PAPER_CYCLE_MAX_SECONDS not yet in force) |
 | 2026-08-09 | `5d27dc5f` | docs: batch backend restarts to session end (operator instruction 2026-08-09) |
 | 2026-08-09 | `53bf50b3` | feat(config): raise paper_cycle_max_seconds 7200 -> 10800 (operator-authorized ask #23) + file 86.9  |
-| 2026-08-09 | `523d74f7` | feat(qa): let Playwright verification get behind the NextAuth wall |
 
 ---
 
+### v6.91.3 — fix(86.17): file the Layer-3 args-boundary defect -- a blind gate can... (2026-08-09)
+
+- **fix(86.17): file the Layer-3 args-boundary defect -- a blind gate can return gate_passed:true**
 ### v6.91.2 — fix(86.15): renumber my step off a duplicated 86.13 id (2026-08-09)
 
 - **fix(86.15): renumber my step off a duplicated 86.13 id**
