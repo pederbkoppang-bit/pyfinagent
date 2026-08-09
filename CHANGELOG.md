@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `eddde6a9` | phase-86.17: [P1 -- THE LAYER-3 WORKFLOW RAIL SILENTLY RUNS A BLIND GATE WHEN ITS `args` DO NOT P... |
 | 2026-08-09 | `b9e4962c` | docs(86.17): cycle-2 Q/A returns PASS -- verdict verbatim + harness log |
 | 2026-08-09 | `a212dfe9` | fix(86.17): cycle-2 -- my checker sliced away the guard it was checking |
 | 2026-08-09 | `98b5eee9` | phase-86.17: close the args boundary on BOTH Layer-3 Workflow scripts |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `8405e86e` | docs: overnight unattended drain goal (2026-08-09 -> 08-10) |
 | 2026-08-09 | `1d1fc498` | docs: day report -- correct my BUY-rate over-generalization, add 86.20/86.21/86.18 |
 | 2026-08-09 | `4c80bcc4` | feat: file 86.20 (P1 recommendation-vocabulary mismatch) + 86.21 (P2 counter blindness) |
-| 2026-08-09 | `31a06591` | docs: day report -- drop the two claims cycle 5 invalidated |
 
 ---
 
+### v6.93.9 — phase-86.17: [P1 -- THE LAYER-3 WORKFLOW RAIL SILENTLY RUNS A BLIND G... (2026-08-09)
+
+- **phase-86.17: [P1 -- THE LAYER-3 WORKFLOW RAIL SILENTLY RUNS A BLIND GATE WHEN ITS `args` DO NOT P...**
 ### v6.93.8 — fix(86.17): cycle-2 -- my checker sliced away the guard it was checking (2026-08-09)
 
 - **fix(86.17): cycle-2 -- my checker sliced away the guard it was checking**
