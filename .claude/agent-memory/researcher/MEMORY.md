@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Rec-vocabulary 86.20](project_rec_vocabulary_86_20.md) — `.upper()` folds CASE not SEPARATOR so STRONG_* dies at BUY *and* SELL gates; 61.2's fix defeated by the unnormalised WRITE path; >=8 sites, 4 conventions
 - [Args-boundary 86.17](project_args_boundary_86_17.md) — the empty catch is LOAD-BEARING for the checker's own import; double-encoded JSON defeats try/catch; a 3rd in-repo variant already fails loud; EviBound 0% needs BOTH gates
 
 - [Halt freezes stops 36.17](project_halt_freezes_stops_36_17.md) — execute_sell is DELIBERATELY ungated (flatten runs through it); backfill synthesizes a stop = a NEW risk decision; the Step 5.6 suite never drives run_daily_cycle; `steps[-1]` is a measured collision
