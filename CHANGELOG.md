@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `785ab075` | fix(ops): kickstart does NOT re-read the plist -- my token script reported success on a stale env |
 | 2026-08-09 | `10baa300` | phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full backend/tests run POSTs a real p... |
 | 2026-08-09 | `a083ef95` | docs(86.3): operator approved the close (ask #27) -- recorded as a decision, not a PASS |
 | 2026-08-09 | `cabfa812` | feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `3a7789d2` | phase-36.27 cycle-3: regenerate the verbatim envelope block programmatically |
 | 2026-08-09 | `e0cd5a1d` | phase-36.27 cycle-2: fix both WARN findings from the pass-1 Q/A |
 | 2026-08-09 | `3d1f7a3f` | phase-36.27: live spawn proves the rail end-to-end (criterion 2) |
-| 2026-08-09 | `4e582e58` | fix(36.27): the Workflow runtime rejects Node imports AND trailing export lists |
 
 ---
 
+### v6.88.2 — fix(ops): kickstart does NOT re-read the plist -- my token script rep... (2026-08-09)
+
+- **fix(ops): kickstart does NOT re-read the plist -- my token script reported success on a stale env**
 ### v6.88.1 — phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full back... (2026-08-09)
 
 - **phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full backend/tests run POSTs a real p...**
