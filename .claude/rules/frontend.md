@@ -129,3 +129,46 @@ See `frontend-layout.md` (this directory) for the 6-tier page anatomy, metric gr
 
 ## UX Reference
 See `UX-AGENTS.md` for full component specs, design tokens, and icon conventions.
+
+## Playwright behind the NextAuth wall (added 2026-08-09)
+
+**The problem this solves.** UI verification is BINDING whenever the operator
+pastes a screenshot or a step claims anything about the UI -- "code reading
+alone is not UI evidence". On 2026-08-09 that rule could not be honoured:
+`browser_navigate` to `http://localhost:3000/settings` **redirected to
+`/login`**, because the MCP browser carries no session and the app sits behind
+NextAuth (Google SSO / passkey), which cannot be driven headlessly. The claim
+fell back to an API cross-check -- weaker, and the exact substitution the rule
+forbids.
+
+**The procedure.**
+
+```bash
+source .venv/bin/activate
+python scripts/qa/mint_playwright_storage_state.py     # 1h TTL, re-run when it expires
+```
+
+That reuses `backend/tests/auth_helper.py::mint_session_token` -- a REAL
+NextAuth v5 JWE (dir / A256CBC-HS512, HKDF from `AUTH_SECRET`) -- and writes
+`.playwright-mcp/storage-state.json` carrying it as the `authjs.session-token`
+cookie (the name `frontend/src/lib/api.ts:150` reads). **Nothing is stubbed:**
+the middleware runs its true decrypt + allowlist path, so a page that renders
+under this cookie is a page an authorised operator really sees.
+
+`.mcp.json` passes `--storage-state <abs path>` alongside the existing
+`--isolated`, so the MCP browser starts already authenticated.
+
+**Two rules that are not optional:**
+
+1. **A snapshot of `/login` is NOT UI evidence.** After navigating to a
+   protected page, CONFIRM the URL is the page you asked for. A redirect means
+   the cookie did not take (expired, wrong `AUTH_SECRET`, MCP not restarted) --
+   re-mint and reconnect, do not report the login page as a result.
+2. **Editing `.mcp.json` does not respawn a connected stdio server** (see
+   CLAUDE.md). The flag takes effect at the NEXT session start, or after
+   reconnecting via `/mcp`. Disclose the capture-time state in the live_check.
+
+**Security.** The cookie is a short-lived localhost dev session minted from a
+secret already on the machine. It is written only under `.playwright-mcp/`,
+which is gitignored, and the script **refuses to run** if that stops being true
+-- so a session token cannot be committed. Mode `600`.
