@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `63bd6940` | docs(86.18): file the whole-file masterplan rewrite as its own step |
 | 2026-08-09 | `2fc107ea` | docs(36.17): restart done in-session -- fix is IN FORCE, verified on the running process |
 | 2026-08-09 | `f1ea7c5c` | fix(36.17): cycle-3 -- replace an illusory guard, close 3 surviving mutants |
 | 2026-08-09 | `d057f127` | fix(36.17): cycle-3 -- regenerate every anchor from live output + mechanical verifier |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `afba23a2` | docs(76.4): bump P2 -> P1 and fold in the empty-report-body case |
 | 2026-08-09 | `524b9402` | fix(hooks): Stop gate read a masterplan path that never existed |
 | 2026-08-09 | `6baddb98` | docs: file 86.12 -- is the kill switch evaluating drawdown against a STALE nav? |
-| 2026-08-09 | `6381b000` | feat(qa): make Playwright verification survive future sessions, and kill the dangerous path that rep |
 
 ---
 
