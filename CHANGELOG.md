@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `524b9402` | fix(hooks): Stop gate read a masterplan path that never existed |
 | 2026-08-09 | `6baddb98` | docs: file 86.12 -- is the kill switch evaluating drawdown against a STALE nav? |
 | 2026-08-09 | `6381b000` | feat(qa): make Playwright verification survive future sessions, and kill the dangerous path that rep |
 | 2026-08-09 | `a716a89b` | docs: file 86.11 -- audit-class UI quality sweep, now that Playwright can authenticate |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `ddfea563` | docs(86.2): harness_log cycle 189 -- PASS |
 | 2026-08-09 | `025102e0` | phase-86.2 cycle-2: my criterion-3 guard was vacuous; the Q/A proved it |
 | 2026-08-09 | `d762fe2a` | phase-86.2: live_check + experiment_results |
-| 2026-08-09 | `481be943` | phase-86.2: one malformed audit row no longer strands the whole kill switch |
 
 ---
 
+### v6.91.1 — fix(hooks): Stop gate read a masterplan path that never existed (2026-08-09)
+
+- **fix(hooks): Stop gate read a masterplan path that never existed**
 ### v6.91.0 — feat(qa): make Playwright verification survive future sessions, and k... (2026-08-09)
 
 - **feat(qa): make Playwright verification survive future sessions, and kill the dangerous path that rep**
