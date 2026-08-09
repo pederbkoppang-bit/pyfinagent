@@ -32246,3 +32246,63 @@ actual trade is unknown and unclaimed; and the producer remains unconstrained.
 broken in BOTH directions, including `outcome_tracker`, where all 91 literal
 `BUY` rows are scored `directionally_correct=False` regardless of return.
 
+
+## Cycle 197 -- 2026-08-10 -- phase=86.17 result=PASS
+
+Q/A `wf_4dc64bbb-039` (Workflow rail, opus). **PASS on all 7 immutable criteria,
+zero violated_criteria**, after CONDITIONAL on cycle 1.
+
+**The defect:** both Layer-3 Workflow scripts carried `catch (_e) { a = {} }`
+plus `|| 'UNSPECIFIED'` fallbacks, so any unparseable `args` produced a gate
+running with no step id, no topic and no scope -- writing
+`research_brief_UNSPECIFIED.md`, a name that collides across every step reaching
+that path. **Measured from the pre-fix blob: 8 of 10 shapes resolved to
+UNSPECIFIED on EACH script, 16 blind resolutions.**
+
+**Shipped:** a three-class boundary in both scripts -- ABSENT (dry run: does not
+throw, cannot pass, spawns nothing), PRESENT-BUT-UNUSABLE (throws, naming
+typeof/isArray/len/preview), PRESENT-BUT-INCOMPLETE (throws). The plain-object
+check is re-applied AFTER `JSON.parse`, which is the only way a double-encoded
+string is caught -- it parses successfully, so catch-hardening alone cannot see
+it. Plus `input_health` in the return, a blind WARNING log, and the corrected
+`qa-verdict` comment that had declared the silent fallback deliberate.
+
+**The separation that is the point:** not throwing and being allowed to pass are
+INDEPENDENT concerns, and the old code conflated them. A dry run has no subject,
+so a pass would be a certificate with no referent.
+
+**TWO REAL DEFECTS IN MY OWN WORK, both found by the Q/A:**
+
+1. **My checker sliced away the guard it was checking.** `drive()` cut the source
+   at the first of three markers, one of which was the blind early-return itself
+   -- so deleting that block merely moved the cut and every assertion stayed
+   green. The Q/A measured the differential: **0 spawns became 1 max-effort
+   spawn labelled `qa-verdict:UNSPECIFIED` returning a PASS-shaped object.**
+   Fixed structurally: both early returns moved below `phase()`, and a new
+   full-driver section runs the whole script with the runtime stubbed, observing
+   spawn count and return value.
+2. **research-gate still wrote under UNSPECIFIED.** It marked the run blind and
+   forced `gate_passed: false` -- criterion 4 held -- but still spawned a
+   max-effort researcher told to write `research_brief_UNSPECIFIED.md`, the exact
+   harm this step names. `qa-verdict` refused to spawn; the reasoning had simply
+   not been applied to the other script, and I disclosed neither the asymmetry
+   nor the residual. It now refuses to spawn.
+
+Both dry runs are proven on the **LIVE runtime at $0**: `wf_9e15e7ae-456` and
+`wf_a5de9d05-c78`, both **0 agents / 0 tokens**, returning `verdict: null` and
+`gate_passed: false, brief_path: null` respectively.
+
+I also withdrew a scope-honesty overreach: I had justified the un-launched
+research-gate path with "it shares the identical `classifyArgs` body". The
+bodies are not literally identical, and more importantly the sameness does not
+cover the inferred property -- the two scripts diverge immediately after that
+helper. Replaced with an actual live launch.
+
+Immutable command: **40/0 + 87/0 = 127 passed, exit 0**, delta 0 against the
+pre-fix baseline measured before any code was written.
+
+**Filed, not fixed (86.23):** the full-driver CONTROL covers one of the two
+scripts, and the kill cells carry an `|| threw !== null` escape hatch that
+passes on the strong disjunct today. Both are the Q/A's non-blocking notes;
+neither is fixed in the graded tree.
+
