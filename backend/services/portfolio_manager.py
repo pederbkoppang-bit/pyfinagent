@@ -95,10 +95,13 @@ def _resolve_rec(
       one side and new SELL/downgrade exits on the other. With the flag OFF
       this returns the LITERAL pre-86.20 expression `(raw or default).upper()`.
       That is not a claim to be taken on trust: a legacy-parity ORACLE test
-      compares this function against that expression over a value table
-      covering padded, whitespace-only, empty, None and falsy-non-str inputs at
-      BOTH default sites, and a mutation cell reverts the fix to prove the
-      oracle can fail. Cycle 1 shipped a version where the strip ran BEFORE the
+      compares this function against that expression -- comparing OUTCOMES, so
+      a raised AttributeError must match a raised AttributeError -- over padded,
+      whitespace-only, empty, None, falsy-non-str AND truthy-non-str inputs at
+      BOTH default sites. BOTH arms are proven reachable by mutation: M13
+      reverts the fix (return-value arm), M14 swallows the AttributeError
+      (exception arm). Cycle 2 had the exception arm UNREACHABLE -- no truthy
+      non-str in the table -- so M14 survived; that is why both cells exist. Cycle 1 shipped a version where the strip ran BEFORE the
       flag was read, which leaked three order-changing shapes past the dark
       flag; the oracle exists because that got through.
     * The OBSERVABILITY is UNCONDITIONAL, because it changes no decision. With

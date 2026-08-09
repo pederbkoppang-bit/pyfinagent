@@ -428,7 +428,9 @@ def test_an_absent_recommendation_on_a_legacy_position_row_is_quiet(caplog):
 # OFF branch and finding all 56 tests still green -- there was no oracle. This
 # is that oracle. It compares OUTCOMES, including raised exceptions, because
 # the legacy expression genuinely raised AttributeError on a truthy non-str and
-# byte-identity means reproducing that too.
+# byte-identity means reproducing that too. The truthy non-str rows at the end
+# of the table are what make that arm REACHABLE -- without them the exception
+# comparison is dead code dressed as coverage.
 
 # Values chosen to span every way `or` and `.upper()` can disagree with a
 # canonicalising resolver: padding, internal whitespace, blank-but-truthy,
@@ -438,6 +440,15 @@ _PARITY_VALUES = [
     " BUY ", "BUY \n", "\tBUY", "  Strong Buy  ", "   ", "\t\n", "",
     None, 0, False, [], {},
     "Accumulate", "Strong Buy!", "NOT A BUY",
+    # TRUTHY NON-STRINGS -- cycle-3 addition, and they are the whole reason to
+    # compare OUTCOMES rather than return values. `(value or default).upper()`
+    # RAISES AttributeError on these, so the OFF path must raise identically.
+    # Cycle 2 shipped this table with NO truthy non-str, so 0 of 46 cases raised
+    # and the ("raised", ...) arm of `_outcome` was UNREACHABLE -- an illusory
+    # arm inside the very guard added to fix cycle 1. The Q/A proved it by
+    # swallowing the AttributeError and watching all 107 tests stay green.
+    # Mutation cell M14 pins it so it cannot come back.
+    123, 3.14, True, {"a": 1}, ["BUY"], object(),
 ]
 
 

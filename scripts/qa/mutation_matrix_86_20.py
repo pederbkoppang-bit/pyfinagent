@@ -143,6 +143,19 @@ MUTANTS: list[dict] = [
         "new": '        return (("" if raw is None else str(raw).strip()) or default).upper()  # MUTANT M13',
     },
     {
+        "id": "M14", "file": PM,
+        "desc": "swallow the legacy AttributeError in the OFF branch (return \"\")",
+        "proves": "the oracle's EXCEPTION arm is reachable. Cycle 2 shipped a parity "
+                  "table with zero truthy non-strings, so 0 of 46 cases raised and this "
+                  "exact mutant SURVIVED all 107 tests -- an illusory arm inside the "
+                  "guard added to fix cycle 1. This cell is why it cannot recur.",
+        "old": "        return (raw or default).upper()",
+        "new": ("        try:  # MUTANT M14\n"
+                "            return (raw or default).upper()\n"
+                "        except AttributeError:\n"
+                '            return ""'),
+    },
+    {
         "id": "M12", "file": PM,
         "desc": "remove the quiet path for a genuinely absent recommendation",
         "proves": "legacy position rows carry none; alarming on them is noise",
