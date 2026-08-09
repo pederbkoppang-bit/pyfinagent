@@ -16,9 +16,46 @@ A **SELL-only, exit-only stop-loss pass inside the halt branch** of
 **Placement:** after `trader.mark_to_market()` (so the stop comparison sees
 fresh prices) and before `trader.save_daily_snapshot()` (so the snapshot
 reflects any exit). `final_state` at that line is assigned but never read on the
-halt path -- verified with `grep -n final_state` (reads at `:1776`/`:1792`
-belong to the healthy path and use the `:1697` assignment) -- so inserting there
-introduces no staleness.
+halt path, so inserting there introduces no staleness.
+
+**CORRECTED IN CYCLE 2 (Q/A finding 1).** The first revision of this paragraph
+cited `:1697`/`:1776`/`:1792` as the output of `grep -n final_state`. **None of
+those three numbers reproduce** -- each was exactly 70 lines low, i.e. pre-insert
+values I never re-derived after my own +70-line change, in a step whose
+criterion 6 exists to prevent precisely that. Re-derived 2026-08-09, verbatim:
+
+```
+$ grep -n "final_state" backend/services/autonomous_loop.py
+1429:                final_state = await asyncio.to_thread(trader.mark_to_market)
+1767:            final_state = await asyncio.to_thread(trader.mark_to_market)
+1846:                "nav": final_state["nav"],
+1847:                "pnl_pct": final_state["pnl_pct"],
+1862:            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
+1863:                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
+```
+
+The halt-path assignment is `:1429`; every **read** (`:1846`, `:1847`, `:1862`,
+`:1863`) sits below the healthy-path re-assignment at `:1767` and therefore
+below the halt's `return summary` at `:1507`. The engineering claim stands --
+the Q/A independently confirmed it -- but its evidence was wrong and is now
+corrected.
+
+**Second correction (same class).** Both this artifact's predecessor and the
+test-module docstring claimed `check_stop_losses` has "exactly ONE production
+caller". **That is now false, and this change is what made it false.**
+Re-derived:
+
+```
+$ grep -rn check_stop_losses backend --include="*.py" | grep -v /tests/
+backend/services/autonomous_loop.py:1471:   halt_stops = await asyncio.to_thread(trader.check_stop_losses)      <- THIS FIX
+backend/services/autonomous_loop.py:1541:   triggered_stops = await asyncio.to_thread(trader.check_stop_losses)  <- Step 5.6
+backend/services/paper_trader.py:797:       def check_stop_losses(self) -> list[str]:                            <- the definition
+```
+
+**Two** call sites. The correct statement is "BEFORE this change there was
+exactly one caller, so a halted cycle had no enforcement layer at all." The
+comment at `autonomous_loop.py:1438` and the test docstring have both been
+amended to say that and to tell the reader to re-derive rather than trust them.
 
 **Scope guard:** `if not ks_check.get("triggered"):`. This is used rather than a
 string comparison on `halt_reason` because `cycle_halt_reason` returns `"breach"`
@@ -150,26 +187,30 @@ Harness asserts each target substring matches **exactly once** before mutating
 baseline to be GREEN first (else "killed" proves nothing), and restores + digest-
 verifies the file after every mutant.
 
-```
-[baseline] un-mutated tree: 4 passed, 1 warning in 10.10s
+Final matrix (M1 added in cycle 2 -- see §11):
 
+```
+[baseline] un-mutated tree: 4 passed, 1 warning in 10.50s
+
+  KILLED  | M1: delete the halt's `return summary` (falls through to decide/execute)
+           result: 2 failed, 2 deselected, 1 warning in 7.17s
   KILLED  | remove the breach-path exclusion (pass runs on EVERY halt reason)
-           result: 1 failed, 3 deselected, 1 warning in 5.29s
+           result: 1 failed, 3 deselected, 1 warning in 5.43s
   KILLED  | ORDERING REVERTED: disable the exit-only pass entirely (pre-fix behaviour)
-           result: 2 failed, 2 deselected, 1 warning in 6.99s
+           result: 2 failed, 2 deselected, 1 warning in 9.60s
   KILLED  | reintroduce backfill_missing_stops into the halt pass
-           result: 2 failed, 2 deselected, 1 warning in 7.22s
+           result: 2 failed, 2 deselected, 1 warning in 7.16s
   KILLED  | append to summary["steps"] inside the halt branch
-           result: 1 failed, 3 deselected, 1 warning in 5.51s
+           result: 1 failed, 3 deselected, 1 warning in 5.55s
   KILLED  | drop the recorded ticker (silent enforcement, no audit surface)
-           result: 2 failed, 2 deselected, 1 warning in 7.28s
+           result: 2 failed, 2 deselected, 1 warning in 6.95s
 
-[restored] un-mutated tree: 4 passed, 1 warning in 10.57s
-ALL 5 MUTANTS KILLED. Every new guard can fail.
+[restored] un-mutated tree: 4 passed, 1 warning in 10.07s
+ALL 6 MUTANTS KILLED. Every new guard can fail.
 ```
 
-The second mutant is the "**both directions**" half of criterion 7: reverting
-the enforcement to pre-fix behaviour turns the reproduce pair RED.
+The "ORDERING REVERTED" mutant is the "**both directions**" half of criterion 7:
+reverting the enforcement to pre-fix behaviour turns the reproduce pair RED.
 
 ## 8. Immutable verification command
 
@@ -225,3 +266,89 @@ after:  685bf1a5fd7beaa4f15da2babf133ca2  (identical)
   MTM-freshness ordering at `:1377-1379` without its own analysis.
 - **The Knight Capital 2012 SEC order could not be fetched** (403) and is
   cited nowhere in the contract or here.
+
+---
+
+## 11. Cycle 2 -- what the Q/A found, and what I changed
+
+Cycle-1 verdict: **CONDITIONAL** (`wf_6bc4c0a4-d9c`), transcribed verbatim in
+`handoff/current/evaluator_critique_36.17.md`. All 7 immutable criteria were
+judged MET and independently re-verified by the Q/A; the cap came from two
+evidence defects, not from the fix.
+
+### Finding 1 (WARN) -- stale line anchors presented as re-derived evidence
+
+Corrected in §1 above, in `backend/services/autonomous_loop.py:1438`, and in the
+test module docstring. All three now carry the re-derivation command instead of
+a bare number. This was a fair hit: the step's own criterion 6 exists to prevent
+it, and I still shipped three stale anchors, all broken by my own +70-line
+insertion.
+
+### Finding 2 (NOTE) -- mis-attributed kill mechanism (vacuity shape #11)
+
+The Q/A proved that `assert trader.execute_buy.called is False` **could not
+fail** in this harness: `decide_trades` was stubbed to `[]`, so `execute_buy`
+was structurally unreachable even on a full fall-through, and the no-BUY
+invariant was actually carried by its sibling `assert decide.called is False`.
+
+**I did not take the annotate-only remedy. I made the assertion falsifiable --
+and my first attempt at that FAILED, which I measured rather than assumed:**
+
+1. First attempt: stub `decide_trades` with a **dict**-shaped order. Re-ran the
+   M1 mutation (delete the halt's `return summary`). Result: `execute_buy.called
+   is False` **still passed**; `decide.called is False` was still the killer. The
+   cause, read at source: `autonomous_loop.py:1711` accesses `order.action` as an
+   **attribute**, so a dict is skipped by `continue` before reaching
+   `execute_buy`. A dict stub does not restore falsifiability.
+2. Second attempt: a real `TradeOrder` dataclass from
+   `backend.services.portfolio_manager`, plus a monkeypatch of
+   `backend.services.paper_trader._get_live_price` (required -- `:1713` does a
+   LIVE yfinance fetch before the buy, which would have made this test do real
+   network I/O). Re-ran M1. Result, verbatim:
+
+```
+>       assert trader.execute_buy.called is False, "a BUY was placed on a halted cycle"
+E       AssertionError: a BUY was placed on a halted cycle
+E       assert True is False
+E        +  where True = <MagicMock name='mock.execute_buy' id='4733246768'>.called
+```
+
+`execute_buy.called` now fires **before** `decide.called`, so criterion 4's
+no-BUY assertion is the load-bearing guard rather than a passenger. M1 is now a
+permanent cell in the matrix (§7), taking it from 5 mutants to 6.
+
+### Re-verification after the cycle-2 changes
+
+```
+$ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or autonomous_loop'
+224 passed, 1 skipped, 2890 deselected, 1 warning in 16.03s
+
+$ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block.py -q
+25 passed, 1 warning in 8.67s
+
+$ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py -q
+4 passed, 1 warning in 9.74s
+```
+
+### One isolation detail, stated so it is not mistaken for a leak
+
+`handoff/.cycle_heartbeat.json` now digests `eea37b489ebbf797240dd9a22c23151d`,
+where §9 recorded `8319fc52d0f8a8cbb9959828e498d308`. **That is the live backend
+writing heartbeats** (it was restarted at 15:08Z, pid 84494), not a test write.
+Measured before/after **within** the cycle-2 run, all three files are identical:
+
+```
+before: 685bf1a5fd7beaa4f15da2babf133ca2  kill_switch_audit.jsonl
+        6bc251737c8145e0b3891ed1cc5d4b2c  cycle_history.jsonl
+        eea37b489ebbf797240dd9a22c23151d  .cycle_heartbeat.json
+after:  685bf1a5fd7beaa4f15da2babf133ca2  (identical)
+        6bc251737c8145e0b3891ed1cc5d4b2c  (identical)
+        eea37b489ebbf797240dd9a22c23151d  (identical)
+```
+
+### What cycle 2 did NOT change
+
+No production behaviour. The only `autonomous_loop.py` change is a corrected
+comment (5 insertions, 2 deletions, all comment lines). The exit-only pass, its
+scope guard, the backfill exclusion and the summary key are byte-identical to
+what the Q/A graded.

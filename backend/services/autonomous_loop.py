@@ -1435,8 +1435,11 @@ async def run_daily_cycle(settings: Optional[Settings] = None, dry_run: bool = F
                 # so without this the book holds full exposure with its stop-losses
                 # unenforced, every cycle until the halt clears. `blocked` is
                 # NON-LATCHING, so it can recur indefinitely with no operator
-                # resume. check_stop_losses has exactly ONE production caller (the
-                # Step 5.6 block below), so there is no second enforcement layer.
+                # resume. BEFORE this change check_stop_losses had exactly ONE
+                # production caller (the Step 5.6 block below), so a halted cycle
+                # had no enforcement layer at all. THIS PASS IS THE SECOND CALLER
+                # -- re-derive with `grep -rn check_stop_losses backend --include="*.py"`
+                # rather than trusting this comment.
                 #
                 # This is the standard "liquidation-only" state: NYSE Pillar Risk
                 # Controls v4.7 ships "Block only -- accept cancels"; ESMA's

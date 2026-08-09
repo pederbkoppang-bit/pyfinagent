@@ -1,10 +1,17 @@
 """phase-36.17 -- a halted cycle must still enforce PRE-EXISTING stop-losses.
 
-`run_daily_cycle` halts at Step 5.5 and `return summary` (autonomous_loop.py:1437,
-re-derived 2026-08-09 -- the masterplan step text's :1334/:1336 are STALE). Step 5.6,
-which calls `trader.backfill_missing_stops()` then `trader.check_stop_losses()`,
-begins at :1439 -- AFTER that return. So on any halted cycle the protective-exit
-machinery never runs.
+`run_daily_cycle` halts at Step 5.5 and `return summary`, and Step 5.6 -- which calls
+`trader.backfill_missing_stops()` then `trader.check_stop_losses()` -- begins AFTER
+that return. So on any halted cycle the protective-exit machinery never runs.
+
+LINE ANCHORS MOVE. Do not trust the numbers below; re-derive them with
+`grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py`.
+  * masterplan step text  : :1334/:1336  -- STALE, two generations old
+  * pre-fix tree          : :1437/:1439
+  * post-fix (this change adds +70 lines above Step 5.6): :1507/:1509
+The first revision of this docstring reproduced the pre-fix pair while claiming to be
+"re-derived", which the Q/A caught -- the same class of defect this step's own
+criterion 6 exists to prevent.
 
 On the `breach` path that is nearly moot: `check_and_enforce_kill_switch` has already
 called `flatten_all`, so there is little left to stop out. On the `paused` and
@@ -13,8 +20,11 @@ entries; existing positions kept" -- so the book keeps full exposure with its st
 enforcement switched off, every cycle until the halt clears. `blocked` is
 NON-LATCHING, so it can recur indefinitely with no operator resume required.
 
-SEVERITY: `check_stop_losses` has exactly ONE production caller (:1471). No API route,
-no scheduler job, no MCP tool. The cycle is the sole means of stop enforcement.
+SEVERITY: BEFORE this change `check_stop_losses` had exactly ONE production caller --
+the Step 5.6 block. No API route, no scheduler job, no MCP tool; the cycle was the sole
+means of stop enforcement, so a halted cycle meant none at all. THIS FIX ADDS THE SECOND
+CALLER, so the count is now two. Re-derive rather than trusting this line:
+`grep -rn check_stop_losses backend --include="*.py" | grep -v /tests/`.
 
 OPERATOR DECISION (2026-08-09): option (b) -- a stop-loss-only, SELL-only pass inside
 the halt branch, scoped to `paused` and `blocked`, EXCLUDING `backfill_missing_stops`,
@@ -168,7 +178,33 @@ def _drive_cycle(monkeypatch, ks_check, *, paused: bool, ks_state):
     monkeypatch.setattr(al, "get_russell1000_tickers", lambda *a, **k: [])
     monkeypatch.setattr(al, "_log_cycle_signals_to_bq", lambda *a, **k: 0)
     monkeypatch.setattr(al, "AnalysisOrchestrator", MagicMock())
-    decide = MagicMock(return_value=[])
+    # decide_trades returns a REAL TradeOrder BUY, not [] and not a dict, so that
+    # `execute_buy.called is False` is INDEPENDENTLY FALSIFIABLE (criterion 4).
+    #
+    # Q/A cycle 1 caught this as vacuity shape #11: with the original
+    # `return_value=[]`, execute_buy was structurally unreachable even on a full
+    # fall-through, so the no-BUY assertion could never fail and the invariant was
+    # actually carried by its sibling `decide.called is False`. MEASURED during the
+    # cycle-2 fix: a dict-shaped order does NOT restore falsifiability either --
+    # autonomous_loop.py:1711 accesses `order.action` as an ATTRIBUTE, so a dict is
+    # skipped before ever reaching execute_buy. Only the real dataclass works.
+    #
+    # `_get_live_price` must be patched too: :1713 fetches a LIVE price via yfinance
+    # before the buy, which would make this test do real network I/O.
+    from backend.services.portfolio_manager import TradeOrder
+    import backend.services.paper_trader as _pt
+
+    monkeypatch.setattr(_pt, "_get_live_price", lambda *a, **k: 100.0)
+    decide = MagicMock(return_value=[
+        TradeOrder(
+            ticker="NVDA",
+            action="BUY",
+            amount_usd=1_000.0,
+            reason="test_probe_must_never_execute",
+            price=100.0,
+            price_at_analysis=100.0,
+        )
+    ])
     monkeypatch.setattr(al, "decide_trades", decide)
     monkeypatch.setattr(al, "_running", False)
     fake_log = MagicMock()

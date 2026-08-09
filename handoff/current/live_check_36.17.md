@@ -100,14 +100,25 @@ step text says `:1334/:1336`; the pre-fix tree was `:1437/:1439`.
 ## 3. Mutation matrix (criterion 7)
 
 ```
-[baseline] un-mutated tree: 4 passed, 1 warning in 10.10s
+[baseline] un-mutated tree: 4 passed, 1 warning in 10.50s
+  KILLED  | M1: delete the halt's `return summary`      -> 2 failed, 2 deselected
   KILLED  | remove the breach-path exclusion            -> 1 failed, 3 deselected
   KILLED  | ORDERING REVERTED: disable the pass         -> 2 failed, 2 deselected
   KILLED  | reintroduce backfill_missing_stops          -> 2 failed, 2 deselected
   KILLED  | append to summary["steps"]                  -> 1 failed, 3 deselected
   KILLED  | drop the recorded ticker                    -> 2 failed, 2 deselected
-[restored] un-mutated tree: 4 passed, 1 warning in 10.57s
-ALL 5 MUTANTS KILLED.
+[restored] un-mutated tree: 4 passed, 1 warning in 10.07s
+ALL 6 MUTANTS KILLED.
+```
+
+M1 was added in cycle 2 after the Q/A proved the no-BUY assertion was vacuous.
+It kills on `assert trader.execute_buy.called is False`, verbatim:
+
+```
+>       assert trader.execute_buy.called is False, "a BUY was placed on a halted cycle"
+E       AssertionError: a BUY was placed on a halted cycle
+E       assert True is False
+E        +  where True = <MagicMock name='mock.execute_buy' id='4733246768'>.called
 ```
 
 ## 4. Live-state isolation held
@@ -127,3 +138,65 @@ This is in-process evidence against the real `run_daily_cycle` with a mocked
 exercised**, because halting the live book is an operator action and was not
 taken. The step's live_check asks for verbatim test output, which is what is
 recorded here -- it is not a claim that the path has run in production.
+
+---
+
+## 6. Cycle-2 corrections (Q/A `wf_6bc4c0a4-d9c` returned CONDITIONAL)
+
+### 6a. Line anchors, RE-DERIVED (Q/A finding 1)
+
+The cycle-1 artifacts cited three `final_state` anchors that do not reproduce --
+each exactly 70 lines low, broken by this step's own +70-line insertion. Actual
+output:
+
+```
+$ grep -n "final_state" backend/services/autonomous_loop.py
+1429:                final_state = await asyncio.to_thread(trader.mark_to_market)
+1767:            final_state = await asyncio.to_thread(trader.mark_to_market)
+1846:                "nav": final_state["nav"],
+1847:                "pnl_pct": final_state["pnl_pct"],
+1862:            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
+1863:                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
+```
+
+And the caller count, which this change itself made stale:
+
+```
+$ grep -rn check_stop_losses backend --include="*.py" | grep -v /tests/
+backend/services/autonomous_loop.py:1471:  ... trader.check_stop_losses)   <- THIS FIX
+backend/services/autonomous_loop.py:1541:  ... trader.check_stop_losses)   <- Step 5.6
+backend/services/paper_trader.py:797:      def check_stop_losses(...)      <- definition
+```
+
+TWO call sites, not one. Corrected in `autonomous_loop.py:1438`, the test-module
+docstring, and `experiment_results_36.17.md` §1.
+
+### 6b. Criterion 4's no-BUY assertion is now FALSIFIABLE (Q/A finding 2)
+
+The Q/A proved `execute_buy.called is False` could not fail (`decide_trades`
+stubbed to `[]` made `execute_buy` structurally unreachable). A first fix
+attempt with a **dict**-shaped order also failed -- measured, not assumed:
+`autonomous_loop.py:1711` reads `order.action` as an attribute, so a dict is
+skipped. The working fix uses a real `TradeOrder` plus a patched
+`paper_trader._get_live_price` (`:1713` does a live yfinance fetch). See the M1
+verbatim failure in §3.
+
+### 6c. Re-verification after the cycle-2 changes
+
+```
+$ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or autonomous_loop'
+224 passed, 1 skipped, 2890 deselected, 1 warning in 16.03s
+
+$ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block.py -q
+25 passed, 1 warning in 8.67s
+
+$ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py -q
+4 passed, 1 warning in 9.74s
+```
+
+### 6d. Heartbeat digest changed -- and why that is NOT a test leak
+
+`.cycle_heartbeat.json` now digests `eea37b489ebbf797240dd9a22c23151d` vs §4's
+`8319fc52d0f8a8cbb9959828e498d308`. **The live backend writes that file** (pid
+84494, restarted 15:08Z). Measured before/after WITHIN the cycle-2 run, all
+three files are byte-identical, so the suite still wrote nothing.
