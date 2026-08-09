@@ -144,10 +144,10 @@
       {
         "hooks": [
           {
-            "type": "agent",
-            "prompt": "Before Claude stops, check .claude/masterplan.json for all 'in-progress' steps. For each, run cross-verification. If ANY in-progress step has unfinished verification criteria, return {\"ok\": false, \"reason\": \"Step X.Y incomplete: [details]\"}. If stop_hook_active is true in your context, return {\"ok\": true, \"reason\": \"loop prevention\"} to prevent infinite loop. Otherwise verify and return accordingly.",
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/stop-inprogress-gate.sh\"",
             "timeout": 55,
-            "asyncRewake": true
+            "statusMessage": "Checking masterplan for in-progress steps..."
           }
         ]
       }
