@@ -67,7 +67,7 @@ $ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py 
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q \
     -k 'kill_switch or paper_trader or autonomous_loop'
-224 passed, 1 skipped, 2892 deselected, 1 warning in 16.27s
+224 passed, 1 skipped, 2894 deselected, 1 warning in 15.80s
 ```
 
 The module the research brief flagged as a collision risk, run alone:
@@ -258,6 +258,12 @@ $ python scripts/qa/verify_36_17_anchors.py
   ok   C. loose prose anchors: 3 checked by CONTENT
 ALL CHECKS PASSED.
 ```
+
+> **ABRIDGED, not verbatim.** This quotes the verifier's own stdout, which the
+> verifier cannot re-execute (self-invocation recurses), so it sits in the one
+> blind spot the tool cannot close. Header and `note:` lines are omitted for
+> brevity. **Run the tool for the authoritative output.**
+
 
 The v1 verifier was an ILLUSORY GUARD -- bounds-only, and it exempted the very
 numbers that were wrong. v2 re-executes every quoted command block and checks

@@ -36,16 +36,34 @@ new backend pid : 6644          started 2026-08-09 18:56:00 local
 health          : ok            addr-in-use hits: 0
 ```
 
-**IN-FORCE PROOF (the claim that matters):**
+**IN-FORCE PROOF (the claim that matters).** CORRECTED after the cycle-5 Q/A:
+the original version rested on `file mtime < process start`, and **that line no
+longer reproduces and now reads the wrong way** -- my own later mutation run
+rewrote the file with identical content, bumping mtime to 19:14:49, which is
+AFTER the 18:56:00 process start. The `.pyc` was recompiled too, so the
+import-time mtime evidence is destroyed and is not re-derivable by anyone.
+
+The conclusion is unchanged and the Q/A confirmed it independently, but it rests
+on **content-last-changed**, which is durable, rather than on mtime, which is not:
 
 ```
-backend pid 6644 started : 2026-08-09 18:56:00
-fix commit e98ca260      : 2026-08-09 17:31:45
-started 5055s (84 min) AFTER the fix       -> IN FORCE
-file md5                 : 58bbf24bde4c5161ac05f26f70fb264e
-file mtime               : 2026-08-09 18:40:56   (< process start, so the
-                                                  process imported THIS content)
+$ git log -1 --format="%h %cd" -- backend/services/autonomous_loop.py
+6ca17793 Sun Aug 9 17:54:37 2026 +0200      <- content last CHANGED here
+
+$ ps -p 6644 -o lstart=
+søn.  9 aug. 18.56.00 2026                   <- process started 61 min LATER
+
+$ git status --porcelain backend/services/autonomous_loop.py
+                                             <- empty: tree == that commit
+$ md5 -q backend/services/autonomous_loop.py
+58bbf24bde4c5161ac05f26f70fb264e             <- unchanged since cycle 2
 ```
+
+Content last changed **17:54:37** < process start **18:56:00**, and the tree is
+clean at the same md5 the Q/A verified across cycles 2-5. **Therefore the running
+process imported this content: the fix IS in force.** mtime is deliberately not
+cited -- a same-content rewrite invalidates it while changing nothing that
+matters.
 
 State survived the restart:
 
@@ -84,3 +102,23 @@ tracked part.
 **Practical warning:** while tests run, this lockfile is NOT a reliable "is a
 cycle running" signal. Check the pid is alive AND equals the backend pid, and
 check the lifetime -- a ~1-2 second lifetime is a test, never a cycle.
+
+## SECOND DISCLOSURE -- I ran mutations against the live file while the backend was ARMED
+
+The cycle-5 Q/A caught what `experiment_results` §12f did not say. That section
+bounded the blast radius of the SIGTERM incident against the OLD pid 84494, and
+gave no equivalent for what came after: **the cycle-4/5 mutation runs mutated
+`backend/services/autonomous_loop.py` nine times while pid 6644 -- an ARMED
+backend, `paused: false` -- was running.**
+
+Why no harm occurred, stated as mechanism rather than luck: CPython imports a
+module once and serves it from `sys.modules`, so a running process does not
+re-read the file. Every mutation was restored within seconds and the file is
+byte-identical at `58bbf24b...`.
+
+**Why it was still a bad practice, and the rule for next time:** had the backend
+been restarted -- by me, by the launchd watchdog, or by a crash -- during any of
+those windows, it would have imported a MUTANT into an armed trading process. The
+mutation harness must run against a **copy** of the module, or via the in-memory
+`sys.modules` injection the Q/A itself uses (which writes nothing to the repo),
+never against the live file while a trading process is armed.

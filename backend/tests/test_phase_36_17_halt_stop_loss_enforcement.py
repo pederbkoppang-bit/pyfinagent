@@ -543,3 +543,85 @@ def test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts(
         "failure was downgraded to a whisper (phase-36.17, mutant M-F). "
         f"records seen: {[(r.levelname, r.getMessage()[:60]) for r in caplog.records]}"
     )
+
+
+# ── criterion 7 gaps found by Q/A cycle 5 -- two MONEY-PATH mutants survived ──
+# Both were confirmed non-equivalent at source before a guard was written for
+# them, and both are the same shape as M-D: the summary reporting a stop as
+# ENFORCED when the book is still exposed.
+
+
+def test_phase_36_17_the_halt_exit_is_a_FULL_exit_not_a_partial(ks_isolated, monkeypatch):
+    """Mutant MUT-B: `quantity=None` -> `quantity=1` in the halt pass SURVIVED.
+
+    `paper_trader.execute_sell` documents "If quantity is None, sells entire
+    position", and does `sell_qty = quantity or position["quantity"]`. So a mutant
+    passing `quantity=1` liquidates ONE SHARE, still returns a truthy trade record,
+    and the ticker is STILL appended to `halt_stop_loss_triggered` -- the book keeps
+    essentially full exposure while the cycle summary reports the stop as enforced.
+
+    The M-D guard closed the sell-returned-None case; it cannot see a partial fill,
+    because a partial fill returns a trade record just like a full one. This asserts
+    the ARGUMENT rather than the outcome, which is the only thing that separates
+    them.
+    """
+    ks, state, _live = ks_isolated
+    summary, trader, _decide = _drive_cycle(
+        monkeypatch, KS_QUIET, paused=True, ks_state=state
+    )
+
+    sold = [c for c in trader.execute_sell.call_args_list
+            if c.kwargs.get("reason") == "stop_loss_trigger"]
+    assert sold, "no stop-loss exit was attempted"
+    assert sold[0].kwargs["quantity"] is None, (
+        "the halt exit passed quantity=%r -- paper_trader.py does "
+        "`sell_qty = quantity or position['quantity']`, so anything but None is a "
+        "PARTIAL exit that still gets recorded as an enforced stop while the book "
+        "stays exposed (phase-36.17, mutant MUT-B)" % (sold[0].kwargs["quantity"],)
+    )
+    assert summary.get("halt_stop_loss_triggered") == [BREACHED_TICKER]
+
+
+def test_phase_36_17_stops_are_checked_against_FRESH_marks(ks_isolated, monkeypatch):
+    """Mutant MUT-C: deleting the halt-path `mark_to_market` SURVIVED.
+
+    `check_stop_losses` compares `pos.get("current_price", 0)` against the stop, and
+    `current_price` is what `mark_to_market` refreshes. Remove the halt-path
+    mark_to_market and the stop comparison silently runs on STALE prices -- so a
+    position that has crossed its stop since the last mark would not be exited.
+
+    experiment_results section 1 makes this a positive, load-bearing claim ("Runs
+    AFTER mark_to_market so the stop comparison sees fresh prices") and it had ZERO
+    covering assertion: the trader is a MagicMock, so the mocked
+    `check_stop_losses` cannot represent price staleness. The only observable that
+    distinguishes the two is CALL ORDER, so that is what this asserts.
+    """
+    ks, state, _live = ks_isolated
+    summary, trader, _decide = _drive_cycle(
+        monkeypatch, KS_BLOCKED, paused=False, ks_state=state
+    )
+
+    names = [c[0] for c in trader.method_calls]
+    assert "check_stop_losses" in names, "the halt path never checked stops"
+    csl = names.index("check_stop_losses")
+
+    # MEASURED call order on the halt path:
+    #   roll_daily_anchor, get_positions, mark_to_market, check_scale_out_fires,
+    #   check_and_enforce_kill_switch, mark_to_market, check_stop_losses, ...
+    # There are TWO mark_to_market calls. A naive `names.index("mark_to_market")
+    # < names.index("check_stop_losses")` finds the FIRST (the Step-5 one) and
+    # therefore PASSES even when the halt-path mark is deleted -- measured: that
+    # is exactly how MUT-C survived its first guard. The load-bearing property is
+    # that a mark happens AFTER the kill-switch evaluation, so assert the
+    # IMMEDIATE PREDECESSOR.
+    assert names[csl - 1] == "mark_to_market", (
+        "the call immediately before check_stop_losses was %r, not mark_to_market "
+        "-- stops were compared against STALE prices, so a position that crossed "
+        "its stop since the last mark would not be exited (phase-36.17, MUT-C). "
+        "order was: %r" % (names[csl - 1], names)
+    )
+    ks_eval = names.index("check_and_enforce_kill_switch")
+    assert any(n == "mark_to_market" for n in names[ks_eval:csl]), (
+        "no mark_to_market between the kill-switch evaluation and the stop check "
+        "-- the halt-path refresh is missing (phase-36.17, MUT-C)"
+    )

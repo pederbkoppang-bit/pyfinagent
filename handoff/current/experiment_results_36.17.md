@@ -262,9 +262,15 @@ reverting the enforcement to pre-fix behaviour turns the reproduce pair RED.
 
 ## 8. Immutable verification command
 
+> **Note on the `deselected` count.** It MOVES every time this step adds a test,
+> because `-k` deselects everything outside the filter. It read 2890 at cycle 1,
+> 2892 at cycle 4, 2894 now (cycle 5 added two). Cycles 4 and 5 both flagged a
+> stale value here. **The load-bearing numbers are `224 passed, 1 skipped,
+> exit 0`** -- those are stable and are what the criterion is about.
+
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or autonomous_loop'
-224 passed, 1 skipped, 2892 deselected, 1 warning in 16.27s
+224 passed, 1 skipped, 2894 deselected, 1 warning in 15.80s
 ```
 
 The phase-36.12 module the brief flagged as a collision risk, run alone:
@@ -457,12 +463,19 @@ relation and the call-site count with no numbers; and (C) checks prose anchors b
 CONTENT, with a cross-file guard and nearest-symbol resolution to avoid false
 positives that would train a reader to ignore it.
 
-**Its coverage is PARTIAL, and the number is stated rather than implied**
-(cycle-4 Q/A: my earlier wording "checks each prose anchor by CONTENT" was an
-overgeneralization). **Measured: 3 of 44 three/four-digit anchors across the
-three artifacts are content-checked -- 7% recall.** The other 41 are skipped by
-design: cross-file anchors, anchors carrying a staleness marker, and anchors
-about symbols outside the 6-entry `SYMBOL_HINTS`. What v2 does guarantee is
+**Its coverage is PARTIAL, and the tool now REPORTS ITS OWN RECALL** rather than
+having a number hand-copied into prose. Cycle 4 flagged the wording "checks each
+prose anchor by CONTENT" as an overgeneralization; I replaced it with "3 of 44
+(7%)" -- and cycle 5 measured that as **3 of 48 (6.25%)**, because the text I
+added to REPORT the number created four more anchors. A hand-computed ratio in an
+artifact is stale the moment the artifact is edited, which is the criterion-6
+defect wearing a different hat.
+
+So the fix is structural: `check_loose_anchors` prints
+`C. loose prose anchors: N of M content-checked (X% recall)`. **Run the tool for
+the current figure.** The skipped remainder is by design -- cross-file anchors,
+anchors carrying a staleness marker, and anchors about symbols outside the
+6-entry `SYMBOL_HINTS`. What v2 does guarantee is
 narrower and worth stating exactly: **it rejects the two shapes that actually
 shipped defects here** -- a wrong-but-in-bounds prose anchor, and a curated /
 re-ordered command block -- and `--self-test` proves both rejections.
@@ -485,6 +498,12 @@ $ python scripts/qa/verify_36_17_anchors.py --self-test
    (iii) correct command block           -> ACCEPTED
 SELF-TEST PASSED
 ```
+
+> **ABRIDGED, not verbatim.** This quotes the verifier's own stdout, which the
+> verifier cannot re-execute (self-invocation recurses), so it sits in the one
+> blind spot the tool cannot close. Header and `note:` lines are omitted for
+> brevity. **Run the tool for the authoritative output.**
+
 
 ### 12c. Criterion 7 -- three mutants survived my 6-cell matrix
 
@@ -520,6 +539,12 @@ Matrix is now **9 cells, 9 killed**.
 $ python scripts/qa/verify_36_17_anchors.py --self-test    -> SELF-TEST PASSED
 $ python scripts/qa/verify_36_17_anchors.py                -> ALL CHECKS PASSED
 ```
+
+> **ABRIDGED, not verbatim.** This quotes the verifier's own stdout, which the
+> verifier cannot re-execute (self-invocation recurses), so it sits in the one
+> blind spot the tool cannot close. Header and `note:` lines are omitted for
+> brevity. **Run the tool for the authoritative output.**
+
 
 ### 12e. What cycle 3 did NOT change
 
@@ -599,3 +624,90 @@ defects **coincided exactly** -- neither a `$ python -m pytest` block nor a bloc
 with no `$` prompt was ever re-executed. v2 now re-executes any `$ <cmd>` block
 it can run safely and **prints a `note:` for every one it cannot**, so the gap is
 visible instead of silent.
+
+---
+
+## 14. Cycle 5 -- two MONEY-PATH mutants survived, and both are now closed
+
+Cycle-5 verdict: **CONDITIONAL** (`wf_7bdf5300-602`), verbatim in
+`evaluator_critique_36.17.md`. All 7 criteria MET; harness compliance clean;
+production code confirmed byte-identical since cycle 2; **the IN-FORCE claim
+CONFIRMED** (on better evidence than I had given -- see below).
+
+### 14a. The finding that mattered: two surviving mutants at the money path
+
+Both confirmed non-equivalent **at source** before any guard was written.
+
+**MUT-B -- `quantity=None` -> `quantity=1` SURVIVED.** `paper_trader.py:539`
+documents "If quantity is None, sells entire position", and `:548` does
+`sell_qty = quantity or position["quantity"]`. So a mutant passing `quantity=1`
+liquidates **one share**, still returns a truthy trade record, and the ticker is
+**still appended to `halt_stop_loss_triggered`**. The book keeps essentially full
+exposure while the summary reports the stop as ENFORCED. That is the same
+lie-shape as M-D -- and the M-D guard could not see it, because a partial fill
+returns a trade record exactly like a full one. Closed by
+`test_phase_36_17_the_halt_exit_is_a_FULL_exit_not_a_partial`, which asserts the
+**argument** (`quantity is None`) rather than the outcome.
+
+**MUT-C -- deleting the halt-path `mark_to_market` SURVIVED.**
+`check_stop_losses` compares `pos.get("current_price", 0)`, which
+`mark_to_market` refreshes, so removing it runs the stop comparison on **stale
+marks** -- a position that crossed its stop since the last mark would not be
+exited. §1 makes freshness a positive, load-bearing claim and it had **zero**
+covering assertion (the trader is a MagicMock, so the fixture cannot represent
+price staleness; only call ORDER distinguishes the two).
+
+**My first guard for MUT-C did not work, and I measured that rather than
+assuming it.** It asserted
+`names.index("mark_to_market") < names.index("check_stop_losses")`. The real call
+order is:
+
+```
+roll_daily_anchor, get_positions, mark_to_market, check_scale_out_fires,
+check_and_enforce_kill_switch, mark_to_market, check_stop_losses, execute_sell,
+save_daily_snapshot
+```
+
+There are **two** `mark_to_market` calls (indices 2 and 5). `.index()` returns the
+FIRST, so the assertion passed even with the halt-path call deleted -- the guard
+stopped one seam short. The corrected version asserts the **immediate
+predecessor** of `check_stop_losses` plus the presence of a mark between the
+kill-switch evaluation and the stop check. It kills MUT-C.
+
+**Matrix is now 11 cells, 11 killed** (single real run, `[baseline] 8 passed` ->
+`[restored] 8 passed`).
+
+### 14b. The in-force proof was rewritten -- my own evidence had gone backwards
+
+The original proof rested on `file mtime < process start`. **That line no longer
+reproduces and now reads the WRONG WAY**: my later mutation runs rewrote the file
+with identical content, pushing mtime to 19:14:49, which is AFTER the 18:56:00
+process start, and the `.pyc` was recompiled too, so import-time mtime evidence is
+destroyed and not re-derivable by anyone. Corrected in
+`pending_restart_2026-08-09.md` to rest on **content-last-changed** (commit
+`6ca17793`, 17:54:37) < **process start** (18:56:00) + a clean tree at the
+unchanged md5. Conclusion unchanged and independently confirmed by the Q/A; the
+supporting evidence is now durable.
+
+### 14c. Second disclosure the Q/A extracted from me
+
+§12f bounded the SIGTERM incident's blast radius against the OLD pid only. It
+gave no equivalent for what followed: **the cycle-4/5 mutation runs mutated the
+live production file eleven times while pid 6644 -- an ARMED backend -- was
+running.** No harm occurred, and the mechanism (not luck) is that CPython serves
+an imported module from `sys.modules` and never re-reads the file. But a restart
+during any of those windows -- by me, by the watchdog, or by a crash -- would have
+imported a mutant into an armed trading process. Recorded in
+`pending_restart_2026-08-09.md` with the rule for next time: mutate a copy, or use
+in-memory `sys.modules` injection (which writes nothing to the repo), never the
+live file while a trading process is armed.
+
+### 14d. Still open after cycle 5 -- stated, not hidden
+
+Cycle 5 found **three `$`-prompted blocks quoting the verifier's own output that
+do not reproduce exactly** (abridged headers and `note:` lines). They sit in the
+`SELF_INVOCATION` blind spot, so the verifier structurally cannot check the blocks
+that quote itself -- and that is precisely where the curation landed. Those blocks
+are now labelled as ABRIDGED rather than presented as verbatim. **The general
+problem is unsolved:** a tool cannot verify quotations of its own output without
+recursing. Anyone reading those blocks should run the tool.

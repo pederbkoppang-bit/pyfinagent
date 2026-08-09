@@ -206,10 +206,12 @@ def check_loose_anchors(artifacts, cwd: Path) -> list[str]:
     fails: list[str] = []
     src = (cwd / "backend/services/autonomous_loop.py").read_text().splitlines()
     checked = 0
+    total = 0
     for art in artifacts:
         if not art.exists():
             continue
         text = art.read_text()
+        total += len(re.findall(r":(\d{3,4})\b", text))
         for m in re.finditer(r":(\d{3,4})\b", text):
             ln = int(m.group(1))
             ctx = text[max(0, m.start() - 320): m.end() + 320]
@@ -249,7 +251,14 @@ def check_loose_anchors(artifacts, cwd: Path) -> list[str]:
                     f"{art.name}: cites :{ln} in a context about {sym!r}, but that "
                     f"line is {src[ln - 1].strip()[:70]!r}"
                 )
-    print(f"  {'ok  ' if not fails else 'FAIL'} C. loose prose anchors: {checked} checked by CONTENT")
+    # Print the RECALL, not just the numerator. A hand-computed ratio in an
+    # artifact goes stale the moment the artifact is edited -- measured: a
+    # correct "3 of 44" became wrong ("3 of 48") purely because reporting it
+    # added more anchors. The tool is the only place this number stays true.
+    pct = (100.0 * checked / total) if total else 0.0
+    print(f"  {'ok  ' if not fails else 'FAIL'} C. loose prose anchors: "
+          f"{checked} of {total} content-checked ({pct:.1f}% recall) -- "
+          f"the rest are cross-file, staleness-marked, or outside SYMBOL_HINTS")
     return fails
 
 
