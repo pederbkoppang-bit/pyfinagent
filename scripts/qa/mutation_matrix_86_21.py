@@ -26,7 +26,7 @@ TARGET = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "qa" / "verdi
 
 MUTANTS = [
     ("M1", "unparseable/empty report 0 instead of None (the silent zero returns)",
-     "        if self.status in (UNPARSEABLE, LEDGER_EMPTY):\n            return None",
+     "        if self.status in (UNPARSEABLE, LEDGER_EMPTY, LEDGER_MISSING):\n            return None",
      "        if False:\n            return None"),
     ("M2", "reset becomes == 'PASS' (misses PASS_WITH_FINDINGS / PASS_AFTER_RETRY)",
      "            if v == CONDITIONAL:\n                n += 1\n            else:\n                break",
@@ -43,11 +43,26 @@ MUTANTS = [
      "    if path.stat().st_size == 0:",
      "    if False:"),
     ("M6", "step matching becomes a PREFIX match (86.2 would swallow 86.20/86.21)",
-     '        if str(row.get("step_id", "")) != step_id:',
-     '        if not str(row.get("step_id", "")).startswith(step_id):'),
+     "        if sid.strip() != step_id:",
+     "        if not sid.strip().startswith(step_id):"),
     ("M7", "verdict tokens stop being case-normalised (Q/A's Q3)",
      '        verdicts.append(v.strip().upper())',
      '        verdicts.append(v.strip())'),
+    # ---- cycle-3 cells: every one is a mutant the Q/A built that SURVIVED the
+    # ---- cycle-2 matrix. The cluster is telling -- three of them live in the
+    # ---- CLI/contrast half, which self_test() never touched until now.
+    ("M8", "a row with NO step_id is silently skipped again (fail-OPEN under-count)",
+     "        if sid is None or not isinstance(sid, str) or not sid.strip():\n            bad += 1\n            continue",
+     "        if False:\n            bad += 1\n            continue"),
+    ("M9", "prescribed_grep_count always returns 0 (Q/A's N1 -- contrast half unguarded)",
+     '    if not path.exists():\n        return 0\n    pat = re.compile(',
+     '    if True:\n        return 0\n    pat = re.compile('),
+    ("M10", "_report always exits 0 (Q/A's N2 -- the fail-CLOSED signal goes dark)",
+     '    return 0 if h.status in (OK, NO_ROWS_FOR_STEP) else 1  # empty/missing/corrupt -> 1',
+     '    return 0  # MUTANT M10'),
+    ("M11", "would_auto_fail returns False instead of None when unknowable (Q/A's N4)",
+     "        c = self.consecutive_conditionals\n        if c is None:\n            return None",
+     "        c = self.consecutive_conditionals\n        if c is None:\n            return False"),
 ]
 
 
@@ -85,10 +100,21 @@ def main() -> int:
             broken.append(mid)
             print(f"  BROKEN  | {mid}: {desc}\n            anchor matched {n} time(s)")
             continue
-        mod = _load(text.replace(old, new, 1), mid)
-        b = io.StringIO()
-        with contextlib.redirect_stdout(b):
-            r = mod.self_test()
+        # A mutant that makes the module RAISE is killed just as surely as one
+        # that fails an assertion -- louder, in fact. Cycle 3 hit this: removing
+        # the step_id guard leaves `sid` None and the next line raises
+        # AttributeError. Letting that propagate aborted the whole matrix and
+        # reported nothing about the remaining cells, which is a worse failure
+        # than the mutant itself.
+        try:
+            mod = _load(text.replace(old, new, 1), mid)
+            b = io.StringIO()
+            with contextlib.redirect_stdout(b):
+                r = mod.self_test()
+        except Exception as exc:  # noqa: BLE001 -- a crash IS a kill
+            killed += 1
+            print(f"  KILLED  | {mid}: {desc}\n            raised {type(exc).__name__}: {exc}")
+            continue
         if r != 0:
             killed += 1
             print(f"  KILLED  | {mid}: {desc}\n            self-test rc={r}")

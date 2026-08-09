@@ -89,7 +89,13 @@ class VerdictHistory:
         as 0 has reintroduced the defect; the CLI below refuses to print a bare
         number in that case.
         """
-        if self.status in (UNPARSEABLE, LEDGER_EMPTY):
+        # CYCLE-3: LEDGER_MISSING joins the not-knowable set. Cycle 2 printed
+        # "treat the rule as ARMED" and `auto-FAIL armed : False` on the SAME
+        # screen -- prose fail-closed, machine-readable properties fail-open.
+        # A programmatic consumer reading would_auto_fail got the opposite of
+        # the printed instruction. The docstring's own rule ("a caller that
+        # treats None as 0 has reintroduced the defect") has to bind here too.
+        if self.status in (UNPARSEABLE, LEDGER_EMPTY, LEDGER_MISSING):
             return None
         n = 0
         for v in reversed(self.verdicts):
@@ -142,8 +148,21 @@ def read_ledger(step_id: str, path: Path = LEDGER) -> VerdictHistory:
         if not isinstance(row, dict):
             bad += 1
             continue
-        if str(row.get("step_id", "")) != step_id:
+        # CYCLE-3 FIX, and it is the CLASS of cycle-2's fix rather than another
+        # instance of it. Cycle 2 hardened the `verdict` field and left this one
+        # -- at the SAME call site -- unenumerated, so a row with a MISSING,
+        # BLANK or NULL step_id was indistinguishable from a row that legitimately
+        # belongs to another step and took the silent-skip path. Measured by the
+        # Q/A: a 3-row ledger with one such row reported consecutive=2 and
+        # "a further CONDITIONAL would be the 3rd" when three had already
+        # happened -- a silent UNDER-count, at exit 0, in the fail-OPEN
+        # direction, which is the dangerous one for an escalation rule.
+        sid = row.get("step_id")
+        if sid is None or not isinstance(sid, str) or not sid.strip():
+            bad += 1
             continue
+        if sid.strip() != step_id:
+            continue          # legitimately another step -- skip, do not count
         seen_step = True
         v = row.get("verdict")
         if not isinstance(v, str) or not v.strip():
@@ -164,7 +183,9 @@ def read_ledger(step_id: str, path: Path = LEDGER) -> VerdictHistory:
     if not seen_step:
         return VerdictHistory(
             NO_ROWS_FOR_STEP, [],
-            f"no rows for step {step_id} -- it has genuinely not been graded yet")
+            f"no rows recorded for step {step_id} in this ledger. That is NOT the "
+            "same as knowing it has no verdicts -- nothing writes this ledger "
+            "automatically yet, so absence here is weak evidence.")
     return VerdictHistory(OK, verdicts, f"{len(verdicts)} verdict(s) from the ledger")
 
 
@@ -326,6 +347,54 @@ def self_test() -> int:
         print(f"   (v)   unknown step -> status={h5.status}, "
               f"consecutive={h5.consecutive_conditionals} (expect no_rows_for_step, 0)")
         ok &= (h5.status == NO_ROWS_FOR_STEP and h5.consecutive_conditionals == 0)
+
+        # (vi) THE CLI HALF. Cycle 2 left _report() and prescribed_grep_count()
+        # with ZERO automated coverage -- self_test() never called them -- so
+        # three Q/A mutants there survived. Exit codes are the fail-CLOSED
+        # signal a caller actually consumes, so they are asserted directly.
+        import contextlib, io
+        exits = {}
+        for tag, hh in (("empty", read_ledger("V", p3c)),
+                        ("corrupt", read_ledger("Y", p3)),
+                        ("missing", read_ledger("Z", tmp / "nope.jsonl")),
+                        ("ok", read_ledger("36.17", p)),
+                        ("no_rows", read_ledger("NOPE", p))):
+            with contextlib.redirect_stdout(io.StringIO()):
+                exits[tag] = _report("X", hh)
+        print(f"   (vi)  CLI exit codes {exits} "
+              "(expect empty/corrupt/missing=1, ok/no_rows=0)")
+        ok &= (exits == {"empty": 1, "corrupt": 1, "missing": 1,
+                         "ok": 0, "no_rows": 0})
+
+        # (vii) would_auto_fail must be None -- not False -- whenever the count
+        # is unknowable. Cycle 2 pinned that on consecutive_conditionals only,
+        # so a mutant returning False here survived.
+        unknowable = [read_ledger("V", p3c), read_ledger("Y", p3),
+                      read_ledger("Z", tmp / "nope.jsonl")]
+        print(f"   (vii) would_auto_fail on unknowable statuses -> "
+              f"{[h.would_auto_fail for h in unknowable]} (expect all None)")
+        ok &= all(h.would_auto_fail is None for h in unknowable)
+
+        # (viii) the CONTRAST figure must really read the log, not return 0.
+        fake_log = tmp / "hl.md"
+        fake_log.write_text(
+            "## Cycle 1 -- 2026-01-01 -- phase=99.9 result=CONDITIONAL\n"
+            "## Cycle 2 -- 2026-01-02 -- phase=99.9 result=CONDITIONAL\n"
+            "## Cycle 3 -- 2026-01-03 -- phase=99.9 result=PASS\n")
+        g = prescribed_grep_count("99.9", fake_log)
+        print(f"   (viii) prescribed_grep_count on a synthetic log -> {g} (expect 2)")
+        ok &= (g == 2)
+
+        # (ix) a row whose step_id is MISSING/BLANK/NULL is malformed, not
+        # another step's row. Under-counting silently is fail-OPEN.
+        p9 = tmp / "l9.jsonl"
+        p9.write_text('{"step_id": "86.21", "verdict": "CONDITIONAL"}\n'
+                      '{"verdict": "CONDITIONAL"}\n'
+                      '{"step_id": "86.21", "verdict": "CONDITIONAL"}\n')
+        h9 = read_ledger("86.21", p9)
+        print(f"   (ix)  row with NO step_id -> status={h9.status} "
+              f"(expect unparseable, NOT a silent under-count)")
+        ok &= (h9.status == UNPARSEABLE and h9.consecutive_conditionals is None)
 
     print("\nSELF-TEST", "PASSED" if ok else "FAILED")
     return 0 if ok else 1

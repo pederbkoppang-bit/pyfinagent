@@ -145,6 +145,10 @@ SELF-TEST -- the counter must distinguish absence from corruption
    (iii-e) lowercase verdicts -> consecutive=2 (expect 2, i.e. normalised)
    (iv)  missing ledger -> status=ledger_missing (expect ledger_missing)
    (v)   unknown step -> status=no_rows_for_step, consecutive=0 (expect no_rows_for_step, 0)
+   (vi)  CLI exit codes {'empty': 1, 'corrupt': 1, 'missing': 1, 'ok': 0, 'no_rows': 0} (expect empty/corrupt/missing=1, ok/no_rows=0)
+   (vii) would_auto_fail on unknowable statuses -> [None, None, None] (expect all None)
+   (viii) prescribed_grep_count on a synthetic log -> 2 (expect 2)
+   (ix)  row with NO step_id -> status=unparseable (expect unparseable, NOT a silent under-count)
 
 SELF-TEST PASSED
 ```
@@ -159,7 +163,7 @@ not a guard.
 ```
 phase-86.21 criterion 6 -- mutation matrix (in-memory; repo never written)
 target : verdict_history_86_21.py
-md5    : 765c871137741b10d7e41d3459305993
+md5    : 9ece5e79b6568feaaced32628fbfb144
 
 [control] un-mutated self-test rc=0 (0 = PASSED)
   KILLED  | M1: unparseable/empty report 0 instead of None (the silent zero returns)
@@ -176,9 +180,17 @@ md5    : 765c871137741b10d7e41d3459305993
             self-test rc=1
   KILLED  | M7: verdict tokens stop being case-normalised (Q/A's Q3)
             self-test rc=1
+  KILLED  | M8: a row with NO step_id is silently skipped again (fail-OPEN under-count)
+            raised AttributeError: 'NoneType' object has no attribute 'strip'
+  KILLED  | M9: prescribed_grep_count always returns 0 (Q/A's N1 -- contrast half unguarded)
+            self-test rc=1
+  KILLED  | M10: _report always exits 0 (Q/A's N2 -- the fail-CLOSED signal goes dark)
+            self-test rc=1
+  KILLED  | M11: would_auto_fail returns False instead of None when unknowable (Q/A's N4)
+            self-test rc=1
 
 [integrity] target md5 unchanged: True
-ALL 7 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
+ALL 11 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
 ```
 
 M2 is the one worth reading twice: rewriting the reset as `== 'PASS'` looks
@@ -273,3 +285,70 @@ My cycle-1 matrix mutated the three shapes I was already thinking about. The
 Q/A's mutants were the ones I wasn't, and half of them lived. The step is about
 a counter that must never report a silent zero, and I shipped one -- on the
 exact input word the criterion names.
+
+---
+
+## 10. Cycle 3 -- my cycle-2 fix was the instance; this is the class
+
+**Cycle-2 verdict: CONDITIONAL (`wf_8b188711-509`)**, verbatim in
+`evaluator_critique_86.21.md`. All four of its cycle-1 survivors now died, and it
+proved that **without using my harness** -- it built its own, on the explicit
+reasoning that a kill seen only through the author's own construction can be an
+artifact of that construction. Both harnesses agreed, and my 7-cell matrix
+reproduced byte-for-byte including the md5.
+
+**Then it found the fourth shape it had predicted, and it was mine.** Cycle 2
+hardened the `verdict` FIELD. The `step_id` field, at the SAME call site, was
+left unenumerated -- so a row with a missing, blank or null `step_id` was
+indistinguishable from a row belonging to another step and took the silent-skip
+path with `bad_lines=0` and `status=ok`.
+
+Measured through the shipped entry point: a 3-row ledger with one such row
+reported `consecutive=2, would_auto_fail=True` and printed *"a further
+CONDITIONAL would be the 3rd"* — **when three consecutive CONDITIONALs had
+already happened and the rule was already breached.** A silent UNDER-count, at
+exit 0, in the fail-OPEN direction, on an escalation counter. That is the defect
+of the step, for the second cycle running, one field to the left.
+
+**Three more of its ten new mutants survived, and they clustered:**
+`prescribed_grep_count`, `_report`, and `_report`'s exit-code map — the contrast
+half and the entire CLI half — had **zero** automated coverage, because
+`self_test()` never called them.
+
+**And a contradiction on the shipped path:** `ledger_missing` printed *"treat the
+rule as ARMED"* and `auto-FAIL armed : False` on the same screen. Prose
+fail-closed, machine-readable properties fail-open — and the module's own
+docstring says a caller that treats `None` as `0` has reintroduced the defect.
+
+### What changed in cycle 3
+
+1. **`step_id` is enumerated at the same call site as `verdict`** — absent, blank
+   or null is MALFORMED (counted `bad`), while a row that legitimately names
+   another step still skips. Fixed as a class this time: both fields at that
+   call site, not just the one that was found.
+2. **`LEDGER_MISSING` joins the not-knowable set**, so `consecutive` and
+   `would_auto_fail` both return `None` and the prose stops contradicting the
+   properties.
+3. **The CLI half is now covered**: the self-test asserts `_report`'s exit codes
+   (1/1/1/0/0), asserts `would_auto_fail is None` for every unknowable status,
+   and drives `prescribed_grep_count` against a synthetic log.
+4. **The `no_rows_for_step` detail stopped asserting a fact it cannot know.** It
+   used to say "it has genuinely not been graded yet"; the Q/A ran the tool on
+   **86.21 itself** and got that sentence while a cycle-1 verdict sat on disk.
+
+Self-test 9 cases -> **15**. Matrix 7 cells -> **11**, and the four new ones are
+exactly the Q/A's surviving mutants.
+
+Two harness defects also fell out and were fixed: the M8 mutant CRASHES rather
+than failing an assertion, and letting that propagate aborted the whole matrix
+and reported nothing about the remaining cells — a crash is now scored as a kill.
+And my cycle-3 edits broke the M1 and M6 anchors, which the harness reported as
+`anchor matched 0 time(s)` rather than silently mutating nothing. That
+no-match-replace defence has now earned its keep three times in one night.
+
+### The honest summary
+
+Two cycles running, the Q/A found the same defect class in my fix for that
+class: cycle 2 fixed one field, cycle 3 fixed its sibling four lines away. The
+lesson is not "harden fields" — it is that when a call site is found guilty once,
+every position at that call site has to be enumerated, not just the guilty one.

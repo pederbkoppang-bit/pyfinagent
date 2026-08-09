@@ -61,7 +61,7 @@ $ git show "7145f566:handoff/current/evaluator_critique_86.20.md" | grep -c '^##
 masterplan status at both commits: **pending**. So: two recorded verdicts, step
 still open, and the counter the rule prescribes returns **zero**.
 
-## 3. The statuses, exercised (SIX after cycle 2, not four)
+## 3. The statuses and the CLI, exercised (FIVE statuses; 15 self-test cases)
 
 ```
 SELF-TEST -- the counter must distinguish absence from corruption
@@ -77,6 +77,10 @@ SELF-TEST -- the counter must distinguish absence from corruption
    (iii-e) lowercase verdicts -> consecutive=2 (expect 2, i.e. normalised)
    (iv)  missing ledger -> status=ledger_missing (expect ledger_missing)
    (v)   unknown step -> status=no_rows_for_step, consecutive=0 (expect no_rows_for_step, 0)
+   (vi)  CLI exit codes {'empty': 1, 'corrupt': 1, 'missing': 1, 'ok': 0, 'no_rows': 0} (expect empty/corrupt/missing=1, ok/no_rows=0)
+   (vii) would_auto_fail on unknowable statuses -> [None, None, None] (expect all None)
+   (viii) prescribed_grep_count on a synthetic log -> 2 (expect 2)
+   (ix)  row with NO step_id -> status=unparseable (expect unparseable, NOT a silent under-count)
 
 SELF-TEST PASSED
 ```
