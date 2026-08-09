@@ -61,7 +61,7 @@ MATCH" instruction is stale against a *better* state. → **ask #30**.
 | Change | Method | Verified |
 |---|---|---|
 | `PAPER_CYCLE_MAX_SECONDS 7200 → 10800` | `kickstart -k` 15:08Z, pid 24708→84494 | `/api/settings/` on the running backend returns **10800.0** |
-| **36.17** exit-only stop-loss pass | `kickstart -k` 16:56Z, pid 84494→**6644** | process started **84 min AFTER** commit `e98ca260`; file mtime precedes process start |
+| **36.17** exit-only stop-loss pass | `kickstart -k` 16:56Z, pid 84494→**6644** | content last CHANGED at 17:54:37 (`6ca17793`) < process start 18:56:00, tree clean at the unchanged md5 |
 
 `bootout` was **blocked by the 62.0 guard** and I did not override it — it wasn't
 needed. The owed change was in `backend/.env`, and `kickstart -k` restarts the
@@ -127,8 +127,10 @@ identical by the Q/A across cycles 2–5). Cycles 2, 3 and 4 all failed or cappe
   ever printed.
 
 All corrected, and the replacement guard now **prints a `note:` for every block
-it cannot verify**, so its gaps are visible rather than silent. Its coverage is
-stated as measured — **3 of 44 anchors, 7% recall** — not implied as total.
+it cannot verify**, so its gaps are visible rather than silent. Its coverage is no
+longer hand-copied at all: **the tool prints its own recall**, because my written
+"3 of 44 (7%)" was measured correct and then invalidated by the very sentence that
+reported it (the true figure became 3 of 48). A ratio in prose cannot stay true.
 
 Three real coverage gaps also came out of it, one worth having independently:
 `if sl_trade:` → `if True:` survived, meaning the cycle summary could record a
