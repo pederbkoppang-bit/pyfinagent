@@ -68,12 +68,79 @@ export const meta = {
 // also means it is cheaply mutation-testable without spawning anything.
 // ---------------------------------------------------------------------------
 
-// `args` may arrive as a parsed object OR a JSON string OR be absent (dry run).
-let a = {}
-try {
-  if (typeof args === 'string' && args.trim()) a = JSON.parse(args)
-  else if (args && typeof args === 'object') a = args
-} catch (_e) { a = {} }
+// ── phase-86.17: THE ARGS BOUNDARY ─────────────────────────────────────────
+// This block used to be `catch (_e) { a = {} }` followed by `|| 'UNSPECIFIED'`
+// fallbacks, so ANY unparseable input produced a gate that ran with no step id,
+// no topic and no scope -- writing research_brief_UNSPECIFIED.md and reporting
+// nothing. Measured: 9 of 12 input shapes silently defaulted.
+//
+// THREE CLASSES, AND THE ORDER MATTERS:
+//
+//   A. ABSENT      -- `typeof args === 'undefined'` (on a no-args launch the
+//                     identifier is genuinely UNBOUND -- MEASURED at $0 / 0
+//                     agents, run wf_a1b6c046-b60 returned args_is_bound=false)
+//                     or an explicit null. This is the DOCUMENTED dry run: it
+//                     must NOT throw. But it may NEVER pass -- there is no
+//                     step, no topic and no criteria, so a pass would be a
+//                     certificate with no referent. Not throwing and being
+//                     allowed to pass are INDEPENDENT concerns; the old code
+//                     conflated them.
+//   B. UNUSABLE    -- present, but does not reduce to a PLAIN OBJECT: malformed
+//                     JSON, a raw newline inside a JSON string, an array, a
+//                     scalar, '' , or a DOUBLE-ENCODED JSON string. That last
+//                     one PARSES SUCCESSFULLY into a string, so catch-hardening
+//                     alone cannot see it -- which is why the plain-object
+//                     check is re-applied AFTER the parse. THROW.
+//   C. INCOMPLETE  -- a plain object carrying no step_id. A present args object
+//                     is proof the caller INTENDED to parameterise, so this is
+//                     unambiguously a caller bug rather than a dry run. THROW.
+//
+// `typeof` is MANDATORY and is not a stylistic choice: the re-runnable checker
+// imports this slice with `args` UNBOUND, so a bare `args === undefined` raises
+// ReferenceError and kills every one of its checks. Do not "simplify" it.
+//
+// DO NOT REPAIR NEAR-MISSES (the house idiom, and RFC 9413's anti-workaround
+// argument): no second JSON.parse on a double-encoded string, no unwrapping an
+// array's first element, no synthesising a step id from a brief path. Throwing
+// costs the run at this line, before a single token is spent; silently
+// defaulting costs a full max-effort session AND deposits a misfiled artifact.
+function classifyArgs(bound, raw) {
+  const describe = (v) => {
+    let preview
+    try { preview = typeof v === 'string' ? v : JSON.stringify(v) } catch (_e) { preview = '(unstringifiable)' }
+    preview = String(preview === undefined ? 'undefined' : preview)
+    return 'typeof=' + (typeof v) + ' isArray=' + Array.isArray(v)
+      + ' len=' + preview.length + ' preview=' + JSON.stringify(preview.slice(0, 80))
+  }
+  const fail = (why, v) => {
+    throw new Error('research-gate: args ' + why + ' (' + describe(v)
+      + ') -- pass a plain object (or valid JSON) carrying step_id, or omit args entirely for a dry run.')
+  }
+
+  // CLASS A
+  if (!bound || raw === null) {
+    return { status: 'dry_run', blind: true, args: {} }
+  }
+
+  let v = raw
+  if (typeof v === 'string') {
+    if (!v.trim()) fail('are PRESENT but an empty/blank string', raw)
+    try { v = JSON.parse(v) } catch (_e) { fail('are PRESENT but not parseable as JSON', raw) }
+  }
+
+  // Re-checked AFTER the parse ON PURPOSE: a double-encoded JSON string parses
+  // to a string, so this is the only place that shape is caught.
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) fail('did not reduce to a plain object', raw)
+
+  // CLASS C
+  if (!v.step_id && !v.stepId) fail('are a plain object with NO step_id', raw)
+
+  return { status: 'ok', blind: false, args: v }
+}
+
+const ARGS_BOUND = typeof args !== 'undefined'
+const inputHealth = classifyArgs(ARGS_BOUND, ARGS_BOUND ? args : null)
+const a = inputHealth.args
 
 const stepId = a.step_id || a.stepId || 'UNSPECIFIED'
 const topic = a.topic || '(no topic passed -- derive it from the step entry in .claude/masterplan.json)'
@@ -214,6 +281,20 @@ function enforceGate(env, verification, opts) {
     }
   }
 
+  // phase-86.17: DEFENCE IN DEPTH, and it is deliberate rather than redundant.
+  // Classes B and C throw at the boundary, so they never reach here. Class A
+  // (the dry run) legitimately does -- and must not be able to pass. Forcing
+  // the violation HERE as well means the gate still fails closed on any future
+  // path that bypasses the throw, which is Saltzer's complete mediation applied
+  // against a regression in this very fix. Absent inputHealth (the checker's
+  // existing calls) behaves exactly as before.
+  const inputBlind = !!(opts && opts.inputHealth && opts.inputHealth.blind === true)
+  if (inputBlind) {
+    violations.push('dry_run_no_step_id: args were ABSENT, so there is no step, topic or scope to certify -- a blind run may never pass')
+  } else if (opts && opts.inputHealth) {
+    checks.push('input_health_ok: ' + opts.inputHealth.status)
+  }
+
   const selfReported = env.gate_passed === true
 
   const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : -1)
@@ -350,13 +431,21 @@ try {
   verification = null // fail closed in enforceGate
 }
 
-const enforcement = enforceGate(envelope, verification)
+const enforcement = enforceGate(envelope, verification, { inputHealth })
 
 if (enforcement.violations.length) {
   log('research-gate ' + stepId + ': GATE FAILED -- ' + enforcement.violations.join(' | '))
 } else {
   log('research-gate ' + stepId + ': gate passed (' + enforcement.checks.length + ' checks)')
 }
+// phase-86.17: surface the blind state in the LOG as well as the return value
+// and the thrown error. Mirrors the self_report_disagreed WARNING idiom below.
+// enforceGate itself stays PURE -- the driver logs, never the gate.
+if (inputHealth.blind) {
+  log('research-gate: WARNING -- BLIND RUN. args were ABSENT, so this is a dry run with no step, '
+      + 'topic or scope. gate_passed is FORCED false: there is nothing to certify.')
+}
+
 if (enforcement.self_report_disagreed) {
   log('research-gate ' + stepId + ': WARNING -- the agent self-reported gate_passed='
       + enforcement.agent_self_reported_gate_passed + ' but the enforced result is '
@@ -372,6 +461,10 @@ return {
   self_report_disagreed: enforcement.self_report_disagreed,
   violations: enforcement.violations,
   checks: enforcement.checks,
+  // phase-86.17: report the degradation as its OWN field rather than folding it
+  // into gate_passed. A caller must be able to tell "failed the floors" apart
+  // from "never had a subject".
+  input_health: { status: inputHealth.status, blind: inputHealth.blind },
   brief_path: claimedBriefPath,
   brief_verification: verification === undefined ? null : verification,
   envelope: envelope === undefined ? null : envelope,

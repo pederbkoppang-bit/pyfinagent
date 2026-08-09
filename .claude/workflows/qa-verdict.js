@@ -22,16 +22,62 @@ export const meta = {
 // (docs/runbooks/per-step-protocol.md Subagent-runtime-semantics).
 // ---------------------------------------------------------------------------
 
-// `args` may arrive as a parsed object OR as a JSON string (the Workflow tool
-// stringifies scriptPath args on some paths) OR be absent (a dry-run). Handle
-// all three so the parameterized launch actually threads its parameters; on any
-// parse error, fall back to {} and the prompt tells the agent to self-recover
-// the step context from .claude/masterplan.json + handoff/current/.
-let a = {}
-try {
-  if (typeof args === 'string' && args.trim()) a = JSON.parse(args)
-  else if (args && typeof args === 'object') a = args
-} catch (_e) { a = {} }
+// ── phase-86.17: THE ARGS BOUNDARY ─────────────────────────────────────────
+// CORRECTED COMMENT (criterion 7). This block previously read: "on any parse
+// error, fall back to {} and the prompt tells the agent to self-recover the
+// step context from .claude/masterplan.json + handoff/current/." That comment
+// DECLARED THE DEFECT DELIBERATE, and a stale comment asserting the opposite of
+// the code is how it survived review. The remedy it prescribed -- ask the agent
+// to recover its own identity from prose -- is exactly the prompt-level
+// self-reflection EviBound measured at 100% false-completion claims. It is
+// replaced, not merely amended.
+//
+// THREE CLASSES, ORDER MATTERS (identical to research-gate.js; the two scripts
+// cannot share a module because the Workflow runtime forbids imports, so this
+// is a deliberate duplicate and the checker drives BOTH copies):
+//
+//   A. ABSENT     -- `typeof args === 'undefined'` (UNBOUND on a no-args
+//                    launch -- MEASURED at $0, run wf_a1b6c046-b60) or null.
+//                    Does NOT throw: the dry run stays legal. But it returns
+//                    NO VERDICT AT ALL (see the early return below) rather than
+//                    a verdict-shaped object, so Main's transcribe-VERBATIM
+//                    rule has nothing it could mistake for an evaluation.
+//   B. UNUSABLE   -- present but not a plain object, incl. a DOUBLE-ENCODED
+//                    JSON string that parses successfully. THROW.
+//   C. INCOMPLETE -- a plain object with no step_id. THROW: a present args
+//                    object proves the caller meant to parameterise.
+//
+// `typeof` is MANDATORY -- a bare `args === undefined` raises ReferenceError
+// when the identifier is unbound, which is exactly the no-args case.
+function classifyArgs(bound, raw) {
+  const describe = (v) => {
+    let preview
+    try { preview = typeof v === 'string' ? v : JSON.stringify(v) } catch (_e) { preview = '(unstringifiable)' }
+    preview = String(preview === undefined ? 'undefined' : preview)
+    return 'typeof=' + (typeof v) + ' isArray=' + Array.isArray(v)
+      + ' len=' + preview.length + ' preview=' + JSON.stringify(preview.slice(0, 80))
+  }
+  const fail = (why, v) => {
+    throw new Error('qa-verdict: args ' + why + ' (' + describe(v)
+      + ') -- pass a plain object (or valid JSON) carrying step_id, or omit args entirely for a dry run.')
+  }
+
+  if (!bound || raw === null) return { status: 'dry_run', blind: true, args: {} }
+
+  let v = raw
+  if (typeof v === 'string') {
+    if (!v.trim()) fail('are PRESENT but an empty/blank string', raw)
+    try { v = JSON.parse(v) } catch (_e) { fail('are PRESENT but not parseable as JSON', raw) }
+  }
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) fail('did not reduce to a plain object', raw)
+  if (!v.step_id && !v.stepId) fail('are a plain object with NO step_id', raw)
+
+  return { status: 'ok', blind: false, args: v }
+}
+
+const ARGS_BOUND = typeof args !== 'undefined'
+const inputHealth = classifyArgs(ARGS_BOUND, ARGS_BOUND ? args : null)
+const a = inputHealth.args
 const stepId = a.step_id || a.stepId || 'UNSPECIFIED'
 const criteria = Array.isArray(a.criteria) ? a.criteria : []
 const verificationCommand = a.verification_command || a.verificationCommand || '(none provided -- read it from .claude/masterplan.json for this step)'
@@ -105,6 +151,24 @@ const VERDICT_SCHEMA = {
     harness_compliance_ok: { type: 'boolean' },
     notes: { type: 'string' },
   },
+}
+
+// phase-86.17 (criterion 4): a BLIND run must not throw -- the dry run stays
+// legal -- but it must also be incapable of producing a PASS. Returning early
+// is stronger than returning a verdict object with verdict:null, because it
+// means no max-effort Q/A session is spent evaluating a step that was never
+// named. There is nothing here a transcription could mistake for an evaluation.
+if (inputHealth.blind) {
+  log('qa-verdict: WARNING -- BLIND RUN. args were ABSENT, so there is no step, no criteria and '
+      + 'no evidence to evaluate. Returning NO VERDICT (never a PASS) and spawning nothing.')
+  return {
+    dry_run: true,
+    verdict: null,
+    ok: false,
+    input_health: { status: inputHealth.status, blind: true },
+    reason: 'BLIND RUN: args were absent, so no step was identified. This is NOT a verdict -- '
+      + 'do not transcribe it into evaluator_critique. Re-launch with args={step_id, criteria, ...}.',
+  }
 }
 
 phase('QA')
