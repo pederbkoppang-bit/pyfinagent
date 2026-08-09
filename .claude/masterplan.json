@@ -12440,7 +12440,7 @@
         },
         {
           "id": "36.27",
-          "status": "pending",
+          "status": "done",
           "priority": "P1",
           "retry_count": 0,
           "max_retries": 3,

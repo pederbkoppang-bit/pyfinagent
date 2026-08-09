@@ -1,5 +1,6 @@
 # Researcher Agent Memory Index
 
+- [Flag-accident landmine 86.1](project_flag_accident_landmine_86_1.md) — the flag-ON arm was isolated and the OFF arm wasn't; `get_state()` patch vacuous BY IDENTITY; the 24666 peak lives only in the ARCHIVES
 - [Stale-anchor disarm 85.5.1](project_stale_anchor_disarm_85_5_1.md) — the GUARD was already right (per-leg degradation); "disarmed" meant ONE leg; missing≠stale; OverflowError aborts the whole replay
 - [Kill-switch deadlock 85.6](project_kill_switch_deadlock_85_6.md) — TWO `autonomous_loop.py` files; the SOD roll had ONE trigger behind the analysis phase; every pause row resets `_paused_at`
 - [Circuit-breaker recovery prior art](reference_circuit_breaker_recovery_prior_art.md) — resilience4j ships "latch clears only if a call is made" as a DEFAULT; Azure mandates manual reset + health probe
@@ -93,3 +94,5 @@
 - [NaN/JSON leak 80.1](project_nan_json_leak_80_1.md) — starlette allow_nan=False + jsonable_encoder passes np.float64; response_model does NOT fix it; keepna mask is .all(axis=1)
 - [Frontend test env 80.5](project_frontend_test_env_and_ui_specs_80_5.md) — jsdom 29: all rects 0, no elementFromPoint, but getComputedStyle resolves injected <style>; SVG fill=transparent IS hit-testable
 - [Fabricated SAFE 80.36](project_fabricated_safe_80_36.md) — FOUR instances (`?? 0` x3 + a `!== "not_initialized"` TRUE-when-null); discriminate on PRESENCE not value
+- [Test-suite live egress 86.3](project_test_suite_live_egress_86_3.md) — the urlopen guard seam ALREADY exists (slack.com-only denylist); NO tool has verb granularity; `skipif` runs at COLLECTION so no fixture reaches it; the live-host list was 4/8 false positives + 1 missing
+- [Structured-output schema floors are NOT enforceable](reference_structured_output_schema_floors_not_enforceable.md) — Anthropic STRIPS minimum/maxLength and caps minItems at 1; `const:true` on a gate flag is a trap (unfalsifiable); assert floors in JS and recompute the pass field
