@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `dc621419` | phase-86.21: research gate PASSED + contract (written BEFORE any code) |
 | 2026-08-09 | `03b3ea17` | wip(86.6): PARKED mid-step -- filesystem preventer landed and measured, Part B unstarted |
 | 2026-08-09 | `cf6f214b` | phase-86.6: research gate PASSED + contract (written BEFORE any code) |
 | 2026-08-09 | `eddde6a9` | phase-86.17: [P1 -- THE LAYER-3 WORKFLOW RAIL SILENTLY RUNS A BLIND GATE WHEN ITS `args` DO NOT P... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `ec412ebb` | docs(36.17): cycle-6 Q/A returns PASS -- verdict transcribed verbatim + harness log |
 | 2026-08-09 | `6209b7cd` | docs(36.17): cycle-6 -- slim the artifacts to evidence, close the 9-vs-11 contradiction |
 | 2026-08-09 | `d68f69e5` | fix(36.17): cycle-6 -- re-runnable mutation matrix + close the live cycle-lock leak |
-| 2026-08-09 | `8405e86e` | docs: overnight unattended drain goal (2026-08-09 -> 08-10) |
 
 ---
 
+### v6.93.12 — phase-86.21: research gate PASSED + contract (written BEFORE any code) (2026-08-10)
+
+- **phase-86.21: research gate PASSED + contract (written BEFORE any code)**
 ### v6.93.11 — wip(86.6): PARKED mid-step -- filesystem preventer landed and measure... (2026-08-09)
 
 - **wip(86.6): PARKED mid-step -- filesystem preventer landed and measured, Part B unstarted**
