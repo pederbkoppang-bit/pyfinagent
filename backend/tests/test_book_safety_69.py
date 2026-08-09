@@ -6,16 +6,41 @@ breach on a bad NAV), the Slack 'clear queue' pkill SIGKILL, and the lock strand
 Thresholds (4/10/8/30) are asserted byte-untouched via the constants + a real breach.
 """
 
-from datetime import datetime, timedelta, timezone
 import json
 import pathlib
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
 
+import backend.services.cycle_lock as cl
 import backend.services.fx_rates as fx
 import backend.services.kill_switch as ks
-import backend.services.cycle_lock as cl
+
+# ---------------------------------------------------------------------------
+# phase-86.1 criterion 3: the live kill-switch journal must be byte-identical
+# across EVERY test in this file, asserted BY THE RUN rather than checked by
+# hand afterwards. Function-scoped so a violation names the offending test.
+#
+# This is a DETECTOR, not a preventer -- the bytes are already on disk when it
+# fires. The preventer for the filesystem channel generally is step 86.6. What
+# it does guarantee is that this file can never silently regress into writing
+# live safety state again, which is exactly how the 86.1 landmine got there.
+# ---------------------------------------------------------------------------
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+_LIVE_AUDIT = REPO_ROOT / "handoff" / "kill_switch_audit.jsonl"
+
+
+@pytest.fixture(autouse=True)
+def _live_kill_switch_journal_is_byte_identical():
+    before = _LIVE_AUDIT.read_bytes() if _LIVE_AUDIT.exists() else None
+    yield
+    after = _LIVE_AUDIT.read_bytes() if _LIVE_AUDIT.exists() else None
+    assert after == before, (
+        "this test wrote to the LIVE kill-switch journal: "
+        f"{0 if before is None else len(before.splitlines())} -> "
+        f"{0 if after is None else len(after.splitlines())} lines"
+    )
 
 
 # ----------------------------------------------------------------------
@@ -96,7 +121,7 @@ def test_valid_nav_still_breaches(monkeypatch, tmp_path):
     redirected audit path -- the idiom at
     `test_phase_36_9_kill_switch_armed_liveness.py:63-88` -- and anchor it TODAY.
     A real state is drift-proof: it cannot omit a contract key the way a
-    hand-written dict can, and this one already omitted three.
+    hand-written dict can, and this one already omitted seven.
 
     NOT ONE ASSERTION IS WEAKENED. All four still demand a 20% drawdown against
     both sod and peak produce daily True, trailing True, any True, no nav_invalid.
@@ -183,13 +208,138 @@ def test_stale_anchor_disarms_the_daily_leg_but_the_trailing_leg_still_fires(
     assert r["any_breached"] is True and not r.get("nav_invalid")
 
 
-def test_peak_reset_dark_by_default(monkeypatch):
-    st = ks.get_state()
-    monkeypatch.setattr(ks, "get_state", lambda: st)
+def test_peak_reset_dark_by_default(monkeypatch, tmp_path):
+    """phase-86.1: DARK-by-default, proven against a DETACHED state.
+
+    THE DEFECT THIS REPLACES. The previous form called `reset_peak(12345.0,
+    trigger='flatten')` on `ks.get_state()` -- the REAL module singleton -- with
+    no `_AUDIT_PATH` redirect. It was safe only because
+    `settings.kill_switch_peak_reset_enabled` is False, which makes `reset_peak`
+    return at kill_switch.py:694 BEFORE taking the lock or appending. The day
+    the KS-PEAK-RESET token (step 79.6, already APPROVED) is applied, that line
+    would write a real `peak_reset` row into the live journal and drop the
+    trailing high-water mark from 24666.57 to 12345.0. `peak_reset` is in
+    `_BASELINE_EVENTS`, so it replays on every boot and is authoritative -- a
+    LOWER peak makes the trailing leg fire LATER. That is a safety limit being
+    LOOSENED by running the test suite.
+
+    THREE THINGS THE OLD FORM GOT WRONG, all measured:
+      * `monkeypatch.setattr(ks, "get_state", lambda: st)` was VACUOUS BY
+        IDENTITY -- `st` was already bound to the real singleton on the line
+        above, so re-pointing the accessor at the same object changed nothing.
+        Module functions also read `_state` directly, so patching the accessor
+        could not have isolated them regardless. Dropped rather than kept as a
+        line that reads like isolation and provides none.
+      * A redirect ALONE would be a HALF fix: reset_peak assigns
+        `self._peak_nav = float(new_peak)` at :697 BEFORE auditing, so with the
+        flag ON the in-memory singleton is corrupted even when the audit row
+        lands in tmp. Hence a DETACHED state, not `get_state()`.
+      * The flag value was INHERITED from the operator's config, so this test's
+        own greenness depended on it -- with the flag ON, `assert out is None`
+        goes RED. It is now PINNED, so the test states the configuration it
+        asserts about.
+    """
+    # Redirect BEFORE constructing anything: __init__ replays the audit, and
+    # _audit_archive_dir() is DERIVED from _AUDIT_PATH (kill_switch.py:89-91),
+    # so this one redirect covers the archive too -- asserted, not assumed.
+    monkeypatch.setattr(ks, "_AUDIT_PATH", tmp_path / "kill_switch_audit.jsonl")
+    assert ks._audit_archive_dir() == tmp_path / "audit", (
+        "the archive dir is no longer derived from _AUDIT_PATH; this redirect "
+        f"is no longer sufficient (got {ks._audit_archive_dir()})"
+    )
+    live = REPO_ROOT / "handoff" / "kill_switch_audit.jsonl"
+    assert not any(p == live for p in ks._audit_source_paths()), (
+        f"a LIVE audit file is still in the replay set: {ks._audit_source_paths()}"
+    )
+
+    # PIN the flag to the state this test asserts about, instead of inheriting it.
+    from backend.config.settings import get_settings
+    monkeypatch.setattr(get_settings(), "kill_switch_peak_reset_enabled", False)
+
+    st = ks.KillSwitchState()          # DETACHED -- never the module singleton
+    st._peak_nav = 24666.57            # the real live high-water mark
     before = st.snapshot().get("peak_nav")
+
     out = st.reset_peak(12345.0, trigger="flatten")
     assert out is None                                   # DARK: no-op
     assert st.snapshot().get("peak_nav") == before       # peak unchanged
+    assert not (tmp_path / "kill_switch_audit.jsonl").exists() or \
+        "peak_reset" not in (tmp_path / "kill_switch_audit.jsonl").read_text(), \
+        "DARK reset_peak must not append a peak_reset row anywhere"
+
+
+def test_phase_86_1_the_pre_fix_form_really_would_have_destroyed_the_live_peak(
+        monkeypatch, tmp_path):
+    """CRITERION 2, demonstrated with the REAL production code -- not argued.
+
+    Running the literal pre-fix form against the operator's own journal would
+    destroy the 24666.57 high-water mark, which is the harm this step exists to
+    prevent and would break criterion 3 in the act. So it is run against a
+    BYTE-FOR-BYTE COPY of the live journal: the destructive write actually
+    happens, performed by production `reset_peak`, on an identical stand-in.
+
+    Disclosed in contract_86.1.md SS5 rather than taken silently.
+    """
+    live = REPO_ROOT / "handoff" / "kill_switch_audit.jsonl"
+    live_before = live.read_bytes()
+
+    # The copy stands in for the live file BY CONSTRUCTION: assert the module
+    # default really is that file, so "would have written to the live journal"
+    # is established rather than assumed.
+    assert ks._AUDIT_PATH == live, (
+        f"module default _AUDIT_PATH is no longer the live journal: {ks._AUDIT_PATH}"
+    )
+    decoy = tmp_path / "kill_switch_audit.jsonl"
+    decoy.write_bytes(live_before)
+    assert decoy.read_bytes() == live_before
+
+    monkeypatch.setattr(ks, "_AUDIT_PATH", decoy)
+    from backend.config.settings import get_settings
+    monkeypatch.setattr(get_settings(), "kill_switch_peak_reset_enabled", True)
+
+    rows_before = len(decoy.read_text().splitlines())
+    assert "peak_reset" not in decoy.read_text(), "the live journal has no peak rows today"
+
+    # THE PRE-FIX FORM, VERBATIM: the real singleton, no detachment.
+    #
+    # This DOES corrupt the singleton's in-memory peak -- that is the point, and
+    # it is the half a redirect alone cannot prevent (kill_switch.py:697 assigns
+    # before auditing). It is restored in the `finally` below by putting the
+    # ATTRIBUTE back, NOT by rebuilding the singleton: at this point _AUDIT_PATH
+    # still points at the decoy, so `ks._state = ks.KillSwitchState()` would
+    # replay the decoy and install the 12345.0 peak permanently -- turning the
+    # cleanup into the very leak it is meant to prevent.
+    st = ks.get_state()
+    saved_peak = st._peak_nav
+    try:
+        out = st.reset_peak(12345.0, trigger="flatten")
+        assert st.snapshot()["peak_nav"] == 12345.0, (
+            "the in-memory singleton must be corrupted here -- that is the half "
+            "an _AUDIT_PATH redirect cannot prevent"
+        )
+    finally:
+        st._peak_nav = saved_peak
+    assert ks.get_state().snapshot()["peak_nav"] == saved_peak, (
+        "the singleton's peak leaked out of this test"
+    )
+
+    rows_after = decoy.read_text().splitlines()
+    assert out is not None, "with the flag ON reset_peak is live, not dark"
+    assert len(rows_after) == rows_before + 1, "a real peak_reset row was appended"
+    written = json.loads(rows_after[-1])
+    assert written["event"] == "peak_reset" and written["new_peak"] == 12345.0, written
+
+    # ...and it is AUTHORITATIVE on replay: the true high-water mark is gone.
+    replayed = ks.KillSwitchState()
+    assert replayed.snapshot()["peak_nav"] == 12345.0, (
+        "the replayed peak should now be the test's value, proving the row wins "
+        "the ts merge-sort outright -- the live journal has zero peak rows, so "
+        "there is nothing later to override it"
+    )
+
+    # The live file is untouched throughout -- measured, not asserted in prose.
+    assert live.read_bytes() == live_before, "the mutation reached the LIVE journal"
+
 
 
 def test_peak_reset_active_when_token_enabled(monkeypatch, tmp_path):
