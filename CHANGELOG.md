@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `5d0e462c` | phase-36.27: [P1 -- THE RESEARCHER GATE HAS NO WORKFLOW RAIL, SO HALF THE DOCTRINE HAS NO MECHANI... |
 | 2026-08-09 | `15680dd7` | docs(36.27): harness_log cycle 187 -- PASS |
 | 2026-08-09 | `3a7789d2` | phase-36.27 cycle-3: regenerate the verbatim envelope block programmatically |
 | 2026-08-09 | `e0cd5a1d` | phase-36.27 cycle-2: fix both WARN findings from the pass-1 Q/A |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `f048afeb` | docs: update the overnight report -- 85.5.1 closed, 86.1-86.5 queued |
 | 2026-08-09 | `a7911f2e` | phase-86.5: queue the 26-failure triage with the node ids preserved |
 | 2026-08-09 | `bb88239b` | phase-85.5.1: flip to done; queue 86.1-86.4 from the gate's findings |
-| 2026-08-09 | `8ca368da` | docs(85.5.1): pass-2 PASS + harness log cycle 185 |
 
 ---
 
+### v6.87.17 — phase-36.27: [P1 -- THE RESEARCHER GATE HAS NO WORKFLOW RAIL, SO HALF... (2026-08-09)
+
+- **phase-36.27: [P1 -- THE RESEARCHER GATE HAS NO WORKFLOW RAIL, SO HALF THE DOCTRINE HAS NO MECHANI...**
 ### v6.87.16 — phase-36.27 cycle-3: regenerate the verbatim envelope block programma... (2026-08-09)
 
 - **phase-36.27 cycle-3: regenerate the verbatim envelope block programmatically**
