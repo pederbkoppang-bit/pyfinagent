@@ -97,12 +97,31 @@ displace it.
 
 ```
 $ bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py -q --timeout=120'
-....                                                                     [100%]
-4 passed, 1 warning in 3.75s
+5 passed, 1 warning in 2.05s
 ```
 
-Live journal across that run: **62 lines → 62 lines**,
-`sha256 90e0303130fc…` → `90e0303130fc…` (unchanged).
+Live journal across that run: `90e0303130fc…` → `90e0303130fc…` (unchanged).
+
+The five collected node ids:
+
+```
+$ python -m pytest backend/tests/test_phase_23_2_4_pause_resume_no_deadlock_live.py --collect-only -q
+test_phase_23_2_4_existing_pytest_regression_files_exist
+test_phase_23_2_4_existing_regression_files_reference_phase_23_1_22
+test_phase_23_2_4_live_pause_resume_pause_cycle_under_5s
+test_phase_86_3_mutation_the_audit_redirect_is_load_bearing
+test_phase_23_2_4_audit_log_clean_transitions
+```
+
+> **CORRECTED after EVALUATE pass 1.** This block previously read
+> `4 passed, 1 warning in 3.75s`, captured **before**
+> `test_phase_86_3_mutation_the_audit_redirect_is_load_bearing` — the
+> criterion-3 substitute proof — existed. It was therefore a "verbatim" block
+> that no longer reproduced, and it did not evidence the load-bearing test
+> passing. Caught by the Q/A, which measured `5 passed` and noted the block was
+> already contradicted by §4.2 in this same document (17 − 12 = 5). **Regenerated
+> from the shipped tree rather than edited**, per the rule that a verbatim
+> capture is re-run, never hand-adjusted.
 
 ### 4.2 Guard + rewrite together
 
@@ -260,6 +279,24 @@ it. Recorded because the corrected rule is what the result rests on:
 
 - **`httpx`** — rides `httpcore`, not urllib3. Not covered.
 - **Raw `socket`** — not covered.
+- **SUBPROCESS / child processes — ADDED after EVALUATE pass 1; the Q/A caught
+  this and it belonged in the first enumeration.** A guard installed at conftest
+  import time exists only in the **pytest process**. A test that shells out runs
+  unguarded. Measured: `test_phase_4000_2_cc_rail_smoke.py:202` runs
+  `subprocess.run([sys.executable, str(SCRIPT), *argv])`, and
+  `scripts/qa/smoke_cc_rail_e2e.py:469` defaults `--backend-url` to
+  `http://localhost:8000` — and that script **mutates**
+  (`http_json("PUT", f"{base}/api/settings/", …)` at `:289-290`,
+  `POST /api/analysis/` at `:307`). No live egress today: `base` is an ephemeral
+  stub (`ThreadingHTTPServer(("127.0.0.1", 0))` at `:176`) and **all 12 call
+  sites pass an explicit `--backend-url`** — `grep -n "run_smoke(" | grep -v
+  live_args | grep -v backend-url` returns nothing. Latent, not active.
+  `test_phase_82_11_autoresearch_failure_paging.py:610` is a second, benign
+  instance (dead port). **Folded into 86.6.**
+  *This is the same mistake in kind as the one already recorded in this step: a
+  worktree relocates file paths but not a socket; a conftest guard covers the
+  parent process but not a child. I made the process-boundary version of it
+  after writing the transport-boundary version down.*
 - **The filesystem channel** — a test calling a mutating `kill_switch` method
   in-process while `_AUDIT_PATH` still points at the live file writes directly,
   and **no network guard can see it.** Not closed by this step. See §8.

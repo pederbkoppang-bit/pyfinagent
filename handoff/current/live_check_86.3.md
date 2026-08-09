@@ -151,6 +151,49 @@ subjects do **not** count.
 | `test_phase_23_2_13_governance_watcher.py` | read-only GET on `:8000` | n/a |
 | `test_phase_23_2_7_red_line_nav_match.py` | read-only GET on `:8000` | n/a |
 | `test_phase_76_9_2_max_bridge.py` | POSTs to its **own** `ThreadingHTTPServer` on an ephemeral port | **unaffected by design** — the policy keys on host AND port |
+| `test_phase_4000_2_cc_rail_smoke.py` | **SUBPROCESS** — `run_smoke()` at `:202` runs `subprocess.run([sys.executable, SCRIPT, *argv])`. **A child process loads no conftest, so the guard is structurally ABSENT there.** | **NOT contained.** No live egress today — measured below |
+| `test_phase_82_11_autoresearch_failure_paging.py:610` | **SUBPROCESS** — second instance, targets a dead port | **NOT contained**, benign |
+
+### 3a. The subprocess channel — added after EVALUATE pass 1
+
+**This was missing from my enumeration and the Q/A caught it.** It is the same
+mistake in kind as the one I had already made once this step (a worktree
+relocates file paths but not a TCP socket): **a guard installed in the pytest
+process does not exist in a child process.**
+
+Measured, at source:
+
+- `backend/tests/test_phase_4000_2_cc_rail_smoke.py:202` —
+  `subprocess.run([sys.executable, str(SCRIPT), *argv], ...)`
+- `scripts/qa/smoke_cc_rail_e2e.py:469` —
+  `p.add_argument("--backend-url", default="http://localhost:8000")`
+- and that script **mutates**, not just reads:
+  `http_json("PUT", f"{base}/api/settings/", {FLAG: True})` at `:289-290`
+  and `http_json("POST", f"{base}/api/analysis/", ...)` at `:307`.
+
+So an invocation that omitted `--backend-url` would **PUT settings on the
+operator's live backend**, and the phase-86.3 guard could not see it.
+
+**Measured mitigation — why there is no live egress today.** `base` is an
+ephemeral stub: `ThreadingHTTPServer(("127.0.0.1", 0), handler)` at `:176`.
+`grep -c "run_smoke("` returns **13** = 1 definition + **12 call sites**, and
+every one passes an explicit `--backend-url` (directly at `:219, :232, :259,
+:401`, or via `live_args(base)` at `:244, :251, :275, :290, :357, :373, :387,
+:415`):
+
+```
+$ grep -n "run_smoke(" backend/tests/test_phase_4000_2_cc_rail_smoke.py \
+    | grep -v live_args | grep -v backend-url | grep -v "^202:"
+(no output)
+```
+
+**Zero call sites rely on the default.** The exposure is therefore *latent*, not
+active: a future call site that forgets `--backend-url` reaches the live backend
+with a settings PUT, and nothing in this step would stop it.
+
+**Queued, not left unnamed:** folded into step **86.6**, whose scope now covers
+every channel a guard installed in the pytest process cannot reach — filesystem
+**and** subprocess.
 
 **Excluded after correction** (my first census had them as live-host, wrongly):
 `test_phase_36_7_...` (`curl` in a docstring, `:10`), `test_phase_75_17_...`
@@ -168,6 +211,11 @@ with it — the test criterion 7 requires to keep passing.
 
 - **`httpx`** — rides `httpcore`, not urllib3. Not covered.
 - **raw `socket`** — not covered.
+- **SUBPROCESS / child processes** — a guard installed at conftest import time
+  exists only in the pytest process. Any test that shells out
+  (`subprocess.run([sys.executable, ...])`) runs unguarded. See §3a: two such
+  tests exist, both currently benign, one of which would PUT live settings if a
+  future call site omitted `--backend-url`. **Not covered. Folded into 86.6.**
 - **the filesystem channel** — an in-process `kill_switch` write while
   `_AUDIT_PATH` still points at the live file. No network guard can see it.
   **Filed as step 86.6** with the false-negative check written into its
