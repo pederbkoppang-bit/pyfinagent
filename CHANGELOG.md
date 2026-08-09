@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `e38fe914` | phase-86.20: research gate PASSED + contract (written BEFORE any code) |
 | 2026-08-09 | `81644d61` | feat: file 86.22 (P1) -- the recommendation-vocabulary split is cross-module |
 | 2026-08-09 | `dbed6eac` | phase-36.17: [P1 -- A HALTED CYCLE STOPS ENFORCING STOP-LOSSES, SO THE BOOK SITS UNGUARDED EXACTL... |
 | 2026-08-09 | `ec412ebb` | docs(36.17): cycle-6 Q/A returns PASS -- verdict transcribed verbatim + harness log |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `2fc107ea` | docs(36.17): restart done in-session -- fix is IN FORCE, verified on the running process |
 | 2026-08-09 | `f1ea7c5c` | fix(36.17): cycle-3 -- replace an illusory guard, close 3 surviving mutants |
 | 2026-08-09 | `d057f127` | fix(36.17): cycle-3 -- regenerate every anchor from live output + mechanical verifier |
-| 2026-08-09 | `6ca17793` | fix(36.17): cycle-2 -- correct stale anchors and make the no-BUY assertion falsifiable |
 
 ---
 
+### v6.93.1 — phase-86.20: research gate PASSED + contract (written BEFORE any code) (2026-08-09)
+
+- **phase-86.20: research gate PASSED + contract (written BEFORE any code)**
 ### v6.93.0 — file 86.22 (P1) -- the recommendation-vocabulary split is cross-module (2026-08-09)
 
 - **file 86.22 (P1) -- the recommendation-vocabulary split is cross-module**
