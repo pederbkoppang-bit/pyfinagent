@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `802a8535` | docs: day report 2026-08-10 -- the book CAN trade, next cycle 14:00 ET today |
 | 2026-08-10 | `10772911` | docs(86.21): cycle-3 Q/A returns FAIL by escalation -- step PARKED, not reverted |
 | 2026-08-10 | `130a5e9b` | fix(86.21): cycle-3 -- my cycle-2 fix was the instance; this is the class |
 | 2026-08-10 | `070e6714` | fix(86.21): cycle-2 -- I shipped a silent zero inside the fix for silent zeros |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `688ac349` | fix(86.20): cycle-2 -- the dark flag was not dark; close the leak and add the oracle |
 | 2026-08-09 | `ad9a7d02` | phase-86.20: canonicalise the recommendation vocabulary at the trade gate (DARK) |
 | 2026-08-09 | `e38fe914` | phase-86.20: research gate PASSED + contract (written BEFORE any code) |
-| 2026-08-09 | `81644d61` | feat: file 86.22 (P1) -- the recommendation-vocabulary split is cross-module |
 
 ---
 
