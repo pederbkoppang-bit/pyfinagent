@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `dae021e4` | docs(86.13): queue the auto-commit cross-attribution fix as its own step |
 | 2026-08-09 | `04e490ba` | docs: ask #29 resolved -- RELEASE-61.2: APPROVED, 61.2 un-gated |
 | 2026-08-09 | `469788d5` | docs(61.2): today's evidence supersedes the timeout trigger; raise ask #29 |
 | 2026-08-09 | `afba23a2` | docs(76.4): bump P2 -> P1 and fold in the empty-report-body case |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `10baa300` | phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full backend/tests run POSTs a real p... |
 | 2026-08-09 | `a083ef95` | docs(86.3): operator approved the close (ask #27) -- recorded as a decision, not a PASS |
 | 2026-08-09 | `cabfa812` | feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26) |
-| 2026-08-09 | `5d83f366` | phase-86.2: P1 TOTAL DISARM: one oversized JSON int aborts the entire kill-switch audit replay an... |
 
 ---
 
