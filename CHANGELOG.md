@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `98771ba8` | docs: pending-restart list for session end (PAPER_CYCLE_MAX_SECONDS not yet in force) |
 | 2026-08-09 | `5d27dc5f` | docs: batch backend restarts to session end (operator instruction 2026-08-09) |
 | 2026-08-09 | `53bf50b3` | feat(config): raise paper_cycle_max_seconds 7200 -> 10800 (operator-authorized ask #23) + file 86.9  |
 | 2026-08-09 | `523d74f7` | feat(qa): let Playwright verification get behind the NextAuth wall |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `ba154918` | phase-86.1: P1 LIVE-STATE LANDMINE: test_peak_reset_dark_by_default calls reset_peak on the REAL ... |
 | 2026-08-09 | `9ad446f5` | docs(86.6): inherit 86.1's surviving mutant -- a dark-path guard cannot be mutation-tested through b |
 | 2026-08-09 | `53c30043` | docs(86.1): harness_log cycle 188 -- PASS |
-| 2026-08-09 | `a117dbb6` | phase-86.1: stop the test suite arming a live-peak landmine |
 
 ---
 
