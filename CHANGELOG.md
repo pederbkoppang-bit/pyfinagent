@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `05cde616` | docs: file 86.7 (keychain-only rail auth + broken setup-token) and 86.8 (crossSessionInbound + SendM |
 | 2026-08-09 | `3afc561c` | live_check: the rail is ALIVE -- fixed by REMOVING the OAuth token, not replacing it |
 | 2026-08-09 | `3848cae2` | docs: verification cycle spent -- 85.6 Step-0 roll LIVE-PROVEN, rail 401s (ask #28) |
 | 2026-08-09 | `785ab075` | fix(ops): kickstart does NOT re-read the plist -- my token script reported success on a stale env |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `7b1e42b3` | docs: day report 2026-08-09 + regenerated goal for 08-10 |
 | 2026-08-09 | `5d0e462c` | phase-36.27: [P1 -- THE RESEARCHER GATE HAS NO WORKFLOW RAIL, SO HALF THE DOCTRINE HAS NO MECHANI... |
 | 2026-08-09 | `15680dd7` | docs(36.27): harness_log cycle 187 -- PASS |
-| 2026-08-09 | `3a7789d2` | phase-36.27 cycle-3: regenerate the verbatim envelope block programmatically |
 
 ---
 
