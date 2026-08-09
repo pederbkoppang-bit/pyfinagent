@@ -23998,6 +23998,28 @@
       ],
       "live_check": "live_check_86.8.md with the measured inbound-message behaviour on the installed version and the enumerated routing paths"
      }
+    },
+    {
+     "id": "86.9",
+     "status": "pending",
+     "priority": "P1",
+     "harness_required": true,
+     "retry_count": 0,
+     "max_retries": 3,
+     "name": "P1 VALIDATE THE CYCLE-BUDGET RAISE 7200 -> 10800s THAT THE OPERATOR AUTHORIZED, AND ANSWER WHETHER A LONGER BUDGET IS THE RIGHT FIX AT ALL.",
+     "audit_basis": "Operator authorized ask #23 in-session 2026-08-09 ('do raise it') AND required it go through the full harness. The raise IS ALREADY APPLIED: backend/.env:70 PAPER_CYCLE_MAX_SECONDS 7200.0 -> 10800.0, backed up as backend/.env.bak.*. NOTE this overrides the code default at settings.py:33, which remains 7200.0 -- the .env is the effective layer, exactly as PAPER_MAX_PER_SECTOR=5 at .env:85 overrides its own default of 2 (a mismatch that misled the author earlier the same day; ALWAYS read the running value, never the Field() default). MEASURED at apply time: a fresh process resolves 10800.0; the backend running as pid 24708 (started 15:20:45) still holds 7200.0 because autonomous_loop.py:506 reads the setting at CYCLE START, so the in-flight cycle is unaffected and the new value applies to the next cycle after a restart. THE EVIDENCE FOR THE RAISE (phase-85.4, re-derive it): scripts/diagnostics/measure_analysis_phase.py over backend.log projected the 08-06 and 08-07 cycles at 8554s and 8529s against a 7200s budget -- over by 1354s and 1329s -- at 6 tickers, semaphore 3, mean per-ticker wall clock 2310-2320s. Both died with exactly one ticker never analysed. The one cycle that DID complete (08-05) only fit because two of its six analyses failed fast into degraded placeholders; at its own healthy mean it projects to 7934s, also over. Completion rate on a healthy book in that window: 0 of 3. THE CAVEAT THAT MUST NOT BE LOST, stated in ask #23 itself: a longer budget on a genuinely HUNG cycle merely moves the silence. phase-85.4 ruled out a deadlock in the DISPATCH path with a test, but `_run_single_analysis` still has NO inner per-ticker timeout, so an unbounded hang inside one ticker remains possible; the completed-age alarm shipped by 85.4 is what makes that case loud within 96h either way. DO NOT pair this with lowering paper_analyze_top_n -- that narrows the funnel feeding trade selection and is the phase-82 cash-drag cause. RELATED AND UNRESOLVED: ask #24 (rail subprocess timeout 150 -> 210s, ~26% of rail time spent on calls timing out 5s short of succeeding) and ask #25 (paper_merged_analysis_dispatch_enabled, which on 08-07 idled one of three semaphore slots for 1923s -- LARGER than that cycle's 1329s overrun). Both are still OFF and both would reduce the need for a bigger budget rather than raise a ceiling; this step must state whether it still recommends them.",
+     "verification": {
+      "command": "bash -c 'source .venv/bin/activate && python -c \"from backend.config.settings import get_settings as g; print(g().paper_cycle_max_seconds)\"'",
+      "success_criteria": [
+       "the effective running value is 10800.0 in the BACKEND PROCESS, not merely in a fresh interpreter -- read it from the running process (or an endpoint it serves) and record the pid and its start time, since the setting is read at cycle start",
+       "at least one cycle completes end-to-end under the new budget and its wall-clock is recorded; if it still times out, the step reports that the raise was INSUFFICIENT rather than closing on the config change alone",
+       "the measured per-ticker mean and projected total are RE-DERIVED with scripts/diagnostics/measure_analysis_phase.py against cycles run AFTER the rail was repaired 2026-08-09 -- the 2310-2320s figure predates that fix and may no longer hold",
+       "the hung-cycle caveat is addressed explicitly: state whether _run_single_analysis still lacks an inner per-ticker timeout, and if so whether a longer outer budget increases the window in which a hang goes unnoticed",
+       "asks #24 (rail timeout 150 -> 210) and #25 (merged dispatch) are each re-evaluated against post-fix data and explicitly recommended or withdrawn -- a budget raise that leaves 26% of rail time being discarded is treating the symptom",
+       "no other setting changed; paper_analyze_top_n is NOT lowered; the .env backup is retained and referenced"
+      ],
+      "live_check": "live_check_86.9.md with the running-process value (pid + start time), the verbatim completion line of a cycle run under the new budget, and the re-derived per-ticker timing"
+     }
     }
    ]
   }
