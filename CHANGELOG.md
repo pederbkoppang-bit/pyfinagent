@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `10baa300` | phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full backend/tests run POSTs a real p... |
 | 2026-08-09 | `a083ef95` | docs(86.3): operator approved the close (ask #27) -- recorded as a decision, not a PASS |
 | 2026-08-09 | `cabfa812` | feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26) |
 | 2026-08-09 | `5d83f366` | phase-86.2: P1 TOTAL DISARM: one oversized JSON int aborts the entire kill-switch audit replay an... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `e0cd5a1d` | phase-36.27 cycle-2: fix both WARN findings from the pass-1 Q/A |
 | 2026-08-09 | `3d1f7a3f` | phase-36.27: live spawn proves the rail end-to-end (criterion 2) |
 | 2026-08-09 | `4e582e58` | fix(36.27): the Workflow runtime rejects Node imports AND trailing export lists |
-| 2026-08-09 | `22582714` | phase-36.27: put the Researcher gate on the Workflow rail |
 
 ---
 
+### v6.88.1 — phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full back... (2026-08-09)
+
+- **phase-86.3: P1 TEST SUITE PAUSES THE LIVE TRADING BOOK: any full backend/tests run POSTs a real p...**
 ### v6.88.0 — feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26) (2026-08-09)
 
 - **feat(ops): operator helper to re-issue CLAUDE_CODE_OAUTH_TOKEN (ask #26)**
