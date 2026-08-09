@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `688ac349` | fix(86.20): cycle-2 -- the dark flag was not dark; close the leak and add the oracle |
 | 2026-08-09 | `ad9a7d02` | phase-86.20: canonicalise the recommendation vocabulary at the trade gate (DARK) |
 | 2026-08-09 | `e38fe914` | phase-86.20: research gate PASSED + contract (written BEFORE any code) |
 | 2026-08-09 | `81644d61` | feat: file 86.22 (P1) -- the recommendation-vocabulary split is cross-module |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `8d736735` | docs(86.19): file the duplicate step ids -- id lookups resolve to the wrong node |
 | 2026-08-09 | `63bd6940` | docs(86.18): file the whole-file masterplan rewrite as its own step |
 | 2026-08-09 | `2fc107ea` | docs(36.17): restart done in-session -- fix is IN FORCE, verified on the running process |
-| 2026-08-09 | `f1ea7c5c` | fix(36.17): cycle-3 -- replace an illusory guard, close 3 surviving mutants |
 
 ---
 
+### v6.93.3 — fix(86.20): cycle-2 -- the dark flag was not dark; close the leak and... (2026-08-09)
+
+- **fix(86.20): cycle-2 -- the dark flag was not dark; close the leak and add the oracle**
 ### v6.93.2 — phase-86.20: canonicalise the recommendation vocabulary at the trade... (2026-08-09)
 
 - **phase-86.20: canonicalise the recommendation vocabulary at the trade gate (DARK)**
