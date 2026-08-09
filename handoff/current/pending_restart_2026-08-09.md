@@ -1,57 +1,86 @@
-# Pending backend restart -- 2026-08-09
+# Backend restarts -- 2026-08-09  [RESOLVED]
 
-Per CLAUDE.md, restarts are batched to SESSION END. Everything below is
-**COMMITTED BUT NOT IN FORCE**: the running process imported these modules
-before the change landed.
+**Nothing is owed. Both restarts were done in-session and verified against the
+RUNNING process.** This file is kept as the record.
 
-## Running process, measured
+## Restart 2 -- 36.17 exit-only stop-loss pass  [DONE 16:56:00Z]
 
-```
-$ ps -p 84494 -o lstart=
-søn.  9 aug. 17.08.05 2026        (= 15:08:05Z)
-```
+Done promptly after the fix rather than batched to session end, on the
+operator's instruction of 2026-08-09. Rationale, measured rather than assumed:
 
-## Owed by this session
+* The batching rule was written after a `bootout`+`bootstrap` race left the
+  backend down ~4 minutes. **That was the `bootout` verb, not restarting per
+  se.** `kickstart -k` restarts the process AND re-reads `backend/.env`; it does
+  not re-read plist `EnvironmentVariables`, which nothing here needed.
+* **Restarting while present is safer than restarting and walking away** -- the
+  end-of-session pattern is what produced an outage nobody noticed for minutes.
+* The only remaining work this session (86.17) touches `.claude/workflows/*.js`
+  and `scripts/qa/`, which the backend never imports -- so there was no second
+  backend-affecting change to batch with.
+* Until this restart the defect was LIVE: a halted cycle would still skip
+  stop-loss enforcement.
 
-| Change | Commit | Commit time | In force? |
-|---|---|---|---|
-| **36.17** exit-only stop-loss pass in the halt branch (`autonomous_loop.py`, +73) | `e98ca260` | 17:31:45 | **NO** -- 23 min after the process started |
-| 36.17 cycle-2 comment corrections (comment-only, no behaviour) | `6ca17793` | 17:47 | NO (irrelevant -- comments only) |
+**Preconditions checked before restarting:**
+* `handoff/.autonomous_loop.lock` -> `state: released`, and its pid was DEAD and
+  was NOT the backend pid. Lifetime 1.7s -- a pytest run, not a trading cycle
+  (see the disclosure below).
+* No cycle-step activity in `backend.log`.
+* The in-flight Q/A was allowed to land first, so a restart could not fail its
+  health probe and manufacture a spurious finding.
 
-**Consequence while un-restarted, stated plainly:** a `paused` or `blocked`
-cycle running under pid 84494 still returns before Step 5.6 and still does NOT
-enforce stop-losses. The defect 36.17 fixes is live until the restart.
-
-Mitigating fact: the kill switch currently reads `paused: false`, so the halt
-path is not being taken right now. The exposure is conditional on a halt
-occurring before the restart.
-
-## Already done this session (do NOT repeat)
-
-| Change | Action taken | Verified |
-|---|---|---|
-| `PAPER_CYCLE_MAX_SECONDS 7200 -> 10800` (`backend/.env`) | `launchctl kickstart -k` at 15:08Z | YES -- `/api/settings/` on the RUNNING backend returns `10800.0` |
-
-## Restart procedure
-
-`.env`-only changes need `kickstart -k` (it restarts the process, which re-reads
-`.env`). Only a **plist `EnvironmentVariables`** change needs `bootout`+`bootstrap`
--- and `bootout` is blocked by the 62.0 guard (away-ops rail 9, operator-reserved).
+**Result:**
 
 ```
-# 1. NEVER restart into a live cycle -- read the LOCK, never last_result:
-cat handoff/.autonomous_loop.lock        # require "state": "released"
-
-# 2. Restart:
-launchctl kickstart -k gui/$(id -u)/com.pyfinagent.backend
-
-# 3. Prove it took effect on the RUNNING process, not a fresh interpreter:
-launchctl list | grep com.pyfinagent.backend    # new pid
-curl -s localhost:8000/api/health
+old backend pid : 84494
+new backend pid : 6644          started 2026-08-09 18:56:00 local
+health          : ok            addr-in-use hits: 0
 ```
 
-## Post-restart check specific to 36.17
+**IN-FORCE PROOF (the claim that matters):**
 
-The fix is only exercised on a halted cycle, so a normal restart proves only
-that it imports. To prove it is IN FORCE, compare the running process's start
-time against `git log -1 --format=%cd e98ca260` -- start time must be LATER.
+```
+backend pid 6644 started : 2026-08-09 18:56:00
+fix commit e98ca260      : 2026-08-09 17:31:45
+started 5055s (84 min) AFTER the fix       -> IN FORCE
+file md5                 : 58bbf24bde4c5161ac05f26f70fb264e
+file mtime               : 2026-08-09 18:40:56   (< process start, so the
+                                                  process imported THIS content)
+```
+
+State survived the restart:
+
+```
+paused: False | armed: True | sod_date: 2026-08-09
+sod_nav: 23833.94 | peak_nav: 24666.57 | trailing_dd: 3.3755
+paper_cycle_max_seconds (RUNNING): 10800.0
+```
+
+## Restart 1 -- PAPER_CYCLE_MAX_SECONDS 7200 -> 10800  [DONE 15:08Z]
+
+`backend/.env` change. `kickstart -k` at 15:08Z, pid 24708 -> 84494. Verified by
+reading `10800.0` from `/api/settings/` on the RUNNING backend, not from a fresh
+interpreter.
+
+Note `scripts/ops/reissue_cc_oauth_token.sh --verify` **cannot pass any more**:
+it raises `KeyError: 'CLAUDE_CODE_OAUTH_TOKEN'` because neither plist carries
+that key now. The rail authenticates from the macOS Keychain
+(`Claude Code-credentials`). That is a BETTER state -- it is what 62.1.1 /
+85.3.3 asked for -- but the script is stale against it.
+
+## DISCLOSURE -- a test run wrote the LIVE cycle-lock file
+
+While checking restart preconditions I found `handoff/.autonomous_loop.lock`
+holding `cycle-1786294253`, released 16:50:54Z, **lifetime 1.7 seconds**, pid
+5851 (dead, and not the backend). That is a `pytest` run -- mine or the Q/A's --
+writing live cycle-lock state, which is exactly the filesystem channel step
+**86.6** exists to close.
+
+**Why my isolation checks missed it:** the file is **untracked/gitignored**, and
+my before/after md5 checks covered only the three GIT-TRACKED files
+(`kill_switch_audit.jsonl`, `cycle_history.jsonl`, `.cycle_heartbeat.json`).
+86.6's before/after digest set must span the whole live-state set, not just the
+tracked part.
+
+**Practical warning:** while tests run, this lockfile is NOT a reliable "is a
+cycle running" signal. Check the pid is alive AND equals the backend pid, and
+check the lifetime -- a ~1-2 second lifetime is a test, never a cycle.
