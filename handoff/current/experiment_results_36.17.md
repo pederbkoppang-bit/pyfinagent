@@ -1,10 +1,18 @@
 # Experiment results -- phase-36.17
 
 **Step:** 36.17 (P1) -- a halted cycle stops enforcing stop-losses.
-**Date:** 2026-08-09. **Cycle:** 190.
 **Contract:** `handoff/current/contract_36.17.md` (written BEFORE any code).
 **Research:** `handoff/current/research_brief_36.17.md` (gate PASSED, `wf_7b26264d-462`).
 **Operator decision:** option **(b)**, recorded in the contract §4 before GENERATE began.
+
+> **Structure note (cycle 6).** Cycles 2-5 grew four meta-sections narrating the
+> Q/A process. Each one added claims, anchors and numbers -- i.e. new attack
+> surface -- and the compounding was measured: a correct "3 of 44 anchors" became
+> wrong ("3 of 48") purely because the sentence reporting it added four more.
+> That narrative now lives where it belongs: verbatim verdicts in
+> `evaluator_critique_36.17.md`, cycle-by-cycle history in `handoff/harness_log.md`.
+> **This file states what was built and carries its proof.** §11 keeps only the
+> disclosures, which are not narrative.
 
 ---
 
@@ -13,42 +21,44 @@
 A **SELL-only, exit-only stop-loss pass inside the halt branch** of
 `run_daily_cycle`, before its `return summary`.
 
-**Placement:** after `trader.mark_to_market()` (so the stop comparison sees
-fresh prices) and before `trader.save_daily_snapshot()` (so the snapshot
-reflects any exit). `final_state` at that line is assigned but never read on the
-halt path, so inserting there introduces no staleness.
+**Placement:** after `trader.mark_to_market()` (so the stop comparison sees fresh
+prices) and before `trader.save_daily_snapshot()` (so the snapshot reflects any
+exit). `final_state` at that line is assigned but never read on the halt path --
+the halt-path assignment is the **first** of two, and every read of `final_state`
+sits below the **second**, hence below the halt's `return summary`. Stated as a
+RELATION rather than as line numbers, because the numbers are what broke twice.
 
-**CORRECTED IN CYCLE 2 (Q/A finding 1).** The first revision of this paragraph
-cited `:1697`/`:1776`/`:1792` as the output of `grep -n final_state`. **None of
-those three numbers reproduce** -- each was exactly 70 lines low, i.e. pre-insert
-values I never re-derived after my own +70-line change, in a step whose
-criterion 6 exists to prevent precisely that. Re-derived 2026-08-09, verbatim:
+**Scope guard:** `if not ks_check.get("triggered"):`. Used rather than a string
+comparison on `halt_reason` because `cycle_halt_reason` returns `"breach"` *iff*
+`ks_check.get("triggered")` is truthy -- the boolean is the authoritative source
+and cannot drift if the reason string is reworded.
 
-```
-$ grep -n "final_state" backend/services/autonomous_loop.py
-1429:                final_state = await asyncio.to_thread(trader.mark_to_market)
-1770:            final_state = await asyncio.to_thread(trader.mark_to_market)
-1849:                "nav": final_state["nav"],
-1850:                "pnl_pct": final_state["pnl_pct"],
-1865:            logger.info(f"Paper trading cycle complete: NAV=${final_state['nav']:.2f}, "
-1866:                         f"P&L={final_state['pnl_pct']:.2f}%, trades={trades_executed}, "
-```
+**Three deliberate omissions**, each mutation-tested in §7:
 
-Reading that output: the **first** assignment is the halt-path one; the
-**second** is the healthy-path re-assignment; and every **read** (`"nav"`,
-`"pnl_pct"`, and the two `logger.info` lines) sits below that second assignment,
-hence below the halt's `return summary`. So the halt-path value is never read.
-The engineering claim stands -- the Q/A independently confirmed it -- but its
-evidence was wrong and is now regenerated from live command output.
+1. **Does not run on the `triggered` (breach) path** --
+   `check_and_enforce_kill_switch` has already called `flatten_all`, so a second
+   pass would duplicate exits, fee events and learn-loop rows over positions that
+   no longer exist.
+2. **Does not call `backfill_missing_stops`.** Synthesizing a stop level is a NEW
+   risk decision (ESMA para 11(5)); the synthesized price
+   (`avg_entry_price * (1 - 8%)`) can land ABOVE the current mark, converting
+   "this position has no stop" into "sell it at market now" -- a flatten by side
+   effect on exactly the branches that deliberately do not flatten.
+3. **Does not append to `summary["steps"]`.** It records under the distinct key
+   `summary["halt_stop_loss_triggered"]`. Appending was measured to turn two
+   `test_phase_36_12...` tests (`:298` and `:374`) RED.
 
-**This paragraph deliberately states the RELATION (first / second / below)
-rather than repeating the numbers**, because the numbers are what broke twice.
-The relation is stable under any edit above it; the numbers are not.
+**Failure handling:** the pass is wrapped so an exception records
+`summary["halt_stop_loss_error"]` and logs at `exception` level, but never
+prevents the halt from completing -- the phase-85.4 loudness guards depend on the
+terminal `status`/`halt_reason` set above it. `return summary` remains the last
+statement, which is what suppresses BUYs on the `blocked` path (where the switch
+is not paused, so `execute_buy`'s own gate returns None).
 
-**Second correction (same class).** Both this artifact's predecessor and the
-test-module docstring claimed `check_stop_losses` has "exactly ONE production
-caller". **That is now false, and this change is what made it false.**
-Re-derived:
+**Caller count, re-derived.** Before this change `check_stop_losses` had exactly
+ONE production caller, which is what set severity: the cycle was the sole
+enforcement path, so a halted cycle had none. **This change is what made that
+statement stale** -- there are now two:
 
 ```
 $ grep -rn "trader.check_stop_losses" backend --include="*.py" | grep -v /tests/
@@ -57,72 +67,37 @@ backend/services/autonomous_loop.py:1544:            triggered_stops = await asy
 ```
 
 The command is narrowed to `trader.check_stop_losses` deliberately: the bare
-`check_stop_losses` pattern also matches the method DEFINITION in
-`paper_trader.py` and eight comment lines, so it does not answer "how many
-call sites". The cycle-2 Q/A flagged the earlier version of this block as
-**curated output presented under a `$` prompt** -- it showed 3 hand-picked,
-re-ordered lines with editorial arrows appended, out of 11 real ones. The
-block above is the unedited stdout of the command shown.
-
-**Two** call sites. The correct statement is "BEFORE this change there was
-exactly one caller, so a halted cycle had no enforcement layer at all." The
-comment at `autonomous_loop.py:1438` and the test docstring have both been
-amended to say that and to tell the reader to re-derive rather than trust them.
-
-**Scope guard:** `if not ks_check.get("triggered"):`. This is used rather than a
-string comparison on `halt_reason` because `cycle_halt_reason` returns `"breach"`
-*iff* `ks_check.get("triggered")` is truthy -- the boolean is the authoritative
-source and cannot drift if the reason string is ever reworded.
-
-**Three deliberate omissions**, each mutation-tested below:
-
-1. **Does not run on the `triggered` (breach) path** --
-   `check_and_enforce_kill_switch` has already called `flatten_all`, so a second
-   pass would duplicate exits, fee events and learn-loop rows over positions
-   that no longer exist.
-2. **Does not call `backfill_missing_stops`.** Synthesizing a stop level is a
-   NEW risk decision (ESMA para 11(5)); the synthesized price
-   (`avg_entry_price * (1 - 8%)`) can land ABOVE the current mark, converting
-   "this position has no stop" into "sell it at market now" -- a flatten by side
-   effect on exactly the branches that deliberately do not flatten, and a
-   violation of this step's own "no flatten on the blocked path" constraint.
-3. **Does not append to `summary["steps"]`.** Records under the distinct key
-   `summary["halt_stop_loss_triggered"]`. The brief measured that appending
-   turns `test_phase_36_12...:298` and `:374` RED.
-
-**Failure handling:** the pass is wrapped so an exception records
-`summary["halt_stop_loss_error"]` and logs at `exception` level, but never
-prevents the halt from completing -- the phase-85.4 loudness guards depend on
-the terminal `status`/`halt_reason` set above it. `return summary` remains the
-last statement, which is what suppresses BUYs on the `blocked` path (where the
-switch is not paused, so `execute_buy`'s own gate returns None).
+symbol also matches the method DEFINITION in `paper_trader.py` and eight comment
+lines, so it does not answer "how many call sites".
 
 ## 2. Files changed
 
-Measured with `git diff --stat e98ca260^ -- backend/ scripts/`:
+Derived from the step's own commits, not hand-listed:
 
 ```
- backend/services/autonomous_loop.py                |  73 +++
- .../test_phase_36_17_halt_stop_loss_enforcement.py | 545 +++++++++++++++++++++
- scripts/qa/verify_36_17_anchors.py                 | 268 ++++++++++
- 3 files changed, 886 insertions(+)
+$ git log --name-only --format= --grep="(36.17)" -- backend/ scripts/ | sort -u | grep -v '^$'
+backend/services/autonomous_loop.py
+backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py
+scripts/qa/mutation_matrix_36_17.py
+scripts/qa/verify_36_17_anchors.py
 ```
 
 | File | Change |
 |---|---|
-| `backend/services/autonomous_loop.py` | **the only production change** -- +73 lines, the exit-only pass inside the Step 5.5 halt branch. No other hunk, no other file. |
-| `backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py` | NEW -- 6 tests + 3 isolation fixtures. |
-| `scripts/qa/verify_36_17_anchors.py` | NEW (cycle 3) -- re-executes every quoted command block and checks every prose anchor by content. Carries `--self-test`. |
-| `handoff/current/contract_36.17.md` | NEW -- contract, incl. the recorded operator decision. |
-| `handoff/current/research_brief_36.17.md` | NEW -- research gate artifact. |
+| `backend/services/autonomous_loop.py` | **the only production change.** Two commits: `e98ca260` (+70, the exit-only pass) and `6ca17793` (+5/-2, comment-only). No other hunk, no other production file. |
+| `backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py` | NEW -- 8 tests + isolation fixtures. |
+| `scripts/qa/mutation_matrix_36_17.py` | NEW (cycle 6) -- the criterion-7 matrix, re-runnable, and it never writes to the repo. |
+| `scripts/qa/verify_36_17_anchors.py` | NEW (cycle 3) -- re-executes every quoted command block and checks prose anchors by content. Carries `--self-test`. |
 
-## 3. Criterion 1 + 2 -- REPRODUCE FIRST, recorded verbatim
+Contract, research brief and live_check are under `handoff/current/`.
 
-Two temporary tests asserting the DEFECT
-(`check_stop_losses.called is False`, `execute_sell.called is False`) were added
-and run **against the un-fixed tree**, with a position priced `41.0` against a
-`46.0` stop and `trader.check_stop_losses.return_value = ["WDC"]` set explicitly
-so the test can never be vacuous.
+## 3. Criteria 1 + 2 -- REPRODUCE FIRST, recorded verbatim
+
+Two temporary tests asserting the DEFECT (`check_stop_losses.called is False`,
+`execute_sell.called is False`) were added and run **against the un-fixed tree**,
+with a position priced `41.0` against a `46.0` stop and
+`trader.check_stop_losses.return_value = ["WDC"]` set explicitly so the test can
+never be vacuous.
 
 **PRE-FIX run (defect present):**
 
@@ -141,12 +116,10 @@ with the blocked-path failure reading verbatim:
 E       AssertionError: a blocked cycle did not check stop-losses (phase-36.17)
 E       assert False is True
 E        +  where False = <MagicMock name='mock.check_stop_losses' id='4710405792'>.called
------------------------------- Captured log call -------------------------------
-WARNING  backend.services.autonomous_loop:autonomous_loop.py:1404 Paper trading: kill-switch active (kill_switch_disarmed_lost_history) -- skipping decide/execute
 ```
 
-The 4 that passed pre-fix were: the **2 REPRODUCE tests** (defect confirmed on
-BOTH the `paused` and `blocked` paths), plus `triggered_path_is_unchanged` and
+The 4 that passed pre-fix were the **2 REPRODUCE tests** (defect confirmed on
+BOTH the `paused` and `blocked` paths) plus `triggered_path_is_unchanged` and
 `halt_summary_shape_is_preserved` (correct baselines).
 
 **POST-FIX run of the SAME file -- an exact inversion:**
@@ -157,17 +130,26 @@ FAILED backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py::test_REPROD
 2 failed, 4 passed, 3 warnings in 14.57s
 ```
 
-The temporary REPRODUCE tests were then removed (the suite must not carry a test
-asserting the broken behaviour is correct); the transcript above is preserved in
-the test module's header comment and here.
+The temporary REPRODUCE tests were then removed -- the suite must not carry a
+test asserting the broken behaviour is correct. The transcript above is preserved
+in the test module's header comment and here.
 
-**Final state of the file:**
+## 4. Criterion 3 -- the option chosen, and why
 
-```
-4 passed, 1 warning in 10.29s
-```
+**Option (b)**, decided by the operator on 2026-08-09 and recorded in
+`contract_36.17.md` §4 **before** GENERATE began: a stop-loss-only pass inside
+the halt branch, SELL-only, scoped to `paused` and `blocked`, excluding
+`backfill_missing_stops`, with `return summary` still last.
 
-## 4. Criterion 4 -- stops enforced AND no BUY
+(a) was rejected because it alters the healthy path (double exit plus fee and
+learn-loop duplication on a breach cycle) and runs the backfill everywhere. (c)
+was rejected because it is defensible only with a human watching, is empirically
+refuted by the MCX protective-order incidents, and is not free -- it would
+require building an operator stop-check tool and a halted-with-open-positions
+alert, neither of which exists. There is no silent fourth option: what shipped is
+(b) as written.
+
+## 5. Criterion 4 -- stops enforced AND no BUY
 
 Asserted in both enforcement tests:
 
@@ -179,14 +161,20 @@ Asserted in both enforcement tests:
 - `trader.backfill_missing_stops.called is False`
 - `state._paused is True` (the halt was not cleared)
 
-## 5. Criterion 5 -- `triggered` path unchanged, asserted against a fixture
+The no-BUY assertion is **falsifiable, not decorative**. As first written it
+could not fail -- `decide_trades` was stubbed to `[]`, making `execute_buy`
+structurally unreachable -- so the harness now stubs a real `TradeOrder` and
+patches `paper_trader._get_live_price`. Mutant **M1** in §7 (delete the halt's
+`return summary`) is the standing proof: it fires on `execute_buy.called`.
+
+## 6. Criterion 5 -- `triggered` path unchanged, asserted against a fixture
 
 `test_phase_36_17_triggered_path_is_unchanged` drives the real cycle with
 `KS_TRIGGERED` and asserts `check_stop_losses.called is False` and
-`"halt_stop_loss_triggered" not in summary`. This is a fixture-driven assertion,
-not a reasoned claim.
+`"halt_stop_loss_triggered" not in summary`. A fixture-driven assertion, not a
+reasoned claim. Mutant **M3** kills it.
 
-## 6. Criterion 6 -- line numbers RE-DERIVED at fix time
+## 7. Criterion 6 -- line numbers RE-DERIVED at fix time
 
 ```
 $ grep -n "return summary" backend/services/autonomous_loop.py | head -1
@@ -196,518 +184,279 @@ $ grep -n "Step 5.6: Stop-loss enforcement" backend/services/autonomous_loop.py
 ```
 
 **Read the RELATION, not the numbers:** the halt's `return summary` is the line
-IMMEDIATELY BEFORE the Step 5.6 header in the block above. The ordering is
-unchanged; the fix adds enforcement *inside* the halt branch rather than moving
-Step 5.6. That relation is what `scripts/qa/verify_36_17_anchors.py` asserts
-structurally, and it is the only form of this claim that cannot go stale. The masterplan step text's `:1334/:1336` and the
-pre-fix `:1437/:1439` are both superseded.
+IMMEDIATELY BEFORE the Step 5.6 header. The ordering is unchanged; option (b)
+adds enforcement *inside* the halt branch rather than moving Step 5.6. That
+relation is what `scripts/qa/verify_36_17_anchors.py` asserts structurally, and
+it is the only form of this claim that cannot go stale.
 
-## 7. Criterion 7 -- MUTATION TEST, both directions
+Superseded anchors, kept only to show the drift: the masterplan step text's
+`:1334/:1336` and the pre-fix tree's `:1437/:1439` are both **STALE** and do not
+reproduce.
 
-Harness asserts each target substring matches **exactly once** before mutating
-(a no-match `str.replace` looks identical to success), requires the un-mutated
-baseline to be GREEN first (else "killed" proves nothing), and restores + digest-
-verifies the file after every mutant.
+## 8. Criterion 7 -- MUTATION TEST, both directions
 
-Regenerated as a SINGLE run's stdout (cycle 4 finding: the previous block
-was a spliced composite -- a `[baseline] 4 passed` from the retired 4-test
-tree with the three cycle-3 cells hand-inserted, and a trailer line no run
-ever printed):
+**Cycle 6 made this re-runnable, which it was not before.** Cycles 1-5 used a
+scratch harness that was never committed, so the recorded transcript could not be
+regenerated by anyone -- and the artifacts drifted into recording a 9-cell run
+while claiming 11 cells. `scripts/qa/mutation_matrix_36_17.py` is now the
+authority, and the block below is one real run of it.
+
+The harness **never writes to the repository**: each mutant is applied in memory
+inside a throwaway subprocess that registers the mutated module in `sys.modules`
+before pytest imports anything. It asserts each anchor matches **exactly once**
+(a no-match `str.replace` is indistinguishable from success), requires a GREEN
+baseline first (a "killed" mutant proves nothing on a red tree), runs each cell
+against the WHOLE module so the transcript names the killing tests, and digests
+the target before and after.
 
 ```
+$ python scripts/qa/mutation_matrix_36_17.py
 phase-36.17 criterion 7 -- mutation matrix
-[baseline] un-mutated tree: 6 passed, 1 warning in 13.94s
-  KILLED  | M-D: `if sl_trade:` -> `if True:` (record an exit that never happened)
-           proves: Q/A cycle-3 survivor -- summary must not claim a stop it did not take
-           tests : test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced
-           result: 1 failed, 5 deselected, 1 warning in 5.47s
-  KILLED  | M-E: drop summary['halt_stop_loss_error'] (silent swallow)
-           proves: Q/A cycle-3 survivor -- a stop-loss failure must not be swallowed silently
-           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
-           result: 1 failed, 5 deselected, 1 warning in 5.33s
-  KILLED  | M-F: logger.exception -> logger.debug (downgrade the loudness)
-           proves: Q/A cycle-3 survivor -- paired with M-E; the error record is the assertable half
-           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
-           result: 1 failed, 5 deselected, 1 warning in 5.58s
+target   : backend/services/autonomous_loop.py
+md5      : 58bbf24bde4c5161ac05f26f70fb264e  (read-only; mutants are in-memory)
+[baseline] un-mutated tree: 8 passed, 1 warning in 14.96s
   KILLED  | M1: delete the halt's `return summary` (cycle falls through to decide/execute)
-           proves: criterion 4 no-BUY -- added after Q/A cycle 1; kills on execute_buy.called
-           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
-           result: 2 failed, 4 deselected, 1 warning in 7.42s
-  KILLED  | remove the breach-path exclusion (pass runs on EVERY halt reason)
+           proves: criterion 4 no-BUY -- the halt must return before Step 6
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops, test_phase_36_17_triggered_path_is_unchanged, test_phase_36_17_halt_summary_shape_is_preserved, test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
+           result: 5 failed, 3 passed, 1 warning in 16.50s
+  KILLED  | M2: ORDERING REVERTED: disable the exit-only pass entirely (pre-fix behaviour)
+           proves: criteria 1+2+7 -- moving the enforcement back must break the reproduce pair
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops, test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced, test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts, test_phase_36_17_the_halt_exit_is_a_FULL_exit_not_a_partial, test_phase_36_17_stops_are_checked_against_FRESH_marks
+           result: 6 failed, 2 passed, 1 warning in 15.48s
+  KILLED  | M3: remove the breach-path exclusion (the pass runs on EVERY halt reason)
            proves: criterion 5 -- the `triggered` path must stay observably unchanged
            tests : test_phase_36_17_triggered_path_is_unchanged
-           result: 1 failed, 5 deselected, 1 warning in 5.52s
-  KILLED  | ORDERING REVERTED: disable the exit-only pass entirely (pre-fix behaviour)
-           proves: criteria 1+2+7 -- moving the enforcement back must break the reproduce pair
-           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
-           result: 2 failed, 4 deselected, 1 warning in 7.77s
-  KILLED  | reintroduce backfill_missing_stops into the halt pass
-           proves: Q3 -- synthesizing a stop during a halt is a NEW risk decision
-           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
-           result: 2 failed, 4 deselected, 1 warning in 7.10s
-  KILLED  | append to summary["steps"] inside the halt branch
-           proves: measured collision with test_phase_36_12...:298 and :374
+           result: 1 failed, 7 passed, 1 warning in 15.37s
+  KILLED  | M4: reintroduce backfill_missing_stops into the halt pass
+           proves: research Q3 -- synthesizing a stop during a halt is a NEW risk decision
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops, test_phase_36_17_stops_are_checked_against_FRESH_marks
+           result: 3 failed, 5 passed, 1 warning in 14.56s
+  KILLED  | M5: append to summary["steps"] inside the halt branch
+           proves: measured collision -- two phase-36.12 tests pin summary['steps'][-1]
            tests : test_phase_36_17_halt_summary_shape_is_preserved
-           result: 1 failed, 5 deselected, 1 warning in 5.46s
-  KILLED  | drop the recorded ticker (silent enforcement, no audit surface)
-           proves: the exit must be reported in the summary, not just performed
-           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops
-           result: 2 failed, 4 deselected, 1 warning in 7.06s
-[restored] un-mutated tree: 6 passed, 1 warning in 14.05s
-ALL 9 MUTANTS KILLED. Every new guard can fail.
+           result: 1 failed, 7 passed, 1 warning in 13.83s
+  KILLED  | M6: drop the recorded ticker (silent enforcement, no audit surface)
+           proves: the exit must be REPORTED in the summary, not just performed
+           tests : test_phase_36_17_paused_cycle_enforces_preexisting_stops, test_phase_36_17_blocked_cycle_enforces_preexisting_stops, test_phase_36_17_the_halt_exit_is_a_FULL_exit_not_a_partial
+           result: 3 failed, 5 passed, 1 warning in 14.86s
+  KILLED  | M-D: `if sl_trade:` -> `if True:` (record an exit that never happened)
+           proves: Q/A cycle-3 survivor -- the summary must not claim a stop it did not take
+           tests : test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced
+           result: 1 failed, 7 passed, 1 warning in 14.38s
+  KILLED  | M-E: drop summary['halt_stop_loss_error'] (silent swallow)
+           proves: Q/A cycle-3 survivor -- a stop-loss failure must not be swallowed
+           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
+           result: 1 failed, 7 passed, 1 warning in 13.62s
+  KILLED  | M-F: logger.exception -> logger.debug (downgrade the loudness)
+           proves: paired with M-E; the log level is the half the summary key cannot carry
+           tests : test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts
+           result: 1 failed, 7 passed, 1 warning in 13.12s
+  KILLED  | MUT-B: `quantity=None` -> `quantity=1` (a ONE-SHARE exit reported as enforced)
+           proves: Q/A cycle-5 survivor -- a partial fill must not count as a full exit
+           tests : test_phase_36_17_the_halt_exit_is_a_FULL_exit_not_a_partial
+           result: 1 failed, 7 passed, 1 warning in 13.07s
+  KILLED  | MUT-C: delete the halt-path mark_to_market (stops compared against STALE marks)
+           proves: Q/A cycle-5 survivor -- §1 claims mark freshness as load-bearing
+           tests : test_phase_36_17_stops_are_checked_against_FRESH_marks
+           result: 1 failed, 7 passed, 1 warning in 13.92s
+[restored] un-mutated tree: 8 passed, 1 warning in 13.63s
+[integrity] target md5 unchanged: True (58bbf24bde4c5161ac05f26f70fb264e)
+ALL 11 MUTANTS KILLED -- every guard IN THIS MATRIX can fail.
 ```
 
-The "ORDERING REVERTED" mutant is the "**both directions**" half of criterion 7:
-reverting the enforcement to pre-fix behaviour turns the reproduce pair RED.
+**M2 is the "both directions" half of criterion 7**: reverting the enforcement to
+pre-fix behaviour turns the reproduce pair RED.
 
-## 8. Immutable verification command
+**Four of these eleven cells exist because a Q/A found them SURVIVING**, and two
+of those are money-path lies rather than style:
 
-> **Note on the `deselected` count.** It MOVES every time this step adds a test,
-> because `-k` deselects everything outside the filter. It read 2890 at cycle 1,
-> 2892 at cycle 4, 2894 now (cycle 5 added two). Cycles 4 and 5 both flagged a
-> stale value here. **The load-bearing numbers are `224 passed, 1 skipped,
-> exit 0`** -- those are stable and are what the criterion is about.
+- **M-D** -- `execute_sell` returns None when the position is already gone, so
+  the summary recorded a stop as ENFORCED when no sell occurred.
+- **MUT-B** -- `paper_trader.py:548` does
+  `sell_qty = quantity or position["quantity"]`, so a mutant passing
+  `quantity=1` liquidates **one share**, still returns a truthy trade record, and
+  the ticker is still appended. The book keeps essentially full exposure while
+  the summary reports the stop as ENFORCED. The M-D guard could not see it -- a
+  partial fill returns a trade record exactly like a full one. Closed by asserting
+  the **argument** (`quantity is None`), not the outcome.
+- **MUT-C** -- `check_stop_losses` compares `current_price`, which
+  `mark_to_market` refreshes, so deleting the halt-path mark runs the comparison
+  on **stale marks**. §1 claims freshness as load-bearing and it had zero covering
+  assertion. **My first guard for it also failed and I measured that rather than
+  assuming it**: there are two `mark_to_market` calls in the cycle and `.index()`
+  returns the first, so the assertion passed even with the halt-path call
+  deleted. Corrected to assert the **immediate predecessor** of
+  `check_stop_losses`.
+
+## 9. Immutable verification command
 
 ```
 $ source .venv/bin/activate && python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or autonomous_loop'
-224 passed, 1 skipped, 2894 deselected, 1 warning in 15.80s
+224 passed, 1 skipped, 2894 deselected, 1 warning in 15.93s
 ```
+
+exit code **0**, captured on the tree as committed at `d68f69e5`.
+
+> The `deselected` count MOVES every time this step adds a test, because `-k`
+> deselects everything outside the filter. **The load-bearing numbers are
+> `224 passed, 1 skipped, exit 0`.**
 
 The phase-36.12 module the brief flagged as a collision risk, run alone:
+`25 passed, 1 warning in 8.67s`.
+
+**Lint gate** (`qa.md` §1a), on a DERIVED file set, not a hand-typed one --
+`ruff check --select F821,F401,F811` over the 3 changed `.py` files:
+`All checks passed!`, exit 0.
+
+### 9b. The anchor verifier's own blind spots, carried into the evidence
+
+`scripts/qa/verify_36_17_anchors.py` re-executes every fenced `$ <cmd>` block it
+can run safely and **prints a `note:` for every one it cannot**. The cycle-5 Q/A's
+complaint was that those notes existed only on stdout, so a reader of the
+evidence never saw the holes. They are reproduced here verbatim:
 
 ```
-25 passed, 1 warning in 8.95s
+note: experiment_results_36.17.md: `python scripts/qa/mutation_matrix_36_17.py` not re-executable
+note: experiment_results_36.17.md: `source .venv/bin/activate && python -m pytest backend/tests/` not re-executable
+note: live_check_36.17.md: `source .venv/bin/activate && python -m pytest \` not re-executable
+note: live_check_36.17.md: `python -m pytest backend/tests/test_phase_36_17_halt_stop_lo` not re-executable
+note: live_check_36.17.md: `source .venv/bin/activate && python -m pytest backend/tests/` not re-executable
 ```
 
-## 9. Isolation -- measured, not asserted
+So **five blocks in this evidence set are not machine-verified**: the mutation
+matrix and four pytest captures. pytest is deliberately excluded because
+re-running it from inside the verifier is slow and **unsafe concurrently** -- the
+module's autouse fixtures byte-compare live files, so a second pytest run turns
+the first RED (measured: a false `3 failed`). Both remaining checks (B and C)
+pass, and the run exits 0.
 
-The new module carries `_live_audit_file_is_write_protected` (autouse byte
-comparison of the live `handoff/kill_switch_audit.jsonl`), `captured_alerts`
-(intercepts `raise_cron_alert_sync`, which posts to the operator's REAL Slack
-with no test guard), a `cycle_health.get_log` stub, and
-`settings.news_screen_enabled = False` + mocked `AnalysisOrchestrator` (an
-unstubbed run makes a REAL ~150s LLM call).
+**The counts are deliberately NOT quoted here.** The verifier prints its own
+block count and anchor recall, and those move every time this artifact is
+edited -- that is precisely how a correct "3 of 44" became a wrong "3 of 48" in
+cycle 5. **Run the tool for the current figures.**
 
-md5 of the three git-tracked handoff files, before and after the reproduce run:
+## 10. Isolation -- measured over the WHOLE live-state set, and one leak found and closed
+
+Cycles 1-5 recorded md5s of **three git-tracked** handoff files and reported
+isolation held. That was true but **narrower than it sounded**: it excluded
+`handoff/.autonomous_loop.lock`, which is **untracked** -- and which this module
+was actually writing.
+
+**Measured, twice, and attributed to this module alone:** running only this test
+file rewrote the live lock, leaving the pytest process's own pid in it:
 
 ```
-before: 685bf1a5fd7beaa4f15da2babf133ca2  handoff/kill_switch_audit.jsonl
-        6bc251737c8145e0b3891ed1cc5d4b2c  handoff/cycle_history.jsonl
-        8319fc52d0f8a8cbb9959828e498d308  handoff/.cycle_heartbeat.json
-after:  685bf1a5fd7beaa4f15da2babf133ca2  (identical)
-        6bc251737c8145e0b3891ed1cc5d4b2c  (identical)
-        8319fc52d0f8a8cbb9959828e498d308  (identical)
+before run: 0e9d824adc075e7a250ebf329eafea45
+after  run: c4cd2da2fba6a7a005f7d2d6410d48f6
+lock content after: {"pid": 22914, "cycle_id": "cycle-1786300366", ...,  "state": "released"}
 ```
 
-## 10. What I could NOT verify, stated plainly
+Cause: these tests drive the **real** `run_daily_cycle`, which acquires the real
+`cycle_lock`. Consequences, stated at their true size:
 
-- **No live cycle has exercised this path.** The fix is proven against the real
-  `run_daily_cycle` in-process with a mocked `PaperTrader`, not against a live
-  halted cycle with a real position below its stop. Producing that live evidence
-  would require deliberately halting the book, which is an operator action and
-  was not taken. The live_check for this step is therefore the verbatim test
-  output above, which is what the criterion asks for.
-- **`check_stop_losses` silently no-ops on a NULL stop or a 0/None price**
+- It **cannot** steal a live cycle's lock. phase-85.5 deleted the
+  stale-reacquire branch, so contention simply raises.
+- It **can** make a scheduled cycle raise `CycleLockError` and be skipped while a
+  test holds the lock, and it pollutes the operator's live-state forensics -- a
+  dead pid with a ~2s lifetime in that file is exactly what made an earlier
+  session misread "is a cycle running?".
+
+**Closed** by redirecting `cycle_lock._LOCK_PATH` to `tmp_path`, plus an autouse
+byte-comparison guard so removing the redirect can never be a silent regression.
+**The guard is proven able to fail** -- with the redirect removed:
+
+```
+E       AssertionError: phase-36.17: a test in this module wrote to the LIVE cycle lock
+        /Users/ford/.openclaw/workspace/pyfinagent/handoff/.autonomous_loop.lock.
+        Redirect cycle_lock._LOCK_PATH to tmp_path.
+E       assert b'{"pid": 233...: "released"}' == b'{"pid": 229...: "released"}'
+```
+
+The test file was restored byte-identically afterwards (md5
+`d8bfb1ff2ee4554d67e9dfe6cc1fdf5d` before and after that demonstration).
+
+**After the fix, the whole live-state set is byte-identical across a full run**
+(these digests are point-in-time and are NOT re-executable evidence -- the live
+backend writes two of these files on its own schedule):
+
+```
+handoff/kill_switch_audit.jsonl   685bf1a5fd7beaa4f15da2babf133ca2   identical after
+handoff/cycle_history.jsonl       6bc251737c8145e0b3891ed1cc5d4b2c   identical after
+handoff/.cycle_heartbeat.json     d4a8ba2de8f35348e4df8f775b6a254d   identical after
+handoff/.autonomous_loop.lock     ee1ba590743c0cfe00cc72848d5a3260   identical after   <- was leaking
+handoff/away_ops/health.jsonl     1e27da828e5f68581c0f94da49ba671e   identical after
+```
+
+**Scope, stated so it is not over-read:** this closes the leak for THIS module.
+Whether other test modules take the live lock is **not** claimed here -- that
+sweep is phase-86.6's, and this is a reproducible instance for it.
+
+The module also carries `captured_alerts` (intercepts `raise_cron_alert_sync`,
+which posts to the operator's REAL Slack with no test guard), a
+`cycle_health.get_log` stub, `settings.news_screen_enabled = False` and a mocked
+`AnalysisOrchestrator` (an unstubbed run makes a REAL ~150s LLM call).
+
+## 11. Disclosures -- self-reported; no automated check would have surfaced these
+
+1. **A tool timeout once left a mutant in the production file** for ~4 minutes
+   during cycle 3. Never committed; never executed by any running process
+   (the backend had already imported the module). Restored byte-identically
+   against `git show`, verified by digest. **Structurally prevented now:** the
+   cycle-6 harness never writes to the repo at all.
+2. **The cycle-4/5 mutation runs mutated the live production file eleven times
+   while an ARMED backend was running.** No harm occurred, and the reason is
+   mechanism not luck -- CPython serves an imported module from `sys.modules`
+   and never re-reads the file. But a restart inside any of those windows would
+   have imported a mutant into an armed trading process. **This is the hazard
+   the cycle-6 harness was written to remove.**
+3. **A false regression was nearly reported.** A pytest run showed `3 failed`;
+   it was a concurrency artifact of a second pytest run tripping the autouse
+   live-audit fixture. A clean re-run was green. pytest re-execution was
+   therefore removed from the anchor verifier: a guard that manufactures false
+   regressions is worse than one with a declared gap.
+
+## 12. What I could NOT verify, stated plainly
+
+- **No live cycle has exercised this path.** All evidence is in-process against
+  the real `run_daily_cycle` with a mocked `PaperTrader`. Producing live evidence
+  means deliberately halting the book -- an operator action, not taken. The
+  step's live_check asks for verbatim test output, which is what is recorded.
+- **`check_stop_losses` still silently no-ops on a NULL stop or a 0/None price**
   (`if stop and current`, `paper_trader.py:804`). A halted book whose positions
-  have NULL stops still gets nothing, even with this fix. That is a real
-  residual gap, deliberately NOT closed here (closing it would mean backfilling,
-  which §1 rejects). The brief's recommendation is to ALERT on NULL stops during
-  a halt; that is queued separately rather than smuggled into this step.
+  have NULL stops still gets nothing, even with this fix. Deliberately NOT closed
+  here -- closing it means backfilling, which §1 rejects. The recommendation is
+  to ALERT on NULL stops during a halt; queued separately, not smuggled in.
 - **The Step 5.4 scale-out ordering hazard is untouched** -- a different defect
   class (commission, not omission), currently DARK
-  (`paper_scale_out_enabled=False`, `settings.py:35`). Queued as its own step
-  per the brief's recommendation; bundling it would change the documented
-  MTM-freshness ordering at `:1377-1379` without its own analysis.
-- **The Knight Capital 2012 SEC order could not be fetched** (403) and is
-  cited nowhere in the contract or here.
+  (`paper_scale_out_enabled=False`, `settings.py:35`). Queued as its own step.
+- **The anchor verifier cannot check quotations of its own output.**
+  Self-invocation recurses, so blocks quoting it sit in its one structural blind
+  spot; they are labelled ABRIDGED where they appear. This is unsolved in
+  general -- run the tool for authoritative output.
+- **`scripts/qa/mutation_matrix_36_17.py` mutates only
+  `autonomous_loop.py`.** The test-isolation guard added in §10 is proven
+  falsifiable by the recorded manual demonstration, not by a matrix cell.
+- **The Knight Capital 2012 SEC order** could not be fetched (403) and is cited
+  nowhere.
 
----
+## 13. Cycle history
 
-## 11. Cycle 2 -- what the Q/A found, and what I changed
+Five prior Q/A cycles: CONDITIONAL, FAIL, FAIL, CONDITIONAL, CONDITIONAL. The
+production code has been correct and **byte-identical since cycle 2** (md5
+`58bbf24bde4c5161ac05f26f70fb264e`, confirmed by four separate Q/A passes) and is
+IN FORCE. Every remaining finding was about evidence quality.
 
-Cycle-1 verdict: **CONDITIONAL** (`wf_6bc4c0a4-d9c`), transcribed verbatim in
-`handoff/current/evaluator_critique_36.17.md`. All 7 immutable criteria were
-judged MET and independently re-verified by the Q/A; the cap came from two
-evidence defects, not from the fix.
+- Verbatim verdicts: `handoff/current/evaluator_critique_36.17.md`.
+- Cycle-by-cycle history: `handoff/harness_log.md`.
 
-### Finding 1 (WARN) -- stale line anchors presented as re-derived evidence
-
-Corrected in §1 above, in `backend/services/autonomous_loop.py:1438`, and in the
-test module docstring. All three now carry the re-derivation command instead of
-a bare number. This was a fair hit: the step's own criterion 6 exists to prevent
-it, and I still shipped three stale anchors, all broken by my own +70-line
-insertion.
-
-### Finding 2 (NOTE) -- mis-attributed kill mechanism (vacuity shape #11)
-
-The Q/A proved that `assert trader.execute_buy.called is False` **could not
-fail** in this harness: `decide_trades` was stubbed to `[]`, so `execute_buy`
-was structurally unreachable even on a full fall-through, and the no-BUY
-invariant was actually carried by its sibling `assert decide.called is False`.
-
-**I did not take the annotate-only remedy. I made the assertion falsifiable --
-and my first attempt at that FAILED, which I measured rather than assumed:**
-
-1. First attempt: stub `decide_trades` with a **dict**-shaped order. Re-ran the
-   M1 mutation (delete the halt's `return summary`). Result: `execute_buy.called
-   is False` **still passed**; `decide.called is False` was still the killer. A
-   dict stub does not restore falsifiability.
-
-   **MECHANISM CORRECTED (cycle-2 Q/A, NOTE).** My first write-up said the dict
-   "is skipped by `continue`". That is wrong, and the Q/A measured it: the buy
-   loop reads `order.action` as an **attribute**, so a dict raises
-   `AttributeError: 'dict' object has no attribute 'action'`, which is absorbed
-   by an outer handler that **aborts the remainder of the cycle**. The dict never
-   reaches the `continue` at all. The observed outcome and the conclusion are
-   unchanged -- and the corrected mechanism is a *stronger* argument for using
-   the real dataclass, because the dict path does not merely skip the order, it
-   kills the rest of the cycle.
-2. Second attempt: a real `TradeOrder` dataclass from
-   `backend.services.portfolio_manager`, plus a monkeypatch of
-   `backend.services.paper_trader._get_live_price` (required -- `:1713` does a
-   LIVE yfinance fetch before the buy, which would have made this test do real
-   network I/O). Re-ran M1. Result, verbatim:
+**IN FORCE proof** (content-last-changed, not mtime -- mtime is not durable, and
+a same-content rewrite by a mutation run pushed it past process start, making the
+old proof read backwards): production content last changed at commit `6ca17793`,
+**2026-08-09 17:54:37 +0200**; the running backend is **pid 6644, started
+18:56:00**. Content change precedes process start, and the tree is clean at the
+unchanged md5:
 
 ```
->       assert trader.execute_buy.called is False, "a BUY was placed on a halted cycle"
-E       AssertionError: a BUY was placed on a halted cycle
-E       assert True is False
-E        +  where True = <MagicMock name='mock.execute_buy' id='4733246768'>.called
-```
-
-`execute_buy.called` now fires **before** `decide.called`, so criterion 4's
-no-BUY assertion is the load-bearing guard rather than a passenger. M1 is now a
-permanent cell in the matrix (§7), taking it from 5 mutants to 6.
-
-### Re-verification after the cycle-2 changes
-
-```
-$ python -m pytest backend/tests/ -q -k 'kill_switch or paper_trader or autonomous_loop'
-224 passed, 1 skipped, 2890 deselected, 1 warning in 16.03s
-
-$ python -m pytest backend/tests/test_phase_36_12_kill_switch_trading_path_block.py -q
-25 passed, 1 warning in 8.67s
-
-$ python -m pytest backend/tests/test_phase_36_17_halt_stop_loss_enforcement.py -q
-4 passed, 1 warning in 9.74s
-```
-
-### One isolation detail, stated so it is not mistaken for a leak
-
-`handoff/.cycle_heartbeat.json` now digests `eea37b489ebbf797240dd9a22c23151d`,
-where §9 recorded `8319fc52d0f8a8cbb9959828e498d308`. **That is the live backend
-writing heartbeats** (it was restarted at 15:08Z, pid 84494), not a test write.
-Measured before/after **within** the cycle-2 run, all three files are identical:
-
-```
-before: 685bf1a5fd7beaa4f15da2babf133ca2  kill_switch_audit.jsonl
-        6bc251737c8145e0b3891ed1cc5d4b2c  cycle_history.jsonl
-        eea37b489ebbf797240dd9a22c23151d  .cycle_heartbeat.json
-after:  685bf1a5fd7beaa4f15da2babf133ca2  (identical)
-        6bc251737c8145e0b3891ed1cc5d4b2c  (identical)
-        eea37b489ebbf797240dd9a22c23151d  (identical)
-```
-
-### What cycle 2 did NOT change
-
-No production behaviour. The only `autonomous_loop.py` change is a corrected
-comment (5 insertions, 2 deletions, all comment lines). The exit-only pass, its
-scope guard, the backfill exclusion and the summary key are byte-identical to
-what the Q/A graded.
-
----
-
-## 12. Cycle 3 -- the guard I shipped was illusory, and three mutants survived
-
-Cycle-2 verdict: **FAIL** (`wf_73b4ae3d-73b`), verbatim in
-`evaluator_critique_36.17.md`. Criteria 1-5 and 7 were re-verified as MET; the
-FAIL was criterion 6 for the second consecutive cycle. Cycle 3 then FAILED again
-(`wf_4bf499e6-0e4`) on the same criterion plus two more findings. What follows is
-what each found and what changed.
-
-### 12a. Criterion 6, third occurrence -- and I had regenerated the blocks
-
-Cycle 3 measured that `experiment_results` §6 and `live_check` §2 still asserted,
-**in the present tense**, the now-STALE cycle-1 pair `:1507` / `:1509` (both
-superseded; they do not reproduce) -- sitting two-to-four lines BELOW the
-correctly regenerated grep block that said `1510`/`1512`. I had regenerated the
-*blocks* and left the *prose*.
-
-**Fix:** both sites now state the RELATION -- "the halt's `return summary` is the
-line immediately before the Step 5.6 header" -- and cite no number at all. That
-claim cannot go stale, and it is the form
-`scripts/qa/verify_36_17_anchors.py` asserts structurally.
-
-### 12b. The anchor verifier was an ILLUSORY GUARD -- the most serious finding
-
-Cycle 3 executed my v1 verifier against a synthetic artifact whose every anchor
-was wrong-but-in-bounds. It printed **"ALL ANCHOR CHECKS PASSED", rc=0**. Three
-independent defects in one script:
-
-1. `CHECKED` was left `{}`, so the only per-anchor assertion was `n > nlines` --
-   a BOUNDS check. All three real defects (-70, -3, -3) were **in bounds**, so
-   v1 could never have caught any of them.
-2. It hard-coded `1507`/`1509` into its `HISTORICAL` exemption set -- it exempted
-   precisely the numbers that were wrong, instead of correcting the prose that
-   asserted them as live.
-3. Its docstring claimed it verified "content still matches what the artifact
-   says it is". The code never did that.
-
-I also reported it to the Q/A as "mutation-proven". That was true of its two
-STRUCTURAL checks and false of the anchor check -- a claim narrower than it
-sounded, which is the failure mode this project's own memory warns about.
-
-**v2 replaces it and is proven to fail.** It (A) re-executes fenced `$ <cmd>`
-blocks and requires a match against live stdout; (B) asserts the ordering
-relation and the call-site count with no numbers; and (C) checks prose anchors by
-CONTENT, with a cross-file guard and nearest-symbol resolution to avoid false
-positives that would train a reader to ignore it.
-
-**Its coverage is PARTIAL, and the tool now REPORTS ITS OWN RECALL** rather than
-having a number hand-copied into prose. Cycle 4 flagged the wording "checks each
-prose anchor by CONTENT" as an overgeneralization; I replaced it with "3 of 44
-(7%)" -- and cycle 5 measured that as **3 of 48 (6.25%)**, because the text I
-added to REPORT the number created four more anchors. A hand-computed ratio in an
-artifact is stale the moment the artifact is edited, which is the criterion-6
-defect wearing a different hat.
-
-So the fix is structural: `check_loose_anchors` prints
-`C. loose prose anchors: N of M content-checked (X% recall)`. **Run the tool for
-the current figure.** The skipped remainder is by design -- cross-file anchors,
-anchors carrying a staleness marker, and anchors about symbols outside the
-6-entry `SYMBOL_HINTS`. What v2 does guarantee is
-narrower and worth stating exactly: **it rejects the two shapes that actually
-shipped defects here** -- a wrong-but-in-bounds prose anchor, and a curated /
-re-ordered command block -- and `--self-test` proves both rejections.
-
-**Known gaps, REPORTED by the tool rather than hidden.** Every block it cannot
-re-execute is printed as a `note:` line, so a reader sees the hole. pytest blocks
-are deliberately NOT re-executed: it is slow, and it is **unsafe concurrently** --
-the module's autouse `_live_audit_file_is_write_protected` fixture byte-compares
-a live file, so a second pytest run turns the first RED. Measured during cycle 4:
-a foreground run reported `3 failed` / `6 failed` purely because the verifier was
-running pytest in the background. A guard that manufactures false regressions is
-worse than one with a declared gap. Blocks invoking the verifier itself are also
-not re-executed -- that recursed and had to be killed. `--self-test` runs it against a wrong-but-in-bounds artifact and a
-curated block and requires REJECTION of both, plus ACCEPTANCE of a correct block:
-
-```
-$ python scripts/qa/verify_36_17_anchors.py --self-test
-   (i)  wrong-but-in-bounds prose anchor -> REJECTED
-   (ii) curated command block            -> REJECTED
-   (iii) correct command block           -> ACCEPTED
-SELF-TEST PASSED
-```
-
-> **ABRIDGED, not verbatim.** This quotes the verifier's own stdout, which the
-> verifier cannot re-execute (self-invocation recurses), so it sits in the one
-> blind spot the tool cannot close. Header and `note:` lines are omitted for
-> brevity. **Run the tool for the authoritative output.**
-
-
-### 12c. Criterion 7 -- three mutants survived my 6-cell matrix
-
-Cycle 3 ran its own matrix and found three survivors, all reported as `4 passed`:
-
-| Mutant | Why it mattered |
-|---|---|
-| **M-D** `if sl_trade:` -> `if True:` | `execute_sell` returns None when the position is already gone, so the mutant records a stop as **ENFORCED in the summary when no sell occurred**. For this defect specifically, that is the worst possible lie. |
-| **M-E** drop `summary["halt_stop_loss_error"]` | a stop-loss failure swallowed silently |
-| **M-F** `logger.exception` -> `logger.debug` | the failure downgraded to a whisper |
-
-Root cause: **no test drove `check_stop_losses` to raise**, so the entire
-fail-safe/loudness path that §1 "Failure handling" positively claims had zero
-covering assertion.
-
-Two new tests close all three:
-
-- `test_phase_36_17_a_failed_sell_is_not_recorded_as_enforced` -- `execute_sell`
-  returns `None`; asserts the exit was ATTEMPTED but `halt_stop_loss_triggered`
-  stays empty. Attempted != enforced.
-- `test_phase_36_17_a_raising_stop_pass_stays_loud_and_still_halts` --
-  `check_stop_losses` raises; asserts the halt still completes with
-  `status="halted_kill_switch"`, that `decide_trades` never ran, that
-  `halt_stop_loss_error` carries the exception, **and** that something was logged
-  at ERROR or above (the `caplog` assertion is what kills M-F; the summary key
-  alone cannot distinguish a logged failure from a whispered one).
-
-Matrix is now **9 cells, 9 killed**.
-
-### 12d. Re-verification after cycle 3
-
-```
-$ python scripts/qa/verify_36_17_anchors.py --self-test    -> SELF-TEST PASSED
-$ python scripts/qa/verify_36_17_anchors.py                -> ALL CHECKS PASSED
-```
-
-> **ABRIDGED, not verbatim.** This quotes the verifier's own stdout, which the
-> verifier cannot re-execute (self-invocation recurses), so it sits in the one
-> blind spot the tool cannot close. Header and `note:` lines are omitted for
-> brevity. **Run the tool for the authoritative output.**
-
-
-### 12e. What cycle 3 did NOT change
-
-**No production behaviour.** `backend/services/autonomous_loop.py` is
-byte-identical to commit `d057f127`. Everything in cycle 3 is tests, the
-verifier, and prose.
-
-### 12f. DISCLOSURE -- I left a mutant in the production file for ~4 minutes
-
-Self-reported; no automated check would have surfaced this, and the tree is
-clean now, so it is recorded rather than left silent.
-
-During cycle 3 a 2-minute tool timeout sent SIGTERM to the mutation harness
-**mid-mutation**. The harness restores inside its loop, but that never runs if
-the process is killed between the write and the restore, so
-`backend/services/autonomous_loop.py` was left carrying the
-`summary["steps"].append("stop_loss_enforcement")` mutant.
-
-**How it was caught:** the new anchor verifier started reporting anchor
-mismatches (`:1544` resolving to `)`) because the injected line shifted every
-anchor below it by one. It was detecting a live tree/artifact inconsistency --
-which is what it is for -- and that is what led me to `git status`.
-
-**Blast radius, measured:** the mutant existed only in the working tree, was
-never committed (`git diff --stat d057f127` showed `1 insertion`), and the
-backend running as pid 84494 loaded this module at 15:08Z and has not reloaded,
-so no running process ever executed it.
-
-**Restored precisely, not with a blanket checkout:** the single line was removed
-and the result asserted **byte-identical to the committed blob**
-(`git show d057f127:backend/services/autonomous_loop.py`), md5
-`58bbf24bde4c5161ac05f26f70fb264e` -- the same digest the cycle-3 Q/A
-independently reported for this file across cycle 2, cycle 3 and the worktree.
-(A `git checkout --` was attempted first and correctly BLOCKED by the 62.0
-PreToolUse guard, which refuses file-level checkouts that silently discard
-working-tree edits.)
-
-**Fixed so it cannot recur:** the harness now registers `atexit` plus
-`SIGTERM`/`SIGINT`/`SIGHUP` handlers that restore before exiting. Proven by
-deliberately killing a run mid-matrix:
-
-```
-!! signal 15 received -- production file RESTORED before exit
-$ git status --porcelain backend/services/autonomous_loop.py     # (empty)
+$ md5 -q backend/services/autonomous_loop.py
 58bbf24bde4c5161ac05f26f70fb264e
 ```
-
----
-
-## 13. Cycle 4 -- CONDITIONAL, and what it corrected
-
-Cycle-4 verdict: **CONDITIONAL** (`wf_fcd27ea5-48c`), verbatim in
-`evaluator_critique_36.17.md`. **All 7 immutable criteria substantively MET**,
-re-derived by execution; the criterion-6 stale-anchor defect that caused two FAILs
-is **CLOSED** and was verified three independent ways; and the v2 verifier was
-confirmed **NOT illusory** (self-test passes, live run exits 0, and it rejects
-both historical defect shapes after 5 adversarial defeat attempts).
-
-Three findings remained, all evidence PRESENTATION, none touching the fix:
-
-1. **Stale immutable-command capture.** Recorded `2890 deselected`; live gives
-   `2892` -- stale by exactly the two tests cycle 3 added. The artifact set even
-   contradicted itself (live_check §7b already had `2892`). **Regenerated from a
-   real run in both artifacts.**
-2. **The mutation-matrix block was a spliced composite, not a transcript.** It
-   carried `[baseline] 4 passed` from the retired 4-test tree with the three
-   cycle-3 cells hand-inserted and a trailer line no run ever printed; live_check
-   showed `[baseline] 4 passed` and `[restored] 6 passed` inside one fence, which
-   is impossible for a single run. **Both blocks replaced with one real run's
-   stdout** -- baseline 6 passed, 9 cells each with its own result line and
-   deselect counts consistent with a 6-test tree, restored 6 passed.
-3. **Overgeneralized coverage claim.** Corrected in §12b with the measured 3-of-44
-   (7%) recall and an explicit list of what the verifier does and does not cover.
-
-The Q/A's sharpest observation: the guard's blind spot and the shipped evidence
-defects **coincided exactly** -- neither a `$ python -m pytest` block nor a block
-with no `$` prompt was ever re-executed. v2 now re-executes any `$ <cmd>` block
-it can run safely and **prints a `note:` for every one it cannot**, so the gap is
-visible instead of silent.
-
----
-
-## 14. Cycle 5 -- two MONEY-PATH mutants survived, and both are now closed
-
-Cycle-5 verdict: **CONDITIONAL** (`wf_7bdf5300-602`), verbatim in
-`evaluator_critique_36.17.md`. All 7 criteria MET; harness compliance clean;
-production code confirmed byte-identical since cycle 2; **the IN-FORCE claim
-CONFIRMED** (on better evidence than I had given -- see below).
-
-### 14a. The finding that mattered: two surviving mutants at the money path
-
-Both confirmed non-equivalent **at source** before any guard was written.
-
-**MUT-B -- `quantity=None` -> `quantity=1` SURVIVED.** `paper_trader.py:539`
-documents "If quantity is None, sells entire position", and `:548` does
-`sell_qty = quantity or position["quantity"]`. So a mutant passing `quantity=1`
-liquidates **one share**, still returns a truthy trade record, and the ticker is
-**still appended to `halt_stop_loss_triggered`**. The book keeps essentially full
-exposure while the summary reports the stop as ENFORCED. That is the same
-lie-shape as M-D -- and the M-D guard could not see it, because a partial fill
-returns a trade record exactly like a full one. Closed by
-`test_phase_36_17_the_halt_exit_is_a_FULL_exit_not_a_partial`, which asserts the
-**argument** (`quantity is None`) rather than the outcome.
-
-**MUT-C -- deleting the halt-path `mark_to_market` SURVIVED.**
-`check_stop_losses` compares `pos.get("current_price", 0)`, which
-`mark_to_market` refreshes, so removing it runs the stop comparison on **stale
-marks** -- a position that crossed its stop since the last mark would not be
-exited. §1 makes freshness a positive, load-bearing claim and it had **zero**
-covering assertion (the trader is a MagicMock, so the fixture cannot represent
-price staleness; only call ORDER distinguishes the two).
-
-**My first guard for MUT-C did not work, and I measured that rather than
-assuming it.** It asserted
-`names.index("mark_to_market") < names.index("check_stop_losses")`. The real call
-order is:
-
-```
-roll_daily_anchor, get_positions, mark_to_market, check_scale_out_fires,
-check_and_enforce_kill_switch, mark_to_market, check_stop_losses, execute_sell,
-save_daily_snapshot
-```
-
-There are **two** `mark_to_market` calls (indices 2 and 5). `.index()` returns the
-FIRST, so the assertion passed even with the halt-path call deleted -- the guard
-stopped one seam short. The corrected version asserts the **immediate
-predecessor** of `check_stop_losses` plus the presence of a mark between the
-kill-switch evaluation and the stop check. It kills MUT-C.
-
-**Matrix is now 11 cells, 11 killed** (single real run, `[baseline] 8 passed` ->
-`[restored] 8 passed`).
-
-### 14b. The in-force proof was rewritten -- my own evidence had gone backwards
-
-The original proof rested on `file mtime < process start`. **That line no longer
-reproduces and now reads the WRONG WAY**: my later mutation runs rewrote the file
-with identical content, pushing mtime to 19:14:49, which is AFTER the 18:56:00
-process start, and the `.pyc` was recompiled too, so import-time mtime evidence is
-destroyed and not re-derivable by anyone. Corrected in
-`pending_restart_2026-08-09.md` to rest on **content-last-changed** (commit
-`6ca17793`, 17:54:37) < **process start** (18:56:00) + a clean tree at the
-unchanged md5. Conclusion unchanged and independently confirmed by the Q/A; the
-supporting evidence is now durable.
-
-### 14c. Second disclosure the Q/A extracted from me
-
-§12f bounded the SIGTERM incident's blast radius against the OLD pid only. It
-gave no equivalent for what followed: **the cycle-4/5 mutation runs mutated the
-live production file eleven times while pid 6644 -- an ARMED backend -- was
-running.** No harm occurred, and the mechanism (not luck) is that CPython serves
-an imported module from `sys.modules` and never re-reads the file. But a restart
-during any of those windows -- by me, by the watchdog, or by a crash -- would have
-imported a mutant into an armed trading process. Recorded in
-`pending_restart_2026-08-09.md` with the rule for next time: mutate a copy, or use
-in-memory `sys.modules` injection (which writes nothing to the repo), never the
-live file while a trading process is armed.
-
-### 14d. Still open after cycle 5 -- stated, not hidden
-
-Cycle 5 found **three `$`-prompted blocks quoting the verifier's own output that
-do not reproduce exactly** (abridged headers and `note:` lines). They sit in the
-`SELF_INVOCATION` blind spot, so the verifier structurally cannot check the blocks
-that quote itself -- and that is precisely where the curation landed. Those blocks
-are now labelled as ABRIDGED rather than presented as verbatim. **The general
-problem is unsolved:** a tool cannot verify quotations of its own output without
-recursing. Anyone reading those blocks should run the tool.

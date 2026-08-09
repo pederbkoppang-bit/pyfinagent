@@ -324,7 +324,12 @@ def main() -> int:
     if not same:
         print("TARGET FILE CHANGED DURING THE RUN -- investigate before trusting this.")
         return 4
-    print(f"ALL {total} MUTANTS KILLED. Every new guard can fail.")
+    # SCOPED deliberately. "Every new guard can fail" is a GLOBAL claim this
+    # matrix does not license -- the cycle-5 Q/A said so and was right. This
+    # matrix mutates autonomous_loop.py only, so it can speak for the guards
+    # over the halt-branch pass and nothing else. The test-isolation guards in
+    # the same module are proven falsifiable separately, by demonstration.
+    print(f"ALL {total} MUTANTS KILLED -- every guard IN THIS MATRIX can fail.")
     return 0
 
 
