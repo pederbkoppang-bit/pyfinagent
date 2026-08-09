@@ -24129,6 +24129,29 @@
       ],
       "live_check": "live_check_86.13.md with the measured per-analysis cost distribution over >=5 post-repair analyses, the meter provenance trace, and the chosen disposition with reasoning"
      }
+    },
+    {
+     "id": "86.14",
+     "status": "pending",
+     "priority": "P2",
+     "harness_required": true,
+     "retry_count": 0,
+     "max_retries": 3,
+     "name": "P2 OPERATOR FEATURE: a live cycle-status page, so the operator can see a running cycle's progress WITHOUT asking an agent to grep the log.",
+     "audit_basis": "Operator request 2026-08-09: 'i would like a new page where you see the live status of running cycle so i dont need to ask you everytime'. THE REQUIREMENT IS DERIVED FROM A REAL SESSION, not imagined -- during cycle-1786281927 the operator asked for status four separate times, and each answer required Main to read handoff/.autonomous_loop.lock, grep backend.log for per-ticker agent lines, and query BigQuery for written scores. Everything the page must show was obtainable, just not visible. WHAT THE OPERATOR ACTUALLY ASKED ABOUT, in order, and therefore what the page MUST answer without a follow-up question: (1) is a cycle running right now, and for how long -- vs the budget; (2) which tickers are DONE, which are IN FLIGHT, which are PENDING (the operator asked specifically 'deep dive to check HUM and HPE status' because two tickers looked stalled and were in fact healthy -- 20 min per ticker is normal and the UI gave no way to know that); (3) what each finished ticker SCORED; (4) whether the rail is healthy (calls vs failures). INFRASTRUCTURE ALREADY EXISTS -- do not invent a transport: SSE is implemented at backend/api/mas_events.py with a frontend hook at frontend/src/lib/hooks/useEventSource.ts (plus a test). Reuse it. Cycle state is already served in part by backend/api/paper_trading.py and observability_api.py, and /observability already exists as a route -- DECIDE and JUSTIFY whether this is a new route or a tab on an existing one rather than defaulting to a new page. FIVE REQUIREMENTS THAT COME FROM DEFECTS MEASURED THIS SESSION, each non-negotiable: (a) GROUND TRUTH IS THE LOCK FILE, never last_result -- auto-memory last_result_cannot_prove_idle records that last_result reports the last COMPLETED run and nearly caused a live cycle to be killed; the page must read the lock's state/pid/started_at and verify the pid is alive. (b) RUNNING vs LAST-COMPLETED MUST BE VISUALLY UNAMBIGUOUS -- today the status strip showed 'CYCLE completed' beside a 'Running cycle...' button and Main misread it as a defect before retracting; both were correct, and that ambiguity is the defect. (c) A DEGRADED/SYNTHETIC score must be shown AS SUCH -- masterplan 61.2 (P0) persists final_score=0.0 with recommendation 'HOLD' on synthesis failure, and today PANW wrote exactly that in an otherwise healthy cycle; currently the ONLY discriminator is the casing 'HOLD' vs 'Hold'. The page must not render a fabricated 0.0 identically to a genuine low score -- coordinate with 61.2 for whatever explicit flag it introduces, and until then say plainly that the distinction is unavailable rather than implying a real score. (d) BACKEND-DOWN MUST BE LOUD, not painted as calm -- masterplan 80.36 records the risk monitor claiming 'SAFE' with the backend dead, and 80.30/80.14 the same class; an unreachable backend must render as UNKNOWN, never as 'no cycle running'. (e) POLLING MUST TERMINATE -- .claude/rules/frontend.md requires polling loops to stop after 5 consecutive failures with an error message, never poll a dead backend forever. ALSO: honour the documented UI conventions (navy/slate palette not zinc, Phosphor icons and NO emojis, scrollbar-thin, error/loading/empty states, WCAG AAA contrast targets) and verify at BOTH 1440x900 and 1920x1080 -- masterplan 86.11's seed finding is a status bar that wraps at laptop width, so a new status surface must be checked at the narrow width before it ships.",
+     "verification": {
+      "command": "cd frontend && npx tsc --noEmit",
+      "success_criteria": [
+       "with a cycle RUNNING, the page shows: elapsed vs budget, per-ticker DONE / IN-FLIGHT / PENDING, each finished ticker's score, and rail calls-vs-failures -- verified by Playwright capture against a real running cycle, or against a faithfully stubbed one with the stub disclosed",
+       "the lock file is the source of truth for 'is a cycle running' and the holder pid is checked alive; last_result is NOT used for that determination -- assert this in a test, since the whole point is that last_result reports the last COMPLETED run",
+       "RUNNING and LAST-COMPLETED are visually unambiguous -- a reader cannot mistake one for the other; demonstrate with two captures (cycle running, and no cycle running) rather than asserting it",
+       "a degraded/synthetic score (final_score=0.0 with the 61.2 signature) is NOT rendered identically to a genuine score; if 61.2 has not yet shipped an explicit flag, the page states the distinction is unavailable rather than implying the value is real",
+       "with the backend unreachable the page renders UNKNOWN and an error, never 'no cycle running' or any calm/success state -- demonstrated by pointing it at a dead port, and polling stops after 5 consecutive failures",
+       "Playwright captures at BOTH 1440x900 and 1920x1080 behind the auth wall, with the URL confirmed non-/login; no emoji, no zinc palette, and every scroll container uses scrollbar-thin",
+       "npx tsc --noEmit clean; the transport reuses the existing SSE hook (useEventSource) or the artifacts justify why a different transport was chosen"
+      ],
+      "live_check": "live_check_86.14.md with captures at both viewports for BOTH states (cycle running / no cycle), the backend-down capture, and the lock-vs-last_result assertion output"
+     }
     }
    ]
   }
