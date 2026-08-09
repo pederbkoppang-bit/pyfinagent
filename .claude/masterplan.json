@@ -24064,6 +24064,28 @@
       ],
       "live_check": "live_check_86.11.md with the derived route list, per-route/per-viewport captures moved into handoff/current/captures_86.11/, the console summary, and the ranked findings table citing a convention per row"
      }
+    },
+    {
+     "id": "86.12",
+     "status": "pending",
+     "priority": "P1",
+     "harness_required": true,
+     "retry_count": 0,
+     "max_retries": 3,
+     "name": "P1 DETERMINE WHETHER THE KILL SWITCH EVALUATES DRAWDOWN AGAINST A STALE NAV: kill-switch current_nav EQUALS sod_nav exactly, and disagrees with the NAV the cockpit renders.",
+     "audit_basis": "Found 2026-08-09 by the Layer-3 Q/A during the Playwright subagent probe (wf_f8fd8f67-4a0), which explicitly declined to call it a defect and flagged it for a step -- honour that: this step's job is to DETERMINE, not to assume. MEASURED, re-derive it: GET /api/paper-trading/kill-switch returns sod_nav=23833.94 and current_nav=23833.94 -- EXACTLY equal -- while the rendered cockpit shows NAV $23,833.88, a $0.06 delta. current_nav equalling sod_nav to the cent is the signature of a START-OF-DAY-ANCHORED figure rather than a live mark. WHY THIS COULD MATTER AND WHY IT IS P1: current_nav is the value evaluate_breach compares against BOTH legs. If it is SOD-anchored rather than live, the daily-loss leg computes 0.0% by construction all day and cannot fire on an intraday drawdown, and the trailing leg measures against a stale mark -- i.e. the switch would report ACTIVE/armed while being blind to the very move it exists to catch. The strip currently renders 'Daily: 0.0% of 4%', which is consistent with EITHER a genuinely flat book OR a stale input, and those two are indistinguishable from the UI. BENIGN EXPLANATIONS THAT MUST BE RULED OUT FIRST, not after: (a) the book is 1 position and ~96% cash (CASH $22,820.64 of NAV $23,833.88), so NAV genuinely barely moves and equality could be coincidence to the cent -- test this by checking whether the equality HOLDS ACROSS DAYS in the audit journal's sod_snapshot rows vs contemporaneous NAV; (b) a cycle was in flight at capture time (cycle-1786281927) so marks may not have been written; (c) the two numbers come from different endpoints with different rounding or different FX timestamps -- the $0.06 delta is itself a clue and must be explained, not waved off. DO NOT change any threshold or guard while investigating. If it turns out current_nav IS live and the equality is coincidence, close this step saying so plainly -- a negative result recorded is worth more than an unexamined suspicion.",
+     "verification": {
+      "command": "bash -c 'curl -s -m 10 http://localhost:8000/api/paper-trading/kill-switch | python3 -c \"import json,sys; d=json.load(sys.stdin); print(d[chr(115)+chr(111)+chr(100)+chr(95)+chr(110)+chr(97)+chr(118)], d[chr(99)+chr(117)+chr(114)+chr(114)+chr(101)+chr(110)+chr(116)+chr(95)+chr(110)+chr(97)+chr(118)])\"'",
+      "success_criteria": [
+       "the PROVENANCE of current_nav is traced to its source at file:line -- state exactly which call produces it and whether that call returns a live mark or a stored start-of-day figure; a description of the endpoint is not a trace",
+       "the sod_nav == current_nav equality is tested ACROSS MULTIPLE DAYS (the audit journal holds 8 sod_snapshot rows) rather than from one observation -- report whether it holds always, sometimes, or was a one-off",
+       "the $0.06 delta between the kill-switch current_nav and the cockpit-rendered NAV is EXPLAINED (rounding, FX timestamp, different endpoint, different asof) -- an unexplained delta between two numbers describing the same quantity is itself the finding",
+       "the safety question is answered directly: CAN the daily-loss leg fire on an intraday drawdown as currently wired? Demonstrate with a test driving evaluate_breach through the real production path, not by reasoning about the code",
+       "if the behaviour is CORRECT, the step closes with that stated plainly and the reasoning recorded, so the suspicion is not re-raised later; if it is a defect, no threshold is changed as part of the diagnosis -- the fix is its own scope",
+       "no guard weakened, no threshold touched, live handoff/kill_switch_audit.jsonl byte-identical across the investigation"
+      ],
+      "live_check": "live_check_86.12.md with the provenance trace, the multi-day equality table, the delta explanation, and the verbatim output of the intraday-drawdown test"
+     }
     }
    ]
   }
