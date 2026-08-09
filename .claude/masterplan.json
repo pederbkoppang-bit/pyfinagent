@@ -24107,6 +24107,28 @@
      },
      "retry_count": 0,
      "max_retries": 3
+    },
+    {
+     "id": "86.13",
+     "status": "pending",
+     "priority": "P3",
+     "harness_required": true,
+     "retry_count": 0,
+     "max_retries": 3,
+     "name": "P3 THE PER-ANALYSIS COST GUARD IS EXCEEDED ~2x ON EVERY TICKER AND ONLY WARNS: decide whether $5.00 is the wrong number or the meter is wrong.",
+     "audit_basis": "Operator-raised 2026-08-09 ('i thought we are running on the anthropic max plan'). ANSWER THE OPERATOR'S QUESTION FIRST, because it is already settled and must not be re-litigated: settings.py:262 documents max_analysis_cost_usd as 'Soft budget per analysis in USD (cost-tracker NOMINAL, not metered). Logs warnings when exceeded; does not abort.' The Claude Code rail is Max flat-fee first-party usage, so these dollars are a NOTIONAL API-rate estimate, NOT a bill. NOTHING IS BEING CHARGED. orchestrator.py:2412-2418 only logs and sets final_json['budget_warning']; it does not truncate, shorten or degrade the analysis -- MEASURED: HPE logged 'exceeded cost budget: $9.1627 > $5.00' at 16:36:28 and still persisted a full genuine final_score=5.58 'Hold' with a correct company_name. THE ACTUAL QUESTION, which nobody has decided: the cap is $5.00 and a routine ticker costs ~$9.16 nominal, so the guard fires on essentially every analysis. A threshold breached ~2x every time is not a guard -- it is noise that trains an operator to ignore a cost line, which is exactly how a REAL overrun would later go unnoticed. Determine which of these it is: (a) the $5.00 cap is simply mis-calibrated for the current 15-step pipeline and should be re-set from measured data; (b) the cost METER is inflated -- phase-72 established that cc_rail rows carry phantom costs (a flat $0.50 appearing on FAILED calls from an unpinned writer, and claude_code_client._log_cc_call deliberately logs 0), so the accumulated figure may not mean what it says; or (c) the guard is the wrong instrument for a flat-fee rail and should be replaced by something that tracks what actually matters (tokens, wall-clock, or METERED spend only). NOTE the field was already RE-SPECCED once (phase-60.4 AW-10: 0.50 -> 5.00 per operator), so re-setting it again without deciding (a)/(b)/(c) would be the third guess rather than a decision. RELATED: ask #24 (~26% of rail time discarded on calls timing out 5s short) is a REAL efficiency loss on the same rail and is a better target than this cosmetic one -- state whether fixing #24 changes the measured per-ticker cost before re-setting any cap.",
+     "verification": {
+      "command": "bash -c 'source .venv/bin/activate && python -c \"from backend.config.settings import get_settings as g; print(g().max_analysis_cost_usd)\"'",
+      "success_criteria": [
+       "the per-analysis nominal cost is MEASURED across at least 5 real analyses from post-2026-08-09 cycles (the rail was dead before that, so older figures are not representative) -- report the distribution, not a single value",
+       "the meter's provenance is traced: state exactly where the accumulated total_cost_usd comes from, and whether phase-72's phantom-cost finding (flat $0.50 on FAILED calls) contaminates it -- if it does, the measured figure above is corrected before any cap is set",
+       "one of (a) recalibrate, (b) fix the meter, (c) replace the instrument is CHOSEN with its reasoning recorded; 'raise the number' is only acceptable as the outcome of that choice, never as the choice itself",
+       "the operator-facing framing is fixed so a reader cannot mistake nominal for billed: whatever the log line says after this step, it must not read as though real money was spent on a flat-fee plan",
+       "if the cap stays a warning-only soft budget, say plainly what it is FOR and what a reader should do when it fires -- a guard nobody can act on should be removed rather than kept",
+       "no change to any rail timeout, no flag promotion, and the analysis path is byte-unchanged -- this step decides a number and a message, not behaviour"
+      ],
+      "live_check": "live_check_86.13.md with the measured per-analysis cost distribution over >=5 post-repair analyses, the meter provenance trace, and the chosen disposition with reasoning"
+     }
     }
    ]
   }
