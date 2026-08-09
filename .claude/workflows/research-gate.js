@@ -48,8 +48,25 @@ export const meta = {
 // does not block this path.
 // ---------------------------------------------------------------------------
 
-import fs from 'node:fs'
-import path from 'node:path'
+// ---------------------------------------------------------------------------
+// NO `import fs` / `import path` HERE, AND THAT IS NOT AN OVERSIGHT.
+// The Workflow runtime has NO filesystem or Node API access. A static
+// `import fs from 'node:fs'` makes the script UNLAUNCHABLE:
+//     SyntaxError: Unexpected identifier 'fs'. import call expects one or two arguments.
+// MEASURED 2026-08-09 -- and note `node --check` PASSES on that same file,
+// because it is valid ESM. So this step's immutable verification command
+// (`node --check ... && ls ...`) reports GREEN on a script that cannot run at
+// all. That is the second independent way that command is weaker than it looks
+// (the first: it reaches criterion 1 only). Criterion 2 -- a LIVE spawn -- is
+// the only check that catches this class, which is exactly why it is a
+// criterion.
+//
+// CONSEQUENCE FOR THE DESIGN: the artifact cross-check cannot read the brief
+// from disk inside this script. It is therefore delegated to a second, cheap
+// agent (stage 2) which CAN read files, and `enforceGate` is kept PURE -- it
+// takes the envelope plus that verification object and touches no I/O. Pure
+// also means it is cheaply mutation-testable without spawning anything.
+// ---------------------------------------------------------------------------
 
 // `args` may arrive as a parsed object OR a JSON string OR be absent (dry run).
 let a = {}
@@ -153,14 +170,35 @@ const ENVELOPE_SCHEMA = {
   },
 }
 
+// Stage-2 verifier schema: a cheap, independent read of the brief on disk.
+// The researcher does NOT get to attest to its own artifact.
+const BRIEF_VERIFICATION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['brief_exists', 'brief_non_empty', 'char_count', 'urls_checked', 'urls_present', 'urls_missing'],
+  properties: {
+    brief_exists: { type: 'boolean' },
+    brief_non_empty: { type: 'boolean' },
+    char_count: { type: 'integer' },
+    urls_checked: { type: 'integer' },
+    urls_present: { type: 'integer' },
+    urls_missing: { type: 'array', items: { type: 'string' } },
+  },
+}
+
 /**
- * Recompute the gate from the envelope + the artifact on disk.
+ * Recompute the gate from the envelope + an independent verification of the
+ * artifact. PURE: no I/O, no Node APIs -- both because the Workflow runtime
+ * forbids them and because a pure function is cheaply mutation-testable.
+ *
+ * @param env  the researcher's returned envelope (may be null/garbage)
+ * @param verification  stage-2's reading of the brief, or null if it could not run
  * EXPORTED SHAPE: {gate_passed, violations[], checks[], agent_self_reported_gate_passed, self_report_disagreed}
  *
  * Every floor lives HERE, not in the schema -- see the header. This function is
  * the thing a mutation test must be able to break.
  */
-function enforceGate(env, opts) {
+function enforceGate(env, verification, opts) {
   const floors = (opts && opts.floors) || { sources: FLOOR_SOURCES, urls: FLOOR_URLS }
   const violations = []
   const checks = []
@@ -208,21 +246,24 @@ function enforceGate(env, opts) {
     checks.push('listed_sources_consistent: ' + listed.length + ' >= ' + sources)
   }
 
-  const claimedPath = env.brief_path || briefPath
-  const abs = path.isAbsolute(claimedPath) ? claimedPath : path.join(process.cwd(), claimedPath)
-  let briefText = null
-  try {
-    briefText = fs.readFileSync(abs, 'utf8')
-  } catch (_e) {
-    briefText = null
-  }
-  if (briefText === null) {
+  const claimedPath = env.brief_path || 'the declared brief_path'
+  // `Array.isArray` is not redundant: `typeof [] === 'object'`, so an array
+  // would slip this guard and be read as a verification object whose fields are
+  // all undefined -- failing closed, but via the wrong branch and with a
+  // misleading message. Mirrors the envelope guard above. (Found by the
+  // checker's own array case.)
+  if (!verification || typeof verification !== 'object' || Array.isArray(verification)) {
+    // FAIL CLOSED. If the artifact could not be independently verified, the
+    // self-report stands unchecked -- which is precisely the EviBound failure
+    // mode this gate exists to prevent. Never pass on an absent verification.
+    violations.push('brief verification did not run (stage 2 returned ' + JSON.stringify(verification === undefined ? null : verification) + ') -- failing closed rather than trusting the self-report')
+  } else if (verification.brief_exists !== true) {
     violations.push('brief not found on disk at ' + claimedPath + ' (write-first not honoured)')
-  } else if (!briefText.trim()) {
+  } else if (verification.brief_non_empty !== true) {
     violations.push('brief at ' + claimedPath + ' is EMPTY')
   } else {
-    checks.push('brief_on_disk_ok: ' + claimedPath + ' (' + briefText.length + ' chars)')
-    const missing = listed.filter(u => !briefText.includes(u))
+    checks.push('brief_on_disk_ok: ' + claimedPath + ' (' + verification.char_count + ' chars, independently read)')
+    const missing = Array.isArray(verification.urls_missing) ? verification.urls_missing : []
     if (missing.length) {
       violations.push('sources claimed but ABSENT from the brief (' + missing.length + '): ' + missing.slice(0, 5).join(', '))
     } else if (listed.length) {
@@ -240,10 +281,19 @@ function enforceGate(env, opts) {
   }
 }
 
-// Exported for the re-runnable checker + mutation tests
-// (scripts/qa/verify_research_gate_workflow.mjs). The gate logic must be
-// drivable WITHOUT spawning an agent, or it cannot be mutation-tested cheaply.
-export { enforceGate, ENVELOPE_SCHEMA, FLOOR_SOURCES, FLOOR_URLS }
+// NO `export { ... }` LIST HERE, AND THAT IS ALSO NOT AN OVERSIGHT.
+// The Workflow runtime accepts the leading `export const meta` and NOTHING
+// else: a trailing export list makes the script unlaunchable with
+//     SyntaxError: Unexpected keyword 'export'
+// MEASURED 2026-08-09 -- and, again, `node --check` PASSES on that file. That
+// is the THIRD independent way this step's immutable command reports green on
+// a script that cannot run (the others: it reaches criterion 1 only, and it
+// accepts a forbidden `import fs from 'node:fs'`).
+//
+// The re-runnable checker therefore appends its own export line to the stripped
+// source before importing it -- see scripts/qa/verify_research_gate_workflow.mjs.
+// The gate logic must stay drivable WITHOUT spawning an agent, or it cannot be
+// mutation-tested cheaply.
 
 phase('Research')
 const envelope = await agent(PROMPT, {
@@ -255,7 +305,52 @@ const envelope = await agent(PROMPT, {
   effort: 'max',
 })
 
-const enforcement = enforceGate(envelope)
+// ---------------------------------------------------------------------------
+// STAGE 2 -- independent artifact verification. The researcher does NOT attest
+// to its own brief. This runs even when stage 1 returned nothing, so an absent
+// envelope still fails closed rather than silently skipping the check.
+// Cheap by design: a read-only agent, low effort, one file.
+// ---------------------------------------------------------------------------
+const claimedBriefPath = (envelope && envelope.brief_path) || briefPath
+const claimedUrls = (envelope && Array.isArray(envelope.sources_read_in_full))
+  ? envelope.sources_read_in_full.filter(s => typeof s === 'string' && s.trim())
+  : []
+
+let verification = null
+try {
+  verification = await agent([
+    'Verify a research brief on disk. Read-only. Do NOT edit, write or create anything.',
+    '',
+    'FILE: ' + claimedBriefPath,
+    '',
+    'Report, factually and without interpretation:',
+    '  brief_exists     -- does that exact path exist?',
+    '  brief_non_empty  -- does it contain any non-whitespace content?',
+    '  char_count       -- its length in characters (0 if absent)',
+    '  urls_checked     -- how many URLs you were given below',
+    '  urls_present     -- how many of them appear as a literal substring of the file',
+    '  urls_missing     -- the exact URLs that do NOT appear',
+    '',
+    'You are an INDEPENDENT check on another agent\'s self-report. It claimed to have read these',
+    'URLs in full and to have written them into that brief. Do not give it the benefit of the',
+    'doubt and do not repair near-misses: a URL either appears verbatim in the file or it does not.',
+    'If the file does not exist, every URL is missing.',
+    '',
+    claimedUrls.length ? ('URLS TO CHECK (' + claimedUrls.length + '):\n' + claimedUrls.map(u => '  ' + u).join('\n'))
+                       : 'URLS TO CHECK: (none were listed by the researcher -- report urls_checked: 0)',
+  ].join('\n'), {
+    label: 'brief-verify:' + stepId,
+    phase: 'Research',
+    schema: BRIEF_VERIFICATION_SCHEMA,
+    agentType: 'Explore',
+    model: 'opus',
+    effort: 'low',
+  })
+} catch (_e) {
+  verification = null // fail closed in enforceGate
+}
+
+const enforcement = enforceGate(envelope, verification)
 
 if (enforcement.violations.length) {
   log('research-gate ' + stepId + ': GATE FAILED -- ' + enforcement.violations.join(' | '))
@@ -277,6 +372,7 @@ return {
   self_report_disagreed: enforcement.self_report_disagreed,
   violations: enforcement.violations,
   checks: enforcement.checks,
-  brief_path: (envelope && envelope.brief_path) || briefPath,
+  brief_path: claimedBriefPath,
+  brief_verification: verification === undefined ? null : verification,
   envelope: envelope === undefined ? null : envelope,
 }
