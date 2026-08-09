@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-09 | `062a66b6` | docs: record the stale scheduled_tasks.lock finding (dead pid, held 2d) for later investigation |
 | 2026-08-09 | `66d466b0` | docs: day report 2026-08-09 + goal regenerated for 08-10 |
 | 2026-08-09 | `440a3ff0` | docs(61.2): RETRACT my critic attribution -- the gate refuted it and I re-verified |
 | 2026-08-09 | `9b72cb3b` | fix(86.15): renumber my step off a duplicated 86.13 id |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-09 | `53bf50b3` | feat(config): raise paper_cycle_max_seconds 7200 -> 10800 (operator-authorized ask #23) + file 86.9  |
 | 2026-08-09 | `523d74f7` | feat(qa): let Playwright verification get behind the NextAuth wall |
 | 2026-08-09 | `05cde616` | docs: file 86.7 (keychain-only rail auth + broken setup-token) and 86.8 (crossSessionInbound + SendM |
-| 2026-08-09 | `3afc561c` | live_check: the rail is ALIVE -- fixed by REMOVING the OAuth token, not replacing it |
 
 ---
 
