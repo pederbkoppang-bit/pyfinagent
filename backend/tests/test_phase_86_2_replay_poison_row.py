@@ -154,21 +154,100 @@ def test_the_trigger_window_is_what_we_think_it_is():
 # ---------------------------------------------------------------------------
 
 def test_c3_a_skipped_row_marks_history_INCOMPLETE(monkeypatch, tmp_path):
-    """The load-bearing half. A skip WITHOUT this bookkeeping would let a
-    lost-history anchor claim authority again, reopening the hole phase-36.8
-    closed. `_read_audit_rows` already does exactly this per LINE; the apply
-    loop now matches it per ROW.
+    """The load-bearing half: a skipped row must mark history INCOMPLETE, or a
+    later anchor-from-None can claim authority over history it never saw --
+    reopening the hole phase-36.8 closed.
+
+    THIS TEST WAS VACUOUS IN ITS FIRST FORM AND THE Q/A PROVED IT (EVALUATE
+    pass 1, wf_f5f6f4b7-5cd). It asserted `_history_complete is False` while its
+    fixture omitted `(tmp_path/"audit").mkdir()` -- so the MISSING ARCHIVE DIR
+    already forced the flag False before any row was applied. Deleting
+    `self._history_complete = False` from the production per-row handler left
+    this test GREEN. The Q/A's 2x2 (poison x archive-dir) showed the flag
+    tracked the archive dir and NEVER the poison row.
+
+    Two corrections, both required for this to assert anything:
+
+    1. The archive dir is CREATED, so the flag starts True and only the skip can
+       move it. Without this the assertion is fixture-guaranteed.
+    2. The fault is INJECTED at the seam. With the widened `_coerce_nav`, the
+       case-E poison row no longer RAISES -- it coerces to None and `peak_update`
+       no-ops -- so the per-row `except` is never entered by that input. The Q/A
+       tried five candidate rows and reached it with none; neither of us found a
+       natural trigger. Rather than assert a branch nothing executes, the fault
+       is injected by making `_apply_audit_row` raise for one specific row. That
+       tests the HANDLER and its bookkeeping, which is what criterion 3 is about,
+       and it says plainly that the trigger is synthetic.
     """
     _isolate(monkeypatch, tmp_path)
+    (tmp_path / "audit").mkdir(exist_ok=True)      # (1) -- else fixture-guaranteed
     _write(
         tmp_path,
-        '{"ts": "2026-08-09T00:00:30+00:00", "event": "peak_update", "nav": %s}' % _POISON_INT,
-        _row("2026-08-09T00:01:00+00:00", event="peak_update", nav=100.0),
+        _row("2026-08-09T00:00:00+00:00", event="peak_update", nav=90.0),
+        _row("2026-08-09T00:00:30+00:00", event="peak_update", nav=95.0),   # made to raise
+        _row("2026-08-09T00:01:00+00:00", event="sod_snapshot", nav=100.0, date="2026-08-09"),
     )
+
+    # PRECONDITION: without an injected fault this replay is CLEAN and the flag
+    # is True. If this ever fails, the assertion below proves nothing again.
+    assert ks.KillSwitchState()._history_complete is True, (
+        "PRECONDITION: a clean replay of this fixture must report COMPLETE, "
+        "otherwise the post-injection assertion is fixture-guaranteed"
+    )
+
+    real_apply = ks.KillSwitchState._apply_audit_row
+
+    def _raise_on_the_middle_row(self, row):                      # (2)
+        if row.get("nav") == 95.0:
+            raise RuntimeError("injected fault at the per-row seam")
+        return real_apply(self, row)
+
+    monkeypatch.setattr(ks.KillSwitchState, "_apply_audit_row", _raise_on_the_middle_row)
     st = ks.KillSwitchState()
+
     assert st._history_complete is False, (
-        "a skipped row must mark history INCOMPLETE -- otherwise a later "
-        "anchor-from-None can claim authority on history it never saw"
+        "a skipped row must mark history INCOMPLETE"
+    )
+    # ...and the replay CONTINUED: the rows either side of the fault applied.
+    snap = st.snapshot()
+    assert snap["peak_nav"] == 90.0, snap        # before the fault
+    assert snap["sod_nav"] == 100.0, snap        # after it
+
+
+def test_c3_MUTATION_the_bookkeeping_is_load_bearing(monkeypatch, tmp_path):
+    """The mutation the previous form could not survive: delete
+    `self._history_complete = False` from the per-row handler and this must go
+    RED. Run against an isolated module COPY, never the real module.
+
+    This is the guard the Q/A named as missing -- without it, criterion 3's
+    assertion cannot distinguish a working bookkeeping from a deleted one.
+    """
+    mut = _load_mutated_kill_switch_multi(
+        tmp_path,
+        [("                except Exception as e:\n                    self._history_complete = False",
+          "                except Exception as e:\n                    pass  # MUTANT: bookkeeping deleted")],
+    )
+    audit = tmp_path / "c3_mutant.jsonl"
+    (tmp_path / "audit").mkdir(exist_ok=True)
+    audit.write_text(
+        _row("2026-08-09T00:00:30+00:00", event="peak_update", nav=95.0) + "\n"
+        + _row("2026-08-09T00:01:00+00:00", event="sod_snapshot", nav=100.0, date="2026-08-09") + "\n",
+        encoding="utf-8",
+    )
+    mut._AUDIT_PATH = audit
+
+    real_apply = mut.KillSwitchState._apply_audit_row
+
+    def _raise_on_the_middle_row(self, row):
+        if row.get("nav") == 95.0:
+            raise RuntimeError("injected fault at the per-row seam")
+        return real_apply(self, row)
+
+    monkeypatch.setattr(mut.KillSwitchState, "_apply_audit_row", _raise_on_the_middle_row)
+    st = mut.KillSwitchState()
+    assert st._history_complete is True, (
+        "MUTANT SURVIVED: deleting the per-row bookkeeping did not change the "
+        "flag, so the criterion-3 assertion is not load-bearing"
     )
 
 
@@ -293,5 +372,9 @@ def test_c4_reverting_only_the_except_is_now_HARMLESS(monkeypatch, tmp_path):
     )
     mut._AUDIT_PATH = audit
     st = mut.KillSwitchState()
+    # The DISCRIMINATING assertion -- this is what pins the property.
     assert st.snapshot()["sod_nav"] == 100.0, "the per-row try must still contain the fault"
-    assert st._history_complete is False, "and it must still mark history INCOMPLETE"
+    # NOTE (Q/A pass 1): the `_history_complete is False` assertion that used to
+    # sit here was fixture-guaranteed by the same missing-archive-dir path, so it
+    # killed nothing. Removed rather than left looking like coverage; the
+    # bookkeeping is pinned by test_c3_MUTATION_the_bookkeeping_is_load_bearing.
