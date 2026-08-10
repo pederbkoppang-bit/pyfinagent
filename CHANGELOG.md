@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `9424939c` | phase-86.34: measure the TZ fixture's coverage -- it is silent 13 hours a day |
 | 2026-08-10 | `299a216c` | phase-86.29: research gate RE-RUN and PASSED -- and it live-verified 86.37 |
 | 2026-08-10 | `23270f29` | phase-86.37 cycle 3: kill the third evasion, regenerate the live_check, PARK on an operator ask |
 | 2026-08-10 | `133060b0` | phase-86.37 cycle 2: the FAIL was right -- my drop guards were source scans |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9ae2948d` | docs: trim next-session goal under the 4000-char limit |
 | 2026-08-10 | `b4543aa8` | docs: next-session goal -- 86.31 first, then the masterplan drain |
 | 2026-08-10 | `da9263d6` | phase-86.24: cycle-3 -- the withdrawn claim removed from live source; step PARKED |
-| 2026-08-10 | `14b8d32b` | docs(86.24): cycle-2 artifacts -- withdraw the false support, disclose the member I introduced |
 
 ---
 
+### v6.93.63 — phase-86.34: measure the TZ fixture's coverage -- it is silent 13 hou... (2026-08-10)
+
+- **phase-86.34: measure the TZ fixture's coverage -- it is silent 13 hours a day**
 ### v6.93.62 — phase-86.29: research gate RE-RUN and PASSED -- and it live-verified... (2026-08-10)
 
 - **phase-86.29: research gate RE-RUN and PASSED -- and it live-verified 86.37**
