@@ -29,8 +29,10 @@ from __future__ import annotations
 import datetime as _dt
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 from zoneinfo import ZoneInfo
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -53,15 +55,42 @@ def _non_shifting_zone() -> str:
     return "UTC"
 
 
-def run(target: pathlib.Path, tz: str | None = None) -> tuple[int, str]:
+def run(target: pathlib.Path, tz: str | None = None,
+        extra_env: dict | None = None, kexpr: str | None = None) -> tuple[int, str]:
     env = {**os.environ}
     if tz:
         env["TZ"] = tz
+    if extra_env:
+        env.update(extra_env)
+    cmd = [sys.executable, "-m", "pytest", str(target), "-q"]
+    if kexpr:
+        cmd += ["-k", kexpr]
     p = subprocess.run(
-        [sys.executable, "-m", "pytest", str(target), "-q"],
-        cwd=REPO, env=env, capture_output=True, text=True, timeout=600,
+        cmd, cwd=REPO, env=env, capture_output=True, text=True, timeout=600,
     )
-    return p.returncode, (p.stdout + p.stderr)[-600:]
+    # FULL output: the poison cell discriminates on the NAMED assertion text,
+    # and a 600-char tail can hold nothing but pip warnings. Callers truncate.
+    return p.returncode, (p.stdout + p.stderr)
+
+
+def _poisoned_repo() -> pathlib.Path:
+    """A fake repo root whose only conftest declares a GLOBAL time freeze.
+
+    The real repo contains no such file by construction, so without this the
+    RED half of criterion 3 is unprovable and the guard would only ever be
+    observed passing. Written under the system temp dir, never inside REPO.
+    """
+    root = pathlib.Path(tempfile.mkdtemp(prefix="pyfin_86_34_poison_")) / "sub"
+    root.mkdir(parents=True)
+    (root / "conftest.py").write_text(
+        "import pytest\n"
+        "from freezegun import freeze_time\n\n"
+        "@pytest.fixture(autouse=True, scope='session')\n"
+        "def _global_freeze():\n"
+        "    with freeze_time('2026-01-01'):\n"
+        "        yield\n"
+    )
+    return root.parent
 
 
 FROZEN_ZONE = _non_shifting_zone()
@@ -91,6 +120,20 @@ MUTATIONS = [
         desc="make the sweep match NOTHING -- the non-vacuity assertion must fire "
              "(the guard is broken at its SUBJECT, not deleted)",
     ),
+    # NOT a source mutation. Criterion 3 has TWO halves and this is the first:
+    # "inject a conftest containing a global time-freezing fixture into a fake
+    # repo root and require the guard to go RED". The subject is the ENVIRONMENT,
+    # so the file is run unmutated with the sweep pointed at a poisoned root.
+    dict(
+        id="N2-POISONED-CONFTEST",
+        src=NEWMOD,
+        anchor=None,
+        repl=None,
+        kexpr="test_no_global_time_freezing",
+        poison=True,
+        desc="inject a conftest declaring a session-scoped freeze_time into a fake "
+             "repo root -- the named offenders assertion must fire",
+    ),
 ]
 
 
@@ -105,6 +148,32 @@ def main() -> int:
         mid, src, anchor, repl, desc = (
             cell["id"], cell["src"], cell["anchor"], cell["repl"], cell["desc"])
         text = src.read_text()
+
+        if cell.get("poison"):
+            # Control FIRST: the same -k selection must be GREEN against the
+            # real repo, else a RED under the poisoned root proves nothing.
+            ctl_rc, ctl_tail = run(src, kexpr=cell["kexpr"])
+            if ctl_rc != 0:
+                rows.append((mid, "CONTROL-RED", f"already failing clean: {ctl_tail[-120:]}"))
+                survived.append(mid)
+                continue
+            fake = _poisoned_repo()
+            try:
+                rc, tail = run(src, extra_env={"PYFINAGENT_86_34_SWEEP_ROOT": str(fake)},
+                               kexpr=cell["kexpr"])
+            finally:
+                shutil.rmtree(fake.parent, ignore_errors=True)
+            # A kill must come from the NAMED assertion, not from any old error.
+            if rc != 0 and "a time-freezing helper appeared in a conftest" in tail:
+                rows.append((mid, "KILLED", desc))
+            elif rc != 0:
+                rows.append((mid, "MIS-ATTRIBUTED",
+                             f"went RED but not on the named assertion: {tail[-160:]}"))
+                survived.append(mid)
+            else:
+                rows.append((mid, "SURVIVED", f"{desc} || stayed GREEN: {tail[-160:]}"))
+                survived.append(mid)
+            continue
 
         n = text.count(anchor)
         if n != 1:

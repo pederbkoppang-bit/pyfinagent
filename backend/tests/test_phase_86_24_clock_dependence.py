@@ -214,8 +214,20 @@ def test_no_global_time_freezing_fixture_is_introduced():
         return not any(part.startswith(".venv") or part == "node_modules"
                        for part in path.parts)
 
+    # phase-86.34: a TEST-ONLY seam so the guard can be pointed at a fake repo
+    # root. Criterion 3 requires proving this assertion goes RED when a conftest
+    # declaring a global time-freezing fixture exists -- and the repo, by
+    # construction, contains no such file. Without a seam the RED half of the
+    # cell is unprovable and the guard is only ever observed passing.
+    # Defaults to the real REPO; mirrors the existing seam at
+    # PYFINAGENT_86_24_PROW_PATH below. Read in this test only.
+    import os
+
+    sweep_root = pathlib.Path(os.environ.get("PYFINAGENT_86_34_SWEEP_ROOT", str(REPO)))
+
     offenders = []
-    swept = [cf for cf in set(list(REPO.glob("conftest.py")) + list(REPO.glob("**/conftest.py")))
+    swept = [cf for cf in set(list(sweep_root.glob("conftest.py"))
+                              + list(sweep_root.glob("**/conftest.py")))
              if _first_party(cf)]
     # A sweep that resolves to nothing reports "no offenders" identically to a
     # sweep that resolves to everything and finds none. Assert the population.
@@ -235,12 +247,12 @@ def test_no_global_time_freezing_fixture_is_introduced():
         f"the vendored corpus happens to contain: {[str(x) for x in vendored[:4]]}"
     )
     print(f"[86.34] conftest sweep population: {len(swept)} first-party file(s): "
-          f"{sorted(str(p.relative_to(REPO)) for p in swept)}")
+          f"{sorted(str(p.relative_to(sweep_root)) for p in swept)}")
     for cf in swept:
         text = cf.read_text(errors="replace")
         for s in suspects:
             if s in text:
-                offenders.append(f"{cf.relative_to(REPO)}: {s}")
+                offenders.append(f"{cf.relative_to(sweep_root)}: {s}")
     assert not offenders, (
         "a time-freezing helper appeared in a conftest; phase-86.24 forbids a "
         f"GLOBAL freeze because it disarms the staleness rule: {offenders}"

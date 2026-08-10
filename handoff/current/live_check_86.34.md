@@ -85,19 +85,37 @@ first-party is the property.
 The three 86.34 guards previously existed only as prose in
 `experiment_results_86.34.md`; there was **no executable matrix**, which does not
 satisfy "in `scripts/qa/mutation_matrix_86_24.py` or a successor". New file
-`scripts/qa/mutation_matrix_86_34.py`:
+`scripts/qa/mutation_matrix_86_34.py`.
+
+**Criterion 3 has TWO halves and the first was initially missing.** It requires
+(a) *"inject a conftest containing a global time-freezing fixture into a fake
+repo root and require the guard to go RED"* and (b) *"mutate the exclusion rule
+itself ... and require a NAMED assertion to fire"*. My first matrix covered only
+(b). Half (a) was unprovable because the repo contains no time-freezing conftest
+by construction, so a **test-only seam** was added --
+`PYFINAGENT_86_34_SWEEP_ROOT`, defaulting to the real `REPO`, mirroring the
+existing `PYFINAGENT_86_24_PROW_PATH` seam at `:386` of the same file.
 
 ```
 $ python scripts/qa/mutation_matrix_86_34.py
 repo   : /Users/ford/.openclaw/workspace/pyfinagent
-utc    : 2026-08-10 19:23 -> non-shifting zone chosen for N1: Pacific/Midway
+utc    : 2026-08-10 19:29 -> non-shifting zone chosen for N1: Pacific/Midway
 
   N1-HARDCODE-NONSHIFTING-TZ  KILLED       replace the runtime zone selector with a zone that does NOT shift the date now (Pacific/Midway) -- the positive control must fire
   N2-REVERT-EXCLUSION         KILLED       revert the sweep to the EXACT-element rule -- it re-admits the vendored .venv.py313.bak corpus, so the first-party assertion must fire
   N2-EMPTY-POPULATION         KILLED       make the sweep match NOTHING -- the non-vacuity assertion must fire (the guard is broken at its SUBJECT, not deleted)
+  N2-POISONED-CONFTEST        KILLED       inject a conftest declaring a session-scoped freeze_time into a fake repo root -- the named offenders assertion must fire
 
-OK -- all 3 cell(s) KILLED
+OK -- all 4 cell(s) KILLED
 exit=0
+```
+
+The RED that the poison cell produces, verified to come from the **named**
+assertion rather than any convenient error:
+
+```
+E       assert not ['sub/conftest.py: freeze_time', 'sub/conftest.py: freezegun']
+[86.34] conftest sweep population: 1 first-party file(s): ['sub/conftest.py']
 ```
 
 **The N1 cell is deliberately NOT "hardcode Pacific/Midway".** That mutant is
@@ -105,6 +123,15 @@ correct for 11 hours of the day and would survive during 00:00-10:59 UTC --
 reporting the wall clock instead of the guard. The cell instead hardcodes
 whichever candidate zone does **not** shift the date at run time (printed
 above), so it kills at every hour.
+
+**A third probe defect, mine, recorded because it nearly became a false
+survivor.** The poison cell first reported `MIS-ATTRIBUTED` -- it checks that the
+RED carries the named assertion text, but `run()` returned only the last 600
+characters of output, which held pip's `RequestsDependencyWarning` and not the
+assertion. The guard was correct; the discriminator was reading a truncated
+window. `run()` now returns the full output and callers truncate for display.
+That is the third time in this step that the probe, not the subject, was the
+broken thing.
 
 ## D. Two real defects this capture found -- both caused by 86.34's own fix
 
@@ -145,10 +172,16 @@ $ python scripts/qa/mutation_matrix_86_24.py
 M1 KILLED   M2 KILLED   M6 KILLED   M7 KILLED   M3 KILLED   M4 KILLED   M5 KILLED
 tracked sources UNCHANGED: True  [('test_phase_82_0_macro_ingestion.py', '566a607e91365c67'),
    ('test_phase_86_2_replay_poison_row.py', 'fb97b52ecf7fb5be'),
-   ('test_phase_86_24_clock_dependence.py', '55e24bb26a93f131')]
+   ('test_phase_86_24_clock_dependence.py', '9b5cb2e44e6ba8a4')]
 stray mutant files left behind: none
 All 7 mutants killed.
 ```
+
+The clock-dependence module's digest is `9b5cb2e44e6ba8a4` in this final run
+(`55e24bb26a93f131` in the earlier run in this same capture) because the
+`PYFINAGENT_86_34_SWEEP_ROOT` seam was added between them. Both runs are
+reported rather than only the last, so the change is visible instead of
+silently overwritten.
 
 ## E. N3 -- the regenerated digest (criterion 4)
 
@@ -201,3 +234,14 @@ demonstration, not a coincidence.
 - **D1 and D2 are changes to a CLOSED step's tooling** (`mutation_matrix_86_24.py`).
   They repair breakage that 86.34's own edit caused and do not touch 86.24's
   verdict, its immutable criteria, or its status -- proven in section F.
+- **Full-default `ruff` is not clean here and never was.** The project has no
+  `[tool.ruff]` section; the step's own convention is the `F821,F401,F811`
+  selection, which passes on all three touched files. Under ruff's *default*
+  rules the UNTOUCHED `mutation_matrix_86_24.py` at `HEAD~1` already reports 10
+  findings and the new matrix reports 6 -- so this is a pre-existing repo-wide
+  style gap, not a regression introduced here. Stated rather than presented as
+  "ruff passed".
+- **The seam is a new surface.** `PYFINAGENT_86_34_SWEEP_ROOT` lets any caller
+  point the conftest sweep at another tree. It defaults to the real `REPO`, is
+  read inside one test, and mirrors an existing accepted seam in the same file --
+  but it is an escape hatch and a future reader should know it exists.
