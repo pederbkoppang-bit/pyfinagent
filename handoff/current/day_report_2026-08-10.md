@@ -318,3 +318,77 @@ addition is informational rather than a decision:
   price tick, not by me.
 - **phase-86.12's final verdict** — its third Q/A cycle was still running when
   this amendment was written.
+
+---
+
+# FINAL — 05:25 CEST, end of session
+
+## The book, last measured
+
+```
+paused=False   any_breached=False   baselines_present=True
+armed=False    daily_baseline_stale=True   sod_date=2026-08-09
+NAV 23833.94   peak 24666.57   trailing_dd 3.3755% of 10%
+backend pid 43839 (started 2026-08-09 22:11:52), /api/health 200
+```
+
+**Can it trade? Yes.** Nothing is paused, nothing is breached, the scheduler is
+healthy and the next cron is today at 14:00 ET. The `armed: false` is the daily
+leg sleeping between UTC midnight and the first cycle — phase-36.12 established
+that this is by design, and the trailing leg is armed throughout.
+
+**`handoff/kill_switch_audit.jsonl` is byte-identical to where it started:**
+`ea78508bee73887c82df2346da408c7281e7e9229334a6131d7fa06c09977065`. Nothing this
+session wrote to the operator's live safety journal — asserted by two steps'
+criteria and verified before and after every test run and every mutation matrix.
+
+## Closed and pushed tonight
+
+| step | what |
+|---|---|
+| **36.17** | a halted cycle stops enforcing stop-losses |
+| **36.27** | the Researcher on the Workflow rail |
+| **86.17** | the Layer-3 args boundary ran a blind gate |
+| **86.20** | `Strong Buy` silently dropped by the trade gate |
+| **86.22** | the recommendation-vocabulary split was cross-module — 91/543 rows mislabelled, seven consumers migrated |
+| **86.12** | the kill switch does **not** read a stale NAV — investigated to a PASS so the suspicion is not raised again |
+| **86.26** | seven dead imports removed; the Q/A lint gate is usable again |
+
+**Seven steps closed.** Two parked with written dispositions (**86.6** at FAIL
+after three cycles, **86.21** at FAIL). Five new defect steps queued from things
+found in passing — **86.23, 86.24, 86.25, 86.26** (since closed) and
+**86.27 (P1)**.
+
+## The one thing an operator should act on
+
+**86.27.** `uvicorn --host 0.0.0.0` binds the IPv4 wildcard, so every address of
+this machine reaches the running book, while the test-suite guard recognises
+five literal host strings. Eight spellings — including the machine's **LAN
+address** and **hostname** — were measured reachable and un-refused on a
+mutating PUT. Nothing has exploited it and no test uses those spellings today;
+it is a latent hole in a guard that exists to stop the suite touching the live
+book. It is queued P1 and at the top of the next session's list.
+
+## What I could not verify, stated plainly
+
+- **Whether a healthy cycle places trades.** No cycle ran this session — the
+  cron is weekday-only and this was a weekend. Unchanged from the 01:13 report.
+- **The $0.06 NAV delta during market hours.** Reproduced at 04:08 with markets
+  shut, where the rounding component dominates; the asof component was measured
+  by the Q/A against a live price tick, not by me.
+- **86.6's residual channels.** BigQuery and module-singleton are open and named
+  as open; the rest of `handoff/` is unguarded and was proven so tonight when a
+  test run wrote the live cycle lock.
+
+## Honest note on how the night went
+
+Seven closes took **fifteen Q/A cycles**. Every single multi-cycle step failed
+on *evidence*, never on the fix: a detector blind to one AST shape, a mutation
+cell that survived because no negative reached its guard's second condition, a
+test whose docstring claimed it drove a method it never called, eight host
+spellings after fixing one, an artifact carrying two contradictory counts, and a
+Playwright capture I reported as a failure when it had succeeded. The Q/A caught
+all of them. **I caught none of them by re-reading my own work.**
+
+That is the single most useful thing in this report: the harness is doing the
+job the harness exists to do, and my self-review is not a substitute for it.
