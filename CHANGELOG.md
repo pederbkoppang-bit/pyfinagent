@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `79f5a5ab` | phase-86.12 cycle 3: the capture SUCCEEDED and I reported it as a failure |
 | 2026-08-10 | `9a380d90` | phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not the stored NAV |
 | 2026-08-10 | `9c3e0f1a` | phase-86.12: the kill switch does NOT evaluate drawdown against a stale NAV -- investigated and answ |
 | 2026-08-10 | `fdadb623` | phase-86.12: research gate PASSED + contract (before any GENERATE work) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `070e6714` | fix(86.21): cycle-2 -- I shipped a silent zero inside the fix for silent zeros |
 | 2026-08-10 | `7897cb8c` | phase-86.21: a 3rd-CONDITIONAL counter that can see an in-flight step |
 | 2026-08-10 | `dc621419` | phase-86.21: research gate PASSED + contract (written BEFORE any code) |
-| 2026-08-09 | `03b3ea17` | wip(86.6): PARKED mid-step -- filesystem preventer landed and measured, Part B unstarted |
 
 ---
 
+### v6.93.27 — phase-86.12 cycle 3: the capture SUCCEEDED and I reported it as a fai... (2026-08-10)
+
+- **phase-86.12 cycle 3: the capture SUCCEEDED and I reported it as a failure**
 ### v6.93.26 — phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not th... (2026-08-10)
 
 - **phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not the stored NAV**
