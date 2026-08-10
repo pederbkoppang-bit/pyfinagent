@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `9bda4e6d` | phase-86.27: key the live-backend guard on the resolved ADDRESS, not a host string |
 | 2026-08-10 | `d638a3ec` | fix(86.28): cycle-2 -- harden the guard the Q/A defeated, and cite symbols not lines |
 | 2026-08-10 | `d0a98817` | fix(86.28): stop the research gate certifying a standard the caller did not request |
 | 2026-08-10 | `cad38647` | phase-86.6: P1 THE CHANNELS A CONFTEST GUARD CANNOT REACH ARE STILL OPEN: (A) an in-process test ... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `2fb8bebc` | phase-86.6: PARK at FAIL -- correct the artifact, queue the class fix, do not close |
 | 2026-08-10 | `dd6c7b56` | fix(isolation): phase-86.6 cycle 3 -- state the HTTP residual honestly, queue the class fix |
 | 2026-08-10 | `bd7184cd` | fix(isolation): phase-86.6 cycle 2 -- close a LIVE hole the Q/A found in my coverage claim |
-| 2026-08-10 | `0eec95fe` | fix(isolation): phase-86.6 -- close the subprocess channel, and test the filesystem preventer |
 
 ---
 
+### v6.93.36 — phase-86.27: key the live-backend guard on the resolved ADDRESS, not... (2026-08-10)
+
+- **phase-86.27: key the live-backend guard on the resolved ADDRESS, not a host string**
 ### v6.93.35 — fix(86.28): cycle-2 -- harden the guard the Q/A defeated, and cite sy... (2026-08-10)
 
 - **fix(86.28): cycle-2 -- harden the guard the Q/A defeated, and cite symbols not lines**
