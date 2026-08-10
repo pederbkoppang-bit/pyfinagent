@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `2e0cf256` | fix(86.28): cycle-4 -- regenerate two transcripts I typed instead of captured |
 | 2026-08-10 | `fce5a6ac` | phase-86.27: [P1 -- THE LIVE-BACKEND HTTP GUARD IS A HOST-STRING ALLOWLIST, AND THE MACHINE ANSWE... |
 | 2026-08-10 | `6efd33ea` | docs(86.28): add a compact Q/A briefing after the rail dropped at 197K tokens |
 | 2026-08-10 | `294a9a09` | fix(86.28): cycle-3 -- make the spawn guard behavioural, and re-derive the audit scope |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `c8628558` | docs: amend the day report with the night's later work |
 | 2026-08-10 | `79f5a5ab` | phase-86.12 cycle 3: the capture SUCCEEDED and I reported it as a failure |
 | 2026-08-10 | `9a380d90` | phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not the stored NAV |
-| 2026-08-10 | `9c3e0f1a` | phase-86.12: the kill switch does NOT evaluate drawdown against a stale NAV -- investigated and answ |
 
 ---
 
+### v6.93.39 — fix(86.28): cycle-4 -- regenerate two transcripts I typed instead of... (2026-08-10)
+
+- **fix(86.28): cycle-4 -- regenerate two transcripts I typed instead of captured**
 ### v6.93.38 — phase-86.27: [P1 -- THE LIVE-BACKEND HTTP GUARD IS A HOST-STRING ALLO... (2026-08-10)
 
 - **phase-86.27: [P1 -- THE LIVE-BACKEND HTTP GUARD IS A HOST-STRING ALLOWLIST, AND THE MACHINE ANSWE...**
