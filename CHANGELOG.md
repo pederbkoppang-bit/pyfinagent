@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `23270f29` | phase-86.37 cycle 3: kill the third evasion, regenerate the live_check, PARK on an operator ask |
 | 2026-08-10 | `133060b0` | phase-86.37 cycle 2: the FAIL was right -- my drop guards were source scans |
 | 2026-08-10 | `d3bb1dfb` | phase-86.37: a dropped research gate no longer destroys the run (operator-directed) |
 | 2026-08-10 | `2a696ac7` | phase-86.29: research GATE FAILED (rail dropped); brief preserved, no contract written |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `da9263d6` | phase-86.24: cycle-3 -- the withdrawn claim removed from live source; step PARKED |
 | 2026-08-10 | `14b8d32b` | docs(86.24): cycle-2 artifacts -- withdraw the false support, disclose the member I introduced |
 | 2026-08-10 | `9187aa8b` | docs(86.31,86.32): file the two harness-reliability fixes from today's measurements |
-| 2026-08-10 | `d2e987f1` | fix(86.28): kill the survivor recovered from a dropped Q/A transcript |
 
 ---
 
+### v6.93.61 — phase-86.37 cycle 3: kill the third evasion, regenerate the live_chec... (2026-08-10)
+
+- **phase-86.37 cycle 3: kill the third evasion, regenerate the live_check, PARK on an operator ask**
 ### v6.93.60 — phase-86.37 cycle 2: the FAIL was right -- my drop guards were source... (2026-08-10)
 
 - **phase-86.37 cycle 2: the FAIL was right -- my drop guards were source scans**
