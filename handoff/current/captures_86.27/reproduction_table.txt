@@ -1,0 +1,25 @@
+pre-fix predicate reconstructed from conftest.py@cad386472dc1
+live backend port: 8000
+
+spelling                         reachable    BEFORE        AFTER         note
+----------------------------------------------------------------------------------------------------------------------
+127.0.0.1                        HTTP 200     REFUSED       REFUSED       control -- the canonical spelling
+localhost                        HTTP 200     REFUSED       REFUSED       control
+LOCALHOST                        HTTP 200     REFUSED       REFUSED       control -- case-folded by urlsplit
+0.0.0.0                          HTTP 200     REFUSED       REFUSED       control -- added by phase-86.6
+127.1                            HTTP 200     NOT-REFUSED   REFUSED       the step's eight: short form
+0                                HTTP 200     NOT-REFUSED   REFUSED       the step's eight: bare zero
+2130706433                       HTTP 200     NOT-REFUSED   REFUSED       the step's eight: 32-bit integer
+localhost.                       HTTP 200     NOT-REFUSED   REFUSED       the step's eight: trailing dot
+127.000.000.001                  HTTP 200     NOT-REFUSED   REFUSED       the step's eight: zero-padded
+[::ffff:127.0.0.1]               HTTP 200     NOT-REFUSED   REFUSED       the step's eight: IPv4-mapped
+192.168.86.85                    HTTP 200     NOT-REFUSED   REFUSED       the step's eight: THIS MACHINE'S LAN ADDRESS
+ford-sin-mini.lan                HTTP 200     NOT-REFUSED   REFUSED       the step's eight: THIS MACHINE'S HOSTNAME
+0x7f.0x0.0x0.0x1                 HTTP 200     NOT-REFUSED   REFUSED       invented 2026-08-10: hex-dotted
+017700000001                     HTTP 200     NOT-REFUSED   REFUSED       invented 2026-08-10: 32-bit octal
+[::ffff:7f00:1]                  HTTP 200     NOT-REFUSED   REFUSED       invented 2026-08-10: hex IPv4-mapped
+%31%32%37%2e%30%2e%30%2e%31      HTTP 200     NOT-REFUSED   REFUSED       found by research: PERCENT-ENCODED
+----------------------------------------------------------------------------------------------------------------------
+mutating requests that actually left this process: 0 (all 12 were absorbed by the sentinel)
+
+Every spelling that REACHES this machine on the live port is refused, and no refusal was lost.

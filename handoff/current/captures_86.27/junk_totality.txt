@@ -1,0 +1,36 @@
+=== criterion 4: TOTALITY on junk -- nothing may RAISE out of a guard path ===
+
+input                                  is_live_backend    address_is_live_backend  conftest._is_live_backend
+----------------------------------------------------------------------------------------------------------------------
+None                                   False              False                    False
+12345                                  False              False                    False
+3.14                                   False              False                    False
+b'http://127.0.0.1:8000'               False              False                    False
+bytearray(b'x')                        False              False                    False
+<object object at 0x102bb0ce0>         False              False                    False
+''                                     False              False                    False
+'   '                                  False              False                    False
+'://'                                  False              False                    False
+'http://[::1'                          False              False                    False
+'http://127.0.0.1:notaport/'           False              False                    False
+'not a url'                            False              False                    False
+'http://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa True               False                    True
+'%%%'                                  False              False                    False
+('http://127.0.0.1:8000',)             False              False                    False
+{'url': 'x'}                           False              False                    False
+[1, 2, 3]                              False              False                    False
+()                                     False              False                    False
+('x',)                                 False              False                    False
+('x', 'y')                             False              False                    False
+(None, None)                           False              False                    False
+0                                      False              False                    False
+-1                                     False              False                    False
+True                                   False              False                    False
+----------------------------------------------------------------------------------------------------------------------
+inputs tested: 24   RAISED: 0  []
+
+PRE-FIX CONTRAST (measured 2026-08-10 08:33, conftest.py@cad38647):
+  conftest._is_live_backend(12345)    -> RAISED AttributeError: 'int' object has no attribute 'decode'
+  conftest._is_live_backend(object()) -> RAISED AttributeError: 'object' object has no attribute 'decode'
+  i.e. criterion 4 was FAILING before this step; the merge onto one total
+  predicate is what fixes it, not an added try/except.

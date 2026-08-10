@@ -64,32 +64,66 @@ KNOWN, BOUNDED GAPS -- stated rather than papered over
 from __future__ import annotations
 
 import logging
+import pathlib
+import sys as _sys_boot
 import urllib.request
-from urllib.parse import urlsplit
 
 _log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------
-# Policy constants
+# phase-86.27: ONE definition of "the live backend", imported not re-spelled
 # --------------------------------------------------------------------------
+# Until 86.27 this file carried its OWN copy of the predicate and
+# `test_the_two_live_origin_predicates_AGREE` compared the two. That alarm was
+# structurally incapable of catching the defect it was standing over: both
+# copies returned False on all eleven bypass spellings, so they AGREED and were
+# BOTH WRONG. An equality oracle over two implementations of one specification
+# detects divergence only; a fault they SHARE is invisible to it. The copy is
+# therefore deleted rather than re-synchronised.
+_sys_boot.path.insert(0, str(pathlib.Path(__file__).resolve().parent /
+                             "scripts" / "qa"))
 
-#: Verbs that can change server-side state. GET/HEAD/OPTIONS are always allowed
-#: -- see constraint 1 in the module docstring.
-_MUTATING_VERBS = frozenset({"POST", "PUT", "DELETE", "PATCH"})
+try:
+    from live_backend_origin import (          # noqa: E402
+        LIVE_BACKEND_PORT as _LIVE_BACKEND_PORT,
+        MUTATING_VERBS as _MUTATING_VERBS,
+        install_socket_guard as _install_socket_guard,
+        is_live_backend as _shared_is_live_backend,
+        mutating_scope as _mutating_scope,
+    )
+    _SHARED_PREDICATE = True
+except Exception as _import_exc:               # noqa: BLE001 - see below
+    # The guard must never simply VANISH because an import failed; that would
+    # silently restore the very hole this file exists to close. Degrade to the
+    # most conservative rule instead -- refuse every mutating request on the
+    # backend's port regardless of host. That over-refuses (a remote
+    # `example.com:8000` would be blocked too), which is the safe direction,
+    # and it is loud in the logs rather than silent.
+    _log.error("phase-86.27: live_backend_origin import FAILED (%s); falling "
+               "back to PORT-ONLY refusal, which over-refuses by design",
+               _import_exc)
+    _SHARED_PREDICATE = False
+    _LIVE_BACKEND_PORT = 8000
+    #: The one place this constant is still spelled twice, and deliberately: a
+    #: fallback that imports from the module it is a fallback FOR would not be a
+    #: fallback. GET/HEAD/OPTIONS stay allowed here too.
+    _MUTATING_VERBS = frozenset({"POST", "PUT", "DELETE", "PATCH"})
 
-#: Loopback spellings that reach the operator's running backend.
-_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
-#: "0.0.0.0" added phase-86.6. It was MISSING, and that was a live hole,
-#: not a tidiness issue: the backend runs `uvicorn --host 0.0.0.0`, so
-#: `curl http://0.0.0.0:8000/api/health` answers 200 on this machine, and a
-#: MUTATING PUT to that spelling passed straight through this guard while
-#: the identical PUT to 127.0.0.1:8000 was refused. Found by the phase-86.6
-#: Q/A because 86.6's own predicate listed the host and this one did not --
-#: the two definitions disagreed, and the disagreement WAS the bug.
+    from contextlib import contextmanager
+    from urllib.parse import urlsplit as _urlsplit_fb
 
-#: The live backend's port. Keyed explicitly so that an ephemeral-port stub on
-#: the SAME host stays allowed (constraint 2).
-_LIVE_BACKEND_PORT = 8000
+    @contextmanager
+    def _mutating_scope(is_mutating):           # type: ignore[misc]
+        yield
+
+    def _shared_is_live_backend(url):           # type: ignore[misc]
+        try:
+            return _urlsplit_fb(str(url)).port == _LIVE_BACKEND_PORT
+        except (ValueError, AttributeError, TypeError, UnicodeError):
+            return False
+
+    def _install_socket_guard(*_a, **_k):        # type: ignore[misc]
+        return None
 
 _REAL_URLOPEN = urllib.request.urlopen
 
@@ -122,15 +156,15 @@ def _resolve_method(req, args: tuple, kwargs: dict) -> str:
     return "POST" if data is not None else "GET"
 
 
-def _is_live_backend(url: str) -> bool:
-    """True only for the live backend ORIGIN -- host AND port both matching."""
-    try:
-        parts = urlsplit(url)
-        return parts.hostname in _LOOPBACK_HOSTS and parts.port == _LIVE_BACKEND_PORT
-    except ValueError:
-        # An unparseable port raises; fail OPEN rather than break unrelated
-        # tests on a malformed URL. A malformed URL is not a live POST.
-        return False
+def _is_live_backend(url) -> bool:
+    """Delegates to the single authority in `scripts/qa/live_backend_origin.py`.
+
+    Kept as a module-level name because existing tests import it, but it no
+    longer holds a policy of its own. It is a BEST-EFFORT early check: the
+    authoritative refusal happens at the `socket.connect` guard below, where the
+    address is already resolved and no spelling can hide.
+    """
+    return _shared_is_live_backend(url)
 
 
 def _refusal(method: str, url: str) -> RuntimeError:
@@ -151,17 +185,39 @@ def _refusal(method: str, url: str) -> RuntimeError:
 def _guarded_urlopen(req, *args, **kwargs):
     """Import-time replacement for `urllib.request.urlopen`.
 
-    Raises BEFORE a connection is opened, so a blocked call never reaches the
-    network at all.
+    TWO layers, because neither layer alone has both facts it needs:
+
+    * the VERB is known here and nowhere else -- `socket.connect` fires before
+      any HTTP verb is on the wire;
+    * the RESOLVED ADDRESS is known at the socket layer and nowhere else -- the
+      string here may be `%31%32%37%2e%30%2e%30%2e%31`, which urllib decodes to
+      127.0.0.1 while every string-based check sees gibberish.
+
+    So the verb is carried across on a thread-local and the socket guard makes
+    the decision. The string check below stays as a fast, friendly early
+    refusal that names the URL the caller actually wrote; it is a strict subset
+    of what the socket guard refuses, never the last line of defence.
     """
     url = _resolve_url(req)
     method = _resolve_method(req, args, kwargs)
-    if method in _MUTATING_VERBS and _is_live_backend(url):
+    mutating = method in _MUTATING_VERBS
+    if mutating and _is_live_backend(url):
         raise _refusal(method, url)
-    return _REAL_URLOPEN(req, *args, **kwargs)
+    with _mutating_scope(mutating):
+        return _REAL_URLOPEN(req, *args, **kwargs)
 
 
 urllib.request.urlopen = _guarded_urlopen
+
+# --------------------------------------------------------------------------
+# phase-86.27: the AUTHORITATIVE layer -- refuse on the RESOLVED address.
+# --------------------------------------------------------------------------
+# Installed after the wrapper so that the verb flag is already being set by the
+# time any connect happens. Cost measured over a 99-second run: 1.927 us per
+# connect event, 0.10 ms total -- the hook reads an already-resolved tuple and
+# performs no name resolution of its own, so the "blocking DNS in a guard path"
+# objection does not apply to it.
+_install_socket_guard()
 
 
 # --------------------------------------------------------------------------
@@ -177,13 +233,23 @@ try:  # pragma: no cover - exercised only when urllib3 is installed
     _REAL_POOL_URLOPEN = _urllib3_connectionpool.HTTPConnectionPool.urlopen
 
     def _guarded_pool_urlopen(self, method, url, *args, **kwargs):
-        if (
-            str(method).upper() in _MUTATING_VERBS
-            and getattr(self, "host", None) in _LOOPBACK_HOSTS
-            and getattr(self, "port", None) == _LIVE_BACKEND_PORT
-        ):
-            raise _refusal(str(method).upper(), f"{self.host}:{self.port}{url}")
-        return _REAL_POOL_URLOPEN(self, method, url, *args, **kwargs)
+        verb = str(method).upper()
+        mutating = verb in _MUTATING_VERBS
+        host = getattr(self, "host", None)
+        port = getattr(self, "port", None)
+        # phase-86.27: was `host in _LOOPBACK_HOSTS` -- a four-string allowlist
+        # on a wildcard-bound server. Now the shared predicate, reached through
+        # a reconstructed origin so there is exactly one entry point.
+        if mutating and port == _LIVE_BACKEND_PORT and _is_live_backend(
+                f"http://{host}:{port}"):
+            raise _refusal(verb, f"{host}:{port}{url}")
+        # Carry the verb so the socket guard covers a connection this wrapper's
+        # own string check could not classify. KNOWN GAP, stated rather than
+        # papered over: urllib3 POOLS connections, so a mutating request reusing
+        # a socket opened earlier by a GET emits no new `socket.connect` and the
+        # authoritative layer never sees it. stdlib urllib does not pool.
+        with _mutating_scope(mutating):
+            return _REAL_POOL_URLOPEN(self, method, url, *args, **kwargs)
 
     _urllib3_connectionpool.HTTPConnectionPool.urlopen = _guarded_pool_urlopen
 except (ImportError, AttributeError) as _exc:

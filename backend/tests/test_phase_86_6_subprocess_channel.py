@@ -139,11 +139,25 @@ def test_is_live_backend_table(url, expected):
 def test_the_two_live_origin_predicates_AGREE():
     """phase-86.22's lesson, applied here before it can bite.
 
-    `conftest.py` carries its own copy of this predicate (phase-86.3, already
-    graded; rewiring it is a risk this step does not need to take). Two
-    definitions of the same fact are how a vocabulary drifts apart, so they are
-    compared here across a table. A disagreement fails THIS test rather than
-    silently opening one of the two channels.
+    **UPDATE, phase-86.27 -- THIS TEST IS NOW TRIVIALLY TRUE AND IS NOT
+    COVERAGE. Do not read a green result here as evidence of anything.**
+
+    There is now ONE predicate: `conftest.py` imports
+    `scripts/qa/live_backend_origin.is_live_backend` rather than keeping a copy,
+    so the two sides compared below are the same function object and cannot
+    disagree by construction. It is kept as a REGRESSION TRIPWIRE against a
+    second copy being re-introduced, nothing more.
+
+    Why it stopped being coverage is the whole point of phase-86.27: **an
+    agreement check cannot detect a fault the two implementations SHARE.** Both
+    copies returned False on all eleven bypass spellings -- they agreed
+    perfectly, and a mutating PUT to `http://127.1:8000/` sailed past both.
+
+    What covers this now is an oracle that is not another implementation:
+    `backend/tests/test_phase_86_27_live_origin_class.py` stands up a
+    wildcard-bound server on an ephemeral port, MEASURES which spellings
+    actually reach this machine, and asserts every one of them is classified
+    local. Reachability is ground truth; a table of strings never was.
     """
     import importlib.util
 

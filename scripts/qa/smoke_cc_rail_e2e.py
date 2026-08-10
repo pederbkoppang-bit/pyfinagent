@@ -88,8 +88,14 @@ def http_json(method: str, url: str, body: dict | None = None, timeout: int = 30
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method,
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode())
+    # phase-86.27: this is the ONLY place this script opens an HTTP connection,
+    # so it is the one place that knows the verb. The socket guard installed in
+    # main() knows the RESOLVED address but never the verb -- `socket.connect`
+    # fires before any verb is on the wire. Carrying it across here is what lets
+    # the guard refuse a mutating call while leaving GETs working.
+    with mutating_scope(str(method).upper() in MUTATING_VERBS):
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode())
 
 
 # ── log sources ──────────────────────────────────────────────────────────────
@@ -465,7 +471,12 @@ def run_dry(args, verdicts: Verdicts) -> int:
 # re-spelled. See scripts/qa/live_backend_origin.py for why it is a separate
 # module and how drift against conftest's copy is alarmed.
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from live_backend_origin import is_live_backend  # noqa: E402
+from live_backend_origin import (  # noqa: E402
+    MUTATING_VERBS,
+    install_socket_guard,
+    is_live_backend,
+    mutating_scope,
+)
 
 
 def main() -> int:
@@ -525,6 +536,18 @@ def main() -> int:
               f"with --allow-live-backend if that is genuinely intended.",
               file=sys.stderr)
         return 4
+
+    # ── phase-86.27: the string check above is BEST EFFORT ────────────────
+    # `is_live_backend` reads `urlsplit().hostname`, and urllib does NOT hand
+    # the socket that string unchanged -- measured, `urlsplit` reports
+    # `%31%32%37%2e%30%2e%30%2e%31` while urllib connects to 127.0.0.1:8000.
+    # So the check above can be walked past by a spelling it cannot resolve,
+    # and this child process loads no conftest, so nothing else covers it.
+    # Install the AUTHORITATIVE guard, which decides on the address the socket
+    # is actually about to use. Skipped only under the explicit opt-in, which
+    # is the one case where reaching the live backend is the point.
+    if not args.allow_live_backend:
+        install_socket_guard()
 
     if args.max_rail_calls > DEFAULT_MAX_RAIL_CALLS:
         print(f"usage error: --max-rail-calls may only lower the <= "
