@@ -62,7 +62,38 @@ except Exception:
 
 MEMORY_DIR = ".claude/agent-memory/qa/"
 
-if agent_type == "qa" and tool_name in ("Write", "Edit"):
+
+def is_qa_role(name):
+    """True for the qa ROLE, not just the literal type name.
+
+    phase-86.31 cycle 2. The predicate used to be `agent_type == "qa"`. But
+    `agent_type` carries the SPAWN NAME when Main names an Agent() call, so
+    every cycle-numbered Q/A walked straight past the guard. MEASURED from
+    the log this hook writes (handoff/logs/qa_write_guard.log, 3110 records):
+    27 DISTINCT qa-* identities -- qa-80-2-c2, qa-85-5-c3, qa-36-12-cycle6,
+    ... -- issuing 113 Write/Edit events, 69 of them OUTSIDE the memory dir
+    and therefore ALLOWED. Two of those are exactly the no-self-eval breach
+    the guard exists to prevent: `qa-80-2-c2` EDITED
+    frontend/src/lib/api.ts, and `qa-80-2` WROTE
+    handoff/current/evaluator_critique.md -- the artifact Main is
+    contractually the verbatim scribe for. Found by the phase-86.31 cycle-1
+    Q/A; the checker written alongside it could not see the class because
+    it only ever drove this hook with the literal "qa".
+
+    DISCLOSED RESIDUAL, not closed: `workflow-subagent` (80 events) and
+    `general-purpose` (22) are NOT matched here and remain unguarded. They
+    are deliberately left alone because they are indistinguishable from
+    LEGITIMATE writers -- the researcher rail launches under such names and
+    write-first is mandatory for it, so matching them would break the other
+    Layer-3 rail. The post-verdict `git status` cleanliness rule owned by Main
+    (per-step-protocol.md section 4) is the named covering control, and the
+    gap is queued as its own masterplan step.
+    """
+    n = (name or "").strip().lower()
+    return n == "qa" or n.startswith("qa-") or n.startswith("qa_")
+
+
+if is_qa_role(agent_type) and tool_name in ("Write", "Edit"):
     # normpath collapses ../ traversal so the segment check cannot be
     # escaped by a path that merely CONTAINS the memory dir substring.
     norm = os.path.normpath(file_path.replace("\\", "/"))

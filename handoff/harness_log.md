@@ -32825,3 +32825,74 @@ and decide deliberately rather than spawn reflexively.
 
 Commits: `d5180e27` (cycle 1 code), `7a829c09` (cycle-1 artifacts), `7eb85983`
 (cycle-2 code), `14b8d32b` (cycle-2 artifacts), plus cycle 3.
+
+## Cycle 1199 -- 2026-08-10 -- phase=86.31 result=PARKED
+
+**P1 -- the Q/A rail loses a completed evaluation when it drops.** Two Q/A
+cycles, both CONDITIONAL; remediation complete, no outstanding remedy; PARKED
+per the operator's 2-cycle rule with a full disposition at the end of
+`experiment_results_86.31.md`.
+
+**Shipped.** Write-first for the Q/A, aimed at
+`.claude/agent-memory/qa/verdicts/verdict_wip_<step_id>.md` -- a path the guard
+already permitted, so no allowlist was added. Born inert
+(`STATUS: INCOMPLETE` in the first bytes; final act flips to `COMPLETE`) plus
+`STEP:`/`WRITTEN:`/`COMPLETED:` identity stamps. `scripts/qa/qa_wip.py` is the
+caller that checks the marker; it has no `verdict` key to scrape and reports
+`STALE`/`IDENTITY_UNKNOWN` when the artifact predates the spawn.
+`docs/runbooks/per-step-protocol.md` §4 makes a recovered WIP evidence-only.
+
+**The sink deviates from the contract, on a measurement taken first:** a
+top-level file adds `NO POINTER` + `MALFORMED FRONTMATTER` to
+`audit_memory.py` (non-recursive glob); the `verdicts/` subdir leaves the audit
+byte-identical.
+
+**Real defects the Q/A found in my work, all reproduced by me before fixing:**
+1. The guard's predicate was `agent_type == "qa"` -- an EXACT match on a field
+   that carries the SPAWN NAME. 27 qa-* identities had written past it;
+   **20 events across 10 identities** were no-self-eval breaches, including
+   `qa-80-2-c2` editing `frontend/src/lib/api.ts` and six writes/edits to
+   `evaluator_critique*` files. My checker could not see it because it only ever
+   drove the hook with the literal `"qa"` -- the instance, not the class.
+2. My prose anchors were illusory: an anti-directive preserving every scanned
+   literal left the checker 54/0 green with the mechanism dead.
+3. The artifact had no identity, so a prior cycle's `COMPLETE` file read as
+   current at the fixed path.
+4. Section [9], which I had called "the only non-circular evidence", **emitted
+   zero assertions when its subject was absent** -- it passed in the exact state
+   it existed to detect.
+
+**Two errors of my own, disclosed:** the F1 fix initially **broke the guard** --
+an apostrophe inside the bash single-quoted block killed the embedded python and
+the FAIL-OPEN hook allowed everything, unnoticed by every assertion in the
+checker (now section [3] + cell G8). And Q2's first probe was a mis-attributed
+kill (destroyed the section marker, died on "unlocatable"). I also **retracted**
+my own cycle-1 "the guard is byte-identical" claim; it is now
+`19385cd0d6ba44d7770f008a68620efe`, +32/-1, a tightening.
+
+**Corrected the step's own P1 rationale:** the masterplan says 37.5% drop rate
+from 8 spawns. Over all 298 `qa-verdict` runs on record it is **7.38%**. The
+priority stands on **3,891,077 tokens spent for no verdict**, not the rate; and
+**128 of 276 completed runs ran hotter than the coolest drop**, so the
+token-threshold hypothesis is falsified harder in the full population.
+
+**Evidence:** checker 54 -> 188 -> **189 assertions**; matrix 15 -> 23 ->
+**24 cells, all KILLED** on a green control; ruff clean over a git-derived
+6-file scope; immutable command exit 0. Proven live end-to-end twice -- both Q/A
+spawns wrote their WIP on the real rail, the second carrying a valid `WRITTEN`
+stamp.
+
+**Queued, not fixed:** **86.33** (P2) -- `workflow-subagent` (80 events) and
+`general-purpose` (22) remain unguarded, deliberately, because they are
+indistinguishable from legitimate researcher writes. Its criterion 1 was
+BROADENED this cycle to the derived breach class (disclosed).
+
+**Known-open:** section [6] still falls to paraphrase (accepted WARN -- the
+behavioural guard [9]/B1 covers the joint failure); [9] cannot distinguish
+"never produced" from "stopped producing"; `normpath`-not-`realpath` and the
+missing project-root anchor are pre-existing and queued.
+
+**Counter blindness, disclosed not exploited:** `harness_log.md` has ZERO
+`result=CONDITIONAL` rows for 86.31 (log-last), so a third Q/A grepping it would
+count 0. That is the 86.21 defect. **There have been two.** Any future Q/A on
+this step must be told so in its spawn prompt.

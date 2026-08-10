@@ -93,6 +93,24 @@ const PROMPT = [
   'no-second-opinion-shopping rule). This runtime read makes any qa.md edit live immediately on the Workflow path.',
   'Also read docs/runbooks/per-step-protocol.md if you need the runbook context.',
   '',
+  'STEP 0b (binding, phase-86.31): WRITE-FIRST FOR YOUR VERDICT FILE ONLY. Within your first few tool calls,',
+  'create .claude/agent-memory/qa/verdicts/verdict_wip_' + stepId + '.md (mkdir the verdicts/ dir if absent) whose',
+  'FIRST LINE is verbatim "STATUS: INCOMPLETE -- not a verdict", followed by "STEP: ' + stepId + '" and a',
+  '"WRITTEN: <UTC ISO-8601>" stamp from `date -u +%Y-%m-%dT%H:%M:%SZ`. The stamp is load-bearing: the path is FIXED',
+  'per step, so a later cycle that drops before its first write would otherwise hand Main the PREVIOUS cycle\'s',
+  'COMPLETE file as if it were current. Append findings AS YOU ESTABLISH THEM -- the',
+  'immutable command exit code, each deterministic check, each mutation cell, each criterion MET/NOT MET with its',
+  'evidence -- never a single end-of-run flush. As your FINAL act before returning, rewrite that first line to',
+  '"STATUS: COMPLETE -- write-first record, still NOT a verdict" and append "COMPLETED: <UTC ISO-8601>".',
+  'This rail returned NO verdict on 3 of 8 spawns',
+  'on 2026-08-10 and one of those had already FOUND A REAL SURVIVING MUTANT before it died; the file is how that',
+  'work survives a drop. qa.md section "Write-first for your VERDICT FILE ONLY" governs the details. That path is',
+  'the ONLY one qa-write-guard.sh permits you -- no allowlist was added and no deny removed, so production code,',
+  'tests, .claude/masterplan.json and every handoff/ artifact stay DENIED. Do not work around a block: if a write',
+  'you need is denied, say so in `notes` and return. The WIP file changes NOTHING about what you return or how you',
+  'judge -- your structured return is still the deliverable, and a recovered WIP is EVIDENCE for the next spawn,',
+  'never a verdict, not even when marked COMPLETE.',
+  '',
   'You are INDEPENDENT of the author (Main). Do NOT rubber-stamp. You are READ-ONLY on file contents: you may run',
   'Bash ONLY for non-mutating verification (test -f, ls, grep, jq, git log/status/diff, python -c, pytest,',
   'npx tsc --noEmit) -- NEVER Edit/Write to production files, never rm/mv/sed -i/git commit/git push, no > or >>.',
@@ -190,6 +208,17 @@ if (inputHealth.blind) {
 // covered by qa.md prose + Main's post-verdict `git status` cleanliness
 // check, and queued as its own masterplan step. Stall-immunity is unchanged:
 // it comes from the StructuredOutput captured-return, not the agent type.
+//
+// phase-86.31: VERDICT_SCHEMA above is DELIBERATELY UNCHANGED. The obvious
+// addition -- a `wip_path` / `wrote_verdict_file` field so Main could audit
+// write-first compliance from the return -- was weighed and REJECTED against
+// criterion 7 ("no change to the Q/A's criteria, judgement, effort, or output
+// schema beyond adding a completion marker if criterion 3 requires one").
+// Criterion 3 puts the marker ON THE ARTIFACT, not in the return, so the field
+// is not required by it; and it would buy nothing on the failure it targets,
+// because a DROPPED run produces no return object for the field to live in.
+// Main verifies compliance from disk instead -- the path is deterministic from
+// step_id (`python scripts/qa/qa_wip.py <step_id>`).
 const verdict = await agent(PROMPT, {
   label: 'qa-verdict:' + stepId,
   phase: 'QA',

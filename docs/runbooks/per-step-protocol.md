@@ -117,8 +117,12 @@ fallback (phase-71.1).** The primary unattended launch is the checked-in
 `.claude/workflows/qa-verdict.js` script (run it via the Workflow tool
 with `args={step_id, criteria[], verification_command, evidence}`, or an
 equivalent inline Workflow script). It runs the Q/A role as
-`agent(prompt, {schema, agentType:'general-purpose', model:'opus',
-effort:'max'})`, and **the verdict is the captured return value** —
+`agent(prompt, {schema, agentType:'qa', model:'opus',
+effort:'max'})` — `agentType:'qa'`, corrected phase-86.31: this line read
+`'general-purpose'` while the shipped script has pinned `'qa'` since
+phase-75.20 (grep `agentType:` in `.claude/workflows/qa-verdict.js`; the
+distinction is load-bearing because `general-purpose` carries Edit/Write plus
+the full MCP surface) — and **the verdict is the captured return value** —
 structured-outputs GA (constrained decoding) guarantees the shape, so it
 does NOT depend on a subagent file-write flush. This is the
 stall-immune path: the Agent-tool subagent end-flush stalled 6× on
@@ -149,7 +153,47 @@ writes (`python -c 'open(...,"w")'`, `sed -i`, redirects) bypass
 Write/Edit hooks, and Q/A legitimately holds Bash for verification
 commands. The hook narrows the surface; the git-status check closes it.
 (Sole allowed evaluator write path: `.claude/agent-memory/qa/` — memory
-curation, exempted by the hook and by this rule.)
+curation **and, since phase-86.31, the Q/A's own write-first verdict WIP
+under `.claude/agent-memory/qa/verdicts/`** — exempted by the hook and by
+this rule. Both are inside the SAME pre-existing exemption: phase-86.31 added
+no allowlist entry and removed no deny, so a WIP file appearing there is an
+authored-by-the-evaluator change that this cleanliness check EXPECTS, not a
+foreign one that renders the verdict inadmissible.)
+
+**RECOVERY AFTER A DROPPED Q/A (phase-86.31, MANDATORY — and the limit on it
+is the point).** The rail returns nothing on a real and measured fraction of
+spawns (3 of 8 on 2026-08-10, `subagent completed without calling
+StructuredOutput`, with the drop and completion token populations
+OVERLAPPING — see the run table in `handoff/archive/phase-86.31/`). When that
+happens:
+
+1. **Read the WIP, and ALWAYS pass `--spawned-at`** —
+   `python scripts/qa/qa_wip.py <step_id> --spawned-at <ISO-8601 time you
+   launched the spawn that just dropped>` (add `--body` for the prose). The
+   artifact is `.claude/agent-memory/qa/verdicts/verdict_wip_<step_id>.md`. It
+   reports `COMPLETE` / `INCOMPLETE` / `UNMARKED` / `ABSENT` from the
+   artifact's own first-line marker, plus `STALE` / `IDENTITY_UNKNOWN` from its
+   `WRITTEN` stamp. It deliberately has no `verdict` key for you to scrape and
+   always states `is_verdict: false`.
+   **`--spawned-at` is not optional.** The path is FIXED per step, so a cycle-2
+   spawn that drops *before its first write* leaves cycle-1's `COMPLETE` file
+   in place — pre-fix evidence that reads as current. Without the flag the tool
+   reports `identity_checked: false` and the artifact is unverified.
+2. **The WIP is EVIDENCE FOR THE NEXT SPAWN, NEVER A VERDICT — including a
+   `COMPLETE` one.** A crashed process's partial output is INFORMATION, never
+   its RESULT. Do **not** transcribe it into `evaluator_critique.md`, do
+   **not** persist it to `evaluator_critique.json`, do **not** let it reach
+   `verdict_gate.py`, and do **not** count it toward the CONDITIONAL counter.
+   An errored/empty rail return is **NO VERDICT, NEVER PASS**.
+3. **What it is for**: it tells you whether the analysis reached its end and
+   what it had established — so you can fix a real blocker it surfaced before
+   re-spawning, exactly as Main did by hand on 2026-08-10 when
+   `wf_e03ec2d0-c07` died holding a genuine surviving mutant. Fixing a
+   blocker the WIP names and then re-spawning is the documented cycle-2 flow
+   (changed evidence), **not** verdict-shopping. Re-spawning on UNCHANGED
+   evidence because you disliked a verdict still is.
+4. **Then re-run the Q/A.** The verdict comes from a spawn that returns, or
+   from the Agent-tool fallback. It never comes from a file.
 
 Q/A runs deterministic-first:
 1. Syntax / file-existence / `verification.command` exit code

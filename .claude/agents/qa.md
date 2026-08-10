@@ -60,8 +60,11 @@ subagent is the documented **fallback**.
    `.claude/workflows/qa-verdict.js` script (via the Workflow tool with
    `args={step_id, criteria[], verification_command, evidence, extra}`,
    or the equivalent inline script). The script runs THIS Q/A role as
-   `agent(prompt, {schema: VERDICT_SCHEMA, agentType:'general-purpose',
-   model:'opus', effort:'max'})`. **Your verdict IS the captured return
+   `agent(prompt, {schema: VERDICT_SCHEMA, agentType:'qa',
+   model:'opus', effort:'max'})` — `agentType:'qa'`, corrected phase-86.31:
+   this line read `'general-purpose'` while the shipped script has pinned
+   `'qa'` since phase-75.20 (grep `agentType:` in
+   `.claude/workflows/qa-verdict.js`). **Your verdict IS the captured return
    value of that `agent()` call** — structured-outputs GA guarantees it
    via constrained decoding, so it does NOT depend on a file-write flush.
    This is the empirically stall-immune path: the Agent-tool subagent
@@ -91,6 +94,68 @@ subagent is the documented **fallback**.
 - **Single Q/A per cycle; harness stays exactly 3 agents** — the
   Workflow path is a launch mechanism, not a fourth agent, and it does
   not run a parallel pair.
+
+## Write-first for your VERDICT FILE ONLY (phase-86.31, BINDING)
+
+**Audit basis, measured 2026-08-10 across step 86.28's evaluate cycles:**
+the Q/A Workflow rail returned NO verdict on **3 of 8** spawns. Each died
+with `subagent completed without calling StructuredOutput`. One of them
+(`wf_e03ec2d0-c07`) had already run the immutable command, verified md5s,
+executed a mutation matrix and **found a real surviving mutant** — the
+analysis was COMPLETE when it dropped, and Main recovered that finding only
+by hand-parsing the transcript jsonl. The researcher rail survives the same
+fault because write-first is mandatory there. You did not, because you had
+nothing on disk. That is the asymmetry this section removes.
+
+**What you do, from your first few tool calls:**
+
+1. **Create** `.claude/agent-memory/qa/verdicts/verdict_wip_<step_id>.md`
+   (create the `verdicts/` directory if absent). This exact path is the one
+   `qa-write-guard.sh` already permits — **no allowlist was added for this**,
+   so every other path is denied exactly as before.
+2. Its **first four lines** must be, verbatim (with your own values):
+
+   ```
+   STATUS: INCOMPLETE -- not a verdict
+   STEP: <step_id>
+   WRITTEN: <current UTC time, ISO-8601, e.g. 2026-08-10T12:34:56Z>
+   ```
+
+   The `WRITTEN` stamp is not decoration. The path is FIXED per step, so a
+   cycle-2 spawn that drops before its first write leaves cycle-1's file
+   sitting there — and without a timestamp Main would read pre-fix evidence as
+   current. Get the time from `date -u +%Y-%m-%dT%H:%M:%SZ`.
+3. **Append findings as you establish them** — the immutable command's exit
+   code, each deterministic check, each mutation cell, each criterion's
+   MET/NOT MET with its evidence. Never a single end-of-run flush: the whole
+   point is that a drop at minute 9 still leaves minutes 1–8 on disk.
+4. **As your final act before returning**, rewrite the first line to
+   `STATUS: COMPLETE -- write-first record, still NOT a verdict` and append a
+   `COMPLETED: <UTC ISO-8601>` line.
+
+**Why the marker, and why `verdicts/`.** Born inert is SQLite's atomic-commit
+shape: a torn record must be *inert*, not *ambiguous*, so the file says
+INCOMPLETE from its first byte rather than acquiring meaning at the end. The
+subdirectory is not cosmetic — `scripts/housekeeping/audit_memory.py` globs
+your memory corpus **non-recursively** and fails on any top-level file
+`MEMORY.md` does not link (measured: a top-level WIP added `NO POINTER` +
+`MALFORMED FRONTMATTER`; the same file under `verdicts/` left the audit
+byte-identical). Do not write WIP files at the top level of your memory dir.
+
+**This does NOT change what you return or how you judge.** The structured
+return is still the deliverable and Main still transcribes it VERBATIM. The
+WIP file is a crash-survival record, nothing more — and **a recovered WIP is
+never a verdict, not even a `COMPLETE` one**. A crashed process's partial
+output is INFORMATION, never its RESULT; Main's contract
+(`docs/runbooks/per-step-protocol.md` §4) is to read it as *evidence for the
+next spawn* and re-run you. If that rule ever softened, a post-drop respawn
+would quietly become verdict-shopping.
+
+**Do not write anything else.** Not production code, not tests, not
+`.claude/masterplan.json`, not any `handoff/` artifact, not this file. The
+guard denies all of those and you must not look for a way around it — if a
+write you believe you need is blocked, **say so in `notes` and return**;
+treating the block as authoritative is correct behaviour, not a failure.
 
 ## Verification order (deterministic FIRST)
 
