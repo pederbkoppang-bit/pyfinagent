@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `551d5188` | phase-86.34: record the Q/A verdict VERBATIM -- FAIL |
 | 2026-08-10 | `5b1de158` | docs: goal now genuinely under 4000 chars (prior commit still measured 4018) |
 | 2026-08-10 | `f45d905b` | docs: trim next-session goal under the 4000-char limit |
 | 2026-08-10 | `246edafd` | docs: next-session goal -- 86.38 first, then ask #1 and the 86.34 verdict |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `73672a19` | phase-86.30 cycle 3: close the three fixable findings; PARKED on an un-repairable breach |
 | 2026-08-10 | `ec0b1612` | phase-86.36: queue the write-first record's fixed-path retention gap |
 | 2026-08-10 | `12d18011` | phase-86.29: derive the archive-misattribution census, recall AND precision validated |
-| 2026-08-10 | `5285699b` | phase-86.30 cycle 2: the Q/A rail dropped and 86.31 saved the analysis |
 
 ---
 
+### v6.93.69 — phase-86.34: record the Q/A verdict VERBATIM -- FAIL (2026-08-10)
+
+- **phase-86.34: record the Q/A verdict VERBATIM -- FAIL**
 ### v6.93.68 — phase-86: queue 86.38 (P1 deep-pipeline quota) and 86.39 (P3 cc_rail... (2026-08-10)
 
 - **phase-86: queue 86.38 (P1 deep-pipeline quota) and 86.39 (P3 cc_rail attribution)**
