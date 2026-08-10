@@ -79,3 +79,113 @@ ALL GREEN: 61 passed, 0 failed
 
 ALL GREEN: 61 passed, 0 failed
 ```
+
+## 6. LIVE spawn evidence (criterion 9)
+
+`node --check` passes on scripts that cannot launch (measured 2026-08-09,
+three independent ways -- see the header of `research-gate.js`). So the
+gate was exercised LIVE through the Workflow runtime.
+
+### Run 1 -- `wf_4da39b31-695`, BEFORE the ordering fix. Recorded a real defect.
+
+```json
+{
+  "agentCount": 0,
+  "violations": ["empty_or_errored_return"],
+  "checks": ["empty_or_errored_return: the agent returned null"],
+  "tier_requested": "deep",
+  "tier_applied": "moderate",
+  "tier_supported": false
+}
+```
+
+This says "the agent returned null" for a run in which **no agent was ever
+asked to run**. Misleading in exactly the way this step exists to prevent.
+No then-existing check caught it; only the live spawn did.
+
+### Run 2 -- `wf_23d9ed4b-22c`, AFTER the fix
+
+```json
+{
+  "step_id": "86.28-LIVETEST-2-unsupported-tier",
+  "gate_passed": false,
+  "agent_self_reported_gate_passed": null,
+  "self_report_disagreed": false,
+  "violations": ["tier_unsupported: the caller requested tier \"deep\" which this rail does not implement (supported: simple, moderate, complex). Ran at \"moderate\". Refusing to certify a standard that was never applied -- pass a supported tier, or implement the requested one."],
+  "checks": [],
+  "input_health": {"status": "ok", "blind": false},
+  "tier_requested": "deep",
+  "tier_applied": "moderate",
+  "tier_supported": false,
+  "brief_path": null,
+  "brief_verification": null,
+  "envelope": null,
+  "reason": "UNSUPPORTED TIER: the caller named a tier this rail does not implement. No researcher was spawned."
+}
+```
+
+Workflow log line, verbatim:
+
+```
+research-gate 86.28-LIVETEST-2-unsupported-tier: REFUSING TO SPAWN -- caller requested tier "deep" which this rail does not implement (supported: simple, moderate, complex). Zero agents spawned. Pass a supported tier, or implement the requested one.
+```
+
+`agentCount: 0`, `totalTokens: 0`, `durationMs: 5`. No brief was written
+under the test identity:
+
+```
+$ ls handoff/current/*LIVETEST*
+zsh: no matches found: handoff/current/*LIVETEST*
+```
+
+### Run 3 -- this step's OWN research gate, `wf_60de95f7-5dc` (pre-change, supported tier)
+
+The full stage-1 + stage-2 path, exercised live on the PRE-change script:
+`gate_passed: true`, 7 sources read in full, 34 URLs, brief 41,652 chars,
+all 7 claimed sources independently confirmed present, `self_report_disagreed:
+false`.
+
+### DISCLOSED GAP
+
+The FULL path (stage-1 researcher + stage-2 verifier) was **not re-run
+live after these changes** -- both post-change live runs take the refusal
+branch and spawn nothing. The two new stage-2 fields are declared
+`required` in `BRIEF_VERIFICATION_SCHEMA`, so constrained decoding should
+supply them, but that is reasoning, not measurement. Failure direction is
+safe: if stage 2 omitted a required field, the gate fails CLOSED. The next
+real research gate on any step exercises the path. Not claimed as verified.
+
+## 7. Operator decision owed -- the deep-tier divergence (criterion 3)
+
+`.claude/agents/researcher.md:204,206-273` documents a `deep` tier with
+materially stricter conditions (>=20 sources read in full vs 5, >=1
+`[ADVERSARIAL]` source, explicit multi-pass structure). This rail does not
+implement it.
+
+That divergence is now **loud** -- a caller gets `tier_supported: false`,
+a refusal, and zero spend -- but it is **not resolved**, deliberately.
+`researcher.md:248-263` makes deep's fourth requirement a MULTI-SUBAGENT
+PRODUCER FORK, so implementing the tier means first deciding the
+producer-fan-out question that audit `wf_d61fef3b-25c` left open (both
+adversarial refuters returned `refuted: true` on the recommendation's
+evidence base).
+
+Two options, for the operator:
+
+- **(a) Implement `deep`** -- requires deciding fan-out first, and would
+  need per-branch brief paths, cross-branch URL de-duplication before
+  floors are applied, one stage-2 verification per branch, and a merge
+  stage. None of that exists today.
+- **(b) Mark `deep` as not-implemented in `researcher.md`** -- cheap,
+  honest, and removes the divergence without pre-deciding fan-out.
+
+Not decided here.
+
+## 8. Separation of duties
+
+`.claude/agents/researcher.md` was edited this cycle (the `agentType`
+doc-drift line). Per CLAUDE.md's separation-of-duties rule this is flagged
+for Peder's review. The edit is a one-line factual correction so the doc
+matches shipped code (`research-gate.js:419`, asserted by the checker at
+`verify_research_gate_workflow.mjs:271`); it changes no behaviour of the
+role.
