@@ -32896,3 +32896,61 @@ missing project-root anchor are pre-existing and queued.
 `result=CONDITIONAL` rows for 86.31 (log-last), so a third Q/A grepping it would
 count 0. That is the 86.21 defect. **There have been two.** Any future Q/A on
 this step must be told so in its spawn prompt.
+
+## Cycle 1200 -- 2026-08-10 -- phase=86.24 result=PASS
+
+**P2 -- the test suite changes colour with the wall clock, so it cannot be a
+gate.** CLOSED on the third Q/A cycle (`wf_0ef62cb2-2f7`, 210,598 tokens, 53
+tool uses). Supersedes Cycle 1198's `result=PARKED`: the step was parked with a
+complete remediation and no outstanding remedy, and this session spawned the
+single graded pass its disposition asked for.
+
+**All six immutable criteria MET**, every number re-derived by the evaluator
+rather than read. Immutable command **24 passed**, exit 0; mutation matrix
+re-run independently **7/7 KILLED** with tracked digests unchanged; ruff
+F821/F401/F811 over a git-derived 10-file scope exit 0.
+
+**The evaluator added two axes the author never ran, specifically to try to
+break the step, and both came back clean:**
+- criterion 4 shown at **three** clock positions -- mid-day, `TZ=Pacific/Midway`
+  (local BEHIND) and `TZ=Pacific/Kiritimati` (local AHEAD, an untested
+  direction) -- 34 passed each;
+- a **full-suite differential in the AHEAD direction**: 15 failed / 3362 passed,
+  failure set compared **by MEMBER not count**, symmetric difference EMPTY.
+
+It also mutation-tested the one new guard that had no cell in the author's
+matrix (injected a global freeze -> KILLED), so criterion 6's purpose is
+satisfied by execution. Adjudication confirmed: `kill_switch.py` byte-unchanged,
+`daily_loss_breached is True` byte-identical, all six `evaluate_breach` callers
+enumerated, live journal sha256 `ea78508bee73887c...` / 64 lines identical
+before and after every probe. **No live defect.**
+
+**ESCALATION ARMED HONESTLY, NOT DODGED.** This was the THIRD cycle; the first
+two were CONDITIONAL. `harness_log.md` carried ZERO `result=CONDITIONAL` rows
+for 86.24 because log-last never records in-flight verdicts (the 86.21 defect),
+so the automatic counter would have read 0. Main disclosed the true count in the
+spawn prompt, meaning a third CONDITIONAL would have been converted to FAIL.
+PASS was reached with the escalation live.
+
+**Three NOTE-level flags, none unmetting a criterion, queued as 86.34 rather
+than fixed post-verdict** (the graded tree stays frozen -- 86.1's precedent).
+Each re-measured by Main before filing: (N1) live source claims
+`TZ=Pacific/Midway` puts local BEHIND "which is exactly" the 00:00-02:00 CEST
+window -- measured, that window has local AHEAD, so the simulation is the
+MIRROR; the operative property still holds and the AHEAD sweep was clean. (N2)
+the conftest sweep's `".venv" in cf.parts` exact-element match fails to exclude
+`.venv.py313.bak`: 70 conftests in tree, 34 kept, **32 of them vendored**, only
+2 project files -- the guard is green by the luck of the present vendored
+corpus. (N3) `live_check_86.24.md:156` reports digest `5c1ce1116769d118` where
+the file now hashes `fb97b52ecf7fb5be`, inside a block labelled verbatim.
+
+**Recorded as a blind check, not a green one:** contract-before-generate is
+UNPROVABLE for this step -- contract, brief and test code all landed in the
+single commit `d5180e27`, so no timestamp chain exists. The evaluator reported
+it unprovable rather than passing it.
+
+**Still disclosed-open and owned elsewhere:** the TZ-vs-UTC blind spot (needs
+`time-machine`, an operator ask); the .json/.csv fixture-date gap; the
+`PYFINAGENT_86_24_PROW_PATH` test seam; and phase-86.27's `ebeb03da`, which
+fixed a self-defeating test AFTER 86.27 closed on a PASS and which **no Q/A has
+graded** -- it belongs to 86.27, not here.

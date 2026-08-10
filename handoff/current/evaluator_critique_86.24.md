@@ -188,3 +188,56 @@ SCOPE HONESTY. Strong and partly against interest: section 7 discloses the TZ-do
 CODE-REVIEW HEURISTICS. No BLOCK fired. Diff is test-only; no secrets, no subprocess/eval on non-literal input, no kill-switch reachability change, no stop-loss or perf_metrics change, no dependency pin added or removed. illusory-guard checked by EXECUTION and cleared: the guards run production evaluate_breach rather than scanning source; the one source-scan guard (conftest sweep) is criterion-mandated and I re-derived its population independently; positive controls exist against vacuity shape 5 (test_a_TODAY_anchor_arms_the_daily_leg, the fresh-anchor control, the TZ-shift positive control at :261-264); the seam cannot silently no-op; and the M6 kill is attributed to the correct assertion, closing vacuity shape 11. One WARN -> CONDITIONAL per the severity dispatch table.
 
 PATH TO PASS (one comment block plus two annotations, then a fresh Q/A on changed evidence): rewrite test_phase_86_2_replay_poison_row.py:55-58 to the roll-before-evaluate ordering with a cross-reference to the band test; annotate (do not rewrite) contract_86.24.md:32-35 and research_brief_86.24.md supports 1/4/5 as withdrawn-in-cycle-2; narrow live_check section D to name where the claim was replaced. Weaken no assertion. Optional, NOTE-level: extend the injected-clock recompute property test to the macro module's _utc_today so E1 dies too.
+
+---
+
+# CYCLE 3 VERDICT -- Q/A, Workflow rail run `wf_0ef62cb2-2f7`
+
+(210,598 subagent tokens, 53 tool uses, 890s). Model opus / effort max.
+Returned 2026-08-10 and transcribed in the same turn it landed.
+
+> **Transcribed VERBATIM by Main from the captured structured return.**
+> Main records the verdict and never authors it. Nothing below is edited,
+> paraphrased, reordered or abridged.
+
+> **Spawn disclosure (Main):** this Q/A was told explicitly that TWO prior
+> cycles returned CONDITIONAL and that `harness_log.md` shows zero such rows
+> only because of the log-last blindness (the 86.21 defect) -- so a third
+> CONDITIONAL would have been converted to FAIL. The escalation was armed
+> honestly; the evaluator was not steered.
+
+## VERDICT: PASS   (ok=true, harness_compliance_ok=true, certified_fallback=false)
+
+## reason
+
+All six immutable criteria MET, every number independently re-derived rather than read. Immutable command 24 passed exit=0; mutation matrix re-run by me 7/7 KILLED with tracked digests unchanged and no strays; derived-scope ruff F821/F401/F811 over 10 changed .py files exit=0; criterion 4 shown at THREE clock positions (mid-day 34 passed, TZ=Pacific/Midway local-BEHIND 34 passed, and TZ=Pacific/Kiritimati local-AHEAD 34 passed, a direction the author never ran). I attacked the cycle-3 remediation directly and it holds: the rewritten comment at test_phase_86_2_replay_poison_row.py:55-58 now states the roll-before-evaluate ordering and a band table that my own independent probe reproduces EXACTLY (STALE anchor any_breached=False at nav 95.0 and 92.0, True at 89.0/80.0; TODAY anchor True at 95.0/92.0), with paper_trader.py:1413/:1460/:1468/:1372 all verified correct in source and all 6 production evaluate_breach callers enumerated (check_auto_resume reads `armed` only to REFUSE resume, i.e. fail-safe) -- adjudication confirmed, no live defect, kill_switch.py byte-unchanged, `daily_loss_breached is True` byte-identical. My own recall test over the 12 files the step owns (derived from its 5 commits) found ZERO surviving instances of the withdrawn proposition in the poison-row module, so the cycle-2 finding is genuinely closed, not restated; live_check section D's 6-row location table audits clean 6/6 and IS auditable in the way the prose was not; annotating the dated contract and brief rather than rewriting them is correct practice, not evasion. Two measurements the author never took both came back clean: a FULL-SUITE differential in the untested AHEAD direction returned 15 failed / 3362 passed with a failure set compared by MEMBER, not count -- symmetric difference EMPTY vs the author's SHIFTED capture; and the one new guard with no mutation cell (criterion 5's conftest sweep) was mutation-tested by me with an injected global freeze and KILLED, so it counts. Research gate 14 read-in-full / 44 URLs / recency scan / audit-class 8 rounds 2 dry. Live kill_switch journal sha256 ea78508bee73887c... 64 lines unchanged after every probe; masterplan still pending, so log-last intact; evidence CHANGED between cycles (da9263d6 rewrote live source), so this is the documented fresh-respawn flow and not verdict-shopping. Three residual NOTE-level flags recorded in notes; I tried to make each of them bite and none does, so none degrades the verdict.
+
+## violated_criteria
+
+(none)
+
+## checks_run
+
+- harness_compliance_audit_5_item
+- immutable_verification_command_exit0
+- syntax_and_import
+- python_lint_gate_ruff_F821_F401_F811_derived_scope
+- mutation_matrix_86_24_rerun_7of7
+- independent_mutation_of_the_uncovered_criterion5_guard
+- independent_band_measurement_probe
+- enforcement_path_source_verification
+- evaluate_breach_caller_enumeration
+- criterion4_three_clock_positions
+- full_suite_differential_AHEAD_direction_new_axis
+- failure_set_symmetric_difference_by_member
+- recall_test_of_cycle2_remediation_over_derived_file_set
+- live_check_location_table_audit
+- research_gate_envelope
+- live_journal_digest_before_and_after
+- masterplan_status_and_log_last
+- verdict_shopping_evidence_change_check
+- code_review_heuristics
+
+## notes
+
+THREE NOTE-LEVEL FLAGS (PASS-with-flag; none unmets a criterion, each was tested for consequence and none has one). (1) DIRECTIONALLY INVERTED CLAIM IN LIVE SOURCE. Measured with zoneinfo: at 00:30 and 01:30 CEST the local date is 2026-08-10 while UTC is 2026-08-09, i.e. local is one day AHEAD; TZ=Pacific/Midway puts local one day BEHIND (measured: local 2026-08-09 / UTC 2026-08-10). So "TZ=Pacific/Midway puts the LOCAL date one day behind UTC, which is exactly the 00:00-02:00 CEST window in which the two macro tests used to fail" (backend/tests/test_phase_86_24_clock_dependence.py:235-237, repeated at handoff/current/live_check_86.24.md:8-10) is the MIRROR of the real window, not the same window. The operative property -- local calendar day != UTC calendar day -- IS correctly simulated, and I ran the untested AHEAD direction across the whole suite: identical failure set, symmetric difference empty. Worth a one-line correction in a future cycle; it changes no result. (2) THE CRITERION-5 GUARD SWEEPS A GITIGNORED BACKUP VENV. `".venv" in cf.parts` is an exact path-element match, so it does NOT exclude `.venv.py313.bak` (gitignored at .gitignore:16 `.venv*/`, untracked). On this machine the guard reads 34 conftests of which 32 are vendored third-party files (pandas/numpy/scipy/sklearn/...) and only 2 are project files; a fresh clone or CI reads 2. Zero of the 32 currently contain any suspect token, so the guard is green by the luck of the present vendored corpus, and a future pip install of a package whose conftest mentions freezegun would turn it red for a reason unrelated to any change -- the exact failure mode this step exists to remove. live_check section E's "sweeps EVERY conftest.py in the repo (excluding .venv, node_modules)" is literally true of the code and materially understates the swept set. This guard is also the ONLY new guard with no cell in the author's matrix, which is a literal gap against criterion 6's "mutation-test every new guard"; I closed it by execution (injected a poisoned conftest into a fake REPO -> KILLED, control passes on the real tree), so the guard counts and the criterion's purpose is satisfied. (3) STALE FIELD IN A CAPTURE BLOCK. live_check section F reports the poison-row digest as 5c1ce1116769d118; after cycle-3's comment rewrite it is fb97b52ecf7fb5be (my re-run). The matrix still passes 7/7 so nothing substantive is wrong, but section F is a cycle-2 capture and the file header still reads "Code commit: d5180e27. Measurement tree: 70e646b7" while the file carries cycle-2 and cycle-3 content. DISCLOSED BLIND CHECK, not a claimed pass: contract-before-generate cannot be ordered from git for this step -- contract_86.24.md, research_brief_86.24.md and the test code all landed in the single commit d5180e27, so no timestamp chain exists. I am recording that the check is unprovable rather than reporting it green. FOR MAIN: harness_log currently carries `result=PARKED` for 86.24 (Cycle 1198) and ZERO `result=CONDITIONAL` rows, so the automatic 3rd-CONDITIONAL counter is blind here exactly as disclosed; if this verdict is acted on, append a proper `result=PASS` cycle entry BEFORE the masterplan status flip. ON THE DISCLOSED OPEN ITEMS: the TZ-vs-UTC blind spot (needs `time-machine`, an operator ask), the .json/.csv fixture-date gap, and the PYFINAGENT_86_24_PROW_PATH test seam are all genuinely disclosed in experiment_results section 7 and the DISPOSITION, and none is a criterion this step owns; phase-86.27's ebeb03da belongs to 86.27, and surfacing it rather than letting it look like a clean green is correct behaviour, but it should be graded under its own step. ON THE DISPOSITION FRAMING: the artifacts argue against spawning a third Q/A. I did not let that steer the result -- I re-derived every claim from scratch and added two axes the author never measured specifically to try to break the step; both came back clean. NO UI CLAIMS in this step, so section 1c does not apply; no browser capture was needed or taken. Read-only throughout: the only file I wrote is the permitted WIP record at .claude/agent-memory/qa/verdicts/verdict_wip_86.24.md; the live kill_switch journal sha256 and line count are identical before and after all probes; my journal probes wrote only into a system tempdir.
