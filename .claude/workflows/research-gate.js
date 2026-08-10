@@ -320,7 +320,7 @@ const BRIEF_VERIFICATION_SCHEMA = {
   additionalProperties: false,
   required: [
     'brief_exists', 'brief_non_empty', 'char_count', 'urls_checked', 'urls_present', 'urls_missing',
-    'recency_section_present', 'distinct_urls_in_brief',
+    'recency_section_present', 'distinct_urls_in_brief', 'brief_status_in_brief',
   ],
   properties: {
     brief_exists: { type: 'boolean' },
@@ -331,6 +331,13 @@ const BRIEF_VERIFICATION_SCHEMA = {
     urls_missing: { type: 'array', items: { type: 'string' } },
     recency_section_present: { type: 'boolean', description: 'Does the brief carry a dedicated recency-scan section heading? Structural only -- not a judgement that the scan was substantive.' },
     distinct_urls_in_brief: { type: 'integer', description: 'Count of DISTINCT http(s) URLs appearing anywhere in the brief.' },
+    // phase-86.37: the born-inert marker, READ FROM THE BRIEF by an agent that
+    // is not the author. "COMPLETE" only if the brief's envelope literally says
+    // so; "INCOMPLETE" if it says that; "ABSENT" if there is no such field.
+    // ABSENT is NOT folded into INCOMPLETE -- a brief with no marker was not
+    // written by the write-first path at all, and saying which is more useful
+    // than degrading both to the same word.
+    brief_status_in_brief: { type: 'string', enum: ['COMPLETE', 'INCOMPLETE', 'ABSENT'], description: 'The brief_status value inside the brief\'s own JSON envelope. ABSENT when the brief carries no such field.' },
   },
 }
 
@@ -458,6 +465,35 @@ function enforceGate(env, verification, opts) {
     violations.push('brief at ' + claimedPath + ' is EMPTY')
   } else {
     checks.push('brief_on_disk_ok: ' + claimedPath + ' (' + verification.char_count + ' chars, independently read)')
+    // phase-86.37: THE BORN-INERT MARKER IS A HARD GATE, and it is checked
+    // BEFORE any count, deliberately. A brief that dropped mid-run can be long,
+    // well-formed and carry plenty of sources -- 86.29's was 25,359 bytes with
+    // 15 of them -- and it is still not a completed piece of research. Letting
+    // the counts speak first would let exactly that brief pass on volume.
+    // ABSENT is treated as INCOMPLETE for gating (it cannot be shown complete)
+    // but is reported DISTINCTLY, because "no marker at all" means the brief was
+    // not produced by the write-first path and is a different problem from "the
+    // run was cut short".
+    // FAIL CLOSED on a missing field. The first version of this block tested
+    // only the three known values, so an `undefined` (a stage-2 object that
+    // omitted the field) matched none of them and the marker gate silently did
+    // NOTHING -- green, and blind. The schema requires the field, but a gate
+    // must not depend on the schema having been honoured.
+    const briefStatus = (verification.brief_status_in_brief === 'COMPLETE'
+      || verification.brief_status_in_brief === 'INCOMPLETE')
+      ? verification.brief_status_in_brief
+      : 'ABSENT'
+    if (briefStatus === 'INCOMPLETE') {
+      violations.push('brief at ' + claimedPath + ' declares brief_status=INCOMPLETE -- '
+        + 'the run did not reach its final act. A partial brief is EVIDENCE for a re-run, '
+        + 'never a gate pass (crash-only: partial output is INFORMATION, never RESULT).')
+    } else if (briefStatus === 'ABSENT') {
+      violations.push('brief at ' + claimedPath + ' carries NO brief_status marker -- it cannot be '
+        + 'shown to be complete, so it does not pass. (Distinct from INCOMPLETE: a brief with no '
+        + 'marker was not written by the write-first path at all.)')
+    } else if (briefStatus === 'COMPLETE') {
+      checks.push('brief_status_in_brief: COMPLETE (the brief declares its own final act ran)')
+    }
     const missing = Array.isArray(verification.urls_missing) ? verification.urls_missing : []
     if (missing.length) {
       violations.push('sources claimed but ABSENT from the brief (' + missing.length + '): ' + missing.slice(0, 5).join(', '))
@@ -591,14 +627,49 @@ if (tierUnsupported) {
   }
 }
 
-const envelope = await agent(PROMPT, {
-  label: 'research-gate:' + stepId,
-  phase: 'Research',
-  schema: ENVELOPE_SCHEMA,
-  agentType: 'researcher',
-  model: 'opus',
-  effort: 'max',
-})
+// ── phase-86.37: THE STAGE-1 DROP IS SURVIVABLE ────────────────────────────
+// This call used to be a bare `await`. When the rail drops -- `agent({schema}):
+// subagent completed without calling StructuredOutput` -- that throw killed the
+// WHOLE workflow: enforceGate never ran, brief_verification was never computed,
+// and the caller got an exception instead of a return. MEASURED on step 86.29,
+// 2026-08-10: run wf_f23b7949-ea3 dropped after 181,082 subagent tokens and 68
+// tool uses, leaving a 25,359-byte brief with 15 sources on disk that NOTHING
+// could assess. Write-first had saved the research; the workflow threw it away.
+//
+// THE ASYMMETRY WAS THE BUG. Stage 2 below has always been wrapped, setting
+// `verification = null // fail closed in enforceGate`. Stage 1 was not. This is
+// that same pattern, not a new invention.
+//
+// WHAT THIS DOES **NOT** DO: it does not turn a drop into a pass.
+// `.claude/rules/research-gate.md` -- an empty or errored return is a FAILED
+// gate, never `gate_passed`. On a drop `envelope` is null, and
+// `enforceGate(null, …)` already fails closed by its EXISTING logic. That is
+// deliberate: no new special case decides it, because a special case is
+// something a future edit can quietly invert. The floors decide it.
+//
+// What it DOES do is let the run come back with a RECOVERY REPORT -- the brief's
+// on-disk verification plus `rail_dropped` -- so a caller can tell "nearly
+// complete, cheap re-run" from "nothing usable". A recovered brief is EVIDENCE
+// for the re-run, exactly as phase-86.31 made a recovered Q/A record evidence
+// and never a verdict.
+let envelope = null
+let railDropped = null
+try {
+  envelope = await agent(PROMPT, {
+    label: 'research-gate:' + stepId,
+    phase: 'Research',
+    schema: ENVELOPE_SCHEMA,
+    agentType: 'researcher',
+    model: 'opus',
+    effort: 'max',
+  })
+} catch (e) {
+  envelope = null
+  railDropped = { dropped: true, error: String((e && e.message) || e).slice(0, 400) }
+  log('research-gate: STAGE-1 RAIL DROPPED -- ' + railDropped.error
+      + ' | continuing to verify the brief on disk so the run returns a recovery '
+      + 'report. gate_passed will be FALSE: an errored return is a FAILED gate.')
+}
 
 // ---------------------------------------------------------------------------
 // STAGE 2 -- independent artifact verification. The researcher does NOT attest
@@ -625,6 +696,12 @@ try {
     '  urls_checked     -- how many URLs you were given below',
     '  urls_present     -- how many of them appear as a literal substring of the file',
     '  urls_missing     -- the exact URLs that do NOT appear',
+    '  brief_status_in_brief -- look inside the brief for its OWN JSON envelope and report the value',
+    '                           of its `brief_status` field EXACTLY: "COMPLETE", "INCOMPLETE", or',
+    '                           "ABSENT" if the brief has no such field. Report what is WRITTEN. Do not',
+    '                           infer completeness from the brief looking finished, and do not report',
+    '                           COMPLETE because the counts look adequate -- a brief that dropped',
+    '                           mid-run can be long, well-formed and still INCOMPLETE.',
     '  recency_section_present -- does the brief carry a DEDICATED recency-scan section heading',
     '                            (a heading such as "Recency scan (last 2 years)" or equivalent)?',
     '                            Report ONLY whether such a section EXISTS. Do NOT judge whether the',
@@ -695,6 +772,13 @@ return {
   // into gate_passed. A caller must be able to tell "failed the floors" apart
   // from "never had a subject".
   input_health: { status: inputHealth.status, blind: inputHealth.blind },
+  // phase-86.37: the stage-1 drop is its OWN field, for the same reason
+  // input_health is: a caller must be able to tell "failed the floors" from
+  // "the rail died mid-run" from "never had a subject". Folding a drop into
+  // gate_passed or violations makes those three indistinguishable, and the
+  // recovery decision differs for each -- re-run vs fix-then-re-run vs
+  // fix-the-caller. null when stage 1 returned normally.
+  rail_dropped: railDropped,
   // phase-86.28: the substitution is now detectable FROM THE RESPONSE. This is
   // the RFC 7240 `Preference-Applied` pattern -- a preference may be ignored
   // only because the response says so. Previously this reached the agent

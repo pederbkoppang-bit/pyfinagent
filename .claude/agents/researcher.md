@@ -297,14 +297,40 @@ assumption in your first line.
   (t-stat >= 3.0), Lo (2002)
 - Harness: Planner -> Generator -> Evaluator autonomous loop
 
-## Output JSON envelope (ALWAYS EMIT)
+## Output JSON envelope (ALWAYS EMIT — AND WRITE IT FIRST, BORN INERT)
 
-Emit this envelope at the tail of every brief, even when the caller
-does not ask. Callers (Main + Q/A) rely on it to audit whether the
-gate was actually met vs merely claimed.
+**phase-86.37 — the envelope goes in the brief EARLY, not at the end.**
+
+This section used to say only "emit this envelope at the tail of every brief".
+A run that drops mid-loop never reaches its tail. MEASURED on step 86.29,
+2026-08-10: the rail dropped after **181,082 tokens / 68 tool uses**, leaving a
+**25,359-byte brief with 15 sources** on disk that carried **no envelope and no
+completion marker** — it stopped inside "rounds 5-6 (audit-class loop
+continues)". The research was largely done and **none of it was assessable**.
+Write-first saved the prose and lost the audit summary.
+
+So, mirroring the Q/A rail's `verdict_wip` marker (phase-86.31):
+
+1. **Within your first few tool calls**, write the envelope block into the brief
+   with `"brief_status": "INCOMPLETE"` and zeroed counts. It is *born inert*: a
+   torn brief must be **unreadable as complete**, not ambiguous.
+2. **Update it as sources land** — bump the counts in place as you go, so the
+   envelope on disk always describes what has actually been read so far.
+3. **As your FINAL act**, set `"brief_status": "COMPLETE"` and write the real
+   `gate_passed` value.
+
+**A brief whose envelope says `INCOMPLETE` has NOT passed the gate, whatever the
+counts say** — and a caller must never read it as a pass. That is the crash-only
+rule: a crashed run's partial output is INFORMATION, never its RESULT. Being
+honest here costs nothing; the script recomputes `gate_passed` anyway and
+cross-checks your claimed URLs against the brief on disk.
+
+Callers (Main + Q/A) rely on this to audit whether the gate was actually met vs
+merely claimed.
 
 ```json
 {
+  "brief_status": "COMPLETE",
   "tier": "moderate",
   "external_sources_read_in_full": 5,
   "snippet_only_sources": 7,

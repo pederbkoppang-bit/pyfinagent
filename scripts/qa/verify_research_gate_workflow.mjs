@@ -121,6 +121,13 @@ function makeBrief(readUrls, snippetUrls = [], withRecency = true) {
     '## Snippet-only sources',
     ...snippetUrls.map(u => `| ${u} | snippet only |`),
     '',
+    // phase-86.37: the fixture brief declares its own born-inert marker, so the
+    // happy path exercises brief_status_in_brief === 'COMPLETE' rather than
+    // leaving it undefined.
+    '```json',
+    '{ "brief_status": "COMPLETE" }',
+    '```',
+    '',
   ]
   if (withRecency) parts.push('## Recency scan (last 2 years)', '', 'No relevant new findings in the window.', '')
   fs.writeFileSync(p, parts.join('\n'))
@@ -151,6 +158,11 @@ function verifyBrief(briefPath, urls) {
     urls_missing: missing,
     recency_section_present: text !== null && RECENCY_HEADING_RE.test(text),
     distinct_urls_in_brief: text === null ? 0 : new Set(text.match(URL_RE) || []).size,
+    // phase-86.37: read the born-inert marker out of the brief, the way stage 2
+    // is asked to. Derived from the FILE, never assumed.
+    brief_status_in_brief: text === null ? 'ABSENT'
+      : (/"brief_status"\s*:\s*"COMPLETE"/.test(text) ? 'COMPLETE'
+        : (/"brief_status"\s*:\s*"INCOMPLETE"/.test(text) ? 'INCOMPLETE' : 'ABSENT')),
   }
 }
 
@@ -737,14 +749,92 @@ console.log('\n[8] structural -- no stripped schema keywords, no forbidden runti
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')
   const stripLineComments = stripComments
+  // phase-86.37: the spawn locator matches BOTH `const envelope = await agent(`
+  // and the try/catch form `envelope = await agent(` introduced when stage 1 was
+  // made drop-survivable. The literal it used to search for stopped existing, so
+  // `spawnAt` became -1 and TWO assertions failed -- not because the ordering
+  // broke, but because the locator could no longer find its landmark. Widening
+  // the locator does NOT weaken the assertion: it still finds the spawn and still
+  // compares positions; it just stops depending on a keyword that is irrelevant
+  // to the property being tested. The M5 vacuity probe below uses the same
+  // locator, so both track the code together.
+  const SPAWN_RE = /(?:const\s+)?envelope\s*=\s*await agent\(PROMPT/
+  const spawnIndex = (s) => { const m = SPAWN_RE.exec(s); return m ? m.index : -1 }
   const refusalPrecedesSpawn = (rawSrc) => {
     const code = stripLineComments(rawSrc)
     const m = /if \(tierUnsupported\) \{[\s\S]*?return \{/.exec(code)
-    const spawnAt = code.indexOf('const envelope = await agent(PROMPT')
+    const spawnAt = spawnIndex(code)
     return m !== null && spawnAt !== -1 && m.index < spawnAt
   }
   {
-    check('driver REFUSES TO SPAWN on an unsupported tier',
+    // ── phase-86.37: THE BORN-INERT MARKER AND THE STAGE-1 DROP ──────────────
+  // The marker is a HARD gate: a brief that dropped mid-run can be long,
+  // well-formed and source-rich -- 86.29's was 25,359 bytes with 15 sources --
+  // and is still not completed research. Every case below hands enforceGate an
+  // envelope that CLEARS EVERY FLOOR, so the only thing that can fail is the
+  // marker. If these ever pass, the marker has stopped gating.
+  {
+    const clears = goodEnvelope()
+    const baseV = verifyBrief(clears.brief_path, clears.sources_read_in_full)
+
+    const withStatus = (st) => Object.assign({}, baseV, { brief_status_in_brief: st })
+    check('a brief declaring brief_status=INCOMPLETE FAILS the gate even when every floor is met',
+      G(clears, withStatus('INCOMPLETE')).gate_passed === false)
+    check('...and the violation NAMES the marker rather than blaming a floor',
+      G(clears, withStatus('INCOMPLETE')).violations.some(v => /INCOMPLETE/.test(v)))
+    check('a brief with NO brief_status marker FAILS the gate (cannot be shown complete)',
+      G(clears, withStatus('ABSENT')).gate_passed === false)
+    check('ABSENT is reported DISTINCTLY from INCOMPLETE, not folded into it',
+      G(clears, withStatus('ABSENT')).violations.some(v => /NO brief_status marker/.test(v)))
+    check('brief_status=COMPLETE with every floor met PASSES',
+      G(clears, withStatus('COMPLETE')).gate_passed === true)
+
+    // FAIL-CLOSED: a stage-2 object that OMITS the field must not skip the gate.
+    // The first implementation tested only the three known values, so undefined
+    // matched none and the marker check silently did nothing.
+    const omitted = Object.assign({}, baseV)
+    delete omitted.brief_status_in_brief
+    check('a verification object OMITTING brief_status_in_brief FAILS CLOSED (does not skip the gate)',
+      G(clears, omitted).gate_passed === false)
+    check('...and an unrecognised marker value also fails closed',
+      G(clears, Object.assign({}, baseV, { brief_status_in_brief: 'probably fine' })).gate_passed === false)
+  }
+
+  // The stage-1 drop must be SURVIVABLE and must NEVER pass.
+  {
+    const src = stripLineComments(fs.readFileSync(WORKFLOW, 'utf8'))
+    // PROXIMITY, not a spanning regex. The first version of this check was
+    // /try\s*\{[\s\S]*?envelope = await agent\(PROMPT[\s\S]*?\}\s*catch/, which
+    // any EARLIER `try {` (classifyArgs has one) plus any LATER `catch` (stage 2
+    // has one) satisfies -- so it stayed green against a valid unwrap of stage 1
+    // and only the rail_dropped assertion caught that mutant. Measured, not
+    // assumed. The wrapper is now pinned by DISTANCE: the nearest `try {` before
+    // the spawn must be close to it, and a `catch` must follow close after.
+    const spawnPos = spawnIndex(src)
+    const tryBefore = src.lastIndexOf('try {', spawnPos)
+    const catchAfter = src.indexOf('catch', spawnPos)
+    check('stage 1 is wrapped so a rail drop cannot kill the workflow (proximity-pinned)',
+      spawnPos !== -1 && tryBefore !== -1 && (spawnPos - tryBefore) < 200
+      && catchAfter !== -1 && (catchAfter - spawnPos) < 600)
+    check('the drop path records rail_dropped rather than swallowing the error',
+      /catch[\s\S]{0,400}railDropped\s*=\s*\{[\s\S]{0,200}error/.test(src))
+    check('rail_dropped is returned as its OWN field, not folded into gate_passed',
+      /rail_dropped:\s*railDropped/.test(src))
+    check('the drop path does NOT assign gate_passed anywhere in its catch block',
+      !/catch\s*\([\s\S]{0,600}gate_passed\s*[:=]\s*true/.test(src))
+
+    // The property that matters: a dropped run has NO envelope, and enforceGate
+    // must fail closed on that even when a perfectly good brief is on disk.
+    const clears = goodEnvelope()
+    const goodV = verifyBrief(clears.brief_path, clears.sources_read_in_full)
+    const droppedResult = G(null, Object.assign({}, goodV, { brief_status_in_brief: 'COMPLETE' }))
+    check('a DROPPED stage 1 (null envelope) fails the gate even with a COMPLETE brief on disk',
+      droppedResult.gate_passed === false)
+    check('...and that is decided by the existing fail-closed logic, which still names a violation',
+      Array.isArray(droppedResult.violations) && droppedResult.violations.length > 0)
+  }
+
+  check('driver REFUSES TO SPAWN on an unsupported tier',
       /if \(tierUnsupported\) \{[\s\S]*?return \{/.test(stripLineComments(src)))
     check('the refusal is placed BEFORE the researcher spawn (else it saves no tokens)',
       refusalPrecedesSpawn(src) === true)
@@ -758,7 +848,7 @@ console.log('\n[8] structural -- no stripped schema keywords, no forbidden runti
     // The defeat needs the real block MOVED as well.
     const naivePrecedesSpawn = (rawSrc) => {
       const a = rawSrc.indexOf('if (tierUnsupported) {')
-      const b = rawSrc.indexOf('const envelope = await agent(PROMPT')
+      const b = spawnIndex(rawSrc)
       return a !== -1 && b !== -1 && a < b
     }
     const refusalBlock = /if \(tierUnsupported\) \{[\s\S]*?\n\}\n/.exec(stripLineComments(src))
