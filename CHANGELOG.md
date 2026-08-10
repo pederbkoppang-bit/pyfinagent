@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `d3bb1dfb` | phase-86.37: a dropped research gate no longer destroys the run (operator-directed) |
 | 2026-08-10 | `2a696ac7` | phase-86.29: research GATE FAILED (rail dropped); brief preserved, no contract written |
 | 2026-08-10 | `73672a19` | phase-86.30 cycle 3: close the three fixable findings; PARKED on an un-repairable breach |
 | 2026-08-10 | `ec0b1612` | phase-86.36: queue the write-first record's fixed-path retention gap |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9187aa8b` | docs(86.31,86.32): file the two harness-reliability fixes from today's measurements |
 | 2026-08-10 | `d2e987f1` | fix(86.28): kill the survivor recovered from a dropped Q/A transcript |
 | 2026-08-10 | `7eb85983` | fix(86.24): cycle-2 -- both Q/A findings, and the second was mine in the repaired file |
-| 2026-08-10 | `5fef5b05` | docs(86.28): compact the evidence read path 2572 -> 663 lines |
 
 ---
 
+### v6.93.59 — phase-86.37: a dropped research gate no longer destroys the run (oper... (2026-08-10)
+
+- **phase-86.37: a dropped research gate no longer destroys the run (operator-directed)**
 ### v6.93.58 — phase-86.29: research GATE FAILED (rail dropped); brief preserved, no... (2026-08-10)
 
 - **phase-86.29: research GATE FAILED (rail dropped); brief preserved, no contract written**
