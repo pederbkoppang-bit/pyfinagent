@@ -188,3 +188,99 @@ NOTE-LEVEL, NOT BLOCKING, BUT THE C9 ENUMERATION SHOULD NAME THEM: (a) the audit
 WHAT I DID NOT DO: no worktree isolation (in-place, the default); section 1c is N/A and the frontend eslint/tsc gate correctly skipped -- this step makes no UI claims and touches no frontend/**; I did NOT run the full 3291-test suite, so the author's '14 failed' baseline and the '+7 tests red' / '21 tests RED' figures remain author-supplied and unreproduced by me (they are internally consistent: 14+7=21). I sent NO mutating request to the live backend at any point -- reachability was established with GET /api/health only, guard classification with a sentinel _REAL_URLOPEN, and every filesystem probe with bare sys.audit events that perform zero I/O.
 
 PATH TO PASS -- artifact-only, no code change required by criterion 9: (i) restate the C9 HTTP row as PARTIAL, listing the measured residual (8 reachable un-refused spellings incl. the LAN address and hostname) and stating plainly that a host-string allowlist cannot be complete while uvicorn binds *:8000; (ii) add the os.rename/os.remove/os.truncate residual and the PYFINAGENT_LIVE_STATE_GUARD=off bypass to the filesystem row; (iii) queue the class fix as its own research-gated step; (iv) fix or delete the line-135 tautology. RESIDUAL I AM EXPLICIT ABOUT: my 14-spelling census is not a proof of completeness either -- it is a known-member recall test over the shapes Main named (IPv6, trailing dot, uppercase, IPv4-mapped) plus decimal/shorthand/zero-padded/LAN/hostname forms, and it found 8 members. I make no claim that 8 is the total.
+
+
+---
+
+# phase-86.6 -- EVALUATE (cycle 3)
+
+**Verdict: FAIL**  (`ok: False`)
+
+Third consecutive non-PASS for this step-id. Per `docs/runbooks/
+per-step-protocol.md` §4 the escalation clause converts a third
+CONDITIONAL into a FAIL. Run `wf_cabb0bee-0a4`. Transcribed VERBATIM.
+
+## reason
+
+Answering the five questions I was asked, by execution: (3) CONFIRMED and proven, not read -- test_phase_86_6_live_state_preventer.py:136/142 now captures live_before BEFORE the redirected write and compares after, and I mutated it (in-memory pytest plugin redirecting the module's LIVE_JOURNAL at a scratch file and making module-level `open` leak a byte into that stand-in): CONTROL rc=0, MUTANT rc=1, killed by that exact assertion with "the redirected write reached the LIVE journal" at :142 -- kill mechanism named, live journal byte-identical throughout. (4) CONFIRMED: immutable command "79 passed, 1 warning in 8.88s"; 86.6 modules "26 passed in 6.14s"; 4000.2 regression "22 passed in 18.70s"; ruff F821/F401/F811 "All checks passed!" exit=0 over MY OWN git-derived 7-file scope (non-empty asserted, array form so zsh cannot word-split it to zero); handoff/kill_switch_audit.jsonl ea78508bee73887c82df... 64 lines BEFORE and AFTER every run including the mutation probe; backend/services/kill_switch.py and test_phase_23_2_4 byte-unchanged across the whole step (empty `git diff 34dfbb39 dd6c7b56`); dd6c7b56 touches only masterplan + CHANGELOG + one test file + two handoff artifacts -- zero production code. (2) YES, 86.27's criteria genuinely defeat an allowlist extension: criterion 2 judges the fix on "a spelling NOT enumerated anywhere in the repo at fix time", the name field says in terms "DO NOT simply extend _LOOPBACK_HOSTS ... that is the instance fix a third time", and it adds totality-on-junk-input, guard-latency and mutation criteria. (1) The HTTP row itself IS now honest -- I reproduced the full 12-row table EXACTLY with a non-networking sentinel and read-only GET (4 REFUSED: 127.0.0.1/localhost/LOCALHOST/0.0.0.0; 8 reachable-and-unrefused: 127.1, 0, 2130706433, localhost., 127.000.000.001, [::ffff:127.0.0.1], 192.168.86.85, ford-sin-mini.lan), and the row states PARTIAL, names the covered strings, points at the residual and cites 86.27. BUT (5) THE CORRECTED COUNT DID NOT LAND WHERE THE CRITERION LOOKS. experiment_results_86.6.md:209 still reads "**Three of six are covered. Two are explicitly out of scope and one is partially covered.** That is the honest count." -- three lines under the criterion-9 table, inside the section titled "## 4. Criterion 9 -- the five channels, explicitly", and explicitly retired 191 lines later at :400 ("Not \"3 of 6 covered\". Measured honestly: ... One channel fully covered, two partial, three open."). The cycle-3 commit message asserts that correction was made; the retired figure survives in the load-bearing location while the correction sits in the narrative appendix. A gate artifact carrying two contradictory coverage counts, with the wrong one stamped "That is the honest count" in the criterion's own section, does not "state which are covered and which are not". Second, the one row called fully COVERED is still generous by the residuals the cycle-2 verdict handed over as path-to-pass item (ii), which was silently dropped and not disclosed as deferred: I re-measured tonight with bare sys.audit events (zero I/O) that os.rename, os.remove, os.truncate and os.replace onto the live journal are ALL NOT REFUSED (conftest.py:318 `if event != "open": return`), and that PYFINAGENT_LIVE_STATE_GUARD=off and =report both disable the refusal wholesale (conftest.py:329) -- positive control open(a) REFUSED, restored after unset. Criterion 9 is therefore NOT MET, for the third cycle running and in the same shape each time: a coverage statement narrowed only to the instance the last Q/A named. Criteria 1-8 are all MET and independently reproduced. This would be the THIRD consecutive CONDITIONAL for step-id 86.6 with no intervening PASS or FAIL (cycle 1 and cycle 2 are transcribed verbatim in handoff/current/evaluator_critique_86.6.md), so per runbook §4 "CONDITIONAL escalation clause" the verdict MUST be FAIL rather than another CONDITIONAL. FAIL here means the step does not close on this cycle, not that the work is bad -- the remedy is two artifact edits and no code: delete or rewrite line 209 to match the cycle-3 count, and qualify the filesystem row with the non-open-event residual and the env bypass.
+
+## violated_criteria
+
+- `C9`
+- `3rd_consecutive_CONDITIONAL_escalation`
+- `criteria-erosion:cycle2_path_to_pass_item_ii_dropped`
+
+## violation_details
+
+### 1. Contradiction
+
+**action** -- grep -n "Three of six\|3 of 6" handoff/current/experiment_results_86.6.md ; sed -n '195,212p' handoff/current/experiment_results_86.6.md ; git diff bd7184cd dd6c7b56 -- handoff/current/experiment_results_86.6.md
+
+**state** -- Line 209, three lines below the criterion-9 table and inside the section headed '## 4. Criterion 9 -- the five channels, explicitly', reads verbatim: '**Three of six are covered. Two are explicitly out of scope and one is partially covered.** That is the honest count.' Line 400 of the same file retires exactly that figure: 'Not "3 of 6 covered". Measured honestly:' followed by the corrected table and '**One channel fully covered, two partial, three open.**' The cycle-3 diff rewrote the HTTP row at :204 but left :209 untouched, and the commit message dd6c7b56 states the count was corrected. Counted against its own post-cycle-3 table the surviving sentence is false: exactly ONE row reads COVERED (filesystem/kill-switch journal), HTTP reads PARTIAL, subprocess is PARTIAL per the cycle-3 table, and three rows are open.
+
+**constraint** -- Criterion 9: 'the artifacts enumerate filesystem / HTTP / subprocess / BigQuery / module-singleton explicitly and state which are covered and which are not'. Two mutually contradictory coverage counts in one gate artifact, with the retired one in the criterion's own section under the words 'That is the honest count' and the correction in a narrative appendix 191 lines later, is not a statement of which are covered. qa.md 4b: a number in a gate artifact that does not reproduce is a Contradiction finding. FIX (one line, artifact-only): delete line 209 or replace it with the cycle-3 count.
+
+### 2. Overgeneralization
+
+**action** -- python - <<'PY' with conftest imported and bare sys.audit events (zero bytes written): sys.audit('open', LIVE, 'a', O_APPEND|O_WRONLY|O_CREAT); sys.audit('os.rename', LIVE, LIVE+'.bak', -1, -1); sys.audit('os.remove', LIVE, -1); sys.audit('os.truncate', 3, 0); sys.audit('os.replace', LIVE, LIVE+'.2', -1, -1); then the same open event with PYFINAGENT_LIVE_STATE_GUARD=off and =report, then after unset
+
+**state** -- open(a) [positive control]: REFUSED (LiveStateWriteRefused). os.rename(live -> .bak): NOT REFUSED. os.remove(live): NOT REFUSED. os.truncate(fd,0): NOT REFUSED. os.replace(live -> .2): NOT REFUSED. open(a) with GUARD=off: NOT REFUSED. open(a) with GUARD=report: NOT REFUSED. open(a) after unset: REFUSED (restored). Source basis conftest.py:318 'if event != "open": return' and conftest.py:329 'if m == "off": return'. Live journal ea78508b... byte-identical, no .bak/.2 created. The criterion-9 filesystem row (experiment_results_86.6.md:202) and the cycle-3 corrected table (:404) both read COVERED, unqualified. Neither residual appears anywhere in experiment_results_86.6.md, live_check_86.6.md or contract_86.6.md (grep for os.rename|os.remove|os.truncate|LIVE_STATE_GUARD returns only the env var inside a pasted refusal message in live_check:70, offered there as a remedy rather than as a coverage caveat). The cycle-2 verdict's path-to-pass listed this as item (ii) verbatim -- 'add the os.rename/os.remove/os.truncate residual and the PYFINAGENT_LIVE_STATE_GUARD=off bypass to the filesystem row' -- and cycle 3 completed items (i), (iii) and (iv) while dropping (ii) with no statement that it was deferred.
+
+**constraint** -- Criterion 9 requires the artifacts to state what is and is not covered. WARN-severity, not the blocking half: none of the seven production kill_switch writers uses rename/remove/truncate, so the guard is adequate for its purpose and criterion 2 remains MET -- the defect is the unqualified word COVERED plus an undisclosed drop of a named remediation item. FIX: qualify the row as 'COVERED for open()-based write intent; non-open mutations (rename/remove/truncate/replace) are not refused and PYFINAGENT_LIVE_STATE_GUARD=off|report disables the guard'.
+
+### 3. Unjustified_Inference
+
+**action** -- Read handoff/current/evaluator_critique_86.6.md (cycle 1 CONDITIONAL at :3, cycle 2 CONDITIONAL at :108); grep -nE '^## Cycle.*phase=86\.6' handoff/harness_log.md; read docs/runbooks/per-step-protocol.md:254-274
+
+**state** -- Step-id 86.6 has two consecutive CONDITIONAL verdicts with no intervening PASS or FAIL, both transcribed verbatim in the step's own critique file. This cycle would be the third. The mechanical procedure at runbook:268-271 ('grep handoff/harness_log.md ... count prior result=CONDITIONAL entries') returns 0, because the only 86.6 entry is 'Cycle 198 -- 2026-08-10 -- phase=86.6 result=PARKED' -- log-last is mandatory, so no verdict for an unclosed step is ever in that file. Reading the counter mechanically would make the escalation clause permanently inert for every step in this harness, which cannot be its intent.
+
+**constraint** -- docs/runbooks/per-step-protocol.md:261-264: 'If a single masterplan step-id accumulates 3 or more consecutive CONDITIONAL verdicts without an intervening PASS or FAIL, the next Q/A pass MUST return FAIL -- not another CONDITIONAL. This prevents the harness from functioning as a logger rather than a corrector.' The stated rule keys on consecutive VERDICTS; the authoritative record of 86.6's verdicts is evaluator_critique_86.6.md. Applied: FAIL, not a third CONDITIONAL. Counter resets on this FAIL, so the next cycle starts clean and a clean cycle can PASS.
+
+
+## certified_fallback
+
+False
+
+## checks_run
+
+- harness_compliance_5_item_audit
+- research_gate_envelope_gate_passed_18_sources_44_urls_dry
+- contract_before_generate_mtime_chain
+- log_last_masterplan_status_pending
+- no_verdict_shopping_evidence_changed_bd7184cd_to_dd6c7b56
+- 3rd_conditional_counter_harness_log_and_critique_file
+- immutable_verification_command
+- scoped_test_run_new_86_6_modules
+- regression_test_4000_2_cc_rail_smoke
+- python_lint_gate_ruff_F821_F401_F811_derived_scope
+- live_state_digest_before_after_every_run_incl_mutation_probe
+- criterion_1_derivation_rerun_recall_probe
+- criterion_4_byte_unchanged_git_diff
+- criterion_3_L135_replacement_mutation_kill_power
+- http_spelling_table_independently_reproduced_12_rows_sentinel
+- filesystem_non_open_event_residual_probe
+- guard_env_bypass_probe_off_report_restore
+- prior_cycle_path_to_pass_item_by_item_recheck
+- masterplan_86_27_criteria_allowlist_resistance_review
+- guard_vacuity_check_4c
+- claim_auditing_4b
+- code_review_heuristics
+- scope_no_unintended_production_change
+
+## harness_compliance_ok
+
+True
+
+## notes
+
+HARNESS COMPLIANCE CLEAN (all five): research_brief_86.6.md gate envelope reads external_sources_read_in_full 18, urls_collected 44, recency_scan_performed true, coverage.dry true, gate_passed true; mtime chain research 23:18:40 < contract 23:21:47 < test edit 03:28:45 < results 03:29:14; experiment_results + live_check_86.6.md both present; masterplan 86.6 status=pending and harness_log carries only the PARKED entry, so log-last holds; NOT verdict-shopping -- dd6c7b56 changed the masterplan (86.27 queued), the preventer test module and both handoff artifacts, so the evidence genuinely changed between spawns.
+
+WHAT I MEASURED MYSELF RATHER THAN READ. (a) The immutable command bare in the venv: "79 passed, 1 warning in 8.88s". zsh does not populate ${PIPESTATUS[0]} through a pipe, so exit status was read from pytest's own summary lines -- zero failures on all three suites. (b) 86.6 modules 26 passed; 4000.2 regression 22 passed. (c) ruff over a scope I derived from git myself (union of 03b3ea17 0eec95fe bd7184cd dd6c7b56, 7 .py files, count asserted non-empty before reading the exit code, array expansion so zsh cannot collapse it): "All checks passed!" ruff_exit=0. (d) handoff/kill_switch_audit.jsonl was ea78508bee73887c82df2346da408c7281e7e9229334a6131d7fa06c09977065 / 64 lines before AND after every run I made tonight, the mutation probe included. (e) The L135 mutation used an in-memory pytest plugin via pytest.main -- no file written to the repo, no repo state restored afterwards; the CONTROL (LIVE_JOURNAL redirected at a scratch file, no leak) passes, which is what makes the MUTANT's failure attributable to the leak and not to the redirect. (f) Every HTTP measurement used curl GET /api/health for reachability and a non-networking sentinel in place of conftest._REAL_URLOPEN for guard classification: no mutating request reached the operator's book at any point. (g) Every filesystem probe raised bare sys.audit events -- zero bytes written, zero files created or renamed.
+
+CREDIT WHERE IT IS DUE. The L135 fix is the strongest thing in this cycle: it is a real before/after comparison with demonstrated kill power, and the replaced tautology is documented in-place rather than quietly swapped. 86.27 is a genuinely well-specified class-fix step -- it forbids the allowlist extension by name, judges the fix on an unenumerated spelling, names the real trade-offs (blocking DNS inside a guard path, ephemeral-stub precision for 4000.2), and requires the guard to stay total on junk input. The cycle-3 self-diagnosis ("the fix I reach for is the one that makes the reported symptom go away") is accurate and unusually candid, and the corrected table at :402-411 is the right count. The HTTP row reproduces exactly. Criteria 1-8 are met and I have now reproduced each of them at least once across the three cycles.
+
+NOTE-LEVEL, NOT BLOCKING. (i) The HTTP row says "refused for 5 enumerated host STRINGS only" and lists localhost, LOCALHOST, 127.0.0.1, ::1, 0.0.0.0, but conftest._LOOPBACK_HOSTS:81 has four members -- LOCALHOST is refused because urlsplit lowercases the hostname, not because it is enumerated. Every one of the five named IS genuinely refused (I measured LOCALHOST REFUSED), so the sentence is true; "enumerated" is the loose word, and it errs toward listing more spellings as covered rather than fewer. (ii) 86.27's criterion 2 does not say WHO invents the newly-invented spelling; an author could invent one and then add it to the list. The future Q/A should pick its own spelling, or derive one from the machine's interfaces at runtime as the criterion's parenthetical allows. Worth a one-clause tightening when that step is planned, not now. (iii) live_check_86.6.md (02:58) still predates the final code edit (03:28), carried over from cycle 2; the cycle-3 change only strengthens an assertion in a test and cannot alter the digests the live_check records, so its claims stand.
+
+WHAT I DID NOT DO: no worktree isolation (in-place, the default); qa.md 1c is N/A and the frontend eslint/tsc gate correctly skipped -- this step makes no UI claim and touches no frontend/**; I did not run the full 3291-test suite, so the author's "14 failed" baseline and the "+7 tests red" / "21 RED" figures remain author-supplied and unreproduced by me across all three cycles (they are internally consistent: 14+7=21). My 12-spelling HTTP census is a known-member recall test over the shapes named so far, not a proof of completeness -- I make no claim that 8 is the total residual, which is exactly why 86.27 is the right disposition.
+
+PATH TO PASS -- artifact-only, no code change, and criterion 9 still does not require the HTTP channel to be closed: (1) delete experiment_results_86.6.md:209 or rewrite it to the cycle-3 count, so the criterion-9 section and the appendix agree; (2) qualify the filesystem row (both at :202 and in the corrected table at :404) with the non-open-event residual and the PYFINAGENT_LIVE_STATE_GUARD bypass, which is cycle-2 path-to-pass item (ii) coming due; optionally (3) soften "5 enumerated host STRINGS" to "4 enumerated strings plus case variants". retry_count is 0 against max_retries 3, so this FAIL is a normal retry, not a certified fallback -- and the escalation counter resets on it, so a clean next cycle can close the step.

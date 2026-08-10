@@ -32434,3 +32434,48 @@ StructuredOutput call -- the documented long-prompt failure mode. An empty
 return is NO VERDICT; the lean re-run produced the FAIL.
 
 Commits: a87add72 (cycle 1), 95398fae (cycle 2).
+
+## Cycle 1193 -- 2026-08-10 -- phase=86.6 result=FAIL
+
+**PARKED, not closed. `status` stays `pending`.** Third consecutive non-PASS
+for this step-id converts to FAIL under the runbook §4 escalation clause; the
+overnight goal parks rather than attempts a fourth cycle, so no fourth Q/A was
+spawned.
+
+**Substantively this cycle SHIPPED real safety work, all of it tightening:**
+
+- PART B closed -- a test that shells out ran with no guard, because a child
+  process loads no conftest. `smoke_cc_rail_e2e.py` MUTATES (PUT /api/settings/)
+  and defaulted `--backend-url` to the operator's live backend. The default is
+  gone and `--allow-live-backend` is now required. Criterion 8's census (no
+  production or ops caller) was taken FIRST, as the criterion demands.
+- **A genuinely open channel on the live book was closed:** `0.0.0.0:8000`
+  reaches the running backend (uvicorn binds the IPv4 wildcard) and 86.3's guard
+  did not refuse it. Found because this step's own new predicate listed the host
+  and conftest's did not.
+- Part A's preventer gained the tests it never had: prevention (not detection),
+  the tmp-redirect idiom preserved, and production measured in a `-I` child.
+- A 6-cell mutation matrix that runs entirely on a tmp COPY, because disabling
+  the guard and running the criterion-2 test would write to the live journal.
+
+**Why it still failed, three times in the same shape.** Each cycle I fixed
+exactly the instance the last review named and declared the class closed.
+Cycle 1: HTTP row said COVERED, `0.0.0.0` reached the book. Cycle 2: added
+`0.0.0.0`, declared it correct -- EIGHT more spellings reached it, two of them
+(`192.168.86.85`, `ford-sin-mini.lan`) not loopback names at all, so no
+allowlist can ever contain them. Cycle 3: corrected that row but left a
+contradicting "three of six are covered" in the criterion's own section, and
+silently dropped one of the four path-to-pass items (os.rename/os.remove/
+os.truncate are not refused; the hook only handles `open`).
+
+My own drift alarm cannot catch this class: both predicates returned False on
+all eight spellings -- they AGREE and are both WRONG. An agreement check finds
+divergence, never incorrectness.
+
+Artifact corrected in place; **86.27 (P1) queued** for the class fix, with
+criteria that judge a fix on a newly-invented spelling so an allowlist
+extension cannot pass. Nothing shipped is unsafe to leave: no gate was
+loosened, no assertion weakened, full suite 14 failed / 3291 passed at baseline
+membership.
+
+Commits: 0eec95fe (c1), bd7184cd (c2), dd6c7b56 (c3).
