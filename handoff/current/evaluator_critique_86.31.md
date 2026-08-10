@@ -215,3 +215,72 @@ Cycle 2. All SEVEN immutable criteria are MET with executed evidence, harness co
 ## notes
 
 Launch: Workflow structured-output rail; I read .claude/agents/qa.md from disk at runtime. Write-first record at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.31.md, WRITTEN 2026-08-10T10:09:58Z, COMPLETED 2026-08-10T10:24:42Z - it is a crash-survival record, NOT a verdict. It overwrote cycle-1's COMPLETE artifact (which had no WRITTEN stamp); cycle-1's text is preserved verbatim in live_check_86.31.md Appendix A and I read it before overwriting. That overwrite is itself live proof the F3 stamp fix is in force on the primary rail. No write outside that path was attempted or needed; no write was blocked. My guard probes redirected the hook log via CLAUDE_PROJECT_DIR to a temp dir specifically so they would NOT contaminate the census the F1 finding rests on; all mutation work ran in mkdtemp copies (control green first, restore verified) and the repo tree was never mutated. This is CYCLE 2 and legitimately so - evidence changed substantially (guard +32/-1, checker 54->188 assertions, matrix 15->23 cells, a new census script, masterplan +86.33); not verdict-shopping. 3rd-CONDITIONAL rule NOT triggered: handoff/harness_log.md contains ZERO entries for phase=86.31, so this is at most the second CONDITIONAL and FAIL is not forced. No UI claims and no frontend/** or backend/** change, so gates 1b/1c/1d are not applicable - no Playwright capture was required or taken. TWO NOTES that degrade nothing. (i) .claude/masterplan.json was re-serialized with ensure_ascii=True, converting every em-dash to a \\u2014 escape across the whole file; I proved by parsing both revisions that the ONLY semantic change is the added 86.33 (1205->1206 steps, zero modified common steps, zero modified phase meta, zero modified top-level keys) and that 86.31's verification block is byte-identical - but it is a whole-file rewrite that inflates the diff, and per project history a python/Bash edit to masterplan.json does not fire the PostToolUse hook chain. (ii) The widened predicate still misses a qa-prefixed name with no dash or underscore separator - I probed 'qa2', 'qacycle2', 'qa.86.31' and all three are ALLOWED. No such identity has ever been observed (all 27 real ones use dashes), and 86.33's root-cause framing ('how does the hook learn the ROLE rather than the NAME') covers it in spirit, but it is not named there. One process item for Main, not a finding: CLAUDE.md requires a harness_log note requesting operator review for substantive .claude/agents/ edits, and this step edits qa.md substantively while I execute the edited file to grade it - that note is still owed and belongs in the log-last append.
+
+
+---
+
+# CYCLE 3 -- verdict: FAIL (escalation)
+
+Q/A via Workflow rail `wf_80070b75-327`, 2026-08-10 22:13-22:29 CEST. 178,514 subagent tokens | 39 tool calls | 927s.
+
+Evidence had CHANGED (`fceac931`, `d4638584`, `9bf5e78b` added an execution-based separation proof that did not exist at cycle 2).
+
+**Transcribed VERBATIM from the captured return value.**
+
+```json
+{
+  "ok": false,
+  "verdict": "FAIL",
+  "reason": "All 7 immutable criteria are MET on execution evidence I reproduced independently (immutable cmd exit 0; prove_qa_write_separation 15/15 8-BLOCK/7-ALLOW exit 0; verify_qa_write_first 194 passed/0 failed exit 0 covering all four named deny classes incl. the test file and .claude/masterplan.json; mutation_matrix 24/24 exit 0; drop table 310 runs/23 dropped/7.4% with the overlap named; qa_wip.py returns is_verdict=false + STALE on my own live artifact; qa.md frontmatter and VERDICT_SCHEMA untouched), harness compliance is clean, and no production code was touched. I extended the mutation testing myself and found no survivor in the guard: MUT_B (normpath removed) is killed by the traversal case, MUT_C (literal-qa predicate) by the named-spawn cases, MUT_D (deny removed) by all 8 BLOCK cases, MUT_A (apostrophe) by the liveness probe AND the 7 ALLOW cases; the liveness probe refuses to report clean on three distinct break shapes, so it is not decorative. The verdict is FAIL only because two reproducible claim-accuracy defects remain in the graded artifacts, which is a CONDITIONAL in substance, and this is the THIRD consecutive CONDITIONAL for 86.31 (Main disclosed rather than exploited the counter blindness: cycle 1199 states \"There have been two\"; PARKED is not a reset event), so qa.md's 3rd-CONDITIONAL rule escalates it. The mechanism is sound; the remedy is two paragraph corrections in live_check_86.31.md plus the script docstring, no code change.",
+  "violated_criteria": [
+    "claim-accuracy: live_check_86.31.md '156 organic allowed writes' does not reproduce",
+    "claim-accuracy: the liveness rationale is contradicted by measurement of the failure shape it names",
+    "3rd-consecutive-CONDITIONAL escalation (qa.md; two prior CONDITIONALs disclosed in harness_log cycle 1199)"
+  ],
+  "violation_details": [
+    {
+      "violation_type": "Contradiction",
+      "action": "re-derive the '156 organic allowed writes' figure from handoff/logs/qa_write_guard.log under Main's own stated rule (strip synthetic identities from the 252 hook-ALLOWED decisions)",
+      "state": "Exhaustive identity-subset search: the published per-basename block (42/33/30/17/11/7/7/7) is reproduced by, and ONLY by, stripping FOUR of the FIVE byte-identical synthetic probe identities (each n=24, each {86.31:8, 86.24:8, probe_self_contamination:8}) -- 252-96=156. Main's own rule gives 252-120=132. Three independent defects: (a) +24 overcount (+18%) from leaving one of five indistinguishable synthetics in; (b) the block sums to 154, not the stated 156, silently omitting two 1-count rows; (c) the log records DECISIONS, not writes -- feedback_probe_self_contamination.md (credited 30x) has mtime 2026-07-25T21:52:12Z and MEMORY.md (credited 17x) has mtime 2026-08-09T13:02:42Z, so >=47 of the 156 are probe drives against files provably not written on 2026-08-10. The partition is not recoverable in principle: identity 'qa' is simultaneously the real Workflow-rail production identity (my own write logged as 'qa') and the identity the prover and matrix drive with. The defensible statement is '252 allowed DECISIONS'. NOTE the headline correction IS honest and reproduces exactly: at the log prefix ts<=2026-08-10T20:10:09.738109Z, N=1282, substring rule = 370/912, hook normpath rule = 252/1030, delta 118 -- all four figures confirmed.",
+      "constraint": "qa.md section 4b -- every numeric or set-membership claim must reproduce under a stated rule; scopes must be DERIVED, not chosen; prefer FAIL when a number in a graded artifact does not reproduce"
+    },
+    {
+      "violation_type": "Contradiction",
+      "action": "measure the hook's actual behaviour under the apostrophe break it names, running each variant as a real script file (temp dir, zero repo writes)",
+      "state": "live_check_86.31.md:1691-1696 and prove_qa_write_separation_86_31.py's docstring both assert 'one apostrophe makes it a SyntaxError, at which point it ALLOWS EVERYTHING while every deny assertion below still passes for the wrong reason.' MEASURED: the hook contains 5 apostrophes, 0 inside the embedded python. An ODD injected count produces a BASH parse error ('unexpected EOF while looking for matching'), bash exits 2, and the hook BLOCKS EVERYTHING including Main and the researcher (loud, session-bricking) -- it does not allow anything. An EVEN count re-pairs the quotes, the script parses, the python body is mangled, and THAT is the silent fail-open: qa -> backend/services/kill_switch.py returns rc=0 where the real hook returns rc=2. Neither parity leaves this prover's assertions all passing: odd fails its 7 ALLOW cases, even fails its 8 BLOCK cases. The true fail-open shapes are py-compile-error, py-runtime-error and missing python3 (all measured ALLOW-ALL). The check itself is correct and load-bearing -- it catches both parities plus the compile and block-absent shapes, verified rc=1 each -- but the stated causal story that justifies its placement is wrong and understates the hazard by pointing at the loud shape instead of the silent one.",
+      "constraint": "qa.md section 4c -- name the concrete mutation and verify by EXECUTION, never by a plausible-sounding account; skill Dimension 5 'missing-chain-of-thought' / claim must match the measurement"
+    },
+    {
+      "violation_type": "Unjustified_Inference",
+      "action": "grep handoff/harness_log.md for prior 86.31 verdicts before issuing a CONDITIONAL",
+      "state": "Literal grep returns ZERO 'result=CONDITIONAL' rows for 86.31 -- the single row (cycle 1199) reads result=PARKED, which is the known 86.21 counter-blindness defect. Main disclosed it rather than exploiting it, stating in that same entry: 'Two Q/A cycles, both CONDITIONAL ... **There have been two.** Any future Q/A on this step must be told so in its spawn prompt.' No intervening PASS or FAIL; PARKED is not one of the three reset events. Findings F1 and F2 are WARN-class prose defects, so the substantive verdict is CONDITIONAL, which would be the third consecutive one.",
+      "constraint": "qa.md 'Constraints' -- 3rd-CONDITIONAL auto-FAIL: 2+ prior CONDITIONALs without an intervening PASS/FAIL means the next verdict MUST be FAIL, because stacking a third CONDITIONAL means the harness is logging, not correcting"
+    }
+  ],
+  "certified_fallback": false,
+  "checks_run": [
+    "write_first_wip_record",
+    "immutable_verification_command",
+    "prove_qa_write_separation_86_31_rerun",
+    "verify_qa_write_first_86_31_rerun",
+    "mutation_matrix_86_31_rerun",
+    "simulate_qa_drop_86_31_rerun",
+    "derive_qa_rail_drop_table_86_31_rerun",
+    "qa_wip_caller_driven_against_live_artifact",
+    "independent_mutation_matrix_4_mutants_real_hook_subprocess",
+    "liveness_probe_mutation_3_break_shapes",
+    "apostrophe_parity_failure_mode_measurement",
+    "guard_log_census_re_derivation_370_912_vs_252_1030",
+    "organic_writes_identity_subset_search",
+    "mtime_corroboration_of_claimed_writes",
+    "python_lint_gate_ruff_F821_F401_F811_git_derived_scope",
+    "harness_compliance_audit_5_item",
+    "contract_completeness_mapping",
+    "unintended_production_change_check",
+    "3rd_conditional_counter",
+    "code_review_heuristics"
+  ],
+  "harness_compliance_ok": true,
+  "notes": "Write-first record at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.31.md (STATUS: COMPLETE, WRITTEN 2026-08-10T20:13:17Z, COMPLETED 2026-08-10T20:27:41Z) -- it is NOT a verdict, this structured return is. It overwrote cycle 2's COMPLETE file at the fixed path; the WRITTEN stamp is what makes that safe, and I verified the staleness leg fires (qa_wip.py 86.31 --spawned-at 2026-08-10T23:00:00Z returns STALE/recoverable=false). No write was blocked; I stayed inside the permitted path and used in-memory bash -c and OS-temp copies for all mutation work, so the repo tree is untouched. No UI claims in this step, so section 1c does not apply; no backend/frontend files changed, so 1b/1d do not apply. Attack results for Main: (1) LIVENESS -- the probe is real, I broke the guard three ways and it refused to report clean each time, but its stated rationale is wrong (see violation 2). (2) FALSE POSITIVES -- confirmed no over-blocking: researcher, Main (empty agent_type), quality-auditor and qa-Read all ALLOW on the real hook, and an always-block guard is killed by 7 cases. (3) TRAVERSAL -- confirmed, the normpath collapse really happens; removing it is the one mutation that flips the traversal case. (4) CONFIRMED both numbers exactly (370/912 substring, 252/1030 normpath, 118 delta) once I recovered the population rule and cutoff -- but the live_check states neither, and the log is gitignored and append-only (now 1334 events for that date), so a future reader cannot reproduce without guessing; consider recording the rule and cutoff. (5) REFUTED -- 156 is not defensible; see violation 1. Two smaller notes, not blocking: the NEW prover alone covers only 2 of criterion 1's 4 explicitly-named deny classes (no test file, no masterplan.json) -- the older checker covers all four, so it is not sole coverage, but calling the prover \"the\" execution proof under-informs a reader; and criterion 2's disclosed residual (workflow-subagent / general-purpose unmatched, queued as 86.33) is honest and currently inert because qa-verdict.js:226 pins agentType 'qa', which my own guard-log entry corroborates."
+}
+```
