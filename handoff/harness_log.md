@@ -33311,3 +33311,53 @@ two.
 A fresh Q/A (`wf_6c44bae0-a83`) was spawned on the changed evidence, explicitly
 instructed to attack the new checker first -- a vacuous remedy for a vacuity
 finding would be the worst possible outcome. **Step remains `pending`.**
+
+## Cycle 1207 -- 2026-08-10 -- phase=86.34 result=CONDITIONAL (step PARKED)
+
+Q/A `wf_6c44bae0-a83` (185,174 tokens, 41 tool calls, 714s). Verdict verbatim in
+`evaluator_critique_86.34.md`. **`harness_compliance_ok: true`** this cycle.
+
+**Both cycle-1 blockers confirmed fixed, and the evaluator proved it BY
+EXECUTION rather than by reading the diff**: it replayed the pre-fix file
+(`git show 551d5188:handoff/current/live_check_86.24.md`) through the new checker
+and got `exit 1 -- ASSERTED at line(s) [13]`, the same input on which the
+discredited grep returned 0. Criteria 1, 2, 3, 5, 6 MET with every number
+re-derived independently, including its own implementation of the conftest census
+(70/34/32/2) and both matrices re-run in its hands (4/4 and 7/7).
+
+**It also judged the two questions the spawn put to it**: quote-and-refute DOES
+satisfy "the old sentence is gone" (the sentence survives only as a citation
+refuted in the same paragraph, in both files); and adding the
+`PYFINAGENT_86_34_SWEEP_ROOT` seam is legitimate rather than weakening the
+subject.
+
+**Three findings, all mine, all fixed in `82e3e55d`:**
+
+- **F3, the substantive one.** The new checker closed its exempt region at the
+  next `## `, making it the WHOLE of section A (lines 12-78) rather than the
+  ~46-line correction. The evaluator proved the gap by EXECUTING it -- its cell
+  V3 re-asserted the claim in that ~20-line tail and the checker still printed
+  OK. Vacuity shape #2 (defeated by MOVING the scanned text), in the one section
+  where the claim lived. Now closed on an explicit `[END phase-86.34 CORRECTION]`
+  sentinel, and the checker **fails closed** when the sentinel is absent instead
+  of silently restoring the over-wide scope. V3 now exits 1 at line 95.
+- **F1.** The file header named tree `37e0543f` while the regenerated section F
+  named `a9707993` and printed a digest that does not exist at `37e0543f`. **The
+  cycle-2 regeneration caused it** -- the N3 shape recurring inside the fix for
+  N3. Header now names the producing tree, so header and block cite ONE tree.
+  Disclosed: the digest is byte-identical at HEAD too, so naming HEAD would not
+  have been false, merely a second name for one measurement.
+- **F2.** `live_check_86.34.md` -- the artifact the masterplan's `live_check`
+  field actually names -- was never touched by the cycle-2 fix and still offered
+  the discredited grep as its criterion-1 proof, with a number that no longer
+  reproduced (1 at HEAD, not 0, because my own correction block introduced the
+  literal when it quoted the dead grep). Section WITHDRAWN and replaced.
+
+**PARKED, `status: pending`, no verdict claimed.** Two Q/A cycles reached
+CONDITIONAL; the remediation is complete by my own measurement but **nobody has
+graded it**, and that self-report is precisely what this step exists to distrust.
+Parked under the standing two-cycle rule and against the day's budget: **48
+workflow runs / 8,101,029 subagent tokens**, of which this step consumed
+**374,538** across two evaluations. The next session should run ONE fresh Q/A on
+the current tree rather than redo the work. Disposition in
+`experiment_results_86.34.md` section 6.
