@@ -190,3 +190,131 @@ Still open from before: **#10, #13, #14, #19, #24, #30–#33**.
 - **I did not verify the 5 ledger `run_id`s for 86.20/86.17** against Workflow run
   records; the Q/A corroborated the six 36.17 rows against `harness_log`, which is
   the stronger check.
+
+---
+
+# AMENDMENT — 04:26 CEST (this report was first written at 01:13, and the night continued)
+
+Everything above stands. Four hours of further work happened after it was
+written, and one measurement below **refines the headline** rather than
+contradicting it.
+
+## The headline, refined: the book can trade, and one leg is asleep until the first cycle
+
+Measured against the running backend at 04:25:57 CEST:
+
+```
+paused            : False          any_breached : False
+sod_nav           : 23833.94       sod_date     : 2026-08-09
+current_nav       : 23833.94       peak         : 24666.57
+baselines_present : True
+armed             : FALSE          (daily_baseline_stale = True)
+trailing_dd_pct   : 3.3755 of 10.0
+backend           : pid 43839, /api/health 200
+```
+
+The 01:13 report said "baselines_present: True" and left it there. The fuller
+truth, which **phase-86.12 spent tonight establishing**, is that the daily-loss
+leg currently reads **`armed: false`** because `sod_date` is 2026-08-09 while the
+clock has rolled to 08-10.
+
+**This is the ordinary overnight condition, not a fault.** phase-36.9 makes the
+daily leg deliberately unevaluable on a stale anchor, because measuring a
+multi-day move as a same-day loss would spuriously flatten the book. The anchor
+re-rolls at the first cycle of the UTC day and the leg re-arms. **The trailing
+leg is not date-scoped and is armed throughout** — asserted by test, because in
+that window it is the only cover the book has.
+
+So: **the book can trade, and between UTC midnight and the first cycle its
+daily-loss limit is asleep by design while the trailing limit stands watch.**
+That is worth an operator knowing, and the badge does not currently say it.
+
+## What else closed after 01:13
+
+**phase-86.22 — CLOSED, Q/A PASS, pushed.** The recommendation-vocabulary split
+was cross-module: the same string read in three incompatible dialects. Measured
+on the real column (n=543): `outcome_tracker` and `memory` classified **91/543
+rows (16.8%)** differently from the shared vocabulary — the literal `BUY`
+spelling, all 91 genuine, matched neither leg, so `directionally_correct` came
+out False regardless of the actual return. Three already-persisted rows
+(AMD/PANW/MU, all SELL, all with negative returns) flip False→True: **three
+correct sell calls previously scored as wrong.** Seven consumers migrated to one
+canonicaliser. `agent_memories` is empty and the column is never persisted, so
+there was nothing to backfill — this landed before the writer's first row.
+
+It took two cycles. The cycle-1 Q/A reverted each migrated file and found **four
+of six had no assertion depending on them**, including both learning-path
+consumers. Cycle 2 added seven consumer-driving tests and seven per-site
+mutation cells; 18 killed / 0 survived.
+
+**phase-86.12 — the kill-switch NAV investigation.** Answered: the daily-loss
+leg **does** fire on a drawdown present at cycle time, because `mark_to_market`
+(Step 5, `:1368`) precedes enforcement (Step 5.5, `:1400`) in the same cycle.
+The `sod_nav == current_nav` equality that prompted the step is the expected
+consequence of the SOD roll, holding **7 of 10 row-comparisons across 9 distinct
+dates**. The $0.06 delta was reproduced live: the cockpit renders **23,833.88**
+(stored cash + LIVE-priced positions) against the kill switch's **23,833.94**
+(stored cash + LAST-MARKED positions) — two different quantities, not two
+readings of one. At the time of writing its third Q/A cycle is in flight.
+
+## What did NOT close
+
+**phase-86.6 — PARKED at FAIL** after three cycles, with an operator
+disposition in `experiment_results_86.6.md`. Substantial safety work shipped and
+all of it is a tightening:
+
+- the **subprocess channel** closed — a test that shells out ran with no guard
+  (a child process loads no conftest) against a script that PUTs settings and
+  defaulted to the live backend;
+- **a genuinely open channel on the live book closed**: `0.0.0.0:8000` reaches
+  the running backend and phase-86.3's guard did not refuse it;
+- the filesystem preventer given the tests it never had, plus a mutation matrix
+  that runs entirely on a copy of the journal.
+
+It failed on an honesty criterion, three times in the same shape: each cycle I
+fixed exactly the instance the review named and declared the class closed. The
+final finding is that **eight further spellings** — including the machine's LAN
+address and hostname — still reach the book un-refused. **phase-86.27 (P1) is
+queued** for that class fix, with criteria that judge a fix on a
+newly-invented spelling so an allowlist extension cannot pass.
+
+## Newly queued tonight
+
+| step | pri | what |
+|---|---|---|
+| **86.24** | P2 | the test suite changes colour with the wall clock — three tests changed state at midnight, one healed itself 45 min later. The kill-switch `sod_date` case must be adjudicated, not patched. |
+| **86.25** | P2 | `autonomous_loop:3412` passes `risk_judge_decision` (measured: APPROVE_REDUCED 15, REJECT 3, APPROVE_HEDGED 1, empty 46) where a BUY/SELL recommendation is expected. Fail-safe, hence P2. |
+| **86.26** | P3 | 7 pre-existing F401 dead imports make the qa.md lint gate unusable on the learn-loop modules. |
+| **86.27** | **P1** | the live-backend HTTP guard is a host-string allowlist and the machine answers to many more names. |
+
+## The pattern of the night, restated
+
+The 01:13 report named it and the rest of the night confirmed it, three more
+times: **I fix the instance the reviewer named and call the class closed.** The
+detector blind to the substring shape; the mutation cell that survived because
+no negative reached the guard's second condition; the eight host spellings; and
+tonight's sharpest one — I reported a Playwright capture as a *failure* when it
+had succeeded, because an nb-NO comma decimal defeated my regex and I read the
+kill strip's em-dash as the NAV tile. **Every one was caught by machinery or by
+the Q/A, none by my own re-reading.**
+
+## Numbered asks — unchanged from the 01:13 list, plus one
+
+Nothing new requires an operator decision tonight. The prior asks stand. The one
+addition is informational rather than a decision:
+
+- **The daily-loss leg is unarmed between UTC midnight and the first cycle each
+  day.** By design; no action needed. If you would rather the badge said so
+  explicitly, that is a small UI step I can queue.
+
+## What I could NOT verify
+
+- **Whether a healthy cycle places trades.** Still not observed; no cycle ran
+  during this session (weekend cron). The 90-day BUY rate is 21.1%, so a
+  zero-trade cycle is variance, not evidence of breakage.
+- **The $0.06 delta during market hours.** I reproduced it at 04:08 with markets
+  shut, where it is dominated by the rounding component; the asof component is
+  inferred from the same formula and was measured by the Q/A against a live
+  price tick, not by me.
+- **phase-86.12's final verdict** — its third Q/A cycle was still running when
+  this amendment was written.
