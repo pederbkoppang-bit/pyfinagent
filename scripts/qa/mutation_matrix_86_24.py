@@ -22,13 +22,37 @@ scored as a kill.
 """
 from __future__ import annotations
 
+import datetime as _dt
 import hashlib
 import os
 import pathlib
 import subprocess
 import sys
+from zoneinfo import ZoneInfo
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
+
+
+def _date_shifting_tz() -> str:
+    """A zone whose LOCAL date differs from the UTC date RIGHT NOW.
+
+    phase-86.34. M1 used to hardcode `Pacific/Midway`. That zone (UTC-11) only
+    shifts the calendar date during 00:00-10:59 UTC, so for the other 13 hours
+    the M1 mutant -- "revert the macro tests to the LOCAL clock domain" -- is
+    behaviourally identical to the original and SURVIVES. Measured 2026-08-10 at
+    19:23 UTC: M1 SURVIVED. It was killed earlier the same day at ~10:5x UTC,
+    inside Midway's window. The cell was reporting the wall clock, not the guard.
+
+    Kiritimati (UTC+14) covers 10:00-23:59, so the pair spans all 24 hours.
+    Returns the first candidate that actually shifts the date now.
+    """
+    now = _dt.datetime.now(_dt.timezone.utc)
+    for name in ("Pacific/Midway", "Pacific/Kiritimati"):
+        if now.astimezone(ZoneInfo(name)).date() != now.date():
+            return name
+    # Unreachable given the coverage above; never silently return a
+    # non-shifting zone -- that is the defect this function exists to remove.
+    raise RuntimeError("no candidate zone shifts the calendar date right now")
 TESTS = REPO / "backend" / "tests"
 
 MACRO = TESTS / "test_phase_82_0_macro_ingestion.py"
@@ -45,7 +69,7 @@ NEWMOD = TESTS / "test_phase_86_24_clock_dependence.py"
 #:   env          -- extra env; the literal "<MUTANT>" is replaced with the
 #:                   mutant copy's path.
 MUTATIONS = [
-    dict(id="M1", src=MACRO, tz="Pacific/Midway",
+    dict(id="M1", src=MACRO, tz=_date_shifting_tz(),
          anchor="    return datetime.now(timezone.utc).date().isoformat()",
          repl="    return date.today().isoformat()",
          desc="revert the macro tests to the LOCAL clock domain"),
@@ -93,7 +117,13 @@ MUTATIONS = [
          desc="give the STALE-anchor test a FRESH anchor -- does it discriminate?"),
 
     dict(id="M4", src=NEWMOD, tz=None,
-         anchor='    env = {**os.environ, "TZ": "Pacific/Midway"}',
+         # phase-86.34 RE-ANCHORED: this used to bind the literal
+         # `"TZ": "Pacific/Midway"`. 86.34 replaced that hardcoded zone with the
+         # runtime selector `_date_shifting_tz()`, so the old anchor matched 0
+         # times and this cell reported ANCHOR/survived -- a stale anchor, not a
+         # real survivor. The cell's INTENT is unchanged: strip the clock shift
+         # and require the positive control to fire.
+         anchor='    env = {**os.environ, "TZ": _date_shifting_tz()}',
          repl='    env = {**os.environ}',
          desc="remove the clock shift from the differential test -- its positive "
               "control must fire rather than the test passing for free"),
