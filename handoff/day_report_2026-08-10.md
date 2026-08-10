@@ -48,7 +48,7 @@ dropped at 181,082 tokens. The standing rule is ALWAYS spawn.
 **Ratify, or direct a fresh gate. Silence is not ratification; 86.37 does not
 close until answered.** Two cycles have carried this unremediated.
 
-## PENDING RESTARTS -- after the cycle, `launchctl kickstart -k`
+## PENDING RESTARTS -- now DONE (see the verified table at the end)
 
 | job | pid | up since | holds pre-fix | consequence |
 |---|---|---|---|---|
@@ -125,13 +125,85 @@ Every item below was found by an evaluator or by re-measuring, not by intuition.
 - **A researcher caught a fabricated quote in its own sourcing** (0 hits on
   `pypdf` re-extraction) and disclosed it rather than citing it.
 
-## Book cycle a5654ab9
+## Book cycle a5654ab9 -- COMPLETED, and the standing question is ANSWERED
 
-Started **18:00:00 UTC / 20:00 CEST**, status `started`. Previous cycle ran ~99
-minutes. **Outcome pending -- appended below when it completes.**
+Started 18:00:00 UTC, **completed 19:15:34 UTC / 21:15:34 CEST, 75.7 min,
+status `completed`** -- a clean finish, not the 120-min timeout that three of the
+last eight cycles hit.
 
-The standing unknown: *does a healthy cycle place trades?* 90-day BUY rate is
-21.1%, so zero trades is variance, not evidence of a fault.
+```
+Paper trading cycle complete: NAV=$23897.88, P&L=19.49%, trades=0, cost=$0.3300
+```
+
+**Zero trades -- and it is NOT variance, and NOT a silent gate.** The goal framed
+this as "90-day BUY rate is 21.1%, so zero trades is variance". The log refutes
+that framing outright:
+
+```
+20:19:36  Claude analysis for HPE:  BUY (confidence=78, score=7)
+20:19:47  Lite risk judge for HPE:  decision=REJECT position_pct=1.0 risk_level=EXTREME
+20:35:34  Claude analysis for CRWD: BUY (confidence=82, score=8)
+20:35:48  Lite risk judge for CRWD: decision=REJECT position_pct=1.0 risk_level=EXTREME
+20:46:48  Claude analysis for HUM:  HOLD (confidence=62, score=6)
+21:15:12  BINDING RiskJudge gate blocked 2 BUY(s) this cycle: ['HPE', 'CRWD']
+21:15:12  Paper trading: Step 7 -- Executing 0 trades
+```
+
+The engine **did** generate buy intent -- two BUYs at confidence 78 and 82. Both
+were refused by the binding RiskJudge gate, **loudly and by name**. That gate is
+the 57.1 binding-REJECT mechanism doing exactly its job. The book last traded
+2026-07-31, ten days ago.
+
+**THE THING TO ACTUALLY LOOK AT -- both BUYs came from the DEGRADED path.**
+
+```
+20:19:27  Full orchestrator failed for HPE:  429 RESOURCE_EXHAUSTED
+20:35:24  Full orchestrator failed for CRWD: 429 RESOURCE_EXHAUSTED
+20:46:27  Full orchestrator failed for HUM:  429 RESOURCE_EXHAUSTED
+```
+
+**Three of six tickers had the 28-agent Gemini pipeline fail on quota** and fall
+back to the lite single-call Claude analyzer. DELL, NTAP and PANW went through
+the full pipeline (Critic PASS, 0 major issues each). So the causal chain is:
+deep pipeline quota-killed -> lite analyzer emits BUY at EXTREME risk on thin
+evidence -> risk judge refuses. That is a defensible outcome from a degraded
+input, not a healthy cycle choosing not to trade. **Queued as a new step rather
+than described here and forgotten.**
+
+## The CC rail RECOVERED -- my notes were stale
+
+Standing note said 20/20 rail calls failing with `duration_api_ms=0` (ask #26).
+Measured today:
+
+| source | result |
+|---|---|
+| `backend.log` `claude_code_invoke` | **150 success, 0 failures** |
+| `llm_call_log` agent=`cc_rail` | 145 rows, 145 ok, 0 zero-latency |
+| `lite_trader` + `lite_risk_judge` | 6 rows, 6 ok |
+
+`anthropic` failures by day: **20/20 on 08-08** (the 20/20 in the note), 50/205
+on 08-09, **1/146 today**. I am recording this as *measured today*, NOT as "ask
+#26 is resolved" -- the phase-85 failure was a different entry path and I did not
+re-run it.
+
+Three corrections, all mine, all caught by re-measuring: my first failure grep
+searched for `fail|error` when the real signatures are `subprocess timeout` /
+`non-zero exit code` / `empty stdout` / `invalid JSON envelope` -- **it could not
+have matched a failure**; I reported "zero `cc_rail` rows" from a pattern
+requiring a colon that isn't in the data; and I nearly reported **$10.23 metered
+spend** by summing `session_cost_usd`, which is a **gauge** and describes
+flat-fee Max-rail calls anyway.
+
+## Restarts -- DONE, verified
+
+| job | old pid | new pid | started | verified |
+|---|---|---|---|---|
+| `com.pyfinagent.slack-bot` | 708 (Sat 8 Aug 18:57) | **66031** | 21:32:31 | Bolt session established |
+| `com.pyfinagent.backend` | 43839 (Sun 9 Aug 22:11) | **66306** | 21:33:01 | `/api/health` 200, 0 EADDRINUSE, launchd owns pid |
+
+The slack-bot one was the one that mattered: it started **21:32:31** against a
+fix committed **13:40:57**, so tonight's 04:00 UTC `nightly_outcome_rebuild` no
+longer writes the fabricated `"SELL"`.
 
 **Freeze compliance:** from 19:30 I ran no pytest, no mutation harness, no
 restart and no masterplan flip. The 86.19 work after that hour was a hook-file
