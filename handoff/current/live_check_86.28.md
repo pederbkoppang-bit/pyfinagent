@@ -576,3 +576,103 @@ absent-tier checks.
 
 Valid suite sizes by cycle: 40 / 61 / 64 / 73 / **78**. Every total above
 matches one. Ladder: 40 -> 61 -> 64 -> 73 -> 78, nothing removed.
+
+---
+
+# CYCLE 6 -- after the CONDITIONAL on criterion 5 (Q/A `wf_344395f1-4ac`)
+
+That Q/A independently reproduced Q1 and Q5 with numbers and failure-line
+text matching §26 EXACTLY -- which corroborates that §26 was CAPTURED, not
+typed. The cycle-4 defect has not reappeared. It also read the trajectory
+as **converging, not thrashing**, and blocked on criterion 5: three of the
+five cycle-5 checks had no demonstrated mutant.
+
+## 28. Why the [7] matrix could not demonstrate them
+
+The `[7]` matrix mutates `research-gate.js` and probes through `makeGate`,
+i.e. through `enforceGate`. Every check added in `[6d]` is DRIVER-level --
+it asserts what the module does end to end. So `[7]` structurally cannot
+demonstrate any of them. Running the mutants by hand once would not satisfy
+criterion 5 either: it requires the mutant to live IN the checker.
+
+New `[7b]` section: mutate the source, re-drive the mutated module through
+`loadDriver`, and evaluate the exact predicate the check asserts. Killed
+iff the predicate goes false.
+
+## 29. My first mutant was wrong, and the checker caught it
+
+The `tier_requested` mutant initially SURVIVED. The cause was the mutant,
+not the check: `tier_requested: tierRequested,` occurs TWICE -- once in the
+refusal path, once in the main return -- and a first-match replace landed on
+the refusal path, which the ABSENT probe never executes. A weak mutant
+looks exactly like a weak check.
+
+Fixed by anchoring on the main return's trailing `tier_supported:
+tierSupported` (the refusal path hard-codes `false`), and by adding an
+**anchor-uniqueness assertion** to every driver-mutant so a non-unique
+anchor fails loudly instead of producing a false survivor.
+
+## 30. The three missing mutants, plus uniqueness -- captured
+
+```
+[7b] phase-86.28 cycle 6 -- DRIVER-level mutants (the [7] matrix drives enforceGate ONLY)
+  ok   driver-mutant "driver reports the APPLIED tier as tier_requested (main return)" anchor is UNIQUE (1)
+  ok   driver-mutant "driver reports the APPLIED tier as tier_requested (main return)" is KILLED [guard: ABSENT tier reports tier_requested null and applied moderate]
+  ok   driver-mutant "refusal path claims the tier WAS supported" anchor is UNIQUE (1)
+  ok   driver-mutant "refusal path claims the tier WAS supported" is KILLED [guard: TIER_UNSUPPORTED fixture matches the driver / UNSUPPORTED returns the tier]
+  ok   driver-mutant "supported tier silently downgraded to the default" anchor is UNIQUE (1)
+  ok   driver-mutant "supported tier silently downgraded to the default" is KILLED [guard: a SUPPORTED non-default tier is APPLIED, not silently downgraded]
+  ok   fixture-mutant "TIER_ABSENT reverted to cycle-4 supported:true" is KILLED
+
+[8] structural -- no stripped schema keywords, no forbidden runtime imports, riders intact
+```
+
+## 31. The two WARNs, fixed
+
+**Fidelity checks pinned the field enforceGate never reads.** Cycle 5
+pinned only `supported`; the field that actually selects the branch is
+`unsupported`. Both fixtures now pin `unsupported` and `absent` against
+values derived from the running driver -- a guard aimed at its subject
+rather than slightly to its left.
+
+**A SUPPORTED tier could be silently downgraded.** The cycle-5
+known-positive drove at `moderate`, which is also the fallback, so a
+mutation forcing `tier = 'moderate'` was invisible -- the exact
+silent-downgrade defect this step exists to fix, reintroducible for
+supported tiers without any check noticing. Now driven at `complex`, and
+that mutant is in `[7b]` and killed.
+
+**The absent-branch label** (`tier_absent_defaulted_ok`), which is what
+makes the two cases distinguishable in `checks[]`, is now asserted
+directly -- present for ABSENT, absent for UNSUPPORTED.
+
+## 32. Full [6d] section and total -- captured
+
+```
+[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually spawn? (replaces the source scan)
+  ok   RECORDER WORKS: a SUPPORTED tier really does spawn (known-positive)
+  ok   the first spawn is the stage-1 researcher (agentType researcher)
+  ok   UNSUPPORTED tier spawns ZERO agents (measured, not scanned)
+  ok   UNSUPPORTED tier returns gate_passed:false with the tier reported
+  ok   UNSUPPORTED tier does NOT claim an agent returned null
+  ok   BLIND run spawns ZERO agents (86.17 property, measured)
+  ok   ABSENT tier still SPAWNS (the converse of the refusal -- Q/A mutant Q1)
+  ok   ABSENT tier raises NO tier_unsupported violation
+  ok   ABSENT tier reports tier_requested null and applied moderate
+  ok   a SUPPORTED non-default tier is APPLIED, not silently downgraded
+  ok   a SUPPORTED non-default tier still spawns
+  ok   TIER_ABSENT fixture matches the driver (supported:false for an absent tier)
+  ok   TIER_ABSENT fixture matches the driver on the BRANCH-STEERING fields
+  ok   TIER_UNSUPPORTED fixture matches the driver (supported:false)
+  ok   TIER_UNSUPPORTED fixture matches the driver on the BRANCH-STEERING fields
+  ok   fidelity check REJECTS the cycle-4 fixture shape (supported:true for absent)
+  ok   enforceGate emits the tier_absent_defaulted_ok label for an ABSENT tier
+  ok   ...and does NOT emit it for an UNSUPPORTED tier
+  ok   B1 (block-comment decoy + relocated refusal) IS CAUGHT behaviourally
+
+[7] criterion 6 MUTATION-TEST -- weakening a floor in the SOURCE must break the check enforcing it
+ALL GREEN: 92 passed, 0 failed
+```
+
+Ladder: 40 -> 61 -> 64 -> 73 -> 78 -> **92**, nothing removed. Valid suite
+sizes for the arithmetic audit are now 40 / 61 / 64 / 73 / 78 / 92.

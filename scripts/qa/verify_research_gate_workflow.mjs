@@ -439,14 +439,61 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
   check('ABSENT tier reports tier_requested null and applied moderate',
     absentRun.result && absentRun.result.tier_requested === null && absentRun.result.tier_applied === 'moderate')
 
+  // CYCLE 6 -- a SUPPORTED tier must be APPLIED, not quietly replaced. The
+  // cycle-5 known-positive drove at 'moderate', which is also the fallback, so
+  // a mutation forcing `tier = 'moderate'` was invisible: the silent-downgrade
+  // defect this whole step exists to fix could have been reintroduced for
+  // SUPPORTED tiers without any check noticing. Drive at a non-default value.
+  const supportedNonDefault = await driveRecording(drive, { step_id: 'BEHAVE-complex', tier: 'complex' })
+  check('a SUPPORTED non-default tier is APPLIED, not silently downgraded',
+    supportedNonDefault.result && supportedNonDefault.result.tier_applied === 'complex'
+    && supportedNonDefault.result.tier_requested === 'complex'
+    && supportedNonDefault.result.tier_supported === true,
+    `applied=${supportedNonDefault.result && supportedNonDefault.result.tier_applied}`)
+  check('a SUPPORTED non-default tier still spawns',
+    supportedNonDefault.spawns.length > 0)
+
   // FIXTURE FIDELITY, asserted rather than claimed in a comment. The enforceGate
   // fixtures must match what the driver actually computes, or every
   // enforceGate-level probe tests a state production cannot reach.
+  //
+  // CYCLE 6: pin the BRANCH-STEERING field too. Cycle 5 pinned only `supported`
+  // -- which enforceGate never reads -- so a fixture whose `unsupported` field
+  // drifted would still have gone unnoticed, and `unsupported` is the field
+  // that actually selects the branch. Pinning the one field the consumer
+  // ignores is a guard aimed slightly to the left of its subject.
+  const driverUnsupported = (r) => !!(r && r.tier_requested !== null && r.tier_supported === false)
+  const driverAbsent = (r) => !!(r && r.tier_requested === null)
+
   check('TIER_ABSENT fixture matches the driver (supported:false for an absent tier)',
     TIER_ABSENT.tier.supported === (absentRun.result && absentRun.result.tier_supported),
     `fixture supported=${TIER_ABSENT.tier.supported}, driver tier_supported=${absentRun.result && absentRun.result.tier_supported}`)
+  check('TIER_ABSENT fixture matches the driver on the BRANCH-STEERING fields',
+    TIER_ABSENT.tier.unsupported === driverUnsupported(absentRun.result)
+    && TIER_ABSENT.tier.absent === driverAbsent(absentRun.result),
+    `fixture unsupported=${TIER_ABSENT.tier.unsupported}/absent=${TIER_ABSENT.tier.absent}, driver ${driverUnsupported(absentRun.result)}/${driverAbsent(absentRun.result)}`)
   check('TIER_UNSUPPORTED fixture matches the driver (supported:false)',
     TIER_UNSUPPORTED.tier.supported === unsupported.result.tier_supported)
+  check('TIER_UNSUPPORTED fixture matches the driver on the BRANCH-STEERING fields',
+    TIER_UNSUPPORTED.tier.unsupported === driverUnsupported(unsupported.result)
+    && TIER_UNSUPPORTED.tier.absent === driverAbsent(unsupported.result))
+
+  // The fidelity check must REJECT the exact fixture that caused the cycle-5
+  // defect. This is the check proving it would have caught the bug it was
+  // written for -- not an argument that it would.
+  check('fidelity check REJECTS the cycle-4 fixture shape (supported:true for absent)',
+    true !== (absentRun.result && absentRun.result.tier_supported))
+
+  // The enforceGate absent-branch LABEL is what makes ABSENT and UNSUPPORTED
+  // distinguishable in the checks[] output; guard it directly.
+  {
+    const r = mod.enforceGate(goodEnvelope(), verifyBrief(briefPath, URLS), TIER_ABSENT)
+    check('enforceGate emits the tier_absent_defaulted_ok label for an ABSENT tier',
+      (r.checks || []).some(c => c.includes('tier_absent_defaulted_ok')))
+    const u = mod.enforceGate(goodEnvelope(), verifyBrief(briefPath, URLS), TIER_UNSUPPORTED)
+    check('...and does NOT emit it for an UNSUPPORTED tier',
+      !(u.checks || []).some(c => c.includes('tier_absent_defaulted_ok')))
+  }
 
   // VACUITY: the /* */ block-comment decoy that defeated the cycle-2 source
   // scan (Q/A mutant B1). Against a behavioural test it cannot work, because
@@ -507,6 +554,84 @@ console.log('\n[7] criterion 6 MUTATION-TEST -- weakening a floor in the SOURCE 
     check(`mutant "${name}" is KILLED [${killed || 'SURVIVED'}]`, killed !== false,
       'the weakened floor did NOT change the outcome -- that check is not load-bearing')
   }
+}
+
+console.log('\n[7b] phase-86.28 cycle 6 -- DRIVER-level mutants (the [7] matrix drives enforceGate ONLY)')
+{
+  // WHY THIS SECTION EXISTS. The [7] matrix mutates research-gate.js and then
+  // probes through `makeGate`, i.e. through enforceGate. Every check added in
+  // [6d] is DRIVER-level -- it asserts what the module does end to end -- so
+  // the [7] matrix structurally cannot demonstrate any of them. Cycle 5 shipped
+  // five new checks with mutants for only two, and criterion 5 says a check
+  // whose mutant is not demonstrated is not delivered. These probes close that
+  // by mutating the source and re-driving the mutated module.
+  //
+  // Each probe returns the PREDICATE THE CHECK ASSERTS. Mutant killed <=> the
+  // predicate goes false on the mutated build.
+  const raw = fs.readFileSync(WORKFLOW, 'utf8')
+  const driverMutants = [
+    // ANCHOR MUST BE UNIQUE TO THE MAIN RETURN. `tier_requested: tierRequested,`
+    // appears TWICE -- once in the refusal path and once in the main return --
+    // and a first-match replace lands on the refusal path, which the ABSENT
+    // probe never executes. That version of this mutant SURVIVED, and it was
+    // the mutant that was wrong, not the check. Anchoring on the trailing
+    // `tier_supported: tierSupported` (main return only; the refusal path
+    // hard-codes `false`) makes it unambiguous. The uniqueness assertion below
+    // is what surfaced this.
+    ['driver reports the APPLIED tier as tier_requested (main return)',
+      'tier_requested: tierRequested,\n  tier_applied: tier,\n  tier_supported: tierSupported,',
+      'tier_requested: tier,\n  tier_applied: tier,\n  tier_supported: tierSupported,',
+      async (drive) => {
+        const r = (await driveRecording(drive, { step_id: 'DM' })).result
+        return r && r.tier_requested === null && r.tier_applied === 'moderate'
+      },
+      'ABSENT tier reports tier_requested null and applied moderate'],
+
+    ['refusal path claims the tier WAS supported',
+      'tier_supported: false,\n    brief_path: null,', 'tier_supported: true,\n    brief_path: null,',
+      async (drive) => {
+        const r = (await driveRecording(drive, { step_id: 'DM', tier: 'deep' })).result
+        return r && r.tier_supported === false
+      },
+      'TIER_UNSUPPORTED fixture matches the driver / UNSUPPORTED returns the tier'],
+
+    ['supported tier silently downgraded to the default',
+      'const tier = tierSupported ? tierRequested : \'moderate\'', 'const tier = \'moderate\'',
+      async (drive) => {
+        const r = (await driveRecording(drive, { step_id: 'DM', tier: 'complex' })).result
+        return r && r.tier_applied === 'complex'
+      },
+      'a SUPPORTED non-default tier is APPLIED, not silently downgraded'],
+  ]
+
+  for (const [name, from, to, probe, guards] of driverMutants) {
+    if (!raw.includes(from)) { check(`driver-mutant "${name}" anchor present`, false, `anchor not found: ${from}`); continue }
+    // A non-unique anchor means a first-match replace may mutate a branch the
+    // probe never executes -- which produces a SURVIVING mutant that looks like
+    // a weak check but is really a weak mutant. Measured on this very matrix.
+    const occurrences = raw.split(from).length - 1
+    check(`driver-mutant "${name}" anchor is UNIQUE (${occurrences})`, occurrences === 1,
+      `anchor matches ${occurrences} sites; a first-match replace may hit the wrong branch`)
+    const mutated = raw.replace(from, to)
+    if (mutated === raw) { check(`driver-mutant "${name}" applied`, false, 'replace was a no-op'); continue }
+    let held = null
+    try {
+      const d = await loadDriver(mutated)
+      held = await probe(d)
+    } catch (e) { held = 'threw: ' + (e && e.message ? e.message.split('\n')[0] : String(e)) }
+    // KILLED = the guarded predicate no longer holds (or the build throws).
+    check(`driver-mutant "${name}" is KILLED [guard: ${guards}]`, held !== true,
+      'the mutated driver still satisfied the predicate -- that check is not load-bearing')
+  }
+
+  // The FIXTURE-fidelity checks are guarded by mutating the FIXTURE, not the
+  // source: revert TIER_ABSENT to its cycle-4 shape and confirm the comparison
+  // it performs would reject it.
+  const cycle4AbsentFixture = { requested: null, applied: 'moderate', supported: true, absent: true, unsupported: false }
+  const driveAbsent = await driveRecording(await loadDriver(), { step_id: 'FIXCHK' })
+  check('fixture-mutant "TIER_ABSENT reverted to cycle-4 supported:true" is KILLED',
+    cycle4AbsentFixture.supported !== driveAbsent.result.tier_supported,
+    'the fidelity comparison would have accepted the fixture that caused the cycle-5 defect')
 }
 
 console.log('\n[8] structural -- no stripped schema keywords, no forbidden runtime imports, riders intact')

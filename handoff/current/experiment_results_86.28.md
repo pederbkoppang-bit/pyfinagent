@@ -545,3 +545,43 @@ Q1 and Q5 both KILLED -- captures in `live_check` §26, arithmetic
 reconciled in §27.
 
 Checker: 40 -> 61 -> 64 -> 73 -> **78**, 0 failed.
+
+---
+
+# Follow-up -- cycle 6 (criterion 5: three checks without mutants)
+
+Q/A `wf_344395f1-4ac` reproduced Q1/Q5 byte-exactly (corroborating that the
+cycle-4 transcript regeneration was genuine), read the trajectory as
+converging, and blocked on criterion 5: 3 of the 5 cycle-5 checks had no
+demonstrated mutant. It built all three itself and all three were killed --
+so the checks were sound and the gap was in the evidence.
+
+## Fixed properly, not by pasting its captures
+
+Criterion 5 requires the mutant to live IN the checker, so the three are
+now standing tests in a new `[7b]` DRIVER-level matrix. The `[7]` matrix
+could never have covered them: it probes through `enforceGate`, while every
+`[6d]` check is end-to-end driver behaviour.
+
+## My own mutant was the defective part
+
+The `tier_requested` mutant SURVIVED at first. `tier_requested:
+tierRequested,` occurs twice -- refusal path and main return -- and a
+first-match replace hit the branch the ABSENT probe never runs. A weak
+mutant is indistinguishable from a weak check until you look. Fixed with a
+unique anchor, and every driver-mutant now carries an **anchor-uniqueness
+assertion** so this fails loudly rather than producing a false survivor.
+
+## Both WARNs closed
+
+- Fixture fidelity now pins `unsupported`/`absent` -- the branch-steering
+  fields -- not just `supported`, which `enforceGate` never reads.
+- The known-positive is driven at `complex` instead of `moderate`, closing
+  a hole where a supported tier could be silently downgraded: the very
+  defect this step exists to fix, previously reintroducible without any
+  check noticing. That mutant is in `[7b]` and killed.
+- The `tier_absent_defaulted_ok` label is asserted present for ABSENT and
+  absent for UNSUPPORTED.
+
+Checker: 40 -> 61 -> 64 -> 73 -> 78 -> **92**, 0 failed, nothing removed.
+`research-gate.js` remains untouched since cycle 3.
