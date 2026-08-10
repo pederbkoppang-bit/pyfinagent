@@ -33361,3 +33361,52 @@ workflow runs / 8,101,029 subagent tokens**, of which this step consumed
 **374,538** across two evaluations. The next session should run ONE fresh Q/A on
 the current tree rather than redo the work. Disposition in
 `experiment_results_86.34.md` section 6.
+
+## Cycle 1208 -- 2026-08-10 -- phase=86.31 result=FAIL
+
+Q/A `wf_80070b75-327` (178,514 tokens, 39 tool calls, 927s). Verdict verbatim in
+`evaluator_critique_86.31.md`. `harness_compliance_ok: true`.
+
+**ALL SEVEN IMMUTABLE CRITERIA MET**, on execution evidence the evaluator
+reproduced itself: immutable command exit 0; `prove_qa_write_separation` 15/15
+(8 BLOCK / 7 ALLOW); `verify_qa_write_first` 194 passed / 0 failed covering all
+four named deny classes; `mutation_matrix_86_31` 24/24; the drop table at
+310 runs / 23 dropped / 7.4% with the overlap named; `qa_wip.py` returning
+`is_verdict=false` + `STALE` on its own live artifact; `qa.md` frontmatter and
+`VERDICT_SCHEMA` untouched. No production code touched.
+
+**It built its OWN mutant matrix against the real hook and found NO survivor** --
+`normpath` removed (killed by the traversal case), the literal-`qa` predicate
+restored (killed by the named-spawn cases), the deny removed (killed by all 8
+BLOCK cases), apostrophe (killed by the liveness probe AND the 7 ALLOW cases). It
+also broke the liveness probe three distinct ways and confirmed it refuses to
+report clean each time. **The mechanism is sound. No code change was required.**
+
+**FAIL for two prose defects, both mine, both written within the preceding
+hour** -- substantively a CONDITIONAL, escalated because it is the THIRD
+consecutive CONDITIONAL for this step (cycle 1199 records two priors; PARKED is
+not one of the three reset events).
+
+- **The liveness rationale was wrong in BOTH halves.** I wrote that one
+  apostrophe yields a Python `SyntaxError` that "ALLOWS EVERYTHING". Measured:
+  **odd** apostrophe count -> a **bash** parse error -> `qa` rc=2 **and Main
+  rc=2**, i.e. it **blocks everything**, loud and session-bricking; **even**
+  count -> the quotes re-pair, the script parses, the python body is mangled ->
+  `qa` rc=0, Main rc=0, the **silent** fail-open. I named the loud shape and
+  **understated the hazard**. **My own first check of this was itself broken**:
+  I injected the string `# it is here`, which contains no apostrophe at all,
+  measured no change, and was one step from reporting the evaluator wrong. That
+  is the **fifth** broken probe of 2026-08-10.
+- **"156 organic allowed writes" does not reproduce.** My own stated rule gives
+  **132**; 156 arises only by stripping four of five byte-identical synthetic
+  identities. The published per-file block also **sums to 154**, and the log
+  records **DECISIONS, not writes** -- two credited files have mtimes of
+  2026-07-25 and 2026-08-09. **No replacement number is offered**: identity `qa`
+  is simultaneously the production rail identity and the one the probes drive
+  with, so the partition is not recoverable in principle. The claim is now
+  `252 allowed DECISIONS`. The headline `370/912 -> 252/1030` correction was
+  independently confirmed and stands.
+
+**Both corrected in `9df1239f`. The counter RESETS on a FAIL**, so the next Q/A
+on this step starts clean. **`status: pending`.** The next session should run ONE
+fresh Q/A against the corrected artifacts -- the mechanism needs no further work.
