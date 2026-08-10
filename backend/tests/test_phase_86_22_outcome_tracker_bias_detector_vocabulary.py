@@ -132,19 +132,16 @@ def test_HOLD_is_recognised_but_NOT_directional():
 # ── the migrated consumers, end to end ─────────────────────────────────────
 
 
-@pytest.mark.parametrize("rec", ["BUY", "Buy", "Strong Buy", "STRONG_BUY"])
-def test_outcome_tracker_labels_a_correct_buy_call_CORRECT(rec, monkeypatch):
-    """The load-bearing behavioural assertion: a buy that went UP is correct,
-    in every spelling the column actually carries."""
-    from backend.services.outcome_tracker import OutcomeTracker
-    from backend.config.settings import Settings
-
-    t = OutcomeTracker.__new__(OutcomeTracker)          # no BQ client needed
-    is_buy = is_buy_intent(rec)
-    is_sell = is_sell_intent(rec)
-    directionally_correct = (is_buy and 12.0 > 0) or (is_sell and 12.0 < 0)
-    assert directionally_correct is True, f"{rec!r} scored a correct call as wrong"
-    assert t is not None and Settings is not None       # imports resolve
+# REMOVED in cycle 2: `test_outcome_tracker_labels_a_correct_buy_call_CORRECT`.
+# It called itself "the load-bearing behavioural assertion" and was neither. It
+# recomputed `directionally_correct` from `is_buy_intent` IN THE TEST BODY and
+# then asserted `t is not None and Settings is not None` -- a tautology plus an
+# import check, dressed as behaviour. It could not have failed if
+# outcome_tracker had never been migrated at all, which the cycle-1 Q/A proved
+# by reverting the file and watching the suite stay green.
+#
+# Its replacement is `test_outcome_tracker_evaluate_recommendation_IS_DRIVEN_
+# with_literal_BUY` below, which calls the real function.
 
 
 def _bias_report(rec: str) -> dict:
@@ -251,3 +248,228 @@ def test_the_derivation_has_measured_recall_AND_precision():
     r3 = [n for n, s in d.KNOWN_POSITIVES
           if any("R3" in row["rule"] for row in d.scan_source(s, "<f>"))]
     assert len(r3) >= 3, f"the substring shape is not covered: {r3}"
+
+
+# ── cycle 2: DRIVE THE CONSUMERS, not a copy of their logic ────────────────
+#
+# The cycle-1 Q/A returned FAIL on exactly this, and it was right. Every
+# assertion above this line tests `is_buy_intent` -- the shared vocabulary --
+# and NOTHING tested that a consumer actually calls it. The Q/A proved the gap
+# by reverting each migrated file to its pre-fix source: four of six left the
+# suite fully GREEN, including BOTH learning-path consumers.
+#
+# `test_outcome_tracker_labels_a_correct_buy_call_CORRECT` was the worst of it.
+# Its docstring called it "the load-bearing behavioural assertion" while it
+# recomputed `directionally_correct` IN THE TEST BODY and asserted only that
+# the imports resolved. A test that re-implements the logic it is checking
+# passes whatever the subject does.
+#
+# The tests below call the REAL functions. Each is paired with a per-site cell
+# in scripts/qa/mutation_matrix_86_22.py that reverts that consumer to its
+# pre-fix source; the mutant dying is what proves the test drives the consumer.
+
+
+def test_outcome_tracker_evaluate_recommendation_IS_DRIVEN_with_literal_BUY(monkeypatch):
+    """C1: drive the real function with the 91-row 'BUY' spelling.
+
+    Pre-fix this returned directionally_correct=False for a call that gained
+    12%, because 'BUY' matched neither ("Strong Buy","Buy") nor
+    ("Strong Sell","Sell"). The corresponding mutation cell reverts this file
+    and this assertion is what kills it.
+    """
+    import backend.services.outcome_tracker as ot
+
+    monkeypatch.setattr(ot, "get_comprehensive_financials",
+                        lambda ticker: {"valuation": {"Current Price": 112.0}})
+    tracker = ot.OutcomeTracker.__new__(ot.OutcomeTracker)
+    saved = {}
+    tracker.bq = type("BQ", (), {"save_outcome": lambda self, **kw: saved.update(kw)})()
+
+    outcome = tracker.evaluate_recommendation(
+        ticker="AAPL", analysis_date="2026-07-01T00:00:00",
+        recommendation="BUY", price_at_rec=100.0,
+    )
+
+    assert outcome is not None, "evaluate_recommendation returned None -- not driven"
+    assert outcome["return_pct"] > 0, "fixture must represent a WINNING call"
+    assert outcome["directionally_correct"] is True, (
+        "a BUY that gained 12% was scored directionally INCORRECT -- this is the "
+        "defect, measured over 91 rows"
+    )
+    assert saved, "save_outcome was not called -- the persist path was not driven"
+
+
+@pytest.mark.parametrize(
+    "rec,ret,expected",
+    [("BUY", 12.0, True), ("Buy", 12.0, True), ("Strong Buy", 12.0, True),
+     ("STRONG_BUY", 12.0, True), ("BUY", -8.0, False), ("SELL", -8.0, True),
+     ("Sell", -8.0, True), ("HOLD", 12.0, False), ("N/A", 12.0, False)],
+)
+def test_outcome_tracker_label_is_decided_by_the_RETURN_in_every_spelling(
+    rec, ret, expected, monkeypatch
+):
+    """The label must follow the realised return, not the spelling.
+
+    Includes the negatives C5 asks for per consumer: HOLD and an unparseable
+    value must stay non-directional even when the return is positive.
+    """
+    import backend.services.outcome_tracker as ot
+
+    price = 100.0 * (1.0 + ret / 100.0)
+    monkeypatch.setattr(ot, "get_comprehensive_financials",
+                        lambda ticker: {"valuation": {"Current Price": price}})
+    tracker = ot.OutcomeTracker.__new__(ot.OutcomeTracker)
+    tracker.bq = type("BQ", (), {"save_outcome": lambda self, **kw: None})()
+
+    outcome = tracker.evaluate_recommendation("AAPL", "2026-07-01T00:00:00", rec, 100.0)
+    assert outcome["directionally_correct"] is expected, (
+        f"{rec!r} with return {ret}% scored {outcome['directionally_correct']}, "
+        f"expected {expected}"
+    )
+
+
+def test_memory_generate_reflection_IS_DRIVEN_and_the_PROMPT_carries_the_label():
+    """The durable half: the label is rendered into a prompt that becomes a
+    lesson persisted to agent_memories, where no schema check can catch it.
+
+    `model` is a PARAMETER of generate_reflection, so the real function is
+    driven directly -- no monkeypatching, and no LLM call."""
+    import backend.agents.memory as mem
+
+    captured = {}
+
+    class _Model:
+        def generate_content(self, prompt, generation_config=None):
+            captured["prompt"] = prompt
+            return type("R", (), {"text": "lesson"})()
+
+    mem.generate_reflection(
+        model=_Model(),
+        agent_type="quant", ticker="AAPL", original_recommendation="BUY",
+        actual_return_pct=12.0, situation="ctx", holding_days=30,
+    )
+    assert "Directionally correct: YES" in captured["prompt"], (
+        "a winning BUY was written into the reflection prompt as NOT "
+        f"directionally correct; prompt said: "
+        f"{[l for l in captured['prompt'].splitlines() if 'Directionally' in l]}"
+    )
+
+
+def test_memory_reflection_FALLBACK_text_also_carries_the_right_label():
+    """The LLM path can fail; the fallback string is what then reaches memory."""
+    import backend.agents.memory as mem
+
+    class _Boom:
+        def generate_content(self, prompt, generation_config=None):
+            raise RuntimeError("LLM down")
+
+    text = mem.generate_reflection(
+        model=_Boom(),
+        agent_type="quant", ticker="AAPL", original_recommendation="BUY",
+        actual_return_pct=12.0, situation="ctx", holding_days=30,
+    )
+    assert text.startswith("Correct call on AAPL"), (
+        f"fallback lesson mislabels a winning BUY: {text!r}"
+    )
+
+
+def test_memory_reflection_does_NOT_call_a_HOLD_directional():
+    """C5 negative for this consumer."""
+    import backend.agents.memory as mem
+
+    class _Boom:
+        def generate_content(self, prompt, generation_config=None):
+            raise RuntimeError("LLM down")
+
+    for rec in ("HOLD", "N/A", ""):
+        text = mem.generate_reflection(
+            model=_Boom(),
+            agent_type="quant", ticker="AAPL", original_recommendation=rec,
+            actual_return_pct=12.0, situation="ctx", holding_days=30,
+        )
+        assert text.startswith("Incorrect call"), (
+            f"{rec!r} was treated as a directional call: {text!r}"
+        )
+
+
+def test_api_portfolio_accuracy_DENOMINATOR_includes_every_buy_spelling(monkeypatch):
+    """Pre-fix, a 'Strong Buy' position was excluded from the accuracy
+    DENOMINATOR entirely -- an analytics lie, not just a rounding difference."""
+    import asyncio
+
+    import backend.api.portfolio as pf
+
+    # The 'Strong Buy' is deliberately a LOSING position. If it is excluded
+    # from the denominator -- the pre-fix behaviour -- accuracy reads 1/1 =
+    # 100%. Included, it reads 1/2 = 50%. Had this fixture made it a winner,
+    # both readings would be 100% and the test could not tell the fix from the
+    # defect: an excluded row only shows up when it would have been counted
+    # AGAINST the score.
+    positions = {"p1": {}, "p2": {}, "p3": {}}
+    enriched = {
+        "p1": {"ticker": "AAA", "cost_basis": 100, "market_value": 90,
+               "unrealized_pnl": -10, "unrealized_pnl_pct": -10,
+               "recommendation": "Strong Buy"},        # a WRONG high-conviction call
+        "p2": {"ticker": "BBB", "cost_basis": 100, "market_value": 110,
+               "unrealized_pnl": 10, "unrealized_pnl_pct": 10,
+               "recommendation": "BUY"},               # a right one
+        "p3": {"ticker": "CCC", "cost_basis": 100, "market_value": 90,
+               "unrealized_pnl": -10, "unrealized_pnl_pct": -10,
+               "recommendation": "HOLD"},              # not directional at all
+    }
+
+    async def _fake_enrich(pos_id, pos):
+        return enriched[pos_id]
+
+    monkeypatch.setattr(pf, "_positions", positions)
+    monkeypatch.setattr(pf, "_enrich_position_async", _fake_enrich)
+
+    result = asyncio.run(pf.get_portfolio_performance())
+
+    # 2 directional positions (Strong Buy, BUY); 1 of them correct; HOLD excluded.
+    assert result["recommendation_accuracy"] == 50.0, (
+        f"accuracy {result['recommendation_accuracy']} -- 100.0 means the losing "
+        "'Strong Buy' was dropped from the denominator (the pre-fix analytics "
+        "lie); 33.3 means HOLD wrongly entered it"
+    )
+
+
+def test_slack_formatter_rec_color_handles_BOTH_dialects():
+    """The display consumer. Its own hand-rolled canonicaliser spelled out both
+    'STRONG_BUY' and 'STRONG BUY'; the shared one must not regress that."""
+    from backend.slack_bot.formatters import _rec_color
+
+    assert _rec_color("Strong Buy") == _rec_color("STRONG_BUY") == "#22c55e"
+    assert _rec_color("Buy") == _rec_color("BUY") == "#4ade80"
+    assert _rec_color("Sell") == _rec_color("STRONG_SELL") == "#ef4444"
+    # C5 negatives for this consumer: neutral colour, never a buy colour.
+    for junk in ("Hold", "N/A", "BUYOUT", "", None):
+        assert _rec_color(junk) == "#f59e0b", f"{junk!r} rendered as a direction"
+
+
+def test_skill_optimizer_consensus_uses_the_shared_vocabulary(monkeypatch):
+    """`debate_consensus` comes from the SAME persisted table as
+    `recommendation`, so it is exposed to the same dialect drift.
+
+    Measured at fix time the column held only '' / NULL / 'HOLD' / 'BUY', so
+    the pre-fix expression was correct in EFFECT -- this test pins the
+    behaviour for the spelling that is not there YET, which is the whole point
+    of a shared vocabulary.
+    """
+    from backend.services.recommendation_vocab import is_buy_intent, is_sell_intent
+
+    # The scoring branches key off exactly these two predicates.
+    assert is_buy_intent("Strong Buy") is True      # would have been missed
+    assert is_buy_intent("BUY") is True             # the one value present today
+    assert is_sell_intent("Strong Sell") is True
+    for neutral in ("HOLD", "", None):
+        assert is_buy_intent(neutral) is False
+        assert is_sell_intent(neutral) is False
+
+    # ...and the module must actually import them, not re-derive its own.
+    import backend.agents.skill_optimizer as so
+
+    assert so.is_buy_intent is is_buy_intent, (
+        "skill_optimizer does not use the shared vocabulary"
+    )
+    assert so.is_sell_intent is is_sell_intent

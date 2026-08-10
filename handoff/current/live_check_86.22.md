@@ -340,3 +340,99 @@ test_phase_82_12_string_column_guards::test_classified_line_numbers_...
 My comment block shifted outcome_tracker.py past the registry's +/-6
 tolerance. Fixed by re-deriving the line numbers from the file.
 ```
+
+---
+
+# CYCLE 2 -- captured after the cycle-1 FAIL
+
+Captured 2026-08-10 02:31:21 CEST. Every block is stdout.
+
+## H. The rev is now PINNED (cycle-1 Q/A finding)
+
+Section A recorded `--against-git-rev HEAD`, true when captured and false
+minutes later: the auto-changelog hook commits on top of every fix, so
+neither HEAD nor HEAD~1 is the pre-fix tree. The pre-fix tree is 4b7dab7b.
+
+```
+$ python scripts/qa/derive_recommendation_consumers_86_22.py --against-git-rev 4b7dab7b
+population at git rev 4b7dab7b: 23 in-scope site(s)
+NOT on the allow-list: 21
+
+$ python scripts/qa/derive_recommendation_consumers_86_22.py
+population in the WORKING TREE: 2 in-scope site(s)
+NOT on the allow-list: 0
+```
+
+## I. PER-SITE mutation -- the axis criterion 8 names
+
+The cycle-1 matrix never reverted a fixed SITE. The Q/A ran that axis and
+found four of six migrations unguarded. All seven now die:
+
+```
+BASELINE (un-mutated): GREEN
+  58 passed in 2.29s
+id   kind      result    mutation
+----------------------------------------------------------------------------------------------------
+V1   vocab     killed    stop folding the separator (revert to the pre-86.20 behaviour)
+               proves: the whole defect -- 'Strong Buy' must not fall back to UNKNOWN
+V2   vocab     killed    fold whitespace only -- hyphen and underscore stop being separators
+               proves: 'STRONG-BUY' / 'Strong_Buy' are in the parametrised buy set
+V3   vocab     killed    WIDEN is_buy_intent to any recognised value (HOLD becomes a buy)
+               proves: the fix must not become an over-permissive gate
+V4   vocab     killed    put HOLD in BUY_INTENT
+               proves: a considered HOLD is not a directional call
+V5   vocab     killed    alias is_sell_intent to the buy set (direction inverted)
+               proves: sell must not be graded as buy -- the substring defect's core
+V6   vocab     killed    accept non-strings by coercing with str()
+               proves: a dict or enum reaching the gate is a caller bug, not a token
+V7   vocab     killed    make is_directional() true for HOLD as well
+               proves: 'unparseable' and 'considered hold' must stay distinguishable
+D1   detector  killed    delete rule R3 (the substring shape becomes invisible again)
+               proves: recall -- this is the exact blindness that missed conflict_detector
+               false positives: []
+D2   detector  killed    delete rule R1 (strong-conviction tokens no longer in scope)
+               proves: recall -- R1 is what catches a site with an unhelpful variable name
+               false positives: []
+D3   detector  killed    flag EVERY literal membership test (perfect recall, no precision)
+               proves: precision -- a detector that flags everything is not a detector
+               false positives: ['order side', 'signal action', 'lite-analyzer action', 'attribution side']
+D4   detector  killed    drop the R2 requirement that the literals be recommendation-shaped
+               proves: precision -- `mode in ('fast','slow')` must not enter the population
+               false positives: ['recommend-named field, unrelated literals', 'recommend-named field, workflow literals']
+per-SITE cells -- revert each migrated consumer to 4b7dab7b
+id   result    consumer                                    guard that must catch it
+--------------------------------------------------------------------------------------------------------------------
+S1   killed    backend/services/outcome_tracker.py         test_outcome_tracker_evaluate_recommendation_IS_DRIVEN_wit
+S2   killed    backend/agents/memory.py                    test_memory_generate_reflection_IS_DRIVEN_and_the_PROMPT_c
+S3   killed    backend/agents/bias_detector.py             test_bias_detector_fires_on_every_strong_buy_spelling
+S4   killed    backend/api/portfolio.py                    test_api_portfolio_accuracy_DENOMINATOR_includes_every_buy
+S5   killed    backend/agents/conflict_detector.py         test_conflict_detector_grades_a_strong_buy_at_the_STRICTER
+S6   killed    backend/slack_bot/formatters.py             test_slack_formatter_rec_color_handles_BOTH_dialects
+S7   killed    backend/agents/skill_optimizer.py           test_skill_optimizer_consensus_uses_the_shared_vocabulary
+RESTORED (un-mutated): GREEN
+  58 passed in 2.34s
+  backend/services/recommendation_vocab.py unchanged: True (71a82b632375ff0e7f983104dddb55b5)
+  scripts/qa/derive_recommendation_consumers_86_22.py unchanged: True (ac9983a21f9ed57360ad2bf27aa211a2)
+18 killed / 0 survived of 18 cells (11 vocab+detector, 7 per-site)
+Every guard IN THIS MATRIX can fail. That is the scope of this claim:
+it says nothing about guards the matrix does not mutate.
+```
+
+## J. The consumers are now DRIVEN, not re-implemented
+
+```
+$ python -m pytest ...test_phase_86_22... -v -k "IS_DRIVEN or api_portfolio or skill_optimizer or rec_color"
+backend/tests/test_phase_86_22_outcome_tracker_bias_detector_vocabulary.py::test_outcome_tracker_evaluate_recommendation_IS_DRIVEN_with_literal_BUY PASSED [ 20%]
+backend/tests/test_phase_86_22_outcome_tracker_bias_detector_vocabulary.py::test_memory_generate_reflection_IS_DRIVEN_and_the_PROMPT_carries_the_label PASSED [ 40%]
+backend/tests/test_phase_86_22_outcome_tracker_bias_detector_vocabulary.py::test_api_portfolio_accuracy_DENOMINATOR_includes_every_buy_spelling PASSED [ 60%]
+backend/tests/test_phase_86_22_outcome_tracker_bias_detector_vocabulary.py::test_slack_formatter_rec_color_handles_BOTH_dialects PASSED [ 80%]
+backend/tests/test_phase_86_22_outcome_tracker_bias_detector_vocabulary.py::test_skill_optimizer_consensus_uses_the_shared_vocabulary PASSED [100%]
+======================= 5 passed, 53 deselected in 1.65s =======================
+```
+
+## K. Immutable command, cycle 2
+
+```
+200 passed, 3097 deselected, 1 warning in 8.63s
+exit=0
+```

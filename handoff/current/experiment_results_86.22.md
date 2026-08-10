@@ -102,11 +102,19 @@ Six consumers migrated to it:
 | `backend/api/portfolio.py` | :138-142 | reporting |
 | `backend/agents/conflict_detector.py` | :121/:131/:140 | reporting; thresholds 7.0/5.5/6.0 preserved exactly |
 | `backend/slack_bot/formatters.py` | `_rec_color` | display; **no callers** (verified repo-wide) |
+| `backend/agents/skill_optimizer.py` | :243 `debate_consensus` | learning -- scores debate agents (added cycle 2) |
 
-`backend/agents/skill_optimizer.py:244` is deliberately **not** migrated: it
-reads the schema-enforced `Literal` in `agents/schemas.py`, so the producer
-cannot emit another spelling. Migrating it would add a dependency without
-removing a risk.
+`backend/agents/skill_optimizer.py:243` was **also migrated in cycle 2**. It
+was originally excluded on the grounds that it reads a schema-enforced
+`Literal`; the cycle-1 Q/A disproved that reason -- the value comes from
+`debate_consensus`, selected from `financial_reports.analysis_results`, the same
+persisted table as `recommendation`. A `Literal` in the producer says nothing
+about the persisted string (`api/models.py` names a member `STRONG_BUY` whose
+VALUE is `"Strong Buy"`). Measured distribution of `debate_consensus`: `''` 487,
+NULL 51, `'HOLD'` 4, `'BUY'` 1 -- so the old expression was correct in EFFECT
+and hid no live defect. The ARGUMENT was wrong, and an allow-list entry is worth
+exactly what its argument is worth, so the site was migrated instead of
+re-worded. That makes **seven** migrated consumers, not six.
 
 **No set was widened.** `"Accumulate"`, `"Overweight"`, `"BUYING"`,
 `"NOT A BUY"`, `"Strong Buy!"` and `"N/A"` all remain non-directional.
@@ -118,7 +126,7 @@ first derivation used a regex, then an AST scan with two rules. It reported a
 confident population of 10 sites across 4 files -- and silently **missed
 `conflict_detector.py` entirely**, because a substring test is a different AST
 shape, not a different spelling. Adding rule R3 raised the pre-fix population to
-**19 offender sites** and surfaced a **sixth consumer I had not migrated**
+**17 offender sites** and surfaced a **sixth consumer I had not migrated**
 (`slack_bot/formatters.py`). A guard that covers one shape of a defect is a
 guard against an instance, not against the class.
 
@@ -152,13 +160,19 @@ Method validated in BOTH directions.
 **Criterion 4 -- no second vocabulary survives (before vs after):**
 
 ```
-$ python scripts/qa/derive_recommendation_consumers_86_22.py --against-git-rev HEAD
-population at git rev HEAD: 23 in-scope site(s)
-NOT on the allow-list: 19
+$ python scripts/qa/derive_recommendation_consumers_86_22.py --against-git-rev 4b7dab7b
+population at git rev 4b7dab7b: 23 in-scope site(s)
+NOT on the allow-list: 17
 
 $ python scripts/qa/derive_recommendation_consumers_86_22.py
-population in the WORKING TREE: 6 in-scope site(s)
+population in the WORKING TREE: 2 in-scope site(s)
 NOT on the allow-list: 0        (exit 0)
+
+NOTE the rev is PINNED. The artifact first recorded `--against-git-rev HEAD`,
+which was true when captured and false ten minutes later: the auto-changelog
+hook lands its own commit on top of every fix, so neither `HEAD` nor `HEAD~1`
+is the pre-fix tree. `4b7dab7b` is. The cycle-1 Q/A caught this and confirmed
+the recorded output reproduces exactly once the rev is pinned.
 ```
 
 **Mutation matrix -- 11 cells, both the vocabulary and its detector:**
@@ -240,3 +254,108 @@ scripts/qa/derive_recommendation_consumers_86_22.py      (NEW, detector + valida
 scripts/qa/measure_vocabulary_impact_86_22.py            (NEW, re-derives every number)
 scripts/qa/mutation_matrix_86_22.py                      (NEW, 11 cells)
 ```
+
+---
+
+# CYCLE 2 -- the cycle-1 Q/A returned FAIL, and it was right
+
+Verdict transcribed verbatim in `handoff/current/evaluator_critique_86.22.md`.
+Two BLOCKs, both correct, and both were **guard defects, not fix defects** --
+the product code was right and the evidence that it was right did not exist.
+
+## The finding that mattered
+
+The Q/A did the thing I had not: it reverted **each migrated file** to its
+pre-fix source and re-ran the suite. Four of six survived:
+
+```
+outcome_tracker   reverted -> 46 passed  (SURVIVED)
+memory            reverted -> 46 passed  (SURVIVED)
+api/portfolio     reverted -> 46 passed  (SURVIVED)
+slack/formatters  reverted -> 46 passed  (SURVIVED)
+bias_detector     reverted ->  2 failed  (killed)
+conflict_detector reverted ->  1 failed  (killed)
+```
+
+Every assertion I had written tested `is_buy_intent` -- the shared vocabulary --
+and **nothing tested that a consumer actually calls it**. Including both
+learning-path consumers, the ones that make this step P1.
+
+The worst of it was a test I had named "the load-bearing behavioural
+assertion". It recomputed `directionally_correct` **in the test body** from
+`is_buy_intent`, then asserted `t is not None and Settings is not None`. A
+tautology and an import check, wearing the costume of behaviour. It has been
+deleted, not repaired.
+
+## What changed in cycle 2
+
+1. **Seven consumer-driving tests**, calling the real functions:
+   `outcome_tracker.evaluate_recommendation` (driven with the literal `BUY`,
+   asserting `directionally_correct is True` on a +12% return),
+   `memory.generate_reflection` (asserting the PROMPT carries
+   `Directionally correct: YES`, plus the LLM-failure fallback string),
+   `api.get_portfolio_performance` (async, driven end to end),
+   `_rec_color`, and `skill_optimizer`.
+2. **Seven per-site mutation cells (S1-S7)** that revert each consumer to
+   `4b7dab7b` and re-run the suite. This is the axis criterion 8 names and the
+   cycle-1 matrix never ran. **All seven now die.**
+3. **`skill_optimizer` migrated** rather than defended (see section 4).
+4. The `--against-git-rev HEAD` anchor **pinned to `4b7dab7b`**, and the stale
+   `19` corrected to the measured `17`.
+
+## A fixture that could not have failed
+
+`test_api_portfolio_accuracy_...` first used a WINNING `Strong Buy`. Excluded
+from the denominator it reads 1/1 = 100%; included, 2/2 = 100%. Identical either
+way -- the test could not tell the fix from the defect. The fixture now makes
+that position a LOSER, so the readings are 100% (pre-fix) vs 50% (post-fix), and
+mutant S4 dies. **An excluded row only becomes visible when it would have counted
+against the score.**
+
+## Cycle-2 verification
+
+```
+$ bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q \
+    -k "outcome_tracker or bias_detector or conflict_detector or portfolio_manager"'
+200 passed, 3097 deselected, 1 warning in 8.63s        exit=0
+
+$ python scripts/qa/mutation_matrix_86_22.py
+BASELINE (un-mutated): GREEN   58 passed
+V1..V7 vocab killed | D1..D4 detector killed | S1..S7 per-site killed
+RESTORED (un-mutated): GREEN   58 passed
+  recommendation_vocab.py unchanged: True (71a82b632375ff0e7f983104dddb55b5)
+  derive_recommendation_consumers_86_22.py unchanged: True (ac9983a21f9ed57360ad2bf27aa211a2)
+18 killed / 0 survived of 18 cells (11 vocab+detector, 7 per-site)
+
+$ python scripts/qa/derive_recommendation_consumers_86_22.py --validate
+recall 9/9   precision 10/10
+
+$ python scripts/qa/derive_recommendation_consumers_86_22.py
+population in the WORKING TREE: 2 in-scope site(s)
+NOT on the allow-list: 0                               exit=0
+```
+
+## Full suite, cycle 2
+
+**14 failed / 3265 passed** -- the same COUNT as the pre-86.22 baseline, with
+membership differing by one in each direction:
+
+- gone: `test_phase_82_54_cost_budget_columns::test_production_sql_dry_runs_valid`
+  (a BQ dry-run, network-dependent);
+- new: `test_phase_86_2_replay_poison_row::test_c1_c2_a_poison_row_first_...`,
+  which fails with `daily anchor STALE (sod_date='2026-08-09')` -- the third
+  midnight-rollover casualty tonight, and it greps zero of the modules this step
+  touches;
+- the two `test_phase_82_0_macro_ingestion` rollover failures from cycle 1 have
+  **resolved on their own**, because both sides of their comparison now compute
+  `2026-08-10`.
+
+That churn is the point: three separate tests broke at midnight and one healed
+itself six minutes later. **Queued as its own step** -- a suite that changes
+colour with the wall clock cannot be a gate.
+
+## Still not claimed
+
+Unchanged from cycle 1: no lost trade, no lost P&L, no backfill performed
+(nothing to backfill), and the producer of the three `SELL`-spelled
+`outcome_tracking` rows remains **undetermined**.

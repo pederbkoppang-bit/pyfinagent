@@ -85,11 +85,11 @@ BACKEND = REPO_ROOT / "backend"
 #: real offender gets parked here forever.
 ALLOWED: dict[str, str] = {
     "recommendation_vocab.py::*": "IS the vocabulary -- the sets have to live somewhere",
-    "skill_optimizer.py::*": (
-        "reads the schema-enforced Literal at agents/schemas.py; the producer "
-        "cannot emit another spelling, so canonicalising would add a dependency "
-        "without removing a risk"
-    ),
+    # skill_optimizer.py was HERE, on the grounds that it reads a
+    # schema-enforced Literal. The cycle-1 Q/A disproved the reason: it reads
+    # `debate_consensus` from financial_reports.analysis_results, the same
+    # persisted table as `recommendation`. Rather than reword the excuse, the
+    # site was migrated -- an allow-list entry is only as good as its argument.
     "formatters.py::_signal_emoji": (
         "R3's documented false positive. Its `action` is `signal['signal']`, "
         "documented in the enclosing docstring as BUY/SELL/HOLD -- the SIGNAL "

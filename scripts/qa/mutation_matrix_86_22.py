@@ -155,6 +155,63 @@ MUTANTS: list[dict] = [
     },
 ]
 
+# ── per-SITE cells (cycle 2) ────────────────────────────────────────────────
+# The cycle-1 Q/A returned FAIL because the matrix above mutates the shared
+# vocabulary and the detector, and NEVER reverts a fixed SITE -- the axis
+# criterion 8 actually names. It ran that axis itself and found FOUR of the six
+# migrations completely unguarded, including both learning-path consumers.
+#
+# Each cell restores one consumer to its PRE-FIX source, read from git rev
+# PRE_FIX_REV, and injects it into sys.modules. Nothing is written to the repo.
+# A cell that SURVIVES means no assertion in the suite depends on that
+# consumer's migration -- which is exactly what the Q/A caught.
+
+PRE_FIX_REV = "4b7dab7b"          # the commit BEFORE a87add72 (the 86.22 fix).
+                                  # NOT `HEAD~1`: the auto-changelog hook lands
+                                  # its own commit on top, so HEAD~1 is the fix.
+
+SITES: list[dict] = [
+    {"id": "S1", "path": "backend/services/outcome_tracker.py",
+     "mod": "backend.services.outcome_tracker",
+     "guard": "test_outcome_tracker_evaluate_recommendation_IS_DRIVEN_with_literal_BUY"},
+    {"id": "S2", "path": "backend/agents/memory.py",
+     "mod": "backend.agents.memory",
+     "guard": "test_memory_generate_reflection_IS_DRIVEN_and_the_PROMPT_carries_the_label"},
+    {"id": "S3", "path": "backend/agents/bias_detector.py",
+     "mod": "backend.agents.bias_detector",
+     "guard": "test_bias_detector_fires_on_every_strong_buy_spelling"},
+    {"id": "S4", "path": "backend/api/portfolio.py",
+     "mod": "backend.api.portfolio",
+     "guard": "test_api_portfolio_accuracy_DENOMINATOR_includes_every_buy_spelling"},
+    {"id": "S5", "path": "backend/agents/conflict_detector.py",
+     "mod": "backend.agents.conflict_detector",
+     "guard": "test_conflict_detector_grades_a_strong_buy_at_the_STRICTER_threshold"},
+    {"id": "S6", "path": "backend/slack_bot/formatters.py",
+     "mod": "backend.slack_bot.formatters",
+     "guard": "test_slack_formatter_rec_color_handles_BOTH_dialects"},
+    {"id": "S7", "path": "backend/agents/skill_optimizer.py",
+     "mod": "backend.agents.skill_optimizer",
+     "guard": "test_skill_optimizer_consensus_uses_the_shared_vocabulary"},
+]
+
+
+BOOTSTRAP_SITE = r"""
+import importlib.util, json, os, sys
+
+spec = json.load(open(os.environ["MUT8622_SPEC"], encoding="utf-8"))
+src, modname = spec["source"], spec["modname"]
+
+modspec = importlib.util.spec_from_loader(modname, loader=None, origin=spec["origin"])
+mod = importlib.util.module_from_spec(modspec)
+mod.__file__ = spec["origin"]
+sys.modules[modname] = mod
+exec(compile(src, spec["origin"], "exec"), mod.__dict__)
+
+import pytest
+raise SystemExit(pytest.main(["-q", "-p", "no:randomly", spec["test_module"]]))
+"""
+
+
 BOOTSTRAP_VOCAB = r"""
 import importlib.util, json, os, sys
 
@@ -219,6 +276,37 @@ def digest(p: Path) -> str:
     return hashlib.md5(p.read_bytes()).hexdigest()
 
 
+def pre_fix_source(path: str) -> str:
+    """The consumer's source at PRE_FIX_REV. Read from git, never from disk."""
+    r = subprocess.run(["git", "show", f"{PRE_FIX_REV}:{path}"],
+                       cwd=REPO_ROOT, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise SystemExit(f"cannot read {PRE_FIX_REV}:{path} -- {r.stderr.strip()[:200]}")
+    return r.stdout
+
+
+def run_site(site: dict) -> tuple[bool, str]:
+    """Revert ONE consumer to its pre-fix source and run the test module."""
+    src = pre_fix_source(site["path"])
+    current = (REPO_ROOT / site["path"]).read_text(encoding="utf-8")
+    if src == current:
+        raise SystemExit(
+            f"{site['id']}: pre-fix source is IDENTICAL to the working tree for "
+            f"{site['path']} -- the revert is a no-op, so a 'kill' would be "
+            f"meaningless. Is PRE_FIX_REV ({PRE_FIX_REV}) right?")
+    spec = {"source": src, "modname": site["mod"],
+            "origin": str(REPO_ROOT / site["path"]), "test_module": TEST_MODULE}
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump(spec, fh)
+        spec_path = fh.name
+    env = dict(os.environ, MUT8622_SPEC=spec_path, PYTHONPATH=str(REPO_ROOT))
+    proc = subprocess.run([sys.executable, "-c", BOOTSTRAP_SITE], cwd=REPO_ROOT,
+                          env=env, capture_output=True, text=True, timeout=900)
+    os.unlink(spec_path)
+    out = (proc.stdout + proc.stderr).strip().splitlines()
+    return proc.returncode == 0, "\n".join(out[-2:])
+
+
 def run_cell(cell: dict | None, label: str) -> tuple[bool, str]:
     """Return (tests_passed, tail_of_output)."""
     kind = (cell or {}).get("kind", "vocab")
@@ -276,6 +364,20 @@ def main() -> int:
         print(f"{'':15}proves: {cell['proves']}")
         print(f"{'':15}{tail.splitlines()[-1] if tail else ''}")
 
+    print(f"\nper-SITE cells -- revert each migrated consumer to {PRE_FIX_REV}")
+    print(f"{'id':<5}{'result':<10}{'consumer':<44}guard that must catch it")
+    print("-" * 116)
+    for site in SITES:
+        passed, tail = run_site(site)
+        if passed:
+            survived += 1
+            verdict = "SURVIVED"
+        else:
+            killed += 1
+            verdict = "killed"
+        print(f"{site['id']:<5}{verdict:<10}{site['path']:<44}{site['guard'][:58]}")
+        print(f"{'':15}{tail.splitlines()[-1] if tail else ''}")
+
     ok, tail = run_cell(None, "restored")
     print(f"\nRESTORED (un-mutated): {'GREEN' if ok else 'RED'}\n  {tail}")
 
@@ -287,7 +389,9 @@ def main() -> int:
             print("  !! TARGET MODIFIED ON DISK -- this harness must never do that.")
             return 1
 
-    print(f"\n{killed} killed / {survived} survived of {len(MUTANTS)}")
+    print(f"\n{killed} killed / {survived} survived of "
+      f"{len(MUTANTS) + len(SITES)} cells "
+      f"({len(MUTANTS)} vocab+detector, {len(SITES)} per-site)")
     if survived:
         print("A SURVIVING mutant means a guard in this matrix cannot fail.")
         return 1

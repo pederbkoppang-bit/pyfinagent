@@ -24,6 +24,11 @@ from backend.config.settings import Settings, get_settings
 from backend.db.bigquery_client import BigQueryClient
 from backend.services.outcome_tracker import OutcomeTracker
 
+from backend.services.recommendation_vocab import (  # phase-86.22
+    is_buy_intent,
+    is_sell_intent,
+)
+
 logger = logging.getLogger(__name__)
 
 EXPERIMENTS_DIR = SKILLS_DIR / "experiments"
@@ -240,19 +245,35 @@ class SkillOptimizer:
             actual_positive = (outcome.get("return_pct") or 0) > 0
 
             # Score debate agents by consensus accuracy
-            consensus = (report.get("debate_consensus") or "").upper()
-            if consensus in ("STRONG_BUY", "BUY") and actual_positive:
+            # phase-86.22: this site was ORIGINALLY excluded from the migration
+            # on the grounds that it reads a schema-enforced Literal and so
+            # cannot see a second spelling. The cycle-1 Q/A disproved that: the
+            # value comes from `debate_consensus` in the SELECT above, over
+            # `self.bq.reports_table` = financial_reports.analysis_results --
+            # the SAME persisted table whose sibling `recommendation` column
+            # carries three dialects. A Literal in the producer is not evidence
+            # about the persisted string; api/models.py names a member
+            # STRONG_BUY whose VALUE is "Strong Buy".
+            # MEASURED distribution of debate_consensus at fix time: '' 487,
+            # NULL 51, 'HOLD' 4, 'BUY' 1 -- so the old expression was correct in
+            # EFFECT today and hid no live defect. It was the ARGUMENT that was
+            # wrong, and defending an allow-list entry on a wrong argument is
+            # the same unjustified inference this step exists to remove.
+            consensus = report.get("debate_consensus")
+            consensus_is_buy = is_buy_intent(consensus)
+            consensus_is_sell = is_sell_intent(consensus)
+            if consensus_is_buy and actual_positive:
                 agent_scores["bull_agent"].append(1.0)
                 agent_scores["moderator_agent"].append(1.0)
-            elif consensus in ("STRONG_SELL", "SELL") and not actual_positive:
+            elif consensus_is_sell and not actual_positive:
                 agent_scores["bear_agent"].append(1.0)
                 agent_scores["moderator_agent"].append(1.0)
             else:
                 # Wrong direction
-                if consensus in ("STRONG_BUY", "BUY"):
+                if consensus_is_buy:
                     agent_scores["bull_agent"].append(0.0)
                     agent_scores["moderator_agent"].append(0.0)
-                elif consensus in ("STRONG_SELL", "SELL"):
+                elif consensus_is_sell:
                     agent_scores["bear_agent"].append(0.0)
                     agent_scores["moderator_agent"].append(0.0)
 
