@@ -1,0 +1,38 @@
+=== BASE RUN (system TZ = Europe/Oslo, local date == UTC date == 2026-08-10) ===
+Captured 2026-08-10 09:22 CEST, frozen tree 9bda4e6d, full backend/tests/.
+16 failed, 3351 passed, 12 skipped, 5 xfailed, 1 xpassed in 360.18s
+
+backend/tests/test_phase_23_2_13_governance_watcher.py::test_phase_23_2_13_backend_log_boot_pair_present
+backend/tests/test_phase_23_2_6_sector_cap_emit.py::test_phase_23_2_6_backend_log_has_skipping_buy_evidence
+backend/tests/test_phase_23_2_9_ticker_meta_latency.py::test_phase_23_2_9_backend_log_has_prewarm_evidence
+backend/tests/test_phase_40_2_claude_code_v2_1_140_features.py::test_phase_40_2_settings_json_still_valid_json_after_edit
+backend/tests/test_phase_57_1_reject_binding.py::test_reject_binding_main_path_off_emits_on_blocks
+backend/tests/test_phase_57_1_reject_binding.py::test_reject_binding_swap_path_off_emits_on_blocks
+backend/tests/test_phase_57_1_reject_binding.py::test_off_identity_prompts_are_verbatim_constants
+backend/tests/test_phase_60_3_data_integrity.py::test_60_3_flag_defaults_off
+backend/tests/test_phase_75_17_verification_paths.py::test_masterplan_diff_touches_only_the_ten_sibling_insertions
+backend/tests/test_phase_75_17_verification_paths.py::test_sweep_shape_census_matches_the_corrected_figures
+backend/tests/test_phase_75_prompt_contracts.py::test_operator_decision_note_exists_with_token
+backend/tests/test_phase_75_sre_ops.py::test_c1_runbook_and_operator_token_drafted
+backend/tests/test_phase_75_sre_ops.py::test_c6_no_launchctl_bootstrap_executed_in_ops_scripts
+backend/tests/test_phase_82_39_outcome_rebuild_query.py::test_the_sweeps_recall_limit_is_recorded_not_assumed
+backend/tests/test_phase_86_2_replay_poison_row.py::test_c1_c2_a_poison_row_first_no_longer_strands_the_replay
+backend/tests/test_portfolio_swap.py::test_swap_framework_fills_zero_buy_gap
+
+=== WHY THIS FILE EXISTS ===
+phase-86.24 must DERIVE the date-dependence population, not observe it once.
+Two of the three tests the step names are GREEN in this run -- they were red at
+midnight and healed themselves 45 minutes later -- so "run the suite and read
+the failures" has recall 1/3 against the known-positive set and is REJECTED as a
+method by criterion 1.
+
+The candidate method is a DIFFERENTIAL: the same suite re-run with the local
+clock shifted into a different calendar day, and the failure SETS compared. TZ
+moves `date.today()` / `datetime.now()` (local) and does NOT move
+`datetime.now(timezone.utc).date()`, which is a knowable, statable blind spot
+rather than an unknown one.
+
+RECALL VALIDATION on the two named modules, run before trusting the method:
+  TZ=Europe/Oslo      (local 2026-08-10 == UTC)  -> 1 failed (the kill-switch case only)
+  TZ=Pacific/Kiritimati (local 2026-08-10 == UTC) -> 1 failed (same)
+  TZ=Pacific/Midway   (local 2026-08-09 != UTC)  -> 3 failed  <-- ALL THREE known positives

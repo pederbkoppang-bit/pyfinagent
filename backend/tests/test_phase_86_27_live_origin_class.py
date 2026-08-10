@@ -164,22 +164,44 @@ def test_the_predicate_is_not_a_blanket_true(wildcard_stub):
 def _novel_spellings() -> list[str]:
     """Derived from this machine's interfaces AT RUNTIME, never hard-coded.
 
-    LOOPBACK IS DELIBERATELY EXCLUDED. Its integer form is `2130706433`, which
-    is one of the eight spellings the step already names and appears six places
-    in this repo -- so it proves nothing about the CLASS. The first draft of
-    this test included it and failed on exactly that, which is the assertion
-    working rather than a bug. The addresses used here are this machine's
-    non-loopback interface addresses: nobody could have enumerated them in
-    advance because they are properties of this host, not of IPv4.
+    LOOPBACK IS DELIBERATELY EXCLUDED. Its integer form is `2130706433`, which is
+    one of the eight spellings the step already names and appears several places
+    in this repo -- so it proves nothing about the CLASS. The first draft
+    included it and failed on exactly that, which was the assertion working
+    rather than a bug. The addresses used here are this machine's non-loopback
+    interface addresses: nobody could have enumerated them in advance, because
+    they are properties of this host rather than of IPv4.
+
+    THE FAMILY IS UNBOUNDED, AND THAT IS A CORRECTION MADE AFTER 86.27 CLOSED.
+    The first version emitted exactly THREE fixed renderings per address, and it
+    went red within the hour -- not because the guard broke, but because the Q/A
+    independently derived the same three spellings, put them in its verdict, and
+    Main transcribed that verdict verbatim into `evaluator_critique_86.27.md`.
+    All three were then "in the repo", the `>= 3` floor could never be met again,
+    and the test was SELF-DEFEATING BY CONSTRUCTION: any honest audit trail that
+    named the spellings killed it.
+
+    The repair is NOT to relax the absence check. It is to draw from a family
+    that recording cannot exhaust: `inet_aton` accepts arbitrary leading zeros,
+    so `0xc0a85655`, `0x0c0a85655`, `0x00c0a85655` ... all resolve to the same
+    address (measured: 16 of 16 widths tried). The probe widens the padding until
+    it finds unused spellings, so the absence requirement stays at its strictest
+    -- absent from the WHOLE tracked tree, records included.
+
+    That the family is infinite is the step's own thesis demonstrated: no
+    enumeration closes a set with an unbounded number of members.
     """
     out = []
     for a in sorted(own_addresses()):
         ip = ipaddress.ip_address(a)
         if ip.version != 4 or ip.is_loopback or ip.is_link_local:
             continue
-        out += [str(int(ip)),               # 32-bit integer form
-                "0x%08x" % int(ip),         # single hex word
-                "0%o" % int(ip)]            # single octal word
+        n = int(ip)
+        out.append(str(n))                              # 32-bit integer form
+        for width in range(8, 24):
+            out.append("0x%0*x" % (width, n))           # hex, widening padding
+        for width in range(11, 26):
+            out.append("0%0*o" % (width, n))            # octal, widening padding
     return out
 
 
