@@ -179,11 +179,38 @@ def _is_this_machine(addr) -> bool:
         return True
 
     if not interfaces_enumerable():
-        # Degraded mode: without a complete interface list we cannot prove an
-        # address is NOT ours, so only a GLOBALLY ROUTABLE address counts as
-        # provably remote. Private / link-local / CGNAT are treated as possibly
-        # this machine. Over-refusal, which is the safe direction.
-        return not ip.is_global
+        # DEGRADED MODE -- phase-86.30. Without a complete interface list we
+        # cannot prove an address is NOT ours, so we refuse unconditionally.
+        #
+        # WAS `return not ip.is_global`, described as "over-refusal, which is
+        # the safe direction". IT WAS THE OPPOSITE for exactly the addresses a
+        # modern host carries. `is_global` answers ROUTABILITY, not OWNERSHIP:
+        # a host's own global unicast addresses are `is_global == True`, so the
+        # old expression returned False -- "provably remote" -- for this
+        # machine's own IPv6. MEASURED 2026-08-10 with psutil forced to fail:
+        # 6 of 6 of this host's global IPv6 addresses (2001:4654:6451:0:*) were
+        # classified REMOTE, i.e. an UNDER-refusal in the branch documented as
+        # erring the other way. Controls the same run: 127.0.0.1 -> True,
+        # 2606:4700:4700::1111 (Cloudflare) -> False.
+        #
+        # RFC 8981 makes this permanent, not incidental: temporary addresses
+        # are global-scope and ROTATE, so any enumeration is stale by design
+        # and `is_global` can never stand in for "mine". Saltzer & Schroeder:
+        # an exclusion-mechanism mistake "tends to fail by allowing access, a
+        # failure which may go unnoticed" (CWE-636).
+        #
+        # This now matches BOTH sibling degraded paths rather than being the
+        # one that disagrees: `conftest.py` falls back to port-only refusal
+        # ("over-refuses ... which is the safe direction") and
+        # `_canonical_addresses` unresolvable -> `verdict = True` below.
+        #
+        # SCOPE: this branch is unreachable while psutil is importable, so the
+        # frozen row `https://example.com:8000 -> allow`
+        # (test_phase_86_6_subprocess_channel.py) is graded on the NORMAL path
+        # and is untouched. In degraded mode that row does flip to refuse --
+        # which is the point: without an interface list we cannot tell
+        # example.com from ourselves, and refusing is the safe answer.
+        return True
 
     return False
 
