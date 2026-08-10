@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `f3e721cc` | docs: goal -- 86.34 parked after 2 Q/A cycles, remediated but ungraded |
 | 2026-08-10 | `e3ba30ea` | phase-86.34: harness_log cycle 1207 -- CONDITIONAL, step parked with disposition |
 | 2026-08-10 | `9bc80454` | phase-86.34: PARK after 2 Q/A cycles with a disposition -- remediated but ungraded |
 | 2026-08-10 | `82e3e55d` | phase-86.34 cycle 3: fix all three CONDITIONAL findings |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `a37f9da5` | phase-86.34: the clock-dependence suite was RED for 13 hours a day |
 | 2026-08-10 | `9424939c` | phase-86.34: measure the TZ fixture's coverage -- it is silent 13 hours a day |
 | 2026-08-10 | `299a216c` | phase-86.29: research gate RE-RUN and PASSED -- and it live-verified 86.37 |
-| 2026-08-10 | `23270f29` | phase-86.37 cycle 3: kill the third evasion, regenerate the live_check, PARK on an operator ask |
 
 ---
 
