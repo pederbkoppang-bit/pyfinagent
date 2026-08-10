@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `9bc80454` | phase-86.34: PARK after 2 Q/A cycles with a disposition -- remediated but ungraded |
 | 2026-08-10 | `82e3e55d` | phase-86.34 cycle 3: fix all three CONDITIONAL findings |
 | 2026-08-10 | `ea7eb194` | phase-86.34: record cycle-2 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-10 | `34302f05` | phase-86.34: harness_log cycle 1206 -- FAIL on a vacuous oracle I published as proof |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `299a216c` | phase-86.29: research gate RE-RUN and PASSED -- and it live-verified 86.37 |
 | 2026-08-10 | `23270f29` | phase-86.37 cycle 3: kill the third evasion, regenerate the live_check, PARK on an operator ask |
 | 2026-08-10 | `133060b0` | phase-86.37 cycle 2: the FAIL was right -- my drop guards were source scans |
-| 2026-08-10 | `d3bb1dfb` | phase-86.37: a dropped research gate no longer destroys the run (operator-directed) |
 
 ---
 
+### v6.93.74 — phase-86.34: PARK after 2 Q/A cycles with a disposition -- remediated... (2026-08-10)
+
+- **phase-86.34: PARK after 2 Q/A cycles with a disposition -- remediated but ungraded**
 ### v6.93.73 — phase-86.34 cycle 3: fix all three CONDITIONAL findings (2026-08-10)
 
 - **phase-86.34 cycle 3: fix all three CONDITIONAL findings**
