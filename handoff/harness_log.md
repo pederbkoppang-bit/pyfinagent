@@ -33126,3 +33126,73 @@ claimed): `scripts/qa/derive_archive_misattribution_86_29.py`.
 afternoon: the 86.30 Q/A at 174,972 tokens / 43 tool uses, and this researcher at
 181,082 / 68. Across all recorded `qa-verdict` runs the rate is now **23/305 =
 7.5%**. The token populations still overlap -- do not build a budget fix.
+
+## Cycle 1204 -- 2026-08-10 -- phase=86.37 result=PARKED
+
+**P1, OPERATOR-DIRECTED ("make sure to fix the researcher!") -- a dropped research
+gate no longer destroys the run.** Two Q/A cycles: **FAIL**, then **CONDITIONAL**
+with all six immutable criteria MET on the evaluator's own execution. PARKED on
+an operator ask, not on a technical blocker.
+
+**Shipped.** Stage 1 of `research-gate.js` is wrapped like stage 2 already was --
+the asymmetry WAS the bug. A drop now returns `gate_passed:false` **decided by
+the existing fail-closed logic, not a new special case**, carrying
+`rail_dropped` + the brief verification as a recovery report. And the envelope is
+now born-inert in the brief (`brief_status: INCOMPLETE` -> `COMPLETE` as the
+final act), so a brief that drops mid-loop is self-describing instead of mute.
+
+**Criterion 1, demonstrated behaviourally rather than asserted:**
+```
+PRE-FIX  (d3bb1dfb~1) : THREW -- NO RETURN VALUE
+POST-FIX              : RESOLVED {gate_passed:false, rail_dropped:{dropped:true,...},
+                                  violations:["empty_or_errored_return"],
+                                  brief_verification_present:true}
+```
+
+**I SHIPPED A CHANGE THAT WOULD HAVE FAILED EVERY RESEARCH GATE.**
+`.claude/rules/research-gate.md` still said the envelope "ends" the brief with no
+`brief_status`, while the stage-1 prompt calls that file authoritative and the new
+`enforceGate` hard-fails an ABSENT marker. A compliant researcher would have
+failed the gate on **every run**. Fail-closed, so nothing unsafe -- but the
+evaluator caught it, not me. Reconciled and verified: no file still teaches the
+old shape.
+
+**THREE ROUNDS OF MY GUARDS BEING TOO WEAK, each caught by the evaluator:**
+1. **Cycle 1 FAIL** -- every drop assertion was a SOURCE SCAN. Two mutants
+   parsed, kept the suite ALL GREEN, and were behaviourally different:
+   **QA-RETHROW** (`throw e` at the end of the catch -- the exact pre-fix
+   destruction) and **QA-RESURRECT** (resurrect a passing envelope one line
+   outside my regex's reach). QA-RESURRECT **is** criterion 6's mandated
+   mutation. The behavioural harness already existed in that same file.
+2. **Cycle 2** -- a **SELECTIVE CATCH**
+   (`if (!/StructuredOutput/.test(...)) throw e`) survived, because my
+   behavioural test drove exactly ONE error string. Now driven over five shapes.
+3. **Cycle 2** -- `live_check_86.37.md` was stale and incomplete: 2 of its 5
+   mandated items ABSENT, 2 STALE, under a header claiming it was regenerated.
+   And the absent items were exactly what cycle 1 asked for -- I had supplied
+   them in `experiment_results` instead. **Remediation by file substitution**,
+   the same shape as the 86.25 file-list substitution earlier today.
+   `live_check_gate.py:72` is existence-only, so nothing automated catches it.
+
+Also corrected: a "verbatim" mutation count that said 3 failed where it is 2.
+
+**Evidence:** immutable command **121 passed, exit 0** (97 pre-step -> 110 -> 117
+-> 121, count derived by `grep -cE '^  (ok|FAIL) '`). Mutation: **9 cells across
+three cycles, all KILLED** on a green control. Contract written BEFORE the code,
+with the empty `git diff` at 17:25:58 as evidence.
+
+**OPERATOR ASK #1 -- the research gate was REUSED, not re-run.** The contract
+cites `research_brief_86.31.md` (12 sources / 64 URLs / gate_passed true,
+independently verified by the evaluator), whose subject is how a Layer-3 rail
+survives a drop. Rationale: the rail being fixed is the rail that would run the
+gate, and it had just dropped at 181,082 tokens. But the standing rule is ALWAYS
+spawn, and the Agent-tool fallback was available. **Ratify, or direct a fresh
+gate. Silence is not ratification and the step does not close until answered.**
+
+**Disclosed, unremediated, both fail CLOSED:** a rail-dead mutant that also
+survives on the PRE-STEP pair (a pre-existing blind spot -- no driver-level happy
+path has ever existed in either checker), and deletion of STEP 0b from the
+stage-1 prompt.
+
+**Counter blindness:** `harness_log` will show zero CONDITIONALs for 86.37. There
+have been **two** cycles (FAIL, CONDITIONAL). Tell any future spawn.

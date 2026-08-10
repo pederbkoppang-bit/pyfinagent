@@ -446,9 +446,17 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
   // A source scan cannot see either. This drives the REAL driver with a stage-1
   // stub that THROWS, and asserts on what comes back -- which is the property.
   {
+    // MULTIPLE ERROR SHAPES, and that is the point. Cycle 2 drove exactly ONE
+    // error string, so a SELECTIVE catch --
+    //   if (!/StructuredOutput/.test(String(e.message))) throw e
+    // -- parsed, kept the suite ALL GREEN 117/0, and still destroyed the run on
+    // any other failure. A rail can die of a max_tokens cutoff, a refusal, or a
+    // transport error just as easily as of a missing StructuredOutput call; a
+    // wrapper that survives only the error string the test happens to use is
+    // not a wrapper. Found by the cycle-2 Q/A.
     const throwingStage1 = async (prompt, opts) => {
       calls += 1
-      if (calls === 1) throw new Error('agent({schema}): subagent completed without calling StructuredOutput')
+      if (calls === 1) throw new Error(dropError)
       // Stage 2: a PERFECT verification of a brief that clears every floor. If a
       // drop could ever pass, this is the input that would make it -- which is
       // exactly why the stage-2 answer is maximally favourable here.
@@ -460,10 +468,14 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
       }
     }
     let calls = 0
+    let dropError = 'agent({schema}): subagent completed without calling StructuredOutput'
     let dropped, threw = null
-    try {
-      dropped = await drive({ step_id: 'BEHAVE-drop', tier: 'moderate' }, () => {}, () => {}, throwingStage1)
-    } catch (e) { threw = e }
+    const driveDrop = async (err) => {
+      dropError = err; calls = 0; threw = null
+      try { return await drive({ step_id: 'BEHAVE-drop', tier: 'moderate' }, () => {}, () => {}, throwingStage1) }
+      catch (e) { threw = e; return undefined }
+    }
+    dropped = await driveDrop(dropError)
 
     check('a stage-1 DROP does not kill the workflow -- the driver RESOLVES (kills QA-RETHROW)',
       threw === null && dropped !== undefined,
@@ -482,6 +494,21 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
     // The recovery report must describe the BRIEF, not be an echo of the drop.
     check('brief_verification in a dropped run reports the on-disk brief it actually read',
       !!dropped && !!dropped.brief_verification && dropped.brief_verification.brief_exists === true)
+
+    // The wrapper must survive the CLASS of stage-1 failure, not one spelling.
+    const OTHER_SHAPES = [
+      'agent({schema}): max_tokens reached before StructuredOutput',
+      'Claude refused to answer',
+      'fetch failed: ECONNRESET',
+      'Error: agent aborted',
+    ]
+    for (const shape of OTHER_SHAPES) {
+      const r = await driveDrop(shape)
+      check(`a stage-1 drop spelled "${shape.slice(0, 34)}..." is ALSO survived (kills a selective catch)`,
+        threw === null && !!r && r.gate_passed === false && !!r.rail_dropped && r.rail_dropped.dropped === true,
+        threw ? `driver threw: ${String(threw.message || threw).slice(0, 90)}`
+              : `gate_passed=${r && r.gate_passed} rail_dropped=${JSON.stringify(r && r.rail_dropped)}`)
+    }
   }
 
   const blind = await driveRecording(drive, undefined)
