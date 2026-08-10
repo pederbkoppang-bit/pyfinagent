@@ -31,21 +31,95 @@ from pathlib import Path
 from typing import Any, Optional
 
 
-def find_step(node: Any, target_id: str) -> Optional[dict]:
-    """Walk the masterplan tree and return the dict node whose id == target_id."""
+# ── phase-86.19: SCOPED, AND IT REFUSES TO GUESS ───────────────────────────
+# `masterplan.json` carries FOUR duplicated ids across 1348 id-bearing nodes,
+# in two distinct classes:
+#
+#   Class B  5.1 / 5.2 / 5.3 -- each appears once in `archived_legacy_steps[]`
+#            and once in the LIVE `steps[]` of the same phase.
+#   Class A  `phase-6.5` -- a PHASE at phases[13] and a STEP at
+#            phases[12].steps[4]. A CROSS-TYPE collision, which no
+#            archive-exclusion can fix.
+#
+# The old walk was depth-first first-match over `node.values()`, so JSON
+# KEY-INSERTION ORDER decided the winner. `archived_legacy_steps` is serialised
+# before `steps`, so the ARCHIVED twin (status pending) beat the LIVE done step.
+# Nothing chose that behaviour; it fell out of serialisation order.
+#
+# "First match wins" is the one behaviour no standard endorses: RFC 8259 calls
+# duplicate names "unpredictable" and recognises last-wins, error, or
+# collect-all -- not first-wins. W3C XML makes id uniqueness document-wide.
+# PEP 20: "In the face of ambiguity, refuse the temptation to guess." JSON
+# Schema SHOULD raise; C# CS0121 refuses an ambiguous overload rather than
+# picking one. So the remedy is not to pick better -- it is to STOP PICKING.
+#
+# Saltzer & Schroeder is the reason it matters here: an exclusion-shaped
+# mechanism fails by PERMITTING, unnoticed. A resolver that silently returns the
+# wrong node makes this gate emit a confident `proceed` about a subject nobody
+# asked it about.
+#
+# NOTE ON SCOPE OF IMPACT, stated honestly: the defect is LATENT AND ARMED, not
+# firing. No colliding id currently declares a `live_check`, so all four resolve
+# to `proceed` either way today.
+
+#: Containers whose members are LIVE steps. A positive allowlist, not a denylist
+#: of archives -- a denylist has to be updated every time a new archive
+#: container is invented, and the allowlist does not.
+#:
+#: DELIBERATELY DUPLICATED from `scripts/meta/preflight_verify_masterplan.py:90`
+#: rather than imported. This module is a HOOK library on the auto-commit path
+#: whose contract is to never raise; reaching outside `.claude/` for an import
+#: would add a failure mode to a component whose whole job is to not have one.
+#: The drift risk that duplication creates is closed by an ASSERTION in the
+#: step's test that the two definitions are equal -- a guard, not a coupling.
+LIVE_STEP_CONTAINERS = frozenset({"steps", "subphases"})
+
+#: Distinct from None. None means "no such id"; AMBIGUOUS means "more than one,
+#: and choosing between them would be a guess". They must not be conflated,
+#: because they warrant different actions: a missing id is a caller bug, an
+#: ambiguous id is a data defect.
+AMBIGUOUS = "ambiguous"
+
+
+def collect_steps(node: Any, target_id: str, in_live: bool = False) -> list:
+    """Every LIVE step node whose id == target_id. Archives are out of scope.
+
+    `in_live` tracks whether the current node sits inside a live-step container.
+    A top-level phase is reached via the `phases` key, which is NOT a live-step
+    container, so a phase can never match -- that is what fixes Class A without
+    a special case for it.
+    """
+    found: list = []
     if isinstance(node, dict):
-        if str(node.get("id", "")) == target_id:
-            return node
-        for v in node.values():
-            r = find_step(v, target_id)
-            if r is not None:
-                return r
+        if in_live and str(node.get("id", "")) == target_id:
+            found.append(node)
+        for k, v in node.items():
+            found.extend(collect_steps(v, target_id, k in LIVE_STEP_CONTAINERS))
     elif isinstance(node, list):
         for v in node:
-            r = find_step(v, target_id)
-            if r is not None:
-                return r
-    return None
+            found.extend(collect_steps(v, target_id, in_live))
+    return found
+
+
+def resolve_step(node: Any, target_id: str):
+    """(step | None | AMBIGUOUS). The caller decides what ambiguity costs."""
+    hits = collect_steps(node, target_id)
+    if not hits:
+        return None
+    if len(hits) > 1:
+        return AMBIGUOUS
+    return hits[0]
+
+
+def find_step(node: Any, target_id: str) -> Optional[dict]:
+    """The LIVE step whose id == target_id, or None.
+
+    Signature preserved so the step's immutable verification command keeps
+    working. Ambiguity collapses to None here -- callers that must DISTINGUISH
+    "absent" from "ambiguous" use `resolve_step`, and `gate_decision` does.
+    """
+    r = resolve_step(node, target_id)
+    return r if isinstance(r, dict) else None
 
 
 def gate_decision(masterplan_path: str, step_id: str, handoff_current_dir: str) -> str:
@@ -58,7 +132,16 @@ def gate_decision(masterplan_path: str, step_id: str, handoff_current_dir: str) 
         data = json.loads(Path(masterplan_path).read_text(encoding="utf-8"))
     except Exception:
         return "proceed"
-    step = find_step(data, step_id)
+    step = resolve_step(data, step_id)
+    if step is AMBIGUOUS:
+        # phase-86.19: HOLD. Two live nodes share this id, so any answer about
+        # "the" step would be about an arbitrary one of them. This is the same
+        # side as a missing artifact, deliberately: a gate that cannot identify
+        # its subject must not wave the commit through. It is reachable only
+        # when two LIVE nodes collide -- zero cases today (per-type uniqueness
+        # is green at 1230 steps / 114 phases), so this holds nothing that
+        # currently exists.
+        return "skip"
     if not isinstance(step, dict):
         return "proceed"
     verification = step.get("verification")
