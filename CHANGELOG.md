@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `8baecb49` | phase-86.25: resolve the outcome vocabulary at the boundary (both seams) |
 | 2026-08-10 | `64d20023` | phase-86.25: contract + P1 measurement -- option (A) is reachable for ZERO rows |
 | 2026-08-10 | `cefe7515` | phase-86.24: clock-dependent test suite CLOSED on a PASS (third cycle, escalation armed) |
 | 2026-08-10 | `d23a981e` | phase-86.31: Q/A write-first for its verdict file only (PARKED after 2 Q/A cycles) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `ebeb03da` | fix(86.27): the novel-spelling probe was self-defeating; draw from an unbounded family |
 | 2026-08-10 | `2e0cf256` | fix(86.28): cycle-4 -- regenerate two transcripts I typed instead of captured |
 | 2026-08-10 | `fce5a6ac` | phase-86.27: [P1 -- THE LIVE-BACKEND HTTP GUARD IS A HOST-STRING ALLOWLIST, AND THE MACHINE ANSWE... |
-| 2026-08-10 | `6efd33ea` | docs(86.28): add a compact Q/A briefing after the rail dropped at 197K tokens |
 
 ---
 
+### v6.93.50 — phase-86.25: resolve the outcome vocabulary at the boundary (both seams) (2026-08-10)
+
+- **phase-86.25: resolve the outcome vocabulary at the boundary (both seams)**
 ### v6.93.49 — phase-86.25: contract + P1 measurement -- option (A) is reachable for... (2026-08-10)
 
 - **phase-86.25: contract + P1 measurement -- option (A) is reachable for ZERO rows**
