@@ -9,7 +9,6 @@ Detects:
   - Source diversity issues (narrow evidence base)
 """
 
-import json
 import logging
 from dataclasses import asdict, dataclass, field
 from typing import Optional

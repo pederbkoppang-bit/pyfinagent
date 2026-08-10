@@ -5,10 +5,8 @@ Identifies discrepancies between what the LLM "believes" (from training data) an
 current market data shows. These conflicts highlight where the model's knowledge is stale.
 """
 
-import json
 import logging
 from dataclasses import asdict, dataclass, field
-from typing import Optional
 from backend.services.recommendation_vocab import canonical_recommendation, STRONG_BUY, BUY, SELL  # phase-86.22
 
 logger = logging.getLogger(__name__)

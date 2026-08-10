@@ -8,13 +8,12 @@ agent_memories BigQuery table for BM25-based retrieval in future analyses.
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime, timezone
 
 from backend.config.settings import Settings
 from backend.services.recommendation_vocab import is_buy_intent, is_sell_intent  # phase-86.22
 from backend.db.bigquery_client import BigQueryClient
-from backend.services.perf_metrics import compute_return_pct, compute_benchmark_return, beat_benchmark as _beat_benchmark
+from backend.services.perf_metrics import compute_return_pct, beat_benchmark as _beat_benchmark
 from backend.tools.yfinance_tool import get_comprehensive_financials
 
 logger = logging.getLogger(__name__)

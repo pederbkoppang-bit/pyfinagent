@@ -9,7 +9,6 @@ Research basis: TradingAgents FinancialSituationMemory — agents learn from
 past mistakes to avoid repeating wrong BUY/SELL/HOLD calls.
 """
 
-import json
 import logging
 import re
 from datetime import datetime, timezone
