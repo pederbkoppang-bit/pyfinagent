@@ -33410,3 +33410,43 @@ not one of the three reset events).
 **Both corrected in `9df1239f`. The counter RESETS on a FAIL**, so the next Q/A
 on this step starts clean. **`status: pending`.** The next session should run ONE
 fresh Q/A against the corrected artifacts -- the mechanism needs no further work.
+
+## Cycle 1209 -- 2026-08-10 -- phase=86.31 result=NO_VERDICT (rail drop)
+
+Cycle-4 Q/A `wf_66c37324-b95` spawned 20:32:47Z. **The rail DROPPED at 20:46:56Z**
+-- `agent({schema}): subagent completed without calling StructuredOutput (after
+in-conversation nudge)`, **187,369 tokens, 36 tool uses, 942s,
+`agents_empty_result: 1`.**
+
+**An errored/empty return is NO VERDICT, NEVER PASS.** No verdict is recorded and
+none is inferred. `86.31` stays `pending`.
+
+**AND THE STEP PROVED ITSELF DOING IT.** The drop is the exact failure 86.31 was
+filed to survive, and it happened during the evaluation *of 86.31*. **6,239 bytes
+/ 83 lines survived on disk** -- written 4 seconds after spawn, appended for
+14m05s. Before this step that would have been **zero bytes**. Criterion 3 asks
+for "a real interrupted run **or** a faithful simulation"; the prior evidence was
+the simulation, and this is the real one, unplanned.
+
+Criterion 4 is the half that matters and it held: the artifact carries
+`STATUS: INCOMPLETE`, `qa_wip.py` returns `is_verdict: false`, and **Main did not
+treat it as a verdict.**
+
+**The staleness leg fired against me.** My first read passed
+`--spawned-at 2026-08-10T21:12:00Z`, a time I took from my own narration instead
+of measuring; the reader returned `STALE / recoverable: false` and refused it.
+The real spawn is `20:32:47Z`, from the run directory's birth timestamp. **Sixth
+probe error of 2026-08-10** -- this one inside the recovery path itself, caught
+by the mechanism under evaluation.
+
+**DISPOSITION -- PARKED.** Four cycles: two CONDITIONAL, one FAIL (escalation, on
+two prose defects since corrected in `9df1239f`), one rail drop. The cycle-3
+evaluator found **all 7 criteria MET**, built its own 4-mutant matrix against the
+real hook and found **no survivor**, and stated "the mechanism is sound; the
+remedy is two paragraph corrections... no code change". Those corrections are
+done. **No outstanding remedy is known.** The next session should run ONE fresh
+Q/A on the current tree; the counter is RESET by the cycle-3 FAIL, so no
+escalation is armed.
+
+Today's rail-drop rate is now **9 of 51 runs (17.6%)** against a 7.5% all-time
+rate, at **>8.7M subagent tokens**. That is the standing operator decision.
