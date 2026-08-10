@@ -33076,3 +33076,53 @@ claimed; it does not close a live hole.
 
 **Counter blindness:** `harness_log` will show zero CONDITIONALs for 86.30. There
 has been **one** verdict, CONDITIONAL, plus one drop. Tell any future spawn.
+
+## Cycle 1203 -- 2026-08-10 -- phase=86.29 result=GATE-FAILED
+
+**P2 -- the per-step handoff archive has been snapshotting the wrong step's
+files.** NOT started as a step: the RESEARCH GATE FAILED, so no contract was
+written. Recorded as its own cycle because a failed gate is an outcome, not a
+non-event.
+
+**The gate rail DROPPED** -- `wf_f23b7949-ea3`, `subagent completed without
+calling StructuredOutput`, **181,082 tokens / 68 tool uses**.
+`.claude/rules/research-gate.md`: an empty or errored return is a FAILED gate,
+never `gate_passed`. Confirmed by the artifact independently of the rail -- the
+brief carries **no envelope** and **no STATUS: COMPLETE**, and stops mid-way
+through "rounds 5-6 (audit-class loop continues)".
+
+**Main did not fabricate an envelope and did not infer a pass from the 15
+sources that happen to be present.** A count is not a gate. The brief is
+committed with a GATE-FAILED banner at its head and is preserved verbatim; the
+next session re-runs the gate and lets the re-run stand on its own envelope.
+
+**Write-first worked on the researcher rail too**: 25,359 bytes survived,
+including the OAIS reference model (CCSDS 650.0-M-3, fetched via pdfplumber),
+SEC 17a-4's 2023 audit-trail alternative to WORM, Shore's *Fail Fast*, Pants'
+`unmatched_build_file_globs` graduated policy, and a 2026 Backstage issue taking
+the COUNTER-position on always-fail-loud. That is the same property phase-86.31
+gave the Q/A rail this morning.
+
+**MEASUREMENT WORK THAT DID LAND** (committed `12d18011`, read-only, no step
+claimed): `scripts/qa/derive_archive_misattribution_86_29.py`.
+- Mechanism CONFIRMED: `archive-handoff.sh:160` globs `${sid}-`*.md and
+  `phase-${sid}-`*.md, which match **ZERO** files for every step id tested (4/4),
+  while the project's actual suffix form matches 5 each. The step-specific
+  branch never fires; only the rolling-file branch at `:148` runs.
+- Census over **818** archive dirs: **153 mismatch / 386 agree / 255
+  unclassified / 24 no-contract**. RECALL is gated -- the script refuses to
+  print a census unless both known positives (`phase-86.6`, `phase-86.26`) are
+  FLAGGED. 2/2.
+- **PRECISION was broken and I caught it by spot-checking rather than assuming.**
+  A numeric-only step-id regex truncated real ids like `25.A` to `25`, so 46
+  CORRECT dirs were reported damaged and the census read **211**. Widening the
+  segment gives 153. Validating recall and not precision is how a confident
+  wrong number gets made.
+- The unclassified bucket is broken down, not left opaque: **206 of 255** are the
+  harness runner's own per-cycle "Sprint Contract -- Cycle N", which declares no
+  step id by design. Genuinely opaque remainder: **49**.
+
+**RAIL RELIABILITY, second data point today.** Both Layer-3 rails dropped this
+afternoon: the 86.30 Q/A at 174,972 tokens / 43 tool uses, and this researcher at
+181,082 / 68. Across all recorded `qa-verdict` runs the rate is now **23/305 =
+7.5%**. The token populations still overlap -- do not build a budget fix.
