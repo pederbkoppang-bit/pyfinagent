@@ -24312,6 +24312,68 @@
           "max_retries": 3
         },
         {
+          "id": "86.24",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- THE TEST SUITE CHANGES COLOUR WITH THE WALL CLOCK, SO IT CANNOT BE A GATE] FOUND 2026-08-10 during 86.22, filed per the standing queue-discovered-defects rule. REPRODUCE BEFORE FIXING; RE-DERIVE EVERY NUMBER -- the counts below are what I measured on ONE night and the population may be larger. Midnight (CEST) rolled over mid-session and THREE tests changed state without any code change between the runs. MEASURED, same working tree, runs 45 minutes apart: backend/tests/test_phase_82_0_macro_ingestion.py::test_ingested_rows_carry_a_vintage and ::test_macro_end_date_is_severed_from_backtest_end_date both began failing with `AssertionError: assert '2026-08-09' == '2026-08-10'`, then PASSED again on a later run once both sides of the comparison had settled on 2026-08-10; and backend/tests/test_phase_86_2_replay_poison_row.py::test_c1_c2_a_poison_row_first_no_longer_strands_the_replay began failing with `kill_switch DISARMED: daily anchor STALE (sod_nav=100.0 sod_date='2026-08-09' peak_nav=100.0)`. WHY THIS IS P2 RATHER THAN COSMETIC: a gate that is red for reasons unrelated to the change under test trains every reader to ignore it, and phase-81.0 was already made structurally uncloseable once by exactly this (see feedback memory `immutable_criteria_must_be_green_able` -- a verification command already red for 128 unrelated reasons). It also means any step whose evidence is 'the suite is green' is only true for part of the day. WHAT TO DETERMINE FIRST, and do not assume the answer: whether each case is (a) purely a TEST artifact -- a fixture that hard-codes or once-computes a date while the assertion recomputes it -- or (b) a REAL staleness in production code, e.g. a value computed at import time in a process that runs for days. The kill_switch case is the one to check hardest, because `sod_date` is a live safety anchor and 'the daily anchor goes stale at midnight' would be a genuine defect in a long-running backend, not a test bug. DERIVE THE POPULATION rather than fixing the three named cases: find every test whose outcome depends on the current date, by a method whose recall you VALIDATE against these three known positives before trusting it, and report the ones you did NOT fix and why. DO NOT fix this by freezing time globally in conftest (that would hide case (b) entirely and disarm real staleness checks), and DO NOT relax any kill-switch assertion to make it green -- if the anchor genuinely goes stale, that is the finding.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/test_phase_82_0_macro_ingestion.py backend/tests/test_phase_86_2_replay_poison_row.py -q'",
+            "success_criteria": [
+              "The date-dependence population is DERIVED by a stated, re-runnable method, and that method's recall is validated against the three named tests BEFORE the report is used -- a method that misses any of them is rejected, not adjusted.",
+              "For EACH member, state which case it is: (a) test artifact or (b) real production staleness. Show the evidence for the classification; an unclassified member is an open finding, not a pass.",
+              "The kill_switch `sod_date` anchor is specifically adjudicated: either demonstrate the staleness cannot occur in the running backend, or file it as a live defect. Do not weaken the assertion.",
+              "Both named modules pass at a simulated post-midnight boundary AND at a normal mid-day time; show both runs.",
+              "No global time-freezing fixture is introduced.",
+              "Mutation-test every new guard, including reverting each fix individually; a guard whose mutant survives does not count."
+            ],
+            "live_check": "live_check_86.24.md with: the two verbatim failure messages as originally observed; the derived population with its recall validation against the three known positives; the per-member (a)/(b) classification with evidence; and the same test module run at two simulated clock positions showing identical results."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "86.25",
+          "status": "pending",
+          "priority": "P2",
+          "harness_required": true,
+          "name": "[P2 -- A RISK-APPROVAL VOCABULARY IS PASSED WHERE A BUY/SELL RECOMMENDATION IS EXPECTED, SO EVERY FALLBACK-PATH OUTCOME ROW IS SCORED WITH NO DIRECTION] FOUND 2026-08-10 during 86.22, filed per the standing queue-discovered-defects rule. REPRODUCE BEFORE FIXING; RE-DERIVE EVERY NUMBER. backend/services/autonomous_loop.py:3412 does `recommendation = trade.get(\"risk_judge_decision\", \"HOLD\")` and passes that value to `OutcomeTracker.evaluate_recommendation(..., recommendation=recommendation, ...)`, which interprets its `recommendation` argument as an ANALYST RECOMMENDATION on the BUY/HOLD/SELL scale and computes `directionally_correct` from it. MEASURED distribution of `financial_reports.paper_trades.risk_judge_decision` on 2026-08-10 (RE-DERIVE; do not trust these): '' 46, 'APPROVE_REDUCED' 15, 'REJECT' 3, 'APPROVE_HEDGED' 1 -- an APPROVAL vocabulary, with no BUY or SELL member at all. CONSEQUENCE, stated at exactly its true size: after phase-86.22 every one of these canonicalises to UNKNOWN, so `is_buy_intent` and `is_sell_intent` are both False and `directionally_correct` is False for every row written by this fallback path REGARDLESS of the realised return -- the same wrong-label defect 86.22 closed for the primary path, arriving through a different door. It is FAIL-SAFE (nothing is misread as a buy) and behaviour is UNCHANGED from before 86.22, which is why this is P2 and not P1. WHAT IS NOT CLAIMED: no lost trade and no lost P&L; this is an evaluation path. Also UNMEASURED and NOT to be assumed: whether the three rows currently in `financial_reports.outcome_tracking` (all spelled 'SELL', a spelling that appears in NEITHER `analysis_results.recommendation` nor `risk_judge_decision`) came from this path or another -- their producer was NOT determined during 86.22 and determining it is part of this step. WHAT TO BUILD: decide whether the fallback should (i) pass the actual analyst recommendation it can look up, (ii) pass nothing and skip the directional scoring honestly, or (iii) carry an explicit 'direction unknown' state distinct from 'scored incorrect' -- and justify the choice against the fact that a wrong label is worse for a learning signal than an absent one. DO NOT map APPROVE_* onto BUY: a risk-judge approval is not a directional call, and inventing that mapping would be a widening of exactly the kind 86.22 forbade.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q -k \"outcome_tracker or autonomous_loop or learn_loop\"'",
+            "success_criteria": [
+              "REPRODUCE FIRST: drive the real fallback path and show a row scored directionally_correct=False for a trade whose realised return proves the call was right.",
+              "The `risk_judge_decision` distribution is RE-DERIVED from the table, not copied from this step text.",
+              "The producer of the three existing 'SELL'-spelled outcome_tracking rows is DETERMINED, or the step states explicitly what was checked and why it remains undetermined.",
+              "APPROVE_* is NOT mapped onto a buy or sell intent.",
+              "'Direction unknown' is distinguishable from 'scored incorrect' in whatever is persisted -- or the step justifies why it need not be.",
+              "Mutation-test every new guard, including reverting the fix at the call site; a guard whose mutant survives does not count."
+            ],
+            "live_check": "live_check_86.25.md with: verbatim reproduce-then-fix output driving the real fallback path; the re-derived risk_judge_decision distribution; the adjudication of the three SELL rows' provenance; and the before/after label for a trade whose return proves the direction."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
+          "id": "86.26",
+          "status": "pending",
+          "priority": "P3",
+          "harness_required": true,
+          "name": "[P3 -- DEAD IMPORTS IN THE LEARN-LOOP MODULES, SURFACED BY A Q/A LINT GATE THAT CANNOT CURRENTLY PASS] FOUND 2026-08-10, reported as note N1 of the phase-86.22 cycle-2 Q/A verdict (transcribed in handoff/archive/phase-86.22/evaluator_critique_86.22.md). REPRODUCE BEFORE FIXING; RE-DERIVE EVERY NUMBER. `uvx ruff check --select F821,F401,F811` over the files 86.22 touched exits 1 with 7 F401 unused-import findings. The Q/A MEASURED the per-file delta against the pre-fix rev 4b7dab7b and found pre==post on every file -- bias_detector 1/1, conflict_detector 2/2, memory 1/1, outcome_tracker 3/3, skill_optimizer 0/0, api/portfolio 0/0, formatters 0/0, recommendation_vocab 0/0 -- so ZERO were introduced by 86.22 and it correctly did not fail the step for them. NAMED at the time (RE-DERIVE, line numbers drift): `conflict_detector.py:11 Optional`; `outcome_tracker.py:11 timedelta`, `:12 Optional`, `:17 compute_benchmark_return`; and an unused `json` in each of bias_detector, conflict_detector and memory. WHY IT IS WORTH A STEP RATHER THAN A DRIVE-BY: qa.md rule 1a reads a non-zero lint exit as FAIL, so every future step touching these modules must either re-derive the same pre==post delta by hand or accept a red gate -- the gate has been made unusable on this file set, which is the same class of problem as an immutable verification command that is already red for unrelated reasons (see the phase-81.0 postmortem and feedback memory `immutable_criteria_must_be_green_able`). CHECK BEFORE DELETING: `compute_benchmark_return` in particular may be a re-export other modules import FROM outcome_tracker rather than genuinely dead -- grep every consumer before removing any name, and say what you checked. DO NOT widen the ruff rule set in this step, and DO NOT add a per-file noqa to make the gate green: the point is to remove dead code, not to silence the detector.",
+          "verification": {
+            "command": "bash -c 'source .venv/bin/activate && uvx ruff check --select F821,F401,F811 backend/services/outcome_tracker.py backend/agents/memory.py backend/agents/bias_detector.py backend/agents/conflict_detector.py backend/agents/skill_optimizer.py backend/api/portfolio.py backend/slack_bot/formatters.py backend/services/recommendation_vocab.py'",
+            "success_criteria": [
+              "The finding count is RE-DERIVED, not copied from this step text; if it differs from 7, report the difference rather than the expected number.",
+              "For EACH name removed, show the grep proving no other module imports it from this one. A name that IS re-exported is kept and the reason recorded.",
+              "No `noqa` comment and no change to the rule set is used to reach green.",
+              "The immutable command above exits 0.",
+              "The full backend test suite shows no NEW failure attributable to the removals, established by a diff of the failure sets and not by a count."
+            ],
+            "live_check": "live_check_86.26.md with: the verbatim ruff output before and after; the per-name consumer grep; and the before/after full-suite failure-set diff."
+          },
+          "retry_count": 0,
+          "max_retries": 3
+        },
+        {
           "id": "86.23",
           "status": "pending",
           "priority": "P3",
