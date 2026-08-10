@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `73ce11ba` | phase-86.34: close criterion 3's missing half -- poisoned-conftest cell + test seam |
 | 2026-08-10 | `1b7e4601` | phase-86.34: executable mutation matrix + live_check; repair two clock-dependent cells |
 | 2026-08-10 | `e5d537d6` | docs: day report 2026-08-10 -- 8 steps touched, 8.1M subagent tokens, 12 self-inflicted defects |
 | 2026-08-10 | `a1691029` | phase-86.19: scope the masterplan id resolver and make it refuse to guess (PARTIAL) |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `f71030b8` | phase-86.25 cycle 2: fix three accuracy defects the Q/A found in my own claims |
 | 2026-08-10 | `8baecb49` | phase-86.25: resolve the outcome vocabulary at the boundary (both seams) |
 | 2026-08-10 | `64d20023` | phase-86.25: contract + P1 measurement -- option (A) is reachable for ZERO rows |
-| 2026-08-10 | `cefe7515` | phase-86.24: clock-dependent test suite CLOSED on a PASS (third cycle, escalation armed) |
 
 ---
 
+### v6.93.67 — phase-86.34: close criterion 3's missing half -- poisoned-conftest ce... (2026-08-10)
+
+- **phase-86.34: close criterion 3's missing half -- poisoned-conftest cell + test seam**
 ### v6.93.66 — phase-86.34: executable mutation matrix + live_check; repair two cloc... (2026-08-10)
 
 - **phase-86.34: executable mutation matrix + live_check; repair two clock-dependent cells**
