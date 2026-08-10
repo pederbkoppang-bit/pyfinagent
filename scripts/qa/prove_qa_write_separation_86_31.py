@@ -31,7 +31,6 @@ import json
 import pathlib
 import re
 import subprocess
-import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 HOOK = REPO / ".claude/hooks/qa-write-guard.sh"
