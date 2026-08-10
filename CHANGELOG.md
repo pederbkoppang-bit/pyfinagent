@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `9a380d90` | phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not the stored NAV |
 | 2026-08-10 | `9c3e0f1a` | phase-86.12: the kill switch does NOT evaluate drawdown against a stale NAV -- investigated and answ |
 | 2026-08-10 | `fdadb623` | phase-86.12: research gate PASSED + contract (before any GENERATE work) |
 | 2026-08-10 | `2fb8bebc` | phase-86.6: PARK at FAIL -- correct the artifact, queue the class fix, do not close |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `7897cb8c` | phase-86.21: a 3rd-CONDITIONAL counter that can see an in-flight step |
 | 2026-08-10 | `dc621419` | phase-86.21: research gate PASSED + contract (written BEFORE any code) |
 | 2026-08-09 | `03b3ea17` | wip(86.6): PARKED mid-step -- filesystem preventer landed and measured, Part B unstarted |
-| 2026-08-09 | `cf6f214b` | phase-86.6: research gate PASSED + contract (written BEFORE any code) |
 
 ---
 
+### v6.93.26 — phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not th... (2026-08-10)
+
+- **phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not the stored NAV**
 ### v6.93.25 — phase-86.12: the kill switch does NOT evaluate drawdown against a sta... (2026-08-10)
 
 - **phase-86.12: the kill switch does NOT evaluate drawdown against a stale NAV -- investigated and answ**
