@@ -133,6 +133,59 @@ GONE (attributable to the removals): (none)
 **The failure set is identical, member for member.** The +12 passed are the
 phase-86.12 tests committed between the two runs.
 
+### The two sets, ENUMERATED (cycle-2 fix)
+
+The cycle-1 Q/A was right that `NEW: (none) / GONE: (none)` is byte-identical
+whether it came from a real set diff or from a count rendered in set language.
+The members were never shown, so the claim was unauditable. Here they are.
+
+**BEFORE** -- captured at `a16fa5a2` (contract committed, no removals yet), 14 members:
+
+```
+FAILED backend/tests/test_phase_23_2_6_sector_cap_emit.py::test_phase_23_2_6_backend_log_has_skipping_buy_evidence
+FAILED backend/tests/test_phase_40_2_claude_code_v2_1_140_features.py::test_phase_40_2_settings_json_still_valid_json_after_edit
+FAILED backend/tests/test_phase_57_1_reject_binding.py::test_off_identity_prompts_are_verbatim_constants
+FAILED backend/tests/test_phase_57_1_reject_binding.py::test_reject_binding_main_path_off_emits_on_blocks
+FAILED backend/tests/test_phase_57_1_reject_binding.py::test_reject_binding_swap_path_off_emits_on_blocks
+FAILED backend/tests/test_phase_60_3_data_integrity.py::test_60_3_flag_defaults_off
+FAILED backend/tests/test_phase_75_17_verification_paths.py::test_masterplan_diff_touches_only_the_ten_sibling_insertions
+FAILED backend/tests/test_phase_75_17_verification_paths.py::test_sweep_shape_census_matches_the_corrected_figures
+FAILED backend/tests/test_phase_75_prompt_contracts.py::test_operator_decision_note_exists_with_token
+FAILED backend/tests/test_phase_75_sre_ops.py::test_c1_runbook_and_operator_token_drafted
+FAILED backend/tests/test_phase_75_sre_ops.py::test_c6_no_launchctl_bootstrap_executed_in_ops_scripts
+FAILED backend/tests/test_phase_82_39_outcome_rebuild_query.py::test_the_sweeps_recall_limit_is_recorded_not_assumed
+FAILED backend/tests/test_phase_86_2_replay_poison_row.py::test_c1_c2_a_poison_row_first_no_longer_strands_the_replay
+FAILED backend/tests/test_portfolio_swap.py::test_swap_framework_fills_zero_buy_gap
+```
+
+**AFTER** -- captured at `1ed39ccd` (the 7 removals), 14 members:
+
+```
+FAILED backend/tests/test_phase_23_2_6_sector_cap_emit.py::test_phase_23_2_6_backend_log_has_skipping_buy_evidence
+FAILED backend/tests/test_phase_40_2_claude_code_v2_1_140_features.py::test_phase_40_2_settings_json_still_valid_json_after_edit
+FAILED backend/tests/test_phase_57_1_reject_binding.py::test_off_identity_prompts_are_verbatim_constants
+FAILED backend/tests/test_phase_57_1_reject_binding.py::test_reject_binding_main_path_off_emits_on_blocks
+FAILED backend/tests/test_phase_57_1_reject_binding.py::test_reject_binding_swap_path_off_emits_on_blocks
+FAILED backend/tests/test_phase_60_3_data_integrity.py::test_60_3_flag_defaults_off
+FAILED backend/tests/test_phase_75_17_verification_paths.py::test_masterplan_diff_touches_only_the_ten_sibling_insertions
+FAILED backend/tests/test_phase_75_17_verification_paths.py::test_sweep_shape_census_matches_the_corrected_figures
+FAILED backend/tests/test_phase_75_prompt_contracts.py::test_operator_decision_note_exists_with_token
+FAILED backend/tests/test_phase_75_sre_ops.py::test_c1_runbook_and_operator_token_drafted
+FAILED backend/tests/test_phase_75_sre_ops.py::test_c6_no_launchctl_bootstrap_executed_in_ops_scripts
+FAILED backend/tests/test_phase_82_39_outcome_rebuild_query.py::test_the_sweeps_recall_limit_is_recorded_not_assumed
+FAILED backend/tests/test_phase_86_2_replay_poison_row.py::test_c1_c2_a_poison_row_first_no_longer_strands_the_replay
+FAILED backend/tests/test_portfolio_swap.py::test_swap_framework_fills_zero_buy_gap
+```
+
+`comm -13` (new) and `comm -23` (gone) over the two sorted files are both
+EMPTY: the sets are identical member for member, not merely equal in count.
+
+**Disclosed rather than glossed:** the two runs are not the same tree. The
+AFTER run also carries phase-86.12's 12 new tests (3291 -> 3303 passed), which
+is why the passed counts differ. That makes exhibiting the members more
+necessary, not less -- and they are identical, so no failure moved either way.
+
+
 ## 6. Diff
 
 ```
