@@ -432,6 +432,58 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
     unsupported.result && !unsupported.result.violations.some(v => v.includes('empty_or_errored_return')))
 
   // A blind run must also spawn nothing (86.17's property, now measured too).
+  // ── phase-86.37 cycle 2: THE DROP PATH, DRIVEN BEHAVIOURALLY ─────────────
+  // Cycle 1 guarded this with SOURCE SCANS only, and the Q/A killed them with
+  // two mutants that both PARSE and both keep the suite at ALL GREEN:
+  //   QA-RETHROW    -- record railDropped, then `throw e` as the catch's last
+  //                    statement. The driver throws again with no return value:
+  //                    byte-for-byte the pre-fix destruction this step removes.
+  //   QA-RESURRECT  -- one line AFTER the catch, `if (railDropped) { envelope =
+  //                    <compliant literal> }`. A dropped run returns
+  //                    gate_passed:TRUE. This IS criterion 6's mandated mutation,
+  //                    and the cycle-1 regex was scoped to the catch BLOCK, so it
+  //                    was blind one line outside.
+  // A source scan cannot see either. This drives the REAL driver with a stage-1
+  // stub that THROWS, and asserts on what comes back -- which is the property.
+  {
+    const throwingStage1 = async (prompt, opts) => {
+      calls += 1
+      if (calls === 1) throw new Error('agent({schema}): subagent completed without calling StructuredOutput')
+      // Stage 2: a PERFECT verification of a brief that clears every floor. If a
+      // drop could ever pass, this is the input that would make it -- which is
+      // exactly why the stage-2 answer is maximally favourable here.
+      return {
+        brief_exists: true, brief_non_empty: true, char_count: 40000,
+        urls_checked: URLS.length, urls_present: URLS.length, urls_missing: [],
+        recency_section_present: true, distinct_urls_in_brief: 25,
+        brief_status_in_brief: 'COMPLETE',
+      }
+    }
+    let calls = 0
+    let dropped, threw = null
+    try {
+      dropped = await drive({ step_id: 'BEHAVE-drop', tier: 'moderate' }, () => {}, () => {}, throwingStage1)
+    } catch (e) { threw = e }
+
+    check('a stage-1 DROP does not kill the workflow -- the driver RESOLVES (kills QA-RETHROW)',
+      threw === null && dropped !== undefined,
+      threw ? `driver threw: ${String(threw.message || threw).slice(0, 120)}` : 'driver returned undefined')
+    check('a DROPPED run returns gate_passed === false even with a PERFECT stage-2 verification (kills QA-RESURRECT)',
+      !!dropped && dropped.gate_passed === false,
+      dropped ? `gate_passed=${JSON.stringify(dropped.gate_passed)} violations=${JSON.stringify(dropped.violations)}` : 'no result')
+    check('the dropped run reports rail_dropped.dropped === true',
+      !!dropped && !!dropped.rail_dropped && dropped.rail_dropped.dropped === true)
+    check('rail_dropped carries the ERROR TEXT, so a caller can tell a drop from a floor failure',
+      !!dropped && !!dropped.rail_dropped && /StructuredOutput/.test(String(dropped.rail_dropped.error || '')))
+    check('the dropped run STILL carries brief_verification (the recovery report)',
+      !!dropped && dropped.brief_verification !== null && typeof dropped.brief_verification === 'object')
+    check('the dropped run names at least one violation rather than failing silently',
+      !!dropped && Array.isArray(dropped.violations) && dropped.violations.length > 0)
+    // The recovery report must describe the BRIEF, not be an echo of the drop.
+    check('brief_verification in a dropped run reports the on-disk brief it actually read',
+      !!dropped && !!dropped.brief_verification && dropped.brief_verification.brief_exists === true)
+  }
+
   const blind = await driveRecording(drive, undefined)
   check('BLIND run spawns ZERO agents (86.17 property, measured)',
     blind.spawns.length === 0 && blind.result && blind.result.gate_passed === false)

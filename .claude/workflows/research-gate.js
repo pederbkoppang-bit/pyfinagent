@@ -225,6 +225,14 @@ const PROMPT = [
   'arXiv html -> ar5iv -> pdfplumber chain -- never WebFetch an arxiv.org/pdf/ URL).',
   'This runtime read makes any researcher.md edit live immediately on the Workflow path.',
   '',
+  'STEP 0b (binding, phase-86.37): WRITE THE ENVELOPE INTO THE BRIEF EARLY, BORN INERT. Within your first few',
+  'tool calls, put the JSON envelope in the brief carrying "brief_status": "INCOMPLETE"; update its counts as',
+  'sources land; and as your FINAL act flip it to "COMPLETE". This rail DROPS on a measured fraction of runs --',
+  'step 86.29 lost a 25,359-byte brief with 15 sources to one, because the envelope was only ever written at the',
+  'tail and the run never reached its tail. A brief whose brief_status is INCOMPLETE, or which carries none at',
+  'all, does NOT pass the gate whatever its counts say -- that is enforced, not advisory, so an honest',
+  'INCOMPLETE costs you nothing and a missing marker costs you the gate.',
+  '',
   'OBJECTIVE: ' + topic,
   // phase-86.28: only the ABSENT case can reach a spawn -- an UNSUPPORTED tier
   // early-returns below without spawning, so a branch for it here would be DEAD

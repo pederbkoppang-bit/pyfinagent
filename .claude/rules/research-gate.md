@@ -225,14 +225,29 @@ Re-runnable checker (the step's immutable `node --check` command proves
 only that the file parses):
 `node scripts/qa/verify_research_gate_workflow.mjs`.
 
-## JSON envelope (always emit)
+## JSON envelope (WRITE IT EARLY, born inert -- phase-86.37)
 
-Every brief ends with this envelope, even when the caller does not
-ask for it (the `coverage` object is added for audit-class steps; see
-`.claude/agents/researcher.md` for its shape):
+**This section previously read "Every brief ENDS with this envelope" and its
+example carried no `brief_status`. That was a live contradiction**: the stage-1
+prompt orders the researcher to read THIS file in full as authoritative, while
+`researcher.md` mandates a born-inert marker and `enforceGate` HARD-FAILS a brief
+whose marker is ABSENT. A researcher following this file literally would have
+produced ABSENT and **failed the gate on every run**. Fail-closed, so nothing
+unsafe -- but it would have broken the gate outright. Caught by the phase-86.37
+cycle-1 Q/A before any run used it.
+
+Write this envelope into the brief **within your first few tool calls**, carrying
+`"brief_status": "INCOMPLETE"`, update it as sources land, and flip it to
+`"COMPLETE"` as your **final act**. A run that drops mid-loop never reaches the
+tail of anything -- measured on step 86.29, where a 25,359-byte brief with 15
+sources carried no envelope at all and was therefore unassessable.
+
+The `coverage` object is added for audit-class steps; see
+`.claude/agents/researcher.md` for its shape.
 
 ```json
 {
+  "brief_status": "INCOMPLETE",
   "tier": "simple|moderate|complex",
   "external_sources_read_in_full": 0,
   "snippet_only_sources": 0,
@@ -242,6 +257,10 @@ ask for it (the `coverage` object is added for audit-class steps; see
   "gate_passed": false
 }
 ```
+
+**A brief whose `brief_status` is `INCOMPLETE`, or which carries no
+`brief_status` at all, does NOT pass the gate** -- whatever its counts say. A
+partial brief is EVIDENCE for the re-run, never a pass.
 
 `gate_passed: true` iff `external_sources_read_in_full >= 5` AND
 `recency_scan_performed == true` AND every hard-blocker checklist

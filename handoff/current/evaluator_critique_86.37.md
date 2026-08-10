@@ -1,0 +1,94 @@
+# Evaluator critique -- step 86.37
+
+**Cycle 1** -- Workflow rail run `wf_0c7c20c3-564` (178,598 tokens, 31 tool uses, 598s). Opus / effort max.
+
+> **Transcribed VERBATIM by Main from the captured structured return.**
+
+## VERDICT: FAIL   (ok=false, harness_compliance_ok=false, certified_fallback=false)
+
+## reason
+
+The PRODUCT FIX IS CORRECT and I verified it independently -- but criteria 1 and 6 are missed, and I have executed proof. I drove the whole workflow with an agent() stub that THROWS on stage 1: PRE-FIX (d3bb1dfb~1) THREW with no return value; POST-FIX RESOLVED with gate_passed=false, rail_dropped={"dropped":true,"error":"agent({schema}): subagent completed without calling StructuredOutput"}, brief_verification present, violations[0]="empty_or_errored_return" -- and still false when stage 2 returns a PERFECT verification with brief_status_in_brief COMPLETE. So criteria 2/3 hold on the product. THE GUARDS DO NOT. Two mutants of mine PARSE, keep the suite at ALL GREEN 110/0, and are behaviourally differentiated from baseline: (QA-RETHROW) catch records railDropped then `throw e` -> the driver throws with NO return value, i.e. the exact pre-fix destruction this step exists to remove, suite green; (QA-RESURRECT) one line AFTER the catch, `if (railDropped) { envelope = <compliant envelope literal> }` -> a dropped run returns gate_passed=TRUE with violations=[], suite green. QA-RESURRECT literally IS criterion 6's mandated "mutate the drop path to return gate_passed: true", and it is not caught, because R2's guard is a literal regex scoped to the catch block (!/catch\s*\([\s\S]{0,600}gate_passed\s*[:=]\s*true/). Every 86.37 drop assertion is a SOURCE SCAN (proximity try/catch, railDropped=..error, rail_dropped: railDropped) plus one enforceGate null test that exercises pre-existing logic -- so the wrapper's syntax is guarded and its behaviour is not, in a file whose own [6d] comment says source scans were defeated twice and "the property is BEHAVIOURAL". Criterion 1 was never demonstrated by the work at all: the stated method ("mutation R1 -> 2 assertions red") shows two assertions going red, not the run dying with no return value and not the post-fix structured object; live_check_86.37.md omits the verbatim dropped-run return object its own masterplan live_check field demands. WHAT IS GENUINELY GOOD, verified by my own independent cells: the three self-found defects are CLOSED -- my valid unwrap (node --check PARSES) kills 2 named assertions, and my fail-open marker mutant ('ABSENT'->'COMPLETE') kills 4, which is defect (a) re-injected; the WIDENED SPAWN LOCATOR IS NOT A WEAKENED GUARD -- my own relocation of the tier-refusal to genuinely after the spawn (sanity: spawn@37916, refusal@42117) turns 3 assertions red including the BEHAVIOURAL "UNSUPPORTED tier spawns ZERO agents -- recorded 2 agent() call(s)". Immutable command reproduces exactly (110 passed, exit 0) and the "was 97" baseline re-derives exactly (pre-step checker on pre-step workflow = 97 passed), so all 13 new assertions run. Commit scope is clean: 7 files, no .py, no frontend, no backend, masterplan touched only to add the step. REMEDY IS ~10 LINES and the machinery already exists ~300 lines above: drive the workflow with a throwing stage-1 stub and assert it RESOLVES with gate_passed===false, rail_dropped.dropped===true carrying the error text, and brief_verification present, with the second stub call returning a perfect verification -- that one test kills both survivors and simultaneously supplies criterion 1's before/after and criterion 3's verbatim recovery report.
+
+## violated_criteria
+
+- `criterion_1_reproduce_first_not_demonstrated`
+- `criterion_6_mutation_tested_drop_path_not_caught`
+- `illusory-guard`
+- `research_gate_reused_not_re_run`
+- `contradictory_instruction_on_the_new_hard_gate`
+
+## violation_details
+
+### 1. Circular_Reasoning
+
+**action** -- Mutant QA-RESURRECT: insert `if (railDropped) { envelope = <fully compliant envelope literal, gate_passed:true> }` immediately AFTER the stage-1 try/catch in .claude/workflows/research-gate.js, then run the immutable command and drive the workflow with a stage-1-throwing agent stub.
+
+**state** -- SEVERITY BLOCK. checker = ALL GREEN 110 passed, 0 failed, exit 0; driver on a dropped stage 1 returns gate_passed=TRUE, violations=[], rail_dropped set. Baseline control on the shipped source = 110/0 green AND gate_passed=false, so the mutant is not equivalent. The guard meant to catch this is the literal regex at scripts/qa/verify_research_gate_workflow.mjs `check('the drop path does NOT assign gate_passed anywhere in its catch block', !/catch\s*\([\s\S]{0,600}gate_passed\s*[:=]\s*true/.test(src))`, which is scoped to the catch BLOCK and blind one line outside it.
+
+**constraint** -- Criterion 6 (immutable): 'mutate the drop path to return gate_passed: true and prove that is caught. A guard that has not been observed failing does not count.' Also criterion 2: 'no input under which a drop yields true'.
+
+### 2. Missing_Assumption
+
+**action** -- Mutant QA-RETHROW: keep the wrapper and the railDropped recording, append `throw e` as the last statement of the catch block; run the immutable command, then drive the workflow with a stage-1-throwing agent stub.
+
+**state** -- SEVERITY BLOCK. checker = ALL GREEN 110 passed, 0 failed, exit 0; driver THREW with NO return value -- byte-for-byte the pre-fix destruction (verified identical to d3bb1dfb~1 behaviour). All four stage-1 drop assertions are source scans over research-gate.js text, so the wrapper's SYNTAX is guarded and its BEHAVIOUR is not. The behavioural harness needed (loadDriver + a custom agent stub) already exists at verify_research_gate_workflow.mjs:84-100 and is used by section [6d], whose own comment says 'the property is BEHAVIOURAL ... patching the regex a third time is playing the wrong game'.
+
+**constraint** -- qa.md section 4c vacuity shapes #1/#2 (source-scan asserting runtime behaviour it cannot observe / defeated by moving the scanned text); skill heuristic #17 illusory-guard [BLOCK when sole coverage for a behavioural criterion].
+
+### 3. Unjustified_Inference
+
+**action** -- Read experiment_results_86.37.md section 3 row 1 and live_check_86.37.md, looking for the demonstration criterion 1 requires; then perform it myself (throwing stage-1 stub against d3bb1dfb~1 and against the working tree).
+
+**state** -- SEVERITY BLOCK. Stated method is 'mutation R1 on a syntactically valid unwrap -> 2 assertions red'. That demonstrates two CHECKER ASSERTIONS changing colour; it demonstrates neither 'a stage-1 agent failure currently kills the whole workflow and yields NO return value' nor 'the same scenario after the fix returning a structured object'. No artifact contains a before/after behavioural observation. The masterplan live_check field for 86.37 explicitly requires 'the dropped-run return object verbatim showing gate_passed:false alongside a populated recovery report'; live_check_86.37.md contains only assertion names. My own run supplies the missing evidence and it holds -- PRE threw, POST returned {gate_passed:false, rail_dropped:{dropped:true,error:...}, brief_verification:present} -- so the claim is true but was not demonstrated by the work.
+
+**constraint** -- Criterion 1 (immutable): 'REPRODUCE FIRST: demonstrate ... and show the same scenario after the fix returning a structured object. State which method was used.'
+
+### 4. Contradiction
+
+**action** -- grep 'brief_status' across .claude/workflows/research-gate.js and .claude/rules/research-gate.md; read the stage-1 PROMPT.
+
+**state** -- SEVERITY WARN. .claude/rules/research-gate.md:228-246 still reads 'Every brief ENDS with this envelope' with a JSON block carrying NO brief_status field, while .claude/agents/researcher.md now mandates a born-inert brief_status written EARLY, and enforceGate (research-gate.js:482-495) HARD-FAILS a brief whose marker is ABSENT. The stage-1 PROMPT orders the researcher to read that rules file 'IN FULL: it carries the authoritative floors' and never mentions the marker itself. A researcher that follows the rules file literally produces ABSENT and the gate fails on every run. Fail-CLOSED, not fail-open -- but it can block the very rail this step repairs, and it is absent from experiment_results section 7 'Scope and what I cannot verify'.
+
+**constraint** -- Criterion 4: 'The researcher writes a BORN-INERT envelope into the brief early' -- the instruction set the researcher actually receives must not contradict itself on the field that is now a hard gate.
+
+### 5. Missing_Assumption
+
+**action** -- Harness-compliance audit item 1: check for a researcher spawn for step 86.37.
+
+**state** -- SEVERITY WARN. No researcher was spawned. The contract reuses handoff/current/research_brief_86.31.md (wf_3cce0af1-102, 12 sources, 64 URLs, gate PASSED) whose subject is 'how does a Layer-3 rail survive a drop'. The reuse is disclosed prominently in both the contract (section 1) and experiment_results (section 2), the cited brief genuinely passed its own enforced gate, and its F4/F5/F6/F7 findings do decide this design -- so this is a disclosed deviation, not a fabricated gate. But the standing operator rule (auto-memory feedback_never_skip_researcher, 2026-05-22 override) is ALWAYS spawn per step, even for small bug fixes, and the circularity argument is only partly true: the Agent-tool researcher subagent is the documented fallback launch and was available. Judgment: defensible for THIS step given the cited brief is on-point and gate-passed, but it is a deviation the operator should ratify explicitly rather than have absorbed silently.
+
+**constraint** -- CLAUDE.md 'Research gate (MUST-BE-USED)' + .claude/rules/research-gate.md; auto-memory feedback_never_skip_researcher.
+
+## checks_run
+
+- qa_md_read_in_full_at_runtime
+- write_first_wip_record
+- harness_compliance_audit_5_items
+- contract_before_generate_mtime_chain
+- log_last_harness_log_grep_and_masterplan_status
+- third_conditional_counter_grep
+- immutable_verification_command_rerun_exit_0_110_passed
+- baseline_97_assertion_count_re_derived_from_d3bb1dfb_parent
+- commit_scope_git_show_stat_7_files
+- masterplan_criteria_verbatim_diff_vs_contract
+- python_lint_gate_NA_no_py_in_diff
+- frontend_lint_typecheck_NA_no_frontend_in_diff
+- backend_runtime_smoke_NA_no_backend_in_diff
+- live_ui_capture_NA_no_ui_claims
+- behavioural_drop_probe_pre_vs_post_fix_throwing_agent_stub
+- behavioural_always_false_probe_drop_plus_perfect_stage2_verification
+- mutation_QA_R1_UNWRAP_VALID_killed
+- mutation_QA_M1_incomplete_branch_removed_killed
+- mutation_QA_M2_fail_open_marker_default_killed
+- mutation_QA_M3_refusal_relocated_after_spawn_killed
+- mutation_QA_RETHROW_SURVIVED
+- mutation_QA_RESURRECT_SURVIVED
+- behavioural_differential_for_both_survivors
+- node_check_parse_on_every_mutant_with_shipped_js_extension
+- claim_audit_experiment_results_and_live_check
+- code_review_heuristics
+
+## notes
+
+Cycle 1; 0 prior CONDITIONALs for 86.37 (grep -cE "phase=86\.37.*result=CONDITIONAL" = 0), so the 3rd-CONDITIONAL auto-FAIL rule did not force this verdict -- FAIL is on the merits of criteria 1 and 6. retry_count=0 < max_retries=3, so certified_fallback=false: this is a fix-and-respawn, NOT a revert. harness_compliance_ok=false ONLY because of item 1 (research gate reused, not re-run); items 2-5 are clean and item 2 (contract-before-generate) is properly satisfied on the mtime chain -- contract 17:25:58 < researcher.md 17:29:10 < research-gate.js 17:30:40 < verifier 17:32:42 < experiment_results 17:33:24 < live_check 17:34:06, so 86.30's breach did not recur. THIS FAIL IS NOT ABOUT THE PRODUCT CODE: I verified the fix works, end to end, by a method the step never used. Everything Main self-reported that I could independently re-derive, re-derived exactly (110 passed / exit 0; the 97 baseline; the widened locator's teeth; all three self-found defects genuinely closed) -- the artifacts are honest. What is missing is behavioural coverage of the two properties the step exists to establish, and the demonstration criterion 1 asks for. All my mutation work was hermetic (mkdtemp mini-repos built from in-memory strings); the tracked tree was never written. I hold no Write access outside .claude/agent-memory/qa/verdicts/ and attempted none; my write-first record is at /Users/ford/.openclaw/workspace/pyfinagent/.claude/agent-memory/qa/verdicts/verdict_wip_86.37.md (marked COMPLETE -- it is a crash-survival record, NOT a verdict). No UI claims in this step, so no Playwright capture was required or taken. For the next cycle's disclosure list: experiment_results section 7 names 4 limitations but omits both the rules/research-gate.md contradiction and the fact that the drop-survivability guards are source scans.
