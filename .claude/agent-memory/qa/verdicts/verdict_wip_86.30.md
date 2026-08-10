@@ -1,100 +1,127 @@
 STATUS: COMPLETE -- write-first record, still NOT a verdict
 STEP: 86.30
-WRITTEN: 2026-08-10T11:48:07Z
-COMPLETED: 2026-08-10T11:58:59Z
+WRITTEN: 2026-08-10T15:03:29Z
+CYCLE: 2 (predecessor cycle-1 run DROPPED without StructuredOutput)
 
-# Q/A write-first record -- step 86.30, cycle 1
+NOTE ON THIS FILE: the WIP path is FIXED per step, so creating this file per the
+qa.md write-first rule OVERWROTE the predecessor's cycle-1 record in the working
+tree. It is NOT lost -- it was committed in 5285699b and is recoverable with
+`git show 5285699b:.claude/agent-memory/qa/verdicts/verdict_wip_86.30.md`. I read it
+from git before writing anything further. Reported in `notes` as a mechanism hazard.
 
-Launch: Workflow structured-output rail. Read .claude/agents/qa.md in full at 11:48Z.
-
-## A. Harness compliance (5 items)
-1. research-gate-before-contract: research_brief_86.30.md mtime 13:02:06 < code 13:44:17. Gate PASSED
-   (wf_8dfd196f-3fa, 9 sources / 42 URLs). OK.
-2. contract-before-generate: **FAILS**. contract_86.30.md 13:45:50 is LAST, after fix 13:44:17 and
-   test 13:45:09. SELF-DISCLOSED in a head banner; mtimes I re-measured match the banner exactly.
-   Nothing backdated (single commit 63074429 at 13:47:35).
-3. experiment_results_86.30.md present (13:47:03). live_check_86.30.md present (13:47:14).
-4. log-last: harness_log has ZERO `phase=86.30 result=` entries; masterplan 86.30 status=pending,
-   retry_count 0. Correct ordering. 3rd-CONDITIONAL rule: 0 priors -> not triggered.
-5. no-verdict-shopping: cycle 1, no prior verdict. N/A.
+## A. Harness compliance (5 items) -- re-measured by me
+1. research-gate-before-contract: research_brief_86.30.md mtime 13:02:06 < fix commit
+   63074429 (13:47:35). Gate PASSED (wf_8dfd196f-3fa, 9 sources / 42 URLs). OK.
+2. contract-before-generate: **BREACH CONFIRMED**. contract_86.30.md mtime 13:46:16,
+   AFTER fix 13:44:17 and test 13:45:09. Self-disclosed in a head banner; single
+   commit, nothing backdated. Un-repairable. harness_compliance_ok = FALSE.
+3. experiment_results_86.30.md (14:02:38) + live_check_86.30.md (13:47:14) present.
+4. log-last: `grep -F "phase=86.30" handoff/harness_log.md` -> ZERO. masterplan 86.30
+   status=pending, retry_count=0. Correct ordering. 3rd-CONDITIONAL: 0 priors -> not triggered.
+5. no-verdict-shopping: cycle-1 produced NO verdict (rail drop). Evidence CHANGED
+   (5285699b: test file +81/-13, experiment_results +122). Not shopping.
 
 ## B. Deterministic
-- IMMUTABLE CMD -> **exit 0, 50 passed in 9.82s** (re-run twice).
-- backend/tests/test_phase_86_30_degraded_direction.py -> 9 passed, 0 skipped.
-- git status: NO uncommitted production changes. Commit 63074429 touches exactly 5 files. Frozen table NOT in it.
-- Frozen table md5 = d9f3650c4054c2504c1bbfaccea25629 -- MATCHES; last touched by 9bda4e6d (86.27).
-- ruff F821,F401,F811 over commit-derived scope (2 .py, non-empty asserted) -> exit 0.
-- Runtime smoke: module execs clean; normal path example.com:8000=False, 127.0.0.1:8000=True. conftest intact.
-- Only `not ip.is_global` left in HEAD is inside a COMMENT (line 185).
-- Regression -k selection: 81 passed (matches) / 3339 deselected (artifact said 3337; total collected
-  3418 -> 3420 between 13:47 and 13:55 with NO test file changed -- some module's collection is
-  state-dependent. Load-bearing half reproduces exactly; NOTE only).
-- mutation_matrix_86_27.py: all 7 KILLED, tracked source sha-equal.
-- Consumers grepped: conftest.py, test_86_6, test_86_27, smoke_cc_rail_e2e.py, reproduce_86_27_spellings.py
-  -- all still import fine; 86.27:346 asserts ('192.0.2.55',8000) is False on the healthy path and passes.
+- IMMUTABLE CMD `pytest backend/tests/test_phase_86_27_live_origin_class.py -q`
+  -> **exit 0, 50 passed in 9.79s**.
+- `git diff 63074429 -- scripts/qa/live_backend_origin.py` EMPTY; md5
+  2669cbe069b026e2d9590e37a5d275cd identical to 63074429. B5 claim TRUE.
+- Frozen table test_phase_86_6_subprocess_channel.py md5 d9f3650c4054c2504c1bbfaccea25629
+  == md5 at 63074429~1. BYTE-UNCHANGED (criterion 3).
+- `git diff HEAD --stat`: no dirty production/test file. Only agent-memory WIP, audit
+  jsonl, heartbeat, archive-baseline.
+- ruff F821,F401,F811 over git-derived scope (3 .py, non-empty asserted) -> exit 0.
+- Runtime smoke: module execs; enumerable=True; example.com:8000 False, 127.0.0.1:8000
+  True, 192.0.2.55:8000 False. Normal path intact.
 
-## C. Independent reproduction (criterion 1) -- addresses derived by ME at runtime
-psutil=16 addrs, ifconfig=16 addrs, symmetric difference []; own GLOBAL IPv6 = 6 by both, symdiff [].
-PRE-FIX (git show 63074429^), psutil blocked, interfaces_enumerable=False:
-  own GLOBAL v6 REMOTE by _is_this_machine 6/6 (witness 2001:4654:6451:0:15d6:967b:7384:d0a)
-  own GLOBAL v6 NOT refused by address_is_live_backend 6/6 ; FULL own set REMOTE 6/16
-POST-FIX (HEAD): 0/6, 0/6, 0/16. Controls both runs: 127.0.0.1->True ::1->True LAN->True;
-  Cloudflare False->True. is_live_backend('https://example.com:8000') False->True in DEGRADED mode only.
-Address quoted in live_check §1 (2001:4654:6451:0:31:6467:1ea6:1852) IS still present in ifconfig.
+## C. Criterion 1 -- MY OWN reproduction (not the dropped record's)
+Own addresses derived at runtime TWO ways: psutil=16, ifconfig=16, symmetric difference [].
+Own GLOBAL IPv6 = 6.
+  PRE-FIX (63074429^, psutil blocked, interfaces_enumerable()==False asserted):
+    own-global-v6 REMOTE 6/6 | FULL-own REMOTE 6/16 | address_is_live_backend NOT-refused 6/6
+    witness 2001:4654:6451:0:15d6:967b:7384:d0a | controls (127.0.0.1,::1,CF)=(True,True,False)
+  POST-FIX (HEAD): 0/6, 0/16, 0/6 | controls (True,True,True)
+=> criterion 1 MET, both predicates, independently.
 
-## D. Mutation matrix (mine, in-memory via pytest.main plugins; repo tree never written)
-Anchored on the unique preceding comment line (`        return True` occurs 6x -- same ANCHOR-BAD hazard Main disclosed).
-  C0-CONTROL                                  exit 0, 9 passed
-  M1-REVERT (not ip.is_global)                KILLED 3 failed
-  M2-DELETE-BRANCH (return False)             KILLED 3 failed
-  M3-IS-PRIVATE                               KILLED 3 failed
-  M4-IS-GLOBAL                                KILLED 1 failed
-  M5-REFUSE-ALL (whole predicate True)        KILLED 2 failed (frozen_row + healthy_path control)
-        -> the anti-vacuity control is REAL; "refuse everything always" does NOT pass.
-  H1-NO-EVICTION (harness)                    SURVIVED 9 passed  -> EQUIVALENT (see E)
-  H2-NO-IMPORTBLOCK (harness)                 KILLED 2 failed incl. test_the_branch_is_actually_reached
-        -> the positive control is NOT vacuous.
-  M6-NOT-V4-GLOBAL  `not (ip.version==4 and ip.is_global)`   *** SURVIVED *** 9 passed
-  M7-V6-OR-NOTGLOBAL `ip.version==6 or not ip.is_global`     *** SURVIVED *** 9 passed
-  M8-NOT-MULTICAST                            SURVIVED, EMPTY differential -> equivalent, not a finding
-  BEHAVIOURAL DIFFERENTIAL of M6/M7 vs shipped, degraded mode:
-    differ on 8.8.8.8, 1.1.1.1, 93.184.216.34 -> they call GLOBAL IPv4 "remote" (allow),
-    which criterion 2 ("NEVER classifies any address as remote") forbids. Two independently
-    constructed spellings agree -> a real class, not a construction artifact.
-  ROOT CAUSE of the gap: `GENUINELY_REMOTE` (3 IPv4 + 1 IPv6) is asserted ONLY on the healthy path;
-  degraded mode asserts over-refusal for exactly ONE address, the IPv6 Cloudflare one.
-  NAMED FIX (one line): assert every GENUINELY_REMOTE entry is `_is_this_machine(a) is True` inside
-  `_NoPsutil` too. Verified by construction that this kills M6 and M7.
+## D. B2 -- corrected mechanism VERIFIED TRUE by me
+  block-only  -> interfaces_enumerable = False (branch REACHED)
+  evict-only  -> interfaces_enumerable = True  (branch NOT reached)
+  both        -> False
+The shipped `_NoPsutil` docstring (lines 67-89) now states exactly this. TRUE.
+RESIDUAL: experiment_results_86.30.md:50 STILL states the OLD INVERTED claim as fact
+("Evicting sys.modules['psutil'] is the load-bearing half") with NO supersession marker
+at the point of the claim; the correction is ~100 lines later in the CYCLE 2 section.
+Same class: the cycle-1 criterion table row 6 (line 42) still reads "3 cells, all KILLED
+| MET", which cycle 2 itself proved incomplete. Main's claim "Corrected in all three
+places" reproduces for the docstring and the contract, NOT for this file. -> WARN.
 
-## E. FINDING -- the stated mechanism is FALSE (H1 root-caused)
-Claim, verbatim in experiment_results_86.30.md, contract P1, AND the SHIPPED `_NoPsutil` docstring:
-  "a module already in sys.modules is served from cache and an __import__ hook never fires.
-   Evicting sys.modules['psutil'] is the load-bearing half"
-MEASURED with psutil force-imported and NO eviction: hook fired True, interfaces_enumerable() False
-  -> degraded branch REACHED; the block was NOT inert.
-MEASURED eviction only, no block: interfaces_enumerable() True -> branch NOT reached.
-=> BLOCK is load-bearing, EVICTION is redundant. The artifacts state the exact inverse.
-`import x` always calls builtins.__import__; sys.modules is consulted INSIDE it.
-REAL mechanism that DOES defeat such a probe, demonstrated: warm the module-level `_own_enumerable`
-cache (live_backend_origin.py:126-127) first, then block+evict -> interfaces_enumerable() stays True.
+## E. Mutation matrix -- MINE, mirrored scratchpad tree (repo never written)
+Mirror at scratchpad/mut/{backend/tests,scripts/qa}; the test resolves SRC via parents[2].
+Anchor `and refusing is the safe answer.\n        return True` asserted unique (count==1).
+HEALTHY env:
+  C0-CONTROL                                rc=0  9 passed
+  M1-REVERT (not ip.is_global)              KILLED  3 failed
+  M5-REFUSE-ALL (predicate -> True)         KILLED  2 failed
+  M6-NOT-V4-GLOBAL                          KILLED  1 failed   <- B3 FIX CONFIRMED
+  M7-V6-OR-NOTGLOBAL                        KILLED  1 failed   <- B3 FIX CONFIRMED
+  N1-NOT-MULTICAST   `not ip.is_multicast`      *** SURVIVED ***
+  N2-NOT-RESERVED    `not ip.is_reserved`       *** SURVIVED ***
+  N3-NOT-MCAST-OR-RSVD                          *** SURVIVED ***
+  N4-NOT-DOCUMENTATION (2-addr literal list)    *** SURVIVED ***
+BEHAVIOURAL DIFFERENTIAL (degraded mode, shipped==True everywhere):
+  N1/N3 differ on 224.0.0.1, ff02::1, 239.255.255.250 -> call them REMOTE (allow)
+  N2/N3 differ on 240.0.0.1, 255.255.255.255         -> call them REMOTE (allow)
+  `is_live_backend("http://224.0.0.1:8000/api/health")` shipped=True; under N1 it allows.
+NON-EMPTY differential => genuine survivors, not equivalent mutants. This CORRECTS the
+dropped record, which called M8-NOT-MULTICAST "EMPTY differential -> equivalent": its
+differential set contained no multicast address, so it could not discriminate.
+CLASS: N1/N2/N3 are the SAME defect shape the step exists to remove -- an IP PROPERTY
+test standing in for ownership -- and are natural-language-defensible, so a maintainer
+could plausibly write one. Criterion 2's MANDATED assertion scope (own full set +
+GENUINELY_REMOTE on the healthy path) is satisfied; its universal headline is not pinned.
+NAMED FIX (one list): add a NON-own, NON-GENUINELY_REMOTE odd-class set
+{224.0.0.1, ff02::1, 240.0.0.1, 255.255.255.255, 203.0.113.7, 100.64.0.1, fe80::dead:beef}
+to the degraded assertion; kills N1-N4 at once.
 
-## F. Blast radius + target-environment behaviour (measured)
-Degraded-mode over-refusal is correctly SCOPED TO PORT 8000:
-  (CF,8000) refuse=True / (CF,443) False ; (8.8.8.8,8000) True / (8.8.8.8,53) False ;
-  (127.0.0.1,8000) True / (127.0.0.1,5432) False.
-With psutil unimportable PROCESS-WIDE (the env the fix targets): suite exits 0 with **4 passed, 5 SKIPPED** --
-including test_degraded_mode_calls_NO_own_address_remote (criterion 2 full-set) and
-test_healthy_path_still_calls_remote_addresses_remote (the anti-vacuity control). `_all_own_addresses()`
-returns [] without psutil even though the file already carries an ifconfig-based derivation.
+## F. B4 -- fixed as claimed, with an UNDISCLOSED residual I measured
+Verified with a process-wide sitecustomize __import__ block (precondition asserted:
+`import psutil` raises). Suite -> **5 passed, 4 skipped, exit 0**. All four
+TestDegradedBranchRefuses tests RUN, plus TestCriterion2FullAddressSet's full-set test
+via the new ifconfig fallback. The 4 skips are the 3 TestNormalPathIsUntouched tests +
+test_healthy_path_still_calls_remote_addresses_remote, all `interfaces not enumerable here`.
+RESIDUAL, MEASURED:
+  psutil-BLOCKED  C0-CONTROL     rc=0  5 passed, 4 skipped
+  psutil-BLOCKED  M1-REVERT      rc=1  KILLED (3 failed)
+  psutil-BLOCKED  M5-REFUSE-ALL  rc=0  *** SURVIVED *** 5 passed, 4 skipped
+i.e. in the exact environment this fix targets, the suite CANNOT distinguish the fix
+from a guard destroyed entirely -- because the anti-vacuity control is one of the skips.
+experiment_results §"Criterion 4 -- the anti-vacuity control" names that very test as the
+thing that stops "refuse everything unconditionally". Main's "the four remaining skips
+are healthy-path tests, correctly inapplicable" is literally true but does not follow
+through to this consequence. NAMED FIX, machinery already in the file: synthesise a
+healthy path without psutil by setting mod._own_cache = frozenset(_own_addresses_via_ifconfig())
+and mod._own_enumerable = True, then run the anti-vacuity control there. -> WARN.
 
 ## G. Criterion grading
-1 MET (independently re-derived, both predicates) | 2 MET as written, WARN residual (M6/M7) |
-3 MET (50/50 exit 0, md5 match, matrix 7/7) | 4 MET (H2 proves the control; M1 kills the revert) --
-  but the stated REASON the harness works is false (E) | 5 MET (lsof reproduces byte-for-byte, psutil
-  7.2.2 importable and in no requirements file, IPv6 curl=000 vs IPv4 200 -> not reachable, claim TRUE) |
-6 MET literally (revert mutated + killed) but the "no mutant survives" bar is not fully cleared.
+1 MET (C, independently re-derived, both predicates)
+2 MET over the mandated scope (0/16 full own set; GENUINELY_REMOTE remote on healthy path);
+  WARN residual N1/N2/N3 (E)
+3 MET (immutable cmd exit 0 / 50 passed; frozen table md5 identical to 63074429~1)
+4 MET (positive control asserts interfaces_enumerable() is False; M1-REVERT KILLED in
+  BOTH the healthy and the psutil-blocked environment)
+5 MET (lsof reproduced by me byte-for-byte, same pid 43839, IPv4-only; psutil 7.2.2
+  importable and declared in NO requirements file; "not reachable in practice" TRUE)
+6 MET literally (revert mutated and killed; matrix honestly scoped -- Main's own
+  "licenses 'these four were killed', nothing global"); WARN residual (E)
 
-## H. Verdict issued: CONDITIONAL (ok=false, harness_compliance_ok=false, certified_fallback=false)
-Blockers: (1) contract-before-generate breach, (2) false mechanism claim in SHIPPED source,
-(3) M6/M7 mutation survivors on criterion 2, (4) suite self-disables where the branch is live.
-No criterion is materially unaddressed, so not FAIL. 0 prior CONDITIONALs -> auto-FAIL rule not triggered.
+## H. Verdict issued: CONDITIONAL (ok=false, harness_compliance_ok=false)
+Ceiling is CONDITIONAL because harness compliance is NOT clean (B1). Not FAIL: every
+immutable criterion is MET on evidence I executed myself, and harness_log has 0 prior
+86.30 entries so the 3rd-CONDITIONAL auto-FAIL rule is not triggered.
+Three residual findings, all with named fixes: E (survivors), F (anti-vacuity absent
+where the branch is live), D (stale inverted claim + stale criterion-6 row).
+
+No `handoff/current/evaluator_critique_86.30.md` exists -- confirmed: this is the FIRST
+verdict for 86.30, not a reversal of one.
+
+COMPLETED: 2026-08-10T15:11:04Z

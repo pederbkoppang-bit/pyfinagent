@@ -158,11 +158,14 @@ class TestDegradedBranchRefuses:
         falls back to port-only refusal, and `_canonical_addresses` returning
         None yields `verdict = True`.
         """
+        probe = GENUINELY_REMOTE + ODD_CLASS_NOT_OURS
         with _NoPsutil() as mod:
-            allowed = [a for a in GENUINELY_REMOTE if mod._is_this_machine(a) is not True]
+            allowed = [a for a in probe if mod._is_this_machine(a) is not True]
         assert allowed == [], (
             f"degraded mode ALLOWED addresses it cannot disprove: {allowed}. "
-            "Criterion 2 requires it never classify anything as remote."
+            "Criterion 2 requires it never classify anything as remote, and the "
+            "odd-class entries are here so no ipaddress property can stand in "
+            "for ownership."
         )
 
 
@@ -246,6 +249,32 @@ GENUINELY_REMOTE = [
     "93.184.216.34",          # example.com (the frozen row's address family)
 ]
 
+#: Addresses that are NEITHER ours NOR ordinary public unicast. They exist to
+#: kill the whole class of "some ipaddress property stands in for ownership",
+#: which is the original defect wearing different clothes.
+#:
+#: ADDED after FOUR more survivors, every one an IP-property proxy:
+#:   `not ip.is_multicast`                       -> allows 224.0.0.1, ff02::1, 239.255.255.250
+#:   `not ip.is_reserved`                        -> allows 240.0.0.1, 255.255.255.255
+#:   `not (ip.is_multicast or ip.is_reserved)`   -> allows both sets
+#:   an explicit 2-address literal list          -> allows everything else
+#: All four passed a 9-test suite because every address it drove through the
+#: degraded branch was either ours or ordinary public unicast. The differential
+#: is non-empty and measured, so these are genuine survivors, not equivalent
+#: mutants -- and it corrects the DROPPED cycle-1 record, which scored a
+#: multicast mutant "EMPTY differential -> equivalent" only because its own
+#: probe set contained no multicast address.
+ODD_CLASS_NOT_OURS = [
+    "224.0.0.1",         # IPv4 multicast, all-hosts
+    "239.255.255.250",   # IPv4 multicast, SSDP
+    "ff02::1",           # IPv6 link-local multicast, all-nodes
+    "240.0.0.1",         # IPv4 reserved (class E)
+    "255.255.255.255",   # IPv4 limited broadcast
+    "203.0.113.7",       # TEST-NET-3 (RFC 5737)
+    "100.64.0.1",        # CGNAT (RFC 6598) -- NOT this host's
+    "fe80::dead:beef",   # link-local, not one of ours
+]
+
 
 class TestCriterion2FullAddressSet:
     def test_degraded_mode_calls_NO_own_address_remote(self):
@@ -258,6 +287,44 @@ class TestCriterion2FullAddressSet:
         assert remote == [], (
             f"{len(remote)}/{len(own)} of this machine's OWN addresses were called "
             f"remote in degraded mode: {remote[:5]}"
+        )
+
+    def test_anti_vacuity_control_ALSO_runs_without_psutil(self):
+        """The control that kills "refuse everything always", in the environment
+        the fix actually targets.
+
+        `test_healthy_path_still_calls_remote_addresses_remote` below SKIPS when
+        psutil is absent -- and psutil-absent is precisely when the degraded
+        branch goes live. Measured by the evaluator: with psutil unimportable
+        process-wide, a mutant making `_is_this_machine` return True
+        unconditionally SURVIVED at 5 passed / 4 skipped, because the one control
+        that would have caught it was one of the skips. The suite could not tell
+        the fix from a destroyed guard in the only environment that matters.
+
+        So synthesise a healthy path WITHOUT psutil: the module already exposes
+        `_own_cache` / `_own_enumerable`, and this file already derives the
+        address list from ifconfig. No new machinery.
+        """
+        own = _own_addresses_via_ifconfig()
+        if not own:
+            pytest.skip("ifconfig unavailable, so no address list can be derived at all")
+        mod = _load("synth_healthy")
+        # Setting the cache alone is NOT enough, and finding that out is the
+        # point of the assertion below. `_is_this_machine` calls
+        # `own_addresses(refresh=True)`, which re-runs
+        # `_enumerate_interface_addresses()` -- without psutil that returns None,
+        # so `_own_enumerable` is flipped straight back to False and the
+        # synthesised healthy path is clobbered mid-test. Replacing the
+        # enumerator is what actually synthesises it.
+        mod._enumerate_interface_addresses = lambda: frozenset(own)
+        mod._own_cache = None
+        mod._own_enumerable = None
+        assert mod.interfaces_enumerable() is True, "the synthesised healthy path did not take"
+        wrong = [a for a in GENUINELY_REMOTE if mod._is_this_machine(a) is not False]
+        assert wrong == [], (
+            f"these genuinely remote addresses were called THIS MACHINE on a "
+            f"synthesised healthy path: {wrong}. If this passes vacuously the "
+            "suite cannot distinguish the fix from 'refuse everything always'."
         )
 
     def test_healthy_path_still_calls_remote_addresses_remote(self):
