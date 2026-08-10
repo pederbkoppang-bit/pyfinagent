@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `6efd33ea` | docs(86.28): add a compact Q/A briefing after the rail dropped at 197K tokens |
 | 2026-08-10 | `294a9a09` | fix(86.28): cycle-3 -- make the spawn guard behavioural, and re-derive the audit scope |
 | 2026-08-10 | `1b19b264` | docs(86.27): GENERATE artifacts -- reproduction table, criterion-5 cost, mutation matrix |
 | 2026-08-10 | `9bda4e6d` | phase-86.27: key the live-backend guard on the resolved ADDRESS, not a host string |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `9a380d90` | phase-86.12 cycle 2: correct criterion 3 -- the cockpit NAV is not the stored NAV |
 | 2026-08-10 | `9c3e0f1a` | phase-86.12: the kill switch does NOT evaluate drawdown against a stale NAV -- investigated and answ |
 | 2026-08-10 | `fdadb623` | phase-86.12: research gate PASSED + contract (before any GENERATE work) |
-| 2026-08-10 | `2fb8bebc` | phase-86.6: PARK at FAIL -- correct the artifact, queue the class fix, do not close |
 
 ---
 
