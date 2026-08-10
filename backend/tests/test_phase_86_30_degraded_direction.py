@@ -64,11 +64,28 @@ def _own_global_v6() -> list[str]:
 class _NoPsutil:
     """Force the degraded branch.
 
-    Blocking the import is not enough on its own: `_enumerate_interface_addresses`
-    imports psutil LAZILY, so a module already in `sys.modules` is served from
-    cache and the block is inert. The first version of this probe missed that and
-    reported the degraded branch as unreachable. The eviction is the load-bearing
-    half.
+    WHICH HALF IS LOAD-BEARING -- CORRECTED, and the first version of this
+    docstring stated the exact INVERSE. It claimed "a module already in
+    sys.modules is served from cache and the block is inert; the eviction is the
+    load-bearing half". MEASURED:
+
+        block only, no eviction  -> hook fires, interfaces_enumerable() False -> branch REACHED
+        eviction only, no block  -> interfaces_enumerable() True              -> branch NOT reached
+
+    So the **__import__ BLOCK is load-bearing and the eviction is redundant**.
+    `import x` always calls `builtins.__import__`; `sys.modules` is consulted
+    INSIDE it, so a hook that raises never gets to the cache.
+
+    The eviction is KEPT anyway, as defence against a caller that has already
+    bound `psutil` as a module-level name, but it is not what makes this work.
+
+    What actually defeated the first probe was neither: it restored
+    `builtins.__import__` in a `finally` BEFORE calling the predicate, so no
+    hook was installed at call time. A probe whose failure I misdiagnosed twice.
+
+    A REAL way to defeat this probe, demonstrated by the evaluator: warm the
+    module-level `_own_enumerable` cache first, then block -- the cached True
+    short-circuits the import entirely. Hence the explicit cache reset below.
     """
 
     def __enter__(self):
@@ -120,18 +137,33 @@ class TestDegradedBranchRefuses:
             assert mod._is_this_machine("127.0.0.1") is True
             assert mod._is_this_machine("::1") is True
 
-    def test_a_genuinely_remote_address_is_OVER_refused_not_allowed(self):
-        """The safe direction, stated as a deliberate consequence.
+    def test_EVERY_genuinely_remote_address_is_OVER_refused_not_allowed(self):
+        """The safe direction, over the WHOLE remote set -- v4 AND v6.
 
-        In degraded mode we cannot tell Cloudflare from ourselves, so we refuse.
-        This is the SAME direction as both sibling degraded paths: conftest.py
+        WIDENED after two mutation survivors. The first version asserted this
+        for exactly ONE address, the IPv6 Cloudflare one, so two spellings that
+        special-case IPv4 both passed:
+
+            M6  `not (ip.version == 4 and ip.is_global)`
+            M7  `ip.version == 6 or not ip.is_global`
+
+        Both call GLOBAL IPv4 "remote" in degraded mode -- which criterion 2's
+        "NEVER classifies any address as remote" forbids -- and both survived a
+        9-test suite because no v4 remote address was ever driven through the
+        degraded branch. Two independently constructed spellings agreeing is a
+        real gap, not a construction artifact.
+
+        In degraded mode we cannot tell Cloudflare or 8.8.8.8 from ourselves, so
+        we refuse both. Same direction as the sibling degraded paths: conftest.py
         falls back to port-only refusal, and `_canonical_addresses` returning
         None yields `verdict = True`.
         """
         with _NoPsutil() as mod:
-            assert mod._is_this_machine("2606:4700:4700::1111") is True, (
-                "degraded mode must refuse an address it cannot disprove"
-            )
+            allowed = [a for a in GENUINELY_REMOTE if mod._is_this_machine(a) is not True]
+        assert allowed == [], (
+            f"degraded mode ALLOWED addresses it cannot disprove: {allowed}. "
+            "Criterion 2 requires it never classify anything as remote."
+        )
 
 
 class TestNormalPathIsUntouched:
@@ -172,13 +204,36 @@ def _all_own_addresses() -> list[str]:
         import psutil
         import socket as _s
     except Exception:                                          # noqa: BLE001
-        return []
+        # FALLBACK ADDED after the evaluator measured the consequence: with
+        # psutil unimportable PROCESS-WIDE -- which is exactly the environment
+        # this fix targets -- returning [] made 5 of 9 tests SKIP, including the
+        # criterion-2 full-set assertion and the anti-vacuity control. A suite
+        # that disables itself precisely where the branch it guards goes live is
+        # worse than no suite: it reports green in the failure state.
+        return _own_addresses_via_ifconfig()
     out = []
     for _iface, addrs in psutil.net_if_addrs().items():
         for a in addrs:
             if a.family in (_s.AF_INET, _s.AF_INET6):
                 out.append(str(a.address).split("%")[0])
     return sorted(set(out))
+
+
+def _own_addresses_via_ifconfig() -> list[str]:
+    """Every own address, derived WITHOUT psutil. v4 and v6, all scopes."""
+    try:
+        out = subprocess.run(["ifconfig"], capture_output=True, text=True, timeout=20).stdout
+    except Exception:                                          # noqa: BLE001
+        return []
+    found = []
+    for m in re.finditer(r"\binet6?\s+([0-9a-fA-F:.]+)", out):
+        raw = m.group(1).split("%")[0]
+        try:
+            ipaddress.ip_address(raw)
+        except ValueError:
+            continue
+        found.append(raw)
+    return sorted(set(found))
 
 
 #: Genuinely remote addresses. These MUST stay classified remote on the healthy

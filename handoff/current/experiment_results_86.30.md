@@ -103,3 +103,125 @@ All 7 mutants killed.
 - **The running backend has not been restarted**; restarts are batched to
   session end, so this is committed but not in force in any long-running process
   that already imported the module.
+
+---
+
+# CYCLE 2 -- the rail DROPPED, and phase-86.31 paid for itself the same day
+
+The cycle-1 Q/A **dropped**: `agent({schema}): subagent completed without calling
+StructuredOutput`, after **174,972 subagent tokens and 43 tool uses**. Under the
+old rail that analysis would simply be gone.
+
+It was not. `phase-86.31`, shipped this morning, put it on disk:
+
+```
+$ python scripts/qa/qa_wip.py 86.30 --spawned-at 2026-08-10T11:47:46Z
+{
+  "status": "COMPLETE",
+  "written_at":   "2026-08-10T11:48:07Z",     # 21s after spawn -- write-first
+  "completed_at": "2026-08-10T11:58:59Z",     # the analysis reached its end
+  "identity_checked": true,
+  "is_verdict": false,
+  "recoverable": true,
+  "bytes": 7380
+}
+exit=0
+```
+
+**This is NOT a verdict and was not treated as one.** No `evaluator_critique` was
+written from it, nothing was fed to the verdict gate, and the step is not
+claiming a grade. It is EVIDENCE for the next spawn, exactly as
+`docs/runbooks/per-step-protocol.md` §4 prescribes -- the same use Main made of a
+hand-recovered transcript on 2026-08-10, now mechanised.
+
+The recovered record named **four blockers**, all reproduced by me before acting:
+
+## B1 -- contract-before-generate (already self-disclosed)
+
+The evaluator independently re-measured the mtimes and they match my banner
+exactly; it confirmed nothing was backdated (single commit `63074429`). Unchanged
+and still a breach.
+
+## B2 -- MY STATED MECHANISM WAS THE EXACT INVERSE OF THE TRUTH
+
+Claimed verbatim in the **shipped `_NoPsutil` docstring**, in the contract, and in
+this file: *"a module already in sys.modules is served from cache and the block is
+inert; evicting `sys.modules['psutil']` is the load-bearing half."*
+
+Measured by me after the finding:
+
+```
+block only, no eviction  -> hook fires, interfaces_enumerable() False -> branch REACHED
+eviction only, no block  -> interfaces_enumerable() True              -> branch NOT reached
+```
+
+**The BLOCK is load-bearing; the eviction is redundant.** `import x` always calls
+`builtins.__import__`, and `sys.modules` is consulted *inside* it, so a hook that
+raises never reaches the cache. And the real reason my first probe failed was
+neither: it restored `builtins.__import__` in a `finally` **before** calling the
+predicate, so no hook was installed at call time. **I misdiagnosed the same probe
+twice and shipped the second misdiagnosis into production source.** Corrected in
+all three places, with the measurement. The eviction is kept as defence against a
+caller holding a module-level binding, but is no longer credited.
+
+The evaluator also demonstrated what *does* defeat such a probe: warm the
+module-level `_own_enumerable` cache first, then block. Hence the explicit cache
+reset, which is now the documented reason.
+
+## B3 -- TWO MUTATION SURVIVORS on criterion 2
+
+| mutant | shipped answer vs mutant |
+|---|---|
+| `not (ip.version == 4 and ip.is_global)` | differ on `8.8.8.8`, `1.1.1.1`, `93.184.216.34` |
+| `ip.version == 6 or not ip.is_global` | same three |
+
+Both call **global IPv4** "remote" in degraded mode, which criterion 2's "NEVER
+classifies any address as remote" forbids -- and both survived my 9-test suite,
+because `GENUINELY_REMOTE` was asserted **only on the healthy path** while degraded
+mode asserted over-refusal for exactly **one** address, the IPv6 Cloudflare one.
+Two independently-constructed spellings agreeing is a real gap, not an artifact.
+
+Fixed: the degraded assertion now covers **every** `GENUINELY_REMOTE` entry, v4
+and v6. Re-measured: **M6 KILLED, M7 KILLED**, plus M1 (the revert) and M5
+(allow-everything) still killed.
+
+## B4 -- THE SUITE DISABLED ITSELF EXACTLY WHERE THE BRANCH GOES LIVE
+
+With psutil unimportable **process-wide** -- the environment this fix targets --
+5 of 9 tests SKIPPED, including the criterion-2 full-set assertion **and** the
+anti-vacuity control. A suite that reports green by skipping, in the failure
+state it guards, is worse than no suite. `_all_own_addresses()` returned `[]`
+without psutil even though the file already carried an ifconfig-based derivation.
+
+Fixed with a psutil-free fallback. Measured with a stub `psutil.py` that raises:
+
+```
+before: 4 passed, 5 skipped
+after : 5 passed, 4 skipped     exit=0
+```
+
+All **four degraded-mode tests now run and pass** without psutil -- the positive
+control, the own-address full set, the over-refusal set, and loopback. The four
+remaining skips are the *healthy-path* tests, which are correctly inapplicable in
+an environment that has no healthy path.
+
+## Cycle-2 evidence
+
+```
+$ python -m pytest backend/tests/test_phase_86_30_degraded_direction.py -q
+9 passed
+
+mutation: CONTROL 9 passed | M1 KILLED | M5 KILLED | M6 KILLED | M7 KILLED
+psutil-absent process-wide: 5 passed, 4 skipped, exit=0
+```
+
+**No production behaviour changed in cycle 2** -- `live_backend_origin.py` is
+untouched since `63074429`. Every edit is in the test file.
+
+## What I still cannot claim
+
+- The contract-before-generate breach stands; it cannot be undone.
+- The recovered record is evidence, not a grade. **86.30 has NO verdict.** A
+  fresh Q/A must run on the cycle-2 tree.
+- The mutation set is still a set: four cells killed licenses "these four were
+  killed", nothing global.
