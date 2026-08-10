@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `4e97374f` | phase-86.34 cycle 2: fix the FAIL -- correct the claim that survived, kill the vacuous oracle |
 | 2026-08-10 | `551d5188` | phase-86.34: record the Q/A verdict VERBATIM -- FAIL |
 | 2026-08-10 | `5b1de158` | docs: goal now genuinely under 4000 chars (prior commit still measured 4018) |
 | 2026-08-10 | `f45d905b` | docs: trim next-session goal under the 4000-char limit |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `2a696ac7` | phase-86.29: research GATE FAILED (rail dropped); brief preserved, no contract written |
 | 2026-08-10 | `73672a19` | phase-86.30 cycle 3: close the three fixable findings; PARKED on an un-repairable breach |
 | 2026-08-10 | `ec0b1612` | phase-86.36: queue the write-first record's fixed-path retention gap |
-| 2026-08-10 | `12d18011` | phase-86.29: derive the archive-misattribution census, recall AND precision validated |
 
 ---
 
+### v6.93.70 — phase-86.34 cycle 2: fix the FAIL -- correct the claim that survived,... (2026-08-10)
+
+- **phase-86.34 cycle 2: fix the FAIL -- correct the claim that survived, kill the vacuous oracle**
 ### v6.93.69 — phase-86.34: record the Q/A verdict VERBATIM -- FAIL (2026-08-10)
 
 - **phase-86.34: record the Q/A verdict VERBATIM -- FAIL**
