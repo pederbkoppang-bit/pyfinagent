@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `5fef5b05` | docs(86.28): compact the evidence read path 2572 -> 663 lines |
 | 2026-08-10 | `9ed009f9` | docs(86.28): record the second Q/A rail drop; step stays pending |
 | 2026-08-10 | `7a829c09` | docs(86.24): GENERATE artifacts -- adjudication, derivation, delta-0 differential |
 | 2026-08-10 | `a6c3c3f3` | fix(86.28): cycle-6 -- standing mutants for the 3 undemonstrated checks |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `636faad1` | docs: final day-report section -- the night's tally and the one operator action |
 | 2026-08-10 | `681f813b` | chore(handoff): archive 86.12 and 86.22, file the stray capture, add researcher memories |
 | 2026-08-10 | `a108b9c9` | phase-86.26: close -- the Q/A lint gate is usable on the learn-loop modules again (Q/A PASS) |
-| 2026-08-10 | `55c40973` | phase-86.26 cycle 2: exhibit the failure SETS instead of asserting they match |
 
 ---
 
