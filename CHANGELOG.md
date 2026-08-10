@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `a16fa5a2` | phase-86.26: research gate PASSED + contract (before any removal) |
 | 2026-08-10 | `a6058efd` | phase-86.12: close -- the kill switch does NOT evaluate drawdown against a stale NAV (Q/A PASS) |
 | 2026-08-10 | `c8628558` | docs: amend the day report with the night's later work |
 | 2026-08-10 | `79f5a5ab` | phase-86.12 cycle 3: the capture SUCCEEDED and I reported it as a failure |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `802a8535` | docs: day report 2026-08-10 -- the book CAN trade, next cycle 14:00 ET today |
 | 2026-08-10 | `10772911` | docs(86.21): cycle-3 Q/A returns FAIL by escalation -- step PARKED, not reverted |
 | 2026-08-10 | `130a5e9b` | fix(86.21): cycle-3 -- my cycle-2 fix was the instance; this is the class |
-| 2026-08-10 | `070e6714` | fix(86.21): cycle-2 -- I shipped a silent zero inside the fix for silent zeros |
 
 ---
 
+### v6.93.29 — phase-86.26: research gate PASSED + contract (before any removal) (2026-08-10)
+
+- **phase-86.26: research gate PASSED + contract (before any removal)**
 ### v6.93.28 — phase-86.12: close -- the kill switch does NOT evaluate drawdown agai... (2026-08-10)
 
 - **phase-86.12: close -- the kill switch does NOT evaluate drawdown against a stale NAV (Q/A PASS)**
