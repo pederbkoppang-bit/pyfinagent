@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `7a829c09` | docs(86.24): GENERATE artifacts -- adjudication, derivation, delta-0 differential |
 | 2026-08-10 | `a6c3c3f3` | fix(86.28): cycle-6 -- standing mutants for the 3 undemonstrated checks |
 | 2026-08-10 | `d5180e27` | phase-86.24: stop the suite changing colour with the wall clock |
 | 2026-08-10 | `49793961` | fix(86.28): cycle-5 -- guard the ABSENT half, and assert fixture fidelity |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `a108b9c9` | phase-86.26: close -- the Q/A lint gate is usable on the learn-loop modules again (Q/A PASS) |
 | 2026-08-10 | `55c40973` | phase-86.26 cycle 2: exhibit the failure SETS instead of asserting they match |
 | 2026-08-10 | `1ed39ccd` | fix(hygiene): phase-86.26 -- remove 7 dead imports so the Q/A lint gate is usable again |
-| 2026-08-10 | `a16fa5a2` | phase-86.26: research gate PASSED + contract (before any removal) |
 
 ---
 
