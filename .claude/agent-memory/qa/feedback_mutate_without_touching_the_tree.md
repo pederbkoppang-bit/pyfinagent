@@ -26,6 +26,19 @@ scratch config outside the project needs
 `NODE_PATH=<frontend>/node_modules` or it cannot `require('vitest/config')`; and a
 copy left in /tmp fails module resolution entirely.
 
+**Node/ESM checker scripts** — when the subject is a script whose own checker
+reads it from a REPO-RELATIVE path, rebuild a minimal repo in `mkdtemp` and exec
+the real checker there: `fs.mkdirSync(d+'/.claude/workflows',{recursive:true})`,
+write the MUTATED subject and the (possibly mutated) checker into their real
+relative slots, then `execFileSync('node',[d+'/scripts/qa/<checker>.mjs'])` and
+grep stdout for `ALL GREEN|^FAILED|  FAIL `. Zero repo writes, no restore, and it
+runs the AUTHOR'S checker rather than a re-implementation. Drive it all from
+`node --input-type=module -e '...'` so no scratch file is created either (a bare
+`rm` anywhere in the command gets the whole Bash call denied). This also lets you
+mutate the FIXTURE, not just the subject — 86.28: reverting `makeBrief` to its
+pre-change shape turned 8 checks red, which is what PROVED the fixture change was
+truthful rather than masking a weakened guard.
+
 **Why:** qa.md forbids Edit/Write on production files but §4c requires EXECUTING
 mutations — this resolves the conflict instead of picking a side, and the verdict
 can state `git diff --stat` empty without a restore step.

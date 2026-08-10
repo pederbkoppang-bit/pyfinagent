@@ -28,6 +28,23 @@ correct decoy" mutant. Same trick for hash/token guards -- 83.1's
 decoy correctly FAILS (it compares to the real file), so first-match is only
 dangerous when the guard compares text-to-runtime, not text-to-text.
 
+**1b. The same defect in JS `indexOf` ORDERING guards (86.28, 2026-08-10).**
+An "X happens before Y" guard written as
+`src.indexOf('if (tierUnsupported) {') < src.indexOf('const envelope = await agent(')`
+is first-match on BOTH operands, so a `//` COMMENT containing the token
+satisfies the left side. Measured mutant: leave
+`// harmless note: if (tierUnsupported) { we would refuse here }` before the
+spawn and move the REAL refusal block to AFTER the spawn -- checker still
+printed `ALL GREEN: 61 passed, 0 failed`. This is vacuity shapes #2 + #8
+combined, and it is the shape source-position guards take whenever a driver is
+module-level code that cannot be executed outside its runtime. Named fix:
+strip comment lines before indexing, or match a comment-insensitive regex on
+the block body (`/if \(tierUnsupported\) \{[\s\S]*?return \{/`). Grade it WARN
+not BLOCK when a live run supplies the behavioural half AND the downstream
+guard still fails closed (there the cost of defeat is wasted tokens, not a
+false certification) -- but say plainly that the ordering has no re-runnable
+regression guard.
+
 **2. A retired figure's population includes OTHER agents' memory files.** When
 grading "did the author sweep the whole population of a corrected number",
 derive the scope repo-wide, not over the handoff artifacts. 83.1 cycle 3 swept

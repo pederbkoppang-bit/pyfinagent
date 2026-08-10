@@ -32662,3 +32662,103 @@ mutation matrix.
 **What this step does NOT claim:** it closes no channel that was open at the start of
 cycle 4. Coverage on paper is strictly worse than cycle 3 reported, because cycle 3's
 paper was wrong. The HTTP class fix is phase-86.27, in flight.
+
+---
+
+## Cycle 1197 -- 2026-08-10 -- phase=86.27 result=PASS
+
+**The live-backend guard now keys on the RESOLVED ADDRESS, not on a host string.
+Q/A PASS, 7/7 criteria, zero violated, 27 checks, cycle 1.**
+
+**The defect.** `uvicorn --host 0.0.0.0` binds the IPv4 wildcard (`lsof`:
+`TCP *:8000 (LISTEN)`), so every address of this machine reaches the running
+book, while the guard recognised **four** literal strings. Measured with a
+non-networking sentinel and read-only GETs: **12 spellings reachable (HTTP 200)
+and NOT refused on a mutating PUT** -- the step's eight, three I invented within
+five minutes of looking (`0x7f.0x0.0x0.0x1`, `017700000001`, `[::ffff:7f00:1]`),
+and one from the research round.
+
+**The count went 8 -> 11 -> 12 across three independent looks. That is the
+finding**: the residual is an open-ended population, and 86.6 failed three
+cycles running by treating each sample as the population.
+
+**Why no allowlist could have worked.** `%31%32%37%2e%30%2e%30%2e%31`:
+`urlsplit()` hands the guard that literal string while **urllib percent-decodes
+the host itself and connects to `127.0.0.1:8000`**. A perfect canonicaliser on
+`urlsplit().hostname` still fails it, because repairing that at the string layer
+means re-implementing urllib's decode chain -- a second parser obliged to agree
+with the first forever. **The guard's parser is not the requester's parser**, so
+parse-and-match is unsound here at any list length.
+
+**What was built.** One authority (`scripts/qa/live_backend_origin.py`;
+conftest's copy DELETED, it imports). Canonicalisation via
+`getaddrinfo(..., AI_NUMERICHOST)` -- zero network, the same libc parser the
+socket uses -- with a real resolve only for genuine names, memoised, failing
+SAFE. The authority is a PEP-578 `socket.connect` hook that sees the
+already-resolved address; the HTTP verb is carried to it from the
+`urlopen`/urllib3 wrappers on a `threading.local`, because that event fires
+before any verb is on the wire. No DNS inside the guard, zero TOCTOU. The child
+process (`smoke_cc_rail_e2e.py`) installs the same guard.
+
+**Measured:** immutable command **40 passed** pre-fix and post-fix; new module
+50 tests; junk battery 24 inputs x 3 predicates, **0 raised** (the pre-fix
+conftest copy RAISED `AttributeError` on two of them, so criterion 4 was
+*failing* before); criterion-5 cost over a frozen-tree full suite (360.18s) --
+59 resolution calls, **61.38 ms total**, worst single 32.3 ms, socket hook
+**3.684 us/event**; mutation matrix **7/7 killed**. Full suite 16 failed / 3351
+passed, **delta attributable = 0** (13 of 16 reproduced at `cad38647` in a git
+worktree; the other 3 fail on missing `backend.log` strings in 0.11 s without
+opening a socket). `handoff/kill_switch_audit.jsonl` byte-identical throughout.
+
+**The Q/A did not take any of that on trust.** It derived **10 of its own**
+spellings proven absent from the tracked tree, found 6 that reach the backend,
+and showed all are refused -- *and still refused with the string layer
+monkeypatched to False*, isolating the socket authority. It ran the
+armed/disarmed differential itself (disarmed sends all 14 PUTs, armed refuses
+all 14, GETs pass in both), reproduced the full suite exactly (360.70s vs
+360.18s), and authored **five mutants I had not included** (3 killed, 2
+equivalent).
+
+**Two probe defects in MY OWN matrix, both caught by the machinery.** Two
+mutants survived the first run and neither was the guard's fault: `M3` was
+probed with `::ffff:127.0.0.1`, where CPython already reports `is_loopback ==
+True`, so the branch looked redundant when it is load-bearing only for a mapped
+NON-loopback address; `M6` was probed with a loopback spelling whose control
+answer and fail-safe answer coincide, so the cell could not discriminate. Fixed
+by correcting the PROBES, never by weakening a guard. The gap M3 exposed is now
+its own test.
+
+**Five NOTE-level findings, none blocking. The tree that was graded stays
+frozen, so none is fixed here.**
+
+- **N1 -- my scope-honesty claim was ONE-SIDED, and this is the sharpest.** I
+  wrote that the psutil-absent degraded path "over-refuses". Measured by the
+  Q/A: this machine has six globally-routable IPv6 addresses, and with the
+  psutil import forced to fail, `_is_this_machine` calls one of **this
+  machine's own addresses REMOTE** -- so it also **UNDER-refuses**. Latent
+  behind two independently measured conditions: psutil is installed, and
+  uvicorn is bound IPv4-only so no IPv6 spelling reaches the book today. The fix
+  is one line. **Queued as 86.30** rather than applied post-verdict.
+- **N2** -- "TOTAL" is one notch stronger than proven: an object whose own
+  `__str__` or `__int__` raises an uncaught type escapes. Both fail CLOSED, and
+  no production call site can supply such an object.
+- **N3** -- `test_no_stub_in_this_repo_can_ever_bind_the_live_port` asserts only
+  the sysctl range fact; the repo-wide census its name implies lives in prose.
+  The Q/A ran the wider census itself and the claim holds.
+- **N4** -- a "verbatim" invariant that stopped reproducing through no fault of
+  the code: `git diff 9bda4e6d HEAD -- conftest.py scripts/qa backend/tests` was
+  empty when written, then a CONCURRENT session's commit touched a different
+  file inside the `scripts/qa` glob. **Lesson: pin such an invariant to the FILE
+  LIST, not to a directory glob.** Per-file sha256 for all seven touched files
+  is identical to `9bda4e6d`.
+- **N5** -- the Q/A declined to create a worktree (a filesystem mutation) and
+  says so, bounding its own verdict rather than implying it reproduced my
+  worktree comparison.
+
+**Not claimed:** `httpx`/`httpcore` and raw sockets remain open (pre-existing,
+declared); **urllib3 connection pooling** is a NEW named residual -- a mutating
+request reusing a socket opened by an earlier GET emits no fresh
+`socket.connect`; and a DNS dependency was introduced into one pre-existing
+assertion (`example.com:8000 -> False`), disclosed rather than discovered later.
+Nothing in this step touches production code: `git diff --name-only cad38647 HEAD
+-- '*.py'` outside `backend/tests`, `scripts/qa` and `conftest.py` is empty.
