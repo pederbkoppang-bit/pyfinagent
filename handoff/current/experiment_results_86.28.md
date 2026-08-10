@@ -509,3 +509,39 @@ I grepped EVERY `FAILED:`/`ALL GREEN:` line in both artifacts and totalled
 each. Exactly two were fabricated; the rest reconcile against the suite
 size at their cycle (40 / 61 / 64 / 73). The check is now written down so
 it is re-runnable rather than dependent on me noticing.
+
+---
+
+# Follow-up -- cycle 5 (after the CONDITIONAL on Q1)
+
+Q/A `wf_5a217e41-9b9` confirmed the cycle-4 evidence fix (both transcripts
+reproduced byte-exactly under its own mutant rebuilds) and found one new
+defect.
+
+## Guarding one direction of a two-way distinction is half a guard
+
+Mutant **Q1** (`tierUnsupported = !tierAbsent && !tierSupported` ->
+`= !tierSupported`) survived at `ALL GREEN 73/0` while an ABSENT tier
+stopped spawning and returned `tier_unsupported: ... tier "null"`. Every
+caller that omits `tier` -- the common case -- would have broken silently.
+
+Every check I wrote for the UNSUPPORTED half asserts that **nothing
+happens**. None asserted the ABSENT half still **works**. The fixture made
+it invisible: `TIER_ABSENT` had `supported: true`, which the driver never
+produces (`tierSupported = !tierAbsent && ...` is false when absent), so
+enforceGate-level probes were testing a state production cannot reach.
+
+## Fixed
+
+- `TIER_ABSENT.supported` -> `false`, matching the driver.
+- Three driven ABSENT-tier checks in `[6d]`: still spawns; no
+  `tier_unsupported` violation; reports `tier_requested: null` /
+  `tier_applied: moderate`.
+- **Fixture fidelity asserted against the running driver** by two new
+  checks. The comment claiming the fixtures were "the shape the driver
+  builds" was false on that field; a comment is now a test.
+
+Q1 and Q5 both KILLED -- captures in `live_check` §26, arithmetic
+reconciled in §27.
+
+Checker: 40 -> 61 -> 64 -> 73 -> **78**, 0 failed.

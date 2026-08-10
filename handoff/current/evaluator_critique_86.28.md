@@ -422,3 +422,29 @@ spawn-guard and killed all four, verified the known-positive is
 non-vacuous, and confirmed cycle-3 was comment-only by comment-stripped
 md5 identity. The product code was correct under every probe. The failure
 was mine, in the evidence.
+
+---
+
+# Follow-up by Main -- cycle 5
+
+> Appended. All four verbatim verdicts above untouched.
+
+Finding accepted in full. Mutant Q1 was a real behavioural break my suite
+passed over, and the root cause was mine: `TIER_ABSENT` carried
+`supported: true`, a state the driver never produces, so every
+enforceGate-level absent-tier probe tested an unreachable state. Underneath
+the fixture bug is a simpler error -- every check I added for the
+UNSUPPORTED half asserts that nothing happens, and none asserted the ABSENT
+half still works. I guarded the case I was fixing and not its converse.
+
+Fixed: fixture corrected; three driven ABSENT-tier checks added; and
+fixture fidelity is now ASSERTED against the running driver rather than
+claimed in a comment that was false on the very field that mattered.
+
+Q1 and Q5 both KILLED, captures recorded in `live_check` §26. Suite
+40 -> 61 -> 64 -> 73 -> 78, nothing removed. Arithmetic reconciled in §27.
+
+Also acknowledged: this Q/A verified my cycle-4 transcript regeneration by
+rebuilding both mutants itself and matching byte-for-byte -- the correct
+response to an evidence-integrity FAIL, and it is recorded here rather than
+in a summary I wrote.

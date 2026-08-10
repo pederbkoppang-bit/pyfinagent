@@ -487,3 +487,92 @@ B1 mutant genuinely builds and spawns 2 rather than taking the throw path
 that would have made the assertion vacuous. Cycle-3 comment-only status was
 confirmed by comment-stripped md5 identity across three commits. The
 product code was correct under every probe the Q/A ran.
+
+---
+
+# CYCLE 5 -- after the CONDITIONAL (Q/A `wf_5a217e41-9b9`)
+
+That Q/A verified the cycle-4 remediation sound: it rebuilt both mutants
+itself and both regenerated transcripts reproduced BYTE-EXACTLY, with the
+same failing-check names in the same order. Then it found a new defect.
+
+## 24. The finding: I guarded one direction of a two-way distinction
+
+Mutant **Q1** -- `tierUnsupported = !tierAbsent && !tierSupported` changed
+to `= !tierSupported` -- left the suite at `ALL GREEN: 73 passed, 0 failed`
+while an ABSENT tier stopped spawning entirely and returned
+`tier_unsupported: the caller requested tier "null"`. That breaks every
+caller that omits `tier`, which is the common case.
+
+**Root cause: a fixture that could not represent production.** `TIER_ABSENT`
+carried `supported: true`; the driver computes
+`tierSupported = !tierAbsent && VALID_TIERS.includes(tierRequested)`, which
+is **false** for an absent tier. A fixture that cannot represent the failure
+keeps the suite green for every possible value of the code.
+
+The deeper mistake is simpler than the mechanism: every check I added for
+the UNSUPPORTED half asserts that NOTHING happens. Not one asserted the
+ABSENT half still WORKS. Guarding one direction of a two-way distinction is
+half a guard, and the half I skipped was the one every existing caller uses.
+
+## 25. Fixed
+
+- `TIER_ABSENT` now carries `supported: false`, matching the driver.
+- Three driven ABSENT-tier checks added to `[6d]`: it still SPAWNS, raises
+  no `tier_unsupported` violation, and reports `tier_requested: null` /
+  `tier_applied: moderate`.
+- **Fixture fidelity is now ASSERTED, not claimed in a comment.** Two checks
+  compare each fixture's `supported` field against what the running driver
+  reports. The old header comment said the fixtures were "the shape the
+  driver builds" and was false on exactly that field -- so the comment is
+  replaced by a test.
+
+## 26. Q1 and Q5 killed -- captured, not typed
+
+```
+### MUTANT Q1 -- tierUnsupported = !tierSupported (absent tier misclassified)
+$ node scripts/qa/verify_research_gate_workflow.mjs
+FAILED: 76 passed, 2 failed
+  - ABSENT tier still SPAWNS (the converse of the refusal -- Q/A mutant Q1) -- absent-tier run recorded 0 agent() call(s); it must still do the work
+  - ABSENT tier raises NO tier_unsupported violation -- ["tier_unsupported: the caller requested tier \"null\" which this rail does not implement (supported: simple, moderate, complex). Ran at \"moderate\". Refusing to certify a standard that was never applied -- pass a supported tier, or implement the requested one."]
+
+### MUTANT Q5 -- enforceGate keys off supported!==true
+$ node scripts/qa/verify_research_gate_workflow.mjs
+FAILED: 75 passed, 3 failed
+  - ABSENT tier still PASSES (defaulting is legitimate when the caller named nothing)
+  - ABSENT tier raises NO tier_unsupported violation -- ["tier_unsupported: the caller requested tier \"null\" which this rail does not implement (supported: simple, moderate, complex). Ran at \"moderate\". Refusing to certify a standard that was never applied -- pass a supported tier, or implement the requested one."]
+  - mutant "tier_unsupported check removed" anchor present -- anchor not found: const tierUnsupportedHere = !!(tierInfo && tierInfo.unsupported === true)
+```
+
+Q5 additionally trips the `[7]` anchor-presence guard, which is expected --
+the mutation edits the anchored line. The killing assertions are the
+absent-tier checks.
+
+## 27. Arithmetic self-check -- suite is now 78
+
+```
+  64 <- FAILED: 62 passed, 2 failed
+  73 <- FAILED: 70 passed, 3 failed
+  73 <- FAILED: 68 passed, 5 failed
+  71 <- `live_check` §15 carried `FAILED: 68 passed, 3 failed` inside a block
+  64 <- FAILED: 62 passed, 2 failed
+  73 <- FAILED: 70 passed, 3 failed
+  73 <- FAILED: 68 passed, 5 failed
+  71 <- `FAILED: 68 passed, 3 failed` -- arithmetically impossible, because this
+  73 <- FAILED: 70 passed, 3 failed
+  73 <- FAILED: 68 passed, 5 failed
+  64 <-   64 <- FAILED: 62 passed, 2 failed
+  73 <-   73 <- FAILED: 70 passed, 3 failed
+  73 <-   73 <- FAILED: 68 passed, 5 failed
+  64 <-   64 <- FAILED: 62 passed, 2 failed
+  73 <-   73 <- FAILED: 70 passed, 3 failed
+  73 <-   73 <- FAILED: 68 passed, 5 failed
+  71 <-   71 <- `FAILED: 68 passed, 3 failed` -- arithmetically impossible, because this
+  73 <-   73 <- FAILED: 70 passed, 3 failed
+  73 <-   73 <- FAILED: 68 passed, 5 failed
+  78 <- FAILED: 76 passed, 2 failed
+  78 <- FAILED: 75 passed, 3 failed
+```
+
+Valid suite sizes by cycle: 40 / 61 / 64 / 73 / **78**. Every total above
+matches one. Ladder: 40 -> 61 -> 64 -> 73 -> 78, nothing removed.

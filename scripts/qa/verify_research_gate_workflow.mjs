@@ -202,10 +202,25 @@ function makeGate(mod) {
 }
 
 // phase-86.28 tier fixtures -- the shape the driver builds at its enforceGate call.
+//
+// CYCLE 5 CORRECTION. TIER_ABSENT previously carried `supported: true`, which
+// the driver NEVER produces: it computes
+//     const tierSupported = !tierAbsent && VALID_TIERS.includes(tierRequested)
+// so an ABSENT tier is supported:FALSE. The fixture therefore could not
+// represent the production state, and a fixture that cannot represent the
+// failure keeps the suite green for every possible value of the code
+// (qa.md 4c shape #5). Measured consequence: mutant Q1
+// (`tierUnsupported = !tierAbsent && !tierSupported` -> `= !tierSupported`)
+// left the suite at ALL GREEN 73/0 while an absent tier stopped spawning
+// entirely -- a total break of every caller that omits `tier`.
+//
+// The header comment above was itself the tell: it claimed to be "the shape
+// the driver builds" and was false on that one field. Fixture fidelity is now
+// ASSERTED against the running driver in [6d] rather than claimed in a comment.
 const TIER_VALID = ['simple', 'moderate', 'complex']
 const tierOpts = (over) => ({ tier: { requested: null, applied: 'moderate', supported: true, absent: false, unsupported: false, valid: TIER_VALID, ...over } })
 const TIER_UNSUPPORTED = tierOpts({ requested: 'deep', supported: false, unsupported: true })
-const TIER_ABSENT = tierOpts({ requested: null, absent: true })
+const TIER_ABSENT = tierOpts({ requested: null, absent: true, supported: false })
 const TIER_OK = tierOpts({ requested: 'complex', applied: 'complex' })
 
 /** A mutant is KILLED if the weakened build lets a previously-rejected envelope
@@ -389,6 +404,9 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
   check('the first spawn is the stage-1 researcher (agentType researcher)',
     supported.spawns.length > 0 && supported.spawns[0].opts && supported.spawns[0].opts.agentType === 'researcher')
 
+  // The ABSENT-tier run, driven once and asserted on below.
+  const absentRun = await driveRecording(drive, { step_id: 'BEHAVE-absent' })
+
   // THE PROPERTY ITSELF, observed rather than pattern-matched.
   const unsupported = await driveRecording(drive, { step_id: 'BEHAVE-unsupported', tier: 'deep' })
   check('UNSUPPORTED tier spawns ZERO agents (measured, not scanned)',
@@ -405,6 +423,30 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
   const blind = await driveRecording(drive, undefined)
   check('BLIND run spawns ZERO agents (86.17 property, measured)',
     blind.spawns.length === 0 && blind.result && blind.result.gate_passed === false)
+
+  // CYCLE 5 -- THE CONVERSE, which cycle 3 never guarded. Every check added for
+  // the UNSUPPORTED half asserted that NOTHING happens; none asserted that the
+  // ABSENT half still WORKS. So a mutation that made absent-tier callers take
+  // the refusal path was invisible (Q/A mutant Q1: ALL GREEN 73/0 while every
+  // caller omitting `tier` silently stopped spawning). Guarding one direction
+  // of a two-way distinction is half a guard.
+  check('ABSENT tier still SPAWNS (the converse of the refusal -- Q/A mutant Q1)',
+    supported.spawns.length > 0 && absentRun.spawns.length > 0,
+    `absent-tier run recorded ${absentRun.spawns.length} agent() call(s); it must still do the work`)
+  check('ABSENT tier raises NO tier_unsupported violation',
+    absentRun.result && !(absentRun.result.violations || []).some(v => v.includes('tier_unsupported')),
+    JSON.stringify((absentRun.result || {}).violations))
+  check('ABSENT tier reports tier_requested null and applied moderate',
+    absentRun.result && absentRun.result.tier_requested === null && absentRun.result.tier_applied === 'moderate')
+
+  // FIXTURE FIDELITY, asserted rather than claimed in a comment. The enforceGate
+  // fixtures must match what the driver actually computes, or every
+  // enforceGate-level probe tests a state production cannot reach.
+  check('TIER_ABSENT fixture matches the driver (supported:false for an absent tier)',
+    TIER_ABSENT.tier.supported === (absentRun.result && absentRun.result.tier_supported),
+    `fixture supported=${TIER_ABSENT.tier.supported}, driver tier_supported=${absentRun.result && absentRun.result.tier_supported}`)
+  check('TIER_UNSUPPORTED fixture matches the driver (supported:false)',
+    TIER_UNSUPPORTED.tier.supported === unsupported.result.tier_supported)
 
   // VACUITY: the /* */ block-comment decoy that defeated the cycle-2 source
   // scan (Q/A mutant B1). Against a behavioural test it cannot work, because
