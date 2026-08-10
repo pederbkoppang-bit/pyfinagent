@@ -68,6 +68,7 @@ NEW  (attributable to the removals):
 GONE (attributable to the removals):
 
 Both empty -- the failure set is identical member for member.
+```
 
 ### The two sets, ENUMERATED (cycle-2 fix)
 
@@ -121,7 +122,6 @@ AFTER run also carries phase-86.12's 12 new tests (3291 -> 3303 passed), which
 is why the passed counts differ. That makes exhibiting the members more
 necessary, not less -- and they are identical, so no failure moved either way.
 
-```
 
 ## F. The diff
 ```

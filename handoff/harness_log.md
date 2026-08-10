@@ -32536,3 +32536,53 @@ StructuredOutput call. An empty return is NO VERDICT; the lean re-run produced
 the PASS.
 
 Commits: 9c3e0f1a (c1), 9a380d90 (c2), 79f5a5ab (c3).
+
+## Cycle 1195 -- 2026-08-10 -- phase=86.26 result=PASS
+
+**Seven dead imports removed so the Q/A lint gate is usable again.** `qa.md`
+rule 1a reads a non-zero lint exit as FAIL, so with 7 F401 findings standing in
+the learn-loop modules, every future step touching them had to either re-derive
+a per-file pre/post delta by hand or accept a red gate. The immutable command
+now exits 0.
+
+Count RE-DERIVED with ruff: 7, matching the step text with no line drift.
+
+**Each name proved safe BEFORE removal, by AST rather than grep** -- a bare grep
+matches the definition site and every unrelated use and would have reported a
+false positive on all seven. Zero consumers repo-wide; no `__all__` in any file.
+The named suspect resolves clean: `compute_benchmark_return`'s only non-defining
+consumer imports it from `perf_metrics`, the ORIGIN, not through
+`outcome_tracker`.
+
+**The research changed the approach in one load-bearing way.** mypy's
+`implicit_reexport` defaults True and CPython has no re-export rule, so the
+ABSENCE of an `X as X` alias or an `__all__` entry proves nothing -- any module
+may import any name from any other. Reasoning from the marker's absence would
+have been asserting a convention the language does not enforce; only the
+consumer scan settles it.
+
+The scan validates itself before its clean report is believed: `is_buy_intent`
+and `canonical_recommendation` must return hits (8, 9) and two nonexistent
+probes must return none (0, 0).
+
+Two removals were name-level -- their statement carries survivors, and deleting
+those lines wholesale would have taken `datetime`, `timezone`,
+`compute_return_pct` and `_beat_benchmark` with them.
+
+**Two cycles. The cycle-1 CONDITIONAL was on evidence FORM, and it was fair:**
+the criterion mandates a SET diff rather than a count, and my artifacts printed
+"NEW: (none) / GONE: (none)" without ever enumerating the 14 members -- output
+byte-identical whether it came from a real set diff or a count in set language.
+Fifteen other handoff artifacts in this repo enumerate nodeids, so the
+convention existed and I departed from it. Both sets are now pasted in full,
+each naming the revision it was captured at.
+
+The cycle-2 Q/A ran its OWN full suite (368s) and confirmed its 14 nodeids are
+member-for-member identical to my AFTER set; it also checked two consumer
+channels I had not claimed -- module-alias attribute access and `mock.patch`
+string targets -- both clean. It disclosed a defect in its own instrument (a
+grep pattern written for an older ruff output format initially reported 0
+findings) rather than letting the zero stand.
+
+Commits: a16fa5a2 (gate+contract), 1ed39ccd (removals), 55c40973 (sets
+enumerated).
