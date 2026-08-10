@@ -169,3 +169,70 @@ byte-identical: YES
 git diff on the kill switch itself (must be empty -- no threshold touched):
 (empty above = unchanged)
 ```
+
+---
+
+# CYCLE 2 -- criterion 3, corrected
+
+Captured 2026-08-10 04:10:30 CEST. Cycle-1 verdict CONDITIONAL on C3
+only; the other five criteria were met and independently reproduced.
+
+## G. What the cockpit ACTUALLY renders (the premise I got wrong)
+
+```
+$ sed -n 271p frontend/src/app/page.tsx
+  const lp = useLivePortfolio();
+
+$ sed -n 31,43p frontend/src/lib/useLiveNav.ts
+    if (positions.length === 0) return status?.portfolio.nav ?? null;
+    const cash = status?.portfolio.cash ?? 0;
+    const hasAnyLive = positions.some((p) => livePrices[p.ticker]?.price != null);
+    if (!hasAnyLive) return status?.portfolio.nav ?? null;
+    // phase-56.1 (55.1 F-1): per-position USD value via the shared FX-safe
+    // helper. The old `lp * quantity` summed live KRW/EUR ticks as USD,
+    // inflating the NAV card to 345,968 on a $23.8K book during the away week.
+    const positionsValue = positions.reduce(
+      (sum, pos) =>
+        sum + positionMarketValueUsd(pos, livePrices[pos.ticker]?.price),
+      0,
+    );
+    return cash + positionsValue;
+```
+
+Stored cash + LIVE-priced positions. The kill switch reads stored cash +
+LAST-MARKED positions. Two different quantities, not two readings of one.
+
+## H. The delta, decomposed against the same inputs
+
+```
+stored cash                         : 22820.64
+NTAP  qty=5.346643  live_px=189.52000427246094  -> 1013.295804
+=> cockpit liveNav (unrounded)      : 23833.935804
+   kill-switch current_nav (stored) : 23833.94
+   DELTA                            : -0.004196
+
+a $0.06 delta = 0.01122 per share on NTAP -- one tick
+```
+
+Component 1 ROUNDING: mark_to_market persists round(nav,2)
+(paper_trader.py:780); the cockpit sums unrounded. Bounded +/-$0.005 --
+and that is what the measurement above shows, because the market is shut
+so the live price equals the last mark.
+
+Component 2 ASOF: during market hours the live price diverges from the
+last mark. One $0.0112/share move on 5.346643 NTAP shares is $0.06 --
+the reported magnitude. This is the step option (c) I ruled out too early.
+
+## I. The rendered figure I could NOT capture
+
+```
+Playwright, behind the auth wall, 04:07-04:09 CEST:
+  http://localhost:3000/            -> NAV tile: "—", status "unknown"
+  http://localhost:3000/paper-trading -> no currency figures in snapshot
+  same-instant kill-switch current_nav = 23833.94
+
+The client poll had not returned within the capture window. The C3 answer
+therefore rests on TRACING the cockpit derivation and EVALUATING it against
+the same inputs -- not on reading a number off the screen. A same-instant
+capture during market hours is the cleanest evidence and I did not get it.
+```

@@ -24,8 +24,8 @@ look the way they do.** `current_nav` is the stored
 `paper_portfolio.total_nav`, and the SOD roll anchors `sod_nav` to that same
 stored value. Immediately after a cycle they are equal *by construction*, and
 they stay equal until the next mark. Measured over the journal's full history
-the equality holds **7 of 10 days (70%) -- SOMETIMES, not always, not a
-one-off**, which is exactly what "equal after a mark, divergent after the next
+the equality holds **7 of 10 ROW-comparisons (70%) -- SOMETIMES, not always,
+not a one-off**, which is exactly what "equal after a mark, divergent after the next
 one" predicts.
 
 **What IS a real weakness, and it is an asymmetry rather than a staleness
@@ -82,8 +82,14 @@ date               sod_nav   snapshot nav   equal?
 2026-08-09        23833.94       23833.94   YES
 2026-08-09        23833.94       23833.94   YES
 
-equality held on 7/10 comparable days (70%)
+equality held on 7/10 row-comparisons (70%)
 ```
+
+**Normalisation stated with the ratio, because the denominator is not what it
+looks like:** these are **10 ROW-comparisons spanning 9 DISTINCT DATES** --
+2026-08-09 carries two `sod_snapshot` rows. So it is 7 of 10 row-comparisons,
+NOT "7 of 10 days". The qualitative answer is unaffected; the label was wrong
+and is corrected rather than left for a reader to trip over.
 
 **Answer: SOMETIMES.** Not always, and emphatically not a one-off. The three
 NOs are the days where a later mark moved the NAV away from the anchor -- which
@@ -119,19 +125,72 @@ kill-switch current_nav        : 23833.94
 MAX SPREAD: 0.000000
 ```
 
-**Explanation, which is the criterion's actual requirement.** All three read the
-*same* stored `paper_portfolio.total_nav`, so they agree exactly by
-construction. They can only disagree if two of them are served on **opposite
-sides of a `mark_to_market` write** -- a race against the cycle, not rounding
-and not FX. That also explains the *shape* of the reported number: $0.06 is not
-a rounding artifact (which would be <= $0.005 on a 2-dp round) and not an FX
-step; it is one mark's worth of price movement on the single open position
-(NTAP, 5.35 shares -- a $0.011 tick moves the NAV about $0.06).
+**MY CYCLE-1 EXPLANATION WAS WRONG, AND THE Q/A WAS RIGHT TO REJECT IT.** I
+wrote that the three sources "all read the same stored value, so they can only
+disagree in a race across a `mark_to_market` write". That premise is true of the
+three BACKEND endpoints I measured -- and false of **the cockpit**, which is the
+one surface the criterion is about. I compared three readers of the same number,
+found them equal, and generalised to a fourth quantity I had never looked at.
+A 0.000000 spread among three copies of one value carries no information about a
+fourth.
 
-**Stated honestly: I could not observe the delta, so this is a mechanism
-explanation consistent with the evidence, not a reproduction.** The way to
-reproduce it deliberately would be to poll both endpoints across a cycle
-boundary, which requires a running cycle and is out of scope here.
+### What the cockpit actually renders, traced to file:line
+
+`frontend/src/app/page.tsx:271` -> `const liveNav = lp.liveNav` from
+`LivePortfolioProvider`; the derivation is `frontend/src/lib/useLiveNav.ts:31-43`:
+
+```
+liveNav = status.portfolio.cash  +  SUM over positions of
+          positionMarketValueUsd(pos, livePrices[pos.ticker].price)
+```
+
+That is **stored cash plus positions valued at LIVE, client-polled prices**. The
+kill switch reads `paper_portfolio.total_nav` -- **stored cash plus positions
+valued at the LAST MARK**. They are not two readings of one quantity; they are
+two different quantities that coincide only when the live price equals the last
+marked price.
+
+### The delta, decomposed and MEASURED
+
+Evaluating the cockpit's own formula against the same inputs, right now:
+
+```
+stored cash                         : 22820.64
+NTAP  qty=5.346643  live_px=189.52000427246094  ->  1013.295804
+=> cockpit liveNav (unrounded)      : 23833.935804
+   kill-switch current_nav (stored) : 23833.94
+   DELTA                            : -0.004196
+```
+
+Two components, and both of the step's candidate explanations are in play:
+
+1. **Rounding** -- `mark_to_market` persists `round(nav, 2)`
+   (`paper_trader.py:780`) while the cockpit sums unrounded. Bounded by
+   +/-$0.005, and the **-0.004196 measured above is exactly that component**,
+   visible now because the market is shut so the live price equals the last
+   mark.
+2. **Asof** -- during market hours the live price differs from the last-marked
+   price. On this book that is the dominant term: one $0.0112/share move on
+   5.346643 NTAP shares is **$0.06**. That is the reported delta's magnitude,
+   and it is the step's option (c) "different endpoint / different asof", which
+   I ruled out prematurely in cycle 1.
+
+So the honest answer to criterion 3 is: **the two numbers do not describe the
+same quantity.** A stored mark and a live client-side repricing, sampled at
+different instants, differ by construction; $0.06 is the ordinary steady-state
+size of that difference on a one-position book, not evidence of a race.
+
+### What I could NOT capture, stated plainly
+
+The criterion concerns a RENDERED figure, so I drove the running app through
+Playwright behind the auth wall (`http://localhost:3000/` and `/paper-trading`,
+04:07-04:09 CEST). **No NAV value rendered in either snapshot** -- the sidebar
+tile showed `—` with `status "unknown"` and no currency figures appeared, i.e.
+the client poll had not returned within the capture window. So the numbers above
+come from tracing the cockpit's derivation and evaluating it against the same
+inputs, **not from reading a figure off the screen.** A same-instant screenshot
+beside the kill-switch payload during market hours remains the cleanest possible
+evidence and I did not obtain it.
 
 ## Criterion 4 -- CAN the daily-loss leg fire? DEMONSTRATED
 
