@@ -1,0 +1,361 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - img [ref=e6]
+        - generic [ref=e8]:
+          - heading "PyFinAgent" [level=1] [ref=e9]
+          - paragraph [ref=e10]: AI Financial Analyst
+      - navigation "Primary" [ref=e11]:
+        - generic [ref=e12]:
+          - button "Analyze" [ref=e13] [cursor=pointer]:
+            - generic [ref=e14]: Analyze
+            - img [ref=e15]
+          - generic [ref=e17]:
+            - link "Home" [ref=e18] [cursor=pointer]:
+              - /url: /
+              - img [ref=e19]
+              - text: Home
+            - link "Signals" [ref=e21] [cursor=pointer]:
+              - /url: /signals
+              - img [ref=e22]
+              - text: Signals
+        - generic [ref=e24]:
+          - button "Reports" [ref=e25] [cursor=pointer]:
+            - generic [ref=e26]: Reports
+            - img [ref=e27]
+          - generic [ref=e29]:
+            - link "Reports" [ref=e30] [cursor=pointer]:
+              - /url: /reports
+              - img [ref=e31]
+              - text: Reports
+            - link "Performance" [ref=e33] [cursor=pointer]:
+              - /url: /performance
+              - img [ref=e34]
+              - text: Performance
+        - generic [ref=e36]:
+          - button "Trading" [ref=e37] [cursor=pointer]:
+            - generic [ref=e38]: Trading
+            - img [ref=e39]
+          - generic [ref=e41]:
+            - link "Paper Trading" [ref=e42] [cursor=pointer]:
+              - /url: /paper-trading
+              - img [ref=e43]
+              - text: Paper Trading
+            - link "Learnings" [ref=e45] [cursor=pointer]:
+              - /url: /learnings
+              - img [ref=e46]
+              - text: Learnings
+            - link "Backtest" [ref=e48] [cursor=pointer]:
+              - /url: /backtest
+              - img [ref=e49]
+              - text: Backtest
+            - link "Sovereign" [ref=e51] [cursor=pointer]:
+              - /url: /sovereign
+              - img [ref=e52]
+              - text: Sovereign
+        - generic [ref=e54]:
+          - button "System" [ref=e55] [cursor=pointer]:
+            - generic [ref=e56]: System
+            - img [ref=e57]
+          - generic [ref=e59]:
+            - link "MAS Dashboard" [ref=e60] [cursor=pointer]:
+              - /url: /agents
+              - img [ref=e61]
+              - text: MAS Dashboard
+            - link "Agent Map" [ref=e63] [cursor=pointer]:
+              - /url: /agent-map
+              - img [ref=e64]
+              - text: Agent Map
+            - link "Cron / Logs" [ref=e66] [cursor=pointer]:
+              - /url: /cron
+              - img [ref=e67]
+              - text: Cron / Logs
+            - link "Data Freshness" [ref=e69] [cursor=pointer]:
+              - /url: /observability
+              - img [ref=e70]
+              - text: Data Freshness
+      - generic [ref=e72]:
+        - link "Settings" [ref=e73] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e74]
+          - text: Settings
+        - generic [ref=e315]:
+          - generic [ref=e316]: p
+          - generic [ref=e317]: pytest@localhost
+        - generic [ref=e76]:
+          - button "Passkey" [ref=e77] [cursor=pointer]:
+            - img [ref=e78]
+            - text: Passkey
+          - button "Logout" [ref=e80] [cursor=pointer]:
+            - img [ref=e81]
+            - text: Logout
+        - button "v6.93.27" [ref=e318] [cursor=pointer]: v6.93.27
+    - main [ref=e85]:
+      - generic [ref=e88]:
+        - heading "MAS Operator Cockpit" [level=2] [ref=e89]
+        - paragraph [ref=e90]: Live status, portfolio snapshot, and emergency controls.Ctrl/Cmd+Shift+H = halt
+      - generic [ref=e91]:
+        - status [ref=e92]: "Keyboard shortcut active: Ctrl/Cmd+Shift+H = emergency halt"
+        - region "Paper-trading operator status" [ref=e94]:
+          - 'generic "GATE CHECKS (2/5 passing) FAIL: >=100 trades (32 closed round trips) PASS: PSR >= 0.95 (30d) (1.000, n_obs=72) FAIL: DSR >= 0.95 (0.000) FAIL: Reality gap <= 30% (3.92%) PASS: Max DD <= 20% (1.17%)" [ref=e319]':
+            - generic [ref=e96]: Gate
+            - generic [ref=e97]: NOT ELIGIBLE
+            - generic [ref=e320]: 2/5
+            - img [ref=e321]
+          - generic [ref=e99]:
+            - generic [ref=e100]: Kill
+            - img [ref=e323]
+            - 'generic "RE-ANCHORING: baselines intact; the daily anchor is from an earlier UTC day so the daily leg cannot be measured against today''s open yet. The trailing leg is still armed. No operator action required." [ref=e325]': RE-ANCHORING
+            - 'generic "Daily: — of 4% | Trailing: 3.4% of 10%" [ref=e326]': — / 3.4%
+            - button "Pause paper trading" [ref=e327] [cursor=pointer]: Pause
+            - button "Flatten all paper positions and pause trading" [ref=e328] [cursor=pointer]: Flatten
+          - 'generic "heartbeat: green | paper_trades: red | paper_portfolio_snapshots: green | historical_prices: red | historical_fundamentals: green | historical_macro: green | signals_log: green" [ref=e329]':
+            - generic [ref=e104]: Cycle
+            - generic [ref=e338]: completed
+          - generic [ref=e107]:
+            - generic [ref=e108]: Last
+            - generic [ref=e109]: 13 hr. ago
+          - generic [ref=e111]:
+            - generic [ref=e112]: Next
+            - generic [ref=e113]: 10. aug., 20:00
+            - img [ref=e339]
+        - group "Portfolio key performance indicators" [ref=e114]:
+          - group "NAV" [ref=e115]:
+            - generic [ref=e116]:
+              - paragraph [ref=e117]: NAV
+              - status "live" [ref=e341]
+            - paragraph [ref=e119]:
+              - generic [ref=e342]:
+                - generic [ref=e344]:
+                  - generic [ref=e345]:
+                    - generic [ref=e347]: "2"
+                    - generic [ref=e349]: "3"
+                    - generic [ref=e353]: "8"
+                    - generic [ref=e355]: "3"
+                    - generic [ref=e357]: "3"
+                  - generic [ref=e358]:
+                    - generic [ref=e360]: ","
+                    - generic [ref=e362]: "8"
+                    - generic [ref=e364]: "8"
+                - generic [ref=e369]: USD
+            - img [ref=e370]
+          - group "P&L (today) (-0.00%)" [ref=e372]:
+            - paragraph [ref=e122]: P&L (today)
+            - paragraph [ref=e123]:
+              - generic [ref=e373]:
+                - generic [ref=e376]: −
+                - generic [ref=e378]:
+                  - generic [ref=e381]: "0"
+                  - generic [ref=e382]:
+                    - generic [ref=e384]: ","
+                    - generic [ref=e386]: "0"
+                    - generic [ref=e388]: "6"
+                - generic [ref=e393]: USD
+            - paragraph [ref=e394]: "-0.00%"
+            - img [ref=e395]
+          - group "vs SPY (SPY +8.40%)" [ref=e397]:
+            - paragraph [ref=e126]: vs SPY
+            - paragraph [ref=e127]:
+              - generic [ref=e398]:
+                - generic [ref=e401]: +
+                - generic [ref=e403]:
+                  - generic [ref=e404]:
+                    - generic [ref=e406]: "1"
+                    - generic [ref=e408]: "0"
+                  - generic [ref=e409]:
+                    - generic [ref=e411]: ","
+                    - generic [ref=e413]: "7"
+                    - generic [ref=e415]: "7"
+                - generic [ref=e420]: "%"
+            - paragraph [ref=e421]: SPY +8.40%
+            - img [ref=e422]
+          - group "Sharpe (90d) (Sortino -1.17)" [ref=e424]:
+            - paragraph [ref=e130]: Sharpe (90d)
+            - paragraph [ref=e131]:
+              - generic [ref=e427]:
+                - generic [ref=e430]: "3"
+                - generic [ref=e431]:
+                  - generic [ref=e433]: ","
+                  - generic [ref=e435]: "2"
+                  - generic [ref=e437]: "0"
+            - paragraph [ref=e438]: Sortino -1.17
+            - img [ref=e439]
+          - group "Max DD (30d) (bounded 8.0%)" [ref=e132]:
+            - paragraph [ref=e134]: Max DD (30d)
+            - paragraph [ref=e135]:
+              - generic [ref=e441]:
+                - generic [ref=e444]: −
+                - generic [ref=e446]:
+                  - generic [ref=e449]: "0"
+                  - generic [ref=e450]:
+                    - generic [ref=e452]: ","
+                    - generic [ref=e454]: "7"
+                    - generic [ref=e456]: "3"
+                - generic [ref=e461]: "%"
+            - paragraph [ref=e136]: bounded 8.0%
+            - img [ref=e462]
+          - group "Positions (1 long · 0 short)" [ref=e464]:
+            - generic [ref=e138]:
+              - paragraph [ref=e139]: Positions
+              - status "live" [ref=e465]
+            - paragraph [ref=e141]:
+              - generic [ref=e471]: "1"
+            - paragraph [ref=e472]: 1 long · 0 short
+        - generic [ref=e473]:
+          - generic [ref=e474]:
+            - img [ref=e475]
+            - heading "Red Line Monitor" [level=3] [ref=e477]
+            - generic [ref=e478]: 30d
+          - img "Red-line NAV chart, 30d window, 31 points, 0 events" [ref=e479]:
+            - img [ref=e482]:
+              - generic [ref=e486]:
+                - generic [ref=e488]: 2026-07-13
+                - generic [ref=e490]: 2026-07-16
+                - generic [ref=e492]: 2026-07-19
+                - generic [ref=e494]: 2026-07-22
+                - generic [ref=e496]: 2026-07-25
+                - generic [ref=e498]: 2026-07-28
+                - generic [ref=e500]: 2026-07-31
+                - generic [ref=e502]: 2026-08-03
+                - generic [ref=e504]: 2026-08-06
+                - generic [ref=e506]: 2026-08-10
+              - generic [ref=e508]:
+                - generic [ref=e510]: "23750"
+                - generic [ref=e512]: "23800"
+                - generic [ref=e514]: "23850"
+                - generic [ref=e516]: "23900"
+                - generic [ref=e518]: "23950"
+          - paragraph [ref=e521]: Window 30d · 31 points · 0 events
+        - generic [ref=e144]:
+          - generic [ref=e146]:
+            - generic [ref=e147]:
+              - heading "Recent Reports" [level=3] [ref=e148]
+              - link "View all →" [ref=e149] [cursor=pointer]:
+                - /url: /reports
+            - table "Recent reports" [ref=e151]:
+              - rowgroup [ref=e152]:
+                - row "Ticker Company Alpha Recommendation Updated" [ref=e153]:
+                  - columnheader "Ticker" [ref=e154]
+                  - columnheader "Company" [ref=e155]
+                  - columnheader "Alpha" [ref=e156]
+                  - columnheader "Recommendation" [ref=e157]
+                  - columnheader "Updated" [ref=e158]
+              - rowgroup [ref=e159]:
+                - button "Open NTAP report" [ref=e522] [cursor=pointer]:
+                  - cell "NTAP" [ref=e523]
+                  - cell "NetApp, Inc." [ref=e524]
+                  - cell "6.58" [ref=e525]
+                  - cell "HOLD" [ref=e526]:
+                    - generic [ref=e527]: HOLD
+                  - cell "12 hr. ago" [ref=e528]
+                - button "Open HUM report" [ref=e529] [cursor=pointer]:
+                  - cell "HUM" [ref=e530]
+                  - cell "HUMANA INC" [ref=e531]
+                  - cell "4.78" [ref=e532]
+                  - cell "SELL" [ref=e533]:
+                    - generic [ref=e534]: SELL
+                  - cell "12 hr. ago" [ref=e535]
+                - button "Open HPE report" [ref=e536] [cursor=pointer]:
+                  - cell "HPE" [ref=e537]
+                  - cell "HEWLETT PACKARD ENTERPRISE COMPANY" [ref=e538]
+                  - cell "5.58" [ref=e539]
+                  - cell "HOLD" [ref=e540]:
+                    - generic [ref=e541]: HOLD
+                  - cell "12 hr. ago" [ref=e542]
+                - button "Open CRWD report" [ref=e543] [cursor=pointer]:
+                  - cell "CRWD" [ref=e544]
+                  - cell "CROWDSTRIKE HOLDINGS, INC." [ref=e545]
+                  - cell "5.75" [ref=e546]
+                  - cell "HOLD" [ref=e547]:
+                    - generic [ref=e548]: HOLD
+                  - cell "12 hr. ago" [ref=e549]
+                - button "Open DELL report" [ref=e550] [cursor=pointer]:
+                  - cell "DELL" [ref=e551]
+                  - cell "Dell Technologies Inc." [ref=e552]
+                  - cell "6.15" [ref=e553]
+                  - cell "HOLD" [ref=e554]:
+                    - generic [ref=e555]: HOLD
+                  - cell "12 hr. ago" [ref=e556]
+          - generic [ref=e216]:
+            - generic [ref=e217]:
+              - heading "Latest Transactions" [level=3] [ref=e218]
+              - link "View all →" [ref=e219] [cursor=pointer]:
+                - /url: /paper-trading
+            - table "Latest transactions" [ref=e221]:
+              - rowgroup [ref=e222]:
+                - row "Ticker Side Qty Price Time" [ref=e223]:
+                  - columnheader "Ticker" [ref=e224]
+                  - columnheader "Side" [ref=e225]
+                  - columnheader "Qty" [ref=e226]
+                  - columnheader "Price" [ref=e227]
+                  - columnheader "Time" [ref=e228]
+              - rowgroup [ref=e229]:
+                - button "BUY NTAP 5.346643 @ 177.8499" [ref=e557] [cursor=pointer]:
+                  - cell "NTAP" [ref=e558]:
+                    - generic [ref=e559]: NTAP
+                  - cell "BUY" [ref=e561]:
+                    - generic [ref=e562]: BUY
+                  - cell "5,3466" [ref=e563]
+                  - cell "$177,85" [ref=e564]
+                  - cell "last wk." [ref=e565]
+                - button "SELL AMD 1.319955 @ 483.7" [ref=e566] [cursor=pointer]:
+                  - cell "AMD" [ref=e567]:
+                    - generic [ref=e568]: AMD
+                  - cell "SELL" [ref=e570]:
+                    - generic [ref=e571]: SELL
+                  - cell "1,32" [ref=e572]
+                  - cell "$483,70" [ref=e573]
+                  - cell "2 wk. ago" [ref=e574]
+                - button "SELL PANW 1.989924 @ 320.85" [ref=e575] [cursor=pointer]:
+                  - cell "PANW" [ref=e576]:
+                    - generic [ref=e577]: PANW
+                  - cell "SELL" [ref=e579]:
+                    - generic [ref=e580]: SELL
+                  - cell "1,9899" [ref=e581]
+                  - cell "$320,85" [ref=e582]
+                  - cell "2 wk. ago" [ref=e583]
+                - button "BUY PANW 1.989924 @ 360.25" [ref=e584] [cursor=pointer]:
+                  - cell "PANW" [ref=e585]:
+                    - generic [ref=e586]: PANW
+                  - cell "BUY" [ref=e588]:
+                    - generic [ref=e589]: BUY
+                  - cell "1,9899" [ref=e590]
+                  - cell "$360,25" [ref=e591]
+                  - cell "3 wk. ago" [ref=e592]
+                - button "SELL MU 0.835991 @ 931.715" [ref=e593] [cursor=pointer]:
+                  - cell "MU" [ref=e594]:
+                    - generic [ref=e595]: MU
+                  - cell "SELL" [ref=e597]:
+                    - generic [ref=e598]: SELL
+                  - cell "0,836" [ref=e599]
+                  - cell "$931,72" [ref=e600]
+                  - cell "4 wk. ago" [ref=e601]
+          - generic [ref=e286]:
+            - heading "Quick Actions" [level=3] [ref=e288]
+            - generic [ref=e290]:
+              - textbox "Ticker symbol" [ref=e291]:
+                - /placeholder: TICKER
+              - button "Analyze" [disabled] [ref=e292]
+            - list [ref=e293]:
+              - listitem [ref=e294]:
+                - button "Run morning cycle (Ctrl+Shift+R)" [ref=e295] [cursor=pointer]:
+                  - img [ref=e296]
+                  - generic [ref=e299]: Run morning cycle
+                  - generic [ref=e300]: Ctrl+Shift+R
+              - listitem [ref=e301]:
+                - button "Open backtest console (Ctrl+B)" [ref=e302] [cursor=pointer]:
+                  - img [ref=e303]
+                  - generic [ref=e306]: Open backtest console
+                  - generic [ref=e307]: Ctrl+B
+              - listitem [ref=e308]:
+                - button "Halt all trading (Ctrl/Cmd+Shift+H)" [ref=e309] [cursor=pointer]:
+                  - img [ref=e310]
+                  - generic [ref=e313]: Halt all trading
+                  - generic [ref=e314]: Ctrl/Cmd+Shift+H
+  - button "Open Next.js Dev Tools" [ref=e607] [cursor=pointer]:
+    - img [ref=e608]
+  - alert [ref=e611]
+  - generic [ref=e612]: "23950"
