@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `681f813b` | chore(handoff): archive 86.12 and 86.22, file the stray capture, add researcher memories |
 | 2026-08-10 | `a108b9c9` | phase-86.26: close -- the Q/A lint gate is usable on the learn-loop modules again (Q/A PASS) |
 | 2026-08-10 | `55c40973` | phase-86.26 cycle 2: exhibit the failure SETS instead of asserting they match |
 | 2026-08-10 | `1ed39ccd` | fix(hygiene): phase-86.26 -- remove 7 dead imports so the Q/A lint gate is usable again |
@@ -26,7 +27,6 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `95398fae` | fix(vocab): phase-86.22 cycle 2 -- guard every migrated SITE, not just the vocabulary |
 | 2026-08-10 | `a87add72` | fix(vocab): phase-86.22 -- one recommendation vocabulary across six consumers |
 | 2026-08-10 | `f21129e5` | phase-86.22: research gate PASSED + contract; day report corrected with the measured corpus state |
-| 2026-08-10 | `73398c5a` | docs: regenerate the goal from measured state (cycles resume at 200) |
 
 ---
 
