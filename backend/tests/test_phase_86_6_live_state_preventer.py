@@ -166,7 +166,7 @@ def test_production_is_UNAFFECTED_because_it_never_imports_conftest():
     measurement quietly meaningless.
     """
     prog = r"""
-import sys, tempfile, pathlib, json
+import sys, os, tempfile, pathlib, json
 sys.path.insert(0, %r)
 import backend.services.kill_switch as ks
 
@@ -179,10 +179,22 @@ assert "conftest" not in sys.modules, "conftest leaked into a production process
 tmp = pathlib.Path(tempfile.mkdtemp()) / "audit.jsonl"
 ks._AUDIT_PATH = tmp
 ks.KillSwitchState._append_audit("phase_86_6_production_shape_probe", nav=1.0)
+
+# The append above lands in tmp, which is outside _BLOCKED_PATHS in EVERY
+# process -- so on its own it passes whether or not the guard is installed.
+# The Q/A called that out, correctly. This leg is the non-tautological one:
+# raise the audit event for a write to the LIVE journal path and confirm
+# NOTHING refuses it here. In the pytest process the same call raises.
+live_refused = False
+try:
+    sys.audit("open", '/Users/ford/.openclaw/workspace/pyfinagent/handoff/kill_switch_audit.jsonl', "a", os.O_APPEND | os.O_WRONLY | os.O_CREAT)
+except BaseException:
+    live_refused = True
 print(json.dumps({
     "wrote": tmp.exists(),
     "bytes": tmp.stat().st_size if tmp.exists() else 0,
     "conftest_loaded": "conftest" in sys.modules,
+    "live_path_write_refused": live_refused,
 }))
 """ % str(REPO)
     env = dict(os.environ)
@@ -196,6 +208,10 @@ print(json.dumps({
     assert result["conftest_loaded"] is False
     assert result["wrote"] is True, "a production write was blocked -- criterion 5 violated"
     assert result["bytes"] > 0
+    assert result["live_path_write_refused"] is False, (
+        "a LIVE-path write-intent event was refused in a production-shaped "
+        "process -- the guard has leaked out of the test process"
+    )
 
 
 def test_the_guard_IS_active_in_this_process_positive_control():

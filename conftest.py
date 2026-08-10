@@ -78,7 +78,14 @@ _log = logging.getLogger(__name__)
 _MUTATING_VERBS = frozenset({"POST", "PUT", "DELETE", "PATCH"})
 
 #: Loopback spellings that reach the operator's running backend.
-_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
+#: "0.0.0.0" added phase-86.6. It was MISSING, and that was a live hole,
+#: not a tidiness issue: the backend runs `uvicorn --host 0.0.0.0`, so
+#: `curl http://0.0.0.0:8000/api/health` answers 200 on this machine, and a
+#: MUTATING PUT to that spelling passed straight through this guard while
+#: the identical PUT to 127.0.0.1:8000 was refused. Found by the phase-86.6
+#: Q/A because 86.6's own predicate listed the host and this one did not --
+#: the two definitions disagreed, and the disagreement WAS the bug.
 
 #: The live backend's port. Keyed explicitly so that an ephemeral-port stub on
 #: the SAME host stays allowed (constraint 2).

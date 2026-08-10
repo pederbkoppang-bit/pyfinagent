@@ -152,8 +152,15 @@ def test_the_two_live_origin_predicates_AGREE():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
+    # The table MUST contain every spelling on which the two could differ.
+    # It originally omitted "http://0.0.0.0:8000" -- the ONLY URL on which they
+    # actually disagreed -- so this alarm was GREEN while the divergence it
+    # exists to catch was present at authoring time. A drift table that omits
+    # the drifting case is not a drift alarm; it is decoration.
     urls = [
         "http://localhost:8000", "http://127.0.0.1:8000",
+        "http://0.0.0.0:8000",                    # the one that was missing
+        "http://[::1]:8000",
         "http://localhost:8000/api/settings/", "http://127.0.0.1:59999",
         "http://127.0.0.1:3000", "http://localhost", "https://example.com:8000",
     ]

@@ -201,7 +201,7 @@ definition. So:
 |---|---|---|
 | **filesystem** | **COVERED for the kill-switch journal + its derived archive dir** | `sys.addaudithook` preventer; mutation matrix M1/M2/M5 |
 | **filesystem (rest of `handoff/`)** | **NOT COVERED, deliberately** | blocking the whole tree turns **+7** tests red against a 14-failure baseline -- they write `.autonomous_loop.lock`, `.cycle_heartbeat.json` and a probe under `handoff/logs/`. None is a kill-switch write. A behaviour change to 7 real tests belongs to its own step. **MEASURED AGAIN TONIGHT:** a full-suite run wrote a real acquire/release into the live `handoff/.autonomous_loop.lock` (`released_at 2026-08-09T23:47:31Z`, pid 19697 already dead) -- so this channel is demonstrably still open, not theoretically open. |
-| **HTTP** | **COVERED (86.3)** | mutating verbs at loopback:8000 refused in-process |
+| **HTTP** | **COVERED (86.3 + a hole this step CLOSED)** | mutating verbs at loopback:8000 refused in-process. **This row was WRONG in cycle 1** -- see below. |
 | **subprocess** | **COVERED for `smoke_cc_rail_e2e.py`** | the seam above. **NOT covered generally**: research measured 72 files that shell out, and each would need its own seam. This step closed the one that MUTATES the live backend. |
 | **BigQuery** | **NOT COVERED** | no guard exists. Tests that construct a real `bigquery.Client` reach live datasets. Out of scope here; named so it cannot be mistaken for covered. |
 | **module singleton** | **NOT COVERED** | a test mutating `ks._state` in-process is invisible to a filesystem guard. This is 36.28's territory (tests READING live state) and 86.1's surviving mutant M2. |
@@ -229,3 +229,91 @@ conftest.py                                           (the preventer; committed 
   proved it by writing the cycle lock.
 - The derivation's **precision is unvalidated** (24 flagged; empirically none
   writes today).
+
+---
+
+# CYCLE 2 -- the Q/A found a LIVE HOLE, in the row where I claimed coverage
+
+Verdict CONDITIONAL, transcribed verbatim in
+`handoff/current/evaluator_critique_86.6.md`. Criteria 1-8 were met and
+independently reproduced. Criterion 9 was not, and the reason is the most
+useful thing this step produced.
+
+## The finding
+
+I wrote that the HTTP channel was **COVERED**: "mutating verbs at loopback:8000
+refused in-process". **Measurably false for `http://0.0.0.0:8000`.**
+
+- The backend runs `uvicorn --host 0.0.0.0`, so `curl
+  http://0.0.0.0:8000/api/health` answers **200** on this machine -- that
+  spelling reaches the operator's live book.
+- `conftest._LOOPBACK_HOSTS` was `{"localhost", "127.0.0.1", "::1"}`. **No
+  `0.0.0.0`.** A mutating `PUT` to that spelling passed the 86.3 guard
+  untouched while the identical `PUT` to `127.0.0.1:8000` was refused.
+
+**The hole was visible in my own diff and I did not see it.** My new
+`live_backend_origin.LOOPBACK_HOSTS` includes `0.0.0.0`; conftest's does not.
+The two predicates disagreed, on this machine, at authoring time -- and the
+disagreement WAS the bug, not a future risk.
+
+## And my drift alarm was green while it happened
+
+`test_the_two_live_origin_predicates_AGREE` exists precisely to catch this. It
+passed, because its URL table omitted `http://0.0.0.0:8000` -- **the one URL on
+which the two predicates differed.** The same module lists that spelling as live
+eight lines earlier.
+
+A drift table that omits the drifting case is not a drift alarm; it is
+decoration. This is the same failure as phase-86.22's mutation cell D4 (a
+negative set that never reached the guard's second condition) and the same as
+the detector that was blind to the substring AST shape: **the guard covered the
+cases I thought of, and the case I missed was the live one.**
+
+## Fixes
+
+| blocker | fix |
+|---|---|
+| `0.0.0.0` missing from conftest's loopback set | added -- **this closes a real open channel on the live book** |
+| drift table omitted the disagreeing URL | added `http://0.0.0.0:8000` and `http://[::1]:8000` |
+| criterion-9 HTTP row overclaimed | corrected above |
+| ruff F401 `sys` unused in `derive_live_state_writers_86_6.py:36` | removed; gate now exits 0 over the 7-file derived scope |
+| C5's production probe leg was tautological (a tmp path is unblocked in every process, so it passed with or without the guard) | added a non-tautological leg: the child raises `sys.audit("open", <LIVE journal>, "a", O_APPEND\|O_WRONLY\|O_CREAT)` and asserts NOTHING refuses it there |
+
+## Verification of the fixes
+
+The refusal, measured **without sending a packet** at the live backend
+(`_REAL_URLOPEN` replaced by a sentinel -- measuring a safety hole must not
+exercise it):
+
+```
+REFUSED          PUT http://0.0.0.0:8000/api/settings/     (RuntimeError)
+REFUSED          PUT http://127.0.0.1:8000/api/settings/   (RuntimeError)
+REFUSED          PUT http://localhost:8000/api/settings/   (RuntimeError)
+REACHED-NETWORK  PUT http://127.0.0.1:59999/api/settings/     <-- correct: a stub
+```
+
+The widened drift table **provably catches the pre-fix state** -- run against
+the pre-fix conftest source it reports
+`[('http://0.0.0.0:8000', False, True)]`, so it would have failed rather than
+passed.
+
+```
+$ python -m pytest ...test_phase_86_6_subprocess_channel.py \
+      ...test_phase_86_6_live_state_preventer.py -q
+26 passed
+
+$ uvx ruff check --select F821,F401,F811 "${FILES[@]}"    # 7 files, from git
+All checks passed!    exit=0
+```
+
+## What the Q/A confirmed in my favour, by execution rather than reading
+
+- **M4's narrative is true.** The `open` audit event carries `mode='a'` AND
+  `flags=16777737` with `O_APPEND` set, so the two write-intent legs really are
+  independent.
+- **Criterion 6's literal first half holds.** It ran the ACTUAL criterion-2
+  pytest test under mutation against a tmp copy (CONTROL rc=0/copy unchanged;
+  MUTANT `_BLOCKED_PATHS=()` rc=1/copy CHANGED; live journal byte-identical) --
+  which also shows my "the obvious harness writes to the live journal"
+  justification was not forced. That is a fair correction to my framing: the
+  copy-only harness is sufficient, but it was not the ONLY safe option.
