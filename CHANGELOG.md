@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `49793961` | fix(86.28): cycle-5 -- guard the ABSENT half, and assert fixture fidelity |
 | 2026-08-10 | `ebeb03da` | fix(86.27): the novel-spelling probe was self-defeating; draw from an unbounded family |
 | 2026-08-10 | `2e0cf256` | fix(86.28): cycle-4 -- regenerate two transcripts I typed instead of captured |
 | 2026-08-10 | `fce5a6ac` | phase-86.27: [P1 -- THE LIVE-BACKEND HTTP GUARD IS A HOST-STRING ALLOWLIST, AND THE MACHINE ANSWE... |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `a16fa5a2` | phase-86.26: research gate PASSED + contract (before any removal) |
 | 2026-08-10 | `a6058efd` | phase-86.12: close -- the kill switch does NOT evaluate drawdown against a stale NAV (Q/A PASS) |
 | 2026-08-10 | `c8628558` | docs: amend the day report with the night's later work |
-| 2026-08-10 | `79f5a5ab` | phase-86.12 cycle 3: the capture SUCCEEDED and I reported it as a failure |
 
 ---
 
+### v6.93.41 — fix(86.28): cycle-5 -- guard the ABSENT half, and assert fixture fide... (2026-08-10)
+
+- **fix(86.28): cycle-5 -- guard the ABSENT half, and assert fixture fidelity**
 ### v6.93.40 — fix(86.27): the novel-spelling probe was self-defeating; draw from an... (2026-08-10)
 
 - **fix(86.27): the novel-spelling probe was self-defeating; draw from an unbounded family**
