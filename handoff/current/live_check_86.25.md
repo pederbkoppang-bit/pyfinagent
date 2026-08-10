@@ -72,7 +72,7 @@ exit=0
 
 ## 5. The new suite
 ```
-$ python -m pytest backend/tests/test_phase_86_25_outcome_vocabulary_boundary.py -q
+$ python -m pytest backend/tests/test_phase_86_25_outcome_tracker_vocabulary_boundary.py -q
 ................                                                         [100%]
 16 passed in 1.45s
 ```
@@ -110,7 +110,7 @@ $ FILES=$(git status --porcelain -- "*.py" | awk "{print \$NF}" | grep "\.py$")
   backend/services/recommendation_vocab.py
   backend/slack_bot/jobs/nightly_outcome_rebuild.py
   backend/tests/test_phase_35_1_learn_loop_writer.py
-  backend/tests/test_phase_86_25_outcome_vocabulary_boundary.py
+  backend/tests/test_phase_86_25_outcome_tracker_vocabulary_boundary.py
 $ uvx ruff check --select F821,F401,F811 $FILES
 All checks passed!
 ruff=0

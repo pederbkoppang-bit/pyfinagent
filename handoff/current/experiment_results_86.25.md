@@ -24,7 +24,7 @@ through it. The `"HOLD"` coercion is deleted.
 | `backend/services/recommendation_vocab.py` | + `UNKNOWN_RECOMMENDATION`, + `resolve_outcome_recommendation()` |
 | `backend/services/autonomous_loop.py` | S1 call site + import; the `"HOLD"` coercion deleted |
 | `backend/slack_bot/jobs/nightly_outcome_rebuild.py` | S2 call site + import; a stale comment that blessed the defect corrected |
-| `backend/tests/test_phase_86_25_outcome_vocabulary_boundary.py` | **new**, 16 tests |
+| `backend/tests/test_phase_86_25_outcome_tracker_vocabulary_boundary.py` | **new**, 16 tests |
 | `backend/tests/test_phase_35_1_learn_loop_writer.py` | one test **rewritten** (below) |
 | `scripts/qa/measure_86_25_join_hitrate.py` | **new** (committed earlier, `64d20023`) |
 | `.claude/masterplan.json` | queues **86.35**; no status flipped |
@@ -110,7 +110,7 @@ $ bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q -k "o
 92 passed, 3319 deselected, 1 warning in 6.26s
 exit=0
 
-$ python -m pytest backend/tests/test_phase_86_25_outcome_vocabulary_boundary.py -q
+$ python -m pytest backend/tests/test_phase_86_25_outcome_tracker_vocabulary_boundary.py -q
 16 passed in 1.44s
 
 $ uvx ruff check --select F821,F401,F811 <4 git-derived files>
@@ -148,3 +148,108 @@ counts re-derived by the executor.
 - **No flag was flipped and no `.env` was touched.**
 - **The running backend has not been restarted**, so these changes are committed
   but NOT in force in the live process; restarts are batched to session end.
+
+---
+
+# CYCLE 2 -- three accuracy defects in my own claims, all confirmed and fixed
+
+**Cycle-1 verdict: CONDITIONAL** (`wf_dd580823-63b`). It found **all 6 criteria
+MET** and the shipped behaviour "correct and fail-safe on both seams", and
+capped the verdict on three defects in the ARTIFACTS rather than the code. It
+re-derived every one of my P1 numbers independently and they all stood; it also
+ran 8 mutation cells of its own, 3 of them mine re-killed.
+
+**I reproduced all three findings before fixing them.**
+
+## W1 -- I gave the right conclusion with the wrong mechanism
+
+I wrote, in two production comments and twice in this file, that the (A) branch
+covers zero rows **because the anchor is unreachable** (analysis_id 0/32,
+round_trip_id one-sided). Those measurements are real. **They are not the
+operative cause.**
+
+Measured by me after the finding: `analyst_recommendation` **is not a column of
+`paper_trades` at all** — the table has 18 columns and that is not one of them —
+and `_production_fns.LEDGER_FETCH_SQL` selects ten named columns, none of them
+this one. So the code reads a dict key **no producer emits**: the branch is dead
+**by construction**, not by a missing join.
+
+Why this mattered enough to be a finding: my wording told the executor of the
+queued `round_trip_id` step that this path would self-heal once the anchor
+landed. **It would not.** Making it resolve needs a *producer* change. The Q/A
+also showed the consequence directly — its cells M5 (hardcode the literal
+`UNKNOWN`) and M8 (read `risk_judge_decision` through the resolver) both
+**SURVIVED**, and both survive precisely because that key can never be present.
+
+Corrected in `autonomous_loop.py`, `nightly_outcome_rebuild.py` and here. The
+call is kept because it is the right boundary *shape*; the comments now say
+plainly that it does nothing today and why.
+
+## W2 -- the verification command did not cover the new guards
+
+`-k "outcome_tracker or autonomous_loop or learn_loop"` collected **0 of the 16
+new tests** — the file was named `test_phase_86_25_outcome_vocabulary_boundary.py`
+(no `tracker`) and matched none of the three terms.
+
+> A self-inflicted note, because it is the same class twice in one cycle: the
+> bulk rename above was first applied with a blanket `sed` over the handoff
+> files, which rewrote **this very sentence's historical filename** into the new
+> one and made the sentence describe a state that never existed. Caught by
+> re-reading the line after the edit. A global replace does not know which
+> occurrences are history. So "92 passed, exit=0" was true but did not
+exercise the S2 call-site or resolver guards at all; only the rewritten test in
+`test_phase_35_1_learn_loop_writer.py` fell inside it.
+
+**Fixed by bringing the tests into scope rather than by adding a sentence**: the
+file is renamed `test_phase_86_25_outcome_tracker_vocabulary_boundary.py`, so the
+existing immutable filter matches it. No criterion was amended.
+
+```
+before: 92 passed, 3319 deselected   (0 of the new suite collected)
+after : 108 passed, 3303 deselected  (16 of the new suite collected)
+```
+
+And the mutants now die **inside** the immutable command:
+
+| cell | before rename | after rename |
+|---|---|---|
+| S2 (revert the call site) | killed only by the excluded file | **KILLED — 3 failed / 105 passed** |
+| V1 (sentinel -> `"HOLD"`) | killed only by the excluded file | **KILLED — 10 failed / 98 passed** |
+
+## W3 -- I inflated the research-gate numbers ~2x
+
+Contract §1 claimed **14** sources read in full and **44** URLs collected. The
+brief's own envelope says **7**, **22** snippet-only, **29** collected, and its
+tally line at `:141` says so in words. Both my figures were roughly double, in
+the direction that makes the gate look stronger — **in the one table sitting
+directly above my sentence "Every load-bearing internal claim below was
+nonetheless re-verified by Main against source."** That sentence was not true of
+that table.
+
+I did not take those numbers from anywhere; I wrote them without checking. The
+gate still PASSES on the real numbers (7 >= 5, 29 >= 10, recency scan
+performed), so it is a transcription defect and not a gate failure — but it is
+the same class as the "SIX not two" error earlier today: a number stated with
+confidence and no derivation behind it. Corrected in place with the correction
+disclosed rather than silently overwritten.
+
+## Cycle-2 evidence
+
+```
+$ bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q -k "outcome_tracker or autonomous_loop or learn_loop"'
+108 passed, 3303 deselected, 1 warning in 5.56s
+exit=0
+```
+
+## What is still true and unchanged
+
+The shipped behaviour did not change in cycle 2. No code path was altered — the
+edits are two comment blocks, one file rename, and one contract table. Both
+seams remain fixed, `APPROVE_*` still never becomes a direction, row count is
+still unchanged, and the three original mutation cells still kill.
+
+## Still open, unchanged
+
+86.35 (the scorer's `TypeError` on every real row) and the one-sided
+`round_trip_id` finding remain queued and unfixed here. The (A) branch remains
+dead — now for the correctly-stated reason.

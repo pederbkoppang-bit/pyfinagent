@@ -21,10 +21,23 @@ report.
 
 | Field | Value |
 |---|---|
-| sources read in full | 14 |
-| URLs collected | 44 |
+| sources read in full | **7** |
+| snippet-only | 22 |
+| URLs collected | **29** |
 | recency scan | performed (2024-2026) |
-| internal files inspected | full writer/caller enumeration |
+| internal files inspected | 10 |
+
+> **CORRECTED cycle 2 (Q/A finding W3).** This table originally read
+> "sources read in full | 14" and "URLs collected | 44". Both were **inflated
+> roughly 2x** and neither came from the artifact: the brief's own envelope
+> says `external_sources_read_in_full: 7`, `snippet_only_sources: 22`,
+> `urls_collected: 29`, and its tally line at `:141` reads "7 read in full + 22
+> snippet-only = 29 unique URLs collected". I did not check them before writing
+> them, in the one table sitting directly above the sentence claiming every
+> load-bearing claim was re-verified. The gate still PASSES on the real numbers
+> (7 >= 5 sources, 29 >= 10 URLs, recency scan performed), so this was a
+> transcription defect rather than a gate failure -- but the sentence below was
+> not true of this table when it was written.
 
 ### Findings that decide the design
 

@@ -3431,6 +3431,22 @@ async def _learn_from_closed_trades(tickers: list[str], bq: BigQueryClient, sett
             # UNKNOWN today, and UNKNOWN is non-directional by construction --
             # `directionally_correct` becomes False for an honest reason (no
             # direction was known) instead of a dishonest one (a fabricated hold).
+            # WHY THE (A) BRANCH IS DEAD, CORRECTED cycle 2 (Q/A finding W1). An earlier
+            # version of this comment blamed the unreachable ANCHOR -- analysis_id empty on
+            # 32/32 SELLs, round_trip_id one-sided 32/32 SELL vs 0/33 BUY. Those numbers are
+            # real, but they are NOT the operative cause, and citing them told a future
+            # reader that fixing round_trip_id would make this path resolve. IT WOULD NOT.
+            #
+            # MEASURED: `analyst_recommendation` is not a column of paper_trades at all (18
+            # columns), and `_production_fns.LEDGER_FETCH_SQL` selects ten named columns,
+            # none of them this one. The lookup below therefore reads a dict key that NO
+            # PRODUCER EMITS: the branch is dead BY CONSTRUCTION, not by a missing join.
+            #
+            # CONSEQUENCE, stated so nobody credits it as coverage: making this resolve
+            # needs a PRODUCER change -- some writer must start emitting an analyst
+            # recommendation onto the trade -- which is a separate step. The call is kept
+            # because it is the correct boundary SHAPE (a caller hands over a real
+            # recommendation or nothing), not because it currently does anything.
             recommendation = resolve_outcome_recommendation(
                 trade.get("analyst_recommendation")
             )
