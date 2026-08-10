@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `5285699b` | phase-86.30 cycle 2: the Q/A rail dropped and 86.31 saved the analysis |
 | 2026-08-10 | `63074429` | phase-86.30: the degraded live-origin branch must refuse, not allow |
 | 2026-08-10 | `2e82220a` | phase-86.25 cycle 3: finish the remediation I claimed but did not do (PARKED) |
 | 2026-08-10 | `f71030b8` | phase-86.25 cycle 2: fix three accuracy defects the Q/A found in my own claims |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `7a829c09` | docs(86.24): GENERATE artifacts -- adjudication, derivation, delta-0 differential |
 | 2026-08-10 | `a6c3c3f3` | fix(86.28): cycle-6 -- standing mutants for the 3 undemonstrated checks |
 | 2026-08-10 | `d5180e27` | phase-86.24: stop the suite changing colour with the wall clock |
-| 2026-08-10 | `49793961` | fix(86.28): cycle-5 -- guard the ABSENT half, and assert fixture fidelity |
 
 ---
 
+### v6.93.54 — phase-86.30 cycle 2: the Q/A rail dropped and 86.31 saved the analysis (2026-08-10)
+
+- **phase-86.30 cycle 2: the Q/A rail dropped and 86.31 saved the analysis**
 ### v6.93.53 — phase-86.30: the degraded live-origin branch must refuse, not allow (2026-08-10)
 
 - **phase-86.30: the degraded live-origin branch must refuse, not allow**
