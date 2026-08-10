@@ -33,6 +33,7 @@ import argparse
 import contextlib
 import json
 import os
+import pathlib
 import random
 import subprocess
 import sys
@@ -460,13 +461,30 @@ def run_dry(args, verdicts: Verdicts) -> int:
     return 0
 
 
+# phase-86.6: ONE definition of "the live backend", imported rather than
+# re-spelled. See scripts/qa/live_backend_origin.py for why it is a separate
+# module and how drift against conftest's copy is alarmed.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from live_backend_origin import is_live_backend  # noqa: E402
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     mode = p.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry", action="store_true")
     mode.add_argument("--live", action="store_true")
     p.add_argument("--ticker", dest="tickers", action="append", default=[])
-    p.add_argument("--backend-url", default="http://localhost:8000")
+    # phase-86.6 Part B: NO DEFAULT. This used to default to
+    # "http://localhost:8000" -- the operator's live backend -- and this script
+    # MUTATES (PUT /api/settings/, POST /api/analysis/). A caller that forgot
+    # the flag would have flipped a live setting. All 12 call sites happened to
+    # pass it, so the risk was latent; the defect is the FUTURE 13th.
+    p.add_argument("--backend-url", default=None,
+                   help="REQUIRED. No default: see --allow-live-backend.")
+    p.add_argument("--allow-live-backend", action="store_true",
+                   help="opt in to targeting the operator's RUNNING backend "
+                        "(loopback:8000). Required for a real --live window; "
+                        "without it that target is refused.")
     p.add_argument("--llm-log-source", default="bigquery",
                    help="'bigquery' or an http URL serving canned rows (test seam)")
     p.add_argument("--spend-source", default="bigquery",
@@ -485,6 +503,28 @@ def main() -> int:
                    help="post-window llm_call_log buffer wait; test seam, default 65")
     p.add_argument("--keep-on", action="store_true")
     args = p.parse_args()
+
+    # ── phase-86.6 Part B: the subprocess channel ────────────────────────
+    # A conftest guard lives in the pytest process; this script runs in a
+    # CHILD, which loads no conftest. So the guard has to be here, at the
+    # seam every invocation must pass through, rather than at each call site
+    # -- a per-call-site convention is regressed by simply writing a new one.
+    if args.backend_url is None:
+        print("usage error: --backend-url is REQUIRED and has no default. "
+              "This script mutates (PUT /api/settings/, POST /api/analysis/); "
+              "a default of http://localhost:8000 would aim those at the "
+              "operator's running backend. Pass a stub URL for tests, or "
+              "--backend-url http://localhost:8000 --allow-live-backend for a "
+              "real window.", file=sys.stderr)
+        return 4
+    if is_live_backend(args.backend_url) and not args.allow_live_backend:
+        print(f"refusing to target the LIVE backend at {args.backend_url} "
+              f"without --allow-live-backend. This script mutates settings and "
+              f"starts analyses; pointing it at the operator's running book by "
+              f"accident is the failure this guard exists to prevent. Re-run "
+              f"with --allow-live-backend if that is genuinely intended.",
+              file=sys.stderr)
+        return 4
 
     if args.max_rail_calls > DEFAULT_MAX_RAIL_CALLS:
         print(f"usage error: --max-rail-calls may only lower the <= "
