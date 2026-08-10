@@ -33196,3 +33196,61 @@ stage-1 prompt.
 
 **Counter blindness:** `harness_log` will show zero CONDITIONALs for 86.37. There
 have been **two** cycles (FAIL, CONDITIONAL). Tell any future spawn.
+
+## Cycle 1205 -- 2026-08-10 -- phase=86.29 result=GATE-PASSED
+
+**Supersedes the earlier GATE-FAILED cycle for this step.** Re-run
+`wf_09b81f1b-78b`: **gate_passed TRUE** -- 7 sources (floor 5), 40 URLs (floor
+10), recency scan performed, all 7 claimed URLs present in the brief,
+`urls_collected_corroborated: 40 <= 40`.
+
+**THIS WAS ALSO THE LIVE END-TO-END TEST OF phase-86.37**, and it is the reason
+the run was chosen: 86.29's gate was already failed, so the worst case was that
+it stayed failed and we learned the marker was not being honoured.
+
+**The risk 86.37 introduced is RESOLVED, measured not reasoned.** 86.37 made the
+born-inert marker a HARD gate, so if a live researcher did not write
+`brief_status` the gate would have failed on EVERY run. It did write it --
+verified by direct inspection of the brief (`"brief_status": "COMPLETE"` at
+:19), not by trusting the envelope's self-report. The new checks appear in the
+enforced result:
+```
+brief_status_in_brief: COMPLETE (the brief declares its own final act ran)
+rail_dropped: null      <- new field, correctly null on a normal run
+```
+
+**STILL UNVERIFIED IN PRODUCTION:** the rail did NOT drop this run, so the DROP
+path remains simulation-verified only (a throwing stub). The marker path is now
+live-verified; the recovery path is not.
+
+**What the researcher found, beyond the gate:**
+- The bash semantics are now cited rather than inferred: an unmatched pattern is
+  left UNEXPANDED ("If the pattern is unsuccessful, the word is left unchanged"),
+  `nullglob`/`failglob` both off -- so `:160` matches 0 files for every sid
+  tested. Repo-wide **896 files use the suffix convention vs 169 hyphen-prefix,
+  and ALL 169 are historical with 0 in `handoff/current`**: the glob never had a
+  domain.
+- **A SECOND defect in the same loop**: `:128` derives `short_sid` but `:160`
+  interpolates raw `` -- fossil `phase-phase-6.1..6.4` directories are the
+  evidence.
+- `verify_handoff_layout.py` structurally cannot catch this: it checks LOCATION,
+  not ATTRIBUTION.
+- Prior art for the remedy: Pants ships the graduated policy verbatim
+  (`unmatched_build_file_globs` default **warn**, `unmatched_cli_globs` default
+  **error**, split by who named the pattern). OAIS 650.0-M-3 and SEC 17a-4(f)
+  both permit documented alteration -- undocumented alteration is the
+  prohibition.
+
+**TWO CAUTIONS THE RESEARCHER RAISED AGAINST ITS OWN AND MY WORK, recorded
+rather than smoothed:**
+1. **It caught a FABRICATED QUOTE** -- a WebFetch PDF summary produced an OAIS
+   quote with **0 hits on pypdf re-extraction**. It disclosed this instead of
+   citing it.
+2. **It critiques MY census** (`derive_archive_misattribution_86_29.py`):
+   precision is unmeasured and "its 2 known positives are one instance". That is
+   fair -- I gated RECALL on two positives and spot-checked precision by eye
+   after finding 46 false positives, but never measured precision systematically.
+   The next session must not treat 153 as settled.
+
+**86.29 is NOT started as a step** -- gate passed, no contract written, status
+still pending.
