@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `73672a19` | phase-86.30 cycle 3: close the three fixable findings; PARKED on an un-repairable breach |
 | 2026-08-10 | `ec0b1612` | phase-86.36: queue the write-first record's fixed-path retention gap |
 | 2026-08-10 | `12d18011` | phase-86.29: derive the archive-misattribution census, recall AND precision validated |
 | 2026-08-10 | `5285699b` | phase-86.30 cycle 2: the Q/A rail dropped and 86.31 saved the analysis |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `7eb85983` | fix(86.24): cycle-2 -- both Q/A findings, and the second was mine in the repaired file |
 | 2026-08-10 | `5fef5b05` | docs(86.28): compact the evidence read path 2572 -> 663 lines |
 | 2026-08-10 | `9ed009f9` | docs(86.28): record the second Q/A rail drop; step stays pending |
-| 2026-08-10 | `7a829c09` | docs(86.24): GENERATE artifacts -- adjudication, derivation, delta-0 differential |
 
 ---
 
+### v6.93.57 — phase-86.30 cycle 3: close the three fixable findings; PARKED on an u... (2026-08-10)
+
+- **phase-86.30 cycle 3: close the three fixable findings; PARKED on an un-repairable breach**
 ### v6.93.56 — phase-86.36: queue the write-first record's fixed-path retention gap (2026-08-10)
 
 - **phase-86.36: queue the write-first record's fixed-path retention gap**
