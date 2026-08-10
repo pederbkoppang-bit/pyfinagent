@@ -32377,3 +32377,60 @@ discard correct work over coverage gaps. This is 1 consecutive FAIL, so no
 certified_fallback escalation. Three named, bounded fixes are in the disposition;
 none touches the counter's arithmetic.
 
+
+## Cycle 1192 -- 2026-08-10 -- phase=86.22 result=PASS
+
+**The cross-module recommendation-vocabulary split.** 86.20 fixed one consumer;
+this closed the class. The same `analysis_results.recommendation` string was
+read in THREE incompatible dialects that break in opposite directions:
+title-case-exact (misses every UPPERCASE row), upper-snake (misses the
+producer's spaced "Strong Buy"), and a substring chain (grades by clause order).
+
+Measured, re-derived from the column (n=543): outcome_tracker and memory each
+classified **91/543 rows (16.8%)** differently from the shared vocabulary -- the
+literal `BUY` spelling, all 91 genuine, matched neither leg, so
+`directionally_correct` was False regardless of the realised return. Three
+already-persisted `outcome_tracking` rows (AMD/PANW/MU, all SELL, all negative
+returns) flip False->True: three correct sell calls previously scored wrong.
+`agent_memories` is empty and the table has no `directionally_correct` column,
+so there was nothing to backfill.
+
+**SEVEN consumers migrated** to 86.20's single canonicaliser: outcome_tracker,
+memory, bias_detector, api/portfolio, conflict_detector, slack/formatters,
+skill_optimizer. No set widened.
+
+**Two cycles. The cycle-1 Q/A returned FAIL and was right**, on a guard defect
+rather than a fix defect. It reverted each migrated file to its pre-fix source
+and found **four of six survived** -- including both learning-path consumers.
+Every assertion I had written tested the shared vocabulary; none tested that a
+consumer calls it. The worst was a test I had named "the load-bearing
+behavioural assertion", which recomputed the label in its own body and asserted
+only that imports resolved. Deleted, not repaired. Cycle 2 added seven
+consumer-driving tests and seven per-site mutation cells (S1-S7). 18 killed /
+0 survived of 18.
+
+The Q/A also disproved my reason for excluding `skill_optimizer` (it reads
+`debate_consensus` from the SAME persisted table, not a schema-enforced
+Literal). Measured '' 487 / NULL 51 / HOLD 4 / BUY 1 -- correct in effect, wrong
+argument. Migrated rather than re-worded.
+
+Three of my own errors, all caught by machinery rather than by reading: the
+detector was blind to the substring AST shape and silently missed
+conflict_detector; mutation cell D4 survived because every known-negative failed
+R2's *first* condition, leaving the second untested; and a portfolio fixture used
+a WINNING "Strong Buy", which reads 100% accuracy whether included or excluded --
+it could not tell the fix from the defect.
+
+Cycle-2 Q/A (`wf_5fbffa92-924`) reproduced all 8 criteria independently, ran the
+per-site axis with a DIFFERENT mechanism than mine and got the same seven kills,
+and returned PASS with four disclosed NOTEs: 7 pre-existing F401 dead imports
+(zero introduced by this step -- pre==post per file), its own full-suite run
+returned 0 bytes so my 14-failure classification is unverified BY IT, a retired
+cycle-1 number in live_check section E (now labelled superseded), and a
+corroborated allow-list. Immutable command: **200 passed, exit 0**.
+
+Also of note: the FIRST Q/A spawn dropped at 178K tokens with no
+StructuredOutput call -- the documented long-prompt failure mode. An empty
+return is NO VERDICT; the lean re-run produced the FAIL.
+
+Commits: a87add72 (cycle 1), 95398fae (cycle 2).

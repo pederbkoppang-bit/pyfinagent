@@ -119,3 +119,53 @@ WHY THIS IS FAIL RATHER THAN CONDITIONAL. C8 does not merely imply the per-site 
 ON THE FOUR ATTACKS YOU NAMED. (1) conflict_detector: sound, test-covered, not prose -- confirmed above. (2) The seventh consumer: excluding skill_optimizer:244 is honest in EFFECT (debate_consensus measures '' 487 / NULL 51 / 'HOLD' 4 / 'BUY' 1, no dialect defect) but the stated reason is provenance-wrong -- it reads a BQ column from the same table, not the Literal -- so the right correction is to re-word the ALLOWED entry to cite the measurement, not the type. The real undisclosed population is the four TS/TSX display sites. (3) 91/543 and 16.8% re-derived independently, exact. (4) The 82.12 registry matches the file and the suite is green.
 
 DISCLOSURE. Read-only throughout: no Edit/Write, no redirects, no rm/mv/sed/commit/push. The mutation testing was done entirely in memory via sys.modules injection with the pre-fix source read from `git show`; I verified afterwards that both md5s the author's matrix records are unchanged and that `git status --short -- backend/ scripts/` is empty. No UI capture was taken and none is owed: the diff touches no frontend file and the step makes no UI claim, so qa.md 1c does not bind (the frontend finding above is a source-level grep, not a rendering claim). One minor inconsistency not worth its own violation: experiment_results section 7 says "After the change: 17" while live_check section G says "after 86.22: 16" -- reconcilable as pre- and post-self-fix, but the two artefacts use the same word "after" for different numbers.
+
+
+---
+
+# phase-86.22 -- EVALUATE (cycle 2)
+
+**Verdict: PASS**  (`ok: True`, `harness_compliance_ok: True`, `certified_fallback: False`)
+
+Fresh Q/A on CHANGED evidence (a87add72 -> 95398fae) via the Workflow rail,
+run `wf_5fbffa92-924`. Transcribed VERBATIM. Main records the verdict, never authors it.
+
+## reason
+
+All 8 immutable criteria MET with evidence I reproduced myself, and both cycle-1 blockers are independently confirmed closed. C8: I re-ran the per-site revert axis with a DIFFERENT mechanism than the author's (sys.modules injection of `git show 4b7dab7b:<path>` sources, zero tree writes, vs their tree-write+restore) — CONTROL 58 passed/RC=0, then all SEVEN sites die: outcome_tracker 4 failed, memory 2, bias_detector 2, conflict_detector 1, api/portfolio 1, slack/formatters 1, skill_optimizer 1. Two independently-built mutant forms agreeing rules out a construction artifact. C1: `test_outcome_tracker_evaluate_recommendation_IS_DRIVEN_with_literal_BUY` calls the real `OutcomeTracker.evaluate_recommendation(recommendation="BUY")` on a +12% fixture and asserts `outcome["directionally_correct"] is True` plus that `save_outcome` fired; it is provably NOT a re-implementation because reverting only the module kills it — a test executing a copy would be unaffected. The cycle-1 tautology (`assert t is not None and Settings is not None`) is deleted, not repaired. Immutable verification command reproduced: 200 passed, 3097 deselected, 8.57s, no failures (author claimed 200/8.63s — matches). Criterion 2's NAMED false-negative check reproduced by me: the derivation against pre-fix 4b7dab7b flags `backend/services/outcome_tracker.py:57` and `backend/agents/bias_detector.py:119` explicitly (21 offenders pre-fix, 0 off-allow-list post-fix; recall 9/9, precision 10/10). Criterion 3 verified by direct execution: Accumulate/Overweight/BUYING/'NOT A BUY'/N-A (plus N/A, '', None, 'Strong Buy!', 'BUYOUT', int, dict) all canonicalise to None, buy=False, directional=False. Criterion 5 measured both ways: agent_memories rows=0 (no wrong reflection persisted) and outcome_tracking has no directionally_correct column, so nothing to backfill. Criterion 6 delta (AMD/PANW/MU SELL rows, False->True, 3/3) reproduces from the code. Adversarial item 3: skill_optimizer scoring is NOT broken — old-vs-new differential over the measured population ('' 487, NULL 51, HOLD 4, BUY 1) changes 0 rows; and the derivation itself flags skill_optimizer:244/247/252/255 pre-fix, so removing it from the allow-list was the method's verdict, not a judgement call. Adversarial item 4: the portfolio fixture genuinely discriminates — the losing 'Strong Buy' makes pre-fix read 1/1=100% and post-fix 1/2=50%, and the assertion rejects 100.0 (excluded row) AND 33.3 (HOLD wrongly admitted); my S4 revert kills it. Adversarial item 5: md5 of all 10 touched files is identical to `git show 95398fae:<path>` — the matrix left zero residue. Harness compliance clean (research 01:10:53 < contract 01:13:02 < code 01:14:26/01:15:00; gate_passed=true, 13 sources, recency+audit-class dry coverage; 0 `phase=86.22` result rows in harness_log and masterplan still `pending` = log-last intact; evidence CHANGED between a87add72 and 95398fae so this is the documented cycle-2 flow, not verdict-shopping; 0 prior CONDITIONALs so the 3rd-CONDITIONAL rule does not fire). No unintended production change: git status shows only untracked researcher-memory files and append-only audit/heartbeat JSONL. Code-review heuristics run across all 5 dimensions: no BLOCK or WARN — no secrets, no broad-except added, no perf_metrics bypass, kill_switch/stop-loss/trade-gate untouched (the money path is 86.20's still-dark flag), and the illusory-guard hunt found every remaining guard has a named, executed, killing mutation.
+
+## violated_criteria
+
+none
+
+## checks_run
+
+- `harness_compliance_audit_5_item`
+- `research_gate_envelope`
+- `contract_before_generate_mtime_chain`
+- `log_last_and_masterplan_status`
+- `no_verdict_shopping_evidence_delta`
+- `third_conditional_counter_grep`
+- `immutable_verification_command`
+- `python_lint_ruff_F821_F401_F811_derived_scope`
+- `ruff_delta_vs_prefix_rev_per_file`
+- `backend_import_smoke_8_modules`
+- `independent_per_site_revert_mutation_7_sites`
+- `independent_vocabulary_axis_mutation_4_forms`
+- `mutation_survivor_triage_wide_scope`
+- `tree_integrity_md5_vs_commit`
+- `derivation_recall_precision_validate`
+- `derivation_against_prefix_rev_named_lines`
+- `second_normaliser_repo_scan_independent`
+- `allow_list_reason_audit`
+- `non_widening_direct_execution`
+- `skill_optimizer_behavioural_differential`
+- `driven_vs_reimplemented_test_inspection`
+- `portfolio_fixture_discrimination_check`
+- `claim_audit_experiment_results_live_check`
+- `code_review_heuristics`
+- `evaluator_critique`
+
+## notes (four NOTE-level items, PASS-with-flag)
+
+Four NOTE-level items (PASS-with-flag; none degrade the verdict, all disclosed so an operator can overrule). N1 RUFF: over the DERIVED scope (`git diff --name-only 4b7dab7b 95398fae -- '*.py'` = 13 files, non-empty guard asserted, array-quoted to avoid the zsh word-split trap) `uvx ruff check --select F821,F401,F811` exits 1 with 7 F401s. I measured the per-file DELTA against the pre-fix rev via `git show <rev>:<f> | ruff --stdin-filename`: pre==post on EVERY file (bias_detector 1/1, conflict_detector 2/2, memory 1/1, outcome_tracker 3/3, skill_optimizer 0/0, portfolio 0/0, formatters 0/0, recommendation_vocab 0/0) — ZERO introduced by 86.22. qa.md 1a reads non-zero as FAIL; I am not applying that here because the gate exists to catch what the DIFF introduces and the introduced count is zero. Stating it plainly rather than burying it: the dead imports are `conflict_detector.py:11 Optional`, `outcome_tracker.py:11 timedelta / :12 Optional / :17 compute_benchmark_return`, and `json` in bias_detector/conflict_detector/memory — all in files this step touched, so a sweep would have been natural. Recommend a queued hygiene step. N2 SCOPE HONESTY — the one claim I could NOT reproduce: the "14 failed / 3265 passed, all pre-existing or midnight-rollover, none mine" full-suite classification rests on the author's capture alone; my own background full-suite run returned 0 bytes within the window, so I have no independent membership list. This does not block — the actual gate (the immutable -k command) is green 200/200 under my hand, all 8 changed backend modules import clean, and no failing-test membership diff was needed to close any criterion — but the 14-failure classification is unverified by me and should be read as the author's. N3 live_check section E carries the CYCLE-1 capture ("188 passed, 6.92s") while section K carries cycle 2 ("200 passed, 8.63s"). Append-only and labelled, so this is not a spliced-verbatim defect, but a reader landing on E gets a retired number — a one-line "superseded by K" pointer would close it. N4 The allow-list is now down to one substantive entry, `formatters.py::_signal_emoji`. I audited its reason rather than accepting it (this is the exact shape the cycle-1 Q/A disproved for skill_optimizer): it is corroborated independently by `backend/agents/mcp_servers/signals_server.py:159`, which documents the SIGNAL scale as "BUY"|"SELL"|"HOLD" — a separate closed scale that never carries a spaced or STRONG_ spelling — and the consumer is display-only (an emoji colour). I did not read the literal `action = signal.get(...)` assignment line; worst-case consequence is a wrong emoji, so non-blocking. ONE MUTANT OF MINE SURVIVED AND I AM REPORTING IT WITH ITS TRIAGE: replacing `canonical_recommendation` with a strip-less variant left the 86.22 file fully green (58 passed). Widening scope resolved it — the same mutant dies (4 failed) under the immutable -k selection, killed by phase-86.20's padded-input parity oracle at test_phase_86_20_portfolio_manager_recommendation_vocabulary.py:440,488. `.strip()` is 86.20 code, not a new 86.22 guard, so it is correctly out of criterion 7's scope and this is NOT a finding — but a survivor is only dismissible after the differential is run, so the run is recorded. Two behaviour changes outside the criterion-3 named set, both benign and inherited from 86.20's canonicaliser: whitespace-padded 'buy '/' BUY' now register as buy intent (they did not pre-fix), which is correct intent recovery, and 'BUYOUT' now falls to the neutral Slack colour instead of rendering as a buy (moves the safe way). ON THE FAIL->PASS REVERSAL: this is not sycophancy under rebuttal. The code materially changed between a87add72 and 95398fae (skill_optimizer migrated rather than defended, +248 test lines, the tautological "load-bearing behavioural assertion" deleted), and I did not accept the author's 18/18 matrix — I re-derived the seven per-site kills and four vocabulary mutants myself, under a different construction, before reversing.

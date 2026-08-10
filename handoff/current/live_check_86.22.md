@@ -267,7 +267,13 @@ labels that CHANGE: 3/3   (three correct sell calls, each previously scored wron
 agent_memories rows = 0  -> no reflection persisted yet
 ```
 
-## E. Immutable verification command
+## E. Immutable verification command  (CYCLE 1 -- SUPERSEDED BY SECTION K)
+
+> Added after the cycle-2 PASS in response to the Q/A's note N3: the capture
+> below is the CYCLE-1 run (188 passed). Cycle 2 added seven consumer-driving
+> tests, so the current number is **200 passed** -- see section K. This block is
+> kept because the file is append-only and a captured number is never rewritten
+> in place; it is labelled rather than edited.
 
 ```
 $ bash -c 'source .venv/bin/activate && python -m pytest backend/tests/ -q -k "outcome_tracker or bias_detector or conflict_detector or portfolio_manager"'
