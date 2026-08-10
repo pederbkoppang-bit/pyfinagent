@@ -192,3 +192,62 @@ left open.
 `.claude/agents/researcher.md` was edited this step (a one-line factual
 correction of `agentType` to match shipped code). Flagged for Peder's
 review per CLAUDE.md; it changes no behaviour of the role.
+
+---
+
+## 9. CYCLE 7 -- a real survivor, recovered from a DROPPED Q/A run
+
+Q/A `wf_e03ec2d0-c07` dropped without a verdict (174,664 tokens), but it got
+much further than the earlier drops -- 8 assistant turns, dying only at the
+last corroboration step. Its partial transcript recorded a **surviving
+mutant**, and that is information, not a verdict:
+
+```
+### W2-REDO: driver tierInfo.absent drifts to false
+    ALL GREEN: 92 passed, 0 failed   -> *** SURVIVED ***
+```
+
+**Why it survived.** `absent: tierAbsent` -> `absent: false` at the driver's
+`enforceGate` call. The two fidelity checks compare the FIXTURE against the
+driver's RETURN VALUE, and `absent` is not a return field -- it is internal
+to `tierInfo` -- so drift in it was unobservable. Its only visible effect is
+which branch label `enforceGate` emits, and the label assertions drove
+`enforceGate` through the fixture rather than through the driver that builds
+`tierInfo`. Same class as cycle 5: a guard aimed near its subject rather
+than at it.
+
+**Fixed without touching production.** The driver returns `checks`, so the
+label IS observable end-to-end. Three checks now assert it there, plus a
+standing `[7b]` mutant.
+
+Killed, captured:
+
+```
+$ node scripts/qa/verify_research_gate_workflow.mjs      # W2-REDO mutated copy
+FAILED: 93 passed, 2 failed
+  - DRIVER-built tierInfo yields the ABSENT branch label end-to-end -- ["tier_supported_ok: \"moderate\"","empty_or_errored_return: the agent returned null"]
+  - ...and NOT the supported-branch label -- ["tier_supported_ok: \"moderate\"","empty_or_errored_return: the agent returned null"]
+```
+
+93 + 2 = 95, the suite size at that moment. Standing matrix now:
+
+```
+[7b] phase-86.28 cycle 6 -- DRIVER-level mutants (the [7] matrix drives enforceGate ONLY)
+  ok   driver-mutant "driver reports the APPLIED tier as tier_requested (main return)" anchor is UNIQUE (1)
+  ok   driver-mutant "driver reports the APPLIED tier as tier_requested (main return)" is KILLED [guard: ABSENT tier reports tier_requested null and applied moderate]
+  ok   driver-mutant "refusal path claims the tier WAS supported" anchor is UNIQUE (1)
+  ok   driver-mutant "refusal path claims the tier WAS supported" is KILLED [guard: TIER_UNSUPPORTED fixture matches the driver / UNSUPPORTED returns the tier]
+  ok   driver-mutant "driver tierInfo.absent drifts to false" anchor is UNIQUE (1)
+  ok   driver-mutant "driver tierInfo.absent drifts to false" is KILLED [guard: DRIVER-built tierInfo yields the ABSENT branch label end-to-end]
+  ok   driver-mutant "supported tier silently downgraded to the default" anchor is UNIQUE (1)
+  ok   driver-mutant "supported tier silently downgraded to the default" is KILLED [guard: a SUPPORTED non-default tier is APPLIED, not silently downgraded]
+  ok   fixture-mutant "TIER_ABSENT reverted to cycle-4 supported:true" is KILLED
+
+ALL GREEN: 97 passed, 0 failed
+```
+
+Ladder: 40 -> 61 -> 64 -> 73 -> 78 -> 92 -> 95 -> **97**. Valid suite sizes
+for the arithmetic audit: 40 / 61 / 64 / 73 / 78 / 92 / 95 / 97.
+
+`.claude/workflows/research-gate.js` remains frozen since cycle 3 -- this
+fix is entirely in the checker.

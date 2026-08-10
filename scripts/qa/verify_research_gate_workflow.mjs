@@ -484,6 +484,33 @@ console.log('\n[6d] phase-86.28 cycle 3 -- BEHAVIOURAL: does the driver actually
   check('fidelity check REJECTS the cycle-4 fixture shape (supported:true for absent)',
     true !== (absentRun.result && absentRun.result.tier_supported))
 
+  // CYCLE 7 -- the DRIVER-BUILT tierInfo, not just the fixture.
+  //
+  // Surviving mutant found by Q/A run wf_e03ec2d0-c07 before it dropped:
+  // `absent: tierAbsent` -> `absent: false` at the driver's enforceGate call
+  // left the suite at ALL GREEN 92/0. The two fidelity checks above compare
+  // the FIXTURE against the driver's RETURN VALUE, and `absent` is not a
+  // return field -- it is internal to the tierInfo object -- so drift in it
+  // was unobservable. Its only visible effect is which branch label
+  // enforceGate emits, and the label assertions test enforceGate through the
+  // FIXTURE rather than through the driver.
+  //
+  // The label IS observable end-to-end, because the driver returns
+  // `checks`. Assert it there, which closes the gap without a production
+  // change: a drifted `absent` emits tier_supported_ok instead.
+  const absentChecks = (absentRun.result && absentRun.result.checks) || []
+  check('DRIVER-built tierInfo yields the ABSENT branch label end-to-end',
+    absentChecks.some(c => c.includes('tier_absent_defaulted_ok')),
+    JSON.stringify(absentChecks))
+  check('...and NOT the supported-branch label',
+    !absentChecks.some(c => c.includes('tier_supported_ok')),
+    JSON.stringify(absentChecks))
+  const unsupChecks = (unsupported.result && unsupported.result.checks) || []
+  check('DRIVER-built tierInfo yields NEITHER branch label for UNSUPPORTED',
+    !unsupChecks.some(c => c.includes('tier_absent_defaulted_ok'))
+    && !unsupChecks.some(c => c.includes('tier_supported_ok')),
+    JSON.stringify(unsupChecks))
+
   // The enforceGate absent-branch LABEL is what makes ABSENT and UNSUPPORTED
   // distinguishable in the checks[] output; guard it directly.
   {
@@ -594,6 +621,19 @@ console.log('\n[7b] phase-86.28 cycle 6 -- DRIVER-level mutants (the [7] matrix 
         return r && r.tier_supported === false
       },
       'TIER_UNSUPPORTED fixture matches the driver / UNSUPPORTED returns the tier'],
+
+    // Found by Q/A wf_e03ec2d0-c07 as a SURVIVOR at ALL GREEN 92/0, before
+    // that run dropped without returning a verdict. Its only visible effect is
+    // which branch label enforceGate emits, which the fixture-level assertions
+    // could not see -- they drive enforceGate directly rather than through the
+    // driver that builds tierInfo.
+    ['driver tierInfo.absent drifts to false',
+      'absent: tierAbsent,', 'absent: false,',
+      async (drive) => {
+        const r = (await driveRecording(drive, { step_id: 'DM' })).result
+        return !!(r && (r.checks || []).some(c => c.includes('tier_absent_defaulted_ok')))
+      },
+      'DRIVER-built tierInfo yields the ABSENT branch label end-to-end'],
 
     ['supported tier silently downgraded to the default',
       'const tier = tierSupported ? tierRequested : \'moderate\'', 'const tier = \'moderate\'',
