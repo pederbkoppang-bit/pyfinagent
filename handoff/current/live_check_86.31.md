@@ -1762,3 +1762,62 @@ The headline correction above is unaffected and reproduces exactly: at log prefi
 Those `verdict_wip_86.34.md` writes are this evening's two evaluations
 persisting themselves -- the mechanism working in production, on the day it
 shipped, on the step that produced tonight's FAIL.
+
+
+---
+
+## THE MECHANISM PROVED ITSELF ON A REAL DROP -- criterion 3, live
+
+**2026-08-10 20:32:47Z**, cycle-4 Q/A `wf_66c37324-b95` spawned. **20:46:56Z**,
+the rail **DROPPED**:
+
+```
+Error: agent({schema}): subagent completed without calling StructuredOutput
+       (after in-conversation nudge)
+subagent_tokens 187,369 | tool_uses 36 | duration 942s | agents_empty_result 1
+```
+
+**187,369 tokens returned NOTHING.** This is the exact failure 86.31 was filed
+to survive, and it happened to the evaluation *of 86.31*. Criterion 3 permits "a
+real interrupted run **or** a faithful simulation" -- the earlier evidence was
+the simulation; this is the real one.
+
+**What survived**, read through the caller-facing reader, not by eyeballing the
+file:
+
+```
+$ python scripts/qa/qa_wip.py 86.31 --spawned-at 2026-08-10T20:32:47Z
+{
+  "status": "INCOMPLETE",
+  "is_verdict": false,
+  "recoverable": true,
+  "bytes": 6239,
+  "written_at": "2026-08-10T20:32:51Z",
+  "identity_checked": true,
+  "guidance": "INCOMPLETE: the run was truncated, so the analysis is partial and
+               may contradict itself. Treat as EVIDENCE FOR THE NEXT SPAWN ONLY.
+               An errored/empty rail return is NO VERDICT, NEVER PASS."
+}
+```
+
+6,239 bytes / 83 lines, written **4 seconds after spawn** and appended for
+14m05s. Before 86.31 this would have been **zero bytes**.
+
+**Criteria 3 and 4 are both exercised here, and 4 is the one that matters.** The
+artifact carries `STATUS: INCOMPLETE`, the reader returns `is_verdict: false`,
+and **Main is NOT treating it as a verdict.** The step stays `pending`. An
+errored return is NO VERDICT, never PASS -- that rule is why a recovered partial
+is safe to keep at all.
+
+### The staleness leg fired against ME, and that is the point
+
+My first reading passed `--spawned-at 2026-08-10T21:12:00Z` -- a time I derived
+from my own narration instead of measuring. The reader returned **STALE /
+`recoverable: false`**, correctly refusing to hand back a file it judged older
+than the spawn. The real spawn time is `20:32:47Z`, taken from the run
+directory's birth timestamp; with that input the same file is CURRENT.
+
+So the identity/staleness check caught a caller supplying a wrong timestamp,
+which is precisely its job -- and it was the **sixth** probe error of 2026-08-10,
+this time in the recovery path itself. A reader that had simply returned the file
+would have told me nothing about whether it belonged to this run.
