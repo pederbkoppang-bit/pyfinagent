@@ -7,6 +7,7 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Date | Commit | Change |
 |------|--------|--------|
+| 2026-08-10 | `82e3e55d` | phase-86.34 cycle 3: fix all three CONDITIONAL findings |
 | 2026-08-10 | `ea7eb194` | phase-86.34: record cycle-2 Q/A verdict VERBATIM -- CONDITIONAL |
 | 2026-08-10 | `34302f05` | phase-86.34: harness_log cycle 1206 -- FAIL on a vacuous oracle I published as proof |
 | 2026-08-10 | `4e97374f` | phase-86.34 cycle 2: fix the FAIL -- correct the claim that survived, kill the vacuous oracle |
@@ -26,10 +27,12 @@ For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
 | 2026-08-10 | `23270f29` | phase-86.37 cycle 3: kill the third evasion, regenerate the live_check, PARK on an operator ask |
 | 2026-08-10 | `133060b0` | phase-86.37 cycle 2: the FAIL was right -- my drop guards were source scans |
 | 2026-08-10 | `d3bb1dfb` | phase-86.37: a dropped research gate no longer destroys the run (operator-directed) |
-| 2026-08-10 | `2a696ac7` | phase-86.29: research GATE FAILED (rail dropped); brief preserved, no contract written |
 
 ---
 
+### v6.93.73 — phase-86.34 cycle 3: fix all three CONDITIONAL findings (2026-08-10)
+
+- **phase-86.34 cycle 3: fix all three CONDITIONAL findings**
 ### v6.93.72 — phase-86.34: record cycle-2 Q/A verdict VERBATIM -- CONDITIONAL (2026-08-10)
 
 - **phase-86.34: record cycle-2 Q/A verdict VERBATIM -- CONDITIONAL**
